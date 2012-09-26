@@ -28,7 +28,6 @@ static int cleaner_period=0, cleaner_iterations=0;
 static uint32_t lock_flag = 0;
 static long limitcount=-1;
 static uint32_t cachesize = 127*1024*1024;
-static int do_mysql = 0;
 static uint64_t start_range = 0, end_range = 0;
 static int n_experiments = 2;
 static int bulk_fetch = 1;
@@ -50,7 +49,6 @@ static int print_usage (const char *argv0) {
     fprintf(stderr, "  --cachesize <n>          set the env cachesize to <n>\n");
     fprintf(stderr, "  --cleaner-period <n>     set the cleaner period to <n>\n");
     fprintf(stderr, "  --cleaner-iterations <n> set the cleaner iterations to <n>\n");
-    fprintf(stderr, "  --mysql                  compare keys that are mysql big int not null types\n");
     fprintf(stderr, "  --env DIR                put db files in DIR instead of default\n");
     fprintf(stderr, "  --log_dir LOGDIR         put the logs in LOGDIR\n");
     fprintf(stderr, "  --range LOW HIGH         set the LOW and HIGH key boundaries in which random range queries are made\n");
@@ -128,8 +126,6 @@ static void parse_args (int argc, char *const argv[]) {
             argc--; argv++;
 	    if (argc==0) exit(print_usage(pname));
 	    log_dir = *argv;
-        } else if (strcmp(*argv, "--mysql") == 0) {
-            do_mysql = 1;
         } else if (strcmp(*argv, "--verbose") == 0) {
             verbose = 1;
         } else if (strcmp(*argv, "--range") == 0 && argc > 2) {
@@ -166,34 +162,9 @@ static void parse_args (int argc, char *const argv[]) {
 }
 
 
-static inline uint64_t mysql_get_bigint(unsigned char *d) {
-    uint64_t r = 0;
-    memcpy(&r, d, sizeof r);
-    return r;
-}
-
-static int mysql_key_compare(DB* file __attribute__((unused)),
-                               const DBT *adbt, const DBT *bdbt) {
-    unsigned char *CAST_FROM_VOIDP(adata, adbt->data);
-    unsigned char *CAST_FROM_VOIDP(bdata, bdbt->data);
-    uint64_t a, b;
-    assert(adbt->size == 9 && bdbt->size == 9);
-    assert(adata[0] == 0 && bdata[0] == 0);
-    a = mysql_get_bigint(adata+1);
-    b = mysql_get_bigint(bdata+1);
-    if (a < b) return -1;
-    if (a > b) return +1;
-    return 0;
-}
-
 static void scanscan_setup (void) {
     int r;
     r = db_env_create(&env, 0);                                                           assert(r==0);
-#ifdef TOKUDB
-    if (do_mysql) {
-        r = env->set_default_bt_compare(env, mysql_key_compare); assert(r == 0);
-    }
-#endif
     r = env->set_cachesize(env, 0, cachesize, 1);                                         assert(r==0);
     if (log_dir) {
         r = env->set_lg_dir(env, log_dir);                                                assert(r==0);
@@ -212,11 +183,6 @@ static void scanscan_setup (void) {
     }
 #endif
     r = db_create(&db, env, 0);                                                           assert(r==0);
-#ifndef TOKUDB
-    if (do_mysql) {
-        r = db->set_bt_compare(db, mysql_key_compare); assert(r == 0);
-    }
-#endif
     if (do_txns) {
 	r = env->txn_begin(env, 0, &tid, 0);                                              assert(r==0);
     }
@@ -240,16 +206,6 @@ static void scanscan_shutdown (void) {
 	print_engine_status(env);
     r = env->close(env, 0);                                     assert(r==0);
     env = NULL;
-
-#if 0 && defined TOKUDB
-    {
-	extern int toku_os_get_max_rss(int64_t*);
-        int64_t mrss;
-        int r = toku_os_get_max_rss(&mrss);
-        assert(r==0);
-	printf("maxrss=%.2fMB\n", mrss/256.0);
-    }
-#endif
 }
 
 
@@ -293,13 +249,6 @@ static int counttotalbytes (DBT const *key, DBT const *data, void *extrav) {
     struct extra_count *CAST_FROM_VOIDP(e, extrav);
     e->totalbytes += key->size + data->size;
     e->rowcounter++;
-    if (do_mysql && false) {
-        static uint64_t expect_key = 0;
-        uint64_t k = mysql_get_bigint((unsigned char*)key->data+1);
-        if (k != expect_key)
-            printf("%s:%d %" PRIu64 " %" PRIu64 "\n", __FUNCTION__, __LINE__, k, expect_key);
-        expect_key = k + 1;
-    }
     return bulk_fetch ? TOKUDB_CURSOR_CONTINUE : 0;
 }
 
@@ -472,21 +421,5 @@ static int test_main (int argc, char *const argv[]) {
     }
     scanscan_shutdown();
 
-#if defined(__linux__) && __linux__
-    if (verbose) {
-        char fname[256];
-        sprintf(fname, "/proc/%d/status", toku_os_getpid());
-        FILE *f = fopen(fname, "r");
-        if (f) {
-            char line[256];
-            while (fgets(line, sizeof line, f)) {
-                int n;
-                if (sscanf(line, "VmPeak: %d", &n) || sscanf(line, "VmHWM: %d", &n) || sscanf(line, "VmRSS: %d", &n))
-                    fputs(line, stdout);
-            }
-            fclose(f);
-        }
-    }
-#endif
     return 0;
 }
