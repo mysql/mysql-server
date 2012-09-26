@@ -33,7 +33,7 @@ var user_args = [];
 // analyze command line
 
 var usageMessage = 
-  "Usage: node delete message-id\n" +
+  "Usage: node find key\n" +
   "          -h or --help: print this message\n" +
   "         -d or --debug: set the debug flag\n" +
   "  --mysql_socket=value: set the mysql socket\n" +
@@ -106,7 +106,7 @@ if (exit) {
   process.exit(0);
 }
 
-console.log('Running delete with adapter', adapter, user_args);
+console.log('Running find with adapter', adapter, user_args);
 //create a database properties object
 
 var dbProperties = nosql.ConnectionProperties(adapter);
@@ -117,35 +117,28 @@ var annotations = new nosql.Annotations();
 
 annotations.mapClass(lib.Tweet, {'table' : 'tweet'});
 
-//check results of delete
-var onDelete = function(err, object) {
-  console.log('onDelete.');
+//check results of find
+var onFind = function(err, object) {
+  console.log('onFind.');
   if (err) {
     console.log(err);
   } else {
-    console.log('Deleted: ' + JSON.stringify(object));
+    console.log('Found: ' + JSON.stringify(object));
   }
   process.exit(0);
 };
 
-// delete an object
+// find an object
 var onSession = function(err, session) {
   if (err) {
     console.log('Error onSession.');
     console.log(err);
     process.exit(0);
   } else {
-    var tweet = new lib.Tweet();
-    tweet.id = user_args[0];
-    session.remove(tweet, onDelete, user_args[0]);
+    session.find(lib.Tweet, user_args[0], onFind);
   }
 };
 
 // connect to the database
-var onSQLCreate = function() {
-  nosql.openSession(dbProperties, annotations, onSession);
-};
-
-lib.SQL.create('samples', onSQLCreate);
-
+nosql.openSession(dbProperties, annotations, onSession);
 
