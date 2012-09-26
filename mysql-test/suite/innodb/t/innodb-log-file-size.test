@@ -47,7 +47,8 @@ INSERT INTO t1 VALUES (123);
 
 let $MYSQLD_DATADIR= `select @@datadir`;
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
-let crash=--loose-console > $SEARCH_FILE 2>&1 --innodb-force-recovery-crash;
+let $args=--loose-console > $SEARCH_FILE 2>&1;
+let crash=$args --innodb-force-recovery-crash;
 
 SET DEBUG='+d,crash_commit_before';
 # Write file to make mysql-test-run.pl restart the server
@@ -56,11 +57,16 @@ SET DEBUG='+d,crash_commit_before';
 DELETE FROM t1;
 
 --error 1
---exec $MYSQLD_CMD --innodb-log-group-home-dir=foo\;bar > $SEARCH_FILE 2>&1
---error 1
---exec $MYSQLD_CMD --innodb-mirrored-log-groups=2 > $SEARCH_FILE 2>&1
-
+--exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar
+let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir, or a wrong number of mirrored log groups;
+--source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
+
+--error 1
+--exec $MYSQLD_CMD $args --innodb-mirrored-log-groups=2
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
 --echo --innodb-force-recovery-crash=1
 --error 137
 --exec $MYSQLD_CMD $crash=1
@@ -114,6 +120,13 @@ let SEARCH_PATTERN= InnoDB: Resizing redo log from 3(\*[0-9]+0) to 2\1 pages;
 # this crashes right after deleting all log files
 --list_files $MYSQLD_DATADIR
 --remove_file $SEARCH_FILE
+
+--error 1
+--exec $MYSQLD_CMD $args --innodb-read-only
+let SEARCH_PATTERN= InnoDB: Cannot create log files in read-only mode;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
 --echo --innodb-force-recovery-crash=8
 --error 137
 --exec $MYSQLD_CMD $crash=8
