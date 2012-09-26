@@ -3086,7 +3086,8 @@ table_found:
   table_list->table= table;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (table->part_info)
+  if (table->part_info &&
+      !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION))
   {
 
     /* Set all [named] partitions as used. */
