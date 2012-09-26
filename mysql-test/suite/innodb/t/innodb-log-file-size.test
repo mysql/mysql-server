@@ -87,6 +87,15 @@ let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
 --remove_file $SEARCH_FILE
+
+--error 1
+--exec $MYSQLD_CMD $args --innodb-read-only
+let SEARCH_PATTERN= InnoDB: Recovery skipped, --innodb-read-only set!;
+--source include/search_pattern_in_file.inc
+let SEARCH_PATTERN= InnoDB: Can.t initiate database recovery, running in read-only-mode;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
 --echo --innodb-force-recovery-crash=4
 --error 137
 --exec $MYSQLD_CMD $crash=4
@@ -105,6 +114,13 @@ let SEARCH_PATTERN= InnoDB: Resizing redo log from 3(\*[0-9]+0) to 2\1 pages;
 --source include/search_pattern_in_file.inc
 --list_files $MYSQLD_DATADIR
 --remove_file $SEARCH_FILE
+
+--error 1
+--exec $MYSQLD_CMD $args --innodb-read-only
+let SEARCH_PATTERN= InnoDB: Can.t initiate database recovery, running in read-only-mode;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
 --echo --innodb-force-recovery-crash=6
 --error 137
 --exec $MYSQLD_CMD $crash=6
