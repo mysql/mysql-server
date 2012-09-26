@@ -10,13 +10,19 @@ endif ()
 
 ## preprocessor definitions we want everywhere
 add_c_defines(
-  _SVID_SOURCE
-  _XOPEN_SOURCE=600
   _FILE_OFFSET_BITS=64
   _LARGEFILE64_SOURCE
   __STDC_FORMAT_MACROS
   __STDC_LIMIT_MACROS
+  __LONG_LONG_SUPPORTED
   )
+if (NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD)
+  ## on FreeBSD these types of macros actually remove functionality
+  add_c_defines(
+    _SVID_SOURCE
+    _XOPEN_SOURCE=600
+    )
+endif ()
 
 ## add TOKU_PTHREAD_DEBUG for debug builds
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_DEBUG TOKU_PTHREAD_DEBUG)
