@@ -49,6 +49,23 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ydb/upgrade-test-4.tdb
   )
 
+if (NOT @RUN_HELGRIND_TESTS@)
+  list(APPEND CTEST_CUSTOM_TESTS_IGNORE
+    ft/helgrind_test_partitioned_counter
+    ydb/helgrind_helgrind1.tdb
+    ydb/helgrind_helgrind2.tdb
+    ydb/helgrind_helgrind3.tdb
+    ydb/helgrind_test_groupcommit_count.tdb
+    )
+endif ()
+
+if (NOT @RUN_DRD_TESTS@)
+  list(APPEND CTEST_CUSTOM_TESTS_IGNORE
+    ydb/drd_test_groupcommit_count.tdb
+    ydb/drd_test_4015.tdb
+    )
+endif ()
+
 ## osx's pthreads prefer writers, so this test will deadlock
 if (@CMAKE_SYSTEM_NAME@ STREQUAL Darwin)
   list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE portability/test-pthread-rwlock-rwr)
@@ -92,6 +109,13 @@ foreach(test ${stress_tests})
       ydb/drd_large_${test}
       )
   endif()
+  if (NOT @RUN_DRD_TESTS@)
+    list(APPEND CTEST_CUSTOM_TESTS_IGNORE
+      ydb/drd_tiny_${test}
+      ydb/drd_mid_${test}
+      ydb/drd_large_${test}
+      )
+  endif ()
 endforeach(test)
 
 ## upgrade stress tests are 5 minutes long, don't need to run them always
