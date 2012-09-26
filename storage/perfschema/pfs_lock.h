@@ -142,6 +142,20 @@ struct pfs_lock
   }
 
   /**
+    Initialize a lock to allocated.
+    This transition should be executed by the writer that owns the record and the lock,
+    after the record is in a state ready to be read.
+  */
+  void set_allocated(void)
+  {
+    /* Do not set the version to 0, read the previous value. */
+    uint32 copy= PFS_atomic::load_u32(&m_version_state);
+    /* Increment the version, set the ALLOCATED state */
+    uint32 new_val= (copy & VERSION_MASK) + VERSION_INC + PFS_LOCK_ALLOCATED;
+    PFS_atomic::store_u32(&m_version_state, new_val);
+  }
+
+  /**
     Execute a dirty to free transition.
     This transition should be executed by the writer that owns the record.
   */
