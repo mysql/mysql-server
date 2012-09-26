@@ -289,6 +289,7 @@ fts_add_doc_by_id(
 	doc_id_t	doc_id,		/*!< in: doc id */
 	ib_vector_t*	fts_indexes __attribute__((unused)));
 					/*!< in: affected fts indexes */
+#ifdef FTS_DOC_STATS_DEBUG
 /****************************************************************//**
 Check whether a particular word (term) exists in the FTS index.
 @return DB_SUCCESS if all went fine */
@@ -302,6 +303,7 @@ fts_is_word_in_index(
 	const fts_string_t* word,	/*!< in: the word to check */
 	ibool*		found)		/*!< out: TRUE if exists */
 	__attribute__((nonnull, warn_unused_result));
+#endif /* FTS_DOC_STATS_DEBUG */
 
 /******************************************************************//**
 Update the last document id. This function could create a new
@@ -1224,7 +1226,7 @@ fts_tokenizer_word_get(
 	if (rbt_search(cache->stopword_info.cached_stopword,
 		       &parent, text) == 0) {
 
-		return NULL;
+		return(NULL);
 	}
 
 	/* Check if we found a match, if not then add word to tree. */
@@ -1962,22 +1964,22 @@ fts_get_state_str(
 {
 	switch (state) {
 	case FTS_INSERT:
-		return "INSERT";
+		return("INSERT");
 
 	case FTS_MODIFY:
-		return "MODIFY";
+		return("MODIFY");
 
 	case FTS_DELETE:
-		return "DELETE";
+		return("DELETE");
 
 	case FTS_NOTHING:
-		return "NOTHING";
+		return("NOTHING");
 
 	case FTS_INVALID:
-		return "INVALID";
+		return("INVALID");
 
 	default:
-		return "UNKNOWN";
+		return("UNKNOWN");
 	}
 }
 #endif
@@ -2390,6 +2392,7 @@ fts_get_max_cache_size(
 }
 #endif
 
+#ifdef FTS_DOC_STATS_DEBUG
 /*********************************************************************//**
 Get the total number of words in the FTS for a particular FTS index.
 @return DB_SUCCESS if all OK else error code */
@@ -2429,6 +2432,7 @@ fts_get_total_word_count(
 
 	return(error);
 }
+#endif /* FTS_DOC_STATS_DEBUG */
 
 /*********************************************************************//**
 Update the next and last Doc ID in the CONFIG table to be the input
@@ -3575,6 +3579,20 @@ fts_doc_fetch_by_doc_id(
 		} else {
 			ut_ad(option == FTS_FETCH_DOC_BY_ID_LARGE);
 
+			/* This is used for crash recovery of table with
+			hidden DOC ID or FTS indexes. We will scan the table
+			to re-processing user table rows whose DOC ID or
+			FTS indexed documents have not been sync-ed to disc
+			during recent crash.
+			In the case that all fulltext indexes are dropped
+			for a table, we will keep the "hidden" FTS_DOC_ID
+			column, and this scan is to retreive the largest
+			DOC ID being used in the table to determine the
+			appropriate next DOC ID.
+			In the case of there exists fulltext index(es), this
+			operation will re-tokenize any docs that have not
+			been sync-ed to the disk, and re-prime the FTS
+			cached */
 			graph = fts_parse_sql(
 				NULL,
 				info,
@@ -3582,8 +3600,7 @@ fts_doc_fetch_by_doc_id(
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
 					" SELECT %s, %s FROM %s"
-					" WHERE %s > :doc_id"
-					" ORDER BY %s;\n"
+					" WHERE %s > :doc_id;\n"
 					"BEGIN\n"
 					""
 					"OPEN c;\n"
@@ -3596,7 +3613,6 @@ fts_doc_fetch_by_doc_id(
 					"CLOSE c;",
 					FTS_DOC_ID_COL_NAME,
 					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME,
 					FTS_DOC_ID_COL_NAME));
 		}
 		if (get_doc) {
@@ -3756,10 +3772,12 @@ fts_sync_write_words(
 	ulint		n_nodes = 0;
 	ulint		n_words = 0;
 	const ib_rbt_node_t* rbt_node;
-	ulint		n_new_words = 0;
 	dberr_t		error = DB_SUCCESS;
 	ibool		print_error = FALSE;
+#ifdef FTS_DOC_STATS_DEBUG
 	dict_table_t*	table = index_cache->index->table;
+	ulint		n_new_words = 0;
+#endif /* FTS_DOC_STATS_DEBUG */
 
 	FTS_INIT_INDEX_TABLE(
 		&fts_table, NULL, FTS_INDEX_TABLE, index_cache->index);
@@ -3784,9 +3802,10 @@ fts_sync_write_words(
 
 		fts_table.suffix = fts_get_suffix(selected);
 
+#ifdef FTS_DOC_STATS_DEBUG
 		/* Check if the word exists in the FTS index and if not
 		then we need to increment the total word count stats. */
-		if (error == DB_SUCCESS) {
+		if (error == DB_SUCCESS && fts_enable_diag_print) {
 			ibool	found = FALSE;
 
 			error = fts_is_word_in_index(
@@ -3800,6 +3819,7 @@ fts_sync_write_words(
 				++n_new_words;
 			}
 		}
+#endif /* FTS_DOC_STATS_DEBUG */
 
 		n_nodes += ib_vector_size(word->nodes);
 
@@ -3835,19 +3855,23 @@ fts_sync_write_words(
 		ut_free(rbt_remove_node(index_cache->words, rbt_node));
 	}
 
-	if (error == DB_SUCCESS && n_new_words > 0) {
+#ifdef FTS_DOC_STATS_DEBUG
+	if (error == DB_SUCCESS && n_new_words > 0 && fts_enable_diag_print) {
 		fts_table_t	fts_table;
 
 		FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
 
 		/* Increment the total number of words in the FTS index */
-		fts_config_increment_index_value(
+		error = fts_config_increment_index_value(
 			trx, index_cache->index, FTS_TOTAL_WORD_COUNT,
 			n_new_words);
 	}
+#endif /* FTS_DOC_STATS_DEBUG */
 
-	printf("Avg number of nodes: %lf\n",
-	       (double) n_nodes / (double) (n_words > 1 ? n_words : 1));
+	if (fts_enable_diag_print) {
+		printf("Avg number of nodes: %lf\n",
+		       (double) n_nodes / (double) (n_words > 1 ? n_words : 1));
+	}
 
 	return(error);
 }
@@ -3968,7 +3992,6 @@ fts_sync_write_doc_stats(
 
 	return(error);
 }
-#endif /* FTS_DOC_STATS_DEBUG */
 
 /*********************************************************************//**
 Callback to check the existince of a word.
@@ -4078,6 +4101,7 @@ fts_is_word_in_index(
 
 	return(error);
 }
+#endif /* FTS_DOC_STATS_DEBUG */
 
 /*********************************************************************//**
 Begin Sync, create transaction, acquire locks, etc. */

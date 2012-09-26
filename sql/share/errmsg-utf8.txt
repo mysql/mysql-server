@@ -6947,6 +6947,9 @@ ER_ERROR_ON_MASTER
 ER_INCONSISTENT_ERROR
   eng "Query caused different errors on master and slave. Error on master: message (format)='%s' error code=%d; Error on slave:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
 
+ER_READ_ONLY_MODE
+        eng "Running in read-only mode"
+
 #
 #  End of 5.7 error messages.
 #

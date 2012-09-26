@@ -1,6 +1,7 @@
 #### suite/funcs_1/t/myisam_views.test
+# Skiping this test from Valgrind execution as per Bug-14627884
+--source include/not_valgrind.inc
 
---source include/no_valgrind_without_big.inc
 # because of a pair of slow Solaris Sparc machines in pb2,
 # this test is marked as big:
 --source include/big_test.inc

@@ -3411,7 +3411,8 @@ apply_event_and_update_pos(Log_event** ptr_ev, THD* thd, Relay_log_info* rli)
                                 "waited due a Worker queue full = %lu; "
                                 "waited due the total size = %lu; "
                                 "slept when Workers occupied = %lu ",
-                                my_now - rli->mts_last_online_stat,
+                                static_cast<unsigned long>
+                                (my_now - rli->mts_last_online_stat),
                                 rli->mts_events_assigned,
                                 rli->mts_wq_overrun_cnt,
                                 rli->mts_wq_overfill_cnt,

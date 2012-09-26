@@ -675,7 +675,7 @@ drop database if exists mysqltest1
 SET TIMESTAMP=t/*!*/;
 create database mysqltest1
 /*!*/;
-use mysqltest1/*!*/;
+use `mysqltest1`/*!*/;
 SET TIMESTAMP=t/*!*/;
 create table t1 (a varchar(100))
 /*!*/;
@@ -1020,7 +1020,7 @@ drop database mysqltest1
 SET TIMESTAMP=t/*!*/;
 drop user "zedjzlcsjhd"@127.0.0.1
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=t/*!*/;
 drop function if exists f1
 /*!*/;
@@ -1117,7 +1117,7 @@ create database mysqltest
 SET TIMESTAMP=t/*!*/;
 create database mysqltest2
 /*!*/;
-use mysqltest2/*!*/;
+use `mysqltest2`/*!*/;
 SET TIMESTAMP=t/*!*/;
 create table t ( t integer )
 /*!*/;
@@ -1144,7 +1144,7 @@ end
 SET TIMESTAMP=t/*!*/;
 BEGIN
 /*!*/;
-use mysqltest/*!*/;
+use `mysqltest`/*!*/;
 SET TIMESTAMP=t/*!*/;
 SELECT `mysqltest2`.`f1`()
 /*!*/;
@@ -1157,14 +1157,14 @@ drop database mysqltest
 SET TIMESTAMP=t/*!*/;
 drop database mysqltest2
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=t/*!*/;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `mysqltestbug36570_p1`()
 begin
 select 1;
 end
 /*!*/;
-use mysql/*!*/;
+use `mysql`/*!*/;
 SET TIMESTAMP=t/*!*/;
 CREATE DEFINER=`root`@`localhost` PROCEDURE `test`.` mysqltestbug36570_p2`( a int )
 `label`:

@@ -187,7 +187,8 @@ dict_print(void)
 
 	os_increment_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
+		srv_fatal_semaphore_wait_threshold,
+		SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -223,7 +224,8 @@ dict_print(void)
 	/* Restore the fatal semaphore wait timeout */
 	os_decrement_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
+		srv_fatal_semaphore_wait_threshold,
+		SRV_SEMAPHORE_WAIT_EXTENSION);
 }
 
 /********************************************************************//**
@@ -1093,8 +1095,8 @@ loop:
 
 			/* filepath can be NULL in this call. */
 			dberr_t	err = fil_open_single_table_tablespace(
-				false, true, space_id,
-				dict_tf_to_fsp_flags(flags),
+				false, srv_read_only_mode ? false : true,
+				space_id, dict_tf_to_fsp_flags(flags),
 				name, filepath);
 
 			if (err != DB_SUCCESS) {
@@ -1767,6 +1769,16 @@ dict_load_indexes(
 
 		if (!btr_pcur_is_on_user_rec(&pcur)) {
 
+			if (dict_table_get_first_index(table) == NULL) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Cannot load table %s "
+					"because it has no indexes in "
+					"InnoDB internal data dictionary.",
+					table->name);
+				error = DB_CORRUPTION;
+				goto func_exit;
+			}
+
 			break;
 		}
 
@@ -1780,6 +1792,19 @@ dict_load_indexes(
 		if (err_msg == dict_load_index_id_err) {
 			/* TABLE_ID mismatch means that we have
 			run out of index definitions for the table. */
+
+			if (dict_table_get_first_index(table) == NULL) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Failed to load the "
+					"clustered index for table %s "
+					"because of the following error: %s. "
+					"Refusing to load the rest of the "
+					"indexes (if any) and the whole table "
+					"altogether.", table->name, err_msg);
+				error = DB_CORRUPTION;
+				goto func_exit;
+			}
+
 			break;
 		} else if (err_msg == dict_load_index_del) {
 			/* Skip delete-marked records. */
@@ -2529,15 +2554,20 @@ dict_load_sys_table(
 }
 
 /********************************************************************//**
-Loads foreign key constraint col names (also for the referenced table). */
+Loads foreign key constraint col names (also for the referenced table).
+Members that must be set (and valid) in foreign:
+foreign->heap
+foreign->n_fields
+foreign->id ('\0'-terminated)
+Members that will be created and set by this function:
+foreign->foreign_col_names[i]
+foreign->referenced_col_names[i]
+(for i=0..foreign->n_fields-1) */
 static
 void
 dict_load_foreign_cols(
 /*===================*/
-	const char*	id,	/*!< in: foreign constraint id, not
-				necessary '\0'-terminated */
-	ulint		id_len,	/*!< in: id length */
-	dict_foreign_t*	foreign)/*!< in: foreign constraint object */
+	dict_foreign_t*	foreign)/*!< in/out: foreign constraint object */
 {
 	dict_table_t*	sys_foreign_cols;
 	dict_index_t*	sys_index;
@@ -2549,8 +2579,11 @@ dict_load_foreign_cols(
 	ulint		len;
 	ulint		i;
 	mtr_t		mtr;
+	size_t		id_len;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	id_len = strlen(foreign->id);
 
 	foreign->foreign_col_names = static_cast<const char**>(
 		mem_heap_alloc(foreign->heap,
@@ -2570,7 +2603,7 @@ dict_load_foreign_cols(
 	tuple = dtuple_create(foreign->heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
 
-	dfield_set_data(dfield, id, id_len);
+	dfield_set_data(dfield, foreign->id, id_len);
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
@@ -2584,8 +2617,42 @@ dict_load_foreign_cols(
 
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_FOREIGN_COLS__ID, &len);
-		ut_a(len == id_len);
-		ut_a(ut_memcmp(id, field, len) == 0);
+
+		if (len != id_len || ut_memcmp(foreign->id, field, len) != 0) {
+			const rec_t*	pos;
+			ulint		pos_len;
+			const rec_t*	for_col_name;
+			ulint		for_col_name_len;
+			const rec_t*	ref_col_name;
+			ulint		ref_col_name_len;
+
+			pos = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_FOREIGN_COLS__POS,
+				&pos_len);
+
+			for_col_name = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_FOREIGN_COLS__FOR_COL_NAME,
+				&for_col_name_len);
+
+			ref_col_name = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME,
+				&ref_col_name_len);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to load columns names for foreign "
+				"key '%.*s' because it was not found in "
+				"InnoDB internal table SYS_FOREIGN_COLS. The "
+				"closest entry we found is: "
+				"(ID='%.*s', POS=%lu, FOR_COL_NAME='%.*s', "
+				"REF_COL_NAME='%.*s')",
+				(int) id_len, foreign->id,
+				(int) len, field,
+				mach_read_from_4(pos),
+				(int) for_col_name_len, for_col_name,
+				(int) ref_col_name_len, ref_col_name);
+
+			ut_error;
+		}
 
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_FOREIGN_COLS__POS, &len);
@@ -2731,7 +2798,7 @@ dict_load_foreign(
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	dict_load_foreign_cols(id, id_len, foreign);
+	dict_load_foreign_cols(foreign);
 
 	ref_table = dict_table_check_if_in_cache_low(
 			foreign->referenced_table_name_lookup);
@@ -2867,7 +2934,6 @@ loop:
 	/* Now we have the record in the secondary index containing a table
 	name and a foreign constraint ID */
 
-	rec = btr_pcur_get_rec(&pcur);
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_FOREIGN_FOR_NAME__NAME, &len);
 

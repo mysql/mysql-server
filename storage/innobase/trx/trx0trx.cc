@@ -627,7 +627,7 @@ trx_assign_rseg_low(
 	trx_rseg_t*	rseg;
 	static ulint	latest_rseg = 0;
 
-	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		ut_a(max_undo_logs == ULONG_UNDEFINED);
 		return(NULL);
 	}
@@ -675,6 +675,7 @@ trx_assign_rseg(
 {
 	ut_a(trx->rseg == 0);
 	ut_a(trx->read_only);
+	ut_a(!srv_read_only_mode);
 	ut_a(!trx_is_autocommit_non_locking(trx));
 
 	trx->rseg = trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces);
@@ -698,8 +699,8 @@ trx_start_low(
 	trx->auto_commit = thd_trx_is_auto_commit(trx->mysql_thd);
 
 	trx->read_only =
-		!trx->ddl
-		&& thd_trx_is_read_only(trx->mysql_thd);
+		(!trx->ddl && thd_trx_is_read_only(trx->mysql_thd))
+		|| srv_read_only_mode;
 
 	if (!trx->auto_commit) {
 		++trx->will_lock;
