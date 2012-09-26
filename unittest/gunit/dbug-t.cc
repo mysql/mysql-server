@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,8 +17,15 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#include "thread_utils.h"
+
 #include "my_global.h"
 #include "my_dbug.h"
+
+using thread::Notification;
+using thread::Thread;
+
+namespace {
 
 #if defined(DBUG_OFF)
 TEST(DebugTest, NoSuicide)
@@ -32,3 +39,38 @@ TEST(DebugDeathTest, Suicide)
   EXPECT_DEATH_IF_SUPPORTED(DBUG_SUICIDE(), "");
 }
 #endif
+
+
+#if !defined(DBUG_OFF) && !defined(__WIN__)
+class DbugGcovThread : public Thread
+{
+public:
+  DbugGcovThread(Notification *start_notification)
+    : m_start_notification(start_notification)
+  {}
+
+  virtual void run()
+  {
+    m_start_notification->notify();
+    _db_flush_gcov_();
+  }
+
+private:
+  Notification *m_start_notification;
+};
+
+
+TEST(DebugFlushGcov, FlushGcovParallel)
+{
+  Notification start_notification;
+  DbugGcovThread debug_thread(&start_notification);
+  debug_thread.start();
+
+  // Wait for the other thread to start, then flush in parallel.
+  start_notification.wait_for_notification();
+  _db_flush_gcov_();
+  debug_thread.join();
+}
+#endif
+
+}

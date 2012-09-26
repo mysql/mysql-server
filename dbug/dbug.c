@@ -356,6 +356,14 @@ static void DbugVfprintf(FILE *stream, const char* format, va_list args);
 
 #include <my_pthread.h>
 static pthread_mutex_t THR_LOCK_dbug;
+
+/**
+  A mutex protecting flushing of gcov data, see _db_flush_gcov_().
+  We don't re-use THR_LOCK_dbug, because that would disallow:
+  DBUG_LOCK_FILE; ..... DBUG_SUICIDE(); .... DBUG_UNLOCK_FILE;
+*/
+static pthread_mutex_t THR_LOCK_gcov;
+
 /**
   Lock, to protect @c init_settings.
   For performance reasons,
@@ -378,6 +386,7 @@ static CODE_STATE *code_state(void)
   {
     init_done=TRUE;
     pthread_mutex_init(&THR_LOCK_dbug, NULL);
+    pthread_mutex_init(&THR_LOCK_gcov, NULL);
     my_rwlock_init(&THR_LOCK_init_settings, NULL);
     memset(&init_settings, 0, sizeof(init_settings));
     init_settings.out_file=stderr;
@@ -2383,6 +2392,16 @@ void _db_flush_()
 extern void __gcov_flush();
 #endif
 
+void _db_flush_gcov_()
+{
+#ifdef HAVE_GCOV
+  // Gcov will assert() if we try to flush in parallel.
+  pthread_mutex_lock(&THR_LOCK_gcov);
+  __gcov_flush();
+  pthread_mutex_unlock(&THR_LOCK_gcov);
+#endif
+}
+
 void _db_suicide_()
 {
   int retval;
@@ -2392,7 +2411,7 @@ void _db_suicide_()
 #ifdef HAVE_GCOV
   fprintf(stderr, "Flushing gcov data\n");
   fflush(stderr);
-  __gcov_flush();
+  _db_flush_gcov_();
 #endif
 
   fprintf(stderr, "SIGKILL myself\n");
