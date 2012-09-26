@@ -337,7 +337,8 @@ my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 ## MCP temp fixes to reduce footprint of large number of failing tests
 $opt_max_save_core = 1; # Don't save many cores
 $opt_max_save_datadir = 1; # Dont save many datadirs
-$opt_max_test_fail = 0; # Allow many tests to fail
+$opt_max_test_fail = 0 # Allow many tests to fail
+  unless IS_WINDOWS;
 $opt_retry = 1; # Don't retry failed tests
 ## MCP temp fixes end
 
