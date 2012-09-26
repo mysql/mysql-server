@@ -12,6 +12,7 @@ find_package(Valgrind REQUIRED)
 include(CheckIncludeFiles)
 
 ## check for some include files
+check_include_files(alloca.h HAVE_ALLOCA_H)
 check_include_files(arpa/inet.h HAVE_ARPA_INET_H)
 check_include_files(byteswap.h HAVE_BYTESWAP_H)
 check_include_files(endian.h HAVE_ENDIAN_H)
@@ -23,11 +24,14 @@ check_include_files(limits.h HAVE_LIMITS_H)
 check_include_files(machine/endian.h HAVE_MACHINE_ENDIAN_H)
 check_include_files(malloc.h HAVE_MALLOC_H)
 check_include_files(malloc/malloc.h HAVE_MALLOC_MALLOC_H)
+check_include_files(malloc_np.h HAVE_MALLOC_NP_H)
 check_include_files(pthread.h HAVE_PTHREAD_H)
+check_include_files(pthread_np.h HAVE_PTHREAD_NP_H)
 check_include_files(stdint.h HAVE_STDINT_H)
 check_include_files(stdlib.h HAVE_STDLIB_H)
 check_include_files(string.h HAVE_STRING_H)
 check_include_files(syscall.h HAVE_SYSCALL_H)
+check_include_files(sys/endian.h HAVE_SYS_ENDIAN_H)
 check_include_files(sys/file.h HAVE_SYS_FILE_H)
 check_include_files(sys/malloc.h HAVE_SYS_MALLOC_H)
 check_include_files(sys/resource.h HAVE_SYS_RESOURCE_H)
@@ -59,14 +63,49 @@ check_function_exists(sched_getaffinity HAVE_SCHED_GETAFFINITY)
 check_function_exists(nrand48 HAVE_NRAND48)
 check_function_exists(random_r HAVE_RANDOM_R)
 
-set(CMAKE_REQUIRED_LIBRARIES "pthread")
+set(EXTRA_SYSTEM_LIBS "")
+check_function_exists(dlsym HAVE_DLSYM_WITHOUT_DL)
+if (NOT HAVE_DLSYM_WITHOUT_DL)
+  set(CMAKE_REQUIRED_LIBRARIES dl)
+  check_function_exists(dlsym HAVE_DLSYM_WITH_DL)
+  if (HAVE_DLSYM_WITH_DL)
+    list(APPEND EXTRA_SYSTEM_LIBS dl)
+  else ()
+    message(FATAL_ERROR "Cannot find dlsym(), even with -ldl.")
+  endif ()
+endif ()
+check_function_exists(backtrace HAVE_BACKTRACE_WITHOUT_EXECINFO)
+if (NOT HAVE_BACKTRACE_WITHOUT_EXECINFO)
+  set(CMAKE_REQUIRED_LIBRARIES execinfo)
+  check_function_exists(backtrace HAVE_BACKTRACE_WITH_EXECINFO)
+  if (HAVE_BACKTRACE_WITH_EXECINFO)
+    list(APPEND EXTRA_SYSTEM_LIBS execinfo)
+  else ()
+    message(FATAL_ERROR "Cannot find backtrace(), even with -lexecinfo.")
+  endif ()
+endif ()
+
+set(CMAKE_REQUIRED_LIBRARIES pthread)
 ## check whether we can change rwlock preference
 check_function_exists(pthread_rwlockattr_setkind_np HAVE_PTHREAD_RWLOCKATTR_SETKIND_NP)
 ## check for the right way to yield using pthreads
 check_function_exists(pthread_yield HAVE_PTHREAD_YIELD)
 check_function_exists(pthread_yield_np HAVE_PTHREAD_YIELD_NP)
+## check if we have pthread_getthreadid_np() (i.e. freebsd)
+check_function_exists(pthread_getthreadid_np HAVE_PTHREAD_GETTHREADID_NP)
 
 include(CheckCSourceCompiles)
+
+if (HAVE_PTHREAD_YIELD)
+  include(CheckPrototypeDefinition)
+
+  check_prototype_definition(pthread_yield "void pthread_yield(void)" 0 "pthread.h" PTHREAD_YIELD_RETURNS_VOID)
+  check_c_source_compiles("#include <pthread.h>
+int main(void) {
+  int r = pthread_yield();
+  return r;
+}" PTHREAD_YIELD_RETURNS_INT)
+endif (HAVE_PTHREAD_YIELD)
 
 ## check whether we have gcc-style thread-local storage using a storage class modifier
 check_c_source_compiles("#include <pthread.h>

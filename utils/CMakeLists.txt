@@ -10,7 +10,7 @@ foreach(util ${utils})
   add_executable(${util}_static ${util})
   set_target_properties(${util}_static PROPERTIES
     COMPILE_DEFINITIONS "IS_TDB=1;USE_TDB=1;TDB_IS_STATIC=1")
-  target_link_libraries(${util}_static ${LIBTOKUDB}_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} dl)
+  target_link_libraries(${util}_static ${LIBTOKUDB}_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
 
   add_common_options_to_binary_targets(${util} ${util}_static)
 
