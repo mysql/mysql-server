@@ -90,48 +90,40 @@ if (BUILD_TESTING OR BUILD_FT_TESTS)
   file(READ bash.suppressions bash_suppressions)
   file(APPEND "${CMAKE_CURRENT_BINARY_DIR}/valgrind.suppressions" "${bash_suppressions}")
 
+  include(CMakeDependentOption)
+  set(helgrind_drd_depend_conditions "")
+  ## helgrind and drd are bad at dealing with freebsd's pthreads
+  ## implementation, see pkg-message at
+  ## http://www.freebsdports.info/ports/devel/valgrind.html
+  list(APPEND helgrind_drd_depend_conditions "NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD")
+  ## supposedly it's bad on darwin too, don't have a link for that, maybe
+  ## worth re-checking
+  list(APPEND helgrind_drd_depend_conditions "NOT CMAKE_SYSTEM_NAME STREQUAL Darwin")
+  ## no point doing it with gcov
+  list(APPEND helgrind_drd_depend_conditions "NOT USE_GCOV")
+  cmake_dependent_option(RUN_DRD_TESTS "Run some tests under drd." ON
+    "${helgrind_drd_depend_conditions}" OFF)
+  cmake_dependent_option(RUN_HELGRIND_TESTS "Run some tests under helgrind." ON
+    "${helgrind_drd_depend_conditions}" OFF)
+
   ## setup a function to write tests that will run with helgrind
   set(CMAKE_HELGRIND_COMMAND_STRING "valgrind --quiet --tool=helgrind --error-exitcode=1 --suppressions=${TokuDB_SOURCE_DIR}/src/tests/helgrind.suppressions --trace-children=yes --trace-children-skip=sh,*/sh,basename,*/basename,dirname,*/dirname,rm,*/rm,cp,*/cp,mv,*/mv,cat,*/cat,diff,*/diff,grep,*/grep,date,*/date,test,*/tokudb_dump* --trace-children-skip-by-arg=--only_create,--test,--no-shutdown,novalgrind")
   function(add_helgrind_test name)
-    if (CMAKE_SYSTEM_NAME MATCHES Darwin OR
-        ((CMAKE_CXX_COMPILER_ID MATCHES Intel) AND
-         (CMAKE_BUILD_TYPE MATCHES Release)) OR
-        USE_GCOV)
-      ## can't use helgrind on osx or with optimized intel, no point in
-      ## using it if we're doing coverage
-      add_test(
-        NAME ${name}
-        COMMAND ${ARGN}
-        )
-    else ()
-      separate_arguments(CMAKE_HELGRIND_COMMAND_STRING)
-      add_test(
-        NAME ${name}
-        COMMAND ${CMAKE_HELGRIND_COMMAND_STRING} ${ARGN}
-        )
-    endif ()
+    separate_arguments(CMAKE_HELGRIND_COMMAND_STRING)
+    add_test(
+      NAME ${name}
+      COMMAND ${CMAKE_HELGRIND_COMMAND_STRING} ${ARGN}
+      )
   endfunction(add_helgrind_test)
 
   ## setup a function to write tests that will run with drd
   set(CMAKE_DRD_COMMAND_STRING "valgrind --quiet --tool=drd --error-exitcode=1 --suppressions=${TokuDB_SOURCE_DIR}/src/tests/drd.suppressions --trace-children=yes --trace-children-skip=sh,*/sh,basename,*/basename,dirname,*/dirname,rm,*/rm,cp,*/cp,mv,*/mv,cat,*/cat,diff,*/diff,grep,*/grep,date,*/date,test,*/tokudb_dump* --trace-children-skip-by-arg=--only_create,--test,--no-shutdown,novalgrind")
   function(add_drd_test name)
-    if (CMAKE_SYSTEM_NAME MATCHES Darwin OR
-        ((CMAKE_CXX_COMPILER_ID MATCHES Intel) AND
-         (CMAKE_BUILD_TYPE MATCHES Release)) OR
-        USE_GCOV)
-      ## can't use drd on osx or with optimized intel, no point in
-      ## using it if we're doing coverage
-      add_test(
-        NAME ${name}
-        COMMAND ${ARGN}
-        )
-    else ()
-      separate_arguments(CMAKE_DRD_COMMAND_STRING)
-      add_test(
-        NAME ${name}
-        COMMAND ${CMAKE_DRD_COMMAND_STRING} ${ARGN}
-        )
-    endif ()
+    separate_arguments(CMAKE_DRD_COMMAND_STRING)
+    add_test(
+      NAME ${name}
+      COMMAND ${CMAKE_DRD_COMMAND_STRING} ${ARGN}
+      )
   endfunction(add_drd_test)
 
   option(RUN_LONG_TESTS "If set, run all tests, even the ones that take a long time to complete." OFF)
