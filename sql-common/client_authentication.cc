@@ -30,7 +30,7 @@
 #include <openssl/rsa.h>
 #include <openssl/pem.h>
 #include <openssl/err.h>
-#if defined(_WIN32) && !defined(_OPENSSL_Applink)
+#if defined(_WIN32) && !defined(_OPENSSL_Applink) && defined(HAVE_OPENSSL_APPLINK_C)
 #include <openssl/applink.c>
 #endif
 #endif

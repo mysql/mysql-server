@@ -262,7 +262,9 @@ ha_innobase::check_if_supported_inplace_alter(
 {
 	DBUG_ENTER("check_if_supported_inplace_alter");
 
-	if (srv_created_new_raw || srv_force_recovery) {
+	if (srv_read_only_mode) {
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	} else if (srv_created_new_raw || srv_force_recovery) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -3180,6 +3182,10 @@ ha_innobase::prepare_inplace_alter_table(
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 	DBUG_ASSERT(ha_alter_info->create_info);
 
+	if (srv_read_only_mode) {
+		DBUG_RETURN(false);
+	}
+
 	MONITOR_ATOMIC_INC(MONITOR_PENDING_ALTER_TABLE);
 
 #ifdef UNIV_DEBUG
@@ -3717,6 +3723,11 @@ ha_innobase::inplace_alter_table(
 	dberr_t	error;
 
 	DBUG_ENTER("inplace_alter_table");
+
+	if (srv_read_only_mode) {
+		DBUG_RETURN(false);
+	}
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
@@ -4368,6 +4379,8 @@ ha_innobase::commit_inplace_alter_table(
 	bool				new_clustered;
 	dict_table_t*			fk_table = NULL;
 
+	ut_ad(!srv_read_only_mode);
+
 	DBUG_ENTER("commit_inplace_alter_table");
 
 	DEBUG_SYNC_C("innodb_commit_inplace_alter_table_enter");
@@ -4406,6 +4419,8 @@ ha_innobase::commit_inplace_alter_table(
 			my_error_innodb(error, table_share->table_name.str, 0);
 			DBUG_RETURN(true);
 		}
+
+		DEBUG_SYNC(user_thd, "innodb_alter_commit_after_lock_table");
 	}
 
 	if (!ctx || !ctx->trx) {
@@ -4652,6 +4667,15 @@ undo_add_fk:
 			ctx->heap, ctx->indexed_table->name,
 			ctx->indexed_table->id);
 
+		/* Rename table will reload and refresh the in-memory
+		foreign key constraint metadata. This is a rename operation
+		in preparing for dropping the old table. Set the table
+		to_be_dropped bit here, so to make sure DML foreign key
+		constraint check does not use the stale dict_foreign_t.
+		This is done because WL#6049 (FK MDL) has not been
+		implemented yet */
+		prebuilt->table->to_be_dropped = true;
+
 		DBUG_EXECUTE_IF("ib_ddl_crash_before_rename",
 				DBUG_SUICIDE(););
 
@@ -4707,6 +4731,11 @@ undo_add_fk:
 			err = -1;
 
 drop_new_clustered:
+			/* Reset the to_be_dropped bit for the old table,
+			since we are aborting the operation and dropping
+			the new table due to some error conditions */
+			prebuilt->table->to_be_dropped = false;
+
 			/* Need to drop the added foreign key first */
 			if (fk_trx) {
 				ut_ad(fk_trx != trx);
@@ -4812,6 +4841,12 @@ trx_rollback:
 		trx_rollback_for_mysql(trx);
 	}
 
+	/* Flush the log to reduce probability that the .frm files and
+	the InnoDB data dictionary get out-of-sync if the user runs
+	with innodb_flush_log_at_trx_commit = 0 */
+
+	log_buffer_flush_to_disk();
+
 	if (new_clustered) {
 		innobase_online_rebuild_log_free(prebuilt->table);
 	}
@@ -4907,6 +4942,10 @@ trx_rollback:
 		drop the old table. */
 		update_thd();
 		prebuilt->trx->will_lock++;
+
+		DBUG_EXECUTE_IF("ib_ddl_crash_after_user_trx_commit",
+				DBUG_SUICIDE(););
+
 		trx_start_if_not_started_xa(prebuilt->trx);
 	}
 

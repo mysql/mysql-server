@@ -792,9 +792,12 @@ typedef struct st_print_event_info
   ~st_print_event_info() {
     close_cached_file(&head_cache);
     close_cached_file(&body_cache);
+    close_cached_file(&footer_cache);
   }
   bool init_ok() /* tells if construction was successful */
-    { return my_b_inited(&head_cache) && my_b_inited(&body_cache); }
+    { return my_b_inited(&head_cache) && 
+	     my_b_inited(&body_cache) && 
+  	     my_b_inited(&footer_cache); }
 
 
   /* Settings on how to print the events */
@@ -816,12 +819,14 @@ typedef struct st_print_event_info
   table_mapping m_table_map_ignored;
 
   /*
-     These two caches are used by the row-based replication events to
+     These three caches are used by the row-based replication events to
      collect the header information and the main body of the events
-     making up a statement.
+     making up a statement and in footer section any verbose related details 
+     or comments related to the statment.
    */
   IO_CACHE head_cache;
   IO_CACHE body_cache;
+  IO_CACHE footer_cache; 
   /* Indicate if the body cache has unflushed events */
   bool have_unflushed_events;
 } PRINT_EVENT_INFO;
@@ -2920,7 +2925,7 @@ public:
      and which case the applier adjusts execution path.
   */
   bool is_deferred() { return deferred; }
-  void set_deferred() { deferred= val; }
+  void set_deferred() { deferred= true; }
 #endif
   bool is_valid() const { return 1; }
 
@@ -4228,10 +4233,10 @@ private:
     Private member function called while handling idempotent errors.
 
     @param err[IN/OUT] the error to handle. If it is listed as
-                       idempotent related error, then it is cleared.
+                       idempotent/ignored related error, then it is cleared.
     @returns true if the slave should stop executing rows.
    */
-  int handle_idempotent_errors(Relay_log_info const *rli, int *err);
+  int handle_idempotent_and_ignored_errors(Relay_log_info const *rli, int *err);
 
   /**
      Private member function called after updating/deleting a row. It
@@ -5012,6 +5017,21 @@ inline void do_server_version_split(char* version, uchar split_versions[3])
       p++; // skip the dot
   }
 }
+
+#ifdef MYSQL_SERVER
+/*
+  This is an utility function that adds a quoted identifier into the a buffer.
+  This also escapes any existance of the quote string inside the identifier.
+ */
+size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
+                                   const char* identifier,
+                                   uint length);
+#else
+size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
+#endif
+size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
+                                          const char* identifier,
+                                          uint length);
 
 /**
   @} (end of group Replication)

@@ -26,6 +26,7 @@
 #include "rpl_utility.h"
 #include "debug_sync.h"
 #include "global_threads.h"
+#include "sql_show.h"
 #include "sql_parse.h"
 #include "rpl_mi.h"
 #include <list>
@@ -834,8 +835,14 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
 
   if (ev != NULL)
   {
+    DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
+                  {DBUG_SET("+d,simulate_file_write_error");});
     if (ev->write(&cache_log) != 0)
+    {
+      DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
+                      {DBUG_SET("-d,simulate_file_write_error");});
       DBUG_RETURN(1);
+    }
     if (ev->get_type_code() == XID_EVENT)
       flags.with_xid= true;
     if (ev->is_using_immediate_logging())
@@ -1560,11 +1567,11 @@ static int binlog_savepoint_set(handlerton *hton, THD *thd, void *sv)
   int error= 1;
 
   String log_query;
-  if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")) ||
-      log_query.append("`") ||
-      log_query.append(thd->lex->ident.str, thd->lex->ident.length) ||
-      log_query.append("`"))
+  if (log_query.append(STRING_WITH_LEN("SAVEPOINT ")))
     DBUG_RETURN(error);
+  else
+    append_identifier(thd, &log_query, thd->lex->ident.str,
+                      thd->lex->ident.length);
 
   int errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
   Query_log_event qinfo(thd, log_query.c_ptr_safe(), log_query.length(),
@@ -2267,6 +2274,7 @@ void MYSQL_BIN_LOG::cleanup()
     mysql_mutex_destroy(&LOCK_sync);
     mysql_cond_destroy(&update_cond);
     my_atomic_rwlock_destroy(&m_prep_xids_lock);
+    mysql_cond_destroy(&m_prep_xids_cond);
   }
   DBUG_VOID_RETURN;
 }
@@ -2280,6 +2288,7 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_sync, &LOCK_sync, MY_MUTEX_INIT_FAST);
   mysql_cond_init(m_key_update_cond, &update_cond, 0);
   my_atomic_rwlock_init(&m_prep_xids_lock);
+  mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond, NULL);
   stage_manager.init(
 #ifdef HAVE_PSI_INTERFACE
                    m_key_LOCK_flush_queue,
@@ -4603,6 +4612,8 @@ MYSQL_BIN_LOG::flush_and_set_pending_rows_event(THD *thd,
       if (check_write_error(thd) && cache_data &&
           stmt_cannot_safely_rollback(thd))
         cache_data->set_incident();
+      delete pending;
+      cache_data->set_pending(NULL);
       DBUG_RETURN(1);
     }
 
@@ -5294,7 +5305,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
       }
 
       global_sid_lock->rdlock();
-      if (gtid_state->update(thd, true) != RETURN_STATUS_OK)
+      if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
       {
         global_sid_lock->unlock();
         goto err;
@@ -6143,6 +6154,15 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     if (thd->transaction.flags.xid_written)
       dec_prep_xids();
   }
+
+  /*
+    Remove committed GTID from owned_gtids, it was already logged on
+    MYSQL_BIN_LOG::write_cache().
+  */
+  global_sid_lock->rdlock();
+  gtid_state->update_on_commit(thd);
+  global_sid_lock->unlock();
+
   DBUG_ASSERT(thd->commit_error || !thd->transaction.flags.commit_low);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
   DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",
