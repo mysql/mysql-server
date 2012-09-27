@@ -169,6 +169,7 @@ static void test_mergesort_row_array (void) {
 
 static void test_read_write_rows (char *tf_template) {
     struct ft_loader_s bl;
+    ZERO_STRUCT(bl);
     bl.temp_file_template = tf_template;
     int r = ft_loader_init_file_infos(&bl.file_infos);
     CKERR(r);
