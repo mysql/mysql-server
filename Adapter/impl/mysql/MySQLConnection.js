@@ -116,23 +116,25 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
   this.commit = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.commit.');
     this.dbSession.pooledConnection.query('commit', callback);
+    this.dbSession.transactionHandler = null;
   };
 
   this.rollback = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.rollback.');
     this.dbSession.pooledConnection.query('rollback', callback);
+    this.dbSession.transactionHandler = null;
   };
 };
 
 
-exports.DBSession.prototype.createTransaction = function() {
+exports.DBSession.prototype.createTransactionHandler = function() {
   this.transactionHandler = new this.TransactionHandler(this);
   return this.transactionHandler;
 };
 
-exports.DBSession.prototype.getTransaction = function() {
+exports.DBSession.prototype.getTransactionHandler = function() {
   if (this.transactionHandler === null) {
-    this.createTransaction();
+    this.createTransactionHandler();
   }
   return this.transactionHandler;
 };

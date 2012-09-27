@@ -242,8 +242,11 @@ t6.runTestMethod = do_delete_op;
 
 t6.checkResult = function(err, tx) {
   udebug.log("checkResult t6");
+  var op;
   if(err) { 
     t6.appendErrorMessage("ExecuteCommit failed: " + err); 
+  } else {
+    op = tx.executedOperations.pop();
   }
   t6.failOnError();
 };
