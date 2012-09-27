@@ -2831,17 +2831,17 @@ insert into mysql.ndb_replication values
 ("test", "t3", 0, 7, "NDB\$EPOCH(32)"),
 ("test", "t4", 0, 7, "NDB\$EPOCH(-1)");
 create table test.t3 (a int primary key) engine=ndb;
-ERROR HY000: Can't create table 'test.t3' (errno: 1626)
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1626	Error in parsing conflict function. Message: NDB$EPOCH(32), Too many extra Gci bits at ')'
-Error	1005	Can't create table 'test.t3' (errno: 1626)
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
 create table test.t4 (a int primary key) engine=ndb;
-ERROR HY000: Can't create table 'test.t4' (errno: 1626)
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1626	Error in parsing conflict function. Message: NDB$EPOCH(-1), Too many extra Gci bits at ')'
-Error	1005	Can't create table 'test.t4' (errno: 1626)
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
 -- Force sync before dropping table to avoid race
 flush logs;
 flush logs;
