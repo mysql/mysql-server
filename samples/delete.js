@@ -142,10 +142,5 @@ var onSession = function(err, session) {
 };
 
 // connect to the database
-var onSQLCreate = function() {
-  nosql.openSession(dbProperties, annotations, onSession);
-};
-
-lib.SQL.create('samples', onSQLCreate);
-
+nosql.openSession(dbProperties, annotations, onSession);
 
