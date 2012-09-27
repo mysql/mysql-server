@@ -1789,11 +1789,11 @@ loop:
 
 			if (recv_addr->state == RECV_NOT_PROCESSED) {
 				if (!has_printed) {
-					ut_print_timestamp(stderr);
-					fputs("  InnoDB: Starting an"
-					      " apply batch of log records"
-					      " to the database...\n"
-					      "InnoDB: Progress in percents: ",
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"Starting an apply batch"
+						" of log records"
+						" to the database...");
+					fputs("InnoDB: Progress in percent: ",
 					      stderr);
 					has_printed = TRUE;
 				}
@@ -1906,9 +1906,10 @@ recv_apply_log_recs_for_backup(void)
 
 	block = back_block1;
 
-	fputs("InnoDB: Starting an apply batch of log records"
-	      " to the database...\n"
-	      "InnoDB: Progress in percents: ", stderr);
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Starting an apply batch of log records to the database...");
+
+	fputs("InnoDB: Progress in percent: ", stderr);
 
 	n_hash_cells = hash_get_n_cells(recv_sys->addr_hash);
 
