@@ -411,6 +411,8 @@ The following options may be given as the first argument:
  --memlock           Lock mysqld in memory.
  --metadata-locks-cache-size=# 
  Size of unused metadata locks cache
+ --metadata-locks-hash-instances=# 
+ Number of metadata locks hash instances
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
@@ -1090,6 +1092,7 @@ max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
 metadata-locks-cache-size 1024
+metadata-locks-hash-instances 8
 min-examined-row-limit 0
 multi-range-count 256
 myisam-block-size 1024
