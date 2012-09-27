@@ -143,6 +143,14 @@ LongVarcharEncoder.write = VarcharEncoder.write;
 LongVarcharEncoder.read = VarcharEncoder.read;
 
 
+var dateTimeEncoder = new NdbEncoder();
+dateTimeEncoder.read = function(col, buffer, offset) {
+  return 0;
+};
+dateTimeEncoder.write = function(col, value, buffer, offset) {
+  return 0;
+};
+
 var defaultTypeEncoders = [
   null,                                   // 0 
   makeIntEncoder("Int",8),                // 1  TINY INT
@@ -162,7 +170,7 @@ var defaultTypeEncoders = [
   VarcharEncoder,                         // 15 VARCHAR
   null,                                   // 16
   null,                                   // 17
-  null,                                   // 18
+  dateTimeEncoder,                        // 18 DATETIME
   null,                                   // 19
   null,                                   // 20
   null,                                   // 21 TEXT
