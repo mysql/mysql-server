@@ -309,7 +309,7 @@ static struct local_counter *get_or_alloc_thread_local_counter(PARTITIONED_COUNT
         }
 
         lc->sum         = 0;
-        HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&lc->sum, sizeof(lc->sum)); // the counter increment is kind of racy.
+        TOKU_VALGRIND_HG_DISABLE_CHECKING(&lc->sum, sizeof(lc->sum)); // the counter increment is kind of racy.
         lc->owner_pc    = pc;
         lc->thread_local_array = &thread_local_array;
 
