@@ -179,9 +179,6 @@ namespace test {
             printf("inserts: %.03lf\nqueries: %.03lf\niterate: %.03lf\noverhead: %zu\n",
                    inserttime, querytime, itertime, overhead);
         }
-        int64_t maxrss;
-        toku_os_get_max_rss(&maxrss);
-        printf("memused: %" PRId64 "\n", maxrss);
     }
 
     inline int intcmp(const int &a, const int &b);

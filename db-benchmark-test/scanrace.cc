@@ -84,16 +84,6 @@ static void scanrace_shutdown (void) {
     r = db->close(db, 0);                                       assert(r==0);
     r = tid->commit(tid, 0);                                    assert(r==0);
     r = env->close(env, 0);                                     assert(r==0);
-
-#if 0
-    {
-	extern int toku_os_get_max_rss(int64_t*);
-        int64_t mrss;
-        int r = toku_os_get_max_rss(&mrss);
-        assert(r==0);
-	printf("maxrss=%.2fMB\n", mrss/256.0);
-    }
-#endif
 }
 
 static double gettime (void) {
