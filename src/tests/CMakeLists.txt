@@ -1,6 +1,6 @@
 set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE DONT_DEPRECATE_ERRNO)
 
-if(BUILD_TESTING)
+if(BUILD_TESTING OR BUILD_SRC_TESTS)
   file(GLOB transparent_upgrade_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" upgrade*.cc)
 
   file(GLOB tdb_dontrun_srcs RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" bdb-simple-deadlock*.cc)
@@ -707,4 +707,4 @@ if(BUILD_TESTING)
       )
   endif (BDB_FOUND)
   set_tests_properties(${phenomenally_long_tests} PROPERTIES TIMEOUT 14400)
-endif(BUILD_TESTING)
+endif(BUILD_TESTING OR BUILD_SRC_TESTS)
