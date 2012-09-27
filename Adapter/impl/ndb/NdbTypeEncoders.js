@@ -175,6 +175,23 @@ dateTimeEncoder.write = function(col, value, buffer, offset) {
   return 0;
 };
 
+/* Encoder for Timestamp 
+*/
+var timeStampEncoder = new NdbEncoder(); 
+timeStampEncoder.intEncoder = makeIntEncoder("UInt", 32);
+
+timeStampEncoder.read = function(col, buffer, offset) {
+  var i = this.intEncoder.read(col, buffer, offset);
+  return new Date(i * 1000);
+}
+
+timeStampEncoder.write = function(col, value, buffer, offset) {
+  var intValue = Math.floor(value.getTime() / 1000);
+  this.intEncoder.write(col, intValue, buffer, offset);
+}
+
+
+
 var defaultTypeEncoders = [
   null,                                   // 0 
   makeIntEncoder("Int",8),                // 1  TINY INT
@@ -203,7 +220,7 @@ var defaultTypeEncoders = [
   null,                                   // 24 LONGVARBINARY
   null,                                   // 25
   null,                                   // 26
-  null,                                   // 27
+  timeStampEncoder,                       // 27 TIMESTMAP
   null,                                   // 28 OLDDECIMAL UNSIGNED
   null,                                   // 29 DECIMAL
   null,                                   // 30 DECIMAL UNSIGNED
