@@ -70,8 +70,8 @@
    obj:/usr/lib/libz.so.1.2.3.3
    fun:deflate
    fun:compress2
-}  
-{  
+}
+{
    compress_is_not_valgrind_clean_ubuntu810
    Memcheck:Value8
    obj:/usr/lib/libz.so.1.2.3.3
@@ -214,8 +214,42 @@
    obj:/usr/lib/system/libsystem_c.dylib
 }
 {
+   fopen_on_OSX
+   Memcheck:Leak
+   ...
+   fun:fopen$DARWIN_EXTSN
+}
+{
    popen_on_OSX
    Memcheck:Leak
    ...
    fun:popen$DARWIN_EXTSN
+}
+{
+   gettimeofday_on_OSX
+   Memcheck:Leak
+   ...
+   fun:tzsetwall_basic
+   obj:/usr/lib/system/libsystem_c.dylib
+}
+{
+   setenv_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   fun:setenv
+}
+{
+   unsetenv_on_OSX
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   fun:unsetenv
+}
+{
+   loadlocale_on_osx
+   Memcheck:Leak
+   ...
+   obj:/usr/lib/system/libsystem_c.dylib
+   fun:loadlocale
 }
