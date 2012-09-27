@@ -27,8 +27,6 @@
    db_env_enable_engine_status;
    db_env_set_flusher_thread_callback;
 
-   toku_os_get_max_rss;
-
    toku_ydb_error_all_cases;
    toku_set_trace_file;
    toku_close_trace_file;
