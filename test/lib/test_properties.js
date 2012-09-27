@@ -38,7 +38,9 @@ function getTestConnectionProperties() {
       f1 = fs.createReadStream(props_template);
       f2 = fs.createWriteStream(props_file);
       f1.pipe(f2);
-      f1.destroySoon();
+      if(typeof f1.destroySoon === 'function') { 
+        f1.destroySoon();
+      }
     }
     catch(e1) {
       console.log(e1);
