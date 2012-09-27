@@ -245,7 +245,7 @@ let SEARCH_PATTERN= InnoDB: .*ib_logfile0 size 7 is not a multiple of innodb_pag
 --move_file $MYSQLD_DATADIR/ib_logfile1 $MYSQLD_DATADIR/ib_logfile1_hidden
 perl;
 die unless open(FILE, ">$ENV{MYSQLD_DATADIR}/ib_logfile1");
-print FILE "garbage\n" x 131072;
+print FILE "junkfill" x 131072;
 close(FILE);
 EOF
 
