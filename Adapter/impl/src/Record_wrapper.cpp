@@ -68,7 +68,7 @@ Handle<Value> getColumnOffset_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(1);
 
-  typedef NativeConstMethodCall_1_<size_t, Record, int> NCALL;
+  typedef NativeMethodCall_1_<size_t, const Record, int> NCALL;
 
   NCALL ncall(args);
   ncall.method = & Record::getColumnOffset;
