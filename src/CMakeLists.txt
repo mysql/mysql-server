@@ -34,7 +34,7 @@ merge_static_libs(${LIBTOKUDB}_static ${LIBTOKUDB}_static "${tokudb_source_libs}
 configure_file(export.map . COPYONLY)
 if (NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
   add_space_separated_property(TARGET ${LIBTOKUDB} COMPILE_FLAGS -fvisibility=hidden -fvisibility-inlines-hidden)
-  add_space_separated_property(TARGET ${LIBTOKUDB} LINK_FLAGS "-Wl,--version-script=export.map")
+  add_space_separated_property(TARGET ${LIBTOKUDB} LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/export.map")
 endif ()
 
 ## add gcov and define _GNU_SOURCE
