@@ -261,17 +261,9 @@ exports.UserContext.prototype.find = function() {
         dbSession = userContext.session.dbSession;
         transactionHandler = dbSession.getTransactionHandler();
         op = dbSession.buildReadOperation(index, keys, transactionHandler, findOnResult);
-        if (userContext.autocommit) {
-          transactionHandler.executeCommit([op], function() {
-            // there is nothing that needs to be done here
-            udebug.log_detail('find transactionHandler.executeCommit callback.');
-          });
-        } else {
-          transactionHandler.execute([op], function() {
-            // there is nothing that needs to be done here
-            udebug.log_detail('find transactionHandler.execute callback.');
-          });
-        }
+        transactionHandler.execute([op], function() {
+          udebug.log_detail('find transactionHandler.execute callback.');
+        });
       }
     }
   }
@@ -312,17 +304,9 @@ exports.UserContext.prototype.persist = function() {
       object = userContext.user_arguments[0];
       callback = userContext.user_callback;
       op = dbSession.buildInsertOperation(dbTableHandler, object, transactionHandler, persistOnResult);
-      if (userContext.autocommit) {
-        transactionHandler.executeCommit([op], function() {
-          // there is nothing that needs to be done here
-          udebug.log_detail('find transactionHandler.executeCommit callback.');
-        });
-      } else {
-        transactionHandler.execute([op], function() {
-          // there is nothing that needs to be done here
-          udebug.log_detail('find transactionHandler.execute callback.');
-        });
-      }
+      transactionHandler.execute([op], function() {
+        udebug.log_detail('persist transactionHandler.execute callback.');
+      });
     }
   }
 
@@ -367,17 +351,9 @@ exports.UserContext.prototype.remove = function() {
         transactionHandler = dbSession.getTransactionHandler();
         callback = userContext.user_callback;
         op = dbSession.buildDeleteOperation(dbIndexHandler, object, transactionHandler, removeOnResult);
-        if (userContext.autocommit) {
-          transactionHandler.executeCommit([op], function() {
-            // there is nothing that needs to be done here
-            udebug.log_detail('find transactionHandler.executeCommit callback.');
-          });
-        } else {
-          transactionHandler.execute([op], function() {
-            // there is nothing that needs to be done here
-            udebug.log_detail('find transactionHandler.execute callback.');
-          });
-        }
+        transactionHandler.execute([op], function() {
+          udebug.log_detail('remove transactionHandler.execute callback.');
+        });
       }
     }
   }
