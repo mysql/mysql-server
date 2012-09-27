@@ -88,8 +88,6 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
     }
   };
 
-  this.executeCommit = this.execute;
-  this.executeNoCommit = this.execute;
   
   this.close = function() {
   };
