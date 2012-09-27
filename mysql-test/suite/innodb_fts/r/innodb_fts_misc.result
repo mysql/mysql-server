@@ -1016,8 +1016,9 @@ fulltext key (`a`), fulltext key (`a`)
 ) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
 Warnings:
 Note	1831	Duplicate index 'a_2' defined on the table 'test.t21'. This is deprecated and will be disallowed in a future release.
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE'
 ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
-ERROR HY000: InnoDB presently supports one FULLTEXT index creation at a time
 DROP TABLE t21;
 CREATE TABLE `t21` (`a` text, `b` int not null,
 fulltext key (`a`)) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
