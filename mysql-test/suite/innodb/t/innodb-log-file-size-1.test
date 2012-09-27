@@ -161,7 +161,7 @@ SELECT id,LEFT(bfield,20) FROM t1;
 # Do something while server is down
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
-# set log size from 15M to 10M
+# set log size from 2*5M to 2*10M
 --exec echo "restart: --innodb-log-file-size=10M --innodb_log_files_in_group=2  --log-error=$MYSQLTEST_VARDIR/log/case2.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
@@ -255,10 +255,9 @@ let SEARCH_PATTERN= InnoDB: .*ib_logfile1 is of different size;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --remove_file $MYSQLD_DATADIR/ib_logfile1
-#--move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile101
---move_file $MYSQLD_DATADIR/ib_logfile1_hidden $MYSQLD_DATADIR/ib_logfile1
+--move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile0_hidden
 
-# restart server 
+# restart server
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
@@ -269,7 +268,7 @@ SELECT id,LEFT(bfield,20) FROM t1;
 INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
 (3,repeat('c',2000));
 
-# cleanup and set original values 
+# cleanup and set original values
 DROP TABLE t1;
 DROP DATABASE db_wl6494;
 --error 0,1
@@ -278,6 +277,8 @@ DROP DATABASE db_wl6494;
 --remove_file $MYSQLTEST_VARDIR/log/case1.err
 --error 0,1
 --remove_file $MYSQLTEST_VARDIR/log/case2.err
+--remove_file $MYSQLD_DATADIR/ib_logfile0_hidden
+--remove_file $MYSQLD_DATADIR/ib_logfile1_hidden
 --disable_query_log
 eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
