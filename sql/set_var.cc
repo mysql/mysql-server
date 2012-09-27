@@ -67,6 +67,7 @@
 #include <my_dir.h>
 #include <waiting_threads.h>
 #include "events.h"
+#include "sql_show.h"                           // opt_ignore_db_dirs
 
 /* WITH_NDBCLUSTER_STORAGE_ENGINE */
 #ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
@@ -1013,6 +1014,8 @@ static sys_var_readonly       sys_in_transaction(&vars, "in_transaction",
                                                  OPT_SESSION, SHOW_BOOL,
                                                  in_transaction);
 
+static sys_var_const_str_ptr sys_ignore_db_dirs(&vars, "ignore_db_dirs",
+                                                &opt_ignore_db_dirs);
 
 
 bool sys_var::check(THD *thd, set_var *var)

@@ -41,4 +41,13 @@ int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
 
+
+/* Handle the ignored database directories list for SHOW/I_S. */
+bool ignore_db_dirs_init();
+void ignore_db_dirs_free();
+void ignore_db_dirs_reset();
+bool ignore_db_dirs_process_additions();
+bool push_ignored_db_dir(char *path);
+extern char *opt_ignore_db_dirs;
+
 #endif /* SQL_SHOW_H */

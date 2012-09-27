@@ -33,6 +33,7 @@
 #include <waiting_threads.h>
 #include "debug_sync.h"
 #include "log_event.h"
+#include "sql_show.h"
 
 #include "../storage/myisam/ha_myisam.h"
 
@@ -1447,6 +1448,7 @@ void clean_up(bool print_message)
 #endif
   my_tz_free();
   my_database_names_free();
+  ignore_db_dirs_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   servers_free(1);
   acl_free(1);
@@ -3332,6 +3334,9 @@ static int init_common_variables(const char *conf_file_name, int argc,
       mysql_init_variables())
     return 1;
 
+  if (ignore_db_dirs_init())
+    return 1;
+
 #ifdef HAVE_TZNAME
   {
     struct tm tm_tmp;
@@ -3676,6 +3681,12 @@ You should consider changing lower_case_table_names to 1 or 2",
   table_alias_charset= (lower_case_table_names ?
 			files_charset_info :
 			&my_charset_bin);
+
+  if (ignore_db_dirs_process_additions())
+  {
+    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
+    return 1;
+  }
 
   return 0;
 }
@@ -5999,7 +6010,8 @@ enum options_mysqld
   OPT_MAX_LONG_DATA_SIZE,
   OPT_MASTER_VERIFY_CHECKSUM,
   OPT_SLAVE_SQL_VERIFY_CHECKSUM,
-  OPT_QUERY_CACHE_STRIP_COMMENTS
+  OPT_QUERY_CACHE_STRIP_COMMENTS,
+  OPT_IGNORE_DB_DIRECTORY
 };
 
 
@@ -6288,6 +6300,11 @@ struct my_option my_long_options[] =
 each time the SQL thread starts.",
    &opt_init_slave, &opt_init_slave, 0, GET_STR_ALLOC,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"ignore-db-dir", OPT_IGNORE_DB_DIRECTORY,
+   "Specifies a directory to add to the ignore list when collecting "
+   "database names from the datadir. Put a blank argument to reset "
+   "the list accumulated so far.", 0, 0, 0, GET_STR, REQUIRED_ARG, 
+   0, 0, 0, 0, 0, 0},
   {"language", 'L',
    "Client error messages in given language. May be given as a full path.",
    &language_ptr, &language_ptr, 0, GET_STR, REQUIRED_ARG,
@@ -9285,6 +9302,22 @@ mysqld_get_one_option(int optid,
 #endif /* defined(ENABLED_DEBUG_SYNC) */
   case OPT_MAX_LONG_DATA_SIZE:
     max_long_data_size_used= true;
+    break;
+
+
+  case OPT_IGNORE_DB_DIRECTORY:
+    if (*argument == 0)
+      ignore_db_dirs_reset();
+    else
+    {
+      if (push_ignored_db_dir(argument))
+      {
+        sql_print_error("Can't start server: "
+                        "cannot process --ignore-db-dir=%.*s", 
+                        FN_REFLEN, argument);
+        return 1;
+      }
+    }
     break;
   }
   return 0;

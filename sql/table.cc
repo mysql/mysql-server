@@ -3197,6 +3197,9 @@ bool check_db_name(LEX_STRING *org_name)
   if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
+  if (db_name_is_in_ignore_db_dirs_list(name))
+    return 1;
+
   return check_table_name(name, name_length, check_for_path_chars);
 }
 

@@ -2834,6 +2834,8 @@ bool load_collation(MEM_ROOT *mem_root,
                     CHARSET_INFO *dflt_cl,
                     CHARSET_INFO **cl);
 
+bool db_name_is_in_ignore_db_dirs_list(const char *dbase);
+
 #endif /* MYSQL_SERVER */
 extern "C" int test_if_data_home_dir(const char *dir);
 
