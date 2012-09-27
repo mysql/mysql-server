@@ -30,7 +30,7 @@ int test_main (int argc, char * const argv[]) {
         r = db->open(db, txna, "foo.db", NULL, DB_BTREE, DB_CREATE, 0666);              CKERR(r);
 
         DBT key,val;
-        r = db->put(db, txna, dbt_init(&key, "a", 4), dbt_init(&val, "a", 4), 0);       CKERR(r);
+        r = db->put(db, txna, dbt_init(&key, "a", 2), dbt_init(&val, "a", 2), 0);       CKERR(r);
 
         r = txna->commit(txna, 0);                                                      CKERR(r);
     }
@@ -44,31 +44,31 @@ int test_main (int argc, char * const argv[]) {
     //
     {
         DBT key,val;
-        r = db->put(db, txn_put, dbt_init(&key, "x", 4), dbt_init(&val, "x", 4), 0);   CKERR(r);
+        r = db->put(db, txn_put, dbt_init(&key, "x", 2), dbt_init(&val, "x", 2), 0);   CKERR(r);
         dbt_init_malloc(&val);
-        r = db->get(db, txn_put, dbt_init(&key, "x", 4), &val, 0);  CKERR(r);
+        r = db->get(db, txn_put, dbt_init(&key, "x", 2), &val, 0);  CKERR(r);
         toku_free(val.data);
 
         dbt_init_malloc(&val);
-        r = db->get(db, txn_committed, dbt_init(&key, "x", 4), &val, 0);    CKERR2(r, DB_NOTFOUND);
+        r = db->get(db, txn_committed, dbt_init(&key, "x", 2), &val, 0);    CKERR2(r, DB_NOTFOUND);
         toku_free(val.data);
 
         dbt_init_malloc(&val);
-        r = db->get(db, txn_uncommitted, dbt_init(&key, "x", 4), &val, 0);  CKERR(r);
+        r = db->get(db, txn_uncommitted, dbt_init(&key, "x", 2), &val, 0);  CKERR(r);
         toku_free(val.data);
         
-        r = db->del(db, txn_put, dbt_init(&key, "a", 4), 0);  CKERR(r);
+        r = db->del(db, txn_put, dbt_init(&key, "a", 2), 0);  CKERR(r);
 
         dbt_init_malloc(&val);
-        r = db->get(db, txn_put, dbt_init(&key, "a", 4), &val, 0);  CKERR2(r, DB_NOTFOUND);
+        r = db->get(db, txn_put, dbt_init(&key, "a", 2), &val, 0);  CKERR2(r, DB_NOTFOUND);
         toku_free(val.data);
 
         dbt_init_malloc(&val);
-        r = db->get(db, txn_committed, dbt_init(&key, "a", 4), &val, 0);    CKERR(r);
+        r = db->get(db, txn_committed, dbt_init(&key, "a", 2), &val, 0);    CKERR(r);
         toku_free(val.data);
 
         dbt_init_malloc(&val);
-        r = db->get(db, txn_uncommitted, dbt_init(&key, "a", 4), &val, 0);  CKERR2(r, DB_NOTFOUND);
+        r = db->get(db, txn_uncommitted, dbt_init(&key, "a", 2), &val, 0);  CKERR2(r, DB_NOTFOUND);
         toku_free(val.data);
 
         val.data = NULL;
@@ -97,7 +97,7 @@ int test_main (int argc, char * const argv[]) {
         r = db->cursor(db, txn_committed, &cursor_committed, 0); assert(r == 0);
         r = db->cursor(db, txn_uncommitted, &cursor_uncommitted, 0); assert(r == 0);
 
-        r = db->put(db, txn_put, dbt_init(&key, "y", 4), dbt_init(&val, "y", 4), 0);   CKERR(r);
+        r = db->put(db, txn_put, dbt_init(&key, "y", 2), dbt_init(&val, "y", 2), 0);   CKERR(r);
 
         r = cursor_uncommitted->c_get(cursor_uncommitted, &curr_key, &curr_val, DB_NEXT); CKERR(r);
         assert(((char *)(curr_key.data))[0] == 'x');

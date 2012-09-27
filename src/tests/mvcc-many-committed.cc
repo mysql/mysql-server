@@ -48,7 +48,7 @@ int test_main (int argc, char * const argv[]) {
         r = db->put(
             db, 
             put_txn, 
-            dbt_init(&key, "a", 4), 
+            dbt_init(&key, "a", 2), 
             dbt_init(&val, &data, 4), 
             0
             );       
