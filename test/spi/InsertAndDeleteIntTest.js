@@ -79,6 +79,8 @@ t1.runTestMethod = function do_insert_op(dataObj) {
   tx.execute([ op ], function(err, tx) {
     if(err) { 
       test.appendErrorMessage("ExecuteCommit failed: " + err);  
+    } else {
+      tx.executedOperations.pop();
     }
     test.failOnError();
   });  
@@ -107,6 +109,8 @@ t2.runTestMethod = function do_delete_op(keyObj) {
   tx.execute([ op ], function(err, tx) {
     if(err) { 
       test.appendErrorMessage("ExecuteCommit failed: " + err); 
+    } else {
+      tx.executedOperations.pop();
     }
     test.failOnError();
   });
