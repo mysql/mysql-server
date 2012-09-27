@@ -128,7 +128,7 @@ if (NOT USE_VALGRIND)
 endif ()
 
 ## set warnings
-set(WARN_FLAGS
+set_cflags_if_supported(
   -Wextra
   -Wbad-function-cast
   -Wno-missing-noreturn
@@ -149,18 +149,12 @@ set(WARN_FLAGS
   #-Wvector-optimization-performance
   )
 
-option(WARN_ABOUT_PACKED "Warn about useless __attribute__((packed)).  This generates lots of warnings." OFF)
-if (WARN_ABOUT_PACKED)
-  list(APPEND WARN_FLAGS -Wpacked -Wno-error=packed)
-endif ()
-
 if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
   message(WARNING "Disabling -Wcast-align with clang.  TODO: fix casting and re-enable it.")
 else ()
-  list(APPEND WARN_FLAGS -Wcast-align)
+  set_cflags_if_supported(-Wcast-align)
 endif ()
 
-set_cflags_if_supported(${WARN_CFLAGS})
 ## always want these
 set(CMAKE_C_FLAGS "-Wall -Werror ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "-Wall -Werror ${CMAKE_CXX_FLAGS}")
