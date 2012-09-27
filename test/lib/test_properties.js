@@ -66,7 +66,7 @@ function merge(target, m) {
   var p;
   for(p in m) {
     if(m.hasOwnProperty(p)) {
-      target.p = m.p;
+      target[p] = m[p];
     }
   }
 }
