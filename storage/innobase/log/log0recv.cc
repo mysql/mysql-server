@@ -3154,7 +3154,7 @@ recv_recovery_from_checkpoint_start_func(
 			}
 
 			if (!recv_needed_recovery) {
-				ib_logf(IB_LOG_LEVEL_WARN,
+				ib_logf(IB_LOG_LEVEL_INFO,
 					"The log sequence numbers "
 					LSN_PF " and " LSN_PF
 					" in ibdata files do not match"
