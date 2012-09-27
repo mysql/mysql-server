@@ -92,13 +92,12 @@ if (BUILD_TESTING OR BUILD_FT_TESTS)
 
   include(CMakeDependentOption)
   set(helgrind_drd_depend_conditions "")
-  ## helgrind and drd are bad at dealing with freebsd's pthreads
-  ## implementation, see pkg-message at
-  ## http://www.freebsdports.info/ports/devel/valgrind.html
-  list(APPEND helgrind_drd_depend_conditions "NOT CMAKE_SYSTEM_NAME STREQUAL FreeBSD")
-  ## supposedly it's bad on darwin too, don't have a link for that, maybe
-  ## worth re-checking
-  list(APPEND helgrind_drd_depend_conditions "NOT CMAKE_SYSTEM_NAME STREQUAL Darwin")
+  ## Helgrind and DRD explicitly state that they only run with the Linux
+  ## glibc-2.3 NPTL threading implementation [1,2].  If this ever changes
+  ## we can enable helgrind and drd on other systems.
+  ## [1]: http://valgrind.org/docs/manual/hg-manual.html#hg-manual.effective-use
+  ## [2]: http://valgrind.org/docs/manual/drd-manual.html#drd-manual.limitations
+  list(APPEND helgrind_drd_depend_conditions "CMAKE_SYSTEM_NAME STREQUAL Linux")
   ## no point doing it with gcov
   list(APPEND helgrind_drd_depend_conditions "NOT USE_GCOV")
   cmake_dependent_option(RUN_DRD_TESTS "Run some tests under drd." ON
