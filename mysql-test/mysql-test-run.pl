@@ -5107,6 +5107,7 @@ sub mysqld_arguments ($$$) {
   # override defaults above.
 
   my $found_skip_core= 0;
+  my $found_no_console= 0;
   foreach my $arg ( @$extra_opts )
   {
     # Skip --defaults-file option since it's handled above.
@@ -5116,6 +5117,10 @@ sub mysqld_arguments ($$$) {
     if ($arg eq "--skip-core-file")
     {
       $found_skip_core= 1;
+    }
+    elsif ($arg eq "--no-console")
+    {
+        $found_no_console= 1;
     }
     elsif ($skip_binlog and mtr_match_prefix($arg, "--binlog-format"))
     {
@@ -5137,6 +5142,11 @@ sub mysqld_arguments ($$$) {
     }
   }
   $opt_skip_core = $found_skip_core;
+  if (IS_WINDOWS && !$found_no_console)
+  {
+    # Trick the server to send output to stderr, with --console
+    mtr_add_arg($args, "--console");
+  }
   if ( !$found_skip_core && !$opt_user_args )
   {
     mtr_add_arg($args, "%s", "--core-file");
@@ -5188,12 +5198,6 @@ sub mysqld_start ($$) {
   {
     mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/%s.trace",
 		$path_vardir_trace, $mysqld->name());
-  }
-
-  if (IS_WINDOWS)
-  {
-    # Trick the server to send output to stderr, with --console
-    mtr_add_arg($args, "--console");
   }
 
   if ( $opt_gdb || $opt_manual_gdb )
@@ -5886,12 +5890,6 @@ sub start_mysqltest ($) {
     my $extra_opts= get_extra_opts($mysqld, $tinfo);
     mysqld_arguments($mysqld_args, $mysqld, $extra_opts);
     mtr_add_arg($args, "--server-arg=%s", $_) for @$mysqld_args;
-
-    if (IS_WINDOWS)
-    {
-      # Trick the server to send output to stderr, with --console
-      mtr_add_arg($args, "--server-arg=--console");
-    }
   }
 
   # ----------------------------------------------------------------------
