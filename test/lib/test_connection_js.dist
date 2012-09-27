@@ -6,7 +6,7 @@
 */
 
 
-exports = {
+module.exports = {
 
    "mysql_host"        :   "localhost",
    "mysql_port"        :   "3306",
