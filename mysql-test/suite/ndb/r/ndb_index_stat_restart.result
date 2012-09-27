@@ -44,7 +44,7 @@ Ndb_index_stat_cache_clean	0
 set global ndb_dbg_check_shares=1;
 drop table if exists t1;
 Warnings:
-Note	1051	Unknown table 't1'
+Note	1051	Unknown table 'test.t1'
 create table t1 (
 a int primary key,
 b int,
