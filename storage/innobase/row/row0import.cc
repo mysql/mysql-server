@@ -3051,7 +3051,9 @@ row_import_for_mysql(
 	}
 	ut_a(filepath);
 
-	/* Open the tablespace so that we can access via the buffer pool. */
+	/* Open the tablespace so that we can access via the buffer pool.
+	We set the 2nd param (fix_dict = true) here because we already
+	have an x-lock on dict_operation_lock and dict_sys->mutex. */
 
 	err = fil_open_single_table_tablespace(
 		true, true, table->space,

@@ -394,7 +394,8 @@ dict_table_stats_unlock(
 }
 
 /**********************************************************************//**
-Try to drop any indexes after an aborted index creation. */
+Try to drop any indexes after an aborted index creation.
+This can also be after a server kill during DROP INDEX. */
 static
 void
 dict_table_try_drop_aborted(
@@ -407,6 +408,7 @@ dict_table_try_drop_aborted(
 	trx_t*		trx;
 
 	trx = trx_allocate_for_background();
+	trx->op_info = "try to drop any indexes after an aborted index creation";
 	row_mysql_lock_data_dictionary(trx);
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
@@ -1779,6 +1781,7 @@ dict_table_remove_from_cache_low(
 		ut_d(table->n_ref_count--);
 		ut_ad(table->n_ref_count == 0);
 		trx_commit_for_mysql(trx);
+		trx->dict_operation_lock_mode = 0;
 		trx_free_for_background(trx);
 	}
 
