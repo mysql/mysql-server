@@ -142,7 +142,31 @@ LongVarcharEncoder.lengthBytes = 2;
 LongVarcharEncoder.write = VarcharEncoder.write;
 LongVarcharEncoder.read = VarcharEncoder.read;
 
+/* Temporal Types */
+function factor_HHMMSS(date, int_date) {
+  date.setHours(Math.floor(int_date / 10000));
+  date.setMinutes(Math.floor(int_date/100) % 100);
+  date.setSeconds(int_date % 100);
+}
 
+function factor_YYYYMMDD(date, int_date) {
+  date.setFullYear(Math.floor(int_date/10000) % 10000);
+  date.setMonth(Math.floor(int_date / 100) % 100);
+  date.setDate(int_date % 100);
+}
+
+function YYYYMMDD(date) {
+  return (date.year * 10000) +
+         (date.month * 100) +
+         (date.day);
+}
+
+function HHMMSS(date) {
+  return (date.hour * 10000) + (date.minute * 100) + date.second;
+}
+
+/* Stub encoder for DateTime.   Requires 64-bit number support.
+*/
 var dateTimeEncoder = new NdbEncoder();
 dateTimeEncoder.read = function(col, buffer, offset) {
   return 0;

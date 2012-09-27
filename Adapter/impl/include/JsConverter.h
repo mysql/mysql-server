@@ -149,38 +149,29 @@ public:
  Value Conversion from C to JavaScript
 ******************************************************************/
 
-// pointer types
-template <typename T> Local<Value> toJS(T cptr) {
-  /* This can't be done.  Use wrapPointerInObject() instead. */
-  HandleScope scope;
-  assert("WRONG TEMPLATE SPECIALIZATION" == 0);
-  return scope.Close(Null());
+/* Generic.
+   The generic version uses V8 Integer::New(int32_t)
+   If we have a correct isPointer()<T> for every T, then toJS()
+   should never be called with a pointer type at runtime.  
+   See AsyncCall_Returning::jsReturnVal() at AsyncMethodCall.h line 130.
+   But it must be valid at compile-time to have a pointer type here.
+*/
+template <typename T> Local<Value> toJS(T cval) {
+  int32_t val = (int32_t) cval;
+  return Integer::New(val);
 }
-
-// int
-template <>
-inline Local<Value> toJS<int>(int cval){ 
-  return Number::New(cval);
-};
 
 // uint32_t
 template <>
 inline Local<Value> toJS<uint32_t>(uint32_t cval) {
   return v8::Uint32::New(cval);
-};
-
-// size_t:  FIXME, THIS CAN CAUSE COMPILER FAILURE IF uint32_t == size_t
-// size_t is required for Record.
-template <>
-inline Local<Value> toJS<size_t>(size_t cval) {
-  return v8::Uint32::New(cval);
-};
+}
 
 // double
 template <>
 inline Local<Value> toJS<double>(double cval) {
   return Number::New(cval);
-};
+}
 
 // const char *
 template <> 
