@@ -736,7 +736,15 @@ public:
   // Don't insert new types below this line!
   };
 
-  SQL_I_List<ORDER> order_list;   /* ORDER clause */
+  /*
+    ORDER BY clause.
+    This list may be mutated during optimization (by remove_const()),
+    so for prepared statements, we keep a copy of the ORDER.next pointers in
+    order_list_ptrs, and re-establish the original list before each execution.
+  */
+  SQL_I_List<ORDER> order_list;
+  Group_list_ptrs *order_list_ptrs;
+
   SQL_I_List<ORDER> *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
 
@@ -913,7 +921,8 @@ public:
   bool test_limit();
 
   friend void lex_start(THD *thd);
-  st_select_lex() : group_list_ptrs(NULL), n_sum_items(0), n_child_sum_items(0),
+  st_select_lex() : group_list_ptrs(NULL), order_list_ptrs(NULL),
+    n_sum_items(0), n_child_sum_items(0),
     cur_pos_in_all_fields(ALL_FIELDS_UNDEF_POS)
   {}
   void make_empty_select()

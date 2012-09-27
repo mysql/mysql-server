@@ -2512,6 +2512,14 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       for (order= sl->group_list.first; order; order= order->next)
         order->item= &order->item_ptr;
       /* Fix ORDER list */
+      if (sl->order_list_ptrs && sl->order_list_ptrs->size() > 0)
+      {
+        for (uint ix= 0; ix < sl->order_list_ptrs->size() - 1; ++ix)
+        {
+          order= sl->order_list_ptrs->at(ix);
+          order->next= sl->order_list_ptrs->at(ix+1);
+        }
+      }
       for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
 
