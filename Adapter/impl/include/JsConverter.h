@@ -147,31 +147,73 @@ public:
 /*****************************************************************
  toJs functions
  Value Conversion from C to JavaScript
+
+ If we have a correct isPointer()<T> for every T, then toJS()
+ should never be called with a pointer type at runtime.  
+ See AsyncCall_Returning::jsReturnVal() at AsyncMethodCall.h line 130.
+ 
+ The generic function should either be undefined or should throw a
+ run-time assert.
+
+ SPECIALIZATIONS should be over C PRIMITIVE types only.
 ******************************************************************/
 
-/* Generic.
-   The generic version uses V8 Integer::New(int32_t)
-   If we have a correct isPointer()<T> for every T, then toJS()
-   should never be called with a pointer type at runtime.  
-   See AsyncCall_Returning::jsReturnVal() at AsyncMethodCall.h line 130.
-   But it must be valid at compile-time to have a pointer type here.
-*/
-template <typename T> Local<Value> toJS(T cval) {
-  int32_t val = (int32_t) cval;
-  return Integer::New(val);
+// pointer types
+template <typename T> Local<Value> toJS(T cptr) {
+  /* This can't be done.  Use wrapPointerInObject() instead. */
+  HandleScope scope;
+  assert("WRONG TEMPLATE SPECIALIZATION" == 0);
+  return scope.Close(Null());
 }
 
-// uint32_t
+// int
 template <>
-inline Local<Value> toJS<uint32_t>(uint32_t cval) {
-  return v8::Uint32::New(cval);
+inline Local<Value> toJS<int>(int cval) { 
+  return v8::Integer::New(cval);
+}
+
+// unsigned int
+template <>
+inline Local<Value> toJS<unsigned int>(unsigned int cval) {
+  return v8::Integer::NewFromUnsigned(cval);
+}
+
+// short
+template <>
+inline Local<Value> toJS<short>(short cval) {
+  return v8::Integer::New(cval);
+}
+
+// unsigned short
+template <>
+inline Local<Value> toJS<unsigned short>(unsigned short cval) {
+  return v8::Integer::NewFromUnsigned(cval);
+}
+
+// long 
+template <>
+inline Local<Value> toJS<long>(long cval) {
+  return v8::Integer::New(cval);
+}
+
+// unsigned long
+template <>
+inline Local<Value> toJS<unsigned long >(unsigned long cval) {
+  return v8::Integer::NewFromUnsigned(cval);
+}
+
+// unsigned long long 
+// (the value may actually be too large to represent in JS!?)
+template <>
+inline Local<Value> toJS<unsigned long long>(unsigned long long cval) {
+  return v8::Integer::NewFromUnsigned(cval);
 }
 
 // double
 template <>
 inline Local<Value> toJS<double>(double cval) {
   return Number::New(cval);
-}
+};
 
 // const char *
 template <> 

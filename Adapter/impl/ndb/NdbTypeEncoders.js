@@ -183,13 +183,12 @@ timeStampEncoder.intEncoder = makeIntEncoder("UInt", 32);
 timeStampEncoder.read = function(col, buffer, offset) {
   var i = this.intEncoder.read(col, buffer, offset);
   return new Date(i * 1000);
-}
+};
 
 timeStampEncoder.write = function(col, value, buffer, offset) {
   var intValue = Math.floor(value.getTime() / 1000);
   this.intEncoder.write(col, intValue, buffer, offset);
-}
-
+};
 
 
 var defaultTypeEncoders = [
