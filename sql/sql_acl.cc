@@ -10388,11 +10388,11 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
         if (log_warnings)
           sql_print_information("X509 issuer mismatch: should be '%s' "
                             "but is '%s'", acl_user->x509_issuer, ptr);
-        free(ptr);
+        OPENSSL_free(ptr);
         X509_free(cert);
         return 1;
       }
-      free(ptr);
+      OPENSSL_free(ptr);
     }
     /* X509 subject is specified, we check it .. */
     if (acl_user->x509_subject)
@@ -10405,11 +10405,11 @@ static bool acl_check_ssl(THD *thd, const ACL_USER *acl_user)
         if (log_warnings)
           sql_print_information("X509 subject mismatch: should be '%s' but is '%s'",
                           acl_user->x509_subject, ptr);
-        free(ptr);
+        OPENSSL_free(ptr);
         X509_free(cert);
         return 1;
       }
-      free(ptr);
+      OPENSSL_free(ptr);
     }
     X509_free(cert);
     return 0;
