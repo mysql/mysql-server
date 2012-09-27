@@ -2,7 +2,7 @@ install plugin pam soname 'auth_pam.so';
 create user test_pam identified via pam using 'mariadb_mtr';
 #
 # athentication is successful, challenge/pin are ok
-# note that current_user() differts from user()
+# note that current_user() differs from user()
 #
 Challenge input first.
 Enter: not very secret challenge

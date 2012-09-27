@@ -229,7 +229,7 @@ static MYSQL_SYSVAR_ULONG(pagecache_age_threshold,
        "until it is considered aged enough to be downgraded to a warm block. "
        "This specifies the percentage ratio of that number of hits to the "
        "total number of blocks in the page cache.", 0, 0,
-        300, 100, ~0L, 100);
+        300, 100, ~(unsigned long)0, 100);
 
 static MYSQL_SYSVAR_ULONGLONG(pagecache_buffer_size, pagecache_buffer_size,
        PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
