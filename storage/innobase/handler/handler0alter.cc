@@ -443,6 +443,11 @@ ha_innobase::check_if_supported_inplace_alter(
 		fulltext indexes are to survive the rebuild,
 		or if the table contains a hidden FTS_DOC_ID column. */
 		online = false;
+		/* If the table already contains fulltext indexes,
+		refuse to rebuild the table natively altogether. */
+		if (prebuilt->table->fts) {
+			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
 	} else if (innobase_fk_cscd_setnull_exist(prebuilt->table)) {
 		/* Refuse online ALTER TABLE (even dropping or
 		creating secondary indexes) if there are FOREIGN KEY
