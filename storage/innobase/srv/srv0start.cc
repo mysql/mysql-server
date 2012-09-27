@@ -2054,6 +2054,10 @@ innobase_start_or_create_for_mysql(void)
 						logfilename, dirnamelen,
 						max_flushed_lsn, logfile0);
 
+					/* Suppress the message about
+					crash recovery. */
+					max_flushed_lsn = min_flushed_lsn
+						= log_get_lsn();
 					goto files_checked;
 				} else if (i < 2) {
 					/* must have at least 2 log files */
@@ -2699,7 +2703,7 @@ files_checked:
 
 	if (srv_print_verbose_log) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"%s started; " "log sequence number " LSN_PF "",
+			"%s started; log sequence number " LSN_PF "",
 			INNODB_VERSION_STR, srv_start_lsn);
 	}
 
