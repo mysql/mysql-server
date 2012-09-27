@@ -4228,10 +4228,10 @@ private:
     Private member function called while handling idempotent errors.
 
     @param err[IN/OUT] the error to handle. If it is listed as
-                       idempotent related error, then it is cleared.
+                       idempotent/ignored related error, then it is cleared.
     @returns true if the slave should stop executing rows.
    */
-  int handle_idempotent_errors(Relay_log_info const *rli, int *err);
+  int handle_idempotent_and_ignored_errors(Relay_log_info const *rli, int *err);
 
   /**
      Private member function called after updating/deleting a row. It
