@@ -47,6 +47,11 @@ id	LEFT(bfield,20)
 11	aaaaaaaaaaaaaaaaaaaa
 12	bbbbbbbbbbbbbbbbbbbb
 13	cccccccccccccccccccc
+The size of the ib_logfile0 file: 15 
+The size of the ib_logfile1 file: 15 
+The size of the ib_logfile2 file: 15 
+The size of the ib_logfile3 file: 15 
+The size of the ib_logfile4 file: 15 
 USE db_wl6494;
 SELECT id,LEFT(bfield,20) FROM t1;
 id	LEFT(bfield,20)
