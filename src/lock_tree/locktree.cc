@@ -18,7 +18,7 @@
 #include <ft/ft-internal.h>
 #include <toku_stdint.h>
 #include <db.h>
-#include <valgrind/drd.h>
+#include <toku_race_tools.h>
 
 /* TODO: Yoni should check that all asserts make sense instead of panic,
          and all early returns make sense instead of panic,
@@ -258,7 +258,7 @@ toku_ltm_create(toku_ltm** pmgr,
     assert(r == 0 && mgr->idlth);
 
     toku_mutex_init(&mgr->mutex, NULL);
-    DRD_IGNORE_VAR(mgr->status);
+    TOKU_DRD_IGNORE_VAR(mgr->status);
     r = 0;
     *pmgr = mgr;
 cleanup:
@@ -296,7 +296,7 @@ toku_ltm_close(toku_ltm* mgr) {
     toku_lth_close(mgr->lth);
     toku_idlth_close(mgr->idlth);
     toku_mutex_destroy(&mgr->mutex);
-    DRD_STOP_IGNORING_VAR(mgr->status);
+    TOKU_DRD_STOP_IGNORING_VAR(mgr->status);
     assert(mgr->curr_locks == 0 && mgr->curr_lock_memory == 0);
     toku_free(mgr);
 

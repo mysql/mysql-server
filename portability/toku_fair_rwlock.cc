@@ -56,7 +56,7 @@ get_waitstate(void)
         int r = toku_pthread_setspecific(waitstate_key, p);
         assert_zero(r);
     }
-    waitstate = p;
+    waitstate = static_cast<struct toku_fair_rwlock_waiter_state *>(p);
     return waitstate;
 }
 

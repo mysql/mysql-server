@@ -15,7 +15,7 @@
 # include <sys/malloc.h>
 #endif
 #include <dlfcn.h>
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 #include "memory.h"
 #include "toku_assert.h"
 
@@ -147,7 +147,7 @@ void *
 toku_malloc(size_t size) {
     void *p = t_malloc ? t_malloc(size) : os_malloc(size);
     if (p) {
-	HELGRIND_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
+	TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
         if (toku_memory_do_stats) {
             size_t used = my_malloc_usable_size(p);
             __sync_add_and_fetch(&status.malloc_count, 1);
@@ -225,7 +225,7 @@ toku_xmalloc(size_t size) {
     void *p = t_xmalloc ? t_xmalloc(size) : os_malloc(size);
     if (p == NULL)  // avoid function call in common case
         resource_assert(p);
-    HELGRIND_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
+    TOKU_ANNOTATE_NEW_MEMORY(p, size); // see #4671 and https://bugs.kde.org/show_bug.cgi?id=297147
     if (toku_memory_do_stats) {
         size_t used = my_malloc_usable_size(p);
         __sync_add_and_fetch(&status.malloc_count, 1);
@@ -316,9 +316,9 @@ toku_set_func_free(free_fun_t f) {
     t_free = f;
 }
 
-#include <valgrind/helgrind.h>
+#include <toku_race_tools.h>
 void __attribute__((constructor)) toku_memory_helgrind_ignore(void);
 void
 toku_memory_helgrind_ignore(void) {
-    HELGRIND_VALGRIND_HG_DISABLE_CHECKING(&status, sizeof status);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&status, sizeof status);
 }
