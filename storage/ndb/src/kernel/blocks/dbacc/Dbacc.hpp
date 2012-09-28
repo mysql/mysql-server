@@ -452,10 +452,9 @@ struct Fragmentrec {
   Uint16 keyLength;
 
 //-----------------------------------------------------------------------------
-// This flag is used to avoid sending a big number of expand or shrink signals
-// when simultaneously committing many inserts or deletes.
+// Only allow one expand or shrink signal in queue at the time.
 //-----------------------------------------------------------------------------
-  Uint8 expandFlag;
+  bool expandOrShrinkQueued;
 
 //-----------------------------------------------------------------------------
 // hashcheckbit is the bit to check whether to send element to split bucket or not
@@ -855,8 +854,6 @@ private:
   void storeDataPageInDirectoryLab(Signal* signal);
 
   void zpagesize_error(const char* where);
-
-  void reenable_expand_after_redo_log_exection_complete(Signal*);
 
   // charsets
   void xfrmKeyData(Signal* signal);
