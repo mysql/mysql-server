@@ -12,7 +12,10 @@ SELECT @@innodb_file_format;
 Barracuda
 SELECT @@innodb_log_file_size;
 @@innodb_log_file_size
-5242880
+1048576
+SELECT @@innodb_log_files_in_group;
+@@innodb_log_files_in_group
+2
 DROP DATABASE IF EXISTS db_wl6494;
 CREATE DATABASE db_wl6494;
 USE db_wl6494;
@@ -47,11 +50,11 @@ id	LEFT(bfield,20)
 11	aaaaaaaaaaaaaaaaaaaa
 12	bbbbbbbbbbbbbbbbbbbb
 13	cccccccccccccccccccc
-The size of the ib_logfile0 file: 15 
-The size of the ib_logfile1 file: 15 
-The size of the ib_logfile2 file: 15 
-The size of the ib_logfile3 file: 15 
-The size of the ib_logfile4 file: 15 
+The size of the ib_logfile0 file: 2 
+The size of the ib_logfile1 file: 2 
+The size of the ib_logfile2 file: 2 
+The size of the ib_logfile3 file: 2 
+The size of the ib_logfile4 file: 2 
 USE db_wl6494;
 SELECT id,LEFT(bfield,20) FROM t1;
 id	LEFT(bfield,20)
@@ -79,6 +82,12 @@ id	LEFT(bfield,20)
 23	cccccccccccccccccccc
 DROP TABLE t1;
 DROP DATABASE db_wl6494;
+SELECT @@innodb_log_file_size;
+@@innodb_log_file_size
+3145728
+SELECT @@innodb_log_files_in_group;
+@@innodb_log_files_in_group
+3
 DROP DATABASE IF EXISTS db_wl6494;
 CREATE DATABASE db_wl6494;
 USE db_wl6494;
@@ -113,6 +122,12 @@ id	LEFT(bfield,20)
 11	aaaaaaaaaaaaaaaaaaaa
 12	bbbbbbbbbbbbbbbbbbbb
 13	cccccccccccccccccccc
+SELECT @@innodb_log_file_size;
+@@innodb_log_file_size
+2097152
+SELECT @@innodb_log_files_in_group;
+@@innodb_log_files_in_group
+2
 USE db_wl6494;
 SELECT id,LEFT(bfield,20) FROM t1;
 id	LEFT(bfield,20)
