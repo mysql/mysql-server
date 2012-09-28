@@ -10,6 +10,10 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
+if (`SELECT @@innodb_log_file_size = 1048576`) {
+  --skip Test requires innodb_log_file_size>1M.
+}
+
 call mtr.add_suppression("InnoDB: Resizing redo log");
 call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
 call mtr.add_suppression("InnoDB: New log files created");
@@ -99,7 +103,7 @@ let SEARCH_PATTERN= InnoDB: Can.t initiate database recovery, running in read-on
 --exec $MYSQLD_CMD $crash=4
 let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= InnoDB: Resizing redo log from 3(\*[0-9]+0) to 2\1 pages;
+let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=5
@@ -107,7 +111,7 @@ let SEARCH_PATTERN= InnoDB: Resizing redo log from 3(\*[0-9]+0) to 2\1 pages;
 --exec $MYSQLD_CMD $crash=5
 let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= InnoDB: Resizing redo log from 3(\*[0-9]+0) to 2\1 pages;
+let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
@@ -122,7 +126,7 @@ let SEARCH_PATTERN= InnoDB: Can.t initiate database recovery, running in read-on
 --exec $MYSQLD_CMD $crash=6
 let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
-let SEARCH_PATTERN= InnoDB: Resizing redo log from 3(\*[0-9]+0) to 2\1 pages;
+let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=7
@@ -140,13 +144,13 @@ let SEARCH_PATTERN= InnoDB: Cannot create log files in read-only mode;
 --echo --innodb-force-recovery-crash=8
 --error 3,137
 --exec $MYSQLD_CMD $crash=8
-let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to 5 MB;
+let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=9
 --error 3,137
 --exec $MYSQLD_CMD $crash=9
-let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to 5 MB;
+let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
@@ -182,7 +186,7 @@ EOF
 
 --error 1
 --exec $MYSQLD_CMD $args
-let SEARCH_PATTERN= InnoDB: Log file .*ib_logfile1 is of different size 1048576 bytes than other log files 5242880 bytes!;
+let SEARCH_PATTERN= InnoDB: Log file .*ib_logfile1 is of different size 1048576 bytes than other log files;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --remove_file $MYSQLD_DATADIR/ib_logfile1
@@ -192,7 +196,7 @@ let SEARCH_PATTERN= InnoDB: Log file .*ib_logfile1 is of different size 1048576 
 --echo --innodb-force-recovery-crash=10
 --error 3,137
 --exec $MYSQLD_CMD $crash=10
-let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to 5 MB;
+let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to;
 --source include/search_pattern_in_file.inc
 let SEARCH_PATTERN= InnoDB: Renaming log file .*ib_logfile101 to .*ib_logfile0;
 --source include/search_pattern_in_file.inc
