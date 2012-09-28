@@ -78,13 +78,17 @@ DECLARE_NDBINFO_TABLE(POOLS,12) =
   }
 };
 
-DECLARE_NDBINFO_TABLE(TRANSPORTERS, 3) =
-{ { "transporters", 3, 0, "transporter status" },
+DECLARE_NDBINFO_TABLE(TRANSPORTERS, 6) =
+{ { "transporters", 6, 0, "transporter status" },
   {
     {"node_id",            Ndbinfo::Number, ""},
     {"remote_node_id",     Ndbinfo::Number, ""},
 
-    {"connection_status",  Ndbinfo::Number, ""}
+    {"connection_status",  Ndbinfo::Number, ""},
+    
+    {"remote_address",     Ndbinfo::String, ""},
+    {"bytes_sent",         Ndbinfo::Number64, ""},
+    {"bytes_received",     Ndbinfo::Number64, ""}
   }
 };
 
