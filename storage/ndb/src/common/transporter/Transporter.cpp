@@ -44,6 +44,7 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     isServer(lNodeId==serverNodeId),
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
     m_overload_limit(0xFFFFFFFF), m_slowdown_limit(0xFFFFFFFF),
+    m_bytes_sent(0), m_bytes_received(0),
     isMgmConnection(_isMgmConnection),
     m_connected(false),
     m_type(_type),
@@ -286,6 +287,8 @@ Transporter::doDisconnect() {
     return;
 
   m_connected = false;
+  m_bytes_sent = 0;
+  m_bytes_received = 0;
 
   disconnectImpl();
 }
