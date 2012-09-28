@@ -26,6 +26,7 @@
 #include <pc.hpp>
 #include <DynArr256.hpp>
 #include <SimulatedBlock.hpp>
+#include <LHLevel.hpp>
 
 #ifdef DBACC_C
 // Debug Macros
@@ -397,11 +398,10 @@ struct Fragmentrec {
 // Since at most RNIL 8KiB-pages can be used for a fragment, the extreme values
 // for slack will be within -2^43 and +2^43 words.
 //-----------------------------------------------------------------------------
+  LHLevel level;
   Uint32 localkeylen;
-  Uint32 maxp;
   Uint32 maxloadfactor;
   Uint32 minloadfactor;
-  Uint32 p;
   Int64 slack;
   Int64 slackCheck;
 
@@ -445,7 +445,6 @@ struct Fragmentrec {
 // hashcheckbit is the bit to check whether to send element to split bucket or not
 // k (== 6) is the number of buckets per page
 //-----------------------------------------------------------------------------
-  Uint8 hashcheckbit;
   Uint8 k;
 
 //-----------------------------------------------------------------------------
@@ -684,8 +683,8 @@ private:
   void releaseDirIndexResources(Signal* signal, FragmentrecPtr regFragPtr);
   void releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr);
   void initScanFragmentPart(Signal* signal);
-  Uint32 checkScanExpand(Signal* signal);
-  Uint32 checkScanShrink(Signal* signal);
+  Uint32 checkScanExpand(Signal* signal, Uint32 splitBucket);
+  Uint32 checkScanShrink(Signal* signal, Uint32 sourceBucket, Uint32 destBucket);
   void initialiseFragRec(Signal* signal);
   void initialiseFsConnectionRec(Signal* signal);
   void initialiseFsOpRec(Signal* signal);
@@ -993,7 +992,6 @@ private:
   Uint32 tgeContainerptr;
   Uint32 tgeElementptr;
   Uint32 tgeForward;
-  Uint32 texpReceivedBucket;
   Uint32 texpDirInd;
   Uint32 texpDirRangeIndex;
   Uint32 texpDirPageIndex;
