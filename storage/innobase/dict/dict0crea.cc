@@ -275,6 +275,11 @@ dict_build_table_def_step(
 		Get a new space id. */
 		dict_hdr_get_new_id(NULL, NULL, &space);
 
+		DBUG_EXECUTE_IF(
+			"ib_create_table_fail_out_of_space_ids",
+			space = ULINT_UNDEFINED;
+		);
+
 		if (UNIV_UNLIKELY(space == ULINT_UNDEFINED)) {
 			return(DB_ERROR);
 		}
