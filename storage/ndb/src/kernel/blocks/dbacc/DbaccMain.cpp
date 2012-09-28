@@ -2342,12 +2342,12 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 	if (fragrecptr.p->slack > fragrecptr.p->slackCheck) { 
           /* TIME FOR JOIN BUCKETS PROCESS */
 	  if (fragrecptr.p->expandCounter > 0) {
-	    if (fragrecptr.p->expandFlag < 2) {
+            if (!fragrecptr.p->expandOrShrinkQueued)
+            {
 	      jam();
 	      signal->theData[0] = fragrecptr.i;
-              signal->theData[1] = fragrecptr.p->expandFlag;
-	      fragrecptr.p->expandFlag = 2;
-              sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 2, JBB);
+              fragrecptr.p->expandOrShrinkQueued = true;
+              sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 1, JBB);
 	    }//if
 	  }//if
 	}//if
@@ -2359,10 +2359,11 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       if (fragrecptr.p->slack < 0 && !fragrecptr.p->level.isFull())
       {
 	/* IT MEANS THAT IF SLACK < ZERO */
-	if (fragrecptr.p->expandFlag == 0) {
+        if (!fragrecptr.p->expandOrShrinkQueued)
+        {
 	  jam();
-	  fragrecptr.p->expandFlag = 2;
 	  signal->theData[0] = fragrecptr.i;
+          fragrecptr.p->expandOrShrinkQueued = true;
           sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 1, JBB);
 	}//if
       }//if
@@ -5179,7 +5180,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   fragrecptr.i = signal->theData[0];
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  fragrecptr.p->expandFlag = 0;
+  fragrecptr.p->expandOrShrinkQueued = false;
   if (fragrecptr.p->slack > 0) {
     jam();
     /* IT MEANS THAT IF SLACK > ZERO */
@@ -5325,47 +5326,12 @@ void Dbacc::endofexpLab(Signal* signal)
     /*       IT IS STILL NECESSARY TO EXPAND THE FRAGMENT EVEN MORE. START IT FROM HERE  */
     /*       WITHOUT WAITING FOR NEXT COMMIT ON THE FRAGMENT.                            */
     /* --------------------------------------------------------------------------------- */
-    fragrecptr.p->expandFlag = 2;
     signal->theData[0] = fragrecptr.i;
+    fragrecptr.p->expandOrShrinkQueued = true;
     sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 1, JBB);
   }//if
   return;
 }//Dbacc::endofexpLab()
-
-void Dbacc::reenable_expand_after_redo_log_exection_complete(Signal* signal){
-
-  tabptr.i = signal->theData[0];
-  Uint32 fragId = signal->theData[1];
-
-  ptrCheckGuard(tabptr, ctablesize, tabrec);
-  ndbrequire(getfragmentrec(signal, fragrecptr, fragId));
-#if 0
-  ndbout_c("reenable expand check for table %d fragment: %d", 
-	   tabptr.i, fragId);
-#endif
-
-  switch(fragrecptr.p->expandFlag){
-  case 0:
-    /**
-     * Hmm... this means that it's alreay has been reenabled...
-     */
-    fragrecptr.p->expandFlag = 1;
-    break;
-  case 1:
-    /**
-     * Nothing is going on start expand check
-     */
-  case 2:
-    /**
-     * A shrink is running, do expand check anyway
-     *  (to reset expandFlag)
-     */
-    fragrecptr.p->expandFlag = 2; 
-    signal->theData[0] = fragrecptr.i;
-    sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 1, JBB);
-    break;
-  }
-}
 
 void Dbacc::execDEBUG_SIG(Signal* signal) 
 {
@@ -5825,9 +5791,8 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
 
   jamEntry();
   fragrecptr.i = signal->theData[0];
-  Uint32 oldFlag = signal->theData[1];
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  fragrecptr.p->expandFlag = oldFlag;
+  fragrecptr.p->expandOrShrinkQueued = false;
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
   if (fragrecptr.p->slack <= fragrecptr.p->slackCheck) {
     jam();
@@ -6079,10 +6044,9 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
 	/*       WAS REMOVED 2000-05-12.                                */
 	/*--------------------------------------------------------------*/
         signal->theData[0] = fragrecptr.i;
-        signal->theData[1] = fragrecptr.p->expandFlag;
-	ndbrequire(fragrecptr.p->expandFlag < 2);
-        fragrecptr.p->expandFlag = 2;
-        sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 2, JBB);
+        ndbrequire(!fragrecptr.p->expandOrShrinkQueued);
+        fragrecptr.p->expandOrShrinkQueued = true;
+        sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 1, JBB);
       }//if
     }//if
   }//if
@@ -6355,7 +6319,7 @@ void Dbacc::initFragAdd(Signal* signal,
    *
    * Is later restored to 0 by LQH at end of REDO log execution
    */
-  regFragPtr.p->expandFlag = 0;
+  regFragPtr.p->expandOrShrinkQueued = false;
   regFragPtr.p->level.setSize(1 << req->kValue);
   regFragPtr.p->minloadfactor = minLoadFactor;
   regFragPtr.p->maxloadfactor = maxLoadFactor;
