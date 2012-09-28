@@ -445,7 +445,7 @@ struct Fragmentrec {
 // hashcheckbit is the bit to check whether to send element to split bucket or not
 // k (== 6) is the number of buckets per page
 //-----------------------------------------------------------------------------
-  Uint8 k;
+  STATIC_CONST( k = 6 );
 
 //-----------------------------------------------------------------------------
 // nodetype can only be STORED in this release. Is currently only set, never read
@@ -461,6 +461,10 @@ struct Fragmentrec {
 // flag to mark that execEXPANDCHECK2 has failed due to DirRange full
 //-----------------------------------------------------------------------------
   Uint8 dirRangeFull;
+
+public:
+  Uint32 getPageNumber(Uint32 bucket_number) const;
+  Uint32 getPageIndex(Uint32 bucket_number) const;
 };
 
   typedef Ptr<Fragmentrec> FragmentrecPtr;
@@ -1025,7 +1029,6 @@ private:
   Uint32 tmp;
   Uint32 tmpP;
   Uint32 tmpP2;
-  Uint32 tmp1;
   Uint32 tmp2;
   Uint32 tgflPageindex;
   Uint32 tmpindex;
@@ -1084,5 +1087,17 @@ private:
   Uint32 c_errorInsert3000_TableId;
   Uint32 c_memusage_report_frequency;
 };
+
+inline Uint32 Dbacc::Fragmentrec::getPageNumber(Uint32 bucket_number) const
+{
+  assert(bucket_number < RNIL);
+  return bucket_number >> k;
+}
+
+inline Uint32 Dbacc::Fragmentrec::getPageIndex(Uint32 bucket_number) const
+{
+  assert(bucket_number < RNIL);
+  return bucket_number & ((1 << k) - 1);
+}
 
 #endif

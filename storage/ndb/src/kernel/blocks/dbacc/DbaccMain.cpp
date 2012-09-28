@@ -3178,8 +3178,8 @@ void Dbacc::getdirindex(Signal* signal)
   Uint32 tgdiAddress;
 
   tgdiAddress = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
-  tgdiPageindex = tgdiAddress & ((1 << fragrecptr.p->k) - 1);
-  gdiPageptr.i = getPagePtr(fragrecptr.p->directory, tgdiAddress >> fragrecptr.p->k);
+  tgdiPageindex = fragrecptr.p->getPageIndex(tgdiAddress);
+  gdiPageptr.i = getPagePtr(fragrecptr.p->directory, fragrecptr.p->getPageNumber(tgdiAddress));
   ptrCheckGuard(gdiPageptr, cpagesize, page8);
 }//Dbacc::getdirindex()
 
@@ -5136,8 +5136,8 @@ Uint32 Dbacc::checkScanExpand(Signal* signal, Uint32 splitBucket)
   }//for
   if (TreleaseInd == 1) {
     TreleaseScanBucket = TSplit;
-    TPageIndex = TreleaseScanBucket & ((1 << fragrecptr.p->k) - 1);	/* PAGE INDEX OBS K = 6 */
-    TDirInd = TreleaseScanBucket >> fragrecptr.p->k;	/* DIRECTORY INDEX OBS K = 6 */
+    TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
+    TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
     TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
     ptrCheckGuard(TPageptr, cpagesize, page8);
     for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
@@ -5237,8 +5237,8 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   /*       DECIDE WHICH ELEMENT GOES WHERE.                                   */
   /*--------------------------------------------------------------------------*/
 
-  texpDirInd = receiveBucket >> fragrecptr.p->k;
-  if ((receiveBucket & ((1 << fragrecptr.p->k) - 1)) == 0)
+  texpDirInd = fragrecptr.p->getPageNumber(receiveBucket);
+  if (fragrecptr.p->getPageIndex(receiveBucket) == 0)
   { // Need new bucket
     expPageptr.i = RNIL;
   }
@@ -5272,13 +5272,13 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   }//if
 
   fragrecptr.p->expReceivePageptr = expPageptr.i;
-  fragrecptr.p->expReceiveIndex = receiveBucket & ((1 << fragrecptr.p->k) - 1);
+  fragrecptr.p->expReceiveIndex = fragrecptr.p->getPageIndex(receiveBucket);
   /*--------------------------------------------------------------------------*/
   /*       THE NEXT ACTION IS TO FIND THE PAGE, THE PAGE INDEX AND THE PAGE   */
   /*       DIRECTORY OF THE BUCKET TO BE SPLIT.                               */
   /*--------------------------------------------------------------------------*/
-  cexcPageindex = splitBucket & ((1 << fragrecptr.p->k) - 1);	/* PAGE INDEX OBS K = 6 */
-  texpDirInd = splitBucket >> fragrecptr.p->k;	/* DIRECTORY INDEX OBS K = 6 */
+  cexcPageindex = fragrecptr.p->getPageIndex(splitBucket);
+  texpDirInd = fragrecptr.p->getPageNumber(splitBucket);
   excPageptr.i = getPagePtr(fragrecptr.p->directory, texpDirInd);
 #ifdef VM_TRACE
   require(excPageptr.i != RNIL);
@@ -5668,8 +5668,8 @@ Uint32 Dbacc::checkScanShrink(Signal* signal, Uint32 sourceBucket, Uint32 destBu
   if (TreleaseInd == 1) {
     jam();
     TreleaseScanBucket = TmergeSource;
-    TPageIndex = TreleaseScanBucket & ((1 << fragrecptr.p->k) - 1);	/* PAGE INDEX OBS K = 6 */
-    TDirInd = TreleaseScanBucket >> fragrecptr.p->k;	/* DIRECTORY INDEX OBS K = 6 */
+    TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
+    TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
     TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
     ptrCheckGuard(TPageptr, cpagesize, page8);
     for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
@@ -5757,7 +5757,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
 
   // Since expandCounter guards more shrinks than expands and
   // all fragments starts with a full page of buckets
-  ndbassert(fragrecptr.p->level.getSize() > (1 << fragrecptr.p->k));
+  ndbassert(fragrecptr.p->getPageNumber(fragrecptr.p->level.getTop()) > 0);
 
   Uint32 mergeSourceBucket;
   Uint32 mergeDestBucket;
@@ -5786,8 +5786,8 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   /*       WE START BY FINDING THE NECESSARY INFORMATION OF THE BUCKET TO BE  */
   /*       REMOVED WHICH WILL SEND ITS ELEMENTS TO THE RECEIVING BUCKET.      */
   /*--------------------------------------------------------------------------*/
-  cexcPageindex = mergeSourceBucket & ((1 << fragrecptr.p->k) - 1);
-  texpDirInd = mergeSourceBucket >> fragrecptr.p->k;
+  cexcPageindex = fragrecptr.p->getPageIndex(mergeSourceBucket);
+  texpDirInd = fragrecptr.p->getPageNumber(mergeSourceBucket);
   excPageptr.i = getPagePtr(fragrecptr.p->directory, texpDirInd);
   fragrecptr.p->expSenderIndex = cexcPageindex;
   fragrecptr.p->expSenderPageptr = excPageptr.i;
@@ -5796,9 +5796,9 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   /*       WE NOW PROCEED BY FINDING THE NECESSARY INFORMATION ABOUT THE      */
   /*       RECEIVING BUCKET.                                                  */
   /*--------------------------------------------------------------------------*/
-  texpDirInd = mergeDestBucket >> fragrecptr.p->k;
+  texpDirInd = fragrecptr.p->getPageNumber(mergeDestBucket);
   fragrecptr.p->expReceivePageptr = getPagePtr(fragrecptr.p->directory, texpDirInd);
-  fragrecptr.p->expReceiveIndex = mergeDestBucket & ((1 << fragrecptr.p->k) - 1);
+  fragrecptr.p->expReceiveIndex = fragrecptr.p->getPageIndex(mergeDestBucket);
   fragrecptr.p->expReceiveForward = ZTRUE;
   if (excPageptr.i == RNIL) {
     jam();
@@ -5916,7 +5916,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       releasePage(signal);
       unsetPagePtr(fragrecptr.p->directory, fragrecptr.p->expSenderDirIndex);
     }//if
-    if (((fragrecptr.p->level.getSize() >> fragrecptr.p->k) & 0xff) == 0) {
+    if ((fragrecptr.p->getPageNumber(fragrecptr.p->level.getSize()) & 0xff) == 0) {
       jam();
       DynArr256 dir(directoryPool, fragrecptr.p->directory);
       DynArr256::ReleaseIterator iter;
@@ -5968,7 +5968,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       }//if
     }//if
   }//if
-  ndbrequire(fragrecptr.p->level.getSize() >> fragrecptr.p->k);
+  ndbrequire(fragrecptr.p->getPageNumber(fragrecptr.p->level.getSize()) > 0);
   return;
 }//Dbacc::endofshrinkbucketLab()
 
@@ -6110,7 +6110,7 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->myfid = req->fragId;
   regFragPtr.p->myTableId = req->tableId;
   ndbrequire(req->kValue == 6);
-  regFragPtr.p->k = req->kValue;	/* TK_SIZE = 6 IN THIS VERSION */
+  ndbrequire(req->kValue == regFragPtr.p->k);
   regFragPtr.p->expandCounter = 0;
 
   /**
@@ -6312,17 +6312,14 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   Uint32 tnsElementptr;
   Uint32 tnsContainerptr;
   Uint32 tnsIsLocked;
-  Uint32 tnsTmp1;
-  Uint32 tnsTmp2;
   Uint32 tnsCopyDir;
 
-  tnsCopyDir = scanPtr.p->nextBucketIndex >> fragrecptr.p->k;
+  tnsCopyDir = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
   tnsPageidptr.i = getPagePtr(fragrecptr.p->directory, tnsCopyDir);
   ptrCheckGuard(tnsPageidptr, cpagesize, page8);
   gnsPageidptr.i = tnsPageidptr.i;
   gnsPageidptr.p = tnsPageidptr.p;
-  tnsTmp1 = (1 << fragrecptr.p->k) - 1;
-  tgsePageindex = scanPtr.p->nextBucketIndex & tnsTmp1;
+  tgsePageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
   gsePageidptr.i = gnsPageidptr.i;
   gsePageidptr.p = gnsPageidptr.p;
   if (!getScanElement(signal)) {
@@ -6384,19 +6381,17 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       // We will only reset the scan indicator on the buckets that existed at the start of the
       // scan. The others will be handled by the split and merge code.
       /* --------------------------------------------------------------------------------- */
-      tnsTmp2 = (1 << fragrecptr.p->k) - 1;
-      trsbPageindex = scanPtr.p->nextBucketIndex & tnsTmp2;
+      trsbPageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
       if (trsbPageindex != 0) {
         jam();
         rsbPageidptr.i = gnsPageidptr.i;
         rsbPageidptr.p = gnsPageidptr.p;
       } else {
         jam();
-        tmpP = scanPtr.p->nextBucketIndex >> fragrecptr.p->k;
+        tmpP = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
         cscPageidptr.i = getPagePtr(fragrecptr.p->directory, tmpP);
         ptrCheckGuard(cscPageidptr, cpagesize, page8);
-        tmp1 = (1 << fragrecptr.p->k) - 1;
-        trsbPageindex = scanPtr.p->nextBucketIndex & tmp1;
+        trsbPageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
         rsbPageidptr.i = cscPageidptr.i;
         rsbPageidptr.p = cscPageidptr.p;
       }//if
@@ -6538,7 +6533,7 @@ void Dbacc::initScanFragmentPart(Signal* signal)
   scanPtr.p->maxBucketIndexToRescan = 0;
   cnfPageidptr.i = getPagePtr(fragrecptr.p->directory, 0);
   ptrCheckGuard(cnfPageidptr, cpagesize, page8);
-  trsbPageindex = scanPtr.p->nextBucketIndex & ((1 << fragrecptr.p->k) - 1);
+  trsbPageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
   rsbPageidptr.i = cnfPageidptr.i;
   rsbPageidptr.p = cnfPageidptr.p;
   releaseScanBucket(signal);
@@ -8398,7 +8393,7 @@ void
 Dbacc::debug_lh_vars(const char* where)
 {
   Uint32 b = fragrecptr.p->level.getTop();
-  Uint32 di = b >> fragrecptr.p->k;
+  Uint32 di = fragrecptr.p->getPageNumber(b);
   Uint32 ri = di >> 8;
   ndbout
     << "DBACC: " << where << ":"
