@@ -1,3 +1,10 @@
+2012-09-28	The InnoDB Team
+
+	* include/row0undo.h, row/row0umod.c, row/row0undo.c:
+	Fix Bug#13249921 ASSERT !BPAGE->FILE_PAGE_WAS_FREED, USUALLY
+	IN TRANSACTION ROLLBACK. This patch will ensure that the
+	undo logs will be applied in proper reverse order.
+
 2012-09-18	The InnoDB Team
 
 	* btr/btr0cur.c, handler/ha_innodb.cc, ibuf/ibuf0ibuf.c,
