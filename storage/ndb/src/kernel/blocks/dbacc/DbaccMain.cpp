@@ -2359,7 +2359,8 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       jam();                                                /* EXPAND PROCESS HANDLING */
       fragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= fragrecptr.p->elementLength;
-      if (fragrecptr.p->slack >= (1u << 31)) { 
+      if (fragrecptr.p->slack < 0)
+      {
 	/* IT MEANS THAT IF SLACK < ZERO */
 	if (fragrecptr.p->expandFlag == 0) {
 	  jam();
@@ -5192,11 +5193,9 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
 
   fragrecptr.i = signal->theData[0];
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
-  Uint32 tmp = 1;
-  tmp = tmp << 31;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   fragrecptr.p->expandFlag = 0;
-  if (fragrecptr.p->slack < tmp) {
+  if (fragrecptr.p->slack > 0) {
     jam();
     /* IT MEANS THAT IF SLACK > ZERO */
     /*--------------------------------------------------------------*/
@@ -5329,8 +5328,8 @@ void Dbacc::endofexpLab(Signal* signal)
   }//if
   Uint32 noOfBuckets = (fragrecptr.p->maxp + 1) + fragrecptr.p->p;
   Uint32 Thysteres = fragrecptr.p->maxloadfactor - fragrecptr.p->minloadfactor;
-  fragrecptr.p->slackCheck = noOfBuckets * Thysteres;
-  if (fragrecptr.p->slack > (1u << 31)) {
+  fragrecptr.p->slackCheck = Int64(noOfBuckets) * Thysteres;
+  if (fragrecptr.p->slack < 0) {
     jam();
     /* IT MEANS THAT IF SLACK < ZERO */
     /* --------------------------------------------------------------------------------- */
@@ -5730,7 +5729,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-  if (fragrecptr.p->slack > (1u << 31)) {
+  if (fragrecptr.p->slack < 0) {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS NEGATIVE, IN THIS CASE WE WILL NOT NEED ANY     */
@@ -5933,7 +5932,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       }
     }//if
   }//if
-  if (fragrecptr.p->slack < (1u << 31)) {
+  if (fragrecptr.p->slack > 0) {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS POSITIVE, IN THIS CASE WE WILL CHECK WHETHER    */
@@ -5941,7 +5940,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
     /*--------------------------------------------------------------*/
     Uint32 noOfBuckets = (fragrecptr.p->maxp + 1) + fragrecptr.p->p;
     Uint32 Thysteresis = fragrecptr.p->maxloadfactor - fragrecptr.p->minloadfactor;
-    fragrecptr.p->slackCheck = noOfBuckets * Thysteresis;
+    fragrecptr.p->slackCheck = Int64(noOfBuckets) * Thysteresis;
     if (fragrecptr.p->slack > Thysteresis) {
       /*--------------------------------------------------------------*/
       /*       IT IS STILL NECESSARY TO SHRINK THE FRAGMENT MORE. THIS*/
@@ -6126,7 +6125,7 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->maxp = (1 << req->kValue) - 1;
   regFragPtr.p->minloadfactor = minLoadFactor;
   regFragPtr.p->maxloadfactor = maxLoadFactor;
-  regFragPtr.p->slack = (regFragPtr.p->maxp + 1) * maxLoadFactor;
+  regFragPtr.p->slack = Int64(regFragPtr.p->maxp + 1) * maxLoadFactor;
   regFragPtr.p->lhfragbits = lhFragBits;
   regFragPtr.p->hashcheckbit = 0; //lhFragBits;
   regFragPtr.p->localkeylen = req->localKeyLen;
@@ -6137,8 +6136,7 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->elementLength = ZELEM_HEAD_SIZE + regFragPtr.p->localkeylen;
   Uint32 Tmp1 = (regFragPtr.p->maxp + 1) + regFragPtr.p->p;
   Uint32 Tmp2 = regFragPtr.p->maxloadfactor - regFragPtr.p->minloadfactor;
-  Tmp2 = Tmp1 * Tmp2;
-  regFragPtr.p->slackCheck = Tmp2;
+  regFragPtr.p->slackCheck = Int64(Tmp1) * Tmp2;
   regFragPtr.p->mytabptr = req->tableId;
   regFragPtr.p->roothashcheck = req->kValue + req->lhFragBits;
   regFragPtr.p->noOfElements = 0;
@@ -8412,7 +8410,7 @@ Dbacc::debug_lh_vars(const char* where)
     << "DBACC: " << where << ":"
     << " frag:" << fragrecptr.p->myTableId
     << "/" << fragrecptr.p->myfid
-    << " slack:" << (Int32)fragrecptr.p->slack
+    << " slack:" << fragrecptr.p->slack
     << "/" << fragrecptr.p->slackCheck
     << " maxp:" << fragrecptr.p->maxp
     << " p:" << fragrecptr.p->p
