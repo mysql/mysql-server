@@ -1533,7 +1533,7 @@ void Dbacc::insertelementLab(Signal* signal)
   
   insertLockOwnersList(signal, operationRecPtr);
 
-  const Uint32 tmp = fragrecptr.p->k + fragrecptr.p->lhfragbits;
+  const Uint32 tmp = fragrecptr.p->k;
   operationRecPtr.p->hashvaluePart = 
     (operationRecPtr.p->hashValue >> tmp) & 0xFFFF;
   operationRecPtr.p->scanBits = 0;	/* NOT ANY ACTIVE SCAN */
@@ -3181,7 +3181,7 @@ void Dbacc::getdirindex(Signal* signal)
   Uint32 tgdiTmp;
   Uint32 tgdiAddress;
 
-  tgdiTmp = fragrecptr.p->k + fragrecptr.p->lhfragbits;	/* OBS K = 6 */
+  tgdiTmp = fragrecptr.p->k;	/* OBS K = 6 */
   tgdiPageindex = operationRecPtr.p->hashValue & ((1 << fragrecptr.p->k) - 1);
   tgdiTmp = operationRecPtr.p->hashValue >> tgdiTmp;
   tgdiTmp = (tgdiTmp << fragrecptr.p->k) | tgdiPageindex;
@@ -3289,7 +3289,7 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
   ndbrequire(TelemLen == ZELEM_HEAD_SIZE + localkeylen);
   tgeNextptrtype = ZLEFT;
 
-  const Uint32 tmp = fragrecptr.p->k + fragrecptr.p->lhfragbits;
+  const Uint32 tmp = fragrecptr.p->k;
   const Uint32 opHashValuePart = (operationRecPtr.p->hashValue >> tmp) &0xFFFF;
   do {
     tgeContainerptr = mul_ZBUF_SIZE(tgePageindex);
@@ -6083,7 +6083,6 @@ void Dbacc::initFragAdd(Signal* signal,
                         FragmentrecPtr regFragPtr) 
 {
   const AccFragReq * const req = (AccFragReq*)&signal->theData[0];  
-  Uint32 lhFragBits = req->lhFragBits + 1;
   Uint32 minLoadFactor = (req->minLoadFactor * ZBUF_SIZE) / 100;
   Uint32 maxLoadFactor = (req->maxLoadFactor * ZBUF_SIZE) / 100;
   if (ERROR_INSERTED(3003)) // use small LoadFactors to force sparse hash table
@@ -6116,8 +6115,7 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->minloadfactor = minLoadFactor;
   regFragPtr.p->maxloadfactor = maxLoadFactor;
   regFragPtr.p->slack = Int64(regFragPtr.p->maxp + 1) * maxLoadFactor;
-  regFragPtr.p->lhfragbits = lhFragBits;
-  regFragPtr.p->hashcheckbit = 0; //lhFragBits;
+  regFragPtr.p->hashcheckbit = 0;
   regFragPtr.p->localkeylen = req->localKeyLen;
   regFragPtr.p->nodetype = (req->reqInfo >> 4) & 0x3;
   regFragPtr.p->lastOverIndex = 0;
