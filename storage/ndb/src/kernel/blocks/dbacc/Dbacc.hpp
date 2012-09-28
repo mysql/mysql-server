@@ -200,7 +200,7 @@ class ElementHeader {
    * 
    * l = Locked    -- If true contains operation else scan bits + hash value
    * s = Scan bits
-   * h = Hash value (now unused, will be reused in future)
+   * h = Reduced hash value. The lower bits used for address is shifted away
    * o = Operation ptr I
    *
    *           1111111111222222222233
@@ -213,10 +213,12 @@ public:
   static bool getUnlocked(Uint32 data);
   static Uint32 getScanBits(Uint32 data);
   static Uint32 getOpPtrI(Uint32 data);
+  static LHBits16 getReducedHashValue(Uint32 data);
 
   static Uint32 setLocked(Uint32 opPtrI);
-  static Uint32 setUnlocked(Uint32 scanBits);
+  static Uint32 setUnlocked(Uint32 scanBits, LHBits16 const& reducedHashValue);
   static Uint32 setScanBit(Uint32 header, Uint32 scanBit);
+  static Uint32 setReducedHashValue(Uint32 header, LHBits16 const& reducedHashValue);
   static Uint32 clearScanBit(Uint32 header, Uint32 scanBit);
 };
 
@@ -240,6 +242,13 @@ ElementHeader::getScanBits(Uint32 data){
 }
 
 inline
+LHBits16
+ElementHeader::getReducedHashValue(Uint32 data){
+  assert(getUnlocked(data));
+  return LHBits16::unpack(data >> 16);
+}
+
+inline
 Uint32 
 ElementHeader::getOpPtrI(Uint32 data){
   assert(getLocked(data));
@@ -254,10 +263,10 @@ ElementHeader::setLocked(Uint32 opPtrI){
 }
 inline
 Uint32 
-ElementHeader::setUnlocked(Uint32 scanBits)
+ElementHeader::setUnlocked(Uint32 scanBits, LHBits16 const& reducedHashValue)
 {
   assert(scanBits < (1 << MAX_PARALLEL_SCANS_PER_FRAG));
-  return (scanBits << 1) + 1;
+  return (Uint32(reducedHashValue.pack()) << 16) | (scanBits << 1) | 1;
 }
 
 inline
@@ -274,6 +283,13 @@ ElementHeader::clearScanBit(Uint32 header, Uint32 scanBit){
   return header & (~(scanBit << 1));
 }
 
+inline
+Uint32
+ElementHeader::setReducedHashValue(Uint32 header, LHBits16 const& reducedHashValue)
+{
+  assert(getUnlocked(header));
+  return (Uint32(reducedHashValue.pack()) << 16) | (header & 0xffff);
+}
 
 class Dbacc: public SimulatedBlock {
   friend class DbaccProxy;
@@ -398,7 +414,7 @@ struct Fragmentrec {
 // Since at most RNIL 8KiB-pages can be used for a fragment, the extreme values
 // for slack will be within -2^43 and +2^43 words.
 //-----------------------------------------------------------------------------
-  LHLevel level;
+  LHLevelRH level;
   Uint32 localkeylen;
   Uint32 maxloadfactor;
   Uint32 minloadfactor;
@@ -446,6 +462,8 @@ struct Fragmentrec {
 // k (== 6) is the number of buckets per page
 //-----------------------------------------------------------------------------
   STATIC_CONST( k = 6 );
+  STATIC_CONST( MIN_HASH_COMPARE_BITS = 7 );
+  STATIC_CONST( MAX_HASH_VALUE_BITS = 31 );
 
 //-----------------------------------------------------------------------------
 // nodetype can only be STORED in this release. Is currently only set, never read
@@ -465,6 +483,7 @@ struct Fragmentrec {
 public:
   Uint32 getPageNumber(Uint32 bucket_number) const;
   Uint32 getPageIndex(Uint32 bucket_number) const;
+  bool enough_valid_bits(LHBits16 const& reduced_hash_value) const;
 };
 
   typedef Ptr<Fragmentrec> FragmentrecPtr;
@@ -506,7 +525,8 @@ struct Operationrec {
   Uint16 tupkeylen;
   Uint32 xfrmtupkeylen;
   Uint32 userblockref;
-  Uint32 scanBits;
+  Uint16 scanBits;
+  LHBits16 reducedHashValue;
 
   enum OpBits {
     OP_MASK                 = 0x0000F // 4 bits for operation type
@@ -756,7 +776,10 @@ private:
   void seizeRightlist(Signal* signal);
   Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
   Uint32 getElement(Signal* signal, OperationrecPtr& lockOwner);
+  LHBits32 getElementHash(OperationrecPtr& oprec);
+  LHBits32 getElementHash(Uint32 const* element, Int32 forward);
   LHBits32 getElementHash(Uint32 const* element, Int32 forward, OperationrecPtr& oprec);
+  void shrink_adjust_reduced_hash_value(Uint32 bucket_number);
   Uint32 getPagePtr(DynArr256::Head&, Uint32);
   bool setPagePtr(DynArr256::Head& directory, Uint32 index, Uint32 ptri);
   Uint32 unsetPagePtr(DynArr256::Head& directory, Uint32 index);
@@ -1098,6 +1121,13 @@ inline Uint32 Dbacc::Fragmentrec::getPageIndex(Uint32 bucket_number) const
 {
   assert(bucket_number < RNIL);
   return bucket_number & ((1 << k) - 1);
+}
+
+inline bool Dbacc::Fragmentrec::enough_valid_bits(LHBits16 const& reduced_hash_value) const
+{
+  // Forte C 5.0 needs use of intermediate constant
+  int const bits = MIN_HASH_COMPARE_BITS;
+  return level.getNeededValidBits(bits) <= reduced_hash_value.valid_bits();
 }
 
 #endif
