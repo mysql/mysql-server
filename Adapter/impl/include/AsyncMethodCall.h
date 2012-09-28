@@ -120,7 +120,7 @@ public:
   Local<Value> jsReturnVal() {
     HandleScope scope;
 
-    if(isPointer(return_val)) {
+    if(isWrappedPointer(return_val)) {
       DEBUG_ASSERT(envelope);
       Local<Object> obj = envelope->newWrapper();
       wrapPointerInObject(return_val, *envelope, obj);

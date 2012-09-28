@@ -148,7 +148,7 @@ public:
  toJs functions
  Value Conversion from C to JavaScript
 
- If we have a correct isPointer()<T> for every T, then toJS()
+ If we have a correct isWrappedPointer()<T> for every T, then toJS()
  should never be called with a pointer type at runtime.  
  See AsyncCall_Returning::jsReturnVal() at AsyncMethodCall.h line 130.
  
@@ -230,8 +230,8 @@ inline Local<Value> toJS<const bool *>(const bool * cbp) {
 
 
 /*****************************************************************
- isPointer() functions
- Used in AsyncMethodCall.h: if(isPointer(return_val)) ... 
+ isWrappedPointer() functions
+ Used in AsyncMethodCall.h: if(isWrappedPointer(return_val)) ...
 
  The top generic method (the one that returns true) 
  contains a compile-time safety check.
@@ -241,17 +241,20 @@ inline Local<Value> toJS<const bool *>(const bool * cbp) {
 #else
 #define UNUSED
 #endif
-template <typename T> bool isPointer(T typ)                {
+template <typename T> bool isWrappedPointer(T typ)                {
   UNUSED void * v;
   v = static_cast<void *> (typ);
   return true; 
 }
 
-template <> inline bool isPointer(int typ)                 { return false; }
-template <> inline bool isPointer(uint32_t typ)            { return false; }
-template <> inline bool isPointer(double typ)              { return false; }
-template <> inline bool isPointer(const char * typ)        { return false; }
-template <> inline bool isPointer(int64_t typ)             { return false; }
-template <> inline bool isPointer(unsigned long typ)       { return false; }
-template <> inline bool isPointer(const bool * typ)        { return false; }
-template <> inline bool isPointer(char * typ)              { return false; }
+template <> inline bool isWrappedPointer(int typ)              { return false; }
+template <> inline bool isWrappedPointer(unsigned int typ)     { return false; }
+template <> inline bool isWrappedPointer(short typ)            { return false; }
+template <> inline bool isWrappedPointer(unsigned short typ)   { return false; }
+template <> inline bool isWrappedPointer(long typ)             { return false; }
+template <> inline bool isWrappedPointer(unsigned long typ)    { return false; }
+template <> inline bool isWrappedPointer(unsigned long long t) { return false; }
+template <> inline bool isWrappedPointer(double typ)           { return false; }
+template <> inline bool isWrappedPointer(const char * typ)     { return false; }
+template <> inline bool isWrappedPointer(const bool * typ)     { return false; }
+template <> inline bool isWrappedPointer(char * typ)           { return false; }
