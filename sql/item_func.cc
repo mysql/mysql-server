@@ -4076,7 +4076,7 @@ longlong Item_master_gtid_set_wait::val_int()
   int event_count= 0;
 
   null_value=0;
-  if (thd->slave_thread || !gtid)
+  if (thd->slave_thread || !gtid || 0 == gtid_mode)
   {
     null_value = 1;
     return event_count;
