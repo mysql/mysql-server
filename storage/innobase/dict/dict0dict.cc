@@ -1870,6 +1870,12 @@ dict_index_too_big_for_undo(
 		+ 10 + FIL_PAGE_DATA_END /* trx_undo_left() */
 		+ 2/* pointer to previous undo log record */;
 
+	/* FTS index consists of auxiliary tables, they shall be excluded from
+	index row size check */
+	if (new_index->type & DICT_FTS) {
+		return(false);
+	}
+
 	if (!clust_index) {
 		ut_a(dict_index_is_clust(new_index));
 		clust_index = new_index;
@@ -1992,6 +1998,12 @@ dict_index_too_big_for_tree(
 	ulint	page_rec_max;
 	/* maximum allowed size of a node pointer record */
 	ulint	page_ptr_max;
+
+	/* FTS index consists of auxiliary tables, they shall be excluded from
+	index row size check */
+	if (new_index->type & DICT_FTS) {
+		return(false);
+	}
 
 	comp = dict_table_is_comp(table);
 	zip_size = dict_table_zip_size(table);
