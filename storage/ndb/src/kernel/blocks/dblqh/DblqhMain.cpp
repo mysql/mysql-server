@@ -539,10 +539,6 @@ void Dblqh::execCONTINUEB(Signal* signal)
     {
       jam();
       c_lcp_complete_fragments.getPtr(fragptr);
-      signal->theData[0] = fragptr.p->tabRef;
-      signal->theData[1] = fragptr.p->fragId;
-      BlockReference accRef = calcInstanceBlockRef(DBACC);
-      sendSignal(accRef, GSN_EXPANDCHECK2, signal, 2, JBB);
       Ptr<Fragrecord> save = fragptr;
 
       c_lcp_complete_fragments.next(fragptr);
@@ -12290,19 +12286,6 @@ Dblqh::execPREPARE_COPY_FRAG_REQ(Signal* signal)
     /**
      *
      */
-    if (cstartType == NodeState::ST_SYSTEM_RESTART)
-    {
-      jam();
-      signal->theData[0] = fragptr.p->tabRef;
-      signal->theData[1] = fragptr.p->fragId;
-      BlockReference accRef = calcInstanceBlockRef(DBACC);
-      sendSignal(accRef, GSN_EXPANDCHECK2, signal, 2, JBB);
-    }
-    
-    
-    /**
-     *
-     */
     fragptr.p->m_copy_started_state = Fragrecord::AC_IGNORED;
     fragptr.p->fragStatus = Fragrecord::ACTIVE_CREATION;
     fragptr.p->logFlag = Fragrecord::STATE_FALSE;
@@ -17093,10 +17076,6 @@ void Dblqh::execSTART_FRAGREQ(Signal* signal)
      */
     c_lcp_complete_fragments.add(fragptr);
 
-    signal->theData[0] = tabptr.i;
-    signal->theData[1] = fragId;
-    BlockReference accRef = calcInstanceBlockRef(DBACC);
-    sendSignal(accRef, GSN_EXPANDCHECK2, signal, 2, JBB);
     c_tup->disk_restart_lcp_id(tabptr.i, fragId, RNIL);
     jamEntry();
     return;
@@ -17249,18 +17228,9 @@ void Dblqh::execRESTORE_LCP_CONF(Signal* signal)
   c_lcp_restoring_fragments.remove(fragptr);
   c_lcp_complete_fragments.add(fragptr);
 
-  /**
-   * Disable expand check in ACC
-   *   before running REDO
-   */
   tabptr.i = fragptr.p->tabRef;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
 
-  signal->theData[0] = fragptr.p->tabRef;
-  signal->theData[1] = fragptr.p->fragId;
-  BlockReference accRef = calcInstanceBlockRef(DBACC);
-  sendSignal(accRef, GSN_EXPANDCHECK2, signal, 2, JBB);
-  
   if (!c_lcp_waiting_fragments.isEmpty())
   {
     send_restore_lcp(signal);

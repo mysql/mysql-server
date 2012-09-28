@@ -34,6 +34,7 @@
 #include <signaldata/TransIdAI.hpp>
 #include <KeyDescriptor.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
+#include <md5_hash.hpp>
 
 #ifdef VM_TRACE
 #define DEBUG(x) ndbout << "DBACC: "<< x << endl;
@@ -902,7 +903,7 @@ void Dbacc::initOpRec(Signal* signal)
 
   Treqinfo = signal->theData[2];
 
-  operationRecPtr.p->hashValue = signal->theData[3];
+  operationRecPtr.p->hashValue = LHBits32(signal->theData[3]);
   operationRecPtr.p->tupkeylen = signal->theData[4];
   operationRecPtr.p->xfrmtupkeylen = signal->theData[4];
   operationRecPtr.p->transId1 = signal->theData[5];
@@ -1071,7 +1072,7 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 	  /*---------------------------------------------------------------*/
           Uint32 eh = gePageptr.p->word32[tgeElementptr];
           operationRecPtr.p->scanBits = ElementHeader::getScanBits(eh);
-          operationRecPtr.p->hashvaluePart = ElementHeader::getHashValuePart(eh);
+          operationRecPtr.p->reducedHashValue = ElementHeader::getReducedHashValue(eh);
           operationRecPtr.p->elementPage = gePageptr.i;
           operationRecPtr.p->elementContainer = tgeContainerptr;
           operationRecPtr.p->elementPointer = tgeElementptr;
@@ -1533,10 +1534,8 @@ void Dbacc::insertelementLab(Signal* signal)
   
   insertLockOwnersList(signal, operationRecPtr);
 
-  const Uint32 tmp = fragrecptr.p->k + fragrecptr.p->lhfragbits;
-  operationRecPtr.p->hashvaluePart = 
-    (operationRecPtr.p->hashValue >> tmp) & 0xFFFF;
   operationRecPtr.p->scanBits = 0;	/* NOT ANY ACTIVE SCAN */
+  operationRecPtr.p->reducedHashValue = fragrecptr.p->level.reduce(operationRecPtr.p->hashValue);
   tidrElemhead = ElementHeader::setLocked(operationRecPtr.i);
   idrPageptr = gdiPageptr;
   tidrPageindex = tgdiPageindex;
@@ -2343,14 +2342,12 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 	if (fragrecptr.p->slack > fragrecptr.p->slackCheck) { 
           /* TIME FOR JOIN BUCKETS PROCESS */
 	  if (fragrecptr.p->expandCounter > 0) {
-	    if (fragrecptr.p->expandFlag < 2) {
+            if (!fragrecptr.p->expandOrShrinkQueued)
+            {
 	      jam();
 	      signal->theData[0] = fragrecptr.i;
-	      signal->theData[1] = fragrecptr.p->p;
-	      signal->theData[2] = fragrecptr.p->maxp;
-	      signal->theData[3] = fragrecptr.p->expandFlag;
-	      fragrecptr.p->expandFlag = 2;
-	      sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
+              fragrecptr.p->expandOrShrinkQueued = true;
+              sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 1, JBB);
 	    }//if
 	  }//if
 	}//if
@@ -2359,15 +2356,15 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
       jam();                                                /* EXPAND PROCESS HANDLING */
       fragrecptr.p->noOfElements++;
       fragrecptr.p->slack -= fragrecptr.p->elementLength;
-      if (fragrecptr.p->slack >= (1u << 31)) { 
+      if (fragrecptr.p->slack < 0 && !fragrecptr.p->level.isFull())
+      {
 	/* IT MEANS THAT IF SLACK < ZERO */
-	if (fragrecptr.p->expandFlag == 0) {
+        if (!fragrecptr.p->expandOrShrinkQueued)
+        {
 	  jam();
-	  fragrecptr.p->expandFlag = 2;
 	  signal->theData[0] = fragrecptr.i;
-	  signal->theData[1] = fragrecptr.p->p;
-	  signal->theData[2] = fragrecptr.p->maxp;
-	  sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
+          fragrecptr.p->expandOrShrinkQueued = true;
+          sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 1, JBB);
 	}//if
       }//if
     }
@@ -3181,21 +3178,11 @@ Uint32 Dbacc::unsetPagePtr(DynArr256::Head& directory, Uint32 index)
 
 void Dbacc::getdirindex(Signal* signal) 
 {
-  Uint32 tgdiTmp;
   Uint32 tgdiAddress;
 
-  tgdiTmp = fragrecptr.p->k + fragrecptr.p->lhfragbits;	/* OBS K = 6 */
-  tgdiPageindex = operationRecPtr.p->hashValue & ((1 << fragrecptr.p->k) - 1);
-  tgdiTmp = operationRecPtr.p->hashValue >> tgdiTmp;
-  tgdiTmp = (tgdiTmp << fragrecptr.p->k) | tgdiPageindex;
-  tgdiAddress = tgdiTmp & fragrecptr.p->maxp;
-  if (tgdiAddress < fragrecptr.p->p) {
-    jam();
-    tgdiAddress = tgdiTmp & ((fragrecptr.p->maxp << 1) | 1);
-  }//if
-  tgdiTmp = tgdiAddress >> fragrecptr.p->k;
-  ndbassert(tgdiTmp <= ElementHeader::HASH_VALUE_PART_MASK);
-  gdiPageptr.i = getPagePtr(fragrecptr.p->directory, tgdiTmp);
+  tgdiAddress = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
+  tgdiPageindex = fragrecptr.p->getPageIndex(tgdiAddress);
+  gdiPageptr.i = getPagePtr(fragrecptr.p->directory, fragrecptr.p->getPageNumber(tgdiAddress));
   ptrCheckGuard(gdiPageptr, cpagesize, page8);
 }//Dbacc::getdirindex()
 
@@ -3278,6 +3265,7 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
   register Uint32 TelemLen = fragrecptr.p->elementLength;
   register Uint32* Tkeydata = (Uint32*)&signal->theData[7];
   const Uint32 localkeylen = fragrecptr.p->localkeylen;
+  Uint32 bucket_number = fragrecptr.p->level.getBucketNumber(operationRecPtr.p->hashValue);
 
   getdirindex(signal);
   tgePageindex = tgdiPageindex;
@@ -3292,8 +3280,6 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
   ndbrequire(TelemLen == ZELEM_HEAD_SIZE + localkeylen);
   tgeNextptrtype = ZLEFT;
 
-  const Uint32 tmp = fragrecptr.p->k + fragrecptr.p->lhfragbits;
-  const Uint32 opHashValuePart = (operationRecPtr.p->hashValue >> tmp) &0xFFFF;
   do {
     tgeContainerptr = mul_ZBUF_SIZE(tgePageindex);
     if (tgeNextptrtype == ZLEFT) {
@@ -3345,23 +3331,25 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
       // Check if it is the element searched for.
       /* ------------------------------------------------------------------- */
       do {
+        bool possible_match;
         tgeElementHeader = gePageptr.p->word32[tgeElementptr];
         tgeRemLen = tgeRemLen - TelemLen;
-        Uint32 hashValuePart;
 	Uint32 localkey1, localkey2;
 	lockOwnerPtr.i = RNIL;
 	lockOwnerPtr.p = NULL;
+        LHBits16 reducedHashValue;
         if (ElementHeader::getLocked(tgeElementHeader)) {
           jam();
 	  lockOwnerPtr.i = ElementHeader::getOpPtrI(tgeElementHeader);
           ptrCheckGuard(lockOwnerPtr, coprecsize, operationrec);
-          hashValuePart = lockOwnerPtr.p->hashvaluePart;
+          possible_match = lockOwnerPtr.p->hashValue.match(operationRecPtr.p->hashValue);
+          reducedHashValue = lockOwnerPtr.p->reducedHashValue;
 	  localkey1 = lockOwnerPtr.p->localdata[0];
 	  localkey2 = lockOwnerPtr.p->localdata[1];
         } else {
           jam();
+          reducedHashValue = ElementHeader::getReducedHashValue(tgeElementHeader);
           Uint32 pos = tgeElementptr + tgeForward;
-          hashValuePart = ElementHeader::getHashValuePart(tgeElementHeader);
           localkey1 = gePageptr.p->word32[pos];
           if (likely(localkeylen == 1))
           {
@@ -3372,8 +3360,11 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
           {
             localkey2 = gePageptr.p->word32[pos + tgeForward];
           }
+          possible_match = true;
         }
-        if (hashValuePart == opHashValuePart) {
+        if (possible_match &&
+            operationRecPtr.p->hashValue.match(fragrecptr.p->level.enlarge(reducedHashValue, bucket_number)))
+        {
           jam();
           bool found;
           if (! searchLocalKey) 
@@ -3514,8 +3505,7 @@ void Dbacc::commitdelete(Signal* signal)
   // We thus update the element header to ensure we log an unlocked element. We do not
   // need to restore it later since it is deleted immediately anyway.
   /* --------------------------------------------------------------------------------- */
-  const Uint32 hv = operationRecPtr.p->hashvaluePart;
-  const Uint32 eh = ElementHeader::setUnlocked(hv, 0);
+  const Uint32 eh = ElementHeader::setUnlocked(0, LHBits16());
   delPageptr.p->word32[tdelElementptr] = eh;
   if (operationRecPtr.p->elementPage == lastPageptr.i) {
     if (operationRecPtr.p->elementPointer == tlastElementptr) {
@@ -3588,8 +3578,7 @@ void Dbacc::deleteElement(Signal* signal)
       // An undo of the delete will reinstall the moved record. We have to ensure that the
       // lock is removed to ensure that no such thing happen.
       /* --------------------------------------------------------------------------------- */
-      Uint32 eh = ElementHeader::setUnlocked(deOperationRecPtr.p->hashvaluePart,
-					     0);
+      Uint32 eh = ElementHeader::setUnlocked(0, LHBits16());
       lastPageptr.p->word32[tlastElementptr] = eh;
     }//if
     return;
@@ -4303,8 +4292,7 @@ void Dbacc::abortOperation(Signal* signal)
 
         taboElementptr = operationRecPtr.p->elementPointer;
         aboPageidptr.i = operationRecPtr.p->elementPage;
-        tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->hashvaluePart,
-					     operationRecPtr.p->scanBits);
+        tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->scanBits, operationRecPtr.p->reducedHashValue);
         ptrCheckGuard(aboPageidptr, cpagesize, page8);
         dbgWord32(aboPageidptr, taboElementptr, tmp2Olq);
         arrGuard(taboElementptr, 2048);
@@ -4336,7 +4324,7 @@ Dbacc::commitDeleteCheck()
   OperationrecPtr deleteOpPtr;
   Uint32 elementDeleted = 0;
   bool deleteCheckOngoing = true;
-  Uint32 hashValue = 0;
+  LHBits32 hashValue;
   lastOpPtr = operationRecPtr;
   opPtr.i = operationRecPtr.p->nextParallelQue;
   while (opPtr.i != RNIL) {
@@ -4463,8 +4451,7 @@ void Dbacc::commitOperation(Signal* signal)
       
       coPageidptr.i = operationRecPtr.p->elementPage;
       tcoElementptr = operationRecPtr.p->elementPointer;
-      tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->hashvaluePart,
-					   operationRecPtr.p->scanBits);   
+      tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->scanBits, operationRecPtr.p->reducedHashValue);
       ptrCheckGuard(coPageidptr, cpagesize, page8);
       dbgWord32(coPageidptr, tcoElementptr, tmp2Olq);
       arrGuard(tcoElementptr, 2048);
@@ -4785,7 +4772,7 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     newOwner.p->elementPointer = opPtr.p->elementPointer;
     newOwner.p->elementContainer = opPtr.p->elementContainer;
     newOwner.p->scanBits = opPtr.p->scanBits;
-    newOwner.p->hashvaluePart = opPtr.p->hashvaluePart;
+    newOwner.p->reducedHashValue = opPtr.p->reducedHashValue;
     newOwner.p->m_op_bits |= (opbits & Operationrec::OP_ELEMENT_DISAPPEARED);
     if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
     {
@@ -5095,7 +5082,7 @@ void Dbacc::allocOverflowPage(Signal* signal)
 /* BE EXPANDED ACORDING TO LH3,    */
 /* AND COMMIT TRANSACTION PROCESS  */
 /* WILL BE CONTINUED */
-Uint32 Dbacc::checkScanExpand(Signal* signal)
+Uint32 Dbacc::checkScanExpand(Signal* signal, Uint32 splitBucket)
 {
   Uint32 Ti;
   Uint32 TreturnCode = 0;
@@ -5108,7 +5095,7 @@ Uint32 Dbacc::checkScanExpand(Signal* signal)
   Page8Ptr TPageptr;
   ScanRecPtr TscanPtr;
 
-  TSplit = fragrecptr.p->p;
+  TSplit = splitBucket;
   for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
     TreleaseScanIndicator[Ti] = 0;
     if (fragrecptr.p->scan[Ti] != RNIL) {
@@ -5162,8 +5149,8 @@ Uint32 Dbacc::checkScanExpand(Signal* signal)
   }//for
   if (TreleaseInd == 1) {
     TreleaseScanBucket = TSplit;
-    TPageIndex = TreleaseScanBucket & ((1 << fragrecptr.p->k) - 1);	/* PAGE INDEX OBS K = 6 */
-    TDirInd = TreleaseScanBucket >> fragrecptr.p->k;	/* DIRECTORY INDEX OBS K = 6 */
+    TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
+    TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
     TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
     ptrCheckGuard(TPageptr, cpagesize, page8);
     for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
@@ -5192,11 +5179,9 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
 
   fragrecptr.i = signal->theData[0];
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
-  Uint32 tmp = 1;
-  tmp = tmp << 31;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  fragrecptr.p->expandFlag = 0;
-  if (fragrecptr.p->slack < tmp) {
+  fragrecptr.p->expandOrShrinkQueued = false;
+  if (fragrecptr.p->slack > 0) {
     jam();
     /* IT MEANS THAT IF SLACK > ZERO */
     /*--------------------------------------------------------------*/
@@ -5232,7 +5217,24 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-  if (checkScanExpand(signal) == 1) {
+
+  if (fragrecptr.p->level.isFull())
+  {
+    jam();
+    /*
+     * The level structure does not allow more buckets.
+     * Do not expand.
+     */
+    return;
+  }
+
+  Uint32 splitBucket;
+  Uint32 receiveBucket;
+
+  bool doSplit = fragrecptr.p->level.getSplitBucket(splitBucket, receiveBucket);
+
+  // Check that splitted bucket is not currently scanned
+  if (doSplit && checkScanExpand(signal, splitBucket) == 1) {
     jam();
     /*--------------------------------------------------------------*/
     // A scan state was inconsistent with performing an expand
@@ -5247,9 +5249,9 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   /*       THE NEXT HASH BIT. THIS BIT IS USED IN THE SPLIT MECHANISM TO      */
   /*       DECIDE WHICH ELEMENT GOES WHERE.                                   */
   /*--------------------------------------------------------------------------*/
-  texpReceivedBucket = (fragrecptr.p->maxp + fragrecptr.p->p) + 1;	/* RECEIVED BUCKET */
-  texpDirInd = texpReceivedBucket >> fragrecptr.p->k;
-  if ((texpReceivedBucket & ((1 << fragrecptr.p->k) - 1)) == 0)
+
+  texpDirInd = fragrecptr.p->getPageNumber(receiveBucket);
+  if (fragrecptr.p->getPageIndex(receiveBucket) == 0)
   { // Need new bucket
     expPageptr.i = RNIL;
   }
@@ -5262,15 +5264,6 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   }
   if (expPageptr.i == RNIL) {
     jam();
-    // We cannot expand if the new page index cannot be
-    // represented in the stored hash bits.
-    if (texpDirInd > ElementHeader::HASH_VALUE_PART_MASK)
-    {
-      jam();
-      fragrecptr.p->dirRangeFull = ZTRUE;
-      tresult = ZDIR_RANGE_FULL_ERROR;
-      return;
-    }
     seizePage(signal);
     if (tresult > ZLIMIT_OF_ERROR) {
       jam();
@@ -5279,6 +5272,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
     if (!setPagePtr(fragrecptr.p->directory, texpDirInd, spPageptr.i))
     {
       jam();
+      // TODO: should release seized page
       tresult = ZDIR_RANGE_FULL_ERROR;
       return;
     }
@@ -5291,13 +5285,13 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   }//if
 
   fragrecptr.p->expReceivePageptr = expPageptr.i;
-  fragrecptr.p->expReceiveIndex = texpReceivedBucket & ((1 << fragrecptr.p->k) - 1);
+  fragrecptr.p->expReceiveIndex = fragrecptr.p->getPageIndex(receiveBucket);
   /*--------------------------------------------------------------------------*/
   /*       THE NEXT ACTION IS TO FIND THE PAGE, THE PAGE INDEX AND THE PAGE   */
   /*       DIRECTORY OF THE BUCKET TO BE SPLIT.                               */
   /*--------------------------------------------------------------------------*/
-  cexcPageindex = fragrecptr.p->p & ((1 << fragrecptr.p->k) - 1);	/* PAGE INDEX OBS K = 6 */
-  texpDirInd = fragrecptr.p->p >> fragrecptr.p->k;	/* DIRECTORY INDEX OBS K = 6 */
+  cexcPageindex = fragrecptr.p->getPageIndex(splitBucket);
+  texpDirInd = fragrecptr.p->getPageNumber(splitBucket);
   excPageptr.i = getPagePtr(fragrecptr.p->directory, texpDirInd);
 #ifdef VM_TRACE
   require(excPageptr.i != RNIL);
@@ -5318,70 +5312,26 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   
 void Dbacc::endofexpLab(Signal* signal) 
 {
-  fragrecptr.p->p++;
   fragrecptr.p->slack += fragrecptr.p->maxloadfactor;
   fragrecptr.p->expandCounter++;
-  if (fragrecptr.p->p > fragrecptr.p->maxp) {
-    jam();
-    fragrecptr.p->maxp = (fragrecptr.p->maxp << 1) | 1;
-    fragrecptr.p->hashcheckbit++;
-    fragrecptr.p->p = 0;
-  }//if
-  Uint32 noOfBuckets = (fragrecptr.p->maxp + 1) + fragrecptr.p->p;
+  fragrecptr.p->level.expand();
+  Uint32 noOfBuckets = fragrecptr.p->level.getSize();
   Uint32 Thysteres = fragrecptr.p->maxloadfactor - fragrecptr.p->minloadfactor;
-  fragrecptr.p->slackCheck = noOfBuckets * Thysteres;
-  if (fragrecptr.p->slack > (1u << 31)) {
+  fragrecptr.p->slackCheck = Int64(noOfBuckets) * Thysteres;
+  if (fragrecptr.p->slack < 0 && !fragrecptr.p->level.isFull())
+  {
     jam();
     /* IT MEANS THAT IF SLACK < ZERO */
     /* --------------------------------------------------------------------------------- */
     /*       IT IS STILL NECESSARY TO EXPAND THE FRAGMENT EVEN MORE. START IT FROM HERE  */
     /*       WITHOUT WAITING FOR NEXT COMMIT ON THE FRAGMENT.                            */
     /* --------------------------------------------------------------------------------- */
-    fragrecptr.p->expandFlag = 2;
     signal->theData[0] = fragrecptr.i;
-    signal->theData[1] = fragrecptr.p->p;
-    signal->theData[2] = fragrecptr.p->maxp;
-    sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
+    fragrecptr.p->expandOrShrinkQueued = true;
+    sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 1, JBB);
   }//if
   return;
 }//Dbacc::endofexpLab()
-
-void Dbacc::reenable_expand_after_redo_log_exection_complete(Signal* signal){
-
-  tabptr.i = signal->theData[0];
-  Uint32 fragId = signal->theData[1];
-
-  ptrCheckGuard(tabptr, ctablesize, tabrec);
-  ndbrequire(getfragmentrec(signal, fragrecptr, fragId));
-#if 0
-  ndbout_c("reenable expand check for table %d fragment: %d", 
-	   tabptr.i, fragId);
-#endif
-
-  switch(fragrecptr.p->expandFlag){
-  case 0:
-    /**
-     * Hmm... this means that it's alreay has been reenabled...
-     */
-    fragrecptr.p->expandFlag = 1;
-    break;
-  case 1:
-    /**
-     * Nothing is going on start expand check
-     */
-  case 2:
-    /**
-     * A shrink is running, do expand check anyway
-     *  (to reset expandFlag)
-     */
-    fragrecptr.p->expandFlag = 2; 
-    signal->theData[0] = fragrecptr.i;
-    signal->theData[1] = fragrecptr.p->p;
-    signal->theData[2] = fragrecptr.p->maxp;
-    sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
-    break;
-  }
-}
 
 void Dbacc::execDEBUG_SIG(Signal* signal) 
 {
@@ -5391,6 +5341,86 @@ void Dbacc::execDEBUG_SIG(Signal* signal)
   progError(__LINE__, NDBD_EXIT_SR_UNDOLOG);
   return;
 }//Dbacc::execDEBUG_SIG()
+
+LHBits32 Dbacc::getElementHash(OperationrecPtr& oprec)
+{
+  jam();
+  ndbassert(!oprec.isNull());
+
+  // Only calculate hash value if operation does not already have a complete hash value
+  if (oprec.p->hashValue.valid_bits() < fragrecptr.p->MAX_HASH_VALUE_BITS)
+  {
+    jam();
+    Uint32 localkey[2];
+    localkey[0] = oprec.p->localdata[0];
+    localkey[1] = oprec.p->localdata[1];
+    Uint32 len = readTablePk(localkey[0], localkey[1], ElementHeader::setLocked(oprec.i), oprec);
+    if (len > 0)
+      oprec.p->hashValue = LHBits32(md5_hash((Uint64*)ckeys, len));
+  }
+  return oprec.p->hashValue;
+}
+
+LHBits32 Dbacc::getElementHash(Uint32 const* elemptr, Int32 forward)
+{
+  jam();
+  assert(ElementHeader::getUnlocked(*elemptr));
+
+  Uint32 elemhead = *elemptr;
+  Uint32 localkey[2];
+  elemptr += forward;
+  localkey[0] = *elemptr;
+  if (likely(fragrecptr.p->localkeylen == 1))
+  {
+    jam();
+    localkey[1] = Local_key::ref2page_idx(localkey[0]);
+    localkey[0] = Local_key::ref2page_id(localkey[0]);
+  }
+  else
+  {
+    jam();
+    elemptr += forward;
+    localkey[1] = *elemptr;
+  }
+  OperationrecPtr oprec;
+  oprec.i = RNIL;
+  Uint32 len = readTablePk(localkey[0], localkey[1], elemhead, oprec);
+  if (len > 0)
+  {
+    jam();
+    return LHBits32(md5_hash((Uint64*)ckeys, len));
+  }
+  else
+  { // Return an invalid hash value if no data
+    jam();
+    return LHBits32();
+  }
+}
+
+LHBits32 Dbacc::getElementHash(Uint32 const* elemptr, Int32 forward, OperationrecPtr& oprec)
+{
+  jam();
+
+  if (!oprec.isNull())
+  {
+    jam();
+    return getElementHash(oprec);
+  }
+
+  Uint32 elemhead = *elemptr;
+  if (ElementHeader::getUnlocked(elemhead))
+  {
+    jam();
+    return getElementHash(elemptr, forward);
+  }
+  else
+  {
+    jam();
+    oprec.i = ElementHeader::getOpPtrI(elemhead);
+    ptrCheckGuard(oprec, coprecsize, operationrec);
+    return getElementHash(oprec);
+  }
+}
 
 /* --------------------------------------------------------------------------------- */
 /* EXPANDCONTAINER                                                                   */
@@ -5402,7 +5432,7 @@ void Dbacc::execDEBUG_SIG(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::expandcontainer(Signal* signal) 
 {
-  Uint32 texcHashvalue;
+  LHBits32 texcHashvalue;
   Uint32 texcTmp;
   Uint32 texcIndex;
   Uint32 guard20;
@@ -5444,17 +5474,42 @@ void Dbacc::expandcontainer(Signal* signal)
   /* --------------------------------------------------------------------------------- */
   arrGuard(cexcElementptr, 2048);
   tidrElemhead = excPageptr.p->word32[cexcElementptr];
-  if (ElementHeader::getUnlocked(tidrElemhead)){
-    jam();
-    texcHashvalue = ElementHeader::getHashValuePart(tidrElemhead);
-  } else {
+  bool move;
+  if (ElementHeader::getLocked(tidrElemhead))
+  {
     jam();
     idrOperationRecPtr.i = ElementHeader::getOpPtrI(tidrElemhead);
     ptrCheckGuard(idrOperationRecPtr, coprecsize, operationrec);
-    texcHashvalue = idrOperationRecPtr.p->hashvaluePart;
-  }//if
-  if (((texcHashvalue >> fragrecptr.p->hashcheckbit) & 1) == 0) {
+    ndbassert(idrOperationRecPtr.p->reducedHashValue.valid_bits() >= 1);
+    move = idrOperationRecPtr.p->reducedHashValue.get_bit(1);
+    idrOperationRecPtr.p->reducedHashValue.shift_out();
+    if (!fragrecptr.p->enough_valid_bits(idrOperationRecPtr.p->reducedHashValue))
+    {
+      jam();
+      idrOperationRecPtr.p->reducedHashValue =
+        fragrecptr.p->level.reduce(getElementHash(idrOperationRecPtr));
+    }
+  }
+  else
+  {
     jam();
+    LHBits16 reducedHashValue = ElementHeader::getReducedHashValue(tidrElemhead);
+    ndbassert(reducedHashValue.valid_bits() >= 1);
+    move = reducedHashValue.get_bit(1);
+    reducedHashValue.shift_out();
+    if (!fragrecptr.p->enough_valid_bits(reducedHashValue))
+    {
+      jam();
+      reducedHashValue =
+        fragrecptr.p->level.reduce(getElementHash(&excPageptr.p->word32[cexcElementptr], cexcForward));
+    }
+    tidrElemhead = ElementHeader::setReducedHashValue(tidrElemhead, reducedHashValue);
+  }
+  if (!move)
+  {
+    jam();
+    if (ElementHeader::getUnlocked(tidrElemhead))
+      excPageptr.p->word32[cexcElementptr] = tidrElemhead;
     /* --------------------------------------------------------------------------------- */
     /*       THIS ELEMENT IS NOT TO BE MOVED. WE CALCULATE THE WHEREABOUTS OF THE NEXT   */
     /*       ELEMENT AND PROCEED WITH THAT OR END THE SEARCH IF THERE ARE NO MORE        */
@@ -5519,17 +5574,41 @@ void Dbacc::expandcontainer(Signal* signal)
   ptrNull(idrOperationRecPtr);
   arrGuard(tlastElementptr, 2048);
   tidrElemhead = lastPageptr.p->word32[tlastElementptr];
-  if (ElementHeader::getUnlocked(tidrElemhead)) {
-    jam();
-    texcHashvalue = ElementHeader::getHashValuePart(tidrElemhead);
-  } else {
+  if (ElementHeader::getLocked(tidrElemhead))
+  {
     jam();
     idrOperationRecPtr.i = ElementHeader::getOpPtrI(tidrElemhead);
     ptrCheckGuard(idrOperationRecPtr, coprecsize, operationrec);
-    texcHashvalue = idrOperationRecPtr.p->hashvaluePart;
-  }//if
-  if (((texcHashvalue >> fragrecptr.p->hashcheckbit) & 1) == 0) {
+    ndbassert(idrOperationRecPtr.p->reducedHashValue.valid_bits() >= 1);
+    move = idrOperationRecPtr.p->reducedHashValue.get_bit(1);
+    idrOperationRecPtr.p->reducedHashValue.shift_out();
+    if (!fragrecptr.p->enough_valid_bits(idrOperationRecPtr.p->reducedHashValue))
+    {
+      jam();
+      idrOperationRecPtr.p->reducedHashValue =
+        fragrecptr.p->level.reduce(getElementHash(idrOperationRecPtr));
+    }
+  }
+  else
+  {
     jam();
+    LHBits16 reducedHashValue = ElementHeader::getReducedHashValue(tidrElemhead);
+    ndbassert(reducedHashValue.valid_bits() > 0);
+    move = reducedHashValue.get_bit(1);
+    reducedHashValue.shift_out();
+    if (!fragrecptr.p->enough_valid_bits(reducedHashValue))
+    {
+      jam();
+      reducedHashValue =
+        fragrecptr.p->level.reduce(getElementHash(&lastPageptr.p->word32[tlastElementptr], tlastForward));
+    }
+    tidrElemhead = ElementHeader::setReducedHashValue(tidrElemhead, reducedHashValue);
+  }
+  if (!move)
+  {
+    jam();
+    if (ElementHeader::getUnlocked(tidrElemhead))
+      lastPageptr.p->word32[tlastElementptr] = tidrElemhead;
     /* --------------------------------------------------------------------------------- */
     /*       THE LAST ELEMENT IS NOT TO BE MOVED. WE COPY IT TO THE CURRENT ELEMENT.     */
     /* --------------------------------------------------------------------------------- */
@@ -5602,7 +5681,7 @@ void Dbacc::expandcontainer(Signal* signal)
 /* WILL BE JOINED  ACORDING TO LH3 */
 /* AND COMMIT TRANSACTION PROCESS  */
 /* WILL BE CONTINUED */
-Uint32 Dbacc::checkScanShrink(Signal* signal)
+Uint32 Dbacc::checkScanShrink(Signal* signal, Uint32 sourceBucket, Uint32 destBucket)
 {
   Uint32 Ti;
   Uint32 TreturnCode = 0;
@@ -5616,14 +5695,8 @@ Uint32 Dbacc::checkScanShrink(Signal* signal)
   Page8Ptr TPageptr;
   ScanRecPtr TscanPtr;
 
-  if (fragrecptr.p->p == 0) {
-    jam();
-    TmergeDest = fragrecptr.p->maxp >> 1;
-  } else {
-    jam();
-    TmergeDest = fragrecptr.p->p - 1;
-  }//if
-  TmergeSource = fragrecptr.p->maxp + fragrecptr.p->p;
+  TmergeDest = destBucket;
+  TmergeSource = sourceBucket;
   for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
     TreleaseScanIndicator[Ti] = 0;
     if (fragrecptr.p->scan[Ti] != RNIL) {
@@ -5677,8 +5750,8 @@ Uint32 Dbacc::checkScanShrink(Signal* signal)
   if (TreleaseInd == 1) {
     jam();
     TreleaseScanBucket = TmergeSource;
-    TPageIndex = TreleaseScanBucket & ((1 << fragrecptr.p->k) - 1);	/* PAGE INDEX OBS K = 6 */
-    TDirInd = TreleaseScanBucket >> fragrecptr.p->k;	/* DIRECTORY INDEX OBS K = 6 */
+    TPageIndex = fragrecptr.p->getPageIndex(TreleaseScanBucket);
+    TDirInd = fragrecptr.p->getPageNumber(TreleaseScanBucket);
     TPageptr.i = getPagePtr(fragrecptr.p->directory, TDirInd);
     ptrCheckGuard(TPageptr, cpagesize, page8);
     for (Ti = 0; Ti < MAX_PARALLEL_SCANS_PER_FRAG; Ti++) {
@@ -5718,9 +5791,8 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
 
   jamEntry();
   fragrecptr.i = signal->theData[0];
-  Uint32 oldFlag = signal->theData[3];
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
-  fragrecptr.p->expandFlag = oldFlag;
+  fragrecptr.p->expandOrShrinkQueued = false;
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
   if (fragrecptr.p->slack <= fragrecptr.p->slackCheck) {
     jam();
@@ -5730,7 +5802,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-  if (fragrecptr.p->slack > (1u << 31)) {
+  if (fragrecptr.p->slack < 0) {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS NEGATIVE, IN THIS CASE WE WILL NOT NEED ANY     */
@@ -5738,7 +5810,6 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-  texpDirInd = (fragrecptr.p->maxp + fragrecptr.p->p) >> fragrecptr.p->k;
   if (fragrecptr.p->firstOverflowRec == RNIL) {
     jam();
     allocOverflowPage(signal);
@@ -5757,22 +5828,32 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     /*--------------------------------------------------------------*/
     return;
   }//if
-  if (checkScanShrink(signal) == 1) {
+
+  if (fragrecptr.p->level.isEmpty())
+  {
+    jam();
+    /* no need to shrink empty hash table */
+    return;
+  }
+
+  // Since expandCounter guards more shrinks than expands and
+  // all fragments starts with a full page of buckets
+  ndbassert(fragrecptr.p->getPageNumber(fragrecptr.p->level.getTop()) > 0);
+
+  Uint32 mergeSourceBucket;
+  Uint32 mergeDestBucket;
+  bool doMerge = fragrecptr.p->level.getMergeBuckets(mergeSourceBucket, mergeDestBucket);
+
+  ndbassert(doMerge); // Merge always needed since we never shrink below one page of buckets
+
+  /* check that neither of source or destination bucket are currently scanned */
+  if (doMerge && checkScanShrink(signal, mergeSourceBucket, mergeDestBucket) == 1) {
     jam();
     /*--------------------------------------------------------------*/
     // A scan state was inconsistent with performing a shrink
     // operation.
     /*--------------------------------------------------------------*/
     return;
-  }//if
-  if (fragrecptr.p->p == 0) {
-    jam();
-    fragrecptr.p->maxp = fragrecptr.p->maxp >> 1;
-    fragrecptr.p->p = fragrecptr.p->maxp;
-    fragrecptr.p->hashcheckbit--;
-  } else {
-    jam();
-    fragrecptr.p->p--;
   }//if
   
   if (ERROR_INSERTED(3002))
@@ -5782,12 +5863,14 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
     fragrecptr.p->dirRangeFull = ZFALSE;
   }
 
+  shrink_adjust_reduced_hash_value(mergeDestBucket);
+
   /*--------------------------------------------------------------------------*/
   /*       WE START BY FINDING THE NECESSARY INFORMATION OF THE BUCKET TO BE  */
   /*       REMOVED WHICH WILL SEND ITS ELEMENTS TO THE RECEIVING BUCKET.      */
   /*--------------------------------------------------------------------------*/
-  cexcPageindex = ((fragrecptr.p->maxp + fragrecptr.p->p) + 1) & ((1 << fragrecptr.p->k) - 1);
-  texpDirInd = ((fragrecptr.p->maxp + fragrecptr.p->p) + 1) >> fragrecptr.p->k;
+  cexcPageindex = fragrecptr.p->getPageIndex(mergeSourceBucket);
+  texpDirInd = fragrecptr.p->getPageNumber(mergeSourceBucket);
   excPageptr.i = getPagePtr(fragrecptr.p->directory, texpDirInd);
   fragrecptr.p->expSenderIndex = cexcPageindex;
   fragrecptr.p->expSenderPageptr = excPageptr.i;
@@ -5796,9 +5879,9 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
   /*       WE NOW PROCEED BY FINDING THE NECESSARY INFORMATION ABOUT THE      */
   /*       RECEIVING BUCKET.                                                  */
   /*--------------------------------------------------------------------------*/
-  texpReceivedBucket = fragrecptr.p->p >> fragrecptr.p->k;
-  fragrecptr.p->expReceivePageptr = getPagePtr(fragrecptr.p->directory, texpReceivedBucket);
-  fragrecptr.p->expReceiveIndex = fragrecptr.p->p & ((1 << fragrecptr.p->k) - 1);
+  texpDirInd = fragrecptr.p->getPageNumber(mergeDestBucket);
+  fragrecptr.p->expReceivePageptr = getPagePtr(fragrecptr.p->directory, texpDirInd);
+  fragrecptr.p->expReceiveIndex = fragrecptr.p->getPageIndex(mergeDestBucket);
   fragrecptr.p->expReceiveForward = ZTRUE;
   if (excPageptr.i == RNIL) {
     jam();
@@ -5904,6 +5987,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
 
 void Dbacc::endofshrinkbucketLab(Signal* signal) 
 {
+  fragrecptr.p->level.shrink();
   fragrecptr.p->expandCounter--;
   fragrecptr.p->slack -= fragrecptr.p->maxloadfactor;
   if (fragrecptr.p->expSenderIndex == 0) {
@@ -5915,7 +5999,7 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       releasePage(signal);
       unsetPagePtr(fragrecptr.p->directory, fragrecptr.p->expSenderDirIndex);
     }//if
-    if (((((fragrecptr.p->p + fragrecptr.p->maxp) + 1) >> fragrecptr.p->k) & 0xff) == 0) {
+    if ((fragrecptr.p->getPageNumber(fragrecptr.p->level.getSize()) & 0xff) == 0) {
       jam();
       DynArr256 dir(directoryPool, fragrecptr.p->directory);
       DynArr256::ReleaseIterator iter;
@@ -5933,15 +6017,15 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
       }
     }//if
   }//if
-  if (fragrecptr.p->slack < (1u << 31)) {
+  if (fragrecptr.p->slack > 0) {
     jam();
     /*--------------------------------------------------------------*/
     /* THE SLACK IS POSITIVE, IN THIS CASE WE WILL CHECK WHETHER    */
     /* WE WILL CONTINUE PERFORM ANOTHER SHRINK.                     */
     /*--------------------------------------------------------------*/
-    Uint32 noOfBuckets = (fragrecptr.p->maxp + 1) + fragrecptr.p->p;
+    Uint32 noOfBuckets = fragrecptr.p->level.getSize();
     Uint32 Thysteresis = fragrecptr.p->maxloadfactor - fragrecptr.p->minloadfactor;
-    fragrecptr.p->slackCheck = noOfBuckets * Thysteresis;
+    fragrecptr.p->slackCheck = Int64(noOfBuckets) * Thysteresis;
     if (fragrecptr.p->slack > Thysteresis) {
       /*--------------------------------------------------------------*/
       /*       IT IS STILL NECESSARY TO SHRINK THE FRAGMENT MORE. THIS*/
@@ -5960,16 +6044,13 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
 	/*       WAS REMOVED 2000-05-12.                                */
 	/*--------------------------------------------------------------*/
         signal->theData[0] = fragrecptr.i;
-        signal->theData[1] = fragrecptr.p->p;
-        signal->theData[2] = fragrecptr.p->maxp;
-        signal->theData[3] = fragrecptr.p->expandFlag;
-	ndbrequire(fragrecptr.p->expandFlag < 2);
-        fragrecptr.p->expandFlag = 2;
-        sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
+        ndbrequire(!fragrecptr.p->expandOrShrinkQueued);
+        fragrecptr.p->expandOrShrinkQueued = true;
+        sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 1, JBB);
       }//if
     }//if
   }//if
-  ndbrequire(fragrecptr.p->maxp >= (Uint32)((1 << fragrecptr.p->k) - 1));
+  ndbrequire(fragrecptr.p->getPageNumber(fragrecptr.p->level.getSize()) > 0);
   return;
 }//Dbacc::endofshrinkbucketLab()
 
@@ -5980,9 +6061,121 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
 /*               CEXC_CONTAINERPTR (ARRAY INDEX OF THE CONTAINER).                   */
 /*               CEXC_FORWARD (CONTAINER FORWARD (+1) OR BACKWARD (-1))              */
 /*                                                                                   */
-/*        DESCRIPTION: ALL ELEMENTS OF THE ACTIVE CONTAINER HAVE TO MOVE TO THE NEW  */
-/*                  CONTAINER.                                                       */
+/*        DESCRIPTION: SCAN ALL ELEMENTS IN DESTINATION BUCKET BEFORE MERGE          */
+/*               AND ADJUST THE STORED REDUCED HASH VALUE (SHIFT IN ZERO).           */
 /* --------------------------------------------------------------------------------- */
+void
+Dbacc::shrink_adjust_reduced_hash_value(Uint32 bucket_number)
+{
+  /*
+   * Note: function are a copy paste from getElement() with modified inner loop
+   * instead of finding a specific element, scan through all and modify.
+   */
+  Uint32 tgeElementHeader;
+  Uint32 tgeElemStep;
+  Uint32 tgeContainerhead;
+  Uint32 tgePageindex;
+  Uint32 tgeActivePageDir;
+  Uint32 tgeNextptrtype;
+  register Uint32 tgeRemLen;
+  register Uint32 TelemLen = fragrecptr.p->elementLength;
+  const Uint32 localkeylen = fragrecptr.p->localkeylen;
+
+  tgePageindex = fragrecptr.p->getPageIndex(bucket_number);
+  gePageptr.i = getPagePtr(fragrecptr.p->directory, fragrecptr.p->getPageNumber(bucket_number));
+  ptrCheckGuard(gePageptr, cpagesize, page8);
+
+  ndbrequire(TelemLen == ZELEM_HEAD_SIZE + localkeylen);
+  tgeNextptrtype = ZLEFT;
+
+  /* Loop through all containers in a bucket */
+  do {
+    tgeContainerptr = mul_ZBUF_SIZE(tgePageindex);
+    if (tgeNextptrtype == ZLEFT)
+    {
+      jam();
+      tgeContainerptr = tgeContainerptr + ZHEAD_SIZE;
+      tgeElementptr = tgeContainerptr + ZCON_HEAD_SIZE;
+      tgeElemStep = TelemLen;
+      tgeForward = 1;
+      ndbrequire(tgeContainerptr < 2048);
+      tgeRemLen = gePageptr.p->word32[tgeContainerptr] >> 26;
+      ndbrequire((tgeContainerptr + tgeRemLen - 1) < 2048);
+    }
+    else if (tgeNextptrtype == ZRIGHT)
+    {
+      jam();
+      tgeContainerptr = tgeContainerptr + ((ZHEAD_SIZE + ZBUF_SIZE) - ZCON_HEAD_SIZE);
+      tgeElementptr = tgeContainerptr - 1;
+      tgeElemStep = 0 - TelemLen;
+      tgeForward = (Uint32)-1;
+      ndbrequire(tgeContainerptr < 2048);
+      tgeRemLen = gePageptr.p->word32[tgeContainerptr] >> 26;
+      ndbrequire((tgeContainerptr - tgeRemLen) < 2048);
+    }
+    else
+    {
+      jam();
+      jamLine(tgeNextptrtype);
+      ndbrequire(false);
+    }//if
+    if (tgeRemLen >= ZCON_HEAD_SIZE + TelemLen)
+    {
+      ndbrequire(tgeRemLen <= ZBUF_SIZE);
+      /* ------------------------------------------------------------------- */
+      /* Loop through all elements in a container */
+      do
+      {
+        tgeElementHeader = gePageptr.p->word32[tgeElementptr];
+        tgeRemLen = tgeRemLen - TelemLen;
+        /*
+         * Adjust the stored reduced hash value for element, shifting in a zero
+         */
+        if (ElementHeader::getLocked(tgeElementHeader))
+        {
+          jam();
+          OperationrecPtr oprec;
+          oprec.i = ElementHeader::getOpPtrI(tgeElementHeader);
+          ptrCheckGuard(oprec, coprecsize, operationrec);
+          oprec.p->reducedHashValue.shift_in(false);
+        }
+        else
+        {
+          jam();
+          LHBits16 reducedHashValue = ElementHeader::getReducedHashValue(tgeElementHeader);
+          reducedHashValue.shift_in(false);
+          tgeElementHeader = ElementHeader::setReducedHashValue(tgeElementHeader, reducedHashValue);
+          gePageptr.p->word32[tgeElementptr] = tgeElementHeader;
+        }
+        if (tgeRemLen <= ZCON_HEAD_SIZE)
+        {
+          break;
+        }
+        tgeElementptr = tgeElementptr + tgeElemStep;
+      } while (true);
+    }//if
+    ndbrequire(tgeRemLen == ZCON_HEAD_SIZE);
+    tgeContainerhead = gePageptr.p->word32[tgeContainerptr];
+    tgeNextptrtype = (tgeContainerhead >> 7) & 0x3;
+    if (tgeNextptrtype == 0)
+    {
+      jam();
+      return;	/* NO MORE CONTAINER */
+    }//if
+    tgePageindex = tgeContainerhead & 0x7f;	/* NEXT CONTAINER PAGE INDEX 7 BITS */
+    ndbrequire(tgePageindex <= ZEMPTYLIST);
+    if (((tgeContainerhead >> 9) & 1) == ZFALSE)
+    {
+      jam();
+      tgeActivePageDir = gePageptr.p->word32[tgeContainerptr + 1];	/* NEXT PAGE ID */
+      gePageptr.i = getPagePtr(fragrecptr.p->overflowdir, tgeActivePageDir);
+      ptrCheckGuard(gePageptr, cpagesize, page8);
+    }//if
+  } while (1);
+
+  return;
+}//Dbacc::shrink_adjust_reduced_hash_value()
+
 void Dbacc::shrinkcontainer(Signal* signal) 
 {
   Uint32 tshrElementptr;
@@ -5991,7 +6184,6 @@ void Dbacc::shrinkcontainer(Signal* signal)
   Uint32 tshrTmp;
   Uint32 tshrIndex;
   Uint32 guard21;
-
   tshrRemLen = cexcContainerlen - ZCON_HEAD_SIZE;
   tshrInc = fragrecptr.p->elementLength;
   if (cexcForward == ZTRUE) {
@@ -6020,7 +6212,14 @@ void Dbacc::shrinkcontainer(Signal* signal)
     /* --------------------------------------------------------------------------------- */
     idrOperationRecPtr.i = ElementHeader::getOpPtrI(tidrElemhead);
     ptrCheckGuard(idrOperationRecPtr, coprecsize, operationrec);
+    idrOperationRecPtr.p->reducedHashValue.shift_in(true);
   }//if
+  else
+  {
+    LHBits16 reducedHashValue = ElementHeader::getReducedHashValue(tidrElemhead);
+    reducedHashValue.shift_in(true);
+    tidrElemhead = ElementHeader::setReducedHashValue(tidrElemhead, reducedHashValue);
+  }
   tshrTmp = tshrElementptr + cexcForward;
   guard21 = fragrecptr.p->localkeylen - 1;
   for (tshrIndex = 0; tshrIndex <= guard21; tshrIndex++) {
@@ -6094,7 +6293,6 @@ void Dbacc::initFragAdd(Signal* signal,
                         FragmentrecPtr regFragPtr) 
 {
   const AccFragReq * const req = (AccFragReq*)&signal->theData[0];  
-  Uint32 lhFragBits = req->lhFragBits + 1;
   Uint32 minLoadFactor = (req->minLoadFactor * ZBUF_SIZE) / 100;
   Uint32 maxLoadFactor = (req->maxLoadFactor * ZBUF_SIZE) / 100;
   if (ERROR_INSERTED(3003)) // use small LoadFactors to force sparse hash table
@@ -6112,7 +6310,7 @@ void Dbacc::initFragAdd(Signal* signal,
   regFragPtr.p->myfid = req->fragId;
   regFragPtr.p->myTableId = req->tableId;
   ndbrequire(req->kValue == 6);
-  regFragPtr.p->k = req->kValue;	/* TK_SIZE = 6 IN THIS VERSION */
+  ndbrequire(req->kValue == regFragPtr.p->k);
   regFragPtr.p->expandCounter = 0;
 
   /**
@@ -6121,24 +6319,20 @@ void Dbacc::initFragAdd(Signal* signal,
    *
    * Is later restored to 0 by LQH at end of REDO log execution
    */
-  regFragPtr.p->expandFlag = 0;
-  regFragPtr.p->p = 0;
-  regFragPtr.p->maxp = (1 << req->kValue) - 1;
+  regFragPtr.p->expandOrShrinkQueued = false;
+  regFragPtr.p->level.setSize(1 << req->kValue);
   regFragPtr.p->minloadfactor = minLoadFactor;
   regFragPtr.p->maxloadfactor = maxLoadFactor;
-  regFragPtr.p->slack = (regFragPtr.p->maxp + 1) * maxLoadFactor;
-  regFragPtr.p->lhfragbits = lhFragBits;
-  regFragPtr.p->hashcheckbit = 0; //lhFragBits;
+  regFragPtr.p->slack = Int64(regFragPtr.p->level.getSize()) * maxLoadFactor;
   regFragPtr.p->localkeylen = req->localKeyLen;
   regFragPtr.p->nodetype = (req->reqInfo >> 4) & 0x3;
   regFragPtr.p->lastOverIndex = 0;
   regFragPtr.p->keyLength = req->keyLength;
   ndbrequire(req->keyLength != 0);
   regFragPtr.p->elementLength = ZELEM_HEAD_SIZE + regFragPtr.p->localkeylen;
-  Uint32 Tmp1 = (regFragPtr.p->maxp + 1) + regFragPtr.p->p;
+  Uint32 Tmp1 = regFragPtr.p->level.getSize();
   Uint32 Tmp2 = regFragPtr.p->maxloadfactor - regFragPtr.p->minloadfactor;
-  Tmp2 = Tmp1 * Tmp2;
-  regFragPtr.p->slackCheck = Tmp2;
+  regFragPtr.p->slackCheck = Int64(Tmp1) * Tmp2;
   regFragPtr.p->mytabptr = req->tableId;
   regFragPtr.p->roothashcheck = req->kValue + req->lhFragBits;
   regFragPtr.p->noOfElements = 0;
@@ -6318,17 +6512,14 @@ void Dbacc::checkNextBucketLab(Signal* signal)
   Uint32 tnsElementptr;
   Uint32 tnsContainerptr;
   Uint32 tnsIsLocked;
-  Uint32 tnsTmp1;
-  Uint32 tnsTmp2;
   Uint32 tnsCopyDir;
 
-  tnsCopyDir = scanPtr.p->nextBucketIndex >> fragrecptr.p->k;
+  tnsCopyDir = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
   tnsPageidptr.i = getPagePtr(fragrecptr.p->directory, tnsCopyDir);
   ptrCheckGuard(tnsPageidptr, cpagesize, page8);
   gnsPageidptr.i = tnsPageidptr.i;
   gnsPageidptr.p = tnsPageidptr.p;
-  tnsTmp1 = (1 << fragrecptr.p->k) - 1;
-  tgsePageindex = scanPtr.p->nextBucketIndex & tnsTmp1;
+  tgsePageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
   gsePageidptr.i = gnsPageidptr.i;
   gsePageidptr.p = gnsPageidptr.p;
   if (!getScanElement(signal)) {
@@ -6344,7 +6535,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
         return;
       }//if
     } else if (scanPtr.p->scanBucketState ==  ScanRec::FIRST_LAP) {
-      if ((fragrecptr.p->p + fragrecptr.p->maxp) < scanPtr.p->nextBucketIndex) {
+      if (fragrecptr.p->level.getTop() < scanPtr.p->nextBucketIndex) {
 	/* ---------------------------------------------------------------- */
 	// All buckets have been scanned a first time.
 	/* ---------------------------------------------------------------- */
@@ -6366,7 +6557,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
 	  /* --------------------------------------------------------------------------------- */
           scanPtr.p->nextBucketIndex = scanPtr.p->minBucketIndexToRescan;
 	  scanPtr.p->scanBucketState =  ScanRec::SECOND_LAP;
-          if (scanPtr.p->maxBucketIndexToRescan > (fragrecptr.p->p + fragrecptr.p->maxp)) {
+          if (scanPtr.p->maxBucketIndexToRescan > fragrecptr.p->level.getTop()) {
             jam();
 	    /* --------------------------------------------------------------------------------- */
 	    // If we have had so many merges that the maximum is bigger than the number of buckets
@@ -6379,7 +6570,7 @@ void Dbacc::checkNextBucketLab(Signal* signal)
               sendSystemerror(signal, __LINE__);
               return;
             }//if
-            scanPtr.p->maxBucketIndexToRescan = fragrecptr.p->p + fragrecptr.p->maxp;
+            scanPtr.p->maxBucketIndexToRescan = fragrecptr.p->level.getTop();
           }//if
         }//if
       }//if
@@ -6390,19 +6581,17 @@ void Dbacc::checkNextBucketLab(Signal* signal)
       // We will only reset the scan indicator on the buckets that existed at the start of the
       // scan. The others will be handled by the split and merge code.
       /* --------------------------------------------------------------------------------- */
-      tnsTmp2 = (1 << fragrecptr.p->k) - 1;
-      trsbPageindex = scanPtr.p->nextBucketIndex & tnsTmp2;
+      trsbPageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
       if (trsbPageindex != 0) {
         jam();
         rsbPageidptr.i = gnsPageidptr.i;
         rsbPageidptr.p = gnsPageidptr.p;
       } else {
         jam();
-        tmpP = scanPtr.p->nextBucketIndex >> fragrecptr.p->k;
+        tmpP = fragrecptr.p->getPageNumber(scanPtr.p->nextBucketIndex);
         cscPageidptr.i = getPagePtr(fragrecptr.p->directory, tmpP);
         ptrCheckGuard(cscPageidptr, cpagesize, page8);
-        tmp1 = (1 << fragrecptr.p->k) - 1;
-        trsbPageindex = scanPtr.p->nextBucketIndex & tmp1;
+        trsbPageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
         rsbPageidptr.i = cscPageidptr.i;
         rsbPageidptr.p = cscPageidptr.p;
       }//if
@@ -6539,12 +6728,12 @@ void Dbacc::initScanFragmentPart(Signal* signal)
   scanPtr.p->activeLocalFrag = fragrecptr.i;
   scanPtr.p->nextBucketIndex = 0;	/* INDEX OF SCAN BUCKET */
   scanPtr.p->scanBucketState = ScanRec::FIRST_LAP;
-  scanPtr.p->startNoOfBuckets = fragrecptr.p->p + fragrecptr.p->maxp;
+  scanPtr.p->startNoOfBuckets = fragrecptr.p->level.getTop();
   scanPtr.p->minBucketIndexToRescan = 0xFFFFFFFF;
   scanPtr.p->maxBucketIndexToRescan = 0;
   cnfPageidptr.i = getPagePtr(fragrecptr.p->directory, 0);
   ptrCheckGuard(cnfPageidptr, cpagesize, page8);
-  trsbPageindex = scanPtr.p->nextBucketIndex & ((1 << fragrecptr.p->k) - 1);
+  trsbPageindex = fragrecptr.p->getPageIndex(scanPtr.p->nextBucketIndex);
   rsbPageidptr.i = cnfPageidptr.i;
   rsbPageidptr.p = cnfPageidptr.p;
   releaseScanBucket(signal);
@@ -6914,6 +7103,7 @@ void Dbacc::initScanOpRec(Signal* signal)
     operationRecPtr.p->localdata[0] = Tkey1;
     operationRecPtr.p->localdata[1] = isoPageptr.p->word32[tisoLocalPtr];
   }
+  operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
   operationRecPtr.p->xfrmtupkeylen = 0; // not used
 }//Dbacc::initScanOpRec()
@@ -7287,7 +7477,7 @@ void Dbacc::setlock(Signal* signal)
   arrGuard(tslElementptr, 2048);
   tselTmp1 = slPageidptr.p->word32[tslElementptr];
   operationRecPtr.p->scanBits = ElementHeader::getScanBits(tselTmp1);
-  operationRecPtr.p->hashvaluePart = ElementHeader::getHashValuePart(tselTmp1);
+  operationRecPtr.p->reducedHashValue = ElementHeader::getReducedHashValue(tselTmp1);
 
   tselTmp1 = ElementHeader::setLocked(operationRecPtr.i);
   dbgWord32(slPageidptr, tslElementptr, tselTmp1);
@@ -8188,10 +8378,9 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("elementIsforward=%d, elementPage=%d, elementPointer=%d ",
 	      tmpOpPtr.p->elementIsforward, tmpOpPtr.p->elementPage, 
 	      tmpOpPtr.p->elementPointer);
-    infoEvent("fid=%d, fragptr=%d, hashvaluePart=%d ",
-	      tmpOpPtr.p->fid, tmpOpPtr.p->fragptr, 
-	      tmpOpPtr.p->hashvaluePart);
-    infoEvent("hashValue=%d", tmpOpPtr.p->hashValue);
+    infoEvent("fid=%d, fragptr=%d ",
+              tmpOpPtr.p->fid, tmpOpPtr.p->fragptr);
+    infoEvent("hashValue=%d", tmpOpPtr.p->hashValue.pack());
     infoEvent("nextLockOwnerOp=%d, nextOp=%d, nextParallelQue=%d ",
 	      tmpOpPtr.p->nextLockOwnerOp, tmpOpPtr.p->nextOp, 
 	      tmpOpPtr.p->nextParallelQue);
@@ -8202,8 +8391,8 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
 	      tmpOpPtr.p->prevLockOwnerOp, tmpOpPtr.p->nextParallelQue);
     infoEvent("prevSerialQue=%d, scanRecPtr=%d",
 	      tmpOpPtr.p->prevSerialQue, tmpOpPtr.p->scanRecPtr);
-    infoEvent("m_op_bits=0x%x, scanBits=%d ",
-	      tmpOpPtr.p->m_op_bits, tmpOpPtr.p->scanBits);
+    infoEvent("m_op_bits=0x%x, scanBits=%d, reducedHashValue=%x ",
+              tmpOpPtr.p->m_op_bits, tmpOpPtr.p->scanBits, tmpOpPtr.p->reducedHashValue.pack());
     return;
   }
 
@@ -8405,17 +8594,16 @@ Dbacc::execNODE_STATE_REP(Signal* signal)
 void
 Dbacc::debug_lh_vars(const char* where)
 {
-  Uint32 b = fragrecptr.p->maxp + fragrecptr.p->p;
-  Uint32 di = b >> fragrecptr.p->k;
+  Uint32 b = fragrecptr.p->level.getTop();
+  Uint32 di = fragrecptr.p->getPageNumber(b);
   Uint32 ri = di >> 8;
   ndbout
     << "DBACC: " << where << ":"
     << " frag:" << fragrecptr.p->myTableId
     << "/" << fragrecptr.p->myfid
-    << " slack:" << (Int32)fragrecptr.p->slack
+    << " slack:" << fragrecptr.p->slack
     << "/" << fragrecptr.p->slackCheck
-    << " maxp:" << fragrecptr.p->maxp
-    << " p:" << fragrecptr.p->p
+    << " top:" << fragrecptr.p->level.getTop()
     << " di:" << di
     << " ri:" << ri
     << " full:" << fragrecptr.p->dirRangeFull
