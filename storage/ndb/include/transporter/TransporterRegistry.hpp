@@ -394,6 +394,9 @@ public:
 		  		 int s_port);	// signed port. <0 is dynamic
   Transporter* get_transporter(NodeId nodeId);
   struct in_addr get_connect_address(NodeId node_id) const;
+
+  Uint64 get_bytes_sent(NodeId nodeId) const;
+  Uint64 get_bytes_received(NodeId nodeId) const;
 protected:
   
 private:
