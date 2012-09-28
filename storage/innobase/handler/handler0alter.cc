@@ -3013,7 +3013,7 @@ error_handled:
 			}
 
 			dict_table_close(indexed_table, TRUE, FALSE);
-			row_merge_drop_table(trx, indexed_table, true);
+			row_merge_drop_table(trx, indexed_table, false);
 
 			/* Free the log for online table rebuild, if
 			one was allocated. */
@@ -3965,7 +3965,7 @@ rollback_inplace_alter_table(
 
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
-		err = row_merge_drop_table(ctx->trx, ctx->indexed_table, true);
+		err = row_merge_drop_table(ctx->trx, ctx->indexed_table, false);
 
 		switch (err) {
 		case DB_SUCCESS:
