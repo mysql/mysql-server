@@ -66,7 +66,8 @@ struct view {
     "  WHEN 2 THEN \"DISCONNECTED\""
     "  WHEN 3 THEN \"DISCONNECTING\""
     "  ELSE NULL "
-    " END AS status "
+    " END AS status, "
+    " remote_address, bytes_sent, bytes_received "
     "FROM `<NDBINFO_DB>`.`<TABLE_PREFIX>transporters`"
   },
   { "logspaces",
