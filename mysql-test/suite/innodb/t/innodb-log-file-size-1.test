@@ -25,7 +25,7 @@
 # Do something while server is down
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
---exec echo "restart: --innodb-fast-shutdown=2 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec echo "restart: --innodb-fast-shutdown=2 --innodb-log-file-size=1M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
 
@@ -46,6 +46,7 @@ SET GLOBAL innodb_file_format = `Barracuda`;
 SELECT @@innodb_file_format;
 
 SELECT @@innodb_log_file_size;
+SELECT @@innodb_log_files_in_group;
 
 
 # Testcase 1 - set log file size > existing size and innodb_log_files_in_group > old value
@@ -77,8 +78,8 @@ SELECT id,LEFT(bfield,20) FROM t1;
 # Do something while server is down
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
-# set log size from 2*5M to 5*10M
---exec echo "restart: --innodb-log-file-size=15M --innodb_log_files_in_group=5  --log-error=$MYSQLTEST_VARDIR/log/case1.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# set log size from 2*1M to 5*2M
+--exec echo "restart: --innodb-log-file-size=2M --innodb_log_files_in_group=5  --log-error=$MYSQLTEST_VARDIR/log/case1.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case1.err;
@@ -127,10 +128,12 @@ DROP DATABASE db_wl6494;
 --move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/mysqld.1.err.old1
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
-# set log size to 15M
---exec echo "restart: --innodb-fast-shutdown=2 --innodb-log-file-size=15M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# set log size to 3M
+--exec echo "restart: --innodb-fast-shutdown=2 --innodb-log-file-size=3M --innodb_log_files_in_group=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
+SELECT @@innodb_log_file_size;
+SELECT @@innodb_log_files_in_group;
 
 # Testcase 2 - set log file size < existing size and innodb_log_files_in_group < old value
 --disable_warnings
@@ -161,13 +164,18 @@ SELECT id,LEFT(bfield,20) FROM t1;
 # Do something while server is down
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
-# set log size from 2*15M to 2*10M
---exec echo "restart: --innodb-log-file-size=10M --innodb_log_files_in_group=2  --log-error=$MYSQLTEST_VARDIR/log/case2.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+# set log size from 2*3M to 2*2M
+--exec echo "restart: --innodb-log-file-size=2M --innodb_log_files_in_group=2  --log-error=$MYSQLTEST_VARDIR/log/case2.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
+
+SELECT @@innodb_log_file_size;
+SELECT @@innodb_log_files_in_group;
+
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case2.err;
 let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
+
 
 USE db_wl6494;
 SELECT id,LEFT(bfield,20) FROM t1;
