@@ -2346,11 +2346,9 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 	    if (fragrecptr.p->expandFlag < 2) {
 	      jam();
 	      signal->theData[0] = fragrecptr.i;
-	      signal->theData[1] = fragrecptr.p->p;
-	      signal->theData[2] = fragrecptr.p->maxp;
-	      signal->theData[3] = fragrecptr.p->expandFlag;
+              signal->theData[1] = fragrecptr.p->expandFlag;
 	      fragrecptr.p->expandFlag = 2;
-	      sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
+              sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 2, JBB);
 	    }//if
 	  }//if
 	}//if
@@ -2366,9 +2364,7 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 	  jam();
 	  fragrecptr.p->expandFlag = 2;
 	  signal->theData[0] = fragrecptr.i;
-	  signal->theData[1] = fragrecptr.p->p;
-	  signal->theData[2] = fragrecptr.p->maxp;
-	  sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
+          sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 1, JBB);
 	}//if
       }//if
     }
@@ -5338,9 +5334,7 @@ void Dbacc::endofexpLab(Signal* signal)
     /* --------------------------------------------------------------------------------- */
     fragrecptr.p->expandFlag = 2;
     signal->theData[0] = fragrecptr.i;
-    signal->theData[1] = fragrecptr.p->p;
-    signal->theData[2] = fragrecptr.p->maxp;
-    sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
+    sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 1, JBB);
   }//if
   return;
 }//Dbacc::endofexpLab()
@@ -5375,9 +5369,7 @@ void Dbacc::reenable_expand_after_redo_log_exection_complete(Signal* signal){
      */
     fragrecptr.p->expandFlag = 2; 
     signal->theData[0] = fragrecptr.i;
-    signal->theData[1] = fragrecptr.p->p;
-    signal->theData[2] = fragrecptr.p->maxp;
-    sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 3, JBB);
+    sendSignal(cownBlockref, GSN_EXPANDCHECK2, signal, 1, JBB);
     break;
   }
 }
@@ -5717,7 +5709,7 @@ void Dbacc::execSHRINKCHECK2(Signal* signal)
 
   jamEntry();
   fragrecptr.i = signal->theData[0];
-  Uint32 oldFlag = signal->theData[3];
+  Uint32 oldFlag = signal->theData[1];
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
   fragrecptr.p->expandFlag = oldFlag;
   tresult = 0;	/* 0= FALSE,1= TRUE,> ZLIMIT_OF_ERROR =ERRORCODE */
@@ -5959,12 +5951,10 @@ void Dbacc::endofshrinkbucketLab(Signal* signal)
 	/*       WAS REMOVED 2000-05-12.                                */
 	/*--------------------------------------------------------------*/
         signal->theData[0] = fragrecptr.i;
-        signal->theData[1] = fragrecptr.p->p;
-        signal->theData[2] = fragrecptr.p->maxp;
-        signal->theData[3] = fragrecptr.p->expandFlag;
+        signal->theData[1] = fragrecptr.p->expandFlag;
 	ndbrequire(fragrecptr.p->expandFlag < 2);
         fragrecptr.p->expandFlag = 2;
-        sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 4, JBB);
+        sendSignal(cownBlockref, GSN_SHRINKCHECK2, signal, 2, JBB);
       }//if
     }//if
   }//if
