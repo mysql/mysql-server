@@ -480,7 +480,7 @@ struct Operationrec {
   Uint32 elementPointer;
   Uint32 fid;
   Uint32 fragptr;
-  Uint32 hashValue;
+  LHBits32 hashValue;
   Uint32 nextLockOwnerOp;
   Uint32 nextOp;
   Uint32 nextParallelQue;
@@ -756,7 +756,7 @@ private:
   void seizeRightlist(Signal* signal);
   Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
   Uint32 getElement(Signal* signal, OperationrecPtr& lockOwner);
-  Uint32 getElementHash(Uint32 const* element, Int32 forward, OperationrecPtr& oprec);
+  LHBits32 getElementHash(Uint32 const* element, Int32 forward, OperationrecPtr& oprec);
   Uint32 getPagePtr(DynArr256::Head&, Uint32);
   bool setPagePtr(DynArr256::Head& directory, Uint32 index, Uint32 ptri);
   Uint32 unsetPagePtr(DynArr256::Head& directory, Uint32 index);
