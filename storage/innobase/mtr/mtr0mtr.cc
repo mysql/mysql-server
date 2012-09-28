@@ -397,14 +397,8 @@ mtr_read_ulint(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_S_FIX)
 	      || mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_X_FIX));
-	if (type == MLOG_1BYTE) {
-		return(mach_read_from_1(ptr));
-	} else if (type == MLOG_2BYTES) {
-		return(mach_read_from_2(ptr));
-	} else {
-		ut_ad(type == MLOG_4BYTES);
-		return(mach_read_from_4(ptr));
-	}
+
+	return(mach_read_ulint(ptr, type));
 }
 
 #ifdef UNIV_DEBUG
