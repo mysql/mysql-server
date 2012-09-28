@@ -403,8 +403,32 @@ Trpman::execDBINFO_SCANREQ(Signal *signal)
         row.write_uint32(getOwnNodeId()); // Node id
         row.write_uint32(rnode); // Remote node id
         row.write_uint32(globalTransporterRegistry.getPerformState(rnode)); // State
+
+        /* Connect address */
+        if (globalTransporterRegistry.get_transporter(rnode) != NULL &&
+            globalTransporterRegistry.get_connect_address(rnode).s_addr != 0)
+        {
+          row.write_string(inet_ntoa(globalTransporterRegistry.get_connect_address(rnode)));
+        }
+        else
+        {
+          row.write_string("-");
+        }
+
+        /* Bytes sent/received */
+        if (globalTransporterRegistry.get_transporter(rnode) != NULL)
+        {
+          row.write_uint64(globalTransporterRegistry.get_bytes_sent(rnode));
+          row.write_uint64(globalTransporterRegistry.get_bytes_received(rnode));
+        }
+        else
+        {
+          row.write_uint64(0);
+          row.write_uint64(0);
+        }
+
         ndbinfo_send_row(signal, req, row, rl);
-       break;
+        break;
       }
 
       case NodeInfo::INVALID:
