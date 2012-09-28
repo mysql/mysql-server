@@ -37,6 +37,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "trx0purge.h"
 #include "dict0mem.h"
+#include "dict0boot.h"
 #include "trx0sys.h"
 #include "pars0pars.h" /* pars_complete_graph_for_exec() */
 #include "que0que.h" /* que_node_get_parent() */
@@ -6687,7 +6688,7 @@ lock_trx_release_locks(
 {
 	assert_trx_in_list(trx);
 
-	if (UNIV_UNLIKELY(trx_state_eq(trx, TRX_STATE_PREPARED))) {
+	if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
 		mutex_enter(&trx_sys->mutex);
 		ut_a(trx_sys->n_prepared_trx > 0);
 		trx_sys->n_prepared_trx--;
@@ -6878,3 +6879,50 @@ lock_table_has_locks(
 
 	return(has_locks);
 }
+
+#ifdef UNIV_DEBUG
+/*******************************************************************//**
+Check if the transaction holds any locks on the sys tables
+or its records.
+@return	the strongest lock found on any sys table or 0 for none */
+UNIV_INTERN
+const lock_t*
+lock_trx_has_sys_table_locks(
+/*=========================*/
+	const trx_t*	trx)	/*!< in: transaction to check */
+{
+	const lock_t*	strongest_lock = 0;
+	lock_mode	strongest = LOCK_NONE;
+
+	lock_mutex_enter();
+
+	/* Note: ib_vector_size() can be 0. */
+	for (lint i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
+		const lock_t*	lock;
+
+		lock = *static_cast<const lock_t**>(
+			ib_vector_get(trx->lock.table_locks, i));
+
+		if (lock == NULL) {
+			continue;
+		}
+
+		ut_ad(trx == lock->trx);
+		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+		ut_ad(lock->un_member.tab_lock.table != NULL);
+
+		lock_mode	mode = lock_get_mode(lock);
+
+		if (dict_is_sys_table(lock->un_member.tab_lock.table->id)
+		    && lock_mode_stronger_or_eq(mode, strongest)) {
+
+			strongest = mode;
+			strongest_lock = lock;
+		}
+	}
+
+	lock_mutex_exit();
+
+	return(strongest_lock);
+}
+#endif /* UNIV_DEBUG */
