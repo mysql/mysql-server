@@ -20,7 +20,9 @@
 #include <assert.h>
 #include <stdlib.h>
 
-#include "NdbTap.hpp"
+#include <ndb_global.h>
+#include <NdbTap.hpp>
+
 #include "md5_hash.hpp"
 #include "random.h"
 #include "LHLevel.hpp"
@@ -35,9 +37,9 @@ struct elem
 {
   Uint32 val;
   Uint16 head;
-  static Uint32 hash(Uint32 val)
+  static LHBits32 hash(Uint32 val)
   {
-    return md5_hash((Uint64*)&val, 1) /* | (1 << 31) */;
+    return LHBits32(md5_hash((Uint64*)&val, 1));
   }
 };
 
@@ -116,7 +118,7 @@ int main(int argc, char *argv[])
 
 bool delete_elem(LHLevel& lh, elem(*arr)[BUCKSIZE], Uint32 w)
 {
-  Uint32 hash(elem::hash(w));
+  LHBits32 hash(elem::hash(w));
   Uint32 addr = lh.getBucketNumber(hash);
   int i;
   bool found = false;
@@ -204,7 +206,7 @@ void expand(LHLevel& lh, elem(*arr)[BUCKSIZE])
   for (i = j = k = 0; i < BUCKSIZE && (arr[from][i].head != 0);
        i++)
   {
-    Uint32 hash = Uint32(elem::hash(arr[from][i].val));
+    LHBits32 hash = elem::hash(arr[from][i].val);
     if (lh.shouldMoveBeforeExpand(hash))
     {
       c_moved++;
@@ -228,7 +230,7 @@ void expand(LHLevel& lh, elem(*arr)[BUCKSIZE])
 
 bool insert_elem(LHLevel& lh, elem(*arr)[BUCKSIZE], Uint32 v)
 {
-  Uint32 hash = Uint32(elem::hash(v));
+  LHBits32 hash = elem::hash(v);
   Uint32 addr = lh.getBucketNumber(hash);
   int i;
   bool found = false;
