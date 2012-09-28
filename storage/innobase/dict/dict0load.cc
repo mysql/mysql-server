@@ -861,10 +861,15 @@ dict_update_filepath(
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
+	trx->op_info = "update filepath";
+	trx->dict_operation_lock_mode = RW_X_LATCH;
+	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
 	pars_info_t*	info = pars_info_create();
 
@@ -880,6 +885,7 @@ dict_update_filepath(
 			   "END;\n", FALSE, trx);
 
 	trx_commit_for_mysql(trx);
+	trx->dict_operation_lock_mode = 0;
 	trx_free_for_background(trx);
 
 	if (err == DB_SUCCESS) {
@@ -914,11 +920,16 @@ dict_insert_tablespace_and_filepath(
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(filepath);
 
 	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
+	trx->op_info = "insert tablespace and filepath";
+	trx->dict_operation_lock_mode = RW_X_LATCH;
+	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
 	/* A record for this space ID was not found in
 	SYS_DATAFILES. Assume the record is also missing in
@@ -927,6 +938,7 @@ dict_insert_tablespace_and_filepath(
 		space, name, fsp_flags, filepath, trx, false);
 
 	trx_commit_for_mysql(trx);
+	trx->dict_operation_lock_mode = 0;
 	trx_free_for_background(trx);
 
 	return(err);
@@ -957,6 +969,7 @@ dict_check_tablespaces_and_store_max_id(
 	ulint		max_space_id;
 	mtr_t		mtr;
 
+	rw_lock_x_lock(&dict_operation_lock);
 	mutex_enter(&(dict_sys->mutex));
 
 	mtr_start(&mtr);
@@ -991,6 +1004,7 @@ loop:
 		fil_set_max_space_id_if_bigger(max_space_id);
 
 		mutex_exit(&(dict_sys->mutex));
+		rw_lock_x_unlock(&dict_operation_lock);
 
 		return;
 	}
@@ -1093,7 +1107,12 @@ loop:
 					space_id, name);
 			}
 
-			/* filepath can be NULL in this call. */
+			/* We set the 2nd param (fix_dict = true)
+			here because we already have an x-lock on
+			dict_operation_lock and dict_sys->mutex. Besides,
+			this is at startup and we are now single threaded.
+			If the filepath is not known, it will need to
+			be discovered. */
 			dberr_t	err = fil_open_single_table_tablespace(
 				false, srv_read_only_mode ? false : true,
 				space_id, dict_tf_to_fsp_flags(flags),
@@ -2312,7 +2331,9 @@ err_exit:
 				}
 			}
 
-			/* Try to open the tablespace */
+			/* Try to open the tablespace.  We set the
+			2nd param (fix_dict = false) here because we
+			do not have an x-lock on dict_operation_lock */
 			err = fil_open_single_table_tablespace(
 				true, false, table->space,
 				dict_tf_to_fsp_flags(table->flags),

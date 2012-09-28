@@ -3506,6 +3506,11 @@ fil_open_single_table_tablespace(
 	ulint		tablespaces_found = 0;
 	ulint		valid_tablespaces_found = 0;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!fix_dict || rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!fix_dict || mutex_own(&(dict_sys->mutex)));
+
 	if (!fsp_flags_is_valid(flags)) {
 		return(DB_CORRUPTION);
 	}
