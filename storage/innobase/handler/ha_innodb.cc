@@ -8557,7 +8557,7 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
-	err = row_create_table_for_mysql(table, trx, true);
+	err = row_create_table_for_mysql(table, trx, false);
 
 	mem_heap_free(heap);
 
@@ -9662,7 +9662,7 @@ ha_innobase::create(
 	DBUG_RETURN(0);
 
 cleanup:
-	innobase_commit_low(trx);
+	trx_rollback_for_mysql(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
 
