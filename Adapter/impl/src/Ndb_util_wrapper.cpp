@@ -72,7 +72,7 @@ Handle<Value>  CharsetMap_getName(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(1);
 
-  typedef NativeConstMethodCall_1_<const char *,CharsetMap, int> NCALL;
+  typedef NativeMethodCall_1_<const char *, const CharsetMap, int> NCALL;
 
   NCALL ncall(args);
   ncall.method = & CharsetMap::getName;
@@ -88,7 +88,7 @@ Handle<Value>  CharsetMap_getMysqlName(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(1);
 
-  typedef NativeConstMethodCall_1_<const char *, CharsetMap, int> NCALL;
+  typedef NativeMethodCall_1_<const char *, const CharsetMap, int> NCALL;
 
   NCALL ncall(args);
   ncall.method = & CharsetMap::getMysqlName;
@@ -104,7 +104,7 @@ Handle<Value>  CharsetMap_getCharsetNumber(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(1);
 
-  typedef NativeConstMethodCall_1_<int, CharsetMap, const char *> NCALL;
+  typedef NativeMethodCall_1_<int, const CharsetMap, const char *> NCALL;
 
   NCALL ncall(args);
   ncall.method = & CharsetMap::getCharsetNumber;
@@ -120,7 +120,7 @@ Handle<Value>  CharsetMap_getUTF8CharsetNumber(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(0);
 
-  typedef NativeConstMethodCall_0_<int, CharsetMap> NCALL;
+  typedef NativeMethodCall_0_<int, const CharsetMap> NCALL;
 
   NCALL ncall(args);
   ncall.method = & CharsetMap::getUTF8CharsetNumber;
@@ -136,7 +136,7 @@ Handle<Value>  CharsetMap_getUTF16CharsetNumber(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(0);
 
-  typedef NativeConstMethodCall_0_<int, CharsetMap> NCALL;
+  typedef NativeMethodCall_0_<int, const CharsetMap> NCALL;
 
   NCALL ncall(args);
   ncall.method = & CharsetMap::getUTF16CharsetNumber;
@@ -152,7 +152,7 @@ Handle<Value> CharsetMap_isMultibyte(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(1);
 
-  typedef NativeConstMethodCall_1_<const bool *, CharsetMap, int> NCALL;
+  typedef NativeMethodCall_1_<const bool *, const CharsetMap, int> NCALL;
 
   NCALL ncall(args);
   ncall.method = & CharsetMap::isMultibyte;

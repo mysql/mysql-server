@@ -40,17 +40,17 @@ template <typename R>
 class NativeCFunctionCall_0_ : public AsyncCall_Returning<R> {
 public:
   /* Member variables */
-  R (*function)();    // function pointer
+  typedef R (*Function_T)();
+  Function_T function;
 
   /* Constructor */
-  NativeCFunctionCall_0_<R>(const Arguments &args) :
+  NativeCFunctionCall_0_<R>(Function_T f, const Arguments &args) :
   AsyncCall_Returning<R>(args[0]) /*callback*/ ,
-  function(0)
+  function(f)
   { }
 
   /* Methods */
   void run() {
-    assert(function);
     AsyncCall_Returning<R>::return_val = (*function)();
   }
 };
@@ -67,18 +67,18 @@ class NativeCFunctionCall_1_ : public AsyncCall_Returning<R>,
 {
 public:
   /* Member variables */
-  R (*function)(A0);    // function pointer
+  typedef R (*Function_T)(A0);
+  Function_T function;
 
   /* Constructor */
-  NativeCFunctionCall_1_<R, A0>(const Arguments &args) :
+  NativeCFunctionCall_1_<R, A0>(Function_T f, const Arguments &args) :
     AsyncCall_Returning<R>(args[1]), /* callback */
     Call_1_<A0>(args),
-    function(0)
+    function(f)
   { }
 
   /* Methods */
   void run() {
-    assert(function);
     AsyncCall_Returning<R>::return_val = (function)(Call_1_<A0>::arg0);
   }
 };
@@ -95,18 +95,18 @@ class NativeCFunctionCall_2_ : public AsyncCall_Returning<R>,
 {
 public:
   /* Member variables */
-  R (*function)(A0,A1);    // function pointer
+  typedef R (*Function_T)(A0,A1);
+  Function_T function;
 
   /* Constructor */
-  NativeCFunctionCall_2_<R, A0, A1>(const Arguments &args) :
+  NativeCFunctionCall_2_<R, A0, A1>(Function_T f, const Arguments &args) :
     AsyncCall_Returning<R>(args[2]), // callback
     Call_2_<A0, A1>(args),
-    function(0)
+    function(f)
   { }
 
   /* Methods */
   void run() {
-    assert(function);
     AsyncCall_Returning<R>::return_val = (function)(
       Call_2_<A0, A1>::arg0,
       Call_2_<A0, A1>::arg1
@@ -126,18 +126,18 @@ class NativeCFunctionCall_3_ : public AsyncCall_Returning<R>,
 {
 public:
   /* Member variables */
-  R (*function)(A0,A1,A2);    // function pointer
+  typedef R (*Function_T)(A0,A1,A2);
+  Function_T function;
 
   /* Constructor */
-  NativeCFunctionCall_3_<R, A0, A1, A2>(const Arguments &args) :
+  NativeCFunctionCall_3_<R, A0, A1, A2>(Function_T f, const Arguments &args) :
     AsyncCall_Returning<R>(args[3]), /* callback */
     Call_3_<A0, A1, A2>(args),
-    function(0)
+    function(f)
   { }
 
   /* Methods */
   void run() {
-    assert(function);
     AsyncCall_Returning<R>::return_val = (function)(
       Call_3_<A0, A1, A2>::arg0,
       Call_3_<A0, A1, A2>::arg1,
@@ -159,18 +159,18 @@ class NativeCFunctionCall_6_ : public AsyncCall_Returning<R>,
 {
 public:
   /* Member variables */
-  R (*function)(A0,A1,A2,A3,A4,A5);    // function pointer
-
+  typedef R (*Function_T)(A0,A1,A2,A3,A4,A5);
+  Function_T function;
+  
   /* Constructor */
-  NativeCFunctionCall_6_<R, A0, A1, A2, A3, A4, A5>(const Arguments &args) :
+  NativeCFunctionCall_6_<R, A0, A1, A2, A3, A4, A5>(Function_T f, const Arguments &args) :
     AsyncCall_Returning<R>(args[8]),  /* callback */
     Call_6_<A0, A1, A2, A3, A4, A5>(args),
-    function(0)
+    function(f)
   { }
 
   /* Methods */
   void run() {
-    assert(function);
     AsyncCall_Returning<R>::return_val = (function)(
       Call_6_<A0, A1, A2, A3, A4, A5>::arg0,
       Call_6_<A0, A1, A2, A3, A4, A5>::arg1,
@@ -195,13 +195,14 @@ class NativeCFunctionCall_8_ : public AsyncCall_Returning<R>,
 {
 public:
   /* Member variables */
-  R (*function)(A0,A1,A2,A3,A4,A5,A6,A7);    // function pointer
-
+  typedef R (*Function_T)(A0,A1,A2,A3,A4,A5,A6,A7);
+  Function_T function;
+  
   /* Constructor */
-  NativeCFunctionCall_8_<R, A0, A1, A2, A3, A4, A5, A6, A7>(const Arguments &args) :
+  NativeCFunctionCall_8_<R, A0, A1, A2, A3, A4, A5, A6, A7>(Function_T f, const Arguments &args) :
     AsyncCall_Returning<R>(args[8]),  /* callback */
     Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>(args),
-    function(0)
+    function(f)
   { }
 
   /* Methods */

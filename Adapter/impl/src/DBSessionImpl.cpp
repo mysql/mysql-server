@@ -76,11 +76,8 @@ Handle<Value>NewDBSessionImpl(const Arguments &args) {
   
   typedef NativeCFunctionCall_2_<ndb_session *, Ndb_cluster_connection *, 
                                  const char *> NCALL;
-  NCALL *ncallptr = new NCALL(args);
-  DEBUG_TRACE();
-
+  NCALL *ncallptr = new NCALL(& ndb_session_new, args);
   ncallptr->envelope = & NdbSessionImplEnv;
-  ncallptr->function = & ndb_session_new;
 
   if(args.Length() == 3) {
     DEBUG_PRINT("async (%d arguments)", args.Length());

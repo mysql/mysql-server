@@ -36,8 +36,7 @@ Handle<Value> Ndb_init_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(0);
 
-  NativeCFunctionCall_0_<int> ncall(args);
-  ncall.function = & ndb_init;
+  NativeCFunctionCall_0_<int> ncall(& ndb_init, args);
   ncall.run();
   DEBUG_TRACE();
   

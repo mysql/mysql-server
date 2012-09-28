@@ -77,8 +77,8 @@ private:
 
 public:
   /* Constructor */
-  ListTablesCall(const Arguments &args) : 
-    NativeCFunctionCall_2_<int, ndb_session *, const char *>(args), 
+  ListTablesCall(const Arguments &args) :
+    NativeCFunctionCall_2_<int, ndb_session *, const char *>(NULL, args),
     list() 
   {
     envelope = & NdbDictionaryImplEnv;
@@ -167,7 +167,7 @@ private:
 public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
-    NativeCFunctionCall_3_<int, ndb_session *, const char *, const char *>(args), 
+    NativeCFunctionCall_3_<int, ndb_session *, const char *, const char *>(NULL, args),
     ndb_table(0), indexes(0), n_index(0)
   {
     envelope = & NdbDictionaryImplEnv;

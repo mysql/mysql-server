@@ -32,9 +32,8 @@ Handle<Value> mysql_init_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(0);  // there is one arg but we supply it here
   
-  NativeCFunctionCall_1_<MYSQL *, MYSQL *> ncall(args);
+  NativeCFunctionCall_1_<MYSQL *, MYSQL *> ncall(& mysql_init, args);
   ncall.arg0 = 0; 
-  ncall.function = & mysql_init;
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());
@@ -61,8 +60,7 @@ Handle<Value> mysql_real_connect_wrapper(const Arguments &args) {
   
   NativeCFunctionCall_8_<MYSQL *, MYSQL *, const char *, const char *, const char *,
                          const char *, unsigned int, const char *, unsigned long> 
-                         ncall(args);
-  ncall.function = & mysql_real_connect;
+                         ncall(& mysql_real_connect, args);
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());
@@ -74,8 +72,7 @@ Handle<Value> mysql_error_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(1);
   
-  NativeCFunctionCall_1_<const char *, MYSQL *> ncall(args);
-  ncall.function = & mysql_error;
+  NativeCFunctionCall_1_<const char *, MYSQL *> ncall(& mysql_error, args);
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());
@@ -87,8 +84,7 @@ Handle<Value> mysql_query_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(2);
   
-  NativeCFunctionCall_2_<int, MYSQL *, const char *> ncall(args);
-  ncall.function = & mysql_query;
+  NativeCFunctionCall_2_<int, MYSQL *, const char *> ncall(& mysql_query, args);
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());
