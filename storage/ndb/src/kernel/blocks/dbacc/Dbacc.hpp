@@ -401,14 +401,16 @@ struct Fragmentrec {
 // slackCheck When slack goes over this value it is time to expand.
 // slackCheck = (maxp + p + 1)*(maxloadfactor - minloadfactor) or 
 // bucketSize * hysteresis
+// Since at most RNIL 8KiB-pages can be used for a fragment, the extreme values
+// for slack will be within -2^43 and +2^43 words.
 //-----------------------------------------------------------------------------
   Uint32 localkeylen;
   Uint32 maxp;
   Uint32 maxloadfactor;
   Uint32 minloadfactor;
   Uint32 p;
-  Uint32 slack;
-  Uint32 slackCheck;
+  Int64 slack;
+  Int64 slackCheck;
 
 //-----------------------------------------------------------------------------
 // nextfreefrag is the next free fragment if linked into a free list
