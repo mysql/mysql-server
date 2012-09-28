@@ -55,9 +55,8 @@ Handle<Value> Ndb_cluster_connection_set_name(const Arguments &args) {
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(1);
-  
-  NativeVoidMethodCall_1_<Ndb_cluster_connection, const char *> mcall(args);
-  mcall.method = & Ndb_cluster_connection::set_name;
+  typedef NativeVoidMethodCall_1_<Ndb_cluster_connection, const char *> MCALL;
+  MCALL mcall(& Ndb_cluster_connection::set_name, args);
   mcall.run();
   
   return scope.Close(JS_VOID_RETURN);
@@ -75,9 +74,7 @@ Handle<Value> Ndb_cluster_connection_connect(const Arguments &args) {
   REQUIRE_MAX_ARGS(4);
 
   typedef NativeMethodCall_3_ <int, Ndb_cluster_connection, int, int, int> MCALL;
-  MCALL * mcallptr = new MCALL(args);
-
-  mcallptr->method = & Ndb_cluster_connection::connect;
+  MCALL * mcallptr = new MCALL(& Ndb_cluster_connection::connect, args);
   mcallptr->envelope = & NdbccEnvelope;
 
   if(args.Length() == 4) {
@@ -110,10 +107,9 @@ Handle<Value> Ndb_cluster_connection_wait_until_ready(const Arguments &args) {
   REQUIRE_MAX_ARGS(3);
   
   typedef NativeMethodCall_2_<int, Ndb_cluster_connection, int, int> MCALL;
-  MCALL * mcallptr = new MCALL(args);
-
-  mcallptr->method = & Ndb_cluster_connection::wait_until_ready;
+  MCALL * mcallptr = new MCALL(& Ndb_cluster_connection::wait_until_ready, args);
   mcallptr->envelope = & NdbccEnvelope;
+
   if(args.Length() == 3) {
     mcallptr->runAsync();
     ret = JS_VOID_RETURN;
@@ -137,8 +133,8 @@ Handle<Value> Ndb_cluster_connection_node_id(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(0);  
   
-  NativeMethodCall_0_<unsigned int, Ndb_cluster_connection> mcall(args);
-  mcall.method = & Ndb_cluster_connection::node_id;
+  typedef NativeMethodCall_0_<unsigned int, Ndb_cluster_connection> MCALL;
+  MCALL mcall(& Ndb_cluster_connection::node_id, args);
   mcall.run();
 
   return scope.Close(mcall.jsReturnVal());

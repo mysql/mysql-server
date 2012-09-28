@@ -42,11 +42,6 @@ public:
   Method_T method;
   
   /* Constructors */
-  NativeVoidMethodCall_0_<C>(const Arguments &args) :
-    NativeMethodCall<int, C>(args, 1),
-    method(0)
-  {  }
-
    NativeVoidMethodCall_0_<C>(Method_T m, const Arguments &args) :
     NativeMethodCall<int, C>(args, 1),
     method(m)
@@ -54,7 +49,6 @@ public:
   
   /* Methods */
   void run() {
-    assert(method);
     ((NativeMethodCall<int, C>::native_obj)->*(method))();
   }
 };
@@ -74,11 +68,6 @@ public:
   Method_T method;
 
   /* Constructors */
-  NativeMethodCall_0_<R, C>(const Arguments &args) :
-    NativeMethodCall<R, C>(args, 0),
-    method(0)
-  {  }
-
   NativeMethodCall_0_<R, C>(Method_T m, const Arguments &args) :
     NativeMethodCall<R, C>(args, 0),
     method(m)
@@ -86,36 +75,6 @@ public:
 
   /* Methods */
   void run() {
-    assert(method);
-    NativeMethodCall<R,C>::return_val =
-      ((NativeMethodCall<R,C>::native_obj)->*(method))();
-  }
-};
-
-/* Const version
-*/
-template <typename R, typename C>
-class NativeConstMethodCall_0_ : public NativeMethodCall<R,C> {
-public:
-  /* Member variables */
-  C * native_obj;
-  typedef R (C::*Method_T)(void) const;
-  Method_T method;
-  
-  /* Constructors */
-  NativeConstMethodCall_0_<R, C>(const Arguments &args) :
-    NativeMethodCall<R, C>(args, 0),
-    method(0)
-  {  }
-
-  NativeConstMethodCall_0_<R, C>(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 0),
-    method(m)
-  {  }
-  
-  /* Methods */
-  void run() {
-    assert(method);
     NativeMethodCall<R,C>::return_val =
       ((NativeMethodCall<R,C>::native_obj)->*(method))();
   }
@@ -138,12 +97,6 @@ public:
   Method_T method;
 
   /* Constructors */
-  NativeMethodCall_1_<R, C, A0>(const Arguments &args) :
-    NativeMethodCall<R, C>(args, 1),
-    Call_1_<A0>(args),
-    method(0)
-  {  }
-
   NativeMethodCall_1_<R, C, A0>(Method_T m, const Arguments &args) :
     NativeMethodCall<R, C>(args, 1),
     Call_1_<A0>(args),
@@ -152,45 +105,11 @@ public:
 
   /* Methods */
   void run() {
-    assert(method);
     NativeMethodCall<R,C>::return_val =
       ((NativeMethodCall<R,C>::native_obj)->*(method))(Call_1_<A0>::arg0);
   }
 };
 
-/* Const version
-*/
-template <typename R, typename C, typename A0>
-class NativeConstMethodCall_1_ : public NativeMethodCall<R,C>,
-                                 public Call_1_<A0>
-{
-public:
-  /* Member variables */
-  C * native_obj;
-  typedef R ((C::*Method_T)(A0) const);
-  Method_T method;
-
-  /* Constructors */
-  NativeConstMethodCall_1_<R, C, A0>(const Arguments &args) :
-    NativeMethodCall<R, C>(args, 1),
-    Call_1_<A0>(args),
-    method(0)
-  {  }
-
-  NativeConstMethodCall_1_<R, C, A0>(Method_T m, const Arguments &args) :
-    NativeMethodCall<R, C>(args, 1),
-    Call_1_<A0>(args),
-    method(m)
-  {  }
-
-  /* Methods */
-  void run() {
-    assert(method);
-    NativeMethodCall<R, C>::return_val =
-      ((NativeMethodCall<R,C>::native_obj)->*(method))(
-      Call_1_<A0>::arg0);
-  }
-};
 
 /** Template class with:
  * wrapped class C
@@ -207,13 +126,7 @@ public:
   typedef void (C::*Method_T)(A0);
   Method_T method;
 
-  /* Constructors */
-  NativeVoidMethodCall_1_<C, A0>(const Arguments &args) :
-    NativeMethodCall<int, C>(args, 1),
-    Call_1_<A0>(args),
-    method(0)
-  {  }
-
+  /* Constructor */
   NativeVoidMethodCall_1_<C, A0>(Method_T m, const Arguments &args) :
     NativeMethodCall<int, C>(args, 1),
     Call_1_<A0>(args),
@@ -222,7 +135,6 @@ public:
 
   /* Methods */
   void run() {
-    assert(method);
     ((NativeMethodCall<int,C>::native_obj)->*(method))(Call_1_<A0>::arg0);
   }
 };
@@ -240,18 +152,18 @@ class NativeMethodCall_2_ : public NativeMethodCall<R,C>,
 public:
   /* Member variables */
   C * native_obj;
-  R (C::*method)(A0, A1);  // "method" is pointer to member function
+  typedef R (C::*Method_T)(A0, A1);  // "method" is pointer to member function
+  Method_T method;
 
   /* Constructor */
-  NativeMethodCall_2_<R, C, A0, A1>(const Arguments &args) :
+  NativeMethodCall_2_<R, C, A0, A1>(Method_T m, const Arguments &args) :
     NativeMethodCall<R, C>(args, 2),
     Call_2_<A0, A1>(args),
-    method(0)
+    method(m)
   {  }
 
   /* Methods */
   void run() {
-    assert(method);
     NativeMethodCall<R,C>::return_val =
       ((NativeMethodCall<R,C>::native_obj)->*(method))(
         Call_2_<A0, A1>::arg0,
@@ -259,56 +171,28 @@ public:
   }
 };
 
-/* Const version
-*/
-template <typename R, typename C, typename A0, typename A1>
-class NativeConstMethodCall_2_ : public NativeMethodCall<R,C>,
-                                 public Call_2_<A0, A1>
-{
-public:
-  /* Member variables */
-  C * native_obj;
-  R (C::*method)(A0, A1) const;  // "method" is pointer to member function
-
-  /* Constructor */
-  NativeConstMethodCall_2_<R, C, A0, A1>(const Arguments &args) :
-    NativeMethodCall<R,C>(args, 2),
-    Call_2_<A0, A1>(args),
-    method(0)
-  {  }
-
-  /* Methods */
-  void run() {
-    assert(method);
-    NativeMethodCall<R,C>::return_val =
-     ((NativeMethodCall<R,C>::native_obj)->*(method))(
-      Call_2_<A0, A1>::arg0,
-      Call_2_<A0, A1>::arg1);
-  }
-};
-
 
 /** Template class with
- *  Const method returning void; 2 arguments
+ *  Method returning void; 2 arguments
  */
 template <typename C, typename A0, typename A1>
-class NativeConstVoidMethodCall_2_ : public NativeMethodCall<int, C> ,
+class NativeVoidMethodCall_2_ : public NativeMethodCall<int, C> ,
                                      public Call_2_<A0, A1>
 {
 public:
   /* Member variables */
-  void (C::*method)(A0, A1) const;
+  typedef void (C::*Method_T)(A0, A1);
+  Method_T method;
 
   /* Constructor */
-  NativeConstVoidMethodCall_2_<C, A0, A1>(const Arguments &args) :
+  NativeVoidMethodCall_2_<C, A0, A1>(Method_T m, const Arguments &args) :
     NativeMethodCall<int, C>(args, 2),
     Call_2_<A0, A1>(args),
-    method(0)
+    method(m)
   {  }
 
   /* Methods */
   void run() {
-    assert(method);
     ((NativeMethodCall<int,C>::native_obj)->*(method))
       (Call_2_<A0,A1>::arg0, Call_2_<A0,A1>::arg1);
   }
@@ -331,12 +215,6 @@ public:
   Method_T method;
 
   /* Constructor */
-  NativeMethodCall_3_<R, C, A0, A1, A2>(const Arguments &args) :
-    NativeMethodCall<R, C>(args, 3),
-    Call_3_<A0, A1, A2>(args),
-    method(0)
-  {  }
-
   NativeMethodCall_3_<R, C, A0, A1, A2>(Method_T m, const Arguments &args) :
     NativeMethodCall<R, C>(args, 3),
     Call_3_<A0, A1, A2>(args),
@@ -345,7 +223,6 @@ public:
 
   /* Methods */
   void run() {
-    assert(method);
     NativeMethodCall<R,C>::return_val =
     ((NativeMethodCall<R,C>::native_obj)->*(method))(
       Call_3_<A0, A1, A2>::arg0,
@@ -368,18 +245,18 @@ class NativeMethodCall_4_ : public NativeMethodCall<R,C> ,
 public:
   /* Member variables */
   C * native_obj;
-  R (C::*method)(A0,A1,A2,A3);
+  typedef R (C::*Method_T)(A0,A1,A2,A3);
+  Method_T method;
 
   /* Constructor */
-  NativeMethodCall_4_<R, C, A0, A1, A2, A3>(const Arguments &args) :
+  NativeMethodCall_4_<R, C, A0, A1, A2, A3>(Method_T m, const Arguments &args) :
     NativeMethodCall<R, C>(args, 4),
     Call_4_<A0, A1, A2, A3>(args),
-    method(0)
+    method(m)
  {  }
 
   /* Methods */
   void run() {
-    assert(method);
     NativeMethodCall<R,C>::return_val =
      ((NativeMethodCall<R,C>::native_obj)->*(method))(
       Call_4_<A0, A1, A2, A3>::arg0,
@@ -403,18 +280,18 @@ class NativeMethodCall_5_ : public NativeMethodCall<R,C>,
 public:
   /* Member variables */
   C * native_obj;
-  R (C::*method)(A0,A1,A2,A3,A4);
-
+  typedef R (C::*Method_T)(A0,A1,A2,A3,A4);
+  Method_T method;
+  
   /* Constructor */
-  NativeMethodCall_5_<R, C, A0, A1, A2, A3, A4>(const Arguments &args) :
+  NativeMethodCall_5_<R, C, A0, A1, A2, A3, A4>(Method_T m, const Arguments &args) :
     NativeMethodCall<R, C>(args, 5),
     Call_5_<A0, A1, A2, A3, A4>(args),
-    method(0)
+    method(m)
   {  }
 
   /* Methods */
   void run() {
-    assert(method);
     NativeMethodCall<R,C>::return_val =
      ((NativeMethodCall<R,C>::native_obj)->*(method))(
       Call_5_<A0, A1, A2, A3, A4>::arg0,
@@ -440,18 +317,18 @@ class NativeMethodCall_6_ : public NativeMethodCall<R,C> ,
 public:
   /* Member variables */
   C * native_obj;
-  R (C::*method)(A0,A1,A2,A3,A4,A5);
-
+  typedef R (C::*Method_T)(A0,A1,A2,A3,A4,A5);
+  Method_T method;
+  
   /* Constructor */
-  NativeMethodCall_6_<R, C, A0, A1, A2, A3, A4, A5>(const Arguments &args) :
+  NativeMethodCall_6_<R, C, A0, A1, A2, A3, A4, A5>(Method_T m, const Arguments &args) :
     NativeMethodCall<R, C>(args, 6),
     Call_6_<A0, A1, A2, A3, A4, A5>(args),
-    method(0)
+    method(m)
   {  }
 
   /* Methods */
   void run() {
-    assert(method);
     NativeMethodCall<R,C>::return_val =
      ((NativeMethodCall<R,C>::native_obj)->*(method))(
       Call_6_<A0, A1, A2, A3, A4, A5>::arg0,
@@ -478,18 +355,18 @@ class NativeMethodCall_7_ : public NativeMethodCall<R,C>,
 public:
   /* Member variables */
   C * native_obj;
-  R (C::*method)(A0,A1,A2,A3,A4,A5,A6);
-
+  typedef R (C::*Method_T)(A0,A1,A2,A3,A4,A5,A6);
+  Method_T method;
+  
   /* Constructor */
-  NativeMethodCall_7_<R, C, A0, A1, A2, A3, A4, A5, A6>(const Arguments &args) :
+  NativeMethodCall_7_<R, C, A0, A1, A2, A3, A4, A5, A6>(Method_T m, const Arguments &args) :
     NativeMethodCall<R, C>(args, 7),
     Call_7_<A0, A1, A2, A3, A4, A5, A6>(args),
-    method(0)
+    method(m)
   {  }
 
   /* Methods */
   void run() {
-    assert(method);
     NativeMethodCall<R,C>::return_val =
      ((NativeMethodCall<R,C>::native_obj)->*(method))(
       Call_7_<A0, A1, A2, A3, A4, A5, A6>::arg0,
@@ -517,18 +394,18 @@ class NativeMethodCall_8_ : public NativeMethodCall<R,C>,
 public:
   /* Member variables */
   C * native_obj;
-  R (C::*method)(A0,A1,A2,A3,A4,A5,A6,A7);
+  typedef R (C::*Method_T)(A0,A1,A2,A3,A4,A5,A6,A7);
+  Method_T method;
 
   /* Constructor */
-  NativeMethodCall_8_<R, C, A0, A1, A2, A3, A4, A5, A6, A7>(const Arguments &args) :
+  NativeMethodCall_8_<R, C, A0, A1, A2, A3, A4, A5, A6, A7>(Method_T m, const Arguments &args) :
     NativeMethodCall<C, R>(args, 8),
     Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>(args),
-    method(0)
+    method(m)
   {  }
 
   /* Methods */
   void run() {
-    assert(method);
     NativeMethodCall<R,C>::return_val =
      ((NativeMethodCall<R,C>::native_obj)->*(method))(
       Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg0,

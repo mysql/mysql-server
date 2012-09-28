@@ -70,8 +70,7 @@ Handle<Value> getColumnOffset_wrapper(const Arguments &args) {
 
   typedef NativeMethodCall_1_<size_t, const Record, int> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & Record::getColumnOffset;
+  NCALL ncall(& Record::getColumnOffset, args);
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());
@@ -84,10 +83,9 @@ Handle<Value> getBufferSize_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(0);
 
-  typedef NativeConstMethodCall_0_<size_t, Record> NCALL;
+  typedef NativeMethodCall_0_<size_t, const Record> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & Record::getBufferSize;
+  NCALL ncall(& Record::getBufferSize, args);
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());
@@ -99,10 +97,9 @@ Handle<Value> setNull_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(2);
 
-  typedef NativeConstVoidMethodCall_2_<Record, int, char *> NCALL;
+  typedef NativeVoidMethodCall_2_<const Record, int, char *> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & Record::setNull;
+  NCALL ncall(& Record::setNull, args);
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());
@@ -114,10 +111,9 @@ Handle<Value> setNotNull_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(2);
 
-  typedef NativeConstVoidMethodCall_2_<Record, int, char *> NCALL;
+  typedef NativeVoidMethodCall_2_<const Record, int, char *> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & Record::setNotNull;
+  NCALL ncall(& Record::setNotNull, args);
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());
@@ -130,10 +126,9 @@ Handle<Value> isNull_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(2);
 
-  typedef NativeConstMethodCall_2_<uint32_t, Record, int, char *> NCALL;
+  typedef NativeMethodCall_2_<uint32_t, const Record, int, char *> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & Record::isNull;
+  NCALL ncall(& Record::isNull, args);
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());

@@ -38,6 +38,7 @@ class NdbEnvelopeClass : public Envelope {
 public:
   NdbEnvelopeClass() : Envelope("Ndb") {
     DEFINE_JS_FUNCTION(Envelope::stencil, "startTransaction", startTransaction);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", getNdbError<Ndb>);
   }
   
   Local<Object> wrap(Ndb *ndb) {
@@ -66,25 +67,11 @@ Handle<Value> startTransaction(const Arguments &args) {
                               const NdbDictionary::Table *, 
                               const char *, uint32_t> MCALL;
 
-  MCALL * mcallptr = new MCALL(args);
-  
+  MCALL * mcallptr = new MCALL(& Ndb::startTransaction, args);
   mcallptr->envelope = & NdbTransactionEnvelope;
-  mcallptr->method  = & Ndb::startTransaction;
   mcallptr->errorHandler = getNdbErrorIfNull<NdbTransaction *, Ndb>;
   mcallptr->runAsync();
   
   return scope.Close(JS_VOID_RETURN);
-}
-
-
-Handle<Value> getNdbError(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  
-  REQUIRE_ARGS_LENGTH(0);
-
-  /* Special case due to const reference problems */
-  Ndb * ndb = unwrapPointer<Ndb *>(args.Holder());  
-  const NdbError & ref = ndb->getNdbError();
-  return NdbError_Wrapper(ref);
 }
 
