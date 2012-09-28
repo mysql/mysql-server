@@ -72,12 +72,12 @@ public:
 
 
 /*****************************************************************
- isPointer() functions
- Used in AsyncMethodCall.h: if(isPointer(return_val)) ... 
+ isWrappedPointer() functions
+ Used in AsyncMethodCall.h: if(isWrappedPointer(return_val)) ...
 ******************************************************************/
-template <> inline bool isPointer(NdbTransaction::CommitStatusType typ) { 
-  return false; }
-
+template <> inline bool isWrappedPointer(NdbTransaction::CommitStatusType typ) {
+  return false;
+}
 
 
 /*****************************************************************
