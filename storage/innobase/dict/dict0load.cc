@@ -1929,7 +1929,7 @@ corrupted:
 			      " is not clustered!\n", stderr);
 
 			goto corrupted;
-		} else if (table->id < DICT_HDR_FIRST_ID
+		} else if (dict_is_sys_table(table->id)
 			   && (dict_index_is_clust(index)
 			       || ((table == dict_sys->sys_tables)
 				   && !strcmp("ID_IND", index->name)))) {
