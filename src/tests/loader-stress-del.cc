@@ -102,12 +102,20 @@ count_temp(char * dirname) {
 
 // rotate right and left functions
 static inline unsigned int rotr32(const unsigned int x, const unsigned int num) {
-    const unsigned int n = num % 32;
-    return (x >> n) | ( x << (32 - n));
+    if (num == 0) {
+        return x;
+    } else {
+        const unsigned int n = num % 32;
+        return (x >> n) | ( x << (32 - n));
+    }
 }
 static inline unsigned int rotl32(const unsigned int x, const unsigned int num) {
-    const unsigned int n = num % 32;
-    return (x << n) | ( x >> (32 - n));
+    if (num == 0) {
+        return x;
+    } else {
+        const unsigned int n = num % 32;
+        return (x << n) | ( x >> (32 - n));
+    }
 }
 
 static void generate_permute_tables(void) {
