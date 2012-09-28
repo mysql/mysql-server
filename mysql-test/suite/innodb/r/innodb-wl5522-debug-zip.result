@@ -27,7 +27,7 @@ INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_before_commit_crash";
 SELECT * FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
@@ -59,7 +59,7 @@ SELECT @@SESSION.innodb_strict_mode;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-restore: t1
+restore: t1 .ibd and .cfg files
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 CHECK TABLE test_wl5522.t1;
 Table	Op	Msg_type	Msg_text
@@ -79,432 +79,54 @@ c1
 600
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_1";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_1";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_2";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_2";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_3";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_3";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_4";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_4";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_5";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_5";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
 ROW_FORMAT=COMPRESSED;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_6";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_6";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_7";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_7";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_8";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_8";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_9";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_9";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_10";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_10";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb 
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_11";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_11";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED;
-INSERT INTO test_wl5522.t1 VALUES (1);
-SET SESSION debug="+d,ib_export_io_write_failure_12";
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-Warnings:
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flush() failed
-Warning	1811	InnoDB: IO Write error: (9, Bad file descriptor) t1.cfg flose() failed
-UNLOCK TABLES;
-SET SESSION debug="-d,ib_export_io_write_failure_12";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (100), (200), (300);
-SELECT COUNT(*) FROM test_wl5522.t1;
-COUNT(*)
-3
-FLUSH TABLES test_wl5522.t1 FOR EXPORT;
-backup: t1
-UNLOCK TABLES;
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_1";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_1";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_2";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_2";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_3";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_3";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_4";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_4";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_5";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_5";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_6";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_6";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_7";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_7";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_8";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_8";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_9";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_9";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_10";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_10";
-DROP TABLE test_wl5522.t1;
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
-SET SESSION debug="+d,ib_import_OOM_1";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
-SET SESSION debug="-d,ib_import_OOM_1";
-DROP TABLE test_wl5522.t1;
-unlink: t1.ibd
-unlink: t1.cfg
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb 
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
-SET SESSION debug="+d,ib_import_OOM_2";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
-SET SESSION debug="-d,ib_import_OOM_2";
-DROP TABLE test_wl5522.t1;
-unlink: t1.ibd
-unlink: t1.cfg
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
-SET SESSION debug="+d,ib_import_OOM_4";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
-SET SESSION debug="-d,ib_import_OOM_4";
-DROP TABLE test_wl5522.t1;
-unlink: t1.ibd
-unlink: t1.cfg
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
-SET SESSION debug="+d,ib_import_OOM_5";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
-SET SESSION debug="-d,ib_import_OOM_5";
-DROP TABLE test_wl5522.t1;
-unlink: t1.ibd
-unlink: t1.cfg
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
-SET SESSION debug="+d,ib_import_OOM_6";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
-SET SESSION debug="-d,ib_import_OOM_6";
-DROP TABLE test_wl5522.t1;
-unlink: t1.ibd
-unlink: t1.cfg
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
-SET SESSION debug="+d,ib_import_OOM_7";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
-SET SESSION debug="-d,ib_import_OOM_7";
-DROP TABLE test_wl5522.t1;
-unlink: t1.ibd
-unlink: t1.cfg
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb 
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
-SET SESSION debug="+d,ib_import_OOM_8";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
-SET SESSION debug="-d,ib_import_OOM_8";
-DROP TABLE test_wl5522.t1;
-unlink: t1.ibd
-unlink: t1.cfg
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
-SET SESSION debug="+d,ib_import_OOM_9";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
-SET SESSION debug="-d,ib_import_OOM_9";
-DROP TABLE test_wl5522.t1;
-unlink: t1.ibd
-unlink: t1.cfg
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-INSERT INTO test_wl5522.t1 VALUES (1);
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
-SET SESSION debug="+d,ib_import_OOM_10";
-ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
-SET SESSION debug="-d,ib_import_OOM_10";
-DROP TABLE test_wl5522.t1;
-unlink: t1.ibd
-unlink: t1.cfg
-CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
-ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_internal_error";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Internal error: While updating the <space, root page number> of index "GEN_CLUST_INDEX" - Generic error
 SET SESSION debug="-d,ib_import_internal_error";
-restore: t1
+restore: t1 .ibd and .cfg files
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb
-ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
+ROW_FORMAT=COMPRESSED;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Too many concurrent transactions
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="-d,ib_import_reset_space_and_lsn_failure";
 SET SESSION debug="+d,ib_import_open_tablespace_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Can't find 't1.ibd' (errno: 44 - Tablespace not found)
 SET SESSION debug="-d,ib_import_open_tablespace_failure";
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_check_bitmap_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
 SET SESSION debug="-d,ib_import_check_bitmap_failure";
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_cluster_root_adjust_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
 SET SESSION debug="-d,ib_import_cluster_root_adjust_failure";
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_cluster_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
 SET SESSION debug="-d,ib_import_cluster_failure";
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_sec_root_adjust_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
 SET SESSION debug="-d,ib_import_sec_root_adjust_failure";
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_set_max_rowid_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
@@ -700,7 +322,7 @@ ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 SELECT c1, c2 FROM test_wl5522.t1;
 c1	c2
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-restore: t1
+restore: t1 .ibd and .cfg files
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 CHECK TABLE test_wl5522.t1;
 Table	Op	Msg_type	Msg_text
@@ -848,7 +470,7 @@ ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_1";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Data structure corruption
@@ -861,7 +483,7 @@ ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,buf_page_is_corrupt_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 SET SESSION debug="-d,buf_page_is_corrupt_failure";
@@ -873,7 +495,7 @@ ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_2";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Index corrupt: Externally stored column(5) has a reference length of 19 in the cluster index "GEN_CLUST_INDEX"
@@ -886,7 +508,7 @@ ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_3";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
@@ -912,7 +534,7 @@ ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,fil_space_create_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Can't find file: 'test_wl5522\t1.ibd' (errno: 11 - Generic error)
@@ -925,7 +547,7 @@ ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,dict_tf_to_fsp_flags_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Can't find file: 'test_wl5522\t1.ibd' (errno: 39 - Data structure corruption)
@@ -938,7 +560,7 @@ ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,fsp_flags_is_valid_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Unsupported

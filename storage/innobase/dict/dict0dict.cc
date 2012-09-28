@@ -6394,4 +6394,28 @@ dict_index_zip_pad_optimal_page_size(
 
 	return(ut_max(sz, min_sz));
 }
+
+/*************************************************************//**
+Convert table flag to row format string.
+@return row format name. */
+UNIV_INTERN
+const char*
+dict_tf_to_row_format_string(
+/*=========================*/
+	ulint	table_flag)		/*!< in: row format setting */
+{
+	switch (dict_tf_get_rec_format(table_flag)) {
+	case REC_FORMAT_REDUNDANT:
+		return("ROW_TYPE_REDUNDANT");
+	case REC_FORMAT_COMPACT:
+		return("ROW_TYPE_COMPACT");
+	case REC_FORMAT_COMPRESSED:
+		return("ROW_TYPE_COMPRESSED");
+	case REC_FORMAT_DYNAMIC:
+		return("ROW_TYPE_DYNAMIC");
+	}
+
+	ut_error;
+	return(0);
+}
 #endif /* !UNIV_HOTBACKUP */
