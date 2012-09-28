@@ -568,8 +568,7 @@ ignore_db_dirs_process_additions()
     if (skip_ignored_dir_check)
     {
       char buff[FN_REFLEN];
-      uint buff_len;
-      buff_len= tablename_to_filename(dir->str, buff, sizeof(buff));
+      (void) tablename_to_filename(dir->str, buff, sizeof(buff));
       skip_ignored_dir_check= strcmp(dir->str, buff) != 0;
     }
   }
