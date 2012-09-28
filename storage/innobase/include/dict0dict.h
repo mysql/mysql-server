@@ -1790,6 +1790,16 @@ dict_index_zip_pad_optimal_page_size(
 	dict_index_t*	index)	/*!< in: index for which page size
 				is requested */
 	__attribute__((nonnull, warn_unused_result));
+
+/*************************************************************//**
+Convert table flag to row format string.
+@return row format name */
+UNIV_INTERN
+const char*
+dict_tf_to_row_format_string(
+/*=========================*/
+	ulint	table_flag);		/*!< in: row format setting */
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
