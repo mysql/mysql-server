@@ -5850,7 +5850,8 @@ fil_iterate(
 		ut_ad(n_bytes > 0);
 		ut_ad(!(n_bytes % iter.page_size));
 
-		if (!os_file_read(iter.file, io_buffer, offset, (ulint) n_bytes)) {
+		if (!os_file_read(iter.file, io_buffer, offset,
+				  (ulint) n_bytes)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR, "os_file_read() failed");
 
@@ -6067,7 +6068,8 @@ UNIV_INTERN
 void
 fil_delete_file(
 /*============*/
-	const char*	ibd_name)	/*!< in: filepath of the ibd tablespace */
+	const char*	ibd_name)	/*!< in: filepath of the ibd
+					tablespace */
 {
 	/* Force a delete of any stale .ibd files that are lying around. */
 
