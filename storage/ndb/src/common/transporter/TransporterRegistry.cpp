@@ -56,6 +56,18 @@ TransporterRegistry::get_connect_address(NodeId node_id) const
   return theTransporters[node_id]->m_connect_address;
 }
 
+Uint64
+TransporterRegistry::get_bytes_sent(NodeId node_id) const
+{
+  return theTransporters[node_id]->m_bytes_sent;
+}
+
+Uint64
+TransporterRegistry::get_bytes_received(NodeId node_id) const
+{
+  return theTransporters[node_id]->m_bytes_received;
+}
+
 SocketServer::Session * TransporterService::newSession(NDB_SOCKET_TYPE sockfd)
 {
   DBUG_ENTER("SocketServer::Session * TransporterService::newSession");
