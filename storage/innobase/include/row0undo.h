@@ -78,8 +78,6 @@ struct undo_node_struct{
 	dulint		undo_no;/* undo number of the record */
 	ulint		rec_type;/* undo log record type: TRX_UNDO_INSERT_REC,
 				... */
-	dulint		new_roll_ptr; /* roll ptr to restore to clustered index
-				record */
 	dulint		new_trx_id; /* trx id to restore to clustered index
 				record */
 	btr_pcur_t	pcur;	/* persistent cursor used in searching the
@@ -101,11 +99,8 @@ struct undo_node_struct{
 /* Execution states for an undo node */
 #define	UNDO_NODE_FETCH_NEXT	1	/* we should fetch the next undo log
 					record */
-#define	UNDO_NODE_PREV_VERS	2	/* the roll ptr to previous version of
-					a row is stored in node, and undo
-					should be done based on it */
-#define UNDO_NODE_INSERT	3
-#define UNDO_NODE_MODIFY	4
+#define UNDO_NODE_INSERT	2
+#define UNDO_NODE_MODIFY	3
 
 
 #ifndef UNIV_NONINL
