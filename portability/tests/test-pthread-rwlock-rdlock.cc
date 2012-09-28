@@ -8,9 +8,12 @@
 #include <toku_pthread.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <string.h>
+#include <memory.h>
 
 int test_main(int argc __attribute__((__unused__)), char *const argv[] __attribute__((__unused__))) {
     toku_pthread_rwlock_t rwlock;
+    ZERO_STRUCT(rwlock);
 
     toku_pthread_rwlock_init(&rwlock, NULL);
     toku_pthread_rwlock_rdlock(&rwlock);
