@@ -82,3 +82,15 @@ id	FTS_DOC_ID	title	body
 1	10	MySQL Tutorial	DBMS stands for DataBase ...
 8	12	MySQL Tutorial	DBMS stands for DataBase ...
 DROP TABLE articles;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+SET SESSION debug="+d,ib_dict_create_index_tree_fail";
+CREATE FULLTEXT INDEX idx ON articles(body);
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET SESSION debug="-d,ib_dict_create_index_tree_fail";
+ALTER TABLE articles STATS_PERSISTENT=DEFAULT;
+DROP TABLE articles;
