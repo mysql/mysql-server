@@ -903,7 +903,7 @@ void Dbacc::initOpRec(Signal* signal)
 
   Treqinfo = signal->theData[2];
 
-  operationRecPtr.p->hashValue = signal->theData[3];
+  operationRecPtr.p->hashValue = LHBits32(signal->theData[3]);
   operationRecPtr.p->tupkeylen = signal->theData[4];
   operationRecPtr.p->xfrmtupkeylen = signal->theData[4];
   operationRecPtr.p->transId1 = signal->theData[5];
@@ -3327,6 +3327,7 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
       // Check if it is the element searched for.
       /* ------------------------------------------------------------------- */
       do {
+        bool possible_match;
         tgeElementHeader = gePageptr.p->word32[tgeElementptr];
         tgeRemLen = tgeRemLen - TelemLen;
 	Uint32 localkey1, localkey2;
@@ -3336,6 +3337,7 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
           jam();
 	  lockOwnerPtr.i = ElementHeader::getOpPtrI(tgeElementHeader);
           ptrCheckGuard(lockOwnerPtr, coprecsize, operationrec);
+          possible_match = lockOwnerPtr.p->hashValue.match(operationRecPtr.p->hashValue);
 	  localkey1 = lockOwnerPtr.p->localdata[0];
 	  localkey2 = lockOwnerPtr.p->localdata[1];
         } else {
@@ -3351,7 +3353,9 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
           {
             localkey2 = gePageptr.p->word32[pos + tgeForward];
           }
+          possible_match = true;
         }
+        if (possible_match)
         {
           jam();
           bool found;
@@ -4312,7 +4316,7 @@ Dbacc::commitDeleteCheck()
   OperationrecPtr deleteOpPtr;
   Uint32 elementDeleted = 0;
   bool deleteCheckOngoing = true;
-  Uint32 hashValue = 0;
+  LHBits32 hashValue;
   lastOpPtr = operationRecPtr;
   opPtr.i = operationRecPtr.p->nextParallelQue;
   while (opPtr.i != RNIL) {
@@ -5364,7 +5368,7 @@ void Dbacc::execDEBUG_SIG(Signal* signal)
   return;
 }//Dbacc::execDEBUG_SIG()
 
-Uint32 Dbacc::getElementHash(Uint32 const* elemptr, Int32 forward, OperationrecPtr& oprec)
+LHBits32 Dbacc::getElementHash(Uint32 const* elemptr, Int32 forward, OperationrecPtr& oprec)
 {
   jam();
   if (!oprec.isNull())
@@ -5400,7 +5404,7 @@ Uint32 Dbacc::getElementHash(Uint32 const* elemptr, Int32 forward, OperationrecP
 //    localkey[1] = oprec.p->localdata[1];
   }//if
   Uint32 len = readTablePk(localkey[0], localkey[1], elemhead, oprec);
-  return md5_hash((Uint64*)ckeys, len);
+  return LHBits32(md5_hash((Uint64*)ckeys, len));
 }
 
 /* --------------------------------------------------------------------------------- */
@@ -5413,7 +5417,7 @@ Uint32 Dbacc::getElementHash(Uint32 const* elemptr, Int32 forward, OperationrecP
 /* --------------------------------------------------------------------------------- */
 void Dbacc::expandcontainer(Signal* signal) 
 {
-  Uint32 texcHashvalue;
+  LHBits32 texcHashvalue;
   Uint32 texcTmp;
   Uint32 texcIndex;
   Uint32 guard20;
@@ -6903,6 +6907,7 @@ void Dbacc::initScanOpRec(Signal* signal)
     operationRecPtr.p->localdata[0] = Tkey1;
     operationRecPtr.p->localdata[1] = isoPageptr.p->word32[tisoLocalPtr];
   }
+  operationRecPtr.p->hashValue.clear();
   operationRecPtr.p->tupkeylen = fragrecptr.p->keyLength;
   operationRecPtr.p->xfrmtupkeylen = 0; // not used
 }//Dbacc::initScanOpRec()
@@ -8178,7 +8183,7 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
 	      tmpOpPtr.p->elementPointer);
     infoEvent("fid=%d, fragptr=%d ",
               tmpOpPtr.p->fid, tmpOpPtr.p->fragptr);
-    infoEvent("hashValue=%d", tmpOpPtr.p->hashValue);
+    infoEvent("hashValue=%d", tmpOpPtr.p->hashValue.pack());
     infoEvent("nextLockOwnerOp=%d, nextOp=%d, nextParallelQue=%d ",
 	      tmpOpPtr.p->nextLockOwnerOp, tmpOpPtr.p->nextOp, 
 	      tmpOpPtr.p->nextParallelQue);
