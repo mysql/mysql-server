@@ -34,6 +34,7 @@
 #include <signaldata/TransIdAI.hpp>
 #include <KeyDescriptor.hpp>
 #include <signaldata/NodeStateSignalData.hpp>
+#include <md5_hash.hpp>
 
 #ifdef VM_TRACE
 #define DEBUG(x) ndbout << "DBACC: "<< x << endl;
@@ -1071,7 +1072,6 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 	  /*---------------------------------------------------------------*/
           Uint32 eh = gePageptr.p->word32[tgeElementptr];
           operationRecPtr.p->scanBits = ElementHeader::getScanBits(eh);
-          operationRecPtr.p->hashvaluePart = ElementHeader::getHashValuePart(eh);
           operationRecPtr.p->elementPage = gePageptr.i;
           operationRecPtr.p->elementContainer = tgeContainerptr;
           operationRecPtr.p->elementPointer = tgeElementptr;
@@ -1533,9 +1533,6 @@ void Dbacc::insertelementLab(Signal* signal)
   
   insertLockOwnersList(signal, operationRecPtr);
 
-  const Uint32 tmp = fragrecptr.p->k;
-  operationRecPtr.p->hashvaluePart = 
-    (operationRecPtr.p->hashValue >> tmp) & 0xFFFF;
   operationRecPtr.p->scanBits = 0;	/* NOT ANY ACTIVE SCAN */
   tidrElemhead = ElementHeader::setLocked(operationRecPtr.i);
   idrPageptr = gdiPageptr;
@@ -3191,7 +3188,6 @@ void Dbacc::getdirindex(Signal* signal)
     tgdiAddress = tgdiTmp & ((fragrecptr.p->maxp << 1) | 1);
   }//if
   tgdiTmp = tgdiAddress >> fragrecptr.p->k;
-  ndbassert(tgdiTmp <= ElementHeader::HASH_VALUE_PART_MASK);
   gdiPageptr.i = getPagePtr(fragrecptr.p->directory, tgdiTmp);
   ptrCheckGuard(gdiPageptr, cpagesize, page8);
 }//Dbacc::getdirindex()
@@ -3289,8 +3285,6 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
   ndbrequire(TelemLen == ZELEM_HEAD_SIZE + localkeylen);
   tgeNextptrtype = ZLEFT;
 
-  const Uint32 tmp = fragrecptr.p->k;
-  const Uint32 opHashValuePart = (operationRecPtr.p->hashValue >> tmp) &0xFFFF;
   do {
     tgeContainerptr = mul_ZBUF_SIZE(tgePageindex);
     if (tgeNextptrtype == ZLEFT) {
@@ -3344,7 +3338,6 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
       do {
         tgeElementHeader = gePageptr.p->word32[tgeElementptr];
         tgeRemLen = tgeRemLen - TelemLen;
-        Uint32 hashValuePart;
 	Uint32 localkey1, localkey2;
 	lockOwnerPtr.i = RNIL;
 	lockOwnerPtr.p = NULL;
@@ -3352,13 +3345,11 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
           jam();
 	  lockOwnerPtr.i = ElementHeader::getOpPtrI(tgeElementHeader);
           ptrCheckGuard(lockOwnerPtr, coprecsize, operationrec);
-          hashValuePart = lockOwnerPtr.p->hashvaluePart;
 	  localkey1 = lockOwnerPtr.p->localdata[0];
 	  localkey2 = lockOwnerPtr.p->localdata[1];
         } else {
           jam();
           Uint32 pos = tgeElementptr + tgeForward;
-          hashValuePart = ElementHeader::getHashValuePart(tgeElementHeader);
           localkey1 = gePageptr.p->word32[pos];
           if (likely(localkeylen == 1))
           {
@@ -3370,7 +3361,7 @@ Dbacc::getElement(Signal* signal, OperationrecPtr& lockOwnerPtr)
             localkey2 = gePageptr.p->word32[pos + tgeForward];
           }
         }
-        if (hashValuePart == opHashValuePart) {
+        {
           jam();
           bool found;
           if (! searchLocalKey) 
@@ -3511,8 +3502,7 @@ void Dbacc::commitdelete(Signal* signal)
   // We thus update the element header to ensure we log an unlocked element. We do not
   // need to restore it later since it is deleted immediately anyway.
   /* --------------------------------------------------------------------------------- */
-  const Uint32 hv = operationRecPtr.p->hashvaluePart;
-  const Uint32 eh = ElementHeader::setUnlocked(hv, 0);
+  const Uint32 eh = ElementHeader::setUnlocked(0);
   delPageptr.p->word32[tdelElementptr] = eh;
   if (operationRecPtr.p->elementPage == lastPageptr.i) {
     if (operationRecPtr.p->elementPointer == tlastElementptr) {
@@ -3585,8 +3575,7 @@ void Dbacc::deleteElement(Signal* signal)
       // An undo of the delete will reinstall the moved record. We have to ensure that the
       // lock is removed to ensure that no such thing happen.
       /* --------------------------------------------------------------------------------- */
-      Uint32 eh = ElementHeader::setUnlocked(deOperationRecPtr.p->hashvaluePart,
-					     0);
+      Uint32 eh = ElementHeader::setUnlocked(0);
       lastPageptr.p->word32[tlastElementptr] = eh;
     }//if
     return;
@@ -4300,8 +4289,7 @@ void Dbacc::abortOperation(Signal* signal)
 
         taboElementptr = operationRecPtr.p->elementPointer;
         aboPageidptr.i = operationRecPtr.p->elementPage;
-        tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->hashvaluePart,
-					     operationRecPtr.p->scanBits);
+        tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->scanBits);
         ptrCheckGuard(aboPageidptr, cpagesize, page8);
         dbgWord32(aboPageidptr, taboElementptr, tmp2Olq);
         arrGuard(taboElementptr, 2048);
@@ -4460,8 +4448,7 @@ void Dbacc::commitOperation(Signal* signal)
       
       coPageidptr.i = operationRecPtr.p->elementPage;
       tcoElementptr = operationRecPtr.p->elementPointer;
-      tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->hashvaluePart,
-					   operationRecPtr.p->scanBits);   
+      tmp2Olq = ElementHeader::setUnlocked(operationRecPtr.p->scanBits);
       ptrCheckGuard(coPageidptr, cpagesize, page8);
       dbgWord32(coPageidptr, tcoElementptr, tmp2Olq);
       arrGuard(tcoElementptr, 2048);
@@ -4782,7 +4769,6 @@ Dbacc::release_lockowner(Signal* signal, OperationrecPtr opPtr, bool commit)
     newOwner.p->elementPointer = opPtr.p->elementPointer;
     newOwner.p->elementContainer = opPtr.p->elementContainer;
     newOwner.p->scanBits = opPtr.p->scanBits;
-    newOwner.p->hashvaluePart = opPtr.p->hashvaluePart;
     newOwner.p->m_op_bits |= (opbits & Operationrec::OP_ELEMENT_DISAPPEARED);
     if (opbits & Operationrec::OP_ELEMENT_DISAPPEARED)
     {
@@ -5243,6 +5229,7 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   /*       DECIDE WHICH ELEMENT GOES WHERE.                                   */
   /*--------------------------------------------------------------------------*/
   texpReceivedBucket = (fragrecptr.p->maxp + fragrecptr.p->p) + 1;	/* RECEIVED BUCKET */
+
   texpDirInd = texpReceivedBucket >> fragrecptr.p->k;
   if ((texpReceivedBucket & ((1 << fragrecptr.p->k) - 1)) == 0)
   { // Need new bucket
@@ -5257,15 +5244,6 @@ void Dbacc::execEXPANDCHECK2(Signal* signal)
   }
   if (expPageptr.i == RNIL) {
     jam();
-    // We cannot expand if the new page index cannot be
-    // represented in the stored hash bits.
-    if (texpDirInd > ElementHeader::HASH_VALUE_PART_MASK)
-    {
-      jam();
-      fragrecptr.p->dirRangeFull = ZTRUE;
-      tresult = ZDIR_RANGE_FULL_ERROR;
-      return;
-    }
     seizePage(signal);
     if (tresult > ZLIMIT_OF_ERROR) {
       jam();
@@ -5383,6 +5361,45 @@ void Dbacc::execDEBUG_SIG(Signal* signal)
   return;
 }//Dbacc::execDEBUG_SIG()
 
+Uint32 Dbacc::getElementHash(Uint32 const* elemptr, Int32 forward, OperationrecPtr& oprec)
+{
+  jam();
+  if (!oprec.isNull())
+    return oprec.p->hashValue;
+
+  Uint32 elemhead = *elemptr;
+  Uint32 localkey[2];
+  if (ElementHeader::getUnlocked(elemhead))
+  {
+    jam();
+    elemptr += forward;
+    localkey[0] = *elemptr;
+    if (likely(fragrecptr.p->localkeylen == 1))
+    {
+      jam();
+      localkey[1] = Local_key::ref2page_idx(localkey[0]);
+      localkey[0] = Local_key::ref2page_id(localkey[0]);
+    }
+    else
+    {
+      jam();
+      elemptr += forward;
+      localkey[1] = *elemptr;
+    }
+  }
+  else
+  {
+    jam();
+    oprec.i = ElementHeader::getOpPtrI(elemhead);
+    ptrCheckGuard(oprec, coprecsize, operationrec);
+    return oprec.p->hashValue;
+//    localkey[0] = oprec.p->localdata[0];
+//    localkey[1] = oprec.p->localdata[1];
+  }//if
+  Uint32 len = readTablePk(localkey[0], localkey[1], elemhead, oprec);
+  return md5_hash((Uint64*)ckeys, len);
+}
+
 /* --------------------------------------------------------------------------------- */
 /* EXPANDCONTAINER                                                                   */
 /*        INPUT: EXC_PAGEPTR (POINTER TO THE ACTIVE PAGE RECORD)                     */
@@ -5435,15 +5452,9 @@ void Dbacc::expandcontainer(Signal* signal)
   /* --------------------------------------------------------------------------------- */
   arrGuard(cexcElementptr, 2048);
   tidrElemhead = excPageptr.p->word32[cexcElementptr];
-  if (ElementHeader::getUnlocked(tidrElemhead)){
-    jam();
-    texcHashvalue = ElementHeader::getHashValuePart(tidrElemhead);
-  } else {
-    jam();
-    idrOperationRecPtr.i = ElementHeader::getOpPtrI(tidrElemhead);
-    ptrCheckGuard(idrOperationRecPtr, coprecsize, operationrec);
-    texcHashvalue = idrOperationRecPtr.p->hashvaluePart;
-  }//if
+  texcHashvalue =
+    getElementHash(&excPageptr.p->word32[cexcElementptr], cexcForward, idrOperationRecPtr)
+    >> fragrecptr.p->k;
   if (((texcHashvalue >> fragrecptr.p->hashcheckbit) & 1) == 0) {
     jam();
     /* --------------------------------------------------------------------------------- */
@@ -5510,15 +5521,9 @@ void Dbacc::expandcontainer(Signal* signal)
   ptrNull(idrOperationRecPtr);
   arrGuard(tlastElementptr, 2048);
   tidrElemhead = lastPageptr.p->word32[tlastElementptr];
-  if (ElementHeader::getUnlocked(tidrElemhead)) {
-    jam();
-    texcHashvalue = ElementHeader::getHashValuePart(tidrElemhead);
-  } else {
-    jam();
-    idrOperationRecPtr.i = ElementHeader::getOpPtrI(tidrElemhead);
-    ptrCheckGuard(idrOperationRecPtr, coprecsize, operationrec);
-    texcHashvalue = idrOperationRecPtr.p->hashvaluePart;
-  }//if
+  texcHashvalue =
+    getElementHash(&lastPageptr.p->word32[tlastElementptr], tlastForward, idrOperationRecPtr)
+    >> fragrecptr.p->k;
   if (((texcHashvalue >> fragrecptr.p->hashcheckbit) & 1) == 0) {
     jam();
     /* --------------------------------------------------------------------------------- */
@@ -7273,7 +7278,6 @@ void Dbacc::setlock(Signal* signal)
   arrGuard(tslElementptr, 2048);
   tselTmp1 = slPageidptr.p->word32[tslElementptr];
   operationRecPtr.p->scanBits = ElementHeader::getScanBits(tselTmp1);
-  operationRecPtr.p->hashvaluePart = ElementHeader::getHashValuePart(tselTmp1);
 
   tselTmp1 = ElementHeader::setLocked(operationRecPtr.i);
   dbgWord32(slPageidptr, tslElementptr, tselTmp1);
@@ -8174,9 +8178,8 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     infoEvent("elementIsforward=%d, elementPage=%d, elementPointer=%d ",
 	      tmpOpPtr.p->elementIsforward, tmpOpPtr.p->elementPage, 
 	      tmpOpPtr.p->elementPointer);
-    infoEvent("fid=%d, fragptr=%d, hashvaluePart=%d ",
-	      tmpOpPtr.p->fid, tmpOpPtr.p->fragptr, 
-	      tmpOpPtr.p->hashvaluePart);
+    infoEvent("fid=%d, fragptr=%d ",
+              tmpOpPtr.p->fid, tmpOpPtr.p->fragptr);
     infoEvent("hashValue=%d", tmpOpPtr.p->hashValue);
     infoEvent("nextLockOwnerOp=%d, nextOp=%d, nextParallelQue=%d ",
 	      tmpOpPtr.p->nextLockOwnerOp, tmpOpPtr.p->nextOp, 

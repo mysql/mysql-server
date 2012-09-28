@@ -199,7 +199,7 @@ class ElementHeader {
    * 
    * l = Locked    -- If true contains operation else scan bits + hash value
    * s = Scan bits
-   * h = Hash value
+   * h = Hash value (now unused, will be reused in future)
    * o = Operation ptr I
    *
    *           1111111111222222222233
@@ -208,16 +208,13 @@ class ElementHeader {
    *  ooooooooooooooooooooooooooooooo
    */
 public:
-  STATIC_CONST( HASH_VALUE_PART_MASK = 0xFFFF );
-  
   static bool getLocked(Uint32 data);
   static bool getUnlocked(Uint32 data);
   static Uint32 getScanBits(Uint32 data);
-  static Uint32 getHashValuePart(Uint32 data);
   static Uint32 getOpPtrI(Uint32 data);
 
   static Uint32 setLocked(Uint32 opPtrI);
-  static Uint32 setUnlocked(Uint32 hashValuePart, Uint32 scanBits);
+  static Uint32 setUnlocked(Uint32 scanBits);
   static Uint32 setScanBit(Uint32 header, Uint32 scanBit);
   static Uint32 clearScanBit(Uint32 header, Uint32 scanBit);
 };
@@ -241,13 +238,6 @@ ElementHeader::getScanBits(Uint32 data){
   return (data >> 1) & ((1 << MAX_PARALLEL_SCANS_PER_FRAG) - 1);
 }
 
-inline 
-Uint32 
-ElementHeader::getHashValuePart(Uint32 data){
-  assert(getUnlocked(data));
-  return data >> 16;
-}
-
 inline
 Uint32 
 ElementHeader::getOpPtrI(Uint32 data){
@@ -258,12 +248,15 @@ ElementHeader::getOpPtrI(Uint32 data){
 inline 
 Uint32 
 ElementHeader::setLocked(Uint32 opPtrI){
+  assert(opPtrI < 0x8000000);
   return (opPtrI << 1) + 0;
 }
 inline
 Uint32 
-ElementHeader::setUnlocked(Uint32 hashValue, Uint32 scanBits){
-  return (hashValue << 16) + (scanBits << 1) + 1;
+ElementHeader::setUnlocked(Uint32 scanBits)
+{
+  assert(scanBits < (1 << MAX_PARALLEL_SCANS_PER_FRAG));
+  return (scanBits << 1) + 1;
 }
 
 inline
@@ -484,7 +477,6 @@ struct Operationrec {
   Uint32 elementPointer;
   Uint32 fid;
   Uint32 fragptr;
-  Uint32 hashvaluePart;
   Uint32 hashValue;
   Uint32 nextLockOwnerOp;
   Uint32 nextOp;
@@ -761,6 +753,7 @@ private:
   void seizeRightlist(Signal* signal);
   Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
   Uint32 getElement(Signal* signal, OperationrecPtr& lockOwner);
+  Uint32 getElementHash(Uint32 const* element, Int32 forward, OperationrecPtr& oprec);
   Uint32 getPagePtr(DynArr256::Head&, Uint32);
   bool setPagePtr(DynArr256::Head& directory, Uint32 index, Uint32 ptri);
   Uint32 unsetPagePtr(DynArr256::Head& directory, Uint32 index);
