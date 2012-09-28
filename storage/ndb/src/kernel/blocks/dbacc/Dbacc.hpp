@@ -451,11 +451,9 @@ struct Fragmentrec {
 //-----------------------------------------------------------------------------
 // hashcheckbit is the bit to check whether to send element to split bucket or not
 // k (== 6) is the number of buckets per page
-// lhfragbits is the number of bits used to calculate the fragment id
 //-----------------------------------------------------------------------------
   Uint8 hashcheckbit;
   Uint8 k;
-  Uint8 lhfragbits;
 
 //-----------------------------------------------------------------------------
 // nodetype can only be STORED in this release. Is currently only set, never read
