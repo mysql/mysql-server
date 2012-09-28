@@ -18,9 +18,13 @@
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
 
+if (`SELECT @@innodb_log_file_size = 2097152`) {
+  --skip Test requires innodb_log_file_size!=2M.
+}
+
 # restart with innodb-fast-shutdown=2 to on stopping it , behave as crash
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 
+--shutdown_server
 --source include/wait_until_disconnected.inc
 # Do something while server is down
 --enable_reconnect
@@ -83,10 +87,10 @@ SELECT id,LEFT(bfield,20) FROM t1;
 --source include/wait_until_connected_again.inc
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case1.err;
-let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
+let SEARCH_PATTERN= InnoDB: Starting crash recovery;
 --source include/search_pattern_in_file.inc
 
-# Check size of ib_logfile* when innodb_log_files_in_group is set 
+# Check size of ib_logfile* when innodb_log_files_in_group is set
 perl;
  my $dir = $ENV{'MYSQLD_DATADIR'};
  $file = "ib_logfile0";
@@ -128,7 +132,7 @@ DROP DATABASE db_wl6494;
 --move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/mysqld.1.err.old1
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
-# set log size to 3M
+# set log size to 3*3M
 --exec echo "restart: --innodb-fast-shutdown=2 --innodb-log-file-size=3M --innodb_log_files_in_group=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
@@ -164,7 +168,7 @@ SELECT id,LEFT(bfield,20) FROM t1;
 # Do something while server is down
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
-# set log size from 2*3M to 2*2M
+# set log size from 3*3M to 2*2M
 --exec echo "restart: --innodb-log-file-size=2M --innodb_log_files_in_group=2  --log-error=$MYSQLTEST_VARDIR/log/case2.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --source include/wait_until_connected_again.inc
 
@@ -173,7 +177,7 @@ SELECT @@innodb_log_files_in_group;
 
 
 let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case2.err;
-let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
+let SEARCH_PATTERN= InnoDB: Starting crash recovery;
 --source include/search_pattern_in_file.inc
 
 
