@@ -8,11 +8,11 @@ SET default_storage_engine=InnoDB;
 #
 SET SESSION innodb_strict_mode = ON;
 CREATE TABLE t1 (a int KEY, b text) INDEX DIRECTORY='MYSQL_TMP_DIR/alt_dir';
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: INDEX DIRECTORY is not supported
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 #
 # Without strict mode, INDEX DIRECTORY is just ignored
 #
@@ -37,11 +37,11 @@ DROP TABLE t1;
 SET SESSION innodb_strict_mode = ON;
 SET GLOBAL innodb_file_per_table=OFF;
 CREATE TABLE t1 (a int KEY, b text) DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 #
 # Without strict mode, DATA DIRECTORY without innodb_file_per_table=ON is just ignored.
 #
@@ -320,11 +320,11 @@ ERROR HY000: Incorrect arguments to DATA DIRECTORY
 # TEMPORARY tables are incompatible with DATA DIRECTORY
 SET SESSION innodb_strict_mode = ON;
 CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 SET SESSION innodb_strict_mode = OFF;
 CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 Warnings:
