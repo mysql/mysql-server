@@ -52,8 +52,7 @@ Handle<Value> Ndb_end_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(1);  
   
-  NativeCVoidFunctionCall_1_<int> ncall(args);
-  ncall.function = & ndb_end;
+  NativeCVoidFunctionCall_1_<int> ncall(& ndb_end, args);
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());

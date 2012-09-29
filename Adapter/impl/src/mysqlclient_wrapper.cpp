@@ -45,8 +45,7 @@ Handle<Value> mysql_close_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(0);
   
-  NativeCVoidFunctionCall_1_<MYSQL *> ncall(args);
-  ncall.function = & mysql_close;
+  NativeCVoidFunctionCall_1_<MYSQL *> ncall(* mysql_close, args);
   ncall.run();
   
   return scope.Close(ncall.jsReturnVal());

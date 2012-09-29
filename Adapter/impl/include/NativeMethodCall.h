@@ -34,22 +34,21 @@
  * no arguments & void return
  */
 template <typename C> 
-class NativeVoidMethodCall_0_ : public NativeMethodCall<int, C> {
+class NativeVoidMethodCall_0_ : public NativeVoidMethodCall<C> {
 public:
   /* Member variables */
-  C * native_obj;
-  typedef void (C::*Method_T)(void); 
+  typedef void (C::*Method_T)(void);
   Method_T method;
   
   /* Constructors */
    NativeVoidMethodCall_0_<C>(Method_T m, const Arguments &args) :
-    NativeMethodCall<int, C>(args, 1),
+    NativeVoidMethodCall<C>(args, 1),
     method(m)
   {  } 
   
   /* Methods */
   void run() {
-    ((NativeMethodCall<int, C>::native_obj)->*(method))();
+    ((NativeVoidMethodCall<C>::native_obj)->*(method))();
   }
 };
 
@@ -63,7 +62,6 @@ template <typename R, typename C>
 class NativeMethodCall_0_ : public NativeMethodCall<R,C> {
 public:
   /* Member variables */
-  C * native_obj;
   typedef R (C::*Method_T)(void);
   Method_T method;
 
@@ -92,8 +90,7 @@ class NativeMethodCall_1_ : public NativeMethodCall<R,C>,
 {
 public:
   /* Member variables */
-  C * native_obj;
-  typedef R (C::*Method_T)(A0); 
+  typedef R (C::*Method_T)(A0);
   Method_T method;
 
   /* Constructors */
@@ -118,7 +115,7 @@ public:
  * The javascript return value is integer 0.
  */
 template <typename C, typename A0>
-class NativeVoidMethodCall_1_ : public NativeMethodCall<int, C> ,
+class NativeVoidMethodCall_1_ : public NativeVoidMethodCall<C> ,
                                 public Call_1_<A0>
 {
 public:
@@ -128,14 +125,14 @@ public:
 
   /* Constructor */
   NativeVoidMethodCall_1_<C, A0>(Method_T m, const Arguments &args) :
-    NativeMethodCall<int, C>(args, 1),
+    NativeVoidMethodCall<C>(args, 1),
     Call_1_<A0>(args),
     method(m)
   {  }
 
   /* Methods */
   void run() {
-    ((NativeMethodCall<int,C>::native_obj)->*(method))(Call_1_<A0>::arg0);
+    ((NativeVoidMethodCall<C>::native_obj)->*(method))(Call_1_<A0>::arg0);
   }
 };
 
@@ -176,8 +173,8 @@ public:
  *  Method returning void; 2 arguments
  */
 template <typename C, typename A0, typename A1>
-class NativeVoidMethodCall_2_ : public NativeMethodCall<int, C> ,
-                                     public Call_2_<A0, A1>
+class NativeVoidMethodCall_2_ : public NativeVoidMethodCall<C> ,
+                                public Call_2_<A0, A1>
 {
 public:
   /* Member variables */
@@ -186,14 +183,14 @@ public:
 
   /* Constructor */
   NativeVoidMethodCall_2_<C, A0, A1>(Method_T m, const Arguments &args) :
-    NativeMethodCall<int, C>(args, 2),
+    NativeVoidMethodCall<C>(args, 2),
     Call_2_<A0, A1>(args),
     method(m)
   {  }
 
   /* Methods */
   void run() {
-    ((NativeMethodCall<int,C>::native_obj)->*(method))
+    ((NativeVoidMethodCall<C>::native_obj)->*(method))
       (Call_2_<A0,A1>::arg0, Call_2_<A0,A1>::arg1);
   }
 };
@@ -210,7 +207,6 @@ class NativeMethodCall_3_ : public NativeMethodCall <R,C>,
 {
 public:
   /* Member variables */
-  C * native_obj;
   typedef R (C::*Method_T)(A0, A1, A2); 
   Method_T method;
 
@@ -225,6 +221,38 @@ public:
   void run() {
     NativeMethodCall<R,C>::return_val =
     ((NativeMethodCall<R,C>::native_obj)->*(method))(
+      Call_3_<A0, A1, A2>::arg0,
+      Call_3_<A0, A1, A2>::arg1,
+      Call_3_<A0, A1, A2>::arg2
+    );
+  }
+};
+
+
+/** Template class with:
+ * wrapped class C
+ * three arguments of type A0, A1, and A2
+ * void return
+ */
+template <typename C, typename A0, typename A1, typename A2>
+class NativeVoidMethodCall_3_ : public NativeVoidMethodCall<C>,
+                                public Call_3_<A0, A1, A2>
+{
+public:
+  /* Member variables */
+  typedef void (C::*Method_T)(A0, A1, A2);
+  Method_T method;
+  
+  /* Constructor */
+  NativeVoidMethodCall_3_<C, A0, A1, A2>(Method_T m, const Arguments &args) :
+    NativeVoidMethodCall<C>(args, 3),
+    Call_3_<A0, A1, A2>(args),
+    method(m)
+  { }
+  
+  /* Methods */
+  void run() {
+    ((NativeVoidMethodCall<C>::native_obj)->*(method))(
       Call_3_<A0, A1, A2>::arg0,
       Call_3_<A0, A1, A2>::arg1,
       Call_3_<A0, A1, A2>::arg2
@@ -264,6 +292,39 @@ public:
       Call_4_<A0, A1, A2, A3>::arg2,
       Call_4_<A0, A1, A2, A3>::arg3
     );
+  }
+};
+
+
+/** Template class with:
+ * wrapped class C
+ * 4 arguments of type A0, A1, A2, A3
+ * void return
+ */
+template <typename C, typename A0, typename A1, typename A2, typename A3>
+class NativeVoidMethodCall_4_ : public NativeVoidMethodCall<C>,
+public Call_4_<A0, A1, A2, A3>
+{
+public:
+  /* Member variables */
+  typedef void (C::*Method_T)(A0, A1, A2, A3);
+  Method_T method;
+  
+  /* Constructor */
+  NativeVoidMethodCall_4_<C, A0, A1, A2, A3>(Method_T m, const Arguments &args) :
+    NativeVoidMethodCall<C>(args, 4),
+    Call_4_<A0, A1, A2, A3>(args),
+    method(m)
+  { }
+  
+  /* Methods */
+  void run() {
+    ((NativeVoidMethodCall<C>::native_obj)->*(method))(
+      Call_4_<A0, A1, A2, A3>::arg0,
+      Call_4_<A0, A1, A2, A3>::arg1,
+      Call_4_<A0, A1, A2, A3>::arg2,
+      Call_4_<A0, A1, A2, A3>::arg3
+   );
   }
 };
 

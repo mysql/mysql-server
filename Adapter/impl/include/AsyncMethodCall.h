@@ -178,6 +178,25 @@ public:
 };
 
 
+/** Alternate second-level template class for calls returning void.
+    No error handling here.
+**/
+template <typename C>
+class NativeVoidMethodCall : public AsyncCall_Returning<int> {
+public:
+  /* Member variables */
+  C * native_obj;
+  
+  /* Constructor */
+  NativeVoidMethodCall<C>(const Arguments &args, int callback_idx) :
+    AsyncCall_Returning<int>(args[callback_idx])  /*callback*/
+  {
+    native_obj = unwrapPointer<C *>(args.Holder());
+    DEBUG_ASSERT(native_obj != NULL);
+  }
+};
+
+
 /** Base class templated over arguments
 */
 template <typename A0, typename A1, typename A2, typename A3,
