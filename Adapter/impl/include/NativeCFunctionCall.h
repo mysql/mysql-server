@@ -232,17 +232,17 @@ public:
 class NativeCVoidFunctionCall_0_ : public AsyncCall_Returning<int> {
 public:
   /* Member variables */
-  void (*function)();
+  typedef void (*Function_T)();
+  Function_T function;
 
   /* Constructor */
-  NativeCVoidFunctionCall_0_(const Arguments &args) :
+  NativeCVoidFunctionCall_0_(Function_T f, const Arguments &args) :
     AsyncCall_Returning<int>(args[1]) /*callback*/,                   
-    function(0)
+    function(f)
   { }
 
   /* Methods */
   void run() {
-    assert(function);
     function();
   }
 };
@@ -261,18 +261,18 @@ class NativeCVoidFunctionCall_1_ : public AsyncCall_Returning<int>,
 {
 public:
   /* Member variables */
-  void (*function)(A0);   // function pointer
+  typedef void (*Function_T)(A0);
+  Function_T function;
 
   /* Constructor */
-  NativeCVoidFunctionCall_1_<A0>(const Arguments &args) :
+  NativeCVoidFunctionCall_1_<A0>(Function_T f, const Arguments &args) :
     AsyncCall_Returning<int>(args[1]), // callback
     Call_1_<A0>(args),
-    function(0)
+    function(f)
   { }
 
   /* Methods */
   void run() {
-    assert(function);
     function(Call_1_<A0>::arg0);
   }
 };
