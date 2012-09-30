@@ -5586,4 +5586,54 @@ set join_buffer_size=default;
 set join_cache_level=default;
 set optimizer_switch=@tmp_optimizer_switch;
 DROP TABLE t1,t2,t3;
+#
+# Bug #1058071: LEFT JOIN using blobs 
+# (mdev-564)    when join buffer size is small 
+#
+CREATE TABLE t1 (
+col269 decimal(31,10) unsigned DEFAULT NULL,
+col280 multipoint DEFAULT NULL,
+col281 tinyint(1) DEFAULT NULL,
+col282 time NOT NULL,
+col284 datetime DEFAULT NULL,
+col286 date DEFAULT NULL,
+col287 datetime DEFAULT NULL,
+col288 decimal(30,29) DEFAULT NULL,
+col291 time DEFAULT NULL,
+col292 time DEFAULT NULL
+) ENGINE=Aria;
+INSERT INTO t1 VALUES
+(0.0,PointFromText('POINT(9 0)'),0,'11:24:05','2013-04-14 21:30:28',NULL,'2011-12-20 06:00:34',9.9,'13:04:39',NULL),
+(0.0,NULL,127,'05:43:12','2012-09-05 06:15:27','2027-01-01','2011-10-29 10:48:29',0.0,'06:24:05','11:33:37'),
+(0.0,NULL,127,'12:54:41','2013-01-12 11:32:58','2011-11-03','2013-01-03 02:00:34',00,'11:54:15','20:19:15'),
+(0.0,PointFromText('POINT(9 0)'),0,'19:48:07','2012-07-16 15:45:25','2012-03-25','2013-09-07 17:21:52',0.5,'17:36:54','21:24:19'),
+(0.0,PointFromText('POINT(9 0)'),0,'03:43:48','2012-09-28 00:00:00','2012-06-26','2011-11-16 05:01:09',00,'01:25:42','19:30:06'),
+(0.0,LineStringFromText('LINESTRING(0 0,9 9,0 0,9 0,0 0)'),127,'11:33:21','2012-03-31 10:29:22','2012-10-10','2012-04-21 19:21:06',NULL,'05:13:22','09:48:34'),
+(NULL,PointFromText('POINT(9 0)'),127,'00:00:00','0000-00-00','2012-04-04 21:26:12','2013-03-04',0.0,'12:54:30',NULL),
+(NULL,PointFromText('POINT(9 0)'),1,'00:00:00','2013-05-01 22:37:49','2013-06-26','2012-09-22 17:31:03',0.0,'08:09:57','11:15:36');
+Warnings:
+Note	1265	Data truncated for column 'col286' at row 7
+CREATE TABLE t2 (b int) ENGINE=Aria;
+INSERT INTO t2 VALUES (NULL);
+CREATE TABLE t3 (c int) ENGINE=Aria;
+INSERT INTO t3 VALUES (NULL);
+set @tmp_optimizer_switch=@@optimizer_switch;
+set optimizer_switch = 'outer_join_with_cache=on,join_cache_incremental=on';
+set join_buffer_size=128;
+Warnings:
+Warning	1292	Truncated incorrect join_buffer_size value: '128'
+EXPLAIN
+SELECT 1 AS c FROM t1 NATURAL LEFT JOIN t2 LEFT OUTER JOIN t3 ON 1
+GROUP BY elt(t1.col282,1,t1.col280);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	Using temporary; Using filesort
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (flat, BNL join)
+1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (incremental, BNL join)
+SELECT 1 AS c FROM t1 NATURAL LEFT JOIN t2 LEFT OUTER JOIN t3 ON 1
+GROUP BY elt(t1.col282,1,t1.col280);
+c
+1
+set join_buffer_size=default;
+set optimizer_switch=@tmp_optimizer_switch;
+DROP table t1,t2,t3;
 set @@optimizer_switch=@save_optimizer_switch;
