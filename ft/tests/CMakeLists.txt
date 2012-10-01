@@ -103,6 +103,19 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
 
   add_helgrind_test(ft/helgrind_test_partitioned_counter $<TARGET_FILE:test_partitioned_counter>)
 
+  configure_file(run_ftdump_test.sh . COPYONLY)
+  foreach(dump ftdump ftdump_static)
+    add_executable(ft-test-for-${dump} ft-test)
+    target_link_libraries(ft-test-for-${dump} ft ${LIBTOKUPORTABILITY})
+    add_common_options_to_binary_targets(ft-test-for-${dump})
+    set_property(TARGET ft-test-for-${dump} APPEND PROPERTY
+      COMPILE_DEFINITIONS "__SRCFILE__=\"ft-test-for-${dump}\";TOKUSVNROOT=\"${TOKU_SVNROOT}\"")
+    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "ft-test-for-${dump}.ft_handle")
+    add_test(
+      NAME ft/${dump}-test
+      COMMAND run_ftdump_test.sh $<TARGET_FILE:ft-test-for-${dump}> "ft-test-for-${dump}.ft_handle" $<TARGET_FILE:${dump}>)
+  endforeach(dump)
+
   foreach(test ${tests})
     if(NOT "${test}" MATCHES "dir[.].*")
       ## add a default test rule that runs with no options
