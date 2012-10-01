@@ -23,8 +23,9 @@
 "use strict";
 
 var userContext = require('../impl/common/UserContext.js'),
-    udebug      = unified_debug.getLogger("TableMapping.js"),
-    transaction = require('./Transaction.js');
+    udebug      = unified_debug.getLogger("Session.js"),
+    transaction = require('./Transaction.js'),
+    batch       = require('./Batch.js');
 
 function Session(index, sessionFactory, dbSession) {
   this.index = index;
@@ -99,6 +100,10 @@ exports.Session.prototype.close = function() {
   context.closeSession();
 };
 
+
+exports.Session.prototype.createBatch = function() {
+  return new batch.Batch(this);
+};
 
 exports.Session.prototype.isBatch = function() {
   this.assertOpen();
