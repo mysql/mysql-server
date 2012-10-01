@@ -3653,11 +3653,11 @@ os_aio_native_aio_supported(void)
 		}
 	} else {
 
-		srv_normalize_path_for_win(srv_log_group_home_dirs[0]);
+		srv_normalize_path_for_win(srv_log_group_home_dir);
 
-		ulint	dirnamelen = strlen(srv_log_group_home_dirs[0]);
+		ulint	dirnamelen = strlen(srv_log_group_home_dir);
 		ut_a(dirnamelen < (sizeof name) - 10 - sizeof "ib_logfile");
-		memcpy(name, srv_log_group_home_dirs[0], dirnamelen);
+		memcpy(name, srv_log_group_home_dir, dirnamelen);
 
 		/* Add a path separator if needed. */
 		if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
