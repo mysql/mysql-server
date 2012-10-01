@@ -4475,6 +4475,23 @@ initialize_storage_engine(char *se_name, const char *se_kind,
 }
 
 
+static void init_server_query_cache()
+{
+  ulong set_cache_size;
+
+  query_cache_set_min_res_unit(query_cache_min_res_unit);
+  query_cache_init();
+	
+  set_cache_size= query_cache_resize(query_cache_size);
+  if (set_cache_size != query_cache_size)
+  {
+    sql_print_warning(ER_DEFAULT(ER_WARN_QC_RESIZE), query_cache_size,
+                      set_cache_size);
+    query_cache_size= set_cache_size;
+  }
+}
+
+
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
@@ -4486,9 +4503,10 @@ static int init_server_components()
   if (table_def_init() | hostname_cache_init())
     unireg_abort(1);
 
-  query_cache_set_min_res_unit(query_cache_min_res_unit);
-  query_cache_init();
-  query_cache_resize(query_cache_size);
+#ifdef HAVE_QUERY_CACHE
+  init_server_query_cache();
+#endif
+
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   setup_fpu();
   init_thr_lock();
