@@ -549,7 +549,14 @@ create_log_file(
 #ifdef DBUG_OFF
 # define RECOVERY_CRASH(x) do {} while(0)
 #else
-# define RECOVERY_CRASH(x) if (srv_force_recovery_crash == x) DBUG_SUICIDE()
+# define RECOVERY_CRASH(x) do {						\
+	if (srv_force_recovery_crash == x) {				\
+		fprintf(stderr, "innodb_force_recovery_crash=%lu\n",	\
+			srv_force_recovery_crash);			\
+		fflush(stderr);						\
+		exit(3);						\
+	}								\
+} while (0)
 #endif
 
 /*********************************************************************//**
