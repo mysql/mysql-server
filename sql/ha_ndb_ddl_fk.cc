@@ -608,6 +608,8 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
     DBUG_RETURN(0);
   }
 
+  DBUG_PRINT("info", ("%s: list dependent objects", m_table->getName()));
+
   NDBDICT *dict= ndb->getDictionary();
   NDBDICT::List obj_list;
   dict->listDependentObjects(obj_list, *m_table);
@@ -615,6 +617,12 @@ ha_ndbcluster::get_foreign_key_list(THD *thd,
   {
     if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
       continue;
+
+    // abuse temp to mark parent-only dependency
+    if (obj_list.elements[i].temp != 0)
+      continue;
+
+    DBUG_PRINT("info", ("FK %s", obj_list.elements[i].name));
 
     FOREIGN_KEY_INFO f_key_info;
 
