@@ -17,30 +17,11 @@
 
 THR_LOCK table_session_account_connect_attrs::m_table_lock;
 
-class PFS_readonly_world_acl : public PFS_readonly_acl
-{
-public:
-  PFS_readonly_world_acl()
-  {}
-
-  ~PFS_readonly_world_acl()
-  {}
-  virtual ACL_internal_access_result check(ulong want_access, ulong *save_priv) const
-  {
-    ACL_internal_access_result res= PFS_readonly_acl::check(want_access, save_priv);
-    if (res == ACL_INTERNAL_ACCESS_CHECK_GRANT)
-      res= ACL_INTERNAL_ACCESS_GRANTED;
-    return res;
-  }
-};
-
-PFS_readonly_world_acl pfs_readonly_world_acl;
-
 PFS_engine_table_share
 table_session_account_connect_attrs::m_share=
 {
   { C_STRING_WITH_LEN("session_account_connect_attrs") },
-  &pfs_readonly_world_acl,
+  &pfs_readonly_acl,
   &table_session_account_connect_attrs::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
@@ -62,7 +43,28 @@ table_session_account_connect_attrs::table_session_account_connect_attrs()
 {}
 
 bool
-table_session_account_connect_attrs::thread_fits(PFS_thread *thread,
-                                                 PFS_thread *current_thread){
-  return thread->m_account == current_thread->m_account;
+table_session_account_connect_attrs::thread_fits(PFS_thread *thread)
+{
+  PFS_thread *current_thread= PFS_thread::get_current_thread();
+  /* The current thread may not have instrumentation attached. */
+  if (current_thread == NULL)
+    return false;
+
+  /* The thread we compare to, by definition, has some instrumentation. */
+  DBUG_ASSERT(thread != NULL);
+
+  uint username_length= current_thread->m_username_length;
+  uint hostname_length= current_thread->m_hostname_length;
+
+  if (   (thread->m_username_length != username_length)
+      || (thread->m_hostname_length != hostname_length))
+    return false;
+
+  if (memcmp(thread->m_username, current_thread->m_username, username_length) != 0)
+    return false;
+
+  if (memcmp(thread->m_hostname, current_thread->m_hostname, hostname_length) != 0)
+    return false;
+
+  return true;
 }

@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 /* C++ code based on Wei Dai's blowfish.cpp from CryptoPP */
 /* x86 asm is original */
@@ -78,7 +78,7 @@ void Blowfish::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
-}
+    }
 }
 
 #endif // DO_BLOWFISH_ASM

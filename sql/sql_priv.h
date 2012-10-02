@@ -172,7 +172,8 @@
 #define OPTIMIZER_SWITCH_SEMIJOIN                  (1ULL << 11)
 #define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 12)
 #define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 13)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 14)
+#define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED       (1ULL << 14)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 15)
 
 /**
    If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
@@ -197,8 +198,8 @@
                                   OPTIMIZER_SWITCH_MATERIALIZATION | \
                                   OPTIMIZER_SWITCH_SEMIJOIN | \
                                   OPTIMIZER_SWITCH_LOOSE_SCAN | \
-                                  OPTIMIZER_SWITCH_FIRSTMATCH)
-
+                                  OPTIMIZER_SWITCH_FIRSTMATCH | \
+                                  OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED)
 #else
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \

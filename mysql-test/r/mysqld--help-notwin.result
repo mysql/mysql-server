@@ -153,15 +153,18 @@ The following options may be given as the first argument:
  After inserting delayed_insert_limit rows, the INSERT
  DELAYED handler will check if there are any SELECT
  statements pending. If so, it allows these to execute
- before continuing
+ before continuing. This variable is deprecated along with
+ INSERT DELAYED.
  --delayed-insert-timeout=# 
  How long a INSERT DELAYED thread should wait for INSERT
- statements before terminating
+ statements before terminating.This variable is deprecated
+ along with INSERT DELAYED.
  --delayed-queue-size=# 
  What size queue (in rows) should be allocated for
  handling INSERT DELAYED. If the queue becomes full, any
  client that does INSERT DELAYED will wait until there is
- room in the queue again
+ room in the queue again.This variable is deprecated along
+ with INSERT DELAYED.
  --disable-gtid-unsafe-statements 
  Prevents execution of statements that would be impossible
  to log in a transactionally safe manner. Currently, the
@@ -374,7 +377,8 @@ The following options may be given as the first argument:
  --max-delayed-threads=# 
  Don't start more than this number of threads to handle
  INSERT DELAYED statements. If set to zero INSERT DELAYED
- will be not used
+ will be not used.This variable is deprecated along with
+ INSERT DELAYED.
  --max-error-count=# Max number of errors/warnings to store for a statement
  --max-heap-table-size=# 
  Don't allow creation of heap tables bigger than this
@@ -411,7 +415,9 @@ The following options may be given as the first argument:
  Don't write queries to slow log that examine fewer rows
  than that
  --multi-range-count=# 
- Number of key ranges to request at once
+ Number of key ranges to request at once. This variable
+ has no effect, and is deprecated. It will be removed in a
+ future release.
  --myisam-block-size=# 
  Block size to be used for MyISAM index pages
  --myisam-data-pointer-size=# 
@@ -484,8 +490,9 @@ The following options may be given as the first argument:
  index_merge_sort_union, index_merge_intersection,
  engine_condition_pushdown, index_condition_pushdown, mrr,
  mrr_cost_based, materialization, semijoin, loosescan,
- firstmatch, block_nested_loop, batched_key_access} and
- val is one of {on, off, default}
+ firstmatch, subquery_materialization_cost_based,
+ block_nested_loop, batched_key_access} and val is one of
+ {on, off, default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
@@ -1105,7 +1112,7 @@ old-passwords 0
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,subquery_materialization_cost_based=on
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1

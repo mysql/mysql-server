@@ -10,7 +10,6 @@ help_category
 help_keyword
 help_relation
 help_topic
-host
 innodb_index_stats
 innodb_table_stats
 ndb_binlog_index
@@ -49,7 +48,6 @@ help_category
 help_keyword
 help_relation
 help_topic
-host
 innodb_index_stats
 innodb_table_stats
 ndb_binlog_index
@@ -101,7 +99,6 @@ help_category
 help_keyword
 help_relation
 help_topic
-host
 innodb_index_stats
 innodb_table_stats
 ndb_binlog_index

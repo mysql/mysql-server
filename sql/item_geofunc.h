@@ -48,6 +48,7 @@ public:
 
 class Item_func_geometry_from_wkb: public Item_geometry_func
 {
+  String tmp_value;
 public:
   Item_func_geometry_from_wkb(Item *a): Item_geometry_func(a) {}
   Item_func_geometry_from_wkb(Item *a, Item *srid): Item_geometry_func(a, srid) {}
@@ -212,7 +213,19 @@ public:
   { 
     return spatial_rel;
   }
-  enum Functype rev_functype() const { return spatial_rel; }
+  enum Functype rev_functype() const
+  {
+    switch (spatial_rel)
+    {
+      case SP_CONTAINS_FUNC:
+        return SP_WITHIN_FUNC;
+      case SP_WITHIN_FUNC:
+        return SP_CONTAINS_FUNC;
+      default:
+        return spatial_rel;
+    }
+  }
+
   const char *func_name() const;
   virtual inline void print(String *str, enum_query_type query_type)
   {
@@ -238,7 +251,19 @@ public:
   { 
     return spatial_rel;
   }
-  enum Functype rev_functype() const { return spatial_rel; }
+  enum Functype rev_functype() const
+  {
+    switch (spatial_rel)
+    {
+      case SP_CONTAINS_FUNC:
+        return SP_WITHIN_FUNC;
+      case SP_WITHIN_FUNC:
+        return SP_CONTAINS_FUNC;
+      default:
+        return spatial_rel;
+    }
+  }
+
   const char *func_name() const;
   virtual inline void print(String *str, enum_query_type query_type)
   {

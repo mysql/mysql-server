@@ -56,8 +56,6 @@
 
 #include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
-#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-
 /* Exit codes */
 
 #define EX_USAGE 1
@@ -622,7 +620,7 @@ static void short_usage_sub(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Dumping structure and contents of MySQL databases and tables.");
   short_usage_sub();
   print_defaults("my",load_default_groups);
@@ -2578,6 +2576,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       if (strcmp(field->name, "View") == 0)
       {
         char *scv_buff= NULL;
+        my_ulonglong n_cols;
 
         verbose_msg("-- It's a view, create dummy table for view\n");
 
@@ -2592,8 +2591,8 @@ static uint get_table_structure(char *table, char *db, char *table_type,
           the same name in order to satisfy views that depend on this view.
           The table will be removed when the actual view is created.
 
-          The properties of each column, aside from the data type, are not
-          preserved in this temporary table, because they are not necessary.
+          The properties of each column, are not preserved in this temporary
+          table, because they are not necessary.
 
           This will not be necessary once we can determine dependencies
           between views and can simply dump them in the appropriate order.
@@ -2620,8 +2619,23 @@ static uint get_table_structure(char *table, char *db, char *table_type,
         else
           my_free(scv_buff);
 
-        if (mysql_num_rows(result))
+        n_cols= mysql_num_rows(result);
+        if (0 != n_cols)
         {
+
+          /*
+            The actual formula is based on the column names and how the .FRM
+            files are stored and is too volatile to be repeated here.
+            Thus we simply warn the user if the columns exceed a limit we
+            know works most of the time.
+          */
+          if (n_cols >= 1000)
+            fprintf(stderr,
+                    "-- Warning: Creating a stand-in table for view %s may"
+                    " fail when replaying the dump file produced because "
+                    "of the number of columns exceeding 1000. Exercise "
+                    "caution when replaying the produced dump file.\n", 
+                    table);
           if (opt_drop)
           {
             /*
@@ -2648,14 +2662,19 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
           row= mysql_fetch_row(result);
 
-          fprintf(sql_file, "  %s %s", quote_name(row[0], name_buff, 0),
-                  row[1]);
+          /*
+            The actual column type doesn't matter anyway, since the table will
+            be dropped at run time.
+            We do tinyint to avoid hitting the row size limit.
+          */
+          fprintf(sql_file, "  %s tinyint NOT NULL",
+                  quote_name(row[0], name_buff, 0));
 
           while((row= mysql_fetch_row(result)))
           {
             /* col name, col type */
-            fprintf(sql_file, ",\n  %s %s",
-                    quote_name(row[0], name_buff, 0), row[1]);
+            fprintf(sql_file, ",\n  %s tinyint NOT NULL",
+                    quote_name(row[0], name_buff, 0));
           }
 
           /*
@@ -4789,7 +4808,7 @@ static int add_slave_statements(void)
 
 static int do_show_slave_status(MYSQL *mysql_con)
 {
-  MYSQL_RES *slave;
+  MYSQL_RES *slave= NULL;
   const char *comment_prefix=
     (opt_slave_data == MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL) ? "-- " : "";
   if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS"))

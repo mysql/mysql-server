@@ -44,7 +44,7 @@ Created 10/21/1995 Heikki Tuuri
 #endif
 
 /** File node of a tablespace or the log data space */
-typedef	struct fil_node_struct	fil_node_t;
+struct fil_node_t;
 
 extern ibool	os_has_said_disk_full;
 /** Flag: enable debug printout for asynchronous i/o */
@@ -102,7 +102,7 @@ log. */
 #define OS_FILE_LOG_BLOCK_SIZE		512
 
 /** Options for os_file_create_func @{ */
-typedef enum os_file_create_enum {
+enum os_file_create_t {
 	OS_FILE_OPEN = 51,		/*!< to open an existing file (if
 					doesn't exist, error) */
 	OS_FILE_CREATE,			/*!< to create new file (if
@@ -122,7 +122,7 @@ typedef enum os_file_create_enum {
 					the log unless it is a fatal error,
 					this flag is only used if
 					ON_ERROR_NO_EXIT is set */
-} os_file_create_t;
+};
 
 #define OS_FILE_READ_ONLY		333
 #define	OS_FILE_READ_WRITE		444
@@ -345,13 +345,12 @@ to original un-instrumented file I/O APIs */
 
 /* File types for directory entry data type */
 
-enum os_file_type_enum{
+enum os_file_type_t {
 	OS_FILE_TYPE_UNKNOWN = 0,
 	OS_FILE_TYPE_FILE,			/* regular file */
 	OS_FILE_TYPE_DIR,			/* directory */
 	OS_FILE_TYPE_LINK			/* symbolic link */
 };
-typedef enum os_file_type_enum	  os_file_type_t;
 
 /* Maximum path string length in bytes when referring to tables with in the
 './databasename/tablename.ibd' path format; we can allocate at least 2 buffers
@@ -359,16 +358,18 @@ of this size from the thread stack; that is why this should not be made much
 bigger than 4000 bytes */
 #define OS_FILE_MAX_PATH	4000
 
-/* Struct used in fetching information of a file in a directory */
-struct os_file_stat_struct{
+/** Struct used in fetching information of a file in a directory */
+struct os_file_stat_t {
 	char		name[OS_FILE_MAX_PATH];	/*!< path to a file */
 	os_file_type_t	type;			/*!< file type */
 	ib_int64_t	size;			/*!< file size */
 	time_t		ctime;			/*!< creation time */
 	time_t		mtime;			/*!< modification time */
 	time_t		atime;			/*!< access time */
+	bool		rw_perm;		/*!< true if can be opened
+						in read-write mode. Only valid
+						if type == OS_FILE_TYPE_FILE */
 };
-typedef struct os_file_stat_struct	os_file_stat_t;
 
 #ifdef __WIN__
 typedef HANDLE	os_file_dir_t;	/*!< directory stream */
@@ -1162,14 +1163,16 @@ os_aio_all_slots_free(void);
 
 /*******************************************************************//**
 This function returns information about the specified file
-@return	TRUE if stat information found */
+@return	DB_SUCCESS if all OK */
 UNIV_INTERN
-ibool
+dberr_t
 os_file_get_status(
 /*===============*/
-	const char*	path,		/*!< in:	pathname of the file */
-	os_file_stat_t* stat_info);	/*!< information of a file in a
+	const char*	path,		/*!< in: pathname of the file */
+	os_file_stat_t* stat_info,	/*!< information of a file in a
 					directory */
+	bool		check_rw_perm);	/*!< in: for testing whether the
+					file can be opened in RW mode */
 
 #if !defined(UNIV_HOTBACKUP)
 /*********************************************************************//**

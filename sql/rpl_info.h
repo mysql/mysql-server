@@ -21,18 +21,6 @@
 #include "rpl_info_handler.h"
 #include "rpl_reporting.h"
 
-enum enum_info_repository
-{
-  INFO_REPOSITORY_FILE= 0,
-  INFO_REPOSITORY_TABLE,
-  INFO_REPOSITORY_DUMMY,
-  /*
-    Add new types of repository before this
-    entry.
-  */
-  INVALID_INFO_REPOSITORY
-};
-
 class Rpl_info : public Slave_reporting_capability
 {
 public:
@@ -61,16 +49,6 @@ public:
 
   THD *info_thd;
 
-/**
-  Defines the fields that are used as primary keys in a table.
-*/
-  ulong *uidx;
-
-/**
-  The number of fields that are used as primary keys in a table.
-*/
-  uint nidx;
-
   bool inited;
   volatile bool abort_slave;
   volatile uint slave_running;
@@ -79,26 +57,6 @@ public:
 #ifndef DBUG_OFF
   int events_until_exit;
 #endif
-
-  /**
-    Defines the type of the repository that is used.
-
-    @param param_rpl_info_type Type of repository.
-  */
-  void set_rpl_info_type(uint param_rpl_info_type)
-  {
-    rpl_info_type= param_rpl_info_type;
-  }
-
-  /**
-    Gets the type of the repository that is used.
-
-    @return Type of repository.
-  */
-  uint get_rpl_info_type()
-  {
-    return(rpl_info_type);
-  }
 
   /**
     Sets the persistency component/handler.
@@ -122,12 +80,17 @@ public:
 
   enum_return_check check_info()
   {
-    return (handler->check_info(uidx, nidx));
+    return (handler->check_info());
   }
 
   int remove_info()
   {
-    return (handler->remove_info(uidx, nidx));
+    return (handler->remove_info());
+  }
+
+  int clean_info()
+  {
+    return (handler->clean_info());
   }
 
   bool is_transactional()
@@ -138,12 +101,6 @@ public:
   bool update_is_transactional()
   {
     return (handler->update_is_transactional());
-  }
-
-  void set_idx_info(ulong *param_uidx, uint param_nidx)
-  {
-    uidx= param_uidx;
-    nidx= param_nidx;
   }
 
   char *get_description_info()
@@ -159,9 +116,24 @@ public:
     return(FALSE);
   }
 
+  uint get_internal_id()
+  {
+    return internal_id;
+  }
+
 protected:
+  /**
+    Pointer to the repository's handler.
+  */
   Rpl_info_handler *handler;
-  uint rpl_info_type;
+
+  /**
+    Uniquely and internaly identifies an info entry (.e.g. a row or
+    file). This information is completely transparent to users and
+    is used only during startup to retrieve information from the
+    repositories.
+  */
+  uint internal_id;
 
   Rpl_info(const char* type
 #ifdef HAVE_PSI_INTERFACE
@@ -173,6 +145,7 @@ protected:
            PSI_mutex_key *param_key_info_stop_cond,
            PSI_mutex_key *param_key_info_sleep_cond
 #endif
+           ,uint param_id
           );
 
 private:

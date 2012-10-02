@@ -155,6 +155,7 @@ static int search_default_file_with_ext(Process_option_func func,
 					const char *dir, const char *ext,
 					const char *config_file, int recursion_level);
 static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file);
+static int check_file_permissions(const char *file_name);
 
 
 /**
@@ -260,8 +261,8 @@ int my_search_option_files(const char *conf_file, int *argc, char ***argv,
   int error= 0;
   DBUG_ENTER("my_search_option_files");
 
-  /* Skip if default files have already been read. */
-  if (! defaults_already_read)
+  /* Skip for login file. */
+  if (! is_login_file)
   {
     /* Check if we want to force the use a specific default file */
     *args_used+= get_defaults_options(*argc - *args_used, *argv + *args_used,
@@ -630,12 +631,6 @@ int my_load_defaults(const char *conf_file, const char **groups,
   uint args_sep= my_getopt_use_args_separator ? 1 : 0;
   DBUG_ENTER("load_defaults");
 
-  /*
-    Set it to FALSE, as this function can be invoked
-    multiple times with different conf_file.
-  */
-  defaults_already_read= FALSE;
-
   init_alloc_root(&alloc,512,0);
   if ((dirs= init_default_directories(&alloc)) == NULL)
     goto err;
@@ -867,7 +862,7 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
   MYSQL_FILE *fp;
   uint line=0;
   my_bool found_group=0;
-  uint i;
+  uint i, rc;
   MY_DIR *search_dir;
   FILEINFO *search_file;
 
@@ -885,25 +880,10 @@ static int search_default_file_with_ext(Process_option_func opt_handler,
     strmov(name,config_file);
   }
   fn_format(name,name,"","",4);
-#if !defined(__WIN__)
-  {
-    MY_STAT stat_info;
-    if (!my_stat(name,&stat_info,MYF(0)))
-      return 1;
-    /*
-      Ignore world-writable regular files.
-      This is mainly done to protect us to not read a file created by
-      the mysqld server, but the check is still valid in most context. 
-    */
-    if ((stat_info.st_mode & S_IWOTH) &&
-	(stat_info.st_mode & S_IFMT) == S_IFREG)
-    {
-      fprintf(stderr, "Warning: World-writable config file '%s' is ignored\n",
-              name);
-      return 0;
-    }
-  }
-#endif
+
+  if ((rc= check_file_permissions(name)) < 2)
+    return (int) rc;
+
   if (is_login_file)
   {
     if ( !(fp = mysql_file_fopen(key_file_cnf, name, (O_RDONLY | O_BINARY),
@@ -1470,3 +1450,48 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
 
   return 1;
 }
+
+/**
+  Check file permissions of the option file.
+
+  @param file_name [in]       Name of the option file.
+
+  @return  0 - Non-allowable file permissions.
+           1 - Failed to stat.
+           2 - Success.
+*/
+static int check_file_permissions(const char *file_name)
+{
+#if !defined(__WIN__)
+  MY_STAT stat_info;
+
+  if (!my_stat(file_name,&stat_info,MYF(0)))
+    return 1;
+  /*
+    Ignore .mylogin.cnf file if not exclusively readable/writable
+    by current user.
+  */
+  if (is_login_file && (stat_info.st_mode & (S_IXUSR | S_IRWXG | S_IRWXO))
+      && (stat_info.st_mode & S_IFMT) == S_IFREG)
+  {
+    fprintf(stderr, "Warning: %s should be readable/writable only by "
+            "current user.\n", file_name);
+    return 0;
+  }
+  /*
+    Ignore world-writable regular files.
+    This is mainly done to protect us to not read a file created by
+    the mysqld server, but the check is still valid in most context.
+  */
+  else if ((stat_info.st_mode & S_IWOTH) &&
+           (stat_info.st_mode & S_IFMT) == S_IFREG)
+
+  {
+    fprintf(stderr, "Warning: World-writable config file '%s' is ignored\n",
+            file_name);
+    return 0;
+  }
+#endif
+  return 2;                                     /* Success */
+}
+

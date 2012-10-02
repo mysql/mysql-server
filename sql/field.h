@@ -3239,6 +3239,15 @@ private:
 
 
 class Field_blob :public Field_longstr {
+  virtual type_conversion_status store_internal(const char *from, uint length,
+                                                const CHARSET_INFO *cs);
+  /**
+    Copy value to memory storage.
+  */
+  type_conversion_status store_to_mem(const char *from, uint length,
+                                      const CHARSET_INFO *cs,
+                                      uint max_length,
+                                      Blob_mem_storage *blob_storage);
 protected:
   /**
     The number of bytes used to represent the length of the blob.
@@ -3249,6 +3258,15 @@ protected:
     The 'value'-object is a cache fronting the storage engine.
   */
   String value;
+
+  /**
+    Store ptr and length.
+  */
+  void store_ptr_and_length(const char *from, uint32 length)
+  {
+    store_length(length);
+    bmove(ptr + packlength, (char*) &from, sizeof(char *));
+  }
   
 public:
   Field_blob(uchar *ptr_arg, uchar *null_ptr_arg, uchar null_bit_arg,
@@ -3428,6 +3446,8 @@ private:
 
 #ifdef HAVE_SPATIAL
 class Field_geom :public Field_blob {
+  virtual type_conversion_status store_internal(const char *from, uint length,
+                                                const CHARSET_INFO *cs);
 public:
   enum geometry_type geom_type;
 
@@ -3446,8 +3466,7 @@ public:
   enum_field_types type() const { return MYSQL_TYPE_GEOMETRY; }
   bool match_collation_to_optimize_range() const { return false; }
   void sql_type(String &str) const;
-  type_conversion_status store(const char *to, uint length,
-                               const CHARSET_INFO *charset);
+  using Field_blob::store;
   type_conversion_status store(double nr);
   type_conversion_status store(longlong nr, bool unsigned_val);
   type_conversion_status store_decimal(const my_decimal *);
@@ -3473,6 +3492,7 @@ public:
     DBUG_ASSERT(type() == MYSQL_TYPE_GEOMETRY);
     return new Field_geom(*this);
   }
+  uint is_equal(Create_field *new_field);
 };
 #endif /*HAVE_SPATIAL*/
 

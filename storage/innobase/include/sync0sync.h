@@ -1,7 +1,8 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
+Copyright (c) 2012, Facebook Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -126,6 +127,7 @@ extern mysql_pfs_key_t	monitor_mutex_key;
 extern mysql_pfs_key_t	event_os_mutex_key;
 extern mysql_pfs_key_t	ut_list_mutex_key;
 extern mysql_pfs_key_t	os_mutex_key;
+extern mysql_pfs_key_t  zip_pad_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
 /******************************************************************//**
@@ -766,7 +768,7 @@ struct ib_mutex_t {
 	ulong		count_os_wait;	/*!< count of os_wait */
 #ifdef UNIV_DEBUG
 
-/** Value of mutex_struct::magic_n */
+/** Value of mutex_t::magic_n */
 # define MUTEX_MAGIC_N	979585UL
 
 	os_thread_id_t thread_id; /*!< The thread id of the thread

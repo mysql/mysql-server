@@ -398,7 +398,7 @@ tuple or a secondary index tuple. There are two types of tuples for each
 type of index, making a total of four types of tuple handles. There
 is a tuple for reading the entire row contents and another for searching
 on the index key. */
-typedef struct ib_tpl_struct* ib_tpl_t;
+typedef struct ib_tuple_t* ib_tpl_t;
 
 /** InnoDB transaction handle, all database operations need to be covered
 by transactions. This handle represents a transaction. The handle can be
@@ -407,10 +407,10 @@ and undo your changes using ib_trx_rollback(). If the InnoDB deadlock
 monitor rolls back the transaction then you need to free the transaction
 using the function ib_trx_release(). You can query the state of an InnoDB
 transaction by calling ib_trx_state(). */
-typedef struct ib_trx_struct* ib_trx_t;
+typedef struct trx_t* ib_trx_t;
 
 /** InnoDB cursor handle */
-typedef struct ib_crsr_struct* ib_crsr_t;
+typedef struct ib_cursor_t* ib_crsr_t;
 
 /*************************************************************//**
 This function is used to compare two data fields for which the data type
@@ -1261,5 +1261,22 @@ Return isolation configuration set by "innodb_api_trx_level"
 ib_trx_state_t
 ib_cfg_trx_level();
 /*==============*/
+
+/*****************************************************************//**
+Return configure value for background commit interval (in seconds)
+@return background commit interval (in seconds) */
+
+ib_ulint_t
+ib_cfg_bk_commit_interval();
+/*=======================*/
+
+/*****************************************************************//**
+Get a trx start time.
+@return trx start_time */
+
+ib_u64_t
+ib_trx_get_start_time(
+/*==================*/
+	ib_trx_t	ib_trx);	/*!< in: transaction */
 
 #endif /* api0api_h */

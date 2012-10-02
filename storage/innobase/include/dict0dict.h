@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1548,7 +1549,7 @@ extern dict_sys_t*	dict_sys;
 extern rw_lock_t	dict_operation_lock;
 
 /* Dictionary system struct */
-struct dict_sys_struct{
+struct dict_sys_t{
 	ib_mutex_t		mutex;		/*!< mutex protecting the data
 					dictionary; protects also the
 					disk-based dictionary system tables;
@@ -1600,7 +1601,7 @@ dict_ind_init(void);
 
 /* This struct is used to specify the name and type that a column must
 have when checking a table's schema. */
-struct dict_col_meta_struct {
+struct dict_col_meta_t {
 	const char*	name;		/* column name */
 	ulint		mtype;		/* required column main type */
 	ulint		prtype_mask;	/* required column precise type mask;
@@ -1609,12 +1610,11 @@ struct dict_col_meta_struct {
 					in the column's prtype */
 	ulint		len;		/* required column length */
 };
-typedef struct dict_col_meta_struct dict_col_meta_t;
 
 /* This struct is used for checking whether a given table exists and
 whether it has a predefined schema (number of columns and columns names
 and types) */
-struct dict_table_schema_struct {
+struct dict_table_schema_t {
 	const char*		table_name;	/* the name of the table whose
 						structure we are checking */
 	ulint			n_cols;		/* the number of columns the
@@ -1631,7 +1631,6 @@ struct dict_table_schema_struct {
 						table (where this table is
 						parent) */
 };
-typedef struct dict_table_schema_struct dict_table_schema_t;
 /* @} */
 
 /*********************************************************************//**
@@ -1734,6 +1733,47 @@ dict_table_is_discarded(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table to check */
 	__attribute__((nonnull, pure, warn_unused_result));
+
+/********************************************************************//**
+Check if it is a temporary table.
+@return	true if temporary table flag is set. */
+UNIV_INLINE
+bool
+dict_table_is_temporary(
+/*====================*/
+	const dict_table_t*	table)	/*!< in: table to check */
+	__attribute__((nonnull, pure, warn_unused_result));
+
+#ifndef UNIV_HOTBACKUP
+/*********************************************************************//**
+This function should be called whenever a page is successfully
+compressed. Updates the compression padding information. */
+UNIV_INTERN
+void
+dict_index_zip_success(
+/*===================*/
+	dict_index_t*	index)	/*!< in/out: index to be updated. */
+	__attribute__((nonnull));
+/*********************************************************************//**
+This function should be called whenever a page compression attempt
+fails. Updates the compression padding information. */
+UNIV_INTERN
+void
+dict_index_zip_failure(
+/*===================*/
+	dict_index_t*	index)	/*!< in/out: index to be updated. */
+	__attribute__((nonnull));
+/*********************************************************************//**
+Return the optimal page size, for which page will likely compress.
+@return page size beyond which page may not compress*/
+UNIV_INTERN
+ulint
+dict_index_zip_pad_optimal_page_size(
+/*=================================*/
+	dict_index_t*	index)	/*!< in: index for which page size
+				is requested */
+	__attribute__((nonnull, warn_unused_result));
+#endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL
 #include "dict0dict.ic"

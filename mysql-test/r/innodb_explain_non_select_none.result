@@ -2787,14 +2787,14 @@ INSERT INTO t2 VALUES (1), (2), (3);
 EXPLAIN UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	DEPENDENT SUBQUERY	<derived3>	index_subquery	auto_key0	auto_key0	5	func	2	Using index
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE        t1 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	index_subquery	auto_key0	auto_key0	5	func	2	100.00	Using index
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2803,10 +2803,10 @@ FLUSH TABLES;
 EXPLAIN EXTENDED SELECT * FROM t1            WHERE a IN (SELECT * FROM (SELECT b FROM t2 ORDER BY b LIMIT 2,2) x);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	<derived3>	index_subquery	auto_key0	auto_key0	5	func	2	100.00	Using index
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
@@ -2835,7 +2835,7 @@ EXPLAIN UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELECT b FROM
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	<derived3>	index_subquery	auto_key0	auto_key0	5	func	2	Using index
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 FLUSH STATUS;
 FLUSH TABLES;
@@ -2843,7 +2843,7 @@ EXPLAIN EXTENDED UPDATE        t1, t2 SET a = 10 WHERE a IN (SELECT * FROM (SELE
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	<derived3>	index_subquery	auto_key0	auto_key0	5	func	2	100.00	Using index
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
@@ -2853,10 +2853,10 @@ EXPLAIN EXTENDED SELECT * FROM t1, t2            WHERE a IN (SELECT * FROM (SELE
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-2	DEPENDENT SUBQUERY	<derived3>	index_subquery	auto_key0	auto_key0	5	func	2	100.00	Using index
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 3	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:
@@ -2884,7 +2884,7 @@ EXPLAIN UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (SELECT * F
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	Using join buffer (Block Nested Loop)
-3	DEPENDENT SUBQUERY	<derived4>	index_subquery	auto_key0	auto_key0	5	func	2	Using index
+3	DEPENDENT SUBQUERY	<derived4>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	Using index
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
 FLUSH STATUS;
@@ -2893,7 +2893,7 @@ EXPLAIN EXTENDED UPDATE        t1, (SELECT * FROM t2) y SET a = 10 WHERE a IN (S
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-3	DEPENDENT SUBQUERY	<derived4>	index_subquery	auto_key0	auto_key0	5	func	2	100.00	Using index
+3	DEPENDENT SUBQUERY	<derived4>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 # Status of EXPLAIN EXTENDED query
@@ -2904,11 +2904,11 @@ EXPLAIN EXTENDED SELECT * FROM t1, (SELECT * FROM t2) y            WHERE a IN (S
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	3	100.00	Using join buffer (Block Nested Loop)
-3	DEPENDENT SUBQUERY	<derived4>	index_subquery	auto_key0	auto_key0	5	func	2	100.00	Using index
+3	DEPENDENT SUBQUERY	<derived4>	index_subquery	<auto_key0>	<auto_key0>	5	func	2	100.00	Using index
 4	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 2	DERIVED	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`y`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `y` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on auto_key0)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`y`.`b` AS `b` from `test`.`t1` join (/* select#2 */ select `test`.`t2`.`b` AS `b` from `test`.`t2`) `y` where <in_optimizer>(`test`.`t1`.`a`,<exists>(<index_lookup>(<cache>(`test`.`t1`.`a`) in x on <auto_key0>)))
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
 # Status of "equivalent" SELECT query execution:

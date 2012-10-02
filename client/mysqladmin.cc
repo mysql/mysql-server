@@ -47,6 +47,8 @@ static char *opt_bind_addr = NULL;
 static ulong opt_connect_timeout, opt_shutdown_timeout;
 static char * unix_port=0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+static uint opt_enable_cleartext_plugin= 0;
+static my_bool using_opt_enable_cleartext_plugin= 0;
 
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
@@ -219,6 +221,10 @@ static struct my_option my_long_options[] =
    "Default authentication client-side plugin to use.",
    &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN, 
+    "Enable/disable the clear text authentication plugin.",
+   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -288,6 +294,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case OPT_MYSQL_PROTOCOL:
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
+    break;
+  case OPT_ENABLE_CLEARTEXT_PLUGIN:
+    using_opt_enable_cleartext_plugin= TRUE;
     break;
   }
   if (error)
@@ -373,6 +382,10 @@ int main(int argc,char *argv[])
   mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
                  "program_name", "mysqladmin");
+  if (using_opt_enable_cleartext_plugin)
+    mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
+                  (char*) &opt_enable_cleartext_plugin);
+
   if (sql_connect(&mysql, option_wait))
   {
     /*
@@ -707,7 +720,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     case ADMIN_VER:
       new_line=1;
       print_version();
-      puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
+      puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
       printf("Server version\t\t%s\n", mysql_get_server_info(mysql));
       printf("Protocol version\t%d\n", mysql_get_proto_info(mysql));
       printf("Connection\t\t%s\n",mysql_get_host_info(mysql));
@@ -1105,7 +1118,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Administration program for the mysqld daemon.");
   printf("Usage: %s [OPTIONS] command command....\n", my_progname);
   my_print_help(my_long_options);

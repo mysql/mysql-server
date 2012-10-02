@@ -89,14 +89,13 @@ Oracle is a registered trademark of Oracle Corporation and/or its
 affiliates. Other names may be trademarks of their respective
 owners.
 
-MySQL Configuration Tool.
+MySQL Configuration Utility.
   --all               Used with print command to print all login paths.
   -?, --help          Display this help and exit.
   -h, --host=name     Host name to be entered into the login file.
   -G, --login-path=name 
-                      Login file path.
-  -p, --password      Password to be entered into the login file. It has to be
-                      specified in the next line.
+                      Name of the login path to use in the login file.
+  -p, --password      Prompt for password to be entered into the login file.
   -u, --user=name     User name to be entered into the login file.
   -v, --verbose       Write more information.
   -V, --version       Output version information and exit.
@@ -115,13 +114,13 @@ verbose                           FALSE
 warn                              TRUE
 
 Where command can be any one of the following :
-       set    [options]          Sets username/password/hostname for a
+       set [options]             Sets user name/password/host name for a
                                  given login path (section).
-       remove [options]          Removes options from the specified path.
-       print  [options]          Prints all the options for a specified
+       remove [options]          Remove a login path from the login file.
+       print [options]           Print all the options for a specified
                                  login path.
-       reset                     Clean-up the login file.
-       help                      Print this usage/help information.
+       reset                     Deletes the contents of the login file.
+       help                      Display this usage/help information.
 
 # done..
 
@@ -240,7 +239,7 @@ mysqld is alive
 #################################
 # Testing with login file removed
 #################################
-# Even if login file does not exit, the
+# Even if login file does not exist, the
 # tools should be able to continue
 # normally.
 mysqld is alive

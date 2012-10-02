@@ -39,8 +39,6 @@ pthread_mutex_t counter_mutex;
 pthread_cond_t count_threshhold;
 #endif
 
-#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
-
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);
 static char *field_escape(char *to,const char *from,uint length);
@@ -204,7 +202,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("\
 Loads tables from text files in various formats.  The base name of the\n\
 text file must be the name of the table that should be used.\n\

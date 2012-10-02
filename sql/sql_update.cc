@@ -1464,8 +1464,11 @@ int mysql_multi_update_prepare(THD *thd)
         another table instance used by this statement which is going to
         be write-locked (for example, trigger to be invoked might try
         to update this table).
+        Last argument routine_modifies_data for read_lock_type_for_table()
+        is ignored, as prelocking placeholder will never be set here.
       */
-      tl->lock_type= read_lock_type_for_table(thd, lex, tl);
+      DBUG_ASSERT(tl->prelocking_placeholder == false);
+      tl->lock_type= read_lock_type_for_table(thd, lex, tl, true);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)

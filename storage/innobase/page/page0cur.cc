@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -975,7 +976,7 @@ page_cur_insert_rec_low(
 	      == (ibool) !!page_is_comp(page));
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-	      == index->id || mtr->inside_ibuf || recv_recovery_is_on());
+	      == index->id || recv_recovery_is_on() || mtr->inside_ibuf);
 
 	ut_ad(!page_rec_is_supremum(current_rec));
 
@@ -1170,14 +1171,27 @@ page_cur_insert_rec_zip_reorg(
 	buf_block_t*	block,	/*!< in: buffer block */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	rec_t*		rec,	/*!< in: inserted record */
+	ulint		rec_size,/*!< in: size of the inserted record */
 	page_t*		page,	/*!< in: uncompressed page */
 	page_zip_des_t*	page_zip,/*!< in: compressed page */
 	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 {
 	ulint		pos;
 
+	/* Make a local copy as the values can change dynamically. */
+	bool		log_compressed = page_log_compressed_pages;
+	ulint		level = page_compression_level;
+
 	/* Recompress or reorganize and recompress the page. */
-	if (page_zip_compress(page_zip, page, index, mtr)) {
+	if (page_zip_compress(page_zip, page, index, level,
+			      log_compressed ? mtr : NULL)) {
+		if (!log_compressed) {
+			page_cur_insert_rec_write_log(
+				rec, rec_size, *current_rec, index, mtr);
+			page_zip_compress_write_log_no_data(
+				level, page, index, mtr);
+		}
+
 		return(rec);
 	}
 
@@ -1287,10 +1301,27 @@ page_cur_insert_rec_zip(
 						     index, rec, offsets,
 						     NULL);
 
-		if (UNIV_LIKELY(insert_rec != NULL)) {
+		/* If recovery is on, this implies that the compression
+		of the page was successful during runtime. Had that not
+		been the case or had the redo logging of compressed
+		pages been enabled during runtime then we'd have seen
+		a MLOG_ZIP_PAGE_COMPRESS redo record. Therefore, we
+		know that we don't need to reorganize the page. We,
+		however, do need to recompress the page. That will
+		happen when the next redo record is read which must
+		be of type MLOG_ZIP_PAGE_COMPRESS_NO_DATA and it must
+		contain a valid compression level value.
+		This implies that during recovery from this point till
+		the next redo is applied the uncompressed and
+		compressed versions are not identical and
+		page_zip_validate will fail but that is OK because
+		we call page_zip_validate only after processing
+		all changes to a page under a single mtr during
+		recovery. */
+		if (insert_rec != NULL && !recv_recovery_is_on()) {
 			insert_rec = page_cur_insert_rec_zip_reorg(
 				current_rec, block, index, insert_rec,
-				page, page_zip, mtr);
+				rec_size, page, page_zip, mtr);
 #ifdef UNIV_DEBUG
 			if (insert_rec) {
 				rec_offs_make_valid(
@@ -1911,6 +1942,7 @@ page_cur_delete_rec(
 
 	/* Save to local variables some data associated with current_rec */
 	cur_slot_no = page_dir_find_owner_slot(current_rec);
+	ut_ad(cur_slot_no > 0);
 	cur_dir_slot = page_dir_get_nth_slot(page, cur_slot_no);
 	cur_n_owned = page_dir_slot_get_n_owned(cur_dir_slot);
 

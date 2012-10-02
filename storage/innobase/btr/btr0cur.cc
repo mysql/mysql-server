@@ -2,6 +2,7 @@
 
 Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
+Copyright (c) 2012, Facebook Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -70,13 +71,13 @@ Created 10/16/1994 Heikki Tuuri
 #include "zlib.h"
 
 /** Buffered B-tree operation types, introduced as part of delete buffering. */
-typedef enum btr_op_enum {
+enum btr_op_t {
 	BTR_NO_OP = 0,			/*!< Not buffered */
 	BTR_INSERT_OP,			/*!< Insert, do not ignore UNIQUE */
 	BTR_INSERT_IGNORE_UNIQUE_OP,	/*!< Insert, ignoring UNIQUE */
 	BTR_DELETE_OP,			/*!< Purge a delete-marked record */
 	BTR_DELMARK_OP			/*!< Mark a record for deletion */
-} btr_op_t;
+};
 
 #ifdef UNIV_DEBUG
 /** If the following is set to TRUE, this module prints a lot of
@@ -1346,6 +1347,15 @@ fail_err:
 		goto fail;
 	}
 
+	/* If compression padding tells us that insertion will result in
+	too packed up page i.e.: which is likely to cause compression
+	failure then don't do an optimistic insertion. */
+	if (zip_size && leaf
+	    && (page_get_data_size(page) + rec_size
+		>= dict_index_zip_pad_optimal_page_size(index))) {
+
+		goto fail;
+	}
 	/* Check locks and write to the undo log, if specified */
 	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
 					thr, mtr, &inherit);
@@ -1367,7 +1377,12 @@ fail_err:
 
 		if (UNIV_UNLIKELY(reorg)) {
 			ut_a(zip_size);
-			ut_a(*rec);
+			/* It's possible for rec to be NULL if the
+			page is compressed.  This is because a
+			reorganized page may become incompressible. */
+			if (!*rec) {
+				goto fail;
+			}
 		}
 	}
 
@@ -1508,21 +1523,9 @@ btr_cur_pessimistic_insert(
 	      || dict_index_is_clust(index)
 	      || (flags & BTR_CREATE_FLAG));
 
-	/* Try first an optimistic insert; reset the cursor flag: we do not
-	assume anything of how it was positioned */
-
 	cursor->flag = BTR_CUR_BINARY;
 
-	err = btr_cur_optimistic_insert(
-		flags, cursor, offsets, heap, entry, rec,
-		big_rec, n_ext, thr, mtr);
-	if (err != DB_FAIL) {
-
-		return(err);
-	}
-
-	/* Retry with a pessimistic insert. Check locks and write to undo log,
-	if specified */
+	/* Check locks and write to undo log, if specified */
 
 	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
 					thr, mtr, &dummy_inh);
@@ -1808,6 +1811,13 @@ btr_cur_update_alloc_zip(
 				FALSE=update-in-place */
 	mtr_t*		mtr)	/*!< in: mini-transaction */
 {
+
+	/* Have a local copy of the variables as these can change
+	dynamically. */
+	bool	log_compressed = page_log_compressed_pages;
+	ulint	compression_level = page_compression_level;
+	page_t*	page = buf_block_get_frame(block);
+
 	ut_a(page_zip == buf_block_get_page_zip(block));
 	ut_ad(page_zip);
 	ut_ad(!dict_index_is_ibuf(index));
@@ -1823,10 +1833,25 @@ btr_cur_update_alloc_zip(
 		return(FALSE);
 	}
 
-	if (!page_zip_compress(page_zip, buf_block_get_frame(block),
-			       index, mtr)) {
+	page = buf_block_get_frame(block);
+
+	if (create && page_is_leaf(page)
+	    && (length + page_get_data_size(page)
+		>= dict_index_zip_pad_optimal_page_size(index))) {
+
+		return(FALSE);
+	}
+
+	if (!page_zip_compress(
+		page_zip, page, index, compression_level,
+		log_compressed ? mtr : NULL)) {
 		/* Unable to compress the page */
 		return(FALSE);
+	}
+
+	if (mtr && !log_compressed) {
+		page_zip_compress_write_log_no_data(
+			compression_level, page, index, mtr);
 	}
 
 	/* After recompressing a page, we must make sure that the free
@@ -1842,8 +1867,7 @@ btr_cur_update_alloc_zip(
 	if (!page_zip_available(page_zip, dict_index_is_clust(index),
 				length, create)) {
 		/* Out of space: reset the free bits. */
-		if (!dict_index_is_clust(index)
-		    && page_is_leaf(buf_block_get_frame(block))) {
+		if (!dict_index_is_clust(index) && page_is_leaf(page)) {
 			ibuf_reset_free_bits(block);
 		}
 		return(FALSE);
@@ -2132,8 +2156,12 @@ any_extern:
 		return(DB_UNDERFLOW);
 	}
 
-	max_size = old_rec_size
-		+ page_get_max_insert_size_after_reorganize(page, 1);
+	/* We do not attempt to reorganize if the page is compressed.
+	This is because the page may fail to compress after reorganization. */
+	max_size = page_zip
+		? page_get_max_insert_size(page, 1)
+		: (old_rec_size
+		   + page_get_max_insert_size_after_reorganize(page, 1));
 
 	if (!(((max_size >= BTR_CUR_PAGE_REORGANIZE_LIMIT)
 	       && (max_size >= new_rec_size))
@@ -2485,7 +2513,12 @@ make_external:
 		err = DB_SUCCESS;
 		goto return_after_reservations;
 	} else {
-		ut_a(optim_err != DB_UNDERFLOW);
+		/* If the page is compressed and it initially
+		compresses very well, and there is a subsequent insert
+		of a badly-compressing record, it is possible for
+		btr_cur_optimistic_update() to return DB_UNDERFLOW and
+		btr_cur_insert_if_possible() to return FALSE. */
+		ut_a(page_zip || optim_err != DB_UNDERFLOW);
 
 		/* Out of space: reset the free bits. */
 		if (!dict_index_is_clust(index) && page_is_leaf(page)) {
@@ -2513,7 +2546,9 @@ make_external:
 	was_first = page_cur_is_before_first(page_cursor);
 
 	/* Lock checks and undo logging were already performed by
-	btr_cur_upd_lock_and_undo(). */
+	btr_cur_upd_lock_and_undo(). We do not try
+	btr_cur_optimistic_insert() because
+	btr_cur_insert_if_possible() already failed above. */
 
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					 | BTR_NO_LOCKING_FLAG
@@ -3600,9 +3635,9 @@ btr_estimate_n_rows_in_range(
 
 /*******************************************************************//**
 Record the number of non_null key values in a given index for
-each n-column prefix of the index where n < dict_index_get_n_unique(index).
+each n-column prefix of the index where 1 <= n <= dict_index_get_n_unique(index).
 The estimates are eventually stored in the array:
-index->stat_n_non_null_key_vals. */
+index->stat_n_non_null_key_vals[], which is indexed from 0 to n-1. */
 static
 void
 btr_record_not_null_field_in_rec(
@@ -3613,7 +3648,7 @@ btr_record_not_null_field_in_rec(
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index),
 					its size could be for all fields or
 					that of "n_unique" */
-	ib_int64_t*	n_not_null)	/*!< in/out: array to record number of
+	ib_uint64_t*	n_not_null)	/*!< in/out: array to record number of
 					not null rows for n-column prefix */
 {
 	ulint	i;
@@ -3635,11 +3670,12 @@ btr_record_not_null_field_in_rec(
 
 /*******************************************************************//**
 Estimates the number of different key values in a given index, for
-each n-column prefix of the index where n <= dict_index_get_n_unique(index).
-The estimates are stored in the array index->stat_n_diff_key_vals[] and
-the number of pages that were sampled is saved in index->stat_n_sample_sizes[].
-If innodb_stats_method is "nulls_ignored", we also record the number of
-non-null values for each prefix and store the estimates in
+each n-column prefix of the index where 1 <= n <= dict_index_get_n_unique(index).
+The estimates are stored in the array index->stat_n_diff_key_vals[] (indexed
+0..n_uniq-1) and the number of pages that were sampled is saved in
+index->stat_n_sample_sizes[].
+If innodb_stats_method is nulls_ignored, we also record the number of
+non-null values for each prefix and stored the estimates in
 array index->stat_n_non_null_key_vals. */
 UNIV_INTERN
 void
@@ -3653,8 +3689,8 @@ btr_estimate_number_of_different_key_vals(
 	ulint		n_cols;
 	ulint		matched_fields;
 	ulint		matched_bytes;
-	ib_int64_t*	n_diff;
-	ib_int64_t*	n_not_null;
+	ib_uint64_t*	n_diff;
+	ib_uint64_t*	n_not_null;
 	ibool		stats_null_not_equal;
 	ullint		n_sample_pages; /* number of pages to sample */
 	ulint		not_empty_flag	= 0;
@@ -3670,13 +3706,13 @@ btr_estimate_number_of_different_key_vals(
 	n_cols = dict_index_get_n_unique(index);
 
 	heap = mem_heap_create((sizeof *n_diff + sizeof *n_not_null)
-			       * (n_cols + 1)
+			       * n_cols
 			       + dict_index_get_n_fields(index)
 			       * (sizeof *offsets_rec
 				  + sizeof *offsets_next_rec));
 
-	n_diff = (ib_int64_t*) mem_heap_zalloc(heap, (n_cols + 1)
-					       * sizeof(ib_int64_t));
+	n_diff = (ib_uint64_t*) mem_heap_zalloc(
+		heap, n_cols * sizeof(ib_int64_t));
 
 	n_not_null = NULL;
 
@@ -3685,8 +3721,8 @@ btr_estimate_number_of_different_key_vals(
 	considered equal (by setting stats_null_not_equal value) */
 	switch (srv_innodb_stats_method) {
 	case SRV_STATS_NULLS_IGNORED:
-		n_not_null = (ib_int64_t*) mem_heap_zalloc(heap, (n_cols + 1)
-					     * sizeof *n_not_null);
+		n_not_null = (ib_uint64_t*) mem_heap_zalloc(
+			heap, n_cols * sizeof *n_not_null);
 		/* fall through */
 
 	case SRV_STATS_NULLS_UNEQUAL:
@@ -3737,7 +3773,7 @@ btr_estimate_number_of_different_key_vals(
 			offsets_rec = rec_get_offsets(rec, index, offsets_rec,
 						      ULINT_UNDEFINED, &heap);
 
-			if (n_not_null) {
+			if (n_not_null != NULL) {
 				btr_record_not_null_field_in_rec(
 					n_cols, offsets_rec, n_not_null);
 			}
@@ -3765,14 +3801,14 @@ btr_estimate_number_of_different_key_vals(
 					       &matched_fields,
 					       &matched_bytes);
 
-			for (j = matched_fields + 1; j <= n_cols; j++) {
+			for (j = matched_fields; j < n_cols; j++) {
 				/* We add one if this index record has
 				a different prefix from the previous */
 
 				n_diff[j]++;
 			}
 
-			if (n_not_null) {
+			if (n_not_null != NULL) {
 				btr_record_not_null_field_in_rec(
 					n_cols, offsets_next_rec, n_not_null);
 			}
@@ -3807,7 +3843,7 @@ btr_estimate_number_of_different_key_vals(
 			if (btr_page_get_prev(page, &mtr) != FIL_NULL
 			    || btr_page_get_next(page, &mtr) != FIL_NULL) {
 
-				n_diff[n_cols]++;
+				n_diff[n_cols - 1]++;
 			}
 		}
 
@@ -3822,7 +3858,7 @@ btr_estimate_number_of_different_key_vals(
 	also the pages used for external storage of fields (those pages are
 	included in index->stat_n_leaf_pages) */
 
-	for (j = 0; j <= n_cols; j++) {
+	for (j = 0; j < n_cols; j++) {
 		index->stat_n_diff_key_vals[j]
 			= BTR_TABLE_STATS_FROM_SAMPLE(
 				n_diff[j], index, n_sample_pages,
@@ -3852,7 +3888,7 @@ btr_estimate_number_of_different_key_vals(
 		sampled result. stat_n_non_null_key_vals[] is created
 		and initialized to zero in dict_index_add_to_cache(),
 		along with stat_n_diff_key_vals[] array */
-		if (n_not_null != NULL && (j < n_cols)) {
+		if (n_not_null != NULL) {
 			index->stat_n_non_null_key_vals[j] =
 				 BTR_TABLE_STATS_FROM_SAMPLE(
 					n_not_null[j], index, n_sample_pages,
@@ -4267,7 +4303,7 @@ btr_store_big_rec_extern_fields(
 		heap = mem_heap_create(250000);
 		page_zip_set_alloc(&c_stream, heap);
 
-		err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
+		err = deflateInit2(&c_stream, page_compression_level,
 				   Z_DEFLATED, 15, 7, Z_DEFAULT_STRATEGY);
 		ut_a(err == Z_OK);
 	}

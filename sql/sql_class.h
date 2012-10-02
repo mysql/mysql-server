@@ -225,7 +225,10 @@ public:
   const char *name;
   enum drop_type type;
   Alter_drop(enum drop_type par_type,const char *par_name)
-    :name(par_name), type(par_type) {}
+    :name(par_name), type(par_type)
+  {
+    DBUG_ASSERT(par_name != NULL);
+  }
   /**
     Used to make a clone of this object for ALTER/CREATE TABLE
     @sa comment for Key_part_spec::clone
@@ -307,7 +310,10 @@ public:
     ref_db(ref_db_arg), ref_table(ref_table_arg), ref_columns(ref_cols),
     delete_opt(delete_opt_arg), update_opt(update_opt_arg),
     match_opt(match_opt_arg)
-  {}
+  {
+    // We don't check for duplicate FKs.
+    key_create_info.check_for_duplicate_indexes= false;
+  }
   Foreign_key(const Foreign_key &rhs, MEM_ROOT *mem_root);
   /**
     Used to make a clone of this object for ALTER/CREATE TABLE
@@ -3830,10 +3836,15 @@ public:
     @param non_transactional_table true if the statement updates some
     non-transactional table; false otherwise.
 
+    @param non_transactional_tmp_tables true if row binlog format is
+    used and all non-transactional tables are temporary.
+
     @retval true if the statement is compatible;
     @retval false if the statement is not compatible.
   */
-  bool is_dml_gtid_compatible(bool non_transactional) const;
+  bool
+  is_dml_gtid_compatible(bool non_transactional,
+                         bool non_transactional_tmp_tables) const;
   bool is_ddl_gtid_compatible() const;
   void binlog_invoker() { m_binlog_invoker= TRUE; }
   bool need_binlog_invoker() { return m_binlog_invoker; }
@@ -4426,9 +4437,16 @@ class select_max_min_finder_subselect :public select_subselect
   Item_cache *cache;
   bool (select_max_min_finder_subselect::*op)();
   bool fmax;
+  /**
+    If ignoring NULLs, comparisons will skip NULL values. If not
+    ignoring NULLs, the first (if any) NULL value discovered will be
+    returned as the maximum/minimum value.
+  */
+  bool ignore_nulls;
 public:
-  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx)
-    :select_subselect(item_arg), cache(0), fmax(mx)
+  select_max_min_finder_subselect(Item_subselect *item_arg, bool mx,
+                                  bool ignore_nulls)
+    :select_subselect(item_arg), cache(0), fmax(mx), ignore_nulls(ignore_nulls)
   {}
   void cleanup();
   bool send_data(List<Item> &items);
@@ -4453,36 +4471,27 @@ struct st_table_ref;
 
 /**
   Executor structure for the materialized semi-join info, which contains
+   - Description of expressions selected from subquery
    - The sj-materialization temporary table
-   - Members needed to make index lookup or a full scan of the temptable.
 */
 class Semijoin_mat_exec : public Sql_alloc
 {
 public:
-  Semijoin_mat_exec(uint table_count, bool is_scan)
-    :table_count(table_count), is_scan(is_scan),
-    materialized(FALSE), table_param(), table_cols(),
-    table(NULL), tab_ref(NULL), in_equality(NULL),
-    join_cond(NULL), copy_field(NULL), copy_field_count(0)
+  Semijoin_mat_exec(bool is_scan, uint table_count, uint mat_table_index,
+                    uint inner_table_index, List<Item> *const subq_exprs)
+    :is_scan(is_scan), table_count(table_count),
+     mat_table_index(mat_table_index), inner_table_index(inner_table_index),
+    subq_exprs(subq_exprs), table_param(), table(NULL)
   {}
-private:
-  // Nobody deletes me apparently ...
   ~Semijoin_mat_exec()
-  {
-    delete [] copy_field;
-  }
-public:
-  const uint table_count;       // Number of tables in the sj-nest
-  const bool is_scan;           // TRUE if executing as a scan, FALSE if lookup
-  bool materialized;            // TRUE <=> materialization has been performed
-  TMP_TABLE_PARAM table_param;  // The temptable and its related info
-  List<Item> table_cols;        // List of columns describing temp. table
-  TABLE *table;                 // Reference to temporary table
-  struct st_table_ref *tab_ref; // Structure used to make index lookups
-  Item *in_equality;            // See create_subquery_equalities()
-  Item *join_cond;              // See comments in make_join_select()
-  Copy_field *copy_field;       // Needed for materialization scan
-  uint copy_field_count;        // Number of columns to copy back
+  {}
+  const bool is_scan;           ///< TRUE if executing a scan, FALSE if lookup
+  const uint table_count;       ///< Number of tables in the sj-nest
+  const uint mat_table_index;   ///< Index in join_tab for materialized table
+  const uint inner_table_index; ///< Index in join_tab for first inner table
+  List<Item> *const subq_exprs; ///< List of expressions describing temp. table
+  TMP_TABLE_PARAM table_param;  ///< The temptable and its related info
+  TABLE *table;                 ///< Reference to temporary table
 };
 
 
@@ -4553,20 +4562,181 @@ public:
 // this is needed for user_vars hash
 class user_var_entry
 {
- public:
-  user_var_entry() {}                         /* Remove gcc warning */
-  LEX_STRING name;
-  char *value;
-  ulong length;
-  query_id_t update_query_id, used_query_id;
-  Item_result type;
-  bool unsigned_flag;
+  static const size_t extra_size= sizeof(double);
+  char *m_ptr;          // Value
+  ulong m_length;       // Value length
+  Item_result m_type;   // Value type
 
+  void reset_value()
+  { m_ptr= NULL; m_length= 0; }
+  void set_value(char *value, ulong length)
+  { m_ptr= value; m_length= length; }
+
+  /**
+    Position inside a user_var_entry where small values are stored:
+    double values, longlong values and string values with length
+    up to extra_size (should be 8 bytes on all platforms).
+    String values with length longer than 8 are stored in a separate
+    memory buffer, which is allocated when needed using the method realloc().
+  */
+  char *internal_buffer_ptr() const
+  { return (char *) this + ALIGN_SIZE(sizeof(user_var_entry)); }
+
+  /**
+    Position inside a user_var_entry where a null-terminates array
+    of characters representing the variable name is stored.
+  */
+  char *name_ptr() const
+  { return internal_buffer_ptr() + extra_size; }
+
+  /**
+    Initialize m_ptr to the internal buffer (if the value is small enough),
+    or allocate a separate buffer.
+    @param length - length of the value to be stored.
+  */
+  bool realloc(uint length);
+
+  /**
+    Check if m_ptr point to an external buffer previously alloced by realloc().
+    @retval true  - an external buffer is alloced.
+    @retval false - m_ptr is null, or points to the internal buffer.
+  */
+  bool alloced()
+  { return m_ptr && m_ptr != internal_buffer_ptr(); }
+
+  /**
+    Free the external value buffer, if it's allocated.
+  */
+  void free_value()
+  {
+    if (alloced())
+      my_free(m_ptr);
+  }
+
+  /**
+    Copy the array of characters from the given name into the internal
+    name buffer and initialize entry_name to point to it.
+  */
+  void copy_name(const Simple_cstring &name)
+  {
+    name.strcpy(name_ptr());
+    entry_name= Name_string(name_ptr(), name.length());
+  }
+
+  /**
+    Initialize all members
+    @param name - Name of the user_var_entry instance.
+  */
+  void init(const Simple_cstring &name)
+  {
+    copy_name(name);
+    reset_value();
+    update_query_id= 0;
+    collation.set(NULL, DERIVATION_IMPLICIT, 0);
+    unsigned_flag= 0;
+    /*
+      If we are here, we were called from a SET or a query which sets a
+      variable. Imagine it is this:
+      INSERT INTO t SELECT @a:=10, @a:=@a+1.
+      Then when we have a Item_func_get_user_var (because of the @a+1) so we
+      think we have to write the value of @a to the binlog. But before that,
+      we have a Item_func_set_user_var to create @a (@a:=10), in this we mark
+      the variable as "already logged" (line below) so that it won't be logged
+      by Item_func_get_user_var (because that's not necessary).
+    */
+    used_query_id= current_thd->query_id;
+    set_type(STRING_RESULT);
+  }
+
+  /**
+    Store a value of the given type into a user_var_entry instance.
+    @param from    Value
+    @param length  Size of the value
+    @param type    type
+    @return
+    @retval        false on success
+    @retval        true on memory allocation error
+  */
+  bool store(void *from, uint length, Item_result type);
+
+public:
+  user_var_entry() {}                         /* Remove gcc warning */
+
+  Simple_cstring entry_name;  // Variable name
+  DTCollation collation;      // Collation with attributes
+  query_id_t update_query_id, used_query_id;
+  bool unsigned_flag;         // true if unsigned, false if signed
+
+  /**
+    Store a value of the given type and attributes (collation, sign)
+    into a user_var_entry instance.
+    @param from         Value
+    @param length       Size of the value
+    @param type         type
+    @param cs           Character set and collation of the value
+    @param dv           Collationd erivation of the value
+    @param unsigned_arg Signess of the value
+    @return
+    @retval        false on success
+    @retval        true on memory allocation error
+  */
+  bool store(void *from, uint length, Item_result type,
+             const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
+  /**
+    Set type of to the given value.
+    @param type  Data type.
+  */
+  void set_type(Item_result type) { m_type= type; }
+  /**
+    Set value to NULL
+    @param type  Data type.
+  */
+
+  void set_null_value(Item_result type)
+  {
+    free_value();
+    reset_value();
+    set_type(type);
+  }
+
+  /**
+    Allocate and initialize a user variable instance.
+    @param namec  Name of the variable.
+    @return
+    @retval  Address of the allocated and initialized user_var_entry instance.
+    @retval  NULL on allocation error.
+  */
+  static user_var_entry *create(const Name_string &name)
+  {
+    user_var_entry *entry;
+    uint size= ALIGN_SIZE(sizeof(user_var_entry)) +
+               (name.length() + 1) + extra_size;
+    if (!(entry= (user_var_entry*) my_malloc(size, MYF(MY_WME |
+                                                       ME_FATALERROR))))
+      return NULL;
+    entry->init(name);
+    return entry;
+  }
+
+  /**
+    Free all memory used by a user_var_entry instance
+    previously created by create().
+  */
+  void destroy()
+  {
+    free_value();  // Free the external value buffer
+    my_free(this); // Free the instance itself
+  }
+
+  /* Routines to access the value and its type */
+  const char *ptr() const { return m_ptr; }
+  ulong length() const { return m_length; }
+  Item_result type() const { return m_type; }
+  /* Item-alike routines to access the value */
   double val_real(my_bool *null_value);
   longlong val_int(my_bool *null_value) const;
   String *val_str(my_bool *null_value, String *str, uint decimals);
   my_decimal *val_decimal(my_bool *null_value, my_decimal *result);
-  DTCollation collation;
 };
 
 /*

@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +39,16 @@ Created June 2005 by Marko Makela
 #include "srv0srv.h"
 #include "trx0types.h"
 #include "mem0mem.h"
+
+/* Compression level to be used by zlib. Settable by user. */
+extern ulint	page_compression_level;
+
+/* Default compression level. */
+#define DEFAULT_COMPRESSION_LEVEL	6
+
+/* Whether or not to log compressed page images to avoid possible
+compression algorithm changes in zlib. */
+extern bool	page_log_compressed_pages;
 
 /**********************************************************************//**
 Determine the size of a compressed page in bytes.
@@ -114,6 +125,7 @@ page_zip_compress(
 				m_start, m_end, m_nonempty */
 	const page_t*	page,	/*!< in: uncompressed page */
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
+	ulint		level,	/*!< in: commpression level */
 	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 	__attribute__((nonnull(1,2,3)));
 
@@ -460,6 +472,37 @@ page_zip_verify_checksum(
 /*=====================*/
 	const void*	data,	/*!< in: compressed page */
 	ulint		size);	/*!< in: size of compressed page */
+/**********************************************************************//**
+Write a log record of compressing an index page without the data on the page. */
+UNIV_INLINE
+void
+page_zip_compress_write_log_no_data(
+/*================================*/
+	ulint		level,	/*!< in: compression level */
+	const page_t*	page,	/*!< in: page that is compressed */
+	dict_index_t*	index,	/*!< in: index */
+	mtr_t*		mtr);	/*!< in: mtr */
+/**********************************************************************//**
+Parses a log record of compressing an index page without the data.
+@return	end of log record or NULL */
+UNIV_INLINE
+byte*
+page_zip_parse_compress_no_data(
+/*============================*/
+	byte*		ptr,		/*!< in: buffer */
+	byte*		end_ptr,	/*!< in: buffer end */
+	page_t*		page,		/*!< in: uncompressed page */
+	page_zip_des_t*	page_zip,	/*!< out: compressed page */
+	dict_index_t* index)		/*!< in: index */
+	__attribute__((nonnull(1,2)));
+
+/**********************************************************************//**
+Reset the counters used for filling
+INFORMATION_SCHEMA.innodb_cmp_per_index. */
+UNIV_INLINE
+void
+page_zip_reset_stat_per_index();
+/*===========================*/
 
 #ifndef UNIV_HOTBACKUP
 /** Check if a pointer to an uncompressed page matches a compressed page.

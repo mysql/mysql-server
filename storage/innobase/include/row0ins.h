@@ -189,7 +189,7 @@ row_ins_step(
 
 /* Insert node structure */
 
-struct ins_node_struct{
+struct ins_node_t{
 	que_common_t	common;	/*!< node type: QUE_NODE_INSERT */
 	ulint		ins_type;/* INS_VALUES, INS_SEARCHED, or INS_DIRECT */
 	dtuple_t*	row;	/*!< row to insert */

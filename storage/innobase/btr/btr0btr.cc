@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1736,6 +1737,8 @@ btr_page_reorganize_low(
 				there cannot exist locks on the
 				page, and a hash index should not be
 				dropped: it cannot exist */
+	ulint		compression_level,/*!< in: compression level to be used
+				if dealing with compressed page */
 	buf_block_t*	block,	/*!< in: page to be reorganized */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr)	/*!< in: mtr */
@@ -1753,6 +1756,8 @@ btr_page_reorganize_low(
 	ulint		max_ins_size1;
 	ulint		max_ins_size2;
 	ibool		success		= FALSE;
+	byte		type;
+	byte*		log_ptr;
 
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	btr_assert_not_corrupted(block, index);
@@ -1764,9 +1769,23 @@ btr_page_reorganize_low(
 
 #ifndef UNIV_HOTBACKUP
 	/* Write the log record */
-	mlog_open_and_write_index(mtr, page, index, page_is_comp(page)
-				  ? MLOG_COMP_PAGE_REORGANIZE
-				  : MLOG_PAGE_REORGANIZE, 0);
+	if (page_zip) {
+		type = MLOG_ZIP_PAGE_REORGANIZE;
+	} else if (page_is_comp(page)) {
+		type = MLOG_COMP_PAGE_REORGANIZE;
+	} else {
+		type = MLOG_PAGE_REORGANIZE;
+	}
+
+	log_ptr = mlog_open_and_write_index(
+		mtr, page, index, type, page_zip ? 1 : 0);
+
+	/* For compressed pages write the compression level. */
+	if (log_ptr && page_zip) {
+		mach_write_to_1(log_ptr, compression_level);
+		mlog_close(mtr, log_ptr + 1);
+	}
+
 #endif /* !UNIV_HOTBACKUP */
 
 	/* Turn logging off */
@@ -1814,7 +1833,9 @@ btr_page_reorganize_low(
 		ut_ad(max_trx_id != 0 || recovery);
 	}
 
-	if (page_zip && !page_zip_compress(page_zip, page, index, NULL)) {
+	if (page_zip
+	    && !page_zip_compress(page_zip, page, index,
+				  compression_level, NULL)) {
 
 		/* Restore the old page and exit. */
 		btr_blob_dbg_restore(page, temp_page, index,
@@ -1902,7 +1923,8 @@ btr_page_reorganize(
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr)	/*!< in: mtr */
 {
-	return(btr_page_reorganize_low(FALSE, block, index, mtr));
+	return(btr_page_reorganize_low(FALSE, page_compression_level,
+				       block, index, mtr));
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1914,18 +1936,32 @@ byte*
 btr_parse_page_reorganize(
 /*======================*/
 	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr __attribute__((unused)),
-				/*!< in: buffer end */
+	byte*		end_ptr,/*!< in: buffer end */
 	dict_index_t*	index,	/*!< in: record descriptor */
+	bool		compressed,/*!< in: true if compressed page */
 	buf_block_t*	block,	/*!< in: page to be reorganized, or NULL */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 {
+	ulint	level = page_compression_level;
+
 	ut_ad(ptr && end_ptr);
 
-	/* The record is empty, except for the record initial part */
+	/* If dealing with a compressed page the record has the
+	compression level used during original compression written in
+	one byte. Otherwise record is empty. */
+	if (compressed) {
+		if (ptr == end_ptr) {
+			return(NULL);
+		}
+
+		level = (ulint)mach_read_from_1(ptr);
+
+		ut_a(level <= 9);
+		++ptr;
+	}
 
 	if (block != NULL) {
-		btr_page_reorganize_low(TRUE, block, index, mtr);
+		btr_page_reorganize_low(TRUE, level, block, index, mtr);
 	}
 
 	return(ptr);
@@ -2007,6 +2043,7 @@ btr_root_raise_and_insert(
 	root = btr_cur_get_page(cursor);
 	root_block = btr_cur_get_block(cursor);
 	root_page_zip = buf_block_get_page_zip(root_block);
+	ut_ad(page_get_n_recs(root) > 0);
 #ifdef UNIV_ZIP_DEBUG
 	ut_a(!root_page_zip || page_zip_validate(root_page_zip, root));
 #endif /* UNIV_ZIP_DEBUG */
@@ -2484,14 +2521,26 @@ btr_insert_on_non_leaf_level_func(
 				    BTR_CONT_MODIFY_TREE,
 				    &cursor, 0, file, line, mtr);
 
-	err = btr_cur_pessimistic_insert(flags
-					 | BTR_NO_LOCKING_FLAG
-					 | BTR_KEEP_SYS_FLAG
-					 | BTR_NO_UNDO_LOG_FLAG,
-					 &cursor, &offsets, &heap,
-					 tuple, &rec,
-					 &dummy_big_rec, 0, NULL, mtr);
-	ut_a(err == DB_SUCCESS);
+	ut_ad(cursor.flag == BTR_CUR_BINARY);
+
+	err = btr_cur_optimistic_insert(
+		flags
+		| BTR_NO_LOCKING_FLAG
+		| BTR_KEEP_SYS_FLAG
+		| BTR_NO_UNDO_LOG_FLAG,
+		&cursor, &offsets, &heap,
+		tuple, &rec, &dummy_big_rec, 0, NULL, mtr);
+
+	if (err == DB_FAIL) {
+		err = btr_cur_pessimistic_insert(flags
+						 | BTR_NO_LOCKING_FLAG
+						 | BTR_KEEP_SYS_FLAG
+						 | BTR_NO_UNDO_LOG_FLAG,
+						 &cursor, &offsets, &heap,
+						 tuple, &rec,
+						 &dummy_big_rec, 0, NULL, mtr);
+		ut_a(err == DB_SUCCESS);
+	}
 	mem_heap_free(heap);
 }
 
@@ -3423,6 +3472,7 @@ btr_compress(
 
 	if (adjust) {
 		nth_rec = page_rec_get_n_recs_before(btr_cur_get_rec(cursor));
+		ut_ad(nth_rec > 0);
 	}
 
 	/* Decide the page to which we try to merge and which will inherit
@@ -3477,6 +3527,16 @@ err_exit:
 
 		mem_heap_free(heap);
 		return(FALSE);
+	}
+
+	/* If compression padding tells us that merging will result in
+	too packed up page i.e.: which is likely to cause compression
+	failure then don't merge the pages. */
+	if (zip_size && page_is_leaf(merge_page)
+	    && (page_get_data_size(merge_page) + data_size
+		>= dict_index_zip_pad_optimal_page_size(index))) {
+
+		goto err_exit;
 	}
 
 	ut_ad(page_validate(merge_page, index));
@@ -3657,6 +3717,7 @@ func_exit:
 	mem_heap_free(heap);
 
 	if (adjust) {
+		ut_ad(nth_rec > 0);
 		btr_cur_position(
 			index,
 			page_rec_get_nth(merge_block->frame, nth_rec),
@@ -4168,8 +4229,22 @@ btr_index_page_validate(
 {
 	page_cur_t	cur;
 	ibool		ret	= TRUE;
+#ifndef DBUG_OFF
+	ulint		nth	= 1;
+#endif /* !DBUG_OFF */
 
 	page_cur_set_before_first(block, &cur);
+
+	/* Directory slot 0 should only contain the infimum record. */
+	DBUG_EXECUTE_IF("check_table_rec_next",
+			ut_a(page_rec_get_nth_const(
+				     page_cur_get_page(&cur), 0)
+			     == cur.rec);
+			ut_a(page_dir_slot_get_n_owned(
+				     page_dir_get_nth_slot(
+					     page_cur_get_page(&cur), 0))
+			     == 1););
+
 	page_cur_move_to_next(&cur);
 
 	for (;;) {
@@ -4182,6 +4257,16 @@ btr_index_page_validate(
 
 			return(FALSE);
 		}
+
+		/* Verify that page_rec_get_nth_const() is correctly
+		retrieving each record. */
+		DBUG_EXECUTE_IF("check_table_rec_next",
+				ut_a(cur.rec == page_rec_get_nth_const(
+					     page_cur_get_page(&cur),
+					     page_rec_get_n_recs_before(
+						     cur.rec)));
+				ut_a(nth++ == page_rec_get_n_recs_before(
+					     cur.rec)););
 
 		page_cur_move_to_next(&cur);
 	}

@@ -461,7 +461,7 @@ btr_pcur_move_to_prev_on_page(
 /* The persistent B-tree cursor structure. This is used mainly for SQL
 selects, updates, and deletes. */
 
-struct btr_pcur_struct{
+struct btr_pcur_t{
 	btr_cur_t	btr_cur;	/*!< a B-tree cursor */
 	ulint		latch_mode;	/*!< see TODO note below!
 					BTR_SEARCH_LEAF, BTR_MODIFY_LEAF,

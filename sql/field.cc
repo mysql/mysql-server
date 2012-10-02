@@ -7647,45 +7647,58 @@ void Field_blob::put_length(uchar *pos, uint32 length)
 }
 
 
+/**
+  Store a blob value to memory storage.
+  @param     from         - the string value to store.
+  @param     length       - length of the string value.
+  @param     cs           - character set of the string value.
+  @param     max_length   - Cut at this length safely (multibyte aware).
+  @param OUT blob_storage - Memory storage to put value to.
+*/
 type_conversion_status
-Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
+Field_blob::store_to_mem(const char *from, uint length,
+                         const CHARSET_INFO *cs,
+                         uint max_length,
+                         Blob_mem_storage *blob_storage)
 {
-  ASSERT_COLUMN_MARKED_FOR_WRITE;
-  uint copy_length, new_length;
-  const char *well_formed_error_pos;
-  const char *cannot_convert_error_pos;
-  const char *from_end_pos;
+  DBUG_ASSERT(length > 0);
+  /*
+    We don't need to support escaping or character set conversions here,
+    because store_to_mem() is currently called only when we process
+    queries having GROUP_CONCAT with ORDER BY or DISTINCT,
+    hence some assersions:
+  */
+  DBUG_ASSERT(!f_is_hex_escape(flags));
+  DBUG_ASSERT(field_charset == cs);
+  DBUG_ASSERT(length <= max_data_length());
+
+  if (length > max_length)
+  {
+    int well_formed_error;
+    length= cs->cset->well_formed_len(cs, from, from + max_length,
+                                      length, &well_formed_error);
+    table->blob_storage->set_truncated_value(true);
+  }
+  char *tmp;
+  if (!(tmp= table->blob_storage->store(from, length)))
+  {
+    memset(ptr, 0, Field_blob::pack_length());
+    return TYPE_ERR_OOM;
+  }
+  store_ptr_and_length(tmp, length);
+  return TYPE_OK;
+}
+
+
+type_conversion_status
+Field_blob::store_internal(const char *from, uint length,
+                           const CHARSET_INFO *cs)
+{
+  uint new_length;
   char buff[STRING_BUFFER_USUAL_SIZE], *tmp;
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
-  if (!length)
-  {
-    memset(ptr, 0, Field_blob::pack_length());
-    return TYPE_OK;
-  }
-
-  if (table->blob_storage)    // GROUP_CONCAT with ORDER BY | DISTINCT
-  {
-    DBUG_ASSERT(!f_is_hex_escape(flags));
-    DBUG_ASSERT(field_charset == cs);
-    DBUG_ASSERT(length <= max_data_length());
-    
-    new_length= length;
-    copy_length= table->in_use->variables.group_concat_max_len;
-    if (new_length > copy_length)
-    {
-      int well_formed_error;
-      new_length= cs->cset->well_formed_len(cs, from, from + copy_length,
-                                            new_length, &well_formed_error);
-      table->blob_storage->set_truncated_value(true);
-    }
-    if (!(tmp= table->blob_storage->store(from, new_length)))
-      goto oom_error;
-
-    Field_blob::store_length(new_length);
-    bmove(ptr + packlength, (uchar*) &tmp, sizeof(char*));
-    return TYPE_OK;
-  }
+  DBUG_ASSERT(length > 0);
 
   /*
     If the 'from' address is in the range of the temporary 'value'-
@@ -7702,8 +7715,7 @@ Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
     uint32 dummy_offset;
     if (!String::needs_conversion(length, cs, field_charset, &dummy_offset))
     {
-      Field_blob::store_length(length);
-      bmove(ptr+packlength,(char*) &from,sizeof(char*));
+      store_ptr_and_length(from, length);
       return TYPE_OK;
     }
     if (tmpstr.copy(from, length, cs))
@@ -7718,37 +7730,61 @@ Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
 
   if (f_is_hex_escape(flags))
   {
-    copy_length= my_copy_with_hex_escaping(field_charset,
-                                           tmp, new_length,
-                                           from, length);
-    Field_blob::store_length(copy_length);
-    bmove(ptr + packlength, (uchar*) &tmp, sizeof(char*));
+    uint copy_length= my_copy_with_hex_escaping(field_charset,
+                                                tmp, new_length,
+                                                from, length);
+    store_ptr_and_length(tmp, copy_length);
     return TYPE_OK;
   }
-  /*
-    "length" is OK as "nchars" argument to well_formed_copy_nchars as this
-    is never used to limit the length of the data. The cut of long data
-    is done with the new_length value.
-  */
-  copy_length= well_formed_copy_nchars(field_charset,
-                                       tmp, new_length,
-                                       cs, from, length,
-                                       length,
-                                       &well_formed_error_pos,
-                                       &cannot_convert_error_pos,
-                                       &from_end_pos);
 
-  Field_blob::store_length(copy_length);
-  bmove(ptr+packlength,(uchar*) &tmp,sizeof(char*));
 
-  return check_string_copy_error(well_formed_error_pos,
-                                 cannot_convert_error_pos, from_end_pos,
-                                 from + length, true, cs);
+  {
+    const char *well_formed_error_pos;
+    const char *cannot_convert_error_pos;
+    const char *from_end_pos;
+    /*
+      "length" is OK as "nchars" argument to well_formed_copy_nchars as this
+      is never used to limit the length of the data. The cut of long data
+      is done with the new_length value.
+    */
+    uint copy_length= well_formed_copy_nchars(field_charset,
+                                              tmp, new_length,
+                                              cs, from, length,
+                                              length,
+                                              &well_formed_error_pos,
+                                              &cannot_convert_error_pos,
+                                              &from_end_pos);
+
+    store_ptr_and_length(tmp, copy_length);
+    return check_string_copy_error(well_formed_error_pos,
+                                   cannot_convert_error_pos, from_end_pos,
+                                   from + length, true, cs);
+  }
 
 oom_error:
   /* Fatal OOM error */
   memset(ptr, 0, Field_blob::pack_length());
   return TYPE_ERR_OOM;
+}
+
+
+type_conversion_status
+Field_blob::store(const char *from, uint length, const CHARSET_INFO *cs)
+{
+  ASSERT_COLUMN_MARKED_FOR_WRITE;
+
+  if (!length)
+  {
+    memset(ptr, 0, Field_blob::pack_length());
+    return TYPE_OK;
+  }
+
+  if (table->blob_storage)    // GROUP_CONCAT with ORDER BY | DISTINCT
+    return store_to_mem(from, length, cs,
+                        table->in_use->variables.group_concat_max_len,
+                        table->blob_storage);
+
+  return store_internal(from, length, cs);
 }
 
 
@@ -8203,38 +8239,45 @@ type_conversion_status Field_geom::store_decimal(const my_decimal *)
 
 
 type_conversion_status
-Field_geom::store(const char *from, uint length, const CHARSET_INFO *cs)
+Field_geom::store_internal(const char *from, uint length,
+                           const CHARSET_INFO *cs)
 {
-  if (!length)
-    memset(ptr, 0, Field_blob::pack_length());
-  else
-  {
-    if (from == Geometry::bad_geometry_data.ptr())
-      goto err;
-    // Check given WKB
-    uint32 wkb_type;
-    if (length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE*2)
-      goto err;
-    wkb_type= uint4korr(from + SRID_SIZE + 1);
-    if (wkb_type < (uint32) Geometry::wkb_point ||
-	wkb_type > (uint32) Geometry::wkb_last)
-      goto err;
-    Field_blob::store_length(length);
-    if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
-    {						// Must make a copy
-      value.copy(from, length, cs);
-      from= value.ptr();
-    }
-    bmove(ptr + packlength, (char*) &from, sizeof(char*));
-  }
-  return TYPE_OK;
+  uint32 wkb_type;
 
-err:
-  memset(ptr, 0, Field_blob::pack_length());  
-  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
-  return TYPE_ERR_BAD_VALUE;
+  DBUG_ASSERT(length > 0);
+
+  // Check given WKB
+  if (from == Geometry::bad_geometry_data.ptr() ||
+      length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE * 2 ||
+      (wkb_type= uint4korr(from + SRID_SIZE + 1)) < (uint32) Geometry::wkb_point ||
+       wkb_type > (uint32) Geometry::wkb_last)
+  {
+    memset(ptr, 0, Field_blob::pack_length());  
+    my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+               ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+    return TYPE_ERR_BAD_VALUE;
+  }
+
+  if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
+  {                                                   // Must make a copy
+    value.copy(from, length, cs);
+    from= value.ptr();
+  }
+
+  store_ptr_and_length(from, length);
+  return TYPE_OK;
 }
+
+
+uint Field_geom::is_equal(Create_field *new_field)
+{
+  return new_field->field_flags_are_binary() == field_flags_are_binary() &&
+         new_field->sql_type == real_type() &&
+         new_field->geom_type == get_geometry_type() &&
+         new_field->charset == field_charset &&
+         new_field->pack_length == pack_length();
+}
+
 
 #endif /*HAVE_SPATIAL*/
 

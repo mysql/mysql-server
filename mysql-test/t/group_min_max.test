@@ -15,7 +15,7 @@ drop table if exists t1;
 --enable_warnings
 
 create table t1 (
-  a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(64) default ' '
+  a1 char(64), a2 char(64), b char(16), c char(16) not null, d char(16), dummy char(248) default ' '
 );
 
 insert into t1 (a1, a2, b, c, d) values
@@ -65,7 +65,7 @@ drop table if exists t2;
 --enable_warnings
 
 create table t2 (
-  a1 char(64), a2 char(64) not null, b char(16), c char(16), d char(16), dummy char(64) default ' '
+  a1 char(64), a2 char(64) not null, b char(16), c char(16), d char(16), dummy char(248) default ' '
 );
 insert into t2 select * from t1;
 # add few rows with NULL's in the MIN/MAX column
@@ -989,6 +989,7 @@ DROP TABLE t1;
 
 CREATE TABLE t (a INT, b INT, INDEX (a,b));
 INSERT INTO t VALUES (2,0), (2,0), (2,1), (2,1);
+INSERT INTO t SELECT * FROM t;
 INSERT INTO t SELECT * FROM t;
 
 --echo # test MIN

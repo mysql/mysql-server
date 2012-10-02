@@ -84,7 +84,7 @@ row_ext_lookup(
 					DICT_MAX_FIELD_LEN_BY_FORMAT() */
 
 /** Prefixes of externally stored columns */
-struct row_ext_struct{
+struct row_ext_t{
 	ulint		n_ext;	/*!< number of externally stored columns */
 	const ulint*	ext;	/*!< col_no's of externally stored columns */
 	byte*		buf;	/*!< backing store of the column prefix cache */

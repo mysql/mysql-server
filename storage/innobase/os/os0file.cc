@@ -147,10 +147,7 @@ UNIV_INTERN mysql_pfs_key_t  innodb_file_temp_key;
 #endif /* UNIV_PFS_IO */
 
 /** The asynchronous i/o array slot structure */
-typedef struct os_aio_slot_struct	os_aio_slot_t;
-
-/** The asynchronous i/o array slot structure */
-struct os_aio_slot_struct{
+struct os_aio_slot_t{
 	ibool		is_read;	/*!< TRUE if a read operation */
 	ulint		pos;		/*!< index of the slot in the aio
 					array */
@@ -186,10 +183,7 @@ struct os_aio_slot_struct{
 };
 
 /** The asynchronous i/o array structure */
-typedef struct os_aio_array_struct	os_aio_array_t;
-
-/** The asynchronous i/o array structure */
-struct os_aio_array_struct{
+struct os_aio_array_t{
 	os_ib_mutex_t	mutex;	/*!< the mutex protecting the aio array */
 	os_event_t	not_full;
 				/*!< The event which is set to the
@@ -659,7 +653,9 @@ os_file_handle_error_cond_exit(
 				"operation.\n");
 
 			fflush(stderr);
-			ut_error;
+
+			ut_ad(0);  /* Report call stack, etc only in debug code. */
+			exit(1);
 		}
 	}
 
@@ -1293,11 +1289,14 @@ os_file_create_simple_no_error_handling_func(
 		access = GENERIC_READ | GENERIC_WRITE;
 	} else if (access_type == OS_FILE_READ_ALLOW_DELETE) {
 		access = GENERIC_READ;
-		share_mode = FILE_SHARE_DELETE | FILE_SHARE_READ
-			| FILE_SHARE_WRITE;	/*!< A backup program has to give
-						mysqld the maximum freedom to
-						do what it likes with the
-						file */
+
+		/*!< A backup program has to give mysqld the maximum
+		freedom to do what it likes with the file */
+
+		share_mode =
+			FILE_SHARE_DELETE
+			| FILE_SHARE_READ
+			| FILE_SHARE_WRITE;
 	} else {
 		access = 0;
 		ut_error;
@@ -1631,7 +1630,9 @@ try_again:
 
 	/* We disable OS caching (O_DIRECT) only on data files */
 	if (type != OS_LOG_FILE
-	    && srv_unix_file_flush_method == SRV_UNIX_O_DIRECT) {
+	    && (srv_unix_file_flush_method == SRV_UNIX_O_DIRECT
+		|| srv_unix_file_flush_method
+		   == SRV_UNIX_O_DIRECT_NO_FSYNC)) {
 
 		os_file_set_nocache(file, name, mode_str);
 	}
@@ -2929,47 +2930,65 @@ os_file_status(
 
 /*******************************************************************//**
 This function returns information about the specified file
-@return	TRUE if stat information found */
+@return	DB_SUCCESS if all OK */
 UNIV_INTERN
-ibool
+dberr_t
 os_file_get_status(
 /*===============*/
 	const char*	path,		/*!< in:	pathname of the file */
-	os_file_stat_t* stat_info)	/*!< information of a file in a
+	os_file_stat_t* stat_info,	/*!< information of a file in a
 					directory */
+	bool		check_rw_perm)	/*!< in: for testing whether the
+					file can be opened in RW mode */
 {
-#ifdef __WIN__
 	int		ret;
+
+#ifdef __WIN__
 	struct _stat	statinfo;
 
 	ret = _stat(path, &statinfo);
+
 	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
 		/* file does not exist */
 
-		return(FALSE);
+		return(DB_NOT_FOUND);
+
 	} else if (ret) {
 		/* file exists, but stat call failed */
 
 		os_file_handle_error_no_exit(path, "stat", FALSE);
 
-		return(FALSE);
-	}
-	if (_S_IFDIR & statinfo.st_mode) {
+		return(DB_FAIL);
+
+	} else if (_S_IFDIR & statinfo.st_mode) {
 		stat_info->type = OS_FILE_TYPE_DIR;
 	} else if (_S_IFREG & statinfo.st_mode) {
+
 		stat_info->type = OS_FILE_TYPE_FILE;
+
+		if (check_rw_perm) {
+			HANDLE	fh;
+
+			fh = CreateFile(
+				(LPCTSTR) path,		// File to open
+				GENERIC_WRITE | GENERIC_READ,
+				0,			// No sharing
+				NULL,			// Default security
+				OPEN_EXISTING,		// Existing file only
+				FILE_ATTRIBUTE_NORMAL,	// Normal file
+				NULL);			// No attr. template
+
+			if (fh == INVALID_HANDLE_VALUE) {
+				stat_info->rw_perm = false;
+			} else {
+				stat_info->rw_perm = true;
+				CloseHandle(fh);
+			}
+		}
 	} else {
 		stat_info->type = OS_FILE_TYPE_UNKNOWN;
 	}
-
-	stat_info->ctime = statinfo.st_ctime;
-	stat_info->atime = statinfo.st_atime;
-	stat_info->mtime = statinfo.st_mtime;
-	stat_info->size	 = statinfo.st_size;
-
-	return(TRUE);
 #else
-	int		ret;
 	struct stat	statinfo;
 
 	ret = stat(path, &statinfo);
@@ -2977,32 +2996,46 @@ os_file_get_status(
 	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
 		/* file does not exist */
 
-		return(FALSE);
+		return(DB_NOT_FOUND);
+
 	} else if (ret) {
 		/* file exists, but stat call failed */
 
 		os_file_handle_error_no_exit(path, "stat", FALSE);
 
-		return(FALSE);
-	}
+		return(DB_FAIL);
 
-	if (S_ISDIR(statinfo.st_mode)) {
+	} else if (S_ISDIR(statinfo.st_mode)) {
 		stat_info->type = OS_FILE_TYPE_DIR;
 	} else if (S_ISLNK(statinfo.st_mode)) {
 		stat_info->type = OS_FILE_TYPE_LINK;
 	} else if (S_ISREG(statinfo.st_mode)) {
 		stat_info->type = OS_FILE_TYPE_FILE;
+
+		if (check_rw_perm) {
+			int	fh;
+
+			fh = open(path, O_RDWR);
+
+			if (fh == -1) {
+				stat_info->rw_perm = false;
+			} else {
+				stat_info->rw_perm = true;
+				close(fh);
+			}
+		}
 	} else {
 		stat_info->type = OS_FILE_TYPE_UNKNOWN;
 	}
+
+#endif /* _WIN_ */
 
 	stat_info->ctime = statinfo.st_ctime;
 	stat_info->atime = statinfo.st_atime;
 	stat_info->mtime = statinfo.st_mtime;
 	stat_info->size	 = statinfo.st_size;
 
-	return(TRUE);
-#endif
+	return(DB_SUCCESS);
 }
 
 /* path name separator character */
@@ -3155,6 +3188,8 @@ os_file_make_data_dir_path(
 	tablename_len = ut_strlen(tablename);
 
 	ut_memmove(++ptr, tablename, tablename_len);
+
+	ptr[tablename_len] = '\0';
 }
 
 /****************************************************************//**
@@ -3673,8 +3708,8 @@ os_aio_init(
 
 	os_aio_validate();
 
-	os_aio_segment_wait_events = static_cast<os_event_struct_t**>(
-		ut_malloc(n_segments * sizeof(void*)));
+	os_aio_segment_wait_events = static_cast<os_event_t*>(
+		ut_malloc(n_segments * sizeof *os_aio_segment_wait_events));
 
 	for (i = 0; i < n_segments; i++) {
 		os_aio_segment_wait_events[i] = os_event_create(NULL);
@@ -4252,7 +4287,7 @@ os_aio_func(
 	ibool		retval;
 	BOOL		ret		= TRUE;
 	DWORD		len		= (DWORD) n;
-	struct fil_node_struct * dummy_mess1;
+	struct fil_node_t* dummy_mess1;
 	void*		dummy_mess2;
 	ulint		dummy_type;
 #endif /* WIN_ASYNC_IO */

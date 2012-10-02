@@ -523,8 +523,8 @@ public:
 
   friend class st_select_lex_unit;
   friend bool mysql_new_select(LEX *lex, bool move_down);
-  friend bool mysql_make_view(THD *thd, File_parser *parser,
-                              TABLE_LIST *table, uint flags);
+  friend bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
+                              bool open_view_no_parse);
 private:
   void fast_exclude();
 };
@@ -556,7 +556,7 @@ public:
     : union_result(NULL), table(NULL), result(NULL),
       cleaned(false),
       fake_select_lex(NULL),
-      explain_marker(0), explain_subselect_engine(NULL)
+      explain_marker(0)
   {
   }
 
@@ -609,10 +609,6 @@ public:
          files are too interlinked to include "opt_format.h" there
   */
   int explain_marker;
-  /**
-    Associated subquery (if any) for EXPLAIN
-  */
-  const subselect_engine *explain_subselect_engine;
 
   void init_query();
   st_select_lex_unit* master_unit();
@@ -714,6 +710,7 @@ public:
   List<TABLE_LIST> top_join_list; /* join list of the top level          */
   List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
   TABLE_LIST *embedding;          /* table embedding to the above list   */
+  /// List of semi-join nests generated for this query block
   List<TABLE_LIST> sj_nests;
   //Dynamic_array<TABLE_LIST*> sj_nests; psergey-5:
   /*
@@ -733,6 +730,7 @@ public:
     SLT_SUBQUERY,
     SLT_UNION,
     SLT_UNION_RESULT,
+    SLT_MATERIALIZED,
   // Total:
     SLT_total ///< fake type, total number of all valid types
   // Don't insert new types below this line!
@@ -1008,6 +1006,33 @@ inline bool st_select_lex_unit::is_union ()
   return first_select()->next_select() && 
     first_select()->next_select()->linkage == UNION_TYPE;
 }
+
+/// Utility RAII class to save/modify/restore a Resolve_place
+class Switch_resolve_place
+{
+public:
+  Switch_resolve_place(SELECT_LEX::Resolve_place *rp_ptr,
+                       SELECT_LEX::Resolve_place new_rp,
+                       bool apply)
+    : rp(NULL), saved_rp()
+  {
+    if (apply)
+    {
+      rp= rp_ptr;
+      saved_rp= *rp;
+      *rp= new_rp;
+    }
+  }
+  ~Switch_resolve_place()
+  {
+    if (rp)
+      *rp= saved_rp;
+  }
+private:
+  SELECT_LEX::Resolve_place *rp;
+  SELECT_LEX::Resolve_place saved_rp;
+};
+
 
 typedef struct struct_slave_connection
 {

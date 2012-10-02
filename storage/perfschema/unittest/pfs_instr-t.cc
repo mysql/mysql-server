@@ -157,19 +157,19 @@ void test_no_instances()
   PFS_thread fake_thread;
   fake_thread.m_filename_hash_pins= NULL;
 
-  file= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5);
+  file= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5, true);
   ok(file == NULL, "no file");
   ok(file_lost == 1, "lost 1");
-  file= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5);
+  file= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5, true);
   ok(file == NULL, "no file");
   ok(file_lost == 2, "lost 2");
 
   init_file_hash();
 
-  file= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5);
+  file= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5, true);
   ok(file == NULL, "no file");
   ok(file_lost == 3, "lost 3");
-  file= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5);
+  file= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5, true);
   ok(file == NULL, "no file");
   ok(file_lost == 4, "lost 4");
 
@@ -177,7 +177,7 @@ void test_no_instances()
   int size= sizeof(long_file_name);
   memset(long_file_name, 'X', size);
 
-  file= find_or_create_file(& fake_thread, & dummy_file_class, long_file_name, size);
+  file= find_or_create_file(& fake_thread, & dummy_file_class, long_file_name, size, true);
   ok(file == NULL, "no file");
   ok(file_lost == 5, "lost 5");
 
@@ -188,10 +188,10 @@ void test_no_instances()
   ok(table == NULL, "no table");
   ok(table_lost == 2, "lost 2");
 
-  socket= create_socket(& dummy_socket_class, NULL);
+  socket= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket == NULL, "no socket");
   ok(socket_lost == 1, "lost 1");
-  socket= create_socket(& dummy_socket_class, NULL);
+  socket= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket == NULL, "no socket");
   ok(socket_lost == 2, "lost 2");
 
@@ -331,50 +331,50 @@ void test_with_instances()
   PFS_thread fake_thread;
   fake_thread.m_filename_hash_pins= NULL;
 
-  file_1= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5);
+  file_1= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5, true);
   ok(file_1 == NULL, "no file");
   ok(file_lost == 1, "lost 1");
-  file_1= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5);
+  file_1= find_or_create_file(& fake_thread, & dummy_file_class, "dummy", 5, true);
   ok(file_1 == NULL, "no file");
   ok(file_lost == 2, "lost 2");
 
   init_file_hash();
   file_lost= 0;
 
-  file_1= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_A", 7);
+  file_1= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_A", 7, true);
   ok(file_1 != NULL, "file");
   ok(file_1->m_file_stat.m_open_count == 1, "open count 1");
   ok(file_lost == 0, "not lost");
-  file_2= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_A", 7);
+  file_2= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_A", 7, true);
   ok(file_1 == file_2, "same file");
   ok(file_1->m_file_stat.m_open_count == 2, "open count 2");
   ok(file_lost == 0, "not lost");
   release_file(file_2);
   ok(file_1->m_file_stat.m_open_count == 1, "open count 1");
-  file_2= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_B", 7);
+  file_2= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_B", 7, true);
   ok(file_2 != NULL, "file");
   ok(file_lost == 0, "not lost");
-  file_2= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_C", 7);
+  file_2= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_C", 7, true);
   ok(file_2 == NULL, "no file");
   ok(file_lost == 1, "lost");
   release_file(file_1);
   /* the file still exists, not destroyed */
   ok(file_1->m_file_stat.m_open_count == 0, "open count 0");
-  file_2= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_D", 7);
+  file_2= find_or_create_file(& fake_thread, & dummy_file_class, "dummy_D", 7, true);
   ok(file_2 == NULL, "no file");
   ok(file_lost == 2, "lost");
 
-  socket_1= create_socket(& dummy_socket_class, NULL);
+  socket_1= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket_1 != NULL, "socket");
   ok(socket_lost == 0, "not lost");
-  socket_2= create_socket(& dummy_socket_class, NULL);
+  socket_2= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket_2 != NULL, "socket");
   ok(socket_lost == 0, "not lost");
-  socket_2= create_socket(& dummy_socket_class, NULL);
+  socket_2= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket_2 == NULL, "no socket");
   ok(socket_lost == 1, "lost 1");
   destroy_socket(socket_1);
-  socket_2= create_socket(& dummy_socket_class, NULL);
+  socket_2= create_socket(& dummy_socket_class, NULL, NULL, 0);
   ok(socket_2 != NULL, "socket");
   ok(socket_lost == 1, "no new loss");
 

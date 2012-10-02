@@ -130,7 +130,8 @@ const char *st_select_lex::type_str[SLT_total]=
   "DERIVED",
   "SUBQUERY",
   "UNION",
-  "UNION RESULT"
+  "UNION RESULT",
+  "MATERIALIZED"
 };
 
 
@@ -478,6 +479,7 @@ void lex_start(THD *thd)
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
+  lex->is_change_password= false;
   DBUG_VOID_RETURN;
 }
 
@@ -2024,9 +2026,6 @@ void st_select_lex::mark_as_dependent(st_select_lex *last)
           sl->uncacheable|= UNCACHEABLE_UNITED;
       }
     }
-    Item_subselect *subquery_predicate= s->master_unit()->item;
-    if (subquery_predicate)
-      subquery_predicate->is_correlated= TRUE;
   }
 }
 
@@ -2270,20 +2269,7 @@ void st_select_lex::print_limit(THD *thd,
     if (subs_type == Item_subselect::EXISTS_SUBS ||
         subs_type == Item_subselect::IN_SUBS ||
         subs_type == Item_subselect::ALL_SUBS)
-    {
-      DBUG_ASSERT(!item->fixed ||
-                  /*
-                    If not using materialization both:
-                    select_limit == 1, and there should be no offset_limit.
-                  */
-                  (((subs_type == Item_subselect::IN_SUBS) &&
-                    ((Item_in_subselect*)item)->exec_method ==
-                    Item_in_subselect::EXEC_MATERIALIZATION) ?
-                   TRUE :
-                   (select_limit->val_int() == LL(1)) &&
-                   offset_limit == 0));
       return;
-    }
   }
   if (explicit_limit)
   {
@@ -2575,6 +2561,19 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   }
   else
     str->append(STRING_WITH_LEN("select "));
+
+  if (!thd->lex->describe && join && join->need_tmp)
+  {
+    /*
+      Items have been repointed to columns of an internal temporary table, it
+      is possible that the JOIN has gone through exec() and join_free(),
+      so items may have been freed by [tmp_JOIN_TAB]::cleanup(full=true),
+      and thus may not be printable. Unless this is EXPLAIN, in which case the
+      freeing is delayed by JOIN::join_free().
+    */
+    str->append(STRING_WITH_LEN("<already_cleaned_up>"));
+    return;
+  }
 
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)

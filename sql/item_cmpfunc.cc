@@ -519,6 +519,27 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
 }
 
 
+bool Item_bool_func2::convert_constant_arg(THD *thd, Item *field, Item **item)
+{
+  if (field->real_item()->type() != FIELD_ITEM)
+    return false;
+
+  Item_field *field_item= (Item_field*) (field->real_item());
+  if (field_item->field->can_be_compared_as_longlong() &&
+      !(field_item->is_temporal_with_date() &&
+      (*item)->result_type() == STRING_RESULT))
+  {
+    if (convert_constant_item(thd, field_item, item))
+    {
+      cmp.set_cmp_func(this, tmp_arg, tmp_arg + 1, INT_RESULT);
+      field->cmp_context= (*item)->cmp_context= INT_RESULT;
+      return true;
+    }
+  }
+  return false;
+}
+
+
 void Item_bool_func2::fix_length_and_dec()
 {
   max_length= 1;				     // Function returns 0 or 1
@@ -555,38 +576,9 @@ void Item_bool_func2::fix_length_and_dec()
   thd= current_thd;
   if (!thd->lex->is_ps_or_view_context_analysis())
   {
-    if (args[0]->real_item()->type() == FIELD_ITEM)
-    {
-      Item_field *field_item= (Item_field*) (args[0]->real_item());
-      if (field_item->field->can_be_compared_as_longlong() &&
-          !(field_item->is_temporal_with_date() &&
-            args[1]->result_type() == STRING_RESULT))
-      {
-        if (convert_constant_item(thd, field_item, &args[1]))
-        {
-          cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-                           INT_RESULT);		// Works for all types.
-          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          DBUG_VOID_RETURN;
-        }
-      }
-    }
-    if (args[1]->real_item()->type() == FIELD_ITEM)
-    {
-      Item_field *field_item= (Item_field*) (args[1]->real_item());
-      if (field_item->field->can_be_compared_as_longlong() &&
-          !(field_item->is_temporal_with_date() &&
-            args[0]->result_type() == STRING_RESULT))
-      {
-        if (convert_constant_item(thd, field_item, &args[0]))
-        {
-          cmp.set_cmp_func(this, tmp_arg, tmp_arg+1,
-                           INT_RESULT); // Works for all types.
-          args[0]->cmp_context= args[1]->cmp_context= INT_RESULT;
-          DBUG_VOID_RETURN;
-        }
-      }
-    }
+    if (convert_constant_arg(thd, args[0], &args[1]) ||
+        convert_constant_arg(thd, args[1], &args[0]))
+      DBUG_VOID_RETURN;
   }
   set_cmp_func();
   DBUG_VOID_RETURN;
@@ -789,6 +781,67 @@ static ulonglong get_date_from_str(THD *thd, String *str,
 }
 
 
+/**
+  Check if str_arg is a constant and convert it to datetime packed value.
+  Note, const_value may stay untouched, so the caller is responsible to
+  initialize it.
+
+  @param date_arg        - date argument, it's name is used for error reporting.
+  @param str_arg         - string argument to get datetime value from.
+  @param OUT const_value - the converted value is stored here, if not NULL.
+
+  @return true on error, false on success, false if str_arg is not a const.
+*/
+bool Arg_comparator::get_date_from_const(Item *date_arg,
+                                         Item *str_arg,
+                                         ulonglong *const_value)
+{
+  THD *thd= current_thd;
+  /*
+    Do not cache GET_USER_VAR() function as its const_item() may return TRUE
+    for the current thread but it still may change during the execution.
+    Don't use cache while in the context analysis mode only (i.e. for 
+    EXPLAIN/CREATE VIEW and similar queries). Cache is useless in such 
+    cases and can cause problems. For example evaluating subqueries can 
+    confuse storage engines since in context analysis mode tables 
+    aren't locked.
+  */
+  if (!thd->lex->is_ps_or_view_context_analysis() &&
+      str_arg->const_item() &&
+      (str_arg->type() != Item::FUNC_ITEM ||
+      ((Item_func*) str_arg)->functype() != Item_func::GUSERVAR_FUNC))
+  {
+    ulonglong value;
+    if (str_arg->field_type() == MYSQL_TYPE_TIME)
+    {
+      // Convert from TIME to DATETIME
+      value= str_arg->val_date_temporal();
+      if (str_arg->null_value)
+        return true;
+    }
+    else
+    {
+      // Convert from string to DATETIME
+      DBUG_ASSERT(str_arg->result_type() == STRING_RESULT);
+      bool error;
+      String tmp, *str_val= 0;
+      timestamp_type t_type= (date_arg->field_type() == MYSQL_TYPE_DATE ?
+                              MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
+      str_val= str_arg->val_str(&tmp);
+      if (str_arg->null_value)
+        return true;
+      value= get_date_from_str(thd, str_val, t_type,
+                               date_arg->item_name.ptr(), &error);
+      if (error)
+        return true;
+    }
+    if (const_value)
+      *const_value= value;
+  }
+  return false;
+}
+
+
 /*
   Check whether compare_datetime() can be used to compare items.
 
@@ -817,82 +870,35 @@ static ulonglong get_date_from_str(THD *thd, String *str,
     compare_datetime() isn't applicable then the *const_value remains
     unchanged.
 
-  RETURN
-    the found type of date comparison
+  @return true if can compare as dates, false otherwise.
 */
 
-enum Arg_comparator::enum_date_cmp_type
+bool
 Arg_comparator::can_compare_as_dates(Item *a, Item *b, ulonglong *const_value)
 {
-  enum enum_date_cmp_type cmp_type= CMP_DATE_DFLT;
-  Item *str_arg= 0, *date_arg= 0;
-
   if (a->type() == Item::ROW_ITEM || b->type() == Item::ROW_ITEM)
-    return CMP_DATE_DFLT;
+    return false;
 
   if (a->is_temporal_with_date())
   {
-    if (b->is_temporal_with_date())
-      cmp_type= CMP_DATE_WITH_DATE;
-    else if (b->result_type() == STRING_RESULT)
+    if (b->is_temporal_with_date()) //  date[time] + date
     {
-      cmp_type= CMP_DATE_WITH_STR;
-      date_arg= a;
-      str_arg= b;
+      return true;
     }
-  }
-  else if (b->is_temporal_with_date() && a->result_type() == STRING_RESULT)
-  {
-    cmp_type= CMP_STR_WITH_DATE;
-    date_arg= b;
-    str_arg= a;
-  }
-
-  if (cmp_type != CMP_DATE_DFLT)
-  {
-    THD *thd= current_thd;
-    /*
-      Do not cache GET_USER_VAR() function as its const_item() may return TRUE
-      for the current thread but it still may change during the execution.
-      Don't use cache while in the context analysis mode only (i.e. for 
-      EXPLAIN/CREATE VIEW and similar queries). Cache is useless in such 
-      cases and can cause problems. For example evaluating subqueries can 
-      confuse storage engines since in context analysis mode tables 
-      aren't locked.
-    */
-    if (!thd->lex->is_ps_or_view_context_analysis() &&
-        cmp_type != CMP_DATE_WITH_DATE && str_arg->const_item() &&
-        (str_arg->type() != Item::FUNC_ITEM ||
-        ((Item_func*)str_arg)->functype() != Item_func::GUSERVAR_FUNC))
+    else if (b->result_type() == STRING_RESULT) // date[time] + string
     {
-      ulonglong value;
-      if (str_arg->field_type() == MYSQL_TYPE_TIME)
-      {
-        // Convert TIME to DATETIME
-        value= str_arg->val_date_temporal();
-        if (str_arg->null_value)
-          return CMP_DATE_DFLT;
-        if (const_value)
-          *const_value= value;
-        return cmp_type;
-      }
-
-      // Convert from string to DATETIME
-      bool error;
-      String tmp, *str_val= 0;
-      timestamp_type t_type= (date_arg->field_type() == MYSQL_TYPE_DATE ?
-                              MYSQL_TIMESTAMP_DATE : MYSQL_TIMESTAMP_DATETIME);
-      str_val= str_arg->val_str(&tmp);
-      if (str_arg->null_value)
-        return CMP_DATE_DFLT;
-      value= get_date_from_str(thd, str_val, t_type, date_arg->item_name.ptr(), &error);
-      if (error)
-        return CMP_DATE_DFLT;
-      if (const_value)
-        *const_value= value;
+      return !get_date_from_const(a, b, const_value);
     }
+    else
+      return false; // date[time] + number
   }
-  return cmp_type;
+  else if (b->is_temporal_with_date() &&
+           a->result_type() == STRING_RESULT) // string + date[time]
+  {
+    return !get_date_from_const(b, a, const_value);
+  }
+  else
+    return false; // No date[time] items found
 }
 
 
@@ -980,7 +986,6 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
                                         Item **a1, Item **a2,
                                         Item_result type)
 {
-  enum enum_date_cmp_type cmp_type;
   ulonglong const_value= (ulonglong)-1;
   thd= current_thd;
   owner= owner_arg;
@@ -988,7 +993,7 @@ int Arg_comparator::set_cmp_func(Item_result_field *owner_arg,
   a= a1;
   b= a2;
 
-  if ((cmp_type= can_compare_as_dates(*a, *b, &const_value)))
+  if (can_compare_as_dates(*a, *b, &const_value))
   {
     a_type= (*a)->field_type();
     b_type= (*b)->field_type();
@@ -2061,14 +2066,15 @@ longlong Item_in_optimizer::val_int()
           all_left_cols_null= false;
       }
 
-      if (!item_subs->is_correlated && 
-          all_left_cols_null && result_for_null_param != UNKNOWN)
+      if (all_left_cols_null && result_for_null_param != UNKNOWN &&
+          !item_subs->originally_dependent())
       {
-        /* 
-           This is a non-correlated subquery, all values in the outer
-           value list are NULL, and we have already evaluated the
-           subquery for all NULL values: Return the same result we
-           did last time without evaluating the subquery.
+        /*
+           This subquery was originally not correlated. The IN->EXISTS
+           transformation may have made it correlated, but only to the left
+           expression. All values in the left expression are NULL, and we have
+           already evaluated the subquery for all NULL values: return the same
+           result we did last time without evaluating the subquery.
         */
         null_value= result_for_null_param;
       } 
@@ -4742,14 +4748,12 @@ Item_cond::fix_fields(THD *thd, Item **ref)
   DBUG_ASSERT(fixed == 0);
   List_iterator<Item> li(list);
   Item *item;
-  st_select_lex::Resolve_place save_resolve=
-    thd->lex->current_select->resolve_place;
+  Switch_resolve_place SRP(&thd->lex->current_select->resolve_place,
+                           st_select_lex::RESOLVE_NONE,
+                           functype() != COND_AND_FUNC);
   uchar buff[sizeof(char*)];			// Max local vars in function
   used_tables_cache= 0;
   const_item_cache= true;
-
-  if (functype() != COND_AND_FUNC)
-    thd->lex->current_select->resolve_place= st_select_lex::RESOLVE_NONE;
 
   if (functype() == COND_AND_FUNC && abort_on_null)
     not_null_tables_cache= 0;
@@ -4805,7 +4809,6 @@ Item_cond::fix_fields(THD *thd, Item **ref)
       maybe_null= true;
   }
   thd->lex->current_select->cond_count+= list.elements;
-  thd->lex->current_select->resolve_place= save_resolve;
   fix_length_and_dec();
   fixed= true;
   return false;
@@ -6376,15 +6379,25 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
       It's a field from a materialized semijoin. We can substitute it only
       with a field from the same semijoin.
 
-      Example: suppose we have a join order:
+      Example: suppose we have a join_tab order:
 
-       ot1 ot2  SJM(it1  it2  it3)  ot3
+       ot1 ot2 <subquery> ot3 SJM(it1  it2  it3)
 
-      and equality ot2.col = it1.col = it2.col
+      <subquery> is the temporary table that is materialized from the join
+      of it1, it2 and it3.
+
+      and equality ot2.col = <subquery>.col = it1.col = it2.col
 
       If we're looking for best substitute for 'it2.col', we must pick it1.col
       and not ot2.col. it2.col is evaluated while performing materialization,
       when the outer tables are not available in the execution.
+
+      Note that subquery materialization does not have the same problem:
+      even though IN->EXISTS has injected equalities involving outer query's
+      expressions, it has wrapped those expressions in variants of Item_ref,
+      never Item_field, so they can be part of an Item_equal only if they are
+      constant (in which case there is no problem with choosing them below);
+      @see check_simple_equality().
     */
     List_iterator<Item_field> it(fields);
     Item_field *item;
@@ -6406,25 +6419,98 @@ Item_field* Item_equal::get_subst_item(const Item_field *field)
       The field is not in a materialized semijoin nest. We can return
       the first field in the multiple equality.
 
-      Example: suppose we have a join order with MaterializeLookup:
+      Example: suppose we have a join_tab order with MaterializeLookup:
 
-       ot1 ot2  SJM-Lookup(it1  it2)
+        ot1 ot2 <subquery> SJM(it1 it2)
 
       Here we should always pick the first field in the multiple equality,
       as this will be present before all other dependent fields.
 
-      Example: suppose we have a join order with MaterializeScan:
+      Example: suppose we have a join_tab order with MaterializeScan:
 
-          SJM-Scan(it1  it2)  ot1  ot2
+        <subquery> ot1 ot2 SJM(it1 it2)
 
-      and equality ot2.col = ot1.col = it2.col.
+      and equality <subquery>.col = ot2.col = ot1.col = it2.col.
 
-      When looking for best substitute for 'ot2.col', we can pick it2.col,
-      because when we run the scan, column values from the inner materialized
-      tables will be copied back to the column buffers for it1 and it2.
+      When looking for best substitute for ot2.col, we should pick
+      <subquery>.col, because column values from the inner materialized tables
+      are copied to the temporary table <subquery>, and when we run the scan,
+      field values are read into this table's field buffers.
     */
     return fields.head();
   }
   DBUG_ASSERT(FALSE);                          // Should never get here.
   return NULL;
+}
+
+/**
+  Transform an Item_equal object after having added a table that
+  represents a materialized semi-join.
+
+  @details
+    If the multiple equality represented by the Item_equal object contains
+    a field from the subquery that was used to create the materialized table,
+    add the corresponding key field from the materialized table to the
+    multiple equality.
+    @see JOIN::update_equalities_for_sjm() for the reason.
+*/
+
+Item* Item_equal::equality_substitution_transformer(uchar *arg)
+{
+  TABLE_LIST *sj_nest= reinterpret_cast<TABLE_LIST *>(arg);
+  List_iterator<Item_field> it(fields);
+  List<Item_field> added_fields;
+  Item_field *item;
+  // Iterate over the fields in the multiple equality
+  while ((item= it++))
+  {
+    // Skip fields that do not come from materialized subqueries
+    const JOIN_TAB *tab= item->field->table->reginfo.join_tab;
+    if (!tab || !sj_is_materialize_strategy(tab->get_sj_strategy()))
+      continue;
+
+    // Iterate over the fields selected from the subquery
+    List_iterator<Item> mit(sj_nest->nested_join->sj_inner_exprs);
+    Item *existing;
+    uint fieldno= 0;
+    while ((existing= mit++))
+    {
+      if (existing->real_item()->eq(item, false))
+        added_fields.push_back(sj_nest->nested_join->sjm.mat_fields[fieldno]);
+      fieldno++;
+    }
+  }
+  fields.concat(&added_fields);
+
+  return this;
+}
+
+/**
+  Replace arg of Item_func_eq object after having added a table that
+  represents a materialized semi-join.
+
+  @details
+    The right argument of an injected semi-join equality (which comes from
+    the select list of the subquery) is replaced with the corresponding
+    column from the materialized temporary table, if the left and right
+    arguments are not from the same semi-join nest.
+    @see JOIN::update_equalities_for_sjm() for why this is needed.
+*/
+Item* Item_func_eq::equality_substitution_transformer(uchar *arg)
+{
+  TABLE_LIST *sj_nest= reinterpret_cast<TABLE_LIST *>(arg);
+
+  // Iterate over the fields selected from the subquery
+  List_iterator<Item> mit(sj_nest->nested_join->sj_inner_exprs);
+  Item *existing;
+  uint fieldno= 0;
+  while ((existing= mit++))
+  {
+    if (existing->real_item()->eq(args[1], false) &&
+        (args[0]->used_tables() & ~sj_nest->sj_inner_tables))
+      current_thd->change_item_tree(args+1,
+                                 sj_nest->nested_join->sjm.mat_fields[fieldno]);
+    fieldno++;
+  }
+  return this;
 }

@@ -244,17 +244,14 @@ a	b
 INSERT INTO t1 VALUES (3,3);
 SET DEBUG_SYNC= 'now SIGNAL continue1';
 SET DEBUG_SYNC= 'now WAIT_FOR upgraded';
-# Now writes should be blocked, reads still allowed.
+# Now both reads and writes should be blocked
 SELECT * FROM t1;
-a	b
-1	1
-2	2
-3	3
+ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t1 VALUES (4,4);
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC= 'now SIGNAL continue2';
 SET DEBUG_SYNC= 'now WAIT_FOR beforecommit';
-# Now both reads and writes should be blocked.
+# Still both reads and writes should be blocked.
 SELECT * FROM t1;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 INSERT INTO t1 VALUES (5,5);
@@ -307,6 +304,8 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC= 'now SIGNAL continue3';
 # Connection default
 # Reaping ALTER TABLE ...
+Warnings:
+Note	1831	Duplicate index 'i2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 SET DEBUG_SYNC= 'RESET';
 DELETE FROM t1 WHERE a= 3;
 #
@@ -355,6 +354,8 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC= 'now SIGNAL continue4';
 # Connection default
 # Reaping ALTER TABLE ...
+Warnings:
+Note	1831	Duplicate index 'i4' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 SET DEBUG_SYNC= 'RESET';
 DROP TABLE t1;
 SET DEBUG_SYNC= 'RESET';

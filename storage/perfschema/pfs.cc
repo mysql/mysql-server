@@ -1725,9 +1725,18 @@ static void close_table_v1(PSI_table *table)
 }
 
 static PSI_socket*
-init_socket_v1(PSI_socket_key key, const my_socket *fd)
+init_socket_v1(PSI_socket_key key, const my_socket *fd,
+               const struct sockaddr *addr, socklen_t addr_len)
 {
-  INIT_BODY_V1(socket, key, fd);
+  PFS_socket_class *klass;
+  PFS_socket *pfs;
+  klass= find_socket_class(key);
+  if (unlikely(klass == NULL))
+    return NULL;
+  if (! klass->m_enabled)
+    return NULL;
+  pfs= create_socket(klass, fd, addr, addr_len);
+  return reinterpret_cast<PSI_socket *> (pfs);
 }
 
 static void destroy_socket_v1(PSI_socket *socket)
@@ -1775,7 +1784,7 @@ static void create_file_v1(PSI_file_key key, const char *name, File file)
   }
 
   uint len= strlen(name);
-  PFS_file *pfs_file= find_or_create_file(pfs_thread, klass, name, len);
+  PFS_file *pfs_file= find_or_create_file(pfs_thread, klass, name, len, true);
 
   file_handle_array[index]= pfs_file;
 }
@@ -2768,11 +2777,6 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
   if (klass->m_timed)
     flags|= STATE_FLAG_TIMED;
 
-  uint len= strlen(name);
-  PFS_file *pfs_file= find_or_create_file(pfs_thread, klass, name, len);
-  if (unlikely(pfs_file == NULL))
-    return NULL;
-
   if (flag_events_waits_current)
   {
     if (unlikely(pfs_thread->m_events_waits_current >=
@@ -2794,9 +2798,9 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
     wait->m_class= klass;
     wait->m_timer_start= 0;
     wait->m_timer_end= 0;
-    wait->m_object_instance_addr= pfs_file;
-    wait->m_weak_file= pfs_file;
-    wait->m_weak_version= pfs_file->get_version();
+    wait->m_object_instance_addr= NULL;
+    wait->m_weak_file= NULL;
+    wait->m_weak_version= 0;
     wait->m_event_id= pfs_thread->m_event_id++;
     wait->m_end_event_id= 0;
     wait->m_operation= file_operation_map[static_cast<int> (op)];
@@ -2806,7 +2810,9 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
   }
 
   state->m_flags= flags;
-  state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
+  state->m_file= NULL;
+  state->m_name= name;
+  state->m_class= klass;
   state->m_operation= op;
   return reinterpret_cast<PSI_file_locker*> (state);
 }
@@ -2827,6 +2833,7 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
   if (unlikely(pfs_file == NULL))
     return NULL;
   DBUG_ASSERT(pfs_file->m_class != NULL);
+  PFS_file_class *klass= pfs_file->m_class;
 
   if (! pfs_file->m_enabled)
     return NULL;
@@ -2864,7 +2871,7 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
-      wait->m_class= pfs_file->m_class;
+      wait->m_class= klass;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_file;
@@ -2895,6 +2902,8 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
   state->m_flags= flags;
   state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
   state->m_operation= op;
+  state->m_name= NULL;
+  state->m_class= klass;
   return reinterpret_cast<PSI_file_locker*> (state);
 }
 
@@ -2929,9 +2938,11 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
   if (op == PSI_FILE_CLOSE)
     file_handle_array[index]= NULL;
 
-  DBUG_ASSERT(pfs_file->m_class != NULL);
   if (! pfs_file->m_enabled)
     return NULL;
+
+  DBUG_ASSERT(pfs_file->m_class != NULL);
+  PFS_file_class *klass= pfs_file->m_class;
 
   register uint flags;
 
@@ -2966,7 +2977,7 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
       wait->m_nesting_event_type= parent_event->m_event_type;
 
       wait->m_thread= pfs_thread;
-      wait->m_class= pfs_file->m_class;
+      wait->m_class= klass;
       wait->m_timer_start= 0;
       wait->m_timer_end= 0;
       wait->m_object_instance_addr= pfs_file;
@@ -2997,6 +3008,8 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
   state->m_flags= flags;
   state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
   state->m_operation= op;
+  state->m_name= NULL;
+  state->m_class= klass;
   return reinterpret_cast<PSI_file_locker*> (state);
 }
 
@@ -3868,25 +3881,50 @@ static void end_file_wait_v1(PSI_file_locker *locker,
   Implementation of the file instrumentation interface.
   @sa PSI_v1::start_file_open_wait.
 */
-static PSI_file* start_file_open_wait_v1(PSI_file_locker *locker,
-                                         const char *src_file,
-                                         uint src_line)
+static void start_file_open_wait_v1(PSI_file_locker *locker,
+                                    const char *src_file,
+                                    uint src_line)
 {
-  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
-  DBUG_ASSERT(state != NULL);
-
   start_file_wait_v1(locker, 0, src_file, src_line);
 
-  return state->m_file;
+  return;
 }
 
 /**
   Implementation of the file instrumentation interface.
   @sa PSI_v1::end_file_open_wait.
 */
-static void end_file_open_wait_v1(PSI_file_locker *locker)
+static PSI_file* end_file_open_wait_v1(PSI_file_locker *locker,
+                                       void *result)
 {
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  switch (state->m_operation)
+  {
+  case PSI_FILE_STAT:
+    break;
+  case PSI_FILE_STREAM_OPEN:
+  case PSI_FILE_CREATE:
+    if (result != NULL)
+    {
+      PFS_file_class *klass= reinterpret_cast<PFS_file_class*> (state->m_class);
+      PFS_thread *thread= reinterpret_cast<PFS_thread*> (state->m_thread);
+      const char *name= state->m_name;
+      uint len= strlen(name);
+      PFS_file *pfs_file= find_or_create_file(thread, klass, name, len, true);
+      state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
+    }
+    break;
+  case PSI_FILE_OPEN:
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
   end_file_wait_v1(locker, 0);
+
+  return state->m_file;
 }
 
 /**
@@ -3896,25 +3934,33 @@ static void end_file_open_wait_v1(PSI_file_locker *locker)
 static void end_file_open_wait_and_bind_to_descriptor_v1
   (PSI_file_locker *locker, File file)
 {
+  PFS_file *pfs_file= NULL;
   int index= (int) file;
   PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  end_file_wait_v1(locker, 0);
+  if (index >= 0)
+  {
+    PFS_file_class *klass= reinterpret_cast<PFS_file_class*> (state->m_class);
+    PFS_thread *thread= reinterpret_cast<PFS_thread*> (state->m_thread);
+    const char *name= state->m_name;
+    uint len= strlen(name);
+    pfs_file= find_or_create_file(thread, klass, name, len, true);
+    state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
+  }
 
-  PFS_file *pfs_file= reinterpret_cast<PFS_file*> (state->m_file);
-  DBUG_ASSERT(pfs_file != NULL);
+  end_file_wait_v1(locker, 0);
 
   if (likely(index >= 0))
   {
     if (likely(index < file_handle_max))
       file_handle_array[index]= pfs_file;
     else
+    {
+      if (pfs_file != NULL)
+        release_file(pfs_file);
       file_handle_lost++;
-  }
-  else
-  {
-    release_file(pfs_file);
+    }
   }
 }
 
@@ -3961,7 +4007,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
   PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
   PFS_file *file= reinterpret_cast<PFS_file *> (state->m_file);
-  DBUG_ASSERT(file != NULL);
+  PFS_file_class *klass= reinterpret_cast<PFS_file_class *> (state->m_class);
   PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
 
   ulonglong timer_end= 0;
@@ -3970,15 +4016,26 @@ static void end_file_wait_v1(PSI_file_locker *locker,
   register uint flags= state->m_flags;
   size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
 
+  PFS_file_stat *file_stat;
+
+  if (file != NULL)
+  {
+    file_stat= & file->m_file_stat;
+  }
+  else
+  {
+    file_stat= & klass->m_file_stat;
+  }
+
   switch (state->m_operation)
   {
     /* Group read operations */
     case PSI_FILE_READ:
-      byte_stat= &file->m_file_stat.m_io_stat.m_read;
+      byte_stat= &file_stat->m_io_stat.m_read;
       break;
     /* Group write operations */
     case PSI_FILE_WRITE:
-      byte_stat= &file->m_file_stat.m_io_stat.m_write;
+      byte_stat= &file_stat->m_io_stat.m_write;
       break;
     /* Group remaining operations as miscellaneous */
     case PSI_FILE_CREATE:
@@ -3996,7 +4053,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
     case PSI_FILE_SYNC:
     case PSI_FILE_STAT:
     case PSI_FILE_CLOSE:
-      byte_stat= &file->m_file_stat.m_io_stat.m_misc;
+      byte_stat= &file_stat->m_io_stat.m_misc;
       break;
     default:
       DBUG_ASSERT(false);
@@ -4024,7 +4081,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
 
     PFS_single_stat *event_name_array;
     event_name_array= thread->m_instr_class_waits_stats;
-    uint index= file->m_class->m_event_name_index;
+    uint index= klass->m_event_name_index;
 
     if (flags & STATE_FLAG_TIMED)
     {
@@ -4045,6 +4102,9 @@ static void end_file_wait_v1(PSI_file_locker *locker,
       wait->m_timer_end= timer_end;
       wait->m_number_of_bytes= bytes;
       wait->m_end_event_id= thread->m_event_id;
+      wait->m_object_instance_addr= file;
+      wait->m_weak_file= file;
+      wait->m_weak_version= (file ? file->get_version() : 0);
 
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
@@ -4053,22 +4113,79 @@ static void end_file_wait_v1(PSI_file_locker *locker,
       thread->m_events_waits_current--;
     }
   }
+}
 
-  /* Release or destroy the file if necessary */
-  switch(state->m_operation)
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::start_file_close_wait.
+*/
+static void start_file_close_wait_v1(PSI_file_locker *locker,
+                                     const char *src_file,
+                                     uint src_line)
+{
+  PFS_thread *thread;
+  const char *name;
+  uint len;
+  PFS_file *pfs_file;
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  switch (state->m_operation)
   {
-  case PSI_FILE_CLOSE:
-  case PSI_FILE_STREAM_CLOSE:
-  case PSI_FILE_STAT:
-    release_file(file);
-    break;
   case PSI_FILE_DELETE:
-    DBUG_ASSERT(thread != NULL);
-    destroy_file(thread, file);
+    thread= reinterpret_cast<PFS_thread*> (state->m_thread);
+    name= state->m_name;
+    len= strlen(name);
+    pfs_file= find_or_create_file(thread, NULL, name, len, false);
+    state->m_file= reinterpret_cast<PSI_file*> (pfs_file);
+    break;
+  case PSI_FILE_STREAM_CLOSE:
+  case PSI_FILE_CLOSE:
     break;
   default:
+    DBUG_ASSERT(false);
     break;
   }
+
+  start_file_wait_v1(locker, 0, src_file, src_line);
+
+  return;
+}
+
+/**
+  Implementation of the file instrumentation interface.
+  @sa PSI_v1::end_file_close_wait.
+*/
+static void end_file_close_wait_v1(PSI_file_locker *locker, int rc)
+{
+  PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
+  DBUG_ASSERT(state != NULL);
+
+  end_file_wait_v1(locker, 0);
+
+  if (rc == 0)
+  {
+    PFS_thread *thread= reinterpret_cast<PFS_thread*> (state->m_thread);
+    PFS_file *file= reinterpret_cast<PFS_file*> (state->m_file);
+
+    /* Release or destroy the file if necessary */
+    switch(state->m_operation)
+    {
+    case PSI_FILE_CLOSE:
+    case PSI_FILE_STREAM_CLOSE:
+      if (file != NULL)
+        release_file(file);
+      break;
+    case PSI_FILE_DELETE:
+      if (file != NULL)
+        destroy_file(thread, file);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+  }
+  return;
 }
 
 static void start_stage_v1(PSI_stage_key key, const char *src_file, int src_line)
@@ -4328,10 +4445,11 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
 
   if (flag_statements_digest)
   {
+    const CHARSET_INFO *cs= static_cast <const CHARSET_INFO*> (charset);
     flags|= STATE_FLAG_DIGEST;
     state->m_digest_state.m_last_id_index= 0;
     digest_reset(& state->m_digest_state.m_digest_storage);
-    state->m_digest_state.m_digest_storage.m_charset= charset;
+    state->m_digest_state.m_digest_storage.m_charset_number= cs->number;
   }
 
   state->m_discarded= false;
@@ -5036,6 +5154,8 @@ PSI_v1 PFS_v1=
   end_file_open_wait_and_bind_to_descriptor_v1,
   start_file_wait_v1,
   end_file_wait_v1,
+  start_file_close_wait_v1,
+  end_file_close_wait_v1,
   start_stage_v1,
   end_stage_v1,
   get_thread_statement_locker_v1,

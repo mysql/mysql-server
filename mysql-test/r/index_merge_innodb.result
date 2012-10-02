@@ -219,6 +219,8 @@ index i1b (key1b, key1a),
 index i2_1(key2, key2_1),
 index i2_2(key2, key2_1)
 );
+Warnings:
+Note	1831	Duplicate index 'i2_2' defined on the table 'test.t4'. This is deprecated and will be disallowed in a future release.
 insert into t4 select key1,key1,key1 div 10, key1 % 10, key1 % 10, key1 from t0;
 select * from t4 where key1a = 3 or key1b = 4;
 key1a	key1b	key2	key2_1	key2_2	key3
@@ -752,7 +754,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt1a,sta_swt2a,stb_swt1b	8,8,8	NULL	#	Using intersect(sta_swt1a,sta_swt2a,stb_swt1b); Using where
+1	SIMPLE	t1	index_merge	sta_swt1a,sta_swt2a,st_a,stb_swt1b,st_b	sta_swt1a,stb_swt1b,sta_swt2a	8,8,8	NULL	#	Using intersect(sta_swt1a,stb_swt1b,sta_swt2a); Using where
 explain select * from t1 ignore index (sta_swt21a, sta_swt12a, stb_swt1a_2b, stb_swt1b)
 where st_a=1 and swt1a=1 and swt2a=1 and st_b=1 and swt1b=1 and swt2b=1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1495,7 +1497,7 @@ EXPLAIN SELECT t1.f1 FROM t1
 WHERE (SELECT COUNT(*) FROM t2 WHERE t2.f3 = 'h' AND t2.f2 = t1.f1) = 0 AND t1.f1 = 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	const	PRIMARY	PRIMARY	4	const	1	Using index
-2	DEPENDENT SUBQUERY	t2	index_merge	f2,f3	f3,f2	2,5	NULL	1	Using intersect(f3,f2); Using where; Using index
+2	DEPENDENT SUBQUERY	t2	index_merge	f2,f3	f2,f3	5,2	NULL	1	Using intersect(f2,f3); Using where; Using index
 DROP TABLE t1,t2;
 #
 # Bug#11747423 32254: INDEX MERGE USED UNNECESSARILY

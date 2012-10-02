@@ -719,15 +719,6 @@ TRACE
                     "to": "semijoin",
                     "chosen": false
                   } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
-                    "to": "materialization",
-                    "chosen": false,
-                    "cause": "already have strategy"
-                  } /* transformation */
                 }
               ] /* steps */
             } /* join_preparation */
@@ -1084,6 +1075,17 @@ TRACE
                                 "chosen": true
                               }
                             ] /* considered_execution_plans */
+                          },
+                          {
+                            "transformation": {
+                              "select#": 2,
+                              "from": "IN (SELECT)",
+                              "to": "materialization",
+                              "has_nullable_expressions": true,
+                              "treat_UNKNOWN_as_FALSE": false,
+                              "possible": false,
+                              "cause": "cannot_handle_partial_matches"
+                            } /* transformation */
                           },
                           {
                             "attaching_conditions_to_tables": {
@@ -2683,7 +2685,7 @@ from t0 where a in
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t0`.`a` AS `a` from `t0` where <in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select 1 from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
+            "expanded_query": "/* select#1 */ select `t0`.`a` AS `a` from `t0` where <in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -2695,25 +2697,25 @@ from t0 where a in
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select 1 from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))",
+              "original_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select 1 from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
+                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select 1 from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
+                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select 1 from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
+                  "resulting_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -2768,13 +2770,13 @@ from t0 where a in
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select 1 from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))",
+              "original_condition": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t0`",
-                  "attached": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select 1 from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
+                  "attached": "<in_optimizer>(`t0`.`a`,<exists>(/* select#2 */ select (`t2`.`a` + `t3`.`a`) from (`t1` left join (`t2` join `t3`) on(((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`)))) where (<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`))))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -2805,7 +2807,7 @@ from t0 where a in
                       "JOIN_condition_to_WHERE",
                       "parenthesis_removal"
                     ] /* transformations */,
-                    "expanded_query": "/* select#2 */ select 1 from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))"
+                    "expanded_query": "/* select#2 */ select (`t2`.`a` + `t3`.`a`) from `t1` join `t2` join `t3` where ((<cache>(`t0`.`a`) = (`t2`.`a` + `t3`.`a`)) and (`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`))"
                   } /* transformations_to_nested_joins */
                 },
                 {
@@ -3277,6 +3279,14 @@ from t0 where a in
                       ] /* rest_of_plan */
                     }
                   ] /* considered_execution_plans */
+                },
+                {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "IN (SELECT)",
+                    "to": "EXISTS (CORRELATED SELECT)",
+                    "put_1_in_SELECT_list": true
+                  } /* transformation */
                 },
                 {
                   "attaching_conditions_to_tables": {

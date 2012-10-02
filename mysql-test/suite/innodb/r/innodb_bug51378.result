@@ -4,6 +4,8 @@ col2 blob not null,
 col3 time not null) engine = innodb;
 create unique index idx on bug51378(col1, col2(31));
 alter table bug51378 add unique index idx2(col1, col2(31));
+Warnings:
+Note	1831	Duplicate index 'idx2' defined on the table 'test.bug51378'. This is deprecated and will be disallowed in a future release.
 create unique index idx3 on bug51378(col1, col3);
 SHOW CREATE TABLE bug51378;
 Table	Create Table

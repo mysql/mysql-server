@@ -1,4 +1,6 @@
 set optimizer_switch='materialization=on';
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='subquery_materialization_cost_based=off';
 drop table if exists t0, t1, t2, t10, t11, t12;
 create table t1 (a int not null, b int, primary key (a));
 create table t2 (a int not null, primary key (a));
@@ -14,9 +16,9 @@ a
 explain extended select * from t2 where t2.a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
-2	SUBQUERY	t1	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
+2	SUBQUERY	t1	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
 2
@@ -24,9 +26,9 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
+2	SUBQUERY	t1	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 a
 2
@@ -35,9 +37,9 @@ explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	PRIMARY	4	NULL	4	100.00	Using where; Using index
 2	SUBQUERY	t3	index	PRIMARY	PRIMARY	4	NULL	3	100.00	Using index
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t1	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`b` = `test`.`t3`.`a`) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`b` = `test`.`t3`.`a`) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 drop table t1, t2, t3;
 create table t1 (a int, b int, index a (a,b));
 create table t2 (a int, index a (a));
@@ -57,9 +59,9 @@ a
 explain extended select * from t2 where t2.a in (select a from t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	SUBQUERY	t1	index	NULL	a	10	NULL	10004	100.00	Using index
+2	SUBQUERY	t1	index	a	a	10	NULL	10004	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
 2
@@ -67,9 +69,9 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	SUBQUERY	t1	index	NULL	a	10	NULL	10004	100.00	Using where; Using index
+2	SUBQUERY	t1	index	a	a	10	NULL	10004	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 select * from t2 where t2.a in (select t1.a from t1,t3 where t1.b=t3.a);
 a
 2
@@ -78,9 +80,9 @@ explain extended select * from t2 where t2.a in (select t1.a from t1,t3 where t1
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
 2	SUBQUERY	t3	index	a	a	5	NULL	3	100.00	Using index
-2	SUBQUERY	t1	index	NULL	a	10	NULL	10004	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t1	index	a	a	10	NULL	10004	75.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`b` = `test`.`t3`.`a`) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` join `test`.`t3` where (`test`.`t1`.`b` = `test`.`t3`.`a`) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 insert into t1 values (3,31);
 select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 a
@@ -94,9 +96,9 @@ a
 explain extended select * from t2 where t2.a in (select a from t1 where t1.b <> 30);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	4	100.00	Using where; Using index
-2	SUBQUERY	t1	index	NULL	a	10	NULL	10005	100.00	Using where; Using index
+2	SUBQUERY	t1	index	a	a	10	NULL	10005	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on distinct_key where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,`test`.`t2`.`a` in ( <materialize> (/* select#2 */ select `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`b` <> 30) ), <primary_index_lookup>(`test`.`t2`.`a` in <temporary table> on <auto_key> where ((`test`.`t2`.`a` = `materialized-subquery`.`a`)))))
 drop table t0, t1, t2, t3;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -112,7 +114,7 @@ Flattened because of dependency, t10=func(t1)
 explain select * from t1 where a in (select pk from t10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t10	index	NULL	PRIMARY	4	NULL	10	Using index
+2	SUBQUERY	t10	index	PRIMARY	PRIMARY	4	NULL	10	Using index
 select * from t1 where a in (select pk from t10);
 a	b
 0	0
@@ -141,8 +143,8 @@ a	b
 explain select * from t1 where a in (select pk from t10) and b in (select pk from t10);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-3	SUBQUERY	t10	index	NULL	PRIMARY	4	NULL	10	Using index
-2	SUBQUERY	t10	index	NULL	PRIMARY	4	NULL	10	Using index
+3	SUBQUERY	t10	index	PRIMARY	PRIMARY	4	NULL	10	Using index
+2	SUBQUERY	t10	index	PRIMARY	PRIMARY	4	NULL	10	Using index
 select * from t1 where a in (select pk from t10) and b in (select pk from t10);
 a	b
 0	0
@@ -152,8 +154,8 @@ flattening a nested subquery
 explain select * from t1 where a in (select pk from t10 where t10.a in (select pk from t12));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-2	SUBQUERY	t10	ALL	NULL	NULL	NULL	NULL	10	Using where
-3	SUBQUERY	t12	index	NULL	PRIMARY	4	NULL	10	Using index
+2	SUBQUERY	t10	ALL	PRIMARY	NULL	NULL	NULL	10	Using where
+3	SUBQUERY	t12	index	PRIMARY	PRIMARY	4	NULL	10	Using index
 select * from t1 where a in (select pk from t10 where t10.a in (select pk from t12));
 a	b
 0	0
@@ -163,10 +165,10 @@ flattening subquery w/ several tables
 explain extended select * from t1 where a in (select t10.pk from t10, t12 where t12.pk=t10.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	SUBQUERY	t10	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+2	SUBQUERY	t10	ALL	PRIMARY	NULL	NULL	NULL	10	100.00	Using where
 2	SUBQUERY	t12	eq_ref	PRIMARY	PRIMARY	4	test.t10.a	1	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t10`.`pk` from `test`.`t10` join `test`.`t12` where (`test`.`t12`.`pk` = `test`.`t10`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized-subquery`.`pk`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t10`.`pk` from `test`.`t10` join `test`.`t12` where (`test`.`t12`.`pk` = `test`.`t10`.`a`) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`pk`)))))
 subqueries within outer joins go into ON expr.
 explAin extended
 select * from t1 left join (t2 A, t2 B) on ( A.A= t1.A And B.A in (select pk from t10));
@@ -174,18 +176,18 @@ id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (Block Nested Loop)
 1	PRIMARY	B	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (Block Nested Loop)
-2	SUBQUERY	t10	index	NULL	PRIMARY	4	NULL	10	100.00	Using index
+2	SUBQUERY	t10	index	PRIMARY	PRIMARY	4	NULL	10	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`A`.`A` AS `A`,`test`.`A`.`B` AS `B`,`test`.`B`.`A` AS `A`,`test`.`B`.`B` AS `B` from `test`.`t1` left join (`test`.`t2` `A` join `test`.`t2` `B`) on(((`test`.`A`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`B`.`A`,`test`.`B`.`A` in ( <mAteriAlize> (/* select#2 */ select `test`.`t10`.`pk` from `test`.`t10` ), <primAry_index_lookup>(`test`.`B`.`A` in <temporAry tABle> on distinct_key where ((`test`.`B`.`A` = `mAteriAlized-suBquery`.`pk`))))))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`A`.`A` AS `A`,`test`.`A`.`B` AS `B`,`test`.`B`.`A` AS `A`,`test`.`B`.`B` AS `B` from `test`.`t1` left join (`test`.`t2` `A` join `test`.`t2` `B`) on(((`test`.`A`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`B`.`A`,`test`.`B`.`A` in ( <mAteriAlize> (/* select#2 */ select `test`.`t10`.`pk` from `test`.`t10` where 1 ), <primAry_index_lookup>(`test`.`B`.`A` in <temporAry tABle> on <Auto_key> where ((`test`.`B`.`A` = `mAteriAlized-suBquery`.`pk`))))))) where 1
 t2 should be wrapped into OJ-nest, so we have "t1 LJ (t2 J t10)"
 explAin extended
 select * from t1 left join t2 on (t2.A= t1.A And t2.A in (select pk from t10));
 id	select_type	tABle	type	possiBle_keys	key	key_len	ref	rows	filtered	ExtrA
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where; Using join Buffer (Block Nested Loop)
-2	SUBQUERY	t10	index	NULL	PRIMARY	4	NULL	10	100.00	Using index
+2	SUBQUERY	t10	index	PRIMARY	PRIMARY	4	NULL	10	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`t2`.`A` AS `A`,`test`.`t2`.`B` AS `B` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`t2`.`A`,`test`.`t2`.`A` in ( <mAteriAlize> (/* select#2 */ select `test`.`t10`.`pk` from `test`.`t10` ), <primAry_index_lookup>(`test`.`t2`.`A` in <temporAry tABle> on distinct_key where ((`test`.`t2`.`A` = `mAteriAlized-suBquery`.`pk`))))))) where 1
+Note	1003	/* select#1 */ select `test`.`t1`.`A` AS `A`,`test`.`t1`.`B` AS `B`,`test`.`t2`.`A` AS `A`,`test`.`t2`.`B` AS `B` from `test`.`t1` left join `test`.`t2` on(((`test`.`t2`.`A` = `test`.`t1`.`A`) And <in_optimizer>(`test`.`t2`.`A`,`test`.`t2`.`A` in ( <mAteriAlize> (/* select#2 */ select `test`.`t10`.`pk` from `test`.`t10` where 1 ), <primAry_index_lookup>(`test`.`t2`.`A` in <temporAry tABle> on <Auto_key> where ((`test`.`t2`.`A` = `mAteriAlized-suBquery`.`pk`))))))) where 1
 we shouldn't flatten if we're going to get a join of > MAX_TABLES.
 explain select * from 
 t1 s00, t1 s01,  t1 s02, t1 s03, t1 s04,t1 s05,t1 s06,t1 s07,t1 s08,t1 s09,
@@ -297,7 +299,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	103	100.00	Using where
 2	SUBQUERY	t10	range	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where; Using index
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t10`.`pk` from `test`.`t10` where (`test`.`t10`.`pk` < 3) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized-subquery`.`pk`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t10`.`pk` from `test`.`t10` where (`test`.`t10`.`pk` < 3) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`pk`)))))
 drop table t0, t1, t2;
 drop table t10, t11, t12;
 #
@@ -387,8 +389,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -466,8 +467,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -475,8 +475,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -555,7 +554,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -563,8 +562,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -595,8 +593,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -628,8 +625,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -653,8 +649,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -718,8 +713,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -735,8 +729,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -744,8 +737,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -809,8 +801,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -826,7 +817,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -836,7 +827,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -867,8 +858,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -900,8 +890,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -926,7 +915,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -956,8 +945,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -990,8 +979,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1007,8 +995,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1017,7 +1004,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1081,7 +1068,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
@@ -1098,7 +1085,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
@@ -1108,7 +1095,7 @@ EXPLAIN SELECT * FROM t1 WHERE (11) IN
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
+2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1125,8 +1112,8 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1140,8 +1127,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1155,25 +1142,24 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1188,17 +1174,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1211,8 +1196,8 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1226,8 +1211,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1242,8 +1227,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1251,17 +1236,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1276,18 +1260,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1300,8 +1282,8 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1315,8 +1297,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1331,8 +1313,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1340,17 +1322,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1365,18 +1346,17 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1391,8 +1371,8 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1406,9 +1386,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1422,26 +1401,24 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1456,17 +1433,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1480,8 +1456,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1499,8 +1475,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1518,8 +1494,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1528,8 +1504,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1537,9 +1513,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1554,18 +1529,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1579,8 +1552,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1598,8 +1571,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1617,8 +1590,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1627,8 +1600,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1636,9 +1609,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1653,18 +1625,18 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1679,8 +1651,8 @@ c1	c2	c3
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1694,9 +1666,8 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1710,26 +1681,25 @@ DEALLOCATE PREPARE stmt;
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1744,17 +1714,17 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1768,8 +1738,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1787,8 +1757,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1806,8 +1776,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1816,8 +1786,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1825,9 +1795,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1842,18 +1811,17 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1867,8 +1835,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 INNER JOIN t3 ON t2.i=t3.i);
 i
@@ -1886,8 +1854,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1905,8 +1873,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
@@ -1915,8 +1883,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -1924,9 +1892,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -1942,18 +1910,18 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2017,8 +1985,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2033,17 +2001,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2105,8 +2072,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2121,18 +2088,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2195,8 +2160,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2211,18 +2176,17 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2253,8 +2217,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2285,9 +2248,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2302,17 +2264,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2383,9 +2344,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2400,18 +2360,16 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2484,9 +2442,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2501,18 +2458,18 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2543,8 +2500,7 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2575,9 +2531,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2592,17 +2547,17 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	0	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2635,8 +2590,8 @@ EXPLAIN SELECT * FROM t1 WHERE (t1.i) IN
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2673,9 +2628,8 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2690,18 +2644,17 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	1	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2780,9 +2733,9 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 LEFT JOIN t3 ON t2.i=t3.i);
 i
@@ -2798,18 +2751,18 @@ i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 RIGHT JOIN t3 ON t2.i=t3.i);
 i
 EXPLAIN SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using join buffer (Block Nested Loop)
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT * FROM t1 WHERE (11) IN 
 (SELECT t3.i FROM t2 STRAIGHT_JOIN t3);
 i
@@ -2976,26 +2929,28 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 32,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (select `test`.`t11`.`a` from `test`.`t11` ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (select `test`.`t11`.`a` from `test`.`t11` where 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))",
       "attached_subqueries": [
         {
-          "using_temporary_table": true,
-          "dependent": false,
-          "cacheable": true,
           "table": {
+            "table_name": "<materialized_subquery>",
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "4",
             "rows": 1,
-            "attached_condition": "((`test`.`t1`.`a` = `materialized-subquery`.`a`))"
-          },
-          "query_block": {
-            "select_id": 2,
-            "table": {
-              "table_name": "t11",
-              "access_type": "ALL",
-              "rows": 8,
-              "filtered": 100
+            "materialized_from_subquery": {
+              "using_temporary_table": true,
+              "dependent": true,
+              "cacheable": false,
+              "query_block": {
+                "select_id": 2,
+                "table": {
+                  "table_name": "t11",
+                  "access_type": "ALL",
+                  "rows": 8,
+                  "filtered": 100
+                }
+              }
             }
           }
         }
@@ -3004,7 +2959,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t11`.`a` from `test`.`t11` ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t11`.`a` from `test`.`t11` where 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))
 select t21.* from t21,t22 where t21.a = t22.a and 
 t22.a in (select t12.a from t11, t12 where t11.a in(255,256) and t11.a = t12.a and t11.c is null) and t22.c is null order by t21.a;
 a	b	c
@@ -3030,8 +2985,8 @@ insert into t1 select a+10 from t0;
 insert into t0 values(2);
 explain select * from t1 where 2 in (select a from t0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using where
-2	SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	11	NULL
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	NULL
+2	DEPENDENT SUBQUERY	t0	ALL	NULL	NULL	NULL	NULL	11	Using where
 select * from t1 where 2 in (select a from t0);
 a
 0
@@ -3069,26 +3024,28 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 11,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (select `test`.`t1`.`a` from `test`.`t1` ), <primary_index_lookup>(`x`.`a` in <temporary table> on distinct_key where ((`x`.`a` = `materialized-subquery`.`a`)))))",
+      "attached_condition": "<in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`x`.`a` in <temporary table> on <auto_key> where ((`x`.`a` = `materialized-subquery`.`a`)))))",
       "attached_subqueries": [
         {
-          "using_temporary_table": true,
-          "dependent": false,
-          "cacheable": true,
           "table": {
+            "table_name": "<materialized_subquery>",
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "5",
             "rows": 1,
-            "attached_condition": "((`x`.`a` = `materialized-subquery`.`a`))"
-          },
-          "query_block": {
-            "select_id": 3,
-            "table": {
-              "table_name": "t1",
-              "access_type": "ALL",
-              "rows": 20,
-              "filtered": 100
+            "materialized_from_subquery": {
+              "using_temporary_table": true,
+              "dependent": true,
+              "cacheable": false,
+              "query_block": {
+                "select_id": 3,
+                "table": {
+                  "table_name": "t1",
+                  "access_type": "ALL",
+                  "rows": 20,
+                  "filtered": 100
+                }
+              }
             }
           }
         }
@@ -3111,7 +3068,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `x`.`a` AS `a` from (/* select#2 */ select `test`.`t0`.`a` AS `a` from `test`.`t0`) `x` where <in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` ), <primary_index_lookup>(`x`.`a` in <temporary table> on distinct_key where ((`x`.`a` = `materialized-subquery`.`a`)))))
+Note	1003	/* select#1 */ select `x`.`a` AS `a` from (/* select#2 */ select `test`.`t0`.`a` AS `a` from `test`.`t0`) `x` where <in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`x`.`a` in <temporary table> on <auto_key> where ((`x`.`a` = `materialized-subquery`.`a`)))))
 drop table t0, t1;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -3321,26 +3278,28 @@ EXPLAIN
           "rows": 1000,
           "filtered": 79.3,
           "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on distinct_key where ((`test`.`t3`.`a` = `materialized-subquery`.`a`))))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))",
+          "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (select `test`.`t2`.`a` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_key> where ((`test`.`t3`.`a` = `materialized-subquery`.`a`))))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))",
           "attached_subqueries": [
             {
-              "using_temporary_table": true,
-              "dependent": false,
-              "cacheable": true,
               "table": {
+                "table_name": "<materialized_subquery>",
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "5",
                 "rows": 1,
-                "attached_condition": "((`test`.`t3`.`a` = `materialized-subquery`.`a`))"
-              },
-              "query_block": {
-                "select_id": 2,
-                "table": {
-                  "table_name": "t2",
-                  "access_type": "ALL",
-                  "rows": 10,
-                  "filtered": 100
+                "materialized_from_subquery": {
+                  "using_temporary_table": true,
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 2,
+                    "table": {
+                      "table_name": "t2",
+                      "access_type": "ALL",
+                      "rows": 10,
+                      "filtered": 100
+                    }
+                  }
                 }
               }
             }
@@ -3351,7 +3310,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t1` join `test`.`t3` where ((`test`.`t1`.`a` = 3) and <in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on distinct_key where ((`test`.`t3`.`a` = `materialized-subquery`.`a`))))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`filler` AS `filler` from `test`.`t1` join `test`.`t3` where ((`test`.`t1`.`a` = 3) and <in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_key> where ((`test`.`t3`.`a` = `materialized-subquery`.`a`))))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))
 explain select straight_join * from t1 A, t1 B where A.a in (select a from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	A	ALL	NULL	NULL	NULL	NULL	10	Using where
@@ -3606,7 +3565,7 @@ from t0 where a in
 (select t2.a+t3.a from t1 left join (t2 join t3) on t2.a=t1.a and t3.a=t1.a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	10	Using where
-2	SUBQUERY	t1	index	NULL	a	5	NULL	10	Using index
+2	SUBQUERY	t1	index	a	a	5	NULL	10	Using index
 2	SUBQUERY	t2	ref	a	a	5	test.t1.a	1	Using index
 2	SUBQUERY	t3	ref	a	a	5	test.t1.a	1	Using index
 drop table t0, t1,t2,t3;
@@ -3662,7 +3621,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(/* select#2 */ select `test`.`t2_16`.`b1`,`test`.`t2_16`.`b2` from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2_16` where ((`test`.`t2_16`.`b1` > '0') and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`))))
 select left(a1,7), left(a2,7)
 from t1_16
 where (a1,a2) in (select b1, b2 from t2_16 where b1 > '0');
@@ -3676,7 +3635,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,`test`.`t1_16`.`a1` in ( <materialize> (/* select#2 */ select substr(`test`.`t2_16`.`b1`,1,16) from `test`.`t2_16` where (`test`.`t2_16`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1_16`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_16`.`a1` = `materialized-subquery`.`substring(b1,1,16)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,`test`.`t1_16`.`a1` in ( <materialize> (/* select#2 */ select substr(`test`.`t2_16`.`b1`,1,16) from `test`.`t2_16` where (`test`.`t2_16`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1_16`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_16`.`a1` = `materialized-subquery`.`substring(b1,1,16)`)))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select substring(b1,1,16) from t2_16 where b1 > '0');
@@ -3690,7 +3649,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
@@ -3705,7 +3664,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,`test`.`t1_16`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` ), <primary_index_lookup>(`test`.`t1_16`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_16`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,`test`.`t1_16`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having 1 ), <primary_index_lookup>(`test`.`t1_16`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_16`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
@@ -3742,7 +3701,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where; Using join buffer (Block Nested Loop)
 4	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	4	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(concat(`test`.`t1`.`a1`,'x'),<exists>(/* select#2 */ select 1 from `test`.`t1_16` where (<in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(/* select#3 */ select `test`.`t2_16`.`b1`,`test`.`t2_16`.`b2` from `test`.`t2_16` join `test`.`t2` where ((`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and <in_optimizer>(`test`.`t2`.`b1`,`test`.`t2`.`b1` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c1` from `test`.`t3` where (`test`.`t3`.`c2` > '0') ), <primary_index_lookup>(`test`.`t2`.`b1` in <temporary table> on distinct_key where ((`test`.`t2`.`b1` = `materialized-subquery`.`c1`))))) and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`)))) and (<cache>(concat(`test`.`t1`.`a1`,'x')) = left(`test`.`t1_16`.`a1`,8)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`a1` AS `a1`,`test`.`t1`.`a2` AS `a2` from `test`.`t1` where <in_optimizer>(concat(`test`.`t1`.`a1`,'x'),<exists>(/* select#2 */ select 1 from `test`.`t1_16` where (<in_optimizer>((`test`.`t1_16`.`a1`,`test`.`t1_16`.`a2`),<exists>(/* select#3 */ select 1,1 from `test`.`t2_16` join `test`.`t2` where ((`test`.`t2`.`b2` = substr(`test`.`t2_16`.`b2`,1,6)) and <in_optimizer>(`test`.`t2`.`b1`,`test`.`t2`.`b1` in ( <materialize> (/* select#4 */ select `test`.`t3`.`c1` from `test`.`t3` where (`test`.`t3`.`c2` > '0') ), <primary_index_lookup>(`test`.`t2`.`b1` in <temporary table> on <auto_key> where ((`test`.`t2`.`b1` = `materialized-subquery`.`c1`))))) and (<cache>(`test`.`t1_16`.`a1`) = `test`.`t2_16`.`b1`) and (<cache>(`test`.`t1_16`.`a2`) = `test`.`t2_16`.`b2`)))) and (<cache>(concat(`test`.`t1`.`a1`,'x')) = left(`test`.`t1_16`.`a1`,8)))))
 drop table t1_16, t2_16, t3_16, t1, t2, t3;
 set @blob_len = 512;
 set @suffix_len = @blob_len - @prefix_len;
@@ -3790,7 +3749,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>((`test`.`t1_512`.`a1`,`test`.`t1_512`.`a2`),<exists>(/* select#2 */ select `test`.`t2_512`.`b1`,`test`.`t2_512`.`b2` from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = `test`.`t2_512`.`b1`) and (<cache>(`test`.`t1_512`.`a2`) = `test`.`t2_512`.`b2`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>((`test`.`t1_512`.`a1`,`test`.`t1_512`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2_512` where ((`test`.`t2_512`.`b1` > '0') and (<cache>(`test`.`t1_512`.`a1`) = `test`.`t2_512`.`b1`) and (<cache>(`test`.`t1_512`.`a2`) = `test`.`t2_512`.`b2`))))
 select left(a1,7), left(a2,7)
 from t1_512
 where (a1,a2) in (select b1, b2 from t2_512 where b1 > '0');
@@ -3804,7 +3763,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (/* select#2 */ select substr(`test`.`t2_512`.`b1`,1,512) from `test`.`t2_512` where (`test`.`t2_512`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_512`.`a1` = `materialized-subquery`.`substring(b1,1,512)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (/* select#2 */ select substr(`test`.`t2_512`.`b1`,1,512) from `test`.`t2_512` where (`test`.`t2_512`.`b1` > '0') ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_512`.`a1` = `materialized-subquery`.`substring(b1,1,512)`)))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select substring(b1,1,512) from t2_512 where b1 > '0');
@@ -3818,7 +3777,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_512`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having 1 ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_512`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -3835,7 +3794,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_512`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,`test`.`t1_512`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having 1 ), <primary_index_lookup>(`test`.`t1_512`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_512`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -3891,7 +3850,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>((`test`.`t1_513`.`a1`,`test`.`t1_513`.`a2`),<exists>(/* select#2 */ select `test`.`t2_513`.`b1`,`test`.`t2_513`.`b2` from `test`.`t2_513` where ((`test`.`t2_513`.`b1` > '0') and (<cache>(`test`.`t1_513`.`a1`) = `test`.`t2_513`.`b1`) and (<cache>(`test`.`t1_513`.`a2`) = `test`.`t2_513`.`b2`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>((`test`.`t1_513`.`a1`,`test`.`t1_513`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2_513` where ((`test`.`t2_513`.`b1` > '0') and (<cache>(`test`.`t1_513`.`a1`) = `test`.`t2_513`.`b1`) and (<cache>(`test`.`t1_513`.`a2`) = `test`.`t2_513`.`b2`))))
 select left(a1,7), left(a2,7)
 from t1_513
 where (a1,a2) in (select b1, b2 from t2_513 where b1 > '0');
@@ -3919,7 +3878,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,`test`.`t1_513`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_513`.`b1` separator ',') from `test`.`t2_513` group by `test`.`t2_513`.`b2` ), <primary_index_lookup>(`test`.`t1_513`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_513`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,`test`.`t1_513`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_513`.`b1` separator ',') from `test`.`t2_513` group by `test`.`t2_513`.`b2` having 1 ), <primary_index_lookup>(`test`.`t1_513`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_513`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select group_concat(b1) from t2_513 group by b2);
@@ -3975,7 +3934,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>((`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a2`),<exists>(/* select#2 */ select `test`.`t2_1024`.`b1`,`test`.`t2_1024`.`b2` from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = `test`.`t2_1024`.`b1`) and (<cache>(`test`.`t1_1024`.`a2`) = `test`.`t2_1024`.`b2`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>((`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2_1024` where ((`test`.`t2_1024`.`b1` > '0') and (<cache>(`test`.`t1_1024`.`a1`) = `test`.`t2_1024`.`b1`) and (<cache>(`test`.`t1_1024`.`a2`) = `test`.`t2_1024`.`b2`))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where (a1,a2) in (select b1, b2 from t2_1024 where b1 > '0');
@@ -4003,7 +3962,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` ), <primary_index_lookup>(`test`.`t1_1024`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_1024`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having 1 ), <primary_index_lookup>(`test`.`t1_1024`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_1024`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -4020,7 +3979,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` ), <primary_index_lookup>(`test`.`t1_1024`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_1024`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,`test`.`t1_1024`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having 1 ), <primary_index_lookup>(`test`.`t1_1024`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_1024`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -4076,7 +4035,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>((`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a2`),<exists>(/* select#2 */ select `test`.`t2_1025`.`b1`,`test`.`t2_1025`.`b2` from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = `test`.`t2_1025`.`b1`) and (<cache>(`test`.`t1_1025`.`a2`) = `test`.`t2_1025`.`b2`))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>((`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a2`),<exists>(/* select#2 */ select 1,1 from `test`.`t2_1025` where ((`test`.`t2_1025`.`b1` > '0') and (<cache>(`test`.`t1_1025`.`a1`) = `test`.`t2_1025`.`b1`) and (<cache>(`test`.`t1_1025`.`a2`) = `test`.`t2_1025`.`b2`))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where (a1,a2) in (select b1, b2 from t2_1025 where b1 > '0');
@@ -4104,7 +4063,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` ), <primary_index_lookup>(`test`.`t1_1025`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_1025`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having 1 ), <primary_index_lookup>(`test`.`t1_1025`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_1025`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -4121,7 +4080,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` ), <primary_index_lookup>(`test`.`t1_1025`.`a1` in <temporary table> on distinct_key where ((`test`.`t1_1025`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,`test`.`t1_1025`.`a1` in ( <materialize> (/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having 1 ), <primary_index_lookup>(`test`.`t1_1025`.`a1` in <temporary table> on <auto_key> where ((`test`.`t1_1025`.`a1` = `materialized-subquery`.`group_concat(b1)`)))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -5007,10 +4966,10 @@ EXPLAIN EXTENDED SELECT vkey FROM t0 WHERE pk IN
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
-2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
+2	SUBQUERY	t1	ALL	PRIMARY	NULL	NULL	NULL	5	100.00	NULL
 2	SUBQUERY	t2	index	vkey	vkey	4	NULL	5	80.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`pk`,`test`.`t0`.`pk` in ( <materialize> (/* select#2 */ select `test`.`t1`.`pk` from `test`.`t0` `t1` join `test`.`t0` `t2` where (`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) ), <primary_index_lookup>(`test`.`t0`.`pk` in <temporary table> on distinct_key where ((`test`.`t0`.`pk` = `materialized-subquery`.`pk`)))))
+Note	1003	/* select#1 */ select `test`.`t0`.`vkey` AS `vkey` from `test`.`t0` where <in_optimizer>(`test`.`t0`.`pk`,`test`.`t0`.`pk` in ( <materialize> (/* select#2 */ select `test`.`t1`.`pk` from `test`.`t0` `t1` join `test`.`t0` `t2` where (`test`.`t2`.`vkey` = `test`.`t1`.`vnokey`) ), <primary_index_lookup>(`test`.`t0`.`pk` in <temporary table> on <auto_key> where ((`test`.`t0`.`pk` = `materialized-subquery`.`pk`)))))
 SELECT vkey FROM t0 WHERE pk IN 
 (SELECT t1.pk FROM t0 t1 JOIN t0 t2 ON t2.vkey = t1.vnokey);
 vkey
@@ -5141,47 +5100,6 @@ WHERE (int_nokey, pk)
 IN (SELECT t3.pk, t3.pk FROM t2 LEFT JOIN t3 ON t3.varchar_key)  
 AND pk = 9;
 datetime_key
-Warnings:
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: 'i'
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
-Warning	1292	Truncated incorrect INTEGER value: ''
 DROP TABLE t1, t2, t3;
 #
 # Bug#46550 Azalea returning duplicate results for some IN subqueries
@@ -5258,7 +5176,7 @@ FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	20	Using where
-2	SUBQUERY	t1_1	index	NULL	varchar_key	9	NULL	2	Using where; Using index
+2	SUBQUERY	t1_1	index	varchar_key	varchar_key	9	NULL	2	Using where; Using index
 2	SUBQUERY	t1_2	index	NULL	int_key	5	NULL	2	Using index; Using join buffer (Block Nested Loop)
 SELECT t0.int_key  
 FROM t0, t2
@@ -5279,7 +5197,7 @@ FROM t1 AS t1_1  JOIN t1 AS t1_2 ON t1_1 .int_key
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	t0	ALL	NULL	NULL	NULL	NULL	20	Using where
-2	SUBQUERY	t1_1	index	NULL	varchar_key	9	NULL	2	Using where; Using index
+2	SUBQUERY	t1_1	index	varchar_key	varchar_key	9	NULL	2	Using where; Using index
 2	SUBQUERY	t1_2	index	NULL	int_key	5	NULL	2	Using index; Using join buffer (Block Nested Loop)
 DROP TABLE t0, t1, t2;
 # End of bug#46550
@@ -5437,13 +5355,13 @@ WHERE t1field IN (SELECT * FROM v2)
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
-3	SUBQUERY	t3	index	NULL	PRIMARY	4	NULL	2	Using index
-2	SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	2	Using index
+3	SUBQUERY	t3	index	PRIMARY	PRIMARY	4	NULL	2	Using index
+2	SUBQUERY	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using index
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
-3	SUBQUERY	t3	index	NULL	PRIMARY	4	NULL	2	Using index
-2	SUBQUERY	t2	index	NULL	PRIMARY	4	NULL	2	Using index
+3	SUBQUERY	t3	index	PRIMARY	PRIMARY	4	NULL	2	Using index
+2	SUBQUERY	t2	index	PRIMARY	PRIMARY	4	NULL	2	Using index
 DROP TABLE t1, t2, t3;
 DROP VIEW v2, v3;
 # End of Bug#49198
@@ -5561,7 +5479,7 @@ FROM it1 LEFT JOIN it2 ON it2.datetime_key);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot1	ALL	NULL	NULL	NULL	NULL	20	Using where
 2	SUBQUERY	it1	index	NULL	int_key	4	NULL	2	Using index
-2	SUBQUERY	it2	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (Block Nested Loop)
+2	SUBQUERY	it2	ALL	int_key	NULL	NULL	NULL	20	Using where; Using join buffer (Block Nested Loop)
 DROP TABLE ot1, it1, it2;
 # End of BUG#38075
 # 
@@ -5585,8 +5503,8 @@ FROM t1
 WHERE t1field IN (SELECT v1field FROM v1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
-2	SUBQUERY	a	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
-4	SUBQUERY	t1	index	NULL	PRIMARY	4	NULL	2	Using index
+2	SUBQUERY	a	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+4	SUBQUERY	t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index
 SELECT t1.t1field
 FROM t1 LEFT JOIN t1 AS t2 ON t1.t1field IN (SELECT v1field FROM v1);
 t1field
@@ -5600,8 +5518,8 @@ FROM t1
 WHERE t1field IN (SELECT v1field FROM v1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
-2	SUBQUERY	a	index	NULL	PRIMARY	4	NULL	2	Using where; Using index
-4	SUBQUERY	t1	index	NULL	PRIMARY	4	NULL	2	Using index
+2	SUBQUERY	a	index	PRIMARY	PRIMARY	4	NULL	2	Using where; Using index
+4	SUBQUERY	t1	index	PRIMARY	PRIMARY	4	NULL	2	Using index
 CREATE PROCEDURE p1() 
 BEGIN 
 SELECT t1field
@@ -5752,7 +5670,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	SUBQUERY	cona	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	c	eq_ref	PRIMARY	PRIMARY	4	test.cona.idContact	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` where <in_optimizer>(`test`.`a`.`idIndividual`,`test`.`a`.`idIndividual` in ( <materialize> (/* select#2 */ select `test`.`c`.`idObj` from `test`.`t3` `cona` join `test`.`t2` `c` where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`cona`.`postalStripped` = 'T2H3B2')) ), <primary_index_lookup>(`test`.`a`.`idIndividual` in <temporary table> on distinct_key where ((`test`.`a`.`idIndividual` = `materialized-subquery`.`idObj`)))))
+Note	1003	/* select#1 */ select `test`.`a`.`idIndividual` AS `idIndividual` from `test`.`t1` `a` where <in_optimizer>(`test`.`a`.`idIndividual`,`test`.`a`.`idIndividual` in ( <materialize> (/* select#2 */ select `test`.`c`.`idObj` from `test`.`t3` `cona` join `test`.`t2` `c` where ((`test`.`c`.`idContact` = `test`.`cona`.`idContact`) and (`test`.`cona`.`postalStripped` = 'T2H3B2')) ), <primary_index_lookup>(`test`.`a`.`idIndividual` in <temporary table> on <auto_key> where ((`test`.`a`.`idIndividual` = `materialized-subquery`.`idObj`)))))
 drop table t1,t2,t3;
 CREATE TABLE t1 (one int, two int, flag char(1));
 CREATE TABLE t2 (one int, two int, flag char(1));
@@ -5824,19 +5742,19 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
 explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Using where
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),(`test`.`t1`.`one`,`test`.`t1`.`two`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where (`test`.`t2`.`flag` = 'N') ), <primary_index_lookup>(`test`.`t1`.`one` in <temporary table> on distinct_key where ((`test`.`t1`.`one` = `materialized-subquery`.`one`) and (`test`.`t1`.`two` = `materialized-subquery`.`two`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),(`test`.`t1`.`one`,`test`.`t1`.`two`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where (`test`.`t2`.`flag` = 'N') ), <primary_index_lookup>(`test`.`t1`.`one` in <temporary table> on <auto_key> where ((`test`.`t1`.`one` = `materialized-subquery`.`one`) and (`test`.`t1`.`two` = `materialized-subquery`.`two`)))))
 explain extended SELECT one,two,ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = '0' group by one,two) as 'test' from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a char(5), b char(5));
 INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
@@ -5854,7 +5772,7 @@ CREATE INDEX I2 ON t1 (b);
 EXPLAIN SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t1	index	NULL	I1	2	NULL	2	Using index
+2	SUBQUERY	t1	index	I1	I1	2	NULL	2	Using index
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1);
 a	b
 CREATE TABLE t2 (a VARCHAR(1), b VARCHAR(10));
@@ -5864,14 +5782,14 @@ CREATE INDEX I2 ON t2 (b);
 EXPLAIN SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t2	index	NULL	I1	4	NULL	2	Using index
+2	SUBQUERY	t2	index	I1	I1	4	NULL	2	Using index
 SELECT a,b FROM t2 WHERE b IN (SELECT a FROM t2);
 a	b
 EXPLAIN
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	t1	index	NULL	I1	2	NULL	2	Using where; Using index
+2	SUBQUERY	t1	index	I1	I1	2	NULL	2	Using where; Using index
 SELECT a,b FROM t1 WHERE b IN (SELECT a FROM t1 WHERE LENGTH(a)<500);
 a	b
 DROP TABLE t1,t2;
@@ -6117,11 +6035,11 @@ FROM t2
 WHERE 1 IN(SELECT 1
 FROM t3));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
+3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where <in_optimizer>(1,1 in ( <materialize> (/* select#2 */ select 1 from `test`.`t2` where <in_optimizer>(1,1 in ( <materialize> (/* select#3 */ select 1 from `test`.`t3` ), <primary_index_lookup>(1 in <temporary table> on distinct_key where ((1 = `materialized-subquery`.`1`))))) ), <primary_index_lookup>(1 in <temporary table> on distinct_key where ((1 = `materialized-subquery`.`1`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`id` AS `id` from `test`.`t1` where <in_optimizer>(1,<exists>(/* select#2 */ select 1 from `test`.`t2` where <in_optimizer>(1,<exists>(/* select#3 */ select 1 from `test`.`t3` where 1))))
 delete from t2;
 delete from t3;
 INSERT INTO t1 VALUES(30),(40),(50),(60),(70),(80),(90);
@@ -6155,10 +6073,10 @@ FROM t3
 WHERE 1 IN(SELECT 1
 FROM t4)));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	Using where
-3	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	9	Using where
-4	SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	9	NULL
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	9	NULL
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	NULL
+3	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	9	NULL
+4	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	9	NULL
 SELECT *
 FROM t1
 WHERE 1 IN(SELECT 1
@@ -6300,7 +6218,7 @@ t2.Population > 100000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	16	Using where
 3	DEPENDENT SUBQUERY	t3	unique_subquery	PRIMARY,Percentage	PRIMARY	33	func,const	1	Using where
-2	SUBQUERY	t1	range	Population	Population	4	NULL	1	Using where
+2	SUBQUERY	t1	range	Population,Country	Population	4	NULL	1	Using where
 EXPLAIN FORMAT=JSON SELECT Name FROM t2 
 WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
 AND
@@ -6316,7 +6234,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 16,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on distinct_key where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -6343,29 +6261,32 @@ EXPLAIN
           }
         },
         {
-          "using_temporary_table": true,
-          "dependent": false,
-          "cacheable": true,
           "table": {
+            "table_name": "<materialized_subquery>",
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "3",
             "rows": 1,
-            "attached_condition": "((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))"
-          },
-          "query_block": {
-            "select_id": 2,
-            "table": {
-              "table_name": "t1",
-              "access_type": "range",
-              "possible_keys": [
-                "Population"
-              ],
-              "key": "Population",
-              "key_length": "4",
-              "rows": 1,
-              "filtered": 100,
-              "attached_condition": "(`test`.`t1`.`Population` > 5000000)"
+            "materialized_from_subquery": {
+              "using_temporary_table": true,
+              "dependent": true,
+              "cacheable": false,
+              "query_block": {
+                "select_id": 2,
+                "table": {
+                  "table_name": "t1",
+                  "access_type": "range",
+                  "possible_keys": [
+                    "Population",
+                    "Country"
+                  ],
+                  "key": "Population",
+                  "key_length": "4",
+                  "rows": 1,
+                  "filtered": 100,
+                  "attached_condition": "(`test`.`t1`.`Population` > 5000000)"
+                }
+              }
             }
           }
         }
@@ -6375,7 +6296,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on distinct_key where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))
+Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t2` where (<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
 Code char(3) NOT NULL DEFAULT '',
@@ -6411,7 +6332,7 @@ WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	31	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	545	Using where
+2	SUBQUERY	t2	ALL	CountryCode	NULL	NULL	NULL	545	Using where
 SELECT Name FROM t1 
 WHERE t1.Code IN (
 SELECT t2.CountryCode FROM t2 WHERE Population > 5000000);
@@ -6589,7 +6510,7 @@ select * from t1 left join t2 on (t2.a= t1.a and t2.a in (select pk from t3));
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	3	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	3	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t3	index	NULL	PRIMARY	4	NULL	10	Using index
+2	SUBQUERY	t3	index	PRIMARY	PRIMARY	4	NULL	10	Using index
 drop table t0, t1, t2, t3;
 create table t0 (a int);
 insert into t0 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
@@ -6613,7 +6534,7 @@ The following must use loose index scan over t3, key a:
 explain select count(a) from t2 where a in ( SELECT  a FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	index	NULL	a	5	NULL	1000	Using where; Using index
-2	SUBQUERY	t3	index	NULL	a	5	NULL	30000	Using index
+2	SUBQUERY	t3	index	a	a	5	NULL	30000	Using index
 select count(a) from t2 where a in ( SELECT  a FROM t3);
 count(a)
 1000
@@ -6702,7 +6623,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),(`test`.`t1`.`a`,`test`.`t1`.`b`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`b` from `test`.`t2` where (`test`.`t2`.`pk` > 0) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on distinct_key where ((`test`.`t1`.`a` = `materialized-subquery`.`a`) and (`test`.`t1`.`b` = `materialized-subquery`.`b`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`a`,`test`.`t1`.`b`),(`test`.`t1`.`a`,`test`.`t1`.`b`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`b` from `test`.`t2` where (`test`.`t2`.`pk` > 0) ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`) and (`test`.`t1`.`b` = `materialized-subquery`.`b`)))))
 SELECT pk FROM t1 WHERE (a, b) IN (SELECT a, b FROM t2 WHERE pk > 0);
 pk
 2
@@ -6711,7 +6632,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`c`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`c` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`c`) = `test`.`t2`.`c`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`c`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`c`) = `test`.`t2`.`c`))))
 SELECT pk FROM t1 WHERE (b, c) IN (SELECT b, c FROM t2 WHERE pk > 0);
 pk
 1
@@ -6721,7 +6642,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`d`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`d` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`d`) = `test`.`t2`.`d`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`d`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`d`) = `test`.`t2`.`d`))))
 SELECT pk FROM t1 WHERE (b, d) IN (SELECT b, d FROM t2 WHERE pk > 0);
 pk
 2
@@ -6730,7 +6651,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`e`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`e` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`e`) = `test`.`t2`.`e`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`e`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`e`) = `test`.`t2`.`e`))))
 SELECT pk FROM t1 WHERE (b, e) IN (SELECT b, e FROM t2 WHERE pk > 0);
 pk
 1
@@ -6740,7 +6661,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`f`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`f` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`f`) = `test`.`t2`.`f`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`f`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`f`) = `test`.`t2`.`f`))))
 SELECT pk FROM t1 WHERE (b, f) IN (SELECT b, f FROM t2 WHERE pk > 0);
 pk
 1
@@ -6750,7 +6671,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`g`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`g` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`g`) = `test`.`t2`.`g`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`g`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`g`) = `test`.`t2`.`g`))))
 SELECT pk FROM t1 WHERE (b, g) IN (SELECT b, g FROM t2 WHERE pk > 0);
 pk
 1
@@ -6760,7 +6681,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`h`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`h` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`h`) = `test`.`t2`.`h`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`h`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`h`) = `test`.`t2`.`h`))))
 SELECT pk FROM t1 WHERE (b, h) IN (SELECT b, h FROM t2 WHERE pk > 0);
 pk
 1
@@ -6770,7 +6691,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`i`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`i` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`i`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))))
 SELECT pk FROM t1 WHERE (b, i) IN (SELECT b, i FROM t2 WHERE pk > 0);
 pk
 1
@@ -6780,7 +6701,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`j`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`j` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`j`) = `test`.`t2`.`j`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`j`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`j`) = `test`.`t2`.`j`))))
 SELECT pk FROM t1 WHERE (b, j) IN (SELECT b, j FROM t2 WHERE pk > 0);
 pk
 1
@@ -6790,7 +6711,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t2	range	PRIMARY	PRIMARY	4	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`k`),<exists>(/* select#2 */ select `test`.`t2`.`b`,`test`.`t2`.`k` from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`k`) = `test`.`t2`.`k`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`pk` AS `pk` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`b`,`test`.`t1`.`k`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`pk` > 0) and (<cache>(`test`.`t1`.`b`) = `test`.`t2`.`b`) and (<cache>(`test`.`t1`.`k`) = `test`.`t2`.`k`))))
 SELECT pk FROM t1 WHERE (b, k) IN (SELECT b, k FROM t2 WHERE pk > 0);
 pk
 1
@@ -6808,7 +6729,7 @@ EXPLAIN
 SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	5	Using where
-2	SUBQUERY	t2	index	NULL	k	10	NULL	4	Using where; Using index
+2	SUBQUERY	t2	index	k	k	10	NULL	4	Using where; Using index
 SELECT * FROM t1 WHERE (i) IN (SELECT i FROM t2 where j > 0);
 i
 1
@@ -6900,7 +6821,7 @@ WHERE user_id = 'nicke'
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
+2	SUBQUERY	t2	ALL	PRIMARY	NULL	NULL	NULL	7	Using where
 3	SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	NULL
 SELECT t1.partner_id
 FROM t1
@@ -6928,12 +6849,12 @@ WHERE t1.id IN (
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
+2	SUBQUERY	t2	ALL	PRIMARY	NULL	NULL	NULL	7	Using where
 3	SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	NULL
 EXECUTE stmt;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	7	Using where
+2	SUBQUERY	t2	ALL	PRIMARY	NULL	NULL	NULL	7	Using where
 3	SUBQUERY	t3	system	PRIMARY	NULL	NULL	NULL	1	NULL
 PREPARE stmt FROM
 'SELECT t1.partner_id
@@ -6970,7 +6891,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#2 */ select `test`.`t3`.`i` from `test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`)) where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on distinct_key where ((`test`.`t1`.`i` = `materialized-subquery`.`i`)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#2 */ select `test`.`t3`.`i` from `test`.`t3` left join `test`.`t2` on((`test`.`t2`.`i` = `test`.`t3`.`i`)) where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`)))))
 SELECT * FROM t1 WHERE (t1.i) IN 
 (SELECT t3.i FROM t3 LEFT JOIN t2 ON t2.i=t3.i);
 i
@@ -7126,7 +7047,7 @@ FROM t2
 WHERE varchar_nokey < 'n' XOR pk);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	18	Using where
-2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	15	Using where
+2	SUBQUERY	t2	ALL	varchar_key	NULL	NULL	NULL	15	Using where
 DROP TABLE t1, t2;
 # End of the test for bug#45174.
 #
@@ -7405,7 +7326,7 @@ ON alias1.col_varchar_1024_utf8_key
 WHERE alias1.pk AND alias1.pk < 3 OR alias1.pk AND alias3.pk);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	SUBQUERY	alias1	ALL	PRIMARY	NULL	NULL	NULL	4	Using where
+2	SUBQUERY	alias1	ALL	PRIMARY,col_varchar_10_latin1_key	NULL	NULL	NULL	4	Using where
 2	SUBQUERY	alias3	index	NULL	PRIMARY	4	NULL	1	Using where; Using index; Using join buffer (Block Nested Loop)
 2	SUBQUERY	alias2	index	NULL	col_varchar_10_latin1_key	13	NULL	4	Using where; Using index; Using join buffer (Block Nested Loop)
 SELECT * 
@@ -8057,9 +7978,9 @@ ON parent1.col_int_nokey = parent2.col_int_key
 AND grandparent1.col_int_key <> 3
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	grandparent1	ALL	col_int_key	NULL	NULL	NULL	11	Using where
-3	SUBQUERY	parent1	ALL	NULL	NULL	NULL	NULL	11	NULL
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	DEPENDENT SUBQUERY	grandparent1	ALL	col_int_key	NULL	NULL	NULL	11	Using where
+3	SUBQUERY	parent1	ALL	col_int_key	NULL	NULL	NULL	11	NULL
 3	SUBQUERY	parent2	index	col_int_key	col_int_key	4	NULL	1	Using where; Using index; Using join buffer (Block Nested Loop)
 explain format=json SELECT * FROM t3
 WHERE g1 NOT IN
@@ -8079,77 +8000,79 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "table": {
-      "table_name": "t3",
-      "access_type": "system",
-      "rows": 1,
-      "filtered": 100
-    },
-    "optimized_away_subqueries": [
-      {
-        "dependent": false,
-        "cacheable": true,
-        "query_block": {
-          "select_id": 2,
-          "table": {
-            "table_name": "grandparent1",
-            "access_type": "ALL",
-            "possible_keys": [
-              "col_int_key"
-            ],
-            "rows": 11,
-            "filtered": 100,
-            "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on distinct_key where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized-subquery`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3))",
-            "attached_subqueries": [
-              {
-                "using_temporary_table": true,
-                "dependent": false,
-                "cacheable": true,
-                "table": {
-                  "access_type": "eq_ref",
-                  "key": "<auto_key>",
-                  "key_length": "8",
-                  "rows": 1,
-                  "attached_condition": "((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized-subquery`.`p2`))"
-                },
-                "query_block": {
-                  "select_id": 3,
-                  "nested_loop": [
-                    {
-                      "table": {
-                        "table_name": "parent1",
-                        "access_type": "ALL",
-                        "rows": 11,
-                        "filtered": 100
-                      }
-                    },
-                    {
-                      "table": {
-                        "table_name": "parent2",
-                        "access_type": "index",
-                        "possible_keys": [
-                          "col_int_key"
-                        ],
-                        "key": "col_int_key",
-                        "key_length": "4",
-                        "rows": 1,
-                        "filtered": 100,
-                        "using_index": true,
-                        "using_join_buffer": "Block Nested Loop",
-                        "attached_condition": "<if>(is_not_null_compl(parent2), (`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`), true)"
+      "message": "Impossible WHERE noticed after reading const tables",
+      "attached_subqueries": [
+        {
+          "dependent": true,
+          "cacheable": false,
+          "query_block": {
+            "select_id": 2,
+            "table": {
+              "table_name": "grandparent1",
+              "access_type": "ALL",
+              "possible_keys": [
+                "col_int_key"
+              ],
+              "rows": 11,
+              "filtered": 100,
+              "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized-subquery`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))",
+              "attached_subqueries": [
+                {
+                  "table": {
+                    "table_name": "<materialized_subquery>",
+                    "access_type": "eq_ref",
+                    "key": "<auto_key>",
+                    "key_length": "8",
+                    "rows": 1,
+                    "materialized_from_subquery": {
+                      "using_temporary_table": true,
+                      "dependent": true,
+                      "cacheable": false,
+                      "query_block": {
+                        "select_id": 3,
+                        "nested_loop": [
+                          {
+                            "table": {
+                              "table_name": "parent1",
+                              "access_type": "ALL",
+                              "possible_keys": [
+                                "col_int_key"
+                              ],
+                              "rows": 11,
+                              "filtered": 100
+                            }
+                          },
+                          {
+                            "table": {
+                              "table_name": "parent2",
+                              "access_type": "index",
+                              "possible_keys": [
+                                "col_int_key"
+                              ],
+                              "key": "col_int_key",
+                              "key_length": "4",
+                              "rows": 1,
+                              "filtered": 100,
+                              "using_index": true,
+                              "using_join_buffer": "Block Nested Loop",
+                              "attached_condition": "<if>(is_not_null_compl(parent2), (`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`), true)"
+                            }
+                          }
+                        ]
                       }
                     }
-                  ]
+                  }
                 }
-              }
-            ]
+              ]
+            }
           }
         }
-      }
-    ]
+      ]
+    }
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select '8' AS `g1` from dual where (not(<in_optimizer>('8','8' in ( <materialize> (/* select#2 */ select `test`.`grandparent1`.`col_int_nokey` AS `g1` from `test`.`t1` `grandparent1` where (<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (/* select#3 */ select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent1`.`col_int_nokey` = `test`.`parent2`.`col_int_key`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on distinct_key where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized-subquery`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3)) ), <primary_index_lookup>('8' in <temporary table> on distinct_key where (('8' = `materialized-subquery`.`g1`)))))))
+Note	1003	/* select#1 */ select '8' AS `g1` from dual where (not(<in_optimizer>('8',<exists>(/* select#2 */ select 1 from `test`.`t1` `grandparent1` where (<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (/* select#3 */ select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized-subquery`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))))))
 SELECT * FROM t3
 WHERE g1 NOT IN
 (SELECT grandparent1.col_int_nokey AS g1
@@ -8192,9 +8115,9 @@ ON alias2.col_int_nokey = alias1.col_int_nokey AND
 'o' IN (SELECT col_varchar_nokey
 FROM t3);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	2	Using where
+1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	2	NULL
 1	PRIMARY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	DEPENDENT SUBQUERY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where
 SELECT alias1.col_varchar_nokey
 FROM t1 AS alias1
 INNER JOIN v_t2 AS alias2
@@ -8248,8 +8171,8 @@ FROM t1
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1a	ALL	NULL	NULL	NULL	NULL	4	Using where
 1	PRIMARY	t1b	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
-3	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	NULL
+2	SUBQUERY	t2	system	PRIMARY	NULL	NULL	NULL	1	NULL
+3	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	4	Using where
 SELECT t1a.*
 FROM t1 AS t1a
 JOIN t1 AS t1b USING ( col_int_nokey )
@@ -8420,7 +8343,7 @@ t1 AS SQ2_alias1, t1 AS SQ2_alias2
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	alias1	ALL	NULL	NULL	NULL	NULL	4	NULL
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	SQ2_alias1	index	NULL	col_varchar_key	9	NULL	4	Using index
+2	SUBQUERY	SQ2_alias1	index	col_varchar_key	col_varchar_key	9	NULL	4	Using index
 2	SUBQUERY	SQ2_alias2	ALL	NULL	NULL	NULL	NULL	4	Using join buffer (Block Nested Loop)
 SELECT
 alias1.col_varchar_nokey AS a1_nokey,
@@ -8485,7 +8408,7 @@ FROM t2 AS it1 JOIN t1 AS it2 ON it2.col_int_key = it1.pk);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot1	index	NULL	col_varchar_key	7	NULL	20	Using index
 1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (Block Nested Loop)
-2	SUBQUERY	it1	index	PRIMARY	col_varchar_key	7	NULL	20	Using index
+2	SUBQUERY	it1	index	PRIMARY,col_varchar_key	col_varchar_key	7	NULL	20	Using index
 2	SUBQUERY	it2	ref	col_int_key	col_int_key	4	test.it1.pk	1	NULL
 SELECT ot1.col_int_key AS field1
 FROM t2 AS ot1, t2 AS ot2
@@ -8664,7 +8587,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	GP2	system	NULL	NULL	NULL	NULL	1	NULL
 1	PRIMARY	GP1	ALL	NULL	NULL	NULL	NULL	3	Using where
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
-3	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	NULL
+3	SUBQUERY	t2	system	col_varchar_key	NULL	NULL	NULL	1	NULL
 3	SUBQUERY	t3	system	col_varchar_key	NULL	NULL	NULL	1	NULL
 SELECT GP1.id
 FROM t1 AS GP1 JOIN t3 AS GP2
@@ -8718,7 +8641,7 @@ FROM t2 AS child1 JOIN t1 AS child2 USING (int_key)
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	outr	ALL	NULL	NULL	NULL	NULL	20	Using where
 2	SUBQUERY	middle	ALL	NULL	NULL	NULL	NULL	20	Using where
-3	SUBQUERY	child1	system	int_key	NULL	NULL	NULL	1	NULL
+3	SUBQUERY	child1	system	int_key,vc_key	NULL	NULL	NULL	1	NULL
 3	SUBQUERY	child2	ref	int_key	int_key	5	const	3	Using index
 SELECT vc_key
 FROM t1 as outr
@@ -8859,8 +8782,8 @@ ON alias5.col_varchar_key = alias4.col_varchar_key
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	outr	index	NULL	col_datetime_key	5	NULL	2	Using where; Using index
-2	SUBQUERY	alias1	index	NULL	col_datetime_key	5	NULL	2	Using index
-2	SUBQUERY	alias4	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	alias1	index	col_datetime_key	col_datetime_key	5	NULL	2	Using index
+2	SUBQUERY	alias4	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	Using where
 2	SUBQUERY	alias5	ref	col_int_key,col_varchar_key	col_varchar_key	3	test.alias4.col_varchar_key	1	Using where; Using index
 2	SUBQUERY	alias3	index	NULL	col_int_key	4	NULL	2	Using index
 SELECT col_datetime_key
@@ -9045,8 +8968,8 @@ ON alias5.col_varchar_key = alias4.col_varchar_key
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	outr	index	NULL	col_datetime_key	5	NULL	2	Using where; Using index
-2	SUBQUERY	alias1	index	NULL	col_datetime_key	5	NULL	2	Using index
-2	SUBQUERY	alias4	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	NULL
+2	SUBQUERY	alias1	index	col_datetime_key	col_datetime_key	5	NULL	2	Using index
+2	SUBQUERY	alias4	ALL	col_int_key,col_varchar_key	NULL	NULL	NULL	1	Using where
 2	SUBQUERY	alias5	ref	col_int_key,col_varchar_key	col_varchar_key	3	test.alias4.col_varchar_key	1	Using where; Using index
 2	SUBQUERY	alias3	index	NULL	col_int_key	4	NULL	2	Using index
 SELECT col_datetime_key
@@ -9173,9 +9096,9 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 3	SUBQUERY	subquery1_t2	ALL	PRIMARY	NULL	NULL	NULL	20	Using where
 3	SUBQUERY	subquery1_t3	ref	col_varchar_key	col_varchar_key	4	test.subquery1_t2.col_varchar_nokey	1	Using where
 3	SUBQUERY	subquery1_t1	index	PRIMARY	col_int_key	5	NULL	20	Using where; Using index; Using join buffer (Block Nested Loop)
-4	SUBQUERY	subquery2_t2	index	NULL	col_varchar_key	4	NULL	21	Using index
-4	SUBQUERY	subquery2_t3	ref	col_varchar_key	col_varchar_key	4	test.subquery2_t2.col_varchar_key	1	Using index
-4	SUBQUERY	subquery2_t1	index	NULL	col_int_key	5	NULL	20	Using where; Using index; Using join buffer (Block Nested Loop)
+4	SUBQUERY	subquery2_t3	index	PRIMARY,col_varchar_key	col_varchar_key	4	NULL	20	Using where; Using index
+4	SUBQUERY	subquery2_t2	eq_ref	PRIMARY,col_varchar_key	PRIMARY	4	test.subquery2_t3.pk	1	Using where
+4	SUBQUERY	subquery2_t1	index	col_int_key	col_int_key	5	NULL	20	Using index; Using join buffer (Block Nested Loop)
 SELECT * FROM v1;
 field1
 v
@@ -9304,8 +9227,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	alias2	ref	col_varchar_key	col_varchar_key	4	test.alias3.col_varchar_key	1	Using index
 1	PRIMARY	alias1	index	NULL	col_varchar_key	9	NULL	2	Using where; Using index; Using join buffer (Block Nested Loop)
 3	SUBQUERY	sq2_alias2	index	NULL	PRIMARY	4	NULL	2	Using index
-3	SUBQUERY	t2	index	NULL	col_int_key	5	NULL	5	Using index; Using join buffer (Block Nested Loop)
-2	SUBQUERY	sq1_alias1	ALL	NULL	NULL	NULL	NULL	2	NULL
+3	SUBQUERY	t2	index	col_int_key	col_int_key	5	NULL	5	Using index; Using join buffer (Block Nested Loop)
+2	SUBQUERY	sq1_alias1	ALL	NULL	NULL	NULL	NULL	2	Using where
 PREPARE prep_stmt_7430 FROM 'SELECT SUM( alias1.col_varchar_key ) AS field1
 FROM t1 AS alias1
 RIGHT JOIN t2 AS alias2
@@ -9350,7 +9273,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	alias1	index	NULL	col_varchar_key	9	NULL	2	Using where; Using index; Using join buffer (Block Nested Loop)
 3	DEPENDENT SUBQUERY	t2	ref	col_int_key,col_varchar_key	col_int_key	5	func	2	Using where
 3	DEPENDENT SUBQUERY	sq2_alias2	index	NULL	PRIMARY	4	NULL	2	Using index; Using join buffer (Block Nested Loop)
-2	SUBQUERY	sq1_alias1	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	sq1_alias1	ALL	NULL	NULL	NULL	NULL	2	Using where
 DROP TABLE t1,t2;
 DROP VIEW view_c;
 #
@@ -9489,10 +9412,10 @@ ON inner_t3.col_varchar_nokey = inner_t2.col_varchar_key
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	outer_t2	system	NULL	NULL	NULL	NULL	1	NULL
-1	PRIMARY	outer_t1	ALL	NULL	NULL	NULL	NULL	1	Using where
-2	SUBQUERY	inner_t1	system	NULL	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	inner_t2	ALL	PRIMARY	NULL	NULL	NULL	1	NULL
-2	SUBQUERY	inner_t3	eq_ref	PRIMARY	PRIMARY	4	test.inner_t2.pk	1	Using where
+1	PRIMARY	outer_t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	inner_t1	system	NULL	NULL	NULL	NULL	1	NULL
+2	DEPENDENT SUBQUERY	inner_t2	ALL	PRIMARY	NULL	NULL	NULL	1	Using where
+2	DEPENDENT SUBQUERY	inner_t3	eq_ref	PRIMARY	PRIMARY	4	test.inner_t2.pk	1	Using where
 SELECT outer_t1.pk, outer_t2.pk
 FROM t3 AS outer_t1
 RIGHT JOIN t2 AS outer_t2
@@ -9597,7 +9520,7 @@ WHERE (alias1.col_varchar_key, alias1.col_varchar_nokey) IN
 );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	11	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	4	test.alias2.col_varchar_key	2	Using where
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	4	test.alias2.col_varchar_key	2	Using where
 4	SUBQUERY	<derived7>	ALL	NULL	NULL	NULL	NULL	2	NULL
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -9675,7 +9598,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	ot1	const	PRIMARY,col_varchar_key	PRIMARY	4	const	1	Using where
 1	PRIMARY	ot2	ALL	NULL	NULL	NULL	NULL	20	Using where; Using join buffer (Block Nested Loop)
 2	SUBQUERY	it2	ALL	NULL	NULL	NULL	NULL	20	NULL
-2	SUBQUERY	it1	ref	col_time_key	col_time_key	3	test.it2.col_time_nokey	1	NULL
+2	SUBQUERY	it1	ref	PRIMARY,col_time_key	col_time_key	3	test.it2.col_time_nokey	1	NULL
 SELECT ot1.col_int_key AS x
 FROM t1 AS ot2
 LEFT JOIN t1 AS ot1
@@ -9726,7 +9649,7 @@ FROM t1 AS subquery3_t1
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	2	Using where
 1	PRIMARY	table2	index	NULL	PRIMARY	4	NULL	1	Using index; Using join buffer (Block Nested Loop)
-4	SUBQUERY	subquery3_t1	system	NULL	NULL	NULL	NULL	0	const row not found
+4	SUBQUERY	subquery3_t1	system	col_varchar_key	NULL	NULL	NULL	0	const row not found
 3	SUBQUERY	t3	system	NULL	NULL	NULL	NULL	0	const row not found
 2	DERIVED	subquery1_t1	ALL	PRIMARY	NULL	NULL	NULL	1	NULL
 2	DERIVED	subquery1_t2	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t1.pk	1	Using index
@@ -9794,9 +9717,9 @@ outr.col_varchar_key IS NULL
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	outr	ALL	col_datetime_key	NULL	NULL	NULL	1	100.00	Using where
 1	PRIMARY	outr2	ALL	col_time_key	NULL	NULL	NULL	20	100.00	Range checked for each record (index map: 0x1)
-2	SUBQUERY	innr	ALL	NULL	NULL	NULL	NULL	20	100.00	Using where
+2	SUBQUERY	innr	ALL	col_int_key	NULL	NULL	NULL	20	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`outr`.`col_int_nokey` AS `col_int_nokey` from `test`.`t2` `outr` straight_join `test`.`t3` `outr2` where (<in_optimizer>(`test`.`outr`.`col_int_nokey`,`test`.`outr`.`col_int_nokey` in ( <materialize> (/* select#2 */ select `test`.`innr`.`col_int_key` from `test`.`t1` `innr` where (`test`.`innr`.`pk` >= `test`.`innr`.`col_int_nokey`) ), <primary_index_lookup>(`test`.`outr`.`col_int_nokey` in <temporary table> on distinct_key where ((`test`.`outr`.`col_int_nokey` = `materialized-subquery`.`col_int_key`))))) and (`test`.`outr`.`col_int_nokey` <= 6) and (`test`.`outr2`.`col_time_key` > `test`.`outr`.`col_datetime_key`))
+Note	1003	/* select#1 */ select `test`.`outr`.`col_int_nokey` AS `col_int_nokey` from `test`.`t2` `outr` straight_join `test`.`t3` `outr2` where (<in_optimizer>(`test`.`outr`.`col_int_nokey`,`test`.`outr`.`col_int_nokey` in ( <materialize> (/* select#2 */ select `test`.`innr`.`col_int_key` from `test`.`t1` `innr` where (`test`.`innr`.`pk` >= `test`.`innr`.`col_int_nokey`) ), <primary_index_lookup>(`test`.`outr`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`outr`.`col_int_nokey` = `materialized-subquery`.`col_int_key`))))) and (`test`.`outr`.`col_int_nokey` <= 6) and (`test`.`outr2`.`col_time_key` > `test`.`outr`.`col_datetime_key`))
 SELECT outr.col_int_nokey
 FROM t2 as outr
 STRAIGHT_JOIN t3 AS outr2
@@ -9862,26 +9785,28 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 6,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t2`.`vc`,`test`.`t2`.`vc` in ( <materialize> (select `test`.`t3`.`vc` from `test`.`t2` `t3` ), <primary_index_lookup>(`test`.`t2`.`vc` in <temporary table> on distinct_key where ((`test`.`t2`.`vc` = `materialized-subquery`.`vc`)))))",
+          "attached_condition": "<in_optimizer>(`test`.`t2`.`vc`,`test`.`t2`.`vc` in ( <materialize> (select `test`.`t3`.`vc` from `test`.`t2` `t3` where 1 ), <primary_index_lookup>(`test`.`t2`.`vc` in <temporary table> on <auto_key> where ((`test`.`t2`.`vc` = `materialized-subquery`.`vc`)))))",
           "attached_subqueries": [
             {
-              "using_temporary_table": true,
-              "dependent": false,
-              "cacheable": true,
               "table": {
+                "table_name": "<materialized_subquery>",
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "4",
                 "rows": 1,
-                "attached_condition": "((`test`.`t2`.`vc` = `materialized-subquery`.`vc`))"
-              },
-              "query_block": {
-                "select_id": 2,
-                "table": {
-                  "table_name": "t3",
-                  "access_type": "ALL",
-                  "rows": 6,
-                  "filtered": 100
+                "materialized_from_subquery": {
+                  "using_temporary_table": true,
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 2,
+                    "table": {
+                      "table_name": "t3",
+                      "access_type": "ALL",
+                      "rows": 6,
+                      "filtered": 100
+                    }
+                  }
                 }
               }
             }
@@ -9902,7 +9827,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t2`.`vc` AS `vc`,`test`.`t2`.`ik` AS `t2_ik`,`test`.`t1`.`ik` AS `t1_ik` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`vc` = `test`.`t2`.`vc`)) where <in_optimizer>(`test`.`t2`.`vc`,`test`.`t2`.`vc` in ( <materialize> (/* select#2 */ select `test`.`t3`.`vc` from `test`.`t2` `t3` ), <primary_index_lookup>(`test`.`t2`.`vc` in <temporary table> on distinct_key where ((`test`.`t2`.`vc` = `materialized-subquery`.`vc`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`vc` AS `vc`,`test`.`t2`.`ik` AS `t2_ik`,`test`.`t1`.`ik` AS `t1_ik` from `test`.`t2` left join `test`.`t1` on((`test`.`t1`.`vc` = `test`.`t2`.`vc`)) where <in_optimizer>(`test`.`t2`.`vc`,`test`.`t2`.`vc` in ( <materialize> (/* select#2 */ select `test`.`t3`.`vc` from `test`.`t2` `t3` where 1 ), <primary_index_lookup>(`test`.`t2`.`vc` in <temporary table> on <auto_key> where ((`test`.`t2`.`vc` = `materialized-subquery`.`vc`)))))
 SELECT t2.vc, t2.ik AS t2_ik, t1.ik AS t1_ik
 FROM t2 LEFT JOIN t1 ON t2.vc=t1.vc
 WHERE t2.vc IN (SELECT vc FROM t2 AS t3);
@@ -9995,26 +9920,31 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 7,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>((`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`),(`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`) in ( <materialize> (select `test`.`derived2`.`col_varchar_nokey`,`test`.`derived2`.`col_varchar_key` from `test`.`t2` `derived2` ), <primary_index_lookup>(`derived1`.`col_varchar_nokey` in <temporary table> on distinct_key where ((`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`)))))",
+          "attached_condition": "<in_optimizer>((`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`),(`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`) in ( <materialize> (select `test`.`derived2`.`col_varchar_nokey`,`test`.`derived2`.`col_varchar_key` from `test`.`t2` `derived2` where 1 ), <primary_index_lookup>(`derived1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`)))))",
           "attached_subqueries": [
             {
-              "using_temporary_table": true,
-              "dependent": false,
-              "cacheable": true,
               "table": {
+                "table_name": "<materialized_subquery>",
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "8",
                 "rows": 1,
-                "attached_condition": "((`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`))"
-              },
-              "query_block": {
-                "select_id": 3,
-                "table": {
-                  "table_name": "derived2",
-                  "access_type": "ALL",
-                  "rows": 7,
-                  "filtered": 100
+                "materialized_from_subquery": {
+                  "using_temporary_table": true,
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 3,
+                    "table": {
+                      "table_name": "derived2",
+                      "access_type": "ALL",
+                      "possible_keys": [
+                        "col_varchar_key"
+                      ],
+                      "rows": 7,
+                      "filtered": 100
+                    }
+                  }
                 }
               }
             }
@@ -10049,7 +9979,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `derived1`.`col_varchar_nokey` AS `col_varchar_nokey`,`derived1`.`col_varchar_key` AS `col_varchar_key` from (/* select#2 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `derived1` left join `test`.`t1` on((`test`.`t1`.`col_varchar_nokey` = `derived1`.`col_varchar_nokey`)) where <in_optimizer>((`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`),(`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`) in ( <materialize> (/* select#3 */ select `test`.`derived2`.`col_varchar_nokey`,`test`.`derived2`.`col_varchar_key` from `test`.`t2` `derived2` ), <primary_index_lookup>(`derived1`.`col_varchar_nokey` in <temporary table> on distinct_key where ((`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`)))))
+Note	1003	/* select#1 */ select `derived1`.`col_varchar_nokey` AS `col_varchar_nokey`,`derived1`.`col_varchar_key` AS `col_varchar_key` from (/* select#2 */ select `test`.`t2`.`col_varchar_key` AS `col_varchar_key`,`test`.`t2`.`col_varchar_nokey` AS `col_varchar_nokey` from `test`.`t2`) `derived1` left join `test`.`t1` on((`test`.`t1`.`col_varchar_nokey` = `derived1`.`col_varchar_nokey`)) where <in_optimizer>((`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`),(`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`) in ( <materialize> (/* select#3 */ select `test`.`derived2`.`col_varchar_nokey`,`test`.`derived2`.`col_varchar_key` from `test`.`t2` `derived2` where 1 ), <primary_index_lookup>(`derived1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`)))))
 SELECT *
 FROM (SELECT * FROM t2) AS derived1
 LEFT JOIN t1
@@ -10104,26 +10034,31 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 20,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`) in ( <materialize> (select `test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key` from `test`.`t2` ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on distinct_key where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_key`)))))",
+          "attached_condition": "<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`) in ( <materialize> (select `test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_key`)))))",
           "attached_subqueries": [
             {
-              "using_temporary_table": true,
-              "dependent": false,
-              "cacheable": true,
               "table": {
+                "table_name": "<materialized_subquery>",
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "8",
                 "rows": 1,
-                "attached_condition": "((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_key`))"
-              },
-              "query_block": {
-                "select_id": 2,
-                "table": {
-                  "table_name": "t2",
-                  "access_type": "ALL",
-                  "rows": 20,
-                  "filtered": 100
+                "materialized_from_subquery": {
+                  "using_temporary_table": true,
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 2,
+                    "table": {
+                      "table_name": "t2",
+                      "access_type": "ALL",
+                      "possible_keys": [
+                        "col_int_key"
+                      ],
+                      "rows": 20,
+                      "filtered": 100
+                    }
+                  }
                 }
               }
             }
@@ -10144,7 +10079,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`grandparent1`.`col_int_nokey` AS `col_int_nokey`,`test`.`grandparent1`.`col_int_key` AS `col_int_key` from `test`.`t1` `grandparent1` left join `test`.`t1` on((`test`.`t1`.`col_int_nokey` = `test`.`grandparent1`.`col_int_nokey`)) where <in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key` from `test`.`t2` ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on distinct_key where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_key`)))))
+Note	1003	/* select#1 */ select `test`.`grandparent1`.`col_int_nokey` AS `col_int_nokey`,`test`.`grandparent1`.`col_int_key` AS `col_int_key` from `test`.`t1` `grandparent1` left join `test`.`t1` on((`test`.`t1`.`col_int_nokey` = `test`.`grandparent1`.`col_int_nokey`)) where <in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_key`)))))
 SELECT grandparent1.*
 FROM t1 AS grandparent1
 LEFT JOIN t1 USING (col_int_nokey)
@@ -10289,41 +10224,43 @@ EXPLAIN
           ],
           "rows": 20,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>((`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`),(`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`) in ( <materialize> (select `test`.`sq2_alias2`.`col_varchar_key`,`test`.`sq2_alias1`.`col_varchar_nokey` from `test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2` where (`test`.`sq2_alias2`.`col_int_key` < 2) ), <primary_index_lookup>(`test`.`alias2`.`col_varchar_key` in <temporary table> on distinct_key where ((`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))))",
+          "attached_condition": "<in_optimizer>((`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`),(`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`) in ( <materialize> (select `test`.`sq2_alias2`.`col_varchar_key`,`test`.`sq2_alias1`.`col_varchar_nokey` from `test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2` where (`test`.`sq2_alias2`.`col_int_key` < 2) ), <primary_index_lookup>(`test`.`alias2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))))",
           "attached_subqueries": [
             {
-              "using_temporary_table": true,
-              "dependent": false,
-              "cacheable": true,
               "table": {
+                "table_name": "<materialized_subquery>",
                 "access_type": "eq_ref",
                 "key": "<auto_key>",
                 "key_length": "8",
                 "rows": 1,
-                "attached_condition": "((`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`))"
-              },
-              "query_block": {
-                "select_id": 2,
-                "nested_loop": [
-                  {
-                    "table": {
-                      "table_name": "sq2_alias1",
-                      "access_type": "ALL",
-                      "rows": 20,
-                      "filtered": 100
-                    }
-                  },
-                  {
-                    "table": {
-                      "table_name": "sq2_alias2",
-                      "access_type": "ALL",
-                      "rows": 20,
-                      "filtered": 100,
-                      "using_join_buffer": "Block Nested Loop",
-                      "attached_condition": "(`test`.`sq2_alias2`.`col_int_key` < 2)"
-                    }
+                "materialized_from_subquery": {
+                  "using_temporary_table": true,
+                  "dependent": true,
+                  "cacheable": false,
+                  "query_block": {
+                    "select_id": 2,
+                    "nested_loop": [
+                      {
+                        "table": {
+                          "table_name": "sq2_alias1",
+                          "access_type": "ALL",
+                          "rows": 20,
+                          "filtered": 100
+                        }
+                      },
+                      {
+                        "table": {
+                          "table_name": "sq2_alias2",
+                          "access_type": "ALL",
+                          "rows": 20,
+                          "filtered": 100,
+                          "using_join_buffer": "Block Nested Loop",
+                          "attached_condition": "(`test`.`sq2_alias2`.`col_int_key` < 2)"
+                        }
+                      }
+                    ]
                   }
-                ]
+                }
               }
             }
           ]
@@ -10359,7 +10296,7 @@ EXPLAIN
   }
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`alias1`.`col_datetime_key` AS `col_datetime_key` from `test`.`t2` `alias2` join `test`.`t2` `alias3` left join `test`.`t2` `alias1` on(((`test`.`alias3`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`) or `test`.`alias2`.`col_varchar_nokey`)) where ((`test`.`alias3`.`pk` = `test`.`alias2`.`pk`) and <in_optimizer>((`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`),(`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`) in ( <materialize> (/* select#2 */ select `test`.`sq2_alias2`.`col_varchar_key`,`test`.`sq2_alias1`.`col_varchar_nokey` from `test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2` where (`test`.`sq2_alias2`.`col_int_key` < 2) ), <primary_index_lookup>(`test`.`alias2`.`col_varchar_key` in <temporary table> on distinct_key where ((`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`))))))
+Note	1003	/* select#1 */ select `test`.`alias1`.`col_datetime_key` AS `col_datetime_key` from `test`.`t2` `alias2` join `test`.`t2` `alias3` left join `test`.`t2` `alias1` on(((`test`.`alias3`.`col_varchar_nokey` = `test`.`alias2`.`col_varchar_key`) or `test`.`alias2`.`col_varchar_nokey`)) where ((`test`.`alias3`.`pk` = `test`.`alias2`.`pk`) and <in_optimizer>((`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`),(`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`) in ( <materialize> (/* select#2 */ select `test`.`sq2_alias2`.`col_varchar_key`,`test`.`sq2_alias1`.`col_varchar_nokey` from `test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2` where (`test`.`sq2_alias2`.`col_int_key` < 2) ), <primary_index_lookup>(`test`.`alias2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`))))))
 SELECT alias1.col_datetime_key
 FROM t2 AS alias1
 RIGHT JOIN t2 AS alias2
@@ -10414,5 +10351,6 @@ col_datetime_key
 2002-08-25 20:35:06
 DROP TABLE t1, t2;
 # End of test for bug#14064201.
+set @@optimizer_switch=@old_opt_switch;
 # End of 5.6 tests
 set optimizer_switch=default;

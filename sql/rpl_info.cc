@@ -27,6 +27,7 @@ Rpl_info::Rpl_info(const char* type
                    PSI_mutex_key *param_key_info_stop_cond,
                    PSI_mutex_key *param_key_info_sleep_cond
 #endif
+                   ,uint param_id
                  )
   :Slave_reporting_capability(type),
 #ifdef HAVE_PSI_INTERFACE
@@ -40,7 +41,7 @@ Rpl_info::Rpl_info(const char* type
 #endif
   info_thd(0), inited(0), abort_slave(0),
   slave_running(0), slave_run_id(0),
-  handler(0), rpl_info_type(INVALID_INFO_REPOSITORY)
+  handler(0), internal_id(param_id)
 {
 #ifdef HAVE_PSI_INTERFACE
   mysql_mutex_init(*key_info_run_lock,
@@ -66,7 +67,6 @@ Rpl_info::Rpl_info(const char* type
 
 Rpl_info::~Rpl_info()
 {
-  delete []uidx;
   delete handler;
 
   mysql_mutex_destroy(&run_lock);

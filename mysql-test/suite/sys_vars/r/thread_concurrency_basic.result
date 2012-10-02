@@ -1,6 +1,8 @@
 select @@global.thread_concurrency;
 @@global.thread_concurrency
 10
+Warnings:
+Warning	1287	'@@thread_concurrency' is deprecated and will be removed in a future release.
 select @@session.thread_concurrency;
 ERROR HY000: Variable 'thread_concurrency' is a GLOBAL variable
 show global variables like 'thread_concurrency';

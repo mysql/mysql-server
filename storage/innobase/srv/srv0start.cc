@@ -71,7 +71,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "buf0rea.h"
 # include "dict0boot.h"
 # include "dict0load.h"
-# include "dict0stats_background.h" /* dict_stats_thread*(), dict_stats_event */
+# include "dict0stats_bg.h" /* dict_stats_thread*(), dict_stats_event */
 # include "que0que.h"
 # include "usr0sess.h"
 # include "lock0lock.h"
@@ -185,6 +185,61 @@ srv_parse_megabytes(
 
 	*megs = size;
 	return(str);
+}
+
+/*********************************************************************//**
+Check if a file can be opened in read-write mode.
+@return	true if it doesn't exist or can be opened in rw mode. */
+static
+bool
+srv_file_check_mode(
+/*================*/
+	const char*	name)		/*!< in: filename to check */
+{
+	os_file_stat_t	stat;
+
+	memset(&stat, 0x0, sizeof(stat));
+
+	dberr_t		err = os_file_get_status(name, &stat, true);
+
+	if (err == DB_FAIL) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"os_file_get_status() failed on '%s'. Can't determine "
+			"file permissions", name);
+
+		return(false);
+
+	} else if (err == DB_SUCCESS) {
+
+		/* Note: stat.rw_perm is only valid of files */
+
+		if (stat.type == OS_FILE_TYPE_FILE) {
+			if (!stat.rw_perm) {
+
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"%s can't be opened in read-write mode",
+					name);
+
+				return(false);
+			}
+		} else {
+			/* Not a regular file, bail out. */
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"'%s' not a regular file.", name);
+
+			return(false);
+		}
+	} else {
+
+		/* This is OK. If the file create fails on RO media, there
+		is nothing we can do. */
+
+		ut_a(err == DB_NOT_FOUND);
+	}
+
+	return(true);
 }
 
 /*********************************************************************//**
@@ -564,9 +619,16 @@ open_or_create_log_file(
 
 	sprintf(name + dirnamelen, "%s%lu", "ib_logfile", (ulong) i);
 
-	files[i] = os_file_create(innodb_file_log_key, name,
-				  OS_FILE_CREATE, OS_FILE_NORMAL,
-				  OS_LOG_FILE, &ret);
+	/* Note: If the file doesn't exist then this check will return true. */
+
+	if (!srv_file_check_mode(name)) {
+		return(DB_ERROR);
+	}
+
+	files[i] = os_file_create(
+		innodb_file_log_key, name,
+		OS_FILE_CREATE, OS_FILE_NORMAL, OS_LOG_FILE, &ret);
+
 	if (ret == FALSE) {
 		if (os_file_get_last_error(false) != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
@@ -723,9 +785,11 @@ open_or_create_data_files(
 	char		name[10000];
 
 	if (srv_n_data_files >= 1000) {
-		fprintf(stderr, "InnoDB: can only have < 1000 data files\n"
-			"InnoDB: you have defined %lu\n",
-			(ulong) srv_n_data_files);
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Can only have < 1000 data files, you have "
+			"defined %lu\n", (ulong) srv_n_data_files);
+
 		return(DB_ERROR);
 	}
 
@@ -751,7 +815,13 @@ open_or_create_data_files(
 
 		strcpy(name + dirnamelen, srv_data_file_names[i]);
 
-		if (srv_data_file_is_raw_partition[i] == 0) {
+		/* Note: It will return true if the file doesn' exist. */
+
+		if (!srv_file_check_mode(name)) {
+
+			return(DB_FAIL);
+
+		} else if (srv_data_file_is_raw_partition[i] == 0) {
 
 			/* First we try to create the file: if it already
 			exists, ret will get value FALSE */
@@ -761,7 +831,8 @@ open_or_create_data_files(
 						  OS_FILE_NORMAL,
 						  OS_DATA_FILE, &ret);
 
-			if (ret == FALSE && os_file_get_last_error(false)
+			if (ret == FALSE
+			    && os_file_get_last_error(false)
 			    != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
 			    /* AIX 5.1 after security patch ML7 may have
@@ -1076,6 +1147,13 @@ srv_undo_tablespace_open(
 	dberr_t		err;
 	ibool		ret;
 	ulint		flags;
+
+	if (!srv_file_check_mode(name)) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"UNDO tablespaces must be writable!");
+
+		return(DB_ERROR);
+	}
 
 	fh = os_file_create(
 		innodb_file_data_key, name,
@@ -1591,6 +1669,9 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT")) {
 		srv_unix_file_flush_method = SRV_UNIX_O_DIRECT;
 
+	} else if (0 == ut_strcmp(srv_file_flush_method_str, "O_DIRECT_NO_FSYNC")) {
+		srv_unix_file_flush_method = SRV_UNIX_O_DIRECT_NO_FSYNC;
+
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "littlesync")) {
 		srv_unix_file_flush_method = SRV_UNIX_LITTLESYNC;
 
@@ -1852,10 +1933,8 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Error: tablespace size must be"
-			" at least 10 MB\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Tablespace size must be at least 10 MB");
 
 		return(DB_ERROR);
 	}
@@ -1866,34 +1945,25 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_LOG_ARCHIVE */
 					&min_flushed_lsn, &max_flushed_lsn,
 					&sum_of_new_sizes);
-	if (err != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: Could not open or create data files.\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: If you tried to add new data files,"
-			" and it failed here,\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: you should now edit innodb_data_file_path"
-			" in my.cnf back\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: to what it was, and remove the"
-			" new ibdata files InnoDB created\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: in this failed attempt. InnoDB only wrote"
-			" those files full of\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: zeros, but did not yet use them in any way."
-			" But be careful: do not\n");
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: remove old data files"
-			" which contain your precious data!\n");
+	if (err == DB_FAIL) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The system tablespace must be writable!");
+
+		return(DB_ERROR);
+
+	} else if (err != DB_SUCCESS) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Could not open or create the system tablespace. If "
+			"you tried to add new data files to the system "
+			"tablespace, and it failed here, you should now "
+			"edit innodb_data_file_path in my.cnf back to what "
+			"it was, and remove the new ibdata files InnoDB "
+			"created in this failed attempt. InnoDB only wrote "
+			"those files full of zeros, but did not yet use "
+			"them in any way. But be careful: do not remove "
+			"old data files which contain your precious data!");
 
 		return(err);
 	}
@@ -1904,43 +1974,30 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_LOG_ARCHIVE */
 
 	for (i = 0; i < srv_n_log_files; i++) {
-		err = open_or_create_log_file(create_new_db, &log_file_created,
-					      log_opened, 0, i);
+
+		err = open_or_create_log_file(
+			create_new_db, &log_file_created, log_opened, 0, i);
+
 		if (err != DB_SUCCESS) {
 
 			return(err);
-		}
-
-		if (log_file_created) {
+		} else if (log_file_created) {
 			log_created = TRUE;
 		} else {
 			log_opened = TRUE;
 		}
 		if ((log_opened && create_new_db)
 		    || (log_opened && log_created)) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Error: all log files must be"
-				" created at the same time.\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: All log files must be"
-				" created also in database creation.\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: If you want bigger or smaller"
-				" log files, shut down the\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: database and make sure there"
-				" were no errors in shutdown.\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Then delete the existing log files."
-				" Edit the .cnf file\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: and start the database again.\n");
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"All log files must be created at the "
+				"same time. All log files must be created "
+				"also in database creation. If you want "
+				"bigger or smaller log files, shut down "
+				"the database cleanly and make sure there "
+				"were no errors during shutdown. Then delete "
+				"the existing log files. Edit the .cnf file "
+				"and start the database again.");
 
 			return(DB_ERROR);
 		}

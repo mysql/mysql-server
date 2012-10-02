@@ -137,7 +137,7 @@ UNIV_INTERN mysql_pfs_key_t	fil_space_latch_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 /** File node of a tablespace or the log data space */
-struct fil_node_struct {
+struct fil_node_t {
 	fil_space_t*	space;	/*!< backpointer to the space where this node
 				belongs */
 	char*		name;	/*!< path to the file */
@@ -171,11 +171,11 @@ struct fil_node_struct {
 	ulint		magic_n;/*!< FIL_NODE_MAGIC_N */
 };
 
-/** Value of fil_node_struct::magic_n */
+/** Value of fil_node_t::magic_n */
 #define	FIL_NODE_MAGIC_N	89389
 
 /** Tablespace or log data space: let us call them by a common name space */
-struct fil_space_struct {
+struct fil_space_t {
 	char*		name;	/*!< space name = the path to the first file in
 				it */
 	ulint		id;	/*!< space id */
@@ -236,24 +236,21 @@ struct fil_space_struct {
 	UT_LIST_NODE_T(fil_space_t) unflushed_spaces;
 				/*!< list of spaces with at least one unflushed
 				file we have written to */
-	ibool		is_in_unflushed_spaces; /*!< TRUE if this space is
-				currently in unflushed_spaces */
+	bool		is_in_unflushed_spaces;
+				/*!< true if this space is currently in
+				unflushed_spaces */
 	UT_LIST_NODE_T(fil_space_t) space_list;
 				/*!< list of all spaces */
 	ulint		magic_n;/*!< FIL_SPACE_MAGIC_N */
 };
 
-/** Value of fil_space_struct::magic_n */
+/** Value of fil_space_t::magic_n */
 #define	FIL_SPACE_MAGIC_N	89472
-
-/** The tablespace memory cache */
-typedef	struct fil_system_struct	fil_system_t;
 
 /** The tablespace memory cache; also the totality of logs (the log
 data space) is stored here; below we talk about tablespaces, but also
 the ib_logfiles form a 'space' and it is handled here */
-
-struct fil_system_struct {
+struct fil_system_t {
 #ifndef UNIV_HOTBACKUP
 	ib_mutex_t		mutex;		/*!< The mutex protecting the cache */
 #endif /* !UNIV_HOTBACKUP */
@@ -312,6 +309,16 @@ static fil_system_t*	fil_system	= NULL;
 
 /** Determine if (i) is a user tablespace id or not. */
 # define fil_is_user_tablespace_id(i) ((i) > srv_undo_tablespaces_open)
+
+/** Determine if user has explicitly disabled fsync(). */
+#ifndef __WIN__
+# define fil_buffering_disabled(s)	\
+	((s)->purpose == FIL_TABLESPACE	\
+	 && srv_unix_file_flush_method	\
+	 == SRV_UNIX_O_DIRECT_NO_FSYNC)
+#else /* __WIN__ */
+# define fil_buffering_disabled(s)	(0)
+#endif /* __WIN__ */
 
 #ifdef UNIV_DEBUG
 /** Try fil_validate() every this many times */
@@ -580,9 +587,9 @@ fil_space_get_type(
 /**********************************************************************//**
 Checks if all the file nodes in a space are flushed. The caller must hold
 the fil_system mutex.
-@return	TRUE if all are flushed */
+@return	true if all are flushed */
 static
-ibool
+bool
 fil_space_is_flushed(
 /*=================*/
 	fil_space_t*	space)	/*!< in: space */
@@ -596,13 +603,14 @@ fil_space_is_flushed(
 	while (node) {
 		if (node->modification_counter > node->flush_counter) {
 
-			return(FALSE);
+			ut_ad(!fil_buffering_disabled(space));
+			return(false);
 		}
 
 		node = UT_LIST_GET_NEXT(chain, node);
 	}
 
-	return(TRUE);
+	return(true);
 }
 
 /*******************************************************************//**
@@ -959,6 +967,7 @@ fil_try_to_close_file_in_LRU(
 				", because mod_count %ld != fl_count %ld\n",
 				(long) node->modification_counter,
 				(long) node->flush_counter);
+
 		}
 
 		if (node->being_extended) {
@@ -1131,10 +1140,15 @@ fil_node_free(
 
 		node->modification_counter = node->flush_counter;
 
-		if (space->is_in_unflushed_spaces
-		    && fil_space_is_flushed(space)) {
+		if (fil_buffering_disabled(space)) {
 
-			space->is_in_unflushed_spaces = FALSE;
+			ut_ad(!space->is_in_unflushed_spaces);
+			ut_ad(fil_space_is_flushed(space));
+
+		} else if (space->is_in_unflushed_spaces
+			   && fil_space_is_flushed(space)) {
+
+			space->is_in_unflushed_spaces = false;
 
 			UT_LIST_REMOVE(unflushed_spaces,
 				       system->unflushed_spaces,
@@ -1289,7 +1303,7 @@ fil_space_create(
 
 	HASH_INSERT(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(name), space);
-	space->is_in_unflushed_spaces = FALSE;
+	space->is_in_unflushed_spaces = false;
 
 	UT_LIST_ADD_LAST(space_list, fil_system->space_list, space);
 
@@ -1400,7 +1414,9 @@ fil_space_free(
 		    ut_fold_string(space->name), space);
 
 	if (space->is_in_unflushed_spaces) {
-		space->is_in_unflushed_spaces = FALSE;
+
+		ut_ad(!fil_buffering_disabled(space));
+		space->is_in_unflushed_spaces = false;
 
 		UT_LIST_REMOVE(unflushed_spaces, fil_system->unflushed_spaces,
 			       space);
@@ -3397,6 +3413,7 @@ fil_report_bad_tablespace(
 
 struct fsp_open_info {
 	ibool		success;	/*!< Has the tablespace been opened? */
+	ibool		valid;		/*!< Is the tablespace valid? */
 	os_file_t	file;		/*!< File handle */
 	char*		filepath;	/*!< File path to open */
 	lsn_t		lsn;		/*!< Flushed LSN from header page */
@@ -3408,10 +3425,11 @@ struct fsp_open_info {
 };
 
 /********************************************************************//**
-Tries to open a single-table tablespace and optionally checks the space id is
-right in it. If does not succeed, prints an error message to the .err log. This
-function is used to open a tablespace when we start up mysqld, and also in
-IMPORT TABLESPACE.
+Tries to open a single-table tablespace and optionally checks that the
+space id in it is correct. If this does not succeed, print an error message
+to the .err log. This function is used to open a tablespace when we start
+mysqld after the dictionary has been booted, and also in IMPORT TABLESPACE.
+
 NOTE that we assume this operation is used either at the database startup
 or under the protection of the dictionary mutex, so that two users cannot
 race here. This operation does not leave the file associated with the
@@ -3448,6 +3466,7 @@ fil_open_single_table_tablespace(
 	fsp_open_info	dict;
 	fsp_open_info	remote;
 	ulint		tablespaces_found = 0;
+	ulint		valid_tablespaces_found = 0;
 
 	if (!fsp_flags_is_valid(flags)) {
 		return(DB_CORRUPTION);
@@ -3519,7 +3538,7 @@ fil_open_single_table_tablespace(
 		tablespaces_found++;
 	}
 
-	/*  We have now checked all possible tablesapce locations and
+	/*  We have now checked all possible tablespace locations and
 	have a count of how many we found.  If things are normal, we
 	only found 1. */
 	if (!validate && tablespaces_found == 1) {
@@ -3539,14 +3558,14 @@ fil_open_single_table_tablespace(
 		but do not compare the DATA_DIR flag, in case the
 		tablespace was relocated. */
 		ulint mod_def_flags = def.flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		if (def.id != id || mod_def_flags != mod_flags) {
+		if (def.id == id && mod_def_flags == mod_flags) {
+			valid_tablespaces_found++;
+			def.valid = TRUE;
+		} else {
 			/* Do not use this tablespace. */
 			fil_report_bad_tablespace(
 				def.filepath, def.id,
 				def.flags, id, flags);
-			def.success = FALSE;
-			os_file_close(def.file);
-			tablespaces_found--;
 		}
 	}
 
@@ -3563,17 +3582,15 @@ fil_open_single_table_tablespace(
 		but do not compare the DATA_DIR flag, in case the
 		tablespace was relocated. */
 		ulint mod_remote_flags = remote.flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		if (remote.id != id || mod_remote_flags != mod_flags) {
+		if (remote.id == id && mod_remote_flags == mod_flags) {
+			valid_tablespaces_found++;
+			remote.valid = TRUE;
+		} else {
 			/* Do not use this linked tablespace. */
 			fil_report_bad_tablespace(
 				remote.filepath, remote.id,
 				remote.flags, id, flags);
-			remote.success = FALSE;
 			link_file_is_bad = true;
-			os_file_close(remote.file);
-			mem_free(remote.filepath);
-			remote.filepath = NULL;
-			tablespaces_found--;
 		}
 	}
 
@@ -3590,20 +3607,20 @@ fil_open_single_table_tablespace(
 		but do not compare the DATA_DIR flag, in case the
 		tablespace was relocated. */
 		ulint mod_dict_flags = dict.flags & ~FSP_FLAGS_MASK_DATA_DIR;
-		if (dict.id != id || mod_dict_flags != mod_flags) {
+		if (dict.id == id && mod_dict_flags == mod_flags) {
+			valid_tablespaces_found++;
+			dict.valid = TRUE;
+		} else {
 			/* Do not use this tablespace. */
 			fil_report_bad_tablespace(
 				dict.filepath, dict.id,
 				dict.flags, id, flags);
-			dict.success = FALSE;
-			os_file_close(dict.file);
-			tablespaces_found--;
 		}
 	}
 
 	/* Make sense of these three possible locations.
 	First, bail out if no tablespace files were found. */
-	if (tablespaces_found == 0) {
+	if (valid_tablespaces_found == 0) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
@@ -3613,16 +3630,9 @@ fil_open_single_table_tablespace(
 			"for how to resolve the issue.\n",
 			tablename);
 
-		ut_ad(!def.success);
-		ut_ad(!dict.success);
-		ut_ad(!remote.success);
-		ut_ad(remote.filepath == NULL);
-		if (dict.filepath) {
-			mem_free(dict.filepath);
-		}
-		mem_free(def.filepath);
+		err = DB_CORRUPTION;
 
-		return(DB_CORRUPTION);
+		goto cleanup_and_exit;
 	}
 
 	/* Do not open any tablespaces if more than one tablespace with
@@ -3637,7 +3647,6 @@ fil_open_single_table_tablespace(
 				", Space ID=%lu, Flags=%lu\n",
 				def.filepath, def.lsn,
 				(ulong) def.id, (ulong) def.flags);
-			os_file_close(def.file);
 		}
 		if (remote.success) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
@@ -3645,7 +3654,6 @@ fil_open_single_table_tablespace(
 				", Space ID=%lu, Flags=%lu\n",
 				remote.filepath, remote.lsn,
 				(ulong) remote.id, (ulong) remote.flags);
-			os_file_close(remote.file);
 		}
 		if (dict.success) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
@@ -3653,25 +3661,57 @@ fil_open_single_table_tablespace(
 				", Space ID=%lu, Flags=%lu\n",
 				dict.filepath, dict.lsn,
 				(ulong) dict.id, (ulong) dict.flags);
+		}
+
+		/* Force-recovery will allow some tablespaces to be
+		skipped by REDO if there was more than one file found.
+		Unlike during the REDO phase of recovery, we now know
+		if the tablespace is valid according to the dictionary,
+		which was not available then. So if we did not force
+		recovery and there is only one good tablespace, ignore
+		any bad tablespaces. */
+		if (valid_tablespaces_found > 1 || srv_force_recovery > 0) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Will not open the tablespace for '%s'\n",
+				tablename);
+
+			if (def.success != def.valid
+			    || dict.success != dict.valid
+			    || remote.success != remote.valid) {
+				err = DB_CORRUPTION;
+			} else {
+				err = DB_ERROR;
+			}
+			goto cleanup_and_exit;
+		}
+
+		/* There is only one valid tablespace found and we did
+		not use srv_force_recovery during REDO.  Use this one
+		tablespace and clean up invalid tablespace pointers */
+		if (def.success && !def.valid) {
+			def.success = false;
+			os_file_close(def.file);
+			tablespaces_found--;
+		}
+		if (dict.success && !dict.valid) {
+			dict.success = false;
 			os_file_close(dict.file);
+			/* Leave dict.filepath so that SYS_DATAFILES
+			can be corrected below. */
+			tablespaces_found--;
 		}
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Will not open the tablespace for '%s'\n",
-			tablename);
-
-		if (remote.filepath) {
+		if (remote.success && !remote.valid) {
+			remote.success = false;
+			os_file_close(remote.file);
 			mem_free(remote.filepath);
+			remote.filepath = NULL;
+			tablespaces_found--;
 		}
-		if (dict.filepath) {
-			mem_free(dict.filepath);
-		}
-		mem_free(def.filepath);
-
-		return(DB_ERROR);
 	}
 
 	/* At this point, there should be only one filepath. */
 	ut_a(tablespaces_found == 1);
+	ut_a(valid_tablespaces_found == 1);
 
 	/* Only fix the dictionary at startup when there is only one thread.
 	Calls to dict_load_table() can be done while holding other latches. */
@@ -3684,7 +3724,7 @@ fil_open_single_table_tablespace(
 	Since a failure to update SYS_TABLESPACES or SYS_DATAFILES does
 	not prevent opening and using the single_table_tablespace either
 	this time or the next, we do not check the return code or fail
-	to open the tablespace. dict_update_filepath() will issue a
+	to open the tablespace. But dict_update_filepath() will issue a
 	warning to the log. */
 	if (dict.filepath) {
 		if (remote.success) {
@@ -3726,6 +3766,7 @@ skip_validate:
 				def.filepath, 0, id, FALSE);
 	}
 
+cleanup_and_exit:
 	if (remote.success) {
 		os_file_close(remote.file);
 	}
@@ -3874,12 +3915,6 @@ fil_load_single_table_tablespace(
 
 	/* Build up the filepath of the .ibd tablespace in the datadir */
 	def.filepath = fil_make_ibd_name(tablename, false);
-	def.filepath = static_cast<char*>(
-		mem_alloc(strlen(fil_path_to_mysql_datadir)
-			  + tablename_len + sizeof "/.ibd"));
-	sprintf(def.filepath, "%s/%s.ibd",
-		fil_path_to_mysql_datadir, tablename);
-	srv_normalize_path_for_win(def.filepath);
 
 #ifdef __WIN__
 # ifndef UNIV_HOTBACKUP
@@ -4914,9 +4949,17 @@ fil_node_complete_io(
 		system->modification_counter++;
 		node->modification_counter = system->modification_counter;
 
-		if (!node->space->is_in_unflushed_spaces) {
+		if (fil_buffering_disabled(node->space)) {
 
-			node->space->is_in_unflushed_spaces = TRUE;
+			/* We don't need to keep track of unflushed
+			changes as user has explicitly disabled
+			buffering. */
+			ut_ad(!node->space->is_in_unflushed_spaces);
+			node->flush_counter = node->modification_counter;
+
+		} else if (!node->space->is_in_unflushed_spaces) {
+
+			node->space->is_in_unflushed_spaces = true;
 			UT_LIST_ADD_FIRST(unflushed_spaces,
 					  system->unflushed_spaces,
 					  node->space);
@@ -5284,6 +5327,28 @@ fil_flush(
 		return;
 	}
 
+	if (fil_buffering_disabled(space)) {
+
+		/* No need to flush. User has explicitly disabled
+		buffering. */
+		ut_ad(!space->is_in_unflushed_spaces);
+		ut_ad(fil_space_is_flushed(space));
+		ut_ad(space->n_pending_flushes == 0);
+
+#ifdef UNIV_DEBUG
+		for (node = UT_LIST_GET_FIRST(space->chain);
+		     node != NULL;
+		     node = UT_LIST_GET_NEXT(chain, node)) {
+			ut_ad(node->modification_counter
+			      == node->flush_counter);
+			ut_ad(node->n_pending_flushes == 0);
+		}
+#endif /* UNIV_DEBUG */
+
+		mutex_exit(&fil_system->mutex);
+		return;
+	}
+
 	space->n_pending_flushes++;	/*!< prevent dropping of the space while
 					we are flushing */
 	node = UT_LIST_GET_FIRST(space->chain);
@@ -5350,7 +5415,7 @@ skip_flush:
 				if (space->is_in_unflushed_spaces
 				    && fil_space_is_flushed(space)) {
 
-					space->is_in_unflushed_spaces = FALSE;
+					space->is_in_unflushed_spaces = false;
 
 					UT_LIST_REMOVE(
 						unflushed_spaces,

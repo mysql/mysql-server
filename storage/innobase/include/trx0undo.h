@@ -414,7 +414,7 @@ trx_undo_mem_free(
 /** Transaction undo log memory object; this is protected by the undo_mutex
 in the corresponding transaction object */
 
-struct trx_undo_struct{
+struct trx_undo_t{
 	/*-----------------------------*/
 	ulint		id;		/*!< undo log slot number within the
 					rollback segment */

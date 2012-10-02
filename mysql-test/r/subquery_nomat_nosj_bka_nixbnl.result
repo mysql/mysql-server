@@ -1,5 +1,7 @@
 set optimizer_switch='batched_key_access=on,block_nested_loop=off,mrr_cost_based=off';
 set optimizer_switch='index_condition_pushdown=on,mrr=on,mrr_cost_based=off';
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='subquery_materialization_cost_based=off';
 drop table if exists t1,t2,t3,t4,t5,t6,t7,t8,t11,t12;
 select (select 2);
 (select 2)
@@ -1410,9 +1412,9 @@ a
 explain extended select * from t3 where a >= all (select b from t2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>(<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where 0 having <if>(outer_field_is_not_null, <is_not_null_test>(NULL), true))))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(/* select#2 */ select NULL from `test`.`t2`)))
 select * from t3 where a >= some (select b from t2);
 a
 explain extended select * from t3 where a >= some (select b from t2);
@@ -1429,9 +1431,9 @@ a
 explain extended select * from t3 where a >= all (select b from t2 group by 1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t2	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>(<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where 0 having <if>(outer_field_is_not_null, <is_not_null_test>(NULL), true))))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` < <max>(/* select#2 */ select NULL from `test`.`t2`)))
 select * from t3 where a >= some (select b from t2 group by 1);
 a
 explain extended select * from t3 where a >= some (select b from t2 group by 1);
@@ -1480,9 +1482,9 @@ a
 explain extended select * from t3 where a > all (select max(b) from t2 group by a);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	4	100.00	Using temporary; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>(<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select max(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a` having <if>(outer_field_is_not_null, (<cache>(`test`.`t3`.`a`) <= <ref_null_helper>(max(`test`.`t2`.`b`))), true))))
+Note	1003	/* select#1 */ select `test`.`t3`.`a` AS `a` from `test`.`t3` where <not>((`test`.`t3`.`a` <= <max>(/* select#2 */ select max(`test`.`t2`.`b`) from `test`.`t2` group by `test`.`t2`.`a`)))
 drop table t2, t3;
 CREATE TABLE `t1` ( `id` mediumint(9) NOT NULL auto_increment, `taskid` bigint(20) NOT NULL default '0', `dbid` int(11) NOT NULL default '0', `create_date` datetime NOT NULL default '0000-00-00 00:00:00', `last_update` datetime NOT NULL default '0000-00-00 00:00:00', PRIMARY KEY  (`id`)) ENGINE=MyISAM CHARSET=latin1 AUTO_INCREMENT=3 ;
 INSERT INTO `t1` (`id`, `taskid`, `dbid`, `create_date`,`last_update`) VALUES (1, 1, 15, '2003-09-29 10:31:36', '2003-09-29 10:31:36'), (2, 1, 21, now(), now());
@@ -4179,7 +4181,7 @@ SELECT MAX(b), (SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
 FROM t1 
 WHERE a = 230;
 MAX(b)	(SELECT COUNT(*) FROM st1,st2 WHERE st2.b <= t1.b)
-NULL	0
+NULL	NULL
 DROP TABLE t1, st1, st2;
 #
 # Bug #48709: Assertion failed in sql_select.cc:11782: 
@@ -4237,7 +4239,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select max(`test`.`t1`.`ie`) from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having <if>(outer_field_is_not_null, (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`))), true))) AS `Z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having <if>(outer_field_is_not_null, (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`))), true))) AS `Z` from `test`.`t2`
 explain extended
 select a, oref from t2 
 where a in (select max(ie) from t1 where oref=t2.oref group by grp);
@@ -4246,7 +4248,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select max(`test`.`t1`.`ie`) from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref` from `test`.`t2` where <in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (`test`.`t1`.`oref` = `test`.`t2`.`oref`) group by `test`.`t1`.`grp` having (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`)))))
 select a, oref, a in (
 select max(ie) from t1 where oref=t2.oref group by grp union
 select max(ie) from t1 where oref=t2.oref group by grp
@@ -4275,7 +4277,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	6	100.00	Using where; Using temporary; Using filesort
 Warnings:
-Note	1003	/* select#1 */ select <in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select max(`test`.`t1`.`ie`) from `test`.`t1` where (`test`.`t1`.`oref` = 4) group by `test`.`t1`.`grp` having <if>(outer_field_is_not_null, (<cache>(`test`.`t3`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`))), true))) AS `a in (select max(ie) from t1 where oref=4 group by grp)` from `test`.`t3`
+Note	1003	/* select#1 */ select <in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` where (`test`.`t1`.`oref` = 4) group by `test`.`t1`.`grp` having <if>(outer_field_is_not_null, (<cache>(`test`.`t3`.`a`) = <ref_null_helper>(max(`test`.`t1`.`ie`))), true))) AS `a in (select max(ie) from t1 where oref=4 group by grp)` from `test`.`t3`
 drop table t1, t2, t3;
 create table t1 (a int, oref int, key(a));
 insert into t1 values 
@@ -4417,7 +4419,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
 Warnings:
 Note	1276	Field or reference 't2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select count(0) from `test`.`t1` group by `test`.`t1`.`grp` having ((`test`.`t1`.`grp` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(count(0))), true)))) AS `Z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>(`test`.`t2`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t1` group by `test`.`t1`.`grp` having ((`test`.`t1`.`grp` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, (<cache>(`test`.`t2`.`a`) = <ref_null_helper>(count(0))), true)))) AS `Z` from `test`.`t2`
 drop table t1, t2;
 create table t1 (a int, b int, primary key (a));
 insert into t1 values (1,1), (3,1),(100,1);
@@ -4466,7 +4468,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t4	ALL	NULL	NULL	NULL	NULL	100	100.00	NULL
 Warnings:
 Note	1276	Field or reference 'test.t2.oref' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(/* select#2 */ select `test`.`t1`.`a`,`test`.`t1`.`b` from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`b`), true)))) AS `Z` from `test`.`t2`
+Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`oref` AS `oref`,<in_optimizer>((`test`.`t2`.`a`,`test`.`t2`.`b`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` join `test`.`t4` where ((`test`.`t1`.`c` = `test`.`t2`.`oref`) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`a`) = `test`.`t1`.`a`) or isnull(`test`.`t1`.`a`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t2`.`b`) = `test`.`t1`.`b`) or isnull(`test`.`t1`.`b`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t1`.`b`), true)))) AS `Z` from `test`.`t2`
 select a,b, oref, 
 (a,b) in (select a,b from t1,t4 where c=t2.oref) Z 
 from t2;
@@ -7349,7 +7351,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t4	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ref_or_null	a_b	a_b	10	func,const	2	100.00	Using where; Using index; Full scan on NULL key
 Warnings:
-Note	1003	/* select#1 */ select '0' AS `a`,'1' AS `b` from dual where isnull((not(<in_optimizer>(('0','1'),<exists>(/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`b` from `test`.`t2` where ((`test`.`t2`.`b` = '1') and <if>(outer_field_is_not_null, ((<cache>('0') = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`)), true) and <if>(outer_field_is_not_null, ((<cache>('1') = '1') or <cache>(isnull('1'))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`b`), true)))))))
+Note	1003	/* select#1 */ select '0' AS `a`,'1' AS `b` from dual where isnull((not(<in_optimizer>(('0','1'),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`b` = '1') and <if>(outer_field_is_not_null, ((<cache>('0') = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`)), true) and <if>(outer_field_is_not_null, ((<cache>('1') = '1') or <cache>(isnull('1'))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`b`), true)))))))
 SELECT * FROM t1
 WHERE ((a,b) NOT IN (SELECT t2.a,t2.b FROM
 t4 STRAIGHT_JOIN t2 WHERE t4.a=t2.b)) IS NULL;
@@ -7364,7 +7366,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	DEPENDENT SUBQUERY	t4	system	NULL	NULL	NULL	NULL	1	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select '0' AS `a`,'1' AS `b` from dual where isnull((not(<in_optimizer>(('0','1'),<exists>(/* select#2 */ select `test`.`t2`.`a`,`test`.`t2`.`b` from `test`.`t2` where ((`test`.`t2`.`b` = '1') and <if>(outer_field_is_not_null, ((<cache>('0') = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`)), true) and <if>(outer_field_is_not_null, ((<cache>('1') = '1') or <cache>(isnull('1'))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`b`), true)))))))
+Note	1003	/* select#1 */ select '0' AS `a`,'1' AS `b` from dual where isnull((not(<in_optimizer>(('0','1'),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`b` = '1') and <if>(outer_field_is_not_null, ((<cache>('0') = `test`.`t2`.`a`) or isnull(`test`.`t2`.`a`)), true) and <if>(outer_field_is_not_null, ((<cache>('1') = '1') or <cache>(isnull('1'))), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`a`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`b`), true)))))))
 SELECT * FROM t1
 WHERE ((a,b) NOT IN (SELECT t2.a,t2.b FROM
 t4 STRAIGHT_JOIN t2 WHERE t4.a=t2.b)) IS NULL;
@@ -7478,5 +7480,6 @@ SELECT 1 FROM t2 WHERE c > ANY (SELECT a FROM t1 WHERE b >= 3) IS TRUE;
 1
 1
 DROP TABLE t1, t2;
+set @@optimizer_switch=@old_opt_switch;
 set optimizer_switch=default;
 set optimizer_switch=default;

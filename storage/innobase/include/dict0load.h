@@ -35,7 +35,7 @@ Created 4/24/1996 Heikki Tuuri
 #include "btr0types.h"
 
 /** enum that defines all system table IDs. @see SYSTEM_TABLE_NAME[] */
-enum dict_system_table_id {
+enum dict_system_id_t {
 	SYS_TABLES = 0,
 	SYS_INDEXES,
 	SYS_COLUMNS,
@@ -49,18 +49,14 @@ enum dict_system_table_id {
 	SYS_NUM_SYSTEM_TABLES
 };
 
-typedef enum dict_system_table_id	dict_system_id_t;
-
 /** Status bit for dict_process_sys_tables_rec_and_mtr_commit() */
-enum dict_table_info {
+enum dict_table_info_t {
 	DICT_TABLE_LOAD_FROM_RECORD = 0,/*!< Directly populate a dict_table_t
 					structure with information from
 					a SYS_TABLES record */
 	DICT_TABLE_LOAD_FROM_CACHE = 1,	/*!< Check first whether dict_table_t
 					is in the cache, if so, return it */
 };
-
-typedef enum dict_table_info	dict_table_info_t;
 
 /********************************************************************//**
 In a crash recovery we already have all the tablespace objects created.

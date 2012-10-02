@@ -266,32 +266,34 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 7,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (select NULL from `test`.`t4` ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on distinct_key where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t1`.`i`,<exists>(select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))",
       "attached_subqueries": [
         {
-          "using_temporary_table": true,
-          "dependent": false,
-          "cacheable": false,
           "table": {
+            "table_name": "<materialized_subquery>",
             "access_type": "eq_ref",
             "key": "<auto_key>",
             "key_length": "5",
             "rows": 1,
-            "attached_condition": "((`test`.`t1`.`i` = `materialized-subquery`.`i`))"
-          } /* table */,
-          "query_block": {
-            "select_id": 3,
-            "ordering_operation": {
-              "using_filesort": false,
-              "table": {
-                "table_name": "t4",
-                "access_type": "system",
-                "rows": 0,
-                "filtered": 0,
-                "const_row_not_found": true
-              } /* table */
-            } /* ordering_operation */
-          } /* query_block */
+            "materialized_from_subquery": {
+              "using_temporary_table": true,
+              "dependent": true,
+              "cacheable": false,
+              "query_block": {
+                "select_id": 3,
+                "ordering_operation": {
+                  "using_filesort": false,
+                  "table": {
+                    "table_name": "t4",
+                    "access_type": "system",
+                    "rows": 0,
+                    "filtered": 0,
+                    "const_row_not_found": true
+                  } /* table */
+                } /* ordering_operation */
+              } /* query_block */
+            } /* materialized_from_subquery */
+          } /* table */
         },
         {
           "dependent": true,
@@ -316,7 +318,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on distinct_key where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,`test`.`t1`.`i` in ( <materialize> (/* select#3 */ select NULL from `test`.`t4` where 1 ), <primary_index_lookup>(`test`.`t1`.`i` in <temporary table> on <auto_key> where ((`test`.`t1`.`i` = `materialized-subquery`.`i`))))))
 # simple UNION
 EXPLAIN             SELECT * FROM t1 UNION SELECT * FROM t2 UNION SELECT * FROM t3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -543,8 +545,8 @@ Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` order by
 EXPLAIN SELECT * FROM t1 HAVING i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	7	NULL
-3	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
-2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
+3	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
+2	SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	2	NULL
 EXPLAIN FORMAT=JSON SELECT * FROM t1 HAVING i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
 EXPLAIN
 {
@@ -558,30 +560,28 @@ EXPLAIN
     } /* table */,
     "having_subqueries": [
       {
-        "dependent": true,
-        "cacheable": false,
+        "dependent": false,
+        "cacheable": true,
         "query_block": {
           "select_id": 3,
           "table": {
             "table_name": "t2",
             "access_type": "ALL",
             "rows": 2,
-            "filtered": 100,
-            "attached_condition": "<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
+            "filtered": 100
           } /* table */
         } /* query_block */
       },
       {
-        "dependent": true,
-        "cacheable": false,
+        "dependent": false,
+        "cacheable": true,
         "query_block": {
           "select_id": 2,
           "table": {
             "table_name": "t2",
             "access_type": "ALL",
             "rows": 2,
-            "filtered": 100,
-            "attached_condition": "<if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true)"
+            "filtered": 100
           } /* table */
         } /* query_block */
       }
@@ -589,7 +589,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` having (<not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) <= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))) or <not>(<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t2` where <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`i`) >= `test`.`t2`.`i`) or isnull(`test`.`t2`.`i`)), true) having <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`i`), true)))))
+Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` having (<not>((`test`.`t1`.`i` <= <max>(/* select#2 */ select `test`.`t2`.`i` from `test`.`t2`))) or <not>((`test`.`t1`.`i` >= <min>(/* select#3 */ select `test`.`t2`.`i` from `test`.`t2`))))
 # subquery in the GROUP BY clause
 EXPLAIN SELECT * FROM t1 GROUP BY i > ALL (SELECT i FROM t2) OR i < ALL (SELECT i FROM t2);;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -814,29 +814,21 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 3,
           "filtered": 100,
-          "attached_condition": "(`test`.`t1`.`a` > 0)"
+          "attached_condition": "((`test`.`t1`.`a` > 0) and (`test`.`t1`.`a` is not null))"
         } /* table */
       },
       {
         "table": {
-          "table_name": "t2",
-          "access_type": "ALL",
-          "rows": 3,
-          "filtered": 100,
-          "first_match": "t1",
-          "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "(`test`.`t2`.`a` = `test`.`t1`.`a`)"
-        } /* table */
-      },
-      {
-        "table": {
-          "using_temporary_table": true,
+          "table_name": "<subquery3>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
           "key_length": "5",
+          "ref": [
+            "test.t1.a"
+          ] /* ref */,
           "rows": 1,
-          "attached_condition": "(`test`.`t1`.`a` = `sj-materialize`.`a`)",
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "nested_loop": [
                 {
@@ -862,12 +854,23 @@ EXPLAIN
             } /* query_block */
           } /* materialized_from_subquery */
         } /* table */
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "ALL",
+          "rows": 3,
+          "filtered": 100,
+          "first_match": "<subquery3>",
+          "using_join_buffer": "Block Nested Loop",
+          "attached_condition": "(`test`.`t2`.`a` = `test`.`t1`.`a`)"
+        } /* table */
       }
     ] /* nested_loop */
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t2`) semi join (`test`.`t4` join `test`.`t3`) where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`) and (`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t1`.`a` > 0) and (`test`.`t3`.`a` > 0))
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` semi join (`test`.`t4` join `test`.`t3`) semi join (`test`.`t2`) where ((`<subquery3>`.`a` = `test`.`t1`.`a`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t4`.`a` = `test`.`t3`.`a`) and (`test`.`t3`.`a` > 0) and (`test`.`t1`.`a` > 0))
 DROP TABLE t1, t2, t3, t4;
 # the same subquery is associated with two different JOIN_TABs
 CREATE TABLE t1 (
@@ -994,36 +997,42 @@ EXPLAIN SELECT * FROM t5
 WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key) 
 AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	NULL
-1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	3	Start materialize
-1	SIMPLE	t1	index	c_key	c_key	5	NULL	3	Using where; Using index; End materialize; Using join buffer (Block Nested Loop)
-1	SIMPLE	t4	ALL	NULL	NULL	NULL	NULL	3	Using where; Start materialize
-1	SIMPLE	t3	ref	c_key	c_key	5	test.t4.c_key	1	Using index; End materialize
+1	SIMPLE	t5	ALL	NULL	NULL	NULL	NULL	3	Using where
+1	SIMPLE	<subquery2>	eq_ref	<auto_key>	<auto_key>	5	test.t5.c	1	NULL
+1	SIMPLE	<subquery3>	eq_ref	<auto_key>	<auto_key>	5	test.t5.c	1	NULL
+2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	3	NULL
+2	MATERIALIZED	t1	index	c_key	c_key	5	NULL	3	Using where; Using index; Using join buffer (Block Nested Loop)
+3	MATERIALIZED	t4	ALL	NULL	NULL	NULL	NULL	3	Using where
+3	MATERIALIZED	t3	ref	c_key	c_key	5	test.t4.c_key	1	Using index
 EXPLAIN FORMAT=JSON SELECT * FROM t5 
 WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key) 
 AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
 EXPLAIN
 {
   "query_block": {
-    "select_id": 1,
+    "select_id": 3,
     "nested_loop": [
       {
         "table": {
           "table_name": "t5",
           "access_type": "ALL",
           "rows": 3,
-          "filtered": 100
+          "filtered": 100,
+          "attached_condition": "((`test`.`t5`.`c` is not null) and (`test`.`t5`.`c` is not null))"
         } /* table */
       },
       {
         "table": {
-          "using_temporary_table": true,
+          "table_name": "<subquery2>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
           "key_length": "5",
+          "ref": [
+            "test.t5.c"
+          ] /* ref */,
           "rows": 1,
-          "attached_condition": "(`test`.`t5`.`c` = `sj-materialize`.`c`)",
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "nested_loop": [
                 {
@@ -1057,13 +1066,16 @@ EXPLAIN
       },
       {
         "table": {
-          "using_temporary_table": true,
+          "table_name": "<subquery3>",
           "access_type": "eq_ref",
           "key": "<auto_key>",
           "key_length": "5",
+          "ref": [
+            "test.t5.c"
+          ] /* ref */,
           "rows": 1,
-          "attached_condition": "(`test`.`t5`.`c` = `sj-materialize`.`c`)",
           "materialized_from_subquery": {
+            "using_temporary_table": true,
             "query_block": {
               "nested_loop": [
                 {
@@ -1101,7 +1113,7 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` semi join (`test`.`t1` join `test`.`t2`) semi join (`test`.`t3` join `test`.`t4`) where ((`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (`test`.`t2`.`c` = `test`.`t5`.`c`) and (`test`.`t4`.`c` = `test`.`t5`.`c`))
+Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` semi join (`test`.`t1` join `test`.`t2`) semi join (`test`.`t3` join `test`.`t4`) where ((`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (`<subquery2>`.`c` = `test`.`t5`.`c`) and (`<subquery3>`.`c` = `test`.`t5`.`c`))
 DROP TABLE t1, t2, t3, t4, t5;
 CREATE TABLE t1 (i INT);
 CREATE TABLE t2 (i INT);
@@ -1579,7 +1591,8 @@ Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b));
-INSERT INTO t1 (a, b) VALUES (10,1),(10,2),(10,3),(20,4),(20,5),(20,6),(30,7),(30,8),(30,9);
+INSERT INTO t1 VALUES (10,1),(10,2),(10,3),(20,4),(20,5),(20,6),
+(30,7),(30,8),(30,9),(40,10),(40,11),(40,12),(40,13);
 EXPLAIN FORMAT=JSON SELECT a, MIN(b) AS b FROM t1 GROUP BY a ORDER BY b;
 EXPLAIN
 {
@@ -1595,8 +1608,8 @@ EXPLAIN
           "access_type": "range",
           "key": "PRIMARY",
           "key_length": "4",
-          "rows": 10,
-          "filtered": 90,
+          "rows": 7,
+          "filtered": 100,
           "using_index_for_group_by": true
         } /* table */
       } /* grouping_operation */

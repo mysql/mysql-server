@@ -427,6 +427,8 @@ unique i4 (c4),
 index i5 (c1, c2, c3, c4),
 primary key (c2, c3),
 index (c2, c4));
+Warnings:
+Note	1831	Duplicate index 'i1' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -445,12 +447,18 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table t1 drop index c1;
 alter table t1 add index (c1);
+Warnings:
+Note	1831	Duplicate index 'c1' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 alter table t1 add index (c1);
+Warnings:
+Note	1831	Duplicate index 'c1_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 alter table t1 drop index i3;
 alter table t1 add index i3 (c3);
 alter table t1 drop index i2, drop index i4;
 alter table t1 add index i2 (c2), add index i4 (c4);
 alter table t1 drop index i2, drop index i4, add index i6 (c2, c4);
+Warnings:
+Note	1831	Duplicate index 'i6' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 alter table t1 add index i2 (c2), add index i4 (c4), drop index i6;
 alter table t1 drop index i2, drop index i4, add unique i4 (c4);
 alter table t1 add index i2 (c2), drop index i4, add index i4 (c4);

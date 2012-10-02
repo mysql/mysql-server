@@ -515,7 +515,8 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
           t1_keysegs[j].language != t2_keysegs[j].language) ||
           t1_keysegs_j__type != t2_keysegs[j].type ||
           t1_keysegs[j].null_bit != t2_keysegs[j].null_bit ||
-          t1_keysegs[j].length != t2_keysegs[j].length)
+          t1_keysegs[j].length != t2_keysegs[j].length ||
+          t1_keysegs[j].start != t2_keysegs[j].start)
       {
         DBUG_PRINT("error", ("Key segment %d (key %d) has different "
                              "definition", j, i));
@@ -1604,11 +1605,10 @@ C_MODE_START
 ICP_RESULT index_cond_func_myisam(void *arg)
 {
   ha_myisam *h= (ha_myisam*)arg;
-  if (h->end_range)
-  {
-    if (h->compare_key2(h->end_range) > 0)
-      return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
-  }
+
+  if (h->end_range && h->compare_key_icp(h->end_range) > 0)
+    return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
+
   return (ICP_RESULT) test(h->pushed_idx_cond->val_int());
 }
 

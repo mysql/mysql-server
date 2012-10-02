@@ -286,9 +286,9 @@ trx_print_low(
 	ulint		max_query_len,
 			/*!< in: max query length to print,
 			or 0 to use the default max length */
-	ulint		n_lock_rec,
+	ulint		n_rec_locks,
 			/*!< in: lock_number_of_rows_locked(&trx->lock) */
-	ulint		n_lock_struct,
+	ulint		n_trx_locks,
 			/*!< in: length of trx->lock.trx_locks */
 	ulint		heap_size)
 			/*!< in: mem_heap_get_size(trx->lock.lock_heap) */
@@ -325,7 +325,7 @@ trx_print(
 Determine if a transaction is a dictionary operation.
 @return	dictionary operation mode */
 UNIV_INLINE
-enum trx_dict_op
+enum trx_dict_op_t
 trx_get_dict_operation(
 /*===================*/
 	const trx_t*	trx)	/*!< in: transaction */
@@ -337,7 +337,7 @@ void
 trx_set_dict_operation(
 /*===================*/
 	trx_t*			trx,	/*!< in/out: transaction */
-	enum trx_dict_op	op);	/*!< in: operation, not
+	enum trx_dict_op_t	op);	/*!< in: operation, not
 					TRX_DICT_OP_NONE */
 
 #ifndef UNIV_HOTBACKUP
@@ -539,7 +539,7 @@ code and no mutex is required when the query thread is no longer waiting. */
 
 /** The locks and state of an active transaction. Protected by
 lock_sys->mutex, trx->mutex or both. */
-struct trx_lock_struct {
+struct trx_lock_t {
 	ulint		n_active_thrs;	/*!< number of active query threads */
 
 	trx_que_t	que_state;	/*!< valid when trx->state
@@ -648,7 +648,7 @@ lock_rec_convert_impl_to_expl()) will access transactions associated
 to other connections. The locks of transactions are protected by
 lock_sys->mutex and sometimes by trx->mutex. */
 
-struct trx_struct{
+struct trx_t{
 	ulint		magic_n;
 
 	ib_mutex_t		mutex;		/*!< Mutex protecting the fields
@@ -956,6 +956,8 @@ struct trx_struct{
 	ulint		will_lock;	/*!< Will acquire some locks. Increment
 					each time we determine that a lock will
 					be acquired by the MySQL layer. */
+	bool		ddl;		/*!< true if it is a transaction that
+					is being started for a DDL operation */
 	/*------------------------------*/
 	fts_trx_t*	fts_trx;	/*!< FTS information, or NULL if
 					transaction hasn't modified tables
@@ -1040,7 +1042,7 @@ enum commit_node_state {
 };
 
 /** Commit command node in a query graph */
-struct commit_node_struct{
+struct commit_node_t{
 	que_common_t	common;	/*!< node type: QUE_NODE_COMMIT */
 	enum commit_node_state
 			state;	/*!< node execution state */

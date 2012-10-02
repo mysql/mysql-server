@@ -349,7 +349,7 @@ que_close(void);
 /* Query graph query thread node: the fields are protected by the
 trx_t::mutex with the exceptions named below */
 
-struct que_thr_struct{
+struct que_thr_t{
 	que_common_t	common;		/*!< type: QUE_NODE_THR */
 	ulint		magic_n;	/*!< magic number to catch memory
 					corruption */
@@ -374,7 +374,7 @@ struct que_thr_struct{
 					thus far */
 	ulint		lock_state;	/*!< lock state of thread (table or
 					row) */
-	struct srv_slot_struct*
+	struct srv_slot_t*
 			slot;		/* The thread slot in the wait
 					array in srv_sys_t */
 	/*------------------------------*/
@@ -398,7 +398,7 @@ struct que_thr_struct{
 #define QUE_THR_MAGIC_FREED	123461526
 
 /* Query graph fork node: its fields are protected by the query thread mutex */
-struct que_fork_struct{
+struct que_fork_t{
 	que_common_t	common;		/*!< type: QUE_NODE_FORK */
 	que_t*		graph;		/*!< query graph of this node */
 	ulint		fork_type;	/*!< fork type */

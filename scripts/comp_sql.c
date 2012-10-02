@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
   char* infile_name= argv[2];
   char* outfile_name= argv[3];
   int rc;
-  int query_length;
+  int query_length= 0;
   int error= 0;
   char *err_ptr;
 

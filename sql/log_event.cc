@@ -1318,7 +1318,7 @@ Log_event* Log_event::read_log_event(IO_CACHE* file,
   Log_event *res=  0;
 #ifndef max_allowed_packet
   THD *thd=current_thd;
-  uint max_allowed_packet= thd ? slave_max_allowed_packet:~(ulong)0;
+  uint max_allowed_packet= thd ? slave_max_allowed_packet : ~0U;
 #endif
 
   ulong const max_size=
@@ -2756,7 +2756,7 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
       DBUG_ASSERT(num_dbs != OVER_MAX_DBS_IN_EVENT_MTS || !thd->temporary_tables);
       DBUG_ASSERT(!strcmp(mts_assigned_partitions[i]->db, *ref_cur_db));
       DBUG_ASSERT(ret_worker == mts_assigned_partitions[i]->worker);
-      DBUG_ASSERT(mts_assigned_partitions[i]->usage > 0);
+      DBUG_ASSERT(mts_assigned_partitions[i]->usage >= 0);
 
       i++;
     } while (it++);
@@ -3324,10 +3324,10 @@ bool Query_log_event::write(IO_CACHE* file)
     compile_time_assert(MAX_DBS_IN_EVENT_MTS <= OVER_MAX_DBS_IN_EVENT_MTS);
 
     /* 
-       in case of the number of db:s exceeds  MAX_DBS_IN_EVENT_MTS
+       In case of the number of db:s exceeds MAX_DBS_IN_EVENT_MTS
        no db:s is written and event will require the sequential applying on slave.
     */
-    dbs= *start++=
+    dbs=
       (thd->get_binlog_accessed_db_names()->elements <= MAX_DBS_IN_EVENT_MTS) ?
       thd->get_binlog_accessed_db_names()->elements : OVER_MAX_DBS_IN_EVENT_MTS;
 
@@ -3336,13 +3336,24 @@ bool Query_log_event::write(IO_CACHE* file)
     if (dbs <= MAX_DBS_IN_EVENT_MTS)
     {
       List_iterator_fast<char> it(*thd->get_binlog_accessed_db_names());
-      char *db_name;
-
-      while ((db_name= it++))
-      {
-        strcpy((char*) start, db_name);
-        start += strlen(db_name) + 1;
-      }
+      char *db_name= it++;
+      /* 
+         the single "" db in the acccessed db list corresponds to the same as
+         exceeds MAX_DBS_IN_EVENT_MTS case, so dbs is set to the over-max.
+      */
+      if (dbs == 1 && !strcmp(db_name, ""))
+        dbs= OVER_MAX_DBS_IN_EVENT_MTS;
+      *start++= dbs;
+      if (dbs != OVER_MAX_DBS_IN_EVENT_MTS)
+        do
+        {
+          strcpy((char*) start, db_name);
+          start += strlen(db_name) + 1;
+        } while ((db_name= it++));
+    }
+    else
+    {
+      *start++= dbs;
     }
   }
 
@@ -4326,14 +4337,44 @@ void Query_log_event::detach_temp_tables_worker(THD *thd)
   for (TABLE *table= thd->temporary_tables; table;)
   {
     int i;
+    char *db_name= NULL;
 
     // find which entry to go
     for (i= 0; i < parts; i++)
-      if (strcmp(table->s->db.str, mts_accessed_db_names[i]) < 0)
-        continue;
-      else
+    {
+      db_name= mts_accessed_db_names[i];
+
+      if (!strlen(db_name))
         break;
 
+      // Only default database is rewritten.
+      if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name))
+      {
+        size_t dummy_len;
+        const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+        // db_name != db_filtered means that db_name is rewritten.
+        if (strcmp(db_name, db_filtered))
+          db_name= (char*)db_filtered;
+      }
+
+      if (strcmp(table->s->db.str, db_name) < 0)
+        continue;
+      else
+      {
+        // When rewrite db rules are used we can not rely on
+        // mts_accessed_db_names elements order.
+        if (!rpl_filter->is_rewrite_empty() &&
+            strcmp(table->s->db.str, db_name))
+          continue;
+        else
+          break;
+      }
+    }
+
+    DBUG_ASSERT(db_name && (
+                !strcmp(table->s->db.str, db_name) ||
+                !strlen(db_name))
+                );
     DBUG_ASSERT(i < mts_accessed_dbs);
 
     // table pointer is shifted inside the function
@@ -7284,6 +7325,9 @@ User_var_log_event::
 User_var_log_event(const char* buf,
                    const Format_description_log_event* description_event)
   :Log_event(buf, description_event)
+#ifndef MYSQL_CLIENT
+  , deferred(false)
+#endif
 {
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   const char *start= buf;
@@ -7531,7 +7575,10 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   CHARSET_INFO *charset;
 
   if (rli->deferred_events_collecting)
+  {
+    set_deferred();
     return rli->deferred_events->add(this);
+  }
 
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
     return 1;
@@ -7580,7 +7627,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var e(Name_string(name, name_len, false), it);
+  Item_func_set_user_var *e= new Item_func_set_user_var(Name_string(name, name_len, false), it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -7589,7 +7636,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     crash the server, so if fix fields fails, we just return with an
     error.
   */
-  if (e.fix_fields(thd, 0))
+  if (e->fix_fields(thd, 0))
     return 1;
 
   /*
@@ -7597,9 +7644,10 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     a single record and with a single column. Thus, like
     a column value, it could always have IMPLICIT derivation.
    */
-  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT,
-                (flags & User_var_log_event::UNSIGNED_F));
-  free_root(thd->mem_root,0);
+  e->update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT,
+                 (flags & User_var_log_event::UNSIGNED_F));
+  if (!is_deferred())
+    free_root(thd->mem_root, 0);
 
   return 0;
 }
@@ -7848,6 +7896,14 @@ void Create_file_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info
   {
     Load_log_event::print(file, print_event_info,
 			  !check_fname_outside_temp_buf());
+    /**
+      reduce the size of io cache so that the write function is called
+      for every call to my_b_printf().
+     */
+    DBUG_EXECUTE_IF ("simulate_create_event_write_error",
+                     {(&print_event_info->head_cache)->write_pos=
+                     (&print_event_info->head_cache)->write_end;
+                     DBUG_SET("+d,simulate_file_write_error");});
     /* 
        That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
        SHOW BINLOG EVENTS we don't.
@@ -8582,6 +8638,13 @@ void Execute_load_query_log_event::print(FILE* file,
   IO_CACHE *const head= &print_event_info->head_cache;
 
   print_query_header(head, print_event_info);
+  /**
+    reduce the size of io cache so that the write function is called
+    for every call to my_b_printf().
+   */
+  DBUG_EXECUTE_IF ("simulate_execute_event_write_error",
+                   {head->write_pos= head->write_end;
+                   DBUG_SET("+d,simulate_file_write_error");});
 
   if (local_fname)
   {
@@ -11364,7 +11427,20 @@ Table_map_log_event::Table_map_log_event(THD *thd, TABLE *tbl, ulong tid,
   for (unsigned int i= 0 ; i < m_table->s->fields ; ++i)
     if (m_table->field[i]->maybe_null())
       m_null_bits[(i / 8)]+= 1 << (i % 8);
-
+  /*
+    Marking event to require sequential execution in MTS
+    if the query might have updated FK-referenced db.
+    Unlike Query_log_event where this fact is encoded through 
+    the accessed db list in the Table_map case m_flags is exploited.
+  */
+  uchar dbs= thd->get_binlog_accessed_db_names() ?
+    thd->get_binlog_accessed_db_names()->elements : 0;
+  if (dbs == 1)
+  {
+    char *db_name= thd->get_binlog_accessed_db_names()->head();
+    if (!strcmp(db_name, ""))
+      m_flags |= TM_REFERRED_FK_DB_F;
+  }
 }
 #endif /* !defined(MYSQL_CLIENT) */
 

@@ -318,9 +318,7 @@ recv_recovery_from_archive_finish(void);
 #endif /* UNIV_LOG_ARCHIVE */
 
 /** Block of log record data */
-typedef struct recv_data_struct	recv_data_t;
-/** Block of log record data */
-struct recv_data_struct{
+struct recv_data_t{
 	recv_data_t*	next;	/*!< pointer to the next block or NULL */
 				/*!< the log record data is stored physically
 				immediately after this struct, max amount
@@ -328,9 +326,7 @@ struct recv_data_struct{
 };
 
 /** Stored log record struct */
-typedef struct recv_struct	recv_t;
-/** Stored log record struct */
-struct recv_struct{
+struct recv_t{
 	byte		type;	/*!< log record type */
 	ulint		len;	/*!< log record body length in bytes */
 	recv_data_t*	data;	/*!< chain of blocks containing the log record
@@ -347,7 +343,7 @@ struct recv_struct{
 			rec_list;/*!< list of log records for this page */
 };
 
-/** States of recv_addr_struct */
+/** States of recv_addr_t */
 enum recv_addr_state {
 	/** not yet processed */
 	RECV_NOT_PROCESSED,
@@ -361,9 +357,7 @@ enum recv_addr_state {
 };
 
 /** Hashed page file address struct */
-typedef struct recv_addr_struct	recv_addr_t;
-/** Hashed page file address struct */
-struct recv_addr_struct{
+struct recv_addr_t{
 	enum recv_addr_state state;
 				/*!< recovery state of the page */
 	unsigned	space:32;/*!< space id */
@@ -374,9 +368,7 @@ struct recv_addr_struct{
 };
 
 /** Recovery system data structure */
-typedef struct recv_sys_struct	recv_sys_t;
-/** Recovery system data structure */
-struct recv_sys_struct{
+struct recv_sys_t{
 #ifndef UNIV_HOTBACKUP
 	ib_mutex_t		mutex;	/*!< mutex protecting the fields apply_log_recs,
 				n_addrs, and the state field in each recv_addr

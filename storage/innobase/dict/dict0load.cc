@@ -2131,7 +2131,7 @@ dict_get_and_save_data_dir_path(
 		if (!dict_mutex_own) {
 			dict_mutex_enter_for_mysql();
 		}
-		if (!path && !srv_force_recovery) {
+		if (!path) {
 			path = dict_get_first_path(
 				table->space, table->name);
 		}
@@ -2241,12 +2241,12 @@ err_exit:
 		goto err_exit;
 	}
 
-	/* This needs to be added to the table from SYS_DATAFILES */
-	dict_get_and_save_data_dir_path(table, true);
-
 	char	table_name[MAX_FULL_NAME_LEN + 1];
 
 	innobase_format_name(table_name, sizeof(table_name), name, FALSE);
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
 
 	if (table->space == 0) {
 		/* The system tablespace is always available. */
@@ -2264,6 +2264,7 @@ err_exit:
 		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)) {
 			/* Do not bother to retry opening temporary tables. */
 			table->ibd_file_missing = TRUE;
+
 		} else {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Failed to find tablespace for table '%s' "
@@ -2273,8 +2274,15 @@ err_exit:
 
 			/* Use the remote filepath if needed. */
 			if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-				filepath = dict_get_first_path(
-					table->space, name);
+				/* This needs to be added to the table
+				from SYS_DATAFILES */
+				dict_get_and_save_data_dir_path(table, true);
+
+				if (table->data_dir_path) {
+					filepath = os_file_make_remote_pathname(
+						table->data_dir_path,
+						table->name, "ibd");
+				}
 			}
 
 			/* Try to open the tablespace */
@@ -2294,9 +2302,6 @@ err_exit:
 			}
 		}
 	}
-
-	btr_pcur_close(&pcur);
-	mtr_commit(&mtr);
 
 	dict_load_columns(table, heap);
 

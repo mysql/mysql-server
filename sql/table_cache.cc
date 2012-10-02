@@ -362,7 +362,8 @@ void Table_cache_manager::free_table(THD *thd,
 #ifndef DBUG_OFF
       if (remove_type == TDC_RT_REMOVE_ALL)
         DBUG_ASSERT(cache_el[i]->used_tables.is_empty());
-      else if (remove_type == TDC_RT_REMOVE_NOT_OWN)
+      else if (remove_type == TDC_RT_REMOVE_NOT_OWN ||
+               remove_type == TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE)
       {
         Table_cache_element::TABLE_list::Iterator it2(cache_el[i]->used_tables);
         while ((table= it2++))

@@ -19,7 +19,7 @@
   @file
 
   @brief
-  MySQL Configuration Tool
+  MySQL Configuration Utility
 */
 
 /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
@@ -54,7 +54,8 @@ static char *opt_user= NULL, *opt_password= NULL, *opt_host=NULL,
 static char my_login_file[FN_REFLEN];
 static char my_key[LOGIN_KEY_LEN];
 
-static my_bool opt_verbose, opt_all, tty_password= 0, opt_warn;
+static my_bool opt_verbose, opt_all, tty_password= 0, opt_warn,
+               login_path_specified= TRUE;
 
 int execute_commands(int argc, char **argv);
 static void print_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
@@ -116,11 +117,11 @@ static struct my_option my_long_options[] =
    NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Host name to be entered into the login file.", &opt_host,
     &opt_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"login-path", 'G', "Login file path.", &opt_login_path, &opt_login_path,
-    0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"password", 'p', "Password to be entered into the login file. It has to "
-   "be specified in the next line.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
-   0, 0, 0},
+  {"login-path", 'G', "Name of the login path to use in the login file.",
+    &opt_login_path, &opt_login_path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
+    0, 0, 0},
+  {"password", 'p', "Prompt for password to be entered into the login file.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User name to be entered into the login file.", &opt_user,
     &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Write more information.", &opt_verbose,
@@ -181,7 +182,10 @@ int main(int argc, char *argv[])
 
   /* if not, set it to 'client' (default) */
   if (!opt_login_path)
+  {
+    login_path_specified= FALSE;
     opt_login_path= my_strdup("client", MYF(MY_WME));
+  }
 
   error= execute_commands(argc, argv);
   exit(error ? 1 : 0);
@@ -273,6 +277,22 @@ int execute_commands(int argc, char **argv)
         else
           break;                                /* Nothing to remove, skip.. */
 
+        /* Warn if no login path is specified. */
+        if (opt_warn &&
+            ((locate_login_path (&file_buf, opt_login_path)) != NULL) &&
+            (login_path_specified == FALSE)
+            )
+        {
+          int choice;
+          printf ("WARNING : No login path specified, so default login path "
+                  "will be removed. \n Continue? (Press y|Y for Yes, any "
+                  "other key for No) : ");
+          choice= getchar();
+
+          if (choice != (int) 'y' && choice != (int) 'Y')
+            break;                              /* skip */
+        }
+
         remove_login_path(&file_buf, opt_login_path);
 
         encrypt_and_write_file(&file_buf);
@@ -346,7 +366,6 @@ static my_bool check_and_create_login_file(void)
 
   const int access_flag= (O_RDWR | O_BINARY);
   const ushort create_mode= (S_IRUSR | S_IWUSR );
-  const ushort create_mode_all= (S_IRWXU | S_IRWXG | S_IRWXO);
 
   /* Get the login file name. */
   if (! my_default_get_login_file(my_login_file, sizeof(my_login_file)))
@@ -398,7 +417,7 @@ static my_bool check_and_create_login_file(void)
 #ifdef _WIN32
     if (1)
 #else
-    if (!(create_mode ^ (stat_info.st_mode & create_mode_all)))
+    if (!(stat_info.st_mode & (S_IXUSR | S_IRWXG | S_IRWXO)))
 #endif
     {
       verbose_msg("File has the required permission.\nOpening the file.\n");
@@ -411,6 +430,10 @@ static my_bool check_and_create_login_file(void)
     else
     {
       verbose_msg("File does not have the required permission.\n");
+      if (opt_warn)
+        printf ("WARNING : Login file does not have the required"
+                " file permissions.\nPlease set the mode to 600 &"
+                " run the command again.\n");
       goto error;
     }
   }
@@ -974,18 +997,18 @@ static void usage(void)
 {
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2012"));
-  puts("MySQL Configuration Tool.");
-  printf("Usage: %s [OPTIONS] command \n", my_progname);
+  puts("MySQL Configuration Utility.");
+  printf("Usage: %s command [options] \n", my_progname);
   my_print_help(my_long_options);
   my_print_variables(my_long_options);
   puts("\nWhere command can be any one of the following :\n\
-       set    [options]          Sets username/password/hostname for a\n\
+       set [options]             Sets user name/password/host name for a\n\
                                  given login path (section).\n\
-       remove [options]          Removes options from the specified path.\n\
-       print  [options]          Prints all the options for a specified\n\
+       remove [options]          Remove a login path from the login file.\n\
+       print [options]           Print all the options for a specified\n\
                                  login path.\n\
-       reset                     Clean-up the login file.\n\
-       help                      Print this usage/help information.\n");
+       reset                     Deletes the contents of the login file.\n\
+       help                      Display this usage/help information.\n");
 }
 
 

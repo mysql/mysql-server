@@ -32,7 +32,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "dict0types.h"
 #include "trx0types.h"
 
-enum dict_stats_upd_option {
+enum dict_stats_upd_option_t {
 	DICT_STATS_RECALC_PERSISTENT,/* (re) calculate the
 				statistics using a precise and slow
 				algo and save them to the persistent
@@ -53,8 +53,6 @@ enum dict_stats_upd_option {
 				structures have not been initialized yet,
 				otherwise do nothing */
 };
-
-typedef enum dict_stats_upd_option	dict_stats_upd_option_t;
 
 /*********************************************************************//**
 Calculates new estimates for table and index statistics. This function

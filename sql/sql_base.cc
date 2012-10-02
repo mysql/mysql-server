@@ -25,7 +25,6 @@
                          // mysql_lock_have_duplicate
 #include "sql_show.h"    // append_identifier
 #include "strfunc.h"     // find_type
-#include "parse_file.h"  // sql_parse_prepare, File_parser
 #include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
 #include "sql_parse.h"   // check_table_access
 #include "sql_insert.h"  // kill_delayed_threads
@@ -977,7 +976,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
         result= TRUE;
         goto err_with_reopen;
       }
-      close_all_tables_for_name(thd, table->s, FALSE);
+      close_all_tables_for_name(thd, table->s, false, NULL);
     }
   }
 
@@ -1248,13 +1247,16 @@ static void close_open_tables(THD *thd)
                      In that case the documented behaviour is to
                      implicitly remove the table from LOCK TABLES
                      list.
+  @param[in] skip_table
+                     TABLE instance that should be kept open.
 
   @pre Must be called with an X MDL lock on the table.
 */
 
 void
 close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
-                          bool remove_from_locked_tables)
+                          bool remove_from_locked_tables,
+                          TABLE *skip_table)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length= share->table_cache_key.length;
@@ -1269,7 +1271,8 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
     TABLE *table= *prev;
 
     if (table->s->table_cache_key.length == key_length &&
-        !memcmp(table->s->table_cache_key.str, key, key_length))
+        !memcmp(table->s->table_cache_key.str, key, key_length) &&
+        table != skip_table)
     {
       thd->locked_tables_list.unlink_from_list(thd,
                                                table->pos_in_locked_tables,
@@ -1282,7 +1285,8 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       mysql_lock_remove(thd, thd->lock, table);
 
       /* Inform handler that table will be dropped after close */
-      if (table->db_stat) /* Not true for partitioned tables. */
+      if (table->db_stat && /* Not true for partitioned tables. */
+          skip_table == NULL)
         table->file->extra(HA_EXTRA_PREPARE_FOR_DROP);
       close_thread_table(thd, prev);
     }
@@ -1292,9 +1296,12 @@ close_all_tables_for_name(THD *thd, TABLE_SHARE *share,
       prev= &table->next;
     }
   }
-  /* Remove the table share from the cache. */
-  tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db, table_name,
-                   FALSE);
+  if (skip_table == NULL)
+  {
+    /* Remove the table share from the cache. */
+    tdc_remove_table(thd, TDC_RT_REMOVE_ALL, db, table_name,
+                     FALSE);
+  }
 }
 
 
@@ -2520,8 +2527,6 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
 
   @param thd            Thread context.
   @param table_list     Open first table in list.
-  @param mem_root       Temporary MEM_ROOT to be used for
-                        parsing .FRMs for views.
   @param ot_ctx         Context with flags which modify how open works
                         and which is used to recover from a failed
                         open_table() attempt.
@@ -2550,8 +2555,7 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
                 TABLE_LIST::view is set for views).
 */
 
-bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
-                Open_table_context *ot_ctx)
+bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
 {
   reg1	TABLE *table;
   const char *key;
@@ -2673,7 +2677,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
       if (dd_frm_type(thd, path, &not_used) == FRMTYPE_VIEW)
       {
         if (!tdc_open_view(thd, table_list, alias, key, key_length,
-                           mem_root, CHECK_METADATA_VERSION))
+                           CHECK_METADATA_VERSION))
         {
           DBUG_ASSERT(table_list->view != 0);
           DBUG_RETURN(FALSE); // VIEW
@@ -2940,12 +2944,7 @@ retry_share:
     }
 
     /* Open view */
-    if (open_new_frm(thd, share, alias,
-                     (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                             HA_GET_INDEX | HA_TRY_READ_ONLY),
-                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD,
-                     thd->open_options,
-                     0, table_list, mem_root))
+    if (mysql_make_view(thd, share, table_list, false))
       goto err_unlock;
 
     /* TODO: Don't free this */
@@ -3485,7 +3484,7 @@ Locked_tables_list::reopen_tables(THD *thd)
       continue;
 
     /* Links into thd->open_tables upon success */
-    if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
+    if (open_table(thd, table_list, &ot_ctx))
     {
       unlink_all_closed_tables(thd, 0, reopen_count);
       return TRUE;
@@ -3730,7 +3729,6 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
    @param alias             Alias name
    @param cache_key         Key for table definition cache
    @param cache_key_length  Length of cache_key
-   @param mem_root          Memory to be used for .frm parsing.
    @param flags             Flags which modify how we open the view
 
    @todo This function is needed for special handling of views under
@@ -3740,10 +3738,8 @@ check_and_update_routine_version(THD *thd, Sroutine_hash_entry *rt,
 */
 
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
-                   const char *cache_key, uint cache_key_length,
-                   MEM_ROOT *mem_root, uint flags)
+                   const char *cache_key, uint cache_key_length, uint flags)
 {
-  TABLE not_used;
   int error;
   my_hash_value_type hash_value;
   TABLE_SHARE *share;
@@ -3777,12 +3773,7 @@ bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
   }
 
   if (share->is_view &&
-      !open_new_frm(thd, share, alias,
-                    (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                            HA_GET_INDEX | HA_TRY_READ_ONLY),
-                    READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
-                    flags, thd->open_options, &not_used, table_list,
-                    mem_root))
+      !mysql_make_view(thd, share, table_list, (flags & OPEN_VIEW_NO_PARSE)))
   {
     release_table_share(share);
     mysql_mutex_unlock(&LOCK_open);
@@ -4113,9 +4104,12 @@ recover_from_failed_open(THD *thd)
 /*
   Return a appropriate read lock type given a table object.
 
-  @param thd Thread context
-  @param prelocking_ctx Prelocking context.
-  @param table_list     Table list element for table to be locked.
+  @param thd              Thread context
+  @param prelocking_ctx   Prelocking context.
+  @param table_list       Table list element for table to be locked.
+  @param routine_modifies_data 
+                          Some routine that is invoked by statement 
+                          modifies data.
 
   @remark Due to a statement-based replication limitation, statements such as
           INSERT INTO .. SELECT FROM .. and CREATE TABLE .. SELECT FROM need
@@ -4128,9 +4122,13 @@ recover_from_failed_open(THD *thd)
           This also applies to SELECT/SET/DO statements which use stored
           functions. Calls to such functions are going to be logged as a
           whole and thus should be serialized against concurrent changes
-          to tables used by those functions. This can be avoided if functions
-          only read data but doing so requires more complex analysis than it
-          is done now.
+          to tables used by those functions. This is avoided when functions
+          do not modify data but only read it, since in this case nothing is
+          written to the binary log. Argument routine_modifies_data
+          denotes the same. So effectively, if the statement is not a
+          update query and routine_modifies_data is false, then
+          prelocking_placeholder does not take importance.
+
           Furthermore, this does not apply to I_S and log tables as it's
           always unsafe to replicate such tables under statement-based
           replication as the table on the slave might contain other data
@@ -4145,7 +4143,8 @@ recover_from_failed_open(THD *thd)
 
 thr_lock_type read_lock_type_for_table(THD *thd,
                                        Query_tables_list *prelocking_ctx,
-                                       TABLE_LIST *table_list)
+                                       TABLE_LIST *table_list,
+                                       bool routine_modifies_data)
 {
   /*
     In cases when this function is called for a sub-statement executed in
@@ -4161,7 +4160,7 @@ thr_lock_type read_lock_type_for_table(THD *thd,
       (table_list->table->s->table_category == TABLE_CATEGORY_RPL_INFO) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE) ||
       !(is_update_query(prelocking_ctx->sql_command) ||
-        table_list->prelocking_placeholder ||
+        (routine_modifies_data && table_list->prelocking_placeholder) ||
         (thd->locked_tables_mode > LTM_LOCK_TABLES)))
     return TL_READ;
   else
@@ -4174,19 +4173,21 @@ thr_lock_type read_lock_type_for_table(THD *thd,
   and, if prelocking strategy prescribes so, extend the prelocking set
   with tables and routines used by it.
 
-  @param[in]  thd                  Thread context.
-  @param[in]  prelocking_ctx       Prelocking context.
-  @param[in]  rt                   Element of prelocking set to be processed.
-  @param[in]  prelocking_strategy  Strategy which specifies how the
-                                   prelocking set should be extended when
-                                   one of its elements is processed.
-  @param[in]  has_prelocking_list  Indicates that prelocking set/list for
-                                   this statement has already been built.
-  @param[in]  ot_ctx               Context of open_table used to recover from
-                                   locking failures.
-  @param[out] need_prelocking      Set to TRUE if it was detected that this
-                                   statement will require prelocked mode for
-                                   its execution, not touched otherwise.
+  @param[in]  thd                   Thread context.
+  @param[in]  prelocking_ctx        Prelocking context.
+  @param[in]  rt                    Element of prelocking set to be processed.
+  @param[in]  prelocking_strategy   Strategy which specifies how the
+                                    prelocking set should be extended when
+                                    one of its elements is processed.
+  @param[in]  has_prelocking_list   Indicates that prelocking set/list for
+                                    this statement has already been built.
+  @param[in]  ot_ctx                Context of open_table used to recover from
+                                    locking failures.
+  @param[out] need_prelocking       Set to TRUE if it was detected that this
+                                    statement will require prelocked mode for
+                                    its execution, not touched otherwise.
+  @param[out] routine_modifies_data Set to TRUE if it was detected that this
+                                    routine does modify table data.
 
   @retval FALSE  Success.
   @retval TRUE   Failure (Conflicting metadata lock, OOM, other errors).
@@ -4198,9 +4199,10 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
                          Prelocking_strategy *prelocking_strategy,
                          bool has_prelocking_list,
                          Open_table_context *ot_ctx,
-                         bool *need_prelocking)
+                         bool *need_prelocking, bool *routine_modifies_data)
 {
   MDL_key::enum_mdl_namespace mdl_type= rt->mdl_request.key.mdl_namespace();
+  *routine_modifies_data= false;
   DBUG_ENTER("open_and_process_routine");
 
   switch (mdl_type)
@@ -4255,10 +4257,13 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
           DBUG_RETURN(TRUE);
 
         /* 'sp' is NULL when there is no such routine. */
-        if (sp && !has_prelocking_list)
+        if (sp)
         {
-          prelocking_strategy->handle_routine(thd, prelocking_ctx, rt, sp,
-                                              need_prelocking);
+          *routine_modifies_data= sp->modifies_data();
+
+          if (!has_prelocking_list)
+            prelocking_strategy->handle_routine(thd, prelocking_ctx, rt, sp,
+                                                need_prelocking);
         }
       }
       else
@@ -4333,8 +4338,6 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
                                       this statement has already been built.
   @param[in]     ot_ctx               Context used to recover from a failed
                                       open_table() attempt.
-  @param[in]     new_frm_mem          Temporary MEM_ROOT to be used for
-                                      parsing .FRMs for views.
 
   @retval  FALSE  Success.
   @retval  TRUE   Error, reported unless there is a chance to recover from it.
@@ -4345,8 +4348,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
                        uint *counter, uint flags,
                        Prelocking_strategy *prelocking_strategy,
                        bool has_prelocking_list,
-                       Open_table_context *ot_ctx,
-                       MEM_ROOT *new_frm_mem)
+                       Open_table_context *ot_ctx)
 {
   bool error= FALSE;
   bool safe_to_ignore_table= FALSE;
@@ -4474,7 +4476,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     error= open_temporary_table(thd, tables);
 
     if (!error && !tables->table)
-      error= open_table(thd, tables, new_frm_mem, ot_ctx);
+      error= open_table(thd, tables, ot_ctx);
 
     thd->pop_internal_handler();
     safe_to_ignore_table= no_such_table_handler.safely_trapped_errors();
@@ -4492,7 +4494,7 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
 
     error= open_temporary_table(thd, tables);
     if (!error && !tables->table)
-      error= open_table(thd, tables, new_frm_mem, ot_ctx);
+      error= open_table(thd, tables, ot_ctx);
 
     thd->pop_internal_handler();
     safe_to_ignore_table= repair_mrg_table_handler.safely_trapped_errors();
@@ -4510,10 +4512,8 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
     }
 
     if (!error && !tables->table)
-      error= open_table(thd, tables, new_frm_mem, ot_ctx);
+      error= open_table(thd, tables, ot_ctx);
   }
-
-  free_root(new_frm_mem, MYF(MY_KEEP_PREALLOC));
 
   if (error)
   {
@@ -4597,18 +4597,6 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
 
     if (error)
       goto end;
-  }
-
-  /* Set appropriate TABLE::lock_type. */
-  if (tables->lock_type != TL_UNLOCK && ! thd->locked_tables_mode)
-  {
-    if (tables->lock_type == TL_WRITE_DEFAULT)
-      tables->table->reginfo.lock_type= thd->update_lock_default;
-    else if (tables->lock_type == TL_READ_DEFAULT)
-      tables->table->reginfo.lock_type=
-        read_lock_type_for_table(thd, lex, tables);
-    else
-      tables->table->reginfo.lock_type= tables->lock_type;
   }
 
   /* Copy grant information from TABLE_LIST instance to TABLE one. */
@@ -4861,7 +4849,7 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
   TABLE_LIST *tables;
   Open_table_context ot_ctx(thd, flags);
   bool error= FALSE;
-  MEM_ROOT new_frm_mem;
+  bool some_routine_modifies_data= FALSE;
   bool has_prelocking_list;
   DBUG_ENTER("open_tables");
 
@@ -4872,13 +4860,6 @@ bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
     my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
     DBUG_RETURN(true);
   }
-
-  /*
-    Initialize temporary MEM_ROOT for new .FRM parsing. Do not allocate
-    anything yet, to avoid penalty for statements which don't use views
-    and thus new .FRM format.
-  */
-  init_sql_alloc(&new_frm_mem, 8024, 0);
 
   thd->current_tablenr= 0;
 restart:
@@ -4966,8 +4947,7 @@ restart:
     {
       error= open_and_process_table(thd, thd->lex, tables, counter,
                                     flags, prelocking_strategy,
-                                    has_prelocking_list, &ot_ctx,
-                                    &new_frm_mem);
+                                    has_prelocking_list, &ot_ctx);
 
       if (error)
       {
@@ -5021,8 +5001,7 @@ restart:
     */
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     {
-      bool need_prelocking= FALSE;
-      TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
+      bool routine_modifies_data;
       /*
         Process elements of the prelocking set which are present there
         since parsing stage or were added to it by invocations of
@@ -5035,9 +5014,20 @@ restart:
       for (Sroutine_hash_entry *rt= *sroutine_to_open; rt;
            sroutine_to_open= &rt->next, rt= rt->next)
       {
+        bool need_prelocking= false;
+        TABLE_LIST **save_query_tables_last= thd->lex->query_tables_last;
+
         error= open_and_process_routine(thd, thd->lex, rt, prelocking_strategy,
                                         has_prelocking_list, &ot_ctx,
-                                        &need_prelocking);
+                                        &need_prelocking,
+                                        &routine_modifies_data);
+
+
+        if (need_prelocking && ! thd->lex->requires_prelocking())
+          thd->lex->mark_as_requiring_prelocking(save_query_tables_last);
+
+        if (need_prelocking && ! *start)
+          *start= thd->lex->query_tables;
 
         if (error)
         {
@@ -5062,13 +5052,10 @@ restart:
           */
           goto err;
         }
+
+        // Remember if any of SF modifies data.
+        some_routine_modifies_data|= routine_modifies_data;
       }
-
-      if (need_prelocking && ! thd->lex->requires_prelocking())
-        thd->lex->mark_as_requiring_prelocking(save_query_tables_last);
-
-      if (need_prelocking && ! *start)
-        *start= thd->lex->query_tables;
     }
   }
 
@@ -5077,6 +5064,10 @@ restart:
     children, attach the children to their parents. At end of statement,
     the children are detached. Attaching and detaching are always done,
     even under LOCK TABLES.
+
+    We also convert all TL_WRITE_DEFAULT and TL_READ_DEFAULT locks to
+    appropriate "real" lock types to be used for locking and to be passed
+    to storage engine.
   */
   for (tables= *start; tables; tables= tables->next_global)
   {
@@ -5098,11 +5089,24 @@ restart:
         goto err;
       }
     }
+
+    /* Set appropriate TABLE::lock_type. */
+    if (tbl && tables->lock_type != TL_UNLOCK && 
+        !thd->locked_tables_mode)
+    {
+      if (tables->lock_type == TL_WRITE_DEFAULT)
+        tbl->reginfo.lock_type= thd->update_lock_default;
+      else if (tables->lock_type == TL_READ_DEFAULT)
+          tbl->reginfo.lock_type=
+            read_lock_type_for_table(thd, thd->lex, tables,
+                                     some_routine_modifies_data);
+      else
+        tbl->reginfo.lock_type= tables->lock_type;
+    }
+
   }
 
 err:
-  free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
-
   if (error && *table_to_open)
   {
     (*table_to_open)->table= NULL;
@@ -5352,11 +5356,14 @@ static bool check_lock_and_start_stmt(THD *thd,
     engine is important as, for example, InnoDB uses it to determine
     what kind of row locks should be acquired when executing statement
     in prelocked mode or under LOCK TABLES with @@innodb_table_locks = 0.
+
+    Last argument routine_modifies_data for read_lock_type_for_table()
+    is ignored, as prelocking placeholder will never be set here.
   */
   if (table_list->lock_type == TL_WRITE_DEFAULT)
     lock_type= thd->update_lock_default;
   else if (table_list->lock_type == TL_READ_DEFAULT)
-    lock_type= read_lock_type_for_table(thd, prelocking_ctx, table_list);
+    lock_type= read_lock_type_for_table(thd, prelocking_ctx, table_list, true);
   else
     lock_type= table_list->lock_type;
 
@@ -5481,7 +5488,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   /* This function can't properly handle requests for such metadata locks. */
   DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_UPGRADABLE);
 
-  while ((error= open_table(thd, table_list, thd->mem_root, &ot_ctx)) &&
+  while ((error= open_table(thd, table_list, &ot_ctx)) &&
          ot_ctx.can_recover_from_failed_open())
   {
     /*
@@ -9138,6 +9145,15 @@ void tdc_flush_unused_tables()
                                                 instances (if there are no
                                                 used instances will also
                                                 remove TABLE_SHARE).
+                        TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE -
+                                                remove all TABLE instances
+                                                except those that belong to
+                                                this thread, but don't mark
+                                                TABLE_SHARE as old. There
+                                                should be no TABLE objects
+                                                used by other threads and
+                                                caller should have exclusive
+                                                metadata lock on the table.
    @param  db           Name of database
    @param  table_name   Name of table
    @param  has_lock     If TRUE, LOCK_open is already acquired
@@ -9181,11 +9197,15 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
         TDC does not contain old shares which don't have any tables
         used.
       */
-      share->version= 0;
+      if (remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE)
+        share->version= 0;
       table_cache_manager.free_table(thd, remove_type, share);
     }
     else
+    {
+      DBUG_ASSERT(remove_type != TDC_RT_REMOVE_NOT_OWN_KEEP_SHARE);
       (void) my_hash_delete(&table_def_cache, (uchar*) share);
+    }
   }
 
   if (! has_lock)
@@ -9228,69 +9248,6 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
       ifm->init_search(no_order);
   }
   return 0;
-}
-
-
-/*
-  open new .frm format table
-
-  SYNOPSIS
-    open_new_frm()
-    THD		  thread handler
-    path	  path to .frm file (without extension)
-    alias	  alias for table
-    db            database
-    table_name    name of table
-    db_stat	  open flags (for example ->OPEN_KEYFILE|HA_OPEN_RNDFILE..)
-		  can be 0 (example in ha_example_table)
-    prgflag	  READ_ALL etc..
-    ha_open_flags HA_OPEN_ABORT_IF_LOCKED etc..
-    outparam	  result table
-    table_desc	  TABLE_LIST descriptor
-    mem_root	  temporary MEM_ROOT for parsing
-*/
-
-bool
-open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
-             uint db_stat, uint prgflag,
-	     uint ha_open_flags, TABLE *outparam, TABLE_LIST *table_desc,
-	     MEM_ROOT *mem_root)
-{
-  LEX_STRING pathstr;
-  File_parser *parser;
-  char path[FN_REFLEN];
-  DBUG_ENTER("open_new_frm");
-
-  /* Create path with extension */
-  pathstr.length= (uint) (strxmov(path, share->normalized_path.str, reg_ext,
-                                  NullS)- path);
-  pathstr.str=    path;
-
-  if ((parser= sql_parse_prepare(&pathstr, mem_root, 1)))
-  {
-    if (is_equal(&view_type, parser->type()))
-    {
-      if (table_desc == 0 || table_desc->required_type == FRMTYPE_TABLE)
-      {
-        my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str,
-                 "BASE TABLE");
-        goto err;
-      }
-      if (mysql_make_view(thd, parser, table_desc,
-                          (prgflag & OPEN_VIEW_NO_PARSE)))
-        goto err;
-    }
-    else
-    {
-      /* only VIEWs are supported now */
-      my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), share->path.str,  parser->type()->str);
-      goto err;
-    }
-    DBUG_RETURN(0);
-  }
- 
-err:
-  DBUG_RETURN(1);
 }
 
 

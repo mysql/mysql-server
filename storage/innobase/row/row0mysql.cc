@@ -45,7 +45,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "dict0load.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
-#include "dict0stats_background.h"
+#include "dict0stats_bg.h"
 #include "trx0roll.h"
 #include "trx0purge.h"
 #include "trx0rec.h"
@@ -67,10 +67,7 @@ Created 9/17/2000 Heikki Tuuri
 UNIV_INTERN ibool	row_rollback_on_timeout	= FALSE;
 
 /** Chain node of the list of tables to drop in the background. */
-typedef struct row_mysql_drop_struct	row_mysql_drop_t;
-
-/** Chain node of the list of tables to drop in the background. */
-struct row_mysql_drop_struct{
+struct row_mysql_drop_t{
 	char*				table_name;	/*!< table name */
 	UT_LIST_NODE_T(row_mysql_drop_t)row_mysql_drop_list;
 							/*!< list chain node */
@@ -1012,9 +1009,14 @@ row_get_prebuilt_insert_row(
 
 	prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
 
-	ut_ad(prebuilt->trx_id == 0 || prebuilt->trx_id <= last_index->trx_id);
+	/* The prebuilt->trx_id can be greater than the current last
+	index trx id for cases where the secondary index create failed
+	but the secondary index was visible briefly during the create
+	process. */
 
-	prebuilt->trx_id = last_index->trx_id;
+	if (last_index->trx_id > prebuilt->trx_id) {
+		prebuilt->trx_id = last_index->trx_id;
+	}
 
 	return(prebuilt->ins_node->row);
 }
@@ -1047,7 +1049,7 @@ row_update_statistics_if_needed(
 		if (counter > n_rows / 10 /* 10% */
 		    && dict_stats_auto_recalc_is_enabled(table)) {
 
-			dict_stats_enqueue_table_for_auto_recalc(table);
+			dict_stats_recalc_pool_add(table);
 			table->stat_modified_counter = 0;
 		}
 		return;
@@ -1941,6 +1943,8 @@ run_again:
 	thr->run_node = node;
 	thr->prev_node = node;
 
+	DEBUG_SYNC_C("foreign_constraint_update_cascade");
+
 	row_upd_step(thr);
 
 	/* The recursive call for cascading update/delete happens
@@ -2769,6 +2773,7 @@ row_discard_tablespace_begin(
 		name, TRUE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (table) {
+		dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
 		ut_a(table->space != TRX_SYS_SPACE);
 		ut_a(table->n_foreign_key_checks_running == 0);
 	}
@@ -3716,7 +3721,14 @@ row_drop_table_for_mysql(
 			fts_optimize_remove_table(table);
 			row_mysql_lock_data_dictionary(trx);
 		}
-		dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+
+		/* Do not bother to deal with persistent stats for temp
+		tables since we know temp tables do not use persistent
+		stats. */
+		if (!dict_table_is_temporary(table)) {
+			dict_stats_wait_bg_to_stop_using_tables(
+				table, NULL, trx);
+		}
 	}
 
 	/* Delete the link file if used. */
@@ -3724,19 +3736,20 @@ row_drop_table_for_mysql(
 		fil_delete_link_file(name);
 	}
 
-	dict_stats_wait_bg_to_stop_using_tables(table, NULL, trx);
+	if (!dict_table_is_temporary(table)) {
 
-	dict_stats_remove_table_from_auto_recalc(table);
+		dict_stats_recalc_pool_del(table);
 
-	/* Remove stats for this table and all of its indexes from the
-	persistent storage if it exists and if there are stats for this
-	table in there. This function creates its own trx and commits
-	it. */
-	char	errstr[1024];
-	err = dict_stats_drop_table(name, errstr, sizeof(errstr));
-	if (err != DB_SUCCESS) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: %s\n", errstr);
+		/* Remove stats for this table and all of its indexes from the
+		persistent storage if it exists and if there are stats for this
+		table in there. This function creates its own trx and commits
+		it. */
+		char	errstr[1024];
+		err = dict_stats_drop_table(name, errstr, sizeof(errstr));
+		if (err != DB_SUCCESS) {
+			ut_print_timestamp(stderr);
+			fprintf(stderr, " InnoDB: %s\n", errstr);
+		}
 	}
 
 	ut_a(table->n_foreign_key_checks_running == 0);

@@ -43,6 +43,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
        base_pos,long_varchar_count,varchar_length,
        max_key_block_length,unique_key_parts,fulltext_keys,offset;
   uint aligned_key_start, block_length;
+  uint internal_table= flags & HA_CREATE_INTERNAL_TABLE;
   ulong reclength, real_reclength,min_pack_length;
   char filename[FN_REFLEN],linkname[FN_REFLEN], *linkname_ptr;
   ulong pack_reclength;
@@ -562,7 +563,8 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
   if (! (flags & HA_DONT_TOUCH_DATA))
     share.state.create_time= (long) time((time_t*) 0);
 
-  mysql_mutex_lock(&THR_LOCK_myisam);
+  if (!internal_table)
+    mysql_mutex_lock(&THR_LOCK_myisam);
 
   /*
     NOTE: For test_if_reopen() we need a real path name. Hence we need
@@ -619,7 +621,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
     NOTE: The filename is compared against unique_file_name of every
     open table. Hence we need a real path here.
   */
-  if (test_if_reopen(filename))
+  if (!internal_table && test_if_reopen(filename))
   {
     my_printf_error(0, "MyISAM table '%s' is in use "
                     "(most likely by a MERGE table). Try FLUSH TABLES.",
@@ -808,14 +810,16 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
       goto err;
   }
   errpos=0;
-  mysql_mutex_unlock(&THR_LOCK_myisam);
+  if (!internal_table)
+    mysql_mutex_unlock(&THR_LOCK_myisam);
   if (mysql_file_close(file, MYF(0)))
     goto err_no_lock;
   my_free(rec_per_key_part);
   DBUG_RETURN(0);
 
 err:
-  mysql_mutex_unlock(&THR_LOCK_myisam);
+  if (!internal_table)
+    mysql_mutex_unlock(&THR_LOCK_myisam);
 
 err_no_lock:
   save_errno=my_errno;

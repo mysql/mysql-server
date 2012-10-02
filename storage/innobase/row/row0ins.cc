@@ -23,8 +23,6 @@ Insert into a table
 Created 4/20/1996 Heikki Tuuri
 *******************************************************/
 
-#include "m_string.h" /* for my_sys.h */
-#include "my_sys.h" /* DEBUG_SYNC_C_IF_THD */
 #include "row0ins.h"
 
 #ifdef UNIV_NONINL
@@ -53,7 +51,6 @@ Created 4/20/1996 Heikki Tuuri
 #include "fts0fts.h"
 #include "fts0types.h"
 #include "m_string.h"
-#include "my_sys.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -732,13 +729,13 @@ row_ins_foreign_trx_print(
 /*======================*/
 	trx_t*	trx)	/*!< in: transaction */
 {
-	ulint	n_lock_rec;
-	ulint	n_lock_struct;
+	ulint	n_rec_locks;
+	ulint	n_trx_locks;
 	ulint	heap_size;
 
 	lock_mutex_enter();
-	n_lock_rec = lock_number_of_rows_locked(&trx->lock);
-	n_lock_struct = UT_LIST_GET_LEN(trx->lock.trx_locks);
+	n_rec_locks = lock_number_of_rows_locked(&trx->lock);
+	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
 	heap_size = mem_heap_get_size(trx->lock.lock_heap);
 	lock_mutex_exit();
 
@@ -750,7 +747,7 @@ row_ins_foreign_trx_print(
 	fputs(" Transaction:\n", dict_foreign_err_file);
 
 	trx_print_low(dict_foreign_err_file, trx, 600,
-		      n_lock_rec, n_lock_struct, heap_size);
+		      n_rec_locks, n_trx_locks, heap_size);
 
 	mutex_exit(&trx_sys->mutex);
 
@@ -2336,10 +2333,20 @@ err_exit:
 				err = DB_LOCK_TABLE_FULL;
 				goto err_exit;
 			}
-			err = btr_cur_pessimistic_insert(
-				flags, &cursor, &offsets, &offsets_heap,
+
+			err = btr_cur_optimistic_insert(
+				flags, &cursor,
+				&offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
+
+			if (err == DB_FAIL) {
+				err = btr_cur_pessimistic_insert(
+					flags, &cursor,
+					&offsets, &offsets_heap,
+					entry, &insert_rec, &big_rec,
+					n_ext, thr, &mtr);
+			}
 		}
 
 		if (UNIV_LIKELY_NULL(big_rec)) {
@@ -2401,27 +2408,49 @@ row_ins_sec_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
-	ulint		search_mode;
+	ulint		search_mode = 0;
 	dberr_t		err;
 	ulint		n_unique;
 	mtr_t		mtr;
 	ulint*		offsets	= NULL;
 
 	ut_ad(!dict_index_is_clust(index));
-	ut_ad(!dict_index_is_online_ddl(index));
 
 	mtr_start(&mtr);
 
 	cursor.thr = thr;
+
+	/* Ensure that we acquire an S lock (on index->lock) when inserting
+	an index that is still being built. This is to prevent concurrent index
+	online_status change and later the index tree being freed during
+	rollback of create index */
+	if (mode == BTR_MODIFY_LEAF && *index->name == TEMP_INDEX_PREFIX) {
+		DEBUG_SYNC_C("row_ins_sec_index_enter");
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+		search_mode = BTR_ALREADY_S_LATCHED;
+	} else {
+		search_mode = 0;
+	}
+
+	/* If this index is being aborted, exit */
+	if (index->online_status == ONLINE_INDEX_ABORTED
+	    || index->online_status == ONLINE_INDEX_ABORTED_DROPPED) {
+		ut_ad(*index->name == TEMP_INDEX_PREFIX);
+		err = DB_SUCCESS;
+
+		goto func_exit;
+	}
+
+	ut_ad(!dict_index_is_online_ddl(index));
 
 	/* Note that we use PAGE_CUR_LE as the search mode, because then
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
 
 	if (!thr_get_trx(thr)->check_unique_secondary) {
-		search_mode = mode | BTR_INSERT | BTR_IGNORE_SEC_UNIQUE;
+		search_mode |= mode | BTR_INSERT | BTR_IGNORE_SEC_UNIQUE;
 	} else {
-		search_mode = mode | BTR_INSERT;
+		search_mode |= mode | BTR_INSERT;
 	}
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
@@ -2433,7 +2462,7 @@ row_ins_sec_index_entry_low(
 
 		err = DB_SUCCESS;
 
-		goto function_exit;
+		goto func_exit;
 	}
 
 #ifdef UNIV_DEBUG
@@ -2459,7 +2488,7 @@ row_ins_sec_index_entry_low(
 		mtr_start(&mtr);
 
 		if (err != DB_SUCCESS) {
-			goto function_exit;
+			goto func_exit;
 		}
 
 		/* We did not find a duplicate and we have now
@@ -2500,7 +2529,15 @@ row_ins_sec_index_entry_low(
 			if (buf_LRU_buf_pool_running_out()) {
 
 				err = DB_LOCK_TABLE_FULL;
-			} else {
+				goto func_exit;
+			}
+
+			err = btr_cur_optimistic_insert(
+				flags, &cursor,
+				&offsets, &offsets_heap,
+				entry, &insert_rec,
+				&big_rec, 0, thr, &mtr);
+			if (err == DB_FAIL) {
 				err = btr_cur_pessimistic_insert(
 					flags, &cursor,
 					&offsets, &offsets_heap,
@@ -2512,7 +2549,7 @@ row_ins_sec_index_entry_low(
 		ut_ad(!big_rec);
 	}
 
-function_exit:
+func_exit:
 	mtr_commit(&mtr);
 	return(err);
 }

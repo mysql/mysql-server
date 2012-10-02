@@ -51,8 +51,15 @@ typedef struct xml_stack_st
   int flags;
   enum my_xml_node_type current_node_type;
   char errstr[128];
-  char attr[128];
-  char *attrend;
+
+  struct {
+    char static_buffer[128];
+    char *buffer;
+    size_t buffer_size;
+    char *start;
+    char *end;
+  } attr;
+
   const char *beg;
   const char *cur;
   const char *end;

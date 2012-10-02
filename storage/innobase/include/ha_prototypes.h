@@ -32,12 +32,14 @@ Created 5/11/2006 Osku Salerma
 #include "my_compare.h"
 #include "my_sys.h"
 #include "m_string.h"
+#include "debug_sync.h"
 
 #include "trx0types.h"
 #include "m_ctype.h" /* CHARSET_INFO */
 
-// Forward declaration
-typedef struct fts_string_struct fts_string_t;
+// Forward declarations
+class Field;
+struct fts_string_t;
 
 /*********************************************************************//**
 Wrapper around MySQL's copy_and_convert function.
@@ -530,4 +532,44 @@ const char*
 innobase_get_err_msg(
 /*=================*/
 	int	error_code);	/*!< in: MySQL error code */
+
+/*********************************************************************//**
+Compute the next autoinc value.
+
+For MySQL replication the autoincrement values can be partitioned among
+the nodes. The offset is the start or origin of the autoincrement value
+for a particular node. For n nodes the increment will be n and the offset
+will be in the interval [1, n]. The formula tries to allocate the next
+value for a particular node.
+
+Note: This function is also called with increment set to the number of
+values we want to reserve for multi-value inserts e.g.,
+
+	INSERT INTO T VALUES(), (), ();
+
+innobase_next_autoinc() will be called with increment set to 3 where
+autoinc_lock_mode != TRADITIONAL because we want to reserve 3 values for
+the multi-value INSERT above.
+@return	the next value */
+UNIV_INTERN
+ulonglong
+innobase_next_autoinc(
+/*==================*/
+	ulonglong	current,	/*!< in: Current value */
+	ulonglong	need,		/*!< in: count of values needed */
+	ulonglong	step,		/*!< in: AUTOINC increment step */
+	ulonglong	offset,		/*!< in: AUTOINC offset */
+	ulonglong	max_value)	/*!< in: max value for type */
+	__attribute__((pure, warn_unused_result));
+
+/********************************************************************//**
+Get the upper limit of the MySQL integral and floating-point type.
+@return maximum allowed value for the field */
+UNIV_INTERN
+ulonglong
+innobase_get_int_col_max_value(
+/*===========================*/
+	const Field*	field)	/*!< in: MySQL field */
+	__attribute__((nonnull, pure, warn_unused_result));
+
 #endif /* HA_INNODB_PROTOTYPES_H */

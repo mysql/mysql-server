@@ -44,6 +44,7 @@
 #include "rpl_reporting.h"
 #include "sql_class.h"                          /* THD */
 #include "rpl_utility.h"                        /* Hash_slave_rows */
+#include "rpl_filter.h"
 #endif
 
 /* Forward declarations */
@@ -2082,7 +2083,21 @@ public:
     else
     {
       for (uchar i= 0; i < mts_accessed_dbs; i++)
-        res->push_back(mts_accessed_db_names[i]);
+      {
+        char *db_name= mts_accessed_db_names[i];
+
+        // Only default database is rewritten.
+        if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name))
+        {
+          size_t dummy_len;
+          const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+          // db_name != db_filtered means that db_name is rewritten.
+          if (strcmp(db_name, db_filtered))
+            db_name= (char*)db_filtered;
+        }
+
+        res->push_back(db_name);
+      }
     }
     return res;
   }
@@ -2867,7 +2882,7 @@ public:
     UNDEF_F= 0,
     UNSIGNED_F= 1
   };
-  char *name;
+  const char *name;
   uint name_len;
   char *val;
   ulong val_len;
@@ -2876,14 +2891,15 @@ public:
   bool is_null;
   uchar flags;
 #ifdef MYSQL_SERVER
-  User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
+  bool deferred;
+  User_var_log_event(THD* thd_arg, const char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
 		     uint charset_number_arg, uchar flags_arg,
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg), name(name_arg),
      name_len(name_len_arg), val(val_arg), val_len(val_len_arg), type(type_arg),
-     charset_number(charset_number_arg), flags(flags_arg)
+     charset_number(charset_number_arg), flags(flags_arg), deferred(false)
     { 
       is_null= !val;
     }
@@ -2898,6 +2914,13 @@ public:
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
+  /* 
+     Getter and setter for deferred User-event. 
+     Returns true if the event is not applied directly 
+     and which case the applier adjusts execution path.
+  */
+  bool is_deferred() { return deferred; }
+  void set_deferred() { deferred= val; }
 #endif
   bool is_valid() const { return 1; }
 
@@ -3745,7 +3768,8 @@ public:
   enum 
   {
     TM_NO_FLAGS = 0U,
-    TM_BIT_LEN_EXACT_F = (1U << 0)
+    TM_BIT_LEN_EXACT_F = (1U << 0),
+    TM_REFERRED_FK_DB_F = (1U << 1)
   };
 
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
@@ -3780,6 +3804,29 @@ public:
   virtual bool write_data_header(IO_CACHE *file);
   virtual bool write_data_body(IO_CACHE *file);
   virtual const char *get_db() { return m_dbnam; }
+  virtual uint8 mts_number_dbs()
+  { 
+    return get_flags(TM_REFERRED_FK_DB_F) ? OVER_MAX_DBS_IN_EVENT_MTS : 1;
+  }
+  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  {
+    List<char> *res= new List<char>;
+    const char *db_name= get_db();
+
+    if (!rpl_filter->is_rewrite_empty() && !get_flags(TM_REFERRED_FK_DB_F))
+    {
+      size_t dummy_len;
+      const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+      // db_name != db_filtered means that db_name is rewritten.
+      if (strcmp(db_name, db_filtered))
+        db_name= db_filtered;
+    }
+
+    res->push_back(strdup_root(mem_root,
+                               get_flags(TM_REFERRED_FK_DB_F) ? "" : db_name));
+    return res;
+  }
+
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)

@@ -118,6 +118,15 @@ innodb_release(
 	item*		item);		/*!< in: item to free */
 
 /*******************************************************************//**
+release */
+static
+void
+innodb_clean_engine(
+/*================*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	void*		conn);		/*!< in: item to free */
+/*******************************************************************//**
 Support memcached "GET" command, fetch the value according to key
 @return ENGINE_SUCCESS if successfully, otherwise error code */
 static

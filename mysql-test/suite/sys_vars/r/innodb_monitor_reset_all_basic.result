@@ -155,6 +155,8 @@ log_write_requests	disabled
 log_writes	disabled
 compress_pages_compressed	disabled
 compress_pages_decompressed	disabled
+compression_pad_increments	disabled
+compression_pad_decrements	disabled
 index_splits	disabled
 index_merges	disabled
 adaptive_hash_searches	disabled

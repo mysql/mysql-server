@@ -312,7 +312,7 @@ public:
   {
     return (master_log_name[0] ? master_log_name : "FIRST");
   }
-  size_t get_number_info_mi_fields();
+  static size_t get_number_info_mi_fields();
 
   bool is_auto_position()
   {
@@ -373,8 +373,9 @@ private:
               PSI_mutex_key *param_key_info_data_cond,
               PSI_mutex_key *param_key_info_start_cond,
               PSI_mutex_key *param_key_info_stop_cond,
-              PSI_mutex_key *param_key_info_sleep_cond
+              PSI_mutex_key *param_key_info_sleep_cond,
 #endif
+              uint param_id
              );
 
   Master_info(const Master_info& info);

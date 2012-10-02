@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ my $mysql;  # How to call the mysql client
 my $rootpass = "";
 
 
-$SIG{QUIT} = $SIG{INT} = sub {
+$SIG{QUIT} = $SIG{INT} = $SIG{TERM} = $SIG{ABRT} = $SIG{HUP} = sub {
   print "\nAborting!\n\n";
   echo_on();
   cleanup();
@@ -188,8 +188,19 @@ sub set_root_password {
   }
 
   my $esc_pass = basic_single_escape($password1);
-  do_query("UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root';")
-    or die "Password update failed!\n";
+
+  # do the old password
+  do_query("SET @\@old_passwords=1; UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root' and plugin = 'mysql_old_password';")
+    or die "old password update failed!\n";
+
+  # do the native password
+  do_query("SET @\@old_passwords=0; UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root' and plugin in ('', 'mysql_native_password');")
+    or die "native password update failed!\n";
+
+  # do the sha256 password
+  do_query("SET @\@old_passwords=2; UPDATE mysql.user SET authentication_string=PASSWORD('$esc_pass') WHERE User='root' and plugin = 'sha256_password';")
+    or die "sha256 password update failed!\n";
+
 
   print "Password updated successfully!\n";
   print "Reloading privilege tables..\n";
@@ -242,7 +253,11 @@ sub reload_privilege_tables {
 }
 
 sub cleanup {
-  unlink($config,$command);
+  print "Cleaning up...\n";
+
+  foreach my $file ($config, $command) {
+    unlink $file or warn "Warning: Could not unlink $file: $!\n";
+  }
 }
 
 

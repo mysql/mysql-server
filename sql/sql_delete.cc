@@ -302,9 +302,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
                                                &examined_rows, &found_rows))
 	  == HA_POS_ERROR)
       {
-        delete select;
-        free_underlaid_joins(thd, &thd->lex->select_lex);
-        DBUG_RETURN(true);
+        goto exit_without_my_ok;
       }
       thd->inc_examined_row_count(examined_rows);
       /*
@@ -319,28 +317,14 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
 
   /* If quick select is used, initialize it before retrieving rows. */
   if (select && select->quick && select->quick->reset())
-  {
-    delete select;
-    free_underlaid_joins(thd, select_lex);
-    DBUG_RETURN(TRUE);
-  }
-
+    goto exit_without_my_ok;
   if (usable_index==MAX_KEY || (select && select->quick))
     error= init_read_record(&info, thd, table, select, 1, 1, FALSE);
   else
     error= init_read_record_idx(&info, thd, table, 1, usable_index, reverse);
 
   if (error)
-  {
-    if (select)
-    {
-      delete select;
-      select= 0;
-    }
-    free_underlaid_joins(thd, select_lex);
-    DBUG_RETURN(TRUE);
-  }
-
+    goto exit_without_my_ok;
   init_ftfuncs(thd, select_lex, 1);
   THD_STAGE_INFO(thd, stage_updating);
 
@@ -511,6 +495,7 @@ exit_all_parts_pruned_away:
 exit_without_my_ok:
   delete select;
   free_underlaid_joins(thd, select_lex);
+  table->set_keyread(false);
   DBUG_RETURN((err || thd->is_error() || thd->killed) ? 1 : 0);
 }
 
@@ -713,10 +698,9 @@ multi_delete::initialize_tables(JOIN *join)
 
 
   walk= delete_tables;
-  for (JOIN_TAB *tab=join->join_tab, *end=join->join_tab+join->tables;
-       tab < end;
-       tab++)
+  for (uint i= 0; i < join->primary_tables; i++)
   {
+    JOIN_TAB *const tab= join->join_tab + i;
     if (tab->table->map & tables_to_delete_from)
     {
       /* We are going to delete from this table */

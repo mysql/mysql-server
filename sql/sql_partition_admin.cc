@@ -619,8 +619,8 @@ bool Sql_cmd_alter_table_exchange_partition::
 
   DEBUG_SYNC(thd, "swap_partition_after_wait");
 
-  close_all_tables_for_name(thd, swap_table->s, FALSE);
-  close_all_tables_for_name(thd, part_table->s, FALSE);
+  close_all_tables_for_name(thd, swap_table->s, false, NULL);
+  close_all_tables_for_name(thd, part_table->s, false, NULL);
 
   DEBUG_SYNC(thd, "swap_partition_before_rename");
 

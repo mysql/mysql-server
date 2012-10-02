@@ -57,7 +57,7 @@
 --echo ################################################
 --echo #
 --echo # Default path
---exec $MYSQL_CONFIG_EDITOR remove
+--exec $MYSQL_CONFIG_EDITOR remove --skip-warn
 --echo # done..
 --echo # test-login-path1
 --exec $MYSQL_CONFIG_EDITOR remove --login-path=test-login-path1
@@ -178,7 +178,7 @@ DROP USER test_user1, test_user2;
 --echo # The 'invalid' login file should not cause
 --echo # any problem.
 --echo #
---exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping 2>&1
+--exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping 2> /dev/null
 
 --echo ###############################
 --echo # Dropping the test login file
@@ -188,7 +188,7 @@ DROP USER test_user1, test_user2;
 --echo #################################
 --echo # Testing with login file removed
 --echo #################################
---echo # Even if login file does not exit, the
+--echo # Even if login file does not exist, the
 --echo # tools should be able to continue
 --echo # normally.
 --exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uroot ping 2>&1

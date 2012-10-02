@@ -15,7 +15,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 
 /* yaSSL error header defines error codes and an exception class
@@ -65,7 +65,7 @@ enum YasslError {
 enum Library { yaSSL_Lib = 0, CryptoLib, SocketLib };
 enum { MAX_ERROR_SZ = 80 };
 
-void SetErrorString(unsigned long, char*);
+void SetErrorString(YasslError, char*);
 
 /* remove for now, if go back to exceptions use this wrapper
 // Base class for all yaSSL exceptions

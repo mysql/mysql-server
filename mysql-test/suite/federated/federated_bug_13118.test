@@ -1,4 +1,4 @@
-source federated.inc;
+source suite/federated/include/federated.inc;
 
 connection slave;
 --disable_warnings
@@ -37,5 +37,5 @@ connection slave;
 DROP TABLE federated.bug_13118_table;
 
 
-source federated_cleanup.inc;
+source suite/federated/include/federated_cleanup.inc;
 

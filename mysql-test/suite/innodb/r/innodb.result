@@ -403,6 +403,8 @@ user_id	name	phone	ref_email	detail
 drop table t1;
 CREATE TABLE t1 (a int not null, b int not null,c int not null,
 key(a),primary key(a,b), unique(c),key(a),unique(b));
+Warnings:
+Note	1831	Duplicate index 'a_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 show index from t1;
 Table	Non_unique	Key_name	Seq_in_index	Column_name	Collation	Cardinality	Sub_part	Packed	Null	Index_type	Comment	Index_comment
 t1	0	PRIMARY	1	a	A	#	NULL	NULL		BTREE		
@@ -1440,6 +1442,8 @@ t2	CREATE TABLE `t2` (
   CONSTRAINT `t1_id_fk` FOREIGN KEY (`id`) REFERENCES `t1` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 create index id2 on t2 (id);
+Warnings:
+Note	1831	Duplicate index 'id2' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
 show create table t2;
 Table	Create Table
 t2	CREATE TABLE `t2` (
@@ -1906,6 +1910,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 alter table t1 add unique(v);
 ERROR 23000: Duplicate entry '{ ' for key 'v_2'
 alter table t1 add key(v);
+Warnings:
+Note	1831	Duplicate index 'v_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 select concat('*',v,'*',c,'*',t,'*') as qq from t1 where v='a';
 qq
 *a*a*a*
@@ -3056,7 +3062,7 @@ c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
 ) ENGINE = InnoDB;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is {checked_valid}. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> {checked_valid}). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 SET innodb_strict_mode=OFF;
 DROP TABLE IF EXISTS t1;
 Warnings:

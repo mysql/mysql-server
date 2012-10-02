@@ -45,6 +45,18 @@ using std::list;
 
 #define MY_OFF_T_UNDEF (~(my_off_t)0UL)
 
+/*
+  Constants required for the limit unsafe warnings suppression
+ */
+//seconds after which the limit unsafe warnings suppression will be activated
+#define LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT 50
+//number of limit unsafe warnings after which the suppression will be activated
+#define LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT 50
+
+static ulonglong limit_unsafe_suppression_start_time= 0;
+static bool unsafe_warning_suppression_is_activated= false;
+static int limit_unsafe_warning_count= 0;
+
 static handlerton *binlog_hton;
 bool opt_binlog_order_commits= true;
 
@@ -211,7 +223,7 @@ class binlog_cache_data
 public:
 
   binlog_cache_data(bool trx_cache_arg,
-                    ulong max_binlog_cache_size_arg,
+                    my_off_t max_binlog_cache_size_arg,
                     ulong *ptr_binlog_cache_use_arg,
                     ulong *ptr_binlog_cache_disk_use_arg)
   : m_pending(0), saved_max_binlog_cache_size(max_binlog_cache_size_arg),
@@ -440,7 +452,7 @@ private:
     is configured. This corresponds to either
       . max_binlog_cache_size or max_binlog_stmt_cache_size.
   */
-  ulong saved_max_binlog_cache_size;
+  my_off_t saved_max_binlog_cache_size;
 
   /*
     Stores a pointer to the status variable that keeps track of the in-memory 
@@ -466,7 +478,7 @@ class binlog_stmt_cache_data
 {
 public:
   binlog_stmt_cache_data(bool trx_cache_arg,
-                        ulong max_binlog_cache_size_arg,
+                        my_off_t max_binlog_cache_size_arg,
                         ulong *ptr_binlog_cache_use_arg,
                         ulong *ptr_binlog_cache_disk_use_arg)
     : binlog_cache_data(trx_cache_arg,
@@ -505,7 +517,7 @@ class binlog_trx_cache_data : public binlog_cache_data
 {
 public:
   binlog_trx_cache_data(bool trx_cache_arg,
-                        ulong max_binlog_cache_size_arg,
+                        my_off_t max_binlog_cache_size_arg,
                         ulong *ptr_binlog_cache_use_arg,
                         ulong *ptr_binlog_cache_disk_use_arg)
   : binlog_cache_data(trx_cache_arg,
@@ -593,10 +605,10 @@ private:
 
 class binlog_cache_mngr {
 public:
-  binlog_cache_mngr(ulong max_binlog_stmt_cache_size_arg,
+  binlog_cache_mngr(my_off_t max_binlog_stmt_cache_size_arg,
                     ulong *ptr_binlog_stmt_cache_use_arg,
                     ulong *ptr_binlog_stmt_cache_disk_use_arg,
-                    ulong max_binlog_cache_size_arg,
+                    my_off_t max_binlog_cache_size_arg,
                     ulong *ptr_binlog_cache_use_arg,
                     ulong *ptr_binlog_cache_disk_use_arg)
   : stmt_cache(FALSE, max_binlog_stmt_cache_size_arg,
@@ -4720,8 +4732,9 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
             if (user_var_event->unsigned_flag)
               flags|= User_var_log_event::UNSIGNED_F;
 
-            User_var_log_event e(thd, user_var_event->user_var_event->name.str,
-                                 user_var_event->user_var_event->name.length,
+            User_var_log_event e(thd,
+                                 user_var_event->user_var_event->entry_name.ptr(),
+                                 user_var_event->user_var_event->entry_name.length(),
                                  user_var_event->value,
                                  user_var_event->length,
                                  user_var_event->type,
@@ -6398,11 +6411,7 @@ int MYSQL_BIN_LOG::recover(IO_CACHE *log, Format_description_log_event *fdle,
     }
     else if (ev->get_type_code() == XID_EVENT)
     {
-      /* MEMCACHED_RESOLVE: currently binlog from memcached,
-	might not have MySQL transaction marks, so quote this assert
-	out first. Will reinstate later.
-	DBUG_ASSERT(in_transaction == TRUE);
-      */
+      DBUG_ASSERT(in_transaction == TRUE);
       in_transaction= FALSE;
       Xid_log_event *xev=(Xid_log_event *)ev;
       uchar *x= (uchar *) memdup_root(&mem_root, (uchar*) &xev->xid,
@@ -6944,8 +6953,15 @@ int THD::decide_logging_format(TABLE_LIST *tables)
        A pointer to a previous table that was accessed.
     */
     TABLE* prev_access_table= NULL;
-    // true if at least one table is non-transactional.
+    /*
+      True if at least one table is non-transactional.
+    */
     bool write_to_some_non_transactional_table= false;
+    /*
+       True if all non-transactional tables that has been updated
+       are temporary.
+    */
+    bool write_all_non_transactional_are_tmp_tables= true;
 #ifndef DBUG_OFF
     {
       static const char *prelocked_mode_name[] = {
@@ -6994,6 +7010,16 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           lex->set_stmt_accessed_table(trans ? LEX::STMT_WRITES_TRANS_TABLE :
                                                LEX::STMT_WRITES_NON_TRANS_TABLE);
 
+        /*
+         Non-transactional updates are allowed when row binlog format is
+         used and all non-transactional tables are temporary.
+         Binlog format is checked on THD::is_dml_gtid_compatible() method.
+        */
+        if (!trans)
+          write_all_non_transactional_are_tmp_tables=
+            write_all_non_transactional_are_tmp_tables &&
+            table->table->s->tmp_table;
+
         flags_write_all_set &= flags;
         flags_write_some_set |= flags;
         is_write= TRUE;
@@ -7020,6 +7046,13 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       prev_access_table= table->table;
     }
+    /*
+      write_all_non_transactional_are_tmp_tables may be true if any
+      non-transactional table was not updated, so we fix its value here.
+    */
+    write_all_non_transactional_are_tmp_tables=
+      write_all_non_transactional_are_tmp_tables &&
+      write_to_some_non_transactional_table;
 
     DBUG_PRINT("info", ("flags_write_all_set: 0x%llx", flags_write_all_set));
     DBUG_PRINT("info", ("flags_write_some_set: 0x%llx", flags_write_some_set));
@@ -7151,7 +7184,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     }
 
     if (!error && disable_gtid_unsafe_statements &&
-        !is_dml_gtid_compatible(write_to_some_non_transactional_table))
+        !is_dml_gtid_compatible(write_to_some_non_transactional_table,
+                                write_all_non_transactional_are_tmp_tables))
       error= 1;
 
     if (error) {
@@ -7159,7 +7193,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       DBUG_RETURN(-1);
     }
 
-    if (is_write && !is_current_stmt_binlog_format_row() &&
+    if (is_write &&
         lex->sql_command != SQLCOM_END /* rows-event applying by slave */)
     {
       /*
@@ -7172,7 +7206,21 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       {
         if (table->placeholder())
           continue;
-        add_to_binlog_accessed_dbs(table->db);
+
+        DBUG_ASSERT(table->table);
+
+        if (table->table->file->referenced_by_foreign_key())
+        {
+          /* 
+             FK-referenced dbs can't be gathered currently. The following
+             event will be marked for sequential execution on slave.
+          */
+          binlog_accessed_db_names= NULL;
+          add_to_binlog_accessed_dbs("");
+          break;
+        }
+        if (!is_current_stmt_binlog_format_row())
+          add_to_binlog_accessed_dbs(table->db);
       }
     }
     DBUG_PRINT("info", ("decision: logging in %s format",
@@ -7240,9 +7288,11 @@ bool THD::is_ddl_gtid_compatible() const
 }
 
 
-bool THD::is_dml_gtid_compatible(bool non_transactional_table) const
+bool
+THD::is_dml_gtid_compatible(bool non_transactional_table,
+                            bool non_transactional_tmp_tables) const
 {
-  DBUG_ENTER("THD::is_dml_gtid_compatible(bool)");
+  DBUG_ENTER("THD::is_dml_gtid_compatible(bool, bool)");
 
   // If @@session.sql_log_bin has been manually turned off (only
   // doable by SUPER), then no problem, we can execute any statement.
@@ -7255,6 +7305,9 @@ bool THD::is_dml_gtid_compatible(bool non_transactional_table) const
     inside a transaction, then the non-transactional statement's
     GTID will be the same as the surrounding transaction's GTID.
 
+    Non-transactional updates are allowed when row binlog format is
+    used and all non-transactional tables are temporary.
+
     Only statements that generate row events can be unsafe: otherwise,
     the statement either has an implicit pre-commit or is not
     binlogged at all.
@@ -7265,6 +7318,7 @@ bool THD::is_dml_gtid_compatible(bool non_transactional_table) const
     mind.
   */
   if (sqlcom_can_generate_row_events(this) &&
+      !(non_transactional_tmp_tables && is_current_stmt_binlog_format_row()) &&
       non_transactional_table &&
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0))
   {
@@ -7781,6 +7835,122 @@ show_query_type(THD::enum_binlog_query_type qtype)
 }
 #endif
 
+/**
+  Auxiliary function to reset the limit unsafety warning suppression.
+*/
+static void reset_binlog_unsafe_suppression()
+{
+  DBUG_ENTER("reset_binlog_unsafe_suppression");
+  unsafe_warning_suppression_is_activated= false;
+  limit_unsafe_warning_count= 0;
+  limit_unsafe_suppression_start_time= my_getsystime()/10000000;
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Auxiliary function to print warning in the error log.
+*/
+static void print_unsafe_warning_to_log(int unsafe_type, char* buf,
+                                 char* query)
+{
+  DBUG_ENTER("print_unsafe_warning_in_log");
+  sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
+          ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
+  sql_print_warning(ER(ER_MESSAGE_AND_STATEMENT), buf, query);
+  DBUG_VOID_RETURN;
+}
+
+/**
+  Auxiliary function to check if the warning for limit unsafety should be
+  thrown or suppressed. Details of the implementation can be found in the
+  comments inline.
+  SYNOPSIS:
+  @params
+   buf         - buffer to hold the warning message text
+   unsafe_type - The type of unsafety.
+   query       - The actual query statement.
+
+  TODO: Remove this function and implement a general service for all warnings
+  that would prevent flooding the error log.
+*/
+static void do_unsafe_limit_checkout(char* buf, int unsafe_type, char* query)
+{
+  ulonglong now;
+  DBUG_ENTER("do_unsafe_limit_checkout");
+  DBUG_ASSERT(unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT);
+  limit_unsafe_warning_count++;
+  /*
+    INITIALIZING:
+    If this is the first time this function is called with log warning
+    enabled, the monitoring the unsafe warnings should start.
+  */
+  if (limit_unsafe_suppression_start_time == 0)
+  {
+    limit_unsafe_suppression_start_time= my_getsystime()/10000000;
+    print_unsafe_warning_to_log(unsafe_type, buf, query);
+  }
+  else
+  {
+    if (!unsafe_warning_suppression_is_activated)
+      print_unsafe_warning_to_log(unsafe_type, buf, query);
+
+    if (limit_unsafe_warning_count >=
+        LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT)
+    {
+      now= my_getsystime()/10000000;
+      if (!unsafe_warning_suppression_is_activated)
+      {
+        /*
+          ACTIVATION:
+          We got LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT warnings in
+          less than LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT we activate the
+          suppression.
+        */
+        if ((now-limit_unsafe_suppression_start_time) <=
+                       LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT)
+        {
+          unsafe_warning_suppression_is_activated= true;
+          DBUG_PRINT("info",("A warning flood has been detected and the limit \
+unsafety warning suppression has been activated."));
+        }
+        else
+        {
+          /*
+           there is no flooding till now, therefore we restart the monitoring
+          */
+          limit_unsafe_suppression_start_time= my_getsystime()/10000000;
+          limit_unsafe_warning_count= 0;
+        }
+      }
+      else
+      {
+        /*
+          Print the suppression note and the unsafe warning.
+        */
+        sql_print_information("The following warning was suppressed %d times \
+during the last %d seconds in the error log",
+                              limit_unsafe_warning_count,
+                              (int)
+                              (now-limit_unsafe_suppression_start_time));
+        print_unsafe_warning_to_log(unsafe_type, buf, query);
+        /*
+          DEACTIVATION: We got LIMIT_UNSAFE_WARNING_ACTIVATION_THRESHOLD_COUNT
+          warnings in more than  LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT, the
+          suppression should be deactivated.
+        */
+        if ((now - limit_unsafe_suppression_start_time) >
+            LIMIT_UNSAFE_WARNING_ACTIVATION_TIMEOUT)
+        {
+          reset_binlog_unsafe_suppression();
+          DBUG_PRINT("info",("The limit unsafety warning supression has been \
+deactivated"));
+        }
+      }
+      limit_unsafe_warning_count= 0;
+    }
+  }
+  DBUG_VOID_RETURN;
+}
 
 /**
   Auxiliary method used by @c binlog_query() to raise warnings.
@@ -7790,6 +7960,7 @@ show_query_type(THD::enum_binlog_query_type qtype)
 */
 void THD::issue_unsafe_warnings()
 {
+  char buf[MYSQL_ERRMSG_SIZE * 2];
   DBUG_ENTER("issue_unsafe_warnings");
   /*
     Ensure that binlog_unsafe_warning_flags is big enough to hold all
@@ -7816,16 +7987,15 @@ void THD::issue_unsafe_warnings()
                           ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
       if (log_warnings)
       {
-        char buf[MYSQL_ERRMSG_SIZE * 2];
-        sprintf(buf, ER(ER_BINLOG_UNSAFE_STATEMENT),
-                ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));
-        sql_print_warning(ER(ER_MESSAGE_AND_STATEMENT), buf, query());
+        if (unsafe_type == LEX::BINLOG_STMT_UNSAFE_LIMIT)
+          do_unsafe_limit_checkout( buf, unsafe_type, query());
+        else //cases other than LIMIT unsafety
+          print_unsafe_warning_to_log(unsafe_type, buf, query());
       }
     }
   }
   DBUG_VOID_RETURN;
 }
-
 
 /**
   Log the current query.

@@ -29,6 +29,7 @@
 #include "mysql_com.h"              /* enum_field_types */
 #include "thr_lock.h"                  /* thr_lock_type */
 #include "filesort_utils.h"
+#include "parse_file.h"
 
 /* Structs that defines the TABLE */
 
@@ -742,6 +743,13 @@ struct TABLE_SHARE
   */
   Wait_for_flush_list m_flush_tickets;
 
+  /**
+    For shares representing views File_parser object with view
+    definition read from .FRM file.
+  */ 
+  const File_parser *view_def;
+
+
   /*
     Set share's table cache key and update its db and table name appropriately.
 
@@ -1089,8 +1097,6 @@ public:
   uint		tablenr,used_fields;
   uint          temp_pool_slot;		/* Used by intern temp tables */
   uint		db_stat;		/* mode of file as in handler.h */
-  /* number of select if it is derived table */
-  uint          derived_select_number;
   int		current_lock;           /* Type of lock on table */
 
   /*
@@ -1502,7 +1508,7 @@ private:
   Item		*m_join_cond;           /* Used with outer join */
 public:
   Item         **join_cond_ref() { return &m_join_cond; }
-  Item          *join_cond() { return m_join_cond; }
+  Item          *join_cond() const { return m_join_cond; }
   Item          *set_join_cond(Item *val)
                  { return m_join_cond= val; }
   /*
@@ -1790,11 +1796,6 @@ public:
   uint8 trg_event_map;
   /* TRUE <=> this table is a const one and was optimized away. */
   bool optimized_away;
-  /**
-    TRUE <=> already materialized. Valid only for materialized derived
-    tables/views.
-  */
-  bool materialized;
   uint i_s_requested_object;
   bool has_db_lookup_value;
   bool has_table_lookup_value;
@@ -1854,15 +1855,23 @@ public:
       TRUE  this is a materializable derived table/view.
       FALSE otherwise.
   */
-  inline bool uses_materialization()
+  inline bool uses_materialization() const
   {
     return (effective_algorithm == VIEW_ALGORITHM_TMPTABLE ||
             effective_algorithm == DERIVED_ALGORITHM_TMPTABLE);
   }
-  inline bool is_view_or_derived()
+  inline bool is_view_or_derived() const
   {
     return (effective_algorithm != VIEW_ALGORITHM_UNDEFINED);
   }
+  /**
+    @returns true if materializable table contains one or zero rows.
+
+    Returning true implies that the table is materialized during optimization,
+    so it need not be optimized during execution.
+  */
+  bool materializable_is_const() const;
+
   void register_want_access(ulong want_access);
   bool prepare_security(THD *thd);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
@@ -1921,6 +1930,9 @@ public:
   */
   bool is_anonymous_derived_table() const { return derived && !view; }
 
+  /// returns query block id for derived table, and zero if not derived.
+  uint query_block_id() const;
+
   /**
      @brief Returns the name of the database that the referenced table belongs
      to.
@@ -1938,14 +1950,13 @@ public:
   bool update_derived_keys(Field*, Item**, uint);
   bool generate_keys();
   bool handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*));
-  st_select_lex_unit *get_unit();
+  st_select_lex_unit *get_unit() const;
 
   /**
-    @brief Returns whether the table (or join nest) that this TABLE_LIST 
-    represents, is part of an outer-join nest.
+    @brief Returns the outer join nest that this TABLE_LIST belongs to, if any.
 
     @details There are two kinds of join nests, outer-join nests and semi-join 
-    nests.  This function returns @c TRUE in the following cases:
+    nests.  This function returns non-NULL in the following cases:
       @li 1. If this table/nest is embedded in a nest and this nest IS NOT a 
              semi-join nest.  (In other words, it is an outer-join nest.)
       @li 2. If this table/nest is embedded in a nest and this nest IS a 
@@ -1955,10 +1966,16 @@ public:
              @c simplify_joins() ).
     Note: This function assumes that @c simplify_joins() has been performed.
     Before that, join nests will be present for all types of join.
+
+    @return outer join nest, or NULL if none.
    */
-  bool in_outer_join_nest() const
-  { 
-    return (embedding && (!embedding->sj_on_expr || embedding->embedding)); 
+  TABLE_LIST *outer_join_nest() const
+  {
+    if (!embedding)
+      return NULL;
+    if (embedding->sj_on_expr)
+      return embedding->embedding;
+    return embedding;
   }
 
 private:
@@ -2102,20 +2119,22 @@ public:
 
 struct Semijoin_mat_optimize
 {
-  /* Optimal join order calculated for inner tables of this semijoin op. */
+  /// Optimal join order calculated for inner tables of this semijoin op.
   struct st_position *positions;
-  /** True if data types allow the MaterializeLookup semijoin strategy */
+  /// True if data types allow the MaterializeLookup semijoin strategy
   bool lookup_allowed;
-  /** True if data types allow the MaterializeScan semijoin strategy */
+  /// True if data types allow the MaterializeScan semijoin strategy
   bool scan_allowed;
-  /* Expected #rows in the materialized table */
+  /// Expected #rows in the materialized table
   double expected_rowcount;
-  /* Materialization cost - execute sub-join and write rows to temp.table */
+  /// Materialization cost - execute sub-join and write rows to temp.table
   Cost_estimate materialization_cost;
-  /* Cost to make one lookup in the temptable */
+  /// Cost to make one lookup in the temptable
   Cost_estimate lookup_cost;
-  /* Cost of scanning the materialized table */
+  /// Cost of scanning the materialized table
   Cost_estimate scan_cost;
+  /// Array of pointers to fields in the materialized table.
+  Item_field **mat_fields;
 };
 
 /**
@@ -2156,13 +2175,19 @@ typedef struct st_nested_join
     outer join structure need this, other nests have bit set to zero.
   */
   nested_join_map   nj_map;
-  /*
+  /**
     Tables outside the semi-join that are used within the semi-join's
     ON condition (ie. the subquery WHERE clause and optional IN equalities).
   */
   table_map         sj_depends_on;
-  /* Outer non-trivially correlated tables, a true subset of sj_depends_on */
+  /**
+    Outer non-trivially correlated tables, a true subset of sj_depends_on
+  */
   table_map         sj_corr_tables;
+  /**
+    Query block id if this struct is generated from a subquery transform.
+  */
+  uint query_block_id;
   /*
     Lists of trivially-correlated expressions from the outer and inner tables
     of the semi-join, respectively.

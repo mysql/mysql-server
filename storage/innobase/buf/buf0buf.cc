@@ -2710,7 +2710,10 @@ wait_until_unfixed:
 		/* Decompress the page and apply buffered operations
 		while not holding buf_pool->mutex or block->mutex. */
 
-		ut_a(buf_zip_decompress(block, TRUE));
+		/* Page checksum verification is already done when
+		the page is read from disk. Hence page checksum
+		verification is not necesary when decompressing the page. */
+		ut_a(buf_zip_decompress(block, FALSE));
 
 		if (UNIV_LIKELY(!recv_no_ibuf_operations)) {
 			ibuf_merge_or_delete_for_page(block, space, offset,

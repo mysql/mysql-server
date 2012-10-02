@@ -118,6 +118,9 @@ public:
     inline bool is_bottom() const { return !left; }
     inline Info *get_next() { return (Info *)next; }
     inline const Info *get_next() const { return (const Info *)next; }
+#ifndef DBUG_OFF
+    inline void dbug_print() const;
+#endif
   };
 
   Gcalc_heap(size_t blk_size=8192) :
@@ -279,6 +282,10 @@ enum Gcalc_scan_events
   scev_single_point= 64  /* Got single point */
 };
 
+#ifndef DBUG_OFF
+const char *Gcalc_scan_event_name(enum Gcalc_scan_events event);
+#endif
+
 typedef int sc_thread_id;
 
 /* 
@@ -321,8 +328,8 @@ public:
       thread= from->thread;
     }
 #ifndef DBUG_OFF
-    void dbug_print();
-#endif /*DBUG_OFF*/
+    inline void dbug_print_slice(double y, enum Gcalc_scan_events event) const;
+#endif
   };
 
   class intersection : public Gcalc_dyn_list::Item

@@ -1,5 +1,6 @@
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"mysql"."slave_master_info"\' in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"mysql"."slave_relay_log_info"\' in the cache');
+call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"mysql"."slave_worker_info"\' in the cache');
 call mtr.add_suppression('InnoDB: Failed to find tablespace for table \'"test"."t1"\' in the cache');
 call mtr.add_suppression('InnoDB: Allocated tablespace [0-9]+, old maximum was [0-9]+');
 # Stop server

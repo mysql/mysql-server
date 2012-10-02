@@ -6417,8 +6417,8 @@ ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
 ER_PATH_LENGTH
   eng "The path specified for %.64s is too long."
 ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT  
-  eng "The syntax '%s' is deprecated and will be removed in MySQL %s."
-  ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt."
+  eng "'%s' is deprecated and will be removed in a future release."
+  ger "'%s' ist veraltet und wird in einer zukünftigen Version entfernt werden."
 
 ER_WRONG_NATIVE_TABLE_STRUCTURE
         eng "Native table '%-.64s'.'%-.64s' has the wrong structure"
@@ -6918,6 +6918,21 @@ ER_FK_COLUMN_CANNOT_DROP_CHILD
 ER_FK_COLUMN_NOT_NULL
         eng "Column '%-.192s' cannot be NOT NULL: needed in a foreign key constraint '%-.192s' SET NULL"
         ger "Spalte '%-.192s' kann nicht NOT NULL sein: wird für eine Fremdschlüsselbeschränkung '%-.192s' SET NULL benötigt"
+
+ER_DUP_INDEX
+  eng "Duplicate index '%-.64s' defined on the table '%-.64s.%-.64s'. This is deprecated and will be disallowed in a future release."
+
+ER_FK_COLUMN_CANNOT_CHANGE
+  eng "Cannot change column '%-.192s': used in a foreign key constraint '%-.192s'"
+
+ER_FK_COLUMN_CANNOT_CHANGE_CHILD
+  eng "Cannot change column '%-.192s': used in a foreign key constraint '%-.192s' of table '%-.192s'"
+
+ER_FK_CANNOT_DELETE_PARENT
+  eng "Cannot delete rows from table which is parent in a foreign key constraint '%-.192s' of table '%-.192s'"
+
+ER_MALFORMED_PACKET
+  eng "Malformed communication packet."
 
 #
 #  End of 5.6 error messages.

@@ -761,21 +761,21 @@ void test_init_disabled()
   /* disabled S-A + disabled T-1: no instrumentation */
 
   socket_class_A->m_enabled= false;
-  socket_A1= psi->init_socket(socket_key_A, NULL);
+  socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
   ok(socket_A1 == NULL, "socket_A1 not instrumented");
 
   /* enabled S-A + disabled T-1: instrumentation (for later) */
 
   socket_class_A->m_enabled= true;
-  socket_A1= psi->init_socket(socket_key_A, NULL);
+  socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
   ok(socket_A1 != NULL, "socket_A1 instrumented");
 
   /* broken key + disabled T-1: no instrumentation */
 
   socket_class_A->m_enabled= true;
-  socket_A1= psi->init_socket(0, NULL);
+  socket_A1= psi->init_socket(0, NULL, NULL, 0);
   ok(socket_A1 == NULL, "socket key 0 not instrumented");
-  socket_A1= psi->init_socket(99, NULL);
+  socket_A1= psi->init_socket(99, NULL, NULL, 0);
   ok(socket_A1 == NULL, "broken socket key not instrumented");
   
   /* Pretend thread T-1 is enabled */
@@ -894,16 +894,16 @@ void test_init_disabled()
   /* enabled S-A + enabled T-1: instrumentation */
 
   socket_class_A->m_enabled= true;
-  socket_A1= psi->init_socket(socket_key_A, NULL);
+  socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
   ok(socket_A1 != NULL, "instrumented");
   psi->destroy_socket(socket_A1);
 
   /* broken key + enabled T-1: no instrumentation */
 
   socket_class_A->m_enabled= true;
-  socket_A1= psi->init_socket(0, NULL);
+  socket_A1= psi->init_socket(0, NULL, NULL, 0);
   ok(socket_A1 == NULL, "not instrumented");
-  socket_A1= psi->init_socket(99, NULL);
+  socket_A1= psi->init_socket(99, NULL, NULL, 0);
   ok(socket_A1 == NULL, "not instrumented");
 
   /* Pretend the running thread is not instrumented */
@@ -998,21 +998,21 @@ void test_init_disabled()
   /* disabled S-A + unknown thread: no instrumentation */
 
   socket_class_A->m_enabled= false;
-  socket_A1= psi->init_socket(socket_key_A, NULL);
+  socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
   ok(socket_A1 == NULL, "socket_A1 not instrumented");
 
   /* enabled S-A + unknown thread: instrumentation (for later) */
 
   socket_class_A->m_enabled= true;
-  socket_A1= psi->init_socket(socket_key_A, NULL);
+  socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
   ok(socket_A1 != NULL, "socket_A1 instrumented");
 
   /* broken key + unknown thread: no instrumentation */
 
   socket_class_A->m_enabled= true;
-  socket_A1= psi->init_socket(0, NULL);
+  socket_A1= psi->init_socket(0, NULL, NULL, 0);
   ok(socket_A1 == NULL, "socket key 0 not instrumented");
-  socket_A1= psi->init_socket(99, NULL);
+  socket_A1= psi->init_socket(99, NULL, NULL, 0);
   ok(socket_A1 == NULL, "broken socket key not instrumented");
   
   shutdown_performance_schema();
@@ -1128,7 +1128,7 @@ void test_locker_disabled()
   ok(file_A1 != NULL, "instrumented");
 
   socket_class_A->m_enabled= true;
-  socket_A1= psi->init_socket(socket_key_A, NULL);
+  socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
   ok(socket_A1 != NULL, "instrumented");
 
   /* Socket lockers require a thread owner */
@@ -1296,10 +1296,10 @@ void test_locker_disabled()
   cond_locker= psi->start_cond_wait(&cond_state, cond_A1, mutex_A1, PSI_COND_WAIT, __FILE__, __LINE__);
   ok(cond_locker != NULL, "locker");
   psi->end_cond_wait(cond_locker, 0);
-  file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_OPEN, "xxx", NULL);
+  file_locker= psi->get_thread_file_name_locker(&file_state, file_key_A, PSI_FILE_STREAM_OPEN, "xxx", NULL);
   ok(file_locker != NULL, "locker");
   psi->start_file_open_wait(file_locker, __FILE__, __LINE__);
-  psi->end_file_open_wait(file_locker);
+  psi->end_file_open_wait(file_locker, NULL);
   file_locker= psi->get_thread_file_stream_locker(&file_state, file_A1, PSI_FILE_READ);
   ok(file_locker != NULL, "locker");
   psi->start_file_wait(file_locker, 10, __FILE__, __LINE__);
@@ -1316,7 +1316,7 @@ void test_locker_disabled()
   /* ---------------------------------------------- */
 
   socket_class_A->m_enabled= true;
-  socket_A1= psi->init_socket(socket_key_A, NULL);
+  socket_A1= psi->init_socket(socket_key_A, NULL, NULL, 0);
   ok(socket_A1 != NULL, "instrumented");
   /* Socket thread owner has not been set */
   socket_locker= psi->start_socket_wait(&socket_state, socket_A1, PSI_SOCKET_SEND, 12, "foo.cc", 12);

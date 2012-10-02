@@ -1,6 +1,7 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2005, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -22,6 +23,9 @@ Compressed page interface
 
 Created June 2005 by Marko Makela
 *******************************************************/
+
+#include <map>
+using namespace std;
 
 #define THIS_MODULE
 #include "page0zip.h"
@@ -54,8 +58,22 @@ Created June 2005 by Marko Makela
 
 #ifndef UNIV_HOTBACKUP
 /** Statistics on compression, indexed by page_zip_des_t::ssize - 1 */
-UNIV_INTERN page_zip_stat_t page_zip_stat[PAGE_ZIP_SSIZE_MAX];
+UNIV_INTERN page_zip_stat_t		page_zip_stat[PAGE_ZIP_SSIZE_MAX];
+/** Statistics on compression, indexed by index->id */
+UNIV_INTERN page_zip_stat_per_index_t	page_zip_stat_per_index;
+/** Mutex protecting page_zip_stat_per_index */
+UNIV_INTERN ib_mutex_t			page_zip_stat_per_index_mutex;
+#ifdef HAVE_PSI_INTERFACE
+UNIV_INTERN mysql_pfs_key_t		page_zip_stat_per_index_mutex_key;
+#endif /* HAVE_PSI_INTERFACE */
 #endif /* !UNIV_HOTBACKUP */
+
+/* Compression level to be used by zlib. Settable by user. */
+UNIV_INTERN ulint	page_compression_level = 6;
+
+/* Whether or not to log compressed page images to avoid possible
+compression algorithm changes in zlib. */
+UNIV_INTERN bool	page_log_compressed_pages = true;
 
 /* Please refer to ../include/page0zip.ic for a description of the
 compressed page format. */
@@ -1181,6 +1199,7 @@ page_zip_compress(
 				m_start, m_end, m_nonempty */
 	const page_t*	page,	/*!< in: uncompressed page */
 	dict_index_t*	index,	/*!< in: index of the B-tree node */
+	ulint		level,	/*!< in: commpression level */
 	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
 {
 	z_stream	c_stream;
@@ -1203,6 +1222,10 @@ page_zip_compress(
 #ifdef PAGE_ZIP_COMPRESS_DBG
 	FILE*		logfile = NULL;
 #endif
+	/* A local copy of srv_cmp_per_index_enabled to avoid reading that
+	variable multiple times in this function since it can be changed at
+	anytime. */
+	my_bool		cmp_per_index_enabled = srv_cmp_per_index_enabled;
 
 	ut_a(page_is_comp(page));
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
@@ -1265,6 +1288,11 @@ page_zip_compress(
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
 	page_zip_stat[page_zip->ssize - 1].compressed++;
+	if (cmp_per_index_enabled) {
+		mutex_enter(&page_zip_stat_per_index_mutex);
+		page_zip_stat_per_index[index->id].compressed++;
+		mutex_exit(&page_zip_stat_per_index_mutex);
+	}
 #endif /* !UNIV_HOTBACKUP */
 
 	if (UNIV_UNLIKELY(n_dense * PAGE_ZIP_DIR_SLOT_SIZE
@@ -1295,7 +1323,7 @@ page_zip_compress(
 	/* Compress the data payload. */
 	page_zip_set_alloc(&c_stream, heap);
 
-	err = deflateInit2(&c_stream, Z_DEFAULT_COMPRESSION,
+	err = deflateInit2(&c_stream, level,
 			   Z_DEFLATED, UNIV_PAGE_SIZE_SHIFT,
 			   MAX_MEM_LEVEL, Z_DEFAULT_STRATEGY);
 	ut_a(err == Z_OK);
@@ -1408,8 +1436,19 @@ err_exit:
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
+		if (page_is_leaf(page)) {
+			dict_index_zip_failure(index);
+		}
+
+		ullint	time_diff = ut_time_us(NULL) - usec;
 		page_zip_stat[page_zip->ssize - 1].compressed_usec
-			+= ut_time_us(NULL) - usec;
+			+= time_diff;
+		if (cmp_per_index_enabled) {
+			mutex_enter(&page_zip_stat_per_index_mutex);
+			page_zip_stat_per_index[index->id].compressed_usec
+				+= time_diff;
+			mutex_exit(&page_zip_stat_per_index_mutex);
+		}
 #endif /* !UNIV_HOTBACKUP */
 		return(FALSE);
 	}
@@ -1469,11 +1508,18 @@ err_exit:
 	}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-	{
-		page_zip_stat_t*	zip_stat
-			= &page_zip_stat[page_zip->ssize - 1];
-		zip_stat->compressed_ok++;
-		zip_stat->compressed_usec += ut_time_us(NULL) - usec;
+	ullint	time_diff = ut_time_us(NULL) - usec;
+	page_zip_stat[page_zip->ssize - 1].compressed_ok++;
+	page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
+	if (cmp_per_index_enabled) {
+		mutex_enter(&page_zip_stat_per_index_mutex);
+		page_zip_stat_per_index[index->id].compressed_ok++;
+		page_zip_stat_per_index[index->id].compressed_usec += time_diff;
+		mutex_exit(&page_zip_stat_per_index_mutex);
+	}
+
+	if (page_is_leaf(page)) {
+		dict_index_zip_success(index);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1518,6 +1564,7 @@ page_zip_fields_free(
 {
 	if (index) {
 		dict_table_t*	table = index->table;
+		os_fast_mutex_free(&index->zip_pad.mutex);
 		mem_heap_free(index->heap);
 		mutex_free(&(table->autoinc_mutex));
 		ut_free(table->name);
@@ -3075,11 +3122,17 @@ err_exit:
 	page_zip_fields_free(index);
 	mem_heap_free(heap);
 #ifndef UNIV_HOTBACKUP
-	{
-		page_zip_stat_t*	zip_stat
-			= &page_zip_stat[page_zip->ssize - 1];
-		zip_stat->decompressed++;
-		zip_stat->decompressed_usec += ut_time_us(NULL) - usec;
+	ullint	time_diff = ut_time_us(NULL) - usec;
+	page_zip_stat[page_zip->ssize - 1].decompressed++;
+	page_zip_stat[page_zip->ssize - 1].decompressed_usec += time_diff;
+
+	index_id_t	index_id = btr_page_get_index_id(page);
+
+	if (srv_cmp_per_index_enabled) {
+		mutex_enter(&page_zip_stat_per_index_mutex);
+		page_zip_stat_per_index[index_id].decompressed++;
+		page_zip_stat_per_index[index_id].decompressed_usec += time_diff;
+		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -4512,7 +4565,8 @@ page_zip_reorganize(
 	/* Restore logging. */
 	mtr_set_log_mode(mtr, log_mode);
 
-	if (!page_zip_compress(page_zip, page, index, mtr)) {
+	if (!page_zip_compress(page_zip, page, index,
+			       page_compression_level, mtr)) {
 
 #ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);

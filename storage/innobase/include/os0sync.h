@@ -54,22 +54,19 @@ typedef pthread_cond_t		os_cond_t;
 
 /** Structure that includes Performance Schema Probe pfs_psi
 in the os_fast_mutex structure if UNIV_PFS_MUTEX is defined */
-typedef struct os_fast_mutex_struct {
+struct os_fast_mutex_t {
 	fast_mutex_t		mutex;	/*!< os_fast_mutex */
 #ifdef UNIV_PFS_MUTEX
 	struct PSI_mutex*	pfs_psi;/*!< The performance schema
 					instrumentation hook */
 #endif
-} os_fast_mutex_t;
+};
 
-
-/** Operating system event */
-typedef struct os_event_struct	os_event_struct_t;
 /** Operating system event handle */
-typedef os_event_struct_t*	os_event_t;
+typedef struct os_event*	os_event_t;
 
 /** An asynchronous signal sent between threads */
-struct os_event_struct {
+struct os_event {
 #ifdef __WIN__
 	HANDLE		handle;		/*!< kernel event object, slow,
 					used on older Windows */
@@ -84,7 +81,7 @@ struct os_event_struct {
 					the event becomes signaled */
 	os_cond_t	cond_var;	/*!< condition variable is used in
 					waiting for the event */
-	UT_LIST_NODE_T(os_event_struct_t) os_event_list;
+	UT_LIST_NODE_T(os_event_t) os_event_list;
 					/*!< list of all created events */
 };
 
@@ -94,10 +91,8 @@ struct os_event_struct {
 /** Return value of os_event_wait_time() when the time is exceeded */
 #define OS_SYNC_TIME_EXCEEDED   1
 
-/** Operating system mutex */
-typedef struct os_mutex_struct	os_mutex_str_t;
 /** Operating system mutex handle */
-typedef os_mutex_str_t*		os_ib_mutex_t;
+typedef struct os_mutex_t*	os_ib_mutex_t;
 
 /** Mutex protecting counts and the event and OS 'slow' mutex lists */
 extern os_ib_mutex_t	os_sync_mutex;

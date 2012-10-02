@@ -28,6 +28,7 @@
 #include "sql_parse.h"                          // end_trans, ROLLBACK
 #include "rpl_slave.h"
 #include "rpl_rli_pdb.h"
+#include "rpl_info_factory.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 
@@ -47,7 +48,8 @@ const char* info_rli_fields[]=
   "group_master_log_name",
   "group_master_log_pos",
   "sql_delay",
-  "number_of_workers"
+  "number_of_workers",
+  "id"
 };
 
 Relay_log_info::Relay_log_info(bool is_slave_recovery
@@ -60,6 +62,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                                PSI_mutex_key *param_key_info_stop_cond,
                                PSI_mutex_key *param_key_info_sleep_cond
 #endif
+                               , uint param_id
                               )
    :Rpl_info("SQL"
 #ifdef HAVE_PSI_INTERFACE
@@ -68,6 +71,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
              param_key_info_data_cond, param_key_info_start_cond,
              param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
+             , param_id
             ),
    replicate_same_server_id(::replicate_same_server_id),
    cur_log_fd(-1), relay_log(&sync_relaylog_period),
@@ -146,7 +150,7 @@ void Relay_log_info::init_workers(ulong n_workers)
   */
   mts_groups_assigned= mts_events_assigned= pending_jobs= wq_size_waits_cnt= 0;
   mts_wq_excess_cnt= mts_wq_no_underrun_cnt= mts_wq_overfill_cnt= 0;
-
+  mts_last_online_stat= 0;
   my_init_dynamic_array(&workers, sizeof(Slave_worker *), n_workers, 4);
 }
 
@@ -272,14 +276,29 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
 bool Relay_log_info::mts_finalize_recovery()
 {
   bool ret= false;
+  uint i;
+  uint repo_type= get_rpl_info_handler()->get_rpl_info_type();
 
   DBUG_ENTER("Relay_log_info::mts_finalize_recovery");
 
-  for (uint i= 0; !ret && i < workers.elements; i++)
+  for (i= 0; !ret && i < workers.elements; i++)
   {
     Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
     ret= w->reset_recovery_info();
     DBUG_EXECUTE_IF("mts_debug_recovery_reset_fails", ret= true;);
+  }
+  /*
+    The loop is traversed in the worker index descending order due
+    to specifics of the Worker table repository that does not like
+    even temporary holes. Therefore stale records are deleted
+    from the tail.
+  */
+  for (i= recovery_parallel_workers; i > workers.elements && !ret; i--)
+  {
+    Slave_worker *w=
+      Rpl_info_factory::create_worker(repo_type, i - 1, this, true);
+    ret= w->remove_info();
+    delete w;
   }
   recovery_parallel_workers= slave_parallel_workers;
 
@@ -1762,15 +1781,14 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
     will be values to be read. Please, do not move this call after
     the handler->init_info(). 
   */
-  check_return= check_info();
-  if (check_return == ERROR_CHECKING_REPOSITORY)
+  if ((check_return= check_info()) == ERROR_CHECKING_REPOSITORY)
   {
     msg= "Error checking relay log repository";
     error= 1;
     goto err;
   }
 
-  if (handler->init_info(uidx, nidx))
+  if (handler->init_info())
   {
     msg= "Error reading relay log configuration";
     error= 1;
@@ -1852,7 +1870,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
   DBUG_RETURN(error);
 
 err:
-  handler->end_info(uidx, nidx);
+  handler->end_info();
   inited= 0;
   error_on_rli_init_info= true;
   if (msg)
@@ -1869,7 +1887,7 @@ void Relay_log_info::end_info()
   if (!inited)
     DBUG_VOID_RETURN;
 
-  handler->end_info(uidx, nidx);
+  handler->end_info();
 
   if (cur_log_fd >= 0)
   {
@@ -1980,7 +1998,7 @@ int Relay_log_info::flush_info(const bool force)
   if (write_info(handler))
     goto err;
 
-  if (handler->flush_info(uidx, nidx, force))
+  if (handler->flush_info(force))
     goto err;
 
   DBUG_RETURN(0);
@@ -2002,6 +2020,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
   ulong temp_group_relay_log_pos= 0;
   ulong temp_group_master_log_pos= 0;
   int temp_sql_delay= 0;
+  int temp_internal_id= 0;
 
   DBUG_ENTER("Relay_log_info::read_info");
 
@@ -2043,7 +2062,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
     it is line count and not binlog name (new format) it will be
     overwritten by the second row later.
   */
-  if (from->prepare_info_for_read(nidx) ||
+  if (from->prepare_info_for_read() ||
       from->get_info(group_relay_log_name, (size_t) sizeof(group_relay_log_name),
                      (char *) ""))
     DBUG_RETURN(TRUE);
@@ -2072,7 +2091,7 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
 
   if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_DELAY)
   {
-    if (from->get_info((int *) &temp_sql_delay,(int) 0))
+    if (from->get_info((int *) &temp_sql_delay, (int) 0))
       DBUG_RETURN(TRUE);
   }
 
@@ -2082,10 +2101,19 @@ bool Relay_log_info::read_info(Rpl_info_handler *from)
       DBUG_RETURN(TRUE);
   }
 
+  if (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID)
+  {
+    if (from->get_info(&temp_internal_id, (int) 1))
+      DBUG_RETURN(TRUE);
+  }
+ 
   group_relay_log_pos=  temp_group_relay_log_pos;
   group_master_log_pos= temp_group_master_log_pos;
   sql_delay= (int32) temp_sql_delay;
+  internal_id= (uint) temp_internal_id;
 
+  DBUG_ASSERT(lines < LINES_IN_RELAY_LOG_INFO_WITH_ID ||
+             (lines >= LINES_IN_RELAY_LOG_INFO_WITH_ID && internal_id == 1));
   DBUG_RETURN(FALSE);
 }
 
@@ -2099,14 +2127,15 @@ bool Relay_log_info::write_info(Rpl_info_handler *to)
   */
   //DBUG_ASSERT(!belongs_to_client());
 
-  if (to->prepare_info_for_write(nidx) ||
-      to->set_info((int) LINES_IN_RELAY_LOG_INFO_WITH_WORKERS) ||
+  if (to->prepare_info_for_write() ||
+      to->set_info((int) LINES_IN_RELAY_LOG_INFO_WITH_ID) ||
       to->set_info(group_relay_log_name) ||
       to->set_info((ulong) group_relay_log_pos) ||
       to->set_info(group_master_log_name) ||
       to->set_info((ulong) group_master_log_pos) ||
       to->set_info((int) sql_delay) ||
-      to->set_info(recovery_parallel_workers))
+      to->set_info(recovery_parallel_workers) ||
+      to->set_info((int) internal_id))
     DBUG_RETURN(TRUE);
 
   DBUG_RETURN(FALSE);

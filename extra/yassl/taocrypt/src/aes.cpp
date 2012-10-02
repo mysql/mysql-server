@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 /* C++ based on Wei Dai's aes.cpp from CryptoPP */
 /* x86 asm original */
@@ -78,7 +78,7 @@ void AES::Process(byte* out, const byte* in, word32 sz)
                 out += BLOCK_SIZE;
                 in  += BLOCK_SIZE;
             }
-}
+   }
 }
 
 #endif // DO_AES_ASM

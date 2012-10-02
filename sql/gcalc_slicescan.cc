@@ -151,19 +151,42 @@ static int compare_point_info(const void *e0, const void *e1)
 }
 
 
+#ifndef DBUG_OFF
+void Gcalc_heap::Info::dbug_print() const
+{
+  char left_str[64]= "", right_str[64]= "";
+  if (left)
+    my_snprintf(left_str, sizeof(left_str),
+                "(%g,%g,#%u)", left->x, left->y, left->shape);
+  if (right)
+    my_snprintf(right_str, sizeof(right_str), "(%g,%g,#%u)",
+                right->x, right->y, right->shape);
+  DBUG_PRINT("info", ("(%g,%g,#%u) left=%s right=%s",
+                     x, y, shape, left_str, right_str));
+}
+#endif
+
+
 void Gcalc_heap::prepare_operation()
 {
+  DBUG_ENTER("Gcalc_heap::prepare_operation");
+  DBUG_PRINT("info", ("m_n_points=%d", m_n_points));
   DBUG_ASSERT(m_hook);
   *m_hook= NULL;
   m_first= sort_list(compare_point_info, m_first, m_n_points);
   m_hook= NULL; /* just to check it's not called twice */
 
+  DBUG_PRINT("info", ("after sort_list:"));
   /* TODO - move this to the 'normal_scan' loop */
   for (Info *cur= get_first(); cur; cur= cur->get_next())
   {
     trim_node(cur->left, cur);
     trim_node(cur->right, cur);
+#ifndef DBUG_OFF
+    cur->dbug_print();
+#endif
   }
+  DBUG_VOID_RETURN;
 }
 
 
@@ -372,6 +395,7 @@ int Gcalc_scan_iterator::insert_top_point()
     sp1->thread= m_cur_thread++;
     sp1->x= sp0->x;
     sp1->horiz_dir= GET_DX_DY(&sp1->dx_dy, m_cur_pi, m_cur_pi->right);
+    // Find the slice with stronger left gradient
     if (slice_first_equal_x(sp1, sp0))
     {
       point *tmp= sp0;
@@ -416,11 +440,54 @@ static int intersection_found(const Gcalc_scan_iterator::point *sp0,
 }
 
 
+#ifndef DBUG_OFF
+const char *Gcalc_scan_event_name(enum Gcalc_scan_events event)
+{
+  switch (event)
+  {
+    case scev_point:        return "scev_point";
+    case scev_thread:       return "scev_thread";
+    case scev_two_threads:  return "scev_two_threads";
+    case scev_intersection: return "scev_intersection";
+    case scev_end:          return "scev_end";
+    case scev_two_ends:     return "scev_two_ends";
+    case scev_single_point: return "scev_single_point";
+  }
+  return "scev_unknown";
+}
+
+
+void Gcalc_scan_iterator::point::dbug_print_slice(double y,
+                                                  enum Gcalc_scan_events event)
+                                                  const
+{
+  DBUG_PRINT("info", ("y=%g event=%s", y, Gcalc_scan_event_name(event)));
+  for (const point *slice= this ; slice ; slice= slice->get_next())
+  {
+    if (slice->next_pi)
+      DBUG_PRINT("into", ("(x=%g,thr#%d) pi=(%g,%g,#%u) next_pi=(%g,%g,#%u)",
+                           slice->x, slice->thread,
+                           slice->pi->x, slice->pi->y, slice->pi->shape,
+                           slice->next_pi->x, slice->next_pi->y,
+                           slice->next_pi->shape));
+    else
+      DBUG_PRINT("info", ("(x=%g,thr#%d) pi=(%g,%g,#%u)",
+                           slice->x, slice->thread,
+                           slice->pi->x, slice->pi->y, slice->pi->shape));
+  }
+}
+#endif /* DBUG_OFF */
+
+
 int Gcalc_scan_iterator::normal_scan()
 {
   if (m_next_is_top_point)
     if (insert_top_point())
       return 1;
+
+#ifndef DBUG_OFF
+  m_slice1->dbug_print_slice(m_y1, m_event1);
+#endif
 
   point *tmp= m_slice0;
   m_slice0= m_slice1;
@@ -438,7 +505,7 @@ int Gcalc_scan_iterator::normal_scan()
   
   Gcalc_heap::Info *cur_pi= m_cur_pi;
   m_y1= coord_to_float(cur_pi->y);
-  m_h= m_y1 - m_y0;
+  m_h= m_y1 - m_y0; // vertical distance between slices
 
   point *sp0= m_slice0;
   point *sp1= m_slice1;

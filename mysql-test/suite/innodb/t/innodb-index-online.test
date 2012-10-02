@@ -335,6 +335,12 @@ reap;
 # Index c3p5 should still exist in the data dictionary cache.
 eval $innodb_metrics_select;
 
+--disable_parsing
+# Temporarily disabled by fix for bug#14213236. Should be either
+# removed or updated to take into account that locking for IMPORT/
+# DISCARD TABLESPACE happens on MDL layer. New test case is added 
+# to validate this at MDL layer(i_main.alter_table.test)
+
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2g_created WAIT_FOR dml4_done';
 # The lock upgrade at the end of the ALTER will conflict with the DISCARD.
 SET lock_wait_timeout = 1;
@@ -367,6 +373,11 @@ disconnect con2;
 connection default;
 --error ER_LOCK_WAIT_TIMEOUT
 reap;
+--enable_parsing
+#remove below con1 disconnect if above test case is enabled
+connection con1;
+disconnect con1;
+connection default;
 
 SHOW CREATE TABLE t1;
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;

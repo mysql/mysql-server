@@ -771,7 +771,7 @@ EXPLAIN SELECT col_int_nokey FROM t2
 WHERE ('h', 0) NOT IN ( SELECT * FROM v1);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	<derived3>	index_subquery	auto_key0	auto_key0	12	const,const	2	Using index; Using where
+2	DEPENDENT SUBQUERY	<derived3>	index_subquery	<auto_key0>	<auto_key0>	12	const,const	2	Using index; Using where
 3	DERIVED	t1	range	PRIMARY	PRIMARY	4	NULL	1	Using index condition; Using where
 DROP TABLE t1,t2,h1;
 DROP VIEW v1;

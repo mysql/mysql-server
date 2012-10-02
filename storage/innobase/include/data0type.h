@@ -33,17 +33,16 @@ extern ulint	data_mysql_default_charset_coll;
 #define DATA_MYSQL_BINARY_CHARSET_COLL 63
 
 /* SQL data type struct */
-typedef struct dtype_struct		dtype_t;
+struct dtype_t;
 
 /* SQL Like operator comparison types */
-enum ib_like_enum {
+enum ib_like_t {
 	IB_LIKE_EXACT,                  /* e.g.  STRING */
 	IB_LIKE_PREFIX,                 /* e.g., STRING% */
 	IB_LIKE_SUFFIX,                 /* e.g., %STRING */
 	IB_LIKE_SUBSTR,                 /* e.g., %STRING% */
 	IB_LIKE_REGEXP                  /* Future */
 };
-typedef enum ib_like_enum               ib_like_t;
 
 /*-------------------------------------------*/
 /* The 'MAIN TYPE' of a column */
@@ -509,7 +508,7 @@ dtype_read_for_order_and_null_size()
 dtype_new_read_for_order_and_null_size()
 sym_tab_add_null_lit() */
 
-struct dtype_struct{
+struct dtype_t{
 	unsigned	prtype:32;	/*!< precise type; MySQL data
 					type, charset code, flags to
 					indicate nullability,

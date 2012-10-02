@@ -52,17 +52,41 @@ class JOIN :public Sql_alloc
 public:
   JOIN_TAB *join_tab,**best_ref;
   JOIN_TAB **map2table;    ///< mapping between table indexes and JOIN_TABs
-  TABLE    **table,**all_tables;
+  TABLE    **table;
   /*
     The table which has an index that allows to produce the requried ordering.
     A special value of 0x1 means that the ordering will be produced by
     passing 1st non-const table to filesort(). NULL means no such table exists.
   */
   TABLE    *sort_by_table;
-  uint	   tables;        /* Number of tables in the join */
-  uint     outer_tables;  /* Number of tables that are not inside semijoin */
-  uint     const_tables;
-  uint	   send_group_parts;
+  /**
+    Before plan has been created, "tables" denote number of input tables in the
+    query block and "primary_tables" is equal to "tables".
+    After plan has been created (after JOIN::get_best_combination()),
+    the JOIN_TAB objects are enumerated as follows:
+    - "tables" gives the total number of allocated JOIN_TAB objects
+    - "primary_tables" gives the number of input tables, including
+      materialized temporary tables from semi-join operation.
+    - "const_tables" are those tables among primary_tables that are detected
+      to be constant.
+    - "tmp_tables" is 0, 1 or 2 and counts the maximum possible number of
+      intermediate tables in post-processing (ie sorting and duplicate removal).
+      Later, tmp_tables will be adjusted to the correct number of
+      intermediate tables, @see JOIN::make_tmp_tables_info.
+    - The remaining tables (ie. tables - primary_tables - tmp_tables) are
+      input tables to materialized semi-join operations.
+    The tables are ordered as follows in the join_tab array:
+     1. const primary table
+     2. non-const primary tables
+     3. intermediate sort/group tables
+     4. possible holes in array
+     5. semi-joined tables used with materialization strategy
+  */
+  uint     tables;         ///< Total number of tables in query block
+  uint     primary_tables; ///< Number of primary input tables in query block
+  uint     const_tables;   ///< Number of primary tables deemed constant
+  uint     tmp_tables;     ///< Number of temporary tables used by query
+  uint     send_group_parts;
   /**
     Indicates that grouping will be performed on the result set during
     query execution. This field belongs to query execution.
@@ -345,7 +369,21 @@ public:
   
   bool union_part; ///< this subselect is part of union 
   bool optimized; ///< flag to avoid double optimization in EXPLAIN
-  
+
+  /**
+     True if, at this stage of processing, subquery materialization is allowed
+     for children subqueries of this JOIN (those in the SELECT list, in WHERE,
+     etc). If false, and we have to evaluate a subquery at this stage, then we
+     must choose EXISTS.
+  */
+  bool child_subquery_can_materialize;
+  /**
+     True if plan search is allowed to use references to expressions outer to
+     this JOIN (for example may set up a 'ref' access looking up an outer
+     expression in the index, etc).
+  */
+  bool allow_outer_refs;
+
   // true: No need to run DTORs on pointers.
   Mem_root_array<Item_exists_subselect*, true> sj_subselects;
 
@@ -354,11 +392,6 @@ public:
   List<Semijoin_mat_exec> sjm_exec_list;
   /* end of allocation caching storage */
 
-  /**
-    Number of tmp tables actually used by the query.
-    @see JOIN::make_tmp_tables_info
-  */
-  uint8 tmp_tables;
   /** TRUE <=> ref_pointer_array is set to items3. */
   bool set_group_rpa;
   /** Exec time only: TRUE <=> current group has been sent */
@@ -377,9 +410,10 @@ public:
        select_result *result_arg)
   {
     join_tab= 0;
-    all_tables= 0;
     tables= 0;
+    primary_tables= 0;
     const_tables= 0;
+    tmp_tables= 0;
     const_table_map= 0;
     join_list= 0;
     implicit_grouping= FALSE;
@@ -414,7 +448,7 @@ public:
     items2.reset();
     items3.reset();
     zero_result_cause= 0;
-    optimized= 0;
+    optimized= child_subquery_can_materialize= false;
     cond_equal= 0;
     group_optimized_away= 0;
 
@@ -430,10 +464,18 @@ public:
     /* can help debugging (makes smaller test cases): */
     DBUG_EXECUTE_IF("no_const_tables",no_const_tables= TRUE;);
     first_select= sub_select;
-    tmp_tables= 0;
     set_group_rpa= false;
     group_sent= 0;
   }
+
+  /// True if plan is const, ie it will return zero or one rows.
+  bool plan_is_const() const { return const_tables == primary_tables; }
+
+  /**
+    True if plan contains one non-const primary table (ie not including
+    tables taking part in semi-join materialization).
+  */
+  bool plan_is_single_table() { return primary_tables - const_tables == 1; }
 
   int prepare(TABLE_LIST *tables, uint wind_num,
 	      Item *conds, uint og_num, ORDER *order, ORDER *group,
@@ -448,7 +490,6 @@ public:
   void restore_tmp();
   bool alloc_func_list();
   bool flatten_subqueries();
-  bool setup_subquery_materialization();
   bool make_sum_func_list(List<Item> &all_fields,
                           List<Item> &send_fields,
                           bool before_group_by, bool recompute= FALSE);
@@ -537,7 +578,10 @@ public:
   bool generate_derived_keys();
   void drop_unused_derived_keys();
   bool get_best_combination();
+  bool update_equalities_for_sjm();
   bool add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order);
+  bool decide_subquery_strategy();
+  void refine_best_rowcount();
 
 private:
   /**
@@ -635,7 +679,12 @@ private:
   void cleanup_item_list(List<Item> &items) const;
   void set_semijoin_info();
   bool set_access_methods();
+  bool setup_materialized_table(JOIN_TAB *tab, uint tableno,
+                                const POSITION *inner_pos,
+                                POSITION *sjm_pos);
   bool make_tmp_tables_info();
+  bool compare_costs_of_subquery_strategies(
+         Item_exists_subselect::enum_exec_method *method);
 };
 
 
@@ -655,6 +704,9 @@ Item *build_equal_items(THD *thd, Item *cond,
                         List<TABLE_LIST> *join_list,
                         COND_EQUAL **cond_equal_ref);
 bool is_indexed_agg_distinct(JOIN *join, List<Item_field> *out_args);
+Key_use_array *create_keyuse_for_table(THD *thd, TABLE *table, uint keyparts,
+                                       Item_field **fields,
+                                       List<Item> outer_exprs);
 Item_equal *find_item_equal(COND_EQUAL *cond_equal, Field *field,
                             bool *inherited_fl);
 Item_field *get_best_field(Item_field *item_field, COND_EQUAL *cond_equal);
