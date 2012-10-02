@@ -2776,15 +2776,26 @@ update_the_rec:
 				goto update_the_rec;
 			}
 
-			if (update->n_fields > 0
-			    && cursor.low_match
-			    < dict_index_get_n_fields(index)
-			    && !dtuple_contains_null(entry)) {
-				/* Duplicate key error */
-				ut_ad(dict_index_is_unique(index));
-				row_merge_dup_report(dup, entry->fields);
+			if (update->n_fields == 0) {
+				/* An exact match of the record
+				already exists.  There is nothing to
+				be inserted. */
+				goto func_exit;
 			}
 
+			ut_ad(cursor.low_match
+			      < dict_index_get_n_fields(index));
+
+			if (dtuple_contains_null(entry)) {
+				/* The UNIQUE KEY columns match, but
+				there is a NULL value in the key, and
+				NULL!=NULL. */
+				goto insert_the_rec;
+			}
+
+			/* Duplicate key error */
+			ut_ad(dict_index_is_unique(index));
+			row_merge_dup_report(dup, entry->fields);
 			goto func_exit;
 		}
 	} else {
