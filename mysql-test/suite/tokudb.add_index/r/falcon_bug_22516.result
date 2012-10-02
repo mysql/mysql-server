@@ -18,7 +18,7 @@ select count(*) from t1 where sca_pic >= 'n';
 count(*)
 1
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
-ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this XYZ version
 select count(*) from t1 where sca_pic >= 'n';
 count(*)
 1
@@ -48,7 +48,7 @@ select count(*) from t1 where sca_pic is null;
 count(*)
 2
 alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
-ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this XYZ version
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
@@ -56,7 +56,7 @@ select count(*) from t1 where cat_code='E';
 count(*)
 0
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
-ERROR 42000: Table 't1' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 't1' uses an extension that doesn't exist in this XYZ version
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 count(*)
 1
