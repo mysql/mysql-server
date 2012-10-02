@@ -4345,6 +4345,46 @@ DROP TABLE t1,t2,t3,t4;
 
 
 --echo #
+--echo # LP bug #823237: dependent subquery with LEFT JOIN
+--echo #                 referencing view in WHERE
+--echo # (duplicate of LP bug #823189)
+--echo # 
+
+CREATE TABLE t1 (a int);
+
+CREATE TABLE t2 ( b int, d int, e int);
+INSERT INTO t2 VALUES (7,8,0);
+
+CREATE TABLE t3 ( c int);
+INSERT INTO t3 VALUES (0);
+
+CREATE TABLE t4 (a int, b int, c int);
+INSERT INTO t4 VALUES (93,1,0), (95,NULL,0);
+
+CREATE VIEW v4 AS SELECT * FROM t4;
+
+EXPLAIN EXTENDED
+SELECT * FROM t3 , t4 
+  WHERE t4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+                   WHERE t2.b > t4.b);
+SELECT * FROM t3 , t4 
+  WHERE t4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+                   WHERE t2.b > t4.b);
+
+
+EXPLAIN EXTENDED
+SELECT * FROM t3, v4 
+  WHERE v4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+                   WHERE t2.b > v4.b);
+
+SELECT * FROM t3, v4 
+  WHERE v4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+                   WHERE t2.b > v4.b);
+
+DROP VIEW v4;
+DROP TABLE t1,t2,t3,t4;
+
+--echo #
 --echo # BUG#833600: Wrong result with view + outer join + uncorrelated subquery (non-semijoin) 
 --echo #
 
