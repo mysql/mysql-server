@@ -31,6 +31,7 @@ INSERT INTO t1 ( sca_code, cat_code, lan_code, sca_pic, sca_sdesc, sca_sch_desc)
 alter table t1 add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_pic >= 'n';
 
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
 # alter table t1 drop index sca_pic;
 # alter table t1 add index (sca_pic, cat_code);
@@ -60,10 +61,12 @@ INSERT INTO t1 ( sca_code, cat_code, sca_desc, lan_code, sca_pic, sca_sdesc, sca
 select count(*) from t1 where sca_code = 'PD';
 select count(*) from t1 where sca_code <= 'PD';
 select count(*) from t1 where sca_pic is null;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 alter table t1 drop index sca_pic, add index sca_pic (cat_code, sca_pic);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where cat_code='E';
 
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 alter table t1 drop index sca_pic, add index (sca_pic, cat_code);
 select count(*) from t1 where sca_code='PD' and sca_pic is null;
 select count(*) from t1 where sca_pic >= 'n';
