@@ -10,17 +10,21 @@ include/stop_slave.inc
 insert into t1 values (1);
 lock table t1 write;
 include/start_slave.inc
+include/assert.inc [Seconds_Behind_Master must be between 'lower_bound' and 'upper_bound']
 unlock tables;
 lock table t1 write;
 insert into t1 values (2);
 flush logs;
+include/assert.inc [Seconds_Behind_Master must be between 'lower_bound' and 'upper_bound']
 unlock tables;
 drop table t1;
 include/rpl_reset.inc
 SET GLOBAL DEBUG= '+d,dec_event_time_by_1_hour';
 CREATE TABLE t1 (a INT);
+include/assert.inc [Seconds_Behind_Master must be 0]
 LOCK TABLE t1 WRITE;
 INSERT INTO t1 VALUES (3);
+include/assert.inc [Seconds_Behind_Master must be greater or equal than 'lower_bound']
 UNLOCK TABLES;
 DROP TABLE t1;
 SET @@global.debug= @old_debug;
