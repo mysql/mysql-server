@@ -335,6 +335,7 @@ TODO list:
 #include "sql_acl.h"                            // SELECT_ACL
 #include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
 #include "debug_sync.h"                         // DEBUG_SYNC
+#include "opt_trace.h"
 #ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -1793,6 +1794,16 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   thd->limit_found_rows = query->found_rows();
   thd->status_var.last_query_cost= 0.0;
+
+  {
+    Opt_trace_start ots(thd, NULL, SQLCOM_SELECT, NULL,
+                        thd->query(), thd->query_length(), NULL,
+                        thd->variables.character_set_client);
+
+    Opt_trace_object (&thd->opt_trace)
+      .add("query_result_read_from_cache", true);
+  }
+
   /*
     End the statement transaction potentially started by an
     engine callback. We ignore the return value for now,
