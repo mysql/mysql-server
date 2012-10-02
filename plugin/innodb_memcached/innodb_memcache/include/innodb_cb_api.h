@@ -367,6 +367,17 @@ ib_ulint_t
 /*==================*/
 	const ib_tpl_t  ib_tpl);
 
+typedef
+ib_err_t
+(*cb_trx_get_start_time)(
+/*======================*/
+	ib_trx_t	ib_trx);
+
+typedef
+ib_ulint_t
+(*cb_bk_commit_interval)();
+/*======================*/
+
 cb_open_table_t			ib_cb_open_table;
 cb_read_row_t			ib_cb_read_row;
 cb_insert_row_t			ib_cb_insert_row;
@@ -416,5 +427,7 @@ cb_cfg_trx_level_t		ib_cb_cfg_trx_level;
 cb_get_n_user_cols		ib_cb_get_n_user_cols;
 cb_cursor_set_lock_t		ib_cb_cursor_set_lock;
 cb_cursor_clear_trx_t		ib_cb_cursor_clear_trx;
+cb_trx_get_start_time		ib_cb_trx_get_start_time;
+cb_bk_commit_interval		ib_cb_cfg_bk_commit_interval;
 
 #endif /* innodb_cb_api_h */

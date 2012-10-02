@@ -272,7 +272,8 @@ public:
   inline longlong check_integer_overflow(longlong value, bool val_unsigned)
   {
     if ((unsigned_flag && !val_unsigned && value < 0) ||
-        (!unsigned_flag && val_unsigned && (ulonglong) value > LONGLONG_MAX))
+        (!unsigned_flag && val_unsigned &&
+         (ulonglong) value > (ulonglong) LONGLONG_MAX))
       return raise_integer_overflow();
     return value;
   }
@@ -1113,7 +1114,7 @@ public:
   Item_func_validate_password_strength(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "validate_password_strength"; }
-  void fix_length_and_dec() { max_length=10; }
+  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
 

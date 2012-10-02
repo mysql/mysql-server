@@ -2,10 +2,10 @@ SET @start_io_capacity = @@global.innodb_io_capacity;
 SELECT @start_io_capacity;
 @start_io_capacity
 200
-SET @start_max_io_capacity = @@global.innodb_max_io_capacity;
+SET @start_max_io_capacity = @@global.innodb_io_capacity_max;
 SELECT @start_max_io_capacity;
 @start_max_io_capacity
-400
+2000
 Valid value 100 or more
 select @@global.innodb_io_capacity > 99;
 @@global.innodb_io_capacity > 99
@@ -70,19 +70,19 @@ select @@global.innodb_io_capacity;
 set global innodb_io_capacity=@start_max_io_capacity;
 select @@global.innodb_io_capacity;
 @@global.innodb_io_capacity
-400
+2000
 set global innodb_io_capacity=@start_max_io_capacity + 1;
 Warnings:
-Warning	1210	innodb_io_capacity cannot be set higher than innodb_max_io_capacity.
-Warning	1210	Setting innodb_io_capacity to 400
+Warning	1210	innodb_io_capacity cannot be set higher than innodb_io_capacity_max.
+Warning	1210	Setting innodb_io_capacity to 2000
 select @@global.innodb_io_capacity;
 @@global.innodb_io_capacity
-400
+2000
 SET @@global.innodb_io_capacity = @start_io_capacity;
 SELECT @@global.innodb_io_capacity;
 @@global.innodb_io_capacity
 200
-SET @@global.innodb_max_io_capacity = @start_max_io_capacity;
-SELECT @@global.innodb_max_io_capacity;
-@@global.innodb_max_io_capacity
-400
+SET @@global.innodb_io_capacity_max = @start_max_io_capacity;
+SELECT @@global.innodb_io_capacity_max;
+@@global.innodb_io_capacity_max
+2000

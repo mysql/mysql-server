@@ -391,7 +391,7 @@ If we have hogged the resources for too long then release the buffer
 pool and flush list mutex and do a thread yield. Set the current page
 to "sticky" so that it is not relocated during the yield.
 @return true if yielded */
-static	__attribute__((nonnull, warn_unused_result))
+static	__attribute__((nonnull(1), warn_unused_result))
 bool
 buf_flush_try_yield(
 /*================*/
@@ -405,7 +405,7 @@ buf_flush_try_yield(
 	ensures that the block stays in its position in the
 	flush_list. */
 
-	if (bpage != 0
+	if (bpage != NULL
 	    && processed >= BUF_LRU_DROP_SEARCH_SIZE
 	    && buf_page_get_io_fix(bpage) == BUF_IO_NONE) {
 

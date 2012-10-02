@@ -41,7 +41,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "pars0pars.h" /* pars_complete_graph_for_exec() */
 #include "que0que.h" /* que_node_get_parent() */
 #include "row0mysql.h" /* row_mysql_handle_errors() */
-#include "row0sel.h" /* sel_node_create(), sel_node_struct */
+#include "row0sel.h" /* sel_node_create(), sel_node_t */
 #include "row0types.h" /* sel_node_t */
 #include "srv0mon.h"
 #include "ut0vec.h"
@@ -345,10 +345,7 @@ static const byte lock_strength_matrix[5][5] = {
 };
 
 /** Deadlock check context. */
-typedef struct lock_deadlock_ctx_struct lock_deadlock_ctx_t;
-
-/** Deadlock check context. */
-struct lock_deadlock_ctx_struct {
+struct lock_deadlock_ctx_t {
 	const trx_t*	start;		/*!< Joining transaction that is
 					requesting a lock in an incompatible
 					mode */
@@ -366,10 +363,8 @@ struct lock_deadlock_ctx_struct {
 					was aborted */
 };
 
-typedef struct lock_stack_struct lock_stack_t;
-
 /** DFS visited node information used during deadlock checking. */
-struct lock_stack_struct {
+struct lock_stack_t {
 	const lock_t*	lock;			/*!< Current lock */
 	const lock_t*	wait_lock;		/*!< Waiting for lock */
 	unsigned	heap_no:16;		/*!< heap number if rec lock */
@@ -3471,24 +3466,24 @@ lock_deadlock_trx_print(
 	ulint		max_query_len)	/*!< in: max query length to print,
 					or 0 to use the default max length */
 {
-	ulint	n_lock_rec;
-	ulint	n_lock_struct;
+	ulint	n_rec_locks;
+	ulint	n_trx_locks;
 	ulint	heap_size;
 
 	ut_ad(lock_mutex_own());
 
-	n_lock_rec = lock_number_of_rows_locked(&trx->lock);
-	n_lock_struct = UT_LIST_GET_LEN(trx->lock.trx_locks);
+	n_rec_locks = lock_number_of_rows_locked(&trx->lock);
+	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
 	heap_size = mem_heap_get_size(trx->lock.lock_heap);
 
 	mutex_enter(&trx_sys->mutex);
 
 	trx_print_low(lock_latest_err_file, trx, max_query_len,
-		      n_lock_rec, n_lock_struct, heap_size);
+		      n_rec_locks, n_trx_locks, heap_size);
 
 	if (srv_print_all_deadlocks) {
 		trx_print_low(stderr, trx, max_query_len,
-			      n_lock_rec, n_lock_struct, heap_size);
+			      n_rec_locks, n_trx_locks, heap_size);
 	}
 
 	mutex_exit(&trx_sys->mutex);
@@ -6853,16 +6848,18 @@ lock_table_has_locks(
 
 	lock_mutex_enter();
 
-#ifdef UNIV_DEBUG
-	mutex_enter(&trx_sys->mutex);
-
-	ut_ad(lock_table_locks_lookup(table, &trx_sys->rw_trx_list) == NULL);
-	ut_ad(lock_table_locks_lookup(table, &trx_sys->ro_trx_list) == NULL);
-
-	mutex_exit(&trx_sys->mutex);
-#endif /* UNIV_DEBUG */
-
 	has_locks = UT_LIST_GET_LEN(table->locks) > 0 || table->n_rec_locks > 0;
+
+#ifdef UNIV_DEBUG
+	if (!has_locks) {
+		mutex_enter(&trx_sys->mutex);
+
+		ut_ad(!lock_table_locks_lookup(table, &trx_sys->rw_trx_list));
+		ut_ad(!lock_table_locks_lookup(table, &trx_sys->ro_trx_list));
+
+		mutex_exit(&trx_sys->mutex);
+	}
+#endif /* UNIV_DEBUG */
 
 	lock_mutex_exit();
 

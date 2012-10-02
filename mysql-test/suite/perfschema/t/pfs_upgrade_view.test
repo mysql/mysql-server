@@ -1,0 +1,43 @@
+# Tests for PERFORMANCE_SCHEMA
+# Make sure mysql_upgrade does not destroy data in a 'performance_schema'
+# database.
+# 
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+# Some initial settings + Preemptive cleanup
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+let $err_file= $MYSQLTEST_VARDIR/tmp/pfs_upgrade_view.err;
+let $out_file= $MYSQLTEST_VARDIR/tmp/pfs_upgrade_view.out;
+--error 0,1
+--remove_file $out_file
+--error 0,1
+--remove_file $err_file
+
+--disable_warnings
+drop view if exists test.user_view;
+--enable_warnings
+
+--echo "Testing mysql_upgrade with VIEW performance_schema.user_view"
+
+create view test.user_view as select "Not supposed to be here";
+
+--error 0,1
+--remove_file $MYSQLD_DATADIR/performance_schema/user_view.frm
+--copy_file $MYSQLD_DATADIR/test/user_view.frm $MYSQLD_DATADIR/performance_schema/user_view.frm
+
+# Make sure the view is visible
+use performance_schema;
+show tables like "user_view";
+
+--source suite/perfschema/include/upgrade_check.inc
+
+# Make sure the view is still visible
+show tables like "user_view";
+
+use test;
+
+--remove_file $MYSQLD_DATADIR/performance_schema/user_view.frm
+drop view test.user_view;
+

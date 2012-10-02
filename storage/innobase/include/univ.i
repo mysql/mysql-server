@@ -595,15 +595,23 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_ALLOC(addr, size) VALGRIND_MAKE_MEM_UNDEFINED(addr, size)
 # define UNIV_MEM_DESC(addr, size) VALGRIND_CREATE_BLOCK(addr, size, #addr)
 # define UNIV_MEM_UNDESC(b) VALGRIND_DISCARD(b)
-# define UNIV_MEM_ASSERT_RW(addr, size) do {				\
+# define UNIV_MEM_ASSERT_RW_LOW(addr, size, should_abort) do {		\
 	const void* _p = (const void*) (ulint)				\
 		VALGRIND_CHECK_MEM_IS_DEFINED(addr, size);		\
-	if (UNIV_LIKELY_NULL(_p))					\
+	if (UNIV_LIKELY_NULL(_p)) {					\
 		fprintf(stderr, "%s:%d: %p[%u] undefined at %ld\n",	\
 			__FILE__, __LINE__,				\
 			(const void*) (addr), (unsigned) (size), (long)	\
 			(((const char*) _p) - ((const char*) (addr))));	\
-	} while (0)
+		if (should_abort) {					\
+			ut_error;					\
+		}							\
+	}								\
+} while (0)
+# define UNIV_MEM_ASSERT_RW(addr, size)					\
+	UNIV_MEM_ASSERT_RW_LOW(addr, size, false)
+# define UNIV_MEM_ASSERT_RW_ABORT(addr, size)				\
+	UNIV_MEM_ASSERT_RW_LOW(addr, size, true)
 # define UNIV_MEM_ASSERT_W(addr, size) do {				\
 	const void* _p = (const void*) (ulint)				\
 		VALGRIND_CHECK_MEM_IS_ADDRESSABLE(addr, size);		\
@@ -620,7 +628,9 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_ALLOC(addr, size) do {} while(0)
 # define UNIV_MEM_DESC(addr, size) do {} while(0)
 # define UNIV_MEM_UNDESC(b) do {} while(0)
+# define UNIV_MEM_ASSERT_RW_LOW(addr, size, should_abort) do {} while(0)
 # define UNIV_MEM_ASSERT_RW(addr, size) do {} while(0)
+# define UNIV_MEM_ASSERT_RW_ABORT(addr, size) do {} while(0)
 # define UNIV_MEM_ASSERT_W(addr, size) do {} while(0)
 #endif
 #define UNIV_MEM_ASSERT_AND_FREE(addr, size) do {	\

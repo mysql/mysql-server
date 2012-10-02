@@ -108,12 +108,12 @@ trx_get_que_state_str(
 Determine if a transaction is a dictionary operation.
 @return	dictionary operation mode */
 UNIV_INLINE
-enum trx_dict_op
+enum trx_dict_op_t
 trx_get_dict_operation(
 /*===================*/
 	const trx_t*	trx)	/*!< in: transaction */
 {
-	enum trx_dict_op op = (enum trx_dict_op) trx->dict_operation;
+	trx_dict_op_t op = static_cast<trx_dict_op_t>(trx->dict_operation);
 
 #ifdef UNIV_DEBUG
 	switch (op) {
@@ -124,7 +124,7 @@ trx_get_dict_operation(
 	}
 	ut_error;
 #endif /* UNIV_DEBUG */
-	return((enum trx_dict_op) op);
+	return(op);
 }
 /**********************************************************************//**
 Flag a transaction a dictionary operation. */
@@ -133,11 +133,11 @@ void
 trx_set_dict_operation(
 /*===================*/
 	trx_t*			trx,	/*!< in/out: transaction */
-	enum trx_dict_op	op)	/*!< in: operation, not
+	enum trx_dict_op_t	op)	/*!< in: operation, not
 					TRX_DICT_OP_NONE */
 {
 #ifdef UNIV_DEBUG
-	enum trx_dict_op	old_op = trx_get_dict_operation(trx);
+	enum trx_dict_op_t	old_op = trx_get_dict_operation(trx);
 
 	switch (op) {
 	case TRX_DICT_OP_NONE:

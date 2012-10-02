@@ -1,5 +1,7 @@
 SET debug= '+d,test_bka_unique';
 set optimizer_switch='batched_key_access=on,mrr_cost_based=off';
+set @old_opt_switch=@@optimizer_switch;
+set optimizer_switch='subquery_materialization_cost_based=off';
 drop table if exists t0, t1, t2, t10, t11, t12;
 create table t1 (a int not null, b int, primary key (a));
 create table t2 (a int not null, primary key (a));
@@ -3607,7 +3609,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
@@ -3622,7 +3624,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_16	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_16`.`b1` separator ',') from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_16`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_16`.`a2`,7) AS `left(a2,7)` from `test`.`t1_16` where <in_optimizer>(`test`.`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_16` group by `test`.`t2_16`.`b2` having (<cache>(`test`.`t1_16`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_16`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_16
 where a1 in (select group_concat(b1) from t2_16 group by b2);
@@ -3735,7 +3737,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -3758,7 +3760,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_512	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_512`.`b1` separator ',') from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_512`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_512`.`a2`,7) AS `left(a2,7)` from `test`.`t1_512` where <in_optimizer>(`test`.`t1_512`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_512` group by `test`.`t2_512`.`b2` having (<cache>(`test`.`t1_512`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_512`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_512
 where a1 in (select group_concat(b1) from t2_512 group by b2);
@@ -3848,7 +3850,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_513	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_513`.`b1` separator ',') from `test`.`t2_513` group by `test`.`t2_513`.`b2` having (<cache>(`test`.`t1_513`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_513`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_513`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_513`.`a2`,7) AS `left(a2,7)` from `test`.`t1_513` where <in_optimizer>(`test`.`t1_513`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_513` group by `test`.`t2_513`.`b2` having (<cache>(`test`.`t1_513`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_513`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_513
 where a1 in (select group_concat(b1) from t2_513 group by b2);
@@ -3938,7 +3940,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -3961,7 +3963,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1024	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_1024`.`b1` separator ',') from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1024`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1024`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1024` where <in_optimizer>(`test`.`t1_1024`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_1024` group by `test`.`t2_1024`.`b2` having (<cache>(`test`.`t1_1024`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1024`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_1024
 where a1 in (select group_concat(b1) from t2_1024 group by b2);
@@ -4051,7 +4053,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -4074,7 +4076,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
 2	DEPENDENT SUBQUERY	t2_1025	ALL	NULL	NULL	NULL	NULL	3	100.00	Using filesort
 Warnings:
-Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(/* select#2 */ select group_concat(`test`.`t2_1025`.`b1` separator ',') from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
+Note	1003	/* select#1 */ select left(`test`.`t1_1025`.`a1`,7) AS `left(a1,7)`,left(`test`.`t1_1025`.`a2`,7) AS `left(a2,7)` from `test`.`t1_1025` where <in_optimizer>(`test`.`t1_1025`.`a1`,<exists>(/* select#2 */ select 1 from `test`.`t2_1025` group by `test`.`t2_1025`.`b2` having (<cache>(`test`.`t1_1025`.`a1`) = <ref_null_helper>(group_concat(`test`.`t2_1025`.`b1` separator ',')))))
 select left(a1,7), left(a2,7)
 from t1_1025
 where a1 in (select group_concat(b1) from t2_1025 group by b2);
@@ -5776,7 +5778,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
 explain extended SELECT one,two from t1 where ROW(one,two) IN (SELECT one,two FROM t2 WHERE flag = 'N');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	Start temporary
@@ -5788,7 +5790,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	8	100.00	NULL
 2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select `test`.`t2`.`one`,`test`.`t2`.`two` from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
+Note	1003	/* select#1 */ select `test`.`t1`.`one` AS `one`,`test`.`t1`.`two` AS `two`,<in_optimizer>((`test`.`t1`.`one`,`test`.`t1`.`two`),<exists>(/* select#2 */ select 1,1 from `test`.`t2` where ((`test`.`t2`.`flag` = '0') and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`one`) = `test`.`t2`.`one`) or isnull(`test`.`t2`.`one`)), true) and <if>(outer_field_is_not_null, ((<cache>(`test`.`t1`.`two`) = `test`.`t2`.`two`) or isnull(`test`.`t2`.`two`)), true)) having (<if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`one`), true) and <if>(outer_field_is_not_null, <is_not_null_test>(`test`.`t2`.`two`), true)))) AS `test` from `test`.`t1`
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a char(5), b char(5));
 INSERT INTO t1 VALUES (NULL,'aaa'), ('aaa','aaa');
@@ -9547,7 +9549,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	alias2	ALL	NULL	NULL	NULL	NULL	11	Start temporary
 1	PRIMARY	sq2_alias1	ALL	NULL	NULL	NULL	NULL	15	Using where; Using join buffer (Block Nested Loop)
 1	PRIMARY	sq2_alias2	ref	col_int_key	col_int_key	5	test.sq2_alias1.pk	2	Using where
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	4	test.alias2.col_varchar_key	2	NULL
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	4	test.alias2.col_varchar_key	2	NULL
 1	PRIMARY	<derived7>	ALL	NULL	NULL	NULL	NULL	2	Using where; End temporary; Using join buffer (Block Nested Loop)
 7	DERIVED	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 8	UNION	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
@@ -9674,7 +9676,7 @@ FROM t1 AS subquery3_t1
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	subquery3_t1	index	col_varchar_key	col_varchar_key	9	NULL	0	Using where; Using index; Start temporary
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	0	Using join buffer (Block Nested Loop)
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	9	const,test.subquery3_t1.col_varchar_key	2	NULL
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	9	const,test.subquery3_t1.col_varchar_key	2	NULL
 1	PRIMARY	table2	index	NULL	PRIMARY	4	NULL	1	Using index; End temporary; Using join buffer (Block Nested Loop)
 2	DERIVED	subquery1_t1	ALL	PRIMARY	NULL	NULL	NULL	1	NULL
 2	DERIVED	subquery1_t2	eq_ref	PRIMARY	PRIMARY	4	test.subquery1_t1.pk	1	Using index
@@ -9951,9 +9953,9 @@ EXPLAIN
                 "table_name": "derived1",
                 "access_type": "ref",
                 "possible_keys": [
-                  "auto_key0"
+                  "<auto_key0>"
                 ],
-                "key": "auto_key0",
+                "key": "<auto_key0>",
                 "key_length": "4",
                 "ref": [
                   "test.derived2.col_varchar_nokey"
@@ -10347,6 +10349,7 @@ col_datetime_key
 2002-08-25 20:35:06
 DROP TABLE t1, t2;
 # End of test for bug#14064201.
+set @@optimizer_switch=@old_opt_switch;
 # End of 5.6 tests
 set optimizer_switch=default;
 set optimizer_switch=default;

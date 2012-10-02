@@ -58,15 +58,10 @@ static const double FTS_NORMALIZE_COEFF = 0.0115F;
 /* For parsing the search phrase */
 static const char* FTS_PHRASE_DELIMITER = "\t ";
 
-typedef struct fts_match_struct fts_match_t;
-typedef	struct fts_query_struct fts_query_t;
-typedef struct fts_phrase_struct fts_phrase_t;
-typedef struct fts_select_struct fts_select_t;
-typedef struct fts_doc_freq_struct fts_doc_freq_t;
-typedef struct fts_word_freq_struct fts_word_freq_t;
+struct fts_word_freq_t;
 
 /** State of an FTS query. */
-struct fts_query_struct {
+struct fts_query_t {
 	mem_heap_t*	heap;		/*!< Heap to use for allocations */
 
 	trx_t*		trx;		/*!< The query transaction */
@@ -145,7 +140,7 @@ struct fts_query_struct {
 
 /** For phrase matching, first we collect the documents and the positions
 then we match. */
-struct fts_match_struct {
+struct fts_match_t {
 	doc_id_t	doc_id;		/*!< Document id */
 
 	ulint		start;		/*!< Start the phrase match from
@@ -159,7 +154,7 @@ struct fts_match_struct {
 /** For matching tokens in a phrase search. We use this data structure in
 the callback that determines whether a document should be accepted or
 rejected for a phrase search. */
-struct fts_select_struct {
+struct fts_select_t {
 	doc_id_t	doc_id;		/*!< The document id to match */
 
 	ulint		min_pos;	/*!< For found to be TRUE at least
@@ -175,7 +170,7 @@ struct fts_select_struct {
 };
 
 /** The match positions and tokesn to match */
-struct fts_phrase_struct {
+struct fts_phrase_t {
 	ibool		found;		/*!< Match result */
 
 	const fts_match_t*
@@ -192,13 +187,13 @@ struct fts_phrase_struct {
 };
 
 /** For storing the frequncy of a word/term in a document */
-struct fts_doc_freq_struct {
+struct fts_doc_freq_t {
 	doc_id_t	doc_id;		/*!< Document id */
 	ulint		freq;		/*!< Frequency of a word in a document */
 };
 
 /** To determine the word frequency per document. */
-struct fts_word_freq_struct {
+struct fts_word_freq_t {
 	byte*		word;		/*!< Word for which we need the freq,
 					it's allocated on the query heap */
 
@@ -2901,10 +2896,13 @@ fts_query_calculate_idf(
 			}
 		}
 
-		fprintf(stderr,"'%s' -> " UINT64PF "/" UINT64PF " %6.5lf\n",
-		       word_freq->word,
-		       query->total_docs, word_freq->doc_count,
-		       word_freq->idf);
+		if (fts_enable_diag_print) {
+			fprintf(stderr,"'%s' -> " UINT64PF "/" UINT64PF
+				" %6.5lf\n",
+			        word_freq->word,
+			        query->total_docs, word_freq->doc_count,
+			        word_freq->idf);
+		}
 	}
 }
 

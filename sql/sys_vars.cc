@@ -788,10 +788,10 @@ static Sys_var_mybool Sys_binlog_direct(
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_direct_check));
 
 /**
-  This variable is not visible to and is read only to users. It can be
-  enabled or disabled only at mysqld startup. This variable is used by
-  User thread and as well as by replication slave applier thread to apply
-  relay_log. Slave applier thread enables/disables this option based on
+  This variable is read only to users. It can be enabled or disabled
+  only at mysqld startup. This variable is used by User thread and
+  as well as by replication slave applier thread to apply relay_log.
+  Slave applier thread enables/disables this option based on
   relay_log's from replication master versions. There is possibility of
   slave applier thread and User thread to have different setting for
   explicit_defaults_for_timestamp, hence this options is defined as
@@ -803,7 +803,7 @@ static Sys_var_mybool Sys_explicit_defaults_for_timestamp(
        "as NULL with DEFAULT NULL attribute, Without this option, "
        "TIMESTAMP columns are NOT NULL and have implicit DEFAULT clauses. "
        "The old behavior is deprecated.",
-       READ_ONLY NOT_VISIBLE SESSION_VAR(explicit_defaults_for_timestamp),
+       READ_ONLY SESSION_VAR(explicit_defaults_for_timestamp),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE));
 
 static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TYPE thread_mask)
@@ -838,18 +838,23 @@ static bool repository_check(sys_var *self, THD *thd, set_var *var, SLAVE_THD_TY
         }
         break;
         case SLAVE_THD_SQL:
-          /*
-            The worker repositories will be migrated when the SQL Thread is start up.
-            We may decide to change this behavior in the future if people think that
-            this is odd. /Alfranio
-          */
-          if (Rpl_info_factory::change_rli_repository(active_mi->rli,
-                                                      var->save_result.ulonglong_value,
-                                                      &msg))
+          mts_recovery_groups(active_mi->rli);
+          if (!active_mi->rli->is_mts_recovery())
           {
-            ret= TRUE;
-            my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+            if (Rpl_info_factory::reset_workers(active_mi->rli) ||
+                Rpl_info_factory::change_rli_repository(active_mi->rli,
+                                                        var->save_result.ulonglong_value,
+                                                        &msg))
+            {
+              ret= TRUE;
+              my_error(ER_CHANGE_RPL_INFO_REPOSITORY_FAILURE, MYF(0), msg);
+            }
           }
+          else
+            sql_print_warning("It is not possible to change the type of the "
+                              "relay log's repository because there are workers' "
+                              "repositories with gaps. Please, fix the gaps first "
+                              "before doing such change.");
         break;
         default:
           assert(0);
@@ -1176,25 +1181,33 @@ static Sys_var_ulong Sys_delayed_insert_limit(
        "delayed_insert_limit",
        "After inserting delayed_insert_limit rows, the INSERT DELAYED "
        "handler will check if there are any SELECT statements pending. "
-       "If so, it allows these to execute before continuing",
+       "If so, it allows these to execute before continuing. "
+       "This variable is deprecated along with INSERT DELAYED.",
        GLOBAL_VAR(delayed_insert_limit), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_LIMIT), BLOCK_SIZE(1));
+       VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_LIMIT), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 static Sys_var_ulong Sys_delayed_insert_timeout(
        "delayed_insert_timeout",
        "How long a INSERT DELAYED thread should wait for INSERT statements "
-       "before terminating",
+       "before terminating."
+       "This variable is deprecated along with INSERT DELAYED.",
        GLOBAL_VAR(delayed_insert_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(DELAYED_WAIT_TIMEOUT),
-       BLOCK_SIZE(1));
+       BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_ulong Sys_delayed_queue_size(
        "delayed_queue_size",
        "What size queue (in rows) should be allocated for handling INSERT "
        "DELAYED. If the queue becomes full, any client that does INSERT "
-       "DELAYED will wait until there is room in the queue again",
+       "DELAYED will wait until there is room in the queue again."
+       "This variable is deprecated along with INSERT DELAYED.",
        GLOBAL_VAR(delayed_queue_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_QUEUE_SIZE), BLOCK_SIZE(1));
+       VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_QUEUE_SIZE), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 #ifdef HAVE_EVENT_SCHEDULER
 static const char *event_scheduler_names[]= { "OFF", "ON", "DISABLED", NullS };
@@ -1719,20 +1732,24 @@ static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
 static Sys_var_ulong Sys_max_insert_delayed_threads(
        "max_insert_delayed_threads",
        "Don't start more than this number of threads to handle INSERT "
-       "DELAYED statements. If set to zero INSERT DELAYED will be not used",
+       "DELAYED statements. If set to zero INSERT DELAYED will be not used."
+       "This variable is deprecated along with INSERT DELAYED.",
        SESSION_VAR(max_insert_delayed_threads),
        NO_CMD_LINE, VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections));
+       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections),
+       DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_delayed_threads(
        "max_delayed_threads",
        "Don't start more than this number of threads to handle INSERT "
-       "DELAYED statements. If set to zero INSERT DELAYED will be not used",
+       "DELAYED statements. If set to zero INSERT DELAYED will be not used."
+       "This variable is deprecated along with INSERT DELAYED.",
        SESSION_VAR(max_insert_delayed_threads),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections));
+       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections),
+       DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_error_count(
        "max_error_count",
@@ -1845,7 +1862,8 @@ static Sys_var_ulong Sys_max_tmp_tables(
        "max_tmp_tables",
        "Maximum number of temporary tables a client can keep open at a time",
        SESSION_VAR(max_tmp_tables), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(32), BLOCK_SIZE(1));
+       VALID_RANGE(1, ULONG_MAX), DEFAULT(32), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_write_lock_count(
        "max_write_lock_count",
@@ -1997,6 +2015,7 @@ static const char *optimizer_switch_names[]=
   "block_nested_loop", "batched_key_access",
 #ifdef OPTIMIZER_SWITCH_ALL
   "materialization", "semijoin", "loosescan", "firstmatch",
+  "subquery_materialization_cost_based",
 #endif
   "default", NullS
 };
@@ -2017,8 +2036,8 @@ static Sys_var_flagset Sys_optimizer_switch(
        "index_merge_intersection, engine_condition_pushdown, "
        "index_condition_pushdown, mrr, mrr_cost_based"
 #ifdef OPTIMIZER_SWITCH_ALL
-       ", materialization, "
-       "semijoin, loosescan, firstmatch"
+       ", materialization, semijoin, loosescan, firstmatch,"
+       " subquery_materialization_cost_based"
 #endif
        ", block_nested_loop, batched_key_access"
        "} and val is one of {on, off, default}",
@@ -2265,9 +2284,14 @@ static Sys_var_ulong Sys_range_alloc_block_size(
        DEFAULT(RANGE_ALLOC_BLOCK_SIZE), BLOCK_SIZE(1024));
 
 static Sys_var_ulong Sys_multi_range_count(
-       "multi_range_count", "Number of key ranges to request at once",
+       "multi_range_count",
+       "Number of key ranges to request at once. "
+       "This variable has no effect, and is deprecated. "
+       "It will be removed in a future release.",
        SESSION_VAR(multi_range_count), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(1, ULONG_MAX), DEFAULT(256), BLOCK_SIZE(1));
+       VALID_RANGE(1, ULONG_MAX), DEFAULT(256), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 static bool fix_thd_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3067,19 +3091,25 @@ static Sys_var_charptr Sys_date_format(
        "date_format", "The DATE format (ignored)",
        READ_ONLY GLOBAL_VAR(global_date_format.format.str),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-       DEFAULT(known_date_time_formats[ISO_FORMAT].date_format));
+       DEFAULT(known_date_time_formats[ISO_FORMAT].date_format),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 static Sys_var_charptr Sys_datetime_format(
        "datetime_format", "The DATETIME format (ignored)",
        READ_ONLY GLOBAL_VAR(global_datetime_format.format.str),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-       DEFAULT(known_date_time_formats[ISO_FORMAT].datetime_format));
+       DEFAULT(known_date_time_formats[ISO_FORMAT].datetime_format),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 static Sys_var_charptr Sys_time_format(
        "time_format", "The TIME format (ignored)",
        READ_ONLY GLOBAL_VAR(global_time_format.format.str),
        CMD_LINE(REQUIRED_ARG), IN_SYSTEM_CHARSET,
-       DEFAULT(known_date_time_formats[ISO_FORMAT].time_format));
+       DEFAULT(known_date_time_formats[ISO_FORMAT].time_format),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
+       DEPRECATED(""));
 
 static bool fix_autocommit(sys_var *self, THD *thd, enum_var_type type)
 {

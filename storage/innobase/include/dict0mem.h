@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,7 +48,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "fts0fts.h"
 
 /* Forward declaration. */
-typedef struct ib_rbt_struct ib_rbt_t;
+struct ib_rbt_t;
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -377,7 +378,7 @@ dict_mem_referenced_table_name_lookup_set(
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
 /** Data structure for a column in a table */
-struct dict_col_struct{
+struct dict_col_t{
 	/*----------------------*/
 	/** The following are copied from dtype_t,
 	so that all bit-fields can be packed tightly. */
@@ -453,7 +454,7 @@ be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
 #define DICT_MAX_FIXED_COL_LEN		DICT_ANTELOPE_MAX_INDEX_COL_LEN
 
 /** Data structure for a field in an index */
-struct dict_field_struct{
+struct dict_field_t{
 	dict_col_t*	col;		/*!< pointer to the table column */
 	const char*	name;		/*!< name of the column */
 	unsigned	prefix_len:12;	/*!< 0 or the length of the column
@@ -469,9 +470,61 @@ struct dict_field_struct{
 					DICT_ANTELOPE_MAX_INDEX_COL_LEN */
 };
 
+/**********************************************************************//**
+PADDING HEURISTIC BASED ON LINEAR INCREASE OF PADDING TO AVOID
+COMPRESSION FAILURES
+(Note: this is relevant only for compressed indexes)
+GOAL: Avoid compression failures by maintaining information about the
+compressibility of data. If data is not very compressible then leave
+some extra space 'padding' in the uncompressed page making it more
+likely that compression of less than fully packed uncompressed page will
+succeed.
+
+This padding heuristic works by increasing the pad linearly until the
+desired failure rate is reached. A "round" is a fixed number of
+compression operations.
+After each round, the compression failure rate for that round is
+computed. If the failure rate is too high, then padding is incremented
+by a fixed value, otherwise it's left intact.
+If the compression failure is lower than the desired rate for a fixed
+number of consecutive rounds, then the padding is decreased by a fixed
+value. This is done to prevent overshooting the padding value,
+and to accommodate the possible change in data compressibility. */
+
+/** Number of zip ops in one round. */
+#define ZIP_PAD_ROUND_LEN			(128)
+
+/** Number of successful rounds after which the padding is decreased */
+#define ZIP_PAD_SUCCESSFUL_ROUND_LIMIT		(5)
+
+/** Amount by which padding is increased. */
+#define ZIP_PAD_INCR				(128)
+
+/** Percentage of compression failures that are allowed in a single
+round */
+extern ulong	zip_failure_threshold_pct;
+
+/** Maximum percentage of a page that can be allowed as a pad to avoid
+compression failures */
+extern ulong	zip_pad_max;
+
+/** Data structure to hold information about about how much space in
+an uncompressed page should be left as padding to avoid compression
+failures. This estimate is based on a self-adapting heuristic. */
+struct zip_pad_info_t {
+	os_fast_mutex_t	mutex;	/*!< mutex protecting the info */
+	ulint		pad;	/*!< number of bytes used as pad */
+	ulint		success;/*!< successful compression ops during
+				current round */
+	ulint		failure;/*!< failed compression ops during
+				current round */
+	ulint		n_rounds;/*!< number of currently successful
+				rounds */
+};
+
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
-struct dict_index_struct{
+struct dict_index_t{
 	index_id_t	id;	/*!< id of the index */
 	mem_heap_t*	heap;	/*!< memory heap */
 	const char*	name;	/*!< index name */
@@ -528,8 +581,9 @@ struct dict_index_struct{
 	ib_uint64_t*	stat_n_diff_key_vals;
 				/*!< approximate number of different
 				key values for this index, for each
-				n-column prefix where n <=
-				dict_get_n_unique(index); we
+				n-column prefix where 1 <= n <=
+				dict_get_n_unique(index) (the array is
+				indexed from 0 to n_uniq-1); we
 				periodically calculate new
 				estimates */
 	ib_uint64_t*	stat_n_sample_sizes;
@@ -540,7 +594,8 @@ struct dict_index_struct{
 	ib_uint64_t*	stat_n_non_null_key_vals;
 				/* approximate number of non-null key values
 				for this index, for each column where
-				n < dict_get_n_unique(index); This
+				1 <= n <= dict_get_n_unique(index) (the array
+				is indexed from 0 to n_uniq-1); This
 				is used when innodb_stats_method is
 				"nulls_ignored". */
 	ulint		stat_index_size;
@@ -555,6 +610,8 @@ struct dict_index_struct{
 	trx_id_t	trx_id; /*!< id of the transaction that created this
 				index, or 0 if the index existed
 				when InnoDB was started up */
+	zip_pad_info_t	zip_pad;/*!< Information about state of
+				compression failures and successes */
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_BLOB_DEBUG
 	ib_mutex_t		blobs_mutex;
@@ -565,7 +622,7 @@ struct dict_index_struct{
 #endif /* UNIV_BLOB_DEBUG */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
-/** Value of dict_index_struct::magic_n */
+/** Value of dict_index_t::magic_n */
 # define DICT_INDEX_MAGIC_N	76789786
 #endif
 };
@@ -593,7 +650,7 @@ enum online_index_status {
 /** Data structure for a foreign key constraint; an example:
 FOREIGN KEY (A, B) REFERENCES TABLE2 (C, D).  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_foreign_create(). */
-struct dict_foreign_struct{
+struct dict_foreign_t{
 	mem_heap_t*	heap;		/*!< this object is allocated from
 					this memory heap */
 	char*		id;		/*!< id of the constraint as a
@@ -646,7 +703,7 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
-struct dict_table_struct{
+struct dict_table_t{
 	table_id_t	id;	/*!< id of the table */
 	mem_heap_t*	heap;	/*!< memory heap */
 	char*		name;	/*!< table name */
@@ -902,7 +959,7 @@ struct dict_table_struct{
 
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
-/** Value of dict_table_struct::magic_n */
+/** Value of dict_table_t::magic_n */
 # define DICT_TABLE_MAGIC_N	76333786
 #endif /* UNIV_DEBUG */
 };

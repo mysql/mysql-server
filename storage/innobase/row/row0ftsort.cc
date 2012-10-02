@@ -1122,7 +1122,7 @@ row_fts_sel_tree_propagate(
 	} else if (cmp_rec_rec_simple(mrec[child_left], mrec[child_right],
 				      offsets[child_left],
 				      offsets[child_right],
-				      index, NULL, NULL) < 0) {
+				      index, NULL) < 0) {
 		selected = child_left;
 	} else {
 		selected = child_right;
@@ -1211,7 +1211,7 @@ row_fts_build_sel_tree_level(
 		int cmp = cmp_rec_rec_simple(
 			mrec[child_left], mrec[child_right],
 			offsets[child_left], offsets[child_right],
-			index, NULL, NULL);
+			index, NULL);
 
 		sel_tree[start + i] = cmp < 0 ? child_left : child_right;
 	}
@@ -1432,7 +1432,7 @@ row_fts_merge_insert(
 				if (cmp_rec_rec_simple(
 					    mrec[i], mrec[min_rec],
 					    offsets[i], offsets[min_rec],
-					    index, NULL, NULL) < 0) {
+					    index, NULL) < 0) {
 					min_rec = i;
 				}
 			}

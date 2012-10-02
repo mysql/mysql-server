@@ -73,7 +73,7 @@ static handlerton *installed_htons[128];
 #define BITMAP_STACKBUF_SIZE (128/8)
 
 KEY_CREATE_INFO default_key_create_info=
-  { HA_KEY_ALG_UNDEF, 0, {NullS, 0}, {NullS, 0} };
+  { HA_KEY_ALG_UNDEF, 0, {NullS, 0}, {NullS, 0}, true };
 
 /* number of entries in handlertons[] */
 ulong total_ha= 0;
@@ -102,9 +102,6 @@ const char *tx_isolation_names[] =
   NullS};
 TYPELIB tx_isolation_typelib= {array_elements(tx_isolation_names)-1,"",
 			       tx_isolation_names, NULL};
-
-static TYPELIB known_extensions= {0,"known_exts", NULL, NULL};
-uint known_extensions_id= 0;
 
 #ifndef DBUG_OFF
 
@@ -2503,6 +2500,7 @@ int handler::ha_close(void)
 
 int handler::ha_index_init(uint idx, bool sorted)
 {
+  DBUG_EXECUTE_IF("ha_index_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
   int result;
   DBUG_ENTER("ha_index_init");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
@@ -2550,6 +2548,7 @@ int handler::ha_index_end()
 
 int handler::ha_rnd_init(bool scan)
 {
+  DBUG_EXECUTE_IF("ha_rnd_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
   int result;
   DBUG_ENTER("ha_rnd_init");
   DBUG_ASSERT(table_share->tmp_table != NO_TMP_TABLE ||
@@ -3389,7 +3388,19 @@ void handler::ha_release_auto_increment()
 }
 
 
-void handler::print_keydup_error(KEY *key, const char *msg, myf errflag)
+/**
+  Construct and emit duplicate key error message using information
+  from table's record buffer.
+
+  @param table    TABLE object which record buffer should be used as
+                  source for column values.
+  @param key      Key description.
+  @param msg      Error message template to which key value should be
+                  added.
+  @param errflag  Flags for my_error() call.
+*/
+
+void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag)
 {
   /* Write the duplicated key in the error message */
   char key_buff[MAX_KEY_LENGTH];
@@ -3416,9 +3427,16 @@ void handler::print_keydup_error(KEY *key, const char *msg, myf errflag)
 }
 
 
-void handler::print_keydup_error(KEY *key, myf errflag)
+/**
+  Construct and emit duplicate key error message using information
+  from table's record buffer.
+
+  @sa print_keydup_error(table, key, msg, errflag).
+*/
+
+void print_keydup_error(TABLE *table, KEY *key, myf errflag)
 {
-  print_keydup_error(key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
+  print_keydup_error(table, key, ER(ER_DUP_ENTRY_WITH_KEY_NAME), errflag);
 }
 
 
@@ -3466,7 +3484,8 @@ void handler::print_error(int error, myf errflag)
     uint key_nr= table ? get_dup_key(error) : -1;
     if ((int) key_nr >= 0)
     {
-      print_keydup_error(key_nr == MAX_KEY ? NULL : &table->key_info[key_nr],
+      print_keydup_error(table,
+                         key_nr == MAX_KEY ? NULL : &table->key_info[key_nr],
                          errflag);
       DBUG_VOID_RETURN;
     }
@@ -6615,14 +6634,8 @@ int handler::read_range_first(const key_range *start_key,
   DBUG_ENTER("handler::read_range_first");
 
   eq_range= eq_range_arg;
-  end_range= 0;
-  if (end_key)
-  {
-    end_range= &save_end_range;
-    save_end_range= *end_key;
-    key_compare_result_on_equal= ((end_key->flag == HA_READ_BEFORE_KEY) ? 1 :
-				  (end_key->flag == HA_READ_AFTER_KEY) ? -1 : 0);
-  }
+  set_end_range(end_key, RANGE_SCAN_ASC);
+
   range_key_part= table->key_info[active_index].key_part;
 
   if (!start_key)			// Read first record
@@ -6637,7 +6650,19 @@ int handler::read_range_first(const key_range *start_key,
 		? HA_ERR_END_OF_FILE
 		: result);
 
-  DBUG_RETURN (compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+  if (compare_key(end_range) <= 0)
+  {
+    DBUG_RETURN(0);
+  }
+  else
+  {
+    /*
+      The last read row does not fall in the range. So request
+      storage engine to release row lock if possible.
+    */
+    unlock_row();
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
 }
 
 
@@ -6669,7 +6694,38 @@ int handler::read_range_next()
   result= ha_index_next(table->record[0]);
   if (result)
     DBUG_RETURN(result);
-  DBUG_RETURN(compare_key(end_range) <= 0 ? 0 : HA_ERR_END_OF_FILE);
+
+  if (compare_key(end_range) <= 0)
+  {
+    DBUG_RETURN(0);
+  }
+  else
+  {
+    /*
+      The last read row does not fall in the range. So request
+      storage engine to release row lock if possible.
+    */
+    unlock_row();
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+}
+
+
+void handler::set_end_range(const key_range* range,
+                            enum_range_scan_direction direction)
+{
+  if (range)
+  {
+    save_end_range= *range;
+    end_range= &save_end_range;
+    range_key_part= table->key_info[active_index].key_part;
+    key_compare_result_on_equal= ((range->flag == HA_READ_BEFORE_KEY) ? 1 :
+                                  (range->flag == HA_READ_AFTER_KEY) ? -1 : 0);
+  }
+  else
+    end_range= NULL;
+
+  range_scan_direction= direction;
 }
 
 
@@ -6701,11 +6757,26 @@ int handler::compare_key(key_range *range)
 
 
 /*
-  Same as compare_key() but doesn't check have in_range_check_pushed_down.
-  This is used by index condition pushdown implementation.
+  Compare if a found key (in row) is within the range.
+
+  This function is similar to compare_key() but checks the range scan
+  direction to determine if this is a descending scan. This function
+  is used by the index condition pushdown implementation to determine
+  if the read record is within the range scan.
+
+  @param range Range to compare to row. May be NULL for no range.
+
+  @seealso
+    handler::compare_key()
+
+  @return Returns whether the key is within the range
+
+    - 0   : Key is equal to range or 'range' == 0 (no range)
+    - -1  : Key is within the current range
+    - 1   : Key is outside the current range
 */
 
-int handler::compare_key2(key_range *range)
+int handler::compare_key_icp(const key_range *range) const
 {
   int cmp;
   if (!range)
@@ -6713,6 +6784,8 @@ int handler::compare_key2(key_range *range)
   cmp= key_cmp(range_key_part, range->key, range->length);
   if (!cmp)
     cmp= key_compare_result_on_equal;
+  if (range_scan_direction == RANGE_SCAN_DESC)
+    cmp= -cmp;
   return cmp;
 }
 
@@ -6770,34 +6843,33 @@ static my_bool exts_handlerton(THD *unused, plugin_ref plugin,
   return FALSE;
 }
 
-TYPELIB *ha_known_exts(void)
+TYPELIB* ha_known_exts()
 {
-  if (!known_extensions.type_names || mysys_usage_id != known_extensions_id)
-  {
-    List<char> found_exts;
-    const char **ext, *old_ext;
+  TYPELIB *known_extensions = (TYPELIB*) sql_alloc(sizeof(TYPELIB));
+  known_extensions->name= "known_exts";
+  known_extensions->type_lengths= NULL;
+  
+  List<char> found_exts;
+  const char **ext, *old_ext;
 
-    known_extensions_id= mysys_usage_id;
-    found_exts.push_back((char*) TRG_EXT);
-    found_exts.push_back((char*) TRN_EXT);
+  found_exts.push_back((char*) TRG_EXT);
+  found_exts.push_back((char*) TRN_EXT);
 
-    plugin_foreach(NULL, exts_handlerton,
-                   MYSQL_STORAGE_ENGINE_PLUGIN, &found_exts);
+  plugin_foreach(NULL, exts_handlerton,
+                 MYSQL_STORAGE_ENGINE_PLUGIN, &found_exts);
 
-    ext= (const char **) my_once_alloc(sizeof(char *)*
-                                       (found_exts.elements+1),
-                                       MYF(MY_WME | MY_FAE));
+  size_t arr_length= sizeof(char *)* (found_exts.elements+1);
+  ext= (const char **) sql_alloc(arr_length);
 
-    DBUG_ASSERT(ext != 0);
-    known_extensions.count= found_exts.elements;
-    known_extensions.type_names= ext;
+  DBUG_ASSERT(NULL != ext);
+  known_extensions->count= found_exts.elements;
+  known_extensions->type_names= ext;
 
-    List_iterator_fast<char> it(found_exts);
-    while ((old_ext= it++))
-      *ext++= old_ext;
-    *ext= 0;
-  }
-  return &known_extensions;
+  List_iterator_fast<char> it(found_exts);
+  while ((old_ext= it++))
+    *ext++= old_ext;
+  *ext= NULL;
+  return known_extensions;
 }
 
 

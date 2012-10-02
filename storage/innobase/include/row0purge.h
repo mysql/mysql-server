@@ -84,7 +84,7 @@ row_purge_step(
 
 /* Purge node structure */
 
-struct purge_node_struct{
+struct purge_node_t{
 	que_common_t	common;	/*!< node type: QUE_NODE_PURGE */
 	/*----------------------*/
 	/* Local storage for this graph node */

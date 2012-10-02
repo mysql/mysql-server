@@ -34,38 +34,28 @@ while ($i != 11)
 --echo [connection slave]
 
 # Incorrect START SLAVE UNTIL SQL_BEFORE_GTIDS
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --error ER_BAD_SLAVE_UNTIL_COND
 --eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5", MASTER_LOG_FILE= 'foo.bin', MASTER_LOG_POS= 100
 
 # Incorrect START SLAVE UNTIL SQL_BEFORE_GTIDS
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --error ER_BAD_SLAVE_UNTIL_COND
 --eval START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5", MASTER_LOG_FILE= 'foo.bin', MASTER_LOG_POS= 100
 
 # Incorrect START SLAVE UNTIL SQL_BEFORE_GTIDS
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --error ER_BAD_SLAVE_UNTIL_COND
 --eval START SLAVE IO_THREAD UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5", MASTER_LOG_FILE= 'foo.bin', MASTER_LOG_POS= 100
 
 # Incorrect START SLAVE UNTIL SQL_BEFORE_GTIDS
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --error ER_PARSE_ERROR
 --eval START SLAVE FOO UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5"
 
 # UNTIL GTID
 --echo Check that START SLAVE IO_THREAD UNTIL ... maintains old behaviour, condition is ignored.
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --eval START SLAVE IO_THREAD UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5"
 
 --echo Wait until IO Thread reads all master binlog and stop slave.
@@ -75,73 +65,74 @@ while ($i != 11)
 --source include/stop_slave_io.inc
 
 --echo SQL thread must stop *before* INSERT 4
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --eval START SLAVE SQL_THREAD UNTIL SQL_BEFORE_GTIDS= "$master_uuid:4-5"
 --source include/wait_for_slave_sql_to_stop.inc
-SELECT * FROM t1;
+--let $assert_cond= MAX(c1)=3 FROM t1
+--let $assert_text= Rows until 3 in t1 must be replicated now
+--source include/assert.inc
 
 --echo SQL thread must stop *after* INSERT 5
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --eval START SLAVE SQL_THREAD UNTIL SQL_AFTER_GTIDS= "$master_uuid:4-5"
 --source include/wait_for_slave_sql_to_stop.inc
-SELECT * FROM t1;
+--let $assert_cond= MAX(c1)=5 FROM t1
+--let $assert_text= Rows until 5 in t1 must be replicated now
+--source include/assert.inc
 
 --echo SQL thread must stop *before* INSERT 6
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --eval START SLAVE SQL_THREAD, IO_THREAD UNTIL SQL_BEFORE_GTIDS= "$master_uuid:2-7"
 --source include/wait_for_slave_sql_to_stop.inc
-SELECT * FROM t1;
+--let $assert_cond= MAX(c1)=5 FROM t1
+--let $assert_text= Rows until 5 in t1 must be replicated now
+--source include/assert.inc
 
 --echo SQL thread must stop *after* INSERT 5
 --echo 1-5 are already applied so it will stop immediately
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --eval START SLAVE SQL_THREAD, IO_THREAD UNTIL SQL_AFTER_GTIDS= "$master_uuid:1-5"
 --source include/wait_for_slave_sql_to_stop.inc
-SELECT * FROM t1;
+--let $assert_cond= MAX(c1)=5 FROM t1
+--let $assert_text= Rows until 5 in t1 must be replicated now
+--source include/assert.inc
 
 --echo SQL thread must stop *before* INSERT 10
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
 --enable_query_log
 --eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:10"
 --source include/wait_for_slave_sql_to_stop.inc
-SELECT * FROM t1;
+--let $assert_cond= MAX(c1)=9 FROM t1
+--let $assert_text= Rows until 9 in t1 must be replicated now
+--source include/assert.inc
 
 --echo SQL thread must stop *before* INSERT 3-6
 --echo 3-6 is already applied so it will stop immediately
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:3-6"
 --source include/wait_for_slave_sql_to_stop.inc
-SELECT * FROM t1;
+--let $assert_cond= MAX(c1)=9 FROM t1
+--let $assert_text= Rows until 9 in t1 must be replicated now
+--source include/assert.inc
 
 --echo SQL thread must stop *before* INSERT 9
 --echo 9 is already applied so it will stop immediately
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --eval START SLAVE UNTIL SQL_BEFORE_GTIDS= "$master_uuid:9"
 --source include/wait_for_slave_sql_to_stop.inc
-SELECT * FROM t1;
+--let $assert_cond= MAX(c1)=9 FROM t1
+--let $assert_text= Rows until 9 in t1 must be replicated now
+--source include/assert.inc
 
 --echo Sync slave with master
 --source include/start_slave.inc
---disable_query_log
 --replace_result $master_uuid MASTER_UUID
---enable_query_log
 --disable_result_log
---eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$master_uuid:10', 300)
+--eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$master_uuid:10')
 --enable_result_log
-SELECT * FROM t1;
+--let $assert_cond= MAX(c1)=10 FROM t1
+--let $assert_text= Rows until 10 in t1 must be replicated now
+--source include/assert.inc
 
 # Cleanup
 --connection master

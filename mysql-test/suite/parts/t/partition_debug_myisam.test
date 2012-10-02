@@ -1,5 +1,7 @@
 # Partitioning test that require debug features
 # including crashing tests.
+# Adding big test option for this test.
+--source include/big_test.inc
 
 --source include/have_debug.inc
 --source include/have_partition.inc

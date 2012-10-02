@@ -63,7 +63,7 @@ public:
 
 protected:
   virtual void make_row(PFS_thread *pfs, uint ordinal);
-  virtual bool thread_fits(PFS_thread *thread, PFS_thread *current_thread);
+  virtual bool thread_fits(PFS_thread *thread);
   virtual int read_row_values(TABLE *table, unsigned char *buf,
                               Field **fields, bool read_all);
 protected:

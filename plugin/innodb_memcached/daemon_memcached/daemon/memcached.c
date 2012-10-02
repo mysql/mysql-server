@@ -694,6 +694,11 @@ static void conn_cleanup(conn *c) {
         c->sasl_conn = NULL;
     }
 
+    if (c->engine_storage) {
+	settings.engine.v1->clean_engine(settings.engine.v0, c,
+					 c->engine_storage);
+    }
+
     c->engine_storage = NULL;
     c->tap_iterator = NULL;
     c->thread = NULL;

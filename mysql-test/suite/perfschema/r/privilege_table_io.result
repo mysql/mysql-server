@@ -8,7 +8,13 @@ truncate table performance_schema.events_waits_history_long;
 flush status;
 flush tables;
 # We are forced to suppress here the server response.
+optimize table mysql.host;
+optimize table mysql.user;
 optimize table mysql.db;
+optimize table mysql.proxies_priv;
+optimize table mysql.tables_priv;
+optimize table mysql.procs_priv;
+optimize table mysql.servers;
 update performance_schema.setup_consumers set enabled='YES';
 update performance_schema.setup_objects set enabled='YES'
   where object_type='TABLE' and object_schema= 'mysql';
@@ -86,7 +92,6 @@ where event_name like 'wait/io/table/%'
   and object_schema in ("test", "mysql")
 order by thread_id, event_id;
 event_name	short_source	object_type	object_schema	pretty_name	operation	number_of_bytes
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	host	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL

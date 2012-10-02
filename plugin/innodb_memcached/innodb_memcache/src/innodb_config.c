@@ -99,7 +99,7 @@ innodb_config_parse_value_col(
 	char*		str,		/*!< in: column name(s) string */
 	int		len)		/*!< in: length of above string */
 {
-        static const char*	sep = " ;,\n";
+        static const char*	sep = " ;,|\n";
         char*			last;
 	char*			column_str;
 	int			num_cols = 0;

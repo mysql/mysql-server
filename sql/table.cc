@@ -39,6 +39,7 @@
 #include "mdl.h"                 // MDL_wait_for_graph_visitor
 #include "opt_trace.h"           // opt_trace_disable_if_no_security_...
 #include "table_cache.h"         // table_cache_manager
+#include "sql_view.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -627,6 +628,8 @@ static inline bool has_disabled_path_chars(const char *str)
    4    Error (see open_table_error)
    5    Error (see open_table_error: charset unavailable)
    6    Unknown .frm version
+   8    Error while reading view definition from .FRM file.
+   9    Wrong type in view's .frm file.
 */
 
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
@@ -720,18 +723,20 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
   else if (memcmp(head, STRING_WITH_LEN("TYPE=")) == 0)
   {
     error= 5;
-    if (memcmp(head+5,"VIEW",4) == 0)
+    if (memcmp(head+5, "VIEW", 4) == 0)
     {
       share->is_view= 1;
       if (db_flags & OPEN_VIEW)
-        error= 0;
+        table_type= 2;
+      else
+        goto err;
     }
-    goto err;
+    else
+      goto err;
   }
   else
     goto err;
 
-  /* No handling of text based files yet */
   if (table_type == 1)
   {
     root_ptr= my_pthread_getspecific_ptr(MEM_ROOT**, THR_MALLOC);
@@ -740,6 +745,22 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
     error= open_binary_frm(thd, share, head, file);
     *root_ptr= old_root;
     error_given= 1;
+  }
+  else if (table_type == 2)
+  {
+    LEX_STRING pathstr= { path, strlen(path) };
+
+    /*
+      Create view file parser and hold it in TABLE_SHARE member
+      view_def.
+      */ 
+    share->view_def= sql_parse_prepare(&pathstr, &share->mem_root, true);
+    if (!share->view_def)
+      error= 8;
+    else if (!is_equal(&view_type, share->view_def->type()))
+      error= 9;
+    else
+      error= 0;
   }
 
   share->table_category= get_table_category(& share->db, & share->table_name);
@@ -2500,6 +2521,11 @@ void open_table_error(TABLE_SHARE *share, int error, int db_errno, int errarg)
     break;
   case 8:
     break;
+  case 9:
+    /* Unknown FRM type read while preparing File_parser object for view*/
+    my_error(ER_FRM_UNKNOWN_TYPE, MYF(0), share->path.str,
+             share->view_def->type()->str);
+    break;
   default:				/* Better wrong error than none */
   case 4:
     strxmov(buff, share->normalized_path.str, reg_ext, NullS);
@@ -3597,6 +3623,12 @@ void TABLE_LIST::set_underlying_merge()
     if (!multitable_view)
     {
       table= merge_underlying_list->table;
+      /*
+        If underlying view is not updatable and current view
+        is a single table view
+      */
+      if (!merge_underlying_list->updatable)
+        updatable= false;
       schema_table= merge_underlying_list->schema_table;
     }
   }
@@ -3712,16 +3744,31 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
     }
   }
 
-  if (where)
+  if (where && !where_processed)
   {
-    if (!where->fixed && !where_processed && where->fix_fields(thd, &where))
-      DBUG_RETURN(TRUE);
+
+    if (!where->fixed)
+    {
+      /*
+        This WHERE will be included in check_option. If it contains a
+        subquery, fix_fields() may convert it to semijoin, making it
+        impossible to call val_int() on the Item[...]_subselect, preventing
+        evaluation of check_option when we insert/update/delete a row.
+        So we must forbid semijoin transformation in fix_fields():
+      */
+      Switch_resolve_place SRP(&thd->lex->current_select->resolve_place,
+                               st_select_lex::RESOLVE_NONE,
+                               effective_with_check != VIEW_CHECK_NONE);
+
+      if (where->fix_fields(thd, &where))
+        DBUG_RETURN(TRUE);
+    }
 
     /*
       check that it is not VIEW in which we insert with INSERT SELECT
       (in this case we can't add view WHERE condition to main SELECT_LEX)
     */
-    if (!no_where_clause && !where_processed)
+    if (!no_where_clause)
     {
       TABLE_LIST *tbl= this;
       Query_arena *arena= thd->stmt_arena, backup;
@@ -5457,6 +5504,11 @@ Item_subselect *TABLE_LIST::containing_subselect()
   return (select_lex ? select_lex->master_unit()->item : 0);
 }
 
+uint TABLE_LIST::query_block_id() const
+{
+  return derived ? derived->first_select()->select_number : 0;
+}
+
 /*
   Compiles the tagged hints list and fills up the bitmasks.
 
@@ -5668,6 +5720,14 @@ void init_mdl_requests(TABLE_LIST *table_list)
 }
 
 
+
+///  @returns true if materializable table contains one or zero rows
+bool TABLE_LIST::materializable_is_const() const
+{
+  DBUG_ASSERT(uses_materialization());
+  return get_unit()->get_result()->estimated_rowcount <= 1;
+}
+
 /**
   @brief
   Retrieve number of rows in the table
@@ -5685,7 +5745,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
 int TABLE_LIST::fetch_number_of_rows()
 {
   int error= 0;
-  if (uses_materialization() && !materialized)
+  if (uses_materialization())
     table->file->stats.records= derived->get_result()->estimated_rowcount;
   else
     error= table->file->info(HA_STATUS_VARIABLE | HA_STATUS_NO_LOCK);
@@ -5812,9 +5872,13 @@ static bool add_derived_key(List<Derived_key> &derived_key_list, Field *field,
       return TRUE;
     field->table->max_keys++;
   }
-  field->part_of_key.set_bit(key - 1);
-  field->flags|= PART_KEY_FLAG;
-  entry->used_fields.set_bit(field->field_index);
+  /* Don't create keys longer than REF access can use. */
+  if (entry->used_fields.bits_set() < MAX_REF_PARTS)
+  {
+    field->part_of_key.set_bit(key - 1);
+    field->flags|= PART_KEY_FLAG;
+    entry->used_fields.set_bit(field->field_index);
+  }
   return FALSE;
 }
 
@@ -5894,8 +5958,8 @@ static int Derived_key_comp(Derived_key *e1, Derived_key *e2, void *arg)
   @details
   This function adds keys to the result table by walking over the list of
   possible keys for this derived table/view and calling the
-  TABLE::add_tmp_key to actually add keys. A name "auto_key" with a
-  sequential number is given to each key to ease debugging.
+  TABLE::add_tmp_key to actually add keys. A name <auto_keyN>, where N is a
+  sequential number, is given to each key to ease debugging.
   @see add_derived_key
 
   @return TRUE  an error occur.
@@ -5920,7 +5984,7 @@ bool TABLE_LIST::generate_keys()
   derived_key_list.sort((Node_cmp_func)Derived_key_comp, 0);
   while ((entry= it++))
   {
-    sprintf(buf, "auto_key%i", key++);
+    sprintf(buf, "<auto_key%i>", key++);
     if (table->add_tmp_key(&entry->used_fields,
                            table->in_use->strdup(buf)))
       return TRUE;
@@ -5980,7 +6044,7 @@ bool TABLE_LIST::handle_derived(LEX *lex,
   @return 0                    when it's not a derived table/view.
 */
 
-st_select_lex_unit *TABLE_LIST::get_unit()
+st_select_lex_unit *TABLE_LIST::get_unit() const
 {
   return (view ? &view->unit : derived);
 }

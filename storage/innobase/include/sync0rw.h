@@ -95,9 +95,9 @@ of concurrent read locks before the rw_lock breaks. The current value of
 0x00100000 allows 1,048,575 concurrent readers and 2047 recursive writers.*/
 #define X_LOCK_DECR		0x00100000
 
-typedef struct rw_lock_struct		rw_lock_t;
+struct rw_lock_t;
 #ifdef UNIV_SYNC_DEBUG
-typedef struct rw_lock_debug_struct	rw_lock_debug_t;
+struct rw_lock_debug_t;
 #endif /* UNIV_SYNC_DEBUG */
 
 typedef UT_LIST_BASE_NODE_T(rw_lock_t)	rw_lock_list_t;
@@ -568,7 +568,7 @@ shared locks are allowed. To prevent starving of a writer blocked by
 readers, a writer may queue for x-lock by decrementing lock_word: no
 new readers will be let in while the thread waits for readers to
 exit. */
-struct rw_lock_struct {
+struct rw_lock_t {
 	volatile lint	lock_word;
 				/*!< Holds the state of the lock. */
 	volatile ulint	waiters;/*!< 1: there are waiters */
@@ -593,7 +593,7 @@ struct rw_lock_struct {
 				/*!< Event for next-writer to wait on. A thread
 				must decrement lock_word before waiting. */
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	ib_mutex_t	mutex;		/*!< The mutex protecting rw_lock_struct */
+	ib_mutex_t	mutex;		/*!< The mutex protecting rw_lock_t */
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 
 	UT_LIST_NODE_T(rw_lock_t) list;
@@ -625,7 +625,7 @@ struct rw_lock_struct {
 	unsigned	last_x_line:14;	/*!< Line number where last time x-locked */
 #ifdef UNIV_DEBUG
 	ulint	magic_n;	/*!< RW_LOCK_MAGIC_N */
-/** Value of rw_lock_struct::magic_n */
+/** Value of rw_lock_t::magic_n */
 #define	RW_LOCK_MAGIC_N	22643
 #endif /* UNIV_DEBUG */
 };
@@ -633,7 +633,7 @@ struct rw_lock_struct {
 #ifdef UNIV_SYNC_DEBUG
 /** The structure for storing debug info of an rw-lock.  All access to this
 structure must be protected by rw_lock_debug_mutex_enter(). */
-struct	rw_lock_debug_struct {
+struct	rw_lock_debug_t {
 
 	os_thread_id_t thread_id;  /*!< The thread id of the thread which
 				locked the rw-lock */

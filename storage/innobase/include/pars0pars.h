@@ -668,7 +668,7 @@ pars_lexer_close(void);
 /*==================*/
 
 /** Extra information supplied for pars_sql(). */
-struct pars_info_struct {
+struct pars_info_t {
 	mem_heap_t*	heap;		/*!< our own memory heap */
 
 	ib_vector_t*	funcs;		/*!< user functions, or NUll
@@ -683,14 +683,14 @@ struct pars_info_struct {
 };
 
 /** User-supplied function and argument. */
-struct pars_user_func_struct {
+struct pars_user_func_t {
 	const char*		name;	/*!< function name */
 	pars_user_func_cb_t	func;	/*!< function address */
 	void*			arg;	/*!< user-supplied argument */
 };
 
 /** Bound literal. */
-struct pars_bound_lit_struct {
+struct pars_bound_lit_t {
 	const char*	name;		/*!< name */
 	const void*	address;	/*!< address */
 	ulint		length;		/*!< length of data */
@@ -700,20 +700,20 @@ struct pars_bound_lit_struct {
 };
 
 /** Bound identifier. */
-struct pars_bound_id_struct {
+struct pars_bound_id_t {
 	const char*	name;		/*!< name */
 	const char*	id;		/*!< identifier */
 };
 
 /** Struct used to denote a reserved word in a parsing tree */
-struct pars_res_word_struct{
+struct pars_res_word_t{
 	int	code;	/*!< the token code for the reserved word from
 			pars0grm.h */
 };
 
 /** A predefined function or operator node in a parsing tree; this construct
 is also used for some non-functions like the assignment ':=' */
-struct func_node_struct{
+struct func_node_t{
 	que_common_t	common;	/*!< type: QUE_NODE_FUNC */
 	int		func;	/*!< token code of the function name */
 	ulint		fclass;	/*!< class of the function */
@@ -728,14 +728,14 @@ struct func_node_struct{
 };
 
 /** An order-by node in a select */
-struct order_node_struct{
+struct order_node_t{
 	que_common_t	common;	/*!< type: QUE_NODE_ORDER */
 	sym_node_t*	column;	/*!< order-by column */
 	ibool		asc;	/*!< TRUE if ascending, FALSE if descending */
 };
 
 /** Procedure definition node */
-struct proc_node_struct{
+struct proc_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_PROC */
 	sym_node_t*	proc_id;	/*!< procedure name symbol in the symbol
 					table of this same procedure */
@@ -745,14 +745,14 @@ struct proc_node_struct{
 };
 
 /** elsif-element node */
-struct elsif_node_struct{
+struct elsif_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_ELSIF */
 	que_node_t*	cond;		/*!< if condition */
 	que_node_t*	stat_list;	/*!< statement list */
 };
 
 /** if-statement node */
-struct if_node_struct{
+struct if_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_IF */
 	que_node_t*	cond;		/*!< if condition */
 	que_node_t*	stat_list;	/*!< statement list */
@@ -761,14 +761,14 @@ struct if_node_struct{
 };
 
 /** while-statement node */
-struct while_node_struct{
+struct while_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_WHILE */
 	que_node_t*	cond;		/*!< while condition */
 	que_node_t*	stat_list;	/*!< statement list */
 };
 
 /** for-loop-statement node */
-struct for_node_struct{
+struct for_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_FOR */
 	sym_node_t*	loop_var;	/*!< loop variable: this is the
 					dereferenced symbol from the
@@ -785,24 +785,24 @@ struct for_node_struct{
 };
 
 /** exit statement node */
-struct exit_node_struct{
+struct exit_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_EXIT */
 };
 
 /** return-statement node */
-struct return_node_struct{
+struct return_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_RETURN */
 };
 
 /** Assignment statement node */
-struct assign_node_struct{
+struct assign_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_ASSIGNMENT */
 	sym_node_t*	var;		/*!< variable to set */
 	que_node_t*	val;		/*!< value to assign */
 };
 
 /** Column assignment node */
-struct col_assign_node_struct{
+struct col_assign_node_t{
 	que_common_t	common;		/*!< type: QUE_NODE_COL_ASSIGN */
 	sym_node_t*	col;		/*!< column to set */
 	que_node_t*	val;		/*!< value to assign */

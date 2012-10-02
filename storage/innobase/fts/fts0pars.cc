@@ -105,7 +105,7 @@ extern int ftserror(const char* p);
 typedef	int	(*fts_scanner_alt)(YYSTYPE* val, yyscan_t yyscanner);
 typedef	int	(*fts_scanner)();
 
-struct fts_lexer_struct {
+struct fts_lexer_t {
 	fts_scanner	scanner;
 	void*		yyscanner;
 };

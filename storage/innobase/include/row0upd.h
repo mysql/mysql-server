@@ -392,7 +392,7 @@ row_upd_index_parse(
 
 
 /* Update vector field */
-struct upd_field_struct{
+struct upd_field_t{
 	unsigned	field_no:16;	/*!< field number in an index, usually
 					the clustered index, but in updating
 					a secondary index record in btr0cur.cc
@@ -411,7 +411,7 @@ struct upd_field_struct{
 };
 
 /* Update vector structure */
-struct upd_struct{
+struct upd_t{
 	ulint		info_bits;	/*!< new value of info bits to record;
 					default is 0 */
 	ulint		n_fields;	/*!< number of update fields */
@@ -422,7 +422,7 @@ struct upd_struct{
 /* Update node structure which also implements the delete operation
 of a row */
 
-struct upd_node_struct{
+struct upd_node_t{
 	que_common_t	common;	/*!< node type: QUE_NODE_UPDATE */
 	ibool		is_delete;/* TRUE if delete, FALSE if update */
 	ibool		searched_update;

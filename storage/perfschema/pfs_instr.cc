@@ -788,6 +788,19 @@ PFS_thread* PFS_thread::get_current_thread()
   return pfs;
 }
 
+void PFS_thread::reset_session_connect_attrs()
+{
+  m_session_connect_attrs_length= 0;
+  m_session_connect_attrs_cs= NULL;
+
+  if ((m_session_connect_attrs != NULL) &&
+      (session_connect_attrs_size_per_thread > 0) )
+  {
+    /* Do not keep user data */
+    memset(m_session_connect_attrs, session_connect_attrs_size_per_thread, 0);
+  }
+}
+
 /**
   Create instrumentation for a thread instance.
   @param klass                        the thread class
@@ -831,6 +844,7 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_statements_history_index= 0;
 
         pfs->reset_stats();
+        pfs->reset_session_connect_attrs();
 
         pfs->m_filename_hash_pins= NULL;
         pfs->m_table_share_hash_pins= NULL;
@@ -974,6 +988,7 @@ PFS_socket *sanitize_socket(PFS_socket *unsafe)
 void destroy_thread(PFS_thread *pfs)
 {
   DBUG_ASSERT(pfs != NULL);
+  pfs->reset_session_connect_attrs();
   if (pfs->m_account != NULL)
   {
     pfs->m_account->release();
@@ -1059,13 +1074,16 @@ LF_PINS* get_filename_hash_pins(PFS_thread *thread)
   @param klass                        the file class
   @param filename                     the file name
   @param len                          the length in bytes of filename
+  @param create                       create a file instance if none found
   @return a file instance, or NULL
 */
 PFS_file*
 find_or_create_file(PFS_thread *thread, PFS_file_class *klass,
-                    const char *filename, uint len)
+                    const char *filename, uint len, bool create)
 {
   PFS_file *pfs;
+
+  DBUG_ASSERT(klass != NULL || ! create);
 
   LF_PINS *pins= get_filename_hash_pins(thread);
   if (unlikely(pins == NULL))
@@ -1175,6 +1193,12 @@ search:
   }
 
   lf_hash_search_unpin(pins);
+
+  if (! create)
+  {
+    /* No lost counter, just looking for the file existence. */
+    return NULL;
+  }
 
   while (++attempts <= file_max)
   {
@@ -1420,46 +1444,58 @@ void destroy_table(PFS_table *pfs)
   @param identity                     the socket descriptor
   @return a socket instance, or NULL
 */
-PFS_socket* create_socket(PFS_socket_class *klass, const void *identity)
+PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,
+                          const struct sockaddr *addr, socklen_t addr_len)
 {
-  PFS_scan scan;
+  static uint PFS_ALIGNED socket_monotonic_index= 0;
+  uint index;
+  uint attempts= 0;
+  PFS_socket *pfs;
 
-  /**
-    Unlike other instrumented objects, there is no socket 'object' to use as a
-    unique identifier. Instead, a pointer to the PFS_socket object will be used
-    to identify this socket instance. The socket descriptor will be used to
-    seed the the random index assignment.
-    */
-  my_socket fd= likely(identity != NULL) ?
-                *(reinterpret_cast<const my_socket*>(identity)) : 0;
-  my_ptrdiff_t ptr= fd;
-  uint random= randomized_index((const void *)ptr, socket_max);
+  uint fd_used= 0;
+  uint addr_len_used= addr_len;
 
-  for (scan.init(random, socket_max);
-       scan.has_pass();
-       scan.next_pass())
+  if (fd != NULL)
+    fd_used= *fd;
+
+  if (addr_len_used > sizeof(sockaddr_storage))
+    addr_len_used= sizeof(sockaddr_storage);
+
+  while (++attempts <= socket_max)
   {
-    PFS_socket *pfs= socket_array + scan.first();
-    PFS_socket *pfs_last= socket_array + scan.last();
-    for ( ; pfs < pfs_last; pfs++)
+    index= PFS_atomic::add_u32(& socket_monotonic_index, 1) % socket_max;
+    pfs= socket_array + index;
+
+    if (pfs->m_lock.is_free())
     {
-      if (pfs->m_lock.is_free())
+      if (pfs->m_lock.free_to_dirty())
       {
-        if (pfs->m_lock.free_to_dirty())
+        pfs->m_fd= fd_used;
+        /* There is no socket object, so we use the instrumentation. */
+        pfs->m_identity= pfs;
+        pfs->m_class= klass;
+        pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
+        pfs->m_timed= klass->m_timed;
+        pfs->m_idle= false;
+        pfs->m_socket_stat.reset();
+        pfs->m_thread_owner= NULL;
+
+        pfs->m_addr_len= addr_len_used;
+        if ((addr != NULL) && (addr_len_used > 0))
         {
-          pfs->m_fd= fd;
-          pfs->m_identity= pfs;
-          pfs->m_class= klass;
-          pfs->m_enabled= klass->m_enabled && flag_global_instrumentation;
-          pfs->m_timed= klass->m_timed;
-          pfs->m_idle= false;
-          pfs->m_socket_stat.reset();
-          pfs->m_lock.dirty_to_allocated();
-          pfs->m_thread_owner= NULL;
-          if (klass->is_singleton())
-            klass->m_singleton= pfs;
-          return pfs;
+          pfs->m_addr_len= addr_len_used;
+          memcpy(&pfs->m_sock_addr, addr, addr_len_used);
         }
+        else
+        {
+          pfs->m_addr_len= 0;
+        }
+
+        pfs->m_lock.dirty_to_allocated();
+
+        if (klass->is_singleton())
+          klass->m_singleton= pfs;
+        return pfs;
       }
     }
   }

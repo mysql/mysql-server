@@ -29,13 +29,13 @@ Created July 16, 2007 Vasil Dimov
 #include "univ.i"
 #include "lock0types.h"
 
-typedef struct lock_queue_iterator_struct {
+struct lock_queue_iterator_t {
 	const lock_t*	current_lock;
 	/* In case this is a record lock queue (not table lock queue)
 	then bit_no is the record number within the heap in which the
 	record is stored. */
 	ulint		bit_no;
-} lock_queue_iterator_t;
+};
 
 /*******************************************************************//**
 Initialize lock queue iterator so that it starts to iterate from

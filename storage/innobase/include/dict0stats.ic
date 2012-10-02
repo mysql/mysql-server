@@ -223,10 +223,17 @@ dict_stats_deinit(
 	     index != NULL;
 	     index = dict_table_get_next_index(index)) {
 
+		ulint	n_uniq = dict_index_get_n_unique(index);
+
 		UNIV_MEM_INVALID(
 			index->stat_n_diff_key_vals,
-			(dict_index_get_n_unique(index) + 1)
-			* sizeof(*index->stat_n_diff_key_vals));
+			n_uniq * sizeof(index->stat_n_diff_key_vals[0]));
+		UNIV_MEM_INVALID(
+			index->stat_n_sample_sizes,
+			n_uniq * sizeof(index->stat_n_sample_sizes[0]));
+		UNIV_MEM_INVALID(
+			index->stat_n_non_null_key_vals,
+			n_uniq * sizeof(index->stat_n_non_null_key_vals[0]));
 		UNIV_MEM_INVALID(
 			&index->stat_index_size,
 			sizeof(index->stat_index_size));

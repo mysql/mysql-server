@@ -32,31 +32,24 @@ Created 2007-03-27 Sunny Bains
 #include "ut0rbt.h"
 #include "fts0fts.h"
 
-/** Types (aliases) used within FTS. */
-typedef struct fts_que_struct fts_que_t;
-typedef struct fts_node_struct fts_node_t;
-typedef struct fts_word_struct fts_word_t;
-typedef struct fts_fetch_struct fts_fetch_t;
-typedef struct fts_update_struct fts_update_t;
-typedef struct fts_get_doc_struct fts_get_doc_t;
-typedef struct fts_utf8_str_struct fts_utf8_str_t;
-typedef struct fts_doc_stats_struct fts_doc_stats_t;
-typedef struct fts_tokenizer_word_struct fts_tokenizer_word_t;
-typedef struct fts_index_selector_struct fts_index_selector_t;
+/** Types used within FTS. */
+struct fts_que_t;
+struct fts_node_t;
+struct fts_utf8_str_t;
 
 /** Callbacks used within FTS. */
 typedef pars_user_func_cb_t fts_sql_callback;
 typedef void (*fts_filter)(void*, fts_node_t*, void*, ulint len);
 
 /** Statistics relevant to a particular document, used during retrieval. */
-struct fts_doc_stats_struct {
+struct fts_doc_stats_t {
 	doc_id_t	doc_id;		/*!< Document id */
 	ulint		word_count;	/*!< Total words in the document */
 };
 
 /** It's main purpose is to store the SQL prepared statements that
 are required to retrieve a document from the database. */
-struct fts_get_doc_struct {
+struct fts_get_doc_t {
 	fts_index_cache_t*
 			index_cache;	/*!< The index cache instance */
 
@@ -67,7 +60,7 @@ struct fts_get_doc_struct {
 
 /** Since we can have multiple FTS indexes on a table, we keep a
 per index cache of words etc. */
-struct fts_index_cache_struct {
+struct fts_index_cache_t {
 	dict_index_t*	index;		/*!< The FTS index instance */
 
 	ib_rbt_t*	words;		/*!< Nodes; indexed by fts_string_t*,
@@ -89,7 +82,7 @@ struct fts_index_cache_struct {
 /** For supporting the tracking of updates on multiple FTS indexes we need
 to track which FTS indexes need to be updated. For INSERT and DELETE we
 update all fts indexes. */
-struct fts_update_struct {
+struct fts_update_t {
 	doc_id_t	doc_id;		/*!< The doc id affected */
 
 	ib_vector_t*	fts_indexes;	/*!< The FTS indexes that need to be
@@ -101,7 +94,7 @@ struct fts_update_struct {
 };
 
 /** Stop word control infotmation. */
-struct fts_stopword_struct {
+struct fts_stopword_t {
 	ulint		status;		/*!< Status of the stopword tree */
 	ib_alloc_t*	heap;		/*!< The memory allocator to use */
 	ib_rbt_t*	cached_stopword;/*!< This stores all active stopwords */
@@ -110,7 +103,7 @@ struct fts_stopword_struct {
 
 /** The SYNC state of the cache. There is one instance of this struct
 associated with each ADD thread. */
-struct fts_sync_struct {
+struct fts_sync_t {
 	trx_t*		trx;		/*!< The transaction used for SYNCing
 					the cache to disk */
 	dict_table_t*	table;		/*!< Table with FTS index(es) */
@@ -132,12 +125,10 @@ struct fts_sync_struct {
         ib_time_t	start_time;	/*!< SYNC start time */
 };
 
-typedef struct fts_sync_struct	fts_sync_t;
-
 /** The cache for the FTS system. It is a memory-based inverted index
 that new entries are added to, until it grows over the configured maximum
 size, at which time its contents are written to the INDEX table. */
-struct fts_cache_struct {
+struct fts_cache_t {
 	rw_lock_t	lock;		/*!< lock protecting all access to the
 					memory buffer. FIXME: this needs to
 					be our new upgrade-capable rw-lock */
@@ -201,7 +192,7 @@ struct fts_cache_struct {
 };
 
 /** Columns of the FTS auxiliary INDEX table */
-struct fts_node_struct {
+struct fts_node_t {
 	doc_id_t	first_doc_id;	/*!< First document id in ilist. */
 
 	doc_id_t	last_doc_id;	/*!< Last document id in ilist. */
@@ -224,7 +215,7 @@ struct fts_node_struct {
 };
 
 /** A tokenizer word. Contains information about one word. */
-struct fts_tokenizer_word_struct {
+struct fts_tokenizer_word_t {
 	fts_string_t	text;		/*!< Token text. */
 
 	ib_vector_t*	nodes;		/*!< Word node ilists, each element is
@@ -232,7 +223,7 @@ struct fts_tokenizer_word_struct {
 };
 
 /** Word text plus it's array of nodes as on disk in FTS index */
-struct fts_word_struct {
+struct fts_word_t {
 	fts_string_t	text;		/*!< Word value in UTF-8 */
 	ib_vector_t*	nodes;		/*!< Nodes read from disk */
 
@@ -240,7 +231,7 @@ struct fts_word_struct {
 };
 
 /** Callback for reading and filtering nodes that are read from FTS index */
-struct fts_fetch_struct {
+struct fts_fetch_t {
 	void*		read_arg;	/*!< Arg for the sql_callback */
 
 	fts_sql_callback
@@ -249,7 +240,7 @@ struct fts_fetch_struct {
 };
 
 /** For horizontally splitting an FTS auxiliary index */
-struct fts_index_selector_struct {
+struct fts_index_selector_t {
 	ulint		value;		/*!< Character value at which
 					to split */
 
@@ -257,7 +248,7 @@ struct fts_index_selector_struct {
 };
 
 /** This type represents a single document. */
-struct fts_doc_struct {
+struct fts_doc_t {
 	fts_string_t	text;		/*!< document text */
 
 	ibool		found;		/*!< TRUE if the document was found
@@ -277,7 +268,7 @@ struct fts_doc_struct {
 };
 
 /** A token and its positions within a document. */
-struct fts_token_struct {
+struct fts_token_t {
 	fts_string_t	text;		/*!< token text */
 
 	ib_vector_t*	positions;	/*!< an array of the positions the

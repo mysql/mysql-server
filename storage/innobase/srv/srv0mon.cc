@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 2010, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -851,6 +852,16 @@ static monitor_info_t	innodb_counter_info[] =
 	 "Number of pages decompressed",
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_PAGE_DECOMPRESS},
+
+	{"compression_pad_increments", "compression",
+	 "Number of times padding is incremented to avoid compression failures",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_PAD_INCREMENTS},
+
+	{"compression_pad_decrements", "compression",
+	 "Number of times padding is decremented due to good compressibility",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_PAD_DECREMENTS},
 
 	/* ========== Counters for Index ========== */
 	{"module_index", "index", "Index Manager",

@@ -305,6 +305,17 @@ extern "C" {
                         item* item);
 
         /**
+         * Clean up a connection when it is disconnected
+         *
+         * @param handle the engine handle
+         * @param cookie The cookie provided by the frontend
+         * @param engine_data Engine specific resource to clean up
+         */
+        void (*clean_engine)(ENGINE_HANDLE* handle,
+			     const void *cookie,
+                             void* engine_data);
+
+        /**
          * Retrieve an item.
          *
          * @param handle the engine handle

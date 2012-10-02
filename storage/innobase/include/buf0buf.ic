@@ -37,7 +37,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0rea.h"
 
 /** A chunk of buffers. The buffer pool is allocated in chunks. */
-struct buf_chunk_struct{
+struct buf_chunk_t{
 	ulint		mem_size;	/*!< allocated size of the chunk */
 	ulint		size;		/*!< size of frames[] and blocks[] */
 	void*		mem;		/*!< pointer to the memory area which
@@ -419,6 +419,8 @@ buf_page_get_io_fix(
 /*================*/
 	const buf_page_t*	bpage)	/*!< in: pointer to the control block */
 {
+	ut_ad(bpage != NULL);
+
 	enum buf_io_fix	io_fix = (enum buf_io_fix) bpage->io_fix;
 #ifdef UNIV_DEBUG
 	switch (io_fix) {

@@ -3,6 +3,7 @@
 Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009 Google Inc.
 Copyright (c) 2009, Percona Inc.
+Copyright (c) 2012, Facebook Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -74,7 +75,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "row0merge.h"
 #include "dict0boot.h"
 #include "dict0stats.h"
-#include "dict0stats_background.h"
+#include "dict0stats_bg.h"
 #include "ha_prototypes.h"
 #include "ut0mem.h"
 #include "ibuf0ibuf.h"
@@ -91,6 +92,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "trx0purge.h"
 #endif /* UNIV_DEBUG */
 #include "fts0priv.h"
+#include "page0zip.h"
 
 #include "ha_innodb.h"
 #include "i_s.h"
@@ -140,6 +142,9 @@ static uint innobase_old_blocks_pct;
 /** Maximum on-disk size of change buffer in terms of percentage
 of the buffer pool. */
 static uint innobase_change_buffer_max_size = CHANGE_BUFFER_DEFAULT_SIZE;
+
+static ulong innobase_compression_level = DEFAULT_COMPRESSION_LEVEL;
+static my_bool innobase_log_compressed_pages = TRUE;
 
 /* The default values for the following char* start-up parameters
 are determined in innobase_init below: */
@@ -315,6 +320,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #  endif /* UNIV_MEM_DEBUG */
 	{&mem_pool_mutex_key, "mem_pool_mutex", 0},
 	{&mutex_list_mutex_key, "mutex_list_mutex", 0},
+	{&page_zip_stat_per_index_mutex_key, "page_zip_stat_per_index_mutex", 0},
 	{&purge_sys_bh_mutex_key, "purge_sys_bh_mutex", 0},
 	{&recv_sys_mutex_key, "recv_sys_mutex", 0},
 	{&rseg_mutex_key, "rseg_mutex", 0},
@@ -350,6 +356,7 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #endif /* !HAVE_ATOMIC_BUILTINS_64 */
 	{&ut_list_mutex_key, "ut_list_mutex", 0},
 	{&trx_sys_mutex_key, "trx_sys_mutex", 0},
+	{&zip_pad_mutex_key, "zip_pad_mutex", 0},
 };
 # endif /* UNIV_PFS_MUTEX */
 
@@ -459,7 +466,9 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_tuple_get_n_user_cols,
 	(ib_cb_t) ib_cursor_set_lock_mode,
 	(ib_cb_t) ib_cursor_clear_trx,
-	(ib_cb_t) ib_get_idx_field_name
+	(ib_cb_t) ib_get_idx_field_name,
+	(ib_cb_t) ib_trx_get_start_time,
+	(ib_cb_t) ib_cfg_bk_commit_interval
 };
 
 /*************************************************************//**
@@ -1413,11 +1422,22 @@ convert_error_code_to_mysql(
 	case DB_TABLESPACE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
-	case DB_TOO_BIG_RECORD:
-		my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
-			 page_get_free_space_of_empty(flags
-						      & DICT_TF_COMPACT) / 2);
+	case DB_TOO_BIG_RECORD: {
+		/* If prefix is true then a 768-byte prefix is stored
+		locally for BLOB fields. Refer to dict_table_get_format() */
+		bool prefix = (dict_tf_get_format(flags) == UNIV_FORMAT_A);
+		my_printf_error(ER_TOO_BIG_ROWSIZE,
+			"Row size too large (> %lu). Changing some columns "
+			"to TEXT or BLOB %smay help. In current row "
+			"format, BLOB prefix of %d bytes is stored inline.",
+			MYF(0),
+			page_get_free_space_of_empty(flags &
+				DICT_TF_COMPACT) / 2,
+			prefix ? "or using ROW_FORMAT=DYNAMIC "
+			"or ROW_FORMAT=COMPRESSED ": "",
+			prefix ? DICT_MAX_FIXED_COL_LEN : 0);
 		return(HA_ERR_TO_BIG_ROW);
+	}
 
 	case DB_TOO_BIG_INDEX_COL:
 		my_error(ER_INDEX_COLUMN_TOO_LONG, MYF(0),
@@ -1909,7 +1929,7 @@ innobase_next_autoinc() will be called with increment set to 3 where
 autoinc_lock_mode != TRADITIONAL because we want to reserve 3 values for
 the multi-value INSERT above.
 @return	the next value */
-static
+UNIV_INTERN
 ulonglong
 innobase_next_autoinc(
 /*==================*/
@@ -1934,7 +1954,10 @@ innobase_next_autoinc(
 	}
 
 	/* Check for overflow. Current can be > max_value if the value is
-	in reality a negative value. */
+	in reality a negative value.The visual studio compilers converts
+	large double values automatically into unsigned long long datatype
+	maximum value */
+
 	if (block >= max_value
 	    || offset > max_value
 	    || current >= max_value
@@ -2123,10 +2146,21 @@ innobase_copy_frm_flags_from_create_info(
 	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
 	HA_CREATE_INFO*	create_info)		/*!< in: create info */
 {
-	dict_stats_set_persistent(
-		innodb_table,
-		create_info->table_options & HA_OPTION_STATS_PERSISTENT,
-		create_info->table_options & HA_OPTION_NO_STATS_PERSISTENT);
+	ibool	ps_on;
+	ibool	ps_off;
+
+	if (dict_table_is_temporary(innodb_table)) {
+		/* Temp tables do not use persistent stats */
+		ps_on = FALSE;
+		ps_off = TRUE;
+	} else {
+		ps_on = create_info->table_options
+			& HA_OPTION_STATS_PERSISTENT;
+		ps_off = create_info->table_options
+			& HA_OPTION_NO_STATS_PERSISTENT;
+	}
+
+	dict_stats_set_persistent(innodb_table, ps_on, ps_off);
 
 	dict_stats_auto_recalc_set(
 		innodb_table,
@@ -2148,10 +2182,21 @@ innobase_copy_frm_flags_from_table_share(
 	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
 	TABLE_SHARE*	table_share)		/*!< in: table share */
 {
-	dict_stats_set_persistent(
-		innodb_table,
-		table_share->db_create_options & HA_OPTION_STATS_PERSISTENT,
-		table_share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT);
+	ibool	ps_on;
+	ibool	ps_off;
+
+	if (dict_table_is_temporary(innodb_table)) {
+		/* Temp tables do not use persistent stats */
+		ps_on = FALSE;
+		ps_off = TRUE;
+	} else {
+		ps_on = table_share->db_create_options
+			& HA_OPTION_STATS_PERSISTENT;
+		ps_off = table_share->db_create_options
+			& HA_OPTION_NO_STATS_PERSISTENT;
+	}
+
+	dict_stats_set_persistent(innodb_table, ps_on, ps_off);
 
 	dict_stats_auto_recalc_set(
 		innodb_table,
@@ -2664,6 +2709,7 @@ ha_innobase::reset_template(void)
 
 	prebuilt->keep_other_fields_on_keyread = 0;
 	prebuilt->read_just_key = 0;
+	prebuilt->in_fts_query = 0;
 	/* Reset index condition pushdown state. */
 	if (prebuilt->idx_cond) {
 		prebuilt->idx_cond = NULL;
@@ -2848,12 +2894,12 @@ innobase_init(
 	srv_data_home = (innobase_data_home_dir ? innobase_data_home_dir :
 			 default_path);
 
-	/* Set default InnoDB data file size to 10 MB and let it be
+	/* Set default InnoDB data file size to 12 MB and let it be
 	auto-extending. Thus users can use InnoDB in >= 4.0 without having
 	to specify any startup options. */
 
 	if (!innobase_data_file_path) {
-		innobase_data_file_path = (char*) "ibdata1:10M:autoextend";
+		innobase_data_file_path = (char*) "ibdata1:12M:autoextend";
 	}
 
 	/* Since InnoDB edits the argument in the next call, we make another
@@ -3000,10 +3046,22 @@ innobase_change_buffering_inited_ok:
 		srv_max_dirty_pages_pct_lwm = srv_max_buf_pool_modified_pct;
 	}
 
-	if (srv_max_io_capacity < srv_io_capacity) {
+	if (srv_max_io_capacity == SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT) {
+
+		if (srv_io_capacity >= SRV_MAX_IO_CAPACITY_LIMIT / 2) {
+			/* Avoid overflow. */
+			srv_max_io_capacity = SRV_MAX_IO_CAPACITY_LIMIT;
+		} else {
+			/* The user has not set the value. We should
+			set it based on innodb_io_capacity. */
+			srv_max_io_capacity =
+				ut_max(2 * srv_io_capacity, 2000);
+		}
+
+	} else if (srv_max_io_capacity < srv_io_capacity) {
 		sql_print_warning("InnoDB: innodb_io_capacity"
 				  " cannot be set higher than"
-				  " innodb_max_io_capacity.\n"
+				  " innodb_io_capacity_max.\n"
 				  "InnoDB: Setting"
 				  " innodb_io_capacity to %lu\n",
 				  srv_max_io_capacity);
@@ -3046,7 +3104,9 @@ innobase_change_buffering_inited_ok:
 		innobase_buffer_pool_instances = 8;
 #ifdef _WIN32
 		if (innobase_buffer_pool_size > 1331 * 1024 * 1024) {
-			innobase_buffer_pool_instances = innobase_buffer_pool_size / (128 * 1024 * 1024);
+			innobase_buffer_pool_instances
+				= (long) (innobase_buffer_pool_size
+				/ (128 * 1024 * 1024));
 		}
 #endif
 }
@@ -3085,6 +3145,11 @@ innobase_change_buffering_inited_ok:
 	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
+
+	page_compression_level = (ulint) innobase_compression_level;
+	page_log_compressed_pages = innobase_log_compressed_pages
+				    ? true : false;
+
 	if (!innobase_use_checksums) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr,
@@ -4179,7 +4244,7 @@ test_ut_format_name()
 /********************************************************************//**
 Get the upper limit of the MySQL integral and floating-point type.
 @return maximum allowed value for the field */
-static
+UNIV_INTERN
 ulonglong
 innobase_get_int_col_max_value(
 /*===========================*/
@@ -7891,8 +7956,6 @@ ha_innobase::ft_init()
 {
 	DBUG_ENTER("ft_init");
 
-	fprintf(stderr, "ft_init()\n");
-
 	trx_t*	trx = check_trx_exists(ha_thd());
 
 	/* FTS queries are not treated as autocommit non-locking selects.
@@ -7931,15 +7994,15 @@ ha_innobase::ft_init_ext(
 	ulint			buf_tmp_used;
 	uint			num_errors;
 
-	fprintf(stderr, "ft_init_ext()\n");
+	if (fts_enable_diag_print) {
+		fprintf(stderr, "keynr=%u, '%.*s'\n",
+			keynr, (int) key->length(), (byte*) key->ptr());
 
-	fprintf(stderr, "keynr=%u, '%.*s'\n",
-		keynr, (int) key->length(), (byte*) key->ptr());
-
-	if (flags & FT_BOOL) {
-		fprintf(stderr, "BOOL search\n");
-	} else {
-		fprintf(stderr, "NL search\n");
+		if (flags & FT_BOOL) {
+			fprintf(stderr, "BOOL search\n");
+		} else {
+			fprintf(stderr, "NL search\n");
+		}
 	}
 
 	/* FIXME: utf32 and utf16 are not compatible with some
@@ -7997,15 +8060,10 @@ ha_innobase::ft_init_ext(
 
 	error = fts_query(trx, index, flags, query, query_len, &result);
 
-	prebuilt->result = result;
-
 	// FIXME: Proper error handling and diagnostic
 	if (error != DB_SUCCESS) {
 		fprintf(stderr, "Error processing query\n");
 	} else {
-		/* Must return an instance of a result even if it's empty */
-		ut_a(prebuilt->result);
-
 		/* Allocate FTS handler, and instantiate it before return */
 		fts_hdl = (NEW_FT_INFO*) my_malloc(sizeof(NEW_FT_INFO),
 						   MYF(0));
@@ -8014,6 +8072,10 @@ ha_innobase::ft_init_ext(
 		fts_hdl->could_you = (struct _ft_vft_ext*)(&ft_vft_ext_result);
 		fts_hdl->ft_prebuilt = prebuilt;
 		fts_hdl->ft_result = result;
+
+		/* FIXME: Re-evluate the condition when Bug 14469540
+		is resolved */
+		prebuilt->in_fts_query = true;
 	}
 
 	return ((FT_INFO*) fts_hdl);
@@ -8160,11 +8222,6 @@ void
 ha_innobase::ft_end()
 {
 	fprintf(stderr, "ft_end()\n");
-
-	if (prebuilt->result != NULL) {
-		fts_query_free_result(prebuilt->result);
-		prebuilt->result = NULL;
-	}
 
 	rnd_end();
 }
@@ -9798,6 +9855,7 @@ ha_innobase::delete_table(
 
 	/* We are doing a DDL operation. */
 	++trx->will_lock;
+	trx->ddl = true;
 
 	/* Drop the table in InnoDB */
 	err = row_drop_table_for_mysql(
@@ -10469,10 +10527,16 @@ innobase_get_mysql_key_number_for_index(
 	     ind != NULL;
 	     ind = dict_table_get_next_index(ind)) {
 		if (index == ind) {
-			sql_print_error("Find index %s in InnoDB index list "
+			/* Temp index is internal to InnoDB, that is
+			not present in the MySQL index list, so no
+			need to print such mismatch warning. */
+			if (*(index->name) != TEMP_INDEX_PREFIX) {
+				sql_print_warning(
+					"Find index %s in InnoDB index list "
 					"but not its MySQL index number "
 					"It could be an InnoDB internal index.",
 					index->name);
+			}
 			return(-1);
 		}
 	}
@@ -10496,47 +10560,49 @@ innodb_rec_per_key(
 	ha_rows		records)	/*!< in: estimated total records */
 {
 	ha_rows		rec_per_key;
+	ib_uint64_t	n_diff;
 
 	ut_a(index->table->stat_initialized);
 
 	ut_ad(i < dict_index_get_n_unique(index));
 
-	/* Note the stat_n_diff_key_vals[] stores the diff value with
-	n-prefix indexing, so it is always stat_n_diff_key_vals[i + 1] */
-	if (index->stat_n_diff_key_vals[i + 1] == 0) {
+	n_diff = index->stat_n_diff_key_vals[i];
+
+	if (n_diff == 0) {
 
 		rec_per_key = records;
 	} else if (srv_innodb_stats_method == SRV_STATS_NULLS_IGNORED) {
-		ib_uint64_t	num_null;
+		ib_uint64_t	n_null;
+		ib_uint64_t	n_non_null;
+
+		n_non_null = index->stat_n_non_null_key_vals[i];
 
 		/* In theory, index->stat_n_non_null_key_vals[i]
 		should always be less than the number of records.
 		Since this is statistics value, the value could
 		have slight discrepancy. But we will make sure
 		the number of null values is not a negative number. */
-		if (records < index->stat_n_non_null_key_vals[i]) {
-			num_null = 0;
+		if (records < n_non_null) {
+			n_null = 0;
 		} else {
-			num_null = records - index->stat_n_non_null_key_vals[i];
+			n_null = records - n_non_null;
 		}
 
 		/* If the number of NULL values is the same as or
 		large than that of the distinct values, we could
 		consider that the table consists mostly of NULL value.
 		Set rec_per_key to 1. */
-		if (index->stat_n_diff_key_vals[i + 1] <= num_null) {
+		if (n_diff <= n_null) {
 			rec_per_key = 1;
 		} else {
 			/* Need to exclude rows with NULL values from
 			rec_per_key calculation */
-			rec_per_key = (ha_rows)(
-				(records - num_null)
-				/ (index->stat_n_diff_key_vals[i + 1]
-				   - num_null));
+			rec_per_key = (ha_rows)
+				((records - n_null) / (n_diff - n_null));
 		}
 	} else {
-		rec_per_key = (ha_rows)
-			 (records / index->stat_n_diff_key_vals[i + 1]);
+		DEBUG_SYNC_C("after_checking_for_0");
+		rec_per_key = (ha_rows) (records / n_diff);
 	}
 
 	return(rec_per_key);
@@ -10621,7 +10687,7 @@ ha_innobase::info_low(
 		/* Note that we do not know the access time of the table,
 		nor the CHECK TABLE time, nor the UPDATE or INSERT time. */
 
-		if (os_file_get_status(path,&stat_info)) {
+		if (os_file_get_status(path, &stat_info, false) == DB_SUCCESS) {
 			stats.create_time = (ulong) stat_info.ctime;
 		}
 	}
@@ -11078,7 +11144,7 @@ ha_innobase::check(
 
 			innobase_format_name(
 				index_name, sizeof index_name,
-				prebuilt->index->name, TRUE);
+				index->name, TRUE);
 
 			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 					    ER_NOT_KEYFILE,
@@ -11612,6 +11678,8 @@ ha_innobase::extra(
 	enum ha_extra_function operation)
 			   /*!< in: HA_EXTRA_FLUSH or some other flag */
 {
+	check_trx_exists(ha_thd());
+
 	/* Warning: since it is not sure that MySQL calls external_lock
 	before calling this function, the trx field in prebuilt can be
 	obsolete! */
@@ -11762,14 +11830,6 @@ ha_innobase::start_stmt(
 
 	if (!trx_is_started(trx)) {
 		++trx->will_lock;
-	}
-
-	if (prebuilt->result) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Warning: FTS result set not NULL\n");
-
-		fts_query_free_result(prebuilt->result);
-		prebuilt->result = NULL;
 	}
 
 	return(0);
@@ -12558,6 +12618,14 @@ ha_innobase::store_lock(
 
 		ut_a(err == DB_SUCCESS || err == DB_UNSUPPORTED);
 
+		if (trx->isolation_level == TRX_ISO_SERIALIZABLE) {
+			prebuilt->select_lock_type = LOCK_S;
+			prebuilt->stored_select_lock_type = LOCK_S;
+		} else {
+			prebuilt->select_lock_type = LOCK_NONE;
+			prebuilt->stored_select_lock_type = LOCK_NONE;
+		}
+
 	/* Check for DROP TABLE */
 	} else if (sql_command == SQLCOM_DROP_TABLE) {
 
@@ -12591,18 +12659,18 @@ ha_innobase::store_lock(
 		unexpected if an obsolete consistent read view would be
 		used. */
 
-		ulint	isolation_level;
+		/* Use consistent read for checksum table */
 
-		isolation_level = trx->isolation_level;
-
-		if ((srv_locks_unsafe_for_binlog
-		     || isolation_level <= TRX_ISO_READ_COMMITTED)
-		    && isolation_level != TRX_ISO_SERIALIZABLE
-		    && (lock_type == TL_READ || lock_type == TL_READ_NO_INSERT)
-		    && (sql_command == SQLCOM_INSERT_SELECT
-			|| sql_command == SQLCOM_REPLACE_SELECT
-			|| sql_command == SQLCOM_UPDATE
-			|| sql_command == SQLCOM_CREATE_TABLE)) {
+		if (sql_command == SQLCOM_CHECKSUM
+		    || ((srv_locks_unsafe_for_binlog
+			|| trx->isolation_level <= TRX_ISO_READ_COMMITTED)
+			&& trx->isolation_level != TRX_ISO_SERIALIZABLE
+			&& (lock_type == TL_READ
+			    || lock_type == TL_READ_NO_INSERT)
+			&& (sql_command == SQLCOM_INSERT_SELECT
+			    || sql_command == SQLCOM_REPLACE_SELECT
+			    || sql_command == SQLCOM_UPDATE
+			    || sql_command == SQLCOM_CREATE_TABLE))) {
 
 			/* If we either have innobase_locks_unsafe_for_binlog
 			option set or this session is using READ COMMITTED
@@ -12613,11 +12681,6 @@ ha_innobase::store_lock(
 			SELECT... without FOR UPDATE or IN SHARE
 			MODE in select, then we use consistent read
 			for select. */
-
-			prebuilt->select_lock_type = LOCK_NONE;
-			prebuilt->stored_select_lock_type = LOCK_NONE;
-		} else if (sql_command == SQLCOM_CHECKSUM) {
-			/* Use consistent read for checksum table */
 
 			prebuilt->select_lock_type = LOCK_NONE;
 			prebuilt->stored_select_lock_type = LOCK_NONE;
@@ -13453,11 +13516,11 @@ ha_innobase::check_if_incompatible_data(
 }
 
 /****************************************************************//**
-Update the system variable innodb_max_io_capacity using the "saved"
+Update the system variable innodb_io_capacity_max using the "saved"
 value. This function is registered as a callback with MySQL. */
 static
 void
-innodb_max_io_capacity_update(
+innodb_io_capacity_max_update(
 /*===========================*/
 	THD*				thd,	/*!< in: thread handle */
 	struct st_mysql_sys_var*	var,	/*!< in: pointer to
@@ -13472,11 +13535,11 @@ innodb_max_io_capacity_update(
 		in_val = srv_io_capacity;
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
-				    "innodb_max_io_capacity cannot be"
+				    "innodb_io_capacity_max cannot be"
 				    " set lower than innodb_io_capacity.");
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
-				    "Setting innodb_max_io_capacity to %lu",
+				    "Setting innodb_io_capacity_max to %lu",
 				    srv_io_capacity);
 	}
 
@@ -13504,7 +13567,7 @@ innodb_io_capacity_update(
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "innodb_io_capacity cannot be set"
-				    " higher than innodb_max_io_capacity.");
+				    " higher than innodb_io_capacity_max.");
 		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
 				    ER_WRONG_ARGUMENTS,
 				    "Setting innodb_io_capacity to %lu",
@@ -14054,6 +14117,30 @@ innodb_adaptive_hash_index_update(
 	} else {
 		btr_search_disable();
 	}
+}
+
+/****************************************************************//**
+Update the system variable innodb_cmp_per_index using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_cmp_per_index_update(
+/*========================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	/* Reset the stats whenever we enable the table
+	INFORMATION_SCHEMA.innodb_cmp_per_index. */
+	if (!srv_cmp_per_index_enabled && *(my_bool*) save) {
+		page_zip_reset_stat_per_index();
+	}
+
+	srv_cmp_per_index_enabled = !!(*(my_bool*) save);
 }
 
 /****************************************************************//**
@@ -14702,6 +14789,56 @@ innodb_reset_all_monitor_update(
 }
 
 /****************************************************************//**
+Update the system variable innodb_compression_level using the "saved"
+value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_compression_level_update(
+/*============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	/* We have this call back just to avoid confusion between
+	ulong and ulint datatypes. */
+	innobase_compression_level =
+			(*static_cast<const ulong*>(save));
+	page_compression_level =
+			(static_cast<const ulint>(innobase_compression_level));
+}
+
+/****************************************************************//**
+Update the system variable innodb_log_compressed_pages using the
+"saved" value. This function is registered as a callback with MySQL. */
+static
+void
+innodb_log_compressed_pages_update(
+/*===============================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to
+						system variable */
+	void*				var_ptr,/*!< out: where the
+						formal string goes */
+	const void*			save)	/*!< in: immediate result
+						from check function */
+{
+	/* We have this call back just to avoid confusion between
+	my_bool and bool datatypes. */
+
+	if (*(my_bool*) save) {
+		innobase_log_compressed_pages = TRUE;
+		page_log_compressed_pages = true;
+	} else {
+		innobase_log_compressed_pages = FALSE;
+		page_log_compressed_pages = false;
+	}
+}
+
+/****************************************************************//**
 Parse and enable InnoDB monitor counters during server startup.
 User can list the monitor counters/groups to be enable by specifying
 "loose-innodb_monitor_enable=monitor_name1;monitor_name2..."
@@ -14839,19 +14976,15 @@ innobase_fts_close_ranking(
 		FT_INFO * fts_hdl)
 {
 	fts_result_t*	result;
-	row_prebuilt_t*	ft_prebuilt;
 
-	ft_prebuilt = ((NEW_FT_INFO*) fts_hdl)->ft_prebuilt;
+	((NEW_FT_INFO*) fts_hdl)->ft_prebuilt->in_fts_query = false;
 
 	result = ((NEW_FT_INFO*) fts_hdl)->ft_result;
 
 	fts_query_free_result(result);
 
-	if (result == ft_prebuilt->result) {
-		ft_prebuilt->result = NULL;
-	}
-
 	my_free((uchar*) fts_hdl);
+
 
 	return;
 }
@@ -14983,12 +15116,8 @@ innobase_fts_count_matches(
 /*=======================*/
 		FT_INFO_EXT * fts_hdl)	/*!< in: FTS handler */
 {
-	row_prebuilt_t* ft_prebuilt;
-
-	ft_prebuilt = ((NEW_FT_INFO *)fts_hdl)->ft_prebuilt;
-
-	if (ft_prebuilt->result->rankings_by_id != NULL) {
-		return rbt_size(ft_prebuilt->result->rankings_by_id);
+	if (((NEW_FT_INFO *)fts_hdl)->ft_result->rankings_by_id != NULL) {
+		return rbt_size(((NEW_FT_INFO *)fts_hdl)->ft_result->rankings_by_id);
 	} else {
 		return(0);
 	}
@@ -15110,7 +15239,7 @@ static MYSQL_SYSVAR_ENUM(checksum_algorithm, srv_checksum_algorithm,
     "magic number when reading; "
   "Files updated when this option is set to crc32 or strict_crc32 will "
   "not be readable by MySQL versions older than 5.6.3",
-  NULL, NULL, SRV_CHECKSUM_ALGORITHM_CRC32,
+  NULL, NULL, SRV_CHECKSUM_ALGORITHM_INNODB,
   &innodb_checksum_algorithm_typelib);
 
 static MYSQL_SYSVAR_BOOL(checksums, innobase_use_checksums,
@@ -15137,10 +15266,12 @@ static MYSQL_SYSVAR_ULONG(io_capacity, srv_io_capacity,
   "Number of IOPs the server can do. Tunes the background IO rate",
   NULL, innodb_io_capacity_update, 200, 100, ~0UL, 0);
 
-static MYSQL_SYSVAR_ULONG(max_io_capacity, srv_max_io_capacity,
+static MYSQL_SYSVAR_ULONG(io_capacity_max, srv_max_io_capacity,
   PLUGIN_VAR_RQCMDARG,
   "Limit to which innodb_io_capacity can be inflated.",
-  NULL, innodb_max_io_capacity_update, 400, 100, ~0UL, 0);
+  NULL, innodb_io_capacity_max_update,
+  SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT, 100,
+  SRV_MAX_IO_CAPACITY_LIMIT, 0);
 
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_BOOL(purge_run_now, innodb_purge_run_now,
@@ -15372,6 +15503,22 @@ static MYSQL_SYSVAR_ULONG(replication_delay, srv_replication_delay,
   "innodb_thread_concurrency is reached (0 by default)",
   NULL, NULL, 0, 0, ~0UL, 0);
 
+static MYSQL_SYSVAR_ULONG(compression_level, innobase_compression_level,
+  PLUGIN_VAR_RQCMDARG,
+  "Compression level used for compressed row format.  0 is no compression"
+  ", 1 is fastest, 9 is best compression and default is 6.",
+  NULL, innodb_compression_level_update,
+  DEFAULT_COMPRESSION_LEVEL, 0, 9, 0);
+
+static MYSQL_SYSVAR_BOOL(log_compressed_pages, innobase_log_compressed_pages,
+       PLUGIN_VAR_OPCMDARG,
+  "Enables/disables the logging of entire compressed page images. InnoDB"
+  " logs the compressed pages to prevent against corruption because of a change"
+  " in the zlib compression algorithm to compress the pages."
+  " When turned OFF, this variable makes InnoDB assume that the zlib"
+  " compression algorithm doesn't change.",
+  NULL, innodb_log_compressed_pages_update, TRUE);
+
 static MYSQL_SYSVAR_LONG(additional_mem_pool_size, innobase_additional_mem_pool_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "DEPRECATED. This option may be removed in future releases, "
@@ -15469,7 +15616,7 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
 static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,
   PLUGIN_VAR_OPCMDARG,
   "Whether to enable additional FTS diagnostic printout ",
-  NULL, NULL, TRUE);
+  NULL, NULL, FALSE);
 
 static MYSQL_SYSVAR_BOOL(disable_sort_file_cache, srv_disable_sort_file_cache,
   PLUGIN_VAR_OPCMDARG,
@@ -15696,11 +15843,19 @@ static MYSQL_SYSVAR_BOOL(api_disable_rowlock, ib_disable_row_lock,
 
 static MYSQL_SYSVAR_ULONG(api_trx_level, ib_trx_level_setting,
   PLUGIN_VAR_OPCMDARG,
-  "Number of undo logs to use.",
+  "InnoDB API transaction isolation level",
   NULL, NULL,
   0,		/* Default setting */
   0,		/* Minimum value */
   3, 0);	/* Maximum value */
+
+static MYSQL_SYSVAR_ULONG(api_bk_commit_interval, ib_bk_commit_interval,
+  PLUGIN_VAR_OPCMDARG,
+  "Background commit interval in seconds",
+  NULL, NULL,
+  5,		/* Default setting */
+  1,		/* Minimum value */
+  1024 * 1024 * 1024, 0);	/* Maximum value */
 
 static MYSQL_SYSVAR_STR(change_buffering, innobase_change_buffering,
   PLUGIN_VAR_RQCMDARG,
@@ -15777,6 +15932,25 @@ static MYSQL_SYSVAR_BOOL(print_all_deadlocks, srv_print_all_deadlocks,
   "Print all deadlocks to MySQL error log (off by default)",
   NULL, NULL, FALSE);
 
+static MYSQL_SYSVAR_ULONG(compression_failure_threshold_pct,
+  zip_failure_threshold_pct, PLUGIN_VAR_OPCMDARG,
+  "If the compression failure rate of a table is greater than this number"
+  " more padding is added to the pages to reduce the failures. A value of"
+  " zero implies no padding",
+  NULL, NULL, 5, 0, 100, 0);
+
+static MYSQL_SYSVAR_ULONG(compression_pad_pct_max,
+  zip_pad_max, PLUGIN_VAR_OPCMDARG,
+  "Percentage of empty space on a data page that can be reserved"
+  " to make the page compressible.",
+  NULL, NULL, 50, 0, 75, 0);
+
+static MYSQL_SYSVAR_BOOL(cmp_per_index_enabled, srv_cmp_per_index_enabled,
+  PLUGIN_VAR_OPCMDARG,
+  "Enable INFORMATION_SCHEMA.innodb_cmp_per_index, "
+  "may have negative impact on performance (off by default)",
+  NULL, innodb_cmp_per_index_update, FALSE);
+
 #ifdef UNIV_DEBUG
 static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -15787,6 +15961,7 @@ static MYSQL_SYSVAR_UINT(trx_rseg_n_slots_debug, trx_rseg_n_slots_debug,
 static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(api_trx_level),
+  MYSQL_SYSVAR(api_bk_commit_interval),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
   MYSQL_SYSVAR(buffer_pool_instances),
@@ -15802,6 +15977,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(checksums),
   MYSQL_SYSVAR(commit_concurrency),
   MYSQL_SYSVAR(concurrency_tickets),
+  MYSQL_SYSVAR(compression_level),
   MYSQL_SYSVAR(data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
@@ -15839,6 +16015,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(log_file_size),
   MYSQL_SYSVAR(log_files_in_group),
   MYSQL_SYSVAR(log_group_home_dir),
+  MYSQL_SYSVAR(log_compressed_pages),
   MYSQL_SYSVAR(max_dirty_pages_pct),
   MYSQL_SYSVAR(max_dirty_pages_pct_lwm),
   MYSQL_SYSVAR(adaptive_flushing_lwm),
@@ -15892,7 +16069,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(random_read_ahead),
   MYSQL_SYSVAR(read_ahead_threshold),
   MYSQL_SYSVAR(io_capacity),
-  MYSQL_SYSVAR(max_io_capacity),
+  MYSQL_SYSVAR(io_capacity_max),
   MYSQL_SYSVAR(monitor_enable),
   MYSQL_SYSVAR(monitor_disable),
   MYSQL_SYSVAR(monitor_reset),
@@ -15908,11 +16085,14 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(doublewrite_batch_size),
 #endif /* defined UNIV_DEBUG || defined UNIV_PERF_DEBUG */
   MYSQL_SYSVAR(print_all_deadlocks),
+  MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
   MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),
   MYSQL_SYSVAR(sync_array_size),
+  MYSQL_SYSVAR(compression_failure_threshold_pct),
+  MYSQL_SYSVAR(compression_pad_pct_max),
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
 #endif /* UNIV_DEBUG */
@@ -15942,6 +16122,8 @@ i_s_innodb_cmp,
 i_s_innodb_cmp_reset,
 i_s_innodb_cmpmem,
 i_s_innodb_cmpmem_reset,
+i_s_innodb_cmp_per_index,
+i_s_innodb_cmp_per_index_reset,
 i_s_innodb_buffer_page,
 i_s_innodb_buffer_page_lru,
 i_s_innodb_buffer_stats,
@@ -16000,7 +16182,7 @@ innobase_undo_logs_init_default_max()
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
-typedef struct innobase_convert_name_test_struct {
+struct innobase_convert_name_test_t {
 	char*		buf;
 	ulint		buflen;
 	const char*	id;
@@ -16009,7 +16191,7 @@ typedef struct innobase_convert_name_test_struct {
 	ibool		file_id;
 
 	const char*	expected;
-} innobase_convert_name_test_t;
+};
 
 void
 test_innobase_convert_name()
@@ -16197,7 +16379,7 @@ innobase_index_cond(
 	DBUG_ASSERT(h->pushed_idx_cond);
 	DBUG_ASSERT(h->pushed_idx_cond_keyno != MAX_KEY);
 
-	if (h->end_range && h->compare_key2(h->end_range) > 0) {
+	if (h->end_range && h->compare_key_icp(h->end_range) > 0) {
 
 		/* caller should return HA_ERR_END_OF_FILE already */
 		DBUG_RETURN(ICP_OUT_OF_RANGE);

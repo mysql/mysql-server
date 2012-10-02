@@ -285,6 +285,11 @@ extern ulint	srv_n_write_io_threads;
 
 /* Number of IO operations per second the server can do */
 extern ulong    srv_io_capacity;
+
+/* We use this dummy default value at startup for max_io_capacity.
+The real value is set based on the value of io_capacity. */
+#define SRV_MAX_IO_CAPACITY_DUMMY_DEFAULT	(~0UL)
+#define SRV_MAX_IO_CAPACITY_LIMIT		(~0UL)
 extern ulong    srv_max_io_capacity;
 /* Returns the number of IO operations that is X percent of the
 capacity. PCT_IO(5) -> returns the number of IO operations that
@@ -418,17 +423,10 @@ extern ulong srv_sync_array_size;
 /* print all user-level transactions deadlocks to mysqld stderr */
 extern my_bool srv_print_all_deadlocks;
 
-/** Status variables to be passed to MySQL */
-typedef struct export_var_struct export_struc;
-
-/** Thread slot in the thread table */
-typedef struct srv_slot_struct	srv_slot_t;
-
-/** Thread table is an array of slots */
-typedef srv_slot_t	srv_table_t;
+extern my_bool	srv_cmp_per_index_enabled;
 
 /** Status variables to be passed to MySQL */
-extern export_struc export_vars;
+extern struct export_var_t export_vars;
 
 /** Global counters */
 extern srv_stats_t	srv_stats;
@@ -478,8 +476,19 @@ enum {
 				when writing data files, but do flush
 				after writing to log files */
 	SRV_UNIX_NOSYNC,	/*!< do not flush after writing */
-	SRV_UNIX_O_DIRECT	/*!< invoke os_file_set_nocache() on
-				data files */
+	SRV_UNIX_O_DIRECT,	/*!< invoke os_file_set_nocache() on
+				data files. This implies using
+				non-buffered IO but still using fsync,
+				the reason for which is that some FS
+				do not flush meta-data when
+				unbuffered IO happens */
+	SRV_UNIX_O_DIRECT_NO_FSYNC
+				/*!< do not use fsync() when using
+				direct IO i.e.: it can be set to avoid
+				the fsync() call that we make when
+				using SRV_UNIX_O_DIRECT. However, in
+				this case user/DBA should be sure about
+				the integrity of the meta-data */
 };
 
 /** Alternatives for file i/o in Windows */
@@ -752,7 +761,7 @@ srv_purge_wakeup(void);
 /*==================*/
 
 /** Status variables to be passed to MySQL */
-struct export_var_struct{
+struct export_var_t{
 	ulint innodb_data_pending_reads;	/*!< Pending reads */
 	ulint innodb_data_pending_writes;	/*!< Pending writes */
 	ulint innodb_data_pending_fsyncs;	/*!< Pending fsyncs */
@@ -812,7 +821,7 @@ struct export_var_struct{
 };
 
 /** Thread slot in the thread table.  */
-struct srv_slot_struct{
+struct srv_slot_t{
 	srv_thread_type type;			/*!< thread type: user,
 						utility etc. */
 	ibool		in_use;			/*!< TRUE if this slot

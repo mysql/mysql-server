@@ -85,16 +85,13 @@ const char * const THD::DEFAULT_WHERE= "field list";
 extern "C" uchar *get_var_key(user_var_entry *entry, size_t *length,
                               my_bool not_used __attribute__((unused)))
 {
-  *length= entry->name.length;
-  return (uchar*) entry->name.str;
+  *length= entry->entry_name.length();
+  return (uchar*) entry->entry_name.ptr();
 }
 
 extern "C" void free_user_var(user_var_entry *entry)
 {
-  char *pos= (char*) entry+ALIGN_SIZE(sizeof(*entry));
-  if (entry->value && entry->value != pos)
-    my_free(entry->value);
-  my_free(entry);
+  entry->destroy();
 }
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
@@ -247,6 +244,18 @@ PSI_thread *thd_get_psi(THD *thd)
 }
 
 /**
+  Get net_wait_timeout for THD object
+
+  @param thd            THD object
+
+  @retval               net_wait_timeout value for thread on THD
+*/
+ulong thd_get_net_wait_timeout(THD* thd)
+{
+  return thd->variables.net_wait_timeout;
+}
+
+/**
   Set reference to Performance Schema object for THD object
 
   @param thd            THD object
@@ -331,6 +340,25 @@ void thd_close_connection(THD *thd)
 THD *thd_get_current_thd()
 {
   return current_thd;
+}
+
+/**
+  Get iterator begin of global thread list
+
+  @retval Iterator begin of global thread list
+*/
+Thread_iterator thd_get_global_thread_list_begin()
+{
+  return global_thread_list_begin();
+}
+/**
+  Get iterator end of global thread list
+
+  @retval Iterator end of global thread list
+*/
+Thread_iterator thd_get_global_thread_list_end()
+{
+  return global_thread_list_end();
 }
 
 extern "C"
@@ -425,6 +453,17 @@ int thd_connection_has_data(THD *thd)
 void thd_set_net_read_write(THD *thd, uint val)
 {
   thd->net.reading_or_writing= val;
+}
+
+/**
+  Get reading/writing on socket from THD object
+  @param thd                       THD object
+
+  @retval               net.reading_or_writing value for thread on THD.
+*/
+uint thd_get_net_read_write(THD *thd)
+{
+  return thd->net.reading_or_writing;
 }
 
 /**
@@ -1485,13 +1524,12 @@ void THD::release_resources()
   mysql_mutex_assert_not_owner(&LOCK_thread_count);
   DBUG_ASSERT(m_release_resources_done == false);
 
-  /* Ensure that no one is using THD */
-  mysql_mutex_lock(&LOCK_thd_data);
-  mysql_mutex_unlock(&LOCK_thd_data);
-
   mysql_mutex_lock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
   mysql_mutex_unlock(&LOCK_status);
+
+  /* Ensure that no one is using THD */
+  mysql_mutex_lock(&LOCK_thd_data);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY
@@ -1499,8 +1537,11 @@ void THD::release_resources()
   {
     vio_delete(net.vio);
     net_end(&net);
+    net.vio= NULL;
   }
 #endif
+  mysql_mutex_unlock(&LOCK_thd_data);
+
   stmt_map.reset();                     /* close all prepared statements */
   if (!cleanup_done)
     cleanup();
@@ -1761,8 +1802,10 @@ void THD::disconnect()
 #endif
 
   /* Disconnect even if a active vio is not associated. */
-  if (net.vio != vio)
+  if (net.vio != vio && net.vio != NULL)
+  {
     vio_close(net.vio);
+  }
 
   mysql_mutex_unlock(&LOCK_thd_data);
 }
@@ -3046,45 +3089,82 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
   DBUG_RETURN(0);
 }
 
+/**
+  Compare two floating point numbers for MAX or MIN.
+
+  Compare two numbers and decide if the number should be cached as the
+  maximum/minimum number seen this far. If fmax==true, this is a
+  comparison for MAX, otherwise it is a comparison for MIN.
+
+  val1 is the new numer to compare against the current
+  maximum/minimum. val2 is the current maximum/minimum.
+
+  ignore_nulls is used to control behavior when comparing with a NULL
+  value. If ignore_nulls==false, the behavior is to store the first
+  NULL value discovered (i.e, return true, that it is larger than the
+  current maximum) and never replace it. If ignore_nulls==true, NULL
+  values are not stored. ANY subqueries use ignore_nulls==true, ALL
+  subqueries use ignore_nulls==false.
+
+  @retval true if the new number should be the new maximum/minimum.
+  @retval false if the maximum/minimum should stay unchanged.
+ */
 bool select_max_min_finder_subselect::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) ? (val1 > val2) : (val1 < val2);
+  /*
+    If we're ignoring NULLs and the current maximum/minimum is NULL
+    (must have been placed there as the first value iterated over) and
+    the new value is not NULL, return true so that a new, non-NULL
+    maximum/minimum is set. Otherwise, return false to keep the
+    current non-NULL maximum/minimum.
+
+    If we're not ignoring NULLs and the current maximum/minimum is not
+    NULL, return true to store NULL. Otherwise, return false to keep
+    the NULL we've already got.
+  */
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) ? (val1 > val2) : (val1 < val2);
 }
 
+/**
+  Compare two integer numbers for MAX or MIN.
+
+  @see select_max_min_finder_subselect::cmp_real()
+*/
 bool select_max_min_finder_subselect::cmp_int()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) ? (val1 > val2) : (val1 < val2);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) ? (val1 > val2) : (val1 < val2);
 }
 
+/**
+  Compare two decimal numbers for MAX or MIN.
+
+  @see select_max_min_finder_subselect::cmp_real()
+*/
 bool select_max_min_finder_subselect::cmp_decimal()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) 
-      ? (my_decimal_cmp(cvalue,mvalue) > 0)
-      : (my_decimal_cmp(cvalue,mvalue) < 0);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) 
+    ? (my_decimal_cmp(cvalue,mvalue) > 0)
+    : (my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
+/**
+  Compare two strings for MAX or MIN.
+
+  @see select_max_min_finder_subselect::cmp_real()
+*/
 bool select_max_min_finder_subselect::cmp_str()
 {
   String *val1, *val2, buf1, buf2;
@@ -3095,14 +3175,11 @@ bool select_max_min_finder_subselect::cmp_str()
   */
   val1= cache->val_str(&buf1);
   val2= maxmin->val_str(&buf1);
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) 
-      ? (sortcmp(val1, val2, cache->collation.collation) > 0)
-      : (sortcmp(val1, val2, cache->collation.collation) < 0);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) 
+    ? (sortcmp(val1, val2, cache->collation.collation) > 0)
+    : (sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
 bool select_exists_subselect::send_data(List<Item> &items)

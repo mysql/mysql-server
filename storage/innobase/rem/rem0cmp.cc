@@ -1029,19 +1029,14 @@ cmp_rec_rec_simple(
 	const ulint*		offsets1,/*!< in: rec_get_offsets(rec1, ...) */
 	const ulint*		offsets2,/*!< in: rec_get_offsets(rec2, ...) */
 	const dict_index_t*	index,	/*!< in: data dictionary index */
-	struct TABLE*		table,	/*!< in: MySQL table, for reporting
+	struct TABLE*		table)	/*!< in: MySQL table, for reporting
 					duplicate key value if applicable,
 					or NULL */
-	const ulint*		col_map)/*!< in: mapping of column
-					numbers in table to the
-					rebuilt table (index->table),
-					or NULL if not rebuilding table */
 {
 	ulint		n;
 	ulint		n_uniq	= dict_index_get_n_unique(index);
 	bool		null_eq	= false;
 
-	ut_ad(!col_map || table);
 	ut_ad(rec_offs_n_fields(offsets1) >= n_uniq);
 	ut_ad(rec_offs_n_fields(offsets2) == rec_offs_n_fields(offsets2));
 
@@ -1071,7 +1066,8 @@ cmp_rec_rec_simple(
 	equal to rec2. Issue a duplicate key error if needed. */
 
 	if (!null_eq && table && dict_index_is_unique(index)) {
-		innobase_rec_to_mysql(table, col_map, rec1, index, offsets1);
+		/* Report erroneous row using new version of table. */
+		innobase_rec_to_mysql(table, rec1, index, offsets1);
 		return(0);
 	}
 

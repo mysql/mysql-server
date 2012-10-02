@@ -170,29 +170,17 @@ alter table t4 drop index d;
 alter table t2 drop index b;
 --error ER_DROP_INDEX_FK
 alter table t2 drop index b, drop index c, drop index d;
-# mysqltest first does replace_regex, then replace_result
---replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
---error ER_ERROR_ON_RENAME
+--error ER_FK_COLUMN_CANNOT_CHANGE
 alter table t2 MODIFY b INT NOT NULL, ALGORITHM=COPY;
 --error ER_FK_COLUMN_NOT_NULL
 alter table t2 MODIFY b INT NOT NULL;
 
 SET FOREIGN_KEY_CHECKS=0;
-# mysqltest first does replace_regex, then replace_result
---replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
---error ER_ERROR_ON_RENAME
+--error ER_FK_COLUMN_CANNOT_DROP
 alter table t2 DROP COLUMN b, ALGORITHM=COPY;
 --error ER_FK_COLUMN_CANNOT_DROP
 alter table t2 DROP COLUMN b;
-# mysqltest first does replace_regex, then replace_result
---replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
---error ER_ERROR_ON_RENAME
+--error ER_FK_COLUMN_CANNOT_DROP_CHILD
 alter table t1 DROP COLUMN b, ALGORITHM=COPY;
 --error ER_FK_COLUMN_CANNOT_DROP_CHILD
 alter table t1 DROP COLUMN b;
@@ -241,8 +229,8 @@ show create table t2;
 delete from t1;
 --error ER_CANT_DROP_FIELD_OR_KEY
 drop index dc on t4;
---error ER_CANT_DROP_FIELD_OR_KEY
 --enable_info
+--error ER_CANT_DROP_FIELD_OR_KEY
 alter table t3 drop foreign key dc;
 alter table t4 drop foreign key dc;
 --disable_info

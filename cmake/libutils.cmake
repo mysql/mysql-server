@@ -286,6 +286,8 @@ FUNCTION(GET_DEPENDEND_OS_LIBS target result)
   SET(${result} ${ret} PARENT_SCOPE)
 ENDFUNCTION()
 
+# We try to hide the symbols in yassl/zlib to avoid name clashes with
+# other libraries like openssl.
 FUNCTION(RESTRICT_SYMBOL_EXPORTS target)
   IF(CMAKE_COMPILER_IS_GNUCXX AND UNIX)
     SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -Werror")

@@ -23,14 +23,13 @@ Update of a row
 Created 12/27/1996 Heikki Tuuri
 *******************************************************/
 
-#include "m_string.h" /* for my_sys.h */
-#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0upd.h"
 
 #ifdef UNIV_NONINL
 #include "row0upd.ic"
 #endif
 
+#include "ha_prototypes.h"
 #include "dict0dict.h"
 #include "trx0undo.h"
 #include "rem0rec.h"
@@ -291,6 +290,8 @@ func_exit:
 	}
 
 	mem_heap_free(heap);
+
+	DEBUG_SYNC_C("foreign_constraint_check_for_update_done");
 
 	return(err);
 }
@@ -2318,6 +2319,20 @@ row_upd_clust_step(
 	ut_a(pcur->rel_pos == BTR_PCUR_ON);
 
 	ulint	mode;
+
+#ifdef UNIV_DEBUG
+	/* Only for DML. Without this check it triggers an assertion failure
+	in the debug_sync.cc code for some code paths. According
+	to Ingo: "close_temporary_tables () is called after
+	debug_sync_end_thread(this)". Once it is fixed we can get rid of
+	the "if". */
+
+	if (!thr_get_trx(thr)->ddl) {
+		DEBUG_SYNC_C_IF_THD(
+			thr_get_trx(thr)->mysql_thd,
+			"innodb_row_upd_clust_step_enter");
+	}
+#endif /* UNIV_DEBUG */
 
 	if (dict_index_is_online_ddl(index)) {
 		ut_ad(node->table->id != DICT_INDEXES_ID);

@@ -349,6 +349,7 @@ ib_vector_remove(
 	void*		current = NULL;
 	void*		next;
 	ulint		i;
+	ulint		old_used_count = vec->used;
 
 	for (i = 0; i < vec->used; i++) {
 		current = ib_vector_get(vec, i);
@@ -361,12 +362,12 @@ ib_vector_remove(
 			next = ib_vector_get(vec, i + 1);
 			memmove(current, next, vec->sizeof_value
 			        * (vec->used - i - 1));
+			--vec->used;
+			break;
 		}
 	}
 
-	--vec->used;
-
-	return(current);
+	return((old_used_count != vec->used) ? current : NULL);
 }
 
 /********************************************************************

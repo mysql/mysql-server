@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2002, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,7 +19,7 @@ config=".my.cnf.$$"
 command=".mysql.$$"
 mysql_client=""
 
-trap "interrupt" 2
+trap "interrupt" 1 2 3 6 15
 
 rootpass=""
 echo_n=
@@ -135,18 +135,37 @@ set_root_password() {
     fi
 
     esc_pass=`basic_single_escape "$password1"`
-    do_query "UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root';"
-    if [ $? -eq 0 ]; then
-	echo "Password updated successfully!"
-	echo "Reloading privilege tables.."
-	reload_privilege_tables || exit 1
-	echo
-	rootpass=$password1
-	make_config
-    else
-	echo "Password update failed!"
-	exit 1
+
+    # do the old password
+    do_query "SET @@old_passwords=1; UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root' and plugin = 'mysql_old_password';"
+    if [ $? -ne 0 ]; then
+	echo "old password update failed!"
+	clean_and_exit
     fi
+
+    # do the native password
+    do_query "SET @@old_passwords=0; UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root' and plugin in ('', 'mysql_native_password');"
+    if [ $? -ne 0 ]; then
+	echo "native password update failed!"
+	clean_and_exit
+    fi
+
+    # do the sha256 password
+    do_query "SET @@old_passwords=2; UPDATE mysql.user SET authentication_string=PASSWORD('$esc_pass') WHERE User='root' and plugin = 'sha256_password';"
+    if [ $? -ne 0 ]; then
+	echo "sha256 password update failed!"
+	clean_and_exit
+    fi
+
+    echo "Password updated successfully!"
+    echo "Reloading privilege tables.."
+    reload_privilege_tables
+    if [ $? -eq 1 ]; then
+            clean_and_exit
+    fi
+    echo
+    rootpass=$password1
+    make_config
 
     return 0
 }
@@ -157,7 +176,7 @@ remove_anonymous_users() {
 	echo " ... Success!"
     else
 	echo " ... Failed!"
-	exit 1
+	clean_and_exit
     fi
 
     return 0
@@ -217,6 +236,11 @@ cleanup() {
     rm -f $config $command
 }
 
+# Remove the files before exiting.
+clean_and_exit() {
+	cleanup
+	exit 1
+}
 
 # The actual script starts here
 

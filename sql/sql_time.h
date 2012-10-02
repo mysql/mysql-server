@@ -211,8 +211,9 @@ inline ulonglong TIME_to_ulonglong_round(const MYSQL_TIME *ltime)
   case MYSQL_TIMESTAMP_TIME:
     return TIME_to_ulonglong_time_round(ltime);
   case MYSQL_TIMESTAMP_DATETIME:
-  case MYSQL_TIMESTAMP_DATE:
     return TIME_to_ulonglong_datetime_round(ltime);
+  case MYSQL_TIMESTAMP_DATE:
+    return TIME_to_ulonglong_date(ltime);
   default:
     DBUG_ASSERT(0);
     return 0;

@@ -1355,7 +1355,8 @@ static void close_connections(void)
     statements and inform their clients that the server is about to die.
   */
 
-  sql_print_information("Giving client threads a chance to die gracefully");
+  sql_print_information("Giving %d client threads a chance to die gracefully",
+                        static_cast<int>(get_thread_count()));
 
   mysql_mutex_lock(&LOCK_thread_count);
 
@@ -1402,7 +1403,8 @@ static void close_connections(void)
     client on a blocking read call are aborted.
   */
 
-  sql_print_information("Forcefully disconnecting remaining clients");
+  sql_print_information("Forcefully disconnecting %d remaining clients",
+                        static_cast<int>(get_thread_count()));
 
 #ifndef __bsdi__ // Bug in BSDI kernel
   DBUG_PRINT("quit", ("Locking LOCK_thread_count"));
@@ -1730,6 +1732,8 @@ void clean_up(bool print_message)
 
   stop_handle_manager();
   release_ddl_log();
+
+  memcached_shutdown();
 
   /*
     make sure that handlers finish up
@@ -2193,13 +2197,36 @@ static void network_init(void)
         bind to '0.0.0.0'.
       */
 
+      bool ipv6_available= false;
+
       if (!getaddrinfo(ipv6_all_addresses, port_buf, &hints, &ai))
       {
+        /*
+          IPv6 might be available (the system might be able to resolve an IPv6
+          address, but not be able to create an IPv6-socket). Try to create a
+          dummy IPv6-socket. Do not instrument that socket by P_S.
+        */
+
+        MYSQL_SOCKET s= mysql_socket_socket(0, AF_INET6, SOCK_STREAM, 0);
+
+        ipv6_available= mysql_socket_getfd(s) != INVALID_SOCKET;
+
+        mysql_socket_close(s);
+      }
+
+      if (ipv6_available)
+      {
+        sql_print_information("IPv6 is available.");
+
+        // Address info (ai) for IPv6 address is already set.
+
         bind_address_str= ipv6_all_addresses;
       }
       else
       {
         sql_print_information("IPv6 is not available.");
+
+        // Retrieve address info (ai) for IPv4 address.
 
         if (getaddrinfo(ipv4_all_addresses, port_buf, &hints, &ai))
         {
@@ -3174,6 +3201,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
 #ifndef EMBEDDED_LIBRARY
 extern "C" void *my_str_malloc_mysqld(size_t size);
 extern "C" void my_str_free_mysqld(void *ptr);
+extern "C" void *my_str_realloc_mysqld(void *ptr, size_t size);
 
 void *my_str_malloc_mysqld(size_t size)
 {
@@ -3184,6 +3212,11 @@ void *my_str_malloc_mysqld(size_t size)
 void my_str_free_mysqld(void *ptr)
 {
   my_free(ptr);
+}
+
+void *my_str_realloc_mysqld(void *ptr, size_t size)
+{
+  return my_realloc(ptr, size, MYF(MY_FAE));
 }
 #endif /* EMBEDDED_LIBRARY */
 
@@ -5319,10 +5352,11 @@ int mysqld_main(int argc, char **argv)
 #endif
 
   /*
-   Initialize my_str_malloc() and my_str_free()
+   Initialize my_str_malloc(), my_str_realloc() and my_str_free()
   */
   my_str_malloc= &my_str_malloc_mysqld;
   my_str_free= &my_str_free_mysqld;
+  my_str_realloc= &my_str_realloc_mysqld;
 
   /*
     init signals & alarm
@@ -7787,7 +7821,7 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Starts the MySQL database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)
@@ -9017,22 +9051,22 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_des_key_file, "LOCK_des_key_file", PSI_FLAG_GLOBAL},
 #endif /* HAVE_OPENSSL */
 
-  { &key_BINLOG_LOCK_commit, "BINARY_LOG::LOCK_commit", 0 },
-  { &key_BINLOG_LOCK_commit_queue, "BINARY_LOG::LOCK_commit_queue", 0 },
-  { &key_BINLOG_LOCK_done, "BINARY_LOG::LOCK_done", 0 },
-  { &key_BINLOG_LOCK_flush_queue, "BINARY_LOG::LOCK_flush_queue", 0 },
-  { &key_BINLOG_LOCK_index, "BINARY_LOG::LOCK_index", 0},
-  { &key_BINLOG_LOCK_log, "BINARY_LOG::LOCK_log", 0},
-  { &key_BINLOG_LOCK_sync, "BINARY_LOG::LOCK_sync", 0},
-  { &key_BINLOG_LOCK_sync_queue, "BINARY_LOG::LOCK_sync_queue", 0 },
-  { &key_RELAYLOG_LOCK_commit, "RELAY_LOG::LOCK_commit", 0},
-  { &key_RELAYLOG_LOCK_commit_queue, "RELAY_LOG::LOCK_commit_queue", 0 },
-  { &key_RELAYLOG_LOCK_done, "RELAY_LOG::LOCK_done", 0 },
-  { &key_RELAYLOG_LOCK_flush_queue, "RELAY_LOG::LOCK_flush_queue", 0 },
-  { &key_RELAYLOG_LOCK_index, "RELAY_LOG::LOCK_index", 0},
-  { &key_RELAYLOG_LOCK_log, "RELAY_LOG::LOCK_log", 0},
-  { &key_RELAYLOG_LOCK_sync, "RELAY_LOG::LOCK_sync", 0},
-  { &key_RELAYLOG_LOCK_sync_queue, "RELAY_LOG::LOCK_sync_queue", 0 },
+  { &key_BINLOG_LOCK_commit, "MYSQL_BIN_LOG::LOCK_commit", 0 },
+  { &key_BINLOG_LOCK_commit_queue, "MYSQL_BIN_LOG::LOCK_commit_queue", 0 },
+  { &key_BINLOG_LOCK_done, "MYSQL_BIN_LOG::LOCK_done", 0 },
+  { &key_BINLOG_LOCK_flush_queue, "MYSQL_BIN_LOG::LOCK_flush_queue", 0 },
+  { &key_BINLOG_LOCK_index, "MYSQL_BIN_LOG::LOCK_index", 0},
+  { &key_BINLOG_LOCK_log, "MYSQL_BIN_LOG::LOCK_log", 0},
+  { &key_BINLOG_LOCK_sync, "MYSQL_BIN_LOG::LOCK_sync", 0},
+  { &key_BINLOG_LOCK_sync_queue, "MYSQL_BIN_LOG::LOCK_sync_queue", 0 },
+  { &key_RELAYLOG_LOCK_commit, "MYSQL_RELAY_LOG::LOCK_commit", 0},
+  { &key_RELAYLOG_LOCK_commit_queue, "MYSQL_RELAY_LOG::LOCK_commit_queue", 0 },
+  { &key_RELAYLOG_LOCK_done, "MYSQL_RELAY_LOG::LOCK_done", 0 },
+  { &key_RELAYLOG_LOCK_flush_queue, "MYSQL_RELAY_LOG::LOCK_flush_queue", 0 },
+  { &key_RELAYLOG_LOCK_index, "MYSQL_RELAY_LOG::LOCK_index", 0},
+  { &key_RELAYLOG_LOCK_log, "MYSQL_RELAY_LOG::LOCK_log", 0},
+  { &key_RELAYLOG_LOCK_sync, "MYSQL_RELAY_LOG::LOCK_sync", 0},
+  { &key_RELAYLOG_LOCK_sync_queue, "MYSQL_RELAY_LOG::LOCK_sync_queue", 0 },
   { &key_delayed_insert_mutex, "Delayed_insert::mutex", 0},
   { &key_hash_filo_lock, "hash_filo::lock", 0},
   { &key_LOCK_active_mi, "LOCK_active_mi", PSI_FLAG_GLOBAL},
@@ -9126,10 +9160,10 @@ static PSI_cond_info all_server_conds[]=
   { &key_COND_active, "TC_LOG_MMAP::COND_active", 0},
   { &key_COND_pool, "TC_LOG_MMAP::COND_pool", 0},
 #endif /* HAVE_MMAP */
-  { &key_BINLOG_COND_done, "BINARY_LOG::COND_done", 0},
-  { &key_BINLOG_update_cond, "BINARY_LOG::update_cond", 0},
-  { &key_RELAYLOG_COND_done, "RELAY_LOG::COND_done", 0},
-  { &key_RELAYLOG_update_cond, "RELAY_LOG::update_cond", 0},
+  { &key_BINLOG_COND_done, "MYSQL_BIN_LOG::COND_done", 0},
+  { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
+  { &key_RELAYLOG_COND_done, "MYSQL_RELAY_LOG::COND_done", 0},
+  { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
   { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},

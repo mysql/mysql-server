@@ -44,4 +44,4 @@ adt_null           plugin/audit_null  AUDIT_NULL
 libdaemon_example  plugin/daemon_example DAEMONEXAMPLE
 libmemcached       plugin/innodb_memcached/daemon_memcached DAEMON_MEMCACHED daemon_memcached
 innodb_engine      plugin/innodb_memcached/innodb_memcache INNODB_ENGINE
-validate_password  plugin/password_validation VALIDATE_PASSWORD
+validate_password  plugin/password_validation VALIDATE_PASSWORD validate_password

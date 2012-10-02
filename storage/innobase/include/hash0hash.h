@@ -33,8 +33,8 @@ Created 5/20/1997 Heikki Tuuri
 # include "sync0rw.h"
 #endif /* !UNIV_HOTBACKUP */
 
-typedef struct hash_table_struct hash_table_t;
-typedef struct hash_cell_struct hash_cell_t;
+struct hash_table_t;
+struct hash_cell_t;
 
 typedef void*	hash_node_t;
 
@@ -524,12 +524,12 @@ hash_unlock_x_all_but(
 # define hash_unlock_x_all_but(t, l)	((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
-struct hash_cell_struct{
+struct hash_cell_t{
 	void*	node;	/*!< hash chain node, NULL if none */
 };
 
 /* The hash table structure */
-struct hash_table_struct {
+struct hash_table_t {
 	enum hash_table_sync_t	type;	/*<! type of hash_table. */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 # ifndef UNIV_HOTBACKUP

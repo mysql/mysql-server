@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -83,8 +84,16 @@ backround operations purge, rollback, foreign key checks reserve this
 in S-mode; we cannot trust that MySQL protects implicit or background
 operations a table drop since MySQL does not know of them; therefore
 we need this; NOTE: a transaction which reserves this must keep book
-on the mode in trx_struct::dict_operation_lock_mode */
+on the mode in trx_t::dict_operation_lock_mode */
 UNIV_INTERN rw_lock_t	dict_operation_lock;
+
+/** Percentage of compression failures that are allowed in a single
+round */
+UNIV_INTERN ulong	zip_failure_threshold_pct = 5;
+
+/** Maximum percentage of a page that can be allowed as a pad to avoid
+compression failures */
+UNIV_INTERN ulong	zip_pad_max = 50;
 
 /* Keys to register rwlocks and mutexes with performance schema */
 #ifdef UNIV_PFS_RWLOCK
@@ -95,6 +104,7 @@ UNIV_INTERN mysql_pfs_key_t	dict_table_stats_latch_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	zip_pad_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	dict_sys_mutex_key;
 UNIV_INTERN mysql_pfs_key_t	dict_foreign_err_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
@@ -2246,6 +2256,30 @@ undo_size_ok:
 		}
 	}
 
+	if (!dict_index_is_univ(new_index)) {
+
+		new_index->stat_n_diff_key_vals =
+			static_cast<ib_uint64_t*>(mem_heap_zalloc(
+			new_index->heap,
+			dict_index_get_n_unique(new_index)
+			* sizeof(*new_index->stat_n_diff_key_vals)));
+
+		new_index->stat_n_sample_sizes =
+			static_cast<ib_uint64_t*>(mem_heap_zalloc(
+			new_index->heap,
+			dict_index_get_n_unique(new_index)
+			* sizeof(*new_index->stat_n_sample_sizes)));
+
+		new_index->stat_n_non_null_key_vals =
+			static_cast<ib_uint64_t*>(mem_heap_zalloc(
+			new_index->heap,
+			dict_index_get_n_unique(new_index)
+			* sizeof(*new_index->stat_n_non_null_key_vals)));
+	}
+
+	new_index->stat_index_size = 1;
+	new_index->stat_n_leaf_pages = 1;
+
 	/* Add the new index as the last index for the table */
 
 	UT_LIST_ADD_LAST(indexes, table->indexes, new_index);
@@ -2253,43 +2287,10 @@ undo_size_ok:
 	new_index->table_name = table->name;
 	new_index->search_info = btr_search_info_create(new_index->heap);
 
-	new_index->stat_index_size = 1;
-	new_index->stat_n_leaf_pages = 1;
-
 	new_index->page = page_no;
 	rw_lock_create(index_tree_rw_lock_key, &new_index->lock,
 		       dict_index_is_ibuf(index)
 		       ? SYNC_IBUF_INDEX_TREE : SYNC_INDEX_TREE);
-
-	if (!dict_index_is_univ(new_index)) {
-
-		new_index->stat_n_diff_key_vals =
-			static_cast<ib_uint64_t*>(mem_heap_alloc(
-			new_index->heap,
-			(1 + dict_index_get_n_unique(new_index))
-			* sizeof(*new_index->stat_n_diff_key_vals)));
-
-		new_index->stat_n_sample_sizes =
-			static_cast<ib_uint64_t*>(mem_heap_alloc(
-			new_index->heap,
-			(1 + dict_index_get_n_unique(new_index))
-			* sizeof(*new_index->stat_n_sample_sizes)));
-
-		new_index->stat_n_non_null_key_vals =
-			static_cast<ib_uint64_t*>(mem_heap_zalloc(
-			new_index->heap,
-			(1 + dict_index_get_n_unique(new_index))
-			* sizeof(*new_index->stat_n_non_null_key_vals)));
-
-		/* Give some sensible values to stat_n_... in case we do
-		not calculate statistics quickly enough */
-
-		for (i = 0; i <= dict_index_get_n_unique(new_index); i++) {
-
-			new_index->stat_n_diff_key_vals[i] = 100;
-			new_index->stat_n_sample_sizes[i] = 0;
-		}
-	}
 
 	dict_sys->size += mem_heap_get_size(new_index->heap);
 
@@ -2318,15 +2319,13 @@ dict_index_remove_from_cache_low(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	rw_lock_x_lock(dict_index_get_lock(index));
+	/* No need to acquire the dict_index_t::lock here because
+	there can't be any active operations on this index (or table). */
 
 	if (index->online_log) {
-		ut_ad(dict_index_get_online_status(index)
-		      == ONLINE_INDEX_CREATION);
-		row_log_free(index);
+		ut_ad(index->online_status == ONLINE_INDEX_CREATION);
+		row_log_free(index->online_log);
 	}
-
-	rw_lock_x_unlock(dict_index_get_lock(index));
 
 	/* We always create search info whether or not adaptive
 	hash index is enabled or not. */
@@ -2978,9 +2977,6 @@ dict_foreign_free(
 /*==============*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
 {
-	ut_a(!foreign->foreign_table
-	     || foreign->foreign_table->n_foreign_key_checks_running == 0);
-
 	mem_heap_free(foreign->heap);
 }
 
@@ -4596,10 +4592,11 @@ loop:
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
 	while (foreign != NULL) {
-		if (0 == strcmp(foreign->id, id)
+		if (0 == innobase_strcasecmp(foreign->id, id)
 		    || (strchr(foreign->id, '/')
-			&& 0 == strcmp(id,
-				       dict_remove_db_name(foreign->id)))) {
+			&& 0 == innobase_strcasecmp(
+				id,
+				dict_remove_db_name(foreign->id)))) {
 			/* Found */
 			break;
 		}
@@ -5032,9 +5029,9 @@ dict_index_print_low(
 
 	if (index->n_user_defined_cols > 0) {
 		n_vals = index->stat_n_diff_key_vals[
-			index->n_user_defined_cols];
+			index->n_user_defined_cols - 1];
 	} else {
-		n_vals = index->stat_n_diff_key_vals[1];
+		n_vals = index->stat_n_diff_key_vals[0];
 	}
 
 	fprintf(stderr,
@@ -6129,4 +6126,183 @@ dict_foreign_qualify_index(
         return((i == n_cols) ? true : false);
 }
 
+/*********************************************************************//**
+Update the state of compression failure padding heuristics. This is
+called whenever a compression operation succeeds or fails.
+The caller must be holding info->mutex */
+static
+void
+dict_index_zip_pad_update(
+/*======================*/
+	zip_pad_info_t*	info,	/*<! in/out: info to be updated */
+	ulint	zip_threshold)	/*<! in: zip threshold value */
+{
+	ulint	total;
+	ulint	fail_pct;
+
+	ut_ad(info);
+
+	total = info->success + info->failure;
+
+	ut_ad(total > 0);
+
+	if(zip_threshold == 0) {
+		/* User has just disabled the padding. */
+		return;
+	}
+
+	if (total < ZIP_PAD_ROUND_LEN) {
+		/* We are in middle of a round. Do nothing. */
+		return;
+	}
+
+	/* We are at a 'round' boundary. Reset the values but first
+	calculate fail rate for our heuristic. */
+	fail_pct = (info->failure * 100) / total;
+	info->failure = 0;
+	info->success = 0;
+
+	if (fail_pct > zip_threshold) {
+		/* Compression failures are more then user defined
+		threshold. Increase the pad size to reduce chances of
+		compression failures. */
+		ut_ad(info->pad % ZIP_PAD_INCR == 0);
+
+		/* Only do increment if it won't increase padding
+		beyond max pad size. */
+		if (info->pad + ZIP_PAD_INCR
+		    < (UNIV_PAGE_SIZE * zip_pad_max) / 100) {
+#ifdef HAVE_ATOMIC_BUILTINS
+			/* Use atomics even though we have the mutex.
+			This is to ensure that we are able to read
+			info->pad atomically where atomics are
+			supported. */
+			os_atomic_increment_ulint(&info->pad, ZIP_PAD_INCR);
+#else /* HAVE_ATOMIC_BUILTINS */
+			info->pad += ZIP_PAD_INCR;
+#endif /* HAVE_ATOMIC_BUILTINS */
+
+			MONITOR_INC(MONITOR_PAD_INCREMENTS);
+		}
+
+		info->n_rounds = 0;
+
+	} else {
+		/* Failure rate was OK. Another successful round
+		completed. */
+		++info->n_rounds;
+
+		/* If enough successful rounds are completed with
+		compression failure rate in control, decrease the
+		padding. */
+		if (info->n_rounds >= ZIP_PAD_SUCCESSFUL_ROUND_LIMIT
+		    && info->pad > 0) {
+
+			ut_ad(info->pad % ZIP_PAD_INCR == 0);
+#ifdef HAVE_ATOMIC_BUILTINS
+			/* Use atomics even though we have the mutex.
+			This is to ensure that we are able to read
+			info->pad atomically where atomics are
+			supported. */
+			os_atomic_decrement_ulint(&info->pad, ZIP_PAD_INCR);
+#else /* HAVE_ATOMIC_BUILTINS */
+			info->pad -= ZIP_PAD_INCR;
+#endif /* HAVE_ATOMIC_BUILTINS */
+
+			info->n_rounds = 0;
+
+			MONITOR_INC(MONITOR_PAD_DECREMENTS);
+		}
+	}
+}
+
+/*********************************************************************//**
+This function should be called whenever a page is successfully
+compressed. Updates the compression padding information. */
+UNIV_INTERN
+void
+dict_index_zip_success(
+/*===================*/
+	dict_index_t*	index)	/*!< in/out: index to be updated. */
+{
+	ut_ad(index);
+
+	ulint zip_threshold = zip_failure_threshold_pct;
+	if (!zip_threshold) {
+		/* Disabled by user. */
+		return;
+	}
+
+	os_fast_mutex_lock(&index->zip_pad.mutex);
+	++index->zip_pad.success;
+	dict_index_zip_pad_update(&index->zip_pad, zip_threshold);
+	os_fast_mutex_unlock(&index->zip_pad.mutex);
+}
+
+/*********************************************************************//**
+This function should be called whenever a page compression attempt
+fails. Updates the compression padding information. */
+UNIV_INTERN
+void
+dict_index_zip_failure(
+/*===================*/
+	dict_index_t*	index)	/*!< in/out: index to be updated. */
+{
+	ut_ad(index);
+
+	ulint zip_threshold = zip_failure_threshold_pct;
+	if (!zip_threshold) {
+		/* Disabled by user. */
+		return;
+	}
+
+	os_fast_mutex_lock(&index->zip_pad.mutex);
+	++index->zip_pad.failure;
+	dict_index_zip_pad_update(&index->zip_pad, zip_threshold);
+	os_fast_mutex_unlock(&index->zip_pad.mutex);
+}
+
+
+/*********************************************************************//**
+Return the optimal page size, for which page will likely compress.
+@return page size beyond which page might not compress */
+UNIV_INTERN
+ulint
+dict_index_zip_pad_optimal_page_size(
+/*=================================*/
+	dict_index_t*	index)	/*!< in: index for which page size
+				is requested */
+{
+	ulint	pad;
+	ulint	min_sz;
+	ulint	sz;
+
+	ut_ad(index);
+
+	if (!zip_failure_threshold_pct) {
+		/* Disabled by user. */
+		return(UNIV_PAGE_SIZE);
+	}
+
+	/* We use atomics to read index->zip_pad.pad. Here we use zero
+	as increment as are not changing the value of the 'pad'. On
+	platforms where atomics are not available we grab the mutex. */
+
+#ifdef HAVE_ATOMIC_BUILTINS
+	pad = os_atomic_increment_ulint(&index->zip_pad.pad, 0);
+#else /* HAVE_ATOMIC_BUILTINS */
+	os_fast_mutex_lock(&index->zip_pad.mutex);
+	pad = index->zip_pad.pad;
+	os_fast_mutex_unlock(&index->zip_pad.mutex);
+#endif /* HAVE_ATOMIC_BUILTINS */
+
+	ut_ad(pad < UNIV_PAGE_SIZE);
+	sz = UNIV_PAGE_SIZE - pad;
+
+	/* Min size allowed by user. */
+	ut_ad(zip_pad_max < 100);
+	min_sz = (UNIV_PAGE_SIZE * (100 - zip_pad_max)) / 100;
+
+	return(ut_max(sz, min_sz));
+}
 #endif /* !UNIV_HOTBACKUP */

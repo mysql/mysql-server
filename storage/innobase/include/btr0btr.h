@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -129,7 +130,7 @@ btr_corruption_report(
 #ifdef UNIV_BLOB_DEBUG
 # include "ut0rbt.h"
 /** An index->blobs entry for keeping track of off-page column references */
-struct btr_blob_dbg_struct
+struct btr_blob_dbg_t
 {
 	unsigned	blob_page_no:32;	/*!< first BLOB page number */
 	unsigned	ref_page_no:32;		/*!< referring page number */
@@ -622,6 +623,7 @@ btr_parse_page_reorganize(
 	byte*		ptr,	/*!< in: buffer */
 	byte*		end_ptr,/*!< in: buffer end */
 	dict_index_t*	index,	/*!< in: record descriptor */
+	bool		compressed,/*!< in: true if compressed page */
 	buf_block_t*	block,	/*!< in: page to be reorganized, or NULL */
 	mtr_t*		mtr)	/*!< in: mtr or NULL */
 	__attribute__((nonnull(1,2,3), warn_unused_result));

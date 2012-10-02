@@ -314,6 +314,7 @@ row_undo_ins_parse_undo_rec(
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (UNIV_UNLIKELY(node->table == NULL)) {
 	} else if (UNIV_UNLIKELY(node->table->ibd_file_missing)) {
+close_table:
 		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;
 	} else {
@@ -324,11 +325,7 @@ row_undo_ins_parse_undo_rec(
 				ptr, clust_index, &node->ref, node->heap);
 
 			if (!row_undo_search_clust_to_pcur(node)) {
-
-				dict_table_close(
-					node->table, dict_locked, FALSE);
-
-				node->table = NULL;
+				goto close_table;
 			}
 
 		} else {
@@ -338,10 +335,7 @@ row_undo_ins_parse_undo_rec(
 				      node->table->name);
 			fprintf(stderr, " has no indexes, "
 				"ignoring the table\n");
-
-			dict_table_close(node->table, dict_locked, FALSE);
-
-			node->table = NULL;
+			goto close_table;
 		}
 	}
 }

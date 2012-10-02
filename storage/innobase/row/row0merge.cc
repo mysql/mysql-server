@@ -539,38 +539,11 @@ row_merge_dup_report(
 	row_merge_dup_t*	dup,	/*!< in/out: for reporting duplicates */
 	const dfield_t*		entry)	/*!< in: duplicate index entry */
 {
-	mrec_buf_t* 		buf;
-	const dtuple_t*		tuple;
-	dtuple_t		tuple_store;
-	const rec_t*		rec;
-	const dict_index_t*	index	= dup->index;
-	ulint			n_fields= dict_index_get_n_fields(index);
-	mem_heap_t*		heap;
-	ulint*			offsets;
-	ulint			n_ext;
-
-	if (dup->n_dup++) {
+	if (!dup->n_dup++) {
 		/* Only report the first duplicate record,
 		but count all duplicate records. */
-		return;
+		innobase_fields_to_mysql(dup->table, dup->index, entry);
 	}
-
-	/* Convert the tuple to a record and then to MySQL format. */
-	heap = mem_heap_create((1 + REC_OFFS_HEADER_SIZE + n_fields)
-			       * sizeof *offsets
-			       + sizeof *buf);
-
-	buf = static_cast<mrec_buf_t*>(mem_heap_alloc(heap, sizeof *buf));
-
-	tuple = dtuple_from_fields(&tuple_store, entry, n_fields);
-	n_ext = dict_index_is_clust(index) ? dtuple_get_n_ext(tuple) : 0;
-
-	rec = rec_convert_dtuple_to_rec(*buf, index, tuple, n_ext);
-	offsets = rec_get_offsets(rec, index, NULL, ULINT_UNDEFINED, &heap);
-
-	innobase_rec_to_mysql(dup->table, dup->col_map, rec, index, offsets);
-
-	mem_heap_free(heap);
 }
 
 /*************************************************************//**
@@ -1178,37 +1151,6 @@ row_merge_write_eof(
 	return(&block[0]);
 }
 
-/*************************************************************//**
-Check if a row should be skipped during online table rebuild.
-@return true if the record should be skipped */
-static __attribute__((nonnull, warn_unused_result))
-bool
-row_merge_skip_rec(
-/*===============*/
-	const rec_t*		rec,	/*!< in: clustered index record
-					or merge record */
-	const dict_index_t*	index,	/*!< in: clustered index of rec */
-	const dict_index_t*	oindex,	/*!< in: clustered index
-					in the old table */
-	const ulint*		offsets)/*!< in: rec_get_offsets(rec) */
-{
-	ulint		trx_id_offset;
-	const byte*	trx_id;
-
-	ut_ad(dict_index_is_clust(index));
-	ut_ad(dict_index_is_clust(oindex));
-	ut_ad(dict_index_is_online_ddl(oindex));
-
-	trx_id_offset = index->trx_id_offset;
-	if (!trx_id_offset) {
-		trx_id_offset = row_get_trx_id_offset(index, offsets);
-	}
-
-	trx_id = rec + trx_id_offset;
-
-	return(row_log_table_is_rollback(oindex, trx_read_trx_id(trx_id)));
-}
-
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
@@ -1248,8 +1190,7 @@ row_merge_read_clustered_index(
 					/*!< in: number of added
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
-	ulong			autoinc_inc,
-					/*!< in: auto_increment_increment */
+	ib_sequence_t&		sequence,/*!< in/out: autoinc sequence */
 	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
 	dict_index_t*		clust_index;	/* Clustered index */
@@ -1375,9 +1316,6 @@ row_merge_read_clustered_index(
 		page_cur_move_to_next(cur);
 
 		if (page_cur_is_after_last(cur)) {
-			ulint		next_page_no;
-			buf_block_t*	block;
-
 			if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
 				err = DB_INTERRUPTED;
 				trx->error_key_num = 0;
@@ -1391,67 +1329,97 @@ row_merge_read_clustered_index(
 					goto func_exit;
 				}
 			}
+#ifdef DBUG_OFF
+# define dbug_run_purge	false
+#else /* DBUG_OFF */
+			bool	dbug_run_purge = false;
+#endif /* DBUG_OFF */
+			DBUG_EXECUTE_IF(
+				"ib_purge_on_create_index_page_switch",
+				dbug_run_purge = true;);
 
-			if (rw_lock_get_waiters(
+			if (dbug_run_purge
+			    || rw_lock_get_waiters(
 				    dict_index_get_lock(clust_index))) {
-				ibool	on_user_rec;
-
 				/* There are waiters on the clustered
 				index tree lock, likely the purge
 				thread. Store and restore the cursor
 				position, and yield so that scanning a
 				large table will not starve other
 				threads. */
+
+				/* Store the cursor position on the last user
+				record on the page. */
+				btr_pcur_move_to_prev_on_page(&pcur);
+				/* Leaf pages must never be empty, unless
+				this is the only page in the index tree. */
+				ut_ad(btr_pcur_is_on_user_rec(&pcur)
+				      || buf_block_get_page_no(
+					      btr_pcur_get_block(&pcur))
+				      == clust_index->page);
+
 				btr_pcur_store_position(&pcur, &mtr);
-				ut_ad(pcur.rel_pos == BTR_PCUR_AFTER
-				      || pcur.rel_pos
-				      == BTR_PCUR_AFTER_LAST_IN_TREE);
 				mtr_commit(&mtr);
+
+				if (dbug_run_purge) {
+					/* This is for testing
+					purposes only (see
+					DBUG_EXECUTE_IF above).  We
+					signal the purge thread and
+					hope that the purge batch will
+					complete before we execute
+					btr_pcur_restore_position(). */
+					trx_purge_run();
+					os_thread_sleep(1000000);
+				}
 
 				/* Give the waiters a chance to proceed. */
 				os_thread_yield();
 
 				mtr_start(&mtr);
-				/* This should always return FALSE.
-				Normally, pcur should remain
-				positioned on the page supremum. When
-				another thread happened to insert a
-				record or reorganize the tree, the
-				cursor would be positioned on the
-				successor of the predecessor of the
-				former supremum, and we would have to
-				resume processing from there. */
-				on_user_rec = btr_pcur_restore_position(
+				/* Restore position on the record, or its
+				predecessor if the record was purged
+				meanwhile. */
+				btr_pcur_restore_position(
 					BTR_SEARCH_LEAF, &pcur, &mtr);
-				ut_a(!on_user_rec);
-			}
-
-			next_page_no = btr_page_get_next(
-				page_cur_get_page(cur), &mtr);
-
-			if (next_page_no == FIL_NULL) {
-				row = NULL;
-				mtr_commit(&mtr);
-				mem_heap_free(row_heap);
-				if (nonnull) {
-					mem_free(nonnull);
+				/* Move to the successor of the
+				original record. */
+				if (!btr_pcur_move_to_next_user_rec(
+					    &pcur, &mtr)) {
+end_of_index:
+					row = NULL;
+					mtr_commit(&mtr);
+					mem_heap_free(row_heap);
+					if (nonnull) {
+						mem_free(nonnull);
+					}
+					goto write_buffers;
 				}
-				goto write_buffers;
+			} else {
+				ulint		next_page_no;
+				buf_block_t*	block;
+
+				next_page_no = btr_page_get_next(
+					page_cur_get_page(cur), &mtr);
+
+				if (next_page_no == FIL_NULL) {
+					goto end_of_index;
+				}
+
+				block = page_cur_get_block(cur);
+				block = btr_block_get(
+					buf_block_get_space(block),
+					buf_block_get_zip_size(block),
+					next_page_no, BTR_SEARCH_LEAF,
+					clust_index, &mtr);
+
+				btr_leaf_page_release(page_cur_get_block(cur),
+						      BTR_SEARCH_LEAF, &mtr);
+				page_cur_set_before_first(block, cur);
+				page_cur_move_to_next(cur);
+
+				ut_ad(!page_cur_is_after_last(cur));
 			}
-
-			block = page_cur_get_block(cur);
-			block = btr_block_get(
-				buf_block_get_space(block),
-				buf_block_get_zip_size(block),
-				next_page_no, BTR_SEARCH_LEAF,
-				clust_index, &mtr);
-
-			btr_leaf_page_release(page_cur_get_block(cur),
-					      BTR_SEARCH_LEAF, &mtr);
-			page_cur_set_before_first(block, cur);
-			page_cur_move_to_next(cur);
-
-			ut_ad(!page_cur_is_after_last(cur));
 		}
 
 		rec = page_cur_get_rec(cur);
@@ -1481,8 +1449,9 @@ row_merge_read_clustered_index(
 		}
 
 		if (online && new_table != old_table
-		    && row_merge_skip_rec(
-			    rec, clust_index, clust_index, offsets)) {
+		    && row_log_table_is_rollback(
+			    clust_index,
+			    row_get_rec_trx_id(rec, clust_index, offsets))) {
 			continue;
 		}
 
@@ -1545,54 +1514,53 @@ row_merge_read_clustered_index(
 		}
 
 		if (add_autoinc != ULINT_UNDEFINED) {
+
 			ut_ad(add_autoinc
 			      < dict_table_get_n_user_cols(new_table));
 
-			dfield_t*	field	= dtuple_get_nth_field(
-				row, add_autoinc);
-			byte*	b	= static_cast<byte*>(
-				dfield_get_data(field));
+			const dfield_t*	dfield;
 
-			/* Increment the auto-increment column value.
-			Signed and unsigned fields should behave
-			the same with respect to this.
+			dfield = dtuple_get_nth_field(row, add_autoinc);
 
-			NOTE: we ignore any wrap-around or overflows
-			here. Wrap-around could cause a
-			cmp_dtuple_rec() debug assertion failure in
-			row_merge_insert_index_tuples(). */
-			switch (dfield_get_len(field)) {
-			case 1:
-				*b += autoinc_inc;
-				goto write_buffers;
-			case 2:
-				mach_write_to_2(b, mach_read_from_2(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 3:
-				mach_write_to_3(b, mach_read_from_3(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 4:
-				mach_write_to_4(b, mach_read_from_4(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 6:
-				mach_write_to_6(b, mach_read_from_6(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 7:
-				mach_write_to_7(b, mach_read_from_7(b)
-						+ autoinc_inc);
-				goto write_buffers;
-			case 8:
-				mach_write_to_8(b, mach_read_from_8(b)
-						+ autoinc_inc);
-				goto write_buffers;
+			const dtype_t*  dtype = dfield_get_type(dfield);
+			byte*	b = static_cast<byte*>(dfield_get_data(dfield));
+
+			if (sequence.eof()) {
+				err = DB_ERROR;
+				trx->error_key_num = 0;
+
+				ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+					ER_AUTOINC_READ_FAILED, "[NULL]");
+
+				goto func_exit;
 			}
 
-			/* This should not happen. */
-			ut_ad(0);
+			ulonglong	value = sequence++;
+
+			switch (dtype_get_mtype(dtype)) {
+			case DATA_INT: {
+				ibool	usign;
+				ulint	len = dfield_get_len(dfield);
+
+				usign = dtype_get_prtype(dtype) & DATA_UNSIGNED;
+				mach_write_ulonglong(b, value, len, usign);
+
+				break;
+				}
+
+			case DATA_FLOAT:
+				mach_float_write(
+					b, static_cast<float>(value));
+				break;
+
+			case DATA_DOUBLE:
+				mach_double_write(
+					b, static_cast<double>(value));
+				break;
+
+			default:
+				ut_ad(0);
+			}
 		}
 
 write_buffers:
@@ -1758,6 +1726,8 @@ wait_again:
 
 	mem_free(merge_buf);
 
+	btr_pcur_close(&pcur);
+
 	/* Update the next Doc ID we used. Table should be locked, so
 	no concurrent DML */
 	if (max_doc_id) {
@@ -1870,7 +1840,7 @@ corrupt:
 	while (mrec0 && mrec1) {
 		switch (cmp_rec_rec_simple(
 				mrec0, mrec1, offsets0, offsets1,
-				dup->index, dup->table, dup->col_map)) {
+				dup->index, dup->table)) {
 		case 0:
 			mem_heap_free(heap);
 			return(DB_DUPLICATE_KEY);
@@ -2172,6 +2142,23 @@ row_merge_sort(
 }
 
 /*************************************************************//**
+Set blob fields empty */
+static __attribute__((nonnull))
+void
+row_merge_set_blob_empty(
+/*=====================*/
+	dtuple_t*	tuple)	/*!< in/out: data tuple */
+{
+	for (ulint i = 0; i < dtuple_get_n_fields(tuple); i++) {
+		dfield_t*	field = dtuple_get_nth_field(tuple, i);
+
+		if (dfield_is_ext(field)) {
+			dfield_set_data(field, NULL, 0);
+		}
+	}
+}
+
+/*************************************************************//**
 Copy externally stored columns to the data tuple. */
 static __attribute__((nonnull))
 void
@@ -2287,22 +2274,14 @@ row_merge_insert_index_tuples(
 				break;
 			}
 
-			if (dict_index_is_clust(index)) {
-				const dict_index_t*	old_index
-					= dict_table_get_first_index(
-						old_table);
-				if (dict_index_is_online_ddl(old_index)) {
-					error = row_log_table_get_error(
-						old_index);
-					if (error != DB_SUCCESS) {
-						break;
-					}
+			dict_index_t*	old_index
+				= dict_table_get_first_index(old_table);
 
-					if (row_merge_skip_rec(
-						    mrec, index, old_index,
-						    offsets)) {
-						continue;
-					}
+			if (dict_index_is_clust(index)
+			    && dict_index_is_online_ddl(old_index)) {
+				error = row_log_table_get_error(old_index);
+				if (error != DB_SUCCESS) {
+					break;
 				}
 			}
 
@@ -2318,44 +2297,55 @@ row_merge_insert_index_tuples(
 						     REC_INFO_DELETED_FLAG);
 			}
 
-			if (n_ext) {
-				dict_index_t*	old_index
-					= dict_table_get_first_index(
-						old_table);
+			if (!n_ext) {
+				/* There are no externally stored columns. */
+			} else if (!dict_index_is_online_ddl(old_index)) {
+				ut_ad(dict_index_is_clust(index));
+				ut_ad(!del_marks);
+				/* Modifications to the table are
+				blocked while we are not rebuilding it
+				or creating indexes. Off-page columns
+				can be fetched safely. */
+				row_merge_copy_blobs(
+					mrec, offsets,
+					dict_table_zip_size(old_table),
+					dtuple, tuple_heap);
+			} else {
+				ut_ad(dict_index_is_clust(index));
 
-				if (dict_index_is_online_ddl(old_index)) {
-					/* Copy the off-page columns while
-					holding old_index->lock, so
-					that they cannot be freed by
-					a rollback of a fresh insert. */
-					rw_lock_s_lock(&old_index->lock);
+				ulint	offset = index->trx_id_offset;
 
-					if (row_merge_skip_rec(
-						    mrec, index, old_index,
-						    offsets)) {
-						// Rollback: skip the record.
-						rw_lock_s_unlock(
-							&old_index->lock);
-						continue;
-					}
+				if (!offset) {
+					offset = row_get_trx_id_offset(
+						index, offsets);
+				}
 
-					row_merge_copy_blobs(
-						mrec, offsets,
-						dict_table_zip_size(old_table),
-						dtuple, tuple_heap);
+				/* Copy the off-page columns while
+				holding old_index->lock, so
+				that they cannot be freed by
+				a rollback of a fresh insert. */
+				rw_lock_s_lock(&old_index->lock);
 
-					rw_lock_s_unlock(&old_index->lock);
+				if (row_log_table_is_rollback(
+					    old_index,
+					    trx_read_trx_id(mrec + offset))) {
+					/* The row and BLOB could
+					already be freed. They
+					will be deleted by
+					row_undo_ins_remove_clust_rec
+					when rolling back a fresh
+					insert. So, no need to retrieve
+					the off-page column. */
+					row_merge_set_blob_empty(
+						dtuple);
 				} else {
-					/* TODO: Is this safe when creating
-					a secondary index online? We are not
-					suspending purge or preventing the
-					rollback of inserts. Thus, the data
-					could have been freed. */
 					row_merge_copy_blobs(
 						mrec, offsets,
 						dict_table_zip_size(old_table),
 						dtuple, tuple_heap);
 				}
+
+				rw_lock_s_unlock(&old_index->lock);
 			}
 
 			ut_ad(dtuple_validate(dtuple));
@@ -2723,9 +2713,11 @@ row_merge_drop_indexes(
 			case ONLINE_INDEX_CREATION:
 				rw_lock_x_lock(dict_index_get_lock(index));
 				ut_ad(*index->name == TEMP_INDEX_PREFIX);
-				row_log_free(index);
+				row_log_abort_sec(index);
 			drop_aborted:
 				rw_lock_x_unlock(dict_index_get_lock(index));
+
+				DEBUG_SYNC_C("merge_drop_index_after_abort");
 				/* covered by dict_sys->mutex */
 				MONITOR_INC(MONITOR_BACKGROUND_DROP_INDEX);
 				/* fall through */
@@ -2774,7 +2766,8 @@ row_merge_drop_indexes(
 				In inplace_alter_table(),
 				row_merge_build_indexes()
 				should never leave the index in this state.
-				It would invoke row_log_free() on failure. */
+				It would invoke row_log_abort_sec() on
+				failure. */
 			case ONLINE_INDEX_COMPLETE:
 				/* In these cases, we are able to drop
 				the index straight. The DROP INDEX was
@@ -3281,7 +3274,7 @@ row_merge_create_index(
 /*===================*/
 	trx_t*			trx,	/*!< in/out: trx (sets error_state) */
 	dict_table_t*		table,	/*!< in: the index is on this table */
-	const merge_index_def_t*index_def)
+	const index_def_t*	index_def)
 					/*!< in: the index definition */
 {
 	dict_index_t*	index;
@@ -3299,7 +3292,7 @@ row_merge_create_index(
 	ut_a(index);
 
 	for (i = 0; i < n_fields; i++) {
-		merge_index_field_t*	ifield = &index_def->fields[i];
+		index_field_t*	ifield = &index_def->fields[i];
 
 		dict_mem_index_add_field(
 			index, dict_table_get_col_name(table, ifield->col_no),
@@ -3342,8 +3335,9 @@ row_merge_is_index_usable(
 	}
 
 	return(!dict_index_is_corrupted(index)
-	       && (!trx->read_view
-	           || read_view_sees_trx_id(trx->read_view, index->trx_id)));
+	       && (dict_table_is_temporary(index->table)
+		   || !trx->read_view
+		   || read_view_sees_trx_id(trx->read_view, index->trx_id)));
 }
 
 /*********************************************************************//**
@@ -3397,7 +3391,8 @@ row_merge_build_indexes(
 	ulint		add_autoinc,	/*!< in: number of added
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
-	ulong		autoinc_inc)	/*!< in: auto_increment_increment */
+	ib_sequence_t&	sequence)	/*!< in: autoinc instance if
+					add_autoinc != ULINT_UNDEFINED */
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -3469,12 +3464,14 @@ row_merge_build_indexes(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
 		n_indexes, add_cols, col_map,
-		add_autoinc, autoinc_inc, block);
+		add_autoinc, sequence, block);
 
 	if (error != DB_SUCCESS) {
 
 		goto func_exit;
 	}
+
+	DEBUG_SYNC_C("row_merge_after_scan");
 
 	/* Now we have files containing index entries ready for
 	sorting and inserting. */
@@ -3616,7 +3613,7 @@ func_exit:
 			case ONLINE_INDEX_CREATION:
 				rw_lock_x_lock(
 					dict_index_get_lock(indexes[i]));
-				row_log_free(indexes[i]);
+				row_log_abort_sec(indexes[i]);
 				indexes[i]->type |= DICT_CORRUPT;
 				rw_lock_x_unlock(
 					dict_index_get_lock(indexes[i]));

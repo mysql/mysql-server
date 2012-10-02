@@ -274,6 +274,8 @@ ddl_background_drop_tables	0
 ddl_online_create_index	1
 ddl_pending_alter_table	1
 SET DEBUG_SYNC = 'now SIGNAL dml3_done';
+Warnings:
+Note	1831	Duplicate index 'c2f' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
 ddl_background_drop_indexes	0
@@ -318,14 +320,6 @@ ddl_background_drop_indexes	1
 ddl_background_drop_tables	0
 ddl_online_create_index	0
 ddl_pending_alter_table	0
-SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c2g_created WAIT_FOR dml4_done';
-SET lock_wait_timeout = 1;
-ALTER TABLE t1 DROP INDEX c2f, ADD INDEX c2g(c22f);
-SET DEBUG_SYNC = 'now WAIT_FOR c2g_created';
-SET lock_wait_timeout = 10;
-ALTER TABLE t1 DISCARD TABLESPACE;
-SET DEBUG_SYNC = 'now SIGNAL dml4_done';
-ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -337,8 +331,6 @@ t1	CREATE TABLE `t1` (
   KEY `c2f` (`c22f`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 STATS_PERSISTENT=1 COMMENT='testing if c2e will be dropped'
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
 ddl_background_drop_indexes	0
@@ -346,8 +338,6 @@ ddl_background_drop_tables	0
 ddl_online_create_index	0
 ddl_pending_alter_table	0
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = INPLACE;
-Warnings:
-Warning	1814	InnoDB: Tablespace has been discarded for table 't1'
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = COPY;
 ERROR 42000: Duplicate key name 'c2h'
 SET DEBUG_SYNC = 'RESET';

@@ -1036,7 +1036,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
             } /* creating_tmp_table */
           },
           {
-            "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` where <in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
+            "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` where <in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 2 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -1048,25 +1048,25 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))",
+              "original_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 2 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
+                  "resulting_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 2 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
+                  "resulting_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 2 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
+                  "resulting_condition": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 1)) union /* select#3 */ select 2 from `t6` where ((`t6`.`d` = ifnull(`t5`.`c`,NULL)) and (<cache>(5) = 2))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -1180,7 +1180,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                     "select#": "fake",
                     "steps": [
                       {
-                        "expanded_query": "/* select#fake */ select `Not_used` from dual"
+                        "expanded_query": "/* select#fake */ select `1` from dual"
                       },
                       {
                         "transformation": {
@@ -1242,6 +1242,14 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
                         ] /* considered_execution_plans */
                       },
                       {
+                        "transformation": {
+                          "select#": "fake",
+                          "from": "IN (SELECT)",
+                          "to": "EXISTS (CORRELATED SELECT)",
+                          "put_1_in_SELECT_list": true
+                        } /* transformation */
+                      },
+                      {
                         "attaching_conditions_to_tables": {
                           "original_condition": null,
                           "attached_conditions_computation": [
@@ -1276,7 +1284,7 @@ SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SEL
             } /* subselect_execution */
           },
           {
-            "condition_on_constant_tables": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where 0 union /* select#3 */ select 1 from `t6` where 0))",
+            "condition_on_constant_tables": "<in_optimizer>(5,<exists>(/* select#2 */ select 1 from `t6` where 0 union /* select#3 */ select 2 from `t6` where 0))",
             "condition_value": false
           }
         ] /* steps */,
@@ -1299,17 +1307,17 @@ select (@query:=QUERY)+NULL, (@trace:=TRACE)+NULL from information_schema.OPTIMI
 NULL	NULL
 select length(@trace);
 length(@trace)
-13448
-set @max_mem_size=14300;
+13792
+set @max_mem_size=13900;
 set optimizer_trace_max_mem_size=@max_mem_size;
 select length(@query)+length(@trace) > @@optimizer_trace_max_mem_size;
 length(@query)+length(@trace) > @@optimizer_trace_max_mem_size
-0
+1
 SELECT * FROM t5 WHERE 5 IN (SELECT 1 FROM t6 WHERE d = ifnull(c,null) UNION SELECT 2 FROM t6 WHERE d = ifnull(c,null));
 c
 select (@missing_bytes:=missing_bytes_beyond_max_mem_size) from information_schema.OPTIMIZER_TRACE;
 (@missing_bytes:=missing_bytes_beyond_max_mem_size)
-0
+15
 select (@query2:=QUERY)+NULL,(@trace2:=TRACE)+NULL from information_schema.OPTIMIZER_TRACE;
 (@query2:=QUERY)+NULL	(@trace2:=TRACE)+NULL
 NULL	NULL
@@ -1317,12 +1325,12 @@ select length(@trace2),
 (length(@trace2) + @missing_bytes) = length(@trace),
 @query2 = @query;
 length(@trace2)	(length(@trace2) + @missing_bytes) = length(@trace)	@query2 = @query
-13448	1	1
+13777	1	1
 select length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200);
 length(@query2) + length(@trace2)
 between (@@optimizer_trace_max_mem_size-200) and (@@optimizer_trace_max_mem_size+200)
-0
+1
 select instr(@trace, @trace2) = 1;
 instr(@trace, @trace2) = 1
 1
@@ -1382,7 +1390,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` where <in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
+            "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` where <in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -1394,25 +1402,25 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))",
+              "original_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
+                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
+                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
+                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -1444,7 +1452,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
             ] /* rows_estimation */
           },
           {
-            "condition_on_constant_tables": "<in_optimizer>((NULL + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((NULL + 1)) = (`t6`.`d` + 1)))))",
+            "condition_on_constant_tables": "<in_optimizer>((NULL + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((NULL + 1)) = (`t6`.`d` + 1)))))",
             "condition_value": false
           }
         ] /* steps */,
@@ -1509,7 +1517,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                       "range_analysis": {
                         "table_scan": {
                           "rows": 2,
-                          "cost": 4.4
+                          "cost": 4.5034
                         } /* table_scan */,
                         "potential_range_indices": [
                           {
@@ -1586,6 +1594,14 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
+                },
+                {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "IN (SELECT)",
+                    "to": "EXISTS (CORRELATED SELECT)",
+                    "put_1_in_SELECT_list": true
+                  } /* transformation */
                 },
                 {
                   "attaching_conditions_to_tables": {
@@ -1664,7 +1680,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` where <in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
+            "expanded_query": "/* select#1 */ select `t5`.`c` AS `c` from `t5` where <in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -1676,25 +1692,25 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))",
+              "original_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
+                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
+                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
+                  "resulting_condition": "<in_optimizer>((`t5`.`c` + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((`t5`.`c` + 1)) = (`t6`.`d` + 1)))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -1726,7 +1742,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
             ] /* rows_estimation */
           },
           {
-            "condition_on_constant_tables": "<in_optimizer>((NULL + 1),<exists>(/* select#2 */ select 1 from `t6` where (isnull(`t6`.`d`) and (<cache>((NULL + 1)) = (`t6`.`d` + 1)))))",
+            "condition_on_constant_tables": "<in_optimizer>((NULL + 1),<exists>(/* select#2 */ select (`t6`.`d` + 1) from `t6` where (isnull(`t6`.`d`) and (<cache>((NULL + 1)) = (`t6`.`d` + 1)))))",
             "condition_value": false
           }
         ] /* steps */,
@@ -1791,7 +1807,7 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                       "range_analysis": {
                         "table_scan": {
                           "rows": 2,
-                          "cost": 4.4
+                          "cost": 4.5034
                         } /* table_scan */,
                         "potential_range_indices": [
                           {
@@ -1868,6 +1884,14 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
+                },
+                {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "IN (SELECT)",
+                    "to": "EXISTS (CORRELATED SELECT)",
+                    "put_1_in_SELECT_list": true
+                  } /* transformation */
                 },
                 {
                   "attaching_conditions_to_tables": {
@@ -2407,7 +2431,7 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t1`.`s1` AS `s1`,`t1`.`s2` AS `s2` from `t1` where <in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select 1 from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
+            "expanded_query": "/* select#1 */ select `t1`.`s1` AS `s1`,`t1`.`s2` AS `s2` from `t1` where <in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select `t1`.`s2` from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -2419,25 +2443,25 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select 1 from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))",
+              "original_condition": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select `t1`.`s2` from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select 1 from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
+                  "resulting_condition": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select `t1`.`s2` from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select 1 from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
+                  "resulting_condition": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select `t1`.`s2` from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select 1 from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
+                  "resulting_condition": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select `t1`.`s2` from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -2492,13 +2516,13 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select 1 from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))",
+              "original_condition": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select `t1`.`s2` from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select 1 from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
+                  "attached": "<in_optimizer>(`t1`.`s1`,<exists>(/* select#2 */ select `t1`.`s2` from `t1` where (<cache>(`t1`.`s1`) = `t1`.`s2`)))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -2591,6 +2615,14 @@ explain extended select * from t1 where s1 in (select s2 from t1)	{
                   ] /* considered_execution_plans */
                 },
                 {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "IN (SELECT)",
+                    "to": "EXISTS (CORRELATED SELECT)",
+                    "put_1_in_SELECT_list": true
+                  } /* transformation */
+                },
+                {
                   "attaching_conditions_to_tables": {
                     "original_condition": "(<cache>(`t1`.`s1`) = `t1`.`s2`)",
                     "attached_conditions_computation": [
@@ -2631,7 +2663,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 2	DEPENDENT SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`s1`,`test`.`t1`.`s2`),<exists>(/* select#2 */ select `test`.`t1`.`s2`,`test`.`t1`.`s1` from `test`.`t1` where ((<cache>(`test`.`t1`.`s1`) = `test`.`t1`.`s2`) and (<cache>(`test`.`t1`.`s2`) = `test`.`t1`.`s1`))))
+Note	1003	/* select#1 */ select `test`.`t1`.`s1` AS `s1`,`test`.`t1`.`s2` AS `s2` from `test`.`t1` where <in_optimizer>((`test`.`t1`.`s1`,`test`.`t1`.`s2`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` where ((<cache>(`test`.`t1`.`s1`) = `test`.`t1`.`s2`) and (<cache>(`test`.`t1`.`s2`) = `test`.`t1`.`s1`))))
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
 explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
@@ -2851,6 +2883,14 @@ explain extended select * from t1 where (s1,s2) in (select s2,s1 from t1)	{
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
+                },
+                {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "IN (SELECT)",
+                    "to": "EXISTS (CORRELATED SELECT)",
+                    "put_1_in_SELECT_list": true
+                  } /* transformation */
                 },
                 {
                   "attaching_conditions_to_tables": {
@@ -3258,7 +3298,7 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select left(`t1_16`.`a1`,7) AS `left(a1,7)`,left(`t1_16`.`a2`,7) AS `left(a2,7)` from `t1_16` where <in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
+            "expanded_query": "/* select#1 */ select left(`t1_16`.`a1`,7) AS `left(a1,7)`,left(`t1_16`.`a2`,7) AS `left(a2,7)` from `t1_16` where <in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select `t2_16`.`b1` from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3270,25 +3310,25 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))",
+              "original_condition": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select `t2_16`.`b1` from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
+                  "resulting_condition": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select `t2_16`.`b1` from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
+                  "resulting_condition": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select `t2_16`.`b1` from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
+                  "resulting_condition": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select `t2_16`.`b1` from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -3343,13 +3383,13 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))",
+              "original_condition": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select `t2_16`.`b1` from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1_16`",
-                  "attached": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select 1 from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
+                  "attached": "<in_optimizer>(`t1_16`.`a1`,<exists>(/* select#2 */ select `t2_16`.`b1` from `t2_16` where ((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -3442,6 +3482,14 @@ where a1 in (select b1 from t2_16 where b1 > '0')	{
                   ] /* considered_execution_plans */
                 },
                 {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "IN (SELECT)",
+                    "to": "EXISTS (CORRELATED SELECT)",
+                    "put_1_in_SELECT_list": true
+                  } /* transformation */
+                },
+                {
                   "attaching_conditions_to_tables": {
                     "original_condition": "((`t2_16`.`b1` > '0') and (<cache>(`t1_16`.`a1`) = `t2_16`.`b1`))",
                     "attached_conditions_computation": [
@@ -3529,7 +3577,7 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t2`.`c2` AS `c2` from (`t1` left join `t2` on((`t1`.`c1` = `t2`.`c2`))) where <in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`))))"
+            "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t2`.`c2` AS `c2` from (`t1` left join `t2` on((`t1`.`c1` = `t2`.`c2`))) where <in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select `t2`.`c2` from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -3545,31 +3593,31 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                 "JOIN_condition_to_WHERE",
                 "parenthesis_removal"
               ] /* transformations */,
-              "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t2`.`c2` AS `c2` from `t1` join `t2` where (<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and (`t1`.`c1` = `t2`.`c2`))"
+              "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1`,`t2`.`c2` AS `c2` from `t1` join `t2` where (<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select `t2`.`c2` from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and (`t1`.`c1` = `t2`.`c2`))"
             } /* transformations_to_nested_joins */
           },
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and (`t1`.`c1` = `t2`.`c2`))",
+              "original_condition": "(<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select `t2`.`c2` from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and (`t1`.`c1` = `t2`.`c2`))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and multiple equal(`t1`.`c1`, `t2`.`c2`))"
+                  "resulting_condition": "(<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select `t2`.`c2` from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and multiple equal(`t1`.`c1`, `t2`.`c2`))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and multiple equal(`t1`.`c1`, `t2`.`c2`))"
+                  "resulting_condition": "(<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select `t2`.`c2` from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and multiple equal(`t1`.`c1`, `t2`.`c2`))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and multiple equal(`t1`.`c1`, `t2`.`c2`))"
+                  "resulting_condition": "(<in_optimizer>(`t2`.`c2`,<exists>(/* select#2 */ select `t2`.`c2` from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))) and multiple equal(`t1`.`c1`, `t2`.`c2`))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -3677,13 +3725,13 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`t2`.`c2` = `t1`.`c1`) and <in_optimizer>(`t1`.`c1`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))))",
+              "original_condition": "((`t2`.`c2` = `t1`.`c1`) and <in_optimizer>(`t1`.`c1`,<exists>(/* select#2 */ select `t2`.`c2` from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`)))))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "<in_optimizer>(`t1`.`c1`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`))))"
+                  "attached": "<in_optimizer>(`t1`.`c1`,<exists>(/* select#2 */ select `t2`.`c2` from `t2` where ((`t2`.`c2` = 1) and (<cache>(`t2`.`c2`) = `t2`.`c2`))))"
                 },
                 {
                   "table": "`t2`",
@@ -3786,6 +3834,14 @@ WHERE c2 IN ( SELECT c2 FROM t2 WHERE c2 IN ( 1 ) )	{
                             "chosen": true
                           }
                         ] /* considered_execution_plans */
+                      },
+                      {
+                        "transformation": {
+                          "select#": 2,
+                          "from": "IN (SELECT)",
+                          "to": "EXISTS (CORRELATED SELECT)",
+                          "put_1_in_SELECT_list": true
+                        } /* transformation */
                       },
                       {
                         "attaching_conditions_to_tables": {
@@ -4272,7 +4328,7 @@ concat(c1,'y') IN
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1` from `t1` where (<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
+            "expanded_query": "/* select#1 */ select `t1`.`c1` AS `c1` from `t1` where (<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select left(`t2`.`c2`,8) from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select left(`t2`.`c2`,9) from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -4284,25 +4340,25 @@ concat(c1,'y') IN
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))",
+              "original_condition": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select left(`t2`.`c2`,8) from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select left(`t2`.`c2`,9) from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
+                  "resulting_condition": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select left(`t2`.`c2`,8) from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select left(`t2`.`c2`,9) from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
+                  "resulting_condition": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select left(`t2`.`c2`,8) from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select left(`t2`.`c2`,9) from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
+                  "resulting_condition": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select left(`t2`.`c2`,8) from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select left(`t2`.`c2`,9) from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -4357,13 +4413,13 @@ concat(c1,'y') IN
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))",
+              "original_condition": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select left(`t2`.`c2`,8) from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select left(`t2`.`c2`,9) from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t1`",
-                  "attached": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select 1 from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
+                  "attached": "(<in_optimizer>(concat(`t1`.`c1`,'x'),<exists>(/* select#2 */ select left(`t2`.`c2`,8) from `t2` where (<cache>(concat(`t1`.`c1`,'x')) = left(`t2`.`c2`,8)))) and <in_optimizer>(concat(`t1`.`c1`,'y'),<exists>(/* select#3 */ select left(`t2`.`c2`,9) from `t2` where (<cache>(concat(`t1`.`c1`,'y')) = left(`t2`.`c2`,9)))))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -4454,6 +4510,14 @@ concat(c1,'y') IN
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
+                },
+                {
+                  "transformation": {
+                    "select#": 3,
+                    "from": "IN (SELECT)",
+                    "to": "EXISTS (CORRELATED SELECT)",
+                    "put_1_in_SELECT_list": true
+                  } /* transformation */
                 },
                 {
                   "attaching_conditions_to_tables": {
@@ -4557,6 +4621,14 @@ concat(c1,'y') IN
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
+                },
+                {
+                  "transformation": {
+                    "select#": 2,
+                    "from": "IN (SELECT)",
+                    "to": "EXISTS (CORRELATED SELECT)",
+                    "put_1_in_SELECT_list": true
+                  } /* transformation */
                 },
                 {
                   "attaching_conditions_to_tables": {
@@ -5368,6 +5440,14 @@ select * from t1 where (t1.a,t1.b) not in (select c,d from t2 where c>0)	{
                             "chosen": true
                           }
                         ] /* considered_execution_plans */
+                      },
+                      {
+                        "transformation": {
+                          "select#": 2,
+                          "from": "IN (SELECT)",
+                          "to": "EXISTS (CORRELATED SELECT)",
+                          "put_1_in_SELECT_list": true
+                        } /* transformation */
                       },
                       {
                         "attaching_conditions_to_tables": {
@@ -6674,6 +6754,9 @@ freturn 3 ret@0	{
   "steps": [
   ] /* steps */
 }	0	0
+set @old_opt_switch=@@optimizer_switch;
+# Test was created when sj-mat-scan could not handle this query...
+set optimizer_switch="materialization=off";
 set optimizer_trace_offset=-60, optimizer_trace_limit=60|
 select * from t6 where d in (select f1() from t2 where s="c")|
 d
@@ -6714,7 +6797,7 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` where <in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))"
+            "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` where <in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -6726,25 +6809,25 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))",
+              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -6799,13 +6882,13 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))",
+              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t6`",
-                  "attached": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "attached": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = 'c') and (<cache>(`t6`.`d`) = `f1`()))))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -6900,6 +6983,14 @@ select * from t6 where d in (select f1() from t2 where s="c")	{
                             "chosen": true
                           }
                         ] /* considered_execution_plans */
+                      },
+                      {
+                        "transformation": {
+                          "select#": 2,
+                          "from": "IN (SELECT)",
+                          "to": "EXISTS (CORRELATED SELECT)",
+                          "put_1_in_SELECT_list": true
+                        } /* transformation */
                       },
                       {
                         "attaching_conditions_to_tables": {
@@ -7575,12 +7666,17 @@ delete from t1 where id="z"	{
     }
   ] /* steps */
 }	0	0
+set @@optimizer_switch=@old_opt_switch;
+# Stored procedures
 create procedure p1(arg char(1))
 begin
 declare res int;
 select d into res from t6 where d in (select f1() from t2 where s=arg);
 select d+1 into res from t6 where d=res+1;
 end|
+set @old_opt_switch=@@optimizer_switch;
+# Test was created when sj-mat-scan could not handle this query...
+set optimizer_switch="materialization=off";
 set optimizer_trace_offset=0, optimizer_trace_limit=100;
 call p1("c")|
 Warnings:
@@ -7630,7 +7726,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` where <in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
+            "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` where <in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -7642,25 +7738,25 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))",
+              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -7715,13 +7811,13 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))",
+              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t6`",
-                  "attached": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "attached": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -8559,6 +8655,8 @@ select d+1 into res from t6 where d=res+1	{
     }
   ] /* steps */
 }	0	0
+set @@optimizer_switch=@old_opt_switch;
+# Triggers
 create trigger trg1 before insert on t2 for each row
 begin
 set new.s=f1();  
@@ -9500,7 +9598,7 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
             } /* join_preparation */
           },
           {
-            "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` where <in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
+            "expanded_query": "/* select#1 */ select `t6`.`d` AS `d` from `t6` where <in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
           }
         ] /* steps */
       } /* join_preparation */
@@ -9512,25 +9610,25 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           {
             "condition_processing": {
               "condition": "WHERE",
-              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))",
+              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))",
               "steps": [
                 {
                   "transformation": "equality_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
                 },
                 {
                   "transformation": "constant_propagation",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
                 },
                 {
                   "transformation": "trivial_condition_removal",
                   "subselect_evaluation": [
                   ] /* subselect_evaluation */,
-                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "resulting_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
                 }
               ] /* steps */
             } /* condition_processing */
@@ -9585,13 +9683,13 @@ select d into res from t6 where d in (select f1() from t2 where s=arg)	{
           },
           {
             "attaching_conditions_to_tables": {
-              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))",
+              "original_condition": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))",
               "attached_conditions_computation": [
               ] /* attached_conditions_computation */,
               "attached_conditions_summary": [
                 {
                   "table": "`t6`",
-                  "attached": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select 1 from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
+                  "attached": "<in_optimizer>(`t6`.`d`,<exists>(/* select#2 */ select `f1`() from `t2` where ((`t2`.`s` = arg@0) and (<cache>(`t6`.`d`) = `f1`()))))"
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */
@@ -10533,7 +10631,7 @@ drop view v1;
 create view v1 as select * from t1 where id < "c" limit 2;
 explain select * from v1 where id="b";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ref	auto_key0	auto_key0	16	const	0	Using where
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	16	const	0	Using where
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -10726,7 +10824,7 @@ explain select * from v1 where id="b"	{
                   "considered_access_paths": [
                     {
                       "access_type": "ref",
-                      "index": "auto_key0",
+                      "index": "<auto_key0>",
                       "rows": 0.2,
                       "cost": 0.24,
                       "chosen": true

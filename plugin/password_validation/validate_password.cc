@@ -99,8 +99,8 @@ static void free_dictionary_file()
     dictionary_words.clear();
 }
 
-/*  
-  Checks weather password or substring of password
+/*
+  Checks whether password or substring of password
   is present in dictionary file stored as std::set
 */
 static int validate_dictionary_check(mysql_string_handle password)
@@ -112,10 +112,9 @@ static int validate_dictionary_check(mysql_string_handle password)
   if (!(buffer= (char*) malloc(MAX_PASSWORD_LENGTH)))
     return (0);
 
-  if ((length= mysql_string_convert_to_char_ptr(lower_string_handle, "utf8",
-                                         buffer, &error)) > 0 && error == 0)
-     buffer[length]= '\0';
-
+  length= mysql_string_convert_to_char_ptr(lower_string_handle, "utf8",
+                                           buffer, MAX_PASSWORD_LENGTH,
+                                           &error);
   int substr_pos= 0;
   int substr_length= length;
   string_type password_str= (const char *)buffer;

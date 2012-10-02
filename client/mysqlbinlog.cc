@@ -49,6 +49,7 @@ static void warning(const char *format, ...) ATTRIBUTE_FORMAT(printf, 1, 2);
 #include "log_event.h"
 #include "log_event_old.h"
 #include "sql_common.h"
+#include "my_dir.h"
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 #include "sql_string.h"
 #include "my_decimal.h"
@@ -912,8 +913,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	filename and use LOCAL), prepared in the 'case EXEC_LOAD_EVENT' 
 	below.
       */
+      {
       ce->print(result_file, print_event_info, TRUE);
-
+        if (head->error == -1)
+          goto err;
+      }
       // If this binlog is not 3.23 ; why this test??
       if (glob_description_event->binlog_version >= 3)
       {
@@ -964,6 +968,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 	ce->print(result_file, print_event_info, TRUE);
 	my_free((void*)ce->fname);
 	delete ce;
+        if (head->error == -1)
+          goto err;
       }
       else
         warning("Ignoring Execute_load_log_event as there is no "
@@ -1024,6 +1030,12 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         {
           convert_path_to_forward_slashes(fname);
           exlq->print(result_file, print_event_info, fname);
+          if (head->error == -1)
+          {
+            if (fname)
+              my_free(fname);
+            goto err;
+          }
         }
         else
           warning("Ignoring Execute_load_query since there is no "
@@ -1497,7 +1509,7 @@ static void print_version()
 static void usage()
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("\
 Dumps a MySQL binary log in a format usable for viewing or for piping to\n\
 the mysql command line client.\n\n");
@@ -2201,6 +2213,7 @@ static Exit_status check_header(IO_CACHE* file,
   uchar header[BIN_LOG_HEADER_SIZE];
   uchar buf[PROBE_HEADER_LEN];
   my_off_t tmp_pos, pos;
+  MY_STAT my_file_stat;
 
   delete glob_description_event;
   if (!(glob_description_event= new Format_description_log_event(3)))
@@ -2210,7 +2223,16 @@ static Exit_status check_header(IO_CACHE* file,
   }
 
   pos= my_b_tell(file);
-  my_b_seek(file, (my_off_t)0);
+
+  /* fstat the file to check if the file is a regular file. */
+  if (my_fstat(file->file, &my_file_stat, MYF(0)) == -1)
+  {
+    error("Unable to stat the file.");
+    DBUG_RETURN(ERROR_STOP);
+  }
+  if ((my_file_stat.st_mode & S_IFMT) == S_IFREG)
+    my_b_seek(file, (my_off_t)0);
+
   if (my_b_read(file, header, sizeof(header)))
   {
     error("Failed reading header; probably an empty file.");

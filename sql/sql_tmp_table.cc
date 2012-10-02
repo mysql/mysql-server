@@ -1068,7 +1068,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     keyinfo->key_part= key_part_info;
     keyinfo->flags= HA_NOSAME | HA_NULL_ARE_EQUAL;
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
-    keyinfo->name= (char*) "distinct_key";
+    keyinfo->name= (char*) "<auto_key>";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->rec_per_key= 0;
 
@@ -1296,7 +1296,6 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     share->db_plugin= ha_lock_engine(0, myisam_hton);
     table->file= get_new_handler(share, &table->mem_root,
                                  share->db_type());
-    DBUG_ASSERT(uniq_tuple_length_arg <= table->file->max_key_length());
   }
   else
   {
@@ -1719,7 +1718,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
                        start_recinfo,
                        share->uniques, &uniquedef,
                        &create_info,
-                       HA_CREATE_TMP_TABLE | 
+                       HA_CREATE_TMP_TABLE | HA_CREATE_INTERNAL_TABLE |
                        ((share->db_create_options & HA_OPTION_PACK_RECORD) ?
                         HA_PACK_RECORD : 0)
                        )))

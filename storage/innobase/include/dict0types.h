@@ -26,15 +26,15 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef dict0types_h
 #define dict0types_h
 
-typedef struct dict_sys_struct		dict_sys_t;
-typedef struct dict_col_struct		dict_col_t;
-typedef struct dict_field_struct	dict_field_t;
-typedef struct dict_index_struct	dict_index_t;
-typedef struct dict_table_struct	dict_table_t;
-typedef struct dict_foreign_struct	dict_foreign_t;
+struct dict_sys_t;
+struct dict_col_t;
+struct dict_field_t;
+struct dict_index_t;
+struct dict_table_t;
+struct dict_foreign_t;
 
-typedef struct ind_node_struct		ind_node_t;
-typedef struct tab_node_struct		tab_node_t;
+struct ind_node_t;
+struct tab_node_t;
 
 /* Space id and page no where the dictionary header resides */
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */
@@ -52,15 +52,13 @@ the table and index will be marked as "corrupted", and caller will
 be responsible to deal with corrupted table or index.
 Note: please define the IGNORE_ERR_* as bits, so their value can
 be or-ed together */
-enum dict_err_ignore {
+enum dict_err_ignore_t {
 	DICT_ERR_IGNORE_NONE = 0,	/*!< no error to ignore */
 	DICT_ERR_IGNORE_INDEX_ROOT = 1,	/*!< ignore error if index root
 					page is FIL_NULL or incorrect value */
 	DICT_ERR_IGNORE_CORRUPT = 2,	/*!< skip corrupted indexes */
 	DICT_ERR_IGNORE_ALL = 0xFFFF	/*!< ignore all errors */
 };
-
-typedef enum dict_err_ignore		dict_err_ignore_t;
 
 /** Quiescing states for flushing tables to disk. */
 enum ib_quiesce_t {

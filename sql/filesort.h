@@ -68,4 +68,11 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *fsort, bool sort_positions,
 void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr,uchar *to);
 
+class Sort_param;
+/// Declared here so we can unit test it.
+void make_sortkey(Sort_param *param, uchar *to, uchar *ref_pos);
+/// Declared here so we can unit test it.
+uint sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
+                bool *multi_byte_charset);
+
 #endif /* FILESORT_INCLUDED */

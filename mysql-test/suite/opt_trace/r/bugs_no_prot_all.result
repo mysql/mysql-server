@@ -190,17 +190,6 @@ WHERE sq2_alias1.col_varchar_nokey <= alias1.col_varchar_key
                   "transformation": {
                     "select#": 2,
                     "from": "IN (SELECT)",
-                    "to": "materialization",
-                    "has_nullable_expressions": true,
-                    "treat_UNKNOWN_as_FALSE": false,
-                    "chosen": false,
-                    "cause": "cannot_handle_partial_matches"
-                  } /* transformation */
-                },
-                {
-                  "transformation": {
-                    "select#": 2,
-                    "from": "IN (SELECT)",
                     "to": "EXISTS (CORRELATED SELECT)",
                     "chosen": true,
                     "evaluating_constant_where_conditions": [
@@ -1621,6 +1610,10 @@ ON table2 .col_int_key = table1 .col_int_key
                     "cost_for_plan": 7.4138,
                     "rows_for_plan": 12,
                     "semijoin_strategy_choice": [
+                      {
+                        "strategy": "MaterializeScan",
+                        "choice": "deferred"
+                      }
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
                       {
@@ -1644,11 +1637,36 @@ ON table2 .col_int_key = table1 .col_int_key
                         "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
-                            "strategy": "DuplicatesWeedout",
-                            "cost": 41.434,
+                            "strategy": "MaterializeScan",
+                            "recalculate_access_paths_and_cost": {
+                              "tables": [
+                                {
+                                  "table": "`where_subselect_20070`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "scan",
+                                        "using_join_cache": true,
+                                        "rows": 6,
+                                        "cost": 6.8194,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                }
+                              ] /* tables */
+                            } /* recalculate_access_paths_and_cost */,
+                            "cost": 19.433,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
+                          },
+                          {
+                            "strategy": "DuplicatesWeedout",
+                            "cost": 41.434,
+                            "rows": 6,
+                            "duplicate_tables_left": false,
+                            "chosen": false
                           }
                         ] /* semijoin_strategy_choice */,
                         "pruned_by_cost": true
@@ -1769,6 +1787,10 @@ ON table2 .col_int_key = table1 .col_int_key
                     "cost_for_plan": 7.4138,
                     "rows_for_plan": 12,
                     "semijoin_strategy_choice": [
+                      {
+                        "strategy": "MaterializeScan",
+                        "choice": "deferred"
+                      }
                     ] /* semijoin_strategy_choice */,
                     "rest_of_plan": [
                       {
@@ -1792,11 +1814,36 @@ ON table2 .col_int_key = table1 .col_int_key
                         "rows_for_plan": 72,
                         "semijoin_strategy_choice": [
                           {
-                            "strategy": "DuplicatesWeedout",
-                            "cost": 41.434,
+                            "strategy": "MaterializeScan",
+                            "recalculate_access_paths_and_cost": {
+                              "tables": [
+                                {
+                                  "table": "`where_subselect_20070`",
+                                  "best_access_path": {
+                                    "considered_access_paths": [
+                                      {
+                                        "access_type": "scan",
+                                        "using_join_cache": true,
+                                        "rows": 6,
+                                        "cost": 6.8194,
+                                        "chosen": true
+                                      }
+                                    ] /* considered_access_paths */
+                                  } /* best_access_path */
+                                }
+                              ] /* tables */
+                            } /* recalculate_access_paths_and_cost */,
+                            "cost": 19.433,
                             "rows": 6,
                             "duplicate_tables_left": true,
                             "chosen": true
+                          },
+                          {
+                            "strategy": "DuplicatesWeedout",
+                            "cost": 41.434,
+                            "rows": 6,
+                            "duplicate_tables_left": false,
+                            "chosen": false
                           }
                         ] /* semijoin_strategy_choice */,
                         "pruned_by_cost": true
@@ -1811,8 +1858,26 @@ ON table2 .col_int_key = table1 .col_int_key
             ] /* considered_execution_plans */
           },
           {
+            "creating_tmp_table": {
+              "tmp_table_info": {
+                "row_length": 13,
+                "key_length": 14,
+                "unique_constraint": false,
+                "location": "memory (heap)",
+                "row_limit_estimate": 80659
+              } /* tmp_table_info */
+            } /* creating_tmp_table */
+          },
+          {
+            "subselect_execution": {
+              "select#": 2,
+              "steps": [
+              ] /* steps */
+            } /* subselect_execution */
+          },
+          {
             "attaching_conditions_to_tables": {
-              "original_condition": "((`table1`.`col_int_key` = `where_subselect_20070`.`field1`) and (`table2`.`col_int_key` = `table1`.`col_int_key`))",
+              "original_condition": "((`<subquery3>`.`field1` = `where_subselect_20070`.`field1`) and (`table2`.`col_int_key` = `table1`.`col_int_key`))",
               "attached_conditions_computation": [
                 {
                   "table": "`t1` `table2`",
@@ -1862,6 +1927,10 @@ ON table2 .col_int_key = table1 .col_int_key
               "attached_conditions_summary": [
                 {
                   "table": "`where_subselect_20070`",
+                  "attached": "(`where_subselect_20070`.`field1` is not null)"
+                },
+                {
+                  "table": "``.`<subquery3>`",
                   "attached": null
                 },
                 {
@@ -1882,37 +1951,10 @@ ON table2 .col_int_key = table1 .col_int_key
                 "access_type": "table_scan"
               },
               {
+                "table": "``.`<subquery3>`"
+              },
+              {
                 "table": "`t1` `table1`",
-                "unknown_key_1": {
-                  "creating_tmp_table": {
-                    "tmp_table_info": {
-                      "row_length": 13,
-                      "key_length": 14,
-                      "unique_constraint": false,
-                      "location": "memory (heap)",
-                      "row_limit_estimate": 80659
-                    } /* tmp_table_info */
-                  } /* creating_tmp_table */
-                },
-                "creating_semijoin_materialization_conditions": {
-                  "evaluating_constant_semijoin_conditions": [
-                    {
-                      "subselect_execution": {
-                        "select#": 2,
-                        "steps": [
-                        ] /* steps */
-                      } /* subselect_execution */
-                    },
-                    {
-                      "subselect_execution": {
-                        "select#": 2,
-                        "steps": [
-                        ] /* steps */
-                      } /* subselect_execution */
-                    }
-                  ] /* evaluating_constant_semijoin_conditions */,
-                  "resulting_condition": "((`where_subselect_20070`.`field1` = `sj-materialize`.`field1`) and (4 = `sj-materialize`.`( SELECT COUNT( col_int_key )\nFROM t1\n)`))"
-                } /* creating_semijoin_materialization_conditions */,
                 "access_type": "index_scan"
               },
               {
@@ -2008,48 +2050,6 @@ ON table2 .col_int_key = table1 .col_int_key
           {
             "subselect_execution": {
               "select#": 4,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 2,
-              "steps": [
-              ] /* steps */
-            } /* subselect_execution */
-          },
-          {
-            "subselect_execution": {
-              "select#": 2,
               "steps": [
               ] /* steps */
             } /* subselect_execution */

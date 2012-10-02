@@ -573,7 +573,7 @@ public:
   /*
     MTS statistics: 
   */
-  ulong mts_events_assigned; // number of events (statements) scheduled
+  ulonglong mts_events_assigned; // number of events (statements) scheduled
   ulong mts_groups_assigned; // number of groups (transactions) scheduled
   volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
@@ -590,6 +590,7 @@ public:
      a new partition. Is updated at checkpoint commit to the main RLI.
   */
   DYNAMIC_ARRAY least_occupied_workers;
+  time_t mts_last_online_stat;
   /* end of MTS statistics */
 
   /* most of allocation in the coordinator rli is there */
@@ -804,7 +805,7 @@ public:
   }
 #endif
 
-  size_t get_number_info_rli_fields();
+  static size_t get_number_info_rli_fields();
 
   /**
     Indicate that a delay starts.
@@ -838,6 +839,7 @@ public:
                  PSI_mutex_key *param_key_info_stop_cond,
                  PSI_mutex_key *param_key_info_sleep_cond
 #endif
+                 , uint param_id
                 );
   virtual ~Relay_log_info();
 
@@ -931,6 +933,7 @@ private:
   time_t sql_delay_end;
 
   uint32 m_flags;
+
   /*
     Before the MASTER_DELAY parameter was added (WL#344), relay_log.info
     had 4 lines. Now it has 5 lines.
@@ -941,6 +944,12 @@ private:
     Before the WL#5599, relay_log.info had 5 lines. Now it has 6 lines.
   */
   static const int LINES_IN_RELAY_LOG_INFO_WITH_WORKERS= 6;
+
+  /*
+    Before the Id was added (BUG#2334346), relay_log.info
+    had 6 lines. Now it has 7 lines.
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_ID= 7;
 
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);

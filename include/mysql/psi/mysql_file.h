@@ -759,7 +759,7 @@ inline_mysql_file_stat(
   {
     PSI_FILE_CALL(start_file_open_wait)(locker, src_file, src_line);
     result= my_stat(path, stat_area, flags);
-    PSI_FILE_CALL(end_file_wait)(locker, (size_t) 0);
+    PSI_FILE_CALL(end_file_open_wait)(locker, result);
     return result;
   }
 #endif
@@ -813,10 +813,10 @@ inline_mysql_file_fopen(
         (&state, key, PSI_FILE_STREAM_OPEN, filename, that);
     if (likely(locker != NULL))
     {
-      that->m_psi= PSI_FILE_CALL(start_file_open_wait)
+      PSI_FILE_CALL(start_file_open_wait)
         (locker, src_file, src_line);
       that->m_file= my_fopen(filename, flags, myFlags);
-      PSI_FILE_CALL(end_file_open_wait)(locker);
+      that->m_psi= PSI_FILE_CALL(end_file_open_wait)(locker, that->m_file);
       if (unlikely(that->m_file == NULL))
       {
         my_free(that);
@@ -854,9 +854,9 @@ inline_mysql_file_fclose(
       (&state, file->m_psi, PSI_FILE_STREAM_CLOSE);
     if (likely(locker != NULL))
     {
-      PSI_FILE_CALL(start_file_wait)(locker, (size_t) 0, src_file, src_line);
+      PSI_FILE_CALL(start_file_close_wait)(locker, src_file, src_line);
       result= my_fclose(file->m_file, flags);
-      PSI_FILE_CALL(end_file_wait)(locker, (size_t) 0);
+      PSI_FILE_CALL(end_file_close_wait)(locker, result);
       my_free(file);
       return result;
     }
@@ -1069,9 +1069,9 @@ inline_mysql_file_close(
     (&state, file, PSI_FILE_CLOSE);
   if (likely(locker != NULL))
   {
-    PSI_FILE_CALL(start_file_wait)(locker, (size_t) 0, src_file, src_line);
+    PSI_FILE_CALL(start_file_close_wait)(locker, src_file, src_line);
     result= my_close(file, flags);
-    PSI_FILE_CALL(end_file_wait)(locker, (size_t) 0);
+    PSI_FILE_CALL(end_file_close_wait)(locker, result);
     return result;
   }
 #endif
@@ -1271,9 +1271,9 @@ inline_mysql_file_delete(
     (&state, key, PSI_FILE_DELETE, name, &locker);
   if (likely(locker != NULL))
   {
-    PSI_FILE_CALL(start_file_wait)(locker, (size_t) 0, src_file, src_line);
+    PSI_FILE_CALL(start_file_close_wait)(locker, src_file, src_line);
     result= my_delete(name, flags);
-    PSI_FILE_CALL(end_file_wait)(locker, (size_t) 0);
+    PSI_FILE_CALL(end_file_close_wait)(locker, result);
     return result;
   }
 #endif
@@ -1352,9 +1352,9 @@ inline_mysql_file_delete_with_symlink(
     (&state, key, PSI_FILE_DELETE, name, &locker);
   if (likely(locker != NULL))
   {
-    PSI_FILE_CALL(start_file_wait)(locker, (size_t) 0, src_file, src_line);
+    PSI_FILE_CALL(start_file_close_wait)(locker, src_file, src_line);
     result= my_delete_with_symlink(name, flags);
-    PSI_FILE_CALL(end_file_wait)(locker, (size_t) 0);
+    PSI_FILE_CALL(end_file_close_wait)(locker, result);
     return result;
   }
 #endif

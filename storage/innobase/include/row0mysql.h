@@ -41,7 +41,7 @@ struct SysIndexCallback;
 
 extern ibool row_rollback_on_timeout;
 
-typedef struct row_prebuilt_struct row_prebuilt_t;
+struct row_prebuilt_t;
 
 /*******************************************************************//**
 Frees the blob heap in prebuilt when no longer needed. */
@@ -588,8 +588,7 @@ row format which is presented to the table handler in ha_innobase.
 This template struct is used to speed up row transformations between
 Innobase and MySQL. */
 
-typedef struct mysql_row_templ_struct mysql_row_templ_t;
-struct mysql_row_templ_struct {
+struct mysql_row_templ_t {
 	ulint	col_no;			/*!< column number of the column */
 	ulint	rec_field_no;		/*!< field number of the column in an
 					Innobase record in the current index;
@@ -644,7 +643,7 @@ struct mysql_row_templ_struct {
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
 
-struct row_prebuilt_struct {
+struct row_prebuilt_t {
 	ulint		magic_n;	/*!< this magic number is set to
 					ROW_PREBUILT_ALLOCATED when created,
 					or ROW_PREBUILT_FREED when the
@@ -832,7 +831,7 @@ struct row_prebuilt_struct {
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/*!< memory heap where a previous
 					version is built in consistent read */
-	fts_result_t*	result;		/* The result of an FTS query */
+	bool		in_fts_query;	/*!< Whether we are in a FTS query */
 	/*----------------------*/
 	ulonglong	autoinc_last_value;
 					/*!< last value of AUTO-INC interval */

@@ -7,7 +7,8 @@
 
 CREATE TABLE t1(a BLOB, b VARCHAR(255) CHARSET LATIN1, c INT,
                 KEY(b, c, a(765))) ENGINE=INNODB;
-INSERT INTO t1(a, b, c) VALUES ('', 'a', 0), ('', 'a', null), ('', 'a', 0);
+INSERT INTO t1(a, b, c) VALUES ('', 'a', 0), ('', 'a', null), ('', 'a', 0),
+                               ('', 'a', null), ('', 'a', 0);
 
 -- disable_result_log
 ANALYZE TABLE t1;

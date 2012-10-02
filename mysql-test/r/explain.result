@@ -122,6 +122,46 @@ KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
 KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
 KEY(b),KEY(b),KEY(b),KEY(b),KEY(b),
 KEY(b),KEY(b),KEY(b),KEY(b),KEY(b));
+Warnings:
+Note	1831	Duplicate index 'b_2' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_3' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_4' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_5' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_6' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_7' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_8' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_9' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_10' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_11' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_12' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_13' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_14' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_15' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_16' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_17' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_18' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_19' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_20' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_21' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_22' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_23' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_24' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_25' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_26' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_27' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_28' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_29' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_30' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_31' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_32' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_33' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_34' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_35' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_36' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_37' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_38' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_39' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
+Note	1831	Duplicate index 'b_40' defined on the table 'test.t2'. This is deprecated and will be disallowed in a future release.
 INSERT INTO t2 VALUES (),(),();
 EXPLAIN SELECT 1 FROM
 (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
@@ -202,7 +242,8 @@ EXPLAIN EXTENDED SELECT 1 FROM t1
 WHERE f1 > ALL( SELECT t.f1 FROM t1,t1 AS t );
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+2	SUBQUERY	t	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where 0
 SET SESSION sql_mode=@old_sql_mode;
@@ -485,7 +526,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 2	SUBQUERY	t1	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 2	SUBQUERY	a1	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select substr(1,(/* select#2 */ select 1 from `test`.`t1` left join `test`.`t1` `a1` on(0) where 1)) AS `d` from `test`.`t1` where <nop>(<in_optimizer>(0,<exists>(/* select#3 */ select 1 from `test`.`t1` where 1 having 0)))
+Note	1003	/* select#1 */ select substr(1,(/* select#2 */ select 1 from `test`.`t1` left join `test`.`t1` `a1` on(0) where 1)) AS `d` from `test`.`t1` where <nop>(<in_optimizer>(0,<exists>(/* select#3 */ select (@a) from `test`.`t1` where 1 having 0)))
 DEALLOCATE PREPARE s;
 DROP TABLE t1;
 #

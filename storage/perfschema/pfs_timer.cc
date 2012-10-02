@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -117,6 +117,75 @@ void init_timers(void)
 
   to_pico_data[TIMER_NAME_TICK].m_v0= tick_v0;
   to_pico_data[TIMER_NAME_TICK].m_factor= tick_to_pico;
+
+  /*
+    Depending on the platform and build options,
+    some timers may not be available.
+    Pick best replacements.
+  */
+
+  /*
+    For STAGE and STATEMENT, a timer with a fixed frequency is better.
+    The prefered timer is nanosecond, or lower resolutions.
+  */
+
+  if (nanosec_to_pico != 0)
+  {
+    /* Normal case. */
+    stage_timer= TIMER_NAME_NANOSEC;
+    statement_timer= TIMER_NAME_NANOSEC;
+  }
+  else if (microsec_to_pico != 0)
+  {
+    /* Windows. */
+    stage_timer= TIMER_NAME_MICROSEC;
+    statement_timer= TIMER_NAME_MICROSEC;
+  }
+  else if (millisec_to_pico != 0)
+  {
+    /* Robustness, no known cases. */
+    stage_timer= TIMER_NAME_MILLISEC;
+    statement_timer= TIMER_NAME_MILLISEC;
+  }
+  else if (tick_to_pico != 0)
+  {
+    /* Robustness, no known cases. */
+    stage_timer= TIMER_NAME_TICK;
+    statement_timer= TIMER_NAME_TICK;
+  }
+  else
+  {
+    /* Robustness, no known cases. */
+    stage_timer= TIMER_NAME_CYCLE;
+    statement_timer= TIMER_NAME_CYCLE;
+  }
+
+  /*
+    For IDLE, a timer with a fixed frequency is critical,
+    as the CPU clock may slow down a lot if the server is completely idle.
+    The prefered timer is microsecond, or lower resolutions.
+  */
+
+  if (microsec_to_pico != 0)
+  {
+    /* Normal case. */
+    idle_timer= TIMER_NAME_MICROSEC;
+  }
+  else if (millisec_to_pico != 0)
+  {
+    /* Robustness, no known cases. */
+    idle_timer= TIMER_NAME_MILLISEC;
+  }
+  else if (tick_to_pico != 0)
+  {
+    /* Robustness, no known cases. */
+    idle_timer= TIMER_NAME_TICK;
+  }
+  else
+  {
+    /* Robustness, no known cases. */
+    idle_timer= TIMER_NAME_CYCLE;
+  }
 }
 
 ulonglong get_timer_raw_value(enum_timer_name timer_name)

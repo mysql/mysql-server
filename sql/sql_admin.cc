@@ -166,7 +166,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     */
     if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       goto end;
-    close_all_tables_for_name(thd, table_list->table->s, FALSE);
+    close_all_tables_for_name(thd, table_list->table->s, false, NULL);
     table_list->table= 0;
   }
   /*
@@ -207,7 +207,7 @@ static int prepare_for_repair(THD *thd, TABLE_LIST *table_list,
     Now we should be able to open the partially repaired table
     to finish the repair in the handler later on.
   */
-  if (open_table(thd, table_list, thd->mem_root, &ot_ctx))
+  if (open_table(thd, table_list, &ot_ctx))
   {
     error= send_check_errmsg(thd, table_list, "repair",
                              "Failed to open partially repaired table");

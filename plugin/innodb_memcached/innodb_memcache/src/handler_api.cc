@@ -103,6 +103,27 @@ handler_create_thd(
 }
 
 /**********************************************************************//**
+This is used to temporarily switch to another session, so that
+POSIX thread looks like session attached to */
+void
+handler_thd_attach(
+/*===============*/
+	void*	my_thd,		/*!< in: THD* */
+	void**	original_thd)	/*!< out: current THD */
+{
+	THD*	thd = static_cast<THD*>(my_thd);
+
+	if (original_thd) {
+		*original_thd = my_pthread_getspecific(THD*, THR_THD);
+		assert(thd->mysys_var);
+	}
+
+	my_pthread_setspecific_ptr(THR_THD, thd);
+	my_pthread_setspecific_ptr(THR_MALLOC, &thd->mem_root);
+	set_mysys_var(thd->mysys_var);
+}
+
+/**********************************************************************//**
 Returns a MySQL "TABLE" object with specified database name and table name.
 @return a pointer to the TABLE object, NULL if does not exist */
 void*
@@ -130,7 +151,7 @@ handler_open_table(
 				? MDL_SHARED_WRITE
 				: MDL_SHARED_READ, MDL_TRANSACTION);
 
-	if (!open_table(thd, &tables, thd->mem_root, &table_ctx)) {
+	if (!open_table(thd, &tables, &table_ctx)) {
 		TABLE*	table = tables.table;
 		table->use_all_columns();
 		return(table);
@@ -144,11 +165,19 @@ Wrapper of function binlog_log_row() to binlog an operation on a row */
 void
 handler_binlog_row(
 /*===============*/
+	void*		my_thd,		/*!< in: THD* */
 	void*		my_table,	/*!< in: TABLE structure */
 	int		mode)		/*!< in: type of DML */
 {
 	TABLE*		table = static_cast<TABLE*>(my_table);
+	THD*		thd = static_cast<THD*>(my_thd);
 	Log_func*	log_func;
+
+	if (thd->get_binlog_table_maps() == 0) {
+		/* Write the table map and BEGIN mark */
+		thd->binlog_write_table_map(
+			static_cast<TABLE*>(my_table), 1, 0);
+	}
 
 	switch (mode) {
 	case HDL_UPDATE:
@@ -172,21 +201,35 @@ handler_binlog_row(
 }
 
 /**********************************************************************//**
-Flush binlog from cache to binlog file */
+Commit and flush binlog from cache to binlog file */
 void
-handler_binlog_flush(
-/*=================*/
+handler_binlog_commit(
+/*==================*/
 	void*		my_thd,		/*!< in: THD* */
 	void*		my_table)	/*!< in: TABLE structure */
 {
 	THD*		thd = static_cast<THD*>(my_thd);
 
-	thd->binlog_write_table_map(static_cast<TABLE*>(my_table), 1, 0);
-
 	if (tc_log) {
 		tc_log->commit(thd, true);
 	}
 	trans_commit_stmt(thd);
+}
+
+/**********************************************************************//**
+Rollback a transaction */
+void
+handler_binlog_rollback(
+/*====================*/
+	void*		my_thd,		/*!< in: THD* */
+	void*		my_table)	/*!< in: TABLE structure */
+{
+	THD*		thd = static_cast<THD*>(my_thd);
+
+	if (tc_log) {
+		tc_log->rollback(thd, true);
+	}
+	trans_rollback_stmt(thd);
 }
 
 /**********************************************************************//**
@@ -289,7 +332,6 @@ handler_close_thd(
 /*==============*/
 	void*		my_thd)		/*!< in: THD */
 {
-	my_thread_end();
 	delete (static_cast<THD*>(my_thd));
 
 	/* Don't have a THD anymore */

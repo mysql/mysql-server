@@ -59,9 +59,6 @@ UNIV_INTERN ulong	fts_min_token_size;
 ib_time_t elapsed_time = 0;
 ulint n_nodes = 0;
 
-typedef struct fts_schema_struct fts_schema_t;
-typedef struct fts_sys_table_struct fts_sys_table_t;
-
 /** Error condition reported by fts_utf8_decode() */
 const ulint UTF8_ERROR = 0xFFFFFFFF;
 
@@ -138,7 +135,7 @@ const char *fts_default_stopword[] =
 };
 
 /** For storing table info when checking for orphaned tables. */
-struct fts_sys_table_struct {
+struct fts_sys_table_t {
 	table_id_t	id;		/*!< Table id */
 	table_id_t	parent_id;	/*!< Parent table id */
 	table_id_t	index_id;	/*!< Table FT index id */
@@ -1484,12 +1481,12 @@ fts_drop_table(
 				ut_strerr(error), table_name);
 		}
 	} else {
-		ut_print_timestamp(stderr);
-
-		/* FIXME: Should provide appropriate error return code
-		rather than printing message indiscriminately. */
-		fprintf(stderr, "  InnoDB: %s not found.\n",
-			table_name);
+		if (fts_enable_diag_print) {
+			/* FIXME: Should provide appropriate error return code
+			rather than printing message indiscriminately. */
+			ib_logf(IB_LOG_LEVEL_WARN, "%s not found.\n",
+				table_name);
+		}
 	}
 
 	return(error);
@@ -6222,6 +6219,9 @@ fts_init_index(
 	fts_get_doc_t*  get_doc = NULL;
 	ibool		has_fts = TRUE;
 	fts_cache_t*    cache = table->fts->cache;
+	bool		need_init = false;
+
+	ut_ad(!mutex_own(&dict_sys->mutex));
 
 	/* First check cache->get_docs is initialized */
 	if (!has_cache_lock) {
@@ -6237,6 +6237,8 @@ fts_init_index(
 	if (table->fts->fts_status & ADDED_TABLE_SYNCED) {
 		goto func_exit;
 	}
+
+	need_init = true;
 
 	start_doc = cache->synced_doc_id;
 
@@ -6272,9 +6274,6 @@ fts_init_index(
 		    & STOPWORD_NOT_INIT) {
 			fts_load_stopword(table, NULL, NULL, NULL, TRUE, TRUE);
 		}
-
-		/* Register the table with the optimize thread. */
-		fts_optimize_add_table(table);
 	}
 
 	table->fts->fts_status |= ADDED_TABLE_SYNCED;
@@ -6284,6 +6283,13 @@ fts_init_index(
 func_exit:
 	if (!has_cache_lock) {
 		rw_lock_x_unlock(&cache->lock);
+	}
+
+	if (need_init) {
+		mutex_enter(&dict_sys->mutex);
+		/* Register the table with the optimize thread. */
+		fts_optimize_add_table(table);
+		mutex_exit(&dict_sys->mutex);
 	}
 
 	return(TRUE);

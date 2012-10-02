@@ -58,7 +58,7 @@ static	ulint	fts_optimize_sync_iterator = 0;
 #endif
 
 /** State of a table within the optimization sub system. */
-enum fts_state_enum {
+enum fts_state_t {
 	FTS_STATE_LOADED,
 	FTS_STATE_RUNNING,
 	FTS_STATE_SUSPENDED,
@@ -67,7 +67,7 @@ enum fts_state_enum {
 };
 
 /** FTS optimize thread message types. */
-enum fts_msg_type_enum {
+enum fts_msg_type_t {
 	FTS_MSG_START,			/*!< Start optimizing thread */
 
 	FTS_MSG_PAUSE,			/*!< Pause optimizing thread */
@@ -83,21 +83,9 @@ enum fts_msg_type_enum {
 					threads work queue */
 };
 
-typedef enum fts_state_enum fts_state_t;
-typedef	struct fts_zip_struct fts_zip_t;
-typedef struct fts_msg_struct fts_msg_t;
-typedef struct fts_slot_struct fts_slot_t;
-typedef struct fts_encode_struct fts_encode_t;
-typedef enum fts_msg_type_enum fts_msg_type_t;
-typedef struct fts_msg_del_struct fts_msg_del_t;
-typedef struct fts_msg_stop_struct fts_msg_stop_t;
-typedef struct fts_optimize_struct fts_optimize_t;
-typedef struct fts_msg_optimize_struct fts_msg_optimize_t;
-typedef struct fts_optimize_graph_struct fts_optimize_graph_t;
-
 /** Compressed list of words that have been read from FTS INDEX
 that needs to be optimized. */
-struct fts_zip_struct {
+struct fts_zip_t {
 	ulint		status;		/*!< Status of (un)/zip operation */
 
 	ulint		n_words;	/*!< Number of words compressed */
@@ -128,7 +116,7 @@ struct fts_zip_struct {
 };
 
 /** Prepared statemets used during optimize */
-struct fts_optimize_graph_struct {
+struct fts_optimize_graph_t {
 					/*!< Delete a word from FTS INDEX */
 	que_t*		delete_nodes_graph;
 					/*!< Insert a word into FTS INDEX */
@@ -140,7 +128,7 @@ struct fts_optimize_graph_struct {
 };
 
 /** Used by fts_optimize() to store state. */
-struct fts_optimize_struct {
+struct fts_optimize_t {
 	trx_t*		trx;		/*!< The transaction used for all SQL */
 
 	ib_alloc_t*	self_heap;	/*!< Heap to use for allocations */
@@ -183,14 +171,14 @@ struct fts_optimize_struct {
 };
 
 /** Used by the optimize, to keep state during compacting nodes. */
-struct fts_encode_struct {
+struct fts_encode_t {
 	doc_id_t	src_last_doc_id;/*!< Last doc id read from src node */
 	byte*		src_ilist_ptr;	/*!< Current ptr within src ilist */
 };
 
 /** We use this information to determine when to start the optimize
 cycle for a table. */
-struct fts_slot_struct {
+struct fts_slot_t {
 	dict_table_t*	table;		/*!< Table to optimize */
 
 	fts_state_t	state;		/*!< State of this slot */
@@ -210,7 +198,7 @@ struct fts_slot_struct {
 };
 
 /** A table remove message for the FTS optimize thread. */
-struct fts_msg_del_struct {
+struct fts_msg_del_t {
 	dict_table_t*	table;		/*!< The table to remove */
 
 	os_event_t	event;		/*!< Event to synchronize acknowledgement
@@ -219,12 +207,12 @@ struct fts_msg_del_struct {
 };
 
 /** Stop the optimize thread. */
-struct fts_msg_optimize_struct {
+struct fts_msg_optimize_t {
 	dict_table_t*	table;		/*!< Table to optimize */
 };
 
 /** The FTS optimize message work queue message type. */
-struct fts_msg_struct {
+struct fts_msg_t {
 	fts_msg_type_t	type;		/*!< Message type */
 
 	void*		ptr;		/*!< The message contents */
@@ -2557,6 +2545,11 @@ fts_optimize_add_table(
 		return;
 	}
 
+	/* Make sure table with FTS index cannot be evicted */
+	if (table->can_be_evicted) {
+		dict_table_move_from_lru_to_non_lru(table);
+	}
+
 	msg = fts_optimize_create_msg(FTS_MSG_ADD_TABLE, table);
 
 	ib_wqueue_add(fts_optimize_wq, msg, msg->heap);
@@ -2592,8 +2585,8 @@ fts_optimize_remove_table(
 	dict_table_t*	table)			/*!< in: table to remove */
 {
 	fts_msg_t*	msg;
-	os_event_t		event;
-	fts_msg_del_t* remove;
+	os_event_t	event;
+	fts_msg_del_t*	remove;
 
 	/* if the optimize system not yet initialized, return */
 	if (!fts_optimize_wq) {

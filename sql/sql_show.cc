@@ -3092,9 +3092,12 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
 
   /*
     If we have db lookup vaule we just add it to list and
-    exit from the function
+    exit from the function.
+    We don't do this for database names longer than the maximum
+    path length.
   */
-  if (lookup_field_vals->db_value.str)
+  if (lookup_field_vals->db_value.str && 
+      lookup_field_vals->db_value.length < FN_REFLEN)
   {
     if (is_infoschema_db(lookup_field_vals->db_value.str,
                          lookup_field_vals->db_value.length))
@@ -3802,12 +3805,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   if (share->is_view)
   {
-    if (open_new_frm(thd, share, table_name->str,
-                     (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                             HA_GET_INDEX | HA_TRY_READ_ONLY),
-                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
-                     OPEN_VIEW_NO_PARSE,
-                     thd->open_options, &tbl, &table_list, thd->mem_root))
+    if (mysql_make_view(thd, share, &table_list, true))
       goto end_share;
     table_list.view= (LEX*) share->is_view;
     res= schema_table->process_table(thd, &table_list, table,
@@ -7251,7 +7249,6 @@ static bool do_fill_table(THD *thd,
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place)
 {
-  JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
   THD *thd= join->thd;
   LEX *lex= thd->lex;
   bool result= 0;
@@ -7261,8 +7258,9 @@ bool get_schema_tables_result(JOIN *join,
   if (!join->join_tab)
     DBUG_RETURN(result);
 
-  for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
-  {  
+  for (uint i= 0; i < join->tables; i++)
+  {
+    JOIN_TAB *const tab= join->join_tab + i;
     if (!tab->table || !tab->table->pos_in_table_list)
       break;
 

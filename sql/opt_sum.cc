@@ -265,13 +265,7 @@ int opt_sum_query(THD *thd,
   */
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
-    TABLE_LIST *embedded;
-    for (embedded= tl ; embedded; embedded= embedded->embedding)
-    {
-      if (embedded->join_cond())
-        break;
-    }
-    if (embedded)
+    if (tl->join_cond() || tl->outer_join_nest())
     /* Don't replace expression on a table that is part of an outer join */
     {
       outer_tables|= tl->table->map;
@@ -418,6 +412,7 @@ int opt_sum_query(THD *thd,
           if ((error= table->file->ha_index_init((uint) ref.key, 1)))
           {
             table->file->print_error(error, MYF(0));
+            table->set_keyread(FALSE);
             DBUG_RETURN(error);
           }
 

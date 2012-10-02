@@ -59,7 +59,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "dict0boot.h"
-#include "dict0stats_background.h" /* dict_stats_event */
+#include "dict0stats_bg.h" /* dict_stats_event */
 #include "srv0start.h"
 #include "row0mysql.h"
 #include "ha_prototypes.h"
@@ -295,7 +295,7 @@ UNIV_INTERN ulong srv_innodb_stats_method = SRV_STATS_NULLS_EQUAL;
 UNIV_INTERN srv_stats_t	srv_stats;
 
 /* structure to pass status variables to MySQL */
-UNIV_INTERN export_struc export_vars;
+UNIV_INTERN export_var_t export_vars;
 
 /* If the following is != 0 we do not allow inserts etc. This protects
 the user from forgetting the innodb_force_recovery keyword to my.cnf */
@@ -305,6 +305,9 @@ UNIV_INTERN ulint	srv_force_recovery	= 0;
 /** Print all user-level transactions deadlocks to mysqld stderr */
 
 UNIV_INTERN my_bool	srv_print_all_deadlocks = FALSE;
+
+/** Enable INFORMATION_SCHEMA.innodb_cmp_per_index */
+UNIV_INTERN my_bool	srv_cmp_per_index_enabled = FALSE;
 
 /* If the following is set to 1 then we do not run purge and insert buffer
 merge to completion before shutdown. If it is set to 2, do not even flush the
@@ -537,23 +540,19 @@ suspending the master thread and utility threads when they have nothing
 to do.  The thread table can be seen as an analogue to the process table
 in a traditional Unix implementation. */
 
-/** The server system */
-typedef struct srv_sys_struct	srv_sys_t;
-
 /** The server system struct */
-struct srv_sys_struct{
-	ib_mutex_t		tasks_mutex;		/*!< variable protecting the
+struct srv_sys_t{
+	ib_mutex_t	tasks_mutex;		/*!< variable protecting the
 						tasks queue */
 	UT_LIST_BASE_NODE_T(que_thr_t)
 			tasks;			/*!< task queue */
 
-	ib_mutex_t		mutex;			/*!< variable protecting the
-
+	ib_mutex_t	mutex;			/*!< variable protecting the
 						fields below. */
 	ulint		n_sys_threads;		/*!< size of the sys_threads
 						array */
 
-	srv_table_t*	sys_threads;		/*!< server thread table */
+	srv_slot_t*	sys_threads;		/*!< server thread table */
 
 	ulint		n_threads_active[SRV_MASTER + 1];
 						/*!< number of threads active
@@ -928,6 +927,17 @@ srv_init(void)
 	srv_buf_dump_event = os_event_create("buf_dump_event");
 
 	UT_LIST_INIT(srv_sys->tasks);
+
+	/* page_zip_stat_per_index_mutex is acquired from:
+	1. page_zip_compress() (after SYNC_FSP)
+	2. page_zip_decompress()
+	3. i_s_cmp_per_index_fill_low() (where SYNC_DICT is acquired)
+	4. innodb_cmp_per_index_update(), no other latches
+	since we do not acquire any other latches while holding this mutex,
+	it can have very low level. We pick SYNC_ANY_LATCH for it. */
+	mutex_create(page_zip_stat_per_index_mutex_key,
+		     &page_zip_stat_per_index_mutex,
+		     SYNC_ANY_LATCH);
 
 	/* Create dummy indexes for infimum and supremum records */
 

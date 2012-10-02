@@ -38,7 +38,7 @@ Created 9/6/1995 Heikki Tuuri
 #include "srv0srv.h"
 
 /* Type definition for an operating system mutex struct */
-struct os_mutex_struct{
+struct os_mutex_t{
 	os_event_t	event;	/*!< Used by sync0arr.cc for queing threads */
 	void*		handle;	/*!< OS handle to mutex */
 	ulint		count;	/*!< we use this counter to check
@@ -47,7 +47,7 @@ struct os_mutex_struct{
 				do not assume that the OS mutex
 				supports recursive locking, though
 				NT seems to do that */
-	UT_LIST_NODE_T(os_mutex_str_t) os_mutex_list;
+	UT_LIST_NODE_T(os_mutex_t) os_mutex_list;
 				/* list of all 'slow' OS mutexes created */
 };
 
@@ -63,10 +63,10 @@ os_thread_exit */
 UNIV_INTERN ulint	os_thread_count		= 0;
 
 /** The list of all events created */
-static UT_LIST_BASE_NODE_T(os_event_struct_t)	os_event_list;
+static UT_LIST_BASE_NODE_T(os_event)		os_event_list;
 
 /** The list of all OS 'slow' mutexes */
-static UT_LIST_BASE_NODE_T(os_mutex_str_t)	os_mutex_list;
+static UT_LIST_BASE_NODE_T(os_mutex_t)		os_mutex_list;
 
 UNIV_INTERN ulint	os_event_count		= 0;
 UNIV_INTERN ulint	os_mutex_count		= 0;
@@ -392,8 +392,7 @@ os_event_create(
 	{
 		UT_NOT_USED(name);
 
-		event = static_cast<os_event_struct_t*>(
-			ut_malloc(sizeof(struct os_event_struct)));
+		event = static_cast<os_event_t>(ut_malloc(sizeof *event));
 
 #ifndef PFS_SKIP_EVENT_MUTEX
 		os_fast_mutex_init(event_os_mutex_key, &event->os_mutex);
@@ -754,8 +753,7 @@ os_mutex_create(void)
 
 	os_fast_mutex_init(os_mutex_key, mutex);
 
-	mutex_str = static_cast<os_ib_mutex_t>(
-		ut_malloc(sizeof(os_mutex_str_t)));
+	mutex_str = static_cast<os_ib_mutex_t>(ut_malloc(sizeof *mutex_str));
 
 	mutex_str->handle = mutex;
 	mutex_str->count = 0;

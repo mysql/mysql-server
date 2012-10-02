@@ -38,15 +38,12 @@ Created 6/9/1994 Heikki Tuuri
 
 /* -------------------- MEMORY HEAPS ----------------------------- */
 
-/* The info structure stored at the beginning of a heap block */
-typedef struct mem_block_info_struct mem_block_info_t;
-
 /* A block of a memory heap consists of the info structure
 followed by an area of memory */
-typedef mem_block_info_t	mem_block_t;
+typedef struct mem_block_info_t	mem_block_t;
 
 /* A memory heap is a nonempty linear list of memory blocks */
-typedef mem_block_t	mem_heap_t;
+typedef mem_block_t		mem_heap_t;
 
 /* Types of allocation for memory heaps: DYNAMIC means allocation from the
 dynamic memory pool of the C compiler, BUFFER means allocation from the
@@ -343,9 +340,8 @@ mem_validate_all_blocks(void);
 
 /*#######################################################################*/
 
-/* The info header of a block in a memory heap */
-
-struct mem_block_info_struct {
+/** The info structure stored at the beginning of a heap block */
+struct mem_block_info_t {
 	ulint	magic_n;/* magic number for debugging */
 	char	file_name[8];/* file name where the mem heap was created */
 	ulint	line;	/*!< line number where the mem heap was created */

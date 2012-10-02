@@ -1562,7 +1562,6 @@ trx_undo_prev_version_build(
 		/* The table should have been rebuilt, but purge has
 		not yet removed the undo log records for the
 		now-dropped old table (table_id). */
-		ut_a(!index->trx_id || index->trx_id > rec_trx_id);
 		return(DB_SUCCESS);
 	}
 

@@ -53,12 +53,22 @@ row_log_allocate(
 	const ulint*	col_map)/*!< in: mapping of old column
 				numbers to new ones, or NULL if !table */
 	__attribute__((nonnull(1), warn_unused_result));
+
 /******************************************************//**
-Free the row log for an index on which online creation was aborted. */
+Free the row log for an index that was being created online. */
 UNIV_INTERN
 void
 row_log_free(
 /*=========*/
+	row_log_t*&	log)	/*!< in,own: row log */
+	__attribute__((nonnull));
+
+/******************************************************//**
+Free the row log for an index on which online creation was aborted. */
+UNIV_INTERN
+void
+row_log_abort_sec(
+/*==============*/
 	dict_index_t*	index)	/*!< in/out: index (x-latched) */
 	__attribute__((nonnull));
 

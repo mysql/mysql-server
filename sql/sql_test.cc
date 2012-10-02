@@ -125,6 +125,8 @@ TEST_join(JOIN *join)
   {
     JOIN_TAB *tab=join->join_tab+i;
     TABLE *form=tab->table;
+    if (!form)
+      continue;
     char key_map_buff[128];
     fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %s  refs: %d  key: %d  len: %d\n",
 	    form->alias,
@@ -291,28 +293,6 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
   DBUG_UNLOCK_FILE;
 }
 
-
-void print_sjm(TABLE_LIST *emb_sj_nest)
-{
-  DBUG_LOCK_FILE;
-  Semijoin_mat_exec *sjm= emb_sj_nest->sj_mat_exec;
-  fprintf(DBUG_FILE, "\nsemi-join nest{\n");
-  fprintf(DBUG_FILE, "  tables { \n");
-  for (uint i= 0;i < sjm->table_count; i++)
-  {
-    fprintf(DBUG_FILE, "    %s%s\n", 
-            emb_sj_nest->nested_join->sjm.positions[i].table->table->alias,
-            (i == sjm->table_count -1)? "": ",");
-  }
-  fprintf(DBUG_FILE, "  }\n");
-  fprintf(DBUG_FILE, "  materialize_cost= %g\n",
-          emb_sj_nest->nested_join->sjm.materialization_cost.total_cost());
-  fprintf(DBUG_FILE, "  rows= %g\n",
-          emb_sj_nest->nested_join->sjm.expected_rowcount);
-  fprintf(DBUG_FILE, "}\n");
-  DBUG_UNLOCK_FILE;
-}
-/* purecov: end */
 #endif  /* !DBUG_OFF */
 
 C_MODE_START

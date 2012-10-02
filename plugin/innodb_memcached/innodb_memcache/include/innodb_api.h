@@ -31,14 +31,26 @@ Created 03/15/2011      Jimmy Yang
 #include "handler_api.h"
 
 /** Macros to lock/unlock the engine connection mutex */
-#define LOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
-	if (!(has_lock)) {				\
-		pthread_mutex_lock(&(engine)->conn_mutex);\
+#define LOCK_CONN_IF_NOT_LOCKED(has_lock, engine)		\
+	if (!(has_lock)) {					\
+		pthread_mutex_lock(&(engine)->conn_mutex);	\
 	}
 
-#define UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine)	\
-	if (!(has_lock)) {				\
-		pthread_mutex_unlock(&(engine)->conn_mutex);\
+#define UNLOCK_CONN_IF_NOT_LOCKED(has_lock, engine)		\
+	if (!(has_lock)) {					\
+		pthread_mutex_unlock(&(engine)->conn_mutex);	\
+	}
+
+/** Macros to lock/unlock the connection mutex, used for any
+connection specific operations */
+#define LOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn)		\
+	if (!(has_lock)) {					\
+		pthread_mutex_lock(&(conn)->curr_conn_mutex);	\
+	}
+
+#define UNLOCK_CURRENT_CONN_IF_NOT_LOCKED(has_lock, conn)	\
+	if (!(has_lock)) {					\
+		pthread_mutex_unlock(&(conn)->curr_conn_mutex);	\
 	}
 
 /** We would need to fetch 5 column values from each key value rows if they
@@ -200,6 +212,8 @@ ENGINE_ERROR_CODE
 innodb_api_flush(
 /*=============*/
 	innodb_engine_t*	engine,	/*!< in: InnoDB Memcached engine */
+	innodb_conn_data_t*	conn_data,/*!< in/out: cursor affiliated
+					with a connection */
 	const char*		dbname,	/*!< in: database name */
 	const char*		name);	/*!< in: table name */
 
@@ -230,6 +244,19 @@ innodb_api_cursor_reset(
 	conn_op_type_t		op_type,	/*!< in: type of DML
 						performed */
 	bool			commit);	/*!< in: commit or abort trx */
+
+/*************************************************************//**
+Increment read and write counters, if they exceed the batch size,
+commit the transaction. */
+bool
+innodb_reset_conn(
+/*==============*/
+	innodb_conn_data_t*	conn_data,	/*!< in/out: cursor affiliated
+						with a connection */
+	bool			has_lock,	/*!< in: has lock on
+						connection */
+	bool			commit,		/*!< in: commit or abort trx */
+	bool			has_binlog);	/*!< in: binlog enabled */
 
 /**********************************************************************//**
 This function verifies the table configuration information on an opened

@@ -216,7 +216,7 @@ performance_schema	(setup_actor_hash).count	1
 performance_schema	(setup_actor_hash).size	100
 performance_schema	(setup_object_hash).count	4
 performance_schema	(setup_object_hash).size	100
-performance_schema	(table_share_hash).count	83
+performance_schema	(table_share_hash).count	82
 performance_schema	(table_share_hash).size	445
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	5

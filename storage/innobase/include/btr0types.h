@@ -33,11 +33,11 @@ Created 2/17/1996 Heikki Tuuri
 #include "sync0rw.h"
 
 /** Persistent cursor */
-typedef struct btr_pcur_struct		btr_pcur_t;
+struct btr_pcur_t;
 /** B-tree cursor */
-typedef struct btr_cur_struct		btr_cur_t;
+struct btr_cur_t;
 /** B-tree search information for the adaptive hash index */
-typedef struct btr_search_struct	btr_search_t;
+struct btr_search_t;
 
 #ifndef UNIV_HOTBACKUP
 
@@ -68,7 +68,7 @@ extern char	btr_search_enabled;
 #ifdef UNIV_BLOB_DEBUG
 # include "buf0types.h"
 /** An index->blobs entry for keeping track of off-page column references */
-typedef struct btr_blob_dbg_struct btr_blob_dbg_t;
+struct btr_blob_dbg_t;
 
 /** Insert to index->blobs a reference to an off-page column.
 @param index	the index tree
