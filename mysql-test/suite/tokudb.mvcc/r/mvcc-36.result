@@ -28,7 +28,7 @@ a	b	c
 # should use key b
 explain select * from foo where b=50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	
+1	SIMPLE	foo	ref	b	b	5	const	1	Using where
 # should get (5,50,500)
 select * from foo where b=50;
 a	b	c
@@ -39,7 +39,7 @@ begin;
 # should use key b
 explain select * from foo where b=50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	
+1	SIMPLE	foo	ref	b	b	5	const	1	Using where
 # timeout
 select * from foo where b=50;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
@@ -47,7 +47,7 @@ commit;
 # should use key b
 explain select * from foo where b=50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	
+1	SIMPLE	foo	ref	b	b	5	const	1	Using where
 # should get (5,50,1515)
 select * from foo where b=50;
 a	b	c
@@ -55,7 +55,7 @@ a	b	c
 # should use key b
 explain select * from foo where b=50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	
+1	SIMPLE	foo	ref	b	b	5	const	1	Using where
 # should get (5,50,1515)
 select * from foo where b=50;
 a	b	c
@@ -64,7 +64,7 @@ commit;
 # should use key b
 explain select * from foo where b=50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	
+1	SIMPLE	foo	ref	b	b	5	const	1	Using where
 # should get (5,50,1515)
 select * from foo where b=50;
 a	b	c
