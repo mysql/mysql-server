@@ -1,4 +1,4 @@
-SET STORAGE_ENGINE = 'tokudb';
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
 # Establish connection conn1 (user = root)
 DROP TABLE IF EXISTS foo;
 set session transaction isolation level read committed;
@@ -28,7 +28,7 @@ a	b	c
 # should use key b
 explain select * from foo where b=50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	Using where
+1	SIMPLE	foo	ref	b	b	5	const	1	
 # should get (5,50,500)
 select * from foo where b=50;
 a	b	c
@@ -39,7 +39,7 @@ begin;
 # should use key b
 explain select * from foo where b=50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	Using where
+1	SIMPLE	foo	ref	b	b	5	const	1	
 # should get (5,50,500)
 select * from foo where b=50;
 a	b	c
@@ -48,7 +48,7 @@ commit;
 # should use key b
 explain select * from foo where b=50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	Using where
+1	SIMPLE	foo	ref	b	b	5	const	1	
 # should get (5,50,1515)
 select * from foo where b=50;
 a	b	c
@@ -56,7 +56,7 @@ a	b	c
 # should use key b
 explain select * from foo where b=50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	Using where
+1	SIMPLE	foo	ref	b	b	5	const	1	
 # should get (5,50,1515)
 select * from foo where b=50;
 a	b	c
@@ -65,7 +65,7 @@ commit;
 # should use key b
 explain select * from foo where b=50;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	foo	ref	b	b	5	const	1	Using where
+1	SIMPLE	foo	ref	b	b	5	const	1	
 # should get (5,50,1515)
 select * from foo where b=50;
 a	b	c
