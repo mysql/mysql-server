@@ -709,7 +709,7 @@ static bool
 field_in_key(KEY *key, Field *field) {
     for (uint i = 0; i < key->key_parts; i++) {
         KEY_PART_INFO *key_part = &key->key_part[i];
-        if (key_part->field == field)
+        if (strcmp(key_part->field->field_name, field->field_name) == 0)
             return true;
     }
     return false;
