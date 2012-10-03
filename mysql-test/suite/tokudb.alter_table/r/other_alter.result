@@ -1,4 +1,4 @@
-SET STORAGE_ENGINE='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 DROP TABLE IF EXISTS foo,bar;
 set session tokudb_disable_slow_alter=ON;
 create table foo (aa int, bb int, cc int, dd int, ee int, a int, b varchar(20), c int, d int, e int, primary key (e), key(d), unique key(c), clustering key (b))engine=TokuDB;
