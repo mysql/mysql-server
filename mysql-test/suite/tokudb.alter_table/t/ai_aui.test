@@ -1,6 +1,6 @@
 # ensure that we can add a key and a unique key simultaneously
 --source include/have_tokudb.inc
-set storage_engine='tokudb';
+set default_storage_engine='tokudb';
 --disable_warnings
 drop table if exists t;
 --enable_warnings

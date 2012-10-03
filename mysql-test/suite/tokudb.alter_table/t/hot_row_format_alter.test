@@ -2,7 +2,7 @@
 #
 # Verify that row format changes are non-blocking, hot operations.
 #
-SET STORAGE_ENGINE='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 
 --disable_warnings
 DROP TABLE IF EXISTS foo;
@@ -41,16 +41,27 @@ select * from foo;
 # Trying to change row format along with another 
 # option should NOT be hot/non-blocking.  
 #
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE foo row_format=TOKUDB_LZMA, add column c int;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE foo row_format=TOKUDB_LZMA, drop column b;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE foo row_format=TOKUDB_LZMA,  add key b(b);
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE foo row_format=TOKUDB_LZMA,  change b b bigint;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE foo row_format=TOKUDB_LZMA, change b c int;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE foo auto_increment=100000, ROW_FORMAT=TOKUDB_LZMA;
 

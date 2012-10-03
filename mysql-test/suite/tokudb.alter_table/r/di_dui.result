@@ -1,4 +1,4 @@
-set storage_engine='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 drop table if exists t;
 create table t (a int, b int, c int, primary key(a), key(b), unique key(c));
 set session tokudb_disable_slow_alter=1;
