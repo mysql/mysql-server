@@ -2821,11 +2821,6 @@ dict_load_foreign(
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	DBUG_EXECUTE_IF(
-		"ib_evict_bp_before_dict_load_foreign_cols",
-		buf_LRU_flush_or_remove_pages(0, BUF_REMOVE_ALL_NO_WRITE, NULL);
-	);
-
 	dict_load_foreign_cols(foreign);
 
 	ref_table = dict_table_check_if_in_cache_low(
