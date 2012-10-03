@@ -4476,7 +4476,7 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
     m_start_key.length= key_len= calculate_key_len(table, active_index, 
                                                    m_start_key.key,
                                                    m_start_key.keypart_map);
-    DBUG_PRINT("info", ("have_start_key map %u find_flag %u len %u",
+    DBUG_PRINT("info", ("have_start_key map %lu find_flag %u len %u",
                         m_start_key.keypart_map, m_start_key.flag, key_len));
     DBUG_ASSERT(key_len);
   }
