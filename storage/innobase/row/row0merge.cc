@@ -565,7 +565,7 @@ row_merge_tuple_cmp(
 	const dfield_t*	bf	= b.fields;
 	ulint		n	= n_uniq;
 
-	ut_ad(n_field > 0);
+	ut_ad(n_uniq > 0);
 	ut_ad(n_uniq <= n_field);
 
 	/* Compare the fields of the tuples until a difference is
