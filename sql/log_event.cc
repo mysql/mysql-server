@@ -1691,7 +1691,6 @@ void Log_event::print_header(IO_CACHE* file,
     my_b_printf(file, checksum_buf, bytes_written);
   }
 
-
   /* mysqlbinlog --hexdump */
   if (print_event_info->hexdump_from)
   {
@@ -10973,9 +10972,9 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                              &m_cols_ai : &m_cols);
     bitmap_intersect(table->write_set, after_image);
 
-    if (thd->slave_thread) // fix the mode for slave
+    if (thd->slave_thread) // set the mode for slave
       this->rbr_exec_mode= slave_exec_mode_options;
-    else //fix the mode for user thread
+    else //set the mode for user thread
       this->rbr_exec_mode= thd->variables.rbr_exec_mode_options;
 
     // Do event specific preparations
