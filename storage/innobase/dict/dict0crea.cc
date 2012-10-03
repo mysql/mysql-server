@@ -1333,6 +1333,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	trx = trx_allocate_for_mysql();
 
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
 	trx->op_info = "creating foreign key sys tables";
 
 	row_mysql_lock_data_dictionary(trx);
@@ -1696,6 +1698,8 @@ dict_create_or_check_sys_tablespace(void)
 	}
 
 	trx = trx_allocate_for_mysql();
+
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	trx->op_info = "creating tablepace and datafile sys tables";
 

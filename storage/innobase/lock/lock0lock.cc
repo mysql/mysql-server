@@ -47,6 +47,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "srv0mon.h"
 #include "ut0vec.h"
 #include "btr0btr.h"
+#include "dict0boot.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -4573,10 +4574,37 @@ lock_release(
 	     lock = UT_LIST_GET_LAST(trx->lock.trx_locks)) {
 
 		if (lock_get_type_low(lock) == LOCK_REC) {
-			lock_rec_dequeue_from_page(lock);
 
+#ifdef UNIV_DEBUG
+			/* Check if the transcation locked a record
+			in a system table in X mode. It should have set
+			the dict_op code correctly if it did. */
+			if (lock->index->table->id < DICT_HDR_FIRST_ID
+			    && lock_get_mode(lock) == LOCK_X) {
+
+				ut_ad(lock_get_mode(lock) != LOCK_IX);
+				ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
+			}
+#endif /* UNIV_DEBUG */
+
+			lock_rec_dequeue_from_page(lock);
 		} else {
+			dict_table_t*	table;
+
+			table = lock->un_member.tab_lock.table;
+#ifdef UNIV_DEBUG
 			ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+
+			/* Check if the transcation locked a system table
+			in IX mode. It should have set the dict_op code
+			correctly if it did. */
+			if (table->id < DICT_HDR_FIRST_ID
+			    && (lock_get_mode(lock) == LOCK_X
+				|| lock_get_mode(lock) == LOCK_IX)) {
+
+				ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
+			}
+#endif /* UNIV_DEBUG */
 
 			if (lock_get_mode(lock) != LOCK_IS
 			    && trx->undo_no != 0) {
@@ -4585,8 +4613,7 @@ lock_release(
 				block the use of the MySQL query cache for
 				all currently active transactions. */
 
-				lock->un_member.tab_lock.table
-					->query_cache_inv_trx_id = max_trx_id;
+				table->query_cache_inv_trx_id = max_trx_id;
 			}
 
 			lock_table_dequeue(lock);
