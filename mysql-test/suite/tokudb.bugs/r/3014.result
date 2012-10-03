@@ -1,4 +1,4 @@
-SET STORAGE_ENGINE = 'tokudb';
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
 DROP TABLE IF EXISTS foo;
 create table foo (a int, b int, c int, primary key (a), key (b));
 insert into foo values (1,100,1),(2,20,2),(3,300,3),(4,4,4);

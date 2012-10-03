@@ -1,5 +1,5 @@
 # Establish connection conn1 (user = root)
-SET STORAGE_ENGINE = 'tokudb';
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
 DROP TABLE IF EXISTS foo;
 set session transaction isolation level serializable;
 create table foo ( a double, b double, c double, primary key (a,b));

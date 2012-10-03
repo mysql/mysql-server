@@ -1,4 +1,4 @@
-set storage_engine='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 DROP TABLE IF EXISTS t2;
 CREATE TABLE `t2` (
 `c1` int(11) NOT NULL,

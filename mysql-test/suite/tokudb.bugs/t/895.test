@@ -1,7 +1,7 @@
 # ticket 895 is a query optimization problem with the primary key
 
 --source include/have_tokudb.inc
-SET STORAGE_ENGINE = 'tokudb';
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
 
 --disable_warnings
 DROP TABLE IF EXISTS t;

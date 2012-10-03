@@ -1,4 +1,4 @@
-set storage_engine='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 --disable_warnings
 DROP TABLE IF EXISTS t2;
 --enable_warnings
