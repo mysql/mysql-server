@@ -1,5 +1,5 @@
 #--source include/have_tokudb.inc
-SET STORAGE_ENGINE='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 
 --disable_warnings
 DROP TABLE IF EXISTS foo,bar;
@@ -40,6 +40,7 @@ drop table foo; drop table bar;
 
 ########################### some simple tests ###############
 create table foo (a int, b int not null, c int, d int not null, e int, primary key (e))engine=TokuDB;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 alter table foo drop column e;
 create table bar like foo;
@@ -62,6 +63,7 @@ source include/diff_tables.inc;
 drop table foo; drop table bar;
 
 create table foo (a varchar(20), b varchar(20) not null, c varchar(20), d varchar(20) not null, e int, primary key (e))engine=TokuDB;
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 alter table foo drop column e;
 create table bar like foo;

@@ -1,5 +1,5 @@
-SET STORAGE_ENGINE='tokudb';
-DROP TABLE IF EXISTS foo;
+set default_storage_engine='tokudb';
+drop table if exists foo;
 set session tokudb_disable_slow_alter=ON;
 create table foo (a int, b int, c int, key(a))engine=TokuDB;
 insert into foo values (1,10,100),(2,20,200),(3,30,300),(3,30,300);

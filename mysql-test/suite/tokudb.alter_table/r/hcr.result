@@ -4,28 +4,28 @@ set session tokudb_disable_slow_alter=ON;
 create table foo (a int, b varchar(10), c blob)engine=TokuDB;
 insert into foo values(1,"bb","cccc");
 alter table foo change a aa int, change b bb varchar(10);
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
 alter table foo change b bb varchar(11);
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
-alter table foo change a aa bigint;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo change a aa smallint;
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
 alter table foo change a aa int NOT NULL;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
-alter table foo change a aa int, alter column b drop default;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
+alter table foo change a aa int, change b bb varchar(10);
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
 alter table foo change b bb varchar(10) CHARACTER SET latin1 COLLATE latin1_general_cs;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
 alter table foo change c cc mediumblob;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
 alter table foo change a aa int, add column d int;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
 alter table foo change a aa int, drop column c;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
 alter table foo change a aa int, add index (b);
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
 alter table foo add index(b);
 alter table foo change a aa int, drop index b;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
 show create table foo;
 Table	Create Table
 foo	CREATE TABLE `foo` (
@@ -41,5 +41,5 @@ alter table foo change a aa int DEFAULT 1000;
 drop table foo;
 create table foo (a int, b int, c int) engine=TokuDB;
 alter table foo change c cc int, change a b int, change b a int first;
-ERROR 42000: Table 'foo' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'foo' uses an extension that doesn't exist in this XYZ version
 drop table foo;

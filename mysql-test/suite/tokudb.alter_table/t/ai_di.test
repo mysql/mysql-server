@@ -1,8 +1,8 @@
 #--source include/have_tokudb.inc
-SET STORAGE_ENGINE='tokudb';
+set default_storage_engine='tokudb';
 
 --disable_warnings
-DROP TABLE IF EXISTS foo;
+drop table if exists foo;
 --enable_warnings
 
 set session tokudb_disable_slow_alter=ON;
