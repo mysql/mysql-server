@@ -3,7 +3,7 @@
 # Record inconsistency.
 #
 #
-SET STORAGE_ENGINE = 'tokudb';
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
 
 --disable_warnings
 DROP TABLE IF EXISTS foo, bar;

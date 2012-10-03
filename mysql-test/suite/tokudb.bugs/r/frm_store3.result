@@ -1,4 +1,4 @@
-SET STORAGE_ENGINE = 'tokudb';
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
 DROP TABLE IF EXISTS foo,bar;
 create table foo (a int, b int, key(b,a), primary key (a))engine=TokuDB;
 create table bar (a bigint)engine=TokuDB;

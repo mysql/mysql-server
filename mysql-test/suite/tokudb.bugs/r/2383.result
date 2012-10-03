@@ -1,4 +1,4 @@
-SET STORAGE_ENGINE = 'tokudb';
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
 DROP TABLE IF EXISTS foo;
 create table foo (a char (255), primary key (a))charset=utf8;
 insert into foo values (repeat('A', 255));
