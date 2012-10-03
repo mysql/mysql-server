@@ -1,8 +1,9 @@
 ###############################################################################
 # This test checks the basics of setting the variable rbr_exec_mode
 #
-###############################################################################
+################################################################################
 --source include/not_embedded.inc
+call mtr.add_suppression("When set to IDEMPOTENT this will prevent any errors to be thrown while applying row events from clients");
 
 set @saved_session_rbr_exec_mode = @@session.rbr_exec_mode;
 set @saved_global_rbr_exec_mode = @@global.rbr_exec_mode;
@@ -66,5 +67,23 @@ SELECT @@global.rbr_exec_mode;
 SET global rbr_exec_mode=NULL;
 SELECT @@global.rbr_exec_mode;
 
+# CHECKING FOR A NON_ROOT USER
+CREATE USER unpriv_user@localhost IDENTIFIED BY 'temp_pass';
+connect(unpriv_con, localhost, 'unpriv_user', 'temp_pass',);
+--connection unpriv_con
+
+# will error out in case of non root user try to change
+# this variable globally
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET global rbr_exec_mode='IDEMPOTENT';
+--error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SET global rbr_exec_mode='STRICT';
+
+#No error for sessting the session variable.
+SET session rbr_exec_mode='IDEMPOTENT';
+SET session rbr_exec_mode='STRICT';
+
+--connection default
+DROP USER unpriv_user@localhost;
 set session rbr_exec_mode = @saved_session_rbr_exec_mode;
 set global rbr_exec_mode = @saved_global_rbr_exec_mode;
