@@ -1,4 +1,4 @@
-SET STORAGE_ENGINE = 'TokuDB';
+SET DEFAULT_STORAGE_ENGINE = 'TokuDB';
 drop function if exists bug13825_0|
 drop function if exists bug13825_1|
 drop function if exists bug13825_2|

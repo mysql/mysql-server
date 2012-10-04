@@ -1,4 +1,4 @@
-SET STORAGE_ENGINE='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 drop table if exists t1, t2, vchar;
 set tokudb_load_save_space=1;
 create table t1 (v varchar(30), c char(3), e enum('abc','def','ghi'), t text);

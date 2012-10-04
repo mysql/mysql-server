@@ -4,7 +4,7 @@
 # t2 scans all of the rows in a table except the one updated by t1
 # t2 should hang until t1 commits
 
-set storage_engine='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 
 --disable_warnings
 drop table if exists t;

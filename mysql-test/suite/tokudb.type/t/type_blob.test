@@ -1,7 +1,7 @@
 # This test can't be run with running server (--extern) as this uses
 # load_file() on a file in the tree.
 #
-set storage_engine='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 #
 # Basic cleanup
 #
