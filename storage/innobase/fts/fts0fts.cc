@@ -1463,14 +1463,24 @@ fts_drop_table(
 	trx_t*		trx,			/*!< in: transaction */
 	const char*	table_name)		/*!< in: table to drop */
 {
-	dberr_t	error = DB_SUCCESS;
+	dberr_t		error = DB_SUCCESS;
+	dict_table_t*	table;
 
-	/* Check that the table exists in our data dictionary. */
-	if (dict_table_get_low(table_name)) {
+	/* Check that the table exists in our data dictionary.
+	Similar to regular drop table case, we will open table with
+	DICT_ERR_IGNORE_INDEX_ROOT and DICT_ERR_IGNORE_CORRUPT option */
+	table = dict_table_open_on_name(
+		table_name, TRUE, FALSE,
+		static_cast<dict_err_ignore_t>(
+                        DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT));
+
+	if (table != 0) {
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
 		ib_logf(IB_LOG_LEVEL_INFO, "Dropping %s", table_name);
 #endif /* FTS_INTERNAL_DIAG_PRINT */
+
+		dict_table_close(table, TRUE, FALSE);
 
 		error = row_drop_table_for_mysql(table_name, trx, TRUE);
 
@@ -5767,7 +5777,7 @@ fts_check_and_drop_orphaned_tables(
 			ib_vector_get(tables, i));
 
 		table = dict_table_open_on_id(
-			sys_table->parent_id, FALSE, FALSE);
+			sys_table->parent_id, TRUE, FALSE);
 
 		if (table == NULL || table->fts == NULL) {
 
@@ -5798,7 +5808,7 @@ fts_check_and_drop_orphaned_tables(
 		}
 
 		if (table) {
-			dict_table_close(table, FALSE, FALSE);
+			dict_table_close(table, TRUE, FALSE);
 		}
 
 		if (drop) {
