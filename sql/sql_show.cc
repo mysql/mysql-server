@@ -1123,7 +1123,8 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   const char *name_end;
   char quote_char;
-  int q= get_quote_char_for_identifier(thd, name, length);
+  int q;
+  q= thd ? get_quote_char_for_identifier(thd, name, length) : '`';
 
   if (q == EOF)
   {
@@ -2593,10 +2594,23 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  /* take copy of global_thread_list */
+  std::set<THD*> global_thread_list_copy;
 
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
+  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_remove);
+  copy_global_thread_list(&global_thread_list_copy);
+
+  /* 
+    Allow inserts to global_thread_list. Newly added thd
+    will not be accounted for summary calculation.
+    removal from global_thread_list is blocked as LOCK_thread_remove
+    mutex is not released yet 
+  */
+  mysql_mutex_unlock(&LOCK_thread_count);
+  Thread_iterator it= global_thread_list_copy.begin();
+  Thread_iterator end= global_thread_list_copy.end();
+
   /* Get global values as base */
   *to= global_status_var;
   
@@ -2604,7 +2618,9 @@ void calc_sum_of_all_status(STATUS_VAR *to)
   for (; it != end; ++it)
     add_to_status(to, &(*it)->status_var);
   
-  mysql_mutex_unlock(&LOCK_thread_count);
+  DEBUG_SYNC_C("inside_calc_sum");
+
+  mysql_mutex_unlock(&LOCK_thread_remove);
   DBUG_VOID_RETURN;
 }
 

@@ -1692,6 +1692,13 @@ do_possible_lock_wait:
 
 		lock_wait_suspend_thread(thr);
 
+		if (check_table->to_be_dropped) {
+			/* The table is being dropped. We shall timeout
+			this operation */
+			err = DB_LOCK_WAIT_TIMEOUT;
+			goto exit_func;
+		}
+
 		if (trx->error_state == DB_SUCCESS) {
 
 			goto run_again;
@@ -2475,6 +2482,8 @@ row_ins_sec_index_entry_low(
 				/*!< in/out: memory heap that can be emptied */
 	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
+	trx_id_t	trx_id,	/*!< in: PAGE_MAX_TRX_ID during
+				row_log_table_apply(), or 0 */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
@@ -2626,6 +2635,13 @@ row_ins_sec_index_entry_low(
 			}
 		}
 
+		if (err == DB_SUCCESS && trx_id) {
+			page_update_max_trx_id(
+				btr_cur_get_block(&cursor),
+				btr_cur_get_page_zip(&cursor),
+				trx_id, &mtr);
+		}
+
 		ut_ad(!big_rec);
 	}
 
@@ -2774,7 +2790,7 @@ row_ins_sec_index_entry(
 	log_free_check();
 
 	err = row_ins_sec_index_entry_low(
-		0, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry, thr);
+		0, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry, 0, thr);
 	if (err == DB_FAIL) {
 		mem_heap_empty(heap);
 
@@ -2784,7 +2800,7 @@ row_ins_sec_index_entry(
 
 		err = row_ins_sec_index_entry_low(
 			0, BTR_MODIFY_TREE, index,
-			offsets_heap, heap, entry, thr);
+			offsets_heap, heap, entry, 0, thr);
 	}
 
 	mem_heap_free(heap);
