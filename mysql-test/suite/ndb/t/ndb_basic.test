@@ -828,7 +828,7 @@ DROP TABLE child, parent;
 #
 # bug#59756
 #
---error 1296
+--error 1031
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
 ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 144;
 show warnings;
