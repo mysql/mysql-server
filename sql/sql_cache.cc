@@ -335,6 +335,7 @@ TODO list:
 #include "sql_acl.h"                            // SELECT_ACL
 #include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
 #include "debug_sync.h"                         // DEBUG_SYNC
+#include "opt_trace.h"
 #ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -1793,6 +1794,16 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   thd->limit_found_rows = query->found_rows();
   thd->status_var.last_query_cost= 0.0;
+
+  {
+    Opt_trace_start ots(thd, NULL, SQLCOM_SELECT, NULL,
+                        thd->query(), thd->query_length(), NULL,
+                        thd->variables.character_set_client);
+
+    Opt_trace_object (&thd->opt_trace)
+      .add("query_result_read_from_cache", true);
+  }
+
   /*
     End the statement transaction potentially started by an
     engine callback. We ignore the return value for now,
@@ -3747,14 +3758,29 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
                   table->s->db_type() == myisam_hton);
       DBUG_RETURN(0);
     }
+
+    /*
+      We're skipping a special case here (MERGE VIEW on top of a TEMPTABLE
+      view). This is MyISAMly safe because we know it's not a user-created
+      TEMPTABLE as those are guarded against in
+      Query_cache::process_and_count_tables(), and schema-tables clear
+      safe_to_cache_query. This implies that nobody else will change our
+      TEMPTABLE while we're using it, so calling register_query_cache_table()
+      in MyISAM to check on it is pointless. Finally, we should see the
+      TEMPTABLE view again in a subsequent iteration, anyway.
+    */
+    if ((tables_used->effective_algorithm == VIEW_ALGORITHM_MERGE) &&
+        (table->s->get_table_ref_type() == TABLE_REF_TMP_TABLE))
+      continue;
+
     if (!handler->register_query_cache_table(thd,
                                              table->s->table_cache_key.str,
-					     table->s->table_cache_key.length,
-					     &tables_used->callback_func,
-					     &tables_used->engine_data))
+                                             table->s->table_cache_key.length,
+                                             &tables_used->callback_func,
+                                             &tables_used->engine_data))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
-			    tables_used->db, tables_used->alias));
+                            tables_used->db, tables_used->alias));
       thd->lex->safe_to_cache_query= 0;          // Don't try to cache this
       DBUG_RETURN(1);
     }

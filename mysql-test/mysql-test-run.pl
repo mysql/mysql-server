@@ -2163,17 +2163,10 @@ sub mysqldump_arguments ($) {
 sub mysql_client_test_arguments(){
   my $exe;
   # mysql_client_test executable may _not_ exist
-  if ( $opt_embedded_server ) {
-    $exe= mtr_exe_maybe_exists(
-            vs_config_dirs('libmysqld/examples','mysql_client_test_embedded'),
-	      "$basedir/libmysqld/examples/mysql_client_test_embedded",
-		"$basedir/bin/mysql_client_test_embedded");
-  } else {
-    $exe= mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
-			       "$basedir/tests/mysql_client_test",
-			       "$basedir/bin/mysql_client_test");
-  }
-
+  $exe= mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
+			     "$basedir/tests/mysql_client_test",
+			     "$basedir/bin/mysql_client_test");
+  return "" unless $exe;
   my $args;
   mtr_init_args(\$args);
   if ( $opt_valgrind_mysqltest ) {
@@ -3474,6 +3467,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-falcon");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
+  mtr_add_arg($args, "--innodb-log-file-size=5M");
   mtr_add_arg($args, "--core-file");
   # over writing innodb_autoextend_increment to 8 for reducing the ibdata1 file size 
   mtr_add_arg($args, "--innodb_autoextend_increment=8");

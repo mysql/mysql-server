@@ -45,7 +45,7 @@ struct OSBasicMutex {
 
 	~OSBasicMutex() UNIV_NOTHROW
 	{
-		ut_ad(m_freed);
+		ut_ad(m_freed || srv_force_recovery_crash);
 	}
 
 	/** Required for os_event_t */
@@ -601,7 +601,7 @@ struct TTASWaitMutex {
  
 	~TTASWaitMutex()
 	{
-		ut_a(m_event == 0);
+		ut_a(m_event == 0 || srv_force_recovery_crash);
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
  
