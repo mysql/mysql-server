@@ -67,18 +67,14 @@ sp_rcontext::~sp_rcontext()
 bool sp_rcontext::init(THD *thd)
 {
   uint handler_count= m_root_parsing_ctx->max_handler_index();
-  uint i;
 
   in_sub_stmt= thd->in_sub_stmt;
 
   if (init_var_table(thd) || init_var_items())
     return TRUE;
 
-  if (!(m_raised_conditions= new (thd->mem_root) MYSQL_ERROR[handler_count]))
+  if (!(m_raised_conditions= new (thd->mem_root) Sql_condition_info[handler_count]))
     return TRUE;
-
-  for (i= 0; i<handler_count; i++)
-    m_raised_conditions[i].init(thd->mem_root);
 
   return
     !(m_handler=
@@ -446,13 +442,12 @@ sp_rcontext::exit_handler()
   DBUG_VOID_RETURN;
 }
 
-MYSQL_ERROR*
-sp_rcontext::raised_condition() const
+Sql_condition_info* sp_rcontext::raised_condition() const
 {
   if (m_ihsp > 0)
   {
     uint hindex= m_in_handler[m_ihsp - 1].index;
-    MYSQL_ERROR *raised= & m_raised_conditions[hindex];
+    Sql_condition_info *raised= & m_raised_conditions[hindex];
     return raised;
   }
 
