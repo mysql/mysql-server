@@ -2621,7 +2621,8 @@ int handler::update_auto_increment()
   if (unlikely(nr == ULONGLONG_MAX))
       DBUG_RETURN(HA_ERR_AUTOINC_ERANGE);
 
-  DBUG_PRINT("info",("auto_increment: %lu", (ulong) nr));
+  DBUG_PRINT("info",("auto_increment: %llu  nb_reserved_values: %llu",
+                     nr, nb_reserved_values));
 
   /* Store field without warning (Warning will be printed by insert) */
   save_count_cuted_fields= thd->count_cuted_fields;

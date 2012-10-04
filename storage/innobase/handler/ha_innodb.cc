@@ -10284,6 +10284,7 @@ ha_innobase::get_auto_increment(
                    take care of this */
                 prebuilt->autoinc_last_value = 0;
                 dict_table_autoinc_unlock(prebuilt->table);
+                *nb_reserved_values= 0;
                 return;
         }
 	*nb_reserved_values = trx->n_autoinc_rows;

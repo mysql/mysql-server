@@ -11225,6 +11225,7 @@ ha_innobase::get_auto_increment(
                    take care of this */
                 prebuilt->autoinc_last_value = 0;
                 dict_table_autoinc_unlock(prebuilt->table);
+                *nb_reserved_values = 0;
                 return;
         }
 	*nb_reserved_values = trx->n_autoinc_rows;
@@ -13019,7 +13020,7 @@ static	MYSQL_SYSVAR_ENUM(corrupt_table_action, srv_pass_corrupt_table,
   "Warn corruptions of user tables as 'corrupt table' instead of not crashing itself, "
   "when used with file_per_table. "
   "All file io for the datafile after detected as corrupt are disabled, "
-  "except for the deletion.",
+  "except for the deletion. Possible options are 'assert', 'warn' & 'salvage'",
   NULL, NULL, 0, &corrupt_table_action_typelib);
 
 static MYSQL_SYSVAR_ULINT(lazy_drop_table, srv_lazy_drop_table,
