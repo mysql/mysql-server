@@ -142,9 +142,9 @@ mtr_memo_slot_note_modification(
 	mtr_t*			mtr,	/*!< in: mtr */
 	mtr_memo_slot_t*	slot)	/*!< in: memo slot */
 {
-	ut_ad(mtr);
-	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->modifications);
+	ut_ad(!srv_read_only_mode);
+	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 
 	if (slot->object != NULL && slot->type == MTR_MEMO_PAGE_X_FIX) {
 		buf_block_t*	block = (buf_block_t*) slot->object;
@@ -170,7 +170,7 @@ mtr_memo_note_modifications(
 	dyn_array_t*	memo;
 	ulint		offset;
 
-	ut_ad(mtr);
+	ut_ad(!srv_read_only_mode);
 	ut_ad(mtr->magic_n == MTR_MAGIC_N);
 	ut_ad(mtr->state == MTR_COMMITTING); /* Currently only used in
 					     commit */
@@ -198,6 +198,8 @@ mtr_add_dirtied_pages_to_flush_list(
 /*================================*/
 	mtr_t*	mtr)	/*!< in/out: mtr */
 {
+	ut_ad(!srv_read_only_mode);
+
 	/* No need to acquire log_flush_order_mutex if this mtr has
 	not dirtied a clean page. log_flush_order_mutex is used to
 	ensure ordered insertions in the flush_list. We need to
@@ -233,7 +235,7 @@ mtr_log_reserve_and_write(
 	ulint		data_size;
 	byte*		first_data;
 
-	ut_ad(mtr);
+	ut_ad(!srv_read_only_mode);
 
 	mlog = &(mtr->log);
 
@@ -312,6 +314,7 @@ mtr_commit(
 	ut_ad(!recv_no_log_write);
 
 	if (mtr->modifications && mtr->n_log_recs) {
+		ut_ad(!srv_read_only_mode);
 		mtr_log_reserve_and_write(mtr);
 	}
 
@@ -394,14 +397,8 @@ mtr_read_ulint(
 	ut_ad(mtr->state == MTR_ACTIVE);
 	ut_ad(mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_S_FIX)
 	      || mtr_memo_contains_page(mtr, ptr, MTR_MEMO_PAGE_X_FIX));
-	if (type == MLOG_1BYTE) {
-		return(mach_read_from_1(ptr));
-	} else if (type == MLOG_2BYTES) {
-		return(mach_read_from_2(ptr));
-	} else {
-		ut_ad(type == MLOG_4BYTES);
-		return(mach_read_from_4(ptr));
-	}
+
+	return(mach_read_ulint(ptr, type));
 }
 
 #ifdef UNIV_DEBUG

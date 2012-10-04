@@ -70,36 +70,6 @@ If you make a change in this module make sure that no codepath is
 introduced where a call to log_free_check() is bypassed. */
 
 /***********************************************************//**
-Checks if also the previous version of the clustered index record was
-modified or inserted by the same transaction, and its undo number is such
-that it should be undone in the same rollback.
-@return	TRUE if also previous modify or insert of this row should be undone */
-static
-ibool
-row_undo_mod_undo_also_prev_vers(
-/*=============================*/
-	undo_node_t*	node,	/*!< in: row undo node */
-	undo_no_t*	undo_no)/*!< out: the undo number */
-{
-	trx_undo_rec_t*	undo_rec;
-	trx_t*		trx;
-
-	trx = node->trx;
-
-	if (node->new_trx_id != trx->id) {
-
-		*undo_no = 0;
-		return(FALSE);
-	}
-
-	undo_rec = trx_undo_get_undo_rec_low(node->new_roll_ptr, node->heap);
-
-	*undo_no = trx_undo_rec_get_undo_no(undo_rec);
-
-	return(trx->roll_limit <= *undo_no);
-}
-
-/***********************************************************//**
 Undoes a modify in a clustered index record.
 @return	DB_SUCCESS, DB_FAIL, or error code: we may run out of file space */
 static __attribute__((nonnull, warn_unused_result))
@@ -252,9 +222,6 @@ row_undo_mod_clust(
 	dberr_t		err;
 	dict_index_t*	index;
 	bool		online;
-	ibool		success;
-	ibool		more_vers;
-	undo_no_t	new_undo_no;
 
 	ut_ad(thr_get_trx(thr) == node->trx);
 	ut_ad(node->trx->dict_operation_lock_mode);
@@ -264,14 +231,7 @@ row_undo_mod_clust(
 #endif /* UNIV_SYNC_DEBUG */
 
 	log_free_check();
-
-	/* Check if also the previous version of the clustered index record
-	should be undone in this same rollback operation */
-
-	more_vers = row_undo_mod_undo_also_prev_vers(node, &new_undo_no);
-
 	pcur = &node->pcur;
-
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
 	mtr_start(&mtr);
@@ -372,20 +332,6 @@ row_undo_mod_clust(
 	node->state = UNDO_NODE_FETCH_NEXT;
 
 	trx_undo_rec_release(node->trx, node->undo_no);
-
-	if (more_vers && err == DB_SUCCESS) {
-
-		/* Reserve the undo log record to the prior version after
-		committing &mtr: this is necessary to comply with the latching
-		order, as &mtr may contain the fsp latch which is lower in
-		the latch hierarchy than trx->undo_mutex. */
-
-		success = trx_undo_rec_reserve(node->trx, new_undo_no);
-
-		if (success) {
-			node->state = UNDO_NODE_PREV_VERS;
-		}
-	}
 
 	if (offsets_heap) {
 		mem_heap_free(offsets_heap);
@@ -961,7 +907,6 @@ row_undo_mod_parse_undo_rec(
 	trx_undo_update_rec_get_update(ptr, clust_index, type, trx_id,
 				       roll_ptr, info_bits, trx,
 				       node->heap, &(node->update));
-	node->new_roll_ptr = roll_ptr;
 	node->new_trx_id = trx_id;
 	node->cmpl_info = cmpl_info;
 

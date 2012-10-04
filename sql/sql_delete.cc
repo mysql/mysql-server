@@ -236,7 +236,7 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
     {
       if (thd->lex->describe && !error && !thd->is_error())
       {
-        error= explain_no_table(thd, "Impossible WHERE");
+        err= explain_no_table(thd, "Impossible WHERE");
         goto exit_without_my_ok;
       }
       delete select;

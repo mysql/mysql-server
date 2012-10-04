@@ -33,7 +33,7 @@
   Values of a free record should not be read by a reader.
   Writers can concurrently attempt to allocate a free record.
 */
-#define PFS_LOCK_FREE 0
+#define PFS_LOCK_FREE 0x00
 /**
   State of a dirty record.
   Values of a dirty record should not be read by a reader,
@@ -41,14 +41,18 @@
   Only one writer, the writer which owns the record, should
   modify the record content.
 */
-#define PFS_LOCK_DIRTY 1
+#define PFS_LOCK_DIRTY 0x01
 /**
   State of an allocated record.
   Values of an allocated record are safe to read by a reader.
   A writer may modify some but not all properties of the record:
   only modifying values that can never cause the reader to crash is allowed.
 */
-#define PFS_LOCK_ALLOCATED 2
+#define PFS_LOCK_ALLOCATED 0x02
+
+#define VERSION_MASK 0xFFFFFFFC
+#define STATE_MASK   0x00000003
+#define VERSION_INC  4
 
 /**
   A 'lock' protecting performance schema internal buffers.
@@ -60,15 +64,11 @@
 struct pfs_lock
 {
   /**
-    The record internal state.
+    The record internal version and state
     @sa PFS_LOCK_FREE
     @sa PFS_LOCK_DIRTY
     @sa PFS_LOCK_ALLOCATED
-  */
-  volatile int32 m_state;
-  /**
-    The record internal version number.
-    This version number is to transform the 'ABA' problem
+    The version number is to transform the 'ABA' problem
     (see http://en.wikipedia.org/wiki/ABA_problem)
     into an 'A(n)BA(n + 1)' problem, where 'n' is the m_version number.
     When the performance schema instrumentation deletes a record,
@@ -76,21 +76,23 @@ struct pfs_lock
     the version number is incremented, so that a reader can detect that
     the record was changed. Note that the version number is never
     reset to zero when a new record is created.
+    The version number is stored in the high 30 bits.
+    The state is stored in the low 2 bits.
   */
-  volatile uint32 m_version;
+  volatile uint32 m_version_state;
 
   /** Returns true if the record is free. */
   bool is_free(void)
   {
-    /* This is a dirty read */
-    return (m_state == PFS_LOCK_FREE);
+    uint32 copy= m_version_state; /* non volatile copy, and dirty read */
+    return ((copy & STATE_MASK) == PFS_LOCK_FREE);
   }
 
   /** Returns true if the record contains values that can be read. */
   bool is_populated(void)
   {
-    int32 copy= m_state; /* non volatile copy, and dirty read */
-    return (copy == PFS_LOCK_ALLOCATED);
+    uint32 copy= m_version_state; /* non volatile copy, and dirty read */
+    return ((copy & STATE_MASK) == PFS_LOCK_ALLOCATED);
   }
 
   /**
@@ -101,10 +103,11 @@ struct pfs_lock
   */
   bool free_to_dirty(void)
   {
-    int32 old_state= PFS_LOCK_FREE;
-    int32 new_state= PFS_LOCK_DIRTY;
+    uint32 copy= m_version_state; /* non volatile copy, and dirty read */
+    uint32 old_val= (copy & VERSION_MASK) + PFS_LOCK_FREE;
+    uint32 new_val= (copy & VERSION_MASK) + PFS_LOCK_DIRTY;
 
-    return (PFS_atomic::cas_32(&m_state, &old_state, new_state));
+    return (PFS_atomic::cas_u32(&m_version_state, &old_val, new_val));
   }
 
   /**
@@ -114,8 +117,13 @@ struct pfs_lock
   */
   void allocated_to_dirty(void)
   {
-    DBUG_ASSERT(m_state == PFS_LOCK_ALLOCATED);
-    PFS_atomic::store_32(&m_state, PFS_LOCK_DIRTY);
+    uint32 copy= PFS_atomic::load_u32(&m_version_state);
+    /* Make sure the record was ALLOCATED. */
+    DBUG_ASSERT((copy & STATE_MASK) == PFS_LOCK_ALLOCATED);
+    /* Keep the same version, set the DIRTY state */
+    uint32 new_val= (copy & VERSION_MASK) + PFS_LOCK_DIRTY;
+    /* We own the record, no need to use compare and swap. */
+    PFS_atomic::store_u32(&m_version_state, new_val);
   }
 
   /**
@@ -125,9 +133,26 @@ struct pfs_lock
   */
   void dirty_to_allocated(void)
   {
-    DBUG_ASSERT(m_state == PFS_LOCK_DIRTY);
-    PFS_atomic::add_u32(&m_version, 1);
-    PFS_atomic::store_32(&m_state, PFS_LOCK_ALLOCATED);
+    uint32 copy= PFS_atomic::load_u32(&m_version_state);
+    /* Make sure the record was DIRTY. */
+    DBUG_ASSERT((copy & STATE_MASK) == PFS_LOCK_DIRTY);
+    /* Increment the version, set the ALLOCATED state */
+    uint32 new_val= (copy & VERSION_MASK) + VERSION_INC + PFS_LOCK_ALLOCATED;
+    PFS_atomic::store_u32(&m_version_state, new_val);
+  }
+
+  /**
+    Initialize a lock to allocated.
+    This transition should be executed by the writer that owns the record and the lock,
+    after the record is in a state ready to be read.
+  */
+  void set_allocated(void)
+  {
+    /* Do not set the version to 0, read the previous value. */
+    uint32 copy= PFS_atomic::load_u32(&m_version_state);
+    /* Increment the version, set the ALLOCATED state */
+    uint32 new_val= (copy & VERSION_MASK) + VERSION_INC + PFS_LOCK_ALLOCATED;
+    PFS_atomic::store_u32(&m_version_state, new_val);
   }
 
   /**
@@ -136,8 +161,12 @@ struct pfs_lock
   */
   void dirty_to_free(void)
   {
-    DBUG_ASSERT(m_state == PFS_LOCK_DIRTY);
-    PFS_atomic::store_32(&m_state, PFS_LOCK_FREE);
+    uint32 copy= PFS_atomic::load_u32(&m_version_state);
+    /* Make sure the record was DIRTY. */
+    DBUG_ASSERT((copy & STATE_MASK) == PFS_LOCK_DIRTY);
+    /* Keep the same version, set the FREE state */
+    uint32 new_val= (copy & VERSION_MASK) + PFS_LOCK_FREE;
+    PFS_atomic::store_u32(&m_version_state, new_val);
   }
 
   /**
@@ -164,8 +193,12 @@ struct pfs_lock
       so the assert is relaxed with the "|| ready_to_exit" condition as a work
       around until Bug#56666 is fixed.
     */
-    DBUG_ASSERT((m_state == PFS_LOCK_ALLOCATED) || ready_to_exit);
-    PFS_atomic::store_32(&m_state, PFS_LOCK_FREE);
+    uint32 copy= PFS_atomic::load_u32(&m_version_state);
+    /* Make sure the record was ALLOCATED. */
+    DBUG_ASSERT(((copy & STATE_MASK) == PFS_LOCK_ALLOCATED) || ready_to_exit);
+    /* Keep the same version, set the FREE state */
+    uint32 new_val= (copy & VERSION_MASK) + PFS_LOCK_FREE;
+    PFS_atomic::store_u32(&m_version_state, new_val);
   }
 
   /**
@@ -174,8 +207,7 @@ struct pfs_lock
   */
   void begin_optimistic_lock(struct pfs_lock *copy)
   {
-    copy->m_version= PFS_atomic::load_u32(&m_version);
-    copy->m_state= PFS_atomic::load_32(&m_state);
+    copy->m_version_state= PFS_atomic::load_u32(&m_version_state);
   }
 
   /**
@@ -185,19 +217,20 @@ struct pfs_lock
   */
   bool end_optimistic_lock(struct pfs_lock *copy)
   {
-    /*
-      return true if:
-      - the version + state has not changed
-      - and there was valid data to look at
-    */
-    return ((copy->m_version == PFS_atomic::load_u32(&m_version)) &&
-            (copy->m_state == PFS_atomic::load_32(&m_state)) &&
-            (copy->m_state == PFS_LOCK_ALLOCATED));
+    /* Check there was valid data to look at. */
+    if ((copy->m_version_state & STATE_MASK) != PFS_LOCK_ALLOCATED)
+      return false;
+
+    /* Check the version + state has not changed. */
+    if (copy->m_version_state != PFS_atomic::load_u32(&m_version_state))
+      return false;
+
+    return true;
   }
 
   uint32 get_version()
   {
-    return PFS_atomic::load_u32(&m_version);
+    return (PFS_atomic::load_u32(&m_version_state) & VERSION_MASK);
   }
 };
 

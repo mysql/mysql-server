@@ -745,6 +745,14 @@ struct dict_table_t{
 				user tries to query such an orphaned table */
 	unsigned	cached:1;/*!< TRUE if the table object has been added
 				to the dictionary cache */
+	unsigned	to_be_dropped:1;
+				/*!< TRUE if the table is to be dropped, but
+				not yet actually dropped (could in the bk
+				drop list); It is turned on at the beginning
+				of row_drop_table_for_mysql() and turned off
+				just before we start to update system tables
+				for the drop. It is protected by
+				dict_operation_lock */
 	unsigned	n_def:10;/*!< number of columns defined so far */
 	unsigned	n_cols:10;/*!< number of columns */
 	unsigned	can_be_evicted:1;
