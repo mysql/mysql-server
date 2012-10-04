@@ -6719,6 +6719,10 @@ lock_trx_release_locks(
 		mutex_enter(&trx_sys->mutex);
 		ut_a(trx_sys->n_prepared_trx > 0);
 		trx_sys->n_prepared_trx--;
+		if (trx->is_recovered) {
+			ut_a(trx_sys->n_prepared_recovered_trx > 0);
+			trx_sys->n_prepared_recovered_trx--;
+		}
 		mutex_exit(&trx_sys->mutex);
 	} else {
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
