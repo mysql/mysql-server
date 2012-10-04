@@ -32,6 +32,7 @@
 #include <NdbEnv.h>
 #include <ndb_rand.h>
 #include <Bitmask.hpp>
+#include <../src/kernel/ndbd.hpp>
 
 #define ERR_INSERT_MASTER_FAILURE1 6013
 #define ERR_INSERT_MASTER_FAILURE2 6014
@@ -9121,6 +9122,16 @@ cleanup:
   if (has_created_stat_tables)
   {
     is.drop_systables(pNdb);
+  }
+
+  // Ensure that nodes will start after error inserts again.
+  {
+    const int restartState[] = 
+      { DumpStateOrd::CmvmiSetRestartOnErrorInsert, NRT_DoStart_Restart };
+    
+    require(res.dumpStateAllNodes(restartState,
+                                  sizeof restartState/sizeof restartState[0])
+            == 0);
   }
 
   return NDBT_OK;

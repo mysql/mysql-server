@@ -6777,9 +6777,10 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   bool ok = find_object(tabPtr, createTabPtr.p->m_request.tableId);
   ndbrequire(ok);
 
-  if (refToBlock(signal->getSendersBlockRef()) == DBLQH) {
+  if (refToBlock(signal->getSendersBlockRef()) == DBLQH)
+  {
     jam();
-    // prepare table in DBTC
+    // prepare table in DBSPJ
     TcSchVerReq * req = (TcSchVerReq*)signal->getDataPtr();
     req->tableId = createTabPtr.p->m_request.tableId;
     req->tableVersion = tabPtr.p->tableVersion;
@@ -6800,23 +6801,35 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
       req->userDefinedPartition = (basePtr.p->fragmentType == DictTabInfo::UserDefined);
     }
 
-    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal,
+    sendSignal(DBSPJ_REF, GSN_TC_SCHVERREQ, signal,
                TcSchVerReq::SignalLength, JBB);
     return;
   }
 
-  if (refToBlock(signal->getSendersBlockRef()) == DBDIH) {
+  if (refToBlock(signal->getSendersBlockRef()) == DBDIH)
+  {
+    jam();
+    // commit table in DBSPJ
+    signal->theData[0] = op_ptr.p->op_key;
+    signal->theData[1] = reference();
+    signal->theData[2] = createTabPtr.p->m_request.tableId;
+    sendSignal(DBSPJ_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
+    return;
+  }
+
+  if (refToBlock(signal->getSendersBlockRef()) == DBSPJ)
+  {
     jam();
     // commit table in DBTC
     signal->theData[0] = op_ptr.p->op_key;
     signal->theData[1] = reference();
     signal->theData[2] = createTabPtr.p->m_request.tableId;
-
     sendSignal(DBTC_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
     return;
   }
 
-  if (refToBlock(signal->getSendersBlockRef()) == DBTC) {
+  if (refToBlock(signal->getSendersBlockRef()) == DBTC)
+  {
     jam();
     execute(signal, createTabPtr.p->m_callback, 0);
     return;
@@ -6920,6 +6933,39 @@ Dbdict::execTC_SCHVERCONF(Signal* signal)
   findSchemaOp(op_ptr, createTabPtr, signal->theData[1]);
   ndbrequire(!op_ptr.isNull());
 
+  if (refToBlock(signal->getSendersBlockRef()) == DBSPJ)
+  {
+    jam();
+    // prepare table in DBTC
+    TableRecordPtr tabPtr;
+    bool ok = find_object(tabPtr, createTabPtr.p->m_request.tableId);
+    ndbrequire(ok);
+
+    TcSchVerReq * req = (TcSchVerReq*)signal->getDataPtr();
+    req->tableId = createTabPtr.p->m_request.tableId;
+    req->tableVersion = tabPtr.p->tableVersion;
+    req->tableLogged = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_Logged);
+    req->senderRef = reference();
+    req->tableType = (Uint32)tabPtr.p->tableType;
+    req->senderData = op_ptr.p->op_key;
+    req->noOfPrimaryKeys = (Uint32)tabPtr.p->noOfPrimkey;
+    req->singleUserMode = (Uint32)tabPtr.p->singleUserMode;
+    req->userDefinedPartition = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
+
+    if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
+    {
+      jam();
+      TableRecordPtr basePtr;
+      bool ok = find_object(basePtr, tabPtr.p->primaryTableId);
+      ndbrequire(ok);
+      req->userDefinedPartition = (basePtr.p->fragmentType == DictTabInfo::UserDefined);
+    }
+
+    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal,
+               TcSchVerReq::SignalLength, JBB);
+    return;
+  }
+  ndbrequire(refToBlock(signal->getSendersBlockRef()) == DBTC);
   execute(signal, createTabPtr.p->m_callback, 0);
 }
 
@@ -7052,10 +7098,11 @@ Dbdict::createTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 
   dropTabPtr.p->m_block = 0;
   dropTabPtr.p->m_blockNo[0] = DBTC;
-  dropTabPtr.p->m_blockNo[1] = DBLQH; // wait usage + LCP
-  dropTabPtr.p->m_blockNo[2] = DBDIH; //
-  dropTabPtr.p->m_blockNo[3] = DBLQH; // release
-  dropTabPtr.p->m_blockNo[4] = 0;
+  dropTabPtr.p->m_blockNo[1] = DBSPJ;
+  dropTabPtr.p->m_blockNo[2] = DBLQH; // wait usage + LCP
+  dropTabPtr.p->m_blockNo[3] = DBDIH; //
+  dropTabPtr.p->m_blockNo[4] = DBLQH; // release
+  dropTabPtr.p->m_blockNo[5] = 0;
 
   dropTabPtr.p->m_callback.m_callbackData =
     oplnk_ptr.p->op_key;
@@ -7556,9 +7603,10 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   }
   dropTabPtr.p->m_block = 0;
   dropTabPtr.p->m_blockNo[0] = DBLQH;
-  dropTabPtr.p->m_blockNo[1] = DBTC;
-  dropTabPtr.p->m_blockNo[2] = DBDIH;
-  dropTabPtr.p->m_blockNo[3] = 0;
+  dropTabPtr.p->m_blockNo[1] = DBSPJ;
+  dropTabPtr.p->m_blockNo[2] = DBTC;
+  dropTabPtr.p->m_blockNo[3] = DBDIH;
+  dropTabPtr.p->m_blockNo[4] = 0;
   dropTable_commit_nextStep(signal, op_ptr);
 }
 
@@ -7699,10 +7747,11 @@ Dbdict::dropTable_complete(Signal* signal, SchemaOpPtr op_ptr)
 
   dropTabPtr.p->m_block = 0;
   dropTabPtr.p->m_blockNo[0] = DBTC;
-  dropTabPtr.p->m_blockNo[1] = DBLQH; // wait usage + LCP
-  dropTabPtr.p->m_blockNo[2] = DBDIH; //
-  dropTabPtr.p->m_blockNo[3] = DBLQH; // release
-  dropTabPtr.p->m_blockNo[4] = 0;
+  dropTabPtr.p->m_blockNo[1] = DBSPJ;
+  dropTabPtr.p->m_blockNo[2] = DBLQH; // wait usage + LCP
+  dropTabPtr.p->m_blockNo[3] = DBDIH; //
+  dropTabPtr.p->m_blockNo[4] = DBLQH; // release
+  dropTabPtr.p->m_blockNo[5] = 0;
   dropTabPtr.p->m_callback.m_callbackData =
     op_ptr.p->op_key;
   dropTabPtr.p->m_callback.m_callbackFunction =
@@ -9364,7 +9413,8 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   alterTabPtr.p->m_blockIndex = 0;
   alterTabPtr.p->m_blockNo[0] = DBLQH;
   alterTabPtr.p->m_blockNo[1] = DBDIH;
-  alterTabPtr.p->m_blockNo[2] = DBTC;
+  alterTabPtr.p->m_blockNo[2] = DBSPJ;
+  alterTabPtr.p->m_blockNo[3] = DBTC;
 
   if (AlterTableReq::getReorgFragFlag(impl_req->changeMask))
   {
@@ -9386,6 +9436,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
      */
     alterTabPtr.p->m_blockNo[0] = RNIL;
     alterTabPtr.p->m_blockNo[2] = RNIL;
+    alterTabPtr.p->m_blockNo[3] = RNIL;
   }
   else if (AlterTableReq::getReorgCompleteFlag(impl_req->changeMask) ||
            AlterTableReq::getReorgSumaEnableFlag(impl_req->changeMask) ||
@@ -9609,6 +9660,7 @@ Dbdict::alterTable_complete(Signal* signal, SchemaOpPtr op_ptr)
   alterTabPtr.p->m_blockNo[0] = RNIL;
   alterTabPtr.p->m_blockNo[1] = RNIL;
   alterTabPtr.p->m_blockNo[2] = RNIL;
+  alterTabPtr.p->m_blockNo[3] = RNIL;
 
   if (AlterTableReq::getReorgCommitFlag(impl_req->changeMask))
   {

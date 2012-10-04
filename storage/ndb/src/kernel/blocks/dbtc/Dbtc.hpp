@@ -1789,6 +1789,7 @@ private:
 
     // Resource usage counter(not monotonic)
     Uint32 cconcurrentOp;
+    Uint32 cconcurrentScans;
 
     MonotonicCounters() :
      cattrinfoCount(0),

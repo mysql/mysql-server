@@ -2468,7 +2468,7 @@ private:
     MutexHandle2<BACKUP_DEFINE_MUTEX> m_define_backup_mutex;
 
     Uint32 m_block;
-    enum { BlockCount = 5 };
+    enum { BlockCount = 6 };
     Uint32 m_blockNo[BlockCount];
     Callback m_callback;
 
@@ -2549,7 +2549,7 @@ private:
     Uint32 m_lqhFragPtr;
 
     // local blocks to process
-    enum { BlockCount = 3 };
+    enum { BlockCount = 4 };
     Uint32 m_blockNo[BlockCount];
     Uint32 m_blockIndex;
 
@@ -2571,7 +2571,8 @@ private:
       m_lqhFragPtr = RNIL;
       m_blockNo[0] = DBLQH;
       m_blockNo[1] = DBDIH;
-      m_blockNo[2] = DBTC;
+      m_blockNo[2] = DBSPJ;
+      m_blockNo[3] = DBTC;
       m_blockIndex = 0;
       m_sub_add_frag_index_ptr = RNIL;
       m_sub_add_frag = false;

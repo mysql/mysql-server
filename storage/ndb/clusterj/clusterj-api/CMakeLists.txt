@@ -21,6 +21,7 @@ SET ( JAVA_SOURCE_DIRS
 SET ( JAVA_SOURCES "")
 FOREACH(D ${JAVA_SOURCE_DIRS})
   FILE(GLOB tmp ${D}/*.java)
+  MESSAGE(STATUS "java files found in ${D} -> ${tmp}")
   LIST(APPEND JAVA_SOURCES ${tmp})
 ENDFOREACH()
 

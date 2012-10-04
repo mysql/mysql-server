@@ -26,12 +26,13 @@
 #include <HugoQueryBuilder.hpp>
 #include <HugoQueries.hpp>
 #include <NdbSchemaCon.hpp>
+#include <ndb_version.h>
 
 static int faultToInject = 0;
 
 enum faultsToInject {
   FI_START = 17001,
-  FI_END = 17510
+  FI_END = 17521
 };
 
 int
@@ -116,6 +117,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   int lookupFaults[] = {
+      7240,        // DIGETNODESREQ returns error 
       17001, 17005, 17006, 17008,
       17012, // testing abort in :execDIH_SCAN_TAB_CONF
       17013, // Simulate DbspjErr::InvalidRequest
@@ -129,7 +131,8 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17120, 17121, // execTRANSID_AI -> OutOfRowMemory
       17130,        // sendSignal(DIH_SCAN_GET_NODES_REQ)  -> import() failed
       7234,         // sendSignal(DIH_SCAN_GET_NODES_CONF) -> import() failed (DIH)
-      17510 // random failure when allocating seection memory
+      17510,        // random failure when allocating section memory
+      17520, 17521  // failure (+random) from ::checkTableError()
   }; 
   loops =  faultToInject ? 1 : sizeof(lookupFaults)/sizeof(int);
 
@@ -209,6 +212,7 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
 
   NdbRestarter restarter;
   int scanFaults[] = {
+      7240,        // DIGETNODESREQ returns error 
       17002, 17004, 17005, 17006, 17008,
       17012, // testing abort in :execDIH_SCAN_TAB_CONF
       17013, // Simulate DbspjErr::InvalidRequest
@@ -223,7 +227,8 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17100, // scanFrag_sends invalid schema version, to get a SCAN_FRAGREF
       17110, 17111, 17112, // scanIndex_sends invalid schema version, to get a SCAN_FRAGREF
       17120, 17121, // execTRANSID_AI -> OutOfRowMemory
-      17510 // random failure when allocating seection memory
+      17510,        // random failure when allocating section memory
+      17520, 17521  // failure (+random) from TableRecord::checkTableError()
   }; 
   loops =  faultToInject ? 1 : sizeof(scanFaults)/sizeof(int);
 
@@ -533,6 +538,7 @@ createNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
 #define QRY_EMPTY_PROJECTION 4826
 
 /* Various error codes that are not specific to NdbQuery. */
+static const int Err_FunctionNotImplemented = 4003;
 static const int Err_UnknownColumn = 4004;
 static const int Err_WrongFieldLength = 4209;
 static const int Err_InvalidRangeNo = 4286;
@@ -558,6 +564,9 @@ public:
   static int valueTest(NDBT_Context* ctx, NDBT_Step* step)
   { return NegativeTest(ctx, step).runValueTest();}
 
+  static int featureDisabledTest(NDBT_Context* ctx, NDBT_Step* step)
+  { return NegativeTest(ctx, step).runFeatureDisabledTest();}
+
 private:
   Ndb* m_ndb;
   NdbDictionary::Dictionary* m_dictionary;
@@ -575,6 +584,7 @@ private:
   int runGraphTest() const;
   int runSetBoundTest() const;
   int runValueTest() const;
+  int runFeatureDisabledTest() const;
   // No copy.
   NegativeTest(const NegativeTest&);
   NegativeTest& operator=(const NegativeTest&);
@@ -1294,6 +1304,61 @@ NegativeTest::runValueTest() const
   return NDBT_OK;
 } // NegativeTest::runValueBoundTest()
 
+/**
+ * Check that query pushdown is disabled in older versions of the code
+ * (even if the API extensions are present in the code).
+ */
+int
+NegativeTest::runFeatureDisabledTest() const
+{
+  NdbQueryBuilder* const builder = NdbQueryBuilder::create();
+  
+  const NdbQueryTableScanOperationDef* const parentOperation
+    = builder->scanTable(m_nt1Tab);
+  
+  int result = NDBT_OK;
+
+  if (ndb_join_pushdown(ndbGetOwnVersion()))
+  {
+    if (parentOperation == NULL)
+    {
+      g_err << "scanTable() failed: " << builder->getNdbError()
+            << endl;
+      result = NDBT_FAILED;
+    }
+    else
+    {
+      g_info << "scanTable() succeeded in version "
+             << ndbGetOwnVersionString() << " as expected." << endl;
+    }
+  }
+  else
+  {
+    // Query pushdown should not be enabled in this version.
+    if (parentOperation != NULL)
+    {
+      g_err << "Succeeded with creating scan operation, which should not be "
+        "possible in version " << ndbGetOwnVersionString() << endl;
+      result = NDBT_FAILED;      
+    }
+    else if (builder->getNdbError().code != Err_FunctionNotImplemented)
+    {
+      g_err << "scanTable() failed with unexpected error: " 
+            << builder->getNdbError() << endl;
+      result = NDBT_FAILED;
+    }
+    else
+    {
+      g_info << "scanTable() failed in version "
+             << ndbGetOwnVersionString() << " as expected with error: " 
+             << builder->getNdbError() << endl;
+    }
+  }
+
+  builder->destroy();
+  return result;
+} // NegativeTest::runFeatureDisabledTest()
+
 static int
 dropNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -1320,6 +1385,11 @@ TESTCASE("NegativeJoin", ""){
   INITIALIZER(NegativeTest::graphTest);
   INITIALIZER(NegativeTest::setBoundTest);
   INITIALIZER(NegativeTest::valueTest);
+  FINALIZER(dropNegativeSchema);
+}
+TESTCASE("FeatureDisabled", ""){
+  INITIALIZER(createNegativeSchema);
+  INITIALIZER(NegativeTest::featureDisabledTest);
   FINALIZER(dropNegativeSchema);
 }
 TESTCASE("LookupJoin", ""){
