@@ -173,11 +173,11 @@ drop table t1;
 set innodb_strict_mode = on;
 create table t1 (id int primary key) engine = innodb key_block_size = 0;
 create table t2 (id int primary key) engine = innodb key_block_size = 9;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't2' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't2' doesn't have this option
 create table t3 (id int primary key) engine = innodb key_block_size = 1;
 create table t4 (id int primary key) engine = innodb key_block_size = 2;
 create table t5 (id int primary key) engine = innodb key_block_size = 4;
@@ -200,25 +200,25 @@ create table t1 (id int primary key) engine = innodb
 key_block_size = 4 row_format = compressed;
 create table t2 (id int primary key) engine = innodb
 key_block_size = 4 row_format = redundant;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't2' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: cannot specify ROW_FORMAT = REDUNDANT with KEY_BLOCK_SIZE.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't2' doesn't have this option
 create table t3 (id int primary key) engine = innodb
 key_block_size = 4 row_format = compact;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't3' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: cannot specify ROW_FORMAT = COMPACT with KEY_BLOCK_SIZE.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't3' doesn't have this option
 create table t4 (id int primary key) engine = innodb
 key_block_size = 4 row_format = dynamic;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't4' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't4' doesn't have this option
 create table t5 (id int primary key) engine = innodb
 key_block_size = 4 row_format = default;
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql';
@@ -228,61 +228,61 @@ test	t5	Compressed	4096	0
 drop table t1, t5;
 create table t1 (id int primary key) engine = innodb
 key_block_size = 9 row_format = redundant;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
 Warning	1478	InnoDB: cannot specify ROW_FORMAT = REDUNDANT with KEY_BLOCK_SIZE.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 create table t2 (id int primary key) engine = innodb
 key_block_size = 9 row_format = compact;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't2' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
 Warning	1478	InnoDB: cannot specify ROW_FORMAT = COMPACT with KEY_BLOCK_SIZE.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't2' doesn't have this option
 create table t2 (id int primary key) engine = innodb
 key_block_size = 9 row_format = dynamic;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't2' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: invalid KEY_BLOCK_SIZE = 9. Valid values are [1, 2, 4, 8, 16]
 Warning	1478	InnoDB: cannot specify ROW_FORMAT = DYNAMIC with KEY_BLOCK_SIZE.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't2' doesn't have this option
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql';
 table_schema	table_name	row_format	data_length	index_length
 set global innodb_file_per_table = off;
 create table t1 (id int primary key) engine = innodb key_block_size = 1;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 create table t2 (id int primary key) engine = innodb key_block_size = 2;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't2' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't2' doesn't have this option
 create table t3 (id int primary key) engine = innodb key_block_size = 4;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't3' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't3' doesn't have this option
 create table t6 (id int primary key) engine = innodb row_format = compressed;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't6' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't6' doesn't have this option
 create table t7 (id int primary key) engine = innodb row_format = dynamic;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't7' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_per_table.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't7' doesn't have this option
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql';
@@ -293,35 +293,35 @@ drop table t8, t9;
 set global innodb_file_per_table = on;
 set global innodb_file_format = `0`;
 create table t1 (id int primary key) engine = innodb key_block_size = 1;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 create table t2 (id int primary key) engine = innodb key_block_size = 2;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't2' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't2' doesn't have this option
 create table t3 (id int primary key) engine = innodb key_block_size = 4;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't3' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't3' doesn't have this option
 create table t6 (id int primary key) engine = innodb row_format = compressed;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't6' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_format > Antelope.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't6' doesn't have this option
 create table t7 (id int primary key) engine = innodb row_format = dynamic;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't7' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1478	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't7' doesn't have this option
 create table t8 (id int primary key) engine = innodb row_format = compact;
 create table t9 (id int primary key) engine = innodb row_format = redundant;
 SELECT table_schema, table_name, row_format, data_length, index_length FROM information_schema.tables WHERE engine='innodb' AND table_schema != 'mysql';

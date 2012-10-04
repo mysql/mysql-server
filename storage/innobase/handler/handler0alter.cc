@@ -443,6 +443,11 @@ ha_innobase::check_if_supported_inplace_alter(
 		fulltext indexes are to survive the rebuild,
 		or if the table contains a hidden FTS_DOC_ID column. */
 		online = false;
+		/* If the table already contains fulltext indexes,
+		refuse to rebuild the table natively altogether. */
+		if (prebuilt->table->fts) {
+			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
 	} else if (innobase_fk_cscd_setnull_exist(prebuilt->table)) {
 		/* Refuse online ALTER TABLE (even dropping or
 		creating secondary indexes) if there are FOREIGN KEY
@@ -3008,7 +3013,7 @@ error_handled:
 			}
 
 			dict_table_close(indexed_table, TRUE, FALSE);
-			row_merge_drop_table(trx, indexed_table, true);
+			row_merge_drop_table(trx, indexed_table, false);
 
 			/* Free the log for online table rebuild, if
 			one was allocated. */
@@ -3960,7 +3965,7 @@ rollback_inplace_alter_table(
 
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
-		err = row_merge_drop_table(ctx->trx, ctx->indexed_table, true);
+		err = row_merge_drop_table(ctx->trx, ctx->indexed_table, false);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -4419,6 +4424,8 @@ ha_innobase::commit_inplace_alter_table(
 			my_error_innodb(error, table_share->table_name.str, 0);
 			DBUG_RETURN(true);
 		}
+
+		DEBUG_SYNC(user_thd, "innodb_alter_commit_after_lock_table");
 	}
 
 	if (!ctx || !ctx->trx) {
@@ -4665,6 +4672,15 @@ undo_add_fk:
 			ctx->heap, ctx->indexed_table->name,
 			ctx->indexed_table->id);
 
+		/* Rename table will reload and refresh the in-memory
+		foreign key constraint metadata. This is a rename operation
+		in preparing for dropping the old table. Set the table
+		to_be_dropped bit here, so to make sure DML foreign key
+		constraint check does not use the stale dict_foreign_t.
+		This is done because WL#6049 (FK MDL) has not been
+		implemented yet */
+		prebuilt->table->to_be_dropped = true;
+
 		DBUG_EXECUTE_IF("ib_ddl_crash_before_rename",
 				DBUG_SUICIDE(););
 
@@ -4720,6 +4736,11 @@ undo_add_fk:
 			err = -1;
 
 drop_new_clustered:
+			/* Reset the to_be_dropped bit for the old table,
+			since we are aborting the operation and dropping
+			the new table due to some error conditions */
+			prebuilt->table->to_be_dropped = false;
+
 			/* Need to drop the added foreign key first */
 			if (fk_trx) {
 				ut_ad(fk_trx != trx);

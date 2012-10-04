@@ -107,6 +107,15 @@ dict_create(void)
 /*=============*/
 	__attribute__((warn_unused_result));
 
+/*********************************************************************//**
+Check if a table id belongs to  system table.
+@return true if the table id belongs to a system table. */
+UNIV_INLINE
+bool
+dict_is_sys_table(
+/*==============*/
+	table_id_t	id)		/*!< in: table id to check */
+	__attribute__((warn_unused_result));
 
 /* Space id and page no where the dictionary header resides */
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */

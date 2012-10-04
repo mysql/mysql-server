@@ -133,6 +133,7 @@ extern  const char* _db_get_func_(void);
 #define DBUG_SUICIDE() DBUG_ABORT()
 #else
 extern void _db_suicide_();
+extern void _db_flush_gcov_();
 #define DBUG_SUICIDE() (_db_flush_(), _db_suicide_())
 #endif
 

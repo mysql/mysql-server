@@ -418,18 +418,7 @@ end:
 /* Produce a core for the thread */
 void my_write_core(int sig)
 {
-#ifdef HAVE_gcov
-  extern void __gcov_flush(void);
-#endif
   signal(sig, SIG_DFL);
-#ifdef HAVE_gcov
-  /*
-    For GCOV build, crashing will prevent the writing of code coverage
-    information from this process, causing gcov output to be incomplete.
-    So we force the writing of coverage information here before terminating.
-  */
-  __gcov_flush();
-#endif
   pthread_kill(pthread_self(), sig);
 #if defined(P_MYID) && !defined(SCO)
   /* On Solaris, the above kill is not enough */
