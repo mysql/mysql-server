@@ -67,6 +67,7 @@ UNIV_INTERN
 void
 dict_hdr_get_new_id(
 /*================*/
+	dict_table_t*	table,		/*!< in: table */
 	table_id_t*	table_id,	/*!< out: table id
 					(not assigned if NULL) */
 	index_id_t*	index_id,	/*!< out: index id
@@ -78,7 +79,12 @@ dict_hdr_get_new_id(
 	ib_id_t		id;
 	mtr_t		mtr;
 
+	ut_ad(table);
+
 	mtr_start(&mtr);
+
+	if (dict_table_is_temporary(table))
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 
 	dict_hdr = dict_hdr_get(&mtr);
 

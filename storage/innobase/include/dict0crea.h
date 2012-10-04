@@ -65,6 +65,15 @@ que_thr_t*
 dict_create_table_step(
 /*===================*/
 	que_thr_t*	thr);	/*!< in: query thread */
+/***************************************************************//**
+Builds a tablespace, if configured.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+dict_build_tablespace(
+/*==================*/
+	dict_table_t*	table,	/*!< in: table */
+	trx_t*		trx);	/*!< in: InnoDB transaction handle */
 /***********************************************************//**
 Creates an index. This is a high-level function used in SQL execution
 graphs.
@@ -74,6 +83,30 @@ que_thr_t*
 dict_create_index_step(
 /*===================*/
 	que_thr_t*	thr);	/*!< in: query thread */
+/***************************************************************//**
+Builds an index definition but don't update sys_table.
+This interface is generally used for temp-tables for which we don't
+update SYS_XXXX table during creation for performance.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+dict_build_index_def(
+/*=================*/
+	dict_table_t*	table,	/*!< in: table */
+	dict_index_t*	index,	/*!< in: index */
+	trx_t*		trx);	/*!< in: InnoDB transaction handle */
+/***************************************************************//**
+Creates an index tree for the index if it is not a member of a cluster.
+Don't update SYS_XXXX table.
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+UNIV_INTERN
+dberr_t
+dict_create_index_tree(
+/*====================*/
+	dict_index_t*	index,	/*!< in: index */
+	trx_t*		trx,	/*!< in: InnoDB transaction handle */
+	mem_heap_t*	heap);	/*!< in: memory heap from which the memory for
+					the built tuple is allocated */
 /*******************************************************************//**
 Truncates the index tree associated with a row in SYS_INDEXES table.
 @return	new root page number, or FIL_NULL on failure */
@@ -93,6 +126,19 @@ dict_truncate_index_tree(
 				on the record page. The mtr may be
 				committed and restarted in this call. */
 /*******************************************************************//**
+Truncates the index tree but don't update SYS_XXXX table. 
+This interface is generally used for temp-tables for which we don't
+update SYS_XXXX table on creation.
+@return	new root page number, or FIL_NULL on failure */
+UNIV_INTERN
+void
+dict_truncate_index_tree_wo_sys_tables_update(
+/*==========================================*/
+	dict_index_t*	index,	/*!< in: index */
+	ulint		space);	/*!< in: 0=truncate,
+				nonzero=create the index tree in the
+				given tablespace */
+/*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table. */
 UNIV_INTERN
 void
@@ -101,6 +147,16 @@ dict_drop_index_tree(
 	rec_t*	rec,	/*!< in/out: record in the clustered index
 			of SYS_INDEXES table */
 	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
+/*******************************************************************//**
+Drops the index tree but don't update SYS_INDEXES table. 
+This interface is generally used for temp-tables for which we don't
+update SYS_XXXX table on creation. */
+UNIV_INTERN
+void
+dict_drop_index_tree_wo_sys_tables_update(
+/*======================================*/
+	dict_index_t*   index,		/*!< in: index */
+	ulint		page_no);	/*!< in: index page-no */
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
