@@ -67,7 +67,7 @@ LOCK TABLE t1 WRITE;
 # ALTER fails because COMPRESSED/KEY_BLOCK_SIZE
 # are incompatible with innodb_file_per_table = OFF;
 ALTER TABLE t1 ADD PARTITION PARTITIONS 1;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 t1#P#p0.ibd
 t1.frm
 t1.par
