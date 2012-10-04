@@ -49,6 +49,9 @@ static
 const char *
 ndb_basename(const char * path)
 {
+  if (path == NULL)
+    return NULL;
+
   const char separator = '/';
   const char * p = path + strlen(path);
   while (p > path && p[0] != separator)
