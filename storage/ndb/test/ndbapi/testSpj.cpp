@@ -83,7 +83,7 @@ runLookupJoin(NDBT_Context* ctx, NDBT_Step* step){
   int i = 0;
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb.setJoinLevel(joinlevel);
-  const NdbQueryDef * query = qb.createQuery(GETNDB(step));
+  const NdbQueryDef * query = qb.createQuery();
   HugoQueries hugoTrans(*query);
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
   {
@@ -112,7 +112,7 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
   int i = 0;
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb.setJoinLevel(joinlevel);
-  const NdbQueryDef * query = qb.createQuery(GETNDB(step));
+  const NdbQueryDef * query = qb.createQuery();
   HugoQueries hugoTrans(*query);
 
   NdbRestarter restarter;
@@ -180,7 +180,7 @@ runScanJoin(NDBT_Context* ctx, NDBT_Step* step){
   int i = 0;
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
   qb.setJoinLevel(joinlevel);
-  const NdbQueryDef * query = qb.createQuery(GETNDB(step));
+  const NdbQueryDef * query = qb.createQuery();
   HugoQueries hugoTrans(* query);
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
   {
@@ -207,7 +207,7 @@ runScanJoinError(NDBT_Context* ctx, NDBT_Step* step){
   int i = 0;
   HugoQueryBuilder qb(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_SCAN);
   qb.setJoinLevel(joinlevel);
-  const NdbQueryDef * query = qb.createQuery(GETNDB(step));
+  const NdbQueryDef * query = qb.createQuery();
   HugoQueries hugoTrans(* query);
 
   NdbRestarter restarter;
@@ -280,8 +280,8 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   HugoQueryBuilder qb2(GETNDB(step), ctx->getTab(), HugoQueryBuilder::O_LOOKUP);
   qb1.setJoinLevel(joinlevel);
   qb2.setJoinLevel(joinlevel);
-  const NdbQueryDef * q1 = qb1.createQuery(GETNDB(step));
-  const NdbQueryDef * q2 = qb2.createQuery(GETNDB(step));
+  const NdbQueryDef * q1 = qb1.createQuery();
+  const NdbQueryDef * q2 = qb2.createQuery();
   HugoQueries hugoTrans1(* q1);
   HugoQueries hugoTrans2(* q2);
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
