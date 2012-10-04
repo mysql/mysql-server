@@ -88,25 +88,25 @@ alter table child  partition by key(a) partitions 4;
 
 connection j1;
 --disable_result_log
---error 0,ER_NO_SUCH_TABLE
+--error 0,ER_NO_SUCH_TABLE,ER_TABLE_DEF_CHANGED
 reap;
 --enable_result_log
 
 connection j2;
 --disable_result_log
---error 0,ER_NO_SUCH_TABLE
+--error 0,ER_NO_SUCH_TABLE,ER_TABLE_DEF_CHANGED
 reap;
 --enable_result_log
 
 connection j3;
 --disable_result_log
---error 0,ER_NO_SUCH_TABLE
+--error 0,ER_NO_SUCH_TABLE,ER_TABLE_DEF_CHANGED
 reap;
 --enable_result_log
 
 connection j4;
 --disable_result_log
---error 0,ER_NO_SUCH_TABLE
+--error 0,ER_NO_SUCH_TABLE,ER_TABLE_DEF_CHANGED
 reap;
 --enable_result_log
 
