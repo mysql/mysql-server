@@ -1,0 +1,151 @@
+################# mysql-test\t\innodb_flush_log_at_timeout_basic.test #########
+#                                                                             #
+# Variable Name: innodb_flush_log_at_timeout                                  #
+# Scope: GLOBAL                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: Numeric                                                          #
+# Default Value: 1                                                            #
+# Range: 0-2700                                                               #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-05-10                                                   #
+# Author:  Nuno Carvalho                                                      #
+#                                                                             #
+#Description:  Test Cases of Dynamic System Variable                          #
+#              innodb_flush_log_at_timeout that checks the behavior of        #
+#              this variable in the following ways                            #
+#              * Default Value                                                #
+#              * Valid & Invalid values                                       #
+#              * Scope & Access method                                        #
+#              * Data Integrity                                               #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/have_innodb.inc
+--source include/load_sysvars.inc
+
+########################################################################
+#                    START OF innodb_flush_log_at_timeout TESTS        #
+########################################################################
+
+
+#############################################################################
+#     Saving initial value of innodb_flush_log_at_timeout                   #
+#############################################################################
+
+
+SET @global_start_value = @@global.innodb_flush_log_at_timeout;
+SELECT @global_start_value;
+
+
+
+--echo '#--------------------FN_DYNVARS_046_01------------------------#'
+########################################################################## 
+#           Display the DEFAULT value of innodb_flush_log_at_timeout  #
+########################################################################## 
+
+SET @@global.innodb_flush_log_at_timeout = 0;
+SET @@global.innodb_flush_log_at_timeout = DEFAULT;
+SELECT @@global.innodb_flush_log_at_timeout;
+
+--echo '#---------------------FN_DYNVARS_046_02-------------------------#'
+###############################################################################
+# Check if variable can be accessed with and without @@ sign                  #
+###############################################################################
+
+--Error ER_GLOBAL_VARIABLE
+SET innodb_flush_log_at_timeout = 1;
+SELECT @@innodb_flush_log_at_timeout;
+
+
+--Error ER_UNKNOWN_TABLE
+SELECT local.innodb_flush_log_at_timeout;
+
+
+SET global innodb_flush_log_at_timeout = 0;
+SELECT @@global.innodb_flush_log_at_timeout;
+
+
+--echo '#--------------------FN_DYNVARS_046_03------------------------#'
+#############################################################################
+#   change the value of innodb_flush_log_at_timeout to a valid value        #
+#############################################################################
+
+
+SET @@global.innodb_flush_log_at_timeout = 0;
+SELECT @@global.innodb_flush_log_at_timeout;
+
+SET @@global.innodb_flush_log_at_timeout = 10;
+SELECT @@global.innodb_flush_log_at_timeout;
+SET @@global.innodb_flush_log_at_timeout = 2700;
+SELECT @@global.innodb_flush_log_at_timeout;
+
+--echo '#--------------------FN_DYNVARS_046_04-------------------------#'
+###############################################################################
+#  Change the value of innodb_flush_log_at_timeout to invalid value           #
+###############################################################################
+
+SET @@global.innodb_flush_log_at_timeout = -1;
+SELECT @@global.innodb_flush_log_at_timeout;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_flush_log_at_timeout = "T";
+SELECT @@global.innodb_flush_log_at_timeout;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_flush_log_at_timeout = "Y";
+SELECT @@global.innodb_flush_log_at_timeout;
+
+SET @@global.innodb_flush_log_at_timeout = 2701;
+SELECT @@global.innodb_flush_log_at_timeout;
+
+--echo '#----------------------FN_DYNVARS_046_05------------------------#'
+#########################################################################
+#     Check if the value in GLOBAL Table matches value in variable      #
+#########################################################################
+
+SELECT @@global.innodb_flush_log_at_timeout =
+ VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+  WHERE VARIABLE_NAME='innodb_flush_log_at_timeout';
+SELECT @@global.innodb_flush_log_at_timeout;
+SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+ WHERE VARIABLE_NAME='innodb_flush_log_at_timeout';
+
+--echo '#---------------------FN_DYNVARS_046_06-------------------------#'
+###################################################################
+#        Check if ON and OFF values can be used on variable       #
+###################################################################
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_flush_log_at_timeout = OFF;
+SELECT @@global.innodb_flush_log_at_timeout;
+
+--ERROR ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_flush_log_at_timeout = ON;
+SELECT @@global.innodb_flush_log_at_timeout;
+
+--echo '#---------------------FN_DYNVARS_046_07----------------------#'
+###################################################################
+#      Check if TRUE and FALSE values can be used on variable      #
+###################################################################
+
+
+SET @@global.innodb_flush_log_at_timeout = TRUE;
+SELECT @@global.innodb_flush_log_at_timeout;
+SET @@global.innodb_flush_log_at_timeout = FALSE;
+SELECT @@global.innodb_flush_log_at_timeout;
+
+##############################
+#   Restore initial value    #
+##############################
+
+
+SET @@global.innodb_flush_log_at_timeout = @global_start_value;
+SELECT @@global.innodb_flush_log_at_timeout;
+
+###############################################################
+#       END OF innodb_flush_log_at_timeout TESTS              #
+###############################################################

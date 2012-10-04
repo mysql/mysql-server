@@ -340,25 +340,26 @@ public:
   mem_root_str col_attached_condition; ///< former "Using where"
 
   /* For structured EXPLAIN in CTX_JOIN_TAB context: */
-  uint derived_select_number; ///< "derived" subquery id
+  uint query_block_id; ///< query block id for materialized subqueries
 
   /**
-    Pointer to "derived" subquery tree
+    List of "derived" subquery trees
   */
-  opt_explain_json_namespace::context *derived_from;
+  List<opt_explain_json_namespace::context> derived_from;
 
   bool is_dependent;
   bool is_cacheable;
   bool using_temporary;
+  bool is_materialized_from_subquery;
   bool is_update; //< UPDATE modified this table
   bool is_delete; //< DELETE modified this table
 
   qep_row() :
-    derived_select_number(0),
-    derived_from(NULL),
+    query_block_id(0),
     is_dependent(false),
     is_cacheable(true),
     using_temporary(false),
+    is_materialized_from_subquery(false),
     is_update(false),
     is_delete(false)
   {}
@@ -385,11 +386,12 @@ public:
       Not needed (we call cleanup() for structured EXPLAIN only,
       just for the consistency).
     */
-    derived_select_number= 0;
-    derived_from= NULL;
+    query_block_id= 0;
+    derived_from.empty();
     is_dependent= false;
     is_cacheable= true;
     using_temporary= false;
+    is_materialized_from_subquery= false;
     is_update= false;
     is_delete= false;
   }

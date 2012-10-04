@@ -284,6 +284,13 @@ char*
 	ib_ulint_t	i);
 
 typedef
+char*
+(*cb_get_idx_field_name)(
+/*=====================*/
+	ib_crsr_t	ib_crsr,
+	ib_ulint_t	i);
+
+typedef
 ib_err_t
 (*cb_table_truncate_t)(
 /*===================*/
@@ -294,6 +301,12 @@ typedef
 ib_err_t
 (*cb_cursor_first_t)(
 /*=================*/
+        ib_crsr_t       ib_crsr);
+
+typedef
+ib_err_t
+(*cb_cursor_next_t)(
+/*================*/
         ib_crsr_t       ib_crsr);
 
 typedef
@@ -354,6 +367,17 @@ ib_ulint_t
 /*==================*/
 	const ib_tpl_t  ib_tpl);
 
+typedef
+ib_err_t
+(*cb_trx_get_start_time)(
+/*======================*/
+	ib_trx_t	ib_trx);
+
+typedef
+ib_ulint_t
+(*cb_bk_commit_interval)();
+/*======================*/
+
 cb_open_table_t			ib_cb_open_table;
 cb_read_row_t			ib_cb_read_row;
 cb_insert_row_t			ib_cb_insert_row;
@@ -389,8 +413,10 @@ cb_cursor_new_trx_t		ib_cb_cursor_new_trx;
 cb_open_table_by_name_t		ib_cb_open_table_by_name;
 cb_cursor_reset_t		ib_cb_cursor_reset;
 cb_col_get_name_t		ib_cb_col_get_name;
+cb_get_idx_field_name		ib_cb_get_idx_field_name;
 cb_table_truncate_t		ib_cb_table_truncate;
 cb_cursor_first_t		ib_cb_cursor_first;
+cb_cursor_next_t		ib_cb_cursor_next;
 cb_cursor_last_t		ib_cb_cursor_last;
 cb_cursor_open_index_using_name_t	ib_cb_cursor_open_index_using_name;
 cb_close_thd_t			ib_cb_close_thd;
@@ -401,5 +427,7 @@ cb_cfg_trx_level_t		ib_cb_cfg_trx_level;
 cb_get_n_user_cols		ib_cb_get_n_user_cols;
 cb_cursor_set_lock_t		ib_cb_cursor_set_lock;
 cb_cursor_clear_trx_t		ib_cb_cursor_clear_trx;
+cb_trx_get_start_time		ib_cb_trx_get_start_time;
+cb_bk_commit_interval		ib_cb_cfg_bk_commit_interval;
 
 #endif /* innodb_cb_api_h */

@@ -2533,12 +2533,16 @@ row_sel_convert_mysql_key_to_innobase(
 				dfield_set_len(dfield, len
 					       - (ulint) (key_ptr - key_end));
 			}
+                        ut_ad(0);
 		}
 
 		n_fields++;
 		field++;
 		dfield++;
 	}
+
+	DBUG_EXECUTE_IF("innodb_srch_key_buffer_full",
+		ut_a(buf == (original_buf + buf_len)););
 
 	ut_a(buf <= original_buf + buf_len);
 
@@ -4657,11 +4661,15 @@ locks_ok:
 		delete marked record and the record following it.
 
 		For now this is applicable only to clustered indexes while
-		doing a unique search. There is scope for further optimization
+		doing a unique search except for HANDLER queries because
+		HANDLER allows NEXT and PREV even in unique search on
+		clustered index. There is scope for further optimization
 		applicable to unique secondary indexes. Current behaviour is
 		to widen the scope of a lock on an already delete marked record
 		if the same record is deleted twice by the same transaction */
-		if (index == clust_index && unique_search) {
+		if (index == clust_index && unique_search
+		    && !prebuilt->used_in_HANDLER) {
+
 			err = DB_RECORD_NOT_FOUND;
 
 			goto normal_return;
@@ -4798,7 +4806,7 @@ requires_clust_rec:
 	    && !prebuilt->innodb_api
 	    && prebuilt->template_type
 	    != ROW_MYSQL_DUMMY_TEMPLATE
-	    && !prebuilt->result) {
+	    && !prebuilt->in_fts_query) {
 
 		/* Inside an update, for example, we do not cache rows,
 		since we may use the cursor position to do the actual
@@ -5150,6 +5158,9 @@ func_exit:
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
+
+	DEBUG_SYNC_C("innodb_row_search_for_mysql_exit");
+
 	return(err);
 }
 

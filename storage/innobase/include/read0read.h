@@ -122,7 +122,7 @@ read_cursor_set_for_mysql(
 /** Read view lists the trx ids of those transactions for which a consistent
 read should not see the modifications to the database. */
 
-struct read_view_struct{
+struct read_view_t{
 	ulint		type;	/*!< VIEW_NORMAL, VIEW_HIGH_GRANULARITY */
 	undo_no_t	undo_no;/*!< 0 or if type is
 				VIEW_HIGH_GRANULARITY
@@ -176,7 +176,7 @@ struct read_view_struct{
 cursors. This struct holds both heap where consistent read view
 is allocated and pointer to a read view. */
 
-struct cursor_view_struct{
+struct cursor_view_t{
 	mem_heap_t*	heap;
 				/*!< Memory heap for the cursor view */
 	read_view_t*	read_view;

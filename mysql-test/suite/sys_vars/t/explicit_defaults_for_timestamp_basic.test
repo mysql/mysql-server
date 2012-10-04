@@ -1,0 +1,17 @@
+#
+# show the global and session values;
+#
+select @@global.explicit_defaults_for_timestamp;
+select @@session.explicit_defaults_for_timestamp;
+show global variables like 'explicit_defaults_for_timestamp';
+show session variables like 'explicit_defaults_for_timestamp';
+select * from information_schema.global_variables where variable_name='explicit_defaults_for_timestamp';
+select * from information_schema.session_variables where variable_name='explicit_defaults_for_timestamp';
+
+#
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global explicit_defaults_for_timestamp=true;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session explicit_defaults_for_timestamp=true;

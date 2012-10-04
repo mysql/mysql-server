@@ -79,11 +79,11 @@ any waiting threads who have missed the signal. */
 /** A cell where an individual thread may wait suspended
 until a resource is released. The suspending is implemented
 using an operating system event semaphore. */
-struct sync_cell_struct {
+struct sync_cell_t {
 	void*		wait_object;	/*!< pointer to the object the
 					thread is waiting for; if NULL
 					the cell is free for use */
-	mutex_t*	old_wait_mutex;	/*!< the latest wait mutex in cell */
+	ib_mutex_t*	old_wait_mutex;	/*!< the latest wait mutex in cell */
 	rw_lock_t*	old_wait_rw_lock;
 					/*!< the latest wait rw-lock
 					in cell */
@@ -117,15 +117,15 @@ all changes (set or reset) to the state of the event must be made
 while owning the mutex. */
 
 /** Synchronization array */
-struct sync_array_struct {
+struct sync_array_t {
 	ulint		n_reserved;	/*!< number of currently reserved
 					cells in the wait array */
 	ulint		n_cells;	/*!< number of cells in the
 					wait array */
 	sync_cell_t*	array;		/*!< pointer to wait array */
-	mutex_t		mutex;		/*!< possible database mutex
+	ib_mutex_t		mutex;		/*!< possible database mutex
 					protecting this data structure */
-	os_mutex_t	os_mutex;	/*!< Possible operating system mutex
+	os_ib_mutex_t	os_mutex;	/*!< Possible operating system mutex
 					protecting the data structure.
 					As this data structure is used in
 					constructing the database mutex,
@@ -294,7 +294,7 @@ sync_cell_get_event(
 	ulint type = cell->request_type;
 
 	if (type == SYNC_MUTEX) {
-		return(((mutex_t*) cell->wait_object)->event);
+		return(((ib_mutex_t*) cell->wait_object)->event);
 	} else if (type == RW_LOCK_WAIT_EX) {
 		return(((rw_lock_t*) cell->wait_object)->wait_ex_event);
 	} else { /* RW_LOCK_SHARED and RW_LOCK_EX wait on the same event */
@@ -435,7 +435,7 @@ sync_array_cell_print(
 	FILE*		file,	/*!< in: file where to print */
 	sync_cell_t*	cell)	/*!< in: sync cell */
 {
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 	rw_lock_t*	rwlock;
 	ulint		type;
 	ulint		writer;
@@ -601,7 +601,7 @@ sync_array_detect_deadlock(
 	sync_cell_t*	cell,	/*!< in: cell to search */
 	ulint		depth)	/*!< in: recursion depth */
 {
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 	rw_lock_t*	lock;
 	os_thread_id_t	thread;
 	ibool		ret;
@@ -623,7 +623,7 @@ sync_array_detect_deadlock(
 
 	if (cell->request_type == SYNC_MUTEX) {
 
-		mutex = static_cast<mutex_t*>(cell->wait_object);
+		mutex = static_cast<ib_mutex_t*>(cell->wait_object);
 
 		if (mutex_get_lock_word(mutex) != 0) {
 
@@ -737,7 +737,7 @@ sync_arr_cell_can_wake_up(
 /*======================*/
 	sync_cell_t*	cell)	/*!< in: cell to search */
 {
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 	rw_lock_t*	lock;
 
 	if (cell->request_type == SYNC_MUTEX) {

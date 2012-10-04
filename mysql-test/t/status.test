@@ -354,6 +354,75 @@ DROP FUNCTION f1;
 
 # End of 5.1 tests
 
+
+--echo #
+--echo # Test coverage for status variables which were introduced by
+--echo # WL#5772 "Add partitioned Table Definition Cache to avoid
+--echo # using LOCK_open and its derivatives in DML queries".
+--echo #
+create table t1 (i int);
+create table t2 (j int);
+create table t3 (k int);
+--echo # Flush table cache to ensure that it is empty and reset status
+--echo # variables. Since to test cache overflow we will need to reduce
+--echo # its size, also save original table cache size.
+flush tables;
+flush status;
+set @old_table_open_cache= @@table_open_cache;
+
+--echo # Check that after reset all status variables are zero.
+show status like 'table_open_cache_%';
+
+--echo # The first statement accessing t1 after flush should result
+--echo # in table cache miss.
+select * from t1;
+show status like 'table_open_cache_%';
+
+--echo # The second statement accessing the same table should
+--echo # result in table cache hit.
+select * from t1;
+show status like 'table_open_cache_%';
+
+--echo # Again table cache miss if accessing different table.
+select * from t2;
+show status like 'table_open_cache_%';
+
+--echo # And cache hit then accessing it second time.
+select * from t2;
+show status like 'table_open_cache_%';
+
+--echo # The below statement should result in 2 cache hits and 
+--echo # 4 cache misses since it needs 6 table instances in total.
+select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
+show status like 'table_open_cache_%';
+
+--echo # Reduce size of table cache to check that status
+--echo # variable tracking cache overflows works.
+set @@global.table_open_cache= 4;
+
+--echo # The below statement should result in table cache hit, but
+--echo # as a side effect it should result in trimming of table
+--echo # cache by 2 TABLE instances, meaning that overflow counter
+--echo # will get increased by 2.
+select * from t1;
+show status like 'table_open_cache_%';
+
+--echo # This statement should result in 4 cache hits, 2 cache misses/
+--echo # overflows.
+select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
+show status like 'table_open_cache_%';
+
+--echo # Finally, the below statement should result in 1 cache miss
+--echo # and 1 overflow since it accesses table which is not yet in
+--echo # cache and table cache is full.
+select * from t3;
+show status like 'table_open_cache_%';
+
+--echo # Cleanup
+set @@global.table_open_cache= @old_table_open_cache;
+drop tables t1, t2, t3;
+
+
 # Restore global concurrent_insert value. Keep in the end of the test file.
 --connection default
 set @@global.concurrent_insert= @old_concurrent_insert;

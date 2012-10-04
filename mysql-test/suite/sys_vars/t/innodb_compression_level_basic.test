@@ -1,0 +1,64 @@
+
+
+# 2012-05-29 - Added
+#
+
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_compression_level;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid value 0-9
+select @@global.innodb_compression_level <= 9;
+select @@global.innodb_compression_level;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_compression_level;
+show global variables like 'innodb_compression_level';
+show session variables like 'innodb_compression_level';
+select * from information_schema.global_variables where variable_name='innodb_compression_level';
+select * from information_schema.session_variables where variable_name='innodb_compression_level';
+
+#
+# show that it's writable
+#
+set global innodb_compression_level=2;
+select @@global.innodb_compression_level;
+select * from information_schema.global_variables where variable_name='innodb_compression_level';
+select * from information_schema.session_variables where variable_name='innodb_compression_level';
+--error ER_GLOBAL_VARIABLE
+set session innodb_compression_level=4;
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_compression_level=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_compression_level=1e1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_compression_level="foo";
+
+set global innodb_compression_level=10;
+select @@global.innodb_compression_level;
+select * from information_schema.global_variables where variable_name='innodb_compression_level';
+set global innodb_compression_level=-7;
+select @@global.innodb_compression_level;
+select * from information_schema.global_variables where variable_name='innodb_compression_level';
+
+#
+# min/max values
+#
+set global innodb_compression_level=0;
+select @@global.innodb_compression_level;
+set global innodb_compression_level=9;
+select @@global.innodb_compression_level;
+
+#
+# cleanup
+#
+
+SET @@global.innodb_compression_level = @start_global_value;
+SELECT @@global.innodb_compression_level;

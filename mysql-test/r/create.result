@@ -175,6 +175,37 @@ DROP TABLE IF EXISTS t2;
 Warnings:
 Note	1051	Unknown table 'test.t2'
 create table t1 (a int not null, b int, primary key(a), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b), key (b));
+Warnings:
+Warning	1831	Duplicate index 'b_2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_3' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_4' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_5' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_6' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_7' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_8' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_9' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_10' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_11' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_12' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_13' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_14' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_15' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_16' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_17' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_18' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_19' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_20' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_21' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_22' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_23' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_24' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_25' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_26' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_27' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_28' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_29' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_30' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'b_31' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -458,7 +489,7 @@ a	b	c	d	e	f	g	h	dd
 1	-7	7	2000-01-01	b	2000-01-01 00:00:00	05:04:03	yet another binary data	02:00:00
 2	-2	2	1825-12-14	a	2003-01-01 03:02:01	04:03:02	binary data	02:00:00
 drop table t1, t2;
-create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp, l datetime, m enum('a','b'), n set('a','b'), o char(10));
+create table t1 (a tinyint, b smallint, c mediumint, d int, e bigint, f float(3,2), g double(4,3), h decimal(5,4), i year, j date, k timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, l datetime, m enum('a','b'), n set('a','b'), o char(10));
 create table t2 select ifnull(a,a), ifnull(b,b), ifnull(c,c), ifnull(d,d), ifnull(e,e), ifnull(f,f), ifnull(g,g), ifnull(h,h), ifnull(i,i), ifnull(j,j), ifnull(k,k), ifnull(l,l), ifnull(m,m), ifnull(n,n), ifnull(o,o) from t1;
 show create table t2;
 Table	Create Table
@@ -1008,6 +1039,70 @@ c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
 key a064_long_123456789_123456789_123456789_123456789_123456789_1234 (
 c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16)
 );
+Warnings:
+Warning	1831	Duplicate index 'a002_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a003_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a004_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a005_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a006_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a007_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a008_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a009_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a010_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a011_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a012_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a013_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a014_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a015_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a016_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a017_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a018_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a019_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a020_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a021_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a022_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a023_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a024_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a025_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a026_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a027_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a028_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a029_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a030_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a031_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a032_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a033_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a034_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a035_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a036_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a037_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a038_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a039_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a040_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a041_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a042_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a043_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a044_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a045_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a046_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a047_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a048_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a049_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a050_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a051_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a052_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a053_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a054_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a055_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a056_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a057_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a058_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a059_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a060_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a061_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a062_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a063_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a064_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1309,6 +1404,70 @@ add key a063_long_123456789_123456789_123456789_123456789_123456789_1234 (
 c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16),
 add key a064_long_123456789_123456789_123456789_123456789_123456789_1234 (
 c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16);
+Warnings:
+Warning	1831	Duplicate index 'a002_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a003_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a004_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a005_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a006_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a007_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a008_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a009_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a010_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a011_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a012_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a013_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a014_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a015_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a016_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a017_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a018_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a019_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a020_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a021_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a022_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a023_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a024_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a025_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a026_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a027_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a028_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a029_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a030_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a031_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a032_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a033_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a034_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a035_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a036_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a037_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a038_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a039_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a040_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a041_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a042_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a043_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a044_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a045_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a046_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a047_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a048_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a049_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a050_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a051_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a052_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a053_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a054_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a055_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a056_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a057_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a058_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a059_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a060_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a061_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a062_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a063_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'a064_long_123456789_123456789_123456789_123456789_123456789_1234' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -1730,7 +1889,7 @@ create table t1 like information_schema.processlist;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `ID` bigint(4) NOT NULL DEFAULT '0',
+  `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
   `USER` varchar(16) NOT NULL DEFAULT '',
   `HOST` varchar(64) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
@@ -1744,7 +1903,7 @@ create temporary table t1 like information_schema.processlist;
 show create table t1;
 Table	Create Table
 t1	CREATE TEMPORARY TABLE `t1` (
-  `ID` bigint(4) NOT NULL DEFAULT '0',
+  `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
   `USER` varchar(16) NOT NULL DEFAULT '',
   `HOST` varchar(64) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
@@ -1819,7 +1978,7 @@ DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 DROP TABLE IF EXISTS t3;
 
-CREATE TABLE t1(c1 TIMESTAMP, c2 TIMESTAMP);
+CREATE TABLE t1(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL DEFAULT '0000-00-00 00:00:00');
 
 SET sql_mode = NO_ZERO_DATE;
 
@@ -1828,7 +1987,7 @@ Warnings:
 Warning	1264	Out of range value for column 'c2' at row 1
 DROP TABLE t2;
 
-CREATE TABLE t2(c1 TIMESTAMP, c2 TIMESTAMP);
+CREATE TABLE t2(c1 TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, c2 TIMESTAMP NOT NULL);
 ERROR 42000: Invalid default value for 'c2'
 
 # -- Check that NULL column still can be created.

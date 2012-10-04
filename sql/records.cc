@@ -23,6 +23,7 @@
 #include "records.h"
 #include "sql_priv.h"
 #include "records.h"
+#include "sql_list.h"
 #include "filesort.h"            // filesort_free_buffers
 #include "opt_range.h"                          // SQL_SELECT
 #include "sql_class.h"                          // THD
@@ -37,7 +38,6 @@ static int rr_unpack_from_buffer(READ_RECORD *info);
 static int rr_from_pointers(READ_RECORD *info);
 static int rr_from_cache(READ_RECORD *info);
 static int init_rr_cache(THD *thd, READ_RECORD *info);
-static int rr_cmp(uchar *a,uchar *b);
 static int rr_index_first(READ_RECORD *info);
 static int rr_index_last(READ_RECORD *info);
 static int rr_index(READ_RECORD *info);
@@ -246,7 +246,6 @@ bool init_read_record(READ_RECORD *info,THD *thd, TABLE *table,
     */
     if (!disable_rr_cache &&
         !table->sort.addon_field &&
-        ! (specialflag & SPECIAL_SAFE_MODE) &&
 	thd->variables.read_rnd_buff_size &&
 	!(table->file->ha_table_flags() & HA_FAST_KEY_READ) &&
 	(table->db_stat & HA_READ_ONLY ||
@@ -613,16 +612,20 @@ static int init_rr_cache(THD *thd, READ_RECORD *info)
 					   info->struct_length+1,
 					   MYF(0))))
     DBUG_RETURN(1);
-#ifdef HAVE_purify
-  // Avoid warnings in qsort
-  memset(info->cache, 0,
-         rec_cache_size+info->cache_records * info->struct_length + 1);
-#endif
+
   DBUG_PRINT("info",("Allocated buffert for %d records",info->cache_records));
   info->read_positions=info->cache+rec_cache_size;
   info->cache_pos=info->cache_end=info->cache;
   DBUG_RETURN(0);
 } /* init_rr_cache */
+
+
+static int rr_cmp(const void *p_ref_length, const void *a, const void *b)
+{
+  size_t ref_length= *(static_cast<size_t*>(const_cast<void*>(p_ref_length)));
+  DBUG_ASSERT(ref_length <= MAX_REFLENGTH);
+  return memcmp(a, b, ref_length);
+}
 
 
 static int rr_from_cache(READ_RECORD *info)
@@ -673,8 +676,9 @@ static int rr_from_cache(READ_RECORD *info)
       int3store(ref_position,(long) i);
       ref_position+=3;
     }
-    my_qsort(info->read_positions, length, info->struct_length,
-             (qsort_cmp) rr_cmp);
+    size_t ref_length= info->ref_length;
+    my_qsort2(info->read_positions, length, info->struct_length,
+              rr_cmp, &ref_length);
 
     position=info->read_positions;
     for (i=0 ; i < length ; i++)
@@ -684,12 +688,13 @@ static int rr_from_cache(READ_RECORD *info)
       record=uint3korr(position);
       position+=3;
       record_pos=info->cache+record*info->reclength;
-      if ((error=(int16) info->table->file->ha_rnd_pos(record_pos,info->ref_pos)))
+      error= (int16) info->table->file->ha_rnd_pos(record_pos, info->ref_pos);
+      if (error)
       {
 	record_pos[info->error_offset]=1;
 	shortstore(record_pos,error);
 	DBUG_PRINT("error",("Got error: %d:%d when reading row",
-			    my_errno, error));
+			    my_errno, (int) error));
       }
       else
 	record_pos[info->error_offset]=0;
@@ -697,30 +702,6 @@ static int rr_from_cache(READ_RECORD *info)
     info->cache_end=(info->cache_pos=info->cache)+length*info->reclength;
   }
 } /* rr_from_cache */
-
-
-static int rr_cmp(uchar *a,uchar *b)
-{
-  if (a[0] != b[0])
-    return (int) a[0] - (int) b[0];
-  if (a[1] != b[1])
-    return (int) a[1] - (int) b[1];
-  if (a[2] != b[2])
-    return (int) a[2] - (int) b[2];
-#if MAX_REFLENGTH == 4
-  return (int) a[3] - (int) b[3];
-#else
-  if (a[3] != b[3])
-    return (int) a[3] - (int) b[3];
-  if (a[4] != b[4])
-    return (int) a[4] - (int) b[4];
-  if (a[5] != b[5])
-    return (int) a[1] - (int) b[5];
-  if (a[6] != b[6])
-    return (int) a[6] - (int) b[6];
-  return (int) a[7] - (int) b[7];
-#endif
-}
 
 
 /**

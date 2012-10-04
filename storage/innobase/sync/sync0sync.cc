@@ -187,9 +187,9 @@ UNIV_INTERN ibool	sync_initialized	= FALSE;
 
 #ifdef UNIV_SYNC_DEBUG
 /** An acquired mutex or rw-lock and its level in the latching order */
-typedef struct sync_level_struct	sync_level_t;
+struct sync_level_t;
 /** Mutexes or rw-locks held by a thread */
-typedef struct sync_thread_struct	sync_thread_t;
+struct sync_thread_t;
 
 /** The latch levels currently owned by threads are stored in this data
 structure; the size of this array is OS_THREAD_MAX_N */
@@ -197,7 +197,7 @@ structure; the size of this array is OS_THREAD_MAX_N */
 UNIV_INTERN sync_thread_t*	sync_thread_level_arrays;
 
 /** Mutex protecting sync_thread_level_arrays */
-UNIV_INTERN mutex_t		sync_thread_mutex;
+UNIV_INTERN ib_mutex_t		sync_thread_mutex;
 
 # ifdef UNIV_PFS_MUTEX
 UNIV_INTERN mysql_pfs_key_t	sync_thread_mutex_key;
@@ -208,7 +208,7 @@ UNIV_INTERN mysql_pfs_key_t	sync_thread_mutex_key;
 UNIV_INTERN ut_list_base_node_t  mutex_list;
 
 /** Mutex protecting the mutex_list variable */
-UNIV_INTERN mutex_t mutex_list_mutex;
+UNIV_INTERN ib_mutex_t mutex_list_mutex;
 
 #ifdef UNIV_PFS_MUTEX
 UNIV_INTERN mysql_pfs_key_t	mutex_list_mutex_key;
@@ -221,10 +221,8 @@ UNIV_INTERN ibool	sync_order_checks_on	= FALSE;
 /** Number of slots reserved for each OS thread in the sync level array */
 static const ulint SYNC_THREAD_N_LEVELS = 10000;
 
-typedef struct sync_arr_struct sync_arr_t;
-
 /** Array for tracking sync levels per thread. */
-struct sync_arr_struct {
+struct sync_arr_t {
 	ulint		in_use;		/*!< Number of active cells */
 	ulint		n_elems;	/*!< Number of elements in the array */
 	ulint		max_elems;	/*!< Maximum elements */
@@ -234,14 +232,14 @@ struct sync_arr_struct {
 };
 
 /** Mutexes or rw-locks held by a thread */
-struct sync_thread_struct{
+struct sync_thread_t{
 	os_thread_id_t	id;		/*!< OS thread id */
 	sync_arr_t*	levels;		/*!< level array for this thread; if
 					this is NULL this slot is unused */
 };
 
 /** An acquired mutex or rw-lock and its level in the latching order */
-struct sync_level_struct{
+struct sync_level_t{
 	void*		latch;		/*!< pointer to a mutex or an
 					rw-lock; NULL means that
 					the slot is empty */
@@ -252,6 +250,9 @@ struct sync_level_struct{
 					latch == NULL then this will contain
 					the ordinal value of the next free
 					element */
+	ulint		count;		/*!< Numbe of times this latch has
+					been locked at this level.  Allows
+					for recursive locking */
 };
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -264,7 +265,7 @@ UNIV_INTERN
 void
 mutex_create_func(
 /*==============*/
-	mutex_t*	mutex,		/*!< in: pointer to memory */
+	ib_mutex_t*	mutex,		/*!< in: pointer to memory */
 #ifdef UNIV_DEBUG
 	const char*	cmutex_name,	/*!< in: mutex name */
 # ifdef UNIV_SYNC_DEBUG
@@ -327,7 +328,7 @@ UNIV_INTERN
 void
 mutex_free_func(
 /*============*/
-	mutex_t*	mutex)	/*!< in: mutex */
+	ib_mutex_t*	mutex)	/*!< in: mutex */
 {
 	ut_ad(mutex_validate(mutex));
 	ut_a(mutex_get_lock_word(mutex) == 0);
@@ -387,7 +388,7 @@ UNIV_INTERN
 ulint
 mutex_enter_nowait_func(
 /*====================*/
-	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name __attribute__((unused)),
 					/*!< in: file name where mutex
 					requested */
@@ -396,7 +397,7 @@ mutex_enter_nowait_func(
 {
 	ut_ad(mutex_validate(mutex));
 
-	if (!mutex_test_and_set(mutex)) {
+	if (!ib_mutex_test_and_set(mutex)) {
 
 		ut_d(mutex->thread_id = os_thread_get_curr_id());
 #ifdef UNIV_SYNC_DEBUG
@@ -417,7 +418,7 @@ UNIV_INTERN
 ibool
 mutex_validate(
 /*===========*/
-	const mutex_t*	mutex)	/*!< in: mutex */
+	const ib_mutex_t*	mutex)	/*!< in: mutex */
 {
 	ut_a(mutex);
 	ut_a(mutex->magic_n == MUTEX_MAGIC_N);
@@ -433,7 +434,7 @@ UNIV_INTERN
 ibool
 mutex_own(
 /*======*/
-	const mutex_t*	mutex)	/*!< in: mutex */
+	const ib_mutex_t*	mutex)	/*!< in: mutex */
 {
 	ut_ad(mutex_validate(mutex));
 
@@ -448,7 +449,7 @@ UNIV_INTERN
 void
 mutex_set_waiters(
 /*==============*/
-	mutex_t*	mutex,	/*!< in: mutex */
+	ib_mutex_t*	mutex,	/*!< in: mutex */
 	ulint		n)	/*!< in: value to set */
 {
 	volatile ulint*	ptr;		/* declared volatile to ensure that
@@ -469,7 +470,7 @@ UNIV_INTERN
 void
 mutex_spin_wait(
 /*============*/
-	mutex_t*	mutex,		/*!< in: pointer to mutex */
+	ib_mutex_t*	mutex,		/*!< in: pointer to mutex */
 	const char*	file_name,	/*!< in: file name where mutex
 					requested */
 	ulint		line)		/*!< in: line where requested */
@@ -515,7 +516,7 @@ spin_loop:
 
 	mutex_spin_round_count.add(counter_index, i);
 
-	if (mutex_test_and_set(mutex) == 0) {
+	if (ib_mutex_test_and_set(mutex) == 0) {
 		/* Succeeded! */
 
 		ut_d(mutex->thread_id = os_thread_get_curr_id());
@@ -528,7 +529,7 @@ spin_loop:
 	/* We may end up with a situation where lock_word is 0 but the OS
 	fast mutex is still reserved. On FreeBSD the OS does not seem to
 	schedule a thread which is constantly calling pthread_mutex_trylock
-	(in mutex_test_and_set implementation). Then we could end up
+	(in ib_mutex_test_and_set implementation). Then we could end up
 	spinning here indefinitely. The following 'i++' stops this infinite
 	spin. */
 
@@ -553,7 +554,7 @@ spin_loop:
 
 	/* Try to reserve still a few times */
 	for (i = 0; i < 4; i++) {
-		if (mutex_test_and_set(mutex) == 0) {
+		if (ib_mutex_test_and_set(mutex) == 0) {
 			/* Succeeded! Free the reserved wait cell */
 
 			sync_array_free_cell(sync_arr, index);
@@ -590,7 +591,7 @@ UNIV_INTERN
 void
 mutex_signal_object(
 /*================*/
-	mutex_t*	mutex)	/*!< in: mutex */
+	ib_mutex_t*	mutex)	/*!< in: mutex */
 {
 	mutex_set_waiters(mutex, 0);
 
@@ -607,7 +608,7 @@ UNIV_INTERN
 void
 mutex_set_debug_info(
 /*=================*/
-	mutex_t*	mutex,		/*!< in: mutex */
+	ib_mutex_t*	mutex,		/*!< in: mutex */
 	const char*	file_name,	/*!< in: file where requested */
 	ulint		line)		/*!< in: line where requested */
 {
@@ -626,7 +627,7 @@ UNIV_INTERN
 void
 mutex_get_debug_info(
 /*=================*/
-	mutex_t*	mutex,		/*!< in: mutex */
+	ib_mutex_t*	mutex,		/*!< in: mutex */
 	const char**	file_name,	/*!< out: file where requested */
 	ulint*		line,		/*!< out: line where requested */
 	os_thread_id_t* thread_id)	/*!< out: id of the thread which owns
@@ -647,7 +648,7 @@ mutex_list_print_info(
 /*==================*/
 	FILE*	file)		/*!< in: file where to print */
 {
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 	const char*	file_name;
 	ulint		line;
 	os_thread_id_t	thread_id;
@@ -690,7 +691,7 @@ ulint
 mutex_n_reserved(void)
 /*==================*/
 {
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 	ulint		count	= 0;
 
 	mutex_enter(&mutex_list_mutex);
@@ -789,9 +790,9 @@ sync_print_warning(
 	const sync_level_t*	slot)	/*!< in: slot for which to
 					print warning */
 {
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 
-	mutex = static_cast<mutex_t*>(slot->latch);
+	mutex = static_cast<ib_mutex_t*>(slot->latch);
 
 	if (mutex->magic_n == MUTEX_MAGIC_N) {
 		fprintf(stderr,
@@ -881,6 +882,29 @@ sync_thread_levels_contain(
 
 		if (slot->latch != NULL && slot->level == level) {
 
+			return(slot);
+		}
+	}
+
+	return(NULL);
+}
+
+/******************************************************************//**
+Checks if the level value and latch is already stored in the level array.
+@return	slot if found or NULL */
+static
+sync_level_t*
+sync_thread_levels_find(
+/*====================*/
+	sync_arr_t*	arr,	/*!< in: pointer to level array for an OS
+				thread */
+	void*		latch,	/*!< in: pointer to a mutex or an rw-lock */
+	ulint		level)	/*!< in: level */
+{
+	for (ulint i = 0; i < arr->n_elems; i++) {
+		sync_level_t*	slot = &arr->elems[i];
+
+		if (slot->latch == latch && slot->level == level) {
 			return(slot);
 		}
 	}
@@ -1165,6 +1189,7 @@ sync_thread_add_level(
 	case SYNC_TRX_I_S_LAST_READ:
 	case SYNC_IBUF_MUTEX:
 	case SYNC_INDEX_ONLINE_LOG:
+	case SYNC_STATS_AUTO_RECALC:
 		if (!sync_thread_levels_g(array, level, TRUE)) {
 			fprintf(stderr,
 				"InnoDB: sync_thread_levels_g(array, %lu)"
@@ -1314,6 +1339,16 @@ sync_thread_add_level(
 	}
 
 levels_ok:
+	/* Look for this latch and level in the active list. If it is
+	already there, then this is a recursive lock. */
+	slot = sync_thread_levels_find(array, latch, level);
+	if (slot != NULL) {
+		slot->count++;
+		mutex_exit(&sync_thread_mutex);
+		return;
+	}
+
+	/* Get a free slot to track this level and latch */
 	if (array->next_free == ULINT_UNDEFINED) {
 		ut_a(array->n_elems < array->max_elems);
 
@@ -1334,6 +1369,7 @@ levels_ok:
 
 	slot->latch = latch;
 	slot->level = level;
+	slot->count = 1;
 
 	mutex_exit(&sync_thread_mutex);
 }
@@ -1389,6 +1425,15 @@ sync_thread_reset_level(
 			continue;
 		}
 
+		if (slot->count > 1) {
+			/* Found a latch recursively locked */
+			slot->count--;
+
+			mutex_exit(&sync_thread_mutex);
+
+			return(TRUE);
+		}
+
 		slot->latch = NULL;
 
 		/* Update the free slot list. See comment in sync_level_t
@@ -1413,7 +1458,7 @@ sync_thread_reset_level(
 		return(TRUE);
 	}
 
-	if (((mutex_t*) latch)->magic_n != MUTEX_MAGIC_N) {
+	if (((ib_mutex_t*) latch)->magic_n != MUTEX_MAGIC_N) {
 		rw_lock_t*	rw_lock;
 
 		rw_lock = (rw_lock_t*) latch;
@@ -1517,7 +1562,7 @@ void
 sync_close(void)
 /*===========*/
 {
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 
 	sync_array_close();
 

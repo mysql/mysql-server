@@ -286,8 +286,8 @@ public:
   Handle_old_incorrect_sql_modes_hook(char *file_path)
     :path(file_path)
   {};
-  virtual bool process_unknown_string(char *&unknown_key, uchar* base,
-                                      MEM_ROOT *mem_root, char *end);
+  virtual bool process_unknown_string(const char *&unknown_key, uchar* base,
+                                      MEM_ROOT *mem_root, const char *end);
 };
 
 
@@ -298,8 +298,8 @@ public:
                                           LEX_STRING *trigger_table_arg)
     :path(file_path), trigger_table_value(trigger_table_arg)
   {};
-  virtual bool process_unknown_string(char *&unknown_key, uchar* base,
-                                      MEM_ROOT *mem_root, char *end);
+  virtual bool process_unknown_string(const char *&unknown_key, uchar* base,
+                                      MEM_ROOT *mem_root, const char *end);
 private:
   char *path;
   LEX_STRING *trigger_table_value;
@@ -561,7 +561,7 @@ bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create)
   if (result)
     goto end;
 
-  close_all_tables_for_name(thd, table->s, FALSE);
+  close_all_tables_for_name(thd, table->s, false, NULL);
   /*
     Reopen the table if we were under LOCK TABLES.
     Ignore the return value for now. It's better to
@@ -1151,6 +1151,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
   LEX_STRING path;
   File_parser *parser;
   LEX_STRING save_db;
+  PSI_statement_locker *parent_locker= thd->m_statement_psi;
 
   DBUG_ENTER("Table_triggers_list::check_n_load");
 
@@ -1386,7 +1387,9 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
 
         Deprecated_trigger_syntax_handler error_handler;
         thd->push_internal_handler(&error_handler);
+        thd->m_statement_psi= NULL;
         bool parse_error= parse_sql(thd, & parser_state, creation_ctx);
+        thd->m_statement_psi= parent_locker;
         thd->pop_internal_handler();
 
         /*
@@ -1719,7 +1722,7 @@ bool add_table_for_trigger(THD *thd,
   LEX *lex= thd->lex;
   char trn_path_buff[FN_REFLEN];
   LEX_STRING trn_path= { trn_path_buff, 0 };
-  LEX_STRING tbl_name;
+  LEX_STRING tbl_name= { NULL, 0 };
 
   DBUG_ENTER("add_table_for_trigger");
 
@@ -2208,6 +2211,37 @@ add_tables_and_routines_for_triggers(THD *thd,
 
 
 /**
+  Check if any of the marked fields are used in the trigger.
+
+  @param used_fields  Bitmap over fields to check
+  @param event_type   Type of event triggers for which we are going to inspect
+  @param action_time  Type of trigger action time we are going to inspect
+*/
+
+bool Table_triggers_list::is_fields_updated_in_trigger(MY_BITMAP *used_fields,
+                                                       trg_event_type event_type,
+                                                       trg_action_time_type action_time)
+{
+  Item_trigger_field *trg_field;
+  sp_head *sp= bodies[event_type][action_time];
+  DBUG_ASSERT(used_fields->n_bits == trigger_table->s->fields);
+
+  for (trg_field= sp->m_trg_table_fields.first; trg_field;
+       trg_field= trg_field->next_trg_field)
+  {
+    /* We cannot check fields which does not present in table. */
+    if (trg_field->field_idx != (uint)-1)
+    {
+      if (bitmap_is_set(used_fields, trg_field->field_idx) &&
+          trg_field->get_settable_routine_parameter())
+        return true;
+    }
+  }
+  return false;
+}
+
+
+/**
   Mark fields of subject table which we read/set in its triggers
   as such.
 
@@ -2216,7 +2250,6 @@ add_tables_and_routines_for_triggers(THD *thd,
   and thus informs handler that values for these fields should be
   retrieved/stored during execution of statement.
 
-  @param thd    Current thread context
   @param event  Type of event triggers for which we are going to inspect
 */
 
@@ -2287,10 +2320,9 @@ void Table_triggers_list::set_parse_error_message(char *error_message)
 #define INVALID_SQL_MODES_LENGTH 13
 
 bool
-Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
-                                                            uchar* base,
-                                                            MEM_ROOT *mem_root,
-                                                            char *end)
+Handle_old_incorrect_sql_modes_hook::
+process_unknown_string(const char *&unknown_key, uchar* base,
+                       MEM_ROOT *mem_root, const char *end)
 {
   DBUG_ENTER("Handle_old_incorrect_sql_modes_hook::process_unknown_string");
   DBUG_PRINT("info", ("unknown key: %60s", unknown_key));
@@ -2299,7 +2331,7 @@ Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
       unknown_key[INVALID_SQL_MODES_LENGTH] == '=' &&
       !memcmp(unknown_key, STRING_WITH_LEN("sql_modes")))
   {
-    char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
+    const char *ptr= unknown_key + INVALID_SQL_MODES_LENGTH + 1;
 
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
     push_warning_printf(current_thd,
@@ -2330,8 +2362,8 @@ Handle_old_incorrect_sql_modes_hook::process_unknown_string(char *&unknown_key,
 */
 bool
 Handle_old_incorrect_trigger_table_hook::
-process_unknown_string(char *&unknown_key, uchar* base, MEM_ROOT *mem_root,
-                       char *end)
+process_unknown_string(const char *&unknown_key, uchar* base,
+                       MEM_ROOT *mem_root, const char *end)
 {
   DBUG_ENTER("Handle_old_incorrect_trigger_table_hook::process_unknown_string");
   DBUG_PRINT("info", ("unknown key: %60s", unknown_key));
@@ -2340,7 +2372,7 @@ process_unknown_string(char *&unknown_key, uchar* base, MEM_ROOT *mem_root,
       unknown_key[INVALID_TRIGGER_TABLE_LENGTH] == '=' &&
       !memcmp(unknown_key, STRING_WITH_LEN("trigger_table")))
   {
-    char *ptr= unknown_key + INVALID_TRIGGER_TABLE_LENGTH + 1;
+    const char *ptr= unknown_key + INVALID_TRIGGER_TABLE_LENGTH + 1;
 
     DBUG_PRINT("info", ("trigger_table affected by BUG#15921 detected"));
     push_warning_printf(current_thd,

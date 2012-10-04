@@ -1,0 +1,107 @@
+#
+# Test information_schema.innodb_cmp_per_index
+#
+
+-- source include/have_innodb.inc
+# numbers read in this test depend on the page size
+-- source include/have_innodb_16k.inc
+# include/restart_mysqld.inc does not work in embedded mode
+-- source include/not_embedded.inc
+
+-- vertical_results
+
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+SET GLOBAL innodb_file_format=Barracuda;
+
+# reset any leftover stats from previous tests
+-- disable_query_log
+-- disable_result_log
+SELECT * FROM information_schema.innodb_cmp_per_index_reset;
+-- enable_result_log
+-- enable_query_log
+
+# see that the table is empty
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+# create a table that uses compression
+CREATE TABLE t (
+	a INT,
+	b VARCHAR(512),
+	c VARCHAR(16),
+	PRIMARY KEY (a),
+	INDEX (b(512)),
+	INDEX (c(16))
+) ENGINE=INNODB KEY_BLOCK_SIZE=2;
+
+SELECT
+database_name,
+table_name,
+index_name,
+compress_ops,
+compress_ops_ok,
+uncompress_ops
+FROM information_schema.innodb_cmp_per_index
+ORDER BY 1, 2, 3;
+
+# insert some data into it
+BEGIN;
+-- disable_query_log
+let $i=128;
+while ($i)
+{
+	-- eval INSERT INTO t VALUES ($i, REPEAT('x', 512), NULL);
+	dec $i;
+}
+-- enable_query_log
+COMMIT;
+
+ALTER TABLE t DROP INDEX c;
+
+GRANT USAGE ON *.* TO 'tuser01'@'localhost' IDENTIFIED BY 'cDJvI9s_Uq';
+FLUSH PRIVILEGES;
+
+-- connect (con1,localhost,tuser01,cDJvI9s_Uq,)
+-- connection con1
+
+-- error ER_SPECIFIC_ACCESS_DENIED_ERROR
+SELECT * FROM information_schema.innodb_cmp_per_index;
+
+-- connection default
+-- disconnect con1
+
+DROP USER 'tuser01'@'localhost';
+
+-- replace_regex /index_id:[0-9]+/index_id:idisnondeterministic/
+SELECT
+database_name,
+table_name,
+index_name,
+compress_ops,
+compress_ops_ok,
+uncompress_ops
+FROM information_schema.innodb_cmp_per_index
+ORDER BY 1, 2, 3;
+
+# restart mysqld and see that uncompress ops also gets increased when
+# selecting from the table again
+
+-- source include/restart_mysqld.inc
+
+SET GLOBAL innodb_cmp_per_index_enabled=ON;
+
+SELECT COUNT(*) FROM t;
+
+SELECT
+database_name,
+table_name,
+index_name,
+compress_ops,
+compress_ops_ok,
+uncompress_ops
+FROM information_schema.innodb_cmp_per_index
+ORDER BY 1, 2, 3;
+
+DROP TABLE t;
+
+SET GLOBAL innodb_cmp_per_index_enabled=default;
+SET GLOBAL innodb_file_format=default;

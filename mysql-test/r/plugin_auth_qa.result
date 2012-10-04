@@ -105,7 +105,7 @@ CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
 plug	test_plugin_server	plug_dest
-plug_dest		NULL
+plug_dest	mysql_native_password	
 DROP USER plug, plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
@@ -115,7 +115,7 @@ DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-plug_dest		NULL
+plug_dest	mysql_native_password	
 DROP USER plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
@@ -125,7 +125,7 @@ CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
 plug	test_plugin_server	plug_dest
-plug_dest		NULL
+plug_dest	mysql_native_password	
 DROP USER plug, plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
@@ -135,7 +135,7 @@ DROP USER plug;
 CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-plug_dest		NULL
+plug_dest	mysql_native_password	
 DROP USER plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
@@ -145,7 +145,7 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_dest_pas
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
 plug	test_plugin_server	plug_dest
-plug_dest		NULL
+plug_dest	mysql_native_password	
 DROP USER plug, plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
@@ -155,13 +155,13 @@ DROP USER plug;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-plug_dest		NULL
+plug_dest	mysql_native_password	
 DROP USER plug_dest;
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
+GRANTs which doesn't change the plugin are allowed
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug already exists
+GRANTs which doesn't change the plugin are allowed
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH 'test_plugin_server';
-ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug already exists
 DROP USER plug;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
@@ -176,7 +176,7 @@ plug	test_plugin_server	plug_dest
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string	password
-plug	test_plugin_server	plug_dest	*939AEE68989794C0F408277411C26055CDF41119
+plug	test_plugin_server	plug_dest	
 DROP USER plug;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug IDENTIFIED WITH test_plugin_server AS 'plug_dest';
 CREATE USER plug IDENTIFIED BY 'plug_dest_passwd';
@@ -210,7 +210,7 @@ DROP USER plüg;
 CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-plüg_dest		NULL
+plüg_dest	mysql_native_password	
 DROP USER plüg_dest;
 SET NAMES ascii;
 CREATE USER 'plüg' IDENTIFIED WITH 'test_plugin_server' AS 'plüg_dest';
@@ -221,7 +221,7 @@ DROP USER 'plüg';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-pl??g_dest		NULL
+pl??g_dest	mysql_native_password	
 DROP USER 'plüg_dest';
 SET NAMES latin1;
 ========== test 1.1.1.5 ====================================
@@ -235,7 +235,7 @@ DROP USER 'plug';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-plüg_dest		NULL
+plüg_dest	mysql_native_password	
 DROP USER 'plüg_dest';
 SET NAMES utf8;
 CREATE USER plüg IDENTIFIED WITH 'test_plügin_server' AS 'plüg_dest';
@@ -248,7 +248,7 @@ DROP USER 'plüg';
 CREATE USER 'plüg_dest' IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-plüg_dest		NULL
+plüg_dest	mysql_native_password	
 DROP USER 'plüg_dest';
 CREATE USER plüg IDENTIFIED WITH test_plugin_server AS 'plüg_dest';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
@@ -258,7 +258,7 @@ DROP USER plüg;
 CREATE USER plüg_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-plüg_dest		NULL
+plüg_dest	mysql_native_password	
 DROP USER plüg_dest;
 ========== test 1.1.1.2/1.1.2.2=============================
 SET @auth_name= 'test_plugin_server';
@@ -278,7 +278,7 @@ DROP USER plug;
 CREATE USER 'hh''s_plug_dest' IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-hh's_plug_dest		NULL
+hh's_plug_dest	mysql_native_password	
 DROP USER 'hh''s_plug_dest';
 ========== test 1.1.1.4 ====================================
 CREATE USER plug IDENTIFIED WITH hh''s_test_plugin_server AS 'plug_dest';
@@ -294,7 +294,7 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest;
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
 grant_user	test_plugin_server	plug_dest
-plug_dest		NULL
+plug_dest	mysql_native_password	
 DROP USER grant_user,plug_dest;
 set @save_sql_mode= @@sql_mode;
 SET @@sql_mode=no_auto_create_user;
@@ -315,13 +315,13 @@ CREATE USER plug_dest IDENTIFIED BY 'plug_dest_passwd';
 SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string	password
 grant_user	test_plugin_server	plug_dest	
-plug_dest		NULL	*939AEE68989794C0F408277411C26055CDF41119
+plug_dest	mysql_native_password		*939AEE68989794C0F408277411C26055CDF41119
 DROP USER plug_dest;
 GRANT ALL PRIVILEGES ON test_user_db.* TO plug_dest IDENTIFIED BY 'plug_user_passwd';
 SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string	password
 grant_user	test_plugin_server	plug_dest	
-plug_dest		NULL	*560881EB651416CEF77314D07D55EDCD5FC1BD6D
+plug_dest	mysql_native_password		*560881EB651416CEF77314D07D55EDCD5FC1BD6D
 DROP USER grant_user,plug_dest;
 set @@sql_mode= @save_sql_mode;
 DROP DATABASE test_user_db;

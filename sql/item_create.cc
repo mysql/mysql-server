@@ -1113,6 +1113,21 @@ protected:
 };
 
 
+#if defined(HAVE_SPATIAL) && !defined(DBUG_OFF)
+class Create_func_gis_debug : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_gis_debug s_singleton;
+
+protected:
+  Create_func_gis_debug() {}
+  virtual ~Create_func_gis_debug() {}
+};
+#endif
+
+
 #ifdef HAVE_SPATIAL
 class Create_func_glength : public Create_func_arg1
 {
@@ -1530,16 +1545,16 @@ protected:
 };
 
 
-class Create_func_lcase : public Create_func_arg1
+class Create_func_lower : public Create_func_arg1
 {
 public:
   virtual Item *create(THD *thd, Item *arg1);
 
-  static Create_func_lcase s_singleton;
+  static Create_func_lower s_singleton;
 
 protected:
-  Create_func_lcase() {}
-  virtual ~Create_func_lcase() {}
+  Create_func_lower() {}
+  virtual ~Create_func_lower() {}
 };
 
 
@@ -2390,16 +2405,16 @@ protected:
 #endif
 
 
-class Create_func_ucase : public Create_func_arg1
+class Create_func_upper : public Create_func_arg1
 {
 public:
   virtual Item *create(THD *thd, Item *arg1);
 
-  static Create_func_ucase s_singleton;
+  static Create_func_upper s_singleton;
 
 protected:
-  Create_func_ucase() {}
-  virtual ~Create_func_ucase() {}
+  Create_func_upper() {}
+  virtual ~Create_func_upper() {}
 };
 
 
@@ -2478,6 +2493,19 @@ public:
 protected:
   Create_func_uuid_short() {}
   virtual ~Create_func_uuid_short() {}
+};
+
+
+class Create_func_validate_password_strength : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_validate_password_strength s_singleton;
+
+protected:
+  Create_func_validate_password_strength() {}
+  virtual ~Create_func_validate_password_strength() {}
 };
 
 
@@ -2667,21 +2695,10 @@ Create_qfunc::create_func(THD *thd, LEX_STRING name, List<Item> *item_list)
 {
   LEX_STRING db;
 
-  if (! thd->db && ! thd->lex->sphead)
+  /* Cannot match the function since no database is selected */
+  if (thd->db == NULL)
   {
-    /*
-      The proper error message should be in the lines of:
-        Can't resolve <name>() to a function call,
-        because this function:
-        - is not a native function,
-        - is not a user defined function,
-        - can not match a qualified (read: stored) function
-          since no database is selected.
-      Reusing ER_SP_DOES_NOT_EXIST have a message consistent with
-      the case when a default database exist, see Create_sp_func::create().
-    */
-    my_error(ER_SP_DOES_NOT_EXIST, MYF(0),
-             "FUNCTION", name.str);
+    my_error(ER_NO_DB_ERROR, MYF(0));
     return NULL;
   }
 
@@ -3904,6 +3921,17 @@ Create_func_get_lock::create(THD *thd, Item *arg1, Item *arg2)
 }
 
 
+#if defined(HAVE_SPATIAL) && !defined(DBUG_OFF)
+Create_func_gis_debug Create_func_gis_debug::s_singleton;
+
+Item*
+Create_func_gis_debug::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_gis_debug(arg1);
+}
+#endif
+
+
 #ifdef HAVE_SPATIAL
 Create_func_glength Create_func_glength::s_singleton;
 
@@ -4248,12 +4276,12 @@ Create_func_last_insert_id::create_native(THD *thd, LEX_STRING name,
 }
 
 
-Create_func_lcase Create_func_lcase::s_singleton;
+Create_func_lower Create_func_lower::s_singleton;
 
 Item*
-Create_func_lcase::create(THD *thd, Item *arg1)
+Create_func_lower::create(THD *thd, Item *arg1)
 {
-  return new (thd->mem_root) Item_func_lcase(arg1);
+  return new (thd->mem_root) Item_func_lower(arg1);
 }
 
 
@@ -5085,12 +5113,12 @@ Create_func_touches::create(THD *thd, Item *arg1, Item *arg2)
 #endif
 
 
-Create_func_ucase Create_func_ucase::s_singleton;
+Create_func_upper Create_func_upper::s_singleton;
 
 Item*
-Create_func_ucase::create(THD *thd, Item *arg1)
+Create_func_upper::create(THD *thd, Item *arg1)
 {
-  return new (thd->mem_root) Item_func_ucase(arg1);
+  return new (thd->mem_root) Item_func_upper(arg1);
 }
 
 
@@ -5178,6 +5206,16 @@ Create_func_uuid_short::create(THD *thd)
   thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
   thd->lex->safe_to_cache_query= 0;
   DBUG_RETURN(new (thd->mem_root) Item_func_uuid_short());
+}
+
+
+Create_func_validate_password_strength
+                     Create_func_validate_password_strength::s_singleton;
+
+Item*
+Create_func_validate_password_strength::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_validate_password_strength(arg1);
 }
 
 
@@ -5442,7 +5480,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("IS_USED_LOCK") }, BUILDER(Create_func_is_used_lock)},
   { { C_STRING_WITH_LEN("LAST_DAY") }, BUILDER(Create_func_last_day)},
   { { C_STRING_WITH_LEN("LAST_INSERT_ID") }, BUILDER(Create_func_last_insert_id)},
-  { { C_STRING_WITH_LEN("LCASE") }, BUILDER(Create_func_lcase)},
+  { { C_STRING_WITH_LEN("LCASE") }, BUILDER(Create_func_lower)},
   { { C_STRING_WITH_LEN("LEAST") }, BUILDER(Create_func_least)},
   { { C_STRING_WITH_LEN("LENGTH") }, BUILDER(Create_func_length)},
 #ifndef DBUG_OFF
@@ -5459,7 +5497,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("LOG") }, BUILDER(Create_func_log)},
   { { C_STRING_WITH_LEN("LOG10") }, BUILDER(Create_func_log10)},
   { { C_STRING_WITH_LEN("LOG2") }, BUILDER(Create_func_log2)},
-  { { C_STRING_WITH_LEN("LOWER") }, BUILDER(Create_func_lcase)},
+  { { C_STRING_WITH_LEN("LOWER") }, BUILDER(Create_func_lower)},
   { { C_STRING_WITH_LEN("LPAD") }, BUILDER(Create_func_lpad)},
   { { C_STRING_WITH_LEN("LTRIM") }, BUILDER(Create_func_ltrim)},
   { { C_STRING_WITH_LEN("MAKEDATE") }, BUILDER(Create_func_makedate)},
@@ -5558,6 +5596,9 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_GEOMETRYTYPE") }, GEOM_BUILDER(Create_func_geometry_type)},
   { { C_STRING_WITH_LEN("ST_GEOMFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_GEOMFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
+#ifndef DBUG_OFF
+  { { C_STRING_WITH_LEN("ST_GIS_DEBUG") }, GEOM_BUILDER(Create_func_gis_debug)},
+#endif
   { { C_STRING_WITH_LEN("ST_EQUALS") }, GEOM_BUILDER(Create_func_equals)},
   { { C_STRING_WITH_LEN("ST_INTERIORRINGN") }, GEOM_BUILDER(Create_func_interiorringn)},
   { { C_STRING_WITH_LEN("ST_INTERSECTS") }, GEOM_BUILDER(Create_func_intersects)},
@@ -5599,15 +5640,16 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("TO_BASE64") }, BUILDER(Create_func_to_base64)},
   { { C_STRING_WITH_LEN("TO_DAYS") }, BUILDER(Create_func_to_days)},
   { { C_STRING_WITH_LEN("TO_SECONDS") }, BUILDER(Create_func_to_seconds)},
-  { { C_STRING_WITH_LEN("UCASE") }, BUILDER(Create_func_ucase)},
+  { { C_STRING_WITH_LEN("UCASE") }, BUILDER(Create_func_upper)},
   { { C_STRING_WITH_LEN("UNCOMPRESS") }, BUILDER(Create_func_uncompress)},
   { { C_STRING_WITH_LEN("UNCOMPRESSED_LENGTH") }, BUILDER(Create_func_uncompressed_length)},
   { { C_STRING_WITH_LEN("UNHEX") }, BUILDER(Create_func_unhex)},
   { { C_STRING_WITH_LEN("UNIX_TIMESTAMP") }, BUILDER(Create_func_unix_timestamp)},
   { { C_STRING_WITH_LEN("UPDATEXML") }, BUILDER(Create_func_xml_update)},
-  { { C_STRING_WITH_LEN("UPPER") }, BUILDER(Create_func_ucase)},
+  { { C_STRING_WITH_LEN("UPPER") }, BUILDER(Create_func_upper)},
   { { C_STRING_WITH_LEN("UUID") }, BUILDER(Create_func_uuid)},
   { { C_STRING_WITH_LEN("UUID_SHORT") }, BUILDER(Create_func_uuid_short)},
+  { { C_STRING_WITH_LEN("VALIDATE_PASSWORD_STRENGTH") }, BUILDER(Create_func_validate_password_strength)},
   { { C_STRING_WITH_LEN("VERSION") }, BUILDER(Create_func_version)},
   { { C_STRING_WITH_LEN("WEEKDAY") }, BUILDER(Create_func_weekday)},
   { { C_STRING_WITH_LEN("WEEKOFYEAR") }, BUILDER(Create_func_weekofyear)},

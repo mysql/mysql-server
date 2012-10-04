@@ -1164,7 +1164,7 @@ create table t2 as select concat(a) from t1;
 show create table t2;
 drop table t1, t2;
 
-create table t1 (a timestamp);
+create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values (0);
 insert into t1 values (20010203040506);
 insert into t1 values (19800203040506);
@@ -1476,7 +1476,7 @@ select hex(a) from v1;
 drop table t1;
 drop view v1;
 
-create table t1 (a timestamp);
+create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values (0);
 insert into t1 values (20010203040506);
 insert into t1 values (19800203040506);

@@ -62,6 +62,8 @@ f115 VARBINARY(27) null ,
 f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
 ) engine = myisam;
+Warnings:
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
 DROP DATABASE IF EXISTS test1;
@@ -129,6 +131,8 @@ f115 VARBINARY(27) null ,
 f116 VARBINARY(64) null,
 f117 VARBINARY(192) null
 ) engine = myisam;
+Warnings:
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/myisam_tb2.txt'
 into table tb2;
 USE test;
@@ -8859,6 +8863,7 @@ affected rows: 1
 info: Rows matched: 1  Changed: 1  Warnings: 0
 UPDATE v1 SET f2 = 'number' WHERE f1 = 1;
 affected rows: 0
+info: Rows matched: 0  Changed: 0  Warnings: 0
 
 Testcase 3.3.1.46 
 --------------------------------------------------------------------------------

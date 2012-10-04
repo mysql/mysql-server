@@ -1,0 +1,9 @@
+ALTER TABLE performance_schema.session_account_connect_attrs
+ADD COLUMN foo INTEGER;
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+TRUNCATE TABLE performance_schema.session_account_connect_attrs;
+ERROR HY000: Invalid performance_schema usage.
+ALTER TABLE performance_schema.session_account_connect_attrs ADD INDEX test_index(ATTR_NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
+CREATE UNIQUE INDEX test_index ON performance_schema.session_account_connect_attrs(ATTR_NAME);
+ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'

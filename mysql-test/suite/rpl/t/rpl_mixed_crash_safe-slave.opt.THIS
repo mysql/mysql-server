@@ -1,1 +1,0 @@
---skip-core-file --skip-slave-start --relay-log-info-repository=TABLE --relay-log-info-engine=innodb --relay-log-recovery=1

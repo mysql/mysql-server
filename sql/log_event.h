@@ -44,6 +44,7 @@
 #include "rpl_reporting.h"
 #include "sql_class.h"                          /* THD */
 #include "rpl_utility.h"                        /* Hash_slave_rows */
+#include "rpl_filter.h"
 #endif
 
 /* Forward declarations */
@@ -64,8 +65,6 @@ typedef struct st_db_worker_hash_entry db_worker_hash_entry;
                        characters)
 */
 #define TEMP_FILE_MAX_LEN UUID_LENGTH+38 
-
-#define LONG_FIND_ROW_THRESHOLD 60 /* seconds */
 
 /**
    Either assert or return an error.
@@ -311,6 +310,13 @@ struct sql_ex_info
   EXECUTE_LOAD_QUERY_EXTRA_HEADER_LEN + /*write_post_header_for_derived */ \
   MAX_SIZE_LOG_EVENT_STATUS + /* status */ \
   NAME_LEN + 1)
+
+/*
+  The new option is added to handle large packets that are sent from the master 
+  to the slave. It is used to increase the thd(max_allowed) for both the
+  DUMP thread on the master and the SQL/IO thread on the slave. 
+*/
+#define MAX_MAX_ALLOWED_PACKET 1024*1024*1024
 
 /* 
    Event header offsets; 
@@ -786,9 +792,12 @@ typedef struct st_print_event_info
   ~st_print_event_info() {
     close_cached_file(&head_cache);
     close_cached_file(&body_cache);
+    close_cached_file(&footer_cache);
   }
   bool init_ok() /* tells if construction was successful */
-    { return my_b_inited(&head_cache) && my_b_inited(&body_cache); }
+    { return my_b_inited(&head_cache) && 
+	     my_b_inited(&body_cache) && 
+  	     my_b_inited(&footer_cache); }
 
 
   /* Settings on how to print the events */
@@ -810,12 +819,14 @@ typedef struct st_print_event_info
   table_mapping m_table_map_ignored;
 
   /*
-     These two caches are used by the row-based replication events to
+     These three caches are used by the row-based replication events to
      collect the header information and the main body of the events
-     making up a statement.
+     making up a statement and in footer section any verbose related details 
+     or comments related to the statment.
    */
   IO_CACHE head_cache;
   IO_CACHE body_cache;
+  IO_CACHE footer_cache; 
   /* Indicate if the body cache has unflushed events */
   bool have_unflushed_events;
 } PRINT_EVENT_INFO;
@@ -2077,7 +2088,21 @@ public:
     else
     {
       for (uchar i= 0; i < mts_accessed_dbs; i++)
-        res->push_back(mts_accessed_db_names[i]);
+      {
+        char *db_name= mts_accessed_db_names[i];
+
+        // Only default database is rewritten.
+        if (!rpl_filter->is_rewrite_empty() && !strcmp(get_db(), db_name))
+        {
+          size_t dummy_len;
+          const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+          // db_name != db_filtered means that db_name is rewritten.
+          if (strcmp(db_name, db_filtered))
+            db_name= (char*)db_filtered;
+        }
+
+        res->push_back(db_name);
+      }
     }
     return res;
   }
@@ -2862,7 +2887,7 @@ public:
     UNDEF_F= 0,
     UNSIGNED_F= 1
   };
-  char *name;
+  const char *name;
   uint name_len;
   char *val;
   ulong val_len;
@@ -2871,14 +2896,15 @@ public:
   bool is_null;
   uchar flags;
 #ifdef MYSQL_SERVER
-  User_var_log_event(THD* thd_arg, char *name_arg, uint name_len_arg,
+  bool deferred;
+  User_var_log_event(THD* thd_arg, const char *name_arg, uint name_len_arg,
                      char *val_arg, ulong val_len_arg, Item_result type_arg,
 		     uint charset_number_arg, uchar flags_arg,
                      enum_event_cache_type cache_type_arg,
                      enum_event_logging_type logging_type_arg)
     :Log_event(thd_arg, 0, cache_type_arg, logging_type_arg), name(name_arg),
      name_len(name_len_arg), val(val_arg), val_len(val_len_arg), type(type_arg),
-     charset_number(charset_number_arg), flags(flags_arg)
+     charset_number(charset_number_arg), flags(flags_arg), deferred(false)
     { 
       is_null= !val;
     }
@@ -2893,6 +2919,13 @@ public:
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
+  /* 
+     Getter and setter for deferred User-event. 
+     Returns true if the event is not applied directly 
+     and which case the applier adjusts execution path.
+  */
+  bool is_deferred() { return deferred; }
+  void set_deferred() { deferred= true; }
 #endif
   bool is_valid() const { return 1; }
 
@@ -3740,7 +3773,8 @@ public:
   enum 
   {
     TM_NO_FLAGS = 0U,
-    TM_BIT_LEN_EXACT_F = (1U << 0)
+    TM_BIT_LEN_EXACT_F = (1U << 0),
+    TM_REFERRED_FK_DB_F = (1U << 1)
   };
 
   flag_set get_flags(flag_set flag) const { return m_flags & flag; }
@@ -3775,6 +3809,29 @@ public:
   virtual bool write_data_header(IO_CACHE *file);
   virtual bool write_data_body(IO_CACHE *file);
   virtual const char *get_db() { return m_dbnam; }
+  virtual uint8 mts_number_dbs()
+  { 
+    return get_flags(TM_REFERRED_FK_DB_F) ? OVER_MAX_DBS_IN_EVENT_MTS : 1;
+  }
+  virtual List<char>* get_mts_dbs(MEM_ROOT *mem_root)
+  {
+    List<char> *res= new List<char>;
+    const char *db_name= get_db();
+
+    if (!rpl_filter->is_rewrite_empty() && !get_flags(TM_REFERRED_FK_DB_F))
+    {
+      size_t dummy_len;
+      const char *db_filtered= rpl_filter->get_rewrite_db(db_name, &dummy_len);
+      // db_name != db_filtered means that db_name is rewritten.
+      if (strcmp(db_name, db_filtered))
+        db_name= db_filtered;
+    }
+
+    res->push_back(strdup_root(mem_root,
+                               get_flags(TM_REFERRED_FK_DB_F) ? "" : db_name));
+    return res;
+  }
+
 #endif
 
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)
@@ -4076,8 +4133,6 @@ protected:
   List<uchar> m_distinct_key_list;
   List_iterator_fast<uchar> m_itr;
 
-  int find_row(const Relay_log_info *const);
-
   // Unpack the current row into m_table->record[0]
   int unpack_current_row(const Relay_log_info *const rli,
                          MY_BITMAP const *cols)
@@ -4178,10 +4233,10 @@ private:
     Private member function called while handling idempotent errors.
 
     @param err[IN/OUT] the error to handle. If it is listed as
-                       idempotent related error, then it is cleared.
+                       idempotent/ignored related error, then it is cleared.
     @returns true if the slave should stop executing rows.
    */
-  int handle_idempotent_errors(Relay_log_info const *rli, int *err);
+  int handle_idempotent_and_ignored_errors(Relay_log_info const *rli, int *err);
 
   /**
      Private member function called after updating/deleting a row. It
@@ -4803,12 +4858,12 @@ public:
     if (spec.gtid.sidno < 0)
     {
       if (need_lock)
-        global_sid_lock.rdlock();
+        global_sid_lock->rdlock();
       else
-        global_sid_lock.assert_some_lock();
-      spec.gtid.sidno= global_sid_map.add_sid(sid);
+        global_sid_lock->assert_some_lock();
+      spec.gtid.sidno= global_sid_map->add_sid(sid);
       if (need_lock)
-        global_sid_lock.unlock();
+        global_sid_lock->unlock();
     }
     return spec.gtid.sidno;
   }
@@ -4940,6 +4995,43 @@ inline bool is_gtid_event(Log_event* evt)
   return (evt->get_type_code() == GTID_LOG_EVENT ||
           evt->get_type_code() == ANONYMOUS_GTID_LOG_EVENT);
 }
+
+inline ulong version_product(const uchar* version_split)
+{
+  return ((version_split[0] * 256 + version_split[1]) * 256
+          + version_split[2]);
+}
+
+inline void do_server_version_split(char* version, uchar split_versions[3])
+{
+  char *p= version, *r;
+  ulong number;
+  for (uint i= 0; i<=2; i++)
+  {
+    number= strtoul(p, &r, 10);
+    split_versions[i]= (uchar) number;
+    DBUG_ASSERT(number < 256); // fit in uchar
+    p= r;
+    DBUG_ASSERT(!((i == 0) && (*r != '.'))); // should be true in practice
+    if (*r == '.')
+      p++; // skip the dot
+  }
+}
+
+#ifdef MYSQL_SERVER
+/*
+  This is an utility function that adds a quoted identifier into the a buffer.
+  This also escapes any existance of the quote string inside the identifier.
+ */
+size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
+                                   const char* identifier,
+                                   uint length);
+#else
+size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
+#endif
+size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
+                                          const char* identifier,
+                                          uint length);
 
 /**
   @} (end of group Replication)

@@ -27,6 +27,10 @@ typedef struct st_db_worker_hash_entry
   uint  db_len;
   const char *db;
   Slave_worker *worker;
+  /*
+    The number of transaction pending on this database.
+    This should only be modified under the lock slave_worker_hash_lock.
+   */
   long usage;
   /*
     The list of temp tables belonging to @ db database is
@@ -53,9 +57,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
 Slave_worker *get_least_occupied_worker(DYNAMIC_ARRAY *workers);
 int wait_for_workers_to_finish(Relay_log_info const *rli,
                                Slave_worker *ignore= NULL);
-bool critical_worker(Relay_log_info *rli);
 
-#define SLAVE_WORKER_QUEUE_SIZE 8096
 #define SLAVE_INIT_DBS_IN_GROUP 4     // initial allocation for CGEP dynarray
 
 #define NUMBER_OF_FIELDS_TO_IDENTIFY_WORKER 2
@@ -290,6 +292,7 @@ public:
                PSI_mutex_key *param_key_info_stop_cond,
                PSI_mutex_key *param_key_info_sleep_cond
 #endif
+               , uint param_id
               );
   virtual ~Slave_worker();
 
@@ -318,8 +321,14 @@ public:
   volatile bool relay_log_change_notified; // Coord sets and resets, W can read
   volatile bool checkpoint_notified; // Coord sets and resets, W can read
   ulong bitmap_shifted;  // shift the last bitmap at receiving new CP
-  bool wq_overrun_set;   // W marks inself as incrementer of rli->mts_wq_excess_cnt
-
+  // W private counter to incrementer in step with  rli->mts_wq_excess_cnt
+  long wq_overrun_cnt; 
+  /*
+    number of events starting from which Worker queue is regarded as
+    close to full. The number of the excessive events yields a weight factor
+    to compute Coordinator's nap.
+  */
+  ulong overrun_level;
   /*
     Coordinates of the last CheckPoint (CP) this Worker has
     acknowledged; part of is persisent data
@@ -345,13 +354,30 @@ public:
   en_running_state volatile running_status;
 
   int init_worker(Relay_log_info*, ulong);
-  int init_info(bool);
-  void end_info();
+  int rli_init_info(bool);
   int flush_info(bool force= FALSE);
   static size_t get_number_worker_fields();
   void slave_worker_ends_group(Log_event*, int);
   bool commit_positions(Log_event *evt, Slave_job_group *ptr_g, bool force);
   bool reset_recovery_info();
+  /**
+     Different from the parent method in that this does not delete
+     rli_description_event.
+     The method runs by Coordinator when Worker are synched or being
+     destroyed.
+  */
+  void set_rli_description_event(Format_description_log_event *fdle)
+  {
+    DBUG_ASSERT(!fdle || (running_status == Slave_worker::RUNNING && info_thd));
+#ifndef DBUG_OFF
+    if (fdle)
+      mysql_mutex_assert_owner(&jobs_lock);
+#endif
+
+    if (fdle)
+      adapt_to_master_version(fdle);
+    rli_description_event= fdle;
+  }
 
 protected:
 
@@ -359,6 +385,7 @@ protected:
                          const char *msg, va_list v_args) const;
 
 private:
+  void end_info();
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);
   Slave_worker& operator=(const Slave_worker& info);

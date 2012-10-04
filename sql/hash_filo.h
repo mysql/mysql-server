@@ -48,7 +48,6 @@ private:
   /** Size of this hash table. */
   uint m_size;
   my_hash_free_key free_element;
-  bool init;
   CHARSET_INFO *hash_charset;
 
   hash_filo_element *first_link,*last_link;
@@ -61,28 +60,21 @@ public:
 	    CHARSET_INFO *hash_charset_arg)
     : key_offset(key_offset_arg), key_length(key_length_arg),
     get_key(get_key_arg), m_size(size),
-    free_element(free_element_arg),init(0),
+    free_element(free_element_arg),
     hash_charset(hash_charset_arg)
   {
     memset(&cache, 0, sizeof(cache));
+    mysql_mutex_init(key_hash_filo_lock, &lock, MY_MUTEX_INIT_FAST);
   }
 
   ~hash_filo()
   {
-    if (init)
-    {
-      if (cache.array.buffer)	/* Avoid problems with thread library */
-	(void) my_hash_free(&cache);
-      mysql_mutex_destroy(&lock);
-    }
+    if (cache.array.buffer)	/* Avoid problems with thread library */
+      (void) my_hash_free(&cache);
+    mysql_mutex_destroy(&lock);
   }
   void clear(bool locked=0)
   {
-    if (!init)
-    {
-      init=1;
-      mysql_mutex_init(key_hash_filo_lock, &lock, MY_MUTEX_INIT_FAST);
-    }
     if (!locked)
       mysql_mutex_lock(&lock);
     (void) my_hash_free(&cache);

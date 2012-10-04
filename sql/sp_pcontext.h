@@ -216,16 +216,21 @@ public:
   /// Handler type.
   enum_type type;
 
+  /// BEGIN..END block of the handler.
+  sp_pcontext *scope;
+
   /// Conditions caught by this handler.
   List<sp_condition_value> condition_values;
 
 public:
   /// The constructor.
   ///
-  /// @param _type SQL-handler type.
-  sp_handler(enum_type _type)
+  /// @param _type    SQL-handler type.
+  /// @param _scope   Handler scope.
+  sp_handler(enum_type _type, sp_pcontext *_scope)
    :Sql_alloc(),
-    type(_type)
+    type(_type),
+    scope(_scope)
   { }
 };
 
@@ -284,6 +289,9 @@ public:
 
   sp_pcontext *parent_context() const
   { return m_parent; }
+
+  int get_level() const
+  { return m_level; }
 
   /// Calculate and return the number of handlers to pop between the given
   /// context and this one.
@@ -500,6 +508,9 @@ private:
   void operator=(sp_pcontext &);
 
 private:
+  /// Level of the corresponding BEGIN..END block (0 means the topmost block).
+  int m_level;
+
   /// m_max_var_index -- number of variables (including all types of arguments)
   /// in this context including all children contexts.
   ///

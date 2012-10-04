@@ -66,7 +66,7 @@ extern mysql_mutex_t THR_LOCK_charset;
 #ifdef HUGETLB_USE_PROC_MEMINFO
 extern PSI_file_key key_file_proc_meminfo;
 #endif /* HUGETLB_USE_PROC_MEMINFO */
-extern PSI_file_key key_file_charset, key_file_cnf;
+extern PSI_file_key key_file_charset;
 #endif /* HAVE_PSI_INTERFACE */
 
 /*

@@ -1,4 +1,4 @@
-# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,18 +42,36 @@ slave-net-timeout=120
 
 log-bin=mysqld-bin
 
+# MAINTAINER:
+# the loose- syntax is to make sure the cnf file is also
+# valid when building without the performance schema.
+
 # Run tests with the performance schema instrumentation
 loose-enable-performance-schema
 # Run tests with a small number of instrumented objects
 # to limit memory consumption with MTR
+loose-performance-schema-accounts-size=100
+loose-performance-schema-digests-size=200
+loose-performance-schema-hosts-size=100
+loose-performance-schema-users-size=100
 loose-performance-schema-max-mutex-instances=5000
 loose-performance-schema-max-rwlock-instances=5000
+loose-performance-schema-max-cond-instances=1000
+loose-performance-schema-max-file-instances=10000
+loose-performance-schema-max-socket-instances=1000
 loose-performance-schema-max-table-instances=500
 loose-performance-schema-max-table-handles=1000
 
+loose-performance-schema-events-waits-history-size=10
+loose-performance-schema-events-waits-history-long-size=10000
+loose-performance-schema-events-stages-history-size=10
 loose-performance-schema-events-stages-history-long-size=1000
+loose-performance-schema-events-statements-history-size=10
 loose-performance-schema-events-statements-history-long-size=1000
 loose-performance-schema-max-thread-instances=200
+loose-performance-schema-session-connect-attrs-size=2048
+
+# Enable everything, for maximun code exposure during testing
 
 loose-performance-schema-instrument='%=ON'
 

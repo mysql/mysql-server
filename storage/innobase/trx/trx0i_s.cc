@@ -131,31 +131,31 @@ noop because it will be empty. */
 /** Memory for each table in the intermediate buffer is allocated in
 separate chunks. These chunks are considered to be concatenated to
 represent one flat array of rows. */
-typedef struct i_s_mem_chunk_struct {
+struct i_s_mem_chunk_t {
 	ulint	offset;		/*!< offset, in number of rows */
 	ulint	rows_allocd;	/*!< the size of this chunk, in number
 				of rows */
 	void*	base;		/*!< start of the chunk */
-} i_s_mem_chunk_t;
+};
 
 /** This represents one table's cache. */
-typedef struct i_s_table_cache_struct {
+struct i_s_table_cache_t {
 	ulint		rows_used;	/*!< number of used rows */
 	ulint		rows_allocd;	/*!< number of allocated rows */
 	ulint		row_size;	/*!< size of a single row */
 	i_s_mem_chunk_t	chunks[MEM_CHUNKS_IN_TABLE_CACHE]; /*!< array of
 					memory chunks that stores the
 					rows */
-} i_s_table_cache_t;
+};
 
 /** This structure describes the intermediate buffer */
-struct trx_i_s_cache_struct {
+struct trx_i_s_cache_t {
 	rw_lock_t	rw_lock;	/*!< read-write lock protecting
 					the rest of this structure */
 	ullint		last_read;	/*!< last time the cache was read;
 					measured in microseconds since
 					epoch */
-	mutex_t		last_read_mutex;/*!< mutex protecting the
+	ib_mutex_t		last_read_mutex;/*!< mutex protecting the
 					last_read member - it is updated
 					inside a shared lock of the
 					rw_lock member */
@@ -1300,7 +1300,10 @@ fetch_data_into_cache_low(
 
 	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL;
-	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
+	     trx =
+	     (trx_list == &trx_sys->mysql_trx_list
+	      ? UT_LIST_GET_NEXT(mysql_trx_list, trx)
+	      : UT_LIST_GET_NEXT(trx_list, trx))) {
 
 		i_s_trx_row_t*		trx_row;
 		i_s_locks_row_t*	requested_lock_row;

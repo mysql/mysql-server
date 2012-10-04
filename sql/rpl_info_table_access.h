@@ -36,8 +36,9 @@ public:
                   TABLE** table, Open_tables_backup* backup);
   bool close_table(THD* thd, TABLE* table, Open_tables_backup* backup,
                    bool error);
-  enum enum_return_id find_info(const ulong *uidx, const uint nidx,
-                                Rpl_info_values *, TABLE *table);
+  enum enum_return_id find_info(Rpl_info_values *field_values, TABLE *table);
+  enum enum_return_id scan_info(TABLE *table, uint instance);
+  bool count_info(TABLE *table, uint* counter);
   bool load_info_values(uint max_num_field, Field **fields,
                         Rpl_info_values *field_values);
   bool store_info_values(uint max_num_field, Field **fields,
@@ -51,5 +52,4 @@ private:
   Rpl_info_table_access& operator=(const Rpl_info_table_access& info);
   Rpl_info_table_access(const Rpl_info_table_access& info);
 };
-
 #endif /* RPL_INFO_TABLE_ACCESS_H */

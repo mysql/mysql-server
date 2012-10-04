@@ -186,10 +186,45 @@ call dump_all();
 --connection default
 
 --disconnect con4a
+
+# Wait for the disconnect to complete
+let $wait_condition=
+  select count(*) = 5 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+--source include/wait_condition.inc
+
 --disconnect con4b
+
+# Wait for the disconnect to complete
+let $wait_condition=
+  select count(*) = 4 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+--source include/wait_condition.inc
+
 --disconnect con4c
+
+# Wait for the disconnect to complete
+let $wait_condition=
+  select count(*) = 3 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+--source include/wait_condition.inc
+
 --disconnect con5a
+
+# Wait for the disconnect to complete
+let $wait_condition=
+  select count(*) = 2 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+--source include/wait_condition.inc
+
 --disconnect con5b
+
+# Wait for the disconnect to complete
+let $wait_condition=
+  select count(*) = 1 from performance_schema.threads
+  where `TYPE`='FOREGROUND' and PROCESSLIST_USER like 'user%';
+--source include/wait_condition.inc
+
 --disconnect con5c
 
 # Wait for the disconnect to complete

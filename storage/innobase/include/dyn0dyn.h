@@ -31,10 +31,9 @@ Created 2/5/1996 Heikki Tuuri
 #include "mem0mem.h"
 
 /** A block in a dynamically allocated array */
-typedef struct dyn_block_struct		dyn_block_t;
+struct dyn_block_t;
 /** Dynamically allocated array */
-typedef dyn_block_t			dyn_array_t;
-
+typedef dyn_block_t		dyn_array_t;
 
 /** This is the initial 'payload' size of a dynamic array;
 this must be > MLOG_BUF_MARGIN + 30! */
@@ -159,7 +158,7 @@ dyn_push_string(
 /** @brief A block in a dynamically allocated array.
 NOTE! Do not access the fields of the struct directly: the definition
 appears here only for the compiler to know its size! */
-struct dyn_block_struct{
+struct dyn_block_t{
 	mem_heap_t*	heap;	/*!< in the first block this is != NULL
 				if dynamic allocation has been needed */
 	ulint		used;	/*!< number of data bytes used in this block;

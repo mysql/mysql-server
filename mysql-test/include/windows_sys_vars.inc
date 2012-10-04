@@ -4,15 +4,7 @@
 
 --disable_query_log
 
-SET @default_flush_time = 1800;
-SET @min_flush_time = 0;
-#SET @max_flush_time = 0;
-
 SET @default_key_buffer_size= 131072;
-
-#SET @default_join_buffer_size = 131072;
-#SET @min_join_buffer_size = 8200;
-#SET @max_join_buffer_size = 4294967295;
 
 SET @default_max_join_size = 4294967295;
 SET @min_max_join_size = 1;

@@ -1997,22 +1997,6 @@ drop function func_25345_b;
 --echo End of 5.0 tests
 
 #
-# Bug#16164 "Easter egg": check that SHOW AUTHORS is disabled in
-# stored functions/triggers
-#
---disable_warnings ONCE
-drop function if exists bug16164;
-delimiter |;
---error ER_SP_NO_RETSET
-create function bug16164() returns int
-begin
-  show authors;
-  return 42;
-end|
-delimiter ;|
-
-
-#
 # BUG#20701: BINARY keyword should be forbidden in stored routines
 #
 --disable_warnings ONCE
@@ -2152,12 +2136,13 @@ DROP DATABASE IF EXISTS mysqltest;
 CREATE DATABASE mysqltest;
 USE mysqltest;
 DROP DATABASE mysqltest;
-# Both ER_SP_DOES_NOT_EXIST and ER_PARSE_ERROR are valid here,
-# the result is implementation dependent:
-# See Bug#29816 for details
---error ER_SP_DOES_NOT_EXIST
+# Both ER_SP_DOES_NOT_EXIST and ER_PARSE_ERROR are valid here, the result is
+# implementation dependent: See Bug#29816 for details.  
+# ER_SP_DOES_NOT_EXIST has been replaced by ER_NO_DB_ERROR since it is valid in
+# this scenario. See Bug# 13864485 for details.
+--error ER_NO_DB_ERROR 
 SELECT inexistent(), 1 + ,;
---error ER_SP_DOES_NOT_EXIST
+--error ER_NO_DB_ERROR
 SELECT inexistent();
 --error ER_PARSE_ERROR
 SELECT .inexistent();

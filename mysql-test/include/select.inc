@@ -1803,7 +1803,7 @@ DROP TABLE t1;
 # Test of bug with SUM(CASE...)
 #
 
-CREATE TABLE t1 (gvid int(10) unsigned default NULL,  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  mmid int(10) unsigned default NULL,  hdid int(10) unsigned default NULL,  fsid int(10) unsigned default NULL,  ctid int(10) unsigned default NULL,  dtid int(10) unsigned default NULL,  cost int(10) unsigned default NULL,  performance int(10) unsigned default NULL,  serialnumber bigint(20) unsigned default NULL,  monitored tinyint(3) unsigned default '1',  removed tinyint(3) unsigned default '0',  target tinyint(3) unsigned default '0',  dt_modified timestamp NOT NULL,  name varchar(255) binary default NULL,  description varchar(255) default NULL,  UNIQUE KEY hmid (hmid,volid)) ENGINE=MyISAM;
+CREATE TABLE t1 (gvid int(10) unsigned default NULL,  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  mmid int(10) unsigned default NULL,  hdid int(10) unsigned default NULL,  fsid int(10) unsigned default NULL,  ctid int(10) unsigned default NULL,  dtid int(10) unsigned default NULL,  cost int(10) unsigned default NULL,  performance int(10) unsigned default NULL,  serialnumber bigint(20) unsigned default NULL,  monitored tinyint(3) unsigned default '1',  removed tinyint(3) unsigned default '0',  target tinyint(3) unsigned default '0',  dt_modified timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,  name varchar(255) binary default NULL,  description varchar(255) default NULL,  UNIQUE KEY hmid (hmid,volid)) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (200001,2,1,1,100,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\E$',''),(200002,2,2,1,101,1,1,1,0,0,0,1,0,1,20020425060057,'\\\\ARKIVIO-TESTPDC\\C$',''),(200003,1,3,2,NULL,NULL,NULL,NULL,NULL,NULL,NULL,1,0,1,20020425060427,'c:',NULL);
 CREATE TABLE t2 (  hmid int(10) unsigned default NULL,  volid int(10) unsigned default NULL,  sampletid smallint(5) unsigned default NULL,  sampletime datetime default NULL,  samplevalue bigint(20) unsigned default NULL,  KEY idx1 (hmid,volid,sampletid,sampletime)) ENGINE=MyISAM;
 INSERT INTO t2 VALUES (1,3,10,'2002-06-01 08:00:00',35),(1,3,1010,'2002-06-01 12:00:01',35);
@@ -3246,7 +3246,7 @@ DROP TABLE t1;
 #
 # Bug #22344: InnoDB keys act strange on datetime vs timestamp comparison
 #
-CREATE TABLE t1 (a INT, ts TIMESTAMP, KEY ts(ts));
+CREATE TABLE t1 (a INT, ts TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, KEY ts(ts));
 INSERT INTO t1 VALUES (30,"2006-01-03 23:00:00"), (31,"2006-01-03 23:00:00");
 ANALYZE TABLE t1;
 
@@ -3815,7 +3815,7 @@ SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 DROP TABLE t1;
 
-CREATE TABLE t1(a TIMESTAMP NOT NULL);
+CREATE TABLE t1(a TIMESTAMP NOT NULL NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 INSERT INTO t1 VALUES('2001-01-01');
 SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';
 EXPLAIN EXTENDED SELECT * FROM t1 WHERE a='2001-01-01' AND a='2001-01-01 00:00:00';

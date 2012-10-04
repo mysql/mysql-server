@@ -1850,7 +1850,7 @@ ha_ndbcluster::set_blob_values(const NdbOperation *ndb_op,
     NdbBlob *ndb_blob= ndb_op->getBlobHandle(field_no);
     if (ndb_blob == NULL)
       ERR_RETURN(ndb_op->getNdbError());
-    if (field->is_null_in_record_with_offset(row_offset))
+    if (field->is_real_null(row_offset))
     {
       DBUG_PRINT("info", ("Setting Blob %d to NULL", field_no));
       if (ndb_blob->setNull() != 0)
@@ -1975,13 +1975,10 @@ int ha_ndbcluster::check_default_values(const NDBTAB* ndbtab)
     {
       Field* field= table->field[f]; // Use Field struct from MySQLD table rep
       const NdbDictionary::Column* ndbCol= ndbtab->getColumn(field->field_index); 
-      bool isTimeStampWithAutoValue = ((field->type() == MYSQL_TYPE_TIMESTAMP) &&
-                                       (field->table->get_timestamp_field() == field));
 
       if ((! (field->flags & (PRI_KEY_FLAG |
                               NO_DEFAULT_VALUE_FLAG))) &&
-          (type_supports_default_value(field->real_type())) &&
-          !isTimeStampWithAutoValue)
+          type_supports_default_value(field->real_type()))
       {
         /* We expect Ndb to have a native default for this
          * column
@@ -6198,7 +6195,7 @@ void ha_ndbcluster::unpack_record(uchar *dst_row, const uchar *src_row)
       if (field->type() == MYSQL_TYPE_BIT)
       {
         Field_bit *field_bit= static_cast<Field_bit*>(field);
-        if (!field->is_null_in_record_with_offset(src_offset))
+        if (!field->is_real_null(src_offset))
         {
           field->move_field_offset(src_offset);
           longlong value= field_bit->val_int();
@@ -6289,7 +6286,7 @@ static void get_default_value(void *def_val, Field *field)
       if (field->type() == MYSQL_TYPE_BIT)
       {
         Field_bit *field_bit= static_cast<Field_bit*>(field);
-        if (!field->is_null_in_record_with_offset(src_offset))
+        if (!field->is_real_null(src_offset))
         {
           field->move_field_offset(src_offset);
           longlong value= field_bit->val_int();
@@ -7556,7 +7553,7 @@ static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
 {
   if (thd->lex->sql_command == SQLCOM_LOAD)
     thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
-  else if (!thd->transaction.on)
+  else if (!thd->transaction.flags.enabled)
     thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
   else if (!THDVAR(thd, use_transactions))
     thd_ndb->trans_options|= TNTO_TRANSACTIONS_OFF;
@@ -8666,20 +8663,14 @@ static int create_ndb_column(THD *thd,
 
     if (likely( nativeDefaults ))
     {
-      /* Ndb does not support auto-set Timestamp default values natively */
-      bool isTimeStampWithAutoValue = ((mysql_type == MYSQL_TYPE_TIMESTAMP ||
-                                        mysql_type == MYSQL_TYPE_TIMESTAMP2) &&
-                                       (field->table->get_timestamp_field() == field));
-
       if ((!(field->flags & PRI_KEY_FLAG) ) &&
-          type_supports_default_value(mysql_type) &&
-          !isTimeStampWithAutoValue)
+          type_supports_default_value(mysql_type))
       {
         if (!(field->flags & NO_DEFAULT_VALUE_FLAG))
         {
           my_ptrdiff_t src_offset= field->table->s->default_values 
             - field->table->record[0];
-          if ((! field->is_null_in_record_with_offset(src_offset)) ||
+          if ((! field->is_real_null(src_offset)) ||
               ((field->flags & NOT_NULL_FLAG)))
           {
             /* Set a non-null native default */

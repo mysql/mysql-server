@@ -197,6 +197,10 @@ err1:
 static void load_env_plugins(MYSQL *mysql)
 {
   char *plugs, *free_env, *s= getenv("LIBMYSQL_PLUGINS");
+  char *enable_cleartext_plugin= getenv("LIBMYSQL_ENABLE_CLEARTEXT_PLUGIN");
+
+  if (enable_cleartext_plugin && strchr("1Yy", enable_cleartext_plugin[0]))
+    libmysql_cleartext_plugin_enabled= 1;
 
   /* no plugins to load */
   if(!s)
@@ -212,6 +216,7 @@ static void load_env_plugins(MYSQL *mysql)
   } while (s);
 
   my_free(free_env);
+
 }
 
 /********** extern functions to be used by libmysql *********************/

@@ -14,24 +14,34 @@
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 
+#include <stdlib.h>
+#include <errno.h>
 #include <ctype.h>
 #include <string.h>
 #include "sql_bootstrap.h"
 
 int read_bootstrap_query(char *query, int *query_length,
-                         fgets_input_t input, fgets_fn_t fgets_fn)
+                         fgets_input_t input, fgets_fn_t fgets_fn, int *error)
 {
   char line_buffer[MAX_BOOTSTRAP_LINE_SIZE];
   const char *line;
   int len;
   int query_len= 0;
+  int fgets_error= 0;
+  *error= 0;
 
   for ( ; ; )
   {
-    line= (*fgets_fn)(line_buffer, sizeof(line_buffer), input);
+    line= (*fgets_fn)(line_buffer, sizeof(line_buffer), input, &fgets_error);
+    
+    if (error)
+      *error= fgets_error;
 
+    if (fgets_error != 0)
+      return READ_BOOTSTRAP_ERROR;
+      
     if (line == NULL)
-      return (query_len ? READ_BOOTSTRAP_ERROR : READ_BOOTSTRAP_EOF);
+      return (query_len == 0) ? READ_BOOTSTRAP_EOF : READ_BOOTSTRAP_ERROR;
 
     len= strlen(line);
 
@@ -67,10 +77,22 @@ int read_bootstrap_query(char *query, int *query_length,
     if (strncmp(line, "delimiter", 9) == 0)
       continue;
 
-    /* Append the current line to a multi line query. */
-
+    /* Append the current line to a multi line query. If the new line will make
+       the query too long, preserve the partial line to provide context for the
+       error message.
+    */
     if (query_len + len + 1 >= MAX_BOOTSTRAP_QUERY_SIZE)
-      return READ_BOOTSTRAP_ERROR;
+    {
+      int new_len= MAX_BOOTSTRAP_QUERY_SIZE - query_len - 1;
+      if ((new_len > 0) && (query_len < MAX_BOOTSTRAP_QUERY_SIZE))
+      {
+        memcpy(query + query_len, line, new_len);
+        query_len+= new_len;
+      }
+      query[query_len]= '\0';
+      *query_length= query_len;
+      return READ_BOOTSTRAP_QUERY_SIZE;
+    }
 
     if (query_len != 0)
     {
@@ -78,8 +100,7 @@ int read_bootstrap_query(char *query, int *query_length,
         Append a \n to the current line, if any,
         to preserve the intended presentation.
        */
-      query[query_len]= '\n';
-      query_len++;
+      query[query_len++]= '\n';
     }
     memcpy(query + query_len, line, len);
     query_len+= len;
@@ -92,7 +113,7 @@ int read_bootstrap_query(char *query, int *query_length,
       */
       query[query_len]= '\0';
       *query_length= query_len;
-      return 0;
+      return READ_BOOTSTRAP_SUCCESS;
     }
   }
 }

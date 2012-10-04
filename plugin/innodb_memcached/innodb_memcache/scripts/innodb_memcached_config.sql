@@ -81,6 +81,7 @@ INSERT INTO cache_policies VALUES("cache_policy", "innodb_only",
 				  "innodb_only", "innodb_only", "innodb_only");
 
 INSERT INTO config_options VALUES("separator", "|");
+INSERT INTO config_options VALUES("table_map_delimiter", ".");
 
 USE test
 

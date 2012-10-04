@@ -152,13 +152,13 @@ before insert on performance_schema.file_instances
 for each row begin end;
 ERROR 42000: Access denied for user 'root'@'localhost' to database 'performance_schema'
 create table test.t1(a int) engine=PERFORMANCE_SCHEMA;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.setup_instruments;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.events_waits_current;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.file_instances;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 insert into performance_schema.setup_instruments
 set name="foo";
 ERROR 42000: INSERT command denied to user 'root'@'localhost' for table 'setup_instruments'
@@ -250,13 +250,13 @@ before insert on performance_schema.file_instances
 for each row begin end;
 ERROR 42000: Access denied for user 'pfs_user_1'@'localhost' to database 'performance_schema'
 create table test.t1(a int) engine=PERFORMANCE_SCHEMA;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.setup_instruments;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.events_waits_current;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.file_instances;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 insert into performance_schema.setup_instruments
 set name="foo";
 ERROR 42000: INSERT command denied to user 'pfs_user_1'@'localhost' for table 'setup_instruments'
@@ -348,13 +348,13 @@ before insert on performance_schema.file_instances
 for each row begin end;
 ERROR 42000: Access denied for user 'pfs_user_2'@'localhost' to database 'performance_schema'
 create table test.t1(a int) engine=PERFORMANCE_SCHEMA;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.setup_instruments;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.events_waits_current;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.file_instances;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 insert into performance_schema.setup_instruments
 set name="foo";
 ERROR 42000: INSERT command denied to user 'pfs_user_2'@'localhost' for table 'setup_instruments'
@@ -446,13 +446,13 @@ before insert on performance_schema.file_instances
 for each row begin end;
 ERROR 42000: Access denied for user 'pfs_user_3'@'localhost' to database 'performance_schema'
 create table test.t1(a int) engine=PERFORMANCE_SCHEMA;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.setup_instruments;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.events_waits_current;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 create table test.t1 like performance_schema.file_instances;
-ERROR HY000: Can't create table 'test.t1' (errno: 131)
+ERROR HY000: Invalid performance_schema usage.
 insert into performance_schema.setup_instruments
 set name="foo";
 ERROR 42000: INSERT command denied to user 'pfs_user_3'@'localhost' for table 'setup_instruments'

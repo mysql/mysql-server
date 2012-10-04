@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,16 +41,6 @@ SET_SOURCE_FILES_PROPERTIES(${GEN_SOURCES} PROPERTIES GENERATED TRUE)
 FOREACH(file ${SQL_EXPORTED_SOURCES})
   LIST(APPEND IMPORTED_SOURCES "../sql/${file}")
 ENDFOREACH()
-
-# We do RESTRICT_SYMBOL_EXPORTS(yassl) elsewhere.
-# In order to get correct symbol visibility, md5.cc and sha1.cc
-# must be compiled with "-fvisibility=hidden"
-IF(HAVE_VISIBILITY_HIDDEN)
-  SET_SOURCE_FILES_PROPERTIES(../sql/md5.cc
-    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-  SET_SOURCE_FILES_PROPERTIES(../sql/sha1.cc
-    PROPERTIES COMPILE_FLAGS "-fvisibility=hidden")
-ENDIF()
 
 SET(SQL_EMBEDDED_SOURCES
   emb_qcache.cc
@@ -103,7 +93,7 @@ ENDIF()
 
 
 SET(LIBS 
-  dbug strings regex mysys vio 
+  dbug strings regex mysys mysys_ssl vio 
   ${ZLIB_LIBRARY} ${SSL_LIBRARIES} 
   ${LIBWRAP} ${LIBCRYPT} ${LIBDL}
   ${MYSQLD_STATIC_PLUGIN_LIBS}

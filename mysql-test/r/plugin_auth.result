@@ -40,6 +40,7 @@ select USER(),CURRENT_USER();
 USER()	CURRENT_USER()
 plug@localhost	plug_dest@%
 ## test SET PASSWORD
+Setting password is allowed but it won't affect the authentication mechanism.
 SET PASSWORD = PASSWORD('plug_dest');
 Warnings:
 Note	1699	SET PASSWORD has no significance for users authenticating via plugins
@@ -89,9 +90,9 @@ CREATE TABLE t1 (a INT);
 DROP TABLE t1;
 DROP USER new_grant_user;
 # try re-create existing user via GRANT IDENTIFIED WITH
+GRANTS which don't affect current plugin are allowed!
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
-ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug already exists
 GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest
 IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest';
 ERROR HY000: GRANT with IDENTIFIED WITH is illegal because the user plug_dest already exists
@@ -232,17 +233,21 @@ SELECT @@LOCAL.external_user;
 'plug'@'%'
 # in connection default
 WL#5706 -- show the above got logged/rewritten correctly
-SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('% IDENTIFIED ','WITH%');
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %');
 argument
-CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT INSERT ON `TEST`.* TO 'grant_user'@'%' IDENTIFIED WITH 'test_plugin_server'
-CREATE USER 'Å¸'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'plug_dest'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'grant_plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'grant_plug_dest'
-CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server'
+CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
+IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
+IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest
+IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
+AS 'grant_plug_dest'
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
@@ -318,7 +323,6 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
-mysql.host                                         OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
@@ -337,6 +341,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+Warning: Using a password on the command line interface can be insecure.
 SELECT Host,User,Proxied_host,Proxied_user,With_grant FROM mysql.proxies_priv;
 Host	localhost
 User	root
@@ -453,7 +458,6 @@ mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
 mysql.help_topic                                   OK
-mysql.host                                         OK
 mysql.innodb_index_stats                           OK
 mysql.innodb_table_stats                           OK
 mysql.ndb_binlog_index                             OK
@@ -473,6 +477,7 @@ mysql.time_zone_name                               OK
 mysql.time_zone_transition                         OK
 mysql.time_zone_transition_type                    OK
 mysql.user                                         OK
+Warning: Using a password on the command line interface can be insecure.
 SELECT IS_NULLABLE, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS
 WHERE TABLE_SCHEMA= 'mysql' AND TABLE_NAME= 'user' AND
 COLUMN_NAME IN ('plugin', 'authentication_string')

@@ -1,0 +1,321 @@
+SET default_storage_engine=InnoDB;
+#
+# TABLESPACE related tests for the partition engine and InnoDB.
+#
+# The partition engine can send DATA DIRECTORY to InnoDB.
+# In strict mode, it is an error if innodb_file_per_table = OFF
+# or INDEX DIRECTORY is used.
+SET SESSION innodb_strict_mode = ON;
+SET GLOBAL innodb_file_per_table = OFF;
+CREATE TABLE t1 (a int KEY, b text) ENGINE = InnoDB PARTITION BY HASH (a)
+(PARTITION p0 engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data' INDEX DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data',
+PARTITION p1 engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data' INDEX DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data');
+ERROR HY000: Table storage engine for 't1' doesn't have this option
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
+Warning	1478	InnoDB: INDEX DIRECTORY is not supported
+Error	1031	Table storage engine for 't1' doesn't have this option
+Error	6	Error on delete of './test/t1.par' (Errcode: 2 - No such file or directory)
+# Try again with innodb_file_per_table = ON and no INDEX DIRECTORY.
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t1 (a int KEY, b text) ENGINE = InnoDB PARTITION BY HASH (a)
+(PARTITION p0 engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data',
+PARTITION p1 engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data2');
+SHOW WARNINGS;
+Level	Code	Message
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (a)
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+name	n_cols	file_format	row_format
+test/t1#p#p0	5	Antelope	Compact
+test/t1#p#p1	5	Antelope	Compact
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+name	file_format	row_format
+test/t1#p#p0	Antelope	Compact or Redundant
+test/t1#p#p1	Antelope	Compact or Redundant
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
+path
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+# Verifying .frm, .par, .isl & .ibd files
+# Verifying that there are no MyISAM files
+# Test TRUNCATE TABLE with partitioned InnoDB tables
+INSERT INTO t1 VALUES (1, "red");
+INSERT INTO t1 VALUES (2, "green");
+INSERT INTO t1 VALUES (3, "blue");
+SELECT * FROM t1;
+a	b
+2	green
+1	red
+3	blue
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+a	b
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (a)
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+name	n_cols	file_format	row_format
+test/t1#p#p0	5	Antelope	Compact
+test/t1#p#p1	5	Antelope	Compact
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+name	file_format	row_format
+test/t1#p#p0	Antelope	Compact or Redundant
+test/t1#p#p1	Antelope	Compact or Redundant
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
+path
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+# Verifying .frm, .par and MyISAM files (.MYD, MYI)
+# Test RENAME TABLE with partitioned InnoDB tables
+RENAME TABLE t1 TO t11;
+SHOW CREATE TABLE t11;
+Table	Create Table
+t11	CREATE TABLE `t11` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (a)
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+name	n_cols	file_format	row_format
+test/t11#p#p0	5	Antelope	Compact
+test/t11#p#p1	5	Antelope	Compact
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+name	file_format	row_format
+test/t11#p#p0	Antelope	Compact or Redundant
+test/t11#p#p1	Antelope	Compact or Redundant
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
+path
+MYSQL_TMP_DIR/alternate_dir/data/test/t11#p#p0.ibd
+MYSQL_TMP_DIR/alternate_dir/data2/test/t11#p#p1.ibd
+# Verifying .frm, .par and MyISAM files (.MYD, MYI)
+DROP TABLE t11;
+# Test the previous DDL as a prepared statement.
+SET GLOBAL innodb_file_per_table = ON;
+PREPARE stmt1 FROM "CREATE TABLE t1 (a int KEY, b text)
+     ENGINE = InnoDB PARTITION BY HASH (a)
+     (PARTITION p0 engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data',
+      PARTITION p1 engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data2')";
+EXECUTE stmt1;
+SHOW WARNINGS;
+Level	Code	Message
+DEALLOCATE PREPARE stmt1;
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` text,
+  PRIMARY KEY (`a`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY HASH (a)
+(PARTITION p0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+ PARTITION p1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB) */
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+name	n_cols	file_format	row_format
+test/t1#p#p0	5	Antelope	Compact
+test/t1#p#p1	5	Antelope	Compact
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+name	file_format	row_format
+test/t1#p#p0	Antelope	Compact or Redundant
+test/t1#p#p1	Antelope	Compact or Redundant
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
+path
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0.ibd
+MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1.ibd
+DROP TABLE t1;
+# Test DATA DIRECTORY with Sub-partitions.
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t1 (id INT, purchased DATE) engine=InnoDB
+PARTITION BY RANGE( YEAR(purchased) )
+SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data',
+SUBPARTITION s1 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data2'
+),
+PARTITION p1 VALUES LESS THAN (2000) (
+SUBPARTITION s2 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data',
+SUBPARTITION s3 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data2'
+),
+PARTITION p2 VALUES LESS THAN MAXVALUE (
+SUBPARTITION s4 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data',
+SUBPARTITION s5 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data2'
+)
+);
+SHOW WARNINGS;
+Level	Code	Message
+INSERT INTO t1 VALUES(1,'1980-05-31');
+INSERT INTO t1 VALUES(2,'2090-05-31');
+INSERT INTO t1 VALUES(3,'2012-05-31');
+INSERT INTO t1 VALUES(4,'1970-05-31');
+INSERT INTO t1 VALUES(5,'1985-05-31');
+INSERT INTO t1 VALUES(6,'2006-05-31');
+SELECT * FROM t1;
+id	purchased
+4	1970-05-31
+1	1980-05-31
+5	1985-05-31
+2	2090-05-31
+3	2012-05-31
+6	2006-05-31
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) DEFAULT NULL,
+  `purchased` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE ( YEAR(purchased))
+SUBPARTITION BY HASH ( TO_DAYS(purchased))
+(PARTITION p0 VALUES LESS THAN (1990)
+ (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (2000)
+ (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+  SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN MAXVALUE
+ (SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+  SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB)) */
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+name	n_cols	file_format	row_format
+test/t1#p#p0#sp#s0	5	Antelope	Compact
+test/t1#p#p0#sp#s1	5	Antelope	Compact
+test/t1#p#p1#sp#s2	5	Antelope	Compact
+test/t1#p#p1#sp#s3	5	Antelope	Compact
+test/t1#p#p2#sp#s4	5	Antelope	Compact
+test/t1#p#p2#sp#s5	5	Antelope	Compact
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+name	file_format	row_format
+test/t1#p#p0#sp#s0	Antelope	Compact or Redundant
+test/t1#p#p0#sp#s1	Antelope	Compact or Redundant
+test/t1#p#p1#sp#s2	Antelope	Compact or Redundant
+test/t1#p#p1#sp#s3	Antelope	Compact or Redundant
+test/t1#p#p2#sp#s4	Antelope	Compact or Redundant
+test/t1#p#p2#sp#s5	Antelope	Compact or Redundant
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
+path
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
+MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
+MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
+MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
+# Verifying .frm, .par, .isl & .ibd files
+DROP TABLE t1;
+# Same as above except with ROW_FORMAT=Dyamic.
+SET GLOBAL innodb_file_format = Barracuda;
+SET GLOBAL innodb_file_per_table = ON;
+CREATE TABLE t1 (id INT, purchased DATE)
+engine = innodb row_format = dynamic
+PARTITION BY RANGE( YEAR(purchased) )
+SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+PARTITION p0 VALUES LESS THAN (1990) (
+SUBPARTITION s0 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data',
+SUBPARTITION s1 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data2'
+),
+PARTITION p1 VALUES LESS THAN (2000) (
+SUBPARTITION s2 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data',
+SUBPARTITION s3 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data2'
+),
+PARTITION p2 VALUES LESS THAN MAXVALUE (
+SUBPARTITION s4 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data',
+SUBPARTITION s5 DATA DIRECTORY='MYSQL_TMP_DIR/alternate_dir/data2'
+)
+);
+SHOW WARNINGS;
+Level	Code	Message
+INSERT INTO t1 VALUES(1,'1980-05-31');
+INSERT INTO t1 VALUES(2,'2090-05-31');
+INSERT INTO t1 VALUES(3,'2012-05-31');
+INSERT INTO t1 VALUES(4,'1970-05-31');
+INSERT INTO t1 VALUES(5,'1985-05-31');
+INSERT INTO t1 VALUES(6,'2006-05-31');
+SELECT * FROM t1;
+id	purchased
+4	1970-05-31
+1	1980-05-31
+5	1985-05-31
+2	2090-05-31
+3	2012-05-31
+6	2006-05-31
+SHOW CREATE TABLE t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `id` int(11) DEFAULT NULL,
+  `purchased` date DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=DYNAMIC
+/*!50100 PARTITION BY RANGE ( YEAR(purchased))
+SUBPARTITION BY HASH ( TO_DAYS(purchased))
+(PARTITION p0 VALUES LESS THAN (1990)
+ (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB),
+ PARTITION p1 VALUES LESS THAN (2000)
+ (SUBPARTITION s2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+  SUBPARTITION s3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB),
+ PARTITION p2 VALUES LESS THAN MAXVALUE
+ (SUBPARTITION s4 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data' ENGINE = InnoDB,
+  SUBPARTITION s5 DATA DIRECTORY = 'MYSQL_TMP_DIR/alternate_dir/data2' ENGINE = InnoDB)) */
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+name	n_cols	file_format	row_format
+test/t1#p#p0#sp#s0	5	Barracuda	Dynamic
+test/t1#p#p0#sp#s1	5	Barracuda	Dynamic
+test/t1#p#p1#sp#s2	5	Barracuda	Dynamic
+test/t1#p#p1#sp#s3	5	Barracuda	Dynamic
+test/t1#p#p2#sp#s4	5	Barracuda	Dynamic
+test/t1#p#p2#sp#s5	5	Barracuda	Dynamic
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+name	file_format	row_format
+test/t1#p#p0#sp#s0	Barracuda	Dynamic
+test/t1#p#p0#sp#s1	Barracuda	Dynamic
+test/t1#p#p1#sp#s2	Barracuda	Dynamic
+test/t1#p#p1#sp#s3	Barracuda	Dynamic
+test/t1#p#p2#sp#s4	Barracuda	Dynamic
+test/t1#p#p2#sp#s5	Barracuda	Dynamic
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
+path
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p0#sp#s0.ibd
+MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p0#sp#s1.ibd
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p1#sp#s2.ibd
+MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p1#sp#s3.ibd
+MYSQL_TMP_DIR/alternate_dir/data/test/t1#p#p2#sp#s4.ibd
+MYSQL_TMP_DIR/alternate_dir/data2/test/t1#p#p2#sp#s5.ibd
+# Verifying .frm, .par, .isl & .ibd files
+#
+# Cleanup
+#
+DROP TABLE t1;

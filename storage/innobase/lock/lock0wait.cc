@@ -274,6 +274,8 @@ lock_wait_suspend_thread(
 	case RW_S_LATCH:
 		/* Release foreign key check latch */
 		row_mysql_unfreeze_data_dictionary(trx);
+
+		DEBUG_SYNC_C("lock_wait_release_s_latch_before_sleep");
 		break;
 	default:
 		/* There should never be a lock wait when the
@@ -459,9 +461,11 @@ DECLARE_THREAD(lock_wait_timeout_thread)(
 	ib_int64_t	sig_count = 0;
 	os_event_t	event = lock_sys->timeout_event;
 
+	ut_ad(!srv_read_only_mode);
+
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_lock_timeout_thread_key);
-#endif
+#endif /* UNIV_PFS_THREAD */
 
 	lock_sys->timeout_thread_active = true;
 

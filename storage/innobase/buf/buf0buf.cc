@@ -891,7 +891,7 @@ pfs_register_buffer_block(
 				 PFS_MAX_BUFFER_MUTEX_LOCK_REGISTER);
 
 	for (i = 0; i < num_to_register; i++) {
-		mutex_t*	mutex;
+		ib_mutex_t*	mutex;
 		rw_lock_t*	rwlock;
 
 #  ifdef UNIV_PFS_MUTEX
@@ -1737,7 +1737,7 @@ buf_pool_watch_unset(
 	ut_a(bpage);
 
 	if (UNIV_UNLIKELY(!buf_pool_watch_is_sentinel(buf_pool, bpage))) {
-		mutex_t* mutex = buf_page_get_mutex(bpage);
+		ib_mutex_t* mutex = buf_page_get_mutex(bpage);
 
 		mutex_enter(mutex);
 		ut_a(bpage->buf_fix_count > 0);
@@ -1886,7 +1886,7 @@ buf_page_set_file_page_was_freed(
 					   &hash_lock);
 
 	if (bpage) {
-		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+		ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
@@ -1919,7 +1919,7 @@ buf_page_reset_file_page_was_freed(
 	bpage = buf_page_hash_get_s_locked(buf_pool, space, offset,
 					   &hash_lock);
 	if (bpage) {
-		mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+		ib_mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 		ut_ad(!buf_pool_watch_is_sentinel(buf_pool, bpage));
 		mutex_enter(block_mutex);
 		rw_lock_s_unlock(hash_lock);
@@ -1980,7 +1980,7 @@ buf_page_get_zip(
 	ulint		offset)	/*!< in: page number */
 {
 	buf_page_t*	bpage;
-	mutex_t*	block_mutex;
+	ib_mutex_t*	block_mutex;
 	rw_lock_t*	hash_lock;
 	ibool		discard_attempted = FALSE;
 	ibool		must_read;
@@ -2426,7 +2426,7 @@ buf_page_get_gen(
 	ulint		fix_type;
 	ibool		must_read;
 	rw_lock_t*	hash_lock;
-	mutex_t*	block_mutex;
+	ib_mutex_t*	block_mutex;
 	buf_page_t*	hash_bpage;
 	ulint		retries = 0;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
@@ -2710,7 +2710,10 @@ wait_until_unfixed:
 		/* Decompress the page and apply buffered operations
 		while not holding buf_pool->mutex or block->mutex. */
 
-		ut_a(buf_zip_decompress(block, TRUE));
+		/* Page checksum verification is already done when
+		the page is read from disk. Hence page checksum
+		verification is not necesary when decompressing the page. */
+		ut_a(buf_zip_decompress(block, FALSE));
 
 		if (UNIV_LIKELY(!recv_no_ibuf_operations)) {
 			ibuf_merge_or_delete_for_page(block, space, offset,
@@ -2788,19 +2791,18 @@ wait_until_unfixed:
 					buf_pool, space, offset, fold);
 			}
 
-			if (UNIV_LIKELY_NULL(block)) {
-				block_mutex = buf_page_get_mutex(
-					&block->page);
-				/* The page entered the buffer
-				pool for some reason. Try to
-				evict it again. */
-				mutex_enter(block_mutex);
-				rw_lock_x_unlock(hash_lock);
+			rw_lock_x_unlock(hash_lock);
 
-				goto got_block;
+			if (UNIV_LIKELY_NULL(block)) {
+				/* Either the page has been read in or
+				a watch was set on that in the window
+				where we released the buf_pool::mutex
+				and before we acquire the hash_lock
+				above. Try again. */
+				guess = block;
+				goto loop;
 			}
 
-			rw_lock_x_unlock(hash_lock);
 			fprintf(stderr,
 				"innodb_change_buffering_debug evict %u %u\n",
 				(unsigned) space, (unsigned) offset);
@@ -3877,6 +3879,8 @@ buf_mark_space_corrupt(
 			BUF_IO_READ);
 	}
 
+	mutex_exit(buf_page_get_mutex(bpage));
+
 	/* Find the table with specified space id, and mark it corrupted */
 	if (dict_set_corrupted_by_space(space)) {
 		buf_LRU_free_one_page(bpage);
@@ -3887,7 +3891,6 @@ buf_mark_space_corrupt(
 	ut_ad(buf_pool->n_pend_reads > 0);
 	buf_pool->n_pend_reads--;
 
-	mutex_exit(buf_page_get_mutex(bpage));
 	buf_pool_mutex_exit(buf_pool);
 
 	return(ret);
@@ -3895,9 +3898,10 @@ buf_mark_space_corrupt(
 
 /********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from
-the buffer pool. */
+the buffer pool.
+@return true if successful */
 UNIV_INTERN
-void
+bool
 buf_page_io_complete(
 /*=================*/
 	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
@@ -3989,7 +3993,7 @@ buf_page_io_complete(
 				    && buf_mark_space_corrupt(bpage)) {
 					ib_logf(IB_LOG_LEVEL_INFO,
 						"Simulated page corruption");
-					return;
+					return(true);
 				}
 				goto page_not_corrupt;
 				;);
@@ -4036,7 +4040,7 @@ corrupt:
 				table as corrupted instead of crashing server */
 				if (bpage->space > TRX_SYS_SPACE
 				    && buf_mark_space_corrupt(bpage)) {
-					return;
+					return(false);
 				} else {
 					fputs("InnoDB: Ending processing"
 					      " because of"
@@ -4131,6 +4135,8 @@ corrupt:
 
 	mutex_exit(buf_page_get_mutex(bpage));
 	buf_pool_mutex_exit(buf_pool);
+
+	return(true);
 }
 
 /*********************************************************************//**
@@ -5158,9 +5164,7 @@ void
 buf_refresh_io_stats_all(void)
 /*==========================*/
 {
-	ulint		i;
-
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
@@ -5177,9 +5181,7 @@ ibool
 buf_all_freed(void)
 /*===============*/
 {
-	ulint	i;
-
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);

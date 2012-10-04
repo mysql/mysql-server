@@ -85,16 +85,13 @@ const char * const THD::DEFAULT_WHERE= "field list";
 extern "C" uchar *get_var_key(user_var_entry *entry, size_t *length,
                               my_bool not_used __attribute__((unused)))
 {
-  *length= entry->name.length;
-  return (uchar*) entry->name.str;
+  *length= entry->entry_name.length();
+  return (uchar*) entry->entry_name.ptr();
 }
 
 extern "C" void free_user_var(user_var_entry *entry)
 {
-  char *pos= (char*) entry+ALIGN_SIZE(sizeof(*entry));
-  if (entry->value && entry->value != pos)
-    my_free(entry->value);
-  my_free(entry);
+  entry->destroy();
 }
 
 bool Key_part_spec::operator==(const Key_part_spec& other) const
@@ -130,6 +127,7 @@ Key::Key(const Key &rhs, MEM_ROOT *mem_root)
 
 Foreign_key::Foreign_key(const Foreign_key &rhs, MEM_ROOT *mem_root)
   :Key(rhs, mem_root),
+  ref_db(rhs.ref_db),
   ref_table(rhs.ref_table),
   ref_columns(rhs.ref_columns, mem_root),
   delete_opt(rhs.delete_opt),
@@ -246,6 +244,18 @@ PSI_thread *thd_get_psi(THD *thd)
 }
 
 /**
+  Get net_wait_timeout for THD object
+
+  @param thd            THD object
+
+  @retval               net_wait_timeout value for thread on THD
+*/
+ulong thd_get_net_wait_timeout(THD* thd)
+{
+  return thd->variables.net_wait_timeout;
+}
+
+/**
   Set reference to Performance Schema object for THD object
 
   @param thd            THD object
@@ -333,6 +343,33 @@ THD *thd_get_current_thd()
 }
 
 /**
+  Get iterator begin of global thread list
+
+  @retval Iterator begin of global thread list
+*/
+Thread_iterator thd_get_global_thread_list_begin()
+{
+  return global_thread_list_begin();
+}
+/**
+  Get iterator end of global thread list
+
+  @retval Iterator end of global thread list
+*/
+Thread_iterator thd_get_global_thread_list_end()
+{
+  return global_thread_list_end();
+}
+
+extern "C"
+void thd_binlog_pos(const THD *thd,
+                    const char **file_var,
+                    unsigned long long *pos_var)
+{
+  thd->get_trans_pos(file_var, pos_var);
+}
+
+/**
   Set up various THD data for a new connection
 
   thd_new_connection_setup
@@ -416,6 +453,17 @@ int thd_connection_has_data(THD *thd)
 void thd_set_net_read_write(THD *thd, uint val)
 {
   thd->net.reading_or_writing= val;
+}
+
+/**
+  Get reading/writing on socket from THD object
+  @param thd                       THD object
+
+  @retval               net.reading_or_writing value for thread on THD.
+*/
+uint thd_get_net_read_write(THD *thd)
+{
+  return thd->net.reading_or_writing;
 }
 
 /**
@@ -831,6 +879,8 @@ THD::THD(bool enable_plugins)
    binlog_unsafe_warning_flags(0),
    binlog_table_maps(0),
    binlog_accessed_db_names(NULL),
+   m_trans_log_file(NULL),
+   m_trans_end_pos(0),
    table_map_for_update(0),
    arg_of_last_insert_id_function(FALSE),
    first_successful_insert_id_in_prev_stmt(0),
@@ -841,6 +891,7 @@ THD::THD(bool enable_plugins)
    m_statement_psi(NULL),
    m_idle_psi(NULL),
    m_server_idle(false),
+   next_to_commit(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
    is_fatal_sub_stmt_error(0),
@@ -855,7 +906,7 @@ THD::THD(bool enable_plugins)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
    m_enable_plugins(enable_plugins),
-   owned_gtid_set(&global_sid_map),
+   owned_gtid_set(global_sid_map),
    main_da(0, false),
    m_stmt_da(&main_da)
 {
@@ -908,6 +959,8 @@ THD::THD(bool enable_plugins)
   mysys_var=0;
   binlog_evt_union.do_union= FALSE;
   enable_slow_log= 0;
+  commit_error= 0;
+  durability_property= HA_REGULAR_DURABILITY;
 #ifndef DBUG_OFF
   dbug_sentry=THD_SENTRY_MAGIC;
 #endif
@@ -919,9 +972,10 @@ THD::THD(bool enable_plugins)
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
   cleanup_done= abort_on_warning= 0;
+  m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
   transaction.m_pending_rows_event= 0;
-  transaction.on= 1;
+  transaction.flags.enabled= true;
 #ifdef SIGNAL_WITH_VIO_CLOSE
   active_vio = 0;
 #endif
@@ -943,7 +997,7 @@ THD::THD(bool enable_plugins)
 #if defined(ENABLED_PROFILING)
   profiling.set_thd(this);
 #endif
-  user_connect=(USER_CONN *)0;
+  m_user_connect= NULL;
   my_hash_init(&user_vars, system_charset_info, USER_VARS_HASH_SIZE, 0, 0,
                (my_hash_get_key) get_var_key,
                (my_hash_free_key) free_user_var, 0);
@@ -976,6 +1030,9 @@ THD::THD(bool enable_plugins)
 
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
+#ifndef DBUG_OFF
+  gis_debug= 0;
+#endif
 }
 
 
@@ -1301,6 +1358,9 @@ void THD::init(void)
   update_lock_default= (variables.low_priority_updates ?
 			TL_WRITE_LOW_PRIORITY :
 			TL_WRITE);
+  insert_lock_default= (variables.low_priority_updates ?
+                        TL_WRITE_LOW_PRIORITY :
+                        TL_WRITE_CONCURRENT_INSERT);
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   tx_read_only= variables.tx_read_only;
   update_charset();
@@ -1369,9 +1429,9 @@ void THD::init_for_queries(Relay_log_info *rli)
 
 void THD::change_user(void)
 {
-  mysql_mutex_lock(&LOCK_status);
+  mysql_rwlock_wrlock(&LOCK_status);
   add_to_status(&global_status_var, &status_var);
-  mysql_mutex_unlock(&LOCK_status);
+  mysql_rwlock_unlock(&LOCK_status);
 
   cleanup();
   killed= NOT_KILLED;
@@ -1386,8 +1446,10 @@ void THD::change_user(void)
 }
 
 
-/* Do operations that may take a long time */
-
+/*
+  Do what's needed when one invokes change user.
+  Also used during THD::release_resources, i.e. prior to THD destruction.
+*/
 void THD::cleanup(void)
 {
   DBUG_ENTER("THD::cleanup");
@@ -1444,8 +1506,56 @@ void THD::cleanup(void)
     ull= NULL;
   }
 
+  /*
+    Actions above might generate events for the binary log, so we
+    commit the current transaction coordinator after executing cleanup
+    actions.
+   */
+  if (tc_log)
+    tc_log->commit(this, true);
+
   cleanup_done=1;
   DBUG_VOID_RETURN;
+}
+
+
+/**
+  Release most resources, prior to THD destruction.
+ */
+void THD::release_resources()
+{
+  mysql_mutex_assert_not_owner(&LOCK_thread_count);
+  DBUG_ASSERT(m_release_resources_done == false);
+
+  mysql_rwlock_wrlock(&LOCK_status);
+  add_to_status(&global_status_var, &status_var);
+  mysql_rwlock_unlock(&LOCK_status);
+
+  /* Ensure that no one is using THD */
+  mysql_mutex_lock(&LOCK_thd_data);
+
+  /* Close connection */
+#ifndef EMBEDDED_LIBRARY
+  if (net.vio)
+  {
+    vio_delete(net.vio);
+    net_end(&net);
+    net.vio= NULL;
+  }
+#endif
+  mysql_mutex_unlock(&LOCK_thd_data);
+
+  stmt_map.reset();                     /* close all prepared statements */
+  if (!cleanup_done)
+    cleanup();
+
+  mdl_context.destroy();
+  ha_close_connection(this);
+  mysql_audit_release(this);
+  if (m_enable_plugins)
+    plugin_thdvar_cleanup(this);
+
+  m_release_resources_done= true;
 }
 
 
@@ -1456,32 +1566,8 @@ THD::~THD()
   DBUG_ENTER("~THD()");
   DBUG_PRINT("info", ("THD dtor, this %p", this));
 
-  /* Ensure that no one is using THD */
-  mysql_mutex_lock(&LOCK_thd_data);
-  mysys_var=0;					// Safety (shouldn't be needed)
-  mysql_mutex_unlock(&LOCK_thd_data);
-
-  mysql_mutex_lock(&LOCK_status);
-  add_to_status(&global_status_var, &status_var);
-  mysql_mutex_unlock(&LOCK_status);
-
-  /* Close connection */
-#ifndef EMBEDDED_LIBRARY
-  if (net.vio)
-  {
-    vio_delete(net.vio);
-    net_end(&net);
-  }
-#endif
-  stmt_map.reset();                     /* close all prepared statements */
-  if (!cleanup_done)
-    cleanup();
-
-  mdl_context.destroy();
-  ha_close_connection(this);
-  mysql_audit_release(this);
-  if (m_enable_plugins)
-    plugin_thdvar_cleanup(this);
+  if (!m_release_resources_done)
+    release_resources();
 
   clear_next_event_pos();
 
@@ -1719,8 +1805,10 @@ void THD::disconnect()
 #endif
 
   /* Disconnect even if a active vio is not associated. */
-  if (net.vio != vio)
+  if (net.vio != vio && net.vio != NULL)
+  {
     vio_close(net.vio);
+  }
 
   mysql_mutex_unlock(&LOCK_thd_data);
 }
@@ -1791,6 +1879,7 @@ bool THD::store_globals()
     threads local storage with key THR_KEY_mysys. 
   */
   mysys_var=my_thread_var;
+  DBUG_PRINT("debug", ("mysys_var: 0x%llx", (ulonglong) mysys_var));
   /*
     Let mysqld define the thread id (not mysys)
     This allows us to move THD to different threads if needed.
@@ -3003,45 +3092,82 @@ bool select_max_min_finder_subselect::send_data(List<Item> &items)
   DBUG_RETURN(0);
 }
 
+/**
+  Compare two floating point numbers for MAX or MIN.
+
+  Compare two numbers and decide if the number should be cached as the
+  maximum/minimum number seen this far. If fmax==true, this is a
+  comparison for MAX, otherwise it is a comparison for MIN.
+
+  val1 is the new numer to compare against the current
+  maximum/minimum. val2 is the current maximum/minimum.
+
+  ignore_nulls is used to control behavior when comparing with a NULL
+  value. If ignore_nulls==false, the behavior is to store the first
+  NULL value discovered (i.e, return true, that it is larger than the
+  current maximum) and never replace it. If ignore_nulls==true, NULL
+  values are not stored. ANY subqueries use ignore_nulls==true, ALL
+  subqueries use ignore_nulls==false.
+
+  @retval true if the new number should be the new maximum/minimum.
+  @retval false if the maximum/minimum should stay unchanged.
+ */
 bool select_max_min_finder_subselect::cmp_real()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   double val1= cache->val_real(), val2= maxmin->val_real();
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) ? (val1 > val2) : (val1 < val2);
+  /*
+    If we're ignoring NULLs and the current maximum/minimum is NULL
+    (must have been placed there as the first value iterated over) and
+    the new value is not NULL, return true so that a new, non-NULL
+    maximum/minimum is set. Otherwise, return false to keep the
+    current non-NULL maximum/minimum.
+
+    If we're not ignoring NULLs and the current maximum/minimum is not
+    NULL, return true to store NULL. Otherwise, return false to keep
+    the NULL we've already got.
+  */
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) ? (val1 > val2) : (val1 < val2);
 }
 
+/**
+  Compare two integer numbers for MAX or MIN.
+
+  @see select_max_min_finder_subselect::cmp_real()
+*/
 bool select_max_min_finder_subselect::cmp_int()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   longlong val1= cache->val_int(), val2= maxmin->val_int();
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) ? (val1 > val2) : (val1 < val2);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) ? (val1 > val2) : (val1 < val2);
 }
 
+/**
+  Compare two decimal numbers for MAX or MIN.
+
+  @see select_max_min_finder_subselect::cmp_real()
+*/
 bool select_max_min_finder_subselect::cmp_decimal()
 {
   Item *maxmin= ((Item_singlerow_subselect *)item)->element_index(0);
   my_decimal cval, *cvalue= cache->val_decimal(&cval);
   my_decimal mval, *mvalue= maxmin->val_decimal(&mval);
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) 
-      ? (my_decimal_cmp(cvalue,mvalue) > 0)
-      : (my_decimal_cmp(cvalue,mvalue) < 0);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) 
+    ? (my_decimal_cmp(cvalue,mvalue) > 0)
+    : (my_decimal_cmp(cvalue,mvalue) < 0);
 }
 
+/**
+  Compare two strings for MAX or MIN.
+
+  @see select_max_min_finder_subselect::cmp_real()
+*/
 bool select_max_min_finder_subselect::cmp_str()
 {
   String *val1, *val2, buf1, buf2;
@@ -3052,14 +3178,11 @@ bool select_max_min_finder_subselect::cmp_str()
   */
   val1= cache->val_str(&buf1);
   val2= maxmin->val_str(&buf1);
-  if (cache->null_value)
-    return false;
-  else if (maxmin->null_value)
-    return true;
-  else 
-    return (fmax) 
-      ? (sortcmp(val1, val2, cache->collation.collation) > 0)
-      : (sortcmp(val1, val2, cache->collation.collation) < 0);
+  if (cache->null_value || maxmin->null_value)
+    return (ignore_nulls) ? !(cache->null_value) : !(maxmin->null_value);
+  return (fmax) 
+    ? (sortcmp(val1, val2, cache->collation.collation) > 0)
+    : (sortcmp(val1, val2, cache->collation.collation) < 0);
 }
 
 bool select_exists_subselect::send_data(List<Item> &items)
@@ -3543,6 +3666,7 @@ void Security_context::init()
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   db_access= NO_ACCESS;
 #endif
+  password_expired= false; 
 }
 
 
@@ -3961,6 +4085,27 @@ extern "C" bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd)
   return sqlcom_can_generate_row_events(thd);
 }
 
+extern "C" enum durability_properties thd_get_durability_property(const MYSQL_THD thd)
+{
+  enum durability_properties ret= HA_REGULAR_DURABILITY;
+  
+  if (thd != NULL)
+    ret= thd->durability_property;
+
+  return ret;
+}
+
+/** Get the auto_increment_offset auto_increment_increment.
+Needed by InnoDB.
+@param thd	Thread object
+@param off	auto_increment_offset
+@param inc	auto_increment_increment */
+extern "C" void thd_get_autoinc(const MYSQL_THD thd, ulong* off, ulong* inc)
+{
+  *off = thd->variables.auto_increment_offset;
+  *inc = thd->variables.auto_increment_increment;
+}
+
 #ifndef EMBEDDED_LIBRARY
 extern "C" void thd_pool_wait_begin(MYSQL_THD thd, int wait_type);
 extern "C" void thd_pool_wait_end(MYSQL_THD thd);
@@ -4265,7 +4410,7 @@ void THD::inc_status_sort_range()
 
 void THD::inc_status_sort_rows(ha_rows count)
 {
-  statistic_add(status_var.filesort_rows, count, &LOCK_status);
+  statistic_add_rwlock(status_var.filesort_rows, count, &LOCK_status);
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_STATEMENT_CALL(inc_statement_sort_rows)(m_statement_psi, count);
 #endif
@@ -4557,3 +4702,87 @@ void THD::clear_next_event_pos()
   binlog_next_event_pos.file_name= NULL;
   binlog_next_event_pos.pos= 0;
 };
+
+void THD::set_user_connect(USER_CONN *uc)
+{
+  DBUG_ENTER("THD::set_user_connect");
+
+  m_user_connect= uc;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_user_connections_counter()
+{
+  DBUG_ENTER("THD::increment_user_connections_counter");
+
+  m_user_connect->connections++;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::decrement_user_connections_counter()
+{
+  DBUG_ENTER("THD::decrement_user_connections_counter");
+
+  DBUG_ASSERT(m_user_connect->connections > 0);
+  m_user_connect->connections--;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_con_per_hour_counter()
+{
+  DBUG_ENTER("THD::decrement_conn_per_hour_counter");
+
+  m_user_connect->conn_per_hour++;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_updates_counter()
+{
+  DBUG_ENTER("THD::increment_updates_counter");
+
+  m_user_connect->updates++;
+
+  DBUG_VOID_RETURN;
+}
+
+void THD::increment_questions_counter()
+{
+  DBUG_ENTER("THD::increment_updates_counter");
+
+  m_user_connect->questions++;
+
+  DBUG_VOID_RETURN;
+}
+
+/*
+  Reset per-hour user resource limits when it has been more than
+  an hour since they were last checked
+
+  SYNOPSIS:
+    time_out_user_resource_limits()
+
+  NOTE:
+    This assumes that the LOCK_user_conn mutex has been acquired, so it is
+    safe to test and modify members of the USER_CONN structure.
+*/
+void THD::time_out_user_resource_limits()
+{
+  mysql_mutex_assert_owner(&LOCK_user_conn);
+  ulonglong check_time= start_utime;
+  DBUG_ENTER("time_out_user_resource_limits");
+
+  /* If more than a hour since last check, reset resource checking */
+  if (check_time - m_user_connect->reset_utime >= LL(3600000000))
+  {
+    m_user_connect->questions=1;
+    m_user_connect->updates=0;
+    m_user_connect->conn_per_hour=0;
+    m_user_connect->reset_utime= check_time;
+  }
+
+  DBUG_VOID_RETURN;
+}

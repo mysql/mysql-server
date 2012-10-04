@@ -167,30 +167,13 @@ INSERT INTO t_03_03_temp VALUES(1);
 
 **** Dropping the connections
 **** We want to SHOW BINLOG EVENTS, to know what was logged. But there is no
-**** guarantee that logging of the terminated con1 has been done yet.a  To be 
-**** sure that logging has been done, we use a user lock.
+**** guarantee that logging of the terminated con_temp has been done yet. To
+**** be sure that logging has been done, we wait for binlog event after each
+**** disconnect.
 
 show status like 'Slave_open_temp_tables';
 Variable_name	Value
 Slave_open_temp_tables	10
-select get_lock("con_01",10);
-get_lock("con_01",10)
-1
-select get_lock("con_01",10);
-get_lock("con_01",10)
-1
-select get_lock("con_02",10);
-get_lock("con_02",10)
-1
-select get_lock("con_02",10);
-get_lock("con_02",10)
-1
-select get_lock("con_03",10);
-get_lock("con_03",10)
-1
-select get_lock("con_03",10);
-get_lock("con_03",10)
-1
 
 **** Checking the binary log and temporary tables
 

@@ -440,15 +440,16 @@ let $wait_statement= $statement;
 --echo # 4.1 SELECT/SET with a stored function which does not 
 --echo #     modify data and uses SELECT in its turn.
 --echo #
---echo # In theory there is no need to take row locks on the table
+--echo # There is no need to take row locks on the table
 --echo # being selected from in SF as the call to such function
---echo # won't get into the binary log. In practice, however, we
---echo # discover that fact too late in the process to be able to
---echo # affect the decision what locks should be taken.
---echo # Hence, strong locks are taken in this case.
+--echo # won't get into the binary log.
+--echo #
+--echo # However in practice innodb takes strong lock on tables
+--echo # being selected from within SF, when SF is called from
+--echo # non SELECT statements like 'set' statement below.
 let $statement= select f1();
 let $wait_statement= select i from t1 where i = 1 into j;
---source include/check_shared_row_lock.inc
+--source include/check_no_row_lock.inc
 let $statement= set @a:= f1();
 let $wait_statement= select i from t1 where i = 1 into j;
 --source include/check_shared_row_lock.inc
@@ -486,19 +487,21 @@ let $wait_statement= select i from t1 where i = 1 into k;
 --echo #      modify data and reads a table through subselect
 --echo #      in a control construct.
 --echo #
---echo # Again, in theory a call to this function won't get to the
---echo # binary log and thus no locking is needed. But in practice
---echo # we don't detect this fact early enough (get_lock_type_for_table())
---echo # to avoid taking row locks.
+--echo # Call to this function won't get to the
+--echo # binary log and thus no locking is needed.
+--echo #
+--echo # However in practice innodb takes strong lock on tables
+--echo # being selected from within SF, when SF is called from
+--echo # non SELECT statements like 'set' statement below.
 let $statement= select f3();
 let $wait_statement= $statement;
---source include/check_shared_row_lock.inc
+--source include/check_no_row_lock.inc
 let $statement= set @a:= f3();
 let $wait_statement= $statement;
 --source include/check_shared_row_lock.inc
 let $statement= select f4();
 let $wait_statement= $statement;
---source include/check_shared_row_lock.inc
+--source include/check_no_row_lock.inc
 let $statement= set @a:= f4();
 let $wait_statement= $statement;
 --source include/check_shared_row_lock.inc
@@ -539,19 +542,21 @@ let $wait_statement= insert into t2 values ((select i from t1 where i = 1) + 5);
 --echo #     doesn't modify data and reads tables through
 --echo #     a view.
 --echo #
---echo # Once again, in theory, calls to such functions won't
---echo # get into the binary log and thus don't need row
---echo # locks. But in practice this fact is discovered
---echo # too late to have any effect.
+--echo # Calls to such functions won't get into
+--echo # the binary log and thus don't need row locks.
+--echo #
+--echo # However in practice innodb takes strong lock on tables
+--echo # being selected from within SF, when SF is called from
+--echo # non SELECT statements like 'set' statement below.
 let $statement= select f6();
 let $wait_statement= select i from v1 where i = 1 into k;
---source include/check_shared_row_lock.inc
+--source include/check_no_row_lock.inc
 let $statement= set @a:= f6();
 let $wait_statement= select i from v1 where i = 1 into k;
 --source include/check_shared_row_lock.inc
 let $statement= select f7();
 let $wait_statement= select j from v2 where j = 1 into k;
---source include/check_shared_row_lock.inc
+--source include/check_no_row_lock.inc
 let $statement= set @a:= f7();
 let $wait_statement= select j from v2 where j = 1 into k;
 --source include/check_shared_row_lock.inc
@@ -592,12 +597,11 @@ let $wait_statement= update v2 set j=j+10 where j=1;
 --echo #      data and reads a table indirectly, by calling another
 --echo #      function.
 --echo #
---echo # In theory, calls to such functions won't get into the binary
---echo # log and thus don't need to acquire row locks. But in practice
---echo # this fact is discovered too late to have any effect.
+--echo # Calls to such functions won't get into the binary
+--echo # log and thus don't need to acquire row locks.
 let $statement= select f10();
 let $wait_statement= select i from t1 where i = 1 into j;
---source include/check_shared_row_lock.inc
+--source include/check_no_row_lock.inc
 
 --echo #
 --echo # 4.11 INSERT which uses a stored function which doesn't modify
@@ -676,12 +680,11 @@ let $wait_statement= select i from t1 where i = 1 into p;
 --echo # 5.3 SELECT that calls a function that doesn't modify data and
 --echo #     uses a CALL statement that reads a table via SELECT.
 --echo #
---echo # In theory, calls to such functions won't get into the binary
---echo # log and thus don't need to acquire row locks. But in practice
---echo # this fact is discovered too late to have any effect.
+--echo # Calls to such functions won't get into the binary
+--echo # log and thus don't need to acquire row locks.
 let $statement= select f15();
 let $wait_statement= select i from t1 where i = 1 into p;
---source include/check_shared_row_lock.inc
+--source include/check_no_row_lock.inc
 
 --echo #
 --echo # 5.4 INSERT which calls function which doesn't modify data and

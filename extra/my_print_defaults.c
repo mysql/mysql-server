@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,9 +27,11 @@
 #include <my_sys.h>
 #include <m_string.h>
 #include <my_getopt.h>
+#include "my_default.h"
 
 
 const char *config_file="my";			/* Default config file */
+static char *my_login_path;
 uint verbose= 0, opt_defaults_file_used= 0;
 const char *default_dbug_option="d:t:o,/tmp/my_print_defaults.trace";
 
@@ -79,8 +81,12 @@ static struct my_option my_long_options[] =
    &my_defaults_extra_file,
    &my_defaults_extra_file, 0, GET_STR,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"no-defaults", 'n', "Return an empty string (useful for scripts).",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"no-defaults", 'n', "Ignore reading of default option file(s), "
+   "except for login file.", 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"login-path", 'l', "Path to be read from under the login file.",
+   &my_login_path, &my_login_path, 0, GET_STR, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help message and exit.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Increase the output level",
@@ -116,7 +122,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
       opt_defaults_file_used= 1;
       break;
     case 'n':
-    exit(0);
+      break;
     case 'I':
     case '?':
     usage(0);
@@ -156,12 +162,13 @@ int main(int argc, char **argv)
   int count, error, args_used;
   char **load_default_groups, *tmp_arguments[6];
   char **argument, **arguments, **org_argv;
-  char *defaults, *extra_defaults, *group_suffix;
+  char *defaults, *extra_defaults, *group_suffix, *login_path;
+
   MY_INIT(argv[0]);
 
   org_argv= argv;
   args_used= get_defaults_options(argc, argv, &defaults, &extra_defaults,
-                                  &group_suffix);
+                                  &group_suffix, &login_path);
 
   /* Copy defaults-xxx arguments & program name */
   count=args_used+1;

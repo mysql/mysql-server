@@ -54,22 +54,19 @@ typedef pthread_cond_t		os_cond_t;
 
 /** Structure that includes Performance Schema Probe pfs_psi
 in the os_fast_mutex structure if UNIV_PFS_MUTEX is defined */
-typedef struct os_fast_mutex_struct {
+struct os_fast_mutex_t {
 	fast_mutex_t		mutex;	/*!< os_fast_mutex */
 #ifdef UNIV_PFS_MUTEX
 	struct PSI_mutex*	pfs_psi;/*!< The performance schema
 					instrumentation hook */
 #endif
-} os_fast_mutex_t;
+};
 
-
-/** Operating system event */
-typedef struct os_event_struct	os_event_struct_t;
 /** Operating system event handle */
-typedef os_event_struct_t*	os_event_t;
+typedef struct os_event*	os_event_t;
 
 /** An asynchronous signal sent between threads */
-struct os_event_struct {
+struct os_event {
 #ifdef __WIN__
 	HANDLE		handle;		/*!< kernel event object, slow,
 					used on older Windows */
@@ -84,7 +81,7 @@ struct os_event_struct {
 					the event becomes signaled */
 	os_cond_t	cond_var;	/*!< condition variable is used in
 					waiting for the event */
-	UT_LIST_NODE_T(os_event_struct_t) os_event_list;
+	UT_LIST_NODE_T(os_event_t) os_event_list;
 					/*!< list of all created events */
 };
 
@@ -94,13 +91,11 @@ struct os_event_struct {
 /** Return value of os_event_wait_time() when the time is exceeded */
 #define OS_SYNC_TIME_EXCEEDED   1
 
-/** Operating system mutex */
-typedef struct os_mutex_struct	os_mutex_str_t;
 /** Operating system mutex handle */
-typedef os_mutex_str_t*		os_mutex_t;
+typedef struct os_mutex_t*	os_ib_mutex_t;
 
 /** Mutex protecting counts and the event and OS 'slow' mutex lists */
-extern os_mutex_t	os_sync_mutex;
+extern os_ib_mutex_t	os_sync_mutex;
 
 /** This is incremented by 1 in os_thread_create and decremented by 1 in
 os_thread_exit */
@@ -207,10 +202,10 @@ os_event_wait_time_low(
 						os_event_reset(). */
 /*********************************************************//**
 Creates an operating system mutex semaphore. Because these are slow, the
-mutex semaphore of InnoDB itself (mutex_t) should be used where possible.
+mutex semaphore of InnoDB itself (ib_mutex_t) should be used where possible.
 @return	the mutex handle */
 UNIV_INTERN
-os_mutex_t
+os_ib_mutex_t
 os_mutex_create(void);
 /*=================*/
 /**********************************************************//**
@@ -219,21 +214,21 @@ UNIV_INTERN
 void
 os_mutex_enter(
 /*===========*/
-	os_mutex_t	mutex);	/*!< in: mutex to acquire */
+	os_ib_mutex_t	mutex);	/*!< in: mutex to acquire */
 /**********************************************************//**
 Releases ownership of a mutex. */
 UNIV_INTERN
 void
 os_mutex_exit(
 /*==========*/
-	os_mutex_t	mutex);	/*!< in: mutex to release */
+	os_ib_mutex_t	mutex);	/*!< in: mutex to release */
 /**********************************************************//**
 Frees an mutex object. */
 UNIV_INTERN
 void
 os_mutex_free(
 /*==========*/
-	os_mutex_t	mutex);	/*!< in: mutex to free */
+	os_ib_mutex_t	mutex);	/*!< in: mutex to free */
 /**********************************************************//**
 Acquires ownership of a fast mutex. Currently in Windows this is the same
 as os_fast_mutex_lock!

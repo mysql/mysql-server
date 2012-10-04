@@ -30,6 +30,8 @@ SELECT HEX(c1) FROM t5 ORDER BY c1;
 SELECT HEX(c1) FROM t5 WHERE c1 = b'1' ORDER BY c1;
 SELECT HEX(c1) FROM t5 WHERE c1 <=> b'1' ORDER BY c1;
 SELECT HEX(c1) FROM t5 WHERE c1 != b'1' ORDER BY c1;
+--echo # In the following queries the string is compared as ASCII when
+--echo # range access is used. See BUG#13727586.
 SELECT HEX(c1) FROM t5 WHERE c1 >= '1' ORDER BY c1;
 SELECT HEX(c1) FROM t5 WHERE c1 <= '1' ORDER BY c1;
 SELECT HEX(c1) FROM t5 WHERE c1 < '1' ORDER BY c1;

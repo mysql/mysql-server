@@ -115,6 +115,8 @@ disconnect session1;
 disconnect session2;
 connection default;
 DROP TABLE t1, t2;
+--error 0,1
+--rmdir $data_dir_path/test
 --rmdir $data_dir_path
 --rmdir $idx_dir_path
 DROP USER test_user_1;

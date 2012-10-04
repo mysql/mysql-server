@@ -58,6 +58,7 @@ col89 float unsigned zerofill DEFAULT NULL,
 col90 tinyblob
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1;
 Warnings:
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 Note	1291	Column 'col82' has duplicated value '' in ENUM
 Note	1291	Column 'col82' has duplicated value '' in ENUM
 INSERT INTO bug52745 SET
@@ -126,4 +127,4 @@ Warning	1265	Data truncated for column 'col79' at row 1
 Warning	1264	Out of range value for column 'col84' at row 1
 DROP TABLE bug52745;
 SET GLOBAL innodb_file_format=Antelope;
-SET GLOBAL innodb_file_per_table=0;
+SET GLOBAL innodb_file_per_table=1;

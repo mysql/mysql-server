@@ -30,7 +30,7 @@ extern bool pfs_initialized;
 extern ulonglong pfs_allocated_memory;
 
 #if defined(HAVE_POSIX_MEMALIGN) || defined(HAVE_MEMALIGN) || defined(HAVE_ALIGNED_MALLOC)
-#define PFS_ALIGNEMENT 128
+#define PFS_ALIGNEMENT 64
 #define PFS_ALIGNED MY_ALIGNED(PFS_ALIGNEMENT)
 #else
 /*

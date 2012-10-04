@@ -1395,7 +1395,7 @@ bool ha_federated::create_where_from_key(String *to,
           break;
         }
         DBUG_PRINT("info", ("federated HA_READ_AFTER_KEY %d", i));
-        if (store_length >= length) /* end key */
+        if ((store_length >= length) || (i > 0)) /* for all parts of end key*/
         {
           if (emit_key_part_name(&tmp, key_part))
             goto err;
@@ -1694,43 +1694,6 @@ int ha_federated::close(void)
     table->in_use->clear_error();
 
   DBUG_RETURN(free_share(share));
-}
-
-/*
-
-  Checks if a field in a record is SQL NULL.
-
-  SYNOPSIS
-    field_in_record_is_null()
-      table     TABLE pointer, MySQL table object
-      field     Field pointer, MySQL field object
-      record    char pointer, contains record
-
-    DESCRIPTION
-      This method uses the record format information in table to track
-      the null bit in record.
-
-    RETURN VALUE
-      1    if NULL
-      0    otherwise
-*/
-
-static inline uint field_in_record_is_null(TABLE *table,
-                                    Field *field,
-                                    char *record)
-{
-  int null_offset;
-  DBUG_ENTER("ha_federated::field_in_record_is_null");
-
-  if (!field->null_ptr)
-    DBUG_RETURN(0);
-
-  null_offset= (uint) ((char*)field->null_ptr - (char*)table->record[0]);
-
-  if (record[null_offset] & field->null_bit)
-    DBUG_RETURN(1);
-
-  DBUG_RETURN(0);
 }
 
 
@@ -2222,7 +2185,7 @@ int ha_federated::update_row(const uchar *old_data, uchar *new_data)
       size_t field_name_length= strlen((*field)->field_name);
       append_ident(&where_string, (*field)->field_name, field_name_length,
                    ident_quote_char);
-      if (field_in_record_is_null(table, *field, (char*) old_data))
+      if ((*field)->is_null_in_record(old_data))
         where_string.append(STRING_WITH_LEN(" IS NULL "));
       else
       {
@@ -2695,7 +2658,7 @@ int ha_federated::rnd_next_int(uchar *buf)
   format
 
   SYNOPSIS
-    field_in_record_is_null()
+    ha_federated::read_next()
       buf       byte pointer to record 
       result    mysql result set 
 

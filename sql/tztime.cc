@@ -44,6 +44,7 @@
 #include <m_string.h>
 #include <my_dir.h>
 #include <mysql/psi/mysql_file.h>
+#include "debug_sync.h"
 
 using std::min;
 
@@ -2330,6 +2331,7 @@ my_tz_find(THD *thd, const String *name)
 
       tz_init_table_list(tz_tables);
       init_mdl_requests(tz_tables);
+      DEBUG_SYNC(thd, "my_tz_find");
       if (!open_system_tables_for_read(thd, tz_tables,
                                        &open_tables_state_backup))
       {

@@ -234,8 +234,8 @@ trx_roll_savepoints_free(
 					if this is NULL, free all savepoints
 					of trx */
 
-/** A cell of trx_undo_arr_struct; used during a rollback and a purge */
-struct	trx_undo_inf_struct{
+/** A cell of trx_undo_arr_t; used during a rollback and a purge */
+struct	trx_undo_inf_t{
 	ibool		in_use;	/*!< true if cell is being used */
 	trx_id_t	trx_no;	/*!< transaction number: not defined during
 				a rollback */
@@ -245,7 +245,7 @@ struct	trx_undo_inf_struct{
 /** During a rollback and a purge, undo numbers of undo records currently being
 processed are stored in this array */
 
-struct trx_undo_arr_struct{
+struct trx_undo_arr_t{
 	ulint		n_cells;	/*!< number of cells in the array */
 	ulint		n_used;		/*!< number of cells in use */
 	trx_undo_inf_t*	infos;		/*!< the array of undo infos */
@@ -262,7 +262,7 @@ enum roll_node_state {
 };
 
 /** Rollback command node in a query graph */
-struct roll_node_struct{
+struct roll_node_t{
 	que_common_t		common;	/*!< node type: QUE_NODE_ROLLBACK */
 	enum roll_node_state	state;	/*!< node execution state */
 	ibool			partial;/*!< TRUE if we want a partial
@@ -274,7 +274,7 @@ struct roll_node_struct{
 };
 
 /** A savepoint set with SQL's "SAVEPOINT savepoint_id" command */
-struct trx_named_savept_struct{
+struct trx_named_savept_t{
 	char*		name;		/*!< savepoint name */
 	trx_savept_t	savept;		/*!< the undo number corresponding to
 					the savepoint */

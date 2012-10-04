@@ -32,7 +32,7 @@ FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 INSERT INTO v1 VALUES (11);
 eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
+--echo # 2 locks (1 table, all partitions pruned)
 FLUSH STATUS;
 --sorted_result
 SELECT * FROM v1;
@@ -55,7 +55,7 @@ FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 INSERT INTO v1 VALUES (21);
 eval $get_handler_status_counts;
---echo # 4 locks (1 table, 1 partition lock/unlock)
+--echo # 2 locks (1 table, all partitions pruned)
 --sorted_result
 SELECT * FROM v1;
 --sorted_result
@@ -71,6 +71,7 @@ FLUSH STATUS;
 --error ER_VIEW_CHECK_FAILED
 INSERT INTO v1 VALUES (31);
 eval $get_handler_status_counts;
+--echo # 2 locks (1 table, all partitions pruned)
 FLUSH STATUS;
 --error ER_VIEW_CHECK_FAILED
 INSERT INTO v1 VALUES (32);
@@ -127,17 +128,17 @@ SHOW CREATE TABLE t1 PARTITION (subp0);
 --echo # Not a correct partition list
 --error ER_PARSE_ERROR
 INSERT INTO t1 PARTITION () VALUES (1, "error");
---error ER_NO_SUCH_PARTITION
+--error ER_UNKNOWN_PARTITION
 INSERT INTO t1 PARTITION (pNonExisting) VALUES (1, "error");
---error ER_NO_SUCH_PARTITION
+--error ER_UNKNOWN_PARTITION
 INSERT INTO t1 PARTITION (pNeg, pNonExisting) VALUES (1, "error");
 --echo # Duplicate partitions and overlapping partitions and subpartitios is OK
 FLUSH STATUS;
 INSERT INTO t1 PARTITION (pNeg, pNeg) VALUES (-1, "pNeg(-subp1)");
 eval $get_handler_status_counts;
 --echo # Should be 1 commit
---echo # 6 external locks
---echo # (1 ha_partition + 2 ha_innobase) x 2 (lock + unlock)
+--echo # 4 external locks (due to pruning of locks)
+--echo # (1 ha_partition + 1 ha_innobase) x 2 (lock + unlock)
 --echo # and 18 write (1 ha_innobase + 17 internal I_S write)
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-3, "pNeg(-subp1)");
 INSERT INTO t1 PARTITION (pNeg, subp0) VALUES (-2, "(pNeg-)subp0");
@@ -184,12 +185,18 @@ INSERT INTO t1 PARTITION (`p100-99999`) VALUES (1000000, "error"), (9999999, "er
 INSERT INTO t1 PARTITION (pNeg, subp4) VALUES (-7, "pNeg(-subp1)"), (-10, "pNeg(-subp0)"), (-1, "pNeg(-subp1)"), (-99, "pNeg(-subp1)");
 
 SELECT * FROM t1 ORDER BY a;
+ANALYZE TABLE t1;
+
+SET @save_innodb_stats_on_metadata=@@global.innodb_stats_on_metadata;
+SET @@global.innodb_stats_on_metadata=ON;
 SELECT PARTITION_NAME, SUBPARTITION_NAME, TABLE_ROWS
 FROM INFORMATION_SCHEMA.PARTITIONS
 WHERE TABLE_SCHEMA = 'test'
 AND TABLE_NAME = 't1' ORDER BY SUBPARTITION_NAME;
+SET @@global.innodb_stats_on_metadata=@save_innodb_stats_on_metadata;
+
 FLUSH STATUS;
---error ER_NO_SUCH_PARTITION
+--error ER_UNKNOWN_PARTITION
 SELECT * FROM t1 PARTITION (pNonexistent);
 eval $get_handler_status_counts;
 --echo # should have failed before locking (only 17 internal I_S writes)
@@ -238,14 +245,14 @@ eval $get_handler_status_counts;
 --echo # + 18 write (internal I_S)
 SELECT * FROM t1 WHERE a = 1000000;
 eval $get_handler_status_counts;
---echo # No matching partition, only + 1 commit + internal I_S.
+--echo # No matching partition, only internal I_S.
 SELECT * FROM t1 PARTITION (pNeg) WHERE a = 100;
 UNLOCK TABLES;
 eval $get_handler_status_counts;
 --echo # + 18 for unlock (same as lock above) (100 is not in pNeg, no match)
 
 --echo # Test that EXPLAIN PARTITION works
---error ER_NO_SUCH_PARTITION
+--error ER_UNKNOWN_PARTITION
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (pNonexistent);
 EXPLAIN PARTITIONS SELECT * FROM t1 PARTITION (subp2);
 FLUSH STATUS;
@@ -272,8 +279,10 @@ FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 REPLACE INTO t1 PARTITION (subp0) VALUES (-21, 'Should fail!');
 eval $get_handler_status_counts;
---echo # 4 locks (1 ha_partition + 1 ha_innobase) x 2 (lock/unlock)
---echo # 1 rollback (failure)
+--echo # 2 locks (1 ha_partition) x 2 (lock/unlock), Was 4 locks before WL4443
+--echo # explicit pruning says part_id 0 and implicit pruning says part_id 1
+--echo # so no partition will be locked!
+--echo # 0 rollback (since no locked partition)
 --echo # 17 writes (I_S internal)
 FLUSH STATUS;
 REPLACE INTO t1 PARTITION (subp1) VALUES (-21, 'Insert by REPLACE');
@@ -313,7 +322,7 @@ REPLACE INTO t1 PARTITION (subp0) VALUES (-21, 'Should fail!');
 eval $get_handler_status_counts;
 --echo # Failed before start_stmt/execution.
 --echo # + 19 rnd next (internal I_S)
---echo # + 1 rollback (failed statement)
+--echo #   0 rollback (No partition had called start_stmt, all parts pruned)
 --echo # + 18 write (internal I_S)
 REPLACE INTO t1 PARTITION (pNeg) VALUES (-21, 'Insert by REPLACE');
 eval $get_handler_status_counts;
@@ -357,13 +366,13 @@ eval $get_handler_status_counts;
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg, `p10-99`;
 eval $get_handler_status_counts;
---echo # 18 locks (Note that locks all partitions!!!)
+--echo # 10 locks (table + 4 partition) x (lock + unlock)
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 LOAD DATA INFILE 'loadtest.txt' INTO TABLE t1 PARTITION (pNeg);
 eval $get_handler_status_counts;
---echo # 6 locks (1 ha_partiiton + 2 ha_innobase) x 2 (lock+unlock)
+--echo # 6 locks (1 ha_partition + 2 ha_innobase) x 2 (lock+unlock)
 --echo # 1 rollback
 SELECT * FROM t1 PARTITION (pNeg, `p10-99`);
 FLUSH STATUS;
@@ -396,20 +405,38 @@ eval $get_handler_status_counts;
 --echo # 2 read key (innobase_get_index from rnd_init +
 --echo #             read next row from second rnd_next)
 --echo # 1 update (update the row)
+EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated');
 SELECT * FROM t1 PARTITION (subp0) ORDER BY a;
 FLUSH STATUS;
-UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
+UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
 eval $get_handler_status_counts;
 --echo # 1 commit
 --echo # 4 lock
---echo # nothing more since all partitions is pruned away.
+--echo # 1 read key
+--echo # 1 update
+EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = -2;
+FLUSH STATUS;
+UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2')
+WHERE a = -2;
+eval $get_handler_status_counts;
+--echo # 1 commit
+--echo # 4 lock
+--echo # 2 read key - (2 index read)
+--echo # 1 read rnd - rnd_pos
+--echo # 1 update
+EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET a = -4, b = concat(b, ', Updated from a = -2');
+FLUSH STATUS;
+UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
+eval $get_handler_status_counts;
+--echo # Nothing, since impossible PARTITION+WHERE clause.
+EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0) SET b = concat(b, ', Updated2') WHERE a = 100;
 FLUSH STATUS;
 UPDATE t1 PARTITION(subp0) SET a = -2, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
 eval $get_handler_status_counts;
---echo # 1 commit
---echo # 4 lock
---echo # nothing more since all partitions is pruned away.
+--echo # Nothing, since impossible PARTITION+WHERE clause.
+EXPLAIN PARTITIONS UPDATE t1 PARTITION(subp0)
+SET a = -2, b = concat(b, ', Updated from a = 100') WHERE a = 100;
 FLUSH STATUS;
 --error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
 UPDATE t1 PARTITION(`p100-99999`) SET a = -2, b = concat(b, ', Updated from a = 100')
@@ -421,7 +448,7 @@ eval $get_handler_status_counts;
 --echo # 1 rollback
 FLUSH STATUS;
 --error ER_DUP_ENTRY,ER_DUP_KEY
-UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -2, b = concat(b, ', Updated from a = 100')
+UPDATE t1 PARTITION(`p100-99999`, pNeg) SET a = -4, b = concat(b, ', Updated from a = 100')
 WHERE a = 100;
 eval $get_handler_status_counts;
 --echo # 10 locks
@@ -444,11 +471,11 @@ SELECT * FROM t1 ORDER BY a;
 FLUSH STATUS;
 UPDATE t1 SET b = concat(b, ', Updated2') WHERE a = 1000000;
 eval $get_handler_status_counts;
---echo # only 18 lock and 1 commit (no matching partition found, but no pruning)
+--echo # Nothing (no matching partition found)
 FLUSH STATUS;
 UPDATE t1 PARTITION (pNeg) SET b = concat(b, ', Updated2') WHERE a = 1000000;
 eval $get_handler_status_counts;
---echo # only 6 lock and 1 commit (no matching partition found, with pruning)
+--echo # Nothing (no matching partition found)
 FLUSH STATUS;
 LOCK TABLE t1 WRITE;
 eval $get_handler_status_counts;
@@ -476,8 +503,8 @@ FLUSH STATUS;
 DELETE FROM t1 PARTITION (pNeg) WHERE a = -1;
 eval $get_handler_status_counts;
 --echo # 1 delete
---echo # 6 locks
---echo # 2 read key (index init + index read)
+--echo # 4 locks (pruning works!).
+--echo # 1 read key (index read)
 FLUSH STATUS;
 DELETE FROM t1 PARTITION (subp1) WHERE b like '%subp1%';
 eval $get_handler_status_counts;
@@ -505,15 +532,33 @@ eval $get_handler_status_counts;
 
 --echo # Test multi-table DELETE
 --echo # Can be expressed in two different ways.
-FLUSH STATUS;
 CREATE TABLE t2 LIKE t1;
+FLUSH STATUS;
+INSERT INTO t2 PARTITION (`p10-99`, subp3, `p100-99999`) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 eval $get_handler_status_counts;
+--echo # 24 locks (2 table, 5 + 5 subpartitions lock/unlock)
+FLUSH STATUS;
+ALTER TABLE t2 TRUNCATE PARTITION `p10-99`, `p0-9`, `p100-99999`;
+eval $get_handler_status_counts;
+--echo # 14 locks (1 table, 6 subpartitions lock/unlock)
+FLUSH STATUS;
+--error ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET
+INSERT INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
+eval $get_handler_status_counts;
+--echo # 16 locks (2 tables, 1 + 5 subpartitions lock/unlock)
+FLUSH STATUS;
+INSERT IGNORE INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
+eval $get_handler_status_counts;
+--echo # 16 locks (2 tables, 1 + 5 subpartitions lock/unlock)
+TRUNCATE TABLE t2;
 FLUSH STATUS;
 INSERT INTO t2 SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
 eval $get_handler_status_counts;
+--echo # 30 locks (2 table, 8 + 5 subpartitions lock/unlock)
 FLUSH STATUS;
 CREATE TABLE t3 SELECT * FROM t1 PARTITION (pNeg,subp3,`p100-99999`);
 eval $get_handler_status_counts;
+--echo # 14 locks (2 table, 5 subpartitions lock/unlock)
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
 SHOW CREATE TABLE t2;
@@ -568,7 +613,7 @@ TRUNCATE TABLE t1 PARTITION(`p10-99`);
 FLUSH STATUS;
 ALTER TABLE t1 TRUNCATE PARTITION pNeg;
 eval $get_handler_status_counts;
---echo # 18 locks (Since ALTER, no lock pruning, the same with TRUNCATE...)
+--echo # 6 locks (lock/unlock two subpartitions + table)
 
 --echo # Test on non partitioned table
 --error ER_PARTITION_CLAUSE_ON_NONPARTITIONED
@@ -601,7 +646,7 @@ SELECT * FROM t1 PARTITION (p1);
 SELECT * FROM t1 PARTITION (p2);
 SELECT * FROM t1 PARTITION (p3);
 SELECT * FROM t1 PARTITION (p3) WHERE id = 2;
---error ER_NO_SUCH_PARTITION
+--error ER_UNKNOWN_PARTITION
 SELECT * FROM t1 PARTITION (foo);
 
 # now try indexes
@@ -625,7 +670,7 @@ SELECT * FROM t2 PARTITION (p2);
 SELECT * FROM t2 PARTITION (p3);
 SELECT * FROM t2 PARTITION (p3) ORDER BY id;
 SELECT * FROM t2 PARTITION (p3) WHERE id = 2;
---error ER_NO_SUCH_PARTITION
+--error ER_UNKNOWN_PARTITION
 SELECT * FROM t2 PARTITION (foo);
 
 
@@ -794,6 +839,22 @@ SELECT * FROM t1;
 --sorted_result
 SELECT * FROM t1 PARTITION (p2);
 
+DROP TABLE t1;
+
+--echo #
+--echo # Test explicit partition selection on a non partitioned temp table
+--echo #
+CREATE TEMPORARY TABLE t1 (a INT);
+--error ER_PARTITION_CLAUSE_ON_NONPARTITIONED
+SELECT * FROM t1 PARTITION(pNonexisting);
+DROP TEMPORARY TABLE t1;
+
+--echo #
+--echo # Test CREATE LIKE does not take PARTITION clause
+--echo #
+CREATE TABLE t1 (a INT) PARTITION BY HASH (a) PARTITIONS 3;
+--error ER_PARSE_ERROR
+CREATE TABLE t2 LIKE t1 PARTITION (p0, p2);
 DROP TABLE t1;
 
 SET @@default_storage_engine = @old_default_storage_engine;

@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -166,6 +166,7 @@ our $exe_mysqldump;
 our $exe_mysqlslap;
 our $exe_mysqlimport;
 our $exe_mysqlshow;
+our $exe_mysql_config_editor;
 our $file_mysql_fix_privilege_tables;
 our $exe_mysqltest;
 our $exe_ndbd;
@@ -1660,6 +1661,8 @@ sub executable_setup () {
   $exe_mysqlbinlog=    mtr_exe_exists("$path_client_bindir/mysqlbinlog");
   $exe_mysqladmin=     mtr_exe_exists("$path_client_bindir/mysqladmin");
   $exe_mysql=          mtr_exe_exists("$path_client_bindir/mysql");
+  $exe_mysql_config_editor=
+                       mtr_exe_exists("$path_client_bindir/mysql_config_editor");
 
   if (!$opt_extern)
   {
@@ -2098,6 +2101,20 @@ sub environment_setup () {
       " --debug=d:t:A,$path_vardir_trace/log/mysqlshow.trace";
   }
   $ENV{'MYSQL_SHOW'}= $cmdline_mysqlshow;
+
+  # ----------------------------------------------------
+  # Setup env so childs can execute mysql_config_editor
+  # ----------------------------------------------------
+  my $cmdline_mysql_config_editor=
+    mtr_native_path($exe_mysql_config_editor) . " ";
+
+  if ( $opt_debug )
+  {
+    $cmdline_mysql_config_editor .=
+      " --debug=d:t:A,$path_vardir_trace/log/mysql_config_editor.trace";
+  }
+  $ENV{'MYSQL_CONFIG_EDITOR'}= $cmdline_mysql_config_editor;
+
 
   # ----------------------------------------------------
   # Setup env so childs can execute mysqlbinlog

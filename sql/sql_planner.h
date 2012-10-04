@@ -50,8 +50,9 @@ public:
     prune_level(thd->variables.optimizer_prune_level),
     thd(thd), join(join),
     cur_embedding_map(0), emb_sjm_nest(sjm_nest),
-    excluded_tables(sjm_nest ?
-                    (join->all_table_map & ~sjm_nest->sj_inner_tables) : 0)
+    excluded_tables((sjm_nest ?
+                     (join->all_table_map & ~sjm_nest->sj_inner_tables) : 0) |
+                    (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT))
   {}
   ~Optimize_table_order()
   {}

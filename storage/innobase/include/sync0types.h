@@ -26,9 +26,6 @@ Created 9/5/1995 Heikki Tuuri
 #ifndef sync0types_h
 #define sync0types_h
 
-/** Rename mutex_t to avoid name space collision on some systems */
-#define mutex_t ib_mutex_t
-/** InnoDB mutex */
-typedef struct mutex_struct		mutex_t;
+struct ib_mutex_t;
 
 #endif

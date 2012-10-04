@@ -21,7 +21,9 @@ usage = """
 This is from WL#5257 "first API for optimizer trace".
 
 Usage:
-  %s <a_file> <another_file> <etc>
+  %s [-q] <a_file> <another_file> <etc>
+
+    -q      quiet mode: only display errors and warnings.
 
 It will verify that all optimizer traces of files (usually a_file
 is a .result or .reject file which contains
@@ -30,9 +32,13 @@ they contain no duplicates keys.
 Exit code is 0 if all ok.
 """ % sys.argv[0]
 
-if len(sys.argv) < 2:
+input_files = filter(lambda x: x != '-q', sys.argv[1:]) # filter out "-q" options
+
+if not input_files:
     print usage
     sys.exit(1)
+
+quiet = len(input_files) < len(sys.argv) - 1 # command line contains at least one "-q" option
 
 import json, re
 
@@ -73,7 +79,8 @@ def check(trace, first_trace_line):
         retcode = 1
         print
         return
-    print "ok at line", first_trace_line
+    if not quiet:
+        print "ok at line", first_trace_line
 
 def handle_one_file(name):
     if ignorable_re.match(name):
@@ -103,7 +110,7 @@ def handle_one_file(name):
 
 retcode=0
 ignored=[]
-for f in sys.argv[1:]:
+for f in input_files:
     handle_one_file(f)
     print
 if ignored:

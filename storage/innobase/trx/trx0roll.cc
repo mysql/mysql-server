@@ -214,7 +214,7 @@ trx_rollback_for_mysql(
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_PREPARED:
-		assert_trx_in_rw_list(trx);
+		ut_ad(!trx_is_autocommit_non_locking(trx));
 		return(trx_rollback_for_mysql_low(trx));
 
 	case TRX_STATE_COMMITTED_IN_MEMORY:
@@ -806,6 +806,8 @@ DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
+	ut_ad(!srv_read_only_mode);
+
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(trx_rollback_clean_thread_key);
 #endif /* UNIV_PFS_THREAD */

@@ -317,8 +317,13 @@ int my_rw_unlock(my_rw_lock_t *rwp)
     return srw_unlock(rwp);
 #endif
 
-  DBUG_PRINT("rw_unlock",
-	     ("state: %d waiters: %d", rwp->state, rwp->waiters));
+  /*
+    The DBUG api uses rw locks to protect global debug settings. Calling into
+    the DBUG api from here can cause a deadlock.
+  
+    DBUG_PRINT("rw_unlock", ("state: %d waiters: %d",
+               rwp->state, rwp->waiters));
+  */
   pthread_mutex_lock(&rwp->lock);
 
   DBUG_ASSERT(rwp->state != 0);

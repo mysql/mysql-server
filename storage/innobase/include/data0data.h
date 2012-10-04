@@ -35,7 +35,7 @@ Created 5/30/1994 Heikki Tuuri
 
 /** Storage for overflow data in a big record, that is, a clustered
 index record which needs external storage of data fields */
-typedef struct big_rec_struct		big_rec_t;
+struct big_rec_t;
 
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
@@ -288,19 +288,6 @@ dtuple_create(
 	ulint		n_fields)/*!< in: number of fields */
 	__attribute__((nonnull, malloc));
 
-/**********************************************************//**
-Wrap data fields in a tuple. The default value for number
-of fields used in record comparisons for this tuple is n_fields.
-@return	data tuple */
-UNIV_INLINE
-const dtuple_t*
-dtuple_from_fields(
-/*===============*/
-	dtuple_t*	tuple,		/*!< in: storage for data tuple */
-	const dfield_t*	fields,		/*!< in: fields */
-	ulint		n_fields)	/*!< in: number of fields */
-	__attribute__((nonnull, warn_unused_result));
-
 /*********************************************************************//**
 Sets number of fields used in a tuple. Normally this is set in
 dtuple_create, but if you want later to set it smaller, you can use this. */
@@ -493,7 +480,7 @@ dtuple_big_rec_free(
 /*######################################################################*/
 
 /** Structure for an SQL data field */
-struct dfield_struct{
+struct dfield_t{
 	void*		data;	/*!< pointer to data */
 	unsigned	ext:1;	/*!< TRUE=externally stored, FALSE=local */
 	unsigned	len:32;	/*!< data length; UNIV_SQL_NULL if SQL null */
@@ -501,7 +488,7 @@ struct dfield_struct{
 };
 
 /** Structure for an SQL data tuple of fields (logical record) */
-struct dtuple_struct {
+struct dtuple_t {
 	ulint		info_bits;	/*!< info bits of an index record:
 					the default is 0; this field is used
 					if an index record is built from
@@ -521,15 +508,13 @@ struct dtuple_struct {
 #ifdef UNIV_DEBUG
 	ulint		magic_n;	/*!< magic number, used in
 					debug assertions */
-/** Value of dtuple_struct::magic_n */
+/** Value of dtuple_t::magic_n */
 # define		DATA_TUPLE_MAGIC_N	65478679
 #endif /* UNIV_DEBUG */
 };
 
 /** A slot for a field in a big rec vector */
-typedef struct big_rec_field_struct	big_rec_field_t;
-/** A slot for a field in a big rec vector */
-struct big_rec_field_struct {
+struct big_rec_field_t {
 	ulint		field_no;	/*!< field number in record */
 	ulint		len;		/*!< stored data length, in bytes */
 	const void*	data;		/*!< stored data */
@@ -537,7 +522,7 @@ struct big_rec_field_struct {
 
 /** Storage format for overflow data in a big record, that is, a
 clustered index record which needs external storage of data fields */
-struct big_rec_struct {
+struct big_rec_t {
 	mem_heap_t*	heap;		/*!< memory heap from which
 					allocated */
 	ulint		n_fields;	/*!< number of stored fields */

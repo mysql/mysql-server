@@ -41,7 +41,7 @@ struct SysIndexCallback;
 
 extern ibool row_rollback_on_timeout;
 
-typedef struct row_prebuilt_struct row_prebuilt_t;
+struct row_prebuilt_t;
 
 /*******************************************************************//**
 Frees the blob heap in prebuilt when no longer needed. */
@@ -299,6 +299,18 @@ row_unlock_for_mysql(
 					to reposition the cursors. */
 	__attribute__((nonnull));
 /*********************************************************************//**
+Checks if a table name contains the string "/#sql" which denotes temporary
+tables in MySQL.
+@return true if temporary table */
+UNIV_INTERN
+bool
+row_is_mysql_tmp_table_name(
+/*========================*/
+	const char*	name) __attribute__((warn_unused_result));
+				/*!< in: table name in the form
+				'database/tablename' */
+
+/*********************************************************************//**
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
 @return	own: update node */
@@ -363,7 +375,8 @@ Creates a table for MySQL. If the name of the table ends in
 one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
-InnoDB will try to invoke mem_validate().
+InnoDB will try to invoke mem_validate(). On failure the transaction will
+be rolled back.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
@@ -372,7 +385,8 @@ row_create_table_for_mysql(
 	dict_table_t*	table,	/*!< in, own: table definition
 				(will be freed, or on DB_SUCCESS
 				added to the data dictionary cache) */
-	trx_t*		trx)	/*!< in/out: transaction */
+	trx_t*		trx,	/*!< in/out: transaction */
+	bool		commit)	/*!< in: if true, commit the transaction */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Does an index creation operation for MySQL. TODO: currently failure
@@ -473,7 +487,10 @@ row_drop_table_for_mysql(
 /*=====================*/
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: dictionary transaction handle */
-	bool		drop_db)/*!< in: true=dropping whole database */
+	bool		drop_db,/*!< in: true=dropping whole database */
+	bool		nonatomic = true)
+				/*!< in: whether it is permitted
+				to release and reacquire dict_operation_lock */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Drop all temporary tables during crash recovery. */
@@ -583,8 +600,7 @@ row format which is presented to the table handler in ha_innobase.
 This template struct is used to speed up row transformations between
 Innobase and MySQL. */
 
-typedef struct mysql_row_templ_struct mysql_row_templ_t;
-struct mysql_row_templ_struct {
+struct mysql_row_templ_t {
 	ulint	col_no;			/*!< column number of the column */
 	ulint	rec_field_no;		/*!< field number of the column in an
 					Innobase record in the current index;
@@ -639,7 +655,7 @@ struct mysql_row_templ_struct {
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
 
-struct row_prebuilt_struct {
+struct row_prebuilt_t {
 	ulint		magic_n;	/*!< this magic number is set to
 					ROW_PREBUILT_ALLOCATED when created,
 					or ROW_PREBUILT_FREED when the
@@ -724,6 +740,11 @@ struct row_prebuilt_struct {
 					columns in the table */
 	upd_node_t*	upd_node;	/*!< Innobase SQL update node used
 					to perform updates and deletes */
+	trx_id_t	trx_id;		/*!< The transaction id of the last
+					index of the table, when the insert
+					query graph was built. We use it for
+					checking whether the insert query
+					graphs needs to be rebuilt */
 	que_fork_t*	ins_graph;	/*!< Innobase SQL query graph used
 					in inserts */
 	que_fork_t*	upd_graph;	/*!< Innobase SQL query graph used
@@ -822,7 +843,7 @@ struct row_prebuilt_struct {
 					to this heap */
 	mem_heap_t*	old_vers_heap;	/*!< memory heap where a previous
 					version is built in consistent read */
-	fts_result_t*	result;		/* The result of an FTS query */
+	bool		in_fts_query;	/*!< Whether we are in a FTS query */
 	/*----------------------*/
 	ulonglong	autoinc_last_value;
 					/*!< last value of AUTO-INC interval */
@@ -849,7 +870,7 @@ struct row_prebuilt_struct {
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
 	/*----------------------*/
-	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API 
+	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API
 					query */
 	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
 };

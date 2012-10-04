@@ -688,7 +688,7 @@ trx_purge_get_rseg_with_min_trx_id(
 
 	/* We assume in purge of externally stored fields that space id is
 	in the range of UNDO tablespace space ids */
-	ut_a(purge_sys->rseg->space <= srv_undo_tablespaces);
+	ut_a(purge_sys->rseg->space <= srv_undo_tablespaces_open);
 
 	zip_size = purge_sys->rseg->zip_size;
 

@@ -3,10 +3,14 @@
 Creating connection con0
 Creating connection con1
 SET @global_delayed_insert_limit = @@GLOBAL.delayed_insert_limit;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 CREATE TABLE t1 (a VARCHAR(100),b VARCHAR(100),c VARCHAR(100));
 CREATE VIEW v1 as select * from t1;
 '#--------------------FN_DYNVARS_25_01-------------------------#'
 SET GLOBAL delayed_insert_limit = 14;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('1','1','1');
 INSERT INTO t1 VALUES('2','1','1');
 INSERT INTO t1 VALUES('3','1','1');
@@ -78,6 +82,8 @@ DROP VIEW v1;
 CREATE TABLE t1 (a VARCHAR(100));
 CREATE VIEW v1 AS SELECT * FROM t1;
 SET GLOBAL delayed_insert_limit = 20;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 INSERT INTO t1 VALUES('1');
 INSERT INTO t1 VALUES('2');
 INSERT INTO t1 VALUES('3');
@@ -125,4 +131,6 @@ COUNT(*) BETWEEN 6 AND 22
 DROP TABLE t1;
 DROP VIEW v1;
 SET @@GLOBAL.delayed_insert_limit = @global_delayed_insert_limit;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
 Disconnecting from con1, con0

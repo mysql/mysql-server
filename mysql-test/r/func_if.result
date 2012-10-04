@@ -225,4 +225,3 @@ foo
 0.1
 Warnings:
 Warning	1292	Truncated incorrect DOUBLE value: 'a'
-Warning	1292	Truncated incorrect DOUBLE value: 'a'

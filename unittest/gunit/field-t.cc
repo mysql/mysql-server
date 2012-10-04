@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,7 +43,7 @@ protected:
 };
 
 
-static void compareMysqlTime(const MYSQL_TIME& first, const MYSQL_TIME& second) 
+static void compareMysqlTime(const MYSQL_TIME& first, const MYSQL_TIME& second)
 {
   EXPECT_EQ(first.year, second.year);
   EXPECT_EQ(first.month, second.month);
@@ -82,7 +82,7 @@ public:
     t= *time;
     p= precision;
     return false;
-  }  
+  }
 
   void verify_time(MYSQL_TIME *time, uint precision)
   {
@@ -101,7 +101,7 @@ public:
   virtual bool store_decimal(const my_decimal *) { return false; }
   virtual bool store(const char *from, size_t length,
                      const CHARSET_INFO *cs) { return false; }
-  virtual bool store(const char *from, size_t length, 
+  virtual bool store(const char *from, size_t length,
                      const CHARSET_INFO *fromcs,
                      const CHARSET_INFO *tocs) { return false; }
   virtual bool store(float from, uint32 decimals, String *buffer) { return false; }
@@ -121,7 +121,7 @@ TEST_F(FieldTest, FieldTimef)
   uchar nullPtr[1]= {0};
   MYSQL_TIME time= {0, 0, 0, 12, 23, 12, 123400, false, MYSQL_TIMESTAMP_TIME};
 
-  Field_timef* field= new Field_timef(fieldBuf, nullPtr, false, Field::NONE, 
+  Field_timef* field= new Field_timef(fieldBuf, nullPtr, false, Field::NONE,
 				      "f1", 4);
   // Test public member functions
   EXPECT_EQ(4UL, field->decimals()); //TS-TODO
@@ -165,7 +165,7 @@ TEST_F(FieldTest, FieldTimef)
   EXPECT_EQ(0, field->reset());
   EXPECT_DOUBLE_EQ(0.0, field->val_real());
   EXPECT_EQ(0, field->val_int());
-  
+
   // Test inherited member functions
   // Functions inherited from Field_time_common
   field->store_time(&time, 4);
@@ -195,7 +195,7 @@ TEST_F(FieldTest, FieldTimef)
 
   Mock_protocol protocol(thd());
   EXPECT_FALSE(field->send_binary(&protocol));
-  // The verification below fails because send_binary move hours to days 
+  // The verification below fails because send_binary move hours to days
   // protocol.verify_time(&bigTime, 0);  // Why 0?
 
   // Function inherited from Field_temporal
@@ -203,23 +203,23 @@ TEST_F(FieldTest, FieldTimef)
   EXPECT_EQ(STRING_RESULT, field->result_type());
   EXPECT_EQ(15UL, field->max_display_length());
   EXPECT_TRUE(field->str_needs_quotes());
-  
+
   // Not testing is_equal() yet, will require a mock TABLE object
   //  Create_field cf(field, field);
   //  EXPECT_TRUE(field->is_equal(&cf));
-  
+
   EXPECT_EQ(DECIMAL_RESULT, field->numeric_context_result_type());
-  EXPECT_EQ(INT_RESULT, field->cmp_type());  
-  EXPECT_EQ(INT_RESULT, field->cmp_type());  
+  EXPECT_EQ(INT_RESULT, field->cmp_type());
+  EXPECT_EQ(INT_RESULT, field->cmp_type());
   EXPECT_EQ(DERIVATION_NUMERIC, field->derivation());
   EXPECT_EQ(&my_charset_numeric, field->charset());
   EXPECT_TRUE(field->can_be_compared_as_longlong());
   EXPECT_TRUE(field->binary());
   // Below is not tested, because of ASSERT
   // EXPECT_EQ(TIMESTAMP_NO_AUTO_SET, field->get_auto_set_type());
-  
+
   // Not testing make_field, it also needs a mock TABLE object
-  
+
   EXPECT_EQ(TYPE_OK, field->store("12:23:12.123456", 15, &my_charset_numeric));
   EXPECT_DOUBLE_EQ(122312.1235, field->val_real());
 
@@ -228,7 +228,7 @@ TEST_F(FieldTest, FieldTimef)
 
   EXPECT_EQ(TYPE_OK, field->store(-234545, false));
   EXPECT_DOUBLE_EQ(-234545.0, field->val_real());
-  
+
   {
     // Test that store() with a to big number gives right error
     Mock_error_handler error_handler(thd(), ER_TRUNCATED_WRONG_VALUE);
@@ -250,10 +250,10 @@ TEST_F(FieldTest, FieldTimef)
   EXPECT_STREQ("122312", f->val_int_as_str(&timeStr, false)->c_ptr());
   EXPECT_TRUE(f->eq(copy));
   EXPECT_TRUE(f->eq_def(copy));
-  
+
   // Not testing store(const char, uint, const CHARSET_INFO *, enum_check_fields)
   // it requires a mock table
-  
+
   Mock_table m_table(thd());
   f->table= &m_table;
   struct timeval tv;
@@ -280,19 +280,19 @@ TEST_F(FieldTest, FieldTimefCompare)
     {0, 0, 0,  0,  0,  0, 999990, false, MYSQL_TIMESTAMP_TIME},
     {0, 0, 0, 11, 59, 59, 999999, false, MYSQL_TIMESTAMP_TIME},
     {0, 0, 0, 12, 00, 00, 100000, false, MYSQL_TIMESTAMP_TIME}};
-    
+
   Field* fields[nFields];
   uchar sortStrings[nFields][6];
   for (int i=0; i < nFields; ++i)
   {
     char fieldName[3];
     sprintf(fieldName, "f%c", i);
-    fields[i]= new Field_timef(fieldBufs[i], nullPtrs+i, false, Field::NONE, 
+    fields[i]= new Field_timef(fieldBufs[i], nullPtrs+i, false, Field::NONE,
 			       fieldName, 6);
 
     longlong packed= TIME_to_longlong_packed(&times[i]);
     EXPECT_EQ(0, fields[i]->store_packed(packed));
-    fields[i]->sort_string(sortStrings[i], fields[i]->pack_length());
+    fields[i]->make_sort_key(sortStrings[i], fields[i]->pack_length());
   }
 
   for (int i=0; i < nFields; ++i)
@@ -301,29 +301,29 @@ TEST_F(FieldTest, FieldTimefCompare)
       String tmp;
       if (i < j)
       {
-	EXPECT_GT(0, memcmp(sortStrings[i], sortStrings[j], 
+	EXPECT_GT(0, memcmp(sortStrings[i], sortStrings[j],
 			    fields[i]->pack_length()))
-	  << fields[i]->val_str(&tmp)->c_ptr() << " < " 
-	  << fields[j]->val_str(&tmp)->c_ptr(); 
+	  << fields[i]->val_str(&tmp)->c_ptr() << " < "
+	  << fields[j]->val_str(&tmp)->c_ptr();
 	EXPECT_GT(0, fields[i]->cmp(fields[i]->ptr, fields[j]->ptr))
-	  << fields[i]->val_str(&tmp)->c_ptr() << " < " 
+	  << fields[i]->val_str(&tmp)->c_ptr() << " < "
 	  << fields[j]->val_str(&tmp)->c_ptr();
       }
       else if (i > j)
       {
 	EXPECT_LT(0, memcmp(sortStrings[i], sortStrings[j],
 			    fields[i]->pack_length()))
-	  << fields[i]->val_str(&tmp)->c_ptr() << " > " 
+	  << fields[i]->val_str(&tmp)->c_ptr() << " > "
 	  << fields[j]->val_str(&tmp)->c_ptr();
 	EXPECT_LT(0, fields[i]->cmp(fields[i]->ptr, fields[j]->ptr))
-	  << fields[i]->val_str(&tmp)->c_ptr() << " > " 
+	  << fields[i]->val_str(&tmp)->c_ptr() << " > "
 	  << fields[j]->val_str(&tmp)->c_ptr();
       }
       else
       {
 	EXPECT_EQ(0, memcmp(sortStrings[i], sortStrings[j],
 			    fields[i]->pack_length()))
-	  << fields[i]->val_str(&tmp)->c_ptr() << " = " 
+	  << fields[i]->val_str(&tmp)->c_ptr() << " = "
 	  << fields[j]->val_str(&tmp)->c_ptr();
 	EXPECT_EQ(0, fields[i]->cmp(fields[i]->ptr, fields[j]->ptr))
 	  << fields[i]->val_str(&tmp)->c_ptr() << " = "
@@ -402,6 +402,330 @@ TEST_F(FieldTest, CopyFieldSet)
 
   delete f_to->table;
   delete f_from->table;
+}
+
+
+/*
+  Tests that make_sort_key() is well behaved and does not cause buffer
+  overruns nor writes a too short key. We stop at the first error seen.
+
+  - field - The field whose make_sort_key() method we test.
+
+  - from - A buffer of size field->pack_length() that we will trick
+  the field into using as its record buffer.
+
+  - expected - A buffer of size field->pack_length() + 1, the first n
+  bytes of which make_sort_key() is expected to fill out. The n + 1:th
+  byte is expected to be untouched. We try all possible values of n.
+
+  - min_key_length - Some Field classes assert on a certain minimum
+    key length. To avoid that, pass the minimum length here.
+*/
+void test_make_sort_key(Field *field, uchar *from, const uchar *expected,
+                        int min_key_length)
+{
+  const uint pack_length= field->pack_length();
+  Fake_TABLE table(field);
+  table.s->db_low_byte_first= false;
+  field->ptr= from;
+
+  for (uint key_length= min_key_length; key_length <= pack_length; ++key_length)
+  {
+    uchar buff[MAX_FIELD_WIDTH + 1];
+    memset(buff, 'a', pack_length + 1);
+    field->make_sort_key(buff, key_length);
+
+    // Check for a too short key.
+    for (uint i= 0; i < key_length; ++i)
+      ASSERT_FALSE(buff[i] == 'a')
+        << "Too few bytes written at " << i
+        << " with buffer size " << key_length << ".";
+
+    // Check for wrong result
+    for (uint i= 0; i < key_length; ++i)
+      ASSERT_EQ(expected[i], buff[i])
+        << "Wrong output at " << i
+        << " with buffer size " << key_length
+        << " and pack length " << pack_length << ".";
+
+    EXPECT_EQ('a', buff[key_length])
+      << "Buffer overrun" << " with buffer size " << key_length << ".";
+  }
+
+  // Try key_length == pack_length
+  uchar buff[MAX_FIELD_WIDTH];
+  memset(buff, 'a', pack_length + 1);
+  field->make_sort_key(buff, pack_length);
+  EXPECT_EQ('a', buff[pack_length]) << "Buffer overrun";
+}
+
+
+// Convenience function for large values.
+void test_make_sort_key(Field *field)
+{
+  const int pack_length= field->pack_length();
+
+  uchar from[MAX_FIELD_WIDTH];
+  memset(from, 'b', pack_length);
+
+  uchar to[MAX_FIELD_WIDTH + 1];
+  memset(to, 'b', pack_length + 1);
+
+  test_make_sort_key(field, from, to, 1);
+}
+
+
+size_t mock_strnxfrm(const CHARSET_INFO *, uchar *, size_t, uint, const uchar *,
+                     size_t, uint);
+
+
+class Mock_collation : public MY_COLLATION_HANDLER
+{
+public:
+  Mock_collation() { strnxfrm= mock_strnxfrm; }
+};
+
+
+class Mock_charset : public CHARSET_INFO
+{
+  Mock_collation mock_collation;
+public:
+  mutable bool strnxfrm_called;
+  Mock_charset() { strnxfrm_called= false; coll= &mock_collation; mbmaxlen= 1; }
+  ~Mock_charset() { EXPECT_TRUE(strnxfrm_called); }
+};
+
+
+size_t mock_strnxfrm(const CHARSET_INFO *charset, uchar *, size_t dstlen, uint,
+                     const uchar *, size_t, uint)
+{
+  // CHARSET_INFO is not polymorphic, hence the abomination.
+  static_cast<const Mock_charset*>(charset)->strnxfrm_called= true;
+  return dstlen;
+};
+
+
+void test_integer_field(Field *field)
+{
+  uchar from[MAX_FIELD_WIDTH], expected[MAX_FIELD_WIDTH];
+  const int pack_length= field->pack_length();
+  for (int i= 0; i < pack_length; ++i)
+  {
+    from[i]= '0' + i;
+#ifdef WORDS_BIGENDIAN
+    expected[i]= '0' + i;
+#else
+    expected[pack_length - 1 - i]= '0' + i;
+#endif
+  }
+  test_make_sort_key(field, from, expected, pack_length);
+}
+
+// Tests all make_sort_key() implementations.
+
+// We keep the same order of classes here as in field.h in order to make it
+// easy to manually verify that all field types have been tested.
+
+TEST_F(FieldTest, MakeSortKey)
+{
+  {
+    SCOPED_TRACE("Field_decimal");
+    Field_decimal fd(NULL, 64, NULL, '\0', Field::NONE, "", 0, false, false);
+    test_make_sort_key(&fd);
+  }
+  {
+    SCOPED_TRACE("Field_new_decimal");
+    Field_new_decimal fnd(64, true, "", 0, false);
+    test_make_sort_key(&fnd);
+  }
+  {
+    SCOPED_TRACE("Field_tiny");
+    Field_tiny ft(NULL, 0, NULL, '\0', Field::NONE, "", false, true);
+    test_make_sort_key(&ft);
+  }
+  {
+    SCOPED_TRACE("Field_short");
+    Field_short fs(0,false, "", true);
+    test_integer_field(&fs);
+  }
+  {
+    SCOPED_TRACE("Field_long");
+    Field_long fl(0,false, "", true);
+    test_integer_field(&fl);
+  }
+  {
+    SCOPED_TRACE("Field_longlong");
+    Field_longlong fll(NULL, 64, NULL, '\0', Field::NONE, "", 0, true);
+    test_integer_field(&fll);
+  }
+  {
+    SCOPED_TRACE("Field_float");
+    Field_float ff(NULL, 0, NULL, '\0', Field::NONE, "", 0, false, false);
+    float from= 0.0;
+    uchar to []= { 128, 0, 0, 0 };
+    test_make_sort_key(&ff, reinterpret_cast<uchar*>(&from), to, 4);
+  }
+  {
+    SCOPED_TRACE("Field_double");
+    Field_double fd(NULL, 0, NULL, '\0', Field::NONE, "", 0, false, false);
+    double from= 0.0;
+    uchar expected []= { 128, 0, 0, 0, 0, 0, 0, 0 };
+    test_make_sort_key(&fd, reinterpret_cast<uchar*>(&from), expected, 1);
+  }
+  {
+    SCOPED_TRACE("Field_null");
+    CHARSET_INFO cs;
+    cs.state= MY_CHARSET_UNDEFINED; // Avoid valgrind warning.
+    Field_null fn(NULL, 0, Field::NONE, "", &cs);
+    test_make_sort_key(&fn);
+  }
+  {
+    SCOPED_TRACE("Field_timestamp");
+    Field_timestamp fts(false, "");
+    test_integer_field(&fts);
+  }
+  {
+    SCOPED_TRACE("Field_timestampf");
+    Field_timestampf
+      ftsf(NULL, NULL, 0, Field::NONE, "", DATETIME_MAX_DECIMALS);
+    test_make_sort_key(&ftsf);
+  }
+  {
+    SCOPED_TRACE("field_newdate");
+    Field_newdate fnd(false, "");
+    uchar from []= { '3', '2', '1' };
+    uchar expected []= { '1', '2', '3' };
+    test_make_sort_key(&fnd, from, expected, 3);
+  }
+  {
+    SCOPED_TRACE("Field_time");
+    Field_time ft(false, "");
+    uchar from []= { 3, 2, 1 };
+    uchar expected []= { 129, 2, 3 };
+    test_make_sort_key(&ft, from, expected, 3);
+  }
+  {
+    SCOPED_TRACE("Field_timef");
+    Field_timef ftf(false, "", 0);
+    test_make_sort_key(&ftf);
+  }
+  {
+    SCOPED_TRACE("Field_datetime");
+    Field_datetime fdt(NULL, NULL, '\0', Field::NONE, NULL);
+    test_integer_field(&fdt);
+  }
+  {
+    SCOPED_TRACE("Field_string");
+    Mock_charset mock_charset;
+    Field_string fs(NULL, 0, NULL, '\0', Field::NONE, "", &mock_charset);
+    uchar to;
+    fs.make_sort_key(&to, 666);
+  }
+  {
+    SCOPED_TRACE("Field_varstring");
+    Mock_charset mock_charset;
+    Fake_TABLE_SHARE fake_share(0);
+    uchar ptr= 0;
+    Field_varstring fvs(&ptr, 0, 0, NULL, '\0', Field::NONE, "", &fake_share,
+                        &mock_charset);
+    uchar to;
+    fvs.make_sort_key(&to, 666);
+  }
+  {
+    SCOPED_TRACE("Field_blob");
+    CHARSET_INFO cs;
+    cs.state= MY_CHARSET_UNDEFINED; // Avoid valgrind warning.
+    Field_blob fb(0, false, "", &cs);
+  }
+  {
+    SCOPED_TRACE("Field_enum");
+    for (int pack_length= 1; pack_length <= 8; ++pack_length)
+      for (int key_length= 1; key_length <= 8; ++key_length)
+      {
+        Field_enum fe(NULL, 0, NULL, '\0', Field::NONE, "", pack_length, NULL,
+                      &my_charset_bin);
+        uchar from []= { '1', '2', '3', '4', '5', '6', '7', '8' };
+        uchar expected []=
+#ifdef WORDS_BIGENDIAN
+          { '1', '2', '3', '4', '5', '6', '7', '8' };
+        test_make_sort_key(&fe, from, expected, key_length);
+#else
+          { '8', '7', '6', '5', '4', '3', '2', '1' };
+        test_make_sort_key(&fe, from, expected + 8 - pack_length, key_length);
+#endif
+      }
+  }
+  {
+    SCOPED_TRACE("Field_bit");
+    Field_bit fb(NULL, 0, NULL, '\0', NULL, '\0', Field::NONE, "");
+  }
+}
+
+
+void testCopyInteger(bool is_big_endian, bool is_unsigned)
+{
+  const uchar from_template[]= { '1', '2', '3', '4', '5', '6', '7', '8' },
+    expected_for_big_endian[]= { '1', '2', '3', '4', '5', '6', '7', '8' },
+      expected_for_little_endian[]= { '8', '7', '6', '5', '4', '3', '2', '1' };
+
+  const size_t max_length= sizeof(from_template);
+  for (uint from_length= 1; from_length < max_length; ++from_length)
+    for (uint to_length= 1; to_length <= from_length; ++to_length)
+    {
+      uchar to[]= { '0', '0', '0', '0', '0', '0', '0', '0', '0' };
+      uchar from[max_length];
+      memcpy(from, from_template, max_length);
+
+      if (is_big_endian)
+        copy_integer<true>(to, to_length, from, from_length, is_unsigned);
+      else
+        copy_integer<false>(to, to_length, from, from_length, is_unsigned);
+
+      EXPECT_EQ('0', to[to_length])
+        << "Buffer overrun @ position " << to_length << ".";
+
+      ASSERT_EQ(is_unsigned ? 0 : 128, to[0] & 128)
+        << "Sign bit should" << (is_unsigned ? " not" : "") << " be flipped";
+
+      const uchar *expected=
+        is_big_endian ? expected_for_big_endian :
+        expected_for_little_endian + max_length - from_length;
+
+      for (uint i= 1; i < to_length; ++i)
+      {
+        ASSERT_FALSE(to[i] == '\0')
+          << "Too few bytes written @ position " << i
+          << " when copying a size " << from_length << " integer into a size "
+          << to_length << " integer.";
+
+        ASSERT_EQ(expected[i], to[i])
+          << "Result differs at position " << i
+          << " when copying a size " << from_length << " integer into a size "
+          << to_length << " integer.";
+      }
+    }
+}
+
+
+// Test of the copy_integer<>() function.
+TEST_F(FieldTest, copyInteger)
+{
+  {
+    SCOPED_TRACE("Big endian unsigned");
+    testCopyInteger(true, true);
+  }
+  {
+    SCOPED_TRACE("Big endian signed");
+    testCopyInteger(true, false);
+  }
+  {
+    SCOPED_TRACE("Little endian unsigned");
+    testCopyInteger(false, true);
+  }
+  {
+    SCOPED_TRACE("Little endian signed");
+    testCopyInteger(false, false);
+  }
 }
 
 

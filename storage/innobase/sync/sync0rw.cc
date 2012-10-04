@@ -57,11 +57,11 @@ lock_word == 0:		       Write locked
 			       (-lock_word) is the number of readers
 			       that hold the lock.
 lock_word <= -X_LOCK_DECR:     Recursively write locked. lock_word has been
-			       decremented by X_LOCK_DECR once for each lock,
-			       so the number of locks is:
-			       ((-lock_word) / X_LOCK_DECR) + 1
-When lock_word <= -X_LOCK_DECR, we also know that lock_word % X_LOCK_DECR == 0:
-other values of lock_word are invalid.
+			       decremented by X_LOCK_DECR for the first lock
+			       and the first recursive lock, then by 1 for
+			       each recursive lock thereafter.
+			       So the number of locks is:
+			       (lock_copy == 0) ? 1 : 2 - (lock_copy + X_LOCK_DECR)
 
 The lock_word is always read and updated atomically and consistently, so that
 it always represents the state of the lock, and the state of the lock changes
@@ -124,11 +124,11 @@ wait_ex_event:	A thread may only wait on the wait_ex_event after it has
 		performed the following actions in order:
 		   (1) Decrement lock_word by X_LOCK_DECR.
 		   (2) Record counter value of wait_ex_event (os_event_reset,
-                       called from sync_array_reserve_cell).
+		       called from sync_array_reserve_cell).
 		   (3) Verify that lock_word < 0.
 		(1) must come first to ensures no other threads become reader
-                or next writer, and notifies unlocker that signal must be sent.
-                (2) must come before (3) to ensure the signal is not missed.
+		or next writer, and notifies unlocker that signal must be sent.
+		(2) must come before (3) to ensure the signal is not missed.
 		These restrictions force the above ordering.
 		Immediately before sending the wake-up signal, we should:
 		   Verify lock_word == 0 (waiting thread holds x_lock)
@@ -138,7 +138,7 @@ UNIV_INTERN rw_lock_stats_t	rw_lock_stats;
 
 /* The global list of rw-locks */
 UNIV_INTERN rw_lock_list_t	rw_lock_list;
-UNIV_INTERN mutex_t		rw_lock_list_mutex;
+UNIV_INTERN ib_mutex_t		rw_lock_list_mutex;
 
 #ifdef UNIV_PFS_MUTEX
 UNIV_INTERN mysql_pfs_key_t	rw_lock_list_mutex_key;
@@ -150,7 +150,7 @@ UNIV_INTERN mysql_pfs_key_t	rw_lock_mutex_key;
 To modify the debug info list of an rw-lock, this mutex has to be
 acquired in addition to the mutex protecting the lock. */
 
-UNIV_INTERN mutex_t		rw_lock_debug_mutex;
+UNIV_INTERN ib_mutex_t		rw_lock_debug_mutex;
 
 # ifdef UNIV_PFS_MUTEX
 UNIV_INTERN mysql_pfs_key_t	rw_lock_debug_mutex_key;
@@ -229,7 +229,7 @@ rw_lock_create_func(
 	lock->mutex.cline = cline;
 
 	ut_d(lock->mutex.cmutex_name = cmutex_name);
-	ut_d(lock->mutex.mutex_type = 1);
+	ut_d(lock->mutex.ib_mutex_type = 1);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 # ifdef UNIV_DEBUG
 	UT_NOT_USED(cmutex_name);
@@ -287,7 +287,7 @@ rw_lock_free_func(
 	rw_lock_t*	lock)	/*!< in: rw-lock */
 {
 #ifndef INNODB_RW_LOCKS_USE_ATOMICS
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 #endif /* !INNODB_RW_LOCKS_USE_ATOMICS */
 
 	ut_ad(rw_lock_validate(lock));
@@ -335,14 +335,15 @@ rw_lock_validate(
 	ulint	waiters;
 	lint	lock_word;
 
-	ut_a(lock);
+	ut_ad(lock);
 
 	waiters = rw_lock_get_waiters(lock);
 	lock_word = lock->lock_word;
 
 	ut_ad(lock->magic_n == RW_LOCK_MAGIC_N);
-	ut_a(waiters == 0 || waiters == 1);
-	ut_a(lock_word > -X_LOCK_DECR ||(-lock_word) % X_LOCK_DECR == 0);
+	ut_ad(waiters == 0 || waiters == 1);
+	ut_ad(lock_word > -(2 * X_LOCK_DECR));
+	ut_ad(lock_word <= X_LOCK_DECR);
 
 	return(TRUE);
 }
@@ -411,7 +412,7 @@ lock_loop:
 			file_name, line, &index);
 
 		/* Set waiters before checking lock_word to ensure wake-up
-                signal is sent. This may lead to some unnecessary signals. */
+		signal is sent. This may lead to some unnecessary signals. */
 		rw_lock_set_waiter_flag(lock);
 
 		if (TRUE == rw_lock_s_lock_low(lock, pass, file_name, line)) {
@@ -504,9 +505,9 @@ rw_lock_x_lock_wait(
 			lock->count_os_wait++;
 			rw_lock_stats.rw_x_os_wait_count.add(counter_index, 1);
 
-                        /* Add debug info as it is needed to detect possible
-                        deadlock. We must add info for WAIT_EX thread for
-                        deadlock detection to work properly. */
+			/* Add debug info as it is needed to detect possible
+			deadlock. We must add info for WAIT_EX thread for
+			deadlock detection to work properly. */
 #ifdef UNIV_SYNC_DEBUG
 			rw_lock_add_debug_info(lock, pass, RW_LOCK_WAIT_EX,
 					       file_name, line);
@@ -517,8 +518,8 @@ rw_lock_x_lock_wait(
 			rw_lock_remove_debug_info(
 				lock, pass, RW_LOCK_WAIT_EX);
 #endif
-                        /* It is possible to wake when lock_word < 0.
-                        We must pass the while-loop check to proceed.*/
+			/* It is possible to wake when lock_word < 0.
+			We must pass the while-loop check to proceed.*/
 		} else {
 			sync_array_free_cell(sync_arr, index);
 		}
@@ -564,7 +565,12 @@ rw_lock_x_lock_low(
 		if (!pass && lock->recursive
 		    && os_thread_eq(lock->writer_thread, thread_id)) {
 			/* Relock */
-			lock->lock_word -= X_LOCK_DECR;
+			if (lock->lock_word == 0) {
+				lock->lock_word -= X_LOCK_DECR;
+			} else {
+				--lock->lock_word;
+			}
+
 		} else {
 			/* Another thread locked before us */
 			return(FALSE);
@@ -625,10 +631,10 @@ lock_loop:
 
 	} else {
 
-                if (!spinning) {
-                        spinning = TRUE;
+		if (!spinning) {
+			spinning = TRUE;
 
-                        rw_lock_stats.rw_x_spin_wait_count.add(
+			rw_lock_stats.rw_x_spin_wait_count.add(
 				counter_index, 1);
 		}
 

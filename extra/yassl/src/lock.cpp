@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 /*  Locking functions
  */
@@ -26,7 +26,7 @@
 namespace yaSSL {
 
 
-#ifdef YASSL_THREAD_SAFE
+#ifdef MULTI_THREADED
     #ifdef _WIN32
         
         Mutex::Mutex()
@@ -79,7 +79,7 @@ namespace yaSSL {
          
 
     #endif // _WIN32
-#endif // YASSL_THREAD_SAFE
+#endif // MULTI_THREADED
 
 
 

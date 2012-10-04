@@ -10,6 +10,9 @@
 
 --source include/master-slave.inc
 
+#create a new connection  to the slave
+--connect (slave2, 127.0.0.1, root, ,test, $SLAVE_MYPORT,)
+
 # 0) Prepare tables and data
 --echo *** Prepare tables and data ***
 
@@ -46,7 +49,9 @@ BEGIN;
 SELECT * FROM t1 FOR UPDATE;
 # Save variable 'Slave_retried_transactions' before deadlock
 let $slave_retried_transactions= query_get_value(SHOW GLOBAL STATUS LIKE 'Slave_retried_transactions', Value, 1);
+--connection slave2
 START SLAVE;
+--connection slave
 # Wait until SQL thread blocked: variable 'Slave_retried_transactions' will incremented
 let $status_var= Slave_retried_transactions;
 let $status_var_value= $slave_retried_transactions;
@@ -79,7 +84,9 @@ BEGIN;
 # Hold lock
 SELECT * FROM t1 FOR UPDATE;
 # Wait until slave stopped with error 'Lock wait timeout exceeded'
+--connection slave2
 START SLAVE;
+--connection slave
 let $slave_sql_errno= 1205;
 --source include/wait_for_slave_sql_error.inc
 SELECT COUNT(*) FROM t2;
@@ -111,7 +118,9 @@ BEGIN;
 # Hold lock
 SELECT * FROM t1 FOR UPDATE;
 # Wait until slave stopped with error 'Lock wait timeout exceeded'
+--connection slave2
 START SLAVE;
+--connection slave
 let $slave_sql_errno= 1205;
 --source include/wait_for_slave_sql_error.inc
 SELECT COUNT(*) FROM t2;
@@ -164,7 +173,9 @@ connection slave;
 BEGIN;
 SELECT count(*) as zero FROM t1 FOR UPDATE;
 
-start slave;
+--connection slave2
+START SLAVE;
+--connection slave
 
 --echo *** Now the slave must be stopped due to timeout ***
 

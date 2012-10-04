@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -134,7 +134,7 @@ static void mysql_ha_close_table(THD *thd, TABLE_LIST *tables)
     /* Non temporary table. */
     tables->table->file->ha_index_or_rnd_end();
     tables->table->open_by_handler= 0;
-    (void) close_thread_table(thd, &tables->table);
+    close_thread_table(thd, &tables->table);
     thd->mdl_context.release_lock(tables->mdl_request.ticket);
   }
   else if (tables->table)
@@ -523,6 +523,14 @@ bool Sql_cmd_handler_read::execute(THD *thd)
     DBUG_RETURN(TRUE);
   }
 
+  /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
+  enum xa_states xa_state= thd->transaction.xid_state.xa_state;
+  if (tables && (xa_state == XA_IDLE || xa_state == XA_PREPARED))
+  {
+    my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
+    DBUG_RETURN(true);
+  }
+
   /*
     There is no need to check for table permissions here, because
     if a user has no permissions to read a table, he won't be
@@ -683,18 +691,23 @@ retry:
         error= table->file->ha_rnd_next(table->record[0]);
         break;
       }
-      /* else fall through */
+      /*
+        Fall through to HANDLER ... READ ... FIRST case if we are trying
+        to read next row in index order after starting reading rows in
+        natural order, or, vice versa, trying to read next row in natural
+        order after reading previous rows in index order.
+      */
     case RFIRST:
       if (m_key_name)
       {
-        table->file->ha_index_or_rnd_end();
-        if (!(error= table->file->ha_index_init(keyno, 1)))
+        if (!(error= table->file->ha_index_or_rnd_end()) &&
+            !(error= table->file->ha_index_init(keyno, 1)))
           error= table->file->ha_index_first(table->record[0]);
       }
       else
       {
-        table->file->ha_index_or_rnd_end();
-	if (!(error= table->file->ha_rnd_init(1)))
+        if (!(error= table->file->ha_index_or_rnd_end()) &&
+            !(error= table->file->ha_rnd_init(1)))
           error= table->file->ha_rnd_next(table->record[0]);
       }
       mode=RNEXT;
@@ -708,7 +721,7 @@ retry:
         error= table->file->ha_index_prev(table->record[0]);
         break;
       }
-      /* else fall through */
+      /* else fall through, for more info, see comment before 'case RFIRST'. */
     case RLAST:
       DBUG_ASSERT(m_key_name != 0);
       if (!(error= table->file->ha_index_or_rnd_end()) &&
@@ -718,15 +731,8 @@ retry:
       break;
     case RNEXT_SAME:
       /* Continue scan on "(keypart1,keypart2,...)=(c1, c2, ...)  */
-      DBUG_ASSERT(m_key_name != 0);
-      /* Continue scan, or start a new scan if no previous index scan */
-      if (table->file->inited == handler::INDEX ||
-          (!(error= table->file->ha_index_or_rnd_end()) &&
-           !(error= table->file->ha_index_init(keyno, 1))))
-      {
-        DBUG_ASSERT((uint) keyno == table->file->get_index());
-        error= table->file->ha_index_next_same(table->record[0], key, key_len);
-      }
+      DBUG_ASSERT(table->file->inited == handler::INDEX);
+      error= table->file->ha_index_next_same(table->record[0], key, key_len);
       break;
     case RKEY:
     {

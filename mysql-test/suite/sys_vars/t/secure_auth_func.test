@@ -65,7 +65,11 @@ connection default;
 #
 # Setting password in OLD format
 #
+--error ER_PASSWD_LENGTH
 SET PASSWORD FOR 'testUser'@'localhost' = OLD_PASSWORD('newpass');
+DROP USER 'testUser'@'localhost';
+CREATE USER 'testUser'@'localhost' identified with 'mysql_old_password';
+SET PASSWORD FOR 'testUser'@'localhost'= OLD_PASSWORD('newpass');
 
 --echo ** Connecting con_user2 using testUser **
 connect (con_user2,localhost,testUser,newpass,);
@@ -82,6 +86,9 @@ SET GLOBAL secure_auth = ON;
 #
 # Setting password in NEW format
 #
+UPDATE mysql.user SET plugin='mysql_native_password' WHERE user='testUser' AND
+  host='localhost';
+FLUSH PRIVILEGES;
 SET PASSWORD FOR 'testUser'@'localhost' = PASSWORD('newpass');
 
 --echo ** Connecting con_user3 using testUser **
@@ -92,6 +99,9 @@ connection default;
 #
 # Setting password in OLD format
 #
+UPDATE mysql.user SET plugin='mysql_old_password' WHERE user='testUser' AND
+  host='localhost';
+FLUSH PRIVILEGES;
 SET PASSWORD FOR 'testUser'@'localhost' = OLD_PASSWORD('newpass');
 
 --echo ** Connecting con_user4 using testUser **
@@ -107,6 +117,9 @@ connection default;
 #
 # Setting password back in NEW format
 #
+UPDATE mysql.user SET plugin='mysql_native_password' WHERE user='testUser' AND
+  host='localhost';
+FLUSH PRIVILEGES;
 SET PASSWORD FOR 'testUser'@'localhost' = PASSWORD('newpass');
 
 --echo ** Connecting con_user4 using testUser **

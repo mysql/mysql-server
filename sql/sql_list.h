@@ -15,51 +15,15 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+#include "sql_alloc.h"
 #include "my_global.h"
 #include "my_sys.h"
 #include "m_string.h" /* for TRASH */
-
-
-void *sql_alloc(size_t);
 
 #include "my_sys.h"                    /* alloc_root, TRASH, MY_WME,
                                           MY_FAE, MY_ALLOW_ZERO_PTR */
 #include "m_string.h"
 #include "thr_malloc.h"                         /* sql_alloc */
-
-/* mysql standard class memory allocator */
-
-class Sql_alloc
-{
-public:
-  static void *operator new(size_t size) throw ()
-  {
-    return sql_alloc(size);
-  }
-  static void *operator new[](size_t size) throw ()
-  {
-    return sql_alloc(size);
-  }
-  static void *operator new[](size_t size, MEM_ROOT *mem_root) throw ()
-  { return alloc_root(mem_root, size); }
-  static void *operator new(size_t size, MEM_ROOT *mem_root) throw ()
-  { return alloc_root(mem_root, size); }
-  static void operator delete(void *ptr, size_t size) { TRASH(ptr, size); }
-  static void operator delete(void *ptr, MEM_ROOT *mem_root)
-  { /* never called */ }
-  static void operator delete[](void *ptr, MEM_ROOT *mem_root)
-  { /* never called */ }
-  static void operator delete[](void *ptr, size_t size) { TRASH(ptr, size); }
-#ifdef HAVE_purify
-  bool dummy;
-  inline Sql_alloc() :dummy(0) {}
-  inline ~Sql_alloc() {}
-#else
-  inline Sql_alloc() {}
-  inline ~Sql_alloc() {}
-#endif
-
-};
 
 
 /**

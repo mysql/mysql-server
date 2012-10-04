@@ -622,7 +622,6 @@ insert into t3 values (5),(15);
 explain partitions select * from t3 where a=11;
 explain partitions select * from t3 where a=10;
 explain partitions select * from t3 where a=20;
-
 explain partitions select * from t3 where a=30;
 
 # LIST(expr) partitioning
@@ -943,13 +942,37 @@ insert into t1 values (1),(1),(2),(2),(3),(4),(3),(4);
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
 
 --echo # ... as compared to this, which will scan both partitions
 --let $q = update t1 set a=100 where a+1=5+1
+--eval explain extended $q
 --eval explain partitions $q
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
+
+--echo # This will only scan partition p1
+--let $q = update t1 set a=3 where a=4
+--eval explain extended $q
+--eval explain partitions $q
+flush status;
+--eval $q
+show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
+
+--echo # This will only scan partition p1 but with a LIMIT
+--let $q = update t1 set a=4 where a=3 LIMIT 2
+--eval explain extended $q
+--eval explain partitions $q
+flush status;
+--eval $q
+show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
+
+--sorted_result
+select * from t1;
 
 --echo # Same as above for DELETE:
 --let $q = delete from t1 where a=5
@@ -958,28 +981,67 @@ show status like 'Handler_read_rnd_next';
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
 
 --let $q = delete from t1 where a+1=5+1
+--eval explain extended $q
 --eval explain partitions $q
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
+
+--echo # Will only delete from p0
+--let $q = delete from t1 where a=1
+--eval explain extended $q
+--eval explain partitions $q
+flush status;
+--eval $q
+show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
+
+--sorted_result
+select * from t1;
+insert into t1 values (1), (1);
 
 --echo # Same as above multi-table UPDATE/DELETE
 create table t2 like t1;
-insert into t2 select * from t2;
+insert into t2 select * from t1;
 
 --let $q = update t1,t2 set t1.a=1000, t2.a=1000 where t1.a=5 and t2.a=5
+--eval explain extended $q
 --eval explain partitions $q
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
 
 --let $q = delete t1,t2 from t1, t2 where t1.a=5 and t2.a=5
+--eval explain extended $q
 --eval explain partitions $q
 flush status;
 --eval $q
 show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
+
+--let $q = delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=5
+--eval explain extended $q
+--eval explain partitions $q
+flush status;
+--eval $q
+show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
+
+--let $q = delete t1,t2 from t1, t2 where t1.a=t2.a and t2.a=3
+--eval explain extended $q
+--eval explain partitions $q
+flush status;
+--eval $q
+show status like 'Handler_read_rnd_next';
+show status like 'Handler_external_lock';
+
+--sorted_result
+select * from t1;
 drop table t1,t2;
 
 #

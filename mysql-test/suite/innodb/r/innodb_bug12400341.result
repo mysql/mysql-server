@@ -17,7 +17,7 @@ select count(*) from information_schema.processlist;
 count(*)
 33
 CREATE TABLE mysqltest.testtable (id int unsigned not null primary key) ENGINE=InnoDB;
-ERROR HY000: Can't create table 'mysqltest.testtable' (errno: 177)
+ERROR HY000: Too many active concurrent transactions
 select count(*) from information_schema.processlist;
 count(*)
 33

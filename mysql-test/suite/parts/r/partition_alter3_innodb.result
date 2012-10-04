@@ -57,6 +57,7 @@ t1	CREATE TABLE `t1` (
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 t1.frm
+t1.ibd
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	Using where
@@ -78,6 +79,7 @@ t1	CREATE TABLE `t1` (
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (YEAR(f_date)) */
+t1#P#p0.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -96,6 +98,7 @@ t1	CREATE TABLE `t1` (
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (DAYOFYEAR(f_date)) */
+t1#P#p0.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -112,6 +115,7 @@ t1	CREATE TABLE `t1` (
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (YEAR(f_date)) */
+t1#P#p0.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -137,6 +141,9 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#part1.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -161,6 +168,10 @@ t1	CREATE TABLE `t1` (
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB,
  PARTITION part2 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -186,6 +197,14 @@ t1	CREATE TABLE `t1` (
  PARTITION p5 ENGINE = InnoDB,
  PARTITION p6 ENGINE = InnoDB,
  PARTITION p7 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#p4.ibd
+t1#P#p5.ibd
+t1#P#p6.ibd
+t1#P#p7.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -222,6 +241,13 @@ t1	CREATE TABLE `t1` (
  PARTITION p4 ENGINE = InnoDB,
  PARTITION p5 ENGINE = InnoDB,
  PARTITION p6 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#p4.ibd
+t1#P#p5.ibd
+t1#P#p6.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -244,6 +270,12 @@ t1	CREATE TABLE `t1` (
  PARTITION part2 ENGINE = InnoDB,
  PARTITION p4 ENGINE = InnoDB,
  PARTITION p5 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#p4.ibd
+t1#P#p5.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -265,6 +297,11 @@ t1	CREATE TABLE `t1` (
  PARTITION part7 ENGINE = InnoDB,
  PARTITION part2 ENGINE = InnoDB,
  PARTITION p4 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#p4.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -285,6 +322,10 @@ t1	CREATE TABLE `t1` (
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB,
  PARTITION part2 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -304,6 +345,9 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#part1.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -322,6 +366,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY HASH (YEAR(f_date))
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#part1.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -339,6 +385,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH (YEAR(f_date))
 (PARTITION p0 ENGINE = InnoDB) */
+t1#P#p0.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
@@ -359,6 +406,7 @@ t1	CREATE TABLE `t1` (
   `f_varchar` varchar(30) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 t1.frm
+t1.ibd
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	Using where
@@ -399,6 +447,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 t1.frm
+t1.ibd
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	Using where
@@ -421,6 +470,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (f_int1) */
+t1#P#p0.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -449,6 +499,9 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#part1.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -473,6 +526,10 @@ t1	CREATE TABLE `t1` (
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB,
  PARTITION part2 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -501,6 +558,14 @@ t1	CREATE TABLE `t1` (
  PARTITION p5 ENGINE = InnoDB,
  PARTITION p6 ENGINE = InnoDB,
  PARTITION p7 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#p4.ibd
+t1#P#p5.ibd
+t1#P#p6.ibd
+t1#P#p7.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -535,6 +600,13 @@ t1	CREATE TABLE `t1` (
  PARTITION p4 ENGINE = InnoDB,
  PARTITION p5 ENGINE = InnoDB,
  PARTITION p6 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#p4.ibd
+t1#P#p5.ibd
+t1#P#p6.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -560,6 +632,12 @@ t1	CREATE TABLE `t1` (
  PARTITION part2 ENGINE = InnoDB,
  PARTITION p4 ENGINE = InnoDB,
  PARTITION p5 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#p4.ibd
+t1#P#p5.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -584,6 +662,11 @@ t1	CREATE TABLE `t1` (
  PARTITION part7 ENGINE = InnoDB,
  PARTITION part2 ENGINE = InnoDB,
  PARTITION p4 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#p4.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -607,6 +690,10 @@ t1	CREATE TABLE `t1` (
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB,
  PARTITION part2 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -629,6 +716,9 @@ t1	CREATE TABLE `t1` (
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB,
  PARTITION part7 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#part1.ibd
+t1#P#part7.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -650,6 +740,8 @@ t1	CREATE TABLE `t1` (
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB,
  PARTITION part1 ENGINE = InnoDB) */
+t1#P#p0.ibd
+t1#P#part1.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -670,6 +762,7 @@ t1	CREATE TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY KEY (f_int1)
 (PARTITION p0 ENGINE = InnoDB) */
+t1#P#p0.ibd
 t1.frm
 t1.par
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
@@ -693,6 +786,7 @@ t1	CREATE TABLE `t1` (
   `f_charbig` varchar(1000) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 t1.frm
+t1.ibd
 EXPLAIN PARTITIONS SELECT COUNT(*) <> 1 FROM t1 WHERE f_int1 = 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	20	Using where

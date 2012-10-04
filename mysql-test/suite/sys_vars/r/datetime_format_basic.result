@@ -1,6 +1,8 @@
 select @@global.datetime_format;
 @@global.datetime_format
 %Y-%m-%d %H:%i:%s
+Warnings:
+Warning	1287	'@@datetime_format' is deprecated and will be removed in a future release.
 select @@session.datetime_format;
 ERROR HY000: Variable 'datetime_format' is a GLOBAL variable
 show global variables like 'datetime_format';

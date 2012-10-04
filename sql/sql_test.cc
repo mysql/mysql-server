@@ -40,8 +40,9 @@
 #endif
 
 #include "global_threads.h"
+#include "table_cache.h" // table_cache_manager
 
-static const char *lock_descriptions[] =
+const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 {
   /* TL_UNLOCK                  */  "No lock",
   /* TL_READ_DEFAULT            */  NULL,
@@ -50,6 +51,7 @@ static const char *lock_descriptions[] =
   /* TL_READ_HIGH_PRIORITY      */  "High priority read lock",
   /* TL_READ_NO_INSERT          */  "Read lock without concurrent inserts",
   /* TL_WRITE_ALLOW_WRITE       */  "Write lock that allows other writers",
+  /* TL_WRITE_CONCURRENT_DEFAULT*/  NULL,
   /* TL_WRITE_CONCURRENT_INSERT */  "Concurrent insert lock",
   /* TL_WRITE_DELAYED           */  "Lock used by delayed insert",
   /* TL_WRITE_DEFAULT           */  NULL,
@@ -82,61 +84,16 @@ print_where(Item *cond,const char *info, enum_query_type query_type)
 
 static void print_cached_tables(void)
 {
-  uint idx,count,unused;
-  TABLE_SHARE *share;
-  TABLE *start_link, *lnk, *entry;
-
-  compile_time_assert(TL_WRITE_ONLY+1 == array_elements(lock_descriptions));
-
   /* purecov: begin tested */
-  mysql_mutex_lock(&LOCK_open);
-  puts("DB             Table                            Version  Thread  Open  Lock");
+  table_cache_manager.lock_all_and_tdc();
 
-  for (idx=unused=0 ; idx < table_def_cache.records ; idx++)
-  {
-    share= (TABLE_SHARE*) my_hash_element(&table_def_cache, idx);
+  table_cache_manager.print_tables();
 
-    TABLE_SHARE::TABLE_list::Iterator it(share->used_tables);
-    while ((entry= it++))
-    {
-      printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",
-             entry->s->db.str, entry->s->table_name.str, entry->s->version,
-             entry->in_use->thread_id, entry->db_stat ? 1 : 0,
-             lock_descriptions[(int)entry->reginfo.lock_type]);
-    }
-    it.init(share->free_tables);
-    while ((entry= it++))
-    {
-      unused++;
-      printf("%-14.14s %-32s%6ld%8ld%6d  %s\n",
-             entry->s->db.str, entry->s->table_name.str, entry->s->version,
-             0L, entry->db_stat ? 1 : 0, "Not in use");
-    }
-  }
-  count=0;
-  if ((start_link=lnk=unused_tables))
-  {
-    do
-    {
-      if (lnk != lnk->next->prev || lnk != lnk->prev->next)
-      {
-	printf("unused_links isn't linked properly\n");
-	return;
-      }
-    } while (count++ < cached_open_tables() && (lnk=lnk->next) != start_link);
-    if (lnk != start_link)
-    {
-      printf("Unused_links aren't connected\n");
-    }
-  }
-  if (count != unused)
-    printf("Unused_links (%d) doesn't match table_def_cache: %d\n", count,
-           unused);
   printf("\nCurrent refresh version: %ld\n",refresh_version);
   if (my_hash_check(&table_def_cache))
     printf("Error: Table definition hash table is corrupted\n");
   fflush(stdout);
-  mysql_mutex_unlock(&LOCK_open);
+  table_cache_manager.unlock_all_and_tdc();
   /* purecov: end */
   return;
 }
@@ -169,6 +126,8 @@ TEST_join(JOIN *join)
   {
     JOIN_TAB *tab=join->join_tab+i;
     TABLE *form=tab->table;
+    if (!form)
+      continue;
     char key_map_buff[128];
     fprintf(DBUG_FILE,"%-16.16s  type: %-7s  q_keys: %s  refs: %d  key: %d  len: %d\n",
 	    form->alias,
@@ -335,28 +294,6 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
   DBUG_UNLOCK_FILE;
 }
 
-
-void print_sjm(TABLE_LIST *emb_sj_nest)
-{
-  DBUG_LOCK_FILE;
-  Semijoin_mat_exec *sjm= emb_sj_nest->sj_mat_exec;
-  fprintf(DBUG_FILE, "\nsemi-join nest{\n");
-  fprintf(DBUG_FILE, "  tables { \n");
-  for (uint i= 0;i < sjm->table_count; i++)
-  {
-    fprintf(DBUG_FILE, "    %s%s\n", 
-            emb_sj_nest->nested_join->sjm.positions[i].table->table->alias,
-            (i == sjm->table_count -1)? "": ",");
-  }
-  fprintf(DBUG_FILE, "  }\n");
-  fprintf(DBUG_FILE, "  materialize_cost= %g\n",
-          emb_sj_nest->nested_join->sjm.materialization_cost.total_cost());
-  fprintf(DBUG_FILE, "  rows= %g\n",
-          emb_sj_nest->nested_join->sjm.expected_rowcount);
-  fprintf(DBUG_FILE, "}\n");
-  DBUG_UNLOCK_FILE;
-}
-/* purecov: end */
 #endif  /* !DBUG_OFF */
 
 C_MODE_START
@@ -435,7 +372,8 @@ static void display_table_locks(void)
   void *saved_base;
   DYNAMIC_ARRAY saved_table_locks;
 
-  (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO), cached_open_tables() + 20,50);
+  (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO),
+                               table_cache_manager.cached_tables() + 20,50);
   mysql_mutex_lock(&THR_LOCK_lock);
   for (list= thr_lock_thread_list; list; list= list_rest(list))
   {
@@ -534,7 +472,7 @@ void mysql_print_status()
   /* Print key cache status */
   puts("\nKey caches:");
   process_key_caches(print_key_cache_status);
-  mysql_mutex_lock(&LOCK_status);
+  mysql_rwlock_rdlock(&LOCK_status);
   printf("\nhandler status:\n\
 read_key:   %10llu\n\
 read_next:  %10llu\n\
@@ -550,14 +488,14 @@ update:     %10llu\n",
 	 tmp.ha_write_count,
 	 tmp.ha_delete_count,
 	 tmp.ha_update_count);
-  mysql_mutex_unlock(&LOCK_status);
+  mysql_rwlock_unlock(&LOCK_status);
   printf("\nTable status:\n\
 Opened tables: %10lu\n\
 Open tables:   %10lu\n\
 Open files:    %10lu\n\
 Open streams:  %10lu\n",
 	 (ulong) tmp.opened_tables,
-	 (ulong) cached_open_tables(),
+	 (ulong) table_cache_manager.cached_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);
 

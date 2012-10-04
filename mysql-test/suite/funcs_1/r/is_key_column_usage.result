@@ -94,8 +94,6 @@ def	mysql	PRIMARY	def	mysql	help_relation	help_keyword_id
 def	mysql	PRIMARY	def	mysql	help_relation	help_topic_id
 def	mysql	PRIMARY	def	mysql	help_topic	help_topic_id
 def	mysql	name	def	mysql	help_topic	name
-def	mysql	PRIMARY	def	mysql	host	Host
-def	mysql	PRIMARY	def	mysql	host	Db
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	database_name
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	table_name
 def	mysql	PRIMARY	def	mysql	innodb_index_stats	index_name
@@ -119,10 +117,10 @@ def	mysql	PRIMARY	def	mysql	proxies_priv	User
 def	mysql	PRIMARY	def	mysql	proxies_priv	Proxied_host
 def	mysql	PRIMARY	def	mysql	proxies_priv	Proxied_user
 def	mysql	PRIMARY	def	mysql	servers	Server_name
-def	mysql	PRIMARY	def	mysql	slave_master_info	Master_id
-def	mysql	PRIMARY	def	mysql	slave_relay_log_info	Master_id
-def	mysql	PRIMARY	def	mysql	slave_worker_info	Master_id
-def	mysql	PRIMARY	def	mysql	slave_worker_info	Worker_id
+def	mysql	PRIMARY	def	mysql	slave_master_info	Host
+def	mysql	PRIMARY	def	mysql	slave_master_info	Port
+def	mysql	PRIMARY	def	mysql	slave_relay_log_info	Id
+def	mysql	PRIMARY	def	mysql	slave_worker_info	Id
 def	mysql	PRIMARY	def	mysql	tables_priv	Host
 def	mysql	PRIMARY	def	mysql	tables_priv	Db
 def	mysql	PRIMARY	def	mysql	tables_priv	User

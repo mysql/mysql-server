@@ -68,6 +68,9 @@ my_bool ib_disable_row_lock = FALSE;
 /** configure variable for Transaction isolation levels */
 ulong ib_trx_level_setting = IB_TRX_READ_UNCOMMITTED;
 
+/** configure variable for background commit interval in seconds */
+ulong ib_bk_commit_interval = 0;
+
 /** InnoDB tuple types. */
 enum ib_tuple_type_t{
 	TPL_TYPE_ROW,			/*!< Data row tuple */
@@ -83,36 +86,36 @@ enum ib_qry_type_t{
 };
 
 /** Query graph types. */
-typedef struct ib_qry_grph_struct {
+struct ib_qry_grph_t {
 	que_fork_t*	ins;		/*!< Innobase SQL query graph used
 					in inserts */
 	que_fork_t*	upd;		/*!< Innobase SQL query graph used
 					in updates or deletes */
 	que_fork_t*	sel;		/*!< dummy query graph used in
 					selects */
-} ib_qry_grph_t;
+};
 
 /** Query node types. */
-typedef struct ib_qry_node_struct {
+struct ib_qry_node_t {
 	ins_node_t*	ins;		/*!< Innobase SQL insert node
 					used to perform inserts to the table */
 	upd_node_t*	upd;		/*!< Innobase SQL update node
 					used to perform updates and deletes */
 	sel_node_t*	sel;		/*!< Innobase SQL select node
 					used to perform selects on the table */
-} ib_qry_node_t;
+};
 
 /** Query processing fields. */
-typedef struct ib_qry_proc_struct {
+struct ib_qry_proc_t {
 
 	ib_qry_node_t	node;		/*!< Query node*/
 
 	ib_qry_grph_t	grph;		/*!< Query graph */
-} ib_qry_proc_t;
+};
 
 /** Cursor instance for traversing tables/indexes. This will eventually
 become row_prebuilt_t. */
-typedef struct ib_cursor_struct {
+struct ib_cursor_t {
 	mem_heap_t*	heap;		/*!< Instance heap */
 
 	mem_heap_t*	query_heap;	/*!< Heap to use for query graphs */
@@ -124,10 +127,10 @@ typedef struct ib_cursor_struct {
 	row_prebuilt_t*	prebuilt;	/*!< For reading rows */
 
 	bool		valid_trx;	/*!< Valid transaction attached */
-} ib_cursor_t;
+};
 
 /** InnoDB table columns used during table and index schema creation. */
-typedef struct ib_col_struct {
+struct ib_col_t {
 	const char*	name;		/*!< Name of column */
 
 	ib_col_type_t	ib_col_type;	/*!< Main type of the column */
@@ -136,19 +139,19 @@ typedef struct ib_col_struct {
 
 	ib_col_attr_t	ib_col_attr;	/*!< Column attributes */
 
-} ib_col_t;
+};
 
 /** InnoDB index columns used during index and index schema creation. */
-typedef struct ib_key_col_struct {
+struct ib_key_col_t {
 	const char*	name;		/*!< Name of column */
 
 	ulint		prefix_len;	/*!< Column index prefix len or 0 */
-} ib_key_col_t;
+};
 
-typedef struct ib_table_def_struct ib_table_def_t;
+struct ib_table_def_t;
 
 /** InnoDB index schema used during index creation */
-typedef struct ib_index_def_struct {
+struct ib_index_def_t {
 	mem_heap_t*	heap;		/*!< Heap used to build this and all
 					its columns in the list */
 
@@ -167,10 +170,10 @@ typedef struct ib_index_def_struct {
 
 	trx_t*		usr_trx;	/*!< User transacton covering the
 					DDL operations */
-} ib_index_def_t;
+};
 
 /** InnoDB table schema used during table creation */
-struct ib_table_def_struct {
+struct ib_table_def_t {
 	mem_heap_t*	heap;		/*!< Heap used to build this and all
 					its columns in the list */
 	const char*	name;		/*!< Table name */
@@ -187,7 +190,7 @@ struct ib_table_def_struct {
 };
 
 /** InnoDB tuple used for key operations. */
-typedef struct ib_tuple_struct {
+struct ib_tuple_t {
 	mem_heap_t*		heap;	/*!< Heap used to build
 					this and for copying
 					the column values. */
@@ -199,11 +202,7 @@ typedef struct ib_tuple_struct {
 
 	dtuple_t*		ptr;	/*!< The internal tuple
 					instance */
-} ib_tuple_t;
-
-/** I can't see what merge has to do with creating an Index. */
-typedef merge_index_def_t index_def_t;
-typedef merge_index_field_t index_field_t;
+};
 
 /** The following counter is used to convey information to InnoDB
 about server activity: in selects it is not sensible to call
@@ -379,9 +378,6 @@ ib_read_tuple(
 	/* Make a copy of the rec. */
 	ptr = mem_heap_alloc(tuple->heap, rec_offs_size(offsets));
 	copy = rec_copy(ptr, rec, offsets);
-
-	/* Avoid a debug assertion in rec_offs_validate(). */
-	rec_offs_make_valid(rec, index, (ulint*) offsets);
 
 	n_index_fields = ut_min(
 		rec_offs_n_fields(offsets), dtuple_get_n_fields(dtuple));
@@ -613,6 +609,18 @@ ib_trx_state(
 	return((ib_trx_state_t) trx->state);
 }
 
+/*****************************************************************//**
+Get a trx start time.
+@return	trx start_time */
+UNIV_INTERN
+ib_u64_t
+ib_trx_get_start_time(
+/*==================*/
+	ib_trx_t	ib_trx)		/*!< in: transaction */
+{
+	trx_t*		trx = (trx_t*) ib_trx;
+	return(static_cast<ib_u64_t>(trx->start_time));
+}
 /*****************************************************************//**
 Release the resources of the transaction.
 @return	DB_SUCCESS or err code */
@@ -972,7 +980,6 @@ ib_table_get_id_low(
 	return(err);
 }
 
-
 /*****************************************************************//**
 Create an internal cursor instance.
 @return	DB_SUCCESS or err code */
@@ -982,13 +989,12 @@ ib_create_cursor(
 /*=============*/
 	ib_crsr_t*	ib_crsr,	/*!< out: InnoDB cursor */
 	dict_table_t*	table,		/*!< in: table instance */
-	ib_id_u64_t	index_id,	/*!< in: index id or 0 */
+	dict_index_t*	index,		/*!< in: index to use */
 	trx_t*		trx)		/*!< in: transaction */
 {
 	mem_heap_t*	heap;
 	ib_cursor_t*	cursor;
 	ib_err_t	err = DB_SUCCESS;
-	index_id_t	id = index_id;
 
 	heap = mem_heap_create(sizeof(*cursor) * 2);
 
@@ -1020,11 +1026,7 @@ ib_create_cursor(
 		prebuilt->select_lock_type = LOCK_NONE;
 		prebuilt->innodb_api = TRUE;
 
-		if (index_id > 0) {
-			prebuilt->index = dict_index_find_on_id_low(id);
-		} else {
-			prebuilt->index = dict_table_get_first_index(table);
-		}
+		prebuilt->index = index;
 
 		ut_a(prebuilt->index != NULL);
 
@@ -1047,6 +1049,32 @@ ib_create_cursor(
 	}
 
 	return(err);
+}
+
+/*****************************************************************//**
+Create an internal cursor instance, and set prebuilt->index to index
+with supplied index_id.
+@return	DB_SUCCESS or err code */
+static
+ib_err_t
+ib_create_cursor_with_index_id(
+/*===========================*/
+	ib_crsr_t*	ib_crsr,	/*!< out: InnoDB cursor */
+	dict_table_t*	table,		/*!< in: table instance */
+	ib_id_u64_t	index_id,	/*!< in: index id or 0 */
+	trx_t*		trx)		/*!< in: transaction */
+{
+	dict_index_t*	index;
+
+	if (index_id != 0) {
+		mutex_enter(&dict_sys->mutex);
+		index = dict_index_find_on_id_low(index_id);
+		mutex_exit(&dict_sys->mutex);
+	} else {
+		index = dict_table_get_first_index(table);
+	}
+
+	return(ib_create_cursor(ib_crsr, table, index, trx));
 }
 
 /*****************************************************************//**
@@ -1075,7 +1103,8 @@ ib_cursor_open_table_using_id(
 		return(DB_TABLE_NOT_FOUND);
 	}
 
-	err = ib_create_cursor(ib_crsr, table, 0, (trx_t*) ib_trx);
+	err = ib_create_cursor_with_index_id(ib_crsr, table, 0,
+					     (trx_t*) ib_trx);
 
 	return(err);
 }
@@ -1108,7 +1137,7 @@ ib_cursor_open_index_using_id(
 	}
 
 	/* We only return the lower 32 bits of the dulint. */
-	err = ib_create_cursor(
+	err = ib_create_cursor_with_index_id(
 		ib_crsr, table, index_id, (trx_t*) ib_trx);
 
 	if (ib_crsr != NULL) {
@@ -1166,6 +1195,7 @@ ib_cursor_open_index_using_name(
 			index_id = index->id;
 			*idx_type = index->type;
 			*idx_id = index_id;
+			break;
 		}
 		index = UT_LIST_GET_NEXT(indexes, index);
 	}
@@ -1176,8 +1206,9 @@ ib_cursor_open_index_using_name(
 	}
 
 	if (index_id > 0) {
+		ut_ad(index->id == index_id);
 		err = ib_create_cursor(
-			ib_crsr, table, index_id, cursor->prebuilt->trx);
+			ib_crsr, table, index, cursor->prebuilt->trx);
 	}
 
 	if (*ib_crsr != NULL) {
@@ -1237,7 +1268,8 @@ ib_cursor_open_table(
 	}
 
 	if (table != NULL) {
-		err = ib_create_cursor(ib_crsr, table, 0, (trx_t*) ib_trx);
+		err = ib_create_cursor_with_index_id(ib_crsr, table, 0,
+						     (trx_t*) ib_trx);
 	} else {
 		err = DB_TABLE_NOT_FOUND;
 	}
@@ -2135,6 +2167,29 @@ ib_cursor_last(
 }
 
 /*****************************************************************//**
+Move cursor to the next user record in the table.
+@return DB_SUCCESS or err code */
+UNIV_INTERN
+ib_err_t
+ib_cursor_next(
+/*===========*/
+        ib_crsr_t       ib_crsr)        /*!< in: InnoDB cursor instance */
+{
+        ib_err_t	err;
+        ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+        row_prebuilt_t* prebuilt = cursor->prebuilt;
+	byte		buf[UNIV_PAGE_SIZE_MAX];
+
+        /* We want to move to the next record */
+        dtuple_set_n_fields(prebuilt->search_tuple, 0);
+
+        err = static_cast<ib_err_t>(row_search_for_mysql(
+		buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT));
+
+        return(err);
+}
+
+/*****************************************************************//**
 Search for key.
 @return	DB_SUCCESS or err code */
 UNIV_INTERN
@@ -2531,6 +2586,31 @@ ib_col_get_name(
 	name = dict_table_get_col_name(table, col_no);
 
 	return(name);
+}
+
+/*****************************************************************//**
+Get an index field name from the cursor.
+@return	name of the field */
+UNIV_INTERN
+const char*
+ib_get_idx_field_name(
+/*==================*/
+	ib_crsr_t       ib_crsr,        /*!< in: InnoDB cursor instance */
+	ib_ulint_t	i)		/*!< in: column index in tuple */
+{
+	ib_cursor_t*    cursor = (ib_cursor_t*) ib_crsr;
+	dict_index_t*	index = cursor->prebuilt->index;
+	dict_field_t* 	field;
+
+	if (index) {
+		field = dict_index_get_nth_field(cursor->prebuilt->index, i);
+
+		if (field) {
+			return(field->name);
+		}
+	}
+
+	return(NULL);
 }
 
 /*****************************************************************//**
@@ -3314,7 +3394,7 @@ ib_cursor_set_lock_mode(
 
 	if (ib_lck_mode == IB_LOCK_X) {
 		err = ib_cursor_lock(ib_crsr, IB_LOCK_IX);
-	} else {
+	} else if (ib_lck_mode == IB_LOCK_S) {
 		err = ib_cursor_lock(ib_crsr, IB_LOCK_IS);
 	}
 
@@ -3675,7 +3755,8 @@ ib_table_truncate(
 					DICT_ERR_IGNORE_NONE);
 
 	if (table != NULL && dict_table_get_first_index(table)) {
-		err = ib_create_cursor(&ib_crsr, table, 0, (trx_t*) ib_trx);
+		err = ib_create_cursor_with_index_id(&ib_crsr, table, 0,
+						     (trx_t*) ib_trx);
 	} else {
 		err = DB_TABLE_NOT_FOUND;
 	}
@@ -3735,6 +3816,17 @@ ib_cfg_trx_level()
 }
 
 /*****************************************************************//**
+Return configure value for background commit interval (in seconds)
+@return background commit interval (in seconds) */
+UNIV_INTERN
+ib_ulint_t
+ib_cfg_bk_commit_interval()
+/*=======================*/
+{
+	return(static_cast<ib_ulint_t>(ib_bk_commit_interval));
+}
+
+/*****************************************************************//**
 Get generic configure status
 @return configure status*/
 UNIV_INTERN
@@ -3745,7 +3837,7 @@ ib_cfg_get_cfg()
 	int	cfg_status;
 
 	cfg_status = (ib_binlog_enabled) ? IB_CFG_BINLOG_ENABLED : 0;
-	
+
 	if (ib_mdl_enabled) {
 		cfg_status |= IB_CFG_MDL_ENABLED;
 	}

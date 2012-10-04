@@ -93,7 +93,7 @@ set @@SQL_MODE=NULL;
 set session sql_mode=ansi;
 create table t1
 (f1 integer auto_increment primary key,
- f2 timestamp default current_timestamp on update current_timestamp);
+ f2 timestamp not null default current_timestamp on update current_timestamp);
 show create table t1;
 set session sql_mode=no_field_options;
 show create table t1;

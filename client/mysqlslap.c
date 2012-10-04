@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,6 +81,7 @@ TODO:
 #define DELETE_TYPE_REQUIRES_PREFIX 6
 
 #include "client_priv.h"
+#include "my_default.h"
 #include <mysqld_error.h>
 #include <my_dir.h>
 #include <signal.h>
@@ -125,6 +126,8 @@ static char *host= NULL, *opt_password= NULL, *user= NULL,
             *post_system= NULL,
             *opt_mysql_unix_port= NULL;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+static uint opt_enable_cleartext_plugin= 0;
+static my_bool using_opt_enable_cleartext_plugin= 0;
 
 const char *delimiter= "\n";
 
@@ -355,6 +358,12 @@ int main(int argc, char **argv)
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
+  mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "mysqlslap");
+  if (using_opt_enable_cleartext_plugin)
+    mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
+                  (char*) &opt_enable_cleartext_plugin);
   if (!opt_only_print) 
   {
     if (!(mysql_real_connect(&mysql, host, user, opt_password,
@@ -610,6 +619,10 @@ static struct my_option my_long_options[] =
     "Detach (close and reopen) connections after X number of requests.",
     &detach_rate, &detach_rate, 0, GET_UINT, REQUIRED_ARG, 
     0, 0, 0, 0, 0, 0},
+  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN, 
+    "Enable/disable the clear text authentication plugin.",
+   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"engine", 'e', "Storage engine to use for creating the table.",
     &default_engine, &default_engine, 0,
     GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -708,7 +721,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2005, 2012"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2005"));
   puts("Run a query multiple times against the server.\n");
   printf("Usage: %s [OPTIONS]\n",my_progname);
   print_defaults("my",load_default_groups);
@@ -768,6 +781,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
   case 'I':					/* Info */
     usage();
     exit(0);
+  case OPT_ENABLE_CLEARTEXT_PLUGIN:
+    using_opt_enable_cleartext_plugin= TRUE;
+    break;
   }
   DBUG_RETURN(0);
 }

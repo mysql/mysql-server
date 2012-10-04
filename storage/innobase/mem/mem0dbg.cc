@@ -30,7 +30,7 @@ Created 6/9/1994 Heikki Tuuri
 /* The mutex which protects in the debug version the hash table
 containing the list of live memory heaps, and also the global
 variables below. */
-UNIV_INTERN mutex_t		mem_hash_mutex;
+UNIV_INTERN ib_mutex_t		mem_hash_mutex;
 
 #ifdef UNIV_PFS_MUTEX
 /* Key to register mem_hash_mutex with performance schema */
@@ -58,8 +58,7 @@ static ibool		mem_hash_initialized		= FALSE;
 
 /* The node of the list containing currently allocated memory heaps */
 
-typedef struct mem_hash_node_struct mem_hash_node_t;
-struct mem_hash_node_struct {
+struct mem_hash_node_t {
 	UT_LIST_NODE_T(mem_hash_node_t)
 				list;	/*!< hash list node */
 	mem_heap_t*		heap;	/*!< memory heap */
