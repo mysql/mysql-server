@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #define DBSPJ_C
@@ -28,6 +28,11 @@
 #include <signaldata/DiGetNodes.hpp>
 #include <signaldata/DihScanTab.hpp>
 #include <signaldata/AttrInfo.hpp>
+#include <signaldata/CreateTab.hpp>
+#include <signaldata/PrepDropTab.hpp>
+#include <signaldata/DropTab.hpp>
+#include <signaldata/AlterTab.hpp>
+#include <signaldata/DbspjErr.hpp>
 #include <Interpreter.hpp>
 #include <AttributeHeader.hpp>
 #include <AttributeDescriptor.hpp>
@@ -45,12 +50,14 @@
 #ifdef VM_TRACE
 
 #define DEBUG(x) ndbout << "DBSPJ: "<< x << endl;
+#define DEBUG_DICT(x) ndbout << "DBSPJ: "<< x << endl;
 #define DEBUG_LQHKEYREQ
 #define DEBUG_SCAN_FRAGREQ
 
 #else
 
 #define DEBUG(x)
+#define DEBUG_DICT(x)
 
 #endif
 
@@ -59,6 +66,8 @@
 #if 1
 #undef DEBUG
 #define DEBUG(x)
+#undef DEBUG_DICT
+#define DEBUG_DICT(x)
 #undef DEBUG_LQHKEYREQ
 #undef DEBUG_SCAN_FRAGREQ
 #endif
@@ -110,6 +119,259 @@ void Dbspj::execSIGNAL_DROPPED_REP(Signal* signal)
   return;
 }
 
+inline
+Uint32 
+Dbspj::TableRecord::checkTableError(Uint32 schemaVersion) const
+{
+  DEBUG_DICT("Dbspj::TableRecord::checkTableError"
+            << ", m_flags: " << m_flags
+            << ", m_currentSchemaVersion: " << m_currentSchemaVersion
+            << ", check schemaVersion: " << schemaVersion);
+
+  if (!get_enabled())
+    return DbspjErr::NoSuchTable;
+  if (get_dropping())
+    return DbspjErr::DropTableInProgress;
+  if (table_version_major(schemaVersion) != table_version_major(m_currentSchemaVersion))
+    return DbspjErr::WrongSchemaVersion;
+
+  return 0;
+}
+
+// create table prepare
+void Dbspj::execTC_SCHVERREQ(Signal* signal) 
+{
+  jamEntry();
+  if (! assembleFragments(signal)) {
+    jam();
+    return;
+  }
+  const TcSchVerReq* req = CAST_CONSTPTR(TcSchVerReq, signal->getDataPtr());
+  const Uint32 tableId = req->tableId;
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+
+  DEBUG_DICT("Dbspj::execTC_SCHVERREQ"
+     << ", tableId: " << tableId
+     << ", version: " << req->tableVersion
+  );
+
+  TableRecordPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
+
+  ndbrequire(tablePtr.p->get_prepared() == false);
+  ndbrequire(tablePtr.p->get_enabled() == false);
+  new (tablePtr.p) TableRecord(req->tableVersion);
+
+  /**
+   * NOTE: Even if there are more information, like 
+   * 'tableType', 'noOfPrimaryKeys'etc available from
+   * TcSchVerReq, we do *not* store that in TableRecord.
+   * Instead this information is retrieved on demand from
+   * g_key_descriptor_pool where it is readily available.
+   * The 'contract' for consistency of this information is 
+   * such that:
+   * 1) g_key_descriptor[ENTRY] will be populated *before* 
+   *    any blocks receiving CREATE_TAB_REQ (or equivalent).
+   * 2) g_key_descriptor[ENTRY] will be invalidated *after*
+   *    all blocks sent DROP_TAB_CONF (commit)
+   * Thus, this info is consistent whenever required by SPJ.
+   */
+  TcSchVerConf * conf = (TcSchVerConf*)signal->getDataPtr();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_TC_SCHVERCONF, signal,
+             TcSchVerConf::SignalLength, JBB);
+}//Dbspj::execTC_SCHVERREQ()
+
+// create table commit
+void Dbspj::execTAB_COMMITREQ(Signal* signal)
+{
+  jamEntry();
+  const Uint32 senderData = signal->theData[0];
+  const Uint32 senderRef = signal->theData[1];
+  const Uint32 tableId = signal->theData[2];
+
+  DEBUG_DICT("Dbspj::execTAB_COMMITREQ"
+     << ", tableId: " << tableId
+  );
+
+  TableRecordPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
+
+  ndbrequire(tablePtr.p->get_prepared() == true);
+  ndbrequire(tablePtr.p->get_enabled() == false);
+  tablePtr.p->set_enabled(true);
+  tablePtr.p->set_prepared(false);
+  tablePtr.p->set_dropping(false);
+
+  signal->theData[0] = senderData;
+  signal->theData[1] = reference();
+  signal->theData[2] = tableId;
+  sendSignal(senderRef, GSN_TAB_COMMITCONF, signal, 3, JBB);
+}//Dbspj::execTAB_COMMITREQ
+
+void
+Dbspj::execPREP_DROP_TAB_REQ(Signal* signal)
+{
+  jamEntry();
+  
+  PrepDropTabReq* req = (PrepDropTabReq*)signal->getDataPtr();
+  const Uint32 tableId = req->tableId;
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+
+  DEBUG_DICT("Dbspj::execPREP_DROP_TAB_REQ"
+     << ", tableId: " << tableId
+  );
+
+  TableRecordPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
+
+  if (!tablePtr.p->get_enabled())
+  {
+    jam();
+    PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->tableId = tableId;
+    ref->errorCode = PrepDropTabRef::NoSuchTable;
+    sendSignal(senderRef, GSN_PREP_DROP_TAB_REF, signal,
+	       PrepDropTabRef::SignalLength, JBB);
+    return;
+  }
+
+  if (tablePtr.p->get_dropping())
+  {
+    jam();
+    PrepDropTabRef* ref = (PrepDropTabRef*)signal->getDataPtrSend();
+    ref->senderRef = reference();
+    ref->senderData = senderData;
+    ref->tableId = tableId;
+    ref->errorCode = PrepDropTabRef::DropInProgress;
+    sendSignal(senderRef, GSN_PREP_DROP_TAB_REF, signal,
+	       PrepDropTabRef::SignalLength, JBB);
+    return;
+  }
+  
+  tablePtr.p->set_dropping(true);
+  tablePtr.p->set_prepared(false);
+
+  PrepDropTabConf* conf = (PrepDropTabConf*)signal->getDataPtrSend();
+  conf->tableId = tableId;
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_PREP_DROP_TAB_CONF, signal,
+             PrepDropTabConf::SignalLength, JBB);
+}//Dbspj::execPREP_DROP_TAB_REQ
+
+void
+Dbspj::execDROP_TAB_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const DropTabReq* req = (DropTabReq*)signal->getDataPtr();
+  const Uint32 tableId = req->tableId;
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+  DropTabReq::RequestType rt = (DropTabReq::RequestType)req->requestType;
+
+  DEBUG_DICT("Dbspj::execDROP_TAB_REQ"
+     << ", tableId: " << tableId
+  );
+
+  TableRecordPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
+
+  if (rt == DropTabReq::OnlineDropTab){
+    if (!tablePtr.p->get_enabled()){
+      jam();
+      DropTabRef* ref = (DropTabRef*)signal->getDataPtrSend();
+      ref->senderRef = reference();
+      ref->senderData = senderData;
+      ref->tableId = tableId;
+      ref->errorCode = DropTabRef::NoSuchTable;
+      sendSignal(senderRef, GSN_DROP_TAB_REF, signal,
+	         DropTabRef::SignalLength, JBB);
+      return;
+    }
+    if (!tablePtr.p->get_dropping()){
+      jam();
+      DropTabRef* ref = (DropTabRef*)signal->getDataPtrSend();
+      ref->senderRef = reference();
+      ref->senderData = senderData;
+      ref->tableId = tableId;
+      ref->errorCode = DropTabRef::DropWoPrep;
+      sendSignal(senderRef, GSN_DROP_TAB_REF, signal,
+	         DropTabRef::SignalLength, JBB);
+      return;
+    }
+  }
+  
+  tablePtr.p->set_enabled(false);
+  tablePtr.p->set_prepared(false);
+  tablePtr.p->set_dropping(false);
+
+  DropTabConf * conf = (DropTabConf*)signal->getDataPtrSend();
+  conf->tableId = tableId;
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  sendSignal(senderRef, GSN_DROP_TAB_CONF, signal,
+	     PrepDropTabConf::SignalLength, JBB);
+}//Dbspj::execDROP_TAB_REQ
+
+void
+Dbspj::execALTER_TAB_REQ(Signal* signal)
+{
+  jamEntry();
+
+  const AlterTabReq* req = (const AlterTabReq*)signal->getDataPtr();
+  const Uint32 tableId = req->tableId;
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 senderData = req->senderData;
+  const Uint32 tableVersion = req->tableVersion;
+  const Uint32 newTableVersion = req->newTableVersion;
+  AlterTabReq::RequestType requestType = 
+    (AlterTabReq::RequestType) req->requestType;
+
+  DEBUG_DICT("Dbspj::execALTER_TAB_REQ"
+     << ", tableId: " << tableId
+     << ", version: " << tableVersion << " --> " << newTableVersion
+  );
+
+  TableRecordPtr tablePtr;
+  tablePtr.i = tableId;
+  ptrCheckGuard(tablePtr, c_tabrecFilesize, m_tableRecord);
+
+  switch (requestType) {
+  case AlterTabReq::AlterTablePrepare:
+    jam();
+    break;
+  case AlterTabReq::AlterTableRevert:
+    jam();
+    tablePtr.p->m_currentSchemaVersion = tableVersion;
+    break;
+  case AlterTabReq::AlterTableCommit:
+    jam();
+    tablePtr.p->m_currentSchemaVersion = newTableVersion;
+    break;
+  default:
+    ndbrequire(false);
+    break;
+  }
+
+  AlterTabConf* conf = (AlterTabConf*)signal->getDataPtrSend();
+  conf->senderRef = reference();
+  conf->senderData = senderData;
+  conf->connectPtr = RNIL;
+  sendSignal(senderRef, GSN_ALTER_TAB_CONF, signal, 
+	     AlterTabConf::SignalLength, JBB);
+}//Dbspj::execALTER_TAB_REQ
+
 /** A noop for now.*/
 void Dbspj::execREAD_CONFIG_REQ(Signal* signal)
 {
@@ -136,6 +398,23 @@ void Dbspj::execREAD_CONFIG_REQ(Signal* signal)
   Record_info ri;
   Dependency_map::createRecordInfo(ri, RT_SPJ_DATABUFFER);
   m_dependency_map_pool.init(&m_arenaAllocator, ri, pc);
+
+  {
+    const ndb_mgm_configuration_iterator * p = 
+      m_ctx.m_config.getOwnConfigIterator();
+    ndbrequire(p != 0);
+
+    ndbrequire(!ndb_mgm_get_int_parameter(p, CFG_SPJ_TABLE, &c_tabrecFilesize));
+  }
+  m_tableRecord = (TableRecord*)allocRecord("TableRecord",
+                                            sizeof(TableRecord),
+                                            c_tabrecFilesize);
+
+  TableRecordPtr tablePtr;
+  for (tablePtr.i = 0; tablePtr.i < c_tabrecFilesize; tablePtr.i++) {
+    ptrAss(tablePtr, m_tableRecord);
+    new (tablePtr.p) TableRecord;
+  }//for
 
   ReadConfigConf* const conf =
     reinterpret_cast<ReadConfigConf*>(signal->getDataPtrSend());
@@ -1093,6 +1372,7 @@ void
 Dbspj::start(Signal* signal,
              Ptr<Request> requestPtr)
 {
+  Uint32 err = 0;
   if (requestPtr.p->m_bits & Request::RT_NEED_PREPARE)
   {
     jam();
@@ -1104,6 +1384,15 @@ Dbspj::start(Signal* signal,
     for (list.first(nodePtr); !nodePtr.isNull(); list.next(nodePtr))
     {
       jam();
+      /**
+       * Verify existence of all involved tables.
+       */
+      err = checkTableError(nodePtr);
+      if (unlikely(err))
+      {
+        jam();
+        break;
+      }
       ndbrequire(nodePtr.p->m_info != 0);
       if (nodePtr.p->m_info->m_prepare != 0)
       {
@@ -1116,7 +1405,13 @@ Dbspj::start(Signal* signal,
      * preferably RT_NEED_PREPARE should only be set if blocking
      * calls are used, in which case m_outstanding should have been increased
      */
-    ndbassert(requestPtr.p->m_outstanding);
+    ndbassert(err || requestPtr.p->m_outstanding);
+  }
+  if (unlikely(err))
+  {
+    jam();
+    abort(signal, requestPtr, err);
+    return;
   }
 
   checkPrepareComplete(signal, requestPtr, 0);
@@ -1140,12 +1435,20 @@ Dbspj::checkPrepareComplete(Signal * signal, Ptr<Request> requestPtr,
       return;
     }
 
-    requestPtr.p->m_state = Request::RS_RUNNING;
     Ptr<TreeNode> nodePtr;
     {
       Local_TreeNode_list list(m_treenode_pool, requestPtr.p->m_nodes);
       ndbrequire(list.first(nodePtr));
     }
+    Uint32 err = checkTableError(nodePtr);
+    if (unlikely(err != 0))
+    {
+      jam();
+      abort(signal, requestPtr, err);
+      return;
+    }
+
+    requestPtr.p->m_state = Request::RS_RUNNING;
     ndbrequire(nodePtr.p->m_info != 0 && nodePtr.p->m_info->m_start != 0);
     (this->*(nodePtr.p->m_info->m_start))(signal, requestPtr, nodePtr);
   }
@@ -2198,7 +2501,13 @@ Dbspj::execSCAN_NEXTREQ(Signal* signal)
                                                                   requestPtr,
                                                                   treeNodePtr);
       }
-    }
+      if (unlikely((requestPtr.p->m_state & Request::RS_ABORTING) != 0))
+      {
+        jam();
+        break;
+      }
+    }// for all treeNodes in 'm_cursor_nodes'
+
     /* Expected only a single ACTIVE TreeNode among the cursors */
     ndbrequire(cnt_active == 1 ||
                !(requestPtr.p->m_bits & Request::RT_REPEAT_SCAN_RESULT));
@@ -2824,6 +3133,39 @@ Dbspj::releaseGlobal(Signal * signal)
   sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, delay, 1);
 }
 
+Uint32
+Dbspj::checkTableError(Ptr<TreeNode> treeNodePtr) const
+{
+  jam();
+  if (treeNodePtr.p->m_tableOrIndexId >= c_tabrecFilesize)
+  {
+    jam();
+    ndbassert(c_tabrecFilesize > 0);
+    return DbspjErr::NoSuchTable;
+  }
+  
+  TableRecordPtr tablePtr;
+  tablePtr.i = treeNodePtr.p->m_tableOrIndexId;
+  ptrAss(tablePtr, m_tableRecord);
+  Uint32 err = tablePtr.p->checkTableError(treeNodePtr.p->m_schemaVersion);
+  if (unlikely(err))
+  {
+    DEBUG_DICT("Dbsp::checkTableError"
+              << ", m_node_no: " << treeNodePtr.p->m_node_no
+              << ", tableOrIndexId: " << treeNodePtr.p->m_tableOrIndexId
+              << ", error: " << err);
+  }
+  if (ERROR_INSERTED_CLEAR(17520) ||
+      ERROR_INSERTED(17521) && (rand() % 7) == 0)
+  {
+    jam();
+    ndbout_c("::checkTableError, injecting NoSuchTable error at line %d file %s",
+              __LINE__,  __FILE__);
+    return DbspjErr::NoSuchTable;
+  }
+  return err;
+}
+
 /**
  * END - MODULE GENERIC
  */
@@ -2887,6 +3229,9 @@ Dbspj::lookup_build(Build_context& ctx,
       break;
     }
 
+    treeNodePtr.p->m_tableOrIndexId = node->tableId;
+    treeNodePtr.p->m_primaryTableId = node->tableId;
+    treeNodePtr.p->m_schemaVersion = node->tableVersion;
     treeNodePtr.p->m_info = &g_LookupOpInfo;
     Uint32 transId1 = requestPtr.p->m_transId[0];
     Uint32 transId2 = requestPtr.p->m_transId[1];
@@ -3060,6 +3405,11 @@ Dbspj::lookup_send(Signal* signal,
                    Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  if (!ERROR_INSERTED(17521)) // Avoid emulated rnd errors
+  {
+    // ::checkTableError() should be handled before we reach this far
+    ndbassert(checkTableError(treeNodePtr) == 0);
+  }
 
   Uint32 cnt = 2;
   if (treeNodePtr.p->isLeaf())
@@ -3512,6 +3862,8 @@ Dbspj::lookup_parent_row(Signal* signal,
                          Ptr<TreeNode> treeNodePtr,
                          const RowPtr & rowRef)
 {
+  jam();
+
   /**
    * Here we need to...
    *   1) construct a key
@@ -3519,8 +3871,7 @@ Dbspj::lookup_parent_row(Signal* signal,
    *   3) get node for row (normally TC)
    */
   Uint32 err = 0;
-  const LqhKeyReq* src = (LqhKeyReq*)treeNodePtr.p->m_lookup_data.m_lqhKeyReq;
-  const Uint32 tableId = LqhKeyReq::getTableId(src->tableSchemaVersion);
+  const Uint32 tableId = treeNodePtr.p->m_tableOrIndexId;
   const Uint32 corrVal = rowRef.m_src_correlation;
 
   DEBUG("::lookup_parent_row"
@@ -3528,6 +3879,13 @@ Dbspj::lookup_parent_row(Signal* signal,
 
   do
   {
+    err = checkTableError(treeNodePtr);
+    if (unlikely(err != 0))
+    {
+      jam();
+      break;
+    }
+
     /**
      * Test execution terminated due to 'OutOfQueryMemory' which
      * may happen multiple places below:
@@ -3991,7 +4349,6 @@ Dbspj::computePartitionHash(Signal* signal,
 Uint32
 Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 {
-  Uint32 err;
   DiGetNodesReq * req = (DiGetNodesReq *)&signal->theData[0];
   req->tableId = tableId;
   req->hashValue = dst.hashInfo[1];
@@ -4009,7 +4366,7 @@ Dbspj::getNodes(Signal* signal, BuildKeyReq& dst, Uint32 tableId)
 #endif
 
   DiGetNodesConf * conf = (DiGetNodesConf *)&signal->theData[0];
-  err = signal->theData[0];
+  const Uint32 err = signal->theData[0] ? signal->theData[1] : 0;
   Uint32 Tdata2 = conf->reqinfo;
   Uint32 nodeId = conf->nodes[0];
   Uint32 instanceKey = (Tdata2 >> 24) & 127;
@@ -4100,6 +4457,9 @@ Dbspj::scanFrag_build(Build_context& ctx,
     }
 
     treeNodePtr.p->m_info = &g_ScanFragOpInfo;
+    treeNodePtr.p->m_tableOrIndexId = node->tableId;
+    treeNodePtr.p->m_primaryTableId = node->tableId;
+    treeNodePtr.p->m_schemaVersion = node->tableVersion;
     treeNodePtr.p->m_scanfrag_data.m_scanFragHandlePtrI = RNIL;
     Ptr<ScanFragHandle> scanFragHandlePtr;
     if (ERROR_INSERTED_CLEAR(17004))
@@ -4278,6 +4638,11 @@ Dbspj::scanFrag_send(Signal* signal,
                      Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  if (!ERROR_INSERTED(17521)) // Avoid emulated rnd errors
+  {
+    // ::checkTableError() should be handled before we reach this far
+    ndbassert(checkTableError(treeNodePtr) == 0);
+  }
 
   Ptr<ScanFragHandle> scanFragHandlePtr;
   m_scanfraghandle_pool.getPtr(scanFragHandlePtr, treeNodePtr.p->
@@ -4505,7 +4870,14 @@ Dbspj::scanFrag_execSCAN_NEXTREQ(Signal* signal,
                                  Ptr<Request> requestPtr,
                                  Ptr<TreeNode> treeNodePtr)
 {
-  jamEntry();
+  jam();
+  Uint32 err = checkTableError(treeNodePtr);
+  if (unlikely(err))
+  {
+    jam();
+    abort(signal, requestPtr, err);
+    return;
+  }
 
   Ptr<ScanFragHandle> scanFragHandlePtr;
   m_scanfraghandle_pool.getPtr(scanFragHandlePtr, treeNodePtr.p->
@@ -4549,12 +4921,12 @@ Dbspj::scanFrag_abort(Signal* signal,
 {
   jam();
 
-  Ptr<ScanFragHandle> scanFragHandlePtr;
-  m_scanfraghandle_pool.getPtr(scanFragHandlePtr, treeNodePtr.p->
-                               m_scanfrag_data.m_scanFragHandlePtrI);
   if (treeNodePtr.p->m_state == TreeNode::TN_ACTIVE)
   {
     jam();
+    Ptr<ScanFragHandle> scanFragHandlePtr;
+    m_scanfraghandle_pool.getPtr(scanFragHandlePtr, treeNodePtr.p->
+                                 m_scanfrag_data.m_scanFragHandlePtrI);
 
     switch(scanFragHandlePtr.p->m_state){
     case ScanFragHandle::SFH_NOT_STARTED:
@@ -4680,7 +5052,14 @@ Dbspj::scanIndex_build(Build_context& ctx,
     requestPtr.p->m_bits |= Request::RT_SCAN;
     requestPtr.p->m_bits |= Request::RT_NEED_PREPARE;
     requestPtr.p->m_bits |= Request::RT_NEED_COMPLETE;
+
+    Uint32 indexId = node->tableId;
+    Uint32 tableId = g_key_descriptor_pool.getPtr(indexId)->primaryTableId;
+
     treeNodePtr.p->m_info = &g_ScanIndexOpInfo;
+    treeNodePtr.p->m_tableOrIndexId = indexId;
+    treeNodePtr.p->m_primaryTableId = tableId;
+    treeNodePtr.p->m_schemaVersion = node->tableVersion;
     treeNodePtr.p->m_bits |= TreeNode::T_ATTR_INTERPRETED;
     treeNodePtr.p->m_bits |= TreeNode::T_NEED_REPORT_BATCH_COMPLETED;
     treeNodePtr.p->m_batch_size = 
@@ -4902,13 +5281,17 @@ Dbspj::scanIndex_prepare(Signal * signal,
 {
   jam();
 
+  if (!ERROR_INSERTED(17521)) // Avoid emulated rnd errors
+  {
+    // ::checkTableError() should be handled before we reach this far
+    ndbassert(checkTableError(treeNodePtr) == 0); //Handled in Dbspj::start
+  }
   treeNodePtr.p->m_state = TreeNode::TN_PREPARING;
-  ScanFragReq*dst=(ScanFragReq*)treeNodePtr.p->m_scanindex_data.m_scanFragReq;
 
   DihScanTabReq * req = (DihScanTabReq*)signal->getDataPtrSend();
   req->senderRef = reference();
   req->senderData = treeNodePtr.i;
-  req->tableId = dst->tableId;
+  req->tableId = treeNodePtr.p->m_tableOrIndexId;
   req->schemaTransId = 0;
   sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_REQ, signal,
              DihScanTabReq::SignalLength, JBB);
@@ -4937,11 +5320,11 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
 
   Uint32 cookie = conf->scanCookie;
   Uint32 fragCount = conf->fragmentCount;
-  ScanFragReq * dst = (ScanFragReq*)data.m_scanFragReq;
 
   if (conf->reorgFlag)
   {
     jam();
+    ScanFragReq * dst = (ScanFragReq*)data.m_scanFragReq;
     ScanFragReq::setReorgFlag(dst->requestInfo, 1);
   }
   if (treeNodePtr.p->m_bits & TreeNode::T_CONST_PRUNE)
@@ -4972,6 +5355,12 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
     {
       Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
 
+      err = checkTableError(treeNodePtr);
+      if (unlikely(err != 0))
+      {
+        jam();
+        break;
+      }
       for (Uint32 i = 0; i<fragCount; i++)
       {
         jam();
@@ -5005,8 +5394,7 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
       // but only parts in distribution key
 
       BuildKeyReq tmp;
-      Uint32 indexId = dst->tableId;
-      Uint32 tableId = g_key_descriptor_pool.getPtr(indexId)->primaryTableId;
+      Uint32 tableId = treeNodePtr.p->m_primaryTableId;
       err = computePartitionHash(signal, tmp, tableId, data.m_constPrunePtrI);
       if (unlikely(err != 0))
       {
@@ -5124,7 +5512,7 @@ Dbspj::scanindex_sendDihGetNodesReq(Signal* signal,
   if (fragCnt > 0)
   {
     jam();
-    Uint32 tableId = ((ScanFragReq*)data.m_scanFragReq)->tableId;
+    Uint32 tableId = treeNodePtr.p->m_tableOrIndexId;
     req->senderRef = reference();
     req->tableId = tableId;
     req->scanCookie = data.m_scanCookie;
@@ -5327,6 +5715,14 @@ Dbspj::scanIndex_parent_row(Signal* signal,
     Ptr<ScanFragHandle> fragPtr;
     Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
     LocalArenaPoolImpl pool(requestPtr.p->m_arena, m_dependency_map_pool);
+
+    err = checkTableError(treeNodePtr);
+    if (unlikely(err != 0))
+    {
+      jam();
+      break;
+    }
+
     if (treeNodePtr.p->m_bits & TreeNode::T_PRUNE_PATTERN)
     {
       jam();
@@ -5358,9 +5754,7 @@ Dbspj::scanIndex_parent_row(Signal* signal,
       }
 
       BuildKeyReq tmp;
-      ScanFragReq * dst = (ScanFragReq*)data.m_scanFragReq;
-      Uint32 indexId = dst->tableId;
-      Uint32 tableId = g_key_descriptor_pool.getPtr(indexId)->primaryTableId;
+      Uint32 tableId = treeNodePtr.p->m_primaryTableId;
       err = computePartitionHash(signal, tmp, tableId, pruneKeyPtrI);
       releaseSection(pruneKeyPtrI);
       if (unlikely(err != 0))
@@ -5758,8 +6152,9 @@ Dbspj::scanIndex_send(Signal* signal,
   req->batch_size_bytes = bs_bytes;
   req->batch_size_rows = bs_rows;
 
-  Uint32 err = 0;
   Uint32 requestsSent = 0;
+  Uint32 err = checkTableError(treeNodePtr);
+  if (likely(err == 0))
   {
     Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
     Ptr<ScanFragHandle> fragPtr;
@@ -6245,6 +6640,13 @@ Dbspj::scanIndex_execSCAN_NEXTREQ(Signal* signal,
                                   Ptr<TreeNode> treeNodePtr)
 {
   jam();
+  Uint32 err = checkTableError(treeNodePtr);
+  if (unlikely(err))
+  {
+    jam();
+    abort(signal, requestPtr, err);
+    return;
+  }
 
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
   const ScanFragReq * org = (const ScanFragReq*)data.m_scanFragReq;
@@ -6415,12 +6817,11 @@ Dbspj::scanIndex_complete(Signal* signal,
 {
   jam();
   ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
-  ScanFragReq*dst=(ScanFragReq*)treeNodePtr.p->m_scanindex_data.m_scanFragReq;
   if (!data.m_fragments.isEmpty())
   {
     jam();
     DihScanTabCompleteRep* rep=(DihScanTabCompleteRep*)signal->getDataPtrSend();
-    rep->tableId = dst->tableId;
+    rep->tableId = treeNodePtr.p->m_tableOrIndexId;
     rep->scanCookie = data.m_scanCookie;
     sendSignal(DBDIH_REF, GSN_DIH_SCAN_TAB_COMPLETE_REP,
                signal, DihScanTabCompleteRep::SignalLength, JBB);

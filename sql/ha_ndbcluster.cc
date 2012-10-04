@@ -3572,7 +3572,7 @@ int ha_ndbcluster::fetch_next_pushed()
     DBUG_PRINT("info", ("Error from 'nextResult()'"));
     table->status= STATUS_GARBAGE;
 //  DBUG_ASSERT(false);
-//  DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+    DBUG_RETURN(ndb_err(m_thd_ndb->trans));
   }
   DBUG_RETURN(result);
 }
@@ -12945,11 +12945,9 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
    */
   if (!((share->use_count == 1) && share->util_thread))
   {
-#ifdef NDB_LOG_TRAILING_SHARE_ERRORS
     sql_print_warning("NDB_SHARE: %s already exists use_count=%d."
                       " Moving away for safety, but possible memleak.",
                       share->key, share->use_count);
-#endif
   }
   dbug_print_open_tables();
 
@@ -13275,6 +13273,9 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   if ((* share)->state == NSS_DROPPED)
   {
     found= my_hash_delete(&ndbcluster_dropped_tables, (uchar*) *share) == 0;
+
+    // If this is a 'trailing share', it might still be 'open'
+    my_hash_delete(&ndbcluster_open_tables, (uchar*) *share);
   }
   else
   {

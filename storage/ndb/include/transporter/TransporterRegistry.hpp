@@ -108,8 +108,15 @@ struct TransporterReceiveData
   NodeBitmask m_transporters;
 
   /**
-   * Bitmask of transporters that has data "carried over" since
-   *   last performReceive
+   * Bitmask of transporters having data awaiting to be received
+   * from its transporter.
+   */
+  NodeBitmask m_recv_transporters;
+
+  /**
+   * Bitmask of transporters that has already received data buffered
+   * inside its transporter. Possibly "carried over" from last 
+   * performReceive
    */
   NodeBitmask m_has_data_transporters;
 #if defined(HAVE_EPOLL_CREATE)
@@ -408,7 +415,6 @@ private:
 
 #ifdef ERROR_INSERT
   Bitmask<MAX_NTRANSPORTERS/32> m_blocked;
-  Bitmask<MAX_NTRANSPORTERS/32> m_blocked_with_data;
   Bitmask<MAX_NTRANSPORTERS/32> m_blocked_disconnected;
   int m_disconnect_errors[MAX_NTRANSPORTERS];
 #endif

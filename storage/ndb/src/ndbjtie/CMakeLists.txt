@@ -37,7 +37,7 @@ IF(HAVE_JDK)
   INCLUDE_DIRECTORIES(utils 
                       jtie)
 
-  ADD_LIBRARY(ndbjtie STATIC ndbjtie_lib.cpp)
+  ADD_CONVENIENCE_LIBRARY(ndbjtie ndbjtie_lib.cpp)
 
 ENDIF(HAVE_JDK)
 
