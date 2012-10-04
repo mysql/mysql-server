@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3522,7 +3522,7 @@ log_refresh_stats(void)
 	log_sys->last_printout_time = time(NULL);
 }
 
-/**********************************************************************
+/********************************************************//**
 Closes a log group. */
 static
 void
@@ -3552,12 +3552,12 @@ log_group_close(
 	mem_free(group);
 }
 
-/**********************************************************
-Shutdown the log system but do not release all the memory. */
+/********************************************************//**
+Closes all log groups. */
 UNIV_INTERN
 void
-log_shutdown(void)
-/*==============*/
+log_group_close_all(void)
+/*=====================*/
 {
 	log_group_t*	group;
 
@@ -3571,6 +3571,16 @@ log_shutdown(void)
 
 		log_group_close(prev_group);
 	}
+}
+
+/********************************************************//**
+Shutdown the log system but do not release all the memory. */
+UNIV_INTERN
+void
+log_shutdown(void)
+/*==============*/
+{
+	log_group_close_all();
 
 	mem_free(log_sys->buf_ptr);
 	log_sys->buf_ptr = NULL;
@@ -3598,7 +3608,7 @@ log_shutdown(void)
 	recv_sys_close();
 }
 
-/**********************************************************
+/********************************************************//**
 Free the log system data structures. */
 UNIV_INTERN
 void
