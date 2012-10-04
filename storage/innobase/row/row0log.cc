@@ -2704,22 +2704,21 @@ update_the_rec:
 			/* No byte-for-byte equal record was found. */
 			if (cursor.low_match
 			    < dict_index_get_n_fields(index)) {
-				if (!dict_index_is_unique(index)) {
-					goto insert_the_rec;
-				}
-
 				/* Duplicate key found. This is OK if
 				any of the key columns are NULL.
 				Complain if the record was not
 				delete-marked or we are trying to
 				insert a non-matching delete-marked
 				record. */
-				if ((!deleted || entry->info_bits)
+				if (dict_index_is_unique(index)
+				    && (!deleted || entry->info_bits)
 				    && !dtuple_contains_null(entry)) {
 					row_merge_dup_report(
 						dup, entry->fields);
 					goto func_exit;
 				}
+
+				goto insert_the_rec;
 			}
 
 			update->info_bits =
