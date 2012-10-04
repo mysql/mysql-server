@@ -3648,13 +3648,9 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_TABLE_IN_FK_CHECK:
     textno= ER_TABLE_IN_FK_CHECK;
     break;
-#ifdef MCP_BUG13840553
-    // Wait for 5.6 to also get this fix to avoid changing .result files back
-    // and forth
   case HA_WRONG_CREATE_OPTION:
     textno= ER_ILLEGAL_HA;
     break;
-#endif
   default:
     {
       /* The error was "unknown" to this function.
