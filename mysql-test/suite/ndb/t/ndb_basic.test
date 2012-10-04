@@ -449,7 +449,7 @@ while ($i)
 }
 let $sql=$sql, primary key using hash(c1)) engine=ndb;
 
---error 1005
+--error 1296
 eval $sql; # eval the sql and create the table
 show warnings;
 
@@ -828,7 +828,7 @@ DROP TABLE child, parent;
 #
 # bug#59756
 #
---error 1005
+--error 1296
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
 ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 144;
 show warnings;
@@ -840,7 +840,7 @@ drop table t1;
 #
 #Bug #11753491 44940: MYSQLD CRASHES WHEN CREATING A CLUSTER TABLE WITH 64 CHARACTER TABLE NAME
 #
---error 1005
+--error 1296
 create table
 abcdefghijklmnopqrstuvwxyz1234567890bcdefghijklmnopqrstuvwxyz123(id int
 primary key) engine=ndb;

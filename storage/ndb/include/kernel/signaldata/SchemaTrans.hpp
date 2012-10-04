@@ -81,6 +81,7 @@ struct SchemaTransEndConf {
 struct SchemaTransEndRef {
   enum ErrorCode {
     NoError = 0,
+    Busy = 701,
     NotMaster = 702,
     InvalidTransKey = 781,
     InvalidTransId = 782,

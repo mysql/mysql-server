@@ -127,7 +127,7 @@
 
 // -------- ERROR INSERT MACROS -------
 #ifdef ERROR_INSERT
-#define ERROR_INSERT_VARIABLE UintR cerrorInsert, c_error_insert_extra
+#define ERROR_INSERT_VARIABLE mutable UintR cerrorInsert, c_error_insert_extra
 #define ERROR_INSERTED(x) (cerrorInsert == (x))
 #define ERROR_INSERTED_CLEAR(x) (cerrorInsert == (x) ? (cerrorInsert = 0, true) : false)
 #define ERROR_INSERT_VALUE cerrorInsert

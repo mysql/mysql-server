@@ -56,34 +56,14 @@ private:
 };
 
 /* free entries from share or at end */
-extern void ndb_index_stat_free(NDB_SHARE*, int iudex_id, int index_version);
-extern void ndb_index_stat_free(NDB_SHARE*);
-extern void ndb_index_stat_end();
-
-/* these have to live in ha_ndbcluster.cc */
-extern bool ndb_index_stat_get_enable(THD *thd);
-extern const char* g_ndb_status_index_stat_status;
-extern long g_ndb_status_index_stat_cache_query;
-extern long g_ndb_status_index_stat_cache_clean;
+void ndb_index_stat_free(NDB_SHARE*, int iudex_id, int index_version);
+void ndb_index_stat_free(NDB_SHARE*);
+void ndb_index_stat_end();
 
 void
 compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
                      const KEY *key_info,
                      const key_range *start_key, const key_range *end_key,
                      int from);
-
-/* error codes local to ha_ndb */
-
-/* stats thread is not open for requests (should not happen) */
-#define Ndb_index_stat_error_NOT_ALLOW          9001
-
-/* stats entry for existing index not found (should not happen) */
-#define Ndb_index_stat_error_NOT_FOUND          9002
-
-/* request on stats entry with recent error was ignored */
-#define Ndb_index_stat_error_HAS_ERROR          9003
- 
-/* stats thread aborted request on stats entry */
-#define Ndb_index_stat_error_ABORT_REQUEST      9004
 
 #endif

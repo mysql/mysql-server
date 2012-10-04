@@ -4216,6 +4216,49 @@ select x.a from t1 as x join t1 as y on y.a = x.b where x.a=4;
 
 drop table t1; 
 
+####################################################
+# Regression test for Bug#14644936 "INEFFICIENT AND INCORRECT EXECUTION OF 
+# PUSHABLE OUTER JOINS".
+####################################################
+
+connection ddl;
+CREATE TABLE t1 (
+  a int NOT NULL,
+  b int DEFAULT NULL,
+  c int NOT NULL,
+  d int NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=ndbcluster;
+
+create unique index ix1 on t1(b,c) using hash;
+
+connection spj;
+
+insert into t1 values (1,NULL,1,1);
+
+
+explain extended select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b; 
+
+# Record value before query.
+create temporary table scan_count
+       select * from information_schema.global_status 
+       where variable_name = 'Ndb_scan_count';
+
+# Query gives wrong result on mysql-trunk-cluster, and extra scan on both
+# mysql-5.5-cluster-7.2 and mysql-trunk-cluster.
+select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b; 
+
+# Bug causes value to increase by 3 rather than 2.
+select scan_count.VARIABLE_NAME,
+       old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE  
+       from scan_count,information_schema.global_status as old 
+       where old.variable_name = 'Ndb_scan_count';
+
+drop table scan_count;
+
+connection ddl;
+drop table t1;
+
 ########################################
 # Verify DBSPJ counters for entire test:
 # Note: These tables are 'temporary' withing 'connection spj'
