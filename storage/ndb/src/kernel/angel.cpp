@@ -543,7 +543,9 @@ angel_run(const char* progname,
           const char* bind_address,
           bool initial,
           bool no_start,
-          bool daemon)
+          bool daemon,
+          int connnect_retries,
+          int connect_delay)
 {
   ConfigRetriever retriever(connect_str,
                             force_nodeid,
@@ -557,8 +559,6 @@ angel_run(const char* progname,
     angel_exit(1);
   }
 
-  const int connnect_retries = 12;
-  const int connect_delay = 5;
   const int verbose = 1;
   if (retriever.do_connect(connnect_retries, connect_delay, verbose) != 0)
   {
@@ -825,8 +825,6 @@ angel_run(const char* progname,
       NdbSleep_SecSleep(restart_delay_secs);
     };
 
-    const int connnect_retries = 12;
-    const int connect_delay = 5;
     const int verbose = 1;
     if (retriever.do_connect(connnect_retries, connect_delay, verbose) != 0)
     {

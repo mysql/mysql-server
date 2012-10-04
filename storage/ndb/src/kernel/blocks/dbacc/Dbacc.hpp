@@ -27,6 +27,7 @@
 #include <pc.hpp>
 #include <DynArr256.hpp>
 #include <SimulatedBlock.hpp>
+#include <LHLevel.hpp>
 
 #ifdef DBACC_C
 // Debug Macros
@@ -200,7 +201,7 @@ class ElementHeader {
    * 
    * l = Locked    -- If true contains operation else scan bits + hash value
    * s = Scan bits
-   * h = Hash value
+   * h = Reduced hash value. The lower bits used for address is shifted away
    * o = Operation ptr I
    *
    *           1111111111222222222233
@@ -209,17 +210,16 @@ class ElementHeader {
    *  ooooooooooooooooooooooooooooooo
    */
 public:
-  STATIC_CONST( HASH_VALUE_PART_MASK = 0xFFFF );
-  
   static bool getLocked(Uint32 data);
   static bool getUnlocked(Uint32 data);
   static Uint32 getScanBits(Uint32 data);
-  static Uint32 getHashValuePart(Uint32 data);
   static Uint32 getOpPtrI(Uint32 data);
+  static LHBits16 getReducedHashValue(Uint32 data);
 
   static Uint32 setLocked(Uint32 opPtrI);
-  static Uint32 setUnlocked(Uint32 hashValuePart, Uint32 scanBits);
+  static Uint32 setUnlocked(Uint32 scanBits, LHBits16 const& reducedHashValue);
   static Uint32 setScanBit(Uint32 header, Uint32 scanBit);
+  static Uint32 setReducedHashValue(Uint32 header, LHBits16 const& reducedHashValue);
   static Uint32 clearScanBit(Uint32 header, Uint32 scanBit);
 };
 
@@ -242,11 +242,11 @@ ElementHeader::getScanBits(Uint32 data){
   return (data >> 1) & ((1 << MAX_PARALLEL_SCANS_PER_FRAG) - 1);
 }
 
-inline 
-Uint32 
-ElementHeader::getHashValuePart(Uint32 data){
+inline
+LHBits16
+ElementHeader::getReducedHashValue(Uint32 data){
   assert(getUnlocked(data));
-  return data >> 16;
+  return LHBits16::unpack(data >> 16);
 }
 
 inline
@@ -259,12 +259,15 @@ ElementHeader::getOpPtrI(Uint32 data){
 inline 
 Uint32 
 ElementHeader::setLocked(Uint32 opPtrI){
+  assert(opPtrI < 0x8000000);
   return (opPtrI << 1) + 0;
 }
 inline
 Uint32 
-ElementHeader::setUnlocked(Uint32 hashValue, Uint32 scanBits){
-  return (hashValue << 16) + (scanBits << 1) + 1;
+ElementHeader::setUnlocked(Uint32 scanBits, LHBits16 const& reducedHashValue)
+{
+  assert(scanBits < (1 << MAX_PARALLEL_SCANS_PER_FRAG));
+  return (Uint32(reducedHashValue.pack()) << 16) | (scanBits << 1) | 1;
 }
 
 inline
@@ -281,6 +284,13 @@ ElementHeader::clearScanBit(Uint32 header, Uint32 scanBit){
   return header & (~(scanBit << 1));
 }
 
+inline
+Uint32
+ElementHeader::setReducedHashValue(Uint32 header, LHBits16 const& reducedHashValue)
+{
+  assert(getUnlocked(header));
+  return (Uint32(reducedHashValue.pack()) << 16) | (header & 0xffff);
+}
 
 class Dbacc: public SimulatedBlock {
   friend class DbaccProxy;
@@ -402,14 +412,15 @@ struct Fragmentrec {
 // slackCheck When slack goes over this value it is time to expand.
 // slackCheck = (maxp + p + 1)*(maxloadfactor - minloadfactor) or 
 // bucketSize * hysteresis
+// Since at most RNIL 8KiB-pages can be used for a fragment, the extreme values
+// for slack will be within -2^43 and +2^43 words.
 //-----------------------------------------------------------------------------
+  LHLevelRH level;
   Uint32 localkeylen;
-  Uint32 maxp;
   Uint32 maxloadfactor;
   Uint32 minloadfactor;
-  Uint32 p;
-  Uint32 slack;
-  Uint32 slackCheck;
+  Int64 slack;
+  Int64 slackCheck;
 
 //-----------------------------------------------------------------------------
 // nextfreefrag is the next free fragment if linked into a free list
@@ -442,19 +453,17 @@ struct Fragmentrec {
   Uint16 keyLength;
 
 //-----------------------------------------------------------------------------
-// This flag is used to avoid sending a big number of expand or shrink signals
-// when simultaneously committing many inserts or deletes.
+// Only allow one expand or shrink signal in queue at the time.
 //-----------------------------------------------------------------------------
-  Uint8 expandFlag;
+  bool expandOrShrinkQueued;
 
 //-----------------------------------------------------------------------------
 // hashcheckbit is the bit to check whether to send element to split bucket or not
 // k (== 6) is the number of buckets per page
-// lhfragbits is the number of bits used to calculate the fragment id
 //-----------------------------------------------------------------------------
-  Uint8 hashcheckbit;
-  Uint8 k;
-  Uint8 lhfragbits;
+  STATIC_CONST( k = 6 );
+  STATIC_CONST( MIN_HASH_COMPARE_BITS = 7 );
+  STATIC_CONST( MAX_HASH_VALUE_BITS = 31 );
 
 //-----------------------------------------------------------------------------
 // nodetype can only be STORED in this release. Is currently only set, never read
@@ -470,6 +479,11 @@ struct Fragmentrec {
 // flag to mark that execEXPANDCHECK2 has failed due to DirRange full
 //-----------------------------------------------------------------------------
   Uint8 dirRangeFull;
+
+public:
+  Uint32 getPageNumber(Uint32 bucket_number) const;
+  Uint32 getPageIndex(Uint32 bucket_number) const;
+  bool enough_valid_bits(LHBits16 const& reduced_hash_value) const;
 };
 
   typedef Ptr<Fragmentrec> FragmentrecPtr;
@@ -485,8 +499,7 @@ struct Operationrec {
   Uint32 elementPointer;
   Uint32 fid;
   Uint32 fragptr;
-  Uint32 hashvaluePart;
-  Uint32 hashValue;
+  LHBits32 hashValue;
   Uint32 nextLockOwnerOp;
   Uint32 nextOp;
   Uint32 nextParallelQue;
@@ -512,7 +525,8 @@ struct Operationrec {
   Uint16 tupkeylen;
   Uint32 xfrmtupkeylen;
   Uint32 userblockref;
-  Uint32 scanBits;
+  Uint16 scanBits;
+  LHBits16 reducedHashValue;
 
   enum OpBits {
     OP_MASK                 = 0x0000F // 4 bits for operation type
@@ -693,8 +707,8 @@ private:
   void releaseDirIndexResources(Signal* signal, FragmentrecPtr regFragPtr);
   void releaseFragRecord(Signal* signal, FragmentrecPtr regFragPtr);
   void initScanFragmentPart(Signal* signal);
-  Uint32 checkScanExpand(Signal* signal);
-  Uint32 checkScanShrink(Signal* signal);
+  Uint32 checkScanExpand(Signal* signal, Uint32 splitBucket);
+  Uint32 checkScanShrink(Signal* signal, Uint32 sourceBucket, Uint32 destBucket);
   void initialiseFragRec(Signal* signal);
   void initialiseFsConnectionRec(Signal* signal);
   void initialiseFsOpRec(Signal* signal);
@@ -762,6 +776,10 @@ private:
   void seizeRightlist(Signal* signal);
   Uint32 readTablePk(Uint32 lkey1, Uint32 lkey2, Uint32 eh, OperationrecPtr);
   Uint32 getElement(Signal* signal, OperationrecPtr& lockOwner);
+  LHBits32 getElementHash(OperationrecPtr& oprec);
+  LHBits32 getElementHash(Uint32 const* element, Int32 forward);
+  LHBits32 getElementHash(Uint32 const* element, Int32 forward, OperationrecPtr& oprec);
+  void shrink_adjust_reduced_hash_value(Uint32 bucket_number);
   Uint32 getPagePtr(DynArr256::Head&, Uint32);
   bool setPagePtr(DynArr256::Head& directory, Uint32 index, Uint32 ptri);
   Uint32 unsetPagePtr(DynArr256::Head& directory, Uint32 index);
@@ -837,8 +855,6 @@ private:
   void storeDataPageInDirectoryLab(Signal* signal);
 
   void zpagesize_error(const char* where);
-
-  void reenable_expand_after_redo_log_exection_complete(Signal*);
 
   // charsets
   void xfrmKeyData(Signal* signal);
@@ -1001,7 +1017,6 @@ private:
   Uint32 tgeContainerptr;
   Uint32 tgeElementptr;
   Uint32 tgeForward;
-  Uint32 texpReceivedBucket;
   Uint32 texpDirInd;
   Uint32 texpDirRangeIndex;
   Uint32 texpDirPageIndex;
@@ -1035,7 +1050,6 @@ private:
   Uint32 tmp;
   Uint32 tmpP;
   Uint32 tmpP2;
-  Uint32 tmp1;
   Uint32 tmp2;
   Uint32 tgflPageindex;
   Uint32 tmpindex;
@@ -1094,5 +1108,24 @@ private:
   Uint32 c_errorInsert3000_TableId;
   Uint32 c_memusage_report_frequency;
 };
+
+inline Uint32 Dbacc::Fragmentrec::getPageNumber(Uint32 bucket_number) const
+{
+  assert(bucket_number < RNIL);
+  return bucket_number >> k;
+}
+
+inline Uint32 Dbacc::Fragmentrec::getPageIndex(Uint32 bucket_number) const
+{
+  assert(bucket_number < RNIL);
+  return bucket_number & ((1 << k) - 1);
+}
+
+inline bool Dbacc::Fragmentrec::enough_valid_bits(LHBits16 const& reduced_hash_value) const
+{
+  // Forte C 5.0 needs use of intermediate constant
+  int const bits = MIN_HASH_COMPARE_BITS;
+  return level.getNeededValidBits(bits) <= reduced_hash_value.valid_bits();
+}
 
 #endif
