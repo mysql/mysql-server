@@ -1788,7 +1788,12 @@ dict_load_indexes(
 
 		if (!btr_pcur_is_on_user_rec(&pcur)) {
 
-			if (dict_table_get_first_index(table) == NULL) {
+			/* We should allow the table to open even
+			without index when DICT_ERR_IGNORE_CORRUPT is set.
+			DICT_ERR_IGNORE_CORRUPT is currently only set
+			for drop table */
+			if (dict_table_get_first_index(table) == NULL
+			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Cannot load table %s "
 					"because it has no indexes in "
