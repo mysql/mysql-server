@@ -8273,9 +8273,22 @@ Dbdih::execADD_FRAGREF(Signal* signal){
   connectPtr.i = ref->dihPtr;
   ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
 
+  Ptr<TabRecord> tabPtr;
+  tabPtr.i = connectPtr.p->table;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+
   if (connectPtr.p->connectState == ConnectRecord::ALTER_TABLE)
   {
     jam();
+
+    if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
+    {
+      jam();
+      DIH_TAB_WRITE_LOCK(tabPtr.p);
+      tabPtr.p->m_new_map_ptr_i = RNIL;
+      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+    }
 
     connectPtr.p->connectState = ConnectRecord::ALTER_TABLE_ABORT;
     drop_fragments(signal, connectPtr, connectPtr.p->m_alter.m_totalfragments);
@@ -8290,10 +8303,6 @@ Dbdih::execADD_FRAGREF(Signal* signal){
 	       DiAddTabRef::SignalLength, JBB);  
 
     // Release
-    Ptr<TabRecord> tabPtr;
-    tabPtr.i = connectPtr.p->table;
-    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
     tabPtr.p->connectrec = RNIL;
     release_connect(connectPtr);
   }
@@ -8630,6 +8639,14 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 
     connectPtr.p->userpointer = senderData;
     connectPtr.p->userblockref = senderRef;
+
+    if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
+    {
+      jam();
+      DIH_TAB_WRITE_LOCK(tabPtr.p);
+      tabPtr.p->m_new_map_ptr_i = RNIL;
+      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+    }
 
     if (AlterTableReq::getAddFragFlag(req->changeMask))
     {
@@ -18106,6 +18123,27 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
         cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
       }
       RSS_OP_SNAPSHOT_CHECK(cnghash);
+    }
+  }
+
+  /* Checks whether add frag failure was cleaned up.
+   * Should NOT be used while commands involving addFragReq
+   * are being performed.
+   */
+  if (arg == DumpStateOrd::DihAddFragFailCleanedUp && signal->length() == 2)
+  {
+    TabRecordPtr tabPtr;
+    tabPtr.i = signal->theData[1];
+    if (tabPtr.i >= ctabFileSize)
+      return;
+
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+    if (tabPtr.p->m_new_map_ptr_i != RNIL)
+    {
+      jam();
+      warningEvent("new_map_ptr_i to table id %d is not NIL", tabPtr.i);
+      ndbrequire(false);
     }
   }
 
