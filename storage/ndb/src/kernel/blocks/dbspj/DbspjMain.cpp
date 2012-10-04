@@ -5056,25 +5056,14 @@ Dbspj::execDIH_SCAN_TAB_CONF(Signal* signal)
 
     if (!pruned)
     {
+      /** Start requesting node info from DIH */
       jam();
-      Uint32 tableId = ((ScanFragReq*)data.m_scanFragReq)->tableId;
-      DihScanGetNodesReq * req = (DihScanGetNodesReq*)signal->getDataPtrSend();
-      req->senderRef = reference();
-      req->tableId = tableId;
-      req->scanCookie = cookie;
-
-      Uint32 cnt = 0;
-      Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
-      for (list.first(fragPtr); !fragPtr.isNull(); list.next(fragPtr))
+      err = scanindex_sendDihGetNodesReq(signal, requestPtr, treeNodePtr);
+      if (unlikely(err != 0))
       {
         jam();
-        req->senderData = fragPtr.i;
-        req->fragId = fragPtr.p->m_fragId;
-        sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
-                   DihScanGetNodesReq::SignalLength, JBB);
-        cnt++;
+        break;
       }
-      data.m_frags_outstanding = cnt;
       requestPtr.p->m_outstanding++;
     }
     else
@@ -5097,46 +5086,206 @@ error:
   abort(signal, requestPtr, err);
 }
 
+/**
+ * Will check the fragment list for fragments which need to 
+ * get node info to construct 'fragPtr.p->m_ref' from DIH.
+ *
+ * In order to avoid CPU starvation, or unmanagable huge FragItem[],
+ * max MAX_DIH_FRAG_REQS are requested in a single signal.
+ * If there are more fragments, we have to repeatable call this
+ * function when CONF for the first fragment set is received.
+ */
+Uint32
+Dbspj::scanindex_sendDihGetNodesReq(Signal* signal,
+                                    Ptr<Request> requestPtr,
+                                    Ptr<TreeNode> treeNodePtr)
+{
+  jam();
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  Ptr<ScanFragHandle> fragPtr;
+  Local_ScanFragHandle_list list(m_scanfraghandle_pool, data.m_fragments);
+
+  DihScanGetNodesReq * req = (DihScanGetNodesReq*)signal->getDataPtrSend();
+  Uint32 fragCnt = 0;
+  for (list.first(fragPtr);
+       !fragPtr.isNull() && fragCnt < DihScanGetNodesReq::MAX_DIH_FRAG_REQS;
+       list.next(fragPtr))
+  {
+    jam();
+    if (fragPtr.p->m_ref == 0) // Need GSN_DIH_SCAN_GET_NODES_REQ
+    {
+      jam();
+      req->fragItem[fragCnt].senderData = fragPtr.i;
+      req->fragItem[fragCnt].fragId = fragPtr.p->m_fragId;
+      fragCnt++;
+    }
+  }
+
+  if (fragCnt > 0)
+  {
+    jam();
+    Uint32 tableId = ((ScanFragReq*)data.m_scanFragReq)->tableId;
+    req->senderRef = reference();
+    req->tableId = tableId;
+    req->scanCookie = data.m_scanCookie;
+    req->fragCnt = fragCnt;
+
+    /** Always send as a long signal, even if a short would
+     *  have been sufficient in the (rare) case of 'fragCnt==1'
+     */
+    Ptr<SectionSegment> fragReq;
+    Uint32 len = fragCnt*DihScanGetNodesReq::FragItem::Length;
+    if (ERROR_INSERTED_CLEAR(17130) ||
+        unlikely(!import(fragReq, (Uint32*)req->fragItem, len)))
+    {
+      jam();
+      return DbspjErr::OutOfSectionMemory;
+    }
+
+    SectionHandle handle(this, fragReq.i);
+    sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
+               DihScanGetNodesReq::FixedSignalLength,
+               JBB, &handle);
+
+    data.m_frags_outstanding += fragCnt;
+  }
+  return 0;
+} //Dbspj::scanindex_sendDihGetNodesReq
+
 void
 Dbspj::execDIH_SCAN_GET_NODES_REF(Signal* signal)
 {
   jamEntry();
-  ndbrequire(false);
-}
+  const DihScanGetNodesRef* ref = (DihScanGetNodesRef*)signal->getDataPtr();
+//const Uint32 tableId = ref->tableId;
+  const Uint32 fragCnt = ref->fragCnt;
+  const Uint32 errCode = ref->errCode;
+  ndbassert(errCode != 0);
+
+  if (signal->getNoOfSections() > 0)
+  {
+    // Long signal: FragItems listed in first section
+    jam();
+    SectionHandle handle(this, signal);
+    ndbassert(handle.m_cnt==1);
+    SegmentedSectionPtr fragRefSection;
+    ndbrequire(handle.getSection(fragRefSection,0));
+    ndbassert(fragRefSection.p->m_sz == (fragCnt*DihScanGetNodesRef::FragItem::Length));
+    ndbassert(fragCnt <= DihScanGetNodesReq::MAX_DIH_FRAG_REQS);
+    copy((Uint32*)ref->fragItem, fragRefSection);
+    releaseSections(handle);
+  }
+  else                  // Short signal, single frag in ref->fragItem[0]
+  {
+    ndbassert(fragCnt == 1);
+    ndbassert(signal->getLength() 
+              == DihScanGetNodesRef::FixedSignalLength + DihScanGetNodesRef::FragItem::Length);
+  }
+
+  UintR treeNodePtrI = RNIL;
+  for (Uint32 i=0; i < fragCnt; i++)
+  {
+    jam();
+    const Uint32 senderData = ref->fragItem[i].senderData;
+
+    Ptr<ScanFragHandle> fragPtr;
+    m_scanfraghandle_pool.getPtr(fragPtr, senderData);
+
+    // All fragItem[] should be for same TreeNode
+    ndbassert (treeNodePtrI == RNIL || treeNodePtrI == fragPtr.p->m_treeNodePtrI);
+    treeNodePtrI = fragPtr.p->m_treeNodePtrI;
+  } //for
+
+  ndbassert(treeNodePtrI != RNIL);  // fragCnt > 0 above
+  Ptr<TreeNode> treeNodePtr;
+  m_treenode_pool.getPtr(treeNodePtr, treeNodePtrI);
+
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  ndbassert(data.m_frags_outstanding == fragCnt);
+  data.m_frags_outstanding -= fragCnt;
+
+  Ptr<Request> requestPtr;
+  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+  abort(signal, requestPtr, errCode);
+
+  if (data.m_frags_outstanding == 0)
+  {
+    jam();
+    treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
+    checkPrepareComplete(signal, requestPtr, 1);
+  }
+}//Dbspj::execDIH_SCAN_GET_NODES_REF
 
 void
 Dbspj::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
 {
   jamEntry();
+  const DihScanGetNodesConf * conf = (DihScanGetNodesConf*)signal->getDataPtr();
+  const Uint32 fragCnt = conf->fragCnt;
 
-  DihScanGetNodesConf * conf = (DihScanGetNodesConf*)signal->getDataPtr();
+  if (signal->getNoOfSections() > 0)
+  {
+    // Unpack long signal
+    jam();
+    SectionHandle handle(this, signal);
+    SegmentedSectionPtr fragConfSection;
+    ndbrequire(handle.getSection(fragConfSection,0));
+    ndbassert(fragConfSection.p->m_sz == (fragCnt*DihScanGetNodesConf::FragItem::Length));
+    copy((Uint32*)conf->fragItem, fragConfSection);
+    releaseSections(handle);
+  }
+  else   // Short signal, with single FragItem
+  {
+    jam();
+    ndbassert(fragCnt == 1);
+    ndbassert(signal->getLength() 
+              == DihScanGetNodesConf::FixedSignalLength + DihScanGetNodesConf::FragItem::Length);
+  }
 
-  Uint32 senderData = conf->senderData;
-  Uint32 node = conf->nodes[0];
-  Uint32 instanceKey = conf->instanceKey;
+  UintR treeNodePtrI = RNIL;
+  for (Uint32 i=0; i < fragCnt; i++)
+  {
+    jam();
+    const Uint32 senderData = conf->fragItem[i].senderData;
+    const Uint32 node = conf->fragItem[i].nodes[0];
+    const Uint32 instanceKey = conf->fragItem[i].instanceKey;
 
-  Ptr<ScanFragHandle> fragPtr;
-  m_scanfraghandle_pool.getPtr(fragPtr, senderData);
+    Ptr<ScanFragHandle> fragPtr;
+    m_scanfraghandle_pool.getPtr(fragPtr, senderData);
+
+    // All fragItem[] should be for same TreeNode
+    ndbassert (treeNodePtrI == RNIL || treeNodePtrI == fragPtr.p->m_treeNodePtrI);
+    treeNodePtrI = fragPtr.p->m_treeNodePtrI;
+
+    fragPtr.p->m_ref = numberToRef(DBLQH, instanceKey, node);
+  } //for
+
+  ndbassert(treeNodePtrI != RNIL);  // fragCnt > 0 above
   Ptr<TreeNode> treeNodePtr;
-  m_treenode_pool.getPtr(treeNodePtr, fragPtr.p->m_treeNodePtrI);
-  ndbrequire(treeNodePtr.p->m_info == &g_ScanIndexOpInfo);
-  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
-  ndbrequire(data.m_frags_outstanding > 0);
-  data.m_frags_outstanding--;
+  m_treenode_pool.getPtr(treeNodePtr, treeNodePtrI);
 
-  fragPtr.p->m_ref = numberToRef(DBLQH, instanceKey, node);
+  ScanIndexData& data = treeNodePtr.p->m_scanindex_data;
+  ndbassert(data.m_frags_outstanding == fragCnt);
+  data.m_frags_outstanding -= fragCnt;
+
+  Ptr<Request> requestPtr;
+  m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
+
+  /** Check if we need to send more GSN_DIH_SCAN_GET_NODES_REQ */
+  Uint32 err = scanindex_sendDihGetNodesReq(signal, requestPtr, treeNodePtr);
+  if (unlikely(err != 0))
+  {
+    jam();
+    abort(signal, requestPtr, err);
+  }
 
   if (data.m_frags_outstanding == 0)
   {
     jam();
-
     treeNodePtr.p->m_state = TreeNode::TN_INACTIVE;
-
-    Ptr<Request> requestPtr;
-    m_request_pool.getPtr(requestPtr, treeNodePtr.p->m_requestPtrI);
     checkPrepareComplete(signal, requestPtr, 1);
   }
-}
+}//Dbspj::execDIH_SCAN_GET_NODES_CONF
 
 Uint32
 Dbspj::scanIndex_findFrag(Local_ScanFragHandle_list & list,

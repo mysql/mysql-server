@@ -29,6 +29,7 @@
 #include <DataBuffer.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
+#include <signaldata/DihScanTab.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include <signaldata/LqhTransConf.hpp>
 #include <signaldata/LqhKey.hpp>
@@ -1496,6 +1497,12 @@ private:
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
+  void startFragScansLab(Signal*, Uint32 tableId,
+                        SectionHandle&, Uint32 secOffs);
+  void startFragScanLab(Signal*, Uint32 tableId,
+                        const DihScanGetNodesConf::FragItem& fragConf);
+
+  void sendDihGetNodesReq(Signal*, ScanRecordPtr);
   void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*, bool);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);

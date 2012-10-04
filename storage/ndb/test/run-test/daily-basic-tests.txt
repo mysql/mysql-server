@@ -1869,7 +1869,7 @@ args: -n IndexStatCreate T1
 
 max-time: 300
 cmd: testDict
-args: -n WL946 T1
+args: -n DropWithTakeover T1
 
 max-time: 300
 cmd: testBasic
