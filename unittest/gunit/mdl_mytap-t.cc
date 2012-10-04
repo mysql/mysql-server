@@ -170,6 +170,7 @@ protected:
   static void SetUpTestCase()
   {
     error_handler_hook= test_error_handler_hook;
+    mdl_locks_hash_partitions= MDL_LOCKS_HASH_PARTITIONS_DEFAULT;
   }
 
   void SetUp()

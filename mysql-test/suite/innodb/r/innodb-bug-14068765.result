@@ -28,7 +28,7 @@ CREATE INDEX prefix_idx ON testdb_wl5522.t1(col14 (10));
 CREATE UNIQUE INDEX idx2 ON testdb_wl5522.t1(col12);
 CREATE UNIQUE INDEX idx3 ON testdb_wl5522.t1(col8);
 ALTER TABLE testdb_wl5522.t1 DISCARD TABLESPACE;
-restore: t1
+restore: t1 .ibd and .cfg files
 ALTER TABLE testdb_wl5522.t1 IMPORT TABLESPACE;
 CHECK TABLE testdb_wl5522.t1;
 Table	Op	Msg_type	Msg_text

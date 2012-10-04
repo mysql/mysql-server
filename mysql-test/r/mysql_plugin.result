@@ -1,3 +1,6 @@
+call mtr.add_suppression('InnoDB: Resizing redo log');
+call mtr.add_suppression('InnoDB: Starting to delete and rewrite log files');
+call mtr.add_suppression('InnoDB: New log files created');
 #
 # Ensure the plugin isn't loaded.
 #

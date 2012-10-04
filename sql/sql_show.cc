@@ -43,8 +43,6 @@
 #include "set_var.h"
 #include "sql_trigger.h"
 #include "sql_derived.h"
-#include "authors.h"
-#include "contributors.h"
 #include "sql_partition.h"
 #ifdef HAVE_EVENT_SCHEDULER
 #include "events.h"
@@ -243,74 +241,6 @@ int fill_plugins(THD *thd, TABLE_LIST *tables, Item *cond)
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);
-}
-
-
-/***************************************************************************
-** List all Authors.
-** If you can update it, you get to be in it :)
-***************************************************************************/
-
-bool mysqld_show_authors(THD *thd)
-{
-  List<Item> field_list;
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_authors");
-
-  field_list.push_back(new Item_empty_string("Name",40));
-  field_list.push_back(new Item_empty_string("Location",40));
-  field_list.push_back(new Item_empty_string("Comment",80));
-
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  show_table_authors_st *authors;
-  for (authors= show_table_authors; authors->name; authors++)
-  {
-    protocol->prepare_for_resend();
-    protocol->store(authors->name, system_charset_info);
-    protocol->store(authors->location, system_charset_info);
-    protocol->store(authors->comment, system_charset_info);
-    if (protocol->write())
-      DBUG_RETURN(TRUE);
-  }
-  my_eof(thd);
-  DBUG_RETURN(FALSE);
-}
-
-
-/***************************************************************************
-** List all Contributors.
-** Please get permission before updating
-***************************************************************************/
-
-bool mysqld_show_contributors(THD *thd)
-{
-  List<Item> field_list;
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_contributors");
-
-  field_list.push_back(new Item_empty_string("Name",40));
-  field_list.push_back(new Item_empty_string("Location",40));
-  field_list.push_back(new Item_empty_string("Comment",80));
-
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  show_table_contributors_st *contributors;
-  for (contributors= show_table_contributors; contributors->name; contributors++)
-  {
-    protocol->prepare_for_resend();
-    protocol->store(contributors->name, system_charset_info);
-    protocol->store(contributors->location, system_charset_info);
-    protocol->store(contributors->comment, system_charset_info);
-    if (protocol->write())
-      DBUG_RETURN(TRUE);
-  }
-  my_eof(thd);
-  DBUG_RETURN(FALSE);
 }
 
 
@@ -1193,7 +1123,8 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   const char *name_end;
   char quote_char;
-  int q= get_quote_char_for_identifier(thd, name, length);
+  int q;
+  q= thd ? get_quote_char_for_identifier(thd, name, length) : '`';
 
   if (q == EOF)
   {
@@ -2663,10 +2594,23 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  /* take copy of global_thread_list */
+  std::set<THD*> global_thread_list_copy;
 
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
+  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_remove);
+  copy_global_thread_list(&global_thread_list_copy);
+
+  /* 
+    Allow inserts to global_thread_list. Newly added thd
+    will not be accounted for summary calculation.
+    removal from global_thread_list is blocked as LOCK_thread_remove
+    mutex is not released yet 
+  */
+  mysql_mutex_unlock(&LOCK_thread_count);
+  Thread_iterator it= global_thread_list_copy.begin();
+  Thread_iterator end= global_thread_list_copy.end();
+
   /* Get global values as base */
   *to= global_status_var;
   
@@ -2674,7 +2618,9 @@ void calc_sum_of_all_status(STATUS_VAR *to)
   for (; it != end; ++it)
     add_to_status(to, &(*it)->status_var);
   
-  mysql_mutex_unlock(&LOCK_thread_count);
+  DEBUG_SYNC_C("inside_calc_sum");
+
+  mysql_mutex_unlock(&LOCK_thread_remove);
   DBUG_VOID_RETURN;
 }
 

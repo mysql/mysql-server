@@ -963,24 +963,8 @@ YES
 # SQLCOM_UNINSTALL_PLUGIN
 #
 #
-# SQLCOM_SHOW_AUTHORS
-#
-INSERT INTO db1.trans (a) VALUES (1);
-show authors;
-CALL db1.test_if_commit();
-IMPLICIT COMMIT
-NO
-#
 # SQLCOM_BINLOG_BASE64_EVENT
 #
-#
-# SQLCOM_SHOW_CONTRIBUTORS
-#
-INSERT INTO db1.trans (a) VALUES (1);
-show contributors;
-CALL db1.test_if_commit();
-IMPLICIT COMMIT
-NO
 #
 # SQLCOM_CREATE_SERVER
 #

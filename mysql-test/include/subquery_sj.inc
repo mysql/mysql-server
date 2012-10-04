@@ -4318,11 +4318,22 @@ CREATE TABLE t2 (
 
 INSERT INTO t2 VALUES ('v'), ('y'), ('j'), ('c'), ('d'), ('r');
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+-- enable_query_log
+
+let $query=
 SELECT col_varchar_key
 FROM t1
 WHERE col_varchar_key IN (SELECT col_varchar_nokey
                           FROM t2)
 ORDER BY col_datetime_key LIMIT 4;
+
+eval explain $query;
+eval $query;
 
 DROP TABLE t1, t2;
 

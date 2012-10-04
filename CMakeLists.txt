@@ -59,7 +59,12 @@ ENDIF()
 SET(BUILDTYPE_DOCSTRING
  "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or
  CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
- 
+
+# Possibly temporary fix: Clang on 32 bit causes non-debug server to crash
+IF(CMAKE_OSX_ARCHITECTURES MATCHES "i386")
+  SET(CMAKE_CXX_COMPILER g++)
+ENDIF()
+
 IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
   SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
@@ -397,6 +402,7 @@ IF(NOT WITHOUT_SERVER)
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
+  ADD_SUBDIRECTORY(SPECIFIC-ULN)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)
@@ -470,18 +476,4 @@ IF(NOT INSTALL_LAYOUT MATCHES "RPM")
     PATTERN "mysql.info" EXCLUDE
     PATTERN "sp-imp-spec.txt" EXCLUDE
   )
-ENDIF()
-
-# Re-distribute openssl: libeay32.dll and ssleay32.dll (and .lib)
-IF (WIN32 AND WITH_SSL_PATH)
-  GET_FILENAME_COMPONENT(CRYPTO_NAME "${CRYPTO_LIBRARY}" NAME_WE)
-  GET_FILENAME_COMPONENT(OPENSSL_NAME "${OPENSSL_LIBRARIES}" NAME_WE)
-  INSTALL(FILES "${CRYPTO_LIBRARY}"
-                "${OPENSSL_LIBRARIES}"
-          DESTINATION "${INSTALL_LIBDIR}"
-          COMPONENT Server)
-  INSTALL(FILES "${WITH_SSL_PATH}/bin/${CRYPTO_NAME}.dll"
-                 "${WITH_SSL_PATH}/bin/${OPENSSL_NAME}.dll"
-          DESTINATION "${INSTALL_BINDIR}"
-          COMPONENT Server)
 ENDIF()

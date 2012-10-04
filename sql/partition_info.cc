@@ -274,6 +274,9 @@ bool partition_info::can_prune_insert(THD* thd,
   DBUG_ASSERT(bitmaps_are_initialized);
   DBUG_ENTER("partition_info::can_prune_insert");
 
+  if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
+    DBUG_RETURN(false); /* Should not prune auto partitioned tables */
+
   /*
     If under LOCK TABLES pruning will skip start_stmt instead of external_lock
     for unused partitions.
