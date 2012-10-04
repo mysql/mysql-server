@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #ifndef DBSPJ_H
@@ -56,6 +56,15 @@ public:
 
 private:
   BLOCK_DEFINES(Dbspj);
+
+  /**
+   * Signals from DICT
+   */
+  void execTC_SCHVERREQ(Signal* signal);
+  void execTAB_COMMITREQ(Signal* signal);
+  void execPREP_DROP_TAB_REQ(Signal* signal);
+  void execDROP_TAB_REQ(Signal* signal);
+  void execALTER_TAB_REQ(Signal* signal);
 
   /**
    * Signals from TC
@@ -108,6 +117,40 @@ public:
   typedef DataBuffer2<14, LocalArenaPoolImpl> PatternStore;
   typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_pattern_store;
   typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> TreeNodeBitMask;
+
+  /* *********** TABLE RECORD ********************************************* */
+
+  /********************************************************/
+  /* THIS RECORD CONTAINS THE CURRENT SCHEMA VERSION OF   */
+  /* ALL TABLES IN THE SYSTEM.                            */
+  /********************************************************/
+  struct TableRecord {
+    TableRecord() 
+    : m_currentSchemaVersion(0), m_flags(0)
+    {};
+
+    TableRecord(Uint32 schemaVersion)
+    : m_currentSchemaVersion(schemaVersion), m_flags(TR_PREPARED)
+    {};
+
+    Uint32 m_currentSchemaVersion;
+    Uint16 m_flags;
+
+    enum {
+      TR_ENABLED      = 1 << 0,
+      TR_DROPPING     = 1 << 1,
+      TR_PREPARED     = 1 << 2
+    };
+    Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
+    Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
+    Uint8 get_prepared()    const { return (m_flags & TR_PREPARED)     != 0; }
+    void set_enabled(Uint8 f)     { f ? m_flags |= (Uint16)TR_ENABLED      : m_flags &= ~(Uint16)TR_ENABLED; }
+    void set_dropping(Uint8 f)    { f ? m_flags |= (Uint16)TR_DROPPING     : m_flags &= ~(Uint16)TR_DROPPING; }
+    void set_prepared(Uint8 f)    { f ? m_flags |= (Uint16)TR_PREPARED : m_flags &= ~(Uint16)TR_PREPARED; }
+
+    Uint32 checkTableError(Uint32 schemaVersion) const;
+  };
+  typedef Ptr<TableRecord> TableRecordPtr;
 
   struct RowRef
   {
@@ -633,7 +676,7 @@ public:
 
     TreeNode()
     : m_magic(MAGIC), m_state(TN_END),
-      m_parentPtrI(RNIL), m_requestPtrI(0),
+      m_parentPtrI(RNIL), m_requestPtrI(RNIL),
       m_ancestors()
     {
     }
@@ -775,6 +818,13 @@ public:
     };
 
     bool isLeaf() const { return (m_bits & T_LEAF) != 0;}
+
+    // table or index this TreeNode operates on, and its schemaVersion
+    Uint32 m_tableOrIndexId;
+    Uint32 m_schemaVersion;
+
+    // TableId if 'm_tableOrIndexId' is an index, else equal 
+    Uint32 m_primaryTableId; 
 
     Uint32 m_bits;
     Uint32 m_state;
@@ -1044,6 +1094,9 @@ private:
   TreeNode_pool m_treenode_pool;
   ScanFragHandle_pool m_scanfraghandle_pool;
 
+  TableRecord *m_tableRecord;
+  UintR c_tabrecFilesize;
+
   NdbNodeBitmask c_alive_nodes;
 
   void do_init(Request*, const LqhKeyReq*, Uint32 senderRef);
@@ -1171,6 +1224,9 @@ private:
 
   Uint32 getResultRef(Ptr<Request> requestPtr);
 
+  Uint32 checkTableError(Ptr<TreeNode> treeNodePtr) const;
+  Uint32 getNodes(Signal*, BuildKeyReq&, Uint32 tableId);
+
   /**
    * Lookup
    */
@@ -1197,7 +1253,6 @@ private:
 
   Uint32 computeHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
   Uint32 computePartitionHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
-  Uint32 getNodes(Signal*, BuildKeyReq&, Uint32 tableId);
 
   /**
    * ScanFrag
@@ -1252,6 +1307,10 @@ private:
   void scanIndex_cleanup(Ptr<Request>, Ptr<TreeNode>);
 
   void scanIndex_release_rangekeys(Ptr<Request>, Ptr<TreeNode>);
+
+  Uint32 scanindex_sendDihGetNodesReq(Signal* signal,
+                                      Ptr<Request> requestPtr,
+                                      Ptr<TreeNode> treeNodePtr);
 
   /**
    * Page manager

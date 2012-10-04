@@ -146,6 +146,10 @@ cmd: testSpj
 args: -n MixedJoin
 
 max-time: 500
+cmd: testSpj
+args: -n FeatureDisabled T1
+
+max-time: 500
 cmd: testBasic
 args: -n PkReadAndLocker T6 D1 D2
 
@@ -1869,7 +1873,7 @@ args: -n IndexStatCreate T1
 
 max-time: 300
 cmd: testDict
-args: -n WL946 T1
+args: -n DropWithTakeover T1
 
 max-time: 300
 cmd: testBasic
@@ -1878,4 +1882,16 @@ args: -n LeakApiConnectObjects T1
 max-time: 300
 cmd: testScan
 args:  -n extraNextResultBug11748194 T1
+
+max-time: 600
+cmd: testRedo
+args: -n RestartFD -l 2 T1
+
+max-time : 300
+cmd: testScan
+args: -n ScanKeyInfoExhaust T1
+
+max-time : 300
+cmd: testDict
+args: -n Bug14645319 T1
 

@@ -71,14 +71,16 @@ public:
   // Methods for writing to the key record
   size_t requiredKeyBuffer();
   void clearKeyNullBits();
+  bool setKey(int nparts, const char *key_str, size_t key_str_len);
   bool setKeyPart(int id, const char *strval, size_t strlen);
   bool setKeyPartInt(int id, int value);
   void setKeyPartNull(int id);
-
-  // Methods for writing to the row   
+  
+  // Methods for writing to the row 
   size_t requiredBuffer();
   void setNullBits();
   void clearNullBits();
+  bool setKeyFieldsInRow(int nparts, const char *key_str, size_t key_str_len);
   bool setColumn(int id, const char *strval, size_t strlen);
   bool setColumnInt(int id, int value);
   bool setColumnBigUnsigned(int id, Uint64 value);

@@ -101,6 +101,7 @@ public:
     LqhDumpAllActiveScanRec = 2302,
     LqhDumpLcpState = 2303,
     LqhErrorInsert5042 = 2315,
+    LqhDumpPoolLevels = 2353,
 
     AccDumpOneScanRec = 2400,
     AccDumpAllScanRec = 2401,
@@ -121,6 +122,7 @@ public:
     TcSetApplTransactionTimeout = 2508,
     TcStartDumpIndexOpCount = 2512,
     TcDumpIndexOpCount = 2513,
+    TcDumpPoolLevels = 2555,
     CmvmiDumpConnections = 2600,
     CmvmiDumpLongSignalMemory = 2601,
     CmvmiSetRestartOnErrorInsert = 2602,
@@ -152,7 +154,10 @@ public:
     DihAllAllowNodeStart = 7016,
     DihMinTimeBetweenLCP = 7017,
     DihMaxTimeBetweenLCP = 7018,
-    // 7019
+    // Checks whether add frag failure was cleaned up.
+    // Should NOT be used while commands involving addFragReq
+    // are being performed
+    DihAddFragFailCleanedUp = 7019,
     // 7020
     // 7021
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP

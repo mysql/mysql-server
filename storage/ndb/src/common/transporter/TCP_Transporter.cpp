@@ -379,6 +379,7 @@ ok:
   iovec_data_sent(sum_sent);
   sendCount += send_cnt;
   sendSize  += sum_sent;
+  m_bytes_sent += sum_sent;
   if(sendCount >= reportFreq)
   {
     get_callback_obj()->reportSendLen(remoteNodeId, sendCount, sendSize);
@@ -420,6 +421,7 @@ TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
       
       receiveCount ++;
       receiveSize  += nBytesRead;
+      m_bytes_received += nBytesRead;
       
       if(receiveCount == reportFreq){
         recvdata.reportReceiveLen(remoteNodeId,

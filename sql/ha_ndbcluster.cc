@@ -2394,10 +2394,10 @@ ndb_set_record_specification(uint field_no,
 {
   spec->column= ndb_table->getColumn(field_no);
   spec->offset= Uint32(table->field[field_no]->ptr - table->record[0]);
-  if (table->field[field_no]->null_ptr)
+  if (table->field[field_no]->real_maybe_null())
   {
     spec->nullbit_byte_offset=
-      Uint32(table->field[field_no]->null_ptr - table->record[0]);
+      Uint32(table->field[field_no]->null_offset());
     spec->nullbit_bit_in_byte=
       null_bit_mask_to_bit_number(table->field[field_no]->null_bit);
   }
@@ -3572,7 +3572,7 @@ int ha_ndbcluster::fetch_next_pushed()
     DBUG_PRINT("info", ("Error from 'nextResult()'"));
     table->status= STATUS_GARBAGE;
 //  DBUG_ASSERT(false);
-//  DBUG_RETURN(ndb_err(m_thd_ndb->trans));
+    DBUG_RETURN(ndb_err(m_thd_ndb->trans));
   }
   DBUG_RETURN(result);
 }
@@ -12945,11 +12945,9 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
    */
   if (!((share->use_count == 1) && share->util_thread))
   {
-#ifdef NDB_LOG_TRAILING_SHARE_ERRORS
     sql_print_warning("NDB_SHARE: %s already exists use_count=%d."
                       " Moving away for safety, but possible memleak.",
                       share->key, share->use_count);
-#endif
   }
   dbug_print_open_tables();
 
@@ -13275,6 +13273,9 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
   if ((* share)->state == NSS_DROPPED)
   {
     found= my_hash_delete(&ndbcluster_dropped_tables, (uchar*) *share) == 0;
+
+    // If this is a 'trailing share', it might still be 'open'
+    my_hash_delete(&ndbcluster_open_tables, (uchar*) *share);
   }
   else
   {
@@ -15169,7 +15170,6 @@ Ndb_util_thread::do_run()
   if (thd->store_globals())
     goto ndb_util_thread_fail;
   lex_start(thd);
-  thd->init_for_queries();
   thd_set_command(thd, COM_DAEMON);
 #ifndef NDB_THD_HAS_NO_VERSION
   thd->version=refresh_version;
@@ -15208,6 +15208,10 @@ Ndb_util_thread::do_run()
     }
   }
   mysql_mutex_unlock(&LOCK_server_started);
+
+  // Defer call of THD::init_for_query until after mysqld_server_started
+  // to ensure that the parts of MySQL Server it uses has been created
+  thd->init_for_queries();
 
   /*
     Wait for cluster to start
@@ -15410,7 +15414,6 @@ ndb_util_thread_fail:
     Thd_ndb::release(thd_ndb);
     thd_set_thd_ndb(thd, NULL);
   }
-  thd->cleanup();
   delete thd;
   
   /* signal termination */
@@ -15616,7 +15619,6 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
   int ret_val;
   Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
   void *buf= (void*)&tmp[0];
-  Ndb *ndb= m_thd_ndb->ndb;
   DBUG_ENTER("ha_ndbcluster::calculate_key_hash_value");
 
   do
@@ -15630,7 +15632,7 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
     key_data[i++].len= len;
   } while (*(++field_array));
   key_data[i].ptr= 0;
-  if ((ret_val= ndb->computeHash(&hash_value, m_table,
+  if ((ret_val= Ndb::computeHash(&hash_value, m_table,
                                  key_data_ptr, buf, sizeof(tmp))))
   {
     DBUG_PRINT("info", ("ret_val = %d", ret_val));
@@ -16064,7 +16066,7 @@ enum_alter_inplace_result
          {
            my_ptrdiff_t src_offset= field->table->s->default_values 
              - field->table->record[0];
-           if ((! field->is_null_in_record_with_offset(src_offset)) ||
+           if ((! field->is_real_null(src_offset)) ||
                ((field->flags & NOT_NULL_FLAG)))
            {
              DBUG_PRINT("info",("Adding column with non-null default value is not supported on-line"));

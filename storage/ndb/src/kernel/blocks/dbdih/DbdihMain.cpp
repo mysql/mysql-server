@@ -689,7 +689,6 @@ void Dbdih::execCONTINUEB(Signal* signal)
   {
     jam();
     TabRecordPtr tabPtr;
-    jam();
     tabPtr.i = signal->theData[1];
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
     getTabInfo_send(signal, tabPtr);
@@ -8274,9 +8273,22 @@ Dbdih::execADD_FRAGREF(Signal* signal){
   connectPtr.i = ref->dihPtr;
   ptrCheckGuard(connectPtr, cconnectFileSize, connectRecord);
 
+  Ptr<TabRecord> tabPtr;
+  tabPtr.i = connectPtr.p->table;
+  ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+  ndbrequire(tabPtr.p->connectrec == connectPtr.i);
+
   if (connectPtr.p->connectState == ConnectRecord::ALTER_TABLE)
   {
     jam();
+
+    if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
+    {
+      jam();
+      DIH_TAB_WRITE_LOCK(tabPtr.p);
+      tabPtr.p->m_new_map_ptr_i = RNIL;
+      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+    }
 
     connectPtr.p->connectState = ConnectRecord::ALTER_TABLE_ABORT;
     drop_fragments(signal, connectPtr, connectPtr.p->m_alter.m_totalfragments);
@@ -8291,10 +8303,6 @@ Dbdih::execADD_FRAGREF(Signal* signal){
 	       DiAddTabRef::SignalLength, JBB);  
 
     // Release
-    Ptr<TabRecord> tabPtr;
-    tabPtr.i = connectPtr.p->table;
-    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-    ndbrequire(tabPtr.p->connectrec == connectPtr.i);
     tabPtr.p->connectrec = RNIL;
     release_connect(connectPtr);
   }
@@ -8631,6 +8639,14 @@ void Dbdih::execALTER_TAB_REQ(Signal * signal)
 
     connectPtr.p->userpointer = senderData;
     connectPtr.p->userblockref = senderRef;
+
+    if (AlterTableReq::getReorgFragFlag(connectPtr.p->m_alter.m_changeMask))
+    {
+      jam();
+      DIH_TAB_WRITE_LOCK(tabPtr.p);
+      tabPtr.p->m_new_map_ptr_i = RNIL;
+      DIH_TAB_WRITE_UNLOCK(tabPtr.p);
+    }
 
     if (AlterTableReq::getAddFragFlag(req->changeMask))
     {
@@ -9225,6 +9241,13 @@ loop:
     signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
     return;
   }
+  if (ERROR_INSERTED_CLEAR(7240))
+  {
+    thrjam(jambuf);
+    conf->zero= 1; //Indicate error;
+    signal->theData[1]= ZUNDEFINED_FRAGMENT_ERROR;
+    return;
+  }
   getFragstore(tabPtr.p, fragId, fragPtr);
   Uint32 nodeCount = extractNodeInfo(jambuf, fragPtr.p, conf->nodes);
   Uint32 sig2 = (nodeCount - 1) + 
@@ -9524,43 +9547,133 @@ error:
              DihScanTabRef::SignalLength, JBB);
   return;
 
-}//Dbdih::execDI_FCOUNTREQ()
+}//Dbdih::execDIH_SCAN_TAB_REQ()
 
 void Dbdih::execDIH_SCAN_GET_NODES_REQ(Signal* signal)
 {
-  FragmentstorePtr fragPtr;
-  TabRecordPtr tabPtr;
   jamEntry();
-  DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
-  Uint32 senderRef = req->senderRef;
-  Uint32 senderData = req->senderData;
-  Uint32 fragId = req->fragId;
 
-  tabPtr.i = req->tableId;
+  DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
+  const Uint32 tableId = req->tableId;
+  const Uint32 senderRef = req->senderRef;
+  const Uint32 fragCnt = req->fragCnt;
+
+  SectionHandle reqHandle(this, signal);
+  const bool useLongSignal = (reqHandle.m_cnt > 0);
+
+  DihScanGetNodesReq::FragItem fragReq[DihScanGetNodesReq::MAX_DIH_FRAG_REQS];
+  if (useLongSignal)
+  {
+    // Long signal: Fetch into fragReq[]
+    jam();
+    SegmentedSectionPtr fragReqSection;
+    ndbrequire(reqHandle.getSection(fragReqSection,0));
+    ndbassert(fragReqSection.p->m_sz == (fragCnt*DihScanGetNodesReq::FragItem::Length));
+    ndbassert(fragCnt <= DihScanGetNodesReq::MAX_DIH_FRAG_REQS);
+    copy((Uint32*)fragReq, fragReqSection);
+  }
+  else // Short signal, with single FragItem
+  {
+    jam();
+    ndbassert(fragCnt == 1);
+    ndbassert(signal->getLength() 
+              == DihScanGetNodesReq::FixedSignalLength + DihScanGetNodesReq::FragItem::Length);
+    memcpy(fragReq, req->fragItem, 4 * DihScanGetNodesReq::FragItem::Length);
+  }
+
+  TabRecordPtr tabPtr;
+  tabPtr.i = tableId;
   ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType)) {
     jam();
     tabPtr.i = tabPtr.p->primaryTableId;
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
   }
-  
-  Uint32 nodes[MAX_REPLICAS];
-  getFragstore(tabPtr.p, fragId, fragPtr);
-  Uint32 count = extractNodeInfo(jamBuffer(), fragPtr.p, nodes);
 
   DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtrSend();
-  conf->senderData = senderData;
-  conf->nodes[0] = nodes[0];
-  conf->nodes[1] = nodes[1];
-  conf->nodes[2] = nodes[2];
-  conf->nodes[3] = nodes[3];
-  conf->count = count;
-  conf->tableId = tabPtr.i;
-  conf->fragId = fragId;
-  conf->instanceKey = dihGetInstanceKey(fragPtr);
-  sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_CONF, signal,
-             DihScanGetNodesConf::SignalLength, JBB);
-}//Dbdih::execDIGETPRIMREQ()
+  conf->tableId = tableId;
+  conf->fragCnt = fragCnt;
+
+  for (Uint32 i=0; i < fragCnt; i++)
+  {
+    jam();
+    FragmentstorePtr fragPtr;
+    Uint32 nodes[MAX_REPLICAS];
+
+    getFragstore(tabPtr.p, fragReq[i].fragId, fragPtr);
+    Uint32 count = extractNodeInfo(jamBuffer(), fragPtr.p, nodes);
+
+    conf->fragItem[i].senderData  = fragReq[i].senderData;
+    conf->fragItem[i].fragId      = fragReq[i].fragId;
+    conf->fragItem[i].instanceKey = dihGetInstanceKey(fragPtr);
+    conf->fragItem[i].count       = count;
+    conf->fragItem[i].nodes[0]    = nodes[0];
+    conf->fragItem[i].nodes[1]    = nodes[1];
+    conf->fragItem[i].nodes[2]    = nodes[2];
+    conf->fragItem[i].nodes[3]    = nodes[3];
+  }
+
+  if (useLongSignal)
+  {
+    jam();
+    Ptr<SectionSegment> fragConf;
+    const Uint32 len = fragCnt*DihScanGetNodesConf::FragItem::Length;
+
+    if (ERROR_INSERTED_CLEAR(7234) ||
+        unlikely(!import(fragConf, (Uint32*)conf->fragItem, len)))
+    {
+      jam();
+      DihScanGetNodesRef* ref = (DihScanGetNodesRef*)signal->getDataPtrSend();
+
+      ref->tableId = tableId;
+      ref->fragCnt = fragCnt;
+      ref->errCode = ZLONG_MESSAGE_ERROR;
+
+      /**
+       *  NOTE: DihScanGetNodesRef return the same FragItem list
+       *        received as part of the REQuest to avoid possible
+       *        malloc failure handling in the REF.
+       */
+      sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_REF, signal,
+                 DihScanGetNodesRef::FixedSignalLength,
+                 JBB, &reqHandle);
+      return;
+    }
+    releaseSections(reqHandle);
+
+    SectionHandle confHandle(this, fragConf.i);
+    sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_CONF, signal,
+               DihScanGetNodesConf::FixedSignalLength,
+               JBB, &confHandle);
+  }
+  else
+  {
+    // A short signal is sufficient.
+    jam();
+    ndbassert(fragCnt == 1);
+
+    if (ERROR_INSERTED_CLEAR(7234))
+    {
+      jam();
+      DihScanGetNodesRef* ref = (DihScanGetNodesRef*)signal->getDataPtrSend();
+
+      ref->tableId = tableId;
+      ref->fragCnt = fragCnt;
+      ref->errCode = ZLONG_MESSAGE_ERROR;
+      ref->fragItem[0] = fragReq[0];
+
+      sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_REF, signal,
+                 DihScanGetNodesRef::FixedSignalLength
+                 + DihScanGetNodesRef::FragItem::Length,
+                 JBB);
+      return;
+    }
+    sendSignal(senderRef, GSN_DIH_SCAN_GET_NODES_CONF, signal,
+               DihScanGetNodesConf::FixedSignalLength 
+               + DihScanGetNodesConf::FragItem::Length,
+               JBB);
+  }
+}//Dbdih::execDIH_SCAN_GET_NODES_REQ
 
 void
 Dbdih::execDIH_SCAN_TAB_COMPLETE_REP(Signal* signal)
@@ -18017,6 +18130,27 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
         cnghash = (cnghash * 33) + NGPtr.p->m_ref_count;
       }
       RSS_OP_SNAPSHOT_CHECK(cnghash);
+    }
+  }
+
+  /* Checks whether add frag failure was cleaned up.
+   * Should NOT be used while commands involving addFragReq
+   * are being performed.
+   */
+  if (arg == DumpStateOrd::DihAddFragFailCleanedUp && signal->length() == 2)
+  {
+    TabRecordPtr tabPtr;
+    tabPtr.i = signal->theData[1];
+    if (tabPtr.i >= ctabFileSize)
+      return;
+
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+    if (tabPtr.p->m_new_map_ptr_i != RNIL)
+    {
+      jam();
+      warningEvent("new_map_ptr_i to table id %d is not NIL", tabPtr.i);
+      ndbrequire(false);
     }
   }
 

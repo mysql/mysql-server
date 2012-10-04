@@ -23,6 +23,7 @@
 #include "diskpage.hpp"
 
 #include <ndb_limits.h>
+#include <ndb_math.h>
 #include <NdbOut.hpp>
 #include <OutputStream.hpp>
 #include <Properties.hpp>
@@ -2225,6 +2226,7 @@ void Dbdict::initCommonData()
   c_systemRestart = false;
   c_initialNodeRestart = false;
   c_nodeRestart = false;
+  c_takeOverInProgress = false;
 
   c_outstanding_sub_startstop = 0;
   c_sub_startstop_lock.clear();
@@ -4619,6 +4621,7 @@ void Dbdict::handle_master_takeover(Signal* signal)
   }
   DictTakeoverReq* req = (DictTakeoverReq*)signal->getDataPtrSend();
   req->senderRef = reference();
+  c_takeOverInProgress = true;
   sendSignal(rg, GSN_DICT_TAKEOVER_REQ, signal,
                DictTakeoverReq::SignalLength, JBB);
 }
@@ -6775,9 +6778,10 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
   bool ok = find_object(tabPtr, createTabPtr.p->m_request.tableId);
   ndbrequire(ok);
 
-  if (refToBlock(signal->getSendersBlockRef()) == DBLQH) {
+  if (refToBlock(signal->getSendersBlockRef()) == DBLQH)
+  {
     jam();
-    // prepare table in DBTC
+    // prepare table in DBSPJ
     TcSchVerReq * req = (TcSchVerReq*)signal->getDataPtr();
     req->tableId = createTabPtr.p->m_request.tableId;
     req->tableVersion = tabPtr.p->tableVersion;
@@ -6798,23 +6802,35 @@ Dbdict::execTAB_COMMITCONF(Signal* signal)
       req->userDefinedPartition = (basePtr.p->fragmentType == DictTabInfo::UserDefined);
     }
 
-    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal,
+    sendSignal(DBSPJ_REF, GSN_TC_SCHVERREQ, signal,
                TcSchVerReq::SignalLength, JBB);
     return;
   }
 
-  if (refToBlock(signal->getSendersBlockRef()) == DBDIH) {
+  if (refToBlock(signal->getSendersBlockRef()) == DBDIH)
+  {
+    jam();
+    // commit table in DBSPJ
+    signal->theData[0] = op_ptr.p->op_key;
+    signal->theData[1] = reference();
+    signal->theData[2] = createTabPtr.p->m_request.tableId;
+    sendSignal(DBSPJ_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
+    return;
+  }
+
+  if (refToBlock(signal->getSendersBlockRef()) == DBSPJ)
+  {
     jam();
     // commit table in DBTC
     signal->theData[0] = op_ptr.p->op_key;
     signal->theData[1] = reference();
     signal->theData[2] = createTabPtr.p->m_request.tableId;
-
     sendSignal(DBTC_REF, GSN_TAB_COMMITREQ, signal, 3, JBB);
     return;
   }
 
-  if (refToBlock(signal->getSendersBlockRef()) == DBTC) {
+  if (refToBlock(signal->getSendersBlockRef()) == DBTC)
+  {
     jam();
     execute(signal, createTabPtr.p->m_callback, 0);
     return;
@@ -6918,6 +6934,39 @@ Dbdict::execTC_SCHVERCONF(Signal* signal)
   findSchemaOp(op_ptr, createTabPtr, signal->theData[1]);
   ndbrequire(!op_ptr.isNull());
 
+  if (refToBlock(signal->getSendersBlockRef()) == DBSPJ)
+  {
+    jam();
+    // prepare table in DBTC
+    TableRecordPtr tabPtr;
+    bool ok = find_object(tabPtr, createTabPtr.p->m_request.tableId);
+    ndbrequire(ok);
+
+    TcSchVerReq * req = (TcSchVerReq*)signal->getDataPtr();
+    req->tableId = createTabPtr.p->m_request.tableId;
+    req->tableVersion = tabPtr.p->tableVersion;
+    req->tableLogged = (Uint32)!!(tabPtr.p->m_bits & TableRecord::TR_Logged);
+    req->senderRef = reference();
+    req->tableType = (Uint32)tabPtr.p->tableType;
+    req->senderData = op_ptr.p->op_key;
+    req->noOfPrimaryKeys = (Uint32)tabPtr.p->noOfPrimkey;
+    req->singleUserMode = (Uint32)tabPtr.p->singleUserMode;
+    req->userDefinedPartition = (tabPtr.p->fragmentType == DictTabInfo::UserDefined);
+
+    if (DictTabInfo::isOrderedIndex(tabPtr.p->tableType))
+    {
+      jam();
+      TableRecordPtr basePtr;
+      bool ok = find_object(basePtr, tabPtr.p->primaryTableId);
+      ndbrequire(ok);
+      req->userDefinedPartition = (basePtr.p->fragmentType == DictTabInfo::UserDefined);
+    }
+
+    sendSignal(DBTC_REF, GSN_TC_SCHVERREQ, signal,
+               TcSchVerReq::SignalLength, JBB);
+    return;
+  }
+  ndbrequire(refToBlock(signal->getSendersBlockRef()) == DBTC);
   execute(signal, createTabPtr.p->m_callback, 0);
 }
 
@@ -7050,10 +7099,11 @@ Dbdict::createTable_abortPrepare(Signal* signal, SchemaOpPtr op_ptr)
 
   dropTabPtr.p->m_block = 0;
   dropTabPtr.p->m_blockNo[0] = DBTC;
-  dropTabPtr.p->m_blockNo[1] = DBLQH; // wait usage + LCP
-  dropTabPtr.p->m_blockNo[2] = DBDIH; //
-  dropTabPtr.p->m_blockNo[3] = DBLQH; // release
-  dropTabPtr.p->m_blockNo[4] = 0;
+  dropTabPtr.p->m_blockNo[1] = DBSPJ;
+  dropTabPtr.p->m_blockNo[2] = DBLQH; // wait usage + LCP
+  dropTabPtr.p->m_blockNo[3] = DBDIH; //
+  dropTabPtr.p->m_blockNo[4] = DBLQH; // release
+  dropTabPtr.p->m_blockNo[5] = 0;
 
   dropTabPtr.p->m_callback.m_callbackData =
     oplnk_ptr.p->op_key;
@@ -7554,9 +7604,10 @@ Dbdict::dropTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   }
   dropTabPtr.p->m_block = 0;
   dropTabPtr.p->m_blockNo[0] = DBLQH;
-  dropTabPtr.p->m_blockNo[1] = DBTC;
-  dropTabPtr.p->m_blockNo[2] = DBDIH;
-  dropTabPtr.p->m_blockNo[3] = 0;
+  dropTabPtr.p->m_blockNo[1] = DBSPJ;
+  dropTabPtr.p->m_blockNo[2] = DBTC;
+  dropTabPtr.p->m_blockNo[3] = DBDIH;
+  dropTabPtr.p->m_blockNo[4] = 0;
   dropTable_commit_nextStep(signal, op_ptr);
 }
 
@@ -7697,10 +7748,11 @@ Dbdict::dropTable_complete(Signal* signal, SchemaOpPtr op_ptr)
 
   dropTabPtr.p->m_block = 0;
   dropTabPtr.p->m_blockNo[0] = DBTC;
-  dropTabPtr.p->m_blockNo[1] = DBLQH; // wait usage + LCP
-  dropTabPtr.p->m_blockNo[2] = DBDIH; //
-  dropTabPtr.p->m_blockNo[3] = DBLQH; // release
-  dropTabPtr.p->m_blockNo[4] = 0;
+  dropTabPtr.p->m_blockNo[1] = DBSPJ;
+  dropTabPtr.p->m_blockNo[2] = DBLQH; // wait usage + LCP
+  dropTabPtr.p->m_blockNo[3] = DBDIH; //
+  dropTabPtr.p->m_blockNo[4] = DBLQH; // release
+  dropTabPtr.p->m_blockNo[5] = 0;
   dropTabPtr.p->m_callback.m_callbackData =
     op_ptr.p->op_key;
   dropTabPtr.p->m_callback.m_callbackFunction =
@@ -7827,8 +7879,8 @@ Dbdict::dropTable_complete_done(Signal* signal,
     sendSignal(SUMA_REF, GSN_DROP_TAB_CONF, signal,
                DropTabConf::SignalLength, JBB);
   }
-
-  sendTransConf(signal, trans_ptr);
+  ndbassert(op_ptr.p->m_state == SchemaOp::OS_COMPLETING);
+  sendTransConf(signal, op_ptr);
 }
 
 // DropTable: ABORT
@@ -8449,19 +8501,16 @@ Dbdict::check_supported_reorg(Uint32 org_map_id, Uint32 new_map_id)
   Ptr<Hash2FragmentMap> newptr;
   g_hash_map.getPtr(newptr, newmap_ptr.p->m_map_ptr_i);
 
-  if (newptr.p->m_cnt < orgptr.p->m_cnt)
+  /*
+   * check that old fragments maps to same old fragment
+   * or to a new fragment.
+   * allow both extending and shrinking hashmap.
+   */
+  Uint32 period = lcm(orgptr.p->m_cnt, newptr.p->m_cnt);
+  for (Uint32 i = 0; i < period; i++)
   {
-    jam();
-    return AlterTableRef::UnsupportedChange;
-  }
-
-  for (Uint32 i = 0; i<orgptr.p->m_cnt; i++)
-  {
-    jam();
-    if (orgptr.p->m_map[i] == newptr.p->m_map[i])
-      continue;
-
-    if (newptr.p->m_map[i] < orgptr.p->m_fragments)
+    if (orgptr.p->m_map[i % orgptr.p->m_cnt] != newptr.p->m_map[i % newptr.p->m_cnt] &&
+        newptr.p->m_map[i % newptr.p->m_cnt] < orgptr.p->m_fragments)
     {
       /**
        * Moving data from "old" fragment into "old" fragment
@@ -9362,7 +9411,8 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
   alterTabPtr.p->m_blockIndex = 0;
   alterTabPtr.p->m_blockNo[0] = DBLQH;
   alterTabPtr.p->m_blockNo[1] = DBDIH;
-  alterTabPtr.p->m_blockNo[2] = DBTC;
+  alterTabPtr.p->m_blockNo[2] = DBSPJ;
+  alterTabPtr.p->m_blockNo[3] = DBTC;
 
   if (AlterTableReq::getReorgFragFlag(impl_req->changeMask))
   {
@@ -9384,6 +9434,7 @@ Dbdict::alterTable_commit(Signal* signal, SchemaOpPtr op_ptr)
      */
     alterTabPtr.p->m_blockNo[0] = RNIL;
     alterTabPtr.p->m_blockNo[2] = RNIL;
+    alterTabPtr.p->m_blockNo[3] = RNIL;
   }
   else if (AlterTableReq::getReorgCompleteFlag(impl_req->changeMask) ||
            AlterTableReq::getReorgSumaEnableFlag(impl_req->changeMask) ||
@@ -9607,6 +9658,7 @@ Dbdict::alterTable_complete(Signal* signal, SchemaOpPtr op_ptr)
   alterTabPtr.p->m_blockNo[0] = RNIL;
   alterTabPtr.p->m_blockNo[1] = RNIL;
   alterTabPtr.p->m_blockNo[2] = RNIL;
+  alterTabPtr.p->m_blockNo[3] = RNIL;
 
   if (AlterTableReq::getReorgCommitFlag(impl_req->changeMask))
   {
@@ -19745,12 +19797,16 @@ Dbdict::execDICT_TAKEOVER_REQ(Signal* signal)
        case SchemaOp::OS_COMMITTING:
        case SchemaOp::OS_COMPLETING:
        {
+         /**
+          * Wait 100ms and check again. This delay is there to save CPU cycles
+          * and to avoid filling the jam trace buffer.
+          */
          jam();
          Uint32* data = &signal->theData[0];
-         data[0] = ZDICT_TAKEOVER_REQ;
          memmove(&data[1], &data[0], DictTakeoverReq::SignalLength << 2);
-         sendSignal(reference(), GSN_CONTINUEB, signal,
-                    1 + DictTakeoverReq::SignalLength, JBB);
+         data[0] = ZDICT_TAKEOVER_REQ;
+         sendSignalWithDelay(reference(), GSN_CONTINUEB, signal,
+                             100, 1 + DictTakeoverReq::SignalLength);
          return;
        }
        default:
@@ -19873,6 +19929,7 @@ Dbdict::execDICT_TAKEOVER_REF(Signal* signal)
       return;
     }
   }
+  c_takeOverInProgress = false;
   check_takeover_replies(signal);
 }
 
@@ -19918,6 +19975,7 @@ Dbdict::execDICT_TAKEOVER_CONF(Signal* signal)
       return;
     }
   }
+  c_takeOverInProgress = false;
   check_takeover_replies(signal);
 }
 
@@ -24813,6 +24871,18 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
       break;
     }
 
+    if (c_takeOverInProgress)
+    {
+      /**
+       * There is a dict takeover in progress. There may thus another
+       * transaction that should be rolled backward or forward before we
+       * can allow another transaction to start.
+       */
+      jam();
+      setError(error, SchemaTransBeginRef::Busy, __LINE__);
+      break;
+    }
+
     if (!check_ndb_versions() && !localTrans)
     {
       jam();
@@ -25008,6 +25078,18 @@ Dbdict::execSCHEMA_TRANS_END_REQ(Signal* signal)
       // future when MNF is handled
       //ndbassert(false);
       setError(error, SchemaTransEndRef::NotMaster, __LINE__);
+      break;
+    }
+
+    if (c_takeOverInProgress)
+    {
+      /**
+       * There is a dict takeover in progress, and the transaction may thus
+       * be in an inconsistent state. Therefore we cannot process this request
+       * now.
+       */
+      jam();
+      setError(error, SchemaTransEndRef::Busy, __LINE__);
       break;
     }
 #ifdef MARTIN
@@ -25222,6 +25304,17 @@ Dbdict::execSCHEMA_TRANS_IMPL_CONF(Signal* signal)
   jamEntry();
   ndbrequire(signal->getNoOfSections() == 0);
 
+  if (c_takeOverInProgress)
+  {
+    /**
+     * The new master will rebuild the transaction state from the
+     * DICT_TAKEOVER_CONF signals. Therefore we ignore this signal during 
+     * takeover.
+     */
+    jam();
+    return;
+  }
+
   const SchemaTransImplConf* conf =
     (const SchemaTransImplConf*)signal->getDataPtr();
 
@@ -25247,6 +25340,17 @@ Dbdict::execSCHEMA_TRANS_IMPL_REF(Signal* signal)
 {
   jamEntry();
   ndbrequire(signal->getNoOfSections() == 0);
+
+  if (c_takeOverInProgress)
+  {
+    /**
+     * The new master will rebuild the transaction state from the
+     * DICT_TAKEOVER_CONF signals. Therefore we ignore this signal during 
+     * takeover.
+     */
+    jam();
+    return;
+  }
 
   SchemaTransImplRef refCopy =
     *(SchemaTransImplRef*)signal->getDataPtr();
