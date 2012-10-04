@@ -1,0 +1,15 @@
+# WL#6301: Change default value for the 'bind-address' option
+#
+# 2. Check that if the server is started with bind-address=0.0.0.0,
+# the server accepts client connections on all server host IPv4,
+# but not IPv6 interfaces.
+#
+# Options: --skip-name-resolve --bind-address=0.0.0.0 (see corresponding opt file).
+#
+
+# Can't be tested with embedded server
+--source include/not_embedded.inc
+
+--let WL6301_LOG_FILE = $MYSQLTEST_VARDIR/log/wl6301_2_not_windows.debug.log
+
+--source include/wl6301.inc

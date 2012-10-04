@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -12,6 +12,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
 
 SET(MYISAM_SOURCES  ft_boolean_search.c ft_nlq_search.c ft_parser.c ft_static.c
                                 ha_myisam.cc
@@ -34,20 +35,24 @@ MYSQL_ADD_PLUGIN(myisam ${MYISAM_SOURCES}
 TARGET_LINK_LIBRARIES(myisam mysys)
 
 MYSQL_ADD_EXECUTABLE(myisam_ftdump myisam_ftdump.c)
-TARGET_LINK_LIBRARIES(myisam_ftdump myisam)
+TARGET_LINK_LIBRARIES(myisam_ftdump myisam mysys_ssl)
+SET_TARGET_PROPERTIES(myisam_ftdump PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(myisamchk myisamchk.c)
-TARGET_LINK_LIBRARIES(myisamchk myisam)
+TARGET_LINK_LIBRARIES(myisamchk myisam mysys_ssl)
+SET_TARGET_PROPERTIES(myisamchk PROPERTIES LINKER_LANGUAGE CXX)
 
 MYSQL_ADD_EXECUTABLE(myisamlog myisamlog.c)
 TARGET_LINK_LIBRARIES(myisamlog myisam)
 
 MYSQL_ADD_EXECUTABLE(myisampack myisampack.c)
-TARGET_LINK_LIBRARIES(myisampack myisam)
+TARGET_LINK_LIBRARIES(myisampack myisam mysys_ssl)
+SET_TARGET_PROPERTIES(myisampack PROPERTIES LINKER_LANGUAGE CXX)
 
 IF(WITH_UNIT_TESTS AND FALSE)
   ADD_EXECUTABLE(mi_test1 mi_test1.c)
-  TARGET_LINK_LIBRARIES(mi_test1 myisam)
+  TARGET_LINK_LIBRARIES(mi_test1 myisam mysys_ssl)
+  SET_TARGET_PROPERTIES(mi_test1 PROPERTIES LINKER_LANGUAGE CXX)
 
   ADD_EXECUTABLE(mi_test2 mi_test2.c)
   TARGET_LINK_LIBRARIES(mi_test2 myisam)

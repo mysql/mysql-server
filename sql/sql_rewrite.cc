@@ -16,12 +16,94 @@
    02110-1301  USA */
 
 
+/*
+  In here, we rewrite queries (to obfuscate passwords etc.) that need it
+  before we log them.
+
+  Stored procedures may also rewrite their statements (to show the actual
+  values of their variables etc.). There is currently no scenario where
+  a statement can be eligible for both rewrites. (see sp_instr.cc)
+  Special consideration will need to be taken if this assertion is changed.
+
+  We also do not intersect with query cache at this time, as QC only
+  caches SELECTs (which we don't rewrite). If and when QC becomes more
+  general, it should probably cache the rewritten query along with the
+  user-submitted one. (see sql_parse.cc)
+*/
+
+
 #include "sql_acl.h"    // append_user
 #include "sql_parse.h"  // get_current_user
 #include "sql_show.h"   // append_identifier
 #include "sp_head.h"    // struct set_var_base
 #include "rpl_slave.h"  // SLAVE_SQL, SLAVE_IO
 
+
+/**
+  Append a key/value pair to a string, with an optional preceeding comma.
+  For numeric values.
+
+  @param           str                  The string to append to
+  @param           comma                Prepend a comma?
+  @param           txt                  C-string, must end in a space
+  @param           len                  strlen(txt)
+  @param           val                  numeric value
+  @param           cond                 only append if this evaluates to true
+
+  @retval          false if any subsequent key/value pair would be the first
+*/
+
+bool append_int(String *str, bool comma, const char *txt, size_t len,
+                long val, int cond)
+{
+  if (cond)
+  {
+    String numbuf(42);
+    if (comma)
+      str->append(STRING_WITH_LEN(", "));
+    str->append(txt,len);
+    numbuf.set((longlong)val,&my_charset_bin);
+    str->append(numbuf);
+    return true;
+  }
+  return comma;
+}
+
+
+/**
+  Append a key/value pair to a string if the value is non-NULL,
+  with an optional preceeding comma.
+
+  @param           str                  The string to append to
+  @param           comma                Prepend a comma?
+  @param           key                  C-string: the key, must be non-NULL
+  @param           val                  C-string: the value
+
+  @retval          false if any subsequent key/value pair would be the first
+*/
+
+bool append_str(String *str, bool comma, const char *key, char *val)
+{
+  if (val)
+  {
+    if (comma)
+      str->append(STRING_WITH_LEN(", "));
+    str->append(key);
+    str->append(STRING_WITH_LEN(" '"));
+    str->append(val);
+    str->append(STRING_WITH_LEN("'"));
+    return true;
+  }
+  return comma;
+}
+
+
+/**
+  Rewrite a GRANT statement.
+
+  @param thd      The THD to rewrite for.
+  @param rlb      An empty String object to put the rewritten query in.
+*/
 
 static void mysql_rewrite_grant(THD *thd, String *rlb)
 {
@@ -39,7 +121,7 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
   {
     ulong priv;
 
-    for (c= 0, priv = SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1)
+    for (c= 0, priv= SELECT_ACL; priv <= GLOBAL_ACLS; c++, priv <<= 1)
     {
       if (priv == GRANT_ACL)
         continue;
@@ -54,7 +136,13 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
         cols.length(0);
         cols.append(STRING_WITH_LEN(" ("));
 
-        while ((column = column_iter++))
+        /*
+          If the statement was GRANT SELECT(f2), INSERT(f3), UPDATE(f1,f3, f2),
+          our list cols will contain the order f2, f3, f1, and thus that's
+          the order we'll recreate the privilege: UPDATE (f2, f3, f1)
+        */
+
+        while ((column= column_iter++))
         {
           if (column->rights & priv)
           {
@@ -95,12 +183,14 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
   {
     append_identifier(thd, rlb, first_table->db, strlen(first_table->db));
     rlb->append(STRING_WITH_LEN("."));
-    append_identifier(thd, rlb, first_table->table_name, strlen(first_table->table_name));
+    append_identifier(thd, rlb, first_table->table_name,
+                      strlen(first_table->table_name));
   }
   else
   {
     if (lex->current_select->db)
-      append_identifier(thd, rlb, lex->current_select->db, strlen(lex->current_select->db));
+      append_identifier(thd, rlb, lex->current_select->db,
+                        strlen(lex->current_select->db));
     else
       rlb->append("*");
     rlb->append(STRING_WITH_LEN(".*"));
@@ -116,7 +206,7 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
     {
       if ((user_name= get_current_user(thd, tmp_user_name)))
       {
-        append_user(thd, rlb, user_name, comma, TRUE);
+        append_user(thd, rlb, user_name, comma, true);
         comma= TRUE;
       }
     }
@@ -137,7 +227,7 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
       if (lex->x509_issuer)
       {
         rlb->append(STRING_WITH_LEN(" ISSUER '"));
-        rlb->append(lex->x509_subject);
+        rlb->append(lex->x509_issuer);
         rlb->append(STRING_WITH_LEN("'"));
       }
       if (lex->ssl_cipher)
@@ -167,25 +257,31 @@ static void mysql_rewrite_grant(THD *thd, String *rlb)
     if (lex->grant & GRANT_ACL)
       rlb->append(STRING_WITH_LEN(" GRANT OPTION"));
 
-    append_int(rlb, STRING_WITH_LEN(" MAX_QUERIES_PER_HOUR "),
+    append_int(rlb, false, STRING_WITH_LEN(" MAX_QUERIES_PER_HOUR "),
                lex->mqh.questions,
                lex->mqh.specified_limits & USER_RESOURCES::QUERIES_PER_HOUR);
 
-    append_int(rlb, STRING_WITH_LEN(" MAX_UPDATES_PER_HOUR "),
+    append_int(rlb, false, STRING_WITH_LEN(" MAX_UPDATES_PER_HOUR "),
                lex->mqh.updates,
                lex->mqh.specified_limits & USER_RESOURCES::UPDATES_PER_HOUR);
 
-    append_int(rlb, STRING_WITH_LEN(" MAX_CONNECTIONS_PER_HOUR "),
+    append_int(rlb, false, STRING_WITH_LEN(" MAX_CONNECTIONS_PER_HOUR "),
                lex->mqh.conn_per_hour,
                lex->mqh.specified_limits & USER_RESOURCES::CONNECTIONS_PER_HOUR);
 
-    append_int(rlb, STRING_WITH_LEN(" MAX_USER_CONNECTIONS "),
+    append_int(rlb, false, STRING_WITH_LEN(" MAX_USER_CONNECTIONS "),
                lex->mqh.user_conn,
                lex->mqh.specified_limits & USER_RESOURCES::USER_CONNECTIONS);
   }
 }
 
 
+/**
+  Rewrite a SET statement.
+
+  @param thd      The THD to rewrite for.
+  @param rlb      An empty String object to put the rewritten query in.
+*/
 
 static void mysql_rewrite_set(THD *thd, String *rlb)
 {
@@ -208,6 +304,13 @@ static void mysql_rewrite_set(THD *thd, String *rlb)
 }
 
 
+/**
+  Rewrite CREATE USER statement.
+
+  @param thd      The THD to rewrite for.
+  @param rlb      An empty String object to put the rewritten query in.
+*/
+
 static void mysql_rewrite_create_user(THD *thd, String *rlb)
 {
   LEX                      *lex= thd->lex;
@@ -226,6 +329,13 @@ static void mysql_rewrite_create_user(THD *thd, String *rlb)
   }
 }
 
+
+/**
+  Rewrite a CHANGE MASTER statement.
+
+  @param thd      The THD to rewrite for.
+  @param rlb      An empty String object to put the rewritten query in.
+*/
 
 static void mysql_rewrite_change_master(THD *thd, String *rlb)
 {
@@ -352,6 +462,14 @@ static void mysql_rewrite_change_master(THD *thd, String *rlb)
   }
 }
 
+
+/**
+  Rewrite a START SLAVE statement.
+
+  @param thd      The THD to rewrite for.
+  @param rlb      An empty String object to put the rewritten query in.
+*/
+
 static void mysql_rewrite_start_slave(THD *thd, String *rlb)
 {
   LEX *lex= thd->lex;
@@ -423,8 +541,91 @@ static void mysql_rewrite_start_slave(THD *thd, String *rlb)
 
 
 /**
-Rewrite a query (to obfuscate passwords etc.)
-@param thd Current thread
+  Rewrite a SERVER OPTIONS clause (for CREATE SERVER and ALTER SERVER).
+
+  @param thd      The THD to rewrite for.
+  @param rlb      An empty String object to put the rewritten query in.
+*/
+
+static void mysql_rewrite_server_options(THD *thd, String *rlb)
+{
+  LEX *lex= thd->lex;
+
+  rlb->append(STRING_WITH_LEN(" OPTIONS ( "));
+
+  rlb->append(STRING_WITH_LEN("PASSWORD '<secret>'"));
+  append_str(rlb, true, "USER", lex->server_options.username);
+  append_str(rlb, true, "HOST", lex->server_options.host);
+  append_str(rlb, true, "DATABASE", lex->server_options.db);
+  append_str(rlb, true, "OWNER", lex->server_options.owner);
+  append_str(rlb, true, "SOCKET", lex->server_options.socket);
+  append_int(rlb, true, STRING_WITH_LEN("PORT "), lex->server_options.port,
+             lex->server_options.port > 0);
+
+  rlb->append(STRING_WITH_LEN(" )"));
+}
+
+
+/**
+  Rewrite a CREATE SERVER statement.
+
+  @param thd      The THD to rewrite for.
+  @param rlb      An empty String object to put the rewritten query in.
+*/
+
+static void mysql_rewrite_create_server(THD *thd, String *rlb)
+{
+  LEX *lex= thd->lex;
+
+  if (!lex->server_options.password)
+    return;
+
+  rlb->append(STRING_WITH_LEN("CREATE SERVER "));
+
+  rlb->append(lex->server_options.server_name ?
+              lex->server_options.server_name : "");
+
+  rlb->append(STRING_WITH_LEN(" FOREIGN DATA WRAPPER '"));
+  rlb->append(lex->server_options.scheme ?
+              lex->server_options.scheme : "");
+  rlb->append(STRING_WITH_LEN("'"));
+
+  mysql_rewrite_server_options(thd, rlb);
+}
+
+
+/**
+  Rewrite a ALTER SERVER statement.
+
+  @param thd      The THD to rewrite for.
+  @param rlb      An empty String object to put the rewritten query in.
+*/
+
+static void mysql_rewrite_alter_server(THD *thd, String *rlb)
+{
+  LEX *lex= thd->lex;
+
+  if (!lex->server_options.password)
+    return;
+
+  rlb->append(STRING_WITH_LEN("ALTER SERVER "));
+
+  rlb->append(lex->server_options.server_name ?
+              lex->server_options.server_name : "");
+
+  mysql_rewrite_server_options(thd, rlb);
+}
+
+
+
+
+/**
+   Rewrite a query (to obfuscate passwords etc.)
+
+   Side-effects: thd->rewritten_query will contain a rewritten query,
+   or be cleared if no rewriting took place.
+
+   @param thd     The THD to rewrite for.
 */
 
 void mysql_rewrite_query(THD *thd)
@@ -433,13 +634,18 @@ void mysql_rewrite_query(THD *thd)
 
   rlb->free();
 
-  switch(thd->lex->sql_command)
+  if (thd->lex->contains_plaintext_password)
   {
-  case SQLCOM_GRANT:         mysql_rewrite_grant(thd, rlb);         break;
-  case SQLCOM_SET_OPTION:    mysql_rewrite_set(thd, rlb);           break;
-  case SQLCOM_CREATE_USER:   mysql_rewrite_create_user(thd, rlb);   break;
-  case SQLCOM_CHANGE_MASTER: mysql_rewrite_change_master(thd, rlb); break;
-  case SQLCOM_SLAVE_START:   mysql_rewrite_start_slave(thd, rlb);   break;
-  default:                   /* unhandled query types are legal. */ break;
+    switch(thd->lex->sql_command)
+    {
+    case SQLCOM_GRANT:         mysql_rewrite_grant(thd, rlb);         break;
+    case SQLCOM_SET_OPTION:    mysql_rewrite_set(thd, rlb);           break;
+    case SQLCOM_CREATE_USER:   mysql_rewrite_create_user(thd, rlb);   break;
+    case SQLCOM_CHANGE_MASTER: mysql_rewrite_change_master(thd, rlb); break;
+    case SQLCOM_SLAVE_START:   mysql_rewrite_start_slave(thd, rlb);   break;
+    case SQLCOM_CREATE_SERVER: mysql_rewrite_create_server(thd, rlb); break;
+    case SQLCOM_ALTER_SERVER:  mysql_rewrite_alter_server(thd, rlb);  break;
+    default:                   /* unhandled query types are legal. */ break;
+    }
   }
 }

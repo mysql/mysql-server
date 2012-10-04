@@ -121,12 +121,25 @@ UNIV_INTERN
 void
 trx_lists_init_at_db_start(void);
 /*============================*/
+
+#ifdef UNIV_DEBUG
+#define trx_start_if_not_started_xa(t)				\
+	{							\
+	(t)->start_line = __LINE__;				\
+	(t)->start_file = __FILE__;				\
+	trx_start_if_not_started_xa_low((t));			\
+	}
+#else
+#define trx_start_if_not_started_xa(t)				\
+	trx_start_if_not_started_xa_low((t))
+#endif /* UNIV_DEBUG */
+
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started_xa(
-/*========================*/
+trx_start_if_not_started_xa_low(
+/*============================*/
 	trx_t*	trx);	/*!< in: transaction */
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
@@ -146,6 +159,29 @@ trx_start_if_not_started_low(
 #else
 #define trx_start_if_not_started(t)				\
 	trx_start_if_not_started_low((t))
+#endif /* UNIV_DEBUG */
+
+/*************************************************************//**
+Starts the transaction for a DDL operation. */
+UNIV_INTERN
+void
+trx_start_for_ddl_low(
+/*==================*/
+	trx_t*		trx,	/*!< in/out: transaction */
+	trx_dict_op_t	op)	/*!< in: dictionary operation type */
+	__attribute__((nonnull));
+
+#ifdef UNIV_DEBUG
+#define trx_start_for_ddl(t, o)					\
+	{							\
+	ut_ad((t)->start_file == 0);				\
+	(t)->start_line = __LINE__;				\
+	(t)->start_file = __FILE__;				\
+	trx_start_for_ddl_low((t), (o));			\
+	}
+#else
+#define trx_start_for_ddl(t, o)					\
+	trx_start_for_ddl_low((t), (o))
 #endif /* UNIV_DEBUG */
 
 /****************************************************************//**
@@ -202,13 +238,13 @@ trx_get_trx_by_xid(
 	const XID*	xid);	/*!< in: X/Open XA transaction identifier */
 /**********************************************************************//**
 If required, flushes the log to disk if we called trx_commit_for_mysql()
-with trx->flush_log_later == TRUE.
-@return	0 or error number */
+with trx->flush_log_later == TRUE. */
 UNIV_INTERN
-ulint
+void
 trx_commit_complete_for_mysql(
 /*==========================*/
-	trx_t*	trx);	/*!< in: trx handle */
+	trx_t*	trx)	/*!< in/out: transaction */
+	__attribute__((nonnull));
 /**********************************************************************//**
 Marks the latest SQL statement ended. */
 UNIV_INTERN
@@ -264,9 +300,9 @@ trx_print_low(
 	ulint		max_query_len,
 			/*!< in: max query length to print,
 			or 0 to use the default max length */
-	ulint		n_lock_rec,
+	ulint		n_rec_locks,
 			/*!< in: lock_number_of_rows_locked(&trx->lock) */
-	ulint		n_lock_struct,
+	ulint		n_trx_locks,
 			/*!< in: length of trx->lock.trx_locks */
 	ulint		heap_size)
 			/*!< in: mem_heap_get_size(trx->lock.lock_heap) */
@@ -299,26 +335,11 @@ trx_print(
 					or 0 to use the default max length */
 	__attribute__((nonnull));
 
-/** Type of data dictionary operation */
-typedef enum trx_dict_op {
-	/** The transaction is not modifying the data dictionary. */
-	TRX_DICT_OP_NONE = 0,
-	/** The transaction is creating a table or an index, or
-	dropping a table.  The table must be dropped in crash
-	recovery.  This and TRX_DICT_OP_NONE are the only possible
-	operation modes in crash recovery. */
-	TRX_DICT_OP_TABLE = 1,
-	/** The transaction is creating or dropping an index in an
-	existing table.  In crash recovery, the data dictionary
-	must be locked, but the table must not be dropped. */
-	TRX_DICT_OP_INDEX = 2
-} trx_dict_op_t;
-
 /**********************************************************************//**
 Determine if a transaction is a dictionary operation.
 @return	dictionary operation mode */
 UNIV_INLINE
-enum trx_dict_op
+enum trx_dict_op_t
 trx_get_dict_operation(
 /*===================*/
 	const trx_t*	trx)	/*!< in: transaction */
@@ -330,7 +351,7 @@ void
 trx_set_dict_operation(
 /*===================*/
 	trx_t*			trx,	/*!< in/out: transaction */
-	enum trx_dict_op	op);	/*!< in: operation, not
+	enum trx_dict_op_t	op);	/*!< in: operation, not
 					TRX_DICT_OP_NONE */
 
 #ifndef UNIV_HOTBACKUP
@@ -472,7 +493,6 @@ non-locking select */
 	ut_ad(!trx_is_autocommit_non_locking((t)));			\
 	switch ((t)->state) {						\
 	case TRX_STATE_PREPARED:					\
-		ut_a(!(t)->read_only);					\
 		/* fall through */					\
 	case TRX_STATE_ACTIVE:						\
 	case TRX_STATE_COMMITTED_IN_MEMORY:				\
@@ -485,7 +505,7 @@ non-locking select */
 
 #ifdef UNIV_DEBUG
 /*******************************************************************//**
-Assert that an autocommit non-locking slect cannot be in the
+Assert that an autocommit non-locking select cannot be in the
 ro_trx_list nor the rw_trx_list and that it is a read-only transaction.
 The tranasction must be in the mysql_trx_list. */
 # define assert_trx_nonlocking_or_in_list(t)				\
@@ -533,7 +553,7 @@ code and no mutex is required when the query thread is no longer waiting. */
 
 /** The locks and state of an active transaction. Protected by
 lock_sys->mutex, trx->mutex or both. */
-struct trx_lock_struct {
+struct trx_lock_t {
 	ulint		n_active_thrs;	/*!< number of active query threads */
 
 	trx_que_t	que_state;	/*!< valid when trx->state
@@ -642,10 +662,10 @@ lock_rec_convert_impl_to_expl()) will access transactions associated
 to other connections. The locks of transactions are protected by
 lock_sys->mutex and sometimes by trx->mutex. */
 
-struct trx_struct{
+struct trx_t{
 	ulint		magic_n;
 
-	mutex_t		mutex;		/*!< Mutex protecting the fields
+	ib_mutex_t		mutex;		/*!< Mutex protecting the fields
 					state and lock
 					(except some fields of lock, which
 					are protected by lock_sys->mutex) */
@@ -679,8 +699,7 @@ struct trx_struct{
 
 	Latching and various transaction lists membership rules:
 
-	XA (2PC) transactions are always treated as read-write and
-	non-autocommit.
+	XA (2PC) transactions are always treated as non-autocommit.
 
 	Transitions to ACTIVE or NOT_STARTED occur when
 	!in_rw_trx_list and !in_ro_trx_list (no trx_sys->mutex needed).
@@ -895,7 +914,7 @@ struct trx_struct{
 			trx_savepoints;	/*!< savepoints set with SAVEPOINT ...,
 					oldest first */
 	/*------------------------------*/
-	mutex_t		undo_mutex;	/*!< mutex protecting the fields in this
+	ib_mutex_t		undo_mutex;	/*!< mutex protecting the fields in this
 					section (down to undo_no_arr), EXCEPT
 					last_sql_stat_start, which can be
 					accessed only when we know that there
@@ -951,6 +970,8 @@ struct trx_struct{
 	ulint		will_lock;	/*!< Will acquire some locks. Increment
 					each time we determine that a lock will
 					be acquired by the MySQL layer. */
+	bool		ddl;		/*!< true if it is a transaction that
+					is being started for a DDL operation */
 	/*------------------------------*/
 	fts_trx_t*	fts_trx;	/*!< FTS information, or NULL if
 					transaction hasn't modified tables
@@ -1035,7 +1056,7 @@ enum commit_node_state {
 };
 
 /** Commit command node in a query graph */
-struct commit_node_struct{
+struct commit_node_t{
 	que_common_t	common;	/*!< node type: QUE_NODE_COMMIT */
 	enum commit_node_state
 			state;	/*!< node execution state */

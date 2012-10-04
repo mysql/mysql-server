@@ -1,28 +1,28 @@
 SET @start_global_value = @@global.innodb_stats_on_metadata;
 SELECT @start_global_value;
 @start_global_value
-1
+0
 Valid values are 'ON' and 'OFF' 
 select @@global.innodb_stats_on_metadata in (0, 1);
 @@global.innodb_stats_on_metadata in (0, 1)
 1
 select @@global.innodb_stats_on_metadata;
 @@global.innodb_stats_on_metadata
-1
+0
 select @@session.innodb_stats_on_metadata;
 ERROR HY000: Variable 'innodb_stats_on_metadata' is a GLOBAL variable
 show global variables like 'innodb_stats_on_metadata';
 Variable_name	Value
-innodb_stats_on_metadata	ON
+innodb_stats_on_metadata	OFF
 show session variables like 'innodb_stats_on_metadata';
 Variable_name	Value
-innodb_stats_on_metadata	ON
+innodb_stats_on_metadata	OFF
 select * from information_schema.global_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	ON
+INNODB_STATS_ON_METADATA	OFF
 select * from information_schema.session_variables where variable_name='innodb_stats_on_metadata';
 VARIABLE_NAME	VARIABLE_VALUE
-INNODB_STATS_ON_METADATA	ON
+INNODB_STATS_ON_METADATA	OFF
 set global innodb_stats_on_metadata='OFF';
 select @@global.innodb_stats_on_metadata;
 @@global.innodb_stats_on_metadata
@@ -89,4 +89,4 @@ ERROR 42000: Variable 'innodb_stats_on_metadata' can't be set to the value of 'A
 SET @@global.innodb_stats_on_metadata = @start_global_value;
 SELECT @@global.innodb_stats_on_metadata;
 @@global.innodb_stats_on_metadata
-1
+0

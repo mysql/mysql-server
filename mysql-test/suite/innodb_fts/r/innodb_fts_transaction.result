@@ -3,7 +3,7 @@ CREATE TABLE t1 (
 id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
 a VARCHAR(200),
 b TEXT
-) ENGINE = InnoDB;
+) ENGINE = InnoDB STATS_PERSISTENT=0;
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
@@ -45,7 +45,7 @@ id	a	b
 2	when To Use MySQL Well	After that you went through a ...
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"stands Database"@11' IN BOOLEAN MODE);
+AGAINST ('"stands Database"@11' IN BOOLEAN MODE) ORDER BY 1;
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 SELECT * FROM t1
@@ -355,11 +355,11 @@ AGAINST ('request ďábelské' IN BOOLEAN MODE);
 id	a	b
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('tutorial' WITH QUERY EXPANSION);
+AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY 1;
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
-3	where will Optimizing MySQL	what In this tutorial we will show ...
 2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
 SELECT * FROM t1
 WHERE MATCH (a,b)
 AGAINST ('"Sævör grét"@18' IN BOOLEAN MODE);
@@ -373,11 +373,11 @@ id	a	b
 7	adding record using session 1	for verifying multiple concurrent transactions
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('tutor* Sævö*' IN BOOLEAN MODE);
+AGAINST ('tutor* Sævö*' IN BOOLEAN MODE) ORDER BY 1;
 id	a	b
-6	Sævör grét	áðan því úlpan var ónýt
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 3	where will Optimizing MySQL	what In this tutorial we will show ...
+6	Sævör grét	áðan því úlpan var ónýt
 SELECT * FROM t1
 WHERE MATCH (a,b)
 AGAINST ('usin* multipl*' IN BOOLEAN MODE);
@@ -412,16 +412,16 @@ id	a	b
 2	when To Use MySQL Well	After that you went through a ...
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"stands Database"@11' IN BOOLEAN MODE);
+AGAINST ('"stands Database"@11' IN BOOLEAN MODE) ORDER BY 1;
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('tutorial' WITH QUERY EXPANSION);
+AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY 1;
 id	a	b
 1	MySQL from Tutorial	DBMS stands for DataBase ...
-3	where will Optimizing MySQL	what In this tutorial we will show ...
 2	when To Use MySQL Well	After that you went through a ...
+3	where will Optimizing MySQL	what In this tutorial we will show ...
 "In connection 1"
 COMMIT;
 SELECT * FROM t1
@@ -517,10 +517,10 @@ UPDATE t1 SET a = 'when To Use MySQL Well' , b = 'for free faq  xyz.com ...'
 WHERE MATCH (a,b) AGAINST ('+πάθω +τίποτα' IN BOOLEAN MODE);
 SELECT * FROM t1
 WHERE MATCH (a,b)
-AGAINST ('well free');
+AGAINST ('well free') ORDER BY 1;
 id	a	b
-5	when To Use MySQL Well	for free faq  xyz.com ...
 2	when To Use MySQL Well	After that you went through a ...
+5	when To Use MySQL Well	for free faq  xyz.com ...
 DROP TABLE t1;
 SET NAMES UTF8;
 CREATE TABLE t1 (

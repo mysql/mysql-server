@@ -216,7 +216,7 @@ bool mysql_derived_prepare(THD *thd, LEX *lex, TABLE_LIST *derived)
       goto exit;
 
     table= derived_result->table;
-    derived->materialized= FALSE;
+
 exit:
     /* Hide "Unknown column" or "Unknown function" error */
     if (derived->view)
@@ -249,7 +249,6 @@ exit:
       derived->table= table;
       derived->table_name=        table->s->table_name.str;
       derived->table_name_length= table->s->table_name.length;
-      table->derived_select_number= first_select->select_number;
       table->s->tmp_table= NON_TRANSACTIONAL_TMP_TABLE;
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
       if (derived->referencing_view)
@@ -298,7 +297,7 @@ bool mysql_derived_optimize(THD *thd, LEX *lex, TABLE_LIST *derived)
   if (unit->optimize() || thd->is_error())
     DBUG_RETURN(TRUE);
 
-  if (unit->get_result()->estimated_rowcount <= 1 &&
+  if (derived->materializable_is_const() &&
       (mysql_derived_create(thd, lex, derived) ||
        mysql_derived_materialize(thd, lex, derived)))
     DBUG_RETURN(TRUE);
@@ -402,9 +401,6 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
 
   DBUG_ASSERT(unit && derived->table && derived->table->created);
 
-  if (derived->materialized)
-    DBUG_RETURN(FALSE);
-
   select_union *derived_result= derived->derived_result;
 
   if (unit->is_union())
@@ -438,8 +434,6 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
     */
     if (derived_result->flush())
       res= TRUE;
-
-    derived->materialized= TRUE;
   }
 
   DBUG_RETURN(res);

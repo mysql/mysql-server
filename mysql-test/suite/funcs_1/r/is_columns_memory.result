@@ -128,6 +128,8 @@ f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
 ) engine = memory;
+Warnings:
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb2.txt'
 into table tb2 ;
 drop table if exists tb3;
@@ -238,7 +240,7 @@ f217 float(53) unsigned zerofill,
 f218 date,
 f219 time,
 f220 datetime,
-f221 timestamp,
+f221 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 f222 year,
 f223 year(3),
 f224 year(4),
@@ -251,6 +253,8 @@ f238 varchar(25000) binary,
 f239 varbinary(0),
 f240 varchar(1200)
 ) engine = memory;
+Warnings:
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb4.txt'
 into table tb4;
 USE test1;
@@ -308,6 +312,8 @@ f107 year(4) not null default 2000,
 f108 enum("1enum","2enum") not null default "1enum",
 f109 set("1set","2set") not null default "1set"
 ) engine = memory;
+Warnings:
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb2.txt'
 into table tb2 ;
 USE test;

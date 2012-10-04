@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -117,17 +117,6 @@ and the shift needed to obtain each bit-field of the record. */
 #define REC_NEW_INFO_BITS	5	/* This is single byte bit-field */
 #define	REC_INFO_BITS_MASK	0xF0UL
 #define REC_INFO_BITS_SHIFT	0
-
-/* The following masks are used to filter the SQL null bit from
-one-byte and two-byte offsets */
-
-#define REC_1BYTE_SQL_NULL_MASK	0x80UL
-#define REC_2BYTE_SQL_NULL_MASK	0x8000UL
-
-/* In a 2-byte offset the second most significant bit denotes
-a field stored to another page: */
-
-#define REC_2BYTE_EXTERN_MASK	0x4000UL
 
 #if REC_OLD_SHORT_MASK << (8 * (REC_OLD_SHORT - 3)) \
 		^ REC_OLD_N_FIELDS_MASK << (8 * (REC_OLD_N_FIELDS - 4)) \
@@ -881,6 +870,20 @@ rec_2_get_field_end_info(
 	ut_ad(n < rec_get_n_fields_old(rec));
 
 	return(mach_read_from_2(rec - (REC_N_OLD_EXTRA_BYTES + 2 * n + 2)));
+}
+
+/******************************************************//**
+Returns nonzero if the field is stored off-page.
+@retval 0 if the field is stored in-page
+@retval REC_2BYTE_EXTERN_MASK if the field is stored externally */
+UNIV_INLINE
+ulint
+rec_2_is_field_extern(
+/*==================*/
+	const rec_t*	rec,	/*!< in: record */
+	ulint		n)	/*!< in: field index */
+{
+	return(rec_2_get_field_end_info(rec, n) & REC_2BYTE_EXTERN_MASK);
 }
 
 /* Get the base address of offsets.  The extra_size is stored at

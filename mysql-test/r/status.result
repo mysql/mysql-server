@@ -149,7 +149,7 @@ a	a
 1	1
 SHOW SESSION STATUS LIKE 'Last_query_cost';
 Variable_name	Value
-Last_query_cost	5.205989
+Last_query_cost	5.205912
 DROP TABLE t1;
 show status like 'com_show_status';
 Variable_name	Value
@@ -238,5 +238,104 @@ SELECT 9;
 9
 DROP PROCEDURE p1;
 DROP FUNCTION f1;
+#
+# Test coverage for status variables which were introduced by
+# WL#5772 "Add partitioned Table Definition Cache to avoid
+# using LOCK_open and its derivatives in DML queries".
+#
+create table t1 (i int);
+create table t2 (j int);
+create table t3 (k int);
+# Flush table cache to ensure that it is empty and reset status
+# variables. Since to test cache overflow we will need to reduce
+# its size, also save original table cache size.
+flush tables;
+flush status;
+set @old_table_open_cache= @@table_open_cache;
+# Check that after reset all status variables are zero.
+show status like 'table_open_cache_%';
+Variable_name	Value
+Table_open_cache_hits	0
+Table_open_cache_misses	0
+Table_open_cache_overflows	0
+# The first statement accessing t1 after flush should result
+# in table cache miss.
+select * from t1;
+i
+show status like 'table_open_cache_%';
+Variable_name	Value
+Table_open_cache_hits	0
+Table_open_cache_misses	1
+Table_open_cache_overflows	0
+# The second statement accessing the same table should
+# result in table cache hit.
+select * from t1;
+i
+show status like 'table_open_cache_%';
+Variable_name	Value
+Table_open_cache_hits	1
+Table_open_cache_misses	1
+Table_open_cache_overflows	0
+# Again table cache miss if accessing different table.
+select * from t2;
+j
+show status like 'table_open_cache_%';
+Variable_name	Value
+Table_open_cache_hits	1
+Table_open_cache_misses	2
+Table_open_cache_overflows	0
+# And cache hit then accessing it second time.
+select * from t2;
+j
+show status like 'table_open_cache_%';
+Variable_name	Value
+Table_open_cache_hits	2
+Table_open_cache_misses	2
+Table_open_cache_overflows	0
+# The below statement should result in 2 cache hits and 
+# 4 cache misses since it needs 6 table instances in total.
+select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
+i	j	i	j	i	j
+show status like 'table_open_cache_%';
+Variable_name	Value
+Table_open_cache_hits	4
+Table_open_cache_misses	6
+Table_open_cache_overflows	0
+# Reduce size of table cache to check that status
+# variable tracking cache overflows works.
+set @@global.table_open_cache= 4;
+# The below statement should result in table cache hit, but
+# as a side effect it should result in trimming of table
+# cache by 2 TABLE instances, meaning that overflow counter
+# will get increased by 2.
+select * from t1;
+i
+show status like 'table_open_cache_%';
+Variable_name	Value
+Table_open_cache_hits	5
+Table_open_cache_misses	6
+Table_open_cache_overflows	2
+# This statement should result in 4 cache hits, 2 cache misses/
+# overflows.
+select * from t1 as a, t2 as b, t1 as c, t2 as d, t1 as e, t2 as f;
+i	j	i	j	i	j
+show status like 'table_open_cache_%';
+Variable_name	Value
+Table_open_cache_hits	9
+Table_open_cache_misses	8
+Table_open_cache_overflows	4
+# Finally, the below statement should result in 1 cache miss
+# and 1 overflow since it accesses table which is not yet in
+# cache and table cache is full.
+select * from t3;
+k
+show status like 'table_open_cache_%';
+Variable_name	Value
+Table_open_cache_hits	9
+Table_open_cache_misses	9
+Table_open_cache_overflows	5
+# Cleanup
+set @@global.table_open_cache= @old_table_open_cache;
+drop tables t1, t2, t3;
 set @@global.concurrent_insert= @old_concurrent_insert;
 SET GLOBAL log_output = @old_log_output;

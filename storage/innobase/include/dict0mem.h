@@ -1,6 +1,7 @@
 /*****************************************************************************
 
 Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,7 +48,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "fts0fts.h"
 
 /* Forward declaration. */
-typedef struct ib_rbt_struct ib_rbt_t;
+struct ib_rbt_t;
 
 /** Type flags of an index: OR'ing of the flags is allowed to define a
 combination of types */
@@ -94,12 +95,9 @@ and SYS_TABLES.TYPE.  Similar flags found in fil_space_t and FSP_SPACE_FLAGS
 are described in fsp0fsp.h. */
 
 /* @{ */
-/** SYS_TABLES.TYPE can be equal to 1 which means that the Row format
-is one of two Antelope row formats, Redundant or Compact. */
-#define SYS_TABLE_TYPE_ANTELOPE		1
-/** dict_table_t::flags can be equal to 0 if the row format = Redundant */
+/** dict_table_t::flags bit 0 is equal to 0 if the row format = Redundant */
 #define DICT_TF_REDUNDANT		0	/*!< Redundant row format. */
-/** dict_table_t::flags can be equal to 1 if the row format = Compact */
+/** dict_table_t::flags bit 0 is equal to 1 if the row format = Compact */
 #define DICT_TF_COMPACT			1	/*!< Compact row format. */
 
 /** This bitmask is used in SYS_TABLES.N_COLS to set and test whether
@@ -116,10 +114,17 @@ Brracuda row formats store the whole blob or text field off-page atomically.
 Secondary indexes are created from this external data using row_ext_t
 to cache the BLOB prefixes. */
 #define DICT_TF_WIDTH_ATOMIC_BLOBS	1
+/** If a table is created with the MYSQL option DATA DIRECTORY and
+innodb-file-per-table, an older engine will not be able to find that table.
+This flag prevents older engines from attempting to open the table and
+allows InnoDB to update_create_info() accordingly. */
+#define DICT_TF_WIDTH_DATA_DIR		1
+
 /** Width of all the currently known table flags */
 #define DICT_TF_BITS	(DICT_TF_WIDTH_COMPACT		\
 			+ DICT_TF_WIDTH_ZIP_SSIZE	\
-			+ DICT_TF_WIDTH_ATOMIC_BLOBS)
+			+ DICT_TF_WIDTH_ATOMIC_BLOBS	\
+			+ DICT_TF_WIDTH_DATA_DIR)
 
 /** A mask of all the known/used bits in table flags */
 #define DICT_TF_BIT_MASK	(~(~0 << DICT_TF_BITS))
@@ -132,9 +137,12 @@ to cache the BLOB prefixes. */
 /** Zero relative shift position of the ATOMIC_BLOBS field */
 #define DICT_TF_POS_ATOMIC_BLOBS	(DICT_TF_POS_ZIP_SSIZE		\
 					+ DICT_TF_WIDTH_ZIP_SSIZE)
-/** Zero relative shift position of the start of the UNUSED bits */
-#define DICT_TF_POS_UNUSED		(DICT_TF_POS_ATOMIC_BLOBS	\
+/** Zero relative shift position of the DATA_DIR field */
+#define DICT_TF_POS_DATA_DIR		(DICT_TF_POS_ATOMIC_BLOBS	\
 					+ DICT_TF_WIDTH_ATOMIC_BLOBS)
+/** Zero relative shift position of the start of the UNUSED bits */
+#define DICT_TF_POS_UNUSED		(DICT_TF_POS_DATA_DIR		\
+					+ DICT_TF_WIDTH_DATA_DIR)
 
 /** Bit mask of the COMPACT field */
 #define DICT_TF_MASK_COMPACT				\
@@ -148,6 +156,10 @@ to cache the BLOB prefixes. */
 #define DICT_TF_MASK_ATOMIC_BLOBS			\
 		((~(~0 << DICT_TF_WIDTH_ATOMIC_BLOBS))	\
 		<< DICT_TF_POS_ATOMIC_BLOBS)
+/** Bit mask of the DATA_DIR field */
+#define DICT_TF_MASK_DATA_DIR				\
+		((~(~0 << DICT_TF_WIDTH_DATA_DIR))	\
+		<< DICT_TF_POS_DATA_DIR)
 
 /** Return the value of the COMPACT field */
 #define DICT_TF_GET_COMPACT(flags)			\
@@ -161,6 +173,10 @@ to cache the BLOB prefixes. */
 #define DICT_TF_HAS_ATOMIC_BLOBS(flags)			\
 		((flags & DICT_TF_MASK_ATOMIC_BLOBS)	\
 		>> DICT_TF_POS_ATOMIC_BLOBS)
+/** Return the value of the ATOMIC_BLOBS field */
+#define DICT_TF_HAS_DATA_DIR(flags)			\
+		((flags & DICT_TF_MASK_DATA_DIR)	\
+		>> DICT_TF_POS_DATA_DIR)
 /** Return the contents of the UNUSED bits */
 #define DICT_TF_GET_UNUSED(flags)			\
 		(flags >> DICT_TF_POS_UNUSED)
@@ -361,8 +377,19 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
+/*******************************************************************//**
+Create a temporary tablename.
+@return temporary tablename suitable for InnoDB use */
+UNIV_INTERN __attribute__((nonnull, warn_unused_result))
+char*
+dict_mem_create_temporary_tablename(
+/*================================*/
+	mem_heap_t*	heap,	/*!< in: memory heap */
+	const char*	dbtab,	/*!< in: database/table name */
+	table_id_t	id);	/*!< in: InnoDB table id */
+
 /** Data structure for a column in a table */
-struct dict_col_struct{
+struct dict_col_t{
 	/*----------------------*/
 	/** The following are copied from dtype_t,
 	so that all bit-fields can be packed tightly. */
@@ -438,7 +465,7 @@ be REC_VERSION_56_MAX_INDEX_COL_LEN (3072) bytes */
 #define DICT_MAX_FIXED_COL_LEN		DICT_ANTELOPE_MAX_INDEX_COL_LEN
 
 /** Data structure for a field in an index */
-struct dict_field_struct{
+struct dict_field_t{
 	dict_col_t*	col;		/*!< pointer to the table column */
 	const char*	name;		/*!< name of the column */
 	unsigned	prefix_len:12;	/*!< 0 or the length of the column
@@ -454,9 +481,61 @@ struct dict_field_struct{
 					DICT_ANTELOPE_MAX_INDEX_COL_LEN */
 };
 
+/**********************************************************************//**
+PADDING HEURISTIC BASED ON LINEAR INCREASE OF PADDING TO AVOID
+COMPRESSION FAILURES
+(Note: this is relevant only for compressed indexes)
+GOAL: Avoid compression failures by maintaining information about the
+compressibility of data. If data is not very compressible then leave
+some extra space 'padding' in the uncompressed page making it more
+likely that compression of less than fully packed uncompressed page will
+succeed.
+
+This padding heuristic works by increasing the pad linearly until the
+desired failure rate is reached. A "round" is a fixed number of
+compression operations.
+After each round, the compression failure rate for that round is
+computed. If the failure rate is too high, then padding is incremented
+by a fixed value, otherwise it's left intact.
+If the compression failure is lower than the desired rate for a fixed
+number of consecutive rounds, then the padding is decreased by a fixed
+value. This is done to prevent overshooting the padding value,
+and to accommodate the possible change in data compressibility. */
+
+/** Number of zip ops in one round. */
+#define ZIP_PAD_ROUND_LEN			(128)
+
+/** Number of successful rounds after which the padding is decreased */
+#define ZIP_PAD_SUCCESSFUL_ROUND_LIMIT		(5)
+
+/** Amount by which padding is increased. */
+#define ZIP_PAD_INCR				(128)
+
+/** Percentage of compression failures that are allowed in a single
+round */
+extern ulong	zip_failure_threshold_pct;
+
+/** Maximum percentage of a page that can be allowed as a pad to avoid
+compression failures */
+extern ulong	zip_pad_max;
+
+/** Data structure to hold information about about how much space in
+an uncompressed page should be left as padding to avoid compression
+failures. This estimate is based on a self-adapting heuristic. */
+struct zip_pad_info_t {
+	os_fast_mutex_t	mutex;	/*!< mutex protecting the info */
+	ulint		pad;	/*!< number of bytes used as pad */
+	ulint		success;/*!< successful compression ops during
+				current round */
+	ulint		failure;/*!< failed compression ops during
+				current round */
+	ulint		n_rounds;/*!< number of currently successful
+				rounds */
+};
+
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
-struct dict_index_struct{
+struct dict_index_t{
 	index_id_t	id;	/*!< id of the index */
 	mem_heap_t*	heap;	/*!< memory heap */
 	const char*	name;	/*!< index name */
@@ -487,33 +566,35 @@ struct dict_index_struct{
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
 	unsigned	to_be_dropped:1;
-				/*!< TRUE if the index is to be dropped */
+				/*!< TRUE if the index is to be dropped;
+				protected by dict_operation_lock */
 	unsigned	online_status:2;
-				/*!< enum online_index_status */
+				/*!< enum online_index_status.
+				Transitions from ONLINE_INDEX_COMPLETE (to
+				ONLINE_INDEX_CREATION) are protected
+				by dict_operation_lock and
+				dict_sys->mutex. Other changes are
+				protected by index->lock. */
 	dict_field_t*	fields;	/*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
 	UT_LIST_NODE_T(dict_index_t)
 			indexes;/*!< list of indexes of the table */
-	union {
-		btr_search_t*	search; /*!< info used in optimistic searches;
-					valid when online_status is one of
-					ONLINE_INDEX_COMPLETE,
-					ONLINE_INDEX_ABORTED,
-					ONLINE_INDEX_ABORTED_DROPPED */
-		row_log_t*	online_log;
-					/*!< the log of modifications
-					during online index creation;
-					valid when online_status is
-					ONLINE_INDEX_CREATION */
-	} info;
+	btr_search_t*	search_info;
+				/*!< info used in optimistic searches */
+	row_log_t*	online_log;
+				/*!< the log of modifications
+				during online index creation;
+				valid when online_status is
+				ONLINE_INDEX_CREATION */
 	/*----------------------*/
 	/** Statistics for query optimization */
 	/* @{ */
 	ib_uint64_t*	stat_n_diff_key_vals;
 				/*!< approximate number of different
 				key values for this index, for each
-				n-column prefix where n <=
-				dict_get_n_unique(index); we
+				n-column prefix where 1 <= n <=
+				dict_get_n_unique(index) (the array is
+				indexed from 0 to n_uniq-1); we
 				periodically calculate new
 				estimates */
 	ib_uint64_t*	stat_n_sample_sizes;
@@ -524,7 +605,8 @@ struct dict_index_struct{
 	ib_uint64_t*	stat_n_non_null_key_vals;
 				/* approximate number of non-null key values
 				for this index, for each column where
-				n < dict_get_n_unique(index); This
+				1 <= n <= dict_get_n_unique(index) (the array
+				is indexed from 0 to n_uniq-1); This
 				is used when innodb_stats_method is
 				"nulls_ignored". */
 	ulint		stat_index_size;
@@ -539,9 +621,11 @@ struct dict_index_struct{
 	trx_id_t	trx_id; /*!< id of the transaction that created this
 				index, or 0 if the index existed
 				when InnoDB was started up */
+	zip_pad_info_t	zip_pad;/*!< Information about state of
+				compression failures and successes */
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_BLOB_DEBUG
-	mutex_t		blobs_mutex;
+	ib_mutex_t		blobs_mutex;
 				/*!< mutex protecting blobs */
 	ib_rbt_t*	blobs;	/*!< map of (page_no,heap_no,field_no)
 				to first_blob_page_no; protected by
@@ -549,7 +633,7 @@ struct dict_index_struct{
 #endif /* UNIV_BLOB_DEBUG */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
-/** Value of dict_index_struct::magic_n */
+/** Value of dict_index_t::magic_n */
 # define DICT_INDEX_MAGIC_N	76789786
 #endif
 };
@@ -561,8 +645,11 @@ enum online_index_status {
 	/** the index is being created, online
 	(allowing concurrent modifications) */
 	ONLINE_INDEX_CREATION,
-	/** the online index creation was aborted and the index
-	should be dropped as soon as index->table->n_ref_count reaches 0 */
+	/** secondary index creation was aborted and the index
+	should be dropped as soon as index->table->n_ref_count reaches 0,
+	or online table rebuild was aborted and the clustered index
+	of the original table should soon be restored to
+	ONLINE_INDEX_COMPLETE */
 	ONLINE_INDEX_ABORTED,
 	/** the online index creation was aborted, the index was
 	dropped from the data dictionary and the tablespace, and it
@@ -574,7 +661,7 @@ enum online_index_status {
 /** Data structure for a foreign key constraint; an example:
 FOREIGN KEY (A, B) REFERENCES TABLE2 (C, D).  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_foreign_create(). */
-struct dict_foreign_struct{
+struct dict_foreign_t{
 	mem_heap_t*	heap;		/*!< this object is allocated from
 					this memory heap */
 	char*		id;		/*!< id of the constraint as a
@@ -627,7 +714,7 @@ a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
-struct dict_table_struct{
+struct dict_table_t{
 	table_id_t	id;	/*!< id of the table */
 	mem_heap_t*	heap;	/*!< memory heap */
 	char*		name;	/*!< table name */
@@ -637,6 +724,8 @@ struct dict_table_struct{
 				innodb_file_per_table is defined in my.cnf;
 				in Unix this is usually /tmp/..., in Windows
 				temp\... */
+	char*		data_dir_path; /*!< NULL or the directory path
+				specified by DATA DIRECTORY */
 	unsigned	space:32;
 				/*!< space where the clustered index of the
 				table is placed */
@@ -649,6 +738,14 @@ struct dict_table_struct{
 				user tries to query such an orphaned table */
 	unsigned	cached:1;/*!< TRUE if the table object has been added
 				to the dictionary cache */
+	unsigned	to_be_dropped:1;
+				/*!< TRUE if the table is to be dropped, but
+				not yet actually dropped (could in the bk
+				drop list); It is turned on at the beginning
+				of row_drop_table_for_mysql() and turned off
+				just before we start to update system tables
+				for the drop. It is protected by
+				dict_operation_lock */
 	unsigned	n_def:10;/*!< number of columns defined so far */
 	unsigned	n_cols:10;/*!< number of columns */
 	unsigned	can_be_evicted:1;
@@ -725,6 +822,8 @@ struct dict_table_struct{
 	unsigned	stat_initialized:1; /*!< TRUE if statistics have
 				been calculated the first time
 				after database startup or table creation */
+	ib_time_t	stats_last_recalc;
+				/*!< Timestamp of last recalc of the stats */
 	ib_uint32_t	stat_persistent;
 				/*!< The two bits below are set in the
 				::stat_persistent member and have the following
@@ -744,6 +843,33 @@ struct dict_table_struct{
 				this ever happens. */
 #define DICT_STATS_PERSISTENT_ON	(1 << 1)
 #define DICT_STATS_PERSISTENT_OFF	(1 << 2)
+	ib_uint32_t	stats_auto_recalc;
+				/*!< The two bits below are set in the
+				::stats_auto_recalc member and have
+				the following meaning:
+				1. _ON=0, _OFF=0, no explicit auto recalc
+				setting for this table, the value of the global
+				srv_stats_persistent_auto_recalc is used to
+				determine whether the table has auto recalc
+				enabled or not
+				2. _ON=0, _OFF=1, auto recalc is explicitly
+				disabled for this table, regardless of the
+				value of the global
+				srv_stats_persistent_auto_recalc
+				3. _ON=1, _OFF=0, auto recalc is explicitly
+				enabled for this table, regardless of the
+				value of the global
+				srv_stats_persistent_auto_recalc
+				4. _ON=1, _OFF=1, not allowed, we assert if
+				this ever happens. */
+#define DICT_STATS_AUTO_RECALC_ON	(1 << 1)
+#define DICT_STATS_AUTO_RECALC_OFF	(1 << 2)
+	ulint		stats_sample_pages;
+				/*!< the number of pages to sample for this
+				table during persistent stats estimation;
+				if this is 0, then the value of the global
+				srv_stats_persistent_sample_pages will be
+				used instead. */
 	ib_uint64_t	stat_n_rows;
 				/*!< approximate number of rows in the table;
 				we periodically calculate new estimates */
@@ -765,6 +891,21 @@ struct dict_table_struct{
 				calculation; this counter is not protected by
 				any latch, because this is only used for
 				heuristics */
+#define BG_STAT_NONE		0
+#define BG_STAT_IN_PROGRESS	(1 << 0)
+				/*!< BG_STAT_IN_PROGRESS is set in
+				stats_bg_flag when the background
+				stats code is working on this table. The DROP
+				TABLE code waits for this to be cleared
+				before proceeding. */
+#define BG_STAT_SHOULD_QUIT	(1 << 1)
+				/*!< BG_STAT_SHOULD_QUIT is set in
+				stats_bg_flag when DROP TABLE starts
+				waiting on BG_STAT_IN_PROGRESS to be cleared,
+				the background stats thread will detect this
+				and will eventually quit sooner */
+	byte		stats_bg_flag;
+				/*!< see BG_STAT_* above */
 				/* @} */
 	/*----------------------*/
 				/**!< The following fields are used by the
@@ -790,7 +931,7 @@ struct dict_table_struct{
 				space from the lock heap of the trx:
 				otherwise the lock heap would grow rapidly
 				if we do a large insert from a select */
-	mutex_t		autoinc_mutex;
+	ib_mutex_t		autoinc_mutex;
 				/*!< mutex protecting the autoincrement
 				counter */
 	ib_uint64_t	autoinc;/*!< autoinc counter value to give to the
@@ -837,7 +978,7 @@ struct dict_table_struct{
 
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
-/** Value of dict_table_struct::magic_n */
+/** Value of dict_table_t::magic_n */
 # define DICT_TABLE_MAGIC_N	76333786
 #endif /* UNIV_DEBUG */
 };

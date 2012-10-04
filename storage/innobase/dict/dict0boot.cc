@@ -241,9 +241,10 @@ dict_hdr_create(
 
 /*****************************************************************//**
 Initializes the data dictionary memory structures when the database is
-started. This function is also called when the data dictionary is created. */
+started. This function is also called when the data dictionary is created.
+@return DB_SUCCESS or error code. */
 UNIV_INTERN
-void
+dberr_t
 dict_boot(void)
 /*===========*/
 {
@@ -307,9 +308,7 @@ dict_boot(void)
 	dict_mem_table_add_col(table, heap, "ID", DATA_BINARY, 0, 0);
 	/* ROW_FORMAT = (N_COLS >> 31) ? COMPACT : REDUNDANT */
 	dict_mem_table_add_col(table, heap, "N_COLS", DATA_INT, 0, 4);
-	/* If the format is UNIV_FORMAT_A, table->flags == 0, and
-	TYPE == 1, which is defined as SYS_TABLE_TYPE_ANTELOPE.
-	The low order bit of TYPE is always set to 1.  If the format
+	/* The low order bit of TYPE is always set to 1.  If the format
 	is UNIV_FORMAT_B or higher, this field matches table->flags. */
 	dict_mem_table_add_col(table, heap, "TYPE", DATA_INT, 0, 4);
 	dict_mem_table_add_col(table, heap, "MIX_ID", DATA_BINARY, 0, 0);
@@ -454,14 +453,27 @@ dict_boot(void)
 
 	ibuf_init_at_db_start();
 
-	/* Load definitions of other indexes on system tables */
+	dberr_t	err = DB_SUCCESS;
 
-	dict_load_sys_table(dict_sys->sys_tables);
-	dict_load_sys_table(dict_sys->sys_columns);
-	dict_load_sys_table(dict_sys->sys_indexes);
-	dict_load_sys_table(dict_sys->sys_fields);
+	if (srv_read_only_mode && !ibuf_is_empty()) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Change buffer must be empty when --innodb-read-only "
+			"is set!");
+
+		err = DB_ERROR;
+	} else {
+		/* Load definitions of other indexes on system tables */
+
+		dict_load_sys_table(dict_sys->sys_tables);
+		dict_load_sys_table(dict_sys->sys_columns);
+		dict_load_sys_table(dict_sys->sys_indexes);
+		dict_load_sys_table(dict_sys->sys_fields);
+	}
 
 	mutex_exit(&(dict_sys->mutex));
+
+	return(err);
 }
 
 /*****************************************************************//**
@@ -476,9 +488,10 @@ dict_insert_initial_data(void)
 }
 
 /*****************************************************************//**
-Creates and initializes the data dictionary at the server bootstrap. */
+Creates and initializes the data dictionary at the server bootstrap.
+@return DB_SUCCESS or error code. */
 UNIV_INTERN
-void
+dberr_t
 dict_create(void)
 /*=============*/
 {
@@ -490,7 +503,11 @@ dict_create(void)
 
 	mtr_commit(&mtr);
 
-	dict_boot();
+	dberr_t	err = dict_boot();
 
-	dict_insert_initial_data();
+	if (err == DB_SUCCESS) {
+		dict_insert_initial_data();
+	}
+
+	return(err);
 }

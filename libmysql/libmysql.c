@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -798,7 +798,7 @@ MYSQL_FIELD *cli_list_fields(MYSQL *mysql)
     return NULL;
 
   mysql->field_count= (uint) query->rows;
-  return unpack_fields(query,&mysql->field_alloc,
+  return unpack_fields(mysql, query,&mysql->field_alloc,
 		       mysql->field_count, 1, mysql->server_capabilities);
 }
 
@@ -858,7 +858,7 @@ mysql_list_processes(MYSQL *mysql)
   if (!(fields = (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*) 0,
 					      protocol_41(mysql) ? 7 : 5)))
     DBUG_RETURN(NULL);
-  if (!(mysql->fields=unpack_fields(fields,&mysql->field_alloc,field_count,0,
+  if (!(mysql->fields=unpack_fields(mysql, fields,&mysql->field_alloc,field_count,0,
 				    mysql->server_capabilities)))
     DBUG_RETURN(0);
   mysql->status=MYSQL_STATUS_GET_RESULT;
@@ -912,6 +912,16 @@ mysql_kill(MYSQL *mysql,ulong pid)
 {
   uchar buff[4];
   DBUG_ENTER("mysql_kill");
+  /*
+    Sanity check: if ulong is 64-bits, user can submit a PID here that
+    overflows our 32-bit parameter to the somewhat obsolete COM_PROCESS_KILL.
+    If this is the case, we'll flag an error here.
+    The SQL statement KILL CONNECTION is the safer option here.
+    There is an analog of this failsafe in the server as we might see old
+    libmysql connection to a new server as well as the other way around.
+  */
+  if (pid & (~0xfffffffful))
+    DBUG_RETURN(CR_INVALID_CONN_HANDLE);
   int4store(buff,pid);
   DBUG_RETURN(simple_command(mysql,COM_PROCESS_KILL,buff,sizeof(buff),0));
 }
@@ -1059,6 +1069,12 @@ const char *STDCALL mysql_info(MYSQL *mysql)
 
 ulong STDCALL mysql_thread_id(MYSQL *mysql)
 {
+  /*
+    ulong may be 64-bit, but we currently only transmit 32-bit.
+    mysql_thread_id() is usually used in conjunction with mysql_kill()
+    which is similarly limited (and obsolete).
+    SELECTION CONNECTION_ID() / KILL CONNECTION avoid this issue.
+  */
   return (mysql)->thread_id;
 }
 
@@ -1430,7 +1446,7 @@ my_bool cli_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
 
     if (!(fields_data= (*mysql->methods->read_rows)(mysql,(MYSQL_FIELD*)0,7)))
       DBUG_RETURN(1);
-    if (!(stmt->fields= unpack_fields(fields_data,&stmt->mem_root,
+    if (!(stmt->fields= unpack_fields(mysql, fields_data,&stmt->mem_root,
 				      field_count,0,
 				      mysql->server_capabilities)))
       DBUG_RETURN(1);

@@ -64,6 +64,7 @@ enum enum_alter_inplace_result {
   HA_ALTER_ERROR,
   HA_ALTER_INPLACE_NOT_SUPPORTED,
   HA_ALTER_INPLACE_EXCLUSIVE_LOCK,
+  HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE,
   HA_ALTER_INPLACE_SHARED_LOCK,
   HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE,
   HA_ALTER_INPLACE_NO_LOCK
@@ -466,6 +467,20 @@ include/my_base.h. It is possible to distinguish whether
 STATS_PERSISTENT=default has been specified or no STATS_PERSISTENT= is
 given at all. */
 #define HA_CREATE_USED_STATS_PERSISTENT (1L << 22)
+/**
+   This is set whenever STATS_AUTO_RECALC=0|1|default has been
+   specified in CREATE/ALTER TABLE. See enum_stats_auto_recalc.
+   It is possible to distinguish whether STATS_AUTO_RECALC=default
+   has been specified or no STATS_AUTO_RECALC= is given at all.
+*/
+#define HA_CREATE_USED_STATS_AUTO_RECALC (1L << 23)
+/**
+   This is set whenever STATS_SAMPLE_PAGES=N|default has been
+   specified in CREATE/ALTER TABLE. It is possible to distinguish whether
+   STATS_SAMPLE_PAGES=default has been specified or no STATS_SAMPLE_PAGES= is
+   given at all.
+*/
+#define HA_CREATE_USED_STATS_SAMPLE_PAGES (1L << 24)
 
 
 /*
@@ -1004,6 +1019,10 @@ struct st_partition_iter;
 
 enum enum_ha_unused { HA_CHOICE_UNDEF, HA_CHOICE_NO, HA_CHOICE_YES };
 
+enum enum_stats_auto_recalc { HA_STATS_AUTO_RECALC_DEFAULT= 0,
+                              HA_STATS_AUTO_RECALC_ON,
+                              HA_STATS_AUTO_RECALC_OFF };
+
 typedef struct st_ha_create_information
 {
   const CHARSET_INFO *table_charset, *default_table_charset;
@@ -1018,6 +1037,9 @@ typedef struct st_ha_create_information
   ulong avg_row_length;
   ulong used_fields;
   ulong key_block_size;
+  uint stats_sample_pages;		/* number of pages to sample during
+					stats estimation, if used, otherwise 0. */
+  enum_stats_auto_recalc stats_auto_recalc;
   SQL_I_List<TABLE_LIST> merge_list;
   handlerton *db_type;
   /**
@@ -1158,15 +1180,29 @@ public:
   // Change the column format of column
   static const HA_ALTER_FLAGS ALTER_COLUMN_COLUMN_FORMAT = 1L << 20;
 
-  /* Changes to partitioning */
-  static const HA_ALTER_FLAGS ADD_PARTITION                = 1L << 21;
-  static const HA_ALTER_FLAGS DROP_PARTITION               = 1L << 22;
-  static const HA_ALTER_FLAGS ALTER_PARTITION              = 1L << 23;
-  static const HA_ALTER_FLAGS COALESCE_PARTITION           = 1L << 24;
-  static const HA_ALTER_FLAGS REORGANIZE_PARTITION         = 1L << 25;
-  static const HA_ALTER_FLAGS ALTER_TABLE_REORG            = 1L << 26;
-  static const HA_ALTER_FLAGS ALTER_REMOVE_PARTITIONING    = 1L << 27;
-  static const HA_ALTER_FLAGS ALTER_ALL_PARTITION          = 1L << 28;
+  // Add partition
+  static const HA_ALTER_FLAGS ADD_PARTITION              = 1L << 21;
+
+  // Drop partition
+  static const HA_ALTER_FLAGS DROP_PARTITION             = 1L << 22;
+
+  // Changing partition options
+  static const HA_ALTER_FLAGS ALTER_PARTITION            = 1L << 23;
+
+  // Coalesce partition
+  static const HA_ALTER_FLAGS COALESCE_PARTITION         = 1L << 24;
+
+  // Reorganize partition ... into
+  static const HA_ALTER_FLAGS REORGANIZE_PARTITION       = 1L << 25;
+
+  // Reorganize partition
+  static const HA_ALTER_FLAGS ALTER_TABLE_REORG          = 1L << 26;
+
+  // Remove partitioning
+  static const HA_ALTER_FLAGS ALTER_REMOVE_PARTITIONING  = 1L << 27;
+
+  // Partition operation with ALL keyword
+  static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1L << 28;
 
   /**
     Create options (like MAX_ROWS) for the new version of table.
@@ -1243,12 +1279,23 @@ public:
   */
   HA_ALTER_FLAGS handler_flags;
 
+  /**
+     Partition_info taking into account the partition changes to be performed.
+     Contains all partitions which are present in the old version of the table
+     with partitions to be dropped or changed marked as such + all partitions
+     to be added in the new version of table marked as such.
+  */
+  partition_info *modified_part_info;
+
   /** true for ALTER IGNORE TABLE ... */
   const bool ignore;
+  /** true for online operation (LOCK=NONE) */
+  bool online;
 
   Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
                      Alter_info *alter_info_arg,
                      KEY *key_info_arg, uint key_count_arg,
+                     partition_info *modified_part_info_arg,
                      bool ignore_arg)
     : create_info(create_info_arg),
     alter_info(alter_info_arg),
@@ -1260,7 +1307,9 @@ public:
     index_add_buffer(NULL),
     handler_ctx(NULL),
     handler_flags(0),
-    ignore(ignore_arg)
+    modified_part_info(modified_part_info_arg),
+    ignore(ignore_arg),
+    online (false)
   {}
 
   ~Alter_inplace_info()
@@ -1276,6 +1325,12 @@ typedef struct st_key_create_information
   ulong block_size;
   LEX_STRING parser_name;
   LEX_STRING comment;
+  /**
+    A flag to determine if we will check for duplicate indexes.
+    This typically means that the key information was specified
+    directly by the user (set by the parser).
+  */
+  bool check_for_duplicate_indexes;
 } KEY_CREATE_INFO;
 
 
@@ -1715,12 +1770,32 @@ public:
   /* Current range (the one we're now returning rows from) */
   KEY_MULTI_RANGE mrr_cur_range;
 
-protected:
+  /*
+    The direction of the current range or index scan. This is used by
+    the ICP implementation to determine if it has reached the end
+    of the current range.
+  */
+  enum enum_range_scan_direction {
+    RANGE_SCAN_ASC,
+    RANGE_SCAN_DESC
+  };
+private:
   /*
     Storage space for the end range value. Should only be accessed using
     the end_range pointer. The content is invalid when end_range is NULL.
   */
   key_range save_end_range;
+  enum_range_scan_direction range_scan_direction;
+  int key_compare_result_on_equal;
+
+protected:
+  KEY_PART_INFO *range_key_part;
+  bool eq_range;
+  /* 
+    TRUE <=> the engine guarantees that returned records are within the range
+    being scanned.
+  */
+  bool in_range_check_pushed_down;
 
 public:  
   /*
@@ -1730,15 +1805,6 @@ public:
     index conditions.
   */
   key_range *end_range;
-  KEY_PART_INFO *range_key_part;
-  int key_compare_result_on_equal;
-  bool eq_range;
-  /* 
-    TRUE <=> the engine guarantees that returned records are within the range
-    being scanned.
-  */
-  bool in_range_check_pushed_down;
-
   uint errkey;				/* Last dup key */
   uint key_used_on_scan;
   uint active_index;
@@ -1818,7 +1884,8 @@ public:
   handler(handlerton *ht_arg, TABLE_SHARE *share_arg)
     :table_share(share_arg), table(0),
     estimation_rows_to_insert(0), ht(ht_arg),
-    ref(0), end_range(NULL), in_range_check_pushed_down(false),
+    ref(0), range_scan_direction(RANGE_SCAN_ASC),
+    in_range_check_pushed_down(false), end_range(NULL),
     key_used_on_scan(MAX_KEY), active_index(MAX_KEY),
     ref_length(sizeof(my_off_t)),
     ft_handler(0), inited(NONE),
@@ -1927,8 +1994,6 @@ public:
 
   void adjust_next_insert_id_after_explicit_value(ulonglong nr);
   int update_auto_increment();
-  void print_keydup_error(KEY *key, const char *msg);
-  void print_keydup_error(KEY *key);
   virtual void print_error(int error, myf errflag);
   virtual bool get_error_message(int error, String *buf);
   uint get_dup_key(int error);
@@ -1981,6 +2046,13 @@ public:
 
   virtual double index_only_read_time(uint keynr, double records);
   
+  /**
+    Return an estimate on the amount of memory the storage engine will
+    use for caching data in memory. If this is unknown or the storage
+    engine does not cache data in memory -1 is returned.
+  */
+  virtual longlong get_memory_buffer_size() const { return -1; }
+
   virtual ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
                                               void *seq_init_param, 
                                               uint n_ranges, uint *bufsz,
@@ -2153,8 +2225,19 @@ public:
                                const key_range *end_key,
                                bool eq_range, bool sorted);
   virtual int read_range_next();
+
+  /**
+    Set the end position for a range scan. This is used for checking
+    for when to end the range scan and by the ICP code to determine
+    that the next record is within the current range.
+
+    @param range     The end value for the range scan
+    @param direction Direction of the range scan
+  */
+  void set_end_range(const key_range* range,
+                     enum_range_scan_direction direction);
   int compare_key(key_range *range);
-  int compare_key2(key_range *range);
+  int compare_key_icp(const key_range *range) const;
   virtual int ft_init() { return HA_ERR_WRONG_COMMAND; }
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
@@ -2642,8 +2725,9 @@ public:
    *) As the first step, we acquire a lock corresponding to the concurrency
       level which was returned by handler::check_if_supported_inplace_alter()
       and requested by the user. This lock is held for most of the
-      duration of in-place ALTER (if HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
-      was returned we acquire a write lock for duration of the next step only).
+      duration of in-place ALTER (if HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
+      or HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE were returned we acquire an
+      exclusive lock for duration of the next step only).
    *) After that we call handler::ha_prepare_inplace_alter_table() to give the
       storage engine a chance to update its internal structures with a higher
       lock level than the one that will be used for the main step of algorithm.
@@ -2686,11 +2770,15 @@ public:
     @retval   HA_ALTER_ERROR                  Unexpected error.
     @retval   HA_ALTER_INPLACE_NOT_SUPPORTED  Not supported, must use copy.
     @retval   HA_ALTER_INPLACE_EXCLUSIVE_LOCK Supported, but requires X lock.
+    @retval   HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
+                                              Supported, but requires SNW lock
+                                              during main phase. Prepare phase
+                                              requires X lock.
     @retval   HA_ALTER_INPLACE_SHARED_LOCK    Supported, but requires SNW lock.
     @retval   HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
                                               Supported, concurrent reads/writes
                                               allowed. However, prepare phase
-                                              requires SNW lock.
+                                              requires X lock.
     @retval   HA_ALTER_INPLACE_NO_LOCK        Supported, concurrent
                                               reads/writes allowed.
 
@@ -2747,8 +2835,9 @@ protected:
  /**
     Allows the storage engine to update internal structures with concurrent
     writes blocked. If check_if_supported_inplace_alter() returns
-    HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE, this function is called with
-    writes blocked, otherwise the same level of locking as for
+    HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE or
+    HA_ALTER_INPLACE_SHARED_AFTER_PREPARE, this function is called with
+    exclusive lock otherwise the same level of locking as for
     inplace_alter_table() will be used.
 
     @note Storage engines are responsible for reporting any errors by
@@ -2911,6 +3000,14 @@ private:
     return HA_ERR_WRONG_COMMAND;
   }
 
+  /**
+    Update a single row.
+
+    Note: If HA_ERR_FOUND_DUPP_KEY is returned, the handler must read
+    all columns of the row so MySQL can create an error message. If
+    the columns required for the error message are not read, the error
+    message will contain garbage.
+  */
   virtual int update_row(const uchar *old_data __attribute__((unused)),
                          uchar *new_data __attribute__((unused)))
   {
@@ -2987,12 +3084,15 @@ public:
     that another call to bulk_update_row will occur OR a call to
     exec_bulk_update before the set of updates in this query is concluded.
 
+    Note: If HA_ERR_FOUND_DUPP_KEY is returned, the handler must read
+    all columns of the row so MySQL can create an error message. If
+    the columns required for the error message are not read, the error
+    message will contain garbage.
+
     @param    old_data       Old record
     @param    new_data       New record
     @param    dup_key_found  Number of duplicate keys found
 
-    @retval  0   Bulk delete used by handler
-    @retval  1   Bulk delete not used, normal operation used
   */
   virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
                               uint *dup_key_found)
@@ -3071,6 +3171,7 @@ public:
     ha_share= arg_ha_share;
     return false;
   }
+  int get_lock_type() const { return m_lock_type; }
 protected:
   Handler_share *get_ha_share_ptr();
   void set_ha_share_ptr(Handler_share *arg_ha_share);
@@ -3208,7 +3309,7 @@ int ha_end(void);
 int ha_initialize_handlerton(st_plugin_int *plugin);
 int ha_finalize_handlerton(st_plugin_int *plugin);
 
-TYPELIB *ha_known_exts(void);
+TYPELIB* ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
 bool ha_flush_logs(handlerton *db_type);
@@ -3247,11 +3348,19 @@ int ha_release_temporary_latches(THD *thd);
 /* transactions: interface to handlerton functions */
 int ha_start_consistent_snapshot(THD *thd);
 int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit);
-int ha_commit_one_phase(THD *thd, bool all);
 int ha_commit_trans(THD *thd, bool all);
 int ha_rollback_trans(THD *thd, bool all);
 int ha_prepare(THD *thd);
 int ha_recover(HASH *commit_list);
+
+/*
+ transactions: interface to low-level handlerton functions. These are
+ intended to be used by the transaction coordinators to
+ commit/prepare/rollback transactions in the engines.
+*/
+int ha_commit_low(THD *thd, bool all);
+int ha_prepare_low(THD *thd, bool all);
+int ha_rollback_low(THD *thd, bool all);
 
 /* transactions: these functions never call handlerton functions directly */
 int ha_enable_transaction(THD *thd, bool on);
@@ -3307,6 +3416,7 @@ private:
 };
 #endif
 
+const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,
                                    char *tmp_path);
 bool mysql_xa_recover(THD *thd);
@@ -3316,5 +3426,8 @@ inline const char *table_case_name(HA_CREATE_INFO *info, const char *name)
 {
   return ((lower_case_table_names == 2 && info->alias) ? info->alias : name);
 }
+
+void print_keydup_error(TABLE *table, KEY *key, const char *msg, myf errflag);
+void print_keydup_error(TABLE *table, KEY *key, myf errflag);
 
 #endif /* HANDLER_INCLUDED */

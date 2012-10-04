@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,6 +52,7 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
                                        Open_tables_backup* backup)
 {
   TABLE_LIST tables;
+  Query_tables_list query_tables_list_backup;
 
   uint flags= (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
                MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
@@ -71,6 +72,15 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
     mysql_reset_thd_for_next_command(thd);
   }
 
+  /*
+    We need to use new Open_tables_state in order not to be affected
+    by LOCK TABLES/prelocked mode.
+    Also in order not to break execution of current statement we also
+    have to backup/reset/restore Query_tables_list part of LEX, which
+    is accessed and updated in the process of opening and locking
+    tables.
+  */
+  thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
   thd->reset_n_backup_open_tables_state(backup);
 
   tables.init_one_table(dbstr.str, dbstr.length, tbstr.str, tbstr.length,
@@ -80,6 +90,7 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
   {
     close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);
+    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     my_error(ER_NO_SUCH_TABLE, MYF(0), dbstr.str, tbstr.str);
     DBUG_RETURN(TRUE);
   }
@@ -95,11 +106,14 @@ bool Rpl_info_table_access::open_table(THD* thd, const LEX_STRING dbstr,
     ha_rollback_trans(thd, FALSE);
     close_thread_tables(thd);
     thd->restore_backup_open_tables_state(backup);
+    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     my_error(ER_COL_COUNT_DOESNT_MATCH_CORRUPTED_V2, MYF(0),
              tables.table->s->db.str, tables.table->s->table_name.str,
              max_num_field, tables.table->s->fields);
     DBUG_RETURN(TRUE);
   }
+
+  thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
 
   *table= tables.table;
   tables.table->use_all_columns();
@@ -132,6 +146,8 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
                                         Open_tables_backup *backup,
                                         bool error)
 {
+  Query_tables_list query_tables_list_backup;
+
   DBUG_ENTER("Rpl_info_table_access::close_table");
 
   if (table)
@@ -148,7 +164,14 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
       else
         ha_commit_trans(thd, TRUE);
     }
+    /*
+      In order not to break execution of current statement we have to
+      backup/reset/restore Query_tables_list part of LEX, which is
+      accessed and updated in the process of closing tables.
+    */
+    thd->lex->reset_n_backup_query_tables_list(&query_tables_list_backup);
     close_thread_tables(thd);
+    thd->lex->restore_backup_query_tables_list(&query_tables_list_backup);
     thd->restore_backup_open_tables_state(backup);
   }
 
@@ -156,13 +179,11 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
 }
 
 /**
-  Positions the internal pointer of `table` to the place where (id)
-  is stored.
+  Positions the internal pointer of `table` according to the primary
+  key.
 
-  In case search succeeded, the table cursor points to the found row.
+  If the search succeeds, the table cursor points to the found row.
 
-  @param[in]      uidx         Array of fields in pk
-  @param[in]      nidx         Number of fields in pk
   @param[in,out]  field_values The sequence of values
   @param[in,out]  table        Table
 
@@ -171,47 +192,42 @@ bool Rpl_info_table_access::close_table(THD *thd, TABLE* table,
     @retval NOT_FOUND The row was not found.
     @retval ERROR     There was a failure.
 */
-enum enum_return_id Rpl_info_table_access::find_info(const ulong *uidx,
-                                                     const uint nidx,
-                                                     Rpl_info_values *field_values,
+enum enum_return_id Rpl_info_table_access::find_info(Rpl_info_values *field_values,
                                                      TABLE *table)
 {
+  KEY* keyinfo= NULL;
   uchar key[MAX_KEY_LENGTH];
+
   DBUG_ENTER("Rpl_info_table_access::find_info");
 
-  /* 
-     There is a primary key which is the first key among the
-     set of keys and it is enabled.
+  /*
+    Checks if the table has a primary key as expected.
   */
-  if (!(table->s->primary_key == 0 &&
-      table->s->keys_in_use.is_set(table->s->primary_key) &&
-      table->key_info->key_parts == nidx))
-    DBUG_RETURN(ERROR_ID);
-
-  uint offset_idx= table->s->primary_key;
-
-  for (uint idx= 0; idx < nidx; idx++)
+  if (table->s->primary_key >= MAX_KEY ||
+      !table->s->keys_in_use.is_set(table->s->primary_key))
   {
     /*
-      Fields that are part of a primary key are contiguous in
-      table's definition. If we want to release this we need
-      to iterate through the keyinfo.
+      This is not supposed to happen and means that someone
+      has changed the table or disabled the keys.
     */
-    if (!(table->field[idx + offset_idx]->flags & PRI_KEY_FLAG))
-      DBUG_RETURN(ERROR_ID);
+    DBUG_RETURN(ERROR_ID);
+  }
+
+  keyinfo= table->s->key_info + (uint) table->s->primary_key;
+  for (uint idx= 0; idx < keyinfo->key_parts; idx++)
+  {
+    uint fieldnr= keyinfo->key_part[idx].fieldnr - 1;
 
     /*
       The size of the field must be great to store data.
     */
-    if (field_values->value[idx + offset_idx].length() >
-        table->field[idx + offset_idx]->field_length)
+    if (field_values->value[fieldnr].length() >
+        table->field[fieldnr]->field_length)
       DBUG_RETURN(ERROR_ID);
 
-    field_values->value[idx + offset_idx].set_int(uidx[idx], TRUE, &my_charset_bin);
-
-    table->field[idx + offset_idx]->store(field_values->value[idx + offset_idx].c_ptr_safe(),
-                             field_values->value[idx + offset_idx].length(),
-                             &my_charset_bin);
+    table->field[fieldnr]->store(field_values->value[fieldnr].c_ptr_safe(),
+                                 field_values->value[fieldnr].length(),
+                                 &my_charset_bin);
   }
   key_copy(key, table->record[0], table->key_info, table->key_info->key_length);
 
@@ -220,6 +236,119 @@ enum enum_return_id Rpl_info_table_access::find_info(const ulong *uidx,
     DBUG_RETURN(NOT_FOUND_ID);
 
   DBUG_RETURN(FOUND_ID);
+}
+
+/**
+  Positions the internal pointer of `table` to the n-instance row.
+
+  @param[in]  table Reference to a table object.
+  @param[in]  instance n-instance row.
+
+  The code built on top of this function needs to ensure there is
+  no concurrent threads trying to update the table. So if an error
+  different from HA_ERR_END_OF_FILE is returned, we abort with an
+  error because this implies that someone has manualy and
+  concurrently changed something.
+
+  @return
+    @retval FOUND     The row was found.
+    @retval NOT_FOUND The row was not found.
+    @retval ERROR     There was a failure.
+*/
+enum enum_return_id Rpl_info_table_access::scan_info(TABLE* table,
+                                                     uint instance)
+{
+  int error= 0;
+  uint counter= 0;
+  enum enum_return_id ret= NOT_FOUND_ID;
+
+  DBUG_ENTER("Rpl_info_table_access::scan_info");
+
+  if ((error= table->file->ha_rnd_init(TRUE)))
+    DBUG_RETURN(ERROR_ID);
+
+  do
+  {
+    error= table->file->ha_rnd_next(table->record[0]);
+    switch (error)
+    {
+      case 0:
+        counter++;
+        if (counter == instance)
+        {
+          ret= FOUND_ID;
+          error= HA_ERR_END_OF_FILE;
+        }
+      break;
+
+      case HA_ERR_END_OF_FILE:
+        ret= NOT_FOUND_ID;
+      break;
+
+      default:
+        DBUG_PRINT("info", ("Failed to get next record"
+                            " (ha_rnd_next returns %d)", error));
+        ret= ERROR_ID;
+      break;
+    }
+  }
+  while (!error);
+
+  table->file->ha_rnd_end();
+
+  DBUG_RETURN(ret);
+}
+
+/**
+  Returns the number of entries in table.
+
+  The code built on top of this function needs to ensure there is
+  no concurrent threads trying to update the table. So if an error
+  different from HA_ERR_END_OF_FILE is returned, we abort with an
+  error because this implies that someone has manualy and
+  concurrently changed something.
+
+  @param[in]  table   Table
+  @param[out] counter Registers the number of entries.
+
+  @return
+    @retval false No error
+    @retval true  Failure
+*/
+bool Rpl_info_table_access::count_info(TABLE* table, uint* counter)
+{
+  bool end= false;
+  int error= 0;
+
+  DBUG_ENTER("Rpl_info_table_access::count_info");
+
+  if ((error= table->file->ha_rnd_init(true)))
+    DBUG_RETURN(true);
+
+  do
+  {
+    error= table->file->ha_rnd_next(table->record[0]);
+    switch (error) 
+    {
+      case 0:
+        (*counter)++;
+      break;
+
+      case HA_ERR_END_OF_FILE:
+        end= true;
+      break;
+
+      default:
+        DBUG_PRINT("info", ("Failed to get next record"
+                            " (ha_rnd_next returns %d)", error));
+      break;
+    }
+  }
+  while (!error);
+
+  table->file->ha_rnd_end();
+
+  DBUG_RETURN(end ? false : true);
 }
 
 /**
@@ -234,7 +363,7 @@ enum enum_return_id Rpl_info_table_access::find_info(const ulong *uidx,
   @return
     @retval FALSE No error
     @retval TRUE  Failure
- */
+*/
 bool Rpl_info_table_access::load_info_values(uint max_num_field, Field **fields,
                                              Rpl_info_values *field_values)
 {

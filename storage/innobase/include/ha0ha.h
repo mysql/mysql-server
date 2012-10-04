@@ -221,10 +221,7 @@ ha_print_info(
 #endif /* !UNIV_HOTBACKUP */
 
 /** The hash table external chain node */
-typedef struct ha_node_struct ha_node_t;
-
-/** The hash table external chain node */
-struct ha_node_struct {
+struct ha_node_t {
 	ha_node_t*	next;	/*!< next chain node or NULL if none */
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	buf_block_t*	block;	/*!< buffer block containing the data, or NULL */

@@ -1497,13 +1497,19 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t1 ADD INDEX i2(b), ALGORITHM= DEFAULT;
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i3(b), ALGORITHM= COPY;
 affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+info: Records: 2  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i3' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= INPLACE;
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i4' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i5(b), ALGORITHM= INVALID;
 ERROR HY000: Unknown ALGORITHM 'INVALID'
 ALTER TABLE m1 ENABLE KEYS;
@@ -1526,13 +1532,19 @@ affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE t1 ADD INDEX i2(b), ALGORITHM= DEFAULT;
 affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+info: Records: 2  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i3(b), ALGORITHM= COPY;
 affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+info: Records: 2  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i3' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= INPLACE;
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i4' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 SET SESSION old_alter_table= 0;
 affected rows: 0
 ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
@@ -1543,8 +1555,7 @@ ALTER TABLE t1 ADD COLUMN (c1 INT);
 ALTER TABLE t1 ADD COLUMN (c2 INT), ALGORITHM= DEFAULT;
 ALTER TABLE t1 ADD COLUMN (c3 INT), ALGORITHM= COPY;
 ALTER TABLE t1 ADD COLUMN (c4 INT), ALGORITHM= INPLACE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD COLUMN (c4 INT), ALGORITHM= INPLACE'
-ALTER TABLE t1 DROP COLUMN c1, DROP COLUMN c2, DROP COLUMN c3;
+ALTER TABLE t1 DROP COLUMN c1, DROP COLUMN c2, DROP COLUMN c3, DROP COLUMN c4;
 #
 # 4: Test LOCK keyword
 #
@@ -1553,13 +1564,19 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t1 ADD INDEX i2(b), LOCK= NONE;
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i3(b), LOCK= SHARED;
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i3' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i4(b), LOCK= EXCLUSIVE;
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i4' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i5(b), LOCK= INVALID;
 ERROR HY000: Unknown LOCK type 'INVALID'
 ALTER TABLE m1 ENABLE KEYS, LOCK= DEFAULT;
@@ -1577,18 +1594,26 @@ affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE t1 ADD INDEX i2(b), ALGORITHM= INPLACE, LOCK= SHARED;
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i3(b), ALGORITHM= INPLACE, LOCK= EXCLUSIVE;
 affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
+info: Records: 0  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i3' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= COPY, LOCK= NONE;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= COPY, LOCK= NONE'
 ALTER TABLE t1 ADD INDEX i5(b), ALGORITHM= COPY, LOCK= SHARED;
 affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+info: Records: 2  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i5' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i6(b), ALGORITHM= COPY, LOCK= EXCLUSIVE;
 affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+info: Records: 2  Duplicates: 0  Warnings: 1
+Warnings:
+Warning	1831	Duplicate index 'i6' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= NONE;
 ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= NONE'
 ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= SHARED;
@@ -1646,20 +1671,26 @@ affected rows: 0
 ALTER TABLE tm1;
 affected rows: 0
 ALTER TABLE ti1 ADD COLUMN d VARCHAR(200);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 ADD COLUMN d VARCHAR(200);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 ADD COLUMN e ENUM('a', 'b') FIRST;
+ALTER TABLE ti1 ADD COLUMN d2 VARCHAR(200);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD COLUMN d2 VARCHAR(200);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD COLUMN e ENUM('a', 'b') FIRST;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 ADD COLUMN e ENUM('a', 'b') FIRST;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD COLUMN f INT AFTER a;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 ADD COLUMN f INT AFTER a;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1667,12 +1698,6 @@ ALTER TABLE ti1 ADD INDEX ii1(b);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 ADD INDEX im1(b);
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 ADD PRIMARY KEY (a);
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 ADD PRIMARY KEY (a);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD UNIQUE INDEX ii2 (c);
@@ -1687,6 +1712,32 @@ info: Records: 0  Duplicates: 0  Warnings: 1
 Warnings:
 Warning	124	InnoDB rebuilding table to add column FTS_DOC_ID
 ALTER TABLE tm1 ADD FULLTEXT INDEX im3 (d);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD FULLTEXT INDEX ii4 (d2);
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD FULLTEXT INDEX im4 (d2);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE ti1 ADD PRIMARY KEY(a), ALGORITHM=INPLACE'
+ALTER TABLE ti1 ADD PRIMARY KEY(a);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 ADD PRIMARY KEY(a);
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 DROP INDEX ii3;
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP INDEX im3;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE ti1 DROP COLUMN d2;
+affected rows: 2
+info: Records: 2  Duplicates: 0  Warnings: 0
+ALTER TABLE tm1 DROP COLUMN d2;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD CONSTRAINT fi1 FOREIGN KEY (b) REFERENCES ti2(a);
@@ -1732,26 +1783,26 @@ ALTER TABLE tm1 MODIFY COLUMN e INT;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN e INT AFTER h;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN e INT AFTER h;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN e INT FIRST;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN e INT FIRST;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN c INT NOT NULL;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN c INT NOT NULL;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN c INT NULL;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN c INT NULL;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1762,14 +1813,14 @@ ALTER TABLE tm1 MODIFY COLUMN h VARCHAR(30);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 MODIFY COLUMN h VARCHAR(30) AFTER d;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN h VARCHAR(30) AFTER d;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 DROP COLUMN h;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
+affected rows: 0
+info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 DROP COLUMN h;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1777,12 +1828,6 @@ ALTER TABLE ti1 DROP INDEX ii2;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 DROP INDEX im2;
-affected rows: 2
-info: Records: 2  Duplicates: 0  Warnings: 0
-ALTER TABLE ti1 DROP INDEX ii3;
-affected rows: 0
-info: Records: 0  Duplicates: 0  Warnings: 0
-ALTER TABLE tm1 DROP INDEX im3;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 DROP PRIMARY KEY;

@@ -1,0 +1,22 @@
+select @@global.explicit_defaults_for_timestamp;
+@@global.explicit_defaults_for_timestamp
+0
+select @@session.explicit_defaults_for_timestamp;
+@@session.explicit_defaults_for_timestamp
+0
+show global variables like 'explicit_defaults_for_timestamp';
+Variable_name	Value
+explicit_defaults_for_timestamp	OFF
+show session variables like 'explicit_defaults_for_timestamp';
+Variable_name	Value
+explicit_defaults_for_timestamp	OFF
+select * from information_schema.global_variables where variable_name='explicit_defaults_for_timestamp';
+VARIABLE_NAME	VARIABLE_VALUE
+EXPLICIT_DEFAULTS_FOR_TIMESTAMP	OFF
+select * from information_schema.session_variables where variable_name='explicit_defaults_for_timestamp';
+VARIABLE_NAME	VARIABLE_VALUE
+EXPLICIT_DEFAULTS_FOR_TIMESTAMP	OFF
+set global explicit_defaults_for_timestamp=true;
+ERROR HY000: Variable 'explicit_defaults_for_timestamp' is a read only variable
+set session explicit_defaults_for_timestamp=true;
+ERROR HY000: Variable 'explicit_defaults_for_timestamp' is a read only variable

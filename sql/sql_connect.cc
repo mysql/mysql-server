@@ -107,8 +107,8 @@ int get_or_create_user_conn(THD *thd, const char *user,
       goto end;
     }
   }
-  thd->user_connect=uc;
-  uc->connections++;
+  thd->set_user_connect(uc);
+  thd->increment_user_connections_counter();
 end:
   mysql_mutex_unlock(&LOCK_user_conn);
   return return_val;
@@ -133,7 +133,7 @@ end:
     1 error
 */
 
-int check_for_max_user_connections(THD *thd, USER_CONN *uc)
+int check_for_max_user_connections(THD *thd, const USER_CONN *uc)
 {
   int error=0;
   Host_errors errors;
@@ -149,7 +149,7 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
     errors.m_max_user_connection= 1;
     goto end;
   }
-  time_out_user_resource_limits(thd, uc);
+  thd->time_out_user_resource_limits();
   if (uc->user_resources.user_conn &&
       uc->user_resources.user_conn < uc->connections)
   {
@@ -170,18 +170,18 @@ int check_for_max_user_connections(THD *thd, USER_CONN *uc)
     errors.m_max_user_connection_per_hour= 1;
     goto end;
   }
-  uc->conn_per_hour++;
+  thd->increment_con_per_hour_counter();
 
 end:
   if (error)
   {
-    uc->connections--; // no need for decrease_user_connections() here
+    thd->decrement_user_connections_counter();
     /*
       The thread may returned back to the pool and assigned to a user
       that doesn't have a limit. Ensure the user is not using resources
       of someone else.
     */
-    thd->user_connect= NULL;
+    thd->set_user_connect(NULL);
   }
   mysql_mutex_unlock(&LOCK_user_conn);
   if (error)
@@ -224,37 +224,37 @@ void decrease_user_connections(USER_CONN *uc)
   DBUG_VOID_RETURN;
 }
 
-
 /*
-  Reset per-hour user resource limits when it has been more than
-  an hour since they were last checked
+   Decrements user connections count from the USER_CONN held by THD
+   And removes USER_CONN from the hash if no body else is using it.
 
-  SYNOPSIS:
-    time_out_user_resource_limits()
-    thd     Thread handler
-    uc      User connection details
-
-  NOTE:
-    This assumes that the LOCK_user_conn mutex has been acquired, so it is
-    safe to test and modify members of the USER_CONN structure.
-*/
-
-void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
+   SYNOPSIS
+     release_user_connection()
+     THD  Thread context object.
+ */
+void release_user_connection(THD *thd)
 {
-  ulonglong check_time= thd->start_utime;
-  DBUG_ENTER("time_out_user_resource_limits");
+  const USER_CONN *uc= thd->get_user_connect();
+  DBUG_ENTER("release_user_connection");
 
-  /* If more than a hour since last check, reset resource checking */
-  if (check_time  - uc->reset_utime >= LL(3600000000))
+  if (uc)
   {
-    uc->questions=1;
-    uc->updates=0;
-    uc->conn_per_hour=0;
-    uc->reset_utime= check_time;
+    mysql_mutex_lock(&LOCK_user_conn);
+    DBUG_ASSERT(uc->connections > 0);
+    thd->decrement_user_connections_counter();
+    if (!uc->connections && !mqh_used)
+    {
+      /* Last connection for user; Delete it */
+      (void) my_hash_delete(&hash_user_connections,(uchar*) uc);
+    }
+    mysql_mutex_unlock(&LOCK_user_conn);
+    thd->set_user_connect(NULL);
   }
 
   DBUG_VOID_RETURN;
 }
+
+
 
 /*
   Check if maximum queries per hour limit has been reached
@@ -264,39 +264,69 @@ void time_out_user_resource_limits(THD *thd, USER_CONN *uc)
 bool check_mqh(THD *thd, uint check_command)
 {
   bool error= 0;
-  USER_CONN *uc=thd->user_connect;
+  const USER_CONN *uc=thd->get_user_connect();
   DBUG_ENTER("check_mqh");
   DBUG_ASSERT(uc != 0);
 
   mysql_mutex_lock(&LOCK_user_conn);
 
-  time_out_user_resource_limits(thd, uc);
+  thd->time_out_user_resource_limits();
 
   /* Check that we have not done too many questions / hour */
-  if (uc->user_resources.questions &&
-      uc->questions++ >= uc->user_resources.questions)
+  if (uc->user_resources.questions)
   {
-    my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_questions",
-             (long) uc->user_resources.questions);
-    error=1;
-    goto end;
+    thd->increment_questions_counter();
+    if ((uc->questions - 1) >= uc->user_resources.questions)
+    {
+      my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_questions",
+               (long) uc->user_resources.questions);
+      error=1;
+      goto end;
+    }
   }
   if (check_command < (uint) SQLCOM_END)
   {
     /* Check that we have not done too many updates / hour */
     if (uc->user_resources.updates &&
-        (sql_command_flags[check_command] & CF_CHANGES_DATA) &&
-  uc->updates++ >= uc->user_resources.updates)
+        (sql_command_flags[check_command] & CF_CHANGES_DATA))
     {
-      my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_updates",
-               (long) uc->user_resources.updates);
-      error=1;
-      goto end;
+      thd->increment_updates_counter();
+      if ((uc->updates - 1) >= uc->user_resources.updates)
+      {
+        my_error(ER_USER_LIMIT_REACHED, MYF(0), uc->user, "max_updates",
+                 (long) uc->user_resources.updates);
+        error=1;
+        goto end;
+      }
     }
   }
 end:
   mysql_mutex_unlock(&LOCK_user_conn);
   DBUG_RETURN(error);
+}
+#else
+
+int check_for_max_user_connections(THD *thd, const USER_CONN *uc)
+{
+  return 0;
+}
+
+void decrease_user_connections(USER_CONN *uc)
+{
+  return;
+}
+
+void release_user_connection(THD *thd)
+{
+  const USER_CONN *uc= thd->get_user_connect();
+  DBUG_ENTER("release_user_connection");
+
+  if (uc)
+  {
+    thd->set_user_connect(NULL);
+  }
+
+  DBUG_VOID_RETURN;
 }
 
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
@@ -444,7 +474,7 @@ bool init_new_connection_handler_thread()
   pthread_detach_this_thread();
   if (my_thread_init())
   {
-    statistic_increment(connection_errors_internal, &LOCK_status);
+    statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
     return 1;
   }
   return 0;
@@ -551,7 +581,7 @@ static int check_connection(THD *thd)
         there is nothing to show in the host_cache,
         so increment the global status variable for peer address errors.
       */
-      statistic_increment(connection_errors_peer_addr, &LOCK_status);
+      statistic_increment_rwlock(connection_errors_peer_addr, &LOCK_status);
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
@@ -562,7 +592,7 @@ static int check_connection(THD *thd)
         this is treated as a global server OOM error.
         TODO: remove the need for my_strdup.
       */
-      statistic_increment(connection_errors_internal, &LOCK_status);
+      statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
       return 1; /* The error is set by my_strdup(). */
     }
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
@@ -627,7 +657,7 @@ static int check_connection(THD *thd)
       Hence, there is no reason to account on OOM conditions per client IP,
       we count failures in the global server status instead.
     */
-    statistic_increment(connection_errors_internal, &LOCK_status);
+    statistic_increment_rwlock(connection_errors_internal, &LOCK_status);
     return 1; /* The error is set by alloc(). */
   }
 
@@ -664,7 +694,7 @@ bool setup_connection_thread_globals(THD *thd)
   if (thd->store_globals())
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
-    statistic_increment(aborted_connects,&LOCK_status);
+    statistic_increment_rwlock(aborted_connects,&LOCK_status);
     MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return 1;                                   // Error
   }
@@ -709,7 +739,7 @@ bool login_connection(THD *thd)
     if (vio_type(net->vio) == VIO_TYPE_NAMEDPIPE)
       my_sleep(1000);       /* must wait after eof() */
 #endif
-    statistic_increment(aborted_connects,&LOCK_status);
+    statistic_increment_rwlock(aborted_connects,&LOCK_status);
     DBUG_RETURN(1);
   }
   /* Connect completed, set read/write timeouts back to default */
@@ -730,20 +760,17 @@ void end_connection(THD *thd)
 {
   NET *net= &thd->net;
   plugin_thdvar_cleanup(thd);
-  if (thd->user_connect)
-  {
-    decrease_user_connections(thd->user_connect);
-    /*
-      The thread may returned back to the pool and assigned to a user
-      that doesn't have a limit. Ensure the user is not using resources
-      of someone else.
-    */
-    thd->user_connect= NULL;
-  }
+
+  /*
+    The thread may returned back to the pool and assigned to a user
+    that doesn't have a limit. Ensure the user is not using resources
+    of someone else.
+  */
+  release_user_connection(thd);
 
   if (thd->killed || (net->error && net->vio != 0))
   {
-    statistic_increment(aborted_threads,&LOCK_status);
+    statistic_increment_rwlock(aborted_threads,&LOCK_status);
   }
 
   if (net->error && net->vio != 0)
@@ -894,7 +921,7 @@ void do_handle_one_connection(THD *thd_arg)
   if (MYSQL_CALLBACK_ELSE(thread_scheduler, init_new_connection_thread, (), 0))
   {
     close_connection(thd, ER_OUT_OF_RESOURCES);
-    statistic_increment(aborted_connects,&LOCK_status);
+    statistic_increment_rwlock(aborted_connects,&LOCK_status);
     MYSQL_CALLBACK(thread_scheduler, end_thread, (thd, 0));
     return;
   }
@@ -909,7 +936,7 @@ void do_handle_one_connection(THD *thd_arg)
     ulong launch_time= (ulong) (thd->thr_create_utime -
                                 thd->prior_thr_create_utime);
     if (launch_time >= slow_launch_time*1000000L)
-      statistic_increment(slow_launch_threads, &LOCK_status);
+      statistic_increment_rwlock(slow_launch_threads, &LOCK_status);
     thd->prior_thr_create_utime= 0;
   }
 

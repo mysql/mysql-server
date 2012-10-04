@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -24,53 +24,23 @@
 #ifndef PFS_MAX_MUTEX_CLASS
   #define PFS_MAX_MUTEX_CLASS 200
 #endif
-#ifndef PFS_MAX_MUTEX
-  #define PFS_MAX_MUTEX 1000000
-#endif
 #ifndef PFS_MAX_RWLOCK_CLASS
   #define PFS_MAX_RWLOCK_CLASS 30
-#endif
-#ifndef PFS_MAX_RWLOCK
-  #define PFS_MAX_RWLOCK 1000000
 #endif
 #ifndef PFS_MAX_COND_CLASS
   #define PFS_MAX_COND_CLASS 80
 #endif
-#ifndef PFS_MAX_COND
-  #define PFS_MAX_COND 1000
-#endif
 #ifndef PFS_MAX_THREAD_CLASS
   #define PFS_MAX_THREAD_CLASS 50
-#endif
-#ifndef PFS_MAX_THREAD
-  #define PFS_MAX_THREAD 1000
 #endif
 #ifndef PFS_MAX_FILE_CLASS
   #define PFS_MAX_FILE_CLASS 50
 #endif
-#ifndef PFS_MAX_FILE
-  #define PFS_MAX_FILE 10000
-#endif
 #ifndef PFS_MAX_FILE_HANDLE
   #define PFS_MAX_FILE_HANDLE 32768
 #endif
-#ifndef PFS_MAX_SOCKETS
-  #define PFS_MAX_SOCKETS 1000
-#endif
 #ifndef PFS_MAX_SOCKET_CLASS
   #define PFS_MAX_SOCKET_CLASS 10
-#endif
-#ifndef PFS_MAX_TABLE_SHARE
-  #define PFS_MAX_TABLE_SHARE 1000
-#endif
-#ifndef PFS_MAX_TABLE
-  #define PFS_MAX_TABLE 10000
-#endif
-#ifndef PFS_WAITS_HISTORY_SIZE
-  #define PFS_WAITS_HISTORY_SIZE 10
-#endif
-#ifndef PFS_WAITS_HISTORY_LONG_SIZE
-  #define PFS_WAITS_HISTORY_LONG_SIZE 10000
 #endif
 #ifndef PFS_MAX_SETUP_ACTOR
   #define PFS_MAX_SETUP_ACTOR 100
@@ -78,42 +48,26 @@
 #ifndef PFS_MAX_SETUP_OBJECT
   #define PFS_MAX_SETUP_OBJECT 100
 #endif
-#ifndef PFS_MAX_HOST
-  #define PFS_MAX_HOST 100
-#endif
-#ifndef PFS_MAX_USER
-  #define PFS_MAX_USER 100
-#endif
-#ifndef PFS_MAX_ACCOUNT
-  #define PFS_MAX_ACCOUNT 100
-#endif
 #ifndef PFS_MAX_STAGE_CLASS
   #define PFS_MAX_STAGE_CLASS 150
-#endif
-#ifndef PFS_STAGES_HISTORY_SIZE
-  #define PFS_STAGES_HISTORY_SIZE 10
-#endif
-#ifndef PFS_STAGES_HISTORY_LONG_SIZE
-  #define PFS_STAGES_HISTORY_LONG_SIZE 10000
-#endif
-#ifndef PFS_STATEMENTS_HISTORY_SIZE
-  #define PFS_STATEMENTS_HISTORY_SIZE 10
-#endif
-#ifndef PFS_STATEMENTS_HISTORY_LONG_SIZE
-  #define PFS_STATEMENTS_HISTORY_LONG_SIZE 10000
 #endif
 #ifndef PFS_STATEMENTS_STACK_SIZE
   #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
-#ifndef PFS_DIGEST_SIZE
-  #define PFS_DIGEST_SIZE 200
-#endif
+
+struct PFS_sizing_hints
+{
+  long m_table_definition_cache;
+  long m_table_open_cache;
+  long m_max_connections;
+  long m_open_files_limit;
+};
 
 /** Performance schema global sizing parameters. */
 struct PFS_global_param
 {
   /** True if the performance schema is enabled. */
-  bool m_enabled; 
+  bool m_enabled;
   /** Default values for SETUP_CONSUMERS. */
   bool m_consumer_events_stages_current_enabled;
   bool m_consumer_events_stages_history_enabled;
@@ -155,7 +109,7 @@ struct PFS_global_param
     Maximum number of instrumented table share.
     @sa table_share_lost.
   */
-  ulong m_table_share_sizing;
+  long m_table_share_sizing;
   /**
     Maximum number of instrumented file classes.
     @sa file_class_lost.
@@ -165,81 +119,86 @@ struct PFS_global_param
     Maximum number of instrumented mutex instances.
     @sa mutex_lost.
   */
-  ulong m_mutex_sizing;
+  long m_mutex_sizing;
   /**
     Maximum number of instrumented rwlock instances.
     @sa rwlock_lost.
   */
-  ulong m_rwlock_sizing;
+  long m_rwlock_sizing;
   /**
     Maximum number of instrumented cond instances.
     @sa cond_lost.
   */
-  ulong m_cond_sizing;
+  long m_cond_sizing;
   /**
     Maximum number of instrumented thread instances.
     @sa thread_lost.
   */
-  ulong m_thread_sizing;
+  long m_thread_sizing;
   /**
     Maximum number of instrumented table handles.
     @sa table_lost.
   */
-  ulong m_table_sizing;
+  long m_table_sizing;
   /**
     Maximum number of instrumented file instances.
     @sa file_lost.
   */
-  ulong m_file_sizing;
+  long m_file_sizing;
   /**
     Maximum number of instrumented file handles.
     @sa file_handle_lost.
   */
-  ulong m_file_handle_sizing;
+  long m_file_handle_sizing;
   /**
     Maxium number of instrumented socket instances
     @sa socket_lost  
   */
-  ulong m_socket_sizing;
+  long m_socket_sizing;
   /**
     Maximum number of instrumented socket classes.
     @sa socket_class_lost.
   */
   ulong m_socket_class_sizing;
   /** Maximum number of rows per thread in table EVENTS_WAITS_HISTORY. */
-  ulong m_events_waits_history_sizing;
+  long m_events_waits_history_sizing;
   /** Maximum number of rows in table EVENTS_WAITS_HISTORY_LONG. */
-  ulong m_events_waits_history_long_sizing;
+  long m_events_waits_history_long_sizing;
   /** Maximum number of rows in table SETUP_ACTORS. */
   ulong m_setup_actor_sizing;
   /** Maximum number of rows in table SETUP_OBJECTS. */
   ulong m_setup_object_sizing;
   /** Maximum number of rows in table HOSTS. */
-  ulong m_host_sizing;
+  long m_host_sizing;
   /** Maximum number of rows in table USERS. */
-  ulong m_user_sizing;
+  long m_user_sizing;
   /** Maximum number of rows in table ACCOUNTS. */
-  ulong m_account_sizing;
+  long m_account_sizing;
   /**
     Maximum number of instrumented stage classes.
     @sa stage_class_lost.
   */
   ulong m_stage_class_sizing;
   /** Maximum number of rows per thread in table EVENTS_STAGES_HISTORY. */
-  ulong m_events_stages_history_sizing;
+  long m_events_stages_history_sizing;
   /** Maximum number of rows in table EVENTS_STAGES_HISTORY_LONG. */
-  ulong m_events_stages_history_long_sizing;
+  long m_events_stages_history_long_sizing;
   /**
     Maximum number of instrumented statement classes.
     @sa statement_class_lost.
   */
   ulong m_statement_class_sizing;
   /** Maximum number of rows per thread in table EVENTS_STATEMENT_HISTORY. */
-  ulong m_events_statements_history_sizing;
+  long m_events_statements_history_sizing;
   /** Maximum number of rows in table EVENTS_STATEMENTS_HISTORY_LONG. */
-  ulong m_events_statements_history_long_sizing;
+  long m_events_statements_history_long_sizing;
   /** Maximum number of digests to be captured */
-  ulong m_digest_sizing;
+  long m_digest_sizing;
+  /** Maximum number of session attribute strings per thread */
+  long m_session_connect_attrs_sizing;
+
+  /** Sizing hints, for auto tuning. */
+  PFS_sizing_hints m_hints;
 };
 
 /**
@@ -254,7 +213,9 @@ extern PFS_global_param pfs_param;
   @return A boostrap handle, or NULL.
 */
 struct PSI_bootstrap*
-initialize_performance_schema(const PFS_global_param *param);
+initialize_performance_schema(PFS_global_param *param);
+
+void pfs_automated_sizing(PFS_global_param *param);
 
 /**
   Initialize the performance schema ACL.

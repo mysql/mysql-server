@@ -20,6 +20,18 @@
 #include <dynamic_ids.h>
 #include "rpl_info_values.h"
 
+enum enum_info_repository
+{
+  INFO_REPOSITORY_FILE= 0,
+  INFO_REPOSITORY_TABLE,
+  INFO_REPOSITORY_DUMMY,
+  /*
+    Add new types of repository before this
+    entry.
+  */
+  INVALID_INFO_REPOSITORY
+};
+
 /*
   Defines status on the repository.
 */
@@ -27,6 +39,8 @@ enum enum_return_check { REPOSITORY_DOES_NOT_EXIST= 1, REPOSITORY_EXISTS, ERROR_
 
 class Rpl_info_handler
 {
+  friend class Rpl_info_factory;
+
 public:
   /**
     After creating an object and assembling components, this method is
@@ -34,33 +48,27 @@ public:
     depend on other components (e.g. mutexes) should be placed in the
     object's constructor though.
 
-    @param[in] uidx Array of fields that identifies an object
-    @param[in] nidx Number of fields in the array
-
     @retval FALSE success,
     @retval TRUE  otherwise error.
   */
-  int init_info(const ulong *uidx, const uint nidx)
+  int init_info()
   {
-    return do_init_info(uidx, nidx);
+    return do_init_info();
   }
 
   /**
     Checks the repository's status.
-
-    @param[in] uidx Array of fields that identifies an object
-    @param[in] nidx Number of fields in the array
-
+    
     @retval REPOSITORY_EXISTS         reposistory is ready to
-                                       be used.
+                                      be used.
     @retval REPOSITORY_DOES_NOT_EXIST repository needs to be 
                                       configured.
     @retval ERROR_CHECKING_REPOSITORY error while checking the
                                       reposistory.
   */
-  enum_return_check check_info(const ulong *uidx, const uint nidx)
+  enum_return_check check_info()
   {
-    return do_check_info(uidx, nidx);
+    return do_check_info();
   }
 
   /**
@@ -76,44 +84,48 @@ public:
     system, it may happen that the changes will only end up in the
     operating system's cache and a crash may lead to inconsistencies.
 
-    @param[in] uidx  Array of fields that identifies an object
-    @param[in] nidx  Number of fields in the array
-    @param[in] force Always sync the information.
-
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  int flush_info(const ulong *uidx, const uint nidx, const bool force)
+  int flush_info(const bool force)
   {
-    return do_flush_info(uidx, nidx, force);
+    return do_flush_info(force);
   }
 
   /**
-    Deletes a specific information in the repository.
-
-    @param[in] uidx Array of fields that identifies an object
-    @param[in] nidx Number of fields in the array
+    Deletes any information in it and in some cases the repository.
+    The decision to remove the repository is delegated to the
+    developer.
 
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  int remove_info(const ulong *uidx, const uint nidx)
+  int remove_info()
   {
-    return do_remove_info(uidx, nidx);
+    return do_remove_info();
+  }
+
+  /**
+    Deletes any information in the repository. In contrast to the
+    @code remove_info() method, the repository is not removed.
+
+    @retval FALSE No error
+    @retval TRUE  Failure
+  */
+  int clean_info()
+  {
+    return do_clean_info();
   }
 
   /**
     Closes access to the repository.
 
-    @param[in] uidx Array of fields that identifies an object
-    @param[in] nidx Number of fields in the array
-
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  void end_info(const ulong *uidx, const uint nidx)
+  void end_info()
   {
-    do_end_info(uidx, nidx);
+    do_end_info();
   }
 
   /**
@@ -123,9 +135,9 @@ public:
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  int prepare_info_for_read(const uint nidx)
+  int prepare_info_for_read()
   {
-    return (do_prepare_info_for_read(nidx));
+    return (do_prepare_info_for_read());
   }
 
   /**
@@ -135,10 +147,24 @@ public:
     @retval FALSE No error
     @retval TRUE  Failure
   */
-  int prepare_info_for_write(const uint nidx)
+  int prepare_info_for_write()
   {
-    return (do_prepare_info_for_write(nidx));
+    return (do_prepare_info_for_write());
   }
+
+  /**
+    Gets the type of the repository that is used.
+
+    @return Type of repository.
+  */
+  uint get_rpl_info_type()
+  {
+     return (do_get_rpl_info_type());
+  }
+  /**
+     Returns a string corresponding to the type.
+  */
+  const char* get_rpl_info_type_str();
 
   /**
     Sets the value of a field to @c value.
@@ -341,14 +367,16 @@ protected:
   Rpl_info_handler(const int nparam);
 
 private:
-  virtual int do_init_info(const ulong *uidx, const uint nidx)= 0;
-  virtual enum_return_check do_check_info(const ulong *uidx, const uint nidx)= 0;
-  virtual int do_flush_info(const ulong *uidx, const uint nidx,
-                            const bool force)= 0;
-  virtual int do_remove_info(const ulong *uidx, const uint nidx)= 0;
-  virtual void do_end_info(const ulong *uidx, const uint nidx)= 0;
-  virtual int do_prepare_info_for_read(const uint nidx)= 0;
-  virtual int do_prepare_info_for_write(const uint nidx)= 0;
+  virtual int do_init_info()= 0;
+  virtual int do_init_info(uint instance)= 0;
+  virtual enum_return_check do_check_info()= 0;
+  virtual enum_return_check do_check_info(uint instance)= 0;
+  virtual int do_flush_info(const bool force)= 0;
+  virtual int do_remove_info()= 0;
+  virtual int do_clean_info()= 0;
+  virtual void do_end_info()= 0;
+  virtual int do_prepare_info_for_read()= 0;
+  virtual int do_prepare_info_for_write()= 0;
 
   virtual bool do_set_info(const int pos, const char *value)= 0;
   virtual bool do_set_info(const int pos, const uchar *value,
@@ -374,6 +402,7 @@ private:
   virtual char* do_get_description_info()= 0;
   virtual bool do_is_transactional()= 0;
   virtual bool do_update_is_transactional()= 0;
+  virtual uint do_get_rpl_info_type()= 0;
 
   Rpl_info_handler(const Rpl_info_handler& handler);
 

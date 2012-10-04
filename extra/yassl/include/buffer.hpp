@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 
 /* yaSSL buffer header defines input and output buffers to simulate streaming
@@ -24,6 +24,7 @@
 #ifndef yaSSL_BUFFER_HPP
 #define yaSSL_BUFFER_HPP
 
+#include <assert.h>             // assert
 #include "yassl_types.hpp"      // ysDelete
 #include "memory.hpp"           // mySTL::auto_ptr
 #include STL_ALGORITHM_FILE

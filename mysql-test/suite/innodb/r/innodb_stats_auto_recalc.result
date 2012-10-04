@@ -1,0 +1,44 @@
+CREATE TABLE autorecalc (a INT, PRIMARY KEY (a)) ENGINE=INNODB;
+SELECT n_rows, clustered_index_size FROM mysql.innodb_table_stats WHERE table_name = 'autorecalc';
+n_rows	0
+clustered_index_size	1
+SELECT index_name, stat_name, stat_value FROM mysql.innodb_index_stats WHERE table_name = 'autorecalc';
+index_name	PRIMARY
+stat_name	n_diff_pfx01
+stat_value	0
+index_name	PRIMARY
+stat_name	n_leaf_pages
+stat_value	1
+index_name	PRIMARY
+stat_name	size
+stat_value	1
+INSERT INTO autorecalc VALUES (1);
+INSERT INTO autorecalc VALUES (2);
+SELECT n_rows, clustered_index_size FROM mysql.innodb_table_stats WHERE table_name = 'autorecalc';
+n_rows	2
+clustered_index_size	1
+SELECT index_name, stat_name, stat_value FROM mysql.innodb_index_stats WHERE table_name = 'autorecalc';
+index_name	PRIMARY
+stat_name	n_diff_pfx01
+stat_value	2
+index_name	PRIMARY
+stat_name	n_leaf_pages
+stat_value	1
+index_name	PRIMARY
+stat_name	size
+stat_value	1
+DELETE FROM autorecalc;
+SELECT n_rows, clustered_index_size FROM mysql.innodb_table_stats WHERE table_name = 'autorecalc';
+n_rows	0
+clustered_index_size	1
+SELECT index_name, stat_name, stat_value FROM mysql.innodb_index_stats WHERE table_name = 'autorecalc';
+index_name	PRIMARY
+stat_name	n_diff_pfx01
+stat_value	0
+index_name	PRIMARY
+stat_name	n_leaf_pages
+stat_value	1
+index_name	PRIMARY
+stat_name	size
+stat_value	1
+DROP TABLE autorecalc;

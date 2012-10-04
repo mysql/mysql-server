@@ -119,7 +119,8 @@ static void destroy_cond_noop(PSI_cond* cond NNN)
 }
 
 static PSI_socket*
-init_socket_noop(PSI_socket_key key NNN, const my_socket *fd NNN)
+init_socket_noop(PSI_socket_key key NNN, const my_socket *fd NNN,
+                 const struct sockaddr *addr NNN, socklen_t addr_len NNN)
 {
   return NULL;
 }
@@ -401,16 +402,17 @@ static void end_table_lock_wait_noop(PSI_table_locker* locker NNN)
   return;
 }
 
-static PSI_file* start_file_open_wait_noop(PSI_file_locker *locker NNN,
-                                           const char *src_file NNN,
-                                           uint src_line NNN)
-{
-  return NULL;
-}
-
-static void end_file_open_wait_noop(PSI_file_locker *locker NNN)
+static void start_file_open_wait_noop(PSI_file_locker *locker NNN,
+                                      const char *src_file NNN,
+                                      uint src_line NNN)
 {
   return;
+}
+
+static PSI_file* end_file_open_wait_noop(PSI_file_locker *locker NNN,
+                                         void *result NNN)
+{
+  return NULL;
 }
 
 static void end_file_open_wait_and_bind_to_descriptor_noop
@@ -429,6 +431,19 @@ static void start_file_wait_noop(PSI_file_locker *locker NNN,
 
 static void end_file_wait_noop(PSI_file_locker *locker NNN,
                                size_t count NNN)
+{
+  return;
+}
+
+static void start_file_close_wait_noop(PSI_file_locker *locker NNN,
+                                       const char *src_file NNN,
+                                       uint src_line NNN)
+{
+  return;
+}
+
+static void end_file_close_wait_noop(PSI_file_locker *locker NNN,
+                                     int result NNN)
 {
   return;
 }
@@ -622,6 +637,14 @@ digest_add_token_noop(PSI_digest_locker *locker NNN,
   return NULL;
 }
 
+static int
+set_thread_connect_attrs_noop(const char *buffer __attribute__((unused)),
+                             uint length  __attribute__((unused)),
+                             const void *from_cs __attribute__((unused)))
+{
+  return 0;
+}
+
 static PSI PSI_noop=
 {
   register_mutex_noop,
@@ -688,6 +711,8 @@ static PSI PSI_noop=
   end_file_open_wait_and_bind_to_descriptor_noop,
   start_file_wait_noop,
   end_file_wait_noop,
+  start_file_close_wait_noop,
+  end_file_close_wait_noop,
   start_stage_noop,
   end_stage_noop,
   get_thread_statement_locker_noop,
@@ -717,7 +742,8 @@ static PSI PSI_noop=
   set_socket_info_noop,
   set_socket_thread_owner_noop,
   digest_start_noop,
-  digest_add_token_noop
+  digest_add_token_noop,
+  set_thread_connect_attrs_noop
 };
 
 /**

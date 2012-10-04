@@ -8,7 +8,13 @@ truncate table performance_schema.events_waits_history_long;
 flush status;
 flush tables;
 # We are forced to suppress here the server response.
+optimize table mysql.host;
+optimize table mysql.user;
 optimize table mysql.db;
+optimize table mysql.proxies_priv;
+optimize table mysql.tables_priv;
+optimize table mysql.procs_priv;
+optimize table mysql.servers;
 update performance_schema.setup_consumers set enabled='YES';
 update performance_schema.setup_objects set enabled='YES'
   where object_type='TABLE' and object_schema= 'mysql';
@@ -40,11 +46,12 @@ performance_schema_max_rwlock_instances	5000
 performance_schema_max_socket_classes	10
 performance_schema_max_socket_instances	1000
 performance_schema_max_stage_classes	150
-performance_schema_max_statement_classes	168
+performance_schema_max_statement_classes	167
 performance_schema_max_table_handles	1000
 performance_schema_max_table_instances	500
 performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	200
+performance_schema_session_connect_attrs_size	2048
 performance_schema_setup_actors_size	100
 performance_schema_setup_objects_size	100
 performance_schema_users_size	100
@@ -63,6 +70,7 @@ Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0
+Performance_schema_session_connect_attrs_lost	0
 Performance_schema_socket_classes_lost	0
 Performance_schema_socket_instances_lost	0
 Performance_schema_stage_classes_lost	0
@@ -84,7 +92,6 @@ where event_name like 'wait/io/table/%'
   and object_schema in ("test", "mysql")
 order by thread_id, event_id;
 event_name	short_source	object_type	object_schema	pretty_name	operation	number_of_bytes
-wait/io/table/sql/handler	handler.cc:	TABLE	mysql	host	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	mysql	user	fetch	NULL
@@ -117,6 +124,7 @@ Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0
+Performance_schema_session_connect_attrs_lost	0
 Performance_schema_socket_classes_lost	0
 Performance_schema_socket_instances_lost	0
 Performance_schema_stage_classes_lost	0

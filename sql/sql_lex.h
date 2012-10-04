@@ -523,8 +523,8 @@ public:
 
   friend class st_select_lex_unit;
   friend bool mysql_new_select(LEX *lex, bool move_down);
-  friend bool mysql_make_view(THD *thd, File_parser *parser,
-                              TABLE_LIST *table, uint flags);
+  friend bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
+                              bool open_view_no_parse);
 private:
   void fast_exclude();
 };
@@ -538,7 +538,6 @@ class THD;
 class select_result;
 class JOIN;
 class select_union;
-class Procedure;
 
 
 class st_select_lex_unit: public st_select_lex_node {
@@ -557,7 +556,7 @@ public:
     : union_result(NULL), table(NULL), result(NULL),
       cleaned(false),
       fake_select_lex(NULL),
-      explain_marker(0), explain_subselect_engine(NULL)
+      explain_marker(0)
   {
   }
 
@@ -599,7 +598,6 @@ public:
 
   st_select_lex *union_distinct; /* pointer to the last UNION DISTINCT */
   bool describe; /* union exec() called for EXPLAIN */
-  Procedure *last_procedure;	 /* Pointer to procedure, if such exists */
 
   /**
     Marker for subqueries in WHERE, HAVING, ORDER BY, GROUP BY and
@@ -611,10 +609,6 @@ public:
          files are too interlinked to include "opt_format.h" there
   */
   int explain_marker;
-  /**
-    Associated subquery (if any) for EXPLAIN
-  */
-  const subselect_engine *explain_subselect_engine;
 
   void init_query();
   st_select_lex_unit* master_unit();
@@ -716,6 +710,7 @@ public:
   List<TABLE_LIST> top_join_list; /* join list of the top level          */
   List<TABLE_LIST> *join_list;    /* list for the currently parsed join  */
   TABLE_LIST *embedding;          /* table embedding to the above list   */
+  /// List of semi-join nests generated for this query block
   List<TABLE_LIST> sj_nests;
   //Dynamic_array<TABLE_LIST*> sj_nests; psergey-5:
   /*
@@ -735,12 +730,21 @@ public:
     SLT_SUBQUERY,
     SLT_UNION,
     SLT_UNION_RESULT,
+    SLT_MATERIALIZED,
   // Total:
     SLT_total ///< fake type, total number of all valid types
   // Don't insert new types below this line!
   };
 
-  SQL_I_List<ORDER> order_list;   /* ORDER clause */
+  /*
+    ORDER BY clause.
+    This list may be mutated during optimization (by remove_const()),
+    so for prepared statements, we keep a copy of the ORDER.next pointers in
+    order_list_ptrs, and re-establish the original list before each execution.
+  */
+  SQL_I_List<ORDER> order_list;
+  Group_list_ptrs *order_list_ptrs;
+
   SQL_I_List<ORDER> *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
 
@@ -917,7 +921,8 @@ public:
   bool test_limit();
 
   friend void lex_start(THD *thd);
-  st_select_lex() : group_list_ptrs(NULL), n_sum_items(0), n_child_sum_items(0),
+  st_select_lex() : group_list_ptrs(NULL), order_list_ptrs(NULL),
+    n_sum_items(0), n_child_sum_items(0),
     cur_pos_in_all_fields(ALL_FIELDS_UNDEF_POS)
   {}
   void make_empty_select()
@@ -1011,6 +1016,33 @@ inline bool st_select_lex_unit::is_union ()
     first_select()->next_select()->linkage == UNION_TYPE;
 }
 
+/// Utility RAII class to save/modify/restore a Resolve_place
+class Switch_resolve_place
+{
+public:
+  Switch_resolve_place(SELECT_LEX::Resolve_place *rp_ptr,
+                       SELECT_LEX::Resolve_place new_rp,
+                       bool apply)
+    : rp(NULL), saved_rp()
+  {
+    if (apply)
+    {
+      rp= rp_ptr;
+      saved_rp= *rp;
+      *rp= new_rp;
+    }
+  }
+  ~Switch_resolve_place()
+  {
+    if (rp)
+      *rp= saved_rp;
+  }
+private:
+  SELECT_LEX::Resolve_place *rp;
+  SELECT_LEX::Resolve_place saved_rp;
+};
+
+
 typedef struct struct_slave_connection
 {
   char *user;
@@ -1100,6 +1132,37 @@ public:
   SQL_I_List<Sroutine_hash_entry> sroutines_list;
   Sroutine_hash_entry **sroutines_list_own_last;
   uint sroutines_list_own_elements;
+
+  /**
+    Locking state of tables in this particular statement.
+
+    If we under LOCK TABLES or in prelocked mode we consider tables
+    for the statement to be "locked" if there was a call to lock_tables()
+    (which called handler::start_stmt()) for tables of this statement
+    and there was no matching close_thread_tables() call.
+
+    As result this state may differ significantly from one represented
+    by Open_tables_state::lock/locked_tables_mode more, which are always
+    "on" under LOCK TABLES or in prelocked mode.
+  */
+  enum enum_lock_tables_state {
+    LTS_NOT_LOCKED = 0,
+    LTS_LOCKED
+  };
+  enum_lock_tables_state lock_tables_state;
+  bool is_query_tables_locked()
+  {
+    return (lock_tables_state == LTS_LOCKED);
+  }
+
+  /**
+    Number of tables which were open by open_tables() and to be locked
+    by lock_tables().
+    Note that we set this member only in some cases, when this value
+    needs to be passed from open_tables() to lock_tables() which are
+    separated by some amount of code.
+  */
+  uint table_count;
 
   /*
     These constructor and destructor serve for creation/destruction
@@ -2128,6 +2191,23 @@ public:
   PSI_digest_locker* m_digest_psi;
 };
 
+
+/**
+  Argument values for PROCEDURE ANALYSE(...)
+*/
+
+struct Proc_analyse_params: public Sql_alloc
+{
+  uint max_tree_elements; //< maximum number of distinct values per column
+  uint max_treemem; //< maximum amount of memory to allocate per column
+
+  Proc_analyse_params()
+    : max_tree_elements(256),
+      max_treemem(8192)
+  {}
+};
+
+
 /* The state of the lex parsing. This is saved in the THD struct */
 
 struct LEX: public Query_tables_list
@@ -2205,7 +2285,10 @@ struct LEX: public Query_tables_list
   */
   List<Name_resolution_context> context_stack;
 
-  SQL_I_List<ORDER> proc_list;
+  /**
+    Argument values for PROCEDURE ANALYSE(); is NULL for other queries
+  */
+  Proc_analyse_params *proc_analyse;
   SQL_I_List<TABLE_LIST> auxiliary_table_list, save_list;
   Create_field	      *last_field;
   Item_sum *in_sum_func;
@@ -2257,12 +2340,6 @@ struct LEX: public Query_tables_list
   enum Foreign_key::fk_option fk_delete_opt;
   uint slave_thd_opt, start_transaction_opt;
   int nest_level;
-  /*
-    In LEX representing update which were transformed to multi-update
-    stores total number of tables. For LEX representing multi-delete
-    holds number of tables from which we will delete records.
-  */
-  uint table_count;
   uint8 describe;
   /*
     A flag that indicates what kinds of derived tables are present in the
@@ -2304,6 +2381,8 @@ struct LEX: public Query_tables_list
   bool sp_lex_in_use;	/* Keep track on lex usage in SPs for error handling */
   bool all_privileges;
   bool proxy_priv;
+  bool is_change_password;
+  bool contains_plaintext_password;
 
 private:
   /// Current SP parsing context.

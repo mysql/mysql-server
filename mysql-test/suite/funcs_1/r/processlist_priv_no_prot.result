@@ -22,7 +22,7 @@ SHOW/SELECT shows all processes/threads.
 SHOW CREATE TABLE processlist;
 Table	Create Table
 PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
-  `ID` bigint(4) NOT NULL DEFAULT '0',
+  `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
   `USER` varchar(16) NOT NULL DEFAULT '',
   `HOST` varchar(64) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,
@@ -93,7 +93,7 @@ SHOW/SELECT shows only the processes (1) of the user.
 SHOW CREATE TABLE processlist;
 Table	Create Table
 PROCESSLIST	CREATE TEMPORARY TABLE `PROCESSLIST` (
-  `ID` bigint(4) NOT NULL DEFAULT '0',
+  `ID` bigint(21) unsigned NOT NULL DEFAULT '0',
   `USER` varchar(16) NOT NULL DEFAULT '',
   `HOST` varchar(64) NOT NULL DEFAULT '',
   `DB` varchar(64) DEFAULT NULL,

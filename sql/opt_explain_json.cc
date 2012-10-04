@@ -331,8 +331,21 @@ public:
 
   virtual qep_row *entry() { return this; }
 
-  virtual bool cacheable() { return subquery->cacheable(); }
-  virtual bool dependent() { return subquery->dependent(); }
+  /*
+    Materialized subquery statuses of dependency on the outer query and
+    cacheability may differ from the source subquery, for example, if
+    we "push down" the outer look up value for SJ.
+    Thus, for materialized subqueries return direct is_cacheable and
+    is_dependent values instead of source subquery statuses:
+  */
+  virtual bool cacheable()
+  {
+    return is_materialized_from_subquery ? is_cacheable : subquery->cacheable();
+  }
+  virtual bool dependent()
+  {
+    return is_materialized_from_subquery ? is_dependent : subquery->dependent();
+  }
 
   virtual bool format(Opt_trace_context *json)
   {
@@ -361,26 +374,37 @@ private:
     }
     else if (using_temporary)
     {
-      obj->add(K_USING_TMP_TABLE, true);
-      obj->add(K_DEPENDENT, dependent());
-      obj->add(K_CACHEABLE, cacheable());
+      if (!is_materialized_from_subquery)
+      {
+        obj->add(K_USING_TMP_TABLE, true);
+        obj->add(K_DEPENDENT, dependent());
+        obj->add(K_CACHEABLE, cacheable());
+      }
 
       {
         Opt_trace_object tmp_table(json, K_TABLE);
 
+        if (!col_table_name.is_empty())
+          obj->add_utf8(K_TABLE_NAME, col_table_name.str);
         if (!col_join_type.is_empty())
           tmp_table.add_alnum(K_ACCESS_TYPE, col_join_type.str);
         if (!col_key.is_empty())
           tmp_table.add_utf8(K_KEY, col_key.str);
+        if (!col_key_len.is_empty())
+          obj->add_alnum(K_KEY_LENGTH, col_key_len.str);
         if (!col_rows.is_empty())
           tmp_table.add(K_ROWS, col_rows.value);
+
+        if (is_materialized_from_subquery)
+        {
+          Opt_trace_object materialized(json, K_MATERIALIZED_FROM_SUBQUERY);
+          obj->add(K_USING_TMP_TABLE, true);
+          obj->add(K_DEPENDENT, dependent());
+          obj->add(K_CACHEABLE, cacheable());
+          return format_query_block(json);
+        }
       }
-
-      if (subquery->is_query_block())
-        return subquery->format(json);
-
-      Opt_trace_object query_block(json, K_QUERY_BLOCK);
-      return subquery->format(json);
+      return format_query_block(json);
     }
     else
     {
@@ -389,6 +413,16 @@ private:
       return subquery->format(json);
     }
   }
+
+  bool format_query_block(Opt_trace_context *json)
+  {
+    if (subquery->is_query_block())
+      return subquery->format(json);
+
+    Opt_trace_object query_block(json, K_QUERY_BLOCK);
+    return subquery->format(json);
+  }
+
 
 public:
   virtual void set_child(context *child)
@@ -597,6 +631,7 @@ class union_result_ctx : public table_base_ctx, public unit_ctx
 {
   List<context> *query_specs; ///< query specification nodes (inner selects)
   List<subquery_ctx> order_by_subqueries;
+  List<subquery_ctx> homeless_subqueries;
 
 public:
   explicit union_result_ctx(context *parent_arg)
@@ -618,21 +653,38 @@ public:
   virtual bool add_subquery(subquery_list_enum subquery_type,
                             subquery_ctx *ctx)
   {
-    DBUG_ASSERT(subquery_type == SQ_ORDER_BY);
-    return order_by_subqueries.push_back(ctx);
+    switch (subquery_type) {
+    case SQ_ORDER_BY:
+      return order_by_subqueries.push_back(ctx);
+    case SQ_HOMELESS:
+      return homeless_subqueries.push_back(ctx);
+    default:
+      DBUG_ASSERT(!"Unknown query type!");
+      return false; // ignore in production
+    }
   }
 
   virtual bool format(Opt_trace_context *json)
   {
-    if (order_by_subqueries.is_empty())
+    if (order_by_subqueries.is_empty() && homeless_subqueries.is_empty())
       return table_base_ctx::format(json);
 
-    Opt_trace_object group_by(json, K_ORDERING_OPERATION);
+    Opt_trace_object order_by(json, K_ORDERING_OPERATION);
 
-    group_by.add(K_USING_FILESORT, !order_by_subqueries.is_empty());
+    order_by.add(K_USING_FILESORT, !order_by_subqueries.is_empty());
 
-    return (table_base_ctx::format(json) ||
-            format_list(json, order_by_subqueries, K_ORDER_BY_SUBQUERIES));
+    if (table_base_ctx::format(json))
+      return true;
+
+    if (!order_by_subqueries.is_empty() && 
+        format_list(json, order_by_subqueries, K_ORDER_BY_SUBQUERIES))
+      return true;
+
+    if (!homeless_subqueries.is_empty() &&
+        format_list(json, homeless_subqueries, K_OPTIMIZATION_TIME_SUBQUERIES))
+      return true;
+
+    return false;
   }
 
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
@@ -688,8 +740,24 @@ public:
 
   virtual bool format_derived(Opt_trace_context *json)
   {
-    DBUG_ASSERT(derived_select_number == 0 || derived_from != NULL);
-    return derived_from && derived_from->format(json);
+    if (derived_from.elements == 0)
+      return false;
+    else if (derived_from.elements == 1)
+      return derived_from.head()->format(json);
+    else
+    {
+      Opt_trace_array loops(json, K_NESTED_LOOP);
+
+      List_iterator<context> it(derived_from);
+      context *c;
+      while((c= it++))
+      {
+        Opt_trace_object anonymous_wrapper(json);
+        if (c->format(json))
+          return true;
+      }
+    }
+    return false;
   }
 };
 
@@ -746,14 +814,13 @@ public:
 
   virtual bool find_and_set_derived(context *subquery)
   {
-    DBUG_ASSERT(derived_from == NULL);
     /*
       message_ctx is designed to represent a single fake JOIN_TAB in the JOIN,
       so if the JOIN have a derived table, then this message_ctx represent this
       derived table.
-      Unconditionally set derived_from to a subquery:
+      Unconditionally add subquery:
     */
-    derived_from= subquery;
+    derived_from.push_back(subquery);
     return true;
   }
 
@@ -831,10 +898,9 @@ public:
 
   virtual bool find_and_set_derived(context *subquery)
   {
-    if (derived_select_number == subquery->id())
+    if (query_block_id == subquery->id())
     {
-      DBUG_ASSERT(derived_from == NULL);
-      derived_from= subquery;
+      derived_from.push_back(subquery);
       return true;
     }
     return false;
@@ -1134,6 +1200,13 @@ bool join_ctx::add_subquery(subquery_list_enum subquery_type,
        case CTX_SIMPLE_DISTINCT:
        case CTX_SIMPLE_GROUP_BY:
          return j->add_subquery(subquery_type, ctx);
+       case CTX_MESSAGE:
+         DBUG_ASSERT(subquery_type == SQ_ORDER_BY || subquery_type == SQ_GROUP_BY);
+         /* As far as CTX_MESSAGE is actually an "optimized out" subquery,
+            so ORDER/GROUP BY subqueries of such a subquery are "optimized out" as well,
+            so we can replace ORDER/GROUP BY subquery type to SQ_HOMELESS:
+         */
+         return unit_ctx::add_subquery(SQ_HOMELESS, ctx);
        default: ;
        }
      }
@@ -1281,16 +1354,37 @@ private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
   {
     DBUG_ASSERT(!col_join_type.is_empty());
-    obj->add(K_USING_TMP_TABLE, true);
+
+    if (!col_table_name.is_empty())
+      obj->add_utf8(K_TABLE_NAME, col_table_name.str);
+
     obj->add_alnum(K_ACCESS_TYPE, col_join_type.str);
 
     if (!col_key.is_empty())
       obj->add_utf8(K_KEY, col_key.str);
 
+    if (!col_key_len.is_empty())
+      obj->add_alnum(K_KEY_LENGTH, col_key_len.str);
+
+    add_string_array(json, K_REF, col_ref);
+
     if (!col_rows.is_empty())
       obj->add(K_ROWS, col_rows.value);
 
+    /*
+      Currently K-REF/col_ref is not shown; it would always be "func", since
+      {subquery,semijoin} materialization use store_key_item; using
+      get_store_key() instead would allow "const" and outer column's name,
+      if applicable.
+      The looked up expression can anyway be inferred from the condition:
+    */
+    if (!col_attached_condition.is_empty())
+      obj->add_utf8(K_ATTACHED_CONDITION, col_attached_condition.str);
+    if (format_where(json))
+      return true;
+
     Opt_trace_object m(json, K_MATERIALIZED_FROM_SUBQUERY);
+    obj->add(K_USING_TMP_TABLE, true);
     Opt_trace_object q(json, K_QUERY_BLOCK);
     return format_nested_loop(json);
   }

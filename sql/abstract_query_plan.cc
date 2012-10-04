@@ -19,7 +19,7 @@
 #include "sql_select.h"
 #include "sql_optimizer.h"
 #include "abstract_query_plan.h"
-
+#include "sql_join_buffer.h"
 
 namespace AQP
 {
@@ -30,7 +30,7 @@ namespace AQP
   */
   Join_plan::Join_plan(const JOIN* join)
    : m_join_tabs(join->join_tab),
-     m_access_count(join->tables),
+     m_access_count(join->primary_tables),
      m_table_accesses(NULL)
   {
     /*
@@ -193,14 +193,16 @@ namespace AQP
         return 1.0;
 
       case AT_ORDERED_INDEX_SCAN:
-        DBUG_ASSERT(get_join_tab()->join->best_positions[m_tab_no].records_read>0.0);
-        return get_join_tab()->join->best_positions[m_tab_no].records_read;
+        DBUG_ASSERT(get_join_tab()->position);
+        DBUG_ASSERT(get_join_tab()->position->records_read>0.0);
+        return get_join_tab()->position->records_read;
 
       case AT_MULTI_PRIMARY_KEY:
       case AT_MULTI_UNIQUE_KEY:
       case AT_MULTI_MIXED:
-        DBUG_ASSERT(get_join_tab()->join->best_positions[m_tab_no].records_read>0.0);
-        return get_join_tab()->join->best_positions[m_tab_no].records_read;
+        DBUG_ASSERT(get_join_tab()->position);
+        DBUG_ASSERT(get_join_tab()->position->records_read>0.0);
+        return get_join_tab()->position->records_read;
 
       case AT_TABLE_SCAN:
         DBUG_ASSERT(get_join_tab()->table->file->stats.records>0.0);
@@ -280,18 +282,6 @@ namespace AQP
     DBUG_ENTER("Table_access::compute_type_and_index");
     const JOIN_TAB* const join_tab= get_join_tab();
     JOIN* const join= join_tab->join;
-
-    /**
-     * There are some JOIN arguments we don't fully understand or has 
-     * not yet invested time into exploring pushability of:
-     */
-    if (join->procedure)
-    {
-      m_access_type= AT_OTHER;
-      m_other_access_reason = 
-        "'PROCEDURE'-clause post processing cannot be pushed.";
-      DBUG_VOID_RETURN;
-    }
 
     /**
      * OLEJA: I think this restriction can be removed
@@ -480,7 +470,7 @@ namespace AQP
   */
   bool Table_access::uses_join_cache() const
   {
-    return get_join_tab()->next_select == sub_select_cache;
+    return get_join_tab()->use_join_cache != JOIN_CACHE::ALG_NONE;
   }
 
   /**
@@ -509,8 +499,8 @@ namespace AQP
      A 'simple' order/group by contain only column references to
      the first non-const table
     */
-    if (join_tab == join->join_tab+join->const_tables &&  // First non-const table
-        join->const_tables < join->tables)                // There are more tables
+    if (join_tab == join->join_tab+join->const_tables &&// First non-const table
+        !join->plan_is_const())                         // There are more tables
     {
       if (join->need_tmp)
         return false;

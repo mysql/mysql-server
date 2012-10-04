@@ -458,6 +458,37 @@ if (!`SELECT foo from bar`) {
 }
 
 # ----------------------------------------------------------------------------
+#test to check conversion between error numbers and error strings
+# ----------------------------------------------------------------------------
+let $var=convert_error(1450);
+let $var1=convert_error($var);
+let $var2=convert_error($var1);
+echo $var2;
+
+let $var=convert_error(ER_UNKNOWN_ERROR);
+let $var1=convert_error($var);
+let $var2=convert_error($var1);
+echo $var2;
+
+--error 1
+--exec echo "let \$var= convert_error(NOT_A_VALID_ERROR);" | $MYSQL_TEST 2>&1
+
+let $var=convert_error(9999999);
+echo $var;
+
+let $var=convert_error(9ABC9);
+echo $var;
+
+let $var=convert_error(0);
+echo $var;
+
+let $var=convert_error();
+echo $var;
+
+let $var=;
+let $var1=convert_error($var);
+echo $var1;
+# ----------------------------------------------------------------------------
 # Test comments
 # ----------------------------------------------------------------------------
 

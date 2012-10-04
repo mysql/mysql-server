@@ -16,6 +16,10 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
+#include "m_string.h"
+
+#define MD5_HASH_SIZE 16 /* Hash size in bytes */
+
 /*
   Wrapper function for MD5 implementation.
 */
@@ -24,6 +28,21 @@ extern "C" {
 #endif
 
 void compute_md5_hash(char *digest, const char *buf, int len);
+
+/*
+  Convert an array of bytes to a hexadecimal representation.
+
+  Used to generate a hexadecimal representation of a message digest.
+*/
+static inline void array_to_hex(char *to, const unsigned char *str, uint len)
+{
+  const unsigned char *str_end= str + len;
+  for (; str != str_end; ++str)
+  {
+    *to++= _dig_vec_lower[((uchar) *str) >> 4];
+    *to++= _dig_vec_lower[((uchar) *str) & 0x0F];
+  }
+}
 
 #ifdef __cplusplus
 }

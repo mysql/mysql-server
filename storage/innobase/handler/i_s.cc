@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -58,13 +58,11 @@ Created July 18, 2007 Vasil Dimov
 
 /** structure associates a name string with a file page type and/or buffer
 page state. */
-struct buffer_page_desc_str_struct{
+struct buf_page_desc_t{
 	const char*	type_str;	/*!< String explain the page
 					type/state */
 	ulint		type_value;	/*!< Page type or page state */
 };
-
-typedef struct buffer_page_desc_str_struct	buf_page_desc_str_t;
 
 /** Any states greater than FIL_PAGE_TYPE_LAST would be treated as unknown. */
 #define	I_S_PAGE_TYPE_UNKNOWN		(FIL_PAGE_TYPE_LAST + 1)
@@ -74,7 +72,7 @@ in i_s_page_type[] array */
 #define I_S_PAGE_TYPE_INDEX		1
 
 /** Name string for File Page Types */
-static buf_page_desc_str_t	i_s_page_type[] = {
+static buf_page_desc_t	i_s_page_type[] = {
 	{"ALLOCATED", FIL_PAGE_TYPE_ALLOCATED},
 	{"INDEX", FIL_PAGE_INDEX},
 	{"UNDO_LOG", FIL_PAGE_UNDO_LOG},
@@ -99,7 +97,7 @@ static buf_page_desc_str_t	i_s_page_type[] = {
 /** This structure defines information we will fetch from pages
 currently cached in the buffer pool. It will be used to populate
 table INFORMATION_SCHEMA.INNODB_BUFFER_PAGE */
-struct buffer_page_info_struct{
+struct buf_page_info_t{
 	ulint		block_id;	/*!< Buffer Pool block ID */
 	unsigned	space_id:32;	/*!< Tablespace ID */
 	unsigned	page_num:32;	/*!< Page number/offset */
@@ -131,8 +129,6 @@ struct buffer_page_info_struct{
 					the oldest modification */
 	index_id_t	index_id;	/*!< Index ID if a index page */
 };
-
-typedef struct buffer_page_info_struct	buf_page_info_t;
 
 /** maximum number of buffer page info we would cache. */
 #define MAX_BUF_INFO_CACHED		10000
@@ -1615,6 +1611,362 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_reset =
 	STRUCT_FLD(flags, 0UL),
 };
 
+/* Fields of the dynamic tables
+information_schema.innodb_cmp_per_index and
+information_schema.innodb_cmp_per_index_reset. */
+static ST_FIELD_INFO	i_s_cmp_per_index_fields_info[] =
+{
+#define IDX_DATABASE_NAME	0
+	{STRUCT_FLD(field_name,		"database_name"),
+	 STRUCT_FLD(field_length,	192),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_TABLE_NAME		1
+	{STRUCT_FLD(field_name,		"table_name"),
+	 STRUCT_FLD(field_length,	192),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_INDEX_NAME		2
+	{STRUCT_FLD(field_name,		"index_name"),
+	 STRUCT_FLD(field_length,	192),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_COMPRESS_OPS	3
+	{STRUCT_FLD(field_name,		"compress_ops"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_COMPRESS_OPS_OK	4
+	{STRUCT_FLD(field_name,		"compress_ops_ok"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_COMPRESS_TIME	5
+	{STRUCT_FLD(field_name,		"compress_time"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_UNCOMPRESS_OPS	6
+	{STRUCT_FLD(field_name,		"uncompress_ops"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define IDX_UNCOMPRESS_TIME	7
+	{STRUCT_FLD(field_name,		"uncompress_time"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/*******************************************************************//**
+Fill the dynamic table
+information_schema.innodb_cmp_per_index or
+information_schema.innodb_cmp_per_index_reset.
+@return	0 on success, 1 on failure */
+static
+int
+i_s_cmp_per_index_fill_low(
+/*=======================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		,	/*!< in: condition (ignored) */
+	ibool		reset)	/*!< in: TRUE=reset cumulated counts */
+{
+	TABLE*	table = tables->table;
+	Field**	fields = table->field;
+	int	status = 0;
+
+	DBUG_ENTER("i_s_cmp_per_index_fill_low");
+
+	/* deny access to non-superusers */
+	if (check_global_access(thd, PROCESS_ACL)) {
+
+		DBUG_RETURN(0);
+	}
+
+	RETURN_IF_INNODB_NOT_STARTED(tables->schema_table_name);
+
+	/* Create a snapshot of the stats so we do not bump into lock
+	order violations with dict_sys->mutex below. */
+	mutex_enter(&page_zip_stat_per_index_mutex);
+	page_zip_stat_per_index_t		snap (page_zip_stat_per_index);
+	mutex_exit(&page_zip_stat_per_index_mutex);
+
+	mutex_enter(&dict_sys->mutex);
+
+	page_zip_stat_per_index_t::iterator	iter;
+	ulint					i;
+
+	for (iter = snap.begin(), i = 0; iter != snap.end(); iter++, i++) {
+
+		char		name[192];
+		dict_index_t*	index = dict_index_find_on_id_low(iter->first);
+
+		if (index != NULL) {
+			ut_snprintf(name, sizeof(name), "%.*s",
+				    (int) dict_get_db_name_len(index->table_name),
+				    index->table_name);
+			field_store_string(fields[IDX_DATABASE_NAME],
+					   name);
+			field_store_string(fields[IDX_TABLE_NAME],
+					   dict_remove_db_name(index->table_name));
+			field_store_string(fields[IDX_INDEX_NAME],
+					   index->name);
+		} else {
+			/* index not found */
+			ut_snprintf(name, sizeof(name),
+				    "index_id:" IB_ID_FMT, iter->first);
+			field_store_string(fields[IDX_DATABASE_NAME],
+					   "unknown");
+			field_store_string(fields[IDX_TABLE_NAME],
+					   "unknown");
+			field_store_string(fields[IDX_INDEX_NAME],
+					   name);
+		}
+
+		fields[IDX_COMPRESS_OPS]->store(
+			iter->second.compressed);
+
+		fields[IDX_COMPRESS_OPS_OK]->store(
+			iter->second.compressed_ok);
+
+		fields[IDX_COMPRESS_TIME]->store(
+			(long) (iter->second.compressed_usec / 1000000));
+
+		fields[IDX_UNCOMPRESS_OPS]->store(
+			iter->second.decompressed);
+
+		fields[IDX_UNCOMPRESS_TIME]->store(
+			(long) (iter->second.decompressed_usec / 1000000));
+
+		if (schema_table_store_record(thd, table)) {
+			status = 1;
+			break;
+		}
+
+		/* Release and reacquire the dict mutex to allow other
+		threads to proceed. This could eventually result in the
+		contents of INFORMATION_SCHEMA.innodb_cmp_per_index being
+		inconsistent, but it is an acceptable compromise. */
+		if (i % 1000 == 0) {
+			mutex_exit(&dict_sys->mutex);
+			mutex_enter(&dict_sys->mutex);
+		}
+	}
+
+	mutex_exit(&dict_sys->mutex);
+
+	if (reset) {
+		page_zip_reset_stat_per_index();
+	}
+
+	DBUG_RETURN(status);
+}
+
+/*******************************************************************//**
+Fill the dynamic table information_schema.innodb_cmp_per_index.
+@return	0 on success, 1 on failure */
+static
+int
+i_s_cmp_per_index_fill(
+/*===================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		cond)	/*!< in: condition (ignored) */
+{
+	return(i_s_cmp_per_index_fill_low(thd, tables, cond, FALSE));
+}
+
+/*******************************************************************//**
+Fill the dynamic table information_schema.innodb_cmp_per_index_reset.
+@return	0 on success, 1 on failure */
+static
+int
+i_s_cmp_per_index_reset_fill(
+/*=========================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		cond)	/*!< in: condition (ignored) */
+{
+	return(i_s_cmp_per_index_fill_low(thd, tables, cond, TRUE));
+}
+
+/*******************************************************************//**
+Bind the dynamic table information_schema.innodb_cmp_per_index.
+@return	0 on success */
+static
+int
+i_s_cmp_per_index_init(
+/*===================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	DBUG_ENTER("i_s_cmp_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_cmp_per_index_fields_info;
+	schema->fill_table = i_s_cmp_per_index_fill;
+
+	DBUG_RETURN(0);
+}
+
+/*******************************************************************//**
+Bind the dynamic table information_schema.innodb_cmp_per_index_reset.
+@return	0 on success */
+static
+int
+i_s_cmp_per_index_reset_init(
+/*=========================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	DBUG_ENTER("i_s_cmp_reset_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_cmp_per_index_fields_info;
+	schema->fill_table = i_s_cmp_per_index_reset_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_per_index =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_CMP_PER_INDEX"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "Statistics for the InnoDB compression (per index)"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_cmp_per_index_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_cmp_per_index_reset =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_CMP_PER_INDEX_RESET"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "Statistics for the InnoDB compression (per index);"
+		   " reset cumulated counts"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, i_s_cmp_per_index_reset_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};
+
 /* Fields of the dynamic table information_schema.innodb_cmpmem. */
 static ST_FIELD_INFO	i_s_cmpmem_fields_info[] =
 {
@@ -1716,8 +2068,8 @@ i_s_cmpmem_fill_low(
 			table->field[3]->store(UNIV_LIKELY(x < BUF_BUDDY_SIZES)
 				? UT_LIST_GET_LEN(buf_pool->zip_free[x])
 				: 0);
-			table->field[4]->store((longlong)
-			buddy_stat->relocated, true);
+			table->field[4]->store(
+				(longlong) buddy_stat->relocated, true);
 			table->field[5]->store(
 				(ulong) (buddy_stat->relocated_usec / 1000000));
 
@@ -4086,11 +4438,13 @@ i_s_innodb_stats_fill(
 
 	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN]->store(info->n_pages_written));
 
+	OK(fields[IDX_BUF_STATS_GET]->store(info->n_page_gets));
+
 	OK(fields[IDX_BUF_STATS_PAGE_READ_RATE]->store(info->pages_read_rate));
 
-	OK(fields[IDX_BUF_STATS_PAGE_CREATED]->store(info->pages_created_rate));
+	OK(fields[IDX_BUF_STATS_PAGE_CREATE_RATE]->store(info->pages_created_rate));
 
-	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN]->store(info->pages_written_rate));
+	OK(fields[IDX_BUF_STATS_PAGE_WRITTEN_RATE]->store(info->pages_written_rate));
 
 	if (info->n_page_get_delta) {
 		OK(fields[IDX_BUF_STATS_HIT_RATE]->store(
@@ -5561,6 +5915,33 @@ static ST_FIELD_INFO	innodb_sys_tables_fields_info[] =
 	 STRUCT_FLD(old_name,		""),
 	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
 
+#define SYS_TABLES_FILE_FORMAT		5
+	{STRUCT_FLD(field_name,		"FILE_FORMAT"),
+	 STRUCT_FLD(field_length,	10),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_TABLES_ROW_FORMAT		6
+	{STRUCT_FLD(field_name,		"ROW_FORMAT"),
+	 STRUCT_FLD(field_length,	12),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_TABLES_ZIP_PAGE_SIZE	7
+	{STRUCT_FLD(field_name,		"ZIP_PAGE_SIZE"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
 	END_OF_ST_FIELD_INFO
 };
 
@@ -5577,6 +5958,22 @@ i_s_dict_fill_sys_tables(
 	TABLE*		table_to_fill)	/*!< in/out: fill this table */
 {
 	Field**		fields;
+	ulint	compact		= DICT_TF_GET_COMPACT(table->flags);
+	ulint	atomic_blobs	= DICT_TF_HAS_ATOMIC_BLOBS(table->flags);
+	ulint	zip_size	= dict_tf_get_zip_size(table->flags);
+	const char* file_format;
+	const char* row_format;
+
+	file_format = trx_sys_file_format_id_to_name(atomic_blobs);
+	if (!compact) {
+		row_format = "Redundant";
+	} else if (!atomic_blobs) {
+		row_format = "Compact";
+	} else if DICT_TF_GET_ZIP_SSIZE(table->flags) {
+		row_format = "Compressed";
+	} else {
+		row_format = "Dynamic";
+	}
 
 	DBUG_ENTER("i_s_dict_fill_sys_tables");
 
@@ -5591,6 +5988,12 @@ i_s_dict_fill_sys_tables(
 	OK(fields[SYS_TABLES_NUM_COLUMN]->store(table->n_cols));
 
 	OK(fields[SYS_TABLES_SPACE]->store(table->space));
+
+	OK(field_store_string(fields[SYS_TABLES_FILE_FORMAT], file_format));
+
+	OK(field_store_string(fields[SYS_TABLES_ROW_FORMAT], row_format));
+
+	OK(fields[SYS_TABLES_ZIP_PAGE_SIZE]->store(zip_size));
 
 	OK(schema_table_store_record(thd, table_to_fill));
 
@@ -7197,3 +7600,461 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_foreign_cols =
 	STRUCT_FLD(flags, 0UL),
 };
 
+/**  SYS_TABLESPACES    ********************************************/
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES */
+static ST_FIELD_INFO	innodb_sys_tablespaces_fields_info[] =
+{
+#define SYS_TABLESPACES_SPACE		0
+	{STRUCT_FLD(field_name,		"SPACE"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_TABLESPACES_NAME		1
+	{STRUCT_FLD(field_name,		"NAME"),
+	 STRUCT_FLD(field_length,	MAX_FULL_NAME_LEN + 1),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_TABLESPACES_FLAGS		2
+	{STRUCT_FLD(field_name,		"FLAG"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_TABLESPACES_FILE_FORMAT	3
+	{STRUCT_FLD(field_name,		"FILE_FORMAT"),
+	 STRUCT_FLD(field_length,	10),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_TABLESPACES_ROW_FORMAT	4
+	{STRUCT_FLD(field_name,		"ROW_FORMAT"),
+	 STRUCT_FLD(field_length,	22),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_TABLESPACES_PAGE_SIZE	5
+	{STRUCT_FLD(field_name,		"PAGE_SIZE"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_TABLESPACES_ZIP_PAGE_SIZE	6
+	{STRUCT_FLD(field_name,		"ZIP_PAGE_SIZE"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+
+};
+
+/**********************************************************************//**
+Function to fill INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES with information
+collected by scanning SYS_TABLESPACESS table.
+@return 0 on success */
+static
+int
+i_s_dict_fill_sys_tablespaces(
+/*==========================*/
+	THD*		thd,		/*!< in: thread */
+	ulint		space,		/*!< in: space ID */
+	const char*	name,		/*!< in: tablespace name */
+	ulint		flags,		/*!< in: tablespace flags */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
+{
+	Field**	fields;
+	ulint	atomic_blobs	= FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
+	ulint	page_size	= fsp_flags_get_page_size(flags);;
+	ulint	zip_size	= fsp_flags_get_zip_size(flags);
+	const char* file_format;
+	const char* row_format;
+
+	DBUG_ENTER("i_s_dict_fill_sys_tablespaces");
+
+	file_format = trx_sys_file_format_id_to_name(atomic_blobs);
+	if (!atomic_blobs) {
+		row_format = "Compact or Redundant";
+	} else if DICT_TF_GET_ZIP_SSIZE(flags) {
+		row_format = "Compressed";
+	} else {
+		row_format = "Dynamic";
+	}
+
+	fields = table_to_fill->field;
+
+	OK(fields[SYS_TABLESPACES_SPACE]->store(space));
+
+	OK(field_store_string(fields[SYS_TABLESPACES_NAME], name));
+
+	OK(fields[SYS_TABLESPACES_FLAGS]->store(flags));
+
+	OK(field_store_string(fields[SYS_TABLESPACES_FILE_FORMAT],
+			      file_format));
+
+	OK(field_store_string(fields[SYS_TABLESPACES_ROW_FORMAT],
+			      row_format));
+
+	OK(fields[SYS_TABLESPACES_PAGE_SIZE]->store(page_size));
+
+	OK(fields[SYS_TABLESPACES_ZIP_PAGE_SIZE]->store(zip_size));
+
+	OK(schema_table_store_record(thd, table_to_fill));
+
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Function to populate INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES table.
+Loop through each record in SYS_TABLESPACES, and extract the column
+information and fill the INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES table.
+@return 0 on success */
+static
+int
+i_s_sys_tablespaces_fill_table(
+/*===========================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
+{
+	btr_pcur_t	pcur;
+	const rec_t*	rec;
+	mem_heap_t*	heap;
+	mtr_t		mtr;
+
+	DBUG_ENTER("i_s_sys_tablespaces_fill_table");
+
+	/* deny access to user without PROCESS_ACL privilege */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	heap = mem_heap_create(1000);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
+
+	rec = dict_startscan_system(&pcur, &mtr, SYS_TABLESPACES);
+
+	while (rec) {
+		const char*	err_msg;
+		ulint		space;
+		const char*	name;
+		ulint		flags;
+
+		/* Extract necessary information from a SYS_TABLESPACES row */
+		err_msg = dict_process_sys_tablespaces(
+			heap, rec, &space, &name, &flags);
+
+		mtr_commit(&mtr);
+		mutex_exit(&dict_sys->mutex);
+
+		if (!err_msg) {
+			i_s_dict_fill_sys_tablespaces(
+				thd, space, name, flags,
+				tables->table);
+		} else {
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
+					    err_msg);
+		}
+
+		mem_heap_empty(heap);
+
+		/* Get the next record */
+		mutex_enter(&dict_sys->mutex);
+		mtr_start(&mtr);
+		rec = dict_getnext_system(&pcur, &mtr);
+	}
+
+	mtr_commit(&mtr);
+	mutex_exit(&dict_sys->mutex);
+	mem_heap_free(heap);
+
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
+@return 0 on success */
+static
+int
+innodb_sys_tablespaces_init(
+/*========================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	ST_SCHEMA_TABLE*	schema;
+
+	DBUG_ENTER("innodb_sys_tablespaces_init");
+
+	schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = innodb_sys_tablespaces_fields_info;
+	schema->fill_table = i_s_sys_tablespaces_fill_table;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_tablespaces =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_SYS_TABLESPACES"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB SYS_TABLESPACES"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, innodb_sys_tablespaces_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};
+
+/**  SYS_DATAFILES  ************************************************/
+/* Fields of the dynamic table INFORMATION_SCHEMA.INNODB_SYS_DATAFILES */
+static ST_FIELD_INFO	innodb_sys_datafiles_fields_info[] =
+{
+#define SYS_DATAFILES_SPACE		0
+	{STRUCT_FLD(field_name,		"SPACE"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+#define SYS_DATAFILES_PATH		1
+	{STRUCT_FLD(field_name,		"PATH"),
+	 STRUCT_FLD(field_length,	OS_FILE_MAX_PATH),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	0),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/**********************************************************************//**
+Function to fill INFORMATION_SCHEMA.INNODB_SYS_DATAFILES with information
+collected by scanning SYS_DATAFILESS table.
+@return 0 on success */
+static
+int
+i_s_dict_fill_sys_datafiles(
+/*========================*/
+	THD*		thd,		/*!< in: thread */
+	ulint		space,		/*!< in: space ID */
+	const char*	path,		/*!< in: absolute path */
+	TABLE*		table_to_fill)	/*!< in/out: fill this table */
+{
+	Field**		fields;
+
+	DBUG_ENTER("i_s_dict_fill_sys_datafiles");
+
+	fields = table_to_fill->field;
+
+	OK(field_store_ulint(fields[SYS_DATAFILES_SPACE], space));
+
+	OK(field_store_string(fields[SYS_DATAFILES_PATH], path));
+
+	OK(schema_table_store_record(thd, table_to_fill));
+
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Function to populate INFORMATION_SCHEMA.INNODB_SYS_DATAFILES table.
+Loop through each record in SYS_DATAFILES, and extract the column
+information and fill the INFORMATION_SCHEMA.INNODB_SYS_DATAFILES table.
+@return 0 on success */
+static
+int
+i_s_sys_datafiles_fill_table(
+/*=========================*/
+	THD*		thd,	/*!< in: thread */
+	TABLE_LIST*	tables,	/*!< in/out: tables to fill */
+	Item*		)	/*!< in: condition (not used) */
+{
+	btr_pcur_t	pcur;
+	const rec_t*	rec;
+	mem_heap_t*	heap;
+	mtr_t		mtr;
+
+	DBUG_ENTER("i_s_sys_datafiles_fill_table");
+
+	/* deny access to user without PROCESS_ACL privilege */
+	if (check_global_access(thd, PROCESS_ACL)) {
+		DBUG_RETURN(0);
+	}
+
+	heap = mem_heap_create(1000);
+	mutex_enter(&dict_sys->mutex);
+	mtr_start(&mtr);
+
+	rec = dict_startscan_system(&pcur, &mtr, SYS_DATAFILES);
+
+	while (rec) {
+		const char*	err_msg;
+		ulint		space;
+		const char*	path;
+
+		/* Extract necessary information from a SYS_DATAFILES row */
+		err_msg = dict_process_sys_datafiles(
+			heap, rec, &space, &path);
+
+		mtr_commit(&mtr);
+		mutex_exit(&dict_sys->mutex);
+
+		if (!err_msg) {
+			i_s_dict_fill_sys_datafiles(
+				thd, space, path, tables->table);
+		} else {
+			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+					    ER_CANT_FIND_SYSTEM_REC, "%s",
+					    err_msg);
+		}
+
+		mem_heap_empty(heap);
+
+		/* Get the next record */
+		mutex_enter(&dict_sys->mutex);
+		mtr_start(&mtr);
+		rec = dict_getnext_system(&pcur, &mtr);
+	}
+
+	mtr_commit(&mtr);
+	mutex_exit(&dict_sys->mutex);
+	mem_heap_free(heap);
+
+	DBUG_RETURN(0);
+}
+/*******************************************************************//**
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
+@return 0 on success */
+static
+int
+innodb_sys_datafiles_init(
+/*======================*/
+	void*	p)	/*!< in/out: table schema object */
+{
+	ST_SCHEMA_TABLE*	schema;
+
+	DBUG_ENTER("innodb_sys_datafiles_init");
+
+	schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = innodb_sys_datafiles_fields_info;
+	schema->fill_table = i_s_sys_datafiles_fill_table;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_sys_datafiles =
+{
+	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
+	/* int */
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+
+	/* pointer to type-specific plugin descriptor */
+	/* void* */
+	STRUCT_FLD(info, &i_s_info),
+
+	/* plugin name */
+	/* const char* */
+	STRUCT_FLD(name, "INNODB_SYS_DATAFILES"),
+
+	/* plugin author (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(author, plugin_author),
+
+	/* general descriptive text (for SHOW PLUGINS) */
+	/* const char* */
+	STRUCT_FLD(descr, "InnoDB SYS_DATAFILES"),
+
+	/* the plugin license (PLUGIN_LICENSE_XXX) */
+	/* int */
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+
+	/* the function to invoke when plugin is loaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(init, innodb_sys_datafiles_init),
+
+	/* the function to invoke when plugin is unloaded */
+	/* int (*)(void*); */
+	STRUCT_FLD(deinit, i_s_common_deinit),
+
+	/* plugin version (for SHOW PLUGINS) */
+	/* unsigned int */
+	STRUCT_FLD(version, INNODB_VERSION_SHORT),
+
+	/* struct st_mysql_show_var* */
+	STRUCT_FLD(status_vars, NULL),
+
+	/* struct st_mysql_sys_var** */
+	STRUCT_FLD(system_vars, NULL),
+
+	/* reserved for dependency checking */
+	/* void* */
+	STRUCT_FLD(__reserved1, NULL),
+
+	/* Plugin flags */
+	/* unsigned long */
+	STRUCT_FLD(flags, 0UL),
+};

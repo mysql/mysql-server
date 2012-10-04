@@ -92,7 +92,8 @@ drop table t1;
 #
 # Bug #13293 Wrongly used index results in endless loop.
 #
-create table t1 (f1 int, f2 char(1), primary key(f1,f2)) engine=innodb;
+create table t1 (f1 int, f2 char(1), primary key(f1,f2)) engine=innodb
+stats_persistent=0;
 insert into t1 values ( 1,"e"),(2,"a"),( 3,"c"),(4,"d");
 alter table t1 drop primary key, add primary key (f2, f1);
 explain select distinct f1 a, f1 b from t1;

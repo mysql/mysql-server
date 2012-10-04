@@ -358,6 +358,8 @@ set tx_isolation="READ-COMMITTED";
 set wait_timeout=100;
 set global log_warnings=1;
 
+#restore the variable, since it introduces a degree of unpredictability
+set global max_allowed_packet        =@my_max_allowed_packet;
 #
 # Bugs: #20392: INSERT_ID session variable has weird value
 #

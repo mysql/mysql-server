@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -91,11 +91,14 @@ enum options_client
   OPT_BINLOG_ROWS_EVENT_MAX_SIZE,
   OPT_BINARY_MODE,
   OPT_SSL_CRL, OPT_SSL_CRLPATH,
-  OPT_MAX_CLIENT_OPTION,
   OPT_MYSQLBINLOG_SKIP_GTIDS,
   OPT_MYSQLBINLOG_INCLUDE_GTIDS,
   OPT_MYSQLBINLOG_EXCLUDE_GTIDS,
-  OPT_REMOTE_PROTO
+  OPT_REMOTE_PROTO,
+  OPT_CONFIG_ALL,
+  OPT_SERVER_PUBLIC_KEY,
+  OPT_ENABLE_CLEARTEXT_PLUGIN,
+  OPT_MAX_CLIENT_OPTION
 };
 
 /**

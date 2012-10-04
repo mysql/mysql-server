@@ -99,8 +99,9 @@ Master_info::Master_info(
                          PSI_mutex_key *param_key_info_data_cond,
                          PSI_mutex_key *param_key_info_start_cond,
                          PSI_mutex_key *param_key_info_stop_cond,
-                         PSI_mutex_key *param_key_info_sleep_cond
+                         PSI_mutex_key *param_key_info_sleep_cond,
 #endif
+                         uint param_id
                         )
    :Rpl_info("I/O"
 #ifdef HAVE_PSI_INTERFACE
@@ -109,6 +110,7 @@ Master_info::Master_info(
              param_key_info_data_cond, param_key_info_start_cond,
              param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
+             ,param_id
             ),
    start_user_configured(false),
    ssl(0), ssl_verify_server_cert(0),
@@ -117,6 +119,7 @@ Master_info::Master_info(
    received_heartbeats(0), last_heartbeat(0), master_id(0),
    checksum_alg_before_fd(BINLOG_CHECKSUM_ALG_UNDEF),
    retry_count(master_retry_count), master_gtid_mode(0),
+   mi_description_event(NULL),
    auto_position(false)
 {
   host[0] = 0; user[0] = 0; bind_addr[0] = 0;
@@ -133,6 +136,7 @@ Master_info::Master_info(
 Master_info::~Master_info()
 {
   delete ignore_server_ids;
+  delete mi_description_event;
 }
 
 /**
@@ -213,7 +217,7 @@ void Master_info::end_info()
   if (!inited)
     DBUG_VOID_RETURN;
 
-  handler->end_info(uidx, nidx);
+  handler->end_info();
 
   inited = 0;
 
@@ -268,7 +272,7 @@ int Master_info::flush_info(bool force)
   if (write_info(handler))
     goto err;
 
-  if (handler->flush_info(uidx, nidx, force))
+  if (handler->flush_info(force))
     goto err;
 
   DBUG_RETURN(0);
@@ -283,32 +287,35 @@ void Master_info::set_relay_log_info(Relay_log_info* info)
   rli= info;
 }
 
-int Master_info::init_info()
+
+/**
+  Creates or reads information from the repository, initializing the
+  Master_info.
+*/
+int Master_info::mi_init_info()
 {
-  /*
-    The init_info() is used to either create or read information
-    from the repository, in order to initialize the Master_info.
-  */
-  DBUG_ENTER("Master_info::init_info");
+  DBUG_ENTER("Master_info::mi_init_info");
   enum_return_check check_return= ERROR_CHECKING_REPOSITORY;
 
   if (inited)
     DBUG_RETURN(0);
 
   mysql= 0; file_id= 1;
-  check_return= check_info();
-  if (check_return == ERROR_CHECKING_REPOSITORY)
+  if ((check_return= check_info()) == ERROR_CHECKING_REPOSITORY)
     goto err;
   
-  if (handler->init_info(uidx, nidx))
+  if (handler->init_info())
     goto err;
 
   if (check_return == REPOSITORY_DOES_NOT_EXIST)
   {
     init_master_log_pos();
   }
-  else if (read_info(handler))
-    goto err;
+  else 
+  {
+    if (read_info(handler))
+      goto err;
+  }
 
   inited= 1;
   if (flush_info(TRUE))
@@ -317,7 +324,7 @@ int Master_info::init_info()
   DBUG_RETURN(0);
 
 err:
-  handler->end_info(uidx, nidx);
+  handler->end_info();
   inited= 0;
   sql_print_error("Error reading master configuration.");
   DBUG_RETURN(1);
@@ -358,7 +365,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
      is this.
   */
 
-  if (from->prepare_info_for_read(nidx) || 
+  if (from->prepare_info_for_read() || 
       from->get_info(master_log_name, (size_t) sizeof(master_log_name),
                      (char *) ""))
     DBUG_RETURN(true);
@@ -503,8 +510,7 @@ bool Master_info::write_info(Rpl_info_handler *to)
      contents of file). But because of number of lines in the first line
      of file we don't care about this garbage.
   */
-
-  if (to->prepare_info_for_write(nidx) ||
+  if (to->prepare_info_for_write() ||
       to->set_info((int) LINES_IN_MASTER_INFO) ||
       to->set_info(master_log_name) ||
       to->set_info((ulong) master_log_pos) ||

@@ -30,7 +30,7 @@ Created 2012-02-08 by Sunny Bains
 #include "univ.i"
 #include "dict0types.h"
 
-struct trx_struct;
+struct trx_t;
 
 /** The version number of the export meta-data text file. */
 #define IB_EXPORT_CFG_VERSION_V1	0x1UL
@@ -42,7 +42,7 @@ void
 row_quiesce_table_start(
 /*====================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	trx_struct*	trx)		/*!< in/out: transaction/session */
+	trx_t*		trx)		/*!< in/out: transaction/session */
         __attribute__((nonnull));
 
 /*********************************************************************//**
@@ -54,7 +54,7 @@ row_quiesce_set_state(
 /*==================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
 	ib_quiesce_t	state,		/*!< in: quiesce state to set */
-	trx_struct*	trx)		/*!< in/out: transaction */
+	trx_t*		trx)		/*!< in/out: transaction */
         __attribute__((nonnull, warn_unused_result));
 
 /*********************************************************************//**
@@ -64,7 +64,7 @@ void
 row_quiesce_table_complete(
 /*=======================*/
 	dict_table_t*	table,		/*!< in: quiesce this table */
-	trx_struct*	trx)		/*!< in/out: transaction/session */
+	trx_t*		trx)		/*!< in/out: transaction/session */
         __attribute__((nonnull));
 
 #ifndef UNIV_NONINL

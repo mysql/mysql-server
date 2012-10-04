@@ -245,6 +245,9 @@ articles	CREATE TABLE `articles` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=9 DEFAULT CHARSET=latin1
 ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
+ANALYZE TABLE articles;
+Table	Op	Msg_type	Msg_text
+test.articles	analyze	status	OK
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("where will");
 id	title	body
 3	where will Optimizing MySQL	In what tutorial we will show ...
@@ -564,6 +567,9 @@ ALTER TABLE articles ADD FULLTEXT INDEX idx (title,body);
 select @@innodb_ft_enable_stopword;
 @@innodb_ft_enable_stopword
 1
+ANALYZE TABLE articles;
+Table	Op	Msg_type	Msg_text
+test.articles	analyze	status	OK
 SELECT * FROM articles WHERE MATCH(title,body) AGAINST ("where will");
 id	title	body
 3	where will Optimizing MySQL	In what tutorial we will show ...

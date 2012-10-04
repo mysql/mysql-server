@@ -1,0 +1,31 @@
+#
+# innodb_stats_auto_recalc
+#
+
+-- source include/have_innodb.inc
+
+# show the default value
+SELECT @@innodb_stats_auto_recalc;
+
+# check that it is writeable
+SET GLOBAL innodb_stats_auto_recalc=ON;
+SELECT @@innodb_stats_auto_recalc;
+
+SET GLOBAL innodb_stats_auto_recalc=OFF;
+SELECT @@innodb_stats_auto_recalc;
+
+SET GLOBAL innodb_stats_auto_recalc=1;
+SELECT @@innodb_stats_auto_recalc;
+
+SET GLOBAL innodb_stats_auto_recalc=0;
+SELECT @@innodb_stats_auto_recalc;
+
+# should be a boolean
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_stats_auto_recalc=123;
+
+-- error ER_WRONG_VALUE_FOR_VAR
+SET GLOBAL innodb_stats_auto_recalc='foo';
+
+# restore the environment
+SET GLOBAL innodb_stats_auto_recalc=default;

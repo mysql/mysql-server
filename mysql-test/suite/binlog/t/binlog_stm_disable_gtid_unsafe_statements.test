@@ -1,0 +1,4 @@
+# Details on extra/binlog_tests/binlog_disable_gtid_unsafe_statements.test
+
+--source include/have_binlog_format_statement.inc
+--source extra/binlog_tests/binlog_disable_gtid_unsafe_statements.test

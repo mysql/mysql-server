@@ -40,7 +40,7 @@ Created 10/25/1995 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 
 // Forward declaration
-struct trx_struct;
+struct trx_t;
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
@@ -64,12 +64,8 @@ typedef	byte	fil_faddr_t;	/*!< 'type' definition in C: an address
 
 #define	FIL_ADDR_SIZE	6	/* address size is 6 bytes */
 
-/** A struct for storing a space address FIL_ADDR, when it is used
-in C program data structures. */
-
-typedef struct fil_addr_struct	fil_addr_t;
 /** File space address */
-struct fil_addr_struct{
+struct fil_addr_t{
 	ulint	page;		/*!< page number within a space */
 	ulint	boffset;	/*!< byte offset within the page */
 };
@@ -203,17 +199,19 @@ fil_space_get_type(
 	ulint	id);	/*!< in: space id */
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
-Appends a new file to the chain of files of a space. File must be closed. */
+Appends a new file to the chain of files of a space. File must be closed.
+@return pointer to the file name, or NULL on error */
 UNIV_INTERN
-void
+char*
 fil_node_create(
 /*============*/
 	const char*	name,	/*!< in: file name (file must be closed) */
 	ulint		size,	/*!< in: file size in database blocks, rounded
 				downwards to an integer */
 	ulint		id,	/*!< in: space id where to append */
-	ibool		is_raw);/*!< in: TRUE if a raw device or
+	ibool		is_raw)	/*!< in: TRUE if a raw device or
 				a raw disk partition */
+	__attribute__((nonnull, warn_unused_result));
 #ifdef UNIV_LOG_ARCHIVE
 /****************************************************************//**
 Drops files from the start of a file space, so that its size is cut by
@@ -250,6 +248,16 @@ ibool
 fil_assign_new_space_id(
 /*====================*/
 	ulint*	space_id);	/*!< in/out: space id */
+/*******************************************************************//**
+Returns the path from the first fil_node_t found for the space ID sent.
+The caller is responsible for freeing the memory allocated here for the
+value returned.
+@return	a copy of fil_node_t::path, NULL if space is zero or not found. */
+UNIV_INTERN
+char*
+fil_space_get_first_path(
+/*=====================*/
+	ulint	id);	/*!< in: space id */
 /*******************************************************************//**
 Returns the size of the space in pages. The tablespace must be cached in the
 memory cache.
@@ -319,6 +327,14 @@ void
 fil_close_all_files(void);
 /*=====================*/
 /*******************************************************************//**
+Closes the redo log files. There must not be any pending i/o's or not
+flushed modifications in the files. */
+UNIV_INTERN
+void
+fil_close_log_files(
+/*================*/
+	bool	free);	/*!< in: whether to free the memory object */
+/*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */
 UNIV_INTERN
@@ -349,6 +365,7 @@ fil_read_first_page(
 						parameters below already
 						contain sensible data */
 	ulint*		flags,			/*!< out: tablespace flags */
+	ulint*		space_id,		/*!< out: tablespace ID */
 #ifdef UNIV_LOG_ARCHIVE
 	ulint*		min_arch_log_no,	/*!< out: min of archived
 						log numbers in data files */
@@ -411,8 +428,10 @@ UNIV_INTERN
 dberr_t
 fil_delete_tablespace(
 /*==================*/
-	ulint	id,	/*!< in: space id */
-	bool	rename);/*!< in: true=rename to .ibt; false=remove */
+	ulint		id,		/*!< in: space id */
+	buf_remove_t	buf_remove);	/*!< in: specify the action to take
+					on the tables pages in the buffer
+					pool */
 /*******************************************************************//**
 Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.
@@ -421,8 +440,8 @@ UNIV_INTERN
 dberr_t
 fil_close_tablespace(
 /*=================*/
-	trx_struct*	trx,	/*!< in/out: Transaction covering the close */
-	ulint		id);	/*!< in: space id */
+	trx_t*	trx,	/*!< in/out: Transaction covering the close */
+	ulint	id);	/*!< in: space id */
 #ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
@@ -433,7 +452,7 @@ memory cache. Discarding is like deleting a tablespace, but
  2. We remove all insert buffer entries for the tablespace immediately;
     in DROP TABLE they are only removed gradually in the background;
 
- 3. when the user does IMPORT TABLESPACE, the tablespace will have the
+ 3. When the user does IMPORT TABLESPACE, the tablespace will have the
     same id as it originally had.
 
  4. Free all the pages in use by the tablespace if rename=TRUE.
@@ -442,8 +461,7 @@ UNIV_INTERN
 dberr_t
 fil_discard_tablespace(
 /*===================*/
-	ulint	id,	/*!< in: space id */
-	bool	rename)	/*!< in: TRUE=rename to .ibt; FALSE=remove */
+	ulint	id)	/*!< in: space id */
 	__attribute__((warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
@@ -454,15 +472,69 @@ UNIV_INTERN
 ibool
 fil_rename_tablespace(
 /*==================*/
-	const char*	old_name_in,	/*!< in: old table name in the standard
-					databasename/tablename format of
-					InnoDB, or NULL if we do the rename
-					based on the space id only */
+	const char*	old_name_in,	/*!< in: old table name in the
+					standard databasename/tablename
+					format of InnoDB, or NULL if we
+					do the rename based on the space
+					id only */
 	ulint		id,		/*!< in: space id */
-	const char*	new_name);	/*!< in: new table name in the standard
-					databasename/tablename format
-					of InnoDB */
+	const char*	new_name,	/*!< in: new table name in the
+					standard databasename/tablename
+					format of InnoDB */
+	const char*	new_path);	/*!< in: new full datafile path
+					if the tablespace is remotely
+					located, or NULL if it is located
+					in the normal data directory. */
 
+/*******************************************************************//**
+Allocates a file name for a single-table tablespace. The string must be freed
+by caller with mem_free().
+@return	own: file name */
+UNIV_INTERN
+char*
+fil_make_ibd_name(
+/*==============*/
+	const char*	name,		/*!< in: table name or a dir path */
+	bool		is_full_path);	/*!< in: TRUE if it is a dir path */
+/*******************************************************************//**
+Allocates a file name for a tablespace ISL file (InnoDB Symbolic Link).
+The string must be freed by caller with mem_free().
+@return	own: file name */
+UNIV_INTERN
+char*
+fil_make_isl_name(
+/*==============*/
+	const char*	name);	/*!< in: table name */
+/*******************************************************************//**
+Creates a new InnoDB Symbolic Link (ISL) file.  It is always created
+under the 'datadir' of MySQL. The datadir is the directory of a
+running mysqld program. We can refer to it by simply using the path '.'.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+fil_create_link_file(
+/*=================*/
+	const char*	tablename,	/*!< in: tablename */
+	const char*	filepath);	/*!< in: pathname of tablespace */
+/*******************************************************************//**
+Deletes an InnoDB Symbolic Link (ISL) file. */
+UNIV_INTERN
+void
+fil_delete_link_file(
+/*==================*/
+	const char*	tablename);	/*!< in: name of table */
+/*******************************************************************//**
+Reads an InnoDB Symbolic Link (ISL) file.
+It is always created under the 'datadir' of MySQL.  The name is of the
+form {databasename}/{tablename}. and the isl file is expected to be in a
+'{databasename}' directory called '{tablename}.isl'. The caller must free
+the memory of the null-terminated path returned if it is not null.
+@return	own: filepath found in link file, NULL if not found. */
+UNIV_INTERN
+char*
+fil_read_link_file(
+/*===============*/
+	const char*	name);		/*!< in: tablespace name */
 /*******************************************************************//**
 Creates a new single-table tablespace to a database directory of MySQL.
 Database directories are under the 'datadir' of MySQL. The datadir is the
@@ -477,10 +549,8 @@ fil_create_new_single_table_tablespace(
 	ulint		space_id,	/*!< in: space id */
 	const char*	tablename,	/*!< in: the table name in the usual
 					databasename/tablename format
-					of InnoDB, or a dir path to a temp
-					table */
-	ibool		is_temp,	/*!< in: TRUE if a table created with
-					CREATE TEMPORARY TABLE */
+					of InnoDB */
+	const char*	dir_path,	/*!< in: NULL or a dir path */
 	ulint		flags,		/*!< in: tablespace flags */
 	ulint		flags2,		/*!< in: table flags2 */
 	ulint		size)		/*!< in: the initial size of the
@@ -497,23 +567,31 @@ NOTE that we assume this operation is used either at the database startup
 or under the protection of the dictionary mutex, so that two users cannot
 race here. This operation does not leave the file associated with the
 tablespace open, but closes it after we have looked at the space id in it.
+
+If the validate boolean is set, we read the first page of the file and
+check that the space id in the file is what we expect. We assume that
+this function runs much faster if no check is made, since accessing the
+file inode probably is much faster (the OS caches them) than accessing
+the first page of the file.  This boolean may be initially FALSE, but if
+a remote tablespace is found it will be changed to true.
+
+If the fix_dict boolean is set, then it is safe to use an internal SQL
+statement to update the dictionary tables if they are incorrect.
+
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
 fil_open_single_table_tablespace(
 /*=============================*/
-	const dict_table_t*	table,	/*!< in: table handle for consistency
-					checks, or NULL; we assume
-					that this function runs much faster
-					if no check is made, since accessing
-					the file inode probably is much
-					faster (the OS caches them) than
-					accessing the file */
-	ulint			id,	/*!< in: space id */
-	ulint			flags,	/*!< in: tablespace flags */
-	const char*		name)	/*!< in: table name in the
+	bool		validate,	/*!< in: Do we validate tablespace? */
+	bool		fix_dict,	/*!< in: Can we fix the dictionary? */
+	ulint		id,		/*!< in: space id */
+	ulint		flags,		/*!< in: tablespace flags */
+	const char*	tablename,	/*!< in: table name in the
 					databasename/tablename format */
-	__attribute__((nonnull(4), warn_unused_result));
+	const char*	filepath)	/*!< in: tablespace filepath */
+	__attribute__((nonnull(5), warn_unused_result));
+
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 At the server startup, if we need crash recovery, scans the database
@@ -566,11 +644,15 @@ fil_space_for_table_exists_in_mem(
 					data dictionary, so that
 					we can print a warning about orphaned
 					tablespaces */
-	ibool		print_error_if_does_not_exist);
+	ibool		print_error_if_does_not_exist,
 					/*!< in: print detailed error
 					information to the .err log if a
 					matching tablespace is not found from
 					memory */
+	bool		adjust_space,	/*!< in: whether to adjust space id
+					when find table space mismatch */
+	mem_heap_t*	heap,		/*!< in: heap memory */
+	table_id_t	table_id);	/*!< in: table id */
 #else /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the
@@ -743,25 +825,15 @@ ibool
 fil_tablespace_is_being_deleted(
 /*============================*/
 	ulint		id);	/*!< in: space id */
-/*******************************************************************//**
-Allocates a file name for a single-table tablespace. The string must be freed
-by caller with mem_free().
-@return	own: file name */
-UNIV_INTERN
-char*
-fil_make_ibd_name(
-/*==============*/
-	const char*	name,		/*!< in: table name or a dir path of a
-					TEMPORARY table */
-	bool		is_temp);	/*!< in: true if it is a dir path */
 
 /********************************************************************//**
-Delete the tablespace file and any temporary files. */
+Delete the tablespace file and any related files like .cfg.
+This should not be called for temporary tables. */
 UNIV_INTERN
 void
 fil_delete_file(
 /*============*/
-	const char*	name);	/*!< in: table name */
+	const char*	path);	/*!< in: filepath of the ibd tablespace */
 
 /** Callback functor. */
 struct PageCallback {
@@ -800,7 +872,7 @@ struct PageCallback {
 	/**
 	Set the name of the physical file and the file handle that is used
 	to open it for the file that is being iterated over.
-	@param filename - then physical name of the tablespace file. 
+	@param filename - then physical name of the tablespace file.
 	@param file - OS file handle */
 	void set_file(const char* filename, os_file_t file) UNIV_NOTHROW
 	{
@@ -864,7 +936,18 @@ fil_tablespace_iterate(
 	PageCallback&		callback)
 	__attribute__((nonnull, warn_unused_result));
 
-typedef	struct fil_space_struct	fil_space_t;
+/*******************************************************************//**
+Checks if a single-table tablespace for a given table name exists in the
+tablespace memory cache.
+@return	space id, ULINT_UNDEFINED if not found */
+UNIV_INTERN
+ulint
+fil_get_space_id_for_table(
+/*=======================*/
+	const char*	name);	/*!< in: table name in the standard
+				'databasename/tablename' format */
+
+struct fil_space_t;
 
 #endif /* !UNIV_INNOCHECKSUM */
 

@@ -14,7 +14,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 /* based on Wei Dai's misc.h from CryptoPP */
 
@@ -743,7 +743,11 @@ private:
     byte *m_block;
 };
 
-template <class T, class B, bool A=true>
+/*
+  XXX MYSQL: Setting A (assumeAligned) to false,
+  keeping it true might trigger segfault on SPARC.
+*/
+template <class T, class B, bool A= false>
 struct BlockGetAndPut
 {
     // function needed because of C++ grammatical ambiguity between

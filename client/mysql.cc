@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,6 +31,7 @@
  **/
 
 #include "client_priv.h"
+#include "my_default.h"
 #include <m_ctype.h>
 #include <stdarg.h>
 #include <my_dir.h>
@@ -143,7 +144,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
 	       vertical=0, line_numbers=1, column_names=1,opt_html=0,
                opt_xml=0,opt_nopager=1, opt_outfile=0, named_cmds= 0,
 	       tty_password= 0, opt_nobeep=0, opt_reconnect=1,
-	       opt_secure_auth= 0,
+	       opt_secure_auth= TRUE,
                default_pager_set= 0, opt_sigint_ignore= 0,
                auto_vertical_output= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
@@ -153,6 +154,8 @@ static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
 static ulong opt_max_allowed_packet, opt_net_buffer_length;
 static uint verbose=0,opt_silent=0,opt_mysql_port=0, opt_local_infile=0;
+static uint opt_enable_cleartext_plugin= 0;
+static my_bool using_opt_enable_cleartext_plugin= 0;
 static uint my_end_arg;
 static char * opt_mysql_unix_port=0;
 static char *opt_bind_addr = NULL;
@@ -172,6 +175,9 @@ static STATUS status;
 static ulong select_limit,max_join_size,opt_connect_timeout=0;
 static char mysql_charsets_dir[FN_REFLEN+1];
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+#if !defined(HAVE_YASSL)
+static char *opt_server_public_key= 0;
+#endif
 static const char *xmlmeta[] = {
   "&", "&amp;",
   "<", "&lt;",
@@ -284,6 +290,8 @@ static void init_username();
 static void add_int_to_prompt(int toadd);
 static int get_result_width(MYSQL_RES *res);
 static int get_field_disp_length(MYSQL_FIELD * field);
+static int normalize_dbname(const char *line, char *buff, uint buff_size);
+static int get_quote_count(const char *line);
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -1297,7 +1305,7 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
-  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"), INFO_INFO);
+  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
 
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
@@ -1423,6 +1431,9 @@ sig_handler handle_kill_signal(int sig)
   }
 
   kill_mysql= mysql_init(kill_mysql);
+  mysql_options(kill_mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(kill_mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "mysql");
   if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
                           "", opt_mysql_port, opt_mysql_unix_port,0))
   {
@@ -1534,6 +1545,10 @@ static struct my_option my_long_options[] =
    &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"delimiter", OPT_DELIMITER, "Delimiter to be used.", &delimiter_str,
    &delimiter_str, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"enable_cleartext_plugin", OPT_ENABLE_CLEARTEXT_PLUGIN, 
+    "Enable/disable the clear text authentication plugin.",
+   &opt_enable_cleartext_plugin, &opt_enable_cleartext_plugin, 
+   0, GET_BOOL, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"execute", 'e', "Execute command and quit. (Disables --force and history file.)", 0,
    0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"vertical", 'E', "Print the output of a query (rows) vertically.",
@@ -1684,7 +1699,7 @@ static struct my_option my_long_options[] =
    1, ULONG_MAX, 0, 1, 0},
   {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
     " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
-    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-arg", OPT_SERVER_ARG, "Send embedded server this as a parameter.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"show-warnings", OPT_SHOW_WARNINGS, "Show warnings after every statement.",
@@ -1704,6 +1719,12 @@ static struct my_option my_long_options[] =
    "piped to mysql or loaded using the 'source' command). This is necessary "
    "when processing output from mysqlbinlog that may contain blobs.",
    &opt_binary_mode, &opt_binary_mode, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#if !defined(HAVE_YASSL)
+  {"server-public-key-path", OPT_SERVER_PUBLIC_KEY,
+   "File path to the server public RSA key in PEM format.",
+   &opt_server_public_key, &opt_server_public_key, 0,
+   GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -1727,7 +1748,7 @@ static void usage(int version)
 
   if (version)
     return;
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
@@ -1767,6 +1788,9 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     break;
   case OPT_LOCAL_INFILE:
     using_opt_local_infile=1;
+    break;
+  case OPT_ENABLE_CLEARTEXT_PLUGIN:
+    using_opt_enable_cleartext_plugin= TRUE;
     break;
   case OPT_TEE:
     if (argument == disabled_my_option)
@@ -2977,7 +3001,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
 			   char *line __attribute__((unused)), char *help_arg)
 {
   MYSQL_ROW cur;
-  const char *server_cmd= buffer->ptr();
+  const char *server_cmd;
   char cmd_buf[100 + 1];
   MYSQL_RES *result;
   int error;
@@ -2992,9 +3016,12 @@ static int com_server_help(String *buffer __attribute__((unused)),
 		*++end_arg= '\0';
 	}
 	(void) strxnmov(cmd_buf, sizeof(cmd_buf), "help '", help_arg, "'", NullS);
-    server_cmd= cmd_buf;
   }
-  
+  else
+    (void) strxnmov(cmd_buf, sizeof(cmd_buf), "help ", help_arg, NullS);
+
+  server_cmd= cmd_buf;
+
   if (!status.batch)
   {
     old_buffer= *buffer;
@@ -3062,6 +3089,11 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else
     {
       put_info("\nNothing found", INFO_INFO);
+      if (strncasecmp(server_cmd, "help 'contents'", 15) == 0)
+      {
+         put_info("\nPlease check if 'help tables' are loaded.\n", INFO_INFO); 
+         goto err;
+      }
       put_info("Please try to run 'help contents' for a list of all accessible topics\n", INFO_INFO);
     }
   }
@@ -4279,8 +4311,23 @@ com_use(String *buffer __attribute__((unused)), char *line)
   int select_db;
 
   memset(buff, 0, sizeof(buff));
-  strmake(buff, line, sizeof(buff) - 1);
-  tmp= get_arg(buff, 0);
+
+  /*
+    In case number of quotes exceed 2, we try to get
+    the normalized db name.
+  */
+  if (get_quote_count(line) > 2)
+  {
+    if (normalize_dbname(line, buff, sizeof(buff)))
+      return put_error(&mysql);
+    tmp= buff;
+  }
+  else
+  {
+    strmake(buff, line, sizeof(buff) - 1);
+    tmp= get_arg(buff, 0);
+  }
+
   if (!tmp || !*tmp)
   {
     put_info("USE must be followed by a database name", INFO_ERROR);
@@ -4343,6 +4390,62 @@ com_use(String *buffer __attribute__((unused)), char *line)
   }
 
   put_info("Database changed",INFO_INFO);
+  return 0;
+}
+
+/**
+  Normalize database name.
+
+  @param line [IN]          The command.
+  @param buff [OUT]         Normalized db name.
+  @param buff_size [IN]     Buffer size.
+
+  @return Operation status
+      @retval 0    Success
+      @retval 1    Failure
+
+  @note Sometimes server normilizes the database names
+        & APIs like mysql_select_db() expect normalized
+        database names. Since it is difficult to perform
+        the name conversion/normalization on the client
+        side, this function tries to get the normalized
+        dbname (indirectly) from the server.
+*/
+
+static int
+normalize_dbname(const char *line, char *buff, uint buff_size)
+{
+  MYSQL_RES *res= NULL;
+
+  /* Send the "USE db" commmand to the server. */
+  if (mysql_query(&mysql, line))
+    return 1;
+
+  /*
+    Now, get the normalized database name and store it
+    into the buff.
+  */
+  if (!mysql_query(&mysql, "SELECT DATABASE()") &&
+      (res= mysql_use_result(&mysql)))
+  {
+    MYSQL_ROW row= mysql_fetch_row(res);
+    if (row && row[0])
+    {
+      size_t len= strlen(row[0]);
+      /* Make sure there is enough room to store the dbname. */
+      if ((len > buff_size) || ! memcpy(buff, row[0], len))
+      {
+        mysql_free_result(res);
+        return 1;
+      }
+    }
+    mysql_free_result(res);
+  }
+
+  /* Restore the original database. */
+  if (current_db && mysql_select_db(&mysql, current_db))
+    return 1;
+
   return 0;
 }
 
@@ -4425,6 +4528,20 @@ char *get_arg(char *line, my_bool get_next_arg)
   return valid_arg ? start : NullS;
 }
 
+/*
+  Number of quotes present in the command's argument.
+*/
+static int
+get_quote_count(const char *line)
+{
+  int quote_count;
+  const char *ptr= line;
+
+  for(quote_count= 0; ptr ++ && *ptr; ptr= strpbrk(ptr, "\"\'`"))
+    quote_count ++;
+
+  return quote_count;
+}
 
 static int
 sql_real_connect(char *host,char *database,char *user,char *password,
@@ -4448,7 +4565,7 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     mysql_options(&mysql, MYSQL_OPT_BIND, opt_bind_addr);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
-  if (opt_secure_auth)
+  if (!opt_secure_auth)
     mysql_options(&mysql, MYSQL_SECURE_AUTH, (char *) &opt_secure_auth);
   if (using_opt_local_infile)
     mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
@@ -4507,6 +4624,19 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 
   if (opt_default_auth && *opt_default_auth)
     mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
+#if !defined(HAVE_YASSL)
+  if (opt_server_public_key && *opt_server_public_key)
+    mysql_options(&mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
+#endif
+
+  if (using_opt_enable_cleartext_plugin)
+    mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
+                  (char*) &opt_enable_cleartext_plugin);
+
+  mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, 
+                 "program_name", "mysql");
 
   if (!mysql_real_connect(&mysql, host, user, password,
                           database, opt_mysql_port, opt_mysql_unix_port,

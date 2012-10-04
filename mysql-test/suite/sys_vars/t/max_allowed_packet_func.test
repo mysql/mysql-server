@@ -4,7 +4,7 @@
 # Scope: GLOBAL | SESSION                                                     #
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
-# Default Value:1048576                                                       #
+# Default Value:4194304                                                       #
 # Range:1024-1073741824                                                       #
 #                                                                             #
 #                                                                             #

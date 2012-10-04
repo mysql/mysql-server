@@ -88,7 +88,7 @@ bool compare_records(const TABLE *table)
       {
         if (field->real_maybe_null())
         {
-          uchar null_byte_index= field->null_ptr - table->record[0];
+          uchar null_byte_index= field->null_offset();
           
           if (((table->record[0][null_byte_index]) & field->null_bit) !=
               ((table->record[1][null_byte_index]) & field->null_bit))
@@ -146,7 +146,7 @@ static bool check_fields(THD *thd, List<Item> &items)
 
   while ((item= it++))
   {
-    if (!(field= item->filed_for_view_update()))
+    if (!(field= item->field_for_view_update()))
     {
       /* item has name, because it comes from VIEW SELECT list */
       my_error(ER_NONUPDATEABLE_COLUMN, MYF(0), item->item_name.ptr());
@@ -187,75 +187,6 @@ static bool check_constant_expressions(List<Item> &values)
   }
   DBUG_PRINT("exit", ("expression is constant"));
   DBUG_RETURN(true);
-}
-
-
-/**
-  Re-read record if more columns are needed for error message.
-
-  If we got a duplicate key error, we want to write an error
-  message containing the value of the duplicate key. If we do not have
-  all fields of the key value in record[0], we need to re-read the
-  record with a proper read_set.
-
-  @param[in] error   error number
-  @param[in] table   table
-*/
-
-static void prepare_record_for_error_message(int error, TABLE *table)
-{
-  Field **field_p;
-  Field *field;
-  uint keynr;
-  MY_BITMAP unique_map; /* Fields in offended unique. */
-  my_bitmap_map unique_map_buf[bitmap_buffer_size(MAX_FIELDS)];
-  DBUG_ENTER("prepare_record_for_error_message");
-
-  /*
-    Only duplicate key errors print the key value.
-    If storage engine does always read all columns, we have the value alraedy.
-  */
-  if ((error != HA_ERR_FOUND_DUPP_KEY) ||
-      !(table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ))
-    DBUG_VOID_RETURN;
-
-  /*
-    Get the number of the offended index.
-    We will see MAX_KEY if the engine cannot determine the affected index.
-  */
-  if ((keynr= table->file->get_dup_key(error)) >= MAX_KEY)
-    DBUG_VOID_RETURN;
-
-  /* Create unique_map with all fields used by that index. */
-  bitmap_init(&unique_map, unique_map_buf, table->s->fields, FALSE);
-  table->mark_columns_used_by_index_no_reset(keynr, &unique_map);
-
-  /* Subtract read_set and write_set. */
-  bitmap_subtract(&unique_map, table->read_set);
-  bitmap_subtract(&unique_map, table->write_set);
-
-  /*
-    If the unique index uses columns that are neither in read_set
-    nor in write_set, we must re-read the record.
-    Otherwise no need to do anything.
-  */
-  if (bitmap_is_clear_all(&unique_map))
-    DBUG_VOID_RETURN;
-
-  /* Get identifier of last read record into table->file->ref. */
-  table->file->position(table->record[0]);
-  /* Add all fields used by unique index to read_set. */
-  bitmap_union(table->read_set, &unique_map);
-  /* Tell the engine about the new set. */
-  table->file->column_bitmaps_signal();
-  /* Read record that is identified by table->file->ref. */
-  (void) table->file->ha_rnd_pos(table->record[1], table->file->ref);
-  /* Copy the newly read columns into the new record. */
-  for (field_p= table->field; (field= *field_p); field_p++)
-    if (bitmap_is_set(&unique_map, field->field_index))
-      field->copy_from_tmp(table->s->rec_buff_length);
-
-  DBUG_VOID_RETURN;
 }
 
 
@@ -304,7 +235,6 @@ int mysql_update(THD *thd,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint		want_privilege;
 #endif
-  uint          table_count= 0;
   ha_rows	updated, found;
   key_map	old_covering_keys;
   TABLE		*table;
@@ -318,29 +248,15 @@ int mysql_update(THD *thd,
 
   DBUG_ENTER("mysql_update");
 
-  if (open_tables(thd, &table_list, &table_count, 0))
+  if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_RETURN(1);
 
   if (table_list->multitable_view)
   {
     DBUG_ASSERT(table_list->view != 0);
     DBUG_PRINT("info", ("Switch to multi-update"));
-    /* pass counter value */
-    thd->lex->table_count= table_count;
     /* convert to multiupdate */
     DBUG_RETURN(2);
-  }
-  if (lock_tables(thd, table_list, table_count, 0))
-    DBUG_RETURN(1);
-
-  if (mysql_handle_derived(thd->lex, &mysql_derived_prepare))
-    DBUG_RETURN(1);
-
-  if (thd->fill_derived_tables() &&
-      mysql_handle_derived(thd->lex, &mysql_derived_create))
-  {
-    mysql_handle_derived(thd->lex, &mysql_derived_cleanup);
-    DBUG_RETURN(1);
   }
 
   THD_STAGE_INFO(thd, stage_init);
@@ -401,14 +317,6 @@ int mysql_update(THD *thd,
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
     DBUG_RETURN(1);
 
-  if (conds)
-  {
-    Item::cond_result cond_value;
-    conds= remove_eq_conds(thd, conds, &cond_value);
-    if (cond_value == Item::COND_FALSE)
-      limit= 0;                                   // Impossible WHERE
-  }
-
   if ((table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ) != 0 &&
       update.function_defaults_apply(table))
     /*
@@ -423,19 +331,121 @@ int mysql_update(THD *thd,
   // Don't count on usage of 'only index' when calculating which key to use
   table->covering_keys.clear_all();
 
-#ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (prune_partitions(thd, table, conds))
-  { // No matching records
-    if (thd->lex->describe)
-    {
-      error= explain_no_table(thd,
-                              "No matching rows after partition pruning");
-      goto exit_without_my_ok;
-    }
+  /*
+    This must be done before partitioning pruning, since prune_partitions()
+    uses the table->write_set to determine may prune locks too.
+  */
+  if (table->triggers)
+    table->triggers->mark_fields_used(TRG_EVENT_UPDATE);
 
-    free_underlaid_joins(thd, select_lex);
-    my_ok(thd);				// No matching records
-    DBUG_RETURN(0);
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  if (table->part_info)
+  {
+    if (prune_partitions(thd, table, conds))
+      DBUG_RETURN(1);
+    if (table->all_partitions_pruned_away)
+    {
+      /* No matching records */
+      if (thd->lex->describe)
+      {
+        error= explain_no_table(thd,
+                                "No matching rows after partition pruning");
+        goto exit_without_my_ok;
+      }
+      my_ok(thd);                            // No matching records
+      DBUG_RETURN(0);
+    }
+  }
+#endif
+  if (lock_tables(thd, table_list, thd->lex->table_count, 0))
+    DBUG_RETURN(1);
+
+  // Must be done after lock_tables()
+  if (conds)
+  {
+    COND_EQUAL *cond_equal= NULL;
+    Item::cond_result result;
+    if (table_list->check_option)
+    {
+      /*
+        If this UPDATE is on a view with CHECK OPTION, Item_fields
+        must not be replaced by constants. The reason is that when
+        'conds' is optimized, 'check_option' is also optimized (it is
+        part of 'conds'). Const replacement is fine for 'conds'
+        because it is evaluated on a read row, but 'check_option' is
+        evaluated on a row with updated fields and needs those updated
+        values to be correct.
+
+        Example:
+        CREATE VIEW v1 ... WHERE fld < 2 WITH CHECK_OPTION
+        UPDATE v1 SET fld=4 WHERE fld=1
+
+        check_option is  "(fld < 2)"
+        conds is         "(fld < 2) and (fld = 1)"
+
+        optimize_cond() would propagate fld=1 to the first argument of
+        the AND to create "(1 < 2) AND (fld = 1)". After this,
+        check_option would be "(1 < 2)". But for check_option to work
+        it must be evaluated with the *updated* value of fld: 4.
+        Otherwise it will evaluate to true even when it should be
+        false, which is the case for the UPDATE statement above.
+
+        Thus, if there is a check_option, we do only the "safe" parts
+        of optimize_cond(): Item_row -> Item_func_eq conversion (to
+        enable range access) and removal of always true/always false
+        predicates.
+
+        An alternative to restricting this optimization of 'conds' in
+        the presense of check_option: the Item-tree of 'check_option'
+        could be cloned before optimizing 'conds' and thereby avoid
+        const replacement. However, at the moment there is no such
+        thing as Item::clone().
+      */
+      conds= build_equal_items(thd, conds, NULL, false,
+                               select_lex->join_list, &cond_equal);
+      conds= remove_eq_conds(thd, conds, &result);
+    }
+    else
+      conds= optimize_cond(thd, conds, &cond_equal, select_lex->join_list,
+                           true, &result);
+
+    if (result == Item::COND_FALSE)
+    {
+      limit= 0;                                   // Impossible WHERE
+      if (thd->lex->describe)
+      {
+        error= explain_no_table(thd, "Impossible WHERE");
+        goto exit_without_my_ok;
+      }
+    }
+    if (conds)
+    {
+      conds= substitute_for_best_equal_field(conds, cond_equal, 0);
+      conds->update_used_tables();
+    }
+  }
+
+#ifdef WITH_PARTITION_STORAGE_ENGINE
+  /*
+    Also try a second time after locking, to prune when subqueries and
+    stored programs can be evaluated.
+  */
+  if (table->part_info)
+  {
+    if (prune_partitions(thd, table, conds))
+      DBUG_RETURN(1);
+    if (table->all_partitions_pruned_away)
+    {
+      /* No matching records */
+      if (thd->lex->describe)
+      {
+        error= explain_no_table(thd,
+                                "No matching rows after partition pruning");
+        goto exit_without_my_ok;
+      }
+      my_ok(thd);                            // No matching records
+      DBUG_RETURN(0);
+    }
   }
 #endif
   /* Update the table->file->stats.records number */
@@ -469,7 +479,13 @@ int mysql_update(THD *thd,
       {
         DBUG_RETURN(1);				// Error in where
       }
-      my_ok(thd);				// No matching records
+
+      char buff[MYSQL_ERRMSG_SIZE];
+      my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), 0, 0,
+                  (ulong) thd->get_stmt_da()->current_statement_warn_count());
+      my_ok(thd, 0, 0, buff);
+
+      DBUG_PRINT("info",("0 records updated"));
       DBUG_RETURN(0);
     }
   } // Ends scope for optimizer trace wrapper
@@ -545,17 +561,13 @@ int mysql_update(THD *thd,
 	to update
         NOTE: filesort will call table->prepare_for_position()
       */
-      uint         length= 0;
-      SORT_FIELD  *sortorder;
       ha_rows examined_rows;
       ha_rows found_rows;
+      Filesort fsort(order, limit, select);
 
       table->sort.io_cache = (IO_CACHE *) my_malloc(sizeof(IO_CACHE),
 						    MYF(MY_FAE | MY_ZEROFILL));
-      if (!(sortorder=make_unireg_sortorder(order, &length, NULL)) ||
-          (table->sort.found_records= filesort(thd, table, sortorder, length,
-                                               select, limit,
-                                               true,
+      if ((table->sort.found_records= filesort(thd, table, &fsort, true,
                                                &examined_rows, &found_rows))
           == HA_POS_ERROR)
       {
@@ -712,10 +724,6 @@ int mysql_update(THD *thd,
       check_constant_expressions(values))
     read_removal= table->check_read_removal(select->quick->index);
 
-  // For prepare_record_for_error_message():
-  if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ)
-    table->prepare_for_position();
-
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     thd->inc_examined_row_count(1);
@@ -814,7 +822,6 @@ int mysql_update(THD *thd,
           if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
             flags|= ME_FATALERROR; /* Other handler errors are fatal */
 
-          prepare_record_for_error_message(error, table);
 	  table->file->print_error(error,MYF(flags));
 	  error= 1;
 	  break;
@@ -851,7 +858,6 @@ int mysql_update(THD *thd,
               The handler should not report error of duplicate keys if they
               are ignored. This is a requirement on batching handlers.
             */
-            prepare_record_for_error_message(error, table);
             table->file->print_error(error,MYF(0));
             error= 1;
             break;
@@ -912,7 +918,6 @@ int mysql_update(THD *thd,
     */
   {
     /* purecov: begin inspected */
-    prepare_record_for_error_message(loc_error, table);
     table->file->print_error(loc_error,MYF(ME_FATALERROR));
     error= 1;
     /* purecov: end */
@@ -1289,12 +1294,6 @@ int mysql_multi_update_prepare(THD *thd)
   List<Item> *fields= &lex->select_lex.item_list;
   table_map tables_for_update;
   bool update_view= 0;
-  /*
-    if this multi-update was converted from usual update, here is table
-    counter else junk will be assigned here, but then replaced with real
-    count in open_tables()
-  */
-  uint  table_count= lex->table_count;
   const bool using_lock_tables= thd->locked_tables_mode != LTM_NONE;
   bool original_multiupdate= (thd->lex->sql_command == SQLCOM_UPDATE_MULTI);
   DBUG_ENTER("mysql_multi_update_prepare");
@@ -1309,11 +1308,10 @@ int mysql_multi_update_prepare(THD *thd)
     keep prepare of multi-UPDATE compatible with concurrent LOCK TABLES WRITE
     and global read lock.
   */
-  if ((original_multiupdate &&
-       open_tables(thd, &table_list, &table_count,
-                   (thd->stmt_arena->is_stmt_prepare() ?
-                    MYSQL_OPEN_FORCE_SHARED_MDL : 0))) ||
-      mysql_handle_derived(lex, &mysql_derived_prepare))
+  if (original_multiupdate &&
+      open_normal_and_derived_tables(thd, table_list,
+                                     (thd->stmt_arena->is_stmt_prepare() ?
+                                      MYSQL_OPEN_FORCE_SHARED_MDL : 0)))
     DBUG_RETURN(TRUE);
   /*
     setup_tables() need for VIEWs. JOIN::prepare() will call setup_tables()
@@ -1331,12 +1329,16 @@ int mysql_multi_update_prepare(THD *thd)
                                 *fields, MARK_COLUMNS_WRITE, 0, 0))
     DBUG_RETURN(TRUE);
 
+  /*
+   Setting tl->updating= false for view as it is correctly set
+   for tables below
+  */
   for (tl= table_list; tl ; tl= tl->next_local)
   {
     if (tl->view)
     {
       update_view= 1;
-      break;
+      tl->updating= false;
     }
   }
 
@@ -1386,8 +1388,11 @@ int mysql_multi_update_prepare(THD *thd)
         another table instance used by this statement which is going to
         be write-locked (for example, trigger to be invoked might try
         to update this table).
+        Last argument routine_modifies_data for read_lock_type_for_table()
+        is ignored, as prelocking placeholder will never be set here.
       */
-      tl->lock_type= read_lock_type_for_table(thd, lex, tl);
+      DBUG_ASSERT(tl->prelocking_placeholder == false);
+      tl->lock_type= read_lock_type_for_table(thd, lex, tl, true);
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)
@@ -1422,12 +1427,6 @@ int mysql_multi_update_prepare(THD *thd)
     }
   }
 
-  /* now lock and fill tables */
-  if (!thd->stmt_arena->is_stmt_prepare() &&
-      lock_tables(thd, table_list, table_count, 0))
-  {
-    DBUG_RETURN(TRUE);
-  }
   /* @todo: downgrade the metadata locks here. */
 
   /*
@@ -1495,8 +1494,8 @@ bool mysql_multi_update(THD *thd,
     res= mysql_select(thd,
                       table_list, select_lex->with_wild,
                       total_list,
-                      conds, 0, (ORDER *) NULL, (ORDER *)NULL, (Item *) NULL,
-                      (ORDER *)NULL,
+                      conds, (SQL_I_List<ORDER> *) NULL,
+                      (SQL_I_List<ORDER> *)NULL, (Item *) NULL,
                       options | SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                       OPTION_SETUP_TABLES_DONE,
                       *result, unit, select_lex);
@@ -1704,6 +1703,9 @@ int multi_update::prepare(List<Item> &not_used_values,
         */
         bitmap_union(table->read_set, table->write_set);
       }
+      /* All needed columns must be marked before prune_partitions(). */
+      if (table->triggers)
+        table->triggers->mark_fields_used(TRG_EVENT_UPDATE);
     }
   }
 
@@ -2057,7 +2059,6 @@ bool multi_update::send_data(List<Item> &not_used_values)
             if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
               flags|= ME_FATALERROR; /* Other handler errors are fatal */
 
-            prepare_record_for_error_message(error, table);
             table->file->print_error(error,MYF(flags));
             DBUG_RETURN(1);
           }
@@ -2113,7 +2114,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       /* Store regular updated fields in the row. */
       fill_record(thd,
                   tmp_table->field + 1 + unupdated_check_opt_tables.elements,
-                  *values_for_table[offset], 1);
+                  *values_for_table[offset], 1, NULL);
 
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->ha_write_row(tmp_table->record[0]);
@@ -2338,7 +2339,6 @@ int multi_update::do_updates()
 
 err:
   {
-    prepare_record_for_error_message(local_error, table);
     table->file->print_error(local_error,MYF(ME_FATALERROR));
   }
 

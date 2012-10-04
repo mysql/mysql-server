@@ -245,8 +245,8 @@ public:
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     int ret= 0;
-    global_sid_lock.assert_some_lock();
-    DBUG_ASSERT(sidno <= global_sid_map.get_max_sidno());
+    global_sid_lock->assert_some_lock();
+    DBUG_ASSERT(sidno <= global_sid_map->get_max_sidno());
     gtid_set.ensure_sidno(sidno);
     if (gtid_set._add_gtid(sidno, gno) != RETURN_STATUS_OK)
       ret= 1;
@@ -408,7 +408,7 @@ public:
   }
 
   int inc_group_relay_log_pos(ulonglong log_pos,
-                              bool skip_lock);
+                              bool need_data_lock);
 
   int wait_for_pos(THD* thd, String* log_name, longlong log_pos, 
 		   longlong timeout);
@@ -573,7 +573,7 @@ public:
   /*
     MTS statistics: 
   */
-  ulong mts_events_assigned; // number of events (statements) scheduled
+  ulonglong mts_events_assigned; // number of events (statements) scheduled
   ulong mts_groups_assigned; // number of groups (transactions) scheduled
   volatile ulong mts_wq_overrun_cnt; // counter of all mts_wq_excess_cnt increments
   ulong wq_size_waits_cnt;    // number of times C slept due to WQ:s oversize
@@ -590,6 +590,7 @@ public:
      a new partition. Is updated at checkpoint commit to the main RLI.
   */
   DYNAMIC_ARRAY least_occupied_workers;
+  time_t mts_last_online_stat;
   /* end of MTS statistics */
 
   /* most of allocation in the coordinator rli is there */
@@ -737,7 +738,7 @@ public:
 
   int count_relay_log_space();
 
-  int init_info();
+  int rli_init_info();
   void end_info();
   int flush_info(bool force= FALSE);
   int flush_current_log();
@@ -804,7 +805,7 @@ public:
   }
 #endif
 
-  size_t get_number_info_rli_fields();
+  static size_t get_number_info_rli_fields();
 
   /**
     Indicate that a delay starts.
@@ -838,6 +839,7 @@ public:
                  PSI_mutex_key *param_key_info_stop_cond,
                  PSI_mutex_key *param_key_info_sleep_cond
 #endif
+                 , uint param_id
                 );
   virtual ~Relay_log_info();
 
@@ -881,7 +883,32 @@ public:
     return long_find_row_note_printed;
   }
 
+public:
+  /**
+    Delete the existing event and set a new one.  This class is
+    responsible for freeing the event, the caller should not do that.
+  */
+  virtual void set_rli_description_event(Format_description_log_event *fdle);
+
+  /**
+    Return the current Format_description_log_event.
+  */
+  Format_description_log_event *get_rli_description_event() const
+  {
+    return rli_description_event;
+  }
+
+  /**
+    adaptation for the slave applier to specific master versions.
+  */
+  void adapt_to_master_version(Format_description_log_event *fdle);
+  uchar slave_version_split[3]; // bytes of the slave server version
+
+protected:
+  Format_description_log_event *rli_description_event;
+
 private:
+
   /**
     Delay slave SQL thread by this amount, compared to master (in
     seconds). This is set with CHANGE MASTER TO MASTER_DELAY=X.
@@ -906,6 +933,7 @@ private:
   time_t sql_delay_end;
 
   uint32 m_flags;
+
   /*
     Before the MASTER_DELAY parameter was added (WL#344), relay_log.info
     had 4 lines. Now it has 5 lines.
@@ -916,6 +944,12 @@ private:
     Before the WL#5599, relay_log.info had 5 lines. Now it has 6 lines.
   */
   static const int LINES_IN_RELAY_LOG_INFO_WITH_WORKERS= 6;
+
+  /*
+    Before the Id was added (BUG#2334346), relay_log.info
+    had 6 lines. Now it has 7 lines.
+  */
+  static const int LINES_IN_RELAY_LOG_INFO_WITH_ID= 7;
 
   bool read_info(Rpl_info_handler *from);
   bool write_info(Rpl_info_handler *to);

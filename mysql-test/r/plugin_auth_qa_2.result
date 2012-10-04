@@ -7,7 +7,7 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_1_dest identified by 'dest_pas
 GRANT PROXY ON qa_test_1_dest TO qa_test_1_user;
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-qa_test_1_dest		NULL
+qa_test_1_dest	mysql_native_password	
 qa_test_1_user	qa_auth_interface	qa_test_1_dest
 SELECT @@proxy_user;
 @@proxy_user
@@ -21,7 +21,7 @@ current_user()	user()	@@local.proxy_user	@@local.external_user
 qa_test_1_user@%	qa_test_1_user@localhost	NULL	NULL
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-qa_test_1_dest		NULL
+qa_test_1_dest	mysql_native_password	
 qa_test_1_user	qa_auth_interface	qa_test_1_dest
 DROP USER qa_test_1_user;
 DROP USER qa_test_1_dest;
@@ -34,8 +34,8 @@ GRANT PROXY ON qa_test_2_dest TO qa_test_2_user;
 GRANT PROXY ON authenticated_as TO qa_test_2_user;
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-authenticated_as		NULL
-qa_test_2_dest		NULL
+authenticated_as	mysql_native_password	
+qa_test_2_dest	mysql_native_password	
 qa_test_2_user	qa_auth_interface	qa_test_2_dest
 SELECT @@proxy_user;
 @@proxy_user
@@ -49,8 +49,8 @@ current_user()	user()	@@local.proxy_user	@@local.external_user
 authenticated_as@%	user_name@localhost	'qa_test_2_user'@'%'	'qa_test_2_user'@'%'
 SELECT user,plugin,authentication_string FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string
-authenticated_as		NULL
-qa_test_2_dest		NULL
+authenticated_as	mysql_native_password	
+qa_test_2_dest	mysql_native_password	
 qa_test_2_user	qa_auth_interface	qa_test_2_dest
 DROP USER qa_test_2_user;
 DROP USER qa_test_2_dest;
@@ -87,8 +87,8 @@ GRANT PROXY ON qa_test_5_dest TO qa_test_5_user;
 GRANT PROXY ON qa_test_5_dest TO ''@'localhost';
 SELECT user,plugin,authentication_string,password FROM mysql.user WHERE user != 'root';
 user	plugin	authentication_string	password
-		NULL	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
-qa_test_5_dest		NULL	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
+	mysql_native_password		*DFCACE76914AD7BD801FC1A1ECF6562272621A22
+qa_test_5_dest	mysql_native_password		*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_5_user	qa_auth_interface	qa_test_5_dest	
 exec MYSQL PLUGIN_AUTH_OPT -h localhost -P MASTER_MYPORT --user=qa_test_5_user  --password=qa_test_5_dest test_user_db -e "SELECT current_user(),user(),@@local.proxy_user,@@local.external_user;" 2>&1
 Warning: Using a password on the command line interface can be insecure.
@@ -103,7 +103,7 @@ GRANT ALL PRIVILEGES ON test_user_db.* TO qa_test_6_dest identified by 'dest_pas
 GRANT PROXY ON qa_test_6_dest TO qa_test_6_user;
 SELECT user,plugin,authentication_string,password FROM mysql.user;
 user	plugin	authentication_string	password
-qa_test_6_dest		NULL	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
+qa_test_6_dest	mysql_native_password		*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_6_user	qa_auth_interface	qa_test_6_dest	
 root			
 root			
@@ -115,7 +115,7 @@ ERROR 1045 (28000): Access denied for user 'qa_test_6_user'@'localhost' (using p
 GRANT PROXY ON qa_test_6_dest TO root IDENTIFIED WITH qa_auth_interface AS 'qa_test_6_dest';
 SELECT user,plugin,authentication_string,password FROM mysql.user;
 user	plugin	authentication_string	password
-qa_test_6_dest		NULL	*DFCACE76914AD7BD801FC1A1ECF6562272621A22
+qa_test_6_dest	mysql_native_password		*DFCACE76914AD7BD801FC1A1ECF6562272621A22
 qa_test_6_user	qa_auth_interface	qa_test_6_dest	
 root			
 root			
@@ -128,7 +128,7 @@ ERROR 1045 (28000): Access denied for user 'root'@'localhost' (using password: Y
 REVOKE PROXY ON qa_test_6_dest FROM root;
 SELECT user,plugin,authentication_string FROM mysql.user;
 user	plugin	authentication_string
-qa_test_6_dest		NULL
+qa_test_6_dest	mysql_native_password	
 qa_test_6_user	qa_auth_interface	qa_test_6_dest
 root		
 root		

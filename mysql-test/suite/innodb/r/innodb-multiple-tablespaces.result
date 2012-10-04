@@ -1,0 +1,573 @@
+SET default_storage_engine=InnoDB;
+#
+# Test when tablespaces can be found at multiple places
+# SYS_DATAFILES will refer to the file at alt_dir.
+# Link File will refer to the file at new_dir.
+#  Tablename   Default   SYS_DATAFILES    Link_File
+#      yyy       Yes          Yes            Yes
+#      nyy       No           Yes            Yes
+#      yny       Yes          No             Yes
+#      yyn       Yes          Yes            No
+#      nyw       No           Yes            WrongFile
+#      nwy       No           WrongFile      Yes
+#      wny       WrongFile    No             Yes
+#      ynw       Yes          No             WrongFile
+#      wyn       WrongFile    Yes            No
+#      ywn       Yes          WrongFile      No
+#      nnn       No           No             No
+#      www       WrongFile    WrongFile      WrongFile
+#   nolink       No           Yes, No ISL    No
+#
+set global innodb_file_per_table=on;
+set global innodb_file_format='Barracuda';
+CREATE TABLE yyy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO yyy VALUES (1, 'yyy');
+CREATE TABLE nyy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO nyy VALUES (1, 'nyy');
+CREATE TABLE yny (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO yny VALUES (1, 'yny');
+CREATE TABLE yyn (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO yyn VALUES (1, 'yyn');
+CREATE TABLE nyw (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO nyw VALUES (1, 'nyw');
+CREATE TABLE nwy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO nwy VALUES (1, 'nwy');
+CREATE TABLE wny (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO wny VALUES (1, 'wny');
+CREATE TABLE ynw (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO ynw VALUES (1, 'ynw');
+CREATE TABLE wyn (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO wyn VALUES (1, 'wyn');
+CREATE TABLE ywn (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO ywn VALUES (1, 'ywn');
+CREATE TABLE nnn (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO nnn VALUES (1, 'nnn');
+CREATE TABLE www (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO www VALUES (1, 'www');
+CREATE TABLE nolink (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO nolink VALUES (1, 'no link file');
+#
+# Shutdown the server, copy and remove files.
+#
+---- MYSQLD_DATADIR/test
+nnn.frm
+nnn.isl
+nolink.frm
+nolink.isl
+nwy.frm
+nwy.isl
+nyw.frm
+nyw.isl
+nyy.frm
+nyy.isl
+wny.frm
+wny.isl
+www.frm
+www.isl
+wyn.frm
+wyn.isl
+ynw.frm
+ynw.isl
+yny.frm
+yny.isl
+ywn.frm
+ywn.isl
+yyn.frm
+yyn.isl
+yyy.frm
+yyy.isl
+---- MYSQL_TMP_DIR/alt_dir/test
+nnn.ibd
+nolink.ibd
+nwy.ibd
+nyw.ibd
+nyy.ibd
+wny.ibd
+www.ibd
+wyn.ibd
+ynw.ibd
+yny.ibd
+ywn.ibd
+yyn.ibd
+yyy.ibd
+---- MYSQL_TMP_DIR/new_dir/test
+# YYY; Tablespace found in 3 places
+# NYY; Tablespace found in alt_dir and new_dir
+# YNY; Tablespace found in default and new_dir
+# YYN; Tablespace found in default and alt_dir
+# NYW; Copy the wrong file to new_dir
+# NWY; Copy the wrong file to alt_dir, good one to new_dir.
+# WNY; Copy the wrong file to default, good one to new_dir, delete it form alt_dir
+# YNW; Copy the file to default, wrong one to new_dir, delete it form alt_dir
+# WYN; Copy the wrong file to default
+# YWN; Copy the file to default, wrong one to alt_dir
+# NNN; Delete the tablespace and ISL
+# WWW; Put the wrong file in all three locations
+# NOLINK; Delete the ISL file Since remote location is still in SYS_DATAFILES,
+# it should still be found. And the ISL file should be re-created.
+# Make a backup of this tablespace to use later.
+---- MYSQLD_DATADIR/test
+nnn.frm
+nolink.frm
+nwy.frm
+nwy.isl
+nyw.frm
+nyw.isl
+nyy.frm
+nyy.isl
+wny.frm
+wny.ibd
+wny.isl
+www.frm
+www.ibd
+www.isl
+wyn.frm
+wyn.ibd
+wyn.isl
+ynw.frm
+ynw.ibd
+ynw.isl
+yny.frm
+yny.ibd
+yny.isl
+ywn.frm
+ywn.ibd
+ywn.isl
+yyn.frm
+yyn.ibd
+yyn.isl
+yyy.frm
+yyy.ibd
+yyy.isl
+---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd
+nolink.ibd.bak
+nwy.ibd
+nyw.ibd
+nyy.ibd
+www.ibd
+wyn.ibd
+ywn.ibd
+yyn.ibd
+yyy.ibd
+---- MYSQL_TMP_DIR/new_dir/test
+nwy.ibd
+nyw.ibd
+nyy.ibd
+wny.ibd
+www.ibd
+ynw.ibd
+yny.ibd
+yyy.ibd
+#
+# Start the server and show the tablespaces.
+#
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
+path
+MYSQL_TMP_DIR/alt_dir/test/yyy.ibd
+MYSQL_TMP_DIR/alt_dir/test/nyy.ibd
+MYSQL_TMP_DIR/alt_dir/test/yny.ibd
+MYSQL_TMP_DIR/alt_dir/test/yyn.ibd
+MYSQL_TMP_DIR/alt_dir/test/nyw.ibd
+MYSQL_TMP_DIR/new_dir/test/nwy.ibd
+MYSQL_TMP_DIR/new_dir/test/wny.ibd
+MYSQLD_DATADIR/test/ynw.ibd
+MYSQL_TMP_DIR/alt_dir/test/wyn.ibd
+MYSQLD_DATADIR/test/ywn.ibd
+MYSQL_TMP_DIR/alt_dir/test/nnn.ibd
+MYSQL_TMP_DIR/alt_dir/test/www.ibd
+MYSQL_TMP_DIR/alt_dir/test/nolink.ibd
+SELECT * FROM yyy;
+ERROR 42S02: Table 'test.yyy' doesn't exist
+SELECT * FROM nyy;
+ERROR 42S02: Table 'test.nyy' doesn't exist
+SELECT * FROM yny;
+ERROR 42S02: Table 'test.yny' doesn't exist
+SELECT * FROM yyn;
+ERROR 42S02: Table 'test.yyn' doesn't exist
+SELECT * FROM nyw;
+c1	c2
+1	nyw
+SELECT * FROM nwy;
+c1	c2
+1	nwy
+SELECT * FROM wny;
+c1	c2
+1	wny
+SELECT * FROM ynw;
+c1	c2
+1	ynw
+SELECT * FROM wyn;
+c1	c2
+1	wyn
+SELECT * FROM ywn;
+c1	c2
+1	ywn
+SELECT * FROM nnn;
+ERROR 42S02: Table 'test.nnn' doesn't exist
+SELECT * FROM www;
+ERROR 42S02: Table 'test.www' doesn't exist
+SELECT * FROM nolink;
+c1	c2
+1	no link file
+SHOW CREATE TABLE yyy;
+ERROR 42S02: Table 'test.yyy' doesn't exist
+SHOW CREATE TABLE nyy;
+ERROR 42S02: Table 'test.nyy' doesn't exist
+SHOW CREATE TABLE yny;
+ERROR 42S02: Table 'test.yny' doesn't exist
+SHOW CREATE TABLE yyn;
+ERROR 42S02: Table 'test.yyn' doesn't exist
+SHOW CREATE TABLE nyw;
+Table	Create Table
+nyw	CREATE TABLE `nyw` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+SHOW CREATE TABLE nwy;
+Table	Create Table
+nwy	CREATE TABLE `nwy` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/new_dir/'
+SHOW CREATE TABLE wny;
+Table	Create Table
+wny	CREATE TABLE `wny` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/new_dir/'
+SHOW CREATE TABLE ynw;
+Table	Create Table
+ynw	CREATE TABLE `ynw` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE wyn;
+Table	Create Table
+wyn	CREATE TABLE `wyn` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+SHOW CREATE TABLE ywn;
+Table	Create Table
+ywn	CREATE TABLE `ywn` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE nnn;
+ERROR 42S02: Table 'test.nnn' doesn't exist
+SHOW CREATE TABLE www;
+ERROR 42S02: Table 'test.www' doesn't exist
+SHOW CREATE TABLE nolink;
+Table	Create Table
+nolink	CREATE TABLE `nolink` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+#
+# List of files before DROP TABLES
+#
+---- MYSQLD_DATADIR/test
+nnn.frm
+nolink.frm
+nolink.isl
+nwy.frm
+nwy.isl
+nyw.frm
+nyw.isl
+nyy.frm
+nyy.isl
+wny.frm
+wny.ibd
+wny.isl
+www.frm
+www.ibd
+www.isl
+wyn.frm
+wyn.ibd
+wyn.isl
+ynw.frm
+ynw.ibd
+yny.frm
+yny.ibd
+yny.isl
+ywn.frm
+ywn.ibd
+ywn.isl
+yyn.frm
+yyn.ibd
+yyn.isl
+yyy.frm
+yyy.ibd
+yyy.isl
+---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd
+nolink.ibd.bak
+nwy.ibd
+nyw.ibd
+nyy.ibd
+www.ibd
+wyn.ibd
+ywn.ibd
+yyn.ibd
+yyy.ibd
+---- MYSQL_TMP_DIR/new_dir/test
+nwy.ibd
+nyw.ibd
+nyy.ibd
+wny.ibd
+www.ibd
+ynw.ibd
+yny.ibd
+yyy.ibd
+#
+# Cleanup after restart
+#
+DROP TABLE yyy;
+DROP TABLE nyy;
+DROP TABLE yny;
+DROP TABLE yyn;
+DROP TABLE nyw;
+DROP TABLE nwy;
+DROP TABLE wny;
+DROP TABLE ynw;
+DROP TABLE wyn;
+DROP TABLE ywn;
+DROP TABLE nnn;
+DROP TABLE www;
+DROP TABLE nolink;
+#
+# List of files not deleted by the DROP TABLES
+#
+---- MYSQLD_DATADIR/test
+wny.ibd
+www.ibd
+wyn.ibd
+yny.ibd
+yyn.ibd
+yyy.ibd
+---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd.bak
+nwy.ibd
+nyy.ibd
+www.ibd
+ywn.ibd
+yyn.ibd
+yyy.ibd
+---- MYSQL_TMP_DIR/new_dir/test
+nyw.ibd
+nyy.ibd
+www.ibd
+ynw.ibd
+yny.ibd
+yyy.ibd
+#
+# List of files after removing leftover files
+#
+---- MYSQLD_DATADIR/test
+---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd.bak
+---- MYSQL_TMP_DIR/new_dir/test
+#
+# Create some tables again and this time, crash instead of shutdown
+# InnoDB recovery does not have the ability at this time to query
+# the data dictionary in order to determine if the table it is
+# openeing is the correct one, or to finde the previous location
+# of a tablespace from SYS_DATAFILES.  It must rely on the ISL file
+# to tell the truth. But it can compare the current linked location
+# with a tablespace found in the default location and use the most
+# recent.
+#
+# Test recovery when tablespaces can be found at multiple places.
+# SYS_DATAFILES is unavailable during recovery.
+# Link File will refer to the file at alt_dir.
+# In each case except the control tablespace, the Link file will
+# exist with a file name in alt_dir.  'fnolink.ibd.bak' is the
+# source of the 'wrong' tablespaces.
+#
+# Tablename   Default_Tablespace  Remote_Tablespace
+#    ny              Yes                 Yes
+#    wy              Wrong               Yes
+#    yn              Yes                 No
+#    yw              Yes                 Wrong
+#    yy              Yes                 Yes  (both the same file)
+#
+set global innodb_file_per_table=on;
+set global innodb_file_format='Barracuda';
+CREATE TABLE ny (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO ny VALUES (1, 'ny');
+CREATE TABLE wy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO wy VALUES (1, 'wy');
+CREATE TABLE yn (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO yn VALUES (1, 'yn');
+CREATE TABLE yw (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO yw VALUES (1, 'yw');
+CREATE TABLE yy (c1 INT KEY, c2 TEXT) ENGINE=InnoDB  DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
+INSERT INTO yy VALUES (1, 'yy');
+#
+# Crash the server, copy and remove files.
+#
+BEGIN;
+INSERT INTO ny VALUES (2, 'ny');
+INSERT INTO wy VALUES (2, 'wy');
+INSERT INTO yn VALUES (2, 'yn');
+INSERT INTO yw VALUES (2, 'yw');
+INSERT INTO yy VALUES (2, 'yy');
+SELECT * FROM ny;
+c1	c2
+1	ny
+2	ny
+SELECT * FROM wy;
+c1	c2
+1	wy
+2	wy
+SELECT * FROM yn;
+c1	c2
+1	yn
+2	yn
+SELECT * FROM yw;
+c1	c2
+1	yw
+2	yw
+SELECT * FROM yy;
+c1	c2
+1	yy
+2	yy
+SET SESSION debug="+d,crash_commit_before";
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+#
+# Now that the engine is not running, move files around to test various scenarios.
+#
+# NY; Tablespace found in alt_dir but not the default directory.
+# WY; The wrong tablespace is found in the default directory
+#     and the correct one in alt_dir.
+# YW; Tablespace is found in the default directory but the wrong file in alt_dir.
+# YN; Tablespace found the default directory but not in alt_dir.
+# YY; Found in both default directory and alt-dir.
+---- MYSQLD_DATADIR/test
+ny.frm
+ny.isl
+wy.frm
+wy.ibd
+wy.isl
+yn.frm
+yn.ibd
+yn.isl
+yw.frm
+yw.ibd
+yw.isl
+yy.frm
+yy.ibd
+yy.isl
+---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd.bak
+ny.ibd
+wy.ibd
+yw.ibd
+yy.ibd
+#
+# Start the server with innodb-force-recovery=1 so that it does not quit
+# when it finds multiple possible locations for yy, wy and yw.
+#
+SELECT * FROM ny;
+c1	c2
+1	ny
+SELECT * FROM wy;
+ERROR 42S02: Table 'test.wy' doesn't exist
+SELECT * FROM yn;
+c1	c2
+1	yn
+SELECT * FROM yw;
+ERROR 42S02: Table 'test.yw' doesn't exist
+SELECT * FROM yy;
+ERROR 42S02: Table 'test.yy' doesn't exist
+SHOW CREATE TABLE ny;
+Table	Create Table
+ny	CREATE TABLE `ny` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+SHOW CREATE TABLE wy;
+ERROR 42S02: Table 'test.wy' doesn't exist
+SHOW CREATE TABLE yn;
+Table	Create Table
+yn	CREATE TABLE `yn` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+SHOW CREATE TABLE yw;
+ERROR 42S02: Table 'test.yw' doesn't exist
+SHOW CREATE TABLE yy;
+ERROR 42S02: Table 'test.yy' doesn't exist
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
+path
+MYSQL_TMP_DIR/alt_dir/test/ny.ibd
+MYSQL_TMP_DIR/alt_dir/test/wy.ibd
+MYSQL_TMP_DIR/alt_dir/test/yn.ibd
+MYSQL_TMP_DIR/alt_dir/test/yw.ibd
+MYSQL_TMP_DIR/alt_dir/test/yy.ibd
+#
+# Shutdown the server and remove extra tablespace files.
+#
+#
+# List of files before removing unused files
+#
+---- MYSQLD_DATADIR/test
+ny.frm
+ny.isl
+wy.frm
+wy.ibd
+wy.isl
+yn.frm
+yn.ibd
+yn.isl
+yw.frm
+yw.ibd
+yw.isl
+yy.frm
+yy.ibd
+yy.isl
+---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd.bak
+ny.ibd
+wy.ibd
+yw.ibd
+yy.ibd
+#
+# List of files before restart and DROP TABLES
+#
+---- MYSQLD_DATADIR/test
+ny.frm
+wy.frm
+yn.frm
+yw.frm
+yy.frm
+---- MYSQL_TMP_DIR/alt_dir/test
+#
+# Start the server without using force_recover.
+#
+DROP TABLE ny;
+DROP TABLE wy;
+DROP TABLE yn;
+DROP TABLE yw;
+DROP TABLE yy;
+#
+# List of files after DROP TABLES
+#
+---- MYSQLD_DATADIR/test
+---- MYSQL_TMP_DIR/alt_dir/test
+#
+# Cleanup
+#

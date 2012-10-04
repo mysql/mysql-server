@@ -123,6 +123,8 @@ public:
   }
   void set(Derivation derivation_arg)
   { derivation= derivation_arg; }
+  void set_repertoire(uint repertoire_arg)
+  { repertoire= repertoire_arg; }
   bool aggregate(DTCollation &dt, uint flags= 0);
   bool set(DTCollation &dt1, DTCollation &dt2, uint flags= 0)
   { set(dt1); return aggregate(dt2, flags); }
@@ -723,7 +725,21 @@ public:
                                            of its arguments is or contains a
                                            subselect. Computed by fix_fields
                                            and updated by update_used_tables. */
+  my_bool with_stored_program;          /* If this item is a stored program
+                                           or some of its arguments is or
+                                           contains a stored program.
+                                           Computed by fix_fields and updated
+                                           by update_used_tables. */
 
+  /**
+    This variable is a cache of 'Needed tables are locked'. True if either
+    'No tables locks is needed' or 'Needed tables are locked'.
+    If tables are used, then it will be set to
+    current_thd->lex->is_query_tables_locked().
+
+    It is used when checking const_item()/can_be_evaluated_now().
+  */
+  bool tables_locked_cache;
  public:
   // alloc & destruct is done as start of select using sql_alloc
   Item();
@@ -1209,7 +1225,12 @@ public:
     When the default implementation of used_tables() is effective, this
     function will always return true (because used_tables() is empty).
   */
-  virtual bool const_item() const { return used_tables() == 0; }
+  virtual bool const_item() const
+  {
+    if (used_tables() == 0)
+      return can_be_evaluated_now();
+    return false;
+  }
   /* 
     Returns true if this is constant but its value may be not known yet.
     (Can be used for parameters of prep. stmts or of stored procedures.)
@@ -1384,6 +1405,7 @@ public:
   virtual bool reset_query_id_processor(uchar *query_id_arg) { return 0; }
   virtual bool find_item_processor(uchar *arg) { return this == (void *) arg; }
   virtual bool register_field_in_read_map(uchar *arg) { return 0; }
+  virtual bool inform_item_in_cond_of_tab(uchar *join_tab_index) { return false; }
 
   virtual bool cache_const_expr_analyzer(uchar **arg);
   virtual Item* cache_const_expr_transformer(uchar *arg);
@@ -1407,8 +1429,12 @@ public:
      @return argument if this is an Item_field
      @return this otherwise.
   */
-  virtual Item* item_field_by_name_transformer(uchar *arg) { return this; };
-  
+  virtual Item* item_field_by_name_transformer(uchar *arg) { return this; }
+
+  virtual bool equality_substitution_analyzer(uchar **arg) { return false; }
+
+  virtual Item* equality_substitution_transformer(uchar *arg) { return this; }
+
   /*
     Check if a partition function is allowed
     SYNOPSIS
@@ -1524,7 +1550,7 @@ public:
   virtual void bring_value() {}
 
   Field *tmp_table_field_from_field_type(TABLE *table, bool fixed_length);
-  virtual Item_field *filed_for_view_update() { return 0; }
+  virtual Item_field *field_for_view_update() { return 0; }
 
   virtual Item *neg_transformer(THD *thd) { return NULL; }
   virtual Item *update_value_transformer(uchar *select_arg) { return this; }
@@ -1598,11 +1624,6 @@ public:
       cost Item::execution_cost(),
     where 'cost' is either 'double' or some structure of various cost
     parameters.
-
-    NOTE
-      This function is now used to prevent evaluation of materialized IN
-      subquery predicates before it is allowed. grep for 
-      DontEvaluateMaterializedSubqueryTooEarly to see the uses.
   */
   virtual bool is_expensive()
   {
@@ -1610,6 +1631,7 @@ public:
       is_expensive_cache= walk(&Item::is_expensive_processor, 0, (uchar*)0);
     return test(is_expensive_cache);
   }
+  virtual bool can_be_evaluated_now() const;
   uint32 max_char_length() const
   { return max_length / collation.collation->mbmaxlen; }
   void fix_length_and_charset(uint32 max_char_length_arg,
@@ -1669,6 +1691,9 @@ public:
     Checks if this item or any of its decendents contains a subquery.
   */
   virtual bool has_subquery() const { return with_subselect; }
+  virtual bool has_stored_program() const { return with_stored_program; }
+  /// Whether this Item was created by the IN->EXISTS subquery transformation
+  virtual bool created_by_in2exists() const { return false; }
 };
 
 
@@ -2196,7 +2221,7 @@ public:
   bool set_no_const_sub(uchar *arg);
   Item *replace_equal_field(uchar *arg);
   inline uint32 max_disp_length() { return field->max_display_length(); }
-  Item_field *filed_for_view_update() { return this; }
+  Item_field *field_for_view_update() { return this; }
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   int fix_outer_field(THD *thd, Field **field, Item **reference);
   virtual Item *update_value_transformer(uchar *select_arg);
@@ -2207,7 +2232,7 @@ public:
   {
     DBUG_ASSERT(fixed);
     return field->table->pos_in_table_list->outer_join ||
-           field->table->pos_in_table_list->in_outer_join_nest();
+           field->table->pos_in_table_list->outer_join_nest();
   }
   Field::geometry_type get_geometry_type() const
   {
@@ -2304,17 +2329,34 @@ public:
   bool check_partition_func_processor(uchar *int_arg) {return FALSE;}
 };
 
+/**
+  An item representing NULL values for use with ROLLUP.
+
+  When grouping WITH ROLLUP, Item_null_result items are created to
+  represent NULL values in the grouping columns of the ROLLUP rows. To
+  avoid type problems during execution, these objects are created with
+  the same field and result types as the fields of the columns they
+  belong to.
+ */
 class Item_null_result :public Item_null
 {
+  /** Field type for this NULL value */
+  enum_field_types fld_type;
+  /** Result type for this NULL value */
+  Item_result res_type;
+
 public:
   Field *result_field;
-  Item_null_result() : Item_null(), result_field(0) {}
+  Item_null_result(enum_field_types fld_type, Item_result res_type)
+    : Item_null(), fld_type(fld_type), res_type(res_type), result_field(0) {}
   bool is_result_field() { return result_field != 0; }
   void save_in_result_field(bool no_conversions)
   {
     save_in_field(result_field, no_conversions);
   }
   bool check_partition_func_processor(uchar *int_arg) {return TRUE;}
+  enum_field_types field_type() const { return fld_type; }
+  Item_result result_type() const { return res_type; }
 };  
 
 /* Item represents one placeholder ('?') of prepared statement */
@@ -3172,8 +3214,8 @@ public:
   }
   virtual void print(String *str, enum_query_type query_type);
   void cleanup();
-  Item_field *filed_for_view_update()
-    { return (*ref)->filed_for_view_update(); }
+  Item_field *field_for_view_update()
+    { return (*ref)->field_for_view_update(); }
   virtual Ref_Type ref_type() { return REF; }
 
   // Row emulation: forwarding of ROW-related calls to ref
@@ -3223,6 +3265,20 @@ public:
   { 
     DBUG_ASSERT(ref);
     return (*ref)->has_subquery();
+  }
+
+  /**
+    Checks if the item tree that ref points to contains a stored program.
+  */
+  virtual bool has_stored_program() const 
+  { 
+    DBUG_ASSERT(ref);
+    return (*ref)->has_stored_program();
+  }
+
+  virtual bool created_by_in2exists() const
+  {
+    return (*ref)->created_by_in2exists();
   }
 };
 
@@ -3305,6 +3361,7 @@ public:
   resolved is a grouping one. After it has been fixed the ref field will point
   to either an Item_ref or an Item_direct_ref object which will be used to
   access the field.
+  The ref field may also point to an Item_field instance.
   See also comments for the fix_inner_refs() and the
   Item_field::fix_outer_field() functions.
 */
@@ -3624,6 +3681,11 @@ public:
   bool const_item() const { return 0; }
   bool is_null() { return null_value; }
 
+  virtual void no_rows_in_result()
+  {
+    item->no_rows_in_result();
+  }
+
   /*  
     Override the methods below as pure virtual to make sure all the 
     sub-classes implement them.
@@ -3873,6 +3935,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   type_conversion_status save_in_field(Field *field_arg, bool no_conversions);
   table_map used_tables() const { return (table_map)0L; }
+  Item *get_tmp_table_item(THD *thd) { return copy_or_same(thd); }
 
   bool walk(Item_processor processor, bool walk_subquery, uchar *args)
   {

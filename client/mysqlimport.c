@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@
 #define IMPORT_VERSION "3.7"
 
 #include "client_priv.h"
+#include "my_default.h"
 #include "mysql_version.h"
 #ifdef HAVE_LIBPTHREAD
 #include <my_pthread.h>
@@ -37,8 +38,6 @@ uint counter;
 pthread_mutex_t counter_mutex;
 pthread_cond_t count_threshhold;
 #endif
-
-#include <welcome_copyright_notice.h>   /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 static void db_error_with_table(MYSQL *mysql, char *table);
 static void db_error(MYSQL *mysql);
@@ -203,7 +202,7 @@ static void print_version(void)
 static void usage(void)
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2012"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("\
 Loads tables from text files in various formats.  The base name of the\n\
 text file must be the name of the table that should be used.\n\
@@ -453,6 +452,9 @@ static MYSQL *db_connect(char *host, char *database,
     mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
 
   mysql_options(mysql, MYSQL_SET_CHARSET_NAME, default_charset);
+  mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
+                 "program_name", "mysqlimport");
   if (!(mysql_real_connect(mysql,host,user,passwd,
                            database,opt_mysql_port,opt_mysql_unix_port,
                            0)))

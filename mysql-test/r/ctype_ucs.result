@@ -191,6 +191,32 @@ t1	CREATE TABLE `t1` (
   `r` varchar(10) CHARACTER SET ucs2 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 DROP TABLE t1;
+#
+# Bug #51876 : crash/memory underrun when loading data with ucs2 
+#   and reverse() function
+#
+# Problem # 1 (original report): wrong parsing of ucs2 data
+SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp.txt';
+CREATE TABLE t1(a INT);
+LOAD DATA INFILE 'tmpp.txt' INTO TABLE t1 CHARACTER SET ucs2
+(@b) SET a=REVERSE(@b);
+# should return 2 zeroes (as the value is truncated)
+SELECT * FROM t1;
+a
+0
+1
+DROP TABLE t1;
+# Problem # 2 : if you write and read ucs2 data to a file they're lost
+SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp2.txt' CHARACTER SET ucs2;
+CREATE TABLE t1(a INT);
+LOAD DATA INFILE 'tmpp2.txt' INTO TABLE t1 CHARACTER SET ucs2
+(@b) SET a=REVERSE(@b);
+# should return 0 and 1 (10 reversed)
+SELECT * FROM t1;
+a
+0
+1
+DROP TABLE t1;
 create table t2(f1 Char(30));
 insert into t2 values ("103000"), ("22720000"), ("3401200"), ("78000");
 select lpad(f1, 12, "-o-/") from t2;
@@ -1046,14 +1072,6 @@ t2	CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 ALTER TABLE t2 ADD a int NOT NULL AFTER status;
 DROP TABLE t1,t2;
-select password(name) from bug20536;
-password(name)
-*286C12C0F32248BD65B30EE65F3ECFB2AA3F7849
-*947A5674312754578F132655C74A11533B105FF6
-select old_password(name) from bug20536;
-old_password(name)
-10e155cb44e2adb5
-14e500b131773991
 select quote(name) from bug20536;
 quote(name)
 'test1'
@@ -2031,7 +2049,7 @@ create table t1 as select concat(is_used_lock('a')) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET ucs2 DEFAULT NULL
+  `c1` varchar(21) CHARACTER SET ucs2 DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 create table t1 as select concat(release_lock('a')) as c1;
@@ -2065,7 +2083,7 @@ create table t1 as select concat(connection_id()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET ucs2 NOT NULL DEFAULT ''
+  `c1` varchar(21) CHARACTER SET ucs2 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(inet_aton('127.1.1.1')));
@@ -3357,10 +3375,12 @@ hex(concat(a))	a
 00300030003000300030003000300030003000300030003000300030003000310030003000300030002E0031	00000000000000010000.1
 drop table t1;
 create table t1 (a year(2));
+Warnings:
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 insert into t1 values (1);
 select hex(concat(a)) from t1;
 hex(concat(a))
-00300031
+0032003000300031
 create table t2 as select concat(a) from t1;
 show create table t2;
 Table	Create Table
@@ -3392,7 +3412,7 @@ t2	CREATE TABLE `t2` (
   `concat(a)` varbinary(64) DEFAULT NULL
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1, t2;
-create table t1 (a timestamp);
+create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values (0);
 insert into t1 values (20010203040506);
 insert into t1 values (19800203040506);
@@ -3670,6 +3690,8 @@ hex(a)
 drop table t1;
 drop view v1;
 create table t1 (a year(2));
+Warnings:
+Warning	1818	YEAR(2) column type is deprecated. Creating YEAR(4) column instead.
 insert into t1 values (1);
 create view v1(a) as select concat(a) from t1;
 show columns from v1;
@@ -3677,7 +3699,7 @@ Field	Type	Null	Key	Default	Extra
 a	varchar(4)	YES		NULL	
 select hex(a) from v1;
 hex(a)
-00300031
+0032003000300031
 drop table t1;
 drop view v1;
 create table t1 (a year);
@@ -3702,7 +3724,7 @@ hex(a)
 0000000000000001
 drop table t1;
 drop view v1;
-create table t1 (a timestamp);
+create table t1 (a timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP);
 insert into t1 values (0);
 insert into t1 values (20010203040506);
 insert into t1 values (19800203040506);

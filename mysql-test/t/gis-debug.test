@@ -1,0 +1,6 @@
+--source include/have_geometry.inc
+--source include/have_debug.inc
+
+SET @tmp=ST_GIS_DEBUG(1);
+
+--source include/gis_debug.inc

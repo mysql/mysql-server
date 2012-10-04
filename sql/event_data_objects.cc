@@ -1334,6 +1334,7 @@ Event_job_data::execute(THD *thd, bool drop)
 #endif
   List<Item> empty_item_list;
   bool ret= TRUE;
+  PSI_statement_locker *parent_locker= thd->m_statement_psi;
 
   DBUG_ENTER("Event_job_data::execute");
 
@@ -1408,14 +1409,17 @@ Event_job_data::execute(THD *thd, bool drop)
     if (parser_state.init(thd, thd->query(), thd->query_length()))
       goto end;
 
+    thd->m_statement_psi= NULL;
     if (parse_sql(thd, & parser_state, creation_ctx))
     {
       sql_print_error("Event Scheduler: "
                       "%serror during compilation of %s.%s",
                       thd->is_fatal_error ? "fatal " : "",
                       (const char *) dbname.str, (const char *) name.str);
+      thd->m_statement_psi= parent_locker;
       goto end;
     }
+    thd->m_statement_psi= parent_locker;
   }
 
   {

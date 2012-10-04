@@ -44,10 +44,6 @@ where name like "wait/synch/mutex/sql/LOCK_log_throttle_qni";
 count(name)
 1
 select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_status";
-count(name)
-1
-select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_error_log";
 count(name)
 1
@@ -149,6 +145,10 @@ count(name)
 1
 select count(name) from rwlock_instances
 where name like "wait/synch/rwlock/sql/LOCK_system_variables_hash";
+count(name)
+1
+select count(name) from rwlock_instances
+where name like "wait/synch/rwlock/sql/LOCK_status";
 count(name)
 1
 select count(name) from cond_instances

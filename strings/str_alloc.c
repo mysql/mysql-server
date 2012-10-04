@@ -30,5 +30,11 @@ static void my_str_free_default(void *ptr)
   free(ptr);
 }
 
+void *my_str_realloc_default(void *ptr, size_t size)
+{
+  return realloc(ptr, size);
+}
+
 void *(*my_str_malloc)(size_t)= &my_str_malloc_default;
 void (*my_str_free)(void *)= &my_str_free_default;
+void *(*my_str_realloc)(void *, size_t)= &my_str_realloc_default;

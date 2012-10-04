@@ -1,0 +1,255 @@
+flush status;
+flush tables;
+select * from performance_schema.mutex_instances;
+select * from performance_schema.rwlock_instances;
+select * from performance_schema.cond_instances;
+select * from performance_schema.file_instances;
+select count(*) from performance_schema.mutex_instances
+into @v0_mutex_instances;
+select count(*) from performance_schema.rwlock_instances
+into @v0_rwlock_instances;
+select count(*) from performance_schema.cond_instances
+into @v0_cond_instances;
+select count(*) from performance_schema.file_instances
+into @v0_file_instances;
+select count(*) from performance_schema.mutex_instances
+into @v1_mutex_instances;
+select count(*) from performance_schema.rwlock_instances
+into @v1_rwlock_instances;
+select count(*) from performance_schema.cond_instances
+into @v1_cond_instances;
+select count(*) from performance_schema.file_instances
+into @v1_file_instances;
+select count(name), name from performance_schema.mutex_instances
+group by name;
+select count(name), name from performance_schema.rwlock_instances
+group by name;
+select count(name), name from performance_schema.cond_instances
+group by name;
+select count(event_name), event_name from performance_schema.file_instances
+group by event_name;
+begin;
+create table test.t1(a int) engine = innodb;
+create table test.t2(a int) engine = innodb;
+create table test.t3(a int) engine = innodb;
+create table test.t4(a int) engine = innodb;
+create table test.t5(a int) engine = innodb;
+create table test.t6(a int) engine = innodb;
+create table test.t7(a int) engine = innodb;
+create table test.t8(a int) engine = innodb;
+create table test.t9(a int) engine = innodb;
+create table test.t10(a int) engine = innodb;
+select * from test.t1;
+select * from test.t2;
+select * from test.t3;
+select * from test.t4;
+select * from test.t5;
+select * from test.t6;
+select * from test.t7;
+select * from test.t8;
+select * from test.t9;
+select * from test.t10;
+commit;
+select count(*) from performance_schema.mutex_instances
+into @v2_mutex_instances;
+select count(*) from performance_schema.rwlock_instances
+into @v2_rwlock_instances;
+select count(*) from performance_schema.cond_instances
+into @v2_cond_instances;
+select count(*) from performance_schema.file_instances
+into @v2_file_instances;
+select count(name), name from performance_schema.mutex_instances
+group by name;
+select count(name), name from performance_schema.rwlock_instances
+group by name;
+select count(name), name from performance_schema.cond_instances
+group by name;
+select count(event_name), event_name from performance_schema.file_instances
+group by event_name;
+select @v2_mutex_instances, @v1_mutex_instances, @v0_mutex_instances;
+select @v2_rwlock_instances, @v1_rwlock_instances, @v0_rwlock_instances;
+select @v2_cond_instances, @v1_cond_instances, @v0_cond_instances;
+select @v2_file_instances, @v1_file_instances, @v0_file_instances;
+select round((@v2_mutex_instances - @v1_mutex_instances) / 10)
+into @mutex_per_share;
+select round((@v2_rwlock_instances - @v1_rwlock_instances) / 10)
+into @rwlock_per_share;
+select round((@v2_cond_instances - @v1_cond_instances) / 10)
+into @cond_per_share;
+select round((@v2_file_instances - @v1_file_instances) / 10)
+into @file_per_share;
+select "con1 connected";
+select "con2 connected";
+select "con3 connected";
+select "con4 connected";
+select "con5 connected";
+select "con6 connected";
+select "con7 connected";
+select "con8 connected";
+select "con9 connected";
+select "con10 connected";
+select count(*) from performance_schema.mutex_instances
+into @v3_mutex_instances;
+select count(*) from performance_schema.rwlock_instances
+into @v3_rwlock_instances;
+select count(*) from performance_schema.cond_instances
+into @v3_cond_instances;
+select count(*) from performance_schema.file_instances
+into @v3_file_instances;
+select count(name), name from performance_schema.mutex_instances
+group by name;
+select count(name), name from performance_schema.rwlock_instances
+group by name;
+select count(name), name from performance_schema.cond_instances
+group by name;
+select count(event_name), event_name from performance_schema.file_instances
+group by event_name;
+select @v3_mutex_instances, @v2_mutex_instances;
+select @v3_rwlock_instances, @v2_rwlock_instances;
+select @v3_cond_instances, @v2_cond_instances;
+select @v3_file_instances, @v2_file_instances;
+select round((@v3_mutex_instances - @v2_mutex_instances) / 10)
+into @mutex_per_con;
+select round((@v3_rwlock_instances - @v2_rwlock_instances) / 10)
+into @rwlock_per_con;
+select round((@v3_cond_instances - @v2_cond_instances) / 10)
+into @cond_per_con;
+select round((@v3_file_instances - @v2_file_instances) / 10)
+into @file_per_con;
+lock table test.t1 write, test.t2 write, test.t3 write, test.t4 write,
+test.t5 write, test.t6 write, test.t7 write, test.t8 write, test.t9 write,
+test.t10 write;
+select t1.*, t2.*, t3.*, t4.*, t5.*, t6.*, t7.*, t8.*, t9.*, t10.*
+from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+select t1.*, t2.*, t3.*, t4.*, t5.*, t6.*, t7.*, t8.*, t9.*, t10.*
+from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+select t1.*, t2.*, t3.*, t4.*, t5.*, t6.*, t7.*, t8.*, t9.*, t10.*
+from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+select t1.*, t2.*, t3.*, t4.*, t5.*, t6.*, t7.*, t8.*, t9.*, t10.*
+from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+select t1.*, t2.*, t3.*, t4.*, t5.*, t6.*, t7.*, t8.*, t9.*, t10.*
+from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+select t1.*, t2.*, t3.*, t4.*, t5.*, t6.*, t7.*, t8.*, t9.*, t10.*
+from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+select t1.*, t2.*, t3.*, t4.*, t5.*, t6.*, t7.*, t8.*, t9.*, t10.*
+from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+select t1.*, t2.*, t3.*, t4.*, t5.*, t6.*, t7.*, t8.*, t9.*, t10.*
+from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+select t1.*, t2.*, t3.*, t4.*, t5.*, t6.*, t7.*, t8.*, t9.*, t10.*
+from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+select t1.*, t2.*, t3.*, t4.*, t5.*, t6.*, t7.*, t8.*, t9.*, t10.*
+from t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+select count(*) from performance_schema.mutex_instances
+into @v4_mutex_instances;
+select count(*) from performance_schema.rwlock_instances
+into @v4_rwlock_instances;
+select count(*) from performance_schema.cond_instances
+into @v4_cond_instances;
+select count(*) from performance_schema.file_instances
+into @v4_file_instances;
+select count(name), name from performance_schema.mutex_instances
+group by name;
+select count(name), name from performance_schema.rwlock_instances
+group by name;
+select count(name), name from performance_schema.cond_instances
+group by name;
+select count(event_name), event_name from performance_schema.file_instances
+group by event_name;
+select @v4_mutex_instances, @v3_mutex_instances;
+select @v4_rwlock_instances, @v3_rwlock_instances;
+select @v4_cond_instances, @v3_cond_instances;
+select @v4_file_instances, @v3_file_instances;
+select round((@v4_mutex_instances - @v3_mutex_instances) / 10)
+into @mutex_per_handle;
+select round((@v4_rwlock_instances - @v3_rwlock_instances) / 10)
+into @rwlock_per_handle;
+select round((@v4_cond_instances - @v3_cond_instances) / 10)
+into @cond_per_handle;
+select round((@v4_file_instances - @v3_file_instances) / 10)
+into @file_per_handle;
+unlock tables;
+drop table test.t1;
+drop table test.t2;
+drop table test.t3;
+drop table test.t4;
+drop table test.t5;
+drop table test.t6;
+drop table test.t7;
+drop table test.t8;
+drop table test.t9;
+drop table test.t10;
+show status like "performance_schema%";
+Variable_name	Value
+Performance_schema_accounts_lost	0
+Performance_schema_cond_classes_lost	0
+Performance_schema_cond_instances_lost	0
+Performance_schema_digest_lost	0
+Performance_schema_file_classes_lost	0
+Performance_schema_file_handles_lost	0
+Performance_schema_file_instances_lost	0
+Performance_schema_hosts_lost	0
+Performance_schema_locker_lost	0
+Performance_schema_mutex_classes_lost	0
+Performance_schema_mutex_instances_lost	0
+Performance_schema_rwlock_classes_lost	0
+Performance_schema_rwlock_instances_lost	0
+Performance_schema_session_connect_attrs_lost	0
+Performance_schema_socket_classes_lost	0
+Performance_schema_socket_instances_lost	0
+Performance_schema_stage_classes_lost	0
+Performance_schema_statement_classes_lost	0
+Performance_schema_table_handles_lost	0
+Performance_schema_table_instances_lost	0
+Performance_schema_thread_classes_lost	0
+Performance_schema_thread_instances_lost	0
+Performance_schema_users_lost	0
+select @rwlock_per_share <= 3;
+@rwlock_per_share <= 3
+1
+select @cond_per_share;
+@cond_per_share
+0
+select @file_per_share <= 3;
+@file_per_share <= 3
+1
+select @mutex_per_con;
+@mutex_per_con
+3
+select @rwlock_per_con;
+@rwlock_per_con
+1
+select @cond_per_con;
+@cond_per_con
+2
+select @file_per_con;
+@file_per_con
+0
+select @mutex_per_handle;
+@mutex_per_handle
+0
+select @rwlock_per_handle;
+@rwlock_per_handle
+0
+select @cond_per_handle;
+@cond_per_handle
+0
+select @file_per_handle;
+@file_per_handle
+0
+select if(
+(@rwlock_per_share <= 3)
+AND (@cond_per_share = 0)
+AND (@file_per_share <= 3)
+AND (@mutex_per_con = 3)
+AND (@rwlock_per_con = 1)
+AND (@cond_per_con = 2)
+AND (@file_per_con = 0)
+AND (@mutex_per_handle = 0)
+AND (@rwlock_per_handle = 0)
+AND (@cond_per_handle = 0)
+AND (@file_per_handle = 0),
+"OK: heuristics are up to date",
+"FAILED: heuristics need to be updated")
+as status;
+status
+OK: heuristics are up to date

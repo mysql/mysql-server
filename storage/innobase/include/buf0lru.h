@@ -32,7 +32,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0types.h"
 
 // Forward declaration
-struct trx_struct;
+struct trx_t;
 
 /******************************************************************//**
 Returns TRUE if less than 25 % of the buffer pool is available. This can be
@@ -62,8 +62,7 @@ buf_LRU_flush_or_remove_pages(
 /*==========================*/
 	ulint		id,		/*!< in: space id */
 	buf_remove_t	buf_remove,	/*!< in: remove or flush strategy */
-	const trx_struct*
-			trx);		/*!< to check if the operation must
+	const trx_t*	trx);		/*!< to check if the operation must
 					be interrupted */
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -278,14 +277,11 @@ extern uint	buf_LRU_old_threshold_ms;
 These statistics are not 'of' LRU but 'for' LRU.  We keep count of I/O
 and page_zip_decompress() operations.  Based on the statistics we decide
 if we want to evict from buf_pool->unzip_LRU or buf_pool->LRU. */
-struct buf_LRU_stat_struct
+struct buf_LRU_stat_t
 {
 	ulint	io;	/**< Counter of buffer pool I/O operations. */
 	ulint	unzip;	/**< Counter of page_zip_decompress operations. */
 };
-
-/** Statistics for selecting the LRU list for eviction. */
-typedef struct buf_LRU_stat_struct buf_LRU_stat_t;
 
 /** Current operation counters.  Not protected by any mutex.
 Cleared by buf_LRU_stat_update(). */

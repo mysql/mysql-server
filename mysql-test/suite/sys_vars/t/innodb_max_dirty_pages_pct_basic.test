@@ -31,17 +31,26 @@
 ######################################################################
 
 
-################################################################################ 
+################################################################################
 #   Saving initial value of innodb_max_dirty_pages_pct in a temporary variable #
-################################################################################ 
+################################################################################
 
 SET @global_start_value = @@global.innodb_max_dirty_pages_pct;
 SELECT @global_start_value;
 
+# need this because setting innodb_max_dirty_pages_pct to lower than this
+# should cause a warning
+SET @global_start_max_dirty_lwm_value = @@global.innodb_max_dirty_pages_pct_lwm;
+SELECT @global_start_max_dirty_lwm_value;
+
+
+SET @@global.innodb_max_dirty_pages_pct_lwm = 0;
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
+
 --echo '#--------------------FN_DYNVARS_046_01------------------------#'
-######################################################################## 
+########################################################################
 #           Display the DEFAULT value of innodb_max_dirty_pages_pct    #
-######################################################################## 
+########################################################################
 
 SET @@global.innodb_max_dirty_pages_pct = 0;
 SET @@global.innodb_max_dirty_pages_pct = DEFAULT;
@@ -63,9 +72,9 @@ SET global innodb_max_dirty_pages_pct = 0;
 SELECT @@global.innodb_max_dirty_pages_pct;
 
 --echo '#--------------------FN_DYNVARS_046_03------------------------#'
-########################################################################## 
+##########################################################################
 #      change the value of innodb_max_dirty_pages_pct to a valid value   #
-########################################################################## 
+##########################################################################
 
 SET @@global.innodb_max_dirty_pages_pct = 0;
 SELECT @@global.innodb_max_dirty_pages_pct;
@@ -75,10 +84,21 @@ SELECT @@global.innodb_max_dirty_pages_pct;
 SET @@global.innodb_max_dirty_pages_pct = 99;
 SELECT @@global.innodb_max_dirty_pages_pct;
 
---echo '#--------------------FN_DYNVARS_046_04-------------------------#'
-########################################################################### 
+--echo '#--------------------FN_DYNVARS_046_04------------------------#'
+##########################################################################
+#      change value of based on innodb_max_dirty_pages_pct_lwm           #
+##########################################################################
+SET @@global.innodb_max_dirty_pages_pct_lwm = @global_start_value - 1;
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
+
+# this should cause warning
+SET @@global.innodb_max_dirty_pages_pct = @global_start_value - 2;
+SELECT @@global.innodb_max_dirty_pages_pct;
+
+--echo '#--------------------FN_DYNVARS_046_05-------------------------#'
+###########################################################################
 #      Change the value of innodb_max_dirty_pages_pct to invalid value    #
-########################################################################### 
+###########################################################################
 
 SET @@global.innodb_max_dirty_pages_pct = -1;
 SELECT @@global.innodb_max_dirty_pages_pct;
@@ -95,8 +115,8 @@ SET @@global.innodb_max_dirty_pages_pct = 1001;
 SELECT @@global.innodb_max_dirty_pages_pct;
 
 
---echo '#----------------------FN_DYNVARS_046_05------------------------#'
-######################################################################### 
+--echo '#----------------------FN_DYNVARS_046_06------------------------#'
+#########################################################################
 #     Check if the value in GLOBAL Table matches value in variable      #
 #########################################################################
 
@@ -107,10 +127,10 @@ SELECT @@global.innodb_max_dirty_pages_pct;
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
  WHERE VARIABLE_NAME='innodb_max_dirty_pages_pct';
 
---echo '#---------------------FN_DYNVARS_046_06-------------------------#'
-################################################################### 
+--echo '#---------------------FN_DYNVARS_046_07-------------------------#'
+###################################################################
 #        Check if ON and OFF values can be used on variable       #
-################################################################### 
+###################################################################
 
 --ERROR ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_max_dirty_pages_pct = OFF;
@@ -120,23 +140,26 @@ SELECT @@global.innodb_max_dirty_pages_pct;
 SET @@global.innodb_max_dirty_pages_pct = ON;
 SELECT @@global.innodb_max_dirty_pages_pct;
 
---echo '#---------------------FN_DYNVARS_046_07----------------------#'
-################################################################### 
+--echo '#---------------------FN_DYNVARS_046_08----------------------#'
+###################################################################
 #      Check if TRUE and FALSE values can be used on variable     #
-################################################################### 
+###################################################################
 
 SET @@global.innodb_max_dirty_pages_pct = TRUE;
 SELECT @@global.innodb_max_dirty_pages_pct;
 SET @@global.innodb_max_dirty_pages_pct = FALSE;
 SELECT @@global.innodb_max_dirty_pages_pct;
 
-##############################  
+##############################
 #   Restore initial value    #
 ##############################
 
 SET @@global.innodb_max_dirty_pages_pct = @global_start_value;
 SELECT @@global.innodb_max_dirty_pages_pct;
 
+SET @@global.innodb_max_dirty_pages_pct_lwm = @global_start_max_dirty_lwm_value;
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
+
 ###############################################################
 #                    END OF innodb_max_dirty_pages_pct TESTS  #
-############################################################### 
+###############################################################

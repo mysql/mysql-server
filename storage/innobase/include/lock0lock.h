@@ -801,6 +801,19 @@ lock_table_get_n_locks(
 /*===================*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull));
+#ifdef UNIV_DEBUG
+/*******************************************************************//**
+Check if the transaction holds any locks on the sys tables
+or its records.
+@return	the strongest lock found on any sys table or 0 for none */
+UNIV_INTERN
+const lock_t*
+lock_trx_has_sys_table_locks(
+/*=========================*/
+	const trx_t*	trx)	/*!< in: transaction to check */
+	__attribute__((warn_unused_result));
+#endif /* UNIV_DEBUG */
+
 /** Lock modes and types */
 /* @{ */
 #define LOCK_MODE_MASK	0xFUL	/*!< mask used to extract mode from the
@@ -855,20 +868,18 @@ lock_table_get_n_locks(
 /* @} */
 
 /** Lock operation struct */
-typedef struct lock_op_struct	lock_op_t;
-/** Lock operation struct */
-struct lock_op_struct{
+struct lock_op_t{
 	dict_table_t*	table;	/*!< table to be locked */
 	enum lock_mode	mode;	/*!< lock mode */
 };
 
 /** The lock system struct */
-struct lock_sys_struct{
-	mutex_t		mutex;			/*!< Mutex protecting the
+struct lock_sys_t{
+	ib_mutex_t	mutex;			/*!< Mutex protecting the
 						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
 						locks */
-	mutex_t		wait_mutex;		/*!< Mutex protecting the
+	ib_mutex_t	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
 						suspended while waiting for

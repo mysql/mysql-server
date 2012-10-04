@@ -185,7 +185,7 @@ def	information_schema	PLUGINS	PLUGIN_VERSION	2		NO	varchar	20	60	NULL	NULL	NULL
 def	information_schema	PROCESSLIST	COMMAND	5		NO	varchar	16	48	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(16)			select	
 def	information_schema	PROCESSLIST	DB	4	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	PROCESSLIST	HOST	3		NO	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
-def	information_schema	PROCESSLIST	ID	1	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	NULL	bigint(4)			select	
+def	information_schema	PROCESSLIST	ID	1	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(21) unsigned			select	
 def	information_schema	PROCESSLIST	INFO	8	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 def	information_schema	PROCESSLIST	STATE	7	NULL	YES	varchar	64	192	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 def	information_schema	PROCESSLIST	TIME	6	0	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(7)			select	
@@ -578,7 +578,7 @@ NULL	information_schema	PARTITIONS	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21
 1.0000	information_schema	PLUGINS	PLUGIN_DESCRIPTION	longtext	4294967295	4294967295	utf8	utf8_general_ci	longtext
 3.0000	information_schema	PLUGINS	PLUGIN_LICENSE	varchar	80	240	utf8	utf8_general_ci	varchar(80)
 3.0000	information_schema	PLUGINS	LOAD_OPTION	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	PROCESSLIST	ID	bigint	NULL	NULL	NULL	NULL	bigint(4)
+NULL	information_schema	PROCESSLIST	ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 3.0000	information_schema	PROCESSLIST	USER	varchar	16	48	utf8	utf8_general_ci	varchar(16)
 3.0000	information_schema	PROCESSLIST	HOST	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PROCESSLIST	DB	varchar	64	192	utf8	utf8_general_ci	varchar(64)

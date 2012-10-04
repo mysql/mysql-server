@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -48,9 +48,9 @@ typedef	ib_uint64_t		lsn_t;
 #define LSN_PF			UINT64PF
 
 /** Redo log buffer */
-typedef struct log_struct	log_t;
+struct log_t;
 /** Redo log group */
-typedef struct log_group_struct	log_group_t;
+struct log_group_t;
 
 #ifdef UNIV_DEBUG
 /** Flag: write to log file? */
@@ -67,7 +67,7 @@ extern	ibool	log_debug_writes;
 #define LOG_WAIT_ONE_GROUP	92
 #define	LOG_WAIT_ALL_GROUPS	93
 /* @} */
-/** Maximum number of log groups in log_group_struct::checkpoint_buf */
+/** Maximum number of log groups in log_group_t::checkpoint_buf */
 #define LOG_MAX_N_GROUPS	32
 
 /*******************************************************************//**
@@ -154,6 +154,14 @@ UNIV_INLINE
 lsn_t
 log_get_capacity(void);
 /*==================*/
+/****************************************************************
+Get log_sys::max_modified_age_async. It is OK to read the value without
+holding log_sys::mutex because it is constant.
+@return	max_modified_age_async */
+UNIV_INLINE
+lsn_t
+log_get_max_modified_age_async(void);
+/*================================*/
 /******************************************************//**
 Initializes the log. */
 UNIV_INTERN
@@ -216,15 +224,6 @@ void
 log_buffer_sync_in_background(
 /*==========================*/
 	ibool	flush);	/*<! in: flush the logs to disk */
-/****************************************************************//**
-Checks if an asynchronous flushing of dirty pages is required in the
-background. This function is only called from the page cleaner thread.
-@return lsn to which the flushing should happen or LSN_MAX
-if flushing is not required */
-UNIV_INTERN
-lsn_t
-log_async_flush_lsn(void);
-/*=====================*/
 /******************************************************//**
 Makes a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
@@ -543,13 +542,19 @@ UNIV_INTERN
 void
 log_refresh_stats(void);
 /*===================*/
-/**********************************************************
+/********************************************************//**
+Closes all log groups. */
+UNIV_INTERN
+void
+log_group_close_all(void);
+/*=====================*/
+/********************************************************//**
 Shutdown the log system but do not release all the memory. */
 UNIV_INTERN
 void
 log_shutdown(void);
 /*==============*/
-/**********************************************************
+/********************************************************//**
 Free the log system data structures. */
 UNIV_INTERN
 void
@@ -705,7 +710,7 @@ extern log_t*	log_sys;
 
 /** Log group consists of a number of log files, each of the same size; a log
 group is implemented as a space in the sense of the module fil0fil. */
-struct log_group_struct{
+struct log_group_t{
 	/* The following fields are protected by log_sys->mutex */
 	ulint		id;		/*!< log group id */
 	ulint		n_files;	/*!< number of files in the group */
@@ -757,7 +762,7 @@ struct log_group_struct{
 };
 
 /** Redo log buffer */
-struct log_struct{
+struct log_t{
 	byte		pad[64];	/*!< padding to prevent other memory
 					update hotspots from residing on the
 					same memory cache line */
@@ -765,9 +770,9 @@ struct log_struct{
 	ulint		buf_free;	/*!< first free offset within the log
 					buffer */
 #ifndef UNIV_HOTBACKUP
-	mutex_t		mutex;		/*!< mutex protecting the log */
+	ib_mutex_t		mutex;		/*!< mutex protecting the log */
 
-	mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
+	ib_mutex_t		log_flush_order_mutex;/*!< mutex to serialize access to
 					the flush list when we are putting
 					dirty blocks in the list. The idea
 					behind this mutex is to be able

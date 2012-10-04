@@ -114,7 +114,7 @@ srv_path_copy(
 	ulint		dest_len,	/*!< in: max bytes to copy */
 	const char*	basedir,	/*!< in: base directory */
 	const char*	table_name)	/*!< in: source table name */
-        __attribute__((nonnull, warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
 
 /*****************************************************************//**
 Get the meta-data filename from the table name. */
@@ -122,10 +122,10 @@ UNIV_INTERN
 void
 srv_get_meta_data_filename(
 /*======================*/
-	const dict_table_t*	table,		/*!< in: table */
+	dict_table_t*	table,		/*!< in: table */
 	char*			filename,	/*!< out: filename */
 	ulint			max_len)	/*!< in: filename max length */
-        __attribute__((nonnull));
+	__attribute__((nonnull));
 
 /** Log sequence number at shutdown */
 extern	lsn_t	srv_shutdown_lsn;

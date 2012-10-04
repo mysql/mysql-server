@@ -288,6 +288,10 @@ extern "C" {
                                     uint64_t cas,
                                     uint16_t vbucket);
 
+        ENGINE_ERROR_CODE (*bind)(ENGINE_HANDLE* handle,
+                                    const void* cookie,
+                                    const void* name,
+                                    const size_t name_len);
         /**
          * Indicate that a caller who received an item no longer needs
          * it.
@@ -299,6 +303,17 @@ extern "C" {
         void (*release)(ENGINE_HANDLE* handle, const
                         void *cookie,
                         item* item);
+
+        /**
+         * Clean up a connection when it is disconnected
+         *
+         * @param handle the engine handle
+         * @param cookie The cookie provided by the frontend
+         * @param engine_data Engine specific resource to clean up
+         */
+        void (*clean_engine)(ENGINE_HANDLE* handle,
+			     const void *cookie,
+                             void* engine_data);
 
         /**
          * Retrieve an item.

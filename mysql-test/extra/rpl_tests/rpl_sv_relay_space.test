@@ -15,7 +15,8 @@ eval CREATE TABLE t1 (name varchar(64), age smallint(3))ENGINE=$engine_type;
 INSERT INTO t1 SET name='Andy', age=31;
 INSERT INTO t1 SET name='Jacob', age=2;
 INSERT INTO t1 SET name='Caleb', age=1;
-ALTER TABLE t1 ADD id int(8) ZEROFILL AUTO_INCREMENT PRIMARY KEY;
+ALTER TABLE t1 ADD id int(8) ZEROFILL AUTO_INCREMENT PRIMARY KEY,
+ALGORITHM=COPY;
 SELECT * FROM t1 ORDER BY id;
 sync_slave_with_master;
 SELECT * FROM t1 ORDER BY id;

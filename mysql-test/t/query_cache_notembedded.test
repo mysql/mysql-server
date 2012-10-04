@@ -219,6 +219,8 @@ connection con1;
 send select f1();
 connection con2;
 select sleep(4);
+--echo # The below select should not see any rows in t1 as it is
+--echo # run before t1 is unlocked by stored function/insert.
 select * from t1;
 connection con1;
 reap;

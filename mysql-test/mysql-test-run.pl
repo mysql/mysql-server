@@ -163,7 +163,7 @@ our $opt_vs_config = $ENV{'MTR_VS_CONFIG'};
 
 # If you add a new suite, please check TEST_DIRS in Makefile.am.
 #
-my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,perfschema,funcs_1,opt_trace";
+my $DEFAULT_SUITES= "main,sys_vars,binlog,federated,rpl,innodb,innodb_fts,perfschema,funcs_1,opt_trace,parts";
 my $opt_suites;
 
 our $opt_verbose= 0;  # Verbose output, enable with --verbose
@@ -2119,6 +2119,14 @@ sub client_arguments ($;$) {
   return mtr_args2str($client_exe, @$args);
 }
 
+sub client_arguments_no_grp_suffix($) {
+  my $client_name= shift;
+  my $client_exe= mtr_exe_exists("$path_client_bindir/$client_name");
+  my $args;
+
+  return mtr_args2str($client_exe, @$args);
+}
+
 
 sub mysqlslap_arguments () {
   my $exe= mtr_exe_maybe_exists("$path_client_bindir/mysqlslap");
@@ -2155,17 +2163,10 @@ sub mysqldump_arguments ($) {
 sub mysql_client_test_arguments(){
   my $exe;
   # mysql_client_test executable may _not_ exist
-  if ( $opt_embedded_server ) {
-    $exe= mtr_exe_maybe_exists(
-            vs_config_dirs('libmysqld/examples','mysql_client_test_embedded'),
-	      "$basedir/libmysqld/examples/mysql_client_test_embedded",
-		"$basedir/bin/mysql_client_test_embedded");
-  } else {
-    $exe= mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
-			       "$basedir/tests/mysql_client_test",
-			       "$basedir/bin/mysql_client_test");
-  }
-
+  $exe= mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
+			     "$basedir/tests/mysql_client_test",
+			     "$basedir/bin/mysql_client_test");
+  return "" unless $exe;
   my $args;
   mtr_init_args(\$args);
   if ( $opt_valgrind_mysqltest ) {
@@ -2380,10 +2381,14 @@ sub environment_setup {
   if (IS_WINDOWS)
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."\\std_data";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
+                              $opt_tmpdir . "\\.mylogin.cnf";
   }
   else
   {
     $ENV{'SECURE_LOAD_PATH'}= $glob_mysql_test_dir."/std_data";
+    $ENV{'MYSQL_TEST_LOGIN_FILE'}=
+                              $opt_tmpdir . "/.mylogin.cnf";
   }
     
 
@@ -2452,6 +2457,7 @@ sub environment_setup {
   $ENV{'MYSQL_SLAP'}=               mysqlslap_arguments();
   $ENV{'MYSQL_IMPORT'}=             client_arguments("mysqlimport");
   $ENV{'MYSQL_SHOW'}=               client_arguments("mysqlshow");
+  $ENV{'MYSQL_CONFIG_EDITOR'}=      client_arguments_no_grp_suffix("mysql_config_editor");
   $ENV{'MYSQL_BINLOG'}=             client_arguments("mysqlbinlog");
   $ENV{'MYSQL'}=                    client_arguments("mysql");
   $ENV{'MYSQL_SLAVE'}=              client_arguments("mysql", ".2");
@@ -2484,7 +2490,10 @@ sub environment_setup {
   my $file_mysql_fix_privilege_tables=
     mtr_file_exists("$basedir/scripts/mysql_fix_privilege_tables.sql",
 		    "$basedir/share/mysql_fix_privilege_tables.sql",
-		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql");
+		    "$basedir/share/mysql/mysql_fix_privilege_tables.sql",
+                    "$bindir/scripts/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mysql_fix_privilege_tables.sql",
+		    "$bindir/share/mysql/mysql_fix_privilege_tables.sql");
   $ENV{'MYSQL_FIX_PRIVILEGE_TABLES'}=  $file_mysql_fix_privilege_tables;
 
   # ----------------------------------------------------
@@ -2776,9 +2785,13 @@ sub check_debug_support ($) {
     #mtr_report(" - binaries are not debug compiled");
     $debug_compiled_binaries= 0;
 
+    if ( $opt_debug )
+    {
+      mtr_error("Can't use --debug, binary does not support it");
+    }
     if ( $opt_debug_server )
     {
-      mtr_error("Can't use --debug[-server], binary does not support it");
+      mtr_warning("Ignoring --debug-server, binary does not support it");
     }
     return;
   }
@@ -3454,7 +3467,10 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-falcon");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
+  mtr_add_arg($args, "--innodb-log-file-size=5M");
   mtr_add_arg($args, "--core-file");
+  # over writing innodb_autoextend_increment to 8 for reducing the ibdata1 file size 
+  mtr_add_arg($args, "--innodb_autoextend_increment=8");
 
   if ( $opt_debug )
   {
@@ -4444,7 +4460,7 @@ sub extract_server_log ($$) {
       if ( $line =~ /^CURRENT_TEST:/)
       {
 	@lines= ();
-	$found_test= $line =~ /^CURRENT_TEST: $tname/;
+	$found_test= $line =~ /^CURRENT_TEST: $tname$/;
       }
       else
       {
@@ -4459,7 +4475,7 @@ sub extract_server_log ($$) {
     else
     {
       # Search for beginning of test, until found
-      $found_test= 1 if ($line =~ /^CURRENT_TEST: $tname/);
+      $found_test= 1 if ($line =~ /^CURRENT_TEST: $tname$/);
     }
   }
   $Ferr = undef; # Close error log file
@@ -5085,6 +5101,7 @@ sub mysqld_arguments ($$$) {
   # override defaults above.
 
   my $found_skip_core= 0;
+  my $found_no_console= 0;
   foreach my $arg ( @$extra_opts )
   {
     # Skip --defaults-file option since it's handled above.
@@ -5094,6 +5111,10 @@ sub mysqld_arguments ($$$) {
     if ($arg eq "--skip-core-file")
     {
       $found_skip_core= 1;
+    }
+    elsif ($arg eq "--no-console")
+    {
+        $found_no_console= 1;
     }
     elsif ($skip_binlog and mtr_match_prefix($arg, "--binlog-format"))
     {
@@ -5115,6 +5136,11 @@ sub mysqld_arguments ($$$) {
     }
   }
   $opt_skip_core = $found_skip_core;
+  if (IS_WINDOWS && !$found_no_console)
+  {
+    # Trick the server to send output to stderr, with --console
+    mtr_add_arg($args, "--console");
+  }
   if ( !$found_skip_core && !$opt_user_args )
   {
     mtr_add_arg($args, "%s", "--core-file");
@@ -5166,12 +5192,6 @@ sub mysqld_start ($$) {
   {
     mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/%s.trace",
 		$path_vardir_trace, $mysqld->name());
-  }
-
-  if (IS_WINDOWS)
-  {
-    # Trick the server to send output to stderr, with --console
-    mtr_add_arg($args, "--console");
   }
 
   if ( $opt_gdb || $opt_manual_gdb )
@@ -5430,10 +5450,20 @@ sub stopped { return grep(!defined $_, map($_->{proc}, @_)); }
 
 sub envsubst {
   my $string= shift;
-
-  if ( ! defined $ENV{$string} )
+# Check for the ? symbol in the var name and remove it.
+  if ( $string =~ s/^\?// )
   {
-    mtr_error(".opt file references '$string' which is not set");
+    if ( ! defined $ENV{$string} )
+    {
+      return "";
+    }
+  }
+  else
+  {
+    if ( ! defined $ENV{$string} )
+    {
+      mtr_error(".opt file references '$string' which is not set");
+    }
   }
 
   return $ENV{$string};
@@ -5453,8 +5483,8 @@ sub get_extra_opts {
   # Expand environment variables
   foreach my $opt ( @$opts )
   {
-    $opt =~ s/\$\{(\w+)\}/envsubst($1)/ge;
-    $opt =~ s/\$(\w+)/envsubst($1)/ge;
+    $opt =~ s/\$\{(\??\w+)\}/envsubst($1)/ge;
+    $opt =~ s/\$(\??\w+)/envsubst($1)/ge;
   }
   return $opts;
 }
@@ -5854,12 +5884,6 @@ sub start_mysqltest ($) {
     my $extra_opts= get_extra_opts($mysqld, $tinfo);
     mysqld_arguments($mysqld_args, $mysqld, $extra_opts);
     mtr_add_arg($args, "--server-arg=%s", $_) for @$mysqld_args;
-
-    if (IS_WINDOWS)
-    {
-      # Trick the server to send output to stderr, with --console
-      mtr_add_arg($args, "--server-arg=--console");
-    }
   }
 
   # ----------------------------------------------------------------------

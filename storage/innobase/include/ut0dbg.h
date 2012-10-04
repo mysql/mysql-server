@@ -143,10 +143,10 @@ ut_dbg_stop_thread(
 #include <sys/resource.h>
 
 /** structure used for recording usage statistics */
-typedef struct speedo_struct {
+struct speedo_t {
 	struct rusage	ru;	/*!< getrusage() result */
 	struct timeval	tv;	/*!< gettimeofday() result */
-} speedo_t;
+};
 
 /*******************************************************************//**
 Resets a speedo (records the current time in it). */

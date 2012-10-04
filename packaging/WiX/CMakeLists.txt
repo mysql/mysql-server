@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,7 +34,7 @@ ENDIF()
 
 ADD_SUBDIRECTORY(ca)
 
-# extra.wxs.in needs DATADIR_MYSQL_FILES and DATADIR_PERFORMANCE_SCHEMA_FILES, i.e
+# mysql_server_extra.wxs.in needs DATADIR_MYSQL_FILES and DATADIR_PERFORMANCE_SCHEMA_FILES, i.e
 # Wix-compatible file lists for ${builddir}\sql\data\{mysql,performance_schema}
 
 FOREACH(dir mysql performance_schema)
@@ -78,12 +78,7 @@ ELSE()
 ENDIF()
 GET_TARGET_PROPERTY(WIXCA_LOCATION wixca LOCATION)
 SET(CPACK_WIX_CONFIG ${CMAKE_CURRENT_SOURCE_DIR}/CPackWixConfig.cmake)
-SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/extra.wxs;${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs")
-
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
-  @ONLY)
-
+SET(CPACK_WIX_INCLUDE "${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs;${CMAKE_CURRENT_SOURCE_DIR}/custom_ui.wxs")
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 8)
   SET(WixWin64 " Win64='yes'")
@@ -91,8 +86,12 @@ ELSE()
   SET(WixWin64)
 ENDIF()
 
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/extra.wxs.in
-  ${CMAKE_CURRENT_BINARY_DIR}/extra.wxs)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_server_extra.wxs.in
+  ${CMAKE_CURRENT_BINARY_DIR}/mysql_server_extra.wxs)
+
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/create_msi.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
+  @ONLY)
 
 IF(CMAKE_GENERATOR MATCHES "Visual Studio")
  SET(CONFIG_PARAM "-DCMAKE_INSTALL_CONFIG_NAME=${CMAKE_CFG_INTDIR}")

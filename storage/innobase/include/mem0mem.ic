@@ -247,15 +247,12 @@ mem_heap_free_heap_top(
 {
 	mem_block_t*	block;
 	mem_block_t*	prev_block;
-#ifdef UNIV_MEM_DEBUG
+#if defined UNIV_MEM_DEBUG || defined UNIV_DEBUG
 	ibool		error;
 	ulint		total_size;
 	ulint		size;
-#endif
 
 	ut_ad(mem_heap_check(heap));
-
-#ifdef UNIV_MEM_DEBUG
 
 	/* Validate the heap and get its total allocated size */
 	mem_heap_validate_or_print(heap, NULL, FALSE, &error, &total_size,
@@ -294,9 +291,9 @@ mem_heap_free_heap_top(
 	/* Set the free field of block */
 	mem_block_set_free(block, old_top - (byte*) block);
 
-#ifdef UNIV_MEM_DEBUG
 	ut_ad(mem_block_get_start(block) <= mem_block_get_free(block));
-
+	UNIV_MEM_ASSERT_W(old_top, (byte*) block + block->len - old_top);
+#if defined UNIV_MEM_DEBUG
 	/* In the debug version erase block from top up */
 	mem_erase_buf(old_top, (byte*) block + block->len - old_top);
 
@@ -304,8 +301,6 @@ mem_heap_free_heap_top(
 	mutex_enter(&mem_hash_mutex);
 	mem_current_allocated_memory -= (total_size - size);
 	mutex_exit(&mem_hash_mutex);
-#else /* UNIV_MEM_DEBUG */
-	UNIV_MEM_ASSERT_W(old_top, (byte*) block + block->len - old_top);
 #endif /* UNIV_MEM_DEBUG */
 	UNIV_MEM_ALLOC(old_top, (byte*) block + block->len - old_top);
 

@@ -68,7 +68,7 @@
 #define PSEUDO_TABLE_BITS (PARAM_TABLE_BIT | OUTER_REF_TABLE_BIT | \
                            RAND_TABLE_BIT)
 #define MAX_FIELDS	4096			/* Limit in the .frm file */
-#define MAX_PARTITIONS  1024
+#define MAX_PARTITIONS  8192
 
 #define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
 
@@ -113,6 +113,12 @@
 #define TABLE_OPEN_CACHE_MIN    400
 #define TABLE_OPEN_CACHE_DEFAULT 400
 #define TABLE_DEF_CACHE_DEFAULT 400
+/**
+  Maximum number of connections default value.
+  151 is larger than Apache's default max children,
+  to avoid "too many connections" error in a common setup.
+*/
+#define MAX_CONNECTIONS_DEFAULT 151
 /**
   We must have room for at least 400 table definitions in the table
   cache, since otherwise there is no chance prepared
@@ -249,8 +255,6 @@
 #define DELAYED_LIMIT		100		/**< pause after xxx inserts */
 #define DELAYED_QUEUE_SIZE	1000
 #define DELAYED_WAIT_TIMEOUT	5*60		/**< Wait for delayed insert */
-#define FLUSH_TIME		0		/**< Don't flush tables */
-#define MAX_CONNECT_ERRORS	10		///< errors before disabling host
 
 #define LONG_TIMEOUT ((ulong) 3600L*24L*365L)
 
@@ -261,9 +265,6 @@
 #define MAX_TIME_ZONE_NAME_LENGTH       (NAME_LEN + 1)
 
 #if defined(__WIN__)
-#undef	FLUSH_TIME
-#define FLUSH_TIME	1800			/**< Flush every half hour */
-
 #define INTERRUPT_PRIOR -2
 #define CONNECT_PRIOR	-1
 #define WAIT_PRIOR	0

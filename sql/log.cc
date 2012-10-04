@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -111,7 +111,7 @@ const TABLE_FIELD_TYPE slow_query_log_table_fields[SQLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("thread_id") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(21) unsigned") },
     { NULL, 0 }
   }
 };
@@ -149,7 +149,7 @@ const TABLE_FIELD_TYPE general_log_table_fields[GLT_FIELD_COUNT] =
   },
   {
     { C_STRING_WITH_LEN("thread_id") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(21) unsigned") },
     { NULL, 0 }
   },
   {
@@ -291,9 +291,11 @@ bool LOGGER::is_log_table_enabled(uint log_table_type)
 {
   switch (log_table_type) {
   case QUERY_LOG_SLOW:
-    return (table_log_handler != NULL) && opt_slow_log;
+    return ((table_log_handler != NULL) && opt_slow_log
+            && (log_output_options & LOG_TABLE));
   case QUERY_LOG_GENERAL:
-    return (table_log_handler != NULL) && opt_log ;
+    return ((table_log_handler != NULL) && opt_log
+            && (log_output_options & LOG_TABLE));
   default:
     DBUG_ASSERT(0);
     return FALSE;                             /* make compiler happy */
@@ -382,7 +384,7 @@ void Log_to_csv_event_handler::cleanup()
 
 bool Log_to_csv_event_handler::
   log_general(THD *thd, time_t event_time, const char *user_host,
-              uint user_host_len, int thread_id,
+              uint user_host_len, my_thread_id thread_id,
               const char *command_type, uint command_type_len,
               const char *sql_text, uint sql_text_len,
               const CHARSET_INFO *client_cs)
@@ -799,7 +801,7 @@ bool Log_to_file_event_handler::
 
 bool Log_to_file_event_handler::
   log_general(THD *thd, time_t event_time, const char *user_host,
-              uint user_host_len, int thread_id,
+              uint user_host_len, my_thread_id thread_id,
               const char *command_type, uint command_type_len,
               const char *sql_text, uint sql_text_len,
               const CHARSET_INFO *client_cs)
@@ -1619,6 +1621,9 @@ shutdown the MySQL server and restart it.", name, errno);
 MYSQL_LOG::MYSQL_LOG()
   : name(0), write_error(FALSE), inited(FALSE), log_type(LOG_UNKNOWN),
     log_state(LOG_CLOSED)
+#ifdef HAVE_PSI_INTERFACE
+  , m_key_LOCK_log(key_LOG_LOCK_log)
+#endif
 {
   /*
     We don't want to initialize LOCK_Log here as such initialization depends on
@@ -1633,7 +1638,7 @@ void MYSQL_LOG::init_pthread_objects()
 {
   DBUG_ASSERT(inited == 0);
   inited= 1;
-  mysql_mutex_init(key_LOG_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
+  mysql_mutex_init(m_key_LOCK_log, &LOCK_log, MY_MUTEX_INIT_SLOW);
 }
 
 /*
@@ -1788,7 +1793,7 @@ void MYSQL_QUERY_LOG::reopen_file()
 */
 
 bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
-                            uint user_host_len, int thread_id,
+                            uint user_host_len, my_thread_id thread_id,
                             const char *command_type, uint command_type_len,
                             const char *sql_text, uint sql_text_len)
 {
@@ -1826,8 +1831,7 @@ bool MYSQL_QUERY_LOG::write(time_t event_time, const char *user_host,
         if (my_b_write(&log_file, (uchar*) "\t\t" ,2) < 0)
           goto err;
 
-      /* command_type, thread_id */
-      length= my_snprintf(buff, 32, "%5ld ", (long) thread_id);
+    length= my_snprintf(buff, 32, "%5lu ", thread_id);
 
     if (my_b_write(&log_file, (uchar*) buff, length))
       goto err;
@@ -1935,7 +1939,7 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
         if (my_b_write(&log_file, (uchar*) buff, buff_len))
           tmp_errno= errno;
       }
-      buff_len= my_snprintf(buff, 14, "%5ld", (long) thd->thread_id);
+      buff_len= my_snprintf(buff, 32, "%5lu", thd->thread_id);
       if (my_b_printf(&log_file, "# User@Host: %s  Id: %s\n", user_host, buff)
           == (uint) -1)
         tmp_errno= errno;
@@ -1995,7 +1999,10 @@ bool MYSQL_QUERY_LOG::write(THD *thd, time_t current_time,
     {
       end= strxmov(buff, "# administrator command: ", NullS);
       buff_len= (ulong) (end - buff);
-      my_b_write(&log_file, (uchar*) buff, buff_len);
+      DBUG_EXECUTE_IF("simulate_slow_log_write_error",
+                      {DBUG_SET("+d,simulate_file_write_error");});
+      if(my_b_write(&log_file, (uchar*) buff, buff_len))
+        tmp_errno= errno;
     }
     if (my_b_write(&log_file, (uchar*) sql_text, sql_text_len) ||
         my_b_write(&log_file, (uchar*) ";\n",2) ||
@@ -2614,6 +2621,34 @@ int TC_LOG_MMAP::overflow()
 }
 
 /**
+  Commit the transaction.
+
+  @note When the TC_LOG inteface was changed, this function was added
+  and uses the functions that were there with the old interface to
+  implement the logic.
+ */
+TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all)
+{
+  DBUG_ENTER("TC_LOG_MMAP::commit");
+  unsigned long cookie= 0;
+  my_xid xid= thd->transaction.xid_state.xid.get_my_xid();
+
+  if (all && xid)
+    if ((cookie= log_xid(thd, xid)))
+      DBUG_RETURN(RESULT_ABORTED);    // Failed to log the transaction
+
+  if (ha_commit_low(thd, all))
+    DBUG_RETURN(RESULT_INCONSISTENT); // Transaction logged, but not committed
+
+  /* If cookie is non-zero, something was logged */
+  if (cookie)
+    if (unlog(cookie, xid))
+      DBUG_RETURN(RESULT_INCONSISTENT); // Transaction logged, committed, but not unlogged.
+  DBUG_RETURN(RESULT_SUCCESS);
+}
+
+
+/**
   Record that transaction XID is committed on the persistent storage.
 
     This function is called in the middle of two-phase commit:
@@ -2764,7 +2799,7 @@ int TC_LOG_MMAP::unlog(ulong cookie, my_xid xid)
   DBUG_ASSERT(p->free <= p->size);
   set_if_smaller(p->ptr, x);
   if (p->free == p->size)               // the page is completely empty
-    statistic_decrement(tc_log_cur_pages_used, &LOCK_status);
+    statistic_decrement_rwlock(tc_log_cur_pages_used, &LOCK_status);
   if (p->waiters == 0)                 // the page is in pool and ready to rock
     mysql_cond_signal(&COND_pool);     // ping ... for overflow()
   mysql_mutex_unlock(&p->lock);

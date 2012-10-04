@@ -1083,25 +1083,22 @@ private:
 class sp_instr_hpop : public sp_instr
 {
 public:
-  sp_instr_hpop(uint ip, sp_pcontext *ctx, uint count)
-    : sp_instr(ip, ctx), m_count(count)
+  sp_instr_hpop(uint ip, sp_pcontext *ctx)
+    : sp_instr(ip, ctx)
   { }
 
   /////////////////////////////////////////////////////////////////////////
   // sp_printable implementation.
   /////////////////////////////////////////////////////////////////////////
 
-  virtual void print(String *str);
+  virtual void print(String *str)
+  { str->append(STRING_WITH_LEN("hpop")); }
 
   /////////////////////////////////////////////////////////////////////////
   // sp_instr implementation.
   /////////////////////////////////////////////////////////////////////////
 
   virtual bool execute(THD *thd, uint *nextp);
-
-private:
-  /// How many handlers this instruction should pop.
-  uint m_count;
 };
 
 ///////////////////////////////////////////////////////////////////////////

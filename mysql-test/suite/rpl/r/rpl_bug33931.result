@@ -13,7 +13,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 start slave;
 include/wait_for_slave_sql_error.inc [errno=1593]
-Last_SQL_Error = 'Failed during slave thread initialization'
+Last_SQL_Error = 'Fatal error: Failed during slave thread initialization'
 SET GLOBAL debug="";
 RESET SLAVE;
 include/rpl_end.inc
