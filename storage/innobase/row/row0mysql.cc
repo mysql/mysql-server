@@ -3622,27 +3622,37 @@ next_rec:
 			/* Fail to update the table id, so drop the new
 			FTS auxiliary tables */
 			if (has_internal_doc_id) {
-				dict_table_t	fts_table;
+				ut_ad(trx->state == TRX_STATE_NOT_STARTED);
 
-				fts_table.name = table->name;
-				fts_table.id = new_id;
+				table_id_t      id = table->id;
 
-				fts_drop_tables(trx, &fts_table);
+				table->id = new_id;
+
+				fts_drop_tables(trx, table);
+
+				table->id = id;
+
+				ut_ad(trx->state != TRX_STATE_NOT_STARTED);
 			}
 
 			err = DB_ERROR;
 		} else {
 			/* Drop the old FTS index */
 			if (has_internal_doc_id) {
+				ut_ad(trx->state != TRX_STATE_NOT_STARTED);
 				fts_drop_tables(trx, table);
+				ut_ad(trx->state != TRX_STATE_NOT_STARTED);
 			}
+
+			DBUG_EXECUTE_IF("ib_truncate_crash_after_fts_drop",
+					DBUG_SUICIDE(););
 
 			dict_table_change_id_in_cache(table, new_id);
 
 			/* Reset the Doc ID in cache to 0 */
 			if (has_internal_doc_id && table->fts->cache) {
 				table->fts->fts_status |= TABLE_DICT_LOCKED;
-				fts_update_next_doc_id(table, NULL, 0);
+				fts_update_next_doc_id(trx, table, NULL, 0);
 				fts_cache_clear(table->fts->cache, TRUE);
 				fts_cache_init(table->fts->cache);
 				table->fts->fts_status &= ~TABLE_DICT_LOCKED;
