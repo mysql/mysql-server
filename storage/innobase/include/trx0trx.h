@@ -121,13 +121,14 @@ UNIV_INTERN
 void
 trx_lists_init_at_db_start(void);
 /*============================*/
+
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
 trx_start_if_not_started_xa_low(
 /*============================*/
-	trx_t*	trx,	/*!< in: transaction */
+	trx_t*	trx,		/*!< in/out: transaction */
 	bool	read_write);	/*!< in: true if read write transaction */
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
@@ -148,25 +149,25 @@ trx_start_internal_low(
 
 #ifdef UNIV_DEBUG
 #define trx_start_if_not_started_xa(t, rw)			\
-	{							\
+	do {							\
 	(t)->start_line = __LINE__;				\
 	(t)->start_file = __FILE__;				\
 	trx_start_if_not_started_xa_low((t), rw);		\
-	}
+	} while (false)
 
 #define trx_start_if_not_started(t, rw)				\
-	{							\
+	do {							\
 	(t)->start_line = __LINE__;				\
 	(t)->start_file = __FILE__;				\
 	trx_start_if_not_started_low((t), rw);			\
-	}
+	} while (false)
 
 #define trx_start_internal(t)					\
-	{							\
+	do {							\
 	(t)->start_line = __LINE__;				\
 	(t)->start_file = __FILE__;				\
 	trx_start_internal_low((t));				\
-	}
+	} while (false)
 #else
 #define trx_start_if_not_started(t, rw)				\
 	trx_start_if_not_started_low((t), rw)
@@ -187,11 +188,12 @@ trx_start_for_ddl_low(
 
 #ifdef UNIV_DEBUG
 #define trx_start_for_ddl(t, o)					\
-	{							\
+	do {							\
+	ut_ad((t)->start_file == 0);				\
 	(t)->start_line = __LINE__;				\
 	(t)->start_file = __FILE__;				\
 	trx_start_for_ddl_low((t), (o));			\
-	}
+	} while (0)
 #else
 #define trx_start_for_ddl(t, o)					\
 	trx_start_for_ddl_low((t), (o))
@@ -1012,10 +1014,13 @@ struct trx_t{
 					count of tables being flushed. */
 
 	/*------------------------------*/
+	bool		ddl;		/*!< true if it is an internal
+					transaction for DDL */
 	bool		internal;	/*!< true if it is a system/internal
-					transaction for DDL or used by a
-					background task. Such transactions are
-					always treated as read-write. */
+					transaction background task. This
+					includes DDL transactions too.  Such
+					transactions are always treated as
+					read-write. */
 	/*------------------------------*/
 #ifdef UNIV_DEBUG
 	ulint		start_line;	/*!< Track where it was started from */

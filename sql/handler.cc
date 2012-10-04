@@ -3648,6 +3648,9 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_TABLE_IN_FK_CHECK:
     textno= ER_TABLE_IN_FK_CHECK;
     break;
+  case HA_WRONG_CREATE_OPTION:
+    textno= ER_ILLEGAL_HA;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
@@ -5551,7 +5554,7 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     *flags|= HA_MRR_SUPPORT_SORTED;
 
     DBUG_ASSERT(cost->is_zero());
-    if ((*flags & HA_MRR_INDEX_ONLY) && total_rows > 2)
+    if (*flags & HA_MRR_INDEX_ONLY)
       cost->add_io(index_only_read_time(keyno, total_rows) *
                    Cost_estimate::IO_BLOCK_READ_COST());
     else

@@ -20,7 +20,7 @@
 
   <Product 
     Id="*" 
-    UpgradeCode="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3"
+    UpgradeCode="88AD3A5F-E83F-4B83-9D6B-6B38189E9AC5"
     Name="MySQL Server @MAJOR_VERSION@.@MINOR_VERSION@" 
     Version="@MAJOR_VERSION@.@MINOR_VERSION@.@PATCH_VERSION@" 
     Language="1033" 
@@ -40,7 +40,7 @@
 
     <!-- Upgrade -->
     
-    <Upgrade Id="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3">
+    <Upgrade Id="88AD3A5F-E83F-4B83-9D6B-6B38189E9AC5">
       <?if '@PATCH_VERSION@' != '0'?>
       <UpgradeVersion 
         Minimum="@MAJOR_VERSION@.@MINOR_VERSION@.0"
@@ -55,6 +55,16 @@
         OnlyDetect="yes"
         Property="NEWERVERSIONDETECTED" />
     </Upgrade>
+    <Upgrade Id="49EB7A6A-1CEF-4A1E-9E89-B9A4993963E3">
+      <UpgradeVersion 
+        Minimum="5.6.0"
+        IncludeMinimum="yes"
+        Maximum="5.6.6"
+		IncludeMaximum="yes"
+        Property="OLDUPGRADECODE"
+        MigrateFeatures="yes"
+        />
+    </Upgrade>	
     <Condition Message="A later version of [ProductName] is already installed. Setup will now exit.">
       NOT NEWERVERSIONDETECTED OR Installed
     </Condition>

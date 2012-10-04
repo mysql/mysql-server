@@ -190,75 +190,6 @@ static bool check_constant_expressions(List<Item> &values)
 }
 
 
-/**
-  Re-read record if more columns are needed for error message.
-
-  If we got a duplicate key error, we want to write an error
-  message containing the value of the duplicate key. If we do not have
-  all fields of the key value in record[0], we need to re-read the
-  record with a proper read_set.
-
-  @param[in] error   error number
-  @param[in] table   table
-*/
-
-static void prepare_record_for_error_message(int error, TABLE *table)
-{
-  Field **field_p;
-  Field *field;
-  uint keynr;
-  MY_BITMAP unique_map; /* Fields in offended unique. */
-  my_bitmap_map unique_map_buf[bitmap_buffer_size(MAX_FIELDS)];
-  DBUG_ENTER("prepare_record_for_error_message");
-
-  /*
-    Only duplicate key errors print the key value.
-    If storage engine does always read all columns, we have the value alraedy.
-  */
-  if ((error != HA_ERR_FOUND_DUPP_KEY) ||
-      !(table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ))
-    DBUG_VOID_RETURN;
-
-  /*
-    Get the number of the offended index.
-    We will see MAX_KEY if the engine cannot determine the affected index.
-  */
-  if ((keynr= table->file->get_dup_key(error)) >= MAX_KEY)
-    DBUG_VOID_RETURN;
-
-  /* Create unique_map with all fields used by that index. */
-  bitmap_init(&unique_map, unique_map_buf, table->s->fields, FALSE);
-  table->mark_columns_used_by_index_no_reset(keynr, &unique_map);
-
-  /* Subtract read_set and write_set. */
-  bitmap_subtract(&unique_map, table->read_set);
-  bitmap_subtract(&unique_map, table->write_set);
-
-  /*
-    If the unique index uses columns that are neither in read_set
-    nor in write_set, we must re-read the record.
-    Otherwise no need to do anything.
-  */
-  if (bitmap_is_clear_all(&unique_map))
-    DBUG_VOID_RETURN;
-
-  /* Get identifier of last read record into table->file->ref. */
-  table->file->position(table->record[0]);
-  /* Add all fields used by unique index to read_set. */
-  bitmap_union(table->read_set, &unique_map);
-  /* Tell the engine about the new set. */
-  table->file->column_bitmaps_signal();
-  /* Read record that is identified by table->file->ref. */
-  (void) table->file->ha_rnd_pos(table->record[1], table->file->ref);
-  /* Copy the newly read columns into the new record. */
-  for (field_p= table->field; (field= *field_p); field_p++)
-    if (bitmap_is_set(&unique_map, field->field_index))
-      field->copy_from_tmp(table->s->rec_buff_length);
-
-  DBUG_VOID_RETURN;
-}
-
-
 /*
   Process usual UPDATE
 
@@ -793,10 +724,6 @@ int mysql_update(THD *thd,
       check_constant_expressions(values))
     read_removal= table->check_read_removal(select->quick->index);
 
-  // For prepare_record_for_error_message():
-  if (table->file->ha_table_flags() & HA_PARTIAL_COLUMN_READ)
-    table->prepare_for_position();
-
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     thd->inc_examined_row_count(1);
@@ -895,7 +822,6 @@ int mysql_update(THD *thd,
           if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
             flags|= ME_FATALERROR; /* Other handler errors are fatal */
 
-          prepare_record_for_error_message(error, table);
 	  table->file->print_error(error,MYF(flags));
 	  error= 1;
 	  break;
@@ -932,7 +858,6 @@ int mysql_update(THD *thd,
               The handler should not report error of duplicate keys if they
               are ignored. This is a requirement on batching handlers.
             */
-            prepare_record_for_error_message(error, table);
             table->file->print_error(error,MYF(0));
             error= 1;
             break;
@@ -993,7 +918,6 @@ int mysql_update(THD *thd,
     */
   {
     /* purecov: begin inspected */
-    prepare_record_for_error_message(loc_error, table);
     table->file->print_error(loc_error,MYF(ME_FATALERROR));
     error= 1;
     /* purecov: end */
@@ -2135,7 +2059,6 @@ bool multi_update::send_data(List<Item> &not_used_values)
             if (table->file->is_fatal_error(error, HA_CHECK_DUP_KEY))
               flags|= ME_FATALERROR; /* Other handler errors are fatal */
 
-            prepare_record_for_error_message(error, table);
             table->file->print_error(error,MYF(flags));
             DBUG_RETURN(1);
           }
@@ -2416,7 +2339,6 @@ int multi_update::do_updates()
 
 err:
   {
-    prepare_record_for_error_message(local_error, table);
     table->file->print_error(local_error,MYF(ME_FATALERROR));
   }
 

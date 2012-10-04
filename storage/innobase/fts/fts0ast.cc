@@ -98,9 +98,21 @@ fts_ast_create_node_text(
 	void*		arg,			/*!< in: ast state instance */
 	const char*	ptr)			/*!< in: ast text string */
 {
+	ulint		len = strlen(ptr);
+	fts_ast_node_t*	node = NULL;
+
+	ut_ad(len >= 2);
+
+	if (len == 2) {
+		ut_ad(ptr[0] == '\"');
+		ut_ad(ptr[1] == '\"');
+		return(NULL);
+	}
+
+	node = fts_ast_node_create();
+
 	/*!< We ignore the actual quotes "" */
-	ulint		len = strlen(ptr) - 2;
-	fts_ast_node_t*	node = fts_ast_node_create();
+	len -= 2;
 
 	node->type = FTS_AST_TEXT;
 	node->text.ptr = static_cast<byte*>(ut_malloc(len + 1));

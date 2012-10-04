@@ -981,7 +981,6 @@ ib_table_get_id_low(
 	return(err);
 }
 
-
 /*****************************************************************//**
 Create an internal cursor instance.
 @return	DB_SUCCESS or err code */
@@ -991,13 +990,12 @@ ib_create_cursor(
 /*=============*/
 	ib_crsr_t*	ib_crsr,	/*!< out: InnoDB cursor */
 	dict_table_t*	table,		/*!< in: table instance */
-	ib_id_u64_t	index_id,	/*!< in: index id or 0 */
+	dict_index_t*	index,		/*!< in: index to use */
 	trx_t*		trx)		/*!< in: transaction */
 {
 	mem_heap_t*	heap;
 	ib_cursor_t*	cursor;
 	ib_err_t	err = DB_SUCCESS;
-	index_id_t	id = index_id;
 
 	heap = mem_heap_create(sizeof(*cursor) * 2);
 
@@ -1029,11 +1027,7 @@ ib_create_cursor(
 		prebuilt->select_lock_type = LOCK_NONE;
 		prebuilt->innodb_api = TRUE;
 
-		if (index_id > 0) {
-			prebuilt->index = dict_index_find_on_id_low(id);
-		} else {
-			prebuilt->index = dict_table_get_first_index(table);
-		}
+		prebuilt->index = index;
 
 		ut_a(prebuilt->index != NULL);
 
@@ -1056,6 +1050,32 @@ ib_create_cursor(
 	}
 
 	return(err);
+}
+
+/*****************************************************************//**
+Create an internal cursor instance, and set prebuilt->index to index
+with supplied index_id.
+@return	DB_SUCCESS or err code */
+static
+ib_err_t
+ib_create_cursor_with_index_id(
+/*===========================*/
+	ib_crsr_t*	ib_crsr,	/*!< out: InnoDB cursor */
+	dict_table_t*	table,		/*!< in: table instance */
+	ib_id_u64_t	index_id,	/*!< in: index id or 0 */
+	trx_t*		trx)		/*!< in: transaction */
+{
+	dict_index_t*	index;
+
+	if (index_id != 0) {
+		mutex_enter(&dict_sys->mutex);
+		index = dict_index_find_on_id_low(index_id);
+		mutex_exit(&dict_sys->mutex);
+	} else {
+		index = dict_table_get_first_index(table);
+	}
+
+	return(ib_create_cursor(ib_crsr, table, index, trx));
 }
 
 /*****************************************************************//**
@@ -1084,7 +1104,8 @@ ib_cursor_open_table_using_id(
 		return(DB_TABLE_NOT_FOUND);
 	}
 
-	err = ib_create_cursor(ib_crsr, table, 0, (trx_t*) ib_trx);
+	err = ib_create_cursor_with_index_id(ib_crsr, table, 0,
+					     (trx_t*) ib_trx);
 
 	return(err);
 }
@@ -1117,7 +1138,7 @@ ib_cursor_open_index_using_id(
 	}
 
 	/* We only return the lower 32 bits of the dulint. */
-	err = ib_create_cursor(
+	err = ib_create_cursor_with_index_id(
 		ib_crsr, table, index_id, (trx_t*) ib_trx);
 
 	if (ib_crsr != NULL) {
@@ -1175,6 +1196,7 @@ ib_cursor_open_index_using_name(
 			index_id = index->id;
 			*idx_type = index->type;
 			*idx_id = index_id;
+			break;
 		}
 		index = UT_LIST_GET_NEXT(indexes, index);
 	}
@@ -1185,8 +1207,9 @@ ib_cursor_open_index_using_name(
 	}
 
 	if (index_id > 0) {
+		ut_ad(index->id == index_id);
 		err = ib_create_cursor(
-			ib_crsr, table, index_id, cursor->prebuilt->trx);
+			ib_crsr, table, index, cursor->prebuilt->trx);
 	}
 
 	if (*ib_crsr != NULL) {
@@ -1246,7 +1269,8 @@ ib_cursor_open_table(
 	}
 
 	if (table != NULL) {
-		err = ib_create_cursor(ib_crsr, table, 0, (trx_t*) ib_trx);
+		err = ib_create_cursor_with_index_id(ib_crsr, table, 0,
+						     (trx_t*) ib_trx);
 	} else {
 		err = DB_TABLE_NOT_FOUND;
 	}
@@ -3732,7 +3756,8 @@ ib_table_truncate(
 					DICT_ERR_IGNORE_NONE);
 
 	if (table != NULL && dict_table_get_first_index(table)) {
-		err = ib_create_cursor(&ib_crsr, table, 0, (trx_t*) ib_trx);
+		err = ib_create_cursor_with_index_id(&ib_crsr, table, 0,
+						     (trx_t*) ib_trx);
 	} else {
 		err = DB_TABLE_NOT_FOUND;
 	}
@@ -3813,7 +3838,7 @@ ib_cfg_get_cfg()
 	int	cfg_status;
 
 	cfg_status = (ib_binlog_enabled) ? IB_CFG_BINLOG_ENABLED : 0;
-	
+
 	if (ib_mdl_enabled) {
 		cfg_status |= IB_CFG_MDL_ENABLED;
 	}
