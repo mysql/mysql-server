@@ -161,6 +161,10 @@ public:
   {
      return (do_get_rpl_info_type());
   }
+  /**
+     Returns a string corresponding to the type.
+  */
+  const char* get_rpl_info_type_str();
 
   /**
     Sets the value of a field to @c value.

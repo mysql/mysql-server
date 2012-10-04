@@ -1465,26 +1465,23 @@ fts_drop_table(
 	if (dict_table_get_low(table_name)) {
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Dropping %s\n", table_name);
-#endif
+		ib_logf(IB_LOG_LEVEL_INFO, "Dropping %s", table_name);
+#endif /* FTS_INTERNAL_DIAG_PRINT */
 
 		error = row_drop_table_for_mysql(table_name, trx, TRUE);
 
 		/* We only return the status of the last error. */
 		if (error != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Error: (%s) dropping "
-				"FTS index table %s\n",
-				ut_strerr(error), table_name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unale to drop FTS index aux table %s: %s",
+				table_name, ut_strerr(error));
 		}
-	} else {
-		if (fts_enable_diag_print) {
-			/* FIXME: Should provide appropriate error return code
-			rather than printing message indiscriminately. */
-			ib_logf(IB_LOG_LEVEL_WARN, "%s not found.\n",
-				table_name);
-		}
+	} else if (fts_enable_diag_print) {
+		/* FIXME: Should provide appropriate error return code
+		rather than printing message indiscriminately. */
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"FTS aux table %s not found in data dictionary",
+			table_name);
 	}
 
 	return(error);
@@ -1576,17 +1573,15 @@ fts_drop_index_tables(
 	trx_t*		trx,		/*!< in: transaction */
 	dict_index_t*	index)		/*!< in: Index to drop */
 {
-	dberr_t			err;
-	dberr_t			error = DB_SUCCESS;
 	fts_table_t		fts_table;
-	ulint			j;
+	dberr_t			error = DB_SUCCESS;
 
 	static const char*	index_tables[] = {
 		"DOC_ID",
 		NULL
 	};
 
-	err = fts_drop_index_split_tables(trx, index);
+	dberr_t	err = fts_drop_index_split_tables(trx, index);
 
 	/* We only return the status of the last error. */
 	if (err != DB_SUCCESS) {
@@ -1595,11 +1590,10 @@ fts_drop_index_tables(
 
 	FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 
-	for (j = 0; index_tables[j] != NULL; ++j) {
-		dberr_t	err;
+	for (ulint i = 0; index_tables[i] != NULL; ++i) {
 		char*	table_name;
 
-		fts_table.suffix = index_tables[j];
+		fts_table.suffix = index_tables[i];
 
 		table_name = fts_get_table_name(&fts_table);
 
@@ -1628,10 +1622,12 @@ fts_drop_all_index_tables(
 	trx_t*		trx,			/*!< in: transaction */
 	fts_t*		fts)			/*!< in: fts instance */
 {
-	ulint		i;
 	dberr_t		error = DB_SUCCESS;
 
-	for (i = 0; i < ib_vector_size(fts->indexes); ++i) {
+	for (ulint i = 0;
+	     fts->indexes != 0 && i < ib_vector_size(fts->indexes);
+	     ++i) {
+
 		dberr_t		err;
 		dict_index_t*	index;
 
@@ -1664,6 +1660,8 @@ fts_drop_tables(
 	fts_table_t	fts_table;
 
 	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
+
+	/* TODO: This is not atomic and can cause problems during recovery. */
 
 	error = fts_drop_common_tables(trx, &fts_table);
 
@@ -1703,10 +1701,10 @@ UNIV_INTERN
 dberr_t
 fts_create_common_tables(
 /*=====================*/
-	trx_t*		trx,			/*!< in: transaction */
-	const dict_table_t* table,		/*!< in: table with FTS index */
-	const char*	name,			/*!< in: table name normalized.*/
-	bool		skip_doc_id_index)	/*!< in: Skip index on doc id */
+	trx_t*		trx,		/*!< in: transaction */
+	const dict_table_t* table,	/*!< in: table with FTS index */
+	const char*	name,		/*!< in: table name normalized.*/
+	bool		skip_doc_id_index)/*!< in: Skip index on doc id */
 {
 	char*		sql;
 	dberr_t		error;
@@ -1910,9 +1908,7 @@ fts_create_index_tables_low(
 		que_graph_free(graph);
 	}
 
-	if (error == DB_SUCCESS) {
-		error = fts_sql_commit(trx);
-	} else {
+	if (error != DB_SUCCESS) {
 		/* We have special error handling here */
 
 		trx->error_state = DB_SUCCESS;
@@ -1941,12 +1937,19 @@ fts_create_index_tables(
 	trx_t*			trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: the index instance */
 {
+	dberr_t		err;
 	dict_table_t*	table;
 
 	table = dict_table_get_low(index->table_name);
 	ut_a(table != NULL);
 
-	return(fts_create_index_tables_low(trx, index, table->name, table->id));
+	err = fts_create_index_tables_low(trx, index, table->name, table->id);
+
+	if (err == DB_SUCCESS) {
+		trx_commit(trx);
+	}
+
+	return(err);
 }
 #if 0
 /******************************************************************//**
@@ -2438,6 +2441,7 @@ UNIV_INTERN
 void
 fts_update_next_doc_id(
 /*===================*/
+	trx_t*			trx,		/*!< in/out: transaction */
 	const dict_table_t*	table,		/*!< in: table */
 	const char*		table_name,	/*!< in: table name, or NULL */
 	doc_id_t		doc_id)		/*!< in: DOC ID to set */
@@ -2448,7 +2452,7 @@ fts_update_next_doc_id(
 	table->fts->cache->first_doc_id = table->fts->cache->next_doc_id;
 
 	fts_update_sync_doc_id(
-		table, table_name, table->fts->cache->synced_doc_id, NULL);
+		table, table_name, table->fts->cache->synced_doc_id, trx);
 
 }
 
@@ -2644,8 +2648,7 @@ fts_update_sync_doc_id(
 
 	info = pars_info_create();
 
-	// FIXME: Get rid of snprintf
-	id_len = snprintf(
+	id_len = ut_snprintf(
 		(char*) id, sizeof(id), FTS_DOC_ID_FORMAT, doc_id + 1);
 
 	pars_info_bind_varchar_literal(info, "doc_id", id, id_len);
@@ -2665,9 +2668,9 @@ fts_update_sync_doc_id(
 			fts_sql_commit(trx);
 			cache->synced_doc_id = doc_id;
 		} else {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Error: (%s) "
-				"while updating last doc id.\n",
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"(%s) while updating last doc id.",
 				ut_strerr(error));
 
 			fts_sql_rollback(trx);
@@ -4689,7 +4692,7 @@ fts_update_max_cache_size(
 
 	trx_free_for_background(trx);
 }
-#endif
+#endif /* FTS_CACHE_SIZE_DEBUG */
 
 /*********************************************************************//**
 Free the modified rows of a table. */

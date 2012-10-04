@@ -32,6 +32,7 @@ Created 2012-08-21 Sunny Bains.
 
 extern ulong	srv_spin_wait_delay;
 extern ulong	srv_n_spin_wait_rounds;
+extern ulong 	srv_force_recovery_crash;
 
 /** Default mutex policy. Should be as simple as possible so that
 it doesn't occupy any space. No vptrs etc. */
@@ -190,8 +191,8 @@ struct DebugPolicy : public TrackPolicy<Mutex> {
 	/** Destructor */
 	~DebugPolicy() UNIV_NOTHROW
 	{
-		ut_a(m_magic_n == 0);
-		ut_ad(m_thread_id == 0);
+		ut_a(m_magic_n == 0 || srv_force_recovery_crash);
+		ut_ad(m_thread_id == 0 || srv_force_recovery_crash);
 	}
 
 	/** Mutex is being destroyed. */

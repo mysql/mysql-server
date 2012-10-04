@@ -862,7 +862,7 @@ dict_update_filepath(
 	trx_t*		trx;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
@@ -921,7 +921,7 @@ dict_insert_tablespace_and_filepath(
 	trx_t*		trx;
 
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(filepath);
@@ -1929,7 +1929,7 @@ corrupted:
 			      " is not clustered!\n", stderr);
 
 			goto corrupted;
-		} else if (table->id < DICT_HDR_FIRST_ID
+		} else if (dict_is_sys_table(table->id)
 			   && (dict_index_is_clust(index)
 			       || ((table == dict_sys->sys_tables)
 				   && !strcmp("ID_IND", index->name)))) {
@@ -2661,12 +2661,12 @@ dict_load_foreign_cols(
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Unable to load columns names for foreign "
-				"key '%.*s' because it was not found in "
+				"key '%s' because it was not found in "
 				"InnoDB internal table SYS_FOREIGN_COLS. The "
 				"closest entry we found is: "
 				"(ID='%.*s', POS=%lu, FOR_COL_NAME='%.*s', "
 				"REF_COL_NAME='%.*s')",
-				(int) id_len, foreign->id,
+				foreign->id,
 				(int) len, field,
 				mach_read_from_4(pos),
 				(int) for_col_name_len, for_col_name,
@@ -2704,9 +2704,8 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_load_foreign(
 /*==============*/
-	const char*	id,	/*!< in: foreign constraint id, not
-				necessary '\0'-terminated */
-	ulint		id_len,	/*!< in: id length */
+	const char*	id,	/*!< in: foreign constraint id, must be
+				'\0'-terminated */
 	ibool		check_charsets,
 				/*!< in: TRUE=check charset compatibility */
 	ibool		check_recursive)
@@ -2728,8 +2727,11 @@ dict_load_foreign(
 	mtr_t		mtr;
 	dict_table_t*	for_table;
 	dict_table_t*	ref_table;
+	size_t		id_len;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	id_len = strlen(id);
 
 	heap2 = mem_heap_create(1000);
 
@@ -2756,8 +2758,8 @@ dict_load_foreign(
 
 		fprintf(stderr,
 			"InnoDB: Error: cannot load foreign constraint "
-			"%.*s: could not find the relevant record in "
-			"SYS_FOREIGN\n", (int) id_len, id);
+			"%s: could not find the relevant record in "
+			"SYS_FOREIGN\n", id);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2773,8 +2775,8 @@ dict_load_foreign(
 
 		fprintf(stderr,
 			"InnoDB: Error: cannot load foreign constraint "
-			"%.*s: found %.*s instead in SYS_FOREIGN\n",
-			(int) id_len, id, (int) len, field);
+			"%s: found %.*s instead in SYS_FOREIGN\n",
+			id, (int) len, field);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2993,14 +2995,21 @@ loop:
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_FOREIGN_FOR_NAME__ID, &len);
 
+	/* Copy the string because the page may be modified or evicted
+	after mtr_commit() below. */
+	char	fk_id[MAX_TABLE_NAME_LEN + 1];
+
+	ut_a(len <= MAX_TABLE_NAME_LEN);
+	memcpy(fk_id, field, len);
+	fk_id[len] = '\0';
+
 	btr_pcur_store_position(&pcur, &mtr);
 
 	mtr_commit(&mtr);
 
 	/* Load the foreign constraint definition to the dictionary cache */
 
-	err = dict_load_foreign((char*) field, len, check_charsets,
-				check_recursive);
+	err = dict_load_foreign(fk_id, check_charsets, check_recursive);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);
