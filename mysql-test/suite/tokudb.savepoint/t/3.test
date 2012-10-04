@@ -1,5 +1,5 @@
 #--source include/have_tokudb.inc
-SET STORAGE_ENGINE = 'TokuDB';
+SET DEFAULT_STORAGE_ENGINE = 'TokuDB';
 
 delimiter |;
 

@@ -1,4 +1,4 @@
-SET STORAGE_ENGINE='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 drop table if exists t1,t2;
 SELECT 10,10.0,10.,.1e+2,100.0e-1;
 10	10.0	10.	.1e+2	100.0e-1

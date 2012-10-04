@@ -1,6 +1,6 @@
 # verify that trickle loads or bulk loads can not insert values > 32MB
 
-set storage_engine='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 
 call mtr.add_suppression("TokuDB.*");
 call mtr.add_suppression(".*returned handler error 22");

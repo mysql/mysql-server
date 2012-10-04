@@ -1,6 +1,6 @@
 # test that select for update is executed with serializable isolation
 
-set storage_engine='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 
 --disable_warnings
 drop table if exists t;

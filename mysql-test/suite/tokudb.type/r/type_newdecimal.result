@@ -1,4 +1,4 @@
-SET STORAGE_ENGINE='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 drop table if exists t1;
 select 1.1 IN (1.0, 1.2);
 1.1 IN (1.0, 1.2)

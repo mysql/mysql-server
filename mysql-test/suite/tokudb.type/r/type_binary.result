@@ -1,4 +1,4 @@
-SET STORAGE_ENGINE='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 drop table if exists t1;
 create table t1 (s1 binary(3));
 insert into t1 values (0x61), (0x6120), (0x612020);

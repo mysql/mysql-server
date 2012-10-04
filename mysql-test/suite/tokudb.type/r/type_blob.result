@@ -1,4 +1,4 @@
-set storage_engine='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 drop table if exists t,t1,t2,t3,t4,t5,t6,t7;
 CREATE TABLE t1 (a blob, b text, c blob(250), d text(70000), e text(70000000));
 show columns from t1;
