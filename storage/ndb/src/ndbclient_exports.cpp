@@ -31,6 +31,13 @@ extern "C" void ndb_usage(void);
 extern "C" void myRandom48Init(void);
 extern "C" void ndb_rand(void);
 
+#ifdef _MSC_VER
+/*
+  Make at least one symbol defined in ndbclient in order to force
+  generation of export lib 
+*/
+__declspec(dllexport)
+#endif
 void
 _ndbclient_exports(void)
 {
