@@ -40,42 +40,6 @@ static const char *ha_tokudb_exts[] = {
     NullS
 };
 
-
-static void share_key_file_lock_init(TOKUDB_SHARE * share)
-{
-#ifdef HA_TOKUDB_NEEDS_KEY_FILE_LOCK
-    my_rwlock_init(&share->key_file_lock, 0);
-#endif
-}
-
-static void share_key_file_lock_destroy(TOKUDB_SHARE * share)
-{
-#ifdef HA_TOKUDB_NEEDS_KEY_FILE_LOCK
-    rwlock_destroy(&share->key_file_lock);
-#endif
-}
-
-static void share_key_file_rdlock(TOKUDB_SHARE * share)
-{
-#ifdef HA_TOKUDB_NEEDS_KEY_FILE_LOCK
-    rw_rdlock(&share->key_file_lock);
-#endif
-}
-
-static void share_key_file_wrlock(TOKUDB_SHARE * share)
-{
-#ifdef HA_TOKUDB_NEEDS_KEY_FILE_LOCK
-    rw_wrlock(&share->key_file_lock);
-#endif
-}
-
-static void share_key_file_unlock(TOKUDB_SHARE * share)
-{
-#ifdef HA_TOKUDB_NEEDS_KEY_FILE_LOCK
-    rw_unlock(&share->key_file_lock);
-#endif
-}
-
 //
 // This offset is calculated starting from AFTER the NULL bytes
 //
@@ -189,7 +153,6 @@ static TOKUDB_SHARE *get_share(const char *table_name, TABLE_SHARE* table_share)
         }
         thr_lock_init(&share->lock);
         pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
-        share_key_file_lock_init(share);
         my_rwlock_init(&share->num_DBs_lock, 0);
     }
 
@@ -259,7 +222,6 @@ static int free_share(TOKUDB_SHARE * share, bool mutex_is_locked) {
         my_hash_delete(&tokudb_open_tables, (uchar *) share);
         thr_lock_delete(&share->lock);
         pthread_mutex_destroy(&share->mutex);
-        share_key_file_lock_destroy(share);
         rwlock_destroy(&share->num_DBs_lock);
         my_free((uchar *) share, MYF(0));
     }
@@ -5659,7 +5621,6 @@ void ha_tokudb::position(const uchar * record) {
 int ha_tokudb::info(uint flag) {
     TOKUDB_DBUG_ENTER("ha_tokudb::info %p %d %lld", this, flag, (long long) share->rows);
     int error;
-    bool key_file_lock_taken = false;
     DB_TXN* txn = NULL;
     uint curr_num_DBs = table->s->keys + test(hidden_primary_key);
     DB_BTREE_STAT64 dict_stats;
@@ -5678,8 +5639,6 @@ int ha_tokudb::info(uint flag) {
             error = db_env->txn_begin(db_env, NULL, &txn, DB_READ_UNCOMMITTED);
             if (error) { goto cleanup; }
 
-            share_key_file_rdlock(share);
-            key_file_lock_taken = true;
             // we should always have a primary key
             assert(share->file != NULL);
 
@@ -5780,9 +5739,6 @@ int ha_tokudb::info(uint flag) {
     }
     error = 0;
 cleanup:
-    if (key_file_lock_taken) {
-        share_key_file_unlock(share);
-    }
     if (txn != NULL) {
         commit_txn(txn, DB_TXN_NOSYNC);
         txn = NULL;
@@ -7794,8 +7750,6 @@ int ha_tokudb::drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys, K
 
     while (ha_tokudb_drop_indexes_wait) sleep(1); // debug
 
-    share_key_file_wrlock(share);
-
     int error = 0;
     for (uint i = 0; i < num_of_keys; i++) {
         uint curr_index = key_num[i];
@@ -7823,7 +7777,6 @@ cleanup:
 another transaction has accessed the table. \
 To drop indexes, make sure no transactions touch the table.", share->table_name);
     }
-    share_key_file_unlock(share);
     TOKUDB_DBUG_RETURN(error);
 }
 
@@ -7832,7 +7785,6 @@ To drop indexes, make sure no transactions touch the table.", share->table_name)
 // Restores dropped indexes in case of error in error path of prepare_drop_index and alter_table_phase2
 //
 void ha_tokudb::restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_of_keys) {
-    share_key_file_wrlock(share);
 
     //
     // reopen closed dictionaries
@@ -7851,7 +7803,6 @@ void ha_tokudb::restore_drop_indexes(TABLE *table_arg, uint *key_num, uint num_o
             assert(!r);
         }
     }            
-    share_key_file_unlock(share);
 }
 
 void ha_tokudb::print_error(int error, myf errflag) {
@@ -7982,8 +7933,6 @@ int ha_tokudb::delete_all_rows_internal() {
     uint curr_num_DBs = 0;
     DB_TXN* txn = NULL;
 
-    share_key_file_wrlock(share);
-
     error = db_env->txn_begin(db_env, 0, &txn, 0);
     if (error) { goto cleanup; }
 
@@ -8052,7 +8001,6 @@ cleanup:
             }
         }
     }
-    share_key_file_unlock(share);
     TOKUDB_DBUG_RETURN(error);
 }
 
