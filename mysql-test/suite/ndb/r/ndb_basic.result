@@ -993,11 +993,11 @@ id	parent_id
 DROP TABLE child, parent;
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
 ENGINE=ndb PARTITION BY KEY(a) PARTITIONS 144;
-ERROR HY000: Got error 140 'Unknown error code' from NDBCLUSTER
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 1224 'Too many fragments' from NDB
-Error	1296	Got error 140 'Unknown error code' from NDBCLUSTER
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1 (a INT PRIMARY KEY, b TEXT)
 ENGINE=ndb;
 show warnings;
