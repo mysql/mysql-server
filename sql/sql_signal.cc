@@ -478,7 +478,7 @@ bool Signal_statement::execute(THD *thd)
 
 bool Resignal_statement::execute(THD *thd)
 {
-  MYSQL_ERROR *signaled;
+  Sql_condition_info *signaled;
   int result= TRUE;
 
   DBUG_ENTER("Resignal_statement::execute");
@@ -491,15 +491,21 @@ bool Resignal_statement::execute(THD *thd)
     DBUG_RETURN(result);
   }
 
+  MYSQL_ERROR signaled_err(thd->mem_root);
+  signaled_err.set(signaled->m_sql_errno,
+                   signaled->m_sql_state,
+                   signaled->m_level,
+                   signaled->m_message);
+
   if (m_cond == NULL)
   {
     /* RESIGNAL without signal_value */
-    result= raise_condition(thd, signaled);
+    result= raise_condition(thd, &signaled_err);
     DBUG_RETURN(result);
   }
 
   /* RESIGNAL with signal_value */
-  result= raise_condition(thd, signaled);
+  result= raise_condition(thd, &signaled_err);
 
   DBUG_RETURN(result);
 }
