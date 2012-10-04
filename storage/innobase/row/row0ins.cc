@@ -2478,7 +2478,7 @@ row_ins_sec_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
-	ulint		search_mode = mode | BTR_INSERT;
+	ulint		search_mode = mode;
 	dberr_t		err;
 	ulint		n_unique;
 	mtr_t		mtr;
@@ -2487,6 +2487,10 @@ row_ins_sec_index_entry_low(
 	ut_ad(!dict_index_is_clust(index));
 
 	cursor.thr = thr;
+
+	/* Disable i-buffering for temp-table indexes */
+	if (!dict_table_is_temporary(index->table))
+		search_mode |= BTR_INSERT;
 
 	/* Ensure that we acquire an S-latch on index->lock when
 	inserting into an index that has been completed inside InnoDB,

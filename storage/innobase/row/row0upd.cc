@@ -1643,8 +1643,8 @@ row_upd_sec_index_entry(
 
 	/* We can only try to use the insert/delete buffer to buffer
 	delete-mark operations if the index we're modifying has no foreign
-	key constraints referring to it. */
-	if (!referenced) {
+	key constraints referring to it + index doesn't belong to temp-table */
+	if (!referenced && !dict_table_is_temporary(index->table)) {
 		mode |= BTR_DELETE_MARK;
 	}
 

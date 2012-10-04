@@ -1621,9 +1621,9 @@ btr_create(
 
 	/* We reset the free bits for the page to allow creation of several
 	trees in the same mtr, otherwise the latch on a bitmap page would
-	prevent it because of the latching order */
-
-	if (!(type & DICT_CLUSTERED)) {
+	prevent it because of the latching order.
+	Note: Insert Buffering is disabled for temporary tables. */
+	if (!dict_table_is_temporary(index->table) && !(type & DICT_CLUSTERED)) {
 		ibuf_reset_free_bits(block);
 	}
 
@@ -1643,10 +1643,11 @@ UNIV_INTERN
 void
 btr_free_but_not_root(
 /*==================*/
-	ulint	space,		/*!< in: space where created */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	root_page_no)	/*!< in: root page number */
+	ulint		space,		/*!< in: space where created */
+	ulint		zip_size,	/*!< in: compressed page size in bytes
+					or 0 for uncompressed pages */
+	ulint		root_page_no,	/*!< in: root page number */
+	dict_index_t*	index)		/*!< in: index */
 {
 	ibool	finished;
 	page_t*	root;
@@ -1654,6 +1655,8 @@ btr_free_but_not_root(
 
 leaf_loop:
 	mtr_start(&mtr);
+	if (index && dict_table_is_temporary(index->table))
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);
@@ -1677,6 +1680,8 @@ leaf_loop:
 	}
 top_loop:
 	mtr_start(&mtr);
+	if (index && dict_table_is_temporary(index->table))
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);

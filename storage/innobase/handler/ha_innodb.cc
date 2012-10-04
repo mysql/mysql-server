@@ -8557,7 +8557,29 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
-	err = row_create_table_for_mysql(table, trx, true);
+	/* If temp table, then we avoid creation of entries in SYS_XXXX
+	table to save on performance. This doesn't compromise on 
+	correctness as temp-table information is still maintained
+	in memory and temp-table life-time doesn't go beyond server
+	shut-down cycle. */
+	if (!(dict_table_is_temporary(table)))
+		err = row_create_table_for_mysql(table, trx, true);
+	else
+	{
+		/* Create tablespace if configured. */
+		err = dict_build_tablespace(table, trx);
+		if (err == DB_SUCCESS)
+		{
+			/* if tablespace is created add to table entry
+			to cache. temp-table are maintained in memory
+			and so can_be_evicted is FALSE. */
+			mem_heap_t* add_to_cache_heap = mem_heap_create(256);
+			dict_table_add_to_cache(
+				table, FALSE, add_to_cache_heap); 
+			err = DB_SUCCESS;	
+			mem_heap_free(add_to_cache_heap);
+		}
+	}
 
 	mem_heap_free(heap);
 

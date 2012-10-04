@@ -51,6 +51,7 @@ UNIV_INTERN
 void
 dict_hdr_get_new_id(
 /*================*/
+	dict_table_t*	table,		/*!< in: table */
 	table_id_t*	table_id,	/*!< out: table id
 					(not assigned if NULL) */
 	index_id_t*	index_id,	/*!< out: index id
