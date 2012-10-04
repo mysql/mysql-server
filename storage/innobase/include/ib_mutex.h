@@ -601,7 +601,7 @@ struct TTASWaitMutex {
  
 	~TTASWaitMutex()
 	{
-		ut_a(m_event == 0 || srv_force_recovery_crash);
+		ut_ad(m_event == 0 || srv_force_recovery_crash);
 		ut_ad(m_lock_word == MUTEX_STATE_UNLOCKED);
 	}
  
@@ -925,6 +925,7 @@ private:
 	MutexImpl		m_impl;
 };
 
+#ifdef UNIV_PFS_MUTEX
 /** Mutex interface for all performance schema mutexes. */
 template <typename MutexImpl>
 struct PFSMutex : PolicyMutex<MutexImpl>
@@ -1059,6 +1060,7 @@ private:
 	/** The performance schema instrumentation hook. */
 	PSI_mutex*		m_ptr;
 };
+#endif /* UNIV_PFS_MUTEX */
 
 #ifndef UNIV_DEBUG
 
@@ -1082,6 +1084,7 @@ typedef PolicyMutex<Futex<DefaultPolicy> >  FutexMutex;
 typedef PolicyMutex<TTASWaitMutex<TrackPolicy> > Mutex;
 typedef PolicyMutex<OSTrackedMutex<DefaultPolicy> > SysMutex;
 typedef PolicyMutex<TTASMutex<DefaultPolicy> > SpinMutex;
+typedef PolicyMutex<OSBasicMutex<DefaultPolicy> > EventMutex;
 
 # endif /* UNIV_PFS_MUTEX */
 
