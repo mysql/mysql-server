@@ -17,7 +17,7 @@ UNLOCK TABLES;
 DROP TABLE testdb_wl5522.t1;
 CREATE TABLE testdb_wl5522.t1 (c1 int ) ENGINE = Innodb;
 ALTER TABLE testdb_wl5522.t1 DISCARD TABLESPACE;
-restore: t1
+restore: t1 .ibd and .cfg files
 ALTER TABLE testdb_wl5522.t1 IMPORT TABLESPACE;
 CHECK TABLE testdb_wl5522.t1;
 Table	Op	Msg_type	Msg_text
