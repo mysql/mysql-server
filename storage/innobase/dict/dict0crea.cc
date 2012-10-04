@@ -253,6 +253,31 @@ dict_build_table_def_step(
 {
 	dict_table_t*	table;
 	dtuple_t*	row;
+	dberr_t         error;
+
+	table = node->table;
+	
+	error = dict_build_tablespace(table, thr_get_trx(thr)); 	
+	if (error != DB_SUCCESS)
+		return(error);
+	
+	row = dict_create_sys_tables_tuple(table, node->heap);
+
+	ins_node_set_new_row(node->tab_def, row);
+
+	return(DB_SUCCESS);
+}
+
+/***************************************************************//**
+Builds a tablespace, if configured.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+dict_build_tablespace(
+/*===================*/
+	dict_table_t*	table,	/*!< in: table */
+	trx_t*		trx)	/*!< in: InnoDB transaction handle */
+{
 	dberr_t		error;
 	const char*	path;
 	mtr_t		mtr;
@@ -261,18 +286,17 @@ dict_build_table_def_step(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	table = node->table;
 	use_tablespace =
 		DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
 
-	dict_hdr_get_new_id(&table->id, NULL, NULL);
+	dict_hdr_get_new_id(table, &table->id, NULL, NULL);
 
-	thr_get_trx(thr)->table_id = table->id;
+	trx->table_id = table->id;
 
 	if (use_tablespace) {
 		/* This table will not use the system tablespace.
 		Get a new space id. */
-		dict_hdr_get_new_id(NULL, NULL, &space);
+		dict_hdr_get_new_id(table, NULL, NULL, &space);
 
 		if (UNIV_UNLIKELY(space == ULINT_UNDEFINED)) {
 			return(DB_ERROR);
@@ -317,10 +341,6 @@ dict_build_table_def_step(
 		the row format is redundant or compact */
 		table->flags &= DICT_TF_COMPACT;
 	}
-
-	row = dict_create_sys_tables_tuple(table, node->heap);
-
-	ins_node_set_new_row(node->tab_def, row);
 
 	return(DB_SUCCESS);
 }
@@ -595,7 +615,7 @@ dict_build_index_def_step(
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || dict_index_is_clust(index));
 
-	dict_hdr_get_new_id(NULL, &index->id, NULL);
+	dict_hdr_get_new_id(table, NULL, &index->id, NULL);
 
 	/* Inherit the space id from the table; we store all indexes of a
 	table in the same tablespace */
@@ -606,6 +626,42 @@ dict_build_index_def_step(
 	node->ind_row = row;
 
 	ins_node_set_new_row(node->ind_def, row);
+
+	/* Note that the index was created by this transaction. */
+	index->trx_id = trx->id;
+
+	return(DB_SUCCESS);
+}
+
+/***************************************************************//**
+Builds an index definition but don't update sys_table.
+This interface is generally used for temp-tables for which we don't
+update SYS_XXXX table during creation for performance.
+@return	DB_SUCCESS or error code */
+UNIV_INTERN
+dberr_t
+dict_build_index_def(
+/*=================*/
+	dict_table_t*	table,	/*!< in: table */
+	dict_index_t*	index,	/*!< in: index */
+	trx_t*		trx)	/*!< in: InnoDB transaction handle */
+{
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	if (!trx->table_id) {
+		/* Record only the first table id. */
+		trx->table_id = table->id;
+	}
+	
+	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
+	      || dict_index_is_clust(index));
+
+	dict_hdr_get_new_id(table, NULL, &index->id, NULL);
+
+	/* Inherit the space id from the table; we store all indexes of a
+	table in the same tablespace */
+
+	index->space = table->space;
 
 	/* Note that the index was created by this transaction. */
 	index->trx_id = trx->id;
@@ -704,6 +760,68 @@ dict_create_index_tree_step(
 	return(err);
 }
 
+/***************************************************************//**
+Creates an index tree for the index if it is not a member of a cluster.
+Don't update SYS_XXXX table.
+@return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+UNIV_INTERN
+dberr_t
+dict_create_index_tree(
+/*====================*/
+	dict_index_t*	index,	/*!< in: index */
+	trx_t*		trx,	/*!< in: InnoDB transaction handle */
+	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
+					the built tuple is allocated */
+{
+	mtr_t		mtr;
+	ulint		page_no = FIL_NULL;
+
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	if (index->type == DICT_FTS) {
+		/* FTS index does not need an index tree */
+		return(DB_SUCCESS);
+	}
+
+	/* Run a mini-transaction in which the index tree is allocated for
+	the index and its root address is written to the index entry in
+	sys_indexes */
+
+	mtr_start(&mtr);
+	
+	/* If temporary table then set logging off */
+	if (dict_table_is_temporary(index->table))
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	
+	dberr_t		err = DB_SUCCESS;
+	ulint		zip_size = dict_table_zip_size(index->table);
+
+	if (index->table->ibd_file_missing
+	    || dict_table_is_discarded(index->table)) {
+
+		page_no = FIL_NULL;
+	} else {
+		page_no = btr_create(
+			index->type, index->space, zip_size,
+			index->id, index, &mtr);
+
+		index->page = page_no;
+		index->trx_id = trx->id;
+
+		if (page_no == FIL_NULL) {
+			err = DB_OUT_OF_FILE_SPACE;
+		}
+
+		DBUG_EXECUTE_IF("ib_import_create_index_failure_1",
+				page_no = FIL_NULL;
+				err = DB_OUT_OF_FILE_SPACE; );
+	}
+
+	mtr_commit(&mtr);
+
+	return(err);
+}
+
 /*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table. */
 UNIV_INTERN
@@ -753,7 +871,7 @@ dict_drop_index_tree(
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
-	btr_free_but_not_root(space, zip_size, root_page_no);
+	btr_free_but_not_root(space, zip_size, root_page_no, NULL);
 
 	/* Then we free the root page in the same mini-transaction where
 	we write FIL_NULL to the appropriate field in the SYS_INDEXES
@@ -765,6 +883,63 @@ dict_drop_index_tree(
 
 	page_rec_write_field(rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
 			     FIL_NULL, mtr);
+}
+
+/*******************************************************************//**
+Drops the index tree but don't update SYS_INDEXES table. 
+This interface is generally used for temp-tables where-in we don't
+update SYS_XXXXX table for temp-tables. */
+UNIV_INTERN
+void
+dict_drop_index_tree_wo_sys_tables_update(
+/*======================================*/
+	dict_index_t*	index,		/*!< in: index */
+	ulint           page_no)	/*!< in: index page-no */
+{
+	ulint		root_page_no;
+	ulint		space;
+	ulint		zip_size;
+	mtr_t		mtr;
+
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	mtr_start(&mtr);
+	if(dict_table_is_temporary(index->table))
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	
+	root_page_no = page_no;
+
+	if (root_page_no == FIL_NULL) {
+		/* The tree has already been freed */
+
+		return;
+	}
+
+	space = index->space;
+
+	zip_size = fil_space_get_zip_size(space);
+
+	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+		/* It is a single table tablespace and the .ibd file is
+		missing: do nothing */
+
+		return;
+	}
+
+	/* We free all the pages but the root page first; this operation
+	may span several mini-transactions */
+
+	btr_free_but_not_root(space, zip_size, root_page_no, index);
+
+	/* Then we free the root page in the same mini-transaction where
+	we write FIL_NULL to the appropriate field in the SYS_INDEXES
+	record: this mini-transaction marks the B-tree totally freed */
+
+	/* printf("Dropping index tree in space %lu root page %lu\n", space,
+	root_page_no); */
+	btr_free_root(space, zip_size, root_page_no, &mtr);
+
+	mtr_commit(&mtr);
 }
 
 /*******************************************************************//**
@@ -853,7 +1028,7 @@ dict_truncate_index_tree(
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
-	btr_free_but_not_root(space, zip_size, root_page_no);
+	btr_free_but_not_root(space, zip_size, root_page_no, NULL);
 
 	/* Then we free the root page in the same mini-transaction where
 	we create the b-tree and write its new root page number to the
@@ -900,6 +1075,96 @@ create:
 		table->name);
 
 	return(FIL_NULL);
+}
+
+/*******************************************************************//**
+Truncates the index tree but don't update SYS_XXXX table. 
+This interface is generally used for temp-tables for which we don't
+update SYS_XXXX table on creation.
+@return	new root page number, or FIL_NULL on failure */
+UNIV_INTERN
+void
+dict_truncate_index_tree_wo_sys_tables_update(
+/*===========================================*/
+	dict_index_t*	index,	/*!< in: index */
+	ulint		space)	/*!< in: 0=truncate,
+				nonzero=create the index tree in the
+				given tablespace */
+{
+	ulint		root_page_no;
+	ibool		drop = !space;
+	ulint		zip_size;
+	ulint		type;
+	mtr_t		mtr;
+
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+	
+	mtr_start(&mtr);
+	if (dict_table_is_temporary(index->table))
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+
+	root_page_no = index->page;
+	type = index->type;
+
+	if (drop) {
+		/* if new tablespace is created then use it else use 
+		existing one */
+		space = index->space;
+	}
+
+	if (drop && root_page_no == FIL_NULL) {
+		/* The tree has been freed. */
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
+			" a missing index of table %s!\n", index->table->name);
+		drop = FALSE;
+	}
+
+	zip_size = fil_space_get_zip_size(space);
+
+	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+		/* It is a single table tablespace and the .ibd file is
+		missing: do nothing */
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
+			" a missing .ibd file of table %s!\n", index->table->name);
+	}
+
+	if (!drop) {
+		/* If new tablespace is created then anyways we are
+		dropping existing tablespace so just ignore freeing
+		of btree as they will get dropped along with tablespace */
+		goto create;
+	}
+
+	/* We free all the pages but the root page first; this operation
+	may span several mini-transactions */
+
+	btr_free_but_not_root(space, zip_size, root_page_no, NULL);
+
+	/* Then we free the root page in the same mini-transaction where
+	we create the b-tree and write its new root page number to the
+	appropriate field in the SYS_INDEXES record: this mini-transaction
+	marks the B-tree totally truncated */
+
+	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, &mtr);
+
+	btr_free_root(space, zip_size, root_page_no, &mtr);
+create:
+	mtr_commit(&mtr);
+
+	mtr_start(&mtr);
+
+	if (dict_table_is_temporary(index->table))
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+
+	root_page_no = btr_create(type, space, zip_size,
+				  index->id, index, &mtr);
+	index->page = (unsigned int) root_page_no;
+
+	mtr_commit(&mtr);
 }
 
 /*********************************************************************//**
