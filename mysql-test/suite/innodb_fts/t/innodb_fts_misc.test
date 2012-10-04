@@ -932,7 +932,8 @@ CREATE TABLE `t21` (`a` text, `b` int not null,
 fulltext key (`a`), fulltext key (`a`)
 ) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
 
---error ER_INNODB_FT_LIMIT
+--error ER_NOT_SUPPORTED_YET
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE;
 ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
 
 DROP TABLE t21;

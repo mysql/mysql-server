@@ -394,7 +394,8 @@ dict_table_stats_unlock(
 }
 
 /**********************************************************************//**
-Try to drop any indexes after an aborted index creation. */
+Try to drop any indexes after an aborted index creation.
+This can also be after a server kill during DROP INDEX. */
 static
 void
 dict_table_try_drop_aborted(
@@ -407,6 +408,7 @@ dict_table_try_drop_aborted(
 	trx_t*		trx;
 
 	trx = trx_allocate_for_background();
+	trx->op_info = "try to drop any indexes after an aborted index creation";
 	row_mysql_lock_data_dictionary(trx);
 	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
@@ -1779,6 +1781,7 @@ dict_table_remove_from_cache_low(
 		ut_d(table->n_ref_count--);
 		ut_ad(table->n_ref_count == 0);
 		trx_commit_for_mysql(trx);
+		trx->dict_operation_lock_mode = 0;
 		trx_free_for_background(trx);
 	}
 
@@ -1866,6 +1869,12 @@ dict_index_too_big_for_undo(
 		+ 11 /* DB_ROLL_PTR */
 		+ 10 + FIL_PAGE_DATA_END /* trx_undo_left() */
 		+ 2/* pointer to previous undo log record */;
+
+	/* FTS index consists of auxiliary tables, they shall be excluded from
+	index row size check */
+	if (new_index->type & DICT_FTS) {
+		return(false);
+	}
 
 	if (!clust_index) {
 		ut_a(dict_index_is_clust(new_index));
@@ -1989,6 +1998,12 @@ dict_index_too_big_for_tree(
 	ulint	page_rec_max;
 	/* maximum allowed size of a node pointer record */
 	ulint	page_ptr_max;
+
+	/* FTS index consists of auxiliary tables, they shall be excluded from
+	index row size check */
+	if (new_index->type & DICT_FTS) {
+		return(false);
+	}
 
 	comp = dict_table_is_comp(table);
 	zip_size = dict_table_zip_size(table);
@@ -6386,5 +6401,29 @@ dict_index_zip_pad_optimal_page_size(
 	min_sz = (UNIV_PAGE_SIZE * (100 - zip_pad_max)) / 100;
 
 	return(ut_max(sz, min_sz));
+}
+
+/*************************************************************//**
+Convert table flag to row format string.
+@return row format name. */
+UNIV_INTERN
+const char*
+dict_tf_to_row_format_string(
+/*=========================*/
+	ulint	table_flag)		/*!< in: row format setting */
+{
+	switch (dict_tf_get_rec_format(table_flag)) {
+	case REC_FORMAT_REDUNDANT:
+		return("ROW_TYPE_REDUNDANT");
+	case REC_FORMAT_COMPACT:
+		return("ROW_TYPE_COMPACT");
+	case REC_FORMAT_COMPRESSED:
+		return("ROW_TYPE_COMPRESSED");
+	case REC_FORMAT_DYNAMIC:
+		return("ROW_TYPE_DYNAMIC");
+	}
+
+	ut_error;
+	return(0);
 }
 #endif /* !UNIV_HOTBACKUP */
