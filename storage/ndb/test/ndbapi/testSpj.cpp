@@ -127,6 +127,8 @@ runLookupJoinError(NDBT_Context* ctx, NDBT_Step* step){
       17070, 17071, 17072, // lookup_send.dupsec -> outOfSectionMem
       17080, 17081, 17082, // lookup_parent_row -> OutOfQueryMemory
       17120, 17121, // execTRANSID_AI -> OutOfRowMemory
+      17130,        // sendSignal(DIH_SCAN_GET_NODES_REQ)  -> import() failed
+      7234,         // sendSignal(DIH_SCAN_GET_NODES_CONF) -> import() failed (DIH)
       17510 // random failure when allocating seection memory
   }; 
   loops =  faultToInject ? 1 : sizeof(lookupFaults)/sizeof(int);

@@ -1253,6 +1253,10 @@ private:
 
   void scanIndex_release_rangekeys(Ptr<Request>, Ptr<TreeNode>);
 
+  Uint32 scanindex_sendDihGetNodesReq(Signal* signal,
+                                      Ptr<Request> requestPtr,
+                                      Ptr<TreeNode> treeNodePtr);
+
   /**
    * Page manager
    */
