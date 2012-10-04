@@ -11,7 +11,7 @@ ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile02.dat'
 INITIAL_SIZE = 4M 
 ENGINE=XYZ;
-ERROR HY000: Table storage engine 'MyISAM' does not support the create option 'TABLESPACE or LOGFILE GROUP'
+ERROR 42000: Unknown storage engine 'XYZ'
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1

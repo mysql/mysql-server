@@ -158,6 +158,8 @@ protected:
   /* Overload limit, as configured with the OverloadLimit config parameter. */
   Uint32 m_overload_limit;
   Uint32 m_slowdown_limit;
+  Uint64 m_bytes_sent;
+  Uint64 m_bytes_received;
 
 private:
 

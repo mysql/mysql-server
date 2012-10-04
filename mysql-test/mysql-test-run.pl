@@ -1206,6 +1206,15 @@ sub command_line_setup {
   usage("") if $opt_usage;
   list_options(\%options) if $opt_list_options;
 
+  ## MCP temp fixes to reduce footprint of large number of failing tests
+  $opt_max_save_core = 1; # Don't save many cores
+  $opt_max_save_datadir = 1; # Dont save many datadirs
+  $opt_max_test_fail = 0 # Allow many tests to fail
+    unless IS_WINDOWS || $opt_valgrind;
+  $opt_retry = 1; # Don't retry failed tests
+  print "retry: $opt_retry, max_test_fail: $opt_max_test_fail, max_save_core: $opt_max_save_core, max_save_data: $opt_max_save_datadir\n";
+  ## MCP temp fixes end
+
   # --------------------------------------------------------------------------
   # Setup verbosity
   # --------------------------------------------------------------------------
@@ -3074,10 +3083,17 @@ sub ndbd_start {
 # > 5.0 { 'character-sets-dir' => \&fix_charset_dir },
 
   my $exe= $exe_ndbd;
-  if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)
-  {
-    # Use ndbmtd every other time
-    $exe= $exe_ndbmtd;
+  if ($exe_ndbmtd)
+  { if ($ENV{MTR_NDBMTD})
+    {
+      # ndbmtd forced by env var MTR_NDBMTD
+      $exe= $exe_ndbmtd;
+    }
+    if (($exe_ndbmtd_counter++ % 2) == 0)
+    {
+      # Use ndbmtd every other time
+      $exe= $exe_ndbmtd;
+    }
   }
 
   my $path_ndbd_log= "$dir/ndbd.log";

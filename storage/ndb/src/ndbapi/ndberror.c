@@ -165,7 +165,10 @@ ErrorBundle ErrorCodes[] = {
   { 20016, DMEC, NR, "Query aborted due to node failure" },
   { 20017, DMEC, IE, "Query aborted due to invalid node count" },
   { 20018, DMEC, IE, "Query aborted due to index fragment not found" },
-  
+  { 20019, HA_ERR_NO_SUCH_TABLE, SE, "Query table not defined" },
+  { 20020, HA_ERR_NO_SUCH_TABLE, SE, "Query table is being dropped" },
+  { 20021, HA_ERR_TABLE_DEF_CHANGED, SE, "Query table definition has changed" },
+
   /**
    * Node shutdown
    */
@@ -201,6 +204,7 @@ ErrorBundle ErrorCodes[] = {
     "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
   { 275,  DMEC, TR, "Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)" },
   { 279,  DMEC, TR, "Out of transaction markers in transaction coordinator" },
+  { 312,  DMEC, TR, "Out of LongMessageBuffer" },
   { 414,  DMEC, TR, "414" },
   { 418,  DMEC, TR, "Out of transaction buffers in LQH" },
   { 419,  DMEC, TR, "419" },
@@ -491,7 +495,7 @@ ErrorBundle ErrorCodes[] = {
   { 919,  DMEC, TR, "Cannot execute index stats update" },
   { 1224, HA_WRONG_CREATE_OPTION, SE, "Too many fragments" },
   { 1225, DMEC, SE, "Table not defined in local query handler" },
-  { 1226, DMEC, SE, "Table is being dropped" },
+  { 1226, HA_ERR_NO_SUCH_TABLE, SE, "Table is being dropped" },
   { 1227, HA_WRONG_CREATE_OPTION, SE, "Invalid schema version" },
   { 1228, DMEC, SE, "Cannot use drop table for drop index" },
   { 1229, DMEC, SE, "Too long frm data supplied" },

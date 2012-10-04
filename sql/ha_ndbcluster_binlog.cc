@@ -253,8 +253,8 @@ static void dbug_print_table(const char *info, TABLE *table)
                 f->pack_length(),
                 (long) f->ptr, (int) (f->ptr - table->record[0]),
                 f->null_bit,
-                (long) f->null_ptr,
-                (int) ((uchar*) f->null_ptr - table->record[0])));
+                (long) f->null_offset(0),
+                (int) f->null_offset()));
     if (f->type() == MYSQL_TYPE_BIT)
     {
       Field_bit *g= (Field_bit*) f;
@@ -507,7 +507,6 @@ ndb_create_thd(char * stackptr)
   thd->thread_stack= stackptr; /* remember where our stack is */
   if (thd->store_globals())
   {
-    thd->cleanup();
     delete thd;
     DBUG_RETURN(0);
   }
@@ -588,7 +587,6 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 
   if (save_thd == 0)
   {
-    thd->cleanup();
     delete thd;
   }
 
@@ -2834,7 +2832,17 @@ class Ndb_schema_event_handler {
     ndbapi_invalidate_table(schema->db, schema->name);
     mysqld_close_cached_table(schema->db, schema->name);
 
-    NDB_SHARE *share= get_share(schema);
+    /**
+     * Note about get_share() / free_share() referrences:
+     *
+     *  1) All shares have a ref count related to their 'discovery' by dictionary.
+     *     (Until they are 'dropped')
+     *  2) All shares are referred by the binlog thread if its DDL operations 
+     *     should be replicated with schema events ('share->op != NULL')
+     *  3) All shares are ref counted when they are temporarily referred
+     *     inside a function. (as below)
+     */
+    NDB_SHARE *share= get_share(schema);  // 3) Temporary pin 'share'
     if (share)
     {
       pthread_mutex_lock(&share->mutex);
@@ -2850,23 +2858,24 @@ class Ndb_schema_event_handler {
           injector_ndb->dropEventOperation(share->op);
         }
         share->op= 0;
-        free_share(&share);
+        free_share(&share);   // Free binlog ref, 2)
+        DBUG_ASSERT(share);   // Still ref'ed by 1) & 3)
       }
       pthread_mutex_unlock(&share->mutex);
+      free_share(&share);   // Free temporary ref, 3)
+      DBUG_ASSERT(share);   // Still ref'ed by dict, 1)
 
-      free_share(&share);
-    }
-
-    if (share)
-    {
-      /*
-        Free the share pointer early, ndb_create_table_from_engine()
-        may delete what share is pointing to as a sideeffect
-      */
-      DBUG_PRINT("NDB_SHARE", ("%s early free, use_count: %u",
-                               share->key, share->use_count));
-      free_share(&share);
-    }
+      /**
+       * Finaly unref. from dictionary, 1). 
+       * If this was the last share ref, it will be deleted.
+       * If there are more (trailing) references, the share will remain as an
+       * unvisible instance in the share-hash until remaining references are dropped.
+       */
+      pthread_mutex_lock(&ndbcluster_mutex);
+      handle_trailing_share(m_thd, share); // Unref my 'share', and make any pending refs 'trailing'
+      share= 0;                            // It's gone
+      pthread_mutex_unlock(&ndbcluster_mutex);
+    } // if (share)
 
     if (is_local_table(schema->db, schema->name) &&
        !Ndb_dist_priv_util::is_distributed_priv_table(schema->db,
@@ -2879,6 +2888,7 @@ class Ndb_schema_event_handler {
       DBUG_VOID_RETURN;
     }
 
+    // Instantiate a new 'share' for the altered table.
     if (ndb_create_table_from_engine(m_thd, schema->db, schema->name))
     {
       print_could_not_discover_error(m_thd, schema);
@@ -2975,6 +2985,7 @@ class Ndb_schema_event_handler {
         share->op= share->new_op;
         share->new_op= 0;
         free_share(&share);
+        DBUG_ASSERT(share);   // Should still be ref'ed
       }
       pthread_mutex_unlock(&share->mutex);
 
@@ -3022,6 +3033,7 @@ class Ndb_schema_event_handler {
     if (share)
     {
       free_share(&share); // temporary ref.
+      DBUG_ASSERT(share); // Should still be ref'ed
       free_share(&share); // server ref.
     }
 
@@ -6642,7 +6654,6 @@ ndb_binlog_thread_func(void *arg)
   thd->thread_stack= (char*) &thd; /* remember where our stack is */
   if (thd->store_globals())
   {
-    thd->cleanup();
     delete thd;
     ndb_binlog_thread_running= -1;
     pthread_mutex_unlock(&injector_mutex);
@@ -6655,7 +6666,6 @@ ndb_binlog_thread_func(void *arg)
   }
   lex_start(thd);
 
-  thd->init_for_queries();
   thd_set_command(thd, COM_DAEMON);
   thd->system_thread= SYSTEM_THREAD_NDBCLUSTER_BINLOG;
 #ifndef NDB_THD_HAS_NO_VERSION
@@ -6754,6 +6764,11 @@ restart_cluster_failure:
     }
   }
   mysql_mutex_unlock(&LOCK_server_started);
+
+  // Defer call of THD::init_for_query until after mysqld_server_started
+  // to ensure that the parts of MySQL Server it uses has been created
+  thd->init_for_queries();
+
   /*
     Main NDB Injector loop
   */
@@ -7525,7 +7540,6 @@ restart_cluster_failure:
   }
 
   net_end(&thd->net);
-  thd->cleanup();
   delete thd;
 
   ndb_binlog_thread_running= -1;

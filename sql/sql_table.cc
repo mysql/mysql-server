@@ -5607,10 +5607,6 @@ static bool fill_alter_inplace_info(THD *thd,
   */
   for (f_ptr= table->field; (field= *f_ptr); f_ptr++)
   {
-#ifndef MCP_BUG14096759
-    /* Clear marker for field in new index we are going to set later. */
-    field->flags&= ~FIELD_IN_ADD_INDEX;
-#endif
     /* Clear marker for renamed or dropped field
     which we are going to set later. */
     field->flags&= ~(FIELD_IS_RENAMED | FIELD_IS_DROPPED);
