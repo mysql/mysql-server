@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2008 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +15,35 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include <NDBT_Table.hpp>
-#include <NdbTimer.hpp>
-#include <NDBT.hpp>
+#ifndef NDB_MATH_H
+#define NDB_MATH_H
 
-class NdbOut&
-operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
+/**
+ * Greatest common divisor, gcd.
+ * Arguments should be positive integers.
+ */
+
+template<typename Int>
+inline Int gcd(Int x, Int y)
 {
-  ndbout << "-- " << tab.getName() << " --" << endl;
-  ndbout << NdbDictionary::Table(tab);
-  
-  return ndbout;
+  do {
+    Int t = y;
+    y = x % y;
+    x = t;
+  } while (y != 0);
+  return x;
 }
+
+/**
+ * Least common multiple, lcm.
+ * Arguments should be positive integers.
+ * Result may be overflowed.
+ */
+
+template<typename Int>
+inline Int lcm(Int x, Int y)
+{
+  return (x / gcd(x, y)) * y;
+}
+
+#endif
