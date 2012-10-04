@@ -247,9 +247,8 @@ row_ins_sec_index_entry_by_modify(
 	rec = btr_cur_get_rec(cursor);
 
 	ut_ad(!dict_index_is_clust(cursor->index));
-	ut_ad(rec_get_deleted_flag(rec,
-				   dict_table_is_comp(cursor->index->table)));
 	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
+	ut_ad(!entry->info_bits);
 
 	/* We know that in the alphabetical ordering, entry and rec are
 	identified. But in their binary form there may be differences if
@@ -258,6 +257,25 @@ row_ins_sec_index_entry_by_modify(
 
 	update = row_upd_build_sec_rec_difference_binary(
 		rec, cursor->index, *offsets, entry, heap);
+
+	if (!rec_get_deleted_flag(rec, rec_offs_comp(*offsets))) {
+		/* We should never insert in place of a record that
+		has not been delete-marked. The only exception is when
+		online CREATE INDEX copied the changes that we already
+		made to the clustered index, and completed the
+		secondary index creation before we got here. In this
+		case, the change would already be there. The CREATE
+		INDEX should be waiting for a MySQL meta-data lock
+		upgrade at least until this INSERT or UPDATE
+		returns. After that point, the TEMP_INDEX_PREFIX
+		would be dropped from the index name in
+		commit_inplace_alter_table(). */
+		ut_a(update->n_fields == 0);
+		ut_a(*cursor->index->name == TEMP_INDEX_PREFIX);
+		ut_ad(!dict_index_is_online_ddl(cursor->index));
+		return(DB_SUCCESS);
+	}
+
 	if (mode == BTR_MODIFY_LEAF) {
 		/* Try an optimistic updating of the record, keeping changes
 		within the page */
@@ -703,6 +721,8 @@ row_ins_set_detailed(
 	trx_t*		trx,		/*!< in: transaction */
 	dict_foreign_t*	foreign)	/*!< in: foreign key constraint */
 {
+	ut_ad(!srv_read_only_mode);
+
 	mutex_enter(&srv_misc_tmpfile_mutex);
 	rewind(srv_misc_tmpfile);
 
@@ -732,6 +752,10 @@ row_ins_foreign_trx_print(
 	ulint	n_rec_locks;
 	ulint	n_trx_locks;
 	ulint	heap_size;
+
+	if (srv_read_only_mode) {
+		return;
+	}
 
 	lock_mutex_enter();
 	n_rec_locks = lock_number_of_rows_locked(&trx->lock);
@@ -771,6 +795,10 @@ row_ins_foreign_report_err(
 	const dtuple_t*	entry)		/*!< in: index entry in the parent
 					table */
 {
+	if (srv_read_only_mode) {
+		return;
+	}
+
 	FILE*	ef	= dict_foreign_err_file;
 	trx_t*	trx	= thr_get_trx(thr);
 
@@ -822,6 +850,10 @@ row_ins_foreign_report_add_err(
 	const dtuple_t*	entry)		/*!< in: index entry to insert in the
 					child table */
 {
+	if (srv_read_only_mode) {
+		return;
+	}
+
 	FILE*	ef	= dict_foreign_err_file;
 
 	row_ins_set_detailed(trx, foreign);
@@ -1448,9 +1480,11 @@ run_again:
 		check_index = foreign->foreign_index;
 	}
 
-	if (check_table == NULL || check_table->ibd_file_missing
+	if (check_table == NULL
+	    || check_table->ibd_file_missing
 	    || check_index == NULL) {
-		if (check_ref) {
+
+		if (!srv_read_only_mode && check_ref) {
 			FILE*	ef = dict_foreign_err_file;
 
 			row_ins_set_detailed(trx, foreign);
@@ -1657,6 +1691,13 @@ do_possible_lock_wait:
 		que_thr_stop_for_mysql(thr);
 
 		lock_wait_suspend_thread(thr);
+
+		if (check_table->to_be_dropped) {
+			/* The table is being dropped. We shall timeout
+			this operation */
+			err = DB_LOCK_WAIT_TIMEOUT;
+			goto exit_func;
+		}
 
 		if (trx->error_state == DB_SUCCESS) {
 
@@ -2441,6 +2482,8 @@ row_ins_sec_index_entry_low(
 				/*!< in/out: memory heap that can be emptied */
 	mem_heap_t*	heap,	/*!< in/out: memory heap */
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
+	trx_id_t	trx_id,	/*!< in: PAGE_MAX_TRX_ID during
+				row_log_table_apply(), or 0 */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
@@ -2586,6 +2629,13 @@ row_ins_sec_index_entry_low(
 					entry, &insert_rec,
 					&big_rec, 0, thr, &mtr);
 			}
+		}
+
+		if (err == DB_SUCCESS && trx_id) {
+			page_update_max_trx_id(
+				btr_cur_get_block(&cursor),
+				btr_cur_get_page_zip(&cursor),
+				trx_id, &mtr);
 		}
 
 		ut_ad(!big_rec);
@@ -2736,7 +2786,7 @@ row_ins_sec_index_entry(
 	log_free_check();
 
 	err = row_ins_sec_index_entry_low(
-		0, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry, thr);
+		0, BTR_MODIFY_LEAF, index, offsets_heap, heap, entry, 0, thr);
 	if (err == DB_FAIL) {
 		mem_heap_empty(heap);
 
@@ -2746,7 +2796,7 @@ row_ins_sec_index_entry(
 
 		err = row_ins_sec_index_entry_low(
 			0, BTR_MODIFY_TREE, index,
-			offsets_heap, heap, entry, thr);
+			offsets_heap, heap, entry, 0, thr);
 	}
 
 	mem_heap_free(heap);
@@ -2849,6 +2899,15 @@ row_ins_index_entry_step(
 	ut_ad(dtuple_check_typed(node->entry));
 
 	err = row_ins_index_entry(node->index, node->entry, thr);
+
+#ifdef UNIV_DEBUG
+	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
+	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
+	if (!thr_get_trx(thr)->ddl) {
+		DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+				    "after_row_ins_index_entry_step");
+	}
+#endif /* UNIV_DEBUG */
 
 	return(err);
 }

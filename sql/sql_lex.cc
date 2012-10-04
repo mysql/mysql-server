@@ -440,6 +440,8 @@ void lex_start(THD *thd)
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
+  if (lex->select_lex.order_list_ptrs)
+    lex->select_lex.order_list_ptrs->clear();
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->spname= NULL;
@@ -1780,6 +1782,7 @@ void st_select_lex::init_query()
   ref_pointer_array.reset();
   select_n_where_fields= 0;
   select_n_having_items= 0;
+  n_child_sum_items= 0;
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
   first_execution= 1;
@@ -1817,6 +1820,8 @@ void st_select_lex::init_select()
   order_list.elements= 0;
   order_list.first= 0;
   order_list.next= &order_list.first;
+  if (order_list_ptrs)
+    order_list_ptrs->clear();
   /* Set limit and offset to default values */
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
@@ -3592,8 +3597,8 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
     AND/OR trees.
-    We also save the chain of ORDER::next in group_list, in case
-    the list is modified by remove_const().
+    We also save the chain of ORDER::next in group_list and order_list, in
+    case the list is modified by remove_const().
     The function also calls fix_prepare_info_in_table_list that saves all
     ON expressions.    
 */
@@ -3615,6 +3620,19 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
       for (ORDER *order= group_list.first; order; order= order->next)
       {
         group_list_ptrs->push_back(order);
+      }
+    }
+    if (order_list.first)
+    {
+      if (!order_list_ptrs)
+      {
+        void *mem= thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
+        order_list_ptrs= new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
+      }
+      order_list_ptrs->reserve(order_list.elements);
+      for (ORDER *order= order_list.first; order; order= order->next)
+      {
+        order_list_ptrs->push_back(order);
       }
     }
     if (*conds)

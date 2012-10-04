@@ -1222,6 +1222,7 @@ trx_undo_report_row_operation(
 	int		loop_count	= 0;
 #endif /* UNIV_DEBUG */
 
+	ut_ad(!srv_read_only_mode);
 	ut_a(dict_index_is_clust(index));
 	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
 
@@ -1241,6 +1242,7 @@ trx_undo_report_row_operation(
 	/* This table is visible only to the session that created it. */
 	if (trx->read_only) {
 		ut_ad(trx->in_ro_trx_list);
+		ut_ad(!srv_read_only_mode);
 		/* MySQL should block writes to non-temporary tables. */
 		ut_a(DICT_TF2_FLAG_IS_SET(index->table, DICT_TF2_TEMPORARY));
 		if (trx->rseg == 0) {

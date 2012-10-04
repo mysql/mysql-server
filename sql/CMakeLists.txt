@@ -193,6 +193,13 @@ SET(SQL_SOURCE
   sql_client.cc
   )
 
+IF (WIN32 AND OPENSSL_APPLINK_C)
+  SET_SOURCE_FILES_PROPERTIES(
+    ../sql-common/client_authentication.cc
+    PROPERTIES COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
+  )
+ENDIF()
+
 MYSQL_ADD_PLUGIN(partition ha_partition.cc STORAGE_ENGINE DEFAULT STATIC_ONLY
 RECOMPILE_FOR_EMBEDDED)
 
@@ -451,15 +458,17 @@ IF(WIN32 AND MYSQLD_EXECUTABLE)
      COMMAND ${CMAKE_COMMAND}
      ${CONFIG_PARAM} -P ${CMAKE_CURRENT_BINARY_DIR}/create_initial_db.cmake
      WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
-     COMMAND  ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/initdb.dep
      DEPENDS mysqld
   )
   ADD_CUSTOM_TARGET(initial_database  
     ALL
     DEPENDS  initdb.dep
   )
-  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data DESTINATION . 
-  COMPONENT DataFiles PATTERN "initdb.dep" EXCLUDE  PATTERN "bootstrap.sql" EXCLUDE)
+  INSTALL(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/data
+    DESTINATION . 
+    COMPONENT DataFiles
+    PATTERN "initdb.dep" EXCLUDE
+    PATTERN "bootstrap.sql" EXCLUDE)
 ELSE()
   # Not windows or cross compiling, just install an empty directory
   INSTALL(FILES ${DUMMY_FILE} DESTINATION data/mysql COMPONENT DataFiles)

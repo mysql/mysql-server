@@ -1352,7 +1352,7 @@ String *Item_str_conv::val_str(String *str)
 }
 
 
-void Item_func_lcase::fix_length_and_dec()
+void Item_func_lower::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
   DBUG_ASSERT(collation.collation != NULL);
@@ -1361,7 +1361,7 @@ void Item_func_lcase::fix_length_and_dec()
   fix_char_length_ulonglong((ulonglong) args[0]->max_char_length() * multiply);
 }
 
-void Item_func_ucase::fix_length_and_dec()
+void Item_func_upper::fix_length_and_dec()
 {
   agg_arg_charsets_for_string_result(collation, args, 1);
   DBUG_ASSERT(collation.collation != NULL);

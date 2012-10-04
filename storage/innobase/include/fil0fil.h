@@ -199,17 +199,19 @@ fil_space_get_type(
 	ulint	id);	/*!< in: space id */
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
-Appends a new file to the chain of files of a space. File must be closed. */
+Appends a new file to the chain of files of a space. File must be closed.
+@return pointer to the file name, or NULL on error */
 UNIV_INTERN
-void
+char*
 fil_node_create(
 /*============*/
 	const char*	name,	/*!< in: file name (file must be closed) */
 	ulint		size,	/*!< in: file size in database blocks, rounded
 				downwards to an integer */
 	ulint		id,	/*!< in: space id where to append */
-	ibool		is_raw);/*!< in: TRUE if a raw device or
+	ibool		is_raw)	/*!< in: TRUE if a raw device or
 				a raw disk partition */
+	__attribute__((nonnull, warn_unused_result));
 #ifdef UNIV_LOG_ARCHIVE
 /****************************************************************//**
 Drops files from the start of a file space, so that its size is cut by
@@ -324,6 +326,14 @@ UNIV_INTERN
 void
 fil_close_all_files(void);
 /*=====================*/
+/*******************************************************************//**
+Closes the redo log files. There must not be any pending i/o's or not
+flushed modifications in the files. */
+UNIV_INTERN
+void
+fil_close_log_files(
+/*================*/
+	bool	free);	/*!< in: whether to free the memory object */
 /*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */
@@ -862,7 +872,7 @@ struct PageCallback {
 	/**
 	Set the name of the physical file and the file handle that is used
 	to open it for the file that is being iterated over.
-	@param filename - then physical name of the tablespace file. 
+	@param filename - then physical name of the tablespace file.
 	@param file - OS file handle */
 	void set_file(const char* filename, os_file_t file) UNIV_NOTHROW
 	{
