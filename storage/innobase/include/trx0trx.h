@@ -174,6 +174,9 @@ trx_start_internal_low(
 
 #define trx_start_internal(t)					\
 	trx_start_internal_low((t))
+
+#define trx_start_if_not_started_xa(t, rw)			\
+	trx_start_if_not_started_xa_low((t), (rw))
 #endif /* UNIV_DEBUG */
 
 /*************************************************************//**
