@@ -39,6 +39,8 @@ it doesn't occupy any space. No vptrs etc. */
 template <typename Mutex>
 struct DefaultPolicy {
 
+	DefaultPolicy(bool track=false) { }
+
 	/** Poll waiting for mutex to be unlocked.
 	@return value of lock word before locking. */
 	static lock_word_t trylock_poll(const Mutex& mutex) UNIV_NOTHROW
@@ -92,6 +94,8 @@ struct DefaultPolicy {
 	void init(
 		const Mutex&,
 		const char*, const char*, ulint) UNIV_NOTHROW { }
+
+	void destroy() UNIV_NOTHROW {}
 };
 
 /** For observing Mutex events. */
