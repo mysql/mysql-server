@@ -129,7 +129,7 @@ CREATE TABLE t1
  id INT PRIMARY KEY
 ) ENGINE=InnoDB;
 
---error 1005,1005
+--error ER_CANNOT_ADD_FOREIGN
 CREATE TEMPORARY TABLE t2
 (
  id INT NOT NULL PRIMARY KEY,
@@ -279,9 +279,7 @@ disconnect b;
 
 set foreign_key_checks=0;
 create table t2 (a int primary key, b int, foreign key (b) references t1(a)) engine = innodb;
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
--- error 1005
+--error ER_CANNOT_ADD_FOREIGN
 create table t1(a char(10) primary key, b varchar(20)) engine = innodb;
 set foreign_key_checks=1;
 drop table t2;
@@ -291,9 +289,7 @@ drop table t2;
 
 set foreign_key_checks=0;
 create table t1(a varchar(10) primary key) engine = innodb DEFAULT CHARSET=latin1;
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLTEST_VARDIR . mysqld.1/data/ ''
--- error 1005
+--error ER_CANNOT_ADD_FOREIGN
 create table t2 (a varchar(10), foreign key (a) references t1(a)) engine = innodb DEFAULT CHARSET=utf8;
 set foreign_key_checks=1;
 drop table t1;
@@ -955,11 +951,7 @@ CREATE TABLE t2 (a INT, INDEX(a)) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 ALTER TABLE t2 ADD FOREIGN KEY (a) REFERENCES t1 (a) ON DELETE SET NULL;
-# mysqltest first does replace_regex, then replace_result
---replace_regex /'[^']*test\/#sql-[0-9a-f_]*'/'#sql-temporary'/
-# Embedded server doesn't chdir to data directory
---replace_result $MYSQLD_DATADIR ./ master-data/ ''
---error 1025
+--error ER_FK_COLUMN_NOT_NULL
 ALTER TABLE t2 MODIFY a INT NOT NULL;
 DELETE FROM t1;
 DROP TABLE t2,t1;
@@ -1094,11 +1086,14 @@ drop table t1;
 # Bug #32440 InnoDB free space info does not appear in SHOW TABLE STATUS or
 # I_S
 #
+set @save_innodb_file_per_table= @@global.innodb_file_per_table;
+set @@global.innodb_file_per_table=0;
 create table t1 (id int) comment='this is a comment' engine=innodb;
 select table_comment, data_free > 0 as data_free_is_set
   from information_schema.tables
   where table_schema='test' and table_name = 't1';
 drop table t1;
+set @@global.innodb_file_per_table= @save_innodb_file_per_table;
 
 #
 # Bug 34920 test

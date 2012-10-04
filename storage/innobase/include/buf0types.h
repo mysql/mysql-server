@@ -27,19 +27,19 @@ Created 11/17/1995 Heikki Tuuri
 #define buf0types_h
 
 /** Buffer page (uncompressed or compressed) */
-typedef	struct buf_page_struct		buf_page_t;
+struct buf_page_t;
 /** Buffer block for which an uncompressed page exists */
-typedef	struct buf_block_struct		buf_block_t;
+struct buf_block_t;
 /** Buffer pool chunk comprising buf_block_t */
-typedef struct buf_chunk_struct		buf_chunk_t;
+struct buf_chunk_t;
 /** Buffer pool comprising buf_chunk_t */
-typedef	struct buf_pool_struct		buf_pool_t;
+struct buf_pool_t;
 /** Buffer pool statistics struct */
-typedef	struct buf_pool_stat_struct	buf_pool_stat_t;
+struct buf_pool_stat_t;
 /** Buffer pool buddy statistics struct */
-typedef	struct buf_buddy_stat_struct	buf_buddy_stat_t;
+struct buf_buddy_stat_t;
 /** Doublewrite memory struct */
-typedef struct buf_dblwr_struct		buf_dblwr_t;
+struct buf_dblwr_t;
 
 /** A buffer frame. @see page_t */
 typedef	byte	buf_frame_t;
@@ -77,7 +77,7 @@ enum buf_io_fix {
 
 /** Alternatives for srv_checksum_algorithm, which can be changed by
 setting innodb_checksum_algorithm */
-enum srv_checksum_algorithm_enum {
+enum srv_checksum_algorithm_t {
 	SRV_CHECKSUM_ALGORITHM_CRC32,		/*!< Write crc32, allow crc32,
 						innodb or none when reading */
 	SRV_CHECKSUM_ALGORITHM_STRICT_CRC32,	/*!< Write crc32, allow crc32
@@ -91,7 +91,6 @@ enum srv_checksum_algorithm_enum {
 	SRV_CHECKSUM_ALGORITHM_STRICT_NONE	/*!< Write none, allow none
 						when reading */
 };
-typedef enum srv_checksum_algorithm_enum	srv_checksum_algorithm_t;
 
 /** Parameters of binary buddy system for compressed pages (buf0buddy.h) */
 /* @{ */

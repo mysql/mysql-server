@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -44,7 +44,7 @@ Created 10/21/1995 Heikki Tuuri
 #endif
 
 /** File node of a tablespace or the log data space */
-typedef	struct fil_node_struct	fil_node_t;
+struct fil_node_t;
 
 extern ibool	os_has_said_disk_full;
 /** Flag: enable debug printout for asynchronous i/o */
@@ -102,7 +102,7 @@ log. */
 #define OS_FILE_LOG_BLOCK_SIZE		512
 
 /** Options for os_file_create_func @{ */
-typedef enum os_file_create_enum {
+enum os_file_create_t {
 	OS_FILE_OPEN = 51,		/*!< to open an existing file (if
 					doesn't exist, error) */
 	OS_FILE_CREATE,			/*!< to create new file (if
@@ -122,7 +122,7 @@ typedef enum os_file_create_enum {
 					the log unless it is a fatal error,
 					this flag is only used if
 					ON_ERROR_NO_EXIT is set */
-} os_file_create_t;
+};
 
 #define OS_FILE_READ_ONLY		333
 #define	OS_FILE_READ_WRITE		444
@@ -345,13 +345,12 @@ to original un-instrumented file I/O APIs */
 
 /* File types for directory entry data type */
 
-enum os_file_type_enum{
+enum os_file_type_t {
 	OS_FILE_TYPE_UNKNOWN = 0,
 	OS_FILE_TYPE_FILE,			/* regular file */
 	OS_FILE_TYPE_DIR,			/* directory */
 	OS_FILE_TYPE_LINK			/* symbolic link */
 };
-typedef enum os_file_type_enum	  os_file_type_t;
 
 /* Maximum path string length in bytes when referring to tables with in the
 './databasename/tablename.ibd' path format; we can allocate at least 2 buffers
@@ -359,16 +358,18 @@ of this size from the thread stack; that is why this should not be made much
 bigger than 4000 bytes */
 #define OS_FILE_MAX_PATH	4000
 
-/* Struct used in fetching information of a file in a directory */
-struct os_file_stat_struct{
+/** Struct used in fetching information of a file in a directory */
+struct os_file_stat_t {
 	char		name[OS_FILE_MAX_PATH];	/*!< path to a file */
 	os_file_type_t	type;			/*!< file type */
 	ib_int64_t	size;			/*!< file size */
 	time_t		ctime;			/*!< creation time */
 	time_t		mtime;			/*!< modification time */
 	time_t		atime;			/*!< access time */
+	bool		rw_perm;		/*!< true if can be opened
+						in read-write mode. Only valid
+						if type == OS_FILE_TYPE_FILE */
 };
-typedef struct os_file_stat_struct	os_file_stat_t;
 
 #ifdef __WIN__
 typedef HANDLE	os_file_dir_t;	/*!< directory stream */
@@ -525,7 +526,7 @@ os_file_create_func(
 Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+bool
 os_file_delete(
 /*===========*/
 	const char*	name);	/*!< in: file path as a null-terminated
@@ -535,7 +536,7 @@ os_file_delete(
 Deletes a file if it exists. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
-ibool
+bool
 os_file_delete_if_exists(
 /*=====================*/
 	const char*	name);	/*!< in: file path as a null-terminated
@@ -826,7 +827,7 @@ UNIV_INTERN
 ulint
 os_file_get_last_error(
 /*===================*/
-	ibool	report_all_errors);	/*!< in: TRUE if we want an error message
+	bool	report_all_errors);	/*!< in: TRUE if we want an error message
 					printed of all errors */
 /*******************************************************************//**
 NOTE! Use the corresponding macro os_file_read(), not directly this function!
@@ -924,6 +925,60 @@ char*
 os_file_dirname(
 /*============*/
 	const char*	path);	/*!< in: pathname */
+/****************************************************************//**
+This function returns a new path name after replacing the basename
+in an old path with a new basename.  The old_path is a full path
+name including the extension.  The tablename is in the normal
+form "databasename/tablename".  The new base name is found after
+the forward slash.  Both input strings are null terminated.
+
+This function allocates memory to be returned.  It is the callers
+responsibility to free the return value after it is no longer needed.
+
+@return	own: new full pathname */
+UNIV_INTERN
+char*
+os_file_make_new_pathname(
+/*======================*/
+	const char*	old_path,	/*!< in: pathname */
+	const char*	new_name);	/*!< in: new file name */
+/****************************************************************//**
+This function returns a remote path name by combining a data directory
+path provided in a DATA DIRECTORY clause with the tablename which is
+in the form 'database/tablename'.  It strips the file basename (which
+is the tablename) found after the last directory in the path provided.
+The full filepath created will include the database name as a directory
+under the path provided.  The filename is the tablename with the '.ibd'
+extension. All input and output strings are null-terminated.
+
+This function allocates memory to be returned.  It is the callers
+responsibility to free the return value after it is no longer needed.
+
+@return	own: A full pathname; data_dir_path/databasename/tablename.ibd */
+UNIV_INTERN
+char*
+os_file_make_remote_pathname(
+/*=========================*/
+	const char*	data_dir_path,	/*!< in: pathname */
+	const char*	tablename,	/*!< in: tablename */
+	const char*	extention);	/*!< in: file extention; ibd,cfg*/
+/****************************************************************//**
+This function reduces a null-terminated full remote path name into
+the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
+the 'databasename/tablename.ibd' found at the end of the path with just
+'tablename'.
+
+Since the result is always smaller than the path sent in, no new memory
+is allocated. The caller should allocate memory for the path sent in.
+This function manipulates that path in place.
+
+If the path format is not as expected, just return.  The result is used
+to inform a SHOW CREATE TABLE command. */
+UNIV_INTERN
+void
+os_file_make_data_dir_path(
+/*========================*/
+	char*	data_dir_path);	/*!< in/out: full path/data_dir_path */
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return	TRUE if call succeeded FALSE otherwise */
@@ -1108,14 +1163,16 @@ os_aio_all_slots_free(void);
 
 /*******************************************************************//**
 This function returns information about the specified file
-@return	TRUE if stat information found */
+@return	DB_SUCCESS if all OK */
 UNIV_INTERN
-ibool
+dberr_t
 os_file_get_status(
 /*===============*/
-	const char*	path,		/*!< in:	pathname of the file */
-	os_file_stat_t* stat_info);	/*!< information of a file in a
+	const char*	path,		/*!< in: pathname of the file */
+	os_file_stat_t* stat_info,	/*!< information of a file in a
 					directory */
+	bool		check_rw_perm);	/*!< in: for testing whether the
+					file can be opened in RW mode */
 
 #if !defined(UNIV_HOTBACKUP)
 /*********************************************************************//**

@@ -31,7 +31,8 @@ int mi_close(register MI_INFO *info)
 		      (long) info, (uint) share->reopen,
                       (uint) share->tot_locks));
 
-  mysql_mutex_lock(&THR_LOCK_myisam);
+  if (info->open_list.data)
+    mysql_mutex_lock(&THR_LOCK_myisam);
   if (info->lock_type == F_EXTRA_LCK)
     info->lock_type=F_UNLCK;			/* HA_EXTRA_NO_USER_CHANGE */
 
@@ -54,7 +55,8 @@ int mi_close(register MI_INFO *info)
     info->opt_flag&= ~(READ_CACHE_USED | WRITE_CACHE_USED);
   }
   flag= !--share->reopen;
-  myisam_open_list=list_delete(myisam_open_list,&info->open_list);
+  if (info->open_list.data)
+    myisam_open_list= list_delete(myisam_open_list, &info->open_list);
   mysql_mutex_unlock(&share->intern_lock);
 
   my_free(mi_get_rec_buff_ptr(info, info->rec_buff));
@@ -108,7 +110,8 @@ int mi_close(register MI_INFO *info)
     }
     my_free(info->s);
   }
-  mysql_mutex_unlock(&THR_LOCK_myisam);
+  if (info->open_list.data)
+    mysql_mutex_unlock(&THR_LOCK_myisam);
   if (info->ftparser_param)
   {
     my_free(info->ftparser_param);

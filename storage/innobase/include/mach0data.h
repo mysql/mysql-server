@@ -381,10 +381,32 @@ UNIV_INLINE
 void
 mach_write_int_type(
 /*================*/
-        byte*           dest,           /*!< in: where to write*/
-        const byte*     src,            /*!< in: where to read from */
-        ulint           len,            /*!< in: length of src */
-        ibool           unsigned_type); /*!< in: signed or unsigned flag */
+	byte*		dest,		/*!< in: where to write*/
+	const byte*	src,		/*!< in: where to read from */
+	ulint		len,		/*!< in: length of src */
+	bool		usign);		/*!< in: signed or unsigned flag */
+
+/*************************************************************
+Convert a ulonglong integer from host byte order to (big-endian)
+storage byte order. */
+UNIV_INLINE
+void
+mach_write_ulonglong(
+/*=================*/
+	byte*		dest,		/*!< in: where to write */
+	ulonglong	src,		/*!< in: where to read from */
+	ulint		len,		/*!< in: length of dest */
+	bool		usign);		/*!< in: signed or unsigned flag */
+
+/********************************************************//**
+Reads 1 - 4 bytes from a file page buffered in the buffer pool.
+@return	value read */
+UNIV_INLINE
+ulint
+mach_read_ulint(
+/*============*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type);	/*!< in: MLOG_1BYTE, MLOG_2BYTES, MLOG_4BYTES */
 
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !UNIV_INNOCHECKSUM */

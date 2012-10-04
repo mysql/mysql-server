@@ -549,3 +549,21 @@ CREATE TEMPORARY TABLE t1(a int);
 INSERT DELAYED t1 VALUES (1);
 ERROR 42S02: Table 'test.t1' doesn't exist
 DROP TEMPORARY TABLE t1;
+#
+# Bug#13985071: DEPRECATE INSERT DELAYED
+#
+SET GLOBAL delayed_insert_limit = 100;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET GLOBAL delayed_insert_timeout = 300;
+Warnings:
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
+SET GLOBAL delayed_queue_size = 1000;
+Warnings:
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
+SET GLOBAL max_delayed_threads = 20;
+Warnings:
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
+SET GLOBAL max_insert_delayed_threads = 20;
+Warnings:
+Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.

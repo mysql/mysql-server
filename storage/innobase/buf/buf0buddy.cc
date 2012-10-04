@@ -335,7 +335,7 @@ buf_buddy_relocate(
 {
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
-	mutex_t*	mutex;
+	ib_mutex_t*	mutex;
 	ulint		space;
 	ulint		page_no;
 

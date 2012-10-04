@@ -20,6 +20,6 @@
 
 bool init_errmessage(void);
 bool read_texts(const char *file_name, const char *language,
-                const char ***point, uint error_messages);
+                const char **&errmsgs, uint error_messages);
 
 #endif /* DERROR_INCLUDED */

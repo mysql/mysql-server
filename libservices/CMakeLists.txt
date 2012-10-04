@@ -20,7 +20,8 @@ SET(MYSQLSERVICES_SOURCES
   thd_alloc_service.c
   thd_wait_service.c
   my_plugin_log_service.c
-  my_thread_scheduler_service.c)
+  my_thread_scheduler_service.c
+  mysql_string_service.c)
 
 ADD_LIBRARY(mysqlservices ${MYSQLSERVICES_SOURCES})
 INSTALL(TARGETS mysqlservices DESTINATION ${INSTALL_LIBDIR} COMPONENT Development)

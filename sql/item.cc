@@ -551,7 +551,8 @@ Item::save_str_value_in_field(Field *field, String *result)
 Item::Item():
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
-  collation(&my_charset_bin, DERIVATION_COERCIBLE), with_subselect(false)
+  collation(&my_charset_bin, DERIVATION_COERCIBLE), with_subselect(false),
+  with_stored_program(false), tables_locked_cache(false)
 {
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
@@ -599,7 +600,9 @@ Item::Item(THD *thd, Item *item):
   fixed(item->fixed),
   collation(item->collation),
   cmp_context(item->cmp_context),
-  with_subselect(item->with_subselect)
+  with_subselect(item->with_subselect),
+  with_stored_program(item->with_stored_program),
+  tables_locked_cache(item->tables_locked_cache)
 {
   next= thd->free_list;				// Put in free list
   thd->free_list= this;
@@ -712,6 +715,7 @@ void Item::cleanup()
   DBUG_ENTER("Item::cleanup");
   fixed=0;
   marker= 0;
+  tables_locked_cache= false;
   if (orig_name.is_set())
     item_name= orig_name;
   DBUG_VOID_RETURN;
@@ -1025,6 +1029,7 @@ void Item_name_string::copy(const char *str_arg, size_t length_arg,
   This function is called when:
   - Comparing items in the WHERE clause (when doing where optimization)
   - When trying to find an ORDER BY/GROUP BY item in the SELECT part
+  - When matching fields in multiple equality objects (Item_equal)
 */
 
 bool Item::eq(const Item *item, bool binary_cmp) const
@@ -3575,9 +3580,9 @@ bool Item_param::set_longdata(const char *str, ulong length)
 bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
 {
   DBUG_ENTER("Item_param::set_from_user_var");
-  if (entry && entry->value)
+  if (entry && entry->ptr())
   {
-    item_result_type= entry->type;
+    item_result_type= entry->type();
     unsigned_flag= entry->unsigned_flag;
     if (limit_clause_param)
     {
@@ -3588,11 +3593,11 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
     }
     switch (item_result_type) {
     case REAL_RESULT:
-      set_double(*(double*)entry->value);
+      set_double(*(double*) entry->ptr());
       item_type= Item::REAL_ITEM;
       break;
     case INT_RESULT:
-      set_int(*(longlong*)entry->value, MY_INT64_NUM_DECIMAL_DIGITS);
+      set_int(*(longlong*) entry->ptr(), MY_INT64_NUM_DECIMAL_DIGITS);
       item_type= Item::INT_ITEM;
       break;
     case STRING_RESULT:
@@ -3617,13 +3622,13 @@ bool Item_param::set_from_user_var(THD *thd, const user_var_entry *entry)
       */
       item_type= Item::STRING_ITEM;
 
-      if (set_str((const char *)entry->value, entry->length))
+      if (set_str((const char *) entry->ptr(), entry->length()))
         DBUG_RETURN(1);
       break;
     }
     case DECIMAL_RESULT:
     {
-      const my_decimal *ent_value= (const my_decimal *)entry->value;
+      const my_decimal *ent_value= (const my_decimal *) entry->ptr();
       my_decimal2decimal(ent_value, &decimal_value);
       state= DECIMAL_VALUE;
       decimals= ent_value->frac;
@@ -4143,16 +4148,18 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
                       str_value.charset());
     collation.set(str_value.charset(), DERIVATION_COERCIBLE);
     decimals= 0;
-
+    item_type= Item::STRING_ITEM;
     break;
   }
 
   case REAL_RESULT:
     set_double(arg->val_real());
+    item_type= Item::REAL_ITEM;
     break;
 
   case INT_RESULT:
     set_int(arg->val_int(), arg->max_length);
+    item_type= Item::INT_ITEM;
     break;
 
   case DECIMAL_RESULT:
@@ -4164,6 +4171,7 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
       return TRUE;
 
     set_decimal(dv);
+    item_type= Item::DECIMAL_ITEM;
     break;
   }
 
@@ -4173,11 +4181,11 @@ Item_param::set_value(THD *thd, sp_rcontext *ctx, Item **it)
     DBUG_ASSERT(TRUE);  // Abort in debug mode.
 
     set_null();         // Set to NULL in release mode.
+    item_type= Item::NULL_ITEM;
     return FALSE;
   }
 
   item_result_type= arg->result_type();
-  item_type= arg->type();
   return FALSE;
 }
 
@@ -4885,7 +4893,15 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
                  ref->item_name.ptr(), "forward reference in item list");
         return NULL;
       }
-      DBUG_ASSERT((*select_ref)->fixed);
+      /*
+       Assert if its an incorrect reference . We do not assert if its a outer
+       reference, as they get fixed later in fix_innner_refs function.
+      */
+      DBUG_ASSERT((*select_ref)->fixed ||
+                  ((*select_ref)->type() == Item::REF_ITEM &&
+                   ((Item_ref *)(*select_ref))->ref_type() ==
+                   Item_ref::OUTER_REF));
+
       return &select->ref_pointer_array[counter];
     }
     if (group_by_ref)
@@ -5362,8 +5378,17 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     else if (!from_field)
       goto error;
 
-    if (!outer_fixed && cached_table && cached_table->select_lex &&
-        context->select_lex &&
+    /*
+      We should resolve this as an outer field reference if
+      1. we haven't done it before, and
+      2. the outer context is set, and
+      3. the select_lex of the table that contains this field is
+         different from the select_lex of the current name resolution
+         context.
+     */
+    if (!outer_fixed &&                                                    // 1
+        context->outer_context &&                                          // 2
+        cached_table && cached_table->select_lex && context->select_lex && // 3
         cached_table->select_lex != context->select_lex)
     {
       int ret;
@@ -5440,11 +5465,23 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
   }
 #endif
   fixed= 1;
-  if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY &&
-      !outer_fixed && !thd->lex->in_sum_func &&
+  if (!outer_fixed && !thd->lex->in_sum_func &&
       thd->lex->current_select->cur_pos_in_all_fields !=
       SELECT_LEX::ALL_FIELDS_UNDEF_POS)
-    push_to_non_agg_fields(thd->lex->current_select);
+  {
+    // See same code in Field_iterator_table::create_item()
+    if (thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
+      push_to_non_agg_fields(thd->lex->current_select);
+    /*
+      If (1) aggregation (2) without grouping, we may have to return a result
+      row even if the nested loop finds nothing; in this result row,
+      non-aggregated table columns present in the SELECT list will show a NULL
+      value even if the table column itself is not nullable.
+    */
+    if (thd->lex->current_select->with_sum_func && // (1)
+        !thd->lex->current_select->group_list.elements) // (2)
+      maybe_null= true;
+  }
 
 mark_non_agg_field:
   if (fixed && thd->variables.sql_mode & MODE_ONLY_FULL_GROUP_BY)
@@ -5860,6 +5897,34 @@ bool Item::eq_by_collation(Item *item, bool binary_cmp,
     item->collation.collation= save_item_cs;
   return res;
 }  
+
+
+/**
+  Check if it is OK to evaluate the item now.
+
+  @return true if the item can be evaluated in the current statement state.
+    @retval true  The item can be evaluated now.
+    @retval false The item can not be evaluated now,
+                  (i.e. depend on non locked table).
+
+  @note Help function to avoid optimize or exec call during prepare phase.
+*/
+
+bool Item::can_be_evaluated_now() const
+{
+  DBUG_ENTER("Item::can_be_evaluated_now");
+
+  if (tables_locked_cache)
+    DBUG_RETURN(true);
+
+  if (has_subquery() || has_stored_program())
+    const_cast<Item*>(this)->tables_locked_cache=
+                               current_thd->lex->is_query_tables_locked();
+  else
+    const_cast<Item*>(this)->tables_locked_cache= true;
+
+  DBUG_RETURN(tables_locked_cache);
+}
 
 
 /**
@@ -7187,7 +7252,12 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        if (!(fld= new Item_field(thd, last_checked_context, from_field)))
+        Query_arena backup, *arena;
+        arena= thd->activate_stmt_arena_if_needed(&backup);
+        fld= new Item_field(thd, last_checked_context, from_field);
+        if (arena)
+          thd->restore_active_arena(arena, &backup);
+        if (!fld)
           goto error;
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
@@ -8624,6 +8694,23 @@ String *Item_cache_datetime::val_str(String *str)
 my_decimal *Item_cache_datetime::val_decimal(my_decimal *decimal_val)
 {
   DBUG_ASSERT(fixed == 1);
+
+  if (str_value_cached)
+  {
+    switch (cached_field_type)
+    {
+    case MYSQL_TYPE_TIME:
+      return val_decimal_from_time(decimal_val);
+    case MYSQL_TYPE_DATETIME:
+    case MYSQL_TYPE_TIMESTAMP:
+    case MYSQL_TYPE_DATE:
+      return val_decimal_from_date(decimal_val);
+    default:
+      DBUG_ASSERT(0);
+      return NULL;
+    }
+  }
+
   if ((!value_cached && !cache_value_int()) || null_value)
     return 0;
   return my_decimal_from_datetime_packed(decimal_val, field_type(), int_value);
@@ -8922,9 +9009,11 @@ Item_cache_str::save_in_field(Field *field, bool no_conversions)
 {
   if (!value_cached && !cache_value())
     return TYPE_ERR_BAD_VALUE;               // Fatal: couldn't cache the value
+  if (null_value)
+    return set_field_to_null_with_conversions(field, no_conversions);
   const type_conversion_status res= Item_cache::save_in_field(field,
                                                               no_conversions);
-  if (is_varbinary && field->type() == MYSQL_TYPE_STRING &&
+  if (is_varbinary && field->type() == MYSQL_TYPE_STRING && value != NULL &&
       value->length() < field->field_length)
     return TYPE_WARN_OUT_OF_RANGE;
   return res;
@@ -9452,4 +9541,3 @@ void view_error_processor(THD *thd, void *data)
 {
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
-

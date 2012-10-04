@@ -1,0 +1,23 @@
+###############################################################################
+#                                                                             #
+# File containing assorted tests for binary log variables.                    #
+#                                                                             #
+###############################################################################
+
+--echo # Default values
+SELECT @@GLOBAL.binlog_max_flush_queue_time;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.binlog_max_flush_queue_time;
+
+SET @saved_value = @@global.binlog_max_flush_queue_time;
+
+--echo # Valid values
+SET GLOBAL binlog_max_flush_queue_time = 0;
+SET GLOBAL binlog_max_flush_queue_time = 1;
+SET GLOBAL binlog_max_flush_queue_time = 100000;
+
+--echo # Invalid values: there shall be warnings about truncation
+SET GLOBAL binlog_max_flush_queue_time = -1;
+SET GLOBAL binlog_max_flush_queue_time = 100001;
+
+SET GLOBAL binlog_max_flush_queue_time = @saved_value;

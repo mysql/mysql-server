@@ -40,6 +40,9 @@ Created 13/06/2005 Jan Lindstrom
 #include "lock0types.h"
 #include "srv0srv.h"
 
+// Forward declaration
+struct ib_sequence_t;
+
 /** @brief Block size for I/O operations in merge sort.
 
 The minimum is UNIV_PAGE_SIZE, or page_get_free_space_of_empty()
@@ -70,7 +73,7 @@ struct mtuple_t {
 };
 
 /** Buffer for sorting in main memory. */
-struct row_merge_buf_struct {
+struct row_merge_buf_t {
 	mem_heap_t*	heap;		/*!< memory heap where allocated */
 	dict_index_t*	index;		/*!< the index the tuples belong to */
 	ulint		total_size;	/*!< total amount of data bytes */
@@ -81,53 +84,41 @@ struct row_merge_buf_struct {
 					for sorting */
 };
 
-/** Buffer for sorting in main memory. */
-typedef struct row_merge_buf_struct	row_merge_buf_t;
-
 /** Information about temporary files used in merge sort */
-struct merge_file_struct {
+struct merge_file_t {
 	int		fd;		/*!< file descriptor */
 	ulint		offset;		/*!< file offset (end of file) */
 	ib_uint64_t	n_rec;		/*!< number of records in the file */
 };
 
-/** Information about temporary files used in merge sort */
-typedef struct merge_file_struct	merge_file_t;
-
 /** Index field definition */
-struct merge_index_field_struct {
+struct index_field_t {
 	ulint		col_no;		/*!< column offset */
 	ulint		prefix_len;	/*!< column prefix length, or 0
 					if indexing the whole column */
 };
 
-/** Index field definition */
-typedef struct merge_index_field_struct	merge_index_field_t;
-
 /** Definition of an index being created */
-struct merge_index_def_struct {
-	const char*		name;		/*!< index name */
-	ulint			ind_type;	/*!< 0, DICT_UNIQUE,
-						or DICT_CLUSTERED */
-	ulint			key_number;	/*!< MySQL key number,
-						or ULINT_UNDEFINED if none */
-	ulint			n_fields;	/*!< number of fields
-						in index */
-	merge_index_field_t*	fields;		/*!< field definitions */
-};
-
-/** Definition of an index being created */
-typedef struct merge_index_def_struct	merge_index_def_t;
-
-/** Structure for reporting duplicate records. */
-struct row_merge_dup_struct {
-	const dict_index_t*	index;		/*!< index being sorted */
-	struct TABLE*		table;		/*!< MySQL table object */
-	ulint			n_dup;		/*!< number of duplicates */
+struct index_def_t {
+	const char*	name;		/*!< index name */
+	ulint		ind_type;	/*!< 0, DICT_UNIQUE,
+					or DICT_CLUSTERED */
+	ulint		key_number;	/*!< MySQL key number,
+					or ULINT_UNDEFINED if none */
+	ulint		n_fields;	/*!< number of fields in index */
+	index_field_t*	fields;		/*!< field definitions */
 };
 
 /** Structure for reporting duplicate records. */
-typedef struct row_merge_dup_struct row_merge_dup_t;
+struct row_merge_dup_t {
+	dict_index_t*		index;	/*!< index being sorted */
+	struct TABLE*		table;	/*!< MySQL table object */
+	const ulint*		col_map;/*!< mapping of column numbers
+					in table to the rebuilt table
+					(index->table), or NULL if not
+					rebuilding table */
+	ulint			n_dup;	/*!< number of duplicates */
+};
 
 /*************************************************************//**
 Report a duplicate key. */
@@ -199,6 +190,17 @@ row_merge_file_destroy_low(
 	int		fd);	/*!< in: merge file descriptor */
 
 /*********************************************************************//**
+Provide a new pathname for a table that is being renamed if it belongs to
+a file-per-table tablespace.  The caller is responsible for freeing the
+memory allocated for the return value.
+@return	new pathname of tablespace file, or NULL if space = 0 */
+UNIV_INTERN
+char*
+row_make_new_pathname(
+/*==================*/
+	dict_table_t*	table,		/*!< in: table to be renamed */
+	const char*	new_name);	/*!< in: new name */
+/*********************************************************************//**
 Rename the tables in the data dictionary.  The data dictionary must
 have been locked exclusively by the caller, because the transaction
 will not be committed.
@@ -214,6 +216,7 @@ row_merge_rename_tables(
 	const char*	tmp_name,	/*!< in: new name for old_table */
 	trx_t*		trx)		/*!< in: transaction handle */
 	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
@@ -249,7 +252,7 @@ row_merge_create_index(
 /*===================*/
 	trx_t*			trx,	/*!< in/out: trx (sets error_state) */
 	dict_table_t*		table,	/*!< in: the index is on this table */
-	const merge_index_def_t*index_def);
+	const index_def_t*	index_def);
 					/*!< in: the index definition */
 /*********************************************************************//**
 Check if a transaction can use an index.
@@ -269,7 +272,11 @@ dberr_t
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	table);		/*!< in: table instance to drop */
+	dict_table_t*	table,		/*!< in: table instance to drop */
+	bool		nonatomic)	/*!< in: whether it is permitted
+					to release and reacquire
+					dict_operation_lock */
+	__attribute__((nonnull));
 /*********************************************************************//**
 Build indexes on a table by reading a clustered index,
 creating a temporary file containing index entries, merge sorting
@@ -290,10 +297,19 @@ row_merge_build_indexes(
 	dict_index_t**	indexes,	/*!< in: indexes to be created */
 	const ulint*	key_numbers,	/*!< in: MySQL key numbers */
 	ulint		n_indexes,	/*!< in: size of indexes[] */
-	struct TABLE*	table)		/*!< in/out: MySQL table, for
+	struct TABLE*	table,		/*!< in/out: MySQL table, for
 					reporting erroneous key value
 					if applicable */
-	__attribute__((nonnull, warn_unused_result));
+	const dtuple_t*	add_cols,	/*!< in: default values of
+					added columns, or NULL */
+	const ulint*	col_map,	/*!< in: mapping of old column
+					numbers to new ones, or NULL
+					if old_table == new_table */
+	ulint		add_autoinc,	/*!< in: number of added
+					AUTO_INCREMENT column, or
+					ULINT_UNDEFINED if none is added */
+	ib_sequence_t&	sequence)	/*!< in/out: autoinc sequence */
+	__attribute__((nonnull(1,2,3,5,6,8), warn_unused_result));
 /********************************************************************//**
 Write a buffer to a block. */
 UNIV_INTERN
@@ -302,7 +318,8 @@ row_merge_buf_write(
 /*================*/
 	const row_merge_buf_t*	buf,	/*!< in: sorted buffer */
 	const merge_file_t*	of,	/*!< in: output file */
-	row_merge_block_t*	block);	/*!< out: buffer for writing to file */
+	row_merge_block_t*	block)	/*!< out: buffer for writing to file */
+	__attribute__((nonnull));
 /********************************************************************//**
 Sort a buffer. */
 UNIV_INTERN
@@ -349,14 +366,12 @@ dberr_t
 row_merge_sort(
 /*===========*/
 	trx_t*			trx,	/*!< in: transaction */
-	const dict_index_t*	index,	/*!< in: index being created */
+	const row_merge_dup_t*	dup,	/*!< in: descriptor of
+					index being created */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
-	int*			tmpfd,	/*!< in/out: temporary file handle */
-	struct TABLE*		table)	/*!< in/out: MySQL table, for
-					reporting erroneous key value
-					if applicable */
+	int*			tmpfd)	/*!< in/out: temporary file handle */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Allocate a sort buffer.

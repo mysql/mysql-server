@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,8 +57,6 @@ const char field_separator=',';
 #define DECIMAL_TO_STRING_CONVERSION_BUFFER_SIZE 128
 #define BLOB_PACK_LENGTH_TO_MAX_LENGH(arg) \
 ((ulong) ((LL(1) << MY_MIN(arg, 4) * 8) - LL(1)))
-
-#define FLAGSTR(S,F) ((S) & (F) ? #F " " : "")
 
 /*
   Rules for merging different types of fields in UNION
@@ -1386,7 +1384,7 @@ Field::do_last_null_byte() const
 {
   DBUG_ASSERT(null_ptr == NULL || null_ptr >= table->record[0]);
   if (null_ptr)
-    return (size_t) (null_ptr - table->record[0]) + 1;
+    return null_offset() + 1;
   return LAST_NULL_BYTE_UNDEF;
 }
 
@@ -2492,7 +2490,7 @@ int Field_decimal::cmp(const uchar *a_ptr,const uchar *b_ptr)
 }
 
 
-void Field_decimal::sort_string(uchar *to,uint length)
+void Field_decimal::make_sort_key(uchar *to, uint length)
 {
   uchar *str,*end;
   for (str=ptr,end=ptr+length;
@@ -2891,10 +2889,9 @@ int Field_new_decimal::cmp(const uchar *a,const uchar*b)
 }
 
 
-void Field_new_decimal::sort_string(uchar *buff,
-                                    uint length __attribute__((unused)))
+void Field_new_decimal::make_sort_key(uchar *buff, uint length)
 {
-  memcpy(buff, ptr, bin_size);
+  memcpy(buff, ptr, min<uint>(length, bin_size));
 }
 
 
@@ -3201,8 +3198,9 @@ int Field_tiny::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_tiny::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_tiny::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 1);
   if (unsigned_flag)
     *to= *ptr;
   else
@@ -3435,8 +3433,9 @@ int Field_short::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_short::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_short::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 2);
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
   {
@@ -3639,8 +3638,9 @@ int Field_medium::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_medium::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_medium::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 3);
   if (unsigned_flag)
     to[0] = ptr[2];
   else
@@ -3884,8 +3884,9 @@ int Field_long::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_long::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_long::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 4);  
 #ifdef WORDS_BIGENDIAN
   if (!table->s->db_low_byte_first)
   {
@@ -4131,38 +4132,17 @@ int Field_longlong::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_longlong::sort_string(uchar *to,uint length __attribute__((unused)))
+
+void Field_longlong::make_sort_key(uchar *to, uint length)
 {
+  const int from_length= PACK_LENGTH;
+  const int to_length= min<int>(from_length, length);
 #ifdef WORDS_BIGENDIAN
-  if (!table->s->db_low_byte_first)
-  {
-    if (unsigned_flag)
-      to[0] = ptr[0];
-    else
-      to[0] = (char) (ptr[0] ^ 128);		/* Revers signbit */
-    to[1]   = ptr[1];
-    to[2]   = ptr[2];
-    to[3]   = ptr[3];
-    to[4]   = ptr[4];
-    to[5]   = ptr[5];
-    to[6]   = ptr[6];
-    to[7]   = ptr[7];
-  }
+  if (table == NULL || !table->s->db_low_byte_first)
+    copy_integer<true>(to, to_length, ptr, from_length, unsigned_flag);
   else
 #endif
-  {
-    if (unsigned_flag)
-      to[0] = ptr[7];
-    else
-      to[0] = (char) (ptr[7] ^ 128);		/* Revers signbit */
-    to[1]   = ptr[6];
-    to[2]   = ptr[5];
-    to[3]   = ptr[4];
-    to[4]   = ptr[3];
-    to[5]   = ptr[2];
-    to[6]   = ptr[1];
-    to[7]   = ptr[0];
-  }
+    copy_integer<false>(to, to_length, ptr, from_length, unsigned_flag);
 }
 
 
@@ -4372,8 +4352,9 @@ int Field_float::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 #define FLT_EXP_DIG (sizeof(float)*8-FLT_MANT_DIG)
 
-void Field_float::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_float::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 4);
   float nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
@@ -4382,13 +4363,13 @@ void Field_float::sort_string(uchar *to,uint length __attribute__((unused)))
   }
   else
 #endif
-    memcpy(&nr, ptr, sizeof(float));
+    memcpy(&nr, ptr, min<uint>(length, sizeof(float)));
 
   uchar *tmp= to;
   if (nr == (float) 0.0)
   {						/* Change to zero string */
     tmp[0]=(uchar) 128;
-    memset(tmp+1, 0, sizeof(nr)-1);
+    memset(tmp + 1, 0, min<uint>(length, sizeof(nr) - 1));
   }
   else
   {
@@ -4708,18 +4689,25 @@ int Field_double::cmp(const uchar *a_ptr, const uchar *b_ptr)
 
 /* The following should work for IEEE */
 
-void Field_double::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_double::make_sort_key(uchar *to, uint length)
 {
   double nr;
 #ifdef WORDS_BIGENDIAN
   if (table->s->db_low_byte_first)
   {
-    float8get(nr,ptr);
+    float8get(nr, ptr);
   }
   else
 #endif
-    doubleget(nr,ptr);
-  change_double_for_sort(nr, to);
+    doubleget(nr, ptr);
+  if (length < 8)
+  {
+    uchar buff[8];
+    change_double_for_sort(nr, buff);
+    memcpy(to, buff, length);
+  }
+  else
+    change_double_for_sort(nr, to);
 }
 
 
@@ -5462,7 +5450,7 @@ int Field_timestamp::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_timestamp::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_timestamp::make_sort_key(uchar *to,uint length __attribute__((unused)))
 {
 #ifdef WORDS_BIGENDIAN
   if (!table || !table->s->db_low_byte_first)
@@ -5807,8 +5795,9 @@ int Field_time::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_time::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_time::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 3);
   to[0] = (uchar) (ptr[2] ^ 128);
   to[1] = ptr[1];
   to[2] = ptr[0];
@@ -6201,8 +6190,9 @@ int Field_newdate::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_newdate::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_newdate::make_sort_key(uchar *to, uint length)
 {
+  DBUG_ASSERT(length >= 3);
   to[0] = ptr[2];
   to[1] = ptr[1];
   to[2] = ptr[0];
@@ -6384,32 +6374,16 @@ int Field_datetime::cmp(const uchar *a_ptr, const uchar *b_ptr)
     ((ulonglong) a > (ulonglong) b) ? 1 : 0;
 }
 
-void Field_datetime::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_datetime::make_sort_key(uchar *to, uint length)
 {
+  const int pack_length= PACK_LENGTH;
+  const int to_length= min<uint>(pack_length, length);
 #ifdef WORDS_BIGENDIAN
   if (!table || !table->s->db_low_byte_first)
-  {
-    to[0] = ptr[0];
-    to[1] = ptr[1];
-    to[2] = ptr[2];
-    to[3] = ptr[3];
-    to[4] = ptr[4];
-    to[5] = ptr[5];
-    to[6] = ptr[6];
-    to[7] = ptr[7];
-  }
+    copy_integer<true>(to, to_length, ptr, pack_length, true);
   else
 #endif
-  {
-    to[0] = ptr[7];
-    to[1] = ptr[6];
-    to[2] = ptr[5];
-    to[3] = ptr[4];
-    to[4] = ptr[3];
-    to[5] = ptr[2];
-    to[6] = ptr[1];
-    to[7] = ptr[0];
-  }
+  copy_integer<false>(to, to_length, ptr, pack_length, true);
 }
 
 
@@ -6852,7 +6826,7 @@ int Field_string::cmp(const uchar *a_ptr, const uchar *b_ptr)
 }
 
 
-void Field_string::sort_string(uchar *to,uint length)
+void Field_string::make_sort_key(uchar *to, uint length)
 {
   uint tmp __attribute__((unused))=
     field_charset->coll->strnxfrm(field_charset,
@@ -7298,7 +7272,7 @@ int Field_varstring::key_cmp(const uchar *a,const uchar *b)
 }
 
 
-void Field_varstring::sort_string(uchar *to,uint length)
+void Field_varstring::make_sort_key(uchar *to,uint length)
 {
   uint tot_length=  length_bytes == 1 ? (uint) *ptr : uint2korr(ptr);
 
@@ -7673,22 +7647,58 @@ void Field_blob::put_length(uchar *pos, uint32 length)
 }
 
 
+/**
+  Store a blob value to memory storage.
+  @param     from         - the string value to store.
+  @param     length       - length of the string value.
+  @param     cs           - character set of the string value.
+  @param     max_length   - Cut at this length safely (multibyte aware).
+  @param OUT blob_storage - Memory storage to put value to.
+*/
 type_conversion_status
-Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
+Field_blob::store_to_mem(const char *from, uint length,
+                         const CHARSET_INFO *cs,
+                         uint max_length,
+                         Blob_mem_storage *blob_storage)
 {
-  ASSERT_COLUMN_MARKED_FOR_WRITE;
-  uint copy_length, new_length;
-  const char *well_formed_error_pos;
-  const char *cannot_convert_error_pos;
-  const char *from_end_pos, *tmp;
-  char buff[STRING_BUFFER_USUAL_SIZE];
-  String tmpstr(buff,sizeof(buff), &my_charset_bin);
+  DBUG_ASSERT(length > 0);
+  /*
+    We don't need to support escaping or character set conversions here,
+    because store_to_mem() is currently called only when we process
+    queries having GROUP_CONCAT with ORDER BY or DISTINCT,
+    hence some assersions:
+  */
+  DBUG_ASSERT(!f_is_hex_escape(flags));
+  DBUG_ASSERT(field_charset == cs);
+  DBUG_ASSERT(length <= max_data_length());
 
-  if (!length)
+  if (length > max_length)
+  {
+    int well_formed_error;
+    length= cs->cset->well_formed_len(cs, from, from + max_length,
+                                      length, &well_formed_error);
+    table->blob_storage->set_truncated_value(true);
+  }
+  char *tmp;
+  if (!(tmp= table->blob_storage->store(from, length)))
   {
     memset(ptr, 0, Field_blob::pack_length());
-    return TYPE_OK;
+    return TYPE_ERR_OOM;
   }
+  store_ptr_and_length(tmp, length);
+  return TYPE_OK;
+}
+
+
+type_conversion_status
+Field_blob::store_internal(const char *from, uint length,
+                           const CHARSET_INFO *cs)
+{
+  uint new_length;
+  char buff[STRING_BUFFER_USUAL_SIZE], *tmp;
+  String tmpstr(buff,sizeof(buff), &my_charset_bin);
+
+  DBUG_ASSERT(length > 0);
 
   /*
     If the 'from' address is in the range of the temporary 'value'-
@@ -7705,8 +7715,7 @@ Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
     uint32 dummy_offset;
     if (!String::needs_conversion(length, cs, field_charset, &dummy_offset))
     {
-      Field_blob::store_length(length);
-      bmove(ptr+packlength,(char*) &from,sizeof(char*));
+      store_ptr_and_length(from, length);
       return TYPE_OK;
     }
     if (tmpstr.copy(from, length, cs))
@@ -7717,43 +7726,65 @@ Field_blob::store(const char *from,uint length,const CHARSET_INFO *cs)
   new_length= min(max_data_length(), field_charset->mbmaxlen * length);
   if (value.alloc(new_length))
     goto oom_error;
-
+  tmp= const_cast<char*>(value.ptr());
 
   if (f_is_hex_escape(flags))
   {
-    copy_length= my_copy_with_hex_escaping(field_charset,
-                                           (char*) value.ptr(), new_length,
-                                            from, length);
-    Field_blob::store_length(copy_length);
-    tmp= value.ptr();
-    bmove(ptr + packlength, (uchar*) &tmp, sizeof(char*));
+    uint copy_length= my_copy_with_hex_escaping(field_charset,
+                                                tmp, new_length,
+                                                from, length);
+    store_ptr_and_length(tmp, copy_length);
     return TYPE_OK;
   }
-  /*
-    "length" is OK as "nchars" argument to well_formed_copy_nchars as this
-    is never used to limit the length of the data. The cut of long data
-    is done with the new_length value.
-  */
-  copy_length= well_formed_copy_nchars(field_charset,
-                                       (char*) value.ptr(), new_length,
-                                       cs, from, length,
-                                       length,
-                                       &well_formed_error_pos,
-                                       &cannot_convert_error_pos,
-                                       &from_end_pos);
 
-  Field_blob::store_length(copy_length);
-  tmp= value.ptr();
-  bmove(ptr+packlength,(uchar*) &tmp,sizeof(char*));
 
-  return check_string_copy_error(well_formed_error_pos,
-                                 cannot_convert_error_pos, from_end_pos,
-                                 from + length, true, cs);
+  {
+    const char *well_formed_error_pos;
+    const char *cannot_convert_error_pos;
+    const char *from_end_pos;
+    /*
+      "length" is OK as "nchars" argument to well_formed_copy_nchars as this
+      is never used to limit the length of the data. The cut of long data
+      is done with the new_length value.
+    */
+    uint copy_length= well_formed_copy_nchars(field_charset,
+                                              tmp, new_length,
+                                              cs, from, length,
+                                              length,
+                                              &well_formed_error_pos,
+                                              &cannot_convert_error_pos,
+                                              &from_end_pos);
+
+    store_ptr_and_length(tmp, copy_length);
+    return check_string_copy_error(well_formed_error_pos,
+                                   cannot_convert_error_pos, from_end_pos,
+                                   from + length, true, cs);
+  }
 
 oom_error:
   /* Fatal OOM error */
   memset(ptr, 0, Field_blob::pack_length());
   return TYPE_ERR_OOM;
+}
+
+
+type_conversion_status
+Field_blob::store(const char *from, uint length, const CHARSET_INFO *cs)
+{
+  ASSERT_COLUMN_MARKED_FOR_WRITE;
+
+  if (!length)
+  {
+    memset(ptr, 0, Field_blob::pack_length());
+    return TYPE_OK;
+  }
+
+  if (table->blob_storage)    // GROUP_CONCAT with ORDER BY | DISTINCT
+    return store_to_mem(from, length, cs,
+                        table->in_use->variables.group_concat_max_len,
+                        table->blob_storage);
+
+  return store_internal(from, length, cs);
 }
 
 
@@ -7990,7 +8021,7 @@ uint32 Field_blob::sort_length() const
 }
 
 
-void Field_blob::sort_string(uchar *to,uint length)
+void Field_blob::make_sort_key(uchar *to,uint length)
 {
   uchar *blob;
   uint blob_length=get_length();
@@ -8208,38 +8239,45 @@ type_conversion_status Field_geom::store_decimal(const my_decimal *)
 
 
 type_conversion_status
-Field_geom::store(const char *from, uint length, const CHARSET_INFO *cs)
+Field_geom::store_internal(const char *from, uint length,
+                           const CHARSET_INFO *cs)
 {
-  if (!length)
-    memset(ptr, 0, Field_blob::pack_length());
-  else
-  {
-    if (from == Geometry::bad_geometry_data.ptr())
-      goto err;
-    // Check given WKB
-    uint32 wkb_type;
-    if (length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE*2)
-      goto err;
-    wkb_type= uint4korr(from + SRID_SIZE + 1);
-    if (wkb_type < (uint32) Geometry::wkb_point ||
-	wkb_type > (uint32) Geometry::wkb_last)
-      goto err;
-    Field_blob::store_length(length);
-    if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
-    {						// Must make a copy
-      value.copy(from, length, cs);
-      from= value.ptr();
-    }
-    bmove(ptr + packlength, (char*) &from, sizeof(char*));
-  }
-  return TYPE_OK;
+  uint32 wkb_type;
 
-err:
-  memset(ptr, 0, Field_blob::pack_length());  
-  my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
-             ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
-  return TYPE_ERR_BAD_VALUE;
+  DBUG_ASSERT(length > 0);
+
+  // Check given WKB
+  if (from == Geometry::bad_geometry_data.ptr() ||
+      length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE * 2 ||
+      (wkb_type= uint4korr(from + SRID_SIZE + 1)) < (uint32) Geometry::wkb_point ||
+       wkb_type > (uint32) Geometry::wkb_last)
+  {
+    memset(ptr, 0, Field_blob::pack_length());  
+    my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
+               ER(ER_CANT_CREATE_GEOMETRY_OBJECT), MYF(0));
+    return TYPE_ERR_BAD_VALUE;
+  }
+
+  if (table->copy_blobs || length <= MAX_FIELD_WIDTH)
+  {                                                   // Must make a copy
+    value.copy(from, length, cs);
+    from= value.ptr();
+  }
+
+  store_ptr_and_length(from, length);
+  return TYPE_OK;
 }
+
+
+uint Field_geom::is_equal(Create_field *new_field)
+{
+  return new_field->field_flags_are_binary() == field_flags_are_binary() &&
+         new_field->sql_type == real_type() &&
+         new_field->geom_type == get_geometry_type() &&
+         new_field->charset == field_charset &&
+         new_field->pack_length == pack_length();
+}
+
 
 #endif /*HAVE_SPATIAL*/
 
@@ -8477,15 +8515,14 @@ int Field_enum::cmp(const uchar *a_ptr, const uchar *b_ptr)
   return (a < b) ? -1 : (a > b) ? 1 : 0;
 }
 
-void Field_enum::sort_string(uchar *to,uint length __attribute__((unused)))
+void Field_enum::make_sort_key(uchar *to, uint length)
 {
-  ulonglong value=Field_enum::val_int();
-  to+=packlength-1;
-  for (uint i=0 ; i < packlength ; i++)
-  {
-    *to-- = (uchar) (value & 255);
-    value>>=8;
-  }
+#ifdef WORDS_BIGENDIAN
+  if (!table->s->db_low_byte_first)
+    copy_integer<true>(to, length, ptr, packlength, true);
+  else
+#endif
+  copy_integer<false>(to, length, ptr, packlength, true);
 }
 
 
@@ -9701,11 +9738,22 @@ bool Create_field::init(THD *thd, char *fld_name, enum_field_types fld_type,
   comment= *fld_comment;
   /*
     Set NO_DEFAULT_VALUE_FLAG if this field doesn't have a default value and
-    it is NOT NULL, not an AUTO_INCREMENT field and not a TIMESTAMP.
+    it is NOT NULL and not an AUTO_INCREMENT field.
   */
-  if (!fld_default_value && !(fld_type_modifier & AUTO_INCREMENT_FLAG) &&
-      (fld_type_modifier & NOT_NULL_FLAG) && !is_timestamp_type(fld_type))
-    flags|= NO_DEFAULT_VALUE_FLAG;
+  if (!fld_default_value &&
+      (fld_type_modifier & NOT_NULL_FLAG) &&
+      !(fld_type_modifier & AUTO_INCREMENT_FLAG))
+  {
+    /*
+      TIMESTAMP columns get implicit DEFAULT value when
+      explicit_defaults_for_timestamp is not set.
+    */
+    if (thd->variables.explicit_defaults_for_timestamp ||
+        !is_timestamp_type(fld_type))
+    {
+      flags|= NO_DEFAULT_VALUE_FLAG;
+    }
+  }
 
   if (fld_length != NULL)
   {
@@ -10315,6 +10363,16 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
     geom_type= ((Field_geom*)old_field)->geom_type;
     break;
 #endif
+  case MYSQL_TYPE_YEAR:
+    if (length != 4)
+    {
+      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+                          ER_INVALID_YEAR_COLUMN_LENGTH,
+                          ER(ER_INVALID_YEAR_COLUMN_LENGTH),
+                          length);
+      length= 4; // convert obsolete YEAR(2) to YEAR(4)
+    }
+    break;
   default:
     break;
   }

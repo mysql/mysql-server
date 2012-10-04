@@ -41,6 +41,12 @@ while ($1)
 }
 --enable_query_log
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
 # No primary key
 explain select * from t1 where key1 < 5 or key2 > 197;
 
@@ -59,6 +65,12 @@ alter table t1 add str1 char (255) not null,
 update t1 set str1='aaa', str2='bbb', str3=concat(key2, '-', key1 div 2, '_' ,if(key1 mod 2 = 0, 'a', 'A'));
 
 alter table t1 add primary key (str1, zeroval, str2, str3);
+
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 
 explain select * from t1 where key1 < 5 or key2 > 197;
 
@@ -86,6 +98,13 @@ while ($1)
   dec $1;
 }
 --enable_query_log
+
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
 explain select pk from t1 where key1 = 1 and key2 = 1;
 select pk from t1 where key2 = 1 and key1 = 1;
 select pk from t1 ignore index(key1,key2) where key2 = 1 and key1 = 1;
@@ -121,6 +140,12 @@ insert into t1 (key1a, key1b, key2a, key2b, key3a, key3b)
   select key1a, key1b, key2a, key2b, key3a, key3b from t1;
 analyze table t1;
 select count(*) from t1;
+
+-- disable_query_log
+-- disable_result_log
+analyze table t2;
+-- enable_result_log
+-- enable_query_log
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
@@ -346,6 +371,12 @@ alter table t1 add index i2(key2);
 alter table t1 add index i3(key3);
 update t1 set key2=key1,key3=key1;
 
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
+
 if ($index_merge_random_rows_in_EXPLAIN)
 {
   --replace_column 9 #
@@ -374,6 +405,12 @@ INSERT INTO t1 VALUES
 (2, 1, 1, 1),
 (3, 1, 1, 1),
 (4, 0, 1, 1);
+
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 
 EXPLAIN
 SELECT a
@@ -423,6 +460,12 @@ CREATE TABLE t1 (
 );
 
 INSERT INTO t1 VALUES (1,1,'a'), (2,2,'b');
+
+-- disable_query_log
+-- disable_result_log
+analyze table t1;
+-- enable_result_log
+-- enable_query_log
 
 EXPLAIN
 SELECT col_int_key

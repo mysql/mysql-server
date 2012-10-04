@@ -166,6 +166,8 @@
 --let $CRC_name=
 --let $CRC_create=
 --let $CRC_expected_number_of_warnings= $CRC_ARG_expected_number_of_warnings
+--let $CRC_expected_number_of_warnings_normal_protocol= $CRC_ARG_expected_number_of_warnings
+--let $CRC_expected_number_of_warnings_ps_protocol= $CRC_ARG_expected_number_of_warnings
 --let $CRC_expected_number_of_warnings_after_reset= 0
 
 ######## func_retval ########
@@ -291,8 +293,18 @@ if ($CRC_ARG_type == 7) {
   --let $CRC_RET_drop=
   --let $CRC_RET_is_toplevel= 1
   --let $CRC_RET_desc= $CRC_ARG_desc
-  --let $CRC_expected_number_of_warnings= `select $CRC_ARG_expected_number_of_deprecation_warnings + $CRC_ARG_expected_number_of_warnings`
-  --let $CRC_expected_number_of_warnings_after_reset= `select $CRC_ARG_expected_number_of_deprecation_warnings + $CRC_expected_number_of_warnings_after_reset`
+  --let $CRC_expected_number_of_warnings_normal_protocol= `select $CRC_ARG_expected_number_of_deprecation_warnings + $CRC_ARG_expected_number_of_warnings`
+  --let $CRC_expected_number_of_warnings_ps_protocol= $CRC_ARG_expected_number_of_warnings
+  --let $CRC_expected_number_of_warnings_after_reset_normal_protocol= `select $CRC_ARG_expected_number_of_deprecation_warnings + $CRC_expected_number_of_warnings_after_reset`
+  --let $CRC_expected_number_of_warnings_after_reset_ps_protocol= $CRC_expected_number_of_warnings_after_reset
+
+  --let $CRC_expected_number_of_warnings= $CRC_expected_number_of_warnings_normal_protocol
+  --let $CRC_expected_number_of_warnings_after_reset= $CRC_expected_number_of_warnings_after_reset_normal_protocol
+  if ($PS_PROTOCOL)
+  {
+    --let $CRC_expected_number_of_warnings= $CRC_expected_number_of_warnings_ps_protocol
+    --let $CRC_expected_number_of_warnings_after_reset= $CRC_expected_number_of_warnings_after_reset_ps_protocol
+  }
 }
 
 ######## execute! ########
@@ -303,7 +315,14 @@ if ($CRC_RET_stmt_sidef) {
     --eval $CRC_create
   }
 
-  --echo * binlog_format = STATEMENT: expect $CRC_expected_number_of_warnings warnings.
+  if ($CRC_expected_number_of_warnings_normal_protocol == $CRC_expected_number_of_warnings_ps_protocol)
+  {
+    --echo * binlog_format = STATEMENT: expect $CRC_expected_number_of_warnings warnings.
+  }
+  if ($CRC_expected_number_of_warnings_normal_protocol != $CRC_expected_number_of_warnings_ps_protocol)
+  {
+    --echo * binlog_format = STATEMENT: expect $CRC_expected_number_of_warnings_normal_protocol warnings. $CRC_expected_number_of_warnings_ps_protocol with ps-protocol.
+  }
   --eval $CRC_RET_stmt_sidef
   --let $n_warnings= `SHOW COUNT(*) WARNINGS`
 

@@ -53,8 +53,9 @@ max_questions	0
 max_updates	0
 max_connections	0
 max_user_connections	0
-plugin	
-authentication_string	NULL
+plugin	mysql_native_password
+authentication_string	
+password_expired	N
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3-SHA'
@@ -124,8 +125,9 @@ max_questions	10
 max_updates	0
 max_connections	0
 max_user_connections	0
-plugin	
-authentication_string	NULL
+plugin	mysql_native_password
+authentication_string	
+password_expired	N
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10
@@ -171,8 +173,9 @@ max_questions	10
 max_updates	20
 max_connections	30
 max_user_connections	0
-plugin	
-authentication_string	NULL
+plugin	mysql_native_password
+authentication_string	
+password_expired	N
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10 MAX_UPDATES_PER_HOUR 20 MAX_CONNECTIONS_PER_HOUR 30
@@ -1762,10 +1765,10 @@ GRANT CREATE, CREATE ROUTINE ON `db1`.* TO 'user1'@'localhost'
 ** the current user user1@localhost. 
 SELECT @@GLOBAL.sql_mode;
 @@GLOBAL.sql_mode
-
+NO_ENGINE_SUBSTITUTION
 SELECT @@SESSION.sql_mode;
 @@SESSION.sql_mode
-
+NO_ENGINE_SUBSTITUTION
 CREATE DATABASE db1;
 CREATE PROCEDURE db1.proc1(p1 INT)
 BEGIN

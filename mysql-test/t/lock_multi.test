@@ -183,7 +183,7 @@ drop table t1;
 
 connection locker;
 USE mysql;
-LOCK TABLES columns_priv WRITE, db WRITE, host WRITE, user WRITE;
+LOCK TABLES columns_priv WRITE, db WRITE, user WRITE;
 FLUSH TABLES;
 #
 connection reader;
@@ -201,7 +201,7 @@ let $wait_condition=
 --source include/wait_condition.inc
 # Make test case independent from earlier grants.
 --replace_result "Table is already up to date" "OK"
-OPTIMIZE TABLES columns_priv, db, host, user;
+OPTIMIZE TABLES columns_priv, db, user;
 UNLOCK TABLES;
 #
 connection reader;

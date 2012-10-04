@@ -187,7 +187,7 @@ c1	c2
 1	8
 2	3
 4	7
-SET @@session.sql_mode = '';
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP TABLE t1;
 # Simple test with NULL, 0 and explicit values both incr. and desc.
 CREATE TABLE t1 (
@@ -718,7 +718,7 @@ c1
 16
 300
 301
-SET @@session.sql_mode = '';
+SET @@session.sql_mode = 'NO_ENGINE_SUBSTITUTION';
 DROP TABLE t1;
 # Test SET INSERT_ID
 CREATE TABLE t1 (c1 INT NOT NULL AUTO_INCREMENT, PRIMARY KEY (c1))

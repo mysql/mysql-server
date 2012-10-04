@@ -427,6 +427,18 @@ log_get_capacity(void)
 	return(log_sys->log_group_capacity);
 }
 
+/****************************************************************
+Get log_sys::max_modified_age_async. It is OK to read the value without
+holding log_sys::mutex because it is constant.
+@return	max_modified_age_async */
+UNIV_INLINE
+lsn_t
+log_get_max_modified_age_async(void)
+/*================================*/
+{
+	return(log_sys->max_modified_age_async);
+}
+
 /***********************************************************************//**
 Checks if there is need for a log buffer flush or a new checkpoint, and does
 this if yes. Any database operation should call this when it has modified

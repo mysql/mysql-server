@@ -312,6 +312,30 @@ DROP TABLE t1;
 #
 # Bug#35765: ALTER TABLE produces wrong error when non-existent storage engine
 # used
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TABLE t1 (a INT)
+ENGINE=NonExistentEngine;
+--error ER_UNKNOWN_STORAGE_ENGINE
+CREATE TABLE t1 (a INT)
+ENGINE=NonExistentEngine
+PARTITION BY HASH (a);
+CREATE TABLE t1 (a INT)
+ENGINE=Memory;
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1 ENGINE=NonExistentEngine;
+# OK to only specify one partitions engine, since it is already assigned at
+# table level (after create, it is specified on all levels and all parts).
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1
+PARTITION BY HASH (a)
+(PARTITION p0 ENGINE=Memory,
+ PARTITION p1 ENGINE=NonExistentEngine);
+--error ER_UNKNOWN_STORAGE_ENGINE
+ALTER TABLE t1 ENGINE=NonExistentEngine;
+SHOW CREATE TABLE t1;
+DROP TABLE t1;
+
+SET sql_mode='';
 CREATE TABLE t1 (a INT)
 ENGINE=NonExistentEngine;
 DROP TABLE t1;
@@ -331,6 +355,7 @@ PARTITION BY HASH (a)
 ALTER TABLE t1 ENGINE=NonExistentEngine;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+SET sql_mode=DEFAULT;
 
 #
 # Bug#40494: Crash MYSQL server crashes on range access with partitioning

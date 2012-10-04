@@ -125,6 +125,9 @@ server-id	= 1
 #innodb_flush_log_at_trx_commit = 1
 #innodb_lock_wait_timeout = 50
 
+# dictionary file for validate_password plugin
+loose-validate_password_dictionary_file = @dictionary@
+
 [mysqldump]
 quick
 max_allowed_packet = 16M

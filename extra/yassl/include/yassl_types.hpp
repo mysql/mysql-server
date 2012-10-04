@@ -15,7 +15,7 @@
    along with this program; see the file COPYING. If not, write to the
    Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
    MA  02110-1301  USA.
- */
+*/
 
 /*  yaSSL types  header defines all constants, enums, and typedefs
  *  from the SSL.v3 specification "draft-freier-ssl-version3-02.txt"
@@ -96,6 +96,7 @@ namespace yaSSL {
 
 
 #else   // YASSL_PURE_C
+
 
     template<typename T>
     void ysDelete(T* ptr)

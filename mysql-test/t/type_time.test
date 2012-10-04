@@ -279,6 +279,11 @@ INSERT INTO t1 VALUES ('00:00:00'),('-24:00:00'),('-48:00:00'),('24:00:00'),('48
 CREATE TABLE t2 (col_datetime_key DATETIME, KEY(col_datetime_key)) ENGINE=InnoDB;
 INSERT INTO t2 SELECT * FROM t1;
 
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+-- enable_result_log
+
 let $cnt_0=5;
 let $operator= =;
 # For operator in =, >=, >, <=, <
@@ -408,6 +413,12 @@ INSERT INTO t3 VALUES ('21:22:34'), ('10:50:38'), ('00:21:38'),
 ('03:53:16'), ('09:16:38'), ('15:37:26'), ('00:00:00'), ('05:03:03'),
 ('02:59:24'), ('00:01:58');
 
+-- disable_result_log
+ANALYZE TABLE t1;
+ANALYZE TABLE t2;
+ANALYZE TABLE t3;
+-- enable_result_log
+
 let $query=SELECT * FROM t2 STRAIGHT_JOIN t3 FORCE INDEX (col_time_key)
            ON t3.col_time_key > t2.col_datetime_key;
 eval EXPLAIN EXTENDED $query;
@@ -420,25 +431,8 @@ eval EXPLAIN EXTENDED $query;
 --sorted_result
 eval $query;
 
-let $query=SELECT outr.col_int_nokey
-FROM t2 as outr
-  STRAIGHT_JOIN t3 AS outr2
-  ON outr2.col_time_key > outr.col_datetime_key
-WHERE outr.col_int_nokey IN (
-  SELECT col_int_key
-  FROM t1 AS innr
-  WHERE innr.pk >= innr.col_int_nokey
-) AND (
-  outr.col_int_nokey <= 6
-  OR
-  outr.col_varchar_key IS NULL
-);
-eval EXPLAIN EXTENDED $query;
---sorted_result
-eval $query;
-
 DROP TABLE t1,t2,t3;
-SET TIMESTAMP=0; # back to current time
+SET TIMESTAMP = DEFAULT;
 
 --echo #
 --echo # End of 5.6 tests

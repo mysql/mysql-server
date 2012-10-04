@@ -144,7 +144,7 @@ ERROR 42000: Variable 'sql_mode' can't be set to the value of 'NULL'
 set session sql_mode=ansi;
 create table t1
 (f1 integer auto_increment primary key,
-f2 timestamp default current_timestamp on update current_timestamp);
+f2 timestamp not null default current_timestamp on update current_timestamp);
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE "t1" (

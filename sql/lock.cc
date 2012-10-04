@@ -713,7 +713,8 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, uint count,
     if ((table=table_ptr[i])->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
       continue;
     lock_type= table->reginfo.lock_type;
-    DBUG_ASSERT(lock_type != TL_WRITE_DEFAULT && lock_type != TL_READ_DEFAULT);
+    DBUG_ASSERT(lock_type != TL_WRITE_DEFAULT && lock_type != TL_READ_DEFAULT &&
+                lock_type != TL_WRITE_CONCURRENT_DEFAULT);
     locks_start= locks;
     locks= table->file->store_lock(thd, locks,
                                    (flags & GET_LOCK_UNLOCK) ? TL_IGNORE :
@@ -812,10 +813,8 @@ bool lock_schema_name(THD *thd, const char *db)
   @param db          The schema the object belongs to.
   @param name        Object name in the schema.
 
-  This function assumes that no metadata locks were acquired
-  before calling it. Additionally, it cannot be called while
-  holding LOCK_open mutex. Both these invariants are enforced by
-  asserts in MDL_context::acquire_locks().
+  This function cannot be called while holding LOCK_open_mutex.
+  This invariant is enforced by asserts in MDL_context::acquire_locks.
   To avoid deadlocks, we do not try to obtain exclusive metadata
   locks in LOCK TABLES mode, since in this mode there may be
   other metadata locks already taken by the current connection,

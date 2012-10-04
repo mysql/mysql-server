@@ -1,6 +1,8 @@
 #ifndef SQL_JOIN_CACHE_INCLUDED
 #define SQL_JOIN_CACHE_INCLUDED
 
+#include "sql_executor.h"
+
 /* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -61,6 +63,7 @@ typedef struct st_cache_field {
       next_copy_rowid->bind_buffer(buffer);
     str= buffer;
   }
+  bool buffer_is_bound() const { return str != NULL; }
 } CACHE_FIELD;
 
 
@@ -83,7 +86,7 @@ typedef struct st_cache_field {
   the engine nodes (NDB Cluster).        
 */ 
 
-class JOIN_CACHE :public Sql_alloc
+class JOIN_CACHE :public QEP_operation
 {
 
 private:
@@ -123,7 +126,7 @@ protected:
     case 4: int4store(ptr, (uint32) ofs); return;
     }
   }
-  
+
   /* 
     The total maximal length of the fields stored for a record in the cache.
     For blob fields only the sizes of the blob lengths are taken into account. 
@@ -379,11 +382,13 @@ protected:
        t->table->reginfo.not_exists_optimize);
   }
 
+  /* 
+    This function shall add a record into the join buffer and return TRUE
+    if it has been decided that it should be the last record in the buffer.
+  */ 
+  virtual bool put_record_in_cache();
+
 public:
-
-  /* Table to be joined with the partial join records from the cache */ 
-  JOIN_TAB *join_tab;
-
   /* Pointer to the previous join cache if there is any */
   JOIN_CACHE *prev_cache;
   /* Pointer to the next join cache if there is any */
@@ -396,14 +401,15 @@ public:
   virtual bool is_key_access() { return FALSE; }
 
   /* Shall reset the join buffer for reading/writing */
-  virtual void reset(bool for_writing);
+  virtual void reset_cache(bool for_writing);
 
-  /* 
-    This function shall add a record into the join buffer and return TRUE
-    if it has been decided that it should be the last record in the buffer.
-  */ 
-  virtual bool put_record();
-
+  /* Add a record into join buffer and call join_records() if it's full */
+  virtual enum_nested_loop_state put_record()
+  {
+    if (put_record_in_cache())
+      return join_records(false);
+    return NESTED_LOOP_OK;
+  }
   /* 
     This function shall read the next record into the join buffer and return
     TRUE if there is no more next records.
@@ -431,16 +437,31 @@ public:
     return (curr_rec_link ? curr_rec_link : get_curr_rec());
   }
      
-  /* Join records from the join buffer with records from the next join table */    
+  /* Join records from the join buffer with records from the next join table */
+  enum_nested_loop_state end_send() { return join_records(false); };
   enum_nested_loop_state join_records(bool skip_last);
 
+  enum_op_type type() { return OT_CACHE; }
+  
   virtual ~JOIN_CACHE() {}
-  void reset_join(JOIN *j) { join= j; }
   void free()
-  { 
+  {
+    /*
+      JOIN_CACHE doesn't support unlinking cache chain. This code is needed
+      only by set_join_cache_denial().
+    */
+    /*
+      If there is a previous/next cache linked to this cache through the
+      (next|prev)_cache pointer: remove the link. 
+    */
+    if (prev_cache)
+      prev_cache->next_cache= NULL;
+    if (next_cache)
+      next_cache->prev_cache= NULL;
+
     my_free(buff);
-    buff= 0;
-  }   
+    buff= NULL;
+  }
 
   /** Bits describing cache's type @sa setup_join_buffering() */
   enum {ALG_NONE= 0, ALG_BNL= 1, ALG_BKA= 2, ALG_BKA_UNIQUE= 4};
@@ -539,8 +560,7 @@ protected:
   enum_nested_loop_state join_matching_records(bool skip_last);
 
   /* Prepare to search for records that match records from the join buffer */
-  enum_nested_loop_state init_join_matching_records(RANGE_SEQ_IF *seq_funcs,
-                                                    uint ranges);
+  bool init_join_matching_records(RANGE_SEQ_IF *seq_funcs, uint ranges);
 
 public:
   
@@ -832,6 +852,9 @@ protected:
 
   virtual bool check_match(uchar *rec_ptr);
 
+  /* Add a record into the JOIN_CACHE_BKA_UNIQUE buffer */
+  bool put_record_in_cache();
+
 public:
 
   /* 
@@ -857,10 +880,7 @@ public:
   int init();
 
   /* Reset the JOIN_CACHE_BKA_UNIQUE  buffer for reading/writing */
-  void reset(bool for_writing);
-
-  /* Add a record into the JOIN_CACHE_BKA_UNIQUE buffer */
-  bool put_record();
+  void reset_cache(bool for_writing);
 
   /* Read the next record from the JOIN_CACHE_BKA_UNIQUE buffer */
   bool get_record();

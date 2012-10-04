@@ -399,7 +399,8 @@ if (`SELECT UPPER(LEFT($engine_type, 3)) != 'NDB'`)
 {
   STOP SLAVE;
   eval CREATE TABLE t9 (a INT KEY, b BLOB, c CHAR(5),
-                        d TIMESTAMP,
+                        d TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP 
+                          ON UPDATE CURRENT_TIMESTAMP,
                         e INT NOT NULL,
                         f text not null,
                         g text,

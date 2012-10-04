@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,6 +33,8 @@
 #include "sql_audit.h"
 #include <mysql/plugin_auth.h>
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
+#include <mysql/plugin_validate_password.h>
+#include "my_default.h"
 
 #include <algorithm>
 
@@ -72,7 +74,8 @@ const LEX_STRING plugin_type_names[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   { C_STRING_WITH_LEN("INFORMATION SCHEMA") },
   { C_STRING_WITH_LEN("AUDIT") },
   { C_STRING_WITH_LEN("REPLICATION") },
-  { C_STRING_WITH_LEN("AUTHENTICATION") }
+  { C_STRING_WITH_LEN("AUTHENTICATION") },
+  { C_STRING_WITH_LEN("VALIDATE PASSWORD") }
 };
 
 extern int initialize_schema_table(st_plugin_int *plugin);
@@ -89,13 +92,13 @@ extern int finalize_audit_plugin(st_plugin_int *plugin);
 plugin_type_init plugin_type_initialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0,ha_initialize_handlerton,0,0,initialize_schema_table,
-  initialize_audit_plugin,0,0
+  initialize_audit_plugin,0,0,0
 };
 
 plugin_type_init plugin_type_deinitialize[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
   0,ha_finalize_handlerton,0,0,finalize_schema_table,
-  finalize_audit_plugin,0,0
+  finalize_audit_plugin,0,0,0
 };
 
 #ifdef HAVE_DLOPEN
@@ -121,7 +124,8 @@ static int min_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
   MYSQL_AUDIT_INTERFACE_VERSION,
   MYSQL_REPLICATION_INTERFACE_VERSION,
-  MYSQL_AUTHENTICATION_INTERFACE_VERSION
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+  MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION
 };
 static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
 {
@@ -132,7 +136,8 @@ static int cur_plugin_info_interface_version[MYSQL_MAX_PLUGIN_TYPE_NUM]=
   MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION,
   MYSQL_AUDIT_INTERFACE_VERSION,
   MYSQL_REPLICATION_INTERFACE_VERSION,
-  MYSQL_AUTHENTICATION_INTERFACE_VERSION
+  MYSQL_AUTHENTICATION_INTERFACE_VERSION,
+  MYSQL_VALIDATE_PASSWORD_INTERFACE_VERSION
 };
 
 /* support for Services */
@@ -231,7 +236,7 @@ public:
              (plugin_var_arg->flags & PLUGIN_VAR_THDLOCAL ? SESSION : GLOBAL) |
              (plugin_var_arg->flags & PLUGIN_VAR_READONLY ? READONLY : 0),
              0, -1, NO_ARG, pluginvar_show_type(plugin_var_arg), 0, 0,
-             VARIABLE_NOT_IN_BINLOG, 0, 0, 0, PARSE_NORMAL),
+             VARIABLE_NOT_IN_BINLOG, NULL, NULL, NULL, PARSE_NORMAL),
     plugin_var(plugin_var_arg), orig_pluginvar_name(plugin_var_arg->name)
   { plugin_var->name= name_arg; }
   sys_var_pluginvar *cast_pluginvar() { return this; }
@@ -256,6 +261,9 @@ public:
 static void plugin_load(MEM_ROOT *tmp_root, int *argc, char **argv);
 static bool plugin_load_list(MEM_ROOT *tmp_root, int *argc, char **argv,
                              const char *list);
+static my_bool check_if_option_is_deprecated(int optid,
+                                             const struct my_option *opt,
+                                             char *argument);
 static int test_plugin_options(MEM_ROOT *, struct st_plugin_int *,
                                int *, char **);
 static bool register_builtin(struct st_mysql_plugin *, struct st_plugin_int *,
@@ -722,7 +730,7 @@ bool plugin_is_ready(const LEX_STRING *name, int type)
 }
 
 
-SHOW_COMP_OPTION plugin_status(const char *name, int len, size_t type)
+SHOW_COMP_OPTION plugin_status(const char *name, size_t len, int type)
 {
   LEX_STRING plugin_name= { (char *) name, len };
   return plugin_status(&plugin_name, type);
@@ -1642,6 +1650,28 @@ error:
   DBUG_RETURN(TRUE);
 }
 
+/*
+  Shutdown memcached plugin before binlog shuts down
+*/
+void memcached_shutdown(void)
+{
+  struct st_plugin_int *plugin;
+  if (initialized)
+  {
+    for (uint i= 0; i < plugin_array.elements; i++)
+    {
+      plugin= *dynamic_element(&plugin_array, i, struct st_plugin_int **);
+
+      if (plugin->state == PLUGIN_IS_READY
+	  && strcmp(plugin->name.str, "daemon_memcached") == 0)
+      {
+	plugin_deinitialize(plugin, true);
+	plugin->state= PLUGIN_IS_DYING;
+	plugin_del(plugin);
+      }
+    }
+  }
+}
 
 void plugin_shutdown(void)
 {
@@ -1831,6 +1861,7 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
 
   if (my_load_defaults(MYSQL_CONFIG_NAME, load_default_groups, &argc, &argv, NULL))
   {
+    mysql_rwlock_unlock(&LOCK_system_variables_hash);
     report_error(REPORT_TO_USER, ER_PLUGIN_IS_NOT_LOADED, name->str);
     goto err;
   }
@@ -1932,7 +1963,8 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
   mysql_audit_acquire_plugins(thd, MYSQL_AUDIT_GENERAL_CLASS);
 
   mysql_mutex_lock(&LOCK_plugin);
-  if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
+  if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)) ||
+      plugin->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_DYING))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
     goto err;
@@ -3301,7 +3333,8 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
     /* support --skip-plugin-foo syntax */
     options[0].name= plugin_name_ptr;
     options[1].name= plugin_name_with_prefix_ptr;
-    options[0].id= options[1].id= 0;
+    options[0].id= 0;
+    options[1].id= -1;
     options[0].var_type= options[1].var_type= GET_ENUM;
     options[0].arg_type= options[1].arg_type= OPT_ARG;
     options[0].def_value= options[1].def_value= 1; /* ON */
@@ -3488,6 +3521,7 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
 
     char *option_name_ptr;
     options[1]= options[0];
+    options[1].id= -1;
     options[1].name= option_name_ptr= (char*) alloc_root(mem_root,
                                                         plugin_dash.length +
                                                         optnamelen + 1);
@@ -3530,6 +3564,34 @@ static my_option *construct_help_options(MEM_ROOT *mem_root,
 
   DBUG_RETURN(opts);
 }
+
+
+/**
+  Check option being used and raise deprecation warning if required.
+
+  @param optid ID of the option that was passed through command line
+  @param opt List of options
+  @argument Status of the option : Enable or Disable
+
+  A deprecation warning will be raised if --plugin-xxx type of option
+  is used.
+
+  @return Always returns success as purpose of the function is to raise
+  warning only.
+  @retval 0 Success
+*/
+
+static my_bool check_if_option_is_deprecated(int optid,
+                                             const struct my_option *opt,
+                                             char *argument __attribute__((unused)))
+{
+  if (optid == -1)
+  {
+    WARN_DEPRECATED(NULL, opt->name, (opt->name + strlen("plugin-")));
+  }
+  return 0;
+}
+
 
 /**
   Create and register system variables supplied from the plugin and
@@ -3605,7 +3667,7 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
         tmp->load_option != PLUGIN_FORCE_PLUS_PERMANENT)
       opts[0].def_value= opts[1].def_value= plugin_load_option;
 
-    error= handle_options(argc, &argv, opts, NULL);
+    error= handle_options(argc, &argv, opts, check_if_option_is_deprecated);
     (*argc)++; /* add back one for the program name */
 
     if (error)

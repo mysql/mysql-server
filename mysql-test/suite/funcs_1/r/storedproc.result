@@ -1675,7 +1675,7 @@ CREATE PROCEDURE sp1 (f1 char(20) )
 SELECT * from t1 where f2 = f1;
 show CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sp1		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`(f1 char(20) )
+sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`(f1 char(20) )
 SELECT * from t1 where f2 = f1	latin1	<modified>	<created>
 DROP PROCEDURE sp1;
 
@@ -1688,7 +1688,7 @@ CREATE FUNCTION fn1 (s char(20)) returns char(50)
 return concat('hello, ', s, '!');
 show CREATE FUNCTION fn1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-fn1		CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(s char(20)) RETURNS char(50) CHARSET latin1
+fn1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `fn1`(s char(20)) RETURNS char(50) CHARSET latin1
 return concat('hello, ', s, '!')	latin1	<modified>	<created>
 DROP FUNCTION fn1;
 
@@ -1777,14 +1777,14 @@ db	name	type	specific_name	language	sql_data_access	is_deterministic	security_ty
 CREATE PROCEDURE sp9()SELECT * from t1;
 SELECT * from mysql.proc where specific_name='sp9';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	sp9	PROCEDURE	sp9	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from t1	root@localhost	created	modified			latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1
+db_storedproc	sp9	PROCEDURE	sp9	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from t1	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1
 DROP PROCEDURE sp9;
 SELECT * from mysql.proc where specific_name='sp9';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
 CREATE PROCEDURE sp9()SELECT * from t1;
 SELECT * from mysql.proc where specific_name='sp9';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	sp9	PROCEDURE	sp9	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from t1	root@localhost	created	modified			latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1
+db_storedproc	sp9	PROCEDURE	sp9	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from t1	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1
 DROP PROCEDURE IF EXISTS sp9;
 SELECT * from mysql.proc where specific_name='sp9';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
@@ -1801,14 +1801,14 @@ db	name	type	specific_name	language	sql_data_access	is_deterministic	security_ty
 CREATE FUNCTION fn10() returns int return 100;
 SELECT * from mysql.proc where specific_name='fn10' and type='function';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	fn10	FUNCTION	fn10	SQL	CONTAINS_SQL	NO	DEFINER		int(11)	return 100	root@localhost	created	modified			latin1	latin1_swedish_ci	latin1_swedish_ci	return 100
+db_storedproc	fn10	FUNCTION	fn10	SQL	CONTAINS_SQL	NO	DEFINER		int(11)	return 100	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	return 100
 DROP FUNCTION fn10;
 SELECT * from mysql.proc where specific_name='fn10' and type='function';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
 CREATE FUNCTION fn10() returns int return 100;
 SELECT * from mysql.proc where specific_name='fn10' and type='function';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-db_storedproc	fn10	FUNCTION	fn10	SQL	CONTAINS_SQL	NO	DEFINER		int(11)	return 100	root@localhost	created	modified			latin1	latin1_swedish_ci	latin1_swedish_ci	return 100
+db_storedproc	fn10	FUNCTION	fn10	SQL	CONTAINS_SQL	NO	DEFINER		int(11)	return 100	root@localhost	created	modified	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	return 100
 DROP FUNCTION IF EXISTS fn10;
 SELECT * from mysql.proc where specific_name='fn10' and type='function';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
@@ -3640,12 +3640,12 @@ alter procedure sp1 sql security DEFINER;
 alter function sp1 sql security DEFINER;
 show CREATE PROCEDURE sp1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-sp1		CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
+sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `sp1`()
     COMMENT 'this is a procedure'
 set @x= 3	latin1	<modified>	<created>
 show CREATE FUNCTION sp1;
 Function	sql_mode	Create Function	character_set_client	collation_connection	Database Collation
-sp1		CREATE DEFINER=`root`@`localhost` FUNCTION `sp1`() RETURNS int(11)
+sp1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` FUNCTION `sp1`() RETURNS int(11)
     COMMENT 'this is a function'
 return 4	latin1	<modified>	<created>
 USE db_storedproc;
@@ -7497,9 +7497,13 @@ BEGIN
 declare x, y, z year(3) default 2005;
 SELECT x, y, z;
 END//
+Warnings:
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 CALL sp1();
 x	y	z
 2005	2005	2005
+Warnings:
+Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 DROP PROCEDURE IF EXISTS sp1;
 CREATE PROCEDURE sp1( )
 BEGIN
@@ -16170,7 +16174,7 @@ CREATE PROCEDURE d1.sp4()
 SELECT * from d1.t43;
 SELECT * from mysql.proc where specific_name = 'sp4';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-d1	sp4	PROCEDURE	sp4	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from d1.t43	root@localhost	modified	created			latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from d1.t43
+d1	sp4	PROCEDURE	sp4	SQL	CONTAINS_SQL	NO	DEFINER			SELECT * from d1.t43	root@localhost	modified	created	NO_ENGINE_SUBSTITUTION		latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from d1.t43
 USE db_storedproc;
 DROP DATABASE d1;
 CREATE DATABASE d1;
@@ -16220,7 +16224,7 @@ USE d2;
 alter procedure d1.sp8 sql security DEFINER comment 'updated';
 SELECT * from mysql.proc where specific_name='sp8' and db='d1';
 db	name	type	specific_name	language	sql_data_access	is_deterministic	security_type	param_list	returns	body	definer	created	modified	sql_mode	comment	character_set_client	collation_connection	db_collation	body_utf8
-d1	sp8	PROCEDURE	sp8	SQL	CONTAINS_SQL	NO	DEFINER	 n char(20) 		SELECT * from t1 where t1.f1 = n	root@localhost	modified	created		updated	latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1 where t1.f1 = n
+d1	sp8	PROCEDURE	sp8	SQL	CONTAINS_SQL	NO	DEFINER	 n char(20) 		SELECT * from t1 where t1.f1 = n	root@localhost	modified	created	NO_ENGINE_SUBSTITUTION	updated	latin1	latin1_swedish_ci	latin1_swedish_ci	SELECT * from t1 where t1.f1 = n
 
 Testcase 4.4.9:
 --------------------------------------------------------------------------------
@@ -16241,7 +16245,7 @@ d1	fn2	FUNCTION	fn2	SQL	CONTAINS_SQL	NO	DEFINER	n int	int(11)	BEGIN
 declare a int;
 set a = 0.9 * n;
 return a;
-END	root@localhost	modified	created		updated	latin1	latin1_swedish_ci	latin1_swedish_ci	BEGIN
+END	root@localhost	modified	created	NO_ENGINE_SUBSTITUTION	updated	latin1	latin1_swedish_ci	latin1_swedish_ci	BEGIN
 declare a int;
 set a = 0.9 * n;
 return a;

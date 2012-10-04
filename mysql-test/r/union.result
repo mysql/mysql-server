@@ -1303,7 +1303,7 @@ t3	CREATE TABLE `t3` (
 drop tables t1,t2,t3;
 SELECT @tmp_max:= @@global.max_allowed_packet;
 @tmp_max:= @@global.max_allowed_packet
-1048576
+4194304
 SET @@global.max_allowed_packet=25000000;
 Warnings:
 Warning	1292	Truncated incorrect max_allowed_packet value: '25000000'
@@ -1364,7 +1364,7 @@ id
 5
 99
 drop table t1;
-create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp, f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
+create table t1(f1 char(1), f2 char(5), f3 binary(1), f4 binary(5), f5 timestamp NOT NULL DEFAULT '0000-00-00 00:00:00', f6 varchar(1) character set utf8 collate utf8_general_ci, f7 text);
 create table t2 as select *, f6 as f8 from t1 union select *, f7 from t1;
 show create table t2;
 Table	Create Table

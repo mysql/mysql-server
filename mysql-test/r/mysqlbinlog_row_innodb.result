@@ -2249,15 +2249,15 @@ FLUSH LOGS;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
-use test/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=0/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -2354,16 +2354,16 @@ crn INT -- row number
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.time_zone='SYSTEM'/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'0000000000000000000000000000000000000000000000000000000000000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -2389,7 +2389,7 @@ BEGIN
 ###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @26=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @27=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='1000:01:01' /* DATE meta=0 nullable=1 is_null=0 */
@@ -2445,18 +2445,18 @@ BEGIN
 ###   @78=b'00000000' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=1 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -2482,9 +2482,9 @@ BEGIN
 ###   @22=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='9999:12:31' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='9999-12-31 23:59:59' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=2146522447 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -2538,101 +2538,99 @@ BEGIN
 ###   @78=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=2 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id #
-# at #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
 ### SET
-###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
-###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
-###   @3=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @4=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @5=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @6=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @7=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @8=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @9=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @10=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @11=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @12=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @13=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @14=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @15=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @16=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @17=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @18=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @19=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @20=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @21=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @22=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @23=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @24=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
-###   @29=NULL /* type=18 meta=0 nullable=1 is_null=1 */
+###   @1=NULL /* BIT(1) meta=1 nullable=1 is_null=1 */
+###   @2=NULL /* BIT(64) meta=2048 nullable=1 is_null=1 */
+###   @3=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @4=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @5=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @6=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @7=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @8=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @9=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @10=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @11=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @12=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @13=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @14=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @15=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @16=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @17=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @18=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @19=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @20=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @21=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @22=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @23=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @24=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @25=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @26=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @27=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @28=NULL /* DATE meta=0 nullable=1 is_null=1 */
+###   @29=NULL /* DATETIME(0) meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
-###   @31=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @32=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @33=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @34=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @35=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @36=NULL /* TIMESTAMP(0) meta=65279 nullable=1 is_null=1 */
-###   @37=NULL /* TIMESTAMP(0) meta=65027 nullable=1 is_null=1 */
-###   @38=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @39=NULL /* TIMESTAMP(0) meta=65027 nullable=1 is_null=1 */
-###   @40=NULL /* TIMESTAMP(0) meta=57085 nullable=1 is_null=1 */
-###   @41=NULL /* TIMESTAMP(0) meta=65026 nullable=1 is_null=1 */
-###   @42=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @43=NULL /* TIMESTAMP(0) meta=65026 nullable=1 is_null=1 */
-###   @44=NULL /* TIMESTAMP(0) meta=61182 nullable=1 is_null=1 */
-###   @45=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @46=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @47=NULL /* TIMESTAMP(0) meta=255 nullable=1 is_null=1 */
-###   @48=NULL /* TIMESTAMP(0) meta=261 nullable=1 is_null=1 */
-###   @49=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @50=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @51=NULL /* TIMESTAMP(0) meta=765 nullable=1 is_null=1 */
-###   @52=NULL /* TIMESTAMP(0) meta=783 nullable=1 is_null=1 */
-###   @53=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @54=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @55=NULL /* TIMESTAMP(0) meta=510 nullable=1 is_null=1 */
-###   @56=NULL /* TIMESTAMP(0) meta=522 nullable=1 is_null=1 */
-###   @57=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @58=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @59=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @60=NULL /* TIMESTAMP(0) meta=65279 nullable=1 is_null=1 */
-###   @61=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @62=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @63=NULL /* TIMESTAMP(0) meta=255 nullable=1 is_null=1 */
-###   @64=NULL /* TIMESTAMP(0) meta=261 nullable=1 is_null=1 */
-###   @65=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @66=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @67=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @68=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @69=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @70=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @71=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @72=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @73=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @74=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @75=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @76=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @77=NULL /* TIMESTAMP(0) meta=63233 nullable=1 is_null=1 */
-###   @78=NULL /* TIMESTAMP(0) meta=63489 nullable=1 is_null=1 */
+###   @31=NULL /* TIME(0) meta=0 nullable=1 is_null=1 */
+###   @32=NULL /* YEAR meta=0 nullable=1 is_null=1 */
+###   @33=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @34=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @35=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @36=NULL /* STRING(255) meta=65279 nullable=1 is_null=1 */
+###   @37=NULL /* STRING(3) meta=65027 nullable=1 is_null=1 */
+###   @38=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @39=NULL /* STRING(3) meta=65027 nullable=1 is_null=1 */
+###   @40=NULL /* STRING(765) meta=57085 nullable=1 is_null=1 */
+###   @41=NULL /* STRING(2) meta=65026 nullable=1 is_null=1 */
+###   @42=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @43=NULL /* STRING(2) meta=65026 nullable=1 is_null=1 */
+###   @44=NULL /* STRING(510) meta=61182 nullable=1 is_null=1 */
+###   @45=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @46=NULL /* VARSTRING(1) meta=1 nullable=1 is_null=1 */
+###   @47=NULL /* VARSTRING(255) meta=255 nullable=1 is_null=1 */
+###   @48=NULL /* VARSTRING(261) meta=261 nullable=1 is_null=1 */
+###   @49=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @50=NULL /* VARSTRING(3) meta=3 nullable=1 is_null=1 */
+###   @51=NULL /* VARSTRING(765) meta=765 nullable=1 is_null=1 */
+###   @52=NULL /* VARSTRING(783) meta=783 nullable=1 is_null=1 */
+###   @53=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @54=NULL /* VARSTRING(2) meta=2 nullable=1 is_null=1 */
+###   @55=NULL /* VARSTRING(510) meta=510 nullable=1 is_null=1 */
+###   @56=NULL /* VARSTRING(522) meta=522 nullable=1 is_null=1 */
+###   @57=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @58=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @59=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @60=NULL /* STRING(255) meta=65279 nullable=1 is_null=1 */
+###   @61=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @62=NULL /* VARSTRING(1) meta=1 nullable=1 is_null=1 */
+###   @63=NULL /* VARSTRING(255) meta=255 nullable=1 is_null=1 */
+###   @64=NULL /* VARSTRING(261) meta=261 nullable=1 is_null=1 */
+###   @65=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @66=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @67=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @68=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @69=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @70=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @71=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @72=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @73=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @74=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @75=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @76=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @77=NULL /* ENUM(1 byte) meta=63233 nullable=1 is_null=1 */
+###   @78=NULL /* SET(1 bytes) meta=63489 nullable=1 is_null=1 */
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -2658,8 +2656,8 @@ BEGIN
 ###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @27=000000001 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='2008-08-04 16:18:06' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
@@ -2714,18 +2712,18 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'0000000000000000000000000000000000000000000000000000000000000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -2751,7 +2749,7 @@ BEGIN
 ###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @26=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @27=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='1000:01:01' /* DATE meta=0 nullable=1 is_null=0 */
@@ -2831,9 +2829,9 @@ BEGIN
 ###   @22=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='9999:12:31' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='9999-12-31 23:59:59' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=2146522447 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -2887,18 +2885,18 @@ BEGIN
 ###   @78=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=1 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -2924,9 +2922,9 @@ BEGIN
 ###   @22=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='9999:12:31' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='9999-12-31 23:59:59' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=2146522447 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -3004,7 +3002,7 @@ BEGIN
 ###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @26=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @27=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='1000:01:01' /* DATE meta=0 nullable=1 is_null=0 */
@@ -3060,97 +3058,97 @@ BEGIN
 ###   @78=b'00000000' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=2 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t1`
 ### WHERE
-###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
-###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
-###   @3=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @4=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @5=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @6=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @7=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @8=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @9=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @10=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @11=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @12=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @13=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @14=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @15=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @16=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @17=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @18=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @19=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @20=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @21=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @22=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @23=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @24=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
-###   @29=NULL /* type=18 meta=0 nullable=1 is_null=1 */
+###   @1=NULL /* BIT(1) meta=1 nullable=1 is_null=1 */
+###   @2=NULL /* BIT(64) meta=2048 nullable=1 is_null=1 */
+###   @3=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @4=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @5=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @6=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @7=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @8=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @9=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @10=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @11=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @12=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @13=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @14=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @15=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @16=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @17=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @18=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @19=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @20=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @21=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @22=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @23=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @24=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @25=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @26=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @27=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @28=NULL /* DATE meta=0 nullable=1 is_null=1 */
+###   @29=NULL /* DATETIME(0) meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
-###   @31=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @32=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @33=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @34=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @35=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @36=NULL /* TIMESTAMP(0) meta=65279 nullable=1 is_null=1 */
-###   @37=NULL /* TIMESTAMP(0) meta=65027 nullable=1 is_null=1 */
-###   @38=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @39=NULL /* TIMESTAMP(0) meta=65027 nullable=1 is_null=1 */
-###   @40=NULL /* TIMESTAMP(0) meta=57085 nullable=1 is_null=1 */
-###   @41=NULL /* TIMESTAMP(0) meta=65026 nullable=1 is_null=1 */
-###   @42=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @43=NULL /* TIMESTAMP(0) meta=65026 nullable=1 is_null=1 */
-###   @44=NULL /* TIMESTAMP(0) meta=61182 nullable=1 is_null=1 */
-###   @45=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @46=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @47=NULL /* TIMESTAMP(0) meta=255 nullable=1 is_null=1 */
-###   @48=NULL /* TIMESTAMP(0) meta=261 nullable=1 is_null=1 */
-###   @49=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @50=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @51=NULL /* TIMESTAMP(0) meta=765 nullable=1 is_null=1 */
-###   @52=NULL /* TIMESTAMP(0) meta=783 nullable=1 is_null=1 */
-###   @53=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @54=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @55=NULL /* TIMESTAMP(0) meta=510 nullable=1 is_null=1 */
-###   @56=NULL /* TIMESTAMP(0) meta=522 nullable=1 is_null=1 */
-###   @57=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @58=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @59=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @60=NULL /* TIMESTAMP(0) meta=65279 nullable=1 is_null=1 */
-###   @61=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @62=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @63=NULL /* TIMESTAMP(0) meta=255 nullable=1 is_null=1 */
-###   @64=NULL /* TIMESTAMP(0) meta=261 nullable=1 is_null=1 */
-###   @65=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @66=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @67=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @68=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @69=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @70=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @71=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @72=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @73=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @74=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @75=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @76=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @77=NULL /* TIMESTAMP(0) meta=63233 nullable=1 is_null=1 */
-###   @78=NULL /* TIMESTAMP(0) meta=63489 nullable=1 is_null=1 */
+###   @31=NULL /* TIME(0) meta=0 nullable=1 is_null=1 */
+###   @32=NULL /* YEAR meta=0 nullable=1 is_null=1 */
+###   @33=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @34=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @35=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @36=NULL /* STRING(255) meta=65279 nullable=1 is_null=1 */
+###   @37=NULL /* STRING(3) meta=65027 nullable=1 is_null=1 */
+###   @38=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @39=NULL /* STRING(3) meta=65027 nullable=1 is_null=1 */
+###   @40=NULL /* STRING(765) meta=57085 nullable=1 is_null=1 */
+###   @41=NULL /* STRING(2) meta=65026 nullable=1 is_null=1 */
+###   @42=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @43=NULL /* STRING(2) meta=65026 nullable=1 is_null=1 */
+###   @44=NULL /* STRING(510) meta=61182 nullable=1 is_null=1 */
+###   @45=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @46=NULL /* VARSTRING(1) meta=1 nullable=1 is_null=1 */
+###   @47=NULL /* VARSTRING(255) meta=255 nullable=1 is_null=1 */
+###   @48=NULL /* VARSTRING(261) meta=261 nullable=1 is_null=1 */
+###   @49=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @50=NULL /* VARSTRING(3) meta=3 nullable=1 is_null=1 */
+###   @51=NULL /* VARSTRING(765) meta=765 nullable=1 is_null=1 */
+###   @52=NULL /* VARSTRING(783) meta=783 nullable=1 is_null=1 */
+###   @53=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @54=NULL /* VARSTRING(2) meta=2 nullable=1 is_null=1 */
+###   @55=NULL /* VARSTRING(510) meta=510 nullable=1 is_null=1 */
+###   @56=NULL /* VARSTRING(522) meta=522 nullable=1 is_null=1 */
+###   @57=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @58=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @59=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @60=NULL /* STRING(255) meta=65279 nullable=1 is_null=1 */
+###   @61=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @62=NULL /* VARSTRING(1) meta=1 nullable=1 is_null=1 */
+###   @63=NULL /* VARSTRING(255) meta=255 nullable=1 is_null=1 */
+###   @64=NULL /* VARSTRING(261) meta=261 nullable=1 is_null=1 */
+###   @65=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @66=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @67=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @68=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @69=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @70=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @71=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @72=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @73=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @74=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @75=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @76=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @77=NULL /* ENUM(1 byte) meta=63233 nullable=1 is_null=1 */
+###   @78=NULL /* SET(1 bytes) meta=63489 nullable=1 is_null=1 */
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
 ### SET
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
@@ -3177,8 +3175,8 @@ BEGIN
 ###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @27=000000001 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='2008-08-04 16:18:06' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
@@ -3233,18 +3231,18 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -3270,8 +3268,8 @@ BEGIN
 ###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @27=000000001 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='2008-08-04 16:18:06' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
@@ -3326,98 +3324,98 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 ### SET
-###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
-###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
-###   @3=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @4=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @5=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @6=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @7=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @8=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @9=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @10=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @11=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @12=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @13=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @14=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @15=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @16=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @17=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @18=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @19=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @20=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @21=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @22=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @23=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @24=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
-###   @29=NULL /* type=18 meta=0 nullable=1 is_null=1 */
+###   @1=NULL /* BIT(1) meta=1 nullable=1 is_null=1 */
+###   @2=NULL /* BIT(64) meta=2048 nullable=1 is_null=1 */
+###   @3=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @4=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @5=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @6=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @7=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @8=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @9=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @10=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @11=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @12=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @13=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @14=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @15=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @16=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @17=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @18=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @19=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @20=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @21=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @22=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @23=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @24=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @25=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @26=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @27=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @28=NULL /* DATE meta=0 nullable=1 is_null=1 */
+###   @29=NULL /* DATETIME(0) meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
-###   @31=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @32=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @33=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @34=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @35=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @36=NULL /* TIMESTAMP(0) meta=65279 nullable=1 is_null=1 */
-###   @37=NULL /* TIMESTAMP(0) meta=65027 nullable=1 is_null=1 */
-###   @38=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @39=NULL /* TIMESTAMP(0) meta=65027 nullable=1 is_null=1 */
-###   @40=NULL /* TIMESTAMP(0) meta=57085 nullable=1 is_null=1 */
-###   @41=NULL /* TIMESTAMP(0) meta=65026 nullable=1 is_null=1 */
-###   @42=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @43=NULL /* TIMESTAMP(0) meta=65026 nullable=1 is_null=1 */
-###   @44=NULL /* TIMESTAMP(0) meta=61182 nullable=1 is_null=1 */
-###   @45=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @46=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @47=NULL /* TIMESTAMP(0) meta=255 nullable=1 is_null=1 */
-###   @48=NULL /* TIMESTAMP(0) meta=261 nullable=1 is_null=1 */
-###   @49=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @50=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @51=NULL /* TIMESTAMP(0) meta=765 nullable=1 is_null=1 */
-###   @52=NULL /* TIMESTAMP(0) meta=783 nullable=1 is_null=1 */
-###   @53=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @54=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @55=NULL /* TIMESTAMP(0) meta=510 nullable=1 is_null=1 */
-###   @56=NULL /* TIMESTAMP(0) meta=522 nullable=1 is_null=1 */
-###   @57=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @58=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @59=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @60=NULL /* TIMESTAMP(0) meta=65279 nullable=1 is_null=1 */
-###   @61=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @62=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @63=NULL /* TIMESTAMP(0) meta=255 nullable=1 is_null=1 */
-###   @64=NULL /* TIMESTAMP(0) meta=261 nullable=1 is_null=1 */
-###   @65=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @66=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @67=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @68=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @69=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @70=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @71=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @72=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @73=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @74=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @75=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @76=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @77=NULL /* TIMESTAMP(0) meta=63233 nullable=1 is_null=1 */
-###   @78=NULL /* TIMESTAMP(0) meta=63489 nullable=1 is_null=1 */
+###   @31=NULL /* TIME(0) meta=0 nullable=1 is_null=1 */
+###   @32=NULL /* YEAR meta=0 nullable=1 is_null=1 */
+###   @33=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @34=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @35=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @36=NULL /* STRING(255) meta=65279 nullable=1 is_null=1 */
+###   @37=NULL /* STRING(3) meta=65027 nullable=1 is_null=1 */
+###   @38=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @39=NULL /* STRING(3) meta=65027 nullable=1 is_null=1 */
+###   @40=NULL /* STRING(765) meta=57085 nullable=1 is_null=1 */
+###   @41=NULL /* STRING(2) meta=65026 nullable=1 is_null=1 */
+###   @42=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @43=NULL /* STRING(2) meta=65026 nullable=1 is_null=1 */
+###   @44=NULL /* STRING(510) meta=61182 nullable=1 is_null=1 */
+###   @45=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @46=NULL /* VARSTRING(1) meta=1 nullable=1 is_null=1 */
+###   @47=NULL /* VARSTRING(255) meta=255 nullable=1 is_null=1 */
+###   @48=NULL /* VARSTRING(261) meta=261 nullable=1 is_null=1 */
+###   @49=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @50=NULL /* VARSTRING(3) meta=3 nullable=1 is_null=1 */
+###   @51=NULL /* VARSTRING(765) meta=765 nullable=1 is_null=1 */
+###   @52=NULL /* VARSTRING(783) meta=783 nullable=1 is_null=1 */
+###   @53=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @54=NULL /* VARSTRING(2) meta=2 nullable=1 is_null=1 */
+###   @55=NULL /* VARSTRING(510) meta=510 nullable=1 is_null=1 */
+###   @56=NULL /* VARSTRING(522) meta=522 nullable=1 is_null=1 */
+###   @57=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @58=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @59=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @60=NULL /* STRING(255) meta=65279 nullable=1 is_null=1 */
+###   @61=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @62=NULL /* VARSTRING(1) meta=1 nullable=1 is_null=1 */
+###   @63=NULL /* VARSTRING(255) meta=255 nullable=1 is_null=1 */
+###   @64=NULL /* VARSTRING(261) meta=261 nullable=1 is_null=1 */
+###   @65=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @66=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @67=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @68=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @69=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @70=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @71=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @72=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @73=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @74=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @75=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @76=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @77=NULL /* ENUM(1 byte) meta=63233 nullable=1 is_null=1 */
+###   @78=NULL /* SET(1 bytes) meta=63489 nullable=1 is_null=1 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -3443,9 +3441,9 @@ BEGIN
 ###   @22=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @27=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @27=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='9999:12:31' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='9999-12-31 23:59:59' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 ###   @30=2146522447 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
@@ -3499,18 +3497,18 @@ BEGIN
 ###   @78=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=1 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'0000000000000000000000000000000000000000000000000000000000000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -3536,7 +3534,7 @@ BEGIN
 ###   @22=-1.797... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=0 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @26=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @27=000000000 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='1000:01:01' /* DATE meta=0 nullable=1 is_null=0 */
@@ -3592,18 +3590,18 @@ BEGIN
 ###   @78=b'00000000' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=2 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 ###   @2=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
@@ -3629,8 +3627,8 @@ BEGIN
 ###   @22=-2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @23=2.225... /* DOUBLE meta=8 nullable=1 is_null=0 */
 ###   @24=1 /* DOUBLE meta=8 nullable=1 is_null=0 */
-###   @25=-000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
-###   @26=000000009.999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @25=-000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
+###   @26=000000009999999999 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @27=000000001 /* DECIMAL(10,0) meta=2560 nullable=1 is_null=0 */
 ###   @28='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @29='2008-08-04 16:18:06' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
@@ -3685,103 +3683,103 @@ BEGIN
 ###   @78=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 ###   @79=3 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
 ### WHERE
-###   @1=NULL /* type=16 meta=1 nullable=1 is_null=1 */
-###   @2=NULL /* type=16 meta=2048 nullable=1 is_null=1 */
-###   @3=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @4=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @5=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @6=NULL /* type=1 meta=0 nullable=1 is_null=1 */
-###   @7=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @8=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @9=NULL /* type=2 meta=0 nullable=1 is_null=1 */
-###   @10=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @11=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @12=NULL /* type=9 meta=0 nullable=1 is_null=1 */
-###   @13=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @14=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @15=NULL /* type=3 meta=0 nullable=1 is_null=1 */
-###   @16=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @17=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @18=NULL /* type=8 meta=0 nullable=1 is_null=1 */
-###   @19=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @20=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @21=NULL /* type=4 meta=4 nullable=1 is_null=1 */
-###   @22=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @23=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @24=NULL /* type=5 meta=8 nullable=1 is_null=1 */
-###   @25=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @26=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @27=NULL /* type=246 meta=2560 nullable=1 is_null=1 */
-###   @28=NULL /* type=14 meta=0 nullable=1 is_null=1 */
-###   @29=NULL /* type=18 meta=0 nullable=1 is_null=1 */
+###   @1=NULL /* BIT(1) meta=1 nullable=1 is_null=1 */
+###   @2=NULL /* BIT(64) meta=2048 nullable=1 is_null=1 */
+###   @3=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @4=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @5=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @6=NULL /* TINYINT meta=0 nullable=1 is_null=1 */
+###   @7=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @8=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @9=NULL /* SHORTINT meta=0 nullable=1 is_null=1 */
+###   @10=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @11=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @12=NULL /* MEDIUMINT meta=0 nullable=1 is_null=1 */
+###   @13=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @14=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @15=NULL /* INT meta=0 nullable=1 is_null=1 */
+###   @16=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @17=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @18=NULL /* LONGINT meta=0 nullable=1 is_null=1 */
+###   @19=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @20=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @21=NULL /* FLOAT meta=4 nullable=1 is_null=1 */
+###   @22=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @23=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @24=NULL /* DOUBLE meta=8 nullable=1 is_null=1 */
+###   @25=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @26=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @27=NULL /* DECIMAL(10,0) meta=2560 nullable=1 is_null=1 */
+###   @28=NULL /* DATE meta=0 nullable=1 is_null=1 */
+###   @29=NULL /* DATETIME(0) meta=0 nullable=1 is_null=1 */
 ###   @30=1000000000 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
-###   @31=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @32=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @33=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @34=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @35=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @36=NULL /* TIMESTAMP(0) meta=65279 nullable=1 is_null=1 */
-###   @37=NULL /* TIMESTAMP(0) meta=65027 nullable=1 is_null=1 */
-###   @38=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @39=NULL /* TIMESTAMP(0) meta=65027 nullable=1 is_null=1 */
-###   @40=NULL /* TIMESTAMP(0) meta=57085 nullable=1 is_null=1 */
-###   @41=NULL /* TIMESTAMP(0) meta=65026 nullable=1 is_null=1 */
-###   @42=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @43=NULL /* TIMESTAMP(0) meta=65026 nullable=1 is_null=1 */
-###   @44=NULL /* TIMESTAMP(0) meta=61182 nullable=1 is_null=1 */
-###   @45=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @46=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @47=NULL /* TIMESTAMP(0) meta=255 nullable=1 is_null=1 */
-###   @48=NULL /* TIMESTAMP(0) meta=261 nullable=1 is_null=1 */
-###   @49=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @50=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @51=NULL /* TIMESTAMP(0) meta=765 nullable=1 is_null=1 */
-###   @52=NULL /* TIMESTAMP(0) meta=783 nullable=1 is_null=1 */
-###   @53=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @54=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @55=NULL /* TIMESTAMP(0) meta=510 nullable=1 is_null=1 */
-###   @56=NULL /* TIMESTAMP(0) meta=522 nullable=1 is_null=1 */
-###   @57=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @58=NULL /* TIMESTAMP(0) meta=65024 nullable=1 is_null=1 */
-###   @59=NULL /* TIMESTAMP(0) meta=65025 nullable=1 is_null=1 */
-###   @60=NULL /* TIMESTAMP(0) meta=65279 nullable=1 is_null=1 */
-###   @61=NULL /* TIMESTAMP(0) meta=0 nullable=1 is_null=1 */
-###   @62=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @63=NULL /* TIMESTAMP(0) meta=255 nullable=1 is_null=1 */
-###   @64=NULL /* TIMESTAMP(0) meta=261 nullable=1 is_null=1 */
-###   @65=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @66=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @67=NULL /* TIMESTAMP(0) meta=1 nullable=1 is_null=1 */
-###   @68=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @69=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @70=NULL /* TIMESTAMP(0) meta=2 nullable=1 is_null=1 */
-###   @71=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @72=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @73=NULL /* TIMESTAMP(0) meta=3 nullable=1 is_null=1 */
-###   @74=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @75=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @76=NULL /* TIMESTAMP(0) meta=4 nullable=1 is_null=1 */
-###   @77=NULL /* TIMESTAMP(0) meta=63233 nullable=1 is_null=1 */
-###   @78=NULL /* TIMESTAMP(0) meta=63489 nullable=1 is_null=1 */
+###   @31=NULL /* TIME(0) meta=0 nullable=1 is_null=1 */
+###   @32=NULL /* YEAR meta=0 nullable=1 is_null=1 */
+###   @33=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @34=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @35=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @36=NULL /* STRING(255) meta=65279 nullable=1 is_null=1 */
+###   @37=NULL /* STRING(3) meta=65027 nullable=1 is_null=1 */
+###   @38=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @39=NULL /* STRING(3) meta=65027 nullable=1 is_null=1 */
+###   @40=NULL /* STRING(765) meta=57085 nullable=1 is_null=1 */
+###   @41=NULL /* STRING(2) meta=65026 nullable=1 is_null=1 */
+###   @42=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @43=NULL /* STRING(2) meta=65026 nullable=1 is_null=1 */
+###   @44=NULL /* STRING(510) meta=61182 nullable=1 is_null=1 */
+###   @45=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @46=NULL /* VARSTRING(1) meta=1 nullable=1 is_null=1 */
+###   @47=NULL /* VARSTRING(255) meta=255 nullable=1 is_null=1 */
+###   @48=NULL /* VARSTRING(261) meta=261 nullable=1 is_null=1 */
+###   @49=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @50=NULL /* VARSTRING(3) meta=3 nullable=1 is_null=1 */
+###   @51=NULL /* VARSTRING(765) meta=765 nullable=1 is_null=1 */
+###   @52=NULL /* VARSTRING(783) meta=783 nullable=1 is_null=1 */
+###   @53=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @54=NULL /* VARSTRING(2) meta=2 nullable=1 is_null=1 */
+###   @55=NULL /* VARSTRING(510) meta=510 nullable=1 is_null=1 */
+###   @56=NULL /* VARSTRING(522) meta=522 nullable=1 is_null=1 */
+###   @57=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @58=NULL /* STRING(0) meta=65024 nullable=1 is_null=1 */
+###   @59=NULL /* STRING(1) meta=65025 nullable=1 is_null=1 */
+###   @60=NULL /* STRING(255) meta=65279 nullable=1 is_null=1 */
+###   @61=NULL /* VARSTRING(0) meta=0 nullable=1 is_null=1 */
+###   @62=NULL /* VARSTRING(1) meta=1 nullable=1 is_null=1 */
+###   @63=NULL /* VARSTRING(255) meta=255 nullable=1 is_null=1 */
+###   @64=NULL /* VARSTRING(261) meta=261 nullable=1 is_null=1 */
+###   @65=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @66=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @67=NULL /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=1 */
+###   @68=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @69=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @70=NULL /* BLOB/TEXT meta=2 nullable=1 is_null=1 */
+###   @71=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @72=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @73=NULL /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=1 */
+###   @74=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @75=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @76=NULL /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=1 */
+###   @77=NULL /* ENUM(1 byte) meta=63233 nullable=1 is_null=1 */
+###   @78=NULL /* SET(1 bytes) meta=63489 nullable=1 is_null=1 */
 ###   @79=4 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Rotate to master-bin.000002  pos: 4
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -3872,15 +3870,15 @@ FLUSH LOGS;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
-use test/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=0/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -3893,72 +3891,72 @@ crn INT -- row number
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-04' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-05' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-06' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:08' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-08' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=8 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:08:09' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-09' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=9 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -3967,7 +3965,7 @@ BEGIN
 ###   @1='2008:08:11' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -3976,7 +3974,7 @@ BEGIN
 ###   @1='2008:08:12' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -3985,7 +3983,7 @@ BEGIN
 ###   @1='2008:08:13' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-04' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -3994,7 +3992,7 @@ BEGIN
 ###   @1='2008:08:14' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-04' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-05' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -4003,7 +4001,7 @@ BEGIN
 ###   @1='2008:08:15' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-05' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-06' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -4012,7 +4010,7 @@ BEGIN
 ###   @1='2008:08:16' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-06' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:08:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
@@ -4022,57 +4020,57 @@ BEGIN
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:11' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=1 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:12' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:13' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:14' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-04' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:15' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-05' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:16' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-06' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2008:08:17' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-07' /* VARSTRING(24) meta=24 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Rotate to master-bin.000002  pos: 4
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -4239,15 +4237,15 @@ FLUSH LOGS;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
-use test/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=0/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -4260,7 +4258,7 @@ c_1_n INT -- row number
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 CREATE TABLE t2 (
 c_2_1 DATE,
@@ -4269,7 +4267,7 @@ c_2_n INT -- row number
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 CREATE TABLE t3 (
 c_3_1 DATE,
@@ -4278,194 +4276,194 @@ c_3_n INT -- row number
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-01' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=11 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:08' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-08' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=18 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2008:01:09' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=19 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t2
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-01' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=21 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:08' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-08' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=28 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1='2008:02:09' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=29 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t3` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t3
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:01' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-01' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=31 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:08' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-08' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=38 /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t3
+### INSERT INTO `test`.`t3`
 ### SET
 ###   @1='2008:03:09' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-09' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=39 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t3` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4474,7 +4472,7 @@ BEGIN
 ###   @1='2018:01:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4483,7 +4481,7 @@ BEGIN
 ###   @1='2018:01:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4492,7 +4490,7 @@ BEGIN
 ###   @1='2018:01:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4501,7 +4499,7 @@ BEGIN
 ###   @1='2018:01:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4510,7 +4508,7 @@ BEGIN
 ###   @1='2018:01:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1='2008:01:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4519,7 +4517,7 @@ BEGIN
 ###   @1='2018:01:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4528,7 +4526,7 @@ BEGIN
 ###   @1='2028:02:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4537,7 +4535,7 @@ BEGIN
 ###   @1='2028:02:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4546,7 +4544,7 @@ BEGIN
 ###   @1='2028:02:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4555,7 +4553,7 @@ BEGIN
 ###   @1='2028:02:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4564,7 +4562,7 @@ BEGIN
 ###   @1='2028:02:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1='2008:02:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4573,7 +4571,7 @@ BEGIN
 ###   @1='2028:02:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4582,7 +4580,7 @@ BEGIN
 ###   @1='2038:03:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4591,7 +4589,7 @@ BEGIN
 ###   @1='2038:03:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4600,7 +4598,7 @@ BEGIN
 ###   @1='2038:03:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4609,7 +4607,7 @@ BEGIN
 ###   @1='2038:03:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4618,7 +4616,7 @@ BEGIN
 ###   @1='2038:03:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### UPDATE test.t3
+### UPDATE `test`.`t3`
 ### WHERE
 ###   @1='2008:03:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
@@ -4628,120 +4626,120 @@ BEGIN
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t2` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t3` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t3` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2018:01:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-01-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t2
+### DELETE FROM `test`.`t2`
 ### WHERE
 ###   @1='2028:02:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-02-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:02' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=2 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:03' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-03' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=3 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:04' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-04' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=4 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:05' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-05' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=5 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:06' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-06' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=6 /* INT meta=0 nullable=1 is_null=0 */
-### DELETE FROM test.t3
+### DELETE FROM `test`.`t3`
 ### WHERE
 ###   @1='2038:03:07' /* DATE meta=0 nullable=1 is_null=0 */
 ###   @2='VARCHAR-03-07' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 ###   @3=7 /* INT meta=0 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Rotate to master-bin.000002  pos: 4
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -4800,15 +4798,15 @@ FLUSH LOGS;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
 ROLLBACK/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
-use test/*!*/;
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=0/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C utf8 *//*!*/;
 SET @@session.character_set_client=33,@@session.collation_connection=33,@@session.collation_server=8/*!*/;
@@ -4821,34 +4819,34 @@ c3 VARCHAR(60)
 ) ENGINE=InnoDB DEFAULT CHARSET latin1
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Query	thread_id=#	exec_time=#	error_code=0
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
 SET TIMESTAMP=1000000000/*!*/;
 BEGIN
 /*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Table_map: `test`.`t1` mapped to number #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=2 /* INT meta=0 nullable=1 is_null=0 */
 ###   @3='Wow' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=4 /* INT meta=0 nullable=1 is_null=0 */
 ###   @3='Wow' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=5 /* INT meta=0 nullable=1 is_null=0 */
 ###   @2=6 /* INT meta=0 nullable=1 is_null=0 */
 ###   @3='Wow' /* VARSTRING(60) meta=60 nullable=1 is_null=0 */
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Xid = #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
 COMMIT/*!*/;
 # at #
-#010909  4:46:40 server id 1  end_log_pos # 	Rotate to master-bin.000002  pos: 4
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;

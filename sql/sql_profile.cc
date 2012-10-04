@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,8 +88,8 @@ ST_FIELD_INFO query_profile_statistics_info[]=
 
 int make_profile_table_for_show(THD *thd, ST_SCHEMA_TABLE *schema_table)
 {
-  int profile_options = thd->lex->profile_options;
-  int fields_include_condition_truth_values[]= {
+  uint profile_options = thd->lex->profile_options;
+  uint fields_include_condition_truth_values[]= {
     FALSE, /* Query_id */
     FALSE, /* Seq */
     TRUE, /* Status */

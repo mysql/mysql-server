@@ -878,6 +878,8 @@ ERROR 42000: Column length too big for column 'a' (max = 255); use BLOB or TEXT 
 CREATE TABLE b15776 (a char(4294967296));
 ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
 CREATE TABLE b15776 (a year(4294967295));
+Warnings:
+Warning	1818	YEAR(4294967295) column type is deprecated. Creating YEAR(4) column instead.
 INSERT INTO b15776 VALUES (42);
 SELECT * FROM b15776;
 a
@@ -886,6 +888,8 @@ DROP TABLE b15776;
 CREATE TABLE b15776 (a year(4294967296));
 ERROR 42000: Display width out of range for column 'a' (max = 4294967295)
 CREATE TABLE b15776 (a year(0));
+Warnings:
+Warning	1818	YEAR(0) column type is deprecated. Creating YEAR(4) column instead.
 DROP TABLE b15776;
 CREATE TABLE b15776 (a year(-2));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2))' at line 1

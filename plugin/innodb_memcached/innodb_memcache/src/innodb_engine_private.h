@@ -83,7 +83,6 @@ innodb_allocate(
 /*******************************************************************//**
 Cleanup connections
 @return number of connection cleaned */
-/*** remove ***/
 static
 ENGINE_ERROR_CODE
 innodb_remove(
@@ -97,6 +96,18 @@ innodb_remove(
 					engine only */
 
 /*******************************************************************//**
+bind table
+@return number of connection cleaned */
+static
+ENGINE_ERROR_CODE
+innodb_bind(
+/*========*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	const void*	name,		/*!< in: table ID name */
+        const size_t	name_len);	/*!< in: name length */
+
+/*******************************************************************//**
 release */
 static
 void
@@ -106,6 +117,15 @@ innodb_release(
 	const void*	cookie,		/*!< in: connection cookie */
 	item*		item);		/*!< in: item to free */
 
+/*******************************************************************//**
+release */
+static
+void
+innodb_clean_engine(
+/*================*/
+	ENGINE_HANDLE*	handle,		/*!< in: Engine handle */
+	const void*	cookie,		/*!< in: connection cookie */
+	void*		conn);		/*!< in: item to free */
 /*******************************************************************//**
 Support memcached "GET" command, fetch the value according to key
 @return ENGINE_SUCCESS if successfully, otherwise error code */

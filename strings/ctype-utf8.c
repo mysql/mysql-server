@@ -7510,6 +7510,10 @@ my_wc_mb_filename(const CHARSET_INFO *cs __attribute__((unused)),
 {
   int code;
   char hex[]= "0123456789abcdef";
+
+  if (s >= e)
+    return MY_CS_TOOSMALL;
+
   if (wc < 128 && filename_safe_char[wc])
   {
     *s= (uchar) wc;

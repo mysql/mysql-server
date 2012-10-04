@@ -2,7 +2,6 @@
 # case a) more words in single record
 # b) more words across records
 
---SOURCE include/big_test.inc
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings

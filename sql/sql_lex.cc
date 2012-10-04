@@ -130,7 +130,8 @@ const char *st_select_lex::type_str[SLT_total]=
   "DERIVED",
   "SUBQUERY",
   "UNION",
-  "UNION RESULT"
+  "UNION RESULT",
+  "MATERIALIZED"
 };
 
 
@@ -439,18 +440,21 @@ void lex_start(THD *thd)
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
+  if (lex->select_lex.order_list_ptrs)
+    lex->select_lex.order_list_ptrs->clear();
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->spname= NULL;
   lex->sphead= NULL;
   lex->set_sp_current_parsing_ctx(NULL);
   lex->m_sql_cmd= NULL;
-  lex->proc_list.first= 0;
+  lex->proc_analyse= NULL;
   lex->escape_used= FALSE;
   lex->query_tables= 0;
   lex->reset_query_tables_list(FALSE);
   lex->expr_allows_subselect= TRUE;
   lex->use_only_table_context= FALSE;
+  lex->contains_plaintext_password= false;
 
   lex->name.str= 0;
   lex->name.length= 0;
@@ -478,6 +482,7 @@ void lex_start(THD *thd)
   lex->is_lex_started= TRUE;
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
+  lex->is_change_password= false;
   DBUG_VOID_RETURN;
 }
 
@@ -1702,6 +1707,8 @@ void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
   while ((str->length > 0) && (my_isspace(cs, str->str[str->length-1])))
   {
     str->length --;
+    /* set trailing spaces to 0 as there're places that don't respect length */
+    str->str[str->length]= 0;
   }
 }
 
@@ -1775,6 +1782,7 @@ void st_select_lex::init_query()
   ref_pointer_array.reset();
   select_n_where_fields= 0;
   select_n_having_items= 0;
+  n_child_sum_items= 0;
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
   first_execution= 1;
@@ -1787,6 +1795,7 @@ void st_select_lex::init_query()
   select_list_tables= 0;
   m_non_agg_field_used= false;
   m_agg_func_used= false;
+  with_sum_func= false;
 }
 
 void st_select_lex::init_select()
@@ -1811,6 +1820,8 @@ void st_select_lex::init_select()
   order_list.elements= 0;
   order_list.first= 0;
   order_list.next= &order_list.first;
+  if (order_list_ptrs)
+    order_list_ptrs->clear();
   /* Set limit and offset to default values */
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
@@ -2023,9 +2034,6 @@ void st_select_lex::mark_as_dependent(st_select_lex *last)
           sl->uncacheable|= UNCACHEABLE_UNITED;
       }
     }
-    Item_subselect *subquery_predicate= s->master_unit()->item;
-    if (subquery_predicate)
-      subquery_predicate->is_correlated= TRUE;
   }
 }
 
@@ -2269,20 +2277,7 @@ void st_select_lex::print_limit(THD *thd,
     if (subs_type == Item_subselect::EXISTS_SUBS ||
         subs_type == Item_subselect::IN_SUBS ||
         subs_type == Item_subselect::ALL_SUBS)
-    {
-      DBUG_ASSERT(!item->fixed ||
-                  /*
-                    If not using materialization both:
-                    select_limit == 1, and there should be no offset_limit.
-                  */
-                  (((subs_type == Item_subselect::IN_SUBS) &&
-                    ((Item_in_subselect*)item)->exec_method ==
-                    Item_in_subselect::EXEC_MATERIALIZATION) ?
-                   TRUE :
-                   (select_limit->val_int() == LL(1)) &&
-                   offset_limit == 0));
       return;
-    }
   }
   if (explicit_limit)
   {
@@ -2575,6 +2570,19 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   else
     str->append(STRING_WITH_LEN("select "));
 
+  if (!thd->lex->describe && join && join->need_tmp)
+  {
+    /*
+      Items have been repointed to columns of an internal temporary table, it
+      is possible that the JOIN has gone through exec() and join_free(),
+      so items may have been freed by [tmp_JOIN_TAB]::cleanup(full=true),
+      and thus may not be printable. Unless this is EXPLAIN, in which case the
+      freeing is delayed by JOIN::join_free().
+    */
+    str->append(STRING_WITH_LEN("<already_cleaned_up>"));
+    return;
+  }
+
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)
     str->append(STRING_WITH_LEN("straight_join "));
@@ -2681,7 +2689,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   // having
   Item *cur_having= having;
   if (join)
-    cur_having= join->having;
+    cur_having= join->having_for_explain;
 
   if (cur_having || having_value != Item::COND_UNDEF)
   {
@@ -2793,6 +2801,8 @@ void Query_tables_list::reset_query_tables_list(bool init)
   sroutines_list_own_elements= 0;
   binlog_stmt_flags= 0;
   stmt_accessed_table_flag= 0;
+  lock_tables_state= LTS_NOT_LOCKED;
+  table_count= 0;
 }
 
 
@@ -2824,7 +2834,8 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), option_type(OPT_DEFAULT), is_lex_started(0)
+  :result(0), option_type(OPT_DEFAULT), is_change_password(false),
+  is_lex_started(0)
 {
 
   my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
@@ -3345,6 +3356,9 @@ TABLE_LIST *LEX::unlink_first_table(bool *link_to_local)
       query_tables_last= &query_tables;
     first->next_global= 0;
 
+    if (query_tables_own_last == &first->next_global)
+      query_tables_own_last= &query_tables;
+
     /*
       and from local list if it is not empty
     */
@@ -3427,6 +3441,10 @@ void LEX::link_first_table_back(TABLE_LIST *first,
       query_tables->prev_global= &first->next_global;
     else
       query_tables_last= &first->next_global;
+
+    if (query_tables_own_last == &query_tables)
+      query_tables_own_last= &first->next_global;
+
     query_tables= first;
 
     if (link_to_local)
@@ -3579,8 +3597,8 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
     AND/OR trees.
-    We also save the chain of ORDER::next in group_list, in case
-    the list is modified by remove_const().
+    We also save the chain of ORDER::next in group_list and order_list, in
+    case the list is modified by remove_const().
     The function also calls fix_prepare_info_in_table_list that saves all
     ON expressions.    
 */
@@ -3602,6 +3620,19 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
       for (ORDER *order= group_list.first; order; order= order->next)
       {
         group_list_ptrs->push_back(order);
+      }
+    }
+    if (order_list.first)
+    {
+      if (!order_list_ptrs)
+      {
+        void *mem= thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
+        order_list_ptrs= new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
+      }
+      order_list_ptrs->reserve(order_list.elements);
+      for (ORDER *order= order_list.first; order; order= order->next)
+      {
+        order_list_ptrs->push_back(order);
       }
     }
     if (*conds)

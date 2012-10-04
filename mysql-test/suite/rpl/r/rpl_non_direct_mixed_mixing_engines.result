@@ -11973,9 +11973,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (328, 3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (328, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -11987,9 +11984,6 @@ master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_7
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (328, 3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (328, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -12063,9 +12057,6 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (330, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -12076,9 +12067,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_7
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_7)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (330, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -12177,7 +12165,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (334, 3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (334, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -12189,7 +12176,6 @@ master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_8
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (334, 3)
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (334, 6)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -12263,7 +12249,6 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (336, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -12274,7 +12259,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE tt_xx_8
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.tt_xx_8)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	use `test`; INSERT INTO tt_1(trans_id, stmt_id) VALUES (336, 4)
 master-bin.000001	#	Xid	#	#	COMMIT /* XID */
@@ -12364,7 +12348,6 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
@@ -12387,7 +12370,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
@@ -12465,7 +12447,6 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-T << -e-e-e-e-e-e-e-e-e-e-e-
@@ -12487,7 +12468,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_9
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_9)
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
@@ -12588,9 +12568,6 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
@@ -12613,9 +12590,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN
@@ -12693,9 +12667,6 @@ include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 -e-e-e-e-e-e-e-e-e-e-e- >> IS-N<-N << -e-e-e-e-e-e-e-e-e-e-e-
@@ -12717,9 +12688,6 @@ Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 master-bin.000001	#	Query	#	#	use `test`; TRUNCATE TABLE nt_xx_10
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.nt_xx_10)
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
-master-bin.000001	#	Write_rows	#	#	table_id: #
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
 master-bin.000001	#	Query	#	#	BEGIN

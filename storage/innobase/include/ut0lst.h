@@ -65,8 +65,7 @@ The name of the field in the node struct should be the name given
 to the list.
 @param TYPE	the list node type name */
 /* Example:
-typedef struct LRU_node_struct	LRU_node_t;
-struct LRU_node_struct {
+struct LRU_node_t {
 	UT_LIST_NODE_T(LRU_node_t)	LRU_list;
 	...
 }

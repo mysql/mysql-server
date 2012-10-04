@@ -1,6 +1,6 @@
 # WL #3031 This test tests the new servers table as well as
 # if federated can utilise the servers table
--- source federated.inc
+-- source suite/federated/include/federated.inc
 
 connection slave;
 create database first_db;
@@ -333,4 +333,4 @@ drop table t1;
 drop server if exists s;
 
 
-source federated_cleanup.inc;
+source suite/federated/include/federated_cleanup.inc;

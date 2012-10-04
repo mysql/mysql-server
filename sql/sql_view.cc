@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -219,7 +219,7 @@ fill_defined_view_parts (THD *thd, TABLE_LIST *view)
   key_length= get_table_def_key(view, &key);
 
   if (tdc_open_view(thd, &decoy, decoy.alias, key, key_length,
-                    thd->mem_root, OPEN_VIEW_NO_PARSE))
+                    OPEN_VIEW_NO_PARSE))
     return TRUE;
 
   if (!lex->definer)
@@ -353,7 +353,7 @@ bool create_view_precheck(THD *thd, TABLE_LIST *tables, TABLE_LIST *view,
     while ((item= it++))
     {
       Item_field *field;
-      if ((field= item->filed_for_view_update()))
+      if ((field= item->field_for_view_update()))
       {
         /*
          any_privileges may be reset later by the Item_field::set_field
@@ -412,7 +412,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
   DBUG_ENTER("mysql_create_view");
 
   /* This is ensured in the parser. */
-  DBUG_ASSERT(!lex->proc_list.first && !lex->result &&
+  DBUG_ASSERT(!lex->proc_analyse && !lex->result &&
               !lex->param_list.elements);
 
   /*
@@ -447,7 +447,8 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
     goto err;
   }
 
-  if (open_and_lock_tables(thd, lex->query_tables, TRUE, 0))
+  /* Not required to lock any tables. */
+  if (open_normal_and_derived_tables(thd, lex->query_tables, 0))
   {
     view= lex->unlink_first_table(&link_to_local);
     res= TRUE;
@@ -654,7 +655,7 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       Item *item;
       while ((item= it++))
       {
-        Item_field *fld= item->filed_for_view_update();
+        Item_field *fld= item->field_for_view_update();
         uint priv= (get_column_grant(thd, &view->grant, view->db,
                                      view->table_name, item->item_name.ptr()) &
                     VIEW_ANY_ACL);
@@ -1081,22 +1082,19 @@ err:
 
 
 
-/*
+/**
   read VIEW .frm and create structures
 
-  SYNOPSIS
-    mysql_make_view()
-    thd			Thread handler
-    parser		parser object
-    table		TABLE_LIST structure for filling
-    flags               flags
-  RETURN
-    0 ok
-    1 error
-*/
+  @param[in]  thd                 Thread handler
+  @param[in]  share               Share object of view
+  @param[in]  table               TABLE_LIST structure for filling
+  @param[in]  open_view_no_parse  Flag to indicate open view but
+                                  do not parse.
 
-bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
-                     uint flags)
+  @return false-in case of success, true-in case of error.
+*/
+bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
+                     bool open_view_no_parse)
 {
   SELECT_LEX *end, *view_select= NULL;
   LEX *old_lex, *lex;
@@ -1108,6 +1106,13 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
 
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
+
+  if (table->required_type == FRMTYPE_TABLE)
+  {
+    my_error(ER_WRONG_OBJECT, MYF(0), share->db.str, share->table_name.str,
+             "BASE TABLE");
+    DBUG_RETURN(true); 
+  }
 
   if (table->view)
   {
@@ -1129,19 +1134,19 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     */
     if (!table->prelocking_placeholder && table->prepare_security(thd))
     {
-      DBUG_RETURN(1);
+      DBUG_RETURN(true);
     }
     DBUG_PRINT("info",
                ("VIEW %s.%s is already processed on previous PS/SP execution",
                 table->view_db.str, table->view_name.str));
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
 
   if (table->index_hints && table->index_hints->elements)
   {
     my_error(ER_KEY_DOES_NOT_EXITS, MYF(0),
              table->index_hints->head()->key_name.str, table->table_name);
-    DBUG_RETURN(TRUE);
+    DBUG_RETURN(true);
   }
 
   /* check loop via view definition */
@@ -1158,7 +1163,7 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     {
       my_error(ER_VIEW_RECURSIVE, MYF(0),
                top_view->view_db.str, top_view->view_name.str);
-      DBUG_RETURN(TRUE);
+      DBUG_RETURN(true);
     }
   }
 
@@ -1192,8 +1197,10 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
     TODO: when VIEWs will be stored in cache, table mem_root should
     be used here
   */
-  if (parser->parse((uchar*)table, thd->mem_root, view_parameters,
-                    required_view_parameters, &file_parser_dummy_hook))
+  DBUG_ASSERT(share->view_def != NULL);
+  if (share->view_def->parse((uchar*)table, thd->mem_root, view_parameters,
+                             required_view_parameters,
+                             &file_parser_dummy_hook))
     goto err;
 
   /*
@@ -1217,11 +1224,11 @@ bool mysql_make_view(THD *thd, File_parser *parser, TABLE_LIST *table,
   */
   table->view_creation_ctx= View_creation_ctx::create(thd, table);
 
-  if (flags & OPEN_VIEW_NO_PARSE)
+  if (open_view_no_parse)
   {
     if (arena)
       thd->restore_active_arena(arena, &backup);
-    DBUG_RETURN(FALSE);
+    DBUG_RETURN(false);
   }
 
   /*
@@ -1922,7 +1929,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
         for (k= trans; k < end_of_trans; k++)
         {
           Item_field *field;
-          if ((field= k->item->filed_for_view_update()) &&
+          if ((field= k->item->field_for_view_update()) &&
               field->field == key_part->field)
             break;
         }
@@ -1944,7 +1951,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
       for (fld= trans; fld < end_of_trans; fld++)
       {
         Item_field *field;
-        if ((field= fld->item->filed_for_view_update()) &&
+        if ((field= fld->item->field_for_view_update()) &&
             field->field == *field_ptr)
           break;
       }
@@ -1998,7 +2005,7 @@ bool insert_view_fields(THD *thd, List<Item> *list, TABLE_LIST *view)
   for (Field_translator *entry= trans; entry < trans_end; entry++)
   {
     Item_field *fld;
-    if ((fld= entry->item->filed_for_view_update()))
+    if ((fld= entry->item->field_for_view_update()))
       list->push_back(fld);
     else
     {

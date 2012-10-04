@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2010, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -89,18 +89,32 @@ dict_sys_write_row_id(
 	row_id_t	row_id);/*!< in: row id */
 /*****************************************************************//**
 Initializes the data dictionary memory structures when the database is
-started. This function is also called when the data dictionary is created. */
+started. This function is also called when the data dictionary is created.
+@return DB_SUCCESS or error code. */
 UNIV_INTERN
-void
-dict_boot(void);
+dberr_t
+dict_boot(void)
 /*===========*/
-/*****************************************************************//**
-Creates and initializes the data dictionary at the server bootstrap. */
-UNIV_INTERN
-void
-dict_create(void);
-/*=============*/
+	__attribute__((warn_unused_result));
 
+/*****************************************************************//**
+Creates and initializes the data dictionary at the server bootstrap.
+@return DB_SUCCESS or error code. */
+UNIV_INTERN
+dberr_t
+dict_create(void)
+/*=============*/
+	__attribute__((warn_unused_result));
+
+/*********************************************************************//**
+Check if a table id belongs to  system table.
+@return true if the table id belongs to a system table. */
+UNIV_INLINE
+bool
+dict_is_sys_table(
+/*==============*/
+	table_id_t	id)		/*!< in: table id to check */
+	__attribute__((warn_unused_result));
 
 /* Space id and page no where the dictionary header resides */
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */
@@ -280,6 +294,41 @@ enum dict_fld_sys_foreign_cols_enum {
 	DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME	= 5,
 	DICT_NUM_FIELDS__SYS_FOREIGN_COLS		= 6
 };
+/* The columns in SYS_TABLESPACES */
+enum dict_col_sys_tablespaces_enum {
+	DICT_COL__SYS_TABLESPACES__SPACE		= 0,
+	DICT_COL__SYS_TABLESPACES__NAME			= 1,
+	DICT_COL__SYS_TABLESPACES__FLAGS		= 2,
+	DICT_NUM_COLS__SYS_TABLESPACES			= 3
+};
+/* The field numbers in the SYS_TABLESPACES clustered index */
+enum dict_fld_sys_tablespaces_enum {
+	DICT_FLD__SYS_TABLESPACES__SPACE		= 0,
+	DICT_FLD__SYS_TABLESPACES__DB_TRX_ID		= 1,
+	DICT_FLD__SYS_TABLESPACES__DB_ROLL_PTR		= 2,
+	DICT_FLD__SYS_TABLESPACES__NAME			= 3,
+	DICT_FLD__SYS_TABLESPACES__FLAGS		= 4,
+	DICT_NUM_FIELDS__SYS_TABLESPACES		= 5
+};
+/* The columns in SYS_DATAFILES */
+enum dict_col_sys_datafiles_enum {
+	DICT_COL__SYS_DATAFILES__SPACE			= 0,
+	DICT_COL__SYS_DATAFILES__PATH			= 1,
+	DICT_NUM_COLS__SYS_DATAFILES			= 2
+};
+/* The field numbers in the SYS_DATAFILES clustered index */
+enum dict_fld_sys_datafiles_enum {
+	DICT_FLD__SYS_DATAFILES__SPACE			= 0,
+	DICT_FLD__SYS_DATAFILES__DB_TRX_ID		= 1,
+	DICT_FLD__SYS_DATAFILES__DB_ROLL_PTR		= 2,
+	DICT_FLD__SYS_DATAFILES__PATH			= 3,
+	DICT_NUM_FIELDS__SYS_DATAFILES			= 4
+};
+
+/* A number of the columns above occur in multiple tables.  These are the
+length of thos fields. */
+#define	DICT_FLD_LEN_SPACE	4
+#define	DICT_FLD_LEN_FLAGS	4
 
 /* When a row id which is zero modulo this number (which must be a power of
 two) is assigned, the field DICT_HDR_ROW_ID on the dictionary header page is

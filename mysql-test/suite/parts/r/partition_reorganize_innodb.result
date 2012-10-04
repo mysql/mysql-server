@@ -1,0 +1,197 @@
+SET default_storage_engine=InnoDB;
+SET SESSION innodb_strict_mode = ON;
+SET GLOBAL innodb_file_per_table=ON;
+SET GLOBAL innodb_file_format=barracuda;
+#
+# CREATE a table with SUBPARTITIONS
+#
+CREATE TABLE emp (
+id INT NOT NULL,
+store_name VARCHAR(30),
+parts VARCHAR(30),
+store_id INT
+) engine InnoDB
+PARTITION BY RANGE(store_id) SUBPARTITION BY HASH(store_id)
+(
+PARTITION northeast VALUES LESS THAN (50)
+DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_northeast'
+    (SUBPARTITION ne0, SUBPARTITION ne1),
+PARTITION southwest VALUES LESS THAN (100)
+DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest'
+    (SUBPARTITION sw2, SUBPARTITION sw3)
+);
+INSERT INTO emp values(1,'Oracle','NUT',10);
+INSERT INTO emp values(2,'SAP','BOLT',40);
+INSERT INTO emp values(3,'IBM','NAIL',60);
+INSERT INTO emp values(4,'SUN','SCREW',90);
+SELECT * FROM emp;
+id	store_name	parts	store_id
+1	Oracle	NUT	10
+2	SAP	BOLT	40
+3	IBM	NAIL	60
+4	SUN	SCREW	90
+SHOW CREATE TABLE emp;
+Table	Create Table
+emp	CREATE TABLE `emp` (
+  `id` int(11) NOT NULL,
+  `store_name` varchar(30) DEFAULT NULL,
+  `parts` varchar(30) DEFAULT NULL,
+  `store_id` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (store_id)
+SUBPARTITION BY HASH (store_id)
+(PARTITION northeast VALUES LESS THAN (50)
+ (SUBPARTITION ne0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_northeast' ENGINE = InnoDB,
+  SUBPARTITION ne1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_northeast' ENGINE = InnoDB),
+ PARTITION southwest VALUES LESS THAN (100)
+ (SUBPARTITION sw2 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' ENGINE = InnoDB,
+  SUBPARTITION sw3 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_southwest' ENGINE = InnoDB)) */
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables
+WHERE name LIKE 'test%' ORDER BY name;
+name	n_cols	file_format	row_format
+test/emp#p#northeast#sp#ne0	7	Antelope	Compact
+test/emp#p#northeast#sp#ne1	7	Antelope	Compact
+test/emp#p#southwest#sp#sw2	7	Antelope	Compact
+test/emp#p#southwest#sp#sw3	7	Antelope	Compact
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces
+WHERE name LIKE 'test%' ORDER BY name;
+name	file_format	row_format
+test/emp#p#northeast#sp#ne0	Antelope	Compact or Redundant
+test/emp#p#northeast#sp#ne1	Antelope	Compact or Redundant
+test/emp#p#southwest#sp#sw2	Antelope	Compact or Redundant
+test/emp#p#southwest#sp#sw3	Antelope	Compact or Redundant
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
+path
+MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne0.ibd
+MYSQL_TMP_DIR/alt_dir_northeast/test/emp#p#northeast#sp#ne1.ibd
+MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw2.ibd
+MYSQL_TMP_DIR/alt_dir_southwest/test/emp#p#southwest#sp#sw3.ibd
+---- MYSQLD_DATADIR/test
+emp#p#northeast#sp#ne0.isl
+emp#p#northeast#sp#ne1.isl
+emp#p#southwest#sp#sw2.isl
+emp#p#southwest#sp#sw3.isl
+emp.frm
+emp.par
+---- MYSQL_TMP_DIR/alt_dir_northeast/test
+emp#p#northeast#sp#ne0.ibd
+emp#p#northeast#sp#ne1.ibd
+---- MYSQL_TMP_DIR/alt_dir_southwest/test
+emp#p#southwest#sp#sw2.ibd
+emp#p#southwest#sp#sw3.ibd
+#
+# REORGANIZE the PARTITIONS and SUBPARTITIONS
+#
+ALTER TABLE emp REORGANIZE PARTITION northeast INTO
+(
+PARTITION east VALUES LESS THAN (25)
+DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east'
+    (SUBPARTITION e0, SUBPARTITION e1),
+PARTITION north VALUES LESS THAN (50)
+DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north'
+    (SUBPARTITION n0, SUBPARTITION n1)
+);
+ALTER TABLE emp REORGANIZE PARTITION southwest INTO
+(
+PARTITION west VALUES LESS THAN (75)
+DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west'
+    (SUBPARTITION w0, SUBPARTITION w1),
+PARTITION south VALUES LESS THAN (100)
+DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south'
+    (SUBPARTITION s0, SUBPARTITION s1)
+);
+SELECT * FROM emp;
+id	store_name	parts	store_id
+1	Oracle	NUT	10
+2	SAP	BOLT	40
+3	IBM	NAIL	60
+4	SUN	SCREW	90
+SHOW CREATE TABLE emp;
+Table	Create Table
+emp	CREATE TABLE `emp` (
+  `id` int(11) NOT NULL,
+  `store_name` varchar(30) DEFAULT NULL,
+  `parts` varchar(30) DEFAULT NULL,
+  `store_id` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (store_id)
+SUBPARTITION BY HASH (store_id)
+(PARTITION east VALUES LESS THAN (25)
+ (SUBPARTITION e0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB,
+  SUBPARTITION e1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_east' ENGINE = InnoDB),
+ PARTITION north VALUES LESS THAN (50)
+ (SUBPARTITION n0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north' ENGINE = InnoDB,
+  SUBPARTITION n1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_north' ENGINE = InnoDB),
+ PARTITION west VALUES LESS THAN (75)
+ (SUBPARTITION w0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west' ENGINE = InnoDB,
+  SUBPARTITION w1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_west' ENGINE = InnoDB),
+ PARTITION south VALUES LESS THAN (100)
+ (SUBPARTITION s0 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = InnoDB,
+  SUBPARTITION s1 DATA DIRECTORY = 'MYSQL_TMP_DIR/alt_dir_south' ENGINE = InnoDB)) */
+SELECT name,n_cols,file_format,row_format
+FROM information_schema.innodb_sys_tables
+WHERE name LIKE 'test%' ORDER BY name;
+name	n_cols	file_format	row_format
+test/emp#p#east#sp#e0	7	Antelope	Compact
+test/emp#p#east#sp#e1	7	Antelope	Compact
+test/emp#p#north#sp#n0	7	Antelope	Compact
+test/emp#p#north#sp#n1	7	Antelope	Compact
+test/emp#p#south#sp#s0	7	Antelope	Compact
+test/emp#p#south#sp#s1	7	Antelope	Compact
+test/emp#p#west#sp#w0	7	Antelope	Compact
+test/emp#p#west#sp#w1	7	Antelope	Compact
+SELECT name,file_format,row_format
+FROM information_schema.innodb_sys_tablespaces
+WHERE name LIKE 'test%' ORDER BY name;
+name	file_format	row_format
+test/emp#p#east#sp#e0	Antelope	Compact or Redundant
+test/emp#p#east#sp#e1	Antelope	Compact or Redundant
+test/emp#p#north#sp#n0	Antelope	Compact or Redundant
+test/emp#p#north#sp#n1	Antelope	Compact or Redundant
+test/emp#p#south#sp#s0	Antelope	Compact or Redundant
+test/emp#p#south#sp#s1	Antelope	Compact or Redundant
+test/emp#p#west#sp#w0	Antelope	Compact or Redundant
+test/emp#p#west#sp#w1	Antelope	Compact or Redundant
+SELECT path FROM information_schema.innodb_sys_datafiles
+WHERE path LIKE '%test%' ORDER BY space;
+path
+MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e0.ibd
+MYSQL_TMP_DIR/alt_dir_east/test/emp#p#east#sp#e1.ibd
+MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n0.ibd
+MYSQL_TMP_DIR/alt_dir_north/test/emp#p#north#sp#n1.ibd
+MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w0.ibd
+MYSQL_TMP_DIR/alt_dir_west/test/emp#p#west#sp#w1.ibd
+MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s0.ibd
+MYSQL_TMP_DIR/alt_dir_south/test/emp#p#south#sp#s1.ibd
+---- MYSQLD_DATADIR/test
+emp#p#east#sp#e0.isl
+emp#p#east#sp#e1.isl
+emp#p#north#sp#n0.isl
+emp#p#north#sp#n1.isl
+emp#p#south#sp#s0.isl
+emp#p#south#sp#s1.isl
+emp#p#west#sp#w0.isl
+emp#p#west#sp#w1.isl
+emp.frm
+emp.par
+---- MYSQL_TMP_DIR/alt_dir_northeast/test
+---- MYSQL_TMP_DIR/alt_dir_southwest/test
+---- MYSQL_TMP_DIR/alt_dir_east/test
+emp#p#east#sp#e0.ibd
+emp#p#east#sp#e1.ibd
+---- MYSQL_TMP_DIR/alt_dir_north/test
+emp#p#north#sp#n0.ibd
+emp#p#north#sp#n1.ibd
+---- MYSQL_TMP_DIR/alt_dir_west/test
+emp#p#west#sp#w0.ibd
+emp#p#west#sp#w1.ibd
+---- MYSQL_TMP_DIR/alt_dir_south/test
+emp#p#south#sp#s0.ibd
+emp#p#south#sp#s1.ibd
+DROP TABLE emp;
+#
+# Cleanup
+#

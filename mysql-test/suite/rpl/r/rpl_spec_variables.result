@@ -143,10 +143,10 @@ COUNT(*)<2000 AND COUNT(*)>0
 DROP TABLE IF EXISTS t1,t2;
 
 * storage_engine *
-SET @restore_master_storage_engine=@@global.storage_engine;
+SET @restore_master_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=InnoDB;
 SET @@session.default_storage_engine=InnoDB;
-SET @restore_slave_storage_engine=@@global.storage_engine;
+SET @restore_slave_storage_engine=@@global.default_storage_engine;
 SET @@global.default_storage_engine=Memory;
 SET @@session.default_storage_engine=Memory;
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10));
@@ -206,10 +206,10 @@ ERROR 22007: Incorrect date value: '0000-00-00' for column 'c' at row 1
 SELECT * FROM t1 ORDER BY a;
 a	b	c
 1	master	0000-00-00
-SET @@global.sql_mode='';
-SET @@session.sql_mode='';
-SET @@global.sql_mode='';
-SET @@session.sql_mode='';
+SET @@global.sql_mode=DEFAULT;
+SET @@session.sql_mode=DEFAULT;
+SET @@global.sql_mode=DEFAULT;
+SET @@session.sql_mode=DEFAULT;
 DROP TABLE t1;
 
 *** clean up ***

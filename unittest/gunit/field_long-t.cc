@@ -353,7 +353,7 @@ TEST_F(FieldLongTest, StoreNullValue)
   }
 
   // Save NULL value in a field that can NOT have NULL value
-  field_long.null_ptr= NULL;
+  field_long.set_null_ptr(NULL, 0);
   {
     Mock_error_handler error_handler(thd(), WARN_DATA_TRUNCATED);
     err= set_field_to_null(&field_long);

@@ -32,18 +32,15 @@ Created 5/27/1996 Heikki Tuuri
 /* Pseudotype for all graph nodes */
 typedef void	que_node_t;
 
-typedef struct que_fork_struct	que_fork_t;
-
 /* Query graph root is a fork node */
-typedef	que_fork_t	que_t;
+typedef	struct que_fork_t	que_t;
 
-typedef struct que_thr_struct		que_thr_t;
-typedef struct que_common_struct	que_common_t;
+struct que_thr_t;
 
 /* Common struct at the beginning of each query graph node; the name of this
 substruct must be 'common' */
 
-struct que_common_struct{
+struct que_common_t{
 	ulint		type;	/*!< query node type */
 	que_node_t*	parent;	/*!< back pointer to parent node, or NULL */
 	que_node_t*	brother;/* pointer to a possible brother node */

@@ -31,6 +31,7 @@ select * from performance_schema.events_statements_current;
 select * from performance_schema.events_statements_history;
 select * from performance_schema.events_statements_history_long;
 select * from performance_schema.events_statements_summary_by_account_by_event_name;
+select * from performance_schema.events_statements_summary_by_digest;
 select * from performance_schema.events_statements_summary_by_host_by_event_name;
 select * from performance_schema.events_statements_summary_by_thread_by_event_name;
 select * from performance_schema.events_statements_summary_by_user_by_event_name;
@@ -48,19 +49,21 @@ select * from performance_schema.file_instances;
 select * from performance_schema.file_summary_by_event_name;
 select * from performance_schema.file_summary_by_instance;
 select * from performance_schema.host_cache;
-select * from performance_schema.socket_instances;
-select * from performance_schema.socket_summary_by_instance;
-select * from performance_schema.socket_summary_by_event_name;
 select * from performance_schema.hosts;
 select * from performance_schema.mutex_instances;
 select * from performance_schema.objects_summary_global_by_type;
 select * from performance_schema.performance_timers;
 select * from performance_schema.rwlock_instances;
+select * from performance_schema.session_account_connect_attrs;
+select * from performance_schema.session_connect_attrs;
 select * from performance_schema.setup_actors;
 select * from performance_schema.setup_consumers;
 select * from performance_schema.setup_instruments;
 select * from performance_schema.setup_objects;
 select * from performance_schema.setup_timers;
+select * from performance_schema.socket_instances;
+select * from performance_schema.socket_summary_by_instance;
+select * from performance_schema.socket_summary_by_event_name;
 select * from performance_schema.table_io_waits_summary_by_index_usage;
 select * from performance_schema.table_io_waits_summary_by_table;
 select * from performance_schema.table_lock_waits_summary_by_table;
@@ -95,6 +98,7 @@ performance_schema_max_table_handles	0
 performance_schema_max_table_instances	0
 performance_schema_max_thread_classes	0
 performance_schema_max_thread_instances	0
+performance_schema_session_connect_attrs_size	0
 performance_schema_setup_actors_size	0
 performance_schema_setup_objects_size	0
 performance_schema_users_size	0
@@ -129,6 +133,7 @@ performance_schema_max_table_handles	0
 performance_schema_max_table_instances	0
 performance_schema_max_thread_classes	0
 performance_schema_max_thread_instances	0
+performance_schema_session_connect_attrs_size	0
 performance_schema_setup_actors_size	0
 performance_schema_setup_objects_size	0
 performance_schema_users_size	0
@@ -158,12 +163,12 @@ events_waits_history_long	YES
 global_instrumentation	YES
 thread_instrumentation	YES
 statements_digest	YES
-select * from performance_schema.setup_timers;
-NAME	TIMER_NAME
-idle	MICROSECOND
-wait	CYCLE
-stage	NANOSECOND
-statement	NANOSECOND
+select NAME from performance_schema.setup_timers;
+NAME
+idle
+wait
+stage
+statement
 select * from performance_schema.accounts;
 USER	HOST	CURRENT_CONNECTIONS	TOTAL_CONNECTIONS
 select * from performance_schema.cond_instances;
@@ -227,6 +232,10 @@ select * from performance_schema.file_summary_by_event_name;
 EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	COUNT_READ	SUM_TIMER_READ	MIN_TIMER_READ	AVG_TIMER_READ	MAX_TIMER_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_TIMER_WRITE	MIN_TIMER_WRITE	AVG_TIMER_WRITE	MAX_TIMER_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	SUM_TIMER_MISC	MIN_TIMER_MISC	AVG_TIMER_MISC	MAX_TIMER_MISC
 select * from performance_schema.file_summary_by_instance;
 FILE_NAME	EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT	COUNT_READ	SUM_TIMER_READ	MIN_TIMER_READ	AVG_TIMER_READ	MAX_TIMER_READ	SUM_NUMBER_OF_BYTES_READ	COUNT_WRITE	SUM_TIMER_WRITE	MIN_TIMER_WRITE	AVG_TIMER_WRITE	MAX_TIMER_WRITE	SUM_NUMBER_OF_BYTES_WRITE	COUNT_MISC	SUM_TIMER_MISC	MIN_TIMER_MISC	AVG_TIMER_MISC	MAX_TIMER_MISC
+select * from performance_schema.session_account_connect_attrs;
+PROCESSLIST_ID	ATTR_NAME	ATTR_VALUE	ORDINAL_POSITION
+select * from performance_schema.session_connect_attrs;
+PROCESSLIST_ID	ATTR_NAME	ATTR_VALUE	ORDINAL_POSITION
 select * from performance_schema.socket_instances;
 EVENT_NAME	OBJECT_INSTANCE_BEGIN	THREAD_ID	SOCKET_ID	IP	PORT	STATE
 select * from performance_schema.socket_summary_by_instance;

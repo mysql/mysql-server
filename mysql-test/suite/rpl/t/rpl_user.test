@@ -61,6 +61,47 @@ drop user 'not_exist_user1'@'fakehost', 'not_exist_user2'@'fakehost';
 sync_slave_with_master;
 select Host,User from mysql.user where Host='fakehost';
 
+
+--echo #
+--echo # WL2392: "Change Password at next login" (initial default for root)
+--echo #
+
+connection master;
+CREATE USER must_change2@localhost IDENTIFIED BY 'aha';
+ALTER USER must_change2@localhost PASSWORD EXPIRE;
+sync_slave_with_master;
+select Host,User,password_expired from mysql.user where user='must_change2';
+
+connect(must_change_con_slave,localhost,must_change2,aha,test,$SLAVE_MYPORT,);
+connection must_change_con_slave;
+--echo # must throw an error
+--error ER_MUST_CHANGE_PASSWORD
+SELECT USER();
+connection master;
+disconnect must_change_con_slave;
+
+connect(must_change_con_master,localhost,must_change2,aha);
+connection must_change_con_master;
+--echo # setting a password unlocks it
+SET PASSWORD = PASSWORD('aha2');
+connection master;
+disconnect must_change_con_master;
+
+sync_slave_with_master;
+connection master;
+
+connect(must_change_con_slave,localhost,must_change2,aha2,test,$SLAVE_MYPORT,);
+connection must_change_con_slave;
+--echo # must not throw an error
+SELECT USER();
+connection master;
+disconnect must_change_con_slave;
+
+DROP USER must_change2@localhost;
+
+sync_slave_with_master;
+connection master;
+
 #
 # show the binlog events on the master
 #

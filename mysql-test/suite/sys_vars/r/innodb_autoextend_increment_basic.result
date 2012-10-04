@@ -6,13 +6,13 @@ Warning	1292	Truncated incorrect innodb_autoextend_increment value: '0'
 SET @@global.innodb_autoextend_increment  = DEFAULT;
 SELECT @@global.innodb_autoextend_increment ;
 @@global.innodb_autoextend_increment
-8
+64
 '#---------------------FN_DYNVARS_046_02-------------------------#'
 SET innodb_autoextend_increment  = 1;
 ERROR HY000: Variable 'innodb_autoextend_increment' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@innodb_autoextend_increment ;
 @@innodb_autoextend_increment
-8
+64
 SELECT local.innodb_autoextend_increment ;
 ERROR 42S02: Unknown table 'local' in field list
 SET global innodb_autoextend_increment  = 0;

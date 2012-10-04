@@ -54,9 +54,9 @@ eval CREATE TABLE t1( a YEAR ON UPDATE $current_timestamp );
 --echo # Test that the default clause behaves like NOW() regarding time zones.
 --echo #
 eval CREATE TABLE t1 (
-  a $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
-  b $timestamp DEFAULT $current_timestamp,
-  c $timestamp ON UPDATE $current_timestamp,
+  a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT $current_timestamp,
+  c $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
   d $timestamp NULL,
   e $datetime DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   f $datetime DEFAULT $current_timestamp,
@@ -84,11 +84,11 @@ DROP TABLE t1;
 --echo # Test of several TIMESTAMP columns with different function defaults.
 --echo #
 eval CREATE TABLE t1 (
-  a $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
-  b $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
-  c $timestamp DEFAULT $current_timestamp,
-  d $timestamp ON UPDATE $current_timestamp,
-  e $timestamp ON UPDATE $current_timestamp,
+  a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  c $timestamp NOT NULL DEFAULT $current_timestamp,
+  d $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
+  e $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
   f INT
 );
 
@@ -111,9 +111,9 @@ DROP TABLE t1;
 --echo #
 eval CREATE TABLE t1 (
   a INT,
-  b $timestamp,
-  c $timestamp DEFAULT $current_timestamp,
-  d $timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  c $timestamp NOT NULL DEFAULT $current_timestamp,
+  d $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
   e $timestamp NULL,
   f $datetime,
   g $datetime DEFAULT $current_timestamp,
@@ -136,10 +136,10 @@ DROP TABLE t1;
 eval CREATE TABLE t1 (
   a INT PRIMARY KEY,
   b INT,
-  c $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
-  d $timestamp DEFAULT $current_timestamp,
-  e $timestamp ON UPDATE $current_timestamp,
-  f $timestamp DEFAULT '1986-09-27 03:00:00.098765',
+  c $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  d $timestamp NOT NULL DEFAULT $current_timestamp,
+  e $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
+  f $timestamp NOT NULL DEFAULT '1986-09-27 03:00:00.098765',
   g $timestamp NULL,
   h $datetime DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   i $datetime DEFAULT $current_timestamp,
@@ -165,7 +165,7 @@ SELECT * FROM t1;
 
 DROP TABLE t1;
 
-eval CREATE TABLE t1 ( a INT PRIMARY KEY, b INT, c $timestamp );
+eval CREATE TABLE t1 ( a INT PRIMARY KEY, b INT, c $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp );
 
 --echo # 2011-04-19 07:23:18 UTC
 SET TIMESTAMP = 1303197798.945156;
@@ -203,11 +203,11 @@ DROP TABLE t1;
 --echo #
 eval CREATE TABLE t1 (
   a INT PRIMARY KEY,
-  b $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   c $datetime  DEFAULT $current_timestamp ON UPDATE $current_timestamp,
-  d $timestamp DEFAULT $current_timestamp,
+  d $timestamp NOT NULL DEFAULT $current_timestamp,
   e $datetime  DEFAULT $current_timestamp,
-  f $timestamp ON UPDATE $current_timestamp,
+  f $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
   g $datetime  ON UPDATE $current_timestamp,
   h $timestamp NULL,
   i $datetime
@@ -234,7 +234,7 @@ DROP TABLE t1;
 --echo # CURRENT_TIMESTAMP.
 --echo #
 eval CREATE TABLE t1 (
-  a $timestamp DEFAULT $current_timestamp,
+  a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   b $datetime DEFAULT $current_timestamp,
   c INT
 );
@@ -255,7 +255,7 @@ DROP TABLE t1;
 --echo # 2011-04-20 07:05:39 UTC
 SET TIMESTAMP = 1303283139.195624;
 eval CREATE TABLE t1 (
-  a $timestamp DEFAULT '2010-10-11 12:34:56',
+  a $timestamp NOT NULL DEFAULT '2010-10-11 12:34:56' ON UPDATE $current_timestamp,
   b $datetime DEFAULT '2010-10-11 12:34:56'
 );
 
@@ -269,10 +269,10 @@ DROP TABLE t1;
 SET TIMESTAMP = 1303293221.136952;
 
 eval CREATE TABLE t1 (
-a $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
-b $timestamp DEFAULT $current_timestamp,
-c $timestamp ON UPDATE $current_timestamp,
-d $timestamp DEFAULT '1986-09-27 03:00:00.098765',
+a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+b $timestamp NOT NULL DEFAULT $current_timestamp,
+c $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
+d $timestamp NOT NULL DEFAULT '1986-09-27 03:00:00.098765',
 e $timestamp NULL,
 f $datetime DEFAULT $current_timestamp ON UPDATE $current_timestamp,
 g $datetime DEFAULT $current_timestamp,
@@ -293,7 +293,7 @@ DROP TABLE t1;
 --echo # Test of multiple-table UPDATE for DEFAULT CURRENT_TIMESTAMP
 --echo #
 eval CREATE TABLE t1 (
-  a $timestamp DEFAULT $current_timestamp,
+  a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   b $datetime DEFAULT $current_timestamp,
   c INT
 );
@@ -314,8 +314,8 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 eval CREATE TABLE t1 (
-  a $timestamp DEFAULT   $current_timestamp,
-  b $timestamp ON UPDATE $current_timestamp,
+  a $timestamp NOT NULL DEFAULT $current_timestamp,
+  b $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
   c $datetime  DEFAULT   $current_timestamp,
   d $datetime  ON UPDATE $current_timestamp,
   e INT
@@ -325,8 +325,8 @@ eval CREATE TABLE t2 (
   f INT,
   g $datetime  ON UPDATE $current_timestamp,
   h $datetime  DEFAULT   $current_timestamp,
-  i $timestamp ON UPDATE $current_timestamp,
-  j $timestamp DEFAULT   $current_timestamp
+  i $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
+  j $timestamp NOT NULL DEFAULT $current_timestamp
 );
 
 --echo # 1995-03-11 00:02:03 UTC
@@ -353,14 +353,14 @@ DROP TABLE t1, t2;
 --echo # Test of multiple table update with temporary table and on the fly.
 --echo #
 eval CREATE TABLE t1 (
-  a $timestamp ON UPDATE $current_timestamp,
+  a $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
   b $datetime ON UPDATE $current_timestamp,
   c INT,
   d INT
 );
 
 eval CREATE TABLE t2 (
-  a $timestamp ON UPDATE $current_timestamp,
+  a $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
   b $datetime ON UPDATE $current_timestamp,
   c INT KEY,
   d INT
@@ -390,7 +390,7 @@ DROP TABLE t1, t2;
 --echo # Test of ON UPDATE CURRENT_TIMESTAMP.
 --echo #
 eval CREATE TABLE t1 (
-  a $timestamp ON UPDATE $current_timestamp,
+  a $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
   b $datetime ON UPDATE $current_timestamp,
   c INT
 );
@@ -441,41 +441,41 @@ DROP TABLE t1, t2;
 --echo #
 --echo # Test of ALTER TABLE, reordering columns.
 --echo #
-eval CREATE TABLE t1 ( a $timestamp, b INT );eval ALTER TABLE t1 MODIFY a $timestamp AFTER b;
+eval CREATE TABLE t1 ( a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp, b INT );eval ALTER TABLE t1 MODIFY a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp AFTER b;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-eval CREATE TABLE t1 ( a INT, b $timestamp, c $timestamp NULL );eval ALTER TABLE t1 MODIFY b $timestamp FIRST;
+eval CREATE TABLE t1 ( a INT, b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp, c $timestamp NULL );eval ALTER TABLE t1 MODIFY b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp FIRST;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-eval CREATE TABLE t1 ( a INT, b $timestamp NULL );eval ALTER TABLE t1 MODIFY b $timestamp FIRST;
+eval CREATE TABLE t1 ( a INT, b $timestamp NULL );eval ALTER TABLE t1 MODIFY b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp FIRST;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-eval CREATE TABLE t1 ( a $timestamp, b $timestamp NULL );eval ALTER TABLE t1 MODIFY a $timestamp AFTER b;
+eval CREATE TABLE t1 ( a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp, b $timestamp NULL );eval ALTER TABLE t1 MODIFY a $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' AFTER b;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-eval CREATE TABLE t1 ( a $timestamp, b $timestamp NULL );eval ALTER TABLE t1 MODIFY a $timestamp AFTER b;
+eval CREATE TABLE t1 ( a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp, b $timestamp NULL );eval ALTER TABLE t1 MODIFY a $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' AFTER b;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-eval CREATE TABLE t1 ( a $timestamp ON UPDATE $now, b INT, c $timestamp NULL );
-SHOW CREATE TABLE t1;eval ALTER TABLE t1 MODIFY a $timestamp AFTER b;
+eval CREATE TABLE t1 ( a $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $now, b INT, c $timestamp NULL );
+SHOW CREATE TABLE t1;eval ALTER TABLE t1 MODIFY a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp AFTER b;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-eval CREATE TABLE t1 ( a $timestamp ON UPDATE $now, b INT, c $timestamp NULL );eval ALTER TABLE t1 MODIFY c $timestamp NULL FIRST;
+eval CREATE TABLE t1 ( a $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $now, b INT, c $timestamp NULL );eval ALTER TABLE t1 MODIFY c $timestamp NULL FIRST;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-eval CREATE TABLE t1 ( a $timestamp DEFAULT $now, b INT, c $timestamp NULL );
-SHOW CREATE TABLE t1;eval ALTER TABLE t1 MODIFY a $timestamp AFTER b;
+eval CREATE TABLE t1 ( a $timestamp NOT NULL DEFAULT $now ON UPDATE $current_timestamp, b INT, c $timestamp NULL );
+SHOW CREATE TABLE t1;eval ALTER TABLE t1 MODIFY a $timestamp NOT NULL DEFAULT $now ON UPDATE $current_timestamp AFTER b;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
-eval CREATE TABLE t1 ( a $timestamp DEFAULT $now, b INT, c $timestamp NULL );eval ALTER TABLE t1 MODIFY c $timestamp NULL FIRST;
+eval CREATE TABLE t1 ( a $timestamp NOT NULL DEFAULT $now ON UPDATE $current_timestamp, b INT, c $timestamp NULL );eval ALTER TABLE t1 MODIFY c $timestamp NULL FIRST;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
@@ -484,7 +484,7 @@ DROP TABLE t1;
 --echo # Test of ALTER TABLE, adding columns.
 --echo #
 eval CREATE TABLE t1 ( a INT );
-eval ALTER TABLE t1 ADD COLUMN b $timestamp;
+eval ALTER TABLE t1 ADD COLUMN b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
@@ -492,8 +492,8 @@ DROP TABLE t1;
 --echo # Test of INSERT SELECT.
 --echo #
 eval CREATE TABLE t1 (
-  a $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
-  b $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   c $datetime DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   d $datetime DEFAULT $current_timestamp ON UPDATE $current_timestamp
 );
@@ -503,8 +503,8 @@ eval CREATE TABLE t2 (
   placeholder2 INT,
   placeholder3 INT,
   placeholder4 INT,
-  a $timestamp,
-  b $timestamp,
+  a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
   c $datetime,
   d $datetime
 );
@@ -538,10 +538,10 @@ DROP TABLE t1, t2;
 --echo # 1970-04-11 20:13:57 UTC
 SET TIMESTAMP = 8712837.657898;
 eval CREATE TABLE t1 (
-  a $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
-  b $timestamp DEFAULT $current_timestamp,
-  c $timestamp ON UPDATE $current_timestamp,
-  d $timestamp DEFAULT '1986-09-27 03:00:00.098765',
+  a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT $current_timestamp,
+  c $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
+  d $timestamp NOT NULL DEFAULT '1986-09-27 03:00:00.098765',
   e $timestamp NULL,
   f $datetime DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   g $datetime DEFAULT $current_timestamp,
@@ -567,11 +567,11 @@ eval CREATE TABLE t10 SELECT i FROM t1; SHOW CREATE TABLE t10; SELECT * FROM t10
 eval CREATE TABLE t11 SELECT j FROM t1; SHOW CREATE TABLE t11; SELECT * FROM t11;
 
 eval CREATE TABLE t12 (
-  k $timestamp,
-  l $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
-  m $timestamp DEFAULT $current_timestamp,
-  n $timestamp ON UPDATE $current_timestamp,
-  o $timestamp DEFAULT '1986-09-27 03:00:00.098765',
+  k $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  l $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  m $timestamp NOT NULL DEFAULT $current_timestamp,
+  n $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
+  o $timestamp NOT NULL DEFAULT '1986-09-27 03:00:00.098765',
   p $timestamp NULL,
   q $datetime DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   r $datetime DEFAULT $current_timestamp,
@@ -632,7 +632,7 @@ SET TIMESTAMP = 1000.987654;
 eval CREATE TABLE t1 ( a INT );
 INSERT INTO t1 VALUES ( 1 ), ( 2 );
 
-eval CREATE TABLE t2 ( b $timestamp DEFAULT $current_timestamp ) SELECT a FROM t1;
+eval CREATE TABLE t2 ( b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp) SELECT a FROM t1;
 
 SHOW CREATE TABLE t2;
 SET TIMESTAMP = 2000.876543;
@@ -684,9 +684,9 @@ DROP TABLE t1, t2;
 --echo #
 eval CREATE TABLE t1 (
   a INT,
-  b $timestamp,
-  c $timestamp DEFAULT $current_timestamp,
-  d $timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  c $timestamp NOT NULL DEFAULT $current_timestamp,
+  d $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
   e $timestamp NULL,
   f $datetime DEFAULT $current_timestamp,
   g $datetime ON UPDATE $current_timestamp
@@ -713,9 +713,9 @@ DROP TABLE t1;
 --echo #
 eval CREATE TABLE t1 (
   a INT,
-  b $timestamp,
-  c $timestamp DEFAULT $current_timestamp,
-  d $timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  c $timestamp NOT NULL DEFAULT $current_timestamp,
+  d $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
   e $timestamp NULL,
   f $datetime,
   g $datetime DEFAULT $current_timestamp,
@@ -758,10 +758,10 @@ DROP TABLE t1, t2;
 --echo #
 --echo # Test where the assignment target is not a column.
 --echo #
-eval CREATE TABLE t1 ( a $timestamp DEFAULT   $current_timestamp );
-eval CREATE TABLE t2 ( a $timestamp DEFAULT   $current_timestamp );
-eval CREATE TABLE t3 ( a $timestamp ON UPDATE $current_timestamp );
-eval CREATE TABLE t4 ( a $timestamp ON UPDATE $current_timestamp );
+eval CREATE TABLE t1 ( a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp );
+eval CREATE TABLE t2 ( a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp );
+eval CREATE TABLE t3 ( a $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp );
+eval CREATE TABLE t4 ( a $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp );
 
 eval CREATE VIEW v1       AS SELECT a COLLATE latin1_german1_ci AS b FROM t1;
 eval CREATE VIEW v2 ( b ) AS SELECT a COLLATE latin1_german1_ci      FROM t2;
@@ -797,10 +797,10 @@ DROP TABLE t1, t2, t3, t4;
 
 eval CREATE TABLE t1 (
   a INT,
-  b $timestamp,
-  c $timestamp DEFAULT $current_timestamp,
-  d $timestamp ON UPDATE $current_timestamp,
-  e $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  c $timestamp NOT NULL DEFAULT $current_timestamp,
+  d $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
+  e $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   f $datetime,
   g $datetime DEFAULT $current_timestamp,
   h $datetime ON UPDATE $current_timestamp,
@@ -808,10 +808,10 @@ eval CREATE TABLE t1 (
 );
 
 eval CREATE TABLE t2 (
-  a $timestamp,
-  b $timestamp DEFAULT $current_timestamp,
-  c $timestamp ON UPDATE $current_timestamp,
-  d $timestamp DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  a $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
+  b $timestamp NOT NULL DEFAULT $current_timestamp,
+  c $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $current_timestamp,
+  d $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   e $datetime NOT NULL,
   f $datetime NOT NULL DEFAULT '1977-01-02 12:13:14',
   g $datetime DEFAULT $current_timestamp NOT NULL,
@@ -938,7 +938,7 @@ CREATE TABLE t1 (
   like_b $datetime NULL DEFAULT $current_timestamp,
   c $datetime NOT NULL DEFAULT "2011-11-18",
   like_c $datetime NOT NULL DEFAULT $current_timestamp,
-  d $timestamp NULL DEFAULT "2011-05-03",
+  d $timestamp NULL DEFAULT "2011-05-03" ON UPDATE $current_timestamp,
   e $timestamp NOT NULL DEFAULT "2011-05-03",
   f $timestamp NOT NULL DEFAULT $current_timestamp,
   g $timestamp NULL DEFAULT NULL,
@@ -991,7 +991,7 @@ CREATE TABLE t1 (
   like_b $datetime NULL DEFAULT $current_timestamp,
   c $datetime NOT NULL DEFAULT "2011-11-18",
   like_c $datetime NOT NULL DEFAULT $current_timestamp,
-  d $timestamp NULL DEFAULT "2011-05-03",
+  d $timestamp NULL DEFAULT "2011-05-03" ON UPDATE $current_timestamp,
   e $timestamp NOT NULL DEFAULT "2011-05-03",
   f $timestamp NOT NULL DEFAULT $current_timestamp,
   g $timestamp NULL DEFAULT NULL,
@@ -1037,7 +1037,7 @@ SET TIME_ZONE = "+03:00";
 --echo # 1970-01-01 03:16:40
 SET TIMESTAMP = 1000.123456;
 
-eval CREATE TABLE t1 ( a INT, b $timestamp ) ENGINE = INNODB;
+eval CREATE TABLE t1 ( a INT, b $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp) ENGINE = INNODB;
 
 SHOW CREATE TABLE t1;
 
@@ -1061,7 +1061,7 @@ DROP VIEW v1;
 DROP TABLE t1;
 
 eval CREATE TABLE t1 (
-  a $timestamp DEFAULT '1973-08-14 09:11:22.089786' ON UPDATE $current_timestamp,
+  a $timestamp NOT NULL DEFAULT '1973-08-14 09:11:22.089786' ON UPDATE $current_timestamp,
   c INT KEY
 );
 --echo # 1973-08-14 09:11:22 UTC
@@ -1092,7 +1092,7 @@ DROP TABLE t1;
 eval CREATE TABLE t1 (
   a INT,
   b INT,
-  ts $timestamp,
+  ts $timestamp NOT NULL DEFAULT $current_timestamp ON UPDATE $current_timestamp,
   PRIMARY KEY ( a, ts )
 ) ENGINE = INNODB;
 INSERT INTO t1( a, b, ts ) VALUES ( 1, 0, '2000-09-28 17:44:34' );
@@ -1121,13 +1121,13 @@ eval ALTER TABLE t1 ADD COLUMN a6 $datetime DEFAULT $now ON UPDATE $now FIRST;
 eval ALTER TABLE t1 ADD COLUMN a5 $datetime DEFAULT $now FIRST;
 eval ALTER TABLE t1 ADD COLUMN a4 $datetime ON UPDATE $now FIRST;
 
-eval ALTER TABLE t1 ADD COLUMN a3 $timestamp DEFAULT $now ON UPDATE $now FIRST;
-eval ALTER TABLE t1 ADD COLUMN a2 $timestamp DEFAULT $now FIRST;
-eval ALTER TABLE t1 ADD COLUMN a1 $timestamp ON UPDATE $now FIRST;
+eval ALTER TABLE t1 ADD COLUMN a3 $timestamp NOT NULL DEFAULT $now ON UPDATE $now FIRST;
+eval ALTER TABLE t1 ADD COLUMN a2 $timestamp NOT NULL DEFAULT $now FIRST;
+eval ALTER TABLE t1 ADD COLUMN a1 $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $now FIRST;
 
-eval ALTER TABLE t1 ADD COLUMN c1 $timestamp ON UPDATE $now AFTER b;
-eval ALTER TABLE t1 ADD COLUMN c2 $timestamp DEFAULT $now AFTER c1;
-eval ALTER TABLE t1 ADD COLUMN c3 $timestamp DEFAULT $now ON UPDATE $now AFTER c2;
+eval ALTER TABLE t1 ADD COLUMN c1 $timestamp NOT NULL DEFAULT '0000-00-00 00:00:00' ON UPDATE $now AFTER b;
+eval ALTER TABLE t1 ADD COLUMN c2 $timestamp NOT NULL DEFAULT $now AFTER c1;
+eval ALTER TABLE t1 ADD COLUMN c3 $timestamp NOT NULL DEFAULT $now ON UPDATE $now AFTER c2;
 
 eval ALTER TABLE t1 ADD COLUMN c4 $datetime ON UPDATE $now AFTER c3;
 eval ALTER TABLE t1 ADD COLUMN c5 $datetime DEFAULT $now AFTER c4;
@@ -1138,7 +1138,7 @@ SELECT * FROM t1;
 DROP TABLE t1;
 
 
-eval CREATE TABLE t1 ( a $timestamp DEFAULT $now, b $datetime DEFAULT $now );
+eval CREATE TABLE t1 ( a $timestamp  NOT NULL DEFAULT $now ON UPDATE $current_timestamp, b $datetime DEFAULT $now );
 INSERT INTO t1 VALUES ();
 
 SET timestamp = 1000000000;
@@ -1152,7 +1152,7 @@ DROP TABLE t1;
 
 
 eval CREATE TABLE t1 (
-  a $timestamp DEFAULT '1999-12-01 11:22:33',
+  a $timestamp NOT NULL DEFAULT '1999-12-01 11:22:33' ON UPDATE $current_timestamp,
   b $datetime DEFAULT '1999-12-01 11:22:33'
 );
 INSERT INTO t1 VALUES ();

@@ -24,22 +24,8 @@
 #include "sql_class.h"
 #endif // ifndef MYSQL_CLIENT
 
-
-/*
-  global_sid_map must be here so that mysqlbinlog.cc will include it.
-  Other GTID-related global variables should be here too, to ensure
-  deterministic initialization and destruction order.
-*/
-Checkable_rwlock global_sid_lock;
-Sid_map global_sid_map(&global_sid_lock);
-#ifdef MYSQL_SERVER
-Gtid_state gtid_state(&global_sid_lock, &global_sid_map);
-#endif
-
-
 enum_return_status Gtid::parse(Sid_map *sid_map, const char *text)
 {
-#define SKIP_WHITESPACE() while (isspace(*s)) s++
   DBUG_ENTER("Gtid::parse");
   rpl_sid sid;
   const char *s= text;

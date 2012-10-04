@@ -1,8 +1,5 @@
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
-Warnings:
-Warning	1286	Unknown storage engine 'EXAMPLE'
-Warning	1266	Using storage engine MyISAM for table 't1'
-DROP TABLE t1;
+ERROR 42000: Unknown storage engine 'EXAMPLE'
 INSTALL PLUGIN example SONAME 'ha_example.so';
 INSTALL PLUGIN EXAMPLE SONAME 'ha_example.so';
 ERROR HY000: Function 'EXAMPLE' already exists

@@ -77,6 +77,8 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 2 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
 t1.frm
 t1.par
 
@@ -532,6 +534,11 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 5 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#p2.ibd
+t1#P#p3.ibd
+t1#P#p4.ibd
 t1.frm
 t1.par
 
@@ -1002,6 +1009,14 @@ t1	CREATE TABLE `t1` (
  PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part3.ibd
+t1#P#part_1.ibd
+t1#P#part_2.ibd
+t1#P#part_3.ibd
+t1#P#part_N.ibd
 t1.frm
 t1.par
 
@@ -1468,6 +1483,12 @@ t1	CREATE TABLE `t1` (
  PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta.ibd
+t1#P#partb.ibd
+t1#P#partc.ibd
+t1#P#partd.ibd
+t1#P#parte.ibd
+t1#P#partf.ibd
 t1.frm
 t1.par
 
@@ -1930,6 +1951,14 @@ SUBPARTITIONS 2
  PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta#SP#partasp0.ibd
+t1#P#parta#SP#partasp1.ibd
+t1#P#partb#SP#partbsp0.ibd
+t1#P#partb#SP#partbsp1.ibd
+t1#P#partc#SP#partcsp0.ibd
+t1#P#partc#SP#partcsp1.ibd
+t1#P#partd#SP#partdsp0.ibd
+t1#P#partd#SP#partdsp1.ibd
 t1.frm
 t1.par
 
@@ -2405,6 +2434,14 @@ SUBPARTITION BY KEY (f_int1)
   SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#subpart11.ibd
+t1#P#part1#SP#subpart12.ibd
+t1#P#part2#SP#subpart21.ibd
+t1#P#part2#SP#subpart22.ibd
+t1#P#part3#SP#subpart31.ibd
+t1#P#part3#SP#subpart32.ibd
+t1#P#part4#SP#subpart41.ibd
+t1#P#part4#SP#subpart42.ibd
 t1.frm
 t1.par
 
@@ -2882,6 +2919,14 @@ SUBPARTITION BY HASH (f_int1 + 1)
   SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#sp11.ibd
+t1#P#part1#SP#sp12.ibd
+t1#P#part2#SP#sp21.ibd
+t1#P#part2#SP#sp22.ibd
+t1#P#part3#SP#sp31.ibd
+t1#P#part3#SP#sp32.ibd
+t1#P#part4#SP#sp41.ibd
+t1#P#part4#SP#sp42.ibd
 t1.frm
 t1.par
 
@@ -3345,6 +3390,15 @@ SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part1#SP#part1sp0.ibd
+t1#P#part1#SP#part1sp1.ibd
+t1#P#part1#SP#part1sp2.ibd
+t1#P#part2#SP#part2sp0.ibd
+t1#P#part2#SP#part2sp1.ibd
+t1#P#part2#SP#part2sp2.ibd
+t1#P#part3#SP#part3sp0.ibd
+t1#P#part3#SP#part3sp1.ibd
+t1#P#part3#SP#part3sp2.ibd
 t1.frm
 t1.par
 
@@ -3802,6 +3856,8 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 2 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
 t1.frm
 t1.par
 
@@ -4257,6 +4313,11 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 5 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#p2.ibd
+t1#P#p3.ibd
+t1#P#p4.ibd
 t1.frm
 t1.par
 
@@ -4727,6 +4788,14 @@ t1	CREATE TABLE `t1` (
  PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part3.ibd
+t1#P#part_1.ibd
+t1#P#part_2.ibd
+t1#P#part_3.ibd
+t1#P#part_N.ibd
 t1.frm
 t1.par
 
@@ -5193,6 +5262,12 @@ t1	CREATE TABLE `t1` (
  PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta.ibd
+t1#P#partb.ibd
+t1#P#partc.ibd
+t1#P#partd.ibd
+t1#P#parte.ibd
+t1#P#partf.ibd
 t1.frm
 t1.par
 
@@ -5655,6 +5730,14 @@ SUBPARTITIONS 2
  PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta#SP#partasp0.ibd
+t1#P#parta#SP#partasp1.ibd
+t1#P#partb#SP#partbsp0.ibd
+t1#P#partb#SP#partbsp1.ibd
+t1#P#partc#SP#partcsp0.ibd
+t1#P#partc#SP#partcsp1.ibd
+t1#P#partd#SP#partdsp0.ibd
+t1#P#partd#SP#partdsp1.ibd
 t1.frm
 t1.par
 
@@ -6128,6 +6211,14 @@ SUBPARTITION BY KEY (f_int2)
   SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#subpart11.ibd
+t1#P#part1#SP#subpart12.ibd
+t1#P#part2#SP#subpart21.ibd
+t1#P#part2#SP#subpart22.ibd
+t1#P#part3#SP#subpart31.ibd
+t1#P#part3#SP#subpart32.ibd
+t1#P#part4#SP#subpart41.ibd
+t1#P#part4#SP#subpart42.ibd
 t1.frm
 t1.par
 
@@ -6601,6 +6692,14 @@ SUBPARTITION BY HASH (f_int2 + 1)
   SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#sp11.ibd
+t1#P#part1#SP#sp12.ibd
+t1#P#part2#SP#sp21.ibd
+t1#P#part2#SP#sp22.ibd
+t1#P#part3#SP#sp31.ibd
+t1#P#part3#SP#sp32.ibd
+t1#P#part4#SP#sp41.ibd
+t1#P#part4#SP#sp42.ibd
 t1.frm
 t1.par
 
@@ -7064,6 +7163,15 @@ SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part1#SP#part1sp0.ibd
+t1#P#part1#SP#part1sp1.ibd
+t1#P#part1#SP#part1sp2.ibd
+t1#P#part2#SP#part2sp0.ibd
+t1#P#part2#SP#part2sp1.ibd
+t1#P#part2#SP#part2sp2.ibd
+t1#P#part3#SP#part3sp0.ibd
+t1#P#part3#SP#part3sp1.ibd
+t1#P#part3#SP#part3sp2.ibd
 t1.frm
 t1.par
 
@@ -7527,6 +7635,8 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 2 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
 t1.frm
 t1.par
 
@@ -8019,6 +8129,11 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 5 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#p2.ibd
+t1#P#p3.ibd
+t1#P#p4.ibd
 t1.frm
 t1.par
 
@@ -8526,6 +8641,14 @@ t1	CREATE TABLE `t1` (
  PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part3.ibd
+t1#P#part_1.ibd
+t1#P#part_2.ibd
+t1#P#part_3.ibd
+t1#P#part_N.ibd
 t1.frm
 t1.par
 
@@ -9029,6 +9152,12 @@ t1	CREATE TABLE `t1` (
  PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta.ibd
+t1#P#partb.ibd
+t1#P#partc.ibd
+t1#P#partd.ibd
+t1#P#parte.ibd
+t1#P#partf.ibd
 t1.frm
 t1.par
 
@@ -9528,6 +9657,14 @@ SUBPARTITIONS 2
  PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta#SP#partasp0.ibd
+t1#P#parta#SP#partasp1.ibd
+t1#P#partb#SP#partbsp0.ibd
+t1#P#partb#SP#partbsp1.ibd
+t1#P#partc#SP#partcsp0.ibd
+t1#P#partc#SP#partcsp1.ibd
+t1#P#partd#SP#partdsp0.ibd
+t1#P#partd#SP#partdsp1.ibd
 t1.frm
 t1.par
 
@@ -10040,6 +10177,14 @@ SUBPARTITION BY KEY (f_int1)
   SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#subpart11.ibd
+t1#P#part1#SP#subpart12.ibd
+t1#P#part2#SP#subpart21.ibd
+t1#P#part2#SP#subpart22.ibd
+t1#P#part3#SP#subpart31.ibd
+t1#P#part3#SP#subpart32.ibd
+t1#P#part4#SP#subpart41.ibd
+t1#P#part4#SP#subpart42.ibd
 t1.frm
 t1.par
 
@@ -10554,6 +10699,14 @@ SUBPARTITION BY HASH (f_int1 + 1)
   SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#sp11.ibd
+t1#P#part1#SP#sp12.ibd
+t1#P#part2#SP#sp21.ibd
+t1#P#part2#SP#sp22.ibd
+t1#P#part3#SP#sp31.ibd
+t1#P#part3#SP#sp32.ibd
+t1#P#part4#SP#sp41.ibd
+t1#P#part4#SP#sp42.ibd
 t1.frm
 t1.par
 
@@ -11054,6 +11207,15 @@ SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part1#SP#part1sp0.ibd
+t1#P#part1#SP#part1sp1.ibd
+t1#P#part1#SP#part1sp2.ibd
+t1#P#part2#SP#part2sp0.ibd
+t1#P#part2#SP#part2sp1.ibd
+t1#P#part2#SP#part2sp2.ibd
+t1#P#part3#SP#part3sp0.ibd
+t1#P#part3#SP#part3sp1.ibd
+t1#P#part3#SP#part3sp2.ibd
 t1.frm
 t1.par
 
@@ -11547,6 +11709,8 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 2 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
 t1.frm
 t1.par
 
@@ -12039,6 +12203,11 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 5 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#p2.ibd
+t1#P#p3.ibd
+t1#P#p4.ibd
 t1.frm
 t1.par
 
@@ -12546,6 +12715,14 @@ t1	CREATE TABLE `t1` (
  PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part3.ibd
+t1#P#part_1.ibd
+t1#P#part_2.ibd
+t1#P#part_3.ibd
+t1#P#part_N.ibd
 t1.frm
 t1.par
 
@@ -13049,6 +13226,12 @@ t1	CREATE TABLE `t1` (
  PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta.ibd
+t1#P#partb.ibd
+t1#P#partc.ibd
+t1#P#partd.ibd
+t1#P#parte.ibd
+t1#P#partf.ibd
 t1.frm
 t1.par
 
@@ -13548,6 +13731,14 @@ SUBPARTITIONS 2
  PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta#SP#partasp0.ibd
+t1#P#parta#SP#partasp1.ibd
+t1#P#partb#SP#partbsp0.ibd
+t1#P#partb#SP#partbsp1.ibd
+t1#P#partc#SP#partcsp0.ibd
+t1#P#partc#SP#partcsp1.ibd
+t1#P#partd#SP#partdsp0.ibd
+t1#P#partd#SP#partdsp1.ibd
 t1.frm
 t1.par
 
@@ -14060,6 +14251,14 @@ SUBPARTITION BY KEY (f_int1)
   SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#subpart11.ibd
+t1#P#part1#SP#subpart12.ibd
+t1#P#part2#SP#subpart21.ibd
+t1#P#part2#SP#subpart22.ibd
+t1#P#part3#SP#subpart31.ibd
+t1#P#part3#SP#subpart32.ibd
+t1#P#part4#SP#subpart41.ibd
+t1#P#part4#SP#subpart42.ibd
 t1.frm
 t1.par
 
@@ -14574,6 +14773,14 @@ SUBPARTITION BY HASH (f_int1 + 1)
   SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#sp11.ibd
+t1#P#part1#SP#sp12.ibd
+t1#P#part2#SP#sp21.ibd
+t1#P#part2#SP#sp22.ibd
+t1#P#part3#SP#sp31.ibd
+t1#P#part3#SP#sp32.ibd
+t1#P#part4#SP#sp41.ibd
+t1#P#part4#SP#sp42.ibd
 t1.frm
 t1.par
 
@@ -15074,6 +15281,15 @@ SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part1#SP#part1sp0.ibd
+t1#P#part1#SP#part1sp1.ibd
+t1#P#part1#SP#part1sp2.ibd
+t1#P#part2#SP#part2sp0.ibd
+t1#P#part2#SP#part2sp1.ibd
+t1#P#part2#SP#part2sp2.ibd
+t1#P#part3#SP#part3sp0.ibd
+t1#P#part3#SP#part3sp1.ibd
+t1#P#part3#SP#part3sp2.ibd
 t1.frm
 t1.par
 
@@ -15567,6 +15783,8 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 2 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
 t1.frm
 t1.par
 
@@ -16075,6 +16293,11 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 5 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#p2.ibd
+t1#P#p3.ibd
+t1#P#p4.ibd
 t1.frm
 t1.par
 
@@ -16598,6 +16821,14 @@ t1	CREATE TABLE `t1` (
  PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part3.ibd
+t1#P#part_1.ibd
+t1#P#part_2.ibd
+t1#P#part_3.ibd
+t1#P#part_N.ibd
 t1.frm
 t1.par
 
@@ -17117,6 +17348,12 @@ t1	CREATE TABLE `t1` (
  PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta.ibd
+t1#P#partb.ibd
+t1#P#partc.ibd
+t1#P#partd.ibd
+t1#P#parte.ibd
+t1#P#partf.ibd
 t1.frm
 t1.par
 
@@ -17632,6 +17869,14 @@ SUBPARTITIONS 2
  PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta#SP#partasp0.ibd
+t1#P#parta#SP#partasp1.ibd
+t1#P#partb#SP#partbsp0.ibd
+t1#P#partb#SP#partbsp1.ibd
+t1#P#partc#SP#partcsp0.ibd
+t1#P#partc#SP#partcsp1.ibd
+t1#P#partd#SP#partdsp0.ibd
+t1#P#partd#SP#partdsp1.ibd
 t1.frm
 t1.par
 
@@ -18160,6 +18405,14 @@ SUBPARTITION BY KEY (f_int1)
   SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#subpart11.ibd
+t1#P#part1#SP#subpart12.ibd
+t1#P#part2#SP#subpart21.ibd
+t1#P#part2#SP#subpart22.ibd
+t1#P#part3#SP#subpart31.ibd
+t1#P#part3#SP#subpart32.ibd
+t1#P#part4#SP#subpart41.ibd
+t1#P#part4#SP#subpart42.ibd
 t1.frm
 t1.par
 
@@ -18690,6 +18943,14 @@ SUBPARTITION BY HASH (f_int1 + 1)
   SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#sp11.ibd
+t1#P#part1#SP#sp12.ibd
+t1#P#part2#SP#sp21.ibd
+t1#P#part2#SP#sp22.ibd
+t1#P#part3#SP#sp31.ibd
+t1#P#part3#SP#sp32.ibd
+t1#P#part4#SP#sp41.ibd
+t1#P#part4#SP#sp42.ibd
 t1.frm
 t1.par
 
@@ -19206,6 +19467,15 @@ SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part1#SP#part1sp0.ibd
+t1#P#part1#SP#part1sp1.ibd
+t1#P#part1#SP#part1sp2.ibd
+t1#P#part2#SP#part2sp0.ibd
+t1#P#part2#SP#part2sp1.ibd
+t1#P#part2#SP#part2sp2.ibd
+t1#P#part3#SP#part3sp0.ibd
+t1#P#part3#SP#part3sp1.ibd
+t1#P#part3#SP#part3sp2.ibd
 t1.frm
 t1.par
 
@@ -19720,6 +19990,8 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 2 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
 t1.frm
 t1.par
 
@@ -20212,6 +20484,11 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 5 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#p2.ibd
+t1#P#p3.ibd
+t1#P#p4.ibd
 t1.frm
 t1.par
 
@@ -20719,6 +20996,14 @@ t1	CREATE TABLE `t1` (
  PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part3.ibd
+t1#P#part_1.ibd
+t1#P#part_2.ibd
+t1#P#part_3.ibd
+t1#P#part_N.ibd
 t1.frm
 t1.par
 
@@ -21222,6 +21507,12 @@ t1	CREATE TABLE `t1` (
  PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta.ibd
+t1#P#partb.ibd
+t1#P#partc.ibd
+t1#P#partd.ibd
+t1#P#parte.ibd
+t1#P#partf.ibd
 t1.frm
 t1.par
 
@@ -21721,6 +22012,14 @@ SUBPARTITIONS 2
  PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta#SP#partasp0.ibd
+t1#P#parta#SP#partasp1.ibd
+t1#P#partb#SP#partbsp0.ibd
+t1#P#partb#SP#partbsp1.ibd
+t1#P#partc#SP#partcsp0.ibd
+t1#P#partc#SP#partcsp1.ibd
+t1#P#partd#SP#partdsp0.ibd
+t1#P#partd#SP#partdsp1.ibd
 t1.frm
 t1.par
 
@@ -22231,6 +22530,14 @@ SUBPARTITION BY KEY (f_int2)
   SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#subpart11.ibd
+t1#P#part1#SP#subpart12.ibd
+t1#P#part2#SP#subpart21.ibd
+t1#P#part2#SP#subpart22.ibd
+t1#P#part3#SP#subpart31.ibd
+t1#P#part3#SP#subpart32.ibd
+t1#P#part4#SP#subpart41.ibd
+t1#P#part4#SP#subpart42.ibd
 t1.frm
 t1.par
 
@@ -22741,6 +23048,14 @@ SUBPARTITION BY HASH (f_int2 + 1)
   SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#sp11.ibd
+t1#P#part1#SP#sp12.ibd
+t1#P#part2#SP#sp21.ibd
+t1#P#part2#SP#sp22.ibd
+t1#P#part3#SP#sp31.ibd
+t1#P#part3#SP#sp32.ibd
+t1#P#part4#SP#sp41.ibd
+t1#P#part4#SP#sp42.ibd
 t1.frm
 t1.par
 
@@ -23241,6 +23556,15 @@ SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part1#SP#part1sp0.ibd
+t1#P#part1#SP#part1sp1.ibd
+t1#P#part1#SP#part1sp2.ibd
+t1#P#part2#SP#part2sp0.ibd
+t1#P#part2#SP#part2sp1.ibd
+t1#P#part2#SP#part2sp2.ibd
+t1#P#part3#SP#part3sp0.ibd
+t1#P#part3#SP#part3sp1.ibd
+t1#P#part3#SP#part3sp2.ibd
 t1.frm
 t1.par
 
@@ -23734,6 +24058,8 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 2 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
 t1.frm
 t1.par
 
@@ -24226,6 +24552,11 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 5 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#p2.ibd
+t1#P#p3.ibd
+t1#P#p4.ibd
 t1.frm
 t1.par
 
@@ -24733,6 +25064,14 @@ t1	CREATE TABLE `t1` (
  PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part3.ibd
+t1#P#part_1.ibd
+t1#P#part_2.ibd
+t1#P#part_3.ibd
+t1#P#part_N.ibd
 t1.frm
 t1.par
 
@@ -25236,6 +25575,12 @@ t1	CREATE TABLE `t1` (
  PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta.ibd
+t1#P#partb.ibd
+t1#P#partc.ibd
+t1#P#partd.ibd
+t1#P#parte.ibd
+t1#P#partf.ibd
 t1.frm
 t1.par
 
@@ -25735,6 +26080,14 @@ SUBPARTITIONS 2
  PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta#SP#partasp0.ibd
+t1#P#parta#SP#partasp1.ibd
+t1#P#partb#SP#partbsp0.ibd
+t1#P#partb#SP#partbsp1.ibd
+t1#P#partc#SP#partcsp0.ibd
+t1#P#partc#SP#partcsp1.ibd
+t1#P#partd#SP#partdsp0.ibd
+t1#P#partd#SP#partdsp1.ibd
 t1.frm
 t1.par
 
@@ -26245,6 +26598,14 @@ SUBPARTITION BY KEY (f_int2)
   SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#subpart11.ibd
+t1#P#part1#SP#subpart12.ibd
+t1#P#part2#SP#subpart21.ibd
+t1#P#part2#SP#subpart22.ibd
+t1#P#part3#SP#subpart31.ibd
+t1#P#part3#SP#subpart32.ibd
+t1#P#part4#SP#subpart41.ibd
+t1#P#part4#SP#subpart42.ibd
 t1.frm
 t1.par
 
@@ -26755,6 +27116,14 @@ SUBPARTITION BY HASH (f_int2 + 1)
   SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#sp11.ibd
+t1#P#part1#SP#sp12.ibd
+t1#P#part2#SP#sp21.ibd
+t1#P#part2#SP#sp22.ibd
+t1#P#part3#SP#sp31.ibd
+t1#P#part3#SP#sp32.ibd
+t1#P#part4#SP#sp41.ibd
+t1#P#part4#SP#sp42.ibd
 t1.frm
 t1.par
 
@@ -27255,6 +27624,15 @@ SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part1#SP#part1sp0.ibd
+t1#P#part1#SP#part1sp1.ibd
+t1#P#part1#SP#part1sp2.ibd
+t1#P#part2#SP#part2sp0.ibd
+t1#P#part2#SP#part2sp1.ibd
+t1#P#part2#SP#part2sp2.ibd
+t1#P#part3#SP#part3sp0.ibd
+t1#P#part3#SP#part3sp1.ibd
+t1#P#part3#SP#part3sp2.ibd
 t1.frm
 t1.par
 
@@ -27748,6 +28126,8 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 2 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
 t1.frm
 t1.par
 
@@ -28256,6 +28636,11 @@ t1	CREATE TABLE `t1` (
 PARTITIONS 5 */
 
 unified filelist
+t1#P#p0.ibd
+t1#P#p1.ibd
+t1#P#p2.ibd
+t1#P#p3.ibd
+t1#P#p4.ibd
 t1.frm
 t1.par
 
@@ -28779,6 +29164,14 @@ t1	CREATE TABLE `t1` (
  PARTITION part3 VALUES IN (3) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part0.ibd
+t1#P#part1.ibd
+t1#P#part2.ibd
+t1#P#part3.ibd
+t1#P#part_1.ibd
+t1#P#part_2.ibd
+t1#P#part_3.ibd
+t1#P#part_N.ibd
 t1.frm
 t1.par
 
@@ -29298,6 +29691,12 @@ t1	CREATE TABLE `t1` (
  PARTITION partf VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta.ibd
+t1#P#partb.ibd
+t1#P#partc.ibd
+t1#P#partd.ibd
+t1#P#parte.ibd
+t1#P#partf.ibd
 t1.frm
 t1.par
 
@@ -29813,6 +30212,14 @@ SUBPARTITIONS 2
  PARTITION partd VALUES LESS THAN (2147483646) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#parta#SP#partasp0.ibd
+t1#P#parta#SP#partasp1.ibd
+t1#P#partb#SP#partbsp0.ibd
+t1#P#partb#SP#partbsp1.ibd
+t1#P#partc#SP#partcsp0.ibd
+t1#P#partc#SP#partcsp1.ibd
+t1#P#partd#SP#partdsp0.ibd
+t1#P#partd#SP#partdsp1.ibd
 t1.frm
 t1.par
 
@@ -30339,6 +30746,14 @@ SUBPARTITION BY KEY (f_int2)
   SUBPARTITION subpart42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#subpart11.ibd
+t1#P#part1#SP#subpart12.ibd
+t1#P#part2#SP#subpart21.ibd
+t1#P#part2#SP#subpart22.ibd
+t1#P#part3#SP#subpart31.ibd
+t1#P#part3#SP#subpart32.ibd
+t1#P#part4#SP#subpart41.ibd
+t1#P#part4#SP#subpart42.ibd
 t1.frm
 t1.par
 
@@ -30865,6 +31280,14 @@ SUBPARTITION BY HASH (f_int2 + 1)
   SUBPARTITION sp42 ENGINE = InnoDB)) */
 
 unified filelist
+t1#P#part1#SP#sp11.ibd
+t1#P#part1#SP#sp12.ibd
+t1#P#part2#SP#sp21.ibd
+t1#P#part2#SP#sp22.ibd
+t1#P#part3#SP#sp31.ibd
+t1#P#part3#SP#sp32.ibd
+t1#P#part4#SP#sp41.ibd
+t1#P#part4#SP#sp42.ibd
 t1.frm
 t1.par
 
@@ -31381,6 +31804,15 @@ SUBPARTITIONS 3
  PARTITION part3 VALUES IN (NULL) ENGINE = InnoDB) */
 
 unified filelist
+t1#P#part1#SP#part1sp0.ibd
+t1#P#part1#SP#part1sp1.ibd
+t1#P#part1#SP#part1sp2.ibd
+t1#P#part2#SP#part2sp0.ibd
+t1#P#part2#SP#part2sp1.ibd
+t1#P#part2#SP#part2sp2.ibd
+t1#P#part3#SP#part3sp0.ibd
+t1#P#part3#SP#part3sp1.ibd
+t1#P#part3#SP#part3sp2.ibd
 t1.frm
 t1.par
 

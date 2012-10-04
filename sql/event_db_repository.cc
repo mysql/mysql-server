@@ -30,10 +30,6 @@
 #include "sql_show.h"
 #include "lock.h"                               // MYSQL_LOCK_IGNORE_TIMEOUT
 
-#ifndef MCP_WL6004_TRANS
-#include "transaction.h"
-#endif
-
 /**
   @addtogroup Event_Scheduler
   @{
@@ -1195,16 +1191,7 @@ Event_db_repository::check_system_tables(THD *thd)
   {
     if (table_intact.check(tables.table, &mysql_db_table_def))
       ret= 1;
-
-#ifndef MCP_WL6004_TRANS
-    if (!thd->transaction.stmt.is_empty())
-    {
-      DBUG_PRINT("info", ("%u: Committing read transaction", __LINE__));
-      trans_commit_stmt(thd);
-      assert(thd->transaction.stmt.is_empty());
-    }
-#endif
-    close_mysql_tables(thd);
+    close_acl_tables(thd);
   }
   /* Check mysql.user */
   tables.init_one_table("mysql", 5, "user", 4, "user", TL_READ);
@@ -1224,15 +1211,7 @@ Event_db_repository::check_system_tables(THD *thd)
                       event_priv_column_position);
       ret= 1;
     }
-#ifndef MCP_WL6004_TRANS
-    if (!thd->transaction.stmt.is_empty())
-    {
-      DBUG_PRINT("info", ("%u: Committing read transaction", __LINE__));
-      trans_commit_stmt(thd);
-      assert(thd->transaction.stmt.is_empty());
-    }
-#endif
-    close_mysql_tables(thd);
+    close_acl_tables(thd);
   }
   /* Check mysql.event */
   tables.init_one_table("mysql", 5, "event", 5, "event", TL_READ);

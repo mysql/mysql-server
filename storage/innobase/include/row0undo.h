@@ -87,10 +87,6 @@ that index record. */
 enum undo_exec {
 	UNDO_NODE_FETCH_NEXT = 1,	/*!< we should fetch the next
 					undo log record */
-	UNDO_NODE_PREV_VERS,		/*!< the roll ptr to previous
-					version of a row is stored in
-					node, and undo should be done
-					based on it */
 	UNDO_NODE_INSERT,		/*!< undo a fresh insert of a
 					row to a table */
 	UNDO_NODE_MODIFY		/*!< undo a modify operation
@@ -99,7 +95,7 @@ enum undo_exec {
 };
 
 /** Undo node structure */
-struct undo_node_struct{
+struct undo_node_t{
 	que_common_t	common;	/*!< node type: QUE_NODE_UNDO */
 	enum undo_exec	state;	/*!< node execution state */
 	trx_t*		trx;	/*!< trx for which undo is done */
@@ -108,9 +104,6 @@ struct undo_node_struct{
 	undo_no_t	undo_no;/*!< undo number of the record */
 	ulint		rec_type;/*!< undo log record type: TRX_UNDO_INSERT_REC,
 				... */
-	roll_ptr_t	new_roll_ptr;
-				/*!< roll ptr to restore to clustered index
-				record */
 	trx_id_t	new_trx_id; /*!< trx id to restore to clustered index
 				record */
 	btr_pcur_t	pcur;	/*!< persistent cursor used in searching the

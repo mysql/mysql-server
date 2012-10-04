@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,7 +67,11 @@ struct my_option
                                            If an opton needs neither special
                                            treatment in the my_get_one_option()
                                            nor one-letter short equivalent
-                                           use id=0
+                                           use id=0.
+                                           id=-1 is a special case and is used
+                                           to generate deprecation warnings for
+                                           plugin options. It should not be
+                                           used for anything else.
                                          */
   const char *comment;                  /**< option comment, for autom. --help.
                                            if it's NULL the option is not
@@ -80,7 +84,7 @@ struct my_option
   enum get_opt_arg_type arg_type;       /**< e.g. REQUIRED_ARG or OPT_ARG */
   longlong   def_value;                 /**< Default value */
   longlong   min_value;                 /**< Min allowed value (for numbers) */
-  longlong   max_value;                 /**< Max allowed value (for numbers) */
+  ulonglong  max_value;                 /**< Max allowed value (for numbers) */
   longlong   sub_size;                  /**< Unused                          */
   long       block_size;                /**< Value should be a mult. of this (for numbers) */
   void       *app_type;                 /**< To be used by an application */

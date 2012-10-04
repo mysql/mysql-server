@@ -369,7 +369,8 @@ PREPARE s FROM
 SELECT SUBSTRING(1, (SELECT 1 FROM t1 a1 RIGHT OUTER JOIN t1 ON 0)) AS d
 FROM t1 WHERE 0 > ANY (SELECT @a FROM t1)';
 
---error ER_SUBQUERY_NO_1_ROW
+--echo # After WL#4443 we don't evaluate subqueries during prepare, so no error.
+#--error ER_SUBQUERY_NO_1_ROW
 EXECUTE s;
 
 DEALLOCATE PREPARE s;

@@ -19,7 +19,15 @@
 #include "rpl_info_handler.h"
 #include "rpl_info_table_access.h"
 
-class Rpl_info_factory;
+/**
+  Methods to find information in a table:
+  
+  FIND_SCAN does a index scan and stops at n-th occurrence.
+  
+  FIND_KEY retrieves the index entry previous populated at
+  values if there is any.
+*/
+enum enum_find_method { FIND_SCAN, FIND_KEY };
 
 class Rpl_info_table : public Rpl_info_handler
 {
@@ -29,46 +37,63 @@ public:
   virtual ~Rpl_info_table();
 
 private:
-  /*
+  /**
     This property identifies the name of the schema where a
     replication table is created.
   */
   LEX_STRING str_schema;
 
-  /*
+  /**
     This property identifies the name of a replication
     table.
   */
   LEX_STRING str_table;
 
-  /*
+  /**
     This property represents a description of the repository.
     Speciffically, "schema"."table".
   */
   char *description;
 
-  /*
+  /**
     This is a pointer to a class that facilitates manipulation
     of replication tables.
   */
   Rpl_info_table_access *access;
 
-  /*
+  /**
     Identifies if a table is transactional or non-transactional.
     This is used to provide a crash-safe behaviour.
   */
-  bool is_transactional;       
+  bool is_transactional;
 
-  int do_init_info(const ulong *uidx, const uint nidx);
-  enum_return_check do_check_info(const ulong *uidx, const uint nidx);
-  void do_end_info(const ulong *uidx, const uint nidx);
-  int do_flush_info(const ulong *uidx, const uint nidx,
-                    const bool force);
-  int do_remove_info(const ulong *uidx, const uint nidx);
+  int do_init_info();
+  int do_init_info(uint instance);
+  int do_init_info(enum_find_method method, uint instance);
+  enum_return_check do_check_info();
+  enum_return_check do_check_info(uint instance);
+  void do_end_info();
+  int do_flush_info(const bool force);
+  int do_remove_info();
+  int do_clean_info();
+  /**
+    Returns the number of entries in the table identified by:
+    param_schema.param_table.
+
+    @param[in]  nparam           Number of fields in the table.
+    @param[in]  param_schema     Table's schema.
+    @param[in]  param_table      Table's name.
+    @param[out] counter          Number of entries found.
+
+    @retval false Success
+    @retval true  Error
+  */
+  static bool do_count_info(uint nparam, const char* param_schema,
+                            const char* param_table,  uint* counter);
   static int do_reset_info(uint nparam, const char* param_schema,
                            const char *param_table);
-  int do_prepare_info_for_read(const uint nidx);
-  int do_prepare_info_for_write(const uint nidx);
+  int do_prepare_info_for_read();
+  int do_prepare_info_for_write();
 
   bool do_set_info(const int pos, const char *value);
   bool do_set_info(const int pos, const uchar *value,
@@ -90,13 +115,16 @@ private:
   bool do_get_info(const int pos, Dynamic_ids *value,
                    const Dynamic_ids *default_value);
   char* do_get_description_info();
+
   bool do_is_transactional();
   bool do_update_is_transactional();
+  uint do_get_rpl_info_type();
 
-  Rpl_info_table(uint nparam, const char* param_schema,
+  Rpl_info_table(uint nparam,
+                 const char* param_schema,
                  const char *param_table);
-  Rpl_info_table(const Rpl_info_table& info);
 
+  Rpl_info_table(const Rpl_info_table& info);
   Rpl_info_table& operator=(const Rpl_info_table& info);
 };
 #endif /* RPL_INFO_TABLE_H */

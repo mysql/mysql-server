@@ -113,7 +113,7 @@ public:
   /// standard SQL-condition processing (Diagnostics_area should contain an
   /// object for active SQL-condition, not just information stored in DA's
   /// fields).
-  class Sql_condition_info : public Sql_alloc
+  class Sql_condition_info
   {
   public:
     /// SQL error code.
@@ -126,21 +126,20 @@ public:
     char sql_state[SQLSTATE_LENGTH + 1];
 
     /// Text message.
-    char *message;
+    char message[MYSQL_ERRMSG_SIZE];
 
     /// The constructor.
     ///
     /// @param _sql_condition  The SQL condition.
     /// @param arena           Query arena for SP
-    Sql_condition_info(const Sql_condition *_sql_condition,
-                       Query_arena *arena)
+    Sql_condition_info(const Sql_condition *_sql_condition)
       :sql_errno(_sql_condition->get_sql_errno()),
        level(_sql_condition->get_level())
     {
       memcpy(sql_state, _sql_condition->get_sqlstate(), SQLSTATE_LENGTH);
       sql_state[SQLSTATE_LENGTH]= '\0';
 
-      message= strdup_root(arena->mem_root, _sql_condition->get_message_text());
+      strncpy(message, _sql_condition->get_message_text(), MYSQL_ERRMSG_SIZE);
     }
   };
 
@@ -148,11 +147,14 @@ private:
   /// This class represents a call frame of SQL-handler (one invocation of a
   /// handler). Basically, it's needed to store continue instruction pointer for
   /// CONTINUE SQL-handlers.
-  class Handler_call_frame : public Sql_alloc
+  class Handler_call_frame
   {
   public:
+    /// Handler definition (from parsing context).
+    const sp_handler *handler;
+
     /// SQL-condition, triggered handler activation.
-    const Sql_condition_info *sql_condition;
+    const Sql_condition_info sql_condition;
 
     /// Continue-instruction-pointer for CONTINUE-handlers.
     /// The attribute contains 0 for EXIT-handlers.
@@ -162,9 +164,11 @@ private:
     ///
     /// @param _sql_condition SQL-condition, triggered handler activation.
     /// @param _continue_ip   Continue instruction pointer.
-    Handler_call_frame(const Sql_condition_info *_sql_condition,
+    Handler_call_frame(const sp_handler *_handler,
+                       const Sql_condition *_sql_condition,
                        uint _continue_ip)
-     :sql_condition(_sql_condition),
+     :handler(_handler),
+      sql_condition(_sql_condition),
       continue_ip(_continue_ip)
     { }
  };
@@ -219,13 +223,13 @@ public:
   /// Pop and delete given number of sp_handler_entry instances from the handler
   /// call stack.
   ///
-  /// @param count Number of handler entries to pop & delete.
-  void pop_handlers(int count);
+  /// @param current_scope  The current BEGIN..END block.
+  void pop_handlers(sp_pcontext *current_scope);
 
   const Sql_condition_info *raised_condition() const
   {
-    return m_handler_call_stack.elements() ?
-      (*m_handler_call_stack.back())->sql_condition : NULL;
+    return m_activated_handlers.elements() ?
+      &(*m_activated_handlers.back())->sql_condition : NULL;
   }
 
   /// Handle current SQL condition (if any).
@@ -252,12 +256,21 @@ public:
                             uint *ip,
                             const sp_instr *cur_spi);
 
-  /// Remove latest call frame from the handler call stack.
+  /// Handle return from SQL-handler.
   ///
-  /// @param da Diagnostics area containing handled conditions.
-  ///
-  /// @return continue instruction pointer of the removed handler.
-  uint exit_handler(Diagnostics_area *da);
+  /// @param target_scope   The BEGIN..END block, containing
+  ///                       the target (next) instruction.
+  void exit_handler(sp_pcontext *target_scope);
+
+  /// @return the continue instruction pointer if the last activated CONTINUE
+  /// handler. This function must not be called for the EXIT handlers.
+  uint get_last_handler_continue_ip() const
+  {
+    uint ip= (*m_activated_handlers.back())->continue_ip;
+    DBUG_ASSERT(ip != 0);
+
+    return ip;
+  }
 
   /////////////////////////////////////////////////////////////////////////
   // Cursors.
@@ -383,10 +396,10 @@ private:
   bool m_in_sub_stmt;
 
   /// Stack of visible handlers.
-  Dynamic_array<sp_handler_entry *> m_handlers;
+  Dynamic_array<sp_handler_entry *> m_visible_handlers;
 
   /// Stack of caught SQL conditions.
-  Dynamic_array<Handler_call_frame *> m_handler_call_stack;
+  Dynamic_array<Handler_call_frame *> m_activated_handlers;
 
   /// Stack of cursors.
   Bounds_checked_array<sp_cursor *> m_cstack;

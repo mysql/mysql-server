@@ -43,8 +43,6 @@
 #include "set_var.h"
 #include "sql_trigger.h"
 #include "sql_derived.h"
-#include "authors.h"
-#include "contributors.h"
 #include "sql_partition.h"
 #ifdef HAVE_EVENT_SCHEDULER
 #include "events.h"
@@ -243,74 +241,6 @@ int fill_plugins(THD *thd, TABLE_LIST *tables, Item *cond)
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);
-}
-
-
-/***************************************************************************
-** List all Authors.
-** If you can update it, you get to be in it :)
-***************************************************************************/
-
-bool mysqld_show_authors(THD *thd)
-{
-  List<Item> field_list;
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_authors");
-
-  field_list.push_back(new Item_empty_string("Name",40));
-  field_list.push_back(new Item_empty_string("Location",40));
-  field_list.push_back(new Item_empty_string("Comment",80));
-
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  show_table_authors_st *authors;
-  for (authors= show_table_authors; authors->name; authors++)
-  {
-    protocol->prepare_for_resend();
-    protocol->store(authors->name, system_charset_info);
-    protocol->store(authors->location, system_charset_info);
-    protocol->store(authors->comment, system_charset_info);
-    if (protocol->write())
-      DBUG_RETURN(TRUE);
-  }
-  my_eof(thd);
-  DBUG_RETURN(FALSE);
-}
-
-
-/***************************************************************************
-** List all Contributors.
-** Please get permission before updating
-***************************************************************************/
-
-bool mysqld_show_contributors(THD *thd)
-{
-  List<Item> field_list;
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_contributors");
-
-  field_list.push_back(new Item_empty_string("Name",40));
-  field_list.push_back(new Item_empty_string("Location",40));
-  field_list.push_back(new Item_empty_string("Comment",80));
-
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  show_table_contributors_st *contributors;
-  for (contributors= show_table_contributors; contributors->name; contributors++)
-  {
-    protocol->prepare_for_resend();
-    protocol->store(contributors->name, system_charset_info);
-    protocol->store(contributors->location, system_charset_info);
-    protocol->store(contributors->comment, system_charset_info);
-    if (protocol->write())
-      DBUG_RETURN(TRUE);
-  }
-  my_eof(thd);
-  DBUG_RETURN(FALSE);
 }
 
 
@@ -1193,7 +1123,8 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   const char *name_end;
   char quote_char;
-  int q= get_quote_char_for_identifier(thd, name, length);
+  int q;
+  q= thd ? get_quote_char_for_identifier(thd, name, length) : '`';
 
   if (q == EOF)
   {
@@ -1790,6 +1721,17 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
       packet->append(STRING_WITH_LEN(" STATS_PERSISTENT=1"));
     if (share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT)
       packet->append(STRING_WITH_LEN(" STATS_PERSISTENT=0"));
+    if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON)
+      packet->append(STRING_WITH_LEN(" STATS_AUTO_RECALC=1"));
+    else if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF)
+      packet->append(STRING_WITH_LEN(" STATS_AUTO_RECALC=0"));
+    if (share->stats_sample_pages != 0)
+    {
+      char *end;
+      packet->append(STRING_WITH_LEN(" STATS_SAMPLE_PAGES="));
+      end= longlong10_to_str(share->stats_sample_pages, buff, 10);
+      packet->append(buff, (uint) (end - buff));
+    }
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
       packet->append(STRING_WITH_LEN(" CHECKSUM=1"));
@@ -2082,7 +2024,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
-  field_list.push_back(new Item_int(NAME_STRING("Id"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("Id"), 0, MY_INT64_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("User",16));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_CHAR_LEN));
@@ -2212,7 +2154,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 
       restore_record(table, s->default_values);
       /* ID */
-      table->field[0]->store((longlong) tmp->thread_id, TRUE);
+
+      table->field[0]->store((ulonglong) tmp->thread_id, TRUE);
       /* USER */
       val= tmp_sctx->user ? tmp_sctx->user :
             (tmp->system_thread ? "system user" : "unauthenticated user");
@@ -2341,7 +2284,7 @@ int add_status_vars(SHOW_VAR *list)
 {
   int res= 0;
   if (status_vars_inited)
-    mysql_mutex_lock(&LOCK_status);
+    mysql_rwlock_wrlock(&LOCK_status);
   if (!all_status_vars.buffer && // array is not allocated yet - do it now
       my_init_dynamic_array(&all_status_vars, sizeof(SHOW_VAR), 200, 20))
   {
@@ -2356,7 +2299,7 @@ int add_status_vars(SHOW_VAR *list)
     sort_dynamic(&all_status_vars, show_var_cmp);
 err:
   if (status_vars_inited)
-    mysql_mutex_unlock(&LOCK_status);
+    mysql_rwlock_unlock(&LOCK_status);
   return res;
 }
 
@@ -2418,7 +2361,7 @@ void remove_status_vars(SHOW_VAR *list)
 {
   if (status_vars_inited)
   {
-    mysql_mutex_lock(&LOCK_status);
+    mysql_rwlock_wrlock(&LOCK_status);
     SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
     int a= 0, b= all_status_vars.elements, c= (a+b)/2;
 
@@ -2439,7 +2382,7 @@ void remove_status_vars(SHOW_VAR *list)
         all[c].type= SHOW_UNDEF;
     }
     shrink_var_array(&all_status_vars);
-    mysql_mutex_unlock(&LOCK_status);
+    mysql_rwlock_unlock(&LOCK_status);
   }
   else
   {
@@ -2651,10 +2594,23 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  /* take copy of global_thread_list */
+  std::set<THD*> global_thread_list_copy;
 
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
+  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_remove);
+  copy_global_thread_list(&global_thread_list_copy);
+
+  /* 
+    Allow inserts to global_thread_list. Newly added thd
+    will not be accounted for summary calculation.
+    removal from global_thread_list is blocked as LOCK_thread_remove
+    mutex is not released yet 
+  */
+  mysql_mutex_unlock(&LOCK_thread_count);
+  Thread_iterator it= global_thread_list_copy.begin();
+  Thread_iterator end= global_thread_list_copy.end();
+
   /* Get global values as base */
   *to= global_status_var;
   
@@ -2662,7 +2618,9 @@ void calc_sum_of_all_status(STATUS_VAR *to)
   for (; it != end; ++it)
     add_to_status(to, &(*it)->status_var);
   
-  mysql_mutex_unlock(&LOCK_thread_count);
+  DEBUG_SYNC_C("inside_calc_sum");
+
+  mysql_mutex_unlock(&LOCK_thread_remove);
   DBUG_VOID_RETURN;
 }
 
@@ -3081,9 +3039,12 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
 
   /*
     If we have db lookup vaule we just add it to list and
-    exit from the function
+    exit from the function.
+    We don't do this for database names longer than the maximum
+    path length.
   */
-  if (lookup_field_vals->db_value.str)
+  if (lookup_field_vals->db_value.str && 
+      lookup_field_vals->db_value.length < FN_REFLEN)
   {
     if (is_infoschema_db(lookup_field_vals->db_value.str,
                          lookup_field_vals->db_value.length))
@@ -3456,8 +3417,9 @@ end:
   /* Restore original LEX value, statement's arena and THD arena values. */
   lex_end(thd->lex);
 
-  if (i_s_arena.free_list)
-    i_s_arena.free_items();
+  // Free items, before restoring backup_arena below.
+  DBUG_ASSERT(i_s_arena.free_list == NULL);
+  thd->free_items();
 
   /*
     For safety reset list of open temporary tables before closing
@@ -3791,12 +3753,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
 
   if (share->is_view)
   {
-    if (open_new_frm(thd, share, table_name->str,
-                     (uint) (HA_OPEN_KEYFILE | HA_OPEN_RNDFILE |
-                             HA_GET_INDEX | HA_TRY_READ_ONLY),
-                     READ_KEYINFO | COMPUTE_TYPES | EXTRA_RECORD |
-                     OPEN_VIEW_NO_PARSE,
-                     thd->open_options, &tbl, &table_list, thd->mem_root))
+    if (mysql_make_view(thd, share, &table_list, true))
       goto end_share;
     table_list.view= (LEX*) share->is_view;
     res= schema_table->process_table(thd, &table_list, table,
@@ -4319,6 +4276,17 @@ static int get_schema_tables_record(THD *thd, TABLE_LIST *tables,
 
     if (share->db_create_options & HA_OPTION_NO_STATS_PERSISTENT)
       ptr=strmov(ptr," stats_persistent=0");
+
+    if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_ON)
+      ptr=strmov(ptr," stats_auto_recalc=1");
+    else if (share->stats_auto_recalc == HA_STATS_AUTO_RECALC_OFF)
+      ptr=strmov(ptr," stats_auto_recalc=0");
+
+    if (share->stats_sample_pages != 0)
+    {
+      ptr= strmov(ptr, " stats_sample_pages=");
+      ptr= longlong10_to_str(share->stats_sample_pages, ptr, 10);
+    }
 
     /* We use CHECKSUM, instead of TABLE_CHECKSUM, for backward compability */
     if (share->db_create_options & HA_OPTION_CHECKSUM)
@@ -5231,7 +5199,7 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   TABLE *proc_table;
   TABLE_LIST proc_tables;
   const char *wild= thd->lex->wild ? thd->lex->wild->ptr() : NullS;
-  int res= 0;
+  int error, res= 0;
   TABLE *table= tables->table;
   bool full_access;
   char definer[USER_HOST_BUFF_SIZE];
@@ -5255,14 +5223,17 @@ int fill_schema_proc(THD *thd, TABLE_LIST *tables, Item *cond)
   {
     DBUG_RETURN(1);
   }
-  if (proc_table->file->ha_index_init(0, 1))
+  if ((error= proc_table->file->ha_index_init(0, 1)))
   {
+    proc_table->file->print_error(error, MYF(0));
     res= 1;
     goto err;
   }
-  if ((res= proc_table->file->ha_index_first(proc_table->record[0])))
+  if ((error= proc_table->file->ha_index_first(proc_table->record[0])))
   {
-    res= (res == HA_ERR_END_OF_FILE) ? 0 : 1;
+    res= (error == HA_ERR_END_OF_FILE) ? 0 : 1;
+    if (res)
+      proc_table->file->print_error(error, MYF(0));
     goto err;
   }
 
@@ -5490,7 +5461,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
         */
         while ((item= it++))
         {
-          if ((field= item->filed_for_view_update()) && field->field &&
+          if ((field= item->field_for_view_update()) && field->field &&
               !field->field->table->pos_in_table_list->schema_table)
           {
             updatable_view= 1;
@@ -6515,14 +6486,14 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     tmp1= &thd->status_var;
   }
 
-  mysql_mutex_lock(&LOCK_status);
+  mysql_rwlock_rdlock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
   res= show_status_array(thd, wild,
                          (SHOW_VAR *)all_status_vars.buffer,
                          option_type, tmp1, "", tables->table,
                          upper_case_names, cond);
-  mysql_mutex_unlock(&LOCK_status);
+  mysql_rwlock_unlock(&LOCK_status);
   DBUG_RETURN(res);
 }
 
@@ -7226,7 +7197,6 @@ static bool do_fill_table(THD *thd,
 bool get_schema_tables_result(JOIN *join,
                               enum enum_schema_table_state executed_place)
 {
-  JOIN_TAB *tmp_join_tab= join->join_tab+join->tables;
   THD *thd= join->thd;
   LEX *lex= thd->lex;
   bool result= 0;
@@ -7236,8 +7206,9 @@ bool get_schema_tables_result(JOIN *join,
   if (!join->join_tab)
     DBUG_RETURN(result);
 
-  for (JOIN_TAB *tab= join->join_tab; tab < tmp_join_tab; tab++)
-  {  
+  for (uint i= 0; i < join->tables; i++)
+  {
+    JOIN_TAB *const tab= join->join_tab + i;
     if (!tab->table || !tab->table->pos_in_table_list)
       break;
 
@@ -7803,7 +7774,7 @@ ST_FIELD_INFO variables_fields_info[]=
 
 ST_FIELD_INFO processlist_fields_info[]=
 {
-  {"ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, "Id", SKIP_OPEN_TABLE},
+  {"ID", 21, MYSQL_TYPE_LONGLONG, 0, MY_I_S_UNSIGNED, "Id", SKIP_OPEN_TABLE},
   {"USER", 16, MYSQL_TYPE_STRING, 0, 0, "User", SKIP_OPEN_TABLE},
   {"HOST", LIST_PROCESS_HOST_LEN,  MYSQL_TYPE_STRING, 0, 0, "Host",
    SKIP_OPEN_TABLE},

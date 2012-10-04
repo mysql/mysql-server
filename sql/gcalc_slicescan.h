@@ -118,6 +118,9 @@ public:
     inline bool is_bottom() const { return !left; }
     inline Info *get_next() { return (Info *)next; }
     inline const Info *get_next() const { return (const Info *)next; }
+#ifndef DBUG_OFF
+    inline void dbug_print() const;
+#endif
   };
 
   Gcalc_heap(size_t blk_size=8192) :
@@ -145,6 +148,24 @@ private:
   Gcalc_dyn_list::Item *m_first;
   Gcalc_dyn_list::Item **m_hook;
   int m_n_points;
+};
+
+
+/**
+  A class to store a state of a geometry transformation of
+  Gcalc_shape_transformer::store_shapes()
+  and other related methods (e.g. start_line/complete_line etc).
+*/
+class Gcalc_shape_status
+{
+public:
+  int m_nshapes;
+  int m_last_shape_pos;
+  Gcalc_shape_status()
+  {
+    m_nshapes= 0;        // How many shapes have been collected
+    m_last_shape_pos= 0; // Last shape start position in function_buffer
+  }
 };
 
 
@@ -213,23 +234,39 @@ public:
   Gcalc_shape_transporter(Gcalc_heap *heap) :
     m_shape_started(0), m_heap(heap) {}
 
-  virtual int single_point(double x, double y)=0;
-  virtual int start_line()=0;
-  virtual int complete_line()=0;
-  virtual int start_poly()=0;
-  virtual int complete_poly()=0;
-  virtual int start_ring()=0;
-  virtual int complete_ring()=0;
-  virtual int add_point(double x, double y)=0;
-  virtual int start_collection(int n_objects) { return 0; }
-  int start_simple_poly()
+  /* Transformation event methods */
+  virtual int single_point(Gcalc_shape_status *st, double x, double y)=0;
+  virtual int start_line(Gcalc_shape_status *st)=0;
+  virtual int complete_line(Gcalc_shape_status *st)=0;
+  virtual int start_poly(Gcalc_shape_status *st)=0;
+  virtual int complete_poly(Gcalc_shape_status *st)=0;
+  virtual int start_ring(Gcalc_shape_status *st)=0;
+  virtual int complete_ring(Gcalc_shape_status *st)=0;
+  virtual int add_point(Gcalc_shape_status *st, double x, double y)=0;
+  virtual int start_collection(Gcalc_shape_status *st, int nshapes)= 0;
+  virtual int complete_collection(Gcalc_shape_status *st)= 0;
+  virtual int collection_add_item(Gcalc_shape_status *st_collection,
+                                  Gcalc_shape_status *st_item)= 0;
+  int start_simple_poly(Gcalc_shape_status *st)
   {
-    return start_poly() || start_ring();
+    return start_poly(st) || start_ring(st);
   }
-  int complete_simple_poly()
+  int complete_simple_poly(Gcalc_shape_status *st)
   {
-    return complete_ring() || complete_poly();
+    return complete_ring(st) || complete_poly(st);
   }
+
+  /*
+    Filter methods: in some cases we are not interested in certain
+    geometry types and can skip them during transformation instead
+    of inserting "no operation" actions.
+    For example, ST_Buffer() called  with a negative distance argument
+    does not need any Points and LineStrings.
+  */
+  virtual bool skip_point() const { return false; }
+  virtual bool skip_line_string() const { return false; }
+  virtual bool skip_poly() const { return false; }
+
   virtual ~Gcalc_shape_transporter() {}
 };
 
@@ -244,6 +281,10 @@ enum Gcalc_scan_events
   scev_two_ends= 32,     /* A couple of threads finished */
   scev_single_point= 64  /* Got single point */
 };
+
+#ifndef DBUG_OFF
+const char *Gcalc_scan_event_name(enum Gcalc_scan_events event);
+#endif
 
 typedef int sc_thread_id;
 
@@ -287,8 +328,8 @@ public:
       thread= from->thread;
     }
 #ifndef DBUG_OFF
-    void dbug_print();
-#endif /*DBUG_OFF*/
+    inline void dbug_print_slice(double y, enum Gcalc_scan_events event) const;
+#endif
   };
 
   class intersection : public Gcalc_dyn_list::Item

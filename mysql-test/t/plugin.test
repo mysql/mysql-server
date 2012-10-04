@@ -1,8 +1,8 @@
 --source include/not_windows_embedded.inc
 --source include/have_example_plugin.inc
 
+--error ER_UNKNOWN_STORAGE_ENGINE
 CREATE TABLE t1(a int) ENGINE=EXAMPLE;
-DROP TABLE t1;
 
 --replace_regex /\.dll/.so/
 eval INSTALL PLUGIN example SONAME '$EXAMPLE_PLUGIN';

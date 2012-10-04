@@ -68,6 +68,38 @@ RPAD(_ucs2 X'0420',10,_ucs2 X'0421') r;
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
+--echo #
+--echo # Bug #51876 : crash/memory underrun when loading data with ucs2 
+--echo #   and reverse() function
+--echo #
+
+--echo # Problem # 1 (original report): wrong parsing of ucs2 data
+SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp.txt';
+CREATE TABLE t1(a INT);
+LOAD DATA INFILE 'tmpp.txt' INTO TABLE t1 CHARACTER SET ucs2
+(@b) SET a=REVERSE(@b);
+--echo # should return 2 zeroes (as the value is truncated)
+SELECT * FROM t1;
+
+DROP TABLE t1;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/tmpp.txt;
+
+
+--echo # Problem # 2 : if you write and read ucs2 data to a file they're lost
+SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp2.txt' CHARACTER SET ucs2;
+CREATE TABLE t1(a INT);
+LOAD DATA INFILE 'tmpp2.txt' INTO TABLE t1 CHARACTER SET ucs2
+(@b) SET a=REVERSE(@b);
+--echo # should return 0 and 1 (10 reversed)
+SELECT * FROM t1;
+
+DROP TABLE t1;
+let $MYSQLD_DATADIR= `select @@datadir`;
+remove_file $MYSQLD_DATADIR/test/tmpp2.txt;
+
+
+
 #
 # BUG3946
 #
@@ -501,8 +533,11 @@ DROP TABLE t1,t2;
 
 # PASSWORD and OLD_PASSWORD don't work with UCS2 strings, but to fix it would
 # not be backwards compatible in all cases, so it's best to leave it alone
-select password(name) from bug20536;
-select old_password(name) from bug20536;
+# 2011-11-08 update: change in behavior caused by refactoring of
+#   Item_func_password() but since the below test doesn't show correct behavior
+#   anyway it is removed.
+# select password(name) from bug20536;
+# select old_password(name) from bug20536;
 
 # Disable test case as encrypt relies on 'crypt' function.
 # "decrypt" is noramlly tested in func_crypt.test which have a

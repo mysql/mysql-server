@@ -91,7 +91,7 @@ static inline void digest_reset(PSI_digest_storage *digest)
 {
   digest->m_full= false;
   digest->m_byte_count= 0;
-  digest->m_charset= NULL;
+  digest->m_charset_number= 0;
 }
 
 static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage *from)
@@ -100,7 +100,7 @@ static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage 
   {
     to->m_full= from->m_full;
     to->m_byte_count= from->m_byte_count;
-    to->m_charset= from->m_charset;
+    to->m_charset_number= from->m_charset_number;
     DBUG_ASSERT(to->m_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE);
     memcpy(to->m_token_array, from->m_token_array, to->m_byte_count);
   }
@@ -110,7 +110,7 @@ static inline void digest_copy(PSI_digest_storage *to, const PSI_digest_storage 
     DBUG_ASSERT(from->m_byte_count == 0);
     to->m_full= false;
     to->m_byte_count= 0;
-    to->m_charset= NULL;
+    to->m_charset_number= 0;
   }
 }
 

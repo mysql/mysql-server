@@ -1,0 +1,6 @@
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+show variables like "performance_schema%";
+show status like "performance_schema%";

@@ -453,7 +453,21 @@ public:
     LOG_SLOW_STATEMENTS= 256,   // Used by events
     LOG_GENERAL_LOG= 512,        // Used by events
     HAS_SQLCOM_RESET= 1024,
-    HAS_SQLCOM_FLUSH= 2048
+    HAS_SQLCOM_FLUSH= 2048,
+
+    /**
+      Marks routines that directly (i.e. not by calling other routines)
+      change tables. Note that this flag is set automatically based on
+      type of statements used in the stored routine and is different
+      from routine characteristic provided by user in a form of CONTAINS
+      SQL, READS SQL DATA, MODIFIES SQL DATA clauses. The latter are
+      accepted by parser but pretty much ignored after that.
+      We don't rely on them:
+      a) for compatibility reasons.
+      b) because in CONTAINS SQL case they don't provide enough
+      information anyway.
+     */
+    MODIFIES_DATA= 4096
   };
 
 public:
@@ -697,6 +711,15 @@ public:
     @return Error status.
   */
   bool add_instr(THD *thd, sp_instr *instr);
+
+  /**
+    Returns true if any substatement in the routine directly
+    (not through another routine) modifies data/changes table.
+
+    @sa Comment for MODIFIES_DATA flag.
+  */
+  bool modifies_data() const
+  { return m_flags & MODIFIES_DATA; }
 
   uint instructions()
   { return m_instructions.elements(); }

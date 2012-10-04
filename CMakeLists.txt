@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@ if("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}" GREATER 2.6)
  CMAKE_POLICY(VERSION 2.8)
 endif()
 
+MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
 
@@ -58,7 +59,12 @@ ENDIF()
 SET(BUILDTYPE_DOCSTRING
  "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or
  CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
- 
+
+# Possibly temporary fix: Clang on 32 bit causes non-debug server to crash
+IF(CMAKE_OSX_ARCHITECTURES MATCHES "i386")
+  SET(CMAKE_CXX_COMPILER g++)
+ENDIF()
+
 IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
   SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
@@ -179,6 +185,7 @@ ENDIF()
 
 # Add macros
 INCLUDE(character_sets)
+INCLUDE(cpu_info)
 INCLUDE(zlib)
 INCLUDE(libevent)
 INCLUDE(ssl)
@@ -359,6 +366,7 @@ ADD_SUBDIRECTORY(strings)
 ADD_SUBDIRECTORY(vio)
 ADD_SUBDIRECTORY(regex)
 ADD_SUBDIRECTORY(mysys)
+ADD_SUBDIRECTORY(mysys_ssl)
 ADD_SUBDIRECTORY(libmysql)
 
 IF(WITH_UNIT_TESTS)
@@ -391,6 +399,10 @@ IF(NOT WITHOUT_SERVER)
   IF(UNIX)
     ADD_SUBDIRECTORY(man)
   ENDIF()
+  IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
+    ADD_SUBDIRECTORY(internal)
+  ENDIF()
+  ADD_SUBDIRECTORY(SPECIFIC-ULN)
 ENDIF()
 
 INCLUDE(cmake/abi_check.cmake)

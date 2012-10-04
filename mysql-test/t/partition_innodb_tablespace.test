@@ -1,0 +1,296 @@
+#
+# A series of tests to show the correct tablespace behavior when the
+# partition engine uses InnoDB.
+#
+--source include/not_embedded.inc
+--source include/have_partition.inc
+--source include/have_innodb.inc
+SET default_storage_engine=InnoDB;
+
+--echo #
+--echo # TABLESPACE related tests for the partition engine and InnoDB.
+--echo #
+
+# Set up some variables
+LET $MYSQLD_DATADIR = `select @@datadir`;
+LET $data_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data';
+LET $data_directory2 = DATA DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data2';
+LET $index_directory = INDEX DIRECTORY='$MYSQL_TMP_DIR/alternate_dir/data';
+
+# These values can change during the test
+LET $innodb_file_format_orig=`select @@innodb_file_format`;
+LET $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+LET $innodb_strict_mode_orig=`select @@session.innodb_strict_mode`;
+
+--echo # The partition engine can send DATA DIRECTORY to InnoDB.
+--echo # In strict mode, it is an error if innodb_file_per_table = OFF
+--echo # or INDEX DIRECTORY is used.
+SET SESSION innodb_strict_mode = ON;
+SET GLOBAL innodb_file_per_table = OFF;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+--error ER_ILLEGAL_HA
+eval CREATE TABLE t1 (a int KEY, b text) ENGINE = InnoDB PARTITION BY HASH (a)
+     (PARTITION p0 engine=InnoDB $data_directory $index_directory,
+      PARTITION p1 engine=InnoDB $data_directory $index_directory);
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW WARNINGS;
+
+--echo # Try again with innodb_file_per_table = ON and no INDEX DIRECTORY.
+SET GLOBAL innodb_file_per_table = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (a int KEY, b text) ENGINE = InnoDB PARTITION BY HASH (a)
+     (PARTITION p0 engine=InnoDB $data_directory,
+      PARTITION p1 engine=InnoDB $data_directory2);
+SHOW WARNINGS;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+# replace_result 't1#P' with 't1#p' because on Linux, InnoDB is always
+# case sensitive with table names and on Windows, it is always lower case.
+# This is independent of the value of lower_case_table_names.  This cannot
+# be changes without breaking backward compatibility.
+--replace_result t1#P t1#p
+SELECT name,n_cols,file_format,row_format
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+--replace_result t1#P t1#p
+SELECT name,file_format,row_format
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+--replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
+
+--echo # Verifying .frm, .par, .isl & .ibd files
+--file_exists $MYSQLD_DATADIR/test/t1.frm
+--file_exists $MYSQLD_DATADIR/test/t1.par
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1.isl
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1.ibd
+
+--echo # Verifying that there are no MyISAM files
+--error 1
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0.myd
+--error 1
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0.myi
+--error 1
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1.myd
+--error 1
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1.myi
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#P#p0.myd
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#P#p0.myi
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#P#p1.myd
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#P#p1.myi
+# The ibd tablespaces should not be directly under the DATA DIRECTORY
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/t1#P#p0.ibd
+--error 1
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/t1#P#p1.ibd
+
+--echo # Test TRUNCATE TABLE with partitioned InnoDB tables
+INSERT INTO t1 VALUES (1, "red");
+INSERT INTO t1 VALUES (2, "green");
+INSERT INTO t1 VALUES (3, "blue");
+SELECT * FROM t1;
+TRUNCATE TABLE t1;
+SELECT * FROM t1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result t1#P t1#p
+SELECT name,n_cols,file_format,row_format
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+--replace_result t1#P t1#p
+SELECT name,file_format,row_format
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+--replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
+--echo # Verifying .frm, .par and MyISAM files (.MYD, MYI)
+--file_exists $MYSQLD_DATADIR/test/t1.frm
+--file_exists $MYSQLD_DATADIR/test/t1.par
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1.isl
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1.ibd
+
+--echo # Test RENAME TABLE with partitioned InnoDB tables
+RENAME TABLE t1 TO t11;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t11;
+--replace_result t11#P t11#p
+SELECT name,n_cols,file_format,row_format
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+--replace_result t11#P t11#p
+SELECT name,file_format,row_format
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+--replace_result t11#P t11#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
+--echo # Verifying .frm, .par and MyISAM files (.MYD, MYI)
+--file_exists $MYSQLD_DATADIR/test/t11.frm
+--file_exists $MYSQLD_DATADIR/test/t11.par
+--file_exists $MYSQLD_DATADIR/test/t11#P#p0.isl
+--file_exists $MYSQLD_DATADIR/test/t11#P#p1.isl
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t11#P#p0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t11#P#p1.ibd
+
+DROP TABLE t11;
+
+--echo # Test the previous DDL as a prepared statement.
+SET GLOBAL innodb_file_per_table = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval PREPARE stmt1 FROM "CREATE TABLE t1 (a int KEY, b text)
+     ENGINE = InnoDB PARTITION BY HASH (a)
+     (PARTITION p0 engine=InnoDB $data_directory,
+      PARTITION p1 engine=InnoDB $data_directory2)";
+EXECUTE stmt1;
+SHOW WARNINGS;
+DEALLOCATE PREPARE stmt1;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result t1#P t1#p
+SELECT name,n_cols,file_format,row_format
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+--replace_result t1#P t1#p
+SELECT name,file_format,row_format
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+--replace_result t1#P t1#p  $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
+DROP TABLE t1;
+
+
+--echo # Test DATA DIRECTORY with Sub-partitions.
+SET GLOBAL innodb_file_per_table = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (id INT, purchased DATE) engine=InnoDB
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0 $data_directory,
+            SUBPARTITION s1 $data_directory2
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2 $data_directory,
+            SUBPARTITION s3 $data_directory2
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4 $data_directory,
+            SUBPARTITION s5 $data_directory2
+        )
+    );
+SHOW WARNINGS;
+INSERT INTO t1 VALUES(1,'1980-05-31');
+INSERT INTO t1 VALUES(2,'2090-05-31');
+INSERT INTO t1 VALUES(3,'2012-05-31');
+INSERT INTO t1 VALUES(4,'1970-05-31');
+INSERT INTO t1 VALUES(5,'1985-05-31');
+INSERT INTO t1 VALUES(6,'2006-05-31');
+SELECT * FROM t1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result #P# #p#  #SP# #sp#
+SELECT name,n_cols,file_format,row_format
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+--replace_result #P# #p#  #SP# #sp#
+SELECT name,file_format,row_format
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+--replace_result #P# #p#  #SP# #sp#  $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
+
+--echo # Verifying .frm, .par, .isl & .ibd files
+--file_exists $MYSQLD_DATADIR/test/t1.frm
+--file_exists $MYSQLD_DATADIR/test/t1.par
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#s0.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#s1.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#s2.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#s3.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#s4.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#s5.isl
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0#SP#s0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p0#SP#s1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p1#SP#s2.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1#SP#s3.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p2#SP#s4.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p2#SP#s5.ibd
+DROP TABLE t1;
+
+--echo # Same as above except with ROW_FORMAT=Dyamic.
+SET GLOBAL innodb_file_format = Barracuda;
+SET GLOBAL innodb_file_per_table = ON;
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+eval CREATE TABLE t1 (id INT, purchased DATE)
+    engine = innodb row_format = dynamic
+    PARTITION BY RANGE( YEAR(purchased) )
+    SUBPARTITION BY HASH( TO_DAYS(purchased) ) (
+        PARTITION p0 VALUES LESS THAN (1990) (
+            SUBPARTITION s0 $data_directory,
+            SUBPARTITION s1 $data_directory2
+        ),
+        PARTITION p1 VALUES LESS THAN (2000) (
+            SUBPARTITION s2 $data_directory,
+            SUBPARTITION s3 $data_directory2
+        ),
+        PARTITION p2 VALUES LESS THAN MAXVALUE (
+            SUBPARTITION s4 $data_directory,
+            SUBPARTITION s5 $data_directory2
+        )
+    );
+SHOW WARNINGS;
+INSERT INTO t1 VALUES(1,'1980-05-31');
+INSERT INTO t1 VALUES(2,'2090-05-31');
+INSERT INTO t1 VALUES(3,'2012-05-31');
+INSERT INTO t1 VALUES(4,'1970-05-31');
+INSERT INTO t1 VALUES(5,'1985-05-31');
+INSERT INTO t1 VALUES(6,'2006-05-31');
+SELECT * FROM t1;
+
+--replace_result $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SHOW CREATE TABLE t1;
+--replace_result #P# #p#  #SP# #sp#
+SELECT name,n_cols,file_format,row_format
+       FROM information_schema.innodb_sys_tables WHERE name LIKE 'test%';
+--replace_result #P# #p#  #SP# #sp#
+SELECT name,file_format,row_format
+       FROM information_schema.innodb_sys_tablespaces WHERE name LIKE 'test%';
+--replace_result #P# #p#  #SP# #sp#  $MYSQL_TMP_DIR MYSQL_TMP_DIR
+SELECT path FROM information_schema.innodb_sys_datafiles
+       WHERE path LIKE '%test%' ORDER BY space;
+
+--echo # Verifying .frm, .par, .isl & .ibd files
+--file_exists $MYSQLD_DATADIR/test/t1.frm
+--file_exists $MYSQLD_DATADIR/test/t1.par
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#s0.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p0#SP#s1.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#s2.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p1#SP#s3.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#s4.isl
+--file_exists $MYSQLD_DATADIR/test/t1#P#p2#SP#s5.isl
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p0#SP#s0.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p0#SP#s1.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p1#SP#s2.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p1#SP#s3.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data/test/t1#P#p2#SP#s4.ibd
+--file_exists $MYSQL_TMP_DIR/alternate_dir/data2/test/t1#P#p2#SP#s5.ibd
+
+--echo #
+--echo # Cleanup
+--echo #
+
+DROP TABLE t1;
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data/test
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data2/test
+--rmdir $MYSQL_TMP_DIR/alternate_dir/data2
+--rmdir $MYSQL_TMP_DIR/alternate_dir
+
+--disable_query_log
+EVAL SET GLOBAL innodb_file_format=$innodb_file_format_orig;
+EVAL SET GLOBAL innodb_file_per_table=$innodb_file_per_table_orig;
+EVAL SET SESSION innodb_strict_mode=$innodb_strict_mode_orig;
+--enable_query_log
+

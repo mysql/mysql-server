@@ -38,6 +38,7 @@ Created 2/25/1997 Heikki Tuuri
 #include "mach0data.h"
 #include "row0undo.h"
 #include "row0vers.h"
+#include "row0log.h"
 #include "trx0trx.h"
 #include "trx0rec.h"
 #include "row0row.h"
@@ -69,16 +70,55 @@ row_undo_ins_remove_clust_rec(
 	btr_cur_t*	btr_cur;
 	ibool		success;
 	dberr_t		err;
-	ulint		n_tries		= 0;
+	ulint		n_tries	= 0;
 	mtr_t		mtr;
+	dict_index_t*	index	= node->pcur.btr_cur.index;
+	bool		online;
+
+	ut_ad(dict_index_is_clust(index));
 
 	mtr_start(&mtr);
 
-	success = btr_pcur_restore_position(BTR_MODIFY_LEAF, &(node->pcur),
-					    &mtr);
+	/* This is similar to row_undo_mod_clust(). Even though we
+	call row_log_table_rollback() elsewhere, the DDL thread may
+	already have copied this row to the sort buffers or to the new
+	table. We must log the removal, so that the row will be
+	correctly purged. However, we can log the removal out of sync
+	with the B-tree modification. */
+
+	online = dict_index_is_online_ddl(index);
+	if (online) {
+		ut_ad(node->trx->dict_operation_lock_mode
+		      != RW_X_LATCH);
+		ut_ad(node->table->id != DICT_INDEXES_ID);
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+	}
+
+	success = btr_pcur_restore_position(
+		online
+		? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+		: BTR_MODIFY_LEAF, &node->pcur, &mtr);
 	ut_a(success);
 
+	btr_cur = btr_pcur_get_btr_cur(&node->pcur);
+
+	ut_ad(rec_get_trx_id(btr_cur_get_rec(btr_cur), btr_cur->index)
+	      == node->trx->id);
+
+	if (online && dict_index_is_online_ddl(index)) {
+		const rec_t*	rec	= btr_cur_get_rec(btr_cur);
+		mem_heap_t*	heap	= NULL;
+		const ulint*	offsets	= rec_get_offsets(
+			rec, index, NULL, ULINT_UNDEFINED, &heap);
+		row_log_table_delete(
+			rec, index, offsets,
+			trx_read_trx_id(row_get_trx_id_offset(index, offsets)
+					+ rec));
+		mem_heap_free(heap);
+	}
+
 	if (node->table->id == DICT_INDEXES_ID) {
+		ut_ad(!online);
 		ut_ad(node->trx->dict_operation_lock_mode == RW_X_LATCH);
 
 		/* Drop the index tree associated with the row in
@@ -90,12 +130,10 @@ row_undo_ins_remove_clust_rec(
 
 		mtr_start(&mtr);
 
-		success = btr_pcur_restore_position(BTR_MODIFY_LEAF,
-						    &(node->pcur), &mtr);
+		success = btr_pcur_restore_position(
+			BTR_MODIFY_LEAF, &node->pcur, &mtr);
 		ut_a(success);
 	}
-
-	btr_cur = btr_pcur_get_btr_cur(&(node->pcur));
 
 	if (btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 		err = DB_SUCCESS;
@@ -276,6 +314,7 @@ row_undo_ins_parse_undo_rec(
 	/* Skip the UNDO if we can't find the table or the .ibd file. */
 	if (UNIV_UNLIKELY(node->table == NULL)) {
 	} else if (UNIV_UNLIKELY(node->table->ibd_file_missing)) {
+close_table:
 		dict_table_close(node->table, dict_locked, FALSE);
 		node->table = NULL;
 	} else {
@@ -286,11 +325,7 @@ row_undo_ins_parse_undo_rec(
 				ptr, clust_index, &node->ref, node->heap);
 
 			if (!row_undo_search_clust_to_pcur(node)) {
-
-				dict_table_close(
-					node->table, dict_locked, FALSE);
-
-				node->table = NULL;
+				goto close_table;
 			}
 
 		} else {
@@ -300,10 +335,7 @@ row_undo_ins_parse_undo_rec(
 				      node->table->name);
 			fprintf(stderr, " has no indexes, "
 				"ignoring the table\n");
-
-			dict_table_close(node->table, dict_locked, FALSE);
-
-			node->table = NULL;
+			goto close_table;
 		}
 	}
 }
@@ -403,9 +435,18 @@ row_undo_ins(
 
 	/* Iterate over all the indexes and undo the insert.*/
 
+	node->index = dict_table_get_first_index(node->table);
+	ut_ad(dict_index_is_clust(node->index));
+
+	if (dict_index_is_online_ddl(node->index)) {
+		/* Note that we are rolling back this transaction, so
+		that all inserts and updates with this DB_TRX_ID can
+		be skipped. */
+		row_log_table_rollback(node->index, node->trx->id);
+	}
+
 	/* Skip the clustered index (the first index) */
-	node->index = dict_table_get_next_index(
-		dict_table_get_first_index(node->table));
+	node->index = dict_table_get_next_index(node->index);
 
 	dict_table_skip_corrupt_index(node->index);
 

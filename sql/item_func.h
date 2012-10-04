@@ -272,7 +272,8 @@ public:
   inline longlong check_integer_overflow(longlong value, bool val_unsigned)
   {
     if ((unsigned_flag && !val_unsigned && value < 0) ||
-        (!unsigned_flag && val_unsigned && (ulonglong) value > LONGLONG_MAX))
+        (!unsigned_flag && val_unsigned &&
+         (ulonglong) value > (ulonglong) LONGLONG_MAX))
       return raise_integer_overflow();
     return value;
   }
@@ -1103,6 +1104,17 @@ public:
   longlong val_int();
   void fix_length_and_dec();
   virtual void print(String *str, enum_query_type query_type);
+};
+
+
+class Item_func_validate_password_strength :public Item_int_func
+{
+  String value;
+public:
+  Item_func_validate_password_strength(Item *a) :Item_int_func(a) {}
+  longlong val_int();
+  const char *func_name() const { return "validate_password_strength"; }
+  void fix_length_and_dec() { max_length= 10; maybe_null= 1; }
 };
 
 
@@ -1984,7 +1996,7 @@ public:
   Item_func_is_used_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
-  void fix_length_and_dec() { decimals=0; max_length=10; maybe_null=1;}
+  void fix_length_and_dec();
 };
 
 /* For type casts */

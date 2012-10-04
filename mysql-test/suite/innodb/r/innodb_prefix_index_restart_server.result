@@ -86,5 +86,5 @@ col_1_text = REPEAT("a", 3500)	col_2_text  = REPEAT("o", 3500)
 1	1
 DROP TABLE worklog5743;
 SET GLOBAL innodb_file_format=Antelope;
-SET GLOBAL innodb_file_per_table=0;
+SET GLOBAL innodb_file_per_table=1;
 SET GLOBAL innodb_large_prefix=0;

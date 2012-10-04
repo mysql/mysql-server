@@ -17,6 +17,12 @@
 # Change:                                                                      #
 ################################################################################
 
+-- disable_query_log
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
+-- enable_query_log
+
 ## EXPLAIN PARTITIONS SELECT for one single row
 EXPLAIN PARTITIONS SELECT COUNT(*) FROM t1 WHERE f_date = '1000-02-10';
 

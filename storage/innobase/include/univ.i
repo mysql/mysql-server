@@ -43,7 +43,7 @@ Created 1/20/1994 Heikki Tuuri
 #define IB_TO_STR(s)	_IB_TO_STR(s)
 
 #define INNODB_VERSION_MAJOR	1
-#define INNODB_VERSION_MINOR	2
+#define INNODB_VERSION_MINOR	3
 #define INNODB_VERSION_BUGFIX	MYSQL_VERSION_PATCH
 
 /* The following is the InnoDB version as shown in
@@ -403,6 +403,16 @@ database name and table name. In addition, 14 bytes is added for:
 #define MAX_FULL_NAME_LEN				\
 	(MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14)
 
+/** The maximum length in bytes that a database name can occupy when stored in
+UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
+mysql_com.h if you are to use this macro. */
+#define MAX_DB_UTF8_LEN		(NAME_LEN + 1)
+
+/** The maximum length in bytes that a table name can occupy when stored in
+UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
+mysql_com.h if you are to use this macro. */
+#define MAX_TABLE_UTF8_LEN	(NAME_LEN + sizeof(srv_mysql50_table_name_prefix))
+
 /*
 			UNIVERSAL TYPE DEFINITIONS
 			==========================
@@ -595,15 +605,23 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_ALLOC(addr, size) VALGRIND_MAKE_MEM_UNDEFINED(addr, size)
 # define UNIV_MEM_DESC(addr, size) VALGRIND_CREATE_BLOCK(addr, size, #addr)
 # define UNIV_MEM_UNDESC(b) VALGRIND_DISCARD(b)
-# define UNIV_MEM_ASSERT_RW(addr, size) do {				\
+# define UNIV_MEM_ASSERT_RW_LOW(addr, size, should_abort) do {		\
 	const void* _p = (const void*) (ulint)				\
 		VALGRIND_CHECK_MEM_IS_DEFINED(addr, size);		\
-	if (UNIV_LIKELY_NULL(_p))					\
+	if (UNIV_LIKELY_NULL(_p)) {					\
 		fprintf(stderr, "%s:%d: %p[%u] undefined at %ld\n",	\
 			__FILE__, __LINE__,				\
 			(const void*) (addr), (unsigned) (size), (long)	\
 			(((const char*) _p) - ((const char*) (addr))));	\
-	} while (0)
+		if (should_abort) {					\
+			ut_error;					\
+		}							\
+	}								\
+} while (0)
+# define UNIV_MEM_ASSERT_RW(addr, size)					\
+	UNIV_MEM_ASSERT_RW_LOW(addr, size, false)
+# define UNIV_MEM_ASSERT_RW_ABORT(addr, size)				\
+	UNIV_MEM_ASSERT_RW_LOW(addr, size, true)
 # define UNIV_MEM_ASSERT_W(addr, size) do {				\
 	const void* _p = (const void*) (ulint)				\
 		VALGRIND_CHECK_MEM_IS_ADDRESSABLE(addr, size);		\
@@ -620,7 +638,9 @@ typedef void* os_thread_ret_t;
 # define UNIV_MEM_ALLOC(addr, size) do {} while(0)
 # define UNIV_MEM_DESC(addr, size) do {} while(0)
 # define UNIV_MEM_UNDESC(b) do {} while(0)
+# define UNIV_MEM_ASSERT_RW_LOW(addr, size, should_abort) do {} while(0)
 # define UNIV_MEM_ASSERT_RW(addr, size) do {} while(0)
+# define UNIV_MEM_ASSERT_RW_ABORT(addr, size) do {} while(0)
 # define UNIV_MEM_ASSERT_W(addr, size) do {} while(0)
 #endif
 #define UNIV_MEM_ASSERT_AND_FREE(addr, size) do {	\

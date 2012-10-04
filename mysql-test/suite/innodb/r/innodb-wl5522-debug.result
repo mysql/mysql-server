@@ -6,6 +6,28 @@ DROP DATABASE IF EXISTS test_wl5522;
 Warnings:
 Note	1008	Can't drop database 'test_wl5522'; database doesn't exist
 CREATE DATABASE test_wl5522;
+SET SESSION debug="+d,ib_discard_before_commit_crash";
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = InnoDB;
+INSERT INTO test_wl5522.t1 VALUES(1),(2),(3);
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,ib_discard_before_commit_crash";
+DROP TABLE test_wl5522.t1;
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+SET SESSION debug="+d,ib_discard_after_commit_crash";
+CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = InnoDB;
+INSERT INTO test_wl5522.t1 VALUES(1),(2),(3);
+ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
+ERROR HY000: Lost connection to MySQL server during query
+SET SESSION debug="-d,ib_discard_after_commit_crash";
+DROP TABLE test_wl5522.t1;
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1), (2), (3), (4);
 FLUSH TABLES test_wl5522.t1 FOR EXPORT;
@@ -16,30 +38,31 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_before_commit_crash";
 SELECT * FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
 SET SESSION debug="-d,ib_import_before_commit_crash";
 SET SESSION debug="+d,ib_import_before_checkpoint_crash";
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Lost connection to MySQL server during query
-SET SESSION debug="-d,ib_import_before_checkpoint_crash";
-DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
 unlink: t1.cfg
+# Restart and reconnect to the server
+SET SESSION debug="-d,ib_import_before_checkpoint_crash";
+DROP TABLE test_wl5522.t1;
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
 @@innodb_file_per_table
 1
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-restore: t1
+restore: t1 .ibd and .cfg files
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 CHECK TABLE test_wl5522.t1;
 Table	Op	Msg_type	Msg_text
@@ -191,108 +214,118 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_io_read_error_1";
+restore: t1 .cfg file
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
+ERROR HY000: IO Read error: while reading index fields.
 SET SESSION debug="-d,ib_import_io_read_error_1";
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_io_read_error_2";
+restore: t1 .cfg file
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
+ERROR HY000: IO Read error: while reading index meta-data, expected to read 44 bytes but read only 0 bytes
 SET SESSION debug="-d,ib_import_io_read_error_2";
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_io_read_error_3";
+restore: t1 .cfg file
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
+ERROR HY000: IO Read error: while reading number of indexes.
 SET SESSION debug="-d,ib_import_io_read_error_3";
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_io_read_error_4";
+restore: t1 .cfg file
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
+ERROR HY000: IO Read error: while reading table column meta-data.
 SET SESSION debug="-d,ib_import_io_read_error_4";
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_io_read_error_5";
+restore: t1 .cfg file
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
+ERROR HY000: IO Read error: while reading meta-data export hostname length.
 SET SESSION debug="-d,ib_import_io_read_error_5";
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_io_read_error_6";
+restore: t1 .cfg file
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
+ERROR HY000: IO Read error: while reading meta-data table name length.
 SET SESSION debug="-d,ib_import_io_read_error_6";
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_io_read_error_7";
+restore: t1 .cfg file
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
+ERROR HY000: IO Read error: while reading autoinc value.
 SET SESSION debug="-d,ib_import_io_read_error_7";
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_io_read_error_8";
+restore: t1 .cfg file
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
+ERROR HY000: IO Read error: while reading meta-data header.
 SET SESSION debug="-d,ib_import_io_read_error_8";
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_io_read_error_9";
+restore: t1 .cfg file
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
+ERROR HY000: IO Read error: while reading meta-data version.
 SET SESSION debug="-d,ib_import_io_read_error_9";
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-SET SESSION debug="+d,ib_import_io_read_error_10";
+ERROR HY000: Tablespace has been discarded for table 't1'
+SET SESSION debug="+d,ib_import_string_read_error";
+restore: t1 .cfg file
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: IO Read error: (2, No such file or directory) Error opening 't1.cfg'
-SET SESSION debug="-d,ib_import_io_read_error_10";
+ERROR HY000: IO Read error: while parsing export hostname.
+SET SESSION debug="-d,ib_import_string_read_error";
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_OOM_1";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
@@ -304,8 +337,8 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_OOM_2";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
@@ -313,14 +346,12 @@ SET SESSION debug="-d,ib_import_OOM_2";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
 unlink: t1.cfg
-unlink: t1.ibd
-unlink: t1.cfg
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_OOM_4";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
@@ -332,8 +363,8 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_OOM_5";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
@@ -345,8 +376,8 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_OOM_6";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
@@ -358,8 +389,8 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_OOM_7";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
@@ -371,8 +402,8 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_OOM_8";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
@@ -384,8 +415,8 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_OOM_9";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
@@ -397,8 +428,8 @@ CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_OOM_10";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
@@ -409,50 +440,50 @@ unlink: t1.cfg
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_internal_error";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Internal error: While updating the <space, root page number> of index "GEN_CLUST_INDEX" - Generic error
+ERROR HY000: Internal error: While updating the <space, root page number> of index "GEN_CLUST_INDEX" - Generic error
 SET SESSION debug="-d,ib_import_internal_error";
-restore: t1
+restore: t1 .ibd and .cfg files
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_reset_space_and_lsn_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Too many concurrent transactions
-restore: t1
+ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Too many concurrent transactions
+restore: t1 .ibd and .cfg files
 SET SESSION debug="-d,ib_import_reset_space_and_lsn_failure";
 SET SESSION debug="+d,ib_import_open_tablespace_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Can't find 't1.ibd' (errno: 44 - Tablespace not found)
+ERROR HY000: Can't find 't1.ibd' (errno: 44 - Tablespace not found)
 SET SESSION debug="-d,ib_import_open_tablespace_failure";
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_check_bitmap_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
 SET SESSION debug="-d,ib_import_check_bitmap_failure";
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_cluster_root_adjust_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
 SET SESSION debug="-d,ib_import_cluster_root_adjust_failure";
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_cluster_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
 SET SESSION debug="-d,ib_import_cluster_failure";
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_sec_root_adjust_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
 SET SESSION debug="-d,ib_import_sec_root_adjust_failure";
-restore: t1
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_set_max_rowid_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
@@ -646,7 +677,7 @@ INDEX idx3(c4(512))) Engine=InnoDB;
 SELECT c1, c2 FROM test_wl5522.t1;
 c1	c2
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
-restore: t1
+restore: t1 .ibd and .cfg files
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 CHECK TABLE test_wl5522.t1;
 Table	Op	Msg_type	Msg_text
@@ -791,11 +822,11 @@ DROP TABLE test_wl5522.t1;
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_1";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Data structure corruption
+ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Data structure corruption
 SET SESSION debug="-d,ib_import_trigger_corruption_1";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -803,11 +834,11 @@ unlink: t1.cfg
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,buf_page_is_corrupt_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Data structure corruption
+ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Data structure corruption
 SET SESSION debug="-d,buf_page_is_corrupt_failure";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -815,11 +846,11 @@ unlink: t1.cfg
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_2";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Index corrupt: Externally stored column(5) has a reference length of 19 in the cluster index "GEN_CLUST_INDEX"
+ERROR HY000: Index corrupt: Externally stored column(5) has a reference length of 19 in the cluster index "GEN_CLUST_INDEX"
 SET SESSION debug="-d,ib_import_trigger_corruption_2";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -827,8 +858,8 @@ unlink: t1.cfg
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,ib_import_trigger_corruption_3";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Incorrect key file for table 't1'; try to repair it
@@ -839,7 +870,7 @@ unlink: t1.cfg
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
+ERROR HY000: Tablespace has been discarded for table 't1'
 SET SESSION debug="+d,ib_import_create_index_failure_1";
 ALTER TABLE test_wl5522.t1 ADD INDEX idx(c1);
 Warnings:
@@ -851,11 +882,11 @@ unlink: t1.cfg
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,fil_space_create_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Can't find file: 'test_wl5522\t1.ibd' (errno: 11 - Generic error)
+ERROR HY000: Can't find file: 'test_wl5522\t1.ibd' (errno: 11 - Generic error)
 SET SESSION debug="-d,fil_space_create_failure";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -863,11 +894,11 @@ unlink: t1.cfg
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,dict_tf_to_fsp_flags_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Can't find file: 'test_wl5522\t1.ibd' (errno: 39 - Data structure corruption)
+ERROR HY000: Can't find file: 'test_wl5522\t1.ibd' (errno: 39 - Data structure corruption)
 SET SESSION debug="-d,dict_tf_to_fsp_flags_failure";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -875,11 +906,11 @@ unlink: t1.cfg
 CREATE TABLE test_wl5522.t1 (c1 INT, c2 VARCHAR(1024), c3 BLOB) ENGINE = Innodb;
 ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
-ERROR HY000: InnoDB: Tablespace has been discarded for table 't1'
-restore: t1
+ERROR HY000: Tablespace has been discarded for table 't1'
+restore: t1 .ibd and .cfg files
 SET SESSION debug="+d,fsp_flags_is_valid_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
-ERROR HY000: InnoDB: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Unsupported
+ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Unsupported
 SET SESSION debug="-d,fsp_flags_is_valid_failure";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
@@ -891,18 +922,4 @@ set global innodb_monitor_enable = default;
 set global innodb_monitor_disable = default;
 set global innodb_monitor_reset = default;
 set global innodb_monitor_reset_all = default;
-call mtr.add_suppression("'Resource temporarily unavailable'");
-call mtr.add_suppression("Monitor ibuf_merges is already enabled");
-call mtr.add_suppression("Monitor ibuf_merges_insert is already enabled");
-call mtr.add_suppression("Got error -1 when reading table '.*'");
-call mtr.add_suppression("InnoDB: Table '.*' tablespace is set as discarded.");
-call mtr.add_suppression("InnoDB: Tablespace '.*' exists in the cache.*");
-call mtr.add_suppression("InnoDB: Freeing existing tablespace '.*' entry from the cache with id.*");
-call mtr.add_suppression("InnoDB: The table .* doesn't have a corresponding tablespace, it was discarded");
-call mtr.add_suppression(".*There was an error writing to the meta data file.*");
-call mtr.add_suppression("Trying to import a table, but could not open the tablespace file.*t1.ibd");
-call mtr.add_suppression("Unsupported tablespace format");
-call mtr.add_suppression("Error in page .* of index \"GEN_CLUST_INDEX\" of table \"test_wl5522\".\"t1\"");
-call mtr.add_suppression("Page is marked as free");
-call mtr.add_suppression("t1.ibd: Page .* at offset .* looks corrupted");
-SET GLOBAL INNODB_FILE_PER_TABLE=0;
+SET GLOBAL INNODB_FILE_PER_TABLE=1;

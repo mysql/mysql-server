@@ -85,7 +85,7 @@ set @@session.tx_isolation="read-committed";
 # Prepare data. We need a table with a unique index,
 # for join_read_key to be used. The other column
 # allows to control what passes WHERE clause filter.
-create table t1 (a int primary key, b int) engine=innodb;
+create table t1 (a int primary key, b int) engine=innodb stats_persistent=0;
 # Let's make sure t1 has sufficient amount of rows
 # to exclude JT_ALL access method when reading it,
 # i.e. make sure that JT_EQ_REF(a) is always preferred.

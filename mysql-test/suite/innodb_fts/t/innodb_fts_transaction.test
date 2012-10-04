@@ -18,7 +18,7 @@ EVAL CREATE TABLE t1 (
         id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
         a VARCHAR(200),
         b TEXT
-        ) ENGINE = InnoDB;
+        ) ENGINE = InnoDB STATS_PERSISTENT=0;
 
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
@@ -64,7 +64,7 @@ SELECT * FROM t1
 # one record expected
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"stands Database"@11' IN BOOLEAN MODE);
+        AGAINST ('"stands Database"@11' IN BOOLEAN MODE) ORDER BY 1;
 
 # all records expected except with 'request' 
 SELECT * FROM t1
@@ -398,7 +398,7 @@ SELECT * FROM t1
 # 3 record expected 
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('tutorial' WITH QUERY EXPANSION);
+        AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY 1;
 
 # one record expected proximity
 SELECT * FROM t1
@@ -417,7 +417,7 @@ SELECT * FROM t1
 # 3 rcords expected , two for tutor* and one for Sævö*
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('tutor* Sævö*' IN BOOLEAN MODE);
+        AGAINST ('tutor* Sævö*' IN BOOLEAN MODE) ORDER BY 1;
 
 
 # one record expected 
@@ -453,12 +453,12 @@ SELECT * FROM t1
 # one record expected
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"stands Database"@11' IN BOOLEAN MODE);
+        AGAINST ('"stands Database"@11' IN BOOLEAN MODE) ORDER BY 1;
 
 # all records expected except with 'request' 
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('tutorial' WITH QUERY EXPANSION);
+        AGAINST ('tutorial' WITH QUERY EXPANSION) ORDER BY 1;
 
 --echo "In connection 1"
 --connection con1
@@ -576,7 +576,7 @@ WHERE MATCH (a,b) AGAINST ('+πάθω +τίποτα' IN BOOLEAN MODE);
 # one record expected
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('well free');
+        AGAINST ('well free') ORDER BY 1;
 
 --disconnect con1
 --disconnect con2

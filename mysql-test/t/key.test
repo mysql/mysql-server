@@ -395,7 +395,7 @@ create table t1 (
     c1 int,
     c2 char(12),
     c3 varchar(123),
-    c4 timestamp,
+    c4 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     index (c1),
     index i1 (c1),
     index i2 (c2),
