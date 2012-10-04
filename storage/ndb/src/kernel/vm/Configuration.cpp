@@ -117,7 +117,8 @@ void
 Configuration::fetch_configuration(const char* _connect_string,
                                    int force_nodeid,
                                    const char* _bind_address,
-                                   NodeId allocated_nodeid)
+                                   NodeId allocated_nodeid,
+                                   int connect_retries, int connect_delay)
 {
   /**
    * Fetch configuration from management server
@@ -144,7 +145,7 @@ Configuration::fetch_configuration(const char* _connect_string,
 	      m_config_retriever->getErrorString());
   }
 
-  if(m_config_retriever->do_connect(12,5,1) == -1){
+  if(m_config_retriever->do_connect(connect_retries, connect_delay, 1) == -1){
     const char * s = m_config_retriever->getErrorString();
     if(s == 0)
       s = "No error given!";
