@@ -243,15 +243,17 @@ extern ulint*	srv_data_file_is_raw_partition;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
-extern char**	srv_log_group_home_dirs;
+extern char*	srv_log_group_home_dir;
 #ifndef UNIV_HOTBACKUP
 extern ulong	srv_auto_extend_increment;
 
 extern ibool	srv_created_new_raw;
 
-extern ulint	srv_n_log_groups;
-extern ulint	srv_n_log_files;
+/** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
+#define SRV_N_LOG_FILES_MAX 100
+extern ulong	srv_n_log_files;
 extern ib_uint64_t	srv_log_file_size;
+extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
@@ -325,7 +327,10 @@ extern ulong	srv_max_dirty_pages_pct_lwm;
 extern ulong	srv_adaptive_flushing_lwm;
 extern ulong	srv_flushing_avg_loops;
 
-extern ulint	srv_force_recovery;
+extern ulong	srv_force_recovery;
+#ifndef DBUG_OFF
+extern ulong	srv_force_recovery_crash;
+#endif /* !DBUG_OFF */
 
 extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
 					purge and index buffer merge.

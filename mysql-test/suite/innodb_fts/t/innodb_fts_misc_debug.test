@@ -185,3 +185,25 @@ SELECT * FROM articles WHERE MATCH (title, body)
 
 DROP TABLE articles;
 
+# Following test is for Bug 14668777 - ASSERT ON IB_VECTOR_SIZE(
+# TABLE->FTS->INDEXES, ALTER TABLE
+CREATE TABLE articles (
+        id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+        title VARCHAR(200),
+        body TEXT,
+        FULLTEXT (title,body)
+        ) ENGINE=InnoDB;
+
+# Abort the operation in dict_create_index_step by setting
+# return status of dict_create_index_tree_step() to DB_OUT_OF_MEMORY
+# The newly create dict_index_t should be removed from fts cache
+SET SESSION debug="+d,ib_dict_create_index_tree_fail";
+--error ER_OUT_OF_RESOURCES
+CREATE FULLTEXT INDEX idx ON articles(body);
+SET SESSION debug="-d,ib_dict_create_index_tree_fail";
+
+# This simply go through ha_innobase::commit_inplace_alter_table
+# and do a fts_check_cached_index()
+ALTER TABLE articles STATS_PERSISTENT=DEFAULT;
+
+DROP TABLE articles;

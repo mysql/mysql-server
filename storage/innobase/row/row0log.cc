@@ -1212,6 +1212,7 @@ row_log_table_apply_insert_low(
 	que_thr_t*		thr,		/*!< in: query graph */
 	const dtuple_t*		row,		/*!< in: table row
 						in the old table definition */
+	trx_id_t		trx_id,		/*!< in: trx_id of the row */
 	mem_heap_t*		offsets_heap,	/*!< in/out: memory heap
 						that can be emptied */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
@@ -1226,6 +1227,7 @@ row_log_table_apply_insert_low(
 
 	ut_ad(dtuple_validate(row));
 	ut_ad(new_table == dup->index->online_log->table);
+	ut_ad(trx_id);
 
 #ifdef ROW_LOG_APPLY_PRINT
 	if (row_log_apply_print) {
@@ -1268,7 +1270,7 @@ row_log_table_apply_insert_low(
 		entry = row_build_index_entry(row, NULL, index, heap);
 		error = row_ins_sec_index_entry_low(
 			flags, BTR_MODIFY_TREE,
-			index, offsets_heap, heap, entry, thr);
+			index, offsets_heap, heap, entry, trx_id, thr);
 	} while (error == DB_SUCCESS);
 
 	return(error);
@@ -1306,7 +1308,7 @@ row_log_table_apply_insert(
 
 	if (row) {
 		error = row_log_table_apply_insert_low(
-			thr, row, offsets_heap, heap, log->table, dup);
+			thr, row, trx_id, offsets_heap, heap, log->table, dup);
 		if (error != DB_SUCCESS) {
 			/* Report the erroneous row using the new
 			version of the table. */
@@ -1581,7 +1583,7 @@ insert:
 		ut_ad(mtr.state == MTR_COMMITTED);
 		/* The row was not found. Insert it. */
 		error = row_log_table_apply_insert_low(
-			thr, row, offsets_heap, heap, log->table, dup);
+			thr, row, trx_id, offsets_heap, heap, log->table, dup);
 
 err_exit:
 		if (error != DB_SUCCESS) {
@@ -1762,7 +1764,7 @@ delete_insert:
 			BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
 			| BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG,
 			BTR_MODIFY_TREE, index, offsets_heap, heap,
-			entry, thr);
+			entry, trx_id, thr);
 
 		mtr_start(&mtr);
 	}
@@ -2775,15 +2777,26 @@ update_the_rec:
 				goto update_the_rec;
 			}
 
-			if (update->n_fields > 0
-			    && cursor.low_match
-			    < dict_index_get_n_fields(index)
-			    && !dtuple_contains_null(entry)) {
-				/* Duplicate key error */
-				ut_ad(dict_index_is_unique(index));
-				row_merge_dup_report(dup, entry->fields);
+			if (update->n_fields == 0) {
+				/* An exact match of the record
+				already exists.  There is nothing to
+				be inserted. */
+				goto func_exit;
 			}
 
+			ut_ad(cursor.low_match
+			      < dict_index_get_n_fields(index));
+
+			if (dtuple_contains_null(entry)) {
+				/* The UNIQUE KEY columns match, but
+				there is a NULL value in the key, and
+				NULL!=NULL. */
+				goto insert_the_rec;
+			}
+
+			/* Duplicate key error */
+			ut_ad(dict_index_is_unique(index));
+			row_merge_dup_report(dup, entry->fields);
 			goto func_exit;
 		}
 	} else {
