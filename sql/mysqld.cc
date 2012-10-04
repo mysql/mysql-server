@@ -685,7 +685,7 @@ SHOW_COMP_OPTION have_profiling;
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
-mysql_mutex_t LOCK_thread_count;
+mysql_mutex_t LOCK_thread_count, LOCK_thread_remove;
 mysql_mutex_t
   LOCK_error_log, LOCK_uuid_generator,
   LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
@@ -797,6 +797,17 @@ Thread_iterator global_thread_list_end()
   return global_thread_list->end();
 }
 
+void copy_global_thread_list(std::set<THD*> *new_copy)
+{
+  mysql_mutex_assert_owner(&LOCK_thread_count);
+  try {
+    *new_copy= *global_thread_list;
+  }
+  catch (std::bad_alloc &ba)
+  {
+  } 
+}
+
 void add_global_thread(THD *thd)
 {
   DBUG_PRINT("info", ("add_global_thread %p", thd));
@@ -819,7 +830,9 @@ void remove_global_thread(THD *thd)
   mysql_mutex_assert_owner(&LOCK_thread_count);
   DBUG_ASSERT(thd->release_resources_done());
 
+  mysql_mutex_lock(&LOCK_thread_remove);
   const size_t num_erased= global_thread_list->erase(thd);
+  mysql_mutex_unlock(&LOCK_thread_remove);
   if (num_erased == 1)
     --global_thread_count;
   // Removing a THD that was never added is an error.
@@ -1908,6 +1921,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_cond_destroy(&COND_thread_count);
+  mysql_mutex_destroy(&LOCK_thread_remove);
   mysql_cond_destroy(&COND_thread_cache);
   mysql_cond_destroy(&COND_flush_thread_cache);
   mysql_cond_destroy(&COND_manager);
@@ -2564,6 +2578,14 @@ static bool block_until_new_connection()
     /* Don't kill the pthread, just block it for reuse */
     DBUG_PRINT("info", ("Blocking pthread for reuse"));
     blocked_pthread_count++;
+
+    DBUG_POP();
+    /*
+      mysys_var is bound to the physical thread,
+      so make sure mysys_var->dbug is reset to a clean state
+      before picking another session in the thread cache.
+    */
+    DBUG_ASSERT( ! _db_is_pushed_());
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
     /*
@@ -3383,12 +3405,10 @@ SHOW_VAR com_status_vars[]= {
   {"select",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SELECT]), SHOW_LONG_STATUS},
   {"set_option",           (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SET_OPTION]), SHOW_LONG_STATUS},
   {"signal",               (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SIGNAL]), SHOW_LONG_STATUS},
-  {"show_authors",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_AUTHORS]), SHOW_LONG_STATUS},
   {"show_binlog_events",   (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOG_EVENTS]), SHOW_LONG_STATUS},
   {"show_binlogs",         (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_BINLOGS]), SHOW_LONG_STATUS},
   {"show_charsets",        (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CHARSETS]), SHOW_LONG_STATUS},
   {"show_collations",      (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_COLLATIONS]), SHOW_LONG_STATUS},
-  {"show_contributors",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CONTRIBUTORS]), SHOW_LONG_STATUS},
   {"show_create_db",       (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_DB]), SHOW_LONG_STATUS},
   {"show_create_event",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_EVENT]), SHOW_LONG_STATUS},
   {"show_create_func",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_CREATE_FUNC]), SHOW_LONG_STATUS},
@@ -3621,6 +3641,7 @@ int init_common_variables()
                              key_BINLOG_LOCK_sync_queue,
                              key_BINLOG_COND_done,
                              key_BINLOG_update_cond,
+                             key_BINLOG_prep_xids_cond,
                              key_file_binlog,
                              key_file_binlog_index);
 #endif
@@ -4053,6 +4074,8 @@ You should consider changing lower_case_table_names to 1 or 2",
 static int init_thread_environment()
 {
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thread_remove, 
+                   &LOCK_thread_remove, MY_MUTEX_INIT_FAST);
   mysql_rwlock_init(key_rwlock_LOCK_status, &LOCK_status);
   mysql_mutex_init(key_LOCK_delayed_insert,
                    &LOCK_delayed_insert, MY_MUTEX_INIT_FAST);
@@ -4452,6 +4475,23 @@ initialize_storage_engine(char *se_name, const char *se_kind,
 }
 
 
+static void init_server_query_cache()
+{
+  ulong set_cache_size;
+
+  query_cache_set_min_res_unit(query_cache_min_res_unit);
+  query_cache_init();
+	
+  set_cache_size= query_cache_resize(query_cache_size);
+  if (set_cache_size != query_cache_size)
+  {
+    sql_print_warning(ER_DEFAULT(ER_WARN_QC_RESIZE), query_cache_size,
+                      set_cache_size);
+    query_cache_size= set_cache_size;
+  }
+}
+
+
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
@@ -4463,9 +4503,10 @@ static int init_server_components()
   if (table_def_init() | hostname_cache_init())
     unireg_abort(1);
 
-  query_cache_set_min_res_unit(query_cache_min_res_unit);
-  query_cache_init();
-  query_cache_resize(query_cache_size);
+#ifdef HAVE_QUERY_CACHE
+  init_server_query_cache();
+#endif
+
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   setup_fpu();
   init_thr_lock();
@@ -5864,7 +5905,7 @@ void create_thread_to_handle_connection(THD *thd)
   {
     /* Wake up blocked pthread */
     DBUG_PRINT("info", ("waiting_thd_list->push %p", thd));
-    waiting_thd_list->push_front(thd);
+    waiting_thd_list->push_back(thd);
     wake_pthread++;
     mysql_cond_signal(&COND_thread_cache);
   }
@@ -9017,6 +9058,7 @@ PSI_mutex_key
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
+PSI_mutex_key key_LOCK_thread_remove;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -9094,6 +9136,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
+  { &key_LOCK_thread_remove, "LOCK_thread_remove", PSI_FLAG_GLOBAL},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL}
 };
@@ -9138,6 +9181,8 @@ PSI_cond_key key_BINLOG_update_cond,
 PSI_cond_key key_RELAYLOG_update_cond;
 PSI_cond_key key_BINLOG_COND_done;
 PSI_cond_key key_RELAYLOG_COND_done;
+PSI_cond_key key_BINLOG_prep_xids_cond;
+PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
 
 static PSI_cond_info all_server_conds[]=
@@ -9152,8 +9197,10 @@ static PSI_cond_info all_server_conds[]=
 #endif /* HAVE_MMAP */
   { &key_BINLOG_COND_done, "MYSQL_BIN_LOG::COND_done", 0},
   { &key_BINLOG_update_cond, "MYSQL_BIN_LOG::update_cond", 0},
+  { &key_BINLOG_prep_xids_cond, "MYSQL_BIN_LOG::prep_xids_cond", 0},
   { &key_RELAYLOG_COND_done, "MYSQL_RELAY_LOG::COND_done", 0},
   { &key_RELAYLOG_update_cond, "MYSQL_RELAY_LOG::update_cond", 0},
+  { &key_RELAYLOG_prep_xids_cond, "MYSQL_RELAY_LOG::prep_xids_cond", 0},
   { &key_COND_cache_status_changed, "Query_cache::COND_cache_status_changed", 0},
   { &key_COND_manager, "COND_manager", PSI_FLAG_GLOBAL},
   { &key_COND_server_started, "COND_server_started", PSI_FLAG_GLOBAL},

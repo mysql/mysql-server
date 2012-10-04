@@ -111,7 +111,8 @@ update performance_schema.setup_instruments set enabled='YES', timed='YES'
   where name in ('wait/synch/mutex/sql/LOCK_connection_count',
                  'wait/synch/mutex/sql/LOCK_user_locks',
                  'wait/synch/rwlock/sql/LOCK_grant',
-                 'wait/io/file/sql/query_log');
+                 'wait/io/file/sql/query_log',
+                 'idle');
 
 update performance_schema.setup_instruments set enabled='YES', timed='YES'
   where name in ('stage/sql/init',

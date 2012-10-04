@@ -28,6 +28,7 @@
 #include "sql_parse.h"                          // end_trans, ROLLBACK
 #include "rpl_slave.h"
 #include "rpl_rli_pdb.h"
+#include "rpl_info_factory.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 
@@ -113,6 +114,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                          key_RELAYLOG_LOCK_done,
                          key_RELAYLOG_COND_done,
                          key_RELAYLOG_update_cond,
+                         key_RELAYLOG_prep_xids_cond,
                          key_file_relaylog,
                          key_file_relaylog_index);
 #endif
@@ -275,14 +277,29 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
 bool Relay_log_info::mts_finalize_recovery()
 {
   bool ret= false;
+  uint i;
+  uint repo_type= get_rpl_info_handler()->get_rpl_info_type();
 
   DBUG_ENTER("Relay_log_info::mts_finalize_recovery");
 
-  for (uint i= 0; !ret && i < workers.elements; i++)
+  for (i= 0; !ret && i < workers.elements; i++)
   {
     Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
     ret= w->reset_recovery_info();
     DBUG_EXECUTE_IF("mts_debug_recovery_reset_fails", ret= true;);
+  }
+  /*
+    The loop is traversed in the worker index descending order due
+    to specifics of the Worker table repository that does not like
+    even temporary holes. Therefore stale records are deleted
+    from the tail.
+  */
+  for (i= recovery_parallel_workers; i > workers.elements && !ret; i--)
+  {
+    Slave_worker *w=
+      Rpl_info_factory::create_worker(repo_type, i - 1, this, true);
+    ret= w->remove_info();
+    delete w;
   }
   recovery_parallel_workers= slave_parallel_workers;
 
@@ -840,12 +857,21 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
 
     global_sid_lock->wrlock();
     const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
+    const Owned_gtids* owned_gtids= gtid_state->get_owned_gtids();
 
-    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d",
-      gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids)));
+    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and \
+!is_intersection: %d",
+      gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids),
+      !owned_gtids->is_intersection(&wait_gtid_set)));
     logged_gtids->dbug_print("gtid_done:");
+    owned_gtids->dbug_print("owned_gtids:");
 
-    if (wait_gtid_set.is_subset(logged_gtids))
+    /*
+      Since commit is performed after log to binary log, we must also
+      check if any GTID of wait_gtid_set is not yet committed.
+    */
+    if (wait_gtid_set.is_subset(logged_gtids) &&
+        !owned_gtids->is_intersection(&wait_gtid_set))
     {
       global_sid_lock->unlock();
       break;

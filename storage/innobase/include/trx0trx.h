@@ -121,12 +121,25 @@ UNIV_INTERN
 void
 trx_lists_init_at_db_start(void);
 /*============================*/
+
+#ifdef UNIV_DEBUG
+#define trx_start_if_not_started_xa(t)				\
+	{							\
+	(t)->start_line = __LINE__;				\
+	(t)->start_file = __FILE__;				\
+	trx_start_if_not_started_xa_low((t));			\
+	}
+#else
+#define trx_start_if_not_started_xa(t)				\
+	trx_start_if_not_started_xa_low((t))
+#endif /* UNIV_DEBUG */
+
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
 UNIV_INTERN
 void
-trx_start_if_not_started_xa(
-/*========================*/
+trx_start_if_not_started_xa_low(
+/*============================*/
 	trx_t*	trx);	/*!< in: transaction */
 /*************************************************************//**
 Starts the transaction if it is not yet started. */
@@ -161,6 +174,7 @@ trx_start_for_ddl_low(
 #ifdef UNIV_DEBUG
 #define trx_start_for_ddl(t, o)					\
 	{							\
+	ut_ad((t)->start_file == 0);				\
 	(t)->start_line = __LINE__;				\
 	(t)->start_file = __FILE__;				\
 	trx_start_for_ddl_low((t), (o));			\

@@ -816,6 +816,18 @@ UNIV_INTERN
 void
 lock_set_timeout_event();
 /*====================*/
+#ifdef UNIV_DEBUG
+/*******************************************************************//**
+Check if the transaction holds any locks on the sys tables
+or its records.
+@return	the strongest lock found on any sys table or 0 for none */
+UNIV_INTERN
+const lock_t*
+lock_trx_has_sys_table_locks(
+/*=========================*/
+	const trx_t*	trx)	/*!< in: transaction to check */
+	__attribute__((warn_unused_result));
+#endif /* UNIV_DEBUG */
 
 /** Lock modes and types */
 /* @{ */
@@ -878,11 +890,11 @@ struct lock_op_t{
 
 /** The lock system struct */
 struct lock_sys_t{
-	ib_mutex_t		mutex;			/*!< Mutex protecting the
+	ib_mutex_t	mutex;			/*!< Mutex protecting the
 						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
 						locks */
-	ib_mutex_t		wait_mutex;		/*!< Mutex protecting the
+	ib_mutex_t	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
 						suspended while waiting for
