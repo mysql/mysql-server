@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -199,16 +199,13 @@ ELSE()
 ENDIF()
 
 IF(UNIX)
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.sh
-  ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db ESCAPE_QUOTES @ONLY)
-  SET(DEST ${INSTALL_SCRIPTDIR})
   SET(EXT)
 ELSE()
- CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.pl.in
-   ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db.pl ESCAPE_QUOTES @ONLY)
- SET(DEST ${INSTALL_SCRIPTDIR})
- SET(EXT ".pl")
+  SET(EXT ".pl")
 ENDIF()
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.pl.in
+  ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db${EXT} ESCAPE_QUOTES @ONLY)
+SET(DEST ${INSTALL_SCRIPTDIR})
 
 INSTALL_SCRIPT(
  "${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db${EXT}"
