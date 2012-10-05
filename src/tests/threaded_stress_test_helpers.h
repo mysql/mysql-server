@@ -117,6 +117,7 @@ struct cli_args {
     bool prelocked_write; // use prelocked_write flag for insertions, avoiding the locktree
     bool unique_checks; // use uniqueness checking during insert. makes it slow.
     bool nosync; // do not fsync on txn commit. useful for testing in memory performance.
+    bool nolog; // do not log. useful for testing in memory performance.
 };
 
 struct arg {
@@ -446,6 +447,12 @@ const struct perf_formatter perf_formatters[] = {
     }
 #endif
 };
+
+static int get_env_open_flags(struct cli_args *args) {
+    int flags = DB_INIT_LOCK|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE;
+    flags |= args->nolog ? 0 : DB_INIT_LOG;
+    return flags;
+}
 
 static int get_put_flags(struct cli_args *args) {
     int flags = 0;
@@ -1474,7 +1481,8 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
         r = env->set_generate_row_callback_for_del(env, env_args.generate_del_callback); 
         CKERR(r);
     }
-    r = env->open(env, env_args.envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    int env_flags = get_env_open_flags(cli_args);
+    r = env->open(env, env_args.envdir, env_flags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r = env->checkpointing_set_period(env, env_args.checkpointing_period); CKERR(r);
     r = env->cleaner_set_period(env, env_args.cleaner_period); CKERR(r);
     r = env->cleaner_set_iterations(env, env_args.cleaner_iterations); CKERR(r);
@@ -1608,7 +1616,8 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
         r = env->set_generate_row_callback_for_del(env, env_args.generate_del_callback); 
         CKERR(r);
     }
-    r = env->open(env, env_args.envdir, DB_RECOVER|DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
+    int env_flags = get_env_open_flags(cli_args);
+    r = env->open(env, env_args.envdir, env_flags, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     do_xa_recovery(env);
     r = env->checkpointing_set_period(env, env_args.checkpointing_period); CKERR(r);
     r = env->cleaner_set_period(env, env_args.cleaner_period); CKERR(r);
@@ -1704,6 +1713,7 @@ static struct cli_args UU() get_default_args(void) {
         .prelocked_write = false,
         .unique_checks = false,
         .nosync = false,
+        .nolog = false,
         };
     return DEFAULT_ARGS;
 }
@@ -2079,6 +2089,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         BOOL_ARG("prelocked_write",     prelocked_write),
         BOOL_ARG("unique_checks",     unique_checks),
         BOOL_ARG("nosync",     nosync),
+        BOOL_ARG("nolog",     nolog),
 
         STRING_ARG("--envdir",    env_args.envdir),
         LOCAL_STRING_ARG("--perf_format", perf_format_s, "human"),
