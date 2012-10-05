@@ -189,7 +189,6 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     }
 
     tokudb_alter_ctx *ctx = new tokudb_alter_ctx;
-    ctx->alter_txn = transaction;
     ha_alter_info->handler_ctx = ctx;
 
     THD *thd = ha_thd();
@@ -322,17 +321,13 @@ ha_tokudb::check_if_supported_inplace_alter(TABLE *altered_table, Alter_inplace_
     DBUG_RETURN(result);
 }
 
-// Prepare for the alter operations. Currently, there is nothing to prepare.
+// Prepare for the alter operations
 bool 
 ha_tokudb::prepare_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha_alter_info) {
     TOKUDB_DBUG_ENTER("prepare_inplace_alter_table");
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
-    if (!ctx->alter_txn) {
-        // in 5.6, lock tables is called after check_if_supported, so the transaction is not valid in the check_if_supported
-        // function.  It should be created by now.
-        assert(transaction);
-        ctx->alter_txn = transaction;
-    }
+    assert(transaction); // transaction must exist after table is locked
+    ctx->alter_txn = transaction;
     bool result = false; // success
     DBUG_RETURN(result);
 }
