@@ -851,6 +851,8 @@ public:
     this select level.
   */
   table_map select_list_tables;
+  /// First select_lex removed as part of some transformation, or NULL
+  st_select_lex *removed_select;
 
   void init_query();
   void init_select();
