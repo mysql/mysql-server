@@ -3956,11 +3956,11 @@ void TABLE_LIST::hide_view_error(THD *thd)
   switch (thd->get_stmt_da()->sql_errno()) {
     case ER_BAD_FIELD_ERROR:
     case ER_SP_DOES_NOT_EXIST:
-    case ER_FUNC_INEXISTENT_NAME_COLLISION:
+    // ER_FUNC_INEXISTENT_NAME_COLLISION cannot happen here.
     case ER_PROCACCESS_DENIED_ERROR:
     case ER_COLUMNACCESS_DENIED_ERROR:
     case ER_TABLEACCESS_DENIED_ERROR:
-    case ER_TABLE_NOT_LOCKED:
+    // ER_TABLE_NOT_LOCKED cannot happen here.
     case ER_NO_SUCH_TABLE:
     {
       TABLE_LIST *top= top_table();
