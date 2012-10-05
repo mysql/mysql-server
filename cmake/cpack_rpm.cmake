@@ -64,8 +64,10 @@ SET(CPACK_RPM_SPEC_MORE_DEFINE "${CPACK_RPM_SPEC_MORE_DEFINE}
 
 SET(CPACK_RPM_PACKAGE_REQUIRES "MariaDB-common")
 
-SET(CPACK_RPM_server_USER_FILELIST "%ignore /etc" "%ignore /etc/init.d")
+SET(CPACK_RPM_server_USER_FILELIST "%ignore /etc" "%ignore /etc/init.d" "%config(noreplace) /etc/my.cnf.d/*")
 SET(CPACK_RPM_common_USER_FILELIST "%config(noreplace) /etc/my.cnf")
+SET(CPACK_RPM_shared_USER_FILELIST "%config(noreplace) /etc/my.cnf.d/*")
+SET(CPACK_RPM_client_USER_FILELIST "%config(noreplace) /etc/my.cnf.d/*")
 
 SET(CPACK_RPM_client_PACKAGE_OBSOLETES "mysql-client MySQL-client MySQL-OurDelta-client")
 SET(CPACK_RPM_client_PACKAGE_PROVIDES "MariaDB-client MySQL-client mysql-client")
@@ -84,6 +86,7 @@ SET(CPACK_RPM_server_PACKAGE_PROVIDES "MariaDB MariaDB-server MySQL-server confi
 SET(CPACK_RPM_server_PRE_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-prein.sh)
 SET(CPACK_RPM_server_PRE_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-preun.sh)
 SET(CPACK_RPM_server_POST_INSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postin.sh)
+SET(CPACK_RPM_server_POST_UNINSTALL_SCRIPT_FILE ${CMAKE_SOURCE_DIR}/support-files/rpm/server-postun.sh)
 
 SET(CPACK_RPM_shared_PACKAGE_OBSOLETES "mysql-shared MySQL-shared-standard MySQL-shared-pro MySQL-shared-pro-cert MySQL-shared-pro-gpl MySQL-shared-pro-gpl-cert MySQL-shared MySQL-OurDelta-shared")
 SET(CPACK_RPM_shared_PACKAGE_PROVIDES "MariaDB-shared MySQL-shared mysql-shared libmysqlclient.so.${SHARED_LIB_MAJOR_VERSION} libmysqlclient.so.${SHARED_LIB_MAJOR_VERSION}(libmysqlclient_${SHARED_LIB_MAJOR_VERSION}) libmysqlclient_r.so.${SHARED_LIB_MAJOR_VERSION} libmysqlclient_r.so.${SHARED_LIB_MAJOR_VERSION}(libmysqlclient_${SHARED_LIB_MAJOR_VERSION})")

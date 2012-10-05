@@ -1,37 +1,46 @@
-mysql_datadir=%{mysqldatadir}
-
-# Create data directory
-mkdir -p $mysql_datadir/{mysql,test}
 
 # Make MySQL start/shutdown automatically when the machine does it.
 if [ $1 = 1 ] ; then
   if [ -x /sbin/chkconfig ] ; then
           /sbin/chkconfig --add mysql
   fi
+
+  mysql_dirs=(`%{_sbindir}/mysqld --verbose --help 2>/dev/null|sed -ne 's/^\(basedir\|datadir\)[[:space:]]*\(.*\)$/\2/p'`)
+  basedir="${mysql_dirs[0]}"
+  datadir="${mysql_dirs[1]}"
+  # datadir may be relative to a basedir!
+  if expr $datadir : / > /dev/null; then
+    mysql_datadir=$datadir
+  else
+    mysql_datadir=$basedir/$datadir
+  fi
+
+  # Create a MySQL user and group. Do not report any problems if it already
+  # exists.
+  groupadd -r %{mysqld_group} 2> /dev/null || true
+  useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true 
+  # The user may already exist, make sure it has the proper group nevertheless (BUG#12823)
+  usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
+
+  # Change permissions so that the user that will run the MySQL daemon
+  # owns all database files.
+  chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
+
+  if [ ! -e $mysql_datadir ]; then
+    # Create data directory
+    mkdir -p $mysql_datadir/{mysql,test}
+
+    # Initiate databases
+    %{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+  fi
+
+  # Change permissions again to fix any new files.
+  chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
+
+  # Fix permissions for the permission database so that only the user
+  # can read them.
+  chmod -R og-rw $mysql_datadir/mysql
 fi
-
-# Create a MySQL user and group. Do not report any problems if it already
-# exists.
-groupadd -r %{mysqld_group} 2> /dev/null || true
-useradd -M -r -d $mysql_datadir -s /bin/bash -c "MySQL server" -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true 
-# The user may already exist, make sure it has the proper group nevertheless (BUG#12823)
-usermod -g %{mysqld_group} %{mysqld_user} 2> /dev/null || true
-
-# Change permissions so that the user that will run the MySQL daemon
-# owns all database files.
-chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
-
-# Initiate databases
-%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
-
-# Upgrade databases if needed would go here - but it cannot be automated yet
-
-# Change permissions again to fix any new files.
-chown -R %{mysqld_user}:%{mysqld_group} $mysql_datadir
-
-# Fix permissions for the permission database so that only the user
-# can read them.
-chmod -R og-rw $mysql_datadir/mysql
 
 # install SELinux files - but don't override existing ones
 SETARGETDIR=/etc/selinux/targeted/src/policy
