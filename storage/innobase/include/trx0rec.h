@@ -242,7 +242,27 @@ trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
 /*======================*/
 	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
-	mem_heap_t*	heap);		/*!< in: memory heap where copied */
+	mem_heap_t*	heap)		/*!< in: memory heap where copied */
+	__attribute__((nonnull, warn_unused_result));
+/******************************************************************//**
+Copies an undo record to heap.
+
+NOTE: the caller must have latches on the clustered index page and
+purge_view.
+
+@return DB_SUCCESS, or DB_MISSING_HISTORY if the undo log has been
+truncated and we cannot fetch the old version */
+UNIV_INTERN
+dberr_t
+trx_undo_get_undo_rec(
+/*==================*/
+	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
+	trx_id_t	trx_id,		/*!< in: id of the trx that generated
+					the roll pointer: it points to an
+					undo log of this transaction */
+	trx_undo_rec_t** undo_rec,	/*!< out, own: copy of the record */
+	mem_heap_t*	heap)		/*!< in: memory heap where copied */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Build a previous version of a clustered index record. The caller must
 hold a latch on the index page of the clustered index record, to
@@ -260,7 +280,7 @@ trx_undo_prev_version_build(
 				index_rec page and purge_view */
 	const rec_t*	rec,	/*!< in: version of a clustered index record */
 	dict_index_t*	index,	/*!< in: clustered index */
-	ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mem_heap_t*	heap,	/*!< in: memory heap from which the memory
 				needed is allocated */
 	rec_t**		old_vers)/*!< out, own: previous version, or NULL if
