@@ -5078,6 +5078,15 @@ func_exit:
 
 	if (err == 0) {
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+
+#ifdef UNIV_DDL_DEBUG
+		/* Invoke CHECK TABLE atomically after a successful
+		ALTER TABLE. */
+		TABLE* old_table = table;
+		table = altered_table;
+		ut_a(check(user_thd, 0) == HA_ADMIN_OK);
+		table = old_table;
+#endif /* UNIV_DDL_DEBUG */
 	}
 
 	if (prebuilt->table->fts) {
