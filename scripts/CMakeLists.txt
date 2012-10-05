@@ -318,7 +318,6 @@ ELSE()
     mysql_config
     mysql_fix_extensions
     mysql_setpermission
-    mysql_secure_installation
     mysql_zap
     mysqlaccess
     mysqlaccess.conf
@@ -349,6 +348,18 @@ ELSE()
       DESTINATION ${INSTALL_BINDIR}
       COMPONENT ${${file}_COMPONENT}
      )
+  ENDFOREACH()
+
+  # Input files with pl.in extension - drop the extension completely
+  SET(PLIN_FILES mysql_secure_installation)
+  FOREACH(file ${PLIN_FILES})
+    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.pl.in
+      ${CMAKE_CURRENT_BINARY_DIR}/${file} ESCAPE_QUOTES @ONLY)
+    EXECUTE_PROCESS(COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/${file})
+    IF(NOT ${file}_COMPONENT)
+      SET(${file}_COMPONENT Server)
+    ENDIF()
+    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file} COMPONENT ${${file}_COMPONENT})
   ENDFOREACH()
 ENDIF()
 
