@@ -32,6 +32,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "trx0rec.h"
 #include "trx0undo.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
@@ -1981,6 +1982,97 @@ end_scan:
 	return(err);
 }
 
+/** Checks if an earlier version of a record was modified or
+inserted by a given transaction.
+@retval true if the record was modified by trx_id
+@retval false if the record was not modified by trx_id,
+or the history is not known */
+static __attribute__((nonnull, warn_unused_result))
+bool
+row_ins_duplicate_is_newer(
+/*=======================*/
+	const rec_t*	rec,	/*!< in: clustered index record */
+	ulint*		offsets,/*!< in/out: rec_get_offsets(rec) */
+	ulint		n_uniq,	/*!< in: offset of DB_TRX_ID */
+	const byte*	old_trx)/*!< in: trx_id to look for */
+{
+	mem_heap_t*	heap;
+	bool		is_newer	= false;
+	trx_id_t	old_trx_id;
+	trx_id_t	trx_id;
+	roll_ptr_t	roll_ptr;
+
+	{
+		ulint		len;
+		const byte*	rec_trx_id = rec_get_nth_field(
+			rec, offsets, n_uniq, &len);
+		ut_ad(len == DATA_TRX_ID_LEN);
+		/* The caller already checked for this. */
+		ut_ad(memcmp(rec_trx_id, old_trx, DATA_TRX_ID_LEN));
+
+		if (trx_undo_trx_id_is_insert(rec_trx_id)) {
+			return(false);
+		}
+
+		trx_id = trx_read_trx_id(rec_trx_id);
+		roll_ptr = trx_read_roll_ptr(rec_trx_id + DATA_TRX_ID_LEN);
+
+		old_trx_id = trx_read_trx_id(old_trx);
+	}
+
+	heap = mem_heap_create(1024);
+
+	for (;;) {
+		/* We are not interested if the history is missing
+		or this is a fresh insert. Either way, we will answer
+		that the rec was not known to be a newer version of
+		a record that was inserted or updated by old_trx. */
+
+		dberr_t		err;
+		trx_undo_rec_t*	undo_rec;
+		byte*		ptr;
+		ulint		type;
+		ulint		cmpl_info;
+		ibool		updated_extern;
+		undo_no_t	undo_no;
+		table_id_t	table_id;
+		ulint		info_bits;
+
+		if (trx_undo_roll_ptr_is_insert(roll_ptr)) {
+			/* The rebuilt table seems to contain a
+			freshly inserted record that is a duplicate of
+			what we are trying to apply from the log. */
+			break;
+		}
+
+		err = trx_undo_get_undo_rec(roll_ptr, trx_id, &undo_rec, heap);
+
+		if (err != DB_SUCCESS) {
+			ut_ad(err == DB_MISSING_HISTORY);
+			/* We do not know if the record is a newer
+			version of something touched by old_trx. */
+			break;
+		}
+
+		ptr = trx_undo_rec_get_pars(
+			undo_rec, &type, &cmpl_info,
+			&updated_extern, &undo_no, &table_id);
+
+		trx_undo_update_rec_get_sys_cols(
+			ptr, &trx_id, &roll_ptr, &info_bits);
+
+		mem_heap_empty(heap);
+
+		if (trx_id == old_trx_id) {
+			is_newer = true;
+			break;
+		}
+	}
+
+	mem_heap_free(heap);
+	return(is_newer);
+}
+
 /***************************************************************//**
 Checks if a unique key violation error would occur at an index entry
 insert. Sets shared locks on possible duplicate records. Works only
@@ -2092,17 +2184,44 @@ row_ins_duplicate_error_in_clust(
 				DB_TRX_ID, DB_ROLL_PTR. */
 				cmp_dtuple_rec_with_match_low(
 					entry, rec, offsets,
-					n_unique + 2, &fields, &bytes);
+					n_unique + 1, &fields, &bytes);
 
 				if (fields >= n_unique) {
-					if (fields == n_unique + 2) {
-						/* This is an exact match. */
+					if (fields > n_unique) {
+						/* This is an exact match,
+						or the record was later
+						updated in the same
+						transaction. */
 						ut_ad(bytes == 0);
+skip_duplicate:
 						/* Special return code to
 						indicate that the row was
 						already inserted. */
 						err = DB_SUCCESS_LOCKED_REC;
 						goto func_exit;
+					}
+
+					const dfield_t*	trx_id
+						= dtuple_get_nth_field(
+							entry, n_unique);
+					ut_ad(dfield_get_len(trx_id)
+					      == DATA_TRX_ID_LEN);
+					ut_ad(dfield_get_type(trx_id)
+					      ->mtype == DATA_SYS);
+					ut_ad(dfield_get_type(trx_id)
+					      ->prtype == (DATA_TRX_ID
+							   | DATA_NOT_NULL));
+
+					if (row_ins_duplicate_is_newer(
+						    rec, offsets, n_unique,
+						    static_cast<const byte*>(
+							    trx_id->data))) {
+						/* If we are able to determine
+						that the record is a newer
+						version of what we attempt to
+						insert, indicate that the row
+						was already inserted. */
+						goto skip_duplicate;
 					}
 
 					goto duplicate;
