@@ -708,8 +708,8 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
    VIEW commands. This happens in the cases when
 
    - A view's underlying table (e.g. referenced in its SELECT list) does not
-     exist. There should not be an error as no attempt was made to access it
-     per se.
+     exist or columns of underlying table are altered. There should not be an
+     error as no attempt was made to access it per se.
 
    - Access is denied for some table, column, function or stored procedure
      such as mentioned above. This error gets raised automatically, since we
@@ -790,11 +790,15 @@ public:
         break;
       }
     case ER_COLUMNACCESS_DENIED_ERROR:
-    case ER_VIEW_NO_EXPLAIN: /* Error was anonymized, ignore all the same. */
+    // ER_VIEW_NO_EXPLAIN cannot happen here.
     case ER_PROCACCESS_DENIED_ERROR:
       is_handled= TRUE;
       break;
 
+    case ER_BAD_FIELD_ERROR:
+      /*
+        Established behavior: warn if column of underlying table is altered.
+      */
     case ER_NO_SUCH_TABLE:
       /* Established behavior: warn if underlying tables are missing. */
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 
