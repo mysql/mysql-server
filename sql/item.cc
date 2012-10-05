@@ -9175,7 +9175,7 @@ table_map Item_direct_view_ref::used_tables() const
 {
   return get_depended_from() ?
          OUTER_REF_TABLE_BIT :
-         ((view->merged || !view->table) ?
+         ((view->is_merged_derived() || view->merged || !view->table) ?
           (*ref)->used_tables() :
           view->table->map);
 }
@@ -9184,7 +9184,7 @@ table_map Item_direct_view_ref::not_null_tables() const
 {
   return get_depended_from() ?
          0 :
-         ((view->merged || !view->table) ?
+         ((view->is_merged_derived() || view->merged || !view->table) ?
           (*ref)->not_null_tables() :
           view->table->map);
 }

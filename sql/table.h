@@ -1600,6 +1600,7 @@ struct TABLE_LIST
   /* TRUE <=> derived table should be filled right after optimization. */
   bool          fill_me;
   /* TRUE <=> view/DT is merged. */
+  /* TODO: replace with derived_type */
   bool          merged;
   bool          merged_for_insert;
   /* TRUE <=> don't prepare this derived table/view as it should be merged.*/

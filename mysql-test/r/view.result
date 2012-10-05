@@ -4567,6 +4567,27 @@ id	id	bbb	iddqd	val1
 30631	NULL	NULL	NULL	NULL
 drop view v2;
 drop table t1,t2;
+#
+# MDEV-589 (LP BUG#1007647) :
+# Assertion `vcol_table == 0 || vcol_table == table' failed in
+# fill_record(THD*, List<Item>&, List<Item>&, bool)
+#
+CREATE TABLE t1 (f1 INT, f2 INT);
+CREATE TABLE t2 (f1 INT, f2 INT);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT a1.f1, a2.f2 FROM t1 AS a1, t1 AS a2;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT * FROM v1;
+CREATE ALGORITHM=MERGE VIEW v3 AS SELECT a1.f1, a2.f2 FROM t1 AS a1, t2 AS a2;
+CREATE ALGORITHM=MERGE VIEW v4 AS SELECT * FROM v3;
+INSERT INTO v3 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v3'
+INSERT INTO v1 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v1'
+INSERT INTO v4 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v4'
+INSERT INTO v2 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v2'
+drop view v4,v3,v2,v1;
+drop table t1,t2;
 # -----------------------------------------------------------------
 # -- End of 5.3 tests.
 # -----------------------------------------------------------------
