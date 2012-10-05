@@ -3806,8 +3806,12 @@ oom:
 		given that we hold at most a shared lock on the table. */
 		goto ok_exit;
 	case DB_DUPLICATE_KEY:
-		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
-			/* This should be the hidden index on FTS_DOC_ID. */
+		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED
+		    || ha_alter_info->key_count == 0) {
+			/* This should be the hidden index on
+			FTS_DOC_ID, or there is no PRIMARY KEY in the
+			table. Either way, we should be seeing and
+			reporting a bogus duplicate key error. */
 			dup_key = NULL;
 		} else {
 			DBUG_ASSERT(prebuilt->trx->error_key_num
