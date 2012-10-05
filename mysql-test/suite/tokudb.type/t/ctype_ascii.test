@@ -1,4 +1,4 @@
-set STORAGE_ENGINE='tokudb';
+SET DEFAULT_STORAGE_ENGINE='tokudb';
 #
 # Bug #27562: ascii.xml invalid?
 #
