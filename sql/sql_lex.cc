@@ -1795,6 +1795,7 @@ void st_select_lex::init_query()
   m_non_agg_field_used= false;
   m_agg_func_used= false;
   with_sum_func= false;
+  removed_select= NULL;
 }
 
 void st_select_lex::init_select()
