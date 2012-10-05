@@ -114,7 +114,7 @@ row_vers_impl_x_locked_low(
 	on rec. */
 
 	for (version = clust_rec;; version = prev_version) {
-		ulint		err;
+		dberr_t		err;
 		row_ext_t*	ext;
 		const dtuple_t*	row;
 		dtuple_t*	entry;
