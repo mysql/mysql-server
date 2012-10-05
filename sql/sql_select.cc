@@ -707,16 +707,13 @@ static void destroy_sj_tmp_tables(JOIN *join)
 }
 
 
-/*
-  Remove all records from all temp tables used by NL-semijoin runtime
+/**
+  Remove all rows from all temp tables used by NL-semijoin runtime
 
-  SYNOPSIS
-    clear_sj_tmp_tables()
-      join  The join to remove tables for
+  @param join  The join to remove tables for
 
-  DESCRIPTION
-    Remove all records from all temp tables used by NL-semijoin runtime. This 
-    must be done before every join re-execution.
+  All rows must be removed from all temporary tables before every join
+  re-execution.
 */
 
 static int clear_sj_tmp_tables(JOIN *join)
@@ -732,8 +729,13 @@ static int clear_sj_tmp_tables(JOIN *join)
   Semijoin_mat_exec *sjm;
   List_iterator<Semijoin_mat_exec> it2(join->sjm_exec_list);
   while ((sjm= it2++))
-    join->join_tab[sjm->mat_table_index].materialized= false;
-
+  {
+    JOIN_TAB *const tab= join->join_tab + sjm->mat_table_index;
+    DBUG_ASSERT(tab->materialize_table);
+    tab->materialized= false;
+    // The materialized table must be re-read on next evaluation:
+    tab->table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+  }
   return 0;
 }
 
