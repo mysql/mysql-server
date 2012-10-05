@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -673,7 +673,9 @@ NEW_VERSION=%{mysql_version}-%{release}
 
 # The "pre" section code is also run on a first installation,
 # when there  is no data directory yet. Protect against error messages.
-if [ -d $mysql_datadir ] ; then
+# Check for the existence of subdirectory "mysql/", the database of system
+# tables like "mysql.user".
+if [ -d $mysql_datadir/mysql ] ; then
 	echo "MySQL RPM upgrade to version $NEW_VERSION"  > $STATUS_FILE
 	echo "'pre' step running at `date`"          >> $STATUS_FILE
 	echo                                         >> $STATUS_FILE
@@ -787,7 +789,13 @@ if ! grep '^MySQL RPM upgrade' $STATUS_FILE >/dev/null 2>&1 ; then
 	# Fix bug#45415: no "mysql_install_db" on an upgrade
 	# Do this as a negative to err towards more "install" runs
 	# rather than to miss one.
-	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user} --random-passwords
+
+	# Attention: Now 'root' is the only database user,
+	# its password is a random value found in ~/.mysql_secret,
+	# and the "password expired" flag is set:
+	# Any client needs that password, and the first command
+	# executed must be a new "set password"!
 fi
 
 # ----------------------------------------------------------------------
@@ -1136,6 +1144,13 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Fri Oct 05 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Let the installation use the new option "--random-passwords" of "mysql_install_db".
+  (Bug# 12794345 Ensure root password)
+- Fix an inconsistency: "new install" vs "upgrade" are told from the (non)existence
+  of "$mysql_datadir/mysql" (holding table "mysql.user" and other system stuff).
+
 * Tue Jul 24 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Add a macro "runselftest":
