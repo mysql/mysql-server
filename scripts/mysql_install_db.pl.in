@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@
 #
 ##############################################################################
 
+use Fcntl;
 use File::Basename;
 use Getopt::Long;
 use Sys::Hostname;
@@ -70,6 +71,9 @@ Usage: $0 [OPTIONS]
   --help               Display this help and exit.                     
   --ldata=path         The path to the MySQL data directory. Same as --datadir.
   --no-defaults        Don't read default options from any option file.
+  --random-passwords   Create and set a random password for all root accounts
+                       and set the "password expired" flag,
+                       remove the anonymous accounts.
   --rpm                For internal use.  This option is used by RPM files
                        during the MySQL installation process.
   --skip-name-resolve  Use IP addresses rather than hostnames when creating
@@ -132,7 +136,12 @@ sub parse_arguments
              "verbose",
              "rpm",
              "help",
-             "defaults-file|defaults-extra-file|no-defaults:s",
+             "random-passwords",
+
+             # These options will also be pased to mysqld.
+             "defaults-file=s",
+             "defaults-extra-file=s",
+             "no-defaults",
 
              # Used when building the MySQL system tables on a different host than
              # the target. The platform-independent files that are created in
@@ -143,10 +152,26 @@ sub parse_arguments
              # the install package.  See top-level 'dist-hook' make target.
              #
              # --windows is a deprecated alias
-             "cross-bootstrap|windows", # FIXME undocumented, even needed?
+             "cross-bootstrap|windows",
   ) or usage();
 
   usage() if $opt->{help};
+
+  # To make these options acceptable for mysqld, we must prepend the name to the value -
+  # but only if they are set, and have not been fixed already.
+  if ( $opt->{'defaults-file'} && $opt->{'defaults-file'} !~ /^--/ )
+  {
+    $opt->{'defaults-file'} = '--defaults-file=' . $opt->{'defaults-file'};
+  }
+  if ( $opt->{'defaults-extra-file'} && $opt->{'defaults-extra-file'} !~ /^--/ )
+  {
+    $opt->{'defaults-extra-file'} = '--defaults-extra-file=' . $opt->{'defaults-extra-file'};
+  }
+  # This option has no value, so we just have to spell it in full.
+  if ( $opt->{'no-defaults'} && $opt->{'no-defaults'} !~ /^--/ )
+  {
+    $opt->{'no-defaults'} = '--no-defaults=';
+  }
 
   @args =  @ARGV if $pick_args;
 
@@ -231,6 +256,121 @@ sub quote_options {
 
 ##############################################################################
 #
+#  Simple escape mechanism (\-escape any ' and \), suitable for two contexts:
+#  - single-quoted SQL strings
+#  - single-quoted option values on the right hand side of = in my.cnf
+#
+##############################################################################
+
+# (Function and comment copied from 'mysql_secure_installation')
+
+# These two contexts don't handle escapes identically.  SQL strings allow
+# quoting any character (\C => C, for any C), but my.cnf parsing allows
+# quoting only \, ' or ".  For example, password='a\b' quotes a 3-character
+# string in my.cnf, but a 2-character string in SQL.
+#
+# This simple escape works correctly in both places.
+
+# FIXME: What about double quote in password? Not handled here - not needed?
+
+sub basic_single_escape {
+  my ($str) = @_;
+  # Inside a character class, \ is not special; this escapes both \ and '
+  $str =~ s/([\'])/\\$1/g;
+  return $str;
+}
+
+##############################################################################
+#
+#  Handle the files with confidential contents
+#
+##############################################################################
+
+my $secret_file;   # full path name of the confidential file
+my $escaped_password;      # the password, with special characters escaped
+
+sub ensure_secret_file {
+  $secret_file = $ENV{HOME} . "/.mysql_secret";
+
+  # Create safe files to avoid leaking info to other users
+  # Loop may be extended if we need more ...
+  foreach my $file ( $secret_file ) {
+    next if -f $file;                   # Already exists
+    local *FILE;
+    sysopen(FILE, $file, O_CREAT, 0600)
+      or die "ERROR: can't create $file: $!";
+    close FILE;
+  }
+}
+
+##############################################################################
+#
+#  Append an arbitrary number of lines to an existing file
+#
+##############################################################################
+
+sub append_file {
+  my $file = shift;
+  -f $file or die "ERROR: file is missing \"$file\": $!";
+  open(FILE, ">>$file") or die "ERROR: can't append to file \"$file\": $!";
+  foreach my $line ( @_ ) {
+    print FILE $line, "\n";             # Add EOL char
+  }
+  close FILE;
+}
+
+##############################################################################
+#
+#  Inform the user about the generated random password
+#
+##############################################################################
+
+sub tell_root_password {
+  my $now = localtime(); # scalar context = printable string
+
+  # Now, we need to tell the user the new root password.
+  # We use "append_file" to protect the user in case they are doing multiple
+  # installations intermixed with backups and restores.
+  # While this would be really bad practice, it still might happen.
+  # As long as this file is not destroyed, the time stamps may rescue them.
+  # Having the comment and the password on the same line makes it easier
+  # to automatically extract the password (automated testing!), and the final
+  # empty line is for better redability.
+  append_file($secret_file,
+             "# The random password set for the root user at $now (local time): " .
+                 $escaped_password,
+             "");
+  print "A random root password has been set. You will find it in '$secret_file'.\n";
+}
+
+##############################################################################
+#
+#  Generate a random password
+#
+##############################################################################
+
+sub generate_random_password {
+  # Short term:
+  # On (at least) Linux and Solaris, a "random" device is available, use it:
+  # cat /dev/urandom | tr -dc "[:alnum:]" | fold -w 8  | head -1
+  # Note: There is no guarantee the results will pass a validation checker
+  # as resulted from WL#2739
+  # http://wl.no.oracle.com/worklo/?tid=2739
+  # http://dev.mysql.com/doc/refman/5.6/en/validate-password-plugin.html
+  #
+  # Long term:
+  # Password generated via Perl module "String::MkPasswd" available at
+  # http://search.cpan.org/~cgrau/String-MkPasswd/bin/mkpasswd.pl
+  # Using it got approved recently.
+  #
+  my $password = `cat /dev/urandom | tr -dc "[:alnum:]" | fold -w 8  | head -1`;
+  chomp ($password);
+  return $password;
+}
+
+
+##############################################################################
+#
 #  Ok, let's go.  We first need to parse arguments which are required by
 #  my_print_defaults so that we can execute it first, then later re-parse
 #  the command line to add any extra bits that we need.
@@ -293,6 +433,31 @@ parse_arguments($opt, @default_options);
 parse_arguments($opt, 'PICK-ARGS-FROM-ARGV', @ARGV);
 
 # ----------------------------------------------------------------------
+# Create a random password for root, if requested and implemented
+# ----------------------------------------------------------------------
+
+if ( $opt->{'random-passwords'} ) {
+  # Add other non-working OS like this: $^O =~ m/^(solaris|linux|freebsd|darwin)$/
+  # Issue 1: random password creation
+  # Issue 2: confidential file
+  if ( $^O =~ m/^(MSWin32)$/ ) {
+    print "Random password not yet implemented for $^O - option will be ignored\n";
+    delete $opt->{'random-passwords'};
+  } else {
+    ensure_secret_file();
+    my $password = generate_random_password();
+    if ( $password ) {
+      # "true" means "string is non-empty"
+      $escaped_password = basic_single_escape($password);
+    } else {
+      # Whatever the reason (missing "/dev/urandom"), an empty password is bad
+      print "Could not generate a random password - not setting one\n";
+      delete $opt->{'random-passwords'};
+    }
+  }
+}
+
+# ----------------------------------------------------------------------
 # Configure paths to support files
 # ----------------------------------------------------------------------
 
@@ -348,8 +513,9 @@ if ( $opt->{srcdir} )
 my $fill_help_tables     = "$pkgdatadir/fill_help_tables.sql";
 my $create_system_tables = "$pkgdatadir/mysql_system_tables.sql";
 my $fill_system_tables   = "$pkgdatadir/mysql_system_tables_data.sql";
+my $security_commands    = "$pkgdatadir/mysql_security_commands.sql";
 
-foreach my $f ( $fill_help_tables,$create_system_tables,$fill_system_tables )
+foreach my $f ( $fill_help_tables, $create_system_tables, $fill_system_tables, $security_commands )
 {
   -f $f or cannot_find_file($f);
 }
@@ -365,7 +531,7 @@ my $hostname = hostname();
 my $resolved;
 if ( !$opt->{'cross-bootstrap'} and !$opt->{rpm} and !$opt->{force} )
 {
-  my $resolveip;
+  my $resolveip = "$extra_bindir/resolveip";
 
   $resolved = `$resolveip $hostname 2>&1`;
   if ( $? != 0 )
@@ -375,14 +541,14 @@ if ( !$opt->{'cross-bootstrap'} and !$opt->{rpm} and !$opt->{force} )
     {
       error($opt,
             "Neither host '$hostname' nor 'localhost' could be looked up with",
-            "$bindir/resolveip",
+            "$resolveip",
             "Please configure the 'hostname' command to return a correct",
             "hostname.",
             "If you want to solve this at a later stage, restart this script",
             "with the --force option");
     }
     warning($opt,
-            "The host '$hostname' could not be looked up with resolveip.",
+            "The host '$hostname' could not be looked up with $resolveip.",
             "This probably means that your libc libraries are not 100 % compatible",
             "with this binary MySQL version. The MySQL daemon, mysqld, should work",
             "normally with the exception that host name resolving will not work.",
@@ -424,7 +590,6 @@ my $mysqld_install_cmd_line = quote_options($mysqld_bootstrap,
                                             "--basedir=$opt->{basedir}",
                                             "--datadir=$opt->{ldata}",
                                             "--log-warnings=0",
-                                            "--loose-skip-innodb",
                                             "--loose-skip-ndbcluster",
                                             "--max_allowed_packet=8M",
                                             "--default-storage-engine=MyISAM",
@@ -457,15 +622,28 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
   }
   while ( <SQL2> )
   {
-    # TODO: make it similar to the above condition when we're sure 
-    #   @@hostname returns a fqdn
     # When doing a "cross bootstrap" install, no reference to the current
     # host should be added to the system tables.  So we filter out any
     # lines which contain the current host name.
-    next if /\@current_hostname/;
+    next if $opt->{'cross-bootstrap'} and /\@current_hostname/;
 
     print PIPE $_;
   }
+
+  if ( $opt->{'random-passwords'} )
+  {
+    open(SQL3, $security_commands)
+      or error($opt,"can't open $security_commands for reading: $!");
+    while ( <SQL3> )
+    {
+      # using the implicit variable $_ !
+      s/ABC123xyz/$escaped_password/e ;  # Replace placeholder by random password
+      print PIPE $_;
+    }
+    close SQL3;
+    tell_root_password();
+  }
+
   close PIPE;
   close SQL;
   close SQL2;
@@ -508,22 +686,43 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
     # set a password after installing the data files on the real host system.
     # At this point, there is no end user, so it does not make sense to print
     # this reminder.
-    report($opt,
-           "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !",
-           "To do so, start the server, then issue the following commands:",
-           "",
-           "  $bindir/mysqladmin -u root password 'new-password'",
-           "  $bindir/mysqladmin -u root -h $hostname password 'new-password'",
-           "",
-           "Alternatively you can run:",
-           "",
-           "  $bindir/mysql_secure_installation",
-           "",
-           "which will also give you the option of removing the test",
-           "databases and anonymous user created by default.  This is",
-           "strongly recommended for production servers.",
-           "",
-           "See the manual for more instructions.");
+    if ( $opt->{'random-passwords'} ) {
+      report($opt,
+             "A RANDOM PASSWORD HAS BEEN SET FOR THE MySQL root USER !",
+             "You will find that password in '$secret_file'.",
+             "",
+             "You must change that password on your first connect,",
+	     "no other statement but 'SET PASSWORD' will be accepted.",
+	     "See the manual for the semantics of the 'password expired' flag.",
+	     "",
+             "Also, the account for the anonymous user has been removed.",
+             "",
+             "In addition, you can run:",
+             "",
+             "  $bindir/mysql_secure_installation",
+             "",
+             "which will also give you the option of removing the test database.",
+             "This is strongly recommended for production servers.",
+             "",
+             "See the manual for more instructions.");
+    } else {
+      report($opt,
+             "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !",
+             "To do so, start the server, then issue the following commands:",
+             "",
+             "  $bindir/mysqladmin -u root password 'new-password'",
+             "  $bindir/mysqladmin -u root -h $hostname password 'new-password'",
+             "",
+             "Alternatively you can run:",
+             "",
+             "  $bindir/mysql_secure_installation",
+             "",
+             "which will also give you the option of removing the test",
+             "databases and anonymous user created by default.  This is",
+             "strongly recommended for production servers.",
+             "",
+             "See the manual for more instructions.");
+    }
 
     if ( !$opt->{rpm} )
     {
