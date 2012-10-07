@@ -101,8 +101,6 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
   declare_custom_tests(bnc-insert-benchmark)
   add_test(ft/bnc-insert-benchmark bnc-insert-benchmark 100 4096000 1000)
 
-  add_helgrind_test(ft/helgrind_test_partitioned_counter $<TARGET_FILE:test_partitioned_counter>)
-
   configure_file(run_ftdump_test.sh . COPYONLY)
   foreach(dump ftdump ftdump_static)
     add_executable(ft-test-for-${dump} ft-test)
@@ -126,7 +124,6 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
   ## give some tests, that time out normally, 1 hour to complete
   set(long_tests
     ft/ftloader-test-extractor-3a
-    ft/helgrind_test_partitioned_counter
     ft/log-test7
     ft/recovery-bad-last-entry
     ft/subblock-test-compression

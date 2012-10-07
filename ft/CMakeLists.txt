@@ -56,7 +56,6 @@ set(FT_SOURCES
   mempool
   minicron
   omt
-  partitioned_counter
   pqueue
   queue
   quicklz
