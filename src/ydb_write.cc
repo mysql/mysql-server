@@ -778,7 +778,7 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 if (r != 0) goto cleanup;
 
                 // lock new key
-                if (db->i->lt) {
+                if (db->i->lt && !(lock_flags[which_db] & DB_PRELOCKED_WRITE)) {
                     r = get_point_write_lock(db, txn, &curr_new_key);
                     if (r != 0) goto cleanup;
                 }
