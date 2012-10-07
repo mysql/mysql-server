@@ -38,7 +38,7 @@ fi
 valgrind $args
 exitcode=$?
 if [ $exitcode = 0 ] ; then
-    lines=$(wc -l $logfile)
+    lines=$(wc -l <$logfile)
     if [ $lines -ne 0 ] ; then
 	exitcode=$errorexitcode
     fi
