@@ -8,6 +8,7 @@
 #include "toku_pthread.h"
 #include <db.h>
 #include <sys/stat.h>
+#include "toku_affinity.h"
 #include "key-val.h"
 
 enum {NUM_INDEXER_INDEXES=1};
@@ -238,27 +239,22 @@ do_args (int argc, char * const argv[]) {
 	argc--; argv++;
     }
 
-#if defined(HAVE_SCHED_GETAFFINITY)
     if (num_cpus > 0) {
-        cpu_set_t cpuset;
-        CPU_ZERO(&cpuset);
-        for (int i = 0; i < num_cpus; i++)
-            CPU_SET(i, &cpuset);
+        toku_cpuset_t cpuset;
+        TOKU_CPU_ZERO(&cpuset);
+        for (int i = 0; i < num_cpus; i++) {
+            TOKU_CPU_SET(i, &cpuset);
+        }
         int r;
-        r = sched_setaffinity(toku_os_getpid(), sizeof cpuset, &cpuset);
+        r = toku_setaffinity(toku_os_getpid(), sizeof cpuset, &cpuset);
         assert(r == 0);
-        
-        cpu_set_t use_cpuset;
-        CPU_ZERO(&use_cpuset);
-        r = sched_getaffinity(toku_os_getpid(), sizeof use_cpuset, &use_cpuset);
+
+        toku_cpuset_t use_cpuset;
+        TOKU_CPU_ZERO(&use_cpuset);
+        r = toku_getaffinity(toku_os_getpid(), sizeof use_cpuset, &use_cpuset);
         assert(r == 0);
         assert(memcmp(&cpuset, &use_cpuset, sizeof cpuset) == 0);
     }
-#else
-    /* not implemented unless we have sched_getaffinity/sched_setaffinity, for
-     * example, on darwin.  sort of a todo.
-     */
-#endif
 }
 
 
