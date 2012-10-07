@@ -5,6 +5,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <stdio.h>
+#include <string.h>
 #include <toku_assert.h>
 #include <toku_os.h>
 #include "toku_affinity.h"
@@ -35,9 +36,10 @@ int main(void) {
     }
 
     // don't want to expose this api unless we use it somewhere
-#if defined(HAVE_SCHED_GETAFFINITY) || defined(HAVE_CPUSET_GETAFFINITY)
+#if defined(HAVE_CPUSET_GETAFFINITY)
     r = CPU_CMP(&set, &chk);
 #else
+    // hope this is good enough on linux
     r = memcmp(&set, &chk, sizeof set);
 #endif
 
