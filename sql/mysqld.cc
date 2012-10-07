@@ -90,6 +90,8 @@
 #include "../storage/myisam/ha_myisam.h"
 #include "set_var.h"
 
+#include "sys_vars_shared.h"
+
 #include "rpl_injector.h"
 
 #include "rpl_handler.h"
@@ -533,6 +535,10 @@ ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 my_bool log_bin_use_v1_row_events= 0;
+bool thread_cache_size_specified= false;
+bool host_cache_size_specified= false;
+bool table_definition_cache_specified= false;
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -3813,12 +3819,33 @@ int init_common_variables()
   }
 #endif /* HAVE_SOLARIS_LARGE_PAGES */
 
+  longlong default_value;
+  sys_var *var;
+  /* Calculate and update default value for thread_cache_size. */
+  if ((default_value= 8 + max_connections / 100) > 100)
+    default_value= 100;
+  var= intern_find_sys_var(STRING_WITH_LEN("thread_cache_size"));
+  var->update_default(default_value);
+
+  /* Calculate and update default value for host_cache_size. */
+  if ((default_value= 128 + max_connections) > 628 &&
+      (default_value= 628 + ((max_connections - 500) / 20)) > 2000)
+    default_value= 2000;
+  var= intern_find_sys_var(STRING_WITH_LEN("host_cache_size"));
+  var->update_default(default_value);
+
+  /* Calculate and update default value for table_def_size. */
+  if ((default_value= 400 + table_cache_size / 2) > 2000)
+    default_value= 2000;
+  var= intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
+  var->update_default(default_value);
+
   /* connections and databases needs lots of files */
   {
     uint files, wanted_files, max_open_files;
 
     /* MyISAM requires two file handles per table. */
-    wanted_files= 10+max_connections+table_cache_size*2;
+    wanted_files= 10 + max_connections + table_cache_size * 2;
     /*
       We are trying to allocate no less than max_connections*5 file
       handles (i.e. we are trying to set the limit so that they will
@@ -3828,9 +3855,11 @@ int init_common_variables()
       explicitly requested.  No warning and re-computation occur if we
       can't get max_connections*5 but still got no less than was
       requested (value of wanted_files).
+      Try to allocate no less than 5000 by default.
     */
-    max_open_files= max(max<ulong>(wanted_files, max_connections*5),
-                        open_files_limit);
+    max_open_files= max(max<ulong>(wanted_files, max_connections * 5),
+                        open_files_limit ? open_files_limit : 5000);
+
     files= my_set_max_open_files(max_open_files);
 
     if (files < wanted_files)
@@ -3852,18 +3881,36 @@ int init_common_variables()
         table_cache_size= min<ulong>(max<ulong>((files-10-max_connections)/2,
                                                 TABLE_OPEN_CACHE_MIN),
                                      table_cache_size);
-  DBUG_PRINT("warning",
-       ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
-        files, max_connections, table_cache_size));
-  if (log_warnings)
-    sql_print_warning("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
-      files, max_connections, table_cache_size);
+        DBUG_PRINT("warning", ("Changed limits: max_open_files: %u  "
+                               "max_connections: %ld  table_cache: %ld",
+                               files, max_connections, table_cache_size));
+        if (log_warnings)
+          sql_print_warning("Changed limits: max_open_files: %u  "
+                            "max_connections: %ld  table_cache: %ld",
+                            files, max_connections, table_cache_size);
       }
       else if (log_warnings)
-  sql_print_warning("Could not increase number of max_open_files to more than %u (request: %u)", files, wanted_files);
+        sql_print_warning("Could not increase number of max_open_files to "
+                          "more than %u (request: %u)", files, wanted_files);
     }
     open_files_limit= files;
   }
+
+  /* Fix thread_cache_size. */
+  if (!thread_cache_size_specified &&
+      (max_blocked_pthreads= 8 + max_connections / 100) > 100)
+    max_blocked_pthreads= 100;
+
+  /* Fix host_cache_size. */
+  if (!host_cache_size_specified &&
+      (host_cache_size= 128 + max_connections) > 628 &&
+      (host_cache_size= 628 + ((max_connections - 500) / 20)) > 2000)
+    host_cache_size= 2000;
+
+  /* Fix table_definition_cache. */
+  if (!table_definition_cache_specified &&
+      (table_def_size= 400 + table_cache_size / 2) > 2000)
+    table_def_size= 2000;
 
   /* Fix back_log */
   if (back_log == 0 && (back_log= 50 + max_connections / 5) > 900)
@@ -8371,73 +8418,84 @@ mysqld_get_one_option(int optid,
       WARN_DEPRECATED(NULL, "pre-4.1 password hash", "post-4.1 password hash");
     break;
   case OPT_PFS_INSTRUMENT:
+    {
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #ifndef EMBEDDED_LIBRARY
-    /* Parse instrument name and value from argument string */
-    char* name = argument,*p, *val;
+      /* Parse instrument name and value from argument string */
+      char* name = argument,*p, *val;
 
-    /* Assignment required */
-    if (!(p= strchr(argument, '=')))
-    {
-       my_getopt_error_reporter(WARNING_LEVEL,
-                             "Missing value for performance_schema_instrument "
-                             "'%s'", argument);
-      return 0;
-    }
+      /* Assignment required */
+      if (!(p= strchr(argument, '=')))
+      {
+         my_getopt_error_reporter(WARNING_LEVEL,
+                               "Missing value for performance_schema_instrument "
+                               "'%s'", argument);
+        return 0;
+      }
 
-    /* Option value */
-    val= p + 1;
-    if (!*val)
-    {
-       my_getopt_error_reporter(WARNING_LEVEL,
-                             "Missing value for performance_schema_instrument "
-                             "'%s'", argument);
-      return 0;
-    }
+      /* Option value */
+      val= p + 1;
+      if (!*val)
+      {
+         my_getopt_error_reporter(WARNING_LEVEL,
+                               "Missing value for performance_schema_instrument "
+                               "'%s'", argument);
+        return 0;
+      }
 
-    /* Trim leading spaces from instrument name */
-    while (*name && my_isspace(mysqld_charset, *name))
-      name++;
+      /* Trim leading spaces from instrument name */
+      while (*name && my_isspace(mysqld_charset, *name))
+        name++;
 
-    /* Trim trailing spaces and slashes from instrument name */
-    while (p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
-      p--;
-    *p= 0;
-
-    if (!*name)
-    {
-       my_getopt_error_reporter(WARNING_LEVEL,
-                             "Invalid instrument name for "
-                             "performance_schema_instrument '%s'", argument);
-      return 0;
-    }
-
-    /* Trim leading spaces from option value */
-    while (*val && my_isspace(mysqld_charset, *val))
-      val++;
-
-    /* Trim trailing spaces from option value */
-    if ((p= my_strchr(mysqld_charset, val, val+strlen(val), ' ')) != NULL)
+      /* Trim trailing spaces and slashes from instrument name */
+      while (p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
+        p--;
       *p= 0;
 
-    if (!*val)
-    {
-       my_getopt_error_reporter(WARNING_LEVEL,
-                             "Invalid value for performance_schema_instrument "
-                             "'%s'", argument);
-      return 0;
-    }
+      if (!*name)
+      {
+         my_getopt_error_reporter(WARNING_LEVEL,
+                               "Invalid instrument name for "
+                               "performance_schema_instrument '%s'", argument);
+        return 0;
+      }
 
-    /* Add instrument name and value to array of configuration options */
-    if (add_pfs_instr_to_array(name, val))
-    {
-       my_getopt_error_reporter(WARNING_LEVEL,
-                             "Invalid value for performance_schema_instrument "
-                             "'%s'", argument);
-      return 0;
-    }
+      /* Trim leading spaces from option value */
+      while (*val && my_isspace(mysqld_charset, *val))
+        val++;
+
+      /* Trim trailing spaces from option value */
+      if ((p= my_strchr(mysqld_charset, val, val+strlen(val), ' ')) != NULL)
+        *p= 0;
+
+      if (!*val)
+      {
+         my_getopt_error_reporter(WARNING_LEVEL,
+                               "Invalid value for performance_schema_instrument "
+                               "'%s'", argument);
+        return 0;
+      }
+
+      /* Add instrument name and value to array of configuration options */
+      if (add_pfs_instr_to_array(name, val))
+      {
+         my_getopt_error_reporter(WARNING_LEVEL,
+                               "Invalid value for performance_schema_instrument "
+                               "'%s'", argument);
+        return 0;
+      }
 #endif /* EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+      break;
+    }
+  case OPT_THREAD_CACHE_SIZE:
+    thread_cache_size_specified= true;
+    break;
+  case OPT_HOST_CACHE_SIZE:
+    host_cache_size_specified= true;
+    break;
+  case OPT_TABLE_DEFINITION_CACHE:
+    table_definition_cache_specified= true;
     break;
   }
   return 0;
