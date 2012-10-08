@@ -1883,9 +1883,8 @@ dict_load_indexes(
 		subsequent checks are relevant for the supported types. */
 		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
 				    | DICT_CORRUPT | DICT_FTS)) {
-			fprintf(stderr,
-				"InnoDB: Error: unknown type %lu"
-				" of index %s of table %s\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unknown type %lu of index %s of table %s",
 				(ulong) index->type, index->name, table->name);
 
 			error = DB_UNSUPPORTED;
