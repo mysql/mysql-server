@@ -2766,6 +2766,15 @@ int main(int argc, char** argv)
               "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
   }
 
+  /*
+    We should unset the RBR_EXEC_MODE since the user may concatenate output of
+    multiple runs of mysql binlog all of which may not run with idempotent
+    mode.
+   */
+  if (idempotent_mode)
+    fprintf(result_file,
+            "/*!50700 SET @@SESSION.RBR_EXEC_MODE=STRICT*/;\n\n");
+
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
   if (result_file && (result_file != stdout))
