@@ -2952,8 +2952,8 @@ row_discard_tablespace(
 
 	table_id_t	new_id;
 
-	/* Set the TABLESPACE DISCARD flag in the table definition on disk. */
 	if (!dict_table_is_temporary(table)) {	
+		/* Set the TABLESPACE DISCARD flag in the table definition on disk. */
 		err = row_import_update_discarded_flag(trx, table->id, true, true);
 
 		if (err != DB_SUCCESS) {
@@ -2961,7 +2961,6 @@ row_discard_tablespace(
 		}
 
 		/* Update the index root pages in the system tables, on disk */
-
 		err = row_import_update_index_root(trx, table, true, true);
 
 		if (err != DB_SUCCESS) {
