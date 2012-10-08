@@ -2058,10 +2058,14 @@ int subselect_uniquesubquery_engine::scan_table()
   TABLE *table= tab->table;
   DBUG_ENTER("subselect_uniquesubquery_engine::scan_table");
 
-  if (table->file->inited)
-    table->file->ha_index_end();
- 
-  table->file->ha_rnd_init(1);
+  if ((table->file->inited &&
+       (error= table->file->ha_index_end())) ||
+      (error= table->file->ha_rnd_init(1)))
+  {
+    (void) report_error(table, error);
+    DBUG_RETURN(true);
+  }
+
   table->file->extra_opt(HA_EXTRA_CACHE,
                          current_thd->variables.read_buff_size);
   table->null_row= 0;
@@ -2238,9 +2242,14 @@ int subselect_uniquesubquery_engine::exec()
 
   if (null_keypart)
     DBUG_RETURN(scan_table());
- 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, 0);
+
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, 0)))
+  {
+    (void) report_error(table, error);
+    DBUG_RETURN(true);
+  }
+
   error= table->file->index_read_map(table->record[0],
                                      tab->ref.key_buff,
                                      make_prev_keypart_map(tab->ref.key_parts),
@@ -2360,8 +2369,12 @@ int subselect_indexsubquery_engine::exec()
   if (null_keypart)
     DBUG_RETURN(scan_table());
 
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, 1);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, 1)))
+  {
+    (void) report_error(table, error);
+    DBUG_RETURN(true);
+  }
   error= table->file->index_read_map(table->record[0],
                                      tab->ref.key_buff,
                                      make_prev_keypart_map(tab->ref.key_parts),

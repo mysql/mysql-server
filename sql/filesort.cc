@@ -567,7 +567,13 @@ static ha_rows find_all_keys(SORTPARAM *param, SQL_SELECT *select,
   if (!quick_select)
   {
     next_pos=(uchar*) 0;			/* Find records in sequence */
-    file->ha_rnd_init(1);
+    DBUG_EXECUTE_IF("bug14365043_1",
+                    DBUG_SET("+d,ha_rnd_init_fail"););
+    if ((error= file->ha_rnd_init(1)))
+    {
+      file->print_error(error, MYF(0));
+      DBUG_RETURN(HA_POS_ERROR);
+    }
     file->extra_opt(HA_EXTRA_CACHE,
 		    current_thd->variables.read_buff_size);
   }
