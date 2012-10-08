@@ -13,18 +13,20 @@
 #include "toku_assert.h"
 #include "circular_buffer.h"
 #include "memory.h"
-#include "toku_time.h"
 #include "test.h"
 
 static int verbose = 0;
 static volatile bool running;
+static volatile bool producers_joined;
 
 static void *producer(void *extra) {
     toku::circular_buffer<uint32_t> *buf = static_cast<toku::circular_buffer<uint32_t> *>(extra);
 
     while (running) {
         buf->push(random());
-        usleep(random() % 10000);
+        if (running) {
+            usleep(random() % 1000);
+        }
     }
 
     return nullptr;
@@ -38,15 +40,15 @@ struct consumer_extra {
 static void *consumer(void *extra) {
     struct consumer_extra *e = static_cast<struct consumer_extra *>(extra);
 
-    while (running) {
+    while (!producers_joined) {
         e->xorsum ^= e->buf->pop();
-        usleep(random() % 1000);
+        if (running) {
+            usleep(random() % 100);
+        }
     }
     uint32_t x;
-    bool popped = e->buf->trypop(&x);
-    while (popped) {
+    while (e->buf->trypop(&x)) {
         e->xorsum ^= x;
-        popped = e->buf->trypop(&x);
     }
 
     return nullptr;
@@ -83,6 +85,8 @@ static void test_with_threads(void) {
         r = toku_pthread_join(producer_thds[i], nullptr);
         invariant_zero(r);
     }
+    swapped = __sync_bool_compare_and_swap(&producers_joined, false, true);
+    invariant(swapped);
 
     r = toku_pthread_join(consumer_thd, nullptr);
     invariant_zero(r);
