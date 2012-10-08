@@ -108,12 +108,12 @@ toku_mutex_unlock(toku_mutex_t *mutex) {
 
 #if TOKU_PTHREAD_DEBUG
 static inline void
-toku_mutex_assert_locked(toku_mutex_t *mutex) {
+toku_mutex_assert_locked(const toku_mutex_t *mutex) {
     invariant(mutex->locked);
 }
 #else
 static inline void
-toku_mutex_assert_locked(toku_mutex_t *mutex __attribute__((unused))) {
+toku_mutex_assert_locked(const toku_mutex_t *mutex __attribute__((unused))) {
 }
 #endif
 
