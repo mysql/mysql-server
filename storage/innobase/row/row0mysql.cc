@@ -2929,6 +2929,13 @@ row_discard_tablespace(
 		return(err);
 	}
 
+	/* Drop all the FTS auxiliary tables. */
+	if (dict_table_has_fts_index(table)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
+		fts_drop_tables(trx, table);
+	}
+
 	/* Assign a new space ID to the table definition so that purge
 	can ignore the changes. Update the system table on disk. */
 
@@ -3331,11 +3338,12 @@ row_truncate_table_for_mysql(
 				    FIL_IBD_FILE_INITIAL_SIZE)
 			    != DB_SUCCESS) {
 				dict_table_x_unlock_indexes(table);
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: TRUNCATE TABLE %s failed to"
-					" create a new tablespace\n",
+
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"TRUNCATE TABLE %s failed to "
+					"create a new tablespace",
 					table->name);
+
 				table->ibd_file_missing = 1;
 				err = DB_ERROR;
 				goto funct_exit;
@@ -3784,9 +3792,9 @@ row_drop_table_for_mysql(
 		it. */
 		char	errstr[1024];
 		err = dict_stats_drop_table(name, errstr, sizeof(errstr));
+
 		if (err != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: %s\n", errstr);
+			ib_logf(IB_LOG_LEVEL_WARN, "%s", errstr);
 		}
 	}
 
@@ -4455,11 +4463,13 @@ loop:
 		table = dict_table_open_on_name(table_name, TRUE, FALSE,
 						DICT_ERR_IGNORE_NONE);
 
-		ut_a(table);
-
-		/* There could be orphan temp table left from interupted
-		alter table rebuild operation */
-		if (row_is_mysql_tmp_table_name(table->name)) {
+		if (table == 0) {
+			ib_logf(IB_LOG_LEVEL_INFO, "Table %s not found",
+				table_name);
+			continue;
+		} else if (row_is_mysql_tmp_table_name(table->name)) {
+			/* There could be an orphan temp table left from
+			interupted alter table rebuild operation */
 			dict_table_close(table, TRUE, FALSE);
 		} else {
 			ut_a(!table->can_be_evicted || table->ibd_file_missing);
