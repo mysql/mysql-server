@@ -23,11 +23,13 @@ public:
 
     void push(const T &);
 
+    __attribute__((warn_unused_result))
     bool trypush(const T &);
 
+    __attribute__((warn_unused_result))
     T pop(void);
 
-    __attribute__((nonnull))
+    __attribute__((nonnull, warn_unused_result))
     bool trypop(T * const);
 
 private:
