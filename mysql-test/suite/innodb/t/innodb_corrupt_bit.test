@@ -79,10 +79,10 @@ CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
 check table corrupt_bit_test_ā;
 
 # This selection intend to use the corrupted index. Expect to fail
--- error ER_NOT_KEYFILE
+-- error ER_INDEX_CORRUPT
 select c from corrupt_bit_test_ā;
 
--- error ER_NOT_KEYFILE
+-- error ER_INDEX_CORRUPT
 select z from corrupt_bit_test_ā;
 
 show warnings;
@@ -108,7 +108,7 @@ check table corrupt_bit_test_ā;
 
 set names utf8;
 
--- error ER_NOT_KEYFILE
+-- error ER_INDEX_CORRUPT
 select z from corrupt_bit_test_ā;
 
 # Drop the corrupted index
