@@ -5,9 +5,15 @@ create table t (a tinyblob);
 alter table t change column a aa tinyblob;
 alter table t change column aa a3 blob;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+alter table t change column aa a3 blob not null;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 alter table t change column aa a3 mediumblob;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+alter table t change column aa a3 mediumblob not null;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 alter table t change column aa a3 longblob;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+alter table t change column aa a3 longblob not null;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
 create table t (a blob);
