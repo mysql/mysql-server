@@ -1445,7 +1445,7 @@ purge_view.
 
 @return DB_SUCCESS, or DB_MISSING_HISTORY if the undo log has been
 truncated and we cannot fetch the old version */
-UNIV_INTERN
+static __attribute__((nonnull, warn_unused_result))
 dberr_t
 trx_undo_get_undo_rec(
 /*==================*/
