@@ -893,12 +893,12 @@ dict_update_filepath(
 		a link file.  Make a note that we did this. */
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"The InnoDB data dictionary table SYS_DATAFILES "
-			"for tablespace ID %lu was updated to use file %s.\n",
+			"for tablespace ID %lu was updated to use file %s.",
 			(ulong) space_id, filepath);
 	} else {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Problem updating InnoDB data dictionary table "
-			"SYS_DATAFILES for tablespace ID %lu to file %s.\n",
+			"SYS_DATAFILES for tablespace ID %lu to file %s.",
 			(ulong) space_id, filepath);
 	}
 

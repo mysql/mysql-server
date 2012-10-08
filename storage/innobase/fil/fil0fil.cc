@@ -2760,8 +2760,8 @@ fil_discard_tablespace(
 
 	case DB_IO_ERROR:
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"While deleting tablespace %lu in DISCARD "
-			"TABLESPACE. File rename/delete failed: %s\n",
+			"While deleting tablespace %lu in DISCARD TABLESPACE."
+			" File rename/delete failed: %s",
 			(ulong) id, ut_strerr(err));
 		break;
 
@@ -3230,7 +3230,7 @@ fil_open_linked_file(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"A link file was found named '%s' "
 			"but the linked tablespace '%s' "
-			"could not be opened.\n",
+			"could not be opened.",
 			link_filepath, *remote_filepath);
 
 		mem_free(link_filepath);
@@ -3319,14 +3319,14 @@ fil_create_new_single_table_tablespace(
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"The file already exists though the "
 				"corresponding table did not exist "
-				"in the InnoDB data dictionary.\n"
+				"in the InnoDB data dictionary. "
 				"Have you moved InnoDB .ibd files "
 				"around without using the SQL commands "
-				"DISCARD TABLESPACE and IMPORT TABLESPACE,"
+				"DISCARD TABLESPACE and IMPORT TABLESPACE, "
 				"or did mysqld crash in the middle of "
-				"CREATE TABLE?"
+				"CREATE TABLE? "
 				"You can resolve the problem by removing "
-				"the file '%s' under the 'datadir' of MySQL.\n",
+				"the file '%s' under the 'datadir' of MySQL.",
 				path);
 
 			err = DB_TABLESPACE_EXISTS;
@@ -3397,7 +3397,7 @@ fil_create_new_single_table_tablespace(
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not write the first page to tablespace "
-			"'%s'\n", path);
+			"'%s'", path);
 
 		err = DB_ERROR;
 		goto error_exit_2;
@@ -3407,7 +3407,7 @@ fil_create_new_single_table_tablespace(
 
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"File flush of tablespace '%s' failed\n", path);
+			"File flush of tablespace '%s' failed", path);
 		err = DB_ERROR;
 		goto error_exit_2;
 	}
@@ -3486,7 +3486,7 @@ fil_report_bad_tablespace(
 		"commands DISCARD TABLESPACE and IMPORT TABLESPACE? "
 		"Please refer to "
 		REFMAN "innodb-troubleshooting-datadict.html "
-		"for how to resolve the issue.\n",
+		"for how to resolve the issue.",
 		filepath, (ulong) found_id, (ulong) found_flags,
 		(ulong) expected_id, (ulong) expected_flags);
 }
@@ -3715,7 +3715,7 @@ fil_open_single_table_tablespace(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not find a valid tablespace file for '%s'. "
 			"See " REFMAN "innodb-troubleshooting-datadict.html "
-			"for how to resolve the issue.\n",
+			"for how to resolve the issue.",
 			tablename);
 
 		err = DB_CORRUPTION;
@@ -3728,25 +3728,25 @@ fil_open_single_table_tablespace(
 	if (tablespaces_found > 1) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"A tablespace for %s has been found in "
-			"multiple places;\n", tablename);
+			"multiple places;", tablename);
 		if (def.success) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Default location; %s, LSN=" LSN_PF
-				", Space ID=%lu, Flags=%lu\n",
+				", Space ID=%lu, Flags=%lu",
 				def.filepath, def.lsn,
 				(ulong) def.id, (ulong) def.flags);
 		}
 		if (remote.success) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Remote location; %s, LSN=" LSN_PF
-				", Space ID=%lu, Flags=%lu\n",
+				", Space ID=%lu, Flags=%lu",
 				remote.filepath, remote.lsn,
 				(ulong) remote.id, (ulong) remote.flags);
 		}
 		if (dict.success) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Dictionary location; %s, LSN=" LSN_PF
-				", Space ID=%lu, Flags=%lu\n",
+				", Space ID=%lu, Flags=%lu",
 				dict.filepath, dict.lsn,
 				(ulong) dict.id, (ulong) dict.flags);
 		}
@@ -3760,7 +3760,7 @@ fil_open_single_table_tablespace(
 		any bad tablespaces. */
 		if (valid_tablespaces_found > 1 || srv_force_recovery > 0) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Will not open the tablespace for '%s'\n",
+				"Will not open the tablespace for '%s'",
 				tablename);
 
 			if (def.success != def.valid
@@ -3936,12 +3936,10 @@ fil_validate_single_table_tablespace(
 		char* prev_filepath = fil_space_get_first_path(fsp->id);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			" InnoDB: Error: Attempt to open a tablespace "
-			"previously opened.\n"
+			"Attempt to open a tablespace previously opened. "
 			"Previous tablespace %s uses space ID: %lu at "
-			"filepath: %s\n"
-			"Cannot open tablespace %s which uses space ID: "
-			"%lu at filepath: %s\n",
+			"filepath: %s. Cannot open tablespace %s which uses "
+			"space ID: %lu at filepath: %s",
 			space->name, (ulong) space->id, prev_filepath,
 			tablename, (ulong) fsp->id, fsp->filepath);
 
@@ -4102,7 +4100,7 @@ will_not_choose:
 			"Tablespaces for %s have been found in two places;\n"
 			"Location 1: SpaceID: %lu  LSN: %lu  File: %s\n"
 			"Location 2: SpaceID: %lu  LSN: %lu  File: %s\n"
-			"You must delete one of them.\n",
+			"You must delete one of them.",
 			tablename, (ulong) def.id, (ulong) def.lsn,
 			def.filepath, (ulong) remote.id, (ulong) remote.lsn,
 			remote.filepath);
