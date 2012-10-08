@@ -528,8 +528,15 @@ Warning	1265	Data truncated for column 'a' at row 1
 INSERT INTO t VALUES ('people');
 Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(2);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(2);
 ALTER TABLE t CHANGE COLUMN a b BINARY(2);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(2);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(3);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(4);
@@ -1047,8 +1054,15 @@ Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 ALTER TABLE t CHANGE COLUMN a b BINARY(2);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(3);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(3);
 ALTER TABLE t CHANGE COLUMN a b BINARY(3);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(3);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(4);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(5);
@@ -1566,8 +1580,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(2);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(3);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(4);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(4);
 ALTER TABLE t CHANGE COLUMN a b BINARY(4);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(4);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(5);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(6);
@@ -2083,8 +2104,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(3);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(4);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(5);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(5);
 ALTER TABLE t CHANGE COLUMN a b BINARY(5);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(5);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(6);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(7);
@@ -2598,8 +2626,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(4);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(5);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(6);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(6);
 ALTER TABLE t CHANGE COLUMN a b BINARY(6);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(6);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(7);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(8);
@@ -3113,8 +3148,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(5);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(6);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(7);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(7);
 ALTER TABLE t CHANGE COLUMN a b BINARY(7);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(7);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(8);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(9);
@@ -3628,8 +3670,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(6);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(7);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(8);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(8);
 ALTER TABLE t CHANGE COLUMN a b BINARY(8);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(8);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(9);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(10);
@@ -4157,8 +4206,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(14);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(15);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(16);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(16);
 ALTER TABLE t CHANGE COLUMN a b BINARY(16);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(16);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(17);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(18);
@@ -4700,8 +4756,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(29);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(30);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(31);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(31);
 ALTER TABLE t CHANGE COLUMN a b BINARY(31);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(31);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(32);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(33);
@@ -5215,8 +5278,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(30);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(31);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(32);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(32);
 ALTER TABLE t CHANGE COLUMN a b BINARY(32);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(32);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(33);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(34);
@@ -5790,8 +5860,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(61);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(62);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(63);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(63);
 ALTER TABLE t CHANGE COLUMN a b BINARY(63);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(63);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(64);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(65);
@@ -6305,8 +6382,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(62);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(63);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(64);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(64);
 ALTER TABLE t CHANGE COLUMN a b BINARY(64);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(64);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(65);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(66);
@@ -6944,8 +7028,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(125);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(126);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(127);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(127);
 ALTER TABLE t CHANGE COLUMN a b BINARY(127);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(127);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(128);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(129);
@@ -7459,8 +7550,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(126);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(127);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(128);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(128);
 ALTER TABLE t CHANGE COLUMN a b BINARY(128);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(128);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(129);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(130);
@@ -8224,8 +8322,15 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(252);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(253);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(254);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(254);
 ALTER TABLE t CHANGE COLUMN a b BINARY(254);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(254);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 ALTER TABLE t CHANGE COLUMN a b BINARY(255);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 DROP TABLE t;
@@ -8739,6 +8844,13 @@ ALTER TABLE t CHANGE COLUMN a b BINARY(253);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 ALTER TABLE t CHANGE COLUMN a b BINARY(254);
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+CREATE TABLE ti LIKE t;
+ALTER TABLE ti ENGINE=myisam;
+INSERT INTO ti SELECT * FROM t;
+ALTER TABLE ti CHANGE COLUMN a b BINARY(255);
+ALTER TABLE ti CHANGE COLUMN b a BINARY(255);
 ALTER TABLE t CHANGE COLUMN a b BINARY(255);
-ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+ALTER TABLE t CHANGE COLUMN b a BINARY(255);
+include/diff_tables.inc [test.t, test.ti]
+DROP TABLE ti;
 DROP TABLE t;
