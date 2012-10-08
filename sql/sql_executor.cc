@@ -2095,12 +2095,17 @@ join_read_key_unlock_row(st_join_table *tab)
 static int
 join_read_linked_first(JOIN_TAB *tab)
 {
+  int error;
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_linked_first");
 
   DBUG_ASSERT(!tab->sorted); // Pushed child can't be sorted
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+  {
+    (void) report_handler_error(table, error);
+    DBUG_RETURN(error);
+  }
 
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   if (tab->ref.impossible_null_ref())
@@ -2117,9 +2122,9 @@ join_read_linked_first(JOIN_TAB *tab)
 
   // 'read' itself is a NOOP: 
   //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
-  int error=table->file->index_read_pushed(table->record[0],
-                                      tab->ref.key_buff,
-                                      make_prev_keypart_map(tab->ref.key_parts));
+  error=table->file->index_read_pushed(table->record[0],
+                                       tab->ref.key_buff,
+                                       make_prev_keypart_map(tab->ref.key_parts));
   if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
     DBUG_RETURN(report_handler_error(table, error));
 
