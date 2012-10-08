@@ -1,0 +1,10 @@
+--source include/have_tokudb.inc
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+set default_storage_engine='tokudb';
+set tokudb_disable_slow_alter=1;
+
+create table t (a enum ('a','b','c'));
+alter table t change column a aa enum('a','b','c');
+drop table t;

@@ -14,11 +14,23 @@ alter table t change column aa a3 blob;
 
 --replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 blob not null;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
 alter table t change column aa a3 mediumblob;
 
 --replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 mediumblob not null;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
 alter table t change column aa a3 longblob;
+
+--replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
+--error ER_UNSUPPORTED_EXTENSION
+alter table t change column aa a3 longblob not null;
 
 drop table t;
 
