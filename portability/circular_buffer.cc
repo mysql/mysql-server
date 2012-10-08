@@ -108,6 +108,27 @@ namespace toku {
     }
 
     template<typename T>
+    bool circular_buffer<T>::timedpush(const T &elt, toku_timespec_t *abstime) {
+        bool pushed = false;
+        invariant_notnull(abstime);
+        lock();
+        if (is_empty()) {
+            ++m_push_waiters;
+            int r = toku_cond_timedwait(&m_push_cond, &m_lock, abstime);
+            if (r != 0) {
+                invariant(r == ETIMEDOUT);
+            }
+            --m_push_waiters;
+        }
+        if (!is_full() && m_push_waiters == 0) {
+            push_and_maybe_signal_unlocked(elt);
+            pushed = true;
+        }
+        unlock();
+        return pushed;
+    }
+
+    template<typename T>
     T circular_buffer<T>::pop_and_maybe_signal_unlocked(void) {
         toku_mutex_assert_locked(&m_lock);
         invariant(!is_empty());
@@ -138,6 +159,28 @@ namespace toku {
         invariant_notnull(eltp);
         lock();
         if (!is_empty() && m_pop_waiters == 0) {
+            *eltp = pop_and_maybe_signal_unlocked();
+            popped = true;
+        }
+        unlock();
+        return popped;
+    }
+
+    template<typename T>
+    bool circular_buffer<T>::timedpop(T * const eltp, toku_timespec_t *abstime) {
+        bool popped = false;
+        invariant_notnull(eltp);
+        invariant_notnull(abstime);
+        lock();
+        if (is_empty()) {
+            ++m_pop_waiters;
+            int r = toku_cond_timedwait(&m_pop_cond, &m_lock, abstime);
+            if (r != 0) {
+                invariant(r == ETIMEDOUT);
+            }
+            --m_pop_waiters;
+        }
+        if (!is_empty()) {
             *eltp = pop_and_maybe_signal_unlocked();
             popped = true;
         }
