@@ -3350,7 +3350,8 @@ check_if_ok_to_rename:
 	     index;
 	     index = dict_table_get_next_index(index)) {
 		if (index->type & DICT_FTS) {
-			DBUG_ASSERT(index->type == DICT_FTS);
+			DBUG_ASSERT(index->type == DICT_FTS
+				    || (index->type & DICT_CORRUPT));
 			continue;
 		}
 
@@ -3473,16 +3474,12 @@ found_fk:
 				= dict_table_get_index_on_name(
 					indexed_table, FTS_DOC_ID_INDEX_NAME);
 
-			/* The FTS_DOC_ID_INDEX should always exist
-			if fulltext indexes exist, unless the MySQL
-			and InnoDB data dictionaries are out of sync. */
-			DBUG_ASSERT(fts_doc_index != NULL);
-			DBUG_ASSERT(!fts_doc_index->to_be_dropped);
-
 			// Add some fault tolerance for non-debug builds.
 			if (fts_doc_index == NULL) {
 				goto check_if_can_drop_indexes;
 			}
+
+			DBUG_ASSERT(!fts_doc_index->to_be_dropped);
 
 			for (uint i = 0; i < table->s->keys; i++) {
 				if (!my_strcasecmp(
@@ -4923,7 +4920,9 @@ trx_rollback:
 				DBUG_ASSERT(index->table == prebuilt->table);
 
 				if (index->type & DICT_FTS) {
-					DBUG_ASSERT(index->type == DICT_FTS);
+					DBUG_ASSERT(index->type == DICT_FTS
+						    || (index->type
+							& DICT_CORRUPT));
 					DBUG_ASSERT(prebuilt->table->fts);
 					fts_drop_index(
 						prebuilt->table, index, trx);
