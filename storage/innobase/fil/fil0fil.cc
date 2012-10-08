@@ -3098,14 +3098,13 @@ fil_create_link_file(
 		OS_FILE_CREATE, OS_FILE_READ_WRITE, &success);
 
 	if (!success) {
+		/* The following call will print an error message */
+		ulint	error = os_file_get_last_error(true);
+
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Cannot create file ", stderr);
 		ut_print_filename(stderr, link_filepath);
 		fputs(".\n", stderr);
-
-		/* The following call will print an error message */
-
-		ulint	error = os_file_get_last_error(true);
 
 		if (error == OS_FILE_ALREADY_EXISTS) {
 			fputs("InnoDB: The link file: ", stderr);
@@ -3310,13 +3309,11 @@ fil_create_new_single_table_tablespace(
 		&ret);
 
 	if (ret == FALSE) {
-		ut_print_timestamp(stderr);
+		/* The following call will print an error message */
+		ulint	error = os_file_get_last_error(true);
+
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot create file '%s'\n", path);
-
-		/* The following call will print an error message */
-
-		ulint	error = os_file_get_last_error(true);
 
 		if (error == OS_FILE_ALREADY_EXISTS) {
 			ib_logf(IB_LOG_LEVEL_ERROR,

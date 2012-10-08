@@ -896,10 +896,10 @@ open_or_create_data_files(
 
 			if (!ret) {
 
+				os_file_get_last_error(true);
+
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Can't open '%s'", name);
-
-				os_file_get_last_error(true);
 
 				return(DB_ERROR);
 			}

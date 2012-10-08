@@ -1829,12 +1829,12 @@ loop:
 	count++;
 
 	if (count > 100 && 0 == (count % 10)) {
+		os_file_get_last_error(true); /* print error information */
+
 		fprintf(stderr,
 			"InnoDB: Warning: cannot delete file %s\n"
 			"InnoDB: Are you running ibbackup"
 			" to back up the file?\n", name);
-
-		os_file_get_last_error(true); /* print error information */
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
@@ -1893,12 +1893,12 @@ loop:
 	count++;
 
 	if (count > 100 && 0 == (count % 10)) {
+		os_file_get_last_error(true); /* print error information */
+
 		fprintf(stderr,
 			"InnoDB: Warning: cannot delete file %s\n"
 			"InnoDB: Are you running ibbackup"
 			" to back up the file?\n", name);
-
-		os_file_get_last_error(true); /* print error information */
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
