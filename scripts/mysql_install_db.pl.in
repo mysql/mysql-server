@@ -567,9 +567,22 @@ if ( $opt->{'skip-name-resolve'} and $resolved and $resolved =~ /\s/ )
 # Create database directories mysql & test
 # ----------------------------------------------------------------------
 
+# FIXME The shell variant uses "mkdir -p":
+#  - because it is silent if the target exists, or
+#  - because it will cerate the path?
+# Path creation is demanded by testers in bug# 14731457, but that might be risky
+# in case of typos as this is run by root.
+# For now, give an error message:
+my $parent = dirname ( $opt->{ldata} );
+if ( ! -d $parent ) {
+  error($opt,
+        "The parent directory for the data directory '$opt->{ldata}' does not exist.",
+	"If that path was really intended, please create that directory path and then",
+	"restart this script.",
+	"If some other path was intended, please use the correct path when restarting this script.");
+}
 foreach my $dir ( $opt->{ldata}, "$opt->{ldata}/mysql", "$opt->{ldata}/test" )
 {
-  # FIXME not really the same as original "mkdir -p", but ok?
   mkdir($dir, 0700) unless -d $dir;
   chown($opt->{user}, $dir) if -w "/" and !$opt->{user};
 }
