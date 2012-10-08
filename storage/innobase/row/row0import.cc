@@ -2678,6 +2678,12 @@ row_import_read_index_data(
 		ptr += sizeof(ib_uint32_t);
 
 		cfg_index->m_trx_id_offset = mach_read_from_4(ptr);
+		if (cfg_index->m_trx_id_offset != mach_read_from_4(ptr)) {
+			ut_ad(0);
+			/* Overflow. Pretend that the clustered index
+			has a variable-length PRIMARY KEY. */
+			cfg_index->m_trx_id_offset = 0;
+		}
 		ptr += sizeof(ib_uint32_t);
 
 		cfg_index->m_n_user_defined_cols = mach_read_from_4(ptr);
