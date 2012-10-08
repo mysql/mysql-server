@@ -9777,19 +9777,25 @@ int Rows_log_event::find_row(const Relay_log_info *rli)
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
-          table->file->ha_rnd_init(1);
+        {
+          if ((error= table->file->ha_rnd_init(1)))
+          {
+            table->file->print_error(error, MYF(0));
+            goto err;
+          }
+        }
         break;
 
       default:
         DBUG_PRINT("info", ("Failed to get next record"
                             " (rnd_next returns %d)",error));
         table->file->print_error(error, MYF(0));
-        table->file->ha_rnd_end();
+        (void) table->file->ha_rnd_end();
         goto err;
       }
     }
     while (restart_count < 2 && record_compare(table));
-    
+
     /* 
       Note: above record_compare will take into accout all record fields 
       which might be incorrect in case a partial row was given in the event
