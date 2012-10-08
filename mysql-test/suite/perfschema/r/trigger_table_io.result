@@ -145,8 +145,6 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	NULL
@@ -162,9 +160,6 @@ wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	delete	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t2	fetch	NULL

@@ -3665,7 +3665,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 				const char *db, const char *table_name,
 				ulong rights, bool revoke_grant)
 {
-  int error=0,result=0;
+  int result=0;
   uchar key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   KEY_PART_INFO *key_part= table->key_info->key_part;
@@ -3692,11 +3692,13 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   List_iterator <LEX_COLUMN> iter(columns);
   class LEX_COLUMN *column;
-  if ((error= table->file->ha_index_init(0, 1)))
+  int error= table->file->ha_index_init(0, 1);
+  if (error)
   {
     table->file->print_error(error, MYF(0));
     DBUG_RETURN(-1);
   }
+
   while ((column= iter++))
   {
     ulong privileges= column->rights;
