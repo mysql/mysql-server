@@ -1,18 +1,17 @@
-call mtr.add_suppression("When set to IDEMPOTENT this will prevent any errors to be thrown while applying row events from clients");
 set @saved_session_rbr_exec_mode = @@session.rbr_exec_mode;
 set @saved_global_rbr_exec_mode = @@global.rbr_exec_mode;
-SELECT @@global.rbr_exec_mode;
-@@global.rbr_exec_mode
-STRICT
 SET global rbr_exec_mode=DEFAULT;
+ERROR HY000: Variable 'rbr_exec_mode' is a SESSION variable and can't be used with SET GLOBAL
 SELECT @@global.rbr_exec_mode;
 @@global.rbr_exec_mode
 STRICT
 SET global rbr_exec_mode='IDEMPOTENT';
+ERROR HY000: Variable 'rbr_exec_mode' is a SESSION variable and can't be used with SET GLOBAL
 SELECT @@global.rbr_exec_mode;
 @@global.rbr_exec_mode
-IDEMPOTENT
+STRICT
 SET global rbr_exec_mode='STRICT';
+ERROR HY000: Variable 'rbr_exec_mode' is a SESSION variable and can't be used with SET GLOBAL
 SELECT @@global.rbr_exec_mode;
 @@global.rbr_exec_mode
 STRICT
@@ -51,33 +50,4 @@ ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of 'NULL'
 SELECT @@session.rbr_exec_mode;
 @@session.rbr_exec_mode
 STRICT
-SET global rbr_exec_mode='STIRCT';
-ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of 'STIRCT'
-SELECT @@global.rbr_exec_mode;
-@@global.rbr_exec_mode
-STRICT
-SET global rbr_exec_mode='';
-ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of ''
-SELECT @@global.rbr_exec_mode;
-@@global.rbr_exec_mode
-STRICT
-SET global rbr_exec_mode='1';
-ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of '1'
-SELECT @@global.rbr_exec_mode;
-@@global.rbr_exec_mode
-STRICT
-SET global rbr_exec_mode=NULL;
-ERROR 42000: Variable 'rbr_exec_mode' can't be set to the value of 'NULL'
-SELECT @@global.rbr_exec_mode;
-@@global.rbr_exec_mode
-STRICT
-CREATE USER unpriv_user@localhost IDENTIFIED BY 'temp_pass';
-SET global rbr_exec_mode='IDEMPOTENT';
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
-SET global rbr_exec_mode='STRICT';
-ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
-SET session rbr_exec_mode='IDEMPOTENT';
-SET session rbr_exec_mode='STRICT';
-DROP USER unpriv_user@localhost;
 set session rbr_exec_mode = @saved_session_rbr_exec_mode;
-set global rbr_exec_mode = @saved_global_rbr_exec_mode;

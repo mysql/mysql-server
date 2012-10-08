@@ -3,20 +3,20 @@
 #
 ################################################################################
 --source include/not_embedded.inc
-call mtr.add_suppression("When set to IDEMPOTENT this will prevent any errors to be thrown while applying row events from clients");
 
 set @saved_session_rbr_exec_mode = @@session.rbr_exec_mode;
 set @saved_global_rbr_exec_mode = @@global.rbr_exec_mode;
 
 # GLOBAL SETTINGS
-SELECT @@global.rbr_exec_mode;
-
+--error ER_LOCAL_VARIABLE
 SET global rbr_exec_mode=DEFAULT;
 SELECT @@global.rbr_exec_mode;
 
+--error ER_LOCAL_VARIABLE
 SET global rbr_exec_mode='IDEMPOTENT';
 SELECT @@global.rbr_exec_mode;
 
+--error ER_LOCAL_VARIABLE
 SET global rbr_exec_mode='STRICT';
 SELECT @@global.rbr_exec_mode;
 
@@ -50,40 +50,4 @@ SELECT @@session.rbr_exec_mode;
 SET session rbr_exec_mode=NULL;
 SELECT @@session.rbr_exec_mode;
 
-# INVALID GLOBAL SETTING
---error ER_WRONG_VALUE_FOR_VAR
-SET global rbr_exec_mode='STIRCT';
-SELECT @@global.rbr_exec_mode;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET global rbr_exec_mode='';
-SELECT @@global.rbr_exec_mode;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET global rbr_exec_mode='1';
-SELECT @@global.rbr_exec_mode;
-
---error ER_WRONG_VALUE_FOR_VAR
-SET global rbr_exec_mode=NULL;
-SELECT @@global.rbr_exec_mode;
-
-# CHECKING FOR A NON_ROOT USER
-CREATE USER unpriv_user@localhost IDENTIFIED BY 'temp_pass';
-connect(unpriv_con, localhost, 'unpriv_user', 'temp_pass',);
---connection unpriv_con
-
-# will error out in case of non root user try to change
-# this variable globally
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET global rbr_exec_mode='IDEMPOTENT';
---error ER_SPECIFIC_ACCESS_DENIED_ERROR
-SET global rbr_exec_mode='STRICT';
-
-#No error for sessting the session variable.
-SET session rbr_exec_mode='IDEMPOTENT';
-SET session rbr_exec_mode='STRICT';
-
---connection default
-DROP USER unpriv_user@localhost;
 set session rbr_exec_mode = @saved_session_rbr_exec_mode;
-set global rbr_exec_mode = @saved_global_rbr_exec_mode;

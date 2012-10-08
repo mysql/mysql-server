@@ -712,16 +712,13 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
   return false;
 }
 
-static bool warn_server_idempotent_mode_start(sys_var *self, THD *thd,
-                                              set_var *var )
+static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD *thd,
+                                                    set_var *var )
 {
   if (var->type == OPT_GLOBAL)
   {
-    if (check_has_super(self, thd, var))
-      return true;
-    else
-      sql_print_warning ("When set to IDEMPOTENT this will prevent any errors "
-                         "to be thrown while applying row events from clients.");
+    my_error(ER_LOCAL_VARIABLE, MYF(0), self->name.str);
+    return true;
   }
   return false;
 }
@@ -753,9 +750,10 @@ static Sys_var_enum rbr_exec_mode(
        "the server will not throw errors for operations that are idempotent. "
        "In STRICT mode, server will throw errors for the operations that "
        "cause a conflict.",
-       SESSION_VAR(rbr_exec_mode_options), CMD_LINE(REQUIRED_ARG),
+       SESSION_VAR(rbr_exec_mode_options), NO_CMD_LINE,
        rbr_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(warn_server_idempotent_mode_start),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(prevent_global_rbr_exec_mode_idempotent),
        ON_UPDATE(NULL));
 
 static const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
