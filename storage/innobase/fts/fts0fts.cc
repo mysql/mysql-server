@@ -135,7 +135,7 @@ const char *fts_default_stopword[] =
 };
 
 /** For storing table info when checking for orphaned tables. */
-struct fts_sys_table_t {
+struct fts_aux_table_t {
 	table_id_t	id;		/*!< Table id */
 	table_id_t	parent_id;	/*!< Parent table id */
 	table_id_t	index_id;	/*!< Table FT index id */
@@ -1463,8 +1463,8 @@ fts_drop_table(
 	trx_t*		trx,			/*!< in: transaction */
 	const char*	table_name)		/*!< in: table to drop */
 {
-	dberr_t		error = DB_SUCCESS;
 	dict_table_t*	table;
+	dberr_t		error = DB_SUCCESS;
 
 	/* Check that the table exists in our data dictionary.
 	Similar to regular drop table case, we will open table with
@@ -1484,18 +1484,22 @@ fts_drop_table(
 
 		error = row_drop_table_for_mysql(table_name, trx, TRUE);
 
-		/* We only return the status of the last error. */
 		if (error != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Unale to drop FTS index aux table %s: %s",
 				table_name, ut_strerr(error));
 		}
-	} else if (fts_enable_diag_print) {
-		/* FIXME: Should provide appropriate error return code
-		rather than printing message indiscriminately. */
+
+	} else {
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"FTS aux table %s not found in data dictionary",
-			table_name);
+			"FTS aux table %s not found in data dictionary, "
+			"deleting orphaned .ibd file", table_name);
+
+		char*	path = fil_make_ibd_name(table_name, false);
+
+		os_file_delete_if_exists(path);
+
+		mem_free(path);
 	}
 
 	return(error);
@@ -1853,8 +1857,8 @@ fts_create_one_index_table(
 		trx->error_state = error;
 		dict_mem_table_free(new_table);
 		new_table = NULL;
-		fprintf(stderr, "  InnoDB: Warning: Fail to create FTS "
-				"  index table %s \n", table_name);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Fail to create FTS index table %s", table_name);
 	}
 
 	mem_free(table_name);
@@ -5597,7 +5601,7 @@ static
 ibool
 fts_is_aux_table_name(
 /*==================*/
-	fts_sys_table_t*table,		/*!< out: table info */
+	fts_aux_table_t*table,		/*!< out: table info */
 	const char*	name,		/*!< in: table name */
 	ulint		len)		/*!< in: length of table name */
 {
@@ -5622,7 +5626,6 @@ fts_is_aux_table_name(
 	length will be at the very least greater than 20 bytes. */
 	if (ptr != NULL && len > 20 && strncmp(ptr, "FTS_", 4) == 0) {
 		ulint		i;
-
 
 		/* Skip the prefix. */
 		ptr += 4;
@@ -5698,7 +5701,7 @@ fts_read_tables(
 	void*		user_arg)	/*!< in: pointer to ib_vector_t */
 {
 	int		i;
-	fts_sys_table_t*table;
+	fts_aux_table_t*table;
 	mem_heap_t*	heap;
 	ibool		done = FALSE;
 	ib_vector_t*	tables = static_cast<ib_vector_t*>(user_arg);
@@ -5710,7 +5713,7 @@ fts_read_tables(
 
 	/* We will use this heap for allocating strings. */
 	heap = static_cast<mem_heap_t*>(tables->allocator->arg);
-	table = static_cast<fts_sys_table_t*>(ib_vector_push(tables, NULL));
+	table = static_cast<fts_aux_table_t*>(ib_vector_push(tables, NULL));
 
 	memset(table, 0x0, sizeof(*table));
 
@@ -5736,8 +5739,8 @@ fts_read_tables(
 
 			table->name = static_cast<char*>(
 				mem_heap_dup(heap, data, len + 1));
-			table->name[len] = '\0';
-			printf("Found [%.*s]\n", (int) len, table->name);
+
+			table->name[len] = 0;
 			break;
 
 		case 1: /* ID */
@@ -5770,10 +5773,10 @@ fts_check_and_drop_orphaned_tables(
 
 	for (i = 0; i < ib_vector_size(tables); ++i) {
 		dict_table_t*		table;
-		fts_sys_table_t*	sys_table;
+		fts_aux_table_t*	sys_table;
 		ibool			drop = FALSE;
 
-		sys_table = static_cast<fts_sys_table_t*>(
+		sys_table = static_cast<fts_aux_table_t*>(
 			ib_vector_get(tables, i));
 
 		table = dict_table_open_on_id(
@@ -5786,7 +5789,7 @@ fts_check_and_drop_orphaned_tables(
 		} else if (sys_table->index_id != 0) {
 			ulint		j;
 			index_id_t	id;
-			fts_t*	fts;
+			fts_t*		fts;
 
 			drop = TRUE;
 			fts = table->fts;
@@ -5812,10 +5815,9 @@ fts_check_and_drop_orphaned_tables(
 		}
 
 		if (drop) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Warning: Parent table of "
-				"FT auxiliary table %s not found.\n",
-				sys_table->name);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Parent table of FTS auxiliary table %s not "
+				"found.", sys_table->name);
 
 			/* We ignore drop errors. */
 			fts_drop_table(trx, sys_table->name);
@@ -5833,19 +5835,62 @@ void
 fts_drop_orphaned_tables(void)
 /*==========================*/
 {
-	trx_t*		trx;
-	pars_info_t*	info;
-	mem_heap_t*	heap;
-	que_t*		graph;
-	ib_vector_t*	tables;
-	ib_alloc_t*	heap_alloc;
-	dberr_t		error = DB_SUCCESS;
+	trx_t*			trx;
+	pars_info_t*		info;
+	mem_heap_t*		heap;
+	que_t*			graph;
+	ib_vector_t*		tables;
+	ib_alloc_t*		heap_alloc;
+	space_name_list_t	space_name_list;
+	dberr_t			error = DB_SUCCESS;
+
+	/* Note: We have to free the memory after we are done with the list. */
+	error = fil_get_space_names(space_name_list);
+
+	if (error == DB_OUT_OF_MEMORY) {
+		ib_logf(IB_LOG_LEVEL_ERROR, "Out of memory");
+		ut_error;
+	}
 
 	heap = mem_heap_create(1024);
 	heap_alloc = ib_heap_allocator_create(heap);
 
 	/* We store the table ids of all the FTS indexes that were found. */
-	tables = ib_vector_create(heap_alloc, sizeof(fts_sys_table_t), 128);
+	tables = ib_vector_create(heap_alloc, sizeof(fts_aux_table_t), 128);
+
+	/* Get the list of all known .ibd files and check for orphaned
+	FTS auxiliary files in that list. We need to remove them because
+	users can't map them back to table names and this will create
+	unnecessary clutter. */
+
+	for (space_name_list_t::iterator it = space_name_list.begin();
+	     it != space_name_list.end();
+	     ++it) {
+
+		fts_aux_table_t*	fts_aux_table;
+
+		fts_aux_table = static_cast<fts_aux_table_t*>(
+			ib_vector_push(tables, NULL));
+
+		memset(fts_aux_table, 0x0, sizeof(*fts_aux_table));
+
+		if (!fts_is_aux_table_name(fts_aux_table, *it, strlen(*it))) {
+			ib_vector_pop(tables);
+		} else {
+			ulint	len = strlen(*it);
+
+			fts_aux_table->id = fil_get_space_id_for_table(*it);
+
+			/* We got this list from fil0fil.cc. The tablespace
+			with this name must exist. */
+			ut_a(fts_aux_table->id != ULINT_UNDEFINED);
+
+			fts_aux_table->name = static_cast<char*>(
+				mem_heap_dup(heap, *it, len + 1));
+
+			fts_aux_table->name[len] = 0;
+		}
+	}
 
 	trx = trx_allocate_for_background();
 	trx->op_info = "dropping orphaned FTS tables";
@@ -5891,14 +5936,14 @@ fts_drop_orphaned_tables(void)
 			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout reading SYS_TABLES. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"lock wait timeout reading SYS_TABLES. "
+					"Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: (%s) "
-					"while reading SYS_TABLES.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) while reading SYS_TABLES.",
 					ut_strerr(error));
 
 				break;			/* Exit the loop. */
@@ -5914,6 +5959,14 @@ fts_drop_orphaned_tables(void)
 
 	if (heap != NULL) {
 		mem_heap_free(heap);
+	}
+
+	/** Free the memory allocated to store the .ibd names. */
+	for (space_name_list_t::iterator it = space_name_list.begin();
+	     it != space_name_list.end();
+	     ++it) {
+
+		delete[] *it;
 	}
 }
 
