@@ -4085,10 +4085,11 @@ will_not_choose:
 		mem_free(def.filepath);
 
 		if (srv_force_recovery > 0) {
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"innodb_force_recovery was set to %lu. "
-				"Continuing crash recovery even though we "
-				"cannot access the .ibd file of this table.",
+			fprintf(stderr,
+				"InnoDB: innodb_force_recovery"
+				" was set to %lu. Continuing crash recovery\n"
+				"InnoDB: even though we cannot access"
+				" the .ibd file of this table.\n",
 				srv_force_recovery);
 			return;
 		}
@@ -4127,10 +4128,10 @@ will_not_choose:
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"could not measure the size of single-table "
-			"tablespace file %s", fsp->filepath);
-
+		fprintf(stderr,
+			"InnoDB: Error: could not measure the size"
+			" of single-table tablespace file %s\n",
+			fsp->filepath);
 		os_file_close(fsp->file);
 		goto no_good_file;
 	}
@@ -4140,9 +4141,11 @@ will_not_choose:
 	ulong minimum_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
 	if (size < minimum_size) {
 #ifndef UNIV_HOTBACKUP
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The size of single-table tablespace file %s "
-			"is only " UINT64PF ", should be at least %lu!",
+		fprintf(stderr,
+			"InnoDB: Error: the size of single-table"
+			" tablespace file %s\n"
+			"InnoDB: is only " UINT64PF
+			", should be at least %lu!\n",
 			fsp->filepath, size, minimum_size);
 		os_file_close(fsp->file);
 		goto no_good_file;
@@ -4275,21 +4278,25 @@ fil_file_readdir_next_file(
 				was encountered, otherwise not changed */
 	const char*	dirname,/*!< in: directory name or path */
 	os_file_dir_t	dir,	/*!< in: directory stream */
-	os_file_stat_t*	info)	/*!< in/out: buffer where the
-				info is returned */
+	os_file_stat_t*	info)	/*!< in/out: buffer where the info is returned */
 {
-	for (ulint i = 0; i < 100; i++) {
-		int	ret = os_file_readdir_next_file(dirname, dir, info);
+	ulint	i;
+	int	ret;
+
+	for (i = 0; i < 100; i++) {
+		ret = os_file_readdir_next_file(dirname, dir, info);
 
 		if (ret != -1) {
 
 			return(ret);
 		}
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"os_file_readdir_next_file() returned -1 in "
-			"directory %s, crash recovery may have failed "
-			"for some .ibd files!", dirname);
+		fprintf(stderr,
+			"InnoDB: Error: os_file_readdir_next_file()"
+			" returned -1 in\n"
+			"InnoDB: directory %s\n"
+			"InnoDB: Crash recovery may have failed"
+			" for some .ibd files!\n", dirname);
 
 		*err = DB_ERROR;
 	}
@@ -4366,6 +4373,7 @@ fil_load_single_table_tablespaces(void)
 		dbdir = os_file_opendir(dbpath, FALSE);
 
 		if (dbdir != NULL) {
+			/* printf("Opened dir %s\n", dbinfo.name); */
 
 			/* We found a database directory; loop through it,
 			looking for possible .ibd files in it */
@@ -4373,6 +4381,8 @@ fil_load_single_table_tablespaces(void)
 			ret = fil_file_readdir_next_file(&err, dbpath, dbdir,
 							 &fileinfo);
 			while (ret == 0) {
+				/* printf(
+				"     Looking at file %s\n", fileinfo.name); */
 
 				if (fileinfo.type == OS_FILE_TYPE_DIR) {
 
@@ -6120,50 +6130,4 @@ fil_delete_file(
 	os_file_delete_if_exists(cfg_name);
 
 	mem_free(cfg_name);
-}
-
-/**
-Iterate over all the spaces in the space list and fetch the
-tablespace names. It will return a copy of the name that must be
-freed by the caller using: delete[].
-@return DB_SUCCESS if all OK. */
-UNIV_INTERN
-dberr_t
-fil_get_space_names(
-/*================*/
-	space_name_list_t&	space_name_list)
-				/*!< in/out: List to append to */
-{
-	fil_space_t*	space;
-	dberr_t		err = DB_SUCCESS;
-
-	mutex_enter(&fil_system->mutex);
-
-	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
-	     space != NULL;
-	     space = UT_LIST_GET_NEXT(space_list, space)) {
-
-		if (space->purpose == FIL_TABLESPACE) {
-			ulint	len;
-			char*	name;
-
-			len = strlen(space->name);
-			name = new(std::nothrow) char[len + 1];
-
-			if (name == 0) {
-				/* Caller to free elements allocated so far. */
-				err = DB_OUT_OF_MEMORY;
-				break;
-			}
-
-			memcpy(name, space->name, len);
-			name[len] = 0;
-
-			space_name_list.push_back(name);
-		}
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	return(err);
 }
