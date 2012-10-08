@@ -416,7 +416,7 @@ int opt_sum_query(THD *thd,
             DBUG_RETURN(error);
           }
 
-          error= is_max ? 
+          error= is_max ?
                  get_index_max_value(table, &ref, range_fl) :
                  get_index_min_value(table, &ref, item_field, range_fl,
                                      prefix_len);
