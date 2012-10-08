@@ -4463,11 +4463,7 @@ loop:
 		table = dict_table_open_on_name(table_name, TRUE, FALSE,
 						DICT_ERR_IGNORE_NONE);
 
-		if (table == 0) {
-			ib_logf(IB_LOG_LEVEL_INFO, "Table %s not found",
-				table_name);
-			continue;
-		} else if (row_is_mysql_tmp_table_name(table->name)) {
+		if (row_is_mysql_tmp_table_name(table->name)) {
 			/* There could be an orphan temp table left from
 			interupted alter table rebuild operation */
 			dict_table_close(table, TRUE, FALSE);
