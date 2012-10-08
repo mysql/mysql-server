@@ -1841,8 +1841,7 @@ row_ins_dupl_error_with_rec(
 	if (!dict_index_is_clust(index)) {
 
 		for (i = 0; i < n_unique; i++) {
-			if (UNIV_SQL_NULL == dfield_get_len(
-				    dtuple_get_nth_field(entry, i))) {
+			if (dfield_is_null(dtuple_get_nth_field(entry, i))) {
 
 				return(FALSE);
 			}
@@ -1984,13 +1983,11 @@ end_scan:
 
 /** Checks if an earlier version of a record was modified or
 inserted by a given transaction.
-@retval true if the record was modified by trx_id
-@retval false if the record was not modified by trx_id,
-or the history is not known */
+@return whether rec was modified by old_trx earlier */
 static __attribute__((nonnull, warn_unused_result))
 bool
-row_ins_duplicate_is_newer(
-/*=======================*/
+row_ins_duplicate_online_is_newer(
+/*==============================*/
 	const rec_t*	rec,	/*!< in: clustered index record */
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec) */
 	ulint		n_uniq,	/*!< in: offset of DB_TRX_ID */
@@ -2028,7 +2025,6 @@ row_ins_duplicate_is_newer(
 		that the rec was not known to be a newer version of
 		a record that was inserted or updated by old_trx. */
 
-		dberr_t		err;
 		trx_undo_rec_t*	undo_rec;
 		byte*		ptr;
 		ulint		type;
@@ -2045,14 +2041,10 @@ row_ins_duplicate_is_newer(
 			break;
 		}
 
-		err = trx_undo_get_undo_rec(roll_ptr, trx_id, &undo_rec, heap);
-
-		if (err != DB_SUCCESS) {
-			ut_ad(err == DB_MISSING_HISTORY);
-			/* We do not know if the record is a newer
-			version of something touched by old_trx. */
-			break;
-		}
+		/* Because row_purge_record_func() does not process
+		undo log records for tables that are being rebuilt
+		online, it is safe to read the undo log record. */
+		undo_rec = trx_undo_get_undo_rec_low(roll_ptr, heap);
 
 		ptr = trx_undo_rec_get_pars(
 			undo_rec, &type, &cmpl_info,
@@ -2071,6 +2063,85 @@ row_ins_duplicate_is_newer(
 
 	mem_heap_free(heap);
 	return(is_newer);
+}
+
+/** Checks for a duplicate when the table is being rebuilt online.
+@retval DB_SUCCESS		when no duplicate is detected
+@retval DB_SUCCESS_LOCKED_REC	when rec is an exact match of entry or
+a newer version of entry (the entry should not be inserted)
+@retval DB_DUPLICATE_KEY	when entry is a duplicate of rec */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
+row_ins_duplicate_online(
+/*=====================*/
+	ulint		flags,	/*!< in: undo logging and locking flags */
+	ulint		n_uniq,	/*!< in: offset of DB_TRX_ID */
+	const dtuple_t*	entry,	/*!< in: entry that is being inserted */
+	const rec_t*	rec,	/*!< in: clustered index record */
+	ulint*		offsets)/*!< in/out: rec_get_offsets(rec) */
+{
+	ulint	fields	= 0;
+	ulint	bytes	= 0;
+
+	/* During rebuild, there should not be any delete-marked rows
+	in the new table. */
+	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
+	ut_ad(dtuple_get_n_fields_cmp(entry) == n_uniq);
+
+	/* Compare the PRIMARY KEY fields and the
+	DB_TRX_ID, DB_ROLL_PTR. */
+	cmp_dtuple_rec_with_match_low(
+		entry, rec, offsets, n_uniq + 2, &fields, &bytes);
+
+	if (fields < n_uniq) {
+		/* Not a duplicate. */
+		return(DB_SUCCESS);
+	}
+
+	if (fields == n_uniq + 2) {
+		/* rec is an exact match of entry. */
+		ut_ad(bytes == 0);
+		return(DB_SUCCESS_LOCKED_REC);
+	}
+
+	if (!(flags & BTR_CREATE_SAME_PK_FLAG)) {
+		/* When redefining the primary key, we do not know
+		whether this is a duplicate row.
+
+		Consider ADD PRIMARY KEY(c) and INSERT INTO t(c)
+		VALUES(1),(1). If there was no unique index on c, the
+		INSERT would be allowed before the ALTER. After the
+		ALTER, we must refuse it.
+
+		If we wanted to avoid false duplicates when redefining
+		the primary key, we could use consistent reads in the
+		clustered index scan (row_merge_read_clustered_index())
+		instead of the current READ UNCOMMITTED. */
+		return(DB_DUPLICATE_KEY);
+	}
+
+	/* Now, let us consider any table-rebuilding ALTER operation
+	that does not redefine the primary key. When
+	row_log_table_low() was called for an insert or update, the
+	uniqueness of the PRIMARY KEY must not have been violated.
+	Thus, in the log apply it is safe to skip log records that are
+	for older versions of a record. */
+
+	if (fields > n_uniq) {
+		/* The record was later updated in the same transaction. */
+		return(DB_SUCCESS_LOCKED_REC);
+	}
+
+	const dfield_t*	trx_id = dtuple_get_nth_field(entry, n_uniq);
+	ut_ad(dfield_get_len(trx_id) == DATA_TRX_ID_LEN);
+	ut_ad(dfield_get_type(trx_id)->mtype == DATA_SYS);
+	ut_ad(dfield_get_type(trx_id)->prtype
+	      == (DATA_TRX_ID | DATA_NOT_NULL));
+
+	return(row_ins_duplicate_online_is_newer(
+		       rec, offsets, n_uniq, static_cast<const byte*>(
+			       trx_id->data))
+	       ? DB_SUCCESS_LOCKED_REC : DB_DUPLICATE_KEY);
 }
 
 /***************************************************************//**
@@ -2167,67 +2238,22 @@ row_ins_duplicate_error_in_clust(
 
 			if (flags
 			    & (BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG)) {
-				/* We are inserting into the rebuilt table.
-				See if this is a real duplicate, or an
-				exact match of a previous insert. */
-				ulint	fields	= 0;
-				ulint	bytes	= 0;
+				err = row_ins_duplicate_online(
+					flags, n_unique, entry, rec, offsets);
 
-				/* During rebuild, there should not be any
-				delete-marked rows in the new table. */
-				ut_ad(!rec_get_deleted_flag(
-					      rec, rec_offs_comp(offsets)));
-				ut_ad(dtuple_get_n_fields_cmp(entry)
-				      == n_unique);
-
-				/* Compare the PRIMARY KEY fields and the
-				DB_TRX_ID, DB_ROLL_PTR. */
-				cmp_dtuple_rec_with_match_low(
-					entry, rec, offsets,
-					n_unique + 1, &fields, &bytes);
-
-				if (fields >= n_unique) {
-					if (fields > n_unique) {
-						/* This is an exact match,
-						or the record was later
-						updated in the same
-						transaction. */
-						ut_ad(bytes == 0);
-skip_duplicate:
-						/* Special return code to
-						indicate that the row was
-						already inserted. */
-						err = DB_SUCCESS_LOCKED_REC;
-						goto func_exit;
-					}
-
-					const dfield_t*	trx_id
-						= dtuple_get_nth_field(
-							entry, n_unique);
-					ut_ad(dfield_get_len(trx_id)
-					      == DATA_TRX_ID_LEN);
-					ut_ad(dfield_get_type(trx_id)
-					      ->mtype == DATA_SYS);
-					ut_ad(dfield_get_type(trx_id)
-					      ->prtype == (DATA_TRX_ID
-							   | DATA_NOT_NULL));
-
-					if (row_ins_duplicate_is_newer(
-						    rec, offsets, n_unique,
-						    static_cast<const byte*>(
-							    trx_id->data))) {
-						/* If we are able to determine
-						that the record is a newer
-						version of what we attempt to
-						insert, indicate that the row
-						was already inserted. */
-						goto skip_duplicate;
-					}
-
-					goto duplicate;
+				switch (err) {
+				case DB_SUCCESS:
+					break;
+				default:
+					ut_ad(0);
+					/* fall through */
+				case DB_SUCCESS_LOCKED_REC:
+				case DB_DUPLICATE_KEY:
+					trx->error_info = cursor->index;
+					goto func_exit;
 				}
 			} else if (row_ins_dupl_error_with_rec(
-					   rec, entry, cursor->index, offsets)) {
+				    rec, entry, cursor->index, offsets)) {
 duplicate:
 				trx->error_info = cursor->index;
 				err = DB_DUPLICATE_KEY;
