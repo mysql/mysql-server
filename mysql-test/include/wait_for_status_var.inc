@@ -72,11 +72,13 @@ if ($_is_number)
 
 while (`$_query`)
 {
-
-  if (!_status_timeout_counter && !$status_fail_query)
+  if (!$_status_timeout_counter)
   {
-    --echo **** ERROR: failed waiting for the response for the $status_var and checking the status of the failing query ***
-    eval $status_fail_query
+    if(!$status_fail_query)
+    { 
+      --echo **** ERROR: failed waiting for the response for the $status_var and checking the status of the failing query ***
+      eval $status_fail_query;
+    }
   }
 
   if (!$_status_timeout_counter)
