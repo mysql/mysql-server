@@ -112,7 +112,7 @@ namespace toku {
         bool pushed = false;
         invariant_notnull(abstime);
         lock();
-        if (is_empty()) {
+        if (is_full()) {
             ++m_push_waiters;
             int r = toku_cond_timedwait(&m_push_cond, &m_lock, abstime);
             if (r != 0) {
@@ -120,7 +120,7 @@ namespace toku {
             }
             --m_push_waiters;
         }
-        if (!is_full() && m_push_waiters == 0) {
+        if (!is_full()) {
             push_and_maybe_signal_unlocked(elt);
             pushed = true;
         }
