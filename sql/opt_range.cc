@@ -1618,7 +1618,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
       There is no use of this->file. Use it for the first of merged range
       selects.
     */
-    if ((error= quick->init_ror_merged_scan(TRUE)))
+    int error= quick->init_ror_merged_scan(TRUE);
+    if (error)
       DBUG_RETURN(error);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
