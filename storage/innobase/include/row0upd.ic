@@ -28,6 +28,7 @@ Created 12/27/1996 Heikki Tuuri
 # include "trx0trx.h"
 # include "trx0undo.h"
 # include "row0row.h"
+# include "lock0lock.h"
 #endif /* !UNIV_HOTBACKUP */
 #include "page0zip.h"
 
@@ -171,6 +172,8 @@ row_upd_rec_sys_fields(
 #if DATA_TRX_ID + 1 != DATA_ROLL_PTR
 # error "DATA_TRX_ID + 1 != DATA_ROLL_PTR"
 #endif
+		ut_ad(lock_check_trx_id_sanity(trx_read_trx_id(rec + offset),
+					       rec, index, offsets));
 		trx_write_trx_id(rec + offset, trx->id);
 		trx_write_roll_ptr(rec + offset + DATA_TRX_ID_LEN, roll_ptr);
 	}
