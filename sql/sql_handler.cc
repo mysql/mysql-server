@@ -665,14 +665,14 @@ retry:
     case RFIRST:
       if (keyname)
       {
-        table->file->ha_index_or_rnd_end();
-        table->file->ha_index_init(keyno, 1);
-        error= table->file->index_first(table->record[0]);
+        if (!(error= table->file->ha_index_or_rnd_end()) &&
+            !(error= table->file->ha_index_init(keyno, 1)))
+          error= table->file->index_first(table->record[0]);
       }
       else
       {
-        table->file->ha_index_or_rnd_end();
-	if (!(error= table->file->ha_rnd_init(1)))
+        if (!(error= table->file->ha_index_or_rnd_end()) &&
+	    !(error= table->file->ha_rnd_init(1)))
           error= table->file->rnd_next(table->record[0]);
       }
       mode=RNEXT;
@@ -689,9 +689,9 @@ retry:
       /* else fall through */
     case RLAST:
       DBUG_ASSERT(keyname != 0);
-      table->file->ha_index_or_rnd_end();
-      table->file->ha_index_init(keyno, 1);
-      error= table->file->index_last(table->record[0]);
+      if (!(error= table->file->ha_index_or_rnd_end()) &&
+          !(error= table->file->ha_index_init(keyno, 1)))
+        error= table->file->index_last(table->record[0]);
       mode=RPREV;
       break;
     case RNEXT_SAME:
@@ -734,11 +734,12 @@ retry:
 
       if (!(key= (uchar*) thd->calloc(ALIGN_SIZE(key_len))))
 	goto err;
-      table->file->ha_index_or_rnd_end();
-      table->file->ha_index_init(keyno, 1);
+      if ((error= table->file->ha_index_or_rnd_end()))
+        break;
       key_copy(key, table->record[0], table->key_info + keyno, key_len);
-      error= table->file->index_read_map(table->record[0],
-                                         key, keypart_map, ha_rkey_mode);
+      if (!(error= table->file->ha_index_init(keyno, 1)))
+        error= table->file->index_read_map(table->record[0],
+                                           key, keypart_map, ha_rkey_mode);
       mode=rkey_to_rnext[(int)ha_rkey_mode];
       break;
     }

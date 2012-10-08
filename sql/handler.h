@@ -1351,6 +1351,7 @@ public:
   int ha_open(TABLE *table, const char *name, int mode, int test_if_locked);
   int ha_index_init(uint idx, bool sorted)
   {
+    DBUG_EXECUTE_IF("ha_index_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
     int result;
     DBUG_ENTER("ha_index_init");
     DBUG_ASSERT(inited==NONE);
@@ -1367,6 +1368,7 @@ public:
   }
   int ha_rnd_init(bool scan)
   {
+    DBUG_EXECUTE_IF("ha_rnd_init_fail", return HA_ERR_TABLE_DEF_CHANGED;);
     int result;
     DBUG_ENTER("ha_rnd_init");
     DBUG_ASSERT(inited==NONE || (inited==RND && scan));

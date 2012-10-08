@@ -40,13 +40,13 @@ test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index "idxā" is co
 test.corrupt_bit_test_ā	check	Warning	InnoDB: The B-tree of index "idxē" is corrupted.
 test.corrupt_bit_test_ā	check	error	Corrupt
 select c from corrupt_bit_test_ā;
-ERROR HY000: Incorrect key file for table 'corrupt_bit_test_ā'; try to repair it
+ERROR HY000: Index corrupt_bit_test_ā is corrupted
 select z from corrupt_bit_test_ā;
-ERROR HY000: Incorrect key file for table 'corrupt_bit_test_ā'; try to repair it
+ERROR HY000: Index corrupt_bit_test_ā is corrupted
 show warnings;
 Level	Code	Message
 Warning	179	InnoDB: Index "idxē" for table "test"."corrupt_bit_test_ā" is marked as corrupted
-Error	1034	Incorrect key file for table 'corrupt_bit_test_ā'; try to repair it
+Error	1712	Index corrupt_bit_test_ā is corrupted
 insert into corrupt_bit_test_ā values (10001, "a", 20001, 20001);
 select * from corrupt_bit_test_ā use index(primary) where a = 10001;
 a	b	c	z
@@ -63,7 +63,7 @@ test.corrupt_bit_test_ā	check	Warning	InnoDB: Index "idxē" is marked as corrup
 test.corrupt_bit_test_ā	check	error	Corrupt
 set names utf8;
 select z from corrupt_bit_test_ā;
-ERROR HY000: Incorrect key file for table 'corrupt_bit_test_ā'; try to repair it
+ERROR HY000: Index corrupt_bit_test_ā is corrupted
 drop index idxē on corrupt_bit_test_ā;
 select z from corrupt_bit_test_ā limit 10;
 z

@@ -725,7 +725,10 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     int error;
     /* We have a key: search the table using the index */
     if (!table->file->inited && (error= table->file->ha_index_init(0, FALSE)))
+    {
+      table->file->print_error(error, MYF(0));
       DBUG_RETURN(error);
+    }
 
   /*
     Don't print debug messages when running valgrind since they can
@@ -823,7 +826,10 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
 
     /* We don't have a key: search the table using rnd_next() */
     if ((error= table->file->ha_rnd_init(1)))
-      return error;
+    {
+      table->file->print_error(error, MYF(0));
+      DBUG_RETURN(error);
+    }
 
     /* Continue until we find the right record or have made a full loop */
     do
@@ -846,15 +852,21 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
         goto restart_rnd_next;
 
       case HA_ERR_END_OF_FILE:
-  if (++restart_count < 2)
-    table->file->ha_rnd_init(1);
-  break;
+        if (++restart_count < 2)
+        {
+          if ((error= table->file->ha_rnd_init(1)))
+          {
+            table->file->print_error(error, MYF(0));
+            DBUG_RETURN(error);
+          }
+        }
+       break;
 
       default:
-  table->file->print_error(error, MYF(0));
+        table->file->print_error(error, MYF(0));
         DBUG_PRINT("info", ("Record not found"));
-        table->file->ha_rnd_end();
-  DBUG_RETURN(error);
+        (void) table->file->ha_rnd_end();
+        DBUG_RETURN(error);
       }
     }
     while (restart_count < 2 && record_compare(table));
@@ -2417,7 +2429,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
           continue;
         DBUG_PRINT("info",("no record matching the given row found"));
         table->file->print_error(error, MYF(0));
-        table->file->ha_index_end();
+        (void) table->file->ha_index_end();
         DBUG_RETURN(error);
       }
     }
@@ -2458,7 +2470,13 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
 
       case HA_ERR_END_OF_FILE:
         if (++restart_count < 2)
-          table->file->ha_rnd_init(1);
+        {
+          if ((error= table->file->ha_rnd_init(1)))
+          {
+            table->file->print_error(error, MYF(0));
+            DBUG_RETURN(error);
+          }
+        }
         break;
 
       default:
