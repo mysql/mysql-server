@@ -380,9 +380,14 @@ int opt_sum_query(THD *thd,
             const_result= 0;
             break;
           }
-          table->file->ha_index_init((uint) ref.key, 1);
+          if ((error= table->file->ha_index_init((uint) ref.key, 1)))
+          {
+            table->file->print_error(error, MYF(0));
+            table->set_keyread(FALSE);
+            DBUG_RETURN(error);
+          }
 
-          error= is_max ? 
+          error= is_max ?
                  get_index_max_value(table, &ref, range_fl) :
                  get_index_min_value(table, &ref, item_field, range_fl,
                                      prefix_len);
