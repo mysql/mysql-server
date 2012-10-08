@@ -728,7 +728,7 @@ os_file_lock(
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to lock %s, error: %d\n", name, errno);
+			"Unable to lock %s, error: %d", name, errno);
 
 		if (errno == EAGAIN || errno == EACCES) {
 			ib_logf(IB_LOG_LEVEL_INFO,
@@ -3818,8 +3818,7 @@ os_aio_init(
 	/* Check if native aio is supported on this system and tmpfs */
 	if (srv_use_native_aio && !os_aio_native_aio_supported()) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Linux Native AIO disabled.");
+		ib_logf(IB_LOG_LEVEL_WARN, "Linux Native AIO disabled.");
 
 		srv_use_native_aio = FALSE;
 	}
