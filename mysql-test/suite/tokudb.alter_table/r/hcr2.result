@@ -38,7 +38,7 @@ a33 mediumblob,
 a34 mediumtext CHARACTER SET latin1 COLLATE latin1_general_cs,
 a35 longblob,
 a36 longtext CHARACTER SET latin1 COLLATE latin1_general_cs
-)engine = TokuDB;
+);
 alter table foo change a1 aa1 int;
 alter table foo change a2 aa2 int unsigned;
 alter table foo change a3 aa3 tinyint;
@@ -58,14 +58,21 @@ alter table foo change a16 aa16 decimal;
 alter table foo change a17 aa17 date;
 alter table foo change a18 aa18 datetime;
 alter table foo change a19 aa19 timestamp;
+alter table foo change a20 aa20 time;
 alter table foo change a21 aa21 year;
+alter table foo change a22 aa22 binary(100);
 alter table foo change a23 aa23 varbinary(100);
 alter table foo change a24 aa24 varchar(10);
 alter table foo change a25 aa25 varchar(10) CHARACTER SET latin1 COLLATE latin1_general_cs;
 alter table foo change a26 aa26 char(10);
 alter table foo change a27 aa27 char(10) CHARACTER SET latin1 COLLATE latin1_general_cs;
+alter table foo change a28 aa28 ENUM('a','b','c') CHARACTER SET binary;
+alter table foo change a29 aa29 tinyblob;
 alter table foo change a30 aa30 tinytext CHARACTER SET latin1 COLLATE latin1_general_cs;
+alter table foo change a31 aa31 blob;
 alter table foo change a32 aa32 text CHARACTER SET latin1 COLLATE latin1_general_cs;
+alter table foo change a33 aa33 mediumblob;
 alter table foo change a34 aa34 mediumtext CHARACTER SET latin1 COLLATE latin1_general_cs;
+alter table foo change a35 aa35 longblob;
 alter table foo change a36 aa36 longtext CHARACTER SET latin1 COLLATE latin1_general_cs;
 drop table foo;
