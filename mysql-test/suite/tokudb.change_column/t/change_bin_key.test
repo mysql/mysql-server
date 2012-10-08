@@ -9,28 +9,27 @@ SET SESSION DEFAULT_STORAGE_ENGINE='TokuDB';
 
 CREATE TABLE t (a BINARY(100), b BINARY(200), KEY(a), KEY(b));
 
-# fill_alter_inplace_info bug, handler_flags == ALTER_COLUMN_TYPE + ALTER_COLUMN_DEFAULT, so we fail it
---replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
---error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE t CHANGE COLUMN a a BINARY(100);
 
+# no shrinkage and a is part of a key
 --replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE t CHANGE COLUMN a a BINARY(1);
 
+# a is part of a key
 --replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE t CHANGE COLUMN a a BINARY(255);
 
-# fill_alter_inplace_info bug, handler_flags == ALTER_COLUMN_TYPE + ALTER_COLUMN_DEFAULT, so we fail it
---replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
---error ER_UNSUPPORTED_EXTENSION
+# no type change to b
 ALTER TABLE t CHANGE COLUMN b b BINARY(200);
 
+# no shrinkage and b is part of a key
 --replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE t CHANGE COLUMN b b BINARY(1);
 
+# b is part of a key
 --replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE t CHANGE COLUMN b b BINARY(255);
@@ -39,10 +38,12 @@ DROP TABLE t;
 
 CREATE TABLE t (a BINARY(1), b BINARY(2), KEY(a,b));
 
+# a is part of a key
 --replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE t CHANGE COLUMN a a BINARY(3);
 
+# b is part of a key
 --replace_regex /MariaDB/XYZ/ /MySQL/XYZ/
 --error ER_UNSUPPORTED_EXTENSION
 ALTER TABLE t CHANGE COLUMN b b BINARY(3);
