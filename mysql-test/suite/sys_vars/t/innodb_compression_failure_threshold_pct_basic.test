@@ -87,6 +87,9 @@ SELECT @@global.innodb_compression_failure_threshold_pct;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_compression_failure_threshold_pct = "T";
 SELECT @@global.innodb_compression_failure_threshold_pct;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_failure_threshold_pct = 1.1;
+SELECT @@global.innodb_compression_failure_threshold_pct;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_compression_failure_threshold_pct = "Y";
@@ -94,7 +97,12 @@ SELECT @@global.innodb_compression_failure_threshold_pct;
 
 SET @@global.innodb_compression_failure_threshold_pct = 101;
 SELECT @@global.innodb_compression_failure_threshold_pct;
-
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_failure_threshold_pct = " ";
+SELECT @@global.innodb_compression_failure_threshold_pct;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_compression_failure_threshold_pct = ' ';
+SELECT @@global.innodb_compression_failure_threshold_pct;
 
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'
 #########################################################################
