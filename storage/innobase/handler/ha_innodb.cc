@@ -10537,9 +10537,11 @@ innobase_get_mysql_key_number_for_index(
 		}
 
 		/* Print an error message if we cannot find the index
-		** in the "index translation table". */
-		sql_print_error("Cannot find index %s in InnoDB index "
-				"translation table.", index->name);
+		in the "index translation table". */
+		if (*index->name != TEMP_INDEX_PREFIX) {
+			sql_print_error("Cannot find index %s in InnoDB index "
+					"translation table.", index->name);
+		}
 	}
 
 	/* If we do not have an "index translation table", or not able
