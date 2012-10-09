@@ -3099,7 +3099,7 @@ logs_empty_and_mark_files_at_shutdown(void)
 	const char*		thread_name;
 	ibool			server_busy;
 
-	ib_logf(IB_LOG_LEVEL_INFO,"Starting shutdown...");
+	ib_logf(IB_LOG_LEVEL_INFO, "Starting shutdown...");
 
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
@@ -3186,7 +3186,7 @@ loop:
 			}
 
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for %s to be suspended\n",
+				"Waiting for %s to be suspended",
 				thread_type);
 			count = 0;
 		}

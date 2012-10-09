@@ -1618,7 +1618,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
       There is no use of this->file. Use it for the first of merged range
       selects.
     */
-    if ((error= quick->init_ror_merged_scan(TRUE)))
+    int error= quick->init_ror_merged_scan(TRUE);
+    if (error)
       DBUG_RETURN(error);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
@@ -10578,12 +10579,25 @@ int QUICK_SELECT_DESC::get_next()
       handler know where to end the scan in order to avoid that the
       ICP implemention continues to read past the range boundary.
     */
-    if (file->pushed_idx_cond && !eqrange_all_keyparts)
+    if (file->pushed_idx_cond)
     {
-      key_range min_range;
-      last_range->make_min_endpoint(&min_range);
-      if(min_range.length > 0)
-        file->set_end_range(&min_range, handler::RANGE_SCAN_DESC);
+      if (!eqrange_all_keyparts)
+      {
+        key_range min_range;
+        last_range->make_min_endpoint(&min_range);
+        if(min_range.length > 0)
+          file->set_end_range(&min_range, handler::RANGE_SCAN_DESC);
+        else
+          file->set_end_range(NULL, handler::RANGE_SCAN_DESC);
+      }
+      else
+      {
+        /*
+          Will use ha_index_next_same() for reading records. In case we have
+          set the end range for an earlier range, this need to be cleared.
+        */
+        file->set_end_range(NULL, handler::RANGE_SCAN_ASC);
+      }
     }
 
     if (last_range->flag & NO_MAX_RANGE)        // Read last record

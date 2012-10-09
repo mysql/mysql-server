@@ -3001,13 +3001,10 @@ recv_recovery_from_checkpoint_start_func(
 		a note to the user about it */
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"The log file was created by ibbackup --apply-log at "
-			"%s ",
+			"The log file was created by ibbackup --apply-log "
+			"at %s. The following crash recovery is part of a "
+			"normal restore.",
 			log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP);
-
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"The following crash recovery is part of a normal "
-			"restore.");
 
 		/* Wipe over the label now */
 
