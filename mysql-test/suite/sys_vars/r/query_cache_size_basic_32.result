@@ -6,7 +6,7 @@ Warning	1292	Truncated incorrect query_cache_size value: '99'
 SET @@global.query_cache_size = DEFAULT;
 SELECT @@global.query_cache_size;
 @@global.query_cache_size
-0
+1048576
 '#---------------------FN_DYNVARS_133_02-------------------------#'
 SET @@global.query_cache_size = @start_value;
 SELECT @@global.query_cache_size = @start_value;
