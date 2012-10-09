@@ -53,7 +53,7 @@ my @args;                       # Argument list filled in
 
 sub usage
 {
-  print <<EOF;
+  print <<EOF1;
 Usage: $0 [OPTIONS]
   --basedir=path       The path to the MySQL installation directory.
   --builddir=path      If using --srcdir with out-of-directory builds, you
@@ -62,6 +62,8 @@ Usage: $0 [OPTIONS]
   --cross-bootstrap    For internal use.  Used when building the MySQL system
                        tables on a different host than the target.
   --datadir=path       The path to the MySQL data directory.
+                       If missing, the directory will be created, but its
+                       parent directory must already exist and be writable.
   --defaults-extra-file=name
                        Read this file after the global files are read.
   --defaults-file=name Only read default options from the given file name.
@@ -71,9 +73,15 @@ Usage: $0 [OPTIONS]
   --help               Display this help and exit.                     
   --ldata=path         The path to the MySQL data directory. Same as --datadir.
   --no-defaults        Don't read default options from any option file.
+EOF1
+  if ( $^O !~ m/^(MSWin32)$/ ) {
+    print <<EOF2;
   --random-passwords   Create and set a random password for all root accounts
                        and set the "password expired" flag,
-                       remove the anonymous accounts.
+                       also remove the anonymous accounts.
+EOF2
+  }
+  print <<EOF3;
   --rpm                For internal use.  This option is used by RPM files
                        during the MySQL installation process.
   --skip-name-resolve  Use IP addresses rather than hostnames when creating
@@ -89,9 +97,9 @@ Usage: $0 [OPTIONS]
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
 
-All other options are passed to the mysqld program
+Any other options are passed to the mysqld program.
 
-EOF
+EOF3
   exit 1;
 }
 
@@ -438,6 +446,7 @@ parse_arguments($opt, 'PICK-ARGS-FROM-ARGV', @ARGV);
 
 if ( $opt->{'random-passwords'} ) {
   # Add other non-working OS like this: $^O =~ m/^(solaris|linux|freebsd|darwin)$/
+  # and maintain "usage()".
   # Issue 1: random password creation
   # Issue 2: confidential file
   if ( $^O =~ m/^(MSWin32)$/ ) {
@@ -577,9 +586,9 @@ my $parent = dirname ( $opt->{ldata} );
 if ( ! -d $parent ) {
   error($opt,
         "The parent directory for the data directory '$opt->{ldata}' does not exist.",
-	"If that path was really intended, please create that directory path and then",
-	"restart this script.",
-	"If some other path was intended, please use the correct path when restarting this script.");
+        "If that path was really intended, please create that directory path and then",
+        "restart this script.",
+        "If some other path was intended, please use the correct path when restarting this script.");
 }
 foreach my $dir ( $opt->{ldata}, "$opt->{ldata}/mysql", "$opt->{ldata}/test" )
 {
@@ -705,9 +714,9 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
              "You will find that password in '$secret_file'.",
              "",
              "You must change that password on your first connect,",
-	     "no other statement but 'SET PASSWORD' will be accepted.",
-	     "See the manual for the semantics of the 'password expired' flag.",
-	     "",
+             "no other statement but 'SET PASSWORD' will be accepted.",
+             "See the manual for the semantics of the 'password expired' flag.",
+             "",
              "Also, the account for the anonymous user has been removed.",
              "",
              "In addition, you can run:",
