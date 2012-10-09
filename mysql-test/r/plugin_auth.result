@@ -124,17 +124,20 @@ ERROR 28000: Access denied for user 'grant_plug_dest'@'localhost'
 this should fail : not the same user
 GRANT PROXY ON grant_plug TO grant_plug_dest;
 ERROR 28000: Access denied for user 'grant_plug_dest'@'localhost'
-this should fail : same user, but on a different host
+This is a valid grant
 GRANT PROXY ON grant_plug_dest TO grant_plug;
-ERROR 28000: Access denied for user 'grant_plug_dest'@'localhost'
+REVOKE PROXY ON grant_plug_dest FROM grant_plug;
 this should work : same user
-GRANT PROXY ON grant_plug_dest@localhost TO grant_plug_dest2;
-REVOKE PROXY ON grant_plug_dest@localhost FROM grant_plug_dest2;
-this should work : same user
+GRANT PROXY ON grant_plug_dest TO grant_plug_dest2;
+REVOKE PROXY ON grant_plug_dest FROM grant_plug_dest2;
+this should fail : not the same user
 GRANT PROXY ON grant_plug_dest@localhost TO grant_plug WITH GRANT OPTION;
+ERROR 28000: Access denied for user 'grant_plug_dest'@'localhost'
+this should fail : not the same user
 REVOKE PROXY ON grant_plug_dest@localhost FROM grant_plug;
+ERROR 28000: Access denied for user 'grant_plug_dest'@'localhost'
 this should fail : can't create users
-GRANT PROXY ON grant_plug_dest@localhost TO grant_plug@localhost;
+GRANT PROXY ON grant_plug_dest TO grant_plug@localhost;
 ERROR 42000: You are not allowed to create a user with GRANT
 in default connection
 # test what root can grant
@@ -152,12 +155,12 @@ GRANT PROXY ON future_user TO grant_plug;
 in default connection
 SHOW GRANTS FOR grant_plug;
 Grants for grant_plug@%
-GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%'
 GRANT PROXY ON 'future_user'@'%' TO 'grant_plug'@'%'
 REVOKE PROXY ON future_user FROM grant_plug;
 SHOW GRANTS FOR grant_plug;
 Grants for grant_plug@%
-GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%' WITH GRANT OPTION
+GRANT ALL PRIVILEGES ON *.* TO 'grant_plug'@'%'
 ## testing drop user
 CREATE USER test_drop@localhost;
 GRANT PROXY ON future_user TO test_drop@localhost;
