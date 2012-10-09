@@ -3719,6 +3719,15 @@ ib_cursor_truncate(
 
 		*ib_crsr = NULL;
 
+		/* A temp go around for assertion in trx_start_for_ddl_low
+		we already start the trx */
+		if (trx->state == TRX_STATE_ACTIVE) {
+#ifdef UNIV_DEBUG
+			trx->start_file = 0;
+#endif /* UNIV_DEBUG */
+			trx->dict_operation = TRX_DICT_OP_TABLE;
+		}
+
 		/* This function currently commits the transaction
 		on success. */
 		err = static_cast<ib_err_t>(

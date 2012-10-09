@@ -1,0 +1,258 @@
+###############################################################################
+#                                                                             #
+# Variable Name: query_cache_size                                             #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-09-6                                                    #
+# Author : Tanjot Singh Uppal                                                 #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable query_cache_size          #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#              * Functionality Check                                          #
+#              * Accessability Check                                          #
+#                                                                             #               
+# This test does not perform the crash recovery on this variable              # 
+# For crash recovery test on default change please run the ibtest             #
+###############################################################################
+
+-- source include/have_innodb.inc
+-- source include/not_embedded.inc
+-- source include/have_innodb_16k.inc
+
+echo '#________________________VAR_02_query_cache_size__________________#'
+echo '##'
+--echo '#---------------------WL6372_VAR_2_01----------------------#'
+####################################################################
+#   Checking default value                                         #
+####################################################################
+SELECT COUNT(@@GLOBAL.query_cache_size);
+--echo 1 Expected
+
+SELECT @@GLOBAL.query_cache_size;
+--echo 1048576 Expected
+
+--echo '#---------------------WL6372_VAR_2_02----------------------#'
+#################################################################################
+# Checking the Default value post starting the server with other value          #
+#################################################################################
+--echo # Restart server with query_cache_size 51200;
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+-- exec echo "restart:--query_cache_size=51200  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+SELECT @@GLOBAL.query_cache_size;
+--echo 51200 Expected
+
+SET @@GLOBAL.query_cache_size=DEFAULT;
+SELECT @@GLOBAL.query_cache_size;
+--echo 1048576 Expected
+
+
+
+--echo '#---------------------WL6372_VAR_2_03----------------------#'
+####################################################################
+#   Checking Value can be set - Dynamic                            #
+####################################################################
+
+--error ER_GLOBAL_VARIABLE
+SET @@local.query_cache_size=1;
+--echo Expected error 'Global variable'
+
+--error ER_GLOBAL_VARIABLE
+SET @@session.query_cache_size=1;
+--echo Expected error 'Global variable'
+
+--disable_warnings
+SET @@GLOBAL.query_cache_size=1;
+--enable_warnings
+SET @@GLOBAL.query_cache_size=DEFAULT;
+
+SELECT @@GLOBAL.query_cache_size;
+--echo 1048576 Expected
+
+
+--echo '#---------------------WL6372_VAR_2_04----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+SELECT @@GLOBAL.query_cache_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='query_cache_size';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.query_cache_size);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='query_cache_size';
+--echo 1 Expected
+
+
+
+--echo '#---------------------WL6372_VAR_2_05----------------------#'
+################################################################################
+#  Checking Variable Scope                                                     #
+################################################################################
+SELECT @@query_cache_size = @@GLOBAL.query_cache_size;
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.query_cache_size);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.query_cache_size);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.query_cache_size);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT query_cache_size = @@SESSION.query_cache_size;
+--echo Expected error 'Unknown column query_cache_size in field list'
+
+
+
+--echo '#---------------------WL6372_VAR_2_06----------------------#'
+###############################################################################
+# Checking the /Var  directory size                                           #
+###############################################################################
+-- source include/vardir_size_check.inc
+--echo TRUE Expected
+
+--echo '#---------------------WL6372_VAR_2_07----------------------#'
+#################################################################################
+# Checking the size of table cache functionality                                #
+#################################################################################
+--echo # create 1 table and insert 3 rows each
+--disable_warnings
+DROP TABLE IF EXISTS tab1;
+--enable_warnings
+let $i = 3;
+
+let $table = tab1;
+--source include/create_table.inc
+--source include/Load_data.inc
+
+set @@GLOBAL.query_cache_size=DEFAULT;
+
+let $Qcache_hits = `select variable_value from information_schema.global_status where variable_name ='Qcache_hits';`;
+let $Qcache_inserts = `select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';`;
+let $Qcache_queries_in_cache = `select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';`;
+let $Qcache_not_cached = `select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';`;
+
+select 1 from tab1 limit 1;
+--echo 1 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+--echo 0 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+--echo 0 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+--echo 0 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--echo 17 Expected
+
+select 1 from tab1 limit 1;
+--echo 1 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+--echo 0 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+--echo 0 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+--echo 0 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--echo 22 Expected
+
+select 1 from tab1 limit 2;
+--echo 1 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+--echo 0 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+--echo 0 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+--echo 0 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--echo 27 Expected
+
+--echo # Restart server with query_cache_type ON
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+-- exec echo "restart:--query_cache_type=1  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+let $Qcache_hits = `select variable_value from information_schema.global_status where variable_name ='Qcache_hits';`;
+let $Qcache_inserts = `select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';`;
+let $Qcache_queries_in_cache = `select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';`;
+let $Qcache_not_cached = `select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';`;
+
+select 1 from tab1 limit 1;
+--echo 1 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+--echo 0 Expected
+
+select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+--echo 1 Expected
+
+select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+--echo 1 Expected
+
+select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--echo 8 Expected
+
+select 1 from tab1 limit 2;
+--echo 1 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+--echo 0 Expected
+
+select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+--echo 2 Expected
+
+select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+--echo 2 Expected
+
+select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--echo 12 Expected
+
+select 1 from tab1 limit 1;
+--echo 1 Expected
+select variable_value from information_schema.global_status where variable_name ='Qcache_hits';
+--echo 1 Expected
+
+select variable_value from information_schema.global_status where variable_name ='Qcache_inserts';
+--echo 2 Expected
+
+select variable_value from information_schema.global_status where variable_name ='Qcache_queries_in_cache';
+--echo 2 Expected
+
+select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--echo 16 Expected
+
+--echo # opening another client session
+connect (con1,localhost,root,,);
+
+select variable_value from information_schema.global_status where variable_name ='Qcache_not_cached';
+--echo 17 Expected
+
+disconnect con1;
+
+--echo #cleanup
+connection default;
+
+DROP TABLE IF EXISTS tab1;
+
