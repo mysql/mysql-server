@@ -4540,10 +4540,13 @@ fts_init_doc_id(
 
 	rw_lock_x_lock(&table->fts->cache->lock);
 
+	/* Return if the table is already initialized for DOC ID */
 	if (table->fts->cache->first_doc_id != FTS_NULL_DOC_ID) {
 		rw_lock_x_unlock(&table->fts->cache->lock);
 		return(0);
 	}
+
+	DEBUG_SYNC_C("fts_initialize_doc_id");
 
 	/* Then compare this value with the ID value stored in the CONFIG
 	table. The larger one will be our new initial Doc ID */
