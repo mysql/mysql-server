@@ -2623,7 +2623,6 @@ row_log_apply_op_low(
 	but not identical for unique secondary indexes. */
 	if (cursor.low_match >= dict_index_get_n_unique(index)
 	    && !page_rec_is_infimum(btr_cur_get_rec(&cursor))) {
-got_match:
 		/* We have a matching record. */
 		rec_t*		rec	= btr_cur_get_rec(&cursor);
 		ulint		deleted	= rec_get_deleted_flag(
@@ -2805,11 +2804,6 @@ update_the_rec:
 			row_merge_dup_report(dup, entry->fields);
 			goto func_exit;
 		}
-	} else if (cursor.up_match >= dict_index_get_n_unique(index)
-		   && !page_rec_is_supremum(
-			   page_rec_get_next(btr_cur_get_rec(&cursor)))) {
-		page_cur_move_to_next(btr_cur_get_page_cur(&cursor));
-		goto got_match;
 	} else {
 		switch (op) {
 			rec_t*		rec;
@@ -2824,6 +2818,17 @@ update_the_rec:
 			/* The record was already delete-marked and
 			possibly purged. Insert it. */
 		case ROW_OP_INSERT:
+			if (dict_index_is_unique(index)
+			    && cursor.up_match
+			    >= dict_index_get_n_unique(index)
+			    && !page_rec_is_supremum(
+				    page_rec_get_next(
+					    btr_cur_get_rec(&cursor)))
+			    && !dtuple_contains_null(entry)) {
+				/* Duplicate key */
+				row_merge_dup_report(dup, entry->fields);
+				goto func_exit;
+			}
 insert_the_rec:
 			/* Insert the record. As we are inserting into
 			a secondary index, there cannot be externally
