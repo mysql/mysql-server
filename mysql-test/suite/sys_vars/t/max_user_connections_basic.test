@@ -103,6 +103,9 @@ SELECT @@global.max_user_connections;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_user_connections = test;
 SELECT @@global.max_user_connections;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_user_connections = ' ';
+SELECT @@global.max_user_connections;
 
 
 

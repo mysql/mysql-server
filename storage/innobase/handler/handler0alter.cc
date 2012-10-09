@@ -3350,7 +3350,8 @@ check_if_ok_to_rename:
 	     index;
 	     index = dict_table_get_next_index(index)) {
 		if (index->type & DICT_FTS) {
-			DBUG_ASSERT(index->type == DICT_FTS);
+			DBUG_ASSERT(index->type == DICT_FTS
+				    || (index->type & DICT_CORRUPT));
 			continue;
 		}
 
@@ -3473,16 +3474,12 @@ found_fk:
 				= dict_table_get_index_on_name(
 					indexed_table, FTS_DOC_ID_INDEX_NAME);
 
-			/* The FTS_DOC_ID_INDEX should always exist
-			if fulltext indexes exist, unless the MySQL
-			and InnoDB data dictionaries are out of sync. */
-			DBUG_ASSERT(fts_doc_index != NULL);
-			DBUG_ASSERT(!fts_doc_index->to_be_dropped);
-
 			// Add some fault tolerance for non-debug builds.
 			if (fts_doc_index == NULL) {
 				goto check_if_can_drop_indexes;
 			}
+
+			DBUG_ASSERT(!fts_doc_index->to_be_dropped);
 
 			for (uint i = 0; i < table->s->keys; i++) {
 				if (!my_strcasecmp(
@@ -3806,8 +3803,12 @@ oom:
 		given that we hold at most a shared lock on the table. */
 		goto ok_exit;
 	case DB_DUPLICATE_KEY:
-		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED) {
-			/* This should be the hidden index on FTS_DOC_ID. */
+		if (prebuilt->trx->error_key_num == ULINT_UNDEFINED
+		    || ha_alter_info->key_count == 0) {
+			/* This should be the hidden index on
+			FTS_DOC_ID, or there is no PRIMARY KEY in the
+			table. Either way, we should be seeing and
+			reporting a bogus duplicate key error. */
 			dup_key = NULL;
 		} else {
 			DBUG_ASSERT(prebuilt->trx->error_key_num
@@ -4915,7 +4916,9 @@ trx_rollback:
 				DBUG_ASSERT(index->table == prebuilt->table);
 
 				if (index->type & DICT_FTS) {
-					DBUG_ASSERT(index->type == DICT_FTS);
+					DBUG_ASSERT(index->type == DICT_FTS
+						    || (index->type
+							& DICT_CORRUPT));
 					DBUG_ASSERT(prebuilt->table->fts);
 					fts_drop_index(
 						prebuilt->table, index, trx);
@@ -5070,6 +5073,15 @@ func_exit:
 
 	if (err == 0) {
 		MONITOR_ATOMIC_DEC(MONITOR_PENDING_ALTER_TABLE);
+
+#ifdef UNIV_DDL_DEBUG
+		/* Invoke CHECK TABLE atomically after a successful
+		ALTER TABLE. */
+		TABLE* old_table = table;
+		table = altered_table;
+		ut_a(check(user_thd, 0) == HA_ADMIN_OK);
+		table = old_table;
+#endif /* UNIV_DDL_DEBUG */
 	}
 
 	if (prebuilt->table->fts) {
