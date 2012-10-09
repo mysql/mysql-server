@@ -2641,9 +2641,19 @@ row_log_apply_op_low(
 		case ROW_OP_PURGE:
 			if (!deleted) {
 				/** The record is not delete-marked.
-				It should not be a byte-for-byte equal
-				record. */
-				ut_ad(update->n_fields > 0);
+				If the records do not match
+				(update->n_fields > 0), we did not
+				find the record (it was purged already).
+
+				On match (update->n_fields==0), what
+				could have happened is that the
+				delete-mark was set and subsequently
+				cleared on the record (for example, by
+				updating the record back and
+				forth). The table copy would have seen
+				the record after both changes. We can
+				simply discard the log record also in
+				this case. */
 				goto func_exit;
 			}
 			/* fall through */
