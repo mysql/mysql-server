@@ -66,19 +66,19 @@ my_win_is_console(FILE *file)
   @param cs          [IN]  Character string to convert to.
   @param mbbuf       [OUT] Write input data here.
   @param mbbufsize   [IN]  Number of bytes available in mbbuf.
-  @param mblen       [OUT] Length of the mbbuf.
+  @param nread       [OUT] Number of bytes read.
 
   @retval           Pointer to mbbuf, or NULL on I/0 error.
 */
 char *
 my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize,
-                        size_t *mblen)
+                        size_t *nread)
 {
   uint dummy_errors;
   static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1];
-
+  size_t mblen= 0;
   DWORD console_mode;
-  *mblen= 0;
+  DWORD nchars;
 
   HANDLE console= GetStdHandle(STD_INPUT_HANDLE);
 
@@ -92,6 +92,8 @@ my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize,
     SetConsoleMode(console, console_mode);
     return NULL;
   }
+
+  *nread= nchars;
 
   /* Set length of string */
   if (nchars >= 2 && u16buf[nchars - 2] == L'\r')
@@ -108,12 +110,12 @@ my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize,
 
   /* Convert Unicode to session character set */
   if (nchars != 0)
-    *mblen= my_convert(mbbuf, mbbufsize - 1, cs,
-                       (const char *) u16buf, nchars * sizeof(wchar_t),
-                       &my_charset_utf16le_bin, &dummy_errors);
+    mblen= my_convert(mbbuf, mbbufsize - 1, cs,
+                      (const char *) u16buf, nchars * sizeof(wchar_t),
+                      &my_charset_utf16le_bin, &dummy_errors);
 
-  DBUG_ASSERT(*mblen < mbbufsize); /* Safety */
-  mbbuf[*mblen]= 0;
+  DBUG_ASSERT(mblen < mbbufsize); /* Safety */
+  mbbuf[mblen]= 0;
   return mbbuf;
 }
 
