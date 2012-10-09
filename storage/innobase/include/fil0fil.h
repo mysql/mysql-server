@@ -39,8 +39,13 @@ Created 10/25/1995 Heikki Tuuri
 #include "log0log.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include <list>
+
 // Forward declaration
 struct trx_t;
+struct fil_space_t;
+
+typedef std::list<const char*> space_name_list_t;
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
@@ -947,7 +952,18 @@ fil_get_space_id_for_table(
 	const char*	name);	/*!< in: table name in the standard
 				'databasename/tablename' format */
 
-struct fil_space_t;
+/**
+Iterate over all the spaces in the space list and fetch the
+tablespace names. It will return a copy of the name that must be
+freed by the caller using: delete[].
+@return DB_SUCCESS if all OK. */
+UNIV_INTERN
+dberr_t
+fil_get_space_names(
+/*================*/
+	space_name_list_t&	space_name_list)
+				/*!< in/out: Vector for collecting the names. */
+	__attribute__((warn_unused_result));
 
 #endif /* !UNIV_INNOCHECKSUM */
 
