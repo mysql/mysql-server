@@ -105,6 +105,8 @@ public:
   bool check(THD *thd, set_var *var);
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   bool set_default(THD *thd, enum_var_type type);
+  virtual void update_default(longlong new_def_value)
+  { option.def_value= new_def_value; }
   bool update(THD *thd, set_var *var);
 
   SHOW_TYPE show_type() { return show_val_type; }

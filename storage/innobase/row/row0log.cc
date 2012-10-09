@@ -1216,17 +1216,15 @@ row_log_table_apply_insert_low(
 	mem_heap_t*		offsets_heap,	/*!< in/out: memory heap
 						that can be emptied */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
-	dict_table_t*		new_table,	/*!< in/out: table
-						being rebuilt */
 	row_merge_dup_t*	dup)		/*!< in/out: for reporting
 						duplicate key errors */
 {
 	dberr_t		error;
 	dtuple_t*	entry;
-	dict_index_t*	index	= dict_table_get_first_index(new_table);
+	const row_log_t*log	= dup->index->online_log;
+	dict_index_t*	index	= dict_table_get_first_index(log->table);
 
 	ut_ad(dtuple_validate(row));
-	ut_ad(new_table == dup->index->online_log->table);
 	ut_ad(trx_id);
 
 #ifdef ROW_LOG_APPLY_PRINT
@@ -1238,10 +1236,16 @@ row_log_table_apply_insert_low(
 #endif /* ROW_LOG_APPLY_PRINT */
 
 	static const ulint	flags
-		= BTR_CREATE_FLAG
-		| BTR_NO_LOCKING_FLAG
-		| BTR_NO_UNDO_LOG_FLAG
-		| BTR_KEEP_SYS_FLAG;
+		= log->same_pk
+		? (BTR_CREATE_FLAG
+		   | BTR_CREATE_SAME_PK_FLAG
+		   | BTR_NO_LOCKING_FLAG
+		   | BTR_NO_UNDO_LOG_FLAG
+		   | BTR_KEEP_SYS_FLAG)
+		: (BTR_CREATE_FLAG
+		   | BTR_NO_LOCKING_FLAG
+		   | BTR_NO_UNDO_LOG_FLAG
+		   | BTR_KEEP_SYS_FLAG);
 
 	entry = row_build_index_entry(row, NULL, index, heap);
 
@@ -1308,7 +1312,7 @@ row_log_table_apply_insert(
 
 	if (row) {
 		error = row_log_table_apply_insert_low(
-			thr, row, trx_id, offsets_heap, heap, log->table, dup);
+			thr, row, trx_id, offsets_heap, heap, dup);
 		if (error != DB_SUCCESS) {
 			/* Report the erroneous row using the new
 			version of the table. */
@@ -1583,7 +1587,7 @@ insert:
 		ut_ad(mtr.state == MTR_COMMITTED);
 		/* The row was not found. Insert it. */
 		error = row_log_table_apply_insert_low(
-			thr, row, trx_id, offsets_heap, heap, log->table, dup);
+			thr, row, trx_id, offsets_heap, heap, dup);
 
 err_exit:
 		if (error != DB_SUCCESS) {
@@ -2704,22 +2708,21 @@ update_the_rec:
 			/* No byte-for-byte equal record was found. */
 			if (cursor.low_match
 			    < dict_index_get_n_fields(index)) {
-				if (!dict_index_is_unique(index)) {
-					goto insert_the_rec;
-				}
-
 				/* Duplicate key found. This is OK if
 				any of the key columns are NULL.
 				Complain if the record was not
 				delete-marked or we are trying to
 				insert a non-matching delete-marked
 				record. */
-				if ((!deleted || entry->info_bits)
+				if (dict_index_is_unique(index)
+				    && (!deleted || entry->info_bits)
 				    && !dtuple_contains_null(entry)) {
 					row_merge_dup_report(
 						dup, entry->fields);
 					goto func_exit;
 				}
+
+				goto insert_the_rec;
 			}
 
 			update->info_bits =

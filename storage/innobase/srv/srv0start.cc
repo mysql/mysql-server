@@ -896,10 +896,10 @@ open_or_create_data_files(
 
 			if (!ret) {
 
+				os_file_get_last_error(true);
+
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Can't open '%s'", name);
-
-				os_file_get_last_error(true);
 
 				return(DB_ERROR);
 			}
@@ -1847,8 +1847,7 @@ innobase_start_or_create_for_mysql(void)
 
 	if (err != DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Fatal error: cannot allocate memory"
-			" for the buffer pool");
+			"Cannot allocate memory for the buffer pool");
 
 		return(DB_ERROR);
 	}
@@ -2093,7 +2092,7 @@ innobase_start_or_create_for_mysql(void)
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Log file %s size "
 					UINT64PF " is not a multiple of"
-					" innodb_page_size\n",
+					" innodb_page_size",
 					logfilename, size);
 				return(DB_ERROR);
 			}
@@ -2107,7 +2106,7 @@ innobase_start_or_create_for_mysql(void)
 					"Log file %s is"
 					" of different size "UINT64PF" bytes"
 					" than other log"
-					" files "UINT64PF" bytes!\n",
+					" files "UINT64PF" bytes!",
 					logfilename,
 					size << UNIV_PAGE_SIZE_SHIFT,
 					(os_offset_t) srv_log_file_size
@@ -2788,7 +2787,7 @@ innobase_shutdown_for_mysql(void)
 	if (!srv_was_started) {
 		if (srv_is_being_started) {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Shutting downa not properly started, "
+				"Shutting down a not properly started, "
 				"or created database!");
 		}
 
