@@ -735,7 +735,7 @@ os_file_lock(
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to lock %s, error: %d\n", name, errno);
+			"Unable to lock %s, error: %d", name, errno);
 
 		if (errno == EAGAIN || errno == EACCES) {
 			ib_logf(IB_LOG_LEVEL_INFO,
@@ -1837,12 +1837,12 @@ loop:
 	count++;
 
 	if (count > 100 && 0 == (count % 10)) {
+		os_file_get_last_error(true); /* print error information */
+
 		fprintf(stderr,
 			"InnoDB: Warning: cannot delete file %s\n"
 			"InnoDB: Are you running ibbackup"
 			" to back up the file?\n", name);
-
-		os_file_get_last_error(true); /* print error information */
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
@@ -1901,12 +1901,12 @@ loop:
 	count++;
 
 	if (count > 100 && 0 == (count % 10)) {
+		os_file_get_last_error(true); /* print error information */
+
 		fprintf(stderr,
 			"InnoDB: Warning: cannot delete file %s\n"
 			"InnoDB: Are you running ibbackup"
 			" to back up the file?\n", name);
-
-		os_file_get_last_error(true); /* print error information */
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
@@ -3909,8 +3909,7 @@ os_aio_init(
 	/* Check if native aio is supported on this system and tmpfs */
 	if (srv_use_native_aio && !os_aio_native_aio_supported()) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Linux Native AIO disabled.");
+		ib_logf(IB_LOG_LEVEL_WARN, "Linux Native AIO disabled.");
 
 		srv_use_native_aio = FALSE;
 	}

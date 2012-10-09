@@ -394,3 +394,7 @@ ON sc.TABLE_ID=st.TABLE_ID
 WHERE st.NAME='test/t';
 
 DROP TABLE t;
+
+--disable_query_log
+call mtr.add_suppression("deleting orphaned .ibd file");
+--enable_query_log
