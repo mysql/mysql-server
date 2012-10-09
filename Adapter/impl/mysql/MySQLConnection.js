@@ -55,36 +55,53 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
   this.executedOperations = [];
   this.firstTime = !dbSession.autocommit;
   this.autocommit = dbSession.autocommit;
+  this.pendingOperationsList = [];
+
+  this.executeOperations = function() {
+    // transactionHandler.operationsList must have been set before calling executeOperations
+    // transactionHandler.transactionExecuteCallback must also have been set
+    transactionHandler.isCommitting = false;
+    transactionHandler.numberOfOperations = transactionHandler.operationsList.length;
+    udebug.log('MySQLConnection.TransactionHandler.executeOperations numberOfOperations: ',
+        transactionHandler.numberOfOperations);
+    transactionHandler.operationsList.forEach(function(operation) {
+      if (transactionHandler.dbSession.pooledConnection === null) {
+        throw new Error(
+            'Fatal internal exception: MySQLConnection.TransactionHandler.executeOperations ' +
+            'got null for pooledConnection');
+      }
+      operation.execute(transactionHandler.dbSession.pooledConnection, transactionHandler.operationCompleteCallback);
+    });
+  };
 
   this.execute = function(operationsList, transactionExecuteCallback) {
     transactionHandler = this;
-    transactionHandler.list = operationsList;
-    transactionHandler.callback = transactionExecuteCallback;
     
-    var executeOperations = function() {
-      transactionHandler.isCommitting = false;
-      transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
-      transactionHandler.numberOfOperations = operationsList.length;
-      operationsList.forEach(function(operation) {
-        if (transactionHandler.dbSession.pooledConnection === null) {
-          throw new Error('Fatal internal exception: got null for pooledConnection');
-        }
-        operation.execute(transactionHandler.dbSession.pooledConnection, operationCompleteCallback);
-      });
-    };
-
     var executeOnBegin = function(err) {
       if (err) {
-        callback(err);
+        transactionHandler.transactionExecuteCallback(err);
       }
-      this.firstTime = false;
-      executeOperations();
+      transactionHandler.firstTime = false;
+      transactionHandler.executeOperations();
     };
     // execute begin operation the first time for non-autocommit
     if (this.firstTime) {
+      transactionHandler.operationsList = operationsList;
+      transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
       this.dbSession.pooledConnection.query('begin', executeOnBegin);
     } else {
-      executeOperations();
+      if (transactionHandler.numberOfOperations > 0) {
+        // there are pending operations, so just put this request on the list
+        transactionHandler.pendingOperationsList.push(
+            {list: operationsList, 
+             callback: transactionExecuteCallback
+            });
+      } else {
+        // this is the first (only) so execute it now
+        transactionHandler.operationsList = operationsList;
+        transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
+        transactionHandler.executeOperations();
+      }
     }
   };
 
@@ -92,24 +109,37 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
   this.close = function() {
   };
 
-  function operationCompleteCallback(completedOperation) {
+  this.operationCompleteCallback = function(completedOperation) {
     transactionHandler.executedOperations.push(completedOperation);
     var complete = transactionHandler.executedOperations.length;
     if (complete === transactionHandler.numberOfOperations) {
-      udebug.log('TransactionHandler.operationCompleteCallback done: completed',
+      udebug.log('MySQLConnection.TransactionHandler.operationCompleteCallback done: completed',
                  complete, 'of', transactionHandler.numberOfOperations);
       if (typeof(transactionHandler.transactionExecuteCallback) === 'function') {
         transactionHandler.transactionExecuteCallback(null, transactionHandler);
-      }
+      } 
+      // reset executedOperations if the transaction execute callback did not pop them
+      transactionHandler.executedOperations = [];
+      // reset number of operations (after callbacks are done)
+      transactionHandler.numberOfOperations = 0;
       // if we committed the transaction, tell dbSession we are gone
       if (transactionHandler.isCommitting) {
         transactionHandler.dbSession.transactionHandler = null;
       }
+      // see if there are any pending operations to execute
+      // each pending operation consists of an operation list and a callback
+      if (transactionHandler.pendingOperationsList.length !== 0) {
+        // remove the first pending operations from the list (FIFO)
+        var pendingOperations = transactionHandler.pendingOperationsList.shift();
+        transactionHandler.operationsList = pendingOperations.list;
+        transactionHandler.transactionExecuteCallback = pendingOperations.callback;
+        transactionHandler.executeOperations();
+      }
     } else {
-      udebug.log('MySQLConnection.TransactionHandler.operationCompleteCallback ' +
-          ' completed ' + complete + ' of ' + transactionHandler.numberOfOperations);
+      udebug.log('MySQLConnection.TransactionHandler.operationCompleteCallback ',
+          ' completed ', complete, ' of ', transactionHandler.numberOfOperations);
     }
-  }
+  };
 
   this.commit = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.commit.');
