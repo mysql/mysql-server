@@ -2038,7 +2038,7 @@ int multi_update::do_updates()
     org_updated= updated;
     tmp_table= tmp_tables[cur_table->shared];
     tmp_table->file->extra(HA_EXTRA_CACHE);	// Change to read cache
-    if (local_error= table->file->ha_rnd_init(0))
+    if ((local_error= table->file->ha_rnd_init(0)))
       goto err;
     table->file->extra(HA_EXTRA_NO_CACHE);
 
