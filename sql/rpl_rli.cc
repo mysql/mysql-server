@@ -57,6 +57,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                                ,PSI_mutex_key *param_key_info_run_lock,
                                PSI_mutex_key *param_key_info_data_lock,
                                PSI_mutex_key *param_key_info_sleep_lock,
+                               PSI_mutex_key *param_key_info_thd_lock,
                                PSI_mutex_key *param_key_info_data_cond,
                                PSI_mutex_key *param_key_info_start_cond,
                                PSI_mutex_key *param_key_info_stop_cond,
@@ -67,7 +68,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    :Rpl_info("SQL"
 #ifdef HAVE_PSI_INTERFACE
              ,param_key_info_run_lock, param_key_info_data_lock,
-             param_key_info_sleep_lock,
+             param_key_info_sleep_lock, param_key_info_thd_lock,
              param_key_info_data_cond, param_key_info_start_cond,
              param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
