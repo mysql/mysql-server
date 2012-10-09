@@ -5,7 +5,6 @@
 --source include/not_embedded.inc
 
 set @saved_session_rbr_exec_mode = @@session.rbr_exec_mode;
-set @saved_global_rbr_exec_mode = @@global.rbr_exec_mode;
 
 # GLOBAL SETTINGS
 --error ER_LOCAL_VARIABLE
