@@ -1397,6 +1397,13 @@ os_file_create_func(
 	DWORD		create_flag;
 	DWORD		attributes;
 	ibool		retry;
+
+	DBUG_EXECUTE_IF(
+		"ib_create_table_fail_disk_full",
+		*success = FALSE;
+		SetLastError(ERROR_DISK_FULL);
+		return((os_file_t) -1);
+	);
 try_again:
 	ut_a(name);
 
@@ -1512,6 +1519,12 @@ try_again:
 	ibool		retry;
 	const char*	mode_str	= NULL;
 
+	DBUG_EXECUTE_IF(
+		"ib_create_table_fail_disk_full",
+		*success = FALSE;
+		errno = ENOSPC;
+		return((os_file_t) -1);
+	);
 try_again:
 	ut_a(name);
 
