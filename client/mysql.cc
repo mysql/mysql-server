@@ -148,7 +148,7 @@ static my_bool ignore_errors=0,wait_flag=0,quick=0,
                default_pager_set= 0, opt_sigint_ignore= 0,
                auto_vertical_output= 0,
                show_warnings= 0, executing_query= 0, interrupted_query= 0,
-               ignore_spaces= 0;
+               ignore_spaces= 0, sigint_received= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool column_types_flag;
 static my_bool preserve_comments= 0;
@@ -274,6 +274,7 @@ static int com_nopager(String *str, char*), com_pager(String *str, char*),
 #endif
 
 static int read_and_execute(bool interactive);
+static void init_connection_options(MYSQL *mysql);
 static int sql_connect(char *host,char *database,char *user,char *password,
 		       uint silent);
 static const char *server_version_string(MYSQL *mysql);
@@ -1123,8 +1124,10 @@ static ulong start_timer(void);
 static void end_timer(ulong start_time,char *buff);
 static void mysql_end_timer(ulong start_time,char *buff);
 static void nice_time(double sec,char *buff,bool part_second);
+static void kill_query(const char* reason);
 extern "C" sig_handler mysql_end(int sig);
-extern "C" sig_handler handle_kill_signal(int sig);
+extern "C" sig_handler handle_ctrlc_signal(int sig);
+extern "C" sig_handler handle_quit_signal(int sig);
 #if defined(HAVE_TERMIOS_H) && defined(GWINSZ_IN_SYS_IOCTL)
 static sig_handler window_resize(int sig);
 #endif
@@ -1174,14 +1177,13 @@ BOOL windows_ctrl_handler(DWORD fdwCtrlType)
   {
   case CTRL_C_EVENT:
   case CTRL_BREAK_EVENT:
-    if (!opt_sigint_ignore)
-      handle_kill_signal(SIGINT);
+    handle_ctrlc_signal(SIGINT);
     /* Indicate that signal has beed handled. */  
     return TRUE;
   case CTRL_CLOSE_EVENT:
   case CTRL_LOGOFF_EVENT:
   case CTRL_SHUTDOWN_EVENT:
-    handle_kill_signal(SIGINT + 1);
+    handle_quit_signal(SIGINT + 1);
   }
   /* Pass signal to the next control handler function. */
   return FALSE;
@@ -1291,12 +1293,9 @@ int main(int argc,char *argv[])
     ignore_errors=1;				// Don't abort monitor
 
 #ifndef _WIN32
-  if (opt_sigint_ignore)
-    signal(SIGINT, SIG_IGN);
-  else
-    signal(SIGINT, handle_kill_signal);         // Catch SIGINT to clean up
+  signal(SIGINT, handle_ctrlc_signal);          // Catch SIGINT to clean up
   signal(SIGQUIT, mysql_end);			// Catch SIGQUIT to clean up
-  signal(SIGHUP, handle_kill_signal);         // Catch SIGHUP to clean up
+  signal(SIGHUP, handle_quit_signal);           // Catch SIGHUP to clean up
 #else
   SetConsoleCtrlHandler((PHANDLER_ROUTINE) windows_ctrl_handler, TRUE);
 #endif
@@ -1448,67 +1447,106 @@ sig_handler mysql_end(int sig)
 }
 
 
-/*
-  This function handles sigint calls
-  If query is in process, kill query
-  no query in process, terminate like previous behavior
- */
-sig_handler handle_kill_signal(int sig)
-{
-  char kill_buffer[40];
-  MYSQL *kill_mysql= NULL;
-  const char *reason = sig == SIGINT ? "Ctrl-C" : "Terminal close";
+/**
+  SIGINT signal handler.
 
-  /* terminate if no query being executed, or we already tried interrupting */
-  /* terminate if no query being executed, or we already tried interrupting */
-  if (!executing_query || (interrupted_query == 2))
+  @description
+    This function handles SIGINT (Ctrl - C). It sends a 'KILL [QUERY]' command
+    to the server if a query is currently executing. On Windows, 'Ctrl - Break'
+    is treated alike.
+
+  @param [IN]               Signal number
+*/
+
+sig_handler handle_ctrlc_signal(int sig)
+{
+  sigint_received= 1;
+
+  /* Skip rest if --sigint-ignore is used. */
+  if (opt_sigint_ignore)
+    return;
+
+  if (executing_query)
+    kill_query("^C");
+  /* else, do nothing, just terminate the current line (like /c command). */
+  return;
+}
+
+
+/**
+   Handler to perform a cleanup and quit the program.
+
+   @description
+     This function would send a 'KILL [QUERY]' command to the server if a
+     query is currently executing and then it invokes mysql_thread_end()/
+     mysql_end() in order to terminate the mysql client process.
+
+  @param [IN]               Signal number
+*/
+
+sig_handler handle_quit_signal(int sig)
+{
+  const char *reason= "Terminal close";
+
+  if (!executing_query)
   {
     tee_fprintf(stdout, "%s -- exit!\n", reason);
     goto err;
   }
 
-  kill_mysql= mysql_init(kill_mysql);
-  mysql_options(kill_mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
-  mysql_options4(kill_mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
-                 "program_name", "mysql");
-  if (!mysql_real_connect(kill_mysql,current_host, current_user, opt_password,
-                          "", opt_mysql_port, opt_mysql_unix_port,0))
-  {
-    tee_fprintf(stdout, "%s -- sorry, cannot connect to server to kill query, giving up ...\n", reason);
-    goto err;
-  }
-
-  interrupted_query++;
-
-  /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
-  if ((interrupted_query == 1) && (mysql_get_server_version(&mysql) < 50000))
-    interrupted_query= 2;
-
-  /* kill_buffer is always big enough because max length of %lu is 15 */
-  sprintf(kill_buffer, "KILL %s%lu",
-          (interrupted_query == 1) ? "QUERY " : "",
-          mysql_thread_id(&mysql));
-  tee_fprintf(stdout, "%s -- sending \"%s\" to server ...\n", 
-              reason, kill_buffer);
-  mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
-  mysql_close(kill_mysql);
-  tee_fprintf(stdout, "%s -- query aborted.\n", reason);
-
-  return;
+  kill_query(reason);
 
 err:
 #ifdef _WIN32
   /*
-   When SIGINT is raised on Windows, the OS creates a new thread to handle the
-   interrupt. Once that thread completes, the main thread continues running 
-   only to find that it's resources have already been free'd when the sigint 
-   handler called mysql_end(). 
+   When a signal is raised on Windows, the OS creates a new thread to
+   handle the interrupt. Once that thread completes, the main thread
+   continues running only to find that it's resources have already been
+   free'd when the signal handler called mysql_end().
   */
   mysql_thread_end();
   return;
 #else
   mysql_end(sig);
-#endif  
+#endif
+}
+
+
+/* Send 'KILL QUERY' command to the server. */
+static
+void kill_query(const char *reason)
+{
+  char kill_buffer[40];
+  MYSQL *kill_mysql= NULL;
+
+  kill_mysql= mysql_init(kill_mysql);
+  init_connection_options(kill_mysql);
+
+  if (!mysql_real_connect(kill_mysql, current_host, current_user,
+                          opt_password, "", opt_mysql_port,
+                          opt_mysql_unix_port, 0))
+  {
+    tee_fprintf(stdout, "%s -- Sorry, cannot connect to the server to kill "
+                "query, giving up ...\n", reason);
+    goto err;
+  }
+
+  interrupted_query ++;
+
+  /* mysqld < 5 does not understand KILL QUERY, skip to KILL CONNECTION */
+  sprintf(kill_buffer, "KILL %s%lu",
+          (mysql_get_server_version(&mysql) < 50000) ? "" : "QUERY ",
+          mysql_thread_id(&mysql));
+
+  if (verbose)
+    tee_fprintf(stdout, "%s -- sending \"%s\" to server ...\n", reason,
+                kill_buffer);
+  mysql_real_query(kill_mysql, kill_buffer, (uint) strlen(kill_buffer));
+  tee_fprintf(stdout, "%s -- query aborted\n", reason);
+
+err:
+  mysql_close(kill_mysql);
+  return;
 }
 
 
@@ -2046,6 +2084,9 @@ static int read_and_execute(bool interactive)
   real_binary_mode= !interactive && opt_binary_mode;
   for (;;)
   {
+    /* Reset as SIGINT has already got handled. */
+    sigint_received= 0;
+
     if (!interactive)
     {
       /*
@@ -2110,6 +2151,7 @@ static int read_and_execute(bool interactive)
 	fflush(OUTFILE);
 
 #if defined(__WIN__)
+      size_t mblen;
       tee_fputs(prompt, stdout);
       if (!tmpbuf.is_alloced())
         tmpbuf.alloc(65535);
@@ -2117,13 +2159,27 @@ static int read_and_execute(bool interactive)
       buffer.length(0);
       line= my_win_console_readline(charset_info,
                                     (char *) tmpbuf.ptr(),
-                                    tmpbuf.alloced_length());
+                                    tmpbuf.alloced_length(),
+                                    &mblen);
+      if (line && (mblen == 0))
+      {
+        tee_puts("^C", stdout);
+        continue;
+      }
+      else if (*line == 0x1A)                   /* (Ctrl + Z) */
+        break;
 #else
       if (opt_outfile)
-	fputs(prompt, OUTFILE);
+        fputs(prompt, OUTFILE);
       line= readline(prompt);
-#endif /* defined(__WIN__) */
 
+      if (sigint_received)
+      {
+        sigint_received= 0;
+        tee_puts("^C", stdout);
+        continue;
+      }
+#endif                                          /* defined(__WIN__) */
       /*
         When Ctrl+d or Ctrl+z is pressed, the line may be NULL on some OS
         which may cause coredump.
@@ -4682,50 +4738,10 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     connected= 0;
     mysql_close(&mysql);
   }
-  mysql_init(&mysql);
-  if (opt_init_command)
-    mysql_options(&mysql, MYSQL_INIT_COMMAND, opt_init_command);
-  if (opt_connect_timeout)
-  {
-    uint timeout=opt_connect_timeout;
-    mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT,
-		  (char*) &timeout);
-  }
-  if (opt_bind_addr)
-    mysql_options(&mysql, MYSQL_OPT_BIND, opt_bind_addr);
-  if (opt_compress)
-    mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
-  if (!opt_secure_auth)
-    mysql_options(&mysql, MYSQL_SECURE_AUTH, (char *) &opt_secure_auth);
-  if (using_opt_local_infile)
-    mysql_options(&mysql,MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
-#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(&mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*)&opt_ssl_verify_server_cert);
-#endif
-  if (opt_protocol)
-    mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
-#ifdef HAVE_SMEM
-  if (shared_memory_base_name)
-    mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
-#endif
-  if (safe_updates)
-  {
-    char init_command[100];
-    sprintf(init_command,
-	    "SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=%lu,MAX_JOIN_SIZE=%lu",
-	    select_limit,max_join_size);
-    mysql_options(&mysql, MYSQL_INIT_COMMAND, init_command);
-  }
 
-  mysql_set_character_set(&mysql, default_charset);
+  mysql_init(&mysql);
+  init_connection_options(&mysql);
+
 #ifdef __WIN__
   uint cnv_errors;
   String converted_database, converted_user;
@@ -4748,25 +4764,6 @@ sql_real_connect(char *host,char *database,char *user,char *password,
     }
   }
 #endif
-  
-  if (opt_plugin_dir && *opt_plugin_dir)
-    mysql_options(&mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
-
-  if (opt_default_auth && *opt_default_auth)
-    mysql_options(&mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
-
-#if !defined(HAVE_YASSL)
-  if (opt_server_public_key && *opt_server_public_key)
-    mysql_options(&mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
-#endif
-
-  if (using_opt_enable_cleartext_plugin)
-    mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
-                  (char*) &opt_enable_cleartext_plugin);
-
-  mysql_options(&mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
-  mysql_options4(&mysql, MYSQL_OPT_CONNECT_ATTR_ADD, 
-                 "program_name", "mysql");
 
   if (!mysql_real_connect(&mysql, host, user, password,
                           database, opt_mysql_port, opt_mysql_unix_port,
@@ -4826,6 +4823,83 @@ sql_real_connect(char *host,char *database,char *user,char *password,
   build_completion_hash(opt_rehash, 1);
 #endif
   return 0;
+}
+
+
+/* Initialize options for the given connection handle. */
+static void
+init_connection_options(MYSQL *mysql)
+{
+  if (opt_init_command)
+    mysql_options(mysql, MYSQL_INIT_COMMAND, opt_init_command);
+
+  if (opt_connect_timeout)
+  {
+    uint timeout= opt_connect_timeout;
+    mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char*) &timeout);
+  }
+
+  if (opt_bind_addr)
+    mysql_options(mysql, MYSQL_OPT_BIND, opt_bind_addr);
+
+  if (opt_compress)
+    mysql_options(mysql, MYSQL_OPT_COMPRESS, NullS);
+
+  if (!opt_secure_auth)
+    mysql_options(mysql, MYSQL_SECURE_AUTH, (char *) &opt_secure_auth);
+
+  if (using_opt_local_infile)
+    mysql_options(mysql, MYSQL_OPT_LOCAL_INFILE, (char*) &opt_local_infile);
+
+#if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
+  if (opt_use_ssl)
+  {
+    mysql_ssl_set(mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
+		  opt_ssl_capath, opt_ssl_cipher);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
+    mysql_options(mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
+  }
+  mysql_options(mysql, MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
+                (char*) &opt_ssl_verify_server_cert);
+#endif
+
+  if (opt_protocol)
+    mysql_options(mysql, MYSQL_OPT_PROTOCOL, (char*) &opt_protocol);
+
+#ifdef HAVE_SMEM
+  if (shared_memory_base_name)
+    mysql_options(mysql, MYSQL_SHARED_MEMORY_BASE_NAME, shared_memory_base_name);
+#endif
+
+  if (safe_updates)
+  {
+    char init_command[100];
+    sprintf(init_command,
+	    "SET SQL_SAFE_UPDATES=1,SQL_SELECT_LIMIT=%lu,MAX_JOIN_SIZE=%lu",
+	    select_limit, max_join_size);
+    mysql_options(mysql, MYSQL_INIT_COMMAND, init_command);
+  }
+
+  mysql_set_character_set(mysql, default_charset);
+
+  if (opt_plugin_dir && *opt_plugin_dir)
+    mysql_options(mysql, MYSQL_PLUGIN_DIR, opt_plugin_dir);
+
+  if (opt_default_auth && *opt_default_auth)
+    mysql_options(mysql, MYSQL_DEFAULT_AUTH, opt_default_auth);
+
+#if !defined(HAVE_YASSL)
+  if (opt_server_public_key && *opt_server_public_key)
+    mysql_options(mysql, MYSQL_SERVER_PUBLIC_KEY, opt_server_public_key);
+#endif
+
+  if (using_opt_enable_cleartext_plugin)
+    mysql_options(mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN,
+                  (char*) &opt_enable_cleartext_plugin);
+
+  mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysql");
+  return;
 }
 
 
