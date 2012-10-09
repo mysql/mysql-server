@@ -63,21 +63,22 @@ my_win_is_console(FILE *file)
   Unicode console input, and then convert it to "cs" in a single shot.
   String is terminated with '\0' character.
 
-  @param cs         Character string to convert to.
-  @param mbbuf      Write input data here.
-  @param mbbufsize  Number of bytes available in mbbuf.
+  @param cs          [IN]  Character string to convert to.
+  @param mbbuf       [OUT] Write input data here.
+  @param mbbufsize   [IN]  Number of bytes available in mbbuf.
+  @param mblen       [OUT] Length of the mbbuf.
 
-  @rerval           Pointer to mbbuf, or NULL on I/0 error.
+  @retval           Pointer to mbbuf, or NULL on I/0 error.
 */
 char *
-my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize)
+my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize,
+                        size_t *mblen)
 {
   uint dummy_errors;
   static wchar_t u16buf[MAX_CONSOLE_LINE_SIZE + 1];
-  size_t mblen= 0;
 
   DWORD console_mode;
-  DWORD nchars;
+  *mblen= 0;
 
   HANDLE console= GetStdHandle(STD_INPUT_HANDLE);
 
@@ -107,12 +108,12 @@ my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize)
 
   /* Convert Unicode to session character set */
   if (nchars != 0)
-    mblen= my_convert(mbbuf, mbbufsize - 1, cs,
-                      (const char *) u16buf, nchars * sizeof(wchar_t),
-                      &my_charset_utf16le_bin, &dummy_errors);
+    *mblen= my_convert(mbbuf, mbbufsize - 1, cs,
+                       (const char *) u16buf, nchars * sizeof(wchar_t),
+                       &my_charset_utf16le_bin, &dummy_errors);
 
-  DBUG_ASSERT(mblen < mbbufsize); /* Safety */
-  mbbuf[mblen]= 0;
+  DBUG_ASSERT(*mblen < mbbufsize); /* Safety */
+  mbbuf[*mblen]= 0;
   return mbbuf;
 }
 
