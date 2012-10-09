@@ -2623,7 +2623,6 @@ row_log_apply_op_low(
 	but not identical for unique secondary indexes. */
 	if (cursor.low_match >= dict_index_get_n_unique(index)
 	    && !page_rec_is_infimum(btr_cur_get_rec(&cursor))) {
-got_match:
 		/* We have a matching record. */
 		rec_t*		rec	= btr_cur_get_rec(&cursor);
 		ulint		deleted	= rec_get_deleted_flag(
@@ -2642,9 +2641,19 @@ got_match:
 		case ROW_OP_PURGE:
 			if (!deleted) {
 				/** The record is not delete-marked.
-				It should not be a byte-for-byte equal
-				record. */
-				ut_ad(update->n_fields > 0);
+				If the records do not match
+				(update->n_fields > 0), we did not
+				find the record (it was purged already).
+
+				On match (update->n_fields==0), what
+				could have happened is that the
+				delete-mark was set and subsequently
+				cleared on the record (for example, by
+				updating the record back and
+				forth). The table copy would have seen
+				the record after both changes. We can
+				simply discard the log record also in
+				this case. */
 				goto func_exit;
 			}
 			/* fall through */
@@ -2805,11 +2814,6 @@ update_the_rec:
 			row_merge_dup_report(dup, entry->fields);
 			goto func_exit;
 		}
-	} else if (cursor.up_match >= dict_index_get_n_unique(index)
-		   && !page_rec_is_supremum(
-			   page_rec_get_next(btr_cur_get_rec(&cursor)))) {
-		page_cur_move_to_next(btr_cur_get_page_cur(&cursor));
-		goto got_match;
 	} else {
 		switch (op) {
 			rec_t*		rec;
@@ -2824,6 +2828,17 @@ update_the_rec:
 			/* The record was already delete-marked and
 			possibly purged. Insert it. */
 		case ROW_OP_INSERT:
+			if (dict_index_is_unique(index)
+			    && cursor.up_match
+			    >= dict_index_get_n_unique(index)
+			    && !page_rec_is_supremum(
+				    page_rec_get_next(
+					    btr_cur_get_rec(&cursor)))
+			    && !dtuple_contains_null(entry)) {
+				/* Duplicate key */
+				row_merge_dup_report(dup, entry->fields);
+				goto func_exit;
+			}
 insert_the_rec:
 			/* Insert the record. As we are inserting into
 			a secondary index, there cannot be externally
