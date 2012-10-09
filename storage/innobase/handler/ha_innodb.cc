@@ -12197,7 +12197,7 @@ ha_innobase::transactional_table_lock(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"MySQL is trying to set transactional table lock "
 			"with corrupted lock type to table %s, lock type "
-			"%d does not exist.\n",
+			"%d does not exist.",
 			table->s->table_name.str, lock_type);
 
 		DBUG_RETURN(HA_ERR_CRASHED);

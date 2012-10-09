@@ -90,7 +90,7 @@ INSERT INTO t1 VALUES (7),(8),(9);
 sync_slave_with_master;
 SELECT * FROM t1;
 
-SET GLOBAL QUERY_CACHE_SIZE=0;
+SET GLOBAL QUERY_CACHE_SIZE=DEFAULT;
 --connection master
 DROP TABLE t1;
 

@@ -1,24 +1,24 @@
 SET @start_global_value = @@global.thread_cache_size;
 SELECT @start_global_value;
 @start_global_value
-0
+9
 select @@global.thread_cache_size;
 @@global.thread_cache_size
-0
+9
 select @@session.thread_cache_size;
 ERROR HY000: Variable 'thread_cache_size' is a GLOBAL variable
 show global variables like 'thread_cache_size';
 Variable_name	Value
-thread_cache_size	0
+thread_cache_size	9
 show session variables like 'thread_cache_size';
 Variable_name	Value
-thread_cache_size	0
+thread_cache_size	9
 select * from information_schema.global_variables where variable_name='thread_cache_size';
 VARIABLE_NAME	VARIABLE_VALUE
-THREAD_CACHE_SIZE	0
+THREAD_CACHE_SIZE	9
 select * from information_schema.session_variables where variable_name='thread_cache_size';
 VARIABLE_NAME	VARIABLE_VALUE
-THREAD_CACHE_SIZE	0
+THREAD_CACHE_SIZE	9
 set global thread_cache_size=1;
 select @@global.thread_cache_size;
 @@global.thread_cache_size
@@ -50,4 +50,4 @@ select @@global.thread_cache_size;
 SET @@global.thread_cache_size = @start_global_value;
 SELECT @@global.thread_cache_size;
 @@global.thread_cache_size
-0
+9

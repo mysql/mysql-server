@@ -419,6 +419,7 @@ trx_resurrect_insert(
 
 				trx->state = TRX_STATE_PREPARED;
 				trx_sys->n_prepared_trx++;
+				trx_sys->n_prepared_recovered_trx++;
 			} else {
 				fprintf(stderr,
 					"InnoDB: Since innodb_force_recovery"
@@ -479,6 +480,7 @@ trx_resurrect_update_in_prepared_state(
 		if (srv_force_recovery == 0) {
 			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
 				trx_sys->n_prepared_trx++;
+				trx_sys->n_prepared_recovered_trx++;
 			} else {
 				ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
 			}
