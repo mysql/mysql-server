@@ -697,7 +697,13 @@ public:
   SQL_I_List<ORDER>       group_list;
   Group_list_ptrs        *group_list_ptrs;
 
-  List<Item>          item_list;  /* list of fields & expressions */
+  /**
+    List of fields & expressions.
+
+    SELECT: Fields and expressions in the SELECT list.
+    UPDATE: Fields in the SET clause.
+  */
+  List<Item>          item_list;
   List<String>        interval_list;
   bool	              is_item_list_lookup;
   /* 
