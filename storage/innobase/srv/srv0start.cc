@@ -2787,7 +2787,7 @@ innobase_shutdown_for_mysql(void)
 	if (!srv_was_started) {
 		if (srv_is_being_started) {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Shutting down a not properly started, "
+				"Shutting down an improperly started, "
 				"or created database!");
 		}
 
