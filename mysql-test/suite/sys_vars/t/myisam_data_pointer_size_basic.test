@@ -101,11 +101,16 @@ SET @@global.myisam_data_pointer_size = 1;
 SELECT @@global.myisam_data_pointer_size;
 SET @@global.myisam_data_pointer_size = 4294967296;
 SELECT @@global.myisam_data_pointer_size;
+SET @@global.myisam_data_pointer_size = -1024;
+SELECT @@global.myisam_data_pointer_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.myisam_data_pointer_size = 65530.34;
 SELECT @@global.myisam_data_pointer_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.myisam_data_pointer_size = two;
+SELECT @@global.myisam_data_pointer_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.myisam_data_pointer_size = ' ';
 SELECT @@global.myisam_data_pointer_size;
 
 --echo '#------------------FN_DYNVARS_093_06-----------------------#'

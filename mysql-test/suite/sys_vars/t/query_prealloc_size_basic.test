@@ -106,11 +106,10 @@ SELECT @@session.query_prealloc_size  ;
 SET @@global.query_prealloc_size   = 0;
 SELECT @@global.query_prealloc_size  ;
 
-#SET @@global.query_prealloc_size   = -1024;
-#SELECT @@global.query_prealloc_size  ;
-
-#SET @@global.query_prealloc_size   = 429496729533;
-#SELECT @@global.query_prealloc_size  ;
+SET @@global.query_prealloc_size   = -1024;
+SELECT @@global.query_prealloc_size  ;
+SET @@global.query_prealloc_size   = 429496729533;
+SELECT @@global.query_prealloc_size  ;
 
 
 --Error ER_WRONG_TYPE_FOR_VAR
@@ -130,6 +129,10 @@ SET @@global.query_prealloc_size   = 'test';
 SELECT @@global.query_prealloc_size  ;
 
 --Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.query_prealloc_size   = ' ';
+SELECT @@global.query_prealloc_size  ;
+
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.query_prealloc_size   = ON;
 SELECT @@global.query_prealloc_size  ;
 
@@ -137,11 +140,13 @@ SELECT @@global.query_prealloc_size  ;
 SET @@session.query_prealloc_size   = 0;
 SELECT @@session.query_prealloc_size  ;
 
-#SET @@session.query_prealloc_size   = -2;
-#SELECT @@session.query_prealloc_size  ;
+SET @@session.query_prealloc_size   = -2;
+SELECT @@session.query_prealloc_size  ;
 
 --Error  ER_WRONG_TYPE_FOR_VAR
 SET @@session.query_prealloc_size   = 65530.34;
+SELECT @@session.query_prealloc_size  ;
+SET @@session.query_prealloc_size   = 429496729533;
 SELECT @@session.query_prealloc_size  ;
 
 
@@ -153,6 +158,9 @@ SELECT @@session.query_prealloc_size  ;
 SET @@session.query_prealloc_size   = "test";
 SELECT @@session.query_prealloc_size  ;
 
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.query_prealloc_size   = " ";
+SELECT @@session.query_prealloc_size  ;
 
 --echo '#------------------FN_DYNVARS_005_06-----------------------#'
 ####################################################################
