@@ -1526,6 +1526,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STATS_PERSISTENT_SYM
 %token  STATS_SAMPLE_PAGES_SYM
 %token  STATUS_SYM
+%token  NONBLOCKING_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
 %token  STOP_SYM
@@ -12513,6 +12514,10 @@ show_param:
         | MASTER_SYM STATUS_SYM
           {
             Lex->sql_command = SQLCOM_SHOW_MASTER_STAT;
+          }
+        | SLAVE STATUS_SYM NONBLOCKING_SYM
+          {
+            Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING;
           }
         | SLAVE STATUS_SYM
           {

@@ -98,6 +98,9 @@ SELECT @@global.max_connections;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_connections = 'test';
 SELECT @@global.max_connections;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_connections = ' ';
+SELECT @@global.max_connections;
 
 
 --echo '#-------------------FN_DYNVARS_074_05----------------------------#'

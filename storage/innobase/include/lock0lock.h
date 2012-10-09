@@ -817,6 +817,18 @@ void
 lock_set_timeout_event();
 /*====================*/
 #ifdef UNIV_DEBUG
+/*********************************************************************//**
+Checks that a transaction id is sensible, i.e., not in the future.
+@return	true if ok */
+UNIV_INTERN
+bool
+lock_check_trx_id_sanity(
+/*=====================*/
+	trx_id_t	trx_id,		/*!< in: trx id */
+	const rec_t*	rec,		/*!< in: user record */
+	dict_index_t*	index,		/*!< in: index */
+	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Check if the transaction holds any locks on the sys tables
 or its records.

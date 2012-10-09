@@ -417,6 +417,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
@@ -2723,6 +2724,16 @@ case SQLCOM_PREPARE:
     mysql_mutex_lock(&LOCK_active_mi);
     res= show_slave_status(thd, active_mi);
     mysql_mutex_unlock(&LOCK_active_mi);
+    break;
+  }
+  case SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING:
+  {
+    /* Accept one of two privileges */
+    if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
+      goto error;
+    DBUG_EXECUTE_IF("simulate_hold_show_slave_status_nonblocking",
+                    my_sleep(10000000););
+    res= show_slave_status(thd, active_mi);
     break;
   }
   case SQLCOM_SHOW_MASTER_STAT:
