@@ -167,6 +167,8 @@ static char *current_host,*current_db,*current_user=0,*opt_password=0,
             *opt_init_command= 0;
 static char *histfile;
 static char *histfile_tmp;
+static char *opt_histignore= NULL;
+DYNAMIC_STRING histignore_buffer;
 static String glob_buffer,old_buffer;
 static String processed_prompt;
 static char *full_username=0,*part_username=0,*default_prompt=0;
@@ -292,6 +294,15 @@ static int get_result_width(MYSQL_RES *res);
 static int get_field_disp_length(MYSQL_FIELD * field);
 static int normalize_dbname(const char *line, char *buff, uint buff_size);
 static int get_quote_count(const char *line);
+
+#if defined(HAVE_READLINE)
+static void add_filtered_history(const char *string);
+static my_bool check_histignore(const char *string);
+static my_bool parse_histignore();
+static my_bool init_hist_patterns();
+static void free_hist_patterns();
+DYNAMIC_ARRAY histignore_patterns;
+#endif                                          /* HAVE_READLINE */
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -1311,6 +1322,29 @@ int main(int argc,char *argv[])
   initialize_readline((char*) my_progname);
   if (!status.batch && !quick && !opt_html && !opt_xml)
   {
+    init_dynamic_string(&histignore_buffer, "*IDENTIFIED*:*PASSWORD*",
+                        1024, 1024);
+
+    /*
+      More history-ignore patterns can be supplied using either --histignore
+      option or MYSQL_HISTIGNORE environment variable. If supplied, it will
+      get appended to the default pattern (*IDENTIFIED*:*PASSWORD*). In case
+      both are specified, pattern(s) supplied using --histignore option will
+      be used.
+    */
+    if (opt_histignore)
+    {
+      dynstr_append(&histignore_buffer, ":");
+      dynstr_append(&histignore_buffer, opt_histignore);
+    }
+    else if (getenv("MYSQL_HISTIGNORE"))
+    {
+      dynstr_append(&histignore_buffer, ":");
+      dynstr_append(&histignore_buffer, getenv("MYSQL_HISTIGNORE"));
+    }
+
+    parse_histignore();
+
     /* read-history from file, default ~/.mysql_history*/
     if (getenv("MYSQL_HISTFILE"))
       histfile=my_strdup(getenv("MYSQL_HISTFILE"),MYF(MY_WME));
@@ -1381,6 +1415,11 @@ sig_handler mysql_end(int sig)
   completion_hash_free(&ht);
   free_root(&hash_mem_root,MYF(0));
 
+  my_free(opt_histignore);
+  my_free(histfile);
+  my_free(histfile_tmp);
+  dynstr_free(&histignore_buffer);
+  free_hist_patterns();
 #endif
   if (sig >= 0)
     put_info(sig ? "Aborted" : "Bye", INFO_RESULT);
@@ -1390,8 +1429,6 @@ sig_handler mysql_end(int sig)
   my_free(server_version);
   my_free(opt_password);
   my_free(opt_mysql_unix_port);
-  my_free(histfile);
-  my_free(histfile_tmp);
   my_free(current_db);
   my_free(current_host);
   my_free(current_user);
@@ -1712,6 +1749,10 @@ static struct my_option my_long_options[] =
     "Default authentication client-side plugin to use.",
     &opt_default_auth, &opt_default_auth, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"histignore", OPT_HISTIGNORE, "A colon-separated list of patterns "
+   "to keep statements from getting logged into mysql history.",
+   &opt_histignore, &opt_histignore, 0, GET_STR_ALLOC, REQUIRED_ARG,
+   0, 0, 0, 0, 0, 0},
   {"binary-mode", OPT_BINARY_MODE,
    "By default, ASCII '\\0' is disallowed and '\\r\\n' is translated to '\\n'. "
    "This switch turns off both features, and also turns off parsing of all client"
@@ -2115,7 +2156,7 @@ static int read_and_execute(bool interactive)
 	in_string=0;
 #ifdef HAVE_READLINE
       if (interactive && status.add_to_history && not_in_history(line))
-	add_history(line);
+	add_filtered_history(line);
 #endif
       continue;
     }
@@ -2277,7 +2318,7 @@ static bool add_line(String &buffer, char *line, ulong line_length,
     DBUG_RETURN(0);
 #ifdef HAVE_READLINE
   if (status.add_to_history && line[0] && not_in_history(line))
-    add_history(line);
+    add_filtered_history(line);
 #endif
   char *end_of_line= line + line_length;
 
@@ -2613,7 +2654,7 @@ static void fix_history(String *final_command)
     ptr++;
   }
   if (total_lines > 1)			
-    add_history(fixed_buffer.ptr());
+    add_filtered_history(fixed_buffer.ptr());
 }
 
 /*	
@@ -2915,6 +2956,95 @@ char *rindex(const char *s,int c)
 }
 }
 #endif
+
+/* Add the given line to mysql history. */
+static void add_filtered_history(const char *string)
+{
+  if (!check_histignore(string))
+    add_history(string);
+}
+
+
+/**
+  Perform a check on the given string if it contains
+  any of the histignore patterns.
+
+  @param string [IN]        String that needs to be checked.
+
+  @return Operation status
+      @retval 0    No match found
+      @retval 1    Match found
+*/
+
+static
+my_bool check_histignore(const char *string)
+{
+  uint i;
+  int rc;
+
+  LEX_STRING *tmp;
+
+  DBUG_ENTER("check_histignore");
+
+  for (i= 0; i < histignore_patterns.elements; i++)
+  {
+    tmp= dynamic_element(&histignore_patterns, i, LEX_STRING *);
+    if ((rc= charset_info->coll->wildcmp(&my_charset_latin1,
+                                         string, string + strlen(string),
+                                         tmp->str, tmp->str + tmp->length,
+                                         wild_prefix, wild_one,
+                                         wild_many)) == 0)
+      DBUG_RETURN(1);
+  }
+  DBUG_RETURN(0);
+}
+
+
+/**
+  Parse the histignore list into pattern tokens.
+
+  @return Operation status
+      @retval 0    Success
+      @retval 1    Failure
+*/
+
+static
+my_bool parse_histignore()
+{
+  LEX_STRING pattern;
+
+  char *token;
+  const char *search= ":";
+
+  DBUG_ENTER("parse_histignore");
+
+  if (init_hist_patterns())
+    DBUG_RETURN(1);
+
+  token= strtok(histignore_buffer.str, search);
+
+  while(token != NULL)
+  {
+    pattern.str= token;
+    pattern.length= strlen(pattern.str);
+    insert_dynamic(&histignore_patterns, &pattern);
+    token= strtok(NULL, search);
+  }
+  DBUG_RETURN(0);
+}
+
+static
+my_bool init_hist_patterns()
+{
+  return my_init_dynamic_array(&histignore_patterns,
+                               sizeof(LEX_STRING), 50, 50);
+}
+
+static
+void free_hist_patterns()
+{
+  delete_dynamic(&histignore_patterns);
+}
 #endif /* HAVE_READLINE */
 
 
