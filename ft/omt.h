@@ -57,7 +57,7 @@
 // The programming API:
 
 //typedef struct value *OMTVALUE; // A slight improvement over using void*.
-#include "omt-tmpl.h"
+#include <util/omt.h>
 typedef void *OMTVALUE;
 typedef toku::omt<OMTVALUE> *OMT;
 

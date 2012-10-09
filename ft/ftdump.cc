@@ -6,7 +6,13 @@
 
 /* Tell me the diff between two brt files. */
 
-#include "includes.h"
+#include "cachetable.h"
+#include "ft.h"
+#include "fttypes.h"
+#include "ft-internal.h"
+#include <ctype.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <limits.h>

@@ -41,7 +41,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2012 Tokutek Inc.  All r
 #include "ydb_write.h"
 #include "ydb_txn.h"
 #include "ft/txn_manager.h"
-#include <portability/partitioned_counter.h>
+#include <util/partitioned_counter.h>
 
 // Include ydb_lib.cc here so that its constructor/destructor gets put into
 // ydb.o, to make sure they don't get erased at link time (when linking to

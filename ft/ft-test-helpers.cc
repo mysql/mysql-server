@@ -4,11 +4,12 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "includes.h"
+#include "ft-cachetable-wrappers.h"
+#include "ft-flusher.h"
+#include "ft-internal.h"
+#include "ft.h"
+#include "fttypes.h"
 #include "ule.h"
-#include <ft-cachetable-wrappers.h>
-#include <ft-flusher.h>
-
 
 // dummymsn needed to simulate msn because messages are injected at a lower level than toku_ft_root_put_cmd()
 #define MIN_DUMMYMSN ((MSN) {(uint64_t)1 << 62})

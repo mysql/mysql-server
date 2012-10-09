@@ -18,7 +18,6 @@
 #endif
 
 #include "ft_layout_version.h"
-#include "toku_assert.h"
 #include "block_allocator.h"
 #include "cachetable.h"
 #include "fifo.h"
@@ -27,9 +26,9 @@
 #include "omt.h"
 #include "leafentry.h"
 #include "block_table.h"
-#include "mempool.h"
 #include "compress.h"
-#include "omt-tmpl.h"
+#include <util/mempool.h>
+#include <util/omt.h>
 
 // Uncomment the following to use quicklz
 

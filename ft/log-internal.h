@@ -7,20 +7,19 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include <stdio.h>
+#include <sys/types.h>
+#include <string.h>
+#include <dirent.h>
 #include "ft-internal.h"
 #include "log.h"
-#include "toku_assert.h"
 #include "toku_list.h"
 #include "memarena.h"
 #include "logfilemgr.h"
 #include "txn.h"
-#include <stdio.h>
-#include <toku_pthread.h>
-#include <sys/types.h>
-#include <string.h>
-#include <dirent.h>
 #include "txn_manager.h"
-#include "omt-tmpl.h"
+#include <portability/toku_pthread.h>
+#include <util/omt.h>
 
 using namespace toku;
 // Locking for the logger

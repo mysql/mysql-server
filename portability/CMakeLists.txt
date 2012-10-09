@@ -4,7 +4,6 @@ set(tokuportability_srcs
   file
   memory
   os_malloc
-  partitioned_counter
   portability
   toku_affinity
   toku_assert
@@ -17,13 +16,13 @@ add_library(${LIBTOKUPORTABILITY}_static STATIC ${tokuportability_srcs})
 maybe_add_gcov_to_libraries(${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static)
 set_property(TARGET ${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
 set_target_properties(${LIBTOKUPORTABILITY}_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
-target_link_libraries(${LIBTOKUPORTABILITY} LINK_PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
+target_link_libraries(${LIBTOKUPORTABILITY} LINK_PUBLIC util ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
 
 set_property(SOURCE file memory os_malloc portability toku_assert toku_rwlock APPEND PROPERTY
   COMPILE_DEFINITIONS TOKU_ALLOW_DEPRECATED=1)
 
 install(
-  FILES toku_os_types.h toku_time.h partitioned_counter.h
+  FILES toku_os_types.h toku_time.h
   DESTINATION include
   )
 install(

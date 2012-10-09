@@ -8,10 +8,10 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
-#include <toku_pthread.h>
 #include "omt.h"
-#include "omt-tmpl.h"
 #include "fttypes.h"
+#include <portability/toku_pthread.h>
+#include <util/omt.h>
 
 struct referenced_xid_tuple {
     TXNID begin_id;
@@ -113,4 +113,4 @@ void toku_txn_manager_increase_last_xid(TXN_MANAGER mgr, uint64_t increment);
 
 TXNID toku_get_youngest_live_list_txnid_for(TXNID xc, const xid_omt_t &snapshot_txnids, const rx_omt_t &referenced_xids);
 
-#endif //TOKUTXN_H
+#endif // TOKUTXN_MANAGER_H

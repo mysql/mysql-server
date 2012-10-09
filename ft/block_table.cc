@@ -14,7 +14,7 @@
 #include "block_allocator.h"
 #include "rbuf.h"
 #include "wbuf.h"
-#include "nonblocking_mutex.h"
+#include <util/nb_mutex.h>
 
 //When the translation (btt) is stored on disk:
 //  In Header:

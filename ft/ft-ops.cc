@@ -115,19 +115,26 @@ basement nodes, bulk fetch,  and partial fetch:
 
 */
 
-#include "includes.h"
 #include "checkpoint.h"
-#include "mempool.h"
-// Access to nested transaction logic
+#include "ft.h"
+#include "ft-cachetable-wrappers.h"
+#include "ft-flusher.h"
+#include "ft-internal.h"
+#include "ft_layout_version.h"
+#include "key.h"
+#include "log-internal.h"
+#include "sub_block.h"
+#include "txn_manager.h"
 #include "ule.h"
 #include "xids.h"
-#include "sub_block.h"
-#include "sort-tmpl.h"
-#include <ft-cachetable-wrappers.h>
-#include <ft-flusher.h>
+
 #include <toku_race_tools.h>
-#include "txn_manager.h"
-#include "partitioned_counter.h"
+#include <util/mempool.h>
+#include <util/partitioned_counter.h>
+#include <util/rwlock.h>
+#include <util/sort.h>
+
+#include <stdint.h>
 
 #if defined(HAVE_CILK)
 #include <cilk/cilk.h>

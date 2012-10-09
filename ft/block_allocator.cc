@@ -4,7 +4,12 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 #ident "$Id$"
 
-#include "includes.h"
+#include "block_allocator.h"
+#include <memory.h>
+#include <toku_assert.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Here's a very simple implementation.
 // It's not very fast at allocating or freeing.

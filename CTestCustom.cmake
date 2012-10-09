@@ -8,11 +8,11 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ft/ft_loader-test-extractor-2
   ft/ft_loader-test-extractor-3
   ft/upgrade_test_simple
-  portability/helgrind_test-circular-buffer
-  portability/helgrind_test_partitioned_counter
   portability/try-leak-lost
   portability/try-leak-reachable
   portability/try-leak-uninit
+  util/helgrind_test_circular_buffer
+  util/helgrind_test_partitioned_counter
   ydb/diskfull.tdb
   ydb/drd_test_4015.tdb
   ydb/drd_test_groupcommit_count.tdb
@@ -52,8 +52,8 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
 
 if (NOT @RUN_HELGRIND_TESTS@)
   list(APPEND CTEST_CUSTOM_TESTS_IGNORE
-    portability/helgrind_test-circular-buffer
-    portability/helgrind_test_partitioned_counter
+    util/helgrind_test_circular_buffer
+    util/helgrind_test_partitioned_counter
     ydb/helgrind_helgrind1.tdb
     ydb/helgrind_helgrind2.tdb
     ydb/helgrind_helgrind3.tdb

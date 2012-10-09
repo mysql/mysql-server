@@ -4,10 +4,11 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "includes.h"
-#include "sort-tmpl.h"
-#include "threadpool.h"
+#include "ft-internal.h"
+#include "log-internal.h"
 #include <compress.h>
+#include <util/sort.h>
+#include <util/threadpool.h>
 
 #if defined(HAVE_CILK)
 #include <cilk/cilk.h>

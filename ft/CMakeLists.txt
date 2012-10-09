@@ -8,7 +8,7 @@ set_source_files_properties(
   PROPERTIES GENERATED TRUE)
 
 add_executable(logformat logformat.cc)
-target_link_libraries(logformat ${LIBTOKUPORTABILITY})
+target_link_libraries(logformat ${LIBTOKUPORTABILITY} util)
 
 add_custom_command(
   OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/log_code.cc"
@@ -45,7 +45,6 @@ set(FT_SOURCES
   ft-test-helpers
   ft-verify
   key
-  kibbutz
   leafentry
   le-cursor
   logcursor
@@ -53,7 +52,6 @@ set(FT_SOURCES
   logger
   log_upgrade
   memarena
-  mempool
   minicron
   omt
   pqueue
@@ -64,9 +62,7 @@ set(FT_SOURCES
   rollback-apply
   rollback-ct-callbacks
   roll
-  sort
   sub_block
-  threadpool
   txn
   txn_manager
   ule
@@ -89,7 +85,7 @@ add_dependencies(ft_static install_tdb_h generate_log_code build_lzma)
 
 ## link with lzma (which should be static) and link dependers with zlib
 target_link_libraries(ft LINK_PRIVATE lzma ${LIBTOKUPORTABILITY})
-target_link_libraries(ft LINK_PUBLIC z)
+target_link_libraries(ft LINK_PUBLIC z util)
 target_link_libraries(ft_static LINK_PRIVATE lzma)
 
 ## build the bins in this directory
@@ -106,7 +102,7 @@ foreach(bin ${bins})
 
   add_executable(${bin}_static ${bin})
   add_dependencies(${bin}_static install_tdb_h)
-  target_link_libraries(${bin}_static ft_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
+  target_link_libraries(${bin}_static ft_static z lzma ${LIBTOKUPORTABILITY}_static util_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
 
   add_common_options_to_binary_targets(${bin} ${bin}_static)
 endforeach(bin)

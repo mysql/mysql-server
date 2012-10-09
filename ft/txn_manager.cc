@@ -9,10 +9,10 @@
 #include "txn.h"
 #include "checkpoint.h"
 #include "ule.h"
-#include <toku_race_tools.h>
 #include "txn_manager.h"
-#include "omt-tmpl.h"
 #include "rollback.h"
+#include <toku_race_tools.h>
+#include <util/omt.h>
 
 bool garbage_collection_debug = false;
 

@@ -43,6 +43,7 @@ include_directories(SYSTEM
   )
 
 ## add subdirectories
+add_subdirectory(util)
 add_subdirectory(portability)
 add_subdirectory(ft)
 add_subdirectory(src)

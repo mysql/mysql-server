@@ -7,6 +7,7 @@ file(GLOB_RECURSE all_srcs
   ft/*.cc
   src/*.cc
   utils/*.cc
+  util/*.cc
   db-benchmark-test/*.cc
   )
 list(APPEND all_srcs
@@ -21,6 +22,7 @@ file(GLOB_RECURSE all_hdrs
   ft/*.h
   src/*.h
   utils/*.h
+  util/*.h
   db-benchmark-test/*.h
   )
 list(APPEND all_hdrs
