@@ -48,13 +48,20 @@ var assert = require("assert"),
  * @param returned_parameter_count the number of required parameters returned to the callback
  * @param session the Session which may be null for SessionFactory functions
  * @param session_factory the SessionFactory which may be null for Session functions
+ * @param execute (optional; defaults to true) whether to execute the operation immediately;
+ *        if execute is false, the operation is constructed and is available via the "operation"
+ *        property of the user context.
  */
 exports.UserContext = function(user_arguments, required_parameter_count, returned_parameter_count,
-    session, session_factory) {
-  if (arguments.length !== 5) {
+    session, session_factory, execute) {
+  if (arguments.length !== 6) {
+    if (arguments.length === 5) {
+      this.execute = true;
+    } else {
     throw new Error(
         'Fatal internal exception: wrong parameter count ' + arguments.length + ' for UserContext constructor' +
-        '; expected ' + this.returned_parameter_count);
+        '; expected 5 or 6)');
+    }
   }
   this.user_arguments = user_arguments;
   this.user_callback = user_arguments[required_parameter_count - 1];
@@ -246,7 +253,7 @@ exports.UserContext.prototype.find = function() {
   }
 
   function findOnTableHandler(err, dbTableHandler) {
-    var dbSession, keys, index, op, transactionHandler;
+    var dbSession, keys, index, transactionHandler;
     if (err) {
       userContext.applyCallback(err, null);
     } else {
@@ -260,10 +267,12 @@ exports.UserContext.prototype.find = function() {
         // create the find operation and execute it
         dbSession = userContext.session.dbSession;
         transactionHandler = dbSession.getTransactionHandler();
-        op = dbSession.buildReadOperation(index, keys, transactionHandler, findOnResult);
-        transactionHandler.execute([op], function() {
-          udebug.log_detail('find transactionHandler.execute callback.');
-        });
+        userContext.operation = dbSession.buildReadOperation(index, keys, transactionHandler, findOnResult);
+        if (userContext.execute) {
+          transactionHandler.execute([userContext.operation], function() {
+            udebug.log_detail('find transactionHandler.execute callback.');
+          });
+        }
       }
     }
   }
@@ -280,7 +289,7 @@ exports.UserContext.prototype.find = function() {
  */
 exports.UserContext.prototype.persist = function() {
   var userContext = this;
-  var tableHandler, object, callback, op;
+  var tableHandler, object;
 
   function persistOnResult(err, dbOperation) {
     udebug.log('persist.persistOnResult');
@@ -302,11 +311,12 @@ exports.UserContext.prototype.persist = function() {
     } else {
       transactionHandler = dbSession.getTransactionHandler();
       object = userContext.user_arguments[0];
-      callback = userContext.user_callback;
-      op = dbSession.buildInsertOperation(dbTableHandler, object, transactionHandler, persistOnResult);
-      transactionHandler.execute([op], function() {
-        udebug.log_detail('persist transactionHandler.execute callback.');
-      });
+      userContext.operation = dbSession.buildInsertOperation(dbTableHandler, object, transactionHandler, persistOnResult);
+      if (userContext.execute) {
+        transactionHandler.execute([userContext.operation], function() {
+          udebug.log_detail('persist transactionHandler.execute callback.');
+        });
+      }
     }
   }
 
@@ -322,7 +332,7 @@ exports.UserContext.prototype.persist = function() {
  */
 exports.UserContext.prototype.remove = function() {
   var userContext = this;
-  var tableHandler, object, callback, op;
+  var tableHandler, object;
 
   function removeOnResult(err, dbOperation) {
     udebug.log('remove.removeOnResult');
@@ -337,7 +347,7 @@ exports.UserContext.prototype.remove = function() {
   }
 
   function removeOnTableHandler(err, dbTableHandler) {
-    var op, transactionHandler, object, dbIndexHandler;
+    var transactionHandler, object, dbIndexHandler;
     var dbSession = userContext.session.dbSession;
     if (err) {
       userContext.applyCallback(err, null);
@@ -349,11 +359,12 @@ exports.UserContext.prototype.remove = function() {
         userContext.applyCallback(err, null);
       } else {
         transactionHandler = dbSession.getTransactionHandler();
-        callback = userContext.user_callback;
-        op = dbSession.buildDeleteOperation(dbIndexHandler, object, transactionHandler, removeOnResult);
-        transactionHandler.execute([op], function() {
-          udebug.log_detail('remove transactionHandler.execute callback.');
-        });
+        userContext.operation = dbSession.buildDeleteOperation(dbIndexHandler, object, transactionHandler, removeOnResult);
+        if (userContext.execute) {
+          transactionHandler.execute([userContext.operation], function() {
+            udebug.log_detail('remove transactionHandler.execute callback.');
+          });
+        }
       }
     }
   }
@@ -363,6 +374,26 @@ exports.UserContext.prototype.remove = function() {
   // get DBTableHandler for constructor
   var ctor = userContext.user_arguments[0].mynode.constructor;
   getTableHandler(ctor, userContext.session, removeOnTableHandler);
+};
+
+/** Execute a batch
+ * 
+ */
+exports.UserContext.prototype.executeBatch = function(operations) {
+  var userContext = this;
+  var executeBatchOnExecute = function(err) {
+    userContext.applyCallback(err);
+  };
+
+  var userContext = this;
+  var transactionHandler;
+  var dbSession;
+  // execute the batch
+  // analyze the batch to see if it's possible to optimize (e.g. all inserts, deletes, and updates with no finds)
+  // otherwise, just execute each operation separately
+  dbSession = this.session.dbSession;
+  transactionHandler = dbSession.getTransactionHandler();
+  transactionHandler.execute(operations, executeBatchOnExecute);    
 };
 
 /** Commit an active transaction. 
