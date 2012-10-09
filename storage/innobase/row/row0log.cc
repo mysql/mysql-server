@@ -2618,10 +2618,12 @@ row_log_apply_op_low(
 				    &cursor, 0, __FILE__, __LINE__,
 				    &mtr);
 
+	ut_ad(dict_index_get_n_unique(index) > 0);
 	/* This test is somewhat similar to row_ins_must_modify_rec(),
 	but not identical for unique secondary indexes. */
 	if (cursor.low_match >= dict_index_get_n_unique(index)
 	    && !page_rec_is_infimum(btr_cur_get_rec(&cursor))) {
+got_match:
 		/* We have a matching record. */
 		rec_t*		rec	= btr_cur_get_rec(&cursor);
 		ulint		deleted	= rec_get_deleted_flag(
@@ -2803,6 +2805,11 @@ update_the_rec:
 			row_merge_dup_report(dup, entry->fields);
 			goto func_exit;
 		}
+	} else if (cursor.up_match >= dict_index_get_n_unique(index)
+		   && !page_rec_is_supremum(
+			   page_rec_get_next(btr_cur_get_rec(&cursor)))) {
+		page_cur_move_to_next(btr_cur_get_page_cur(&cursor));
+		goto got_match;
 	} else {
 		switch (op) {
 			rec_t*		rec;
