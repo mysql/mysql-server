@@ -2151,7 +2151,7 @@ static int read_and_execute(bool interactive)
 	fflush(OUTFILE);
 
 #if defined(__WIN__)
-      size_t mblen;
+      size_t nread;
       tee_fputs(prompt, stdout);
       if (!tmpbuf.is_alloced())
         tmpbuf.alloc(65535);
@@ -2160,8 +2160,8 @@ static int read_and_execute(bool interactive)
       line= my_win_console_readline(charset_info,
                                     (char *) tmpbuf.ptr(),
                                     tmpbuf.alloced_length(),
-                                    &mblen);
-      if (line && (mblen == 0))
+                                    &nread);
+      if (line && (nread == 0))
       {
         tee_puts("^C", stdout);
         continue;
