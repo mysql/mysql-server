@@ -1,3 +1,8 @@
+2012-10-09	The InnoDB Team
+
+	* row/row0mysql.c:
+	Fix Bug#14708715 CREATE TABLE MEMORY LEAK ON DB_OUT_OF_FILE_SPACE
+
 2012-09-28	The InnoDB Team
 
 	* include/row0undo.h, row/row0umod.c, row/row0undo.c:
