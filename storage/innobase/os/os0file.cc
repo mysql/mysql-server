@@ -732,7 +732,7 @@ os_file_lock(
 	if (fcntl(fd, F_SETLK, &lk) == -1) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to lock %s, error: %d\n", name, errno);
+			"Unable to lock %s, error: %d", name, errno);
 
 		if (errno == EAGAIN || errno == EACCES) {
 			ib_logf(IB_LOG_LEVEL_INFO,
@@ -1525,6 +1525,22 @@ os_file_create_func(
 	ibool		on_error_silent;
 
 #ifdef __WIN__
+	DBUG_EXECUTE_IF(
+		"ib_create_table_fail_disk_full",
+		*success = FALSE;
+		SetLastError(ERROR_DISK_FULL);
+		return((os_file_t) -1);
+	);
+#else /* __WIN__ */
+	DBUG_EXECUTE_IF(
+		"ib_create_table_fail_disk_full",
+		*success = FALSE;
+		errno = ENOSPC;
+		return((os_file_t) -1);
+	);
+#endif /* __WIN__ */
+
+#ifdef __WIN__
 	DWORD		create_flag;
 	DWORD		share_mode	= FILE_SHARE_READ;
 
@@ -1817,12 +1833,12 @@ loop:
 	count++;
 
 	if (count > 100 && 0 == (count % 10)) {
+		os_file_get_last_error(true); /* print error information */
+
 		fprintf(stderr,
 			"InnoDB: Warning: cannot delete file %s\n"
 			"InnoDB: Are you running ibbackup"
 			" to back up the file?\n", name);
-
-		os_file_get_last_error(true); /* print error information */
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
@@ -1881,12 +1897,12 @@ loop:
 	count++;
 
 	if (count > 100 && 0 == (count % 10)) {
+		os_file_get_last_error(true); /* print error information */
+
 		fprintf(stderr,
 			"InnoDB: Warning: cannot delete file %s\n"
 			"InnoDB: Are you running ibbackup"
 			" to back up the file?\n", name);
-
-		os_file_get_last_error(true); /* print error information */
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
@@ -3637,11 +3653,11 @@ os_aio_native_aio_supported(void)
 		}
 	} else {
 
-		srv_normalize_path_for_win(srv_log_group_home_dirs[0]);
+		srv_normalize_path_for_win(srv_log_group_home_dir);
 
-		ulint	dirnamelen = strlen(srv_log_group_home_dirs[0]);
+		ulint	dirnamelen = strlen(srv_log_group_home_dir);
 		ut_a(dirnamelen < (sizeof name) - 10 - sizeof "ib_logfile");
-		memcpy(name, srv_log_group_home_dirs[0], dirnamelen);
+		memcpy(name, srv_log_group_home_dir, dirnamelen);
 
 		/* Add a path separator if needed. */
 		if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
@@ -3886,8 +3902,7 @@ os_aio_init(
 	/* Check if native aio is supported on this system and tmpfs */
 	if (srv_use_native_aio && !os_aio_native_aio_supported()) {
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"Linux Native AIO disabled.");
+		ib_logf(IB_LOG_LEVEL_WARN, "Linux Native AIO disabled.");
 
 		srv_use_native_aio = FALSE;
 	}

@@ -227,21 +227,31 @@ ALTER TABLE t1o DROP COLUMN FTS_DOC_ID, DROP INDEX ct, ALGORITHM=INPLACE;
 # This creates a hidden FTS_DOC_ID column.
 ALTER TABLE t1o ADD FULLTEXT INDEX(ct), ADD COLUMN cu TEXT;
 
---error ER_INNODB_FT_WRONG_DOCID_COLUMN
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1o ADD FULLTEXT INDEX(cu), ADD COLUMN FTS_DOC_ID BIGINT,
+ALGORITHM=INPLACE;
+--error ER_WRONG_COLUMN_NAME
 ALTER TABLE t1o ADD FULLTEXT INDEX(cu), ADD COLUMN FTS_DOC_ID BIGINT;
---error ER_INNODB_FT_WRONG_DOCID_COLUMN
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1o ADD FULLTEXT INDEX(cu), ADD COLUMN FTS_DOC_ID BIGINT UNSIGNED,
+ALGORITHM=INPLACE;
+--error ER_WRONG_COLUMN_NAME
 ALTER TABLE t1o ADD FULLTEXT INDEX(cu), ADD COLUMN FTS_DOC_ID BIGINT UNSIGNED;
 
 # This would drop the hidden FTS_DOC_ID column and create
 # a fulltext index on ct and another fulltext index on cu.
---error ER_INNODB_FT_LIMIT
+--error ER_NOT_SUPPORTED_YET
 ALTER TABLE t1o ADD FULLTEXT INDEX(cu),
-ADD COLUMN FTS_DOC_ID BIGINT UNSIGNED NOT NULL;
+ADD COLUMN FTS_DOC_ID BIGINT UNSIGNED NOT NULL, ALGORITHM=INPLACE;
 
 # Replace the hidden FTS_DOC_ID column with a user-visible one.
-# This works if there is at most one fulltext index.
+# This used to work if there is at most one fulltext index.
+# Currently, we disallow native ALTER TABLE if the table
+# contains any FULLTEXT indexes.
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1o ADD COLUMN FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+ALGORITHM=INPLACE;
 ALTER TABLE t1o ADD COLUMN FTS_DOC_ID BIGINT UNSIGNED NOT NULL;
-
 # Replace the user-visible FTS_DOC_ID column with a hidden one.
 # We do not support this in-place.
 --error ER_NOT_SUPPORTED_YET
@@ -298,6 +308,11 @@ ALTER TABLE t1n CHANGE c4 c11 INT, ADD INDEX(c11), ALGORITHM=INPLACE;
 SHOW CREATE TABLE t1n;
 DROP TABLE t1n;
 
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t1o MODIFY c1 BIGINT UNSIGNED NOT NULL, DROP INDEX ct,
+ALGORITHM=INPLACE;
+
+# This will copy the table, removing the hidden FTS_DOC_ID column.
 ALTER TABLE t1o MODIFY c1 BIGINT UNSIGNED NOT NULL, DROP INDEX ct;
 
 ALTER TABLE t1o CHANGE c1 FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
@@ -360,3 +375,26 @@ INNER JOIN sys_tables st ON i.TABLE_ID=st.TABLE_ID;
 -- source suite/innodb/include/innodb_dict.inc
 
 DROP TABLE tt, t1o, sys_tables, sys_indexes, sys_foreign;
+
+CREATE TABLE t (t TEXT, FULLTEXT(t)) ENGINE=InnoDB;
+DROP INDEX t ON t;
+
+SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
+INNER JOIN information_schema.innodb_sys_tables st
+ON sc.TABLE_ID=st.TABLE_ID
+WHERE st.NAME='test/t';
+
+--error ER_NOT_SUPPORTED_YET
+ALTER TABLE t ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE;
+ALTER TABLE t ROW_FORMAT=REDUNDANT;
+
+SELECT sc.pos, sc.NAME FROM information_schema.innodb_sys_columns sc
+INNER JOIN information_schema.innodb_sys_tables st
+ON sc.TABLE_ID=st.TABLE_ID
+WHERE st.NAME='test/t';
+
+DROP TABLE t;
+
+--disable_query_log
+call mtr.add_suppression("deleting orphaned .ibd file");
+--enable_query_log

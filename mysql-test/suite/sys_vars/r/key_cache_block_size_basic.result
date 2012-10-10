@@ -75,6 +75,11 @@ Warning	1292	Truncated incorrect key_cache_block_size value: '16385'
 SELECT @@global.key_cache_block_size;
 @@global.key_cache_block_size
 16384
+SET @@global.key_cache_block_size = " ";
+ERROR 42000: Incorrect argument type to variable 'key_cache_block_size'
+SELECT @@global.key_cache_block_size;
+@@global.key_cache_block_size
+16384
 SET @@global.key_cache_block_size = ON;
 ERROR 42000: Incorrect argument type to variable 'key_cache_block_size'
 SELECT @@global.key_cache_block_size;

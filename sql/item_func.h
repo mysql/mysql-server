@@ -1651,6 +1651,20 @@ class Item_func_set_user_var :public Item_var_func
        user variable it the first connection context).
   */
   my_thread_id entry_thread_id;
+  /**
+    Delayed setting of non-constness.
+
+    Normally, Item_func_get_user_var objects are tagged as not const
+    when Item_func_set_user_var::fix_fields() is called for the same
+    variable in the same query. If delayed_non_constness is set, the
+    tagging is delayed until the variable is actually set. This means
+    that Item_func_get_user_var objects will still be treated as a
+    constant by the optimizer and executor until the variable is
+    actually changed.
+
+    @see select_dumpvar::send_data().
+   */
+  bool delayed_non_constness;
   char buffer[MAX_FIELD_WIDTH];
   String value;
   my_decimal decimal_buff;
@@ -1665,15 +1679,16 @@ class Item_func_set_user_var :public Item_var_func
 
 public:
   Name_string name; // keep it public
-  Item_func_set_user_var(Name_string a, Item *b)
+  Item_func_set_user_var(Name_string a, Item *b, bool delayed)
     :Item_var_func(b), cached_result_type(INT_RESULT),
-     entry(NULL), entry_thread_id(0), name(a)
+     entry(NULL), entry_thread_id(0), delayed_non_constness(delayed), name(a)
   {}
   Item_func_set_user_var(THD *thd, Item_func_set_user_var *item)
     :Item_var_func(thd, item), cached_result_type(item->cached_result_type),
      entry(item->entry), entry_thread_id(item->entry_thread_id),
-     value(item->value), decimal_buff(item->decimal_buff),
-     null_item(item->null_item), save_result(item->save_result), name(item->name)
+     delayed_non_constness(delayed_non_constness), value(item->value),
+     decimal_buff(item->decimal_buff), null_item(item->null_item),
+     save_result(item->save_result), name(item->name)
   {}
   enum Functype functype() const { return SUSERVAR_FUNC; }
   double val_real();

@@ -2765,18 +2765,14 @@ bool subselect_indexsubquery_engine::scan_table()
   // We never need to do a table scan of the materialized table.
   DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
 
-  if (table->file->inited &&
-      (error= table->file->ha_index_end()))
+  if ((table->file->inited &&
+       (error= table->file->ha_index_end())) ||
+      (error= table->file->ha_rnd_init(1)))
   {
     (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
- 
-  if ((error= table->file->ha_rnd_init(1)))
-  {
-    (void) report_handler_error(table, error);
-    DBUG_RETURN(true);
-  }
+
   table->file->extra_opt(HA_EXTRA_CACHE,
                          current_thd->variables.read_buff_size);
   table->null_row= 0;

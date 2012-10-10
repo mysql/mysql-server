@@ -1212,20 +1212,20 @@ row_log_table_apply_insert_low(
 	que_thr_t*		thr,		/*!< in: query graph */
 	const dtuple_t*		row,		/*!< in: table row
 						in the old table definition */
+	trx_id_t		trx_id,		/*!< in: trx_id of the row */
 	mem_heap_t*		offsets_heap,	/*!< in/out: memory heap
 						that can be emptied */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
-	dict_table_t*		new_table,	/*!< in/out: table
-						being rebuilt */
 	row_merge_dup_t*	dup)		/*!< in/out: for reporting
 						duplicate key errors */
 {
 	dberr_t		error;
 	dtuple_t*	entry;
-	dict_index_t*	index	= dict_table_get_first_index(new_table);
+	const row_log_t*log	= dup->index->online_log;
+	dict_index_t*	index	= dict_table_get_first_index(log->table);
 
 	ut_ad(dtuple_validate(row));
-	ut_ad(new_table == dup->index->online_log->table);
+	ut_ad(trx_id);
 
 #ifdef ROW_LOG_APPLY_PRINT
 	if (row_log_apply_print) {
@@ -1236,10 +1236,16 @@ row_log_table_apply_insert_low(
 #endif /* ROW_LOG_APPLY_PRINT */
 
 	static const ulint	flags
-		= BTR_CREATE_FLAG
-		| BTR_NO_LOCKING_FLAG
-		| BTR_NO_UNDO_LOG_FLAG
-		| BTR_KEEP_SYS_FLAG;
+		= log->same_pk
+		? (BTR_CREATE_FLAG
+		   | BTR_CREATE_SAME_PK_FLAG
+		   | BTR_NO_LOCKING_FLAG
+		   | BTR_NO_UNDO_LOG_FLAG
+		   | BTR_KEEP_SYS_FLAG)
+		: (BTR_CREATE_FLAG
+		   | BTR_NO_LOCKING_FLAG
+		   | BTR_NO_UNDO_LOG_FLAG
+		   | BTR_KEEP_SYS_FLAG);
 
 	entry = row_build_index_entry(row, NULL, index, heap);
 
@@ -1268,7 +1274,7 @@ row_log_table_apply_insert_low(
 		entry = row_build_index_entry(row, NULL, index, heap);
 		error = row_ins_sec_index_entry_low(
 			flags, BTR_MODIFY_TREE,
-			index, offsets_heap, heap, entry, thr);
+			index, offsets_heap, heap, entry, trx_id, thr);
 	} while (error == DB_SUCCESS);
 
 	return(error);
@@ -1306,7 +1312,7 @@ row_log_table_apply_insert(
 
 	if (row) {
 		error = row_log_table_apply_insert_low(
-			thr, row, offsets_heap, heap, log->table, dup);
+			thr, row, trx_id, offsets_heap, heap, dup);
 		if (error != DB_SUCCESS) {
 			/* Report the erroneous row using the new
 			version of the table. */
@@ -1581,7 +1587,7 @@ insert:
 		ut_ad(mtr.state == MTR_COMMITTED);
 		/* The row was not found. Insert it. */
 		error = row_log_table_apply_insert_low(
-			thr, row, offsets_heap, heap, log->table, dup);
+			thr, row, trx_id, offsets_heap, heap, dup);
 
 err_exit:
 		if (error != DB_SUCCESS) {
@@ -1762,7 +1768,7 @@ delete_insert:
 			BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
 			| BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG,
 			BTR_MODIFY_TREE, index, offsets_heap, heap,
-			entry, thr);
+			entry, trx_id, thr);
 
 		mtr_start(&mtr);
 	}
@@ -2612,6 +2618,7 @@ row_log_apply_op_low(
 				    &cursor, 0, __FILE__, __LINE__,
 				    &mtr);
 
+	ut_ad(dict_index_get_n_unique(index) > 0);
 	/* This test is somewhat similar to row_ins_must_modify_rec(),
 	but not identical for unique secondary indexes. */
 	if (cursor.low_match >= dict_index_get_n_unique(index)
@@ -2634,9 +2641,19 @@ row_log_apply_op_low(
 		case ROW_OP_PURGE:
 			if (!deleted) {
 				/** The record is not delete-marked.
-				It should not be a byte-for-byte equal
-				record. */
-				ut_ad(update->n_fields > 0);
+				If the records do not match
+				(update->n_fields > 0), we did not
+				find the record (it was purged already).
+
+				On match (update->n_fields==0), what
+				could have happened is that the
+				delete-mark was set and subsequently
+				cleared on the record (for example, by
+				updating the record back and
+				forth). The table copy would have seen
+				the record after both changes. We can
+				simply discard the log record also in
+				this case. */
 				goto func_exit;
 			}
 			/* fall through */
@@ -2700,25 +2717,25 @@ update_the_rec:
 			}
 
 			/* No byte-for-byte equal record was found. */
-			if (cursor.low_match
-			    < dict_index_get_n_fields(index)) {
-				if (!dict_index_is_unique(index)) {
+			if (cursor.up_match >= dict_index_get_n_unique(index)
+			    || cursor.low_match
+			    >= dict_index_get_n_unique(index)) {
+				/* Duplicate key found. This is OK if
+				any of the key columns are NULL. */
+				if (index->n_nullable
+				    && dtuple_contains_null(entry)) {
 					goto insert_the_rec;
 				}
+				/* FIXME: We used to insert the record
+				if (!deleted || entry->info_bits).
+				Can we reintroduce this condition, and
+				instead check for duplicates when
+				clearing a delete-mark? */
 
-				/* Duplicate key found. This is OK if
-				any of the key columns are NULL.
-				Complain if the record was not
-				delete-marked or we are trying to
-				insert a non-matching delete-marked
-				record. */
-				if ((!deleted || entry->info_bits)
-				    && !dtuple_contains_null(entry)) {
-					row_merge_dup_report(
-						dup, entry->fields);
-					goto func_exit;
-				}
+				goto dup_report;
 			}
+
+			/* FIXME: Is the following dead code? */
 
 			update->info_bits =
 				(rec_get_info_bits(rec, page_rec_is_comp(rec))
@@ -2776,15 +2793,27 @@ update_the_rec:
 				goto update_the_rec;
 			}
 
-			if (update->n_fields > 0
-			    && cursor.low_match
-			    < dict_index_get_n_fields(index)
-			    && !dtuple_contains_null(entry)) {
-				/* Duplicate key error */
-				ut_ad(dict_index_is_unique(index));
-				row_merge_dup_report(dup, entry->fields);
+			if (update->n_fields == 0) {
+				/* An exact match of the record
+				already exists.  There is nothing to
+				be inserted. */
+				goto func_exit;
 			}
 
+			ut_ad(cursor.low_match
+			      < dict_index_get_n_fields(index));
+
+			if (dtuple_contains_null(entry)) {
+				/* The UNIQUE KEY columns match, but
+				there is a NULL value in the key, and
+				NULL!=NULL. */
+				goto insert_the_rec;
+			}
+
+dup_report:
+			/* Duplicate key error */
+			ut_ad(dict_index_is_unique(index));
+			row_merge_dup_report(dup, entry->fields);
 			goto func_exit;
 		}
 	} else {
@@ -2801,6 +2830,17 @@ update_the_rec:
 			/* The record was already delete-marked and
 			possibly purged. Insert it. */
 		case ROW_OP_INSERT:
+			if (dict_index_is_unique(index)
+			    && (cursor.up_match
+				>= dict_index_get_n_unique(index)
+				|| cursor.low_match
+				>= dict_index_get_n_unique(index))
+			    && (!index->n_nullable
+				|| !dtuple_contains_null(entry))) {
+				/* Duplicate key */
+				row_merge_dup_report(dup, entry->fields);
+				goto func_exit;
+			}
 insert_the_rec:
 			/* Insert the record. As we are inserting into
 			a secondary index, there cannot be externally

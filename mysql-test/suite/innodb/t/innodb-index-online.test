@@ -5,12 +5,6 @@ let $innodb_metrics_select=
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
-# These will be triggered by INSERT INTO t1 VALUES(6,3,1);
-call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
-call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
-# these will be triggered by DISCARD TABLESPACE
-call mtr.add_suppression("InnoDB: Error: table 'test/t1'");
-call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for");
 
 # DISCARD TABLESPACE needs file-per-table
 SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
