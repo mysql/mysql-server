@@ -1676,9 +1676,19 @@ row_update_for_mysql(
 
 	row_mysql_delay_if_needed();
 
-	init_fts_doc_id_for_ref(table, &fk_depth);
-
 	trx_start_if_not_started_xa(trx);
+
+	if (dict_table_is_referenced_by_foreign_key(table)) {
+		/* Share lock the data dictionary to prevent any
+		table dictionary (for foreign constraint) change.
+		This is similar to row_ins_check_foreign_constraint
+		check protect by the dictionary lock as well.
+		In the future, this can be removed once the Foreign
+		key MDL is implemented */
+		row_mysql_freeze_data_dictionary(trx);
+		init_fts_doc_id_for_ref(table, &fk_depth);
+		row_mysql_unfreeze_data_dictionary(trx);
+	}
 
 	node = prebuilt->upd_node;
 
@@ -2101,7 +2111,7 @@ one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
 InnoDB will try to invoke mem_validate(). On failure the transaction will
-be rolled back.
+be rolled back and the 'table' object will be freed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
@@ -2292,7 +2302,10 @@ err_exit:
 			if (commit) {
 				trx_commit_for_mysql(trx);
 			}
+		} else {
+			dict_mem_table_free(table);
 		}
+
 		break;
 
 	case DB_TOO_MANY_CONCURRENT_TRXS:
@@ -2541,6 +2554,12 @@ row_table_add_foreign_constraints(
 
 	err = dict_create_foreign_constraints(trx, sql_string, sql_length,
 					      name, reject_fks);
+
+	DBUG_EXECUTE_IF("ib_table_add_foreign_fail",
+			err = DB_DUPLICATE_KEY;);
+
+	DEBUG_SYNC_C("table_add_foreign_constraints");
+
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
 		err = dict_load_foreigns(name, FALSE, TRUE);
@@ -2967,6 +2986,13 @@ row_discard_tablespace(
 			return(err);
 		}
 
+		/* Drop all the FTS auxiliary tables. */
+		if (dict_table_has_fts_index(table)
+		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
+			fts_drop_tables(trx, table);
+		}
+
 		/* Assign a new space ID to the table definition so that purge
 		can ignore the changes. Update the system table on disk. */
 
@@ -3378,11 +3404,12 @@ row_truncate_table_for_mysql(
 				    FIL_IBD_FILE_INITIAL_SIZE)
 			    != DB_SUCCESS) {
 				dict_table_x_unlock_indexes(table);
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: TRUNCATE TABLE %s failed to"
-					" create a new tablespace\n",
+
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"TRUNCATE TABLE %s failed to "
+					"create a new tablespace",
 					table->name);
+
 				table->ibd_file_missing = 1;
 				err = DB_ERROR;
 				goto funct_exit;
@@ -3859,9 +3886,9 @@ row_drop_table_for_mysql(
 		it. */
 		char	errstr[1024];
 		err = dict_stats_drop_table(name, errstr, sizeof(errstr));
+
 		if (err != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: %s\n", errstr);
+			ib_logf(IB_LOG_LEVEL_WARN, "%s", errstr);
 		}
 	}
 
@@ -4551,11 +4578,9 @@ loop:
 		table = dict_table_open_on_name(table_name, TRUE, FALSE,
 						DICT_ERR_IGNORE_NONE);
 
-		ut_a(table);
-
-		/* There could be orphan temp table left from interupted
-		alter table rebuild operation */
 		if (row_is_mysql_tmp_table_name(table->name)) {
+			/* There could be an orphan temp table left from
+			interupted alter table rebuild operation */
 			dict_table_close(table, TRUE, FALSE);
 		} else {
 			ut_a(!table->can_be_evicted || table->ibd_file_missing);

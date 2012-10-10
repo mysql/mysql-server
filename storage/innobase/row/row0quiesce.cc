@@ -658,9 +658,9 @@ row_quiesce_set_state(
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
 			    ER_NOT_SUPPORTED_YET,
-			    "FLUSH TABLES on tables that have an FTS index");
+			    "FLUSH TABLES on tables that have an FTS index. "
+			    "FTS auxiliary tables will not be flushed.");
 
-		return(DB_UNSUPPORTED);
 	} else if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 		/* If this flag is set then the table may not have any active
 		FTS indexes but it will still have the auxiliary tables. */
@@ -669,9 +669,8 @@ row_quiesce_set_state(
 			    ER_NOT_SUPPORTED_YET,
 			    "FLUSH TABLES on a table that had an FTS index, "
 			    "created on a hidden column, the "
-			    "auxiliary tables haven't been dropped as yet.");
-
-		return(DB_UNSUPPORTED);
+			    "auxiliary tables haven't been dropped as yet. "
+			    "FTS auxiliary tables will not be flushed.");
 	}
 
 	row_mysql_lock_data_dictionary(trx);

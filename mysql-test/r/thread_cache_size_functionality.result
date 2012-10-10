@@ -1,0 +1,158 @@
+'#________________________VAR_06_thread_cache_size__________________#'
+echo '##'
+--echo '#---------------------WL6372_VAR_6_01----------------------#'
+####################################################################
+#   Checking default value                                         #
+####################################################################
+SELECT COUNT(@@GLOBAL.thread_cache_size)
+1 Expected
+SELECT @@GLOBAL.thread_cache_size;
+@@GLOBAL.thread_cache_size
+9
+9 Expected
+'#---------------------WL6372_VAR_6_02----------------------#'
+# Restart server with thread_cache_size 1
+SELECT @@GLOBAL.thread_cache_size;
+@@GLOBAL.thread_cache_size
+1
+1 Expected
+SET @@GLOBAL.thread_cache_size=DEFAULT;
+SELECT @@GLOBAL.thread_cache_size;
+@@GLOBAL.thread_cache_size
+9
+9 Expected
+'#---------------------WL6372_VAR_6_03----------------------#'
+SET @@local.thread_cache_size=1;
+ERROR HY000: Variable 'thread_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
+Expected error 'Global variable'
+SET @@session.thread_cache_size=1;
+ERROR HY000: Variable 'thread_cache_size' is a GLOBAL variable and should be set with SET GLOBAL
+Expected error 'Global variable'
+SET @@GLOBAL.thread_cache_size=1;
+SET @@GLOBAL.thread_cache_size=DEFAULT;
+SELECT COUNT(@@GLOBAL.thread_cache_size);
+COUNT(@@GLOBAL.thread_cache_size)
+1
+1 Expected
+SELECT @@GLOBAL.thread_cache_size;
+@@GLOBAL.thread_cache_size
+9
+9 Expected
+'#---------------------WL6372_VAR_6_04----------------------#'
+SELECT @@GLOBAL.thread_cache_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='thread_cache_size';
+@@GLOBAL.thread_cache_size = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.thread_cache_size);
+COUNT(@@GLOBAL.thread_cache_size)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='thread_cache_size';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------WL6372_VAR_6_05----------------------#'
+SELECT @@thread_cache_size = @@GLOBAL.thread_cache_size;
+@@thread_cache_size = @@GLOBAL.thread_cache_size
+1
+1 Expected
+SELECT COUNT(@@local.thread_cache_size);
+ERROR HY000: Variable 'thread_cache_size' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@SESSION.thread_cache_size);
+ERROR HY000: Variable 'thread_cache_size' is a GLOBAL variable
+Expected error 'Variable is a GLOBAL variable'
+SELECT COUNT(@@GLOBAL.thread_cache_size);
+COUNT(@@GLOBAL.thread_cache_size)
+1
+1 Expected
+SELECT thread_cache_size = @@SESSION.thread_cache_size;
+ERROR 42S22: Unknown column 'thread_cache_size' in 'field list'
+Expected error 'Unknown column thread_cache_size in field list'
+'#---------------------WL6372_VAR_6_06----------------------#'
+SET @@GLOBAL.thread_cache_size=2;
+select variable_value from information_schema.global_status where variable_name ='Threads_connected';
+variable_value
+1
+1 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_created';
+variable_value
+1
+1 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_cached';
+variable_value
+0
+0 Expected
+select variable_value from information_schema.global_status where variable_name ='Max_used_connections';
+variable_value
+1
+1 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_connected';
+variable_value
+2
+2 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_created';
+variable_value
+2
+2 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_cached';
+variable_value
+0
+0 Expected
+select variable_value from information_schema.global_status where variable_name ='Max_used_connections';
+variable_value
+2
+2 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_connected';
+variable_value
+3
+3 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_created';
+variable_value
+3
+3 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_cached';
+variable_value
+0
+0 Expected
+select variable_value from information_schema.global_status where variable_name ='Max_used_connections';
+variable_value
+3
+3 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_connected';
+variable_value
+1
+1 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_created';
+variable_value
+3
+3 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_cached';
+variable_value
+2
+2 Expected
+select variable_value from information_schema.global_status where variable_name ='Max_used_connections';
+variable_value
+3
+3 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_connected';
+variable_value
+2
+2 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_created';
+variable_value
+3
+3 Expected
+select variable_value from information_schema.global_status where variable_name ='Threads_cached';
+variable_value
+1
+1 Expected
+select variable_value from information_schema.global_status where variable_name ='Max_used_connections';
+variable_value
+3
+3 Expected
+set @@GLOBAL.thread_cache_size=DEFAULT;

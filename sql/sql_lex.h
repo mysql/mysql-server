@@ -697,7 +697,13 @@ public:
   SQL_I_List<ORDER>       group_list;
   Group_list_ptrs        *group_list_ptrs;
 
-  List<Item>          item_list;  /* list of fields & expressions */
+  /**
+    List of fields & expressions.
+
+    SELECT: Fields and expressions in the SELECT list.
+    UPDATE: Fields in the SET clause.
+  */
+  List<Item>          item_list;
   List<String>        interval_list;
   bool	              is_item_list_lookup;
   /* 
@@ -851,6 +857,8 @@ public:
     this select level.
   */
   table_map select_list_tables;
+  /// First select_lex removed as part of some transformation, or NULL
+  st_select_lex *removed_select;
 
   void init_query();
   void init_select();

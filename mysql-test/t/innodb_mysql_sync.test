@@ -459,7 +459,7 @@ SET DEBUG_SYNC= 'now SIGNAL continue2';
 SET DEBUG_SYNC= 'now WAIT_FOR binlog';
 --echo # Now both reads and writes should be blocked.
 --error ER_LOCK_WAIT_TIMEOUT
-SELECT * FROM t1;
+SELECT * FROM t1 limit 1;
 --error ER_LOCK_WAIT_TIMEOUT
 INSERT INTO t1 VALUES (5,5);
 
