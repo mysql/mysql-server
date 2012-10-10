@@ -1993,6 +1993,11 @@ row_ins_duplicate_online_is_newer(
 	ulint		n_uniq,	/*!< in: offset of DB_TRX_ID */
 	const byte*	old_trx)/*!< in: trx_id to look for */
 {
+	/* FIXME: We should access the undo log here to see the
+	history. During testing, it seemed that sometimes the undo
+	log records can have been freed when we get here. */
+	return(false);
+
 	mem_heap_t*	heap;
 	bool		is_newer	= false;
 	trx_id_t	old_trx_id;
