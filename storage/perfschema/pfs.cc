@@ -1888,13 +1888,13 @@ static int spawn_thread_v1(PSI_thread_key key,
   @sa PSI_v1::new_thread.
 */
 static PSI_thread*
-new_thread_v1(PSI_thread_key key, const void *identity, ulong thread_id)
+new_thread_v1(PSI_thread_key key, const void *identity, ulonglong processlist_id)
 {
   PFS_thread *pfs;
 
   PFS_thread_class *klass= find_thread_class(key);
   if (likely(klass != NULL))
-    pfs= create_thread(klass, identity, thread_id);
+    pfs= create_thread(klass, identity, processlist_id);
   else
     pfs= NULL;
 
@@ -1905,12 +1905,12 @@ new_thread_v1(PSI_thread_key key, const void *identity, ulong thread_id)
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::set_thread_id.
 */
-static void set_thread_id_v1(PSI_thread *thread, unsigned long id)
+static void set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id)
 {
   PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
   if (unlikely(pfs == NULL))
     return;
-  pfs->m_thread_id= id;
+  pfs->m_processlist_id= processlist_id;
 }
 
 /**
