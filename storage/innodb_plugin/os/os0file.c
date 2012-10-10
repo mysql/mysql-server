@@ -1250,27 +1250,19 @@ os_file_create(
 	ibool*		success)/*!< out: TRUE if succeed, FALSE if error */
 {
 #ifdef __WIN__
+	os_file_t	file;
+	DWORD		share_mode	= FILE_SHARE_READ;
+	DWORD		create_flag;
+	DWORD		attributes;
+	ibool		retry;
+
 	DBUG_EXECUTE_IF(
 		"ib_create_table_fail_disk_full",
 		*success = FALSE;
 		SetLastError(ERROR_DISK_FULL);
 		return((os_file_t) -1);
 	);
-#else /* __WIN__ */
-	DBUG_EXECUTE_IF(
-		"ib_create_table_fail_disk_full",
-		*success = FALSE;
-		errno = ENOSPC;
-		return((os_file_t) -1);
-	);
-#endif /* __WIN__ */
 
-#ifdef __WIN__
-	os_file_t	file;
-	DWORD		share_mode	= FILE_SHARE_READ;
-	DWORD		create_flag;
-	DWORD		attributes;
-	ibool		retry;
 try_again:
 	ut_a(name);
 
@@ -1385,6 +1377,13 @@ try_again:
 	int		create_flag;
 	ibool		retry;
 	const char*	mode_str	= NULL;
+
+	DBUG_EXECUTE_IF(
+		"ib_create_table_fail_disk_full",
+		*success = FALSE;
+		errno = ENOSPC;
+		return((os_file_t) -1);
+	);
 
 try_again:
 	ut_a(name);
