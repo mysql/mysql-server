@@ -23,6 +23,7 @@
 class THD;
 
 extern mysql_mutex_t LOCK_thread_count;
+extern mysql_mutex_t LOCK_thread_remove;
 extern mysql_cond_t COND_thread_count;
 
 /*
@@ -39,6 +40,7 @@ extern mysql_cond_t COND_thread_count;
 typedef std::set<THD*>::iterator Thread_iterator;
 Thread_iterator global_thread_list_begin();
 Thread_iterator global_thread_list_end();
+void copy_global_thread_list(std::set<THD*> *new_copy);
 void add_global_thread(THD *);
 void remove_global_thread(THD *);
 

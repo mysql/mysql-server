@@ -5094,7 +5094,8 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     }
 
     /* Search in SELECT and GROUP lists of the outer select. */
-    if (place != IN_WHERE && place != IN_ON)
+    if (place != IN_WHERE && place != IN_ON &&
+        outer_context->resolve_in_select_list)
     {
       if (!(ref= resolve_ref_in_select_and_group(thd, this, select)))
         return -1; /* Some error occurred (e.g. ambiguous names). */
@@ -5378,8 +5379,17 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
     else if (!from_field)
       goto error;
 
-    if (!outer_fixed && cached_table && cached_table->select_lex &&
-        context->select_lex &&
+    /*
+      We should resolve this as an outer field reference if
+      1. we haven't done it before, and
+      2. the outer context is set, and
+      3. the select_lex of the table that contains this field is
+         different from the select_lex of the current name resolution
+         context.
+     */
+    if (!outer_fixed &&                                                    // 1
+        context->outer_context &&                                          // 2
+        cached_table && cached_table->select_lex && context->select_lex && // 3
         cached_table->select_lex != context->select_lex)
     {
       int ret;

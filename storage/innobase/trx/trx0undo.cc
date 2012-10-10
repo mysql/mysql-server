@@ -1771,6 +1771,12 @@ trx_undo_assign_undo(
 
 	mutex_enter(&rseg->mutex);
 
+	DBUG_EXECUTE_IF(
+		"ib_create_table_fail_too_many_trx",
+		err = DB_TOO_MANY_CONCURRENT_TRXS;
+		goto func_exit;
+	);
+
 	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
 				     &mtr);
 	if (undo == NULL) {

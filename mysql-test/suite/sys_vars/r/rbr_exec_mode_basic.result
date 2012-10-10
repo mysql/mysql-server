@@ -1,5 +1,4 @@
 set @saved_session_rbr_exec_mode = @@session.rbr_exec_mode;
-set @saved_global_rbr_exec_mode = @@global.rbr_exec_mode;
 SET global rbr_exec_mode=DEFAULT;
 ERROR HY000: Variable 'rbr_exec_mode' is a SESSION variable and can't be used with SET GLOBAL
 SELECT @@global.rbr_exec_mode;

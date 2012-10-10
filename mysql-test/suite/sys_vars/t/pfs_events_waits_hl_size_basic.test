@@ -6,19 +6,17 @@
 #
 
 select @@global.performance_schema_events_waits_history_long_size;
-
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 select @@session.performance_schema_events_waits_history_long_size;
 
 show global variables like 'performance_schema_events_waits_history_long_size';
 
 show session variables like 'performance_schema_events_waits_history_long_size';
-
 select * from information_schema.global_variables
   where variable_name='performance_schema_events_waits_history_long_size';
 
 select * from information_schema.session_variables
-  where variable_name='performance_schema_events_waits_history_long_size';
+ where variable_name='performance_schema_events_waits_history_long_size';
 
 #
 # Read-only

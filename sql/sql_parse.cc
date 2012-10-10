@@ -417,6 +417,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_CREATE]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_MASTER_STAT]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_SLAVE_STAT]=  CF_STATUS_COMMAND;
+  sql_command_flags[SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_PROC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_FUNC]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_CREATE_TRIGGER]=  CF_STATUS_COMMAND;
@@ -2723,6 +2724,16 @@ case SQLCOM_PREPARE:
     mysql_mutex_lock(&LOCK_active_mi);
     res= show_slave_status(thd, active_mi);
     mysql_mutex_unlock(&LOCK_active_mi);
+    break;
+  }
+  case SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING:
+  {
+    /* Accept one of two privileges */
+    if (check_global_access(thd, SUPER_ACL | REPL_CLIENT_ACL))
+      goto error;
+    DBUG_EXECUTE_IF("simulate_hold_show_slave_status_nonblocking",
+                    my_sleep(10000000););
+    res= show_slave_status(thd, active_mi);
     break;
   }
   case SQLCOM_SHOW_MASTER_STAT:
@@ -5796,6 +5807,7 @@ mysql_new_select(LEX *lex, bool move_down)
 {
   SELECT_LEX *select_lex;
   THD *thd= lex->thd;
+  Name_resolution_context *outer_context= lex->current_context();
   DBUG_ENTER("mysql_new_select");
 
   if (!(select_lex= new (thd->mem_root) SELECT_LEX()))
@@ -5830,7 +5842,17 @@ mysql_new_select(LEX *lex, bool move_down)
       By default we assume that it is usual subselect and we have outer name
       resolution context, if no we will assign it to 0 later
     */
-    select_lex->context.outer_context= &select_lex->outer_select()->context;
+    if (select_lex->outer_select()->parsing_place == IN_ON)
+      /*
+        This subquery is part of an ON clause, so we need to link the
+        name resolution context for this subquery with the ON context.
+
+        @todo In which cases is this not the same as
+        &select_lex->outer_select()->context?
+      */
+      select_lex->context.outer_context= outer_context;
+    else
+      select_lex->context.outer_context= &select_lex->outer_select()->context;
   }
   else
   {
@@ -6806,6 +6828,7 @@ push_new_name_resolution_context(THD *thd,
     left_op->first_leaf_for_name_resolution();
   on_context->last_name_resolution_table=
     right_op->last_leaf_for_name_resolution();
+  on_context->select_lex= thd->lex->current_select;
   return thd->lex->push_context(on_context);
 }
 

@@ -12,7 +12,8 @@
 #                                                                    #
 ######################################################################
 
-
+# Don't test this under valgrind, memory leaks will occur due restart
+--source include/not_valgrind.inc
 # Not supported in embedded
 --source include/not_embedded.inc
 
@@ -750,5 +751,6 @@ eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
 eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
 eval SET GLOBAL innodb_large_prefix = $innodb_large_prefix_orig;
 eval SET GLOBAL innodb_flush_log_at_trx_commit = $innodb_flush_log_at_trx_commit_orig;
+call mtr.add_suppression("deleting orphaned .ibd file");
 --enable_query_log
 

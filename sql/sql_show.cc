@@ -708,8 +708,8 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
    VIEW commands. This happens in the cases when
 
    - A view's underlying table (e.g. referenced in its SELECT list) does not
-     exist. There should not be an error as no attempt was made to access it
-     per se.
+     exist or columns of underlying table are altered. There should not be an
+     error as no attempt was made to access it per se.
 
    - Access is denied for some table, column, function or stored procedure
      such as mentioned above. This error gets raised automatically, since we
@@ -790,11 +790,15 @@ public:
         break;
       }
     case ER_COLUMNACCESS_DENIED_ERROR:
-    case ER_VIEW_NO_EXPLAIN: /* Error was anonymized, ignore all the same. */
+    // ER_VIEW_NO_EXPLAIN cannot happen here.
     case ER_PROCACCESS_DENIED_ERROR:
       is_handled= TRUE;
       break;
 
+    case ER_BAD_FIELD_ERROR:
+      /*
+        Established behavior: warn if column of underlying table is altered.
+      */
     case ER_NO_SUCH_TABLE:
       /* Established behavior: warn if underlying tables are missing. */
       push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 
@@ -2594,10 +2598,23 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
 
-  mysql_mutex_lock(&LOCK_thread_count);
+  /* take copy of global_thread_list */
+  std::set<THD*> global_thread_list_copy;
 
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
+  mysql_mutex_lock(&LOCK_thread_count);
+  mysql_mutex_lock(&LOCK_thread_remove);
+  copy_global_thread_list(&global_thread_list_copy);
+
+  /* 
+    Allow inserts to global_thread_list. Newly added thd
+    will not be accounted for summary calculation.
+    removal from global_thread_list is blocked as LOCK_thread_remove
+    mutex is not released yet 
+  */
+  mysql_mutex_unlock(&LOCK_thread_count);
+  Thread_iterator it= global_thread_list_copy.begin();
+  Thread_iterator end= global_thread_list_copy.end();
+
   /* Get global values as base */
   *to= global_status_var;
   
@@ -2605,7 +2622,9 @@ void calc_sum_of_all_status(STATUS_VAR *to)
   for (; it != end; ++it)
     add_to_status(to, &(*it)->status_var);
   
-  mysql_mutex_unlock(&LOCK_thread_count);
+  DEBUG_SYNC_C("inside_calc_sum");
+
+  mysql_mutex_unlock(&LOCK_thread_remove);
   DBUG_VOID_RETURN;
 }
 

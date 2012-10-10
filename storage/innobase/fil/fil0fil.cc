@@ -622,9 +622,10 @@ fil_space_is_flushed(
 }
 
 /*******************************************************************//**
-Appends a new file to the chain of files of a space. File must be closed. */
+Appends a new file to the chain of files of a space. File must be closed.
+@return pointer to the file name, or NULL on error */
 UNIV_INTERN
-void
+char*
 fil_node_create(
 /*============*/
 	const char*	name,	/*!< in: file name (file must be closed) */
@@ -667,7 +668,7 @@ fil_node_create(
 
 		mutex_exit(&fil_system->mutex);
 
-		return;
+		return(NULL);
 	}
 
 	space->size += size;
@@ -682,6 +683,8 @@ fil_node_create(
 	}
 
 	mutex_exit(&fil_system->mutex);
+
+	return(node->name);
 }
 
 /********************************************************************//**
@@ -1764,6 +1767,49 @@ fil_close_all_files(void)
 }
 
 /*******************************************************************//**
+Closes the redo log files. There must not be any pending i/o's or not
+flushed modifications in the files. */
+UNIV_INTERN
+void
+fil_close_log_files(
+/*================*/
+	bool	free)	/*!< in: whether to free the memory object */
+{
+	fil_space_t*	space;
+
+	mutex_enter(&fil_system->mutex);
+
+	space = UT_LIST_GET_FIRST(fil_system->space_list);
+
+	while (space != NULL) {
+		fil_node_t*	node;
+		fil_space_t*	prev_space = space;
+
+		if (space->purpose != FIL_LOG) {
+			space = UT_LIST_GET_NEXT(space_list, space);
+			continue;
+		}
+
+		for (node = UT_LIST_GET_FIRST(space->chain);
+		     node != NULL;
+		     node = UT_LIST_GET_NEXT(chain, node)) {
+
+			if (node->open) {
+				fil_node_close_file(node, fil_system);
+			}
+		}
+
+		space = UT_LIST_GET_NEXT(space_list, space);
+
+		if (free) {
+			fil_space_free(prev_space->id, FALSE);
+		}
+	}
+
+	mutex_exit(&fil_system->mutex);
+}
+
+/*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */
 UNIV_INTERN
@@ -2714,8 +2760,8 @@ fil_discard_tablespace(
 
 	case DB_IO_ERROR:
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"While deleting tablespace %lu in DISCARD "
-			"TABLESPACE. File rename/delete failed: %s\n",
+			"While deleting tablespace %lu in DISCARD TABLESPACE."
+			" File rename/delete failed: %s",
 			(ulong) id, ut_strerr(err));
 		break;
 
@@ -3052,14 +3098,13 @@ fil_create_link_file(
 		OS_FILE_CREATE, OS_FILE_READ_WRITE, &success);
 
 	if (!success) {
+		/* The following call will print an error message */
+		ulint	error = os_file_get_last_error(true);
+
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Cannot create file ", stderr);
 		ut_print_filename(stderr, link_filepath);
 		fputs(".\n", stderr);
-
-		/* The following call will print an error message */
-
-		ulint	error = os_file_get_last_error(true);
 
 		if (error == OS_FILE_ALREADY_EXISTS) {
 			fputs("InnoDB: The link file: ", stderr);
@@ -3185,7 +3230,7 @@ fil_open_linked_file(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"A link file was found named '%s' "
 			"but the linked tablespace '%s' "
-			"could not be opened.\n",
+			"could not be opened.",
 			link_filepath, *remote_filepath);
 
 		mem_free(link_filepath);
@@ -3264,27 +3309,25 @@ fil_create_new_single_table_tablespace(
 		&ret);
 
 	if (ret == FALSE) {
-		ut_print_timestamp(stderr);
+		/* The following call will print an error message */
+		ulint	error = os_file_get_last_error(true);
+
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Cannot create file '%s'\n", path);
 
-		/* The following call will print an error message */
-
-		ulint	error = os_file_get_last_error(true);
-
 		if (error == OS_FILE_ALREADY_EXISTS) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The file already exists though the "
+				"The file '%s' already exists though the "
 				"corresponding table did not exist "
-				"in the InnoDB data dictionary.\n"
+				"in the InnoDB data dictionary. "
 				"Have you moved InnoDB .ibd files "
 				"around without using the SQL commands "
-				"DISCARD TABLESPACE and IMPORT TABLESPACE,"
+				"DISCARD TABLESPACE and IMPORT TABLESPACE, "
 				"or did mysqld crash in the middle of "
-				"CREATE TABLE?"
+				"CREATE TABLE? "
 				"You can resolve the problem by removing "
-				"the file '%s' under the 'datadir' of MySQL.\n",
-				path);
+				"the file '%s' under the 'datadir' of MySQL.",
+				path, path);
 
 			err = DB_TABLESPACE_EXISTS;
 			goto error_exit_3;
@@ -3354,7 +3397,7 @@ fil_create_new_single_table_tablespace(
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not write the first page to tablespace "
-			"'%s'\n", path);
+			"'%s'", path);
 
 		err = DB_ERROR;
 		goto error_exit_2;
@@ -3364,7 +3407,7 @@ fil_create_new_single_table_tablespace(
 
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"File flush of tablespace '%s' failed\n", path);
+			"File flush of tablespace '%s' failed", path);
 		err = DB_ERROR;
 		goto error_exit_2;
 	}
@@ -3378,12 +3421,10 @@ fil_create_new_single_table_tablespace(
 	}
 
 	success = fil_space_create(tablename, space_id, flags, FIL_TABLESPACE);
-	if (!success) {
+	if (!success || !fil_node_create(path, size, space_id, FALSE)) {
 		err = DB_ERROR;
 		goto error_exit_1;
 	}
-
-	fil_node_create(path, size, space_id, FALSE);
 
 #ifndef UNIV_HOTBACKUP
 	{
@@ -3445,7 +3486,7 @@ fil_report_bad_tablespace(
 		"commands DISCARD TABLESPACE and IMPORT TABLESPACE? "
 		"Please refer to "
 		REFMAN "innodb-troubleshooting-datadict.html "
-		"for how to resolve the issue.\n",
+		"for how to resolve the issue.",
 		filepath, (ulong) found_id, (ulong) found_flags,
 		(ulong) expected_id, (ulong) expected_flags);
 }
@@ -3506,6 +3547,11 @@ fil_open_single_table_tablespace(
 	fsp_open_info	remote;
 	ulint		tablespaces_found = 0;
 	ulint		valid_tablespaces_found = 0;
+
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(!fix_dict || rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(!fix_dict || mutex_own(&(dict_sys->mutex)));
 
 	if (!fsp_flags_is_valid(flags)) {
 		return(DB_CORRUPTION);
@@ -3669,7 +3715,7 @@ fil_open_single_table_tablespace(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not find a valid tablespace file for '%s'. "
 			"See " REFMAN "innodb-troubleshooting-datadict.html "
-			"for how to resolve the issue.\n",
+			"for how to resolve the issue.",
 			tablename);
 
 		err = DB_CORRUPTION;
@@ -3682,25 +3728,25 @@ fil_open_single_table_tablespace(
 	if (tablespaces_found > 1) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"A tablespace for %s has been found in "
-			"multiple places;\n", tablename);
+			"multiple places;", tablename);
 		if (def.success) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Default location; %s, LSN=" LSN_PF
-				", Space ID=%lu, Flags=%lu\n",
+				", Space ID=%lu, Flags=%lu",
 				def.filepath, def.lsn,
 				(ulong) def.id, (ulong) def.flags);
 		}
 		if (remote.success) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Remote location; %s, LSN=" LSN_PF
-				", Space ID=%lu, Flags=%lu\n",
+				", Space ID=%lu, Flags=%lu",
 				remote.filepath, remote.lsn,
 				(ulong) remote.id, (ulong) remote.flags);
 		}
 		if (dict.success) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Dictionary location; %s, LSN=" LSN_PF
-				", Space ID=%lu, Flags=%lu\n",
+				", Space ID=%lu, Flags=%lu",
 				dict.filepath, dict.lsn,
 				(ulong) dict.id, (ulong) dict.flags);
 		}
@@ -3714,7 +3760,7 @@ fil_open_single_table_tablespace(
 		any bad tablespaces. */
 		if (valid_tablespaces_found > 1 || srv_force_recovery > 0) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Will not open the tablespace for '%s'\n",
+				"Will not open the tablespace for '%s'",
 				tablename);
 
 			if (def.success != def.valid
@@ -3803,9 +3849,11 @@ skip_validate:
 		/* We do not measure the size of the file, that is why
 		we pass the 0 below */
 
-		fil_node_create(remote.success ? remote.filepath :
-				dict.success ? dict.filepath :
-				def.filepath, 0, id, FALSE);
+		if (!fil_node_create(remote.success ? remote.filepath :
+				     dict.success ? dict.filepath :
+				     def.filepath, 0, id, FALSE)) {
+			err = DB_ERROR;
+		}
 	}
 
 cleanup_and_exit:
@@ -3888,12 +3936,10 @@ fil_validate_single_table_tablespace(
 		char* prev_filepath = fil_space_get_first_path(fsp->id);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			" InnoDB: Error: Attempt to open a tablespace "
-			"previously opened.\n"
+			"Attempted to open a previously opened tablespace. "
 			"Previous tablespace %s uses space ID: %lu at "
-			"filepath: %s\n"
-			"Cannot open tablespace %s which uses space ID: "
-			"%lu at filepath: %s\n",
+			"filepath: %s. Cannot open tablespace %s which uses "
+			"space ID: %lu at filepath: %s",
 			space->name, (ulong) space->id, prev_filepath,
 			tablename, (ulong) fsp->id, fsp->filepath);
 
@@ -4034,11 +4080,10 @@ will_not_choose:
 		mem_free(def.filepath);
 
 		if (srv_force_recovery > 0) {
-			fprintf(stderr,
-				"InnoDB: innodb_force_recovery"
-				" was set to %lu. Continuing crash recovery\n"
-				"InnoDB: even though we cannot access"
-				" the .ibd file of this table.\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"innodb_force_recovery was set to %lu. "
+				"Continuing crash recovery even though we "
+				"cannot access the .ibd file of this table.",
 				srv_force_recovery);
 			return;
 		}
@@ -4054,7 +4099,7 @@ will_not_choose:
 			"Tablespaces for %s have been found in two places;\n"
 			"Location 1: SpaceID: %lu  LSN: %lu  File: %s\n"
 			"Location 2: SpaceID: %lu  LSN: %lu  File: %s\n"
-			"You must delete one of them.\n",
+			"You must delete one of them.",
 			tablename, (ulong) def.id, (ulong) def.lsn,
 			def.filepath, (ulong) remote.id, (ulong) remote.lsn,
 			remote.filepath);
@@ -4077,10 +4122,10 @@ will_not_choose:
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		fprintf(stderr,
-			"InnoDB: Error: could not measure the size"
-			" of single-table tablespace file %s\n",
-			fsp->filepath);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"could not measure the size of single-table "
+			"tablespace file %s", fsp->filepath);
+
 		os_file_close(fsp->file);
 		goto no_good_file;
 	}
@@ -4090,11 +4135,9 @@ will_not_choose:
 	ulong minimum_size = FIL_IBD_FILE_INITIAL_SIZE * UNIV_PAGE_SIZE;
 	if (size < minimum_size) {
 #ifndef UNIV_HOTBACKUP
-		fprintf(stderr,
-			"InnoDB: Error: the size of single-table"
-			" tablespace file %s\n"
-			"InnoDB: is only " UINT64PF
-			", should be at least %lu!\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The size of single-table tablespace file %s "
+			"is only " UINT64PF ", should be at least %lu!",
 			fsp->filepath, size, minimum_size);
 		os_file_close(fsp->file);
 		goto no_good_file;
@@ -4194,7 +4237,9 @@ will_not_choose:
 	the rounding formula for extents and pages is somewhat complex; we
 	let fil_node_open() do that task. */
 
-	fil_node_create(fsp->filepath, 0, fsp->id, FALSE);
+	if (!fil_node_create(fsp->filepath, 0, fsp->id, FALSE)) {
+		ut_error;
+	}
 
 func_exit:
 	os_file_close(fsp->file);
@@ -4225,25 +4270,21 @@ fil_file_readdir_next_file(
 				was encountered, otherwise not changed */
 	const char*	dirname,/*!< in: directory name or path */
 	os_file_dir_t	dir,	/*!< in: directory stream */
-	os_file_stat_t*	info)	/*!< in/out: buffer where the info is returned */
+	os_file_stat_t*	info)	/*!< in/out: buffer where the
+				info is returned */
 {
-	ulint	i;
-	int	ret;
-
-	for (i = 0; i < 100; i++) {
-		ret = os_file_readdir_next_file(dirname, dir, info);
+	for (ulint i = 0; i < 100; i++) {
+		int	ret = os_file_readdir_next_file(dirname, dir, info);
 
 		if (ret != -1) {
 
 			return(ret);
 		}
 
-		fprintf(stderr,
-			"InnoDB: Error: os_file_readdir_next_file()"
-			" returned -1 in\n"
-			"InnoDB: directory %s\n"
-			"InnoDB: Crash recovery may have failed"
-			" for some .ibd files!\n", dirname);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"os_file_readdir_next_file() returned -1 in "
+			"directory %s, crash recovery may have failed "
+			"for some .ibd files!", dirname);
 
 		*err = DB_ERROR;
 	}
@@ -4320,7 +4361,6 @@ fil_load_single_table_tablespaces(void)
 		dbdir = os_file_opendir(dbpath, FALSE);
 
 		if (dbdir != NULL) {
-			/* printf("Opened dir %s\n", dbinfo.name); */
 
 			/* We found a database directory; loop through it,
 			looking for possible .ibd files in it */
@@ -4328,8 +4368,6 @@ fil_load_single_table_tablespaces(void)
 			ret = fil_file_readdir_next_file(&err, dbpath, dbdir,
 							 &fileinfo);
 			while (ret == 0) {
-				/* printf(
-				"     Looking at file %s\n", fileinfo.name); */
 
 				if (fileinfo.type == OS_FILE_TYPE_DIR) {
 
@@ -5845,7 +5883,8 @@ fil_iterate(
 		ut_ad(n_bytes > 0);
 		ut_ad(!(n_bytes % iter.page_size));
 
-		if (!os_file_read(iter.file, io_buffer, offset, (ulint) n_bytes)) {
+		if (!os_file_read(iter.file, io_buffer, offset,
+				  (ulint) n_bytes)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR, "os_file_read() failed");
 
@@ -6062,7 +6101,8 @@ UNIV_INTERN
 void
 fil_delete_file(
 /*============*/
-	const char*	ibd_name)	/*!< in: filepath of the ibd tablespace */
+	const char*	ibd_name)	/*!< in: filepath of the ibd
+					tablespace */
 {
 	/* Force a delete of any stale .ibd files that are lying around. */
 
@@ -6075,4 +6115,50 @@ fil_delete_file(
 	os_file_delete_if_exists(cfg_name);
 
 	mem_free(cfg_name);
+}
+
+/**
+Iterate over all the spaces in the space list and fetch the
+tablespace names. It will return a copy of the name that must be
+freed by the caller using: delete[].
+@return DB_SUCCESS if all OK. */
+UNIV_INTERN
+dberr_t
+fil_get_space_names(
+/*================*/
+	space_name_list_t&	space_name_list)
+				/*!< in/out: List to append to */
+{
+	fil_space_t*	space;
+	dberr_t		err = DB_SUCCESS;
+
+	mutex_enter(&fil_system->mutex);
+
+	for (space = UT_LIST_GET_FIRST(fil_system->space_list);
+	     space != NULL;
+	     space = UT_LIST_GET_NEXT(space_list, space)) {
+
+		if (space->purpose == FIL_TABLESPACE) {
+			ulint	len;
+			char*	name;
+
+			len = strlen(space->name);
+			name = new(std::nothrow) char[len + 1];
+
+			if (name == 0) {
+				/* Caller to free elements allocated so far. */
+				err = DB_OUT_OF_MEMORY;
+				break;
+			}
+
+			memcpy(name, space->name, len);
+			name[len] = 0;
+
+			space_name_list.push_back(name);
+		}
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(err);
 }

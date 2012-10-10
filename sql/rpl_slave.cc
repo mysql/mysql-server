@@ -330,6 +330,7 @@ int init_slave()
   if ((error= Rpl_info_factory::create_coordinators(opt_mi_repository_id, &active_mi,
                                                     opt_rli_repository_id, &rli)))
   {
+    sql_print_error("Failed to create or recover replication info repository.");
     error= 1;
     goto err;
   }
@@ -372,6 +373,10 @@ int init_slave()
 
 err:
   mysql_mutex_unlock(&LOCK_active_mi);
+  if (error)
+    sql_print_information("Check error log for additional messages. "
+                          "You will not be able to start replication until "
+                          "the issue is resolved and the server restarted.");
   DBUG_RETURN(error);
 }
 
@@ -2543,15 +2548,16 @@ bool show_slave_status(THD* thd, Master_info* mi)
 
     /*
       slave_running can be accessed without run_lock but not other
-      non-volotile members like mi->info_thd, which is guarded by the mutex.
+      non-volatile members like mi->info_thd or rli->info_thd, for
+      them either info_thd_lock or run_lock hold is required.
     */
-    mysql_mutex_lock(&mi->run_lock);
+    mysql_mutex_lock(&mi->info_thd_lock);
     protocol->store(mi->info_thd ? mi->info_thd->get_proc_info() : "", &my_charset_bin);
-    mysql_mutex_unlock(&mi->run_lock);
+    mysql_mutex_unlock(&mi->info_thd_lock);
 
-    mysql_mutex_lock(&mi->rli->run_lock);
+    mysql_mutex_lock(&mi->rli->info_thd_lock);
     slave_sql_running_state= const_cast<char *>(mi->rli->info_thd ? mi->rli->info_thd->get_proc_info() : "");
-    mysql_mutex_unlock(&mi->rli->run_lock);
+    mysql_mutex_unlock(&mi->rli->info_thd_lock);
 
     mysql_mutex_lock(&mi->data_lock);
     mysql_mutex_lock(&mi->rli->data_lock);
@@ -4308,7 +4314,9 @@ err:
 
   mi->abort_slave= 0;
   mi->slave_running= 0;
+  mysql_mutex_lock(&mi->info_thd_lock);
   mi->info_thd= 0;
+  mysql_mutex_unlock(&mi->info_thd_lock);
   /*
     Note: the order of the two following calls (first broadcast, then unlock)
     is important. Otherwise a killer_thread can execute between the calls and
@@ -4394,7 +4402,9 @@ pthread_handler_t handle_slave_worker(void *arg)
     sql_print_error("Failed during slave worker initialization");
     goto err;
   }
+  mysql_mutex_lock(&w->info_thd_lock);
   w->info_thd= thd;
+  mysql_mutex_unlock(&w->info_thd_lock);
   thd->thread_stack = (char*)&thd;
   
   pthread_detach_this_thread();
@@ -5292,7 +5302,9 @@ pthread_handler_t handle_slave_sql(void *arg)
 
   thd = new THD; // note that contructor of THD uses DBUG_ !
   thd->thread_stack = (char*)&thd; // remember where our stack is
+  mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= thd;
+  mysql_mutex_unlock(&rli->info_thd_lock);
   
   /* Inform waiting threads that slave has started */
   rli->slave_run_id++;
@@ -5631,7 +5643,9 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   net_end(&thd->net); // destructor will not free it, because we are weird
   DBUG_ASSERT(rli->info_thd == thd);
   THD_CHECK_SENTRY(thd);
+  mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= 0;
+  mysql_mutex_unlock(&rli->info_thd_lock);
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
 
   thd->release_resources();
@@ -7815,6 +7829,10 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
   THD_STAGE_INFO(thd, stage_killing_slave);
   int thread_mask;
   lock_slave_threads(mi);
+
+  DBUG_EXECUTE_IF("simulate_hold_run_locks_on_stop_slave",
+                  my_sleep(10000000););
+
   // Get a mask of _running_ threads
   init_thread_mask(&thread_mask,mi,0 /* not inverse*/);
   /*
