@@ -36,6 +36,7 @@
 
 use Fcntl;
 use File::Basename;
+use File::Copy;
 use Getopt::Long;
 use Sys::Hostname;
 use Data::Dumper;
@@ -44,6 +45,7 @@ use strict;
 Getopt::Long::Configure("pass_through");
 
 my @args;                       # Argument list filled in
+my $basedir;
 
 ##############################################################################
 #
@@ -165,20 +167,11 @@ sub parse_arguments
 
   usage() if $opt->{help};
 
-  # To make these options acceptable for mysqld, we must prepend the name to the value -
-  # but only if they are set, and have not been fixed already.
-  if ( $opt->{'defaults-file'} && $opt->{'defaults-file'} !~ /^--/ )
+  if ( $opt->{'no-defaults'} && ( $opt->{'defaults-extra-file'} ||
+				  $opt->{'defaults-file'} ) )
   {
-    $opt->{'defaults-file'} = '--defaults-file=' . $opt->{'defaults-file'};
-  }
-  if ( $opt->{'defaults-extra-file'} && $opt->{'defaults-extra-file'} !~ /^--/ )
-  {
-    $opt->{'defaults-extra-file'} = '--defaults-extra-file=' . $opt->{'defaults-extra-file'};
-  }
-  # This option has no value, so we just have to spell it in full.
-  if ( $opt->{'no-defaults'} && $opt->{'no-defaults'} !~ /^--/ )
-  {
-    $opt->{'no-defaults'} = '--no-defaults=';
+    error($opt,
+	  "Cannot use both --no-defaults and --defaults-[extra-]file");
   }
 
   @args =  @ARGV if $pick_args;
@@ -206,7 +199,7 @@ sub find_in_basedir
       foreach my $part ( "$file","$file.exe","release/$file.exe",
                          "debug/$file.exe","relwithdebinfo/$file.exe" )
       {
-        my $path = "$opt->{basedir}/$dir/$part";
+        my $path = "$basedir/$dir/$part";
         if ( -f $path )
         {
           return $mode eq "dir" ? dirname($path) : $path;
@@ -389,6 +382,17 @@ my $opt = {};
 parse_arguments($opt, 'PICK-ARGS-FROM-ARGV', @ARGV);
 
 # ----------------------------------------------------------------------
+# Actual basedir, not to be confused with --basedir option
+# ----------------------------------------------------------------------
+
+if ( $opt->{srcdir} ) {
+  $basedir= $opt->{builddir};
+} else {
+  $basedir= $opt->{basedir};
+}
+$basedir= "@prefix@" if ! $basedir;		# Default
+
+# ----------------------------------------------------------------------
 # We can now find my_print_defaults.  This script supports:
 #
 #   --srcdir=path pointing to compiled source tree
@@ -408,11 +412,11 @@ if ( $opt->{srcdir} )
   $opt->{builddir} = $opt->{srcdir} unless $opt->{builddir};
   $print_defaults = "$opt->{builddir}/extra/my_print_defaults";
 }
-elsif ( $opt->{basedir} )
+else
 {
   $print_defaults = find_in_basedir($opt,"file","my_print_defaults","bin","extra");
 }
-else
+if ( ! $print_defaults )
 {
   $print_defaults='@bindir@/my_print_defaults';
 }
@@ -420,13 +424,52 @@ else
 -x $print_defaults or -f "$print_defaults.exe"
   or cannot_find_file($print_defaults);
 
+my $config_file;
+my $copy_cfg_file;
+
+# ----------------------------------------------------------------------
+# This will be the default config file
+# ----------------------------------------------------------------------
+
+$config_file= "$basedir/my.cnf";
+
+my $cfg_template= find_in_basedir($opt,"file","my-default.cnf",
+				  "share","share/mysql","support-files");
+-e $cfg_template or cannot_find_file("my-default.cnf");
+
+$copy_cfg_file= $config_file;
+if (-e $copy_cfg_file)
+{
+  $copy_cfg_file =~ s/my.cnf/my-new.cnf/;
+  # Too early to print warning here, the user may not notice
+}
+open (TEMPL, $cfg_template) or error("Could not open config template");
+open (CFG, "> $copy_cfg_file") or error("Could not open config file");
+while (<TEMPL>)
+{
+  # Remove lines beginning with # *** which are template comments
+  print CFG $_ unless /^# \*\*\*/;
+}
+close CFG;
+close TEMPL;
+
 # ----------------------------------------------------------------------
 # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
 # in the my.cfg file, then re-run to merge with command line arguments.
 # ----------------------------------------------------------------------
 
+my $print_def_file;
+if ( $opt->{'defaults-file'} )
+{
+  $print_def_file= $opt->{'defaults-file'};
+}
+else
+{
+  $print_def_file= $config_file;
+}
+
 my @default_options;
-my $cmd = quote_options($print_defaults,$opt->{'defaults-file'},
+my $cmd = quote_options($print_defaults,"--defaults-file=$print_def_file",
                         "mysqld","mysql_install_db");
 open(PIPE, "$cmd |") or error($opt,"can't run $cmd: $!");
 while ( <PIPE> )
@@ -475,10 +518,9 @@ my ($bindir,$extra_bindir,$mysqld,$pkgdatadir,$mysqld_opt,$scriptdir);
 
 if ( $opt->{srcdir} )
 {
-  $opt->{basedir} = $opt->{builddir};
-  $bindir         = "$opt->{basedir}/client";
-  $extra_bindir   = "$opt->{basedir}/extra";
-  $mysqld         = "$opt->{basedir}/sql/mysqld";
+  $bindir         = "$basedir/client";
+  $extra_bindir   = "$basedir/extra";
+  $mysqld         = "$basedir/sql/mysqld";
   $mysqld_opt     = "--language=$opt->{srcdir}/sql/share/english";
   $pkgdatadir     = "$opt->{srcdir}/scripts";
   $scriptdir      = "$opt->{srcdir}/scripts";
@@ -497,7 +539,6 @@ elsif ( $opt->{basedir} )
 }
 else
 {
-  $opt->{basedir} = '@prefix@';
   $bindir         = '@bindir@';
   $extra_bindir   = $bindir;
   $mysqld         = '@libexecdir@/mysqld';
@@ -604,12 +645,26 @@ push(@args, "--user=$opt->{user}") if $opt->{user};
 
 # FIXME use --init-file instead of --bootstrap ?!
 
+my $defaults_option = "";
+if ( $opt->{'no-defaults'} )
+{
+  $defaults_option= "--no-defaults";
+}
+elsif ( $opt->{'defaults-file'} )
+{
+  $defaults_option= "--defaults-file=$opt->{'defaults-file'}";
+}
+
+my $defaults_extra= "--defaults-extra-file=$opt->{'defaults-extra-file'}"
+  if $opt->{'defaults-extra-file'};
+
 my $mysqld_bootstrap = $ENV{MYSQLD_BOOTSTRAP} || $mysqld;
 my $mysqld_install_cmd_line = quote_options($mysqld_bootstrap,
-                                            $opt->{'defaults-file'},
+                                            $defaults_option,
+					    $defaults_extra,
                                             $mysqld_opt,
                                             "--bootstrap",
-                                            "--basedir=$opt->{basedir}",
+                                            "--basedir=$basedir",
                                             "--datadir=$opt->{ldata}",
                                             "--log-warnings=0",
                                             "--loose-skip-ndbcluster",
@@ -660,8 +715,8 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
     {
       # using the implicit variable $_ !
       s/ABC123xyz/$escaped_password/e ;  # Replace placeholder by random password
-      print PIPE $_;
-    }
+    print PIPE $_;
+  }
     close SQL3;
     tell_root_password();
   }
@@ -728,22 +783,22 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
              "",
              "See the manual for more instructions.");
     } else {
-      report($opt,
-             "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !",
-             "To do so, start the server, then issue the following commands:",
-             "",
-             "  $bindir/mysqladmin -u root password 'new-password'",
-             "  $bindir/mysqladmin -u root -h $hostname password 'new-password'",
-             "",
-             "Alternatively you can run:",
-             "",
-             "  $bindir/mysql_secure_installation",
-             "",
-             "which will also give you the option of removing the test",
-             "databases and anonymous user created by default.  This is",
-             "strongly recommended for production servers.",
-             "",
-             "See the manual for more instructions.");
+    report($opt,
+           "PLEASE REMEMBER TO SET A PASSWORD FOR THE MySQL root USER !",
+           "To do so, start the server, then issue the following commands:",
+           "",
+           "  $bindir/mysqladmin -u root password 'new-password'",
+           "  $bindir/mysqladmin -u root -h $hostname password 'new-password'",
+           "",
+           "Alternatively you can run:",
+           "",
+           "  $bindir/mysql_secure_installation",
+           "",
+           "which will also give you the option of removing the test",
+           "databases and anonymous user created by default.  This is",
+           "strongly recommended for production servers.",
+           "",
+           "See the manual for more instructions.");
     }
 
     if ( !$opt->{rpm} )
@@ -765,6 +820,28 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
            "  http://www.mysql.com",
            "",
            "Support MySQL by buying support/licenses at http://shop.mysql.com");
+
+    if ($copy_cfg_file eq $config_file)
+    {
+      report($opt,
+	     "New default config file was created as $config_file and",
+	     "will be used by default by the server when you start it.",
+	     "You may edit this file to change server settings");
+    }
+    else
+    {
+      warning($opt,
+	      "Found existing config file $config_file on the system.",
+	      "Because this file might be in use, it was not replaced,",
+	      "but was used in bootstrap (unless you used --defaults-file)",
+	      "and when you later start the server.",
+	      "The new default config file was created as $copy_cfg_file,",
+	      "please compare it with your file and take the changes you need.");
+    }
+    foreach my $cfg ( "/etc/my.cnf", "/etc/mysql/my.cnf" )
+    {
+      check_sys_cfg_file ($opt, $cfg);
+    }
   }
   exit 0
 }
@@ -800,6 +877,21 @@ else
 #  Misc
 #
 ##############################################################################
+
+sub check_sys_cfg_file
+{
+  my $opt= shift;
+  my $fname= shift;
+
+  if ( -e $fname )
+  {
+    warning($opt,
+	    "Default config file $fname exists on the system",
+	    "This file will be read by default by the MySQL server",
+	    "If you do not want to use this, either remove it, or use the",
+	    "--defaults-file argument to mysqld_safe when starting the server");
+  }
+}
 
 sub report_verbose
 {
