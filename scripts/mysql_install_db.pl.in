@@ -74,7 +74,7 @@ Usage: $0 [OPTIONS]
   --ldata=path         The path to the MySQL data directory. Same as --datadir.
   --no-defaults        Don't read default options from any option file.
 EOF1
-  if ( $^O !~ m/^(MSWin32)$/ ) {
+  if ( $^O !~ m/^(MSWin32|cygwin)$/ ) {
     print <<EOF2;
   --random-passwords   Create and set a random password for all root accounts
                        and set the "password expired" flag,
@@ -449,7 +449,7 @@ if ( $opt->{'random-passwords'} ) {
   # and maintain "usage()".
   # Issue 1: random password creation
   # Issue 2: confidential file
-  if ( $^O =~ m/^(MSWin32)$/ ) {
+  if ( $^O =~ m/^(MSWin32|cygwin)$/ ) {
     print "Random password not yet implemented for $^O - option will be ignored\n";
     delete $opt->{'random-passwords'};
   } else {
