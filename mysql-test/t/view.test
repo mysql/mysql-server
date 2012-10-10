@@ -4526,6 +4526,29 @@ INSERT INTO v2 (f1, f2) VALUES (1, 2);
 drop view v4,v3,v2,v1;
 drop table t1,t2;
 
+--echo #
+--echo # MDEV-3799 fix of above bugfix (MDEV-589) 
+--echo # Wrong result (NULLs instead of real values) with RIGHT JOIN
+--echo # in a FROM subquery and derived_merge=on
+--echo #
+
+CREATE TABLE t1 (f1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4),(6);
+
+CREATE TABLE t2 (f2 INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7),(8);
+
+SELECT * FROM (  
+  SELECT * FROM t1 RIGHT JOIN t2 ON f1 = f2
+) AS alias;
+
+SELECT * FROM (  
+  SELECT * FROM t2 LEFT JOIN t1 ON f1 = f2
+) AS alias;
+
+drop tables t1,t2;
+
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------

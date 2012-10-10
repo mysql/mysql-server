@@ -4462,7 +4462,16 @@ TABLE *TABLE_LIST::get_real_join_table()
     tbl= (tbl->view != NULL ?
           tbl->view->select_lex.get_table_list() :
           tbl->derived->first_select()->get_table_list());
+
+    /* find left table in outer join on this level */
+    while(tbl->outer_join & JOIN_TYPE_RIGHT)
+    {
+      DBUG_ASSERT(tbl->next_local);
+      tbl= tbl->next_local;
+    }
+
   }
+
   return tbl->table;
 }
 
