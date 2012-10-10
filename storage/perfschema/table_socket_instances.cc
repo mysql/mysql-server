@@ -42,7 +42,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
@@ -205,7 +205,7 @@ int table_socket_instances::read_row_values(TABLE *table,
         break;
       case 2: /* THREAD_ID */
         if (m_row.m_thread_id_set)
-          set_field_ulong(f, m_row.m_thread_id);
+          set_field_ulonglong(f, m_row.m_thread_id);
         else
           f->set_null();
         break;
