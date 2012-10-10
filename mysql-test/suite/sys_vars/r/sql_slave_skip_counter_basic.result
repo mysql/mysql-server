@@ -5,6 +5,9 @@ SELECT @@global.sql_slave_skip_counter;
 0
 '#--------------------FN_DYNVARS_165_02-------------------------#'
 SET @@global.sql_slave_skip_counter = DEFAULT;
+SELECT @@global.sql_slave_skip_counter;
+@@global.sql_slave_skip_counter
+0
 '#--------------------FN_DYNVARS_165_03-------------------------#'
 SET @@global.sql_slave_skip_counter = 0;
 SET @@global.sql_slave_skip_counter = 5;
