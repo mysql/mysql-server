@@ -48,13 +48,11 @@
 int
 toku_portability_init(void) {
     int r = toku_memory_startup();
-    partitioned_counters_init();
     return r;
 }
 
 void
 toku_portability_destroy(void) {
-    partitioned_counters_destroy();
     toku_memory_shutdown();
 }
 
