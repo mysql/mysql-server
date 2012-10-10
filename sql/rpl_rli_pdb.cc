@@ -69,6 +69,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
                            ,PSI_mutex_key *param_key_info_run_lock,
                            PSI_mutex_key *param_key_info_data_lock,
                            PSI_mutex_key *param_key_info_sleep_lock,
+                           PSI_mutex_key *param_key_info_thd_lock,
                            PSI_mutex_key *param_key_info_data_cond,
                            PSI_mutex_key *param_key_info_start_cond,
                            PSI_mutex_key *param_key_info_stop_cond,
@@ -79,7 +80,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
   : Relay_log_info(FALSE
 #ifdef HAVE_PSI_INTERFACE
                    ,param_key_info_run_lock, param_key_info_data_lock,
-                   param_key_info_sleep_lock,
+                   param_key_info_sleep_lock, param_key_info_thd_lock,
                    param_key_info_data_cond, param_key_info_start_cond,
                    param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
@@ -113,7 +114,9 @@ Slave_worker::~Slave_worker()
   delete_dynamic(&curr_group_exec_parts);
   mysql_mutex_destroy(&jobs_lock);
   mysql_cond_destroy(&jobs_cond);
+  mysql_mutex_lock(&info_thd_lock);
   info_thd= NULL;
+  mysql_mutex_unlock(&info_thd_lock);
   set_rli_description_event(NULL);
 }
 
@@ -1274,9 +1277,9 @@ bool circular_buffer_queue::gt(ulong i, ulong k)
 #ifndef DBUG_OFF
 bool Slave_committed_queue::count_done(Relay_log_info* rli)
 {
-  ulong i, cnt= 0;
+  ulong i, k, cnt= 0;
 
-  for (i= entry; i != avail && !empty(); i= (i + 1) % size)
+  for (i= entry, k= 0; k < len; i= (i + 1) % size, k++)
   {
     Slave_job_group *ptr_g;
 
@@ -1285,6 +1288,8 @@ bool Slave_committed_queue::count_done(Relay_log_info* rli)
     if (ptr_g->worker_id != (ulong) -1 && ptr_g->done)
       cnt++;
   }
+
+  DBUG_ASSERT(cnt <= size);
 
   DBUG_PRINT("mts", ("Checking if it can simulate a crash:"
              " mts_checkpoint_group %u counter %lu parallel slaves %lu\n",
@@ -1320,7 +1325,7 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
 {
   ulong i, cnt= 0;
 
-  for (i= entry; i != avail && !empty();)
+  for (i= entry; i != avail && !empty(); cnt++, i= (i + 1) % size)
   {
     Slave_worker *w_i;
     Slave_job_group *ptr_g, g;
@@ -1397,10 +1402,9 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
       processed events.
     */
     set_dynamic(&last_done, &ptr_g->total_seqno, w_i->id);
-
-    cnt++;
-    i= (i + 1) % size;
   }
+
+  DBUG_ASSERT(cnt <= size);
 
   return cnt;
 }
@@ -1408,12 +1412,12 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
 /**
    Method should be executed at slave system stop to 
    cleanup dynamically allocated items that remained as unprocessed
-   by shutdown time.
+   by Coordinator and Workers in their regular execution course.
 */
 void Slave_committed_queue::free_dynamic_items()
 {
-  ulong i;
-  for (i= entry; i != avail && !empty(); i= (i + 1) % size)
+  ulong i, k;
+  for (i= entry, k= 0; k < len; i= (i + 1) % size, k++)
   {
     Slave_job_group *ptr_g= (Slave_job_group *) dynamic_array_ptr(&Q, i);
     if (ptr_g->group_relay_log_name)
@@ -1429,6 +1433,8 @@ void Slave_committed_queue::free_dynamic_items()
       my_free(ptr_g->checkpoint_relay_log_name);
     }
   }
+  DBUG_ASSERT((avail == size /* full */ || entry == size /* empty */) ||
+              i == avail /* all occupied are processed */);
 }
 
 

@@ -43,6 +43,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "ut0vec.h"
 #include "dict0priv.h"
+#include "fts0priv.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -273,6 +274,11 @@ dict_build_table_def_step(
 		/* This table will not use the system tablespace.
 		Get a new space id. */
 		dict_hdr_get_new_id(NULL, NULL, &space);
+
+		DBUG_EXECUTE_IF(
+			"ib_create_table_fail_out_of_space_ids",
+			space = ULINT_UNDEFINED;
+		);
 
 		if (UNIV_UNLIKELY(space == ULINT_UNDEFINED)) {
 			return(DB_ERROR);
@@ -884,7 +890,7 @@ create:
 	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
-		if (index->id == index_id) {
+		if (index->id == index_id && !(index->type & DICT_FTS)) {
 			root_page_no = btr_create(type, space, zip_size,
 						  index_id, index, mtr);
 			index->page = (unsigned int) root_page_no;
@@ -1175,7 +1181,37 @@ dict_create_index_step(
 
 		err = dict_create_index_tree_step(node);
 
+		DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail",
+				err = DB_OUT_OF_MEMORY;);
+
 		if (err != DB_SUCCESS) {
+			/* If this is a FTS index, we will need to remove
+			it from fts->cache->indexes list as well */
+			if ((node->index->type & DICT_FTS)
+			    && node->table->fts) {
+				fts_index_cache_t*	index_cache;
+
+				rw_lock_x_lock(
+					&node->table->fts->cache->init_lock);
+
+				index_cache = (fts_index_cache_t*)
+					 fts_find_index_cache(
+						node->table->fts->cache,
+						node->index);
+
+				if (index_cache->words) {
+					rbt_free(index_cache->words);
+					index_cache->words = 0;
+				}
+
+				ib_vector_remove(
+					node->table->fts->cache->indexes,
+					*reinterpret_cast<void**>(index_cache));
+
+				rw_lock_x_unlock(
+					&node->table->fts->cache->init_lock);
+			}
+
 			dict_index_remove_from_cache(node->table, node->index);
 			node->index = NULL;
 
@@ -1296,6 +1332,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 	}
 
 	trx = trx_allocate_for_mysql();
+
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	trx->op_info = "creating foreign key sys tables";
 
@@ -1660,6 +1698,8 @@ dict_create_or_check_sys_tablespace(void)
 	}
 
 	trx = trx_allocate_for_mysql();
+
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	trx->op_info = "creating tablepace and datafile sys tables";
 

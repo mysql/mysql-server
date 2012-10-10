@@ -18,6 +18,7 @@ DROP TABLE IF EXISTS t1;
 --echo # WL#4445: EXCHANGE PARTITION WITH TABLE
 --echo # Verify ddl_log in case of crashing.
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+call mtr.add_suppression('InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!');
 
 let $create_statement= CREATE TABLE t1 (a INT, b VARCHAR(64)) PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (10),

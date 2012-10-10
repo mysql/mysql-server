@@ -2381,7 +2381,7 @@ static void test_ps_query_cache()
   if (lmysql != mysql)
     mysql_close(lmysql);
 
-  rc= mysql_query(mysql, "set global query_cache_size=0");
+  rc= mysql_query(mysql, "set global query_cache_size=DEFAULT");
   myquery(rc);
 }
 
@@ -18034,7 +18034,7 @@ static void test_bug36326()
   DIE_UNLESS(rc == 1);
   rc= mysql_query(mysql, "DROP TABLE t1");
   myquery(rc);
-  rc= mysql_query(mysql, "SET GLOBAL query_cache_size = 0");
+  rc= mysql_query(mysql, "SET GLOBAL query_cache_size = DEFAULT");
   myquery(rc);
 
   DBUG_VOID_RETURN;

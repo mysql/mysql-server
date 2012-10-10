@@ -1,0 +1,28 @@
+--source include/have_innodb.inc
+--source include/have_debug.inc
+
+#
+# exists as global only
+#
+select @@global.innodb_force_recovery_crash in (0, 1);
+select @@global.innodb_force_recovery_crash;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_force_recovery_crash;
+show global variables like 'innodb_force_recovery_crash';
+show session variables like 'innodb_force_recovery_crash';
+select * from information_schema.global_variables where variable_name='innodb_force_recovery_crash';
+select * from information_schema.session_variables where variable_name='innodb_force_recovery_crash';
+
+# show that it's read-only
+#
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_force_recovery_crash=1;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_force_recovery_crash=0;
+select @@global.innodb_force_recovery_crash;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set session innodb_force_recovery_crash='some';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set @@session.innodb_force_recovery_crash='some';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+set global innodb_force_recovery_crash='some';

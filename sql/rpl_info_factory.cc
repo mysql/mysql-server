@@ -99,6 +99,7 @@ Master_info *Rpl_info_factory::create_mi(uint mi_option)
                             &key_master_info_run_lock,
                             &key_master_info_data_lock,
                             &key_master_info_sleep_lock,
+                            &key_master_info_thd_lock,
                             &key_master_info_data_cond,
                             &key_master_info_start_cond,
                             &key_master_info_stop_cond,
@@ -193,11 +194,12 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
   Relay_log_info *rli= NULL;
   Rpl_info_handler* handler_src= NULL;
   Rpl_info_handler* handler_dest= NULL;
+  uint instances= 1;
   uint worker_repository= INVALID_INFO_REPOSITORY;
   uint worker_instances= 1;
-  uint instances= 1;
-  const char *msg= "Failed to allocate memory for the relay log info "
-                   "structure";
+  const char *msg= NULL;
+  const char *msg_alloc= "Failed to allocate memory for the relay log info "
+    "structure";
 
   DBUG_ENTER("Rpl_info_factory::create_rli");
 
@@ -209,7 +211,7 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
   */
   if (rli_option != INFO_REPOSITORY_DUMMY &&
       scan_repositories(&worker_instances, &worker_repository,
-                        worker_table_data, worker_file_data))
+                        worker_table_data, worker_file_data, &msg))
     goto err;
 
   if (!(rli= new Relay_log_info(is_slave_recovery
@@ -217,14 +219,18 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
                                 ,&key_relay_log_info_run_lock,
                                 &key_relay_log_info_data_lock,
                                 &key_relay_log_info_sleep_lock,
+                                &key_relay_log_info_thd_lock,
                                 &key_relay_log_info_data_cond,
                                 &key_relay_log_info_start_cond,
                                 &key_relay_log_info_stop_cond,
                                 &key_relay_log_info_sleep_cond
 #endif
                                 , instances
-                               )))
+                                )))
+  {
+    msg= msg_alloc;
     goto err;
+  }
 
   if(init_repositories(rli_table_data, rli_file_data, rli_option, instances,
                        &handler_src, &handler_dest, &msg))
@@ -234,13 +240,16 @@ Relay_log_info *Rpl_info_factory::create_rli(uint rli_option, bool is_slave_reco
       worker_repository != INVALID_INFO_REPOSITORY &&
       worker_repository != rli_option)
   {
-    sql_print_warning("It is not possible to change the type of the relay log's "
-                      "repository because there are workers' repositories and "
-                      "possible gaps. Please, fix the gaps first before doing "
-                      "such change.");
+    opt_rli_repository_id= rli_option= worker_repository;
+    sql_print_warning("It is not possible to change the type of the relay log "
+                      "repository because there are workers repositories with "
+                      "possible execution gaps. "
+                      "The value of --relay_log_info_repository is altered to "
+                      "one of the found Worker repositories. "
+                      "The gaps have to be sorted out before resuming with "
+                      "the type change.");
     std::swap(handler_src, handler_dest);
   }
-
   if (decide_repository(rli, rli_option, &handler_src, &handler_dest, &msg))
     goto err;
 
@@ -321,7 +330,8 @@ bool Rpl_info_factory::reset_workers(Relay_log_info *rli)
     DBUG_RETURN(0);
 
   if (Rpl_info_file::do_reset_info(Slave_worker::get_number_worker_fields(),
-                                   worker_file_data.pattern))
+                                   worker_file_data.pattern,
+                                   worker_file_data.name_indexed))
     goto err;
 
   if (Rpl_info_table::do_reset_info(Slave_worker::get_number_worker_fields(),
@@ -382,6 +392,7 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
                                  ,&key_relay_log_info_run_lock,
                                  &key_relay_log_info_data_lock,
                                  &key_relay_log_info_sleep_lock,
+                                 &key_relay_log_info_thd_lock,
                                  &key_relay_log_info_data_cond,
                                  &key_relay_log_info_start_cond,
                                  &key_relay_log_info_stop_cond,
@@ -436,6 +447,7 @@ void Rpl_info_factory::init_repository_metadata()
   rli_file_data.n_fields= Relay_log_info::get_number_info_rli_fields();
   strmov(rli_file_data.name, relay_log_info_file);
   strmov(rli_file_data.pattern, relay_log_info_file);
+  rli_file_data.name_indexed= false;
 
   mi_table_data.n_fields= Master_info::get_number_info_mi_fields();
   mi_table_data.schema= MYSQL_SCHEMA_NAME.str;
@@ -443,6 +455,7 @@ void Rpl_info_factory::init_repository_metadata()
   mi_file_data.n_fields= Master_info::get_number_info_mi_fields();
   strmov(mi_file_data.name, master_info_file);
   strmov(mi_file_data.pattern, master_info_file);
+  rli_file_data.name_indexed= false;
 
   worker_table_data.n_fields= Slave_worker::get_number_worker_fields();
   worker_table_data.schema= MYSQL_SCHEMA_NAME.str;
@@ -454,6 +467,7 @@ void Rpl_info_factory::init_repository_metadata()
   pos= strmov(worker_file_data.pattern, "worker-");
   pos= strmov(pos, relay_log_info_file);
   strmov(pos, ".");
+  worker_file_data.name_indexed= true;
 }
 
 
@@ -516,7 +530,9 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
       If there is a problem with one of the repositories we print out
       more information and exit.
     */
-    DBUG_RETURN(check_error_repository(info, handler_src, handler_dest, msg));
+    DBUG_RETURN(check_error_repository(info, *handler_src, *handler_dest,
+                                       return_check_src,
+                                       return_check_dst, msg));
   }
   else
   {
@@ -638,69 +654,40 @@ Rpl_info_factory::check_src_repository(Rpl_info *info,
   This method is called by the decide_repository() and is used print out
   information on errors.
 
-  @param[in]  info         Either master info or relay log info.
-  @param[out] handler_src  Source repository from where information is
-                           copied into the destination repository.
-  @param[out] handler_dest Destination repository to where informaiton is
-                           copied.
-  @param[out] msg          Error message if something goes wrong.
+  @param  info         Either master info or relay log info.
+  @param  handler_src  Source repository from where information is
+                       copied into the destination repository.
+  @param  handler_dest Destination repository to where informaiton is
+                       copied.
+  @param  err_src      Possible error status of the source repo check
+  @param  err_dst      Possible error status of the destination repo check
+  @param[out] msg      Error message if something goes wrong.
 
-  @retval FALSE No error
   @retval TRUE  Failure
 */
 bool Rpl_info_factory::check_error_repository(Rpl_info *info,
-                                              Rpl_info_handler **handler_src,
-                                              Rpl_info_handler **handler_dest,
+                                              Rpl_info_handler *handler_src,
+                                              Rpl_info_handler *handler_dest,
+                                              enum_return_check err_src,
+                                              enum_return_check err_dst,
                                               const char **msg)
 {
   bool error = true;
-  bool live_migration = info->get_rpl_info_handler() != NULL;
 
-  if (!live_migration)
-  {
-    /*
-      If there is an error, we cannot proceed with the normal operation.
-      In this case, we just pick the dest repository if check_info() has
-      not failed to execute against it in order to give users the chance
-      to fix the problem and restart the server. One particular case can
-      happen when there is an inplace upgrade: no source table (it did 
-      not exist in 5.5) and the default destination is a file.
-
-      Notice that migration will not take place and the destination may
-      be empty.
-    */
-    enum_return_check return_check_dst=
-      (*handler_dest)->do_check_info(info->get_internal_id());
-    if (opt_skip_slave_start && return_check_dst != ERROR_CHECKING_REPOSITORY)
-    {
-      sql_print_warning("Error while checking replication metadata. Setting "
-                        "the requested repository in order to give users the "
-                        "chance to fix the problem and restart the server. "
-                        "If this is a live upgrade please consider using "
-                        "mysql_upgrade to fix the problem.");
-      delete (*handler_src);
-      *handler_src= NULL;
-      info->set_rpl_info_handler(*handler_dest);
-      error= false;
-    }
-    else
-    {
-      /*
-        If there is an error, we cannot proceed with the normal operation.
-        One particular case can happen when there is an inplace upgrade:
-        no source table (it did not exist in 5.5) and the default
-        destination is a file.
-      */
-      *msg= "Error while checking replication metadata. This might also happen "
-        "when doing a live upgrade from a version that did not make use "
-        "of the replication metadata tables. If that was the case, consider "
-        "finishing the upgrade before starting replication.";
-    }
-  }
-  else
-  {
-    *msg= "Error checking repositories";
-  }
+  /*
+    If there is an error in any of the source or destination
+    repository checks, the normal operation can't be proceeded.
+    The runtime repository won't be initialized.
+  */
+  if (err_src == ERROR_CHECKING_REPOSITORY)
+    sql_print_error("Error in checking %s repository info type of %s.",
+                    handler_src->get_description_info(),
+                    handler_src->get_rpl_info_type_str());
+  if (err_dst == ERROR_CHECKING_REPOSITORY)
+    sql_print_error("Error in checking %s repository info type of %s.",
+                    handler_dest->get_description_info(),
+                    handler_dest->get_rpl_info_type_str());
+  *msg= "Error checking repositories";
   return error;
 }
 
@@ -786,7 +773,8 @@ bool Rpl_info_factory::init_repositories(const struct_table_data table_data,
     case INFO_REPOSITORY_FILE:
       if (!(*handler_dest= new Rpl_info_file(file_data.n_fields,
                                              file_data.pattern,
-                                             file_data.name)))
+                                             file_data.name,
+                                             file_data.name_indexed)))
         goto err;
       if (handler_src &&
           !(*handler_src= new Rpl_info_table(table_data.n_fields,
@@ -803,7 +791,8 @@ bool Rpl_info_factory::init_repositories(const struct_table_data table_data,
       if (handler_src &&
           !(*handler_src= new Rpl_info_file(file_data.n_fields,
                                             file_data.pattern,
-                                            file_data.name)))
+                                            file_data.name,
+                                            file_data.name_indexed)))
         goto err;
     break;
 
@@ -824,7 +813,8 @@ err:
 bool Rpl_info_factory::scan_repositories(uint* found_instances,
                                          uint* found_rep_option,
                                          const struct_table_data table_data,
-                                         const struct_file_data file_data)
+                                         const struct_file_data file_data,
+                                         const char **msg)
 {
   bool error= false;
   uint file_instances= 0;
@@ -841,7 +831,7 @@ bool Rpl_info_factory::scan_repositories(uint* found_instances,
   }
 
   if (Rpl_info_file::do_count_info(file_data.n_fields, file_data.pattern,
-                                   &file_instances))
+                                   file_data.name_indexed, &file_instances))
   {
     error= true;
     goto err;
@@ -850,9 +840,9 @@ bool Rpl_info_factory::scan_repositories(uint* found_instances,
   if (file_instances != 0 && table_instances != 0)
   {
     error= true;
-    sql_print_error ("Multiple repository instances found with data in "
-                     "them. Unable to decide which is the correct one to "
-                     "choose.");
+    *msg= "Multiple repository instances found with data in "
+      "them. Unable to decide which is the correct one to "
+      "choose";
     goto err;
   }
 

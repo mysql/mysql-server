@@ -90,6 +90,8 @@
 #include "../storage/myisam/ha_myisam.h"
 #include "set_var.h"
 
+#include "sys_vars_shared.h"
+
 #include "rpl_injector.h"
 
 #include "rpl_handler.h"
@@ -533,6 +535,10 @@ ulong binlog_cache_use= 0, binlog_cache_disk_use= 0;
 ulong binlog_stmt_cache_use= 0, binlog_stmt_cache_disk_use= 0;
 ulong max_connections, max_connect_errors;
 my_bool log_bin_use_v1_row_events= 0;
+bool thread_cache_size_specified= false;
+bool host_cache_size_specified= false;
+bool table_definition_cache_specified= false;
+
 /**
   Limit of the total number of prepared statements in the server.
   Is necessary to protect the server against out-of-memory attacks.
@@ -685,7 +691,7 @@ SHOW_COMP_OPTION have_profiling;
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
-mysql_mutex_t LOCK_thread_count;
+mysql_mutex_t LOCK_thread_count, LOCK_thread_remove;
 mysql_mutex_t
   LOCK_error_log, LOCK_uuid_generator,
   LOCK_delayed_insert, LOCK_delayed_status, LOCK_delayed_create,
@@ -797,6 +803,17 @@ Thread_iterator global_thread_list_end()
   return global_thread_list->end();
 }
 
+void copy_global_thread_list(std::set<THD*> *new_copy)
+{
+  mysql_mutex_assert_owner(&LOCK_thread_count);
+  try {
+    *new_copy= *global_thread_list;
+  }
+  catch (std::bad_alloc &ba)
+  {
+  } 
+}
+
 void add_global_thread(THD *thd)
 {
   DBUG_PRINT("info", ("add_global_thread %p", thd));
@@ -819,7 +836,9 @@ void remove_global_thread(THD *thd)
   mysql_mutex_assert_owner(&LOCK_thread_count);
   DBUG_ASSERT(thd->release_resources_done());
 
+  mysql_mutex_lock(&LOCK_thread_remove);
   const size_t num_erased= global_thread_list->erase(thd);
+  mysql_mutex_unlock(&LOCK_thread_remove);
   if (num_erased == 1)
     --global_thread_count;
   // Removing a THD that was never added is an error.
@@ -1908,6 +1927,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_prepared_stmt_count);
   mysql_mutex_destroy(&LOCK_error_messages);
   mysql_cond_destroy(&COND_thread_count);
+  mysql_mutex_destroy(&LOCK_thread_remove);
   mysql_cond_destroy(&COND_thread_cache);
   mysql_cond_destroy(&COND_flush_thread_cache);
   mysql_cond_destroy(&COND_manager);
@@ -3424,6 +3444,7 @@ SHOW_VAR com_status_vars[]= {
   {"show_relaylog_events", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_RELAYLOG_EVENTS]), SHOW_LONG_STATUS},
   {"show_slave_hosts",     (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_HOSTS]), SHOW_LONG_STATUS},
   {"show_slave_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT]), SHOW_LONG_STATUS},
+  {"show_slave_status_nonblocking",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING]), SHOW_LONG_STATUS},
   {"show_status",          (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STATUS]), SHOW_LONG_STATUS},
   {"show_storage_engines", (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_STORAGE_ENGINES]), SHOW_LONG_STATUS},
   {"show_table_status",    (char*) offsetof(STATUS_VAR, com_stat[(uint) SQLCOM_SHOW_TABLE_STATUS]), SHOW_LONG_STATUS},
@@ -3799,12 +3820,33 @@ int init_common_variables()
   }
 #endif /* HAVE_SOLARIS_LARGE_PAGES */
 
+  longlong default_value;
+  sys_var *var;
+  /* Calculate and update default value for thread_cache_size. */
+  if ((default_value= 8 + max_connections / 100) > 100)
+    default_value= 100;
+  var= intern_find_sys_var(STRING_WITH_LEN("thread_cache_size"));
+  var->update_default(default_value);
+
+  /* Calculate and update default value for host_cache_size. */
+  if ((default_value= 128 + max_connections) > 628 &&
+      (default_value= 628 + ((max_connections - 500) / 20)) > 2000)
+    default_value= 2000;
+  var= intern_find_sys_var(STRING_WITH_LEN("host_cache_size"));
+  var->update_default(default_value);
+
+  /* Calculate and update default value for table_def_size. */
+  if ((default_value= 400 + table_cache_size / 2) > 2000)
+    default_value= 2000;
+  var= intern_find_sys_var(STRING_WITH_LEN("table_definition_cache"));
+  var->update_default(default_value);
+
   /* connections and databases needs lots of files */
   {
     uint files, wanted_files, max_open_files;
 
     /* MyISAM requires two file handles per table. */
-    wanted_files= 10+max_connections+table_cache_size*2;
+    wanted_files= 10 + max_connections + table_cache_size * 2;
     /*
       We are trying to allocate no less than max_connections*5 file
       handles (i.e. we are trying to set the limit so that they will
@@ -3814,9 +3856,11 @@ int init_common_variables()
       explicitly requested.  No warning and re-computation occur if we
       can't get max_connections*5 but still got no less than was
       requested (value of wanted_files).
+      Try to allocate no less than 5000 by default.
     */
-    max_open_files= max(max<ulong>(wanted_files, max_connections*5),
-                        open_files_limit);
+    max_open_files= max(max<ulong>(wanted_files, max_connections * 5),
+                        open_files_limit ? open_files_limit : 5000);
+
     files= my_set_max_open_files(max_open_files);
 
     if (files < wanted_files)
@@ -3838,18 +3882,36 @@ int init_common_variables()
         table_cache_size= min<ulong>(max<ulong>((files-10-max_connections)/2,
                                                 TABLE_OPEN_CACHE_MIN),
                                      table_cache_size);
-  DBUG_PRINT("warning",
-       ("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
-        files, max_connections, table_cache_size));
-  if (log_warnings)
-    sql_print_warning("Changed limits: max_open_files: %u  max_connections: %ld  table_cache: %ld",
-      files, max_connections, table_cache_size);
+        DBUG_PRINT("warning", ("Changed limits: max_open_files: %u  "
+                               "max_connections: %ld  table_cache: %ld",
+                               files, max_connections, table_cache_size));
+        if (log_warnings)
+          sql_print_warning("Changed limits: max_open_files: %u  "
+                            "max_connections: %ld  table_cache: %ld",
+                            files, max_connections, table_cache_size);
       }
       else if (log_warnings)
-  sql_print_warning("Could not increase number of max_open_files to more than %u (request: %u)", files, wanted_files);
+        sql_print_warning("Could not increase number of max_open_files to "
+                          "more than %u (request: %u)", files, wanted_files);
     }
     open_files_limit= files;
   }
+
+  /* Fix thread_cache_size. */
+  if (!thread_cache_size_specified &&
+      (max_blocked_pthreads= 8 + max_connections / 100) > 100)
+    max_blocked_pthreads= 100;
+
+  /* Fix host_cache_size. */
+  if (!host_cache_size_specified &&
+      (host_cache_size= 128 + max_connections) > 628 &&
+      (host_cache_size= 628 + ((max_connections - 500) / 20)) > 2000)
+    host_cache_size= 2000;
+
+  /* Fix table_definition_cache. */
+  if (!table_definition_cache_specified &&
+      (table_def_size= 400 + table_cache_size / 2) > 2000)
+    table_def_size= 2000;
 
   /* Fix back_log */
   if (back_log == 0 && (back_log= 50 + max_connections / 5) > 900)
@@ -4060,6 +4122,8 @@ You should consider changing lower_case_table_names to 1 or 2",
 static int init_thread_environment()
 {
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thread_remove, 
+                   &LOCK_thread_remove, MY_MUTEX_INIT_FAST);
   mysql_rwlock_init(key_rwlock_LOCK_status, &LOCK_status);
   mysql_mutex_init(key_LOCK_delayed_insert,
                    &LOCK_delayed_insert, MY_MUTEX_INIT_FAST);
@@ -4459,6 +4523,23 @@ initialize_storage_engine(char *se_name, const char *se_kind,
 }
 
 
+static void init_server_query_cache()
+{
+  ulong set_cache_size;
+
+  query_cache_set_min_res_unit(query_cache_min_res_unit);
+  query_cache_init();
+	
+  set_cache_size= query_cache_resize(query_cache_size);
+  if (set_cache_size != query_cache_size)
+  {
+    sql_print_warning(ER_DEFAULT(ER_WARN_QC_RESIZE), query_cache_size,
+                      set_cache_size);
+    query_cache_size= set_cache_size;
+  }
+}
+
+
 static int init_server_components()
 {
   DBUG_ENTER("init_server_components");
@@ -4470,9 +4551,10 @@ static int init_server_components()
   if (table_def_init() | hostname_cache_init())
     unireg_abort(1);
 
-  query_cache_set_min_res_unit(query_cache_min_res_unit);
-  query_cache_init();
-  query_cache_resize(query_cache_size);
+#ifdef HAVE_QUERY_CACHE
+  init_server_query_cache();
+#endif
+
   randominit(&sql_rand,(ulong) server_start_time,(ulong) server_start_time/2);
   setup_fpu();
   init_thr_lock();
@@ -8337,73 +8419,84 @@ mysqld_get_one_option(int optid,
       WARN_DEPRECATED(NULL, "pre-4.1 password hash", "post-4.1 password hash");
     break;
   case OPT_PFS_INSTRUMENT:
+    {
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
 #ifndef EMBEDDED_LIBRARY
-    /* Parse instrument name and value from argument string */
-    char* name = argument,*p, *val;
+      /* Parse instrument name and value from argument string */
+      char* name = argument,*p, *val;
 
-    /* Assignment required */
-    if (!(p= strchr(argument, '=')))
-    {
-       my_getopt_error_reporter(WARNING_LEVEL,
-                             "Missing value for performance_schema_instrument "
-                             "'%s'", argument);
-      return 0;
-    }
+      /* Assignment required */
+      if (!(p= strchr(argument, '=')))
+      {
+         my_getopt_error_reporter(WARNING_LEVEL,
+                               "Missing value for performance_schema_instrument "
+                               "'%s'", argument);
+        return 0;
+      }
 
-    /* Option value */
-    val= p + 1;
-    if (!*val)
-    {
-       my_getopt_error_reporter(WARNING_LEVEL,
-                             "Missing value for performance_schema_instrument "
-                             "'%s'", argument);
-      return 0;
-    }
+      /* Option value */
+      val= p + 1;
+      if (!*val)
+      {
+         my_getopt_error_reporter(WARNING_LEVEL,
+                               "Missing value for performance_schema_instrument "
+                               "'%s'", argument);
+        return 0;
+      }
 
-    /* Trim leading spaces from instrument name */
-    while (*name && my_isspace(mysqld_charset, *name))
-      name++;
+      /* Trim leading spaces from instrument name */
+      while (*name && my_isspace(mysqld_charset, *name))
+        name++;
 
-    /* Trim trailing spaces and slashes from instrument name */
-    while (p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
-      p--;
-    *p= 0;
-
-    if (!*name)
-    {
-       my_getopt_error_reporter(WARNING_LEVEL,
-                             "Invalid instrument name for "
-                             "performance_schema_instrument '%s'", argument);
-      return 0;
-    }
-
-    /* Trim leading spaces from option value */
-    while (*val && my_isspace(mysqld_charset, *val))
-      val++;
-
-    /* Trim trailing spaces from option value */
-    if ((p= my_strchr(mysqld_charset, val, val+strlen(val), ' ')) != NULL)
+      /* Trim trailing spaces and slashes from instrument name */
+      while (p > argument && (my_isspace(mysqld_charset, p[-1]) || p[-1] == '/'))
+        p--;
       *p= 0;
 
-    if (!*val)
-    {
-       my_getopt_error_reporter(WARNING_LEVEL,
-                             "Invalid value for performance_schema_instrument "
-                             "'%s'", argument);
-      return 0;
-    }
+      if (!*name)
+      {
+         my_getopt_error_reporter(WARNING_LEVEL,
+                               "Invalid instrument name for "
+                               "performance_schema_instrument '%s'", argument);
+        return 0;
+      }
 
-    /* Add instrument name and value to array of configuration options */
-    if (add_pfs_instr_to_array(name, val))
-    {
-       my_getopt_error_reporter(WARNING_LEVEL,
-                             "Invalid value for performance_schema_instrument "
-                             "'%s'", argument);
-      return 0;
-    }
+      /* Trim leading spaces from option value */
+      while (*val && my_isspace(mysqld_charset, *val))
+        val++;
+
+      /* Trim trailing spaces from option value */
+      if ((p= my_strchr(mysqld_charset, val, val+strlen(val), ' ')) != NULL)
+        *p= 0;
+
+      if (!*val)
+      {
+         my_getopt_error_reporter(WARNING_LEVEL,
+                               "Invalid value for performance_schema_instrument "
+                               "'%s'", argument);
+        return 0;
+      }
+
+      /* Add instrument name and value to array of configuration options */
+      if (add_pfs_instr_to_array(name, val))
+      {
+         my_getopt_error_reporter(WARNING_LEVEL,
+                               "Invalid value for performance_schema_instrument "
+                               "'%s'", argument);
+        return 0;
+      }
 #endif /* EMBEDDED_LIBRARY */
 #endif /* WITH_PERFSCHEMA_STORAGE_ENGINE */
+      break;
+    }
+  case OPT_THREAD_CACHE_SIZE:
+    thread_cache_size_specified= true;
+    break;
+  case OPT_HOST_CACHE_SIZE:
+    host_cache_size_specified= true;
+    break;
+  case OPT_TABLE_DEFINITION_CACHE:
+    table_definition_cache_specified= true;
     break;
   }
   return 0;
@@ -9015,15 +9108,16 @@ PSI_mutex_key
   key_LOCK_system_variables_hash, key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
-  key_master_info_sleep_lock,
+  key_master_info_sleep_lock, key_master_info_thd_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
-  key_relay_log_info_sleep_lock,
+  key_relay_log_info_sleep_lock, key_relay_log_info_thd_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
   key_structure_guard_mutex, key_TABLE_SHARE_LOCK_ha_data,
   key_LOCK_error_messages, key_LOG_INFO_lock, key_LOCK_thread_count,
   key_LOCK_log_throttle_qni;
+PSI_mutex_key key_LOCK_thread_remove;
 PSI_mutex_key key_RELAYLOG_LOCK_commit;
 PSI_mutex_key key_RELAYLOG_LOCK_commit_queue;
 PSI_mutex_key key_RELAYLOG_LOCK_done;
@@ -9088,9 +9182,11 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_master_info_data_lock, "Master_info::data_lock", 0},
   { &key_master_info_run_lock, "Master_info::run_lock", 0},
   { &key_master_info_sleep_lock, "Master_info::sleep_lock", 0},
+  { &key_master_info_thd_lock, "Master_info::info_thd_lock", 0},
   { &key_mutex_slave_reporting_capability_err_lock, "Slave_reporting_capability::err_lock", 0},
   { &key_relay_log_info_data_lock, "Relay_log_info::data_lock", 0},
   { &key_relay_log_info_sleep_lock, "Relay_log_info::sleep_lock", 0},
+  { &key_relay_log_info_thd_lock, "Relay_log_info::info_thd_lock", 0},
   { &key_relay_log_info_log_space_lock, "Relay_log_info::log_space_lock", 0},
   { &key_relay_log_info_run_lock, "Relay_log_info::run_lock", 0},
   { &key_mutex_slave_parallel_pend_jobs, "Relay_log_info::pending_jobs_lock", 0},
@@ -9101,6 +9197,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_error_messages, "LOCK_error_messages", PSI_FLAG_GLOBAL},
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
+  { &key_LOCK_thread_remove, "LOCK_thread_remove", PSI_FLAG_GLOBAL},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL}
 };

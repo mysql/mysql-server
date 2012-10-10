@@ -2325,6 +2325,20 @@ page_validate(
 		}
 	}
 
+	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)
+	    && page_get_n_recs(page) > 0) {
+		trx_id_t	max_trx_id	= page_get_max_trx_id(page);
+		trx_id_t	sys_max_trx_id	= trx_sys_get_max_trx_id();
+
+		if (max_trx_id == 0 || max_trx_id > sys_max_trx_id) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"PAGE_MAX_TRX_ID out of bounds: "
+				TRX_ID_FMT ", " TRX_ID_FMT,
+				max_trx_id, sys_max_trx_id);
+			goto func_exit2;
+		}
+	}
+
 	heap = mem_heap_create(UNIV_PAGE_SIZE + 200);
 
 	/* The following buffer is used to check that the

@@ -102,7 +102,7 @@ while ($c)
   dec $c;
 }
 
-SET @@global.query_cache_size = 0;
+SET @@global.query_cache_size = DEFAULT;
 SET @@global.table_definition_cache = @save_table_definition_cache;
 
 --echo End of 5.1 tests

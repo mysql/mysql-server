@@ -121,11 +121,9 @@ static const long AUTOINC_NEW_STYLE_LOCKING = 1;
 static const long AUTOINC_NO_LOCKING = 2;
 
 static long innobase_mirrored_log_groups;
-static long innobase_log_files_in_group;
 static long innobase_log_buffer_size;
 static long innobase_additional_mem_pool_size;
 static long innobase_file_io_threads;
-static long innobase_force_recovery;
 static long innobase_open_files;
 static long innobase_autoinc_lock_mode;
 static ulong innobase_commit_concurrency = 0;
@@ -151,7 +149,6 @@ are determined in innobase_init below: */
 
 static char*	innobase_data_home_dir			= NULL;
 static char*	innobase_data_file_path			= NULL;
-static char*	innobase_log_group_home_dir		= NULL;
 static char*	innobase_file_format_name		= NULL;
 static char*	innobase_change_buffering		= NULL;
 static char*	innobase_enable_monitor_counter		= NULL;
@@ -2924,8 +2921,8 @@ mem_free_and_error:
 
 	/* The default dir for log files is the datadir of MySQL */
 
-	if (!innobase_log_group_home_dir) {
-		innobase_log_group_home_dir = default_path;
+	if (!srv_log_group_home_dir) {
+		srv_log_group_home_dir = default_path;
 	}
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -2938,12 +2935,12 @@ mem_free_and_error:
 	srv_arch_dir = innobase_log_arch_dir;
 #endif /* UNIG_LOG_ARCHIVE */
 
-	ret = (bool)
-		srv_parse_log_group_home_dirs(innobase_log_group_home_dir);
+	srv_normalize_path_for_win(srv_log_group_home_dir);
 
-	if (ret == FALSE || innobase_mirrored_log_groups != 1) {
-	  sql_print_error("syntax error in innodb_log_group_home_dir, or a "
-			  "wrong number of mirrored log groups");
+	if (strchr(srv_log_group_home_dir, ';')
+	    || innobase_mirrored_log_groups != 1) {
+		sql_print_error("syntax error in innodb_log_group_home_dir, "
+				"or a wrong number of mirrored log groups");
 
 		goto mem_free_and_error;
 	}
@@ -3074,8 +3071,6 @@ innobase_change_buffering_inited_ok:
 
 	srv_file_flush_method_str = innobase_file_flush_method;
 
-	srv_n_log_groups = (ulint) innobase_mirrored_log_groups;
-	srv_n_log_files = (ulint) innobase_log_files_in_group;
 	srv_log_file_size = (ib_uint64_t) innobase_log_file_size;
 
 #ifdef UNIV_LOG_ARCHIVE
@@ -3142,8 +3137,6 @@ innobase_change_buffering_inited_ok:
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
 	srv_n_write_io_threads = (ulint) innobase_write_io_threads;
-
-	srv_force_recovery = (ulint) innobase_force_recovery;
 
 	srv_use_doublewrite_buf = (ibool) innobase_use_doublewrite;
 
@@ -8557,7 +8550,7 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
-	err = row_create_table_for_mysql(table, trx, true);
+	err = row_create_table_for_mysql(table, trx, false);
 
 	mem_heap_free(heap);
 
@@ -9662,7 +9655,7 @@ ha_innobase::create(
 	DBUG_RETURN(0);
 
 cleanup:
-	innobase_commit_low(trx);
+	trx_rollback_for_mysql(trx);
 
 	row_mysql_unlock_data_dictionary(trx);
 
@@ -10545,9 +10538,11 @@ innobase_get_mysql_key_number_for_index(
 		}
 
 		/* Print an error message if we cannot find the index
-		** in the "index translation table". */
-		sql_print_error("Cannot find index %s in InnoDB index "
-				"translation table.", index->name);
+		in the "index translation table". */
+		if (*index->name != TEMP_INDEX_PREFIX) {
+			sql_print_error("Cannot find index %s in InnoDB index "
+					"translation table.", index->name);
+		}
 	}
 
 	/* If we do not have an "index translation table", or not able
@@ -12205,7 +12200,7 @@ ha_innobase::transactional_table_lock(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"MySQL is trying to set transactional table lock "
 			"with corrupted lock type to table %s, lock type "
-			"%d does not exist.\n",
+			"%d does not exist.",
 			table->s->table_name.str, lock_type);
 
 		DBUG_RETURN(HA_ERR_CRASHED);
@@ -15500,7 +15495,7 @@ static MYSQL_SYSVAR_BOOL(log_archive, innobase_log_archive,
   "Set to 1 if you want to have logs archived.", NULL, NULL, FALSE);
 #endif /* UNIV_LOG_ARCHIVE */
 
-static MYSQL_SYSVAR_STR(log_group_home_dir, innobase_log_group_home_dir,
+static MYSQL_SYSVAR_STR(log_group_home_dir, srv_log_group_home_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Path to InnoDB log files.", NULL, NULL, NULL);
 
@@ -15783,10 +15778,17 @@ static MYSQL_SYSVAR_ULONG(write_io_threads, innobase_write_io_threads,
   "Number of background write I/O threads in InnoDB.",
   NULL, NULL, 4, 1, 64, 0);
 
-static MYSQL_SYSVAR_LONG(force_recovery, innobase_force_recovery,
+static MYSQL_SYSVAR_ULONG(force_recovery, srv_force_recovery,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Helps to save your data in case the disk image of the database becomes corrupt.",
   NULL, NULL, 0, 0, 6, 0);
+
+#ifndef DBUG_OFF
+static MYSQL_SYSVAR_ULONG(force_recovery_crash, srv_force_recovery_crash,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Kills the server during crash recovery.",
+  NULL, NULL, 0, 0, 10, 0);
+#endif /* !DBUG_OFF */
 
 static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,
   PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
@@ -15802,12 +15804,12 @@ static MYSQL_SYSVAR_LONG(log_buffer_size, innobase_log_buffer_size,
 static MYSQL_SYSVAR_LONGLONG(log_file_size, innobase_log_file_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Size of each log file in a log group.",
-  NULL, NULL, 5*1024*1024L, 1*1024*1024L, LONGLONG_MAX, 1024*1024L);
+  NULL, NULL, 48*1024*1024L, 1*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
-static MYSQL_SYSVAR_LONG(log_files_in_group, innobase_log_files_in_group,
+static MYSQL_SYSVAR_ULONG(log_files_in_group, srv_n_log_files,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Number of log files in the log group. InnoDB writes to the files in a circular fashion. Value 3 is recommended here.",
-  NULL, NULL, 2, 2, 100, 0);
+  "Number of log files in the log group. InnoDB writes to the files in a circular fashion.",
+  NULL, NULL, 2, 2, SRV_N_LOG_FILES_MAX, 0);
 
 static MYSQL_SYSVAR_LONG(mirrored_log_groups, innobase_mirrored_log_groups,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
@@ -16104,6 +16106,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(flush_log_at_trx_commit),
   MYSQL_SYSVAR(flush_method),
   MYSQL_SYSVAR(force_recovery),
+#ifndef DBUG_OFF
+  MYSQL_SYSVAR(force_recovery_crash),
+#endif /* !DBUG_OFF */
   MYSQL_SYSVAR(ft_cache_size),
   MYSQL_SYSVAR(ft_enable_stopword),
   MYSQL_SYSVAR(ft_max_token_size),

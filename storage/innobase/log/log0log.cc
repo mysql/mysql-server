@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -3099,7 +3099,7 @@ logs_empty_and_mark_files_at_shutdown(void)
 	const char*		thread_name;
 	ibool			server_busy;
 
-	ib_logf(IB_LOG_LEVEL_INFO,"Starting shutdown...");
+	ib_logf(IB_LOG_LEVEL_INFO, "Starting shutdown...");
 
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
@@ -3186,7 +3186,7 @@ loop:
 			}
 
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Waiting for %s to be suspended\n",
+				"Waiting for %s to be suspended",
 				thread_type);
 			count = 0;
 		}
@@ -3522,7 +3522,7 @@ log_refresh_stats(void)
 	log_sys->last_printout_time = time(NULL);
 }
 
-/**********************************************************************
+/********************************************************//**
 Closes a log group. */
 static
 void
@@ -3552,12 +3552,12 @@ log_group_close(
 	mem_free(group);
 }
 
-/**********************************************************
-Shutdown the log system but do not release all the memory. */
+/********************************************************//**
+Closes all log groups. */
 UNIV_INTERN
 void
-log_shutdown(void)
-/*==============*/
+log_group_close_all(void)
+/*=====================*/
 {
 	log_group_t*	group;
 
@@ -3571,6 +3571,16 @@ log_shutdown(void)
 
 		log_group_close(prev_group);
 	}
+}
+
+/********************************************************//**
+Shutdown the log system but do not release all the memory. */
+UNIV_INTERN
+void
+log_shutdown(void)
+/*==============*/
+{
+	log_group_close_all();
 
 	mem_free(log_sys->buf_ptr);
 	log_sys->buf_ptr = NULL;
@@ -3598,7 +3608,7 @@ log_shutdown(void)
 	recv_sys_close();
 }
 
-/**********************************************************
+/********************************************************//**
 Free the log system data structures. */
 UNIV_INTERN
 void
