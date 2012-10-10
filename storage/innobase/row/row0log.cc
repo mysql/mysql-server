@@ -2717,24 +2717,25 @@ update_the_rec:
 			}
 
 			/* No byte-for-byte equal record was found. */
-			if (cursor.low_match
-			    < dict_index_get_n_fields(index)) {
+			if (cursor.up_match >= dict_index_get_n_unique(index)
+			    || cursor.low_match
+			    >= dict_index_get_n_unique(index)) {
 				/* Duplicate key found. This is OK if
-				any of the key columns are NULL.
-				Complain if the record was not
-				delete-marked or we are trying to
-				insert a non-matching delete-marked
-				record. */
-				if (dict_index_is_unique(index)
-				    && (!deleted || entry->info_bits)
-				    && !dtuple_contains_null(entry)) {
-					row_merge_dup_report(
-						dup, entry->fields);
-					goto func_exit;
+				any of the key columns are NULL. */
+				if (index->n_nullable
+				    && dtuple_contains_null(entry)) {
+					goto insert_the_rec;
 				}
+				/* FIXME: We used to insert the record
+				if (!deleted || entry->info_bits).
+				Can we reintroduce this condition, and
+				instead check for duplicates when
+				clearing a delete-mark? */
 
-				goto insert_the_rec;
+				goto dup_report;
 			}
+
+			/* FIXME: Is the following dead code? */
 
 			update->info_bits =
 				(rec_get_info_bits(rec, page_rec_is_comp(rec))
@@ -2809,6 +2810,7 @@ update_the_rec:
 				goto insert_the_rec;
 			}
 
+dup_report:
 			/* Duplicate key error */
 			ut_ad(dict_index_is_unique(index));
 			row_merge_dup_report(dup, entry->fields);
@@ -2829,12 +2831,12 @@ update_the_rec:
 			possibly purged. Insert it. */
 		case ROW_OP_INSERT:
 			if (dict_index_is_unique(index)
-			    && cursor.up_match
-			    >= dict_index_get_n_unique(index)
-			    && !page_rec_is_supremum(
-				    page_rec_get_next(
-					    btr_cur_get_rec(&cursor)))
-			    && !dtuple_contains_null(entry)) {
+			    && (cursor.up_match
+				>= dict_index_get_n_unique(index)
+				|| cursor.low_match
+				>= dict_index_get_n_unique(index))
+			    && (!index->n_nullable
+				|| !dtuple_contains_null(entry))) {
 				/* Duplicate key */
 				row_merge_dup_report(dup, entry->fields);
 				goto func_exit;
