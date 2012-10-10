@@ -851,3 +851,10 @@ sub warning
   map {print "$_\n"} @_;
   print "\n";
 }
+
+# Include dummy lines with patterns that generalized pkgadd script expects
+
+my $_pkgadd_fodder= "
+basedir=foo
+datadir=bar
+";
