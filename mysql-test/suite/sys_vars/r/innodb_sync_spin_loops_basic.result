@@ -50,7 +50,22 @@ ERROR 42000: Incorrect argument type to variable 'innodb_sync_spin_loops'
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
 0
+SET @@global.innodb_sync_spin_loops = 65535.01;
+ERROR 42000: Incorrect argument type to variable 'innodb_sync_spin_loops'
+SELECT @@global.innodb_sync_spin_loops;
+@@global.innodb_sync_spin_loops
+0
 SET @@global.innodb_sync_spin_loops = 1001;
+SELECT @@global.innodb_sync_spin_loops;
+@@global.innodb_sync_spin_loops
+1001
+SET @@global.innodb_sync_spin_loops = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_sync_spin_loops'
+SELECT @@global.innodb_sync_spin_loops;
+@@global.innodb_sync_spin_loops
+1001
+SET @@global.innodb_sync_spin_loops = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_sync_spin_loops'
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
 1001

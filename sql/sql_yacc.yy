@@ -1526,6 +1526,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  STATS_PERSISTENT_SYM
 %token  STATS_SAMPLE_PAGES_SYM
 %token  STATUS_SYM
+%token  NONBLOCKING_SYM
 %token  STDDEV_SAMP_SYM               /* SQL-2003-N */
 %token  STD_SYM
 %token  STOP_SYM
@@ -10785,10 +10786,12 @@ table_factor:
               lex->pop_context();
               lex->nest_level--;
             }
-            else if (($3->select_lex &&
-                     $3->select_lex->master_unit()->is_union()) || $5)
+            else if ($5 != NULL)
             {
-              /* simple nested joins cannot have aliases or unions */
+              /*
+                Tables with or without joins within parentheses cannot
+                have aliases, and we ruled out derived tables above.
+              */
               my_parse_error(ER(ER_SYNTAX_ERROR));
               MYSQL_YYABORT;
             }
@@ -10801,6 +10804,26 @@ table_factor:
           }
         ;
 
+/*
+  This rule accepts just about anything. The reason is that we have
+  empty-producing rules in the beginning of rules, in this case
+  subselect_start. This forces bison to take a decision which rules to
+  reduce by long before it has seen any tokens. This approach ties us
+  to a very limited class of parseable languages, and unfortunately
+  SQL is not one of them. The chosen 'solution' was this rule, which
+  produces just about anything, even complete bogus statements, for
+  instance ( table UNION SELECT 1 ).
+
+  Fortunately, we know that the semantic value returned by
+  select_derived is NULL if it contained a derived table, and a pointer to
+  the base table's TABLE_LIST if it was a base table. So in the rule
+  regarding union's, we throw a parse error manually and pretend it
+  was bison that did it.
+
+  Also worth noting is that this rule concerns query expressions in
+  the from clause only. Top level select statements and other types of
+  subqueries have their own union rules.
+ */
 select_derived_union:
           select_derived opt_union_order_or_limit
         | select_derived_union
@@ -10819,6 +10842,13 @@ select_derived_union:
             Lex->pop_context();
           }
           opt_union_order_or_limit
+          {
+            if ($1 != NULL)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
         ;
 
 /* The equivalent of select_init2 for nested queries. */
@@ -12513,6 +12543,10 @@ show_param:
         | MASTER_SYM STATUS_SYM
           {
             Lex->sql_command = SQLCOM_SHOW_MASTER_STAT;
+          }
+        | SLAVE STATUS_SYM NONBLOCKING_SYM
+          {
+            Lex->sql_command = SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING;
           }
         | SLAVE STATUS_SYM
           {

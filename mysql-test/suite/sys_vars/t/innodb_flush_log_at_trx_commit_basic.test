@@ -101,6 +101,19 @@ SELECT @@global.innodb_flush_log_at_trx_commit;
 
 SET @@global.innodb_flush_log_at_trx_commit = 1001;
 SELECT @@global.innodb_flush_log_at_trx_commit;
+ 
+SET @@global.innodb_flush_log_at_trx_commit = 100156787;
+SELECT @@global.innodb_flush_log_at_trx_commit;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_flush_log_at_trx_commit = " ";
+SELECT @@global.innodb_flush_log_at_trx_commit;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_flush_log_at_trx_commit = 1.1;
+SELECT @@global.innodb_flush_log_at_trx_commit;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_flush_log_at_trx_commit = ' ';
+SELECT @@global.innodb_flush_log_at_trx_commit;
 
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'
 ######################################################################### 

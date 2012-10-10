@@ -81,7 +81,7 @@ bool init_read_record_idx(READ_RECORD *info, THD *thd, TABLE *table,
       (error= table->file->ha_index_init(idx, 1)))
   {
     if (print_error)
-     table->file->print_error(error, MYF(0));
+      table->file->print_error(error, MYF(0));
     return true;
   }
 

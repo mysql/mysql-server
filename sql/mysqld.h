@@ -316,9 +316,9 @@ extern PSI_mutex_key
   key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
-  key_master_info_sleep_lock,
+  key_master_info_sleep_lock, key_master_info_thd_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
-  key_relay_log_info_sleep_lock,
+  key_relay_log_info_sleep_lock, key_relay_log_info_thd_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
@@ -630,7 +630,10 @@ enum options_mysqld
   OPT_SSL_CRLPATH,
   OPT_PFS_INSTRUMENT,
   OPT_DEFAULT_AUTH,
-  OPT_SECURE_AUTH
+  OPT_SECURE_AUTH,
+  OPT_THREAD_CACHE_SIZE,
+  OPT_HOST_CACHE_SIZE,
+  OPT_TABLE_DEFINITION_CACHE
 };
 
 

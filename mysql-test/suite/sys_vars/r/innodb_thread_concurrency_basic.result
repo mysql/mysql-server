@@ -50,9 +50,24 @@ ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
 SELECT @@global.innodb_thread_concurrency;
 @@global.innodb_thread_concurrency
 0
+SET @@global.innodb_thread_concurrency = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
+SET @@global.innodb_thread_concurrency = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+0
 SET @@global.innodb_thread_concurrency = 1001;
 Warnings:
 Warning	1292	Truncated incorrect innodb_thread_concurrency value: '1001'
+SELECT @@global.innodb_thread_concurrency;
+@@global.innodb_thread_concurrency
+1000
+SET @@global.innodb_thread_concurrency = 255.01;
+ERROR 42000: Incorrect argument type to variable 'innodb_thread_concurrency'
 SELECT @@global.innodb_thread_concurrency;
 @@global.innodb_thread_concurrency
 1000

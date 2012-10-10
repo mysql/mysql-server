@@ -1690,6 +1690,6 @@ DROP TABLE t4;
 DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
-SET @@global.query_cache_size = 0;
+SET @@global.query_cache_size = DEFAULT;
 SET @@global.table_definition_cache = @save_table_definition_cache;
 End of 5.1 tests

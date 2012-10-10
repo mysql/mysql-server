@@ -3669,7 +3669,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 				const char *db, const char *table_name,
 				ulong rights, bool revoke_grant)
 {
-  int error=0,result=0;
+  int result=0;
   uchar key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   KEY_PART_INFO *key_part= table->key_info->key_part;
@@ -3696,11 +3696,13 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   List_iterator <LEX_COLUMN> iter(columns);
   class LEX_COLUMN *column;
-  if ((error= table->file->ha_index_init(0, 1)))
+  int error= table->file->ha_index_init(0, 1);
+  if (error)
   {
     table->file->print_error(error, MYF(0));
     DBUG_RETURN(-1);
   }
+
   while ((column= iter++))
   {
     ulong privileges= column->rights;
@@ -8263,14 +8265,25 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
     DBUG_RETURN(FALSE);
   }
 
-  /* one can grant proxy to himself to others */
-  if (!strcmp(thd->security_ctx->user, user) &&
+  /*
+    one can grant proxy for self to others.
+    Security context in THD contains two pairs of (user,host):
+    1. (user,host) pair referring to inbound connection.
+    2. (priv_user,priv_host) pair obtained from mysql.user table after doing
+        authnetication of incoming connection.
+    Privileges should be checked wrt (priv_user, priv_host) tuple, because
+    (user,host) pair obtained from inbound connection may have different
+    values than what is actually stored in mysql.user table and while granting
+    or revoking proxy privilege, user is expected to provide entries mentioned
+    in mysql.user table.
+  */
+  if (!strcmp(thd->security_ctx->priv_user, user) &&
       !my_strcasecmp(system_charset_info, host,
-                     thd->security_ctx->host))
+                     thd->security_ctx->priv_host))
   {
     DBUG_PRINT("info", ("strcmp (%s, %s) my_casestrcmp (%s, %s) equal", 
-                        thd->security_ctx->user, user,
-                        host, thd->security_ctx->host));
+                        thd->security_ctx->priv_user, user,
+                        host, thd->security_ctx->priv_host));
     DBUG_RETURN(FALSE);
   }
 
