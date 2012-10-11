@@ -48,19 +48,7 @@ where name like "wait/synch/mutex/sql/LOCK_error_log";
 count(name)
 1
 select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_delayed_insert";
-count(name)
-1
-select count(name) from mutex_instances
 where name like "wait/synch/mutex/sql/LOCK_uuid_generator";
-count(name)
-1
-select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_delayed_status";
-count(name)
-1
-select count(name) from mutex_instances
-where name like "wait/synch/mutex/sql/LOCK_delayed_create";
 count(name)
 1
 select count(name) from mutex_instances

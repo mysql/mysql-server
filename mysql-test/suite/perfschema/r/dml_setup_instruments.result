@@ -5,7 +5,6 @@ where name like 'Wait/Synch/Mutex/sql/%'
 order by name limit 10;
 NAME	ENABLED	TIMED
 wait/synch/mutex/sql/Cversion_lock	YES	YES
-wait/synch/mutex/sql/Delayed_insert::mutex	YES	YES
 wait/synch/mutex/sql/Event_scheduler::LOCK_scheduler_state	YES	YES
 wait/synch/mutex/sql/Gtid_state	YES	YES
 wait/synch/mutex/sql/hash_filo::lock	YES	YES
@@ -13,7 +12,8 @@ wait/synch/mutex/sql/LOCK_active_mi	YES	YES
 wait/synch/mutex/sql/LOCK_audit_mask	YES	YES
 wait/synch/mutex/sql/LOCK_connection_count	YES	YES
 wait/synch/mutex/sql/LOCK_crypt	YES	YES
-wait/synch/mutex/sql/LOCK_delayed_create	YES	YES
+wait/synch/mutex/sql/LOCK_des_key_file	YES	YES
+wait/synch/mutex/sql/LOCK_error_log	YES	YES
 select * from performance_schema.setup_instruments
 where name like 'Wait/Synch/Rwlock/sql/%'
   and name not in ('wait/synch/rwlock/sql/CRYPTO_dynlock_value::lock')
@@ -42,10 +42,10 @@ wait/synch/cond/sql/COND_queue_state	YES	YES
 wait/synch/cond/sql/COND_server_started	YES	YES
 wait/synch/cond/sql/COND_thread_cache	YES	YES
 wait/synch/cond/sql/COND_thread_count	YES	YES
-wait/synch/cond/sql/Delayed_insert::cond	YES	YES
-wait/synch/cond/sql/Delayed_insert::cond_client	YES	YES
 wait/synch/cond/sql/Event_scheduler::COND_state	YES	YES
 wait/synch/cond/sql/Gtid_state	YES	YES
+wait/synch/cond/sql/Item_func_sleep::cond	YES	YES
+wait/synch/cond/sql/Master_info::data_cond	YES	YES
 select * from performance_schema.setup_instruments
 where name='Wait';
 select * from performance_schema.setup_instruments
