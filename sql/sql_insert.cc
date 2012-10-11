@@ -17,44 +17,6 @@
 
 /* Insert of records */
 
-/*
-  INSERT DELAYED
-
-  Insert delayed is distinguished from a normal insert by lock_type ==
-  TL_WRITE_DELAYED instead of TL_WRITE. It first tries to open a
-  "delayed" table (delayed_get_table()), but falls back to
-  open_and_lock_tables() on error and proceeds as normal insert then.
-
-  Opening a "delayed" table means to find a delayed insert thread that
-  has the table open already. If this fails, a new thread is created and
-  waited for to open and lock the table.
-
-  If accessing the thread succeeded, in
-  Delayed_insert::get_local_table() the table of the thread is copied
-  for local use. A copy is required because the normal insert logic
-  works on a target table, but the other threads table object must not
-  be used. The insert logic uses the record buffer to create a record.
-  And the delayed insert thread uses the record buffer to pass the
-  record to the table handler. So there must be different objects. Also
-  the copied table is not included in the lock, so that the statement
-  can proceed even if the real table cannot be accessed at this moment.
-
-  Copying a table object is not a trivial operation. Besides the TABLE
-  object there are the field pointer array, the field objects and the
-  record buffer. After copying the field objects, their pointers into
-  the record must be "moved" to point to the new record buffer.
-
-  After this setup the normal insert logic is used. Only that for
-  delayed inserts write_delayed() is called instead of write_record().
-  It inserts the rows into a queue and signals the delayed insert thread
-  instead of writing directly to the table.
-
-  The delayed insert thread awakes from the signal. It locks the table,
-  inserts the rows from the queue, unlocks the table, and waits for the
-  next signal. It does normally live until a FLUSH TABLES or SHUTDOWN.
-
-*/
-
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"                    // REQUIRED: for other includes
@@ -368,117 +330,6 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
 
 
 /**
-  Upgrade table-level lock of INSERT statement to TL_WRITE if
-  a more concurrent lock is infeasible for some reason. This is
-  necessary for engines without internal locking support (MyISAM).
-  An engine with internal locking implementation might later
-  downgrade the lock in handler::store_lock() method.
-*/
-
-static
-void upgrade_lock_type(THD *thd, thr_lock_type *lock_type,
-                       enum_duplicates duplic)
-{
-  if (*lock_type == TL_WRITE_DELAYED)
-  {
-    /*
-      We do not use delayed threads if:
-      - we're running in skip-new mode -- the feature is disabled
-        in this mode
-      - we're executing this statement on a replication slave --
-        we need to ensure serial execution of queries on the
-        slave
-      - it is INSERT .. ON DUPLICATE KEY UPDATE - in this case the
-        insert cannot be concurrent
-      - this statement is directly or indirectly invoked from
-        a stored function or trigger (under pre-locking) - to
-        avoid deadlocks, since INSERT DELAYED involves a lock
-        upgrade (TL_WRITE_DELAYED -> TL_WRITE) which we should not
-        attempt while keeping other table level locks.
-      - this statement itself may require pre-locking.
-        We should upgrade the lock even though in most cases
-        delayed functionality may work. Unfortunately, we can't
-        easily identify whether the subject table is not used in
-        the statement indirectly via a stored function or trigger:
-        if it is used, that will lead to a deadlock between the
-        client connection and the delayed thread.
-      - we're running the EXPLAIN INSERT command
-    */
-    if (specialflag & SPECIAL_NO_NEW_FUNC ||
-        thd->variables.max_insert_delayed_threads == 0 ||
-        thd->locked_tables_mode > LTM_LOCK_TABLES ||
-        thd->lex->uses_stored_routines() || thd->lex->describe)
-    {
-      *lock_type= TL_WRITE;
-      return;
-    }
-    if (thd->slave_thread)
-    {
-      /* Try concurrent insert */
-      *lock_type= (duplic == DUP_UPDATE || duplic == DUP_REPLACE) ?
-                  TL_WRITE : TL_WRITE_CONCURRENT_INSERT;
-      return;
-    }
-
-    bool log_on= (thd->variables.option_bits & OPTION_BIN_LOG);
-    if (global_system_variables.binlog_format == BINLOG_FORMAT_STMT &&
-        log_on && mysql_bin_log.is_open())
-    {
-      /*
-        Statement-based binary logging does not work in this case, because:
-        a) two concurrent statements may have their rows intermixed in the
-        queue, leading to autoincrement replication problems on slave (because
-        the values generated used for one statement don't depend only on the
-        value generated for the first row of this statement, so are not
-        replicable)
-        b) if first row of the statement has an error the full statement is
-        not binlogged, while next rows of the statement may be inserted.
-        c) if first row succeeds, statement is binlogged immediately with a
-        zero error code (i.e. "no error"), if then second row fails, query
-        will fail on slave too and slave will stop (wrongly believing that the
-        master got no error).
-        So we fallback to non-delayed INSERT.
-        Note that to be fully correct, we should test the "binlog format which
-        the delayed thread is going to use for this row". But in the common case
-        where the global binlog format is not changed and the session binlog
-        format may be changed, that is equal to the global binlog format.
-        We test it without mutex for speed reasons (condition rarely true), and
-        in the common case (global not changed) it is as good as without mutex;
-        if global value is changed, anyway there is uncertainty as the delayed
-        thread may be old and use the before-the-change value.
-      */
-      *lock_type= TL_WRITE;
-      return;
-    }
-  }
-}
-
-
-/**
-  Create a new query string for removing DELAYED keyword for
-  multi INSERT DEALAYED statement.
-
-  @param[in] thd                 Thread handler
-  @param[in] buf                 Query string
-
-  @return
-             0           ok
-             1           error
-*/
-static int
-create_insert_stmt_from_insert_delayed(THD *thd, String *buf)
-{
-  /* Make a copy of thd->query() and then remove the "DELAYED" keyword */
-  if (buf->append(thd->query()) ||
-      buf->replace(thd->lex->keyword_delayed_begin_offset,
-                   thd->lex->keyword_delayed_end_offset -
-                   thd->lex->keyword_delayed_begin_offset, 0))
-    return 1;
-  return 0;
-}
-
-
-/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -498,7 +349,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   bool err= true;
   bool transactional_table, joins_freed= FALSE;
   bool changed;
-  bool was_insert_delayed= (table_list->lock_type ==  TL_WRITE_DELAYED);
   bool is_locked= false;
   ulong counter = 1;
   ulonglong id;
@@ -532,32 +382,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 #endif /* WITH_PARITITION_STORAGE_ENGINE */
   DBUG_ENTER("mysql_insert");
 
-  /*
-    Upgrade lock type if the requested lock is incompatible with
-    the current connection mode or table operation.
-  */
-  upgrade_lock_type(thd, &table_list->lock_type, duplic);
-
-  /*
-    We can't write-delayed into a table locked with LOCK TABLES:
-    this will lead to a deadlock, since the delayed thread will
-    never be able to get a lock on the table. QQQ: why not
-    upgrade the lock here instead?
-  */
-  if (table_list->lock_type == TL_WRITE_DELAYED &&
-      thd->locked_tables_mode &&
-      find_locked_table(thd->open_tables, table_list->db,
-                        table_list->table_name))
-  {
-    my_error(ER_DELAYED_INSERT_TABLE_LOCKED, MYF(0),
-             table_list->table_name);
-    DBUG_RETURN(TRUE);
-  }
-
   if (open_normal_and_derived_tables(thd, table_list, 0))
     DBUG_RETURN(true);
-
-  const thr_lock_type lock_type= table_list->lock_type;
 
   THD_STAGE_INFO(thd, stage_init);
   thd->lex->used_tables=0;
@@ -770,22 +596,17 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     values_list.elements, and - if nothing else - to initialize
     the code to make the call of end_bulk_insert() below safe.
   */
-#ifndef EMBEDDED_LIBRARY
-  if (lock_type != TL_WRITE_DELAYED)
-#endif /* EMBEDDED_LIBRARY */
-  {
-    if (duplic != DUP_ERROR || ignore)
-      table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-    /**
-      This is a simple check for the case when the table has a trigger
-      that reads from it, or when the statement invokes a stored function
-      that reads from the table being inserted to.
-      Engines can't handle a bulk insert in parallel with a read form the
-      same table in the same connection.
-    */
-    if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
-      table->file->ha_start_bulk_insert(values_list.elements);
-  }
+  if (duplic != DUP_ERROR || ignore)
+    table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
+  /**
+     This is a simple check for the case when the table has a trigger
+     that reads from it, or when the statement invokes a stored function
+     that reads from the table being inserted to.
+     Engines can't handle a bulk insert in parallel with a read form the
+     same table in the same connection.
+  */
+  if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
+    table->file->ha_start_bulk_insert(values_list.elements);
 
   thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
@@ -906,65 +727,46 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       query_cache_invalidate3(thd, table_list, 1);
     }
 
-    if (error <= 0 ||
-        thd->transaction.stmt.cannot_safely_rollback() ||
-        was_insert_delayed)
+    if (error <= 0 || thd->transaction.stmt.cannot_safely_rollback())
     {
       if (mysql_bin_log.is_open())
       {
         int errcode= 0;
-	if (error <= 0)
+        if (error <= 0)
         {
-	  /*
-	    [Guilhem wrote] Temporary errors may have filled
-	    thd->net.last_error/errno.  For example if there has
-	    been a disk full error when writing the row, and it was
-	    MyISAM, then thd->net.last_error/errno will be set to
+          /*
+            [Guilhem wrote] Temporary errors may have filled
+            thd->net.last_error/errno.  For example if there has
+            been a disk full error when writing the row, and it was
+            MyISAM, then thd->net.last_error/errno will be set to
             "disk full"... and the mysql_file_pwrite() will wait until free
-	    space appears, and so when it finishes then the
-	    write_row() was entirely successful
-	  */
-	  /* todo: consider removing */
-	  thd->clear_error();
-	}
+            space appears, and so when it finishes then the
+            write_row() was entirely successful
+          */
+          /* todo: consider removing */
+          thd->clear_error();
+        }
         else
           errcode= query_error_code(thd, thd->killed == THD::NOT_KILLED);
         
-	/* bug#22725:
-
-	A query which per-row-loop can not be interrupted with
-	KILLED, like INSERT, and that does not invoke stored
-	routines can be binlogged with neglecting the KILLED error.
-        
-	If there was no error (error == zero) until after the end of
-	inserting loop the KILLED flag that appeared later can be
-	disregarded since previously possible invocation of stored
-	routines did not result in any error due to the KILLED.  In
-	such case the flag is ignored for constructing binlog event.
-	*/
-	DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
-        if (was_insert_delayed && table_list->lock_type ==  TL_WRITE)
-        {
-          /* Binlog INSERT DELAYED as INSERT without DELAYED. */
-          String log_query;
-          if (create_insert_stmt_from_insert_delayed(thd, &log_query))
-          {
-            sql_print_error("Event Error: An error occurred while creating query string"
-                            "for INSERT DELAYED stmt, before writing it into binary log.");
-
-            error= 1;
-          }
-          else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-                                     log_query.c_ptr(), log_query.length(),
-                                     transactional_table, FALSE, FALSE,
-                                     errcode))
-            error= 1;
-        }
-        else if (thd->binlog_query(THD::ROW_QUERY_TYPE,
-			           thd->query(), thd->query_length(),
-			           transactional_table, FALSE, FALSE,
-                                   errcode))
-	  error= 1;
+        /* bug#22725:
+           
+           A query which per-row-loop can not be interrupted with
+           KILLED, like INSERT, and that does not invoke stored
+           routines can be binlogged with neglecting the KILLED error.
+           
+           If there was no error (error == zero) until after the end of
+           inserting loop the KILLED flag that appeared later can be
+           disregarded since previously possible invocation of stored
+           routines did not result in any error due to the KILLED.  In
+           such case the flag is ignored for constructing binlog event.
+        */
+        DBUG_ASSERT(thd->killed != THD::KILL_BAD_DATA || error > 0);
+        if (thd->binlog_query(THD::ROW_QUERY_TYPE,
+                              thd->query(), thd->query_length(),
+                              transactional_table, FALSE, FALSE,
+                              errcode))
+          error= 1;
       }
     }
     DBUG_ASSERT(transactional_table || !changed || 
@@ -1012,7 +814,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     if (ignore)
       my_snprintf(buff, sizeof(buff),
                   ER(ER_INSERT_INFO), (long) info.stats.records,
-                  (lock_type == TL_WRITE_DELAYED) ? (long) 0 :
                   (long) (info.stats.records - info.stats.copied),
                   (long) thd->get_stmt_da()->current_statement_warn_count());
     else
@@ -1192,8 +993,7 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
 {
   if (table)
   {
-    if(table->reginfo.lock_type != TL_WRITE_DELAYED)
-      table->prepare_for_position();
+    table->prepare_for_position();
     return;
   }
 
