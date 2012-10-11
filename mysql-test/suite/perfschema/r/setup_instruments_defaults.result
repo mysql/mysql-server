@@ -24,13 +24,10 @@ NAME	ENABLED	TIMED
 wait/synch/mutex/sql/LOG_INFO::lock	YES	YES
 wait/synch/mutex/sql/THD::LOCK_thd_data	YES	YES
 SELECT * FROM performance_schema.setup_instruments
-WHERE name IN (
-'wait/synch/mutex/sql/Delayed_insert::mutex',
-'wait/synch/mutex/sql/hash_filo::lock')
+WHERE name = 'wait/synch/mutex/sql/hash_filo::lock'
 AND enabled = 'no' AND timed = 'no'
 ORDER BY name;
 NAME	ENABLED	TIMED
-wait/synch/mutex/sql/Delayed_insert::mutex	NO	NO
 wait/synch/mutex/sql/hash_filo::lock	NO	NO
 SHOW VARIABLES LIKE "%/wait/synch/mutex%";
 Variable_name	Value
