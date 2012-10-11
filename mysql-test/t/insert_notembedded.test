@@ -4,17 +4,6 @@
 drop table if exists t1;
 --enable_warnings
 
-# Test for INSERT DELAYED INTO a <view>
-# BUG#13683: INSERT DELAYED into a view creates an infinite loop
-#
-
-create table t1 (n int);
-create view  v1 as select * from t1;
---error 1347
-insert delayed into v1 values (1);
-drop table t1;
-drop view  v1;
-
 #
 # Bug #20989: View '(null).(null)' references invalid table(s)... on
 #             SQL SECURITY INVOKER

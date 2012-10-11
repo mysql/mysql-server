@@ -646,8 +646,6 @@ remove_file $MYSQLTEST_VARDIR/tmp/mysqltest.sql;
 
 
 # Allow trailing # comment
---sleep 1 # Wait for insert delayed to be executed.
---sleep 1        # Wait for insert delayed to be executed.
 
 # ----------------------------------------------------------------------------
 # Test error

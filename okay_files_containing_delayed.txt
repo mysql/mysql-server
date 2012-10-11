@@ -1,0 +1,50 @@
+# Not related to INSERT DELAYED
+events_bugs.test
+group_by.test
+mysqldump-max.test
+delayed_slave_wait_on_query.inc
+show_delayed_slave_state.inc
+mysql-test-run.pl
+log_state.test
+rpl_delayed_slave.test
+disabled.def
+default.experimental
+socket_summary_by_instance_func.test
+socket_summary_by_instance_func_win.test
+
+# Uses INSERT DELAYED's system variables
+binlog_base64_flag.result
+binlog_hexdump.result
+binlog_row_ctype_ucs.result
+binlog_stm_ctype_ucs.result
+delayed_insert_limit_basic_32.test
+delayed_insert_limit_basic_64.test
+delayed_insert_timeout_basic.test
+delayed_queue_size_basic_32.test
+delayed_queue_size_basic_64.test
+disabled-gtid-on.list
+max_delayed_threads_basic.test
+mysqld--help-notwin.result
+rpl_bug31076.test
+variables.test
+max_insert_delayed_threads_basic.test
+
+# mysqldump (to be delegated to client team)
+mysqldump.test
+
+# Mentions INSERT DELAYED but harmless
+create_recursive_construct.inc
+rpl_insert.test
+rpl_insert.result
+
+# Errors due to 'delayed' being a reserved word
+storedproc.test
+storedproc.result
+
+# Uses INSERT DELAYED's mutexes
+server_init.test
+setup_instruments_defaults-master.opt
+setup_instruments_defaults.test
+
+# Sees INSERT DELAYED's threads
+threads_insert_delayed.test

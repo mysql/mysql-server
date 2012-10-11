@@ -1,3 +1,0 @@
--- source include/not_ndb_default.inc
-let $engine_type=myisam;
--- source extra/rpl_tests/rpl_row_delayed_ins.test

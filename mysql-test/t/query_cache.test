@@ -277,25 +277,6 @@ show status like "Qcache_queries_in_cache";
 drop table t1;
 
 #
-# Test insert delayed
-#
-
-flush query cache;
-reset query cache;
-
-create table t1 (a int not null);
-insert into t1 values (1),(2),(3);
-select * from t1;
-select * from t1;
-show status like "Qcache_queries_in_cache";
-insert delayed into t1 values (4);
---sleep 5     # Wait for insert delayed to be executed.
-select a from t1;
-show status like "Qcache_queries_in_cache";
-drop table t1;
-show status like "Qcache_queries_in_cache";
-
-#
 # Test of min result data unit size changing
 #
 show global variables like "query_cache_min_res_unit";
