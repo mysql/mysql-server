@@ -265,6 +265,7 @@ SET(SERVER_TESTS
   field
   get_diagnostics
   handler
+  insert_delayed
   item
   item_func_now_local
   join_tab_sort

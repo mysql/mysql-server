@@ -543,17 +543,6 @@ INSERT INTO t1 VALUES (1, 1);
 SELECT MIN(B),MAX(b) FROM t1 WHERE t1.a = 1;
 drop table t1;
 
-#
-# Test INSERT DELAYED
-#
-
-eval CREATE TABLE t1 (a int unsigned NOT NULL) engine=$engine_type;
-# Can't test this in 3.23
-# INSERT DELAYED INTO t1 VALUES (1);
-INSERT INTO t1 VALUES (1);
-SELECT * FROM t1;
-DROP TABLE t1;
-
 
 #
 # Crash when using many tables (Test case by Jeremy D Zawodny)

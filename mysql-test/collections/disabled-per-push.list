@@ -150,7 +150,6 @@ rpl.rpl_stm_EE_err2 : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround t
 rpl.rpl_stm_flsh_tbls : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_stm_found_rows : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_stm_innodb : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
-rpl.rpl_stm_insert_delayed : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_stm_loaddata_concurrent : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_stm_loadfile : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
 rpl.rpl_stm_log : lsoares 2010-05-26 WL#5408  Reduce Pushbuild2 turnaround times for rpl suite.
