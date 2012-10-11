@@ -269,22 +269,6 @@ end|
 delimiter ;|
 insert into t11 values("try_560_");
 
-# DELAYED option not supported by table created
-# using innodb.
-# Test that INSERT DELAYED works in mixed mode (BUG#20649)
-#insert delayed into t2 values("delay_1_");
-#insert delayed into t2 values(concat("delay_2_",UUID()));
-#insert delayed into t2 values("delay_6_");
-
-# Test for BUG#20633 (INSERT DELAYED RAND()/user_variable does not
-# replicate fine in statement-based ; we test that in mixed mode it
-# works).
-#insert delayed into t2 values(rand());
-#set @a=2.345;
-#insert delayed into t2 values(@a);
-
-sleep 4; # time for the delayed inserts to reach disk
-
 # If you want to do manual testing of the mixed mode regarding UDFs (not
 # testable automatically as quite platform- and compiler-dependent),
 # you just need to set the variable below to 1, and to

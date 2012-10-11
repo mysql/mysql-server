@@ -156,16 +156,6 @@ show keys from t1;
 drop table t1;
 
 #
-# Test of ALTER TABLE DELAYED
-#
-
-CREATE TABLE t1 (i int(10), index(i) );
-ALTER TABLE t1 DISABLE KEYS;
-INSERT DELAYED INTO t1 VALUES(1),(2),(3);
-ALTER TABLE t1 ENABLE KEYS;
-drop table t1;
-
-#
 # Test ALTER TABLE ENABLE/DISABLE keys when things are locked
 #
 

@@ -1,6 +1,0 @@
---source include/have_binlog_format_row.inc
---source include/master-slave.inc
---source include/not_embedded.inc
---source include/not_windows.inc
---source extra/rpl_tests/rpl_insert_delayed.test
---source include/rpl_end.inc

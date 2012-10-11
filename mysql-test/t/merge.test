@@ -1237,35 +1237,6 @@ CHECKSUM TABLE t2;
 SELECT * FROM t4 ORDER BY c1;
 UNLOCK TABLES;
 #
---echo #
---echo # Insert delayed
---echo #
-# See also Bug#26464 - insert delayed + update + merge = corruption
-# Succeeds with deprecation warning in embedded server - is converted to normal
-# insert
-# Fails in normal server, ps-protocol - not supported by engine
-# Fails in normal server, normal protocol - not a base table
---disable_warnings
---error 0, ER_DELAYED_NOT_SUPPORTED, ER_WRONG_OBJECT
-INSERT DELAYED INTO t4 VALUES(44);
---enable_warnings
-# Get rid of row in embedded server
-DELETE FROM t4 WHERE c1 = 44;
-INSERT DELAYED INTO t3 VALUES(33);
-  let $wait_cmd= SHOW STATUS LIKE 'Not_flushed_delayed_rows';
-  let $run= query_get_value($wait_cmd, Value, 1);
-  while ($run)
-  {
-    let $run= query_get_value($wait_cmd, Value, 1);
-  }
-SELECT * FROM t4 ORDER BY c1;
-LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
---error ER_DELAYED_INSERT_TABLE_LOCKED, ER_DELAYED_NOT_SUPPORTED
-INSERT DELAYED INTO t4 VALUES(444);
---error ER_DELAYED_INSERT_TABLE_LOCKED, ER_DELAYED_NOT_SUPPORTED
-INSERT DELAYED INTO t3 VALUES(333);
-SELECT * FROM t4 ORDER BY c1;
-UNLOCK TABLES;
 DROP TABLE t1, t2, t3, t4;
 #
 --echo #

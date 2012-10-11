@@ -65,36 +65,6 @@ insert into t5(a, b) values(3,1);
 update t4,t5 set t4.a=4, t5.a=5 where t4.b=t5.b;
 
 FLUSH TABLES;
---echo # Assert that no delayed thread handlers exist
---let $status_var= delayed_insert_threads
---let $status_var_value= 0
---source include/wait_for_status_var.inc
-
-SET @old_debug= @@global.debug;
-SET GLOBAL debug="+d,after_handle_inserts";
-set DEBUG_SYNC= 'before_write_delayed SIGNAL before_insert EXECUTE 3';
-set DEBUG_SYNC= 'after_write_delayed WAIT_FOR inserts_handled EXECUTE 3';
---let $pos_before_insert_delayed=query_get_value(SHOW MASTER STATUS, Position, 1)
---echo # Test insert delayed ...
-let $table=t3;
-insert delayed into t3(a,b) values(1,5),(1,6),(1,7);
-let $count=4;
---source include/wait_until_rows_count.inc
-SET @@global.debug= @old_debug;
-
-# this makes sure that the delayed thread will
-# have stopped and written to the binary log
-FLUSH TABLES t3;
---echo # Assert that no delayed thread handlers exist for table t3
---let $status_var= delayed_insert_threads
---let $status_var_value= 0
---source include/wait_for_status_var.inc
-
-# this is just for a sanity check after BUG#12416768
---let $pos_after_insert_delayed=query_get_value(SHOW MASTER STATUS, Position, 1)
---let $assert_text= Assert that insert delayed related data has been written to the binary log
---let $assert_cond= $pos_after_insert_delayed <> $pos_before_insert_delayed
---source include/assert.inc
 
 --echo # Test load data infile
 create table t6(a VARCHAR(60)) engine= myisam;
