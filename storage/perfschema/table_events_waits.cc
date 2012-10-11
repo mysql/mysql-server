@@ -541,7 +541,6 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("read no inserts") },
   { C_STRING_WITH_LEN("write allow write") },
   { C_STRING_WITH_LEN("write concurrent insert") },
-  { C_STRING_WITH_LEN("write delayed") },
   { C_STRING_WITH_LEN("write low priority") },
   { C_STRING_WITH_LEN("write normal") },
   { C_STRING_WITH_LEN("read external") },

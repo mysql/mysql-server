@@ -297,31 +297,6 @@ static const TABLE_FIELD_TYPE field_types[]=
     { NULL, 0}
   },
   {
-    { C_STRING_WITH_LEN("COUNT_WRITE_DELAYED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("SUM_TIMER_WRITE_DELAYED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MIN_TIMER_WRITE_DELAYED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("AVG_TIMER_WRITE_DELAYED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
-    { C_STRING_WITH_LEN("MAX_TIMER_WRITE_DELAYED") },
-    { C_STRING_WITH_LEN("bigint(20)") },
-    { NULL, 0}
-  },
-  {
     { C_STRING_WITH_LEN("COUNT_WRITE_LOW_PRIORITY") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
@@ -400,7 +375,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_tlws_by_table::m_field_def=
-{ 73, field_types };
+{ sizeof(field_types) / sizeof(TABLE_FIELD_TYPE), field_types };
 
 PFS_engine_table_share
 table_tlws_by_table::m_share=
@@ -690,67 +665,51 @@ int table_tlws_by_table::read_row_values(TABLE *table,
         set_field_ulonglong(f, m_row.m_stat.m_write_concurrent_insert.m_max);
         break;
 
-      case 53: /* COUNT_WRITE_DELAYED */
-        set_field_ulonglong(f, m_row.m_stat.m_write_delayed.m_count);
-        break;
-      case 54: /* SUM_TIMER_WRITE_DELAYED */
-        set_field_ulonglong(f, m_row.m_stat.m_write_delayed.m_sum);
-        break;
-      case 55: /* MIN_TIMER_WRITE_DELAYED */
-        set_field_ulonglong(f, m_row.m_stat.m_write_delayed.m_min);
-        break;
-      case 56: /* AVG_TIMER_WRITE_DELAYED */
-        set_field_ulonglong(f, m_row.m_stat.m_write_delayed.m_avg);
-        break;
-      case 57: /* MAX_TIMER_WRITE_DELAYED */
-        set_field_ulonglong(f, m_row.m_stat.m_write_delayed.m_max);
-        break;
-
-      case 58: /* COUNT_WRITE_LOW_PRIORITY */
+      case 53: /* COUNT_WRITE_LOW_PRIORITY */
         set_field_ulonglong(f, m_row.m_stat.m_write_low_priority.m_count);
         break;
-      case 59: /* SUM_TIMER_WRITE_LOW_PRIORITY */
+      case 54: /* SUM_TIMER_WRITE_LOW_PRIORITY */
         set_field_ulonglong(f, m_row.m_stat.m_write_low_priority.m_sum);
         break;
-      case 60: /* MIN_TIMER_WRITE_LOW_PRIORITY */
+      case 55: /* MIN_TIMER_WRITE_LOW_PRIORITY */
         set_field_ulonglong(f, m_row.m_stat.m_write_low_priority.m_min);
         break;
-      case 61: /* AVG_TIMER_WRITE_LOW_PRIORITY */
+      case 56: /* AVG_TIMER_WRITE_LOW_PRIORITY */
         set_field_ulonglong(f, m_row.m_stat.m_write_low_priority.m_avg);
         break;
-      case 62: /* MAX_TIMER_WRITE_LOW_PRIORITY */
+      case 57: /* MAX_TIMER_WRITE_LOW_PRIORITY */
         set_field_ulonglong(f, m_row.m_stat.m_write_low_priority.m_max);
         break;
 
-      case 63: /* COUNT_WRITE_NORMAL */
+      case 58: /* COUNT_WRITE_NORMAL */
         set_field_ulonglong(f, m_row.m_stat.m_write_normal.m_count);
         break;
-      case 64: /* SUM_TIMER_WRITE_NORMAL */
+      case 59: /* SUM_TIMER_WRITE_NORMAL */
         set_field_ulonglong(f, m_row.m_stat.m_write_normal.m_sum);
         break;
-      case 65: /* MIN_TIMER_WRITE_NORMAL */
+      case 60: /* MIN_TIMER_WRITE_NORMAL */
         set_field_ulonglong(f, m_row.m_stat.m_write_normal.m_min);
         break;
-      case 66: /* AVG_TIMER_WRITE_NORMAL */
+      case 61: /* AVG_TIMER_WRITE_NORMAL */
         set_field_ulonglong(f, m_row.m_stat.m_write_normal.m_avg);
         break;
-      case 67: /* MAX_TIMER_WRITE_NORMAL */
+      case 62: /* MAX_TIMER_WRITE_NORMAL */
         set_field_ulonglong(f, m_row.m_stat.m_write_normal.m_max);
         break;
 
-      case 68: /* COUNT_WRITE_EXTERNAL */
+      case 63: /* COUNT_WRITE_EXTERNAL */
         set_field_ulonglong(f, m_row.m_stat.m_write_external.m_count);
         break;
-      case 69: /* SUM_TIMER_WRITE_EXTERNAL */
+      case 64: /* SUM_TIMER_WRITE_EXTERNAL */
         set_field_ulonglong(f, m_row.m_stat.m_write_external.m_sum);
         break;
-      case 70: /* MIN_TIMER_WRITE_EXTERNAL */
+      case 65: /* MIN_TIMER_WRITE_EXTERNAL */
         set_field_ulonglong(f, m_row.m_stat.m_write_external.m_min);
         break;
-      case 71: /* AVG_TIMER_WRITE_EXTERNAL */
+      case 66: /* AVG_TIMER_WRITE_EXTERNAL */
         set_field_ulonglong(f, m_row.m_stat.m_write_external.m_avg);
         break;
-      case 72: /* MAX_TIMER_WRITE_EXTERNAL */
+      case 67: /* MAX_TIMER_WRITE_EXTERNAL */
         set_field_ulonglong(f, m_row.m_stat.m_write_external.m_max);
         break;
 
