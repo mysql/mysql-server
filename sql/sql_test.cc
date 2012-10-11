@@ -53,7 +53,6 @@ const char *lock_descriptions[TL_WRITE_ONLY + 1] =
   /* TL_WRITE_ALLOW_WRITE       */  "Write lock that allows other writers",
   /* TL_WRITE_CONCURRENT_DEFAULT*/  NULL,
   /* TL_WRITE_CONCURRENT_INSERT */  "Concurrent insert lock",
-  /* TL_WRITE_DELAYED           */  "Lock used by delayed insert",
   /* TL_WRITE_DEFAULT           */  NULL,
   /* TL_WRITE_LOW_PRIORITY      */  "Low priority write lock",
   /* TL_WRITE                   */  "High priority write lock",

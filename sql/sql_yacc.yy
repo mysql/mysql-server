@@ -12046,8 +12046,7 @@ opt_insert_update:
             Lex->duplicates= DUP_UPDATE;
             TABLE_LIST *first_table= Lex->select_lex.table_list.first;
             /* Fix lock for ON DUPLICATE KEY UPDATE */
-            if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT ||
-                first_table->lock_type == TL_WRITE_DELAYED)
+            if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
               first_table->lock_type= TL_WRITE_DEFAULT;
           }
           KEY_SYM UPDATE_SYM insert_update_list
