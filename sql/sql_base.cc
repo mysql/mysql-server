@@ -909,7 +909,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     refresh_version++;
     DBUG_PRINT("tcache", ("incremented global refresh_version to: %lu",
                           refresh_version));
-    kill_delayed_threads();
+
     /*
       Get rid of all unused TABLE and TABLE_SHARE instances. By doing
       this we automatically close all tables which were marked as "old".

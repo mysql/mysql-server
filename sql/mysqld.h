@@ -307,8 +307,7 @@ extern PSI_mutex_key key_BINLOG_LOCK_sync;
 extern PSI_mutex_key key_BINLOG_LOCK_sync_queue;
 extern PSI_mutex_key
   key_delayed_insert_mutex, key_hash_filo_lock, key_LOCK_active_mi,
-  key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_delayed_create,
-  key_LOCK_delayed_insert, key_LOCK_delayed_status, key_LOCK_error_log,
+  key_LOCK_connection_count, key_LOCK_crypt, key_LOCK_error_log,
   key_LOCK_gdl, key_LOCK_global_system_variables,
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
   key_LOCK_prepared_stmt_count,
@@ -549,8 +548,8 @@ extern MYSQL_PLUGIN_IMPORT key_map key_map_full;          /* Should be threaded 
  */
 extern mysql_mutex_t
        LOCK_user_locks, 
-       LOCK_error_log, LOCK_delayed_insert, LOCK_uuid_generator,
-       LOCK_delayed_status, LOCK_delayed_create, LOCK_crypt, LOCK_timezone,
+       LOCK_error_log, LOCK_uuid_generator,
+       LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count;
