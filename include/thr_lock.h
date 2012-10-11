@@ -63,8 +63,6 @@ enum thr_lock_type { TL_IGNORE=-1,
 		       READ, if one could use concurrent insert on table.
 		     */
 		     TL_WRITE_CONCURRENT_INSERT,
-		     /* Write used by INSERT DELAYED.  Allows READ locks */
-		     TL_WRITE_DELAYED,
                      /* 
                        parser only! Late bound low_priority flag. 
                        At open_tables() becomes thd->update_lock_default.
@@ -158,8 +156,6 @@ my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data,
                                      ulong lock_wait_timeout);
 void    thr_downgrade_write_lock(THR_LOCK_DATA *data,
                                  enum thr_lock_type new_lock_type);
-my_bool thr_reschedule_write_lock(THR_LOCK_DATA *data,
-                                  ulong lock_wait_timeout);
 void thr_set_lock_wait_callback(void (*before_wait)(void),
                                 void (*after_wait)(void));
 #ifdef	__cplusplus

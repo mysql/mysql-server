@@ -231,7 +231,7 @@ Archive_share::Archive_share()
 
 
 ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
-  :handler(hton, table_arg), share(NULL), delayed_insert(0), bulk_insert(0)
+  :handler(hton, table_arg), share(NULL), bulk_insert(0)
 {
   /* Set our original buffer from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
@@ -878,7 +878,7 @@ int ha_archive::real_write_row(uchar *buf, azio_stream *writer)
     DBUG_RETURN(-1);
   }
 
-  if (!delayed_insert || !bulk_insert)
+  if (!bulk_insert)
     share->dirty= TRUE;
 
   DBUG_RETURN(0);
@@ -1610,11 +1610,6 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
                                        THR_LOCK_DATA **to,
                                        enum thr_lock_type lock_type)
 {
-  if (lock_type == TL_WRITE_DELAYED)
-    delayed_insert= TRUE;
-  else
-    delayed_insert= FALSE;
-
   if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) 
   {
     /* 

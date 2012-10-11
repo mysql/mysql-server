@@ -1256,27 +1256,17 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_insert");
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
-  /*
-    Since INSERT DELAYED doesn't support temporary tables, we could
-    not pre-open temporary tables for SQLCOM_INSERT / SQLCOM_REPLACE.
-    Open them here instead.
-  */
-  if (table_list->lock_type != TL_WRITE_DELAYED)
-  {
-    if (open_temporary_tables(thd, table_list))
-      goto error;
-  }
+  if (open_temporary_tables(thd, table_list))
+    goto error;
 
   if (insert_precheck(thd, table_list))
     goto error;
 
   /*
-    open temporary memory pool for temporary data allocated by derived
+    Open temporary memory pool for temporary data allocated by derived
     tables & preparation procedure
     Note that this is done without locks (should not be needed as we will not
     access any data here)
-    If we would use locks, then we have to ensure we are not using
-    TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
   if (open_normal_and_derived_tables(thd, table_list,
                                      MYSQL_OPEN_FORCE_SHARED_MDL))
@@ -1302,14 +1292,6 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     value_count= values->elements;
     its.rewind();
 
-    if (table_list->lock_type == TL_WRITE_DELAYED &&
-        !(table_list->table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
-    {
-      my_error(ER_DELAYED_NOT_SUPPORTED, MYF(0), (table_list->view ?
-                                                  table_list->view_name.str :
-                                                  table_list->table_name));
-      goto error;
-    }
     while ((values= its++))
     {
       counter++;

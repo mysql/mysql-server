@@ -79,7 +79,6 @@ class ha_archive: public handler
   uchar byte_buffer[IO_SIZE]; /* Initial buffer for our string */
   String buffer;             /* Buffer used for blob storage */
   ha_rows scan_rows;         /* Number of rows left in scan */
-  bool delayed_insert;       /* If the insert is delayed */
   bool bulk_insert;          /* If we are performing a bulk insert */
   const uchar *current_key;
   uint current_key_len;
