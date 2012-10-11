@@ -275,6 +275,7 @@ SET(SERVER_TESTS
   segfault
   sql_table
   table_cache
+  thd
 )
 
 FOREACH(test ${TESTS})
