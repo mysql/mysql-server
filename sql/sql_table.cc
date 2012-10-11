@@ -5855,24 +5855,6 @@ static bool fill_alter_inplace_info(THD *thd,
     }
     else
       ha_alter_info->handler_flags|= Alter_inplace_info::ADD_INDEX;
-#ifndef MCP_BUG14096759
-    /* Mark all fields in the new index */
-    KEY_PART_INFO *key_part= new_key->key_part;
-    KEY_PART_INFO *end= key_part + new_key->key_parts;
-    for(; key_part != end; key_part++)
-    {
-      /*
-        Check if all fields in key are declared
-        NOT NULL
-      */
-      if (key_part->fieldnr < table->s->fields)
-      {
-        /* Mark field to be part of new key */
-        Field *field= table->field[key_part->fieldnr];
-        field->flags|= FIELD_IN_ADD_INDEX;
-      }
-    }
-#endif
   }
 
   DBUG_RETURN(false);
