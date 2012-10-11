@@ -201,50 +201,60 @@ sub _txt_store {
   my $key = shift;
   my $value = shift;
   my $sock = $self->{connection};
-  
-  $sock->printf("%s %s %d %d %d\r\n%s\r\n",$cmd, $key, 
-                $self->{flags}, $self->{exptime}, length($value), $value);
-  return $sock->getline();
+  my $waitTime = 2;
+
+  do {
+    $sock->printf("%s %s %d %d %d\r\n%s\r\n",$cmd, $key, 
+                  $self->{flags}, $self->{exptime}, length($value), $value);
+    $self->{error} = $sock->getline();
+    $self->normalize_error();
+    if($self->{error} ne "OK") {
+      if($self->{error} eq "SERVER_TEMPORARY_ERROR" && $waitTime < 33) {
+        ::mtr_milli_sleep($waitTime);
+        $waitTime *= 2;
+      }
+    }
+  } while($self->{error} eq "SERVER_TEMPORARY_ERROR" && $waitTime < 33);
 }
 
 
 sub set {
   my ($self, $key, $value) = @_;
   
-  $self->{error} = $self->_txt_store("set", $key, $value);
-  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+  $self->_txt_store("set", $key, $value);
+  return ($self->{error} eq "OK");
 }
 
 
 sub add {
   my ($self, $key, $value) = @_;
   
-  $self->{error} = $self->_txt_store("add", $key, $value);
-  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+  $self->_txt_store("add", $key, $value);
+  return ($self->{error} eq "OK");
 }
 
 
 sub append {
   my ($self, $key, $value) = @_;
   
-  $self->{error} = $self->_txt_store("append", $key, $value);
-  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+  $self->_txt_store("append", $key, $value);
+  return ($self->{error} eq "OK");
 }
 
 
 sub prepend {    
   my ($self, $key, $value) = @_;
   
-  $self->{error} = $self->_txt_store("prepend", $key, $value);
-  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+  $self->_txt_store("prepend", $key, $value);
+  return ($self->{error} eq "OK");
 }
 
 
 sub replace {
   my ($self, $key, $value) = @_;
   
-  $self->{error} = $self->_txt_store("replace", $key, $value);
-  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+  $self->_txt_store("replace", $key, $value);
+  return ($self->{error} eq "OK");
 }
 
 
@@ -357,7 +367,8 @@ sub normalize_error {
   "SERVER_ERROR not my vbucket\r\n"    => "NOT_MY_VBUCKET",
   "SERVER_ERROR out of memory\r\n"     => "SERVER_OUT_OF_MEMORY",
   "SERVER_ERROR not supported\r\n"     => "NOT_SUPPORTED",
-  "SERVER_ERROR internal\r\n"          => "INTERNAL_ERROR"
+  "SERVER_ERROR internal\r\n"          => "INTERNAL_ERROR",
+  "SERVER_ERROR temporary failure\r\n" => "SERVER_TEMPORARY_ERROR"
   );  
   my $norm_error = $error_message{$self->{error}};
   $self->{error} = $norm_error if(defined($norm_error));
@@ -492,11 +503,20 @@ sub bin_store {
   my $cmd = shift;
   my $key = shift;
   my $value = shift;
+  my $waitTime = 2;
+  my $status;
   
   my $extra_header = pack "NN", $self->{flags}, $self->{exptime};
-  $self->send_binary_request($cmd, $key, $value, $extra_header);
-  
-  my ($status) = $self->get_binary_response();
+
+  do {
+    $self->send_binary_request($cmd, $key, $value, $extra_header);  
+    ($status) = $self->get_binary_response();
+    if($status == 0x86 && $waitTime < 33) {
+      ::mtr_milli_sleep($waitTime);
+      $waitTime *= 2;
+    }
+  } while($status == 0x86 && $waitTime < 33);
+
   return ($status == 0) ? 1 : 0;
 }
 
