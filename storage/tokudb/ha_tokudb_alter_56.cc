@@ -569,7 +569,6 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
         THD *thd = ha_thd();
         tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
         assert(ctx->alter_txn == trx->stmt);
-        trx->should_abort = true;
         assert(trx->tokudb_lock_count > 0);
         // for partitioned tables, we use a single transaction to do all of the partition changes.  the tokudb_lock_count
         // is a reference count for each of the handlers to the same transaction.  obviously, we want to only abort once.
@@ -578,7 +577,6 @@ ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_info *
             ctx->alter_txn = NULL;
             trx->stmt = NULL;
             trx->sub_sp_level = NULL;
-            trx->should_abort = false;
         }
         transaction = NULL;
 
