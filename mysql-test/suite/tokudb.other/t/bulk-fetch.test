@@ -9,7 +9,6 @@ set local tokudb_read_buf_size=4096;
 # Test scans over each kind of table
 
 # begin bulk fetch test
-drop table if exists t;
 create table t (
     a bigint,
     primary key (a)
