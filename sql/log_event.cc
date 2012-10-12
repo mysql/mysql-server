@@ -13332,7 +13332,7 @@ size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
 
   if (q == EOF)
   {
-    (void *) strncpy(buffer, identifier, id_length);
+    (void) strncpy(buffer, identifier, id_length);
     return id_length;
   }
   quote_char= (char) q;
