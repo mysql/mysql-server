@@ -833,12 +833,6 @@ public:
     value or not. If it does this flag is set.
     Only MyISAM and HEAP uses exact count.
 
-    HA_CAN_INSERT_DELAYED:
-    Can the storage engine support delayed inserts.
-    To start with the partition handler will not support delayed inserts.
-    Further investigation needed.
-    (HEAP, MyISAM)
-
     HA_PRIMARY_KEY_IN_READ_INDEX:
     This parameter is set when the handler will also return the primary key
     when doing read-only-key on another index.
@@ -891,7 +885,7 @@ public:
     HA_REC_NOT_IN_SEQ is always set for partition handler since we cannot
     guarantee that the records will be returned in sequence.
     HA_CAN_GEOMETRY, HA_CAN_FULLTEXT, HA_CAN_SQL_HANDLER, HA_DUPLICATE_POS,
-    HA_CAN_INSERT_DELAYED, HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is disabled
+    HA_PRIMARY_KEY_REQUIRED_FOR_POSITION is disabled
     until further investigated.
   */
   virtual Table_flags table_flags() const;

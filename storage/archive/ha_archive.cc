@@ -1324,10 +1324,7 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf)
   if (error == Z_STREAM_ERROR || error == Z_DATA_ERROR )
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  /* 
-    If the record is the wrong size, the file is probably damaged, unless 
-    we are dealing with a delayed insert or a bulk insert.
-  */
+  /* If the record is the wrong size, the file is probably damaged. */
   if ((ulong) read != table->s->reclength)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
@@ -1678,7 +1675,7 @@ int ha_archive::info(uint flag)
   }
 
   /* 
-    This should be an accurate number now, though bulk and delayed inserts can
+    This should be an accurate number now, though bulk inserts can
     cause the number to be inaccurate.
   */
   stats.records= share->rows_recorded;

@@ -78,8 +78,7 @@ using std::max;
 #define PARTITION_DISABLED_TABLE_FLAGS (HA_CAN_GEOMETRY | \
                                         HA_CAN_FULLTEXT | \
                                         HA_DUPLICATE_POS | \
-                                        HA_CAN_SQL_HANDLER | \
-                                        HA_CAN_INSERT_DELAYED)
+                                        HA_CAN_SQL_HANDLER)
 static const char *ha_par_ext= ".par";
 
 /****************************************************************************
@@ -6547,7 +6546,6 @@ void ha_partition::get_dynamic_partition_info(PARTITION_STATS *stat_info,
   HA_EXTRA_NO_CACHE:
     When performing a UNION SELECT HA_EXTRA_NO_CACHE is called from the
     flush method in the select_union class.
-    It is used to some extent when insert delayed inserts.
     See HA_EXTRA_RESET_STATE for use in conjunction with delete_all_rows().
 
     It should be ok to call HA_EXTRA_NO_CACHE on all underlying handlers
