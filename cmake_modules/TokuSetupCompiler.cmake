@@ -164,7 +164,7 @@ if (APPLE)
   if (CMAKE_GENERATOR STREQUAL Xcode)
     set(CMAKE_XCODE_ATTRIBUTE_CLANG_CXX_LIBRARY "libc++")
   else ()
-    set(CMAKE_CXX_FLAGS "-stdlib=libc++ ${CMAKE_CXX_FLAGS}")
+    add_definitions(-stdlib=libc++)
   endif ()
 endif ()
 
