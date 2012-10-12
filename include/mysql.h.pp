@@ -729,3 +729,4 @@ int mysql_close_start(MYSQL *sock);
 int mysql_close_cont(MYSQL *sock, int status);
 my_socket mysql_get_socket(const MYSQL *mysql);
 unsigned int mysql_get_timeout_value(const MYSQL *mysql);
+unsigned int mysql_get_timeout_value_ms(const MYSQL *mysql);

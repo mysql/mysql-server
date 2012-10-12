@@ -247,6 +247,28 @@ mysql_get_timeout_value(const MYSQL *mysql)
 
 
 /*
+  In 10.0, VIO timeouts are in milliseconds, so we support getting the
+  millisecond timeout value from async applications.
+
+  In 5.5, timeouts are always in seconds, but we support the 10.0 version
+  that provides milliseconds, so applications can work with either version
+  of the library easily.
+
+  When merging this to 10.0, this function must be removed and the 10.0
+  version used.
+*/
+unsigned int STDCALL
+mysql_get_timeout_value_ms(const MYSQL *mysql)
+{
+  unsigned int timeout= mysql->options.extension->async_context->timeout_value;
+  if (timeout <= UINT_MAX / 1000)
+    return timeout*1000;
+  else
+    return UINT_MAX;
+}
+
+
+/*
   Now create non-blocking definitions for all the calls that may block.
 
   Each call FOO gives rise to FOO_start() that prepares the MYSQL object for
