@@ -797,7 +797,7 @@ void PFS_thread::reset_session_connect_attrs()
       (session_connect_attrs_size_per_thread > 0) )
   {
     /* Do not keep user data */
-    memset(m_session_connect_attrs, session_connect_attrs_size_per_thread, 0);
+    memset(m_session_connect_attrs, 0, session_connect_attrs_size_per_thread);
   }
 }
 
