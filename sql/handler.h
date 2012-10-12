@@ -103,11 +103,8 @@ enum enum_alter_inplace_result {
 #define HA_AUTO_PART_KEY       (1 << 11) /* auto-increment in multi-part key */
 #define HA_REQUIRE_PRIMARY_KEY (1 << 12) /* .. and can't create a hidden one */
 #define HA_STATS_RECORDS_IS_EXACT (1 << 13) /* stats.records is exact */
-/*
-  INSERT_DELAYED only works with handlers that uses MySQL internal table
-  level locks
-*/
-#define HA_CAN_INSERT_DELAYED  (1 << 14)
+/// Not in use.
+#define HA_UNUSED  (1 << 14)
 /*
   If we get the primary key columns for free when we do an index read
   (usually, it also implies that HA_PRIMARY_KEY_REQUIRED_FOR_POSITION
