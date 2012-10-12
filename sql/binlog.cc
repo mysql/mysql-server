@@ -1943,11 +1943,7 @@ int query_error_code(THD *thd, bool not_killed)
       error= 0;
   }
   else
-  {
-    /* killed status for DELAYED INSERT thread should never be used */
-    DBUG_ASSERT(!(thd->system_thread & SYSTEM_THREAD_DELAYED_INSERT));
     error= thd->killed_errno();
-  }
 
   return error;
 }
