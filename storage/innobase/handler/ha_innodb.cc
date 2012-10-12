@@ -393,6 +393,10 @@ performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
 	{&trx_rollback_clean_thread_key, "trx_rollback_clean_thread", 0},
+	{&io_ibuf_thread_key, "io_ibuf_thread", 0},
+	{&io_log_thread_key, "io_log_thread", 0},
+	{&io_read_thread_key, "io_read_thread", 0},
+	{&io_write_thread_key, "io_write_thread", 0},
 	{&io_handler_thread_key, "io_handler_thread", 0},
 	{&srv_lock_timeout_thread_key, "srv_lock_timeout_thread", 0},
 	{&srv_error_monitor_thread_key, "srv_error_monitor_thread", 0},
