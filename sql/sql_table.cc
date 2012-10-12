@@ -2420,6 +2420,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         DBUG_PRINT("info", ("frm_db_type %d from %s", frm_db_type, path));
       }
       table_type= ha_resolve_by_legacy_type(thd, frm_db_type);
+      if (frm_db_type != DB_TYPE_UNKNOWN && !table_type)
+      {
+        my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), db, table->table_name);
+        wrong_tables.free();
+        error= 1;
+        goto err;
+      }
       // Remove extension for delete
       *(end= path + path_length - reg_ext_length)= '\0';
       DBUG_PRINT("info", ("deleting table of type %d",
