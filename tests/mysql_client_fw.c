@@ -48,6 +48,7 @@ static unsigned int opt_count= 0;
 static unsigned int iter_count= 0;
 static my_bool have_innodb= FALSE;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+static unsigned int opt_drop_db= 1;
 
 static const char *opt_basedir= "./";
 static const char *opt_vardir= "mysql-test/var";
@@ -96,7 +97,7 @@ DBUG_PRINT("test", ("name: %s", str));					\
 
 static void print_error(const char *msg);
 static void print_st_error(MYSQL_STMT *stmt, const char *msg);
-static void client_disconnect(MYSQL* mysql, my_bool drop_db);
+static void client_disconnect(MYSQL* mysql);
 
 
 /*
@@ -370,7 +371,7 @@ static MYSQL* client_connect(ulong flag, uint protocol, my_bool auto_reconnect)
 
 /* Close the connection */
 
-static void client_disconnect(MYSQL* mysql, my_bool drop_db)
+static void client_disconnect(MYSQL* mysql)
 {
  static char query[MAX_TEST_QUERY_LENGTH];
 
@@ -378,7 +379,7 @@ static void client_disconnect(MYSQL* mysql, my_bool drop_db)
 
  if (mysql)
  {
-   if (drop_db)
+   if (opt_drop_db)
    {
      if (!opt_silent)
      fprintf(stdout, "\n dropping the test database '%s' ...", current_db);
@@ -1162,6 +1163,8 @@ static struct my_option client_test_long_options[] =
  &opt_count, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
 {"database", 'D', "Database to use", &opt_db, &opt_db,
  0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+{"do-not-drop-database", 'd', "Do not drop database while disconnecting",
+  0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
 {"debug", '#', "Output debug log", &default_dbug_option,
  &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 {"help", '?', "Display this help and exit", 0, 0, 0, GET_NO_ARG, NO_ARG, 0,
@@ -1264,6 +1267,9 @@ char *argument)
  opt_silent= 0;
  else
  opt_silent++;
+ break;
+ case 'd':
+ opt_drop_db= 0;
  break;
  case 'A':
  /*
@@ -1389,7 +1395,7 @@ int main(int argc, char **argv)
 	 fprintf(stderr, "\n\nGiven test not found: '%s'\n", *argv);
 	 fprintf(stderr, "See legal test names with %s -T\n\nAborting!\n",
 	 my_progname);
-	 client_disconnect(mysql, 1);
+	 client_disconnect(mysql);
 	 free_defaults(defaults_argv);
 	 exit(1);
        }
@@ -1402,7 +1408,7 @@ int main(int argc, char **argv)
    /* End of tests */
  }
 
- client_disconnect(mysql, 1);    /* disconnect from server */
+ client_disconnect(mysql);    /* disconnect from server */
 
  free_defaults(defaults_argv);
  print_test_output();

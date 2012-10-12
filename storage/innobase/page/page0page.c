@@ -781,12 +781,18 @@ page_copy_rec_list_start(
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		mtr_set_log_mode(mtr, log_mode);
 
+		DBUG_EXECUTE_IF("page_copy_rec_list_start_compress_fail",
+				goto zip_reorganize;);
+
 		if (UNIV_UNLIKELY
 		    (!page_zip_compress(new_page_zip, new_page, index, mtr))) {
+			ulint	ret_pos;
+#ifndef DBUG_OFF
+zip_reorganize:
+#endif /* DBUG_OFF */
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
-			ulint	ret_pos
-				= page_rec_get_n_recs_before(ret);
+			ret_pos = page_rec_get_n_recs_before(ret);
 			/* Before copying, "ret" was the predecessor
 			of the predefined supremum record.  If it was
 			the predefined infimum record, then it would
@@ -807,15 +813,10 @@ page_copy_rec_list_start(
 				btr_blob_dbg_add(new_page, index,
 						 "copy_start_reorg_fail");
 				return(NULL);
-			} else {
-				/* The page was reorganized:
-				Seek to ret_pos. */
-				ret = new_page + PAGE_NEW_INFIMUM;
-
-				do {
-					ret = rec_get_next_ptr(ret, TRUE);
-				} while (--ret_pos);
 			}
+
+			/* The page was reorganized: Seek to ret_pos. */
+			ret = page_rec_get_nth(new_page, ret_pos);
 		}
 	}
 

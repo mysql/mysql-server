@@ -555,7 +555,7 @@ DROP TABLE t1;
 End of 5.0 tests
 set engine_condition_pushdown = on;
 Warnings:
-Warning	1287	The syntax '@@engine_condition_pushdown' is deprecated and will be removed in MySQL 7.0. Please use '@@optimizer_switch' instead
+Warning	1287	'@@engine_condition_pushdown' is deprecated and will be removed in a future release. Please use '@@optimizer_switch' instead
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g POINT);
 CREATE TABLE gis_line  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g LINESTRING);
