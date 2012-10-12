@@ -107,7 +107,7 @@ protected:
 
      @see Delayable_insert_operation::set_dup_and_ignore()
   */
-  enum enum_duplicates handle_duplicates;
+  const enum enum_duplicates handle_duplicates;
 
   /**
      Policy for whether certain errors should be ignored. Protected for legacy
@@ -115,7 +115,7 @@ protected:
 
      @see Delayable_insert_operation::set_dup_and_ignore()
   */
-  bool ignore;
+  const bool ignore;
 
   /**
      This function will, unless done already, calculate and keep the set of
