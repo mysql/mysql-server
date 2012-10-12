@@ -1,5 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
-#
+# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.  #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -127,7 +126,7 @@ IF (NOT WITH_NDBCLUSTER)
 ENDIF()
 
 OPTION(WITH_NDB_JAVA
-  "Include NDB Cluster Java components" ON)
+  "Include NDB Cluster Java components" OFF)
 IF(WITH_NDB_JAVA)
   MESSAGE(STATUS "Include NDB Java components")
 ENDIF()
