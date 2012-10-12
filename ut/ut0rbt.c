@@ -55,7 +55,6 @@ red-black properties:
 #endif
 
 #define ROOT(t)		(t->root->left)
-#define	SIZEOF_NODE(t)	((sizeof(ib_rbt_node_t) + t->sizeof_value) - 1)
 
 /**********************************************************************//**
 Print out the sub-tree recursively. */
@@ -834,6 +833,21 @@ rbt_add_node(
 	node = (ib_rbt_node_t*) ut_malloc(SIZEOF_NODE(tree));
 
 	memcpy(node->value, value, tree->sizeof_value);
+	return(rbt_add_preallocated_node(tree, parent, node));
+}
+
+/****************************************************************//**
+Add a new caller-provided node to tree at the specified position.
+The node must have its key fields initialized correctly.
+@return added node */
+UNIV_INTERN
+const ib_rbt_node_t*
+rbt_add_preallocated_node(
+/*======================*/
+	ib_rbt_t*	tree,			/*!< in: rb tree */
+	ib_rbt_bound_t*	parent,			/*!< in: parent */
+	ib_rbt_node_t*	node)			/*!< in: node */
+{
 	node->parent = node->left = node->right = tree->nil;
 
 	/* If tree is empty */
@@ -842,7 +856,7 @@ rbt_add_node(
 	}
 
 	/* Append the node, the hope here is that the caller knows
-	what s/he is doing. */
+	   what s/he is doing. */
 	rbt_tree_add_child(tree, parent, node);
 	rbt_balance_tree(tree, node);
 
@@ -853,6 +867,7 @@ rbt_add_node(
 #endif
 	return(node);
 }
+
 
 /**********************************************************************//**
 Find a matching node in the rb tree.
@@ -1142,7 +1157,17 @@ rbt_clear(
 	ib_rbt_t*	tree)			/*!< in: rb tree */
 {
 	rbt_free_node(ROOT(tree), tree->nil);
+	rbt_reset(tree);
+}
 
+/****************************************************************//**
+Clear the tree without deleting and freeing its nodes. */
+UNIV_INTERN
+void
+rbt_reset(
+/*======*/
+	ib_rbt_t*	tree)			/*!< in: rb tree */
+{
 	tree->n_nodes = 0;
 	tree->root->left = tree->root->right = tree->nil;
 }

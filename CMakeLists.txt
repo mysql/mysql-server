@@ -85,10 +85,39 @@ IF(NOT CMAKE_CROSSCOMPILING)
   }"
   HAVE_IB_GCC_ATOMIC_BUILTINS
   )
+  CHECK_C_SOURCE_RUNS(
+  "
+  #include <stdint.h>
+  int main()
+  {
+    int64_t x, y, res;
+
+    x = 10;
+    y = 123;
+    res = __sync_bool_compare_and_swap(&x, x, y);
+    if (!res || x != y) {
+      return(1);
+    }
+
+    x = 10;
+    y = 123;
+    res = __sync_add_and_fetch(&x, y);
+    if (res != 123 + 10 || x != 123 + 10) {
+      return(1);
+    }
+
+    return(0);
+  }"
+  HAVE_IB_GCC_ATOMIC_BUILTINS_64
+  )
 ENDIF()
 
 IF(HAVE_IB_GCC_ATOMIC_BUILTINS)
  ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_BUILTINS=1)
+ENDIF()
+
+IF(HAVE_IB_GCC_ATOMIC_BUILTINS_64)
+ ADD_DEFINITIONS(-DHAVE_IB_GCC_ATOMIC_BUILTINS_64=1)
 ENDIF()
 
  # either define HAVE_IB_ATOMIC_PTHREAD_T_GCC or not
@@ -227,7 +256,7 @@ SET(INNOBASE_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			ibuf/ibuf0ibuf.c
 			pars/lexyy.c pars/pars0grm.c pars/pars0opt.c pars/pars0pars.c pars/pars0sym.c
 			lock/lock0lock.c lock/lock0iter.c
-			log/log0log.c log/log0recv.c
+			log/log0log.c log/log0recv.c log/log0online.c
 			mach/mach0data.c
 			mem/mem0mem.c mem/mem0pool.c
 			mtr/mtr0log.c mtr/mtr0mtr.c

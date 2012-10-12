@@ -183,6 +183,15 @@ btr_search_sys_create(
 	//rw_lock_create(btr_search_latch_key, &btr_search_latch,
 	//	       SYNC_SEARCH_SYS);
 
+	/* PS bug lp:1018264 - Multiple hash index partitions causes overly
+	   large hash index: When multiple adaptive hash index partitions are
+	   specified, _each_ partition was being created with hash_size which
+	   should be 1/64 of the total size of all buffer pools which is
+	   incorrect and can cause overly high memory usage. hash_size
+	   should be representing the _total_ size of all partitions, not the
+	   individual size of each partition. */
+	hash_size /= btr_search_index_num;
+
 	btr_search_sys = mem_alloc(sizeof(btr_search_sys_t));
 
 	/* btr_search_index_num should be <= 32. (bits of trx->has_search_latch) */
