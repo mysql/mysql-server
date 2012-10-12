@@ -40,7 +40,6 @@
 #include "sql_audit.h"
 #include "debug_sync.h"
 #include "opt_explain.h"
-#include "delayable_insert_operation.h"
 #include "sql_tmp_table.h"    // tmp tables
 #include "sql_optimizer.h"    // JOIN
 #include "global_threads.h"
@@ -549,7 +548,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
-  /* Lock the tables now if not delayed/already locked. */
+  // Lock the tables now if not locked already.
   if (!is_locked &&
       lock_tables(thd, table_list, thd->lex->table_count, 0))
     DBUG_RETURN(true);
@@ -1151,10 +1150,6 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     select_lex->fix_prepare_information(thd, &fake_conds, &fake_conds);
     select_lex->first_execution= 0;
   }
-  /*
-    Only call prepare_for_posistion() if we are not performing a DELAYED
-    operation. It will instead be executed by delayed insert thread.
-  */
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
     prepare_for_positional_update(table, table_list);
   DBUG_RETURN(FALSE);
@@ -1495,8 +1490,7 @@ ok_or_after_trg_err:
 
 err:
   info->last_errno= error;
-  /* current_select is NULL if this is a delayed insert */
-  if (thd->lex->current_select)
+  DBUG_ASSERT(thd->lex->current_select != NULL);
     thd->lex->current_select->no_error= 0;        // Give error
   table->file->print_error(error,MYF(0));
   
@@ -1551,158 +1545,6 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
   }
   return thd->abort_on_warning ? err : 0;
 }
-
-/*****************************************************************************
-  Handling of delayed inserts
-  A thread is created for each table that one uses with the DELAYED attribute.
-*****************************************************************************/
-
-#ifndef EMBEDDED_LIBRARY
-
-
-/**
-   A row in the INSERT DELAYED queue. The client thread which runs INSERT
-   DELAYED adds its to-be-inserted row into a queue, in the form of a
-   delayed_row object. Later the system thread scans the queue, and actually
-   writes the rows to the table.
-
-   @note that custom operator new/delete are inherited from the ilink class.
-*/
-class delayed_row :public ilink<delayed_row> {
-public:
-  char *record;
-  enum_duplicates dup;
-  time_t start_time;
-  sql_mode_t sql_mode;
-  bool auto_increment_field_not_null;
-  bool query_start_used, ignore, log_query, binlog_rows_query_log_events;
-  bool stmt_depends_on_first_successful_insert_id_in_prev_stmt;
-  MY_BITMAP write_set;
-  ulonglong first_successful_insert_id_in_prev_stmt;
-  ulonglong forced_insert_id;
-  ulong auto_increment_increment;
-  ulong auto_increment_offset;
-  LEX_STRING query;
-  Time_zone *time_zone;
-
-  /**
-     @param query_arg        The query's text
-     @param insert_operation A COPY_INFO describing the operation
-     @param log_query_arg    Binary logging is on.
-
-     @note we take ownership of query_arg, will free its string in destructor.
-   */
-  delayed_row(LEX_STRING const query_arg,  const COPY_INFO *insert_operation,
-              bool log_query_arg)
-    : record(NULL),
-      dup(insert_operation->get_duplicate_handling()),
-      ignore(insert_operation->get_ignore_errors()),
-      log_query(log_query_arg),
-      binlog_rows_query_log_events(false),
-      forced_insert_id(0),
-      query(query_arg),
-      time_zone(0)
-    {
-      memset(&write_set, 0, sizeof(write_set));
-    }
-
-  /**
-     Copies row data and session- and table context from the client thread to
-     the delayed row.
-
-     @param thd  The client session. Information that is needed in order to
-                 insert the row is copied.
-     @param client_table The client session's table instance. Some state
-                         information such as the row itself is copied.
-     @param local_table The delayed insert session's instance of the table.
-
-     @note This function must not keep any reference to the THD and
-     client_table objects.
-
-     @retval false Success.
-     @retval true Resource allocation problem when trying to copy context.
-  */
-  bool copy_context(THD *thd, TABLE *client_table, TABLE *local_table);
-
-  ~delayed_row()
-  {
-    my_free(query.str);
-    my_free(record);
-    bitmap_free(&write_set);
-  }
-};
-
-
-bool delayed_row::copy_context(THD *thd, TABLE *client_table,
-                               TABLE *local_table)
-{
-  if (!(record= (char*) my_malloc(client_table->s->reclength, MYF(MY_WME))))
-    return true;
-
-  memcpy(record, client_table->record[0], client_table->s->reclength);
-  start_time= thd->start_time.tv_sec;
-  query_start_used= thd->query_start_used;
-
-  /*
-    those are for the binlog: LAST_INSERT_ID() has been evaluated at this
-    time, so record does not need it, but statement-based binlogging of the
-    INSERT will need when the row is actually inserted.
-    As for SET INSERT_ID, DELAYED does not honour it (BUG#20830).
-  */
-  stmt_depends_on_first_successful_insert_id_in_prev_stmt=
-    thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt;
-  first_successful_insert_id_in_prev_stmt=
-    thd->first_successful_insert_id_in_prev_stmt;
-
-  /*
-    Add session variable timezone Time_zone object will not be freed even the
-    thread is ended.  So we can get time_zone object from thread which
-    handling delayed statement.  See the comment of my_tz_find() for detail.
-  */
-  if (thd->time_zone_used)
-  {
-    time_zone= thd->variables.time_zone;
-  }
-  else
-  {
-    time_zone= NULL;
-  }
-  /* Copy session variables. */
-  auto_increment_increment= thd->variables.auto_increment_increment;
-  auto_increment_offset= thd->variables.auto_increment_offset;
-  sql_mode= thd->variables.sql_mode;
-  auto_increment_field_not_null= client_table->auto_increment_field_not_null;
-  binlog_rows_query_log_events= thd->variables.binlog_rows_query_log_events;
-
-  /* Copy the next forced auto increment value, if any. */
-  const Discrete_interval *forced_auto_inc=
-    thd->auto_inc_intervals_forced.get_next();
-  if (forced_auto_inc != NULL)
-  {
-    forced_insert_id= forced_auto_inc->minimum();
-    DBUG_PRINT("delayed", ("transmitting auto_inc: %lu",
-                           (ulong) forced_insert_id));
-  }
-
-  /*
-    Since insert delayed has its own thread and table, we
-    need to copy the user thread session write_set.
-  */
-  my_bitmap_map *bitmaps=
-    (my_bitmap_map*)
-    my_malloc(bitmap_buffer_size(client_table->write_set->n_bits), MYF(0));
-
-  if (bitmaps == NULL)
-    return true;
-
-  bitmap_init(&write_set, bitmaps, client_table->write_set->n_bits, false);
-  bitmap_union(&write_set, client_table->write_set);
-
-  return false;
-}
-
-
-#endif /* EMBEDDED_LIBRARY */
 
 /***************************************************************************
   Store records in INSERT ... SELECT *
