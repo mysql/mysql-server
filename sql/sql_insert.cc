@@ -701,10 +701,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     user
   */
   {
-    /*
-      Do not do this release if this is a delayed insert, it would steal
-      auto_inc values from the delayed_insert thread as they share TABLE.
-    */
     table->file->ha_release_auto_increment();
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
         table->file->ha_end_bulk_insert() && !error)
