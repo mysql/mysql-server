@@ -3876,8 +3876,10 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
                                 new_fields->null_rejecting);
 	}
 	else if (old->eq_func && new_fields->eq_func &&
-		 ((old->val->const_item() && old->val->is_null()) || 
-                  new_fields->val->is_null()))
+		 ((old->val->const_item() && !old->val->is_expensive() &&
+                   old->val->is_null()) ||
+                  (!new_fields->val->is_expensive() &&
+                   new_fields->val->is_null())))
 	{
 	  /* field = expression OR field IS NULL */
 	  old->level= and_level;
@@ -3891,7 +3893,8 @@ merge_key_fields(KEY_FIELD *start,KEY_FIELD *new_fields,KEY_FIELD *end,
             Remember the NOT NULL value unless the value does not depend
             on other tables.
           */
-	  if (!old->val->used_tables() && old->val->is_null())
+	  if (!old->val->used_tables() && !old->val->is_expensive() &&
+              old->val->is_null())
 	    old->val= new_fields->val;
 	}
 	else
