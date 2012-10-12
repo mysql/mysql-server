@@ -1136,7 +1136,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
     {
       BLOCK_LOCK_WR(block);
       Query_cache_query *query= block->query();
-      if (query && query->writer())
+      if (query->writer())
       {
         /*
            Drop the writer; this will cancel any attempts to store 
@@ -1146,7 +1146,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
         query->writer(0);
         refused++;
       }
-      BLOCK_UNLOCK_WR(block);
+      query->unlock_n_destroy();
       block= block->next;
     } while (block != queries_blocks);
   }
