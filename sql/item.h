@@ -2676,6 +2676,7 @@ public:
   resolved is a grouping one. After it has been fixed the ref field will point
   to either an Item_ref or an Item_direct_ref object which will be used to
   access the field.
+  The ref field may also point to an Item_field instance.
   See also comments for the fix_inner_refs() and the
   Item_field::fix_outer_field() functions.
 */
