@@ -261,7 +261,6 @@ SET(TESTS
 SET(SERVER_TESTS
   copy_info
   create_field
-  delayable_insert_operation
   field
   get_diagnostics
   handler
