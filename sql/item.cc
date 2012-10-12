@@ -6429,7 +6429,12 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        if (!(fld= new Item_field(thd, last_checked_context, from_field)))
+        Query_arena backup, *arena;
+        arena= thd->activate_stmt_arena_if_needed(&backup);
+        fld= new Item_field(thd, last_checked_context, from_field);
+        if (arena)
+          thd->restore_active_arena(arena, &backup);
+        if (!fld)
           goto error;
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,

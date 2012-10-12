@@ -34,6 +34,8 @@ lgman.hpp : .*'struct Lgman::Buffer_idx' only defines private constructors and h
 SchemaFile.hpp : .*'struct SchemaFile::TableEntry' only defines private constructors and has no friends.*
 sql_yacc.cc : .*switch statement contains 'default' but no 'case' labels.*
 
+tests/mysql_client_fw.c : .* defined but not used.*
+
 #
 # Things that can be ignored in InnoDB
 #
@@ -147,6 +149,7 @@ mysqltest_embedded/../../client/mysqltest.cc: C4146: unary minus operator applie
 .*/client.c               : .*C4244.* conversion .* possible loss of data
 .*/sql_update.cc          : .*C4244.* conversion .* possible loss of data
 .*/sort.c                 : .*C4244.* conversion .* possible loss of data
+.*/i_mysql_client_test.c  : .*C4305.*
 
 # const qualifiers
 replace/replace.c                     : .*C4090.*
@@ -168,5 +171,11 @@ tests/mysql_client_fw.c               : .*C4090.*
 # Bundled memcached and libevent
 #
 .*/ndb/memcache/extra/.* : .*
+
+
+#
+# yassl
+#
+extra/yassl/.* : .*
 
 ### MCP_COMPILE_WARN_SUPPRESSIONS end ###

@@ -6343,8 +6343,8 @@ ER_INSIDE_TRANSACTION_PREVENTS_SWITCH_BINLOG_FORMAT
 ER_PATH_LENGTH
   eng "The path specified for %.64s is too long."
 ER_WARN_DEPRECATED_SYNTAX_NO_REPLACEMENT  
-  eng "The syntax '%s' is deprecated and will be removed in MySQL %s."
-  ger "Die Syntax '%s' ist veraltet und wird in MySQL %s entfernt."
+  eng "'%s' is deprecated and will be removed in a future release."
+  ger "'%s' ist veraltet und wird in einer zukünftigen Version entfernt werden."
 
 ER_WRONG_NATIVE_TABLE_STRUCTURE
         eng "Native table '%-.64s'.'%-.64s' has the wrong structure"
