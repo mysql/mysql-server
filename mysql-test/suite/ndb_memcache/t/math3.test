@@ -20,6 +20,10 @@ if($r == 0) {
 }
 else {
   my $r;
+  
+  $mc->delete("math_test_3a");
+  $mc->delete("math_test_3b");
+  
   $r = $mc->incr("math_test_3a", 1, 1500);   # initialize at 1500
   ($r == 1500) || Carp::confess("wrong result");
 

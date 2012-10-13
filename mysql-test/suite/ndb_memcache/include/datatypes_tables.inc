@@ -45,6 +45,17 @@ INSERT INTO key_prefixes (key_prefix, policy, container)
  SELECT concat(table_name,":"), "ndb-only", table_name
  FROM tv_tablist;
 
+CREATE TABLE test_char_key (mkey char(40) PRIMARY KEY, val varchar(200));
+CREATE TABLE test_char_val (mkey varchar(20) PRIMARY KEY, val char(200));
+
+INSERT INTO containers (name, db_schema, db_table, key_columns, value_columns)
+  VALUES("tt_char_key", "ndbmemcache", "test_char_key", "mkey", "val"),
+        ("tt_char_val", "ndbmemcache", "test_char_val", "mkey", "val");
+
+INSERT INTO key_prefixes(server_role_id, key_prefix, policy, container) 
+  VALUES(0, "tck:", "ndb-only", "tt_char_key"),
+        (0, "tcv:", "ndb-only", "tt_char_val");
+
 UPDATE memcache_server_roles set update_timestamp = now() 
   WHERE role_id = 0;
   
