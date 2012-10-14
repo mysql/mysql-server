@@ -1065,11 +1065,9 @@ JOIN::optimize()
     DBUG_RETURN(1);				// error == -1
   }
   if (const_table_map != found_const_table_map &&
-      !(select_options & SELECT_DESCRIBE) &&
-      (!conds ||
-       !(conds->used_tables() & RAND_TABLE_BIT) ||
-       select_lex->master_unit() == &thd->lex->unit)) // upper level SELECT
+      !(select_options & SELECT_DESCRIBE))
   {
+    // There is at least one empty const table
     zero_result_cause= "no matching row in const table";
     DBUG_PRINT("error",("Error: %s", zero_result_cause));
     error= 0;
@@ -12204,6 +12202,17 @@ int safe_index_read(JOIN_TAB *tab)
 }
 
 
+/**
+  Reads content of constant table
+
+  @param tab  table
+  @param pos  position of table in query plan
+
+  @retval 0   ok, one row was found or one NULL-complemented row was created
+  @retval -1  ok, no row was found and no NULL-complemented row was created
+  @retval 1   error
+*/
+
 static int
 join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 {
@@ -12295,6 +12304,16 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 }
 
 
+/**
+  Read a constant table when there is at most one matching row, using a table
+  scan.
+
+  @param tab			Table to read
+
+  @retval  0  Row was found
+  @retval  -1 Row was not found
+  @retval  1  Got an error (other than row not found) during read
+*/
 static int
 join_read_system(JOIN_TAB *tab)
 {
@@ -12326,12 +12345,9 @@ join_read_system(JOIN_TAB *tab)
 
   @param tab			Table to read
 
-  @retval
-    0	Row was found
-  @retval
-    -1   Row was not found
-  @retval
-    1   Got an error (other than row not found) during read
+  @retval  0  Row was found
+  @retval  -1 Row was not found
+  @retval  1  Got an error (other than row not found) during read
 */
 
 static int
