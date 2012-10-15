@@ -1,7 +1,5 @@
 use test;
 drop table if exists t1;
-Warnings:
-Note	1051	Unknown table 't1'
 create table t1 (id int primary key, value int, value2 int,
 value3 int, index(value,value2)) engine=innodb;
 insert into t1 values
