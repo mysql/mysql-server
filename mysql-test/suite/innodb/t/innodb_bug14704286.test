@@ -4,8 +4,9 @@
 # create test-bed to run test
 #
 use test;
-
+--disable_warnings
 drop table if exists t1;
+--enable_warnings
 create table t1 (id int primary key, value int, value2 int,
 value3 int, index(value,value2)) engine=innodb;
 
