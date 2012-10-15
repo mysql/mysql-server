@@ -354,6 +354,12 @@ ha_innobase::check_if_supported_inplace_alter(
 
 			key_part->field = altered_table->field[
 				key_part->fieldnr];
+			/* In some special cases InnoDB emits "false"
+			duplicate key errors with NULL key values. Let
+			us play safe and ensure that we can correctly
+			print key values even in such cases .*/
+			key_part->null_offset = key_part->field->null_offset();
+			key_part->null_bit = key_part->field->null_bit;
 
 			if (new_field->field) {
 				/* This is an existing column. */
