@@ -809,4 +809,17 @@ ndb_join_pushdown(Uint32 x)
   return x >= NDBD_JOIN_PUSHDOWN;
 }
 
+/**
+ * DICT did not have a function for receiving GET_TABINFOREF signals
+ * (see Bug#14647210).
+ */
+#define NDBD_DICT_GET_TABINFOREF_IMPLEMENTED NDB_MAKE_VERSION(7, 2, 9)
+
+inline
+int
+ndbd_dict_get_tabinforef_implemented(Uint32 x)
+{
+  return x >= NDBD_DICT_GET_TABINFOREF_IMPLEMENTED;
+}
+
 #endif
