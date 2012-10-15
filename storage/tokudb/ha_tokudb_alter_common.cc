@@ -737,3 +737,24 @@ tables_have_same_keys_and_columns(TABLE* first_table, TABLE* second_table, bool 
 exit:
     return retval;
 }
+
+#if TOKU_INCLUDE_WRITE_FRM_DATA
+// write the new frm data to the status dictionary using the alter table transaction
+int 
+ha_tokudb::write_frm_data(const uchar *frm_data, size_t frm_len) {
+    TOKUDB_DBUG_ENTER("write_frm_data");
+
+    int error = 0;
+    if (TOKU_PARTITION_WRITE_FRM_DATA || table->part_info == NULL) {
+        // write frmdata to status
+        THD *thd = ha_thd();
+        tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+        assert(trx);
+        DB_TXN *txn = trx->stmt; // use alter table transaction
+        assert(txn);
+        error = write_to_status(share->status_block, hatoku_frm_data, (void *)frm_data, (uint)frm_len, txn);
+    }
+   
+    TOKUDB_DBUG_RETURN(error);
+}
+#endif
