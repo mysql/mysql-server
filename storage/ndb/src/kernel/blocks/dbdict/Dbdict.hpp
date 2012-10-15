@@ -98,6 +98,7 @@
 
 #define ZCOMMIT_WAIT_GCI   6
 #define ZINDEX_STAT_BG_PROCESS 7
+#define ZGET_TABINFO_RETRY 8
 
 /*--------------------------------------------------------------*/
 // Other constants in alphabetical order
@@ -856,7 +857,7 @@ private:
 
   void execGET_TABINFOREQ(Signal* signal);
   void execGET_TABLEDID_REQ(Signal* signal);
-  void execGET_TABINFO_REF(Signal* signal);
+  void execGET_TABINFOREF(Signal* signal);
   void execGET_TABINFO_CONF(Signal* signal);
   void execCONTINUEB(Signal* signal);
 
