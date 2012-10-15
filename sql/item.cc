@@ -4802,7 +4802,11 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   @param ref the reference to check
 
   @return Whether or not the item is a fixed item or an Item_outer_ref
+
+  @note Currently, this function is only used in DBUG_ASSERT
+  statements and therefore not included in optimized builds.
 */
+#ifndef DBUG_OFF
 static bool is_fixed_or_outer_ref(Item *ref)
 {
   /*
@@ -4816,6 +4820,7 @@ static bool is_fixed_or_outer_ref(Item *ref)
            (ref->type() == Item::REF_ITEM && // 2b
             static_cast<Item_ref *>(ref)->ref_type() == Item_ref::OUTER_REF)));
 }
+#endif
 
 
 /**
