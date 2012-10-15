@@ -4691,6 +4691,12 @@ undo_add_fk:
 		DBUG_EXECUTE_IF("ib_ddl_crash_before_rename",
 				DBUG_SUICIDE(););
 
+		/* The new table must inherit the flag from the
+		"parent" table. */
+		if (dict_table_is_discarded(prebuilt->table)) {
+			ctx->indexed_table->flags2 |= DICT_TF2_DISCARDED;
+		}
+
 		error = row_merge_rename_tables(
 			prebuilt->table, ctx->indexed_table,
 			tmp_name, trx);
