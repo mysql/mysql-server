@@ -139,16 +139,6 @@ select * from performance_schema.setup_objects;
 OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
 select * from performance_schema.setup_timers;
 NAME	TIMER_NAME
-truncate performance_schema.events_stages_history_long;
-ERROR HY000: Invalid performance_schema usage.
-truncate performance_schema.events_statements_history_long;
-ERROR HY000: Invalid performance_schema usage.
-truncate performance_schema.events_waits_history_long;
-ERROR HY000: Invalid performance_schema usage.
-truncate performance_schema.setup_objects;
-ERROR HY000: Invalid performance_schema usage.
-truncate performance_schema.setup_actors;
-ERROR HY000: Invalid performance_schema usage.
 insert into performance_schema.setup_objects values ('TABLE', 'myschema', 'myobject', 'YES', 'YES');
 ERROR HY000: Invalid performance_schema usage.
 insert into performance_schema.setup_actors values ('myhost', 'mysuser', 'myrole');
@@ -161,3 +151,8 @@ select * from performance_schema.setup_actors;
 HOST	USER	ROLE
 update performance_schema.setup_actors set HOST = 'myhost';
 delete from performance_schema.setup_actors;
+truncate performance_schema.events_stages_history_long;
+truncate performance_schema.events_statements_history_long;
+truncate performance_schema.events_waits_history_long;
+truncate performance_schema.setup_objects;
+truncate performance_schema.setup_actors;

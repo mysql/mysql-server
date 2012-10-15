@@ -373,7 +373,7 @@ int ha_perfschema::delete_all_rows(void)
 
   DBUG_ENTER("ha_perfschema::delete_all_rows");
   if (!pfs_initialized)
-    DBUG_RETURN(HA_ERR_WRONG_COMMAND);
+    DBUG_RETURN(0);
 
   DBUG_ASSERT(m_table_share);
   if (m_table_share->m_delete_all_rows)
