@@ -1299,7 +1299,7 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
   @return an instrumented thread
 */
 typedef struct PSI_thread* (*new_thread_v1_t)
-  (PSI_thread_key key, const void *identity, ulong thread_id);
+  (PSI_thread_key key, const void *identity, ulonglong thread_id);
 
 /**
   Assign an id to an instrumented thread.
@@ -1307,7 +1307,7 @@ typedef struct PSI_thread* (*new_thread_v1_t)
   @param id the id to assign
 */
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
-                                   unsigned long id);
+                                   ulonglong id);
 
 /**
   Get the instrumentation for the running thread.
