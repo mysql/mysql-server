@@ -988,7 +988,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %{src_dir}/Docs/ChangeLog
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
-%doc release/support-files/my-*.cnf
+%doc release/support-files/my-default.cnf
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
@@ -1149,6 +1149,10 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Oct 10 2012 Bjorn Munch <bjorn.munch@oracle.com>
+
+- Replace old my-*.cnf config file examples with template my-default.cnf
+
 * Fri Oct 05 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Let the installation use the new option "--random-passwords" of "mysql_install_db".

@@ -6950,6 +6950,8 @@ ER_INCONSISTENT_ERROR
 ER_READ_ONLY_MODE
         eng "Running in read-only mode"
 
+ER_STORAGE_ENGINE_NOT_LOADED
+        eng "Storage engine for table '%s'.'%s' is not loaded."
 #
 #  End of 5.7 error messages.
 #

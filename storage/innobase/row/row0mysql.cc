@@ -4575,8 +4575,21 @@ loop:
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_open_on_name(table_name, TRUE, FALSE,
-						DICT_ERR_IGNORE_NONE);
+		table = dict_table_open_on_name(
+			table_name, TRUE, FALSE, static_cast<dict_err_ignore_t>(
+				DICT_ERR_IGNORE_INDEX_ROOT
+				| DICT_ERR_IGNORE_CORRUPT));
+
+		if (!table) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot load table %s from InnoDB internal "
+				"data dictionary during drop database",
+				table_name);
+			mem_free(table_name);
+			err = DB_TABLE_NOT_FOUND;
+			break;
+
+		}
 
 		if (row_is_mysql_tmp_table_name(table->name)) {
 			/* There could be an orphan temp table left from
