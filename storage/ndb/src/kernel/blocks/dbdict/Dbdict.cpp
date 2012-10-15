@@ -4181,7 +4181,7 @@ Dbdict::execGET_TABINFOREF(Signal* signal){
     req->tableId = ref_copy.tableId;
     req->schemaTransId = ref_copy.schemaTransId;
     // Add a random 5-10ms delay.
-    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 5 + random()%6, 
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 5 + rand()%6, 
                         GetTabInfoReq::SignalLength+1);
   }
   else
