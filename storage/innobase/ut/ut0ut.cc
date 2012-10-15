@@ -28,6 +28,7 @@ Created 5/11/1994 Heikki Tuuri
 #ifndef UNIV_INNOCHECKSUM
 
 #include "ut0sort.h"
+#include "os0thread.h" /* thread-ID */
 
 #ifdef UNIV_NONINL
 #include "ut0ut.ic"
@@ -218,18 +219,25 @@ ut_print_timestamp(
 /*===============*/
 	FILE*  file) /*!< in: file where to print */
 {
+	ulint thread_id = 0;
+
+#ifndef UNIV_INNOCHECKSUM
+	thread_id = os_thread_pf(os_thread_get_curr_id());
+#endif
+
 #ifdef __WIN__
 	SYSTEMTIME cal_tm;
 
 	GetLocalTime(&cal_tm);
 
-	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
-		(int) cal_tm.wYear % 100,
+	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %lx",
+		(int) cal_tm.wYear,
 		(int) cal_tm.wMonth,
 		(int) cal_tm.wDay,
 		(int) cal_tm.wHour,
 		(int) cal_tm.wMinute,
-		(int) cal_tm.wSecond);
+		(int) cal_tm.wSecond,
+		thread_id);
 #else
 	struct tm* cal_tm_ptr;
 	time_t	   tm;
@@ -243,13 +251,14 @@ ut_print_timestamp(
 	time(&tm);
 	cal_tm_ptr = localtime(&tm);
 #endif
-	fprintf(file,"%02d%02d%02d %2d:%02d:%02d",
-		cal_tm_ptr->tm_year % 100,
+	fprintf(file, "%d-%02d-%02d %02d:%02d:%02d %lx",
+		cal_tm_ptr->tm_year + 1900,
 		cal_tm_ptr->tm_mon + 1,
 		cal_tm_ptr->tm_mday,
 		cal_tm_ptr->tm_hour,
 		cal_tm_ptr->tm_min,
-		cal_tm_ptr->tm_sec);
+		cal_tm_ptr->tm_sec,
+		thread_id);
 #endif
 }
 
