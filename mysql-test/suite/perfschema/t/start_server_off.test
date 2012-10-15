@@ -20,23 +20,6 @@ select * from performance_schema.setup_actors;
 select * from performance_schema.setup_objects;
 select * from performance_schema.setup_timers;
 
-# Expect TRUNCATE to fail with an error
-
---error ER_WRONG_PERFSCHEMA_USAGE
-truncate performance_schema.events_stages_history_long;
-
---error ER_WRONG_PERFSCHEMA_USAGE
-truncate performance_schema.events_statements_history_long;
-
---error ER_WRONG_PERFSCHEMA_USAGE
-truncate performance_schema.events_waits_history_long;
-
---error ER_WRONG_PERFSCHEMA_USAGE
-truncate performance_schema.setup_objects;
-
---error ER_WRONG_PERFSCHEMA_USAGE
-truncate performance_schema.setup_actors;
-
 # Expect INSERT to fail with an error
 
 --error ER_WRONG_PERFSCHEMA_USAGE
@@ -45,8 +28,8 @@ insert into performance_schema.setup_objects values ('TABLE', 'myschema', 'myobj
 --error ER_WRONG_PERFSCHEMA_USAGE
 insert into performance_schema.setup_actors values ('myhost', 'mysuser', 'myrole');
 
-# Expect SELECT, UPDATE and DELETE to affect 0 rows but no error because the
-# target row(s) will not be found
+# Expect SELECT, UPDATE, DELETE and TRUNCATE to affect 0 rows, but with
+# no error because the target row(s) will not be found
 
 select * from performance_schema.setup_objects;
 update performance_schema.setup_objects set OBJECT_NAME = 'myobject';
@@ -55,5 +38,11 @@ delete from performance_schema.setup_objects;
 select * from performance_schema.setup_actors;
 update performance_schema.setup_actors set HOST = 'myhost';
 delete from performance_schema.setup_actors;
+
+truncate performance_schema.events_stages_history_long;
+truncate performance_schema.events_statements_history_long;
+truncate performance_schema.events_waits_history_long;
+truncate performance_schema.setup_objects;
+truncate performance_schema.setup_actors;
 
 
