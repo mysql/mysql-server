@@ -1686,7 +1686,7 @@ public:
   Item_func_set_user_var(THD *thd, Item_func_set_user_var *item)
     :Item_var_func(thd, item), cached_result_type(item->cached_result_type),
      entry(item->entry), entry_thread_id(item->entry_thread_id),
-     delayed_non_constness(delayed_non_constness), value(item->value),
+     delayed_non_constness(item->delayed_non_constness), value(item->value),
      decimal_buff(item->decimal_buff), null_item(item->null_item),
      save_result(item->save_result), name(item->name)
   {}
