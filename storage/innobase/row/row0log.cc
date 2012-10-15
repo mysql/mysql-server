@@ -1229,8 +1229,9 @@ row_log_table_apply_insert_low(
 
 #ifdef ROW_LOG_APPLY_PRINT
 	if (row_log_apply_print) {
-		fprintf(stderr, "table apply insert " IB_ID_FMT,
-			dup->index->id);
+		fprintf(stderr, "table apply insert "
+			IB_ID_FMT " " IB_ID_FMT "\n",
+			index->table->id, index->id);
 		dtuple_print(stderr, row);
 	}
 #endif /* ROW_LOG_APPLY_PRINT */
@@ -1345,6 +1346,14 @@ row_log_table_apply_delete_low(
 
 	ut_ad(dict_index_is_clust(index));
 
+#ifdef ROW_LOG_APPLY_PRINT
+	if (row_log_apply_print) {
+		fprintf(stderr, "table apply delete "
+			IB_ID_FMT " " IB_ID_FMT "\n",
+			index->table->id, index->id);
+		rec_print_new(stderr, btr_pcur_get_rec(pcur), offsets);
+	}
+#endif /* ROW_LOG_APPLY_PRINT */
 	if (dict_table_get_next_index(index)) {
 		/* Build a row template for purging secondary index entries. */
 		row = row_build(
@@ -1694,6 +1703,15 @@ delete_insert:
 			ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
 			cur_offsets, NULL, NULL, NULL, &old_ext, heap);
 		ut_ad(old_row);
+#ifdef ROW_LOG_APPLY_PRINT
+		if (row_log_apply_print) {
+			fprintf(stderr, "table apply update "
+				IB_ID_FMT " " IB_ID_FMT "\n",
+				index->table->id, index->id);
+			dtuple_print(stderr, old_row);
+			dtuple_print(stderr, row);
+		}
+#endif /* ROW_LOG_APPLY_PRINT */
 	} else {
 		old_row = NULL;
 		old_ext = NULL;
@@ -1730,7 +1748,7 @@ delete_insert:
 		}
 
 		if (!row_upd_changes_ord_field_binary(
-			    index, update, thr, row, NULL)) {
+			    index, update, thr, old_row, NULL)) {
 			continue;
 		}
 
@@ -1753,9 +1771,7 @@ delete_insert:
 
 		btr_cur_pessimistic_delete(
 			&error, FALSE, btr_pcur_get_btr_cur(&pcur),
-			BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
-			| BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG,
-			RB_NONE, &mtr);
+			BTR_CREATE_FLAG, RB_NONE, &mtr);
 
 		if (error != DB_SUCCESS) {
 			break;
