@@ -4189,7 +4189,7 @@ rec_loop:
 		err = DB_INTERRUPTED;
 		goto normal_return;
 	}
-	
+
 	/*-------------------------------------------------------------*/
 	/* PHASE 4: Look for matching records in a loop */
 
