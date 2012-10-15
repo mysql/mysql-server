@@ -24,43 +24,20 @@ Created 12/4/2005 Jan Lindstrom
 Completed by Sunny Bains and Marko Makela
 *******************************************************/
 
-#include "m_string.h" /* for my_sys.h */
-#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0merge.h"
 #include "row0ext.h"
-#include "row0row.h"
 #include "row0log.h"
 #include "row0ins.h"
 #include "row0sel.h"
-#include "dict0dict.h"
-#include "dict0mem.h"
-#include "dict0boot.h"
 #include "dict0crea.h"
-#include "dict0load.h"
-#include "btr0btr.h"
-#include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "trx0undo.h"
 #include "trx0purge.h"
-#include "trx0rec.h"
-#include "rem0cmp.h"
-#include "read0read.h"
-#include "os0file.h"
 #include "lock0lock.h"
-#include "data0data.h"
-#include "data0type.h"
-#include "que0que.h"
 #include "pars0pars.h"
-#include "mem0mem.h"
-#include "log0log.h"
 #include "ut0sort.h"
-#include "handler0alter.h"
-#include "fts0fts.h"
-#include "fts0types.h"
-#include "fts0priv.h"
 #include "row0ftsort.h"
+#include "row0import.h"
+#include "handler0alter.h"
+#include "ha_prototypes.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined __WIN__
@@ -3098,7 +3075,6 @@ row_merge_rename_tables(
 	ut_ad(!srv_read_only_mode);
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
-
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE);
 
@@ -3106,10 +3082,9 @@ row_merge_rename_tables(
 	if (strlen(old_table->name) + 1 <= sizeof(old_name)) {
 		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
 	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: too long table name: '%s', "
-			"max length is %d\n", old_table->name,
-			MAX_FULL_NAME_LEN);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Too long table name: '%s', max length is %d",
+			old_table->name, MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 
@@ -3196,7 +3171,6 @@ row_merge_rename_tables(
 	}
 
 	if (err != DB_SUCCESS) {
-
 		goto err_exit;
 	}
 
@@ -3204,27 +3178,40 @@ row_merge_rename_tables(
 	the tables are stored in a single-table tablespace */
 
 	err = dict_table_rename_in_cache(old_table, tmp_name, FALSE);
-	if (err != DB_SUCCESS) {
-		goto err_exit;
-	}
 
-	err = dict_table_rename_in_cache(new_table, old_name, FALSE);
-	if (err != DB_SUCCESS) {
-		if (dict_table_rename_in_cache(old_table, old_name, FALSE)
-		    != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Error: Cannot undo "
-				" the rename in cache from %s to %s\n",
-				old_name, tmp_name);
+	if (err == DB_SUCCESS) {
+
+		ut_ad(dict_table_is_discarded(old_table)
+		      == dict_table_is_discarded(new_table));
+
+		err = dict_table_rename_in_cache(new_table, old_name, FALSE);
+
+		if (err != DB_SUCCESS) {
+
+			if (dict_table_rename_in_cache(
+					old_table, old_name, FALSE)
+			    != DB_SUCCESS) {
+
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Cannot undo the rename in cache "
+					"from %s to %s", old_name, tmp_name);
+			}
+
+			goto err_exit;
 		}
-		goto err_exit;
+
+		if (dict_table_is_discarded(new_table)) {
+
+			err = row_import_update_discarded_flag(
+				trx, new_table->id, true, true);
+		}
 	}
 
-	DBUG_EXECUTE_IF(
-		"ib_rebuild_cannot_load_fk",
-		err = DB_ERROR; goto err_exit;);
+	DBUG_EXECUTE_IF("ib_rebuild_cannot_load_fk",
+			err = DB_ERROR; goto err_exit;);
 
 	err = dict_load_foreigns(old_name, FALSE, TRUE);
+
 	if (err != DB_SUCCESS) {
 err_exit:
 		trx->error_state = DB_SUCCESS;
