@@ -3419,6 +3419,7 @@ row_merge_build_indexes(
 	fts_psort_t*		psort_info = NULL;
 	fts_psort_t*		merge_info = NULL;
 	ib_int64_t		sig_count = 0;
+	bool			fts_psort_initiated = false;
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad((old_table == new_table) == !col_map);
@@ -3463,6 +3464,10 @@ row_merge_build_indexes(
 			row_fts_psort_info_init(
 				trx, dup, new_table, opt_doc_id_size,
 				&psort_info, &merge_info);
+
+			/* "We need to ensure that we free the resources
+			allocated */
+			fts_psort_initiated = true;
 		}
 	}
 
@@ -3554,6 +3559,7 @@ wait_again:
 
 		if (indexes[i]->type & DICT_FTS) {
 			row_fts_psort_info_destroy(psort_info, merge_info);
+			fts_psort_initiated = false;
 		} else if (error != DB_SUCCESS || !online) {
 			/* Do not apply any online log. */
 		} else if (old_table != new_table) {
@@ -3589,6 +3595,12 @@ func_exit:
 		"ib_build_indexes_too_many_concurrent_trxs",
 		error = DB_TOO_MANY_CONCURRENT_TRXS;
 		trx->error_state = error;);
+
+	if (fts_psort_initiated) {
+		/* Clean up FTS psort related resource */
+		row_fts_psort_info_destroy(psort_info, merge_info);
+		fts_psort_initiated = false;
+	}
 
 	row_merge_file_destroy_low(tmpfd);
 
