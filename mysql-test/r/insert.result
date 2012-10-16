@@ -571,3 +571,29 @@ ERROR 42000: Column 'a' specified twice
 INSERT IGNORE t1 (a, a) SELECT 1,1 UNION SELECT 2,2;
 ERROR 42000: Column 'a' specified twice
 DROP TABLE t1;
+#
+# Worklog #6073: Remove INSERT DELAYED
+#
+CREATE TABLE t1( a INT );
+INSERT DELAYED INTO t1 VALUES ( 1 );
+Warnings:
+Warning	1840	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
+REPLACE DELAYED INTO t1 VALUES ( 1 );
+Warnings:
+Warning	1840	REPLACE DELAYED is no longer supported. The statement was converted to REPLACE.
+DROP TABLE t1;
+SET GLOBAL delayed_insert_limit = DEFAULT;
+Warnings:
+Warning	1287	'@@delayed_insert_limit' is deprecated and will be removed in a future release.
+SET GLOBAL delayed_insert_timeout = DEFAULT;
+Warnings:
+Warning	1287	'@@delayed_insert_timeout' is deprecated and will be removed in a future release.
+SET GLOBAL delayed_queue_size = DEFAULT;
+Warnings:
+Warning	1287	'@@delayed_queue_size' is deprecated and will be removed in a future release.
+SET GLOBAL max_insert_delayed_threads = DEFAULT;
+Warnings:
+Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
+SET GLOBAL max_delayed_threads = DEFAULT;
+Warnings:
+Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
