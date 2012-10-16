@@ -2540,6 +2540,8 @@ row_upd(
 	}
 #endif /* UNIV_DEBUG */
 
+	DBUG_EXECUTE_IF("row_upd_skip_sec", node->index = NULL;);
+
 	do {
 		/* Skip corrupted index */
 		dict_table_skip_corrupt_index(node->index);
