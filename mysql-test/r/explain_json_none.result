@@ -937,6 +937,9 @@ EXPLAIN
                     "c1"
                   ] /* possible_keys */,
                   "key": "c1",
+                  "used_key_parts": [
+                    "c1"
+                  ] /* used_key_parts */,
                   "key_length": "3",
                   "ref": [
                     "test.t3.c1"
@@ -1030,6 +1033,9 @@ EXPLAIN
                     "c_key"
                   ] /* possible_keys */,
                   "key": "c_key",
+                  "used_key_parts": [
+                    "c_key"
+                  ] /* used_key_parts */,
                   "key_length": "5",
                   "ref": [
                     "test.t4.c_key"
@@ -1065,6 +1071,9 @@ EXPLAIN
                     "c_key"
                   ] /* possible_keys */,
                   "key": "c_key",
+                  "used_key_parts": [
+                    "c_key"
+                  ] /* used_key_parts */,
                   "key_length": "5",
                   "rows": 3,
                   "filtered": 100,
@@ -1575,6 +1584,9 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "range",
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a"
+          ] /* used_key_parts */,
           "key_length": "4",
           "rows": 7,
           "filtered": 100,
@@ -1619,6 +1631,9 @@ EXPLAIN
                 "PRIMARY"
               ] /* possible_keys */,
               "key": "PRIMARY",
+              "used_key_parts": [
+                "a"
+              ] /* used_key_parts */,
               "key_length": "4",
               "ref": [
                 "test.t1.a"
@@ -1738,6 +1753,9 @@ EXPLAIN
                 "table_name": "t2",
                 "access_type": "index",
                 "key": "PRIMARY",
+                "used_key_parts": [
+                  "a"
+                ] /* used_key_parts */,
                 "key_length": "4",
                 "rows": 2,
                 "filtered": 100,
@@ -1768,6 +1786,9 @@ EXPLAIN
       "table_name": "t2",
       "access_type": "index",
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 4,
       "filtered": 100,
@@ -1786,6 +1807,9 @@ EXPLAIN
                 "PRIMARY"
               ] /* possible_keys */,
               "key": "PRIMARY",
+              "used_key_parts": [
+                "a"
+              ] /* used_key_parts */,
               "key_length": "4",
               "ref": [
                 "func"
