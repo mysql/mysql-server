@@ -3214,6 +3214,10 @@ row_ins(
 		node->index = dict_table_get_next_index(node->index);
 		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
 
+		DBUG_EXECUTE_IF(
+			"row_ins_skip_sec",
+			node->index = NULL; node->entry = NULL; break;);
+
 		/* Skip corrupted secondary index and its entry */
 		while (node->index && dict_index_is_corrupted(node->index)) {
 
