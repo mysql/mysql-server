@@ -795,14 +795,12 @@ struct dict_table_t{
 				on the table: we cannot drop the table while
 				there are foreign key checks running on
 				it! */
-	trx_id_t	query_cache_inv_trx_id;
-				/*!< transactions whose trx id is
-				smaller than this number are not
-				allowed to store to the MySQL query
-				cache or retrieve from it; when a trx
-				with undo logs commits, it sets this
-				to the value of the trx id counter for
-				the tables it had an IX lock on */
+	time_t		query_cache_inv_time;
+				/*!< transactions whose start time greater
+				this number are not allowed to store to the
+				MySQL query cache or retrieve from it; when
+				a trx with undo logs commits, it sets this
+				to the value of the current time. */
 #ifdef UNIV_DEBUG
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;

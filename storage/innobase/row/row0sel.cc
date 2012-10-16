@@ -5212,12 +5212,14 @@ row_search_check_if_query_cache_permitted(
 	trx_start_if_not_started(trx, false);
 
 	/* If there are locks on the table or some trx has invalidated the
-	cache up to our trx id, then ret = FALSE.
-	We do not check what type locks there are on the table, though only
-	IX type locks actually would require ret = FALSE. */
+	cache before this transaction started then this transaction cannot
+	read/write from/to the cache.
+	
+	FIXME: Time is too coarse a check, need to find a better mechanism.	
+	*/
 
 	if (lock_table_get_n_locks(table) == 0
-	    && trx->id >= table->query_cache_inv_trx_id) {
+	    && trx->start_time >= table->query_cache_inv_time) {
 
 		ret = TRUE;
 
