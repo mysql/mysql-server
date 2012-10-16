@@ -20,6 +20,7 @@
 #include "test_utils.h"
 #include "my_stacktrace.h"
 #include "m_string.h"
+#include "hash_filo.h"
 
 namespace {
 
@@ -177,6 +178,20 @@ TEST(PrintUtilities, Printf)
   my_safe_snprintf(buff, sizeof(buff), "hello 0x%p hello", p);
   my_snprintf(sprintfbuff, sizeof(sprintfbuff), "hello %p hello", p);
   EXPECT_STREQ(sprintfbuff, buff);
+}
+
+TEST_F(FatalSignalDeathTest, TestHashFiloZeroSize)
+{
+  hash_filo *t_cache;
+  t_cache= new hash_filo(5, 0, 0,
+                         (my_hash_get_key) NULL,
+                         (my_hash_free_key) NULL,
+                         NULL);
+  t_cache->resize(0);
+  hash_filo_element entry;
+  //after resize (to zero) it tries to dereference last_link which is NULL
+  t_cache->add(&entry);
+  delete t_cache;
 }
 
 }
