@@ -158,6 +158,7 @@ UNIV_INTERN ibool	os_aio_print_debug	= FALSE;
 UNIV_INTERN mysql_pfs_key_t  innodb_file_data_key;
 UNIV_INTERN mysql_pfs_key_t  innodb_file_log_key;
 UNIV_INTERN mysql_pfs_key_t  innodb_file_temp_key;
+UNIV_INTERN mysql_pfs_key_t  innodb_file_bmp_key;
 #endif /* UNIV_PFS_IO */
 
 /** The asynchronous i/o array slot structure */
@@ -2146,6 +2147,25 @@ os_file_set_eof(
 	return(!ftruncate(fileno(file), ftell(file)));
 #endif /* __WIN__ */
 }
+
+/***********************************************************************//**
+Truncates a file at the specified position.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_set_eof_at(
+	os_file_t	file, /*!< in: handle to a file */
+	ib_uint64_t	new_len)/*!< in: new file length */
+{
+#ifdef __WIN__
+	/* TODO: untested! */
+	return(!_chsize_s(file, new_len));
+#else
+	/* TODO: works only with -D_FILE_OFFSET_BITS=64 ? */
+	return(!ftruncate(file, new_len));
+#endif
+}
+
 
 #ifndef __WIN__
 /***********************************************************************//**

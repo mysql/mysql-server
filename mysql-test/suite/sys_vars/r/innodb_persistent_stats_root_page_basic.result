@@ -1,0 +1,24 @@
+SELECT @@global.innodb_persistent_stats_root_page;
+@@global.innodb_persistent_stats_root_page
+0
+SELECT COUNT(@@global.innodb_persistent_stats_root_page);
+COUNT(@@global.innodb_persistent_stats_root_page)
+1
+SET @@global.innodb_persistent_stats_root_page=100;
+ERROR HY000: Variable 'innodb_persistent_stats_root_page' is a read only variable
+SELECT @@global.innodb_persistent_stats_root_page = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_persistent_stats_root_page';
+@@global.innodb_persistent_stats_root_page = VARIABLE_VALUE
+1
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_persistent_stats_root_page';
+COUNT(*)
+1
+SELECT @@innodb_persistent_stats_root_page = @@global.innodb_persistent_stats_root_page;
+@@innodb_persistent_stats_root_page = @@global.innodb_persistent_stats_root_page
+1
+SELECT COUNT(@@local.innodb_persistent_stats_root_page);
+ERROR HY000: Variable 'innodb_persistent_stats_root_page' is a GLOBAL variable
+SELECT COUNT(@@session.innodb_persistent_stats_root_page);
+ERROR HY000: Variable 'innodb_persistent_stats_root_page' is a GLOBAL variable

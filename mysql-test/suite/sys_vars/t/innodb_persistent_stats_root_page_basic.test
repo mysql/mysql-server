@@ -1,0 +1,26 @@
+--source include/have_debug.inc
+--source include/have_xtradb.inc
+
+SELECT @@global.innodb_persistent_stats_root_page;
+SELECT COUNT(@@global.innodb_persistent_stats_root_page);
+
+# Read-only variable
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.innodb_persistent_stats_root_page=100;
+
+# Check if INFORMATION_SCHEMA agrees with the var
+SELECT @@global.innodb_persistent_stats_root_page = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_persistent_stats_root_page';
+
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_persistent_stats_root_page';
+
+# Check if accessing the var without GLOBAL points to the same
+SELECT @@innodb_persistent_stats_root_page = @@global.innodb_persistent_stats_root_page;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_persistent_stats_root_page);
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@session.innodb_persistent_stats_root_page);

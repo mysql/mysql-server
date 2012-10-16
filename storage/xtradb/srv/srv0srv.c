@@ -67,6 +67,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "mem0pool.h"
 #include "sync0sync.h"
 #include "que0que.h"
+#include "log0online.h"
 #include "log0recv.h"
 #include "pars0pars.h"
 #include "usr0sess.h"
@@ -175,6 +176,10 @@ UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
 UNIV_INTERN char*	srv_doublewrite_file = NULL;
 
 UNIV_INTERN ibool	srv_recovery_stats = FALSE;
+
+UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
+
+UNIV_INTERN ulonglong	srv_changed_pages_limit = 0;
 
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
@@ -771,6 +776,10 @@ UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
 UNIV_INTERN os_event_t	srv_shutdown_event;
 
+UNIV_INTERN os_event_t	srv_checkpoint_completed_event;
+
+UNIV_INTERN os_event_t	srv_redo_log_thread_finished_event;
+
 UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
 /* padding to prevent other memory update hotspots from residing on
@@ -1109,6 +1118,9 @@ srv_init(void)
 
 	srv_lock_timeout_thread_event = os_event_create(NULL);
 	srv_shutdown_event = os_event_create(NULL);
+
+	srv_checkpoint_completed_event = os_event_create(NULL);
+	srv_redo_log_thread_finished_event = os_event_create(NULL);
 
 	for (i = 0; i < SRV_MASTER + 1; i++) {
 		srv_n_threads_active[i] = 0;
@@ -3032,6 +3044,46 @@ srv_shutdown_print_master_pending(
 				(ulong) n_pages_flushed);
 		}
         }
+}
+
+/******************************************************************//**
+A thread which follows the redo log and outputs the changed page bitmap.
+@return a dummy value */
+os_thread_ret_t
+srv_redo_log_follow_thread(
+/*=======================*/
+	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+						     required by
+						     os_thread_create */
+{
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "Redo log follower thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(srv_log_tracking_thread_key);
+#endif
+
+	my_thread_init();
+
+	do {
+		os_event_wait(srv_checkpoint_completed_event);
+		os_event_reset(srv_checkpoint_completed_event);
+
+		if (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE) {
+			log_online_follow_redo_log();
+		}
+
+	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
+
+	log_online_read_shutdown();
+	os_event_set(srv_redo_log_thread_finished_event);
+
+	my_thread_end();
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
 }
 
 /*******************************************************************//**

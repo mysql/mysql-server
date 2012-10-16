@@ -51,5 +51,6 @@ extern struct st_maria_plugin	i_s_innodb_admin_command;
 extern struct st_maria_plugin	i_s_innodb_buffer_pool_pages;
 extern struct st_maria_plugin	i_s_innodb_buffer_pool_pages_index;
 extern struct st_maria_plugin	i_s_innodb_buffer_pool_pages_blob;
+extern struct st_maria_plugin	i_s_innodb_changed_pages;
 
 #endif /* i_s_h */

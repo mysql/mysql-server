@@ -69,6 +69,14 @@ extern os_event_t	srv_error_event;
 /* This event is set at shutdown to wakeup threads from sleep */
 extern os_event_t	srv_shutdown_event;
 
+/* This event is set on checkpoint completion to wake the redo log parser
+thread */
+extern os_event_t	srv_checkpoint_completed_event;
+
+/* This event is set on the online redo log following thread exit to signal
+that the (slow) shutdown may proceed */
+extern os_event_t	srv_redo_log_thread_finished_event;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
@@ -135,6 +143,11 @@ extern ulint*	srv_data_file_is_raw_partition;
 extern char*	srv_doublewrite_file;
 
 extern ibool	srv_recovery_stats;
+
+extern my_bool	srv_track_changed_pages;
+
+extern
+ulonglong       srv_changed_pages_limit;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
@@ -402,6 +415,7 @@ extern mysql_pfs_key_t	srv_error_monitor_thread_key;
 extern mysql_pfs_key_t	srv_monitor_thread_key;
 extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	srv_log_tracking_thread_key;
 
 /* This macro register the current thread and its key with performance
 schema */
@@ -694,6 +708,15 @@ UNIV_INTERN
 os_thread_ret_t
 srv_LRU_dump_restore_thread(
 /*====================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+/******************************************************************//**
+A thread which follows the redo log and outputs the changed page bitmap.
+@return a dummy value */
+UNIV_INTERN
+os_thread_ret_t
+srv_redo_log_follow_thread(
+/*=======================*/
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /******************************************************************//**

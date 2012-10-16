@@ -22,6 +22,14 @@ InnoDB INFORMATION SCHEMA tables interface to MySQL.
 
 Created July 18, 2007 Vasil Dimov
 *******************************************************/
+#ifndef MYSQL_SERVER
+#define MYSQL_SERVER /* For Item_* classes */
+#include <item.h>
+/* Prevent influence of this definition to other headers */
+#undef MYSQL_SERVER
+#else
+#include <mysql_priv.h>
+#endif //MYSQL_SERVER
 
 #include <ctype.h> /*toupper*/
 #include <mysqld_error.h>
@@ -45,6 +53,7 @@ extern "C" {
 #include "dict0mem.h"
 #include "dict0types.h"
 #include "ha_prototypes.h" /* for innobase_convert_name() */
+#include "srv0srv.h" /* for srv_track_changed_pages */
 #include "srv0start.h" /* for srv_was_started */
 #include "trx0i_s.h"
 #include "trx0trx.h" /* for TRX_QUE_STATE_STR_MAX_LEN */
@@ -54,6 +63,7 @@ extern "C" {
 #include "dict0dict.h" /* for dict_sys */
 #include "buf0lru.h" /* for XTRA_LRU_[DUMP/RESTORE] */
 #include "btr0btr.h" /* for btr_page_get_index_id */
+#include "log0online.h"
 }
 
 #define OK(expr)		\
@@ -5264,5 +5274,290 @@ UNIV_INTERN struct st_maria_plugin	i_s_innodb_undo_logs =
 	/* struct st_mysql_sys_var** */
 	STRUCT_FLD(system_vars, NULL),
 
+        INNODB_VERSION_STR, MariaDB_PLUGIN_MATURITY_STABLE
+};
+
+static ST_FIELD_INFO	i_s_innodb_changed_pages_info[] =
+{
+	{STRUCT_FLD(field_name,		"space_id"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"page_id"),
+	 STRUCT_FLD(field_length,	MY_INT32_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"start_lsn"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	{STRUCT_FLD(field_name,		"end_lsn"),
+	 STRUCT_FLD(field_length,	MY_INT64_NUM_DECIMAL_DIGITS),
+	 STRUCT_FLD(field_type,		MYSQL_TYPE_LONGLONG),
+	 STRUCT_FLD(value,		0),
+	 STRUCT_FLD(field_flags,	MY_I_S_UNSIGNED),
+	 STRUCT_FLD(old_name,		""),
+	 STRUCT_FLD(open_method,	SKIP_OPEN_TABLE)},
+
+	END_OF_ST_FIELD_INFO
+};
+
+/***********************************************************************
+  This function parses condition and gets upper bounds for start and end LSN's
+  if condition corresponds to certain pattern.
+
+  We can't know right position to avoid scanning bitmap files from the beginning
+  to the lower bound. But we can stop scanning bitmap files if we reach upper bound.
+
+  It's expected the most used queries will be like the following:
+
+  SELECT * FROM INNODB_CHANGED_PAGES WHERE START_LSN > num1 AND start_lsn < num2;
+
+  That's why the pattern is:
+
+  pattern:  comp | and_comp;
+  comp:     lsn <  int_num | lsn <= int_num | int_num > lsn  | int_num >= lsn;
+  lsn:	    start_lsn | end_lsn;
+  and_comp: some_expression AND some_expression  | some_expression AND and_comp;
+  some_expression: comp	| any_other_expression;
+
+  Suppose the condition is start_lsn < 100, this means we have to read all
+  blocks with start_lsn < 100. Which is equivalent to reading all the blocks
+  with end_lsn <= 99, or just end_lsn < 100. That's why it's enough to find
+  maximum lsn value, doesn't matter if this is start or end lsn and compare
+  it with "start_lsn" field.
+
+  Example:
+
+  SELECT * FROM INNODB_CHANGED_PAGES
+    WHERE
+    start_lsn > 10  AND
+    end_lsn <= 1111 AND
+    555 > end_lsn   AND
+    page_id = 100;
+
+  max_lsn will be set to 555.
+*/
+static
+void
+limit_lsn_range_from_condition(
+/*===========================*/
+	TABLE*		table,   /*!<in: table */
+	COND*		cond,    /*!<in: condition */
+	ib_uint64_t*	max_lsn) /*!<in/out: maximum LSN
+				 (must be initialized with maximum
+				 available value) */
+{
+	if (cond->type() != Item::COND_ITEM &&
+	    cond->type() != Item::FUNC_ITEM)
+		return;
+
+	switch (((Item_func*) cond)->functype())
+	{
+		case Item_func::COND_AND_FUNC:
+		{
+			List_iterator<Item>	li(*((Item_cond*) cond)->
+						   argument_list());
+			Item			*item;
+			while ((item= li++))
+				limit_lsn_range_from_condition(table,
+							       item,
+							       max_lsn);
+			break;
+		}
+		case Item_func::LT_FUNC:
+		case Item_func::LE_FUNC:
+		case Item_func::GT_FUNC:
+		case Item_func::GE_FUNC:
+		{
+			Item			*left;
+			Item			*right;
+			Item_field		*item_field;
+			ib_uint64_t		tmp_result;
+
+			/*
+			   a <= b equals to b >= a that's why we just exchange
+			   "left" and "right" in the case of ">" or ">="
+			   function
+			*/
+			if (((Item_func*) cond)->functype() ==
+				Item_func::LT_FUNC ||
+			    ((Item_func*) cond)->functype() ==
+				Item_func::LE_FUNC)
+			{
+				left = ((Item_func*) cond)->arguments()[0];
+				right = ((Item_func*) cond)->arguments()[1];
+			} else {
+				left = ((Item_func*) cond)->arguments()[1];
+				right = ((Item_func*) cond)->arguments()[0];
+			}
+
+			if (!left || !right)
+				return;
+			if (left->type() != Item::FIELD_ITEM)
+				return;
+			if (right->type() != Item::INT_ITEM)
+				return;
+
+			item_field = (Item_field*)left;
+
+			if (/* START_LSN */
+			    table->field[2] != item_field->field &&
+			    /* END_LSN */
+			    table->field[3] != item_field->field)
+			{
+				return;
+			}
+
+			/* Check if the current field belongs to our table */
+			if (table != item_field->field->table)
+				return;
+
+			tmp_result = right->val_int();
+			if (tmp_result < *max_lsn)
+				*max_lsn = tmp_result;
+
+			break;
+		}
+		default:;
+	}
+
+}
+
+/***********************************************************************
+Fill the dynamic table information_schema.innodb_changed_pages.
+@return 0 on success, 1 on failure */
+static
+int
+i_s_innodb_changed_pages_fill(
+/*==========================*/
+	THD*		thd,	/*!<in: thread */
+	TABLE_LIST*	tables,	/*!<in/out: tables to fill */
+	COND*		cond)	/*!<in: condition */
+{
+	TABLE*			table = (TABLE *) tables->table;
+	log_bitmap_iterator_t	i;
+	ib_uint64_t		output_rows_num = 0UL;
+	ib_uint64_t		max_lsn = ~0ULL;
+
+	if (!srv_track_changed_pages)
+		return 0;
+
+	if (!log_online_bitmap_iterator_init(&i))
+		return 1;
+
+	if (cond)
+		limit_lsn_range_from_condition(table, cond, &max_lsn);
+
+	while(log_online_bitmap_iterator_next(&i) &&
+	      (!srv_changed_pages_limit ||
+	       output_rows_num < srv_changed_pages_limit) &&
+	      /*
+	        There is no need to compare both start LSN and end LSN fields
+	        with maximum value. It's enough to compare only start LSN.
+	        Example:
+
+	                              max_lsn = 100
+	        \\\\\\\\\\\\\\\\\\\\\\\\\|\\\\\\\\        - Query 1
+	        I------I I-------I I-------------I I----I
+		//////////////////       |                - Query 2
+	           1        2             3          4
+
+	        Query 1:
+	        SELECT * FROM INNODB_CHANGED_PAGES WHERE start_lsn < 100
+	        will select 1,2,3 bitmaps
+	        Query 2:
+	        SELECT * FROM INNODB_CHANGED_PAGES WHERE end_lsn < 100
+	        will select 1,2 bitmaps
+
+	        The condition start_lsn <= 100 will be false after reading
+	        1,2,3 bitmaps which suits for both cases.
+	      */
+	      LOG_BITMAP_ITERATOR_START_LSN(i) <= max_lsn)
+	{
+		if (!LOG_BITMAP_ITERATOR_PAGE_CHANGED(i))
+			continue;
+
+		/* SPACE_ID */
+		table->field[0]->store(
+				       LOG_BITMAP_ITERATOR_SPACE_ID(i));
+		/* PAGE_ID */
+		table->field[1]->store(
+				       LOG_BITMAP_ITERATOR_PAGE_NUM(i));
+		/* START_LSN */
+		table->field[2]->store(
+				       LOG_BITMAP_ITERATOR_START_LSN(i));
+		/* END_LSN */
+		table->field[3]->store(
+				       LOG_BITMAP_ITERATOR_END_LSN(i));
+
+		/*
+		  I_S tables are in-memory tables. If bitmap file is big enough
+		  a lot of memory can be used to store the table. But the size
+		  of used memory can be diminished if we store only data which
+		  corresponds to some conditions (in WHERE sql clause). Here
+		  conditions are checked for the field values stored above.
+
+		  Conditions are checked twice. The first is here (during table
+		  generation) and the second during query execution. Maybe it
+		  makes sense to use some flag in THD object to avoid double
+		  checking.
+		*/
+		if (cond && !cond->val_int())
+			continue;
+
+		if (schema_table_store_record(thd, table))
+		{
+			log_online_bitmap_iterator_release(&i);
+			return 1;
+		}
+
+		++output_rows_num;
+	}
+
+	log_online_bitmap_iterator_release(&i);
+	return 0;
+}
+
+static
+int
+i_s_innodb_changed_pages_init(
+/*==========================*/
+	void*	p)
+{
+	DBUG_ENTER("i_s_innodb_changed_pages_init");
+	ST_SCHEMA_TABLE* schema = (ST_SCHEMA_TABLE*) p;
+
+	schema->fields_info = i_s_innodb_changed_pages_info;
+	schema->fill_table = i_s_innodb_changed_pages_fill;
+
+	DBUG_RETURN(0);
+}
+
+UNIV_INTERN struct st_maria_plugin   i_s_innodb_changed_pages =
+{
+	STRUCT_FLD(type, MYSQL_INFORMATION_SCHEMA_PLUGIN),
+	STRUCT_FLD(info, &i_s_info),
+	STRUCT_FLD(name, "INNODB_CHANGED_PAGES"),
+	STRUCT_FLD(author, "Percona"),
+	STRUCT_FLD(descr, "InnoDB CHANGED_PAGES table"),
+	STRUCT_FLD(license, PLUGIN_LICENSE_GPL),
+	STRUCT_FLD(init, i_s_innodb_changed_pages_init),
+	STRUCT_FLD(deinit, i_s_common_deinit),
+	STRUCT_FLD(version, 0x0100 /* 1.0 */),
+	STRUCT_FLD(status_vars, NULL),
+	STRUCT_FLD(system_vars, NULL),
         INNODB_VERSION_STR, MariaDB_PLUGIN_MATURITY_STABLE
 };

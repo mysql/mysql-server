@@ -197,6 +197,7 @@ extern ulint	srv_log_block_size;
 extern mysql_pfs_key_t	innodb_file_data_key;
 extern mysql_pfs_key_t	innodb_file_log_key;
 extern mysql_pfs_key_t	innodb_file_temp_key;
+extern mysql_pfs_key_t	innodb_file_bmp_key;
 
 /* Following four macros are instumentations to register
 various file I/O operations with performance schema.
@@ -866,6 +867,14 @@ ibool
 os_file_set_eof(
 /*============*/
 	FILE*		file);	/*!< in: file to be truncated */
+/***********************************************************************//**
+Truncates a file at the specified position.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_set_eof_at(
+	os_file_t	file,	/*!< in: handle to a file */
+	ib_uint64_t	new_len);/*!< in: new file length */
 /***********************************************************************//**
 NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.

@@ -1,0 +1,21 @@
+SELECT COUNT(@@GLOBAL.innodb_track_changed_pages);
+COUNT(@@GLOBAL.innodb_track_changed_pages)
+1
+SET @@GLOBAL.innodb_track_changed_pages=1;
+ERROR HY000: Variable 'innodb_track_changed_pages' is a read only variable
+SELECT @@GLOBAL.innodb_track_changed_pages = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_track_changed_pages';
+@@GLOBAL.innodb_track_changed_pages = VARIABLE_VALUE
+1
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'OFF'
+SELECT @@innodb_track_changed_pages = @@GLOBAL.innodb_track_changed_pages;
+@@innodb_track_changed_pages = @@GLOBAL.innodb_track_changed_pages
+1
+SELECT COUNT(@@SESSION.innodb_track_changed_pages);
+ERROR HY000: Variable 'innodb_track_changed_pages' is a GLOBAL variable
+SELECT COUNT(@@LOCAL.innodb_track_changed_pages);
+ERROR HY000: Variable 'innodb_track_changed_pages' is a GLOBAL variable
+SELECT innodb_track_changed_pages = @@SESSION.innodb_track_changed_pages;
+ERROR 42S22: Unknown column 'innodb_track_changed_pages' in 'field list'
