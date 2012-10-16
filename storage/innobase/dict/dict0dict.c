@@ -487,10 +487,12 @@ Looks for column n in an index.
 ULINT_UNDEFINED if not contained */
 UNIV_INTERN
 ulint
-dict_index_get_nth_col_pos(
-/*=======================*/
-	const dict_index_t*	index,	/*!< in: index */
-	ulint			n)	/*!< in: column number */
+dict_index_get_nth_col_or_prefix_pos(
+/*=================================*/
+	const dict_index_t*	index,		/*!< in: index */
+	ulint			n,		/*!< in: column number */
+	ibool			inc_prefix)	/*!< in: TRUE=consider
+						column prefixes too */
 {
 	const dict_field_t*	field;
 	const dict_col_t*	col;
@@ -512,13 +514,28 @@ dict_index_get_nth_col_pos(
 	for (pos = 0; pos < n_fields; pos++) {
 		field = dict_index_get_nth_field(index, pos);
 
-		if (col == field->col && field->prefix_len == 0) {
+		if (col == field->col
+		    && (inc_prefix || field->prefix_len == 0)) {
 
 			return(pos);
 		}
 	}
 
 	return(ULINT_UNDEFINED);
+}
+
+/********************************************************************//**
+Looks for column n in an index.
+@return position in internal representation of the index;
+ULINT_UNDEFINED if not contained */
+UNIV_INTERN
+ulint
+dict_index_get_nth_col_pos(
+/*=======================*/
+	const dict_index_t*	index,	/*!< in: index */
+	ulint			n)	/*!< in: column number */
+{
+	return(dict_index_get_nth_col_or_prefix_pos(index, n, FALSE));
 }
 
 #ifndef UNIV_HOTBACKUP
