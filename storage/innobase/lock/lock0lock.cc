@@ -4576,12 +4576,9 @@ lock_release(
 {
 	lock_t*		lock;
 	ulint		count = 0;
-	trx_id_t	max_trx_id;
 
 	ut_ad(lock_mutex_own());
 	ut_ad(!trx_mutex_own(trx));
-
-	max_trx_id = trx_sys_get_max_trx_id();
 
 	for (lock = UT_LIST_GET_LAST(trx->lock.trx_locks);
 	     lock != NULL;
@@ -4627,7 +4624,7 @@ lock_release(
 				block the use of the MySQL query cache for
 				all currently active transactions. */
 
-				table->query_cache_inv_trx_id = max_trx_id;
+				table->query_cache_inv_time = ut_time();
 			}
 
 			lock_table_dequeue(lock);
