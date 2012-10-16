@@ -411,19 +411,20 @@ trx_resurrect_insert(
 
 		if (undo->state == TRX_UNDO_PREPARED) {
 
-			fprintf(stderr,
-				"InnoDB: Transaction " TRX_ID_FMT " was in the"
-				" XA prepared state.\n", trx->id);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Transaction " TRX_ID_FMT " was in the XA "
+				"prepared state.", trx->id);
 
 			if (srv_force_recovery == 0) {
 
 				trx->state = TRX_STATE_PREPARED;
-				trx_sys->n_prepared_trx++;
-				trx_sys->n_prepared_recovered_trx++;
+				++trx_sys->n_prepared_trx;
+				++trx_sys->n_prepared_recovered_trx;
 			} else {
-				fprintf(stderr,
-					"InnoDB: Since innodb_force_recovery"
-					" > 0, we will rollback it anyway.\n");
+
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Since innodb_force_recovery > 0, we "
+					"will force a rollback.");
 
 				trx->state = TRX_STATE_ACTIVE;
 			}
@@ -473,23 +474,23 @@ trx_resurrect_update_in_prepared_state(
 	protection of trx->mutex or trx_sys->mutex here. */
 
 	if (undo->state == TRX_UNDO_PREPARED) {
-		fprintf(stderr,
-			"InnoDB: Transaction " TRX_ID_FMT
-			" was in the XA prepared state.\n", trx->id);
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Transaction " TRX_ID_FMT " was in the XA "
+			"prepared state.", trx->id);
 
 		if (srv_force_recovery == 0) {
 			if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
-				trx_sys->n_prepared_trx++;
-				trx_sys->n_prepared_recovered_trx++;
+				++trx_sys->n_prepared_trx;
+				++trx_sys->n_prepared_recovered_trx;
 			} else {
 				ut_ad(trx_state_eq(trx, TRX_STATE_PREPARED));
 			}
 
 			trx->state = TRX_STATE_PREPARED;
 		} else {
-			fprintf(stderr,
-				"InnoDB: Since innodb_force_recovery"
-				" > 0, we will rollback it anyway.\n");
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Since innodb_force_recovery > 0, we will "
+				"rollback it anyway.");
 
 			trx->state = TRX_STATE_ACTIVE;
 		}

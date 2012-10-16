@@ -1406,7 +1406,6 @@ dict_table_rename_in_cache(
 	ulint		fold;
 	char		old_name[MAX_FULL_NAME_LEN + 1];
 
-	ut_ad(table);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	/* store the old/current name to an automatic variable */
@@ -1442,11 +1441,38 @@ dict_table_rename_in_cache(
 	/* If the table is stored in a single-table tablespace, rename the
 	.ibd file and rebuild the .isl file if needed. */
 
-	if (table->space != TRX_SYS_SPACE
-	    && !dict_table_is_discarded(table)
-	    && !table->ibd_file_missing) {
-		ibool	success;
+	if (dict_table_is_discarded(table)) {
+		os_file_type_t	type;
+		ibool		exists;
+		char*		filepath;
+
+		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+
+			dict_get_and_save_data_dir_path(table, true);
+			ut_a(table->data_dir_path);
+
+			filepath = os_file_make_remote_pathname(
+				table->data_dir_path, table->name, "ibd");
+		} else {
+			filepath = fil_make_ibd_name(table->name, false);
+		}
+
+		/* Delete any temp file hanging around. */
+		if (os_file_status(filepath, &exists, &type)
+		    && exists
+		    && !os_file_delete_if_exists(filepath)) {
+
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Delete of %s failed.", filepath);
+		}
+
+		mem_free(filepath);
+
+		fil_delete_link_file(table->name);
+
+	} else if (table->space != TRX_SYS_SPACE) {
 		char*	new_path = NULL;
+
 		if (table->dir_path_of_temp_table != NULL) {
 			ut_print_timestamp(stderr);
 			fputs("  InnoDB: Error: trying to rename a"
@@ -1457,15 +1483,15 @@ dict_table_rename_in_cache(
 					  table->dir_path_of_temp_table);
 			fputs(" )\n", stderr);
 			return(DB_ERROR);
-		}
 
-		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
+		} else if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			char*		old_path;
 
 			old_path = fil_space_get_first_path(table->space);
 
 			new_path = os_file_make_new_pathname(
 				old_path, new_name);
+
 			mem_free(old_path);
 
 			dberr_t	err = fil_create_link_file(
@@ -1477,18 +1503,15 @@ dict_table_rename_in_cache(
 			}
 		}
 
-		success = fil_rename_tablespace(
+		ibool	success = fil_rename_tablespace(
 			old_name, table->space, new_name, new_path);
 
 		/* If the tablespace is remote, a new .isl file was created
 		If success, delete the old one. If not, delete the new one.  */
 		if (new_path) {
+
 			mem_free(new_path);
-			if (success) {
-				fil_delete_link_file(old_name);
-			} else {
-				fil_delete_link_file(new_name);
-			}
+			fil_delete_link_file(success ? old_name : new_name);
 		}
 
 		if (!success) {
@@ -1519,12 +1542,11 @@ dict_table_rename_in_cache(
 	ut_a(dict_sys->size > 0);
 
 	/* Update the table_name field in indexes */
-	index = dict_table_get_first_index(table);
+	for (index = dict_table_get_first_index(table);
+	     index != NULL;
+	     index = dict_table_get_next_index(index)) {
 
-	while (index != NULL) {
 		index->table_name = table->name;
-
-		index = dict_table_get_next_index(index);
 	}
 
 	if (!rename_also_foreigns) {
@@ -1640,9 +1662,10 @@ dict_table_rename_in_cache(
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
 
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	     foreign != NULL;
+	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
 
-	while (foreign != NULL) {
 		if (ut_strlen(foreign->referenced_table_name)
 		    < ut_strlen(table->name)) {
 			/* Allocate a longer name buffer;
@@ -1650,13 +1673,16 @@ dict_table_rename_in_cache(
 
 			foreign->referenced_table_name = mem_heap_strdup(
 				foreign->heap, table->name);
-			dict_mem_referenced_table_name_lookup_set(foreign, TRUE);
+
+			dict_mem_referenced_table_name_lookup_set(
+				foreign, TRUE);
 		} else {
 			/* Use the same buffer */
 			strcpy(foreign->referenced_table_name, table->name);
-			dict_mem_referenced_table_name_lookup_set(foreign, FALSE);
+
+			dict_mem_referenced_table_name_lookup_set(
+				foreign, FALSE);
 		}
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 
 	return(DB_SUCCESS);
