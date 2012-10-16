@@ -53,6 +53,12 @@ Warning	1292	Truncated incorrect innodb_autoextend_increment value: '1001'
 SELECT @@global.innodb_autoextend_increment;
 @@global.innodb_autoextend_increment
 1000
+SET @@global.innodb_autoextend_increment  = 2000 ;
+Warnings:
+Warning	1292	Truncated incorrect innodb_autoextend_increment value: '2000'
+SELECT @@global.innodb_autoextend_increment;
+@@global.innodb_autoextend_increment
+1000
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_autoextend_increment  = VARIABLE_VALUE
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES

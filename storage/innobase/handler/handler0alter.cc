@@ -354,6 +354,12 @@ ha_innobase::check_if_supported_inplace_alter(
 
 			key_part->field = altered_table->field[
 				key_part->fieldnr];
+			/* In some special cases InnoDB emits "false"
+			duplicate key errors with NULL key values. Let
+			us play safe and ensure that we can correctly
+			print key values even in such cases .*/
+			key_part->null_offset = key_part->field->null_offset();
+			key_part->null_bit = key_part->field->null_bit;
 
 			if (new_field->field) {
 				/* This is an existing column. */
@@ -4684,6 +4690,12 @@ undo_add_fk:
 
 		DBUG_EXECUTE_IF("ib_ddl_crash_before_rename",
 				DBUG_SUICIDE(););
+
+		/* The new table must inherit the flag from the
+		"parent" table. */
+		if (dict_table_is_discarded(prebuilt->table)) {
+			ctx->indexed_table->flags2 |= DICT_TF2_DISCARDED;
+		}
 
 		error = row_merge_rename_tables(
 			prebuilt->table, ctx->indexed_table,

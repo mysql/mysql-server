@@ -58,6 +58,21 @@ SET @@global.innodb_concurrency_tickets = 1001;
 SELECT @@global.innodb_concurrency_tickets;
 @@global.innodb_concurrency_tickets
 1001
+SET @@global.innodb_concurrency_tickets = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_concurrency_tickets'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1001
+SET @@global.innodb_concurrency_tickets = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_concurrency_tickets'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1001
+SET @@global.innodb_concurrency_tickets = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_concurrency_tickets'
+SELECT @@global.innodb_concurrency_tickets;
+@@global.innodb_concurrency_tickets
+1001
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_concurrency_tickets =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES

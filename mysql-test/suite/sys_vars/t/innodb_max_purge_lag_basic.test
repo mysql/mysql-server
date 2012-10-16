@@ -90,9 +90,17 @@ SELECT @@global.innodb_max_purge_lag;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.innodb_max_purge_lag = "Y";
 SELECT @@global.innodb_max_purge_lag;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_purge_lag = 1.1;
+SELECT @@global.innodb_max_purge_lag;
 
 
-SET @@global.innodb_max_purge_lag = 1001;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_purge_lag = ' ';
+SELECT @@global.innodb_max_purge_lag;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_max_purge_lag = " ";
 SELECT @@global.innodb_max_purge_lag;
 
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'

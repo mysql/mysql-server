@@ -1680,6 +1680,18 @@ row_update_for_mysql(
 
 	trx_start_if_not_started_xa(trx, true);
 
+	if (dict_table_is_referenced_by_foreign_key(table)) {
+		/* Share lock the data dictionary to prevent any
+		table dictionary (for foreign constraint) change.
+		This is similar to row_ins_check_foreign_constraint
+		check protect by the dictionary lock as well.
+		In the future, this can be removed once the Foreign
+		key MDL is implemented */
+		row_mysql_freeze_data_dictionary(trx);
+		init_fts_doc_id_for_ref(table, &fk_depth);
+		row_mysql_unfreeze_data_dictionary(trx);
+	}
+
 	node = prebuilt->upd_node;
 
 	clust_index = dict_table_get_first_index(table);
@@ -2101,7 +2113,7 @@ one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
 "innodb_table_monitor", then this will also start the printing of monitor
 output by the master thread. If the table name ends in "innodb_mem_validate",
 InnoDB will try to invoke mem_validate(). On failure the transaction will
-be rolled back.
+be rolled back and the 'table' object will be freed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
@@ -2214,7 +2226,6 @@ err_exit:
 #endif /* UNIV_MEM_DEBUG */
 	}
 
-
 	heap = mem_heap_create(512);
 
 	switch (trx_get_dict_operation(trx)) {
@@ -2240,7 +2251,7 @@ err_exit:
 
 	err = trx->error_state;
 
-	if (table->space) {
+	if (table->space != TRX_SYS_SPACE) {
 		ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE));
 
 		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
@@ -2292,7 +2303,10 @@ err_exit:
 			if (commit) {
 				trx_commit_for_mysql(trx);
 			}
+		} else {
+			dict_mem_table_free(table);
 		}
+
 		break;
 
 	case DB_TOO_MANY_CONCURRENT_TRXS:
@@ -2502,6 +2516,12 @@ row_table_add_foreign_constraints(
 
 	err = dict_create_foreign_constraints(trx, sql_string, sql_length,
 					      name, reject_fks);
+
+	DBUG_EXECUTE_IF("ib_table_add_foreign_fail",
+			err = DB_DUPLICATE_KEY;);
+
+	DEBUG_SYNC_C("table_add_foreign_constraints");
+
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
 		err = dict_load_foreigns(name, FALSE, TRUE);
@@ -4461,8 +4481,21 @@ loop:
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_open_on_name(table_name, TRUE, FALSE,
-						DICT_ERR_IGNORE_NONE);
+		table = dict_table_open_on_name(
+			table_name, TRUE, FALSE, static_cast<dict_err_ignore_t>(
+				DICT_ERR_IGNORE_INDEX_ROOT
+				| DICT_ERR_IGNORE_CORRUPT));
+
+		if (!table) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot load table %s from InnoDB internal "
+				"data dictionary during drop database",
+				table_name);
+			mem_free(table_name);
+			err = DB_TABLE_NOT_FOUND;
+			break;
+
+		}
 
 		if (row_is_mysql_tmp_table_name(table->name)) {
 			/* There could be an orphan temp table left from

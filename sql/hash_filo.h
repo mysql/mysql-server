@@ -116,6 +116,7 @@ public:
 
   my_bool add(hash_filo_element *entry)
   {
+    if (!m_size) return 1;
     if (cache.records == m_size)
     {
       hash_filo_element *tmp=last_link;
