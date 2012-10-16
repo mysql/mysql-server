@@ -4902,20 +4902,6 @@ dict_index_build_data_tuple(
 }
 
 /*********************************************************************//**
-Logs an operation to a secondary index that is being created. */
-UNIV_INTERN
-void
-dict_index_online_log(
-/*==================*/
-	dict_index_t*	index,	/*!< in/out: index, S-locked */
-	const dtuple_t*	entry,	/*!< in: index entry */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation */
-{
-	row_log_online_op(index, entry, trx_id, op);
-}
-
-/*********************************************************************//**
 Calculates the minimum record length in an index. */
 UNIV_INTERN
 ulint
