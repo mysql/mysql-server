@@ -1676,10 +1676,10 @@ bool Explain_table::explain_join_type()
 
 bool Explain_table::explain_key_and_len()
 {
-  if (key != MAX_KEY)
-    return explain_key_and_len_index(key);
   if (select && select->quick)
     return explain_key_and_len_quick(select);
+  else if (key != MAX_KEY)
+    return explain_key_and_len_index(key);
   return false;
 }
 
