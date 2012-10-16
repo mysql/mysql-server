@@ -2321,6 +2321,18 @@ join_init_quick_read_record(JOIN_TAB *tab)
   trace_table.add_utf8_table(tab->table);
 #endif
 
+  /* 
+    If this join tab was read through a QUICK for the last record
+    combination from earlier tables, test_if_quick_select() will
+    delete that quick and effectively close the index. Otherwise, we
+    need to close the index before the next join iteration starts
+    because the handler object might be reused by a different access
+    strategy.
+  */
+  if ((!tab->select || !tab->select->quick) && 
+      (tab->table->file->inited != handler::NONE))
+    tab->table->file->ha_index_or_rnd_end(); 
+
   if (test_if_quick_select(tab) == -1)
     return -1;					/* No possible records */
   return join_init_read_record(tab);
