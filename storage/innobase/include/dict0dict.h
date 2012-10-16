@@ -1706,7 +1706,9 @@ UNIV_INTERN
 void
 dict_set_corrupted(
 /*===============*/
-	dict_index_t*	index)		/*!< in/out: index */
+	dict_index_t*	index,	/*!< in/out: index */
+	trx_t*		trx,	/*!< in/out: transaction */
+	const char*	ctx)	/*!< in: context */
 	UNIV_COLD __attribute__((nonnull));
 
 /**********************************************************************//**
