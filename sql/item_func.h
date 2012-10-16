@@ -1130,6 +1130,7 @@ public:
   const char *func_name() const { return "last_insert_id"; }
   void fix_length_and_dec()
   {
+    unsigned_flag= TRUE;
     if (arg_count)
       max_length= args[0]->max_length;
   }
