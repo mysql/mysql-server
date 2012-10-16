@@ -7724,7 +7724,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var *e= new Item_func_set_user_var(Name_string(name, name_len, false), it);
+  Item_func_set_user_var *e=
+    new Item_func_set_user_var(Name_string(name, name_len, false), it, false);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -13385,7 +13386,7 @@ size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
 
   if (q == EOF)
   {
-    (void *) strncpy(buffer, identifier, id_length);
+    (void) strncpy(buffer, identifier, id_length);
     return id_length;
   }
   quote_char= (char) q;

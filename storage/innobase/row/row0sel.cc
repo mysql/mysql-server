@@ -4185,6 +4185,11 @@ wait_table_again:
 	}
 
 rec_loop:
+	if (trx_is_interrupted(trx)) {
+		err = DB_INTERRUPTED;
+		goto normal_return;
+	}
+
 	/*-------------------------------------------------------------*/
 	/* PHASE 4: Look for matching records in a loop */
 
@@ -5194,8 +5199,8 @@ row_search_check_if_query_cache_permitted(
 		return(FALSE);
 	}
 
-	table = dict_table_open_on_name(norm_name, FALSE, FALSE,
-					DICT_ERR_IGNORE_NONE);
+	table = dict_table_open_on_name(
+		norm_name, FALSE, FALSE, DICT_ERR_IGNORE_NONE);
 
 	if (table == NULL) {
 
