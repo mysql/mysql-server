@@ -1,3 +1,9 @@
+2012-10-16	The InnoDB Team
+
+	* dict/dict0dict.c, handler/handler0alter.cc, include/dict0dict.h:
+	Fix Bug#14729221 IN-PLACE ALTER TABLE REPORTS '' INSTEAD OF REAL
+	DUPLICATE VALUE FOR PREFIX KEYS
+
 2012-10-09	The InnoDB Team
 
 	* row/row0mysql.c:
