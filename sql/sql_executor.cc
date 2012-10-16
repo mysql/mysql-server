@@ -254,9 +254,12 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
   {
     DBUG_PRINT("info",("Sorting for group"));
     THD_STAGE_INFO(thd, stage_sorting_for_group);
+
     if (ordered_index_usage != ordered_index_group_by &&
+        (join_tab + const_tables)->type != JT_CONST && // Don't sort 1 row
         add_sorting_to_table(join_tab + const_tables, &group_list))
       goto err;
+
     if (alloc_group_fields(this, group_list) ||
         make_sum_func_list(all_fields, fields_list, true) ||
         prepare_sum_aggregators(sum_funcs,
