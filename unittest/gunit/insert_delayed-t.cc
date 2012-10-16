@@ -16,12 +16,10 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
-
 #include "parsertest.h"
-
 #include "test_utils.h"
-
-#include "sql_class.h"
+#include "thr_lock.h"
+#include "sql_lex.h"
 
 namespace {
 

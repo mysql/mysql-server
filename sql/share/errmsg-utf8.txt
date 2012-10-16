@@ -6951,7 +6951,7 @@ ER_READ_ONLY_MODE
         eng "Running in read-only mode"
 
 ER_WARN_LEGACY_SYNTAX_CONVERTED
-  eng "%s was converted to %s."
+  eng "%s is no longer supported. The statement was converted to %s."
 
 #
 #  End of 5.7 error messages.
