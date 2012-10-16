@@ -5420,7 +5420,9 @@ UNIV_INTERN
 void
 dict_set_corrupted(
 /*===============*/
-	dict_index_t*	index)		/*!< in/out: index */
+	dict_index_t*	index,	/*!< in/out: index */
+	trx_t*		trx,	/*!< in/out: transaction */
+	const char*	ctx)	/*!< in: context */
 {
 	mem_heap_t*	heap;
 	mtr_t		mtr;
@@ -5428,8 +5430,14 @@ dict_set_corrupted(
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
 	byte*		buf;
+	char*		table_name;
 	const char*	status;
 	btr_cur_t	cursor;
+	bool		locked	= RW_X_LATCH == trx->dict_operation_lock_mode;
+
+	if (!locked) {
+		row_mysql_lock_data_dictionary(trx);
+	}
 
 	ut_ad(index);
 	ut_ad(mutex_own(&dict_sys->mutex));
@@ -5449,7 +5457,7 @@ dict_set_corrupted(
 	if (index->type & DICT_CORRUPT) {
 		/* The index was already flagged corrupted. */
 		ut_ad(!dict_index_is_clust(index) || index->table->corrupted);
-		return;
+		goto func_exit;
 	}
 
 	heap = mem_heap_create(sizeof(dtuple_t) + 2 * (sizeof(dfield_t)
@@ -5490,19 +5498,29 @@ dict_set_corrupted(
 			goto fail;
 		}
 		mlog_write_ulint(field, index->type, MLOG_4BYTES, &mtr);
-		status = "  InnoDB: Flagged corruption of ";
+		status = "Flagged";
 	} else {
 fail:
-		status = "  InnoDB: Unable to flag corruption of ";
+		status = "Unable to flag";
 	}
 
 	mtr_commit(&mtr);
+	mem_heap_empty(heap);
+	table_name = static_cast<char*>(mem_heap_alloc(heap, FN_REFLEN + 1));
+	innobase_convert_name(
+		table_name, FN_REFLEN,
+		index->table_name, strlen(index->table_name),
+		NULL, TRUE);
+
+	ib_logf(IB_LOG_LEVEL_ERROR, "%s corruption of %s in table %s in %s",
+		status, index->name, table_name, ctx);
+
 	mem_heap_free(heap);
 
-	ut_print_timestamp(stderr);
-	fputs(status, stderr);
-	dict_index_name_print(stderr, NULL, index);
-	putc('\n', stderr);
+func_exit:
+	if (!locked) {
+		row_mysql_unlock_data_dictionary(trx);
+	}
 }
 
 /**********************************************************************//**
