@@ -2600,8 +2600,6 @@ row_log_apply_op_low(
 	dberr_t*	error,		/*!< out: DB_SUCCESS or error code */
 	mem_heap_t*	offsets_heap,	/*!< in/out: memory heap for
 					allocating offsets; can be emptied */
-	mem_heap_t*	heap,		/*!< in/out: memory heap for
-					allocating data tuples */
 	bool		has_index_lock, /*!< in: true if holding index->lock
 					in exclusive mode */
 	enum row_op	op,		/*!< in: operation being applied */
@@ -2640,45 +2638,38 @@ row_log_apply_op_low(
 	if (cursor.low_match >= dict_index_get_n_unique(index)
 	    && !page_rec_is_infimum(btr_cur_get_rec(&cursor))) {
 		/* We have a matching record. */
-		rec_t*		rec	= btr_cur_get_rec(&cursor);
-		ulint		deleted	= rec_get_deleted_flag(
+		rec_t*	rec	= btr_cur_get_rec(&cursor);
+		ulint	deleted	= rec_get_deleted_flag(
 			rec, page_rec_is_comp(rec));
-		upd_t*		update;
-		big_rec_t*	big_rec;
+		bool	exists	= (cursor.low_match
+				   == dict_index_get_n_fields(index));
 
 		ut_ad(page_rec_is_user_rec(rec));
 
-		offsets = rec_get_offsets(rec, index, NULL,
-					  ULINT_UNDEFINED, &offsets_heap);
-		update = row_upd_build_sec_rec_difference_binary(
-			rec, index, offsets, entry, heap);
+		ut_ad(exists || dict_index_is_unique(index));
 
 		switch (op) {
 		case ROW_OP_PURGE:
 			if (!deleted) {
 				/** The record is not delete-marked.
-				If the records do not match
-				(update->n_fields > 0), we did not
-				find the record (it was purged already).
+				If the record does not exist,
+				it was purged already.
 
-				On match (update->n_fields==0), what
-				could have happened is that the
-				delete-mark was set and subsequently
-				cleared on the record (for example, by
-				updating the record back and
-				forth). The table copy would have seen
-				the record after both changes. We can
-				simply discard the log record also in
-				this case. */
+				If the record exists, what could have
+				happened is that the delete-mark was
+				set and subsequently cleared on the
+				record (for example, by updating the
+				record back and forth). The table copy
+				would have seen the record after both
+				changes. We can simply discard the log
+				record also in this case. */
 				goto func_exit;
 			}
 			/* fall through */
 		case ROW_OP_DELETE_PURGE:
-			if (update->n_fields > 0) {
-				/* This was not byte-for-byte equal to
-				the record. The record that we were
-				interested in was apparently already
-				purged. */
+			if (!exists) {
+				/* The record that we were interested
+				in was apparently already purged. */
 				goto func_exit;
 			}
 
@@ -2708,9 +2699,8 @@ row_log_apply_op_low(
 			}
 
 			/* As there are no externally stored fields in
-			the record, the parameter rb_ctx = RB_NONE
-			will be ignored. */
-			ut_ad(!rec_offs_any_extern(offsets));
+			a secondary index record, the parameter
+			rb_ctx = RB_NONE will be ignored. */
 
 			btr_cur_pessimistic_delete(
 				error, FALSE, &cursor,
@@ -2721,8 +2711,13 @@ row_log_apply_op_low(
 update_the_rec:
 			ut_ad(!(entry->info_bits & ~REC_INFO_DELETED_FLAG));
 
-			if (update->n_fields == 0) {
-				/* Update the delete-mark flag only. */
+			if (exists) {
+				if (!deleted == (op != ROW_OP_DELETE_MARK)) {
+					/* The record already exists. */
+					goto func_exit;
+				}
+
+				/* Update the delete-mark flag. */
 				*error = btr_cur_del_mark_set_sec_rec(
 					BTR_NO_UNDO_LOG_FLAG
 					| BTR_NO_LOCKING_FLAG
@@ -2732,75 +2727,13 @@ update_the_rec:
 				break;
 			}
 
-			/* No byte-for-byte equal record was found. */
-			if (cursor.up_match >= dict_index_get_n_unique(index)
-			    || cursor.low_match
-			    >= dict_index_get_n_unique(index)) {
-				/* Duplicate key found. This is OK if
-				any of the key columns are NULL. */
-				if (index->n_nullable
-				    && dtuple_contains_null(entry)) {
-					goto insert_the_rec;
-				}
-				/* FIXME: We used to insert the record
-				if (!deleted || entry->info_bits).
-				Can we reintroduce this condition, and
-				instead check for duplicates when
-				clearing a delete-mark? */
-
-				goto dup_report;
+			/* A duplicate key was found. This is OK if
+			any of the key columns are NULL. */
+			if (index->n_nullable && dtuple_contains_null(entry)) {
+				goto insert_the_rec;
 			}
 
-			/* FIXME: Is the following dead code? */
-
-			update->info_bits =
-				(rec_get_info_bits(rec, page_rec_is_comp(rec))
-				 & ~REC_INFO_DELETED_FLAG)
-				| entry->info_bits;
-
-			if (!has_index_lock) {
-				/* TODO: pass offsets, not &offsets */
-				*error = btr_cur_optimistic_update(
-					BTR_NO_UNDO_LOG_FLAG
-					| BTR_NO_LOCKING_FLAG
-					| BTR_CREATE_FLAG
-					| BTR_KEEP_SYS_FLAG,
-					&cursor, &offsets, &offsets_heap,
-					update, 0, NULL, trx_id, &mtr);
-
-				if (*error != DB_FAIL) {
-					break;
-				}
-
-				/* This needs a pessimistic operation.
-				Lock the index tree exclusively. */
-#ifdef UNIV_DEBUG
-				ulint	low_match = cursor.low_match;
-#endif /* UNIV_DEBUG */
-
-				mtr_commit(&mtr);
-				mtr_start(&mtr);
-				btr_cur_search_to_nth_level(
-					index, 0, entry, PAGE_CUR_LE,
-					BTR_MODIFY_TREE, &cursor, 0,
-					__FILE__, __LINE__, &mtr);
-				/* No other thread than the
-				current one is allowed to
-				modify the index tree. Thus,
-				the record should still exist. */
-				ut_ad(low_match == cursor.low_match);
-			}
-
-			*error = btr_cur_pessimistic_update(
-				BTR_NO_UNDO_LOG_FLAG
-				| BTR_NO_LOCKING_FLAG
-				| BTR_CREATE_FLAG
-				| BTR_KEEP_SYS_FLAG,
-				&cursor, &offsets, &offsets_heap,
-				heap, &big_rec, update,
-				0, NULL, trx_id, &mtr);
-			ut_ad(!big_rec);
-			break;
+			goto dup_report;
 
 		case ROW_OP_INSERT:
 			/* If the matching record is delete-marked,
@@ -2809,15 +2742,11 @@ update_the_rec:
 				goto update_the_rec;
 			}
 
-			if (update->n_fields == 0) {
-				/* An exact match of the record
-				already exists.  There is nothing to
-				be inserted. */
+			if (exists) {
+				/* The record already exists.  There
+				is nothing to be inserted. */
 				goto func_exit;
 			}
-
-			ut_ad(cursor.low_match
-			      < dict_index_get_n_fields(index));
 
 			if (dtuple_contains_null(entry)) {
 				/* The UNIQUE KEY columns match, but
@@ -2902,6 +2831,7 @@ insert_the_rec:
 			ut_ad(!big_rec);
 			break;
 		}
+		mem_heap_empty(offsets_heap);
 	}
 
 	if (*error == DB_SUCCESS && trx_id) {
@@ -2912,8 +2842,6 @@ insert_the_rec:
 
 func_exit:
 	mtr_commit(&mtr);
-	mem_heap_empty(heap);
-	mem_heap_empty(offsets_heap);
 }
 
 /******************************************************//**
@@ -3044,7 +2972,7 @@ corrupted:
 		putc('\n', stderr);
 	}
 #endif /* ROW_LOG_APPLY_PRINT */
-	row_log_apply_op_low(index, dup, error, offsets_heap, heap,
+	row_log_apply_op_low(index, dup, error, offsets_heap,
 			     has_index_lock, op, trx_id, entry);
 	return(mrec);
 }
