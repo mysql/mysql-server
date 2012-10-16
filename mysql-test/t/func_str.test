@@ -1506,3 +1506,14 @@ SET @@global.max_allowed_packet:= @tmp_max;
 --echo #
 --echo # End of 5.5 tests
 --echo #
+
+#
+# Bug#11765562 58545:
+# EXPORT_SET() CAN BE USED TO MAKE ENTIRE SERVER COMPLETELY UNRESPONSIVE
+#
+SELECT @tmp_max:= @@global.max_allowed_packet;
+SET @@global.max_allowed_packet=1024*1024*1024;
+SELECT @@global.max_allowed_packet;
+SELECT CHAR_LENGTH(EXPORT_SET(1,1,1,REPEAT(1,100000000)));
+SET @@global.max_allowed_packet:= @tmp_max;
+

@@ -317,6 +317,10 @@ IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
   ADD_SUBDIRECTORY(sql-bench)
+
+  IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
+    ADD_SUBDIRECTORY(internal)
+  ENDIF()
 ENDIF()
 
 IF(UNIX)

@@ -2867,3 +2867,16 @@ SET @@global.max_allowed_packet:= @tmp_max;
 #
 # End of 5.5 tests
 #
+SELECT @tmp_max:= @@global.max_allowed_packet;
+@tmp_max:= @@global.max_allowed_packet
+1048576
+SET @@global.max_allowed_packet=1024*1024*1024;
+SELECT @@global.max_allowed_packet;
+@@global.max_allowed_packet
+1073741824
+SELECT CHAR_LENGTH(EXPORT_SET(1,1,1,REPEAT(1,100000000)));
+CHAR_LENGTH(EXPORT_SET(1,1,1,REPEAT(1,100000000)))
+NULL
+Warnings:
+Warning	1301	Result of repeat() was larger than max_allowed_packet (1048576) - truncated
+SET @@global.max_allowed_packet:= @tmp_max;

@@ -36,6 +36,7 @@
 #include <debug_sync.h>
 #include <sql_profile.h>
 #include <table.h>
+#include <sql_list.h>
 
 /* Needed to get access to scheduler variables */
 void* thd_get_scheduler_data(THD *thd);
@@ -56,8 +57,13 @@ void thd_unlock_data(THD *thd);
 bool thd_is_transaction_active(THD *thd);
 int thd_connection_has_data(THD *thd);
 void thd_set_net_read_write(THD *thd, uint val);
+uint thd_get_net_read_write(THD *thd);
 void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var);
+ulong  thd_get_net_wait_timeout(THD *thd);
 my_socket thd_get_fd(THD *thd);
+
+THD *first_global_thread();
+THD *next_global_thread(THD *thd);
 
 /* Print to the MySQL error log */
 void sql_print_error(const char *format, ...);

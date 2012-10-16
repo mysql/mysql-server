@@ -274,7 +274,7 @@ public:
              (plugin_var_arg->flags & PLUGIN_VAR_THDLOCAL ? SESSION : GLOBAL) |
              (plugin_var_arg->flags & PLUGIN_VAR_READONLY ? READONLY : 0),
              0, -1, NO_ARG, pluginvar_show_type(plugin_var_arg), 0, 0,
-             VARIABLE_NOT_IN_BINLOG, 0, 0, 0, 0),
+             VARIABLE_NOT_IN_BINLOG, NULL, NULL, NULL),
     plugin_var(plugin_var_arg), orig_pluginvar_name(plugin_var_arg->name)
   { plugin_var->name= name_arg; }
   sys_var_pluginvar *cast_pluginvar() { return this; }
@@ -2157,7 +2157,8 @@ static bool do_uninstall(THD *thd, TABLE *table, const LEX_STRING *name)
   struct st_plugin_int *plugin;
   mysql_mutex_assert_owner(&LOCK_plugin);
 
-  if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)))
+  if (!(plugin= plugin_find_internal(name, MYSQL_ANY_PLUGIN)) ||
+      plugin->state & (PLUGIN_IS_UNINITIALIZED | PLUGIN_IS_DYING))
   {
     my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "PLUGIN", name->str);
     return 1;

@@ -575,7 +575,7 @@ static Sys_var_dbug Sys_dbug(
        "debug", "Built-in DBUG debugger", sys_var::SESSION,
        CMD_LINE(OPT_ARG, '#'), DEFAULT(""), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_has_super), ON_UPDATE(0),
-       DEPRECATED(50600, "'@@debug_dbug'"));
+       DEPRECATED("'@@debug_dbug'"));
 
 static Sys_var_dbug Sys_debug_dbug(
        "debug_dbug", "Built-in DBUG debugger", sys_var::SESSION,
@@ -1215,7 +1215,7 @@ static Sys_var_harows Sys_sql_max_join_size(
        SESSION_VAR(max_join_size), NO_CMD_LINE,
        VALID_RANGE(1, HA_POS_ERROR), DEFAULT(HA_POS_ERROR), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_max_join_size), DEPRECATED(70000, "'@@max_join_size'"));
+       ON_UPDATE(fix_max_join_size), DEPRECATED("'@@max_join_size'"));
 
 static Sys_var_ulong Sys_max_long_data_size(
        "max_long_data_size",
@@ -1676,7 +1676,7 @@ static Sys_var_ulong Sys_rpl_recovery_rank(
        GLOBAL_VAR(rpl_recovery_rank), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(70000, 0));
+       DEPRECATED(""));
 
 static Sys_var_ulong Sys_range_alloc_block_size(
        "range_alloc_block_size",
@@ -1690,7 +1690,7 @@ static Sys_var_ulong Sys_multi_range_count(
        SESSION_VAR(multi_range_count), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(256), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0),
-       DEPRECATED(50700, "'@@mrr_buffer_size'"));
+       DEPRECATED("'@@mrr_buffer_size'"));
 
 static bool fix_thd_mem_root(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2454,7 +2454,7 @@ static Sys_var_mybool Sys_engine_condition_pushdown(
        CMD_LINE(OPT_ARG, OPT_ENGINE_CONDITION_PUSHDOWN),
        DEFAULT(TRUE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),
        ON_UPDATE(fix_engine_condition_pushdown),
-       DEPRECATED(70000, "'@@optimizer_switch'"));
+       DEPRECATED("'@@optimizer_switch'"));
 
 static Sys_var_plugin Sys_default_storage_engine(
        "default_storage_engine", "The default storage engine for new tables",
@@ -3136,7 +3136,7 @@ static Sys_var_mybool Sys_log(
        "log", "Alias for --general-log. Deprecated",
        GLOBAL_VAR(opt_log), NO_CMD_LINE,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_log_state), DEPRECATED(70000, "'@@general_log'"));
+       ON_UPDATE(fix_log_state), DEPRECATED("'@@general_log'"));
 
 static Sys_var_mybool Sys_slow_query_log(
        "slow_query_log",
@@ -3153,7 +3153,7 @@ static Sys_var_mybool Sys_log_slow(
        "Alias for --slow-query-log. Deprecated",
        GLOBAL_VAR(opt_slow_log), NO_CMD_LINE,
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
-       ON_UPDATE(fix_log_state), DEPRECATED(70000, "'@@slow_query_log'"));
+       ON_UPDATE(fix_log_state), DEPRECATED("'@@slow_query_log'"));
 
 static bool fix_log_state(sys_var *self, THD *thd, enum_var_type type)
 {

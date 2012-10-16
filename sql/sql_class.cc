@@ -275,6 +275,64 @@ bool Foreign_key::validate(List<Create_field> &table_fields)
 /****************************************************************************
 ** Thread specific functions
 ****************************************************************************/
+#ifdef ONLY_FOR_MYSQL_CLOSED_SOURCE_SCHEDULED
+/**
+  Get reference to scheduler data object
+
+  @param thd            THD object
+
+  @retval               Scheduler data object on THD
+*/
+void *thd_get_scheduler_data(THD *thd)
+{
+  return thd->scheduler.data;
+}
+
+/**
+  Set reference to Scheduler data object for THD object
+
+  @param thd            THD object
+  @param psi            Scheduler data object to set on THD
+*/
+void thd_set_scheduler_data(THD *thd, void *data)
+{
+  thd->scheduler.data= data;
+}
+
+/**
+  Get reference to Performance Schema object for THD object
+
+  @param thd            THD object
+
+  @retval               Performance schema object for thread on THD
+*/
+PSI_thread *thd_get_psi(THD *thd)
+{
+  return thd->scheduler.m_psi;
+}
+
+/**
+  Get net_wait_timeout for THD object
+
+  @param thd            THD object
+
+  @retval               net_wait_timeout value for thread on THD
+*/
+ulong thd_get_net_wait_timeout(THD* thd)
+{
+  return thd->variables.net_wait_timeout;
+}
+
+/**
+  Set reference to Performance Schema object for THD object
+
+  @param thd            THD object
+  @param psi            Performance schema object for thread
+*/
+void thd_set_psi(THD *thd, PSI_thread *psi)
+{
+  thd->scheduler.m_psi= psi;
+}
 
 /**
   Set the state on connection to killed
@@ -407,6 +465,17 @@ void thd_set_net_read_write(THD *thd, uint val)
 }
 
 /**
+  Get reading/writing on socket from THD object
+  @param thd                       THD object
+
+  @retval               net.reading_or_writing value for thread on THD.
+*/
+uint thd_get_net_read_write(THD *thd)
+{
+  return thd->net.reading_or_writing;
+}
+
+/**
   Set reference to mysys variable in THD object
 
   @param thd             THD object
@@ -428,6 +497,7 @@ my_socket thd_get_fd(THD *thd)
 {
   return thd->net.vio->sd;
 }
+#endif
 
 /**
   Get thread attributes for connection threads

@@ -1,4 +1,4 @@
-source federated.inc;
+source include/federated.inc;
 
 --echo #
 --echo # Bug #585688: maridb crashes in federatedx code
@@ -49,5 +49,5 @@ DROP TABLE federated.t1;
 
 connection default;
 
-source federated_cleanup.inc;
+source include/federated_cleanup.inc;
 

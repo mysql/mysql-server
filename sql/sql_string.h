@@ -2,8 +2,8 @@
 #define SQL_STRING_INCLUDED
 
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates.
-   Copyright (c) 2008-2011 Monty Program Ab
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2008, 2011, Monty Program Ab
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -279,8 +279,11 @@ public:
     }
     return realloc_with_extra(arg_length);
   }
-  inline void shrink(uint32 arg_length)		// Shrink buffer
+  // Shrink the buffer, but only if it is allocated on the heap.
+  inline void shrink(uint32 arg_length)
   {
+    if (!is_alloced())
+      return;
     if (ALIGN_SIZE(arg_length+1) < Alloced_length)
     {
       char *new_ptr;
@@ -296,7 +299,7 @@ public:
       }
     }
   }
-  bool is_alloced() { return alloced; }
+  bool is_alloced() const { return alloced; }
   inline String& operator = (const String &s)
   {
     if (&s != this)

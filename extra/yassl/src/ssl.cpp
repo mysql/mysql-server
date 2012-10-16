@@ -27,7 +27,6 @@
 
 
 
-
 /*  see man pages for function descriptions */
 
 #include "runtime.hpp"
@@ -747,7 +746,7 @@ void SSL_CTX_set_verify(SSL_CTX* ctx, int mode, VerifyCallback vc)
 int SSL_CTX_load_verify_locations(SSL_CTX* ctx, const char* file,
                                   const char* path)
 {
-    int       ret = SSL_SUCCESS;
+    int       ret = SSL_FAILURE;
     const int HALF_PATH = 128;
 
     if (file) ret = read_file(ctx, file, SSL_FILETYPE_PEM, CA);
@@ -1014,7 +1013,7 @@ char* ERR_error_string(unsigned long errNumber, char* buffer)
   static char* msg = (char*)"Please supply a buffer for error string";
 
     if (buffer) {
-        SetErrorString(errNumber, buffer);
+        SetErrorString(YasslError(errNumber), buffer);
         return buffer;
     }
 

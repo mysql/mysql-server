@@ -1667,12 +1667,19 @@ JOIN::optimize()
         DBUG_RETURN(1);
       }
     }
-    
+    /*
+      Calculate a possible 'limit' of table rows for 'GROUP BY': 'need_tmp'
+      implies that there will be more postprocessing so the specified
+      'limit' should not be enforced yet in the call to
+      'test_if_skip_sort_order'.
+    */
+    const ha_rows limit = need_tmp ? HA_POS_ERROR : unit->select_limit_cnt;
+
     if (!(select_options & SELECT_BIG_RESULT) &&
         ((group_list &&
           (!simple_group ||
            !test_if_skip_sort_order(&join_tab[const_tables], group_list,
-                                    unit->select_limit_cnt, 0, 
+                                    limit, 0,
                                     &join_tab[const_tables].table->
                                     keys_in_use_for_group_by))) ||
          select_distinct) &&
@@ -8017,6 +8024,7 @@ get_store_key(THD *thd, KEYUSE *keyuse, table_map used_tables,
 			       key_part->length,
 			       ((Item_field*) keyuse->val->real_item())->field,
 			       keyuse->val->real_item()->full_name());
+
   return new store_key_item(thd,
 			    key_part->field,
 			    key_buff + maybe_null,

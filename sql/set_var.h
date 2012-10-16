@@ -79,7 +79,7 @@ protected:
   ptrdiff_t offset;     ///< offset to the value from global_system_variables
   on_check_function on_check;
   on_update_function on_update;
-  struct { uint version; const char *substitute; } deprecated;
+  const char *const deprecation_substitute;
   bool is_os_charset; ///< true if the value is in character_set_filesystem
 
 public:
@@ -88,7 +88,7 @@ public:
           enum get_opt_arg_type getopt_arg_type, SHOW_TYPE show_val_type_arg,
           longlong def_val, PolyLock *lock, enum binlog_status_enum binlog_status_arg,
           on_check_function on_check_func, on_update_function on_update_func,
-          uint deprecated_version, const char *substitute);
+          const char *substitute);
 
   virtual ~sys_var() {}
 

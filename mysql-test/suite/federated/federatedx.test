@@ -4,7 +4,7 @@
 #
 
 
---source federated.inc
+--source include/federated.inc
 --source have_federatedx.inc
 
 connection default;
@@ -1999,4 +1999,4 @@ connection slave;
 SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
 
 connection default;
-source federated_cleanup.inc;
+source suite/federated/include/federated_cleanup.inc;
