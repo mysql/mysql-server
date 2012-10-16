@@ -147,7 +147,7 @@ innobase_rec_to_mysql(
 
 		field->reset();
 
-		ipos = dict_index_get_nth_col_pos(index, i);
+		ipos = dict_index_get_nth_col_or_prefix_pos(index, i, TRUE);
 
 		if (UNIV_UNLIKELY(ipos == ULINT_UNDEFINED)) {
 null_field:
