@@ -152,8 +152,7 @@ row_log_online_op(
 	extra_size+1 (and reserve 0 as the end-of-chunk marker). */
 
 	size = rec_get_converted_size_comp_prefix(
-		index, tuple->fields, tuple->n_fields,
-		index->n_nullable, &extra_size);
+		index, tuple->fields, tuple->n_fields, &extra_size);
 	ut_ad(size >= extra_size);
 	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 	extra_size -= REC_N_NEW_EXTRA_BYTES;
@@ -224,8 +223,7 @@ op_ok:
 
 	rec_convert_dtuple_to_rec_comp(
 		b + extra_size, 0, index,
-		REC_STATUS_ORDINARY, tuple->fields, tuple->n_fields,
-		index->n_nullable);
+		REC_STATUS_ORDINARY, tuple->fields, tuple->n_fields);
 	b += size;
 
 	if (mrec_size >= avail_size) {
@@ -488,7 +486,7 @@ row_log_table_delete(
 		      old_pk, old_pk->n_fields - 1)->len);
 	old_pk_size = rec_get_converted_size_comp_prefix(
 		new_index, old_pk->fields, old_pk->n_fields,
-		0, &old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
+		&old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
 	ut_ad(old_pk_extra_size >= REC_N_NEW_EXTRA_BYTES);
 	old_pk_extra_size -= REC_N_NEW_EXTRA_BYTES;
 	ut_ad(old_pk_extra_size < 0x100);
@@ -530,7 +528,7 @@ row_log_table_delete(
 		rec_convert_dtuple_to_rec_comp(
 			b + old_pk_extra_size, 0, new_index,
 			REC_STATUS_ORDINARY,
-			old_pk->fields, old_pk->n_fields, 0);
+			old_pk->fields, old_pk->n_fields);
 
 		b += old_pk_size;
 
@@ -635,8 +633,8 @@ row_log_table_low_redundant(
 	}
 
 	size = rec_get_converted_size_comp_prefix(
-		index, tuple->fields, tuple->n_fields,
-		index->n_nullable, &extra_size) - REC_N_NEW_EXTRA_BYTES;
+		index, tuple->fields, tuple->n_fields, &extra_size)
+		- REC_N_NEW_EXTRA_BYTES;
 	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 	extra_size -= REC_N_NEW_EXTRA_BYTES;;
 
@@ -655,7 +653,7 @@ row_log_table_low_redundant(
 
 		old_pk_size = rec_get_converted_size_comp_prefix(
 			new_index, old_pk->fields, old_pk->n_fields,
-			0, &old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
+			&old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
 		ut_ad(old_pk_extra_size >= REC_N_NEW_EXTRA_BYTES);
 		old_pk_extra_size -= REC_N_NEW_EXTRA_BYTES;
 		ut_ad(old_pk_extra_size < 0x100);
@@ -672,7 +670,7 @@ row_log_table_low_redundant(
 			rec_convert_dtuple_to_rec_comp(
 				b + old_pk_extra_size, 0, new_index,
 				REC_STATUS_ORDINARY,
-				old_pk->fields, old_pk->n_fields, 0);
+				old_pk->fields, old_pk->n_fields);
 			b += old_pk_size;
 		}
 
@@ -686,7 +684,7 @@ row_log_table_low_redundant(
 
 		rec_convert_dtuple_to_rec_comp(
 			b + extra_size, 0, index, REC_STATUS_ORDINARY,
-			tuple->fields, tuple->n_fields, index->n_nullable);
+			tuple->fields, tuple->n_fields);
 		b += size;
 
 		row_log_table_close(
@@ -768,7 +766,7 @@ row_log_table_low(
 
 		old_pk_size = rec_get_converted_size_comp_prefix(
 			new_index, old_pk->fields, old_pk->n_fields,
-			0, &old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
+			&old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
 		ut_ad(old_pk_extra_size >= REC_N_NEW_EXTRA_BYTES);
 		old_pk_extra_size -= REC_N_NEW_EXTRA_BYTES;
 		ut_ad(old_pk_extra_size < 0x100);
@@ -785,7 +783,7 @@ row_log_table_low(
 			rec_convert_dtuple_to_rec_comp(
 				b + old_pk_extra_size, 0, new_index,
 				REC_STATUS_ORDINARY,
-				old_pk->fields, old_pk->n_fields, 0);
+				old_pk->fields, old_pk->n_fields);
 			b += old_pk_size;
 		}
 
@@ -1863,8 +1861,7 @@ row_log_table_apply_op(
 		}
 
 		rec_offs_set_n_fields(offsets, dup->index->n_fields);
-		rec_init_offsets_comp_ordinary(
-			mrec, 0, dup->index, dup->index->n_nullable, offsets);
+		rec_init_offsets_comp_ordinary(mrec, 0, dup->index, offsets);
 
 		next_mrec = mrec + rec_offs_data_size(offsets);
 
@@ -1898,7 +1895,7 @@ row_log_table_apply_op(
 		mrec += extra_size;
 
 		rec_offs_set_n_fields(offsets, new_index->n_uniq + 1);
-		rec_init_offsets_comp_ordinary(mrec, 0, new_index, 0, offsets);
+		rec_init_offsets_comp_ordinary(mrec, 0, new_index, offsets);
 		next_mrec = mrec + rec_offs_data_size(offsets) + ext_size;
 		if (next_mrec > mrec_end) {
 			return(NULL);
@@ -1962,8 +1959,7 @@ row_log_table_apply_op(
 
 			rec_offs_set_n_fields(offsets, dup->index->n_fields);
 			rec_init_offsets_comp_ordinary(
-				mrec, 0, dup->index, dup->index->n_nullable,
-				offsets);
+				mrec, 0, dup->index, offsets);
 
 			next_mrec = mrec + rec_offs_data_size(offsets);
 
@@ -2003,7 +1999,7 @@ row_log_table_apply_op(
 			DB_TRX_ID, DB_ROLL_PTR. */
 			rec_offs_set_n_fields(offsets, new_index->n_uniq + 2);
 			rec_init_offsets_comp_ordinary(
-				mrec, 0, new_index, 0, offsets);
+				mrec, 0, new_index, offsets);
 
 			next_mrec = mrec + rec_offs_data_size(offsets);
 			if (next_mrec + 2 > mrec_end) {
@@ -2054,8 +2050,7 @@ row_log_table_apply_op(
 
 			rec_offs_set_n_fields(offsets, dup->index->n_fields);
 			rec_init_offsets_comp_ordinary(
-				mrec, 0, dup->index, dup->index->n_nullable,
-				offsets);
+				mrec, 0, dup->index, offsets);
 
 			next_mrec = mrec + rec_offs_data_size(offsets);
 
@@ -2934,8 +2929,7 @@ corrupted:
 		return(NULL);
 	}
 
-	rec_init_offsets_comp_ordinary(
-		mrec, 0, index, index->n_nullable, offsets);
+	rec_init_offsets_comp_ordinary(mrec, 0, index, offsets);
 
 	if (rec_offs_any_extern(offsets)) {
 		/* There should never be any externally stored fields
