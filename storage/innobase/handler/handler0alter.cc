@@ -4435,6 +4435,36 @@ ha_innobase::commit_inplace_alter_table(
 		DEBUG_SYNC(user_thd, "innodb_alter_commit_after_lock_table");
 	}
 
+	if (ctx) {
+		if (ctx->indexed_table != prebuilt->table) {
+			for (dict_index_t* index = dict_table_get_first_index(
+				     ctx->indexed_table);
+			     index;
+			     index = dict_table_get_next_index(index)) {
+				DBUG_ASSERT(dict_index_get_online_status(index)
+					    == ONLINE_INDEX_COMPLETE);
+				DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
+				if (dict_index_is_corrupted(index)) {
+					my_error(ER_INDEX_CORRUPT, MYF(0),
+						 index->name);
+					DBUG_RETURN(true);
+				}
+			}
+		} else {
+			for (ulint i = 0; i < ctx->num_to_add; i++) {
+				dict_index_t*	index = ctx->add[i];
+				DBUG_ASSERT(dict_index_get_online_status(index)
+					    == ONLINE_INDEX_COMPLETE);
+				DBUG_ASSERT(*index->name == TEMP_INDEX_PREFIX);
+				if (dict_index_is_corrupted(index)) {
+					my_error(ER_INDEX_CORRUPT, MYF(0),
+						 index->name + 1);
+					DBUG_RETURN(true);
+				}
+			}
+		}
+	}
+
 	if (!ctx || !ctx->trx) {
 		/* Create a background transaction for the operations on
 		the data dictionary tables. */

@@ -2940,8 +2940,9 @@ row_ins_sec_index_entry(
 		}
 	}
 
-	if (dict_index_online_trylog(index, entry, thr_get_trx(thr)->id,
-				     ROW_OP_INSERT)) {
+	ut_ad(thr_get_trx(thr)->id);
+
+	if (dict_index_online_trylog(index, entry, thr_get_trx(thr)->id)) {
 		return(DB_SUCCESS);
 	}
 

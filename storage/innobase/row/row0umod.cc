@@ -472,9 +472,8 @@ row_undo_mod_del_mark_or_remove_sec(
 {
 	dberr_t	err;
 
-	if (dict_index_online_trylog(
-		    index, entry, thr_get_trx(thr)->id, ROW_OP_DELETE_MARK)) {
-		/* The index is being created, and the delete-mark
+	if (dict_index_online_trylog(index, entry, 0)) {
+		/* The index is being created, and the delete
 		operation was buffered (or the index creation was aborted). */
 		return(DB_SUCCESS);
 	}
@@ -521,10 +520,9 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
 	ut_ad(trx->id);
 
-	if (dict_index_online_trylog(
-		    index, entry, trx->id, ROW_OP_DELETE_UNMARK)) {
-		/* The index is being created, and the delete-unmark
-		operation was buffered (or the index creation was aborted). */
+	if (dict_index_online_trylog(index, entry, trx->id)) {
+		/* The index is being created, and the operation was
+		buffered (or the index creation was aborted). */
 		return(DB_SUCCESS);
 	}
 
