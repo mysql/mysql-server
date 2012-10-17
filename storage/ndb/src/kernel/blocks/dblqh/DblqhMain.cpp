@@ -844,7 +844,7 @@ void Dblqh::execNDB_STTOR(Signal* signal)
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId) 
 {
-  UintR Ti;
+  UintR Ti, Tj;
   HostRecordPtr ThostPtr;
 
 /* ------- INITIATE ALL RECORDS ------- */
@@ -866,6 +866,18 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
     ThostPtr.p->inPackedList = false;
     ThostPtr.p->noOfPackedWordsLqh = 0;
     ThostPtr.p->noOfPackedWordsTc  = 0;
+    for (Tj = 0; Tj < NDB_ARRAY_SIZE(ThostPtr.p->lqh_pack); Tj++)
+    {
+      ThostPtr.p->lqh_pack[Tj].noOfPackedWords = 0;
+      ThostPtr.p->lqh_pack[Tj].hostBlockRef =
+        numberToRef(DBLQH, Tj, ThostPtr.i);
+    }
+    for (Tj = 0; Tj < NDB_ARRAY_SIZE(ThostPtr.p->tc_pack); Tj++)
+    {
+      ThostPtr.p->tc_pack[Tj].noOfPackedWords = 0;
+      ThostPtr.p->tc_pack[Tj].hostBlockRef =
+        numberToRef(DBTC, Tj, ThostPtr.i);
+    }
     ThostPtr.p->nodestatus = ZNODE_DOWN;
   }//for
   cpackedListIndex = 0;
@@ -3452,6 +3464,7 @@ void Dblqh::execSEND_PACKED(Signal* signal)
 {
   HostRecordPtr Thostptr;
   UintR i;
+  UintR j;
   UintR TpackedListIndex = cpackedListIndex;
   jamEntry();
   for (i = 0; i < TpackedListIndex; i++) {
@@ -3467,6 +3480,22 @@ void Dblqh::execSEND_PACKED(Signal* signal)
       jam();
       sendPackedSignalTc(signal, Thostptr.p);
     }//if
+    for (j = 0; j < NDB_ARRAY_SIZE(Thostptr.p->lqh_pack); j++)
+    {
+      struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[j];
+      if (container->noOfPackedWords > 0) {
+        jam();
+        sendPackedSignal(signal, container);
+      }
+    }
+    for (j = 0; j < NDB_ARRAY_SIZE(Thostptr.p->tc_pack); j++)
+    {
+      struct PackedWordsContainer * container = &Thostptr.p->tc_pack[j];
+      if (container->noOfPackedWords > 0) {
+        jam();
+        sendPackedSignal(signal, container);
+      }
+    }
     Thostptr.p->inPackedList = false;
   }//for
   cpackedListIndex = 0;
@@ -3729,6 +3758,18 @@ void Dblqh::sendPackedSignalTc(Signal* signal, HostRecord * ahostptr)
   sendSignal(hostRef, GSN_PACKED_SIGNAL, signal, noOfWords, JBB);
   ahostptr->noOfPackedWordsTc = 0;
 }//Dblqh::sendPackedSignalTc()
+
+void Dblqh::sendPackedSignal(Signal* signal,
+                             struct PackedWordsContainer * container)
+{
+  Uint32 noOfWords = container->noOfPackedWords;
+  BlockReference hostRef = container->hostBlockRef;
+  container->noOfPackedWords = 0;
+  MEMCOPY_NO_WORDS(&signal->theData[0],
+                   &container->packedWords[0],
+                   noOfWords);
+  sendSignal(hostRef, GSN_PACKED_SIGNAL, signal, noOfWords, JBB);
+}
 
 void Dblqh::sendCommitLqh(Signal* signal, BlockReference alqhBlockref)
 {

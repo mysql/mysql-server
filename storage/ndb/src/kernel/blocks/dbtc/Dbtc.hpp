@@ -998,6 +998,8 @@ public:
   /*       THIS RECORD IS ALIGNED TO BE 128 BYTES.        */
   /********************************************************/
   struct HostRecord {
+    struct PackedWordsContainer lqh_pack[MAX_NDBMT_LQH_THREADS+1];
+    struct PackedWordsContainer packTCKEYCONF;
     HostState hostStatus;
     LqhTransState lqhTransStatus;
     bool  inPackedList;
@@ -1017,7 +1019,7 @@ public:
     };
     Uint32 m_nf_bits;
     NdbNodeBitmask m_lqh_trans_conf;
-  }; /* p2c: size = 128 bytes */
+  };
   
   typedef Ptr<HostRecord> HostRecordPtr;
   
@@ -1455,6 +1457,8 @@ private:
                            HostRecord * ahostptr,
                            UintR hostId);
   void sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr);
+  void sendPackedSignal(Signal* signal,
+                        struct PackedWordsContainer * container);
   Uint32 sendCommitLqh(Signal* signal,
                        TcConnectRecord * const regTcPtr);
   Uint32 sendCompleteLqh(Signal* signal,
