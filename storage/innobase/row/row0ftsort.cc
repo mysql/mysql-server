@@ -36,7 +36,7 @@ Created 10/13/2010 Jimmy Yang
 #define ROW_MERGE_READ_GET_NEXT(N)					\
 	do {								\
 		b[N] = row_merge_read_rec(				\
-			block[N], buf[N], b[N], index, n_null,		\
+			block[N], buf[N], b[N], index,			\
 			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
 		if (UNIV_UNLIKELY(!b[N])) {				\
 			if (mrec[N]) {					\
@@ -435,7 +435,6 @@ row_merge_fts_doc_tokenize(
 
 		mtuple_t* mtuple = &buf->tuples[buf->n_tuples + n_tuple[idx]];
 
-		mtuple->del_mark = false;
 		field = mtuple->fields = static_cast<dfield_t*>(
 			mem_heap_alloc(buf->heap,
 				       FTS_NUM_FIELDS_SORT * sizeof *field));
@@ -1375,8 +1374,6 @@ row_fts_merge_insert(
 	ins_ctx.fts_table.table_id = table->id;
 	ins_ctx.fts_table.parent = index->table->name;
 	ins_ctx.fts_table.table = NULL;
-
-	const ulint	n_null = index->n_nullable;
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {

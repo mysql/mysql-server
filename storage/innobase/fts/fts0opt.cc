@@ -40,20 +40,23 @@ Completed 2011/7/10 Sunny and Jimmy Yang
 #include "fts0vlc.ic"
 #endif
 
-/* The FTS optimize thread's work queue. */
+/** The FTS optimize thread's work queue. */
 static ib_wqueue_t* fts_optimize_wq;
 
-/* The number of document ids to delete in one statement. */
+/** The number of document ids to delete in one statement. */
 static const ulint FTS_MAX_DELETE_DOC_IDS = 1000;
 
-/* Time to wait for a message. */
+/** Time to wait for a message. */
 static const ulint FTS_QUEUE_WAIT_IN_USECS = 5000000;
 
-/* Default optimize interval in secs. */
+/** Default optimize interval in secs. */
 static const ulint FTS_OPTIMIZE_INTERVAL_IN_SECS = 300;
 
+/** Server is shutting down, so does we exiting the optimize thread */
+static bool fts_opt_start_shutdown = false;
+
 #if 0
-/* Check each table in round robin to see whether they'd
+/** Check each table in round robin to see whether they'd
 need to be "optimized" */
 static	ulint	fts_optimize_sync_iterator = 0;
 #endif
@@ -2594,6 +2597,14 @@ fts_optimize_remove_table(
 		return;
 	}
 
+	/* FTS optimizer thread is already exited */
+	if (fts_opt_start_shutdown) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Try to remove table %s after FTS optimize"
+			" thread exiting.", table->name);
+		return;
+	}
+
 	msg = fts_optimize_create_msg(FTS_MSG_DEL_TABLE, NULL);
 
 	/* We will wait on this event until signalled by the consumer. */
@@ -3073,6 +3084,16 @@ fts_optimize_start_shutdown(void)
 
 	fts_msg_t*	msg;
 	os_event_t	event;
+
+	/* If there is an ongoing activity on dictionary, such as
+	srv_master_evict_from_table_cache(), wait for it */
+	dict_mutex_enter_for_mysql();
+
+	/* Tells FTS optimizer system that we are exiting from
+	optimizer thread, message send their after will not be
+	processed */
+	fts_opt_start_shutdown = true;
+	dict_mutex_exit_for_mysql();
 
 	/* We tell the OPTIMIZE thread to switch to state done, we
 	can't delete the work queue here because the add thread needs

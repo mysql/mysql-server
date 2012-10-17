@@ -1817,7 +1817,8 @@ dict_load_indexes(
 			/* TABLE_ID mismatch means that we have
 			run out of index definitions for the table. */
 
-			if (dict_table_get_first_index(table) == NULL) {
+			if (dict_table_get_first_index(table) == NULL
+			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Failed to load the "
 					"clustered index for table %s "

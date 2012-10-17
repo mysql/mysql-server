@@ -12,7 +12,8 @@
 #                                                                    #
 ######################################################################
 
-
+# Don't test this under valgrind, memory leaks will occur due restart
+--source include/not_valgrind.inc
 # Not supported in embedded
 --source include/not_embedded.inc
 

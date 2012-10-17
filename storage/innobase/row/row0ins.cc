@@ -1687,6 +1687,8 @@ end_scan:
 
 do_possible_lock_wait:
 	if (err == DB_LOCK_WAIT) {
+		bool		verified = false;
+
 		trx->error_state = err;
 
 		que_thr_stop_for_mysql(thr);
@@ -1700,12 +1702,27 @@ do_possible_lock_wait:
 			goto exit_func;
 		}
 
-		if (trx->error_state == DB_SUCCESS) {
-
-			goto run_again;
+		/* We had temporarily released dict_operation_lock in
+		above lock sleep wait, now we have the lock again, and
+		we will need to re-check whether the foreign key has been
+		dropped */
+		for (const dict_foreign_t* check_foreign = UT_LIST_GET_FIRST(
+			table->referenced_list);
+		     check_foreign;
+		     check_foreign = UT_LIST_GET_NEXT(
+                                referenced_list, check_foreign)) {
+			if (check_foreign == foreign) {
+				verified = true;
+			}
 		}
 
-		err = trx->error_state;
+		if (!verified) {
+			err = DB_DICT_CHANGED;
+		} else if (trx->error_state == DB_SUCCESS) {
+			goto run_again;
+		} else {
+			err = trx->error_state;
+		}
 	}
 
 exit_func:
@@ -1993,6 +2010,11 @@ row_ins_duplicate_online_is_newer(
 	ulint		n_uniq,	/*!< in: offset of DB_TRX_ID */
 	const byte*	old_trx)/*!< in: trx_id to look for */
 {
+	/* FIXME: We should access the undo log here to see the
+	history. During testing, it seemed that sometimes the undo
+	log records can have been freed when we get here. */
+	return(false);
+
 	mem_heap_t*	heap;
 	bool		is_newer	= false;
 	trx_id_t	old_trx_id;
@@ -2918,8 +2940,9 @@ row_ins_sec_index_entry(
 		}
 	}
 
-	if (dict_index_online_trylog(index, entry, thr_get_trx(thr)->id,
-				     ROW_OP_INSERT)) {
+	ut_ad(thr_get_trx(thr)->id);
+
+	if (dict_index_online_trylog(index, entry, thr_get_trx(thr)->id)) {
 		return(DB_SUCCESS);
 	}
 
@@ -3191,6 +3214,10 @@ row_ins(
 
 		node->index = dict_table_get_next_index(node->index);
 		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+
+		DBUG_EXECUTE_IF(
+			"row_ins_skip_sec",
+			node->index = NULL; node->entry = NULL; break;);
 
 		/* Skip corrupted secondary index and its entry */
 		while (node->index && dict_index_is_corrupted(node->index)) {

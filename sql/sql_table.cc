@@ -2420,6 +2420,13 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         DBUG_PRINT("info", ("frm_db_type %d from %s", frm_db_type, path));
       }
       table_type= ha_resolve_by_legacy_type(thd, frm_db_type);
+      if (frm_db_type != DB_TYPE_UNKNOWN && !table_type)
+      {
+        my_error(ER_STORAGE_ENGINE_NOT_LOADED, MYF(0), db, table->table_name);
+        wrong_tables.free();
+        error= 1;
+        goto err;
+      }
       // Remove extension for delete
       *(end= path + path_length - reg_ext_length)= '\0';
       DBUG_PRINT("info", ("deleting table of type %d",
@@ -6733,7 +6740,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         */
         while ((find=find_it++))
         {
-          if (!my_strcasecmp(system_charset_info, def->field_name, find->field_name))
+          /*
+            Create_fields representing changed columns are added directly
+            from Alter_info::create_list to new_create_list. We can therefore
+            safely use pointer equality rather than name matching here.
+            This prevents removing the wrong column in case of column rename.
+          */
+          if (find == def)
           {
             find_it.remove();
             break;
