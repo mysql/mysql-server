@@ -34,6 +34,7 @@ Smart ALTER TABLE
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "log0log.h"
+#include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
 #include "srv0srv.h"
@@ -265,6 +266,14 @@ ha_innobase::check_if_supported_inplace_alter(
 	if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	} else if (srv_created_new_raw || srv_force_recovery) {
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
+	if (altered_table->s->fields > REC_MAX_N_USER_FIELDS) {
+		/* Deny the inplace ALTER TABLE. MySQL will try to
+		re-create the table and ha_innobase::create() will
+		return an error too. This is how we effectively
+		deny adding too many columns to a table. */
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
