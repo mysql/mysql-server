@@ -5358,6 +5358,7 @@ Dbtc::sendCommitLqh(Signal* signal,
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
+  Uint32 instanceKey = regTcPtr->lqhInstanceKey;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
@@ -5380,20 +5381,18 @@ Dbtc::sendCommitLqh(Signal* signal,
     ndbassert(Tdata[4] == 0 || getNodeInfo(Thostptr.i).m_version == 0);
     len = 4;
   }
-
-  // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers > 1;
-  if (send_unpacked) {
+  if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    Uint32 instanceKey = regTcPtr->lqhInstanceKey;
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     sendSignal(lqhRef, GSN_COMMIT, signal, len, JBB);
     return ret;
   }
 
-  if (Thostptr.p->noOfPackedWordsLqh > 25 - 5) {
+  struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[instanceKey];
+
+  if (container->noOfPackedWords > 25 - len) {
     jam();
-    sendPackedSignalLqh(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     ret = 1;
@@ -5401,10 +5400,10 @@ Dbtc::sendCommitLqh(Signal* signal,
   }
 
   Tdata[0] |= (ZCOMMIT << 28);
-  UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
-  UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
+  UintR Tindex = container->noOfPackedWords;
+  container->noOfPackedWords = Tindex + len;
+  UintR* TDataPtr = &container->packedWords[Tindex];
   memcpy(TDataPtr, &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsLqh = Tindex + len;
   return ret;
 }
 
@@ -5754,8 +5753,9 @@ Dbtc::sendCompleteLqh(Signal* signal,
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
+  Uint32 instanceKey = regTcPtr->lqhInstanceKey;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  Thostptr.i = regTcPtr->lastLqhNodeId; //last???
+  Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 
   Uint32 Tnode = Thostptr.i;
@@ -5768,19 +5768,18 @@ Dbtc::sendCompleteLqh(Signal* signal,
   Tdata[2] = regApiPtr->transid[1];
   Uint32 len = 3;
 
-  // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers > 1;
-  if (send_unpacked) {
+  if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    Uint32 instanceKey = regTcPtr->lqhInstanceKey;
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     sendSignal(lqhRef, GSN_COMPLETE, signal, 3, JBB);
     return ret;
   }
-  
-  if (Thostptr.p->noOfPackedWordsLqh > 22) {
+                          
+  struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[instanceKey];
+
+  if (container->noOfPackedWords > 22) {
     jam();
-    sendPackedSignalLqh(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     ret = 1;
@@ -5788,11 +5787,10 @@ Dbtc::sendCompleteLqh(Signal* signal,
   }
 
   Tdata[0] |= (ZCOMPLETE << 28);
-  UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
-  UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
+  UintR Tindex = container->noOfPackedWords;
+  container->noOfPackedWords = Tindex + len;
+  UintR* TDataPtr = &container->packedWords[Tindex];
   memcpy(TDataPtr, &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsLqh = Tindex + len;
-
   return ret;
 }
 
