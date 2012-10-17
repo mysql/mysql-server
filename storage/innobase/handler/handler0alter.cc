@@ -4724,6 +4724,7 @@ undo_add_fk:
 		/* The new table must inherit the flag from the
 		"parent" table. */
 		if (dict_table_is_discarded(prebuilt->table)) {
+			ctx->indexed_table->ibd_file_missing = true;
 			ctx->indexed_table->flags2 |= DICT_TF2_DISCARDED;
 		}
 
