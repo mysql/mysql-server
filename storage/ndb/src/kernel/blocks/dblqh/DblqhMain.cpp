@@ -7635,7 +7635,10 @@ Dblqh::sendFireTrigConfTc(Signal* signal,
                           BlockReference atcBlockref,
                           Uint32 Tdata[])
 {
-  if (refToInstance(atcBlockref) != 0)
+  Uint32 instanceKey = refToInstance(atcBlockref);
+
+  ndbassert(refToMain(atcBlockref) == DBTC);
+  if (instanceKey > MAX_NDBMT_TC_THREADS)
   {
     jam();
     memcpy(signal->theData, Tdata, 4 * FireTrigConf::SignalLength);
@@ -7645,15 +7648,15 @@ Dblqh::sendFireTrigConfTc(Signal* signal,
   }
 
   HostRecordPtr Thostptr;
-  Uint32 len = FireTrigConf::SignalLength;
-
   Thostptr.i = refToNode(atcBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  Uint32 len = FireTrigConf::SignalLength;
+  struct PackedWordsContainer * container = &Thostptr.p->tc_pack[instanceKey];
 
-  if (Thostptr.p->noOfPackedWordsTc > (25 - len))
+  if (container->noOfPackedWords > (25 - len))
   {
     jam();
-    sendPackedSignalTc(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   }
   else
   {
@@ -7662,8 +7665,8 @@ Dblqh::sendFireTrigConfTc(Signal* signal,
   }
 
   ndbassert(FireTrigConf::SignalLength == 4);
-  Uint32 * dst = &Thostptr.p->packedWordsTc[Thostptr.p->noOfPackedWordsTc];
-  Thostptr.p->noOfPackedWordsTc += len;
+  Uint32 * dst = &container->packedWords[container->noOfPackedWords];
+  container->noOfPackedWords += len;
   dst[0] = Tdata[0] | (ZFIRE_TRIG_CONF << 28);
   dst[1] = Tdata[1];
   dst[2] = Tdata[2];
