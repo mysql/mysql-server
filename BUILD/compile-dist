@@ -74,12 +74,6 @@ then
   fi
 fi
 
-if test -z "$WITH_NDB_JAVA_DEFAULT" ; then
-  # Turn off build of NDB's Java components
-  export WITH_NDB_JAVA_DEFAULT
-  WITH_NDB_JAVA_DEFAULT=0
-fi
-
 # Make sure to enable all features that affect "make dist"
 # Remember that configure restricts the man pages to the configured features !
 ./configure \
