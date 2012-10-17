@@ -3949,83 +3949,90 @@ void Dblqh::sendCompletedTc(Signal* signal, BlockReference atcBlockref)
 void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
 {
   LqhKeyConf* lqhKeyConf;
+  struct PackedWordsContainer * container;
+  bool send_packed = true;
   HostRecordPtr Thostptr;
-
-  bool packed= true;
   Thostptr.i = refToNode(atcBlockref);
+  Uint32 instanceKey = refToInstance(atcBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
-  if (refToBlock(atcBlockref) == DBTC) {
-    jam();
+  Uint32 block = refToMain(atcBlockref);
+
+  if (block == DBLQH)
+  {
+    if (instanceKey <= MAX_NDBMT_LQH_THREADS)
+    {
+      container = &Thostptr.p->lqh_pack[instanceKey];
+    }
+    else
+    {
+      send_packed = false;
+    }
+  }
+  else if (block == DBTC)
+  {
+    if (instanceKey <= MAX_NDBMT_TC_THREADS)
+    {
+      container = &Thostptr.p->tc_pack[instanceKey];
+    }
+    else
+    {
+      send_packed = false;
+    }
+  }
+  else
+  {
+    send_packed = false;
+  }
+
 /*******************************************************************
+// Normal path
 // This signal was intended for DBTC as part of the normal transaction
 // execution.
-********************************************************************/
-    if (Thostptr.p->noOfPackedWordsTc > (25 - LqhKeyConf::SignalLength)) {
-      jam();
-      sendPackedSignalTc(signal, Thostptr.p);
-    } else {
-      jam();
-      updatePackedList(signal, Thostptr.p, Thostptr.i);
-    }//if
-    lqhKeyConf = (LqhKeyConf *)
-      &Thostptr.p->packedWordsTc[Thostptr.p->noOfPackedWordsTc];
-    Thostptr.p->noOfPackedWordsTc += LqhKeyConf::SignalLength;
-  } else if(refToMain(atcBlockref) == DBLQH &&
-            refToInstance(atcBlockref) == instance()) {
-    //wl4391_todo check
-    jam();
-/*******************************************************************
+// More unusual path
 // This signal was intended for DBLQH as part of log execution or
 // node recovery.
+// Yet another path
+// Intended for DBSPJ as part of join processing
 ********************************************************************/
-    if (Thostptr.p->noOfPackedWordsLqh > (25 - LqhKeyConf::SignalLength)) {
+  if (send_packed)
+  {
+    if (container->noOfPackedWords > (25 - LqhKeyConf::SignalLength)) {
       jam();
-      sendPackedSignalLqh(signal, Thostptr.p);
+      sendPackedSignal(signal, container);
     } else {
       jam();
       updatePackedList(signal, Thostptr.p, Thostptr.i);
     }//if
     lqhKeyConf = (LqhKeyConf *)
-      &Thostptr.p->packedWordsLqh[Thostptr.p->noOfPackedWordsLqh];
-    Thostptr.p->noOfPackedWordsLqh += LqhKeyConf::SignalLength;
-  } else {
-    packed= false;
-    lqhKeyConf = (LqhKeyConf *)signal->getDataPtrSend();
+      &container->packedWords[container->noOfPackedWords];
+    container->noOfPackedWords += LqhKeyConf::SignalLength;
   }
+  else
+  {
+    lqhKeyConf = (LqhKeyConf *)&signal->theData[0];
+  }
+
   Uint32 ptrAndType = tcConnectptr.i | (ZLQHKEYCONF << 28);
   Uint32 tcOprec = tcConnectptr.p->tcOprec;
   Uint32 ownRef = cownref;
+  lqhKeyConf->connectPtr = ptrAndType;
+  lqhKeyConf->opPtr = tcOprec;
+  lqhKeyConf->userRef = ownRef;
+
   Uint32 readlenAi = tcConnectptr.p->readlenAi;
   Uint32 transid1 = tcConnectptr.p->transid[0];
   Uint32 transid2 = tcConnectptr.p->transid[1];
   Uint32 noFiredTriggers = tcConnectptr.p->noFiredTriggers;
-  lqhKeyConf->connectPtr = ptrAndType;
-  lqhKeyConf->opPtr = tcOprec;
-  lqhKeyConf->userRef = ownRef;
   lqhKeyConf->readLen = readlenAi;
   lqhKeyConf->transId1 = transid1;
   lqhKeyConf->transId2 = transid2;
   lqhKeyConf->noFiredTriggers = noFiredTriggers;
 
-  if(!packed)
+  if (!send_packed)
   {
     lqhKeyConf->connectPtr = tcConnectptr.i;
-    if (instance() == refToInstance(atcBlockref) &&
-        (Thostptr.i == 0 || Thostptr.i == getOwnNodeId()) &&
-        globalData.ndbMtTcThreads == 0)
-    {
-      /**
-       * This EXECUTE_DIRECT is multi-thread safe, as we only get here
-       * for RESTORE block.
-       */
-      EXECUTE_DIRECT(refToMain(atcBlockref), GSN_LQHKEYCONF,
-		     signal, LqhKeyConf::SignalLength);
-    }
-    else
-    {
-      sendSignal(atcBlockref, GSN_LQHKEYCONF,
-		 signal, LqhKeyConf::SignalLength, JBB);
-    }
+    sendSignal(atcBlockref, GSN_LQHKEYCONF,
+               signal, LqhKeyConf::SignalLength, JBB);
   }
 }//Dblqh::sendLqhkeyconfTc()
 
