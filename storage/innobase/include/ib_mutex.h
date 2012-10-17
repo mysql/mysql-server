@@ -474,32 +474,22 @@ struct TTASMutex {
 		m_policy.destroy();
 	}
 
- 	/** Try and lock the mutex. Note: POSIX returns 0 on success.
-	@return true on success */
-	bool try_lock() UNIV_NOTHROW
+	/**
+	Try and acquire the lock using TestAndSet.
+	@return	true if lock succeeded */
+	bool tas_lock() UNIV_NOTHROW
 	{
-		return(CAS(&m_lock_word,
-			   MUTEX_STATE_UNLOCKED, MUTEX_STATE_LOCKED)
-		       == MUTEX_STATE_UNLOCKED);
-
+		return(TAS(&m_lock_word, MUTEX_STATE_LOCKED)
+			== MUTEX_STATE_UNLOCKED);
 	}
- 
- 	/** Release the mutex. */
-	void exit() UNIV_NOTHROW
+
+	/** In theory __sync_lock_release should be used to release the lock.
+	Unfortunately, it does not work properly alone. The workaround is
+	that more conservative __sync_lock_test_and_set is used instead. */
+	void tas_unlock() UNIV_NOTHROW
 	{
 #ifdef UNIV_DEBUG
-		switch (state()) {
-		case MUTEX_STATE_WAITERS:
-			/* It is a spin lock, can't be any waiters. */
-			ut_error;
-
-		case MUTEX_STATE_UNLOCKED:
-			/* This is an invalid state. */
-			ut_error;
-
-		case MUTEX_STATE_LOCKED:
-			break;
-		}
+		ut_ad(state() == MUTEX_STATE_LOCKED);
 
 		lock_word_t	lock =
 #endif /* UNIV_DEBUG */
@@ -507,6 +497,19 @@ struct TTASMutex {
 		TAS(&m_lock_word, MUTEX_STATE_UNLOCKED);
 
 		ut_ad(lock == MUTEX_STATE_LOCKED);
+	}
+
+ 	/** Try and lock the mutex.
+	@return true on success */
+	bool try_lock() UNIV_NOTHROW
+	{
+		return(tas_lock());
+	}
+ 
+ 	/** Release the mutex. */
+	void exit() UNIV_NOTHROW
+	{
+		tas_unlock();
 	}
 
  	/** Acquire the mutex. */
@@ -517,8 +520,7 @@ struct TTASMutex {
 		}
 	}
 
-	/**
-	@return the lock state. */
+	/** @return the lock state. */
 	lock_word_t state() const UNIV_NOTHROW
 	{
 		/** Try and force a memory read. */
@@ -530,7 +532,7 @@ struct TTASMutex {
 	/** @return true if locked by some thread */
 	bool is_locked() const UNIV_NOTHROW
 	{
-		return(state() != MUTEX_STATE_UNLOCKED);
+		return(m_lock_word != MUTEX_STATE_UNLOCKED);
 	}
 
 #ifdef UNIV_DEBUG
@@ -548,26 +550,24 @@ private:
 	{
 		/* The Test, Test again And Set (TTAS) loop. */
 
-		for (;;) {
-			MutexPolicy::test_poll(*this);
+		do {
+			ulint	i;
 
-			/* Test again and set */
-			switch (CAS(&m_lock_word,
-				    MUTEX_STATE_UNLOCKED, MUTEX_STATE_LOCKED)) {
+			for (i  = 0;
+			     !is_locked() && i < srv_n_spin_wait_rounds;
+			     ++i) {
 
-			case MUTEX_STATE_LOCKED:
-				break;
-
-			case MUTEX_STATE_UNLOCKED:
-				return;
-
-			case MUTEX_STATE_WAITERS:
-				/* This is a spin only mutex. */
-				ut_error;
+				if (srv_spin_wait_delay) {
+					ut_delay(ut_rnd_interval(
+						 0, srv_spin_wait_delay));
+				}
 			}
 
-			os_thread_yield();
-		}
+			if (i == srv_n_spin_wait_rounds) {
+				os_thread_yield();
+			}
+
+		} while (!try_lock());
 	}
 
 private:
@@ -695,7 +695,7 @@ struct TTASWaitMutex {
 	/** @return true if locked by some thread */
 	bool is_locked() const UNIV_NOTHROW
 	{
-		return(state() != MUTEX_STATE_UNLOCKED);
+		return(m_lock_word != MUTEX_STATE_UNLOCKED);
 	}
 
 #ifdef UNIV_DEBUG
@@ -709,35 +709,29 @@ struct TTASWaitMutex {
 private:
 	/**
 	Try and acquire the mutex by spinning.
-	@param n_spins - spin count
-	@param max spins - maximum number of spins
-	@param max delay - random delay upper bound
+	@param start - start spin count
 	@return current spin count */
-
-	ulint spin(ulint n_spins, ulint max_spins, ulint max_delay) UNIV_NOTHROW
+	ulint spin(ulint start) UNIV_NOTHROW
 	{
+		ulint	i;
+
 		/* Spin waiting for the lock word to become zero. Note
 		that we do not have to assume that the read access to
 		the lock word is atomic, as the actual locking is always
 		committed with atomic test-and-set. In reality, however,
 		all processors probably have an atomic read of a memory word. */
 
-		ulint	n = n_spins / max_spins;
+		for (i  = start;
+		     !is_locked() && i < srv_n_spin_wait_rounds;
+		     ++i) {
 
-		while (!(n_spins++ % max_spins)) {
-
-			if (m_lock_word == MUTEX_STATE_UNLOCKED) {
-				break;
-			}
-
-			ulint	m = n * ut_rnd_interval(0, max_delay);
-
-			for (ulint i = 0; i < m; ++i) {
-				UT_RELAX_CPU();
+			if (srv_spin_wait_delay) {
+				ut_delay(ut_rnd_interval(
+						0, srv_spin_wait_delay));
 			}
 		}
 
-		return(n_spins);
+		return(i);
 	}
 
 	/**
@@ -752,18 +746,20 @@ private:
 	void spin_and_wait(const char* file_name, ulint line) UNIV_NOTHROW
 	{
 		ulint	n_spins = 0;
-		ulint	max_spins = srv_n_spin_wait_rounds;
-		ulint	max_delay = srv_spin_wait_delay;
 
 		for (;;) {
 
-			n_spins = spin(n_spins, max_spins, max_delay);
+			n_spins = spin(n_spins);
 
 			if (try_lock()) {
 				break;
+			} else if (n_spins == srv_n_spin_wait_rounds) {
+				os_thread_yield();
+			} else if (n_spins < srv_n_spin_wait_rounds) {
+				continue;
+			} else {
+				n_spins = 0;
 			}
-
-			os_thread_yield();
 
 			if (wait(file_name, line)) {
 				break;
@@ -788,13 +784,13 @@ private:
 		return(ptr);
 	}
 
-	/* Note that there are threads waiting on the mutex */
+	/** Note that there are threads waiting on the mutex */
 	void set_waiters() UNIV_NOTHROW
 	{
 		*waiters() = 1;
 	}
 
-	/* Note that there are no threads waiting on the mutex */
+	/** Note that there are no threads waiting on the mutex */
 	void clear_waiters() UNIV_NOTHROW
 	{
 		*waiters() = 0;
@@ -805,8 +801,7 @@ private:
 	@return	true if lock succeeded */
 	bool tas_lock() UNIV_NOTHROW
 	{
-		return(os_atomic_test_and_set_ulint(
-				&m_lock_word, MUTEX_STATE_LOCKED)
+		return(TAS(&m_lock_word, MUTEX_STATE_LOCKED)
 			== MUTEX_STATE_UNLOCKED);
 	}
 
@@ -815,8 +810,7 @@ private:
 	that more conservative __sync_lock_test_and_set is used instead. */
 	void tas_unlock() UNIV_NOTHROW
 	{
-		os_atomic_test_and_set_ulint(
-			&m_lock_word, MUTEX_STATE_UNLOCKED);
+		TAS(&m_lock_word, MUTEX_STATE_UNLOCKED);
 	}
 
 	/** Wakeup any waiting thread(s). */
@@ -857,6 +851,10 @@ struct PolicyMutex
 	/** Release the mutex. */
 	void exit() UNIV_NOTHROW
 	{
+#ifdef UNIV_PFS_MUTEX
+		pfs_exit(); 
+#endif /* UNIV_PFS_MUTEX */
+
 		m_impl.m_policy.release(m_impl);
 
 		m_impl.exit();
@@ -867,16 +865,36 @@ struct PolicyMutex
 	@line - line number where locked */
 	void enter(const char* name = 0, ulint line = 0) UNIV_NOTHROW
 	{
+#ifdef UNIV_PFS_MUTEX
+		/* Note: locker is really an alias for state. That's why
+		it has to be in the same scope during pfs_end(). */
+
+		PSI_mutex_locker_state	state;
+		PSI_mutex_locker* locker = pfs_begin(&state, name, line);
+#endif /* UNIV_PFS_MUTEX */
+
 		m_impl.m_policy.enter(m_impl);
 
 		m_impl.enter(name, line);
 
 		m_impl.m_policy.locked(m_impl);
+
+#ifdef UNIV_PFS_MUTEX
+		pfs_end(locker, 0); 
+#endif /* UNIV_PFS_MUTEX */
 	}
 
 	/** Try and lock the mutex, return 0 on SUCCESS and -1 on error. */
 	int trylock(const char* name = 0, ulint line = 0) UNIV_NOTHROW
 	{
+#ifdef UNIV_PFS_MUTEX
+		/* Note: locker is really an alias for state. That's why
+		it has to be in the same scope during pfs_end(). */
+
+		PSI_mutex_locker_state	state;
+		PSI_mutex_locker* locker = pfs_begin(&state, name, line);
+#endif /* UNIV_PFS_MUTEX */
+
 		m_impl.m_policy.enter(m_impl);
 
 		int ret = !m_impl.try_lock();
@@ -884,6 +902,10 @@ struct PolicyMutex
 		if (ret == 0) {
 			m_impl.m_policy.locked(m_impl);
 		}
+
+#ifdef UNIV_PFS_MUTEX
+		pfs_end(locker, 0); 
+#endif /* UNIV_PFS_MUTEX */
 
 		return(ret);
 	}
@@ -905,12 +927,21 @@ struct PolicyMutex
 	void init(const char* name, const char* filename, ulint line)
 		UNIV_NOTHROW
 	{
+#ifdef UNIV_PFS_MUTEX
+		extern mysql_pfs_key_t sync_latch_get_pfs_key(const char*);
+
+		pfs_add(sync_latch_get_pfs_key(name));
+#endif /* UNIV_PFS_MUTEX */
+
 		m_impl.init(name, filename, line);
 	}
 
 	/** Free resources (if any) */
 	void destroy() UNIV_NOTHROW
 	{
+#ifdef UNIV_PFS_MUTEX
+		pfs_del();
+#endif /* UNIV_PFS_MUTEX */
 		m_impl.destroy();
 	}	
 
@@ -920,88 +951,7 @@ struct PolicyMutex
 		return(m_impl.operator sys_mutex_t*());
 	}
 
-private:
-	/** The mutex implementation */
-	MutexImpl		m_impl;
-};
-
 #ifdef UNIV_PFS_MUTEX
-/** Mutex interface for all performance schema mutexes. */
-template <typename MutexImpl>
-struct PFSMutex : PolicyMutex<MutexImpl>
-{
-	PFSMutex() : m_ptr() UNIV_NOTHROW { }
-
-	~PFSMutex() { }
-
-	/** Release the mutex. */
-	void exit() UNIV_NOTHROW
-	{
-		pfs_exit(); 
-		PolicyMutex<MutexImpl>::exit();
-	}
-
-	/** Acquire the mutex.
-	@name - filename where locked
-	@line - line number where locked */
-	void enter(const char* name = 0, ulint line = 0) UNIV_NOTHROW
-	{
-		/* Note: locker is really an alias for state. That's why
-		it has to be in the same scope during pfs_end(). */
-
-		PSI_mutex_locker_state	state;
-		PSI_mutex_locker* locker = pfs_begin(&state, name, line);
-
-		PolicyMutex<MutexImpl>::enter(name, line);
-
-		pfs_end(locker, 0); 
-	}
-
-	/** Try and lock the mutex, return 0 on SUCCESS and -1 on error. */
-	int trylock(const char* name = 0, ulint line = 0) UNIV_NOTHROW
-	{
-		/* Note: locker is really an alias for state. That's why
-		it has to be in the same scope during pfs_end(). */
-
-		PSI_mutex_locker_state	state;
-		PSI_mutex_locker* locker = pfs_begin(&state, name, line);
-
-		int ret = PolicyMutex<MutexImpl>::trylock();
-
-		pfs_end(locker, ret); 
-
-		return(ret);
-	}
-
-	/**
-	Initialise the mutex.
-
-	@param name - mutex name
-	@param filename - file where created
-	@param line - line number in file where created */
-	void init(const char* name, const char* filename, ulint line)
-		UNIV_NOTHROW
-	{
-		extern mysql_pfs_key_t sync_latch_get_pfs_key(const char*);
-
-		pfs_add(sync_latch_get_pfs_key(name));
-
-		PolicyMutex<MutexImpl>::init(name, filename, line);
-	}
-
-	/** Free resources (if any) */
-	void destroy() UNIV_NOTHROW
-	{
-		pfs_del();
-
-		PolicyMutex<MutexImpl>::destroy();
-	}	
-
-	/** Required for os_event_t */
-	operator sys_mutex_t* () UNIV_NOTHROW
-	{
-		return(PolicyMutex<MutexImpl>::operator sys_mutex_t*());
-	}
 private:
 
 	/** Performance schema monitoring.
@@ -1059,60 +1009,34 @@ private:
 
 	/** The performance schema instrumentation hook. */
 	PSI_mutex*		m_ptr;
-};
 #endif /* UNIV_PFS_MUTEX */
 
+private:
+	/** The mutex implementation */
+	MutexImpl		m_impl;
+};
+
 #ifndef UNIV_DEBUG
-
-# ifdef UNIV_PFS_MUTEX
-
-# ifdef HAVE_IB_LINUX_FUTEX
-typedef PFSMutex<Futex<DefaultPolicy> >  FutexMutex;
-# endif /* HAVE_IB_LINUX_FUTEX */
-
-typedef PFSMutex<TTASWaitMutex<TrackPolicy> > Mutex;
-typedef PFSMutex<OSTrackedMutex<DefaultPolicy> > SysMutex;
-typedef PFSMutex<OSBasicMutex<DefaultPolicy> > EventMutex;
-typedef PFSMutex<TTASMutex<DefaultPolicy> > SpinMutex;
-
-# else
 
 # ifdef HAVE_IB_LINUX_FUTEX
 typedef PolicyMutex<Futex<DefaultPolicy> >  FutexMutex;
 # endif /* HAVE_IB_LINUX_FUTEX */
 
 typedef PolicyMutex<TTASWaitMutex<TrackPolicy> > Mutex;
-typedef PolicyMutex<OSTrackedMutex<DefaultPolicy> > SysMutex;
 typedef PolicyMutex<TTASMutex<DefaultPolicy> > SpinMutex;
+typedef PolicyMutex<OSTrackedMutex<DefaultPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<DefaultPolicy> > EventMutex;
 
-# endif /* UNIV_PFS_MUTEX */
+#else /* !UNIV_DEBUG */
 
-#else
-
-# ifdef UNIV_PFS_MUTEX
-
-#  ifdef HAVE_IB_LINUX_FUTEX
-typedef PFSMutex<Futex<DebugPolicy> > FutexMutex;
-#  endif /* HAVE_IB_LINUX_FUTEX */
-
-typedef PFSMutex<OSTrackedMutex<DebugPolicy> > SysMutex;
-typedef PFSMutex<OSBasicMutex<DebugPolicy> > EventMutex;
-typedef PFSMutex<TTASMutex<DebugPolicy> > SpinMutex;
-typedef PFSMutex<TTASWaitMutex<DebugPolicy> > Mutex;
-
-# else
-
-#  ifdef HAVE_IB_LINUX_FUTEX
+# ifdef HAVE_IB_LINUX_FUTEX
 typedef PolicyMutex<Futex<DebugPolicy> > FutexMutex;
-#  endif /* HAVE_IB_LINUX_FUTEX */
+# endif /* HAVE_IB_LINUX_FUTEX */
 
+typedef PolicyMutex<TTASWaitMutex<DebugPolicy> > Mutex;
+typedef PolicyMutex<TTASMutex<DebugPolicy> > SpinMutex;
 typedef PolicyMutex<OSTrackedMutex<DebugPolicy> > SysMutex;
 typedef PolicyMutex<OSBasicMutex<DebugPolicy> > EventMutex;
-typedef PolicyMutex<TTASMutex<DebugPolicy> > SpinMutex;
-typedef PolicyMutex<TTASWaitMutex<DebugPolicy> > Mutex;
-
-# endif /* UNIV_PFS_MUTEX */
 
 #endif /* !UNIV_DEBUG */
 
