@@ -250,9 +250,9 @@ trx_purge_add_update_undo_to_history(
 #ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_increment_ulint(&trx_sys->rseg_history_len, 1);
 #else
-	trx_sys->mutex.enter();
+	trx_sys_mutex_enter();
 	++trx_sys->rseg_history_len;
-	trx_sys->mutex.exit();
+	trx_sys_mutex_exit();
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	srv_wake_purge_thread_if_not_active();
@@ -356,9 +356,9 @@ trx_purge_free_segment(
 #ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
 #else
-	trx_sys->mutex.enter();
+	trx_sys_mutex_enter();
 	trx_sys->rseg_history_len -= n_removed_logs;
-	trx_sys->mutex.exit();
+	trx_sys_mutex_exit();
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 	do {
@@ -443,9 +443,9 @@ loop:
 		os_atomic_decrement_ulint(
 			&trx_sys->rseg_history_len, n_removed_logs);
 #else
-		trx_sys->mutex.enter();
+		trx_sys_mutex_enter();
 		trx_sys->rseg_history_len -= n_removed_logs;
-		trx_sys->mutex.exit();
+		trx_sys_mutex_exit();
 #endif /* HAVE_ATOMIC_BUILTINS */
 
 		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
@@ -573,7 +573,7 @@ trx_purge_rseg_get_next_history_log(
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		trx_sys->mutex.enter();
+		trx_sys_mutex_enter();
 
 		/* Add debug code to track history list corruption reported
 		on the MySQL mailing list on Nov 9, 2004. The fut0lst.cc
@@ -596,7 +596,7 @@ trx_purge_rseg_get_next_history_log(
 			ut_ad(0);
 		}
 
-		trx_sys->mutex.exit();
+		trx_sys_mutex_exit();
 
 		return;
 	}
