@@ -5870,6 +5870,7 @@ Dbtc::sendFireTrigReqLqh(Signal* signal,
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
+  Uint32 instanceKey = regTcPtr.p->lqhInstanceKey;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr.p->tcNodedata[0];
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
@@ -5886,19 +5887,18 @@ Dbtc::sendFireTrigReqLqh(Signal* signal,
   req->pass = pass;
   Uint32 len = FireTrigReq::SignalLength;
 
-  // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers > 1;
-  if (send_unpacked) {
+  if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     memcpy(signal->theData, Tdata, len << 2);
-    Uint32 instanceKey = regTcPtr.p->lqhInstanceKey;
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     sendSignal(lqhRef, GSN_FIRE_TRIG_REQ, signal, len, JBB);
     return ret;
   }
 
-  if (Thostptr.p->noOfPackedWordsLqh > 25 - len) {
+  struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[instanceKey];
+
+  if (container->noOfPackedWords > 25 - len) {
     jam();
-    sendPackedSignalLqh(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     ret = 1;
@@ -5906,10 +5906,10 @@ Dbtc::sendFireTrigReqLqh(Signal* signal,
   }
 
   Tdata[0] |= (ZFIRE_TRIG_REQ << 28);
-  UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
-  UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
+  UintR Tindex = container->noOfPackedWords;
+  container->noOfPackedWords = Tindex + len;
+  UintR* TDataPtr = &container->packedWords[Tindex];
   memcpy(TDataPtr, Tdata, len << 2);
-  Thostptr.p->noOfPackedWordsLqh = Tindex + len;
   return ret;
 }
 
