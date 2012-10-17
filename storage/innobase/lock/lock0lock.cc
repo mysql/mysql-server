@@ -1651,7 +1651,7 @@ lock_sec_rec_some_has_impl(
 	const page_t*	page = page_align(rec);
 
 	ut_ad(!lock_mutex_own());
-	ut_ad(!mutex_own(&trx_sys->mutex));
+	ut_ad(!trx_sys_mutex_own());
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(page_rec_is_user_rec(rec));
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -5406,7 +5406,7 @@ lock_table_queue_validate(
 	const lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	for (lock = UT_LIST_GET_FIRST(table->locks);
 	     lock != NULL;
@@ -5652,7 +5652,7 @@ lock_validate_table_locks(
 	const trx_t*	trx;
 
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list
 	      || trx_list == &trx_sys->ro_trx_list);
@@ -5694,7 +5694,7 @@ lock_rec_validate(
 					(space, page_no) */
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	for (const lock_t* lock = static_cast<const lock_t*>(
 			HASH_GET_FIRST(lock_sys->rec_hash, start));
@@ -6843,7 +6843,7 @@ lock_table_locks_lookup(
 
 	ut_a(table != NULL);
 	ut_ad(lock_mutex_own());
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_list == &trx_sys->rw_trx_list
 	      || trx_list == &trx_sys->ro_trx_list);
