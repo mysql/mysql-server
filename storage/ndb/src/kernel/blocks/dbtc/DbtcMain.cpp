@@ -398,17 +398,6 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
   }
 
   Uint32 Tnode = hostptr.i;
-  Uint32 lqhWorkers = getNodeInfo(Tnode).m_lqh_workers;
-  if (lqhWorkers == 1)
-  {
-    jam();
-    hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, 1, Tnode);
-  }
-  else
-  {
-    jam();
-    hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, Tnode);
-  }
 
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 2, JBB);
 
@@ -894,16 +883,6 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
         con_lineNodes++;
         hostptr.p->hostStatus = HS_ALIVE;
         c_alive_nodes.set(i);
-        if (getNodeInfo(i).m_lqh_workers == 1)
-        {
-          jam();
-          hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, 1, i);
-        }
-        else
-        {
-          jam();
-          hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, i);
-        }
         if (!ndbd_deferred_unique_constraints(getNodeInfo(i).m_version))
         {
           jam();
@@ -3066,11 +3045,14 @@ void Dbtc::execTCKEYREQ(Signal* signal)
         {
           regTcPtr->commitAckMarker = tmp.i;
           regApiPtr->commitAckMarker = tmp.i;
+          new (tmp.p) CommitAckMarker();
           tmp.p->transid1      = tcKeyReq->transId1;
           tmp.p->transid2      = tcKeyReq->transId2;
           tmp.p->apiNodeId     = refToNode(regApiPtr->ndbapiBlockref);
           tmp.p->apiConnectPtr = TapiIndex;
-          tmp.p->m_commit_ack_marker_nodes.clear();
+          CommitAckMarkerBuffer::DataBufferPool & pool =
+            c_theCommitAckMarkerBufferPool;
+          LocalDataBuffer<5> head(pool, tmp.p->theDataBuffer);
 #if defined VM_TRACE || defined ERROR_INSERT
 	  {
 	    CommitAckMarkerPtr check;
@@ -3822,7 +3804,6 @@ void Dbtc::sendlqhkeyreq(Signal* signal,
       handle.m_ptr[ LqhKeyReq::AttrInfoSectionNum ]= attrInfoSection;
       handle.m_cnt= 2;
     }
-    
     sendSignal(TBRef, GSN_LQHKEYREQ, signal, 
                nextPos + LqhKeyReq::FixedSignalLength, JBB, 
                &handle);
@@ -4262,6 +4243,17 @@ void Dbtc::execSIGNAL_DROPPED_REP(Signal* signal)
   return;
 }
 
+bool
+Dbtc::CommitAckMarker::insert_in_commit_ack_marker(Dbtc *tc,
+                                                   Uint32 instanceKey,
+                                                   NodeId node_id)
+{
+  Uint32 item = instanceKey + (node_id << 16);
+  CommitAckMarkerBuffer::DataBufferPool & pool =
+    tc->c_theCommitAckMarkerBufferPool;
+  LocalDataBuffer<5> tmp(pool, this->theDataBuffer);
+  return tmp.append(&item, (Uint32)1);
+}
 
 void Dbtc::execLQHKEYCONF(Signal* signal) 
 {
@@ -4408,7 +4400,6 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
   Uint32 commitAckMarker = regTcPtr->commitAckMarker;
   regTcPtr->commitAckMarker = RNIL;
   setApiConTimer(apiConnectptr.i, TtcTimer, __LINE__);
-
   if (commitAckMarker != RNIL)
   {
     const Uint32 noOfLqhs = regTcPtr->noOfNodes;
@@ -4419,7 +4410,16 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
      * Populate LQH array
      */
     for(Uint32 i = 0; i < noOfLqhs; i++)
-      tmp->m_commit_ack_marker_nodes.set(regTcPtr->tcNodedata[i]);
+    {
+      jam();
+      if (!tmp->insert_in_commit_ack_marker(this,
+                                            regTcPtr->lqhInstanceKey,
+                                            regTcPtr->tcNodedata[i]))
+      {
+        ndbout_c("Failed insert_in_commit_ack_marker");
+        ; //RONM TODO error handling
+      }
+    }
   }
   if (regTcPtr->isIndexOp(regTcPtr->m_special_op_flags)) {
     jam();
@@ -4743,7 +4743,8 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   const BlockNumber TblockNum = refToBlock(regApiPtr->ndbapiBlockref);
   const Uint32 Tmarker = (regApiPtr->commitAckMarker == RNIL) ? 0 : 1;
   ptrAss(localHostptr, hostRecord);
-  UintR TcurrLen = localHostptr.p->noOfWordsTCKEYCONF;
+  struct PackedWordsContainer * container = &localHostptr.p->packTCKEYCONF;
+  UintR TcurrLen = container->noOfPackedWords;
   UintR confInfo = 0;
   TcKeyConf::setCommitFlag(confInfo, TcommitFlag == 1);
   TcKeyConf::setMarkerFlag(confInfo, Tmarker);
@@ -4779,7 +4780,7 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
     tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_EXEC_FLAG);
   }
   TcKeyConf::setNoOfOperations(confInfo, (TopWords >> 1));
-  if ((TpacketLen + 1 /** gci_lo */ > 25) || !is_api){
+  if ((TpacketLen + 1 /** gci_lo */ > 25) ||!is_api){
     TcKeyConf * const tcKeyConf = (TcKeyConf *)signal->getDataPtrSend();
     
     jam();
@@ -4810,6 +4811,8 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   // length - 3, since we have the real signal length plus one additional word
   // for the header we have to do - 4.
   // -------------------------------------------------------------------------
+  container->noOfPackedWords = TcurrLen + TpacketLen + 1 /** gci_lo */;
+
   UintR Tpack0 = (TblockNum << 16) + (TpacketLen - 4 + 1 /** gci_lo */);
   UintR Tpack1 = regApiPtr->ndbapiConnect;
   UintR Tpack2 = Uint32(regApiPtr->globalcheckpointid >> 32);
@@ -4818,21 +4821,18 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   UintR Tpack5 = regApiPtr->transid[1];
   UintR Tpack6 = Uint32(regApiPtr->globalcheckpointid);
   
-  localHostptr.p->noOfWordsTCKEYCONF = TcurrLen + TpacketLen + 1 /** gci_lo */;
+  container->packedWords[TcurrLen + 0] = Tpack0;
+  container->packedWords[TcurrLen + 1] = Tpack1;
+  container->packedWords[TcurrLen + 2] = Tpack2;
+  container->packedWords[TcurrLen + 3] = Tpack3;
+  container->packedWords[TcurrLen + 4] = Tpack4;
+  container->packedWords[TcurrLen + 5] = Tpack5;
+
+  container->packedWords[TcurrLen + TpacketLen] = Tpack6;
   
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 0] = Tpack0;
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 1] = Tpack1;
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 2] = Tpack2;
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 3] = Tpack3;
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 4] = Tpack4;
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 5] = Tpack5;
-  
-  UintR Ti;
-  for (Ti = 6; Ti < TpacketLen; Ti++) {
-    localHostptr.p->packedWordsTCKEYCONF[TcurrLen + Ti] = 
-      regApiPtr->tcSendArray[Ti - 6];
+  for (Uint32 Ti = 6; Ti < TpacketLen; Ti++) {
+    container->packedWords[TcurrLen + Ti] = regApiPtr->tcSendArray[Ti - 6];
   }//for
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + TpacketLen] = Tpack6;
 
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
   {
@@ -4871,17 +4871,21 @@ void Dbtc::execSEND_PACKED(Signal* signal)
   UintR TpackedListIndex = cpackedListIndex;
   jamEntry();
   for (i = 0; i < TpackedListIndex; i++) {
+    jam();
     Thostptr.i = cpackedList[i];
     ptrAss(Thostptr, localHostRecord);
     arrGuard(Thostptr.i - 1, MAX_NODES - 1);
-    UintR TnoOfPackedWordsLqh = Thostptr.p->noOfPackedWordsLqh;
-    UintR TnoOfWordsTCKEYCONF = Thostptr.p->noOfWordsTCKEYCONF;
-    jam();
-    if (TnoOfPackedWordsLqh > 0) {
+    for (Uint32 j = 0; j < NDB_ARRAY_SIZE(Thostptr.p->lqh_pack); j++)
+    {
+      struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[j];
       jam();
-      sendPackedSignalLqh(signal, Thostptr.p);
-    }//if
-    if (TnoOfWordsTCKEYCONF > 0) {
+      if (container->noOfPackedWords > 0) {
+        jam();
+        sendPackedSignal(signal, container);
+      }
+    }
+    struct PackedWordsContainer * container = &Thostptr.p->packTCKEYCONF;
+    if (container->noOfPackedWords > 0) {
       jam();
       sendPackedTCKEYCONF(signal, Thostptr.p, (Uint32)Thostptr.i);
     }//if
@@ -4903,46 +4907,30 @@ Dbtc::updatePackedList(Signal* signal, HostRecord* ahostptr, Uint16 ahostIndex)
   }//if
 }//Dbtc::updatePackedList()
 
-void Dbtc::sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr)
+void Dbtc::sendPackedSignal(Signal* signal,
+                            struct PackedWordsContainer * container)
 {
-  UintR Tj;
-  UintR TnoOfWords = ahostptr->noOfPackedWordsLqh;
-  for (Tj = 0; Tj < TnoOfWords; Tj += 4) {
-    UintR sig0 = ahostptr->packedWordsLqh[Tj + 0];
-    UintR sig1 = ahostptr->packedWordsLqh[Tj + 1];
-    UintR sig2 = ahostptr->packedWordsLqh[Tj + 2];
-    UintR sig3 = ahostptr->packedWordsLqh[Tj + 3];
-    signal->theData[Tj + 0] = sig0;
-    signal->theData[Tj + 1] = sig1;
-    signal->theData[Tj + 2] = sig2;
-    signal->theData[Tj + 3] = sig3;
-  }//for
-  ahostptr->noOfPackedWordsLqh = 0;
-  sendSignal(ahostptr->hostLqhBlockRef,
+  UintR TnoOfWords = container->noOfPackedWords;
+  ndbassert(TnoOfWords <= 25);
+  container->noOfPackedWords = 0;
+  memcpy(&signal->theData[0], &container->packedWords[0], 4 * TnoOfWords);
+  sendSignal(container->hostBlockRef,
              GSN_PACKED_SIGNAL,
              signal,
              TnoOfWords,
              JBB);
-}//Dbtc::sendPackedSignalLqh()
+}//Dbtc::sendPackedSignal()
 
 void Dbtc::sendPackedTCKEYCONF(Signal* signal,
                                HostRecord * ahostptr,
                                UintR hostId)
 {
-  UintR Tj;
-  UintR TnoOfWords = ahostptr->noOfWordsTCKEYCONF;
+  struct PackedWordsContainer * container = &ahostptr->packTCKEYCONF;
+  UintR TnoOfWords = container->noOfPackedWords;
+  ndbassert(TnoOfWords <= 25);
+  container->noOfPackedWords = 0;
   BlockReference TBref = numberToRef(API_PACKED, hostId);
-  for (Tj = 0; Tj < ahostptr->noOfWordsTCKEYCONF; Tj += 4) {
-    UintR sig0 = ahostptr->packedWordsTCKEYCONF[Tj + 0];
-    UintR sig1 = ahostptr->packedWordsTCKEYCONF[Tj + 1];
-    UintR sig2 = ahostptr->packedWordsTCKEYCONF[Tj + 2];
-    UintR sig3 = ahostptr->packedWordsTCKEYCONF[Tj + 3];
-    signal->theData[Tj + 0] = sig0;
-    signal->theData[Tj + 1] = sig1;
-    signal->theData[Tj + 2] = sig2;
-    signal->theData[Tj + 3] = sig3;
-  }//for
-  ahostptr->noOfWordsTCKEYCONF = 0;
+  memcpy(&signal->theData[0], &container->packedWords[0], 4 * TnoOfWords);
   sendSignal(TBref, GSN_TCKEYCONF, signal, TnoOfWords, JBB);
 }//Dbtc::sendPackedTCKEYCONF()
 
@@ -5330,6 +5318,7 @@ Dbtc::sendCommitLqh(Signal* signal,
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
+  Uint32 instanceKey = regTcPtr->lqhInstanceKey;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
@@ -5352,20 +5341,18 @@ Dbtc::sendCommitLqh(Signal* signal,
     ndbassert(Tdata[4] == 0 || getNodeInfo(Thostptr.i).m_version == 0);
     len = 4;
   }
-
-  // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers > 1;
-  if (send_unpacked) {
+  if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    Uint32 instanceKey = regTcPtr->lqhInstanceKey;
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     sendSignal(lqhRef, GSN_COMMIT, signal, len, JBB);
     return ret;
   }
 
-  if (Thostptr.p->noOfPackedWordsLqh > 25 - 5) {
+  struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[instanceKey];
+
+  if (container->noOfPackedWords > 25 - len) {
     jam();
-    sendPackedSignalLqh(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     ret = 1;
@@ -5373,10 +5360,10 @@ Dbtc::sendCommitLqh(Signal* signal,
   }
 
   Tdata[0] |= (ZCOMMIT << 28);
-  UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
-  UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
+  UintR Tindex = container->noOfPackedWords;
+  container->noOfPackedWords = Tindex + len;
+  UintR* TDataPtr = &container->packedWords[Tindex];
   memcpy(TDataPtr, &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsLqh = Tindex + len;
   return ret;
 }
 
@@ -5726,8 +5713,9 @@ Dbtc::sendCompleteLqh(Signal* signal,
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
+  Uint32 instanceKey = regTcPtr->lqhInstanceKey;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
-  Thostptr.i = regTcPtr->lastLqhNodeId; //last???
+  Thostptr.i = regTcPtr->lastLqhNodeId;
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
 
   Uint32 Tnode = Thostptr.i;
@@ -5740,19 +5728,18 @@ Dbtc::sendCompleteLqh(Signal* signal,
   Tdata[2] = regApiPtr->transid[1];
   Uint32 len = 3;
 
-  // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers > 1;
-  if (send_unpacked) {
+  if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    Uint32 instanceKey = regTcPtr->lqhInstanceKey;
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     sendSignal(lqhRef, GSN_COMPLETE, signal, 3, JBB);
     return ret;
   }
-  
-  if (Thostptr.p->noOfPackedWordsLqh > 22) {
+                          
+  struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[instanceKey];
+
+  if (container->noOfPackedWords > 22) {
     jam();
-    sendPackedSignalLqh(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     ret = 1;
@@ -5760,11 +5747,10 @@ Dbtc::sendCompleteLqh(Signal* signal,
   }
 
   Tdata[0] |= (ZCOMPLETE << 28);
-  UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
-  UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
+  UintR Tindex = container->noOfPackedWords;
+  container->noOfPackedWords = Tindex + len;
+  UintR* TDataPtr = &container->packedWords[Tindex];
   memcpy(TDataPtr, &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsLqh = Tindex + len;
-
   return ret;
 }
 
@@ -5852,6 +5838,7 @@ Dbtc::sendFireTrigReqLqh(Signal* signal,
 {
   HostRecordPtr Thostptr;
   UintR ThostFilesize = chostFilesize;
+  Uint32 instanceKey = regTcPtr.p->lqhInstanceKey;
   ApiConnectRecord * const regApiPtr = apiConnectptr.p;
   Thostptr.i = regTcPtr.p->tcNodedata[0];
   ptrCheckGuard(Thostptr, ThostFilesize, hostRecord);
@@ -5868,19 +5855,18 @@ Dbtc::sendFireTrigReqLqh(Signal* signal,
   req->pass = pass;
   Uint32 len = FireTrigReq::SignalLength;
 
-  // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers > 1;
-  if (send_unpacked) {
+  if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     memcpy(signal->theData, Tdata, len << 2);
-    Uint32 instanceKey = regTcPtr.p->lqhInstanceKey;
     BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
     sendSignal(lqhRef, GSN_FIRE_TRIG_REQ, signal, len, JBB);
     return ret;
   }
 
-  if (Thostptr.p->noOfPackedWordsLqh > 25 - len) {
+  struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[instanceKey];
+
+  if (container->noOfPackedWords > 25 - len) {
     jam();
-    sendPackedSignalLqh(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     ret = 1;
@@ -5888,10 +5874,10 @@ Dbtc::sendFireTrigReqLqh(Signal* signal,
   }
 
   Tdata[0] |= (ZFIRE_TRIG_REQ << 28);
-  UintR Tindex = Thostptr.p->noOfPackedWordsLqh;
-  UintR* TDataPtr = &Thostptr.p->packedWordsLqh[Tindex];
+  UintR Tindex = container->noOfPackedWords;
+  container->noOfPackedWords = Tindex + len;
+  UintR* TDataPtr = &container->packedWords[Tindex];
   memcpy(TDataPtr, Tdata, len << 2);
-  Thostptr.p->noOfPackedWordsLqh = Tindex + len;
   return ret;
 }
 
@@ -6029,23 +6015,33 @@ Dbtc::execTC_COMMIT_ACK(Signal* signal){
 }
 
 void
-Dbtc::sendRemoveMarkers(Signal* signal, const CommitAckMarker * marker)
+Dbtc::sendRemoveMarkers(Signal* signal, CommitAckMarker * marker)
 {
   jam();
   const Uint32 transId1 = marker->transid1;
   const Uint32 transId2 = marker->transid2;
-  
-  for(Uint32 node_id = 1; node_id < MAX_NDB_NODES; node_id++)
+ 
+  CommitAckMarkerBuffer::DataBufferPool & pool =
+    c_theCommitAckMarkerBufferPool;
+  LocalDataBuffer<5> commitAckMarkers(pool, marker->theDataBuffer);
+  CommitAckMarkerBuffer::DataBufferIterator iter;
+  bool next_flag = commitAckMarkers.first(iter);
+  while (next_flag)
   {
     jam();
-    if (marker->m_commit_ack_marker_nodes.get(node_id))
-      sendRemoveMarker(signal, node_id, transId1, transId2);
+    Uint32 dataWord = *iter.data;
+    Uint32 nodeId = dataWord >> 16;
+    Uint32 instanceKey = dataWord & 0xFFFF;
+    sendRemoveMarker(signal, nodeId, instanceKey, transId1, transId2);
+    next_flag = commitAckMarkers.next(iter, 1);
   }
+  commitAckMarkers.release();
 }
 
 void
 Dbtc::sendRemoveMarker(Signal* signal, 
                        NodeId nodeId,
+                       Uint32 instanceKey,
                        Uint32 transid1, 
                        Uint32 transid2){
   /**
@@ -6062,37 +6058,32 @@ Dbtc::sendRemoveMarker(Signal* signal,
   Tdata[2] = transid2;
   Uint32 len = 3;
 
-  // currently packed signals can not address specific instance
-  bool send_unpacked = getNodeInfo(hostPtr.i).m_lqh_workers > 1;
-  if (send_unpacked) {
+  if (instanceKey > MAX_NDBMT_LQH_THREADS) {
     jam();
     // first word omitted
     memcpy(&signal->theData[0], &Tdata[1], (len - 1) << 2);
     Uint32 Tnode = hostPtr.i;
-    Uint32 i;
-    for (i = 0; i < MAX_NDBMT_LQH_WORKERS; i++) {
-      // wl4391_todo skip workers not part of tx
-      Uint32 instanceKey = 1 + i;
-      BlockReference ref = numberToRef(DBLQH, instanceKey, Tnode);
-      sendSignal(ref, GSN_REMOVE_MARKER_ORD, signal, len - 1, JBB);
-    }
+    BlockReference ref = numberToRef(DBLQH, instanceKey, Tnode);
+    sendSignal(ref, GSN_REMOVE_MARKER_ORD, signal, len - 1, JBB);
     return;
   }
 
-  if (hostPtr.p->noOfPackedWordsLqh > (25 - 3)){
+  struct PackedWordsContainer * container = &hostPtr.p->lqh_pack[instanceKey];
+
+  if (container->noOfPackedWords > (25 - 3)){
     jam();
-    sendPackedSignalLqh(signal, hostPtr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     updatePackedList(signal, hostPtr.p, hostPtr.i);
   }
   
-  UintR  numWord = hostPtr.p->noOfPackedWordsLqh;
-  UintR* dataPtr = &hostPtr.p->packedWordsLqh[numWord];
+  UintR  numWord = container->noOfPackedWords;
+  UintR* dataPtr = &container->packedWords[numWord];
 
+  container->noOfPackedWords = numWord + len;
   Tdata[0] |= (ZREMOVE_MARKER << 28);
   memcpy(dataPtr, &Tdata[0], len << 2);
-  hostPtr.p->noOfPackedWordsLqh = numWord + 3;
 }
 
 void Dbtc::execCOMPLETED(Signal* signal) 
@@ -6509,6 +6500,11 @@ void Dbtc::clearCommitAckMarker(ApiConnectRecord * const regApiPtr,
       regApiPtr->commitAckMarker = RNIL;
       tc_clearbit(regApiPtr->m_flags,
                   ApiConnectRecord::TF_COMMIT_ACK_MARKER_RECEIVED);
+      CommitAckMarkerBuffer::DataBufferPool & pool =
+        c_theCommitAckMarkerBufferPool;
+      CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(commitAckMarker);
+      LocalDataBuffer<5> commitAckMarkers(pool, tmp->theDataBuffer);
+      commitAckMarkers.release();
       m_commitAckMarkerHash.release(commitAckMarker);
     }
   }
@@ -8918,7 +8914,19 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
     }
   }
 
-  findApiConnectFail(signal);
+  Uint32 instanceKey;
+
+  if (unlikely(signal->getLength() < LqhTransConf::SignalLength_FRAG_ID))
+  {
+    jam();
+    instanceKey = 0;
+  }
+  else
+  {
+    jam();
+    instanceKey = getInstanceKey(tableId, fragId);
+  }
+  findApiConnectFail(signal, instanceKey);
 
   if(apiConnectptr.p->ndbapiBlockref == 0 && tapplRef != 0){
     apiConnectptr.p->ndbapiBlockref = ref;
@@ -8928,19 +8936,6 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
   if (ttransStatus != LqhTransConf::Marker)
   {
     jam();
-
-    Uint32 instanceKey;
-
-    if (unlikely(signal->getLength() < LqhTransConf::SignalLength_FRAG_ID))
-    {
-      jam();
-      instanceKey = 0;
-    }
-    else
-    {
-      jam();
-      instanceKey = getInstanceKey(tableId, fragId);
-    }
     findTcConnectFail(signal, instanceKey);
   }
 }//Dbtc::execLQH_TRANSCONF()
@@ -9216,6 +9211,11 @@ Dbtc::sendTCKEY_FAILREF(Signal* signal, ApiConnectRecord * regApiPtr){
   if(marker != RNIL)
   {
     jam();
+    CommitAckMarkerBuffer::DataBufferPool & pool =
+      c_theCommitAckMarkerBufferPool;
+    CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(marker);
+    LocalDataBuffer<5> commitAckMarkers(pool, tmp->theDataBuffer);
+    commitAckMarkers.release();
     m_commitAckMarkerHash.release(marker);
     regApiPtr->commitAckMarker = RNIL;
   }
@@ -9766,7 +9766,7 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
 /*       YET THEN SEIZE A NEW API CONNECT RECORD AND LINK IT  */
 /*       INTO THE HASH TABLE.                                 */
 /*------------------------------------------------------------*/
-void Dbtc::findApiConnectFail(Signal* signal) 
+void Dbtc::findApiConnectFail(Signal* signal, Uint32 instanceKey) 
 {
   ApiConnectRecordPtr fafPrevApiConnectptr;
   ApiConnectRecordPtr fafNextApiConnectptr;
@@ -9797,7 +9797,7 @@ FAF_LOOP:
       fafPrevApiConnectptr.p->nextApiConnect = apiConnectptr.i;
     }//if
     apiConnectptr.p->nextApiConnect = RNIL;
-    initApiConnectFail(signal);
+    initApiConnectFail(signal, instanceKey);
   } else {
     jam();
     fafPrevApiConnectptr.i = fafNextApiConnectptr.i;
@@ -9810,7 +9810,7 @@ FAF_LOOP:
         (apiConnectptr.p->transid[0] != ttransid1)) {
       goto FAF_LOOP;
     }//if
-    updateApiStateFail(signal);
+    updateApiStateFail(signal, instanceKey);
   }//if
 }//Dbtc::findApiConnectFail()
 
@@ -9853,7 +9853,7 @@ void Dbtc::findTcConnectFail(Signal* signal, Uint32 instanceKey)
 /*----------------------------------------------------------*/
 /*       INITIALISE AN API CONNECT FAIL RECORD              */
 /*----------------------------------------------------------*/
-void Dbtc::initApiConnectFail(Signal* signal) 
+void Dbtc::initApiConnectFail(Signal* signal, Uint32 instanceKey) 
 {
   apiConnectptr.p->transid[0] = ttransid1;
   apiConnectptr.p->transid[1] = ttransid2;
@@ -9898,14 +9898,17 @@ void Dbtc::initApiConnectFail(Signal* signal)
     m_commitAckMarkerHash.seize(tmp);
     
     ndbrequire(tmp.i != RNIL);
-    
     apiConnectptr.p->commitAckMarker = tmp.i;
+   
+    new (tmp.p) CommitAckMarker();
     tmp.p->transid1      = ttransid1;
     tmp.p->transid2      = ttransid2;
     tmp.p->apiNodeId     = refToNode(tapplRef);
-    tmp.p->m_commit_ack_marker_nodes.clear();
-    tmp.p->m_commit_ack_marker_nodes.set(tnodeid);
     tmp.p->apiConnectPtr = apiConnectptr.i;
+    CommitAckMarkerBuffer::DataBufferPool & pool =
+      c_theCommitAckMarkerBufferPool;
+    LocalDataBuffer<5> head(pool, tmp.p->theDataBuffer);
+    ndbrequire(tmp.p->insert_in_commit_ack_marker(this, instanceKey, tnodeid));
 
 #if defined VM_TRACE || defined ERROR_INSERT
     {
@@ -10051,7 +10054,7 @@ void Dbtc::setupFailData(Signal* signal)
 /*----------------------------------------------------------*/
 /*       UPDATE THE STATE OF THE API CONNECT FOR THIS PART.   */
 /*----------------------------------------------------------*/
-void Dbtc::updateApiStateFail(Signal* signal) 
+void Dbtc::updateApiStateFail(Signal* signal, Uint32 instanceKey) 
 {
   if(LqhTransConf::getMarkerFlag(treqinfo))
   {
@@ -10064,12 +10067,15 @@ void Dbtc::updateApiStateFail(Signal* signal)
       m_commitAckMarkerHash.seize(tmp);
       ndbrequire(tmp.i != RNIL);
       
+      new (tmp.p) CommitAckMarker();
       apiConnectptr.p->commitAckMarker = tmp.i;
       tmp.p->transid1      = ttransid1;
       tmp.p->transid2      = ttransid2;
       tmp.p->apiNodeId     = refToNode(tapplRef);
       tmp.p->apiConnectPtr = apiConnectptr.i;
-      tmp.p->m_commit_ack_marker_nodes.clear();
+      CommitAckMarkerBuffer::DataBufferPool & pool =
+        c_theCommitAckMarkerBufferPool;
+      LocalDataBuffer<5> head(pool, tmp.p->theDataBuffer);
 #if defined VM_TRACE || defined ERROR_INSERT
       {
 	CommitAckMarkerPtr check;
@@ -10085,7 +10091,7 @@ void Dbtc::updateApiStateFail(Signal* signal)
       ndbassert(tmp.p->transid1 == ttransid1);
       ndbassert(tmp.p->transid2 == ttransid2);
     }
-    tmp.p->m_commit_ack_marker_nodes.set(tnodeid);
+    ndbrequire(tmp.p->insert_in_commit_ack_marker(this, instanceKey, tnodeid));
   }
 
   switch (ttransStatus) {
@@ -12613,9 +12619,15 @@ void Dbtc::inithost(Signal* signal)
     hostptr.p->hostStatus = HS_DEAD;
     hostptr.p->inPackedList = false;
     hostptr.p->lqhTransStatus = LTS_IDLE;
-    hostptr.p->noOfWordsTCKEYCONF = 0;
-    hostptr.p->noOfPackedWordsLqh = 0;
-    hostptr.p->hostLqhBlockRef = calcLqhBlockRef(hostptr.i);
+    struct PackedWordsContainer * containerTCKEYCONF =
+      &hostptr.p->packTCKEYCONF;
+    containerTCKEYCONF->noOfPackedWords = 0;
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(hostptr.p->lqh_pack); i++)
+    {
+      struct PackedWordsContainer * container = &hostptr.p->lqh_pack[i];
+      container->noOfPackedWords = 0;
+      container->hostBlockRef = numberToRef(DBLQH, i, hostptr.i);
+    }
     hostptr.p->m_nf_bits = 0;
   }//for
   c_alive_nodes.clear();
@@ -12874,6 +12886,11 @@ void Dbtc::releaseAbortResources(Signal* signal)
   if (marker != RNIL)
   {
     jam();
+    CommitAckMarkerBuffer::DataBufferPool & pool =
+      c_theCommitAckMarkerBufferPool;
+    CommitAckMarker * tmp = m_commitAckMarkerHash.getPtr(marker);
+    LocalDataBuffer<5> commitAckMarkers(pool, tmp->theDataBuffer);
+    commitAckMarkers.release();
     m_commitAckMarkerHash.release(marker);
     apiConnectptr.p->commitAckMarker = RNIL;
   }
@@ -13130,16 +13147,27 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     CommitAckMarkerIterator iter;
     for(m_commitAckMarkerHash.first(iter); iter.curr.i != RNIL;
         m_commitAckMarkerHash.next(iter)){
+      Uint32 data[4];
+      data[0] = data[1] = data[2] = data[3] = 0;
+      CommitAckMarkerBuffer::DataBufferPool & pool =
+        c_theCommitAckMarkerBufferPool;
+      LocalDataBuffer<5> commitAckMarkers(pool, iter.curr.p->theDataBuffer);
+      CommitAckMarkerBuffer::DataBufferIterator data_buf_iter;
+      bool next_flag = commitAckMarkers.first(data_buf_iter);
+      for (Uint32 i = 0; i < 4; i++)
+      {
+        if (!next_flag)
+          break;
+        data[i] = *data_buf_iter.data;
+        next_flag = commitAckMarkers.next(data_buf_iter);
+      }
       infoEvent("CommitAckMarker: i = %d (0x%x, 0x%x)"
                 " Api: %d %x %x %x %x bucket = %d",
                 iter.curr.i,
                 iter.curr.p->transid1,
                 iter.curr.p->transid2,
                 iter.curr.p->apiNodeId,
-                iter.curr.p->m_commit_ack_marker_nodes.getWord(0),
-                iter.curr.p->m_commit_ack_marker_nodes.getWord(1),
-                iter.curr.p->m_commit_ack_marker_nodes.getWord(2),
-                iter.curr.p->m_commit_ack_marker_nodes.getWord(3),
+                data[0], data[1], data[2], data[3],
                 iter.bucket);
     }
     return;
