@@ -1007,11 +1007,6 @@ public:
     HostState hostStatus;
     LqhTransState lqhTransStatus;
     bool  inPackedList;
-    UintR noOfPackedWordsLqh;
-    UintR packedWordsLqh[26];
-    UintR noOfWordsTCKEYCONF;
-    UintR packedWordsTCKEYCONF[30];
-    BlockReference hostLqhBlockRef;
 
     enum NodeFailBits
     {
@@ -1460,7 +1455,6 @@ private:
   void sendPackedTCKEYCONF(Signal* signal,
                            HostRecord * ahostptr,
                            UintR hostId);
-  void sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr);
   void sendPackedSignal(Signal* signal,
                         struct PackedWordsContainer * container);
   Uint32 sendCommitLqh(Signal* signal,

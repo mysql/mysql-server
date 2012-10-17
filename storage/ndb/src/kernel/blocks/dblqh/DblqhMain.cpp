@@ -861,11 +861,7 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
      * Valid only if receiver has same number of LQH workers.
      * In general full instance key of fragment must be used.
      */
-    ThostPtr.p->hostLqhBlockRef = calcInstanceBlockRef(DBLQH, ThostPtr.i);
-    ThostPtr.p->hostTcBlockRef  = calcTcBlockRef(ThostPtr.i);
     ThostPtr.p->inPackedList = false;
-    ThostPtr.p->noOfPackedWordsLqh = 0;
-    ThostPtr.p->noOfPackedWordsTc  = 0;
     for (Tj = 0; Tj < NDB_ARRAY_SIZE(ThostPtr.p->lqh_pack); Tj++)
     {
       ThostPtr.p->lqh_pack[Tj].noOfPackedWords = 0;
@@ -3472,14 +3468,6 @@ void Dblqh::execSEND_PACKED(Signal* signal)
     ptrAss(Thostptr, hostRecord);
     jam();
     ndbrequire(Thostptr.i - 1 < MAX_NDB_NODES - 1);
-    if (Thostptr.p->noOfPackedWordsLqh > 0) {
-      jam();
-      sendPackedSignalLqh(signal, Thostptr.p);
-    }//if
-    if (Thostptr.p->noOfPackedWordsTc > 0) {
-      jam();
-      sendPackedSignalTc(signal, Thostptr.p);
-    }//if
     for (j = 0; j < NDB_ARRAY_SIZE(Thostptr.p->lqh_pack); j++)
     {
       struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[j];
@@ -3736,28 +3724,6 @@ void Dblqh::execTUPKEYREF(Signal* signal)
     break;
   }//switch
 }//Dblqh::execTUPKEYREF()
-
-void Dblqh::sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr)
-{
-  Uint32 noOfWords = ahostptr->noOfPackedWordsLqh;
-  BlockReference hostRef = ahostptr->hostLqhBlockRef;
-  MEMCOPY_NO_WORDS(&signal->theData[0],
-                   &ahostptr->packedWordsLqh[0],
-                   noOfWords);
-  sendSignal(hostRef, GSN_PACKED_SIGNAL, signal, noOfWords, JBB);
-  ahostptr->noOfPackedWordsLqh = 0;
-}//Dblqh::sendPackedSignalLqh()
-
-void Dblqh::sendPackedSignalTc(Signal* signal, HostRecord * ahostptr)
-{
-  Uint32 noOfWords = ahostptr->noOfPackedWordsTc;
-  BlockReference hostRef = ahostptr->hostTcBlockRef;
-  MEMCOPY_NO_WORDS(&signal->theData[0],
-                   &ahostptr->packedWordsTc[0],
-                   noOfWords);
-  sendSignal(hostRef, GSN_PACKED_SIGNAL, signal, noOfWords, JBB);
-  ahostptr->noOfPackedWordsTc = 0;
-}//Dblqh::sendPackedSignalTc()
 
 void Dblqh::sendPackedSignal(Signal* signal,
                              struct PackedWordsContainer * container)

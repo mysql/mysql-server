@@ -398,17 +398,6 @@ void Dbtc::execINCL_NODEREQ(Signal* signal)
   }
 
   Uint32 Tnode = hostptr.i;
-  Uint32 lqhWorkers = getNodeInfo(Tnode).m_lqh_workers;
-  if (lqhWorkers == 1)
-  {
-    jam();
-    hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, 1, Tnode);
-  }
-  else
-  {
-    jam();
-    hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, Tnode);
-  }
 
   sendSignal(tblockref, GSN_INCL_NODECONF, signal, 2, JBB);
 
@@ -894,16 +883,6 @@ void Dbtc::execREAD_NODESCONF(Signal* signal)
         con_lineNodes++;
         hostptr.p->hostStatus = HS_ALIVE;
         c_alive_nodes.set(i);
-        if (getNodeInfo(i).m_lqh_workers == 1)
-        {
-          jam();
-          hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, 1, i);
-        }
-        else
-        {
-          jam();
-          hostptr.p->hostLqhBlockRef = numberToRef(DBLQH, i);
-        }
         if (!ndbd_deferred_unique_constraints(getNodeInfo(i).m_version))
         {
           jam();
@@ -4896,16 +4875,6 @@ void Dbtc::execSEND_PACKED(Signal* signal)
     Thostptr.i = cpackedList[i];
     ptrAss(Thostptr, localHostRecord);
     arrGuard(Thostptr.i - 1, MAX_NODES - 1);
-    UintR TnoOfPackedWordsLqh = Thostptr.p->noOfPackedWordsLqh;
-    UintR TnoOfWordsTCKEYCONF = Thostptr.p->noOfWordsTCKEYCONF;
-    if (TnoOfPackedWordsLqh > 0) {
-      jam();
-      sendPackedSignalLqh(signal, Thostptr.p);
-    }//if
-    if (TnoOfWordsTCKEYCONF > 0) {
-      jam();
-      sendPackedTCKEYCONF(signal, Thostptr.p, (Uint32)Thostptr.i);
-    }//if
     for (Uint32 j = 0; j < NDB_ARRAY_SIZE(Thostptr.p->lqh_pack); j++)
     {
       struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[j];
@@ -4951,28 +4920,6 @@ void Dbtc::sendPackedSignal(Signal* signal,
              TnoOfWords,
              JBB);
 }//Dbtc::sendPackedSignal()
-
-void Dbtc::sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr)
-{
-  UintR Tj;
-  UintR TnoOfWords = ahostptr->noOfPackedWordsLqh;
-  for (Tj = 0; Tj < TnoOfWords; Tj += 4) {
-    UintR sig0 = ahostptr->packedWordsLqh[Tj + 0];
-    UintR sig1 = ahostptr->packedWordsLqh[Tj + 1];
-    UintR sig2 = ahostptr->packedWordsLqh[Tj + 2];
-    UintR sig3 = ahostptr->packedWordsLqh[Tj + 3];
-    signal->theData[Tj + 0] = sig0;
-    signal->theData[Tj + 1] = sig1;
-    signal->theData[Tj + 2] = sig2;
-    signal->theData[Tj + 3] = sig3;
-  }//for
-  ahostptr->noOfPackedWordsLqh = 0;
-  sendSignal(ahostptr->hostLqhBlockRef,
-             GSN_PACKED_SIGNAL,
-             signal,
-             TnoOfWords,
-             JBB);
-}//Dbtc::sendPackedSignalLqh()
 
 void Dbtc::sendPackedTCKEYCONF(Signal* signal,
                                HostRecord * ahostptr,
@@ -12672,9 +12619,6 @@ void Dbtc::inithost(Signal* signal)
     hostptr.p->hostStatus = HS_DEAD;
     hostptr.p->inPackedList = false;
     hostptr.p->lqhTransStatus = LTS_IDLE;
-    hostptr.p->noOfWordsTCKEYCONF = 0;
-    hostptr.p->noOfPackedWordsLqh = 0;
-    hostptr.p->hostLqhBlockRef = calcLqhBlockRef(hostptr.i);
     struct PackedWordsContainer * containerTCKEYCONF =
       &hostptr.p->packTCKEYCONF;
     containerTCKEYCONF->noOfPackedWords = 0;
