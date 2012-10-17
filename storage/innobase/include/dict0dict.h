@@ -1390,28 +1390,17 @@ dict_index_is_online_ddl(
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
-Logs an operation to a secondary index that is being created. */
-UNIV_INTERN
-void
-dict_index_online_log(
-/*==================*/
-	dict_index_t*	index,	/*!< in/out: index, S-locked */
-	const dtuple_t*	entry,	/*!< in: index entry */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation */
-	UNIV_COLD __attribute__((nonnull));
-/*********************************************************************//**
 Attempts to log an operation on a secondary index that is being created.
-@return TRUE if the operation was logged or the index creation failed;
-FALSE if the index creation was completed */
+@retval true if the operation was logged or the index creation failed
+@retval false if the index creation was completed */
 UNIV_INLINE
-ibool
+bool
 dict_index_online_trylog(
 /*=====================*/
 	dict_index_t*	index,	/*!< in/out: index */
 	const dtuple_t*	entry,	/*!< in: index entry */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation on the index entry */
+	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
+				or 0 for delete */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Calculates the minimum record length in an index. */
@@ -1706,7 +1695,9 @@ UNIV_INTERN
 void
 dict_set_corrupted(
 /*===============*/
-	dict_index_t*	index)		/*!< in/out: index */
+	dict_index_t*	index,	/*!< in/out: index */
+	trx_t*		trx,	/*!< in/out: transaction */
+	const char*	ctx)	/*!< in: context */
 	UNIV_COLD __attribute__((nonnull));
 
 /**********************************************************************//**

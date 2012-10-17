@@ -68,7 +68,6 @@ typedef byte	mrec_t;
 
 /** Merge record in row_merge_buf_t */
 struct mtuple_t {
-	bool		del_mark;	/*!< true when delete-marked */
 	dfield_t*	fields;		/*!< data fields */
 };
 
@@ -421,7 +420,6 @@ row_merge_read_rec(
 	mrec_buf_t*		buf,	/*!< in/out: secondary buffer */
 	const byte*		b,	/*!< in: pointer to record */
 	const dict_index_t*	index,	/*!< in: index of the record */
-	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	int			fd,	/*!< in: file descriptor */
 	ulint*			foffs,	/*!< in/out: file offset */
 	const mrec_t**		mrec,	/*!< out: pointer to merge record,

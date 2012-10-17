@@ -80,8 +80,8 @@ row_log_online_op(
 /*==============*/
 	dict_index_t*	index,	/*!< in/out: index, S-locked */
 	const dtuple_t*	tuple,	/*!< in: index tuple */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation */
+	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
+				or 0 for delete */
 	UNIV_COLD __attribute__((nonnull));
 
 /******************************************************//**

@@ -5729,8 +5729,8 @@ fts_read_tables(
 			}
 
 			table->name = static_cast<char*>(
-				mem_heap_dup(heap, data, len + 1));
-
+				mem_heap_alloc(heap, len + 1));
+			memcpy(table->name, data, len);
 			table->name[len] = 0;
 			break;
 

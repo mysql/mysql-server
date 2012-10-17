@@ -2224,7 +2224,6 @@ err_exit:
 #endif /* UNIV_MEM_DEBUG */
 	}
 
-
 	heap = mem_heap_create(512);
 
 	switch (trx_get_dict_operation(trx)) {
@@ -2250,7 +2249,7 @@ err_exit:
 
 	err = trx->error_state;
 
-	if (table->space) {
+	if (table->space != TRX_SYS_SPACE) {
 		ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE));
 
 		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
