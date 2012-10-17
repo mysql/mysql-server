@@ -5493,10 +5493,10 @@ fail:
 	mtr_commit(&mtr);
 	mem_heap_empty(heap);
 	table_name = static_cast<char*>(mem_heap_alloc(heap, FN_REFLEN + 1));
-	innobase_convert_name(
+	*innobase_convert_name(
 		table_name, FN_REFLEN,
 		index->table_name, strlen(index->table_name),
-		NULL, TRUE);
+		NULL, TRUE) = 0;
 
 	ib_logf(IB_LOG_LEVEL_ERROR, "%s corruption of %s in table %s in %s",
 		status, index->name, table_name, ctx);
