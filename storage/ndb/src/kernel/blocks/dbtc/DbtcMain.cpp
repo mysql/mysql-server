@@ -4871,17 +4871,31 @@ void Dbtc::execSEND_PACKED(Signal* signal)
   UintR TpackedListIndex = cpackedListIndex;
   jamEntry();
   for (i = 0; i < TpackedListIndex; i++) {
+    jam();
     Thostptr.i = cpackedList[i];
     ptrAss(Thostptr, localHostRecord);
     arrGuard(Thostptr.i - 1, MAX_NODES - 1);
     UintR TnoOfPackedWordsLqh = Thostptr.p->noOfPackedWordsLqh;
     UintR TnoOfWordsTCKEYCONF = Thostptr.p->noOfWordsTCKEYCONF;
-    jam();
     if (TnoOfPackedWordsLqh > 0) {
       jam();
       sendPackedSignalLqh(signal, Thostptr.p);
     }//if
     if (TnoOfWordsTCKEYCONF > 0) {
+      jam();
+      sendPackedTCKEYCONF(signal, Thostptr.p, (Uint32)Thostptr.i);
+    }//if
+    for (Uint32 j = 0; j < NDB_ARRAY_SIZE(Thostptr.p->lqh_pack); j++)
+    {
+      struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[j];
+      jam();
+      if (container->noOfPackedWords > 0) {
+        jam();
+        sendPackedSignal(signal, container);
+      }
+    }
+    struct PackedWordsContainer * container = &Thostptr.p->packTCKEYCONF;
+    if (container->noOfPackedWords > 0) {
       jam();
       sendPackedTCKEYCONF(signal, Thostptr.p, (Uint32)Thostptr.i);
     }//if
@@ -4902,6 +4916,20 @@ Dbtc::updatePackedList(Signal* signal, HostRecord* ahostptr, Uint16 ahostIndex)
     cpackedListIndex = TpackedListIndex + 1;
   }//if
 }//Dbtc::updatePackedList()
+
+void Dbtc::sendPackedSignal(Signal* signal,
+                            struct PackedWordsContainer * container)
+{
+  UintR TnoOfWords = container->noOfPackedWords;
+  ndbassert(TnoOfWords <= 25);
+  container->noOfPackedWords = 0;
+  memcpy(&signal->theData[0], &container->packedWords[0], 4 * TnoOfWords);
+  sendSignal(container->hostBlockRef,
+             GSN_PACKED_SIGNAL,
+             signal,
+             TnoOfWords,
+             JBB);
+}//Dbtc::sendPackedSignal()
 
 void Dbtc::sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr)
 {
@@ -12616,6 +12644,15 @@ void Dbtc::inithost(Signal* signal)
     hostptr.p->noOfWordsTCKEYCONF = 0;
     hostptr.p->noOfPackedWordsLqh = 0;
     hostptr.p->hostLqhBlockRef = calcLqhBlockRef(hostptr.i);
+    struct PackedWordsContainer * containerTCKEYCONF =
+      &hostptr.p->packTCKEYCONF;
+    containerTCKEYCONF->noOfPackedWords = 0;
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(hostptr.p->lqh_pack); i++)
+    {
+      struct PackedWordsContainer * container = &hostptr.p->lqh_pack[i];
+      container->noOfPackedWords = 0;
+      container->hostBlockRef = numberToRef(DBLQH, i, hostptr.i);
+    }
     hostptr.p->m_nf_bits = 0;
   }//for
   c_alive_nodes.clear();
