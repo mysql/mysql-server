@@ -4743,7 +4743,8 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   const BlockNumber TblockNum = refToBlock(regApiPtr->ndbapiBlockref);
   const Uint32 Tmarker = (regApiPtr->commitAckMarker == RNIL) ? 0 : 1;
   ptrAss(localHostptr, hostRecord);
-  UintR TcurrLen = localHostptr.p->noOfWordsTCKEYCONF;
+  struct PackedWordsContainer * container = &localHostptr.p->packTCKEYCONF;
+  UintR TcurrLen = container->noOfPackedWords;
   UintR confInfo = 0;
   TcKeyConf::setCommitFlag(confInfo, TcommitFlag == 1);
   TcKeyConf::setMarkerFlag(confInfo, Tmarker);
@@ -4779,7 +4780,7 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
     tc_clearbit(regApiPtr->m_flags, ApiConnectRecord::TF_EXEC_FLAG);
   }
   TcKeyConf::setNoOfOperations(confInfo, (TopWords >> 1));
-  if ((TpacketLen + 1 /** gci_lo */ > 25) || !is_api){
+  if ((TpacketLen + 1 /** gci_lo */ > 25) ||!is_api){
     TcKeyConf * const tcKeyConf = (TcKeyConf *)signal->getDataPtrSend();
     
     jam();
@@ -4810,6 +4811,8 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   // length - 3, since we have the real signal length plus one additional word
   // for the header we have to do - 4.
   // -------------------------------------------------------------------------
+  container->noOfPackedWords = TcurrLen + TpacketLen + 1 /** gci_lo */;
+
   UintR Tpack0 = (TblockNum << 16) + (TpacketLen - 4 + 1 /** gci_lo */);
   UintR Tpack1 = regApiPtr->ndbapiConnect;
   UintR Tpack2 = Uint32(regApiPtr->globalcheckpointid >> 32);
@@ -4818,21 +4821,18 @@ void Dbtc::sendtckeyconf(Signal* signal, UintR TcommitFlag)
   UintR Tpack5 = regApiPtr->transid[1];
   UintR Tpack6 = Uint32(regApiPtr->globalcheckpointid);
   
-  localHostptr.p->noOfWordsTCKEYCONF = TcurrLen + TpacketLen + 1 /** gci_lo */;
+  container->packedWords[TcurrLen + 0] = Tpack0;
+  container->packedWords[TcurrLen + 1] = Tpack1;
+  container->packedWords[TcurrLen + 2] = Tpack2;
+  container->packedWords[TcurrLen + 3] = Tpack3;
+  container->packedWords[TcurrLen + 4] = Tpack4;
+  container->packedWords[TcurrLen + 5] = Tpack5;
+
+  container->packedWords[TcurrLen + TpacketLen] = Tpack6;
   
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 0] = Tpack0;
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 1] = Tpack1;
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 2] = Tpack2;
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 3] = Tpack3;
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 4] = Tpack4;
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + 5] = Tpack5;
-  
-  UintR Ti;
-  for (Ti = 6; Ti < TpacketLen; Ti++) {
-    localHostptr.p->packedWordsTCKEYCONF[TcurrLen + Ti] = 
-      regApiPtr->tcSendArray[Ti - 6];
+  for (Uint32 Ti = 6; Ti < TpacketLen; Ti++) {
+    container->packedWords[TcurrLen + Ti] = regApiPtr->tcSendArray[Ti - 6];
   }//for
-  localHostptr.p->packedWordsTCKEYCONF[TcurrLen + TpacketLen] = Tpack6;
 
   if (unlikely(!ndb_check_micro_gcp(getNodeInfo(localHostptr.i).m_version)))
   {
@@ -4957,20 +4957,12 @@ void Dbtc::sendPackedTCKEYCONF(Signal* signal,
                                HostRecord * ahostptr,
                                UintR hostId)
 {
-  UintR Tj;
-  UintR TnoOfWords = ahostptr->noOfWordsTCKEYCONF;
+  struct PackedWordsContainer * container = &ahostptr->packTCKEYCONF;
+  UintR TnoOfWords = container->noOfPackedWords;
+  ndbassert(TnoOfWords <= 25);
+  container->noOfPackedWords = 0;
   BlockReference TBref = numberToRef(API_PACKED, hostId);
-  for (Tj = 0; Tj < ahostptr->noOfWordsTCKEYCONF; Tj += 4) {
-    UintR sig0 = ahostptr->packedWordsTCKEYCONF[Tj + 0];
-    UintR sig1 = ahostptr->packedWordsTCKEYCONF[Tj + 1];
-    UintR sig2 = ahostptr->packedWordsTCKEYCONF[Tj + 2];
-    UintR sig3 = ahostptr->packedWordsTCKEYCONF[Tj + 3];
-    signal->theData[Tj + 0] = sig0;
-    signal->theData[Tj + 1] = sig1;
-    signal->theData[Tj + 2] = sig2;
-    signal->theData[Tj + 3] = sig3;
-  }//for
-  ahostptr->noOfWordsTCKEYCONF = 0;
+  memcpy(&signal->theData[0], &container->packedWords[0], 4 * TnoOfWords);
   sendSignal(TBref, GSN_TCKEYCONF, signal, TnoOfWords, JBB);
 }//Dbtc::sendPackedTCKEYCONF()
 
