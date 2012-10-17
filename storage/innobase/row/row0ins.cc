@@ -2944,8 +2944,9 @@ row_ins_sec_index_entry(
 		}
 	}
 
-	if (dict_index_online_trylog(index, entry, thr_get_trx(thr)->id,
-				     ROW_OP_INSERT)) {
+	ut_ad(thr_get_trx(thr)->id);
+
+	if (dict_index_online_trylog(index, entry, thr_get_trx(thr)->id)) {
 		return(DB_SUCCESS);
 	}
 
@@ -3217,6 +3218,10 @@ row_ins(
 
 		node->index = dict_table_get_next_index(node->index);
 		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+
+		DBUG_EXECUTE_IF(
+			"row_ins_skip_sec",
+			node->index = NULL; node->entry = NULL; break;);
 
 		/* Skip corrupted secondary index and its entry */
 		while (node->index && dict_index_is_corrupted(node->index)) {
