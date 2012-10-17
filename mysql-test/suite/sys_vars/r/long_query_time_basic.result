@@ -90,6 +90,11 @@ ERROR 42000: Incorrect argument type to variable 'long_query_time'
 SELECT @@global.long_query_time;
 @@global.long_query_time
 65530.340000
+SET @@global.long_query_time = ' ';
+ERROR 42000: Incorrect argument type to variable 'long_query_time'
+SELECT @@global.long_query_time;
+@@global.long_query_time
+65530.340000
 SET @@session.long_query_time = 100000000000;
 Warnings:
 Warning	1292	Truncated incorrect long_query_time value: '100000000000'
@@ -107,6 +112,11 @@ SELECT @@session.long_query_time;
 @@session.long_query_time
 65530.340000
 SET @@session.long_query_time = test;
+ERROR 42000: Incorrect argument type to variable 'long_query_time'
+SELECT @@session.long_query_time;
+@@session.long_query_time
+65530.340000
+SET @@session.long_query_time = ' ';
 ERROR 42000: Incorrect argument type to variable 'long_query_time'
 SELECT @@session.long_query_time;
 @@session.long_query_time

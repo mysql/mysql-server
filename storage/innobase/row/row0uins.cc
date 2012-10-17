@@ -380,11 +380,9 @@ row_undo_ins_remove_sec_rec(
 			only occur during the rollback of incomplete
 			transactions. */
 			ut_a(trx_is_recv(node->trx));
-		} else if (dict_index_online_trylog(
-				   index, entry, node->trx->id,
-				   ROW_OP_DELETE_PURGE)) {
+		} else if (dict_index_online_trylog(index, entry, 0)) {
 			/* The index is being created, and we
-			successfully buffered the purge operation. */
+			successfully buffered the delete operation. */
 		} else {
 			log_free_check();
 
