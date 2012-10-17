@@ -3773,9 +3773,25 @@ void Dblqh::sendPackedSignal(Signal* signal,
 
 void Dblqh::sendCommitLqh(Signal* signal, BlockReference alqhBlockref)
 {
+  Uint32 instanceKey = refToInstance(alqhBlockref);
+  ndbassert(refToMain(alqhBlockref) == DBLQH);
+
+  if (instanceKey > MAX_NDBMT_LQH_THREADS)
+  {
+    /* No send packed support in these cases */
+    jam();
+    signal->theData[0] = tcConnectptr.p->clientConnectrec;
+    signal->theData[1] = tcConnectptr.p->transid[0];
+    signal->theData[2] = tcConnectptr.p->transid[1];
+    sendSignal(alqhBlockref, GSN_COMMIT, signal, 3, JBB);
+    return;
+  }
+
   HostRecordPtr Thostptr;
+
   Thostptr.i = refToNode(alqhBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[instanceKey];
 
   Uint32 Tdata[5];
   Tdata[0] = tcConnectptr.p->clientConnectrec;
@@ -3792,40 +3808,41 @@ void Dblqh::sendCommitLqh(Signal* signal, BlockReference alqhBlockref)
     len = 4;
   }
 
-  // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers != 0;
-  if (send_unpacked) {
+  if (container->noOfPackedWords > 25 - len) {
     jam();
-    FragrecordPtr Tfragptr;
-    Tfragptr.i = tcConnectptr.p->fragmentptr;
-    c_fragment_pool.getPtr(Tfragptr);
-    memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    Uint32 Tnode = Thostptr.i;
-    Uint32 instanceKey = Tfragptr.p->lqhInstanceKey;
-    BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
-    sendSignal(lqhRef, GSN_COMMIT, signal, len, JBB);
-    return;
-  }
-
-  if (Thostptr.p->noOfPackedWordsLqh > 25 - 5) {
-    jam();
-    sendPackedSignalLqh(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }
 
   Tdata[0] |= (ZCOMMIT << 28);
-  Uint32 pos = Thostptr.p->noOfPackedWordsLqh;
-  memcpy(&Thostptr.p->packedWordsLqh[pos], &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsLqh = pos + len;
+  Uint32 pos = container->noOfPackedWords;
+  container->noOfPackedWords = pos + len;
+  memcpy(&container->packedWords[pos], &Tdata[0], len << 2);
 }
 
 void Dblqh::sendCompleteLqh(Signal* signal, BlockReference alqhBlockref)
 {
+  Uint32 instanceKey = refToInstance(alqhBlockref);
+  ndbassert(refToMain(alqhBlockref) == DBLQH);
+
+  if (instanceKey > MAX_NDBMT_LQH_THREADS)
+  {
+    /* No send packed support in these cases */
+    jam();
+    signal->theData[0] = tcConnectptr.p->clientConnectrec;
+    signal->theData[1] = tcConnectptr.p->transid[0];
+    signal->theData[2] = tcConnectptr.p->transid[1];
+    sendSignal(alqhBlockref, GSN_COMPLETE, signal, 3, JBB);
+    return;
+  }
+
   HostRecordPtr Thostptr;
+
   Thostptr.i = refToNode(alqhBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[instanceKey];
 
   Uint32 Tdata[3];
   Tdata[0] = tcConnectptr.p->clientConnectrec;
@@ -3833,39 +3850,28 @@ void Dblqh::sendCompleteLqh(Signal* signal, BlockReference alqhBlockref)
   Tdata[2] = tcConnectptr.p->transid[1];
   Uint32 len = 3;
 
-  // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers != 0;
-  if (send_unpacked) {
+  if (container->noOfPackedWords > 22) {
     jam();
-    FragrecordPtr Tfragptr;
-    Tfragptr.i = tcConnectptr.p->fragmentptr;
-    c_fragment_pool.getPtr(Tfragptr);
-    memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    Uint32 Tnode = Thostptr.i;
-    Uint32 instanceKey = Tfragptr.p->lqhInstanceKey;
-    BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
-    sendSignal(lqhRef, GSN_COMPLETE, signal, len, JBB);
-    return;
-  }
-
-  if (Thostptr.p->noOfPackedWordsLqh > 22) {
-    jam();
-    sendPackedSignalLqh(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }
 
   Tdata[0] |= (ZCOMPLETE << 28);
-  Uint32 pos = Thostptr.p->noOfPackedWordsLqh;
-  memcpy(&Thostptr.p->packedWordsLqh[pos], &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsLqh = pos + len;
+  Uint32 pos = container->noOfPackedWords;
+  container->noOfPackedWords = pos + len;
+  memcpy(&container->packedWords[pos], &Tdata[0], len << 2);
 }
 
 void Dblqh::sendCommittedTc(Signal* signal, BlockReference atcBlockref)
 {
-  if (refToInstance(atcBlockref))
+  Uint32 instanceKey = refToInstance(atcBlockref);
+
+  ndbassert(refToMain(atcBlockref) == DBTC);
+  if (instanceKey > MAX_NDBMT_TC_THREADS)
   {
+    /* No send packed support in these cases */
     jam();
     signal->theData[0] = tcConnectptr.p->clientConnectrec;
     signal->theData[1] = tcConnectptr.p->transid[0];
@@ -3877,6 +3883,7 @@ void Dblqh::sendCommittedTc(Signal* signal, BlockReference atcBlockref)
   HostRecordPtr Thostptr;
   Thostptr.i = refToNode(atcBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  struct PackedWordsContainer * container = &Thostptr.p->tc_pack[instanceKey];
 
   Uint32 Tdata[3];
   Tdata[0] = tcConnectptr.p->clientConnectrec;
@@ -3884,34 +3891,28 @@ void Dblqh::sendCommittedTc(Signal* signal, BlockReference atcBlockref)
   Tdata[2] = tcConnectptr.p->transid[1];
   Uint32 len = 3;
 
-  // currently TC is single-threaded
-  const bool send_unpacked = false;
-  if (send_unpacked) {
+  if (container->noOfPackedWords > 22) {
     jam();
-    memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    BlockReference tcRef = Thostptr.p->hostTcBlockRef;
-    sendSignal(tcRef, GSN_COMMITTED, signal, len, JBB);
-    return;
-  }
-
-  if (Thostptr.p->noOfPackedWordsTc > 22) {
-    jam();
-    sendPackedSignalTc(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }
 
   Tdata[0] |= (ZCOMMITTED << 28);
-  Uint32 pos = Thostptr.p->noOfPackedWordsTc;
-  memcpy(&Thostptr.p->packedWordsTc[pos], &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsTc = pos + len;
+  Uint32 pos = container->noOfPackedWords;
+  container->noOfPackedWords = pos + len;
+  memcpy(&container->packedWords[pos], &Tdata[0], len << 2);
 }
 
 void Dblqh::sendCompletedTc(Signal* signal, BlockReference atcBlockref)
 {
-  if (refToInstance(atcBlockref))
+  Uint32 instanceKey = refToInstance(atcBlockref);
+
+  ndbassert(refToMain(atcBlockref) == DBTC);
+  if (instanceKey > MAX_NDBMT_TC_THREADS)
   {
+    /* No handling of send packed in those cases */
     jam();
     signal->theData[0] = tcConnectptr.p->clientConnectrec;
     signal->theData[1] = tcConnectptr.p->transid[0];
@@ -3923,6 +3924,7 @@ void Dblqh::sendCompletedTc(Signal* signal, BlockReference atcBlockref)
   HostRecordPtr Thostptr;
   Thostptr.i = refToNode(atcBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  struct PackedWordsContainer * container = &Thostptr.p->tc_pack[instanceKey];
 
   Uint32 Tdata[3];
   Tdata[0] = tcConnectptr.p->clientConnectrec;
@@ -3930,28 +3932,18 @@ void Dblqh::sendCompletedTc(Signal* signal, BlockReference atcBlockref)
   Tdata[2] = tcConnectptr.p->transid[1];
   Uint32 len = 3;
 
-  // currently TC is single-threaded
-  const bool send_unpacked = false;
-  if (send_unpacked) {
+  if (container->noOfPackedWords > 22) {
     jam();
-    memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    BlockReference tcRef = Thostptr.p->hostTcBlockRef;
-    sendSignal(tcRef, GSN_COMMITTED, signal, len, JBB);
-    return;
-  }
-
-  if (Thostptr.p->noOfPackedWordsTc > 22) {
-    jam();
-    sendPackedSignalTc(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }
 
   Tdata[0] |= (ZCOMPLETED << 28);
-  Uint32 pos = Thostptr.p->noOfPackedWordsTc;
-  memcpy(&Thostptr.p->packedWordsTc[pos], &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsTc = pos + len;
+  Uint32 pos = container->noOfPackedWords;
+  container->noOfPackedWords = pos + len;
+  memcpy(&container->packedWords[pos], &Tdata[0], len << 2);
 }
 
 void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
