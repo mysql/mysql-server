@@ -99,6 +99,21 @@ SELECT @@global.innodb_concurrency_tickets;
 SET @@global.innodb_concurrency_tickets = 1001;
 SELECT @@global.innodb_concurrency_tickets;
 
+
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_concurrency_tickets = 1.1;
+SELECT @@global.innodb_concurrency_tickets;
+
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_concurrency_tickets = " ";
+SELECT @@global.innodb_concurrency_tickets;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_concurrency_tickets = ' ';
+SELECT @@global.innodb_concurrency_tickets;
+
+
 --echo '#----------------------FN_DYNVARS_046_05------------------------#'
 ######################################################################### 
 #     Check if the value in GLOBAL Table matches value in variable      #

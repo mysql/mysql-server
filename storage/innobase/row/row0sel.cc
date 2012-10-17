@@ -4194,6 +4194,11 @@ wait_table_again:
 	}
 
 rec_loop:
+	if (trx_is_interrupted(trx)) {
+		err = DB_INTERRUPTED;
+		goto normal_return;
+	}
+
 	/*-------------------------------------------------------------*/
 	/* PHASE 4: Look for matching records in a loop */
 

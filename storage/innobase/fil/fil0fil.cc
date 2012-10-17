@@ -3316,7 +3316,7 @@ fil_create_new_single_table_tablespace(
 
 		if (error == OS_FILE_ALREADY_EXISTS) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"The file already exists though the "
+				"The file '%s' already exists though the "
 				"corresponding table did not exist "
 				"in the InnoDB data dictionary. "
 				"Have you moved InnoDB .ibd files "
@@ -3326,7 +3326,7 @@ fil_create_new_single_table_tablespace(
 				"CREATE TABLE? "
 				"You can resolve the problem by removing "
 				"the file '%s' under the 'datadir' of MySQL.",
-				path);
+				path, path);
 
 			err = DB_TABLESPACE_EXISTS;
 			goto error_exit_3;
@@ -3935,7 +3935,7 @@ fil_validate_single_table_tablespace(
 		char* prev_filepath = fil_space_get_first_path(fsp->id);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Attempt to open a tablespace previously opened. "
+			"Attempted to open a previously opened tablespace. "
 			"Previous tablespace %s uses space ID: %lu at "
 			"filepath: %s. Cannot open tablespace %s which uses "
 			"space ID: %lu at filepath: %s",

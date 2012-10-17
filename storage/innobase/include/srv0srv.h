@@ -446,6 +446,10 @@ extern srv_stats_t	srv_stats;
 /* Keys to register InnoDB threads with performance schema */
 extern mysql_pfs_key_t	buf_page_cleaner_thread_key;
 extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
+extern mysql_pfs_key_t	io_ibuf_thread_key;
+extern mysql_pfs_key_t	io_log_thread_key;
+extern mysql_pfs_key_t	io_read_thread_key;
+extern mysql_pfs_key_t	io_write_thread_key;
 extern mysql_pfs_key_t	io_handler_thread_key;
 extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t	srv_error_monitor_thread_key;
