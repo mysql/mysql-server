@@ -214,7 +214,7 @@ trx_read_trx_id(
 Looks for the trx instance with the given id in the rw trx_list.
 The caller must be holding trx_sys->mutex.
 @return	the trx handle or NULL if not found;
-the pointer must not be dereferenced unless lock_sys->mutex was
+the pointer must not be dereferenced unless trx_sys->mutex was
 acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
@@ -234,9 +234,9 @@ trx_rw_min_trx_id(void);
 /****************************************************************//**
 Checks if a rw transaction with the given id is active. Caller must hold
 trx_sys->mutex in shared mode. If the caller is not holding
-lock_sys->mutex, the transaction may already have been committed.
+trx_sys->mutex, the transaction may already have been committed.
 @return	transaction instance if active, or NULL;
-the pointer must not be dereferenced unless lock_sys->mutex was
+the pointer must not be dereferenced unless trx_sys->mutex was
 acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
@@ -247,10 +247,10 @@ trx_rw_is_active_low(
 					that will be set if corrupt */
 /****************************************************************//**
 Checks if a rw transaction with the given id is active. If the caller is
-not holding lock_sys->mutex, the transaction may already have been
+not holding trx_sys->mutex, the transaction may already have been
 committed.
 @return	transaction instance if active, or NULL;
-the pointer must not be dereferenced unless lock_sys->mutex was
+the pointer must not be dereferenced unless trx_sys->mutex was
 acquired before calling this function and is still being held */
 UNIV_INLINE
 trx_t*
@@ -663,6 +663,19 @@ two) is assigned, the field TRX_SYS_TRX_ID_STORE on the transaction system
 page is updated */
 #define TRX_SYS_TRX_ID_WRITE_MARGIN	256
 #endif /* !UNIV_HOTBACKUP */
+
+/** Test if trx_sys->mutex is owned. */
+#define trx_sys_mutex_own() (trx_sys->mutex.is_owned())
+
+/** Acquire the trx_sys->mutex. */
+#define trx_sys_mutex_enter() do {			\
+	trx_sys->mutex.enter();				\
+} while (0)
+
+/** Release the trx_sys->mutex. */
+#define trx_sys_mutex_exit() do {			\
+	trx_sys->mutex.exit();				\
+} while (0)
 
 #ifndef UNIV_NONINL
 #include "trx0sys.ic"

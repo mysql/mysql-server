@@ -148,7 +148,7 @@ trx_in_trx_list(
 	trx_list = in_trx->read_only
 		? &trx_sys->ro_trx_list : &trx_sys->rw_trx_list;
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_assert_started(in_trx));
 
@@ -174,7 +174,7 @@ trx_sys_flush_max_trx_id(void)
 	mtr_t		mtr;
 	trx_sysf_t*	sys_header;
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	if (!srv_read_only_mode) {
 		mtr_start(&mtr);
@@ -534,7 +534,7 @@ trx_sys_init_at_db_start(void)
 	the debug code (assertions). We are still running in single threaded
 	bootstrap mode. */
 
-	trx_sys->mutex.enter();
+	trx_sys_mutex_enter();
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 
@@ -569,7 +569,7 @@ trx_sys_init_at_db_start(void)
 			trx_sys->max_trx_id);
 	}
 
-	trx_sys->mutex.exit();
+	trx_sys_mutex_exit();
 
 	UT_LIST_INIT(trx_sys->view_list);
 
@@ -1164,7 +1164,7 @@ trx_sys_close(void)
 	/* Check that all read views are closed except read view owned
 	by a purge. */
 
-	trx_sys->mutex.enter();
+	trx_sys_mutex_enter();
 
 	if (UT_LIST_GET_LEN(trx_sys->view_list) > 1) {
 		fprintf(stderr,
@@ -1174,7 +1174,7 @@ trx_sys_close(void)
 			UT_LIST_GET_LEN(trx_sys->view_list) - 1);
 	}
 
-	trx_sys->mutex.exit();
+	trx_sys_mutex_exit();
 
 	sess_close(trx_dummy_sess);
 	trx_dummy_sess = NULL;
@@ -1184,7 +1184,7 @@ trx_sys_close(void)
 	/* Free the double write data structures. */
 	buf_dblwr_free();
 
-	trx_sys->mutex.enter();
+	trx_sys_mutex_enter();
 
 	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 
@@ -1245,7 +1245,7 @@ trx_sys_any_active_transactions(void)
 {
 	ulint	total_trx = 0;
 
-	trx_sys->mutex.enter();
+	trx_sys_mutex_enter();
 
 	total_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list)
 		  + UT_LIST_GET_LEN(trx_sys->mysql_trx_list);
@@ -1253,7 +1253,7 @@ trx_sys_any_active_transactions(void)
 	ut_a(total_trx >= trx_sys->n_prepared_trx);
 	total_trx -= trx_sys->n_prepared_trx;
 
-	trx_sys->mutex.exit();
+	trx_sys_mutex_exit();
 
 	return(total_trx);
 }
@@ -1272,7 +1272,7 @@ trx_sys_validate_trx_list_low(
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
 
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_list == &trx_sys->ro_trx_list
 	      || trx_list == &trx_sys->rw_trx_list);
@@ -1298,7 +1298,7 @@ ibool
 trx_sys_validate_trx_list(void)
 /*===========================*/
 {
-	ut_ad(mutex_own(&trx_sys->mutex));
+	ut_ad(trx_sys_mutex_own());
 
 	ut_a(trx_sys_validate_trx_list_low(&trx_sys->ro_trx_list));
 	ut_a(trx_sys_validate_trx_list_low(&trx_sys->rw_trx_list));
