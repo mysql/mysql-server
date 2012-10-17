@@ -398,6 +398,10 @@ public:
  
   AttributeBuffer::DataBufferPool c_theAttributeBufferPool;
 
+  typedef DataBuffer<5> CommitAckMarkerBuffer;
+
+  CommitAckMarkerBuffer::DataBufferPool c_theCommitAckMarkerBufferPool;
+
   UintR c_transactionBufferSpace;
 
 
@@ -1477,14 +1481,14 @@ private:
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
   int  releaseAndAbort(Signal* signal);
-  void findApiConnectFail(Signal* signal);
+  void findApiConnectFail(Signal* signal, Uint32 instanceKey);
   void findTcConnectFail(Signal* signal, Uint32 instanceKey);
-  void initApiConnectFail(Signal* signal);
+  void initApiConnectFail(Signal* signal, Uint32 instanceKey);
   void initTcConnectFail(Signal* signal, Uint32 instanceKey);
   void initTcFail(Signal* signal);
   void releaseTakeOver(Signal* signal);
   void setupFailData(Signal* signal);
-  void updateApiStateFail(Signal* signal);
+  void updateApiStateFail(Signal* signal, Uint32 instanceKey);
   void updateTcStateFail(Signal* signal, Uint32 instanceKey);
   void handleApiFailState(Signal* signal, UintR anApiConnectptr);
   void handleFailedApiNode(Signal* signal,
@@ -1979,7 +1983,7 @@ public:
     Uint32 prevHash;
     Uint32 apiConnectPtr;
     Uint16 apiNodeId;
-    NdbNodeBitmask m_commit_ack_marker_nodes; 
+    CommitAckMarkerBuffer::Head theDataBuffer;
 
     inline bool equal(const CommitAckMarker & p) const {
       return ((p.transid1 == transid1) && (p.transid2 == transid2));
@@ -1988,6 +1992,9 @@ public:
     inline Uint32 hashValue() const {
       return transid1;
     }
+    bool insert_in_commit_ack_marker(Dbtc *tc,
+                                     Uint32 instanceKey,
+                                     NodeId nodeId);
   };
 
 private:
@@ -1999,9 +2006,10 @@ private:
   RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
   void execTC_COMMIT_ACK(Signal* signal);
-  void sendRemoveMarkers(Signal*, const CommitAckMarker *);
+  void sendRemoveMarkers(Signal*, CommitAckMarker *);
   void sendRemoveMarker(Signal* signal, 
 			NodeId nodeId,
+                        Uint32 instanceKey,
 			Uint32 transid1, 
 			Uint32 transid2);
   void removeMarkerForFailedAPI(Signal* signal, Uint32 nodeId, Uint32 bucket);
