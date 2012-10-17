@@ -709,7 +709,7 @@ size_t_max(size_t a, size_t b) {
     return (a > b) ? a : b;
 }
 
-static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
+static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, bool ignore_errors, void *stats_extra) {
     int r = 0;
     uint8_t rand_key_b[size_t_max(arg->cli->key_size, sizeof(uint64_t))];
     uint64_t *rand_key_key = cast_to_typeof(rand_key_key) rand_key_b;
@@ -732,7 +732,7 @@ static int random_put_in_db(DB *db, DB_TXN *txn, ARG arg, void *stats_extra) {
         dbt_init(&val, valbuf, sizeof valbuf);
         int flags = get_put_flags(arg->cli);
         r = db->put(db, txn, &key, &val, flags);
-        if (r != 0) {
+        if (!ignore_errors && r != 0) {
             goto cleanup;
         }
         puts_to_increment++;
@@ -805,13 +805,13 @@ cleanup:
 static int UU() random_put_op(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
     int db_index = myrandom_r(arg->random_data)%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
-    return random_put_in_db(db, txn, arg, stats_extra);
+    return random_put_in_db(db, txn, arg, false, stats_extra);
 }
 
 static int UU() random_put_op_singledb(DB_TXN *txn, ARG arg, void *UU(operation_extra), void *stats_extra) {
     int db_index = arg->thread_idx%arg->cli->num_DBs;
     DB* db = arg->dbp[db_index];
-    return random_put_in_db(db, txn, arg, stats_extra);
+    return random_put_in_db(db, txn, arg, false, stats_extra);
 }
 
 struct serial_put_extra {
