@@ -354,14 +354,3 @@ double tokutime_to_seconds(tokutime_t t) {
     }
     return t*seconds_per_clock;
 }
-
-#if __GNUC__ && __i386__
-
-// workaround for a gcc 4.1.2 bug on 32 bit platforms.
-uint64_t toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) __attribute__((noinline));
-
-uint64_t toku_sync_fetch_and_add_uint64(volatile uint64_t *a, uint64_t b) {
-    return __sync_fetch_and_add(a, b);
-}
-
-#endif
