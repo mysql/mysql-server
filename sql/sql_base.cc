@@ -8754,6 +8754,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
+    select_lex->where= *conds;
     select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
   }
 
@@ -8800,16 +8801,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     }
   }
 
-  if (!thd->stmt_arena->is_conventional())
-  {
-    /*
-      We are in prepared statement preparation code => we should store
-      WHERE clause changing for next executions.
-
-      We do this ON -> WHERE transformation only once per PS/SP statement.
-    */
-    select_lex->where= *conds;
-  }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->is_error()));
 
