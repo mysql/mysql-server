@@ -287,7 +287,6 @@ dict_build_tablespace(
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
-	table = node->table;
 	use_tablespace = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
 
 	dict_hdr_get_new_id(table, &table->id, NULL, NULL);
