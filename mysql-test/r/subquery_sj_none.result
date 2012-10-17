@@ -6289,6 +6289,10 @@ EXPLAIN
                 "Percentage"
               ],
               "key": "PRIMARY",
+              "used_key_parts": [
+                "Country",
+                "Language"
+              ],
               "key_length": "33",
               "ref": [
                 "func",
@@ -6313,6 +6317,9 @@ EXPLAIN
                 "Country"
               ],
               "key": "Population",
+              "used_key_parts": [
+                "Population"
+              ],
               "key_length": "4",
               "rows": 1,
               "filtered": 100,
@@ -8069,6 +8076,9 @@ EXPLAIN
                             "col_int_key"
                           ],
                           "key": "col_int_key",
+                          "used_key_parts": [
+                            "col_int_key"
+                          ],
                           "key_length": "4",
                           "ref": [
                             "func"
@@ -8086,6 +8096,9 @@ EXPLAIN
                             "col_int_key"
                           ],
                           "key": "col_int_key",
+                          "used_key_parts": [
+                            "col_int_key"
+                          ],
                           "key_length": "4",
                           "rows": 1,
                           "filtered": 100,
@@ -9959,6 +9972,9 @@ EXPLAIN
                     "col_varchar_key"
                   ],
                   "key": "col_varchar_key",
+                  "used_key_parts": [
+                    "col_varchar_key"
+                  ],
                   "key_length": "4",
                   "ref": [
                     "func"
@@ -10069,6 +10085,9 @@ EXPLAIN
                     "col_int_key"
                   ],
                   "key": "col_int_key",
+                  "used_key_parts": [
+                    "col_int_key"
+                  ],
                   "key_length": "4",
                   "ref": [
                     "func"
@@ -10282,6 +10301,9 @@ EXPLAIN
             "PRIMARY"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "pk"
+          ],
           "key_length": "4",
           "ref": [
             "test.alias2.pk"

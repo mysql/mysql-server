@@ -449,32 +449,9 @@ row_purge_remove_sec_if_poss(
 	}
 
 	if (dict_index_is_online_ddl(index)) {
-		bool	online = false;
-
-		/* Exclusively latch the index tree to prevent DML
-		threads from making changes. Otherwise, the return
-		status of row_purge_poss_sec() could change. For
-		row_log_online_op(), an S-latch would suffice. */
-		rw_lock_x_lock(dict_index_get_lock(index));
-
-		switch (dict_index_get_online_status(index)) {
-		case ONLINE_INDEX_CREATION:
-			if (row_purge_poss_sec(node, index, entry)) {
-				row_log_online_op(
-					index, entry, 0, ROW_OP_PURGE);
-			}
-			/* fall through */
-		case ONLINE_INDEX_ABORTED:
-		case ONLINE_INDEX_ABORTED_DROPPED:
-			online = true;
-			break;
-		case ONLINE_INDEX_COMPLETE:
-			/* The index was just completed. We must
-			perform the operation directly on it. */
-			break;
-		}
-
-		rw_lock_x_unlock(dict_index_get_lock(index));
+		rw_lock_s_lock(dict_index_get_lock(index));
+		bool online = dict_index_is_online_ddl(index);
+		rw_lock_s_unlock(dict_index_get_lock(index));
 
 		if (online) {
 			return;
