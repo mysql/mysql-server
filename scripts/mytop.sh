@@ -15,7 +15,6 @@ mytop - display MySQL server performance info like `top'
 use 5.005;
 use strict;
 use DBI;
-use DBD::mysql;
 use Getopt::Long;
 use Socket;
 use List::Util qw(min max);
