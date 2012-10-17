@@ -340,12 +340,12 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
 {
   DBUG_ENTER("NdbThread_Destroy");
   if (*p_thread != NULL){
-    DBUG_PRINT("enter",("*p_thread: 0x%lx", (long) *p_thread));
 #ifdef _WIN32
     HANDLE thread_handle = (*p_thread)->thread_handle;
     if (thread_handle)
       CloseHandle(thread_handle);
 #endif
+    DBUG_PRINT("enter",("*p_thread: 0x%lx", (long) *p_thread));
     free(* p_thread); 
     * p_thread = 0;
   }
