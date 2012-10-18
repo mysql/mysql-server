@@ -173,9 +173,8 @@ Allocates a new transaction id.
 @return	new, allocated trx id */
 UNIV_INLINE
 trx_id_t
-trx_sys_get_new_trx_id(
-/*========================*/
-	bool	flush);			/*!< in: flush max id if true */
+trx_sys_get_new_trx_id();
+/*===================*/
 /*****************************************************************//**
 Determines the maximum transaction id.
 @return maximum currently allocated trx id; will be stale after the
