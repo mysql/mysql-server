@@ -7196,15 +7196,8 @@ void JOIN::cleanup(bool full)
       }
     }
   }
-  /*
-    We are not using tables anymore
-    Unlock all tables. We may be in an INSERT .... SELECT statement.
-  */
   if (full)
   {
-    if (tmp_join)
-      tmp_table_param.copy_field= 0;
-
     /* 
       Ensure that the following delete_elements() would not be called
       twice for the same list.
