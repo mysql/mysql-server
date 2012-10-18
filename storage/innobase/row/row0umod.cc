@@ -495,7 +495,11 @@ Delete unmarks a secondary index entry which must be found. It might not be
 delete-marked at the moment, but it does not harm to unmark it anyway. We also
 need to update the fields of the secondary index record if we updated its
 fields but alphabetically they stayed the same, e.g., 'abc' -> 'aBc'.
-@return	DB_FAIL or DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@retval	DB_SUCCESS on success
+@retval	DB_FAIL if BTR_MODIFY_TREE should be tried
+@retval	DB_OUT_OF_FILE_SPACE when running out of tablespace
+@retval	DB_DUPLICATE_KEY if the value was missing
+	and an insert would lead to a duplicate exists */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_del_unmark_sec_and_undo_update(
@@ -921,7 +925,11 @@ row_undo_mod_upd_exist_sec(
 				BTR_MODIFY_TREE, thr, index, entry);
 		}
 
-		if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+		if (err == DB_DUPLICATE_KEY) {
+			row_undo_mod_sec_flag_corrupted(
+				thr_get_trx(thr), index);
+			err = DB_SUCCESS;
+		} else if (err != DB_SUCCESS) {
 			break;
 		}
 
