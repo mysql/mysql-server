@@ -23,8 +23,6 @@ Cursor read
 Created 2/16/1997 Heikki Tuuri
 *******************************************************/
 
-#include <algorithm>
-
 #include "read0read.h"
 
 #ifdef UNIV_NONINL
@@ -33,6 +31,8 @@ Created 2/16/1997 Heikki Tuuri
 
 #include "srv0srv.h"
 #include "trx0sys.h"
+
+#include <algorithm>
 
 /*
 -------------------------------------------------------------------------------
