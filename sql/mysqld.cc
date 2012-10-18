@@ -302,7 +302,7 @@ static TYPELIB tc_heuristic_recover_typelib=
 };
 
 const char *first_keyword= "first", *binary_keyword= "BINARY";
-const char *my_localhost= "localhost", *delayed_user= "DELAYED";
+const char *my_localhost= "localhost";
 
 bool opt_large_files= sizeof(my_off_t) > 4;
 static my_bool opt_autocommit; ///< for --autocommit command-line option
