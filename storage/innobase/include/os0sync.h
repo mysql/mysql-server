@@ -485,7 +485,7 @@ amount of increment. */
 	atomic_add_64_nv(ptr, amount)
 
 # define os_atomic_fetch_and_increment_uint64(ptr, amount) \
-	atomic_add_64(ptr, amount)
+	(os_atomic_increment_uint64(ptr, amount) - amount)
 
 /* Returns the resulting value, ptr is pointer to target, amount is the
 amount to decrement. */
