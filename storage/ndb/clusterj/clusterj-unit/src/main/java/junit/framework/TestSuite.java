@@ -44,9 +44,6 @@ public class TestSuite implements Test {
     public final List<String> testClasses = new ArrayList<String>();
     public final List<TestCase> tests = new ArrayList<TestCase>();
 
-    public Ignore ignoreTypeAnnotation = null;
-    public String ignoreTypeReason = null;
-
     /** Create a new test suite; add tests later.
      * @param name the name of the test suite
      */
@@ -73,25 +70,41 @@ public class TestSuite implements Test {
      * @param testClass the test class
      */
     public void addTestSuite(Class<? extends TestCase> testClass) {
-        ignoreTypeAnnotation = testClass.getAnnotation(Ignore.class);
-        ignoreTypeReason = ignoreTypeAnnotation == null? null: ignoreTypeAnnotation.value();
+        // see if the test class (or any of its inherited classes) is annotated with @Ignore
+        Class<?> cls = testClass;
+        Ignore ignoreTypeAnnotation = null;
+        String ignoreTypeReason = null;
+        while (cls != null) {
+            ignoreTypeAnnotation = cls.getAnnotation(Ignore.class);
+            if (ignoreTypeAnnotation != null) {
+                ignoreTypeReason = ignoreTypeAnnotation.value();
+                break;
+            } else {
+                cls = cls.getSuperclass();
+            }
+        }
         testClasses.add(testClass.getName());
         final Method[] methods = testClass.getMethods();
         Ignore ignoreMethodAnnotation = null;
         String ignoreMethodReason = null;
         for (Method m : methods) {
             ignoreMethodAnnotation = m.getAnnotation(Ignore.class);
-            ignoreMethodReason = ignoreMethodAnnotation == null? null: ignoreMethodAnnotation.value();
+            ignoreMethodReason = ignoreTypeAnnotation != null?ignoreTypeReason :
+                ignoreMethodAnnotation == null? null: ignoreMethodAnnotation.value();
             // public void methods that begin with "test" and have no parameters are considered to be tests
             if (m.getName().startsWith("test")
                     && m.getParameterTypes().length == 0
                     && m.getReturnType().equals(Void.TYPE)
                     && Modifier.isPublic(m.getModifiers())) {
                 try {
-//                    System.out.println("TestSuite found " + m.getName());
-                    if (ignoreTypeAnnotation != null || ignoreMethodAnnotation != null) {
-                        System.out.println(m.getName() + 
-                                " @Ignore: " + ignoreTypeReason + ":" + ignoreMethodReason);
+//                    System.out.println("TestSuite found " + testClass.getName() + ":" + m.getName() + 
+//                            " ignoreTypeAnnotation: " + ignoreTypeAnnotation + 
+//                            " ignoreMethodAnnotation: " + ignoreMethodAnnotation +
+//                            " ignoreTypeReason: " + ignoreTypeReason + 
+//                            " ignoreMethodReason: " + ignoreMethodReason);
+                    if (ignoreMethodReason != null) {
+                        System.out.println(testClass.getName() + ":" + m.getName() + 
+                                " @Ignored because: " + ignoreMethodReason);
                     } else {
                         TestCase t = testClass.newInstance();
                         t.name = testClass.getSimpleName() + "." + m.getName();
