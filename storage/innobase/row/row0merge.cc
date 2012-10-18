@@ -1459,6 +1459,9 @@ end_of_index:
 			const dfield_t*	dfield;
 
 			dfield = dtuple_get_nth_field(row, add_autoinc);
+			if (dfield_is_null(dfield)) {
+				goto write_buffers;
+			}
 
 			const dtype_t*  dtype = dfield_get_type(dfield);
 			byte*	b = static_cast<byte*>(dfield_get_data(dfield));
