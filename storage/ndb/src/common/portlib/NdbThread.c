@@ -61,6 +61,25 @@ struct NdbThread
 { 
   volatile int inited;
   pthread_t thread;
+#ifdef _WIN32
+  /*
+    Problem in mysys on certain MySQL versions where the thread id is
+    used as the thread identifier. Since the thread id may be reused
+    by another thread(when the current thread exits) one may end up
+    waiting for the wrong thread.
+
+    Workaround by using a HANDLE which is opened by thread itself in
+    'ndb_thread_wrapper' and subsequently used to wait for the
+    thread in 'NdbThread_WaitFor'.
+
+    NOTE: Windows implementation of 'pthread_join' and support for non
+    detached threads as implemented in MySQL Cluster 7.0 and 7.1 is not
+    affected, only MySQL Cluster based on 5.5+ affected(slightly
+    different implementation). The current workaround in NdbThread is
+    generic and works regardless of pthread_join implementation in mysys.
+  */
+  HANDLE thread_handle;
+#endif
 #if defined HAVE_SOLARIS_AFFINITY
   id_t tid;
 #elif defined HAVE_LINUX_SCHEDULING
@@ -148,6 +167,15 @@ ndb_thread_wrapper(void* _ss){
       void *ret;
       struct NdbThread * ss = (struct NdbThread *)_ss;
       settid(ss);
+
+#ifdef _WIN32
+      /*
+        Create the thread handle, ignore failure since it's unlikely
+        to fail and the functions using this handle checks for NULL.
+      */
+      ss->thread_handle =
+        OpenThread(SYNCHRONIZE, FALSE, GetCurrentThreadId());
+#endif
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
       ndb_mutex_thread_init(&ss->m_mutex_thr_state);
@@ -312,6 +340,11 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
 {
   DBUG_ENTER("NdbThread_Destroy");
   if (*p_thread != NULL){
+#ifdef _WIN32
+    HANDLE thread_handle = (*p_thread)->thread_handle;
+    if (thread_handle)
+      CloseHandle(thread_handle);
+#endif
     DBUG_PRINT("enter",("*p_thread: 0x%lx", (long) *p_thread));
     free(* p_thread); 
     * p_thread = 0;
@@ -322,17 +355,35 @@ void NdbThread_Destroy(struct NdbThread** p_thread)
 
 int NdbThread_WaitFor(struct NdbThread* p_wait_thread, void** status)
 {
-  int result;
-
   if (p_wait_thread == NULL)
     return 0;
 
   if (p_wait_thread->thread == 0)
     return 0;
 
-  result = pthread_join(p_wait_thread->thread, status);
-  
-  return result;
+#ifdef _WIN32
+  {
+    DWORD ret;
+    HANDLE thread_handle = p_wait_thread->thread_handle;
+
+    if (thread_handle == NULL)
+    {
+      return -1;
+    }
+
+    ret = WaitForSingleObject(thread_handle, INFINITE);
+    if (ret != WAIT_OBJECT_0)
+    {
+      return -1;
+    }
+
+    /* Don't fill in "status", never used anyway */
+
+    return 0;
+  }
+#else
+  return pthread_join(p_wait_thread->thread, status);
+#endif
 }
 
 
