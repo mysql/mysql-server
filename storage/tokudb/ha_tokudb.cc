@@ -6089,7 +6089,7 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
 
     if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
         // if creating a hot index
-        if (get_create_index_online(thd) && thd_sql_command(thd)== SQLCOM_CREATE_INDEX) {
+        if (thd_sql_command(thd)== SQLCOM_CREATE_INDEX && get_create_index_online(thd)) {
             rw_rdlock(&share->num_DBs_lock);
             if (share->num_DBs == (table->s->keys + test(hidden_primary_key))) {
                 lock_type = TL_WRITE_ALLOW_WRITE;
