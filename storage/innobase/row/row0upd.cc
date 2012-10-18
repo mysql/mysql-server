@@ -1772,18 +1772,20 @@ row_upd_sec_online(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
+	ut_ad(trx_id != 0);
 
 	heap = mem_heap_create(1024);
 	entry = row_build_index_entry(node->row, node->ext, index, heap);
 	ut_a(entry);
 
-	row_log_online_op(index, entry, trx_id, ROW_OP_DELETE_MARK);
+	row_log_online_op(index, entry, 0);
 
 	if (!node->is_delete) {
 		mem_heap_empty(heap);
 		entry = row_build_index_entry(node->upd_row, node->upd_ext,
 					      index, heap);
-		row_log_online_op(index, entry, trx_id, ROW_OP_INSERT);
+		ut_a(entry);
+		row_log_online_op(index, entry, trx_id);
 	}
 
 	mem_heap_free(heap);
@@ -2542,6 +2544,8 @@ row_upd(
 				    "after_row_upd_clust");
 	}
 #endif /* UNIV_DEBUG */
+
+	DBUG_EXECUTE_IF("row_upd_skip_sec", node->index = NULL;);
 
 	do {
 		/* Skip corrupted index */
