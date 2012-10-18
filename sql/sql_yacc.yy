@@ -8555,18 +8555,8 @@ select_init2:
           select_part2
           {
             LEX *lex= Lex;
-            SELECT_LEX * sel= lex->current_select;
-            if (lex->current_select->set_braces(0))
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            if (sel->linkage == UNION_TYPE &&
-                sel->master_unit()->first_select()->braces)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
+            // Parentheses carry no meaning here.
+            lex->current_select->set_braces(false);
           }
           union_clause
         ;
@@ -10857,18 +10847,8 @@ select_init2_derived:
           select_part2_derived
           {
             LEX *lex= Lex;
-            SELECT_LEX * sel= lex->current_select;
-            if (lex->current_select->set_braces(0))
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            if (sel->linkage == UNION_TYPE &&
-                sel->master_unit()->first_select()->braces)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
+            // Parentheses carry no meaning here.
+            lex->current_select->set_braces(false);
           }
         ;
 
