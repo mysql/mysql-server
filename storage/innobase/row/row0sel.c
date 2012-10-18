@@ -4660,13 +4660,17 @@ row_search_autoinc_read_column(
 	/* TODO: We have to cast away the const of rec for now.  This needs
 	to be fixed later.*/
 	offsets = rec_get_offsets(
-		(rec_t*) rec, index, offsets, ULINT_UNDEFINED, &heap);
+		(rec_t*) rec, index, offsets, col_no + 1, &heap);
+
+	if (rec_offs_nth_sql_null(offsets, col_no)) {
+		/* There is no non-NULL value in the auto-increment column. */
+		value = 0;
+		goto func_exit;
+	}
 
 	/* TODO: We have to cast away the const of rec for now.  This needs
 	to be fixed later.*/
 	data = rec_get_nth_field((rec_t*)rec, offsets, col_no, &len);
-
-	ut_a(len != UNIV_SQL_NULL);
 
 	switch (mtype) {
 	case DATA_INT:
@@ -4688,13 +4692,14 @@ row_search_autoinc_read_column(
 		ut_error;
 	}
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
-
 	/* We assume that the autoinc counter can't be negative. */
 	if (!unsigned_type && (ib_longlong) value < 0) {
 		value = 0;
+	}
+
+func_exit:
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
 	}
 
 	return(value);
