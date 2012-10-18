@@ -6740,7 +6740,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         */
         while ((find=find_it++))
         {
-          if (!my_strcasecmp(system_charset_info, def->field_name, find->field_name))
+          /*
+            Create_fields representing changed columns are added directly
+            from Alter_info::create_list to new_create_list. We can therefore
+            safely use pointer equality rather than name matching here.
+            This prevents removing the wrong column in case of column rename.
+          */
+          if (find == def)
           {
             find_it.remove();
             break;

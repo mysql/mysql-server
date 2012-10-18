@@ -1298,18 +1298,18 @@ dict_index_is_online_ddl(
 
 /*********************************************************************//**
 Attempts to log an operation on a secondary index that is being created.
-@return TRUE if the operation was logged or the index creation failed;
-FALSE if the index creation was completed */
+@retval true if the operation was logged or the index creation failed
+@retval false if the index creation was completed */
 UNIV_INLINE
-ibool
+bool
 dict_index_online_trylog(
 /*=====================*/
 	dict_index_t*	index,	/*!< in/out: index */
 	const dtuple_t*	entry,	/*!< in: index entry */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation on the index entry */
+	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
+				or 0 for delete */
 {
-	ibool	online = FALSE;
+	bool	online = false;
 
 	/* First check whether this is a normal index or a temporary
 	index being built (online). The latter requires online logging.
@@ -1317,7 +1317,7 @@ dict_index_online_trylog(
 	to ONLINE status while DML is going on. So for most (normal)
 	index, following check outside index->lock is sufficient */
 	if (!dict_index_is_online_ddl(index)) {
-		return(FALSE);
+		return(false);
 	}
 
 	/* Now it is an online index creation, acquire the index->lock
@@ -1332,11 +1332,11 @@ dict_index_online_trylog(
 	case ONLINE_INDEX_COMPLETE:
 		break;
 	case ONLINE_INDEX_CREATION:
-		dict_index_online_log(index, entry, trx_id, op);
+		row_log_online_op(index, entry, trx_id);
 		/* fall through */
 	case ONLINE_INDEX_ABORTED:
 	case ONLINE_INDEX_ABORTED_DROPPED:
-		online = TRUE;
+		online = true;
 	}
 
 	rw_lock_s_unlock(dict_index_get_lock(index));

@@ -1301,7 +1301,7 @@ btr_cur_optimistic_insert(
 		    && UNIV_UNLIKELY(REC_NODE_PTR_SIZE
 				     + rec_get_converted_size_comp_prefix(
 					     index, entry->fields, n_uniq,
-					     index->n_nullable, NULL)
+					     NULL)
 				     /* On a compressed page, there is
 				     a two-byte entry in the dense
 				     page directory for every record.

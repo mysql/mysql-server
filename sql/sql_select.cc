@@ -2667,6 +2667,8 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
 
   tab->on_expr_ref= tl->join_cond_ref();
 
+  tab->materialize_table= join_materialize_semijoin;
+
   table->pos_in_table_list= tl;
   table->keys_in_use_for_query.set_all();
   sjm_pos->table= tab;
@@ -2897,8 +2899,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     // Materialize derived tables prior to accessing them.
     if (tab->table->pos_in_table_list->uses_materialization())
       tab->materialize_table= join_materialize_derived;
-    if (tab->sj_mat_exec)
-      tab->materialize_table= join_materialize_semijoin;
   }
 
   for (uint i= join->const_tables; i < join->primary_tables; i++)
