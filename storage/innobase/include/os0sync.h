@@ -593,7 +593,7 @@ amount of increment. */
 # define os_atomic_fetch_and_increment_uint64(ptr, amount)	\
 	((ib_uint64_t) (InterlockedExchangeAdd64(		\
 				(ib_int64_t*) ptr,		\
-				(ib_int64_t) amount))
+				(ib_int64_t) amount)))
 
 # define os_atomic_increment_uint64(ptr, amount)		\
 	(os_atomic_fetch_and_increment_uint64(ptr, amount) + amount)
