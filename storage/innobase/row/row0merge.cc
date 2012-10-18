@@ -3430,6 +3430,8 @@ row_merge_build_indexes(
 
 		if (indexes[i]->type & DICT_FTS) {
 			os_event_t	fts_parallel_merge_event;
+			bool		all_exit = false;
+			ulint		trial_count = 0;
 
 			fts_parallel_merge_event
 				= merge_info[0].psort_common->sort_event;
@@ -3444,12 +3446,39 @@ wait_again:
 
 				for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 					if (merge_info[j].child_status
-					    != FTS_CHILD_COMPLETE) {
+					    != FTS_CHILD_COMPLETE
+					    && merge_info[j].child_status
+					    != FTS_CHILD_EXITING) {
 						sig_count = os_event_reset(
 						fts_parallel_merge_event);
 
 						goto wait_again;
 					}
+				}
+
+				/* Now all children should complete, wait
+				a bit until they all finish using event */
+				while (!all_exit && trial_count < 1000) {
+					all_exit = true;
+
+					for (j = 0; j < FTS_NUM_AUX_INDEX;
+					     j++) {
+						if (merge_info[j].child_status
+						    != FTS_CHILD_EXITING) {
+							all_exit = false;
+							os_thread_sleep(1000);
+							break;
+						}
+					}
+					trial_count++;
+				}
+
+				if (!all_exit) {
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Not all child threads exited"
+						" when creating FTS index '%s'",
+						indexes[i]->name);
+						
 				}
 			} else {
 				/* This cannot report duplicates; an
