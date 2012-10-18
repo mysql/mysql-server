@@ -654,7 +654,6 @@ void my_print_stacktrace(uchar* unused1, ulong unused2)
       &(package.sym));
     have_source= SymGetLineFromAddr64(hProcess, addr, &line_offset, &line);
 
-    my_safe_printf_stderr("%p    ", (uintptr_t)addr);
     if(have_module)
     {
       const char *base_image_name= my_basename(module.ImageName);
