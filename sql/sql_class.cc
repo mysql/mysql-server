@@ -3648,12 +3648,6 @@ void Security_context::destroy()
     my_free(host);
     host= NULL;
   }
-  if (user != delayed_user)
-  {
-    my_free(user);
-    user= NULL;
-  }
-
   if (external_user)
   {
     my_free(external_user);

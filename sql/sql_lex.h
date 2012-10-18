@@ -1231,24 +1231,13 @@ public:
            0;
   }
 
-  /**
-    Enumeration listing of all types of unsafe statement.
-
-    @note The order of elements of this enumeration type must
-    correspond to the order of the elements of the @c explanations
-    array defined in the body of @c THD::issue_unsafe_warnings.
-  */
+  /// Enumeration listing of all types of unsafe statements.
   enum enum_binlog_stmt_unsafe {
     /**
       SELECT..LIMIT is unsafe because the set of rows returned cannot
       be predicted.
     */
     BINLOG_STMT_UNSAFE_LIMIT= 0,
-    /**
-      INSERT DELAYED is unsafe because the time when rows are inserted
-      cannot be predicted.
-    */
-    BINLOG_STMT_UNSAFE_INSERT_DELAYED,
     /**
       Access to log tables is unsafe because slave and master probably
       log different things.
@@ -2425,9 +2414,10 @@ public:
   */
   uint8 create_view_suid;
 
-  /*
-    stmt_definition_begin is intended to point to the next word after
-    DEFINER-clause in the following statements:
+  /**
+    Intended to point to the next word after DEFINER-clause in the
+    following statements:
+
       - CREATE TRIGGER (points to "TRIGGER");
       - CREATE PROCEDURE (points to "PROCEDURE");
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
@@ -2435,20 +2425,9 @@ public:
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
-
-    keyword_delayed_begin_offset is the offset to the beginning of the DELAYED
-    keyword in INSERT DELAYED statement. keyword_delayed_end_offset is the
-    offset to the character right after the DELAYED keyword.
   */
-  union {
-    const char *stmt_definition_begin;
-    uint keyword_delayed_begin_offset;
-  };
-
-  union {
-    const char *stmt_definition_end;
-    uint keyword_delayed_end_offset;
-  };
+  const char *stmt_definition_begin;
+  const char *stmt_definition_end;
 
   /**
     During name resolution search only in the table list given by 
