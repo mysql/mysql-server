@@ -206,18 +206,18 @@ row_fts_psort_info_init(
 	common_info = static_cast<fts_psort_common_t*>(
 		mem_alloc(sizeof *common_info));
 
+	if (!common_info) {
+		ut_free(dup);
+		mem_free(psort_info);
+		return(FALSE);
+	}
+
 	common_info->dup = dup;
 	common_info->new_table = (dict_table_t*) new_table;
 	common_info->trx = trx;
 	common_info->all_info = psort_info;
 	common_info->sort_event = os_event_create(NULL);
 	common_info->opt_doc_id_size = opt_doc_id_size;
-
-	if (!common_info) {
-		ut_free(dup);
-		mem_free(psort_info);
-		return(FALSE);
-	}
 
 	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
 	each parallel sort thread. Each "sort bucket" holds records for
@@ -879,6 +879,7 @@ fts_parallel_merge(
 
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);
+	psort_info->child_status = FTS_CHILD_EXITING;
 
 #ifdef __WIN__
 	CloseHandle(psort_info->thread_hdl);
