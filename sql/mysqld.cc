@@ -1797,6 +1797,7 @@ void clean_up(bool print_message)
 #endif
   my_tz_free();
   my_dboptions_cache_free();
+  ignore_db_dirs_free();
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   servers_free(1);
   acl_free(1);
@@ -3440,6 +3441,9 @@ static int init_common_variables()
       mysql_init_variables())
     return 1;
 
+  if (ignore_db_dirs_init())
+    return 1;
+
 #ifdef HAVE_TZNAME
   struct tm tm_tmp;
   localtime_r(&server_start_time,&tm_tmp);
@@ -3867,6 +3871,12 @@ You should consider changing lower_case_table_names to 1 or 2",
   table_alias_charset= (lower_case_table_names ?
 			files_charset_info :
 			&my_charset_bin);
+
+  if (ignore_db_dirs_process_additions())
+  {
+    sql_print_error("An error occurred while storing ignore_db_dirs to a hash.");
+    return 1;
+  }
 
   return 0;
 }
@@ -6310,7 +6320,7 @@ struct my_option my_long_options[]=
 #ifdef HAVE_MMAP
   {"log-tc-size", 0, "Size of transaction coordinator log.",
    &opt_tc_log_size, &opt_tc_log_size, 0, GET_ULONG,
-   REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, (longlong) ULONG_MAX, 0,
+   REQUIRED_ARG, TC_LOG_MIN_SIZE, TC_LOG_MIN_SIZE, (ulonglong) ULONG_MAX, 0,
    TC_LOG_PAGE_SIZE, 0},
 #endif
   {"master-info-file", 0,
@@ -7735,6 +7745,22 @@ mysqld_get_one_option(int optid,
     break;
   case OPT_MAX_LONG_DATA_SIZE:
     max_long_data_size_used= true;
+    break;
+
+
+  case OPT_IGNORE_DB_DIRECTORY:
+    if (*argument == 0)
+      ignore_db_dirs_reset();
+    else
+    {
+      if (push_ignored_db_dir(argument))
+      {
+        sql_print_error("Can't start server: "
+                        "cannot process --ignore-db-dir=%.*s", 
+                        FN_REFLEN, argument);
+        return 1;
+      }
+    }
     break;
   }
   return 0;

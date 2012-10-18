@@ -4,7 +4,7 @@ create user pam_test;
 grant proxy on pam_test to test_pam;
 #
 # athentication is successful, challenge/pin are ok
-# note that current_user() differts from user()
+# note that current_user() differs from user()
 #
 Challenge input first.
 Enter: not very secret challenge

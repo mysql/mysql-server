@@ -6637,6 +6637,23 @@ a	( 3, 3 ) NOT IN ( SELECT NULL, NULL )
 set optimizer_switch=@mdev367_optimizer_switch;
 DROP TABLE t1;
 #
+# MDEV-521 single value subselect transformation problem
+#
+CREATE TABLE t1 (f1 char(2), PRIMARY KEY (f1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('u1'),('u2');
+SELECT a.* FROM t1 a WHERE ( SELECT EXISTS ( SELECT 1 FROM t1 b WHERE b.f1 = a.f1 ) );
+f1
+u1
+u2
+FLUSH TABLES;
+SELECT a.* FROM t1 a WHERE ( SELECT EXISTS ( SELECT 1 FROM t1 b WHERE b.f1 = a.f1 ) );
+f1
+u1
+u2
+DROP TABLE t1;
+# return optimizer switch changed in the beginning of this test
+set optimizer_switch=@subselect_tmp;
+#
 # lp:944706 Query with impossible or constant subquery in WHERE or HAVING is not
 # precomputed and thus not part of optimization
 #

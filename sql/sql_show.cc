@@ -414,6 +414,281 @@ bool mysqld_show_privileges(THD *thd)
 }
 
 
+/** Hash of LEX_STRINGs used to search for ignored db directories. */
+static HASH ignore_db_dirs_hash;
+
+/** 
+  An array of LEX_STRING pointers to collect the options at 
+  option parsing time.
+*/
+static DYNAMIC_ARRAY ignore_db_dirs_array;
+
+/**
+  A value for the read only system variable to show a list of
+  ignored directories.
+*/
+char *opt_ignore_db_dirs= NULL;
+
+/**
+  This flag is ON if:
+        - the list of ignored directories is not empty
+
+        - and some of the ignored directory names
+        need no tablename-to-filename conversion.
+        Otherwise, if the name of the directory contains
+        unconditional characters like '+' or '.', they
+        never can match the database directory name. So the
+        db_name_is_in_ignore_db_dirs_list() can just return at once.
+*/
+static bool skip_ignored_dir_check= TRUE;
+
+/**
+  Sets up the data structures for collection of directories at option
+  processing time.
+  We need to collect the directories in an array first, because
+  we need the character sets initialized before setting up the hash.
+
+  @return state
+  @retval TRUE  failed
+  @retval FALSE success
+*/
+
+bool
+ignore_db_dirs_init()
+{
+  return my_init_dynamic_array(&ignore_db_dirs_array, sizeof(LEX_STRING *),
+                               0, 0);
+}
+
+
+/**
+  Retrieves the key (the string itself) from the LEX_STRING hash members.
+
+  Needed by hash_init().
+
+  @param     data         the data element from the hash
+  @param out len_ret      Placeholder to return the length of the key
+  @param                  unused
+  @return                 a pointer to the key
+*/
+
+static uchar *
+db_dirs_hash_get_key(const uchar *data, size_t *len_ret,
+                     my_bool __attribute__((unused)))
+{
+  LEX_STRING *e= (LEX_STRING *) data;
+
+  *len_ret= e->length;
+  return (uchar *) e->str;
+}
+
+
+/**
+  Wrap a directory name into a LEX_STRING and push it to the array.
+
+  Called at option processing time for each --ignore-db-dir option.
+
+  @param    path  the name of the directory to push
+  @return state
+  @retval TRUE  failed
+  @retval FALSE success
+*/
+
+bool
+push_ignored_db_dir(char *path)
+{
+  LEX_STRING *new_elt;
+  char *new_elt_buffer;
+  size_t path_len= strlen(path);
+
+  if (!path_len || path_len >= FN_REFLEN)
+    return true;
+
+  // No need to normalize, it's only a directory name, not a path.
+  if (!my_multi_malloc(0,
+                       &new_elt, sizeof(LEX_STRING),
+                       &new_elt_buffer, path_len + 1,
+                       NullS))
+    return true;
+  new_elt->str= new_elt_buffer;
+  memcpy(new_elt_buffer, path, path_len);
+  new_elt_buffer[path_len]= 0;
+  new_elt->length= path_len;
+  return insert_dynamic(&ignore_db_dirs_array, (uchar*) &new_elt);
+}
+
+
+/**
+  Clean up the directory ignore options accumulated so far.
+
+  Called at option processing time for each --ignore-db-dir option
+  with an empty argument.
+*/
+
+void
+ignore_db_dirs_reset()
+{
+  LEX_STRING **elt;
+  while (NULL!= (elt= (LEX_STRING **) pop_dynamic(&ignore_db_dirs_array)))
+    if (elt && *elt)
+      my_free(*elt);
+}
+
+
+/**
+  Free the directory ignore option variables.
+
+  Called at server shutdown.
+*/
+
+void
+ignore_db_dirs_free()
+{
+  if (opt_ignore_db_dirs)
+  {
+    my_free(opt_ignore_db_dirs);
+    opt_ignore_db_dirs= NULL;
+  }
+  ignore_db_dirs_reset();
+  delete_dynamic(&ignore_db_dirs_array);
+  my_hash_free(&ignore_db_dirs_hash);
+}
+
+
+/**
+  Initialize the ignore db directories hash and status variable from
+  the options collected in the array.
+
+  Called when option processing is over and the server's in-memory 
+  structures are fully initialized.
+
+  @return state
+  @retval TRUE  failed
+  @retval FALSE success
+*/
+
+static void dispose_db_dir(void *ptr)
+{
+  my_free(ptr);
+}
+
+
+bool
+ignore_db_dirs_process_additions()
+{
+  ulong i;
+  size_t len;
+  char *ptr;
+  LEX_STRING *dir;
+
+
+  skip_ignored_dir_check= TRUE;
+
+  if (my_hash_init(&ignore_db_dirs_hash, 
+                   lower_case_table_names ?
+                     character_set_filesystem : &my_charset_bin,
+                   0, 0, 0, db_dirs_hash_get_key,
+                   dispose_db_dir,
+                   HASH_UNIQUE))
+    return true;
+
+  /* len starts from 1 because of the terminating zero. */
+  len= 1;
+  for (i= 0; i < ignore_db_dirs_array.elements; i++)
+  {
+    get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
+    len+= dir->length + 1;                      // +1 for the comma
+    if (skip_ignored_dir_check)
+    {
+      char buff[FN_REFLEN];
+      (void) tablename_to_filename(dir->str, buff, sizeof(buff));
+      skip_ignored_dir_check= strcmp(dir->str, buff) != 0;
+    }
+  }
+
+  /* No delimiter for the last directory. */
+  if (len > 1)
+    len--;
+
+  /* +1 the terminating zero */
+  ptr= opt_ignore_db_dirs= (char *) my_malloc(len + 1, MYF(0));
+  if (!ptr)
+    return true;
+
+  /* Make sure we have an empty string to start with. */
+  *ptr= 0;
+
+  for (i= 0; i < ignore_db_dirs_array.elements; i++)
+  {
+    get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
+    if (my_hash_insert(&ignore_db_dirs_hash, (uchar *) dir))
+      return true;
+    ptr= strnmov(ptr, dir->str, dir->length);
+    if (i + 1 < ignore_db_dirs_array.elements)
+      ptr= strmov(ptr, ",");
+
+    /*
+      Set the transferred array element to NULL to avoid double free
+      in case of error.
+    */
+    dir= NULL;
+    set_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
+  }
+
+  /* make sure the string is terminated */
+  DBUG_ASSERT(ptr - opt_ignore_db_dirs <= (ptrdiff_t) len);
+  *ptr= 0;
+
+  /* 
+    It's OK to empty the array here as the allocated elements are
+    referenced through the hash now.
+  */
+  reset_dynamic(&ignore_db_dirs_array);
+
+  return false;
+}
+
+
+/**
+  Check if a directory name is in the hash of ignored directories.
+
+  @return search result
+  @retval TRUE  found
+  @retval FALSE not found
+*/
+
+static inline bool
+is_in_ignore_db_dirs_list(const char *directory)
+{
+  return ignore_db_dirs_hash.records &&
+    NULL != my_hash_search(&ignore_db_dirs_hash, (const uchar *) directory, 
+                           strlen(directory));
+}
+
+
+/**
+  Check if a database name is in the hash of ignored directories.
+
+  @return search result
+  @retval TRUE  found
+  @retval FALSE not found
+*/
+
+bool
+db_name_is_in_ignore_db_dirs_list(const char *directory)
+{
+  char buff[FN_REFLEN];
+  uint buff_len;
+
+  if (skip_ignored_dir_check)
+    return 0;
+
+  buff_len= tablename_to_filename(directory, buff, sizeof(buff));
+
+  return my_hash_search(&ignore_db_dirs_hash, (uchar *) buff, buff_len)!=NULL;
+}
+
+
 /*
   find_files() - find files in a given directory.
 
@@ -497,6 +772,9 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
        }
 #endif
       if (!MY_S_ISDIR(file->mystat->st_mode))
+        continue;
+
+      if (is_in_ignore_db_dirs_list(file->name))
         continue;
 
       file_name_len= filename_to_tablename(file->name, uname, sizeof(uname));

@@ -3444,6 +3444,9 @@ bool check_db_name(LEX_STRING *org_name)
   if (lower_case_table_names && name != any_db)
     my_casedn_str(files_charset_info, name);
 
+  if (db_name_is_in_ignore_db_dirs_list(name))
+    return 1;
+
   return check_table_name(name, name_length, check_for_path_chars);
 }
 
@@ -4967,7 +4970,16 @@ TABLE *TABLE_LIST::get_real_join_table()
     tbl= (tbl->view != NULL ?
           tbl->view->select_lex.get_table_list() :
           tbl->derived->first_select()->get_table_list());
+
+    /* find left table in outer join on this level */
+    while(tbl->outer_join & JOIN_TYPE_RIGHT)
+    {
+      DBUG_ASSERT(tbl->next_local);
+      tbl= tbl->next_local;
+    }
+
   }
+
   return tbl->table;
 }
 

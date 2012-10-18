@@ -364,6 +364,8 @@ inline int hexchar_to_int(char c)
 #define IS_TABLESPACES_NODEGROUP_ID       7
 #define IS_TABLESPACES_TABLESPACE_COMMENT 8
 
+bool db_name_is_in_ignore_db_dirs_list(const char *dbase);
+
 #endif /* MYSQL_SERVER */
 
 #endif /* MYSQL_CLIENT */

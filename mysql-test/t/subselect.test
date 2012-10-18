@@ -5597,6 +5597,22 @@ set optimizer_switch=@mdev367_optimizer_switch;
 DROP TABLE t1;
 
 --echo #
+--echo # MDEV-521 single value subselect transformation problem
+--echo #
+CREATE TABLE t1 (f1 char(2), PRIMARY KEY (f1)) ENGINE=MyISAM;
+INSERT INTO t1 VALUES ('u1'),('u2');
+
+SELECT a.* FROM t1 a WHERE ( SELECT EXISTS ( SELECT 1 FROM t1 b WHERE b.f1 = a.f1 ) );
+FLUSH TABLES;
+SELECT a.* FROM t1 a WHERE ( SELECT EXISTS ( SELECT 1 FROM t1 b WHERE b.f1 = a.f1 ) );
+
+# Cleanup
+DROP TABLE t1;
+
+--echo # return optimizer switch changed in the beginning of this test
+set optimizer_switch=@subselect_tmp;
+
+--echo #
 --echo # lp:944706 Query with impossible or constant subquery in WHERE or HAVING is not
 --echo # precomputed and thus not part of optimization
 --echo #

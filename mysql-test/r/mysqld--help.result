@@ -204,6 +204,10 @@ The following options may be given as the first argument:
  -?, --help          Display this help and exit.
  --ignore-builtin-innodb 
  Disable initialization of builtin InnoDB plugin
+ --ignore-db-dirs=name 
+ Specifies a directory to add to the ignore list when
+ collecting database names from the datadir. Put a blank
+ argument to reset the list accumulated so far.
  --init-connect=name Command(s) that are executed for each new connection
  (unless the user has SUPER privilege)
  --init-file=name    Read SQL commands from this file at startup
@@ -909,6 +913,7 @@ general-log FALSE
 group-concat-max-len 1024
 help TRUE
 ignore-builtin-innodb FALSE
+ignore-db-dirs 
 init-connect 
 init-file (No default value)
 init-rpl-role MASTER

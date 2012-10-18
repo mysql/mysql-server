@@ -4381,6 +4381,46 @@ SELECT * FROM v1, t2
 DROP VIEW v1;
 DROP TABLE t1,t2,t3,t4;
 
+--echo #
+--echo # LP bug #823237: dependent subquery with LEFT JOIN
+--echo #                 referencing view in WHERE
+--echo # (duplicate of LP bug #823189)
+--echo # 
+
+CREATE TABLE t1 (a int);
+
+CREATE TABLE t2 ( b int, d int, e int);
+INSERT INTO t2 VALUES (7,8,0);
+
+CREATE TABLE t3 ( c int);
+INSERT INTO t3 VALUES (0);
+
+CREATE TABLE t4 (a int, b int, c int);
+INSERT INTO t4 VALUES (93,1,0), (95,NULL,0);
+
+CREATE VIEW v4 AS SELECT * FROM t4;
+
+EXPLAIN EXTENDED
+SELECT * FROM t3 , t4 
+  WHERE t4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+                   WHERE t2.b > t4.b);
+SELECT * FROM t3 , t4 
+  WHERE t4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+                   WHERE t2.b > t4.b);
+
+
+EXPLAIN EXTENDED
+SELECT * FROM t3, v4 
+  WHERE v4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+                   WHERE t2.b > v4.b);
+
+SELECT * FROM t3, v4 
+  WHERE v4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+                   WHERE t2.b > v4.b);
+
+DROP VIEW v4;
+DROP TABLE t1,t2,t3,t4;
+
 #
 # Bug#9801 (Views: imperfect error message)
 #
@@ -4661,6 +4701,52 @@ create algorithm=MERGE view v2 as select 2 as id, id is null as bbb, id as iddqd
 select t1.*, v2.* from t1 left join v2 on t1.id = v2.id;
 drop view v2;
 drop table t1,t2;
+
+--echo #
+--echo # MDEV-589 (LP BUG#1007647) :
+--echo # Assertion `vcol_table == 0 || vcol_table == table' failed in
+--echo # fill_record(THD*, List<Item>&, List<Item>&, bool)
+--echo #
+CREATE TABLE t1 (f1 INT, f2 INT);
+CREATE TABLE t2 (f1 INT, f2 INT);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT a1.f1, a2.f2 FROM t1 AS a1, t1 AS a2;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT * FROM v1;
+CREATE ALGORITHM=MERGE VIEW v3 AS SELECT a1.f1, a2.f2 FROM t1 AS a1, t2 AS a2;
+CREATE ALGORITHM=MERGE VIEW v4 AS SELECT * FROM v3;
+--error ER_VIEW_MULTIUPDATE
+INSERT INTO v3 (f1, f2) VALUES (1, 2);
+--error ER_VIEW_MULTIUPDATE
+INSERT INTO v1 (f1, f2) VALUES (1, 2);
+--error ER_VIEW_MULTIUPDATE
+INSERT INTO v4 (f1, f2) VALUES (1, 2);
+--error ER_VIEW_MULTIUPDATE
+INSERT INTO v2 (f1, f2) VALUES (1, 2);
+drop view v4,v3,v2,v1;
+drop table t1,t2;
+
+--echo #
+--echo # MDEV-3799 fix of above bugfix (MDEV-589) 
+--echo # Wrong result (NULLs instead of real values) with RIGHT JOIN
+--echo # in a FROM subquery and derived_merge=on
+--echo #
+
+CREATE TABLE t1 (f1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4),(6);
+
+CREATE TABLE t2 (f2 INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7),(8);
+
+SELECT * FROM (  
+  SELECT * FROM t1 RIGHT JOIN t2 ON f1 = f2
+) AS alias;
+
+SELECT * FROM (  
+  SELECT * FROM t2 LEFT JOIN t1 ON f1 = f2
+) AS alias;
+
+drop tables t1,t2;
+
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------

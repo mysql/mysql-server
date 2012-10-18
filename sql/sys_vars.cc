@@ -48,6 +48,7 @@
 #include <myisam.h>
 #include "log_slow.h"
 #include "debug_sync.h"                         // DEBUG_SYNC
+#include "sql_show.h"
 
 #include "log_event.h"
 #ifdef WITH_PERFSCHEMA_STORAGE_ENGINE
@@ -3614,6 +3615,15 @@ static Sys_var_tz Sys_time_zone(
        "time_zone", "time_zone",
        SESSION_VAR(time_zone), NO_CMD_LINE,
        DEFAULT(&default_tz), NO_MUTEX_GUARD, IN_BINLOG);
+
+static Sys_var_charptr Sys_ignore_db_dirs(
+       "ignore_db_dirs",
+       "Specifies a directory to add to the ignore list when collecting "
+       "database names from the datadir. Put a blank argument to reset "
+       "the list accumulated so far.",
+       READ_ONLY GLOBAL_VAR(opt_ignore_db_dirs), 
+       CMD_LINE(REQUIRED_ARG, OPT_IGNORE_DB_DIRECTORY),
+       IN_FS_CHARSET, DEFAULT(0));
 
 static Sys_var_ulong Sys_sp_cache_size(
        "stored_program_cache",

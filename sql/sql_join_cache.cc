@@ -681,7 +681,23 @@ void JOIN_CACHE::set_constants()
   uint len= length + fields*sizeof(uint)+blobs*sizeof(uchar *) +
             (prev_cache ? prev_cache->get_size_of_rec_offset() : 0) +
             sizeof(ulong);
-  buff_size= max(join->thd->variables.join_buff_size, 2*len);
+  /* 
+    The values of  size_of_rec_ofs, size_of_rec_len, size_of_fld_ofs,
+     base_prefix_length, pack_length,  pack_length_with_blob_ptrs
+     will be recalculated later in this function when we get the estimate
+     for the actual value of the join buffer size.
+  */    
+  size_of_rec_ofs=  size_of_rec_len= size_of_fld_ofs= 4;
+  base_prefix_length= (with_length ? size_of_rec_len : 0) +
+                      (prev_cache ? prev_cache->get_size_of_rec_offset() : 0); 
+  pack_length= (with_length ? size_of_rec_len : 0) +
+               (prev_cache ? prev_cache->get_size_of_rec_offset() : 0) + 
+               length + fields*sizeof(uint);
+  pack_length_with_blob_ptrs= pack_length + blobs*sizeof(uchar *);
+  min_buff_size= 0;
+  min_records= 1;
+  buff_size= max(join->thd->variables.join_buff_size,
+                 get_min_join_buffer_size());
   size_of_rec_ofs= offset_size(buff_size);
   size_of_rec_len= blobs ? size_of_rec_ofs : offset_size(len); 
   size_of_fld_ofs= size_of_rec_len;
@@ -754,19 +770,24 @@ ulong JOIN_CACHE::get_min_join_buffer_size()
   if (!min_buff_size)
   {
     size_t len= 0;
+    size_t len_last= 0;
     for (JOIN_TAB *tab= start_tab; tab != join_tab; 
          tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
     {
       len+= tab->get_max_used_fieldlength();
+      len_last=+ tab->get_used_fieldlength();
     }
-    len+= get_record_max_affix_length() + get_max_key_addon_space_per_record();  
-    size_t min_sz= len*min_records;
+    size_t len_addon= get_record_max_affix_length() +
+                      get_max_key_addon_space_per_record();
+    len+= len_addon;
+    len_last+= len_addon;
+    size_t min_sz= len*(min_records-1) + len_last;
+    min_sz+= pack_length_with_blob_ptrs;
     size_t add_sz= 0;
     for (uint i=0; i < min_records; i++)
       add_sz+= join_tab_scan->aux_buffer_incr(i+1);
     avg_aux_buffer_incr= add_sz/min_records;
     min_sz+= add_sz;
-    min_sz+= pack_length_with_blob_ptrs;
     set_if_bigger(min_sz, 1);
     min_buff_size= min_sz;
   }

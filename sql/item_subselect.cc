@@ -1063,11 +1063,9 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     }
     substitution= select_lex->item_list.head();
     /*
-      as far as we moved content to upper level, field which depend of
-      'upper' select is not really dependent => we remove this dependence
+      as far as we moved content to upper level we have to fix dependences & Co
     */
-    substitution->walk(&Item::remove_dependence_processor, 0,
-		       (uchar *) select_lex->outer_select());
+    substitution->fix_after_pullout(select_lex->outer_select(), &substitution);
   }
   DBUG_RETURN(false);
 }

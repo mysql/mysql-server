@@ -1,0 +1,38 @@
+select @@ignore_db_dirs;
+let $MYSQLD_DATADIR= `select @@datadir`;
+
+mkdir $MYSQLD_DATADIR/.mysqlgui;
+mkdir $MYSQLD_DATADIR/.otherdir;
+mkdir $MYSQLD_DATADIR/lost+found;
+mkdir $MYSQLD_DATADIR/ignored_db;
+--echo # Check that SHOW DATABASES ignores all directories from
+--echo # @@ignore_db_dirs and all directories with names starting
+--echo # with '.'
+SHOW DATABASES;
+--error ER_WRONG_DB_NAME
+USE ignored_db;
+--error ER_WRONG_DB_NAME
+SELECT * FROM ignored_db.t1;
+--error ER_WRONG_DB_NAME
+CALL ignored_db.p1();
+SELECT COUNT(*) FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME='ignored_db';
+--error ER_WRONG_DB_NAME
+CREATE DATABASE ignored_db;
+CREATE DATABASE `lost+found`;
+USE `lost+found`;
+CREATE TABLE t1(id INT);
+INSERT INTO t1 VALUES (1), (2);
+SELECT * FROM `lost+found`.t1;
+SHOW DATABASES;
+DROP DATABASE `lost+found`;
+rmdir $MYSQLD_DATADIR/.mysqlgui;
+rmdir $MYSQLD_DATADIR/.otherdir;
+rmdir $MYSQLD_DATADIR/lost+found;
+rmdir $MYSQLD_DATADIR/ignored_db;
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@global.ignore_db_dirs = 'aha';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@local.ignore_db_dirs = 'aha';
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@ignore_db_dirs = 'aha';

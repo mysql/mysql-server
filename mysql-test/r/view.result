@@ -4530,6 +4530,55 @@ WHERE t4.a >= v1.a);
 a	a
 DROP VIEW v1;
 DROP TABLE t1,t2,t3,t4;
+#
+# LP bug #823237: dependent subquery with LEFT JOIN
+#                 referencing view in WHERE
+# (duplicate of LP bug #823189)
+# 
+CREATE TABLE t1 (a int);
+CREATE TABLE t2 ( b int, d int, e int);
+INSERT INTO t2 VALUES (7,8,0);
+CREATE TABLE t3 ( c int);
+INSERT INTO t3 VALUES (0);
+CREATE TABLE t4 (a int, b int, c int);
+INSERT INTO t4 VALUES (93,1,0), (95,NULL,0);
+CREATE VIEW v4 AS SELECT * FROM t4;
+EXPLAIN EXTENDED
+SELECT * FROM t3 , t4 
+WHERE t4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+WHERE t2.b > t4.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1276	Field or reference 'test.t4.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	select 0 AS `c`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c` from `test`.`t4` where (`test`.`t4`.`c` <= <expr_cache><`test`.`t4`.`b`>((select 0 from dual where (7 > `test`.`t4`.`b`))))
+SELECT * FROM t3 , t4 
+WHERE t4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+WHERE t2.b > t4.b);
+c	a	b	c
+0	93	1	0
+EXPLAIN EXTENDED
+SELECT * FROM t3, v4 
+WHERE v4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+WHERE t2.b > v4.b);
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	t3	system	NULL	NULL	NULL	NULL	1	100.00	
+1	PRIMARY	t4	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	system	NULL	NULL	NULL	NULL	1	100.00	
+2	DEPENDENT SUBQUERY	t1	system	NULL	NULL	NULL	NULL	0	0.00	const row not found
+Warnings:
+Note	1276	Field or reference 'v4.b' of SELECT #2 was resolved in SELECT #1
+Note	1003	select 0 AS `c`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c` from `test`.`t4` where (`test`.`t4`.`c` <= <expr_cache><`test`.`t4`.`b`>((select 0 from dual where (7 > `test`.`t4`.`b`))))
+SELECT * FROM t3, v4 
+WHERE v4.c <= (SELECT t2.e FROM t2 LEFT JOIN t1 ON ( t1.a = t2.d )
+WHERE t2.b > v4.b);
+c	a	b	c
+0	93	1	0
+DROP VIEW v4;
+DROP TABLE t1,t2,t3,t4;
 drop table if exists t_9801;
 drop view if exists v_9801;
 create table t_9801 (s1 int);
@@ -4730,6 +4779,49 @@ id	id	bbb	iddqd	val1
 30631	NULL	NULL	NULL	NULL
 drop view v2;
 drop table t1,t2;
+#
+# MDEV-589 (LP BUG#1007647) :
+# Assertion `vcol_table == 0 || vcol_table == table' failed in
+# fill_record(THD*, List<Item>&, List<Item>&, bool)
+#
+CREATE TABLE t1 (f1 INT, f2 INT);
+CREATE TABLE t2 (f1 INT, f2 INT);
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT a1.f1, a2.f2 FROM t1 AS a1, t1 AS a2;
+CREATE ALGORITHM=MERGE VIEW v2 AS SELECT * FROM v1;
+CREATE ALGORITHM=MERGE VIEW v3 AS SELECT a1.f1, a2.f2 FROM t1 AS a1, t2 AS a2;
+CREATE ALGORITHM=MERGE VIEW v4 AS SELECT * FROM v3;
+INSERT INTO v3 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v3'
+INSERT INTO v1 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v1'
+INSERT INTO v4 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v4'
+INSERT INTO v2 (f1, f2) VALUES (1, 2);
+ERROR HY000: Can not modify more than one base table through a join view 'test.v2'
+drop view v4,v3,v2,v1;
+drop table t1,t2;
+#
+# MDEV-3799 fix of above bugfix (MDEV-589) 
+# Wrong result (NULLs instead of real values) with RIGHT JOIN
+# in a FROM subquery and derived_merge=on
+#
+CREATE TABLE t1 (f1 INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (4),(6);
+CREATE TABLE t2 (f2 INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (7),(8);
+SELECT * FROM (  
+SELECT * FROM t1 RIGHT JOIN t2 ON f1 = f2
+) AS alias;
+f1	f2
+NULL	7
+NULL	8
+SELECT * FROM (  
+SELECT * FROM t2 LEFT JOIN t1 ON f1 = f2
+) AS alias;
+f2	f1
+7	NULL
+8	NULL
+drop tables t1,t2;
 # -----------------------------------------------------------------
 # -- End of 5.3 tests.
 # -----------------------------------------------------------------
