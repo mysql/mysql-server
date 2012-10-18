@@ -26,6 +26,9 @@ EXPLAIN
         "str"
       ],
       "key": "str",
+      "used_key_parts": [
+        "str"
+      ],
       "key_length": "11",
       "ref": [
         "const"

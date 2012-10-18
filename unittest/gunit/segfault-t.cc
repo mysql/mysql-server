@@ -180,16 +180,19 @@ TEST(PrintUtilities, Printf)
   EXPECT_STREQ(sprintfbuff, buff);
 }
 
-TEST_F(FatalSignalDeathTest, TestHashFiloZeroSize)
+
+// After the fix for Bug#14689561, this is no longer a death test.
+TEST(HashFiloTest, TestHashFiloZeroSize)
 {
   hash_filo *t_cache;
   t_cache= new hash_filo(5, 0, 0,
                          (my_hash_get_key) NULL,
                          (my_hash_free_key) NULL,
                          NULL);
+  t_cache->clear();
   t_cache->resize(0);
   hash_filo_element entry;
-  //after resize (to zero) it tries to dereference last_link which is NULL
+  // After resize (to zero) it tries to dereference last_link which is NULL.
   t_cache->add(&entry);
   delete t_cache;
 }
