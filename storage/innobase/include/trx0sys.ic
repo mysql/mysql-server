@@ -443,11 +443,10 @@ Allocates a new transaction id.
 @return	new, allocated trx id */
 UNIV_INLINE
 trx_id_t
-trx_sys_get_new_trx_id(
-/*===================*/
-	bool	flush)			/*!< in: flush max id if true */
+trx_sys_get_new_trx_id()
+/*====================*/
 {
-	ut_ad(mutex_own(&trx_sys->mutex) == flush);
+	ut_ad(mutex_own(&trx_sys->mutex));
 
 	/* VERY important: after the database is started, max_trx_id value is
 	divisible by TRX_SYS_TRX_ID_WRITE_MARGIN, and the following if
@@ -456,26 +455,12 @@ trx_sys_get_new_trx_id(
 	Thus trx id values will not overlap when the database is
 	repeatedly started! */
 
-	if (flush && !(trx_sys->max_trx_id % TRX_SYS_TRX_ID_WRITE_MARGIN)) {
+	if (!(trx_sys->max_trx_id % TRX_SYS_TRX_ID_WRITE_MARGIN)) {
 
 		trx_sys_flush_max_trx_id();
 	}
 
-	trx_id_t	id;
-
-#ifndef HAVE_ATOMIC_BUILTINS
-	if (!flush) {
-		mutex_enter(&trx_sys->mutex);
-		id = trx_sys->max_trx_id++;
-		mutex_exit(&trx_sys->mutex);
-	} else {
-		id = trx_sys->max_trx_id++;
-	}
-#else
-	id = os_atomic_fetch_and_increment_uint64(&trx_sys->max_trx_id, 1);
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
-	return(id);
+	return(trx_sys->max_trx_id++);
 }
 
 /*****************************************************************//**

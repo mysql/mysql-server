@@ -688,7 +688,11 @@ trx_assign_rseg(
 	trx->rseg = trx_assign_rseg_low(srv_undo_logs, srv_undo_tablespaces);
 
 	if (trx->id == 0) {
-		trx->id = trx_sys_get_new_trx_id(false);
+		mutex_enter(&trx_sys->mutex);
+
+		trx->id = trx_sys_get_new_trx_id();
+
+		mutex_exit(&trx_sys->mutex);
 	}
 }
 
@@ -756,7 +760,7 @@ trx_start_low(
 
 		mutex_enter(&trx_sys->mutex);
 
-		trx->id = trx_sys_get_new_trx_id(true);
+		trx->id = trx_sys_get_new_trx_id();
 
 		ut_ad(trx->rseg != 0
 		      || srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
@@ -780,7 +784,8 @@ trx_start_low(
 			to write to the temporary table. */
 
 			if (read_write) {
-				trx->id = trx_sys_get_new_trx_id(true);
+				ut_ad(!srv_read_only_mode);
+				trx->id = trx_sys_get_new_trx_id();
 			}
 
 			UT_LIST_ADD_FIRST(trx_list, trx_sys->ro_trx_list, trx);
@@ -815,7 +820,7 @@ trx_serialisation_number_get(
 
 	mutex_enter(&trx_sys->mutex);
 
-	trx->no = trx_sys_get_new_trx_id(true);
+	trx->no = trx_sys_get_new_trx_id();
 
 	/* If the rollack segment is not empty then the
 	new trx_t::no can't be less than any trx_t::no
@@ -2210,7 +2215,7 @@ trx_set_rw_mode(
 	ut_a(trx->rseg != 0);
 
 	ut_a(trx->id == 0);
-	trx->id = trx_sys_get_new_trx_id(true);
+	trx->id = trx_sys_get_new_trx_id();
 
 	/* So that we can see our own changes. */
 	if (trx->read_view != 0) {
