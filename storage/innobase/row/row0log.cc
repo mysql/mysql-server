@@ -24,6 +24,11 @@ Created 2011-05-26 Marko Makela
 *******************************************************/
 
 #include "row0log.h"
+
+#ifdef UNIV_NONINL
+#include "row0log.ic"
+#endif
+
 #include "row0row.h"
 #include "row0ins.h"
 #include "row0upd.h"
@@ -128,7 +133,7 @@ UNIV_INTERN
 void
 row_log_online_op(
 /*==============*/
-	dict_index_t*	index,	/*!< in/out: index, S-latched */
+	dict_index_t*	index,	/*!< in/out: index, S or X latched */
 	const dtuple_t* tuple,	/*!< in: index tuple */
 	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
 				or 0 for delete */
@@ -143,7 +148,8 @@ row_log_online_op(
 	ut_ad(dtuple_validate(tuple));
 	ut_ad(dtuple_get_n_fields(tuple) == dict_index_get_n_fields(index));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED));
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED)
+	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_index_is_corrupted(index)) {
@@ -2526,23 +2532,6 @@ row_log_free(
 	mutex_free(&log->mutex);
 	os_mem_free_large(log->head.block, log->size);
 	log = 0;
-}
-
-/******************************************************//**
-Free the row log for an index on which online creation was aborted. */
-UNIV_INTERN
-void
-row_log_abort_sec(
-/*===============*/
-	dict_index_t*	index)	/*!< in/out: index (x-latched) */
-{
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
-#endif /* UNIV_SYNC_DEBUG */
-
-	ut_ad(!dict_index_is_clust(index));
-	dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
-	row_log_free(index->online_log);
 }
 
 /******************************************************//**
