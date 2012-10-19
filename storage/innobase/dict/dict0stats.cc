@@ -151,8 +151,7 @@ dict_stats_should_ignore_index(
 	return((index->type & DICT_FTS)
 	       || dict_index_is_corrupted(index)
 	       || index->to_be_dropped
-	       || (!dict_index_is_clust(index)
-		   && dict_index_is_online_ddl(index)));
+	       || *index->name == TEMP_INDEX_PREFIX);
 }
 /* @} */
 
