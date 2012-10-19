@@ -36,22 +36,22 @@ where parent.b < 2
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	parent	ALL	NULL	NULL	NULL	NULL	256	Using where with pushed condition
-1	SIMPLE	c1	ref	PRIMARY	PRIMARY	4	test.parent.b	1	
-1	SIMPLE	c2	ref	PRIMARY	PRIMARY	4	test.parent.b	1	
-1	SIMPLE	c3	ref	PRIMARY	PRIMARY	4	test.parent.b	1	
-1	SIMPLE	c4	ref	PRIMARY	PRIMARY	4	test.parent.b	1	
-1	SIMPLE	c5	ref	PRIMARY	PRIMARY	4	test.parent.b	1	
-1	SIMPLE	c6	ref	PRIMARY	PRIMARY	4	test.parent.b	1	
-1	SIMPLE	c7	ref	PRIMARY	PRIMARY	4	test.parent.b	1	
-1	SIMPLE	c8	ref	PRIMARY	PRIMARY	4	test.parent.b	1	
-1	SIMPLE	c9	ref	PRIMARY	PRIMARY	4	test.c1.a	1	Using where
-1	SIMPLE	c10	ref	PRIMARY	PRIMARY	4	test.parent.b	1	
-1	SIMPLE	c11	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Using where
-1	SIMPLE	c12	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Using where
-1	SIMPLE	c13	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Using where
-1	SIMPLE	c14	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Using where
-1	SIMPLE	c15	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Using where
-1	SIMPLE	c16	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Using where
+1	SIMPLE	c1	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c2	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c3	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c4	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c5	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c6	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c7	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c8	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c9	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c10	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c11	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c12	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c13	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c14	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c15	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c16	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
 select straight_join count(*) from parent
 join child as c1 on c1.a = parent.b
 join child as c2 on c2.a = parent.b
@@ -103,14 +103,14 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	c6	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c5' in pushed join@1
 1	SIMPLE	c7	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c6' in pushed join@1
 1	SIMPLE	c8	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c7' in pushed join@1
-1	SIMPLE	c9	ref	PRIMARY	PRIMARY	4	test.c1.a	1	Child of 'c8' in pushed join@1; Using where
+1	SIMPLE	c9	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c8' in pushed join@1
 1	SIMPLE	c10	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c9' in pushed join@1
-1	SIMPLE	c11	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Child of 'c10' in pushed join@1; Using where
-1	SIMPLE	c12	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Child of 'c11' in pushed join@1; Using where
-1	SIMPLE	c13	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Child of 'c12' in pushed join@1; Using where
-1	SIMPLE	c14	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Child of 'c13' in pushed join@1; Using where
-1	SIMPLE	c15	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Child of 'c14' in pushed join@1; Using where
-1	SIMPLE	c16	ref	PRIMARY	PRIMARY	4	test.c10.a	1	Child of 'c15' in pushed join@1; Using where
+1	SIMPLE	c11	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c10' in pushed join@1
+1	SIMPLE	c12	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c11' in pushed join@1
+1	SIMPLE	c13	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c12' in pushed join@1
+1	SIMPLE	c14	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c13' in pushed join@1
+1	SIMPLE	c15	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c14' in pushed join@1
+1	SIMPLE	c16	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c15' in pushed join@1
 select straight_join count(*) from parent
 join child as c1 on c1.a = parent.b
 join child as c2 on c2.a = parent.b
