@@ -326,7 +326,9 @@ int my_wildcmp_bin(const CHARSET_INFO *cs,
                    int escape, int w_one, int w_many)
 {
   int result= -1;			/* Not found, using wildcards */
-  
+
+  if (my_string_stack_guard && my_string_stack_guard())
+    return 1;
   while (wildstr != wildend)
   {
     while (*wildstr != w_many && *wildstr != w_one)
