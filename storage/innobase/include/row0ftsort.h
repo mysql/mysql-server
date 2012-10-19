@@ -124,6 +124,7 @@ typedef struct fts_psort_insert	fts_psort_insert_t;
 /** status bit used for communication between parent and child thread */
 #define FTS_PARENT_COMPLETE	1
 #define FTS_CHILD_COMPLETE	1
+#define FTS_CHILD_EXITING	2
 
 /** Print some debug information */
 #define	FTSORT_PRINT
