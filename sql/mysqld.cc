@@ -170,6 +170,10 @@ extern "C" {          // Because of SCO 3.2V4.2
 #include <crtdbg.h>
 #endif
 
+#ifdef _WIN32
+#include "named_pipe.h"
+#endif
+
 #ifdef HAVE_SOLARIS_LARGE_PAGES
 #include <sys/mman.h>
 #if defined(__sun__) && defined(__GNUC__) && defined(__cplusplus) \
@@ -2386,45 +2390,12 @@ static void network_init(void)
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
-       mysqld_unix_port, NullS);
-    memset(&saPipeSecurity, 0, sizeof(saPipeSecurity));
-    memset(&sdPipeDescriptor, 0, sizeof(sdPipeDescriptor));
-    if (!InitializeSecurityDescriptor(&sdPipeDescriptor,
-              SECURITY_DESCRIPTOR_REVISION))
-    {
-      sql_perror("Can't start server : Initialize security descriptor");
+    hPipe= create_server_named_pipe(&saPipeSecurity, &sdPipeDescriptor,
+                                    global_system_variables.net_buffer_length,
+                                    mysqld_unix_port, pipe_name, 
+                                    sizeof(pipe_name));
+    if (hPipe == INVALID_HANDLE_VALUE)
       unireg_abort(1);
-    }
-    if (!SetSecurityDescriptorDacl(&sdPipeDescriptor, TRUE, NULL, FALSE))
-    {
-      sql_perror("Can't start server : Set security descriptor");
-      unireg_abort(1);
-    }
-    saPipeSecurity.nLength = sizeof(SECURITY_ATTRIBUTES);
-    saPipeSecurity.lpSecurityDescriptor = &sdPipeDescriptor;
-    saPipeSecurity.bInheritHandle = FALSE;
-    if ((hPipe= CreateNamedPipe(pipe_name,
-        PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
-        PIPE_TYPE_BYTE |
-        PIPE_READMODE_BYTE |
-        PIPE_WAIT,
-        PIPE_UNLIMITED_INSTANCES,
-        (int) global_system_variables.net_buffer_length,
-        (int) global_system_variables.net_buffer_length,
-        NMPWAIT_USE_DEFAULT_WAIT,
-        &saPipeSecurity)) == INVALID_HANDLE_VALUE)
-      {
-  LPVOID lpMsgBuf;
-  int error=GetLastError();
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-          FORMAT_MESSAGE_FROM_SYSTEM,
-          NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-          (LPTSTR) &lpMsgBuf, 0, NULL );
-  sql_perror((char *)lpMsgBuf);
-  LocalFree(lpMsgBuf);
-  unireg_abort(1);
-      }
   }
 #endif
 
