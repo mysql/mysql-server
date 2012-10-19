@@ -358,17 +358,27 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	btr_cur_t*		btr_cur;
 	ibool			success;
 	ibool			old_has;
-	dberr_t			err;
+	dberr_t			err	= DB_SUCCESS;
 	mtr_t			mtr;
 	mtr_t			mtr_vers;
-	enum row_search_result	search_result;
+	row_search_result	search_result;
 
 	log_free_check();
 	mtr_start(&mtr);
 
-	btr_cur = btr_pcur_get_btr_cur(&pcur);
+	if (mode == BTR_MODIFY_LEAF) {
+		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+	} else {
+		ut_ad(mode == BTR_MODIFY_TREE);
+		mtr_x_lock(dict_index_get_lock(index), &mtr);
+	}
 
-	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
+	if (row_log_online_op_try(index, entry, 0)) {
+		goto func_exit_no_pcur;
+	}
+
+	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
@@ -384,8 +394,6 @@ row_undo_mod_del_mark_or_remove_sec_low(
 		In normal processing, if an update ends in a deadlock
 		before it has inserted all updated secondary index
 		records, then the undo will not find those records. */
-
-		err = DB_SUCCESS;
 		goto func_exit;
 	case ROW_FOUND:
 		break;
@@ -417,7 +425,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	} else {
 		/* Remove the index record */
 
-		if (mode == BTR_MODIFY_LEAF) {
+		if (mode != BTR_MODIFY_TREE) {
 			success = btr_cur_optimistic_delete(btr_cur, 0, &mtr);
 			if (success) {
 				err = DB_SUCCESS;
@@ -425,8 +433,6 @@ row_undo_mod_del_mark_or_remove_sec_low(
 				err = DB_FAIL;
 			}
 		} else {
-			ut_ad(mode == BTR_MODIFY_TREE);
-
 			/* No need to distinguish RB_RECOVERY_PURGE here,
 			because we are deleting a secondary index record:
 			the distinction between RB_NORMAL and
@@ -447,6 +453,7 @@ row_undo_mod_del_mark_or_remove_sec_low(
 
 func_exit:
 	btr_pcur_close(&pcur);
+func_exit_no_pcur:
 	mtr_commit(&mtr);
 
 	return(err);
@@ -472,12 +479,6 @@ row_undo_mod_del_mark_or_remove_sec(
 {
 	dberr_t	err;
 
-	if (dict_index_online_trylog(index, entry, 0)) {
-		/* The index is being created, and the delete
-		operation was buffered (or the index creation was aborted). */
-		return(DB_SUCCESS);
-	}
-
 	err = row_undo_mod_del_mark_or_remove_sec_low(node, thr, index,
 						      entry, BTR_MODIFY_LEAF);
 	if (err == DB_SUCCESS) {
@@ -495,7 +496,11 @@ Delete unmarks a secondary index entry which must be found. It might not be
 delete-marked at the moment, but it does not harm to unmark it anyway. We also
 need to update the fields of the secondary index record if we updated its
 fields but alphabetically they stayed the same, e.g., 'abc' -> 'aBc'.
-@return	DB_FAIL or DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
+@retval	DB_SUCCESS on success
+@retval	DB_FAIL if BTR_MODIFY_TREE should be tried
+@retval	DB_OUT_OF_FILE_SPACE when running out of tablespace
+@retval	DB_DUPLICATE_KEY if the value was missing
+	and an insert would lead to a duplicate exists */
 static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_mod_del_unmark_sec_and_undo_update(
@@ -515,20 +520,24 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	trx_t*			trx		= thr_get_trx(thr);
 	const ulint		flags
 		= BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG;
-	enum row_search_result	search_result;
+	row_search_result	search_result;
 
 	ut_ad(trx->id > 0);
-	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
-	ut_ad(trx->id);
-
-	if (dict_index_online_trylog(index, entry, trx->id)) {
-		/* The index is being created, and the operation was
-		buffered (or the index creation was aborted). */
-		return(DB_SUCCESS);
-	}
 
 	log_free_check();
 	mtr_start(&mtr);
+
+	if (mode == BTR_MODIFY_LEAF) {
+		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+	} else {
+		ut_ad(mode == BTR_MODIFY_TREE);
+		mtr_x_lock(dict_index_get_lock(index), &mtr);
+	}
+
+	if (row_log_online_op_try(index, entry, trx->id)) {
+		goto func_exit_no_pcur;
+	}
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
@@ -630,7 +639,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 			/* Do nothing */
 
-		} else if (mode == BTR_MODIFY_LEAF) {
+		} else if (mode != BTR_MODIFY_TREE) {
 			/* Try an optimistic updating of the record, keeping
 			changes within the page */
 
@@ -647,7 +656,6 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 				break;
 			}
 		} else {
-			ut_a(mode == BTR_MODIFY_TREE);
 			err = btr_cur_pessimistic_update(
 				flags, btr_cur, &offsets, &offsets_heap,
 				heap, &dummy_big_rec,
@@ -660,6 +668,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	}
 
 	btr_pcur_close(&pcur);
+func_exit_no_pcur:
 	mtr_commit(&mtr);
 
 	return(err);
@@ -922,7 +931,11 @@ row_undo_mod_upd_exist_sec(
 				BTR_MODIFY_TREE, thr, index, entry);
 		}
 
-		if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+		if (err == DB_DUPLICATE_KEY) {
+			row_undo_mod_sec_flag_corrupted(
+				thr_get_trx(thr), index);
+			err = DB_SUCCESS;
+		} else if (err != DB_SUCCESS) {
 			break;
 		}
 

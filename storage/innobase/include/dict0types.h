@@ -26,9 +26,6 @@ Created 1/8/1996 Heikki Tuuri
 #ifndef dict0types_h
 #define dict0types_h
 
-#include "data0types.h"
-#include "trx0types.h"
-
 struct dict_sys_t;
 struct dict_col_t;
 struct dict_field_t;
@@ -69,17 +66,5 @@ enum ib_quiesce_t {
 	QUIESCE_START,			/*!< Initialise, prepare to start */
 	QUIESCE_COMPLETE		/*!< All done */
 };
-
-/******************************************************//**
-Logs an operation to a secondary index that is (or was) being created. */
-UNIV_INTERN
-void
-row_log_online_op(
-/*==============*/
-	dict_index_t*	index,	/*!< in/out: index, S-latched */
-	const dtuple_t* tuple,	/*!< in: index tuple */
-	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
-				or 0 for delete */
-	UNIV_COLD __attribute__((nonnull));
 
 #endif
