@@ -256,6 +256,10 @@ SET(TESTS
   stdcxx
   thread_utils
   )
+  
+IF(WIN32)
+  LIST(APPEND TESTS win_tests)
+ENDIF()
 
 # Add tests (link them with gunit library and the server libraries) 
 SET(SERVER_TESTS
