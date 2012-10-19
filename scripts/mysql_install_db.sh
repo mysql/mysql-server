@@ -329,10 +329,11 @@ then
     cannot_find_file "$langdir/errmsg.sys"
     exit 1
   fi
+  mysqld_opt="--lc-messages-dir=$langdir/.."
 else
-  langdir=english
+  mysqld_opt="--lc-messages=en_US"
 fi
-mysqld_opt="--lc-messages=$langdir"
+
 
 # Try to determine the hostname
 hostname=`@HOSTNAME@`
