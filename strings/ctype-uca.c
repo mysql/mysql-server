@@ -20376,7 +20376,9 @@ int my_wildcmp_uca(const CHARSET_INFO *cs,
   int (*mb_wc)(const struct charset_info_st *, my_wc_t *,
                const uchar *, const uchar *);
   mb_wc= cs->cset->mb_wc;
-  
+
+ if (my_string_stack_guard && my_string_stack_guard())
+   return 1;
   while (wildstr != wildend)
   {
     while (1)
