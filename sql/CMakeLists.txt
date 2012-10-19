@@ -170,6 +170,10 @@ SET(SQL_SHARED_SOURCES
   unireg.cc
 )
 
+IF(WIN32)
+  LIST(APPEND SQL_SHARED_SOURCES named_pipe.cc)
+ENDIF()
+
 SET(SQL_EXPORTED_SOURCES ${SQL_SHARED_SOURCES} PARENT_SCOPE)
 
 SET(SQL_SOURCE
@@ -242,10 +246,25 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
 		  rpl_info_dummy.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
-ADD_LIBRARY(sqlgunitlib
-  filesort_utils.cc mdl.cc sql_list.cc sql_string.cc thr_malloc.cc
+
+######################### GUnit Lib #################################
+
+SET(SQL_GUNIT_LIB_SOURCE 
+  filesort_utils.cc 
+  mdl.cc 
+  sql_list.cc 
+  sql_string.cc
+  thr_malloc.cc
   )
+
+IF(WIN32)
+  LIST(APPEND SQL_GUNIT_LIB_SOURCE named_pipe.cc)
+ENDIF()
+
+ADD_LIBRARY(sqlgunitlib ${SQL_GUNIT_LIB_SOURCE})
 ADD_DEPENDENCIES(sqlgunitlib GenError)
+
+######################### GUnit Lib #################################
 
 
 IF(WIN32)
