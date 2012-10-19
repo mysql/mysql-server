@@ -423,10 +423,11 @@ my $mysqld_install_cmd_line = quote_options($mysqld_bootstrap,
                                             "--bootstrap",
                                             "--basedir=$opt->{basedir}",
                                             "--datadir=$opt->{ldata}",
-                                            "--skip-innodb",
-                                            "--skip-bdb",
-                                            "--skip-ndbcluster",
+                                            "--log-warnings=0",
+                                            "--loose-skip-innodb",
+                                            "--loose-skip-ndbcluster",
                                             "--max_allowed_packet=8M",
+                                            "--default-storage-engine=MyISAM",
                                             "--net_buffer_length=16K",
                                             @args,
                                           );
@@ -439,6 +440,8 @@ report_verbose_wait($opt,"Installing MySQL system tables...");
 
 open(SQL, $create_system_tables)
   or error($opt,"can't open $create_system_tables for reading: $!");
+open(SQL2, $fill_system_tables)
+  or error($opt,"can't open $fill_system_tables for reading: $!");
 # FIXME  > /dev/null ?
 if ( open(PIPE, "| $mysqld_install_cmd_line") )
 {
@@ -452,8 +455,20 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
 
     print PIPE $_;
   }
+  while ( <SQL2> )
+  {
+    # TODO: make it similar to the above condition when we're sure 
+    #   @@hostname returns a fqdn
+    # When doing a "cross bootstrap" install, no reference to the current
+    # host should be added to the system tables.  So we filter out any
+    # lines which contain the current host name.
+    next if /\@current_hostname/;
+
+    print PIPE $_;
+  }
   close PIPE;
   close SQL;
+  close SQL2;
 
   report_verbose($opt,"OK");
 
