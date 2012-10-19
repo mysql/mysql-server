@@ -4957,7 +4957,6 @@ lock_rec_print(
 {
 	ulint			space;
 	ulint			page_no;
-	ulint			i;
 	mtr_t			mtr;
 	mem_heap_t*		heap		= NULL;
 	ulint			offsets_[REC_OFFS_NORMAL_SIZE];
@@ -4967,8 +4966,6 @@ lock_rec_print(
 	ut_ad(lock_mutex_own());
 	ut_a(lock_get_type_low(lock) == LOCK_REC);
 
-	ut_ad(lock->trx->id > 0);
-
 	space = lock->un_member.rec_lock.space;
 	page_no = lock->un_member.rec_lock.page_no;
 
@@ -4976,7 +4973,8 @@ lock_rec_print(
 		(ulong) space, (ulong) page_no,
 		(ulong) lock_rec_get_n_bits(lock));
 	dict_index_name_print(file, lock->trx, lock->index);
-	fprintf(file, " trx id " TRX_ID_FMT, lock->trx->id);
+	fprintf(file, " trx id " TRX_ID_FMT,
+		lock->trx->id == 0 ? (trx_id_t) lock->trx : lock->trx->id);
 
 	if (lock_get_mode(lock) == LOCK_S) {
 		fputs(" lock mode S", file);
@@ -5010,7 +5008,7 @@ lock_rec_print(
 
 	block = buf_page_try_get(space, page_no, &mtr);
 
-	for (i = 0; i < lock_rec_get_n_bits(lock); ++i) {
+	for (ulint i = 0; i < lock_rec_get_n_bits(lock); ++i) {
 
 		if (!lock_rec_get_nth_bit(lock, i)) {
 			continue;
