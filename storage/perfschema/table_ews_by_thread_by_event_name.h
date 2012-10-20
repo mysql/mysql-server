@@ -39,7 +39,7 @@
 struct row_ews_by_thread_by_event_name
 {
   /** Column THREAD_ID. */
-  ulong m_thread_internal_id;
+  ulonglong m_thread_internal_id;
   /** Column EVENT_NAME. */
   PFS_event_name_row m_event_name;
   /** Columns COUNT_STAR, SUM/MIN/AVG/MAX TIMER_WAIT. */

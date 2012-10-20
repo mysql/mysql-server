@@ -5382,12 +5382,39 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
   Save given index as index #0. Table is configured to ignore other indexes.
   Memory occupied by other indexes and index parts will be freed along with
   the table. If the 'key_to_save' is negative then all indexes are freed.
+  After keys info being changed, info in fields regarding taking part in keys
+  becomes outdated. This function fixes this also.
   @see add_derived_key
 */
 
 void TABLE::use_index(int key_to_save)
 {
   DBUG_ASSERT(!created && s->keys && key_to_save < (int)s->keys);
+
+  /* Correct fields' info about taking part in keys */
+  for (int i= 0; i < (int)s->keys; i++)
+  {
+    uint j;
+    KEY_PART_INFO *kp;
+    for (kp= key_info[i].key_part, j= 0;
+         j < key_info[i].key_parts;
+         j++, kp++)
+    {
+      if (i == key_to_save)
+      {
+        if (kp->field->key_start.is_set(i))
+          kp->field->key_start.set_prefix(1);
+        kp->field->part_of_key.set_prefix(1);
+        kp->field->part_of_sortkey.set_prefix(1);
+      }
+      else
+      {
+        kp->field->key_start.clear_all();
+        kp->field->part_of_key.clear_all();
+        kp->field->part_of_sortkey.clear_all();
+      }
+    }
+  }
 
   if (key_to_save < 0)
   {
@@ -5396,6 +5423,8 @@ void TABLE::use_index(int key_to_save)
     s->key_parts= 0;
     s->keys= 0;
     covering_keys.clear_all();
+    keys_in_use_for_group_by.clear_all();
+    keys_in_use_for_order_by.clear_all();
   }
   else
   {
@@ -5408,6 +5437,8 @@ void TABLE::use_index(int key_to_save)
       covering_keys.set_prefix(1);
     else
       covering_keys.clear_all();
+    keys_in_use_for_group_by.set_prefix(1);
+    keys_in_use_for_order_by.set_prefix(1);
   }
 }
 

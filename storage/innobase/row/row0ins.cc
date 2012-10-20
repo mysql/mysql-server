@@ -2584,7 +2584,9 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 /*=======================================*/
 	mtr_t*		mtr,	/*!< out: mini-transaction */
 	dict_index_t*	index,	/*!< in/out: secondary index */
-	bool		check)	/*!< in: whether to check */
+	bool		check,	/*!< in: whether to check */
+	ulint		search_mode)
+				/*!< in: flags */
 {
 	ut_ad(!dict_index_is_clust(index));
 
@@ -2594,7 +2596,11 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 		return(false);
 	}
 
-	mtr_s_lock(dict_index_get_lock(index), mtr);
+	if (search_mode & BTR_ALREADY_S_LATCHED) {
+		mtr_s_lock(dict_index_get_lock(index), mtr);
+	} else {
+		mtr_x_lock(dict_index_get_lock(index), mtr);
+	}
 
 	switch (index->online_status) {
 	case ONLINE_INDEX_ABORTED:
@@ -2637,32 +2643,39 @@ row_ins_sec_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
-	ulint		search_mode = mode | BTR_INSERT;
-	dberr_t		err;
+	ulint		search_mode	= mode | BTR_INSERT;
+	dberr_t		err		= DB_SUCCESS;
 	ulint		n_unique;
 	mtr_t		mtr;
 	ulint*		offsets	= NULL;
 
 	ut_ad(!dict_index_is_clust(index));
+	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
 
 	cursor.thr = thr;
+	ut_ad(thr_get_trx(thr)->id);
+	mtr_start(&mtr);
 
-	/* Ensure that we acquire an S-latch on index->lock when
-	inserting into an index that has been completed inside InnoDB,
-	but could still be subject to rollback_inplace_alter_table().
+	/* Ensure that we acquire index->lock when inserting into an
+	index with index->online_status == ONLINE_INDEX_COMPLETE, but
+	could still be subject to rollback_inplace_alter_table().
 	This prevents a concurrent change of index->online_status.
 	The memory object cannot be freed as long as we have an open
 	reference to the table, or index->table->n_ref_count > 0. */
-	const bool check = (mode == BTR_MODIFY_LEAF
-			    && *index->name == TEMP_INDEX_PREFIX);
+	const bool check = *index->name == TEMP_INDEX_PREFIX;
 	if (check) {
 		DEBUG_SYNC_C("row_ins_sec_index_enter");
-		search_mode |= BTR_ALREADY_S_LATCHED;
-	}
+		if (mode == BTR_MODIFY_LEAF) {
+			search_mode |= BTR_ALREADY_S_LATCHED;
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
+		} else {
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
+		}
 
-	if (row_ins_sec_mtr_start_and_check_if_aborted(&mtr, index, check)) {
-		err = DB_SUCCESS;
-		goto func_exit;
+		if (row_log_online_op_try(
+			    index, entry, thr_get_trx(thr)->id)) {
+			goto func_exit;
+		}
 	}
 
 	/* Note that we use PAGE_CUR_LE as the search mode, because then
@@ -2679,9 +2692,6 @@ row_ins_sec_index_entry_low(
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
 		/* The insert was buffered during the search: we are done */
-
-		err = DB_SUCCESS;
-
 		goto func_exit;
 	}
 
@@ -2699,16 +2709,14 @@ row_ins_sec_index_entry_low(
 
 	n_unique = dict_index_get_n_unique(index);
 
-	if (dict_index_is_unique(index) && (cursor.up_match >= n_unique
-					    || cursor.low_match >= n_unique)) {
-
+	if (dict_index_is_unique(index)
+	    && (cursor.low_match >= n_unique || cursor.up_match >= n_unique)) {
 		mtr_commit(&mtr);
 
 		DEBUG_SYNC_C("row_ins_sec_index_unique");
 
 		if (row_ins_sec_mtr_start_and_check_if_aborted(
-			    &mtr, index, check)) {
-			err = DB_SUCCESS;
+			    &mtr, index, check, search_mode)) {
 			goto func_exit;
 		}
 
@@ -2722,8 +2730,7 @@ row_ins_sec_index_entry_low(
 		mtr_commit(&mtr);
 
 		if (row_ins_sec_mtr_start_and_check_if_aborted(
-			    &mtr, index, check)) {
-			err = DB_SUCCESS;
+			    &mtr, index, check, search_mode)) {
 			goto func_exit;
 		}
 
@@ -2923,10 +2930,7 @@ row_ins_sec_index_entry(
 		}
 	}
 
-	if (dict_index_online_trylog(index, entry, thr_get_trx(thr)->id,
-				     ROW_OP_INSERT)) {
-		return(DB_SUCCESS);
-	}
+	ut_ad(thr_get_trx(thr)->id);
 
 	offsets_heap = mem_heap_create(1024);
 	heap = mem_heap_create(1024);
@@ -3196,6 +3200,10 @@ row_ins(
 
 		node->index = dict_table_get_next_index(node->index);
 		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+
+		DBUG_EXECUTE_IF(
+			"row_ins_skip_sec",
+			node->index = NULL; node->entry = NULL; break;);
 
 		/* Skip corrupted secondary index and its entry */
 		while (node->index && dict_index_is_corrupted(node->index)) {

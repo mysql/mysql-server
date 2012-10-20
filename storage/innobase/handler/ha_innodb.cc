@@ -59,6 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "trx0sys.h"
 #include "mtr0mtr.h"
+#include "rem0types.h"
 #include "row0ins.h"
 #include "row0mysql.h"
 #include "row0sel.h"
@@ -1413,6 +1414,7 @@ convert_error_code_to_mysql(
 	case DB_TABLE_IS_BEING_USED:
 		return(HA_ERR_WRONG_COMMAND);
 
+	case DB_TABLESPACE_DELETED:
 	case DB_TABLE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
@@ -2630,7 +2632,6 @@ no_db_name:
 	}
 
 	return(s);
-
 }
 
 /*****************************************************************//**
@@ -6667,6 +6668,13 @@ set_max_autoinc:
 	innobase_srv_conc_exit_innodb(prebuilt->trx);
 
 report_error:
+	if (error == DB_TABLESPACE_DELETED) {
+		ib_senderrf(
+			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			ER_TABLESPACE_DISCARDED,
+			table->s->table_name.str);
+	}
+
 	error_result = convert_error_code_to_mysql(error,
 						   prebuilt->table->flags,
 						   user_thd);
@@ -9362,11 +9370,8 @@ ha_innobase::create(
 	DBUG_ASSERT(thd != NULL);
 	DBUG_ASSERT(create_info != NULL);
 
-	if (form->s->fields > 1000) {
-		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
-		but we play safe here */
-
-		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
+	if (form->s->fields > REC_MAX_N_USER_FIELDS) {
+		DBUG_RETURN(HA_ERR_TOO_MANY_FIELDS);
 	} else if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
@@ -11247,9 +11252,8 @@ ha_innobase::check(
 					    " index %s is corrupted.",
 					    index_name);
 			is_ok = FALSE;
-			row_mysql_lock_data_dictionary(prebuilt->trx);
-			dict_set_corrupted(index);
-			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			dict_set_corrupted(
+				index, prebuilt->trx, "CHECK TABLE");
 		}
 
 		if (thd_killed(user_thd)) {
@@ -11284,9 +11288,8 @@ ha_innobase::check(
 		index = dict_table_get_first_index(prebuilt->table);
 
 		if (!dict_index_is_corrupted(index)) {
-			mutex_enter(&dict_sys->mutex);
-			dict_set_corrupted(index);
-			mutex_exit(&dict_sys->mutex);
+			dict_set_corrupted(
+				index, prebuilt->trx, "CHECK TABLE");
 		}
 		prebuilt->table->corrupted = TRUE;
 	}
@@ -16580,8 +16583,6 @@ ib_senderrf(
 		l = Sql_condition::WARN_LEVEL_WARN;
 		break;
 	case IB_LOG_LEVEL_ERROR:
-		/* Set l, to avoid a compiler warning. */
-		l = Sql_condition::WARN_LEVEL_ERROR;
 		/* We can't use push_warning_printf(), it is a hard error. */
 		my_printf_error(code, "%s", MYF(0), str);
 		break;

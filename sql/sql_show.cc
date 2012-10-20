@@ -1973,7 +1973,8 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
 
-class thread_info :public ilink<thread_info> {
+class thread_info
+{
 public:
   static void *operator new(size_t size)
   {
@@ -1988,6 +1989,17 @@ public:
   uint   command;
   const char *user,*host,*db,*proc_info,*state_info;
   CSET_STRING query_string;
+};
+
+// For sorting by thread_id.
+class thread_info_compare :
+  public std::binary_function<const thread_info*, const thread_info*, bool>
+{
+public:
+  bool operator() (const thread_info* p1, const thread_info* p2)
+  {
+    return p1->thread_id < p2->thread_id;
+  }
 };
 
 static const char *thread_state_info(THD *tmp)
@@ -2018,7 +2030,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 {
   Item *field;
   List<Item> field_list;
-  I_List<thread_info> thread_infos;
+  Mem_root_array<thread_info*, true> thread_infos(thd->mem_root);
   ulong max_query_length= (verbose ? thd->variables.max_allowed_packet :
 			   PROCESS_LIST_WIDTH);
   Protocol *protocol= thd->protocol;
@@ -2043,6 +2055,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   if (!thd->killed)
   {
     mysql_mutex_lock(&LOCK_thread_count);
+    thread_infos.reserve(get_thread_count());
     Thread_iterator it= global_thread_list_begin();
     Thread_iterator end= global_thread_list_end();
     for (; it != end; ++it)
@@ -2092,16 +2105,19 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         }
         mysql_mutex_unlock(&tmp->LOCK_thd_data);
         thd_info->start_time= tmp->start_time.tv_sec;
-        thread_infos.push_front(thd_info);
+        thread_infos.push_back(thd_info);
       }
     }
     mysql_mutex_unlock(&LOCK_thread_count);
   }
 
-  thread_info *thd_info;
+  // Return list sorted by thread_id.
+  std::sort(thread_infos.begin(), thread_infos.end(), thread_info_compare());
+
   time_t now= my_time(0);
-  while ((thd_info=thread_infos.get()))
+  for (size_t ix= 0; ix < thread_infos.size(); ++ix)
   {
+    thread_info *thd_info= thread_infos.at(ix);
     protocol->prepare_for_resend();
     protocol->store((ulonglong) thd_info->thread_id);
     protocol->store(thd_info->user, system_charset_info);
