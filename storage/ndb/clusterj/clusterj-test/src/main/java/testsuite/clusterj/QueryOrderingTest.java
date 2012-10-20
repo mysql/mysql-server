@@ -128,42 +128,36 @@ create table longintstringix (
     }
 
     public void testNoWhereAscending() {
-        logger.info("QueryOrderingTest.testNoWhereAscending");
         setOrdering(Ordering.ASCENDING, "id");
         noWhereQuery("id", "PRIMARY", null, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24);
         failOnError();
     }
 
     public void testNoWhereDescending() {
-        logger.info("QueryOrderingTest.testNoWhereDescending");
         setOrdering(Ordering.DESCENDING, "id");
         noWhereQuery("id", "PRIMARY", null, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0);
         failOnError();
     }
 
     public void testPrimaryEqualAscending() {
-        logger.info("QueryOrderingTest.testPrimaryEqualAscending");
         setOrdering(Ordering.ASCENDING, "longix", "intix", "stringix");
         equalQuery("id", "PRIMARY", 1, 1);
         failOnError();
     }
 
     public void testGreaterEqualAscending() {
-        logger.info("QueryOrderingTest.testGreaterEqualAscending");
         setOrdering(Ordering.ASCENDING, "longix", "intix", "stringix");
         greaterEqualQuery("longix", "idx_long_int_string", 2000000000000000L, 18, 19, 20, 21, 22, 23, 24);
         failOnError();
     }
 
     public void testGreaterEqualAscendingPartial() {
-        logger.info("QueryOrderingTest.testGreaterEqualAscendingPartial");
         setOrdering(Ordering.ASCENDING, "longix", "intix");
         greaterEqualQuery("longix", "idx_long_int_string", 2000000000000000L, 18, 19, 20, 21, 22, 23, 24);
         failOnError();
     }
 
     public void testInAndBetweenAscending() {
-        logger.info("QueryOrderingTest.testInAndBetweenAscending");
         setOrdering(Ordering.ASCENDING, "longix", "intix");
         inAndBetweenQuery("longix", new Object[] {1000000000000000L, 0L}, "intix", 1, 2, "idx_long_int_string", 12, 13, 14, 15, 16, 17, 3, 4, 5, 6, 7, 8);
         inAndBetweenQuery("longix", Arrays.asList(new Object[] {1000000000000000L, 0L}), "stringix", "1", "4", "idx_long_int_string", 10, 11, 13, 14, 16, 17, 1, 2, 4, 5, 7, 8);
@@ -171,7 +165,6 @@ create table longintstringix (
     }
 
     public void testInAndBetweenDescending() {
-        logger.info("QueryOrderingTest.testInAndBetweenDescending");
         setOrdering(Ordering.DESCENDING, "longix", "intix", "stringix");
         inAndBetweenQuery("longix", new Object[] {1000000000000000L, 0L}, "intix", 1, 2, "idx_long_int_string", 17, 16, 15, 14, 13, 12, 8, 7, 6, 5, 4, 3);
         inAndBetweenQuery("longix", Arrays.asList(new Object[] {1000000000000000L, 0L}), "stringix", "1", "4", "idx_long_int_string", 17, 16, 14, 13, 11, 10, 8, 7, 5, 4, 2, 1);
@@ -179,7 +172,6 @@ create table longintstringix (
     }
 
     public void testBetweenAndInAscending() {
-        logger.info("QueryOrderingTest.testBetweenAndInAscending");
         setOrdering(Ordering.ASCENDING, "longix", "intix");
         betweenAndInQuery("longix", 0L, 1000000000000000L, "intix", new Object[] {2, 0}, "idx_long_int_string", 0, 1, 2, 6, 7, 8, 9, 10, 11, 15, 16, 17);
         betweenAndInQuery("longix", 1000000000000000L, 2000000000000000L, "intix", Arrays.asList(new Object[] {2, 1}), "idx_long_int_string", 12, 13, 14, 15, 16, 17, 21, 22, 23, 24);
@@ -187,7 +179,6 @@ create table longintstringix (
     }
 
     public void testBetweenAndInDescending() {
-        logger.info("QueryOrderingTest.testBetweenAndInDescending");
         setOrdering(Ordering.DESCENDING, "longix", "intix", "stringix");
         betweenAndInQuery("longix", 0L, 1000000000000000L, "intix", new Object[] {2, 0}, "idx_long_int_string", 17, 16, 15, 11, 10, 9, 8, 7, 6, 2, 1, 0);
         betweenAndInQuery("longix", 1000000000000000L, 2000000000000000L, "intix", Arrays.asList(new Object[] {2, 1}), "idx_long_int_string", 24, 23, 22, 21, 17, 16, 15, 14, 13, 12);
