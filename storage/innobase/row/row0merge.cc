@@ -24,43 +24,20 @@ Created 12/4/2005 Jan Lindstrom
 Completed by Sunny Bains and Marko Makela
 *******************************************************/
 
-#include "m_string.h" /* for my_sys.h */
-#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "row0merge.h"
 #include "row0ext.h"
-#include "row0row.h"
 #include "row0log.h"
 #include "row0ins.h"
 #include "row0sel.h"
-#include "dict0dict.h"
-#include "dict0mem.h"
-#include "dict0boot.h"
 #include "dict0crea.h"
-#include "dict0load.h"
-#include "btr0btr.h"
-#include "mach0data.h"
-#include "trx0rseg.h"
-#include "trx0trx.h"
-#include "trx0roll.h"
-#include "trx0undo.h"
 #include "trx0purge.h"
-#include "trx0rec.h"
-#include "rem0cmp.h"
-#include "read0read.h"
-#include "os0file.h"
 #include "lock0lock.h"
-#include "data0data.h"
-#include "data0type.h"
-#include "que0que.h"
 #include "pars0pars.h"
-#include "mem0mem.h"
-#include "log0log.h"
 #include "ut0sort.h"
-#include "handler0alter.h"
-#include "fts0fts.h"
-#include "fts0types.h"
-#include "fts0priv.h"
 #include "row0ftsort.h"
+#include "row0import.h"
+#include "handler0alter.h"
+#include "ha_prototypes.h"
 
 /* Ignore posix_fadvise() on those platforms where it does not exist */
 #if defined __WIN__
@@ -100,8 +77,6 @@ row_merge_tuple_print(
 {
 	ulint	j;
 
-	fputs(entry->del_mark ? "(deleted)" : "", stderr);
-
 	for (j = 0; j < n_fields; j++) {
 		const dfield_t*	field = &entry->fields[j];
 
@@ -136,19 +111,16 @@ row_merge_buf_encode(
 	const dict_index_t*	index,		/*!< in: index */
 	const mtuple_t*		entry,		/*!< in: index fields
 						of the record to encode */
-	ulint			n_fields,	/*!< in: number of fields
+	ulint			n_fields)	/*!< in: number of fields
 						in the entry */
-	ulint			n_null)		/*!< in: size of the null
-						flags bitmap */
 {
 	ulint	size;
 	ulint	extra_size;
 
 	size = rec_get_converted_size_comp_prefix(
-		index, entry->fields, n_fields, n_null, &extra_size);
+		index, entry->fields, n_fields, &extra_size);
 	ut_ad(size >= extra_size);
 	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
-	ut_ad((ulint) (n_null - index->n_nullable) <= 1);
 
 	extra_size -= REC_N_NEW_EXTRA_BYTES;
 	size -= REC_N_NEW_EXTRA_BYTES;
@@ -164,15 +136,7 @@ row_merge_buf_encode(
 
 	rec_convert_dtuple_to_rec_comp(*b + extra_size, 0, index,
 				       REC_STATUS_ORDINARY,
-				       entry->fields, n_fields, n_null);
-
-	/* In mrec, the delete-mark flag is stored in the NULL flags
-	bitmap after the flags of any fields that can be NULL. */
-	if (entry->del_mark) {
-		ut_ad(n_null == (ulint) index->n_nullable + 1);
-		(*b)[extra_size - 1 - (int) index->n_nullable / 8]
-			|= 1 << (index->n_nullable & 7);
-	}
+				       entry->fields, n_fields);
 
 	*b += size;
 }
@@ -320,16 +284,11 @@ row_merge_buf_add(
 	n_fields = dict_index_get_n_fields(index);
 
 	entry = &buf->tuples[buf->n_tuples];
-	entry->del_mark = !!(dtuple_get_info_bits(row)
-			     & REC_INFO_DELETED_FLAG);
 	field = entry->fields = static_cast<dfield_t*>(
 		mem_heap_alloc(buf->heap, n_fields * sizeof *entry->fields));
 
 	data_size = 0;
-	extra_size = UT_BITS_IN_BYTES(
-		index->n_nullable
-		+ (dict_index_get_online_status(index)
-		   != ONLINE_INDEX_COMPLETE));
+	extra_size = UT_BITS_IN_BYTES(index->n_nullable);
 
 	ifield = dict_index_get_nth_field(index, 0);
 
@@ -491,11 +450,7 @@ row_merge_buf_add(
 		ulint	extra;
 
 		size = rec_get_converted_size_comp_prefix(
-			index, entry->fields, n_fields,
-			index->n_nullable
-			+ (dict_index_get_online_status(index)
-			   != ONLINE_INDEX_COMPLETE),
-			&extra);
+			index, entry->fields, n_fields, &extra);
 
 		ut_ad(data_size + extra == size);
 		ut_ad(extra_size + REC_N_NEW_EXTRA_BYTES == extra);
@@ -678,18 +633,12 @@ row_merge_buf_write(
 {
 	const dict_index_t*	index	= buf->index;
 	ulint			n_fields= dict_index_get_n_fields(index);
-	ulint			n_null	= index->n_nullable
-		+ (dict_index_get_online_status(index)
-		   != ONLINE_INDEX_COMPLETE);
 	byte*			b	= &block[0];
 
 	for (ulint i = 0; i < buf->n_tuples; i++) {
 		const mtuple_t*	entry	= &buf->tuples[i];
 
-		ut_ad(!entry->del_mark
-		      || dict_index_get_online_status(index)
-		      != ONLINE_INDEX_COMPLETE);
-		row_merge_buf_encode(&b, index, entry, n_fields, n_null);
+		row_merge_buf_encode(&b, index, entry, n_fields);
 		ut_ad(b < &block[srv_sort_buf_size]);
 #ifdef UNIV_DEBUG
 		if (row_merge_print_write) {
@@ -841,7 +790,6 @@ row_merge_read_rec(
 	mrec_buf_t*		buf,	/*!< in/out: secondary buffer */
 	const byte*		b,	/*!< in: pointer to record */
 	const dict_index_t*	index,	/*!< in: index of the record */
-	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	int			fd,	/*!< in: file descriptor */
 	ulint*			foffs,	/*!< in/out: file offset */
 	const mrec_t**		mrec,	/*!< out: pointer to merge record,
@@ -927,8 +875,7 @@ err_exit:
 
 		*mrec = *buf + extra_size;
 
-		rec_init_offsets_comp_ordinary(
-			*mrec, 0, index, n_null, offsets);
+		rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
 
 		data_size = rec_offs_data_size(offsets);
 
@@ -947,7 +894,7 @@ err_exit:
 
 	*mrec = b + extra_size;
 
-	rec_init_offsets_comp_ordinary(*mrec, 0, index, n_null, offsets);
+	rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
 
 	data_size = rec_offs_data_size(offsets);
 	ut_ad(extra_size + data_size < sizeof *buf);
@@ -1427,17 +1374,8 @@ end_of_index:
 		offsets = rec_get_offsets(rec, clust_index, NULL,
 					  ULINT_UNDEFINED, &row_heap);
 
-		if (rec_get_deleted_flag(rec, dict_table_is_comp(old_table))
-		    && (!online
-			|| old_table != new_table
-			|| !trx_rw_is_active(
-				row_get_rec_trx_id(rec, clust_index, offsets),
-				NULL))) {
-			/* Skip delete-marked records, unless the
-			transaction is still active. Active transactions
-			would invoke row_log_online_op(), because during
-			ha_innobase::prepare_inplace_alter_table() there
-			must have been no active transactions on the table.
+		if (rec_get_deleted_flag(rec, dict_table_is_comp(old_table))) {
+			/* Skip delete-marked records.
 
 			Skipping delete-marked records will make the
 			created indexes unuseable for transactions
@@ -1521,6 +1459,9 @@ end_of_index:
 			const dfield_t*	dfield;
 
 			dfield = dtuple_get_nth_field(row, add_autoinc);
+			if (dfield_is_null(dfield)) {
+				goto write_buffers;
+			}
 
 			const dtype_t*  dtype = dfield_get_type(dfield);
 			byte*	b = static_cast<byte*>(dfield_get_data(dfield));
@@ -1754,8 +1695,7 @@ wait_again:
 			goto corrupt;					\
 		}							\
 		b##N = row_merge_read_rec(&block[N * srv_sort_buf_size],\
-					  &buf[N],			\
-					  b##N, INDEX, n_null,		\
+					  &buf[N], b##N, INDEX,		\
 					  file->fd, foffs##N,		\
 					  &mrec##N, offsets##N);	\
 		if (UNIV_UNLIKELY(!b##N)) {				\
@@ -1775,7 +1715,6 @@ row_merge_blocks(
 /*=============*/
 	const row_merge_dup_t*	dup,	/*!< in: descriptor of
 					index being created */
-	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	const merge_file_t*	file,	/*!< in: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
@@ -1826,11 +1765,11 @@ corrupt:
 	b2 = &block[2 * srv_sort_buf_size];
 
 	b0 = row_merge_read_rec(
-		&block[0], &buf[0], b0, dup->index, n_null,
+		&block[0], &buf[0], b0, dup->index,
 		file->fd, foffs0, &mrec0, offsets0);
 	b1 = row_merge_read_rec(
 		&block[srv_sort_buf_size],
-		&buf[srv_sort_buf_size], b1, dup->index, n_null,
+		&buf[srv_sort_buf_size], b1, dup->index,
 		file->fd, foffs1, &mrec1, offsets1);
 	if (UNIV_UNLIKELY(!b0 && mrec0)
 	    || UNIV_UNLIKELY(!b1 && mrec1)) {
@@ -1886,7 +1825,6 @@ ibool
 row_merge_blocks_copy(
 /*==================*/
 	const dict_index_t*	index,	/*!< in: index being created */
-	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	const merge_file_t*	file,	/*!< in: input file */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	ulint*			foffs0,	/*!< in/out: input file offset */
@@ -1927,7 +1865,7 @@ corrupt:
 
 	b2 = &block[2 * srv_sort_buf_size];
 
-	b0 = row_merge_read_rec(&block[0], &buf[0], b0, index, n_null,
+	b0 = row_merge_read_rec(&block[0], &buf[0], b0, index,
 				file->fd, foffs0, &mrec0, offsets0);
 	if (UNIV_UNLIKELY(!b0 && mrec0)) {
 
@@ -1962,7 +1900,6 @@ row_merge(
 	trx_t*			trx,	/*!< in: transaction */
 	const row_merge_dup_t*	dup,	/*!< in: descriptor of
 					index being created */
-	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	merge_file_t*		file,	/*!< in/out: file containing
 					index entries */
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
@@ -2013,7 +1950,7 @@ row_merge(
 		/* Remember the offset number for this run */
 		run_offset[n_run++] = of.offset;
 
-		error = row_merge_blocks(dup, n_null, file, block,
+		error = row_merge_blocks(dup, file, block,
 					 &foffs0, &foffs1, &of);
 
 		if (error != DB_SUCCESS) {
@@ -2032,7 +1969,7 @@ row_merge(
 		/* Remember the offset number for this run */
 		run_offset[n_run++] = of.offset;
 
-		if (!row_merge_blocks_copy(dup->index, n_null, file, block,
+		if (!row_merge_blocks_copy(dup->index, file, block,
 					   &foffs0, &of)) {
 			return(DB_CORRUPTION);
 		}
@@ -2048,7 +1985,7 @@ row_merge(
 		/* Remember the offset number for this run */
 		run_offset[n_run++] = of.offset;
 
-		if (!row_merge_blocks_copy(dup->index, n_null, file, block,
+		if (!row_merge_blocks_copy(dup->index, file, block,
 					   &foffs1, &of)) {
 			return(DB_CORRUPTION);
 		}
@@ -2098,9 +2035,6 @@ row_merge_sort(
 	row_merge_block_t*	block,	/*!< in/out: 3 buffers */
 	int*			tmpfd)	/*!< in/out: temporary file handle */
 {
-	const ulint	n_null	= dup->index->n_nullable
-		+ (dict_index_get_online_status(dup->index)
-		   != ONLINE_INDEX_COMPLETE);
 	const ulint	half	= file->offset / 2;
 	ulint		num_runs;
 	ulint*		run_offset;
@@ -2127,7 +2061,7 @@ row_merge_sort(
 
 	/* Merge the runs until we have one big run */
 	do {
-		error = row_merge(trx, dup, n_null, file, block, tmpfd,
+		error = row_merge(trx, dup, file, block, tmpfd,
 				  &num_runs, run_offset);
 
 		UNIV_MEM_ASSERT_RW(run_offset, num_runs * sizeof *run_offset);
@@ -2212,9 +2146,6 @@ row_merge_insert_index_tuples(
 /*==========================*/
 	trx_id_t		trx_id,	/*!< in: transaction identifier */
 	dict_index_t*		index,	/*!< in: index */
-	bool			del_marks,
-					/*!< in: whether some tuples may
-					be delete-marked */
 	const dict_table_t*	old_table,/*!< in: old table */
 	int			fd,	/*!< in: file descriptor */
 	row_merge_block_t*	block)	/*!< in/out: file buffer */
@@ -2230,8 +2161,6 @@ row_merge_insert_index_tuples(
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(!(index->type & DICT_FTS));
-	ut_ad(del_marks == (dict_index_get_online_status(index)
-			    != ONLINE_INDEX_COMPLETE));
 	ut_ad(trx_id);
 
 	tuple_heap = mem_heap_create(1000);
@@ -2252,8 +2181,6 @@ row_merge_insert_index_tuples(
 	if (!row_merge_read(fd, foffs, block)) {
 		error = DB_CORRUPTION;
 	} else {
-		const ulint	n_null = index->n_nullable + del_marks;
-
 		buf = static_cast<mrec_buf_t*>(
 			mem_heap_alloc(heap, sizeof *buf));
 
@@ -2266,7 +2193,7 @@ row_merge_insert_index_tuples(
 			btr_cur_t	cursor;
 			mtr_t		mtr;
 
-			b = row_merge_read_rec(block, buf, b, index, n_null,
+			b = row_merge_read_rec(block, buf, b, index,
 					       fd, &foffs, &mrec, offsets);
 			if (UNIV_UNLIKELY(!b)) {
 				/* End of list, or I/O error */
@@ -2290,20 +2217,10 @@ row_merge_insert_index_tuples(
 			dtuple = row_rec_to_index_entry_low(
 				mrec, index, offsets, &n_ext, tuple_heap);
 
-			/* In mrec, the delete-mark flag is stored in
-			the NULL flags bitmap after the flags of any
-			fields that can be NULL. */
-			if (del_marks && (mrec[-1 - (int) index->n_nullable / 8]
-					  & (1 << (index->n_nullable & 7)))) {
-				dtuple_set_info_bits(dtuple,
-						     REC_INFO_DELETED_FLAG);
-			}
-
 			if (!n_ext) {
 				/* There are no externally stored columns. */
 			} else if (!dict_index_is_online_ddl(old_index)) {
 				ut_ad(dict_index_is_clust(index));
-				ut_ad(!del_marks);
 				/* Modifications to the table are
 				blocked while we are not rebuilding it
 				or creating indexes. Off-page columns
@@ -3098,7 +3015,6 @@ row_merge_rename_tables(
 	ut_ad(!srv_read_only_mode);
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
-
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE);
 
@@ -3106,10 +3022,9 @@ row_merge_rename_tables(
 	if (strlen(old_table->name) + 1 <= sizeof(old_name)) {
 		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
 	} else {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: too long table name: '%s', "
-			"max length is %d\n", old_table->name,
-			MAX_FULL_NAME_LEN);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Too long table name: '%s', max length is %d",
+			old_table->name, MAX_FULL_NAME_LEN);
 		ut_error;
 	}
 
@@ -3168,9 +3083,7 @@ row_merge_rename_tables(
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if the new
 	table is in a non-system tablespace where space > 0. */
-	if (err == DB_SUCCESS
-	    && new_table->space != TRX_SYS_SPACE
-	    && !new_table->ibd_file_missing) {
+	if (err == DB_SUCCESS && new_table->space != TRX_SYS_SPACE) {
 		/* Make pathname to update SYS_DATAFILES. */
 		char* old_path = row_make_new_pathname(new_table, old_name);
 
@@ -3196,7 +3109,6 @@ row_merge_rename_tables(
 	}
 
 	if (err != DB_SUCCESS) {
-
 		goto err_exit;
 	}
 
@@ -3204,27 +3116,40 @@ row_merge_rename_tables(
 	the tables are stored in a single-table tablespace */
 
 	err = dict_table_rename_in_cache(old_table, tmp_name, FALSE);
-	if (err != DB_SUCCESS) {
-		goto err_exit;
-	}
 
-	err = dict_table_rename_in_cache(new_table, old_name, FALSE);
-	if (err != DB_SUCCESS) {
-		if (dict_table_rename_in_cache(old_table, old_name, FALSE)
-		    != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Error: Cannot undo "
-				" the rename in cache from %s to %s\n",
-				old_name, tmp_name);
+	if (err == DB_SUCCESS) {
+
+		ut_ad(dict_table_is_discarded(old_table)
+		      == dict_table_is_discarded(new_table));
+
+		err = dict_table_rename_in_cache(new_table, old_name, FALSE);
+
+		if (err != DB_SUCCESS) {
+
+			if (dict_table_rename_in_cache(
+					old_table, old_name, FALSE)
+			    != DB_SUCCESS) {
+
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Cannot undo the rename in cache "
+					"from %s to %s", old_name, tmp_name);
+			}
+
+			goto err_exit;
 		}
-		goto err_exit;
+
+		if (dict_table_is_discarded(new_table)) {
+
+			err = row_import_update_discarded_flag(
+				trx, new_table->id, true, true);
+		}
 	}
 
-	DBUG_EXECUTE_IF(
-		"ib_rebuild_cannot_load_fk",
-		err = DB_ERROR; goto err_exit;);
+	DBUG_EXECUTE_IF("ib_rebuild_cannot_load_fk",
+			err = DB_ERROR; goto err_exit;);
 
 	err = dict_load_foreigns(old_name, FALSE, TRUE);
+
 	if (err != DB_SUCCESS) {
 err_exit:
 		trx->error_state = DB_SUCCESS;
@@ -3500,6 +3425,8 @@ row_merge_build_indexes(
 
 		if (indexes[i]->type & DICT_FTS) {
 			os_event_t	fts_parallel_merge_event;
+			bool		all_exit = false;
+			ulint		trial_count = 0;
 
 			fts_parallel_merge_event
 				= merge_info[0].psort_common->sort_event;
@@ -3514,12 +3441,39 @@ wait_again:
 
 				for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 					if (merge_info[j].child_status
-					    != FTS_CHILD_COMPLETE) {
+					    != FTS_CHILD_COMPLETE
+					    && merge_info[j].child_status
+					    != FTS_CHILD_EXITING) {
 						sig_count = os_event_reset(
 						fts_parallel_merge_event);
 
 						goto wait_again;
 					}
+				}
+
+				/* Now all children should complete, wait
+				a bit until they all finish using event */
+				while (!all_exit && trial_count < 1000) {
+					all_exit = true;
+
+					for (j = 0; j < FTS_NUM_AUX_INDEX;
+					     j++) {
+						if (merge_info[j].child_status
+						    != FTS_CHILD_EXITING) {
+							all_exit = false;
+							os_thread_sleep(1000);
+							break;
+						}
+					}
+					trial_count++;
+				}
+
+				if (!all_exit) {
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Not all child threads exited"
+						" when creating FTS index '%s'",
+						indexes[i]->name);
+						
 				}
 			} else {
 				/* This cannot report duplicates; an
@@ -3542,9 +3496,7 @@ wait_again:
 
 			if (error == DB_SUCCESS) {
 				error = row_merge_insert_index_tuples(
-					trx->id, sort_idx,
-					online && old_table == new_table,
-					old_table,
+					trx->id, sort_idx, old_table,
 					merge_files[i].fd, block);
 			}
 		}

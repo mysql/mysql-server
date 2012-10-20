@@ -1411,6 +1411,9 @@ EXPLAIN
         "b"
       ] /* possible_keys */,
       "key": "a",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "5",
       "rows": 1,
       "filtered": 100,
@@ -1440,6 +1443,9 @@ EXPLAIN
         "a"
       ] /* possible_keys */,
       "key": "a",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "5",
       "ref": [
         "const"
@@ -1491,6 +1497,9 @@ EXPLAIN
         "b"
       ] /* possible_keys */,
       "key": "a",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "5",
       "rows": 1,
       "filtered": 100,
@@ -1519,6 +1528,9 @@ EXPLAIN
         "a"
       ] /* possible_keys */,
       "key": "a",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "5",
       "rows": 1,
       "filtered": 100,
@@ -1567,6 +1579,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 1,
         "filtered": 100,
@@ -1598,6 +1613,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 1,
         "filtered": 100,
@@ -1647,6 +1665,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 3,
         "filtered": 100,
@@ -1678,6 +1699,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 3,
         "filtered": 100,
@@ -1733,6 +1757,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 4,
         "filtered": 100,
@@ -1761,6 +1788,9 @@ EXPLAIN
         "table_name": "t1",
         "access_type": "index",
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 1,
         "filtered": 400,
@@ -1917,6 +1947,9 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a2"
+          ] /* used_key_parts */,
           "key_length": "4",
           "ref": [
             "test.t1.a1"
@@ -1934,6 +1967,10 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a3",
+            "b3"
+          ] /* used_key_parts */,
           "key_length": "8",
           "ref": [
             "test.t2.b2",
@@ -1979,6 +2016,9 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a2"
+          ] /* used_key_parts */,
           "key_length": "4",
           "ref": [
             "test.t1.a1"
@@ -1996,6 +2036,10 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a3",
+            "b3"
+          ] /* used_key_parts */,
           "key_length": "8",
           "ref": [
             "test.t2.b2",
@@ -2516,6 +2560,11 @@ EXPLAIN
           "a"
         ] /* possible_keys */,
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -2544,6 +2593,11 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "index",
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -2799,6 +2853,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -2830,6 +2887,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -3079,6 +3139,11 @@ EXPLAIN
           "a"
         ] /* possible_keys */,
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -3107,6 +3172,11 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "index",
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -3445,6 +3515,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -3476,6 +3549,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -3620,6 +3696,10 @@ EXPLAIN
           "a"
         ] /* possible_keys */,
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b"
+        ] /* used_key_parts */,
         "key_length": "6",
         "rows": "X",
         "filtered": "X"
@@ -3647,6 +3727,10 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "index",
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b"
+        ] /* used_key_parts */,
         "key_length": "6",
         "rows": "X",
         "filtered": "X"
@@ -3706,6 +3790,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": "X",
         "filtered": "X",
@@ -3737,6 +3824,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": "X",
         "filtered": "X",
@@ -3990,6 +4080,11 @@ EXPLAIN
           "a"
         ] /* possible_keys */,
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -4018,6 +4113,11 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "index",
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -4357,6 +4457,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -4388,6 +4491,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -4534,6 +4640,10 @@ EXPLAIN
           "a"
         ] /* possible_keys */,
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b"
+        ] /* used_key_parts */,
         "key_length": "6",
         "rows": "X",
         "filtered": "X"
@@ -4561,6 +4671,10 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "index",
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b"
+        ] /* used_key_parts */,
         "key_length": "6",
         "rows": "X",
         "filtered": "X"
@@ -4624,6 +4738,9 @@ EXPLAIN
           "c1_idx"
         ] /* possible_keys */,
         "key": "c1_idx",
+        "used_key_parts": [
+          "c1_idx"
+        ] /* used_key_parts */,
         "key_length": "2",
         "rows": 2,
         "filtered": 100,
@@ -4655,6 +4772,9 @@ EXPLAIN
           "c1_idx"
         ] /* possible_keys */,
         "key": "c1_idx",
+        "used_key_parts": [
+          "c1_idx"
+        ] /* used_key_parts */,
         "key_length": "2",
         "ref": [
           "const"
@@ -4709,6 +4829,9 @@ EXPLAIN
           "c1_idx"
         ] /* possible_keys */,
         "key": "c1_idx",
+        "used_key_parts": [
+          "c1_idx"
+        ] /* used_key_parts */,
         "key_length": "2",
         "rows": 2,
         "filtered": 100,
@@ -4740,6 +4863,9 @@ EXPLAIN
           "c1_idx"
         ] /* possible_keys */,
         "key": "c1_idx",
+        "used_key_parts": [
+          "c1_idx"
+        ] /* used_key_parts */,
         "key_length": "2",
         "ref": [
           "const"
@@ -4794,6 +4920,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 2,
       "filtered": 100,
@@ -4823,6 +4952,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 2,
       "filtered": 100,
@@ -5089,6 +5221,9 @@ EXPLAIN
               "IDX"
             ] /* possible_keys */,
             "key": "IDX",
+            "used_key_parts": [
+              "f3"
+            ] /* used_key_parts */,
             "key_length": "5",
             "ref": [
               "test.t1.f1"
@@ -5138,6 +5273,9 @@ EXPLAIN
               "IDX"
             ] /* possible_keys */,
             "key": "IDX",
+            "used_key_parts": [
+              "f3"
+            ] /* used_key_parts */,
             "key_length": "5",
             "ref": [
               "test.t1.f1"
@@ -5454,6 +5592,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 3,
       "filtered": 100,
@@ -5482,6 +5623,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 3,
       "filtered": 100,
@@ -5552,6 +5696,9 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a"
+          ] /* used_key_parts */,
           "key_length": "4",
           "ref": [
             "test.t2.x"
@@ -5666,6 +5813,9 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a"
+          ] /* used_key_parts */,
           "key_length": "4",
           "ref": [
             "test.t2.x"
@@ -5915,6 +6065,9 @@ EXPLAIN
                 "<auto_key0>"
               ] /* possible_keys */,
               "key": "<auto_key0>",
+              "used_key_parts": [
+                "b"
+              ] /* used_key_parts */,
               "key_length": "5",
               "ref": [
                 "func"
@@ -5981,6 +6134,9 @@ EXPLAIN
                 "<auto_key0>"
               ] /* possible_keys */,
               "key": "<auto_key0>",
+              "used_key_parts": [
+                "b"
+              ] /* used_key_parts */,
               "key_length": "5",
               "ref": [
                 "func"
@@ -6079,6 +6235,9 @@ EXPLAIN
                     "<auto_key0>"
                   ] /* possible_keys */,
                   "key": "<auto_key0>",
+                  "used_key_parts": [
+                    "b"
+                  ] /* used_key_parts */,
                   "key_length": "5",
                   "ref": [
                     "func"
@@ -6159,6 +6318,9 @@ EXPLAIN
                     "<auto_key0>"
                   ] /* possible_keys */,
                   "key": "<auto_key0>",
+                  "used_key_parts": [
+                    "b"
+                  ] /* used_key_parts */,
                   "key_length": "5",
                   "ref": [
                     "func"
@@ -6269,6 +6431,9 @@ EXPLAIN
                     "<auto_key0>"
                   ] /* possible_keys */,
                   "key": "<auto_key0>",
+                  "used_key_parts": [
+                    "b"
+                  ] /* used_key_parts */,
                   "key_length": "5",
                   "ref": [
                     "func"
@@ -6364,6 +6529,9 @@ EXPLAIN
                     "<auto_key0>"
                   ] /* possible_keys */,
                   "key": "<auto_key0>",
+                  "used_key_parts": [
+                    "b"
+                  ] /* used_key_parts */,
                   "key_length": "5",
                   "ref": [
                     "func"
@@ -6509,6 +6677,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 1,
       "filtered": 100,
@@ -6538,6 +6709,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 1,
       "filtered": 100,
@@ -6585,6 +6759,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 1,
         "filtered": 100,
@@ -6616,6 +6793,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 1,
         "filtered": 100,
