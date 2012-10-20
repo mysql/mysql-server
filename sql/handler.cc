@@ -3650,6 +3650,9 @@ void handler::print_error(int error, myf errflag)
   case HA_WRONG_CREATE_OPTION:
     textno= ER_ILLEGAL_HA;
     break;
+  case HA_ERR_TOO_MANY_FIELDS:
+    textno= ER_TOO_MANY_FIELDS;
+    break;
   default:
     {
       /* The error was "unknown" to this function.

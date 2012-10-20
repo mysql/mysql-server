@@ -587,6 +587,7 @@ buf_dblwr_update(void)
 
 	ut_ad(buf_dblwr->batch_running);
 	ut_ad(buf_dblwr->b_reserved > 0);
+	ut_ad(buf_dblwr->b_reserved <= buf_dblwr->first_free);
 
 	buf_dblwr->b_reserved--;
 	if (buf_dblwr->b_reserved == 0) {
@@ -697,23 +698,29 @@ static
 void
 buf_dblwr_write_block_to_datafile(
 /*==============================*/
-	const buf_block_t*	block)	/*!< in: block to write */
+	const buf_page_t*	bpage)	/*!< in: page to write */
 {
-	ut_a(block);
-	ut_a(buf_page_in_file(&block->page));
+	ut_a(bpage);
+	ut_a(buf_page_in_file(bpage));
 
-	if (block->page.zip.data) {
+	/* Increment the counter of I/O operations used
+	for selecting LRU policy. */
+	buf_LRU_stat_inc_io();
+
+	if (bpage->zip.data) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		       FALSE, buf_page_get_space(&block->page),
-		       buf_page_get_zip_size(&block->page),
-		       buf_page_get_page_no(&block->page), 0,
-		       buf_page_get_zip_size(&block->page),
-		       (void*) block->page.zip.data,
-		       (void*) block);
+		       FALSE, buf_page_get_space(bpage),
+		       buf_page_get_zip_size(bpage),
+		       buf_page_get_page_no(bpage), 0,
+		       buf_page_get_zip_size(bpage),
+		       (void*) bpage->zip.data,
+		       (void*) bpage);
 
-		goto exit;
+		return;
 	}
 
+
+	const buf_block_t* block = (buf_block_t*) bpage;
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	buf_dblwr_check_page_lsn(block->frame);
 
@@ -721,11 +728,6 @@ buf_dblwr_write_block_to_datafile(
 	       FALSE, buf_block_get_space(block), 0,
 	       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
 	       (void*) block->frame, (void*) block);
-
-exit:
-	/* Increment the counter of I/O operations used
-	for selecting LRU policy. */
-	buf_LRU_stat_inc_io();
 }
 
 /********************************************************************//**
@@ -740,9 +742,8 @@ buf_dblwr_flush_buffered_writes(void)
 /*=================================*/
 {
 	byte*		write_buf;
+	ulint		first_free;
 	ulint		len;
-	ulint		len2;
-	ulint		i;
 
 	if (!srv_use_doublewrite_buf || buf_dblwr == NULL) {
 		/* Sync the writes to the disk. */
@@ -774,10 +775,12 @@ try_again:
 	}
 
 	ut_a(!buf_dblwr->batch_running);
+	ut_ad(buf_dblwr->first_free == buf_dblwr->b_reserved);
 
 	/* Disallow anyone else to post to doublewrite buffer or to
 	start another batch of flushing. */
 	buf_dblwr->batch_running = TRUE;
+	first_free = buf_dblwr->first_free;
 
 	/* Now safe to release the mutex. Note that though no other
 	thread is allowed to post to the doublewrite batch flushing
@@ -787,7 +790,7 @@ try_again:
 
 	write_buf = buf_dblwr->write_buf;
 
-	for (len2 = 0, i = 0;
+	for (ulint len2 = 0, i = 0;
 	     i < buf_dblwr->first_free;
 	     len2 += UNIV_PAGE_SIZE, i++) {
 
@@ -847,11 +850,21 @@ flush:
 	and in recovery we will find them in the doublewrite buffer
 	blocks. Next do the writes to the intended positions. */
 
-	for (i = 0; i < buf_dblwr->first_free; i++) {
-		const buf_block_t* block = (buf_block_t*)
-			buf_dblwr->buf_block_arr[i];
-
-		buf_dblwr_write_block_to_datafile(block);
+	/* Up to this point first_free and buf_dblwr->first_free are
+	same because we have set the buf_dblwr->batch_running flag
+	disallowing any other thread to post any request but we
+	can't safely access buf_dblwr->first_free in the loop below.
+	This is so because it is possible that after we are done with
+	the last iteration and before we terminate the loop, the batch
+	gets finished in the IO helper thread and another thread posts
+	a new batch setting buf_dblwr->first_free to a higher value.
+	If this happens and we are using buf_dblwr->first_free in the
+	loop termination condition then we'll end up dispatching
+	the same block twice from two different threads. */
+	ut_ad(first_free == buf_dblwr->first_free);
+	for (ulint i = 0; i < first_free; i++) {
+		buf_dblwr_write_block_to_datafile(
+			buf_dblwr->buf_block_arr[i]);
 	}
 
 	/* Wake possible simulated aio thread to actually post the
@@ -927,6 +940,8 @@ try_again:
 	buf_dblwr->first_free++;
 	buf_dblwr->b_reserved++;
 
+	ut_ad(!buf_dblwr->batch_running);
+	ut_ad(buf_dblwr->first_free == buf_dblwr->b_reserved);
 	ut_ad(buf_dblwr->b_reserved <= srv_doublewrite_batch_size);
 
 	if (buf_dblwr->first_free == srv_doublewrite_batch_size) {
@@ -1057,7 +1072,7 @@ retry:
 	/* We know that the write has been flushed to disk now
 	and during recovery we will find it in the doublewrite buffer
 	blocks. Next do the write to the intended position. */
-	buf_dblwr_write_block_to_datafile((buf_block_t*) bpage);
+	buf_dblwr_write_block_to_datafile(bpage);
 
 	/* Sync the writes to the disk. */
 	buf_flush_sync_datafiles();
@@ -1069,7 +1084,7 @@ retry:
 	buf_dblwr->in_use[i] = FALSE;
 
 	/* increment the doublewrite flushed pages counter */
-	srv_stats.dblwr_pages_written.add(buf_dblwr->first_free);
+	srv_stats.dblwr_pages_written.inc();
 	srv_stats.dblwr_writes.inc();
 
 	mutex_exit(&(buf_dblwr->mutex));

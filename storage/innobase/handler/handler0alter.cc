@@ -34,6 +34,7 @@ Smart ALTER TABLE
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "log0log.h"
+#include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
 #include "srv0srv.h"
@@ -265,6 +266,14 @@ ha_innobase::check_if_supported_inplace_alter(
 	if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	} else if (srv_created_new_raw || srv_force_recovery) {
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
+	if (altered_table->s->fields > REC_MAX_N_USER_FIELDS) {
+		/* Deny the inplace ALTER TABLE. MySQL will try to
+		re-create the table and ha_innobase::create() will
+		return an error too. This is how we effectively
+		deny adding too many columns to a table. */
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -1115,7 +1124,7 @@ innobase_rec_to_mysql(
 
 		field->reset();
 
-		ipos = dict_index_get_nth_col_pos(index, i);
+		ipos = dict_index_get_nth_col_or_prefix_pos(index, i, TRUE);
 
 		if (ipos == ULINT_UNDEFINED
 		    || rec_offs_nth_extern(offsets, ipos)) {
@@ -1163,7 +1172,7 @@ innobase_fields_to_mysql(
 
 		field->reset();
 
-		ipos = dict_index_get_nth_col_pos(index, i);
+		ipos = dict_index_get_nth_col_or_prefix_pos(index, i, TRUE);
 
 		if (ipos == ULINT_UNDEFINED
 		    || dfield_is_ext(&fields[ipos])
@@ -4435,6 +4444,36 @@ ha_innobase::commit_inplace_alter_table(
 		DEBUG_SYNC(user_thd, "innodb_alter_commit_after_lock_table");
 	}
 
+	if (ctx) {
+		if (ctx->indexed_table != prebuilt->table) {
+			for (dict_index_t* index = dict_table_get_first_index(
+				     ctx->indexed_table);
+			     index;
+			     index = dict_table_get_next_index(index)) {
+				DBUG_ASSERT(dict_index_get_online_status(index)
+					    == ONLINE_INDEX_COMPLETE);
+				DBUG_ASSERT(*index->name != TEMP_INDEX_PREFIX);
+				if (dict_index_is_corrupted(index)) {
+					my_error(ER_INDEX_CORRUPT, MYF(0),
+						 index->name);
+					DBUG_RETURN(true);
+				}
+			}
+		} else {
+			for (ulint i = 0; i < ctx->num_to_add; i++) {
+				dict_index_t*	index = ctx->add[i];
+				DBUG_ASSERT(dict_index_get_online_status(index)
+					    == ONLINE_INDEX_COMPLETE);
+				DBUG_ASSERT(*index->name == TEMP_INDEX_PREFIX);
+				if (dict_index_is_corrupted(index)) {
+					my_error(ER_INDEX_CORRUPT, MYF(0),
+						 index->name + 1);
+					DBUG_RETURN(true);
+				}
+			}
+		}
+	}
+
 	if (!ctx || !ctx->trx) {
 		/* Create a background transaction for the operations on
 		the data dictionary tables. */
@@ -4690,6 +4729,13 @@ undo_add_fk:
 
 		DBUG_EXECUTE_IF("ib_ddl_crash_before_rename",
 				DBUG_SUICIDE(););
+
+		/* The new table must inherit the flag from the
+		"parent" table. */
+		if (dict_table_is_discarded(prebuilt->table)) {
+			ctx->indexed_table->ibd_file_missing = true;
+			ctx->indexed_table->flags2 |= DICT_TF2_DISCARDED;
+		}
 
 		error = row_merge_rename_tables(
 			prebuilt->table, ctx->indexed_table,
