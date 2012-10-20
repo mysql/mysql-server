@@ -14,37 +14,58 @@
 #include "rollback.h"
 
 
+// Address used as a sentinel. Otherwise unused.
+static struct serialized_rollback_log_node cloned_rollback;
+
 // Cleanup the rollback memory
 static void
 rollback_log_destroy(ROLLBACK_LOG_NODE log) {
-    memarena_close(&log->rollentry_arena);
+    make_rollback_log_empty(log);
     toku_free(log);
 }
 
-// Write something out.  Keep trying even if partial writes occur.
-// On error: Return negative with errno set.
-// On success return nbytes.
-void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname,
-                                          void *rollback_v,  void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size,
-                                          bool write_me, bool keep_me, bool for_checkpoint, bool is_clone) {
-    ROLLBACK_LOG_NODE log = nullptr;
-    SERIALIZED_ROLLBACK_LOG_NODE serialized = nullptr;
-    if (is_clone) {
-        CAST_FROM_VOIDP(serialized, rollback_v);
-        invariant(serialized->blocknum.b == logname.b);
+// flush an ununused log to disk, by allocating a size 0 blocknum in
+// the blocktable
+static void
+toku_rollback_flush_unused_log(
+    ROLLBACK_LOG_NODE log,
+    BLOCKNUM logname,
+    int fd,
+    FT ft,
+    bool write_me,
+    bool keep_me,
+    bool for_checkpoint,
+    bool is_clone
+    )
+{
+    if (write_me) {
+        DISKOFF offset;
+        toku_blocknum_realloc_on_disk(ft->blocktable, logname, 0, &offset,
+                                      ft, fd, for_checkpoint);
     }
-    else {
-        CAST_FROM_VOIDP(log, rollback_v);
-        invariant(log->blocknum.b == logname.b);
+    if (!keep_me && !is_clone) {
+        toku_free(log);
     }
-    FT CAST_FROM_VOIDP(h, extraargs);
+}
+
+// flush a used log to disk by serializing and writing the node out
+static void
+toku_rollback_flush_used_log (
+    ROLLBACK_LOG_NODE log,
+    SERIALIZED_ROLLBACK_LOG_NODE serialized,
+    int fd,
+    FT ft,
+    bool write_me,
+    bool keep_me,
+    bool for_checkpoint,
+    bool is_clone
+    )
+{
 
     if (write_me) {
-        assert(h->cf == cachefile);
-        int r = toku_serialize_rollback_log_to(fd, log, serialized, is_clone, h, for_checkpoint);
+        int r = toku_serialize_rollback_log_to(fd, log, serialized, is_clone, ft, for_checkpoint);
         assert(r == 0);
     }
-    *new_size = size;
     if (!keep_me) {
         if (is_clone) {
             toku_serialized_rollback_log_destroy(serialized);
@@ -55,12 +76,69 @@ void toku_rollback_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM logname
     }
 }
 
+// Write something out.  Keep trying even if partial writes occur.
+// On error: Return negative with errno set.
+// On success return nbytes.
+void toku_rollback_flush_callback (
+    CACHEFILE UU(cachefile),
+    int fd,
+    BLOCKNUM logname,
+    void *rollback_v,
+    void** UU(disk_data),
+    void *extraargs,
+    PAIR_ATTR size,
+    PAIR_ATTR* new_size,
+    bool write_me,
+    bool keep_me,
+    bool for_checkpoint,
+    bool is_clone
+    )
+{
+    ROLLBACK_LOG_NODE log = nullptr;
+    SERIALIZED_ROLLBACK_LOG_NODE serialized = nullptr;
+    bool is_unused = false;
+    if (is_clone) {
+        is_unused = (rollback_v == &cloned_rollback);
+        CAST_FROM_VOIDP(serialized, rollback_v);
+    }
+    else {
+        CAST_FROM_VOIDP(log, rollback_v);
+        is_unused = rollback_log_is_unused(log);
+    }
+    *new_size = size;
+    FT ft;
+    CAST_FROM_VOIDP(ft, extraargs);
+    if (is_unused) {
+        toku_rollback_flush_unused_log(
+            log,
+            logname,
+            fd,
+            ft,
+            write_me,
+            keep_me,
+            for_checkpoint,
+            is_clone
+            );
+    }
+    else {
+        toku_rollback_flush_used_log(
+            log,
+            serialized,
+            fd,
+            ft,
+            write_me,
+            keep_me,
+            for_checkpoint,
+            is_clone
+            );
+    }
+}
+
 int toku_rollback_fetch_callback (CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM logname, uint32_t fullhash,
                                  void **rollback_pv,  void** UU(disk_data), PAIR_ATTR *sizep, int * UU(dirtyp), void *extraargs) {
     int r;
     FT CAST_FROM_VOIDP(h, extraargs);
     assert(h->cf == cachefile);
-
     ROLLBACK_LOG_NODE *result = (ROLLBACK_LOG_NODE*)rollback_pv;
     r = toku_deserialize_rollback_log_from(fd, logname, fullhash, result, h);
     if (r==0) {
@@ -130,11 +208,15 @@ void toku_rollback_clone_callback(
     )
 {
     ROLLBACK_LOG_NODE CAST_FROM_VOIDP(log, value_data);
-    SERIALIZED_ROLLBACK_LOG_NODE XMALLOC(serialized);
-
-    toku_serialize_rollback_log_to_memory_uncompressed(log, serialized);
-
+    SERIALIZED_ROLLBACK_LOG_NODE serialized = nullptr;
+    if (!rollback_log_is_unused(log)) {
+        XMALLOC(serialized);
+        toku_serialize_rollback_log_to_memory_uncompressed(log, serialized);
+        *cloned_value_data = serialized;
+    }
+    else {
+        *cloned_value_data = &cloned_rollback;
+    }
     new_attr->is_valid = false;
-    *cloned_value_data = serialized;
 }
 

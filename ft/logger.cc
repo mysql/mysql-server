@@ -6,6 +6,7 @@
 
 #include "includes.h"
 #include "txn_manager.h"
+#include "rollback_log_node_cache.h"
 
 static const int log_format_version=TOKU_LOG_VERSION;
 
@@ -176,19 +177,29 @@ bool toku_logger_rollback_is_open (TOKULOGGER logger) {
     return logger->rollback_cachefile != NULL;
 }
 
+#define MAX_CACHED_ROLLBACK_NODES 4096
+
+void
+toku_logger_initialize_rollback_cache(TOKULOGGER logger, FT ft) {
+    toku_free_unused_blocknums(ft->blocktable, ft->h->root_blocknum);
+    logger->rollback_cache.init(MAX_CACHED_ROLLBACK_NODES);
+}
+
 int
 toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create) {
     assert(logger->is_open);
     assert(!logger->rollback_cachefile);
-    
+
     FT_HANDLE t = NULL;   // Note, there is no DB associated with this BRT.
     toku_ft_handle_create(&t);
     int r = toku_ft_handle_open(t, ROLLBACK_CACHEFILE_NAME, create, create, cachetable, NULL_TXN);
     assert_zero(r);
     logger->rollback_cachefile = t->ft->cf;
+    toku_logger_initialize_rollback_cache(logger, t->ft);
+
     //Verify it is empty
     //Must have no data blocks (rollback logs or otherwise).
-    toku_block_verify_no_data_blocks_except_root_unlocked(t->ft->blocktable, t->ft->h->root_blocknum);
+    toku_block_verify_no_data_blocks_except_root(t->ft->blocktable, t->ft->h->root_blocknum);
     bool is_empty;
     is_empty = toku_ft_is_empty_fast(t);
     assert(is_empty);
@@ -205,11 +216,13 @@ void toku_logger_close_rollback(TOKULOGGER logger) {
     if (cf) {
         FT_HANDLE ft_to_close;
         {   //Find "brt"
+            logger->rollback_cache.destroy();
             FT CAST_FROM_VOIDP(ft, toku_cachefile_get_userdata(cf));
             //Verify it is safe to close it.
             assert(!ft->h->dirty);  //Must not be dirty.
+            toku_free_unused_blocknums(ft->blocktable, ft->h->root_blocknum);
             //Must have no data blocks (rollback logs or otherwise).
-            toku_block_verify_no_data_blocks_except_root_unlocked(ft->blocktable, ft->h->root_blocknum);
+            toku_block_verify_no_data_blocks_except_root(ft->blocktable, ft->h->root_blocknum);
             assert(!ft->h->dirty);
             ft_to_close = toku_ft_get_only_existing_ft_handle(ft);
             {

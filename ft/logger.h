@@ -25,6 +25,7 @@ int toku_logger_open (const char *directory, TOKULOGGER logger);
 int toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID last_xid);
 void toku_logger_shutdown(TOKULOGGER logger);
 int toku_logger_close(TOKULOGGER *loggerp);
+void toku_logger_initialize_rollback_cache(TOKULOGGER logger, FT ft);
 int toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create);
 void toku_logger_close_rollback(TOKULOGGER logger);
 bool toku_logger_rollback_is_open (TOKULOGGER); // return true iff the rollback is open.

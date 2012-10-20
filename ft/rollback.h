@@ -101,5 +101,12 @@ toku_serialized_rollback_log_destroy(SERIALIZED_ROLLBACK_LOG_NODE log) {
     toku_free(log);
 }
 
+void rollback_empty_log_init(ROLLBACK_LOG_NODE log);
+void make_rollback_log_empty(ROLLBACK_LOG_NODE log);
+
+static inline bool rollback_log_is_unused(ROLLBACK_LOG_NODE log) {
+    return (log->txnid == TXNID_NONE);
+}
+
 
 #endif // TOKU_ROLLBACK_H

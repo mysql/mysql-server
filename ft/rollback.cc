@@ -6,17 +6,17 @@
 
 #include "includes.h"
 #include "rollback-ct-callbacks.h"
+#include <inttypes.h>
 
 static void rollback_unpin_remove_callback(CACHEKEY* cachekey, bool for_checkpoint, void* extra) {
     FT CAST_FROM_VOIDP(h, extra);
     toku_free_blocknum(
-        h->blocktable, 
+        h->blocktable,
         cachekey,
         h,
         for_checkpoint
         );
 }
-
 
 void toku_rollback_log_unpin_and_remove(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     int r;
@@ -46,19 +46,21 @@ void *toku_memdup_in_rollback(ROLLBACK_LOG_NODE log, const void *v, size_t len) 
 static inline PAIR_ATTR make_rollback_pair_attr(long size) { 
     PAIR_ATTR result={
      .size = size, 
-     .nonleaf_size = 0, 
-     .leaf_size = 0, 
-     .rollback_size = size, 
+     .nonleaf_size = 0,
+     .leaf_size = 0,
+     .rollback_size = size,
      .cache_pressure_size = 0,
      .is_valid = true
-    }; 
-    return result; 
+    };
+    return result;
 }
 
 PAIR_ATTR
 rollback_memory_size(ROLLBACK_LOG_NODE log) {
     size_t size = sizeof(*log);
-    size += memarena_total_memory_size(log->rollentry_arena);
+    if (log->rollentry_arena) {
+        size += memarena_total_memory_size(log->rollentry_arena);
+    }
     return make_rollback_pair_attr(size);
 }
 
@@ -67,37 +69,78 @@ static void toku_rollback_node_save_ct_pair(void *value_data, PAIR p) {
     log->ct_pair = p;
 }
 
-// create and pin a new rollback log node. chain it to the other rollback nodes
-// by providing a previous blocknum/ hash and assigning the new rollback log
-// node the next sequence number
-static void rollback_log_create (TOKUTXN txn, BLOCKNUM previous, uint32_t previous_hash, ROLLBACK_LOG_NODE *result) {
-    ROLLBACK_LOG_NODE MALLOC(log);
-    assert(log);
-
-    CACHEFILE cf = txn->logger->rollback_cachefile;
-    FT CAST_FROM_VOIDP(h, toku_cachefile_get_userdata(cf));
-
+//
+// initializes an empty rollback log node
+// Does not touch the blocknum or hash, that is the
+// responsibility of the caller
+//
+void rollback_empty_log_init(ROLLBACK_LOG_NODE log) {
+    // Having a txnid set to TXNID_NONE is how we determine if the 
+    // rollback log node is empty or in use.
+    log->txnid = TXNID_NONE;
+    
     log->layout_version                = FT_LAYOUT_VERSION;
     log->layout_version_original       = FT_LAYOUT_VERSION;
     log->layout_version_read_from_disk = FT_LAYOUT_VERSION;
     log->dirty = true;
+    log->sequence = 0;
+    log->previous = {0};
+    log->previous_hash = 0;
+    log->oldest_logentry = NULL;
+    log->newest_logentry = NULL;
+    log->rollentry_arena = NULL;
+    log->rollentry_resident_bytecount = 0;
+}
+
+
+
+static void rollback_initialize_for_txn(
+    ROLLBACK_LOG_NODE log,
+    TOKUTXN txn,
+    BLOCKNUM previous,
+    uint32_t previous_hash
+    )
+{
     log->txnid = txn->txnid64;
     log->sequence = txn->roll_info.num_rollback_nodes++;
-    toku_allocate_blocknum(h->blocktable, &log->blocknum, h);
-    log->hash   = toku_cachetable_hash(cf, log->blocknum);
-    log->previous      = previous;
+    log->previous = previous;
     log->previous_hash = previous_hash;
     log->oldest_logentry = NULL;
     log->newest_logentry = NULL;
     log->rollentry_arena = memarena_create();
     log->rollentry_resident_bytecount = 0;
 
+}
+
+void make_rollback_log_empty(ROLLBACK_LOG_NODE log) {
+    memarena_close(&log->rollentry_arena);
+    rollback_empty_log_init(log);
+}
+
+// create and pin a new rollback log node. chain it to the other rollback nodes
+// by providing a previous blocknum/ hash and assigning the new rollback log
+// node the next sequence number
+static void rollback_log_create (
+    TOKUTXN txn,
+    BLOCKNUM previous,
+    uint32_t previous_hash,
+    ROLLBACK_LOG_NODE *result
+    )
+{
+    ROLLBACK_LOG_NODE XMALLOC(log);
+    rollback_empty_log_init(log);
+
+    CACHEFILE cf = txn->logger->rollback_cachefile;
+    FT CAST_FROM_VOIDP(ft, toku_cachefile_get_userdata(cf));
+    rollback_initialize_for_txn(log, txn, previous, previous_hash);
+    toku_allocate_blocknum(ft->blocktable, &log->blocknum, ft);
+    log->hash = toku_cachetable_hash(ft->cf, log->blocknum);
     *result = log;
     toku_cachetable_put(cf, log->blocknum, log->hash,
                        log, rollback_memory_size(log),
-                       get_write_callbacks_for_rollback_log(h),
+                       get_write_callbacks_for_rollback_log(ft),
                        toku_rollback_node_save_ct_pair);
-    txn->roll_info.current_rollback      = log->blocknum;
+    txn->roll_info.current_rollback = log->blocknum;
     txn->roll_info.current_rollback_hash = log->hash;
 }
 
@@ -211,26 +254,50 @@ void toku_get_and_pin_rollback_log(TOKUTXN txn, BLOCKNUM blocknum, uint32_t hash
                                         toku_rollback_fetch_callback,
                                         toku_rollback_pf_req_callback,
                                         toku_rollback_pf_callback,
-                                        PL_WRITE_EXPENSIVE, // lock_type
+                                        PL_WRITE_CHEAP, // lock_type
                                         h,
                                         0, NULL, NULL, NULL, NULL
                                         );
     assert(r == 0);
     ROLLBACK_LOG_NODE CAST_FROM_VOIDP(pinned_log, value);
     assert(pinned_log->blocknum.b == blocknum.b);
+    assert(pinned_log->hash == hash);
     *log = pinned_log;
 }
 
 void toku_get_and_pin_rollback_log_for_new_entry (TOKUTXN txn, ROLLBACK_LOG_NODE *log) {
-    ROLLBACK_LOG_NODE pinned_log;
+    ROLLBACK_LOG_NODE pinned_log = NULL;
     invariant(txn->state == TOKUTXN_LIVE || txn->state == TOKUTXN_PREPARING); // hot indexing may call this function for prepared transactions
     if (txn_has_current_rollback_log(txn)) {
         toku_get_and_pin_rollback_log(txn, txn->roll_info.current_rollback, txn->roll_info.current_rollback_hash, &pinned_log);
         toku_rollback_verify_contents(pinned_log, txn->txnid64, txn->roll_info.num_rollback_nodes - 1);
     } else {
-        // create a new log for this transaction to use.
-        // this call asserts success internally
-        rollback_log_create(txn, txn->roll_info.spilled_rollback_tail, txn->roll_info.spilled_rollback_tail_hash, &pinned_log);
+        // For each transaction, we try to acquire the first rollback log
+        // from the rollback log node cache, so that we avoid
+        // putting something new into the cachetable. However,
+        // if transaction has spilled rollbacks, that means we
+        // have already done a lot of work for this transaction,
+        // and subsequent rollback log nodes are created
+        // and put into the cachetable. The idea is for
+        // transactions that don't do a lot of work to (hopefully)
+        // get a rollback log node from a cache, as opposed to
+        // taking the more expensive route of creating a new one.
+        if (!txn_has_spilled_rollback_logs(txn)) {
+            txn->logger->rollback_cache.get_rollback_log_node(txn, &pinned_log);
+            if (pinned_log != NULL) {
+                rollback_initialize_for_txn(
+                    pinned_log,
+                    txn,
+                    txn->roll_info.spilled_rollback_tail,
+                    txn->roll_info.spilled_rollback_tail_hash
+                    );
+                txn->roll_info.current_rollback = pinned_log->blocknum;
+                txn->roll_info.current_rollback_hash = pinned_log->hash;
+            }
+        }
+        if (pinned_log == NULL) {
+            rollback_log_create(txn, txn->roll_info.spilled_rollback_tail, txn->roll_info.spilled_rollback_tail_hash, &pinned_log);
+        }
     }
     assert(pinned_log->txnid == txn->txnid64);
     assert(pinned_log->blocknum.b != ROLLBACK_NONE.b);

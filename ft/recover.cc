@@ -420,6 +420,7 @@ static int toku_recover_fassociate (struct logtype_fassociate *l, RECOVER_ENV re
                 toku_ft_handle_create(&t);
                 r = toku_ft_handle_open_recovery(t, ROLLBACK_CACHEFILE_NAME, false, false, renv->ct, (TOKUTXN)NULL, l->filenum, max_acceptable_lsn);
                 renv->logger->rollback_cachefile = t->ft->cf;
+                toku_logger_initialize_rollback_cache(renv->logger, t->ft);
             } else {
                 r = internal_recover_fopen_or_fcreate(renv, false, 0, &l->iname, l->filenum, l->treeflags, NULL, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, max_acceptable_lsn);
                 assert(r==0);

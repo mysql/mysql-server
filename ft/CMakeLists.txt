@@ -61,6 +61,7 @@ set(FT_SOURCES
   rollback
   rollback-apply
   rollback-ct-callbacks
+  rollback_log_node_cache
   roll
   sub_block
   txn

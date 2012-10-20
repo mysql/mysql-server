@@ -29,11 +29,11 @@ block_allocator_validate (BLOCK_ALLOCATOR ba) {
     uint64_t i;
     uint64_t n_bytes_in_use = ba->reserve_at_beginning;
     for (i=0; i<ba->n_blocks; i++) {
-	n_bytes_in_use += ba->blocks_array[i].size;
-	if (i>0) {
-	    assert(ba->blocks_array[i].offset >  ba->blocks_array[i-1].offset);
-	    assert(ba->blocks_array[i].offset >= ba->blocks_array[i-1].offset + ba->blocks_array[i-1].size );
-	}
+        n_bytes_in_use += ba->blocks_array[i].size;
+        if (i>0) {
+            assert(ba->blocks_array[i].offset >  ba->blocks_array[i-1].offset);
+            assert(ba->blocks_array[i].offset >= ba->blocks_array[i-1].offset + ba->blocks_array[i-1].size );
+        }
     }
     assert(n_bytes_in_use == ba->n_bytes_in_use);
 }
@@ -49,7 +49,7 @@ void
 block_allocator_print (BLOCK_ALLOCATOR ba) {
     uint64_t i;
     for (i=0; i<ba->n_blocks; i++) {
-	printf("%" PRId64 ":%" PRId64 " ", ba->blocks_array[i].offset, ba->blocks_array[i].size);
+        printf("%" PRId64 ":%" PRId64 " ", ba->blocks_array[i].offset, ba->blocks_array[i].size);
     }
     printf("\n");
     VALIDATE(ba);
@@ -80,13 +80,13 @@ destroy_block_allocator (BLOCK_ALLOCATOR *bap) {
 static void
 grow_blocks_array_by (BLOCK_ALLOCATOR ba, uint64_t n_to_add) {
     if (ba->n_blocks + n_to_add > ba->blocks_array_size) {
-	uint64_t new_size = ba->n_blocks + n_to_add;
-	uint64_t at_least = ba->blocks_array_size * 2;
-	if (at_least > new_size) {
-	    new_size = at_least;
-	}
-	ba->blocks_array_size = new_size;
-	XREALLOC_N(ba->blocks_array_size, ba->blocks_array);
+        uint64_t new_size = ba->n_blocks + n_to_add;
+        uint64_t at_least = ba->blocks_array_size * 2;
+        if (at_least > new_size) {
+            new_size = at_least;
+        }
+        ba->blocks_array_size = new_size;
+        XREALLOC_N(ba->blocks_array_size, ba->blocks_array);
     }
 }
 
@@ -98,37 +98,37 @@ grow_blocks_array (BLOCK_ALLOCATOR ba) {
 
 void
 block_allocator_merge_blockpairs_into (uint64_t d,       struct block_allocator_blockpair dst[/*d*/],
-				       uint64_t s, const struct block_allocator_blockpair src[/*s*/])
+                                       uint64_t s, const struct block_allocator_blockpair src[/*s*/])
 {
     uint64_t tail = d+s;
     while (d>0 && s>0) {
-	struct block_allocator_blockpair       *dp = &dst[d-1];
-	struct block_allocator_blockpair const *sp = &src[s-1];
-	struct block_allocator_blockpair       *tp = &dst[tail-1];
-	assert(tail>0);
-	if (dp->offset > sp->offset) {
-	    *tp = *dp;
-	    d--;
-	    tail--;
-	} else {
-	    *tp = *sp;
-	    s--;
-	    tail--;
-	}
+        struct block_allocator_blockpair       *dp = &dst[d-1];
+        struct block_allocator_blockpair const *sp = &src[s-1];
+        struct block_allocator_blockpair       *tp = &dst[tail-1];
+        assert(tail>0);
+        if (dp->offset > sp->offset) {
+            *tp = *dp;
+            d--;
+            tail--;
+        } else {
+            *tp = *sp;
+            s--;
+            tail--;
+        }
     }
     while (d>0) {
-	struct block_allocator_blockpair *dp = &dst[d-1];
-	struct block_allocator_blockpair *tp = &dst[tail-1];
-	*tp = *dp;
-	d--;
-	tail--;
+        struct block_allocator_blockpair *dp = &dst[d-1];
+        struct block_allocator_blockpair *tp = &dst[tail-1];
+        *tp = *dp;
+        d--;
+        tail--;
     }
     while (s>0) {
-	struct block_allocator_blockpair const *sp = &src[s-1];
-	struct block_allocator_blockpair       *tp = &dst[tail-1];
-	*tp = *sp;
-	s--;
-	tail--;
+        struct block_allocator_blockpair const *sp = &src[s-1];
+        struct block_allocator_blockpair       *tp = &dst[tail-1];
+        *tp = *sp;
+        s--;
+        tail--;
     }
 }
 
@@ -148,13 +148,14 @@ block_allocator_alloc_blocks_at (BLOCK_ALLOCATOR ba, uint64_t n_blocks, struct b
     VALIDATE(ba);
     qsort(pairs, n_blocks, sizeof(*pairs), compare_blockpairs);
     for (uint64_t i=0; i<n_blocks; i++) {
-	assert(pairs[i].offset >= ba->reserve_at_beginning);
-	assert(pairs[i].offset%ba->alignment == 0);
-	ba->n_bytes_in_use += pairs[i].size;
+        assert(pairs[i].offset >= ba->reserve_at_beginning);
+        assert(pairs[i].offset%ba->alignment == 0);
+        ba->n_bytes_in_use += pairs[i].size;
+        invariant(pairs[i].size > 0); //Allocator does not support size 0 blocks. See block_allocator_free_block.
     }
     grow_blocks_array_by(ba, n_blocks);
     block_allocator_merge_blockpairs_into(ba->n_blocks, ba->blocks_array,
-					  n_blocks,     pairs);
+                                          n_blocks,     pairs);
     ba->n_blocks += n_blocks;
     VALIDATE(ba);
 }
@@ -177,46 +178,47 @@ align (uint64_t value, BLOCK_ALLOCATOR ba)
 
 void
 block_allocator_alloc_block (BLOCK_ALLOCATOR ba, uint64_t size, uint64_t *offset) {
+    invariant(size > 0); //Allocator does not support size 0 blocks. See block_allocator_free_block.
     grow_blocks_array(ba);
     ba->n_bytes_in_use += size;
     if (ba->n_blocks==0) {
-	assert(ba->n_bytes_in_use == ba->reserve_at_beginning + size); // we know exactly how many are in use
-	ba->blocks_array[0].offset = align(ba->reserve_at_beginning, ba);
-	ba->blocks_array[0].size  = size;
-	*offset = ba->blocks_array[0].offset;
-	ba->n_blocks++;
-	return;
+        assert(ba->n_bytes_in_use == ba->reserve_at_beginning + size); // we know exactly how many are in use
+        ba->blocks_array[0].offset = align(ba->reserve_at_beginning, ba);
+        ba->blocks_array[0].size  = size;
+        *offset = ba->blocks_array[0].offset;
+        ba->n_blocks++;
+        return;
     }
-    // Implement first fit.    
+    // Implement first fit.
     {
-	uint64_t end_of_reserve = align(ba->reserve_at_beginning, ba);
-	if (end_of_reserve + size <= ba->blocks_array[0].offset ) {
-	    // Check to see if the space immediately after the reserve is big enough to hold the new block.
-	    struct block_allocator_blockpair *bp = &ba->blocks_array[0];
-	    memmove(bp+1, bp, (ba->n_blocks)*sizeof(*bp));
-	    bp[0].offset = end_of_reserve;
-	    bp[0].size   = size;
-	    ba->n_blocks++;
-	    *offset = end_of_reserve;
-	    VALIDATE(ba);
-	    return;
-	}
+        uint64_t end_of_reserve = align(ba->reserve_at_beginning, ba);
+        if (end_of_reserve + size <= ba->blocks_array[0].offset ) {
+            // Check to see if the space immediately after the reserve is big enough to hold the new block.
+            struct block_allocator_blockpair *bp = &ba->blocks_array[0];
+            memmove(bp+1, bp, (ba->n_blocks)*sizeof(*bp));
+            bp[0].offset = end_of_reserve;
+            bp[0].size   = size;
+            ba->n_blocks++;
+            *offset = end_of_reserve;
+            VALIDATE(ba);
+            return;
+        }
     }
     for (uint64_t blocknum = 0; blocknum +1 < ba->n_blocks; blocknum ++) {
-	// Consider the space after blocknum
-	struct block_allocator_blockpair *bp = &ba->blocks_array[blocknum];
-	uint64_t this_offset = bp[0].offset;
-	uint64_t this_size   = bp[0].size;
-	uint64_t answer_offset = align(this_offset + this_size, ba);
-	if (answer_offset + size > bp[1].offset) continue; // The block we want doesn't fit after this block.
-	// It fits, so allocate it here.
-	memmove(bp+2, bp+1, (ba->n_blocks - blocknum -1)*sizeof(*bp));
-	bp[1].offset = answer_offset;
-	bp[1].size   = size;
-	ba->n_blocks++;
-	*offset = answer_offset;
-	VALIDATE(ba);
-	return;
+        // Consider the space after blocknum
+        struct block_allocator_blockpair *bp = &ba->blocks_array[blocknum];
+        uint64_t this_offset = bp[0].offset;
+        uint64_t this_size   = bp[0].size;
+        uint64_t answer_offset = align(this_offset + this_size, ba);
+        if (answer_offset + size > bp[1].offset) continue; // The block we want doesn't fit after this block.
+        // It fits, so allocate it here.
+        memmove(bp+2, bp+1, (ba->n_blocks - blocknum -1)*sizeof(*bp));
+        bp[1].offset = answer_offset;
+        bp[1].size   = size;
+        ba->n_blocks++;
+        *offset = answer_offset;
+        VALIDATE(ba);
+        return;
     }
     // It didn't fit anywhere, so fit it on the end.
     assert(ba->n_blocks < ba->blocks_array_size);
@@ -236,26 +238,31 @@ find_block (BLOCK_ALLOCATOR ba, uint64_t offset)
 {
     VALIDATE(ba);
     if (ba->n_blocks==1) {
-	assert(ba->blocks_array[0].offset == offset);
-	return 0;
+        assert(ba->blocks_array[0].offset == offset);
+        return 0;
     }
     uint64_t lo = 0;
     uint64_t hi = ba->n_blocks;
     while (1) {
-	assert(lo<hi); // otherwise no such block exists.
-	uint64_t mid = (lo+hi)/2;
-	uint64_t thisoff = ba->blocks_array[mid].offset;
-	//printf("lo=%" PRId64 " hi=%" PRId64 " mid=%" PRId64 "  thisoff=%" PRId64 " offset=%" PRId64 "\n", lo, hi, mid, thisoff, offset);
-	if (thisoff < offset) {
-	    lo = mid+1;
-	} else if (thisoff > offset) {
-	    hi = mid;
-	} else {
-	    return mid;
-	}
+        assert(lo<hi); // otherwise no such block exists.
+        uint64_t mid = (lo+hi)/2;
+        uint64_t thisoff = ba->blocks_array[mid].offset;
+        //printf("lo=%" PRId64 " hi=%" PRId64 " mid=%" PRId64 "  thisoff=%" PRId64 " offset=%" PRId64 "\n", lo, hi, mid, thisoff, offset);
+        if (thisoff < offset) {
+            lo = mid+1;
+        } else if (thisoff > offset) {
+            hi = mid;
+        } else {
+            return mid;
+        }
     }
 }
 
+// To support 0-sized blocks, we need to include size as an input to this function.
+// All 0-sized blocks at the same offset can be considered identical, but
+// a 0-sized block can share offset with a non-zero sized block.
+// The non-zero sized block is not exchangable with a zero sized block (or vice versa),
+// so inserting 0-sized blocks can cause corruption here.
 void
 block_allocator_free_block (BLOCK_ALLOCATOR ba, uint64_t offset) {
     VALIDATE(ba);
@@ -278,8 +285,8 @@ uint64_t
 block_allocator_allocated_limit (BLOCK_ALLOCATOR ba) {
     if (ba->n_blocks==0) return ba->reserve_at_beginning;
     else {
-	struct block_allocator_blockpair *last = &ba->blocks_array[ba->n_blocks-1];
-	return last->offset + last->size;
+        struct block_allocator_blockpair *last = &ba->blocks_array[ba->n_blocks-1];
+        return last->offset + last->size;
     }
 }
 
@@ -290,15 +297,15 @@ block_allocator_get_nth_block_in_layout_order (BLOCK_ALLOCATOR ba, uint64_t b, u
 // Return 0 if there is a block that big, return nonzero if b is too big.
 {
     if (b==0) {
-	*offset=0;
-	*size  =ba->reserve_at_beginning;
-	return  0;
+        *offset=0;
+        *size  =ba->reserve_at_beginning;
+        return  0;
     } else if (b > ba->n_blocks) {
-	return -1;
+        return -1;
     } else {
-	*offset=ba->blocks_array[b-1].offset;
-	*size  =ba->blocks_array[b-1].size;
-	return 0;
+        *offset=ba->blocks_array[b-1].offset;
+        *size  =ba->blocks_array[b-1].size;
+        return 0;
     }
 }
 

@@ -2064,6 +2064,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
 
 static int
 read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
+                                            DISKOFF offset, DISKOFF size,
                                             FT h,
                                             struct rbuf *rb,
                                             /* out */ int *layout_version_p);
@@ -2085,9 +2086,17 @@ deserialize_and_upgrade_ftnode(FTNODE node,
 
     // I. First we need to de-compress the entire node, only then can
     // we read the different sub-sections.
+    // get the file offset and block size for the block
+    DISKOFF offset, size;
+    toku_translate_blocknum_to_offset_size(bfe->h->blocktable,
+                                           blocknum,
+                                           &offset,
+                                           &size);
     struct rbuf rb;
     r = read_and_decompress_block_from_fd_into_rbuf(fd,
                                                     blocknum,
+                                                    offset,
+                                                    size,
                                                     bfe->h,
                                                     &rb,
                                                     &version);
@@ -2838,15 +2847,13 @@ decompress_from_raw_block_into_rbuf_versioned(uint32_t version, uint8_t *raw_blo
 
 static int
 read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
+                                            DISKOFF offset, DISKOFF size,
                                             FT h,
                                             struct rbuf *rb,
                                   /* out */ int *layout_version_p) {
     int r = 0;
     if (0) printf("Deserializing Block %" PRId64 "\n", blocknum.b);
 
-    // get the file offset and block size for the block
-    DISKOFF offset, size;
-    toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
     uint8_t *XMALLOC_N(size, raw_block);
     {
         // read the (partially compressed) block
@@ -2903,12 +2910,26 @@ int
 toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, uint32_t fullhash,
                                     ROLLBACK_LOG_NODE *logp, FT h) {
     toku_trace("deserial start");
-
+    int layout_version = 0;
     int r;
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
 
-    int layout_version = 0;
-    r = read_and_decompress_block_from_fd_into_rbuf(fd, blocknum, h, &rb, &layout_version);
+    // get the file offset and block size for the block
+    DISKOFF offset, size;
+    toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
+    // if the size is 0, then the blocknum is unused
+    if (size == 0) {
+        // blocknum is unused, just create an empty one and get out
+        ROLLBACK_LOG_NODE XMALLOC(log);
+        rollback_empty_log_init(log);
+        log->blocknum.b = blocknum.b;
+        log->hash = fullhash;
+        r = 0;
+        *logp = log;
+        goto cleanup;
+    }
+
+    r = read_and_decompress_block_from_fd_into_rbuf(fd, blocknum, offset, size, h, &rb, &layout_version);
     if (r!=0) goto cleanup;
 
     {
