@@ -44,7 +44,7 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
     }
 
 @org.junit.Ignore("testFind stimulates ndbd node failure")
-    private void testFind() {
+    private void xtestFind() {
         logger.info("PLEASE IGNORE THE FOLLOWING EXPECTED SEVERE ERROR.");
         // change the schema (drop a column)
         executeSQL(modifyTableStatement);
