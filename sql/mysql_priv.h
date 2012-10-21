@@ -516,10 +516,6 @@ template <class T> T available_buffer(const char* buf_start,
 {
   return buf_len - (buf_current - buf_start);
 }
-/* Explicit instantion to unsigned int. */
-template unsigned int available_buffer<unsigned int>(const char*,
-                                                     const char*,
-                                                     unsigned int);
 
 /*
   Check if jump value is within buffer limits.
@@ -539,11 +535,6 @@ template <class T> bool valid_buffer_range(T jump,
 {
   return (jump <= available_buffer(buf_start, buf_current, buf_len));
 }
-/* Explicit instantion to unsigned int. */
-template bool valid_buffer_range<unsigned int>(unsigned int,
-                                               const char*,
-                                               const char*,
-                                               unsigned int);
 
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
