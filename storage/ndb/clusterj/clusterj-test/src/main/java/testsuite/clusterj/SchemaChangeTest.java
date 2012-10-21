@@ -43,7 +43,7 @@ public class SchemaChangeTest extends AbstractClusterJModelTest {
         addTearDownClasses(StringTypes.class);
     }
 
-    private void testFind() {
+    public void testFind() {
         logger.info("PLEASE IGNORE THE FOLLOWING EXPECTED SEVERE ERROR.");
         // change the schema (drop a column)
         executeSQL(modifyTableStatement);
