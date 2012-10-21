@@ -53,7 +53,7 @@ public class QueryUniqueKeyTest extends AbstractClusterJModelTest {
     /** Test all queries using the same setup.
      * Fail if any errors during the tests.
      */
-    public void testUniqueKey() {
+    private void testUniqueKey() {
         uniqueKeyBetweenQuery();
         uniqueKeyEqualQuery();
         uniqueKeyGreaterEqualQuery();
