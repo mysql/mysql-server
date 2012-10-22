@@ -1971,6 +1971,7 @@ extern my_bool log_bin_use_v1_row_events;
 #endif
 extern ulong what_to_log,flush_time;
 extern ulong query_buff_size;
+extern ulong slave_max_allowed_packet;
 extern ulong max_prepared_stmt_count, prepared_stmt_count;
 extern ulong binlog_cache_size, open_files_limit;
 extern ulonglong max_binlog_cache_size;
