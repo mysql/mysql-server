@@ -3040,3 +3040,106 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 End of 5.1 tests.
+
+# Bug#13805127: Stored program cache produces wrong result in same THD
+
+PREPARE s1 FROM 
+"
+SELECT c1, t2.c2, count(c3)
+FROM
+  (
+  SELECT 3 as c2 FROM dual WHERE @x = 1
+  UNION
+  SELECT 2       FROM dual WHERE @x = 1 OR @x = 2
+  ) AS t1,
+  (
+  SELECT '2012-03-01 01:00:00' AS c1, 3 as c2, 1 as c3 FROM dual
+  UNION
+  SELECT '2012-03-01 02:00:00',       3,       2       FROM dual
+  UNION
+  SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
+  ) AS t2
+WHERE t2.c2 = t1.c2
+GROUP BY c1, c2
+";
+
+SET @x = 1;
+SELECT c1, t2.c2, count(c3)
+FROM
+(
+SELECT 3 as c2 FROM dual WHERE @x = 1
+UNION
+SELECT 2       FROM dual WHERE @x = 1 OR @x = 2
+) AS t1,
+(
+SELECT '2012-03-01 01:00:00' AS c1, 3 as c2, 1 as c3 FROM dual
+UNION
+SELECT '2012-03-01 02:00:00',       3,       2       FROM dual
+UNION
+SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
+) AS t2
+WHERE t2.c2 = t1.c2
+GROUP BY c1, c2;
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+2012-03-01 01:00:00	3	1
+2012-03-01 02:00:00	3	1
+
+EXECUTE s1;
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+2012-03-01 01:00:00	3	1
+2012-03-01 02:00:00	3	1
+
+SET @x = 2;
+SELECT c1, t2.c2, count(c3)
+FROM
+(
+SELECT 3 as c2 FROM dual WHERE @x = 1
+UNION
+SELECT 2       FROM dual WHERE @x = 1 OR @x = 2
+) AS t1,
+(
+SELECT '2012-03-01 01:00:00' AS c1, 3 as c2, 1 as c3 FROM dual
+UNION
+SELECT '2012-03-01 02:00:00',       3,       2       FROM dual
+UNION
+SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
+) AS t2
+WHERE t2.c2 = t1.c2
+GROUP BY c1, c2;
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+
+EXECUTE s1;
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+
+SET @x = 1;
+SELECT c1, t2.c2, count(c3)
+FROM
+(
+SELECT 3 as c2 FROM dual WHERE @x = 1
+UNION
+SELECT 2       FROM dual WHERE @x = 1 OR @x = 2
+) AS t1,
+(
+SELECT '2012-03-01 01:00:00' AS c1, 3 as c2, 1 as c3 FROM dual
+UNION
+SELECT '2012-03-01 02:00:00',       3,       2       FROM dual
+UNION
+SELECT '2012-03-01 01:00:00',       2,       1       FROM dual
+) AS t2
+WHERE t2.c2 = t1.c2
+GROUP BY c1, c2;
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+2012-03-01 01:00:00	3	1
+2012-03-01 02:00:00	3	1
+
+EXECUTE s1;
+c1	c2	count(c3)
+2012-03-01 01:00:00	2	1
+2012-03-01 01:00:00	3	1
+2012-03-01 02:00:00	3	1
+DEALLOCATE PREPARE s1;
