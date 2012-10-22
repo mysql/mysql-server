@@ -1213,7 +1213,7 @@ row_merge_read_clustered_index(
 	clust_index = dict_table_get_first_index(old_table);
 
 	btr_pcur_open_at_index_side(
-		TRUE, clust_index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		true, clust_index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	if (old_table != new_table) {
 		/* The table is being rebuilt.  Identify the columns
@@ -2273,7 +2273,8 @@ row_merge_insert_index_tuples(
 			mtr_start(&mtr);
 			/* Insert after the last user record. */
 			btr_cur_open_at_index_side(
-				FALSE, index, BTR_MODIFY_LEAF, &cursor, &mtr);
+				false, index, BTR_MODIFY_LEAF,
+				&cursor, 0, &mtr);
 			page_cur_position(
 				page_rec_get_prev(btr_cur_get_rec(&cursor)),
 				btr_cur_get_block(&cursor),
@@ -2304,8 +2305,8 @@ row_merge_insert_index_tuples(
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
 				btr_cur_open_at_index_side(
-					FALSE, index, BTR_MODIFY_TREE,
-					&cursor, &mtr);
+					false, index, BTR_MODIFY_TREE,
+					&cursor, 0, &mtr);
 				page_cur_position(
 					page_rec_get_prev(btr_cur_get_rec(
 								  &cursor)),
