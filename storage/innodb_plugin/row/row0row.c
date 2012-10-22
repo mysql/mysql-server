@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -243,19 +243,20 @@ row_build(
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	/* This condition can occur during crash recovery before
-	trx_rollback_active() has completed execution.
+	if (rec_offs_any_null_extern(rec, offsets)) {
+		/* This condition can occur during crash recovery
+		before trx_rollback_active() has completed execution.
 
-	This condition is possible if the server crashed
-	during an insert or update before
-	btr_store_big_rec_extern_fields() did mtr_commit() all
-	BLOB pointers to the clustered index record.
-
-	If the record contains a null BLOB pointer, look up the
-	transaction that holds the implicit lock on this record, and
-	assert that it was recovered (and will soon be rolled back). */
-	ut_a(!rec_offs_any_null_extern(rec, offsets)
-	     || trx_assert_recovered(row_get_rec_trx_id(rec, index, offsets)));
+		This condition is possible if the server crashed
+		during an insert or update-by-delete-and-insert before
+		btr_store_big_rec_extern_fields() did mtr_commit() all
+		BLOB pointers to the freshly inserted clustered index
+		record. */
+		ut_a(trx_assert_recovered(
+			     row_get_rec_trx_id(rec, index, offsets)));
+		ut_a(trx_undo_roll_ptr_is_insert(
+			     row_get_rec_roll_ptr(rec, index, offsets)));
+	}
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (type != ROW_COPY_POINTERS) {

@@ -54,17 +54,13 @@ ut_mem_block_list_init(void)
 }
 
 /**************************************************************************
-Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined and set_to_zero is TRUE. */
+Allocates memory. */
 
 void*
 ut_malloc_low(
 /*==========*/
 				/* out, own: allocated memory */
 	ulint	n,		/* in: number of bytes to allocate */
-	ibool	set_to_zero,	/* in: TRUE if allocated memory should be
-				set to zero if UNIV_SET_MEM_TO_ZERO is
-				defined */
 	ibool	assert_on_error)/* in: if TRUE, we crash mysqld if the
 				memory cannot be allocated */
 {
@@ -156,12 +152,6 @@ retry:
 #endif
 	}
 
-	if (set_to_zero) {
-#ifdef UNIV_SET_MEM_TO_ZERO
-		memset(ret, '\0', n + sizeof(ut_mem_block_t));
-#endif
-	}
-
 	UNIV_MEM_ALLOC(ret, n + sizeof(ut_mem_block_t));
 
 	((ut_mem_block_t*)ret)->size = n + sizeof(ut_mem_block_t);
@@ -174,59 +164,6 @@ retry:
 	os_fast_mutex_unlock(&ut_list_mutex);
 
 	return((void*)((byte*)ret + sizeof(ut_mem_block_t)));
-}
-
-/**************************************************************************
-Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined. */
-
-void*
-ut_malloc(
-/*======*/
-			/* out, own: allocated memory */
-	ulint	n)	/* in: number of bytes to allocate */
-{
-	return(ut_malloc_low(n, TRUE, TRUE));
-}
-
-/**************************************************************************
-Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
-out. It cannot be used if we want to return an error message. Prints to
-stderr a message if fails. */
-
-ibool
-ut_test_malloc(
-/*===========*/
-			/* out: TRUE if succeeded */
-	ulint	n)	/* in: try to allocate this many bytes */
-{
-	void*	ret;
-
-	ret = malloc(n);
-
-	if (ret == NULL) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Error: cannot allocate"
-			" %lu bytes of memory for\n"
-			"InnoDB: a BLOB with malloc! Total allocated memory\n"
-			"InnoDB: by InnoDB %lu bytes."
-			" Operating system errno: %d\n"
-			"InnoDB: Check if you should increase"
-			" the swap file or\n"
-			"InnoDB: ulimits of your operating system.\n"
-			"InnoDB: On FreeBSD check you have"
-			" compiled the OS with\n"
-			"InnoDB: a big enough maximum process size.\n",
-			(ulong) n,
-			(ulong) ut_total_allocated_memory,
-			(int) errno);
-		return(FALSE);
-	}
-
-	free(ret);
-
-	return(TRUE);
 }
 
 /**************************************************************************

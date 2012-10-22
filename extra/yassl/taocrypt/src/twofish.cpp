@@ -11,8 +11,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
 */
 
 /* C++ based on Wei Dai's twofish.cpp from CryptoPP */
@@ -139,8 +140,6 @@ inline word32 Twofish::h(word32 x, const word32* key, unsigned int kLen)
 
 void Twofish::SetKey(const byte* userKey, word32 keylen, CipherDir /*dummy*/)
 {
-	assert(keylen >= 16 && keylen <= 32);
-
 	unsigned int len = (keylen <= 16 ? 2 : (keylen <= 24 ? 3 : 4));
     word32 key[8];
 	GetUserKey(LittleEndianOrder, key, len*2, userKey, keylen);

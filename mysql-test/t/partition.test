@@ -2218,4 +2218,49 @@ INSERT INTO t1 VALUES(0);
 DROP TABLE t1;
 SET GLOBAL myisam_use_mmap=default;
 
+--echo #
+--echo # Bug#13580775 ASSERTION FAILED: RECORD_LENGTH == M_RECORD_LENGTH,
+--echo # FILE FILESORT_UTILS.CC
+--echo #
+
+CREATE TABLE t1 (
+  a INT PRIMARY KEY,
+  b INT,
+  c CHAR(1),
+  d INT,
+  KEY (c,d)
+) PARTITION BY KEY () PARTITIONS 1;
+
+INSERT INTO t1 VALUES (1,1,'a',1), (2,2,'a',1);
+
+SELECT 1 FROM t1 WHERE 1 IN
+(SELECT  group_concat(b)
+ FROM t1
+ WHERE c > geomfromtext('point(1 1)')
+ GROUP BY b
+);
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#13011410 CRASH IN FILESORT CODE WITH GROUP BY/ROLLUP
+--echo #
+
+CREATE TABLE t1 (
+  a INT,
+  b MEDIUMINT,
+  c VARCHAR(300) CHARACTER SET hp8 COLLATE hp8_bin,
+  PRIMARY KEY (a,c(299))) 
+ENGINE=myisam
+PARTITION BY LINEAR KEY () PARTITIONS 2;
+
+INSERT INTO t1 VALUES (1,2,'test'), (2,3,'hi'), (4,5,'bye');
+SELECT 1 FROM t1 WHERE b < SOME
+( SELECT 1 FROM t1 WHERE a >= 1
+  GROUP BY b WITH ROLLUP
+  HAVING b > geomfromtext("")
+);
+
+DROP TABLE t1;
+
 --echo End of 5.1 tests

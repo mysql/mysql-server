@@ -195,10 +195,6 @@ mem_heap_alloc(
 	buf = (byte*)buf + MEM_FIELD_HEADER_SIZE;
 
 #endif
-#ifdef UNIV_SET_MEM_TO_ZERO
-	UNIV_MEM_ALLOC(buf, n);
-	memset(buf, '\0', n);
-#endif
 	UNIV_MEM_ALLOC(buf, n);
 	return(buf);
 }

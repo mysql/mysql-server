@@ -78,40 +78,19 @@ ut_mem_init(void);
 /*=============*/
 
 /**********************************************************************//**
-Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined and set_to_zero is TRUE.
+Allocates memory.
 @return	own: allocated memory */
 UNIV_INTERN
 void*
 ut_malloc_low(
 /*==========*/
 	ulint	n,			/*!< in: number of bytes to allocate */
-	ibool	set_to_zero,		/*!< in: TRUE if allocated memory
-					should be set to zero if
-					UNIV_SET_MEM_TO_ZERO is defined */
-	ibool	assert_on_error);	/*!< in: if TRUE, we crash mysqld if
+	ibool	assert_on_error)	/*!< in: if TRUE, we crash mysqld if
 					the memory cannot be allocated */
+	__attribute__((malloc));
 /**********************************************************************//**
-Allocates memory. Sets it also to zero if UNIV_SET_MEM_TO_ZERO is
-defined.
-@return	own: allocated memory */
-UNIV_INTERN
-void*
-ut_malloc(
-/*======*/
-	ulint	n);	/*!< in: number of bytes to allocate */
-#ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Tests if malloc of n bytes would succeed. ut_malloc() asserts if memory runs
-out. It cannot be used if we want to return an error message. Prints to
-stderr a message if fails.
-@return	TRUE if succeeded */
-UNIV_INTERN
-ibool
-ut_test_malloc(
-/*===========*/
-	ulint	n);	/*!< in: try to allocate this many bytes */
-#endif /* !UNIV_HOTBACKUP */
+Allocates memory. */
+#define ut_malloc(n) ut_malloc_low(n, TRUE)
 /**********************************************************************//**
 Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
 a nop. */

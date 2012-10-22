@@ -76,6 +76,7 @@ utf8_roman_ci	utf8	207		#	#
 utf8_persian_ci	utf8	208		#	#
 utf8_esperanto_ci	utf8	209		#	#
 utf8_hungarian_ci	utf8	210		#	#
+utf8_general_mysql500_ci	utf8	223		#	#
 ucs2_general_ci	ucs2	35	Yes	#	#
 ucs2_bin	ucs2	90		#	#
 ucs2_unicode_ci	ucs2	128		#	#
@@ -97,6 +98,7 @@ ucs2_roman_ci	ucs2	143		#	#
 ucs2_persian_ci	ucs2	144		#	#
 ucs2_esperanto_ci	ucs2	145		#	#
 ucs2_hungarian_ci	ucs2	146		#	#
+ucs2_general_mysql500_ci	ucs2	159		#	#
 cp866_general_ci	cp866	36	Yes	#	#
 cp866_bin	cp866	68		#	#
 keybcs2_general_ci	keybcs2	37	Yes	#	#
