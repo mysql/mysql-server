@@ -5040,9 +5040,17 @@ lock_validate(void)
 
 			lock_mutex_exit_kernel();
 
-			lock_rec_validate_page(space,
-					       fil_space_get_zip_size(space),
-					       page_no);
+			/* Make sure that the tablespace is not
+			deleted while we are trying to access
+			the page. */
+			if (!fil_inc_pending_ops(space)) {
+				lock_rec_validate_page(
+					space,
+					fil_space_get_zip_size(space),
+					page_no);
+
+				fil_decr_pending_ops(space);
+			}
 
 			lock_mutex_enter_kernel();
 

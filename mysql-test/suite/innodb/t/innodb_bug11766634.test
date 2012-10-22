@@ -1,0 +1,55 @@
+# Bug 11766634 59783: InnoDB data grows unexpectedly when inserting,
+# truncating, inserting the same set of rows.
+#
+# Scenario:
+# create table t1.  Insert $recs records.  check size of ibdata1.
+# drop table t1.  create table t1.  Insert the same set of $recs
+# records.  The size of ibdata1 must not increase.
+#
+
+-- source include/not_embedded.inc
+-- source include/have_innodb.inc
+
+create table t1 (f1 char(255)) engine innodb;
+let $MYSQLD_DATADIR=`select @@datadir`;
+let IBDATA1=$MYSQLD_DATADIR/ibdata1;
+
+let $recs = 36262;
+
+--disable_query_log
+let $c = $recs;
+start transaction;
+while ($c)
+{
+  insert into t1 values ('Hello World');
+  dec $c;
+}
+commit work;
+--enable_query_log
+
+perl;
+my $filesize = -s $ENV{'IBDATA1'};
+print "ibdata1 size: $filesize bytes\n";
+EOF
+
+drop table t1;
+create table t1 (f1 char(255)) engine innodb;
+
+--disable_query_log
+let $c = $recs;
+start transaction;
+while ($c)
+{
+  insert into t1 values ('Hello World');
+  dec $c;
+}
+commit work;
+--enable_query_log
+
+perl;
+my $filesize = -s $ENV{'IBDATA1'};
+print "ibdata1 size: $filesize bytes\n";
+EOF
+
+drop table t1;
+

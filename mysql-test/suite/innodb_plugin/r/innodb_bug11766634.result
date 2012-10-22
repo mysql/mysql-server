@@ -1,0 +1,6 @@
+create table t1 (f1 char(255)) engine innodb;
+ibdata1 size: 27262976 bytes
+drop table t1;
+create table t1 (f1 char(255)) engine innodb;
+ibdata1 size: 27262976 bytes
+drop table t1;

@@ -279,6 +279,26 @@ ERROR 70100: Query execution was interrupted
 DROP VIEW v1;
 DROP TABLE t1;
 DROP FUNCTION f1;
+#
+# Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
+#
+SET @@SQL_MODE = '';
+CREATE EVENT teste_bug11763507 ON SCHEDULE AT CURRENT_TIMESTAMP + INTERVAL 1 HOUR 
+DO SELECT 1 $
+SHOW EVENTS LIKE 'teste_bug11763507';
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW EVENTS LIKE 'TESTE_bug11763507';
+Db	Name	Definer	Time zone	Type	Execute at	Interval value	Interval field	Starts	Ends	Status	Originator	character_set_client	collation_connection	Database Collation
+test	teste_bug11763507	root@localhost	SYSTEM	ONE TIME	#	#	#	#	NULL	ENABLED	1	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW CREATE EVENT teste_bug11763507;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	latin1_swedish_ci
+SHOW CREATE EVENT TESTE_bug11763507;
+Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	Database Collation
+teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	latin1_swedish_ci
+DROP EVENT teste_bug11763507;
+#END OF BUG#11763507 test.
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------

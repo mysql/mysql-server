@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2587,11 +2587,14 @@ void Integer::Decode(Source& source)
     }
 
     word32 length = GetLength(source);
+    if (length == 0 || source.GetError().What()) return;
 
     if ( (b = source.next()) == 0x00)
         length--;
     else
         source.prev();
+
+    if (source.IsLeft(length) == false) return;
  
     unsigned int words = (length + WORD_SIZE - 1) / WORD_SIZE;
     words = RoundupSize(words);
