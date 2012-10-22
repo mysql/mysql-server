@@ -130,21 +130,20 @@ row_vers_impl_x_locked_low(
 
 		err = trx_undo_prev_version_build(
 			clust_rec, mtr, version, clust_index, clust_offsets,
-			heap, &prev_version);
+			heap, &prev_version)
+			? DB_SUCCESS : DB_MISSING_HISTORY;
 
- 		/* Free version and clust_offsets. */
+		/* Free version and clust_offsets. */
 
 		mem_heap_free(old_heap);
 
 		if (prev_version == NULL) {
 
-			/* clust_rec must be a fresh insert, because
+			/* clust_rec should be a fresh insert, because
 			no previous version was found or the transaction
 			has committed. The caller has to recheck as the
 			synopsis of this function states, whether trx_id
 			is active or not. */
-
-			ut_a(err == DB_SUCCESS || err == DB_MISSING_HISTORY);
 
 			break;
 		}
@@ -356,7 +355,6 @@ row_vers_old_has_index_entry(
 	mem_heap_t*	heap2;
 	const dtuple_t*	row;
 	const dtuple_t*	entry;
-	ulint		err;
 	ulint		comp;
 
 	ut_ad(mtr_memo_contains_page(mtr, rec, MTR_MEMO_PAGE_X_FIX)
@@ -422,12 +420,12 @@ row_vers_old_has_index_entry(
 	for (;;) {
 		heap2 = heap;
 		heap = mem_heap_create(1024);
-		err = trx_undo_prev_version_build(rec, mtr, version,
-						  clust_index, clust_offsets,
-						  heap, &prev_version);
+		trx_undo_prev_version_build(rec, mtr, version,
+					    clust_index, clust_offsets,
+					    heap, &prev_version);
 		mem_heap_free(heap2); /* free version and clust_offsets */
 
-		if (err != DB_SUCCESS || !prev_version) {
+		if (!prev_version) {
 			/* Versions end here */
 
 			mem_heap_free(heap);
@@ -567,7 +565,8 @@ row_vers_build_for_consistent_read(
 
 		err = trx_undo_prev_version_build(rec, mtr, version, index,
 						  *offsets, heap,
-						  &prev_version);
+						  &prev_version)
+			? DB_SUCCESS : DB_MISSING_HISTORY;
 		if (heap2) {
 			mem_heap_free(heap2); /* free version */
 		}
@@ -619,10 +618,9 @@ row_vers_build_for_consistent_read(
 
 /*****************************************************************//**
 Constructs the last committed version of a clustered index record,
-which should be seen by a semi-consistent read.
-@return	DB_SUCCESS or DB_MISSING_HISTORY */
+which should be seen by a semi-consistent read. */
 UNIV_INTERN
-dberr_t
+void
 row_vers_build_for_semi_consistent_read(
 /*====================================*/
 	const rec_t*	rec,	/*!< in: record in a clustered index; the
@@ -646,7 +644,6 @@ row_vers_build_for_semi_consistent_read(
 	const rec_t*	version;
 	mem_heap_t*	heap		= NULL;
 	byte*		buf;
-	dberr_t		err;
 	trx_id_t	rec_trx_id	= 0;
 
 	ut_ad(dict_index_is_clust(index));
@@ -685,7 +682,7 @@ row_vers_build_for_semi_consistent_read(
 		mutex_exit(&trx_sys->mutex);
 
 		if (!version_trx) {
-
+committed_version_trx:
 			/* We found a version that belongs to a
 			committed transaction: return it. */
 
@@ -695,7 +692,6 @@ row_vers_build_for_semi_consistent_read(
 
 			if (rec == version) {
 				*old_vers = rec;
-				err = DB_SUCCESS;
 				break;
 			}
 
@@ -723,30 +719,30 @@ row_vers_build_for_semi_consistent_read(
 
 			*old_vers = rec_copy(buf, version, *offsets);
 			rec_offs_make_valid(*old_vers, index, *offsets);
-			err = DB_SUCCESS;
-
 			break;
 		}
+
+		DEBUG_SYNC_C("after_row_vers_check_trx_active");
 
 		heap2 = heap;
 		heap = mem_heap_create(1024);
 
-		err = trx_undo_prev_version_build(rec, mtr, version, index,
-						  *offsets, heap,
-						  &prev_version);
-		if (heap2) {
-			mem_heap_free(heap2); /* free version */
+		if (!trx_undo_prev_version_build(rec, mtr, version, index,
+						 *offsets, heap,
+						 &prev_version)) {
+			mem_heap_free(heap);
+			heap = heap2;
+			heap2 = NULL;
+			goto committed_version_trx;
 		}
 
-		if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
-			break;
+		if (heap2) {
+			mem_heap_free(heap2); /* free version */
 		}
 
 		if (prev_version == NULL) {
 			/* It was a freshly inserted version */
 			*old_vers = NULL;
-			err = DB_SUCCESS;
-
 			break;
 		}
 
@@ -761,6 +757,4 @@ row_vers_build_for_semi_consistent_read(
 	if (heap) {
 		mem_heap_free(heap);
 	}
-
-	return(err);
 }
