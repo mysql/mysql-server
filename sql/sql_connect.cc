@@ -360,7 +360,6 @@ check_user(THD *thd, enum enum_server_command command,
     if (send_old_password_request(thd) ||
         my_net_read(net) != SCRAMBLE_LENGTH_323 + 1)
     {
-      inc_host_errors(&thd->remote.sin_addr);
       my_error(ER_HANDSHAKE_ERROR, MYF(0));
       DBUG_RETURN(1);
     }
@@ -832,6 +831,19 @@ static int check_connection(THD *thd)
       my_error(ER_BAD_HOST_ERROR, MYF(0));
       return 1;
     }
+    /* BEGIN : DEBUG */
+    DBUG_EXECUTE_IF("addr_fake_ipv4",
+                    {
+                      struct sockaddr *sa= (sockaddr *) &net->vio->remote;
+                      sa->sa_family= AF_INET;
+                      struct in_addr *ip4= &((struct sockaddr_in *)sa)->sin_addr;
+                      /* See RFC 5737, 192.0.2.0/23 is reserved */
+                      const char* fake= "192.0.2.4";
+                      ip4->s_addr= inet_addr(fake);
+                      strcpy(ip, fake);
+                    };);
+    /* END   : DEBUG */
+
     if (!(thd->main_security_ctx.ip= my_strdup(ip,MYF(MY_WME))))
       return 1; /* The error is set by my_strdup(). */
     thd->main_security_ctx.host_or_ip= thd->main_security_ctx.ip;
@@ -935,8 +947,6 @@ static int check_connection(THD *thd)
 #ifdef _CUSTOMCONFIG_
 #include "_cust_sql_parse.h"
 #endif
-  if (connect_errors)
-    reset_host_errors(&thd->remote.sin_addr);
   if (thd->packet.alloc(thd->variables.net_buffer_length))
     return 1; /* The error is set by alloc(). */
 
@@ -953,6 +963,10 @@ static int check_connection(THD *thd)
     Peek ahead on the client capability packet and determine which version of
     the protocol should be used.
   */
+  DBUG_EXECUTE_IF("host_error_packet_length",
+                  {
+                    bytes_remaining_in_packet= 0;
+                  };);
   if (bytes_remaining_in_packet < 2)
     goto error;
   
@@ -1011,6 +1025,10 @@ static int check_connection(THD *thd)
 
 skip_to_ssl:
 
+  DBUG_EXECUTE_IF("host_error_charset",
+                  {
+                    goto error;
+                  };);
   DBUG_PRINT("info", ("client_character_set: %u", charset_code));
   if (thd_init_client_charset(thd, charset_code))
     goto error;
@@ -1079,6 +1097,10 @@ skip_to_ssl:
       bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_40;
     }
   
+    DBUG_EXECUTE_IF("host_error_SSL_layering",
+                    {
+                      packet_has_required_size= 0;
+                    };);
     if (!packet_has_required_size)
       goto error;
   }
@@ -1104,6 +1126,11 @@ skip_to_ssl:
     get_string= get_40_protocol_string;
 
   user= get_string(&end, &bytes_remaining_in_packet, &user_len);
+  DBUG_EXECUTE_IF("host_error_user",
+                  {
+                    user= NULL;
+                  };);
+
   if (user == NULL)
     goto error;
 
@@ -1130,6 +1157,11 @@ skip_to_ssl:
     */
     passwd= get_string(&end, &bytes_remaining_in_packet, &passwd_len);
   }
+
+  DBUG_EXECUTE_IF("host_error_password",
+                  {
+                    passwd= NULL;
+                  };);
 
   if (passwd == NULL)
     goto error;
@@ -1191,7 +1223,21 @@ skip_to_ssl:
 
   if (!(thd->main_security_ctx.user= my_strdup(user, MYF(MY_WME))))
     return 1; /* The error is set by my_strdup(). */
-  return check_user(thd, COM_CONNECT, passwd, passwd_len, db, TRUE);
+
+  if (!check_user(thd, COM_CONNECT, passwd, passwd_len, db, TRUE))
+  {
+    /*
+      Call to reset_host_errors() should be made only when all sanity checks
+      are done and connection is going to be a successful.
+    */
+    reset_host_errors(&thd->remote.sin_addr);
+    return 0;
+  }
+  else
+  {
+    inc_host_errors(&thd->remote.sin_addr);
+    return 1;
+  }
   
 error:
   inc_host_errors(&thd->remote.sin_addr);

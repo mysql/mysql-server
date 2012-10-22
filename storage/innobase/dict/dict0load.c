@@ -150,7 +150,7 @@ dict_print(void)
 	monitor printout */
 
 	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
+	srv_fatal_semaphore_wait_threshold += SRV_SEMAPHORE_WAIT_EXTENSION;
 	mutex_exit(&kernel_mutex);
 
 	mutex_enter(&(dict_sys->mutex));
@@ -178,7 +178,7 @@ loop:
 		/* Restore the fatal semaphore wait timeout */
 
 		mutex_enter(&kernel_mutex);
-		srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
+		srv_fatal_semaphore_wait_threshold -= SRV_SEMAPHORE_WAIT_EXTENSION;
 		mutex_exit(&kernel_mutex);
 
 		return;

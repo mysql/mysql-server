@@ -1996,6 +1996,7 @@ sub environment_setup {
     my $lib_example_plugin=
       mtr_file_exists(vs_config_dirs('storage/example',$plugin_filename),
 		      "$basedir/storage/example/.libs/".$plugin_filename,
+                      "$basedir/lib64/mysql/plugin/".$plugin_filename,
                       "$basedir/lib/mysql/plugin/".$plugin_filename);
     $ENV{'EXAMPLE_PLUGIN'}=
       ($lib_example_plugin ? basename($lib_example_plugin) : "");
@@ -2018,6 +2019,7 @@ sub environment_setup {
   my $lib_fed_plugin=
     mtr_file_exists(vs_config_dirs('storage/federated',$fedplug_filename),
 		    "$basedir/storage/federated/.libs/".$fedplug_filename,
+                    "$basedir/lib64/mysql/plugin/".$fedplug_filename,
 		    "$basedir/lib/mysql/plugin/".$fedplug_filename);
 
   $ENV{'FEDERATED_PLUGIN'}= $fedplug_filename;

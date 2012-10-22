@@ -1122,7 +1122,7 @@ failed my_b_read"));
   Log_event *res=  0;
 #ifndef max_allowed_packet
   THD *thd=current_thd;
-  uint max_allowed_packet= thd ? thd->variables.max_allowed_packet : ~(ulong)0;
+  uint max_allowed_packet= thd ? slave_max_allowed_packet:~(ulong)0;
 #endif
 
   if (data_len > max_allowed_packet)
@@ -2839,23 +2839,40 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
       pos= (const uchar*) end;                         // Break loop
     }
   }
-  
+
+  /**
+    Layout for the data buffer is as follows
+    +--------+-----------+------+------+---------+----+-------+
+    | catlog | time_zone | user | host | db name | \0 | Query |
+    +--------+-----------+------+------+---------+----+-------+
+
+    To support the query cache we append the following buffer to the above
+    +-------+----------------------------------------+-------+
+    |db len | uninitiatlized space of size of db len | FLAGS |
+    +-------+----------------------------------------+-------+
+
+    The area of buffer starting from Query field all the way to the end belongs
+    to the Query buffer and its structure is described in alloc_query() in
+    sql_parse.cc
+    */
+
 #if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
-                                              time_zone_len + 1 +
-                                              data_len + 1 +
-                                              QUERY_CACHE_FLAGS_SIZE +
-                                              user.length + 1 +
-                                              host.length + 1 +
-                                              db_len + 1,
-                                              MYF(MY_WME))))
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+                                                    +  time_zone_len + 1
+                                                    +  user.length + 1
+                                                    +  host.length + 1
+                                                    +  data_len + 1
+                                                    +  sizeof(size_t)//for db_len
+                                                    +  db_len + 1
+                                                    +  QUERY_CACHE_FLAGS_SIZE,
+                                                       MYF(MY_WME))))
 #else
-  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1 +
-                                             time_zone_len + 1 +
-                                             data_len + 1 +
-                                             user.length + 1 +
-                                             host.length + 1,
-                                             MYF(MY_WME))))
+  if (!(start= data_buf = (Log_event::Byte*) my_malloc(catalog_len + 1
+                                                    +  time_zone_len + 1
+                                                    +  user.length + 1
+                                                    +  host.length + 1
+                                                    +  data_len + 1,
+                                                       MYF(MY_WME))))
 #endif
       DBUG_VOID_RETURN;
   if (catalog_len)                                  // If catalog is given
@@ -2895,6 +2912,14 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
   db= (char *)start;
   query= (char *)(start + db_len + 1);
   q_len= data_len - db_len -1;
+  /**
+    Append the db length at the end of the buffer. This will be used by
+    Query_cache::send_result_to_client() in case the query cache is On.
+   */
+#if !defined(MYSQL_CLIENT) && defined(HAVE_QUERY_CACHE)
+  size_t db_length= (size_t)db_len;
+  memcpy(start + data_len + 1, &db_length, sizeof(size_t));
+#endif
   DBUG_VOID_RETURN;
 }
 
@@ -3076,6 +3101,12 @@ void Query_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 {
   Write_on_release_cache cache(&print_event_info->head_cache, file);
 
+  /**
+    reduce the size of io cache so that the write function is called
+    for every call to my_b_write().
+   */
+  DBUG_EXECUTE_IF ("simulate_file_write_error",
+                   {(&cache)->write_pos= (&cache)->write_end- 500;});
   print_query_header(&cache, print_event_info);
   my_b_write(&cache, (uchar*) query, q_len);
   my_b_printf(&cache, "\n%s\n", print_event_info->delimiter);
@@ -5262,11 +5293,12 @@ void Intvar_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 #endif
 
 
+#if defined(HAVE_REPLICATION)&& !defined(MYSQL_CLIENT)
+
 /*
   Intvar_log_event::do_apply_event()
 */
 
-#if defined(HAVE_REPLICATION)&& !defined(MYSQL_CLIENT)
 int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
 {
   /*
@@ -5274,6 +5306,9 @@ int Intvar_log_event::do_apply_event(Relay_log_info const *rli)
     been processed.
    */
   const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
+
+  if (rli->deferred_events_collecting)
+    return rli->deferred_events->add(this);
 
   switch (type) {
   case LAST_INSERT_ID_EVENT:
@@ -5380,6 +5415,9 @@ int Rand_log_event::do_apply_event(Relay_log_info const *rli)
    */
   const_cast<Relay_log_info*>(rli)->set_flag(Relay_log_info::IN_STMT);
 
+  if (rli->deferred_events_collecting)
+    return rli->deferred_events->add(this);
+
   thd->rand.seed1= (ulong) seed1;
   thd->rand.seed2= (ulong) seed2;
   return 0;
@@ -5404,6 +5442,29 @@ Rand_log_event::do_shall_skip(Relay_log_info *rli)
     will be decreased by the following insert event.
   */
   return continue_group(rli);
+}
+
+/**
+   Exec deferred Int-, Rand- and User- var events prefixing
+   a Query-log-event event.
+
+   @param thd THD handle
+
+   @return false on success, true if a failure in an event applying occurred.
+*/
+bool slave_execute_deferred_events(THD *thd)
+{
+  bool res= false;
+  Relay_log_info *rli= thd->rli_slave;
+
+  DBUG_ASSERT(rli && (!rli->deferred_events_collecting || rli->deferred_events));
+
+  if (!rli->deferred_events_collecting || rli->deferred_events->is_empty())
+    return res;
+
+  res= rli->deferred_events->execute(rli);
+
+  return res;
 }
 
 #endif /* !MYSQL_CLIENT */
@@ -5790,6 +5851,10 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
 {
   Item *it= 0;
   CHARSET_INFO *charset;
+
+  if (rli->deferred_events_collecting)
+    return rli->deferred_events->add(this);
+
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
     return 1;
   LEX_STRING user_var_name;
