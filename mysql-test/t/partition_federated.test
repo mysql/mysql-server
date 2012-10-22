@@ -3,7 +3,7 @@
 #
 -- source include/have_partition.inc
 -- source include/not_embedded.inc
--- source suite/federated/have_federated_db.inc
+-- source suite/federated/include/have_federated_db.inc
 
 --disable_warnings
 drop table if exists t1;
