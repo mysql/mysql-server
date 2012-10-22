@@ -1138,7 +1138,7 @@ create table t1 as select concat(connection_id()) as c1;
 show create table t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
-  `c1` varchar(10) CHARACTER SET cp1251 NOT NULL DEFAULT ''
+  `c1` varchar(21) CHARACTER SET cp1251 NOT NULL DEFAULT ''
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 drop table t1;
 select hex(concat(inet_aton('127.1.1.1')));

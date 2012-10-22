@@ -294,7 +294,7 @@ CREATE TABLE `general_log` (
   `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
                          ON UPDATE CURRENT_TIMESTAMP,
   `user_host` mediumtext NOT NULL,
-  `thread_id` int(11) NOT NULL,
+  `thread_id` bigint(21) unsigned NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
   `command_type` varchar(64) NOT NULL,
   `argument` mediumtext NOT NULL
@@ -313,7 +313,7 @@ CREATE TABLE `slow_log` (
   `insert_id` int(11) NOT NULL,
   `server_id` int(10) unsigned NOT NULL,
   `sql_text` mediumtext NOT NULL,
-  `thread_id` int(11) NOT NULL
+  `thread_id` bigint(21) unsigned NOT NULL
 ) ENGINE=CSV DEFAULT CHARSET=utf8 COMMENT='Slow log';
 
 set global general_log='ON';
@@ -659,13 +659,13 @@ CREATE TABLE `db_17876.slow_log_data` (
   `insert_id` int(11) default NULL,
   `server_id` int(11) default NULL,
   `sql_text` mediumtext,
-  `thread_id` int(11) default NULL
+  `thread_id` bigint(21) unsigned not NULL
 );
 
 CREATE TABLE `db_17876.general_log_data` (
   `event_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `user_host` mediumtext,
-  `thread_id` int(11) DEFAULT NULL,
+  `thread_id` bigint(21) unsigned not NULL,
   `server_id` int(11) DEFAULT NULL,
   `command_type` varchar(64) DEFAULT NULL,
   `argument` mediumtext
@@ -677,7 +677,8 @@ CREATE procedure `db_17876.archiveSlowLog`()
 BEGIN
   DECLARE start_time, query_time, lock_time CHAR(20);
   DECLARE user_host MEDIUMTEXT;
-  DECLARE rows_set, rows_examined, last_insert_id, insert_id, server_id, thread_id INT;
+  DECLARE rows_set, rows_examined, last_insert_id, insert_id, server_id INT;
+  DECLARE thread_id BIGINT UNSIGNED;
   DECLARE dbname MEDIUMTEXT;
   DECLARE sql_text BLOB;
   DECLARE done INT DEFAULT 0;
@@ -717,7 +718,8 @@ CREATE procedure `db_17876.archiveGeneralLog`()
 BEGIN
   DECLARE event_time CHAR(20);
   DECLARE user_host, argument MEDIUMTEXT;
-  DECLARE thread_id, server_id INT;
+  DECLARE thread_id BIGINT UNSIGNED;
+  DECLARE server_id INT;
   DECLARE sql_text BLOB;
   DECLARE done INT DEFAULT 0;
   DECLARE command_type VARCHAR(64);
