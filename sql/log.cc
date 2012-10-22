@@ -2279,13 +2279,14 @@ static void print_buffer_to_file(enum loglevel level, const char *buffer,
   localtime_r(&skr, &tm_tmp);
   start=&tm_tmp;
 
-  fprintf(stderr, "%02d%02d%02d %2d:%02d:%02d [%s] %.*s\n",
-          start->tm_year % 100,
-          start->tm_mon+1,
+  fprintf(stderr, "%d-%02d-%02d %02d:%02d:%02d %lu [%s] %.*s\n",
+          start->tm_year + 1900,
+          start->tm_mon + 1,
           start->tm_mday,
           start->tm_hour,
           start->tm_min,
           start->tm_sec,
+          current_pid,
           (level == ERROR_LEVEL ? "ERROR" : level == WARNING_LEVEL ?
            "Warning" : "Note"),
           (int) length, buffer);
