@@ -1,4 +1,5 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6247,7 +6248,7 @@ void print_version(void)
 void usage()
 {
   print_version();
-  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000, 2011"));
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("Runs a test against the mysql server and compares output with a results file.\n\n");
   printf("Usage: %s [OPTIONS] [database] < test_file\n", my_progname);
   my_print_help(my_long_options);
@@ -6965,6 +6966,8 @@ void run_query_normal(struct st_connection *cn, struct st_command *command,
     */
     if ((counter==0) && mysql_read_query_result(mysql))
     {
+      /* we've failed to collect the result set */
+      cn->pending= TRUE;
       handle_error(command, mysql_errno(mysql), mysql_error(mysql),
 		   mysql_sqlstate(mysql), ds);
       goto end;
