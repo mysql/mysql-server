@@ -335,4 +335,7 @@ IF(WITH_EMBEDDED_SERVER)
   ADD_SUBDIRECTORY(libmysqld/examples)
 ENDIF(WITH_EMBEDDED_SERVER)
 ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
+IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
+  ADD_SUBDIRECTORY(internal)
+ENDIF()
 

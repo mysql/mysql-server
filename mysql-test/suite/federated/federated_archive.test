@@ -1,5 +1,5 @@
 source include/have_archive.inc;
-source federated.inc;
+source suite/federated/include/federated.inc;
 
 
 connection slave;
@@ -54,5 +54,5 @@ connection slave;
 DROP TABLE federated.archive_table;
 
 
-source federated_cleanup.inc;
+source suite/federated/include/federated_cleanup.inc;
 
