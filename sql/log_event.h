@@ -276,6 +276,13 @@ struct sql_ex_info
   MAX_SIZE_LOG_EVENT_STATUS + /* status */ \
   NAME_LEN + 1)
 
+/*
+  The new option is added to handle large packets that are sent from the master 
+  to the slave. It is used to increase the thd(max_allowed) for both the
+  DUMP thread on the master and the SQL/IO thread on the slave. 
+*/
+#define MAX_MAX_ALLOWED_PACKET 1024*1024*1024
+
 /* 
    Event header offsets; 
    these point to places inside the fixed header.
@@ -3999,6 +4006,7 @@ static inline bool copy_event_cache_to_file_and_reinit(IO_CACHE *cache,
 }
 
 #ifndef MYSQL_CLIENT
+
 /*****************************************************************************
 
   Heartbeat Log Event class
@@ -4032,6 +4040,15 @@ private:
   const char* log_ident;
   uint ident_len;
 };
+
+/**
+   The function is called by slave applier in case there are
+   active table filtering rules to force gathering events associated
+   with Query-log-event into an array to execute
+   them once the fate of the Query is determined for execution.
+*/
+bool slave_execute_deferred_events(THD *thd);
+
 #endif
 
 /**
