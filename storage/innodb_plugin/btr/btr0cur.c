@@ -1220,7 +1220,12 @@ fail_err:
 
 		if (UNIV_UNLIKELY(reorg)) {
 			ut_a(zip_size);
-			ut_a(*rec);
+			/* It's possible for rec to be NULL if the
+			page is compressed.  This is because a
+			reorganized page may become incompressible. */
+			if (!*rec) {
+				goto fail;
+			}
 		}
 	}
 
@@ -1356,20 +1361,9 @@ btr_cur_pessimistic_insert(
 	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
 				MTR_MEMO_PAGE_X_FIX));
 
-	/* Try first an optimistic insert; reset the cursor flag: we do not
-	assume anything of how it was positioned */
-
 	cursor->flag = BTR_CUR_BINARY;
 
-	err = btr_cur_optimistic_insert(flags, cursor, entry, rec,
-					big_rec, n_ext, thr, mtr);
-	if (err != DB_FAIL) {
-
-		return(err);
-	}
-
-	/* Retry with a pessimistic insert. Check locks and write to undo log,
-	if specified */
+	/* Check locks and write to undo log, if specified */
 
 	err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
 					thr, mtr, &dummy_inh);
@@ -1973,8 +1967,12 @@ any_extern:
 		goto err_exit;
 	}
 
-	max_size = old_rec_size
-		+ page_get_max_insert_size_after_reorganize(page, 1);
+	/* We do not attempt to reorganize if the page is compressed.
+	This is because the page may fail to compress after reorganization. */
+	max_size = page_zip
+		? page_get_max_insert_size(page, 1)
+		: (old_rec_size
+		   + page_get_max_insert_size_after_reorganize(page, 1));
 
 	if (!(((max_size >= BTR_CUR_PAGE_REORGANIZE_LIMIT)
 	       && (max_size >= new_rec_size))
@@ -2328,7 +2326,12 @@ make_external:
 		err = DB_SUCCESS;
 		goto return_after_reservations;
 	} else {
-		ut_a(optim_err != DB_UNDERFLOW);
+		/* If the page is compressed and it initially
+		compresses very well, and there is a subsequent insert
+		of a badly-compressing record, it is possible for
+		btr_cur_optimistic_update() to return DB_UNDERFLOW and
+		btr_cur_insert_if_possible() to return FALSE. */
+		ut_a(page_zip || optim_err != DB_UNDERFLOW);
 
 		/* Out of space: reset the free bits. */
 		if (!dict_index_is_clust(index)
@@ -2356,8 +2359,10 @@ make_external:
 	record on its page? */
 	was_first = page_cur_is_before_first(page_cursor);
 
-	/* The first parameter means that no lock checking and undo logging
-	is made in the insert */
+	/* Lock checks and undo logging were already performed by
+	btr_cur_upd_lock_and_undo(). We do not try
+	btr_cur_optimistic_insert() because
+	btr_cur_insert_if_possible() already failed above. */
 
 	err = btr_cur_pessimistic_insert(BTR_NO_UNDO_LOG_FLAG
 					 | BTR_NO_LOCKING_FLAG

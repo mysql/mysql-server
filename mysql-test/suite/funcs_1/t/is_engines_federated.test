@@ -9,7 +9,7 @@
 #
 
 let $engine_type= FEDERATED;
---source suite/federated/have_federated_db.inc
+--source suite/federated/include/have_federated_db.inc
 --vertical_results
 eval SELECT * FROM information_schema.engines
 WHERE ENGINE = '$engine_type';
