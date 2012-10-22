@@ -21,6 +21,7 @@
 #include <errno.h>
 #include <m_string.h>
 #include "my_default.h"
+#include <m_ctype.h>
 
 typedef void (*init_func_p)(const struct my_option *option, void *variable,
                             longlong value);
@@ -1008,6 +1009,14 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
   return num;
 }
 
+static inline my_bool is_negative_num(char* num)
+{
+  while (my_isspace(&my_charset_latin1, *num)) 
+    num++;
+  
+  return (*num == '-');
+}
+
 /*
   function: getopt_ull
 
@@ -1017,7 +1026,20 @@ longlong getopt_ll_limit_value(longlong num, const struct my_option *optp,
 
 static ulonglong getopt_ull(char *arg, const struct my_option *optp, int *err)
 {
-  ulonglong num= eval_num_suffix(arg, err, (char*) optp->name);
+  ulonglong num;
+
+  /*
+    Bug #14683107
+    eval_num_suffix uses strtoll, strtoull also seems to have the same
+    behaviour return 0xffffffffffffffff irrespective of the signedness
+    specification. Hence '-' is checked in the input and num is set to 0 if
+    it is present to force it to the lowest possible unsigned value.
+  */
+  if (arg == NULL || is_negative_num(arg) == TRUE)
+    num= 0;
+  else
+    num= eval_num_suffix(arg, err, (char*) optp->name);
+  
   return getopt_ull_limit_value(num, optp, NULL);
 }
 
