@@ -5645,6 +5645,9 @@ User_var_log_event::
 User_var_log_event(const char* buf,
                    const Format_description_log_event* description_event)
   :Log_event(buf, description_event)
+#ifndef MYSQL_CLIENT
+  , deferred(false)
+#endif
 {
   /* The Post-Header is empty. The Variable Data part begins immediately. */
   buf+= description_event->common_header_len +
@@ -5853,7 +5856,10 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
   CHARSET_INFO *charset;
 
   if (rli->deferred_events_collecting)
+  {
+    set_deferred();
     return rli->deferred_events->add(this);
+  }
 
   if (!(charset= get_charset(charset_number, MYF(MY_WME))))
     return 1;
@@ -5905,7 +5911,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
       return 0;
     }
   }
-  Item_func_set_user_var e(user_var_name, it);
+
+  Item_func_set_user_var *e= new Item_func_set_user_var(user_var_name, it);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)
@@ -5914,7 +5921,7 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     crash the server, so if fix fields fails, we just return with an
     error.
   */
-  if (e.fix_fields(thd, 0))
+  if (e->fix_fields(thd, 0))
     return 1;
 
   /*
@@ -5922,8 +5929,9 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     a single record and with a single column. Thus, like
     a column value, it could always have IMPLICIT derivation.
    */
-  e.update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT, 0);
-  free_root(thd->mem_root,0);
+  e->update_hash(val, val_len, type, charset, DERIVATION_IMPLICIT, 0);
+  if (!is_deferred())
+    free_root(thd->mem_root,0);
 
   return 0;
 }
@@ -6317,11 +6325,18 @@ void Create_file_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info
   {
     Load_log_event::print(file, print_event_info,
 			  !check_fname_outside_temp_buf());
-    /* 
-       That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
-       SHOW BINLOG EVENTS we don't.
-    */
-    my_b_printf(&cache, "#"); 
+    /**
+      reduce the size of io cache so that the write function is called
+      for every call to my_b_printf().
+     */
+    DBUG_EXECUTE_IF ("simulate_create_event_write_error",
+                     {(&cache)->write_pos= (&cache)->write_end;
+                     DBUG_SET("+d,simulate_file_write_error");});
+    /*
+      That one is for "file_id: etc" below: in mysqlbinlog we want the #, in
+      SHOW BINLOG EVENTS we don't.
+     */
+    my_b_printf(&cache, "#");
   }
 
   my_b_printf(&cache, " file_id: %d  block_len: %d\n", file_id, block_len);
@@ -6997,6 +7012,13 @@ void Execute_load_query_log_event::print(FILE* file,
   Write_on_release_cache cache(&print_event_info->head_cache, file);
 
   print_query_header(&cache, print_event_info);
+  /**
+    reduce the size of io cache so that the write function is called
+    for every call to my_b_printf().
+   */
+  DBUG_EXECUTE_IF ("simulate_execute_event_write_error",
+                   {(&cache)->write_pos= (&cache)->write_end;
+                   DBUG_SET("+d,simulate_file_write_error");});
 
   if (local_fname)
   {

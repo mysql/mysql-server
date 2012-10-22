@@ -1,5 +1,7 @@
 drop table if exists t1;
 create table t1 (y year,y2 year(2));
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 insert into t1 values (0,0),(1999,1999),(2000,2000),(2001,2001),(70,70),(69,69);
 select * from t1;
 y	y2
@@ -50,6 +52,8 @@ End of 5.0 tests
 # Bug #49480: WHERE using YEAR columns returns unexpected results
 #
 CREATE TABLE t2(yy YEAR(2), c2 CHAR(4));
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 CREATE TABLE t4(yyyy YEAR(4), c4 CHAR(4));
 INSERT INTO t2 (c2) VALUES (NULL),(1970),(1999),(2000),(2001),(2069);
 INSERT INTO t4 (c4) SELECT c2 FROM t2;
@@ -353,6 +357,17 @@ c1
 SELECT COUNT(*) AS total_rows, MIN(c1) AS min_value, MAX(c1) FROM t1;
 total_rows	min_value	MAX(c1)
 3	0	2155
+DROP TABLE t1;
+#
+# WL#6219: Deprecate and remove YEAR(2) type
+#
+CREATE TABLE t1 (c1 YEAR(2), c2 YEAR(4));
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
+ALTER TABLE t1 MODIFY COLUMN c2 YEAR(2);
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 DROP TABLE t1;
 #
 End of 5.1 tests
