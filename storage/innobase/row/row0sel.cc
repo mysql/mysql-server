@@ -1083,7 +1083,7 @@ row_sel_open_pcur(
 		(FALSE: no init) */
 
 		btr_pcur_open_at_index_side(plan->asc, index, BTR_SEARCH_LEAF,
-					    &(plan->pcur), FALSE, mtr);
+					    &(plan->pcur), false, 0, mtr);
 	}
 
 	ut_ad(plan->n_rows_prefetched == 0);
@@ -4172,16 +4172,10 @@ wait_table_again:
 				goto lock_wait_or_error;
 			}
 		}
-	} else {
-		if (mode == PAGE_CUR_G) {
-			btr_pcur_open_at_index_side(
-				TRUE, index, BTR_SEARCH_LEAF, pcur, FALSE,
-				&mtr);
-		} else if (mode == PAGE_CUR_L) {
-			btr_pcur_open_at_index_side(
-				FALSE, index, BTR_SEARCH_LEAF, pcur, FALSE,
-				&mtr);
-		}
+	} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_L) {
+		btr_pcur_open_at_index_side(
+			mode == PAGE_CUR_G, index, BTR_SEARCH_LEAF,
+			pcur, false, 0, &mtr);
 	}
 
 rec_loop:
@@ -5361,10 +5355,9 @@ row_search_max_autoinc(
 
 		mtr_start(&mtr);
 
-		/* Open at the high/right end (FALSE), and INIT
-		cursor (TRUE) */
+		/* Open at the high/right end (false), and init cursor */
 		btr_pcur_open_at_index_side(
-			FALSE, index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 		if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
 			const rec_t*	rec;
