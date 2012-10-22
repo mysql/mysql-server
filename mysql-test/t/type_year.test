@@ -160,5 +160,13 @@ SELECT COUNT(*) AS total_rows, MIN(c1) AS min_value, MAX(c1) FROM t1;
 DROP TABLE t1;
 
 --echo #
+--echo # WL#6219: Deprecate and remove YEAR(2) type
+--echo #
+
+CREATE TABLE t1 (c1 YEAR(2), c2 YEAR(4));
+ALTER TABLE t1 MODIFY COLUMN c2 YEAR(2);
+DROP TABLE t1;
+
+--echo #
 
 --echo End of 5.1 tests

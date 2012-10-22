@@ -1,0 +1,62 @@
+# Test of auto-increment.
+#
+# BUG#11754117-45670 
+# Multipart primary key with the autoincrement part not first in it
+# is replication unsafe.
+#
+
+source include/master-slave.inc;
+source include/have_binlog_format_mixed.inc;
+source include/have_innodb.inc;
+
+call mtr.add_suppression('Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT.');
+
+--connection master
+create table tm (b int auto_increment, a int, primary key (a,b)) engine= myisam;
+--error ER_WRONG_AUTO_KEY
+create table ti (b int auto_increment, a int, primary key (a,b)) engine= innodb;
+create table ti (b int auto_increment, a int, primary key (b,a)) engine= innodb;
+
+set @@binlog_format=statement;
+--echo *** autoincrement field is not the first in PK warning must be there: ***
+insert into tm set b=null, a=1;
+show warnings;
+--echo *** no warning when autoincrement is the first in PK
+insert into ti set b=null, a=1;
+show warnings;
+
+delimiter //;
+create function multi_part_pk_with_autoinc (arg int)
+returns int
+begin
+  insert into tm set b=null, a=arg;
+  return arg;
+end//
+delimiter ;//
+
+select multi_part_pk_with_autoinc (3);
+--echo *** No warnings in 5.1 because of Bug11749859-39934 ***
+show warnings;
+
+set @@binlog_format=mixed;
+insert into tm set b=null, a=2;
+
+sync_slave_with_master;
+
+if (`select count(*) <> 3 from tm`)
+{
+  --echo Wrong result from SELECT on the slave side.
+  select * from tm;
+  --die
+}
+
+# cleanup
+
+--connection master
+
+drop table tm, ti;
+drop function multi_part_pk_with_autoinc;
+
+sync_slave_with_master;
+
+--source include/rpl_end.inc

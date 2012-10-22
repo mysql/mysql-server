@@ -785,6 +785,14 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
         param->set_param_func(param, &read_pos, (uint) (data_end - read_pos));
         if (param->state == Item_param::NO_VALUE)
           DBUG_RETURN(1);
+
+        if (param->limit_clause_param && param->item_type != Item::INT_ITEM)
+        {
+          param->set_int(param->val_int(), MY_INT64_NUM_DECIMAL_DIGITS);
+          param->item_type= Item::INT_ITEM;
+          if (!param->unsigned_flag && param->value.integer < 0)
+            DBUG_RETURN(1);
+        }
       }
     }
     /*
@@ -2361,6 +2369,14 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       DBUG_ASSERT(sl->join == 0);
       ORDER *order;
       /* Fix GROUP list */
+      if (sl->group_list_ptrs && sl->group_list_ptrs->size() > 0)
+      {
+        for (uint ix= 0; ix < sl->group_list_ptrs->size() - 1; ++ix)
+        {
+          order= sl->group_list_ptrs->at(ix);
+          order->next= sl->group_list_ptrs->at(ix+1);
+        }
+      }
       for (order= sl->group_list.first; order; order= order->next)
         order->item= &order->item_ptr;
       /* Fix ORDER list */

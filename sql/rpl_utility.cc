@@ -1061,3 +1061,64 @@ table_def::~table_def()
 #endif
 }
 
+// #ifndef MYSQL_CLIENT
+#if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
+Deferred_log_events::Deferred_log_events(Relay_log_info *rli) : last_added(NULL)
+{
+  my_init_dynamic_array(&array, sizeof(Log_event *), 32, 16);
+}
+
+Deferred_log_events::~Deferred_log_events() 
+{
+  delete_dynamic(&array);
+}
+
+int Deferred_log_events::add(Log_event *ev)
+{
+  last_added= ev;
+  insert_dynamic(&array, (uchar*) &ev);
+  return 0;
+}
+
+bool Deferred_log_events::is_empty()
+{  
+  return array.elements == 0;
+}
+
+bool Deferred_log_events::execute(Relay_log_info *rli)
+{
+  bool res= false;
+
+  DBUG_ASSERT(rli->deferred_events_collecting);
+
+  rli->deferred_events_collecting= false;
+  for (uint i=  0; !res && i < array.elements; i++)
+  {
+    Log_event *ev= (* (Log_event **)
+                    dynamic_array_ptr(&array, i));
+    res= ev->apply_event(rli);
+  }
+  rli->deferred_events_collecting= true;
+  return res;
+}
+
+void Deferred_log_events::rewind()
+{
+  /*
+    Reset preceeding Query log event events which execution was
+    deferred because of slave side filtering.
+  */
+  if (!is_empty())
+  {
+    for (uint i=  0; i < array.elements; i++)
+    {
+      Log_event *ev= *(Log_event **) dynamic_array_ptr(&array, i);
+      delete ev;
+    }
+    if (array.elements > array.max_element)
+      freeze_size(&array);
+    reset_dynamic(&array);
+  }
+}
+
+#endif
