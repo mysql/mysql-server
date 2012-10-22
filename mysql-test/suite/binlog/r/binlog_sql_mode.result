@@ -38,3 +38,114 @@ DROP VIEW testView;
 DROP TABLE t1;
 SET @@global.sql_mode= @old_sql_mode;
 SET @@session.binlog_format=@old_binlog_format;
+
+#
+# Test for Bug#12601974 - STORED PROCEDURE SQL_MODE=NO_BACKSLASH_ESCAPES
+# IGNORED AND BREAKS REPLICATION
+#
+DROP DATABASE IF EXISTS mysqltest_db;
+DROP TABLE IF EXISTS test_table;
+CREATE DATABASE mysqltest_db;
+USE mysqltest_db;
+CREATE TABLE test_table (c1 CHAR(50));
+SET @org_mode=@@sql_mode;
+SET @@sql_mode='';
+CREATE PROCEDURE proc_without_sql_mode (IN param1 CHAR(50), IN param2 CHAR(50))
+BEGIN
+DECLARE var1 CHAR(50) DEFAULT param1;
+DECLARE var2 CHAR(50) DEFAULT param2;
+DECLARE var3 CHAR(50) DEFAULT 'abcd\bef';
+DECLARE var4 CHAR(50) DEFAULT 'abcd\nef';
+DECLARE var5 CHAR(50) DEFAULT 'abcd\ref';
+DECLARE var6 CHAR(50) DEFAULT 'abcd\tef';
+DECLARE var7 CHAR(50) DEFAULT 'abcd\\ef';
+DECLARE var8 CHAR(50) DEFAULT 'abcd\%ef';
+DECLARE var9 CHAR(50) DEFAULT 'abcd\_ef';
+INSERT INTO test_table VALUES (var1);
+INSERT INTO test_table VALUES (var2);
+INSERT INTO test_table VALUES (var3);
+INSERT INTO test_table VALUES (var4);
+INSERT INTO test_table VALUES (var5);
+INSERT INTO test_table VALUES (var6);
+INSERT INTO test_table VALUES (var7);
+INSERT INTO test_table VALUES (var8);
+INSERT INTO test_table VALUES (var9);
+END
+$
+SET @@sql_mode='NO_BACKSLASH_ESCAPES'$
+CREATE PROCEDURE proc_with_sql_mode (IN param1 CHAR(50), IN param2 CHAR(50))
+BEGIN
+DECLARE var1 CHAR(50) DEFAULT param1;
+DECLARE var2 CHAR(50) DEFAULT param2;
+DECLARE var3 CHAR(50) DEFAULT 'wxyz\bef';
+DECLARE var4 CHAR(50) DEFAULT 'wxyz\nef';
+DECLARE var5 CHAR(50) DEFAULT 'wxyz\ref';
+DECLARE var6 CHAR(50) DEFAULT 'wxyz\tef';
+DECLARE var7 CHAR(50) DEFAULT 'wxyz\\ef';
+DECLARE var8 CHAR(50) DEFAULT 'wxyz\%ef';
+DECLARE var9 CHAR(50) DEFAULT 'wxyz\_ef';
+INSERT INTO test_table VALUES (var1);
+INSERT INTO test_table VALUES (var2);
+INSERT INTO test_table VALUES (var3);
+INSERT INTO test_table VALUES (var4);
+INSERT INTO test_table VALUES (var5);
+INSERT INTO test_table VALUES (var6);
+INSERT INTO test_table VALUES (var7);
+INSERT INTO test_table VALUES (var8);
+INSERT INTO test_table VALUES (var9);
+END
+$
+SET @@sql_mode='';
+CALL proc_without_sql_mode('abcd\'ef', 'abcd\"ef');
+CALL proc_with_sql_mode('wxyz\'ef', 'wxyz\"ef');
+SELECT * FROM test_table;
+c1
+abcd'ef
+abcd"ef
+abcdef
+abcd
+ef
+abcdef
+abcd	ef
+abcd\ef
+abcd\%ef
+abcd\_ef
+wxyz'ef
+wxyz"ef
+wxyz\bef
+wxyz\nef
+wxyz\ref
+wxyz\tef
+wxyz\\ef
+wxyz\%ef
+wxyz\_ef
+"Dropping table test_table"
+DROP TABLE test_table;
+#"test_table" content after replaying the binlog
+SELECT * FROM test_table;
+c1
+abcd'ef
+abcd"ef
+abcdef
+abcd
+ef
+abcdef
+abcd	ef
+abcd\ef
+abcd\%ef
+abcd\_ef
+wxyz'ef
+wxyz"ef
+wxyz\bef
+wxyz\nef
+wxyz\ref
+wxyz\tef
+wxyz\\ef
+wxyz\%ef
+wxyz\_ef
+#Clean up
+DROP DATABASE mysqltest_db;
+SET @@sql_mode= @org_mode;
+use test;
+
+#End of Test for Bug#12601974 

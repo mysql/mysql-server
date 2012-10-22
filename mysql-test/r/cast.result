@@ -468,4 +468,13 @@ NULL
 Warnings:
 Warning	1301	Result of cast_as_char() was larger than max_allowed_packet (2048) - truncated
 SET @@GLOBAL.max_allowed_packet=default;
+#
+# Bug#13519724 63793: CRASH IN DTCOLLATION::SET(DTCOLLATION &SET)
+#
+CREATE TABLE t1 (a VARCHAR(50));
+SELECT a FROM t1 
+WHERE CAST(a as BINARY)=x'62736D697468' 
+AND CAST(a AS BINARY)=x'65736D697468';
+a
+DROP TABLE t1;
 End of 5.1 tests

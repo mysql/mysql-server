@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -308,8 +308,9 @@ SSL::SSL(SSL_CTX* ctx)
             SetError(YasslError(err));
             return;
         }
-        else if (serverSide && !(ctx->GetCiphers().setSuites_)) {
+        else if (serverSide && ctx->GetCiphers().setSuites_ == 0) {
             // remove RSA or DSA suites depending on cert key type
+            // but don't override user sets
             ProtocolVersion pv = secure_.get_connection().version_;
             
             bool removeDH  = secure_.use_parms().removeDH_;

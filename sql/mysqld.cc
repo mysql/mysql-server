@@ -945,7 +945,7 @@ static void close_connections(void)
   {
     if (ip_sock != INVALID_SOCKET)
     {
-      (void) shutdown(ip_sock, SHUT_RDWR);
+      (void) mysql_socket_shutdown(ip_sock, SHUT_RDWR);
       (void) closesocket(ip_sock);
       ip_sock= INVALID_SOCKET;
     }
@@ -977,7 +977,7 @@ static void close_connections(void)
 #ifdef HAVE_SYS_UN_H
   if (unix_sock != INVALID_SOCKET)
   {
-    (void) shutdown(unix_sock, SHUT_RDWR);
+    (void) mysql_socket_shutdown(unix_sock, SHUT_RDWR);
     (void) closesocket(unix_sock);
     (void) unlink(mysqld_unix_port);
     unix_sock= INVALID_SOCKET;
@@ -1082,7 +1082,7 @@ static void close_server_sock()
   {
     ip_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on TCP/IP socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    VOID(mysql_socket_shutdown(tmp_sock, SHUT_RDWR));
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it causes MySQL
@@ -1097,7 +1097,7 @@ static void close_server_sock()
   {
     unix_sock=INVALID_SOCKET;
     DBUG_PRINT("info",("calling shutdown on unix socket"));
-    VOID(shutdown(tmp_sock, SHUT_RDWR));
+    VOID(mysql_socket_shutdown(tmp_sock, SHUT_RDWR));
 #if defined(__NETWARE__)
     /*
       The following code is disabled for normal systems as it may cause MySQL
@@ -2480,10 +2480,6 @@ static void check_data_home(const char *path)
 }
 
 #endif /*__WIN__ || __NETWARE */
-
-#ifdef HAVE_LINUXTHREADS
-#define UNSAFE_DEFAULT_LINUX_THREADS 200
-#endif
 
 
 #if BACKTRACE_DEMANGLE
@@ -5121,7 +5117,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 	  if (req.sink)
 	    ((void (*)(int))req.sink)(req.fd);
 
-	  (void) shutdown(new_sock, SHUT_RDWR);
+	  (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
 	  (void) closesocket(new_sock);
 	  continue;
 	}
@@ -5136,7 +5132,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
       if (getsockname(new_sock,&dummy, &dummyLen) < 0)
       {
 	sql_perror("Error on new connection socket");
-	(void) shutdown(new_sock, SHUT_RDWR);
+	(void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
 	(void) closesocket(new_sock);
 	continue;
       }
@@ -5148,7 +5144,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
 
     if (!(thd= new THD))
     {
-      (void) shutdown(new_sock, SHUT_RDWR);
+      (void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
       VOID(closesocket(new_sock));
       continue;
     }
@@ -5167,7 +5163,7 @@ pthread_handler_t handle_connections_sockets(void *arg __attribute__((unused)))
         vio_delete(vio_tmp);
       else
       {
-	(void) shutdown(new_sock, SHUT_RDWR);
+	(void) mysql_socket_shutdown(new_sock, SHUT_RDWR);
 	(void) closesocket(new_sock);
       }
       delete thd;
