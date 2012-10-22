@@ -159,6 +159,22 @@ extern void *my_memdup(const void *from,size_t length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
 extern char *my_strndup(const char *from, size_t length,
 				   myf MyFlags);
+
+/*
+  Switch to my_malloc() if the memory block to be allocated is bigger than
+  max_alloca_sz.
+*/
+#ifndef HAVE_ALLOCA
+#define my_safe_alloca(size, max_alloca_sz) my_alloca(size)
+#define my_safe_afree(ptr, size, max_alloca_sz) my_afree(ptr)
+#else
+#define my_safe_alloca(size, max_alloca_sz) ((size <= max_alloca_sz) ? \
+                                             my_alloca(size) : \
+                                             my_malloc(size, MYF(0)))
+#define my_safe_afree(ptr, size, max_alloca_sz) if (size > max_alloca_sz) \
+                                               my_free(ptr)
+#endif                                          /* #ifndef HAVE_ALLOCA */
+
 #if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
 /**
   Put bad content in memory to be sure it will segfault if dereferenced.
