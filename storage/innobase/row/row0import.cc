@@ -1549,7 +1549,7 @@ IndexPurge::open() UNIV_NOTHROW
 	mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_open_at_index_side(
-		TRUE, m_index, BTR_MODIFY_LEAF, &m_pcur, TRUE, &m_mtr);
+		true, m_index, BTR_MODIFY_LEAF, &m_pcur, true, 0, &m_mtr);
 }
 
 /**
@@ -2425,11 +2425,12 @@ row_import_set_sys_max_row_id(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_open_at_index_side(
-		FALSE,		// High end
+		false,		// High end
 		index,
 		BTR_SEARCH_LEAF,
 		&pcur,
-		TRUE,		// Init cursor
+		true,		// Init cursor
+		0,		// Leaf level
 		&mtr);
 
 	btr_pcur_move_to_prev_on_page(&pcur);
