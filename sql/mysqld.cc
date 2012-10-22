@@ -8599,9 +8599,16 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
                       "Please use --explicit_defaults_for_timestamp server "
                       "option (see documentation for more details).");
 
-
   if (log_error_file_ptr != disabled_my_option)
-    opt_error_log= 1;
+#ifdef __WIN__
+    /*
+      Enable the error log only if console option is not specified 
+      and MySQL is not running as a service.
+    */
+    opt_error_log= (opt_console && !start_mode ) ? false : true;
+#else
+    opt_error_log= true;
+#endif
   else
     log_error_file_ptr= const_cast<char*>("");
 
