@@ -537,6 +537,8 @@ JOIN::prepare(Item ***rref_pointer_array,
 			 (having->fix_fields(thd, &having) ||
 			  having->check_cols(1)));
     select_lex->having_fix_field= 0;
+    select_lex->having= having;
+
     if (having_fix_rc || thd->is_error())
       DBUG_RETURN(-1);				/* purecov: inspected */
     thd->lex->allow_sum_func= save_allow_sum_func;
@@ -1477,12 +1479,19 @@ JOIN::optimize()
         DBUG_RETURN(1);
       }
     }
-    
+    /*
+      Calculate a possible 'limit' of table rows for 'GROUP BY': 'need_tmp'
+      implies that there will be more postprocessing so the specified
+      'limit' should not be enforced yet in the call to
+      'test_if_skip_sort_order'.
+    */
+    const ha_rows limit = need_tmp ? HA_POS_ERROR : unit->select_limit_cnt;
+
     if (!(select_options & SELECT_BIG_RESULT) &&
         ((group_list &&
           (!simple_group ||
            !test_if_skip_sort_order(&join_tab[const_tables], group_list,
-                                    unit->select_limit_cnt, 0, 
+                                    limit, 0,
                                     &join_tab[const_tables].table->
                                     keys_in_use_for_group_by))) ||
          select_distinct) &&
@@ -11995,7 +12004,8 @@ int report_error(TABLE *table, int error)
     Locking reads can legally return also these errors, do not
     print them to the .err log
   */
-  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT)
+  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT
+      && !table->in_use->killed)
     sql_print_error("Got error %d when reading table '%s'",
 		    error, table->s->path.str);
   table->file->print_error(error,MYF(0));
@@ -14110,8 +14120,6 @@ check_reverse_order:
                                 join_read_first:join_read_last;
         tab->type=JT_NEXT;           // Read with index_first(), index_next()
 
-        if (table->covering_keys.is_set(best_key))
-          table->set_keyread(TRUE);
         table->file->ha_index_or_rnd_end();
         if (tab->join->select_options & SELECT_DESCRIBE)
         {

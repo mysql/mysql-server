@@ -1,5 +1,5 @@
 # Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
-#
+# 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -84,6 +84,7 @@ noinst_HEADERS =	item.h item_func.h item_sum.h item_cmpfunc.h \
 			tztime.h my_decimal.h\
 			sp_head.h sp_pcontext.h sp_rcontext.h sp.h sp_cache.h \
 			parse_file.h sql_view.h	sql_trigger.h \
+			mem_root_array.h \
 			sql_array.h sql_cursor.h events.h scheduler.h \
                         event_db_repository.h event_queue.h \
 			sql_plugin.h authors.h event_parse_data.h \
