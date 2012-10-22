@@ -35,15 +35,20 @@ void ServerError(SSL_CTX* ctx, SSL* ssl, SOCKET_T& sockfd, const char* msg)
     void NonBlockingSSL_Accept(SSL* ssl, SSL_CTX* ctx, SOCKET_T& clientfd)
     {
         int ret = SSL_accept(ssl);
-        while (ret != SSL_SUCCESS && SSL_get_error(ssl, 0) ==
-                                     SSL_ERROR_WANT_READ) {
-            printf("... server would block\n");
+        int err = SSL_get_error(ssl, 0);
+        while (ret != SSL_SUCCESS && (err == SSL_ERROR_WANT_READ ||
+                                      err == SSL_ERROR_WANT_WRITE)) {
+            if (err == SSL_ERROR_WANT_READ)
+                printf("... server would read block\n");
+            else
+                printf("... server would write block\n");
             #ifdef _WIN32
                 Sleep(1000);
             #else
                 sleep(1);
             #endif
             ret = SSL_accept(ssl);
+            err = SSL_get_error(ssl, 0);
         }
         if (ret != SSL_SUCCESS)
             ServerError(ctx, ssl, clientfd, "SSL_accept failed");
@@ -78,14 +83,14 @@ THREAD_RETURN YASSL_API server_test(void* args)
 
     SSL* ssl = SSL_new(ctx);
     SSL_set_fd(ssl, clientfd);
-   
+
 #ifdef NON_BLOCKING
     NonBlockingSSL_Accept(ssl, ctx, clientfd);
 #else
     if (SSL_accept(ssl) != SSL_SUCCESS)
         ServerError(ctx, ssl, clientfd, "SSL_accept failed");
 #endif
-
+     
     showPeer(ssl);
     printf("Using Cipher Suite: %s\n", SSL_get_cipher(ssl));
 
@@ -93,7 +98,7 @@ THREAD_RETURN YASSL_API server_test(void* args)
     int input = SSL_read(ssl, command, sizeof(command));
     if (input > 0) {
         command[input] = 0;
-    printf("First client command: %s\n", command);
+        printf("First client command: %s\n", command);
     }
 
     char msg[] = "I hear you, fa shizzle!";

@@ -20,6 +20,8 @@ hex(a)
 616263
 set GLOBAL init_connect="adsfsdfsdfs";
 select @a;
+ERROR 08S01: Aborted connection to db: 'test' user: 'user_1' host: 'localhost' (init_connect command failed)
+select @a;
 Got one of the listed errors
 drop table t1;
 End of 4.1 tests

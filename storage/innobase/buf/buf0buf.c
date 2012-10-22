@@ -634,7 +634,7 @@ buf_pool_init(
 		/*----------------------------------------*/
 	} else {
 		buf_pool->frame_mem = os_mem_alloc_large(
-			UNIV_PAGE_SIZE * (n_frames + 1), TRUE, FALSE);
+			UNIV_PAGE_SIZE * (n_frames + 1), FALSE);
 	}
 
 	if (buf_pool->frame_mem == NULL) {
@@ -756,12 +756,8 @@ buf_pool_init(
 		block = buf_pool_get_nth_block(buf_pool, i);
 
 		if (block->frame) {
-			/* Wipe contents of frame to eliminate a Purify
-			warning */
+			UNIV_MEM_INVALID(block->frame, UNIV_PAGE_SIZE);
 
-#ifdef HAVE_purify
-			memset(block->frame, '\0', UNIV_PAGE_SIZE);
-#endif
 			if (srv_use_awe) {
 				/* Add to the list of blocks mapped to
 				frames */

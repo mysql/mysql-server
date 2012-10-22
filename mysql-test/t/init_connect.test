@@ -36,6 +36,14 @@ connection con0;
 set GLOBAL init_connect="adsfsdfsdfs";
 connect (con5,localhost,user_1,,);
 connection con5;
+# BUG#11755281/47032: ERROR 2006 / ERROR 2013 INSTEAD OF PROPER ERROR MESSAGE
+# We now throw a proper error message here:
+--replace_regex /connection .* to/connection to/
+--error ER_NEW_ABORTING_CONNECTION
+select @a;
+# We got disconnected after receiving the above error message; any further
+# requests should fail with a notice that no one's listening to us.
+# --error CR_SERVER_GONE_ERROR,CR_SERVER_LOST
 --error 2013,2006
 select @a;
 connection con0;

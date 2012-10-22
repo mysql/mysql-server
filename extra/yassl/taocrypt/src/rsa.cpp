@@ -61,7 +61,6 @@ Integer RSA_PrivateKey::CalculateInverse(RandomNumberGenerator& rng,
 
     Integer y = ModularRoot(re, dq_, dp_, q_, p_, u_);
     y = modn.Divide(y, r);				    // unblind
-    assert(modn.Exponentiate(y, e_) == x);  // check
        
     return y;
 }
@@ -124,7 +123,8 @@ word32 RSA_BlockType2::UnPad(const byte *pkcsBlock, unsigned int pkcsBlockLen,
     unsigned i=1;
     while (i<pkcsBlockLen && pkcsBlock[i++]) { // null body
         }
-    assert(i==pkcsBlockLen || pkcsBlock[i-1]==0);
+    if (!(i==pkcsBlockLen || pkcsBlock[i-1]==0))
+        return 0;
 
     unsigned int outputLen = pkcsBlockLen - i;
     invalid = (outputLen > maxOutputLen) || invalid;
@@ -179,7 +179,8 @@ word32 RSA_BlockType1::UnPad(const byte* pkcsBlock, word32 pkcsBlockLen,
     unsigned i=1;
     while (i<pkcsBlockLen && pkcsBlock[i++]) { // null body
         }
-    assert(i==pkcsBlockLen || pkcsBlock[i-1]==0);
+    if (!(i==pkcsBlockLen || pkcsBlock[i-1]==0))
+        return 0;
 
     unsigned int outputLen = pkcsBlockLen - i;
     invalid = (outputLen > maxOutputLen) || invalid;

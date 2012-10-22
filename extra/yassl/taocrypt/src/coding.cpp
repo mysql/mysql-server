@@ -11,8 +11,9 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   along with this program; see the file COPYING. If not, write to the
+   Free Software Foundation, Inc., 51 Franklin St, Fifth Floor, Boston,
+   MA  02110-1301  USA.
 */
 
 /* coding.cpp implements hex and base64 encoding/decoing
@@ -94,7 +95,6 @@ void HexEncoder::Encode()
 void HexDecoder::Decode()
 {
     word32 bytes = coded_.size();
-    assert((bytes % 2) == 0);
     decoded_.New(bytes / 2);
 
     word32 i(0);
@@ -103,15 +103,9 @@ void HexDecoder::Decode()
         byte b  = coded_.next() - 0x30;  // 0 starts at 0x30
         byte b2 = coded_.next() - 0x30;
 
-        // sanity checks
-        assert( b  < sizeof(hexDecode)/sizeof(hexDecode[0]) );
-        assert( b2 < sizeof(hexDecode)/sizeof(hexDecode[0]) );
-
         b  = hexDecode[b];
         b2 = hexDecode[b2];
-        
-        assert( b != bad && b2 != bad );
-        
+
         decoded_[i++] = (b << 4) | b2;
         bytes -= 2;
     }
@@ -173,9 +167,9 @@ void Base64Encoder::Encode()
     } 
 
     encoded_[i++] = '\n';
-    assert(i == outSz);
-
-    plain_.reset(encoded_);
+    
+    if (i == outSz)
+        plain_.reset(encoded_);
 }
 
 
@@ -196,7 +190,6 @@ void Base64Decoder::Decode()
         byte e3 = coded_.next();
         byte e4 = coded_.next();
 
-        // do asserts first
         if (e1 == 0)            // end file 0's
             break;
 

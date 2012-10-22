@@ -46,12 +46,6 @@ typedef unsigned int  uint;
 const uint AUTO = 0xFEEDBEEF;
 
 
-// Checking Policy should implement a check function that tests whether the
-// index is within the size limit of the array
-struct Check {
-    void check(uint i, uint limit);
-};
-
 
 struct NoCheck {
     void check(uint, uint);
@@ -66,7 +60,7 @@ struct NoCheck {
  * write to the buffer bulk wise and have the correct size
  */
 
-class input_buffer : public Check {
+class input_buffer : public NoCheck {
     uint   size_;                // number of elements in buffer
     uint   current_;             // current offset position in buffer
     byte*  buffer_;              // storage for buffer
@@ -132,7 +126,7 @@ private:
  * Not using vector because need checked []access and the ability to
  * write to the buffer bulk wise and retain correct size
  */
-class output_buffer : public Check {
+class output_buffer : public NoCheck {
     uint    current_;                // current offset and elements in buffer
     byte*   buffer_;                 // storage for buffer
     byte*   end_;                    // end of storage marker

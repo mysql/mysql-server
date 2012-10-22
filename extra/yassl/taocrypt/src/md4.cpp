@@ -27,7 +27,7 @@
     #include "algorithm.hpp"
 #endif
 
-   
+
 namespace STL = STL_NAMESPACE;
    
 
