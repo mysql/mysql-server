@@ -282,8 +282,8 @@ dict_startscan_system(
 
 	clust_index = UT_LIST_GET_FIRST(system_table->indexes);
 
-	btr_pcur_open_at_index_side(TRUE, clust_index, BTR_SEARCH_LEAF, pcur,
-				    TRUE, mtr);
+	btr_pcur_open_at_index_side(true, clust_index, BTR_SEARCH_LEAF, pcur,
+				    true, 0, mtr);
 
 	rec = dict_getnext_system_low(pcur, mtr);
 
@@ -983,8 +983,8 @@ dict_check_tablespaces_and_store_max_id(
 				      MLOG_4BYTES, &mtr);
 	fil_set_max_space_id_if_bigger(max_space_id);
 
-	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
-				    TRUE, &mtr);
+	btr_pcur_open_at_index_side(true, sys_index, BTR_SEARCH_LEAF, &pcur,
+				    true, 0, &mtr);
 loop:
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
