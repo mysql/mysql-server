@@ -5156,12 +5156,20 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   /*
     Ensure that we have an exclusive lock on target table if we are creating
-    non-temporary table.
+    non-temporary table. In LOCK TABLES mode the only way the table is locked,
+    is if it already exists (since you cannot LOCK TABLE a non-existing table).
+    And the only way we then can end up here is if IF EXISTS was used.
   */
   DBUG_ASSERT((create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
-              thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
-                                             table->table_name,
-                                             MDL_EXCLUSIVE));
+              (thd->locked_tables_mode != LTM_LOCK_TABLES &&
+               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
+                                              table->table_name,
+                                              MDL_EXCLUSIVE)) ||
+              (thd->locked_tables_mode == LTM_LOCK_TABLES &&
+               (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) &&
+               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
+                                              table->table_name,
+                                              MDL_SHARED_NO_WRITE)));
 
   DEBUG_SYNC(thd, "create_table_like_before_binlog");
 
