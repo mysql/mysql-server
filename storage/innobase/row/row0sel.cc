@@ -706,10 +706,9 @@ row_sel_build_prev_vers(
 
 /*********************************************************************//**
 Builds the last committed version of a clustered index record for a
-semi-consistent read.
-@return	DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
-dberr_t
+semi-consistent read. */
+static __attribute__((nonnull))
+void
 row_sel_build_committed_vers_for_mysql(
 /*===================================*/
 	dict_index_t*	clust_index,	/*!< in: clustered index */
@@ -725,18 +724,16 @@ row_sel_build_committed_vers_for_mysql(
 					afterwards */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	dberr_t	err;
-
 	if (prebuilt->old_vers_heap) {
 		mem_heap_empty(prebuilt->old_vers_heap);
 	} else {
-		prebuilt->old_vers_heap = mem_heap_create(200);
+		prebuilt->old_vers_heap = mem_heap_create(
+			rec_offs_size(*offsets));
 	}
 
-	err = row_vers_build_for_semi_consistent_read(
+	row_vers_build_for_semi_consistent_read(
 		rec, mtr, clust_index, offsets, offset_heap,
 		prebuilt->old_vers_heap, old_vers);
-	return(err);
 }
 
 /*********************************************************************//**
@@ -1083,7 +1080,7 @@ row_sel_open_pcur(
 		(FALSE: no init) */
 
 		btr_pcur_open_at_index_side(plan->asc, index, BTR_SEARCH_LEAF,
-					    &(plan->pcur), FALSE, mtr);
+					    &(plan->pcur), false, 0, mtr);
 	}
 
 	ut_ad(plan->n_rows_prefetched == 0);
@@ -4172,16 +4169,10 @@ wait_table_again:
 				goto lock_wait_or_error;
 			}
 		}
-	} else {
-		if (mode == PAGE_CUR_G) {
-			btr_pcur_open_at_index_side(
-				TRUE, index, BTR_SEARCH_LEAF, pcur, FALSE,
-				&mtr);
-		} else if (mode == PAGE_CUR_L) {
-			btr_pcur_open_at_index_side(
-				FALSE, index, BTR_SEARCH_LEAF, pcur, FALSE,
-				&mtr);
-		}
+	} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_L) {
+		btr_pcur_open_at_index_side(
+			mode == PAGE_CUR_G, index, BTR_SEARCH_LEAF,
+			pcur, false, 0, &mtr);
 	}
 
 rec_loop:
@@ -4518,14 +4509,9 @@ no_gap_lock:
 
 			/* The following call returns 'offsets'
 			associated with 'old_vers' */
-			err = row_sel_build_committed_vers_for_mysql(
+			row_sel_build_committed_vers_for_mysql(
 				clust_index, prebuilt, rec,
 				&offsets, &heap, &old_vers, &mtr);
-
-			if (err != DB_SUCCESS) {
-
-				goto lock_wait_or_error;
-			}
 
 			/* Check whether it was a deadlock or not, if not
 			a deadlock and the transaction had to wait then
@@ -5364,10 +5350,9 @@ row_search_max_autoinc(
 
 		mtr_start(&mtr);
 
-		/* Open at the high/right end (FALSE), and INIT
-		cursor (TRUE) */
+		/* Open at the high/right end (false), and init cursor */
 		btr_pcur_open_at_index_side(
-			FALSE, index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 		if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
 			const rec_t*	rec;
