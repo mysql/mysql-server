@@ -2364,6 +2364,9 @@ class Ndb_schema_event_handler {
                       errcode);
     thd->server_id= thd_server_id_save;
     thd->db= thd_db_save;
+
+    // Commit the binlog write
+    (void)trans_commit_stmt(thd);
   }
 
 
