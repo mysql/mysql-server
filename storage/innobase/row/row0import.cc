@@ -729,11 +729,12 @@ FetchIndexRootPages::operator() (
 	const page_t*	page = get_frame(block);
 
 	ulint	page_type = fil_page_get_type(page);
+	ulint	xdes = (ulint) (offset / m_page_size);
 
 	if (page_type == FIL_PAGE_TYPE_XDES) {
-		err = set_current_xdes(offset / m_page_size, page);
+		err = set_current_xdes(xdes, page);
 	} else if (page_type == FIL_PAGE_INDEX
-		   && !is_free(offset / m_page_size)
+		   && !is_free(xdes)
 		   && is_root_page(page)) {
 
 		index_id_t	id = btr_page_get_index_id(page);
