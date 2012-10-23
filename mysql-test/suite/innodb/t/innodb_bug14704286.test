@@ -48,8 +48,10 @@ BEGIN
 END|
 
 delimiter ;|
-
+set autocommit=0;
 CALL update_t1();
+select * from t1;
+set autocommit=1;
 select * from t1;
 
 #
@@ -66,6 +68,10 @@ select * from t1 force index(value) where value=12;
 # select is going to take good time so let's kill query.
 #
 connection conn3;
+let $wait_condition=
+	select * from information_schema.processlist where state = 'Sending data' and
+	info = 'select * from t1 force index(value) where value=12';
+--source include/wait_condition.inc
 let $ignore= `SELECT @id := $ID`;
 kill query @id;
 
@@ -75,7 +81,6 @@ kill query @id;
 connection conn1;
 --error ER_QUERY_INTERRUPTED
 reap;
-select * from t1 where value = 12;
 
 #
 # clean test-bed.
