@@ -9,4 +9,3 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-innodb-wl5980-discard : Bug#14776799 2012-10-20 This test times out after 15 min and that leads to increased load on PB2 machines
