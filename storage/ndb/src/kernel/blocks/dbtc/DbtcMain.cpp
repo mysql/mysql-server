@@ -4251,6 +4251,21 @@ Dbtc::CommitAckMarker::insert_in_commit_ack_marker(Dbtc *tc,
   Uint32 item = instanceKey + (node_id << 16);
   CommitAckMarkerBuffer::DataBufferPool & pool =
     tc->c_theCommitAckMarkerBufferPool;
+  // check for duplicate (todo DataBuffer method find-or-append)
+  {
+    LocalDataBuffer<5> tmp(pool, this->theDataBuffer);
+    CommitAckMarkerBuffer::Iterator iter;
+    bool next_flag = tmp.first(iter);
+    while (next_flag)
+    {
+      Uint32 dataWord = *iter.data;
+      if (dataWord == item)
+      {
+        return true;
+      }
+      next_flag = tmp.next(iter, 1);
+    }
+  }
   LocalDataBuffer<5> tmp(pool, this->theDataBuffer);
   return tmp.append(&item, (Uint32)1);
 }
