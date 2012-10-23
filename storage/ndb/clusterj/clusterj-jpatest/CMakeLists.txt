@@ -15,11 +15,17 @@
 
 SET ( JAVA_SOURCE_DIRS
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/model)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/model
+ ${CMAKE_CURRENT_SOURCE_DIR}/../clusterj-unit/src/main/java/junit/framework
+ ${CMAKE_CURRENT_SOURCE_DIR}/../clusterj-unit/src/main/java/junit/textui
+ ${CMAKE_CURRENT_SOURCE_DIR}/../clusterj-unit/src/main/java/org/junit)
 
 SET ( BROKEN_JAVAC
  ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/*.java
- ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/model/*.java)
+ ${CMAKE_CURRENT_SOURCE_DIR}/src/main/java/com/mysql/clusterj/jpatest/model/*.java
+ ${CMAKE_CURRENT_SOURCE_DIR}/../clusterj-unit/src/main/java/junit/framework/*.java
+ ${CMAKE_CURRENT_SOURCE_DIR}/../clusterj-unit/src/main/java/junit/textui/*.java
+ ${CMAKE_CURRENT_SOURCE_DIR}/../clusterj-unit/src/main/java/org/junit/*.java)
 
 SET ( JAVA_SOURCES "")
 FOREACH(D ${JAVA_SOURCE_DIRS})
@@ -32,7 +38,7 @@ SET ( CLASSPATH
   ${CMAKE_BINARY_DIR}/storage/ndb/clusterj/clusterj-core/target/classes
   ${WITH_CLASSPATH})
 
-SET(CLUSTERJ_JPATEST_EXPORTS com.mysql.clusterj.jpatest,com.mysql.clusterj.jpatest.model)
+SET(CLUSTERJ_JPATEST_EXPORTS com.mysql.clusterj.jpatest,com.mysql.clusterj.jpatest.model,junit.framework,junit.textui,org.junit)
 CREATE_MANIFEST(manifest.mf ${CLUSTERJ_JPATEST_EXPORTS} clusterj-jpatest)
 
 CREATE_JAR(clusterj-jpatest ${JAVA_SOURCES} 
