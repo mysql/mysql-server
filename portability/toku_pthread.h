@@ -38,25 +38,34 @@ typedef struct toku_mutex {
 } toku_mutex_t;
 
 #if defined(__FreeBSD__)
+# define TOKU_MUTEX_ADAPTIVE PTHREAD_MUTEX_ADAPTIVE_NP
 static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {0};
 # if TOKU_PTHREAD_DEBUG
 static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true };
+static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP, .owner = 0, .locked = false, .valid = true };
 # else
 static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
+static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP };
 # endif
 #elif defined(__APPLE__)
+# define TOKU_MUTEX_ADAPTIVE PTHREAD_MUTEX_DEFAULT
 static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {{0}};
 # if TOKU_PTHREAD_DEBUG
 static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true };
+static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true };
 # else
 static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
+static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
 # endif
 #else
+# define TOKU_MUTEX_ADAPTIVE PTHREAD_MUTEX_ADAPTIVE_NP
 static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {{{0}}};
 # if TOKU_PTHREAD_DEBUG
 static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER, .owner = 0, .locked = false, .valid = true };
+static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP, .owner = 0, .locked = false, .valid = true };
 # else
 static const toku_mutex_t TOKU_MUTEX_INITIALIZER = { .pmutex = PTHREAD_MUTEX_INITIALIZER };
+static const toku_mutex_t TOKU_ADAPTIVE_MUTEX_INITIALIZER = { .pmutex = PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP };
 # endif
 #endif
 
