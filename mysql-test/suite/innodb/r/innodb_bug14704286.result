@@ -17,7 +17,22 @@ update test.t1 set value2=value2+1, value3=value3+1 where id=12;
 SET i = i + 1;
 END WHILE;
 END|
+set autocommit=0;
 CALL update_t1();
+select * from t1;
+id	value	value2	value3
+10	10	10	10
+11	11	11	11
+12	12	5012	5012
+13	13	13	13
+14	14	14	14
+15	15	15	15
+16	16	16	16
+17	17	17	17
+18	18	18	18
+19	19	19	19
+20	20	20	20
+set autocommit=1;
 select * from t1;
 id	value	value2	value3
 10	10	10	10
@@ -34,8 +49,5 @@ id	value	value2	value3
 select * from t1 force index(value) where value=12;
 kill query @id;
 ERROR 70100: Query execution was interrupted
-select * from t1 where value = 12;
-id	value	value2	value3
-12	12	12	12
 drop procedure if exists update_t1;
 drop table if exists t1;
