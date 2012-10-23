@@ -170,6 +170,10 @@ extern "C" {          // Because of SCO 3.2V4.2
 #include <crtdbg.h>
 #endif
 
+#ifdef _WIN32
+#include "named_pipe.h"
+#endif
+
 #ifdef HAVE_SOLARIS_LARGE_PAGES
 #include <sys/mman.h>
 #if defined(__sun__) && defined(__GNUC__) && defined(__cplusplus) \
@@ -2386,45 +2390,12 @@ static void network_init(void)
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
-       mysqld_unix_port, NullS);
-    memset(&saPipeSecurity, 0, sizeof(saPipeSecurity));
-    memset(&sdPipeDescriptor, 0, sizeof(sdPipeDescriptor));
-    if (!InitializeSecurityDescriptor(&sdPipeDescriptor,
-              SECURITY_DESCRIPTOR_REVISION))
-    {
-      sql_perror("Can't start server : Initialize security descriptor");
+    hPipe= create_server_named_pipe(&saPipeSecurity, &sdPipeDescriptor,
+                                    global_system_variables.net_buffer_length,
+                                    mysqld_unix_port, pipe_name, 
+                                    sizeof(pipe_name));
+    if (hPipe == INVALID_HANDLE_VALUE)
       unireg_abort(1);
-    }
-    if (!SetSecurityDescriptorDacl(&sdPipeDescriptor, TRUE, NULL, FALSE))
-    {
-      sql_perror("Can't start server : Set security descriptor");
-      unireg_abort(1);
-    }
-    saPipeSecurity.nLength = sizeof(SECURITY_ATTRIBUTES);
-    saPipeSecurity.lpSecurityDescriptor = &sdPipeDescriptor;
-    saPipeSecurity.bInheritHandle = FALSE;
-    if ((hPipe= CreateNamedPipe(pipe_name,
-        PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
-        PIPE_TYPE_BYTE |
-        PIPE_READMODE_BYTE |
-        PIPE_WAIT,
-        PIPE_UNLIMITED_INSTANCES,
-        (int) global_system_variables.net_buffer_length,
-        (int) global_system_variables.net_buffer_length,
-        NMPWAIT_USE_DEFAULT_WAIT,
-        &saPipeSecurity)) == INVALID_HANDLE_VALUE)
-      {
-  LPVOID lpMsgBuf;
-  int error=GetLastError();
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-          FORMAT_MESSAGE_FROM_SYSTEM,
-          NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-          (LPTSTR) &lpMsgBuf, 0, NULL );
-  sql_perror((char *)lpMsgBuf);
-  LocalFree(lpMsgBuf);
-  unireg_abort(1);
-      }
   }
 #endif
 
@@ -3283,18 +3254,16 @@ static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
 
-
 #ifndef EMBEDDED_LIBRARY
-namespace {
-extern "C"
-int
+extern "C" int
 check_enough_stack_size()
 {
   uchar stack_top;
 
-  return check_stack_overrun(current_thd, STACK_MIN_SIZE,
+  if (current_thd != 0)
+    return check_stack_overrun(current_thd, STACK_MIN_SIZE,
                              &stack_top);
-}
+  return 0;
 }
 #endif
 
@@ -3936,6 +3905,7 @@ int init_common_variables()
   item_init();
 #ifndef EMBEDDED_LIBRARY
   my_regex_init(&my_charset_latin1, check_enough_stack_size);
+  my_string_stack_guard= check_enough_stack_size;
 #else
   my_regex_init(&my_charset_latin1, NULL);
 #endif
@@ -8629,9 +8599,16 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
                       "Please use --explicit_defaults_for_timestamp server "
                       "option (see documentation for more details).");
 
-
   if (log_error_file_ptr != disabled_my_option)
-    opt_error_log= 1;
+#ifdef __WIN__
+    /*
+      Enable the error log only if console option is not specified 
+      and MySQL is not running as a service.
+    */
+    opt_error_log= (opt_console && !start_mode ) ? false : true;
+#else
+    opt_error_log= true;
+#endif
   else
     log_error_file_ptr= const_cast<char*>("");
 
