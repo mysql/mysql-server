@@ -712,7 +712,8 @@ bool Warning_info::is_marked_for_removal(const Sql_condition *cond) const
 
 void Warning_info::reserve_space(THD *thd, uint count)
 {
-  while ((m_warn_list.elements() + count) > thd->variables.max_error_count)
+  while (m_warn_list.elements() &&
+         (m_warn_list.elements() + count) > thd->variables.max_error_count)
     m_warn_list.remove(m_warn_list.front());
 }
 
