@@ -30,7 +30,7 @@ TRUNCATE TABLE performance_schema.events_statements_summary_by_digest;
 --echo ####################################
 --echo # QUERYING PS STATEMENT DIGEST
 --echo ####################################
-SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
+SELECT schema_name, digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
 SELECT digest, digest_text FROM performance_schema.events_statements_current;
 
 # Cleanup for Digest

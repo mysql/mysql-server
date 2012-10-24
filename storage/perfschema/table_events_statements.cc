@@ -372,7 +372,7 @@ void table_events_statements_common::make_row(PFS_events_statements *statement)
   PSI_digest_storage *digest= & statement->m_digest_storage;
   if (digest->m_byte_count > 0)
   {
-    PFS_digest_hash md5;
+    PFS_digest_key md5;
     compute_md5_hash((char *) md5.m_md5,
                      (char *) digest->m_token_array,
                      digest->m_byte_count);

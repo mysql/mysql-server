@@ -4473,6 +4473,8 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_no_index_used= 0;
   state->m_no_good_index_used= 0;
 
+  state->m_schema_name_length= 0;
+
   return reinterpret_cast<PSI_statement_locker*> (state);
 }
 
@@ -4536,6 +4538,13 @@ static void start_statement_v1(PSI_statement_locker *locker,
     timer_start= get_timer_raw_value_and_function(statement_timer, & state->m_timer);
     state->m_timer_start= timer_start;
   }
+
+  compile_time_assert(PSI_SCHEMA_NAME_LEN == NAME_LEN);
+  DBUG_ASSERT(db_len <= sizeof(state->m_schema_name));
+
+  if (db_len > 0)
+    memcpy(state->m_schema_name, db, db_len);
+  state->m_schema_name_length= db_len;
 
   if (flags & STATE_FLAG_EVENT)
   {
@@ -4749,7 +4758,9 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     {
       digest_storage= &state->m_digest_state.m_digest_storage;
       /* Populate PFS_statements_digest_stat with computed digest information.*/
-      digest_stat= find_or_create_digest(thread, digest_storage);
+      digest_stat= find_or_create_digest(thread, digest_storage,
+                                         state->m_schema_name,
+                                         state->m_schema_name_length);
     }
 
     if (flags & STATE_FLAG_EVENT)
@@ -4816,7 +4827,9 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         /* Set digest stat. */
         digest_storage= &state->m_digest_state.m_digest_storage;
         /* Populate statements_digest_stat with computed digest information. */
-        digest_stat= find_or_create_digest(thread, digest_storage);
+        digest_stat= find_or_create_digest(thread, digest_storage,
+                                           state->m_schema_name,
+                                           state->m_schema_name_length);
       }
     }
 
