@@ -1277,7 +1277,10 @@ int lex_one_token(void *arg, void *yythd)
       {
         c= lip->yyGet();
         if (c == 0)
+        {
+          lip->yyUnget();
           return ABORT_SYM;                     // Unmatched quotes
+        }
 
 	int var_length;
 	if ((var_length= my_mbcharlen(cs, c)) == 1)
