@@ -985,6 +985,9 @@ rw_lock_n_locked(void)
 	return(count);
 }
 
+#endif /* UNIV_SYNC_DEBUG */
+
+#ifdef UNIV_DEBUG
 /**
 Print the rw-lock information. */
 UNIV_INTERN
@@ -1013,6 +1016,7 @@ rw_lock_t::print(FILE* stream) const
 			fprintf(stream, "\n");
 		}
 
+#ifdef UNIV_SYNC_DEBUG
 		rw_lock_debug_mutex_enter();
 
 		for (const rw_lock_debug_t* dbg = UT_LIST_GET_FIRST(debug_list);
@@ -1023,7 +1027,7 @@ rw_lock_t::print(FILE* stream) const
 		}
 
 		rw_lock_debug_mutex_exit();
+#endif /* UNIV_SYNC_DEBUG */
 	}
 }
-
-#endif /* UNIV_SYNC_DEBUG */
+#endif /* UNIV_DEBUG */

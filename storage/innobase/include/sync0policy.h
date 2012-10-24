@@ -98,19 +98,9 @@ struct DefaultPolicy {
 	void destroy() UNIV_NOTHROW {}
 };
 
-/** For observing Mutex events. */
-template <typename Mutex>
-struct Observer {
-	typedef Mutex Latch;
-
-	virtual void enter(const Mutex&) UNIV_NOTHROW = 0;
-	virtual void locked(const Mutex&) UNIV_NOTHROW = 0;
-	virtual void release(const Mutex&) UNIV_NOTHROW = 0;
-};
-
 /** Track policy. */
 template <typename Mutex>
-struct TrackPolicy : public Observer<Mutex> {
+struct TrackPolicy {
 
 	/** Default constructor. */
 	TrackPolicy()
@@ -146,9 +136,9 @@ struct TrackPolicy : public Observer<Mutex> {
 		DefaultPolicy<Mutex>::test_poll(mutex);
 	}
 
-	virtual void enter(const Mutex&) UNIV_NOTHROW { }
-	virtual void locked(const Mutex&) UNIV_NOTHROW { }
-	virtual void release(const Mutex&) UNIV_NOTHROW { }
+	void enter(const Mutex&) UNIV_NOTHROW { }
+	void locked(const Mutex&) UNIV_NOTHROW { }
+	void release(const Mutex&) UNIV_NOTHROW { }
 
 	void print(FILE* stream) const;
 
