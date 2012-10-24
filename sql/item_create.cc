@@ -5574,7 +5574,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("SLEEP") }, BUILDER(Create_func_sleep)},
   { { C_STRING_WITH_LEN("SOUNDEX") }, BUILDER(Create_func_soundex)},
   { { C_STRING_WITH_LEN("SPACE") }, BUILDER(Create_func_space)},
-  { { C_STRING_WITH_LEN("SQL_THREAD_WAIT_AFTER_GTIDS") }, BUILDER(Create_func_master_gtid_set_wait)},
+  { { C_STRING_WITH_LEN("WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS") }, BUILDER(Create_func_master_gtid_set_wait)},
   { { C_STRING_WITH_LEN("SQRT") }, BUILDER(Create_func_sqrt)},
   { { C_STRING_WITH_LEN("SRID") }, GEOM_BUILDER(Create_func_srid)},
   { { C_STRING_WITH_LEN("STARTPOINT") }, GEOM_BUILDER(Create_func_startpoint)},

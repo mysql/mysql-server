@@ -1213,7 +1213,6 @@ page_zip_compress(
 	const rec_t**	recs;	/*!< dense page directory, sorted by address */
 	mem_heap_t*	heap;
 	ulint		trx_id_col;
-	ulint*		offsets	= NULL;
 	ulint		n_blobs	= 0;
 	byte*		storage;/* storage of uncompressed columns */
 #ifndef UNIV_HOTBACKUP
@@ -1304,7 +1303,8 @@ page_zip_compress(
 	MONITOR_INC(MONITOR_PAGE_COMPRESS);
 
 	heap = mem_heap_create(page_zip_get_size(page_zip)
-			       + n_fields * (2 + sizeof *offsets)
+			       + n_fields * (2 + sizeof(ulint))
+			       + REC_OFFS_HEADER_SIZE
 			       + n_dense * ((sizeof *recs)
 					    - PAGE_ZIP_DIR_SLOT_SIZE)
 			       + UNIV_PAGE_SIZE * 4

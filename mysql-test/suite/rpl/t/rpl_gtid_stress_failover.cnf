@@ -1,53 +1,53 @@
 !include ../my.cnf
 [mysqld.1]
 gtid-mode=on
-disable-gtid-unsafe-statements
+enforce-gtid-consistency
 log-slave-updates
 
 [mysqld.2]
 gtid-mode=on
-disable-gtid-unsafe-statements
+enforce-gtid-consistency
 log-slave-updates
 
 [mysqld.3]
 gtid-mode=on
-disable-gtid-unsafe-statements
+enforce-gtid-consistency
 log-slave-updates
 server-id=3
 
 [mysqld.4]
 gtid-mode=on
-disable-gtid-unsafe-statements
+enforce-gtid-consistency
 log-slave-updates
 server-id=4
 
 [mysqld.5]
 gtid-mode=on
-disable-gtid-unsafe-statements
+enforce-gtid-consistency
 log-slave-updates
 server-id=5
 
 #[mysqld.6]
 #gtid-mode=on
-#disable-gtid-unsafe-statements
+#enforce-gtid-consistency
 #log-slave-updates
 #server-id=6
 #
 #[mysqld.7]
 #gtid-mode=on
-#disable-gtid-unsafe-statements
+#enforce-gtid-consistency
 #log-slave-updates
 #server-id=7
 #
 #[mysqld.8]
 #gtid-mode=on
-#disable-gtid-unsafe-statements
+#enforce-gtid-consistency
 #log-slave-updates
 #server-id=8
 #
 #[mysqld.9]
 #gtid-mode=on
-#disable-gtid-unsafe-statements
+#enforce-gtid-consistency
 #log-slave-updates
 #server-id=9
 
