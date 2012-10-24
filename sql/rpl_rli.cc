@@ -863,7 +863,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
 !is_intersection: %d",
       gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids),
       !owned_gtids->is_intersection(&wait_gtid_set)));
-    logged_gtids->dbug_print("gtid_done:");
+    logged_gtids->dbug_print("gtid_executed:");
     owned_gtids->dbug_print("owned_gtids:");
 
     /*

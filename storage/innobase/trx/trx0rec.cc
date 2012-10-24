@@ -1440,8 +1440,7 @@ trx_undo_get_undo_rec_low(
 /******************************************************************//**
 Copies an undo record to heap.
 
-NOTE: the caller must have latches on the clustered index page and
-purge_view.
+NOTE: the caller must have latches on the clustered index page.
 
 @retval true if the undo log has been
 truncated and we cannot fetch the old version

@@ -6275,6 +6275,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     goto cleanup;
 
   DEBUG_SYNC(thd, "alter_table_inplace_after_lock_upgrade");
+  THD_STAGE_INFO(thd, stage_alter_inplace_prepare);
 
   switch (inplace_supported) {
   case HA_ALTER_ERROR:
@@ -6328,6 +6329,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   DEBUG_SYNC(thd, "alter_table_inplace_after_lock_downgrade");
+  THD_STAGE_INFO(thd, stage_alter_inplace);
 
   if (table->file->ha_inplace_alter_table(altered_table,
                                           ha_alter_info))
@@ -6348,6 +6350,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     });
 
   DEBUG_SYNC(thd, "alter_table_inplace_before_commit");
+  THD_STAGE_INFO(thd, stage_alter_inplace_commit);
 
   if (table->file->ha_commit_inplace_alter_table(altered_table,
                                                  ha_alter_info,
