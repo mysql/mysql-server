@@ -5,14 +5,14 @@
 
 # ==== Purpose ====
 #
-# Test that @@GLOBAL.GTID_LOST is maintained correctly when the server
+# Test that @@GLOBAL.GTID_PURGED is maintained correctly when the server
 # restarts and when logs are purged.
 #
-# @@GLOBAL.GTID_LOST contains the GTIDs that were in binary logs that
+# @@GLOBAL.GTID_PURGED contains the GTIDs that were in binary logs that
 # have been purged.  It is initialized at server start and updated
 # each time logs are purged.
 #
-# Test that GTID_LOST is:
+# Test that GTID_PURGED is:
 # - updated when a log is purged
 # - initialized when the server is started
 # - initialized correctly even when the first binlog begins with a
@@ -32,7 +32,7 @@
 # Each big iteration has two phases:
 #  - In the first phase, we generate a sequence of binlogs.
 #  - In the second phase, we purge the binlogs, one at a time, and
-#    verify that GTID_LOST is updated accordingly.
+#    verify that GTID_PURGED is updated accordingly.
 #
 # In the first phase, we have three nested loops:
 #  - The innermost loop generates a sequence of transactions.
@@ -112,22 +112,22 @@ while ($corruption_mode <= $corruption_mode_count)
       --sync_slave_with_master
 
       --let $assert_text= no gtids lost yet on slave
-      --let $assert_cond= @@GTID_LOST = ""
+      --let $assert_cond= @@GTID_PURGED = ""
       --source include/assert.inc
 
       --let $assert_text= committed gno $gno on slave
-      --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_DONE, "$master_uuid:1-$gno")
+      --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1-$gno")
       --source include/assert.inc
 
       --echo [on master]
       --connection master
 
       --let $assert_text= no gtids lost yet on master
-      --let $assert_cond= @@GTID_LOST = ""
+      --let $assert_cond= @@GTID_PURGED = ""
       --source include/assert.inc
 
       --let $assert_text= committed gno $gno on master
-      --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_DONE, "$master_uuid:1-$gno")
+      --let $assert_cond= GTID_IS_EQUAL(@@GLOBAL.GTID_EXECUTED, "$master_uuid:1-$gno")
       --source include/assert.inc
 
       --inc $flush_i
@@ -152,12 +152,12 @@ while ($corruption_mode <= $corruption_mode_count)
 
     --source include/purge_first_log.inc
     --let $assert_text= lost gtids from 1 to $gno on master
-    --let $assert_cond= GTID_IS_EQUAL(@@GTID_LOST, "$master_uuid:1-$gno")
+    --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
     --source include/assert.inc
 
     --source include/purge_first_log.inc
     --let $assert_text= lost gtids from 1 to $gno on master
-    --let $assert_cond= GTID_IS_EQUAL(@@GTID_LOST, "$master_uuid:1-$gno")
+    --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
     --source include/assert.inc
 
     --let $flush_i= 1
@@ -167,7 +167,7 @@ while ($corruption_mode <= $corruption_mode_count)
       --echo -------- flush_i = $flush_i of $flush_count --------
       --source include/purge_first_log.inc
       --let $assert_text= lost gtids from 1 to $gno on master
-      --let $assert_cond= GTID_IS_EQUAL(@@GTID_LOST, "$master_uuid:1-$gno")
+      --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
       --source include/assert.inc
 
       # Increase $gno in the same manner as above.
@@ -181,7 +181,7 @@ while ($corruption_mode <= $corruption_mode_count)
 
       --source include/purge_first_log.inc
       --let $assert_text= lost gtids from 1 to $gno on master
-      --let $assert_cond= GTID_IS_EQUAL(@@GTID_LOST, "$master_uuid:1-$gno")
+      --let $assert_cond= GTID_IS_EQUAL(@@GTID_PURGED, "$master_uuid:1-$gno")
       --source include/assert.inc
 
       --inc $flush_i
