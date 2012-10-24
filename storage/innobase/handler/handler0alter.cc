@@ -5057,7 +5057,7 @@ trx_rollback:
 			}
 		}
 
-		if (ctx) {
+		if (ctx && !dict_table_is_discarded(prebuilt->table)) {
 			bool	stats_init_called = false;
 
 			for (uint i = 0; i < ctx->num_to_add; i++) {
