@@ -2698,7 +2698,7 @@ gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc);
 
 /**
   Check that the current statement does not contradict
-  disable_gtid_unsafe_statements, that there is no implicit commit in
+  enforce_gtid_consistency, that there is no implicit commit in
   a transaction when GTID_NEXT!=AUTOMATIC, and whether the statement
   should be cancelled.
 
