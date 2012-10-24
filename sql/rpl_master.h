@@ -41,15 +41,63 @@ void end_slave_list();
 int register_slave(THD* thd, uchar* packet, uint packet_length);
 void unregister_slave(THD* thd, bool only_mine, bool need_lock_slave_list);
 bool show_slave_hosts(THD* thd);
-bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length);
-bool com_binlog_dump(THD *thd, char *packet, uint packet_length);
-
 String *get_slave_uuid(THD *thd, String *value);
 bool show_master_status(THD* thd);
 bool show_binlogs(THD* thd);
 void kill_zombie_dump_threads(String *slave_uuid);
+
+/**
+  Process a COM_BINLOG_DUMP_GTID packet.
+
+  This function parses the packet and then calls mysql_binlog_send.
+
+  @param thd The dump thread.
+  @param packet The COM_BINLOG_DUMP_GTID packet.
+  @param packet_length The length of the packet in bytes.
+  @retval true Error
+  @retval false Success
+*/
+bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length);
+
+/**
+  Process a COM_BINLOG_DUMP packet.
+
+  This function parses the packet and then calls mysql_binlog_send.
+
+  @param thd The dump thread.
+  @param packet The COM_BINLOG_DUMP packet.
+  @param packet_length The length of the packet in bytes.
+  @retval true Error
+  @retval false Success
+*/
+bool com_binlog_dump(THD *thd, char *packet, uint packet_length);
+
+/**
+  Low-level function where the dump thread iterates over the binary
+  log and sends events to the slave.  This function is common for both
+  COM_BINLOG_DUMP and COM_BINLOG_DUMP_GTID.
+
+  @param thd The dump thread.
+
+  @param log_ident The filename of the binary log, as given in the
+  COM_BINLOG_DUMP[_GTID] packet.  If this is is an empty string (first
+  character is '\0'), we start with the oldest binary log.
+
+  @param pos The offset in the binary log, as given in the
+  COM_BINLOG_DUMP[_GTID] packet.  This must be at least 4 and at most
+  the size of the binary log file.
+
+  @param gtid_set The gtid_set that the slave sent, or NULL if the
+  protocol is COM_BINLOG_DUMP.
+
+  @note This function will start reading at the given (filename,
+  offset), or from the oldest log if filename[0]==0.  It will send all
+  events from that position; but if gtid_set!=NULL, it will skip all
+  events in that set.
+*/
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-                       ushort flags, const Gtid_set* grp_set= NULL);
+                       const Gtid_set* gtid_set);
+
 int reset_master(THD* thd);
 
 #endif /* HAVE_REPLICATION */
