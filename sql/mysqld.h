@@ -396,6 +396,9 @@ void init_server_psi_keys();
 */
 extern PSI_stage_info stage_after_create;
 extern PSI_stage_info stage_allocating_local_table;
+extern PSI_stage_info stage_alter_inplace_prepare;
+extern PSI_stage_info stage_alter_inplace;
+extern PSI_stage_info stage_alter_inplace_commit;
 extern PSI_stage_info stage_changing_master;
 extern PSI_stage_info stage_checking_master_version;
 extern PSI_stage_info stage_checking_permissions;
