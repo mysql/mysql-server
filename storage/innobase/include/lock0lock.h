@@ -885,7 +885,7 @@ struct lock_op_t{
 	enum lock_mode	mode;	/*!< lock mode */
 };
 
-typedef Mutex LockMutex;
+typedef ib_mutex_t LockMutex;
 
 /** The lock system struct */
 struct lock_sys_t{

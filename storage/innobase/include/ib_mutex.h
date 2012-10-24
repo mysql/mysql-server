@@ -845,7 +845,13 @@ struct PolicyMutex
 	typedef MutexImpl MutexType;
 	typedef typename MutexImpl::MutexPolicy Policy;
 
-	PolicyMutex() UNIV_NOTHROW : m_impl() { }
+	PolicyMutex() UNIV_NOTHROW : m_impl()
+	{
+#ifdef UNIV_PFS_MUTEX
+		m_ptr = 0;
+#endif /* UNIV_PFS_MUTEX */
+	}
+
 	~PolicyMutex() { }
 
 	/** Release the mutex. */
