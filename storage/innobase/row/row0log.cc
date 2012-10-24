@@ -1222,13 +1222,7 @@ row_log_table_apply_insert_low(
 #endif /* ROW_LOG_APPLY_PRINT */
 
 	static const ulint	flags
-		= log->same_pk
-		? (BTR_CREATE_FLAG
-		   | BTR_CREATE_SAME_PK_FLAG
-		   | BTR_NO_LOCKING_FLAG
-		   | BTR_NO_UNDO_LOG_FLAG
-		   | BTR_KEEP_SYS_FLAG)
-		: (BTR_CREATE_FLAG
+		= (BTR_CREATE_FLAG
 		   | BTR_NO_LOCKING_FLAG
 		   | BTR_NO_UNDO_LOG_FLAG
 		   | BTR_KEEP_SYS_FLAG);
@@ -1582,9 +1576,8 @@ insert:
 		/* The row was not found. Insert it. */
 		error = row_log_table_apply_insert_low(
 			thr, row, trx_id, offsets_heap, heap, dup);
-
-err_exit:
 		if (error != DB_SUCCESS) {
+err_exit:
 			/* Report the erroneous row using the new
 			version of the table. */
 			innobase_row_to_mysql(dup->table, log->table, row);
