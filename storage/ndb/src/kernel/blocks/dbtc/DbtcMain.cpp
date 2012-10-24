@@ -1855,6 +1855,13 @@ start_failure:
     abortErrorLab(signal);
     return;
   }
+  case 67:
+  {
+    jam();
+    terrorCode = ZNO_FREE_TC_MARKER_DATABUFFER;
+    abortErrorLab(signal);
+    return;
+  }
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -4427,12 +4434,18 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     for(Uint32 i = 0; i < noOfLqhs; i++)
     {
       jam();
+      if (ERROR_INSERTED(8096) && i+1 == noOfLqhs)
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+        TCKEY_abort(signal, 67);
+        return;
+      }
       if (!tmp->insert_in_commit_ack_marker(this,
                                             regTcPtr->lqhInstanceKey,
                                             regTcPtr->tcNodedata[i]))
       {
-        ndbout_c("Failed insert_in_commit_ack_marker");
-        ; //RONM TODO error handling
+        TCKEY_abort(signal, 67);
+        return;
       }
     }
   }
