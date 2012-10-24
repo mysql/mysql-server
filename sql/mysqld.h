@@ -214,7 +214,7 @@ extern ulong binlog_checksum_options;
 extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
-extern my_bool disable_gtid_unsafe_statements;
+extern my_bool enforce_gtid_consistency;
 enum enum_gtid_mode
 {
   /// Support only anonymous groups, not GTIDs.
@@ -396,6 +396,9 @@ void init_server_psi_keys();
 */
 extern PSI_stage_info stage_after_create;
 extern PSI_stage_info stage_allocating_local_table;
+extern PSI_stage_info stage_alter_inplace_prepare;
+extern PSI_stage_info stage_alter_inplace;
+extern PSI_stage_info stage_alter_inplace_commit;
 extern PSI_stage_info stage_changing_master;
 extern PSI_stage_info stage_checking_master_version;
 extern PSI_stage_info stage_checking_permissions;

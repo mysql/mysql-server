@@ -3698,6 +3698,14 @@ row_search_for_mysql(
 
 	ut_ad(index && pcur && search_tuple);
 
+	/* We don't support FTS queries from the HANDLER interfaces, because
+	we implemented FTS as reversed inverted index with auxiliary tables.
+	So anything related to traditional index query would not apply to
+	it. */
+	if (index->type & DICT_FTS) {
+		return(DB_END_OF_INDEX);
+	}
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
