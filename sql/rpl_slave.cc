@@ -2938,7 +2938,6 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     global_sid_lock->unlock();
      
     // allocate buffer
-    size_t unused_size= 0;
     size_t encoded_data_size= gtid_executed.get_encoded_length();
     size_t allocation_size= 
       ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
@@ -2949,18 +2948,16 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       goto err;
     uchar* ptr_buffer= command_buffer;
 
-    /*
-      The current implementation decides whether the Gtid must be
-      used based on the mi->auto_position field and the positions
-      in the binary log one wants to retrieve.
-    */
-    add_master_slave_proto(&binlog_flags,
-                           mi->is_auto_position() &&
-                           BINLOG_NAME_INFO_SIZE == 0 &&
-                           mi->get_master_log_pos() == BIN_LOG_HEADER_SIZE ?
-                           BINLOG_THROUGH_GTID : BINLOG_THROUGH_POSITION);
     DBUG_PRINT("info", ("Do I know something about the master? (binary log's name %s - auto position %d).",
                mi->get_master_log_name(), mi->is_auto_position()));
+    /*
+      Note: binlog_flags is always 0.  However, in versions up to 5.6
+      RC, the master would check the lowest bit and do something
+      unexpected if it was set; in early versions of 5.6 it would also
+      use the two next bits.  Therefore, for backward compatibility,
+      if we ever start to use the flags, we should leave the three
+      lowest bits unused.
+    */
     int2store(ptr_buffer, binlog_flags);
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
@@ -2972,30 +2969,13 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     int8store(ptr_buffer, mi->get_master_log_pos());
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
 
-    DBUG_PRINT("info",
-               ("is_master_slave_proto=%d",
-                is_master_slave_proto(binlog_flags, BINLOG_THROUGH_GTID)));
-    if (is_master_slave_proto(binlog_flags, BINLOG_THROUGH_GTID))
-    {
-      int4store(ptr_buffer, encoded_data_size);
-      ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
-      gtid_executed.encode(ptr_buffer);
-      ptr_buffer+= encoded_data_size;
-      /*
-        Resetting the name of the file in order to force to start
-        reading from the oldest binary log available.
-      */
-      DBUG_ASSERT(BINLOG_NAME_INFO_SIZE == 0 &&
-                  mi->get_master_log_pos() == BIN_LOG_HEADER_SIZE);
-      gtid_executed.dbug_print("sending gtid set");
-    }
-    else
-    {
-      unused_size= ::BINLOG_DATA_SIZE_INFO_SIZE + encoded_data_size;
-    }
+    int4store(ptr_buffer, encoded_data_size);
+    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+    gtid_executed.encode(ptr_buffer);
+    ptr_buffer+= encoded_data_size;
 
     command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - unused_size - 1));
+    DBUG_ASSERT(command_size == (allocation_size - 1));
   }
   else
   {
@@ -3008,6 +2988,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
   
     int4store(ptr_buffer, mi->get_master_log_pos());
     ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
+    // See comment regarding binlog_flags above.
     int2store(ptr_buffer, binlog_flags);
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
