@@ -2925,11 +2925,11 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
   {
     // get set of GTIDs
     Sid_map sid_map(NULL/*no lock needed*/);
-    Gtid_set gtid_done(&sid_map);
+    Gtid_set gtid_executed(&sid_map);
     global_sid_lock->wrlock();
     gtid_state->dbug_print();
-    if (gtid_done.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK ||
-        gtid_done.add_gtid_set(gtid_state->get_logged_gtids()) !=
+    if (gtid_executed.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK ||
+        gtid_executed.add_gtid_set(gtid_state->get_logged_gtids()) !=
         RETURN_STATUS_OK)
     {
       global_sid_lock->unlock();
@@ -2939,7 +2939,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
      
     // allocate buffer
     size_t unused_size= 0;
-    size_t encoded_data_size= gtid_done.get_encoded_length();
+    size_t encoded_data_size= gtid_executed.get_encoded_length();
     size_t allocation_size= 
       ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
       ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
@@ -2979,7 +2979,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     {
       int4store(ptr_buffer, encoded_data_size);
       ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
-      gtid_done.encode(ptr_buffer);
+      gtid_executed.encode(ptr_buffer);
       ptr_buffer+= encoded_data_size;
       /*
         Resetting the name of the file in order to force to start
@@ -2987,7 +2987,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       */
       DBUG_ASSERT(BINLOG_NAME_INFO_SIZE == 0 &&
                   mi->get_master_log_pos() == BIN_LOG_HEADER_SIZE);
-      gtid_done.dbug_print("sending gtid set");
+      gtid_executed.dbug_print("sending gtid set");
     }
     else
     {

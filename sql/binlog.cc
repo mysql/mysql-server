@@ -7203,7 +7203,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       }
     }
 
-    if (!error && disable_gtid_unsafe_statements &&
+    if (!error && enforce_gtid_consistency &&
         !is_dml_gtid_compatible(write_to_some_non_transactional_table,
                                 write_all_non_transactional_are_tmp_tables))
       error= 1;
