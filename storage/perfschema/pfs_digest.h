@@ -38,16 +38,18 @@ struct PFS_thread;
 /**
   Structure to store a MD5 hash value (digest) for a statement.
 */
-struct PFS_digest_hash
+struct PFS_digest_key
 {
   unsigned char m_md5[PFS_MD5_SIZE];
+  char m_schema_name[NAME_LEN];
+  uint m_schema_name_length;
 };
 
 /** A statement digest stat record. */
 struct PFS_ALIGNED PFS_statements_digest_stat
 {
-  /** Digest MD5 Hash. */
-  PFS_digest_hash m_digest_hash;
+  /** Digest Schema + MD5 Hash. */
+  PFS_digest_key m_digest_key;
 
   /** Digest Storage. */
   PSI_digest_storage m_digest_storage;
@@ -71,7 +73,9 @@ void cleanup_digest();
 int init_digest_hash(void);
 void cleanup_digest_hash(void);
 PFS_statement_stat* find_or_create_digest(PFS_thread *thread,
-                                          PSI_digest_storage *digest_storage);
+                                          PSI_digest_storage *digest_storage,
+                                          const char *schema_name,
+                                          uint schema_name_length);
 
 void get_digest_text(char *digest_text, PSI_digest_storage *digest_storage);
 
