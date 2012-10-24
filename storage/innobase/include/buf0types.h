@@ -116,6 +116,6 @@ this must be equal to UNIV_PAGE_SIZE */
 #define BUF_BUDDY_HIGH	(BUF_BUDDY_LOW << BUF_BUDDY_SIZES)
 /* @} */
 
-typedef SpinMutex BPageMutex;
+typedef ib_mutex_t BPageMutex;
 
 #endif /* buf0types.h */
