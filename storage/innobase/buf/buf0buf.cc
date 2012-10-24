@@ -966,6 +966,8 @@ buf_block_init(
 #endif /* UNIV_AHI_DEBUG || UNIV_DEBUG */
 	page_zip_des_init(&block->page.zip);
 
+	mutex_create("buf_block_mutex", &block->mutex);
+
 #if defined PFS_SKIP_BUFFER_MUTEX_RWLOCK || defined PFS_GROUP_BUFFER_SYNC
 	/* If PFS_SKIP_BUFFER_MUTEX_RWLOCK is defined, skip registration
 	of buffer block mutex/rwlock with performance schema. If
@@ -973,8 +975,7 @@ buf_block_init(
 	since buffer block mutex/rwlock will be registered later in
 	pfs_register_buffer_block() */
 
-	// FIXME: HANDLE PFS_NOT_INSTRUMENTED
-	mutex_create("buf_block_mutex", &block->mutex);
+	// FIXME: HANDLE PFS_NOT_INSTRUMENTED for Mutexes
 
 	rw_lock_create(PFS_NOT_INSTRUMENTED, &block->lock, SYNC_LEVEL_VARYING);
 
