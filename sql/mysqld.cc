@@ -477,7 +477,7 @@ ulong binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
-my_bool disable_gtid_unsafe_statements;
+my_bool enforce_gtid_consistency;
 ulong gtid_mode;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
@@ -4871,9 +4871,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates");
     unireg_abort(1);
   }
-  if (gtid_mode >= 2 && !disable_gtid_unsafe_statements)
+  if (gtid_mode >= 2 && !enforce_gtid_consistency)
   {
-    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --disable-gtid-unsafe-statements");
+    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --enforce-gtid-consistency");
     unireg_abort(1);
   }
   if (gtid_mode == 1 || gtid_mode == 2)
