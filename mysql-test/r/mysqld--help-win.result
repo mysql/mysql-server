@@ -1014,10 +1014,10 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
-enforce-gtid-consistency FALSE
 disconnect-slave-event-count 0
 div-precision-increment 4
 end-markers-in-json FALSE
+enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 10
 event-scheduler OFF
 expire-logs-days 0
