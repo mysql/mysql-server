@@ -1855,6 +1855,13 @@ start_failure:
     abortErrorLab(signal);
     return;
   }
+  case 67:
+  {
+    jam();
+    terrorCode = ZNO_FREE_TC_MARKER_DATABUFFER;
+    abortErrorLab(signal);
+    return;
+  }
   default:
     jam();
     systemErrorLab(signal, __LINE__);
@@ -4251,6 +4258,21 @@ Dbtc::CommitAckMarker::insert_in_commit_ack_marker(Dbtc *tc,
   Uint32 item = instanceKey + (node_id << 16);
   CommitAckMarkerBuffer::DataBufferPool & pool =
     tc->c_theCommitAckMarkerBufferPool;
+  // check for duplicate (todo DataBuffer method find-or-append)
+  {
+    LocalDataBuffer<5> tmp(pool, this->theDataBuffer);
+    CommitAckMarkerBuffer::Iterator iter;
+    bool next_flag = tmp.first(iter);
+    while (next_flag)
+    {
+      Uint32 dataWord = *iter.data;
+      if (dataWord == item)
+      {
+        return true;
+      }
+      next_flag = tmp.next(iter, 1);
+    }
+  }
   LocalDataBuffer<5> tmp(pool, this->theDataBuffer);
   return tmp.append(&item, (Uint32)1);
 }
@@ -4412,12 +4434,18 @@ void Dbtc::execLQHKEYCONF(Signal* signal)
     for(Uint32 i = 0; i < noOfLqhs; i++)
     {
       jam();
+      if (ERROR_INSERTED(8096) && i+1 == noOfLqhs)
+      {
+        CLEAR_ERROR_INSERT_VALUE;
+        TCKEY_abort(signal, 67);
+        return;
+      }
       if (!tmp->insert_in_commit_ack_marker(this,
                                             regTcPtr->lqhInstanceKey,
                                             regTcPtr->tcNodedata[i]))
       {
-        ndbout_c("Failed insert_in_commit_ack_marker");
-        ; //RONM TODO error handling
+        TCKEY_abort(signal, 67);
+        return;
       }
     }
   }
