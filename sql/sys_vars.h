@@ -2090,17 +2090,17 @@ public:
 
 
 /**
-  Class for @@session.gtid_done and @@global.gtid_done.
+  Class for @@session.gtid_executed and @@global.gtid_executed.
 */
-class Sys_var_gtid_done : Sys_var_gtid_set_func
+class Sys_var_gtid_executed : Sys_var_gtid_set_func
 {
 public:
-  Sys_var_gtid_done(const char *name_arg, const char *comment_arg)
+  Sys_var_gtid_executed(const char *name_arg, const char *comment_arg)
     : Sys_var_gtid_set_func(name_arg, comment_arg, SESSION) {}
 
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
-    DBUG_ENTER("Sys_var_gtid_done::global_value_ptr");
+    DBUG_ENTER("Sys_var_gtid_executed::global_value_ptr");
     global_sid_lock->wrlock();
     const Gtid_set *gs= gtid_state->get_logged_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
@@ -2115,7 +2115,7 @@ public:
 private:
   static enum_return_status get_groups_from_trx_cache(THD *thd, Gtid_set *gs)
   {
-    DBUG_ENTER("Sys_var_gtid_done::get_groups_from_trx_cache");
+    DBUG_ENTER("Sys_var_gtid_executed::get_groups_from_trx_cache");
     if (opt_bin_log)
     {
       thd->binlog_setup_trx_data();
@@ -2133,17 +2133,17 @@ public:
 
 
 /**
-  Class for @@session.gtid_lost and @@global.gtid_lost.
+  Class for @@session.gtid_purged and @@global.gtid_purged.
 */
-class Sys_var_gtid_lost : Sys_var_gtid_set_func
+class Sys_var_gtid_purged : Sys_var_gtid_set_func
 {
 public:
-  Sys_var_gtid_lost(const char *name_arg, const char *comment_arg)
+  Sys_var_gtid_purged(const char *name_arg, const char *comment_arg)
     : Sys_var_gtid_set_func(name_arg, comment_arg, GLOBAL) {}
 
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
-    DBUG_ENTER("Sys_var_gtid_lost::global_value_ptr");
+    DBUG_ENTER("Sys_var_gtid_purged::global_value_ptr");
     global_sid_lock->wrlock();
     const Gtid_set *gs= gtid_state->get_lost_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
