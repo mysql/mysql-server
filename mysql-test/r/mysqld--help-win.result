@@ -165,12 +165,6 @@ The following options may be given as the first argument:
  client that does INSERT DELAYED will wait until there is
  room in the queue again.This variable is deprecated along
  with INSERT DELAYED.
- --disable-gtid-unsafe-statements 
- Prevents execution of statements that would be impossible
- to log in a transactionally safe manner. Currently, the
- disallowed statements include CREATE TEMPORARY TABLE
- inside transactions, all updates to non-transactional
- tables, and CREATE TABLE ... SELECT.
  --disconnect-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
  replication.
@@ -181,6 +175,12 @@ The following options may be given as the first argument:
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
  key (if it has one) near the closing bracket
+ --enforce-gtid-consistency 
+ Prevents execution of statements that would be impossible
+ to log in a transactionally safe manner. Currently, the
+ disallowed statements include CREATE TEMPORARY TABLE
+ inside transactions, all updates to non-transactional
+ tables, and CREATE TABLE ... SELECT.
  --eq-range-index-dive-limit=# 
  The optimizer will use existing index statistics instead
  of doing index dives for equality ranges if the number of
@@ -1014,7 +1014,7 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
-disable-gtid-unsafe-statements FALSE
+enforce-gtid-consistency FALSE
 disconnect-slave-event-count 0
 div-precision-increment 4
 end-markers-in-json FALSE
