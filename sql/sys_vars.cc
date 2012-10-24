@@ -4107,16 +4107,16 @@ static Sys_var_charptr Sys_ignore_db_dirs(
 
 /*
   This code is not being used but we will keep it as it may be
-  useful if we decide to keeep disable_gtid_unsafe_statements.
+  useful if we decide to keeep enforce_gtid_consistency.
 */
 #ifdef NON_DISABLED_GTID
-static bool check_disable_gtid_unsafe_statements(
+static bool check_enforce_gtid_consistency(
   sys_var *self, THD *thd, set_var *var)
 {
-  DBUG_ENTER("check_disable_gtid_unsafe_statements");
+  DBUG_ENTER("check_enforce_gtid_consistency");
 
   my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-           "DISABLE_GTID_UNSAFE_STATEMENTS");
+           "ENFORCE_GTID_CONSISTENCY");
   DBUG_RETURN(true);
 
   if (check_top_level_stmt_and_super(self, thd, var) ||
@@ -4124,24 +4124,24 @@ static bool check_disable_gtid_unsafe_statements(
     DBUG_RETURN(true);
   if (gtid_mode >= 2 && var->value->val_int() == 0)
   {
-    my_error(ER_GTID_MODE_2_OR_3_REQUIRES_DISABLE_GTID_UNSAFE_STATEMENTS_ON, MYF(0));
+    my_error(ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON, MYF(0));
     DBUG_RETURN(true);
   }
   DBUG_RETURN(false);
 }
 #endif
 
-static Sys_var_mybool Sys_disable_gtid_unsafe_statements(
-       "disable_gtid_unsafe_statements",
+static Sys_var_mybool Sys_enforce_gtid_consistency(
+       "enforce_gtid_consistency",
        "Prevents execution of statements that would be impossible to log "
        "in a transactionally safe manner. Currently, the disallowed "
        "statements include CREATE TEMPORARY TABLE inside transactions, "
        "all updates to non-transactional tables, and CREATE TABLE ... SELECT.",
-       READ_ONLY GLOBAL_VAR(disable_gtid_unsafe_statements),
+       READ_ONLY GLOBAL_VAR(enforce_gtid_consistency),
        CMD_LINE(OPT_ARG), DEFAULT(FALSE),
        NO_MUTEX_GUARD, NOT_IN_BINLOG
 #ifdef NON_DISABLED_GTID
-       , ON_CHECK(check_disable_gtid_unsafe_statements));
+       , ON_CHECK(check_enforce_gtid_consistency));
 #else
        );
 #endif
@@ -4294,14 +4294,14 @@ static Sys_var_gtid_specification Sys_gtid_next(
        NOT_IN_BINLOG, ON_CHECK(check_gtid_next), ON_UPDATE(update_gtid_next));
 export sys_var *Sys_gtid_next_ptr= &Sys_gtid_next;
 
-static Sys_var_gtid_done Sys_gtid_done(
-       "gtid_done",
+static Sys_var_gtid_executed Sys_gtid_executed(
+       "gtid_executed",
        "The global variable contains the set of GTIDs in the "
        "binary log. The session variable contains the set of GTIDs "
        "in the current, ongoing transaction.");
 
-static Sys_var_gtid_lost Sys_gtid_lost(
-       "gtid_lost",
+static Sys_var_gtid_purged Sys_gtid_purged(
+       "gtid_purged",
        "The set of GTIDs that existed in previous, purged binary logs.");
 
 static Sys_var_gtid_owned Sys_gtid_owned(
@@ -4350,9 +4350,9 @@ static bool check_gtid_mode(sys_var *self, THD *thd, set_var *var)
       DBUG_RETURN(true);
     }
     */
-    if (!disable_gtid_unsafe_statements)
+    if (!enforce_gtid_consistency)
     {
-      //my_error(ER_GTID_MODE_2_OR_3_REQUIRES_DISABLE_GTID_UNSAFE_STATEMENTS), MYF(0));
+      //my_error(ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY), MYF(0));
       DBUG_RETURN(true);
     }
   }
