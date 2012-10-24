@@ -740,7 +740,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
   const uchar* packet_position= (uchar *) packet;
   uint packet_bytes_todo= packet_length;
   Sid_map sid_map(NULL/*no sid_lock because this is a completely local object*/);
-  Gtid_set slave_gtid_done(&sid_map);
+  Gtid_set slave_gtid_executed(&sid_map);
 
   status_var_increment(thd->status_var.com_other);
   thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -761,10 +761,10 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
 
     if (mysql_bin_log.is_open())
     {
-      if (slave_gtid_done.add_gtid_encoding(packet_position, data_size) !=
+      if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
           RETURN_STATUS_OK)
         DBUG_RETURN(true);
-      gtid_string= slave_gtid_done.to_string();
+      gtid_string= slave_gtid_executed.to_string();
     }
   }
   DBUG_PRINT("info", ("Slave %d requested to read %s at position %llu gtid set "
@@ -775,7 +775,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
   general_log_print(thd, thd->get_command(), "Log: '%s' Pos: %llu GTIDs: '%s'",
                     name, pos, gtid_string);
   my_free(gtid_string);
-  mysql_binlog_send(thd, name, (my_off_t) pos, flags, &slave_gtid_done);
+  mysql_binlog_send(thd, name, (my_off_t) pos, flags, &slave_gtid_executed);
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
@@ -791,7 +791,7 @@ error_malformed_packet:
 */
 
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-		       ushort flags, const Gtid_set* slave_gtid_done)
+		       ushort flags, const Gtid_set* slave_gtid_executed)
 {
 #define GOTO_ERR                                                        \
   do {                                                                  \
@@ -807,7 +807,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   bool using_gtid_proto= is_master_slave_proto(flags, BINLOG_THROUGH_GTID);
   bool searching_first_gtid= using_gtid_proto;
   bool skip_group= false;
-  Sid_map *sid_map= slave_gtid_done ? slave_gtid_done->get_sid_map() : NULL;
+  Sid_map *sid_map= slave_gtid_executed ? slave_gtid_executed->get_sid_map() : NULL;
 
   IO_CACHE log;
   File file = -1;
@@ -890,10 +890,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     GOTO_ERR;
   }
 
-  if (slave_gtid_done != NULL)
+  if (slave_gtid_executed != NULL)
   {
     global_sid_lock->wrlock();
-    if (!gtid_state->get_lost_gtids()->is_subset(slave_gtid_done))
+    if (!gtid_state->get_lost_gtids()->is_subset(slave_gtid_executed))
     {
       global_sid_lock->unlock();
       errmsg= ER(ER_MASTER_HAS_PURGED_REQUIRED_GTIDS);
@@ -1196,7 +1196,7 @@ impossible position";
           Gtid_log_event gtid_ev(packet->ptr() + ev_offset,
                                  packet->length() - checksum_size,
                                  p_fdle);
-          skip_group= slave_gtid_done->contains_gtid(gtid_ev.get_sidno(sid_map),
+          skip_group= slave_gtid_executed->contains_gtid(gtid_ev.get_sidno(sid_map),
                                                      gtid_ev.get_gno());
           searching_first_gtid= skip_group;
           DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) skip group(%d) "
@@ -1465,7 +1465,7 @@ impossible position";
                                      packet->length() - checksum_size,
                                      p_fdle);
               skip_group=
-                slave_gtid_done->contains_gtid(gtid_ev.get_sidno(sid_map),
+                slave_gtid_executed->contains_gtid(gtid_ev.get_sidno(sid_map),
                                                gtid_ev.get_gno());
               searching_first_gtid= skip_group;
               DBUG_PRINT("info", ("Dumping GTID sidno(%d) gno(%lld) "

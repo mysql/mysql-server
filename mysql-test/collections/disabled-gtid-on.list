@@ -40,7 +40,7 @@ lock_sync: Skipped and the reason requires further analysis.
 
 rpl_gtid_mode : Skipped due to problems in the test.
 binlog_gtid_errors : Skipped due to problems in the test.
-binlog_disable_gtid_unsafe_statements : Skipped due to problems in the test.
+binlog_enforce_gtid_consistency : Skipped due to problems in the test.
 rpl_gtid_execution : Skipped due to problems in the test.
 
 
