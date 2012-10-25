@@ -241,11 +241,26 @@ extern ulint*	srv_data_file_is_raw_partition;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
+
+extern ulint	srv_temp_tablespace_id;
+
+extern ulint	srv_n_temp_data_files;
+extern char**	srv_temp_data_file_names;
+extern ulint*	srv_temp_data_file_sizes;
+extern ulint*	srv_temp_data_file_is_raw_partition;
+
+extern ibool	srv_auto_extend_last_temp_data_file;
+extern ulint	srv_last_temp_data_file_size_max;
+
 extern char*	srv_log_group_home_dir;
 #ifndef UNIV_HOTBACKUP
 extern ulong	srv_auto_extend_increment;
 
 extern ibool	srv_created_new_raw;
+
+extern ulong	srv_temp_data_auto_extend_increment;
+
+extern ibool	srv_temp_data_created_new_raw;
 
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
