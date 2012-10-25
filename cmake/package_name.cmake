@@ -122,7 +122,7 @@ IF(NOT VERSION)
     SET(package_name "mysql${PRODUCT_TAG}-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
   ENDIF()
 
-  MESSAGE("-- Packaging as: ${package_name}")
+  MESSAGE(STATUS "Packaging as: ${package_name}")
 
   # Sometimes package suffix is added (something like "-icc-glibc23")
   IF(PACKAGE_SUFFIX)

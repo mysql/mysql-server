@@ -3475,7 +3475,7 @@ fts_get_max_doc_id(
 
 	/* fetch the largest indexes value */
 	btr_pcur_open_at_index_side(
-		FALSE, index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
 		const rec_t*    rec = NULL;

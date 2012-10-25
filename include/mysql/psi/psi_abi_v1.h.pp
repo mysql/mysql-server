@@ -281,6 +281,8 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_rows;
   ulong m_sort_scan;
   PSI_digest_locker_state m_digest_state;
+  char m_schema_name[(64 * 3)];
+  uint m_schema_name_length;
 };
 struct PSI_socket_locker_state_v1
 {

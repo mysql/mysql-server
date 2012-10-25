@@ -45,20 +45,6 @@ const int BINLOG_FLAGS_INFO_SIZE= 2;
 const int BINLOG_SERVER_ID_INFO_SIZE= 4;
 const int BINLOG_NAME_SIZE_INFO_SIZE= 4;
 
-enum Master_Slave_Proto
-{
-  BINLOG_DUMP_NON_BLOCK = 0,
-
-  BINLOG_THROUGH_POSITION = 1,
-
-  BINLOG_THROUGH_GTID = 2,
-
-  BINLOG_END
-};
-
-void add_master_slave_proto(ushort *flag, enum Master_Slave_Proto pt);
-bool is_master_slave_proto(ushort flag, enum Master_Slave_Proto pt);
-
 /**
    Enumeration of the reserved formats of Binlog extra row information
 */

@@ -11,6 +11,7 @@
 -- source include/have_innodb.inc
 -- source include/not_embedded.inc
 -- source include/have_innodb_16k.inc
+-- source include/not_valgrind.inc
 
 -- vertical_results
 
