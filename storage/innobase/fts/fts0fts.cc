@@ -1482,7 +1482,7 @@ fts_drop_table(
 
 		if (error != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unale to drop FTS index aux table %s: %s",
+				"Unable to drop FTS index aux table %s: %s",
 				table_name, ut_strerr(error));
 		}
 	} else {
