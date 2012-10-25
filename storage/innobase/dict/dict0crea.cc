@@ -321,11 +321,11 @@ dict_build_table_def_step(
 		features by keeping only the first bit which says whether
 		the row format is redundant or compact */
 		table->flags &= DICT_TF_COMPACT;
-		
+
 		/* All non-compressed temporary tables are stored in
 		shared temp-tablespace */
 		if (dict_table_is_temporary(table)) {
-			table->space = srv_temp_tablespace_id;		
+			table->space = srv_temp_tablespace_id;
 		}
 	}
 

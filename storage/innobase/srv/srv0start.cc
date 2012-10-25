@@ -635,7 +635,7 @@ srv_parse_temp_data_file_paths_and_sizes(
 			}
 		}
 	}
-	
+
 	/* Disable raw device for temp-tablespace */
 	for (ulint k = 0; k < srv_n_temp_data_files; k++) {
 		if ((srv_temp_data_file_is_raw_partition)[k] != SRV_NOT_RAW) {
@@ -672,12 +672,12 @@ srv_free_paths_and_sizes(void)
 		free(srv_temp_data_file_names);
 		srv_temp_data_file_names = NULL;
 	}
-	
+
 	if (srv_temp_data_file_sizes) {
 		free(srv_temp_data_file_sizes);
 		srv_temp_data_file_sizes = NULL;
 	}
-	
+
 	if (srv_temp_data_file_is_raw_partition) {
 		free(srv_temp_data_file_is_raw_partition);
 		srv_temp_data_file_is_raw_partition = NULL;
@@ -1296,6 +1296,9 @@ skip_size_check:
 			*sum_of_new_sizes += srv_data_file_sizes[i];
 		}
 
+		ret = os_file_close(files[i]);
+		ut_a(ret);
+
 		if (i == 0) {
 			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
 			fil_space_create(name, 0, flags, FIL_TABLESPACE);
@@ -1437,7 +1440,7 @@ open_or_create_temp_data_files(void)
 			<< UNIV_PAGE_SIZE_SHIFT);
 
 		size_of_temp_tablespace += srv_temp_data_file_sizes[i];
-	
+
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Error in creating %s: "
@@ -1446,9 +1449,6 @@ open_or_create_temp_data_files(void)
 
 			return(DB_ERROR);
 		}
-
-		// ret = os_file_close(files[i]);
-		// ut_a(ret);
 
 		if (i == 0) {
 			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
@@ -1462,15 +1462,15 @@ open_or_create_temp_data_files(void)
 		ut_a(fil_validate());
 
 		if (!fil_node_create(
-			name, srv_temp_data_file_sizes[i], 
-			srv_temp_tablespace_id, 
+			name, srv_temp_data_file_sizes[i],
+			srv_temp_tablespace_id,
 			srv_temp_data_file_is_raw_partition[i] != 0)) {
 			return(DB_ERROR);
 		}
 	}
 
 	mtr_start(&mtr);
-	
+
 	fsp_header_init(srv_temp_tablespace_id, size_of_temp_tablespace, &mtr);
 
 	mtr_commit(&mtr);
@@ -2903,7 +2903,7 @@ files_checked:
 
 		return(err);
 	}
-	
+
 #ifdef UNIV_LOG_ARCHIVE
 	/* Archiving is always off under MySQL */
 	if (!srv_log_archive_on) {

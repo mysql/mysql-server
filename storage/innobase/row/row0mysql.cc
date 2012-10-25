@@ -2250,7 +2250,7 @@ err_exit:
 
 	err = trx->error_state;
 
-	if (table->space != TRX_SYS_SPACE 
+	if (table->space != TRX_SYS_SPACE
 	    && table->space != srv_temp_tablespace_id) {
 		ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE));
 
