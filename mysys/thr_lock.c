@@ -588,11 +588,11 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
       */
 
       DBUG_PRINT("lock",("write locked 1 by thread: 0x%lx",
-			 lock->write.data->owner->thread_id));
+                         lock->write.data->owner->thread_id));
       if (thr_lock_owner_equal(data->owner, lock->write.data->owner) ||
-	  (lock->write.data->type <= TL_WRITE_CONCURRENT_INSERT &&
-	   (((int) lock_type <= (int) TL_READ_HIGH_PRIORITY) ||
-	    (lock->write.data->type != TL_WRITE_CONCURRENT_INSERT))))
+          (lock->write.data->type < TL_WRITE_CONCURRENT_INSERT) ||
+          ((lock->write.data->type == TL_WRITE_CONCURRENT_INSERT) &&
+           ((int) lock_type <= (int) TL_READ_HIGH_PRIORITY)))
       {						/* Already got a write lock */
 	(*lock->read.last)=data;		/* Add to running FIFO */
 	data->prev=lock->read.last;
@@ -1267,56 +1267,6 @@ void thr_downgrade_write_lock(THR_LOCK_DATA *in_data,
 
   mysql_mutex_unlock(&lock->mutex);
   DBUG_VOID_RETURN;
-}
-
-/* Upgrade a WRITE_DELAY lock to a WRITE_LOCK */
-
-my_bool thr_upgrade_write_delay_lock(THR_LOCK_DATA *data,
-                                     enum thr_lock_type new_lock_type,
-                                     ulong lock_wait_timeout)
-{
-  THR_LOCK *lock=data->lock;
-  DBUG_ENTER("thr_upgrade_write_delay_lock");
-
-  mysql_mutex_lock(&lock->mutex);
-  if (data->type == TL_UNLOCK || data->type >= TL_WRITE_LOW_PRIORITY)
-  {
-    mysql_mutex_unlock(&lock->mutex);
-    DBUG_RETURN(data->type == TL_UNLOCK);	/* Test if Aborted */
-  }
-  check_locks(lock,"before upgrading lock",0);
-  /* TODO:  Upgrade to TL_WRITE_CONCURRENT_INSERT in some cases */
-  data->type= new_lock_type;                    /* Upgrade lock */
-
-  /* Check if someone has given us the lock */
-  if (!data->cond)
-  {
-    if (!lock->read.data)			/* No read locks */
-    {						/* We have the lock */
-      if (data->lock->get_status)
-	(*data->lock->get_status)(data->status_param, 0);
-      mysql_mutex_unlock(&lock->mutex);
-      DBUG_RETURN(0);
-    }
-
-    if (((*data->prev)=data->next))		/* remove from lock-list */
-      data->next->prev= data->prev;
-    else
-      lock->write.last=data->prev;
-
-    if ((data->next=lock->write_wait.data))	/* Put first in lock_list */
-      data->next->prev= &data->next;
-    else
-      lock->write_wait.last= &data->next;
-    data->prev= &lock->write_wait.data;
-    lock->write_wait.data=data;
-    check_locks(lock,"upgrading lock",0);
-  }
-  else
-  {
-    check_locks(lock,"waiting for lock",0);
-  }
-  DBUG_RETURN(wait_for_lock(&lock->write_wait,data,1, lock_wait_timeout));
 }
 
 
