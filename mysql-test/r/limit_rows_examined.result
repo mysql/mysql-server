@@ -318,7 +318,7 @@ LIMIT ROWS EXAMINED 9;
 c1
 bb
 Warnings:
-Warning	1931	Query execution was interrupted. The query examined at least 10 rows, which exceeds LIMIT ROWS EXAMINED (9). The query result may be incomplete.
+Warning	1931	Query execution was interrupted. The query examined at least 12 rows, which exceeds LIMIT ROWS EXAMINED (9). The query result may be incomplete.
 Same as above, without subquery cache
 set @@optimizer_switch='subquery_cache=off';
 select * from t1
@@ -347,7 +347,7 @@ LIMIT ROWS EXAMINED 5;
 c1
 bb
 Warnings:
-Warning	1931	Query execution was interrupted. The query examined at least 6 rows, which exceeds LIMIT ROWS EXAMINED (5). The query result may be incomplete.
+Warning	1931	Query execution was interrupted. The query examined at least 7 rows, which exceeds LIMIT ROWS EXAMINED (5). The query result may be incomplete.
 Subqueries with materialization
 set @@optimizer_switch='semijoin=off,in_to_exists=off,materialization=on,subquery_cache=on';
 explain

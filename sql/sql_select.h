@@ -1459,7 +1459,6 @@ class store_key :public Sql_alloc
 {
 public:
   bool null_key; /* TRUE <=> the value of the key has a null part */
-  enum store_key_result { STORE_KEY_OK, STORE_KEY_FATAL, STORE_KEY_CONV };
   enum Type { FIELD_STORE_KEY, ITEM_STORE_KEY, CONST_ITEM_STORE_KEY };
   store_key(THD *thd, Field *field_arg, uchar *ptr, uchar *null, uint length)
     :null_key(0), null_ptr(null), err(0)
@@ -1496,9 +1495,9 @@ public:
     @details this function makes sure truncation warnings when preparing the
     key buffers don't end up as errors (because of an enclosing INSERT/UPDATE).
   */
-  enum store_key_result copy()
+  bool copy()
   {
-    enum store_key_result result;
+    bool result;
     THD *thd= to_field->table->in_use;
     enum_check_fields saved_count_cuted_fields= thd->count_cuted_fields;
     ulonglong sql_mode= thd->variables.sql_mode;
@@ -1520,7 +1519,7 @@ public:
   uchar *null_ptr;
   uchar err;
 
-  virtual enum store_key_result copy_inner()=0;
+  virtual bool copy_inner()=0;
 };
 
 
@@ -1552,7 +1551,7 @@ class store_key_field: public store_key
   }
 
  protected: 
-  enum store_key_result copy_inner()
+  bool copy_inner()
   {
     TABLE *table= copy_field.to_field->table;
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
@@ -1569,7 +1568,7 @@ class store_key_field: public store_key
     copy_field.do_copy(&copy_field);
     dbug_tmp_restore_column_map(table->write_set, old_map);
     null_key= to_field->is_null();
-    return err != 0 ? STORE_KEY_FATAL : STORE_KEY_OK;
+    return test(err);
   }
 };
 
@@ -1599,12 +1598,12 @@ public:
   const char *name() const { return "func"; }
 
  protected:  
-  enum store_key_result copy_inner()
+  bool copy_inner()
   {
     TABLE *table= to_field->table;
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
                                                      table->write_set);
-    int res= FALSE;
+    int res= 0;
 
     /* 
       It looks like the next statement is needed only for a simplified
@@ -1623,11 +1622,10 @@ public:
      we need to check for errors executing it and react accordingly
     */
     if (!res && table->in_use->is_error())
-      res= 1; /* STORE_KEY_FATAL */
+      res= 1;
     dbug_tmp_restore_column_map(table->write_set, old_map);
     null_key= to_field->is_null() || item->null_value;
-    return ((err != 0 || res < 0 || res > 2) ? STORE_KEY_FATAL : 
-            (store_key_result) res);
+    return ((err != 0 || res < 0 || res > 2) ? true : test(res));
   }
 };
 
@@ -1653,7 +1651,7 @@ public:
   bool store_key_is_const() { return true; }
 
 protected:  
-  enum store_key_result copy_inner()
+  bool copy_inner()
   {
     int res;
     if (!inited)
@@ -1665,18 +1663,18 @@ protected:
       if ((res= item->save_in_field(to_field, 1)))
       {       
         if (!err)
-          err= res < 0 ? 1 : res; /* 1=STORE_KEY_FATAL */
+          err= res < 0 ? 1 : res;
       }
       /*
         Item::save_in_field() may call Item::val_xxx(). And if this is a subquery
         we need to check for errors executing it and react accordingly
         */
       if (!err && to_field->table->in_use->is_error())
-        err= 1; /* STORE_KEY_FATAL */
+        err= 1;
       dbug_tmp_restore_column_map(table->write_set, old_map);
     }
     null_key= to_field->is_null() || item->null_value;
-    return (err > 2 ? STORE_KEY_FATAL : (store_key_result) err);
+    return (err > 2 ? true : test(err));
   }
 };
 

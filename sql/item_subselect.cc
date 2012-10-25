@@ -49,7 +49,7 @@ Item_subselect::Item_subselect():
   used_tables_cache(0), have_to_be_excluded(0), const_item_cache(1),
   inside_first_fix_fields(0), done_first_fix_fields(FALSE), 
   expr_cache(0), forced_const(FALSE), substitution(0), engine(0), eliminated(FALSE),
-  engine_changed(0), changed(0), is_correlated(FALSE)
+  changed(0), is_correlated(FALSE)
 {
   DBUG_ENTER("Item_subselect::Item_subselect");
   DBUG_PRINT("enter", ("this: 0x%lx", (ulong) this));
@@ -623,6 +623,8 @@ bool Item_subselect::walk(Item_processor processor, bool walk_subquery,
 
 bool Item_subselect::exec()
 {
+  subselect_engine *org_engine= engine;
+
   DBUG_ENTER("Item_subselect::exec");
 
   /*
@@ -644,11 +646,14 @@ bool Item_subselect::exec()
 #ifndef DBUG_OFF
   ++exec_counter;
 #endif
-  if (engine_changed)
+  if (engine != org_engine)
   {
-    engine_changed= 0;
-    res= exec();
-    DBUG_RETURN(res);
+    /*
+      If the subquery engine changed during execution due to lazy subquery
+      optimization, or because the original engine found a more efficient other
+      engine, re-execute the subquery with the new engine.
+    */
+    DBUG_RETURN(exec());
   }
   DBUG_RETURN(res);
 }
@@ -3141,10 +3146,8 @@ int subselect_single_select_engine::exec()
           DBUG_RETURN(1);                        /* purecov: inspected */
       }
     }
-    if (item->engine_changed)
-    {
+    if (item->engine_changed(this))
       DBUG_RETURN(1);
-    }
   }
   if (select_lex->uncacheable &&
       select_lex->uncacheable != UNCACHEABLE_EXPLAIN
@@ -3318,13 +3321,13 @@ bool subselect_uniquesubquery_engine::copy_ref_key(bool skip_constants)
 
   for (store_key **copy= tab->ref.key_copy ; *copy ; copy++)
   {
-    enum store_key::store_key_result store_res;
+    bool store_res;
     if (skip_constants && (*copy)->store_key_is_const())
       continue;
     store_res= (*copy)->copy();
     tab->ref.key_err= store_res;
 
-    if (store_res == store_key::STORE_KEY_FATAL)
+    if (store_res)
     {
       /*
        Error converting the left IN operand to the column type of the right

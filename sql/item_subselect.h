@@ -122,8 +122,6 @@ public:
   */
   bool eliminated;
   
-  /* changed engine indicator */
-  bool engine_changed;
   /* subquery is transformed */
   bool changed;
 
@@ -200,9 +198,9 @@ public:
   {
     old_engine= engine;
     engine= eng;
-    engine_changed= 1;
     return eng == 0;
   }
+  bool engine_changed(subselect_engine *eng) { return engine != eng; }
   /*
     True if this subquery has been already evaluated. Implemented only for
     single select and union subqueries only.
@@ -260,7 +258,6 @@ public:
                                              st_select_lex*, st_select_lex*,
                                              Field*, Item*, Item_ident*);
   friend bool convert_join_subqueries_to_semijoins(JOIN *join);
-
 };
 
 /* single value subselect */
