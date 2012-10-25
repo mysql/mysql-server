@@ -835,9 +835,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     ER_MASTER_FATAL_ERROR_READING_BINLOG will be set to the original
     Diagnostics_area.
   */
-  Diagnostics_area temp_da;
-  Diagnostics_area *saved_da= thd->get_stmt_da();
-  thd->set_stmt_da(&temp_da);
+  Diagnostics_area temp_da(thd->query_id, false);
+  thd->push_diagnostics_area(&temp_da);
 
   DBUG_ENTER("mysql_binlog_send");
   DBUG_PRINT("enter",("log_ident: '%s'  pos: %ld", log_ident, (long) pos));
@@ -1592,7 +1591,7 @@ impossible position";
   }
 
 end:
-  thd->set_stmt_da(saved_da);
+  thd->pop_diagnostics_area();
   end_io_cache(&log);
   mysql_file_close(file, MYF(MY_WME));
 
@@ -1643,7 +1642,7 @@ err:
     mysql_file_close(file, MYF(MY_WME));
   thd->variables.max_allowed_packet= old_max_allowed_packet;
 
-  thd->set_stmt_da(saved_da);
+  thd->pop_diagnostics_area();
   my_message(my_errno, error_text, MYF(0));
   DBUG_VOID_RETURN;
 }

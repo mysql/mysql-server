@@ -31,7 +31,7 @@ extern "C" void sql_alloc_error_handler(void)
       Recording this SQL condition in the condition area could cause more
       memory allocations, which in turn could raise more OOM conditions,
       causing recursion in the error handling code itself. As a result,
-      my_error() should not be invoked, and the thread diagnostics area is
+      my_error() should not be invoked, and the thread Diagnostics Area is
       set to an error status directly.
 
       Note that Diagnostics_area::set_error_status() is safe, since it does

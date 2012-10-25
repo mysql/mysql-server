@@ -4763,20 +4763,22 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         case Diagnostics_area::DA_EMPTY:
           break;
         case Diagnostics_area::DA_OK:
-          memcpy(pfs->m_message_text, da->message(), MYSQL_ERRMSG_SIZE);
+          memcpy(pfs->m_message_text, da->message_text(),
+                 MYSQL_ERRMSG_SIZE);
           pfs->m_message_text[MYSQL_ERRMSG_SIZE]= 0;
           pfs->m_rows_affected= da->affected_rows();
-          pfs->m_warning_count= da->statement_warn_count();
+          pfs->m_warning_count= da->last_statement_cond_count();
           memcpy(pfs->m_sqlstate, "00000", SQLSTATE_LENGTH);
           break;
         case Diagnostics_area::DA_EOF:
-          pfs->m_warning_count= da->statement_warn_count();
+          pfs->m_warning_count= da->last_statement_cond_count();
           break;
         case Diagnostics_area::DA_ERROR:
-          memcpy(pfs->m_message_text, da->message(), MYSQL_ERRMSG_SIZE);
+          memcpy(pfs->m_message_text, da->message_text(),
+                 MYSQL_ERRMSG_SIZE);
           pfs->m_message_text[MYSQL_ERRMSG_SIZE]= 0;
-          pfs->m_sql_errno= da->sql_errno();
-          memcpy(pfs->m_sqlstate, da->get_sqlstate(), SQLSTATE_LENGTH);
+          pfs->m_sql_errno= da->mysql_errno();
+          memcpy(pfs->m_sqlstate, da->returned_sqlstate(), SQLSTATE_LENGTH);
           break;
         case Diagnostics_area::DA_DISABLED:
           break;
@@ -4889,18 +4891,18 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       break;
     case Diagnostics_area::DA_OK:
       stat->m_rows_affected+= da->affected_rows();
-      stat->m_warning_count+= da->statement_warn_count();
+      stat->m_warning_count+= da->last_statement_cond_count();
       if (digest_stat != NULL)
       {
         digest_stat->m_rows_affected+= da->affected_rows();
-        digest_stat->m_warning_count+= da->statement_warn_count();
+        digest_stat->m_warning_count+= da->last_statement_cond_count();
       }
       break;
     case Diagnostics_area::DA_EOF:
-      stat->m_warning_count+= da->statement_warn_count();
+      stat->m_warning_count+= da->last_statement_cond_count();
       if (digest_stat != NULL)
       {
-        digest_stat->m_warning_count+= da->statement_warn_count();
+        digest_stat->m_warning_count+= da->last_statement_cond_count();
       }
       break;
     case Diagnostics_area::DA_ERROR:

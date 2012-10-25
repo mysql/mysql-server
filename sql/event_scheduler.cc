@@ -78,7 +78,7 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
 {
   const Sql_condition *err;
   DBUG_ENTER("evex_print_warnings");
-  if (thd->get_stmt_da()->is_warning_info_empty())
+  if (thd->get_stmt_da()->cond_count() == 0)
     DBUG_VOID_RETURN;
 
   char msg_buf[10 * STRING_BUFFER_USUAL_SIZE];
@@ -102,11 +102,11 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
     /* set it to 0 or we start adding at the end. That's the trick ;) */
     err_msg.length(0);
     err_msg.append(prefix);
-    err_msg.append(err->get_message_text(),
-                   err->get_message_octet_length(), system_charset_info);
-    DBUG_ASSERT(err->get_level() < 3);
-    (sql_print_message_handlers[err->get_level()])("%*s", err_msg.length(),
-                                                   err_msg.c_ptr());
+    err_msg.append(err->message_text(),
+                   err->message_octet_length(), system_charset_info);
+    DBUG_ASSERT(err->severity() < 3);
+    (sql_print_message_handlers[err->severity()])("%*s", err_msg.length(),
+                                                  err_msg.c_ptr());
   }
   DBUG_VOID_RETURN;
 }

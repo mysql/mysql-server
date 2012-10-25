@@ -1236,7 +1236,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     join_tab->match_tab->found_match= false;
   }
 
-  join->thd->get_stmt_da()->reset_current_row_for_warning();
+  join->thd->get_stmt_da()->reset_current_row_for_condition();
 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool in_first_read= true;
@@ -1592,7 +1592,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
       enum enum_nested_loop_state rc;
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
-      join->thd->get_stmt_da()->inc_current_row_for_warning();
+      join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (rc != NESTED_LOOP_OK)
         DBUG_RETURN(rc);
 
@@ -1628,7 +1628,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
     }
     else
     {
-      join->thd->get_stmt_da()->inc_current_row_for_warning();
+      join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (join_tab->not_null_compl)
       {
         /* a NULL-complemented row is not in a table so cannot be locked */
@@ -1643,7 +1643,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
       with the beginning coinciding with the current partial join.
     */
     join->examined_rows++;
-    join->thd->get_stmt_da()->inc_current_row_for_warning();
+    join->thd->get_stmt_da()->inc_current_row_for_condition();
     if (join_tab->not_null_compl)
       join_tab->read_record.unlock_row(join_tab);
   }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -518,7 +518,7 @@ String *Item_func_spatial_collection::val_str(String *str)
   }
   if (str->length() > current_thd->variables.max_allowed_packet)
   {
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
 			ER_WARN_ALLOWED_PACKET_OVERFLOWED,
 			ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
 			func_name(), current_thd->variables.max_allowed_packet);

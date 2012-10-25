@@ -1989,11 +1989,11 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
 #endif /* HAVE_READLINK */
   {
     if (ha_create_info->data_file_name)
-      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (ha_create_info->index_file_name)
-      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
   }
