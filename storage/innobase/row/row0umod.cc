@@ -576,22 +576,25 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			fputs("\n"
 			      "InnoDB: Submit a detailed bug report"
 			      " to http://bugs.mysql.com\n", stderr);
+
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"record in index %s was not found"
+				" on rollback, trying to insert",
+				index->name);
 		}
 
 		if (btr_cur->up_match >= dict_index_get_n_unique(index)
 		    || btr_cur->low_match >= dict_index_get_n_unique(index)) {
-			ib_logf(IB_LOG_LEVEL_WARN,
-				"record in index %s was not found on rollback,"
-				" and a duplicate exists",
-				index->name);
+			if (*index->name != TEMP_INDEX_PREFIX) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"record in index %s was not found on"
+					" rollback, and a duplicate exists",
+					index->name);
+			}
 			err = DB_DUPLICATE_KEY;
 			break;
 		}
 
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"record in index %s was not found"
-			" on rollback, trying to insert",
-			index->name);
 		/* Insert the missing record that we were trying to
 		delete-unmark. */
 		big_rec_t*	big_rec;
@@ -614,6 +617,13 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 			/* There are no off-page columns in
 			secondary indexes. */
 			ut_ad(!big_rec);
+		}
+
+		if (err == DB_SUCCESS) {
+			page_update_max_trx_id(
+				btr_cur_get_block(btr_cur),
+				btr_cur_get_page_zip(btr_cur),
+				trx->id, &mtr);
 		}
 
 		if (offsets_heap) {

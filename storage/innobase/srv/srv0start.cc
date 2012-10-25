@@ -2296,11 +2296,11 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Create i/o-handler threads: */
 
-	for (ulint i = 0; i < srv_n_file_io_threads; ++i) {
+	for (ulint t = 0; t < srv_n_file_io_threads; ++t) {
 
-		n[i] = i;
+		n[t] = t;
 
-		os_thread_create(io_handler_thread, n + i, thread_ids + i);
+		os_thread_create(io_handler_thread, n + t, thread_ids + t);
 	}
 
 #ifdef UNIV_LOG_ARCHIVE
