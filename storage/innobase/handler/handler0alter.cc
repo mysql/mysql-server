@@ -1084,13 +1084,17 @@ innobase_col_to_mysql(
 		/* These column types should never be shipped to MySQL. */
 		ut_ad(0);
 
-	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 	case DATA_DECIMAL:
 		/* Above are the valid column types for MySQL data. */
 		ut_ad(flen == len);
+		/* fall through */
+	case DATA_CHAR:
+		/* We may have flen > len when there is a shorter
+		prefix on a CHAR column. */
+		ut_ad(flen >= len);
 #else /* UNIV_DEBUG */
 	default:
 #endif /* UNIV_DEBUG */
@@ -2893,6 +2897,10 @@ prepare_inplace_alter_table_dict(
 			error = DB_OUT_OF_MEMORY;
 			goto error_handling;
 		}
+
+		/* Assign a consistent read view for
+		row_merge_read_clustered_index(). */
+		trx_assign_read_view(user_trx);
 	}
 
 	if (fts_index) {
@@ -5053,7 +5061,7 @@ trx_rollback:
 			}
 		}
 
-		if (ctx) {
+		if (ctx && !dict_table_is_discarded(prebuilt->table)) {
 			bool	stats_init_called = false;
 
 			for (uint i = 0; i < ctx->num_to_add; i++) {

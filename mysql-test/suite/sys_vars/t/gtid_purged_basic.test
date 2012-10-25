@@ -1,0 +1,25 @@
+--source include/not_embedded.inc
+
+SET @start_global_value = @@global.gtid_purged;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.gtid_purged;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.gtid_purged;
+show global variables like 'gtid_purged';
+show session variables like 'gtid_purged';
+select * from information_schema.global_variables where variable_name='gtid_purged';
+select * from information_schema.session_variables where variable_name='gtid_purged';
+
+#
+# It is not writable and in debug mode an attempt to write
+# into it triggers an assertion.
+#
+select @@global.gtid_purged;
+
+#
+# See rpl_gtid_purged.test for a comprehensive test case.
+#

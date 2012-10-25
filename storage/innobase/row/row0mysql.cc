@@ -4328,9 +4328,9 @@ row_mysql_drop_temp_tables(void)
 	mtr_start(&mtr);
 
 	btr_pcur_open_at_index_side(
-		TRUE,
+		true,
 		dict_table_get_first_index(dict_sys->sys_tables),
-		BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	for (;;) {
 		const rec_t*	rec;
@@ -5059,9 +5059,19 @@ row_check_index_for_mysql(
 
 	*n_rows = 0;
 
-	/* Full Text index are implemented by auxiliary tables,
-	not the B-tree */
-	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
+	if (dict_index_is_clust(index)) {
+		/* The clustered index of a table is always available.
+		During online ALTER TABLE that rebuilds the table, the
+		clustered index in the old table will have
+		index->online_log pointing to the new table. All
+		indexes of the old table will remain valid and the new
+		table will be unaccessible to MySQL until the
+		completion of the ALTER TABLE. */
+	} else if (dict_index_is_online_ddl(index)
+		   || (index->type & DICT_FTS)) {
+		/* Full Text index are implemented by auxiliary tables,
+		not the B-tree. We also skip secondary indexes that are
+		being created online. */
 		return(true);
 	}
 

@@ -1213,7 +1213,7 @@ row_merge_read_clustered_index(
 	clust_index = dict_table_get_first_index(old_table);
 
 	btr_pcur_open_at_index_side(
-		TRUE, clust_index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		true, clust_index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	if (old_table != new_table) {
 		/* The table is being rebuilt.  Identify the columns
@@ -1374,7 +1374,46 @@ end_of_index:
 		offsets = rec_get_offsets(rec, clust_index, NULL,
 					  ULINT_UNDEFINED, &row_heap);
 
-		if (rec_get_deleted_flag(rec, dict_table_is_comp(old_table))) {
+		if (online && new_table != old_table) {
+			/* When rebuilding the table online, perform a
+			REPEATABLE READ, so that row_log_table_apply()
+			will not see a newer state of the table when
+			applying the log.  This is mainly to prevent
+			false duplicate key errors, because the log
+			will identify records by the PRIMARY KEY. */
+			ut_ad(trx->read_view);
+
+			if (!read_view_sees_trx_id(
+				    trx->read_view,
+				    row_get_rec_trx_id(
+					    rec, clust_index, offsets))) {
+				rec_t*	old_vers;
+
+				row_vers_build_for_consistent_read(
+					rec, &mtr, clust_index, &offsets,
+					trx->read_view, &row_heap,
+					row_heap, &old_vers);
+
+				rec = old_vers;
+
+				if (!rec) {
+					continue;
+				}
+
+				ut_ad(!rec_get_deleted_flag(
+					      rec,
+					      dict_table_is_comp(old_table)));
+			} else if (rec_get_deleted_flag(
+					   rec,
+					   dict_table_is_comp(old_table))) {
+				/* This record was deleted in the latest
+				committed version. Skip it. */
+				continue;
+			}
+
+			ut_ad(!rec_offs_any_null_extern(rec, offsets));
+		} else if (rec_get_deleted_flag(
+				   rec, dict_table_is_comp(old_table))) {
 			/* Skip delete-marked records.
 
 			Skipping delete-marked records will make the
@@ -1384,19 +1423,10 @@ end_of_index:
 			would make it tricky to detect duplicate
 			keys. */
 			continue;
-		}
-
-		if (online && new_table != old_table
-		    && row_log_table_is_rollback(
-			    clust_index,
-			    row_get_rec_trx_id(rec, clust_index, offsets))) {
-			continue;
-		}
-
-		/* This is essentially a READ UNCOMMITTED to fetch the
-		most recent version of the record. */
-
-		if (UNIV_LIKELY_NULL(rec_offs_any_null_extern(rec, offsets))) {
+		} else if (UNIV_LIKELY_NULL(rec_offs_any_null_extern(
+						    rec, offsets))) {
+			/* This is essentially a READ UNCOMMITTED to
+			fetch the most recent version of the record. */
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 			trx_id_t	trx_id;
 			ulint		trx_id_offset;
@@ -2273,7 +2303,8 @@ row_merge_insert_index_tuples(
 			mtr_start(&mtr);
 			/* Insert after the last user record. */
 			btr_cur_open_at_index_side(
-				FALSE, index, BTR_MODIFY_LEAF, &cursor, &mtr);
+				false, index, BTR_MODIFY_LEAF,
+				&cursor, 0, &mtr);
 			page_cur_position(
 				page_rec_get_prev(btr_cur_get_rec(&cursor)),
 				btr_cur_get_block(&cursor),
@@ -2304,8 +2335,8 @@ row_merge_insert_index_tuples(
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
 				btr_cur_open_at_index_side(
-					FALSE, index, BTR_MODIFY_TREE,
-					&cursor, &mtr);
+					false, index, BTR_MODIFY_TREE,
+					&cursor, 0, &mtr);
 				page_cur_position(
 					page_rec_get_prev(btr_cur_get_rec(
 								  &cursor)),

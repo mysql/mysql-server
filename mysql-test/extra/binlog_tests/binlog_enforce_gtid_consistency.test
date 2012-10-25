@@ -1,6 +1,6 @@
 # ==== Purpose ====
 #
-# Test that @@GLOBAL.DISABLE_GTID_UNSAFE_STATEMENTS works as expected.
+# Test that @@GLOBAL.ENFORCE_GTID_CONSISTENCY works as expected.
 # When this variable is set to 1, the following should hold:
 #
 #  - CREATE TABLE ... SELECT should fail, unless it has the TEMPORARY
@@ -17,7 +17,7 @@
 #
 # ==== Implementation ====
 #
-# We cannot start the server with --disable-gtid-unsafe-statements=1
+# We cannot start the server with --enforce-gtid-consistency=1
 # initially, because check-testcase updates MyISAM tables.  Instead,
 # we let the server start with the option off, then we restart the
 # server with the option on.
@@ -37,26 +37,26 @@
 
 --echo ==== Variable is read-only and default is off ====
 
---let $assert_text= DISABLE_GTID_UNSAFE_STATEMENTS should default to 0
---let $assert_cond= [SELECT @@GLOBAL.DISABLE_GTID_UNSAFE_STATEMENTS] = 0
+--let $assert_text= ENFORCE_GTID_CONSISTENCY should default to 0
+--let $assert_cond= [SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY] = 0
 --source include/assert.inc
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.DISABLE_GTID_UNSAFE_STATEMENTS = 1;
+SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1;
 
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SET @@GLOBAL.DISABLE_GTID_UNSAFE_STATEMENTS = 0;
+SET @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 0;
 
 --echo ==== Restart server ====
 
 --let $rpl_server_number= 1
---let $rpl_server_parameters= --disable-gtid-unsafe-statements=1
+--let $rpl_server_parameters= --enforce-gtid-consistency=1
 --source include/rpl_restart_server.inc
 
---let $assert_text= DISABLE_GTID_UNSAFE_STATEMENTS should be set to 1 at restart
---let $assert_cond= [SELECT @@GLOBAL.DISABLE_GTID_UNSAFE_STATEMENTS] = 1
+--let $assert_text= ENFORCE_GTID_CONSISTENCY should be set to 1 at restart
+--let $assert_cond= [SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY] = 1
 --source include/assert.inc
-SELECT @@GLOBAL.DISABLE_GTID_UNSAFE_STATEMENTS;
+SELECT @@GLOBAL.ENFORCE_GTID_CONSISTENCY;
 
 --echo ==== CREATE TABLE .... SELECT not allowed ====
 
