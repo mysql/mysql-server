@@ -53,6 +53,15 @@ srv_parse_data_file_paths_and_sizes(
 /*================================*/
 	char*	str);	/*!< in/out: the data file path string */
 /*********************************************************************//**
+Reads the temp data files and their sizes from a character string 
+given in the .cnf file.
+@return	TRUE if ok, FALSE on parse error */
+UNIV_INTERN
+ibool
+srv_parse_temp_data_file_paths_and_sizes(
+/*======================================*/
+	char*	str);	/*!< in/out: the data file path string */
+/*********************************************************************//**
 Reads log group home directories from a character string given in
 the .cnf file.
 @return	TRUE if ok, FALSE on parse error */

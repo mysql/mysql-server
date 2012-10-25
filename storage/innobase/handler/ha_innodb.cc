@@ -150,6 +150,7 @@ are determined in innobase_init below: */
 
 static char*	innobase_data_home_dir			= NULL;
 static char*	innobase_data_file_path			= NULL;
+static char*	innobase_temp_data_file_path		= NULL;
 static char*	innobase_file_format_name		= NULL;
 static char*	innobase_change_buffering		= NULL;
 static char*	innobase_enable_monitor_counter		= NULL;
@@ -187,6 +188,7 @@ static my_bool	innobase_large_prefix			= FALSE;
 static my_bool	innodb_optimize_fulltext_only		= FALSE;
 
 static char*	internal_innobase_data_file_path	= NULL;
+static char*	internal_innobase_temp_data_file_path	= NULL;
 
 static char*	innodb_version_str = (char*) INNODB_VERSION_STR;
 
@@ -2918,7 +2920,38 @@ innobase_init(
 			"InnoDB: syntax error in innodb_data_file_path");
 mem_free_and_error:
 		srv_free_paths_and_sizes();
-		my_free(internal_innobase_data_file_path);
+		if (internal_innobase_data_file_path) {
+			my_free(internal_innobase_data_file_path);
+		}
+		goto mem_free_and_error2;
+	}
+
+	/*--------------- Temp Data files -------------------------*/
+
+	/* Set default InnoDB temp data file size to 12 MB and let it be
+	auto-extending. Thus users can use InnoDB in >= 4.0 without having
+	to specify any startup options. */
+
+	if (!innobase_temp_data_file_path) {
+		innobase_temp_data_file_path = (char*) "ibdatatmp1:12M:autoextend";
+	}
+
+	/* Since InnoDB edits the argument in the next call, we make another
+	copy of it: */
+
+	internal_innobase_temp_data_file_path = my_strdup(
+		innobase_temp_data_file_path, MYF(MY_FAE));
+
+	ret = (bool) srv_parse_temp_data_file_paths_and_sizes(
+		internal_innobase_temp_data_file_path);
+	if (ret == FALSE) {
+		sql_print_error(
+			"InnoDB: syntax error in innodb_temp_data_file_path");
+mem_free_and_error2:
+		srv_free_paths_and_sizes();
+		if (internal_innobase_temp_data_file_path) {
+			my_free(internal_innobase_temp_data_file_path);
+		}
 		goto error;
 	}
 
@@ -15880,6 +15913,11 @@ static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
   "Path to individual files and their sizes.",
   NULL, NULL, NULL);
 
+static MYSQL_SYSVAR_STR(temp_data_file_path, innobase_temp_data_file_path,
+  PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Path to individual temp files and their sizes.",
+  NULL, NULL, NULL);
+
 static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Directory where undo tablespace files live, this path can be absolute.",
@@ -16096,6 +16134,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(concurrency_tickets),
   MYSQL_SYSVAR(compression_level),
   MYSQL_SYSVAR(data_file_path),
+  MYSQL_SYSVAR(temp_data_file_path),
   MYSQL_SYSVAR(data_home_dir),
   MYSQL_SYSVAR(doublewrite),
   MYSQL_SYSVAR(api_enable_binlog),
