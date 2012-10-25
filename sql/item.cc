@@ -347,7 +347,7 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
                      decimal_value) & E_DEC_BAD_NUM)
   {
     ErrConvString err(res);
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
                         err.ptr());
@@ -1013,11 +1013,11 @@ void Item_name_string::copy(const char *str_arg, size_t length_arg,
   {
     ErrConvString tmp(str_arg, static_cast<uint>(length_arg), cs_arg);
     if (length() == 0)
-      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_NAME_BECOMES_EMPTY, ER(ER_NAME_BECOMES_EMPTY),
                           tmp.ptr());
     else
-      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_REMOVED_SPACES, ER(ER_REMOVED_SPACES),
                           tmp.ptr());
   }
@@ -3255,7 +3255,7 @@ double_from_string_with_check (const CHARSET_INFO *cs,
   if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
   {
     ErrConvString err(cptr, org_end - cptr, cs);
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
                         err.ptr());
@@ -3290,7 +3290,7 @@ longlong_from_string_with_check (const CHARSET_INFO *cs,
        (end != org_end && !check_if_only_end_space(cs, end, org_end))))
   {
     ErrConvString err(cptr, cs);
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
                         err.ptr());
@@ -4616,7 +4616,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   current->mark_as_dependent(last);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
 		 ER_WARN_FIELD_RESOLVED, ER(ER_WARN_FIELD_RESOLVED),
                  db_name, (db_name[0] ? "." : ""),
                  table_name, (table_name [0] ? "." : ""),
@@ -4890,7 +4890,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
         !((*group_by_ref)->eq(*select_ref, 0)))
     {
       ambiguous_fields= TRUE;
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_NON_UNIQ_ERROR,
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
                           ER(ER_NON_UNIQ_ERROR), ref->full_name(),
                           current_thd->where);
 
@@ -5877,7 +5877,8 @@ String *Item::check_well_formed_result(String *str, bool send_error)
     {
       str->length(wlen);
     }
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_INVALID_CHARACTER_STRING,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_INVALID_CHARACTER_STRING,
                         ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
   }
   return str;
@@ -6649,7 +6650,7 @@ Item_hex_string::save_in_field(Field *field, bool no_conversions)
 warn:
   const type_conversion_status res= field->store((longlong) nr, TRUE);
   if (res == TYPE_OK)
-    field->set_warning(Sql_condition::WARN_LEVEL_WARN,
+    field->set_warning(Sql_condition::SL_WARNING,
                        ER_WARN_DATA_OUT_OF_RANGE, 1);
   return res;
 }
@@ -8024,7 +8025,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
       {
         TABLE_LIST *view= cached_table->top_table();
         push_warning_printf(field_arg->table->in_use,
-                            Sql_condition::WARN_LEVEL_WARN,
+                            Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
                             ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
                             view->view_db.str,
@@ -8033,7 +8034,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
       else
       {
         push_warning_printf(field_arg->table->in_use,
-                            Sql_condition::WARN_LEVEL_WARN,
+                            Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_FIELD,
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             field_arg->field_name);

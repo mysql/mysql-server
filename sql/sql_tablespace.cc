@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ int mysql_alter_tablespace(THD *thd, st_alter_tablespace *ts_info)
   {
     hton= ha_default_handlerton(thd);
     if (ts_info->storage_engine != 0)
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_WARN_USING_OTHER_HANDLER,
                           ER(ER_WARN_USING_OTHER_HANDLER),
                           ha_resolve_storage_engine_name(hton),

@@ -742,7 +742,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   }
 
   if (status.warnings > 0)
-    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
                                  ErrConvString(str), warn_type, warn_name);
 
   return value;

@@ -6952,6 +6952,10 @@ ER_READ_ONLY_MODE
 
 ER_STORAGE_ENGINE_NOT_LOADED
         eng "Storage engine for table '%s'.'%s' is not loaded."
+
+ER_GET_STACKED_DA_WITHOUT_ACTIVE_HANDLER 0Z002
+  eng "GET STACKED DIAGNOSTICS when handler not active"
+
 #
 #  End of 5.7 error messages.
 #
