@@ -1399,15 +1399,15 @@ end_of_index:
 				if (!rec) {
 					continue;
 				}
+			}
 
-				ut_ad(!rec_get_deleted_flag(
-					      rec,
-					      dict_table_is_comp(old_table)));
-			} else if (rec_get_deleted_flag(
-					   rec,
-					   dict_table_is_comp(old_table))) {
+			if (rec_get_deleted_flag(
+				    rec,
+				    dict_table_is_comp(old_table))) {
 				/* This record was deleted in the latest
-				committed version. Skip it. */
+				committed version, or it was deleted and
+				then reinserted-by-update before purge
+				kicked in. Skip it. */
 				continue;
 			}
 
