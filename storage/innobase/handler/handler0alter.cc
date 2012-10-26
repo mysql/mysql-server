@@ -3030,10 +3030,10 @@ error_handled:
 	if (new_clustered) {
 		if (indexed_table != user_table) {
 
-			if (DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS)) {
-				innobase_drop_fts_index_table(
-					indexed_table, trx);
-			}
+			/* Rebuilding of a table (indexed_table != user_table)
+			with an existing FTS index should have gone via the
+			ALGORITHM=COPY route. */
+			ut_a(!DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS));
 
 			dict_table_close(indexed_table, TRUE, FALSE);
 			row_merge_drop_table(trx, indexed_table, false);
