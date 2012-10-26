@@ -490,24 +490,30 @@ void Optimize_table_order::best_access_path(
       trace_access_idx.add_alnum("access_type", "ref").
         add_utf8("index", keyinfo->name);
 
-      do /* For each keypart */
+      // For each keypart
+      while (keyuse->table == table && keyuse->key == key)
       {
         const uint keypart= keyuse->keypart;
         table_map best_part_found_ref= 0;
         double best_prev_record_reads= DBL_MAX;
-        
-        do /* For each way to access the keypart */
+
+        // For each way to access the keypart
+        for ( ; keyuse->table == table && keyuse->key == key &&
+                keyuse->keypart == keypart ; ++keyuse)
         {
           /*
             When calculating a plan for a materialized semijoin nest,
             we must not consider key references between tables inside the
-            semijoin nest and those outside of it. This is handled by adding
-            excluded_tables to remaining_tables below.
-
+            semijoin nest and those outside of it. The same applies to a
+            materialized subquery.
+          */
+          if ((excluded_tables & keyuse->used_tables))
+            continue;
+          /*
             if 1. expression doesn't refer to forward tables
                2. we won't get two ref-or-null's
           */
-          if (!((remaining_tables | excluded_tables) & keyuse->used_tables) &&
+          if (!(remaining_tables & keyuse->used_tables) &&
               !(ref_or_null_part && (keyuse->optimize &
                                      KEY_OPTIMIZE_REF_OR_NULL)))
           {
@@ -532,11 +538,9 @@ void Optimize_table_order::best_access_path(
               ref_or_null_part |= keyuse->keypart_map;
           }
           loose_scan_opt.add_keyuse(remaining_tables, keyuse);
-          keyuse++;
-        } while (keyuse->table == table && keyuse->key == key &&
-                 keyuse->keypart == keypart);
+        }
 	found_ref|= best_part_found_ref;
-      } while (keyuse->table == table && keyuse->key == key);
+      }
 
       /*
         Assume that that each key matches a proportional part of table.
