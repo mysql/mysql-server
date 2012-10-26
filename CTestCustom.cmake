@@ -222,6 +222,5 @@ list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
   # don't complain about clang missing warnings from xz code
   "clang: warning: unknown warning option"
   # don't complain about ranlib on empty archive
-  "ranlib: file: .* has no symbols"
-  "ranlib: warning for library: .* the table of contents is empty"
+  "ranlib:"
   )
