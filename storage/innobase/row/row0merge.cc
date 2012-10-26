@@ -1399,15 +1399,15 @@ end_of_index:
 				if (!rec) {
 					continue;
 				}
+			}
 
-				ut_ad(!rec_get_deleted_flag(
-					      rec,
-					      dict_table_is_comp(old_table)));
-			} else if (rec_get_deleted_flag(
-					   rec,
-					   dict_table_is_comp(old_table))) {
+			if (rec_get_deleted_flag(
+				    rec,
+				    dict_table_is_comp(old_table))) {
 				/* This record was deleted in the latest
-				committed version. Skip it. */
+				committed version, or it was deleted and
+				then reinserted-by-update before purge
+				kicked in. Skip it. */
 				continue;
 			}
 
@@ -2653,7 +2653,40 @@ row_merge_drop_indexes(
 			case ONLINE_INDEX_ABORTED_DROPPED:
 				continue;
 			case ONLINE_INDEX_COMPLETE:
-				if (*index->name == TEMP_INDEX_PREFIX) {
+				if (*index->name != TEMP_INDEX_PREFIX) {
+					/* Do nothing to already
+					published indexes. */
+				} else if (index->type & DICT_FTS) {
+					/* Drop a completed FULLTEXT
+					index, due to a timeout during
+					MDL upgrade for
+					commit_inplace_alter_table().
+					Because only concurrent reads
+					are allowed (and they are not
+					seeing this index yet) we
+					are safe to drop the index. */
+					dict_index_t* prev = UT_LIST_GET_PREV(
+						indexes, index);
+					/* At least there should be
+					the clustered index before
+					this one. */
+					ut_ad(prev);
+					ut_a(table->fts);
+					fts_drop_index(table, index, trx);
+					/* Since
+					INNOBASE_SHARE::idx_trans_tbl
+					is shared between all open
+					ha_innobase handles to this
+					table, no thread should be
+					accessing this dict_index_t
+					object. Also, we should be
+					holding LOCK=SHARED MDL on the
+					table even after the MDL
+					upgrade timeout. */
+					dict_index_remove_from_cache(
+						table, index);
+					index = prev;
+				} else {
 					rw_lock_x_lock(
 						dict_index_get_lock(index));
 					dict_index_set_online_status(
