@@ -1478,7 +1478,10 @@ fts_drop_table(
 
 		dict_table_close(table, TRUE, FALSE);
 
-		error = row_drop_table_for_mysql(table_name, trx, TRUE);
+		/* Pass nonatomic=false (dont allow data dict unlock),
+		because the transaction may hold locks on SYS_* tables from
+		previous calls to fts_drop_table(). */
+		error = row_drop_table_for_mysql(table_name, trx, true, false);
 
 		if (error != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
