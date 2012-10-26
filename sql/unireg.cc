@@ -630,15 +630,16 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
   {
     int2store(pos, (key->flags ^ HA_NOSAME));
     int2store(pos+2,key->key_length);
-    pos[4]= (uchar) key->key_parts;
+    pos[4]= (uchar) key->user_defined_key_parts;
     pos[5]= (uchar) key->algorithm;
     int2store(pos+6, key->block_size);
     pos+=8;
-    key_parts+=key->key_parts;
+    key_parts+=key->user_defined_key_parts;
     DBUG_PRINT("loop", ("flags: %lu  key_parts: %d at 0x%lx",
-                        key->flags, key->key_parts,
+                        key->flags, key->user_defined_key_parts,
                         (long) key->key_part));
-    for (key_part=key->key_part,key_part_end=key_part+key->key_parts ;
+    for (key_part=key->key_part,
+           key_part_end= key_part + key->user_defined_key_parts ;
 	 key_part != key_part_end ;
 	 key_part++)
 

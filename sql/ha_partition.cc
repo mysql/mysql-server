@@ -4899,7 +4899,7 @@ int ha_partition::index_init(uint inx, bool sorted)
     KEY **key_info= m_curr_key_info;
     do
     {
-      for (i= 0; i < (*key_info)->key_parts; i++)
+      for (i= 0; i < (*key_info)->user_defined_key_parts; i++)
         bitmap_set_bit(table->read_set,
                        (*key_info)->key_part[i].field->field_index);
     } while (*(++key_info));

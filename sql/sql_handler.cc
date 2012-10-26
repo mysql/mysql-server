@@ -739,9 +739,9 @@ retry:
       DBUG_ASSERT(m_key_name != 0);
       KEY *keyinfo=table->key_info+keyno;
       KEY_PART_INFO *key_part=keyinfo->key_part;
-      if (m_key_expr->elements > keyinfo->key_parts)
+      if (m_key_expr->elements > keyinfo->user_defined_key_parts)
       {
-	my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), keyinfo->key_parts);
+	my_error(ER_TOO_MANY_KEY_PARTS, MYF(0), keyinfo->user_defined_key_parts);
 	goto err;
       }
       List_iterator<Item> it_ke(*m_key_expr);

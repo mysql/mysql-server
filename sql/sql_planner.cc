@@ -568,7 +568,7 @@ void Optimize_table_order::best_access_path(
         loose_scan_opt.check_ref_access_part1(s, key, start_key, found_part);
 
         /* Check if we found full key */
-        if (found_part == LOWER_BITS(key_part_map, keyinfo->key_parts) &&
+        if (found_part == LOWER_BITS(key_part_map, actual_key_parts(keyinfo)) &&
             !ref_or_null_part)
         {                                         /* use eq key */
           max_key_part= (uint) ~0;
@@ -608,7 +608,7 @@ void Optimize_table_order::best_access_path(
             }
             else
             {
-              if (!(records=keyinfo->rec_per_key[keyinfo->key_parts-1]))
+              if (!(records= keyinfo->rec_per_key[actual_key_parts(keyinfo)-1]))
               {                                   /* Prefer longer keys */
                 records=
                   ((double) s->records / (double) rec *
@@ -658,7 +658,8 @@ void Optimize_table_order::best_access_path(
           */
           if ((found_part & 1) &&
               (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
-               found_part == LOWER_BITS(key_part_map, keyinfo->key_parts)))
+               found_part == LOWER_BITS(key_part_map,
+                                        actual_key_parts(keyinfo))))
           {
             max_key_part= max_part_bit(found_part);
             /*
@@ -760,7 +761,7 @@ void Optimize_table_order::best_access_path(
                 */
                 double rec_per_key;
                 if (!(rec_per_key=(double)
-                      keyinfo->rec_per_key[keyinfo->key_parts-1]))
+                      keyinfo->rec_per_key[keyinfo->user_defined_key_parts-1]))
                   rec_per_key=(double) s->records/rec+1;
 
                 if (!s->records)
@@ -770,10 +771,10 @@ void Optimize_table_order::best_access_path(
                 else
                 {
                   double a=s->records*0.01;
-                  if (keyinfo->key_parts > 1)
+                  if (keyinfo->user_defined_key_parts > 1)
                     tmp= (max_key_part * (rec_per_key - a) +
-                          a*keyinfo->key_parts - rec_per_key)/
-                         (keyinfo->key_parts-1);
+                          a * keyinfo->user_defined_key_parts - rec_per_key) /
+                         (keyinfo->user_defined_key_parts - 1);
                   else
                     tmp= a;
                   set_if_bigger(tmp,1.0);
