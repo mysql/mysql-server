@@ -316,7 +316,7 @@ connection default;
 disconnect plug_con;
 
 --echo WL#5706 -- show the above got logged/rewritten correctly
-SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('% IDENTIFIED ','WITH%');
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %');
 
 --echo ## cleanup
 DROP USER plug;
