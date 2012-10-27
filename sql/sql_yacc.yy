@@ -2166,6 +2166,7 @@ master_def:
         | MASTER_PASSWORD_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.password = $3.str;
+            Lex->contains_plaintext_password= true;
           }
         | MASTER_PORT_SYM EQ ulong_num
           {
@@ -2487,6 +2488,7 @@ server_option:
         | PASSWORD TEXT_STRING_sys
           {
             Lex->server_options.password= $2.str;
+            Lex->contains_plaintext_password= true;
           }
         | SOCKET_SYM TEXT_STRING_sys
           {
@@ -8086,6 +8088,7 @@ slave_user_pass_opt:
         | PASSWORD EQ TEXT_STRING_sys
           {
             Lex->slave_connection.password= $3.str;
+            Lex->contains_plaintext_password= true;
           }
 
 slave_plugin_auth_opt:
@@ -9802,6 +9805,7 @@ function_call_conflict:
         | OLD_PASSWORD '(' expr ')'
           {
             $$=  new (YYTHD->mem_root) Item_func_old_password($3);
+            Lex->contains_plaintext_password= true;
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -9809,6 +9813,7 @@ function_call_conflict:
           {
             THD *thd= YYTHD;
             Item* i1;
+            Lex->contains_plaintext_password= true;
             if (thd->variables.old_passwords == 1)
               i1= new (thd->mem_root) Item_func_old_password($3);
             else
@@ -14866,6 +14871,7 @@ text_or_password:
             }
             if ($$ == NULL)
               MYSQL_YYABORT;
+            Lex->contains_plaintext_password= true;
           }
         | OLD_PASSWORD '(' TEXT_STRING ')'
           {
@@ -14874,6 +14880,7 @@ text_or_password:
               $3.str;
             if ($$ == NULL)
               MYSQL_YYABORT;
+            Lex->contains_plaintext_password= true;
           }
         ;
 
@@ -15376,6 +15383,7 @@ grant_user:
               2. Password must be digested
             */
             $1->uses_identified_by_clause= true;
+            Lex->contains_plaintext_password= true;
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
           { 
