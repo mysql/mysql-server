@@ -4255,7 +4255,11 @@ Dbtc::CommitAckMarker::insert_in_commit_ack_marker(Dbtc *tc,
                                                    Uint32 instanceKey,
                                                    NodeId node_id)
 {
-  Uint32 item = instanceKey + (node_id << 16);
+  const NodeInfo& nodeInfo = tc->getNodeInfo(node_id);
+  Uint32 workers = nodeInfo.m_lqh_workers;
+  assert(instanceKey != 0);
+  Uint32 instanceNo = workers == 0 ? 0 : 1 + (instanceKey - 1) % workers;
+  Uint32 item = instanceNo + (node_id << 16);
   CommitAckMarkerBuffer::DataBufferPool & pool =
     tc->c_theCommitAckMarkerBufferPool;
   // check for duplicate (todo DataBuffer method find-or-append)
