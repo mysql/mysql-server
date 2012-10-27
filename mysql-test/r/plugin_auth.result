@@ -236,17 +236,21 @@ SELECT @@LOCAL.external_user;
 'plug'@'%'
 # in connection default
 WL#5706 -- show the above got logged/rewritten correctly
-SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('% IDENTIFIED ','WITH%');
+SELECT argument FROM mysql.general_log WHERE argument LIKE CONCAT('%IDENTIFIED ','WITH %');
 argument
-CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT INSERT ON `TEST`.* TO 'grant_user'@'%' IDENTIFIED WITH 'test_plugin_server'
-CREATE USER 'Å¸'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'new_grant_user'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-GRANT ALL PRIVILEGES ON `test_grant_db`.* TO 'plug_dest'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'grant_plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'grant_plug_dest'
-CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
-CREATE USER 'plug'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT INSERT ON TEST.* TO grant_user IDENTIFIED WITH 'test_plugin_server'
+CREATE USER `Ÿ` IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON test_grant_db.* TO new_grant_user 
+IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON test_grant_db.* TO plug
+IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+GRANT ALL PRIVILEGES ON test_grant_db.* TO plug_dest
+IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER grant_plug IDENTIFIED WITH 'test_plugin_server' 
+AS 'grant_plug_dest'
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
+CREATE USER plug IDENTIFIED WITH 'test_plugin_server' AS 'plug_dest'
 ## cleanup
 DROP USER plug;
 DROP USER plug_dest;
