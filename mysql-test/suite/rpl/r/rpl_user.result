@@ -65,8 +65,8 @@ must_change2@localhost
 DROP USER must_change2@localhost;
 include/show_binlog_events.inc
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'fakehost'
-master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo'@'fakehost','bar'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; create user 'foo'@'fakehost'
+master-bin.000001	#	Query	#	#	use `test`; create user 'foo'@'fakehost', 'bar'@'fakehost'
 master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'foo1'@'fakehost' IDENTIFIED BY PASSWORD '*6EAC5249D53050AE649BDB0CC4B85D1AE90CA16E','foo2'@'fakehost' IDENTIFIED BY PASSWORD '*1111111111111111111111111111111111111111','foo3'@'fakehost'
 master-bin.000001	#	Query	#	#	use `test`; rename user 'foo'@'fakehost' to 'foofoo'@'fakehost'
 master-bin.000001	#	Query	#	#	use `test`; rename user 'not_exist_user1'@'fakehost' to 'foobar'@'fakehost', 'bar'@'fakehost' to 'barbar'@'fakehost'
