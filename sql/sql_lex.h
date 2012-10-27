@@ -2390,6 +2390,7 @@ struct LEX: public Query_tables_list
   bool all_privileges;
   bool proxy_priv;
   bool is_change_password;
+  bool contains_plaintext_password;
 
 private:
   /// Current SP parsing context.
