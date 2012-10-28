@@ -407,6 +407,8 @@ MAX(f1)
 
 -------- switch to master -------
 ROLLBACK;
+Warnings:
+Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 5
@@ -601,6 +603,8 @@ MAX(f1)
 
 -------- switch to master -------
 ROLLBACK;
+Warnings:
+Warning	1751	The creation of some temporary tables could not be rolled back.
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 8
