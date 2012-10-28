@@ -91,6 +91,26 @@ void my_getopt_register_get_addr(my_getopt_value func_addr)
   getopt_get_addr= func_addr;
 }
 
+
+/**
+  Wrapper around my_handle_options() for interface compatibility.
+
+  @param argc [in, out]      Command line options (count)
+  @param argv [in, out]      Command line options (values)
+  @param longopts [in]       Descriptor of all valid options
+  @param get_one_option [in] Optional callback function to process each option,
+                             can be NULL.
+
+  @return Error in case of ambiguous or unknown options,
+          0 on success.
+*/
+int handle_options(int *argc, char ***argv,
+		   const struct my_option *longopts,
+                   my_get_one_option get_one_option)
+{
+  return my_handle_options(argc, argv, longopts, get_one_option, NULL);
+}
+
 /**
   Handle command line options.
   Sort options.
@@ -146,13 +166,21 @@ void my_getopt_register_get_addr(my_getopt_value func_addr)
   @param [in, out] argv      command line options (values)
   @param [in] longopts       descriptor of all valid options
   @param [in] get_one_option optional callback function to process each option,
-                            can be NULL.
+                             can be NULL.
+  @param [in] command_list   NULL-terminated list of strings (commands) which
+                             (if set) is looked up for all non-option strings
+                             found while parsing the command line parameters.
+                             The parsing terminates if a match is found. At
+                             exit, argv [out] would contain all the remaining
+                             unparsed options along with the matched command.
+
   @return error in case of ambiguous or unknown options,
           0 on success.
 */
-int handle_options(int *argc, char ***argv, 
-		   const struct my_option *longopts,
-                   my_get_one_option get_one_option)
+int my_handle_options(int *argc, char ***argv,
+                      const struct my_option *longopts,
+                      my_get_one_option get_one_option,
+                      const char **command_list)
 {
   uint UNINIT_VAR(opt_found), argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
@@ -553,8 +581,29 @@ int handle_options(int *argc, char ***argv,
       (*argc)--; /* option handled (long), decrease argument count */
     }
     else /* non-option found */
-      (*argv)[argvpos++]= cur_arg;
+    {
+      if (command_list)
+      {
+        while (* command_list)
+        {
+          if (!strcmp(*command_list, cur_arg))
+          {
+            /* Match found. */
+            (*argv)[argvpos ++]= cur_arg;
+
+            /* Copy rest of the un-parsed elements & return. */
+            while ((++ pos) != pos_end)
+              (*argv)[argvpos ++]= *pos;
+            goto done;
+          }
+          command_list ++;
+        }
+      }
+      (*argv)[argvpos ++]= cur_arg;
+    }
   }
+
+done:
   /*
     Destroy the first, already handled option, so that programs that look
     for arguments in 'argv', without checking 'argc', know when to stop.
