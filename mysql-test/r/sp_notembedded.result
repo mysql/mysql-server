@@ -248,7 +248,6 @@ CREATE PROCEDURE p1(i INT) BEGIN END;
 DROP PROCEDURE p1;
 DELETE FROM mysql.user WHERE User='mysqltest_1';
 FLUSH PRIVILEGES;
-set @@global.concurrent_insert= @old_concurrent_insert;
 #
 # Bug#44521 Prepared Statement: CALL p() - crashes: `! thd->main_da.is_sent' failed et.al.
 #
@@ -302,3 +301,4 @@ DROP EVENT teste_bug11763507;
 # ------------------------------------------------------------------
 # -- End of 5.1 tests
 # ------------------------------------------------------------------
+set @@global.concurrent_insert= @old_concurrent_insert;
