@@ -626,6 +626,9 @@ int init_embedded_server(int argc, char **argv, char **groups)
   init_max_user_conn();
   init_update_queries();
 
+  if (!opt_bootstrap)
+    servers_init(0);
+
 #ifdef HAVE_DLOPEN
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (!opt_noacl)
