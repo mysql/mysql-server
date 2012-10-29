@@ -266,7 +266,7 @@ sub create
   my($self,$table_name,$fields,$index,$options) = @_;
   my($query,@queries);
 
-  $query="create temporary table $table_name (";
+  $query="create table $table_name (";
   foreach $field (@$fields)
   {
 #    $field =~ s/ decimal/ double(10,2)/i;
