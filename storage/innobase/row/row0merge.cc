@@ -1678,7 +1678,8 @@ wait_again:
 				       1000000, sig_count);
 
 		for (ulint i = 0; i < fts_sort_pll_degree; i++) {
-			if (psort_info[i].child_status != FTS_CHILD_COMPLETE) {
+			if (psort_info[i].child_status != FTS_CHILD_COMPLETE
+			    && psort_info[i].child_status != FTS_CHILD_EXITING) {
 				sig_count = os_event_reset(
 					fts_parallel_sort_event);
 				goto wait_again;
@@ -3492,10 +3493,37 @@ row_merge_build_indexes(
 			bool		all_exit = false;
 			ulint		trial_count = 0;
 
+			/* Now all children should complete, wait
+			a bit until they all finish using event */
+			while (!all_exit && trial_count < 10000) {
+				all_exit = true;
+
+				for (j = 0; j < fts_sort_pll_degree;
+				     j++) {
+					if (psort_info[j].child_status
+					    != FTS_CHILD_EXITING) {
+						all_exit = false;
+						os_thread_sleep(1000);
+						break;
+					}
+				}
+				trial_count++;
+			}
+
+			if (!all_exit) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Not all child sort threads exited"
+					" when creating FTS index '%s'",
+					indexes[i]->name);
+					
+			}
+
 			fts_parallel_merge_event
-				= merge_info[0].psort_common->sort_event;
+				= merge_info[0].psort_common->merge_event;
 
 			if (FTS_PLL_MERGE) {
+				trial_count = 0;
+				all_exit = false;
 				os_event_reset(fts_parallel_merge_event);
 				row_fts_start_parallel_merge(merge_info);
 wait_again:
@@ -3517,7 +3545,7 @@ wait_again:
 
 				/* Now all children should complete, wait
 				a bit until they all finish using event */
-				while (!all_exit && trial_count < 1000) {
+				while (!all_exit && trial_count < 10000) {
 					all_exit = true;
 
 					for (j = 0; j < FTS_NUM_AUX_INDEX;
@@ -3534,8 +3562,9 @@ wait_again:
 
 				if (!all_exit) {
 					ib_logf(IB_LOG_LEVEL_ERROR,
-						"Not all child threads exited"
-						" when creating FTS index '%s'",
+						"Not all child merge threads"
+						" exited when creating FTS"
+						" index '%s'",
 						indexes[i]->name);
 						
 				}
