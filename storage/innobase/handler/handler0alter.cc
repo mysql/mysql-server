@@ -3030,10 +3030,10 @@ error_handled:
 	if (new_clustered) {
 		if (indexed_table != user_table) {
 
-			/* Rebuilding of a table (indexed_table != user_table)
-			with an existing FTS index should have gone via the
-			ALGORITHM=COPY route. */
-			ut_a(!DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS));
+			if (DICT_TF2_FLAG_IS_SET(indexed_table, DICT_TF2_FTS)) {
+				innobase_drop_fts_index_table(
+					indexed_table, trx);
+			}
 
 			dict_table_close(indexed_table, TRUE, FALSE);
 			row_merge_drop_table(trx, indexed_table, false);
@@ -3492,7 +3492,9 @@ found_fk:
 		the table. */
 
 		if (innobase_fulltext_exist(table->s)
-		    && !innobase_fulltext_exist(altered_table->s)) {
+		    && !innobase_fulltext_exist(altered_table->s)
+		    && !DICT_TF2_FLAG_IS_SET(
+			indexed_table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			dict_index_t*	fts_doc_index
 				= dict_table_get_index_on_name(
 					indexed_table, FTS_DOC_ID_INDEX_NAME);
@@ -5146,10 +5148,6 @@ func_exit:
 		ut_a(check(user_thd, 0) == HA_ADMIN_OK);
 		table = old_table;
 #endif /* UNIV_DDL_DEBUG */
-	}
-
-	if (prebuilt->table->fts) {
-		fts_optimize_add_table(prebuilt->table);
 	}
 
 	DBUG_RETURN(err != 0);
