@@ -148,7 +148,6 @@ if (($opt_fast || $opt_fast_insert) && $server->{'limits'}->{'insert_multi_value
 
   print "Inserting $opt_loop_count multiple-value rows in order\n";
   $res=$query;
-  $loop_time_1=new Benchmark;
   for ($i=0 ; $i < $opt_loop_count ; $i++)
   {
     $tmp= "($i,$i,$i,'ABCDEFGHIJ'),";
@@ -162,12 +161,7 @@ if (($opt_fast || $opt_fast_insert) && $server->{'limits'}->{'insert_multi_value
       $res=$query . $tmp;
     }
   }
-  $end_time_1=new Benchmark;
-  print "Time for insert (" . ($total_rows) . "): " .
-    timestr(timediff($end_time_1, $loop_time_1),"all") . "\n\n";
-
   print "Inserting $opt_loop_count multiple-value rows in reverse order\n";
-  $loop_time_1=new Benchmark;
   for ($i=0 ; $i < $opt_loop_count ; $i++)
   {
     $tmp= "(" . ($total_rows-1-$i) . "," .($total_rows-1-$i) .
@@ -182,12 +176,7 @@ if (($opt_fast || $opt_fast_insert) && $server->{'limits'}->{'insert_multi_value
       $res=$query . $tmp;
     }
   }
-  $end_time_1=new Benchmark;
-  print "Time for insert (" . ($total_rows) . "): " .
-    timestr(timediff($end_time_1, $loop_time_1),"all") . "\n\n";
-
   print "Inserting $opt_loop_count multiple-value rows in random order\n";
-  $loop_time_1=new Benchmark;
   for ($i=0 ; $i < $opt_loop_count ; $i++)
   {
     $tmp= "(" . $random[$i] . "," . $random[$i] . "," . $random[$i] .
@@ -202,10 +191,6 @@ if (($opt_fast || $opt_fast_insert) && $server->{'limits'}->{'insert_multi_value
       $res=$query . $tmp;
     }
   }
-  $end_time_1=new Benchmark;
-  print "Time for insert (" . ($total_rows) . "): " .
-    timestr(timediff($end_time_1, $loop_time_1),"all") . "\n\n";
-
   $sth = $dbh->do(substr($res,0,length($res)-1)) or die $DBI::errstr;
 }
 else
@@ -243,17 +228,6 @@ if ($opt_fast && $server->{transactions})
 $end_time=new Benchmark;
 print "Time for insert (" . ($total_rows) . "): " .
   timestr(timediff($end_time, $loop_time),"all") . "\n\n";
-
-####
-#### End of benchmark
-####
-
-$dbh->disconnect;				# close connection
-
-end_benchmark($start_time);
-
-
-
 
 if ($opt_lock_tables)
 {
