@@ -1553,3 +1553,7 @@ max-time : 300
 cmd: testScan
 args: -n ScanKeyInfoExhaust T1
 
+max-time : 1200
+cmd: testLimits
+args: -n SlowDihFileWrites T1
+

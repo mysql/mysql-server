@@ -70,6 +70,8 @@ void Dbdih::initData()
   cntrlblockref    = RNIL;
   c_set_initial_start_flag = FALSE;
   c_sr_wait_to = false;
+
+  c_lcpTabDefWritesControl.init(MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES);
 }//Dbdih::initData()
 
 void Dbdih::initRecords() 
