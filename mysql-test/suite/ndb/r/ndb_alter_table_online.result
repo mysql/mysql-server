@@ -119,7 +119,7 @@ name
 CREATE OFFLINE INDEX ci2 on t1(c);
 Warnings:
 Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
-Note	1831	Duplicate index 'ci2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+Warning	1831	Duplicate index 'ci2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 
 ndb_show_tables completed.....
 
