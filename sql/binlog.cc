@@ -938,6 +938,8 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
   DBUG_ENTER("gtid_before_write_cache");
   int error= 0;
 
+  DBUG_ASSERT(thd->variables.gtid_next.type != UNDEFINED_GROUP);
+
   if (gtid_mode == 0)
     DBUG_RETURN(0);
 
@@ -5304,6 +5306,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
         goto err;
       }
 
+      thd->variables.gtid_next.set_undefined();
       global_sid_lock->rdlock();
       if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
       {
@@ -6155,6 +6158,7 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
       dec_prep_xids();
   }
 
+  thd->variables.gtid_next.set_undefined();
   /*
     Remove committed GTID from owned_gtids, it was already logged on
     MYSQL_BIN_LOG::write_cache().
@@ -6974,6 +6978,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     TABLE* prev_access_table= NULL;
     /*
+      True if at least one table is transactional.
+    */
+    bool write_to_some_transactional_table= false;
+    /*
       True if at least one table is non-transactional.
     */
     bool write_to_some_non_transactional_table= false;
@@ -7016,6 +7024,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
+        write_to_some_transactional_table=
+          write_to_some_transactional_table || trans;
+
         write_to_some_non_transactional_table=
           write_to_some_non_transactional_table || !trans;
 
@@ -7066,6 +7077,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       prev_access_table= table->table;
     }
+    DBUG_ASSERT(!is_write ||
+                write_to_some_transactional_table ||
+                write_to_some_non_transactional_table);
     /*
       write_all_non_transactional_are_tmp_tables may be true if any
       non-transactional table was not updated, so we fix its value here.
@@ -7204,7 +7218,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     }
 
     if (!error && enforce_gtid_consistency &&
-        !is_dml_gtid_compatible(write_to_some_non_transactional_table,
+        !is_dml_gtid_compatible(write_to_some_transactional_table,
+                                write_to_some_non_transactional_table,
                                 write_all_non_transactional_are_tmp_tables))
       error= 1;
 
@@ -7309,10 +7324,11 @@ bool THD::is_ddl_gtid_compatible() const
 
 
 bool
-THD::is_dml_gtid_compatible(bool non_transactional_table,
+THD::is_dml_gtid_compatible(bool transactional_table,
+                            bool non_transactional_table,
                             bool non_transactional_tmp_tables) const
 {
-  DBUG_ENTER("THD::is_dml_gtid_compatible(bool, bool)");
+  DBUG_ENTER("THD::is_dml_gtid_compatible(bool, bool, bool)");
 
   // If @@session.sql_log_bin has been manually turned off (only
   // doable by SUPER), then no problem, we can execute any statement.
@@ -7320,26 +7336,25 @@ THD::is_dml_gtid_compatible(bool non_transactional_table,
     DBUG_RETURN(true);
 
   /*
-    Non-transactional updates are unsafe: they will be logged as a
-    transaction of their own.  If they are re-executed on the slave
-    inside a transaction, then the non-transactional statement's
-    GTID will be the same as the surrounding transaction's GTID.
+    Single non-transactional updates are allowed when not mixed
+    together with transactional statements within a transaction.
+    Furthermore, writing to transactional and non-transactional
+    engines in a single statement is also disallowed.
+    Multi-statement transactions on non-transactional tables are
+    split into single-statement transactions when
+    GTID_NEXT = "AUTOMATIC".
 
     Non-transactional updates are allowed when row binlog format is
     used and all non-transactional tables are temporary.
-
-    Only statements that generate row events can be unsafe: otherwise,
-    the statement either has an implicit pre-commit or is not
-    binlogged at all.
 
     The debug symbol "allow_gtid_unsafe_non_transactional_updates"
     disables the error.  This is useful because it allows us to run
     old tests that were not written with the restrictions of GTIDs in
     mind.
   */
-  if (sqlcom_can_generate_row_events(this) &&
+  if (non_transactional_table &&
+      (transactional_table || trans_has_updated_trans_table(this)) &&
       !(non_transactional_tmp_tables && is_current_stmt_binlog_format_row()) &&
-      non_transactional_table &&
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0))
   {
     my_error(ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, MYF(0));
