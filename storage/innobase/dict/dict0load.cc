@@ -2452,11 +2452,16 @@ func_exit:
 	      || !table->corrupted);
 
 	if (table && table->fts) {
-		ut_ad(dict_table_has_fts_index(table)
+		if (!(dict_table_has_fts_index(table)
 		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
-		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID));
-
-		fts_optimize_add_table(table);
+		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID))) {
+			/* the table->fts could be created in dict_load_column
+			when a user defined FTS_DOC_ID is present, but no
+			FTS */
+			fts_free(table);
+		} else {
+			fts_optimize_add_table(table);
+		}
 	}
 
 	return(table);

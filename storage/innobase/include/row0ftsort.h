@@ -65,6 +65,7 @@ struct fts_psort_common_t {
 	trx_t*			trx;		/*!< transaction */
 	fts_psort_t*		all_info;	/*!< all parallel sort info */
 	os_event_t		sort_event;	/*!< sort event */
+	os_event_t		merge_event;	/*!< merge event */
 	ibool			opt_doc_id_size;/*!< whether to use 4 bytes
 						instead of 8 bytes integer to
 						store Doc ID during sort, if
