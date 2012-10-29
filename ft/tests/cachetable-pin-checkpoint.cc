@@ -20,6 +20,7 @@
 
 int64_t data[NUM_ELEMENTS];
 int64_t checkpointed_data[NUM_ELEMENTS];
+PAIR data_pair[NUM_ELEMENTS];
 
 uint32_t time_of_test;
 bool run_test;
@@ -70,7 +71,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
-       PAIR UU(p),
+       PAIR p,
        int UU(fd),
        CACHEKEY k,
        uint32_t fullhash __attribute__((__unused__)),
@@ -87,6 +88,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     int64_t* XMALLOC(data_val);
     usleep(10);
     *data_val = data[data_index];
+    data_pair[data_index] = p;
     *value = data_val;
     *sizep = make_pair_attr(8);
     return 0;
@@ -153,8 +155,6 @@ static void *move_numbers(void *arg) {
             NULL,
             0, //num_dependent_pairs
             NULL,
-            NULL,
-            NULL,
             NULL
             );
         assert(r==0);
@@ -164,6 +164,7 @@ static void *move_numbers(void *arg) {
         greater_key.b = greater;
         uint32_t greater_fullhash = greater;
         enum cachetable_dirty greater_dirty = CACHETABLE_DIRTY;
+        PAIR dep_pair = data_pair[less];
         r = toku_cachetable_get_and_pin_with_dep_pairs(
             f1,
             make_blocknum(greater),
@@ -174,9 +175,7 @@ static void *move_numbers(void *arg) {
             PL_WRITE_CHEAP,
             NULL,
             1, //num_dependent_pairs
-            &f1,
-            &less_key,
-            &less_fullhash,
+            &dep_pair,
             &less_dirty
             );
         assert(r==0);
@@ -196,6 +195,7 @@ static void *move_numbers(void *arg) {
             third = (random() % (num_possible_values)) + greater + 1;
             CACHEKEY third_key;
             third_key.b = third;
+            dep_pair = data_pair[greater];
             uint32_t third_fullhash = third;
             enum cachetable_dirty third_dirty = CACHETABLE_DIRTY;
             r = toku_cachetable_get_and_pin_with_dep_pairs(
@@ -208,9 +208,7 @@ static void *move_numbers(void *arg) {
                 PL_WRITE_CHEAP,
                 NULL,
                 1, //num_dependent_pairs
-                &f1,
-                &greater_key,
-                &greater_fullhash,
+                &dep_pair,
                 &greater_dirty
                 );
             assert(r==0);

@@ -152,7 +152,7 @@ struct ctpair {
     // locks
     toku::frwlock value_rwlock;
     struct nb_mutex disk_nb_mutex; // single writer, protects disk_data, is used for writing cloned nodes for checkpoint
-    toku_mutex_t mutex;
+    toku_mutex_t* mutex; // gotten from the pair list
 
     // Access to checkpoint_pending is protected by two mechanisms,
     // the value_rwlock and the pair_list's pending locks (expensive and cheap).
@@ -215,7 +215,9 @@ public:
     // 
     uint32_t m_n_in_table; // number of pairs in the hash table
     uint32_t m_table_size; // number of buckets in the hash table
+    uint32_t m_num_locks;
     PAIR *m_table; // hash table
+    toku_mutex_aligned_t *m_mutexes; 
     // 
     // The following fields are the heads of various linked lists.
     // They also protected by the list lock, but their 
@@ -232,6 +234,7 @@ public:
     //
     PAIR m_clock_head; // of clock . head is the next thing to be up for decrement. 
     PAIR m_cleaner_head; // for cleaner thread. head is the next thing to look at for possible cleaning.
+    PAIR m_checkpoint_head; // for begin checkpoint to iterate over PAIRs and mark as pending_checkpoint
     PAIR m_pending_head; // list of pairs marked with checkpoint_pending
 
     // this field is public so we are still POD
@@ -281,10 +284,12 @@ public:
     void read_pending_cheap_unlock();
     void write_pending_cheap_lock();
     void write_pending_cheap_unlock();
+    toku_mutex_t* get_mutex_for_pair(uint32_t fullhash);
+    void pair_lock_by_fullhash(uint32_t fullhash);
+    void pair_unlock_by_fullhash(uint32_t fullhash);
 
 private:
     void pair_remove (PAIR p);
-    void rehash (uint32_t newtable_size);
     void add_to_clock (PAIR p);
     PAIR remove_from_hash_chain (PAIR remove_me, PAIR list);
 };

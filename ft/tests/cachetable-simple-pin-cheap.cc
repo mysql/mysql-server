@@ -27,7 +27,7 @@ static void kibbutz_work(void *fe_v)
 }
 
 static void
-unlock_dummy (void* UU(v)) {
+unlock_dummy (PAIR UU(p), void* UU(v)) {
 }
 
 static void reset_unlockers(UNLOCKERS unlockers) {
@@ -49,7 +49,7 @@ run_test (pair_lock_type lock_type) {
     void* v1;
     long s1;
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
-    r = toku_cachetable_get_and_pin_with_dep_pairs(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, lock_type, NULL, 0, NULL, NULL, NULL, NULL);
+    r = toku_cachetable_get_and_pin_with_dep_pairs(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, lock_type, NULL, 0, NULL, NULL);
     cachefile_kibbutz_enq(f1, kibbutz_work, f1);
     reset_unlockers(&unlockers);
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, PL_WRITE_EXPENSIVE, NULL, &unlockers);
@@ -67,7 +67,7 @@ run_test (pair_lock_type lock_type) {
 
     // now do the same test with a partial fetch required
     pf_called = false;
-    r = toku_cachetable_get_and_pin_with_dep_pairs(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, true_pf_req_callback, true_pf_callback, lock_type, NULL, 0, NULL, NULL, NULL, NULL);
+    r = toku_cachetable_get_and_pin_with_dep_pairs(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, true_pf_req_callback, true_pf_callback, lock_type, NULL, 0, NULL, NULL);
     assert(pf_called);
     cachefile_kibbutz_enq(f1, kibbutz_work, f1);
     reset_unlockers(&unlockers);

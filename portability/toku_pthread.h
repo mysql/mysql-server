@@ -37,6 +37,10 @@ typedef struct toku_mutex {
 #endif
 } toku_mutex_t;
 
+typedef struct toku_mutex_aligned {
+    toku_mutex_t aligned_mutex __attribute__((__aligned__(64)));
+} toku_mutex_aligned_t;
+
 #if defined(__FreeBSD__)
 # define TOKU_MUTEX_ADAPTIVE PTHREAD_MUTEX_ADAPTIVE_NP
 static const toku_mutex_t ZERO_MUTEX_INITIALIZER = {0};

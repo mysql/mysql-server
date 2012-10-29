@@ -41,7 +41,7 @@ cachetable_test (void) {
   long s1;
   //long s2;
   CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
-  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
+  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
   CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
   toku_cachetable_begin_checkpoint(cp, NULL);
   r = toku_test_cachetable_unpin_and_remove(f1, make_blocknum(1), remove_key_expect_checkpoint, NULL);  
@@ -52,7 +52,7 @@ cachetable_test (void) {
       NULL
       );
 
-  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
+  r = toku_cachetable_get_and_pin(f1, make_blocknum(1), toku_cachetable_hash(f1, make_blocknum(1)), &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
   r = toku_test_cachetable_unpin_and_remove(f1, make_blocknum(1), remove_key_expect_no_checkpoint, NULL);  
   
   toku_cachetable_verify(ct);

@@ -34,14 +34,10 @@ cachetable_put_empty_node_with_dep_nodes(
     FTNODE* result)
 {
     FTNODE XMALLOC(new_node);
-    CACHEFILE dependent_cf[num_dependent_nodes];
-    BLOCKNUM dependent_keys[num_dependent_nodes];
-    uint32_t dependent_fullhash[num_dependent_nodes];
+    PAIR dependent_pairs[num_dependent_nodes];
     enum cachetable_dirty dependent_dirty_bits[num_dependent_nodes];
     for (uint32_t i = 0; i < num_dependent_nodes; i++) {
-        dependent_cf[i] = h->cf;
-        dependent_keys[i] = dependent_nodes[i]->thisnodename;
-        dependent_fullhash[i] = toku_cachetable_hash(h->cf, dependent_nodes[i]->thisnodename);
+        dependent_pairs[i] = dependent_nodes[i]->ct_pair;
         dependent_dirty_bits[i] = (enum cachetable_dirty) dependent_nodes[i]->dirty;
     }
 
@@ -53,9 +49,7 @@ cachetable_put_empty_node_with_dep_nodes(
         get_write_callbacks_for_node(h),
         h,
         num_dependent_nodes,
-        dependent_cf,
-        dependent_keys,
-        dependent_fullhash,
+        dependent_pairs,
         dependent_dirty_bits,
         name,
         fullhash,
@@ -126,7 +120,6 @@ toku_pin_ftnode_batched(
     FTNODE_FETCH_EXTRA bfe,
     pair_lock_type lock_type,
     bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
-    bool end_batch_on_success,
     FTNODE *node_p,
     bool* msgs_applied)
 {
@@ -158,9 +151,6 @@ try_again_for_write_lock:
                 needed_lock_type = PL_WRITE_CHEAP;
                 goto try_again_for_write_lock;
             }
-        }
-        if (end_batch_on_success) {
-            toku_cachetable_end_batched_pin(brt->ft->cf);
         }
         if (apply_ancestor_messages && node->height == 0) {
             if (needs_ancestors_messages) {
@@ -219,7 +209,6 @@ toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
     FTNODE *node_p,
     bool move_messages)
 {
-    toku_cachetable_begin_batched_pin(h->cf);
     toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
         h,
         blocknum,
@@ -231,7 +220,6 @@ toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
         node_p,
         move_messages
         );
-    toku_cachetable_end_batched_pin(h->cf);
 }
 
 void
@@ -262,14 +250,10 @@ toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
     bool move_messages)
 {
     void *node_v;
-    CACHEFILE dependent_cf[num_dependent_nodes];
-    BLOCKNUM dependent_keys[num_dependent_nodes];
-    uint32_t dependent_fullhash[num_dependent_nodes];
+    PAIR dependent_pairs[num_dependent_nodes];
     enum cachetable_dirty dependent_dirty_bits[num_dependent_nodes];
     for (uint32_t i = 0; i < num_dependent_nodes; i++) {
-        dependent_cf[i] = h->cf;
-        dependent_keys[i] = dependent_nodes[i]->thisnodename;
-        dependent_fullhash[i] = toku_cachetable_hash(h->cf, dependent_nodes[i]->thisnodename);
+        dependent_pairs[i] = dependent_nodes[i]->ct_pair;
         dependent_dirty_bits[i] = (enum cachetable_dirty) dependent_nodes[i]->dirty;
     }
 
@@ -286,9 +270,7 @@ toku_pin_ftnode_off_client_thread_batched_and_maybe_move_messages(
         lock_type,
         bfe,
         num_dependent_nodes,
-        dependent_cf,
-        dependent_keys,
-        dependent_fullhash,
+        dependent_pairs,
         dependent_dirty_bits
         );
     assert(r==0);

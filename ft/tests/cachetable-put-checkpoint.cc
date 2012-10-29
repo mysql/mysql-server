@@ -23,9 +23,20 @@
 
 int64_t data[NUM_ELEMENTS];
 int64_t checkpointed_data[NUM_ELEMENTS];
+PAIR data_pair[NUM_ELEMENTS];
 
 uint32_t time_of_test;
 bool run_test;
+
+static void
+put_callback_pair(
+    CACHEKEY key,
+    void *UU(v),
+    PAIR p) 
+{
+    int64_t data_index = key.b;
+    data_pair[data_index] = p;
+}
 
 static void 
 clone_callback(
@@ -72,7 +83,7 @@ flush (CACHEFILE f __attribute__((__unused__)),
 
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
-       PAIR UU(p),
+       PAIR p,
        int UU(fd),
        CACHEKEY k,
        uint32_t fullhash __attribute__((__unused__)),
@@ -92,6 +103,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
     int64_t* XMALLOC(data_val);
     usleep(10);
     *data_val = data[data_index];
+    data_pair[data_index] = p;
     *value = data_val;
     *sizep = make_pair_attr(8);
     return 0;
@@ -136,6 +148,7 @@ static void move_number_to_child(
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
     wc.clone_callback = clone_callback;
+    PAIR dep_pair = data_pair[parent];
     r = toku_cachetable_get_and_pin_with_dep_pairs(
         f1,
         child_key,
@@ -146,9 +159,7 @@ static void move_number_to_child(
         PL_WRITE_CHEAP,
         NULL,
         1, //num_dependent_pairs
-        &f1,
-        &parent_key,
-        &parent_fullhash,
+        &dep_pair,
         &parent_dirty
         );
     assert(r==0);
@@ -193,8 +204,6 @@ static void *move_numbers(void *arg) {
             PL_WRITE_CHEAP,
             NULL,
             0, //num_dependent_pairs
-            NULL,
-            NULL,
             NULL,
             NULL
             );
@@ -249,6 +258,7 @@ static void merge_and_split_child(
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
     wc.clone_callback = clone_callback;
+    PAIR dep_pair = data_pair[parent];
     r = toku_cachetable_get_and_pin_with_dep_pairs(
         f1,
         child_key,
@@ -259,9 +269,7 @@ static void merge_and_split_child(
         PL_WRITE_CHEAP,
         NULL,
         1, //num_dependent_pairs
-        &f1,
-        &parent_key,
-        &parent_fullhash,
+        &dep_pair,
         &parent_dirty
         );
     assert(r==0);
@@ -270,18 +278,12 @@ static void merge_and_split_child(
     CACHEKEY other_child_key;
     other_child_key.b = other_child;
     uint32_t other_child_fullhash = toku_cachetable_hash(f1, other_child_key);
-    CACHEFILE cfs[2];
-    cfs[0] = f1;
-    cfs[1] = f1;
-    CACHEKEY keys[2];
-    keys[0] = parent_key;
-    keys[1] = child_key;
-    uint32_t hashes[2];
-    hashes[0] = parent_fullhash;
-    hashes[1] = child_fullhash;
     enum cachetable_dirty dirties[2];
     dirties[0] = parent_dirty;
     dirties[1] = child_dirty;
+    PAIR dep_pairs[2];
+    dep_pairs[0] = data_pair[parent];
+    dep_pairs[1] = data_pair[child];
     
     r = toku_cachetable_get_and_pin_with_dep_pairs(
         f1,
@@ -293,9 +295,7 @@ static void merge_and_split_child(
         PL_WRITE_CHEAP,
         NULL,
         2, //num_dependent_pairs
-        cfs,
-        keys,
-        hashes,
+        dep_pairs,
         dirties
         );
     assert(r==0);
@@ -323,13 +323,11 @@ static void merge_and_split_child(
           wc,
           &other_child,
           2, // number of dependent pairs that we may need to checkpoint
-          cfs,
-          keys,
-          hashes,
+          dep_pairs,
           dirties,
           &new_key,
           &new_fullhash,
-          put_callback_nop
+          put_callback_pair
           );
     assert(new_key.b == other_child);
     assert(new_fullhash == other_child_fullhash);
@@ -371,8 +369,6 @@ static void *merge_and_split(void *arg) {
             PL_WRITE_CHEAP,
             NULL,
             0, //num_dependent_pairs
-            NULL,
-            NULL,
             NULL,
             NULL
             );

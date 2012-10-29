@@ -13,6 +13,7 @@ uint64_t val2;
 uint64_t val3;
 bool check_me;
 
+
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
        int UU(fd),
@@ -46,9 +47,11 @@ flush (CACHEFILE f __attribute__((__unused__)),
     }
 }
 
+PAIR* dest_pair;
+
 static int
 fetch (CACHEFILE f        __attribute__((__unused__)),
-       PAIR UU(p),
+       PAIR p,
        int UU(fd),
        CACHEKEY k         __attribute__((__unused__)),
        uint32_t fullhash __attribute__((__unused__)),
@@ -61,6 +64,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
   *dirtyp = 0;
   *value = extraargs;
   *sizep = make_pair_attr(8);
+  *dest_pair = p;
   return 0;
 }
 
@@ -82,22 +86,16 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
     long s1;
     long s2;
     long s3;
+    PAIR dependent_pairs[2];
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(&val1);
     wc.flush_callback = flush;
     wc.write_extraargs = &val1;
+    dest_pair = &dependent_pairs[0];
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, fetch, def_pf_req_callback, def_pf_callback, true, &val1);
+    dest_pair = &dependent_pairs[1];
     wc.write_extraargs = &val2;
     r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, true, &val2);
 
-    CACHEFILE dependent_cfs[2];
-    dependent_cfs[0] = f1;
-    dependent_cfs[1] = f1;
-    CACHEKEY dependent_keys[2];
-    dependent_keys[0] = make_blocknum(1);
-    dependent_keys[1] = make_blocknum(2);
-    uint32_t dependent_fullhash[2];
-    dependent_fullhash[0] = 1;
-    dependent_fullhash[1] = 2;
     // now we set the dirty state of these two.
     enum cachetable_dirty cd[2];
     cd[0] = write_first ? CACHETABLE_DIRTY : CACHETABLE_CLEAN;
@@ -126,9 +124,7 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
         PL_WRITE_EXPENSIVE,
         &val3,
         2, //num_dependent_pairs
-        dependent_cfs,
-        dependent_keys,
-        dependent_fullhash,
+        dependent_pairs,
         cd
         );
     if (start_checkpoint) {

@@ -65,13 +65,8 @@ cachetable_test (enum cachetable_dirty dirty, bool cloneable) {
     assert(r == 0);
 
     r = toku_cachetable_get_and_pin_nonblocking(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, PL_WRITE_EXPENSIVE, NULL, NULL);
-    if (dirty == CACHETABLE_DIRTY && !cloneable) {
-        assert(r == TOKUDB_TRY_AGAIN);
-    }
-    else {
-        assert(r == 0);
-        r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
-    }
+    assert(r == 0);
+    r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
 
     toku_cachetable_end_checkpoint(
         cp, 

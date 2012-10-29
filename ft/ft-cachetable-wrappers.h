@@ -68,7 +68,6 @@ toku_pin_ftnode_batched(
     FTNODE_FETCH_EXTRA bfe,
     pair_lock_type lock_type,
     bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
-    bool end_batch_on_success,
     FTNODE *node_p,
     bool* msgs_applied
     );

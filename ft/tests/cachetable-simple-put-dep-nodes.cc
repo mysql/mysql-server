@@ -12,6 +12,17 @@ bool v2_written;
 uint64_t val2;
 uint64_t val3;
 bool check_me;
+PAIR* dest_pair;
+
+static void
+put_callback_pair(
+    CACHEKEY UU(key),
+    void *UU(v),
+    PAIR p) 
+{
+    *dest_pair = p;
+}
+
 
 static void
 flush (CACHEFILE f __attribute__((__unused__)),
@@ -61,6 +72,7 @@ fetch (CACHEFILE f        __attribute__((__unused__)),
   *dirtyp = 0;
   *value = extraargs;
   *sizep = make_pair_attr(8);
+  *dest_pair = p;
   return 0;
 }
 
@@ -87,22 +99,16 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
     void* v2;
     long s1;
     long s2;
+    PAIR dependent_pairs[2];
     CACHETABLE_WRITE_CALLBACK wc = def_write_callback(NULL);
     wc.flush_callback = flush;
+    dest_pair = &dependent_pairs[0];
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, fetch, def_pf_req_callback, def_pf_callback, true, &val1);
     assert(r==0);
+    dest_pair = &dependent_pairs[1];
     r = toku_cachetable_get_and_pin(f1, make_blocknum(2), 2, &v2, &s2, wc, fetch, def_pf_req_callback, def_pf_callback, true, &val2);
     assert(r==0);
     
-    CACHEFILE dependent_cfs[2];
-    dependent_cfs[0] = f1;
-    dependent_cfs[1] = f1;
-    CACHEKEY dependent_keys[2];
-    dependent_keys[0] = make_blocknum(1);
-    dependent_keys[1] = make_blocknum(2);
-    uint32_t dependent_fullhash[2];
-    dependent_fullhash[0] = 1;
-    dependent_fullhash[1] = 2;
     // now we set the dirty state of these two.
     enum cachetable_dirty cd[2];
     cd[0] = write_first ? CACHETABLE_DIRTY : CACHETABLE_CLEAN;
@@ -123,6 +129,8 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
 
     CACHEKEY put_key;
     uint32_t put_fullhash;
+    PAIR dummy_pair;
+    dest_pair = &dummy_pair;
     toku_cachetable_put_with_dep_pairs(
         f1,
         get_key_and_fullhash,
@@ -131,13 +139,11 @@ cachetable_test (bool write_first, bool write_second, bool start_checkpoint) {
         wc,
         NULL,
         2, //num_dependent_pairs
-        dependent_cfs,
-        dependent_keys,
-        dependent_fullhash,
+        dependent_pairs,
         cd,
         &put_key,
         &put_fullhash,
-        put_callback_nop
+        put_callback_pair
         );
     assert(put_key.b == 3);
     assert(put_fullhash == 3);

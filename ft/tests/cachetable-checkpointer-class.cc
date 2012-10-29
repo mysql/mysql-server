@@ -109,6 +109,7 @@ void checkpointer_test::test_pending_bits() {
     // 2. One entry in pair chain
     //
     struct cachefile cf;
+    cf.cachetable = &ctbl;
     memset(&cf, 0, sizeof(cf));
     cf.next = NULL;
     cf.for_checkpoint = true;
