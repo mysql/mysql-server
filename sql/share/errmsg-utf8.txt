@@ -6775,7 +6775,7 @@ ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF
   eng "Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF."
 
 ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
-  eng "Updates to non-transactional tables are forbidden when ENFORCE_GTID_CONSISTENCY = 1."
+  eng "When ENFORCE_GTID_CONSISTENCY = 1, updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
 
 ER_GTID_UNSAFE_CREATE_SELECT
   eng "CREATE TABLE ... SELECT is forbidden when ENFORCE_GTID_CONSISTENCY = 1."
@@ -6933,6 +6933,9 @@ ER_FK_CANNOT_DELETE_PARENT
 
 ER_MALFORMED_PACKET
   eng "Malformed communication packet."
+
+ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
+  eng "When GTID_NEXT is set to a GTID, you must explicitly set it again after a COMMIT or ROLLBACK. If you see this error message in the slave SQL thread, it means that a table in the current transaction is transactional on the master and non-transactional on the slave. In a client connection, it means that you executed SET GTID_NEXT before a transaction and forgot to set GTID_NEXT to a different identifier or to 'AUTOMATIC' after COMMIT or ROLLBACK. Current GTID_NEXT is '%s'."
 
 #
 #  End of 5.6 error messages.
