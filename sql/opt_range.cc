@@ -6131,6 +6131,8 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   /* 
     Here when simple cond 
     There are limits on what kinds of const items we can evaluate.
+    At this stage a subquery in 'cond' might not be fully transformed yet
+    (example: semijoin) thus cannot be evaluated.
   */
   if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
   {
