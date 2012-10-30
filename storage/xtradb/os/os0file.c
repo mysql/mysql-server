@@ -1870,7 +1870,7 @@ os_file_rename_func(
 #ifdef __WIN__
 	BOOL	ret;
 
-	ret = MoveFile((LPCTSTR)oldpath, (LPCTSTR)newpath);
+	ret = MoveFileEx((LPCTSTR)oldpath, (LPCTSTR)newpath, MOVEFILE_REPLACE_EXISTING);
 
 	if (ret) {
 		return(TRUE);
