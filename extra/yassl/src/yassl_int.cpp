@@ -17,18 +17,19 @@
  * draft along with type conversion functions.
  */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#ifdef __WIN__
+#include<Windows.h>
+#else
+#include <pthread.h>
+#endif
+
 #include "runtime.hpp"
 #include "yassl_int.hpp"
 #include "handshake.hpp"
 #include "timer.hpp"
 
-#ifdef _POSIX_THREADS
-    #include "pthread.h"
-#endif
-
-#ifdef __WIN__
-    #include<Windows.h>
-#endif
 #ifdef HAVE_LIBZ
     #include "zlib.h"
 #endif
@@ -1627,10 +1628,15 @@ void Session_initialize()
     sessionsInstance = NEW_YS Sessions;
 }
 
+extern "C"
+{
+  static void c_session_initialize() { Session_initialize(); }
+}
+
 
 Sessions& GetSessions()
 {
-    yassl_pthread_once(&session_created, Session_initialize);
+    yassl_pthread_once(&session_created, c_session_initialize);
     return *sessionsInstance;
 }
 
@@ -1886,6 +1892,8 @@ extern "C" char *yassl_mysql_strdup(const char *from, int)
 }
 
 
+extern "C"
+{
 static int
 default_password_callback(char * buffer, int size_arg, int rwflag,
                           void * /* unused: callback_data */)
@@ -1914,7 +1922,7 @@ default_password_callback(char * buffer, int size_arg, int rwflag,
   free(passwd);
   return passwd_len;
 }
-
+}
 
 SSL_CTX::SSL_CTX(SSL_METHOD* meth) 
     : method_(meth), certificate_(0), privateKey_(0), 
@@ -2689,7 +2697,6 @@ extern "C" void yaSSL_CleanUp()
     yaSSL::ysDelete(yaSSL::sslFactoryInstance);
     yaSSL::ysDelete(yaSSL::sessionsInstance);
     yaSSL::ysDelete(yaSSL::errorsInstance);
-    yaSSL::session_created= YASSL_PTHREAD_ONCE_INIT;
 
     // In case user calls more than once, prevent seg fault
     yaSSL::sslFactoryInstance = 0;

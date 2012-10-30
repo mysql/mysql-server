@@ -17,6 +17,12 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#ifdef __WIN__
+#include<Windows.h>
+#else
+#include <pthread.h>
+#endif
+
 #include "runtime.hpp"
 #include "yassl_int.hpp"
 
