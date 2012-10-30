@@ -3517,7 +3517,7 @@ const_table_extraction_done:
              4. have an expensive outer join condition.
              5. are blocked by handler for const table optimize.
           */
-	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
+	  if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !table->fulltext_searched &&                           // 1
               !tl->outer_join_nest() &&                              // 2
               !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
@@ -4358,7 +4358,7 @@ static bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
           keyuse++;
         } while (keyuse->key == key && keyuse->table == table);
 
-        if (bound_parts == LOWER_BITS(uint, keyinfo->key_parts))
+        if (bound_parts == LOWER_BITS(uint, keyinfo->user_defined_key_parts))
           return TRUE;
         if (keyuse->table != table)
           return FALSE;
@@ -5302,7 +5302,7 @@ add_key_part(Key_use_array *keyuse_array, Key_field *key_field)
       if (form->key_info[key].flags & (HA_FULLTEXT | HA_SPATIAL))
 	continue;    // ToDo: ft-keys in non-ft queries.   SerG
 
-      uint key_parts= (uint) form->key_info[key].key_parts;
+      uint key_parts= actual_key_parts(&form->key_info[key]);
       for (uint part=0 ; part <  key_parts ; part++)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
@@ -8533,7 +8533,7 @@ list_contains_unique_index(JOIN_TAB *tab,
       KEY_PART_INFO *key_part, *key_part_end;
 
       for (key_part=keyinfo->key_part,
-           key_part_end=key_part+ keyinfo->key_parts;
+           key_part_end=key_part+ keyinfo->user_defined_key_parts;
            key_part < key_part_end;
            key_part++)
       {

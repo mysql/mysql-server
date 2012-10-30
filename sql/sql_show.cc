@@ -1562,7 +1562,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     packet->append(STRING_WITH_LEN(" ("));
 
-    for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
+    for (uint j=0 ; j < key_info->user_defined_key_parts ; j++,key_part++)
     {
       if (j)
         packet->append(',');
@@ -5297,7 +5297,7 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
     {
       KEY_PART_INFO *key_part= key_info->key_part;
       const char *str;
-      for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
+      for (uint j=0 ; j < key_info->user_defined_key_parts ; j++,key_part++)
       {
         restore_record(table, s->default_values);
         table->field[0]->store(STRING_WITH_LEN("def"), cs);
@@ -5732,7 +5732,7 @@ static int get_schema_key_column_usage_record(THD *thd,
         continue;
       uint f_idx= 0;
       KEY_PART_INFO *key_part= key_info->key_part;
-      for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
+      for (uint j=0 ; j < key_info->user_defined_key_parts ; j++,key_part++)
       {
         if (key_part->field)
         {
