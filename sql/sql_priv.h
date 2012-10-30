@@ -208,7 +208,8 @@ template <class T> bool valid_buffer_range(T jump,
 #define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 12)
 #define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 13)
 #define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED       (1ULL << 14)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 15)
+#define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 15)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 16)
 
 /**
    If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
@@ -234,7 +235,8 @@ template <class T> bool valid_buffer_range(T jump,
                                   OPTIMIZER_SWITCH_SEMIJOIN | \
                                   OPTIMIZER_SWITCH_LOOSE_SCAN | \
                                   OPTIMIZER_SWITCH_FIRSTMATCH | \
-                                  OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED)
+                                  OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
+                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
 #else
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -244,7 +246,8 @@ template <class T> bool valid_buffer_range(T jump,
                                   OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
                                   OPTIMIZER_SWITCH_MRR | \
                                   OPTIMIZER_SWITCH_MRR_COST_BASED | \
-                                  OPTIMIZER_SWITCH_BNL)
+                                  OPTIMIZER_SWITCH_BNL | \
+                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
 #endif
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you
