@@ -616,6 +616,7 @@ handle_new_error:
 	case DB_READ_ONLY:
 	case DB_FTS_INVALID_DOCID:
 	case DB_INTERRUPTED:
+	case DB_DICT_CHANGED:
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
@@ -2224,7 +2225,6 @@ err_exit:
 #endif /* UNIV_MEM_DEBUG */
 	}
 
-
 	heap = mem_heap_create(512);
 
 	switch (trx_get_dict_operation(trx)) {
@@ -2250,7 +2250,7 @@ err_exit:
 
 	err = trx->error_state;
 
-	if (table->space) {
+	if (table->space != TRX_SYS_SPACE) {
 		ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE));
 
 		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
@@ -3567,6 +3567,13 @@ next_rec:
 		trx->error_state = DB_SUCCESS;
 		trx_rollback_to_savepoint(trx, NULL);
 		trx->error_state = DB_SUCCESS;
+
+		/* Update system table failed.  Table in memory metadata
+		could be in an inconsistent state, mark the in-memory
+		table->corrupted to be true. In the long run, this should
+		be fixed by atomic truncate table */
+		table->corrupted = true;
+
 		ut_print_timestamp(stderr);
 		fputs("  InnoDB: Unable to assign a new identifier to table ",
 		      stderr);
@@ -3795,6 +3802,9 @@ row_drop_table_for_mysql(
 				table, NULL, trx);
 		}
 	}
+
+	/* make sure background stats thread is not running on the table */
+	ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
 
 	/* Delete the link file if used. */
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
@@ -4318,9 +4328,9 @@ row_mysql_drop_temp_tables(void)
 	mtr_start(&mtr);
 
 	btr_pcur_open_at_index_side(
-		TRUE,
+		true,
 		dict_table_get_first_index(dict_sys->sys_tables),
-		BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	for (;;) {
 		const rec_t*	rec;
@@ -4479,8 +4489,21 @@ loop:
 	while ((table_name = dict_get_first_table_name_in_db(name))) {
 		ut_a(memcmp(table_name, name, namelen) == 0);
 
-		table = dict_table_open_on_name(table_name, TRUE, FALSE,
-						DICT_ERR_IGNORE_NONE);
+		table = dict_table_open_on_name(
+			table_name, TRUE, FALSE, static_cast<dict_err_ignore_t>(
+				DICT_ERR_IGNORE_INDEX_ROOT
+				| DICT_ERR_IGNORE_CORRUPT));
+
+		if (!table) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot load table %s from InnoDB internal "
+				"data dictionary during drop database",
+				table_name);
+			mem_free(table_name);
+			err = DB_TABLE_NOT_FOUND;
+			break;
+
+		}
 
 		if (row_is_mysql_tmp_table_name(table->name)) {
 			/* There could be an orphan temp table left from
@@ -5036,9 +5059,19 @@ row_check_index_for_mysql(
 
 	*n_rows = 0;
 
-	/* Full Text index are implemented by auxiliary tables,
-	not the B-tree */
-	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
+	if (dict_index_is_clust(index)) {
+		/* The clustered index of a table is always available.
+		During online ALTER TABLE that rebuilds the table, the
+		clustered index in the old table will have
+		index->online_log pointing to the new table. All
+		indexes of the old table will remain valid and the new
+		table will be unaccessible to MySQL until the
+		completion of the ALTER TABLE. */
+	} else if (dict_index_is_online_ddl(index)
+		   || (index->type & DICT_FTS)) {
+		/* Full Text index are implemented by auxiliary tables,
+		not the B-tree. We also skip secondary indexes that are
+		being created online. */
 		return(true);
 	}
 

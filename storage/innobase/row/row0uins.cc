@@ -192,22 +192,31 @@ row_undo_ins_remove_sec_low(
 {
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur;
-	dberr_t			err;
+	dberr_t			err	= DB_SUCCESS;
 	mtr_t			mtr;
 	enum row_search_result	search_result;
 
+	log_free_check();
+
 	mtr_start(&mtr);
 
-	btr_cur = btr_pcur_get_btr_cur(&pcur);
+	if (mode == BTR_MODIFY_LEAF) {
+		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+	} else {
+		ut_ad(mode == BTR_MODIFY_TREE);
+		mtr_x_lock(dict_index_get_lock(index), &mtr);
+	}
 
-	ut_ad(mode == BTR_MODIFY_TREE || mode == BTR_MODIFY_LEAF);
+	if (row_log_online_op_try(index, entry, 0)) {
+		goto func_exit_no_pcur;
+	}
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
 
 	switch (search_result) {
 	case ROW_NOT_FOUND:
-		err = DB_SUCCESS;
 		goto func_exit;
 	case ROW_FOUND:
 		break;
@@ -219,12 +228,12 @@ row_undo_ins_remove_sec_low(
 		ut_error;
 	}
 
-	if (mode == BTR_MODIFY_LEAF) {
+	btr_cur = btr_pcur_get_btr_cur(&pcur);
+
+	if (mode != BTR_MODIFY_TREE) {
 		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
 			? DB_SUCCESS : DB_FAIL;
 	} else {
-		ut_ad(mode == BTR_MODIFY_TREE);
-
 		/* No need to distinguish RB_RECOVERY here, because we
 		are deleting a secondary index record: the distinction
 		between RB_NORMAL and RB_RECOVERY only matters when
@@ -236,6 +245,7 @@ row_undo_ins_remove_sec_low(
 	}
 func_exit:
 	btr_pcur_close(&pcur);
+func_exit_no_pcur:
 	mtr_commit(&mtr);
 
 	return(err);
@@ -380,14 +390,7 @@ row_undo_ins_remove_sec_rec(
 			only occur during the rollback of incomplete
 			transactions. */
 			ut_a(trx_is_recv(node->trx));
-		} else if (dict_index_online_trylog(
-				   index, entry, node->trx->id,
-				   ROW_OP_DELETE_PURGE)) {
-			/* The index is being created, and we
-			successfully buffered the purge operation. */
 		} else {
-			log_free_check();
-
 			err = row_undo_ins_remove_sec(index, entry);
 
 			if (UNIV_UNLIKELY(err != DB_SUCCESS)) {

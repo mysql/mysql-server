@@ -1,0 +1,84 @@
+/*****************************************************************************
+
+Copyright (c) 2011, 2012, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/row0log.ic
+Modification log for online index creation and online table rebuild
+
+Created 2012-10-18 Marko Makela
+*******************************************************/
+
+#include "dict0dict.h"
+
+/******************************************************//**
+Free the row log for an index on which online creation was aborted. */
+UNIV_INLINE
+void
+row_log_abort_sec(
+/*===============*/
+	dict_index_t*	index)	/*!< in/out: index (x-latched) */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(!dict_index_is_clust(index));
+	dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
+	row_log_free(index->online_log);
+}
+
+/******************************************************//**
+Try to log an operation to a secondary index that is
+(or was) being created.
+@retval	true if the operation was logged or can be ignored
+@retval	false if online index creation is not taking place */
+UNIV_INLINE
+bool
+row_log_online_op_try(
+/*==================*/
+	dict_index_t*	index,	/*!< in/out: index, S or X latched */
+	const dtuple_t* tuple,	/*!< in: index tuple */
+	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
+				or 0 for delete */
+{
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED)
+	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+
+	switch (dict_index_get_online_status(index)) {
+	case ONLINE_INDEX_COMPLETE:
+		/* This is a normal index. Do not log anything.
+		The caller must perform the operation on the
+		index tree directly. */
+		return(false);
+	case ONLINE_INDEX_CREATION:
+		/* The index is being created online. Log the
+		operation. */
+		row_log_online_op(index, tuple, trx_id);
+		break;
+	case ONLINE_INDEX_ABORTED:
+	case ONLINE_INDEX_ABORTED_DROPPED:
+		/* The index was created online, but the operation was
+		aborted. Do not log the operation and tell the caller
+		to skip the operation. */
+		break;
+	}
+
+	return(true);
+}

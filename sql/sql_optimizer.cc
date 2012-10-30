@@ -3535,7 +3535,7 @@ const_table_extraction_done:
              4. have an expensive outer join condition.
              5. are blocked by handler for const table optimize.
           */
-	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
+	  if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !table->fulltext_searched &&                           // 1
               !tl->outer_join_nest() &&                              // 2
               !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
@@ -4376,7 +4376,7 @@ static bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
           keyuse++;
         } while (keyuse->key == key && keyuse->table == table);
 
-        if (bound_parts == LOWER_BITS(uint, keyinfo->key_parts))
+        if (bound_parts == LOWER_BITS(uint, keyinfo->user_defined_key_parts))
           return TRUE;
         if (keyuse->table != table)
           return FALSE;
@@ -5320,7 +5320,7 @@ add_key_part(Key_use_array *keyuse_array, Key_field *key_field)
       if (form->key_info[key].flags & (HA_FULLTEXT | HA_SPATIAL))
 	continue;    // ToDo: ft-keys in non-ft queries.   SerG
 
-      uint key_parts= (uint) form->key_info[key].key_parts;
+      uint key_parts= actual_key_parts(&form->key_info[key]);
       for (uint part=0 ; part <  key_parts ; part++)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
@@ -6266,26 +6266,29 @@ static bool test_if_ref(Item *root_cond,
         return ((Item_cache *)right_item)->eq_def (field);
       if (right_item->const_item() && !(right_item->is_null()))
       {
-	/*
-	  We can remove binary fields and numerical fields except float,
-	  as float comparison isn't 100 % secure
-	  We have to keep normal strings to be able to check for end spaces
+        /*
+          We can remove all fields except float. The reason is that
+          comparison of float can differ:
+          1. When we search "WHERE field=value" using an index,
+             the "value" side is converted from double to float by
+             Field_float::store(), then two floats are compared.
+          2. When we search "WHERE field=value" without indexes,
+             the "field" side is converted from float to double by
+             Field_float::val_real(), then two doubles are compared.
 
-          sergefp: the above seems to be too restrictive. Counterexample:
-            create table t100 (v varchar(10), key(v)) default charset=latin1;
-            insert into t100 values ('a'),('a ');
-            explain select * from t100 where v='a';
-          The EXPLAIN shows 'using Where'. Running the query returns both
-          rows, so it seems there are no problems with endspace in the most
-          frequent case?
-	*/
-	if (field->binary() &&
-	    field->real_type() != MYSQL_TYPE_STRING &&
-	    field->real_type() != MYSQL_TYPE_VARCHAR &&
-	    (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0))
-	{
-	  return !right_item->save_in_field_no_warnings(field, true);
-	}
+          Note about string data types: All currently existing
+          collations have "PAD SPACE" style. If we introduce "NO PAD"
+          collations we have to change to return false for such
+          collations, because trailing space compression for indexes
+          makes the table value and the index value not equal to each
+          other in "NO PAD" collations. As index lookup strips
+          trailing spaces, it can return false candidates. Further
+          comparison of the actual table values is required.
+        */
+        if (field->type() != MYSQL_TYPE_FLOAT || field->decimals() == 0)
+        {
+          return !right_item->save_in_field_no_warnings(field, true);
+        }
       }
     }
   }
@@ -8551,7 +8554,7 @@ list_contains_unique_index(JOIN_TAB *tab,
       KEY_PART_INFO *key_part, *key_part_end;
 
       for (key_part=keyinfo->key_part,
-           key_part_end=key_part+ keyinfo->key_parts;
+           key_part_end=key_part+ keyinfo->user_defined_key_parts;
            key_part < key_part_end;
            key_part++)
       {
