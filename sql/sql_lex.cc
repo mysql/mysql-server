@@ -1278,7 +1278,10 @@ int lex_one_token(void *arg, void *yythd)
       {
         c= lip->yyGet();
         if (c == 0)
+        {
+          lip->yyUnget();
           return ABORT_SYM;                     // Unmatched quotes
+        }
 
 	int var_length;
 	if ((var_length= my_mbcharlen(cs, c)) == 1)
@@ -2038,7 +2041,6 @@ void st_select_lex::mark_as_dependent(st_select_lex *last)
   }
 }
 
-bool st_select_lex_node::set_braces(bool value)      { return 1; }
 bool st_select_lex_node::inc_in_sum_expr()           { return 1; }
 uint st_select_lex_node::get_in_sum_expr()           { return 0; }
 TABLE_LIST* st_select_lex_node::get_table_list()     { return 0; }

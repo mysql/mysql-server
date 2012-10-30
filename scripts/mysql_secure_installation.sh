@@ -136,22 +136,34 @@ set_root_password() {
 
     esc_pass=`basic_single_escape "$password1"`
 
+    # attempt to lift the password expiration flag for root first
+    do_query "SET PASSWORD=PASSWORD('$esc_pass');"
+    if [ $? -ne 0 ]; then
+	echo "root password update failed!"
+	clean_and_exit
+    fi
+
+    # now since the password has changed, lets use the new one.
+    rootpass=$password1
+    make_config
+
+    # set password for all root users
     # do the old password
-    do_query "SET @@old_passwords=1; UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root' and plugin = 'mysql_old_password';"
+    do_query "SET @@old_passwords=1; UPDATE mysql.user SET Password=PASSWORD('$esc_pass'), password_expired='N' WHERE User='root' and plugin = 'mysql_old_password';"
     if [ $? -ne 0 ]; then
 	echo "old password update failed!"
 	clean_and_exit
     fi
 
     # do the native password
-    do_query "SET @@old_passwords=0; UPDATE mysql.user SET Password=PASSWORD('$esc_pass') WHERE User='root' and plugin in ('', 'mysql_native_password');"
+    do_query "SET @@old_passwords=0; UPDATE mysql.user SET Password=PASSWORD('$esc_pass'), password_expired='N' WHERE User='root' and plugin in ('', 'mysql_native_password');"
     if [ $? -ne 0 ]; then
 	echo "native password update failed!"
 	clean_and_exit
     fi
 
     # do the sha256 password
-    do_query "SET @@old_passwords=2; UPDATE mysql.user SET authentication_string=PASSWORD('$esc_pass') WHERE User='root' and plugin = 'sha256_password';"
+    do_query "SET @@old_passwords=2; UPDATE mysql.user SET authentication_string=PASSWORD('$esc_pass'), password_expired='N' WHERE User='root' and plugin = 'sha256_password';"
     if [ $? -ne 0 ]; then
 	echo "sha256 password update failed!"
 	clean_and_exit
@@ -164,8 +176,6 @@ set_root_password() {
             clean_and_exit
     fi
     echo
-    rootpass=$password1
-    make_config
 
     return 0
 }
