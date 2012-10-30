@@ -2027,7 +2027,7 @@ static const char *optimizer_switch_names[]=
   "materialization", "semijoin", "loosescan", "firstmatch",
   "subquery_materialization_cost_based",
 #endif
-  "default", NullS
+  "use_index_extensions", "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
@@ -2039,7 +2039,7 @@ static Sys_var_flagset Sys_optimizer_switch(
        ", materialization, semijoin, loosescan, firstmatch,"
        " subquery_materialization_cost_based"
 #endif
-       ", block_nested_loop, batched_key_access"
+       ", block_nested_loop, batched_key_access, use_index_extensions"
        "} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),

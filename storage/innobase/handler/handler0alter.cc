@@ -344,7 +344,7 @@ ha_innobase::check_if_supported_inplace_alter(
 		     + ha_alter_info->key_count;
 	     new_key++) {
 		for (KEY_PART_INFO* key_part = new_key->key_part;
-		     key_part < new_key->key_part + new_key->key_parts;
+		     key_part < new_key->key_part + new_key->user_defined_key_parts;
 		     key_part++) {
 			const Create_field*	new_field;
 
@@ -683,7 +683,7 @@ innobase_find_equiv_index(
 	for (uint i = 0; i < n_add; i++) {
 		const KEY*	key = &keys[add[i]];
 
-		if (key->key_parts < n_cols) {
+		if (key->user_defined_key_parts < n_cols) {
 no_match:
 			continue;
 		}
@@ -1312,7 +1312,7 @@ innobase_check_index_keys(
 		}
 
 name_ok:
-		for (ulint i = 0; i < key.key_parts; i++) {
+		for (ulint i = 0; i < key.user_defined_key_parts; i++) {
 			const KEY_PART_INFO&	key_part1
 				= key.key_part[i];
 			const Field*		field
@@ -1440,7 +1440,7 @@ innobase_create_index_def(
 	const KEY*	key = &keys[key_number];
 	ulint		i;
 	ulint		len;
-	ulint		n_fields = key->key_parts;
+	ulint		n_fields = key->user_defined_key_parts;
 	char*		index_name;
 
 	DBUG_ENTER("innobase_create_index_def");
@@ -1598,7 +1598,7 @@ innobase_fts_check_doc_id_index(
 			}
 
 			if ((key.flags & HA_NOSAME)
-			    && key.key_parts == 1
+			    && key.user_defined_key_parts == 1
 			    && !strcmp(key.name, FTS_DOC_ID_INDEX_NAME)
 			    && !strcmp(key.key_part[0].field->field_name,
 				       FTS_DOC_ID_COL_NAME)) {
@@ -1677,7 +1677,7 @@ innobase_fts_check_doc_id_index_in_def(
 		/* Do a check on FTS DOC ID_INDEX, it must be unique,
 		named as "FTS_DOC_ID_INDEX" and on column "FTS_DOC_ID" */
 		if (!(key->flags & HA_NOSAME)
-		    || key->key_parts != 1
+		    || key->user_defined_key_parts != 1
 		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
 		    || strcmp(key->key_part[0].field->field_name,
 			      FTS_DOC_ID_COL_NAME)) {
@@ -1758,7 +1758,7 @@ innobase_create_key_defs(
 	if (n_add > 0 && !new_primary && got_default_clust
 	    && (key_info[*add].flags & HA_NOSAME)
 	    && !(key_info[*add].flags & HA_KEY_HAS_PART_KEY_SEG)) {
-		uint	key_part = key_info[*add].key_parts;
+		uint	key_part = key_info[*add].user_defined_key_parts;
 
 		new_primary = true;
 
@@ -1930,7 +1930,7 @@ innobase_check_column_length(
 	ulint		max_col_len,	/*!< in: maximum column length */
 	const KEY*	key_info)	/*!< in: Indexes to be created */
 {
-	for (ulint key_part = 0; key_part < key_info->key_parts; key_part++) {
+	for (ulint key_part = 0; key_part < key_info->user_defined_key_parts; key_part++) {
 		if (key_info->key_part[key_part].length > max_col_len) {
 			return(true);
 		}
@@ -3492,7 +3492,9 @@ found_fk:
 		the table. */
 
 		if (innobase_fulltext_exist(table->s)
-		    && !innobase_fulltext_exist(altered_table->s)) {
+		    && !innobase_fulltext_exist(altered_table->s)
+		    && !DICT_TF2_FLAG_IS_SET(
+			indexed_table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			dict_index_t*	fts_doc_index
 				= dict_table_get_index_on_name(
 					indexed_table, FTS_DOC_ID_INDEX_NAME);
@@ -5146,10 +5148,6 @@ func_exit:
 		ut_a(check(user_thd, 0) == HA_ADMIN_OK);
 		table = old_table;
 #endif /* UNIV_DDL_DEBUG */
-	}
-
-	if (prebuilt->table->fts) {
-		fts_optimize_add_table(prebuilt->table);
 	}
 
 	DBUG_RETURN(err != 0);

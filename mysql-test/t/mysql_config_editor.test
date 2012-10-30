@@ -1,7 +1,7 @@
 -- source include/not_embedded.inc
 
 --echo #
---echo # Testing mysql_config_editor tool.
+--echo # Testing mysql_config_editor utility.
 --echo #
 
 # Note : a) mtr sets the 'MYSQL_TEST_LOGIN_FILE' environment
@@ -94,8 +94,8 @@
 --echo ######################
 --echo #
 --echo # Inserting login paths default & test-login-path1
---exec $MYSQL_CONFIG_EDITOR set --verbose --user=test_user1 --host=localhost 2>&1
---exec $MYSQL_CONFIG_EDITOR set --login-path=test-login-path1 --verbose --user=test_user2 --host=127.0.0.1 2>&1
+--exec $MYSQL_CONFIG_EDITOR --verbose set --user=test_user1 --host=localhost 2>&1
+--exec $MYSQL_CONFIG_EDITOR --verbose set --login-path=test-login-path1 --user=test_user2 --host=127.0.0.1 2>&1
 --echo # done..
 --echo
 --echo # Connecting using 'test_user1'

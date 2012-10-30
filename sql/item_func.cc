@@ -6283,7 +6283,7 @@ bool Item_func_match::fix_index()
     for (keynr=0 ; keynr < fts ; keynr++)
     {
       KEY *ft_key=&table->key_info[ft_to_key[keynr]];
-      uint key_parts=ft_key->key_parts;
+      uint key_parts=ft_key->user_defined_key_parts;
 
       for (uint part=0 ; part < key_parts ; part++)
       {
@@ -6315,7 +6315,7 @@ bool Item_func_match::fix_index()
   {
     // partial keys doesn't work
     if (max_cnt < arg_count-1 ||
-        max_cnt < table->key_info[ft_to_key[keynr]].key_parts)
+        max_cnt < table->key_info[ft_to_key[keynr]].user_defined_key_parts)
       continue;
 
     key=ft_to_key[keynr];

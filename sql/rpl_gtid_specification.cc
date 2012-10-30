@@ -77,6 +77,11 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
   case ANONYMOUS_GROUP:
     strcpy(buf, "ANONYMOUS");
     DBUG_RETURN(9);
+  /*
+    UNDEFINED_GROUP must be printed like GTID_GROUP because of
+    SELECT @@SESSION.GTID_NEXT.
+  */
+  case UNDEFINED_GROUP:
   case GTID_GROUP:
     DBUG_RETURN(gtid.to_string(*sid, buf));
   case INVALID_GROUP:
@@ -89,7 +94,7 @@ int Gtid_specification::to_string(const rpl_sid *sid, char *buf) const
 
 int Gtid_specification::to_string(const Sid_map *sid_map, char *buf) const
 {
-  return to_string(type == GTID_GROUP ?
+  return to_string(type == GTID_GROUP || type == UNDEFINED_GROUP ?
                    &sid_map->sidno_to_sid(gtid.sidno) : NULL,
                    buf);
 }

@@ -864,7 +864,7 @@ static SEL_ARG *get_mm_leaf(RANGE_OPT_PARAM *param,Item *cond_func,Field *field,
 			    Item_func::Functype type,Item *value);
 static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond);
 
-static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts);
+static bool is_key_scan_ror(PARAM *param, uint keynr, uint nparts);
 static ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                                   SEL_ARG *tree, bool update_tbl_stats, 
                                   uint *mrr_flags, uint *bufsize,
@@ -2462,8 +2462,8 @@ static int fill_used_fields_bitmap(PARAM *param)
   {
     /* The table uses clustered PK and it is not internally generated */
     KEY_PART_INFO *key_part= param->table->key_info[pk].key_part;
-    KEY_PART_INFO *key_part_end= key_part +
-                                 param->table->key_info[pk].key_parts;
+    KEY_PART_INFO *key_part_end=
+      key_part + param->table->key_info[pk].user_defined_key_parts;
     for (;key_part != key_part_end; ++key_part)
       bitmap_clear_bit(&param->needed_fields, key_part->fieldnr-1);
   }
@@ -2656,7 +2656,7 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
         param.key[param.keys]=key_parts;
         key_part_info= key_info->key_part;
         Opt_trace_array trace_keypart(trace, "key_parts");
-        for (uint part=0 ; part < key_info->key_parts ;
+        for (uint part=0 ; part < actual_key_parts(key_info) ;
              part++, key_parts++, key_part_info++)
         {
           key_parts->key=          param.keys;
@@ -4595,8 +4595,8 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
   bitmap_clear_all(&ror_scan->covered_fields);
 
   KEY_PART_INFO *key_part= param->table->key_info[keynr].key_part;
-  KEY_PART_INFO *key_part_end= key_part +
-                               param->table->key_info[keynr].key_parts;
+  KEY_PART_INFO *key_part_end=
+    key_part + param->table->key_info[keynr].user_defined_key_parts;
   for (;key_part != key_part_end; ++key_part)
   {
     if (bitmap_is_set(&param->needed_fields, key_part->fieldnr-1))
@@ -9071,6 +9071,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
   }
   else
   {
+    const KEY *cur_key_info= &param->table->key_info[seq->real_keyno];
     range->range_flag= cur->min_key_flag | cur->max_key_flag;
 
     range->start_key.key=    param->min_key;
@@ -9092,12 +9093,15 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
         2) The lower bound and the upper bound of the range has the
            same value (min_key == max_key).
      */
-    if (!(cur->min_key_flag & (NO_MIN_RANGE | NO_MAX_RANGE | 
-                               NEAR_MIN | NEAR_MAX | GEOM_FLAG)) &&       // 1)
-        !(cur->max_key_flag & (NO_MIN_RANGE | NO_MAX_RANGE | 
-                               NEAR_MIN | NEAR_MAX | GEOM_FLAG)) &&       // 1)
-        range->start_key.length == range->end_key.length &&               // 2)
-        !memcmp(param->min_key, param->max_key, range->start_key.length)) // 2)
+    const uint is_open_range= (NO_MIN_RANGE | NO_MAX_RANGE | 
+                               NEAR_MIN | NEAR_MAX | GEOM_FLAG);
+    const bool is_eq_range_pred=
+      !(cur->min_key_flag & is_open_range) &&                           // 1)
+      !(cur->max_key_flag & is_open_range) &&                           // 1)
+      range->start_key.length == range->end_key.length &&               // 2)
+      !memcmp(param->min_key, param->max_key, range->start_key.length);
+
+    if (is_eq_range_pred)
     {
       range->range_flag= EQ_RANGE;
       /*
@@ -9110,15 +9114,17 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
       /* 
         An equality range is a unique range (0 or 1 rows in the range)
         if the index is unique (1) and all keyparts are used (2).
+        Note that keys which are extended with PK parts have no
+        HA_NOSAME flag. So we can use user_defined_key_parts.
       */
-      if (param->table->key_info[seq->real_keyno].flags & HA_NOSAME &&    // 1)
-          (uint)key_tree->part+1 == param->table->
-                                    key_info[seq->real_keyno].key_parts)  // 2)
+      if (cur_key_info->flags & HA_NOSAME &&                              // 1)
+          (uint)key_tree->part+1 == cur_key_info->user_defined_key_parts) // 2)
         range->range_flag|= UNIQUE_RANGE | (cur->min_key_flag & NULL_RANGE);
     }
 
     if (param->is_ror_scan)
     {
+      const uint key_part_number= key_tree->part + 1;
       /*
         If we get here, the condition on the key was converted to form
         "(keyXpart1 = c1) AND ... AND (keyXpart{key_tree->part - 1} = cN) AND
@@ -9127,15 +9133,14 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
           somecond is "keyXpart{key_tree->part} = const" and
           uncovered "tail" of KeyX parts is either empty or is identical to
           first members of clustered primary key.
+
+        If last key part is PK part added to the key as an extension
+        and is_key_scan_ror() result is TRUE then it's possible to
+        use ROR scan.
       */
-      if (!(!(cur->min_key_flag & (NO_MIN_RANGE | NO_MAX_RANGE | 
-                                   NEAR_MIN | NEAR_MAX | GEOM_FLAG)) && 
-            !(cur->max_key_flag & (NO_MIN_RANGE | NO_MAX_RANGE | 
-                                   NEAR_MIN | NEAR_MAX | GEOM_FLAG)) && 
-            (range->start_key.length == range->end_key.length) &&
-            !memcmp(range->start_key.key, range->end_key.key, 
-                    range->start_key.length) &&
-            is_key_scan_ror(param, seq->real_keyno, key_tree->part + 1)))
+      if ((!is_eq_range_pred &&
+           key_part_number <= cur_key_info->user_defined_key_parts) ||
+          !is_key_scan_ror(param, seq->real_keyno, key_part_number))
         param->is_ror_scan= FALSE;
     }
   }
@@ -9311,12 +9316,21 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
     FALSE  Otherwise
 */
 
-static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts)
+static bool is_key_scan_ror(PARAM *param, uint keynr, uint nparts)
 {
   KEY *table_key= param->table->key_info + keynr;
-  KEY_PART_INFO *key_part= table_key->key_part + nparts;
+
+  /*
+    Range predicates on hidden key parts do not change the fact
+    that a scan is rowid ordered, so we only care about user
+    defined keyparts
+  */
+  const uint user_defined_nparts=
+    std::min<uint>(nparts, table_key->user_defined_key_parts);
+
+  KEY_PART_INFO *key_part= table_key->key_part + user_defined_nparts;
   KEY_PART_INFO *key_part_end= (table_key->key_part +
-                                table_key->key_parts);
+                                table_key->user_defined_key_parts);
   uint pk_number;
   
   for (KEY_PART_INFO *kp= table_key->key_part; kp < key_part; kp++)
@@ -9330,14 +9344,14 @@ static bool is_key_scan_ror(PARAM *param, uint keynr, uint8 nparts)
   if (key_part == key_part_end)
     return TRUE;
 
-  key_part= table_key->key_part + nparts;
+  key_part= table_key->key_part + user_defined_nparts;
   pk_number= param->table->s->primary_key;
   if (!param->table->file->primary_key_is_clustered() || pk_number == MAX_KEY)
     return FALSE;
 
   KEY_PART_INFO *pk_part= param->table->key_info[pk_number].key_part;
-  KEY_PART_INFO *pk_part_end= pk_part +
-                              param->table->key_info[pk_number].key_parts;
+  KEY_PART_INFO *pk_part_end=
+    pk_part + param->table->key_info[pk_number].user_defined_key_parts;
   for (;(key_part!=key_part_end) && (pk_part != pk_part_end);
        ++key_part, ++pk_part)
   {
@@ -9406,8 +9420,9 @@ get_quick_select(PARAM *param,uint idx,SEL_ARG *key_tree, uint mrr_flags,
       quick->key_parts=(KEY_PART*)
         memdup_root(parent_alloc? parent_alloc : &quick->alloc,
                     (char*) param->key[idx],
-                    sizeof(KEY_PART)*
-                    param->table->key_info[param->real_keynr[idx]].key_parts);
+                    sizeof(KEY_PART) *
+                    actual_key_parts(&param->
+                                     table->key_info[param->real_keynr[idx]]));
     }
   }
   DBUG_RETURN(quick);
@@ -9495,9 +9510,14 @@ get_quick_keys(PARAM *param,QUICK_RANGE_SELECT *quick,KEY_PART *key,
     if (length == (uint) (tmp_max_key - param->max_key) &&
 	!memcmp(param->min_key,param->max_key,length))
     {
-      KEY *table_key=quick->head->key_info+quick->index;
+      const KEY *table_key=quick->head->key_info+quick->index;
       flag=EQ_RANGE;
-      if ((table_key->flags & HA_NOSAME) && key->part == table_key->key_parts-1)
+      /*
+        Note that keys which are extended with PK parts have no
+        HA_NOSAME flag. So we can use user_defined_key_parts.
+      */
+      if ((table_key->flags & HA_NOSAME) &&
+          key->part == table_key->user_defined_key_parts - 1)
       {
 	if (!(table_key->flags & HA_NULL_PART_KEY) ||
 	    !null_part_in_key(key,
@@ -10585,7 +10605,8 @@ int QUICK_SELECT_DESC::get_next()
     if (last_range)
     {						// Already read through key
       result = ((last_range->flag & EQ_RANGE && 
-                 used_key_parts <= head->key_info[index].key_parts) ? 
+                 used_key_parts <=
+                 head->key_info[index].user_defined_key_parts) ?
                 file->ha_index_next_same(record, last_range->min_key,
                                          last_range->min_length) :
                 file->ha_index_prev(record));
@@ -10603,7 +10624,7 @@ int QUICK_SELECT_DESC::get_next()
 
     // Case where we can avoid descending scan, see comment above
     const bool eqrange_all_keyparts= (last_range->flag & EQ_RANGE) && 
-                          (used_key_parts <= head->key_info[index].key_parts);
+      (used_key_parts <= head->key_info[index].user_defined_key_parts);
 
     /*
       If we have pushed an index condition (ICP) and this quick select
@@ -10654,7 +10675,8 @@ int QUICK_SELECT_DESC::get_next()
     {
       DBUG_ASSERT(last_range->flag & NEAR_MAX ||
                   (last_range->flag & EQ_RANGE && 
-                   used_key_parts > head->key_info[index].key_parts) ||
+                   used_key_parts >
+                   head->key_info[index].user_defined_key_parts) ||
                   range_reads_after_key(last_range));
       result= file->ha_index_read_map(record, last_range->max_key,
                                       last_range->max_keypart_map,
@@ -11304,7 +11326,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
     if (join->group_list)
     {
       cur_part= cur_index_info->key_part;
-      end_part= cur_part + cur_index_info->key_parts;
+      end_part= cur_part + actual_key_parts(cur_index_info);
       /* Iterate in parallel over the GROUP list and the index parts. */
       for (tmp_group= join->group_list; tmp_group && (cur_part != end_part);
            tmp_group= tmp_group->next, cur_part++)
@@ -11432,8 +11454,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
       must form a sequence without any gaps that starts immediately after the
       last group keypart.
     */
-    last_part= cur_index_info->key_part + cur_index_info->key_parts;
-    first_non_group_part= (cur_group_key_parts < cur_index_info->key_parts) ?
+    last_part= cur_index_info->key_part + actual_key_parts(cur_index_info);
+    first_non_group_part= 
+      (cur_group_key_parts < actual_key_parts(cur_index_info)) ?
       cur_index_info->key_part + cur_group_key_parts :
       NULL;
     first_non_infix_part= min_max_arg_part ?
@@ -11913,7 +11936,8 @@ get_field_keypart(KEY *index, Field *field)
 {
   KEY_PART_INFO *part, *end;
 
-  for (part= index->key_part, end= part + index->key_parts; part < end; part++)
+  for (part= index->key_part, end= part + actual_key_parts(index) ;
+       part < end; part++)
   {
     if (field->eq(part->field))
       return part - index->key_part + 1;
