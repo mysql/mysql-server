@@ -57,8 +57,11 @@ TEST_F(FatalSignalDeathTest, Segfault)
 #if defined(__WIN__)
   EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".* UTC - mysqld got exception.*");
 #else
-  // On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
-  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".* UTC - mysqld got signal 1.*");
+  /*
+   On most platforms we get SIGSEGV == 11, but SIGBUS == 10 is also possible.
+   And on Mac OsX we can get SIGILL == 4 (but only in optmized mode).
+  */
+  EXPECT_DEATH_IF_SUPPORTED(*pint= 42, ".* UTC - mysqld got signal .*");
 #endif
 }
 
