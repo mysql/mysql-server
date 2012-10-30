@@ -3681,7 +3681,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (key->generated)
       key_info->flags|= HA_GENERATED_KEY;
 
-    key_info->key_parts=(uint8) key->columns.elements;
+    key_info->user_defined_key_parts=(uint8) key->columns.elements;
+    key_info->actual_key_parts= key_info->user_defined_key_parts;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
     key_info->algorithm= key->key_create_info.algorithm;
@@ -3721,7 +3722,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                    MYF(0));
         DBUG_RETURN(TRUE);
       }
-      if (key_info->key_parts != 1)
+      if (key_info->user_defined_key_parts != 1)
       {
 	my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
 	DBUG_RETURN(TRUE);
@@ -3730,7 +3731,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
 #ifdef HAVE_RTREE_KEYS
-      if ((key_info->key_parts & 1) == 1)
+      if ((key_info->user_defined_key_parts & 1) == 1)
       {
 	my_error(ER_WRONG_ARGUMENTS, MYF(0), "RTREE INDEX");
 	DBUG_RETURN(TRUE);
@@ -4014,6 +4015,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	key_info->name=(char*) key_name;
       }
     }
+    key_info->actual_flags= key_info->flags;
     if (!key_info->name || check_column_name(key_info->name))
     {
       my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key_info->name);
@@ -5334,7 +5336,7 @@ err:
 static bool is_candidate_key(KEY *key)
 {
   KEY_PART_INFO *key_part;
-  KEY_PART_INFO *key_part_end= key->key_part + key->key_parts;
+  KEY_PART_INFO *key_part_end= key->key_part + key->user_defined_key_parts;
 
   if (!(key->flags & HA_NOSAME) || (key->flags & HA_NULL_PART_KEY))
     return false;
@@ -5661,14 +5663,14 @@ static bool fill_alter_inplace_info(THD *thd,
     if ((table_key->algorithm != new_key->algorithm) ||
         ((table_key->flags & HA_KEYFLAG_MASK) !=
          (new_key->flags & HA_KEYFLAG_MASK)) ||
-        (table_key->key_parts != new_key->key_parts))
+        (table_key->user_defined_key_parts != new_key->user_defined_key_parts))
       goto index_changed;
 
     /*
       Check that the key parts remain compatible between the old and
       new tables.
     */
-    end= table_key->key_part + table_key->key_parts;
+    end= table_key->key_part + table_key->user_defined_key_parts;
     for (key_part= table_key->key_part, new_part= new_key->key_part;
          key_part < end;
          key_part++, new_part++)
@@ -5856,7 +5858,7 @@ static void update_altered_table(const Alter_inplace_info &ha_alter_info,
     key= ha_alter_info.key_info_buffer +
          ha_alter_info.index_add_buffer[add_key_idx];
 
-    end= key->key_part + key->key_parts;
+    end= key->key_part + key->user_defined_key_parts;
     for (key_part= key->key_part; key_part < end; key_part++)
       altered_table->field[key_part->fieldnr]->flags|= FIELD_IN_ADD_INDEX;
   }
@@ -5988,12 +5990,13 @@ bool mysql_compare_tables(TABLE *table,
     if ((table_key->algorithm != new_key->algorithm) ||
 	((table_key->flags & HA_KEYFLAG_MASK) !=
          (new_key->flags & HA_KEYFLAG_MASK)) ||
-        (table_key->key_parts != new_key->key_parts))
+        (table_key->user_defined_key_parts != new_key->user_defined_key_parts))
       DBUG_RETURN(false);
 
     /* Check that the key parts remain compatible. */
     KEY_PART_INFO *table_part;
-    KEY_PART_INFO *table_part_end= table_key->key_part + table_key->key_parts;
+    KEY_PART_INFO *table_part_end= table_key->key_part +
+      table_key->user_defined_key_parts;
     KEY_PART_INFO *new_part;
     for (table_part= table_key->key_part, new_part= new_key->key_part;
          table_part < table_part_end;
@@ -6782,7 +6785,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
     KEY_PART_INFO *key_part= key_info->key_part;
     key_parts.empty();
-    for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
+    for (uint j=0 ; j < key_info->user_defined_key_parts ; j++,key_part++)
     {
       if (!key_part->field)
 	continue;				// Wrong field (from UNIREG)
