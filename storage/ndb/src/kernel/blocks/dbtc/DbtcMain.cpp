@@ -4280,6 +4280,17 @@ Dbtc::CommitAckMarker::insert_in_commit_ack_marker(Dbtc *tc,
   LocalDataBuffer<5> tmp(pool, this->theDataBuffer);
   return tmp.append(&item, (Uint32)1);
 }
+bool
+Dbtc::CommitAckMarker::insert_in_commit_ack_marker_all(Dbtc *tc,
+                                                       NodeId node_id)
+{
+  for (Uint32 ikey = 1; ikey <= MAX_NDBMT_LQH_THREADS; ikey++)
+  {
+    if (!insert_in_commit_ack_marker(tc, ikey, node_id))
+      return false;
+  }
+  return true;
+}
 
 void Dbtc::execLQHKEYCONF(Signal* signal) 
 {
@@ -8946,19 +8957,7 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
     }
   }
 
-  Uint32 instanceKey;
-
-  if (unlikely(signal->getLength() < LqhTransConf::SignalLength_FRAG_ID))
-  {
-    jam();
-    instanceKey = 0;
-  }
-  else
-  {
-    jam();
-    instanceKey = getInstanceKey(tableId, fragId);
-  }
-  findApiConnectFail(signal, instanceKey);
+  findApiConnectFail(signal);
 
   if(apiConnectptr.p->ndbapiBlockref == 0 && tapplRef != 0){
     apiConnectptr.p->ndbapiBlockref = ref;
@@ -8968,6 +8967,19 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
   if (ttransStatus != LqhTransConf::Marker)
   {
     jam();
+
+    Uint32 instanceKey;
+
+    if (unlikely(signal->getLength() < LqhTransConf::SignalLength_FRAG_ID))
+    {
+      jam();
+      instanceKey = 0;
+    }
+    else
+    {
+      jam();
+      instanceKey = getInstanceKey(tableId, fragId);
+    }
     findTcConnectFail(signal, instanceKey);
   }
 }//Dbtc::execLQH_TRANSCONF()
@@ -9798,7 +9810,7 @@ void Dbtc::toCompleteHandlingLab(Signal* signal)
 /*       YET THEN SEIZE A NEW API CONNECT RECORD AND LINK IT  */
 /*       INTO THE HASH TABLE.                                 */
 /*------------------------------------------------------------*/
-void Dbtc::findApiConnectFail(Signal* signal, Uint32 instanceKey) 
+void Dbtc::findApiConnectFail(Signal* signal) 
 {
   ApiConnectRecordPtr fafPrevApiConnectptr;
   ApiConnectRecordPtr fafNextApiConnectptr;
@@ -9829,7 +9841,7 @@ FAF_LOOP:
       fafPrevApiConnectptr.p->nextApiConnect = apiConnectptr.i;
     }//if
     apiConnectptr.p->nextApiConnect = RNIL;
-    initApiConnectFail(signal, instanceKey);
+    initApiConnectFail(signal);
   } else {
     jam();
     fafPrevApiConnectptr.i = fafNextApiConnectptr.i;
@@ -9842,7 +9854,7 @@ FAF_LOOP:
         (apiConnectptr.p->transid[0] != ttransid1)) {
       goto FAF_LOOP;
     }//if
-    updateApiStateFail(signal, instanceKey);
+    updateApiStateFail(signal);
   }//if
 }//Dbtc::findApiConnectFail()
 
@@ -9885,7 +9897,7 @@ void Dbtc::findTcConnectFail(Signal* signal, Uint32 instanceKey)
 /*----------------------------------------------------------*/
 /*       INITIALISE AN API CONNECT FAIL RECORD              */
 /*----------------------------------------------------------*/
-void Dbtc::initApiConnectFail(Signal* signal, Uint32 instanceKey) 
+void Dbtc::initApiConnectFail(Signal* signal) 
 {
   apiConnectptr.p->transid[0] = ttransid1;
   apiConnectptr.p->transid[1] = ttransid2;
@@ -9940,7 +9952,7 @@ void Dbtc::initApiConnectFail(Signal* signal, Uint32 instanceKey)
     CommitAckMarkerBuffer::DataBufferPool & pool =
       c_theCommitAckMarkerBufferPool;
     LocalDataBuffer<5> head(pool, tmp.p->theDataBuffer);
-    ndbrequire(tmp.p->insert_in_commit_ack_marker(this, instanceKey, tnodeid));
+    ndbrequire(tmp.p->insert_in_commit_ack_marker_all(this, tnodeid));
 
 #if defined VM_TRACE || defined ERROR_INSERT
     {
@@ -10086,7 +10098,7 @@ void Dbtc::setupFailData(Signal* signal)
 /*----------------------------------------------------------*/
 /*       UPDATE THE STATE OF THE API CONNECT FOR THIS PART.   */
 /*----------------------------------------------------------*/
-void Dbtc::updateApiStateFail(Signal* signal, Uint32 instanceKey) 
+void Dbtc::updateApiStateFail(Signal* signal) 
 {
   if(LqhTransConf::getMarkerFlag(treqinfo))
   {
@@ -10123,7 +10135,7 @@ void Dbtc::updateApiStateFail(Signal* signal, Uint32 instanceKey)
       ndbassert(tmp.p->transid1 == ttransid1);
       ndbassert(tmp.p->transid2 == ttransid2);
     }
-    ndbrequire(tmp.p->insert_in_commit_ack_marker(this, instanceKey, tnodeid));
+    ndbrequire(tmp.p->insert_in_commit_ack_marker_all(this, tnodeid));
   }
 
   switch (ttransStatus) {
