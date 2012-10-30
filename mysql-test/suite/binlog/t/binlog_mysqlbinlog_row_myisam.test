@@ -20,4 +20,4 @@ let $engine_type=MyISAM;
 --source include/have_binlog_format_row.inc
 --source include/have_ucs2.inc 
 
---source include/mysqlbinlog_row_engine.inc
+--source extra/binlog_tests/mysqlbinlog_row_engine.inc
