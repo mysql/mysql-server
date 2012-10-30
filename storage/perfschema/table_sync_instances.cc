@@ -43,7 +43,7 @@ static const TABLE_FIELD_TYPE mutex_field_types[]=
   },
   {
     { C_STRING_WITH_LEN("LOCKED_BY_THREAD_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   }
 };
@@ -178,7 +178,7 @@ int table_mutex_instances::read_row_values(TABLE *table,
         break;
       case 2: /* LOCKED_BY_THREAD_ID */
         if (m_row.m_locked)
-          set_field_ulong(f, m_row.m_locked_by_thread_id);
+          set_field_ulonglong(f, m_row.m_locked_by_thread_id);
         else
           f->set_null();
         break;
@@ -207,7 +207,7 @@ static const TABLE_FIELD_TYPE rwlock_field_types[]=
   },
   {
     { C_STRING_WITH_LEN("WRITE_LOCKED_BY_THREAD_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
@@ -351,7 +351,7 @@ int table_rwlock_instances::read_row_values(TABLE *table,
         break;
       case 2: /* WRITE_LOCKED_BY_THREAD_ID */
         if (m_row.m_write_locked)
-          set_field_ulong(f, m_row.m_write_locked_by_thread_id);
+          set_field_ulonglong(f, m_row.m_write_locked_by_thread_id);
         else
           f->set_null();
         break;

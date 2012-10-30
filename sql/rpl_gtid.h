@@ -2326,7 +2326,7 @@ enum enum_group_type
     It is important that AUTOMATIC_GROUP==0 so that the default value
     for thd->variables->gtid_next.type is AUTOMATIC_GROUP.
   */
-  AUTOMATIC_GROUP= 0, GTID_GROUP, ANONYMOUS_GROUP, INVALID_GROUP
+  AUTOMATIC_GROUP= 0, GTID_GROUP, ANONYMOUS_GROUP, INVALID_GROUP, UNDEFINED_GROUP
 };
 
 
@@ -2351,6 +2351,12 @@ struct Gtid_specification
   { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
   /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
   void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
+  /// Set to undefined if the current type is GTID_GROUP.
+  void set_undefined()
+  {
+    if (type == GTID_GROUP)
+      type= UNDEFINED_GROUP;
+  }
   /// Set the type to GTID_GROUP and SID, GNO to 0, 0.
   void clear() { set(0, 0); }
   /// Return true if this Gtid_specification is equal to 'other'.
@@ -2698,7 +2704,7 @@ gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc);
 
 /**
   Check that the current statement does not contradict
-  disable_gtid_unsafe_statements, that there is no implicit commit in
+  enforce_gtid_consistency, that there is no implicit commit in
   a transaction when GTID_NEXT!=AUTOMATIC, and whether the statement
   should be cancelled.
 

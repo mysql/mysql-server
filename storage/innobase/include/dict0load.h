@@ -54,7 +54,7 @@ enum dict_table_info_t {
 	DICT_TABLE_LOAD_FROM_RECORD = 0,/*!< Directly populate a dict_table_t
 					structure with information from
 					a SYS_TABLES record */
-	DICT_TABLE_LOAD_FROM_CACHE = 1,	/*!< Check first whether dict_table_t
+	DICT_TABLE_LOAD_FROM_CACHE = 1	/*!< Check first whether dict_table_t
 					is in the cache, if so, return it */
 };
 
