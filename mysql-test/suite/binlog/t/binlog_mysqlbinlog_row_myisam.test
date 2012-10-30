@@ -1,16 +1,16 @@
-# mysqlbinlog_row_innodb.test
+# mysqlbinlog_row.test
 #
 # Show that mysqlbinlog displays human readable comments to
 # row-based log events.
 #
-# Main module for the InnoDB storage engine.
+# Main module for the MyISAM storage engine.
 #
 # Calls include/mysqlbinlog_row.inc
 # See there for more informaton.
 #
 
---source include/have_innodb.inc
-let $engine_type=InnoDB;
+#--source include/have_myisam.inc
+let $engine_type=MyISAM;
 
 #
 # The test case would also work with statement based or mixed mode logging.
@@ -20,5 +20,4 @@ let $engine_type=InnoDB;
 --source include/have_binlog_format_row.inc
 --source include/have_ucs2.inc 
 
---source include/mysqlbinlog_row_engine.inc
-
+--source extra/binlog_tests/mysqlbinlog_row_engine.inc
