@@ -14,6 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 INCLUDE_DIRECTORIES(
+  ${GTEST_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/include
   ${CMAKE_SOURCE_DIR}/unittest/gunit
   ${CMAKE_SOURCE_DIR}/extra/yassl/include
@@ -29,3 +30,4 @@ SET(CMAKE_CXX_FLAGS ${nowerr_flags})
 
 ADD_EXECUTABLE(yassl-t yassl-t.cc)
 TARGET_LINK_LIBRARIES(yassl-t gunit_small sqlgunitlib strings dbug regex)
+TARGET_LINK_LIBRARIES(yassl-t ${LIBSOCKET})
