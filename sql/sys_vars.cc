@@ -644,12 +644,21 @@ static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var
 }
 #endif
 
-#if defined(HAVE_NDB_BINLOG) || defined(NON_DISABLED_GTID)
+#if defined(HAVE_NDB_BINLOG) || defined(HAVE_REPLICATION)
 static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
   {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name.str);
+    return true;
+  }
+  return false;
+}
+static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
+{
+  if (thd->lex->sphead)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), var->var->name.str);
     return true;
   }
   return false;
@@ -4300,9 +4309,36 @@ static Sys_var_gtid_executed Sys_gtid_executed(
        "binary log. The session variable contains the set of GTIDs "
        "in the current, ongoing transaction.");
 
+static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_gtid_purged");
+
+  if (check_top_level_stmt(self, thd, var) ||
+      check_outside_transaction(self, thd, var) ||
+      check_outside_sp(self, thd, var))
+    DBUG_RETURN(true);
+
+  if (0 == gtid_mode)
+  {
+    my_error(ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  if (var->value->result_type() != STRING_RESULT ||
+      !var->save_result.string_value.str)
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
+Gtid_set *gtid_purged;
 static Sys_var_gtid_purged Sys_gtid_purged(
        "gtid_purged",
-       "The set of GTIDs that existed in previous, purged binary logs.");
+       "The set of GTIDs that existed in previous, purged binary logs.",
+       GLOBAL_VAR(gtid_purged), NO_CMD_LINE,
+       DEFAULT(NULL), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_gtid_purged));
+export sys_var *Sys_gtid_purged_ptr= &Sys_gtid_purged;
 
 static Sys_var_gtid_owned Sys_gtid_owned(
        "gtid_owned",
