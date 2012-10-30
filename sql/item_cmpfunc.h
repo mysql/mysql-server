@@ -1492,7 +1492,7 @@ public:
       with_stored_program= args[0]->has_stored_program();
 
       if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
-          !with_subselect))
+           !with_subselect && !with_stored_program))
       {
 	/* Remember if the value is always NULL or never NULL */
 	cached_value= (longlong) args[0]->is_null();
