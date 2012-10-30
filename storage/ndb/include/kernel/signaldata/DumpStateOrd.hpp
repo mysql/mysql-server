@@ -160,6 +160,7 @@ public:
     DihAddFragFailCleanedUp = 7019,
     // 7020
     // 7021
+    DihDumpPageRecInfo = 7032,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,
