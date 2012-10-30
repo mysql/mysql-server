@@ -17,7 +17,7 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#if defined(__GNUC__)
+#if defined(__GNUC__) && __GNUC__ > 3
 #include <tr1/unordered_map>
 #elif defined(__WIN__)
 #include <hash_map>
@@ -31,7 +31,7 @@
 template<typename K, typename T>
 struct MyHashMap
 {
-#if defined(__GNUC__)
+#if defined(__GNUC__) && __GNUC__ > 3
   typedef std::tr1::unordered_map<K, T> Type;
 #elif defined(__WIN__)
   typedef stdext::hash_map<K, T> Type;
