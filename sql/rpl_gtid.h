@@ -1778,6 +1778,12 @@ public:
   /// Returns true if there is a least one element of this Owned_gtids
   /// set in the other Gtid_set.
   bool is_intersection(const Gtid_set *other) const;
+  /// Returns true if this Owned_gtids is empty.
+  bool is_empty() const
+  {
+    Gtid_iterator git(this);
+    return git.get().sidno == 0;
+  }
   /// Returns the maximal sidno that this Owned_gtids currently has space for.
   rpl_sidno get_max_sidno() const
   {
@@ -2208,6 +2214,17 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status ensure_sidno();
+  /**
+    Adds the given Gtid_set that contains the groups in the given
+    string to lost_gtids and logged_gtids, since lost_gtids must
+    be a subset of executed_gtids.
+    Requires that the write lock on sid_locks is held.
+
+    @param text The string to parse, see Gtid_set:add_gtid_text(const
+    char *, bool) for format details.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+   */
+  enum_return_status add_lost_gtids(const char *text);
   /// Return a pointer to the Gtid_set that contains the logged groups.
   const Gtid_set *get_logged_gtids() const { return &logged_gtids; }
   /// Return a pointer to the Gtid_set that contains the logged groups.
