@@ -6937,6 +6937,24 @@ ER_MALFORMED_PACKET
 ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
   eng "When GTID_NEXT is set to a GTID, you must explicitly set it again after a COMMIT or ROLLBACK. If you see this error message in the slave SQL thread, it means that a table in the current transaction is transactional on the master and non-transactional on the slave. In a client connection, it means that you executed SET GTID_NEXT before a transaction and forgot to set GTID_NEXT to a different identifier or to 'AUTOMATIC' after COMMIT or ROLLBACK. Current GTID_NEXT is '%s'."
 
+ER_VARIABLE_NOT_SETTABLE_IN_SP
+  eng "The system variable %.200s cannot be set in stored procedures."
+
+ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF
+  eng "GTID_PURGED can only be set when GTID_MODE = ON."
+
+ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY
+  eng "GTID_PURGED can only be set when GTID_EXECUTED is empty."
+
+ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY
+  eng "GTID_PURGED can only be set when there are no ongoing transactions (not even in other clients)."
+
+ER_GTID_PURGED_WAS_CHANGED
+  eng "GTID_PURGED was changed from '%s' to '%s'."
+
+ER_GTID_EXECUTED_WAS_CHANGED
+  eng "GTID_EXECUTED was changed from '%s' to '%s'."
+
 #
 #  End of 5.6 error messages.
 #
