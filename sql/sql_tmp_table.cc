@@ -983,6 +983,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
   param->end_write_records= rows_limit;
 
   keyinfo= param->keyinfo;
+  keyinfo->table= table;
 
   if (group)
   {
@@ -994,7 +995,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     table->key_info= share->key_info= keyinfo;
     keyinfo->key_part= key_part_info;
     keyinfo->flags=HA_NOSAME;
-    keyinfo->usable_key_parts=keyinfo->key_parts= param->group_parts;
+    keyinfo->usable_key_parts=keyinfo->user_defined_key_parts=
+      param->group_parts;
+    keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->key_length=0;
     keyinfo->rec_per_key=0;
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
@@ -1033,6 +1036,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       }
       keyinfo->key_length+=  key_part_info->store_length;
     }
+    keyinfo->actual_flags= keyinfo->flags;
   }
 
   if (distinct && field_count != param->hidden_field_count)
@@ -1055,18 +1059,21 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
       share->uniques= 1;
     }
     null_pack_length-=hidden_null_pack_length;
-    keyinfo->key_parts= ((field_count-param->hidden_field_count)+
-			 (share->uniques ? test(null_pack_length) : 0));
+    keyinfo->user_defined_key_parts= 
+      ((field_count-param->hidden_field_count) +
+       (share->uniques ? test(null_pack_length) : 0));
+    keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     table->distinct= 1;
     share->keys= 1;
     if (!(key_part_info= (KEY_PART_INFO*)
           alloc_root(&table->mem_root,
-                     keyinfo->key_parts * sizeof(KEY_PART_INFO))))
+                     keyinfo->user_defined_key_parts * sizeof(KEY_PART_INFO))))
       goto err;
-    memset(key_part_info, 0, keyinfo->key_parts * sizeof(KEY_PART_INFO));
+    memset(key_part_info, 0, keyinfo->user_defined_key_parts *
+           sizeof(KEY_PART_INFO));
     table->key_info= share->key_info= keyinfo;
     keyinfo->key_part= key_part_info;
-    keyinfo->flags= HA_NOSAME | HA_NULL_ARE_EQUAL;
+    keyinfo->actual_flags= keyinfo->flags= HA_NOSAME | HA_NULL_ARE_EQUAL;
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     keyinfo->name= (char*) "<auto_key>";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
@@ -1380,8 +1387,9 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     share->uniques= test(using_unique_constraint);
     table->key_info= table->s->key_info= keyinfo;
     keyinfo->key_part=key_part_info;
-    keyinfo->flags=HA_NOSAME;
-    keyinfo->usable_key_parts= keyinfo->key_parts= 1;
+    keyinfo->actual_flags= keyinfo->flags= HA_NOSAME;
+    keyinfo->usable_key_parts= keyinfo->user_defined_key_parts= 1;
+    keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->key_length=0;
     keyinfo->rec_per_key=0;
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
@@ -1635,13 +1643,14 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
       share->keys= 1;
     }
     HA_KEYSEG *seg= (HA_KEYSEG*) alloc_root(&table->mem_root,
-                                            sizeof(*seg) * keyinfo->key_parts);
+                                            sizeof(*seg) *
+                                            keyinfo->user_defined_key_parts);
     if (!seg)
       goto err;
 
-    memset(seg, 0, sizeof(*seg) * keyinfo->key_parts);
+    memset(seg, 0, sizeof(*seg) * keyinfo->user_defined_key_parts);
     if (keyinfo->key_length >= table->file->max_key_length() ||
-	keyinfo->key_parts > table->file->max_key_parts() ||
+	keyinfo->user_defined_key_parts > table->file->max_key_parts() ||
 	share->uniques)
     {
       /* Can't create a key; Make a unique constraint instead of a key */
@@ -1649,7 +1658,7 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
       share->uniques= 1;
       using_unique_constraint=1;
       memset(&uniquedef, 0, sizeof(uniquedef));
-      uniquedef.keysegs=keyinfo->key_parts;
+      uniquedef.keysegs=keyinfo->user_defined_key_parts;
       uniquedef.seg=seg;
       uniquedef.null_are_equal=1;
 
@@ -1665,10 +1674,10 @@ bool create_myisam_tmp_table(TABLE *table, KEY *keyinfo,
       /* Create an unique key */
       memset(&keydef, 0, sizeof(keydef));
       keydef.flag= keyinfo->flags;
-      keydef.keysegs=  keyinfo->key_parts;
+      keydef.keysegs=  keyinfo->user_defined_key_parts;
       keydef.seg= seg;
     }
-    for (uint i=0; i < keyinfo->key_parts ; i++,seg++)
+    for (uint i=0; i < keyinfo->user_defined_key_parts ; i++,seg++)
     {
       Field *field=keyinfo->key_part[i].field;
       seg->flag=     0;

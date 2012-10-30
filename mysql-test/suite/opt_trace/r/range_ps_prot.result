@@ -5141,7 +5141,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       "index": "i1_idx",
                       "usable": true,
                       "key_parts": [
-                        "i1"
+                        "i1",
+                        "pk"
                       ] /* key_parts */
                     },
                     {
@@ -5149,7 +5150,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       "usable": true,
                       "key_parts": [
                         "v",
-                        "i1"
+                        "i1",
+                        "pk"
                       ] /* key_parts */
                     }
                   ] /* potential_range_indices */,
@@ -5183,7 +5185,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       {
                         "index": "i1_idx",
                         "ranges": [
-                          "1 <= i1 <= 1"
+                          "1 <= i1 <= 1 AND pk < 3"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -5197,7 +5199,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND v = 'a' AND pk < 3	{
                       {
                         "index": "v_idx",
                         "ranges": [
-                          "a <= v <= a AND 1 <= i1 <= 1"
+                          "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -5416,7 +5418,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       "usable": true,
                       "key_parts": [
                         "v",
-                        "i1"
+                        "i1",
+                        "pk"
                       ] /* key_parts */
                     },
                     {
@@ -5424,7 +5427,8 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       "usable": true,
                       "key_parts": [
                         "i2",
-                        "i1"
+                        "i1",
+                        "pk"
                       ] /* key_parts */
                     }
                   ] /* potential_range_indices */,
@@ -5452,7 +5456,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       {
                         "index": "v_idx",
                         "ranges": [
-                          "a <= v <= a AND 1 <= i1 <= 1"
+                          "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -5465,7 +5469,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                       {
                         "index": "i1_i2_idx",
                         "ranges": [
-                          "1 <= i2 <= 1 AND 1 <= i1 <= 1"
+                          "1 <= i2 <= 1 AND 1 <= i1 <= 1 AND pk < 3"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": true,
@@ -5529,7 +5533,7 @@ EXPLAIN SELECT v FROM t1 WHERE i1 = 1 AND i2 = 1  AND v = 'a' AND pk < 3	{
                           "index": "v_idx",
                           "rows": 1,
                           "ranges": [
-                            "a <= v <= a AND 1 <= i1 <= 1"
+                            "a <= v <= a AND 1 <= i1 <= 1 AND pk < 3"
                           ] /* ranges */
                         }
                       ] /* intersect_of */
@@ -5703,7 +5707,8 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       "index": "b",
                       "usable": true,
                       "key_parts": [
-                        "b"
+                        "b",
+                        "a"
                       ] /* key_parts */
                     }
                   ] /* potential_range_indices */,
@@ -5728,8 +5733,9 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       },
                       {
                         "index": "b",
+                        "covering": true,
                         "usable": false,
-                        "cause": "not_covering"
+                        "cause": "group_attribute_not_prefix_in_index"
                       }
                     ] /* potential_group_range_indices */
                   } /* group_index_range */,
@@ -5768,7 +5774,7 @@ EXPLAIN SELECT MAX(b), a FROM t1 WHERE b < 2 AND a = 1 GROUP BY a	{
                       {
                         "index": "b",
                         "ranges": [
-                          "b < 2"
+                          "b < 2 AND 1 <= a <= 1"
                         ] /* ranges */,
                         "index_dives_for_eq_ranges": true,
                         "rowid_ordered": false,

@@ -1920,7 +1920,7 @@ bool check_key_in_view(THD *thd, TABLE_LIST *view)
     if ((key_info->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
     {
       KEY_PART_INFO *key_part= key_info->key_part;
-      KEY_PART_INFO *key_part_end= key_part + key_info->key_parts;
+      KEY_PART_INFO *key_part_end= key_part + key_info->user_defined_key_parts;
 
       /* check that all key parts are used */
       for (;;)
