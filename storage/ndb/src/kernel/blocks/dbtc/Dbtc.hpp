@@ -1476,14 +1476,14 @@ private:
   void timeOutFoundFragLab(Signal* signal, Uint32 TscanConPtr);
   void timeOutLoopStartFragLab(Signal* signal, Uint32 TscanConPtr);
   int  releaseAndAbort(Signal* signal);
-  void findApiConnectFail(Signal* signal, Uint32 instanceKey);
+  void findApiConnectFail(Signal* signal);
   void findTcConnectFail(Signal* signal, Uint32 instanceKey);
-  void initApiConnectFail(Signal* signal, Uint32 instanceKey);
+  void initApiConnectFail(Signal* signal);
   void initTcConnectFail(Signal* signal, Uint32 instanceKey);
   void initTcFail(Signal* signal);
   void releaseTakeOver(Signal* signal);
   void setupFailData(Signal* signal);
-  void updateApiStateFail(Signal* signal, Uint32 instanceKey);
+  void updateApiStateFail(Signal* signal);
   void updateTcStateFail(Signal* signal, Uint32 instanceKey);
   void handleApiFailState(Signal* signal, UintR anApiConnectptr);
   void handleFailedApiNode(Signal* signal,
@@ -1990,6 +1990,9 @@ public:
     bool insert_in_commit_ack_marker(Dbtc *tc,
                                      Uint32 instanceKey,
                                      NodeId nodeId);
+    // insert all keys when exact keys not known
+    bool insert_in_commit_ack_marker_all(Dbtc *tc,
+                                         NodeId nodeId);
   };
 
 private:
