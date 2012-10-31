@@ -235,6 +235,7 @@ select @a:=f1, count(f1) from t1 group by 1 desc;
 select @a:=f1, count(f1) from t1 group by 1 asc;
 select @a:=f2, count(f2) from t1 group by 1 desc;
 select @a:=f3, count(f3) from t1 group by 1 desc;
+--sorted_result
 select @a:=f4, count(f4) from t1 group by 1 desc;
 drop table t1;
 
