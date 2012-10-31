@@ -437,6 +437,8 @@ my_context_destroy(struct my_context *c)
 int
 my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
 {
+  void (*tmp_f)(void *)= f;
+  void *tmp_d= d;
   int ret;
 
   DBUG_SWAP_CODE_STATE(&c->dbug_state);
@@ -454,6 +456,15 @@ my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
     (
      "movl %%esp, (%[save])\n\t"
      "movl %[stack], %%esp\n\t"
+#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 4
+     /*
+       This emits a DWARF DW_CFA_undefined directive to make the return address
+       undefined. This indicates that this is the top of the stack frame, and
+       helps tools that use DWARF stack unwinding to obtain stack traces.
+       (I use numeric constant to avoid a dependency on libdwarf includes).
+     */
+     ".cfi_escape 0x07, 8\n\t"
+#endif
      /* Push the parameter on the stack. */
      "pushl %[d]\n\t"
      "movl %%ebp, 4(%[save])\n\t"
@@ -483,13 +494,13 @@ my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
      "3:\n\t"
      "movl $1, %[ret]\n"
      "4:\n"
-     : [ret] "=a" (ret)
+     : [ret] "=a" (ret),
+       [f] "+c" (tmp_f),
+       [d] "+d" (tmp_d)
      : [stack] "a" (c->stack_top),
        /* Need this in callee-save register to preserve across function call. */
-       [save] "D" (&c->save[0]),
-       [f] "m" (f),
-       [d] "m" (d)
-     : "ecx", "edx", "memory", "cc"
+       [save] "D" (&c->save[0])
+     : "memory", "cc"
   );
 
   DBUG_SWAP_CODE_STATE(&c->dbug_state);
