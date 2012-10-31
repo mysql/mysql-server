@@ -761,6 +761,8 @@ void JOIN::reset()
     for (uint tmp= primary_tables; tmp < primary_tables + tmp_tables; tmp++)
     {
       TABLE *tmp_table= join_tab[tmp].table;
+      if (!tmp_table->created)
+        continue;
       tmp_table->file->extra(HA_EXTRA_RESET_STATE);
       tmp_table->file->ha_delete_all_rows();
       free_io_cache(tmp_table);
@@ -1744,8 +1746,9 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     DBUG_RETURN(false);
   if (j->type == JT_CONST)
     j->table->const_table= 1;
-  else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
-	   keyparts != keyinfo->key_parts || null_ref_key)
+  else if (((actual_key_flags(keyinfo) & 
+             (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
+	   keyparts != actual_key_parts(keyinfo) || null_ref_key)
   {
     /* Must read with repeat */
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
@@ -3445,7 +3448,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 {
   KEY_PART_INFO *key_part,*key_part_end;
   key_part=table->key_info[idx].key_part;
-  key_part_end=key_part+table->key_info[idx].key_parts;
+  key_part_end=key_part+table->key_info[idx].user_defined_key_parts;
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
   uint key_parts;
@@ -3478,7 +3481,8 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       {
         on_pk_suffix= TRUE;
         key_part= table->key_info[table->s->primary_key].key_part;
-        key_part_end=key_part+table->key_info[table->s->primary_key].key_parts;
+        key_part_end=key_part +
+          table->key_info[table->s->primary_key].user_defined_key_parts;
         const_key_parts=table->const_key_parts[table->s->primary_key];
 
         for (; const_key_parts & 1 ; const_key_parts>>= 1)
@@ -3513,7 +3517,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
   }
   if (on_pk_suffix)
   {
-    uint used_key_parts_secondary= table->key_info[idx].key_parts;
+    uint used_key_parts_secondary= table->key_info[idx].user_defined_key_parts;
     uint used_key_parts_pk=
       (uint) (key_part - table->key_info[table->s->primary_key].key_part);
     key_parts= used_key_parts_pk + used_key_parts_secondary;
@@ -3601,7 +3605,7 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
      parts aren't allowed.
      */
     if (best == MAX_KEY ||
-        table->key_info[best].key_parts >= table->s->fields)
+        table->key_info[best].user_defined_key_parts >= table->s->fields)
       best= usable_clustered_pk;
   }
   return best;
@@ -3692,7 +3696,7 @@ test_if_subkey(ORDER *order, JOIN_TAB *tab, uint ref, uint ref_key_parts,
   {
     if (usable_keys->is_set(nr) &&
 	table->key_info[nr].key_length < min_length &&
-	table->key_info[nr].key_parts >= ref_key_parts &&
+	table->key_info[nr].user_defined_key_parts >= ref_key_parts &&
 	is_subkey(table->key_info[nr].key_part, ref_key_part,
 		  ref_key_part_end) &&
         !is_ref_or_null_optimized(tab, nr) &&
@@ -5470,7 +5474,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
             See Bug #28591 for details.
           */  
           rec_per_key= used_key_parts &&
-                       used_key_parts <= keyinfo->key_parts ?
+                       used_key_parts <= actual_key_parts(keyinfo) ?
                        keyinfo->rec_per_key[used_key_parts-1] : 1;
           set_if_bigger(rec_per_key, 1);
           /*
@@ -5511,7 +5515,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           select_limit= (ha_rows) (select_limit *
                                    (double) table_records /
                                     refkey_rows_estimate);
-        rec_per_key= keyinfo->rec_per_key[keyinfo->key_parts-1];
+        rec_per_key= keyinfo->rec_per_key[keyinfo->user_defined_key_parts - 1];
         set_if_bigger(rec_per_key, 1);
         /*
           Here we take into account the fact that rows are
@@ -5542,11 +5546,11 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
             quick_records= table->quick_rows[nr];
           if (best_key < 0 ||
               (select_limit <= min(quick_records,best_records) ?
-               keyinfo->key_parts < best_key_parts :
+               keyinfo->user_defined_key_parts < best_key_parts :
                quick_records < best_records))
           {
             best_key= nr;
-            best_key_parts= keyinfo->key_parts;
+            best_key_parts= keyinfo->user_defined_key_parts;
             if (saved_best_key_parts)
               *saved_best_key_parts= used_key_parts;
             best_records= quick_records;
@@ -5684,6 +5688,39 @@ uint get_index_for_order(ORDER *order, TABLE *table, SQL_SELECT *select,
   return MAX_KEY;
 }
 
+
+/**
+  Returns number of key parts depending on
+  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS flag.
+
+  @param  key_info  pointer to KEY structure
+
+  @return number of key parts.
+*/
+
+uint actual_key_parts(KEY *key_info)
+{
+  return key_info->table->in_use->
+    optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?
+    key_info->actual_key_parts : key_info->user_defined_key_parts;
+}
+
+
+/**
+  Returns key flags depending on
+  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS flag.
+
+  @param  key_info  pointer to KEY structure
+
+  @return key flags.
+*/
+
+uint actual_key_flags(KEY *key_info)
+{
+  return key_info->table->in_use->
+    optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?
+    key_info->actual_flags : key_info->flags;
+}
 
 /**
   @} (end of group Query_Optimizer)

@@ -111,22 +111,6 @@ JOIN::prepare(TABLE_LIST *tables_init,
   trace_prepare.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
 
-  /*
-    Permanently remove redundant parts from the query if
-      1) This is a subquery
-      2) This is the first time this query is optimized (since the
-         transformation is permanent
-      3) Not normalizing a view. Removal should take place when a
-         query involving a view is optimized, not when the view
-         is created
-  */
-  if (select_lex->master_unit()->item &&                               // 1)
-      select_lex->first_cond_optimization &&                           // 2)
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
-  {
-    remove_redundant_subquery_clauses(select_lex);
-  }
-
   /* Check that all tables, fields, conds and order are ok */
 
   if (!(select_options & OPTION_SETUP_TABLES_DONE) &&
@@ -167,6 +151,22 @@ JOIN::prepare(TABLE_LIST *tables_init,
 			  all_fields, &conds, order, group_list,
 			  &hidden_group_fields))
     DBUG_RETURN(-1);
+
+  /*
+    Permanently remove redundant parts from the query if
+      1) This is a subquery
+      2) This is the first time this query is optimized (since the
+         transformation is permanent)
+      3) Not normalizing a view. Removal should take place when a
+         query involving a view is optimized, not when the view
+         is created
+  */
+  if (select_lex->master_unit()->item &&                               // 1)
+      select_lex->first_cond_optimization &&                           // 2)
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
+  {
+    remove_redundant_subquery_clauses(select_lex);
+  }
 
   if (having)
   {
@@ -822,11 +822,22 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
 
   uint changelog= 0;
 
+  bool order_with_sum_func= false;
+  for (ORDER *o= subq_select_lex->join->order; o != NULL; o= o->next)
+    order_with_sum_func|= (*o->item)->with_sum_func;
   if (subq_select_lex->order_list.elements)
   {
     changelog|= REMOVE_ORDER;
     subq_select_lex->join->order= NULL;
-    subq_select_lex->order_list.empty();
+    /*
+      If the ORDER BY clause contains aggregate functions, we cannot
+      remove it from subq_select_lex->order_list since the aggregate
+      function still appears in the inner_sum_func_list for some
+      SELECT_LEX. Clearing subq_select_lex->join->order has made sure
+      it won't be executed.
+     */
+    if (!order_with_sum_func)
+      subq_select_lex->order_list.empty();
   }
 
   if (subq_select_lex->options & SELECT_DISTINCT)
