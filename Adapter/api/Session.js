@@ -52,6 +52,10 @@ exports.Session.prototype.listTables = function() {
   context.listTables();
 };
 
+exports.Session.prototype.getMapping = function(tableNameOrConstructor) {
+  return this.sessionFactory.getMapping(tableNameOrConstructor);
+};
+
 
 exports.Session.prototype.find = function() {
   var context = new userContext.UserContext(arguments, 3, 2, this, this.sessionFactory);

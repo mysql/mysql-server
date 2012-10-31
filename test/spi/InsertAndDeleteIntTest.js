@@ -71,7 +71,7 @@ t1.runTestMethod = function do_insert_op(dataObj) {
   udebug.log("do_insert_op");
 
   var tx = dbSession.getTransactionHandler();
-  var thandler = new dbt.DBTableHandler(table, null);
+  var thandler = new dbt.DBTableHandler(table, null, null);
   var test = this;
   
   var op = dbSession.buildInsertOperation(thandler, dataObj, tx, null);
@@ -100,7 +100,7 @@ t2.prepare = t1.prepare;
 t2.runTestMethod = function do_delete_op(keyObj) {
   udebug.log("do_delete_op");
   var tx = dbSession.getTransactionHandler();
-  var thandler = new dbt.DBTableHandler(table, null);
+  var thandler = new dbt.DBTableHandler(table, null, null);
   var ixhandler = thandler.getIndexHandler(keyObj);
   var test = this;
 

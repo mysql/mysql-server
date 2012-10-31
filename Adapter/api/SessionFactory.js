@@ -24,7 +24,8 @@
 
 var session     = require("./Session.js"),
     udebug      = unified_debug.getLogger("SessionFactory.js"),  
-    userContext = require('../impl/common/UserContext.js');
+    userContext = require('../impl/common/UserContext.js'),
+    util        = require("util");
 
 var SessionFactory = function(key, dbConnectionPool, properties, annotations, delete_callback) {
   this.key = key;
@@ -57,6 +58,36 @@ SessionFactory.prototype.getTableMetadata = function() {
   context.getTableMetadata();
 };
 
+
+/** 
+ * Get mapping for a table or constructor.
+ * The result is a javascript object that has the same form as
+ * the parameter for Annotations mapClass.
+ * @param table the table name or object constructor of a mapped class
+ * @return a TableMapping object or null if the table is not mapped
+ */
+SessionFactory.prototype.getMapping = function(tableNameOrConstructor) {
+  var type = typeof(tableNameOrConstructor);
+  var tableHandler = null;
+  var mynode;
+  switch(type) {
+  case 'function':
+    // get the mapping from the tableHandler in prototype.mynode
+//    console.log('SessionFactory.getMapping for constructor "' + tableNameOrConstructor.name + '" ' +
+//        util.inspect(tableNameOrConstructor.prototype));
+    mynode = tableNameOrConstructor.prototype.mynode;
+    tableHandler = mynode && mynode.tableHandler;
+    break;
+  case 'string':
+    // look up the table name in the collection of mapped tables in session factory
+    tableHandler = this.tableHandlers[tableNameOrConstructor];
+    break;
+  default:
+    // bad parameter, return null;
+    return null;
+  }
+  return tableHandler?tableHandler.resolvedMapping:null;
+};
 
 SessionFactory.prototype.close = function() {
   // TODO: close all sessions first

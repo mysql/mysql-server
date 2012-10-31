@@ -49,12 +49,13 @@ function TableMapping(tableName) {
 TableMapping.prototype = doc.TableMapping;
 
 
-/* verify() 
+/* verify(property, value, strict) 
    Returns true on OK 
    or string error message on error
 */
 function verify(property, value, strict) {
   var i;
+  var fieldVerify;
   
   function valErr() {
     return "unlawful value " + value + "for property " + property;
@@ -74,11 +75,19 @@ function verify(property, value, strict) {
       if(! (value === true || value === false)) { return valErr(); }
       break;
     case "fields": 
-      // must be an array of FieldMappings
+    case "field":
+      // must be an array of FieldMappings or a single FieldMapping
       if(typeof value !== 'object')             { return valErr(); }
+      if (typeof(value.length) === 'undefined') {
+        fieldVerify = fieldmapping.isValidFieldMapping(value, strict);
+        if(fieldVerify !== true) {
+          return "field " + JSON.stringify(value) + " is not a valid FieldMapping because " + fieldVerify;
+        }
+      }
       for(i = 0 ; i < value.length ; i++) {
-        if(! fieldmapping.isValidFieldMapping(value[i], strict)) {
-          return "element " + i + " is not a FieldMapping.";
+        fieldVerify = fieldmapping.isValidFieldMapping(value[i], strict);
+        if(fieldVerify !== true) {
+          return "field element " + i + " " + JSON.stringify(value[i]) + " is not a valid FieldMapping because " + fieldVerify;
         }
       }
       break;
