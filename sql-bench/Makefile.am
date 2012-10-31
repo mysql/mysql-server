@@ -22,6 +22,7 @@ benchdir =		$(benchdir_root)/sql-bench
 bench_SCRIPTS =		test-ATIS test-connect test-create test-insert \
 			test-big-tables test-select test-wisconsin \
 			test-alter-table test-transactions \
+			test-table-elimination \
 			graph-compare-results \
 			bench-init.pl compare-results run-all-tests \
 			server-cfg crash-me copy-db innotest1 innotest1a \
@@ -31,6 +32,7 @@ CLEANFILES =		$(bench_SCRIPTS)
 EXTRA_SCRIPTS =		test-ATIS.sh test-connect.sh test-create.sh \
 			test-insert.sh test-big-tables.sh test-select.sh \
 			test-alter-table.sh test-wisconsin.sh \
+			test-table-elimination.sh \
 			test-transactions.sh \
 			bench-init.pl.sh compare-results.sh server-cfg.sh \
 			run-all-tests.sh crash-me.sh copy-db.sh \

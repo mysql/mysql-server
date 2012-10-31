@@ -1,4 +1,3 @@
-
 #!@PERL@
 # Test of table elimination feature
 
@@ -93,7 +92,7 @@ $dbh->do("create view elim_current_facts as $select_current_full_facts");
 
 if ($opt_lock_tables)
 {
-  do_query($dbh,"LOCK TABLES elim_facts, elim_attr1, elim_attr2 WRITE");
+  do_query($dbh,"LOCK TABLES elim_current_facts WRITE, elim_facts WRITE, elim_attr1 WRITE, elim_attr2 WRITE");
 }
 
 if ($opt_fast && defined($server->{vacuum}))
@@ -200,12 +199,14 @@ if ($opt_lock_tables)
 
 if ($opt_fast && defined($server->{vacuum}))
 {
-  $server->vacuum(0,\$dbh,["elim_facts", "elim_attr1", "elim_attr2"]);
+  $server->vacuum(1,\$dbh,"elim_facts");
+  $server->vacuum(1,\$dbh,"elim_attr1");
+  $server->vacuum(1,\$dbh,"elim_attr2");
 }
 
 if ($opt_lock_tables)
 {
-  do_query($dbh,"LOCK TABLES elim_facts, elim_attr1, elim_attr2 WRITE");
+  do_query($dbh,"LOCK TABLES elim_current_facts READ, elim_facts READ, elim_attr1 READ, elim_attr2 READ");
 }
 
 ####
