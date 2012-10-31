@@ -990,10 +990,21 @@ fsp_try_extend_data_file(
 		}
 	} else {
 		/* We extend single-table tablespaces first one extent
-		at a time, but for bigger tablespaces more. It is not
-		enough to extend always by one extent, because some
-		extents are frag page extents. */
+		at a time, but 4 at a time for bigger tablespaces. It is
+		not enough to extend always by one extent, because we need
+		to add at least one extent to FSP_FREE.
+		A single extent descriptor page will track many extents.
+		And the extent that uses its extent descriptor page is
+		put onto the FSP_FREE_FRAG list.  Extents that do not
+		use their extent descriptor page are added to FSP_FREE.
+		The physical page size is used to determine how many
+		extents are tracked on one extent descriptor page.
+		See xdes_calc_descriptor_page() */
 		ulint	extent_size;	/*!< one megabyte, in pages */
+		ulint	threshold;	/*!< The size of the tablespace
+					(in number of pages) where we
+					start allocating more than one
+					extent at a time. */
 
 		if (!zip_size) {
 			extent_size = FSP_EXTENT_SIZE;
@@ -1001,6 +1012,11 @@ fsp_try_extend_data_file(
 			extent_size = FSP_EXTENT_SIZE
 				* UNIV_PAGE_SIZE / zip_size;
 		}
+
+		/* The threshold is set at 32mb except when the physical page
+		size is small enough that it must be done sooner. */
+		threshold = ut_min((32 * extent_size),
+				   (zip_size ? zip_size : UNIV_PAGE_SIZE));
 
 		if (size < extent_size) {
 			/* Let us first extend the file to extent_size */
@@ -1018,7 +1034,7 @@ fsp_try_extend_data_file(
 			size = extent_size;
 		}
 
-		if (size < 32 * extent_size) {
+		if (size < threshold) {
 			size_increase = extent_size;
 		} else {
 			/* Below in fsp_fill_free_list() we assume

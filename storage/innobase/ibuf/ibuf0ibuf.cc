@@ -3275,7 +3275,7 @@ ibuf_update_max_tablespace_id(void)
 	ibuf_mtr_start(&mtr);
 
 	btr_pcur_open_at_index_side(
-		FALSE, ibuf->index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		false, ibuf->index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
 

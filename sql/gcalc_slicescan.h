@@ -30,9 +30,18 @@
 
 class Gcalc_dyn_list
 {
+#ifndef DBUG_OFF
+  uint m_last_item_id;
+#endif
 public:
   class Item
   {
+#ifndef DBUG_OFF
+    uint m_item_id;
+  public:
+    uint item_id() const { return m_item_id; }
+    void set_item_id(uint id) { m_item_id= id; }
+#endif
   public:
     Item *next;
   };
@@ -49,6 +58,9 @@ public:
     result= m_free;
     m_free= m_free->next;
 
+#ifndef DBUG_OFF
+    result->set_item_id(++m_last_item_id);
+#endif
     result->next= NULL;
     return result;
   }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -425,7 +425,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
 
   key_info= event_table->key_info;
 
-  if (key_info->key_parts == 0 ||
+  if (key_info->user_defined_key_parts == 0 ||
       key_info->key_part[0].field != event_table->field[ET_FIELD_DB])
   {
     /* Corrupted table: no index or index on a wrong column */
@@ -682,7 +682,7 @@ Event_db_repository::create_event(THD *thd, Event_parse_data *parse_data,
     if (create_if_not)
     {
       *event_already_exists= true;
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::SL_NOTE,
                           ER_EVENT_ALREADY_EXISTS, ER(ER_EVENT_ALREADY_EXISTS),
                           parse_data->name.str);
       ret= 0;
@@ -909,7 +909,7 @@ Event_db_repository::drop_event(THD *thd, LEX_STRING db, LEX_STRING name,
     goto end;
   }
 
-  push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+  push_warning_printf(thd, Sql_condition::SL_NOTE,
                       ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
                       "Event", name.str);
   ret= 0;

@@ -347,7 +347,7 @@ my_decimal *Item::val_decimal_from_string(my_decimal *decimal_value)
                      decimal_value) & E_DEC_BAD_NUM)
   {
     ErrConvString err(res);
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
                         err.ptr());
@@ -1013,11 +1013,11 @@ void Item_name_string::copy(const char *str_arg, size_t length_arg,
   {
     ErrConvString tmp(str_arg, static_cast<uint>(length_arg), cs_arg);
     if (length() == 0)
-      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_NAME_BECOMES_EMPTY, ER(ER_NAME_BECOMES_EMPTY),
                           tmp.ptr());
     else
-      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_REMOVED_SPACES, ER(ER_REMOVED_SPACES),
                           tmp.ptr());
   }
@@ -3255,7 +3255,7 @@ double_from_string_with_check (const CHARSET_INFO *cs,
   if (error || (end != org_end && !check_if_only_end_space(cs, end, org_end)))
   {
     ErrConvString err(cptr, org_end - cptr, cs);
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "DOUBLE",
                         err.ptr());
@@ -3290,7 +3290,7 @@ longlong_from_string_with_check (const CHARSET_INFO *cs,
        (end != org_end && !check_if_only_end_space(cs, end, org_end))))
   {
     ErrConvString err(cptr, cs);
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
                         err.ptr());
@@ -4616,7 +4616,7 @@ static void mark_as_dependent(THD *thd, SELECT_LEX *last, SELECT_LEX *current,
   current->mark_as_dependent(last);
   if (thd->lex->describe & DESCRIBE_EXTENDED)
   {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
 		 ER_WARN_FIELD_RESOLVED, ER(ER_WARN_FIELD_RESOLVED),
                  db_name, (db_name[0] ? "." : ""),
                  table_name, (table_name [0] ? "." : ""),
@@ -4797,6 +4797,33 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
 
 
 /**
+  Check if an Item is fixed or is an Item_outer_ref.
+
+  @param ref the reference to check
+
+  @return Whether or not the item is a fixed item or an Item_outer_ref
+
+  @note Currently, this function is only used in DBUG_ASSERT
+  statements and therefore not included in optimized builds.
+*/
+#ifndef DBUG_OFF
+static bool is_fixed_or_outer_ref(Item *ref)
+{
+  /*
+    The requirements are that the Item pointer
+    1)  is not NULL, and
+    2a) points to a fixed Item, or
+    2b) points to an Item_outer_ref.
+  */
+  return (ref != NULL &&                     // 1
+          (ref->fixed ||                     // 2a
+           (ref->type() == Item::REF_ITEM && // 2b
+            static_cast<Item_ref *>(ref)->ref_type() == Item_ref::OUTER_REF)));
+}
+#endif
+
+
+/**
   Resolve a column reference in a sub-select.
 
   Resolve a column reference (usually inside a HAVING clause) against the
@@ -4863,7 +4890,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
         !((*group_by_ref)->eq(*select_ref, 0)))
     {
       ambiguous_fields= TRUE;
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_NON_UNIQ_ERROR,
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
                           ER(ER_NON_UNIQ_ERROR), ref->full_name(),
                           current_thd->where);
 
@@ -4897,10 +4924,7 @@ resolve_ref_in_select_and_group(THD *thd, Item_ident *ref, SELECT_LEX *select)
        Assert if its an incorrect reference . We do not assert if its a outer
        reference, as they get fixed later in fix_innner_refs function.
       */
-      DBUG_ASSERT((*select_ref)->fixed ||
-                  ((*select_ref)->type() == Item::REF_ITEM &&
-                   ((Item_ref *)(*select_ref))->ref_type() ==
-                   Item_ref::OUTER_REF));
+      DBUG_ASSERT(is_fixed_or_outer_ref(*select_ref));
 
       return &select->ref_pointer_array[counter];
     }
@@ -5101,7 +5125,11 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         return -1; /* Some error occurred (e.g. ambiguous names). */
       if (ref != not_found_item)
       {
-        DBUG_ASSERT(*ref && (*ref)->fixed);
+        /*
+          Either the item we found is already fixed, or it is an outer
+          reference that will be fixed later in fix_inner_refs().
+        */
+        DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
         prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
         prev_subselect_item->const_item_cache&= (*ref)->const_item();
         break;
@@ -5144,7 +5172,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
     Item_ref *rf;
 
     /* Should have been checked in resolve_ref_in_select_and_group(). */
-    DBUG_ASSERT(*ref && (*ref)->fixed);
+    DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
     /*
       Here, a subset of actions performed by Item_ref::set_properties
       is not enough. So we pass ptr to NULL into Item_[direct]_ref
@@ -5849,7 +5877,8 @@ String *Item::check_well_formed_result(String *str, bool send_error)
     {
       str->length(wlen);
     }
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_INVALID_CHARACTER_STRING,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
+                        ER_INVALID_CHARACTER_STRING,
                         ER(ER_INVALID_CHARACTER_STRING), cs->csname, hexbuf);
   }
   return str;
@@ -6621,7 +6650,7 @@ Item_hex_string::save_in_field(Field *field, bool no_conversions)
 warn:
   const type_conversion_status res= field->store((longlong) nr, TRUE);
   if (res == TYPE_OK)
-    field->set_warning(Sql_condition::WARN_LEVEL_WARN,
+    field->set_warning(Sql_condition::SL_WARNING,
                        ER_WARN_DATA_OUT_OF_RANGE, 1);
   return res;
 }
@@ -7151,7 +7180,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
             goto error; /* Some error occurred (e.g. ambiguous names). */
           if (ref != not_found_item)
           {
-            DBUG_ASSERT(*ref && (*ref)->fixed);
+            DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
             prev_subselect_item->used_tables_cache|= (*ref)->used_tables();
             prev_subselect_item->const_item_cache&= (*ref)->const_item();
             break;
@@ -7283,7 +7312,7 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
         goto error;
       }
       /* Should be checked in resolve_ref_in_select_and_group(). */
-      DBUG_ASSERT(*ref && (*ref)->fixed);
+      DBUG_ASSERT(is_fixed_or_outer_ref(*ref));
       mark_as_dependent(thd, last_checked_context->select_lex,
                         context->select_lex, this, this);
       /*
@@ -7996,7 +8025,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
       {
         TABLE_LIST *view= cached_table->top_table();
         push_warning_printf(field_arg->table->in_use,
-                            Sql_condition::WARN_LEVEL_WARN,
+                            Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
                             ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
                             view->view_db.str,
@@ -8005,7 +8034,7 @@ Item_default_value::save_in_field(Field *field_arg, bool no_conversions)
       else
       {
         push_warning_printf(field_arg->table->in_use,
-                            Sql_condition::WARN_LEVEL_WARN,
+                            Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_FIELD,
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             field_arg->field_name);
@@ -8058,7 +8087,7 @@ bool Item_insert_value::eq(const Item *item, bool binary_cmp) const
 }
 
 
-bool Item_insert_value::fix_fields(THD *thd, Item **items)
+bool Item_insert_value::fix_fields(THD *thd, Item **reference)
 {
   DBUG_ASSERT(fixed == 0);
   /* We should only check that arg is in first table */
@@ -8096,17 +8125,17 @@ bool Item_insert_value::fix_fields(THD *thd, Item **items)
   }
   else
   {
-    Field *tmp_field= field_arg->field;
-    /* charset doesn't matter here, it's to avoid sigsegv only */
-    tmp_field= new Field_null(0, 0, Field::NONE, field_arg->field->field_name,
-                          &my_charset_bin);
-    if (tmp_field)
-    {
-      tmp_field->init(field_arg->field->table);
-      set_field(tmp_field);
-    }
+    // VALUES() is used out-of-scope - its value is always NULL
+    Query_arena backup;
+    Query_arena *const arena= thd->activate_stmt_arena_if_needed(&backup);
+    Item *const item= new Item_null(this->item_name);
+    if (arena)
+      thd->restore_active_arena(arena, &backup);
+    if (!item)
+      return true;
+    *reference= item;
   }
-  return FALSE;
+  return false;
 }
 
 void Item_insert_value::print(String *str, enum_query_type query_type)

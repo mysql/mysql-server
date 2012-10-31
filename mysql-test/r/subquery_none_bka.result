@@ -5598,7 +5598,7 @@ a
 1
 2
 SELECT * FROM ((SELECT 1 a) UNION SELECT 1 a);
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+ERROR 42000: Every derived table must have its own alias
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a)) alias;
 a
 1
@@ -5635,12 +5635,18 @@ a
 SELECT * FROM (SELECT 1 a UNION SELECT 1 a ORDER BY a LIMIT 1) t1a;
 a
 1
-SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1) alias ON 1;
+SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1)  alias ON 1;
 a	1
 1	1
 2	1
+SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) alias ON 1;
+a	1
+1	1
+2	1
+SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1)  ON 1;
+ERROR 42000: Every derived table must have its own alias
 SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) ON 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')) ON 1' at line 1
+ERROR 42000: Every derived table must have its own alias
 SELECT * FROM t1 JOIN  (t1 t1a UNION SELECT 1)  ON 1;
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')  ON 1' at line 1
 SELECT * FROM t1 JOIN ((t1 t1a UNION SELECT 1)) ON 1;
@@ -5759,7 +5765,10 @@ SELECT ((SELECT 1 UNION SELECT 1 UNION SELECT 1));
 SELECT * FROM ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'UNION SELECT 1 ) )' at line 1
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ') UNION SELECT 1 )' at line 1
+ERROR 42000: Every derived table must have its own alias
+SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) a;
+1
+1
 SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
 1
 1

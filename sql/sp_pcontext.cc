@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -309,7 +309,7 @@ bool sp_pcontext::check_duplicate_handler(
 sp_handler*
 sp_pcontext::find_handler(const char *sql_state,
                           uint sql_errno,
-                          Sql_condition::enum_warning_level level) const
+                          Sql_condition::enum_severity_level severity) const
 {
   sp_handler *found_handler= NULL;
   sp_condition_value *found_cv= NULL;
@@ -347,7 +347,7 @@ sp_pcontext::find_handler(const char *sql_state,
 
       case sp_condition_value::WARNING:
         if ((is_sqlstate_warning(sql_state) ||
-             level == Sql_condition::WARN_LEVEL_WARN) && !found_cv)
+             severity == Sql_condition::SL_WARNING) && !found_cv)
         {
           found_cv= cv;
           found_handler= h;
@@ -364,7 +364,7 @@ sp_pcontext::find_handler(const char *sql_state,
 
       case sp_condition_value::EXCEPTION:
         if (is_sqlstate_exception(sql_state) &&
-            level == Sql_condition::WARN_LEVEL_ERROR && !found_cv)
+            severity == Sql_condition::SL_ERROR && !found_cv)
         {
           found_cv= cv;
           found_handler= h;
@@ -412,7 +412,7 @@ sp_pcontext::find_handler(const char *sql_state,
   if (!p || !p->m_parent)
     return NULL;
 
-  return p->m_parent->find_handler(sql_state, sql_errno, level);
+  return p->m_parent->find_handler(sql_state, sql_errno, severity);
 }
 
 

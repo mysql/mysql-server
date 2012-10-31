@@ -4480,9 +4480,7 @@ SELECT * FROM (
   SELECT a FROM t1 WHERE a = 2 
 ) t1a;
 
-# This was not allowed previously. Possibly, it should be allowed on the future.
-# For now, the intent is to keep the fix as non-intrusive as possible.
---error ER_PARSE_ERROR
+--error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM ((SELECT 1 a) UNION SELECT 1 a);
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a)) alias;
 SELECT * FROM (SELECT 1 UNION SELECT 1) t1a;
@@ -4514,11 +4512,11 @@ SELECT * FROM (SELECT 1 a UNION SELECT 1 a ORDER BY a LIMIT 1) t1a;
 
 # Test of rule
 # table_factor:  '(' get_select_lex query_expression_body ')' opt_table_alias
-# UNION should not be allowed inside the parentheses, nor should
-# aliases after.
-# 
-SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1) alias ON 1;
---error ER_PARSE_ERROR
+SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1)  alias ON 1;
+SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) alias ON 1;
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1)  ON 1;
+--error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) ON 1;
 --error ER_PARSE_ERROR
 SELECT * FROM t1 JOIN  (t1 t1a UNION SELECT 1)  ON 1;
@@ -4610,8 +4608,9 @@ SELECT ((SELECT 1 UNION SELECT 1 UNION SELECT 1));
 
 --error ER_PARSE_ERROR
 SELECT * FROM ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
---error ER_PARSE_ERROR
+--error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
+SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) a;
 SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
 
 --error ER_PARSE_ERROR

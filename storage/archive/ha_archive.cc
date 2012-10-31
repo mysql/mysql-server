@@ -752,7 +752,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   {
     KEY *pos= table_arg->key_info+key;
     KEY_PART_INFO *key_part=     pos->key_part;
-    KEY_PART_INFO *key_part_end= key_part + pos->key_parts;
+    KEY_PART_INFO *key_part_end= key_part + pos->user_defined_key_parts;
 
     for (; key_part != key_part_end; key_part++)
     {
@@ -788,7 +788,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   {
     if (create_info->data_file_name)
     {
-      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED,
                           ER_DEFAULT(WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
@@ -801,7 +801,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   /* Archive engine never uses INDEX DIRECTORY. */
   if (create_info->index_file_name)
   {
-    push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
                         WARN_OPTION_IGNORED,
                         ER_DEFAULT(WARN_OPTION_IGNORED),
                         "INDEX DIRECTORY");

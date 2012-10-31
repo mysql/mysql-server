@@ -52,16 +52,6 @@
 
 static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 
-/* Define to force use of my_malloc() if the allocated memory block is big */
-
-#ifndef HAVE_ALLOCA
-#define my_safe_alloca(size, min_length) my_alloca(size)
-#define my_safe_afree(ptr, size, min_length) my_afree(ptr)
-#else
-#define my_safe_alloca(size, min_length) ((size <= min_length) ? my_alloca(size) : my_malloc(size,MYF(0)))
-#define my_safe_afree(ptr, size, min_length) if (size > min_length) my_free(ptr)
-#endif
-
 /*
   Check that insert/update fields are from the same single table of a view.
 
@@ -689,7 +679,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     error= write_record(thd, table, &info, &update);
     if (error)
       break;
-    thd->get_stmt_da()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_condition();
   }
 
   free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -810,12 +800,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       my_snprintf(buff, sizeof(buff),
                   ER(ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.records - info.stats.copied),
-                  (long) thd->get_stmt_da()->current_statement_warn_count());
+                  (long) thd->get_stmt_da()->current_statement_cond_count());
     else
       my_snprintf(buff, sizeof(buff),
                   ER(ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
-                  (long) thd->get_stmt_da()->current_statement_warn_count());
+                  (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
   }
   thd->abort_on_warning= 0;
@@ -1527,7 +1517,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       }
       if (view)
       {
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
                             ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
                             table_list->view_db.str,
@@ -1535,7 +1525,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       }
       else
       {
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_FIELD,
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             (*field)->field_name);
@@ -1545,6 +1535,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
   }
   return thd->abort_on_warning ? err : 0;
 }
+
 
 /***************************************************************************
   Store records in INSERT ... SELECT *
@@ -1913,7 +1904,7 @@ bool select_insert::send_eof()
   error= (thd->locked_tables_mode <= LTM_LOCK_TABLES ?
           table->file->ha_end_bulk_insert() : 0);
   if (!error && thd->is_error())
-    error= thd->get_stmt_da()->sql_errno();
+    error= thd->get_stmt_da()->mysql_errno();
 
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
@@ -1965,12 +1956,12 @@ bool select_insert::send_eof()
     my_snprintf(buff, sizeof(buff),
                 ER(ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.records - info.stats.copied),
-                (long) thd->get_stmt_da()->current_statement_warn_count());
+                (long) thd->get_stmt_da()->current_statement_cond_count());
   else
     my_snprintf(buff, sizeof(buff),
                 ER(ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.deleted+info.stats.updated),
-                (long) thd->get_stmt_da()->current_statement_warn_count());
+                (long) thd->get_stmt_da()->current_statement_cond_count());
   row_count= info.stats.copied + info.stats.deleted +
              ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
               info.stats.touched : info.stats.updated);
