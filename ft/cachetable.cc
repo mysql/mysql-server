@@ -2311,26 +2311,27 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     XMALLOC_N(list_size, list);
 
     ct->list.read_list_lock();
+    PAIR p;
     //Make a list of pairs that belong to this cachefile.
-    for (i=0; i < ct->list.m_table_size; i++) {
-        PAIR p;
-        for (p = ct->list.m_table[i]; p; p = p->hash_chain) {
-            if (cf == 0 || p->cachefile == cf) {
-                if (num_pairs == list_size) {
-                    list_size *= 2;
-                    XREALLOC_N(list_size, list);
-                }
-                list[num_pairs++] = p;
+    for (i = 0, p = ct->list.m_checkpoint_head; 
+         i < ct->list.m_n_in_table; 
+         i++, p = p->clock_next) 
+    {            
+        if (cf == 0 || p->cachefile == cf) {
+            if (num_pairs == list_size) {
+                list_size *= 2;
+                XREALLOC_N(list_size, list);
             }
+            list[num_pairs++] = p;
         }
-    }
+     }
     ct->list.read_list_unlock();
     
     // first write out dirty PAIRs
     BACKGROUND_JOB_MANAGER bjm = NULL;
     bjm_init(&bjm);
     for (i=0; i < num_pairs; i++) {
-        PAIR p = list[i];
+        p = list[i];
         pair_lock(p);
         assert(p->value_rwlock.users() == 0);
         assert(nb_mutex_users(&p->disk_nb_mutex) == 0);
@@ -2351,7 +2352,7 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     // now get rid of everything
     ct->list.write_list_lock();
     for (i=0; i < num_pairs; i++) {
-        PAIR p = list[i];
+        p = list[i];
         pair_lock(p);
         assert(p->value_rwlock.users() == 0);
         assert(nb_mutex_users(&p->disk_nb_mutex) == 0);
@@ -2366,12 +2367,13 @@ static void cachetable_flush_cachefile(CACHETABLE ct, CACHEFILE cf) {
     // assert here that cachefile is flushed by checking
     // pair_list and finding no pairs belonging to this cachefile
     // Make a list of pairs that belong to this cachefile.
-    for (i=0; i < ct->list.m_table_size; i++) {
-        PAIR p;
-        for (p = ct->list.m_table[i]; p; p = p->hash_chain) {
-            assert(p->cachefile != cf);
-        }
-    }
+    
+    for (i = 0, p = ct->list.m_checkpoint_head; 
+         i < ct->list.m_n_in_table; 
+         i++, p = p->clock_next) 
+     {
+         assert(p->cachefile != cf);
+     }
     ct->list.write_list_unlock();
     if (cf) {
         bjm_reset(cf->bjm);
