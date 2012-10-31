@@ -5679,7 +5679,7 @@ if_extended_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
       param->thd->lex->describe & DESCRIBE_EXTENDED)
     push_warning_printf(
             param->thd,
-            Sql_condition::WARN_LEVEL_WARN, 
+            Sql_condition::SL_WARNING,
             ER_WARN_INDEX_NOT_APPLICABLE,
             ER(ER_WARN_INDEX_NOT_APPLICABLE),
             "range",

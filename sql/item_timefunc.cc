@@ -502,7 +502,7 @@ err:
   {
     char buff[128];
     strmake(buff, val_begin, min<size_t>(length, sizeof(buff)-1));
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
                         date_time_type, buff, "str_to_date");
   }
@@ -2318,7 +2318,7 @@ bool Item_date_add_interval::get_time_internal(MYSQL_TIME *ltime)
   if ((null_value= (interval.year || interval.month ||
                     sec_to_time(seconds, ltime))))
   {
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_DATETIME_FUNCTION_OVERFLOW,
                         ER(ER_DATETIME_FUNCTION_OVERFLOW),
                         "time");
@@ -3244,7 +3244,7 @@ null_date:
   {
     char buff[128];
     strmake(buff, val->ptr(), min<size_t>(val->length(), sizeof(buff)-1));
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
                         "datetime", buff, "str_to_date");
   }

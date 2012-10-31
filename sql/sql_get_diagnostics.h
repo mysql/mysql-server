@@ -24,7 +24,7 @@ class Diagnostics_information;
   Sql_cmd_get_diagnostics represents a GET DIAGNOSTICS statement.
 
   The GET DIAGNOSTICS statement retrieves exception or completion
-  condition information from a diagnostics area, usually pertaining
+  condition information from a Diagnostics Area, usually pertaining
   to the last non-diagnostic SQL statement that was executed.
 */
 class Sql_cmd_get_diagnostics : public Sql_cmd
@@ -62,20 +62,21 @@ class Diagnostics_information : public Sql_alloc
 {
 public:
   /**
-    Which diagnostics area to access.
-    Only CURRENT is supported for now.
+    Which Diagnostics Area to access.
   */
   enum Which_area
   {
-    /** Access the first diagnostics area. */
-    CURRENT_AREA
+    /** Access the first Diagnostics Area. */
+    CURRENT_AREA,
+    /** Access the second Diagnostics Area. */
+    STACKED_AREA
   };
 
-  /** Set which diagnostics area to access. */
+  /** Set which Diagnostics Area to access. */
   void set_which_da(Which_area area)
   { m_area= area; }
 
-  /** Get which diagnostics area to access. */
+  /** Get which Diagnostics Area to access. */
   Which_area get_which_da(void) const
   { return m_area; }
 
@@ -83,7 +84,7 @@ public:
     Aggregate diagnostics information.
 
     @param thd  The current thread.
-    @param da   The diagnostics area.
+    @param da   The Diagnostics Area.
 
     @retval false on success.
     @retval true on error
@@ -124,7 +125,7 @@ protected:
   }
 
 private:
-  /** Which diagnostics area to access. */
+  /** Which Diagnostics Area to access. */
   Which_area m_area;
 };
 
@@ -222,7 +223,7 @@ public:
     : m_items(items)
   {}
 
-  /** Obtain statement information in the context of a diagnostics area. */
+  /** Obtain statement information in the context of a Diagnostics Area. */
   bool aggregate(THD *thd, const Diagnostics_area *da);
 
 private:
@@ -300,7 +301,7 @@ public:
     : m_cond_number_expr(cond_number_expr), m_items(items)
   {}
 
-  /** Obtain condition information in the context of a diagnostics area. */
+  /** Obtain condition information in the context of a Diagnostics Area. */
   bool aggregate(THD *thd, const Diagnostics_area *da);
 
 private:

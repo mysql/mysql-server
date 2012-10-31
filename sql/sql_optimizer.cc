@@ -4799,7 +4799,7 @@ warn_index_not_applicable(THD *thd, const Field *field,
     for (uint j=0 ; j < field->table->s->keys ; j++)
       if (cant_use_index.is_set(j))
         push_warning_printf(thd,
-                            Sql_condition::WARN_LEVEL_WARN, 
+                            Sql_condition::SL_WARNING,
                             ER_WARN_INDEX_NOT_APPLICABLE,
                             ER(ER_WARN_INDEX_NOT_APPLICABLE),
                             "ref",
