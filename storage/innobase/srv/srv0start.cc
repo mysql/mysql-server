@@ -544,10 +544,9 @@ srv_parse_temp_data_file_paths_and_sizes(
 		malloc(i *
 		       sizeof *srv_temp_tablespace.srv_temp_data_file_sizes));
 
-	ulint* srv_temp_data_file_is_raw_partition = 
-		srv_temp_tablespace.srv_temp_data_file_is_raw_partition;
-	srv_temp_data_file_is_raw_partition = static_cast<ulint*>(
-		malloc(i * sizeof *srv_temp_data_file_is_raw_partition));
+	ulint** raw_status =
+		&(srv_temp_tablespace.srv_temp_data_file_is_raw_partition);
+	*raw_status = static_cast<ulint*>(malloc(i * sizeof *raw_status));
 
 	srv_temp_tablespace.srv_n_temp_data_files = i;
 
@@ -560,8 +559,6 @@ srv_parse_temp_data_file_paths_and_sizes(
 		&(srv_temp_tablespace.srv_last_temp_data_file_size_max);
 	bool* auto_extend =
 		&(srv_temp_tablespace.srv_auto_extend_last_temp_data_file);
-	ulint* is_raw_status =
-		srv_temp_tablespace.srv_temp_data_file_is_raw_partition;
 
 	while (*str != '\0') {
 		path = str;
@@ -611,21 +608,21 @@ srv_parse_temp_data_file_paths_and_sizes(
 			}
 		}
 
-		(is_raw_status)[i] = 0;
+		(*raw_status)[i] = 0;
 
 		if (strlen(str) >= 6
 		    && *str == 'n'
 		    && *(str + 1) == 'e'
 		    && *(str + 2) == 'w') {
 			str += 3;
-			(is_raw_status)[i] = SRV_NEW_RAW;
+			(*raw_status)[i] = SRV_NEW_RAW;
 		}
 
 		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
 			str += 3;
 
-			if ((is_raw_status)[i] == 0) {
-				(is_raw_status)[i] = SRV_OLD_RAW;
+			if ((*raw_status)[i] == 0) {
+				(*raw_status)[i] = SRV_OLD_RAW;
 			}
 		}
 
@@ -654,9 +651,8 @@ srv_parse_temp_data_file_paths_and_sizes(
 	}
 
 	/* Disable raw device for temp-tablespace */
-	ulint* is_raw = srv_temp_tablespace.srv_temp_data_file_is_raw_partition;
 	for (ulint k = 0; k < srv_temp_tablespace.srv_n_temp_data_files; k++) {
-		if (is_raw[k] != SRV_NOT_RAW) {
+		if (*raw_status[k] != SRV_NOT_RAW) {
 			return(false);
 		}
 	}
