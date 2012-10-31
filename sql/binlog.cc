@@ -701,7 +701,7 @@ void check_binlog_cache_size(THD *thd)
   {
     if (thd)
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX,
                           ER(ER_BINLOG_CACHE_SIZE_GREATER_THAN_MAX),
                           (ulong) binlog_cache_size,
@@ -727,7 +727,7 @@ void check_binlog_stmt_cache_size(THD *thd)
   {
     if (thd)
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX,
                           ER(ER_BINLOG_STMT_CACHE_SIZE_GREATER_THAN_MAX),
                           (ulong) binlog_stmt_cache_size,
@@ -1934,7 +1934,7 @@ int query_error_code(THD *thd, bool not_killed)
   
   if (not_killed || (thd->killed == THD::KILL_BAD_DATA))
   {
-    error= thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0;
+    error= thd->is_error() ? thd->get_stmt_da()->mysql_errno() : 0;
 
     /* thd->get_stmt_da()->sql_errno() might be ER_SERVER_SHUTDOWN or
        ER_QUERY_INTERRUPTED, So here we need to make sure that error
@@ -2400,16 +2400,19 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   @param verify_checksum Set to true to verify event checksums.
 
   @retval GOT_GTIDS The file was successfully read and it contains
-  GTID events.
+  both Gtid_log_events and Previous_gtids_log_events.
+  @retval GOT_PREVIOUS_GTIDS The file was successfully read and it
+  contains Previous_gtids_log_events but no Gtid_log_events.
   @retval NO_GTIDS The file was successfully read and it does not
   contain GTID events.
   @retval ERROR Out of memory, or the file contains GTID events
-  when GTID_MODE = OFF.
+  when GTID_MODE = OFF, or the file is malformed (e.g., contains
+  Gtid_log_events but no Previous_gtids_log_event).
   @retval TRUNCATED The file was truncated before the end of the
   first Previous_gtids_log_event.
 */
 enum enum_read_gtids_from_binlog_status
-{ GOT_GTIDS, NO_GTIDS, ERROR, TRUNCATED };
+{ GOT_GTIDS, GOT_PREVIOUS_GTIDS, NO_GTIDS, ERROR, TRUNCATED };
 static enum_read_gtids_from_binlog_status
 read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
                        Gtid_set *prev_gtids, bool verify_checksum)
@@ -2470,7 +2473,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
         my_error(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF, MYF(0));
         ret= ERROR;
       }
-      ret= GOT_GTIDS;
+      ret= GOT_PREVIOUS_GTIDS;
       // add events to sets
       Previous_gtids_log_event *prev_gtids_ev=
         (Previous_gtids_log_event *)ev;
@@ -2478,8 +2481,6 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
         ret= ERROR, done= true;
       else if (prev_gtids != NULL && prev_gtids_ev->add_to_set(prev_gtids) != 0)
         ret= ERROR, done= true;
-      else if (all_gtids == NULL)
-        done= true;
 #ifndef DBUG_OFF
       char* prev_buffer= prev_gtids_ev->get_str(NULL, NULL);
       DBUG_PRINT("info", ("Got Previous_gtids from file '%s': Gtid_set='%s'.",
@@ -2490,15 +2491,30 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     }
     case GTID_LOG_EVENT:
     {
+      if (ret != GOT_GTIDS)
+      {
+        if (ret != GOT_PREVIOUS_GTIDS)
+          // should not happen
+          my_error(ER_MASTER_FATAL_ERROR_READING_BINLOG, MYF(0));
+        else
+          ret= GOT_GTIDS;
+      }
       Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
       rpl_sidno sidno= gtid_ev->get_sidno(false/*false=don't need lock*/);
       if (sidno < 0)
         ret= ERROR, done= true;
-      else if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
-        ret= ERROR, done= true;
-      else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
-               RETURN_STATUS_OK)
-        ret= ERROR, done= true;
+      /*
+        We need to read GTID_LOG_EVENT when all_gtids == NULL to allow
+        read both PREVIOUS_GTIDS_LOG_EVENT and GTID_LOG_EVENT events.
+      */
+      else if (NULL != all_gtids)
+      {
+        if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
+          ret= ERROR, done= true;
+        else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
+                 RETURN_STATUS_OK)
+          ret= ERROR, done= true;
+      }
       DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
                           filename, sidno, gtid_ev->get_gno()));
       break;
@@ -2508,7 +2524,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       // if we found any other event type without finding a
       // previous_gtids_log_event, then the rest of this binlog
       // cannot contain gtids
-      if (ret != GOT_GTIDS)
+      if (ret != GOT_GTIDS && ret != GOT_PREVIOUS_GTIDS)
         done= true;
       break;
     }
@@ -2614,6 +2630,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         error= 1;
         goto end;
       case GOT_GTIDS:
+      case GOT_PREVIOUS_GTIDS:
         got_gtids= true;
         /*FALLTHROUGH*/
       case NO_GTIDS:
@@ -2637,6 +2654,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         /*FALLTHROUGH*/
       case GOT_GTIDS:
         goto end;
+      case GOT_PREVIOUS_GTIDS:
       case NO_GTIDS:
       case TRUNCATED:
         break;
@@ -3051,7 +3069,7 @@ bool MYSQL_BIN_LOG::check_write_error(THD *thd)
   if (!thd->is_error())
     DBUG_RETURN(checked);
 
-  switch (thd->get_stmt_da()->sql_errno())
+  switch (thd->get_stmt_da()->mysql_errno())
   {
     case ER_TRANS_CACHE_FULL:
     case ER_STMT_CACHE_FULL:
@@ -3330,7 +3348,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     {
       if (my_errno == ENOENT) 
       {
-        push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
                             linfo.log_file_name);
         sql_print_information("Failed to delete file '%s'",
@@ -3340,7 +3358,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
       }
       else
       {
-        push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                             ER_BINLOG_PURGE_FATAL_ERR,
                             "a problem with deleting %s; "
                             "consider examining correspondence "
@@ -3361,7 +3379,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   {
     if (my_errno == ENOENT) 
     {
-      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
                           index_file_name);
       sql_print_information("Failed to delete file '%s'",
@@ -3371,7 +3389,7 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
     }
     else
     {
-      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_BINLOG_PURGE_FATAL_ERR,
                           "a problem with deleting %s; "
                           "consider examining correspondence "
@@ -3973,7 +3991,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         */
         if (thd)
         {
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
                               log_info.log_file_name);
         }
@@ -3988,7 +4006,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         */
         if (thd)
         {
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_BINLOG_PURGE_FATAL_ERR,
                               "a problem with getting info on being purged %s; "
                               "consider examining correspondence "
@@ -4017,7 +4035,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
         {
           if (thd)
           {
-            push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+            push_warning_printf(thd, Sql_condition::SL_WARNING,
                                 ER_BINLOG_PURGE_FATAL_ERR,
                                 "a problem with deleting %s and "
                                 "reading the binlog index file",
@@ -4056,7 +4074,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
           {
             if (thd)
             {
-              push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+              push_warning_printf(thd, Sql_condition::SL_WARNING,
                                   ER_LOG_PURGE_NO_FILE, ER(ER_LOG_PURGE_NO_FILE),
                                   log_info.log_file_name);
             }
@@ -4068,7 +4086,7 @@ int MYSQL_BIN_LOG::purge_index_entry(THD *thd, ulonglong *decrease_log_space,
           {
             if (thd)
             {
-              push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+              push_warning_printf(thd, Sql_condition::SL_WARNING,
                                   ER_BINLOG_PURGE_FATAL_ERR,
                                   "a problem with deleting %s; "
                                   "consider examining correspondence "
@@ -4159,7 +4177,7 @@ int MYSQL_BIN_LOG::purge_logs_before_date(time_t purge_time)
         */
         if (thd)
         {
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_BINLOG_PURGE_FATAL_ERR,
                               "a problem with getting info on being purged %s; "
                               "consider examining correspondence "
@@ -6784,7 +6802,7 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
 
   if (binlog_accessed_db_names->elements >  MAX_DBS_IN_EVENT_MTS)
   {
-    push_warning_printf(this, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(this, Sql_condition::SL_WARNING,
                         ER_MTS_UPDATED_DBS_GREATER_MAX,
                         ER(ER_MTS_UPDATED_DBS_GREATER_MAX),
                         MAX_DBS_IN_EVENT_MTS);
@@ -8016,7 +8034,7 @@ void THD::issue_unsafe_warnings()
   {
     if ((unsafe_type_flags & (1 << unsafe_type)) != 0)
     {
-      push_warning_printf(this, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning_printf(this, Sql_condition::SL_NOTE,
                           ER_BINLOG_UNSAFE_STATEMENT,
                           ER(ER_BINLOG_UNSAFE_STATEMENT),
                           ER(LEX::binlog_stmt_unsafe_errcode[unsafe_type]));

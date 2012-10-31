@@ -114,7 +114,7 @@ void thd_set_command(THD* thd, enum enum_server_command command)
 #endif
 }
 
-/* get pointer to diagnostic area for statement from THD */
+/* get pointer to Diagnostics Area for statement from THD */
 static inline
 Diagnostics_area* thd_stmt_da(THD* thd)
 {
