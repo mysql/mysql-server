@@ -729,7 +729,7 @@ void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
   if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_DIVISION_BY_ZERO,
+    push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
                  ER(ER_DIVISION_BY_ZERO));
   null_value= 1;
 }
@@ -1136,7 +1136,7 @@ longlong Item_func_signed::val_int_from_str(int *error)
   if (*error > 0 || end != start+ length)
   {
     ErrConvString err(res);
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
                         err.ptr());
@@ -1161,7 +1161,7 @@ longlong Item_func_signed::val_int()
   value= val_int_from_str(&error);
   if (value < 0 && error == 0)
   {
-    push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(current_thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                  "Cast to signed converted positive out-of-range integer to "
                  "it's negative complement");
   }
@@ -1202,7 +1202,7 @@ longlong Item_func_unsigned::val_int()
 
   value= val_int_from_str(&error);
   if (error < 0)
-    push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(current_thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                  "Cast to unsigned converted negative integer to it's "
                  "positive complement");
   return value;
@@ -1270,7 +1270,7 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
   return dec;
 
 err:
-  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
                       item_name.ptr(), 1L);
@@ -4428,7 +4428,8 @@ longlong Item_func_last_insert_id::val_int()
     thd->first_successful_insert_id_in_prev_stmt= value;
     return value;
   }
-  return thd->read_first_successful_insert_id_in_prev_stmt();
+  return
+    static_cast<longlong>(thd->read_first_successful_insert_id_in_prev_stmt());
 }
 
 
@@ -4459,7 +4460,7 @@ longlong Item_func_benchmark::val_int()
     {
       char buff[22];
       llstr(((longlong) loop_count), buff);
-      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
                           "count", buff, "benchmark");
     }
@@ -6282,7 +6283,7 @@ bool Item_func_match::fix_index()
     for (keynr=0 ; keynr < fts ; keynr++)
     {
       KEY *ft_key=&table->key_info[ft_to_key[keynr]];
-      uint key_parts=ft_key->key_parts;
+      uint key_parts=ft_key->user_defined_key_parts;
 
       for (uint part=0 ; part < key_parts ; part++)
       {
@@ -6314,7 +6315,7 @@ bool Item_func_match::fix_index()
   {
     // partial keys doesn't work
     if (max_cnt < arg_count-1 ||
-        max_cnt < table->key_info[ft_to_key[keynr]].key_parts)
+        max_cnt < table->key_info[ft_to_key[keynr]].user_defined_key_parts)
       continue;
 
     key=ft_to_key[keynr];

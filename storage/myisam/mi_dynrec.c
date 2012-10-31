@@ -1788,6 +1788,14 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
       }
       if (b_type & (BLOCK_DELETED | BLOCK_SYNC_ERROR))
       {
+        /*
+          If we're not on the first block of a record and
+          the block is marked as deleted or out of sync,
+          something's gone wrong: the record is damaged.
+        */
+        if (block_of_record != 0)
+          goto panic;
+
 	my_errno=HA_ERR_RECORD_DELETED;
 	info->lastpos=block_info.filepos;
 	info->nextpos=block_info.filepos+block_info.block_len;

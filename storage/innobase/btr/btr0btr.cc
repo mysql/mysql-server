@@ -4713,9 +4713,7 @@ node_ptr_fails:
 	mtr_commit(&mtr);
 
 	if (trx_is_interrupted(trx)) {
-		/* Return FALSE if trx was interrupted. */
-		ret = false;
-
+		/* On interrupt, return the current status. */
 	} else if (right_page_no != FIL_NULL) {
 
 		mtr_start(&mtr);

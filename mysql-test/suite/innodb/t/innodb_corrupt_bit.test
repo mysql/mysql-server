@@ -12,6 +12,7 @@
 --source include/have_debug.inc
 
 -- disable_query_log
+call mtr.add_suppression("Flagged corruption of idx.*in CHECK TABLE");
 # This test setup is extracted from bug56680.test:
 # The flag innodb_change_buffering_debug is only available in debug builds.
 # It instructs InnoDB to try to evict pages from the buffer pool when
