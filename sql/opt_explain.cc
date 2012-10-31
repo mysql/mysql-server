@@ -912,7 +912,7 @@ bool Explain_table_base::explain_key_and_len_index(int key)
 {
   DBUG_ASSERT(key != MAX_KEY);
   return explain_key_and_len_index(key, table->key_info[key].key_length,
-                                   table->key_info[key].key_parts);
+                                   table->key_info[key].user_defined_key_parts);
 }
 
 

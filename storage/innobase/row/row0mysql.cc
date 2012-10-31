@@ -616,6 +616,7 @@ handle_new_error:
 	case DB_READ_ONLY:
 	case DB_FTS_INVALID_DOCID:
 	case DB_INTERRUPTED:
+	case DB_DICT_CHANGED:
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
@@ -3635,21 +3636,27 @@ next_rec:
 			trx->error_state = DB_SUCCESS;
 			trx_rollback_to_savepoint(trx, NULL);
 			trx->error_state = DB_SUCCESS;
+
+			/* Update system table failed.  Table in memory metadata
+			could be in an inconsistent state, mark the in-memory
+			table->corrupted to be true. In the long run, this 
+			should be fixed by atomic truncate table */
+			table->corrupted = true;
+
 			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Unable to assign a new identifier"
-			      " to table ", stderr);
+			fputs("  InnoDB: Unable to assign a new identifier to"
+			      " table ", stderr);
 			ut_print_name(stderr, trx, TRUE, table->name);
 			fputs("\n"
-			      "InnoDB: after truncating it.  "
-			      "Background processes"
-			      " may corrupt the table!\n", stderr);
+			      "InnoDB: after truncating it.  Background"
+			      " processes may corrupt the table!\n", stderr);
 
-			/* Fail to update the table id, so drop the new
+			/* Failed to update the table id, so drop the new
 			FTS auxiliary tables */
 			if (has_internal_doc_id) {
 				ut_ad(trx->state == TRX_STATE_NOT_STARTED);
 
-				table_id_t      id = table->id;
+				table_id_t	id = table->id;
 
 				table->id = new_id;
 
@@ -3869,6 +3876,9 @@ row_drop_table_for_mysql(
 				table, NULL, trx);
 		}
 	}
+
+	/* make sure background stats thread is not running on the table */
+	ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
 
 	/* Delete the link file if used. */
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
@@ -4413,9 +4423,9 @@ row_mysql_drop_temp_tables(void)
 	mtr_start(&mtr);
 
 	btr_pcur_open_at_index_side(
-		TRUE,
+		true,
 		dict_table_get_first_index(dict_sys->sys_tables),
-		BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	for (;;) {
 		const rec_t*	rec;
@@ -5144,9 +5154,19 @@ row_check_index_for_mysql(
 
 	*n_rows = 0;
 
-	/* Full Text index are implemented by auxiliary tables,
-	not the B-tree */
-	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
+	if (dict_index_is_clust(index)) {
+		/* The clustered index of a table is always available.
+		During online ALTER TABLE that rebuilds the table, the
+		clustered index in the old table will have
+		index->online_log pointing to the new table. All
+		indexes of the old table will remain valid and the new
+		table will be unaccessible to MySQL until the
+		completion of the ALTER TABLE. */
+	} else if (dict_index_is_online_ddl(index)
+		   || (index->type & DICT_FTS)) {
+		/* Full Text index are implemented by auxiliary tables,
+		not the B-tree. We also skip secondary indexes that are
+		being created online. */
 		return(true);
 	}
 

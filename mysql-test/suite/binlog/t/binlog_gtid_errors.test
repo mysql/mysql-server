@@ -2,9 +2,9 @@
 #
 # Test errors/restrictions/conditions for the following variables:
 #
-#  - GTID_DONE
+#  - GTID_EXECUTED
 #     - readable, read-only, both session and global
-#  - GTID_LOST
+#  - GTID_PURGED
 #     - readable, read-only, global only
 #  - GTID_OWNED
 #     - readable, read-only, both session and global
@@ -19,8 +19,8 @@
 #
 # Note: some variables related to GTIDs are tested in other files:
 #   GTID_MODE - rpl_gtid_mode.test
-#   DISABLE_GTID_UNSAFE_STATEMENTS - binlog_disable_gtid_unsafe_statements.test
-#   GTID_LOST - rpl_gtid_lost_*.test
+#   ENFORCE_GTID_CONSISTENCY - binlog_enforce_gtid_consistency.test
+#   GTID_PURGED - rpl_gtid_purged_*.test
 #
 # ==== Implementation ====
 #
@@ -44,29 +44,27 @@
 --let $idf= ffffffff-ffff-ffff-ffff-ffffffffffff
 --let $tab= `SELECT '\t'`
 
---echo ==== Conditions for gtid_done ====
+--echo ==== Conditions for gtid_execute ====
 
 --echo # Readable.
-SELECT @@GLOBAL.GTID_DONE;
-SELECT @@SESSION.GTID_DONE;
+SELECT @@GLOBAL.GTID_EXECUTED;
+SELECT @@SESSION.GTID_EXECUTED;
 --echo # Read-only.
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-eval SET @@GLOBAL.GTID_DONE= '$ida:1';
+eval SET @@GLOBAL.GTID_EXECUTED= '$ida:1';
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-eval SET @@SESSION.GTID_DONE= '$ida:2';
+eval SET @@SESSION.GTID_EXECUTED= '$ida:2';
 
---echo ==== Conditions for gtid_lost ====
+--echo ==== Conditions for gtid_purged ====
 
 --echo # Readable global variable
-SELECT @@GLOBAL.GTID_LOST;
+SELECT @@GLOBAL.GTID_PURGED;
 --echo # Not a session variable
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
-SELECT @@SESSION.GTID_LOST;
+SELECT @@SESSION.GTID_PURGED;
 --echo # Read-only.
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-eval SET @@SESSION.GTID_LOST= '$ida:3';
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-eval SET @@GLOBAL.GTID_LOST= '$ida:4';
+--error ER_GLOBAL_VARIABLE
+eval SET @@SESSION.GTID_PURGED= '$ida:3';
 
 --echo ==== Conditions for gtid_owned ====
 

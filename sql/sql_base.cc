@@ -2584,6 +2584,20 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   if (thd->killed)
     DBUG_RETURN(TRUE);
 
+  /*
+    Check if we're trying to take a write lock in a read only transaction.
+
+    Note that we allow write locks on log tables as otherwise logging
+    to general/slow log would be disabled in read only transactions.
+  */
+  if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+      thd->tx_read_only &&
+      !(flags & (MYSQL_LOCK_LOG_TABLE | MYSQL_OPEN_HAS_MDL_LOCK)))
+  {
+    my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+    DBUG_RETURN(true);
+  }
+
   key_length= get_table_def_key(table_list, &key);
 
   /*
@@ -2702,20 +2716,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
 
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
-    /*
-      Check if we're trying to take a write lock in a read only transaction.
-
-      Note that we allow write locks on log tables as otherwise logging
-      to general/slow log would be disabled in read only transactions.
-    */
-    if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
-        thd->tx_read_only &&
-        !(flags & MYSQL_LOCK_LOG_TABLE))
-    {
-      my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
-      DBUG_RETURN(true);
-    }
-
     /*
       We are not under LOCK TABLES and going to acquire write-lock/
       modify the base table. We need to acquire protection against
@@ -8655,7 +8655,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     qualified '*', and all columns were coalesced, we have to give a more
     meaningful message than ER_BAD_TABLE_ERROR.
   */
-  if (!table_name)
+  if (!table_name || !*table_name)
     my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
   {
@@ -8667,7 +8667,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     }
     tbl_name.append(String(table_name,system_charset_info));
 
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr_safe());
   }
 
   DBUG_RETURN(TRUE);

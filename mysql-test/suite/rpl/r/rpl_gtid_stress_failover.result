@@ -11,7 +11,7 @@ include/rpl_change_topology.inc [new topology=1->2->3->4->5->1]
 include/rpl_start_slaves.inc
 include/rpl_sync.inc
 ==== Check result ====
-Check that GTID_DONE is equal on all servers.
+Check that GTID_EXECUTED is equal on all servers.
 Check that database state is equal on all servers.
 include/diff_servers.inc [servers=1 2 3 4 5 ]
 ==== Clean up ====
