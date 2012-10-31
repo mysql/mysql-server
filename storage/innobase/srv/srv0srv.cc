@@ -181,29 +181,7 @@ the user from forgetting the 'newraw' keyword to my.cnf */
 
 UNIV_INTERN ibool	srv_created_new_raw	= FALSE;
 
-/*------------------ TEMP DATA FILES -------------------------- */
-/* This is dynamically allocated on each start of server. */
-UNIV_INTERN ulint	srv_temp_tablespace_id = 0;
-
-UNIV_INTERN ulint	srv_n_temp_data_files = 0;
-UNIV_INTERN char**	srv_temp_data_file_names = NULL;
-/* size in database pages */
-UNIV_INTERN ulint*	srv_temp_data_file_sizes = NULL;
-
-/* if TRUE, then we auto-extend the last data file */
-UNIV_INTERN ibool	srv_auto_extend_last_temp_data_file	= FALSE;
-/* if != 0, this tells the max size auto-extending may increase the
-last data file size */
-UNIV_INTERN ulint	srv_last_temp_data_file_size_max	= 0;
-/* If the last data file is auto-extended, we add this
-many pages to it at a time */
-UNIV_INTERN ulong	srv_temp_data_auto_extend_increment = 8;
-UNIV_INTERN ulint*	srv_temp_data_file_is_raw_partition = NULL;
-
-/* If the following is TRUE we do not allow inserts etc. This protects
-the user from forgetting the 'newraw' keyword to my.cnf */
-
-UNIV_INTERN ibool	srv_temp_data_created_new_raw	= FALSE;
+UNIV_INTERN srv_temp_tablespace_t srv_temp_tablespace;
 
 /*------------------------- LOG FILES ------------------------ */
 UNIV_INTERN char*	srv_log_group_home_dir	= NULL;
@@ -1064,17 +1042,19 @@ srv_normalize_init_values(void)
 			* ((1024 * 1024) / UNIV_PAGE_SIZE);
 	}
 
-	n = srv_n_temp_data_files;
+	n = srv_temp_tablespace.srv_n_temp_data_files;
 
 	for (i = 0; i < n; i++) {
-		srv_temp_data_file_sizes[i] = srv_temp_data_file_sizes[i]
+		srv_temp_tablespace.srv_temp_data_file_sizes[i] =
+		srv_temp_tablespace.srv_temp_data_file_sizes[i]
 			* ((1024 * 1024) / UNIV_PAGE_SIZE);
 	}
 
 	srv_last_file_size_max = srv_last_file_size_max
 		* ((1024 * 1024) / UNIV_PAGE_SIZE);
 
-	srv_last_temp_data_file_size_max = srv_last_temp_data_file_size_max
+	srv_temp_tablespace.srv_last_temp_data_file_size_max = 
+		srv_temp_tablespace.srv_last_temp_data_file_size_max
 		* ((1024 * 1024) / UNIV_PAGE_SIZE);
 
 	srv_log_file_size = srv_log_file_size / UNIV_PAGE_SIZE;
