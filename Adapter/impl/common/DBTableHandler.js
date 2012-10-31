@@ -90,9 +90,9 @@ function getColumnByName(dbTable, colName) {
      use default converters for all data types
      perform no remapping between field names and column names
 */
-function DBTableHandler(dbtable, tablemapping) {
-  udebug.log("constructor");
-  assert(arguments.length === 2);
+function DBTableHandler(dbtable, tablemapping, ctor) {
+  udebug.log('DBTableHandler<ctor> ', dbtable.database, ':', dbtable.name);
+  assert(arguments.length === 3);
   var i,               // an iterator
       f,               // a FieldMapping
       c,               // a ColumnMetadata
@@ -104,6 +104,10 @@ function DBTableHandler(dbtable, tablemapping) {
   }
   
   this.dbTable = dbtable;
+
+  if(ctor) {
+    this.newObjectConstructor = ctor;
+  }
 
   if(tablemapping) {     
     this.mapping = tablemapping;
@@ -157,19 +161,31 @@ function DBTableHandler(dbtable, tablemapping) {
   /* Total number of mapped fields */
   nMappedFields = this.mapping.fields.length + this.stubFields.length;
          
+  /* Create the resolved mapping to be returned by getMapping() */
+  this.resolvedMapping = {};
+  this.resolvedMapping.database = this.dbTable.database;
+  this.resolvedMapping.table = this.dbTable.name;
+  this.resolvedMapping.autoIncrementBatchSize = this.mapping.autoIncrementBatchSize || 1;
+  this.resolvedMapping.fields = [];
+
   /* Build fieldNumberToColumnMap, establishing field order.
      Also build the remaining fieldNameToFieldMap and fieldNumberToFieldMap. */
   for(i = 0 ; i < this.dbTable.columns.length ; i++) {
     c = this.dbTable.columns[i];
     f = this.columnNumberToFieldMap[i];
+    this.resolvedMapping.fields[i] = {};
     if(f) {
       this.fieldNumberToColumnMap.push(c);
       this.fieldNumberToFieldMap.push(f);
       this.fieldNameToFieldMap[f.fieldName] = f;
+      this.resolvedMapping.fields[i].columnName = f.columnName;
+      this.resolvedMapping.fields[i].fieldName = f.fieldName;
+      this.resolvedMapping.fields[i].notPersistent = false;
+      this.resolvedMapping.fields[i].actionOnNull = 'NONE';
     }
   }  
   assert.equal(nMappedFields, this.fieldNumberToColumnMap.length);
- 
+
   udebug.log("new completed");
   udebug.log_detail(this);
 }

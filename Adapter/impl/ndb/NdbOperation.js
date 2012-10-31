@@ -178,7 +178,7 @@ function readResultRow(op) {
 var errorMap = {
   "ConstraintViolation" : "23000",
   "NoDataFound"         : "02000",
-  "UnknownResultError"  : "08000",
+  "UnknownResultError"  : "08000"
 };
 
 function mapError(opError) {

@@ -26,6 +26,7 @@ var assert = require("assert"),
     commonDBTableHandler = require("./DBTableHandler.js"),
     apiSession = require("../../api/Session.js"),
     udebug     = unified_debug.getLogger("UserContext.js");
+    util       = require("util");
 
 
 /** Create a function to manage the context of a user's asynchronous call.
@@ -136,19 +137,28 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
           // put the table metadata into the table metadata map
           tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey] = tableMetadata;
           // we have the table metadata; now create the table handler
-          tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping);
-          if (mapping === null) {
+          tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
+              tableHandlerFactory.ctor);
+          if (tableHandlerFactory.mapping === null) {
             // put the default table handler into the session factory
-            tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName] = tableHandler;
+            if (typeof(tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName]) === 'undefined') {
+              udebug.log_detail('UserContext caching the table handler in the sessionFactory for ', 
+                  tableHandlerFactory.tableName);
+              tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName] = tableHandler;
+            } else {
+              udebug.log_detail('UserContext got tableHandler but someone else put it in the cache first for ', 
+                  tableHandlerFactory.tableName);
+            }
           } else {
             if (tableHandlerFactory.ctor) {
-              // if a domain object mapping, set the constructor
-              tableHandler.setResultConstructor(ctor);
-              // and cache the table handler in the prototype
-              ctor.prototype.mynode.tableHandler = tableHandler;
+              if (typeof(tableHandlerFactory.ctor.prototype.mynode.tableHandler) === 'undefined') {
+                // if a domain object mapping, cache the table handler in the prototype
+                tableHandlerFactory.ctor.prototype.mynode.tableHandler = tableHandler;
+                udebug.log_detail('UserContext caching the table handler in the prototype for constructor.');
+              } else {
+                udebug.log_detail('UserContext got tableHandler but someone else put it in the prototype first.');
+              }
             }
-            // put the table handler into the annotated object
-            tableHandlerFactory.mynode.tableHandler = tableHandler;
           }
         }
         tableHandlerFactory.onTableHandler(null, tableHandler);
@@ -164,7 +174,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
       } else {
         // get the table metadata from the db connection pool
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
-        udebug.log('TableHandlerFactory.createTableHandler for ' + tableHandlerFactory.tableKey);
+        udebug.log('TableHandlerFactory.createTableHandler for ', tableHandlerFactory.tableKey);
         this.sessionFactory.dbConnectionPool.getTableMetadata(
             tableHandlerFactory.dbName, tableHandlerFactory.tableName, session.dbSession, onTableMetadata);
       }
@@ -175,9 +185,11 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
   var err, mynode, tableHandler, tableHandlerFactory;
 
   if (typeof(tableNameOrConstructor) === 'string') {
+    udebug.log_detail('UserContext.getTableHandler for table ', tableNameOrConstructor);
     // parameter is a table name; look up in table name to table handler hash
     tableHandler = session.sessionFactory.tableHandlers[tableNameOrConstructor];
     if (typeof(tableHandler) === 'undefined') {
+      udebug.log_detail('UserContext.getTableHandler did not find cached tableHandler for table ', tableNameOrConstructor);
       // create a new table handler for a table name with no mapping
       // create a closure to create the table handler
       tableHandlerFactory = new TableHandlerFactory(
@@ -185,10 +197,12 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
           null, null, onTableHandler);
       tableHandlerFactory.createTableHandler(null);
     } else {
+      udebug.log_detail('UserContext.getTableHandler found cached tableHandler for table ', tableNameOrConstructor);
       // send back the tableHandler
       onTableHandler(null, tableHandler);
     }
   } else if (typeof(tableNameOrConstructor) === 'function') {
+    udebug.log_detail('UserContext.getTableHandler for constructor.');
     mynode = tableNameOrConstructor.prototype.mynode;
     // parameter is a constructor; it must have been annotated already
     if (typeof(mynode) === 'undefined') {
@@ -197,6 +211,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
     } else {
       tableHandler = mynode.tableHandler;
       if (typeof(tableHandler) === 'undefined') {
+        udebug.log_detail('UserContext.getTableHandler did not find cached tableHandler for constructor.');
         // create the tableHandler
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
         tableHandlerFactory = new TableHandlerFactory(
@@ -204,6 +219,7 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
             mynode.mapping, tableNameOrConstructor, onTableHandler);
         tableHandlerFactory.createTableHandler();
       } else {
+        udebug.log_detail('UserContext.getTableHandler found cached tableHandler for constructor.');
         // prototype has been annotated; return the table handler
         onTableHandler(null, tableHandler);
       }

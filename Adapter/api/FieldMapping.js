@@ -40,47 +40,52 @@ FieldMapping.prototype = doc.FieldMapping;
 /** Validity ***/
 var validActions = ["NONE", "ERROR", "DEFAULT"];
 
-/* verify():
-    0 = mapping is valid
-    1 = bad value for valid key
-    2 = unknown key
+/* verify(property, value, strict):
+    true = mapping is valid
+    string = invalid mapping error message
 */
-function verify(property, value) {
+function verify(property, value, strict) {
   switch(property) {
     case "fieldName":
     case "columnName":      
-      if(value === null || typeof value !== 'string')       { return 1; }
+      if(value === null || typeof value !== 'string')       {
+        return strict?'property ' + property + ' has invalid value ' + JSON.stringify(value):0;
+      }
       break;
     case "actionOnNull":
-      if(validActions.indexOf(value) < 0)                   { return 1; }
+      if(validActions.indexOf(value) < 0)                   {
+        return strict?'property ' + property + ' has invalid value ' + JSON.stringify(value):0;
+      }
       break;
     case "notPersistent": 
-      if(! (value === true || value === false))             { return 1; }
+      if(! (value === true || value === false))             {
+        return strict?'property ' + property + ' has invalid value ' + JSON.stringify(value):0;
+      }
       break;
     case "converter": 
-      if(typeof value !== 'object')                         { return 1; }
+      if(typeof value !== 'object')                         {
+        return strict?'property ' + property + ' has invalid value ' + JSON.stringify(value):0;
+      }
       break;
     default:
-      return 2;
+      return strict?'property ' + property + ' is unknown.':0;
   }
-  return 0; 
+  return true; 
 }
 
 
 function isValidFieldMapping(m, strict) {
-  var property;
+  var property, verifyField, verifyFields = '';
   for(property in m) {
     if(m.hasOwnProperty(property)) {
-      switch(verify(property, m[property])) {
-        case 0:
-          break;
-        case 1:
-          return false;
-        case 2:
-          if(strict === true) { return false; }
-          break;
+      verifyField = verify(property, m[property], strict);
+      if (verifyField !== true) {
+        verifyFields += verifyField + ';';
       }
     }
+  }
+  if (verifyFields !== '') {
+    return verifyFields;
   }
   return true;
 }

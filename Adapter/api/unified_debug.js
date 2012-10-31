@@ -245,7 +245,7 @@ exports.getLogger = function(filename) {
     NOTICE : UDEB_NOTICE,
     INFO   : UDEB_INFO,
     DEBUG  : UDEB_DEBUG,
-    DETAIL : UDEB_DETAIL,
+    DETAIL : UDEB_DETAIL
   };
 
   var theLogger = new Logger();

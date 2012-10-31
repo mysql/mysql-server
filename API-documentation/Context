@@ -12,10 +12,10 @@
    * IMMEDIATE
    * The result is a javascript
    * object that has the same form as the parameter for Annotations mapClass.
-   * @param table the table name or object prototype of a mapped class
+   * @param table the table name or constructor of a mapped class
    * @return a TableMapping object or null if the table is not mapped
    */
-  getMapping(Object table);
+  getMapping(Object tableNameOrConstructor);
 
   /** Find a specific instance based on primary or unique key value.
    * A new object or null will always be provided in the callback.

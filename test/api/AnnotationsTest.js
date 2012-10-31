@@ -57,9 +57,9 @@ t4.run = function() {
     "autoIncrementBatchSize" : 1,
     "mapAllColumns" : false,
     "fields" : {
-      "name" : "id",
-      "nullValue" : "NONE",
-      "column" : "id",
+      "fieldName" : "id",
+      "actionOnNull" : "NONE",
+      "columnName" : "id",
       "notPersistent" : false
     }
   });
