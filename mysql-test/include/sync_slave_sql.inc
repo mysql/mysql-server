@@ -3,7 +3,7 @@
 # This file does the same as the built-in command sync_with_master,
 # but more flexible. In particular:
 #  - Can use a custom timeout.
-#  - Can use SQL_THREAD_WAIT_AFTER_GTIDS instead of MASTER_POS_WAIT.
+#  - Can use WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS instead of MASTER_POS_WAIT.
 #  - The position can be set by the user, it is not restricted to
 #    save_master_pos
 #
@@ -41,9 +41,9 @@ if ($use_gtids)
 {
   if ($rpl_debug)
   {
-    --echo debug: SQL_THREAD_WAIT_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)
+    --echo debug: WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)
   }
-  --let $_sss_result= `SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)`
+  --let $_sss_result= `SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$_saved_gtids', $_sss_slave_timeout)`
 }
 if (!$use_gtids)
 {

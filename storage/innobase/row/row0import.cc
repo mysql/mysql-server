@@ -729,11 +729,12 @@ FetchIndexRootPages::operator() (
 	const page_t*	page = get_frame(block);
 
 	ulint	page_type = fil_page_get_type(page);
+	ulint	xdes = (ulint) (offset / m_page_size);
 
 	if (page_type == FIL_PAGE_TYPE_XDES) {
-		err = set_current_xdes(offset / m_page_size, page);
+		err = set_current_xdes(xdes, page);
 	} else if (page_type == FIL_PAGE_INDEX
-		   && !is_free(offset / m_page_size)
+		   && !is_free(xdes)
 		   && is_root_page(page)) {
 
 		index_id_t	id = btr_page_get_index_id(page);
@@ -1549,7 +1550,7 @@ IndexPurge::open() UNIV_NOTHROW
 	mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_open_at_index_side(
-		TRUE, m_index, BTR_MODIFY_LEAF, &m_pcur, TRUE, &m_mtr);
+		true, m_index, BTR_MODIFY_LEAF, &m_pcur, true, 0, &m_mtr);
 }
 
 /**
@@ -2425,11 +2426,12 @@ row_import_set_sys_max_row_id(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_open_at_index_side(
-		FALSE,		// High end
+		false,		// High end
 		index,
 		BTR_SEARCH_LEAF,
 		&pcur,
-		TRUE,		// Init cursor
+		true,		// Init cursor
+		0,		// Leaf level
 		&mtr);
 
 	btr_pcur_move_to_prev_on_page(&pcur);

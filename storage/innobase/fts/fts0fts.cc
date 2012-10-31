@@ -832,6 +832,8 @@ fts_drop_index(
 	    && (index == static_cast<dict_index_t*>(
 			ib_vector_getp(table->fts->indexes, 0))))
 	   || ib_vector_is_empty(indexes)) {
+		doc_id_t	current_doc_id;
+		doc_id_t	first_doc_id;
 
 		/* If we are dropping the only FTS index of the table,
 		remove it from optimize thread */
@@ -855,9 +857,13 @@ fts_drop_index(
 			return(err);
 		}
 
+		current_doc_id = table->fts->cache->next_doc_id;
+		first_doc_id = table->fts->cache->first_doc_id;
 		fts_cache_clear(table->fts->cache, TRUE);
 		fts_cache_destroy(table->fts->cache);
 		table->fts->cache = fts_cache_create(table);
+		table->fts->cache->next_doc_id = current_doc_id;
+		table->fts->cache->first_doc_id = first_doc_id;
 	} else {
 		fts_cache_t*            cache = table->fts->cache;
 		fts_index_cache_t*      index_cache;
@@ -1478,11 +1484,14 @@ fts_drop_table(
 
 		dict_table_close(table, TRUE, FALSE);
 
-		error = row_drop_table_for_mysql(table_name, trx, TRUE);
+		/* Pass nonatomic=false (dont allow data dict unlock),
+		because the transaction may hold locks on SYS_* tables from
+		previous calls to fts_drop_table(). */
+		error = row_drop_table_for_mysql(table_name, trx, true, false);
 
 		if (error != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Unale to drop FTS index aux table %s: %s",
+				"Unable to drop FTS index aux table %s: %s",
 				table_name, ut_strerr(error));
 		}
 	} else {
@@ -3475,7 +3484,7 @@ fts_get_max_doc_id(
 
 	/* fetch the largest indexes value */
 	btr_pcur_open_at_index_side(
-		FALSE, index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
 		const rec_t*    rec = NULL;
@@ -6337,7 +6346,10 @@ fts_init_index(
 	dropped, and we re-initialize the Doc ID system for subsequent
 	insertion */
 	if (ib_vector_is_empty(cache->get_docs)) {
-		index = dict_table_get_first_index(table);
+		index = dict_table_get_index_on_name(table, FTS_DOC_ID_INDEX_NAME);
+
+		ut_a(index);
+
 		has_fts = FALSE;
 		fts_doc_fetch_by_doc_id(NULL, start_doc, index,
 					FTS_FETCH_DOC_BY_ID_LARGE,

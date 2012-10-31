@@ -505,7 +505,6 @@ public:
   virtual st_select_lex_unit* master_unit()= 0;
   virtual st_select_lex* outer_select()= 0;
 
-  virtual bool set_braces(bool value);
   virtual bool inc_in_sum_expr();
   virtual uint get_in_sum_expr();
   virtual TABLE_LIST* get_table_list();
@@ -1915,6 +1914,10 @@ public:
 
   /**
     Inject a character into the pre-processed stream.
+
+    Note, this function is used to inject a space instead of multi-character
+    C-comment. Thus there is no boundary checks here (basically, we replace
+    N-chars by 1-char here).
   */
   char *cpp_inject(char ch)
   {

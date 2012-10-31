@@ -395,11 +395,12 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
 
 #ifdef HAVE_REPLICATION
   if (lex->uses_stored_routines() &&
-      (tmp->var == Sys_gtid_next_ptr
+      ((tmp->var == Sys_gtid_next_ptr
 #ifdef HAVE_NDB_BINLOG
        || tmp->var == Sys_gtid_next_list_ptr
 #endif
-     ))
+       ) ||
+       Sys_gtid_purged_ptr == tmp->var))
   {
     my_error(ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION, MYF(0),
              tmp->var->name.str);
@@ -8555,18 +8556,8 @@ select_init2:
           select_part2
           {
             LEX *lex= Lex;
-            SELECT_LEX * sel= lex->current_select;
-            if (lex->current_select->set_braces(0))
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            if (sel->linkage == UNION_TYPE &&
-                sel->master_unit()->first_select()->braces)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
+            // Parentheses carry no meaning here.
+            lex->current_select->set_braces(false);
           }
           union_clause
         ;
@@ -10857,18 +10848,8 @@ select_init2_derived:
           select_part2_derived
           {
             LEX *lex= Lex;
-            SELECT_LEX * sel= lex->current_select;
-            if (lex->current_select->set_braces(0))
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
-            if (sel->linkage == UNION_TYPE &&
-                sel->master_unit()->first_select()->braces)
-            {
-              my_parse_error(ER(ER_SYNTAX_ERROR));
-              MYSQL_YYABORT;
-            }
+            // Parentheses carry no meaning here.
+            lex->current_select->set_braces(false);
           }
         ;
 
