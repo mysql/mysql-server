@@ -157,7 +157,7 @@ Trigger_creation_ctx::create(THD *thd,
   if (invalid_creation_ctx)
   {
     push_warning_printf(thd,
-                        Sql_condition::WARN_LEVEL_WARN,
+                        Sql_condition::SL_WARNING,
                         ER_TRG_INVALID_CREATION_CTX,
                         ER(ER_TRG_INVALID_CREATION_CTX),
                         (const char *) db_name,
@@ -329,7 +329,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* message,
                                 Sql_condition ** cond_hdl)
   {
@@ -806,7 +806,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                                    lex->definer->user.str))
   {
     push_warning_printf(thd,
-                        Sql_condition::WARN_LEVEL_NOTE,
+                        Sql_condition::SL_NOTE,
                         ER_NO_SUCH_USER,
                         ER(ER_NO_SUCH_USER),
                         lex->definer->user.str,
@@ -1283,7 +1283,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           DBUG_RETURN(1); // EOM
         }
 
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_TRG_NO_CREATION_CTX,
                             ER(ER_TRG_NO_CREATION_CTX),
                             (const char*) db,
@@ -1469,7 +1469,7 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
             warning here.
           */
 
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_TRG_NO_DEFINER, ER(ER_TRG_NO_DEFINER),
                               (const char*) db,
                               (const char*) sp->m_name.str);
@@ -1733,7 +1733,7 @@ bool add_table_for_trigger(THD *thd,
     if (if_exists)
     {
       push_warning_printf(thd,
-                          Sql_condition::WARN_LEVEL_NOTE,
+                          Sql_condition::SL_NOTE,
                           ER_TRG_DOES_NOT_EXIST,
                           ER(ER_TRG_DOES_NOT_EXIST));
 
@@ -2335,7 +2335,7 @@ process_unknown_string(const char *&unknown_key, uchar* base,
 
     DBUG_PRINT("info", ("sql_modes affected by BUG#14090 detected"));
     push_warning_printf(current_thd,
-                        Sql_condition::WARN_LEVEL_NOTE,
+                        Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER(ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");
@@ -2376,7 +2376,7 @@ process_unknown_string(const char *&unknown_key, uchar* base,
 
     DBUG_PRINT("info", ("trigger_table affected by BUG#15921 detected"));
     push_warning_printf(current_thd,
-                        Sql_condition::WARN_LEVEL_NOTE,
+                        Sql_condition::SL_NOTE,
                         ER_OLD_FILE_FORMAT,
                         ER(ER_OLD_FILE_FORMAT),
                         (char *)path, "TRIGGER");

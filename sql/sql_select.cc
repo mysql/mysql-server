@@ -761,6 +761,8 @@ void JOIN::reset()
     for (uint tmp= primary_tables; tmp < primary_tables + tmp_tables; tmp++)
     {
       TABLE *tmp_table= join_tab[tmp].table;
+      if (!tmp_table->created)
+        continue;
       tmp_table->file->extra(HA_EXTRA_RESET_STATE);
       tmp_table->file->ha_delete_all_rows();
       free_io_cache(tmp_table);
