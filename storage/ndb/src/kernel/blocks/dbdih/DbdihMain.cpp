@@ -17673,46 +17673,121 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   
   if (arg == DumpStateOrd::DihPrintFragmentation)
   {
-    infoEvent("Printing nodegroups --");
-    for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
+    Uint32 tableid = 0;
+    Uint32 fragid = 0;
+    if (signal->getLength() == 1)
     {
-      NodeGroupRecordPtr NGPtr;
-      NGPtr.i = c_node_groups[i];
-      ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+      infoEvent("Printing nodegroups --");
+      for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
+      {
+        jam();
+        NodeGroupRecordPtr NGPtr;
+        NGPtr.i = c_node_groups[i];
+        ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
 
-      infoEvent("NG %u(%u) ref: %u [ cnt: %u : %u %u %u %u ]",
-                NGPtr.i, NGPtr.p->nodegroupIndex, NGPtr.p->m_ref_count,
-                NGPtr.p->nodeCount,
-                NGPtr.p->nodesInGroup[0], NGPtr.p->nodesInGroup[1], NGPtr.p->nodesInGroup[2], NGPtr.p->nodesInGroup[3]);
-    }
-
-    infoEvent("Printing fragmentation of all tables --");
-    for(Uint32 i = 0; i<ctabFileSize; i++){
-      TabRecordPtr tabPtr;
-      tabPtr.i = i;
-      ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-      
-      if(tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
-	continue;
-      
-      for(Uint32 j = 0; j < tabPtr.p->totalfragments; j++){
-	FragmentstorePtr fragPtr;
-	getFragstore(tabPtr.p, j, fragPtr);
-	
-	Uint32 nodeOrder[MAX_REPLICAS];
-	const Uint32 noOfReplicas = extractNodeInfo(jamBuffer(),
-                                                    fragPtr.p,
-                                                    nodeOrder);
-	char buf[100];
-	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d(%u) LP: %u - ", tabPtr.i, j, dihGetInstanceKey(fragPtr), fragPtr.p->m_log_part_id);
-	for(Uint32 k = 0; k < noOfReplicas; k++){
-	  char tmp[100];
-	  BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
-	  strcat(buf, tmp);
-	}
-	infoEvent("%s", buf);
+        infoEvent("NG %u(%u) ref: %u [ cnt: %u : %u %u %u %u ]",
+                  NGPtr.i, NGPtr.p->nodegroupIndex, NGPtr.p->m_ref_count,
+                  NGPtr.p->nodeCount,
+                  NGPtr.p->nodesInGroup[0], NGPtr.p->nodesInGroup[1], 
+                  NGPtr.p->nodesInGroup[2], NGPtr.p->nodesInGroup[3]);
       }
+      infoEvent("Printing fragmentation of all tables --");
     }
+    else if (signal->getLength() == 3)
+    {
+      jam();
+      tableid = dumpState->args[1];
+      fragid = dumpState->args[2];
+    }
+    else
+    {
+      return;
+    }
+
+    if (tableid >= ctabFileSize)
+    {
+      return;
+    }
+
+    TabRecordPtr tabPtr;
+    tabPtr.i = tableid;
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE &&
+        fragid < tabPtr.p->totalfragments)
+    {
+      dumpState->args[0] = DumpStateOrd::DihPrintOneFragmentation;
+      dumpState->args[1] = tableid;
+      dumpState->args[2] = fragid;
+      execDUMP_STATE_ORD(signal);
+    }
+
+    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE ||
+        ++fragid >= tabPtr.p->totalfragments)
+    {
+        tableid++;
+        fragid = 0;
+    }
+
+    if (tableid < ctabFileSize)
+    {
+      dumpState->args[0] = DumpStateOrd::DihPrintFragmentation;
+      dumpState->args[1] = tableid;
+      dumpState->args[2] = fragid;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 3, JBB);
+    }
+  }
+
+  if (arg == DumpStateOrd::DihPrintOneFragmentation)
+  {
+    Uint32 tableid = RNIL;
+    Uint32 fragid = RNIL;
+
+    if (signal->getLength() == 3)
+    {
+      jam();
+      tableid = dumpState->args[1];
+      fragid = dumpState->args[2];
+    }
+    else
+    {
+      return;
+    }
+
+    if (tableid >= ctabFileSize)
+    {
+      return;
+    }
+
+    TabRecordPtr tabPtr;
+    tabPtr.i = tableid;
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+    if (fragid >= tabPtr.p->totalfragments)
+    {
+      return;
+    }
+
+    FragmentstorePtr fragPtr;
+    getFragstore(tabPtr.p, fragid, fragPtr);
+
+    Uint32 nodeOrder[MAX_REPLICAS];
+    const Uint32 noOfReplicas = extractNodeInfo(jamBuffer(),
+                                                fragPtr.p,
+                                                nodeOrder);
+    char buf[100];
+    BaseString::snprintf(buf, sizeof(buf), 
+                         " Table %d Fragment %d(%u) LP: %u - ",
+                         tabPtr.i, fragid, dihGetInstanceKey(fragPtr),
+                         fragPtr.p->m_log_part_id);
+
+    for(Uint32 k = 0; k < noOfReplicas; k++)
+    {
+      char tmp[100];
+      BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
+      strcat(buf, tmp);
+    }
+    infoEvent("%s", buf);
   }
   
   if (signal->theData[0] == 7000) {
