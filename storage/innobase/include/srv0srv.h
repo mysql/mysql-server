@@ -127,6 +127,42 @@ struct srv_stats_t {
 	ulint_ctr_64_t		n_rows_inserted;
 };
 
+struct srv_temp_tablespace_t {
+
+	/** This is dynamically allocated on each start of server. */
+	ulint	srv_temp_tablespace_id;
+
+	ulint	srv_n_temp_data_files;
+	char**	srv_temp_data_file_names;
+
+	/** size in database pages */
+	ulint*	srv_temp_data_file_sizes;
+
+	/** if TRUE, then we auto-extend the last data file */
+	bool	srv_auto_extend_last_temp_data_file;
+	/** if != 0, this tells the max size auto-extending may increase the
+	last data file size */
+	ulint	srv_last_temp_data_file_size_max;
+	/** If the last data file is auto-extended, we add this
+	many pages to it at a time */
+	ulong	srv_temp_data_auto_extend_increment;
+	ulint*	srv_temp_data_file_is_raw_partition;
+
+	/** If the following is true we do not allow inserts etc. This protects
+	the user from forgetting the 'newraw' keyword to my.cnf */
+	bool	srv_temp_data_created_new_raw;
+
+	srv_temp_tablespace_t() : srv_temp_tablespace_id(0),
+		srv_n_temp_data_files(0), srv_temp_data_file_names(NULL),
+		srv_temp_data_file_sizes(NULL),
+		srv_auto_extend_last_temp_data_file(false),
+		srv_last_temp_data_file_size_max(0),
+		srv_temp_data_auto_extend_increment(8),
+		srv_temp_data_file_is_raw_partition(NULL),
+		srv_temp_data_created_new_raw(false) {
+	}
+};
+
 extern const char*	srv_main_thread_op_info;
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
@@ -242,25 +278,14 @@ extern ulint*	srv_data_file_is_raw_partition;
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
 
-extern ulint	srv_temp_tablespace_id;
-
-extern ulint	srv_n_temp_data_files;
-extern char**	srv_temp_data_file_names;
-extern ulint*	srv_temp_data_file_sizes;
-extern ulint*	srv_temp_data_file_is_raw_partition;
-
-extern ibool	srv_auto_extend_last_temp_data_file;
-extern ulint	srv_last_temp_data_file_size_max;
+extern srv_temp_tablespace_t	srv_temp_tablespace;
 
 extern char*	srv_log_group_home_dir;
+
 #ifndef UNIV_HOTBACKUP
 extern ulong	srv_auto_extend_increment;
 
 extern ibool	srv_created_new_raw;
-
-extern ulong	srv_temp_data_auto_extend_increment;
-
-extern ibool	srv_temp_data_created_new_raw;
 
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100

@@ -2929,8 +2929,7 @@ mem_free_and_error:
 	/*--------------- Temp Data files -------------------------*/
 
 	/* Set default InnoDB temp data file size to 12 MB and let it be
-	auto-extending. Thus users can use InnoDB in >= 4.0 without having
-	to specify any startup options. */
+	auto-extending. */
 
 	if (!innobase_temp_data_file_path) {
 		innobase_temp_data_file_path = (char*) "ibdatatmp1:12M:autoextend";
@@ -2942,9 +2941,9 @@ mem_free_and_error:
 	internal_innobase_temp_data_file_path = my_strdup(
 		innobase_temp_data_file_path, MYF(MY_FAE));
 
-	ret = (bool) srv_parse_temp_data_file_paths_and_sizes(
+	ret = srv_parse_temp_data_file_paths_and_sizes(
 		internal_innobase_temp_data_file_path);
-	if (ret == FALSE) {
+	if (ret == false) {
 		sql_print_error(
 			"InnoDB: syntax error in innodb_temp_data_file_path");
 mem_free_and_error2:
@@ -15915,7 +15914,7 @@ static MYSQL_SYSVAR_STR(data_file_path, innobase_data_file_path,
 
 static MYSQL_SYSVAR_STR(temp_data_file_path, innobase_temp_data_file_path,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
-  "Path to individual temp files and their sizes.",
+  "Path to files and their sizes making temp-tablespace.",
   NULL, NULL, NULL);
 
 static MYSQL_SYSVAR_STR(undo_directory, srv_undo_dir,
