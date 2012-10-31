@@ -30,6 +30,7 @@
 #include "table_helper.h"
 #include "my_md5.h"
 #include "sql_lex.h"
+#include "sql_signal.h"
 #include "sql_get_diagnostics.h"
 #include "sql_string.h"
 #include <string.h>

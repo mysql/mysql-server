@@ -160,7 +160,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
   if (!view->view_client_cs_name.str ||
       !view->view_connection_cl_name.str)
   {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_NO_CREATION_CTX,
                         ER(ER_VIEW_NO_CREATION_CTX),
                         (const char *) view->db,
@@ -194,7 +194,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
                       (const char *) view->view_client_cs_name.str,
                       (const char *) view->view_connection_cl_name.str);
 
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_INVALID_CREATION_CTX,
                         ER(ER_VIEW_INVALID_CREATION_CTX),
                         (const char *) view->db,
@@ -1637,7 +1637,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                       "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
                       share->fieldnames.type_names[i], share->table_name.str,
                       share->table_name.str);
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_CRASHED_ON_USAGE,
                           "Found incompatible DECIMAL field '%s' in %s; "
                           "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
@@ -1853,7 +1853,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                             "Please do \"ALTER TABLE `%s` FORCE \" to fix it!",
                             share->table_name.str,
                             share->table_name.str);
-            push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+            push_warning_printf(thd, Sql_condition::SL_WARNING,
                                 ER_CRASHED_ON_USAGE,
                                 "Found wrong key definition in %s; "
                                 "Please do \"ALTER TABLE `%s` FORCE\" to fix "
@@ -4067,7 +4067,7 @@ void TABLE_LIST::hide_view_error(THD *thd)
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
-  switch (thd->get_stmt_da()->sql_errno()) {
+  switch (thd->get_stmt_da()->mysql_errno()) {
     case ER_BAD_FIELD_ERROR:
     case ER_SP_DOES_NOT_EXIST:
     // ER_FUNC_INEXISTENT_NAME_COLLISION cannot happen here.
@@ -4164,7 +4164,7 @@ int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure) const
     const TABLE_LIST *main_view= top_table();
     if (ignore_failure)
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
                           main_view->view_db.str, main_view->view_name.str);
       return(VIEW_CHECK_SKIP);
@@ -4439,7 +4439,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))
       {
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE, 
+        push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_NO_SUCH_USER, 
                             ER(ER_NO_SUCH_USER),
                             definer.user.str, definer.host.str);
