@@ -21,9 +21,7 @@ SELECT @@SESSION.GTID_PURGED;
 ERROR HY000: Variable 'gtid_purged' is a GLOBAL variable
 # Read-only.
 SET @@SESSION.GTID_PURGED= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:3';
-ERROR HY000: Variable 'gtid_purged' is a read only variable
-SET @@GLOBAL.GTID_PURGED= 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa:4';
-ERROR HY000: Variable 'gtid_purged' is a read only variable
+ERROR HY000: Variable 'gtid_purged' is a GLOBAL variable and should be set with SET GLOBAL
 ==== Conditions for gtid_owned ====
 # Readable.
 SELECT @@GLOBAL.GTID_OWNED;

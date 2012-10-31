@@ -5180,7 +5180,7 @@ longlong Item_func_isnull::val_int()
     Handle optimization if the argument can't be null
     This has to be here because of the test in update_used_tables().
   */
-  if (!used_tables_cache && !with_subselect)
+  if (!used_tables_cache && !with_subselect && !with_stored_program)
     return cached_value;
   return args[0]->is_null() ? 1: 0;
 }
@@ -5189,7 +5189,7 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (!used_tables_cache && !with_subselect)
+  if (!used_tables_cache && !with_subselect && !with_stored_program)
   {
     owner->was_null|= (!cached_value);
     DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
@@ -5221,7 +5221,8 @@ void Item_is_not_null_test::update_used_tables()
   with_subselect= args[0]->has_subquery();
   with_stored_program= args[0]->has_stored_program();
   used_tables_cache|= args[0]->used_tables();
-  if (used_tables_cache == initial_pseudo_tables && !with_subselect)
+  if (used_tables_cache == initial_pseudo_tables && !with_subselect &&
+      !with_stored_program)
     /* Remember if the value is always NULL or never NULL */
     cached_value= !args[0]->is_null();
 }
