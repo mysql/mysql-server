@@ -3844,6 +3844,9 @@ public:
 
     Moreover, we can drop the second condition if we fix BUG#11756034.
 
+    @param transactional_table true if the statement updates some
+    transactional table; false otherwise.
+
     @param non_transactional_table true if the statement updates some
     non-transactional table; false otherwise.
 
@@ -3854,7 +3857,8 @@ public:
     @retval false if the statement is not compatible.
   */
   bool
-  is_dml_gtid_compatible(bool non_transactional,
+  is_dml_gtid_compatible(bool transactional_table,
+                         bool non_transactional_table,
                          bool non_transactional_tmp_tables) const;
   bool is_ddl_gtid_compatible() const;
   void binlog_invoker() { m_binlog_invoker= TRUE; }

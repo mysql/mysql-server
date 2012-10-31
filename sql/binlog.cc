@@ -938,6 +938,8 @@ gtid_before_write_cache(THD* thd, binlog_cache_data* cache_data)
   DBUG_ENTER("gtid_before_write_cache");
   int error= 0;
 
+  DBUG_ASSERT(thd->variables.gtid_next.type != UNDEFINED_GROUP);
+
   if (gtid_mode == 0)
     DBUG_RETURN(0);
 
@@ -2398,16 +2400,19 @@ bool MYSQL_BIN_LOG::open_index_file(const char *index_file_name_arg,
   @param verify_checksum Set to true to verify event checksums.
 
   @retval GOT_GTIDS The file was successfully read and it contains
-  GTID events.
+  both Gtid_log_events and Previous_gtids_log_events.
+  @retval GOT_PREVIOUS_GTIDS The file was successfully read and it
+  contains Previous_gtids_log_events but no Gtid_log_events.
   @retval NO_GTIDS The file was successfully read and it does not
   contain GTID events.
   @retval ERROR Out of memory, or the file contains GTID events
-  when GTID_MODE = OFF.
+  when GTID_MODE = OFF, or the file is malformed (e.g., contains
+  Gtid_log_events but no Previous_gtids_log_event).
   @retval TRUNCATED The file was truncated before the end of the
   first Previous_gtids_log_event.
 */
 enum enum_read_gtids_from_binlog_status
-{ GOT_GTIDS, NO_GTIDS, ERROR, TRUNCATED };
+{ GOT_GTIDS, GOT_PREVIOUS_GTIDS, NO_GTIDS, ERROR, TRUNCATED };
 static enum_read_gtids_from_binlog_status
 read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
                        Gtid_set *prev_gtids, bool verify_checksum)
@@ -2468,7 +2473,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
         my_error(ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF, MYF(0));
         ret= ERROR;
       }
-      ret= GOT_GTIDS;
+      ret= GOT_PREVIOUS_GTIDS;
       // add events to sets
       Previous_gtids_log_event *prev_gtids_ev=
         (Previous_gtids_log_event *)ev;
@@ -2476,8 +2481,6 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
         ret= ERROR, done= true;
       else if (prev_gtids != NULL && prev_gtids_ev->add_to_set(prev_gtids) != 0)
         ret= ERROR, done= true;
-      else if (all_gtids == NULL)
-        done= true;
 #ifndef DBUG_OFF
       char* prev_buffer= prev_gtids_ev->get_str(NULL, NULL);
       DBUG_PRINT("info", ("Got Previous_gtids from file '%s': Gtid_set='%s'.",
@@ -2488,15 +2491,30 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
     }
     case GTID_LOG_EVENT:
     {
+      if (ret != GOT_GTIDS)
+      {
+        if (ret != GOT_PREVIOUS_GTIDS)
+          // should not happen
+          my_error(ER_MASTER_FATAL_ERROR_READING_BINLOG, MYF(0));
+        else
+          ret= GOT_GTIDS;
+      }
       Gtid_log_event *gtid_ev= (Gtid_log_event *)ev;
       rpl_sidno sidno= gtid_ev->get_sidno(false/*false=don't need lock*/);
       if (sidno < 0)
         ret= ERROR, done= true;
-      else if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
-        ret= ERROR, done= true;
-      else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
-               RETURN_STATUS_OK)
-        ret= ERROR, done= true;
+      /*
+        We need to read GTID_LOG_EVENT when all_gtids == NULL to allow
+        read both PREVIOUS_GTIDS_LOG_EVENT and GTID_LOG_EVENT events.
+      */
+      else if (NULL != all_gtids)
+      {
+        if (all_gtids->ensure_sidno(sidno) != RETURN_STATUS_OK)
+          ret= ERROR, done= true;
+        else if (all_gtids->_add_gtid(sidno, gtid_ev->get_gno()) !=
+                 RETURN_STATUS_OK)
+          ret= ERROR, done= true;
+      }
       DBUG_PRINT("info", ("Got Gtid from file '%s': Gtid(%d, %lld).",
                           filename, sidno, gtid_ev->get_gno()));
       break;
@@ -2506,7 +2524,7 @@ read_gtids_from_binlog(const char *filename, Gtid_set *all_gtids,
       // if we found any other event type without finding a
       // previous_gtids_log_event, then the rest of this binlog
       // cannot contain gtids
-      if (ret != GOT_GTIDS)
+      if (ret != GOT_GTIDS && ret != GOT_PREVIOUS_GTIDS)
         done= true;
       break;
     }
@@ -2612,6 +2630,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         error= 1;
         goto end;
       case GOT_GTIDS:
+      case GOT_PREVIOUS_GTIDS:
         got_gtids= true;
         /*FALLTHROUGH*/
       case NO_GTIDS:
@@ -2635,6 +2654,7 @@ bool MYSQL_BIN_LOG::init_gtid_sets(Gtid_set *all_gtids, Gtid_set *lost_gtids,
         /*FALLTHROUGH*/
       case GOT_GTIDS:
         goto end;
+      case GOT_PREVIOUS_GTIDS:
       case NO_GTIDS:
       case TRUNCATED:
         break;
@@ -5304,6 +5324,7 @@ bool MYSQL_BIN_LOG::write_cache(THD *thd, binlog_cache_data *cache_data)
         goto err;
       }
 
+      thd->variables.gtid_next.set_undefined();
       global_sid_lock->rdlock();
       if (gtid_state->update_on_flush(thd) != RETURN_STATUS_OK)
       {
@@ -6155,6 +6176,7 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
       dec_prep_xids();
   }
 
+  thd->variables.gtid_next.set_undefined();
   /*
     Remove committed GTID from owned_gtids, it was already logged on
     MYSQL_BIN_LOG::write_cache().
@@ -6974,6 +6996,10 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     TABLE* prev_access_table= NULL;
     /*
+      True if at least one table is transactional.
+    */
+    bool write_to_some_transactional_table= false;
+    /*
       True if at least one table is non-transactional.
     */
     bool write_to_some_non_transactional_table= false;
@@ -7016,6 +7042,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
       {
+        write_to_some_transactional_table=
+          write_to_some_transactional_table || trans;
+
         write_to_some_non_transactional_table=
           write_to_some_non_transactional_table || !trans;
 
@@ -7066,6 +7095,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
 
       prev_access_table= table->table;
     }
+    DBUG_ASSERT(!is_write ||
+                write_to_some_transactional_table ||
+                write_to_some_non_transactional_table);
     /*
       write_all_non_transactional_are_tmp_tables may be true if any
       non-transactional table was not updated, so we fix its value here.
@@ -7203,8 +7235,9 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       }
     }
 
-    if (!error && disable_gtid_unsafe_statements &&
-        !is_dml_gtid_compatible(write_to_some_non_transactional_table,
+    if (!error && enforce_gtid_consistency &&
+        !is_dml_gtid_compatible(write_to_some_transactional_table,
+                                write_to_some_non_transactional_table,
                                 write_all_non_transactional_are_tmp_tables))
       error= 1;
 
@@ -7309,10 +7342,11 @@ bool THD::is_ddl_gtid_compatible() const
 
 
 bool
-THD::is_dml_gtid_compatible(bool non_transactional_table,
+THD::is_dml_gtid_compatible(bool transactional_table,
+                            bool non_transactional_table,
                             bool non_transactional_tmp_tables) const
 {
-  DBUG_ENTER("THD::is_dml_gtid_compatible(bool, bool)");
+  DBUG_ENTER("THD::is_dml_gtid_compatible(bool, bool, bool)");
 
   // If @@session.sql_log_bin has been manually turned off (only
   // doable by SUPER), then no problem, we can execute any statement.
@@ -7320,26 +7354,25 @@ THD::is_dml_gtid_compatible(bool non_transactional_table,
     DBUG_RETURN(true);
 
   /*
-    Non-transactional updates are unsafe: they will be logged as a
-    transaction of their own.  If they are re-executed on the slave
-    inside a transaction, then the non-transactional statement's
-    GTID will be the same as the surrounding transaction's GTID.
+    Single non-transactional updates are allowed when not mixed
+    together with transactional statements within a transaction.
+    Furthermore, writing to transactional and non-transactional
+    engines in a single statement is also disallowed.
+    Multi-statement transactions on non-transactional tables are
+    split into single-statement transactions when
+    GTID_NEXT = "AUTOMATIC".
 
     Non-transactional updates are allowed when row binlog format is
     used and all non-transactional tables are temporary.
-
-    Only statements that generate row events can be unsafe: otherwise,
-    the statement either has an implicit pre-commit or is not
-    binlogged at all.
 
     The debug symbol "allow_gtid_unsafe_non_transactional_updates"
     disables the error.  This is useful because it allows us to run
     old tests that were not written with the restrictions of GTIDs in
     mind.
   */
-  if (sqlcom_can_generate_row_events(this) &&
+  if (non_transactional_table &&
+      (transactional_table || trans_has_updated_trans_table(this)) &&
       !(non_transactional_tmp_tables && is_current_stmt_binlog_format_row()) &&
-      non_transactional_table &&
       !DBUG_EVALUATE_IF("allow_gtid_unsafe_non_transactional_updates", 1, 0))
   {
     my_error(ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE, MYF(0));
