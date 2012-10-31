@@ -6266,7 +6266,7 @@ static void test_temporal_param()
 
   /* Initialize DATETIME value */
   tm.neg= 0;
-  tm.time_type= MYSQL_TYPE_DATETIME;
+  tm.time_type= MYSQL_TIMESTAMP_DATETIME;
   tm.year= 2001;
   tm.month= 10;
   tm.day= 20;
@@ -6312,7 +6312,7 @@ static void test_temporal_param()
 
   /* Initialize TIME value */
   tm.neg= 0;
-  tm.time_type= MYSQL_TYPE_TIME;
+  tm.time_type= MYSQL_TIMESTAMP_TIME;
   tm.year= tm.month= tm.day= 0;
   tm.hour= 10;
   tm.minute= 10;
