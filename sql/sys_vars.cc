@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, 2012 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2012, 2012 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -644,12 +644,21 @@ static bool check_top_level_stmt_and_super(sys_var *self, THD *thd, set_var *var
 }
 #endif
 
-#if defined(HAVE_NDB_BINLOG) || defined(NON_DISABLED_GTID)
+#if defined(HAVE_NDB_BINLOG) || defined(HAVE_REPLICATION)
 static bool check_outside_transaction(sys_var *self, THD *thd, set_var *var)
 {
   if (thd->in_active_multi_stmt_transaction())
   {
     my_error(ER_VARIABLE_NOT_SETTABLE_IN_TRANSACTION, MYF(0), var->var->name.str);
+    return true;
+  }
+  return false;
+}
+static bool check_outside_sp(sys_var *self, THD *thd, set_var *var)
+{
+  if (thd->lex->sphead)
+  {
+    my_error(ER_VARIABLE_NOT_SETTABLE_IN_SP, MYF(0), var->var->name.str);
     return true;
   }
   return false;
@@ -1657,7 +1666,7 @@ check_max_allowed_packet(sys_var *self, THD *thd,  set_var *var)
   val= var->save_result.ulonglong_value;
   if (val < (longlong) global_system_variables.net_buffer_length)
   {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
                         "max_allowed_packet", "net_buffer_length");
   }
@@ -1932,7 +1941,7 @@ check_net_buffer_length(sys_var *self, THD *thd,  set_var *var)
   val= var->save_result.ulonglong_value;
   if (val > (longlong) global_system_variables.max_allowed_packet)
   {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         WARN_OPTION_BELOW_LIMIT, ER(WARN_OPTION_BELOW_LIMIT),
                         "max_allowed_packet", "net_buffer_length");
   }
@@ -2461,7 +2470,7 @@ static bool fix_query_cache_size(sys_var *self, THD *thd, enum_var_type type)
      requested cache size. See also query_cache_size_arg
   */
   if (query_cache_size != new_cache_size)
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_QC_RESIZE, ER(ER_WARN_QC_RESIZE),
                         query_cache_size, new_cache_size);
 
@@ -3895,7 +3904,7 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                      slave_net_timeout,
                      (active_mi ? active_mi->heartbeat_period : 0.0)));
   if (active_mi != NULL && slave_net_timeout < active_mi->heartbeat_period)
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                         ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
@@ -4081,7 +4090,7 @@ static bool check_locale(sys_var *self, THD *thd, set_var *var)
                    locale->errmsgs->errmsgs,
                    ER_ERROR_LAST - ER_ERROR_FIRST + 1))
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                           "Can't process error message file for locale '%s'",
                           locale->name);
       mysql_mutex_unlock(&LOCK_error_messages);
@@ -4327,9 +4336,36 @@ static Sys_var_gtid_executed Sys_gtid_executed(
        "binary log. The session variable contains the set of GTIDs "
        "in the current, ongoing transaction.");
 
+static bool check_gtid_purged(sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_gtid_purged");
+
+  if (check_top_level_stmt(self, thd, var) ||
+      check_outside_transaction(self, thd, var) ||
+      check_outside_sp(self, thd, var))
+    DBUG_RETURN(true);
+
+  if (0 == gtid_mode)
+  {
+    my_error(ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF, MYF(0));
+    DBUG_RETURN(true);
+  }
+
+  if (var->value->result_type() != STRING_RESULT ||
+      !var->save_result.string_value.str)
+    DBUG_RETURN(true);
+
+  DBUG_RETURN(false);
+}
+
+Gtid_set *gtid_purged;
 static Sys_var_gtid_purged Sys_gtid_purged(
        "gtid_purged",
-       "The set of GTIDs that existed in previous, purged binary logs.");
+       "The set of GTIDs that existed in previous, purged binary logs.",
+       GLOBAL_VAR(gtid_purged), NO_CMD_LINE,
+       DEFAULT(NULL), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(check_gtid_purged));
+export sys_var *Sys_gtid_purged_ptr= &Sys_gtid_purged;
 
 static Sys_var_gtid_owned Sys_gtid_owned(
        "gtid_owned",

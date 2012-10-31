@@ -362,41 +362,6 @@ struct Query_cache_tls
   Query_cache_tls() :first_query_block(NULL) {}
 };
 
-/* SIGNAL / RESIGNAL / GET DIAGNOSTICS */
-
-/**
-  This enumeration list all the condition item names of a condition in the
-  SQL condition area.
-*/
-typedef enum enum_diag_condition_item_name
-{
-  /*
-    Conditions that can be set by the user (SIGNAL/RESIGNAL),
-    and by the server implementation.
-  */
-
-  DIAG_CLASS_ORIGIN= 0,
-  FIRST_DIAG_SET_PROPERTY= DIAG_CLASS_ORIGIN,
-  DIAG_SUBCLASS_ORIGIN= 1,
-  DIAG_CONSTRAINT_CATALOG= 2,
-  DIAG_CONSTRAINT_SCHEMA= 3,
-  DIAG_CONSTRAINT_NAME= 4,
-  DIAG_CATALOG_NAME= 5,
-  DIAG_SCHEMA_NAME= 6,
-  DIAG_TABLE_NAME= 7,
-  DIAG_COLUMN_NAME= 8,
-  DIAG_CURSOR_NAME= 9,
-  DIAG_MESSAGE_TEXT= 10,
-  DIAG_MYSQL_ERRNO= 11,
-  LAST_DIAG_SET_PROPERTY= DIAG_MYSQL_ERRNO
-} Diag_condition_item_name;
-
-/**
-  Name of each diagnostic condition item.
-  This array is indexed by Diag_condition_item_name.
-*/
-extern const LEX_STRING Diag_condition_item_names[];
-
 #include "sql_lex.h"				/* Must be here */
 
 class Delayed_insert;
@@ -658,7 +623,7 @@ mysqld_collation_get_by_name(const char *name,
     my_error(ER_UNKNOWN_COLLATION, MYF(0), err.ptr());
     if (loader.error[0])
       push_warning_printf(current_thd,
-                          Sql_condition::WARN_LEVEL_WARN,
+                          Sql_condition::SL_WARNING,
                           ER_UNKNOWN_COLLATION, "%s", loader.error);
   }
   return cs;
@@ -1721,7 +1686,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl) = 0;
 
@@ -1742,7 +1707,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition ** cond_hdl)
   {
@@ -1768,7 +1733,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -2356,17 +2321,17 @@ public:
     void push_unsafe_rollback_warnings(THD *thd)
     {
       if (all.has_modified_non_trans_table())
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::SL_WARNING,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK));
 
       if (all.has_created_temp_table())
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::SL_WARNING,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_CREATED_TEMP_TABLE));
 
       if (all.has_dropped_temp_table())
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::SL_WARNING,
                      ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE,
                      ER(ER_WARNING_NOT_COMPLETE_ROLLBACK_WITH_DROPPED_TEMP_TABLE));
     }
@@ -2583,7 +2548,7 @@ private:
 
       - For SIGNAL statements: to 0 per WL#2110 specification (see also
         sql_signal.cc comment). Zero is used since that's the "default"
-        value of ROW_COUNT in the diagnostics area.
+        value of ROW_COUNT in the Diagnostics Area.
   */
 
   longlong m_row_count_func;    /* For the ROW_COUNT() function */
@@ -3357,17 +3322,37 @@ public:
   */
   inline bool is_error() const { return get_stmt_da()->is_error(); }
 
-  /// Returns Diagnostics-area for the current statement.
+  /// Returns first Diagnostics Area for the current statement.
   Diagnostics_area *get_stmt_da()
   { return m_stmt_da; }
 
-  /// Returns Diagnostics-area for the current statement.
+  /// Returns first Diagnostics Area for the current statement.
   const Diagnostics_area *get_stmt_da() const
   { return m_stmt_da; }
 
-  /// Sets Diagnostics-area for the current statement.
-  void set_stmt_da(Diagnostics_area *da)
-  { m_stmt_da= da; }
+  /// Returns the second Diagnostics Area for the current statement.
+  const Diagnostics_area *get_stacked_da() const
+  { return get_stmt_da()->stacked_da(); }
+
+  /**
+    Push the given Diagnostics Area on top of the stack, making
+    it the new first Diagnostics Area. Conditions in the new second
+    Diagnostics Area will be copied to the new first Diagnostics Area.
+
+    @param da   Diagnostics Area to be come the top of
+                the Diagnostics Area stack.
+  */
+  void push_diagnostics_area(Diagnostics_area *da)
+  {
+    get_stmt_da()->push_diagnostics_area(this, da);
+    m_stmt_da= da;
+  }
+
+  /// Pop the top DA off the Diagnostics Area stack.
+  void pop_diagnostics_area()
+  {
+    m_stmt_da= get_stmt_da()->pop_diagnostics_area();
+  }
 
 public:
   inline const CHARSET_INFO *charset()
@@ -3686,7 +3671,7 @@ private:
   */
   bool handle_condition(uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -3744,7 +3729,8 @@ private:
   friend class Sql_cmd_common_signal;
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
-  friend void push_warning(THD*, Sql_condition::enum_warning_level, uint, const char*);
+  friend void push_warning(THD*, Sql_condition::enum_severity_level, uint,
+                           const char*);
   friend void my_message_sql(uint, const char *, myf);
 
   /**
@@ -3758,7 +3744,7 @@ private:
   Sql_condition*
   raise_condition(uint sql_errno,
                   const char* sqlstate,
-                  Sql_condition::enum_warning_level level,
+                  Sql_condition::enum_severity_level level,
                   const char* msg);
 
 public:
@@ -4980,7 +4966,7 @@ public:
   - SHOW WARNING
   - SHOW ERROR
   - GET DIAGNOSTICS (WL#2111)
-  do not modify the diagnostics area during execution.
+  do not modify the Diagnostics Area during execution.
 */
 #define CF_DIAGNOSTIC_STMT        (1U << 8)
 
