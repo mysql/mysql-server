@@ -460,7 +460,7 @@ static uchar *net_store_length_fast(uchar *packet, uint length)
   - OK packet
   - ERROR packet.
   Similarly to the EOF/ERROR of the previous statement type, OK/ERROR
-  packet is "buffered" in the diagnostics area and sent to the client
+  packet is "buffered" in the Diagnostics Area and sent to the client
   in the end of statement.
 
   @note This method defines a template, but delegates actual 
@@ -469,7 +469,7 @@ static uchar *net_store_length_fast(uchar *packet, uint length)
   messages, and store them in memory, etc, instead of sending to
   the client.
 
-  @pre  The diagnostics area is assigned or disabled. It can not be empty
+  @pre  The Diagnostics Area is assigned or disabled. It can not be empty
         -- we assume that every SQL statement or COM_* command
         generates OK, ERROR, or EOF status.
 
@@ -496,20 +496,20 @@ void Protocol::end_statement()
   switch (thd->get_stmt_da()->status()) {
   case Diagnostics_area::DA_ERROR:
     /* The query failed, send error to log and abort bootstrap. */
-    error= send_error(thd->get_stmt_da()->sql_errno(),
-                      thd->get_stmt_da()->message(),
-                      thd->get_stmt_da()->get_sqlstate());
+    error= send_error(thd->get_stmt_da()->mysql_errno(),
+                      thd->get_stmt_da()->message_text(),
+                      thd->get_stmt_da()->returned_sqlstate());
     break;
   case Diagnostics_area::DA_EOF:
     error= send_eof(thd->server_status,
-                    thd->get_stmt_da()->statement_warn_count());
+                    thd->get_stmt_da()->last_statement_cond_count());
     break;
   case Diagnostics_area::DA_OK:
     error= send_ok(thd->server_status,
-                   thd->get_stmt_da()->statement_warn_count(),
+                   thd->get_stmt_da()->last_statement_cond_count(),
                    thd->get_stmt_da()->affected_rows(),
                    thd->get_stmt_da()->last_insert_id(),
-                   thd->get_stmt_da()->message());
+                   thd->get_stmt_da()->message_text());
     break;
   case Diagnostics_area::DA_DISABLED:
     break;
@@ -803,7 +803,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       Send no warning information, as it will be sent at statement end.
     */
     if (write_eof_packet(thd, &thd->net, thd->server_status,
-                         thd->get_stmt_da()->current_statement_warn_count()))
+                         thd->get_stmt_da()->current_statement_cond_count()))
       DBUG_RETURN(1);
   }
   DBUG_RETURN(prepare_for_send(list->elements));

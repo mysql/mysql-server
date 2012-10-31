@@ -212,12 +212,12 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
        slider += len, err= it++)
   {
     len= my_snprintf(slider, buff_end - slider,
-                     " %s, Error_code: %d;", err->get_message_text(),
-                     err->get_sql_errno());
+                     " %s, Error_code: %d;", err->message_text(),
+                     err->mysql_errno());
   }
 
   if (ha_error != 0)
-    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() :
+    rli->report(level, thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
                 ER_UNKNOWN_ERROR, "Could not execute %s event on table %s.%s;"
                 "%s handler error %s; "
                 "the event's master log %s, end_log_pos %lu",
@@ -225,7 +225,7 @@ static void inline slave_rows_error_report(enum loglevel level, int ha_error,
                 buff, handler_error == NULL ? "<unknown>" : handler_error,
                 log_name, pos);
   else
-    rli->report(level, thd->is_error() ? thd->get_stmt_da()->sql_errno() :
+    rli->report(level, thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
                 ER_UNKNOWN_ERROR, "Could not execute %s event on table %s.%s;"
                 "%s the event's master log %s, end_log_pos %lu",
                 type, table->s->db.str, table->s->table_name.str,
@@ -368,13 +368,13 @@ inline int ignored_error_code(int err_code)
 */ 
 int convert_handler_error(int error, THD* thd, TABLE *table)
 {
-  uint actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
+  uint actual_error= (thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
                            0);
 
   if (actual_error == 0)
   {
     table->file->print_error(error, MYF(0));
-    actual_error= (thd->is_error() ? thd->get_stmt_da()->sql_errno() :
+    actual_error= (thd->is_error() ? thd->get_stmt_da()->mysql_errno() :
                         ER_UNKNOWN_ERROR);
     if (actual_error == ER_UNKNOWN_ERROR)
       if (log_warnings)
@@ -4500,9 +4500,9 @@ static bool is_silent_error(THD* thd)
   const Sql_condition *err;
   while ((err= it++))
   {
-    DBUG_PRINT("info", ("has condition %d %s", err->get_sql_errno(),
-                        err->get_message_text()));
-    switch (err->get_sql_errno())
+    DBUG_PRINT("info", ("has condition %d %s", err->mysql_errno(),
+                        err->message_text()));
+    switch (err->mysql_errno())
     {
     case ER_SLAVE_SILENT_RETRY_TRANSACTION:
     {
@@ -4787,7 +4787,8 @@ int Query_log_event::do_apply_event(Relay_log_info const *rli,
     }
 
     /* If the query was not ignored, it is printed to the general log */
-    if (!thd->is_error() || thd->get_stmt_da()->sql_errno() != ER_SLAVE_IGNORED_TABLE)
+    if (!thd->is_error() ||
+        thd->get_stmt_da()->mysql_errno() != ER_SLAVE_IGNORED_TABLE)
     {
       /* log the rewritten query if the query was rewritten 
          and the option to log raw was not set.
@@ -4811,15 +4812,17 @@ compare_errors:
       has already been dropped. To ignore such irrelevant "table does
       not exist errors", we silently clear the error if TEMPORARY was used.
     */
-    if (thd->lex->sql_command == SQLCOM_DROP_TABLE && thd->lex->drop_temporary &&
-        thd->is_error() && thd->get_stmt_da()->sql_errno() == ER_BAD_TABLE_ERROR &&
+    if (thd->lex->sql_command == SQLCOM_DROP_TABLE &&
+        thd->lex->drop_temporary &&
+        thd->is_error() &&
+        thd->get_stmt_da()->mysql_errno() == ER_BAD_TABLE_ERROR &&
         !expected_error)
       thd->get_stmt_da()->reset_diagnostics_area();
     /*
       If we expected a non-zero error code, and we don't get the same error
       code, and it should be ignored or is related to a concurrency issue.
     */
-    actual_error= thd->is_error() ? thd->get_stmt_da()->sql_errno() : 0;
+    actual_error= thd->is_error() ? thd->get_stmt_da()->mysql_errno() : 0;
     DBUG_PRINT("info",("expected_error: %d  sql_errno: %d",
                        expected_error, actual_error));
 
@@ -4829,11 +4832,11 @@ compare_errors:
         !ignored_error_code(expected_error))
     {
       rli->report(ERROR_LEVEL, ER_INCONSISTENT_ERROR, ER(ER_INCONSISTENT_ERROR),
-                      ER_SAFE(expected_error),
-                      expected_error,
-                      actual_error ? thd->get_stmt_da()->message() : "no error",
-                      actual_error,
-                      print_slave_db_safe(db), query_arg);
+                  ER_SAFE(expected_error), expected_error,
+                  (actual_error ?
+                   thd->get_stmt_da()->message_text() :
+                   "no error"),
+                  actual_error, print_slave_db_safe(db), query_arg);
       thd->is_slave_error= 1;
     }
     /*
@@ -4849,7 +4852,7 @@ compare_errors:
       {
 	    rli->report(WARNING_LEVEL, actual_error,
                 "Could not execute %s event. Detailed error: %s;",
-		 get_type_str(), thd->get_stmt_da()->message());
+		 get_type_str(), thd->get_stmt_da()->message_text());
       }
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       thd->killed= THD::NOT_KILLED;
@@ -4863,7 +4866,8 @@ compare_errors:
       {
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on query. Default database: '%s'. Query: '%s'",
-                    (actual_error ? thd->get_stmt_da()->message() :
+                    (actual_error ?
+                     thd->get_stmt_da()->message_text() :
                      "unexpected success or fatal error"),
                     print_slave_db_safe(thd->db), query_arg);
       }
@@ -6360,7 +6364,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
   {
     thd->set_time(&when);
     thd->set_query_id(next_query_id());
-    thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
 
     TABLE_LIST tables;
     char table_buf[NAME_LEN + 1];
@@ -6540,8 +6544,8 @@ error:
     int sql_errno;
     if (thd->is_error())
     {
-      err= thd->get_stmt_da()->message();
-      sql_errno= thd->get_stmt_da()->sql_errno();
+      err= thd->get_stmt_da()->message_text();
+      sql_errno= thd->get_stmt_da()->mysql_errno();
     }
     else
     {
@@ -7317,9 +7321,9 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
                   });
   error= do_commit(thd);
   if(error)
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Xid_log_event: Commit could not be completed, '%s'",
-                thd->get_stmt_da()->message());
+                thd->get_stmt_da()->message_text());
 err:
   mysql_cond_broadcast(&rli_ptr->data_cond);
   mysql_mutex_unlock(&rli_ptr->data_lock);
@@ -8143,9 +8147,9 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
       init_io_cache(&file, fd, IO_SIZE, WRITE_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Create_file event: could not open file '%s', '%s'",
-                fname_buf, thd->get_stmt_da()->message());
+                fname_buf, thd->get_stmt_da()->message_text());
     goto err;
   }
   
@@ -8155,9 +8159,9 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
   if (write_base(&file))
   {
     strmov(ext, ".info"); // to have it right in the error message
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Create_file event: could not write to file '%s', '%s'",
-                fname_buf, thd->get_stmt_da()->message());
+                fname_buf, thd->get_stmt_da()->message_text());
     goto err;
   }
   end_io_cache(&file);
@@ -8175,9 +8179,9 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
                              O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
                              MYF(MY_WME))) < 0)
   {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Create_file event: could not open file '%s', '%s'",
-                fname_buf, thd->get_stmt_da()->message());
+                fname_buf, thd->get_stmt_da()->message_text());
     goto err;
   }
   /**
@@ -8190,9 +8194,9 @@ int Create_file_log_event::do_apply_event(Relay_log_info const *rli)
                   });
   if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Create_file event: write to '%s' failed, '%s'",
-                fname_buf, thd->get_stmt_da()->message());
+                fname_buf, thd->get_stmt_da()->message_text());
     goto err;
   }
   error=0;					// Everything is ok
@@ -8346,9 +8350,10 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
                                O_WRONLY | O_BINARY | O_EXCL | O_NOFOLLOW,
                                MYF(MY_WME))) < 0)
     {
-      rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+      rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                   "Error in %s event: could not create file '%s', '%s'",
-                  get_type_str(), fname, thd->get_stmt_da()->message());
+                  get_type_str(), fname,
+                  thd->get_stmt_da()->message_text());
       goto err;
     }
   }
@@ -8357,9 +8362,9 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
                                 O_WRONLY | O_APPEND | O_BINARY | O_NOFOLLOW,
                                 MYF(MY_WME))) < 0)
   {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in %s event: could not open file '%s', '%s'",
-                get_type_str(), fname, thd->get_stmt_da()->message());
+                get_type_str(), fname, thd->get_stmt_da()->message_text());
     goto err;
   }
   DBUG_EXECUTE_IF("remove_slave_load_file_before_write",
@@ -8373,9 +8378,9 @@ int Append_block_log_event::do_apply_event(Relay_log_info const *rli)
                   });
   if (mysql_file_write(fd, (uchar*) block, block_len, MYF(MY_WME+MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in %s event: write to '%s' failed, '%s'",
-                get_type_str(), fname, thd->get_stmt_da()->message());
+                get_type_str(), fname, thd->get_stmt_da()->message_text());
     goto err;
   }
   error=0;
@@ -8606,9 +8611,9 @@ int Execute_load_log_event::do_apply_event(Relay_log_info const *rli)
       init_io_cache(&file, fd, IO_SIZE, READ_CACHE, (my_off_t)0, 0,
 		    MYF(MY_WME|MY_NABP)))
   {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Error in Exec_load event: could not open file, '%s'",
-                thd->get_stmt_da()->message());
+                thd->get_stmt_da()->message_text());
     goto err;
   }
   if (!(lev= (Load_log_event*)
@@ -9986,7 +9991,7 @@ int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *r
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                                 (ulong) log_pos);
-      thd->get_stmt_da()->clear_warning_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd->query_id);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       *err= 0;
       if (idempotent_error == 0)
@@ -10867,7 +10872,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
 
     if (open_and_lock_tables(thd, rli->tables_to_lock, FALSE, 0))
     {
-      uint actual_error= thd->get_stmt_da()->sql_errno();
+      uint actual_error= thd->get_stmt_da()->mysql_errno();
       if (thd->is_slave_error || thd->is_fatal_error)
       {
         /*
@@ -10878,7 +10883,7 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error executing row event: '%s'",
-                    (actual_error ? thd->get_stmt_da()->message() :
+                    (actual_error ? thd->get_stmt_da()->message_text() :
                      "unexpected success or fatal error"));
         thd->is_slave_error= 1;
       }
@@ -11159,7 +11164,7 @@ AFTER_MAIN_EXEC_ROW_LOOP:
                                 get_type_str(),
                                 const_cast<Relay_log_info*>(rli)->get_rpl_log_name(),
                                 (ulong) log_pos);
-      thd->get_stmt_da()->clear_warning_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd->query_id);
       clear_all_errors(thd, const_cast<Relay_log_info*>(rli));
       error= 0;
     }
