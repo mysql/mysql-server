@@ -221,4 +221,4 @@ performance_schema	(table_share_hash).size	556
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	100
 performance_schema	host_cache.size	336
-performance_schema	performance_schema.memory	69443056
+performance_schema	performance_schema.memory	70403056
