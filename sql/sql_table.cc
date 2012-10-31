@@ -575,8 +575,11 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
     pos= strnmov(pos, FN_ROOTDIR, end - pos);
   pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, NullS);
 #ifdef USE_SYMDIR
-  unpack_dirname(buff, buff);
-  pos= strend(buff);
+  if (!(flags & SKIP_SYMDIR_ACCESS))
+  {
+    unpack_dirname(buff, buff);
+    pos= strend(buff);
+  }
 #endif
   pos= strxnmov(pos, end - pos, tbbuff, ext, NullS);
 
