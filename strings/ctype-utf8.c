@@ -7469,6 +7469,8 @@ my_mb_wc_filename(const CHARSET_INFO *cs __attribute__((unused)),
     return MY_CS_TOOSMALL3;
   
   byte1= s[1];
+  if (byte1 == 0)
+    return MY_CS_ILSEQ; /* avoid possible out-of-bounds read */
   byte2= s[2];
   
   if (byte1 >= 0x30 && byte1 <= 0x7F &&
