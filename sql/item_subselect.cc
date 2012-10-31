@@ -924,7 +924,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning(thd, Sql_condition::SL_NOTE,
 		   ER_SELECT_REDUCED, warn_buff);
     }
     substitution= select_lex->item_list.head();
@@ -1855,7 +1855,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-	  push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+	  push_warning(thd, Sql_condition::SL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
 	DBUG_RETURN(RES_REDUCE);
@@ -3417,7 +3417,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 
   tmp_table= tmp_result_sink->table;
   tmp_key= tmp_table->key_info;
-  tmp_key_parts= tmp_key->key_parts;
+  tmp_key_parts= tmp_key->user_defined_key_parts;
 
   /*
      If the subquery has blobs, or the total key lenght is bigger than some
@@ -3432,7 +3432,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     DBUG_ASSERT(
       tmp_table->s->uniques ||
       tmp_table->key_info->key_length >= tmp_table->file->max_key_length() ||
-      tmp_table->key_info->key_parts > tmp_table->file->max_key_parts());
+      tmp_table->key_info->user_defined_key_parts >
+      tmp_table->file->max_key_parts());
     free_tmp_table(thd, tmp_table);
     delete result;
     result= NULL;

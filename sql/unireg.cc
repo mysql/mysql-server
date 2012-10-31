@@ -67,7 +67,7 @@ struct Pack_header_error_handler: public Internal_error_handler
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
   bool is_handled;
@@ -80,7 +80,7 @@ Pack_header_error_handler::
 handle_condition(THD *,
                  uint sql_errno,
                  const char*,
-                 Sql_condition::enum_warning_level,
+                 Sql_condition::enum_severity_level,
                  const char*,
                  Sql_condition ** cond_hdl)
 {
@@ -630,15 +630,16 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
   {
     int2store(pos, (key->flags ^ HA_NOSAME));
     int2store(pos+2,key->key_length);
-    pos[4]= (uchar) key->key_parts;
+    pos[4]= (uchar) key->user_defined_key_parts;
     pos[5]= (uchar) key->algorithm;
     int2store(pos+6, key->block_size);
     pos+=8;
-    key_parts+=key->key_parts;
+    key_parts+=key->user_defined_key_parts;
     DBUG_PRINT("loop", ("flags: %lu  key_parts: %d at 0x%lx",
-                        key->flags, key->key_parts,
+                        key->flags, key->user_defined_key_parts,
                         (long) key->key_part));
-    for (key_part=key->key_part,key_part_end=key_part+key->key_parts ;
+    for (key_part=key->key_part,
+           key_part_end= key_part + key->user_defined_key_parts ;
 	 key_part != key_part_end ;
 	 key_part++)
 

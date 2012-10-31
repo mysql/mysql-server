@@ -106,17 +106,17 @@ row_vers_build_for_consistent_read(
 				*old_vers is allocated; memory for possible
 				intermediate versions is allocated and freed
 				locally within the function */
-	rec_t**		old_vers)/*!< out, own: old version, or NULL if the
-				record does not exist in the view, that is,
+	rec_t**		old_vers)/*!< out, own: old version, or NULL
+				if the history is missing or the record
+				does not exist in the view, that is,
 				it was freshly inserted afterwards */
-	__attribute__((nonnull(1,2,3,4,5,6,7), warn_unused_result));
+	__attribute__((nonnull(1,2,3,4,5,6,7)));
 
 /*****************************************************************//**
 Constructs the last committed version of a clustered index record,
-which should be seen by a semi-consistent read.
-@return	DB_SUCCESS or DB_MISSING_HISTORY */
+which should be seen by a semi-consistent read. */
 UNIV_INTERN
-dberr_t
+void
 row_vers_build_for_semi_consistent_read(
 /*====================================*/
 	const rec_t*	rec,	/*!< in: record in a clustered index; the
@@ -136,7 +136,7 @@ row_vers_build_for_semi_consistent_read(
 	const rec_t**	old_vers)/*!< out: rec, old version, or NULL if the
 				record does not exist in the view, that is,
 				it was freshly inserted afterwards */
-	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
+	__attribute__((nonnull(1,2,3,4,5)));
 
 
 #ifndef UNIV_NONINL

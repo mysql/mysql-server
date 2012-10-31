@@ -1887,13 +1887,13 @@ static int spawn_thread_v1(PSI_thread_key key,
   @sa PSI_v1::new_thread.
 */
 static PSI_thread*
-new_thread_v1(PSI_thread_key key, const void *identity, ulong thread_id)
+new_thread_v1(PSI_thread_key key, const void *identity, ulonglong processlist_id)
 {
   PFS_thread *pfs;
 
   PFS_thread_class *klass= find_thread_class(key);
   if (likely(klass != NULL))
-    pfs= create_thread(klass, identity, thread_id);
+    pfs= create_thread(klass, identity, processlist_id);
   else
     pfs= NULL;
 
@@ -1904,12 +1904,12 @@ new_thread_v1(PSI_thread_key key, const void *identity, ulong thread_id)
   Implementation of the thread instrumentation interface.
   @sa PSI_v1::set_thread_id.
 */
-static void set_thread_id_v1(PSI_thread *thread, unsigned long id)
+static void set_thread_id_v1(PSI_thread *thread, ulonglong processlist_id)
 {
   PFS_thread *pfs= reinterpret_cast<PFS_thread*> (thread);
   if (unlikely(pfs == NULL))
     return;
-  pfs->m_thread_id= id;
+  pfs->m_processlist_id= processlist_id;
 }
 
 /**
@@ -4471,6 +4471,8 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   state->m_no_index_used= 0;
   state->m_no_good_index_used= 0;
 
+  state->m_schema_name_length= 0;
+
   return reinterpret_cast<PSI_statement_locker*> (state);
 }
 
@@ -4534,6 +4536,13 @@ static void start_statement_v1(PSI_statement_locker *locker,
     timer_start= get_timer_raw_value_and_function(statement_timer, & state->m_timer);
     state->m_timer_start= timer_start;
   }
+
+  compile_time_assert(PSI_SCHEMA_NAME_LEN == NAME_LEN);
+  DBUG_ASSERT(db_len <= sizeof(state->m_schema_name));
+
+  if (db_len > 0)
+    memcpy(state->m_schema_name, db, db_len);
+  state->m_schema_name_length= db_len;
 
   if (flags & STATE_FLAG_EVENT)
   {
@@ -4747,7 +4756,9 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
     {
       digest_storage= &state->m_digest_state.m_digest_storage;
       /* Populate PFS_statements_digest_stat with computed digest information.*/
-      digest_stat= find_or_create_digest(thread, digest_storage);
+      digest_stat= find_or_create_digest(thread, digest_storage,
+                                         state->m_schema_name,
+                                         state->m_schema_name_length);
     }
 
     if (flags & STATE_FLAG_EVENT)
@@ -4760,20 +4771,22 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         case Diagnostics_area::DA_EMPTY:
           break;
         case Diagnostics_area::DA_OK:
-          memcpy(pfs->m_message_text, da->message(), MYSQL_ERRMSG_SIZE);
+          memcpy(pfs->m_message_text, da->message_text(),
+                 MYSQL_ERRMSG_SIZE);
           pfs->m_message_text[MYSQL_ERRMSG_SIZE]= 0;
           pfs->m_rows_affected= da->affected_rows();
-          pfs->m_warning_count= da->statement_warn_count();
+          pfs->m_warning_count= da->last_statement_cond_count();
           memcpy(pfs->m_sqlstate, "00000", SQLSTATE_LENGTH);
           break;
         case Diagnostics_area::DA_EOF:
-          pfs->m_warning_count= da->statement_warn_count();
+          pfs->m_warning_count= da->last_statement_cond_count();
           break;
         case Diagnostics_area::DA_ERROR:
-          memcpy(pfs->m_message_text, da->message(), MYSQL_ERRMSG_SIZE);
+          memcpy(pfs->m_message_text, da->message_text(),
+                 MYSQL_ERRMSG_SIZE);
           pfs->m_message_text[MYSQL_ERRMSG_SIZE]= 0;
-          pfs->m_sql_errno= da->sql_errno();
-          memcpy(pfs->m_sqlstate, da->get_sqlstate(), SQLSTATE_LENGTH);
+          pfs->m_sql_errno= da->mysql_errno();
+          memcpy(pfs->m_sqlstate, da->returned_sqlstate(), SQLSTATE_LENGTH);
           break;
         case Diagnostics_area::DA_DISABLED:
           break;
@@ -4814,7 +4827,9 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
         /* Set digest stat. */
         digest_storage= &state->m_digest_state.m_digest_storage;
         /* Populate statements_digest_stat with computed digest information. */
-        digest_stat= find_or_create_digest(thread, digest_storage);
+        digest_stat= find_or_create_digest(thread, digest_storage,
+                                           state->m_schema_name,
+                                           state->m_schema_name_length);
       }
     }
 
@@ -4886,18 +4901,18 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
       break;
     case Diagnostics_area::DA_OK:
       stat->m_rows_affected+= da->affected_rows();
-      stat->m_warning_count+= da->statement_warn_count();
+      stat->m_warning_count+= da->last_statement_cond_count();
       if (digest_stat != NULL)
       {
         digest_stat->m_rows_affected+= da->affected_rows();
-        digest_stat->m_warning_count+= da->statement_warn_count();
+        digest_stat->m_warning_count+= da->last_statement_cond_count();
       }
       break;
     case Diagnostics_area::DA_EOF:
-      stat->m_warning_count+= da->statement_warn_count();
+      stat->m_warning_count+= da->last_statement_cond_count();
       if (digest_stat != NULL)
       {
-        digest_stat->m_warning_count+= da->statement_warn_count();
+        digest_stat->m_warning_count+= da->last_statement_cond_count();
       }
       break;
     case Diagnostics_area::DA_ERROR:

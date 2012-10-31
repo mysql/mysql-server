@@ -87,7 +87,8 @@ static const char *handler_error_messages[]=
   "Undo record too big",
   "Invalid InnoDB FTS Doc ID",
   "Table is being used in foreign key check",
-  "Tablespace already exists"
+  "Tablespace already exists",
+  "Too many columns"
 };
 
 extern void my_handler_error_register(void);

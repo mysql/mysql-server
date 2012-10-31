@@ -1835,10 +1835,7 @@ loop:
 	if (count > 100 && 0 == (count % 10)) {
 		os_file_get_last_error(true); /* print error information */
 
-		fprintf(stderr,
-			"InnoDB: Warning: cannot delete file %s\n"
-			"InnoDB: Are you running ibbackup"
-			" to back up the file?\n", name);
+		ib_logf(IB_LOG_LEVEL_WARN, "Delete of file %s failed.", name);
 	}
 
 	os_thread_sleep(1000000);	/* sleep for a second */
@@ -1941,6 +1938,19 @@ os_file_rename_func(
 				string */
 	const char*	newpath)/*!< in: new file path */
 {
+#ifdef UNIV_DEBUG
+	os_file_type_t	type;
+	ibool		exists;
+
+	/* New path must not exist. */
+	ut_ad(os_file_status(newpath, &exists, &type));
+	ut_ad(!exists);
+
+	/* Old path must exist. */
+	ut_ad(os_file_status(oldpath, &exists, &type));
+	ut_ad(exists);
+#endif /* UNIV_DEBUG */
+
 #ifdef __WIN__
 	BOOL	ret;
 
@@ -3071,7 +3081,7 @@ UNIV_INTERN
 ibool
 os_file_status(
 /*===========*/
-	const char*	path,	/*!< in:	pathname of the file */
+	const char*	path,	/*!< in: pathname of the file */
 	ibool*		exists,	/*!< out: TRUE if file exists */
 	os_file_type_t* type)	/*!< out: type of the file (if it exists) */
 {
@@ -3288,8 +3298,8 @@ os_file_make_new_pathname(
 	char*		new_path;
 	ulint		new_path_len;
 
-	/* Get a pointer to the Separate the database name string from the base name in
-	the new tablename. */
+	/* Split the tablename into its database and table name components.
+	They are separated by a '/'. */
 	last_slash = strrchr((char*) tablename, '/');
 	base_name = last_slash ? last_slash + 1 : (char*) tablename;
 
