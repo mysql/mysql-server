@@ -455,7 +455,7 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_INSTALL_PLUGIN]=    CF_CHANGES_DATA;
   sql_command_flags[SQLCOM_UNINSTALL_PLUGIN]=  CF_CHANGES_DATA;
 
-  /* Does not change the contents of the diagnostics area. */
+  /* Does not change the contents of the Diagnostics Area. */
   sql_command_flags[SQLCOM_GET_DIAGNOSTICS]= CF_DIAGNOSTIC_STMT;
 
   /*
@@ -1708,7 +1708,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
 
   mysql_audit_general(thd, MYSQL_AUDIT_GENERAL_STATUS,
                       thd->get_stmt_da()->is_error() ?
-                      thd->get_stmt_da()->sql_errno() : 0,
+                      thd->get_stmt_da()->mysql_errno() : 0,
                       command_name[command].str);
 
   log_slow_statement(thd);
@@ -2132,7 +2132,7 @@ bool sp_process_definer(THD *thd)
   if (!is_acl_user(lex->definer->host.str, lex->definer->user.str))
   {
     push_warning_printf(thd,
-                        Sql_condition::WARN_LEVEL_NOTE,
+                        Sql_condition::SL_NOTE,
                         ER_NO_SUCH_USER,
                         ER(ER_NO_SUCH_USER),
                         lex->definer->user.str,
@@ -2278,13 +2278,10 @@ mysql_execute_command(THD *thd)
     that is not a SHOW command or a select that only access local
     variables, but for now this is probably good enough.
   */
-  if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) != 0)
-    thd->get_stmt_da()->set_warning_info_read_only(TRUE);
-  else
+  if ((sql_command_flags[lex->sql_command] & CF_DIAGNOSTIC_STMT) == 0)
   {
-    thd->get_stmt_da()->set_warning_info_read_only(FALSE);
     if (all_tables)
-      thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
+      thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
   }
 
 #ifdef HAVE_REPLICATION
@@ -2630,16 +2627,16 @@ case SQLCOM_PREPARE:
   case SQLCOM_SHOW_WARNS:
   {
     res= mysqld_show_warnings(thd, (ulong)
-			      ((1L << (uint) Sql_condition::WARN_LEVEL_NOTE) |
-			       (1L << (uint) Sql_condition::WARN_LEVEL_WARN) |
-			       (1L << (uint) Sql_condition::WARN_LEVEL_ERROR)
+			      ((1L << (uint) Sql_condition::SL_NOTE) |
+			       (1L << (uint) Sql_condition::SL_WARNING) |
+			       (1L << (uint) Sql_condition::SL_ERROR)
 			       ));
     break;
   }
   case SQLCOM_SHOW_ERRORS:
   {
     res= mysqld_show_warnings(thd, (ulong)
-			      (1L << (uint) Sql_condition::WARN_LEVEL_ERROR));
+			      (1L << (uint) Sql_condition::SL_ERROR));
     break;
   }
   case SQLCOM_SHOW_PROFILES:
@@ -2882,7 +2879,7 @@ case SQLCOM_PREPARE:
         */
         if (splocal_refs != thd->query_name_consts)
           push_warning(thd, 
-                       Sql_condition::WARN_LEVEL_WARN,
+                       Sql_condition::SL_WARNING,
                        ER_UNKNOWN_ERROR,
 "Invoked routine ran a statement that may cause problems with "
 "binary log, see 'NAME_CONST issues' in 'Binary Logging of Stored Programs' "
@@ -2912,7 +2909,7 @@ case SQLCOM_PREPARE:
         {
           if (create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
           {
-            push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+            push_warning_printf(thd, Sql_condition::SL_NOTE,
                                 ER_TABLE_EXISTS_ERROR,
                                 ER(ER_TABLE_EXISTS_ERROR),
                                 create_info.alias);
@@ -3959,7 +3956,7 @@ end_with_restore_list:
           goto error;
         if (specialflag & SPECIAL_NO_RESOLVE &&
             hostname_requires_resolving(user->host.str))
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(thd, Sql_condition::SL_WARNING,
                               ER_WARN_HOSTNAME_WONT_WORK,
                               ER(ER_WARN_HOSTNAME_WONT_WORK));
         // Are we trying to change a password of another user
@@ -4318,7 +4315,7 @@ end_with_restore_list:
       {
         if (sp_grant_privileges(thd, lex->sphead->m_db.str, name,
                                 lex->sql_command == SQLCOM_CREATE_PROCEDURE))
-          push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning(thd, Sql_condition::SL_WARNING,
                        ER_PROC_AUTO_GRANT_FAIL, ER(ER_PROC_AUTO_GRANT_FAIL));
         thd->clear_error();
       }
@@ -4505,7 +4502,7 @@ end_with_restore_list:
         {
           if (lex->drop_if_exists)
           {
-            push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+            push_warning_printf(thd, Sql_condition::SL_NOTE,
                                 ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
                                 "FUNCTION (UDF)", lex->spname->m_name.str);
             res= FALSE;
@@ -4558,7 +4555,7 @@ end_with_restore_list:
           sp_revoke_privileges(thd, db, name,
                                lex->sql_command == SQLCOM_DROP_PROCEDURE))
       {
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::SL_WARNING,
                      ER_PROC_AUTO_REVOKE_FAIL,
                      ER(ER_PROC_AUTO_REVOKE_FAIL));
         /* If this happens, an error should have been reported. */
@@ -4575,7 +4572,7 @@ end_with_restore_list:
 	if (lex->drop_if_exists)
 	{
           res= write_bin_log(thd, TRUE, thd->query(), thd->query_length());
-	  push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+	  push_warning_printf(thd, Sql_condition::SL_NOTE,
 			      ER_SP_DOES_NOT_EXIST, ER(ER_SP_DOES_NOT_EXIST),
                               SP_COM_STRING(lex), lex->spname->m_qname.str);
           if (!res)
@@ -5747,7 +5744,7 @@ void THD::reset_for_next_command()
   }
   thd->clear_error();
   thd->get_stmt_da()->reset_diagnostics_area();
-  thd->get_stmt_da()->reset_for_next_command();
+  thd->get_stmt_da()->reset_statement_cond_count();
   thd->rand_used= 0;
   thd->m_sent_row_count= thd->m_examined_row_count= 0;
 

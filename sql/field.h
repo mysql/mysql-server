@@ -1137,7 +1137,7 @@ public:
   { return DERIVATION_IMPLICIT; }
   virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
-  bool set_warning(Sql_condition::enum_warning_level, unsigned int code,
+  bool set_warning(Sql_condition::enum_severity_level, unsigned int code,
                    int cuted_increment) const;
   inline bool check_overflow(int op_result)
   {
@@ -2241,7 +2241,7 @@ protected:
     @param IN  ts_type         Timestamp type (time, date, datetime, none)
     @param IN  cuted_inctement Incrementing of cut field counter
   */
-  void set_datetime_warning(Sql_condition::enum_warning_level level, uint code,
+  void set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
                             ErrConvString str,
                             timestamp_type ts_type, int cuted_increment);
 public:

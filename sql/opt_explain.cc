@@ -2027,7 +2027,7 @@ bool explain_query_expression(THD *thd, select_result *result)
     thd->lex->unit.print(&str, enum_query_type(QT_TO_SYSTEM_CHARSET |
                                                QT_SHOW_SELECT_NUMBER));
     str.append('\0');
-    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_YES, str.ptr());
+    push_warning(thd, Sql_condition::SL_NOTE, ER_YES, str.ptr());
   }
   if (res)
     result->abort_result_set();
