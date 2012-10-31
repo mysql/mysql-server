@@ -1883,6 +1883,7 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
   {
     if (plugin_initialize(tmp))
     {
+      mysql_mutex_unlock(&LOCK_plugin);
       my_error(ER_CANT_INITIALIZE_UDF, MYF(0), name->str,
                "Plugin initialization function failed.");
       goto deinit;
@@ -1894,6 +1895,7 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
     of the insert into the plugin table, so that it is not replicated in
     row based mode.
   */
+  mysql_mutex_unlock(&LOCK_plugin);
   tmp_disable_binlog(thd);
   table->use_all_columns();
   restore_record(table, s->default_values);
@@ -1906,10 +1908,9 @@ bool mysql_install_plugin(THD *thd, const LEX_STRING *name, const LEX_STRING *dl
     table->file->print_error(error, MYF(0));
     goto deinit;
   }
-
-  mysql_mutex_unlock(&LOCK_plugin);
   DBUG_RETURN(FALSE);
 deinit:
+  mysql_mutex_lock(&LOCK_plugin);
   tmp->state= PLUGIN_IS_DELETED;
   reap_needed= true;
   reap_plugins();
