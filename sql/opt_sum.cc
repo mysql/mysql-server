@@ -909,7 +909,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
       continue;
     uint jdx= 0;
     *prefix_len= 0;
-    for (part= keyinfo->key_part, part_end= part+keyinfo->key_parts ;
+    for (part= keyinfo->key_part, part_end= part + actual_key_parts(keyinfo) ;
          part != part_end ;
          part++, jdx++, key_part_to_use= (key_part_to_use << 1) | 1)
     {

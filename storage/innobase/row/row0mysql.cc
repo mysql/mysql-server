@@ -3804,6 +3804,9 @@ row_drop_table_for_mysql(
 		}
 	}
 
+	/* make sure background stats thread is not running on the table */
+	ut_ad(!(table->stats_bg_flag & BG_STAT_IN_PROGRESS));
+
 	/* Delete the link file if used. */
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 		fil_delete_link_file(name);
