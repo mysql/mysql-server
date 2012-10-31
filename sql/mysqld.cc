@@ -3190,7 +3190,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
       thd->is_fatal_error= 1;
     (void) thd->raise_condition(error,
                                 NULL,
-                                Sql_condition::WARN_LEVEL_ERROR,
+                                Sql_condition::SL_ERROR,
                                 str);
   }
 

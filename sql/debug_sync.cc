@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1791,7 +1791,7 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
           // We should not make the statement fail, even if in strict mode.
           const bool save_abort_on_warning= thd->abort_on_warning;
           thd->abort_on_warning= false;
-          push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning(thd, Sql_condition::SL_WARNING,
                        ER_DEBUG_SYNC_TIMEOUT, ER(ER_DEBUG_SYNC_TIMEOUT));
           thd->abort_on_warning= save_abort_on_warning;
           DBUG_EXECUTE_IF("debug_sync_abort_on_timeout", DBUG_ABORT(););
