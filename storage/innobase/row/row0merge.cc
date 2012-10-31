@@ -1399,15 +1399,15 @@ end_of_index:
 				if (!rec) {
 					continue;
 				}
+			}
 
-				ut_ad(!rec_get_deleted_flag(
-					      rec,
-					      dict_table_is_comp(old_table)));
-			} else if (rec_get_deleted_flag(
-					   rec,
-					   dict_table_is_comp(old_table))) {
+			if (rec_get_deleted_flag(
+				    rec,
+				    dict_table_is_comp(old_table))) {
 				/* This record was deleted in the latest
-				committed version. Skip it. */
+				committed version, or it was deleted and
+				then reinserted-by-update before purge
+				kicked in. Skip it. */
 				continue;
 			}
 
@@ -1678,7 +1678,8 @@ wait_again:
 				       1000000, sig_count);
 
 		for (ulint i = 0; i < fts_sort_pll_degree; i++) {
-			if (psort_info[i].child_status != FTS_CHILD_COMPLETE) {
+			if (psort_info[i].child_status != FTS_CHILD_COMPLETE
+			    && psort_info[i].child_status != FTS_CHILD_EXITING) {
 				sig_count = os_event_reset(
 					fts_parallel_sort_event);
 				goto wait_again;
@@ -2653,7 +2654,40 @@ row_merge_drop_indexes(
 			case ONLINE_INDEX_ABORTED_DROPPED:
 				continue;
 			case ONLINE_INDEX_COMPLETE:
-				if (*index->name == TEMP_INDEX_PREFIX) {
+				if (*index->name != TEMP_INDEX_PREFIX) {
+					/* Do nothing to already
+					published indexes. */
+				} else if (index->type & DICT_FTS) {
+					/* Drop a completed FULLTEXT
+					index, due to a timeout during
+					MDL upgrade for
+					commit_inplace_alter_table().
+					Because only concurrent reads
+					are allowed (and they are not
+					seeing this index yet) we
+					are safe to drop the index. */
+					dict_index_t* prev = UT_LIST_GET_PREV(
+						indexes, index);
+					/* At least there should be
+					the clustered index before
+					this one. */
+					ut_ad(prev);
+					ut_a(table->fts);
+					fts_drop_index(table, index, trx);
+					/* Since
+					INNOBASE_SHARE::idx_trans_tbl
+					is shared between all open
+					ha_innobase handles to this
+					table, no thread should be
+					accessing this dict_index_t
+					object. Also, we should be
+					holding LOCK=SHARED MDL on the
+					table even after the MDL
+					upgrade timeout. */
+					dict_index_remove_from_cache(
+						table, index);
+					index = prev;
+				} else {
 					rw_lock_x_lock(
 						dict_index_get_lock(index));
 					dict_index_set_online_status(
@@ -3464,10 +3498,37 @@ row_merge_build_indexes(
 			bool		all_exit = false;
 			ulint		trial_count = 0;
 
+			/* Now all children should complete, wait
+			a bit until they all finish using event */
+			while (!all_exit && trial_count < 10000) {
+				all_exit = true;
+
+				for (j = 0; j < fts_sort_pll_degree;
+				     j++) {
+					if (psort_info[j].child_status
+					    != FTS_CHILD_EXITING) {
+						all_exit = false;
+						os_thread_sleep(1000);
+						break;
+					}
+				}
+				trial_count++;
+			}
+
+			if (!all_exit) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Not all child sort threads exited"
+					" when creating FTS index '%s'",
+					indexes[i]->name);
+					
+			}
+
 			fts_parallel_merge_event
-				= merge_info[0].psort_common->sort_event;
+				= merge_info[0].psort_common->merge_event;
 
 			if (FTS_PLL_MERGE) {
+				trial_count = 0;
+				all_exit = false;
 				os_event_reset(fts_parallel_merge_event);
 				row_fts_start_parallel_merge(merge_info);
 wait_again:
@@ -3489,7 +3550,7 @@ wait_again:
 
 				/* Now all children should complete, wait
 				a bit until they all finish using event */
-				while (!all_exit && trial_count < 1000) {
+				while (!all_exit && trial_count < 10000) {
 					all_exit = true;
 
 					for (j = 0; j < FTS_NUM_AUX_INDEX;
@@ -3506,8 +3567,9 @@ wait_again:
 
 				if (!all_exit) {
 					ib_logf(IB_LOG_LEVEL_ERROR,
-						"Not all child threads exited"
-						" when creating FTS index '%s'",
+						"Not all child merge threads"
+						" exited when creating FTS"
+						" index '%s'",
 						indexes[i]->name);
 						
 				}

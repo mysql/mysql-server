@@ -63,10 +63,8 @@ SELECT @@GLOBAL.GTID_PURGED;
 --error ER_INCORRECT_GLOBAL_LOCAL_VAR
 SELECT @@SESSION.GTID_PURGED;
 --echo # Read-only.
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
+--error ER_GLOBAL_VARIABLE
 eval SET @@SESSION.GTID_PURGED= '$ida:3';
---error ER_INCORRECT_GLOBAL_LOCAL_VAR
-eval SET @@GLOBAL.GTID_PURGED= '$ida:4';
 
 --echo ==== Conditions for gtid_owned ====
 
