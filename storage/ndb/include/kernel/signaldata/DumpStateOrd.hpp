@@ -73,6 +73,7 @@ public:
     DihDumpNodeRestartInfo = 16, // 16 DIH Dump node restart info
     DihDumpNodeStatusInfo = 17,// 17 DIH Dump node status info
     DihPrintFragmentation = 18,// 18 DIH Print fragmentation
+    DihPrintOneFragmentation = 19,// 18 DIH Print info about one fragmentation
     // 19 NDBFS Fipple with O_SYNC, O_CREATE etc.
     // 20-24 BACKUP
     NdbcntrTestStopOnError = 25,
