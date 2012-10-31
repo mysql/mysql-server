@@ -752,7 +752,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   {
     KEY *pos= table_arg->key_info+key;
     KEY_PART_INFO *key_part=     pos->key_part;
-    KEY_PART_INFO *key_part_end= key_part + pos->key_parts;
+    KEY_PART_INFO *key_part_end= key_part + pos->user_defined_key_parts;
 
     for (; key_part != key_part_end; key_part++)
     {

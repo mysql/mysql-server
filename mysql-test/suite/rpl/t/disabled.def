@@ -15,3 +15,5 @@ rpl_delayed_slave         : Bug#11764654 2010-11-09 andrei rpl_delayed_slave fai
 rpl_row_until             : BUG#12359942 Jan 26 2011 alfranio Replication test from eits suite rpl_row_until times out
 rpl_stm_until             : BUG#12359942 Jan 26 2011 alfranio Replication test from eits suite rpl_row_until times out
 rpl_row_binlog_max_cache_size : BUG#14126780 May 29 2012 Vasil Dimov timeout if est number of rows is 3 instead of 4
+rpl_switch_stm_row_mixed  : BUG#14823837 Oct 27 2012 Saikumar
+rpl_insert_id             : BUG#14823837 Oct 27 2012 Saikumar

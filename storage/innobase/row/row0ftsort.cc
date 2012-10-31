@@ -217,6 +217,7 @@ row_fts_psort_info_init(
 	common_info->trx = trx;
 	common_info->all_info = psort_info;
 	common_info->sort_event = os_event_create(NULL);
+	common_info->merge_event = os_event_create(NULL);
 	common_info->opt_doc_id_size = opt_doc_id_size;
 
 	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
@@ -311,6 +312,7 @@ row_fts_psort_info_destroy(
 		}
 
 		os_event_free(merge_info[0].psort_common->sort_event);
+		os_event_free(merge_info[0].psort_common->merge_event);
 		ut_free(merge_info[0].psort_common->dup);
 		mem_free(merge_info[0].psort_common);
 		mem_free(psort_info);
@@ -828,6 +830,7 @@ exit:
 
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);
+	psort_info->child_status = FTS_CHILD_EXITING;
 
 #ifdef __WIN__
 	CloseHandle(psort_info->thread_hdl);
@@ -878,7 +881,7 @@ fts_parallel_merge(
 			     psort_info->psort_common->all_info, id);
 
 	psort_info->child_status = FTS_CHILD_COMPLETE;
-	os_event_set(psort_info->psort_common->sort_event);
+	os_event_set(psort_info->psort_common->merge_event);
 	psort_info->child_status = FTS_CHILD_EXITING;
 
 #ifdef __WIN__
