@@ -5667,9 +5667,9 @@ Qmgr::execARBIT_PREPREQ(Signal* signal)
       BaseString tmp(BaseString::getPrettyTextShort(c_connectedNodes).c_str());
       Vector<BaseString> split;
       tmp.split(split, "", 92);
-      for(int i = 0; i < split.size(); ++i)
+      for(unsigned i = 0; i < split.size(); ++i)
       {
-        warningEvent("%s", split[i]);
+        warningEvent("%s", split[i].c_str());
       }
     }
 
