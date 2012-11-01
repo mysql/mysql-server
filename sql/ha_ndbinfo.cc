@@ -232,7 +232,7 @@ static int err2mysql(int error)
   default:
     break;
   }
-  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_GET_ERRNO, ER(ER_GET_ERRNO), error);
   DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
 }
@@ -312,8 +312,8 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
              opt_ndbinfo_table_prefix, ndb_tab->getName(), explanation);
   generate_sql(ndb_tab, msg);
 
-  const Sql_condition::enum_warning_level level =
-    (fatal ? Sql_condition::WARN_LEVEL_WARN : Sql_condition::WARN_LEVEL_NOTE);
+  const Sql_condition::enum_severity_level level =
+    (fatal ? Sql_condition::SL_WARNING : Sql_condition::SL_NOTE);
   push_warning(current_thd, level, ERR_INCOMPAT_TABLE_DEF, msg.c_str());
 
   DBUG_VOID_RETURN;
@@ -467,7 +467,7 @@ int ha_ndbinfo::rnd_init(bool scan)
 
   if (is_offline())
   {
-    push_warning(current_thd, Sql_condition::WARN_LEVEL_NOTE, 1,
+    push_warning(current_thd, Sql_condition::SL_NOTE, 1,
                  "'NDBINFO' has been started in offline mode "
                  "since the 'NDBCLUSTER' engine is disabled "
                  "or @@global.ndbinfo_offline is turned on "

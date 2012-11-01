@@ -7677,7 +7677,7 @@ opt_online_offline:
           }
         | ONLINE_SYM
           {
-            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+            push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
                                 ER_WARN_DEPRECATED_SYNTAX,
                                 ER(ER_WARN_DEPRECATED_SYNTAX),
                                 "ONLINE", "ALGORITHM=INPLACE");
@@ -7685,7 +7685,7 @@ opt_online_offline:
           }
         | OFFLINE_SYM
           {
-            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+            push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
                                 ER_WARN_DEPRECATED_SYNTAX,
                                 ER(ER_WARN_DEPRECATED_SYNTAX),
                                 "OFFLINE", "ALGORITHM=COPY");

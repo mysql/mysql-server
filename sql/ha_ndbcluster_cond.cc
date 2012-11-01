@@ -1569,7 +1569,7 @@ ha_ndbcluster_cond::generate_scan_filter(NdbInterpretedCode* code,
       {
         // err.message has static storage
         DBUG_PRINT("info", ("%s", err.message));
-        push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning(current_thd, Sql_condition::SL_WARNING,
                      err.code, err.message);
       }
       else

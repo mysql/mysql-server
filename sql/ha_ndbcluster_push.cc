@@ -51,7 +51,7 @@ do                                                                \
   if (unlikely(current_thd->lex->describe & DESCRIBE_EXTENDED))   \
   {                                                               \
     push_warning_printf(current_thd,                              \
-                        Sql_condition::WARN_LEVEL_NOTE, ER_YES,     \
+                        Sql_condition::SL_NOTE, ER_YES,     \
                         (msgfmt), __VA_ARGS__);                   \
   }                                                               \
 }                                                                 \
