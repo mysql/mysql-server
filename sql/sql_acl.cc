@@ -2308,6 +2308,12 @@ bool change_password(THD *thd, const char *host, const char *user,
                                                        new_password,
                                                        new_password_len + 1);
         acl_user->auth_string.length= new_password_len;
+        /*
+          Since we're changing the password for the user we need to reset the
+          expiration flag.
+        */
+        acl_user->password_expired= false;
+        thd->security_ctx->password_expired= false;
       }
     } else
     {
