@@ -62,7 +62,7 @@ thd_print_warning_list(THD* thd, const char* prefix)
   {
     sql_print_warning("%s: (%d)%s",
                       prefix,
-                      err->get_sql_errno(),
-                      err->get_message_text());
+                      err->mysql_errno(),
+                      err->message_text());
   }
 }
