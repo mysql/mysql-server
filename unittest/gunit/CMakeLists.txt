@@ -185,6 +185,9 @@ IF(GTEST_DOWNLOADED)
   SET(GTEST_INCLUDE_DIR "${GTEST_SOURCE_DIR}/include" CACHE INTERNAL "")
 ENDIF()
 
+IF (WITH_SSL STREQUAL "bundled")
+  ADD_SUBDIRECTORY(yassl)
+ENDIF()
 
 INCLUDE_DIRECTORIES(
   ${GTEST_INCLUDE_DIRS}
@@ -256,6 +259,10 @@ SET(TESTS
   stdcxx
   thread_utils
   )
+  
+IF(WIN32)
+  LIST(APPEND TESTS win_tests)
+ENDIF()
 
 # Add tests (link them with gunit library and the server libraries) 
 SET(SERVER_TESTS

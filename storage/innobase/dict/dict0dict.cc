@@ -1448,6 +1448,8 @@ dict_table_rename_in_cache(
 		ibool		exists;
 		char*		filepath;
 
+		ut_ad(table->space != TRX_SYS_SPACE);
+
 		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 
 			dict_get_and_save_data_dir_path(table, true);
@@ -1459,6 +1461,8 @@ dict_table_rename_in_cache(
 			filepath = fil_make_ibd_name(table->name, false);
 		}
 
+		fil_delete_tablespace(table->space, BUF_REMOVE_FLUSH_NO_WRITE);
+
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &type)
 		    && exists
@@ -1469,8 +1473,6 @@ dict_table_rename_in_cache(
 		}
 
 		mem_free(filepath);
-
-		fil_delete_link_file(table->name);
 
 	} else if (table->space != TRX_SYS_SPACE) {
 		char*	new_path = NULL;
@@ -5497,10 +5499,10 @@ fail:
 	mtr_commit(&mtr);
 	mem_heap_empty(heap);
 	table_name = static_cast<char*>(mem_heap_alloc(heap, FN_REFLEN + 1));
-	innobase_convert_name(
+	*innobase_convert_name(
 		table_name, FN_REFLEN,
 		index->table_name, strlen(index->table_name),
-		NULL, TRUE);
+		NULL, TRUE) = 0;
 
 	ib_logf(IB_LOG_LEVEL_ERROR, "%s corruption of %s in table %s in %s",
 		status, index->name, table_name, ctx);
