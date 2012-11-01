@@ -3618,12 +3618,8 @@ void evictor::run_eviction(){
     // These variables will help us detect if everything in the clock is currently being accessed.
     // We must detect this case otherwise we will end up in an infinite loop below.
     //
-    CACHEKEY curr_cachekey;
-    curr_cachekey.b = INT64_MAX; // create initial value so compiler does not complain
-    FILENUM curr_filenum;
-    curr_filenum.fileid = UINT32_MAX; // create initial value so compiler does not complain
-    bool set_val = false;
     bool exited_early = false;
+    uint32_t num_pairs_examined_without_evicting = 0;
     
     while (this->eviction_needed()) {
         if (m_num_sleepers > 0 && this->should_sleeping_clients_wakeup()) {
@@ -3641,11 +3637,8 @@ void evictor::run_eviction(){
             exited_early = true;
             goto exit;
         }
-        if (set_val && 
-            curr_in_clock->key.b == curr_cachekey.b &&
-            curr_in_clock->cachefile->filenum.fileid == curr_filenum.fileid)
-        {
-            // we have identified a cycle where everything in the clock is in use
+        if (num_pairs_examined_without_evicting > m_pl->m_n_in_table) {
+            // we have a cycle where everything in the clock is in use
             // do not return an error
             // just let memory be overfull
             m_pl->read_list_unlock();
@@ -3655,12 +3648,11 @@ void evictor::run_eviction(){
         }
         bool eviction_run = run_eviction_on_pair(curr_in_clock);
         if (eviction_run) {
-            set_val = false;
+            // reset the count
+            num_pairs_examined_without_evicting = 0;
         }
-        else if (!set_val) {
-            set_val = true;
-            curr_cachekey = m_pl->m_clock_head->key;
-            curr_filenum = m_pl->m_clock_head->cachefile->filenum;
+        else {
+            num_pairs_examined_without_evicting++;
         }
         // at this point, either curr_in_clock is still in the list because it has not been fully evicted,
         // and we need to move ct->m_clock_head over. Otherwise, curr_in_clock has been fully evicted
