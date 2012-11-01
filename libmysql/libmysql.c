@@ -4239,7 +4239,7 @@ int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *my_bind,
   if ((int) stmt->state < (int) MYSQL_STMT_FETCH_DONE)
   {
     set_stmt_error(stmt, CR_NO_DATA, unknown_sqlstate, NULL);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (column >= stmt->field_count)
   {
