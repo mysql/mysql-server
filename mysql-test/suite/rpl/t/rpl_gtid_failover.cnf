@@ -2,19 +2,19 @@
 
 [mysqld.1]
 gtid-mode=on
-disable-gtid-unsafe-statements
+enforce-gtid-consistency
 log-slave-updates
 innodb
 
 [mysqld.2]
 gtid-mode=on
-disable-gtid-unsafe-statements
+enforce-gtid-consistency
 log-slave-updates
 innodb
 
 [mysqld.3]
 gtid-mode=on
-disable-gtid-unsafe-statements
+enforce-gtid-consistency
 log-slave-updates
 innodb
 

@@ -63,7 +63,7 @@ bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
                                               const char*,
-                                              Sql_condition::enum_warning_level,
+                                              Sql_condition::enum_severity_level,
                                               const char*,
                                               Sql_condition ** cond_hdl)
 {
@@ -106,7 +106,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -136,7 +136,7 @@ bool
 Repair_mrg_table_error_handler::handle_condition(THD *,
                                                  uint sql_errno,
                                                  const char*,
-                                                 Sql_condition::enum_warning_level level,
+                                                 Sql_condition::enum_severity_level level,
                                                  const char*,
                                                  Sql_condition ** cond_hdl)
 {
@@ -600,7 +600,7 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
   if (share || (thd->is_error() &&
-      thd->get_stmt_da()->sql_errno() != ER_NO_SUCH_TABLE))
+      thd->get_stmt_da()->mysql_errno() != ER_NO_SUCH_TABLE))
   {
     DBUG_RETURN(share);
   }
@@ -2316,7 +2316,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
 
@@ -2335,7 +2335,7 @@ private:
 bool MDL_deadlock_handler::handle_condition(THD *,
                                             uint sql_errno,
                                             const char*,
-                                            Sql_condition::enum_warning_level,
+                                            Sql_condition::enum_severity_level,
                                             const char*,
                                             Sql_condition ** cond_hdl)
 {
@@ -2584,6 +2584,20 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   if (thd->killed)
     DBUG_RETURN(TRUE);
 
+  /*
+    Check if we're trying to take a write lock in a read only transaction.
+
+    Note that we allow write locks on log tables as otherwise logging
+    to general/slow log would be disabled in read only transactions.
+  */
+  if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+      thd->tx_read_only &&
+      !(flags & (MYSQL_LOCK_LOG_TABLE | MYSQL_OPEN_HAS_MDL_LOCK)))
+  {
+    my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+    DBUG_RETURN(true);
+  }
+
   key_length= get_table_def_key(table_list, &key);
 
   /*
@@ -2702,20 +2716,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
 
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
-    /*
-      Check if we're trying to take a write lock in a read only transaction.
-
-      Note that we allow write locks on log tables as otherwise logging
-      to general/slow log would be disabled in read only transactions.
-    */
-    if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
-        thd->tx_read_only &&
-        !(flags & MYSQL_LOCK_LOG_TABLE))
-    {
-      my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
-      DBUG_RETURN(true);
-    }
-
     /*
       We are not under LOCK TABLES and going to acquire write-lock/
       modify the base table. We need to acquire protection against
@@ -4057,7 +4057,7 @@ recover_from_failed_open(THD *thd)
         ha_create_table_from_engine(thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->get_stmt_da()->clear_warning_info(thd->query_id);
+        thd->get_stmt_da()->reset_condition_info(thd->query_id);
         thd->clear_error();                 // Clear error message
         thd->mdl_context.release_transactional_locks();
         break;
@@ -4227,7 +4227,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
           lead to a deadlock, detected by MDL subsystem.
           If possible, we try to resolve such deadlocks by releasing all
           metadata locks and restarting the pre-locking process.
-          To prevent the error from polluting the diagnostics area
+          To prevent the error from polluting the Diagnostics Area
           in case of successful resolution, install a special error
           handler for ER_LOCK_DEADLOCK error.
         */
@@ -8655,7 +8655,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     qualified '*', and all columns were coalesced, we have to give a more
     meaningful message than ER_BAD_TABLE_ERROR.
   */
-  if (!table_name)
+  if (!table_name || !*table_name)
     my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
   {
@@ -8667,7 +8667,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     }
     tbl_name.append(String(table_name,system_charset_info));
 
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr_safe());
   }
 
   DBUG_RETURN(TRUE);
@@ -8754,6 +8754,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
+    select_lex->where= *conds;
     select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
   }
 
@@ -8800,16 +8801,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     }
   }
 
-  if (!thd->stmt_arena->is_conventional())
-  {
-    /*
-      We are in prepared statement preparation code => we should store
-      WHERE clause changing for next executions.
-
-      We do this ON -> WHERE transformation only once per PS/SP statement.
-    */
-    select_lex->where= *conds;
-  }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->is_error()));
 

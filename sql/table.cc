@@ -160,7 +160,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
   if (!view->view_client_cs_name.str ||
       !view->view_connection_cl_name.str)
   {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_NO_CREATION_CTX,
                         ER(ER_VIEW_NO_CREATION_CTX),
                         (const char *) view->db,
@@ -194,7 +194,7 @@ View_creation_ctx * View_creation_ctx::create(THD *thd,
                       (const char *) view->view_client_cs_name.str,
                       (const char *) view->view_connection_cl_name.str);
 
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
                         ER_VIEW_INVALID_CREATION_CTX,
                         ER(ER_VIEW_INVALID_CREATION_CTX),
                         (const char *) view->db,
@@ -841,6 +841,68 @@ void KEY_PART_INFO::init_from_field(Field *fld)
     0 : FIELDFLAG_BINARY;
 }
 
+
+/**
+  Add primary key parts to the secondary key
+  unless they would be too long. Function
+  updates sk->actual/hidden_key_parts.
+  Function also updates sk->actual_flags
+
+
+  @param[in]     sk            Secondary key
+  @param[in]     pk            Primary key
+  @param[in,out] key_part      Pointer to the current KEY_PART_INFO*
+                               allocated after all the user defined key parts.
+  @param[in,out] rec_per_key   Pointer to the current rec_per_key
+                               allocated after all the user defined key parts.
+*/
+
+static void add_pk_parts_to_sk(KEY *sk, KEY *pk,
+                               KEY_PART_INFO **key_part,
+                               ulong **rec_per_key)
+{
+  uint max_key_length= sk->key_length;
+  bool is_unique_key= false;
+  for (uint pk_part= 0; pk_part < pk->user_defined_key_parts; pk_part++)
+  {
+    KEY_PART_INFO *pk_key_part= &pk->key_part[pk_part];
+    /* MySQL does not supports more key parts than MAX_REF_LENGTH */
+    if (sk->actual_key_parts >= MAX_REF_PARTS)
+      return;
+
+    for (uint j= 0; j < sk->user_defined_key_parts; j++)
+    {
+      if (sk->key_part[j].fieldnr == pk_key_part->fieldnr &&
+          sk->key_part[j].length >= pk_key_part->length)
+        break;
+
+      if (j == sk->user_defined_key_parts - 1)
+      {   
+        /* MySQL does not supports keys longer than MAX_KEY_LENGTH */
+        if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH)
+          return;
+
+        /*
+          Secondary key will be unique if the key  does not exceed
+          key length limitation and key parts limitation.
+        */
+        is_unique_key= true;
+        **key_part= *pk_key_part;
+        **rec_per_key= 0;
+        key_part= &++*key_part;
+        rec_per_key= &++*rec_per_key;
+        sk->actual_key_parts++;
+        sk->hidden_key_parts++;
+        max_key_length+= pk_key_part->length;
+      }
+    }
+  }
+  if (is_unique_key)
+    sk->actual_flags|= HA_NOSAME;
+  return;
+}
+
+
 /*
   Read data from a binary .frm file from MySQL 3.23 - 5.0 into TABLE_SHARE
 
@@ -859,6 +921,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uint key_info_length, com_length, null_bit_pos;
   uint extra_rec_buf_length;
   uint i,j;
+  bool use_extended_sk;   // Supported extending of secondary keys with PK parts
   bool use_hash;
   char *keynames, *names, *comment_pos;
   uchar forminfo[288];
@@ -970,17 +1033,30 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   share->keys_for_keyread.init(0);
   share->keys_in_use.init(keys);
 
-  n_length=keys*sizeof(KEY)+key_parts*sizeof(KEY_PART_INFO);
+  strpos=disk_buff+6;  
+
+  use_extended_sk= (legacy_db_type == DB_TYPE_INNODB);
+
+  uint total_key_parts;
+  if (use_extended_sk)
+  {
+    uint primary_key_parts= keys ?
+      (new_frm_ver >= 3) ? (uint) strpos[4] : (uint) strpos[3] : 0;
+    total_key_parts= key_parts + primary_key_parts * (keys - 1);
+  }
+  else
+    total_key_parts= key_parts;
+  n_length= keys * sizeof(KEY) + total_key_parts * sizeof(KEY_PART_INFO);
+
   if (!(keyinfo = (KEY*) alloc_root(&share->mem_root,
 				    n_length + uint2korr(disk_buff+4))))
     goto err;                                   /* purecov: inspected */
   memset(keyinfo, 0, n_length);
   share->key_info= keyinfo;
   key_part= reinterpret_cast<KEY_PART_INFO*>(keyinfo+keys);
-  strpos=disk_buff+6;
 
   if (!(rec_per_key= (ulong*) alloc_root(&share->mem_root,
-                                         sizeof(ulong)*key_parts)))
+                                         sizeof(ulong) * total_key_parts)))
     goto err;
 
   for (i=0 ; i < keys ; i++, keyinfo++)
@@ -990,7 +1066,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     {
       keyinfo->flags=	   (uint) uint2korr(strpos) ^ HA_NOSAME;
       keyinfo->key_length= (uint) uint2korr(strpos+2);
-      keyinfo->key_parts=  (uint) strpos[4];
+      keyinfo->user_defined_key_parts= (uint) strpos[4];
       keyinfo->algorithm=  (enum ha_key_alg) strpos[5];
       keyinfo->block_size= uint2korr(strpos+6);
       strpos+=8;
@@ -999,14 +1075,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     {
       keyinfo->flags=	 ((uint) strpos[0]) ^ HA_NOSAME;
       keyinfo->key_length= (uint) uint2korr(strpos+1);
-      keyinfo->key_parts=  (uint) strpos[3];
+      keyinfo->user_defined_key_parts= (uint) strpos[3];
       keyinfo->algorithm= HA_KEY_ALG_UNDEF;
       strpos+=4;
     }
 
     keyinfo->key_part=	 key_part;
     keyinfo->rec_per_key= rec_per_key;
-    for (j=keyinfo->key_parts ; j-- ; key_part++)
+    for (j=keyinfo->user_defined_key_parts ; j-- ; key_part++)
     {
       *rec_per_key++=0;
       key_part->fieldnr=	(uint16) (uint2korr(strpos) & FIELD_NR_MASK);
@@ -1032,6 +1108,22 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       }
       key_part->store_length=key_part->length;
     }
+    /*
+      Add PK parts if engine supports PK extension for secondary keys.
+      Atm it works for Innodb only. Here we add unique first key parts
+      to the end of secondary key parts array and increase actual number
+      of key parts. Note that primary key is always first if exists.
+      Later if there is no PK in the table then number of actual keys parts
+      is set to user defined key parts.
+    */
+    keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
+    keyinfo->actual_flags= keyinfo->flags;
+    if (use_extended_sk && i && !(keyinfo->flags & HA_NOSAME))
+    {
+      add_pk_parts_to_sk(keyinfo, share->key_info,
+                         &key_part, &rec_per_key);
+    }
+    share->key_parts+= keyinfo->hidden_key_parts;
   }
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
@@ -1545,7 +1637,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                       "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
                       share->fieldnames.type_names[i], share->table_name.str,
                       share->table_name.str);
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_CRASHED_ON_USAGE,
                           "Found incompatible DECIMAL field '%s' in %s; "
                           "Please do \"ALTER TABLE `%s` FORCE\" to fix it!",
@@ -1646,7 +1738,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	  declare this as a primary key.
 	*/
 	primary_key=key;
-	for (i=0 ; i < keyinfo->key_parts ;i++)
+	for (i=0 ; i < keyinfo->user_defined_key_parts ;i++)
 	{
 	  uint fieldnr= key_part[i].fieldnr;
 	  if (!fieldnr ||
@@ -1660,7 +1752,18 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	}
       }
 
-      for (i=0 ; i < keyinfo->key_parts ; key_part++,i++)
+      if (primary_key >= MAX_KEY && key)
+      {
+        /*
+          If there is no PK then PK parts added earlier are
+          excluded from processing and reset original flag
+          value.
+        */
+        keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
+        keyinfo->actual_flags= keyinfo->flags;
+      }
+
+      for (i=0 ; i < keyinfo->actual_key_parts ; key_part++,i++)
       {
         Field *field;
 	if (new_field_pack_flag <= 1)
@@ -1688,12 +1791,13 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             field->type() == MYSQL_TYPE_GEOMETRY)
         {
           key_part->store_length+=HA_KEY_BLOB_LENGTH;
-          keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
+          if (i + 1 <= keyinfo->user_defined_key_parts)
+            keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
         }
         key_part->init_flags();
         if (i == 0 && key != primary_key)
           field->flags |= (((keyinfo->flags & HA_NOSAME) &&
-                           (keyinfo->key_parts == 1)) ?
+                           (keyinfo->user_defined_key_parts == 1)) ?
                            UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
         if (i == 0)
           field->key_start.set_bit(key);
@@ -1749,7 +1853,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
                             "Please do \"ALTER TABLE `%s` FORCE \" to fix it!",
                             share->table_name.str,
                             share->table_name.str);
-            push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+            push_warning_printf(thd, Sql_condition::SL_WARNING,
                                 ER_CRASHED_ON_USAGE,
                                 "Found wrong key definition in %s; "
                                 "Please do \"ALTER TABLE `%s` FORCE\" to fix "
@@ -1763,10 +1867,15 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           key_part->key_part_flag|= HA_PART_KEY_SEG;
         }
       }
+
+      /* Skip unused key parts if they exist */
+      if (primary_key >= MAX_KEY)
+        key_part+= keyinfo->hidden_key_parts;
+
       keyinfo->usable_key_parts= usable_parts; // Filesort
 
       set_if_bigger(share->max_key_length,keyinfo->key_length+
-                    keyinfo->key_parts);
+                    keyinfo->user_defined_key_parts);
       share->total_key_length+= keyinfo->key_length;
       /*
         MERGE tables do not have unique indexes. But every key could be
@@ -1784,7 +1893,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	If we are using an integer as the primary key then allow the user to
 	refer to it as '_rowid'
       */
-      if (share->key_info[primary_key].key_parts == 1)
+      if (share->key_info[primary_key].user_defined_key_parts == 1)
       {
 	Field *field= share->key_info[primary_key].key_part[0].field;
 	if (field && field->result_type() == INT_RESULT)
@@ -2031,7 +2140,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     KEY	*key_info, *key_info_end;
     KEY_PART_INFO *key_part;
     uint n_length;
-    n_length= share->keys*sizeof(KEY) + share->key_parts*sizeof(KEY_PART_INFO);
+    n_length= share->keys * sizeof(KEY) +
+      share->key_parts * sizeof(KEY_PART_INFO);
+
     if (!(key_info= (KEY*) alloc_root(&outparam->mem_root, n_length)))
       goto err;
     outparam->key_info= key_info;
@@ -2050,7 +2161,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       key_info->table= outparam;
       key_info->key_part= key_part;
 
-      for (key_part_end= key_part+ key_info->key_parts ;
+      for (key_part_end= key_part + key_info->actual_key_parts ;
            key_part < key_part_end ;
            key_part++)
       {
@@ -2068,6 +2179,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
           field->field_length= key_part->length;
         }
       }
+      /* Skip unused key parts if they exist */
+      if (share->primary_key >= MAX_KEY)
+        key_part+= key_info->hidden_key_parts;
     }
   }
 
@@ -2947,9 +3061,9 @@ uint calculate_key_len(TABLE *table, uint key, const uchar *buf,
   /* works only with key prefixes */
   DBUG_ASSERT(((keypart_map + 1) & keypart_map) == 0);
 
-  KEY *key_info= table->s->key_info+key;
+  KEY *key_info= table->key_info + key;
   KEY_PART_INFO *key_part= key_info->key_part;
-  KEY_PART_INFO *end_key_part= key_part + key_info->key_parts;
+  KEY_PART_INFO *end_key_part= key_part + actual_key_parts(key_info);
   uint length= 0;
 
   while (key_part < end_key_part && keypart_map)
@@ -3953,14 +4067,14 @@ void TABLE_LIST::hide_view_error(THD *thd)
   /* Hide "Unknown column" or "Unknown function" error */
   DBUG_ASSERT(thd->is_error());
 
-  switch (thd->get_stmt_da()->sql_errno()) {
+  switch (thd->get_stmt_da()->mysql_errno()) {
     case ER_BAD_FIELD_ERROR:
     case ER_SP_DOES_NOT_EXIST:
-    case ER_FUNC_INEXISTENT_NAME_COLLISION:
+    // ER_FUNC_INEXISTENT_NAME_COLLISION cannot happen here.
     case ER_PROCACCESS_DENIED_ERROR:
     case ER_COLUMNACCESS_DENIED_ERROR:
     case ER_TABLEACCESS_DENIED_ERROR:
-    case ER_TABLE_NOT_LOCKED:
+    // ER_TABLE_NOT_LOCKED cannot happen here.
     case ER_NO_SUCH_TABLE:
     {
       TABLE_LIST *top= top_table();
@@ -4050,7 +4164,7 @@ int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure) const
     const TABLE_LIST *main_view= top_table();
     if (ignore_failure)
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
                           main_view->view_db.str, main_view->view_name.str);
       return(VIEW_CHECK_SKIP);
@@ -4325,7 +4439,7 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))
       {
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE, 
+        push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_NO_SUCH_USER, 
                             ER(ER_NO_SUCH_USER),
                             definer.user.str, definer.host.str);
@@ -5000,7 +5114,7 @@ void TABLE::mark_columns_used_by_index_no_reset(uint index,
 {
   KEY_PART_INFO *key_part= key_info[index].key_part;
   KEY_PART_INFO *key_part_end= (key_part +
-                                key_info[index].key_parts);
+                                key_info[index].user_defined_key_parts);
   for (;key_part != key_part_end; key_part++)
     bitmap_set_bit(bitmap, key_part->fieldnr-1);
 }
@@ -5347,13 +5461,15 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
     return TRUE;
   memset(key_buf, 0, key_buf_size);
   cur_key->key_part= key_part_info= (KEY_PART_INFO*) key_buf;
-  cur_key->usable_key_parts= cur_key->key_parts= key_part_count;
+  cur_key->usable_key_parts= cur_key->user_defined_key_parts= key_part_count;
+  cur_key->actual_key_parts= cur_key->user_defined_key_parts;
   s->key_parts+= key_part_count;
   cur_key->key_length= key_len;
   cur_key->algorithm= HA_KEY_ALG_BTREE;
   cur_key->name= key_name;
-  cur_key->flags= HA_GENERATED_KEY;
+  cur_key->actual_flags= cur_key->flags= HA_GENERATED_KEY;
   cur_key->rec_per_key= (ulong*) (key_buf + sizeof(KEY_PART_INFO) * key_part_count);
+  cur_key->table= this;
 
   if (field_count == key_part_count)
     covering_keys.set_bit(s->keys);
@@ -5389,12 +5505,39 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
   Save given index as index #0. Table is configured to ignore other indexes.
   Memory occupied by other indexes and index parts will be freed along with
   the table. If the 'key_to_save' is negative then all indexes are freed.
+  After keys info being changed, info in fields regarding taking part in keys
+  becomes outdated. This function fixes this also.
   @see add_derived_key
 */
 
 void TABLE::use_index(int key_to_save)
 {
   DBUG_ASSERT(!created && s->keys && key_to_save < (int)s->keys);
+
+  /* Correct fields' info about taking part in keys */
+  for (int i= 0; i < (int)s->keys; i++)
+  {
+    uint j;
+    KEY_PART_INFO *kp;
+    for (kp= key_info[i].key_part, j= 0;
+         j < key_info[i].user_defined_key_parts;
+         j++, kp++)
+    {
+      if (i == key_to_save)
+      {
+        if (kp->field->key_start.is_set(i))
+          kp->field->key_start.set_prefix(1);
+        kp->field->part_of_key.set_prefix(1);
+        kp->field->part_of_sortkey.set_prefix(1);
+      }
+      else
+      {
+        kp->field->key_start.clear_all();
+        kp->field->part_of_key.clear_all();
+        kp->field->part_of_sortkey.clear_all();
+      }
+    }
+  }
 
   if (key_to_save < 0)
   {
@@ -5403,6 +5546,8 @@ void TABLE::use_index(int key_to_save)
     s->key_parts= 0;
     s->keys= 0;
     covering_keys.clear_all();
+    keys_in_use_for_group_by.clear_all();
+    keys_in_use_for_order_by.clear_all();
   }
   else
   {
@@ -5410,11 +5555,13 @@ void TABLE::use_index(int key_to_save)
     if (key_to_save > 0)
       key_info[0]= key_info[key_to_save];
     s->keys= 1;
-    s->key_parts= key_info[0].key_parts;
+    s->key_parts= key_info[0].user_defined_key_parts;
     if (covering_keys.is_set(key_to_save))
       covering_keys.set_prefix(1);
     else
       covering_keys.clear_all();
+    keys_in_use_for_group_by.set_prefix(1);
+    keys_in_use_for_order_by.set_prefix(1);
   }
 }
 
@@ -6083,7 +6230,7 @@ bool TABLE::update_const_key_parts(Item *conds)
   for (uint index= 0; index < s->keys; index++)
   {
     KEY_PART_INFO *keyinfo= key_info[index].key_part;
-    KEY_PART_INFO *keyinfo_end= keyinfo + key_info[index].key_parts;
+    KEY_PART_INFO *keyinfo_end= keyinfo + key_info[index].user_defined_key_parts;
 
     for (key_part_map part_map= (key_part_map)1; 
         keyinfo < keyinfo_end;

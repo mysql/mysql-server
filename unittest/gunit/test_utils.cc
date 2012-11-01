@@ -37,6 +37,8 @@ void setup_server_for_unit_tests()
   char *argv[] = { my_name, 0 };
   set_remaining_args(1, argv);
   mysql_mutex_init(key_LOCK_error_log, &LOCK_error_log, MY_MUTEX_INIT_FAST);
+  system_charset_info= &my_charset_utf8_general_ci;
+  sys_var_init();
   init_common_variables();
   my_init_signals();
   randominit(&sql_rand, 0, 0);
@@ -50,6 +52,7 @@ void setup_server_for_unit_tests()
 
 void teardown_server_for_unit_tests()
 {
+  sys_var_end();
   delegates_destroy();
   xid_cache_free();
   gtid_server_cleanup();
@@ -106,7 +109,7 @@ Mock_error_handler::~Mock_error_handler()
 bool Mock_error_handler::handle_condition(THD *thd,
                                           uint sql_errno,
                                           const char* sqlstate,
-                                          Sql_condition::enum_warning_level level,
+                                          Sql_condition::enum_severity_level level,
                                           const char* msg,
                                           Sql_condition ** cond_hdl)
 {

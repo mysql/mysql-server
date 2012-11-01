@@ -344,7 +344,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
   buff[9]= 0;                                   // Guard against a 4.1 client
-  tmp= min(stmt->thd->get_stmt_da()->current_statement_warn_count(), 65535UL);
+  tmp= min(stmt->thd->get_stmt_da()->current_statement_cond_count(), 65535UL);
   int2store(buff+10, tmp);
 
   /*
@@ -2015,7 +2015,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 
   /* Reset warning count for each query that uses tables */
   if (tables)
-    thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
 
   /*
     For the optimizer trace, this is the symmetric, for statement preparation,
@@ -2943,9 +2943,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   param= stmt->param_array[param_number];
 
   Diagnostics_area new_stmt_da(thd->query_id, false);
-  Diagnostics_area *save_stmt_da= thd->get_stmt_da();
-
-  thd->set_stmt_da(&new_stmt_da);
+  thd->push_diagnostics_area(&new_stmt_da);
 
 #ifndef EMBEDDED_LIBRARY
   param->set_longdata(packet, (ulong) (packet_end - packet));
@@ -2955,10 +2953,11 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (thd->get_stmt_da()->is_error())
   {
     stmt->state= Query_arena::STMT_ERROR;
-    stmt->last_errno= thd->get_stmt_da()->sql_errno();
-    strncpy(stmt->last_error, thd->get_stmt_da()->message(), MYSQL_ERRMSG_SIZE);
+    stmt->last_errno= thd->get_stmt_da()->mysql_errno();
+    strncpy(stmt->last_error, thd->get_stmt_da()->message_text(),
+            MYSQL_ERRMSG_SIZE);
   }
-  thd->set_stmt_da(save_stmt_da);
+  thd->pop_diagnostics_area();
 
   general_log_print(thd, thd->get_command(), NullS);
 
@@ -3030,7 +3029,7 @@ Reprepare_observer::report_error(THD *thd)
     This 'error' is purely internal to the server:
     - No exception handler is invoked,
     - No condition is added in the condition area (warn_list).
-    The diagnostics area is set to an error status to enforce
+    The Diagnostics Area is set to an error status to enforce
     that this thread execution stops and returns to the caller,
     backtracking all the way to Prepared_statement::execute_loop().
   */
@@ -3557,7 +3556,7 @@ reexecute:
       reprepare_observer.is_invalidated() &&
       reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
   {
-    DBUG_ASSERT(thd->get_stmt_da()->sql_errno() == ER_NEED_REPREPARE);
+    DBUG_ASSERT(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
     thd->clear_error();
 
     error= reprepare();
@@ -3659,7 +3658,7 @@ Prepared_statement::reprepare()
       Sic: we can't simply silence warnings during reprepare, because if
       it's failed, we need to return all the warnings to the user.
     */
-    thd->get_stmt_da()->clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->reset_condition_info(thd->query_id);
   }
   return error;
 }
@@ -4047,7 +4046,7 @@ Ed_connection::free_old_result()
   }
   m_current_rset= m_rsets;
   m_diagnostics_area.reset_diagnostics_area();
-  m_diagnostics_area.clear_warning_info(m_thd->query_id);
+  m_diagnostics_area.reset_condition_info(m_thd->query_id);
 }
 
 
@@ -4084,20 +4083,19 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable)
   Protocol_local protocol_local(m_thd, this);
   Prepared_statement stmt(m_thd);
   Protocol *save_protocol= m_thd->protocol;
-  Diagnostics_area *save_diagnostics_area= m_thd->get_stmt_da();
 
   DBUG_ENTER("Ed_connection::execute_direct");
 
   free_old_result(); /* Delete all data from previous execution, if any */
 
   m_thd->protocol= &protocol_local;
-  m_thd->set_stmt_da(&m_diagnostics_area);
+  m_thd->push_diagnostics_area(&m_diagnostics_area);
 
   rc= stmt.execute_server_runnable(server_runnable);
   m_thd->protocol->end_statement();
 
   m_thd->protocol= save_protocol;
-  m_thd->set_stmt_da(save_diagnostics_area);
+  m_thd->pop_diagnostics_area();
   /*
     Protocol_local makes use of m_current_rset to keep
     track of the last result set, while adding result sets to the end.
@@ -4474,7 +4472,7 @@ Protocol_local::send_ok(uint server_status, uint statement_warn_count,
 {
   /*
     Just make sure nothing is sent to the client, we have grabbed
-    the status information in the connection diagnostics area.
+    the status information in the connection Diagnostics Area.
   */
   return FALSE;
 }

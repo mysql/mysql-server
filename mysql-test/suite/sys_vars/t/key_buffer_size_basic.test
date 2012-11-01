@@ -69,18 +69,32 @@ SELECT @@global.key_buffer_size;
 
 --Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
 SET @@global.key_buffer_size = -1;
+SELECT @@global.key_buffer_size;
+
 --Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
 SET @@global.key_buffer_size = 4;
---Error ER_WRONG_TYPE_FOR_VAR
-SET @@global.key_buffer_size = 10000.01;
+SELECT @@global.key_buffer_size;
+--Error ER_WARN_CANT_DROP_DEFAULT_KEYCACHE
+SET @@global.key_buffer_size = -1024;
 SELECT @@global.key_buffer_size;
 
 --Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_buffer_size = 10000.01;
+SELECT @@global.key_buffer_size IN (429380390912,4294963200);
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_buffer_size = ' ';
+SELECT @@global.key_buffer_size IN (429380390912,4294963200);
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_buffer_size = " ";
+SELECT @@global.key_buffer_size IN (429380390912,4294963200);
+
+--Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_buffer_size = ON;
-SELECT @@global.key_buffer_size;
+SELECT @@global.key_buffer_size IN (429380390912,4294963200);
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_buffer_size = 'test';
-SELECT @@global.key_buffer_size;
+SELECT @@global.key_buffer_size IN (429380390912,4294963200);
 
 --echo '#-------------------FN_DYNVARS_055_05----------------------------#'
 ###########################################################################

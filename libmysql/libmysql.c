@@ -4066,6 +4066,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
     stmt->bind was initialized in mysql_stmt_prepare
     stmt->bind overlaps with bind if mysql_stmt_bind_param
     is called from mysql_stmt_store_result.
+    BEWARE of buffer overwrite ...
   */
 
   if (stmt->bind != my_bind)

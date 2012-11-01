@@ -1223,7 +1223,7 @@ int ha_prepare(THD *thd)
       }
       else
       {
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                             ha_resolve_storage_engine_name(ht));
       }
@@ -1539,7 +1539,7 @@ int ha_rollback_low(THD *thd, bool all)
     trans->rw_ha_count= 0;
     if (all && thd->transaction_rollback_request &&
         thd->transaction.xid_state.xa_state != XA_NOTR)
-      thd->transaction.xid_state.rm_error= thd->get_stmt_da()->sql_errno();
+      thd->transaction.xid_state.rm_error= thd->get_stmt_da()->mysql_errno();
   }
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, all));
@@ -2120,7 +2120,7 @@ int ha_start_consistent_snapshot(THD *thd)
     exist:
   */
   if (warn)
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                  "This MySQL server does not support any "
                  "consistent-read capable storage engine");
   return 0;
@@ -2216,7 +2216,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
   char buff[MYSQL_ERRMSG_SIZE];
@@ -2228,7 +2228,7 @@ Ha_delete_table_error_handler::
 handle_condition(THD *,
                  uint,
                  const char*,
-                 Sql_condition::enum_warning_level,
+                 Sql_condition::enum_severity_level,
                  const char* msg,
                  Sql_condition ** cond_hdl)
 {
@@ -2293,7 +2293,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       XXX: should we convert *all* errors to warnings here?
       What if the error is fatal?
     */
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, error,
+    push_warning(thd, Sql_condition::SL_WARNING, error,
                 ha_delete_table_error_handler.buff);
   }
   delete file;
@@ -2893,10 +2893,9 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   {
     if (!(error= ha_rnd_init(1)))
     {
-      int end_error;
-      while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED)
+      while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED)
         /* skip deleted row */;
-      end_error= ha_rnd_end();
+      const int end_error= ha_rnd_end();
       if (!error)
         error= end_error;
     }
@@ -2906,9 +2905,8 @@ int handler::read_first_row(uchar * buf, uint primary_key)
     /* Find the first row through the primary key */
     if (!(error= ha_index_init(primary_key, 0)))
     {
-      int end_error;
       error= ha_index_first(buf);
-      end_error= ha_index_end();
+      const int end_error= ha_index_end();
       if (!error)
         error= end_error;
     }
@@ -3308,14 +3306,15 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
                                         table->read_set);
   column_bitmaps_signal();
+
   if (ha_index_init(table->s->next_number_index, 1))
   {
     /* This should never happen, assert in debug, and fail in release build */
     DBUG_ASSERT(0);
     *first_value= ULONGLONG_MAX;
-    *nb_reserved_values= 0;
     DBUG_VOID_RETURN;
   }
+
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
     error= ha_index_last(table->record[1]);
@@ -3651,6 +3650,9 @@ void handler::print_error(int error, myf errflag)
   case HA_WRONG_CREATE_OPTION:
     textno= ER_ILLEGAL_HA;
     break;
+  case HA_ERR_TOO_MANY_FIELDS:
+    textno= ER_TOO_MANY_FIELDS;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
@@ -3712,7 +3714,7 @@ int handler::check_collation_compatibility()
     for (; key < key_end; key++)
     {
       KEY_PART_INFO *key_part= key->key_part;
-      KEY_PART_INFO *key_part_end= key_part + key->key_parts;
+      KEY_PART_INFO *key_part_end= key_part + key->user_defined_key_parts;
       for (; key_part < key_part_end; key_part++)
       {
         if (!key_part->fieldnr)
@@ -3753,7 +3755,7 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
     for (; keyinfo < keyend; keyinfo++)
     {
       keypart= keyinfo->key_part;
-      keypartend= keypart + keyinfo->key_parts;
+      keypartend= keypart + keyinfo->user_defined_key_parts;
       for (; keypart < keypartend; keypart++)
       {
         if (!keypart->fieldnr)
@@ -4531,7 +4533,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
       table->record[0]= buf;
       key_info= table->key_info + active_index;
       key_part= key_info->key_part;
-      key_part_end= key_part + key_info->key_parts;
+      key_part_end= key_part + key_info->user_defined_key_parts;
       for (; key_part < key_part_end; key_part++)
       {
         DBUG_ASSERT(key_part->field);
@@ -5512,7 +5514,7 @@ double handler::index_only_read_time(uint keynr, double records)
 bool key_uses_partial_cols(TABLE *table, uint keyno)
 {
   KEY_PART_INFO *kp= table->key_info[keyno].key_part;
-  KEY_PART_INFO *kp_end= kp + table->key_info[keyno].key_parts;
+  KEY_PART_INFO *kp_end= kp + table->key_info[keyno].user_defined_key_parts;
   for (; kp != kp_end; kp++)
   {
     if (!kp->field->part_of_key.is_set(keyno))

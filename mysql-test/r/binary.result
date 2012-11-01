@@ -181,7 +181,7 @@ hex(a)
 EXPLAIN
 SELECT hex(a) from t1 WHERE a=unhex('1F9480179366F2BF567E1C4B964C1EF029082020');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	idx	idx	20	const	1	Using where; Using index
+1	SIMPLE	t1	ref	idx	idx	20	const	1	Using index
 SELECT hex(a) from t1 WHERE a=unhex('1F9480179366F2BF567E1C4B964C1EF02908');
 hex(a)
 DROP TABLE t1;

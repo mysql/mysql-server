@@ -65,6 +65,7 @@ struct fts_psort_common_t {
 	trx_t*			trx;		/*!< transaction */
 	fts_psort_t*		all_info;	/*!< all parallel sort info */
 	os_event_t		sort_event;	/*!< sort event */
+	os_event_t		merge_event;	/*!< merge event */
 	ibool			opt_doc_id_size;/*!< whether to use 4 bytes
 						instead of 8 bytes integer to
 						store Doc ID during sort, if
@@ -86,6 +87,7 @@ struct fts_psort_t {
 	ulint			state;		/*!< child thread state */
 	fts_doc_list_t		fts_doc_list;	/*!< doc list to process */
 	fts_psort_common_t*	psort_common;	/*!< ptr to all psort info */
+	os_thread_t		thread_hdl;	/*!< thread handler */
 };
 
 /** Structure stores information from string tokenization operation */
@@ -123,6 +125,7 @@ typedef struct fts_psort_insert	fts_psort_insert_t;
 /** status bit used for communication between parent and child thread */
 #define FTS_PARENT_COMPLETE	1
 #define FTS_CHILD_COMPLETE	1
+#define FTS_CHILD_EXITING	2
 
 /** Print some debug information */
 #define	FTSORT_PRINT

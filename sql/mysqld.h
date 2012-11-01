@@ -123,6 +123,9 @@ extern ulonglong slave_rows_search_algorithms_options;
 #ifndef DBUG_OFF
 extern uint slave_rows_last_search_algorithm_used;
 #endif
+#ifndef EMBEDDED_LIBRARY
+extern "C" int check_enough_stack_size();
+#endif
 extern my_bool opt_enable_named_pipe, opt_sync_frm, opt_allow_suspicious_udfs;
 extern my_bool opt_secure_auth;
 extern char* opt_secure_file_priv;
@@ -211,7 +214,7 @@ extern ulong binlog_checksum_options;
 extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
-extern my_bool disable_gtid_unsafe_statements;
+extern my_bool enforce_gtid_consistency;
 enum enum_gtid_mode
 {
   /// Support only anonymous groups, not GTIDs.
@@ -316,9 +319,9 @@ extern PSI_mutex_key
   key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
-  key_master_info_sleep_lock,
+  key_master_info_sleep_lock, key_master_info_thd_lock,
   key_mutex_slave_reporting_capability_err_lock, key_relay_log_info_data_lock,
-  key_relay_log_info_sleep_lock,
+  key_relay_log_info_sleep_lock, key_relay_log_info_thd_lock,
   key_relay_log_info_log_space_lock, key_relay_log_info_run_lock,
   key_mutex_slave_parallel_pend_jobs, key_mutex_mts_temp_tables_lock,
   key_mutex_slave_parallel_worker,
@@ -393,6 +396,9 @@ void init_server_psi_keys();
 */
 extern PSI_stage_info stage_after_create;
 extern PSI_stage_info stage_allocating_local_table;
+extern PSI_stage_info stage_alter_inplace_prepare;
+extern PSI_stage_info stage_alter_inplace;
+extern PSI_stage_info stage_alter_inplace_commit;
 extern PSI_stage_info stage_changing_master;
 extern PSI_stage_info stage_checking_master_version;
 extern PSI_stage_info stage_checking_permissions;
@@ -630,7 +636,10 @@ enum options_mysqld
   OPT_SSL_CRLPATH,
   OPT_PFS_INSTRUMENT,
   OPT_DEFAULT_AUTH,
-  OPT_SECURE_AUTH
+  OPT_SECURE_AUTH,
+  OPT_THREAD_CACHE_SIZE,
+  OPT_HOST_CACHE_SIZE,
+  OPT_TABLE_DEFINITION_CACHE
 };
 
 

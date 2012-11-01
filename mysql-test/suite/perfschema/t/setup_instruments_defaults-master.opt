@@ -1,3 +1,4 @@
+--no-console
 --log-error=0
 --loose-performance-schema-instrument='%=ON'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/% = OFF '

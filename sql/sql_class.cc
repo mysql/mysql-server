@@ -707,7 +707,7 @@ int thd_tx_is_read_only(const THD *thd)
 extern "C"
 void thd_inc_row_count(THD *thd)
 {
-  thd->get_stmt_da()->inc_current_row_for_warning();
+  thd->get_stmt_da()->inc_current_row_for_condition();
 }
 
 
@@ -825,7 +825,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 uint sql_errno,
                                                 const char* sqlstate,
-                                                Sql_condition::enum_warning_level level,
+                                                Sql_condition::enum_severity_level level,
                                                 const char* msg,
                                                 Sql_condition ** cond_hdl)
 {
@@ -1051,7 +1051,7 @@ void THD::push_internal_handler(Internal_error_handler *handler)
 
 bool THD::handle_condition(uint sql_errno,
                            const char* sqlstate,
-                           Sql_condition::enum_warning_level level,
+                           Sql_condition::enum_severity_level level,
                            const char* msg,
                            Sql_condition ** cond_hdl)
 {
@@ -1090,7 +1090,7 @@ void THD::raise_error(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_ERROR,
+                         Sql_condition::SL_ERROR,
                          msg);
 }
 
@@ -1106,7 +1106,7 @@ void THD::raise_error_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_ERROR,
+                         Sql_condition::SL_ERROR,
                          ebuff);
   DBUG_VOID_RETURN;
 }
@@ -1116,7 +1116,7 @@ void THD::raise_warning(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_WARN,
+                         Sql_condition::SL_WARNING,
                          msg);
 }
 
@@ -1132,7 +1132,7 @@ void THD::raise_warning_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_WARN,
+                         Sql_condition::SL_WARNING,
                          ebuff);
   DBUG_VOID_RETURN;
 }
@@ -1146,7 +1146,7 @@ void THD::raise_note(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_NOTE,
+                         Sql_condition::SL_NOTE,
                          msg);
   DBUG_VOID_RETURN;
 }
@@ -1165,7 +1165,7 @@ void THD::raise_note_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_NOTE,
+                         Sql_condition::SL_NOTE,
                          ebuff);
   DBUG_VOID_RETURN;
 }
@@ -1192,7 +1192,7 @@ struct timeval THD::query_start_timeval_trunc(uint decimals)
 
 Sql_condition* THD::raise_condition(uint sql_errno,
                                     const char* sqlstate,
-                                    Sql_condition::enum_warning_level level,
+                                    Sql_condition::enum_severity_level level,
                                     const char* msg)
 {
   Diagnostics_area *da= get_stmt_da();
@@ -1200,10 +1200,10 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   DBUG_ENTER("THD::raise_condition");
 
   if (!(variables.option_bits & OPTION_SQL_NOTES) &&
-      (level == Sql_condition::WARN_LEVEL_NOTE))
+      (level == Sql_condition::SL_NOTE))
     DBUG_RETURN(NULL);
 
-  da->opt_clear_warning_info(query_id);
+  da->opt_reset_condition_info(query_id);
 
   /*
     TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
@@ -1217,24 +1217,24 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
-  if ((level == Sql_condition::WARN_LEVEL_WARN) &&
+  if ((level == Sql_condition::SL_WARNING) &&
       really_abort_on_warning())
   {
     /*
       FIXME:
       push_warning and strict SQL_MODE case.
     */
-    level= Sql_condition::WARN_LEVEL_ERROR;
+    level= Sql_condition::SL_ERROR;
     killed= THD::KILL_BAD_DATA;
   }
 
   switch (level)
   {
-  case Sql_condition::WARN_LEVEL_NOTE:
-  case Sql_condition::WARN_LEVEL_WARN:
+  case Sql_condition::SL_NOTE:
+  case Sql_condition::SL_WARNING:
     got_warning= 1;
     break;
-  case Sql_condition::WARN_LEVEL_ERROR:
+  case Sql_condition::SL_ERROR:
     break;
   default:
     DBUG_ASSERT(FALSE);
@@ -1249,7 +1249,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     NULL,
     da->push_warning(this, sql_errno, sqlstate, level, msg));
 
-  if (level == Sql_condition::WARN_LEVEL_ERROR)
+  if (level == Sql_condition::SL_ERROR)
   {
     is_slave_error=  1; // needed to catch query errors during replication
 
@@ -1272,7 +1272,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
       if (!da->is_error())
       {
         set_row_count_func(-1);
-        da->set_error_status(sql_errno, msg, sqlstate, cond);
+        da->set_error_status(sql_errno, msg, sqlstate);
       }
     }
   }
@@ -2663,7 +2663,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
         Non-ASCII separator arguments are not fully supported
     */
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::SL_WARNING,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   }
@@ -2694,7 +2694,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
       (exchange->opt_enclosed && non_string_results &&
        field_term_length && strchr(NUMERIC_CHARS, field_term_char)))
   {
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::SL_WARNING,
                  ER_AMBIGUOUS_FIELD_TERM, ER(ER_AMBIGUOUS_FIELD_TERM));
     is_ambiguous_field_term= TRUE;
   }
@@ -2775,7 +2775,7 @@ bool select_export::send_data(List<Item> &items)
         convert_to_printable(printable_buff, sizeof(printable_buff),
                              error_pos, res->ptr() + res->length() - error_pos,
                              res->charset(), 6);
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
@@ -2786,7 +2786,7 @@ bool select_export::send_data(List<Item> &items)
         /*
           result is longer than UINT_MAX32 and doesn't fit into String
         */
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
                             item->full_name(), static_cast<long>(row_count));
       }
@@ -3213,40 +3213,12 @@ bool select_exists_subselect::send_data(List<Item> &items)
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
-  List_iterator_fast<my_var> var_li(var_list);
-  List_iterator_fast<Item> it(list);
-  Item *item;
-  my_var *mv;
-  Item_func_set_user_var **suv;
-  
+
   if (var_list.elements != list.elements)
   {
     my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
                ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT), MYF(0));
     return 1;
-  }
-
-  /*
-    Iterate over the destination variables and mark them as being
-    updated in this query.
-    We need to do this at JOIN::prepare time to ensure proper
-    const detection of Item_func_get_user_var that is determined
-    by the presence of Item_func_set_user_vars
-  */
-
-  suv= set_var_items= (Item_func_set_user_var **) 
-    sql_alloc(sizeof(Item_func_set_user_var *) * list.elements);
-
-  while ((mv= var_li++) && (item= it++))
-  {
-    if (!mv->local)
-    {
-      *suv= new Item_func_set_user_var(mv->s, item);
-      (*suv)->fix_fields(thd, 0);
-    }
-    else
-      *suv= NULL;
-    suv++;
   }
 
   return 0;
@@ -3565,33 +3537,41 @@ bool select_dumpvar::send_data(List<Item> &items)
   List_iterator<Item> it(items);
   Item *item;
   my_var *mv;
-  Item_func_set_user_var **suv;
   DBUG_ENTER("select_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
   if (row_count++) 
   {
     my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   }
-  for (suv= set_var_items; ((mv= var_li++) && (item= it++)); suv++)
+  while ((mv= var_li++) && (item= it++))
   {
     if (mv->local)
     {
-      DBUG_ASSERT(!*suv);
       if (thd->sp_runtime_ctx->set_variable(thd, mv->offset, &item))
-	    DBUG_RETURN(1);
+	    DBUG_RETURN(true);
     }
     else
     {
-      DBUG_ASSERT(*suv);
-      (*suv)->save_item_result(item);
-      if ((*suv)->update())
-        DBUG_RETURN (1);
+      /*
+        Create Item_func_set_user_vars with delayed non-constness. We
+        do this so that Item_get_user_var::const_item() will return
+        the same result during
+        Item_func_set_user_var::save_item_result() as they did during
+        optimization and execution.
+       */
+      Item_func_set_user_var *suv=
+        new Item_func_set_user_var(mv->s, item, true);
+      if (suv->fix_fields(thd, 0))
+        DBUG_RETURN(true);
+      suv->save_item_result(item);
+      if (suv->update())
+        DBUG_RETURN(true);
     }
   }
   DBUG_RETURN(thd->is_error());
@@ -3600,7 +3580,7 @@ bool select_dumpvar::send_data(List<Item> &items)
 bool select_dumpvar::send_eof()
 {
   if (! row_count)
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::SL_WARNING,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
   /*
     Don't send EOF if we're in error condition (which implies we've already

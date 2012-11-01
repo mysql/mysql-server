@@ -263,8 +263,7 @@ dict_build_table_def_step(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	table = node->table;
-	use_tablespace =
-		DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
+	use_tablespace = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
 
 	dict_hdr_get_new_id(&table->id, NULL, NULL);
 
@@ -890,7 +889,7 @@ create:
 	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
-		if (index->id == index_id) {
+		if (index->id == index_id && !(index->type & DICT_FTS)) {
 			root_page_no = btr_create(type, space, zip_size,
 						  index_id, index, mtr);
 			index->page = (unsigned int) root_page_no;
