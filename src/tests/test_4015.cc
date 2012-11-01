@@ -98,6 +98,7 @@ static void my_parse_args (int argc, char * const argv[]) {
 int test_main(int argc, char * const argv[]) {
     my_parse_args(argc, argv);
 
+    db_env_set_num_bucket_mutexes(32);
     { int chk_r = db_env_create(&env, 0); CKERR(chk_r); }
     { int chk_r = env->set_redzone(env, 0); CKERR(chk_r); }
     { int chk_r = env->set_default_bt_compare(env, my_compare); CKERR(chk_r); }
