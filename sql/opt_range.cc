@@ -1855,6 +1855,26 @@ QUICK_RANGE::QUICK_RANGE()
   min_keypart_map(0), max_keypart_map(0)
 {}
 
+QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
+                         key_part_map min_keypart_map_arg,
+                         const uchar *max_key_arg, uint max_length_arg,
+                         key_part_map max_keypart_map_arg,
+                         uint flag_arg)
+  : min_key(NULL),
+    max_key(NULL),
+    min_length((uint16) min_length_arg),
+    max_length((uint16) max_length_arg),
+    flag((uint16) flag_arg),
+    min_keypart_map(min_keypart_map_arg),
+    max_keypart_map(max_keypart_map_arg)
+{
+  min_key= static_cast<uchar*>(sql_memdup(min_key_arg, min_length_arg + 1));
+  max_key= static_cast<uchar*>(sql_memdup(max_key_arg, max_length_arg + 1));
+  // If we get is_null_string as argument, the memdup is undefined behavior.
+  DBUG_ASSERT(min_key_arg != is_null_string);
+  DBUG_ASSERT(max_key_arg != is_null_string);
+}
+
 SEL_ARG::SEL_ARG(SEL_ARG &arg) :Sql_alloc()
 {
   DBUG_ASSERT(arg.type != MAYBE_KEY);  // Would need left=right=NULL
@@ -5679,7 +5699,7 @@ if_extended_explain_warn_index_not_applicable(const RANGE_OPT_PARAM *param,
       param->thd->lex->describe & DESCRIBE_EXTENDED)
     push_warning_printf(
             param->thd,
-            Sql_condition::WARN_LEVEL_WARN, 
+            Sql_condition::SL_WARNING,
             ER_WARN_INDEX_NOT_APPLICABLE,
             ER(ER_WARN_INDEX_NOT_APPLICABLE),
             "range",
@@ -6131,6 +6151,8 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
   /* 
     Here when simple cond 
     There are limits on what kinds of const items we can evaluate.
+    At this stage a subquery in 'cond' might not be fully transformed yet
+    (example: semijoin) thus cannot be evaluated.
   */
   if (cond->const_item() && !cond->is_expensive() && !cond->has_subquery())
   {
@@ -6833,7 +6855,11 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       tree->min_flag=NO_MIN_RANGE;		/* From start */
     else
     {						// > NULL
-      tree->min_value=is_null_string;
+      if (!(tree->min_value=
+            static_cast<uchar*>(alloc_root(alloc, key_part->store_length+1))))
+        goto end;
+      TRASH(tree->min_value, key_part->store_length + 1);
+      memcpy(tree->min_value, is_null_string, sizeof(is_null_string));
       tree->min_flag=NEAR_MIN;
     }
     break;

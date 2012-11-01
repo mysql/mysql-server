@@ -109,7 +109,7 @@ Mock_error_handler::~Mock_error_handler()
 bool Mock_error_handler::handle_condition(THD *thd,
                                           uint sql_errno,
                                           const char* sqlstate,
-                                          Sql_condition::enum_warning_level level,
+                                          Sql_condition::enum_severity_level level,
                                           const char* msg,
                                           Sql_condition ** cond_hdl)
 {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,46 +36,48 @@ class Sql_condition : public Sql_alloc
 {
 public:
   /*
-    Enumeration value describing the severity of the error.
+    Enumeration value describing the severity of the condition.
 
     Note that these enumeration values must correspond to the indices
     of the sql_print_message_handlers array.
   */
-  enum enum_warning_level
-  { WARN_LEVEL_NOTE, WARN_LEVEL_WARN, WARN_LEVEL_ERROR, WARN_LEVEL_END};
+  enum enum_severity_level
+  { SL_NOTE, SL_WARNING, SL_ERROR, SEVERITY_END};
 
   /**
     Get the MESSAGE_TEXT of this condition.
     @return the message text.
   */
-  const char* get_message_text() const;
+  const char* message_text() const
+  { return m_message_text.ptr(); }
 
   /**
     Get the MESSAGE_OCTET_LENGTH of this condition.
     @return the length in bytes of the message text.
   */
-  int get_message_octet_length() const;
+  int message_octet_length() const
+  { return m_message_text.length(); }
 
   /**
-    Get the SQLSTATE of this condition.
+    Get the RETURNED_SQLSTATE of this condition.
     @return the sql state.
   */
-  const char* get_sqlstate() const
+  const char* returned_sqlstate() const
   { return m_returned_sqlstate; }
 
   /**
-    Get the SQL_ERRNO of this condition.
+    Get the MYSQL_ERRNO of this condition.
     @return the sql error number condition item.
   */
-  uint get_sql_errno() const
-  { return m_sql_errno; }
+  uint mysql_errno() const
+  { return m_mysql_errno; }
 
   /**
-    Get the error level of this condition.
-    @return the error level condition item.
+    Get the severity level of this condition.
+    @return the severity level condition item.
   */
-  Sql_condition::enum_warning_level get_level() const
-  { return m_level; }
+  Sql_condition::enum_severity_level severity() const
+  { return m_severity_level; }
 
 private:
   /*
@@ -91,7 +93,7 @@ private:
     which should be used.
   */
   friend class THD;
-  friend class Warning_info;
+  friend class Diagnostics_area;
   friend class Sql_cmd_common_signal;
   friend class Sql_cmd_signal;
   friend class Sql_cmd_resignal;
@@ -99,25 +101,28 @@ private:
   friend class Condition_information_item;
 
   /**
-    Default constructor.
-    This constructor is usefull when allocating arrays.
-    Note that the init() method should be called to complete the Sql_condition.
-  */
-  Sql_condition();
+    Constructor.
 
-  /**
-    Complete the Sql_condition initialisation.
-    @param mem_root The memory root to use for the condition items
-    of this condition
+    @param mem_root Memory root to use for the condition items
+                    of this condition.
   */
-  void init(MEM_ROOT *mem_root);
+  Sql_condition(MEM_ROOT *mem_root);
 
   /**
     Constructor.
-    @param mem_root The memory root to use for the condition items
-    of this condition
+
+    @param mem_root          Memory root to use for the condition items
+                             of this condition.
+    @param mysql_errno       MYSQL_ERRNO
+    @param returned_sqlstate RETURNED_SQLSTATE
+    @param severity          Severity level - error, warning or note.
+    @param message_Text      MESSAGE_TEXT
   */
-  Sql_condition(MEM_ROOT *mem_root);
+  Sql_condition(MEM_ROOT *mem_root,
+                uint mysql_errno,
+                const char* returned_sqlstate,
+                Sql_condition::enum_severity_level severity,
+                const char *message_text);
 
   /** Destructor. */
   ~Sql_condition()
@@ -130,37 +135,24 @@ private:
   void copy_opt_attributes(const Sql_condition *cond);
 
   /**
-    Set this condition area with a fixed message text.
-    @param thd the current thread.
-    @param code the error number for this condition.
-    @param str the message text for this condition.
-    @param level the error level for this condition.
-    @param MyFlags additional flags.
-  */
-  void set(uint sql_errno, const char* sqlstate,
-           Sql_condition::enum_warning_level level,
-           const char* msg);
-
-  /**
     Set the condition message test.
-    @param str Message text, expressed in the character set derived from
-    the server --language option
+    @param message_text  Message text, expressed in the character set derived
+                         from the server --language option
   */
-  void set_builtin_message_text(const char* str);
+  void set_message_text(const char* message_text);
 
-  /** Set the SQLSTATE of this condition. */
-  void set_sqlstate(const char* sqlstate);
+  /** Set the RETURNED_SQLSTATE of this condition. */
+  void set_returned_sqlstate(const char* sqlstate)
+  {
+    memcpy(m_returned_sqlstate, sqlstate, SQLSTATE_LENGTH);
+    m_returned_sqlstate[SQLSTATE_LENGTH]= '\0';
+  }
 
   /** Set the CLASS_ORIGIN of this condition. */
   void set_class_origin();
 
   /** Set the SUBCLASS_ORIGIN of this condition. */
   void set_subclass_origin();
-
-  /**
-    Clear this SQL condition.
-  */
-  void clear();
 
 private:
   /** SQL CLASS_ORIGIN condition item. */
@@ -197,7 +189,7 @@ private:
   String m_message_text;
 
   /** MySQL extension, MYSQL_ERRNO condition item. */
-  uint m_sql_errno;
+  uint m_mysql_errno;
 
   /**
     SQL RETURNED_SQLSTATE condition item.
@@ -206,325 +198,17 @@ private:
   char m_returned_sqlstate[SQLSTATE_LENGTH+1];
 
   /** Severity (error, warning, note) of this condition. */
-  Sql_condition::enum_warning_level m_level;
+  Sql_condition::enum_severity_level m_severity_level;
 
   /** Pointers for participating in the list of conditions. */
-  Sql_condition *next_in_wi;
-  Sql_condition **prev_in_wi;
+  Sql_condition *m_next_condition;
+  Sql_condition **m_prev_condition;
 
   /** Memory root to use to hold condition item values. */
   MEM_ROOT *m_mem_root;
 };
 
 ///////////////////////////////////////////////////////////////////////////
-
-/**
-  Information about warnings of the current connection.
-*/
-class Warning_info
-{
-  /** The type of the counted and doubly linked list of conditions. */
-  typedef I_P_List<Sql_condition,
-                   I_P_List_adapter<Sql_condition,
-                                    &Sql_condition::next_in_wi,
-                                    &Sql_condition::prev_in_wi>,
-                   I_P_List_counter,
-                   I_P_List_fast_push_back<Sql_condition> >
-          Sql_condition_list;
-
-  /** A memory root to allocate warnings and errors */
-  MEM_ROOT           m_warn_root;
-
-  /** List of warnings of all severities (levels). */
-  Sql_condition_list   m_warn_list;
-
-  /** A break down of the number of warnings per severity (level). */
-  uint	             m_warn_count[(uint) Sql_condition::WARN_LEVEL_END];
-
-  /**
-    The number of warnings of the current statement. Warning_info
-    life cycle differs from statement life cycle -- it may span
-    multiple statements. In that case we get
-    m_current_statement_warn_count 0, whereas m_warn_list is not empty.
-  */
-  uint	             m_current_statement_warn_count;
-
-  /*
-    Row counter, to print in errors and warnings. Not increased in
-    create_sort_index(); may differ from examined_row_count.
-  */
-  ulong              m_current_row_for_warning;
-
-  /** Used to optionally clear warnings only once per statement. */
-  ulonglong          m_warn_id;
-
-  /**
-    A pointer to an element of m_warn_list. It determines SQL-condition
-    instance which corresponds to the error state in Diagnostics_area.
-  
-    This is needed for properly processing SQL-conditions in SQL-handlers.
-    When an SQL-handler is found for the current error state in Diagnostics_area,
-    this pointer is needed to remove the corresponding SQL-condition from the
-    Warning_info list.
-  
-    @note m_error_condition might be NULL in the following cases:
-       - Diagnostics_area set to fatal error state (like OOM);
-       - Max number of Warning_info elements has been reached (thus, there is
-         no corresponding SQL-condition object in Warning_info).
-  */
-  const Sql_condition *m_error_condition;
-
-  /** Indicates if push_warning() allows unlimited number of warnings. */
-  bool               m_allow_unlimited_warnings;
-
-  /** Read only status. */
-  bool m_read_only;
-
-  /** Pointers for participating in the stack of Warning_info objects. */
-  Warning_info *m_next_in_da;
-  Warning_info **m_prev_in_da;
-
-  List<Sql_condition> m_marked_sql_conditions;
-
-public:
-  Warning_info(ulonglong warn_id_arg, bool allow_unlimited_warnings);
-  ~Warning_info();
-
-private:
-  Warning_info(const Warning_info &rhs); /* Not implemented */
-  Warning_info& operator=(const Warning_info &rhs); /* Not implemented */
-
-  /**
-    Checks if Warning_info contains SQL-condition with the given message.
-
-    @param message_str    Message string.
-    @param message_length Length of message string.
-
-    @return true if the Warning_info contains an SQL-condition with the given
-    message.
-  */
-  bool has_sql_condition(const char *message_str, ulong message_length) const;
-
-  /**
-    Reset the warning information. Clear all warnings,
-    the number of warnings, reset current row counter
-    to point to the first row.
-
-    @param new_id new Warning_info id.
-  */
-  void clear(ulonglong new_id);
-
-  /**
-    Only clear warning info if haven't yet done that already
-    for the current query. Allows to be issued at any time
-    during the query, without risk of clearing some warnings
-    that have been generated by the current statement.
-
-    @todo: This is a sign of sloppy coding. Instead we need to
-    designate one place in a statement life cycle where we call
-    Warning_info::clear().
-
-    @param query_id Current query id.
-  */
-  void opt_clear(ulonglong query_id)
-  {
-    if (query_id != m_warn_id)
-      clear(query_id);
-  }
-
-  /**
-    Concatenate the list of warnings.
-
-    It's considered tolerable to lose an SQL-condition in case of OOM-error,
-    or if the number of SQL-conditions in the Warning_info reached top limit.
-
-    @param thd    Thread context.
-    @param source Warning_info object to copy SQL-conditions from.
-  */
-  void append_warning_info(THD *thd, const Warning_info *source);
-
-  /**
-    Reset between two COM_ commands. Warnings are preserved
-    between commands, but statement_warn_count indicates
-    the number of warnings of this particular statement only.
-  */
-  void reset_for_next_command()
-  { m_current_statement_warn_count= 0; }
-
-  /**
-    Mark active SQL-conditions for later removal.
-    This is done to simulate stacked DAs for HANDLER statements.
-  */
-  void mark_sql_conditions_for_removal();
-
-  /**
-    Unmark SQL-conditions, which were marked for later removal.
-    This is done to simulate stacked DAs for HANDLER statements.
-  */
-  void unmark_sql_conditions_from_removal()
-  { m_marked_sql_conditions.empty(); }
-
-  /**
-    Remove SQL-conditions that are marked for deletion.
-    This is done to simulate stacked DAs for HANDLER statements.
-  */
-  void remove_marked_sql_conditions();
-
-  /**
-    Check if the given SQL-condition is marked for removal in this Warning_info
-    instance.
-
-    @param cond the SQL-condition.
-
-    @retval true if the given SQL-condition is marked for removal in this
-                 Warning_info instance.
-    @retval false otherwise.
-  */
-  bool is_marked_for_removal(const Sql_condition *cond) const;
-
-  /**
-    Mark a single SQL-condition for removal (add the given SQL-condition to the
-    removal list of this Warning_info instance).
-  */
-  void mark_condition_for_removal(Sql_condition *cond)
-  { m_marked_sql_conditions.push_back(cond, &m_warn_root); }
-
-  /**
-    Used for @@warning_count system variable, which prints
-    the number of rows returned by SHOW WARNINGS.
-  */
-  ulong warn_count() const
-  {
-    /*
-      This may be higher than warn_list.elements() if we have
-      had more warnings than thd->variables.max_error_count.
-    */
-    return (m_warn_count[(uint) Sql_condition::WARN_LEVEL_NOTE] +
-            m_warn_count[(uint) Sql_condition::WARN_LEVEL_ERROR] +
-            m_warn_count[(uint) Sql_condition::WARN_LEVEL_WARN]);
-  }
-
-  /**
-    The number of errors, or number of rows returned by SHOW ERRORS,
-    also the value of session variable @@error_count.
-  */
-  ulong error_count() const
-  { return m_warn_count[(uint) Sql_condition::WARN_LEVEL_ERROR]; }
-
-  /**
-    The number of conditions (errors, warnings and notes) in the list.
-  */
-  uint cond_count() const
-  {
-    return m_warn_list.elements();
-  }
-
-  /** Id of the warning information area. */
-  ulonglong id() const { return m_warn_id; }
-
-  /** Set id of the warning information area. */
-  void id(ulonglong id) { m_warn_id= id; }
-
-  /** Do we have any errors and warnings that we can *show*? */
-  bool is_empty() const { return m_warn_list.is_empty(); }
-
-  /** Increment the current row counter to point at the next row. */
-  void inc_current_row_for_warning() { m_current_row_for_warning++; }
-
-  /** Reset the current row counter. Start counting from the first row. */
-  void reset_current_row_for_warning() { m_current_row_for_warning= 1; }
-
-  /** Return the current counter value. */
-  ulong current_row_for_warning() const { return m_current_row_for_warning; }
-
-  /** Return the number of warnings thrown by the current statement. */
-  ulong current_statement_warn_count() const
-  { return m_current_statement_warn_count; }
-
-  /** Make sure there is room for the given number of conditions. */
-  void reserve_space(THD *thd, uint count);
-
-  /**
-    Add a new SQL-condition to the current list and increment the respective
-    counters.
-
-    @param thd        Thread context.
-    @param sql_errno  SQL-condition error number.
-    @param sqlstate   SQL-condition state.
-    @param level      SQL-condition level.
-    @param msg        SQL-condition message.
-
-    @return a pointer to the added SQL-condition.
-  */
-  Sql_condition *push_warning(THD *thd,
-                              uint sql_errno,
-                              const char* sqlstate,
-                              Sql_condition::enum_warning_level level,
-                              const char* msg);
-
-  /**
-    Add a new SQL-condition to the current list and increment the respective
-    counters.
-
-    @param thd            Thread context.
-    @param sql_condition  SQL-condition to copy values from.
-
-    @return a pointer to the added SQL-condition.
-  */
-  Sql_condition *push_warning(THD *thd, const Sql_condition *sql_condition);
-
-  /**
-    Set the read only status for this statement area.
-    This is a privileged operation, reserved for the implementation of
-    diagnostics related statements, to enforce that the statement area is
-    left untouched during execution.
-    The diagnostics statements are:
-    - SHOW WARNINGS
-    - SHOW ERRORS
-    - GET DIAGNOSTICS
-    @param read_only the read only property to set.
-  */
-  void set_read_only(bool read_only)
-  { m_read_only= read_only; }
-
-  /**
-    Read only status.
-    @return the read only property.
-  */
-  bool is_read_only() const
-  { return m_read_only; }
-
-  /**
-    @return SQL-condition, which corresponds to the error state in
-    Diagnostics_area.
-
-    @see m_error_condition.
-  */
-  const Sql_condition *get_error_condition() const
-  { return m_error_condition; }
-
-  /**
-    Set SQL-condition, which corresponds to the error state in Diagnostics_area.
-
-    @see m_error_condition.
-  */
-  void set_error_condition(const Sql_condition *error_condition)
-  { m_error_condition= error_condition; }
-
-  /**
-    Reset SQL-condition, which corresponds to the error state in
-    Diagnostics_area.
-
-    @see m_error_condition.
-  */
-  void clear_error_condition()
-  { m_error_condition= NULL; }
-
-  // for:
-  //   - m_next_in_da / m_prev_in_da
-  //   - is_marked_for_removal()
-  friend class Diagnostics_area;
-};
 
 uint err_conv(char *buff, size_t to_length, const char *from,
               size_t from_length, const CHARSET_INFO *from_cs);
@@ -586,20 +270,18 @@ public:
 */
 class Diagnostics_area
 {
-private:
   /** The type of the counted and doubly linked list of conditions. */
-  typedef I_P_List<Warning_info,
-                   I_P_List_adapter<Warning_info,
-                                    &Warning_info::m_next_in_da,
-                                    &Warning_info::m_prev_in_da>,
+  typedef I_P_List<Sql_condition,
+                   I_P_List_adapter<Sql_condition,
+                                    &Sql_condition::m_next_condition,
+                                    &Sql_condition::m_prev_condition>,
                    I_P_List_counter,
-                   I_P_List_fast_push_back<Warning_info> >
-          Warning_info_list;
+                   I_P_List_fast_push_back<Sql_condition> >
+          Sql_condition_list;
 
 public:
-  /** Const iterator used to iterate through the warning list. */
-  typedef Warning_info::Sql_condition_list::Const_Iterator
-    Sql_condition_iterator;
+  /** Const iterator used to iterate through the condition list. */
+  typedef Sql_condition_list::Const_Iterator Sql_condition_iterator;
 
   enum enum_diagnostics_status
   {
@@ -615,6 +297,9 @@ public:
     DA_DISABLED
   };
 
+  Diagnostics_area(ulonglong statement_id, bool allow_unlimited_conditions);
+  ~Diagnostics_area();
+
   void set_overwrite_status(bool can_overwrite_status)
   { m_can_overwrite_status= can_overwrite_status; }
 
@@ -622,21 +307,65 @@ public:
 
   void set_is_sent(bool is_sent) { m_is_sent= is_sent; }
 
+  /**
+    Set OK status -- ends commands that do not return a
+    result set, e.g. INSERT/UPDATE/DELETE.
+
+    @param affected_rows  The number of rows affected by the last statement.
+                          @sa Diagnostics_area::m_affected_rows.
+    @param last_insert_id The value to be returned by LAST_INSERT_ID().
+                          @sa Diagnostics_area::m_last_insert_id.
+    @param message_text   The OK-message text.
+  */
   void set_ok_status(ulonglong affected_rows,
                      ulonglong last_insert_id,
-                     const char *message);
+                     const char *message_text);
 
+  /**
+    Set EOF status.
+
+    @param thd  Thread context.
+  */
   void set_eof_status(THD *thd);
 
-  void set_error_status(uint sql_errno);
+  /**
+    Set ERROR status in the Diagnostics Area. This function should be used to
+    report fatal errors (such as out-of-memory errors) when no further
+    processing is possible.
 
-  void set_error_status(uint sql_errno,
-                        const char *message,
-                        const char *sqlstate,
-                        const Sql_condition *error_condition);
+    @param mysql_errno      SQL-condition error number
+  */
+  void set_error_status(uint mysql_errno);
 
-  void disable_status();
+  /**
+    Set ERROR status in the Diagnostics Area.
 
+    @param mysql_errno        SQL-condition error number
+    @param message_text       SQL-condition message
+    @param returned_sqlstate  SQL-condition state
+  */
+  void set_error_status(uint mysql_errno,
+                        const char *message_text,
+                        const char *returned_sqlstate);
+
+  /**
+    Mark the Diagnostics Area as 'DISABLED'.
+
+    This is used in rare cases when the COM_ command at hand sends a response
+    in a custom format. One example is the query cache, another is
+    COM_STMT_PREPARE.
+  */
+  void disable_status()
+  {
+    DBUG_ASSERT(m_status == DA_EMPTY);
+    m_status= DA_DISABLED;
+  }
+
+  /**
+    Clear this Diagnostics Area.
+
+    Normally called at the end of a statement.
+  */
   void reset_diagnostics_area();
 
   bool is_set() const { return m_status != DA_EMPTY; }
@@ -651,162 +380,312 @@ public:
 
   enum_diagnostics_status status() const { return m_status; }
 
-  const char *message() const
-  { DBUG_ASSERT(m_status == DA_ERROR || m_status == DA_OK); return m_message; }
+  const char *message_text() const
+  {
+    DBUG_ASSERT(m_status == DA_ERROR || m_status == DA_OK);
+    return m_message_text;
+  }
 
-  uint sql_errno() const
-  { DBUG_ASSERT(m_status == DA_ERROR); return m_sql_errno; }
+  uint mysql_errno() const
+  {
+    DBUG_ASSERT(m_status == DA_ERROR);
+    return m_mysql_errno;
+  }
 
-  const char* get_sqlstate() const
-  { DBUG_ASSERT(m_status == DA_ERROR); return m_sqlstate; }
+  const char* returned_sqlstate() const
+  {
+    DBUG_ASSERT(m_status == DA_ERROR);
+    return m_returned_sqlstate;
+  }
 
   ulonglong affected_rows() const
-  { DBUG_ASSERT(m_status == DA_OK); return m_affected_rows; }
+  {
+    DBUG_ASSERT(m_status == DA_OK);
+    return m_affected_rows;
+  }
 
   ulonglong last_insert_id() const
-  { DBUG_ASSERT(m_status == DA_OK); return m_last_insert_id; }
+  {
+    DBUG_ASSERT(m_status == DA_OK);
+    return m_last_insert_id;
+  }
 
-  uint statement_warn_count() const
+  uint last_statement_cond_count() const
   {
     DBUG_ASSERT(m_status == DA_OK || m_status == DA_EOF);
-    return m_statement_warn_count;
+    return m_last_statement_cond_count;
   }
 
-  Diagnostics_area();
-  Diagnostics_area(ulonglong warning_info_id, bool allow_unlimited_warnings);
+  /** Set id of the executing statement (THD::query_id). */
+  void set_statement_id(ulonglong statement_id)
+  { m_statement_id= statement_id; }
 
-  void push_warning_info(Warning_info *wi)
-  { m_wi_stack.push_front(wi); }
-
-  void pop_warning_info()
-  {
-    DBUG_ASSERT(m_wi_stack.elements() > 0);
-    m_wi_stack.remove(m_wi_stack.front());
-  }
-
-  void set_warning_info_id(ulonglong id)
-  { get_warning_info()->id(id); }
-
-  ulonglong warning_info_id() const
-  { return get_warning_info()->id(); }
+  /** Id of the executing statement. */
+  ulonglong statement_id() const
+  { return m_statement_id; }
 
   /**
-    Compare given current warning info and current warning info
+    Compare given current and given Diagnostics Area
     and see if they are different. They will be different if
     warnings have been generated or statements that use tables
-    have been executed. This is checked by comparing m_warn_id.
+    have been executed. This is checked by comparing m_statement_id.
 
-    @param wi  Warning info to compare with current Warning info.
+    @param da  Diagnostics Area to compare with current Diagnostics Area.
 
     @return    false if they are equal, true if they are not.
   */
-  bool warning_info_changed(const Warning_info *wi) const
-  { return get_warning_info()->id() != wi->id(); }
+  bool diagnostics_area_changed(const Diagnostics_area *da) const
+  { return statement_id() != da->statement_id(); }
 
-  bool is_warning_info_empty() const
-  { return get_warning_info()->is_empty(); }
+  /** Return the number of conditions raised by the current statement. */
+  ulong current_statement_cond_count() const
+  { return m_current_statement_cond_count; }
 
-  ulong current_statement_warn_count() const
-  { return get_warning_info()->current_statement_warn_count(); }
+  /**
+    Reset between two COM_ commands. Conditions are preserved
+    between commands, but m_current_statement_cond_count indicates
+    the number of conditions of this particular statement only.
+  */
+  void reset_statement_cond_count()
+  { m_current_statement_cond_count= 0; }
 
-  bool has_sql_condition(const char *message_str, ulong message_length) const
-  { return get_warning_info()->has_sql_condition(message_str, message_length); }
+  /**
+    Checks if the condition list contains SQL-condition with the given message.
 
-  void reset_for_next_command()
-  { get_warning_info()->reset_for_next_command(); }
+    @param message_text    Message text
+    @param message_length  Length of message_text
 
-  void clear_warning_info(ulonglong id)
-  { get_warning_info()->clear(id); }
+    @return true if the condition list contains an SQL-condition with the given
+    message text.
+  */
+  bool has_sql_condition(const char *message_text, ulong message_length) const;
 
-  void opt_clear_warning_info(ulonglong query_id)
-  { get_warning_info()->opt_clear(query_id); }
+  /**
+    Reset the current condition information stored in the Diagnostics Area.
+    Clear all conditions, the number of conditions, reset current row counter
+    to point to the first row.
 
-  ulong current_row_for_warning() const
-  { return get_warning_info()->current_row_for_warning(); }
+    @param statement_id   Current statement_id (THD::query_id).
+  */
+  void reset_condition_info(ulonglong statement_id);
 
-  void inc_current_row_for_warning()
-  { get_warning_info()->inc_current_row_for_warning(); }
+  /**
+    Only reset condition info if haven't yet done that already
+    for the current statement. Can be issued at any time
+    during the statement, without risk of clearing some conditions
+    that have been generated by the current statement.
 
-  void reset_current_row_for_warning()
-  { get_warning_info()->reset_current_row_for_warning(); }
+    @todo: This is a sign of sloppy coding. Instead we need to
+    designate one place in a statement life cycle where we call
+    reset_condition_info().
 
-  bool is_warning_info_read_only() const
-  { return get_warning_info()->is_read_only(); }
-
-  void set_warning_info_read_only(bool read_only)
-  { get_warning_info()->set_read_only(read_only); }
-
-  ulong error_count() const
-  { return get_warning_info()->error_count(); }
-
-  ulong warn_count() const
-  { return get_warning_info()->warn_count(); }
-
-  uint cond_count() const
-  { return get_warning_info()->cond_count(); }
-
-  Sql_condition_iterator sql_conditions() const
-  { return get_warning_info()->m_warn_list; }
-
-  void reserve_space(THD *thd, uint count)
-  { get_warning_info()->reserve_space(thd, count); }
-
-  Sql_condition *push_warning(THD *thd, const Sql_condition *sql_condition)
-  { return get_warning_info()->push_warning(thd, sql_condition); }
-
-  Sql_condition *push_warning(THD *thd,
-                              uint sql_errno,
-                              const char* sqlstate,
-                              Sql_condition::enum_warning_level level,
-                              const char* msg)
+    @param statement_id  Current statement id (THD::query_id).
+  */
+  void opt_reset_condition_info(ulonglong statement_id)
   {
-    return get_warning_info()->push_warning(thd,
-                                            sql_errno, sqlstate, level, msg);
+    if (statement_id != m_statement_id)
+      reset_condition_info(statement_id);
   }
 
-  void mark_sql_conditions_for_removal()
-  { get_warning_info()->mark_sql_conditions_for_removal(); }
+  /** Return the current counter value. */
+  ulong current_row_for_condition() const
+  { return m_current_row_for_condition; }
 
-  void unmark_sql_conditions_from_removal()
-  { get_warning_info()->unmark_sql_conditions_from_removal(); }
+  /** Increment the current row counter to point at the next row. */
+  void inc_current_row_for_condition()
+  { m_current_row_for_condition++; }
 
-  void remove_marked_sql_conditions()
-  { get_warning_info()->remove_marked_sql_conditions(); }
+  /** Reset the current row counter. Start counting from the first row. */
+  void reset_current_row_for_condition()
+  { m_current_row_for_condition= 1; }
 
-  const Sql_condition *get_error_condition() const
-  { return get_warning_info()->get_error_condition(); }
+  /**
+    The number of errors, or number of rows returned by SHOW ERRORS,
+    also the value of session variable @@error_count.
+  */
+  ulong error_count() const
+  { return m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_ERROR]; }
 
-  void copy_sql_conditions_to_wi(THD *thd, Warning_info *dst_wi) const
-  { dst_wi->append_warning_info(thd, get_warning_info()); }
+  /**
+    Used for @@warning_count system variable, which prints
+    the number of rows returned by SHOW WARNINGS.
+  */
+  ulong warn_count() const
+  {
+    /*
+      This may be higher than warn_list.elements() if we have
+      had more warnings than thd->variables.max_error_count.
+    */
+    return
+      m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_NOTE] +
+      m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_ERROR] +
+      m_current_statement_cond_count_by_sl[(uint) Sql_condition::SL_WARNING];
+  }
 
-  void copy_sql_conditions_from_wi(THD *thd, const Warning_info *src_wi)
-  { get_warning_info()->append_warning_info(thd, src_wi); }
+  /**
+    The number of conditions (errors, warnings and notes) in the list.
+  */
+  uint cond_count() const
+  { return m_conditions_list.elements(); }
 
-  void copy_non_errors_from_wi(THD *thd, const Warning_info *src_wi);
+  Sql_condition_iterator sql_conditions() const
+  { return m_conditions_list; }
+
+  /** Make sure there is room for the given number of conditions. */
+  void reserve_number_of_conditions(THD *thd, uint count);
+
+  /**
+    Add a new SQL-condition to the current list and increment the respective
+    counters.
+
+    @param thd                Thread context.
+    @param mysql_errno        SQL-condition error number.
+    @param returned_sqlstate  SQL-condition state.
+    @param severity           SQL-condition severity.
+    @param message_text       SQL-condition message.
+
+    @return a pointer to the added SQL-condition.
+  */
+  Sql_condition *push_warning(THD *thd,
+                              uint mysql_errno,
+                              const char* returned_sqlstate,
+                              Sql_condition::enum_severity_level severity,
+                              const char* message_text);
+
+  /**
+    Mark current SQL-conditions so that we can later know which
+    SQL-conditions have been added.
+  */
+  void mark_preexisting_sql_conditions();
+
+  /**
+    Copy SQL-conditions that have been added since
+    mark_preexisting_sql_conditions() was called.
+
+    @param thd    Thread context.
+    @param src_da Diagnostics Area to copy from.
+  */
+  void copy_new_sql_conditions(THD *thd, const Diagnostics_area *src_da);
+
+  /**
+    Copy all SQL-conditions from src_da to this DA.
+
+    @param thd    Thread context.
+    @param src_da Diagnostics Area to copy from.
+  */
+  void copy_sql_conditions_from_da(THD *thd, const Diagnostics_area *src_da);
+
+  /**
+    Copy Sql_conditions that are not SL_ERROR from the source
+    Diagnostics Area to the current Diagnostics Area.
+
+    @param thd    Thread context.
+    @param src_da Diagnostics Area to copy from.
+  */
+  void copy_non_errors_from_da(THD *thd, const Diagnostics_area *src_da);
+
+  /**
+    @return SQL-condition, which corresponds to the error state in
+    Diagnostics Area.
+  */
+  Sql_condition *error_condition() const;
 
 private:
-  Warning_info *get_warning_info() { return m_wi_stack.front(); }
+  /**
+    Add a new SQL-condition to the current list and increment the respective
+    counters.
 
-  const Warning_info *get_warning_info() const { return m_wi_stack.front(); }
+    @param thd            Thread context.
+    @param sql_condition  SQL-condition to copy values from.
+
+    @return a pointer to the added SQL-condition.
+  */
+  Sql_condition *push_warning(THD *thd, const Sql_condition *sql_condition);
+
+  /**
+    Push the given Diagnostics Area on top of the stack.
+    "This" will then become the stacked Diagnostics Area.
+    Conditions present in the new stacked Diagnostics Area
+    will be copied to the new top Diagnostics Area.
+
+    @note This function will not set THD::m_stmt_da.
+          Use THD::push_diagnostics_area() instead.
+
+    @param thd  Thread context
+    @param da   Diagnostics Area to be come the top of
+                the Diagnostics Area stack.
+  */
+  void push_diagnostics_area(THD *thd, Diagnostics_area *da);
+
+  /**
+    Pop "this" off the Diagnostics Area stack.
+
+    @note This function will not set THD::m_stmt_da.
+          Use THD::pop_diagnostics_area() instead.
+
+    @returns The new top of the Diagnostics Area stack.
+  */
+  Diagnostics_area *pop_diagnostics_area();
+
+  /**
+    Returns the Diagnostics Area below the current diagnostics
+    area on the stack.
+  */
+  const Diagnostics_area *stacked_da() const
+  { return m_stacked_da; }
 
 private:
+  /** Pointer to the Diagnostics Area below on the stack. */
+  Diagnostics_area *m_stacked_da;
+
+  /** A memory root to allocate conditions */
+  MEM_ROOT m_condition_root;
+
+  /** List of conditions of all severities. */
+  Sql_condition_list m_conditions_list;
+
+  /** List of conditions present in DA at handler activation. */
+  List<const Sql_condition> m_preexisting_sql_conditions;
+
   /** True if status information is sent to the client. */
   bool m_is_sent;
 
   /** Set to make set_error_status after set_{ok,eof}_status possible. */
   bool m_can_overwrite_status;
 
-  /** Message buffer. Can be used by OK or ERROR status. */
-  char m_message[MYSQL_ERRMSG_SIZE];
+  /** Indicates if push_warning() allows unlimited number of conditions. */
+  bool m_allow_unlimited_conditions;
+
+  enum_diagnostics_status m_status;
+
+private:
+  /*
+    This section contains basic attributes of Sql_condition to store
+    information about error (SQL-condition of error severity) or OK-message.
+    The attributes are inlined here (instead of using Sql_condition) to be able
+    to store the information in case of out-of-memory error.
+  */
+
+  /**
+    Message buffer. It is used only when DA is in OK or ERROR status.
+    If DA status is ERROR, it's the MESSAGE_TEXT attribute of SQL-condition.
+    If DA status is OK, it's the OK-message to be sent.
+  */
+  char m_message_text[MYSQL_ERRMSG_SIZE];
+
+  /**
+    SQL RETURNED_SQLSTATE condition item.
+    This member is always NUL terminated.
+  */
+  char m_returned_sqlstate[SQLSTATE_LENGTH+1];
 
   /**
     SQL error number. One of ER_ codes from share/errmsg.txt.
     Set by set_error_status.
   */
-  uint m_sql_errno;
+  uint m_mysql_errno;
 
-  char m_sqlstate[SQLSTATE_LENGTH+1];
-
+private:
   /**
     The number of rows affected by the last statement. This is
     semantically close to thd->row_count_func, but has a different
@@ -818,37 +697,53 @@ private:
     We could possibly merge the two, but life cycle of thd->row_count_func
     can not be changed.
   */
-  ulonglong    m_affected_rows;
+  ulonglong m_affected_rows;
 
   /**
     Similarly to the previous member, this is a replacement of
     thd->first_successful_insert_id_in_prev_stmt, which is used
     to implement LAST_INSERT_ID().
   */
-  ulonglong   m_last_insert_id;
+  ulonglong m_last_insert_id;
 
   /**
-    Number of warnings of this last statement. May differ from
-    the number of warnings returned by SHOW WARNINGS e.g. in case
-    the statement doesn't clear the warnings, and doesn't generate
+    Number of conditions of this last statement. May differ from
+    the number of conditions returned by SHOW WARNINGS e.g. in case
+    the statement doesn't clear the conditions, and doesn't generate
     them.
   */
-  uint	     m_statement_warn_count;
+  uint m_last_statement_cond_count;
 
-  enum_diagnostics_status m_status;
+  /**
+    The number of conditions of the current statement. m_conditions_list
+    life cycle differs from statement life cycle -- it may span
+    multiple statements. In that case we get
+    m_current_statement_cond_count 0, whereas m_conditions_list is not empty.
+  */
+  uint m_current_statement_cond_count;
 
-  Warning_info m_main_wi;
+  /** A break down of the number of conditions per severity (level). */
+  uint m_current_statement_cond_count_by_sl[(uint) Sql_condition::SEVERITY_END];
 
-  Warning_info_list m_wi_stack;
+  /**
+    Row counter, to print in errors and warnings. Not increased in
+    create_sort_index(); may differ from examined_row_count.
+  */
+  ulong m_current_row_for_condition;
+
+  /** Used to optionally clear conditions only once per statement. */
+  ulonglong m_statement_id;
+
+  friend class THD;
 };
 
 ///////////////////////////////////////////////////////////////////////////
 
 
-void push_warning(THD *thd, Sql_condition::enum_warning_level level,
-                  uint code, const char *msg);
+void push_warning(THD *thd, Sql_condition::enum_severity_level severity,
+                  uint code, const char *message_text);
 
-void push_warning_printf(THD *thd, Sql_condition::enum_warning_level level,
+void push_warning_printf(THD *thd, Sql_condition::enum_severity_level severity,
                          uint code, const char *format, ...);
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
