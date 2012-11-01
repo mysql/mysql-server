@@ -5100,9 +5100,12 @@ Uint32 Qmgr::getArbitTimeout()
     break;
   case ARBIT_INIT:              // not used
     jam();
-  case ARBIT_FIND:              // not used
+  case ARBIT_FIND:
     jam();
-    return 1000;
+    /* This timeout will be used only to print out a warning
+     * when a suitable arbitrator is not found.
+     */
+    return 60000;
   case ARBIT_PREP1:
     jam();
   case ARBIT_PREP2:
@@ -5507,12 +5510,26 @@ Qmgr::stateArbitFind(Signal* signal)
         ptrAss(aPtr, nodeRec);
         if (aPtr.p->phase != ZAPI_ACTIVE)
           continue;
+        ndbrequire(c_connectedNodes.get(aPtr.i));
         arbitRec.node = aPtr.i;
         arbitRec.state = ARBIT_PREP1;
         arbitRec.newstate = true;
         stateArbitPrep(signal);
         return;
       }
+    }
+
+    /* If the president cannot find a suitable arbitrator then
+     * it will report this once a minute. Success in finding
+     * an arbitrator will be notified when the arbitrator
+     * accepts and acks the offer.
+    */
+
+    if (arbitRec.getTimediff() > getArbitTimeout()) {
+      jam();
+      g_eventLogger->warning("Could not find an arbitrator, cluster is not partition-safe");
+      warningEvent("Could not find an arbitrator, cluster is not partition-safe");
+      arbitRec.setTimestamp();
     }
     return;
     break;
@@ -5627,6 +5644,35 @@ Qmgr::execARBIT_PREPREQ(Signal* signal)
     reportArbitEvent(signal, NDB_LE_ArbitState);
     arbitRec.state = ARBIT_RUN;
     arbitRec.newstate = true;
+
+    // Non-president node logs.
+    if (!c_connectedNodes.get(arbitRec.node))
+    {
+      char buf[20]; // needs 16 + 1 for '\0'
+      arbitRec.ticket.getText(buf, sizeof(buf));
+      g_eventLogger->warning("President %u proposed disconnected "
+                             "node %u as arbitrator [ticket=%s]. "
+                             "Cluster may be partially connected. "
+                             "Connected nodes: %s",
+                             cpresident, arbitRec.node, buf,
+                             BaseString::getPrettyTextShort(c_connectedNodes).c_str());
+
+      warningEvent("President %u proposed disconnected node %u "
+                   "as arbitrator [ticket %s]",
+                   cpresident, arbitRec.node, buf);
+      warningEvent("Cluster may be partially connected. Connected nodes: ");
+
+      // Split the connected-node list, since warningEvents are
+      // limited to ~24 words / 96 chars
+      BaseString tmp(BaseString::getPrettyTextShort(c_connectedNodes).c_str());
+      Vector<BaseString> split;
+      tmp.split(split, "", 92);
+      for(int i = 0; i < split.size(); ++i)
+      {
+        warningEvent("%s", split[i]);
+      }
+    }
+
     if (sd->code == ArbitCode::PrepAtrun) {
       jam();
       return;
@@ -6038,6 +6084,13 @@ Qmgr::reportArbitEvent(Signal* signal, Ndb_logevent_type type,
   sd->node = arbitRec.node;
   sd->ticket = arbitRec.ticket;
   sd->mask = mask;
+
+  // Log to console/stdout
+  LogLevel ll;
+  ll.setLogLevel(LogLevel::llNodeRestart, 15);
+  g_eventLogger->log(type, &signal->theData[0],
+                     ArbitSignalData::SignalLength, 0, &ll);
+
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal,
     ArbitSignalData::SignalLength, JBB);
 }
