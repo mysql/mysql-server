@@ -15278,6 +15278,7 @@ static void test_bug27876()
 
   rc= mysql_query(mysql, "set names default");
   myquery(rc);
+  DBUG_VOID_RETURN;
 }
 
 
