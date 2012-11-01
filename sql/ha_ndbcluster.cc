@@ -4082,27 +4082,6 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
 #endif
 }
 
-bool ha_ndbcluster::isManualBinlogExec(THD *thd)
-{
-  /* Are we executing handler methods as part of 
-   * a mysql client BINLOG statement?
-   */
-#ifndef EMBEDDED_LIBRARY
-  return thd ? 
-    ( thd->rli_fake? 
-      ndb_mi_get_in_relay_log_statement(thd->rli_fake) : false)
-    : false;
-#else
-  /* For Embedded library, we can't determine if we're
-   * executing Binlog manually
-   * TODO : Find better way to determine whether to use
-   *        SQL REPLACE or Write_row semantics
-   */
-  return false;
-#endif
-
-}
-
 static inline bool
 thd_allow_batch(const THD* thd)
 {
@@ -4703,15 +4682,7 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
      * to avoid trampling unchanged columns when an update is
      * logged as a WRITE
      */
-    bool useWriteSet= isManualBinlogExec(thd);
-
-#ifdef HAVE_NDB_BINLOG
-    /* Slave always uses writeset
-     * TODO : What about SBR replicating a
-     * REPLACE command?
-     */
-    useWriteSet |= thd->slave_thread;
-#endif
+    bool useWriteSet= applying_binlog(thd);
     uchar* mask;
 
     if (useWriteSet)
@@ -5153,7 +5124,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
       DBUG_RETURN(ndb_err(trans));
     }
     THD *thd= table->in_use;
-    if (!thd->slave_thread)
+    if (!applying_binlog(thd))
     {
       DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
       assert(m_rows_changed >= ignore_count);
@@ -5197,7 +5168,7 @@ int ha_ndbcluster::exec_bulk_update(uint *dup_key_found)
     no_uncommitted_rows_execute_failure();
     DBUG_RETURN(ndb_err(trans));
   }
-  if (!thd->slave_thread)
+  if (!applying_binlog(thd))
   {
     assert(m_rows_changed >= ignore_count);
     assert(m_rows_updated >= ignore_count);
@@ -5522,7 +5493,7 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
   m_rows_changed++;
   m_rows_updated++;
 
-  if (!thd->slave_thread)
+  if (!applying_binlog(thd))
   {
     assert(m_rows_changed >= ignore_count);
     assert(m_rows_updated >= ignore_count);
@@ -5583,7 +5554,7 @@ int ha_ndbcluster::end_bulk_delete()
       DBUG_RETURN(ndb_err(trans));
     }
     THD *thd= table->in_use;
-    if (!thd->slave_thread)
+    if (!applying_binlog(thd))
     {
       DBUG_PRINT("info", ("ignore_count: %u", ignore_count));
       assert(m_rows_deleted >= ignore_count);
@@ -5625,7 +5596,7 @@ int ha_ndbcluster::end_bulk_delete()
     DBUG_RETURN(ndb_err(trans));
   }
 
-  if (!thd->slave_thread)
+  if (!applying_binlog(thd))
   {
     assert(m_rows_deleted >= ignore_count);
     m_rows_deleted-= ignore_count;
@@ -5835,7 +5806,7 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
   }
   if (!primary_key_update)
   {
-    if (!thd->slave_thread)
+    if (!applying_binlog(thd))
     {
       assert(m_rows_deleted >= ignore_count);
       m_rows_deleted-= ignore_count;
@@ -6801,8 +6772,11 @@ int ha_ndbcluster::extra(enum ha_extra_function operation)
   case HA_EXTRA_WRITE_CAN_REPLACE:
     DBUG_PRINT("info", ("HA_EXTRA_WRITE_CAN_REPLACE"));
     if (!m_has_unique_index ||
-        current_thd->slave_thread || /* always set if slave, quick fix for bug 27378 */
-        isManualBinlogExec(current_thd)) /* or if manual binlog application, for bug 46662 */
+        /* 
+           Always set if slave, quick fix for bug 27378
+           or if manual binlog application, for bug 46662
+        */
+        applying_binlog(current_thd))
     {
       DBUG_PRINT("info", ("Turning ON use of write instead of insert"));
       m_use_write= TRUE;
@@ -7200,6 +7174,13 @@ static void transaction_checks(THD *thd, Thd_ndb *thd_ndb)
     THDVAR(thd, optimized_node_selection)=
       THDVAR(NULL, optimized_node_selection) & 1; /* using global value */
   }
+#ifndef EMBEDDED_LIBRARY
+  bool applying_binlog=
+    thd->rli_fake? 
+    ndb_mi_get_in_relay_log_statement(thd->rli_fake) : false;
+  if (applying_binlog)
+    thd_ndb->trans_options|= TNTO_APPLYING_BINLOG;
+#endif
 }
 
 int ha_ndbcluster::start_statement(THD *thd,
@@ -7660,7 +7641,6 @@ ha_ndbcluster::start_transaction_part_id(Uint32 part_id, int &error)
   DBUG_RETURN(NULL);
 }
    
-
 /**
   Commit a transaction started in NDB.
 */
@@ -7753,7 +7733,10 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
       }
     }
     else
-      res= execute_commit(thd, thd_ndb, trans, THDVAR(thd, force_send), FALSE);
+    {
+      bool applying_binlog= (thd_ndb->trans_options & TNTO_APPLYING_BINLOG);
+      res= execute_commit(thd, thd_ndb, trans, THDVAR(thd, force_send), applying_binlog);
+    }
   }
 
   if (res != 0)
