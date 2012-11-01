@@ -6665,7 +6665,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       if (alter)
       {
-	if (def->sql_type == MYSQL_TYPE_BLOB)
+	if (def->flags & BLOB_FLAG)
 	{
 	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
           goto err;
