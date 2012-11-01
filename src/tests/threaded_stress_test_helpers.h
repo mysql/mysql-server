@@ -67,6 +67,7 @@ struct env_args {
     int cleaner_iterations;
     int64_t lk_max_memory;
     uint64_t cachetable_size;
+    uint32_t num_bucket_mutexes;
     const char *envdir;
     test_update_callback_f update_function; // update callback function
     test_generate_row_for_put_callback generate_put_callback;
@@ -1463,6 +1464,7 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     r = toku_os_mkdir(env_args.envdir, S_IRWXU+S_IRWXG+S_IRWXO); assert(r==0);
 
     DB_ENV *env;
+    db_env_set_num_bucket_mutexes(env_args.num_bucket_mutexes);
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
     r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
@@ -1596,6 +1598,7 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
 
     /* create the dup database file */
     DB_ENV *env;
+    db_env_set_num_bucket_mutexes(env_args.num_bucket_mutexes);
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
     r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
@@ -1656,6 +1659,7 @@ static const struct env_args DEFAULT_ENV_ARGS = {
     .cleaner_iterations = 1,
     .lk_max_memory = 1 * 1024 * 1024,
     .cachetable_size = 300000,
+    .num_bucket_mutexes = 1024,
     .envdir = ENVDIR,
     .update_function = update_op_callback,
     .generate_put_callback = NULL,
@@ -1670,6 +1674,7 @@ static const struct env_args DEFAULT_PERF_ENV_ARGS = {
     .cleaner_iterations = 5,
     .lk_max_memory = 1L * 1024 * 1024 * 1024,
     .cachetable_size = 1<<30,
+    .num_bucket_mutexes = 1024 * 1024,
     .envdir = ENVDIR,
     .update_function = NULL,
     .generate_put_callback = NULL,
@@ -2065,6 +2070,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         INT32_ARG_R("--performance_period",      performance_period,          "s", 1, INT32_MAX),
 
         UINT64_ARG("--cachetable_size",         env_args.cachetable_size,      " bytes"),
+        UINT32_ARG("--num_bucket_mutexes",      env_args.num_bucket_mutexes,   " mutexes"),
 
         DOUBLE_ARG_R("--compressibility",       compressibility,               "", 0.0, 1.0),
 
