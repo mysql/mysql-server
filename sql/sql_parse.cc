@@ -6063,8 +6063,9 @@ void mysql_parse(THD *thd, char *rawbuf, uint length,
                                  &thd->security_ctx->priv_user[0],
                                  (char *) thd->security_ctx->host_or_ip,
                                  0);
-          if (unlikely(thd->security_ctx->password_expired && 
-                       !lex->is_change_password))
+          if (unlikely(thd->security_ctx->password_expired &&
+                       !lex->is_change_password &&
+                       lex->sql_command != SQLCOM_SET_OPTION))
           {
             my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
             error= 1;
