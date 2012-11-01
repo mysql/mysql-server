@@ -134,24 +134,25 @@ TEST_F(SqlTableTest, FileNameToTableName)
                             + sizeof(srv_mysql50_table_name_prefix) - 1];
 
   // This one used to fail with AddressSanitizer
-  EXPECT_EQ((sizeof(test_tablename)) - 1,
-            filename_to_tablename(test_filename,
-                                  test_tablename,
-                                  sizeof(test_tablename)
+  uint name_length;
+  name_length= filename_to_tablename(test_filename,
+                                     test_tablename,
+                                     sizeof(test_tablename)
 #ifndef DBUG_OFF
-                                  , true
+                                     , true
 #endif
-                                  ));
+                                     );
+  EXPECT_EQ((sizeof(test_tablename)) - 1, name_length);
 
   // This one used to fail if compiled with -DHAVE_VALGRIND
-  EXPECT_EQ((sizeof(test_tablename)) - 1,
-            filename_to_tablename(foo.str,
-                                  test_tablename,
-                                  sizeof(test_tablename)
+  name_length= filename_to_tablename(foo.str,
+                                     test_tablename,
+                                     sizeof(test_tablename)
 #ifndef DBUG_OFF
-                                  , true
+                                     , true
 #endif
-                                  ));
+                                     );
+  EXPECT_EQ((sizeof(test_tablename)) - 1, name_length);
 
 }
 
