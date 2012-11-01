@@ -48,7 +48,7 @@ Created 1/20/1994 Heikki Tuuri
 #define INNODB_VERSION_BUGFIX	17
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 12.5
+#define PERCONA_INNODB_VERSION 14.0
 #endif
 
 
@@ -153,14 +153,6 @@ Sun Studio */
 /*			DEBUG VERSION CONTROL
 			===================== */
 
-/* The following flag will make InnoDB to initialize
-all memory it allocates to zero. It hides Purify
-warnings about reading unallocated memory unless
-memory is read outside the allocated blocks. */
-/*
-#define UNIV_INIT_MEM_TO_ZERO
-*/
-
 /* When this macro is defined then additional test functions will be
 compiled. These functions live at the end of each relevant source file
 and have "test_" prefix. These functions are not called from anywhere in
@@ -225,15 +217,6 @@ operations (very slow); also UNIV_DEBUG must be defined */
 #define UNIV_BTR_DEBUG				/* check B-tree links */
 #define UNIV_LIGHT_MEM_DEBUG			/* light memory debugging */
 
-#ifdef HAVE_purify
-/* The following sets all new allocated memory to zero before use:
-this can be used to eliminate unnecessary Purify warnings, but note that
-it also masks many bugs Purify could detect. For detailed Purify analysis it
-is best to remove the define below and look through the warnings one
-by one. */
-#define UNIV_SET_MEM_TO_ZERO
-#endif
-
 /*
 #define UNIV_SQL_DEBUG
 #define UNIV_LOG_DEBUG
@@ -290,6 +273,24 @@ management to ensure correct alignment for doubles etc. */
 			DATABASE VERSION CONTROL
 			========================
 */
+
+/** There are currently two InnoDB file formats which are used to group
+features with similar restrictions and dependencies. Using an enum allows
+switch statements to give a compiler warning when a new one is introduced. */
+enum innodb_file_formats_enum {
+	/** Antelope File Format: InnoDB/MySQL up to 5.1.
+	This format includes REDUNDANT and COMPACT row formats */
+	UNIV_FORMAT_A		= 0,
+
+	/** Barracuda File Format: Introduced in InnoDB plugin for 5.1:
+	This format includes COMPRESSED and DYNAMIC row formats.  It
+	includes the ability to create secondary indexes from data that
+	is not on the clustered index page and the ability to store more
+	data off the clustered index page. */
+	UNIV_FORMAT_B		= 1
+};
+
+typedef enum innodb_file_formats_enum innodb_file_formats_t;
 
 /* The 2-logarithm of UNIV_PAGE_SIZE: */
 /* #define UNIV_PAGE_SIZE_SHIFT	14 */

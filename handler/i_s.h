@@ -36,7 +36,6 @@ extern struct st_mysql_plugin	i_s_innodb_cmp;
 extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
-extern struct st_mysql_plugin	i_s_innodb_patches;
 extern struct st_mysql_plugin	i_s_innodb_rseg;
 extern struct st_mysql_plugin	i_s_innodb_table_stats;
 extern struct st_mysql_plugin	i_s_innodb_index_stats;
@@ -44,5 +43,9 @@ extern struct st_mysql_plugin	i_s_innodb_admin_command;
 extern struct st_mysql_plugin   i_s_innodb_sys_tables;
 extern struct st_mysql_plugin   i_s_innodb_sys_indexes;
 extern struct st_mysql_plugin	i_s_innodb_sys_stats;
+extern struct st_mysql_plugin	i_s_innodb_changed_pages;
+extern struct st_mysql_plugin	i_s_innodb_buffer_page;
+extern struct st_mysql_plugin	i_s_innodb_buffer_page_lru;
+extern struct st_mysql_plugin	i_s_innodb_buffer_stats;
 
 #endif /* i_s_h */

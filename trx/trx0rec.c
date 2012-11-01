@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1110,13 +1110,14 @@ trx_undo_rec_get_partial_row(
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************************//**
-Erases the unused undo log page end. */
-static
-void
+Erases the unused undo log page end.
+@return TRUE if the page contained something, FALSE if it was empty */
+static __attribute__((nonnull))
+ibool
 trx_undo_erase_page_end(
 /*====================*/
-	page_t*	undo_page,	/*!< in: undo page whose end to erase */
-	mtr_t*	mtr)		/*!< in: mtr */
+	page_t*	undo_page,	/*!< in/out: undo page whose end to erase */
+	mtr_t*	mtr)		/*!< in/out: mini-transaction */
 {
 	ulint	first_free;
 
@@ -1126,6 +1127,7 @@ trx_undo_erase_page_end(
 	       (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END) - first_free);
 
 	mlog_write_initial_log_record(undo_page, MLOG_UNDO_ERASE_END, mtr);
+	return(first_free != TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE);
 }
 
 /***********************************************************//**
@@ -1187,12 +1189,16 @@ trx_undo_report_row_operation(
 	trx_t*		trx;
 	trx_undo_t*	undo;
 	ulint		page_no;
+	buf_block_t*	undo_block;
 	trx_rseg_t*	rseg;
 	mtr_t		mtr;
 	ulint		err		= DB_SUCCESS;
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
+#ifdef UNIV_DEBUG
+	int		loop_count	= 0;
+#endif /* UNIV_DEBUG */
 	rec_offs_init(offsets_);
 
 	ut_a(dict_index_is_clust(index));
@@ -1226,10 +1232,13 @@ trx_undo_report_row_operation(
 
 		if (UNIV_UNLIKELY(!undo)) {
 			/* Did not succeed */
+			ut_ad(err != DB_SUCCESS);
 			mutex_exit(&(trx->undo_mutex));
 
 			return(err);
 		}
+
+		ut_ad(err == DB_SUCCESS);
 	} else {
 		ut_ad(op_type == TRX_UNDO_MODIFY_OP);
 
@@ -1243,30 +1252,30 @@ trx_undo_report_row_operation(
 
 		if (UNIV_UNLIKELY(!undo)) {
 			/* Did not succeed */
+			ut_ad(err != DB_SUCCESS);
 			mutex_exit(&(trx->undo_mutex));
 			return(err);
 		}
 
+		ut_ad(err == DB_SUCCESS);
 		offsets = rec_get_offsets(rec, index, offsets,
 					  ULINT_UNDEFINED, &heap);
 	}
 
-	page_no = undo->last_page_no;
-
 	mtr_start(&mtr);
 
-	for (;;) {
-		buf_block_t*	undo_block;
+	page_no = undo->last_page_no;
+	undo_block = buf_page_get_gen(
+		undo->space, undo->zip_size, page_no, RW_X_LATCH,
+		undo->guess_block, BUF_GET, __FILE__, __LINE__, &mtr);
+	buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
+
+	do {
 		page_t*		undo_page;
 		ulint		offset;
 
-		undo_block = buf_page_get_gen(undo->space, undo->zip_size,
-					      page_no, RW_X_LATCH,
-					      undo->guess_block, BUF_GET,
-					      __FILE__, __LINE__, &mtr);
-		buf_block_dbg_add_level(undo_block, SYNC_TRX_UNDO_PAGE);
-
 		undo_page = buf_block_get_frame(undo_block);
+		ut_ad(page_no == buf_block_get_page_no(undo_block));
 
 		if (op_type == TRX_UNDO_INSERT_OP) {
 			offset = trx_undo_page_report_insert(
@@ -1284,7 +1293,31 @@ trx_undo_report_row_operation(
 			version the replicate page constructed using the log
 			records stays identical to the original page */
 
-			trx_undo_erase_page_end(undo_page, &mtr);
+			if (!trx_undo_erase_page_end(undo_page, &mtr)) {
+				/* The record did not fit on an empty
+				undo page. Discard the freshly allocated
+				page and return an error. */
+
+				/* When we remove a page from an undo
+				log, this is analogous to a
+				pessimistic insert in a B-tree, and we
+				must reserve the counterpart of the
+				tree latch, which is the rseg
+				mutex. We must commit the mini-transaction
+				first, because it may be holding lower-level
+				latches, such as SYNC_FSP and SYNC_FSP_PAGE. */
+
+				mtr_commit(&mtr);
+				mtr_start(&mtr);
+
+				mutex_enter(&rseg->mutex);
+				trx_undo_free_last_page(trx, undo, &mtr);
+				mutex_exit(&rseg->mutex);
+
+				err = DB_TOO_BIG_RECORD;
+				goto err_exit;
+			}
+
 			mtr_commit(&mtr);
 		} else {
 			/* Success */
@@ -1304,39 +1337,39 @@ trx_undo_report_row_operation(
 			*roll_ptr = trx_undo_build_roll_ptr(
 				op_type == TRX_UNDO_INSERT_OP,
 				rseg->id, page_no, offset);
-			if (UNIV_LIKELY_NULL(heap)) {
-				mem_heap_free(heap);
-			}
-			return(DB_SUCCESS);
+			err = DB_SUCCESS;
+			goto func_exit;
 		}
 
 		ut_ad(page_no == undo->last_page_no);
 
 		/* We have to extend the undo log by one page */
 
+		ut_ad(++loop_count < 2);
 		mtr_start(&mtr);
 
 		/* When we add a page to an undo log, this is analogous to
 		a pessimistic insert in a B-tree, and we must reserve the
 		counterpart of the tree latch, which is the rseg mutex. */
 
-		mutex_enter(&(rseg->mutex));
+		mutex_enter(&rseg->mutex);
+		undo_block = trx_undo_add_page(trx, undo, &mtr);
+		mutex_exit(&rseg->mutex);
 
-		page_no = trx_undo_add_page(trx, undo, &mtr);
+		page_no = undo->last_page_no;
+	} while (undo_block != NULL);
 
-		mutex_exit(&(rseg->mutex));
+	/* Did not succeed: out of space */
+	err = DB_OUT_OF_FILE_SPACE;
 
-		if (UNIV_UNLIKELY(page_no == FIL_NULL)) {
-			/* Did not succeed: out of space */
-
-			mutex_exit(&(trx->undo_mutex));
-			mtr_commit(&mtr);
-			if (UNIV_LIKELY_NULL(heap)) {
-				mem_heap_free(heap);
-			}
-			return(DB_OUT_OF_FILE_SPACE);
-		}
+err_exit:
+	mutex_exit(&trx->undo_mutex);
+	mtr_commit(&mtr);
+func_exit:
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
 	}
+	return(err);
 }
 
 /*============== BUILDING PREVIOUS VERSION OF A RECORD ===============*/

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2005, 2010, Innobase Oy. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -577,7 +577,7 @@ row_merge_buf_write(
 						   REC_STATUS_ORDINARY,
 						   entry, n_fields,
 						   &extra_size);
-		ut_ad(size > extra_size);
+		ut_ad(size >= extra_size);
 		ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 		extra_size -= REC_N_NEW_EXTRA_BYTES;
 		size -= REC_N_NEW_EXTRA_BYTES;
@@ -1215,11 +1215,25 @@ row_merge_read_clustered_index(
 				goto err_exit;
 			}
 
+			/* Store the cursor position on the last user
+			record on the page. */
+			btr_pcur_move_to_prev_on_page(&pcur);
+			/* Leaf pages must never be empty, unless
+			this is the only page in the index tree. */
+			ut_ad(btr_pcur_is_on_user_rec(&pcur)
+			      || buf_block_get_page_no(
+				      btr_pcur_get_block(&pcur))
+			      == clust_index->page);
+
 			btr_pcur_store_position(&pcur, &mtr);
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
+			/* Restore position on the record, or its
+			predecessor if the record was purged
+			meanwhile. */
 			btr_pcur_restore_position(BTR_SEARCH_LEAF,
 						  &pcur, &mtr);
+			/* Move to the successor of the original record. */
 			has_next = btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 		}
 
@@ -2020,7 +2034,7 @@ row_merge_drop_index(
 	tables in Innobase. Deleting a row from SYS_INDEXES table also
 	frees the file segments of the B-tree associated with the index. */
 
-	static const char str1[] =
+	static const char sql[] =
 		"PROCEDURE DROP_INDEX_PROC () IS\n"
 		"BEGIN\n"
 		/* Rename the index, so that it will be dropped by
@@ -2046,9 +2060,19 @@ row_merge_drop_index(
 
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
-	err = que_eval_sql(info, str1, FALSE, trx);
+	err = que_eval_sql(info, sql, FALSE, trx);
 
-	ut_a(err == DB_SUCCESS);
+
+	if (err != DB_SUCCESS) {
+		/* Even though we ensure that DDL transactions are WAIT
+		and DEADLOCK free, we could encounter other errors e.g.,
+		DB_TOO_MANY_TRANSACTIONS. */
+		trx->error_state = DB_SUCCESS;
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: row_merge_drop_index failed "
+			"with error code: %lu.\n", (ulint) err);
+	}
 
 	/* Replace this index with another equivalent index for all
 	foreign key constraints on this table where this index is used */
@@ -2300,7 +2324,7 @@ row_merge_rename_indexes(
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in renaming indexes. */
 
-	static const char rename_indexes[] =
+	static const char sql[] =
 		"PROCEDURE RENAME_INDEXES_PROC () IS\n"
 		"BEGIN\n"
 		"UPDATE SYS_INDEXES SET NAME=SUBSTR(NAME,1,LENGTH(NAME)-1)\n"
@@ -2316,7 +2340,7 @@ row_merge_rename_indexes(
 
 	pars_info_add_dulint_literal(info, "tableid", table->id);
 
-	err = que_eval_sql(info, rename_indexes, FALSE, trx);
+	err = que_eval_sql(info, sql, FALSE, trx);
 
 	if (err == DB_SUCCESS) {
 		dict_index_t*	index = dict_table_get_first_index(table);
@@ -2326,6 +2350,15 @@ row_merge_rename_indexes(
 			}
 			index = dict_table_get_next_index(index);
 		} while (index);
+	} else {
+		/* Even though we ensure that DDL transactions are WAIT
+		and DEADLOCK free, we could encounter other errors e.g.,
+		DB_TOO_MANY_TRANSACTIONS. */
+		trx->error_state = DB_SUCCESS;
+
+		ut_print_timestamp(stderr);
+		fprintf(stderr, " InnoDB: Error: row_merge_rename_indexes "
+			"failed with error code: %lu.\n", (ulint) err);
 	}
 
 	trx->op_info = "";
@@ -2364,7 +2397,7 @@ row_merge_rename_tables(
 		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
 	} else {
 		ut_print_timestamp(stderr);
-		fprintf(stderr, "InnoDB: too long table name: '%s', "
+		fprintf(stderr, " InnoDB: too long table name: '%s', "
 			"max length is %d\n", old_table->name,
 			MAX_FULL_NAME_LEN);
 		ut_error;

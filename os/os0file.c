@@ -1939,6 +1939,25 @@ os_file_set_eof(
 #endif /* __WIN__ */
 }
 
+/***********************************************************************//**
+Truncates a file at the specified position.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_set_eof_at(
+	os_file_t	file, /*!< in: handle to a file */
+	ib_uint64_t	new_len)/*!< in: new file length */
+{
+#ifdef __WIN__
+	/* TODO: untested! */
+	return(!_chsize_s(file, new_len));
+#else
+	/* TODO: works only with -D_FILE_OFFSET_BITS=64 ? */
+	return(!ftruncate(file, new_len));
+#endif
+}
+
+
 #ifndef __WIN__
 /***********************************************************************//**
 Wrapper to fsync(2) that retries the call on some errors.
@@ -3593,13 +3612,12 @@ os_aio_simulated_wake_handler_thread(
 {
 	os_aio_array_t*	array;
 	os_aio_slot_t*	slot;
-	ulint		segment;
 	ulint		n;
 	ulint		i;
 
 	ut_ad(!os_aio_use_native_aio);
 
-	segment = os_aio_get_array_and_local_segment(&array, global_segment);
+	os_aio_get_array_and_local_segment(&array, global_segment);
 
 	n = array->n_slots;
 
@@ -4078,7 +4096,6 @@ os_aio_simulated_handle(
 	ulint*	space_id)
 {
 	os_aio_array_t*	array;
-	ulint		segment;
 	os_aio_slot_t*	slot;
 	os_aio_slot_t*	slot2;
 	os_aio_slot_t*	consecutive_ios[OS_AIO_MERGE_N_CONSECUTIVE];
@@ -4101,7 +4118,7 @@ os_aio_simulated_handle(
 	/* Fix compiler warning */
 	*consecutive_ios = NULL;
 
-	segment = os_aio_get_array_and_local_segment(&array, global_segment);
+	os_aio_get_array_and_local_segment(&array, global_segment);
 
 restart:
 	/* NOTE! We only access constant fields in os_aio_array. Therefore
@@ -4110,7 +4127,6 @@ restart:
 	srv_set_io_thread_op_info(global_segment,
 				  "looking for i/o requests (a)");
 	ut_ad(os_aio_validate());
-	ut_ad(segment < array->n_segments);
 
 	n = array->n_slots;
 

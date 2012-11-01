@@ -926,6 +926,11 @@ sync_array_print_long_waits(
 	ibool		fatal = FALSE;
 	double		longest_diff = 0;
 
+	/* For huge tables, skip the check during CHECK TABLE etc... */
+	if (fatal_timeout > SRV_SEMAPHORE_WAIT_EXTENSION) {
+		return(FALSE);
+	}
+
 	for (i = 0; i < sync_primary_wait_array->n_cells; i++) {
 
 		double	diff;

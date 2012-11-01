@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -1902,6 +1902,7 @@ page_cur_delete_rec(
 
 	/* Save to local variables some data associated with current_rec */
 	cur_slot_no = page_dir_find_owner_slot(current_rec);
+	ut_ad(cur_slot_no > 0);
 	cur_dir_slot = page_dir_get_nth_slot(page, cur_slot_no);
 	cur_n_owned = page_dir_slot_get_n_owned(cur_dir_slot);
 

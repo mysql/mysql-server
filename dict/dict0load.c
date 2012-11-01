@@ -165,7 +165,7 @@ dict_print(void)
 	monitor printout */
 
 	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
+	srv_fatal_semaphore_wait_threshold += SRV_SEMAPHORE_WAIT_EXTENSION;
 	mutex_exit(&kernel_mutex);
 
 	mutex_enter(&(dict_sys->mutex));
@@ -193,7 +193,7 @@ loop:
 		/* Restore the fatal semaphore wait timeout */
 
 		mutex_enter(&kernel_mutex);
-		srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
+		srv_fatal_semaphore_wait_threshold -= SRV_SEMAPHORE_WAIT_EXTENSION;
 		mutex_exit(&kernel_mutex);
 
 		return;
@@ -430,7 +430,7 @@ loop:
 			object and check that the .ibd file exists. */
 
 			fil_open_single_table_tablespace(FALSE, space_id,
-							 flags, name);
+							 flags, name, NULL);
 		}
 
 		mem_free(name);
@@ -1023,7 +1023,7 @@ err_exit:
 			if (!fil_open_single_table_tablespace(
 				    TRUE, space,
 				    flags == DICT_TF_COMPACT ? 0 :
-				    flags & ~(~0 << DICT_TF_BITS), name)) {
+				    flags & ~(~0 << DICT_TF_BITS), name, NULL)) {
 				/* We failed to find a sensible
 				tablespace file */
 

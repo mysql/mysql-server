@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -11,8 +11,8 @@ ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
 FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License along with
-this program; if not, write to the Free Software Foundation, Inc., 59 Temple
-Place, Suite 330, Boston, MA 02111-1307 USA
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
 
 *****************************************************************************/
 
@@ -215,12 +215,6 @@ page_set_max_trx_id(
 {
 	page_t*		page		= buf_block_get_frame(block);
 #ifndef UNIV_HOTBACKUP
-	const ibool	is_hashed	= block->is_hashed;
-
-	if (is_hashed) {
-		rw_lock_x_lock(&btr_search_latch);
-	}
-
 	ut_ad(!mtr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 #endif /* !UNIV_HOTBACKUP */
 
@@ -241,12 +235,6 @@ page_set_max_trx_id(
 	} else {
 		mach_write_to_8(page + (PAGE_HEADER + PAGE_MAX_TRX_ID), trx_id);
 	}
-
-#ifndef UNIV_HOTBACKUP
-	if (is_hashed) {
-		rw_lock_x_unlock(&btr_search_latch);
-	}
-#endif /* !UNIV_HOTBACKUP */
 }
 
 /************************************************************//**
@@ -792,17 +780,23 @@ page_copy_rec_list_start(
 	if (UNIV_LIKELY_NULL(new_page_zip)) {
 		mtr_set_log_mode(mtr, log_mode);
 
+		DBUG_EXECUTE_IF("page_copy_rec_list_start_compress_fail",
+				goto zip_reorganize;);
+
 		if (UNIV_UNLIKELY
 		    (!page_zip_compress(new_page_zip, new_page, index, mtr))) {
+			ulint	ret_pos;
+#ifndef DBUG_OFF
+zip_reorganize:
+#endif /* DBUG_OFF */
 			/* Before trying to reorganize the page,
 			store the number of preceding records on the page. */
-			ulint	ret_pos
-				= page_rec_get_n_recs_before(ret);
+			ret_pos = page_rec_get_n_recs_before(ret);
 			/* Before copying, "ret" was the predecessor
 			of the predefined supremum record.  If it was
 			the predefined infimum record, then it would
-			still be the infimum.  Thus, the assertion
-			ut_a(ret_pos > 0) would fail here. */
+			still be the infimum, and we would have
+			ret_pos == 0. */
 
 			if (UNIV_UNLIKELY
 			    (!page_zip_reorganize(new_block, index, mtr))) {
@@ -818,15 +812,10 @@ page_copy_rec_list_start(
 				btr_blob_dbg_add(new_page, index,
 						 "copy_start_reorg_fail");
 				return(NULL);
-			} else {
-				/* The page was reorganized:
-				Seek to ret_pos. */
-				ret = new_page + PAGE_NEW_INFIMUM;
-
-				do {
-					ret = rec_get_next_ptr(ret, TRUE);
-				} while (--ret_pos);
 			}
+
+			/* The page was reorganized: Seek to ret_pos. */
+			ret = page_rec_get_nth(new_page, ret_pos);
 		}
 	}
 
@@ -1062,6 +1051,7 @@ page_delete_rec_list_end(
 
 		n_owned = rec_get_n_owned_new(rec2) - count;
 		slot_index = page_dir_find_owner_slot(rec2);
+		ut_ad(slot_index > 0);
 		slot = page_dir_get_nth_slot(page, slot_index);
 	} else {
 		rec_t*	rec2	= rec;
@@ -1077,6 +1067,7 @@ page_delete_rec_list_end(
 
 		n_owned = rec_get_n_owned_old(rec2) - count;
 		slot_index = page_dir_find_owner_slot(rec2);
+		ut_ad(slot_index > 0);
 		slot = page_dir_get_nth_slot(page, slot_index);
 	}
 
@@ -1503,6 +1494,10 @@ page_rec_get_nth_const(
 	ulint			n_owned;
 	const rec_t*		rec;
 
+	if (nth == 0) {
+		return(page_get_infimum_rec(page));
+	}
+
 	ut_ad(nth < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
 
 	for (i = 0;; i++) {
@@ -1596,7 +1591,7 @@ page_rec_get_n_recs_before(
 	n--;
 
 	ut_ad(n >= 0);
-	ut_ad(n < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
+	ut_ad((ulint) n < UNIV_PAGE_SIZE / (REC_N_NEW_EXTRA_BYTES + 1));
 
 	return((ulint) n);
 }
@@ -1625,13 +1620,14 @@ page_rec_print(
 			" n_owned: %lu; heap_no: %lu; next rec: %lu\n",
 			(ulong) rec_get_n_owned_old(rec),
 			(ulong) rec_get_heap_no_old(rec),
-			(ulong) rec_get_next_offs(rec, TRUE));
+			(ulong) rec_get_next_offs(rec, FALSE));
 	}
 
 	page_rec_check(rec);
 	rec_validate(rec, offsets);
 }
 
+# ifdef UNIV_BTR_PRINT
 /***************************************************************//**
 This is used to print the contents of the directory for
 debugging purposes. */
@@ -1792,6 +1788,7 @@ page_print(
 	page_dir_print(page, dn);
 	page_print_list(block, index, rn);
 }
+# endif /* UNIV_BTR_PRINT */
 #endif /* !UNIV_HOTBACKUP */
 
 /***************************************************************//**

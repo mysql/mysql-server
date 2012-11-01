@@ -354,7 +354,6 @@ buf_buddy_relocate(
 {
 	buf_page_t*	bpage;
 	const ulint	size	= BUF_BUDDY_LOW << i;
-	ullint		usec	= ut_time_us(NULL);
 	mutex_t*	mutex;
 	ulint		space;
 	ulint		page_no;
@@ -442,6 +441,7 @@ buf_buddy_relocate(
 
 	if (mutex && buf_page_can_relocate(bpage)) {
 		/* Relocate the compressed page. */
+		ullint	usec	= ut_time_us(NULL);
 		ut_a(bpage->zip.data == src);
 		memcpy(dst, src, size);
 		bpage->zip.data = dst;

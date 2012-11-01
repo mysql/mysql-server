@@ -110,6 +110,10 @@ struct ib_rbt_bound_struct {
 /* Compare a key with the node value (t is tree, k is key, n is node)*/
 #define rbt_compare(t, k, n) (t->compare(k, n->value))
 
+/* Node size. FIXME: name might clash, but currently it does not, so for easier
+maintenance do not rename it for now. */
+#define	SIZEOF_NODE(t)	((sizeof(ib_rbt_node_t) + t->sizeof_value) - 1)
+
 /****************************************************************//**
 Free an instance of  a red black tree */
 UNIV_INTERN
@@ -180,6 +184,18 @@ rbt_add_node(
 	ib_rbt_bound_t*	parent,		/*!< in: parent */
 	const void*	value);		/*!< in: this value is copied
 					to the node */
+/****************************************************************//**
+Add a new caller-provided node to tree at the specified position.
+The node must have its key fields initialized correctly.
+@return added node */
+UNIV_INTERN
+const ib_rbt_node_t*
+rbt_add_preallocated_node(
+/*======================*/
+	ib_rbt_t*	tree,		/*!< in: rb tree */
+	ib_rbt_bound_t*	parent,		/*!< in: parent */
+	ib_rbt_node_t*	node);		/*!< in: node */
+
 /****************************************************************//**
 Return the left most data node in the tree
 @return	left most node */
@@ -266,6 +282,13 @@ void
 rbt_clear(
 /*======*/
 	ib_rbt_t*	tree);		/*!< in: rb tree */
+/****************************************************************//**
+Clear the tree without deleting and freeing its nodes. */
+UNIV_INTERN
+void
+rbt_reset(
+/*======*/
+	 ib_rbt_t*	tree);		/*!< in: rb tree */
 /****************************************************************//**
 Merge the node from dst into src. Return the number of nodes merged.
 @return	no. of recs merged */
