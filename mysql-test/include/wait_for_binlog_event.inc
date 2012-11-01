@@ -46,3 +46,4 @@ while (`SELECT INSTR("$_last_event","$wait_binlog_event") = 0`)
     }
   }
 }
+let $binlog_file=;
