@@ -251,3 +251,19 @@ SET GLOBAL key_cache_block_size= @bug28478_key_cache_block_size;
 DROP TABLE t1;
 
 # End of 4.1 tests
+
+--echo #
+--echo # Bug#12361113: crash when load index into cache
+--echo #
+
+--echo # Note that this creates an empty disabled key cache!
+SET GLOBAL key_cache_none.key_cache_block_size = 1024;
+CREATE TABLE t1 (a INT, b INTEGER NOT NULL, KEY (b) ) ENGINE = MYISAM;
+INSERT INTO t1 VALUES (1, 1);
+--error ER_UNKNOWN_KEY_CACHE
+CACHE INDEX t1 in key_cache_none;
+--echo # The bug crashed the server at LOAD INDEX below. Now it will succeed 
+--echo # since the default cache is used due to CACHE INDEX failed for
+--echo # key_cache_none.
+LOAD INDEX INTO CACHE t1;
+DROP TABLE t1;
