@@ -1231,7 +1231,21 @@ public:
            0;
   }
 
-  /// Enumeration listing of all types of unsafe statements.
+  /**
+    All types of unsafe statements.
+
+    @note The int values of the enum elements are used to point to
+    bits in two bitmaps in two different places:
+
+    - Query_tables_list::binlog_stmt_flags
+    - THD::binlog_unsafe_warning_flags
+    
+    Hence in practice this is not an enum at all, but a map from
+    symbols to bit indexes.
+
+    The ordering of elements in this enum must correspond to the order of
+    elements in the array binlog_stmt_unsafe_errcode.
+  */
   enum enum_binlog_stmt_unsafe {
     /**
       SELECT..LIMIT is unsafe because the set of rows returned cannot

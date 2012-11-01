@@ -6854,8 +6854,8 @@ THD::add_to_binlog_accessed_dbs(const char *db_param)
     "normal" safe statements; unsafe statements; and row injections.
     An unsafe statement is one that, if logged in statement format,
     might produce different results when replayed on the slave (e.g.,
-    INSERT DELAYED).  A row injection is either a BINLOG statement, or
-    a row event executed by the slave's SQL thread.
+    queries with a LIMIT clause).  A row injection is either a BINLOG
+    statement, or a row event executed by the slave's SQL thread.
 
   - The capabilities of tables modified by the statement.  The
     *capabilities vector* for a table is a set of flags associated

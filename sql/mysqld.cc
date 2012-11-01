@@ -3008,8 +3008,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     This should actually be '+ max_number_of_slaves' instead of +10,
     but the +10 should be quite safe.
   */
-  init_thr_alarm(thread_scheduler->max_threads +
-     global_system_variables.max_insert_delayed_threads + 10);
+  init_thr_alarm(thread_scheduler->max_threads + 10);
   if (thd_lib_detected != THD_LIB_LT && (test_flags & TEST_SIGINT))
   {
     (void) sigemptyset(&set);     // Setup up SIGINT for debug
@@ -9037,7 +9036,7 @@ void refresh_status(THD *thd)
     not exact anyway.
   */
   mysql_mutex_lock(&LOCK_thread_count);
-  max_used_connections= get_thread_count() - delayed_insert_threads;
+  max_used_connections= get_thread_count();
   mysql_mutex_unlock(&LOCK_thread_count);
 }
 
@@ -9404,7 +9403,6 @@ PSI_stage_info stage_upgrading_lock= { 0, "upgrading lock", 0};
 PSI_stage_info stage_user_lock= { 0, "User lock", 0};
 PSI_stage_info stage_user_sleep= { 0, "User sleep", 0};
 PSI_stage_info stage_verifying_table= { 0, "verifying table", 0};
-PSI_stage_info stage_waiting_for_delay_list= { 0, "waiting for delay_list", 0};
 PSI_stage_info stage_waiting_for_gtid_to_be_written_to_binary_log= { 0, "waiting for GTID to be written to binary log", 0};
 PSI_stage_info stage_waiting_for_handler_insert= { 0, "waiting for handler insert", 0};
 PSI_stage_info stage_waiting_for_handler_lock= { 0, "waiting for handler lock", 0};
@@ -9511,7 +9509,6 @@ PSI_stage_info *all_server_stages[]=
   & stage_user_lock,
   & stage_user_sleep,
   & stage_verifying_table,
-  & stage_waiting_for_delay_list,
   & stage_waiting_for_handler_insert,
   & stage_waiting_for_handler_lock,
   & stage_waiting_for_handler_open,

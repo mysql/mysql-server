@@ -44,8 +44,6 @@ MYSQL lock, sel, del_ins;
 
 struct query queries[] =
 {
-  {&del_ins, "insert delayed into foo values(1)", 1, 0, 0},
-  {&del_ins, "insert delayed into foo values(1)", 1, 0, 0},
   {&lock, "lock tables foo write", 1, 1, 0},
   {&lock, "unlock tables", 1,2, 0},
   {&sel, "select * from foo", 0,0, 0},

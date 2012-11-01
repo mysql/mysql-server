@@ -371,10 +371,6 @@ if ($CRC_RET_stmt_sidef) {
   }
   --let $event_type= query_get_value(SHOW BINLOG EVENTS, Event_type, 3)
   # The first event is format_description, the second is
-  # Query_event('BEGIN'), and the third should be our Query
-  # for 'INSERT DELAYED' unsafe_type 3, which is safe after
-  # the fix of bug#54579.
-  # The first event is format_description, the second is
   # Query_event('BEGIN'), and the third should be our Table_map
   # for unsafe statement.
   if (`SELECT '$event_type' != 'Table_map'`) {
