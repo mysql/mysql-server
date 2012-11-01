@@ -3028,7 +3028,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
                                           &well_formed_error);
     result->length(old_length + add_length);
     item->warning_for_row= TRUE;
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
                         item->row_count);
 
@@ -3500,7 +3500,7 @@ String* Item_func_group_concat::val_str(String* str)
       table->blob_storage->is_truncated_value())
   {
     warning_for_row= true;
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_CUT_VALUE_GROUP_CONCAT, ER(ER_CUT_VALUE_GROUP_CONCAT),
                         row_count);
   }

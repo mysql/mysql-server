@@ -1213,7 +1213,7 @@ row_merge_read_clustered_index(
 	clust_index = dict_table_get_first_index(old_table);
 
 	btr_pcur_open_at_index_side(
-		TRUE, clust_index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		true, clust_index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	if (old_table != new_table) {
 		/* The table is being rebuilt.  Identify the columns
@@ -1374,7 +1374,46 @@ end_of_index:
 		offsets = rec_get_offsets(rec, clust_index, NULL,
 					  ULINT_UNDEFINED, &row_heap);
 
-		if (rec_get_deleted_flag(rec, dict_table_is_comp(old_table))) {
+		if (online && new_table != old_table) {
+			/* When rebuilding the table online, perform a
+			REPEATABLE READ, so that row_log_table_apply()
+			will not see a newer state of the table when
+			applying the log.  This is mainly to prevent
+			false duplicate key errors, because the log
+			will identify records by the PRIMARY KEY. */
+			ut_ad(trx->read_view);
+
+			if (!read_view_sees_trx_id(
+				    trx->read_view,
+				    row_get_rec_trx_id(
+					    rec, clust_index, offsets))) {
+				rec_t*	old_vers;
+
+				row_vers_build_for_consistent_read(
+					rec, &mtr, clust_index, &offsets,
+					trx->read_view, &row_heap,
+					row_heap, &old_vers);
+
+				rec = old_vers;
+
+				if (!rec) {
+					continue;
+				}
+			}
+
+			if (rec_get_deleted_flag(
+				    rec,
+				    dict_table_is_comp(old_table))) {
+				/* This record was deleted in the latest
+				committed version, or it was deleted and
+				then reinserted-by-update before purge
+				kicked in. Skip it. */
+				continue;
+			}
+
+			ut_ad(!rec_offs_any_null_extern(rec, offsets));
+		} else if (rec_get_deleted_flag(
+				   rec, dict_table_is_comp(old_table))) {
 			/* Skip delete-marked records.
 
 			Skipping delete-marked records will make the
@@ -1384,19 +1423,10 @@ end_of_index:
 			would make it tricky to detect duplicate
 			keys. */
 			continue;
-		}
-
-		if (online && new_table != old_table
-		    && row_log_table_is_rollback(
-			    clust_index,
-			    row_get_rec_trx_id(rec, clust_index, offsets))) {
-			continue;
-		}
-
-		/* This is essentially a READ UNCOMMITTED to fetch the
-		most recent version of the record. */
-
-		if (UNIV_LIKELY_NULL(rec_offs_any_null_extern(rec, offsets))) {
+		} else if (UNIV_LIKELY_NULL(rec_offs_any_null_extern(
+						    rec, offsets))) {
+			/* This is essentially a READ UNCOMMITTED to
+			fetch the most recent version of the record. */
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 			trx_id_t	trx_id;
 			ulint		trx_id_offset;
@@ -1459,6 +1489,9 @@ end_of_index:
 			const dfield_t*	dfield;
 
 			dfield = dtuple_get_nth_field(row, add_autoinc);
+			if (dfield_is_null(dfield)) {
+				goto write_buffers;
+			}
 
 			const dtype_t*  dtype = dfield_get_type(dfield);
 			byte*	b = static_cast<byte*>(dfield_get_data(dfield));
@@ -1645,7 +1678,8 @@ wait_again:
 				       1000000, sig_count);
 
 		for (ulint i = 0; i < fts_sort_pll_degree; i++) {
-			if (psort_info[i].child_status != FTS_CHILD_COMPLETE) {
+			if (psort_info[i].child_status != FTS_CHILD_COMPLETE
+			    && psort_info[i].child_status != FTS_CHILD_EXITING) {
 				sig_count = os_event_reset(
 					fts_parallel_sort_event);
 				goto wait_again;
@@ -2270,7 +2304,8 @@ row_merge_insert_index_tuples(
 			mtr_start(&mtr);
 			/* Insert after the last user record. */
 			btr_cur_open_at_index_side(
-				FALSE, index, BTR_MODIFY_LEAF, &cursor, &mtr);
+				false, index, BTR_MODIFY_LEAF,
+				&cursor, 0, &mtr);
 			page_cur_position(
 				page_rec_get_prev(btr_cur_get_rec(&cursor)),
 				btr_cur_get_block(&cursor),
@@ -2301,8 +2336,8 @@ row_merge_insert_index_tuples(
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
 				btr_cur_open_at_index_side(
-					FALSE, index, BTR_MODIFY_TREE,
-					&cursor, &mtr);
+					false, index, BTR_MODIFY_TREE,
+					&cursor, 0, &mtr);
 				page_cur_position(
 					page_rec_get_prev(btr_cur_get_rec(
 								  &cursor)),
@@ -2619,7 +2654,40 @@ row_merge_drop_indexes(
 			case ONLINE_INDEX_ABORTED_DROPPED:
 				continue;
 			case ONLINE_INDEX_COMPLETE:
-				if (*index->name == TEMP_INDEX_PREFIX) {
+				if (*index->name != TEMP_INDEX_PREFIX) {
+					/* Do nothing to already
+					published indexes. */
+				} else if (index->type & DICT_FTS) {
+					/* Drop a completed FULLTEXT
+					index, due to a timeout during
+					MDL upgrade for
+					commit_inplace_alter_table().
+					Because only concurrent reads
+					are allowed (and they are not
+					seeing this index yet) we
+					are safe to drop the index. */
+					dict_index_t* prev = UT_LIST_GET_PREV(
+						indexes, index);
+					/* At least there should be
+					the clustered index before
+					this one. */
+					ut_ad(prev);
+					ut_a(table->fts);
+					fts_drop_index(table, index, trx);
+					/* Since
+					INNOBASE_SHARE::idx_trans_tbl
+					is shared between all open
+					ha_innobase handles to this
+					table, no thread should be
+					accessing this dict_index_t
+					object. Also, we should be
+					holding LOCK=SHARED MDL on the
+					table even after the MDL
+					upgrade timeout. */
+					dict_index_remove_from_cache(
+						table, index);
+					index = prev;
+				} else {
 					rw_lock_x_lock(
 						dict_index_get_lock(index));
 					dict_index_set_online_status(
@@ -3427,11 +3495,40 @@ row_merge_build_indexes(
 
 		if (indexes[i]->type & DICT_FTS) {
 			os_event_t	fts_parallel_merge_event;
+			bool		all_exit = false;
+			ulint		trial_count = 0;
+
+			/* Now all children should complete, wait
+			a bit until they all finish using event */
+			while (!all_exit && trial_count < 10000) {
+				all_exit = true;
+
+				for (j = 0; j < fts_sort_pll_degree;
+				     j++) {
+					if (psort_info[j].child_status
+					    != FTS_CHILD_EXITING) {
+						all_exit = false;
+						os_thread_sleep(1000);
+						break;
+					}
+				}
+				trial_count++;
+			}
+
+			if (!all_exit) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Not all child sort threads exited"
+					" when creating FTS index '%s'",
+					indexes[i]->name);
+					
+			}
 
 			fts_parallel_merge_event
-				= merge_info[0].psort_common->sort_event;
+				= merge_info[0].psort_common->merge_event;
 
 			if (FTS_PLL_MERGE) {
+				trial_count = 0;
+				all_exit = false;
 				os_event_reset(fts_parallel_merge_event);
 				row_fts_start_parallel_merge(merge_info);
 wait_again:
@@ -3441,12 +3538,40 @@ wait_again:
 
 				for (j = 0; j < FTS_NUM_AUX_INDEX; j++) {
 					if (merge_info[j].child_status
-					    != FTS_CHILD_COMPLETE) {
+					    != FTS_CHILD_COMPLETE
+					    && merge_info[j].child_status
+					    != FTS_CHILD_EXITING) {
 						sig_count = os_event_reset(
 						fts_parallel_merge_event);
 
 						goto wait_again;
 					}
+				}
+
+				/* Now all children should complete, wait
+				a bit until they all finish using event */
+				while (!all_exit && trial_count < 10000) {
+					all_exit = true;
+
+					for (j = 0; j < FTS_NUM_AUX_INDEX;
+					     j++) {
+						if (merge_info[j].child_status
+						    != FTS_CHILD_EXITING) {
+							all_exit = false;
+							os_thread_sleep(1000);
+							break;
+						}
+					}
+					trial_count++;
+				}
+
+				if (!all_exit) {
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Not all child merge threads"
+						" exited when creating FTS"
+						" index '%s'",
+						indexes[i]->name);
+						
 				}
 			} else {
 				/* This cannot report duplicates; an

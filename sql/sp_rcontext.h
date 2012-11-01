@@ -98,52 +98,6 @@ private:
   };
 
 public:
-  /// This class stores basic information about SQL-condition, such as:
-  ///   - SQL error code;
-  ///   - error level;
-  ///   - SQLSTATE;
-  ///   - text message.
-  ///
-  /// It's used to organize runtime SQL-handler call stack.
-  ///
-  /// Standard Sql_condition class can not be used, because we don't always have
-  /// an Sql_condition object for an SQL-condition in Diagnostics_area.
-  ///
-  /// Eventually, this class should be moved to sql_error.h, and be a part of
-  /// standard SQL-condition processing (Diagnostics_area should contain an
-  /// object for active SQL-condition, not just information stored in DA's
-  /// fields).
-  class Sql_condition_info
-  {
-  public:
-    /// SQL error code.
-    uint sql_errno;
-
-    /// Error level.
-    Sql_condition::enum_warning_level level;
-
-    /// SQLSTATE.
-    char sql_state[SQLSTATE_LENGTH + 1];
-
-    /// Text message.
-    char message[MYSQL_ERRMSG_SIZE];
-
-    /// The constructor.
-    ///
-    /// @param _sql_condition  The SQL condition.
-    /// @param arena           Query arena for SP
-    Sql_condition_info(const Sql_condition *_sql_condition)
-      :sql_errno(_sql_condition->get_sql_errno()),
-       level(_sql_condition->get_level())
-    {
-      memcpy(sql_state, _sql_condition->get_sqlstate(), SQLSTATE_LENGTH);
-      sql_state[SQLSTATE_LENGTH]= '\0';
-
-      strncpy(message, _sql_condition->get_message_text(), MYSQL_ERRMSG_SIZE);
-    }
-  };
-
-private:
   /// This class represents a call frame of SQL-handler (one invocation of a
   /// handler). Basically, it's needed to store continue instruction pointer for
   /// CONTINUE SQL-handlers.
@@ -154,22 +108,29 @@ private:
     const sp_handler *handler;
 
     /// SQL-condition, triggered handler activation.
-    const Sql_condition_info sql_condition;
+    Sql_condition *sql_condition;
 
     /// Continue-instruction-pointer for CONTINUE-handlers.
     /// The attribute contains 0 for EXIT-handlers.
     uint continue_ip;
 
+    /// The Diagnostics Area which will be pushed when the handler activates
+    /// and popped when the handler completes.
+    Diagnostics_area handler_da;
+
     /// The constructor.
     ///
     /// @param _sql_condition SQL-condition, triggered handler activation.
     /// @param _continue_ip   Continue instruction pointer.
+    /// @param _statement_id  Statement ID of the current Diagnostics Area.
     Handler_call_frame(const sp_handler *_handler,
-                       const Sql_condition *_sql_condition,
-                       uint _continue_ip)
+                       Sql_condition *_sql_condition,
+                       uint _continue_ip,
+                       ulonglong statement_id)
      :handler(_handler),
       sql_condition(_sql_condition),
-      continue_ip(_continue_ip)
+      continue_ip(_continue_ip),
+      handler_da(statement_id, false)
     { }
  };
 
@@ -226,10 +187,11 @@ public:
   /// @param current_scope  The current BEGIN..END block.
   void pop_handlers(sp_pcontext *current_scope);
 
-  const Sql_condition_info *raised_condition() const
+  /// Get the Handler_call_frame representing the currently active handler.
+  Handler_call_frame *current_handler_frame() const
   {
     return m_activated_handlers.elements() ?
-      &(*m_activated_handlers.back())->sql_condition : NULL;
+      (*m_activated_handlers.back()) : NULL;
   }
 
   /// Handle current SQL condition (if any).
@@ -258,9 +220,11 @@ public:
 
   /// Handle return from SQL-handler.
   ///
+  /// @param thd            Thread handle.
   /// @param target_scope   The BEGIN..END block, containing
   ///                       the target (next) instruction.
-  void exit_handler(sp_pcontext *target_scope);
+  void exit_handler(THD *thd,
+                    sp_pcontext *target_scope);
 
   /// @return the continue instruction pointer if the last activated CONTINUE
   /// handler. This function must not be called for the EXIT handlers.
@@ -372,6 +336,10 @@ private:
   Item_cache *create_case_expr_holder(THD *thd, const Item *item) const;
 
   bool set_variable(THD *thd, Field *field, Item **value);
+
+  /// Pop the Handler_call_frame on top of the stack of active handlers.
+  /// Also pop the matching Diagnostics Area and transfer conditions.
+  void pop_handler_frame(THD *thd);
 
 private:
   /// Top-level (root) parsing context for this runtime context.

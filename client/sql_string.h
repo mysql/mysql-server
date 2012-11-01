@@ -94,6 +94,9 @@ public:
   inline const char *ptr() const { return Ptr; }
   inline char *c_ptr()
   {
+    DBUG_ASSERT(!alloced || !Ptr || !Alloced_length || 
+                (Alloced_length >= (str_length + 1)));
+
     if (!Ptr || Ptr[str_length])		/* Should be safe */
       (void) realloc(str_length);
     return Ptr;

@@ -170,6 +170,10 @@ extern "C" {          // Because of SCO 3.2V4.2
 #include <crtdbg.h>
 #endif
 
+#ifdef _WIN32
+#include "named_pipe.h"
+#endif
+
 #ifdef HAVE_SOLARIS_LARGE_PAGES
 #include <sys/mman.h>
 #if defined(__sun__) && defined(__GNUC__) && defined(__cplusplus) \
@@ -477,7 +481,7 @@ ulong binlog_checksum_options;
 my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
-my_bool disable_gtid_unsafe_statements;
+my_bool enforce_gtid_consistency;
 ulong gtid_mode;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
@@ -2386,45 +2390,12 @@ static void network_init(void)
   if (Service.IsNT() && mysqld_unix_port[0] && !opt_bootstrap &&
       opt_enable_named_pipe)
   {
-    strxnmov(pipe_name, sizeof(pipe_name)-1, "\\\\.\\pipe\\",
-       mysqld_unix_port, NullS);
-    memset(&saPipeSecurity, 0, sizeof(saPipeSecurity));
-    memset(&sdPipeDescriptor, 0, sizeof(sdPipeDescriptor));
-    if (!InitializeSecurityDescriptor(&sdPipeDescriptor,
-              SECURITY_DESCRIPTOR_REVISION))
-    {
-      sql_perror("Can't start server : Initialize security descriptor");
+    hPipe= create_server_named_pipe(&saPipeSecurity, &sdPipeDescriptor,
+                                    global_system_variables.net_buffer_length,
+                                    mysqld_unix_port, pipe_name, 
+                                    sizeof(pipe_name));
+    if (hPipe == INVALID_HANDLE_VALUE)
       unireg_abort(1);
-    }
-    if (!SetSecurityDescriptorDacl(&sdPipeDescriptor, TRUE, NULL, FALSE))
-    {
-      sql_perror("Can't start server : Set security descriptor");
-      unireg_abort(1);
-    }
-    saPipeSecurity.nLength = sizeof(SECURITY_ATTRIBUTES);
-    saPipeSecurity.lpSecurityDescriptor = &sdPipeDescriptor;
-    saPipeSecurity.bInheritHandle = FALSE;
-    if ((hPipe= CreateNamedPipe(pipe_name,
-        PIPE_ACCESS_DUPLEX|FILE_FLAG_OVERLAPPED,
-        PIPE_TYPE_BYTE |
-        PIPE_READMODE_BYTE |
-        PIPE_WAIT,
-        PIPE_UNLIMITED_INSTANCES,
-        (int) global_system_variables.net_buffer_length,
-        (int) global_system_variables.net_buffer_length,
-        NMPWAIT_USE_DEFAULT_WAIT,
-        &saPipeSecurity)) == INVALID_HANDLE_VALUE)
-      {
-  LPVOID lpMsgBuf;
-  int error=GetLastError();
-  FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER |
-          FORMAT_MESSAGE_FROM_SYSTEM,
-          NULL, error, MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-          (LPTSTR) &lpMsgBuf, 0, NULL );
-  sql_perror((char *)lpMsgBuf);
-  LocalFree(lpMsgBuf);
-  unireg_abort(1);
-      }
   }
 #endif
 
@@ -3219,7 +3190,7 @@ void my_message_sql(uint error, const char *str, myf MyFlags)
       thd->is_fatal_error= 1;
     (void) thd->raise_condition(error,
                                 NULL,
-                                Sql_condition::WARN_LEVEL_ERROR,
+                                Sql_condition::SL_ERROR,
                                 str);
   }
 
@@ -3283,18 +3254,16 @@ static const int load_default_groups_sz=
 sizeof(load_default_groups)/sizeof(load_default_groups[0]);
 #endif
 
-
 #ifndef EMBEDDED_LIBRARY
-namespace {
-extern "C"
-int
+extern "C" int
 check_enough_stack_size()
 {
   uchar stack_top;
 
-  return check_stack_overrun(current_thd, STACK_MIN_SIZE,
+  if (current_thd != 0)
+    return check_stack_overrun(current_thd, STACK_MIN_SIZE,
                              &stack_top);
-}
+  return 0;
 }
 #endif
 
@@ -3936,6 +3905,7 @@ int init_common_variables()
   item_init();
 #ifndef EMBEDDED_LIBRARY
   my_regex_init(&my_charset_latin1, check_enough_stack_size);
+  my_string_stack_guard= check_enough_stack_size;
 #else
   my_regex_init(&my_charset_latin1, NULL);
 #endif
@@ -4913,9 +4883,9 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates");
     unireg_abort(1);
   }
-  if (gtid_mode >= 2 && !disable_gtid_unsafe_statements)
+  if (gtid_mode >= 2 && !enforce_gtid_consistency)
   {
-    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --disable-gtid-unsafe-statements");
+    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --enforce-gtid-consistency");
     unireg_abort(1);
   }
   if (gtid_mode == 1 || gtid_mode == 2)
@@ -8629,9 +8599,16 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
                       "Please use --explicit_defaults_for_timestamp server "
                       "option (see documentation for more details).");
 
-
   if (log_error_file_ptr != disabled_my_option)
-    opt_error_log= 1;
+#ifdef __WIN__
+    /*
+      Enable the error log only if console option is not specified 
+      and MySQL is not running as a service.
+    */
+    opt_error_log= (opt_console && !start_mode ) ? false : true;
+#else
+    opt_error_log= true;
+#endif
   else
     log_error_file_ptr= const_cast<char*>("");
 
@@ -9369,6 +9346,9 @@ static PSI_file_info all_server_files[]=
 
 PSI_stage_info stage_after_create= { 0, "After create", 0};
 PSI_stage_info stage_allocating_local_table= { 0, "allocating local table", 0};
+PSI_stage_info stage_alter_inplace_prepare= { 0, "preparing for alter table", 0};
+PSI_stage_info stage_alter_inplace= { 0, "altering table", 0};
+PSI_stage_info stage_alter_inplace_commit= { 0, "committing alter table to storage engine", 0};
 PSI_stage_info stage_changing_master= { 0, "Changing master", 0};
 PSI_stage_info stage_checking_master_version= { 0, "Checking master version", 0};
 PSI_stage_info stage_checking_permissions= { 0, "checking permissions", 0};
@@ -9474,6 +9454,9 @@ PSI_stage_info *all_server_stages[]=
 {
   & stage_after_create,
   & stage_allocating_local_table,
+  & stage_alter_inplace_prepare,
+  & stage_alter_inplace,
+  & stage_alter_inplace_commit,
   & stage_changing_master,
   & stage_checking_master_version,
   & stage_checking_permissions,

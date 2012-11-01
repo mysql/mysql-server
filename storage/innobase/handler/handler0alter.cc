@@ -34,6 +34,7 @@ Smart ALTER TABLE
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "log0log.h"
+#include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
 #include "srv0srv.h"
@@ -268,6 +269,14 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
+	if (altered_table->s->fields > REC_MAX_N_USER_FIELDS) {
+		/* Deny the inplace ALTER TABLE. MySQL will try to
+		re-create the table and ha_innobase::create() will
+		return an error too. This is how we effectively
+		deny adding too many columns to a table. */
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
 	update_thd();
 	trx_search_latch_release_if_reserved(prebuilt->trx);
 
@@ -335,7 +344,7 @@ ha_innobase::check_if_supported_inplace_alter(
 		     + ha_alter_info->key_count;
 	     new_key++) {
 		for (KEY_PART_INFO* key_part = new_key->key_part;
-		     key_part < new_key->key_part + new_key->key_parts;
+		     key_part < new_key->key_part + new_key->user_defined_key_parts;
 		     key_part++) {
 			const Create_field*	new_field;
 
@@ -674,7 +683,7 @@ innobase_find_equiv_index(
 	for (uint i = 0; i < n_add; i++) {
 		const KEY*	key = &keys[add[i]];
 
-		if (key->key_parts < n_cols) {
+		if (key->user_defined_key_parts < n_cols) {
 no_match:
 			continue;
 		}
@@ -1075,13 +1084,17 @@ innobase_col_to_mysql(
 		/* These column types should never be shipped to MySQL. */
 		ut_ad(0);
 
-	case DATA_CHAR:
 	case DATA_FIXBINARY:
 	case DATA_FLOAT:
 	case DATA_DOUBLE:
 	case DATA_DECIMAL:
 		/* Above are the valid column types for MySQL data. */
 		ut_ad(flen == len);
+		/* fall through */
+	case DATA_CHAR:
+		/* We may have flen > len when there is a shorter
+		prefix on a CHAR column. */
+		ut_ad(flen >= len);
 #else /* UNIV_DEBUG */
 	default:
 #endif /* UNIV_DEBUG */
@@ -1299,7 +1312,7 @@ innobase_check_index_keys(
 		}
 
 name_ok:
-		for (ulint i = 0; i < key.key_parts; i++) {
+		for (ulint i = 0; i < key.user_defined_key_parts; i++) {
 			const KEY_PART_INFO&	key_part1
 				= key.key_part[i];
 			const Field*		field
@@ -1427,7 +1440,7 @@ innobase_create_index_def(
 	const KEY*	key = &keys[key_number];
 	ulint		i;
 	ulint		len;
-	ulint		n_fields = key->key_parts;
+	ulint		n_fields = key->user_defined_key_parts;
 	char*		index_name;
 
 	DBUG_ENTER("innobase_create_index_def");
@@ -1585,7 +1598,7 @@ innobase_fts_check_doc_id_index(
 			}
 
 			if ((key.flags & HA_NOSAME)
-			    && key.key_parts == 1
+			    && key.user_defined_key_parts == 1
 			    && !strcmp(key.name, FTS_DOC_ID_INDEX_NAME)
 			    && !strcmp(key.key_part[0].field->field_name,
 				       FTS_DOC_ID_COL_NAME)) {
@@ -1664,7 +1677,7 @@ innobase_fts_check_doc_id_index_in_def(
 		/* Do a check on FTS DOC ID_INDEX, it must be unique,
 		named as "FTS_DOC_ID_INDEX" and on column "FTS_DOC_ID" */
 		if (!(key->flags & HA_NOSAME)
-		    || key->key_parts != 1
+		    || key->user_defined_key_parts != 1
 		    || strcmp(key->name, FTS_DOC_ID_INDEX_NAME)
 		    || strcmp(key->key_part[0].field->field_name,
 			      FTS_DOC_ID_COL_NAME)) {
@@ -1745,7 +1758,7 @@ innobase_create_key_defs(
 	if (n_add > 0 && !new_primary && got_default_clust
 	    && (key_info[*add].flags & HA_NOSAME)
 	    && !(key_info[*add].flags & HA_KEY_HAS_PART_KEY_SEG)) {
-		uint	key_part = key_info[*add].key_parts;
+		uint	key_part = key_info[*add].user_defined_key_parts;
 
 		new_primary = true;
 
@@ -1917,7 +1930,7 @@ innobase_check_column_length(
 	ulint		max_col_len,	/*!< in: maximum column length */
 	const KEY*	key_info)	/*!< in: Indexes to be created */
 {
-	for (ulint key_part = 0; key_part < key_info->key_parts; key_part++) {
+	for (ulint key_part = 0; key_part < key_info->user_defined_key_parts; key_part++) {
 		if (key_info->key_part[key_part].length > max_col_len) {
 			return(true);
 		}
@@ -2884,6 +2897,10 @@ prepare_inplace_alter_table_dict(
 			error = DB_OUT_OF_MEMORY;
 			goto error_handling;
 		}
+
+		/* Assign a consistent read view for
+		row_merge_read_clustered_index(). */
+		trx_assign_read_view(user_trx);
 	}
 
 	if (fts_index) {
@@ -3456,7 +3473,7 @@ found_fk:
 			if (!index) {
 				push_warning_printf(
 					user_thd,
-					Sql_condition::WARN_LEVEL_WARN,
+					Sql_condition::SL_WARNING,
 					HA_ERR_WRONG_INDEX,
 					"InnoDB could not find key "
 					"with name %s", key->name);
@@ -3475,7 +3492,9 @@ found_fk:
 		the table. */
 
 		if (innobase_fulltext_exist(table->s)
-		    && !innobase_fulltext_exist(altered_table->s)) {
+		    && !innobase_fulltext_exist(altered_table->s)
+		    && !DICT_TF2_FLAG_IS_SET(
+			indexed_table, DICT_TF2_FTS_HAS_DOC_ID)) {
 			dict_index_t*	fts_doc_index
 				= dict_table_get_index_on_name(
 					indexed_table, FTS_DOC_ID_INDEX_NAME);
@@ -3627,7 +3646,7 @@ func_exit:
 
 			push_warning_printf(
 				user_thd,
-				Sql_condition::WARN_LEVEL_WARN,
+				Sql_condition::SL_WARNING,
 				HA_ERR_WRONG_INDEX,
 				"InnoDB rebuilding table to add column "
 				FTS_DOC_ID_COL_NAME);
@@ -5038,13 +5057,13 @@ trx_rollback:
 
 			if (ret != DB_SUCCESS) {
 				push_warning(user_thd,
-					     Sql_condition::WARN_LEVEL_WARN,
+					     Sql_condition::SL_WARNING,
 					     ER_LOCK_WAIT_TIMEOUT,
 					     errstr);
 			}
 		}
 
-		if (ctx) {
+		if (ctx && !dict_table_is_discarded(prebuilt->table)) {
 			bool	stats_init_called = false;
 
 			for (uint i = 0; i < ctx->num_to_add; i++) {
@@ -5129,10 +5148,6 @@ func_exit:
 		ut_a(check(user_thd, 0) == HA_ADMIN_OK);
 		table = old_table;
 #endif /* UNIV_DDL_DEBUG */
-	}
-
-	if (prebuilt->table->fts) {
-		fts_optimize_add_table(prebuilt->table);
 	}
 
 	DBUG_RETURN(err != 0);
