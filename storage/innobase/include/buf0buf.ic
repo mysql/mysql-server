@@ -1299,9 +1299,9 @@ buf_page_release_zip(
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_ZIP_PAGE:
 	case BUF_BLOCK_ZIP_DIRTY:
-		buf_pool->zip_mutex.enter();
+		mutex_enter(&buf_pool->zip_mutex);
 		bpage->buf_fix_count--;
-		buf_pool->zip_mutex.exit();
+		mutex_exit(&buf_pool->zip_mutex);
 		return;
 	case BUF_BLOCK_FILE_PAGE:
 		block = (buf_block_t*) bpage;
