@@ -274,6 +274,7 @@ enum THD_NDB_TRANS_OPTIONS
   TNTO_INJECTED_APPLY_STATUS= 1 << 0
   ,TNTO_NO_LOGGING=           1 << 1
   ,TNTO_TRANSACTIONS_OFF=     1 << 2
+  ,TNTO_APPLYING_BINLOG=      1 << 3
 };
 
 struct Ndb_local_table_statistics {
@@ -721,8 +722,6 @@ private:
                                   ulonglong *nb_reserved_values);
   bool uses_blob_value(const MY_BITMAP *bitmap) const;
 
-  static inline bool isManualBinlogExec(THD *thd);
-
   char *update_table_comment(const char * comment);
 
   int write_ndb_file(const char *name);
@@ -882,6 +881,21 @@ private:
   int update_stats(THD *thd, bool do_read_stat, bool have_lock= FALSE,
                    uint part_id= ~(uint)0);
   int add_handler_to_open_tables(THD*, Thd_ndb*, ha_ndbcluster* handler);
+
+  /*
+    Check if we are applying a binlog, either as a slave or
+    by applying BINLOG statements (from mysqlbinlog command line tool)
+  */
+  bool applying_binlog(THD* thd)
+  { 
+    return 
+#ifdef HAVE_NDB_BINLOG
+      thd->slave_thread ||
+#endif
+      m_thd_ndb->trans_options & TNTO_APPLYING_BINLOG;
+  };
+
+
 };
 
 int ndbcluster_discover(THD* thd, const char* dbname, const char* name,
