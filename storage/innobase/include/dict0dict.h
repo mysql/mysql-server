@@ -1390,19 +1390,6 @@ dict_index_is_online_ddl(
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
-Attempts to log an operation on a secondary index that is being created.
-@retval true if the operation was logged or the index creation failed
-@retval false if the index creation was completed */
-UNIV_INLINE
-bool
-dict_index_online_trylog(
-/*=====================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	const dtuple_t*	entry,	/*!< in: index entry */
-	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
-				or 0 for delete */
-	__attribute__((nonnull, warn_unused_result));
-/*********************************************************************//**
 Calculates the minimum record length in an index. */
 UNIV_INTERN
 ulint

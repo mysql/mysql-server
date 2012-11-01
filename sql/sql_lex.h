@@ -114,6 +114,7 @@ struct sys_var_with_base
 #include "lex_symbol.h"
 #if MYSQL_LEX
 #include "item_func.h"            /* Cast_target used in sql_yacc.h */
+#include "sql_signal.h"
 #include "sql_get_diagnostics.h"  /* Types used in sql_yacc.h */
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
@@ -505,7 +506,6 @@ public:
   virtual st_select_lex_unit* master_unit()= 0;
   virtual st_select_lex* outer_select()= 0;
 
-  virtual bool set_braces(bool value);
   virtual bool inc_in_sum_expr();
   virtual uint get_in_sum_expr();
   virtual TABLE_LIST* get_table_list();
@@ -1915,6 +1915,10 @@ public:
 
   /**
     Inject a character into the pre-processed stream.
+
+    Note, this function is used to inject a space instead of multi-character
+    C-comment. Thus there is no boundary checks here (basically, we replace
+    N-chars by 1-char here).
   */
   char *cpp_inject(char ch)
   {
@@ -2606,36 +2610,6 @@ public:
 
 
 /**
-  Set_signal_information is a container used in the parsed tree to represent
-  the collection of assignments to condition items in the SIGNAL and RESIGNAL
-  statements.
-*/
-class Set_signal_information
-{
-public:
-  /** Empty default constructor, use clear() */
- Set_signal_information() {} 
-
-  /** Copy constructor. */
-  Set_signal_information(const Set_signal_information& set);
-
-  /** Destructor. */
-  ~Set_signal_information()
-  {}
-
-  /** Clear all items. */
-  void clear();
-
-  /**
-    For each condition item assignment, m_item[] contains the parsed tree
-    that represents the expression assigned, if any.
-    m_item[] is an array indexed by Diag_condition_item_name.
-  */
-  Item *m_item[LAST_DIAG_SET_PROPERTY+1];
-};
-
-
-/**
   The internal state of the syntax parser.
   This object is only available during parsing,
   and is private to the syntax parser implementation (sql_yacc.yy).
@@ -2652,7 +2626,6 @@ public:
   {
     yacc_yyss= NULL;
     yacc_yyvs= NULL;
-    m_set_signal_info.clear();
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
     m_ha_rkey_mode= HA_READ_KEY_EXACT;
@@ -2682,12 +2655,6 @@ public:
     my_yyoverflow().
   */
   uchar *yacc_yyvs;
-
-  /**
-    Fragments of parsed tree,
-    used during the parsing of SIGNAL and RESIGNAL.
-  */
-  Set_signal_information m_set_signal_info;
 
   /**
     Type of lock to be used for tables being added to the statement's

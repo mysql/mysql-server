@@ -1614,6 +1614,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_digest("
+  "SCHEMA_NAME VARCHAR(64),"
   "DIGEST VARCHAR(32),"
   "DIGEST_TEXT LONGTEXT,"
   "COUNT_STAR BIGINT unsigned not null,"
