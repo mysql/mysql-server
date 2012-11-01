@@ -99,23 +99,13 @@ private:
   /** Bitmap: bit is set if we should set column #i to its function default */
   MY_BITMAP *m_function_default_columns;
 
-protected:
-
-  /**
-     Policy for handling insertion of duplicate values. Protected for legacy
-     reasons.
-
-     @see Delayable_insert_operation::set_dup_and_ignore()
-  */
+  /// Policy for handling insertion of duplicate values.
   const enum enum_duplicates handle_duplicates;
 
-  /**
-     Policy for whether certain errors should be ignored. Protected for legacy
-     reasons.
-
-     @see Delayable_insert_operation::set_dup_and_ignore()
-  */
+  /// Policy for whether certain errors should be ignored.
   const bool ignore;
+
+protected:
 
   /**
      This function will, unless done already, calculate and keep the set of
