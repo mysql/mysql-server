@@ -2752,6 +2752,8 @@ fts_query_read_node(
 	ut_a(query->cur_node->type == FTS_AST_TERM ||
 	     query->cur_node->type == FTS_AST_TEXT);
 
+	memset(&node, 0, sizeof(node));
+
 	/* Need to consider the wildcard search case, the word frequency
 	is created on the search string not the actual word. So we need
 	to assign the frequency on search string behalf. */

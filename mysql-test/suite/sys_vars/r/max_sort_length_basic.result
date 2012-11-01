@@ -93,16 +93,27 @@ Warning	1292	Truncated incorrect max_sort_length value: '0'
 SELECT @@global.max_sort_length;
 @@global.max_sort_length
 4
+SET @@global.max_sort_length = 1075692835;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '1075692835'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+8388608
 SET @@global.max_sort_length = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'max_sort_length'
 SELECT @@global.max_sort_length;
 @@global.max_sort_length
-4
+8388608
 SET @@global.max_sort_length = test;
 ERROR 42000: Incorrect argument type to variable 'max_sort_length'
 SELECT @@global.max_sort_length;
 @@global.max_sort_length
-4
+8388608
+SET @@global.max_sort_length = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_sort_length'
+SELECT @@global.max_sort_length;
+@@global.max_sort_length
+8388608
 SET @@session.max_sort_length = 8388610;
 Warnings:
 Warning	1292	Truncated incorrect max_sort_length value: '8388610'
@@ -127,6 +138,12 @@ Warning	1292	Truncated incorrect max_sort_length value: '0'
 SELECT @@session.max_sort_length;
 @@session.max_sort_length
 4
+SET @@session.max_sort_length = -1024;
+Warnings:
+Warning	1292	Truncated incorrect max_sort_length value: '-1024'
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+4
 SET @@session.max_sort_length = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'max_sort_length'
 SET @@session.max_sort_length = 10737418241;
@@ -136,6 +153,11 @@ SELECT @@session.max_sort_length;
 @@session.max_sort_length
 8388608
 SET @@session.max_sort_length = test;
+ERROR 42000: Incorrect argument type to variable 'max_sort_length'
+SELECT @@session.max_sort_length;
+@@session.max_sort_length
+8388608
+SET @@session.max_sort_length = ' ';
 ERROR 42000: Incorrect argument type to variable 'max_sort_length'
 SELECT @@session.max_sort_length;
 @@session.max_sort_length

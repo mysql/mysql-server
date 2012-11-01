@@ -30,8 +30,14 @@ public:
     standard lock acquisition order to avoid deadlocks:
     run_lock, data_lock, relay_log.LOCK_log, relay_log.LOCK_index
     run_lock, sleep_lock
+    run_lock, info_thd_lock
+
+    info_thd_lock is to protect operations on info_thd:
+    - before *reading* info_thd we must hold *either* info_thd_lock or
+      run_lock;
+    - before *writing* we must hold *both* run_lock and info_thd_lock.
   */
-  mysql_mutex_t data_lock, run_lock, sleep_lock;
+  mysql_mutex_t data_lock, run_lock, sleep_lock, info_thd_lock;
   /*
     start_cond is broadcast when SQL thread is started
     stop_cond  - when stopped
@@ -41,7 +47,8 @@ public:
   mysql_cond_t data_cond, start_cond, stop_cond, sleep_cond;
 
 #ifdef HAVE_PSI_INTERFACE
-  PSI_mutex_key *key_info_run_lock, *key_info_data_lock, *key_info_sleep_lock;
+  PSI_mutex_key *key_info_run_lock, *key_info_data_lock, *key_info_sleep_lock,
+                *key_info_thd_lock;
 
   PSI_mutex_key *key_info_data_cond, *key_info_start_cond, *key_info_stop_cond,
                 *key_info_sleep_cond;
@@ -140,6 +147,7 @@ protected:
            ,PSI_mutex_key *param_key_info_run_lock,
            PSI_mutex_key *param_key_info_data_lock,
            PSI_mutex_key *param_key_info_sleep_lock,
+           PSI_mutex_key *param_key_info_thd_lock,
            PSI_mutex_key *param_key_info_data_cond,
            PSI_mutex_key *param_key_info_start_cond,
            PSI_mutex_key *param_key_info_stop_cond,

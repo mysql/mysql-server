@@ -490,24 +490,30 @@ void Optimize_table_order::best_access_path(
       trace_access_idx.add_alnum("access_type", "ref").
         add_utf8("index", keyinfo->name);
 
-      do /* For each keypart */
+      // For each keypart
+      while (keyuse->table == table && keyuse->key == key)
       {
         const uint keypart= keyuse->keypart;
         table_map best_part_found_ref= 0;
         double best_prev_record_reads= DBL_MAX;
-        
-        do /* For each way to access the keypart */
+
+        // For each way to access the keypart
+        for ( ; keyuse->table == table && keyuse->key == key &&
+                keyuse->keypart == keypart ; ++keyuse)
         {
           /*
             When calculating a plan for a materialized semijoin nest,
             we must not consider key references between tables inside the
-            semijoin nest and those outside of it. This is handled by adding
-            excluded_tables to remaining_tables below.
-
+            semijoin nest and those outside of it. The same applies to a
+            materialized subquery.
+          */
+          if ((excluded_tables & keyuse->used_tables))
+            continue;
+          /*
             if 1. expression doesn't refer to forward tables
                2. we won't get two ref-or-null's
           */
-          if (!((remaining_tables | excluded_tables) & keyuse->used_tables) &&
+          if (!(remaining_tables & keyuse->used_tables) &&
               !(ref_or_null_part && (keyuse->optimize &
                                      KEY_OPTIMIZE_REF_OR_NULL)))
           {
@@ -532,11 +538,9 @@ void Optimize_table_order::best_access_path(
               ref_or_null_part |= keyuse->keypart_map;
           }
           loose_scan_opt.add_keyuse(remaining_tables, keyuse);
-          keyuse++;
-        } while (keyuse->table == table && keyuse->key == key &&
-                 keyuse->keypart == keypart);
+        }
 	found_ref|= best_part_found_ref;
-      } while (keyuse->table == table && keyuse->key == key);
+      }
 
       /*
         Assume that that each key matches a proportional part of table.
@@ -568,7 +572,7 @@ void Optimize_table_order::best_access_path(
         loose_scan_opt.check_ref_access_part1(s, key, start_key, found_part);
 
         /* Check if we found full key */
-        if (found_part == LOWER_BITS(key_part_map, keyinfo->key_parts) &&
+        if (found_part == LOWER_BITS(key_part_map, actual_key_parts(keyinfo)) &&
             !ref_or_null_part)
         {                                         /* use eq key */
           max_key_part= (uint) ~0;
@@ -608,7 +612,7 @@ void Optimize_table_order::best_access_path(
             }
             else
             {
-              if (!(records=keyinfo->rec_per_key[keyinfo->key_parts-1]))
+              if (!(records= keyinfo->rec_per_key[actual_key_parts(keyinfo)-1]))
               {                                   /* Prefer longer keys */
                 records=
                   ((double) s->records / (double) rec *
@@ -658,7 +662,8 @@ void Optimize_table_order::best_access_path(
           */
           if ((found_part & 1) &&
               (!(table->file->index_flags(key, 0, 0) & HA_ONLY_WHOLE_INDEX) ||
-               found_part == LOWER_BITS(key_part_map, keyinfo->key_parts)))
+               found_part == LOWER_BITS(key_part_map,
+                                        actual_key_parts(keyinfo))))
           {
             max_key_part= max_part_bit(found_part);
             /*
@@ -760,7 +765,7 @@ void Optimize_table_order::best_access_path(
                 */
                 double rec_per_key;
                 if (!(rec_per_key=(double)
-                      keyinfo->rec_per_key[keyinfo->key_parts-1]))
+                      keyinfo->rec_per_key[keyinfo->user_defined_key_parts-1]))
                   rec_per_key=(double) s->records/rec+1;
 
                 if (!s->records)
@@ -770,10 +775,10 @@ void Optimize_table_order::best_access_path(
                 else
                 {
                   double a=s->records*0.01;
-                  if (keyinfo->key_parts > 1)
+                  if (keyinfo->user_defined_key_parts > 1)
                     tmp= (max_key_part * (rec_per_key - a) +
-                          a*keyinfo->key_parts - rec_per_key)/
-                         (keyinfo->key_parts-1);
+                          a * keyinfo->user_defined_key_parts - rec_per_key) /
+                         (keyinfo->user_defined_key_parts - 1);
                   else
                     tmp= a;
                   set_if_bigger(tmp,1.0);

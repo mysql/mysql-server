@@ -254,9 +254,12 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
   {
     DBUG_PRINT("info",("Sorting for group"));
     THD_STAGE_INFO(thd, stage_sorting_for_group);
+
     if (ordered_index_usage != ordered_index_group_by &&
+        (join_tab + const_tables)->type != JT_CONST && // Don't sort 1 row
         add_sorting_to_table(join_tab + const_tables, &group_list))
       goto err;
+
     if (alloc_group_fields(this, group_list) ||
         make_sum_func_list(all_fields, fields_list, true) ||
         prepare_sum_aggregators(sum_funcs,
@@ -1047,6 +1050,9 @@ sub_select_op(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       rc= sub_select(join, join_tab, end_of_records);
     DBUG_RETURN(rc);
   }
+  if (join_tab->prepare_scan())
+    DBUG_RETURN(NESTED_LOOP_ERROR);
+
   /*
     setup_join_buffering() disables join buffering if QS_DYNAMIC_RANGE is
     enabled.
@@ -1198,6 +1204,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
   }
   READ_RECORD *info= &join_tab->read_record;
 
+  if (join_tab->prepare_scan())
+    DBUG_RETURN(NESTED_LOOP_ERROR);
+
   if (join_tab->starts_weedout())
   {
     do_sj_reset(join_tab->flush_weedout_table);
@@ -1227,7 +1236,7 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     join_tab->match_tab->found_match= false;
   }
 
-  join->thd->get_stmt_da()->reset_current_row_for_warning();
+  join->thd->get_stmt_da()->reset_current_row_for_condition();
 
   enum_nested_loop_state rc= NESTED_LOOP_OK;
   bool in_first_read= true;
@@ -1583,7 +1592,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
       enum enum_nested_loop_state rc;
       /* A match from join_tab is found for the current partial join. */
       rc= (*join_tab->next_select)(join, join_tab+1, 0);
-      join->thd->get_stmt_da()->inc_current_row_for_warning();
+      join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (rc != NESTED_LOOP_OK)
         DBUG_RETURN(rc);
 
@@ -1619,7 +1628,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
     }
     else
     {
-      join->thd->get_stmt_da()->inc_current_row_for_warning();
+      join->thd->get_stmt_da()->inc_current_row_for_condition();
       if (join_tab->not_null_compl)
       {
         /* a NULL-complemented row is not in a table so cannot be locked */
@@ -1634,7 +1643,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab)
       with the beginning coinciding with the current partial join.
     */
     join->examined_rows++;
-    join->thd->get_stmt_da()->inc_current_row_for_warning();
+    join->thd->get_stmt_da()->inc_current_row_for_condition();
     if (join_tab->not_null_compl)
       join_tab->read_record.unlock_row(join_tab);
   }
@@ -1933,8 +1942,6 @@ join_read_const(JOIN_TAB *tab)
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_const");
 
-  if (tab->prepare_scan())
-    DBUG_RETURN(1);
 
   if (table->status & STATUS_GARBAGE)		// If first read
   {
@@ -1993,9 +2000,6 @@ join_read_key(JOIN_TAB *tab)
   TABLE *const table= tab->table;
   TABLE_REF *table_ref= &tab->ref;
   int error;
-
-  if (tab->prepare_scan())
-    return 1;
 
   if (!table->file->inited)
   {
@@ -2094,12 +2098,17 @@ join_read_key_unlock_row(st_join_table *tab)
 static int
 join_read_linked_first(JOIN_TAB *tab)
 {
+  int error;
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_linked_first");
 
   DBUG_ASSERT(!tab->sorted); // Pushed child can't be sorted
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+  {
+    (void) report_handler_error(table, error);
+    DBUG_RETURN(error);
+  }
 
   /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
   if (tab->ref.impossible_null_ref())
@@ -2116,9 +2125,9 @@ join_read_linked_first(JOIN_TAB *tab)
 
   // 'read' itself is a NOOP: 
   //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
-  int error=table->file->index_read_pushed(table->record[0],
-                                      tab->ref.key_buff,
-                                      make_prev_keypart_map(tab->ref.key_parts));
+  error=table->file->index_read_pushed(table->record[0],
+                                       tab->ref.key_buff,
+                                       make_prev_keypart_map(tab->ref.key_parts));
   if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
     DBUG_RETURN(report_handler_error(table, error));
 
@@ -2168,9 +2177,6 @@ join_read_always_key(JOIN_TAB *tab)
 {
   int error;
   TABLE *table= tab->table;
-
-  if (tab->prepare_scan())
-    return 1;
 
   /* Initialize the index first */
   if (!table->file->inited &&
@@ -2315,6 +2321,18 @@ join_init_quick_read_record(JOIN_TAB *tab)
   trace_table.add_utf8_table(tab->table);
 #endif
 
+  /* 
+    If this join tab was read through a QUICK for the last record
+    combination from earlier tables, test_if_quick_select() will
+    delete that quick and effectively close the index. Otherwise, we
+    need to close the index before the next join iteration starts
+    because the handler object might be reused by a different access
+    strategy.
+  */
+  if ((!tab->select || !tab->select->quick) && 
+      (tab->table->file->inited != handler::NONE))
+    tab->table->file->ha_index_or_rnd_end(); 
+
   if (test_if_quick_select(tab) == -1)
     return -1;					/* No possible records */
   return join_init_read_record(tab);
@@ -2323,8 +2341,6 @@ join_init_quick_read_record(JOIN_TAB *tab)
 
 int read_first_record_seq(JOIN_TAB *tab)
 {
-  if (tab->prepare_scan())
-    return 1;
   if (tab->read_record.table->file->ha_rnd_init(1))
     return 1;
   return (*tab->read_record.read_record)(&tab->read_record);
@@ -2354,8 +2370,6 @@ int join_init_read_record(JOIN_TAB *tab)
 {
   int error;
 
-  if (tab->prepare_scan())                    // Prepare table for scanning.
-    return 1;
   if (tab->distinct && tab->remove_duplicates())  // Remove duplicates.
     return 1;
   if (tab->filesort && tab->sort_table())     // Sort table.

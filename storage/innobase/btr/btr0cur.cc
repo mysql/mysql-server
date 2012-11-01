@@ -833,14 +833,16 @@ UNIV_INTERN
 void
 btr_cur_open_at_index_side_func(
 /*============================*/
-	ibool		from_left,	/*!< in: TRUE if open to the low end,
-					FALSE if to the high end */
+	bool		from_left,	/*!< in: true if open to the low end,
+					false if to the high end */
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: latch mode */
-	btr_cur_t*	cursor,		/*!< in: cursor */
+	btr_cur_t*	cursor,		/*!< in/out: cursor */
+	ulint		level,		/*!< in: level to search for
+					(0=leaf). */
 	const char*	file,		/*!< in: file name */
 	ulint		line,		/*!< in: line where called */
-	mtr_t*		mtr)		/*!< in: mtr */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
 {
 	page_cur_t*	page_cursor;
 	ulint		page_no;
@@ -857,7 +859,9 @@ btr_cur_open_at_index_side_func(
 	rec_offs_init(offsets_);
 
 	estimate = latch_mode & BTR_ESTIMATE;
-	latch_mode = latch_mode & ~BTR_ESTIMATE;
+	latch_mode &= ~BTR_ESTIMATE;
+
+	ut_ad(level != ULINT_UNDEFINED);
 
 	/* Store the position of the tree latch we push to mtr so that we
 	know how to release it when we have latched the leaf node */
@@ -869,6 +873,11 @@ btr_cur_open_at_index_side_func(
 		break;
 	case BTR_MODIFY_TREE:
 		mtr_x_lock(dict_index_get_lock(index), mtr);
+		break;
+	case BTR_SEARCH_LEAF | BTR_ALREADY_S_LATCHED:
+	case BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED:
+		ut_ad(mtr_memo_contains(mtr, dict_index_get_lock(index),
+					MTR_MEMO_S_LOCK));
 		break;
 	default:
 		mtr_s_lock(dict_index_get_lock(index), mtr);
@@ -900,28 +909,40 @@ btr_cur_open_at_index_side_func(
 
 			height = btr_page_get_level(page, mtr);
 			root_height = height;
+			ut_a(height >= level);
+		} else {
+			/* TODO: flag the index corrupted if this fails */
+			ut_ad(height == btr_page_get_level(page, mtr));
 		}
 
-		if (height == 0) {
-			btr_cur_latch_leaves(page, space, zip_size, page_no,
-					     latch_mode, cursor, mtr);
+		if (height == level) {
+			btr_cur_latch_leaves(
+				page, space, zip_size, page_no,
+				latch_mode & ~BTR_ALREADY_S_LATCHED,
+				cursor, mtr);
 
-			/* In versions <= 3.23.52 we had forgotten to
-			release the tree latch here. If in an index scan
-			we had to scan far to find a record visible to the
-			current transaction, that could starve others
-			waiting for the tree latch. */
+			if (height == 0) {
+				/* In versions <= 3.23.52 we had
+				forgotten to release the tree latch
+				here. If in an index scan we had to
+				scan far to find a record visible to
+				the current transaction, that could
+				starve others waiting for the tree
+				latch. */
 
-			switch (latch_mode) {
-			case BTR_MODIFY_TREE:
-			case BTR_CONT_MODIFY_TREE:
-				break;
-			default:
-				/* Release the tree s-latch */
+				switch (latch_mode) {
+				case BTR_MODIFY_TREE:
+				case BTR_CONT_MODIFY_TREE:
+				case BTR_SEARCH_LEAF | BTR_ALREADY_S_LATCHED:
+				case BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED:
+					break;
+				default:
+					/* Release the tree s-latch */
 
-				mtr_release_s_latch_at_savepoint(
-					mtr, savepoint,
-					dict_index_get_lock(index));
+					mtr_release_s_latch_at_savepoint(
+						mtr, savepoint,
+						dict_index_get_lock(index));
+				}
 			}
 		}
 
@@ -931,7 +952,7 @@ btr_cur_open_at_index_side_func(
 			page_cur_set_after_last(block, page_cursor);
 		}
 
-		if (height == 0) {
+		if (height == level) {
 			if (estimate) {
 				btr_cur_add_path_info(cursor, height,
 						      root_height);
@@ -1301,7 +1322,7 @@ btr_cur_optimistic_insert(
 		    && UNIV_UNLIKELY(REC_NODE_PTR_SIZE
 				     + rec_get_converted_size_comp_prefix(
 					     index, entry->fields, n_uniq,
-					     index->n_nullable, NULL)
+					     NULL)
 				     /* On a compressed page, there is
 				     a two-byte entry in the dense
 				     page directory for every record.
@@ -3511,9 +3532,9 @@ btr_estimate_n_rows_in_range(
 					    &cursor, 0,
 					    __FILE__, __LINE__, &mtr);
 	} else {
-		btr_cur_open_at_index_side(TRUE, index,
+		btr_cur_open_at_index_side(true, index,
 					   BTR_SEARCH_LEAF | BTR_ESTIMATE,
-					   &cursor, &mtr);
+					   &cursor, 0, &mtr);
 	}
 
 	mtr_commit(&mtr);
@@ -3529,9 +3550,9 @@ btr_estimate_n_rows_in_range(
 					    &cursor, 0,
 					    __FILE__, __LINE__, &mtr);
 	} else {
-		btr_cur_open_at_index_side(FALSE, index,
+		btr_cur_open_at_index_side(false, index,
 					   BTR_SEARCH_LEAF | BTR_ESTIMATE,
-					   &cursor, &mtr);
+					   &cursor, 0, &mtr);
 	}
 
 	mtr_commit(&mtr);

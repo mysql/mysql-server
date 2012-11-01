@@ -212,8 +212,8 @@ static void print_error(MYSQL *l_mysql, const char *msg)
  {
    if (l_mysql && mysql_errno(l_mysql))
    {
-     if (mysql->server_version)
-     fprintf(stdout, "\n [MySQL-%s]", mysql->server_version);
+     if (l_mysql->server_version)
+     fprintf(stdout, "\n [MySQL-%s]", l_mysql->server_version);
      else
      fprintf(stdout, "\n [MySQL]");
      fprintf(stdout, "[%d] %s\n", mysql_errno(l_mysql), mysql_error(l_mysql));

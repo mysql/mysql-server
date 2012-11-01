@@ -104,7 +104,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
     if (open_and_lock_tables(ev_thd, rli->tables_to_lock, FALSE, 0))
     {
-      uint actual_error= ev_thd->get_stmt_da()->sql_errno();
+      uint actual_error= ev_thd->get_stmt_da()->mysql_errno();
       if (ev_thd->is_slave_error || ev_thd->is_fatal_error)
       {
         /*
@@ -113,7 +113,7 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
         */
         rli->report(ERROR_LEVEL, actual_error,
                     "Error '%s' on opening tables",
-                    (actual_error ? ev_thd->get_stmt_da()->message() :
+                    (actual_error ? ev_thd->get_stmt_da()->message_text() :
                      "unexpected success or fatal error"));
         ev_thd->is_slave_error= 1;
       }
@@ -248,10 +248,12 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
   break;
 
       default:
-  rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->sql_errno(),
+  rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->mysql_errno(),
                     "Error in %s event: row application failed. %s",
                     ev->get_type_str(),
-                    ev_thd->is_error() ? ev_thd->get_stmt_da()->message() : "");
+                    (ev_thd->is_error() ?
+                     ev_thd->get_stmt_da()->message_text() :
+                     ""));
   thd->is_slave_error= 1;
   break;
       }
@@ -265,12 +267,12 @@ Old_rows_log_event::do_apply_event(Old_rows_log_event *ev, const Relay_log_info 
 
   if (error)
   {                     /* error has occured during the transaction */
-    rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->sql_errno(),
+    rli->report(ERROR_LEVEL, ev_thd->get_stmt_da()->mysql_errno(),
                 "Error in %s event: error during transaction execution "
                 "on table %s.%s. %s",
                 ev->get_type_str(), table->s->db.str,
                 table->s->table_name.str,
-                ev_thd->is_error() ? ev_thd->get_stmt_da()->message() : "");
+                ev_thd->is_error() ? ev_thd->get_stmt_da()->message_text() : "");
 
     /*
       If one day we honour --skip-slave-errors in row-based replication, and
@@ -833,7 +835,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     if ((error= table->file->ha_rnd_init(1)))
     {
       table->file->print_error(error, MYF(0));
-      return error;
+      DBUG_RETURN(error);
     }
 
     /* Continue until we find the right record or have made a full loop */
@@ -868,10 +870,10 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
        break;
 
       default:
-  table->file->print_error(error, MYF(0));
+        table->file->print_error(error, MYF(0));
         DBUG_PRINT("info", ("Record not found"));
         (void) table->file->ha_rnd_end();
-  DBUG_RETURN(error);
+        DBUG_RETURN(error);
       }
     }
     while (restart_count < 2 && record_compare(table));
@@ -2366,7 +2368,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
           BI image that is null and part of UNNI.
         */
         bool null_found= FALSE;
-        for (uint i=0; i < keyinfo->key_parts && !null_found; i++)
+        for (uint i=0; i < keyinfo->user_defined_key_parts && !null_found; i++)
         {
           uint fieldnr= keyinfo->key_part[i].fieldnr - 1;
           Field **f= table->field+fieldnr;

@@ -729,11 +729,12 @@ FetchIndexRootPages::operator() (
 	const page_t*	page = get_frame(block);
 
 	ulint	page_type = fil_page_get_type(page);
+	ulint	xdes = (ulint) (offset / m_page_size);
 
 	if (page_type == FIL_PAGE_TYPE_XDES) {
-		err = set_current_xdes(offset / m_page_size, page);
+		err = set_current_xdes(xdes, page);
 	} else if (page_type == FIL_PAGE_INDEX
-		   && !is_free(offset / m_page_size)
+		   && !is_free(xdes)
 		   && is_root_page(page)) {
 
 		index_id_t	id = btr_page_get_index_id(page);
@@ -1467,9 +1468,13 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 
 	for (dict_index_t* index = UT_LIST_GET_FIRST(m_table->indexes);
 	     index != 0;
-	     index = UT_LIST_GET_NEXT(indexes, index), ++i) {
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
 
-		if (i < m_n_indexes) {
+		if (index->type & DICT_FTS) {
+			index->type |= DICT_CORRUPT;
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Skipping FTS index: %s", index->name);
+		} else if (i < m_n_indexes) {
 
 			delete [] cfg_index[i].m_name;
 
@@ -1493,6 +1498,8 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 
 			index->space = m_table->space;
 			index->page = cfg_index[i].m_page_no;
+
+			++i;
 		}
 	}
 
@@ -1543,7 +1550,7 @@ IndexPurge::open() UNIV_NOTHROW
 	mtr_set_log_mode(&m_mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_open_at_index_side(
-		TRUE, m_index, BTR_MODIFY_LEAF, &m_pcur, TRUE, &m_mtr);
+		true, m_index, BTR_MODIFY_LEAF, &m_pcur, true, 0, &m_mtr);
 }
 
 /**
@@ -2313,18 +2320,41 @@ row_import_adjust_root_pages_of_secondary_indexes(
 
 		ut_a(!dict_index_is_clust(index));
 
-		/* Update the Btree segment headers for index node and
-		leaf nodes in the root page. Set the new space id. */
+		if (!(index->type & DICT_CORRUPT)
+		    && index->space != FIL_NULL
+		    && index->page != FIL_NULL) {
 
-		err = btr_root_adjust_on_import(index);
+			/* Update the Btree segment headers for index node and
+			leaf nodes in the root page. Set the new space id. */
+
+			err = btr_root_adjust_on_import(index);
+		} else {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Skip adjustment of root pages for "
+				"index %s.", index->name);
+
+			err = DB_CORRUPTION;
+		}
 
 		if (err != DB_SUCCESS) {
+
+			if (index->type & DICT_CLUSTERED) {
+				break;
+			}
+
 			ib_errf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INNODB_INDEX_CORRUPT,
-				"Index '%s' import failed. Corruption detected "
-				"during root page update", index_name);
-			break;
+				"Index '%s' not found or corrupt, "
+				"you should recreate this index.",
+				index_name);
+
+			/* Do not bail out, so that the data
+			can be recovered. */
+
+			err = DB_SUCCESS;
+			index->type |= DICT_CORRUPT;
+			continue;
 		}
 
 		/* If we failed to purge any records in the index then
@@ -2357,6 +2387,8 @@ row_import_adjust_root_pages_of_secondary_indexes(
 				"this index.", index_name,
 				(ulong) purge.get_n_rows(),
 				(ulong) n_rows_in_table);
+
+			index->type |= DICT_CORRUPT;
 
 			/* Do not bail out, so that the data
 			can be recovered. */
@@ -2394,11 +2426,12 @@ row_import_set_sys_max_row_id(
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	btr_pcur_open_at_index_side(
-		FALSE,		// High end
+		false,		// High end
 		index,
 		BTR_SEARCH_LEAF,
 		&pcur,
-		TRUE,		// Init cursor
+		true,		// Init cursor
+		0,		// Leaf level
 		&mtr);
 
 	btr_pcur_move_to_prev_on_page(&pcur);
@@ -2678,6 +2711,12 @@ row_import_read_index_data(
 		ptr += sizeof(ib_uint32_t);
 
 		cfg_index->m_trx_id_offset = mach_read_from_4(ptr);
+		if (cfg_index->m_trx_id_offset != mach_read_from_4(ptr)) {
+			ut_ad(0);
+			/* Overflow. Pretend that the clustered index
+			has a variable-length PRIMARY KEY. */
+			cfg_index->m_trx_id_offset = 0;
+		}
 		ptr += sizeof(ib_uint32_t);
 
 		cfg_index->m_n_user_defined_cols = mach_read_from_4(ptr);
@@ -3196,7 +3235,8 @@ row_import_update_index_root(
 		"BEGIN\n"
 		"UPDATE SYS_INDEXES\n"
 		"SET SPACE = :space,\n"
-		"    PAGE_NO = :page\n"
+		"    PAGE_NO = :page,\n"
+		"    TYPE = :type\n"
 		"WHERE TABLE_ID = :table_id AND ID = :index_id;\n"
 		"END;\n"};
 
@@ -3211,10 +3251,15 @@ row_import_update_index_root(
 		pars_info_t*	info;
 		ib_uint32_t	page;
 		ib_uint32_t	space;
+		ib_uint32_t	type;
 		index_id_t	index_id;
 		table_id_t	table_id;
 
 		info = (graph != 0) ? graph->info : pars_info_create();
+
+		mach_write_to_4(
+			reinterpret_cast<byte*>(&type),
+			index->type);
 
 		mach_write_to_4(
 			reinterpret_cast<byte*>(&page),
@@ -3232,6 +3277,9 @@ row_import_update_index_root(
 			reinterpret_cast<byte*>(&table_id),
 			table->id);
 
+		/* If we set the corrupt bit during the IMPORT phase then
+		we need to update the system tables. */
+		pars_info_bind_int4_literal(info, "type", &type);
 		pars_info_bind_int4_literal(info, "space", &space);
 		pars_info_bind_int4_literal(info, "page", &page);
 		pars_info_bind_ull_literal(info, "index_id", &index_id);

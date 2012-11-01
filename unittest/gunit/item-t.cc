@@ -317,7 +317,7 @@ TEST_F(ItemTest, ItemFuncSetUserVar)
 
   LEX_STRING var_name= { C_STRING_WITH_LEN("a") };
   Item_func_set_user_var *user_var=
-    new Item_func_set_user_var(var_name, item_str);
+    new Item_func_set_user_var(var_name, item_str, false);
   EXPECT_FALSE(user_var->set_entry(thd(), true));
   EXPECT_FALSE(user_var->fix_fields(thd(), NULL));
   EXPECT_EQ(val1, user_var->val_int());

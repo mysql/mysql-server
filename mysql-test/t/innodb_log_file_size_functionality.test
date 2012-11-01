@@ -1,0 +1,124 @@
+###############################################################################
+#                                                                             #
+# Variable Name: innodb_log_file_size                                         #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-08-20                                                   #
+# Author : Tanjot Singh Uppal                                                 #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Static System Variable innodb_log_file_size       #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#              * Functionality Check                                          #
+#              * Accessability Check                                          #
+#                                                                             #               
+# This test does not perform the crash recovery on this variable              # 
+# For crash recovery test on default change please run the ibtest             #
+###############################################################################
+
+-- source include/have_innodb.inc
+-- source include/not_embedded.inc
+-- source include/have_innodb_16k.inc
+
+echo '#________________________VAR_09_INNODB_LOG_FILE_SIZE__________________#'
+echo '##'
+--echo '#---------------------WL6372_VAR_9_01----------------------#'
+####################################################################
+#   Checking default value                                         #
+####################################################################
+SELECT COUNT(@@GLOBAL.innodb_log_file_size);
+--echo 1 Expected
+
+SELECT @@GLOBAL.innodb_log_file_size;
+--echo 5242880 Expected
+
+
+
+--echo '#---------------------WL6372_VAR_9_02----------------------#'
+####################################################################
+#   Checking Value can be set - Static                             #
+####################################################################
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@local.innodb_log_file_size=1;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@session.innodb_log_file_size=1;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_log_file_size=1;
+--echo Expected error 'Read only variable'
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_log_file_size=DEFAULT;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.innodb_log_file_size);
+--echo 1 Expected
+
+
+
+--echo '#---------------------WL6372_VAR_9_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+SELECT @@GLOBAL.innodb_log_file_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_log_file_size';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_log_file_size);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_log_file_size';
+--echo 1 Expected
+
+
+
+--echo '#---------------------WL6372_VAR_9_04----------------------#'
+################################################################################
+#  Checking Variable Scope                                                     #
+################################################################################
+SELECT @@innodb_log_file_size = @@GLOBAL.innodb_log_file_size;
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_log_file_size);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_log_file_size);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_log_file_size);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_log_file_size = @@SESSION.innodb_log_file_size;
+--echo Expected error 'Unknown column innodb_log_file_size in field list'
+
+
+
+--echo '#---------------------WL6372_VAR_9_05----------------------#'
+###############################################################################
+# Checking the /Var  directory size                                           #
+###############################################################################
+-- source include/vardir_size_check.inc
+--echo TRUE Expected
+
+--echo '#---------------------WL6372_VAR_9_06----------------------#'
+#################################################################################
+# Checking the size of ib_logfile                                               #
+#################################################################################
+let MYSQLD_DATADIR=`SELECT @@datadir`;
+--source include/ib_logfile_size_check.inc
+--echo 5242880 expected
+

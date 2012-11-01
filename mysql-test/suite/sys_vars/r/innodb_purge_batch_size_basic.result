@@ -29,10 +29,12 @@ SET @@global.innodb_purge_batch_size = 5000;
 SELECT @@global.innodb_purge_batch_size;
 @@global.innodb_purge_batch_size
 5000
-SET @@global.innodb_purge_batch_size = 1000;
+SET @@global.innodb_purge_batch_size = 4294967295;
+Warnings:
+Warning	1292	Truncated incorrect innodb_purge_batch_size value: '4294967295'
 SELECT @@global.innodb_purge_batch_size;
 @@global.innodb_purge_batch_size
-1000
+5000
 '#--------------------FN_DYNVARS_046_04-------------------------#'
 SET @@global.innodb_purge_batch_size = 0;
 Warnings:
@@ -50,9 +52,24 @@ ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
 SELECT @@global.innodb_purge_batch_size;
 @@global.innodb_purge_batch_size
 1
-SET @@global.innodb_purge_batch_size = 5001;
+SET @@global.innodb_purge_batch_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = " ";
+ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_purge_batch_size'
+SELECT @@global.innodb_purge_batch_size;
+@@global.innodb_purge_batch_size
+1
+SET @@global.innodb_purge_batch_size = 4294967297;
 Warnings:
-Warning	1292	Truncated incorrect innodb_purge_batch_size value: '5001'
+Warning	1292	Truncated incorrect innodb_purge_batch_size value: '4294967297'
 SELECT @@global.innodb_purge_batch_size;
 @@global.innodb_purge_batch_size
 5000

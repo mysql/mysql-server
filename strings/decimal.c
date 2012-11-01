@@ -1717,10 +1717,18 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
       }
       for (buf1=to->buf + intg0 + MY_MAX(frac0, 0); buf1 > to->buf; buf1--)
       {
-        buf1[0]=buf1[-1];
+        /* Avoid out-of-bounds write. */
+        if (buf1 < to->buf + len)
+          buf1[0]=buf1[-1];
+        else
+          error= E_DEC_OVERFLOW;
       }
       *buf1=1;
-      to->intg++;
+      /* We cannot have more than 9 * 9 = 81 digits. */
+      if (to->intg < len * DIG_PER_DEC1)
+        to->intg++;
+      else
+        error= E_DEC_OVERFLOW;
     }
   }
   else
@@ -1752,6 +1760,7 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
     scale=0;
 
 done:
+  DBUG_ASSERT(to->intg <= (len * DIG_PER_DEC1));
   to->frac=scale;
   return error;
 }

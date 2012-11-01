@@ -52,23 +52,14 @@ where event_name like 'wait/io/table/%'
   and object_schema in ('test','test1')
 order by thread_id, event_id;
 event_name	short_source	object_type	object_schema	pretty_name	operation	number_of_bytes
-wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	insert	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	update	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	update	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	marker	insert	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	fetch	NULL
-wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test	t1	delete	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	fetch	NULL
 wait/io/table/sql/handler	handler.cc:	TABLE	test1	t2	delete	NULL

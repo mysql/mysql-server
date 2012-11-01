@@ -11,6 +11,7 @@
 # [--let $rpl_omit_print_server_parameters= 0]
 # [--let $rpl_debug_trace= 1]
 # [--let $rpl_debug= 1]
+# [--let $rpl_server_error= 0]
 # --source include/rpl_start_server.inc
 #
 # Parameters:
@@ -22,7 +23,7 @@
 #
 #   $rpl_start_with_gtids
 #     If set, the server will start with GTIDs on, i.e.:
-#       --gtid-mode=on --disable-gtid-unsafe-statements
+#       --gtid-mode=on --enforce-gtid-consistency
 #       --log-bin --log-slave-updates
 #       --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB
 #
@@ -44,6 +45,9 @@
 #   $rpl_debug
 #     See include/rpl_init.inc
 #
+#   $rpl_server_error
+#     If set, failure of the server startup is expected. 
+#
 # ==== See also ====
 #
 # rpl_stop_server.inc
@@ -57,7 +61,7 @@
 if ($rpl_start_with_gtids)
 {
   --let $_rpl_start_server_info= $_rpl_start_server_info gtids=on
-  --let _RPL_START_SERVER_PARAMETERS= $_RPL_START_SERVER_PARAMETERS --log-bin --log-slave-updates --disable-gtid-unsafe-statements --gtid-mode=on --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB
+  --let _RPL_START_SERVER_PARAMETERS= $_RPL_START_SERVER_PARAMETERS --log-bin --log-slave-updates --enforce-gtid-consistency --gtid-mode=on --default-storage-engine=InnoDB --default-tmp-storage-engine=InnoDB
 }
 if ($rpl_server_parameters != '')
 {
@@ -112,8 +116,10 @@ EOF
 
 #--exec echo "$_rpl_start_server_command" > $MYSQLTEST_VARDIR/tmp/mysqld.$rpl_server_number.expect
 
---source include/rpl_reconnect.inc
+if (!$rpl_server_error)
+{
+  --source include/rpl_reconnect.inc
 
-
---let $include_filename= rpl_start_server.inc [$_rpl_start_server_info]
---source include/end_include_file.inc
+  --let $include_filename= rpl_start_server.inc [$_rpl_start_server_info]
+  --source include/end_include_file.inc
+}

@@ -32,6 +32,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "dict0dict.h"
 #include "dict0boot.h"
+#include "trx0rec.h"
 #include "trx0undo.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
@@ -1686,6 +1687,8 @@ end_scan:
 
 do_possible_lock_wait:
 	if (err == DB_LOCK_WAIT) {
+		bool		verified = false;
+
 		trx->error_state = err;
 
 		que_thr_stop_for_mysql(thr);
@@ -1699,12 +1702,27 @@ do_possible_lock_wait:
 			goto exit_func;
 		}
 
-		if (trx->error_state == DB_SUCCESS) {
-
-			goto run_again;
+		/* We had temporarily released dict_operation_lock in
+		above lock sleep wait, now we have the lock again, and
+		we will need to re-check whether the foreign key has been
+		dropped */
+		for (const dict_foreign_t* check_foreign = UT_LIST_GET_FIRST(
+			table->referenced_list);
+		     check_foreign;
+		     check_foreign = UT_LIST_GET_NEXT(
+                                referenced_list, check_foreign)) {
+			if (check_foreign == foreign) {
+				verified = true;
+			}
 		}
 
-		err = trx->error_state;
+		if (!verified) {
+			err = DB_DICT_CHANGED;
+		} else if (trx->error_state == DB_SUCCESS) {
+			goto run_again;
+		} else {
+			err = trx->error_state;
+		}
 	}
 
 exit_func:
@@ -1745,8 +1763,11 @@ row_ins_check_foreign_constraints(
 	while (foreign) {
 		if (foreign->foreign_index == index) {
 			dict_table_t*	ref_table = NULL;
+			dict_table_t*	foreign_table = foreign->foreign_table;
+			dict_table_t*	referenced_table
+						= foreign->referenced_table;
 
-			if (foreign->referenced_table == NULL) {
+			if (referenced_table == NULL) {
 
 				ref_table = dict_table_open_on_name(
 					foreign->referenced_table_name_lookup,
@@ -1759,9 +1780,9 @@ row_ins_check_foreign_constraints(
 				row_mysql_freeze_data_dictionary(trx);
 			}
 
-			if (foreign->referenced_table) {
+			if (referenced_table) {
 				os_inc_counter(dict_sys->mutex,
-					       foreign->foreign_table
+					       foreign_table
 					       ->n_foreign_key_checks_running);
 			}
 
@@ -1773,9 +1794,12 @@ row_ins_check_foreign_constraints(
 			err = row_ins_check_foreign_constraint(
 				TRUE, foreign, table, entry, thr);
 
-			if (foreign->referenced_table) {
+			DBUG_EXECUTE_IF("row_ins_dict_change_err",
+					err = DB_DICT_CHANGED;);
+
+			if (referenced_table) {
 				os_dec_counter(dict_sys->mutex,
-					       foreign->foreign_table
+					       foreign_table
 					       ->n_foreign_key_checks_running);
 			}
 
@@ -1840,8 +1864,7 @@ row_ins_dupl_error_with_rec(
 	if (!dict_index_is_clust(index)) {
 
 		for (i = 0; i < n_unique; i++) {
-			if (UNIV_SQL_NULL == dfield_get_len(
-				    dtuple_get_nth_field(entry, i))) {
+			if (dfield_is_null(dtuple_get_nth_field(entry, i))) {
 
 				return(FALSE);
 			}
@@ -1981,6 +2004,85 @@ end_scan:
 	return(err);
 }
 
+/** Checks for a duplicate when the table is being rebuilt online.
+@retval DB_SUCCESS		when no duplicate is detected
+@retval DB_SUCCESS_LOCKED_REC	when rec is an exact match of entry or
+a newer version of entry (the entry should not be inserted)
+@retval DB_DUPLICATE_KEY	when entry is a duplicate of rec */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
+row_ins_duplicate_online(
+/*=====================*/
+	ulint		n_uniq,	/*!< in: offset of DB_TRX_ID */
+	const dtuple_t*	entry,	/*!< in: entry that is being inserted */
+	const rec_t*	rec,	/*!< in: clustered index record */
+	ulint*		offsets)/*!< in/out: rec_get_offsets(rec) */
+{
+	ulint	fields	= 0;
+	ulint	bytes	= 0;
+
+	/* During rebuild, there should not be any delete-marked rows
+	in the new table. */
+	ut_ad(!rec_get_deleted_flag(rec, rec_offs_comp(offsets)));
+	ut_ad(dtuple_get_n_fields_cmp(entry) == n_uniq);
+
+	/* Compare the PRIMARY KEY fields and the
+	DB_TRX_ID, DB_ROLL_PTR. */
+	cmp_dtuple_rec_with_match_low(
+		entry, rec, offsets, n_uniq + 2, &fields, &bytes);
+
+	if (fields < n_uniq) {
+		/* Not a duplicate. */
+		return(DB_SUCCESS);
+	}
+
+	if (fields == n_uniq + 2) {
+		/* rec is an exact match of entry. */
+		ut_ad(bytes == 0);
+		return(DB_SUCCESS_LOCKED_REC);
+	}
+
+	return(DB_DUPLICATE_KEY);
+}
+
+/** Checks for a duplicate when the table is being rebuilt online.
+@retval DB_SUCCESS		when no duplicate is detected
+@retval DB_SUCCESS_LOCKED_REC	when rec is an exact match of entry or
+a newer version of entry (the entry should not be inserted)
+@retval DB_DUPLICATE_KEY	when entry is a duplicate of rec */
+static __attribute__((nonnull, warn_unused_result))
+dberr_t
+row_ins_duplicate_error_in_clust_online(
+/*====================================*/
+	ulint		n_uniq,	/*!< in: offset of DB_TRX_ID */
+	const dtuple_t*	entry,	/*!< in: entry that is being inserted */
+	const btr_cur_t*cursor,	/*!< in: cursor on insert position */
+	ulint**		offsets,/*!< in/out: rec_get_offsets(rec) */
+	mem_heap_t**	heap)	/*!< in/out: heap for offsets */
+{
+	dberr_t		err	= DB_SUCCESS;
+	const rec_t*	rec	= btr_cur_get_rec(cursor);
+
+	if (cursor->low_match >= n_uniq && !page_rec_is_infimum(rec)) {
+		*offsets = rec_get_offsets(rec, cursor->index, *offsets,
+					   ULINT_UNDEFINED, heap);
+		err = row_ins_duplicate_online(n_uniq, entry, rec, *offsets);
+		if (err != DB_SUCCESS) {
+			return(err);
+		}
+	}
+
+	rec = page_rec_get_next_const(btr_cur_get_rec(cursor));
+
+	if (cursor->up_match >= n_uniq && !page_rec_is_supremum(rec)) {
+		*offsets = rec_get_offsets(rec, cursor->index, *offsets,
+					   ULINT_UNDEFINED, heap);
+		err = row_ins_duplicate_online(n_uniq, entry, rec, *offsets);
+	}
+
+	return(err);
+}
+
 /***************************************************************//**
 Checks if a unique key violation error would occur at an index entry
 insert. Sets shared locks on possible duplicate records. Works only
@@ -2042,11 +2144,7 @@ row_ins_duplicate_error_in_clust(
 			sure that in roll-forward we get the same duplicate
 			errors as in original execution */
 
-			if (flags & BTR_NO_LOCKING_FLAG) {
-				/* Set no locks when applying log
-				in online table rebuild. */
-				err = DB_SUCCESS;
-			} else if (trx->duplicates) {
+			if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -2073,42 +2171,8 @@ row_ins_duplicate_error_in_clust(
 				goto func_exit;
 			}
 
-			if (flags
-			    & (BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG)) {
-				/* We are inserting into the rebuilt table.
-				See if this is a real duplicate, or an
-				exact match of a previous insert. */
-				ulint	fields	= 0;
-				ulint	bytes	= 0;
-
-				/* During rebuild, there should not be any
-				delete-marked rows in the new table. */
-				ut_ad(!rec_get_deleted_flag(
-					      rec, rec_offs_comp(offsets)));
-				ut_ad(dtuple_get_n_fields_cmp(entry)
-				      == n_unique);
-
-				/* Compare the PRIMARY KEY fields and the
-				DB_TRX_ID, DB_ROLL_PTR. */
-				cmp_dtuple_rec_with_match_low(
-					entry, rec, offsets,
-					n_unique + 2, &fields, &bytes);
-
-				if (fields >= n_unique) {
-					if (fields == n_unique + 2) {
-						/* This is an exact match. */
-						ut_ad(bytes == 0);
-						/* Special return code to
-						indicate that the row was
-						already inserted. */
-						err = DB_SUCCESS_LOCKED_REC;
-						goto func_exit;
-					}
-
-					goto duplicate;
-				}
-			} else if (row_ins_dupl_error_with_rec(
-					   rec, entry, cursor->index, offsets)) {
+			if (row_ins_dupl_error_with_rec(
+				    rec, entry, cursor->index, offsets)) {
 duplicate:
 				trx->error_info = cursor->index;
 				err = DB_DUPLICATE_KEY;
@@ -2125,11 +2189,7 @@ duplicate:
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
-			if (flags & BTR_NO_LOCKING_FLAG) {
-				/* Set no locks when applying log
-				in online table rebuild. */
-				err = DB_SUCCESS;
-			} else if (trx->duplicates) {
+			if (trx->duplicates) {
 
 				/* If the SQL-query will update or replace
 				duplicate key we will take X-lock for
@@ -2271,15 +2331,37 @@ row_ins_clust_index_entry_low(
 	if (n_uniq && (cursor.up_match >= n_uniq
 		       || cursor.low_match >= n_uniq)) {
 
-		/* Note that the following may return also
-		DB_LOCK_WAIT */
+		if (flags
+		    == (BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
+			| BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG)) {
+			/* Set no locks when applying log
+			in online table rebuild. Only check for duplicates. */
+			err = row_ins_duplicate_error_in_clust_online(
+				n_uniq, entry, &cursor,
+				&offsets, &offsets_heap);
 
-		err = row_ins_duplicate_error_in_clust(
-			flags, &cursor, entry, thr, &mtr);
+			switch (err) {
+			case DB_SUCCESS:
+				break;
+			default:
+				ut_ad(0);
+				/* fall through */
+			case DB_SUCCESS_LOCKED_REC:
+			case DB_DUPLICATE_KEY:
+				thr_get_trx(thr)->error_info = cursor.index;
+			}
+		} else {
+			/* Note that the following may return also
+			DB_LOCK_WAIT */
+
+			err = row_ins_duplicate_error_in_clust(
+				flags, &cursor, entry, thr, &mtr);
+		}
+
 		if (err != DB_SUCCESS) {
 err_exit:
 			mtr_commit(&mtr);
-			return(err);
+			goto func_exit;
 		}
 	}
 
@@ -2418,6 +2500,7 @@ err_exit:
 		}
 	}
 
+func_exit:
 	if (offsets_heap) {
 		mem_heap_free(offsets_heap);
 	}
@@ -2434,7 +2517,9 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 /*=======================================*/
 	mtr_t*		mtr,	/*!< out: mini-transaction */
 	dict_index_t*	index,	/*!< in/out: secondary index */
-	bool		check)	/*!< in: whether to check */
+	bool		check,	/*!< in: whether to check */
+	ulint		search_mode)
+				/*!< in: flags */
 {
 	ut_ad(!dict_index_is_clust(index));
 
@@ -2444,7 +2529,11 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 		return(false);
 	}
 
-	mtr_s_lock(dict_index_get_lock(index), mtr);
+	if (search_mode & BTR_ALREADY_S_LATCHED) {
+		mtr_s_lock(dict_index_get_lock(index), mtr);
+	} else {
+		mtr_x_lock(dict_index_get_lock(index), mtr);
+	}
 
 	switch (index->online_status) {
 	case ONLINE_INDEX_ABORTED:
@@ -2487,32 +2576,39 @@ row_ins_sec_index_entry_low(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_cur_t	cursor;
-	ulint		search_mode = mode | BTR_INSERT;
-	dberr_t		err;
+	ulint		search_mode	= mode | BTR_INSERT;
+	dberr_t		err		= DB_SUCCESS;
 	ulint		n_unique;
 	mtr_t		mtr;
 	ulint*		offsets	= NULL;
 
 	ut_ad(!dict_index_is_clust(index));
+	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
 
 	cursor.thr = thr;
+	ut_ad(thr_get_trx(thr)->id);
+	mtr_start(&mtr);
 
-	/* Ensure that we acquire an S-latch on index->lock when
-	inserting into an index that has been completed inside InnoDB,
-	but could still be subject to rollback_inplace_alter_table().
+	/* Ensure that we acquire index->lock when inserting into an
+	index with index->online_status == ONLINE_INDEX_COMPLETE, but
+	could still be subject to rollback_inplace_alter_table().
 	This prevents a concurrent change of index->online_status.
 	The memory object cannot be freed as long as we have an open
 	reference to the table, or index->table->n_ref_count > 0. */
-	const bool check = (mode == BTR_MODIFY_LEAF
-			    && *index->name == TEMP_INDEX_PREFIX);
+	const bool check = *index->name == TEMP_INDEX_PREFIX;
 	if (check) {
 		DEBUG_SYNC_C("row_ins_sec_index_enter");
-		search_mode |= BTR_ALREADY_S_LATCHED;
-	}
+		if (mode == BTR_MODIFY_LEAF) {
+			search_mode |= BTR_ALREADY_S_LATCHED;
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
+		} else {
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
+		}
 
-	if (row_ins_sec_mtr_start_and_check_if_aborted(&mtr, index, check)) {
-		err = DB_SUCCESS;
-		goto func_exit;
+		if (row_log_online_op_try(
+			    index, entry, thr_get_trx(thr)->id)) {
+			goto func_exit;
+		}
 	}
 
 	/* Note that we use PAGE_CUR_LE as the search mode, because then
@@ -2529,9 +2625,6 @@ row_ins_sec_index_entry_low(
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
 		/* The insert was buffered during the search: we are done */
-
-		err = DB_SUCCESS;
-
 		goto func_exit;
 	}
 
@@ -2549,16 +2642,14 @@ row_ins_sec_index_entry_low(
 
 	n_unique = dict_index_get_n_unique(index);
 
-	if (dict_index_is_unique(index) && (cursor.up_match >= n_unique
-					    || cursor.low_match >= n_unique)) {
-
+	if (dict_index_is_unique(index)
+	    && (cursor.low_match >= n_unique || cursor.up_match >= n_unique)) {
 		mtr_commit(&mtr);
 
 		DEBUG_SYNC_C("row_ins_sec_index_unique");
 
 		if (row_ins_sec_mtr_start_and_check_if_aborted(
-			    &mtr, index, check)) {
-			err = DB_SUCCESS;
+			    &mtr, index, check, search_mode)) {
 			goto func_exit;
 		}
 
@@ -2572,8 +2663,7 @@ row_ins_sec_index_entry_low(
 		mtr_commit(&mtr);
 
 		if (row_ins_sec_mtr_start_and_check_if_aborted(
-			    &mtr, index, check)) {
-			err = DB_SUCCESS;
+			    &mtr, index, check, search_mode)) {
 			goto func_exit;
 		}
 
@@ -2773,10 +2863,7 @@ row_ins_sec_index_entry(
 		}
 	}
 
-	if (dict_index_online_trylog(index, entry, thr_get_trx(thr)->id,
-				     ROW_OP_INSERT)) {
-		return(DB_SUCCESS);
-	}
+	ut_ad(thr_get_trx(thr)->id);
 
 	offsets_heap = mem_heap_create(1024);
 	heap = mem_heap_create(1024);
@@ -3046,6 +3133,10 @@ row_ins(
 
 		node->index = dict_table_get_next_index(node->index);
 		node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
+
+		DBUG_EXECUTE_IF(
+			"row_ins_skip_sec",
+			node->index = NULL; node->entry = NULL; break;);
 
 		/* Skip corrupted secondary index and its entry */
 		while (node->index && dict_index_is_corrupted(node->index)) {

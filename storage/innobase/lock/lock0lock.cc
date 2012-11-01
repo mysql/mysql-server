@@ -486,9 +486,13 @@ lock_report_trx_id_insanity(
 
 /*********************************************************************//**
 Checks that a transaction id is sensible, i.e., not in the future.
-@return	TRUE if ok */
-static
-ibool
+@return	true if ok */
+#ifdef UNIV_DEBUG
+UNIV_INTERN
+#else
+static __attribute__((nonnull, warn_unused_result))
+#endif
+bool
 lock_check_trx_id_sanity(
 /*=====================*/
 	trx_id_t	trx_id,		/*!< in: trx id */
@@ -496,7 +500,7 @@ lock_check_trx_id_sanity(
 	dict_index_t*	index,		/*!< in: index */
 	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
 {
-	ibool		is_ok;
+	bool		is_ok;
 	trx_id_t	max_trx_id;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -6719,6 +6723,10 @@ lock_trx_release_locks(
 		mutex_enter(&trx_sys->mutex);
 		ut_a(trx_sys->n_prepared_trx > 0);
 		trx_sys->n_prepared_trx--;
+		if (trx->is_recovered) {
+			ut_a(trx_sys->n_prepared_recovered_trx > 0);
+			trx_sys->n_prepared_recovered_trx--;
+		}
 		mutex_exit(&trx_sys->mutex);
 	} else {
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
@@ -6918,13 +6926,35 @@ lock_trx_has_sys_table_locks(
 /*=========================*/
 	const trx_t*	trx)	/*!< in: transaction to check */
 {
+	lint		i;
 	const lock_t*	strongest_lock = 0;
 	lock_mode	strongest = LOCK_NONE;
 
 	lock_mutex_enter();
 
-	/* Note: ib_vector_size() can be 0. */
-	for (lint i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
+	/* Find a valid mode. Note: ib_vector_size() can be 0. */
+	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
+		const lock_t*	lock;
+
+		lock = *static_cast<const lock_t**>(
+			ib_vector_get(trx->lock.table_locks, i));
+
+		if (lock != NULL
+		    && dict_is_sys_table(lock->un_member.tab_lock.table->id)) {
+
+			strongest = lock_get_mode(lock);
+			ut_ad(strongest != LOCK_NONE);
+			strongest_lock = lock;
+			break;
+		}
+	}
+
+	if (strongest == LOCK_NONE) {
+		lock_mutex_exit();
+		return(NULL);
+	}
+
+	for (/* No op */; i >= 0; --i) {
 		const lock_t*	lock;
 
 		lock = *static_cast<const lock_t**>(
