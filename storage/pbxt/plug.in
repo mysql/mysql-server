@@ -1,5 +1,5 @@
 MYSQL_STORAGE_ENGINE(pbxt,no,  [PBXT Storage Engine],
-        [MVCC-based transactional engine], [max,max-no-ndb])
+        [MVCC-based transactional engine], [])
 MYSQL_PLUGIN_STATIC(pbxt,    [src/libpbxt_s.la], [src/libpbxt_s_embedded.la])
 MYSQL_PLUGIN_ACTIONS(pbxt,  [
 #               AC_CONFIG_FILES(storage/pbxt/src/Makefile)

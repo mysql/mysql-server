@@ -382,6 +382,26 @@ INSERT INTO t1 VALUES('A ', 'A ');
 ERROR 23000: Duplicate entry 'A -A ' for key 'key1'
 DROP TABLE t1;
 End of 5.0 tests
+#
+# MDEV-568 (AKA LP BUG#1007981, AKA MySQL bug#44771)
+# Wrong result for a hash index look-up if the index is unique and
+# the key is NULL
+#
+CREATE TABLE t1 ( pk INT PRIMARY KEY, val INT, UNIQUE KEY USING HASH(val)) ENGINE=MEMORY;
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, NULL);
+INSERT INTO t1 VALUES (3, 1);
+INSERT INTO t1 VALUES (4, NULL);
+EXPLAIN SELECT * FROM t1 WHERE val IS NULL;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	ref	val	val	5	const	1	Using where
+SELECT * FROM t1 WHERE val IS NULL;
+pk	val
+4	NULL
+2	NULL
+1	NULL
+drop table t1;
+End of 5.2 tests
 # bit index in heap tables
 create table t1 (a bit(63) not null) engine=heap;
 insert into t1 values (869751),(736494),(226312),(802616),(728912);

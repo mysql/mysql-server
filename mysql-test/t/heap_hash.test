@@ -285,6 +285,23 @@ DROP TABLE t1;
 
 --echo End of 5.0 tests
 
+--echo #
+--echo # MDEV-568 (AKA LP BUG#1007981, AKA MySQL bug#44771)
+--echo # Wrong result for a hash index look-up if the index is unique and
+--echo # the key is NULL
+--echo #
+CREATE TABLE t1 ( pk INT PRIMARY KEY, val INT, UNIQUE KEY USING HASH(val)) ENGINE=MEMORY;
+
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t1 VALUES (2, NULL);
+INSERT INTO t1 VALUES (3, 1);
+INSERT INTO t1 VALUES (4, NULL);
+EXPLAIN SELECT * FROM t1 WHERE val IS NULL;
+SELECT * FROM t1 WHERE val IS NULL;
+drop table t1;
+
+--echo End of 5.2 tests
+
 -- echo # bit index in heap tables
 
 create table t1 (a bit(63) not null) engine=heap;
