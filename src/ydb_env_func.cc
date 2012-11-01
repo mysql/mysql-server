@@ -127,3 +127,8 @@ db_env_enable_engine_status(uint32_t enable) {
     engine_status_enable = enable;
 }
 
+void
+db_env_set_num_bucket_mutexes(uint32_t num_mutexes) {
+    toku_pair_list_set_lock_size(num_mutexes);
+}
+

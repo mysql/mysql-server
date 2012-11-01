@@ -26,6 +26,7 @@
    db_env_set_mvcc_garbage_collection_verification;
    db_env_enable_engine_status;
    db_env_set_flusher_thread_callback;
+   db_env_set_num_bucket_mutexes;
 
    toku_ydb_error_all_cases;
    toku_set_trace_file;

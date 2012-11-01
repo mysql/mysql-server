@@ -709,6 +709,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("void db_env_set_mvcc_garbage_collection_verification(uint32_t) %s;\n", VISIBLE);
     printf("void db_env_enable_engine_status(uint32_t) %s;\n", VISIBLE);
     printf("void db_env_set_flusher_thread_callback (void (*)(int, void*), void*) %s;\n", VISIBLE);
+    printf("void db_env_set_num_bucket_mutexes(uint32_t) %s;\n", VISIBLE);
 
     printf("#if defined(__cplusplus) || defined(__cilkplusplus)\n}\n#endif\n");
     printf("#endif\n");
