@@ -1686,7 +1686,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_SLEEP:
   case COM_CONNECT:				// Impossible here
   case COM_TIME:				// Impossible from client
-  case COM_DELAYED_INSERT:
+  case COM_DELAYED_INSERT: // INSERT DELAYED has been removed.
   case COM_END:
   default:
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
