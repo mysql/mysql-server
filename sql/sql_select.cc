@@ -18079,15 +18079,18 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit_arg,
     */
   
     if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
-        quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT || 
+        quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT ||
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT)
-      goto use_filesort;
-    ref_key=	   select->quick->index;
-    ref_key_parts= select->quick->used_key_parts;
+      ref_key= MAX_KEY;
+    else
+    {
+      ref_key= select->quick->index;
+      ref_key_parts= select->quick->used_key_parts;
+    }
   }
 
-  if (ref_key >= 0)
+  if (ref_key >= 0 && ref_key != MAX_KEY)
   {
     /*
       We come here when there is a REF key.
@@ -18229,7 +18232,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit_arg,
     else
       keys= usable_keys;
 
-    if (ref_key >= 0 && table->covering_keys.is_set(ref_key))
+    if (ref_key >= 0 && ref_key != MAX_KEY &&
+        table->covering_keys.is_set(ref_key))
       ref_key_quick_rows= table->quick_rows[ref_key];
 
     read_time= join->best_positions[tablenr].read_time;
