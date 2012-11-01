@@ -4355,8 +4355,8 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
   DBUG_ENTER("ha_partition::common_index_read");
   LINT_INIT(key_len); /* used if have_start_key==TRUE */
 
-  DBUG_PRINT("info", ("m_ordered %u m_ordered_scan_ong %u have_start_key %u",
-                      m_ordered, m_ordered_scan_ongoing, have_start_key));
+  DBUG_PRINT("info", ("m_ordered: %u  have_start_key: %u",
+                      m_ordered, have_start_key));
 
   if (have_start_key)
   {
