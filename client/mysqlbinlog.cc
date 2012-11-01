@@ -2683,9 +2683,6 @@ int main(int argc, char** argv)
 
   if (!raw_mode)
   {
-    fprintf(result_file,
-            "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
-
     if (disable_log_bin)
       fprintf(result_file,
               "/*!32316 SET @OLD_SQL_LOG_BIN=@@SQL_LOG_BIN, SQL_LOG_BIN=0*/;\n");
