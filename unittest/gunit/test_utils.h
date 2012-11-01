@@ -19,6 +19,7 @@
 
 #include "sql_error.h"
 #include "sql_class.h"
+#include "set_var.h"
 
 namespace my_testing {
 
@@ -61,7 +62,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
 

@@ -59,6 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "trx0sys.h"
 #include "mtr0mtr.h"
+#include "rem0types.h"
 #include "row0ins.h"
 #include "row0mysql.h"
 #include "row0sel.h"
@@ -393,6 +394,10 @@ performance schema instrumented if "UNIV_PFS_THREAD"
 is defined */
 static PSI_thread_info	all_innodb_threads[] = {
 	{&trx_rollback_clean_thread_key, "trx_rollback_clean_thread", 0},
+	{&io_ibuf_thread_key, "io_ibuf_thread", 0},
+	{&io_log_thread_key, "io_log_thread", 0},
+	{&io_read_thread_key, "io_read_thread", 0},
+	{&io_write_thread_key, "io_write_thread", 0},
 	{&io_handler_thread_key, "io_handler_thread", 0},
 	{&srv_lock_timeout_thread_key, "srv_lock_timeout_thread", 0},
 	{&srv_error_monitor_thread_key, "srv_error_monitor_thread", 0},
@@ -413,6 +418,15 @@ static PSI_file_info	all_innodb_files[] = {
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
+
+/** Always normalize table name to lower case on Windows */
+#ifdef __WIN__
+#define normalize_table_name(norm_name, name)           \
+	normalize_table_name_low(norm_name, name, TRUE)
+#else
+#define normalize_table_name(norm_name, name)           \
+	normalize_table_name_low(norm_name, name, FALSE)
+#endif /* __WIN__ */
 
 /** Set up InnoDB API callback function array */
 ib_cb_t innodb_api_cb[] = {
@@ -964,6 +978,21 @@ innodb_enable_monitor_at_startup(
 /*=============================*/
 	char*	str);	/*!< in: monitor counter enable list */
 
+/*********************************************************************
+Normalizes a table name string. A normalized name consists of the
+database name catenated to '/' and table name. An example:
+test/mytable. On Windows normalization puts both the database name and the
+table name always to lower case if "set_lower_case" is set to TRUE. */
+static
+void
+normalize_table_name_low(
+/*=====================*/
+	char*           norm_name,      /* out: normalized name as a
+					null-terminated string */
+	const char*     name,           /* in: table name string */
+	ibool           set_lower_case); /* in: TRUE if we want to set
+					 name to lower case */
+
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
 @return	0 for valid innodb_commit_concurrency */
@@ -1326,7 +1355,7 @@ convert_error_code_to_mysql(
 
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		ut_ad(thd);
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    HA_ERR_ROW_IS_REFERENCED,
 				    "InnoDB: Cannot delete/update "
 				    "rows with cascading foreign key "
@@ -1414,6 +1443,7 @@ convert_error_code_to_mysql(
 	case DB_TABLE_IS_BEING_USED:
 		return(HA_ERR_WRONG_COMMAND);
 
+	case DB_TABLESPACE_DELETED:
 	case DB_TABLE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
@@ -2336,7 +2366,9 @@ invalidation to the transaction commit.
 2) To store or retrieve a value from the query cache of an InnoDB table TBL,
 any query must first ask InnoDB's permission. We must pass the thd as a
 parameter because InnoDB will look at the trx id, if any, associated with
-that thd.
+that thd. Also the full_name which is used as key to search for the table
+object. The full_name is a string containing the normalized path to the
+table in the canonical format.
 
 3) Use of the query cache for InnoDB tables is now allowed also when
 AUTOCOMMIT==0 or we are inside BEGIN ... COMMIT. Thus transactions no longer
@@ -2371,11 +2403,9 @@ innobase_query_caching_of_table_permitted(
 	THD*	thd,		/*!< in: thd of the user who is trying to
 				store a result to the query cache or
 				retrieve it */
-	char*	full_name,	/*!< in: concatenation of database name,
-				the null character NUL, and the table
-				name */
-	uint	full_name_len,	/*!< in: length of the full name, i.e.
-				len(dbname) + len(tablename) + 1 */
+	char*	full_name,	/*!< in: normalized path to the table */
+	uint	full_name_len,	/*!< in: length of the normalized path 
+                                to the table */
 	ulonglong *unused)	/*!< unused for this engine */
 {
 	ibool	is_autocommit;
@@ -2435,16 +2465,7 @@ innobase_query_caching_of_table_permitted(
 	}
 
 	/* Normalize the table name to InnoDB format */
-
-	memcpy(norm_name, full_name, full_name_len);
-
-	norm_name[strlen(norm_name)] = '/'; 	/* InnoDB uses '/' as the
-						separator between db and
-						table */
-	norm_name[full_name_len] = '\0';
-#ifdef __WIN__
-	innobase_casedn_str(norm_name);
-#endif
+	normalize_table_name(norm_name, full_name);
 
 	innobase_register_trx(innodb_hton_ptr, thd, trx);
 
@@ -2631,7 +2652,6 @@ no_db_name:
 	}
 
 	return(s);
-
 }
 
 /*****************************************************************//**
@@ -4024,15 +4044,6 @@ ha_innobase::primary_key_is_clustered()
 	return(true);
 }
 
-/** Always normalize table name to lower case on Windows */
-#ifdef __WIN__
-#define normalize_table_name(norm_name, name)		\
-	normalize_table_name_low(norm_name, name, TRUE)
-#else
-#define normalize_table_name(norm_name, name)           \
-	normalize_table_name_low(norm_name, name, FALSE)
-#endif /* __WIN__ */
-
 /*****************************************************************//**
 Normalizes a table name string. A normalized name consists of the
 database name catenated to '/' and table name. Example: test/mytable.
@@ -4320,12 +4331,13 @@ innobase_match_index_columns(
 	DBUG_ENTER("innobase_match_index_columns");
 
 	/* Check whether user defined index column count matches */
-	if (key_info->key_parts != index_info->n_user_defined_cols) {
+	if (key_info->user_defined_key_parts !=
+		index_info->n_user_defined_cols) {
 		DBUG_RETURN(FALSE);
 	}
 
 	key_part = key_info->key_part;
-	key_end = key_part + key_info->key_parts;
+	key_end = key_part + key_info->user_defined_key_parts;
 	innodb_idx_fld = index_info->fields;
 	innodb_idx_fld_end = index_info->fields + index_info->n_fields;
 
@@ -4855,7 +4867,7 @@ table_opened:
 			if not attended, bring this to the user's attention
 			by printing a warning in addition to log a message
 			in the errorlog */
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_NO_SUCH_INDEX,
 					    "InnoDB: Table %s has a "
 					    "primary key in InnoDB data "
@@ -4922,7 +4934,7 @@ table_opened:
 			if not attended, bring this to the user attention
 			by printing a warning in addition to log a message
 			in the errorlog */
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_NO_SUCH_INDEX,
 					    "InnoDB: Table %s has no "
 					    "primary key in InnoDB data "
@@ -5621,7 +5633,8 @@ ha_innobase::store_key_val_for_row(
 {
 	KEY*		key_info	= table->key_info + keynr;
 	KEY_PART_INFO*	key_part	= key_info->key_part;
-	KEY_PART_INFO*	end		= key_part + key_info->key_parts;
+	KEY_PART_INFO*	end		=
+		key_part + key_info->user_defined_key_parts;
 	char*		buff_start	= buff;
 	enum_field_types mysql_type;
 	Field*		field;
@@ -6668,6 +6681,13 @@ set_max_autoinc:
 	innobase_srv_conc_exit_innodb(prebuilt->trx);
 
 report_error:
+	if (error == DB_TABLESPACE_DELETED) {
+		ib_senderrf(
+			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			ER_TABLESPACE_DISCARDED,
+			table->s->table_name.str);
+	}
+
 	error_result = convert_error_code_to_mysql(error,
 						   prebuilt->table->flags,
 						   user_thd);
@@ -7613,7 +7633,7 @@ ha_innobase::change_active_index(
 				prebuilt->index->table->name, FALSE);
 
 			push_warning_printf(
-				user_thd, Sql_condition::WARN_LEVEL_WARN,
+				user_thd, Sql_condition::SL_WARNING,
 				HA_ERR_INDEX_CORRUPT,
 				"InnoDB: Index %s for table %s is"
 				" marked as corrupted",
@@ -7621,7 +7641,7 @@ ha_innobase::change_active_index(
 			DBUG_RETURN(HA_ERR_INDEX_CORRUPT);
 		} else {
 			push_warning_printf(
-				user_thd, Sql_condition::WARN_LEVEL_WARN,
+				user_thd, Sql_condition::SL_WARNING,
 				HA_ERR_TABLE_DEF_CHANGED,
 				"InnoDB: insufficient history for index %u",
 				keynr);
@@ -8325,7 +8345,7 @@ create_table_check_doc_id_col(
 			} else {
 				push_warning_printf(
 					trx->mysql_thd,
-					Sql_condition::WARN_LEVEL_WARN,
+					Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: FTS_DOC_ID column must be "
 					"of BIGINT NOT NULL type, and named "
@@ -8389,7 +8409,7 @@ create_table_def(
 	on the name length here */
 	if (strlen(table_name) > MAX_FULL_NAME_LEN) {
 		push_warning_printf(
-			thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::SL_WARNING,
 			ER_TABLE_NAME,
 			"InnoDB: Table Name or Database Name is too long");
 
@@ -8401,7 +8421,7 @@ create_table_def(
 	if (strcmp(strchr(table_name, '/') + 1,
 		   "innodb_table_monitor") == 0) {
 		push_warning(
-			thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::SL_WARNING,
 			HA_ERR_WRONG_COMMAND,
 			DEPRECATED_MSG_INNODB_TABLE_MONITOR);
 	}
@@ -8465,7 +8485,7 @@ create_table_def(
 
 		if (!col_type) {
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_CANT_CREATE_TABLE,
 				"Error creating table '%s' with "
 				"column '%s'. Please check its "
@@ -8489,7 +8509,7 @@ create_table_def(
 				/* in data0type.h we assume that the
 				number fits in one byte in prtype */
 				push_warning_printf(
-					thd, Sql_condition::WARN_LEVEL_WARN,
+					thd, Sql_condition::SL_WARNING,
 					ER_CANT_CREATE_TABLE,
 					"In InnoDB, charset-collation codes"
 					" must be below 256."
@@ -8604,9 +8624,10 @@ create_index(
 
 	if (key->flags & HA_FULLTEXT) {
 		index = dict_mem_index_create(table_name, key->name, 0,
-					      DICT_FTS, key->key_parts);
+					      DICT_FTS,
+					      key->user_defined_key_parts);
 
-		for (ulint i = 0; i < key->key_parts; i++) {
+		for (ulint i = 0; i < key->user_defined_key_parts; i++) {
 			KEY_PART_INFO*	key_part = key->key_part + i;
 			dict_mem_index_add_field(
 				index, key_part->field->field_name, 0);
@@ -8630,15 +8651,16 @@ create_index(
 	}
 
 	field_lengths = (ulint*) my_malloc(
-		key->key_parts * sizeof *field_lengths, MYF(MY_FAE));
+		key->user_defined_key_parts * sizeof *
+				field_lengths, MYF(MY_FAE));
 
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
 	index = dict_mem_index_create(table_name, key->name, 0,
-				      ind_type, key->key_parts);
+				      ind_type, key->user_defined_key_parts);
 
-	for (ulint i = 0; i < key->key_parts; i++) {
+	for (ulint i = 0; i < key->user_defined_key_parts; i++) {
 		KEY_PART_INFO*	key_part = key->key_part + i;
 		ulint		prefix_len;
 		ulint		col_type;
@@ -8780,7 +8802,7 @@ get_row_format_name(
 #define CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(use_tablespace)\
 	if (!use_tablespace) {					\
 		push_warning_printf(				\
-			thd, Sql_condition::WARN_LEVEL_WARN,	\
+			thd, Sql_condition::SL_WARNING,	\
 			ER_ILLEGAL_HA_CREATE_OPTION,		\
 			"InnoDB: ROW_FORMAT=%s requires"	\
 			" innodb_file_per_table.",		\
@@ -8792,7 +8814,7 @@ get_row_format_name(
 #define CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE			\
 	if (srv_file_format < UNIV_FORMAT_B) {		\
 		push_warning_printf(				\
-			thd, Sql_condition::WARN_LEVEL_WARN,	\
+			thd, Sql_condition::SL_WARNING,	\
 			ER_ILLEGAL_HA_CREATE_OPTION,		\
 			"InnoDB: ROW_FORMAT=%s requires"	\
 			" innodb_file_format > Antelope.",	\
@@ -8844,7 +8866,7 @@ create_options_are_invalid(
 			/* Valid KEY_BLOCK_SIZE, check its dependencies. */
 			if (!use_tablespace) {
 				push_warning(
-					thd, Sql_condition::WARN_LEVEL_WARN,
+					thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_per_table.");
@@ -8852,7 +8874,7 @@ create_options_are_invalid(
 			}
 			if (srv_file_format < UNIV_FORMAT_B) {
 				push_warning(
-					thd, Sql_condition::WARN_LEVEL_WARN,
+					thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE requires"
 					" innodb_file_format > Antelope.");
@@ -8867,7 +8889,7 @@ create_options_are_invalid(
 				1 << (PAGE_ZIP_SSIZE_MAX - 1));
 			if (create_info->key_block_size > kbs_max) {
 				push_warning_printf(
-					thd, Sql_condition::WARN_LEVEL_WARN,
+					thd, Sql_condition::SL_WARNING,
 					ER_ILLEGAL_HA_CREATE_OPTION,
 					"InnoDB: KEY_BLOCK_SIZE=%ld"
 					" cannot be larger than %ld.",
@@ -8878,7 +8900,7 @@ create_options_are_invalid(
 			break;
 		default:
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: invalid KEY_BLOCK_SIZE = %lu."
 				" Valid values are [1, 2, 4, 8, 16]",
@@ -8903,7 +8925,7 @@ create_options_are_invalid(
 	case ROW_TYPE_REDUNDANT:
 		if (kbs_specified) {
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: cannot specify ROW_FORMAT = %s"
 				" with KEY_BLOCK_SIZE.",
@@ -8917,7 +8939,7 @@ create_options_are_invalid(
 	case ROW_TYPE_PAGE:
 	case ROW_TYPE_NOT_USED:
 		push_warning(
-			thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,		\
 			"InnoDB: invalid ROW_FORMAT specifier.");
 		ret = "ROW_TYPE";
@@ -8927,7 +8949,7 @@ create_options_are_invalid(
 	/* Use DATA DIRECTORY only with file-per-table. */
 	if (create_info->data_file_name && !use_tablespace) {
 		push_warning(
-			thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: DATA DIRECTORY requires"
 			" innodb_file_per_table.");
@@ -8938,7 +8960,7 @@ create_options_are_invalid(
 	if (create_info->data_file_name
 	    && create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 		push_warning(
-			thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: DATA DIRECTORY cannot be used"
 			" for TEMPORARY tables.");
@@ -8948,7 +8970,7 @@ create_options_are_invalid(
 	/* Do not allow INDEX_DIRECTORY */
 	if (create_info->index_file_name) {
 		push_warning_printf(
-			thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: INDEX DIRECTORY is not supported");
 		ret = "INDEX DIRECTORY";
@@ -9059,7 +9081,7 @@ ha_innobase::parse_table_name(
 		/* Use DATA DIRECTORY only with file-per-table. */
 		if (!use_tablespace) {
 			push_warning(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: DATA DIRECTORY requires"
 				" innodb_file_per_table.");
@@ -9069,7 +9091,7 @@ ha_innobase::parse_table_name(
 		/* Do not use DATA DIRECTORY with TEMPORARY TABLE. */
 		if (create_info->options & HA_LEX_CREATE_TMP_TABLE) {
 			push_warning(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: DATA DIRECTORY cannot be"
 				" used for TEMPORARY tables.");
@@ -9078,7 +9100,7 @@ ha_innobase::parse_table_name(
 
 		if (ignore) {
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				WARN_OPTION_IGNORED,
 				ER_DEFAULT(WARN_OPTION_IGNORED),
 				"DATA DIRECTORY");
@@ -9090,7 +9112,7 @@ ha_innobase::parse_table_name(
 
 	if (create_info->index_file_name) {
 		push_warning_printf(
-			thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::SL_WARNING,
 			WARN_OPTION_IGNORED,
 			ER_DEFAULT(WARN_OPTION_IGNORED),
 			"INDEX DIRECTORY");
@@ -9191,7 +9213,7 @@ index_bad:
 		/* Make sure compressed row format is allowed. */
 		if (!use_tablespace) {
 			push_warning(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_per_table.");
@@ -9200,7 +9222,7 @@ index_bad:
 
 		if (file_format_allowed < UNIV_FORMAT_B) {
 			push_warning(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: KEY_BLOCK_SIZE requires"
 				" innodb_file_format > Antelope.");
@@ -9211,7 +9233,7 @@ index_bad:
 		    || zssize > ut_min(UNIV_PAGE_SSIZE_MAX,
 				       PAGE_ZIP_SSIZE_MAX)) {
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu.",
 				create_info->key_block_size);
@@ -9233,7 +9255,7 @@ index_bad:
 			such combinations can be obtained
 			with ALTER TABLE anyway. */
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ignoring KEY_BLOCK_SIZE=%lu"
 				" unless ROW_FORMAT=COMPRESSED.",
@@ -9261,14 +9283,14 @@ index_bad:
 	case ROW_TYPE_DYNAMIC:
 		if (!use_tablespace) {
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_per_table.",
 				get_row_format_name(row_format));
 		} else if (file_format_allowed == UNIV_FORMAT_A) {
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
 				"InnoDB: ROW_FORMAT=%s requires"
 				" innodb_file_format > Antelope.",
@@ -9285,7 +9307,7 @@ index_bad:
 	case ROW_TYPE_FIXED:
 	case ROW_TYPE_PAGE:
 		push_warning(
-			thd, Sql_condition::WARN_LEVEL_WARN,
+			thd, Sql_condition::SL_WARNING,
 			ER_ILLEGAL_HA_CREATE_OPTION,
 			"InnoDB: assuming ROW_FORMAT=COMPACT.");
 	case ROW_TYPE_DEFAULT:
@@ -9363,11 +9385,8 @@ ha_innobase::create(
 	DBUG_ASSERT(thd != NULL);
 	DBUG_ASSERT(create_info != NULL);
 
-	if (form->s->fields > 1000) {
-		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
-		but we play safe here */
-
-		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
+	if (form->s->fields > REC_MAX_N_USER_FIELDS) {
+		DBUG_RETURN(HA_ERR_TOO_MANY_FIELDS);
 	} else if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
@@ -9476,7 +9495,7 @@ ha_innobase::create(
 		switch (ret) {
 		case FTS_INCORRECT_DOC_ID_INDEX:
 			push_warning_printf(thd,
-					    Sql_condition::WARN_LEVEL_WARN,
+					    Sql_condition::SL_WARNING,
 					    ER_WRONG_NAME_FOR_INDEX,
 					    " InnoDB: Index name %s is reserved"
 					    " for the unique index on"
@@ -9538,7 +9557,7 @@ ha_innobase::create(
 
 		case DB_PARENT_NO_INDEX:
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				HA_ERR_CANNOT_ADD_FOREIGN,
 				"Create table '%s' with foreign key constraint"
 				" failed. There is no index in the referenced"
@@ -9548,7 +9567,7 @@ ha_innobase::create(
 
 		case DB_CHILD_NO_INDEX:
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				HA_ERR_CANNOT_ADD_FOREIGN,
 				"Create table '%s' with foreign key constraint"
 				" failed. There is no index in the referencing"
@@ -10192,7 +10211,7 @@ ha_innobase::rename_table(
 			ut_print_timestamp(stderr);
 			fprintf(stderr, " InnoDB: %s\n", errstr);
 
-			push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning(thd, Sql_condition::SL_WARNING,
 				     ER_LOCK_WAIT_TIMEOUT, errstr);
 		}
 	}
@@ -10273,14 +10292,14 @@ ha_innobase::records_in_range(
 		goto func_exit;
 	}
 
-	heap = mem_heap_create(2 * (key->key_parts * sizeof(dfield_t)
+	heap = mem_heap_create(2 * (key->actual_key_parts * sizeof(dfield_t)
 				    + sizeof(dtuple_t)));
 
-	range_start = dtuple_create(heap, key->key_parts);
-	dict_index_copy_types(range_start, index, key->key_parts);
+	range_start = dtuple_create(heap, key->actual_key_parts);
+	dict_index_copy_types(range_start, index, key->actual_key_parts);
 
-	range_end = dtuple_create(heap, key->key_parts);
-	dict_index_copy_types(range_end, index, key->key_parts);
+	range_end = dtuple_create(heap, key->actual_key_parts);
+	dict_index_copy_types(range_end, index, key->actual_key_parts);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_start,
@@ -10538,9 +10557,11 @@ innobase_get_mysql_key_number_for_index(
 		}
 
 		/* Print an error message if we cannot find the index
-		** in the "index translation table". */
-		sql_print_error("Cannot find index %s in InnoDB index "
-				"translation table.", index->name);
+		in the "index translation table". */
+		if (*index->name != TEMP_INDEX_PREFIX) {
+			sql_print_error("Cannot find index %s in InnoDB index "
+					"translation table.", index->name);
+		}
 	}
 
 	/* If we do not have an "index translation table", or not able
@@ -10830,7 +10851,7 @@ ha_innobase::info_low(
 
 				push_warning_printf(
 					thd,
-					Sql_condition::WARN_LEVEL_WARN,
+					Sql_condition::SL_WARNING,
 					ER_CANT_GET_STAT,
 					"InnoDB: Trying to get the free "
 					"space for table %s but its "
@@ -10935,7 +10956,7 @@ ha_innobase::info_low(
 				break;
 			}
 
-			for (j = 0; j < table->key_info[i].key_parts; j++) {
+			for (j = 0; j < table->key_info[i].actual_key_parts; j++) {
 
 				if (table->key_info[i].flags & HA_FULLTEXT) {
 					/* The whole concept has no validity
@@ -11184,7 +11205,7 @@ ha_innobase::check(
 				index_name, sizeof index_name,
 				index->name, TRUE);
 
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_NOT_KEYFILE,
 					    "InnoDB: The B-tree of"
 					    " index %s is corrupted.",
@@ -11208,7 +11229,7 @@ ha_innobase::check(
 			if (dict_index_is_corrupted(prebuilt->index)) {
 				push_warning_printf(
 					user_thd,
-					Sql_condition::WARN_LEVEL_WARN,
+					Sql_condition::SL_WARNING,
 					HA_ERR_INDEX_CORRUPT,
 					"InnoDB: Index %s is marked as"
 					" corrupted",
@@ -11217,7 +11238,7 @@ ha_innobase::check(
 			} else {
 				push_warning_printf(
 					thd,
-					Sql_condition::WARN_LEVEL_WARN,
+					Sql_condition::SL_WARNING,
 					HA_ERR_TABLE_DEF_CHANGED,
 					"InnoDB: Insufficient history for"
 					" index %s",
@@ -11240,15 +11261,14 @@ ha_innobase::check(
 				index_name, sizeof index_name,
 				index->name, TRUE);
 
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_NOT_KEYFILE,
 					    "InnoDB: The B-tree of"
 					    " index %s is corrupted.",
 					    index_name);
 			is_ok = FALSE;
-			row_mysql_lock_data_dictionary(prebuilt->trx);
-			dict_set_corrupted(index);
-			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			dict_set_corrupted(
+				index, prebuilt->trx, "CHECK TABLE");
 		}
 
 		if (thd_killed(user_thd)) {
@@ -11264,7 +11284,7 @@ ha_innobase::check(
 			n_rows_in_table = n_rows;
 		} else if (!(index->type & DICT_FTS)
 			   && (n_rows != n_rows_in_table)) {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_NOT_KEYFILE,
 					    "InnoDB: Index '%-.200s'"
 					    " contains %lu entries,"
@@ -11283,9 +11303,8 @@ ha_innobase::check(
 		index = dict_table_get_first_index(prebuilt->table);
 
 		if (!dict_index_is_corrupted(index)) {
-			mutex_enter(&dict_sys->mutex);
-			dict_set_corrupted(index);
-			mutex_exit(&dict_sys->mutex);
+			dict_set_corrupted(
+				index, prebuilt->trx, "CHECK TABLE");
 		}
 		prebuilt->table->corrupted = TRUE;
 	}
@@ -11297,7 +11316,7 @@ ha_innobase::check(
 	at every CHECK TABLE */
 
 	if (!btr_search_validate()) {
-		push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning(thd, Sql_condition::SL_WARNING,
 			     ER_NOT_KEYFILE,
 			     "InnoDB: The adaptive hash index is corrupted.");
 		is_ok = FALSE;
@@ -12198,7 +12217,7 @@ ha_innobase::transactional_table_lock(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"MySQL is trying to set transactional table lock "
 			"with corrupted lock type to table %s, lock type "
-			"%d does not exist.\n",
+			"%d does not exist.",
 			table->s->table_name.str, lock_type);
 
 		DBUG_RETURN(HA_ERR_CRASHED);
@@ -13189,7 +13208,7 @@ ha_innobase::cmp_ref(
 	key_part = table->key_info[table->s->primary_key].key_part;
 
 	key_part_end = key_part
-			+ table->key_info[table->s->primary_key].key_parts;
+			+ table->key_info[table->s->primary_key].user_defined_key_parts;
 
 	for (; key_part != key_part_end; ++key_part) {
 		field = key_part->field;
@@ -13234,11 +13253,10 @@ my_bool
 ha_innobase::register_query_cache_table(
 /*====================================*/
 	THD*		thd,		/*!< in: user thread handle */
-	char*		table_key,	/*!< in: concatenation of database name,
-					the null character NUL,
-					and the table name */
-	uint		key_length,	/*!< in: length of the full name, i.e.
-					len(dbname) + len(tablename) + 1 */
+	char*		table_key,	/*!< in: normalized path to the  
+					table */
+	uint		key_length,	/*!< in: length of the normalized
+					path to the table */
 	qc_engine_callback*
 			call_back,	/*!< out: pointer to function for
 					checking if query caching
@@ -13627,11 +13645,11 @@ innodb_io_capacity_max_update(
 	ulong	in_val = *static_cast<const ulong*>(save);
 	if (in_val < srv_io_capacity) {
 		in_val = srv_io_capacity;
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "innodb_io_capacity_max cannot be"
 				    " set lower than innodb_io_capacity.");
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Setting innodb_io_capacity_max to %lu",
 				    srv_io_capacity);
@@ -13658,11 +13676,11 @@ innodb_io_capacity_update(
 	ulong	in_val = *static_cast<const ulong*>(save);
 	if (in_val > srv_max_io_capacity) {
 		in_val = srv_max_io_capacity;
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "innodb_io_capacity cannot be set"
 				    " higher than innodb_io_capacity_max.");
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Setting innodb_io_capacity to %lu",
 				    srv_max_io_capacity);
@@ -13688,12 +13706,12 @@ innodb_max_dirty_pages_pct_update(
 {
 	ulong	in_val = *static_cast<const ulong*>(save);
 	if (in_val < srv_max_dirty_pages_pct_lwm) {
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "innodb_max_dirty_pages_pct cannot be"
 				    " set lower than"
 				    " innodb_max_dirty_pages_pct_lwm.");
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Lowering"
 				    " innodb_max_dirty_page_pct_lwm to %lu",
@@ -13723,12 +13741,12 @@ innodb_max_dirty_pages_pct_lwm_update(
 	ulong	in_val = *static_cast<const ulong*>(save);
 	if (in_val > srv_max_buf_pool_modified_pct) {
 		in_val = srv_max_buf_pool_modified_pct;
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "innodb_max_dirty_pages_pct_lwm"
 				    " cannot be set higher than"
 				    " innodb_max_dirty_pages_pct.");
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Setting innodb_max_dirty_page_pct_lwm"
 				    " to %lu",
@@ -13926,7 +13944,7 @@ innodb_file_format_max_validate(
 
 		} else {
 			push_warning_printf(thd,
-			  Sql_condition::WARN_LEVEL_WARN,
+			  Sql_condition::SL_WARNING,
 			  ER_WRONG_ARGUMENTS,
 			  "InnoDB: invalid innodb_file_format_max "
 			  "value; can be any format up to %s "
@@ -13973,7 +13991,7 @@ innodb_file_format_max_update(
 
 	if (format_id > UNIV_FORMAT_MAX) {
 		/* DEFAULT is "on", which is invalid at runtime. */
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+		push_warning_printf(thd, Sql_condition::SL_WARNING,
 				    ER_WRONG_ARGUMENTS,
 				    "Ignoring SET innodb_file_format=%s",
 				    format_name_in);
@@ -14400,7 +14418,7 @@ innodb_stats_sample_pages_update(
 	"Please use innodb_stats_transient_sample_pages " \
 	"instead."
 
-	push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+	push_warning(thd, Sql_condition::SL_WARNING,
 		     HA_ERR_WRONG_COMMAND, STATS_SAMPLE_PAGES_DEPRECATED_MSG);
 
 	ut_print_timestamp(stderr);
@@ -14743,7 +14761,7 @@ innodb_monitor_update(
 		does not go through validation function */
 		if (thd) {
 			push_warning_printf(
-				thd, Sql_condition::WARN_LEVEL_WARN,
+				thd, Sql_condition::SL_WARNING,
 				ER_NO_DEFAULT,
 				"Default value is not defined for "
 				"this set option. Please specify "
@@ -15015,7 +15033,7 @@ innobase_index_name_is_reserved(
 					innobase_index_reserve_name) == 0) {
 			/* Push warning to mysql */
 			push_warning_printf(thd,
-					    Sql_condition::WARN_LEVEL_WARN,
+					    Sql_condition::SL_WARNING,
 					    ER_WRONG_NAME_FOR_INDEX,
 					    "Cannot Create Index with name "
 					    "'%s'. The name is reserved "
@@ -16529,7 +16547,7 @@ errmsg-utf8.txt directly as is.
 Push a warning message to the client, it is a wrapper around:
 
 void push_warning_printf(
-	THD *thd, Sql_condition::enum_warning_level level,
+	THD *thd, Sql_condition::enum_condition_level level,
 	uint code, const char *format, ...);
 */
 UNIV_INTERN
@@ -16568,24 +16586,22 @@ ib_senderrf(
 	my_vsnprintf(str, BUFSIZ, format, args);
 #endif /* __WIN__ */
 
-	Sql_condition::enum_warning_level	l;
+	Sql_condition::enum_severity_level	l;
 
-	l = Sql_condition::WARN_LEVEL_NOTE;
+	l = Sql_condition::SL_NOTE;
 
 	switch(level) {
 	case IB_LOG_LEVEL_INFO:
 		break;
 	case IB_LOG_LEVEL_WARN:
-		l = Sql_condition::WARN_LEVEL_WARN;
+		l = Sql_condition::SL_WARNING;
 		break;
 	case IB_LOG_LEVEL_ERROR:
-		/* Set l, to avoid a compiler warning. */
-		l = Sql_condition::WARN_LEVEL_ERROR;
 		/* We can't use push_warning_printf(), it is a hard error. */
 		my_printf_error(code, "%s", MYF(0), str);
 		break;
 	case IB_LOG_LEVEL_FATAL:
-		l = Sql_condition::WARN_LEVEL_END;
+		l = Sql_condition::SEVERITY_END;
 		break;
 	}
 
@@ -16609,7 +16625,7 @@ must be: "Some string ... %s".
 Push a warning message to the client, it is a wrapper around:
 
 void push_warning_printf(
-	THD *thd, Sql_condition::enum_warning_level level,
+	THD *thd, Sql_condition::enum_condition_level level,
 	uint code, const char *format, ...);
 */
 UNIV_INTERN

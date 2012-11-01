@@ -282,8 +282,8 @@ dict_startscan_system(
 
 	clust_index = UT_LIST_GET_FIRST(system_table->indexes);
 
-	btr_pcur_open_at_index_side(TRUE, clust_index, BTR_SEARCH_LEAF, pcur,
-				    TRUE, mtr);
+	btr_pcur_open_at_index_side(true, clust_index, BTR_SEARCH_LEAF, pcur,
+				    true, 0, mtr);
 
 	rec = dict_getnext_system_low(pcur, mtr);
 
@@ -893,12 +893,12 @@ dict_update_filepath(
 		a link file.  Make a note that we did this. */
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"The InnoDB data dictionary table SYS_DATAFILES "
-			"for tablespace ID %lu was updated to use file %s.\n",
+			"for tablespace ID %lu was updated to use file %s.",
 			(ulong) space_id, filepath);
 	} else {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Problem updating InnoDB data dictionary table "
-			"SYS_DATAFILES for tablespace ID %lu to file %s.\n",
+			"SYS_DATAFILES for tablespace ID %lu to file %s.",
 			(ulong) space_id, filepath);
 	}
 
@@ -983,8 +983,8 @@ dict_check_tablespaces_and_store_max_id(
 				      MLOG_4BYTES, &mtr);
 	fil_set_max_space_id_if_bigger(max_space_id);
 
-	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
-				    TRUE, &mtr);
+	btr_pcur_open_at_index_side(true, sys_index, BTR_SEARCH_LEAF, &pcur,
+				    true, 0, &mtr);
 loop:
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
@@ -1788,7 +1788,12 @@ dict_load_indexes(
 
 		if (!btr_pcur_is_on_user_rec(&pcur)) {
 
-			if (dict_table_get_first_index(table) == NULL) {
+			/* We should allow the table to open even
+			without index when DICT_ERR_IGNORE_CORRUPT is set.
+			DICT_ERR_IGNORE_CORRUPT is currently only set
+			for drop table */
+			if (dict_table_get_first_index(table) == NULL
+			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Cannot load table %s "
 					"because it has no indexes in "
@@ -1812,7 +1817,8 @@ dict_load_indexes(
 			/* TABLE_ID mismatch means that we have
 			run out of index definitions for the table. */
 
-			if (dict_table_get_first_index(table) == NULL) {
+			if (dict_table_get_first_index(table) == NULL
+			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Failed to load the "
 					"clustered index for table %s "
@@ -1878,9 +1884,8 @@ dict_load_indexes(
 		subsequent checks are relevant for the supported types. */
 		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
 				    | DICT_CORRUPT | DICT_FTS)) {
-			fprintf(stderr,
-				"InnoDB: Error: unknown type %lu"
-				" of index %s of table %s\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unknown type %lu of index %s of table %s",
 				(ulong) index->type, index->name, table->name);
 
 			error = DB_UNSUPPORTED;
@@ -2447,11 +2452,16 @@ func_exit:
 	      || !table->corrupted);
 
 	if (table && table->fts) {
-		ut_ad(dict_table_has_fts_index(table)
+		if (!(dict_table_has_fts_index(table)
 		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
-		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID));
-
-		fts_optimize_add_table(table);
+		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID))) {
+			/* the table->fts could be created in dict_load_column
+			when a user defined FTS_DOC_ID is present, but no
+			FTS */
+			fts_free(table);
+		} else {
+			fts_optimize_add_table(table);
+		}
 	}
 
 	return(table);

@@ -4368,7 +4368,7 @@ btr_validate_level(
 	if (zip_size != dict_tf_get_zip_size(space_flags)) {
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Flags mismatch: table=%lu, tablespace=%lu\n",
+			"Flags mismatch: table=%lu, tablespace=%lu",
 			(ulint) index->table->flags, (ulint) space_flags);
 
 		mtr_commit(&mtr);
@@ -4384,7 +4384,7 @@ btr_validate_level(
 
 			btr_validate_report1(index, level, block);
 
-			ib_logf(IB_LOG_LEVEL_WARN, "page is free\n");
+			ib_logf(IB_LOG_LEVEL_WARN, "page is free");
 
 			ret = false;
 		}
@@ -4431,7 +4431,7 @@ loop:
 
 		btr_validate_report1(index, level, block);
 
-		ib_logf(IB_LOG_LEVEL_WARN, "Page is marked as free\n");
+		ib_logf(IB_LOG_LEVEL_WARN, "Page is marked as free");
 		ret = false;
 
 	} else if (btr_page_get_index_id(page) != index->id) {
@@ -4713,9 +4713,7 @@ node_ptr_fails:
 	mtr_commit(&mtr);
 
 	if (trx_is_interrupted(trx)) {
-		/* Return FALSE if trx was interrupted. */
-		ret = false;
-
+		/* On interrupt, return the current status. */
 	} else if (right_page_no != FIL_NULL) {
 
 		mtr_start(&mtr);

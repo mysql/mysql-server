@@ -101,6 +101,12 @@ SET @@global.lock_wait_timeout = -1024;
 SELECT @@global.lock_wait_timeout;
 SET @@global.lock_wait_timeout = 31536001;
 SELECT @@global.lock_wait_timeout;
+SET @@global.lock_wait_timeout = 3153600112;
+SELECT @@global.lock_wait_timeout;
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.lock_wait_timeout = 65532.01;
+SELECT @@global.lock_wait_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.lock_wait_timeout = ON;
 SELECT @@global.lock_wait_timeout;
@@ -110,14 +116,28 @@ SELECT @@global.lock_wait_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.lock_wait_timeout = test;
 SELECT @@global.lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.lock_wait_timeout = " ";
+SELECT @@global.lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.lock_wait_timeout = ' ';
+SELECT @@global.lock_wait_timeout;
+
 # for session scope
 SET @@session.lock_wait_timeout = 0;
 SELECT @@session.lock_wait_timeout;
 SET @@session.lock_wait_timeout = -2;
 SELECT @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout = 3176990909;
+SELECT @@session.lock_wait_timeout;
 SET @@session.lock_wait_timeout = 31537000;
 SELECT @@session.lock_wait_timeout;
+SET @@session.lock_wait_timeout = -1024;
+SELECT @@session.lock_wait_timeout;
 
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.lock_wait_timeout = 65532.01;
+SELECT @@session.lock_wait_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.lock_wait_timeout = ON;
 SELECT @@session.lock_wait_timeout;
@@ -126,6 +146,9 @@ SET @@session.lock_wait_timeout = OFF;
 SELECT @@session.lock_wait_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.lock_wait_timeout = test;
+SELECT @@session.lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.lock_wait_timeout = ' ';
 SELECT @@session.lock_wait_timeout;
 
 

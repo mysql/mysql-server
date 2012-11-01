@@ -246,7 +246,7 @@ static my_bool emb_read_prepare_result(MYSQL *mysql, MYSQL_STMT *stmt)
   stmt->stmt_id= thd->client_stmt_id;
   stmt->param_count= thd->client_param_count;
   stmt->field_count= 0;
-  mysql->warning_count= thd->get_stmt_da()->current_statement_warn_count();
+  mysql->warning_count= thd->get_stmt_da()->current_statement_cond_count();
 
   if (thd->first_data)
   {
@@ -437,7 +437,7 @@ static void emb_free_embedded_thd(MYSQL *mysql)
 static const char * emb_read_statistics(MYSQL *mysql)
 {
   THD *thd= (THD*)mysql->thd;
-  return thd->is_error() ? thd->get_stmt_da()->message() : "";
+  return thd->is_error() ? thd->get_stmt_da()->message_text() : "";
 }
 
 
@@ -1140,7 +1140,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
 
   if (flags & SEND_EOF)
     write_eof_packet(thd, thd->server_status,
-                     thd->get_stmt_da()->current_statement_warn_count());
+                     thd->get_stmt_da()->current_statement_cond_count());
 
   DBUG_RETURN(prepare_for_send(list->elements));
  err:

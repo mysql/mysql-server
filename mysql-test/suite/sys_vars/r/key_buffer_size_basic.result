@@ -19,23 +19,44 @@ SELECT @@global.key_buffer_size;
 '#--------------------FN_DYNVARS_055_04-------------------------#'
 SET @@global.key_buffer_size = -1;
 ERROR HY000: Cannot drop default keycache
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+61440
 SET @@global.key_buffer_size = 4;
 ERROR HY000: Cannot drop default keycache
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+61440
+SET @@global.key_buffer_size = -1024;
+ERROR HY000: Cannot drop default keycache
+SELECT @@global.key_buffer_size;
+@@global.key_buffer_size
+61440
 SET @@global.key_buffer_size = 10000.01;
 ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
-SELECT @@global.key_buffer_size;
-@@global.key_buffer_size
-61440
+SELECT @@global.key_buffer_size IN (429380390912,4294963200);
+@@global.key_buffer_size IN (429380390912,4294963200)
+0
+SET @@global.key_buffer_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
+SELECT @@global.key_buffer_size IN (429380390912,4294963200);
+@@global.key_buffer_size IN (429380390912,4294963200)
+0
+SET @@global.key_buffer_size = " ";
+ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
+SELECT @@global.key_buffer_size IN (429380390912,4294963200);
+@@global.key_buffer_size IN (429380390912,4294963200)
+0
 SET @@global.key_buffer_size = ON;
 ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
-SELECT @@global.key_buffer_size;
-@@global.key_buffer_size
-61440
+SELECT @@global.key_buffer_size IN (429380390912,4294963200);
+@@global.key_buffer_size IN (429380390912,4294963200)
+0
 SET @@global.key_buffer_size = 'test';
 ERROR 42000: Incorrect argument type to variable 'key_buffer_size'
-SELECT @@global.key_buffer_size;
-@@global.key_buffer_size
-61440
+SELECT @@global.key_buffer_size IN (429380390912,4294963200);
+@@global.key_buffer_size IN (429380390912,4294963200)
+0
 '#-------------------FN_DYNVARS_055_05----------------------------#'
 SET @@session.key_buffer_size = 0;
 ERROR HY000: Variable 'key_buffer_size' is a GLOBAL variable and should be set with SET GLOBAL

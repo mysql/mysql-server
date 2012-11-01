@@ -482,7 +482,7 @@ int mysql_update(THD *thd,
 
       char buff[MYSQL_ERRMSG_SIZE];
       my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), 0, 0,
-                  (ulong) thd->get_stmt_da()->current_statement_warn_count());
+                  (ulong) thd->get_stmt_da()->current_statement_cond_count());
       my_ok(thd, 0, 0, buff);
 
       DBUG_PRINT("info",("0 records updated"));
@@ -880,7 +880,7 @@ int mysql_update(THD *thd,
     }
     else
       table->file->unlock_row();
-    thd->get_stmt_da()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_condition();
     if (thd->is_error())
     {
       error= 1;
@@ -993,7 +993,7 @@ int mysql_update(THD *thd,
     char buff[MYSQL_ERRMSG_SIZE];
     my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO), (ulong) found,
                 (ulong) updated,
-                (ulong) thd->get_stmt_da()->current_statement_warn_count());
+                (ulong) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
           id, buff);
     DBUG_PRINT("info",("%ld records updated", (long) updated));
@@ -1172,7 +1172,8 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
             // The primary key can cover multiple columns
             KEY key_info= table1->key_info[table1->s->primary_key];
             KEY_PART_INFO *key_part= key_info.key_part;
-            KEY_PART_INFO *key_part_end= key_part + key_info.key_parts;
+            KEY_PART_INFO *key_part_end= key_part +
+              key_info.user_defined_key_parts;
 
             for (;key_part != key_part_end; ++key_part)
             {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1244,7 +1244,7 @@ bool my_TIME_to_str(const MYSQL_TIME *ltime, String *str, uint dec)
 
 
 void make_truncated_value_warning(THD *thd,
-                                  Sql_condition::enum_warning_level level,
+                                  Sql_condition::enum_severity_level level,
                                   ErrConvString val, timestamp_type time_type,
                                   const char *field_name)
 {
@@ -1268,7 +1268,7 @@ void make_truncated_value_warning(THD *thd,
     cs->cset->snprintf(cs, warn_buff, sizeof(warn_buff),
                        ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                        type_str, val.ptr(), field_name,
-                       (ulong) thd->get_stmt_da()->current_row_for_warning());
+                       (ulong) thd->get_stmt_da()->current_row_for_condition());
   else
   {
     if (time_type > MYSQL_TIMESTAMP_ERROR)
@@ -1386,7 +1386,7 @@ bool date_add_interval(MYSQL_TIME *ltime, interval_type int_type, INTERVAL inter
   return 0;					// Ok
 
 invalid_date:
-  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_DATETIME_FUNCTION_OVERFLOW,
                       ER(ER_DATETIME_FUNCTION_OVERFLOW),
                       "datetime");

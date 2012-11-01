@@ -4873,7 +4873,9 @@ my_wildcmp_unicode(const CHARSET_INFO *cs,
   int (*mb_wc)(const struct charset_info_st *, my_wc_t *,
                const uchar *, const uchar *);
   mb_wc= cs->cset->mb_wc;
-  
+
+ if (my_string_stack_guard && my_string_stack_guard())
+   return 1;
   while (wildstr != wildend)
   {
     while (1)
@@ -7467,6 +7469,8 @@ my_mb_wc_filename(const CHARSET_INFO *cs __attribute__((unused)),
     return MY_CS_TOOSMALL3;
   
   byte1= s[1];
+  if (byte1 == 0)
+    return MY_CS_ILSEQ; /* avoid possible out-of-bounds read */
   byte2= s[2];
   
   if (byte1 >= 0x30 && byte1 <= 0x7F &&

@@ -189,12 +189,12 @@ static int spawn_thread_noop(PSI_thread_key key NNN,
 
 static PSI_thread*
 new_thread_noop(PSI_thread_key key NNN,
-                const void *identity NNN, ulong thread_id NNN)
+                const void *identity NNN, ulonglong thread_id NNN)
 {
   return NULL;
 }
 
-static void set_thread_id_noop(PSI_thread *thread NNN, unsigned long id NNN)
+static void set_thread_id_noop(PSI_thread *thread NNN, ulonglong id NNN)
 {
   return;
 }
