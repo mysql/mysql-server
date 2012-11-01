@@ -2682,7 +2682,7 @@ wait_until_unfixed:
 		/* Move the compressed page from bpage to block,
 		and uncompress it. */
 
-		buf_pool->zip_mutex.enter();
+		mutex_enter(&buf_pool->zip_mutex);
 
 		buf_relocate(bpage, &block->page);
 		buf_block_init_low(block);
@@ -2720,7 +2720,7 @@ wait_until_unfixed:
 
 		rw_lock_x_unlock(hash_lock);
 		buf_page_mutex_exit(block);
-		buf_pool->zip_mutex.exit();
+		mutex_exit(&buf_pool->zip_mutex);
 		buf_pool->n_pend_unzip++;
 
 		buf_pool_mutex_exit(buf_pool);
@@ -3544,7 +3544,7 @@ err_exit:
 		page_zip_set_size(&bpage->zip, zip_size);
 		bpage->zip.data = (page_zip_t*) data;
 
-		buf_pool->zip_mutex.enter();
+		mutex_enter(&buf_pool->zip_mutex);
 		UNIV_MEM_DESC(bpage->zip.data,
 			      page_zip_get_size(&bpage->zip));
 
@@ -3587,7 +3587,7 @@ err_exit:
 
 		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
-		buf_pool->zip_mutex.exit();
+		mutex_exit(&buf_pool->zip_mutex);
 	}
 
 	buf_pool->n_pend_reads++;
@@ -4391,7 +4391,7 @@ assert_s_latched:
 		}
 	}
 
-	buf_pool->zip_mutex.enter();
+	mutex_enter(&buf_pool->zip_mutex);
 
 	/* Check clean compressed-only blocks. */
 
@@ -4482,7 +4482,7 @@ assert_s_latched:
 	hash_unlock_x_all(buf_pool->page_hash);
 	buf_flush_list_mutex_exit(buf_pool);
 
-	buf_pool->zip_mutex.exit();
+	mutex_exit(&buf_pool->zip_mutex);
 
 	if (n_lru + n_free > buf_pool->curr_size + n_zip) {
 		fprintf(stderr, "n LRU %lu, n free %lu, pool %lu zip %lu\n",
@@ -4716,7 +4716,7 @@ buf_get_latched_pages_number_instance(
 		}
 	}
 
-	buf_pool->zip_mutex.enter();
+	mutex_enter(&buf_pool->zip_mutex);
 
 	/* Traverse the lists of clean and dirty compressed-only blocks. */
 
@@ -4758,7 +4758,7 @@ buf_get_latched_pages_number_instance(
 	}
 
 	buf_flush_list_mutex_exit(buf_pool);
-	buf_pool->zip_mutex.exit();
+	mutex_exit(&buf_pool->zip_mutex);
 	buf_pool_mutex_exit(buf_pool);
 
 	return(fixed_pages_number);
