@@ -7,7 +7,7 @@
 # USAGE
 #
 #    let $wait_binlog_event= DROP;
-#    [let $binlog_file= master-bin.000001;]
+#    [let $wait_binlog_file= master-bin.000001;]
 #    --source include/wait_for_binlog_event.inc
 
 let $_loop_count= 300;
@@ -23,27 +23,27 @@ while (`SELECT INSTR("$_last_event","$wait_binlog_event") = 0`)
     --die ERROR: failed while waiting for $wait_binlog_event in binlog 
   }
   real_sleep 0.1;
-  if (!$binlog_file)
+  if (!$wait_binlog_file)
   {
     let $_event= query_get_value(SHOW BINLOG EVENTS, Info, $_event_pos);
   }
-  if ($binlog_file)
+  if ($wait_binlog_file)
   {
-    let $_event= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file', Info, $_event_pos);
+    let $_event= query_get_value(SHOW BINLOG EVENTS IN '$wait_binlog_file', Info, $_event_pos);
   }
   let $_last_event= $_event;
   while (`SELECT "$_event" != "No such row"`)
   {
     inc $_event_pos;
     let $_last_event= $_event;
-    if (!$binlog_file)
+    if (!$wait_binlog_file)
     {
       let $_event= query_get_value(SHOW BINLOG EVENTS, Info, $_event_pos);
     }
-    if ($binlog_file)
+    if ($wait_binlog_file)
     {
-      let $_event= query_get_value(SHOW BINLOG EVENTS IN '$binlog_file', Info, $_event_pos);
+      let $_event= query_get_value(SHOW BINLOG EVENTS IN '$wait_binlog_file', Info, $_event_pos);
     }
   }
 }
-let $binlog_file=;
+let $wait_binlog_file=;
