@@ -982,6 +982,7 @@ static bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   Condition_information_item *cond_info_item;
   Condition_information_item::Name cond_info_item_name;
   List<Condition_information_item> *cond_info_list;
+  bool is_not_empty;
 }
 
 %{
@@ -1898,6 +1899,8 @@ END_OF_INPUT
 %type <num> opt_slave_thread_option_list
 %type <num> slave_thread_option_list
 %type <num> slave_thread_option
+
+%type <is_not_empty> opt_union_order_or_limit
 
 %%
 
@@ -10827,6 +10830,13 @@ table_factor:
  */
 select_derived_union:
           select_derived opt_union_order_or_limit
+          {
+            if ($1 && $2)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
         | select_derived_union
           UNION_SYM
           union_option
@@ -15644,8 +15654,8 @@ union_opt:
         ;
 
 opt_union_order_or_limit:
-	  /* Empty */
-	| union_order_or_limit
+	  /* Empty */ { $$= false; }
+	| union_order_or_limit { $$= true; }
 	;
 
 union_order_or_limit:
