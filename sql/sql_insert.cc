@@ -1019,7 +1019,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       error= write_record(thd, table, &info, &update);
     if (error)
       break;
-    thd->get_stmt_da()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_condition();
   }
 
   free_underlaid_joins(thd, &thd->lex->select_lex);
@@ -1175,12 +1175,12 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                   ER(ER_INSERT_INFO), (long) info.stats.records,
                   (lock_type == TL_WRITE_DELAYED) ? (long) 0 :
                   (long) (info.stats.records - info.stats.copied),
-                  (long) thd->get_stmt_da()->current_statement_warn_count());
+                  (long) thd->get_stmt_da()->current_statement_cond_count());
     else
       my_snprintf(buff, sizeof(buff),
                   ER(ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.deleted + updated),
-                  (long) thd->get_stmt_da()->current_statement_warn_count());
+                  (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
   }
   thd->abort_on_warning= 0;
@@ -1902,7 +1902,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       }
       if (view)
       {
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_VIEW_FIELD,
                             ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
                             table_list->view_db.str,
@@ -1910,7 +1910,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       }
       else
       {
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_FIELD,
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             (*field)->field_name);
@@ -2375,11 +2375,11 @@ bool delayed_get_table(THD *thd, MDL_request *grl_protection_request,
             want to send "Server shutdown in progress" in the
             INSERT THREAD.
           */
-          if (di->thd.get_stmt_da()->sql_errno() == ER_SERVER_SHUTDOWN)
+          if (di->thd.get_stmt_da()->mysql_errno() == ER_SERVER_SHUTDOWN)
             my_message(ER_QUERY_INTERRUPTED, ER(ER_QUERY_INTERRUPTED), MYF(0));
           else
-            my_message(di->thd.get_stmt_da()->sql_errno(),
-                       di->thd.get_stmt_da()->message(),
+            my_message(di->thd.get_stmt_da()->mysql_errno(),
+                       di->thd.get_stmt_da()->message_text(),
                        MYF(0));
         }
         di->unlock();
@@ -2465,11 +2465,11 @@ TABLE *Delayed_insert::get_local_table(THD* client_thd)
         kill_delayed_threads_for_table().
       */
       if (!thd.is_error() ||
-          thd.get_stmt_da()->sql_errno() == ER_SERVER_SHUTDOWN)
+          thd.get_stmt_da()->mysql_errno() == ER_SERVER_SHUTDOWN)
         my_message(ER_QUERY_INTERRUPTED, ER(ER_QUERY_INTERRUPTED), MYF(0));
       else
-        my_message(thd.get_stmt_da()->sql_errno(),
-                   thd.get_stmt_da()->message(), MYF(0));
+        my_message(thd.get_stmt_da()->mysql_errno(),
+                   thd.get_stmt_da()->message_text(), MYF(0));
       goto error;
     }
   }
@@ -3228,7 +3228,7 @@ bool Delayed_insert::handle_inserts(void)
 	{
 	  /* This should never happen */
 	  table->file->print_error(error,MYF(0));
-	  sql_print_error("%s", thd.get_stmt_da()->message());
+	  sql_print_error("%s", thd.get_stmt_da()->message_text());
           DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed in loop"));
 	  goto err;
 	}
@@ -3273,7 +3273,7 @@ bool Delayed_insert::handle_inserts(void)
   if ((error=table->file->extra(HA_EXTRA_NO_CACHE)))
   {						// This shouldn't happen
     table->file->print_error(error,MYF(0));
-    sql_print_error("%s", thd.get_stmt_da()->message());
+    sql_print_error("%s", thd.get_stmt_da()->message_text());
     DBUG_PRINT("error", ("HA_EXTRA_NO_CACHE failed after loop"));
     goto err;
   }
@@ -3682,7 +3682,7 @@ bool select_insert::send_eof()
   error= (thd->locked_tables_mode <= LTM_LOCK_TABLES ?
           table->file->ha_end_bulk_insert() : 0);
   if (!error && thd->is_error())
-    error= thd->get_stmt_da()->sql_errno();
+    error= thd->get_stmt_da()->mysql_errno();
 
   table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
@@ -3734,12 +3734,12 @@ bool select_insert::send_eof()
     my_snprintf(buff, sizeof(buff),
                 ER(ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.records - info.stats.copied),
-                (long) thd->get_stmt_da()->current_statement_warn_count());
+                (long) thd->get_stmt_da()->current_statement_cond_count());
   else
     my_snprintf(buff, sizeof(buff),
                 ER(ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.deleted+info.stats.updated),
-                (long) thd->get_stmt_da()->current_statement_warn_count());
+                (long) thd->get_stmt_da()->current_statement_cond_count());
   row_count= info.stats.copied + info.stats.deleted +
              ((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
               info.stats.touched : info.stats.updated);

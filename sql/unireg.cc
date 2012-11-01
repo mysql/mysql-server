@@ -67,7 +67,7 @@ struct Pack_header_error_handler: public Internal_error_handler
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
   bool is_handled;
@@ -80,7 +80,7 @@ Pack_header_error_handler::
 handle_condition(THD *,
                  uint sql_errno,
                  const char*,
-                 Sql_condition::enum_warning_level,
+                 Sql_condition::enum_severity_level,
                  const char*,
                  Sql_condition ** cond_hdl)
 {

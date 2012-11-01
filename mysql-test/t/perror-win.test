@@ -6,9 +6,9 @@
 ############# Skip if Non-English Windows
 
 perl;
-open(FILE, ">", "$ENV{MYSQL_TMP_DIR}/syslocale.tmp") or die $!;
+open(FILE, ">", "$ENV{MYSQL_TMP_DIR}/perror_syslocale.inc") or die $!;
 
-if(`systeminfo /FO LIST | find "System Locale"` =~ m/en-us/)
+if(`systeminfo /FO LIST | findstr /C:"System Locale"` =~ m/en-us/)
  {print FILE "let \$non_eng_sys= 0;\n";}
 else
  {print FILE "let \$non_eng_sys= 1;\n";}
@@ -16,12 +16,12 @@ else
 close FILE;
 EOF
 
-source $MYSQLTEST_VARDIR/tmp/syslocale.tmp;
-remove_file $MYSQLTEST_VARDIR/tmp/syslocale.tmp;
+source $MYSQL_TMP_DIR/perror_syslocale.inc;
+remove_file $MYSQL_TMP_DIR/perror_syslocale.inc;
 
 if ($non_eng_sys)
 {
-  skip Need a English Windows Installation;
+  skip Need an English Windows Installation;
 }
 
 ############# Skip if Non-English Windows

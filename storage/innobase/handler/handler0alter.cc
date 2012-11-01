@@ -3473,7 +3473,7 @@ found_fk:
 			if (!index) {
 				push_warning_printf(
 					user_thd,
-					Sql_condition::WARN_LEVEL_WARN,
+					Sql_condition::SL_WARNING,
 					HA_ERR_WRONG_INDEX,
 					"InnoDB could not find key "
 					"with name %s", key->name);
@@ -3646,7 +3646,7 @@ func_exit:
 
 			push_warning_printf(
 				user_thd,
-				Sql_condition::WARN_LEVEL_WARN,
+				Sql_condition::SL_WARNING,
 				HA_ERR_WRONG_INDEX,
 				"InnoDB rebuilding table to add column "
 				FTS_DOC_ID_COL_NAME);
@@ -5057,7 +5057,7 @@ trx_rollback:
 
 			if (ret != DB_SUCCESS) {
 				push_warning(user_thd,
-					     Sql_condition::WARN_LEVEL_WARN,
+					     Sql_condition::SL_WARNING,
 					     ER_LOCK_WAIT_TIMEOUT,
 					     errstr);
 			}
