@@ -3269,9 +3269,9 @@ check_enough_stack_size()
 {
   uchar stack_top;
 
-  if (current_thd != 0)
-    return check_stack_overrun(current_thd, STACK_MIN_SIZE,
-                             &stack_top);
+  THD *my_thd= current_thd;
+  if (my_thd != NULL)
+    return check_stack_overrun(my_thd, STACK_MIN_SIZE, &stack_top);
   return 0;
 }
 #endif
