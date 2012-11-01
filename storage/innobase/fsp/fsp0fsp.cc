@@ -1333,11 +1333,11 @@ fsp_page_create(
 	/* Mimic buf_page_get(), but avoid the buf_pool->page_hash lookup. */
 	rw_lock_x_lock(&block->lock);
 
-	block->mutex.enter();
+	mutex_enter(&block->mutex);
 
 	buf_block_buf_fix_inc(block, __FILE__, __LINE__);
 
-	block->mutex.exit();
+	mutex_exit(&block->mutex);
 
 	mtr_memo_push(init_mtr, block, MTR_MEMO_PAGE_X_FIX);
 
