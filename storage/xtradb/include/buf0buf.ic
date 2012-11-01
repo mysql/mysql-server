@@ -36,6 +36,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0lru.h"
 #include "buf0rea.h"
 #include "srv0srv.h"
+
 /********************************************************************//**
 Reads the freed_page_clock of a buffer block.
 @return	freed_page_clock */
@@ -1154,4 +1155,23 @@ buf_block_dbg_add_level(
 	sync_thread_add_level(&block->lock, level, FALSE);
 }
 #endif /* UNIV_SYNC_DEBUG */
+
+/*********************************************************************//**
+Get the nth chunk's buffer block in the specified buffer pool.
+@return the nth chunk's buffer block. */
+UNIV_INLINE
+buf_block_t*
+buf_get_nth_chunk_block(
+/*====================*/
+        const buf_pool_t* buf_pool,     /*!< in: buffer pool instance */
+        ulint           n,              /*!< in: nth chunk in the buffer pool */
+        ulint*          chunk_size)     /*!< in: chunk size */
+{
+        const buf_chunk_t*      chunk;
+
+        chunk = buf_pool->chunks + n;
+        *chunk_size = chunk->size;
+        return(chunk->blocks);
+}
 #endif /* !UNIV_HOTBACKUP */
+

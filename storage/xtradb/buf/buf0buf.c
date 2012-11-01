@@ -2123,6 +2123,7 @@ wait_until_unfixed:
 	if (mode == BUF_GET_IF_IN_POOL && ibuf_debug) {
 		/* Try to evict the block from the buffer pool, to use the
 		insert buffer as much as possible. */
+		ulint	page_no	= buf_block_get_page_no(block);
 
 		if (buf_LRU_free_block(&block->page, TRUE, FALSE)) {
 			//buf_pool_mutex_exit();
@@ -2131,6 +2132,18 @@ wait_until_unfixed:
 				"innodb_change_buffering_debug evict %u %u\n",
 				(unsigned) space, (unsigned) offset);
 			return(NULL);
+		} else if (UNIV_UNLIKELY(buf_block_get_state(block)
+					 != BUF_BLOCK_FILE_PAGE
+				|| (buf_block_get_page_no(block) != page_no)
+				|| (buf_block_get_space(block) != space))) {
+
+				/* buf_LRU_free_block temporarily releases the
+				block mutex, and now block points to something
+				else. */
+				mutex_exit(block_mutex);
+				block = NULL;
+				goto loop2;
+
 		} else if (buf_flush_page_try(block)) {
 			fprintf(stderr,
 				"innodb_change_buffering_debug flush %u %u\n",
@@ -4078,6 +4091,133 @@ buf_get_free_list_len(void)
 
 	return(len);
 }
+
+/*******************************************************************//**
+Collect buffer pool stats information for a buffer pool. Also
+record aggregated stats if there are more than one buffer pool
+in the server */
+UNIV_INTERN
+void
+buf_stats_get_pool_info(
+/*====================*/
+	buf_pool_info_t*	pool_info)	/*!< in/out: buffer pool info
+						to fill */
+{
+	time_t			current_time;
+	double			time_elapsed;
+
+	buf_pool_mutex_enter();
+
+	pool_info->pool_size = buf_pool->curr_size;
+
+	pool_info->lru_len = UT_LIST_GET_LEN(buf_pool->LRU);
+
+	pool_info->old_lru_len = buf_pool->LRU_old_len;
+
+	pool_info->free_list_len = UT_LIST_GET_LEN(buf_pool->free);
+
+	pool_info->flush_list_len = UT_LIST_GET_LEN(buf_pool->flush_list);
+
+	pool_info->n_pend_unzip = UT_LIST_GET_LEN(buf_pool->unzip_LRU);
+
+	pool_info->n_pend_reads = buf_pool->n_pend_reads;
+
+	pool_info->n_pending_flush_lru =
+		 (buf_pool->n_flush[BUF_FLUSH_LRU]
+		  + buf_pool->init_flush[BUF_FLUSH_LRU]);
+
+	pool_info->n_pending_flush_list =
+		 (buf_pool->n_flush[BUF_FLUSH_LIST]
+		  + buf_pool->init_flush[BUF_FLUSH_LIST]);
+
+	pool_info->n_pending_flush_single_page =
+		 (buf_pool->n_flush[BUF_FLUSH_SINGLE_PAGE]
+		  + buf_pool->init_flush[BUF_FLUSH_SINGLE_PAGE]);
+
+	current_time = time(NULL);
+	time_elapsed = 0.001 + difftime(current_time,
+					buf_pool->last_printout_time);
+
+	pool_info->n_pages_made_young = buf_pool->stat.n_pages_made_young;
+
+	pool_info->n_pages_not_made_young =
+		buf_pool->stat.n_pages_not_made_young;
+
+	pool_info->n_pages_read = buf_pool->stat.n_pages_read;
+
+	pool_info->n_pages_created = buf_pool->stat.n_pages_created;
+
+	pool_info->n_pages_written = buf_pool->stat.n_pages_written;
+
+	pool_info->n_page_gets = buf_pool->stat.n_page_gets;
+
+	pool_info->n_ra_pages_read_rnd = buf_pool->stat.n_ra_pages_read_rnd;
+	pool_info->n_ra_pages_read = buf_pool->stat.n_ra_pages_read;
+
+	pool_info->n_ra_pages_evicted = buf_pool->stat.n_ra_pages_evicted;
+
+	pool_info->page_made_young_rate =
+		 (buf_pool->stat.n_pages_made_young
+		  - buf_pool->old_stat.n_pages_made_young) / time_elapsed;
+
+	pool_info->page_not_made_young_rate =
+		 (buf_pool->stat.n_pages_not_made_young
+		  - buf_pool->old_stat.n_pages_not_made_young) / time_elapsed;
+
+	pool_info->pages_read_rate =
+		(buf_pool->stat.n_pages_read
+		  - buf_pool->old_stat.n_pages_read) / time_elapsed;
+
+	pool_info->pages_created_rate =
+		(buf_pool->stat.n_pages_created
+		 - buf_pool->old_stat.n_pages_created) / time_elapsed;
+
+	pool_info->pages_written_rate =
+		(buf_pool->stat.n_pages_written
+		 - buf_pool->old_stat.n_pages_written) / time_elapsed;
+
+	pool_info->n_page_get_delta = buf_pool->stat.n_page_gets
+				      - buf_pool->old_stat.n_page_gets;
+
+	if (pool_info->n_page_get_delta) {
+		pool_info->page_read_delta = buf_pool->stat.n_pages_read
+					     - buf_pool->old_stat.n_pages_read;
+
+		pool_info->young_making_delta =
+			buf_pool->stat.n_pages_made_young
+			- buf_pool->old_stat.n_pages_made_young;
+
+		pool_info->not_young_making_delta =
+			buf_pool->stat.n_pages_not_made_young
+			- buf_pool->old_stat.n_pages_not_made_young;
+	}
+	pool_info->pages_readahead_rnd_rate =
+		 (buf_pool->stat.n_ra_pages_read_rnd
+		  - buf_pool->old_stat.n_ra_pages_read_rnd) / time_elapsed;
+
+
+	pool_info->pages_readahead_rate =
+		 (buf_pool->stat.n_ra_pages_read
+		  - buf_pool->old_stat.n_ra_pages_read) / time_elapsed;
+
+	pool_info->pages_evicted_rate =
+		(buf_pool->stat.n_ra_pages_evicted
+		 - buf_pool->old_stat.n_ra_pages_evicted) / time_elapsed;
+
+	pool_info->unzip_lru_len = UT_LIST_GET_LEN(buf_pool->unzip_LRU);
+
+	pool_info->io_sum = buf_LRU_stat_sum.io;
+
+	pool_info->io_cur = buf_LRU_stat_cur.io;
+
+	pool_info->unzip_sum = buf_LRU_stat_sum.unzip;
+
+	pool_info->unzip_cur = buf_LRU_stat_cur.unzip;
+
+	buf_refresh_io_stats();
+	buf_pool_mutex_exit();
+}
+
 #else /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
@@ -4108,3 +4248,5 @@ buf_page_init_for_backup_restore(
 	}
 }
 #endif /* !UNIV_HOTBACKUP */
+
+

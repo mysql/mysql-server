@@ -91,6 +91,26 @@ void
 dict_create(void);
 /*=============*/
 
+/*****************************************************************//**
+Verifies the SYS_STATS table by scanning its clustered index.  This
+function may only be called at InnoDB startup time.
+
+@return	TRUE if SYS_STATS was verified successfully */
+UNIV_INTERN
+ibool
+dict_verify_xtradb_sys_stats(void);
+/*==============================*/
+
+/*****************************************************************//**
+Discard the existing dictionary cache SYS_STATS information, create and
+add it there anew.  Does not touch the old SYS_STATS tablespace page
+under the assumption that they are corrupted or overwritten for other
+purposes. */
+UNIV_INTERN
+void
+dict_recreate_xtradb_sys_stats(void);
+/*================================*/
+
 
 /* Space id and page no where the dictionary header resides */
 #define	DICT_HDR_SPACE		0	/* the SYSTEM tablespace */

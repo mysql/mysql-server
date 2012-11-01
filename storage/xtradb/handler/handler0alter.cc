@@ -668,6 +668,10 @@ ha_innobase::add_index(
 		DBUG_RETURN(HA_ERR_NO_SUCH_TABLE);
 	}
 
+	if (innodb_table->tablespace_discarded) {
+		DBUG_RETURN(-1);
+	}
+
 	/* Check that index keys are sensible */
 	error = innobase_check_index_keys(key_info, num_of_keys, innodb_table);
 
@@ -822,6 +826,8 @@ ha_innobase::add_index(
 	error = row_merge_build_indexes(prebuilt->trx,
 					innodb_table, indexed_table,
 					index, num_of_idx, table);
+
+	DBUG_EXECUTE_IF("crash_innodb_add_index_after", DBUG_SUICIDE(););
 
 error_handling:
 	/* After an error, remove all those index definitions from the

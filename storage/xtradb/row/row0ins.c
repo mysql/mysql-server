@@ -1296,7 +1296,8 @@ run_again:
 		check_index = foreign->foreign_index;
 	}
 
-	if (check_table == NULL || check_table->ibd_file_missing) {
+	if (check_table == NULL || check_table->ibd_file_missing
+	    || check_index == NULL) {
 		if (check_ref) {
 			FILE*	ef = dict_foreign_err_file;
 
@@ -1330,9 +1331,6 @@ run_again:
 
 		goto exit_func;
 	}
-
-	ut_a(check_table);
-	ut_a(check_index);
 
 	if (check_table != table) {
 		/* We already have a LOCK_IX on table, but not necessarily
@@ -2194,9 +2192,16 @@ row_ins_index_entry_low(
 
 				goto function_exit;
 			}
-			err = btr_cur_pessimistic_insert(
+
+			err = btr_cur_optimistic_insert(
 				0, &cursor, entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
+
+			if (err == DB_FAIL) {
+				err = btr_cur_pessimistic_insert(
+					0, &cursor, entry, &insert_rec,
+					&big_rec, n_ext, thr, &mtr);
+			}
 		}
 	}
 

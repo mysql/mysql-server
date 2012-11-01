@@ -32,6 +32,28 @@ Created 9/20/1997 Heikki Tuuri
 #include "hash0hash.h"
 #include "log0log.h"
 
+/******************************************************//**
+Checks the 4-byte checksum to the trailer checksum field of a log
+block.  We also accept a log block in the old format before
+InnoDB-3.23.52 where the checksum field contains the log block number.
+@return TRUE if ok, or if the log block may be in the format of InnoDB
+version predating 3.23.52 */
+UNIV_INTERN
+ibool
+log_block_checksum_is_ok_or_old_format(
+/*===================================*/
+	const byte*	block);	/*!< in: pointer to a log block */
+
+/*******************************************************//**
+Calculates the new value for lsn when more data is added to the log. */
+UNIV_INTERN
+ib_uint64_t
+recv_calc_lsn_on_data_add(
+/*======================*/
+	ib_uint64_t	lsn,	/*!< in: old lsn */
+	ib_uint64_t	len);	/*!< in: this many bytes of data is
+				added, log block headers not included */
+
 #ifdef UNIV_HOTBACKUP
 extern ibool	recv_replay_file_ops;
 
@@ -182,6 +204,21 @@ UNIV_INTERN
 void
 recv_recovery_rollback_active(void);
 /*===============================*/
+
+/*******************************************************************//**
+Tries to parse a single log record and returns its length.
+@return	length of the record, or 0 if the record was not complete */
+UNIV_INTERN
+ulint
+recv_parse_log_rec(
+/*===============*/
+	byte*	ptr,	/*!< in: pointer to a buffer */
+	byte*	end_ptr,/*!< in: pointer to the buffer end */
+	byte*	type,	/*!< out: type */
+	ulint*	space,	/*!< out: space id */
+	ulint*	page_no,/*!< out: page number */
+	byte**	body);	/*!< out: log record body start */
+
 /*******************************************************//**
 Scans log from a buffer and stores new log data to the parsing buffer.
 Parses and hashes the log records if new data found.  Unless

@@ -51,6 +51,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "rem0rec.h"
 #include "mtr0mtr.h"
 #include "log0log.h"
+#include "log0online.h"
 #include "log0recv.h"
 #include "page0page.h"
 #include "page0cur.h"
@@ -127,9 +128,9 @@ static mutex_t		ios_mutex;
 static ulint		ios;
 
 /** io_handler_thread parameters for thread identification */
-static ulint		n[SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM];
+static ulint		n[SRV_MAX_N_IO_THREADS + 8 + UNIV_MAX_PARALLELISM];
 /** io_handler_thread identifiers */
-static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 7 + UNIV_MAX_PARALLELISM];
+static os_thread_id_t	thread_ids[SRV_MAX_N_IO_THREADS + 8 + UNIV_MAX_PARALLELISM];
 
 /** We use this mutex to test the return value of pthread_mutex_trylock
    on successful locking. HP-UX does NOT return 0, though Linux et al do. */
@@ -1823,6 +1824,12 @@ innobase_start_or_create_for_mysql(void)
 
 			trx_sys_dummy_create(TRX_DOUBLEWRITE_SPACE);
 		}
+
+		if (UNIV_UNLIKELY(!dict_verify_xtradb_sys_stats())) {
+			fprintf(stderr, "InnoDB: Warning: "
+				"SYS_STATS table corrupted, recreating\n");
+			dict_recreate_xtradb_sys_stats();
+		}
 	}
 
 	if (!create_new_db && sum_of_new_sizes > 0) {
@@ -1884,6 +1891,19 @@ innobase_start_or_create_for_mysql(void)
 	synchronously */
 	if (srv_auto_lru_dump && srv_blocking_lru_restore)
 		buf_LRU_file_restore();
+
+	if (srv_track_changed_pages) {
+
+		/* Initialize the log tracking subsystem here to block
+		server startup until it's completed due to the potential
+		need to re-read previous server run's log. */
+		log_online_read_init();
+
+		/* Create the thread that follows the redo log to output the
+		changed page bitmap */
+		os_thread_create(&srv_redo_log_follow_thread, NULL,
+				 thread_ids + 5 + SRV_MAX_N_IO_THREADS);
+	}
 
 	srv_is_being_started = FALSE;
 

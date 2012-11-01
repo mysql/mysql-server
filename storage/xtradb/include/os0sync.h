@@ -287,7 +287,11 @@ Atomic compare-and-swap and increment for InnoDB. */
 
 #if defined(HAVE_IB_GCC_ATOMIC_BUILTINS)
 
-#define HAVE_ATOMIC_BUILTINS
+# define HAVE_ATOMIC_BUILTINS
+
+# ifdef HAVE_IB_GCC_ATOMIC_BUILTINS_64
+#  define HAVE_ATOMIC_BUILTINS_64
+# endif
 
 /**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
@@ -326,6 +330,9 @@ amount of increment. */
 # define os_atomic_increment_ulint(ptr, amount) \
 	os_atomic_increment(ptr, amount)
 
+# define os_atomic_increment_uint64(ptr, amount) \
+	os_atomic_increment(ptr, amount)
+
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
 
@@ -334,12 +341,13 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 
 #elif defined(HAVE_IB_SOLARIS_ATOMICS)
 
-#define HAVE_ATOMIC_BUILTINS
+# define HAVE_ATOMIC_BUILTINS
+# define HAVE_ATOMIC_BUILTINS_64
 
 /* If not compiling with GCC or GCC doesn't support the atomic
 intrinsics and running on Solaris >= 10 use Solaris atomics */
 
-#include <atomic.h>
+# include <atomic.h>
 
 /**********************************************************//**
 Returns true if swapped, ptr is pointer to target, old_val is value to
@@ -379,6 +387,9 @@ amount of increment. */
 # define os_atomic_increment_ulint(ptr, amount) \
 	atomic_add_long_nv(ptr, amount)
 
+# define os_atomic_increment_uint64(ptr, amount) \
+	atomic_add_64_nv(ptr, amount)
+
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val */
 
@@ -387,7 +398,11 @@ Returns the old value of *ptr, atomically sets *ptr to new_val */
 
 #elif defined(HAVE_WINDOWS_ATOMICS)
 
-#define HAVE_ATOMIC_BUILTINS
+# define HAVE_ATOMIC_BUILTINS
+
+# ifndef _WIN32
+#  define HAVE_ATOMIC_BUILTINS_64
+# endif
 
 /* On Windows, use Windows atomics / interlocked */
 # ifdef _WIN64
@@ -424,6 +439,11 @@ amount of increment. */
 
 # define os_atomic_increment_ulint(ptr, amount) \
 	((ulint) (win_xchg_and_add(ptr, amount) + amount))
+
+# define os_atomic_increment_uint64(ptr, amount)		\
+	((ib_uint64_t) (InterlockedExchangeAdd64(		\
+				 (ib_int64_t*) ptr,		\
+				 (ib_int64_t) amount) + amount))
 
 /**********************************************************//**
 Returns the old value of *ptr, atomically sets *ptr to new_val.

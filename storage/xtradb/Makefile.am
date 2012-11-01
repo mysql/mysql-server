@@ -101,6 +101,7 @@ noinst_HEADERS=		\
 			include/lock0types.h	\
 			include/log0log.h	\
 			include/log0log.ic	\
+			include/log0online.h	\
 			include/log0recv.h	\
 			include/log0recv.ic	\
 			include/mach0data.h	\
@@ -226,7 +227,6 @@ noinst_HEADERS=		\
 			include/ut0vec.h	\
 			include/ut0vec.ic	\
 			include/ut0wqueue.h	\
-			handler/innodb_patch_info.h	\
 			mem/mem0dbg.c
 
 noinst_LTLIBRARIES=	@plugin_xtradb_static_target@
@@ -265,6 +265,7 @@ libxtradb_la_SOURCES=	\
 			lock/lock0iter.c		\
 			lock/lock0lock.c		\
 			log/log0log.c			\
+			log/log0online.c		\
 			log/log0recv.c			\
 			mach/mach0data.c		\
 			mem/mem0mem.c			\

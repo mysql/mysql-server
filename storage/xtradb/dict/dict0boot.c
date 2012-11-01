@@ -237,6 +237,166 @@ dict_hdr_create(
 }
 
 /*****************************************************************//**
+Verifies the SYS_STATS table by scanning its clustered index.  This
+function may only be called at InnoDB startup time.
+
+@return	TRUE if SYS_STATS was verified successfully */
+UNIV_INTERN
+ibool
+dict_verify_xtradb_sys_stats(void)
+/*==============================*/
+{
+	dict_index_t* sys_stats_index;
+	ulint	      saved_srv_pass_corrupt_table = srv_pass_corrupt_table;
+	ibool	      result;
+
+	sys_stats_index = dict_table_get_first_index(dict_sys->sys_stats);
+
+	/* Since this may be called only during server startup, avoid hitting
+	   various asserts by using XtraDB pass_corrupt_table option. */
+	srv_pass_corrupt_table = 1;
+	result = btr_validate_index(sys_stats_index, NULL);
+	srv_pass_corrupt_table = saved_srv_pass_corrupt_table;
+
+	return result;
+}
+
+/*****************************************************************//**
+Creates the B-tree for the SYS_STATS clustered index, adds the XtraDB
+mark and the id of the index to the dictionary header page.  Rewrites
+both passed args. */
+static
+void
+dict_create_xtradb_sys_stats(
+/*=========================*/
+	dict_hdr_t**	dict_hdr,	/*!< in/out: dictionary header */
+	mtr_t*		mtr)		/*!< in/out: mtr */
+{
+	ulint	root_page_no;
+
+	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
+				  DICT_HDR_SPACE, 0, DICT_STATS_ID,
+				  dict_ind_redundant, mtr);
+	if (root_page_no == FIL_NULL) {
+		fprintf(stderr, "InnoDB: Warning: failed to create SYS_STATS btr.\n");
+		srv_use_sys_stats_table = FALSE;
+	} else {
+		mlog_write_ulint(*dict_hdr + DICT_HDR_STATS, root_page_no,
+				 MLOG_4BYTES, mtr);
+		mlog_write_dulint(*dict_hdr + DICT_HDR_XTRADB_MARK,
+				  DICT_HDR_XTRADB_FLAG, mtr);
+	}
+	mtr_commit(mtr);
+	/* restart mtr */
+	mtr_start(mtr);
+	*dict_hdr = dict_hdr_get(mtr);
+}
+
+/*****************************************************************//**
+Create the table and index structure of SYS_STATS for the dictionary
+cache and add it there.  If called for the first time, also support
+wrong root page id injection for testing purposes. */
+static
+void
+dict_add_to_cache_xtradb_sys_stats(
+/*===============================*/
+	ibool		first_time __attribute__((unused)),
+					/*!< in: first invocation flag. If
+					TRUE, optionally inject wrong root page
+					id */
+	mem_heap_t*	heap,		/*!< in: memory heap for table/index
+					allocation */
+	dict_hdr_t*	dict_hdr,	/*!< in: dictionary header */
+	mtr_t*		mtr)		/*!< in: mtr */
+{
+	dict_table_t*	table;
+	dict_index_t*	index;
+	ulint		root_page_id;
+	ulint		error;
+
+	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 4, 0);
+	table->n_mysql_handles_opened = 1; /* for pin */
+
+	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "KEY_COLS", DATA_INT, 0, 4);
+	dict_mem_table_add_col(table, heap, "DIFF_VALS", DATA_BINARY, 0, 0);
+	dict_mem_table_add_col(table, heap, "NON_NULL_VALS", DATA_BINARY, 0, 0);
+
+	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
+#if DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2
+#error "DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2"
+#endif
+#if DICT_SYS_STATS_NON_NULL_VALS_FIELD != 3 + 2
+#error "DICT_SYS_STATS_NON_NULL_VALS_FIELD != 3 + 2"
+#endif
+
+	table->id = DICT_STATS_ID;
+	dict_table_add_to_cache(table, heap);
+	dict_sys->sys_stats = table;
+	mem_heap_empty(heap);
+
+	index = dict_mem_index_create("SYS_STATS", "CLUST_IND",
+				      DICT_HDR_SPACE,
+				      DICT_UNIQUE | DICT_CLUSTERED, 2);
+
+	dict_mem_index_add_field(index, "INDEX_ID", 0);
+	dict_mem_index_add_field(index, "KEY_COLS", 0);
+
+	index->id = DICT_STATS_ID;
+
+	root_page_id = mtr_read_ulint(dict_hdr + DICT_HDR_STATS, MLOG_4BYTES,
+				      mtr);
+#ifdef UNIV_DEBUG
+	if ((srv_sys_stats_root_page != 0) && first_time)
+		root_page_id = srv_sys_stats_root_page;
+#endif
+	error = dict_index_add_to_cache(table, index, root_page_id, FALSE);
+	ut_a(error == DB_SUCCESS);
+
+	mem_heap_empty(heap);
+}
+
+/*****************************************************************//**
+Discard the existing dictionary cache SYS_STATS information, create and
+add it there anew.  Does not touch the old SYS_STATS tablespace page
+under the assumption that they are corrupted or overwritten for other
+purposes. */
+UNIV_INTERN
+void
+dict_recreate_xtradb_sys_stats(void)
+/*================================*/
+{
+	mtr_t		mtr;
+	dict_hdr_t*	dict_hdr;
+	dict_index_t*	sys_stats_clust_idx;
+	mem_heap_t*	heap;
+
+	heap = mem_heap_create(450);
+
+	mutex_enter(&(dict_sys->mutex));
+
+	sys_stats_clust_idx = dict_table_get_first_index(dict_sys->sys_stats);
+	dict_index_remove_from_cache(dict_sys->sys_stats, sys_stats_clust_idx);
+
+	dict_table_remove_from_cache(dict_sys->sys_stats);
+
+	dict_sys->sys_stats = NULL;
+
+	mtr_start(&mtr);
+
+	dict_hdr = dict_hdr_get(&mtr);
+
+	dict_create_xtradb_sys_stats(&dict_hdr, &mtr);
+	dict_add_to_cache_xtradb_sys_stats(FALSE, heap, dict_hdr, &mtr);
+
+	mem_heap_free(heap);
+
+	mtr_commit(&mtr);
+
+	mutex_exit(&(dict_sys->mutex));
+}
+
+/*****************************************************************//**
 Initializes the data dictionary memory structures when the database is
 started. This function is also called when the data dictionary is created. */
 UNIV_INTERN
@@ -251,39 +411,23 @@ dict_boot(void)
 	mtr_t		mtr;
 	ulint		error;
 
+	heap = mem_heap_create(450);
+
 	mtr_start(&mtr);
 
 	/* Create the hash tables etc. */
 	dict_init();
-
-	heap = mem_heap_create(450);
 
 	mutex_enter(&(dict_sys->mutex));
 
 	/* Get the dictionary header */
 	dict_hdr = dict_hdr_get(&mtr);
 
-	if (ut_dulint_cmp(mtr_read_dulint(dict_hdr + DICT_HDR_XTRADB_MARK, &mtr),
-			  DICT_HDR_XTRADB_FLAG) != 0) {
-		/* not extended yet by XtraDB, need to be extended */
-		ulint	root_page_no;
+	if (ut_dulint_cmp(mtr_read_dulint(dict_hdr + DICT_HDR_XTRADB_MARK,
+					  &mtr), DICT_HDR_XTRADB_FLAG) != 0) {
 
-		root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-					  DICT_HDR_SPACE, 0, DICT_STATS_ID,
-					  dict_ind_redundant, &mtr);
-		if (root_page_no == FIL_NULL) {
-			fprintf(stderr, "InnoDB: Warning: failed to create SYS_STATS btr.\n");
-			srv_use_sys_stats_table = FALSE;
-		} else {
-			mlog_write_ulint(dict_hdr + DICT_HDR_STATS, root_page_no,
-					 MLOG_4BYTES, &mtr);
-			mlog_write_dulint(dict_hdr + DICT_HDR_XTRADB_MARK,
-					  DICT_HDR_XTRADB_FLAG, &mtr);
-		}
-		mtr_commit(&mtr);
-		/* restart mtr */
-		mtr_start(&mtr);
-		dict_hdr = dict_hdr_get(&mtr);
+		/* not extended yet by XtraDB, need to be extended */
+		dict_create_xtradb_sys_stats(&dict_hdr, &mtr);
 	}
 
 	/* Because we only write new row ids to disk-based data structure
@@ -464,42 +608,7 @@ dict_boot(void)
 					FALSE);
 	ut_a(error == DB_SUCCESS);
 
-	/*-------------------------*/
-	table = dict_mem_table_create("SYS_STATS", DICT_HDR_SPACE, 4, 0);
-	table->n_mysql_handles_opened = 1; /* for pin */
-
-	dict_mem_table_add_col(table, heap, "INDEX_ID", DATA_BINARY, 0, 0);
-	dict_mem_table_add_col(table, heap, "KEY_COLS", DATA_INT, 0, 4);
-	dict_mem_table_add_col(table, heap, "DIFF_VALS", DATA_BINARY, 0, 0);
-	dict_mem_table_add_col(table, heap, "NON_NULL_VALS", DATA_BINARY, 0, 0);
-
-	/* The '+ 2' below comes from the fields DB_TRX_ID, DB_ROLL_PTR */
-#if DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2
-#error "DICT_SYS_STATS_DIFF_VALS_FIELD != 2 + 2"
-#endif
-#if DICT_SYS_STATS_NON_NULL_VALS_FIELD != 3 + 2
-#error "DICT_SYS_STATS_NON_NULL_VALS_FIELD != 3 + 2"
-#endif
-
-	table->id = DICT_STATS_ID;
-	dict_table_add_to_cache(table, heap);
-	dict_sys->sys_stats = table;
-	mem_heap_empty(heap);
-
-	index = dict_mem_index_create("SYS_STATS", "CLUST_IND",
-				      DICT_HDR_SPACE,
-				      DICT_UNIQUE | DICT_CLUSTERED, 2);
-
-	dict_mem_index_add_field(index, "INDEX_ID", 0);
-	dict_mem_index_add_field(index, "KEY_COLS", 0);
-
-	index->id = DICT_STATS_ID;
-	error = dict_index_add_to_cache(table, index,
-					mtr_read_ulint(dict_hdr
-						       + DICT_HDR_STATS,
-						       MLOG_4BYTES, &mtr),
-					FALSE);
-	ut_a(error == DB_SUCCESS);
+	dict_add_to_cache_xtradb_sys_stats(TRUE, heap, dict_hdr, &mtr);
 
 	mem_heap_free(heap);
 
