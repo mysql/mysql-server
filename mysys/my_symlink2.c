@@ -1,4 +1,4 @@
-/* Copyright (C) 2000 MySQL AB
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /*
   Advanced symlink handling.
@@ -37,7 +37,7 @@ File my_create_with_symlink(const char *linkname, const char *filename,
                        linkname ? linkname : "(null)",
                        filename ? filename : "(null)"));
 
-  if (my_disable_symlinks)
+  if (!my_enable_symlinks)
   {
     DBUG_PRINT("info", ("Symlinks disabled"));
     /* Create only the file, not the link and file */
@@ -102,7 +102,7 @@ File my_create_with_symlink(const char *linkname, const char *filename,
 int my_delete_with_symlink(const char *name, myf MyFlags)
 {
   char link_name[FN_REFLEN];
-  int was_symlink= (!my_disable_symlinks &&
+  int was_symlink= (my_enable_symlinks &&
 		    !my_readlink(link_name, name, MYF(0)));
   int result;
   DBUG_ENTER("my_delete_with_symlink");
@@ -131,7 +131,7 @@ int my_rename_with_symlink(const char *from, const char *to, myf MyFlags)
   return my_rename(from, to, MyFlags);
 #else
   char link_name[FN_REFLEN], tmp_name[FN_REFLEN];
-  int was_symlink= (!my_disable_symlinks &&
+  int was_symlink= (my_enable_symlinks &&
 		    !my_readlink(link_name, from, MYF(0)));
   int result=0;
   int name_is_different;
