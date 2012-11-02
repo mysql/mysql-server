@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 CREATE TABLE `t1` ( `nid` int(11) NOT NULL default '0',
 `nom` char(4) default NULL,
@@ -234,9 +237,13 @@ set @v10000 = concat(@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1000,@v1
 set @v13000 = concat(@v10000, @v1000,@v1000,@v1000);
 insert into t1 (c1,c500) values (1,@v10000), (2,@v10000), (3,@v10000);
 alter offline table t1 modify c1 int auto_increment;
+Warnings:
+Warning	1287	'OFFLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=COPY instead
 alter online table t1 add column c501 bit(1) column_format DYNAMIC;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 alter online table t1 add column c502 varchar(2000);
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 14000. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 14000. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
 select length(c500) from t1 order by 1;
 length(c500)
 10000

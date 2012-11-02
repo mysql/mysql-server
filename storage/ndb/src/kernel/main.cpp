@@ -34,6 +34,8 @@ static int opt_report_fd;
 static int opt_initial;
 static int opt_no_start;
 static unsigned opt_allocated_nodeid;
+static int opt_retries;
+static int opt_delay;
 
 extern NdbNodeBitmask g_nowait_nodes;
 
@@ -86,6 +88,14 @@ static struct my_option my_long_options[] =
     "INTERNAL: nodeid allocated by angel process",
     (uchar**) &opt_allocated_nodeid, (uchar**) &opt_allocated_nodeid, 0,
     GET_UINT, REQUIRED_ARG, 0, 0, ~0, 0, 0, 0 },
+  { "connect-retries", 'r',
+    "Number of times mgmd is contacted at start. -1: eternal retries",
+    (uchar**) &opt_retries, (uchar**) &opt_retries, 0,
+    GET_INT, REQUIRED_ARG, 12, -1, 65535, 0, 0, 0 },
+  { "connect-delay", NDB_OPT_NOSHORT,
+    "Number of seconds between each connection attempt",
+    (uchar**) &opt_delay, (uchar**) &opt_delay, 0,
+    GET_INT, REQUIRED_ARG, 5, 0, 3600, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -133,7 +143,7 @@ real_main(int argc, char** argv)
   g_eventLogger->m_logLevel.setLogLevel(LogLevel::llStartUp, 15);
 
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  load_defaults("my",load_default_groups,&argc,&argv);
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndbd.trace";
@@ -187,7 +197,7 @@ real_main(int argc, char** argv)
     ndbd_run(opt_foreground, opt_report_fd,
              opt_ndb_connectstring, opt_ndb_nodeid, opt_bind_address,
              opt_no_start, opt_initial, opt_initialstart,
-             opt_allocated_nodeid);
+             opt_allocated_nodeid, opt_retries, opt_delay);
   }
 
   angel_run(progname,
@@ -197,7 +207,9 @@ real_main(int argc, char** argv)
             opt_bind_address,
             opt_initial,
             opt_no_start,
-            opt_daemon);
+            opt_daemon,
+            opt_retries,
+            opt_delay);
 
   return 1; // Never reached
 }

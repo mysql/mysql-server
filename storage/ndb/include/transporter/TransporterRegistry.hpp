@@ -33,7 +33,6 @@
 #include <sys/epoll.h>
 #endif
 #include "TransporterDefinitions.hpp"
-#include "TransporterCallback.hpp"
 #include <SocketServer.hpp>
 #include <SocketClient.hpp>
 
@@ -85,6 +84,56 @@ public:
 };
 
 /**
+ * TransporterReceiveData
+ *
+ *   State for pollReceive/performReceive
+ *   Moved into own class to enable multi receive threads
+ */
+struct TransporterReceiveData
+{
+  TransporterReceiveData();
+  ~TransporterReceiveData();
+
+  bool init (unsigned maxTransporters);
+
+  /**
+   * Add a transporter to epoll_set
+   *   does nothing if epoll not active
+   */
+  bool epoll_add(TCP_Transporter*);
+
+  /**
+   * Bitmask of transporters currently handled by this instance
+   */
+  NodeBitmask m_transporters;
+
+  /**
+   * Bitmask of transporters having data awaiting to be received
+   * from its transporter.
+   */
+  NodeBitmask m_recv_transporters;
+
+  /**
+   * Bitmask of transporters that has already received data buffered
+   * inside its transporter. Possibly "carried over" from last 
+   * performReceive
+   */
+  NodeBitmask m_has_data_transporters;
+#if defined(HAVE_EPOLL_CREATE)
+  int m_epoll_fd;
+  struct epoll_event *m_epoll_events;
+  bool change_epoll(TCP_Transporter *t, bool add);
+#endif
+
+  /**
+   * Used in polling if exists TCP_Transporter
+   */
+  ndb_socket_poller m_socket_poller;
+};
+
+#include "TransporterCallback.hpp"
+
+/**
  * @class TransporterRegistry
  * @brief ...
  */
@@ -98,9 +147,9 @@ public:
   * Constructor
   */
   TransporterRegistry(TransporterCallback *callback,
+                      TransporterReceiveHandle * receiveHandle,
                       bool use_default_send_buffer = true,
-		      unsigned maxTransporters = MAX_NTRANSPORTERS, 
-		      unsigned sizeOfLongSignalMemory = 100);
+		      unsigned maxTransporters = MAX_NTRANSPORTERS);
 
   /**
    * this handle will be used in the client connect thread
@@ -111,6 +160,12 @@ public:
   NdbMgmHandle get_mgm_handle(void) { return m_mgm_handle; };
 
   bool init(NodeId localNodeId);
+
+  /**
+   * Iff using non-default TransporterReceiveHandle's
+   *   they need to get initalized
+   */
+  bool init(TransporterReceiveHandle&);
 
   /**
      Handle the handshaking with a new client connection
@@ -154,7 +209,6 @@ public:
   struct NdbThread* start_clients();
   bool stop_clients();
   void start_clients_thread();
-  void update_connections();
 
   /**
    * Start/Stop receiving
@@ -188,8 +242,8 @@ public:
   void do_connect(NodeId node_id);
   void do_disconnect(NodeId node_id, int errnum = 0);
   bool is_connected(NodeId node_id) { return performStates[node_id] == CONNECTED; };
-  void report_connect(NodeId node_id);
-  void report_disconnect(NodeId node_id, int errnum);
+  void report_connect(TransporterReceiveHandle&, NodeId node_id);
+  void report_disconnect(TransporterReceiveHandle&, NodeId node_id, int errnum);
   void report_error(NodeId nodeId, TransporterError errorCode,
                     const char *errorInfo = 0);
   
@@ -223,8 +277,10 @@ public:
    *
    * Argument is the value of config parameter TotalSendBufferMemory. If 0,
    * a default will be used of sum(max send buffer) over all transporters.
+   * The second is the config parameter ExtraSendBufferMemory
    */
-  void allocate_send_buffers(Uint64 total_send_buffer);
+  void allocate_send_buffers(Uint64 total_send_buffer,
+                             Uint64 extra_send_buffer);
 
   /**
    * Get sum of max send buffer over all transporters, to be used as a default
@@ -244,6 +300,13 @@ public:
   void set_status_overloaded(Uint32 nodeId, bool val);
   const NodeBitmask& get_status_overloaded() const;
   
+  /**
+   * Set or clear slowdown bit.
+   * Query if any slowdown bit is set.
+   */
+  void set_status_slowdown(Uint32 nodeId, bool val);
+  const NodeBitmask& get_status_slowdown() const;
+ 
   /**
    * prepareSend
    *
@@ -305,15 +368,10 @@ public:
    *
    */
   void external_IO(Uint32 timeOutMillis);
-  
-  inline Uint32 pollReceive(Uint32 timeOutMillis) {
-    return pollReceive(timeOutMillis, m_has_data_transporters);
-  }
-  Uint32 pollReceive(Uint32 timeOutMillis, NodeBitmask& mask);
-  void performReceive();
+
   int performSend(NodeId nodeId);
   void performSend();
-  
+
   /**
    * Force sending if more than or equal to sendLimit
    * number have asked for send. Returns 0 if not sending
@@ -325,13 +383,6 @@ public:
   void printState();
 #endif
 
-#ifdef ERROR_INSERT
-  /* Utils for testing latency issues */
-  bool isBlocked(NodeId nodeId);
-  void blockReceive(NodeId nodeId);
-  void unblockReceive(NodeId nodeId);
-#endif
-  
   class Transporter_interface {
   public:
     NodeId m_remote_nodeId;
@@ -343,10 +394,14 @@ public:
 		  		 int s_port);	// signed port. <0 is dynamic
   Transporter* get_transporter(NodeId nodeId);
   struct in_addr get_connect_address(NodeId node_id) const;
+
+  Uint64 get_bytes_sent(NodeId nodeId) const;
+  Uint64 get_bytes_received(NodeId nodeId) const;
 protected:
   
 private:
   TransporterCallback *callbackObj;
+  TransporterReceiveHandle * receiveHandle;
 
   NdbMgmHandle m_mgm_handle;
 
@@ -363,21 +418,10 @@ private:
 
 #ifdef ERROR_INSERT
   Bitmask<MAX_NTRANSPORTERS/32> m_blocked;
-  Bitmask<MAX_NTRANSPORTERS/32> m_blocked_with_data;
   Bitmask<MAX_NTRANSPORTERS/32> m_blocked_disconnected;
   int m_disconnect_errors[MAX_NTRANSPORTERS];
 #endif
 
-  /**
-   * Bitmask of transporters that has data "carried over" since
-   *   last performReceive
-   */
-  NodeBitmask m_has_data_transporters;
-#if defined(HAVE_EPOLL_CREATE)
-  int m_epoll_fd;
-  struct epoll_event *m_epoll_events;
-  bool change_epoll(TCP_Transporter *t, bool add);
-#endif
   /**
    * Arrays holding all transporters in the order they are created
    */
@@ -405,23 +449,27 @@ private:
 
   /**
    * Overloaded bits, for fast check.
+   * Similarly slowdown bits for fast check.
    */
   NodeBitmask m_status_overloaded;
- 
+  NodeBitmask m_status_slowdown;
+
   /**
    * Unpack signal data.
    *
    * Defined in Packer.cpp.
    */
-  Uint32 unpack(Uint32 * readPtr,
-		Uint32 bufferSize,
-		NodeId remoteNodeId, 
-		IOState state);
-  
-  Uint32 * unpack(Uint32 * readPtr,
-		  Uint32 * eodPtr,
-		  NodeId remoteNodeId,
-		  IOState state);
+  Uint32 unpack(TransporterReceiveHandle&,
+                Uint32 * readPtr,
+                Uint32 bufferSize,
+                NodeId remoteNodeId,
+                IOState state);
+
+  Uint32 * unpack(TransporterReceiveHandle&,
+                  Uint32 * readPtr,
+                  Uint32 * eodPtr,
+                  NodeId remoteNodeId,
+                  IOState state);
 
   static Uint32 unpack_length_words(const Uint32 *readPtr, Uint32 maxWords);
   /** 
@@ -431,23 +479,22 @@ private:
    * and remove it from theIndexedTransporters array
    */
   void removeTransporter(NodeId nodeId);
-  
-  /**
-   * Used in polling if exists TCP_Transporter
-   */
-  int tcpReadSelectReply;
-  ndb_socket_poller m_socket_poller;
 
-  Uint32 poll_TCP(Uint32 timeOutMillis, NodeBitmask&);
-  Uint32 poll_SCI(Uint32 timeOutMillis, NodeBitmask&);
-  Uint32 poll_SHM(Uint32 timeOutMillis, NodeBitmask&);
+  Uint32 poll_TCP(Uint32 timeOutMillis, TransporterReceiveHandle&);
+  Uint32 poll_SCI(Uint32 timeOutMillis, TransporterReceiveHandle&);
+  Uint32 poll_SHM(Uint32 timeOutMillis, TransporterReceiveHandle&);
 
   int m_shm_own_pid;
   int m_transp_count;
 
 public:
-  bool setup_wakeup_socket();
+  bool setup_wakeup_socket(TransporterReceiveHandle&);
   void wakeup();
+
+  inline bool setup_wakeup_socket() {
+    assert(receiveHandle != 0);
+    return setup_wakeup_socket(* receiveHandle);
+  }
 private:
   bool m_has_extra_wakeup_socket;
   NDB_SOCKET_TYPE m_extra_wakeup_sockets[2];
@@ -528,19 +575,64 @@ public:
 
   void print_transporters(const char* where, NdbOut& out = ndbout);
 
+  /**
+   * Receiving
+   */
+  Uint32 pollReceive(Uint32 timeOutMillis, TransporterReceiveHandle& mask);
+  void performReceive(TransporterReceiveHandle&);
+  void update_connections(TransporterReceiveHandle&);
+
+  inline Uint32 pollReceive(Uint32 timeOutMillis) {
+    assert(receiveHandle != 0);
+    return pollReceive(timeOutMillis, * receiveHandle);
+  }
+
+  inline void performReceive() {
+    assert(receiveHandle != 0);
+    performReceive(* receiveHandle);
+  }
+
+  inline void update_connections() {
+    assert(receiveHandle != 0);
+    update_connections(* receiveHandle);
+  }
+
+#ifdef ERROR_INSERT
+  /* Utils for testing latency issues */
+  bool isBlocked(NodeId nodeId);
+  void blockReceive(TransporterReceiveHandle&, NodeId nodeId);
+  void unblockReceive(TransporterReceiveHandle&, NodeId nodeId);
+#endif
 };
 
 inline void
 TransporterRegistry::set_status_overloaded(Uint32 nodeId, bool val)
 {
   assert(nodeId < MAX_NODES);
-  m_status_overloaded.set(nodeId, val);
+  if (val != m_status_overloaded.get(nodeId))
+    m_status_overloaded.set(nodeId, val);
+  if (val)
+    set_status_slowdown(nodeId, val);
 }
 
 inline const NodeBitmask&
 TransporterRegistry::get_status_overloaded() const
 {
   return m_status_overloaded;
+}
+
+inline void
+TransporterRegistry::set_status_slowdown(Uint32 nodeId, bool val)
+{
+  assert(nodeId < MAX_NODES);
+  if (val != m_status_slowdown.get(nodeId))
+    m_status_slowdown.set(nodeId, val);
+}
+
+inline const NodeBitmask&
+TransporterRegistry::get_status_slowdown() const
+{
+  return m_status_slowdown;
 }
 
 #endif // Define of TransporterRegistry_H

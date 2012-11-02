@@ -29,15 +29,6 @@
 #define min(a, b) ((a) <= (b) ? (a) : (b))
 #define max(a, b) ((a) >= (b) ? (a) : (b))
 
-inline NdbOut&
-NdbOut::operator<<(double x)
-{
-  char buf[100];
-  sprintf(buf, "%.2f", x);
-  *this << buf;
-  return *this;
-}
-
 struct Opts {
   int loglevel;
   uint seed;
@@ -137,18 +128,11 @@ static bool g_has_created_stat_tables = false;
 static bool g_has_created_stat_events = false;
 
 static uint
-urandom()
-{
-  uint r = (uint)random();
-  return r;
-}
-
-static uint
 urandom(uint m)
 {
   if (m == 0)
     return 0;
-  uint r = urandom();
+  uint r = (uint)rand();
   r = r % m;
   return r;
 }
@@ -1748,7 +1732,7 @@ querystat_v2(Rng& rng)
 
   Stval& st = rng.m_st_stat;
   chkrc(count < (1 << 30));
-  st.rir_v2 = count;
+  st.rir_v2 = (Uint32)count;
   ll2("querystat_v2: " << st.rir_v2 << " rows");
   return 0;
 }
@@ -2101,7 +2085,7 @@ runtest()
       seed = 2 + (ushort)getpid();
     }
     ll0("random seed is " << seed);
-    srandom(seed);
+    srand(seed);
   } else {
     ll0("random seed is " << "loop number");
   }
@@ -2123,7 +2107,7 @@ runtest()
     uint seed = g_opts.seed;
     if (seed == 1) { // loop number
       seed = g_loop;
-      srandom(seed);
+      srand(seed);
     }
     makekeys();
     chkrc(loaddata(g_loop != 0) == 0);

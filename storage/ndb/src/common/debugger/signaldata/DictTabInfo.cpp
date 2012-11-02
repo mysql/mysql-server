@@ -48,8 +48,8 @@ DictTabInfo::TableMapping[] = {
   DTIMAP2(Table, FrmLen, FrmLen, 0, MAX_FRM_DATA_SIZE),
   DTIMAPB(Table, FrmData, FrmData, 0, MAX_FRM_DATA_SIZE, FrmLen),
   DTIMAP2(Table, FragmentCount, FragmentCount, 0, MAX_NDB_PARTITIONS),
-  DTIMAP2(Table, ReplicaDataLen, ReplicaDataLen, 0, 2*MAX_FRAGMENT_DATA_BYTES),
-  DTIMAPB(Table, ReplicaData, ReplicaData, 0, 2*MAX_FRAGMENT_DATA_BYTES, ReplicaDataLen),
+  DTIMAP2(Table, ReplicaDataLen, ReplicaDataLen, 0, MAX_FRAGMENT_DATA_BYTES),
+  DTIMAPB(Table, ReplicaData, ReplicaData, 0, MAX_FRAGMENT_DATA_BYTES, ReplicaDataLen),
   DTIMAP2(Table, FragmentDataLen, FragmentDataLen, 0, 6*MAX_NDB_PARTITIONS),
   DTIMAPB(Table, FragmentData, FragmentData, 0, 6*MAX_NDB_PARTITIONS, FragmentDataLen),
   DTIMAP2(Table, TablespaceDataLen, TablespaceDataLen, 0, 8*MAX_NDB_PARTITIONS),
@@ -337,14 +337,15 @@ const
 SimpleProperties::SP2StructMapping
 DictHashMapInfo::Mapping[] = {
   DHMIMAPS(HashMap, HashMapName, HashMapName, 0, MAX_TAB_NAME_SIZE),
-  DHMIMAP2(HashMap, HashMapBuckets, HashMapBuckets, 0, 256),
+  DHMIMAP2(HashMap, HashMapBuckets, HashMapBuckets, 0, NDB_DEFAULT_HASHMAP_BUCKETS),
   DTIMAP(HashMap, HashMapObjectId, HashMapObjectId),
   DTIMAP(HashMap, HashMapVersion, HashMapVersion),
 
   /**
    * This *should* change to Uint16 or similar once endian is pushed
    */
-  DHMIMAPB(HashMap, HashMapValues, HashMapValues, 0, 256*2, HashMapBuckets)
+  DHMIMAPB(HashMap, HashMapValues, HashMapValues, 0,
+           NDB_DEFAULT_HASHMAP_BUCKETS_BYTES, HashMapBuckets)
 };
 
 //static

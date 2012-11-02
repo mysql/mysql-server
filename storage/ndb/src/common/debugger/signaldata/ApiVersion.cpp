@@ -46,6 +46,6 @@ printAPI_VERSION_CONF(FILE * output,
           " senderRef: (node: %d, block: %d), nodeId: %d\n" \
           " version: %d, mysql_version: %d, inet_addr: %d\n",
 	  refToNode(sig->senderRef), refToBlock(sig->senderRef),
-	  sig->nodeId, sig->version, sig->mysql_version, sig->inet_addr);
+	  sig->nodeId, sig->version, sig->mysql_version, sig->m_inet_addr);
   return true;
 }
