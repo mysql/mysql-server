@@ -703,7 +703,7 @@ extern char * fn_format(char * to,const char *name,const char *dir,
 extern size_t strlength(const char *str);
 extern void pack_dirname(char * to,const char *from);
 extern size_t normalize_dirname(char * to, const char *from);
-extern size_t unpack_dirname(char * to,const char *from);
+extern size_t unpack_dirname(char * to,const char *from, my_bool *is_symdir);
 extern size_t cleanup_dirname(char * to,const char *from);
 extern size_t system_filename(char * to,const char *from);
 extern size_t unpack_filename(char * to,const char *from);

@@ -67,6 +67,10 @@ using std::min;
 
 const char *primary_key_name="PRIMARY";
 
+#ifdef USE_SYMDIR
+bool symdir_warning_emitted= false;
+#endif
+
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
@@ -577,7 +581,21 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
 #ifdef USE_SYMDIR
   if (!(flags & SKIP_SYMDIR_ACCESS))
   {
-    unpack_dirname(buff, buff);
+    my_bool is_symdir;
+
+    unpack_dirname(buff, buff, &is_symdir);
+    /*
+      Lack of synchronization for access to symdir_warning_emitted is OK
+      as in the worst case it might result in a few extra warnings
+      printed to error log.
+    */
+    if (is_symdir && !symdir_warning_emitted)
+    {
+      symdir_warning_emitted= true;
+      sql_print_warning("Symbolic links based on .sym files are deprecated. "
+                        "Please use native Windows symbolic links instead "
+                        "(see MKLINK command).");
+    }
     pos= strend(buff);
   }
 #endif
