@@ -65,6 +65,7 @@ public:
   
   void set_resource_limit(const Resource_limit& rl);
   bool get_resource_limit(Uint32 id, Resource_limit& rl) const;
+  bool get_resource_limit_nolock(Uint32 id, Resource_limit& rl) const;
 
   bool init(Uint32 *watchCounter, bool allow_alloc_less_than_requested = true);
   void map(Uint32 * watchCounter, bool memlock = false, Uint32 resources[] = 0);
@@ -94,7 +95,7 @@ public:
 private:
   void grow(Uint32 start, Uint32 cnt);
 
-#define XX_RL_COUNT 9
+#define XX_RL_COUNT 10
   /**
    * Return pointer to free page data on page
    */

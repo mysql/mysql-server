@@ -409,7 +409,7 @@ public abstract class AbstractJPABaseTest extends SingleEMTestCase {
         }
     }
 
-    protected void removeAll(Class<? extends IdBase> modelClass) {
+    protected void removeAll(Class<?> modelClass) {
         Query query = em.createQuery("DELETE FROM " + modelClass.getSimpleName());
         em.getTransaction().begin();
         query.executeUpdate();

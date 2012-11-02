@@ -480,6 +480,7 @@ where (t1.a + t2.a*10 + t3.a*100 + t4.a*1000) < 3000;
 #     when the first matching 't2.a = t1.a' is found.
 #  - 'LEFT JOIN' is to ensure that 'Using join buffer' is *not* used
 #
+set optimizer_switch='block_nested_loop=off';
 explain
 SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM 
    t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;
@@ -489,4 +490,5 @@ SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM
    t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;
 --enable_result_log
 
+set optimizer_switch='block_nested_loop=default';
 drop table t1, t2;

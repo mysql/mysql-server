@@ -13,7 +13,7 @@ CREATE TABLE t1 (
 ) ENGINE=NDBCLUSTER;
 
 # Test For bug#30417
---error 1005
+--error 1296
 
 CREATE TABLE t2 (
   id INT AUTO_INCREMENT,
@@ -27,11 +27,9 @@ CREATE TABLE t3 (
   KEY(id)
 ) ENGINE=MYISAM;
 
---disable_result_log
---error 1005
+--error 1296
 ALTER TABLE t3
 ENGINE NDBCLUSTER;
---enable_result_log
 
 SHOW CREATE TABLE t3;
 

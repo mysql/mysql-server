@@ -1,0 +1,7 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+# If MT-ndb, there should be multiple BACKUP blocks
+# (There is one pr LDM)
+MaxNoOfExecutionThreads=4
+
