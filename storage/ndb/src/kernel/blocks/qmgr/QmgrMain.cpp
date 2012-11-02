@@ -7178,23 +7178,29 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
     row.write_uint32(cneighbourh);
     row.write_uint32(cpresident);
 
-    Uint32 successor = 0; // President sucessor.
-    NodeRecPtr nodePtr;
-    UintR tfrMinDynamicId = (UintR)-1;
-    for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-      jam();
-      ptrAss(nodePtr, nodeRec);
-      if (nodePtr.p->phase == ZRUNNING) {
-        if ((nodePtr.p->ndynamicId & 0xFFFF) < tfrMinDynamicId) {
-          jam();
-          if (cpresident !=  nodePtr.i)
+    // President successor
+    Uint32 successor = 0;
+    {
+      NodeRecPtr nodePtr;
+      UintR minDynamicId = (UintR)-1;
+      for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+      {
+        jam();
+        ptrAss(nodePtr, nodeRec);
+        if (nodePtr.p->phase == ZRUNNING)
+        {
+          if ((nodePtr.p->ndynamicId & 0xFFFF) < minDynamicId)
           {
-            tfrMinDynamicId = (nodePtr.p->ndynamicId & 0xFFFF);
-            successor = nodePtr.i;
+            jam();
+            if (cpresident !=  nodePtr.i)
+            {
+              minDynamicId = (nodePtr.p->ndynamicId & 0xFFFF);
+              successor = nodePtr.i;
+            }
           }
         }
       }
-    }//for
+    }
     row.write_uint32(successor);
 
     NodeRecPtr myNodePtr;
@@ -7213,7 +7219,7 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
     // arbitrator connected
     row.write_uint32(c_connectedNodes.get(arbitRec.node));
 
-    // Find the potential (rank1 and rank2) arbitrators that are connected.
+    // Find potential (rank1 and rank2) arbitrators that are connected.
     NodeRecPtr aPtr;
     // buf_size: Node nr (max 3 chars) and ', '  + trailing '\0'
     const int buf_size = 5 * MAX_NODES + 1;
@@ -7225,7 +7231,7 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
       aPtr.i = 0;
       const unsigned stop = NodeBitmask::NotFound;
       int buf_offset = 0;
-      char* delimiter = "";
+      const char* delimiter = "";
 
       while ((aPtr.i = arbitRec.apiMask[rank].find(aPtr.i + 1)) != stop)
       {
@@ -7238,18 +7244,19 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
                                              "%s%u", delimiter, aPtr.i);
           delimiter = ", ";
         }
-      } // while
+      }
 
       if (buf_offset == 0)
         row.write_string("-");
       else
         row.write_string(buf);
-    } // for
+    }
 
     ndbinfo_send_row(signal, req, row, rl);
-  } // case ARBITRATION_TABLEID
+    break;
+  }
   default:
     break;
-  } // switch
+  }
   ndbinfo_send_scan_conf(signal, req, rl);
 }
