@@ -360,7 +360,7 @@ public:
     char   FrmData[MAX_FRM_DATA_SIZE];
     Uint32 FragmentCount;
     Uint32 ReplicaDataLen;
-    Uint16 ReplicaData[MAX_FRAGMENT_DATA_BYTES];
+    Uint16 ReplicaData[MAX_FRAGMENT_DATA_ENTRIES];
     Uint32 FragmentDataLen;
     Uint16 FragmentData[3*MAX_NDB_PARTITIONS];
 
@@ -428,7 +428,10 @@ public:
     ExtLongvarbinary = NdbSqlUtil::Type::Longvarbinary,
     ExtTime = NdbSqlUtil::Type::Time,
     ExtYear = NdbSqlUtil::Type::Year,
-    ExtTimestamp = NdbSqlUtil::Type::Timestamp
+    ExtTimestamp = NdbSqlUtil::Type::Timestamp,
+    ExtTime2 = NdbSqlUtil::Type::Time2,
+    ExtDatetime2 = NdbSqlUtil::Type::Datetime2,
+    ExtTimestamp2 = NdbSqlUtil::Type::Timestamp2
   };
 
   // Attribute data interpretation
@@ -582,6 +585,22 @@ public:
       case DictTabInfo::ExtTimestamp:
         AttributeSize = DictTabInfo::an8Bit;
         AttributeArraySize = 4 * AttributeExtLength;
+        break;
+      // fractional time types, see wl#946
+      case DictTabInfo::ExtTime2:
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = (3 + (1 + AttributeExtPrecision) / 2)
+                             * AttributeExtLength;
+        break;
+      case DictTabInfo::ExtDatetime2:
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = (5 + (1 + AttributeExtPrecision) / 2)
+                             * AttributeExtLength;
+        break;
+      case DictTabInfo::ExtTimestamp2:
+        AttributeSize = DictTabInfo::an8Bit;
+        AttributeArraySize = (4 + (1 + AttributeExtPrecision) / 2)
+                             * AttributeExtLength;
         break;
       default:
         return false;
@@ -802,7 +821,7 @@ struct DictHashMapInfo {
   struct HashMap {
     char   HashMapName[MAX_TAB_NAME_SIZE];
     Uint32 HashMapBuckets;
-    Uint16 HashMapValues[512];
+    Uint16 HashMapValues[NDB_DEFAULT_HASHMAP_BUCKETS];
     Uint32 HashMapObjectId;
     Uint32 HashMapVersion;
     HashMap() {}

@@ -98,8 +98,7 @@ public:
    * of operation specified by the arguments.
    */
   bool match_definition(int type, //NdbQueryOperationDef::Type, 
-                        const NDB_INDEX_DATA* idx,
-                        bool needSorted) const;
+                        const NDB_INDEX_DATA* idx) const;
 
   /** Create an executable instance of this defined query. */
   NdbQuery* make_query_instance(
@@ -254,6 +253,9 @@ private:
   // Set of tables required to have strict sequential dependency
   ndb_table_access_map m_forced_sequence;
 
+  // Number of internal operations used so far (unique lookups count as two).
+  uint m_internal_op_count;
+
   uint m_fld_refs;
   Field* m_referred_fields[ndb_pushed_join::MAX_REFERRED_FIELDS];
 
@@ -276,6 +278,8 @@ private:
       m_depend_parents(), 
       m_parent(MAX_TABLES), 
       m_ancestors(), 
+      m_fanout(1.0),
+      m_child_fanout(1.0),
       m_op(NULL) 
     {}
 
@@ -309,6 +313,16 @@ private:
      * All ancestors available throught the 'm_parent' chain
      */
     ndb_table_access_map m_ancestors;
+
+    /**
+     * The fanout of this table.
+     */
+    double m_fanout;
+
+    /**
+     * The (cross) product of all child fanouts.
+     */
+    double m_child_fanout;
 
     const NdbQueryOperationDef* m_op;
   } m_tables[MAX_TABLES];

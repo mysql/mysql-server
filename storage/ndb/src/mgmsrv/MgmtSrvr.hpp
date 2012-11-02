@@ -75,27 +75,6 @@ public:
 class MgmtSrvr : private ConfigSubscriber, public trp_client {
 
 public:
-  // some compilers need all of this
-  class Allocated_resources;
-  friend class Allocated_resources;
-  class Allocated_resources {
-  public:
-    Allocated_resources(class MgmtSrvr &m);
-    ~Allocated_resources();
-    // methods to reserve/allocate resources which
-    // will be freed when running destructor
-    void reserve_node(NodeId id, NDB_TICKS timeout);
-    bool is_timed_out(NDB_TICKS tick);
-    bool is_reserved(NodeId nodeId) { return m_reserved_nodes.get(nodeId); }
-    bool is_reserved(NodeBitmask mask) { return !mask.bitAND(m_reserved_nodes).isclear(); }
-    bool isclear() { return m_reserved_nodes.isclear(); }
-    NodeId get_nodeid() const;
-  private:
-    MgmtSrvr &m_mgmsrv;
-    NodeBitmask m_reserved_nodes;
-    NDB_TICKS m_alloc_timeout;
-  };
-
   /**
    *   This enum specifies the different signal loggig modes possible to set 
    *   with the setSignalLoggingMode method.
@@ -311,12 +290,6 @@ public:
    *   @return false if none found
    */
   bool getNextNodeId(NodeId * _nodeId, enum ndb_mgm_node_type type) const ;
-  bool alloc_node_id(NodeId * _nodeId, enum ndb_mgm_node_type type,
-		     const struct sockaddr *client_addr,
-                     SOCKET_SIZE_TYPE *client_addr_len,
-		     int &error_code, BaseString &error_string,
-                     int log_event = 1,
-		     int timeout_s = 20);
 
   bool change_config(Config& new_config, BaseString& msg);
 
@@ -331,6 +304,7 @@ public:
 private:
   void config_changed(NodeId, const Config*);
   void setClusterLog(const Config* conf);
+  void configure_eventlogger(const BaseString& logdestination) const;
 public:
 
   /**
@@ -347,11 +321,7 @@ public:
 
   bool transporter_connect(NDB_SOCKET_TYPE sockfd, BaseString& errormsg);
 
-  const char *get_connect_address(Uint32 node_id);
-  void get_connected_nodes(NodeBitmask &connected_nodes) const;
   SocketServer *get_socket_server() { return &m_socket_server; }
-
-  void updateStatus();
 
   int createNodegroup(int *nodes, int count, int *ng);
   int dropNodegroup(int ng);
@@ -407,18 +377,6 @@ private:
    */
   int okToSendTo(NodeId nodeId, bool unCond = false);
 
-  /**
-   *   Get block number for a block
-   *
-   *   @param   blockName: Block to get number for
-   *   @return  -1 if block not found, otherwise block number
-   */
-  int getBlockNumber(const BaseString &blockName);
-
-  int alloc_node_id_req(NodeId free_node_id,
-                        enum ndb_mgm_node_type type,
-                        Uint32 timeout_ms);
-
   bool is_any_node_starting(void);
   bool is_any_node_stopping(void);
   bool is_cluster_single_user(void);
@@ -434,16 +392,15 @@ private:
   NdbMutex* m_local_config_mutex;
   const Config* m_local_config;
 
-  NdbMutex *m_node_id_mutex;
-
   BlockReference _ownReference;
 
   class ConfigManager* m_config_manager;
 
   bool m_need_restart;
 
-  NodeBitmask m_reserved_nodes;
   struct in_addr m_connect_address[MAX_NODES];
+  const char *get_connect_address(NodeId node_id);
+  void clear_connect_address_cache(NodeId nodeid);
 
   /**
    * trp_client interface
@@ -502,21 +459,79 @@ public:
 
   void show_variables(NdbOut& out = ndbout);
 
-  struct nodeid_and_host
+private:
+  class NodeIdReservations {
+    struct Reservation {
+      NDB_TICKS m_start;
+      unsigned m_timeout; // Milliseconds
+    };
+    Reservation m_reservations[MAX_NODES];
+  public:
+    NodeIdReservations();
+    void check_array(NodeId n) const;
+    bool get(NodeId n) const;
+    void set(NodeId n, unsigned timeout);
+    void clear(NodeId n);
+    BaseString pretty_str() const;
+    bool has_timedout(NodeId n, NDB_TICKS now) const;
+  } m_reserved_nodes;
+  NdbMutex* m_reserved_nodes_mutex;
+
+  void release_local_nodeid_reservation(NodeId nodeid);
+  struct PossibleNode
   {
     unsigned id;
     BaseString host;
+    bool exact_match;
   };
-  int find_node_type(unsigned node_id, enum ndb_mgm_node_type type,
-                     const struct sockaddr *client_addr,
-                     NodeBitmask &nodes,
-                     NodeBitmask &exact_nodes,
-                     Vector<nodeid_and_host> &nodes_info,
-                     int &error_code, BaseString &error_string);
-  int try_alloc(unsigned id,  const char *, enum ndb_mgm_node_type type,
-                const struct sockaddr *client_addr, Uint32 timeout_ms);
+  int alloc_node_id_req(NodeId free_node_id,
+                        ndb_mgm_node_type type,
+                        Uint32 timeout_ms);
+  int try_alloc(NodeId id,
+                ndb_mgm_node_type type,
+                Uint32 timeout_ms);
+  bool try_alloc_from_list(NodeId& nodeid,
+                           ndb_mgm_node_type type,
+                           Uint32 timeout_ms,
+                           Vector<PossibleNode>& nodes_info);
+  int find_node_type(NodeId nodeid,
+                     ndb_mgm_node_type type,
+                     const struct sockaddr* client_addr,
+                     Vector<PossibleNode>& nodes_info,
+                     int& error_code, BaseString& error_string);
+  bool alloc_node_id_impl(NodeId& nodeid,
+                          ndb_mgm_node_type type,
+                          const struct sockaddr* client_addr,
+                          int& error_code, BaseString& error_string,
+                          Uint32 timeout_s = 20);
+public:
+  /*
+    Nodeid allocation
+    - MGM will never allocate a nodeid since either there is
+      only one(and thus it's nodeid is well known by looking
+      in config) or when running with two or more, they will
+      have nodeid specified on command line when starting.
+    - API nodes will always allocate a nodeid in the data nodes
+      since those have transporter connections with hearbeat
+      mechanism and can thus detect when the allocation should
+      be cleared.
+    - NDB nodes will prefer to allocate a nodeid in the data nodes
+      since the allocations will then be known by all connected
+      nodes(as well as hearbeat). But in order to startup a
+      nodeid can also be reserved locally in the mgmtsrvr node
+      only, such a reservations is cleared as soon as the
+      data node has connected via transporter to the mgmtsrvr.
+   */
+  bool alloc_node_id(NodeId& nodeid,
+                     ndb_mgm_node_type type,
+		     const struct sockaddr* client_addr,
+		     int& error_code, BaseString& error_string,
+                     bool log_event = true,
+		     Uint32 timeout_s = 20);
 
+private:
   BaseString m_version_string;
+public:
   const char* get_version_string(void) const {
     return m_version_string.c_str();
   }

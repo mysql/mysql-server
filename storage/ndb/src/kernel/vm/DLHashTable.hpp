@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006, 2008 MySQL AB, 2009, 2010 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2003-2006, 2008, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,25 +19,38 @@
 #define DL_HASHTABLE_HPP
 
 #include <ndb_global.h>
-#include "ArrayPool.hpp"
 
 /**
- * DLHashTable implements a hashtable using chaining
+ * DLMHashTable implements a hashtable using chaining
  *   (with a double linked list)
  *
- * The entries in the hashtable must have the following methods:
- *  -# bool equal(const class T &) const;
- *     Which should return equal if the to objects have the same key
- *  -# Uint32 hashValue() const;
- *     Which should return a 32 bit hashvalue
+ * The entries in the (uninstansiated) meta class passed to the
+ * hashtable must have the following methods:
+ *
+ *  -# nextHash(T&) returning a reference to the next link
+ *  -# prevHash(T&) returning a reference to the prev link
+ *  -# bool equal(T const&,T const&) returning equality of the objects keys
+ *  -# hashValue(T) calculating the hash value
  */
-template <typename P, typename T, typename U = T>
-class DLHashTableImpl 
+
+template <typename T, typename U = T> struct DLHashTableDefaultMethods {
+static Uint32& nextHash(U& t) { return t.nextHash; }
+static Uint32& prevHash(U& t) { return t.prevHash; }
+static Uint32 hashValue(T const& t) { return t.hashValue(); }
+static bool equal(T const& lhs, T const& rhs) { return lhs.equal(rhs); }
+};
+
+template <typename P, typename T, typename M = DLHashTableDefaultMethods<T> >
+class DLMHashTable
 {
 public:
-  DLHashTableImpl(P & thePool);
-  ~DLHashTableImpl();
-  
+  explicit DLMHashTable(P & thePool);
+  ~DLMHashTable();
+private:
+  DLMHashTable(const DLMHashTable&);
+  DLMHashTable&  operator=(const DLMHashTable&);
+
+public:
   /**
    * Set the no of bucket in the hashtable
    *
@@ -58,9 +70,9 @@ public:
    * Add an object to the hashtable
    */
   void add(Ptr<T> &);
-  
+
   /**
-   * Find element key in hashtable update Ptr (i & p) 
+   * Find element key in hashtable update Ptr (i & p)
    *   (using key.equal(...))
    * @return true if found and false otherwise
    */
@@ -103,7 +115,7 @@ public:
    * Remove all elements, but dont return them to pool
    */
   void removeAll();
-  
+
   /**
    * Remove element and return to pool
    */
@@ -113,7 +125,7 @@ public:
    * Remove element and return to pool
    */
   void release(Ptr<T> &);
-  
+
   class Iterator {
   public:
     Ptr<T> curr;
@@ -131,7 +143,7 @@ public:
    * First element in bucket
    */
   bool first(Iterator & iter) const;
-  
+
   /**
    * Next Element
    *
@@ -146,16 +158,16 @@ public:
    * @param iter - An "uninitialized" iterator
    */
   bool next(Uint32 bucket, Iterator & iter) const;
-  
+
 private:
   Uint32 mask;
   Uint32 * hashValues;
   P & thePool;
 };
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
-DLHashTableImpl<P, T, U>::DLHashTableImpl(P & _pool)
+DLMHashTable<P, T, M>::DLMHashTable(P & _pool)
   : thePool(_pool)
 {
   // Require user defined constructor on T since we fiddle
@@ -166,23 +178,23 @@ DLHashTableImpl<P, T, U>::DLHashTableImpl(P & _pool)
   hashValues = 0;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
-DLHashTableImpl<P, T, U>::~DLHashTableImpl()
+DLMHashTable<P, T, M>::~DLMHashTable()
 {
-  if(hashValues != 0)
+  if (hashValues != 0)
     delete [] hashValues;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-DLHashTableImpl<P, T, U>::setSize(Uint32 size)
+DLMHashTable<P, T, M>::setSize(Uint32 size)
 {
   Uint32 i = 1;
-  while(i < size) i *= 2;
+  while (i < size) i *= 2;
 
-  if(mask == (i - 1))
+  if (mask == (i - 1))
   {
     /**
      * The size is already set to <b>size</b>
@@ -190,43 +202,43 @@ DLHashTableImpl<P, T, U>::setSize(Uint32 size)
     return true;
   }
 
-  if(mask != 0)
+  if (mask != 0)
   {
     /**
      * The mask is already set
      */
     return false;
   }
-  
+
   mask = (i - 1);
   hashValues = new Uint32[i];
-  for(Uint32 j = 0; j<i; j++)
+  for (Uint32 j = 0; j<i; j++)
     hashValues[j] = RNIL;
-  
+
   return true;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void
-DLHashTableImpl<P, T, U>::add(Ptr<T> & obj)
+DLMHashTable<P, T, M>::add(Ptr<T> & obj)
 {
-  const Uint32 hv = obj.p->hashValue() & mask;
+  const Uint32 hv = M::hashValue(*obj.p) & mask;
   const Uint32 i  = hashValues[hv];
-  
-  if(i == RNIL)
+
+  if (i == RNIL)
   {
     hashValues[hv] = obj.i;
-    obj.p->U::nextHash = RNIL;
-    obj.p->U::prevHash = RNIL;
-  } 
-  else 
+    M::nextHash(*obj.p) = RNIL;
+    M::prevHash(*obj.p) = RNIL;
+  }
+  else
   {
     T * tmp = thePool.getPtr(i);
-    tmp->U::prevHash = obj.i;
-    obj.p->U::nextHash = i;
-    obj.p->U::prevHash = RNIL;
-    
+    M::prevHash(*tmp) = obj.i;
+    M::nextHash(*obj.p) = i;
+    M::prevHash(*obj.p) = RNIL;
+
     hashValues[hv] = obj.i;
   }
 }
@@ -234,62 +246,62 @@ DLHashTableImpl<P, T, U>::add(Ptr<T> & obj)
 /**
  * First element
  */
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-DLHashTableImpl<P, T, U>::first(Iterator & iter) const 
+DLMHashTable<P, T, M>::first(Iterator & iter) const
 {
   Uint32 i = 0;
-  while(i <= mask && hashValues[i] == RNIL) i++;
-  if(i <= mask)
+  while (i <= mask && hashValues[i] == RNIL) i++;
+  if (i <= mask)
   {
     iter.bucket = i;
     iter.curr.i = hashValues[i];
     iter.curr.p = thePool.getPtr(iter.curr.i);
     return true;
   }
-  else 
+  else
   {
     iter.curr.i = RNIL;
   }
   return false;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-DLHashTableImpl<P, T, U>::next(Iterator & iter) const 
+DLMHashTable<P, T, M>::next(Iterator & iter) const
 {
-  if(iter.curr.p->U::nextHash == RNIL)
+  if (M::nextHash(*iter.curr.p) == RNIL)
   {
     Uint32 i = iter.bucket + 1;
-    while(i <= mask && hashValues[i] == RNIL) i++;
-    if(i <= mask)
+    while (i <= mask && hashValues[i] == RNIL) i++;
+    if (i <= mask)
     {
       iter.bucket = i;
       iter.curr.i = hashValues[i];
       iter.curr.p = thePool.getPtr(iter.curr.i);
       return true;
     }
-    else 
+    else
     {
       iter.curr.i = RNIL;
       return false;
     }
   }
-  
-  iter.curr.i = iter.curr.p->U::nextHash;
+
+  iter.curr.i = M::nextHash(*iter.curr.p);
   iter.curr.p = thePool.getPtr(iter.curr.i);
   return true;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void
-DLHashTableImpl<P, T, U>::remove(Ptr<T> & ptr, const T & key)
+DLMHashTable<P, T, M>::remove(Ptr<T> & ptr, const T & key)
 {
-  const Uint32 hv = key.hashValue() & mask;  
-  
+  const Uint32 hv = M::hashValue(key) & mask;
+
   Uint32 i;
   T * p;
   Ptr<T> prev;
@@ -297,42 +309,42 @@ DLHashTableImpl<P, T, U>::remove(Ptr<T> & ptr, const T & key)
   prev.i = RNIL;
 
   i = hashValues[hv];
-  while(i != RNIL)
+  while (i != RNIL)
   {
     p = thePool.getPtr(i);
-    if(key.equal(* p))
+    if (M::equal(key, * p))
     {
-      const Uint32 next = p->U::nextHash;
-      if(prev.i == RNIL)
+      const Uint32 next = M::nextHash(*p);
+      if (prev.i == RNIL)
       {
-	hashValues[hv] = next;
-      } 
-      else 
-      {
-	prev.p->U::nextHash = next;
+        hashValues[hv] = next;
       }
-      
-      if(next != RNIL)
+      else
       {
-	T * nextP = thePool.getPtr(next);
-	nextP->U::prevHash = prev.i;
+        M::nextHash(*prev.p) = next;
       }
-      
+
+      if (next != RNIL)
+      {
+        T * nextP = thePool.getPtr(next);
+        M::prevHash(*nextP) = prev.i;
+      }
+
       ptr.i = i;
       ptr.p = p;
       return;
     }
     prev.p = p;
     prev.i = i;
-    i = p->U::nextHash;
+    i = M::nextHash(*p);
   }
   ptr.i = RNIL;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void
-DLHashTableImpl<P, T, U>::remove(Uint32 i)
+DLMHashTable<P, T, M>::remove(Uint32 i)
 {
   Ptr<T> tmp;
   tmp.i = i;
@@ -340,10 +352,10 @@ DLHashTableImpl<P, T, U>::remove(Uint32 i)
   remove(tmp);
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void
-DLHashTableImpl<P, T, U>::release(Uint32 i)
+DLMHashTable<P, T, M>::release(Uint32 i)
 {
   Ptr<T> tmp;
   tmp.i = i;
@@ -351,22 +363,22 @@ DLHashTableImpl<P, T, U>::release(Uint32 i)
   release(tmp);
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
-void 
-DLHashTableImpl<P, T, U>::remove(Ptr<T> & ptr)
+void
+DLMHashTable<P, T, M>::remove(Ptr<T> & ptr)
 {
-  const Uint32 next = ptr.p->U::nextHash;
-  const Uint32 prev = ptr.p->U::prevHash;
+  const Uint32 next = M::nextHash(*ptr.p);
+  const Uint32 prev = M::prevHash(*ptr.p);
 
-  if(prev != RNIL)
+  if (prev != RNIL)
   {
     T * prevP = thePool.getPtr(prev);
-    prevP->U::nextHash = next;
-  } 
-  else 
+    M::nextHash(*prevP) = next;
+  }
+  else
   {
-    const Uint32 hv = ptr.p->hashValue() & mask;  
+    const Uint32 hv = M::hashValue(*ptr.p) & mask;
     if (hashValues[hv] == ptr.i)
     {
       hashValues[hv] = next;
@@ -377,30 +389,30 @@ DLHashTableImpl<P, T, U>::remove(Ptr<T> & ptr)
       assert(false);
     }
   }
-  
-  if(next != RNIL)
+
+  if (next != RNIL)
   {
     T * nextP = thePool.getPtr(next);
-    nextP->U::prevHash = prev;
+    M::prevHash(*nextP) = prev;
   }
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
-void 
-DLHashTableImpl<P, T, U>::release(Ptr<T> & ptr)
+void
+DLMHashTable<P, T, M>::release(Ptr<T> & ptr)
 {
-  const Uint32 next = ptr.p->U::nextHash;
-  const Uint32 prev = ptr.p->U::prevHash;
+  const Uint32 next = M::nextHash(*ptr.p);
+  const Uint32 prev = M::prevHash(*ptr.p);
 
-  if(prev != RNIL)
+  if (prev != RNIL)
   {
     T * prevP = thePool.getPtr(prev);
-    prevP->U::nextHash = next;
-  } 
-  else 
+    M::nextHash(*prevP) = next;
+  }
+  else
   {
-    const Uint32 hv = ptr.p->hashValue() & mask;  
+    const Uint32 hv = M::hashValue(*ptr.p) & mask;
     if (hashValues[hv] == ptr.i)
     {
       hashValues[hv] = next;
@@ -411,104 +423,104 @@ DLHashTableImpl<P, T, U>::release(Ptr<T> & ptr)
       // Will add assert in 5.1
     }
   }
-  
-  if(next != RNIL)
+
+  if (next != RNIL)
   {
     T * nextP = thePool.getPtr(next);
-    nextP->U::prevHash = prev;
+    M::prevHash(*nextP) = prev;
   }
-  
+
   thePool.release(ptr);
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
-void 
-DLHashTableImpl<P, T, U>::removeAll()
+void
+DLMHashTable<P, T, M>::removeAll()
 {
-  for(Uint32 i = 0; i<=mask; i++)
+  for (Uint32 i = 0; i<=mask; i++)
     hashValues[i] = RNIL;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-DLHashTableImpl<P, T, U>::next(Uint32 bucket, Iterator & iter) const 
+DLMHashTable<P, T, M>::next(Uint32 bucket, Iterator & iter) const
 {
-  while (bucket <= mask && hashValues[bucket] == RNIL) 
-    bucket++; 
-  
-  if (bucket > mask) 
+  while (bucket <= mask && hashValues[bucket] == RNIL)
+    bucket++;
+
+  if (bucket > mask)
   {
     iter.bucket = bucket;
     iter.curr.i = RNIL;
     return false;
   }
-  
+
   iter.bucket = bucket;
   iter.curr.i = hashValues[bucket];
   iter.curr.p = thePool.getPtr(iter.curr.i);
   return true;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-DLHashTableImpl<P, T, U>::seize(Ptr<T> & ptr)
+DLMHashTable<P, T, M>::seize(Ptr<T> & ptr)
 {
-  if(thePool.seize(ptr)){
-    ptr.p->U::nextHash = ptr.p->U::prevHash = RNIL;
+  if (thePool.seize(ptr)){
+    M::nextHash(*ptr.p) = M::prevHash(*ptr.p) = RNIL;
     return true;
   }
   return false;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void
-DLHashTableImpl<P, T, U>::getPtr(Ptr<T> & ptr, Uint32 i) const 
+DLMHashTable<P, T, M>::getPtr(Ptr<T> & ptr, Uint32 i) const
 {
   ptr.i = i;
   ptr.p = thePool.getPtr(i);
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void
-DLHashTableImpl<P, T, U>::getPtr(Ptr<T> & ptr) const 
+DLMHashTable<P, T, M>::getPtr(Ptr<T> & ptr) const
 {
   thePool.getPtr(ptr);
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
-T * 
-DLHashTableImpl<P, T, U>::getPtr(Uint32 i) const 
+T *
+DLMHashTable<P, T, M>::getPtr(Uint32 i) const
 {
   return thePool.getPtr(i);
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-DLHashTableImpl<P, T, U>::find(Ptr<T> & ptr, const T & key) const 
+DLMHashTable<P, T, M>::find(Ptr<T> & ptr, const T & key) const
 {
-  const Uint32 hv = key.hashValue() & mask;  
-  
+  const Uint32 hv = M::hashValue(key) & mask;
+
   Uint32 i;
   T * p;
 
   i = hashValues[hv];
-  while(i != RNIL)
+  while (i != RNIL)
   {
     p = thePool.getPtr(i);
-    if(key.equal(* p))
+    if (M::equal(key, * p))
     {
       ptr.i = i;
       ptr.p = p;
       return true;
     }
-    i = p->U::nextHash;
+    i = M::nextHash(*p);
   }
   ptr.i = RNIL;
   ptr.p = NULL;
@@ -517,11 +529,26 @@ DLHashTableImpl<P, T, U>::find(Ptr<T> & ptr, const T & key) const
 
 // Specializations
 
-template <typename T, typename U = T>
-class DLHashTable : public DLHashTableImpl<ArrayPool<T>, T, U>
+#include "ArrayPool.hpp"
+
+template <typename P, typename T, typename U = T >
+class DLHashTableImpl: public DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >
 {
 public:
-  DLHashTable(ArrayPool<T> & p) : DLHashTableImpl<ArrayPool<T>, T, U>(p) {}
+  explicit DLHashTableImpl(P & p): DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >(p) { }
+private:
+  DLHashTableImpl(const DLHashTableImpl&);
+  DLHashTableImpl&  operator=(const DLHashTableImpl&);
+};
+
+template <typename T, typename U = T, typename P = ArrayPool<T> >
+class DLHashTable: public DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >
+{
+public:
+  explicit DLHashTable(P & p): DLMHashTable<P, T, DLHashTableDefaultMethods<T, U> >(p) { }
+private:
+  DLHashTable(const DLHashTable&);
+  DLHashTable&  operator=(const DLHashTable&);
 };
 
 #endif

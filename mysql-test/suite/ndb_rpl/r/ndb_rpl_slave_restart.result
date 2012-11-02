@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
 CREATE TABLE t2 (a int key) ENGINE = NDB ;
@@ -32,12 +35,6 @@ master-bin.000001	#	Write_rows	3	#	table_id: #
 master-bin.000001	#	Write_rows	3	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	3	#	COMMIT
 set SQL_LOG_BIN=1;
-@the_pos:=Position	@the_file:=SUBSTRING_INDEX(REPLACE(FILE,'\\','/'), '/', -1)
-107	master-bin.000001
-CHANGE MASTER TO
-master_port=<MASTER_PORT1>,
-master_log_file = 'master-bin.000001',
-master_log_pos = 107 ;
 start slave;
 INSERT INTO t1 VALUES ("row2","will go away",2),("row3","will change",3),("row4","D",4);
 DELETE FROM t1 WHERE c3 = 1;
