@@ -1982,3 +1982,4 @@ plugin/handler_socket/perl-Net-HandlerSocket/HandlerSocket.bs
 plugin/handler_socket/perl-Net-HandlerSocket/Makefile.PL
 libmysqld/gcalc_slicescan.cc
 libmysqld/gcalc_tools.cc
+sql-bench/test-table-elimination
