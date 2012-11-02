@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -259,7 +259,17 @@ public:
       Longvarbinary = NDB_TYPE_LONGVARBINARY, ///< Length bytes: 2, little-endian
       Time = NDB_TYPE_TIME,        ///< Time without date
       Year = NDB_TYPE_YEAR,   ///< Year 1901-2155 (1 byte)
-      Timestamp = NDB_TYPE_TIMESTAMP  ///< Unix time
+      Timestamp = NDB_TYPE_TIMESTAMP, ///< Unix time
+      /**
+       * Time types in MySQL 5.6 add microsecond fraction.
+       * One should use setPrecision(x) to set number of fractional
+       * digits (x = 0-6, default 0).  Data formats are as in MySQL
+       * and must use correct byte length.  NDB does not check data
+       * itself since any values can be compared as binary strings.
+       */
+      Time2 = NDB_TYPE_TIME2, ///< 3 bytes + 0-3 fraction
+      Datetime2 = NDB_TYPE_DATETIME2, ///< 5 bytes plus 0-3 fraction
+      Timestamp2 = NDB_TYPE_TIMESTAMP2 ///< 4 bytes + 0-3 fraction
     };
 
     /*
@@ -343,6 +353,7 @@ public:
     /**
      * Get precision of column.
      * @note Only applicable for decimal types
+     * @note Also applicable for Time2 etc in mysql 5.6
      */
     int getPrecision() const;
 
@@ -484,6 +495,7 @@ public:
     /**
      * Set precision of column.
      * @note Only applicable for decimal types
+     * @note Also applicable for Time2 etc in mysql 5.6
      */
     void setPrecision(int);
 
@@ -1657,6 +1669,14 @@ public:
   };
   struct RecordSpecification {
     /*
+      Size of the RecordSpecification structure.
+    */
+    static inline Uint32 size()
+    {
+        return sizeof(RecordSpecification);
+    }
+
+    /*
       Column described by this entry (the column maximum size defines field
       size in row).
       Note that even when creating an NdbRecord for an index, the column
@@ -2168,6 +2188,8 @@ public:
      */
     const Index * getIndex(const char * indexName,
 			   const char * tableName) const;
+    const Index * getIndex(const char * indexName,
+                           const Table& base) const;
 
     /**
      * Fetch list of indexes of given table.
@@ -2458,18 +2480,21 @@ public:
      * Get default HashMap
      */
     int getDefaultHashMap(HashMap& dst, Uint32 fragments);
+    int getDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 fragments);
 
 
     /**
      * Init a default HashMap
      */
     int initDefaultHashMap(HashMap& dst, Uint32 fragments);
+    int initDefaultHashMap(HashMap& dst, Uint32 buckets, Uint32 fragments);
 
     /**
      * create (or retreive) a HashMap suitable for alter
      * NOTE: Requires a started schema transaction
      */
     int prepareHashMap(const Table& oldTable, Table& newTable);
+    int prepareHashMap(const Table& oldTable, Table& newTable, Uint32 buckets);
 
     /** @} *******************************************************************/
 
@@ -2562,8 +2587,8 @@ public:
 #endif
     class NdbDictionaryImpl & m_impl;
     Dictionary(NdbDictionaryImpl&);
-    const Table * getIndexTable(const char * indexName, 
-				const char * tableName) const;
+    const Table * getIndexTable(const char * indexName,
+                                const char * tableName) const;
   public:
 #ifndef DOXYGEN_SHOULD_SKIP_INTERNAL
     const Table * getTable(const char * name, void **data) const;
@@ -2616,6 +2641,13 @@ public:
       createRecord
     */
     void releaseRecord(NdbRecord *rec);
+
+    /*
+      Methods to print objects more verbose than possible from
+      object itself.
+     */
+    void print(class NdbOut& out, NdbDictionary::Index const& idx);
+    void print(class NdbOut& out, NdbDictionary::Table const& tab);
   }; // class Dictionary
 
   class NdbDataPrintFormat
@@ -2640,9 +2672,14 @@ public:
                                     const NdbDictionary::Column* c,
                                     const void* val);
   
-
 }; // class NdbDictionary
 
 class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Column& col);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Index& idx);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Index::Type type);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Object::FragmentType fragtype);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Object::Status status);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Object::Type type);
+class NdbOut& operator <<(class NdbOut& out, const NdbDictionary::Table& tab);
 
 #endif

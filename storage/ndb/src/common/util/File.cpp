@@ -148,13 +148,13 @@ File_class::close()
 int 
 File_class::read(void* buf, size_t itemSize, size_t nitems) const
 {
-  return ::fread(buf, itemSize,  nitems, m_file);
+  return (int)::fread(buf, itemSize,  nitems, m_file);
 }
 
 int 
 File_class::readChar(char* buf, long start, long length) const
 {
-  return ::fread((void*)&buf[start], 1, length, m_file);
+  return (int)::fread((void*)&buf[start], 1, length, m_file);
 }
 
 int 
@@ -166,13 +166,13 @@ File_class::readChar(char* buf)
 int 
 File_class::write(const void* buf, size_t size_arg, size_t nitems)
 {
-  return ::fwrite(buf, size_arg, nitems, m_file);
+  return (int)::fwrite(buf, size_arg, nitems, m_file);
 }
  
 int
 File_class::writeChar(const char* buf, long start, long length)
 {
-  return ::fwrite((const void*)&buf[start], sizeof(char), length, m_file);
+  return (int)::fwrite((const void*)&buf[start], sizeof(char), length, m_file);
 }
 
 int 

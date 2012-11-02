@@ -1,0 +1,81 @@
+# CHAR
+
+--source suite/ndb_memcache/include/have_memcache.inc
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
+
+
+# 
+# Configuration change for this test
+#
+
+--disable_query_log
+--disable_result_log
+USE ndbmemcache;
+CREATE TABLE test_char_key (mkey char(40) PRIMARY KEY, val varchar(200)) 
+  ENGINE=ndbcluster;
+CREATE TABLE test_char_val (mkey varchar(20) PRIMARY KEY, val char(200))
+  ENGINE=ndbcluster;
+
+INSERT INTO containers (name, db_schema, db_table, key_columns, value_columns)
+  VALUES("tt_char_key", "ndbmemcache", "test_char_key", "mkey", "val"),
+        ("tt_char_val", "ndbmemcache", "test_char_val", "mkey", "val");
+
+INSERT INTO key_prefixes(server_role_id, key_prefix, policy, container) 
+  VALUES(0, "tck:", "ndb-only", "tt_char_key"),
+        (0, "tcv:", "ndb-only", "tt_char_val");
+
+UPDATE memcache_server_roles set update_timestamp = NOW() where role_id = 0;
+--enable_query_log
+--enable_result_log
+
+# 
+#  Memcache operations for this test
+#
+
+--perl
+
+use strict;
+use Carp;
+use lib "lib";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+# Use a binary protocol connection (so keys can contain spaces)
+my $mc = My::Memcache::Binary->new();  
+my $r = $mc->connect("localhost",$port);
+
+my $cf_gen = $mc->wait_for_reconf();
+
+if($cf_gen == 0) {
+  Carp::confess("FAILED WAIT_FOR_RECONF");
+}
+
+# test CHAR key with VARCHAR value
+$mc->set("tck:a","fred")               || Carp::confess("FAILED # 01 (SET)");
+$mc->set("tck:1","frederick")          || Carp::confess("FAILED # 02 (SET)");
+$mc->set("tck:aa","frederica")         || Carp::confess("FAILED # 03 (SET)");
+$mc->set("tck:a b c d","freddy")       || Carp::confess("FAILED # 04 (SET)");
+  
+($mc->get("tck:aa") == "frederica")    || Carp::confess("FAILED # 05 (GET)");
+($mc->get("tck:a b c d") == "freddy")  || Carp::confess("FAILED # 06 (GET)");
+
+# test VARCHAR key with CHAR value
+$mc->set("tcv:a", "al")                || Carp::confess("FAILED # 07 (SET)");
+$mc->set("tcv:b", "alphonse")          || Carp::confess("FAILED # 08 (SET)");
+$mc->set("tcv:c", "allen")             || Carp::confess("FAILED # 09 (SET)");
+$mc->set("tcv:d", "alien invasion")    || Carp::confess("FAILED # 10 (SET)");
+
+($mc->get("tcv:d") == "alien invasion")|| Carp::confess("FAILED # 11 (GET)");
+($mc->get("tcv:a") == "al")            || Carp::confess("FAILED # 12 (GET)");
+($mc->get("tcv:ee") == "NOT_FOUND")    || Carp::confess("FAILED # 13 (GET)");
+
+EOF
+
+
+--sorted_result
+SELECT * FROM ndbmemcache.test_char_key;
+
+--sorted_result
+SELECT * FROM ndbmemcache.test_char_val;
+

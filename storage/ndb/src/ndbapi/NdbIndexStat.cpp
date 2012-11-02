@@ -369,6 +369,7 @@ NdbIndexStat::clean_cache()
 void
 NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
 {
+  NdbMutex_Lock(m_impl.m_query_mutex);
   const NdbIndexStatImpl::Cache* c = 0;
   switch (type) {
   case CacheBuild:
@@ -387,6 +388,7 @@ NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
   info.m_totalBytes = 0;
   info.m_save_time = 0;
   info.m_sort_time = 0;
+  info.m_ref_count = 0;
   while (c != 0)
   {
     info.m_count += 1;
@@ -395,10 +397,12 @@ NdbIndexStat::get_cache_info(CacheInfo& info, CacheType type) const
     info.m_totalBytes += c->m_keyBytes + c->m_valueBytes + c->m_addrBytes;
     info.m_save_time += c->m_save_time;
     info.m_sort_time += c->m_sort_time;
+    info.m_ref_count += c->m_ref_count;
     c = c->m_nextClean;
   }
   // build and query cache have at most one instance
   require(type == CacheClean || info.m_count <= 1);
+  NdbMutex_Unlock(m_impl.m_query_mutex);
 }
 
 // read

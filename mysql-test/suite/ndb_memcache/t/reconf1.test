@@ -1,0 +1,68 @@
+# Basic test of online reconfiguration
+
+
+--source suite/ndb_memcache/include/have_memcache.inc
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
+
+# 
+# Now change the configuration
+#
+
+USE ndbmemcache;
+CREATE TABLE reconf_test_table like demo_table;
+UPDATE containers 
+  SET db_table = "reconf_test_table" WHERE db_table = "demo_table";
+DROP TABLE demo_table;
+
+# Touch the timestamp column to trigger online reconfiguration:
+UPDATE memcache_server_roles set update_timestamp = NOW();
+
+
+# 
+#  Now run a basic test
+# 
+
+--perl
+
+use strict;
+use lib "lib/";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache->new();
+my $r = $mc->connect("localhost",$port);
+
+my $cf_gen = $mc->wait_for_reconf();
+
+if($cf_gen > 0) {
+  $r = $mc->set("test_key_1", 1515);
+  print "SET result: $r \n";
+}
+
+EOF
+
+SELECT mkey, string_value from ndbmemcache.reconf_test_table;
+
+#
+# Now clean up the config changes for the next test and reconfigure again 
+# 
+RENAME TABLE reconf_test_table TO demo_table ;
+UPDATE containers 
+  SET db_table = "demo_table" WHERE db_table = "reconf_test_table";
+UPDATE memcache_server_roles set update_timestamp = NOW();
+
+--perl
+use strict;
+use lib "lib/";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache->new();
+my $r = $mc->connect("localhost",$port);
+
+my $cf_gen = $mc->wait_for_reconf();
+EOF
+
+

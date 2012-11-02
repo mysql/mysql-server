@@ -169,7 +169,7 @@ unique (c30), unique (c31), unique (c32), unique (c33), unique (c34), unique (c3
 unique (c40), unique (c41), unique (c42), unique (c43), unique (c44), unique (c45), unique (c46), unique (c47),
 unique (c50), unique (c51), unique (c52), unique (c53), unique (c54), unique (c55), unique (c56), unique (c57),
 unique (c60), unique (c61), unique (c62), unique (c63), unique (c64), unique (c65), unique (c66), unique (c67),
-unique (c60), unique (c71), unique (c72), unique (c73), unique (c74), unique (c75), unique (c76)) engine = ndb;
+unique (c70), unique (c71), unique (c72), unique (c73), unique (c74), unique (c75), unique (c76)) engine = ndb;
 drop table t1;
 CREATE TABLE t1 (
 a INT NOT NULL AUTO_INCREMENT ,
@@ -185,28 +185,28 @@ INSERT INTO t1 (a ,b ,c) VALUES
 (NULL , '1', 'test');
 explain select count(a) from t1 group by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	10	
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	10	NULL
 explain select count(a) from t1 FORCE INDEX FOR GROUP BY (PRIMARY) group by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	10	
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	10	NULL
 explain select count(b) from t1 group by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b	4	NULL	10	
+1	SIMPLE	t1	index	NULL	b	4	NULL	10	NULL
 explain select count(b) from t1 FORCE INDEX FOR GROUP BY (b) group by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b	4	NULL	10	
+1	SIMPLE	t1	index	NULL	b	4	NULL	10	NULL
 explain select distinct a from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	
+1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	10	NULL
 explain select distinct a from t1 group by a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	10	
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	10	NULL
 explain select distinct b from t1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b	4	NULL	10	
+1	SIMPLE	t1	index	NULL	b	4	NULL	10	NULL
 explain select distinct b from t1 group by b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	NULL	b	4	NULL	10	
+1	SIMPLE	t1	index	NULL	b	4	NULL	10	NULL
 select count(a) from t1 group by a;
 count(a)
 1
@@ -306,7 +306,7 @@ explain
 select i,vc from t1
 where i>=1 or vc > '0';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	PRIMARY,i1,i2	i1,i2	5,18	NULL	6	Using sort_union(i1,i2); Using where with pushed condition
+1	SIMPLE	t1	ALL	PRIMARY,i1,i2	NULL	NULL	NULL	23	Using where with pushed condition
 select i,vc from t1
 where i>=1 or vc > '0';
 i	vc
@@ -350,7 +350,7 @@ explain
 select i,vc from t2
 where i>=1 or vc > '0';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	index_merge	i1,i2	i1,i2	5,19	NULL	6	Using sort_union(i1,i2); Using where with pushed condition
+1	SIMPLE	t2	ALL	i1,i2	NULL	NULL	NULL	23	Using where with pushed condition
 select i,vc from t2
 where i>=1 or vc > '0';
 i	vc
