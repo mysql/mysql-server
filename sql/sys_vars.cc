@@ -1705,8 +1705,7 @@ static Sys_var_ulong Sys_max_binlog_size(
 static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(max_connections +
-                   global_system_variables.max_insert_delayed_threads + 10);
+  resize_thr_alarm(max_connections + 10);
 #endif
   return false;
 }
