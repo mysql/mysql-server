@@ -149,8 +149,9 @@ public:
   // schema trans
   Uint32 c_schemaTransId;
   Uint32 c_schemaTransKey;
-  Uint32 c_hashMapId;
-  Uint32 c_hashMapVersion;
+  // intersignal transient store of: hash_map, logfilegroup, tablesspace
+  Uint32 c_objectId; 
+  Uint32 c_objectVersion;;
 
 public:
   Ndbcntr(Block_context&);

@@ -1,0 +1,14 @@
+USE ndbmemcache;
+CREATE TABLE reconf_test_table like demo_table;
+UPDATE containers 
+SET db_table = "reconf_test_table" WHERE db_table = "demo_table";
+DROP TABLE demo_table;
+UPDATE memcache_server_roles set update_timestamp = NOW();
+SET result: 1 
+SELECT mkey, string_value from ndbmemcache.reconf_test_table;
+mkey	string_value
+test_key_1	1515
+RENAME TABLE reconf_test_table TO demo_table ;
+UPDATE containers 
+SET db_table = "demo_table" WHERE db_table = "reconf_test_table";
+UPDATE memcache_server_roles set update_timestamp = NOW();

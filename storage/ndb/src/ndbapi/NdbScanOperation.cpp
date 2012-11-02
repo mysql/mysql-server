@@ -27,6 +27,8 @@
 
 #define DEBUG_NEXT_RESULT 0
 
+static const int Err_scanAlreadyComplete = 4120;
+
 NdbScanOperation::NdbScanOperation(Ndb* aNdb, NdbOperation::Type aType) :
   NdbOperation(aNdb, aType),
   m_transConnection(NULL)
@@ -1413,6 +1415,9 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
     return -1;
   }//if
   
+  NdbImpl* impl = theNdb->theImpl;
+  Uint32 nodeId = theNdbCon->theDBnode;
+  Uint32 nodeVersion = impl->getNodeNdbVersion(nodeId);
   theSCAN_TABREQ->setSignal(GSN_SCAN_TABREQ, refToBlock(theNdbCon->m_tcRef));
   ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
   req->apiConnectPtr = theNdbCon->theTCConPtr;
@@ -1424,7 +1429,17 @@ NdbScanOperation::processTableScanDefs(NdbScanOperation::LockMode lm,
   req->first_batch_size = batch; // Save user specified batch size
   
   Uint32 reqInfo = 0;
-  ScanTabReq::setParallelism(reqInfo, parallel);
+  if (!ndbd_scan_tabreq_implicit_parallelism(nodeVersion))
+  {
+    // Implicit parallelism implies support for greater
+    // parallelism than storable explicitly in old reqInfo.
+    if (parallel > PARALLEL_MASK)
+    {
+      setErrorCodeAbort(4000 /* TODO: TooManyFragments, to too old cluster version */);
+      return -1;
+    }
+    ScanTabReq::setParallelism(reqInfo, parallel);
+  }
   ScanTabReq::setScanBatch(reqInfo, 0);
   ScanTabReq::setRangeScanFlag(reqInfo, rangeScan);
   ScanTabReq::setTupScanFlag(reqInfo, tupScan);
@@ -1875,6 +1890,15 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
 
   if(theError.code)
   {
+    if (theError.code == Err_scanAlreadyComplete)
+    {
+      /**
+       * The scan is already complete. There must be a bug in the api 
+       * application such that is calls nextResult()/nextResultNdbRecord() 
+       * again after getting return value 1 (meaning end of scan).
+       */
+      return -1;
+    }
     goto err4;
   }
 
@@ -1920,8 +1944,9 @@ NdbScanOperation::nextResultNdbRecord(const char * & out_row,
       {
         /**
          * No completed & no sent -> EndOfData
+         * Make sure user gets error if he tries again.
          */
-        theError.code= -1; // make sure user gets error if he tries again
+        theError.code= Err_scanAlreadyComplete;
         return 1;
       }
 
@@ -2291,16 +2316,13 @@ int NdbScanOperation::prepareSendScan(Uint32 aTC_ConnectPtr,
    */
   ScanTabReq * req = CAST_PTR(ScanTabReq, theSCAN_TABREQ->getDataPtrSend());
   Uint32 batch_size = req->first_batch_size; // User specified
-  Uint32 batch_byte_size, first_batch_size;
-  theReceiver.calculate_batch_size(key_size,
-                                   theParallelism,
+  Uint32 batch_byte_size;
+  theReceiver.calculate_batch_size(theParallelism,
                                    batch_size,
-                                   batch_byte_size,
-                                   first_batch_size,
-                                   m_attribute_record);
+                                   batch_byte_size);
   ScanTabReq::setScanBatch(req->requestInfo, batch_size);
   req->batch_byte_size= batch_byte_size;
-  req->first_batch_size= first_batch_size;
+  req->first_batch_size= batch_size;
 
   /**
    * Set keyinfo, nodisk and distribution key flags in 
@@ -3452,6 +3474,20 @@ NdbIndexScanOperation::insert_open_bound(const NdbRecord *key_record,
   return 0;
 }
 
+
+int
+NdbIndexScanOperation::getCurrentKeySize()
+{
+  if (unlikely((theStatus != NdbOperation::UseNdbRecord)))
+  {
+    setErrorCodeAbort(4284);
+    /* Cannot mix NdbRecAttr and NdbRecord methods in one operation */
+    return -1;
+  }
+  return theTupKeyLen;
+}
+
+
 /* IndexScan readTuples - part of old scan API
  * This call does the minimum amount of validation and state
  * storage possible.  Most of the scan initialisation is done
@@ -3674,7 +3710,7 @@ NdbIndexScanOperation::next_result_ordered_ndbrecord(const char * & out_row,
   }
   else
   {
-    theError.code= -1;
+    theError.code= Err_scanAlreadyComplete;
     return 1;                                   // End-of-file
   }
 }

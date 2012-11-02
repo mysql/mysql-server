@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,19 +41,46 @@ class NdbScanOperation : public NdbOperation {
 
 public:
   /**
-   * Scan flags.  OR-ed together and passed as second argument to
-   * readTuples. Note that SF_MultiRange has to be set if several
-   * ranges (bounds) are to be passed.
+   * Scan flags.  OR-ed together and passed as argument to
+   * readTuples, scanIndex, and scanTable. Note that SF_MultiRange
+   * has to be set if several ranges (bounds) are to be passed.
    */
   enum ScanFlag {
-    /* Scan TUP order */
+    /* Scan in TUP order (the order of rows in memory). Table scan only. */
     SF_TupScan = (1 << 16),
-    /* Scan in DISK order */
+    /* Scan in DISK order (the order of rows on disk). Table scan only. */
     SF_DiskScan = (2 << 16),
     /*
       Return rows from an index scan sorted, ordered on the index key.
+      Both ascending order or descending order scans are affected by this flag.
       This flag makes the API perform a merge-sort among the ordered scans of
       each fragment, to get a single sorted result set.
+      Note that :
+      1) Ordered indexes are distributed - there is one for each fragment of a
+         table.
+      2) Range scans are often parallel - across all index fragments.  
+         Occasionally they can be pruned to one index fragment.
+      3) Each index fragment range scan will return results in either ascending
+         or descending order.  Ascending is the default, but descending is
+         chosen if SF_Descending is set.
+      4) Where multiple index fragments are scanned in parallel, the results
+         are sent back to NdbApi where they can optionally be merge-sorted
+         before being returned to the user.  This merge sorting is controlled
+         via the SF_OrderBy and SF_OrderByFull flags.
+      5) Without SF_OrderBy* flags, the results from each index fragment will
+         be in-order (ascending or descending), but results from different
+         fragments may be interleaved.
+      6) With SF_OrderBy* flags, some extra constraints are imposed internally:
+        i) If the range scan is not pruned to one index fragment then all
+           index fragments must be scanned in parallel.  (Non SF_OrderBy* flag
+           scans can be executed with lower than full-parallelism)
+        ii) Results from every index fragment must be available before returning
+            any row, to ensure a correct merge sort.  This serialises the 
+            'scrolling' of the scan, potentially resulting in lower row
+            throughput.
+        iii) Non SF_OrderBy* flag scans can return rows to the Api before all
+             index fragments have returned a batch, and can overlap next-batch
+             requests with Api row processing.
     */
     SF_OrderBy = (1 << 24),
     /**
@@ -70,6 +97,9 @@ public:
       called to read back the range_no defined in
       NdbIndexScanOperation::setBound(). See @ref setBound() for
       explanation.
+      Additionally, when this flag is set and SF_OrderBy* is also set, results
+      from ranges are returned in their entirety before any results are returned
+      from subsequent ranges.
     */
     SF_ReadRangeNo = (4 << 24),
     /* Scan is part of multi-range scan. */
@@ -107,6 +137,14 @@ public:
    */
   struct ScanOptions
   {
+    /*
+      Size of the ScanOptions structure.
+    */
+    static inline Uint32 size()
+    {
+        return sizeof(ScanOptions);
+    }
+
     /* Which options are present - see below for possibilities */
     Uint64 optionsPresent;
 

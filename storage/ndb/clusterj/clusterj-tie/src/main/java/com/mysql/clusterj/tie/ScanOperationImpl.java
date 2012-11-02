@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ import com.mysql.ndbjtie.ndbapi.NdbOperation;
 import com.mysql.ndbjtie.ndbapi.NdbScanFilter;
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
 
+import com.mysql.clusterj.Query.Ordering;
 import com.mysql.clusterj.core.spi.QueryExecutionContext;
 import com.mysql.clusterj.core.store.ResultData;
 import com.mysql.clusterj.core.store.ScanFilter;
@@ -34,6 +35,8 @@ import com.mysql.clusterj.core.store.Table;
 class ScanOperationImpl extends OperationImpl implements ScanOperation {
 
     private NdbScanOperation ndbScanOperation;
+
+    private Ordering ordering = null;
 
     ScanOperationImpl(Table storeTable, NdbScanOperation operation,
             ClusterTransactionImpl clusterTransaction) {
@@ -66,8 +69,12 @@ class ScanOperationImpl extends OperationImpl implements ScanOperation {
 
     @Override
     public ResultData resultData() {
+        return resultData(true, 0, Long.MAX_VALUE);
+    }
+
+    public ResultData resultData(boolean execute, long skip, long limit) {
         ResultData result = new ScanResultDataImpl(ndbScanOperation, storeColumns,
-                maximumColumnId, bufferSize, offsets, lengths, maximumColumnLength, bufferManager);
+                maximumColumnId, bufferSize, offsets, lengths, maximumColumnLength, bufferManager, skip, limit);
         clusterTransaction.executeNoCommit(false, true);
         return result;
     }
@@ -87,6 +94,10 @@ class ScanOperationImpl extends OperationImpl implements ScanOperation {
                 clusterTransaction.handleError(returnCode);
             }
         }
+    }
+
+    public void setOrdering(Ordering ordering) {
+        this.ordering = ordering;
     }
 
 }

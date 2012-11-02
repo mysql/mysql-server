@@ -29,6 +29,8 @@
 
 #include "ndbd.hpp"
 
+#include <TransporterRegistry.hpp>
+
 #include <ConfigRetriever.hpp>
 #include <LogLevel.hpp>
 
@@ -161,9 +163,13 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
-  Uint32 maxopen = 4 * 4; // 4 redo parts, max 4 files per part
+  Uint32 logParts = NDB_DEFAULT_LOG_PARTS;
+  ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS, &logParts);
+
+  Uint32 maxopen = logParts * 4; // 4 redo parts, max 4 files per part
   Uint32 filebuffer = NDB_FILE_BUFFER_SIZE;
   Uint32 filepages = (filebuffer / GLOBAL_PAGE_SIZE) * maxopen;
+  globalData.ndbLogParts = logParts;
 
   {
     /**
@@ -208,11 +214,40 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
   Uint32 sbpages = 0;
   if (globalTransporterRegistry.get_using_default_send_buffer() == false)
   {
-    Uint64 mem = globalTransporterRegistry.get_total_max_send_buffer();
+    Uint64 mem;
+    {
+      Uint32 tot_mem = 0;
+      ndb_mgm_get_int_parameter(p, CFG_TOTAL_SEND_BUFFER_MEMORY, &tot_mem);
+      if (tot_mem)
+      {
+        mem = (Uint64)tot_mem;
+      }
+      else
+      {
+        mem = globalTransporterRegistry.get_total_max_send_buffer();
+      }
+    }
+
     sbpages = Uint32((mem + GLOBAL_PAGE_SIZE - 1) / GLOBAL_PAGE_SIZE);
+
+    /**
+     * Add extra send buffer pages for NDB multithreaded case
+     */
+    {
+      Uint64 extra_mem = 0;
+      ndb_mgm_get_int64_parameter(p, CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_mem);
+      Uint32 extra_mem_pages = Uint32((extra_mem + GLOBAL_PAGE_SIZE - 1) /
+                                      GLOBAL_PAGE_SIZE);
+      sbpages += mt_get_extra_send_buffer_pages(sbpages, extra_mem_pages);
+    }
+
     Resource_limit rl;
     rl.m_min = sbpages;
-    rl.m_max = sbpages;
+    /**
+     * allow over allocation (from SharedGlobalMemory) of up to 25% of
+     *   totally allocated SendBuffer
+     */
+    rl.m_max = sbpages + (sbpages * 25) / 100;
     rl.m_resource_id = RG_TRANSPORTER_BUFFERS;
     ed.m_mem_manager->set_resource_limit(rl);
   }
@@ -239,8 +274,17 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
+  Uint32 stpages = 64;
+  {
+    Resource_limit rl;
+    rl.m_min = stpages;
+    rl.m_max = 0;
+    rl.m_resource_id = RG_SCHEMA_TRANS_MEMORY;
+    ed.m_mem_manager->set_resource_limit(rl);
+  }
+
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
-    pgman_pages;
+    pgman_pages + stpages;
 
   if (sum)
   {
@@ -296,7 +340,6 @@ static int
 get_multithreaded_config(EmulatorData& ed)
 {
   // multithreaded is compiled in ndbd/ndbmtd for now
-  globalData.isNdbMt = SimulatedBlock::isMultiThreaded();
   if (!globalData.isNdbMt)
   {
     ndbout << "NDBMT: non-mt" << endl;
@@ -304,58 +347,19 @@ get_multithreaded_config(EmulatorData& ed)
   }
 
   THRConfig & conf = ed.theConfiguration->m_thr_config;
-
   Uint32 threadcount = conf.getThreadCount();
   ndbout << "NDBMT: MaxNoOfExecutionThreads=" << threadcount << endl;
-
-  globalData.isNdbMtLqh = true;
-
-  {
-    if (conf.getMtClassic())
-    {
-      globalData.isNdbMtLqh = false;
-    }
-  }
 
   if (!globalData.isNdbMtLqh)
     return 0;
 
-  Uint32 threads = conf.getThreadCount(THRConfig::T_LDM);
-  Uint32 workers = threads;
-  {
-    ndb_mgm_configuration * conf = ed.theConfiguration->getClusterConfig();
-    if (conf == 0)
-    {
-      abort();
-    }
-    ndb_mgm_configuration_iterator * p =
-      ndb_mgm_create_configuration_iterator(conf, CFG_SECTION_NODE);
-    if (ndb_mgm_find(p, CFG_NODE_ID, globalData.ownId))
-    {
-      abort();
-    }
-    ndb_mgm_get_int_parameter(p, CFG_NDBMT_LQH_WORKERS, &workers);
-  }
+  ndbout << "NDBMT: workers=" << globalData.ndbMtLqhWorkers
+         << " threads=" << globalData.ndbMtLqhThreads
+         << " tc=" << globalData.ndbMtTcThreads
+         << " send=" << globalData.ndbMtSendThreads
+         << " receive=" << globalData.ndbMtReceiveThreads
+         << endl;
 
-#ifdef VM_TRACE
-  // testing
-  {
-    const char* p;
-    p = NdbEnv_GetEnv("NDBMT_LQH_WORKERS", (char*)0, 0);
-    if (p != 0)
-      workers = atoi(p);
-  }
-#endif
-
-  ndbout << "NDBMT: workers=" << workers
-         << " threads=" << threads << endl;
-
-  assert(workers != 0 && workers <= MAX_NDBMT_LQH_WORKERS);
-  assert(threads != 0 && threads <= MAX_NDBMT_LQH_THREADS);
-  assert(workers % threads == 0);
-
-  globalData.ndbMtLqhWorkers = workers;
-  globalData.ndbMtLqhThreads = threads;
   return 0;
 }
 
@@ -555,7 +559,7 @@ void
 ndbd_run(bool foreground, int report_fd,
          const char* connect_str, int force_nodeid, const char* bind_address,
          bool no_start, bool initial, bool initialstart,
-         unsigned allocated_nodeid)
+         unsigned allocated_nodeid, int connect_retries, int connect_delay)
 {
 #ifdef _WIN32
   {
@@ -618,7 +622,8 @@ ndbd_run(bool foreground, int report_fd,
   }
 
   theConfig->fetch_configuration(connect_str, force_nodeid, bind_address,
-                                 allocated_nodeid);
+                                 allocated_nodeid, connect_retries,
+                                 connect_delay);
 
   if (NdbDir::chdir(NdbConfig_get_path(NULL)) != 0)
   {

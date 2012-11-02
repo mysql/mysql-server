@@ -30,8 +30,8 @@ drop table invisible;
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
 -- ndb_binlog_index table (MyISAM) in mysql db 
-insert into ndb_binlog_index values (12, 'F', 23, 0, 0, 0, 0, 3, 44, 55);
-insert into ndb_binlog_index values (20, 'G', 23, 0, 0, 0, 0, 5, 44, 55);
+insert into ndb_binlog_index values (12, 'F', 23, 0, 0, 0, 0, 3, 44, 55, 66, 'H');
+insert into ndb_binlog_index values (20, 'G', 23, 0, 0, 0, 0, 5, 44, 55, 77, 'I');
 delete from ndb_binlog_index;
 -- Should be nothing in binlog
 show binlog events from <binlog_start>;
