@@ -545,7 +545,6 @@
 #cmakedefine BACKUP_TEST 1
 #cmakedefine CYBOZU 1
 #cmakedefine OPTIMIZER_TRACE 1
-#cmakedefine USE_SYMDIR 1
 
 /*
    InnoDB config options
