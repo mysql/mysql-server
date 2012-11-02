@@ -364,6 +364,9 @@ private:
   void execNODE_PINGREQ(Signal* signal);
   void execNODE_PINGCONF(Signal* signal);
 
+  // Ndbinfo signal
+  void execDBINFO_SCANREQ(Signal *signal);
+
   // Statement blocks
   void check_readnodes_reply(Signal* signal, Uint32 nodeId, Uint32 gsn);
   Uint32 check_startup(Signal* signal);
