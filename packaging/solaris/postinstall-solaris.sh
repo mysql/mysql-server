@@ -40,6 +40,14 @@ mystart1="$mybasedir/support-files/mysql.server"
 myinstdb="$mybasedir/scripts/mysql_install_db"
 mystart=/etc/init.d/mysql
 
+# Check: Is this a first installation, or an upgrade ?
+
+if [ -d "$mydatadir/mysql" ] ; then
+  :   # If the directory for system table files exists, we assume an upgrade.
+else
+  INSTALL=new  # This is a new installation, the directory will soon be created.
+fi
+
 # Create data directory if needed
 
 [ -d "$mydatadir"       ] || mkdir -p -m 755 "$mydatadir" || exit 1
@@ -67,16 +75,18 @@ if [ -n "$TMPDIR" ] ; then
   chown $myuser:$mygroup "$TMPDIR"
 fi
 
-# We install/update the system tables
-(
-  cd "$mybasedir"
-  scripts/mysql_install_db \
-	--rpm \
-	--random-passwords \
-	--user=mysql \
-	--basedir="$mybasedir" \
-	--datadir=$mydatadir
-)
+if [ -n "$INSTALL" ] ; then
+  # We install/update the system tables
+  (
+    cd "$mybasedir"
+    scripts/mysql_install_db \
+	  --rpm \
+	  --random-passwords \
+	  --user=mysql \
+	  --basedir="$mybasedir" \
+	  --datadir=$mydatadir
+  )
+fi
 
 if [ -n "$savetmpdir" ] ; then
   TMPDIR="$savetmpdir"
