@@ -8,4 +8,5 @@
 #
 #  Do not use any TAB characters for whitespace.
 #
-##############################################################################
+#############################################################################
+pfs_upgrade : Bug#14700294 PFS_UPGRADE_* - RESULT LINE NUMBER DIFF WHEN MYSQL_SYSTEM_TABLES.SQL MODIFIED
