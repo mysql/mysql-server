@@ -836,13 +836,11 @@ static int UU() serial_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void 
     uint64_t puts_to_increment = 0;
     for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
         rand_key_key[0] = extra->current++;
-#if 0
         if (arg->cli->interleave) {
             rand_key_i[3] = arg->thread_idx;
         } else {
             rand_key_i[0] = arg->thread_idx;
         }
-#endif
         fill_zeroed_array(valbuf, arg->cli->val_size, arg->random_data, arg->cli->compressibility);
         DBT key, val;
         dbt_init(&key, &rand_key_b, sizeof rand_key_b);
