@@ -7178,23 +7178,29 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
     row.write_uint32(cneighbourh);
     row.write_uint32(cpresident);
 
-    Uint32 successor = 0; // President sucessor.
-    NodeRecPtr nodePtr;
-    UintR tfrMinDynamicId = (UintR)-1;
-    for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++) {
-      jam();
-      ptrAss(nodePtr, nodeRec);
-      if (nodePtr.p->phase == ZRUNNING) {
-        if ((nodePtr.p->ndynamicId & 0xFFFF) < tfrMinDynamicId) {
-          jam();
-          if (cpresident !=  nodePtr.i)
+    // President successor
+    Uint32 successor = 0;
+    {
+      NodeRecPtr nodePtr;
+      UintR minDynamicId = (UintR)-1;
+      for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+      {
+        jam();
+        ptrAss(nodePtr, nodeRec);
+        if (nodePtr.p->phase == ZRUNNING)
+        {
+          if ((nodePtr.p->ndynamicId & 0xFFFF) < minDynamicId)
           {
-            tfrMinDynamicId = (nodePtr.p->ndynamicId & 0xFFFF);
-            successor = nodePtr.i;
+            jam();
+            if (cpresident !=  nodePtr.i)
+            {
+              minDynamicId = (nodePtr.p->ndynamicId & 0xFFFF);
+              successor = nodePtr.i;
+            }
           }
         }
       }
-    }//for
+    }
     row.write_uint32(successor);
 
     NodeRecPtr myNodePtr;
