@@ -50,7 +50,8 @@ public:
     THREADBLOCKS_TABLEID =       11,
     THREADSTAT_TABLEID =         12,
     TRANSACTIONS_TABLEID =       13,
-    OPERATIONS_TABLEID =         14
+    OPERATIONS_TABLEID =         14,
+    MEMBERSHIP_TABLEID =         15
   };
 
   struct Table {
