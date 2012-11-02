@@ -7225,7 +7225,7 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
       aPtr.i = 0;
       const unsigned stop = NodeBitmask::NotFound;
       int buf_offset = 0;
-      char* delimiter = "";
+      const char* delimiter = "";
 
       while ((aPtr.i = arbitRec.apiMask[rank].find(aPtr.i + 1)) != stop)
       {
