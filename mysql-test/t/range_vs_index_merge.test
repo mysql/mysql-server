@@ -675,6 +675,64 @@ SELECT Name, Country, Population FROM City WHERE
 $cond;
 
 set optimizer_switch=@save_optimizer_switch;
+
+--echo # 
+--echo # Bug mdev-585: range vs index-merge with ORDER BY ... LIMIT n
+--echo # (LP bug #637962)
+--echo # 
+
+DROP INDEX CountryPopulation ON City;
+DROP INDEX CountryName ON City;
+DROP INDEX CityName on City;
+
+CREATE INDEX Name ON City(Name);
+CREATE INDEX Population ON City(Population);
+
+
+--replace_column 9 #
+EXPLAIN 
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+        AND (Population >= 100000 AND Population < 120000);
+FLUSH STATUS;
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+        AND (Population >= 100000 AND Population < 120000);
+SHOW STATUS LIKE 'Handler_read_%';
+
+
+--replace_column 9 #
+EXPLAIN 
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+        AND (Population >= 100000 AND Population < 120000)
+ORDER BY Population LIMIT 5;
+
+FLUSH STATUS;
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+        AND (Population >= 100000 AND Population < 120000)
+ORDER BY Population LIMIT 5;
+SHOW STATUS LIKE 'Handler_read_%';
+
+
+set optimizer_switch='index_merge=off';
+
+--replace_column 9 #
+EXPLAIN 
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+        AND (Population >= 100000 AND Population < 120000)
+ORDER BY Population LIMIT 5;
+
+FLUSH STATUS;
+SELECT * FROM City
+  WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))
+        AND (Population >= 100000 AND Population < 120000)
+ORDER BY Population LIMIT 5;
+SHOW STATUS LIKE 'Handler_read_%';
+
+set optimizer_switch=@save_optimizer_switch;
           
 
 DROP DATABASE world;
