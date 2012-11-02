@@ -7219,7 +7219,7 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
     // arbitrator connected
     row.write_uint32(c_connectedNodes.get(arbitRec.node));
 
-    // Find the potential (rank1 and rank2) arbitrators that are connected.
+    // Find potential (rank1 and rank2) arbitrators that are connected.
     NodeRecPtr aPtr;
     // buf_size: Node nr (max 3 chars) and ', '  + trailing '\0'
     const int buf_size = 5 * MAX_NODES + 1;
@@ -7244,18 +7244,19 @@ Qmgr::execDBINFO_SCANREQ(Signal *signal)
                                              "%s%u", delimiter, aPtr.i);
           delimiter = ", ";
         }
-      } // while
+      }
 
       if (buf_offset == 0)
         row.write_string("-");
       else
         row.write_string(buf);
-    } // for
+    }
 
     ndbinfo_send_row(signal, req, row, rl);
-  } // case ARBITRATION_TABLEID
+    break;
+  }
   default:
     break;
-  } // switch
+  }
   ndbinfo_send_scan_conf(signal, req, rl);
 }
