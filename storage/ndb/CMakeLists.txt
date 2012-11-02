@@ -18,6 +18,10 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
 
 MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
+
+OPTION(NDB_DETECT_MYSQL_CLUSTER_BUILD
+  "Autodetect MySQL Cluster and turn on build of ndbcluster and NDB " ON)
+MARK_AS_ADVANCED(NDB_DETECT_MYSQL_CLUSTER_BUILD)
     
 # Check if this is MySQL Cluster build i.e the MySQL Server
 # version string ends in -ndb-Y.Y.Y[-status]    
@@ -26,8 +30,6 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
   IF(${version_string} MATCHES "(.*)-ndb-(.*)")
     SET(mysql_version ${CMAKE_MATCH_1})
     SET(cluster_version ${CMAKE_MATCH_2})
-    
-    MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
     
     # Sanity check that the mysql_version matches precalcuated
     # values from higher level scripts  
@@ -42,9 +44,12 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
       SET(MYSQL_CLUSTER_VERSION_BUILD ${CMAKE_MATCH_3})
     ENDIF()
 
-    # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
-    # that this is a MySQL Cluster build, yay!
-    SET(MYSQL_CLUSTER_VERSION ${cluster_version})
+    IF(NDB_DETECT_MYSQL_CLUSTER_BUILD)
+      MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
+      # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
+      # that this is a MySQL Cluster build, yay!
+      SET(MYSQL_CLUSTER_VERSION ${cluster_version})
+    ENDIF()
   ENDIF()
 ENDMACRO()
 
