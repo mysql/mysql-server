@@ -139,7 +139,11 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
   ## these take a really long time with valgrind
   set(phenomenally_long_tests
     ft/benchmark-test
-    ft/benchmark-test_256
     )
   set_tests_properties(${phenomenally_long_tests} PROPERTIES TIMEOUT 14400)
+  ## whoa
+  set(catastrophically_long_tests
+    ft/benchmark-test_256
+    )
+  set_tests_properties(${catastrophically_long_tests} PROPERTIES TIMEOUT 28800)
 endif(BUILD_TESTING OR BUILD_FT_TESTS)
