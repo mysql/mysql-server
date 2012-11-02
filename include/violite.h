@@ -177,6 +177,12 @@ void vio_end(void);
 #endif /* !defined(DONT_MAP_VIO) */
 
 #ifdef _WIN32
+
+/* shutdown(2) flags */
+#ifndef SHUT_RD
+#define SHUT_RD SD_BOTH
+#endif
+
 /*
   Set thread id for io cancellation (required on Windows XP only,
   and should to be removed if XP is no more supported)

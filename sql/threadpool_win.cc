@@ -544,22 +544,6 @@ void tp_end(void)
   }
 }
 
-/**
-  Notify pool about connection being killed.
-*/
-void tp_post_kill_notification(THD *thd)
-{
-   if (current_thd == thd)
-    return; /* There is nothing to do.*/
-
-  if (thd->system_thread)
-   return; /* Will crash if we attempt to kill system thread. */
-
-  Vio *vio= thd->net.vio;
-
-  vio_shutdown(vio, SD_BOTH);
-
-}
 
 /*
   Handle read completion/notification.

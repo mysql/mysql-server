@@ -79,11 +79,34 @@ void scheduler_init() {
                              scheduler_wait_sync_end);
 }
 
+
+/**
+  Kill notification callback,  used by  one-thread-per-connection
+  and threadpool scheduler.
+
+  Wakes up a thread that is stuck in read/poll/epoll/event-poll 
+  routines used by threadpool, such that subsequent attempt to 
+  read from  client connection will result in IO error.
+*/
+
+void post_kill_notification(THD *thd)
+{
+  DBUG_ENTER("post_kill_notification");
+  if (current_thd == thd || thd->system_thread)
+    DBUG_VOID_RETURN;
+
+  if (thd->net.vio)
+    vio_shutdown(thd->net.vio, SHUT_RD);
+  DBUG_VOID_RETURN;
+}
+
 /*
   Initialize scheduler for --thread-handling=one-thread-per-connection
 */
 
 #ifndef EMBEDDED_LIBRARY
+
+
 void one_thread_per_connection_scheduler(scheduler_functions *func,
     ulong *arg_max_connections,
     uint *arg_connection_count)
@@ -95,6 +118,7 @@ void one_thread_per_connection_scheduler(scheduler_functions *func,
   func->init_new_connection_thread= init_new_connection_handler_thread;
   func->add_connection= create_thread_to_handle_connection;
   func->end_thread= one_thread_per_connection_end;
+  func->post_kill_notification= post_kill_notification;
 }
 #endif
 

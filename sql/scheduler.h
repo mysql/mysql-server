@@ -78,7 +78,7 @@ void one_thread_per_connection_scheduler(scheduler_functions *func,
 void one_thread_scheduler(scheduler_functions *func);
 
 extern void scheduler_init();
-
+extern void post_kill_notification(THD *);
 /*
  To be used for pool-of-threads (implemeneted differently on various OSs)
 */

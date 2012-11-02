@@ -173,7 +173,6 @@ static int  create_worker(thread_group_t *thread_group);
 static void *worker_main(void *param);
 static void check_stall(thread_group_t *thread_group);
 static void connection_abort(connection_t *connection);
-void tp_post_kill_notification(THD *thd);
 static void set_wait_timeout(connection_t *connection);
 static void set_next_timeout_check(ulonglong abstime);
 static void print_pool_blocked_message(bool);
@@ -444,7 +443,7 @@ static void timeout_check(pool_timer_t *timer)
       /* Wait timeout exceeded, kill connection. */
       mysql_mutex_lock(&thd->LOCK_thd_data);
       thd->killed = KILL_CONNECTION;
-      tp_post_kill_notification(thd);
+      post_kill_notification(thd);
       mysql_mutex_unlock(&thd->LOCK_thd_data);
     }
     else 
@@ -1257,21 +1256,6 @@ static void connection_abort(connection_t *connection)
   DBUG_VOID_RETURN;
 }
 
-
-/**
-  MySQL scheduler callback : kill connection
-*/
-
-void tp_post_kill_notification(THD *thd)
-{
-  DBUG_ENTER("tp_post_kill_notification");
-  if (current_thd == thd || thd->system_thread)
-    DBUG_VOID_RETURN;
-  
-  if (thd->net.vio)
-    vio_shutdown(thd->net.vio, SHUT_RD);
-  DBUG_VOID_RETURN;
-}
 
 /**
   MySQL scheduler callback: wait begin

@@ -97,7 +97,6 @@ INSERT INTO global_suppressions VALUES
  ("Failed to open log"),
  ("Failed to open the existing master info file"),
  ("Forcing shutdown of [0-9]* plugins"),
- ("Forcing close of thread"),
 
  /*
    Due to timing issues, it might be that this warning

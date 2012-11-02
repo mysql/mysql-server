@@ -257,7 +257,7 @@ static scheduler_functions tp_scheduler_functions=
   tp_add_connection,                  // add_connection
   tp_wait_begin,                      // thd_wait_begin
   tp_wait_end,                        // thd_wait_end
-  tp_post_kill_notification,          // post_kill_notification
+  post_kill_notification,             // post_kill_notification
   NULL,                               // end_thread
   tp_end                              // end
 };
