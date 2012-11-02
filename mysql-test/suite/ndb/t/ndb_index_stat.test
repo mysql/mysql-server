@@ -19,6 +19,7 @@ DROP TABLE IF EXISTS t1, t2;
 --enable_warnings
 
 set @is_enable_default = @@global.ndb_index_stat_enable;
+let is_table_exists = `select count(*) <> 2 from information_schema.tables where table_name in ('ndb_index_stat_head', 'ndb_index_stat_sample') and table_schema='mysql'`;
 
 set @is_enable = 1;
 source ndb_index_stat_enable.inc;
@@ -372,6 +373,21 @@ SELECT count(*) as Count FROM t1 WHERE I = 5;
 explain SELECT count(*) as Count FROM t1 WHERE L = 5;
 SELECT count(*) as Count FROM t1 WHERE L = 5;
 
+drop table t1;
+
+# bug#13407848
+# signed char in compute length bytes caused ndbrequire in Trix.cpp
+
+create table t1 (
+  a int unsigned not null,
+  b char(180) not null,
+  primary key using hash (a),
+  index (b)
+) engine=ndb charset=binary;
+insert into t1 values (1,'a'),(2,'b'),(3,'c');
+analyze table t1;
+analyze table t1;
+analyze table t1;
 drop table t1;
 
 set @is_enable = @is_enable_default;

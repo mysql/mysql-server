@@ -715,8 +715,8 @@ private:
   static Uint32 getFiredCount(Uint32 v) {
     return NoOfFiredTriggers::getFiredCount(v);
   }
-  static Uint32 getDeferredBit(Uint32 v) {
-    return NoOfFiredTriggers::getDeferredBit(v);
+  static Uint32 getDeferredUKBit(Uint32 v) {
+    return NoOfFiredTriggers::getDeferredUKBit(v);
   }
   static void setDeferredBit(Uint32 & v) {
     NoOfFiredTriggers::setDeferredBit(v);
