@@ -20,6 +20,7 @@
 #include "NdbMgmd.hpp"
 #include <mgmapi.h>
 #include <mgmapi_debug.h>
+#include "../../src/mgmapi/mgmapi_internal.h"
 #include <InputStream.hpp>
 #include <signaldata/EventReport.hpp>
 #include <NdbRestarter.hpp>
@@ -639,7 +640,6 @@ done:
   return result;
 }
 
-#include <mgmapi_internal.h>
 
 int runSetConfig(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -736,8 +736,8 @@ get_nodeid_of_type(NdbMgmd& mgmd, ndb_mgm_node_type type, int *nodeId)
   int noOfNodes = cs->no_of_nodes;
   int randomnode = myRandom48(noOfNodes);
   ndb_mgm_node_state *ns = cs->node_states + randomnode;
-  assert(ns->node_type == (Uint32)type);
-  assert(ns->node_id);
+  assert((Uint32)ns->node_type == (Uint32)type);
+  assert(ns->node_id != 0);
 
   *nodeId = ns->node_id;
   g_info << "Got node id " << *nodeId << " of type " << type << endl;
@@ -811,13 +811,16 @@ check_get_config_illegal_node(NdbMgmd& mgmd)
 static bool
 check_get_config_wrong_type(NdbMgmd& mgmd)
 {
+  int myChoice = myRandom48(2);
+  ndb_mgm_node_type randomAllowedType = (myChoice) ?
+                                        NDB_MGM_NODE_TYPE_API :
+                                        NDB_MGM_NODE_TYPE_MGM;
   int nodeId = 0;
-
-  if (get_nodeid_of_type(mgmd, NDB_MGM_NODE_TYPE_API, &nodeId))
+  if (get_nodeid_of_type(mgmd, randomAllowedType, &nodeId))
   {
     return get_config_from_illegal_node(mgmd, nodeId);
   }
-  // No API nodes found.
+  // No API/MGM nodes found.
   return true;
 }
 
@@ -842,15 +845,10 @@ int runGetConfigFromNode(NDBT_Context* ctx, NDBT_Step* step)
   int loops= ctx->getNumLoops();
   for (int l= 0; l < loops; l++)
   {
-    /* Get config from a node of type:
-     * NDB_MGM_NODE_TYPE_NDB or NDB_MGM_NODE_TYPE_MGM
+    /* Get config from a node of type: * NDB_MGM_NODE_TYPE_NDB
      */
-    int myChoice = myRandom48(2);
-    ndb_mgm_node_type randomAllowedType = (myChoice) ?
-                                          NDB_MGM_NODE_TYPE_NDB :
-                                          NDB_MGM_NODE_TYPE_MGM;
     int nodeId = 0;
-    if (get_nodeid_of_type(mgmd, randomAllowedType, &nodeId))
+    if (get_nodeid_of_type(mgmd,  NDB_MGM_NODE_TYPE_NDB, &nodeId))
     {
       struct ndb_mgm_configuration* conf =
         ndb_mgm_get_configuration_from_node(mgmd.handle(), nodeId);
@@ -2722,6 +2720,203 @@ int runTestStatusAfterStop(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int
+sort_ng(const void * _e0, const void * _e1)
+{
+  const struct ndb_mgm_node_state * e0 = (const struct ndb_mgm_node_state*)_e0;
+  const struct ndb_mgm_node_state * e1 = (const struct ndb_mgm_node_state*)_e1;
+  if (e0->node_group != e1->node_group)
+    return e0->node_group - e1->node_group;
+
+  return e0->node_id - e1->node_id;
+}
+
+int
+runBug12928429(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+  {
+    return NDBT_FAILED;
+  }
+
+  ndb_mgm_node_type node_types[2] =
+    { NDB_MGM_NODE_TYPE_NDB, NDB_MGM_NODE_TYPE_UNKNOWN };
+
+  ndb_mgm_cluster_state * cs = ndb_mgm_get_status2(mgmd.handle(), node_types);
+  if (cs == NULL)
+  {
+    printf("%s (%d)\n", ndb_mgm_get_latest_error_msg(mgmd.handle()),
+           ndb_mgm_get_latest_error(mgmd.handle()));
+    return NDBT_FAILED;
+  }
+
+  /**
+   * sort according to node-group
+   */
+  qsort(cs->node_states, cs->no_of_nodes,
+        sizeof(cs->node_states[0]), sort_ng);
+
+  int ng = cs->node_states[0].node_group;
+  int replicas = 1;
+  for (int i = 1; i < cs->no_of_nodes; i++)
+  {
+    if (cs->node_states[i].node_status != NDB_MGM_NODE_STATUS_STARTED)
+    {
+      ndbout_c("node %u is not started!!!", cs->node_states[i].node_id);
+      free(cs);
+      return NDBT_OK;
+    }
+    if (cs->node_states[i].node_group == ng)
+    {
+      replicas++;
+    }
+    else
+    {
+      break;
+    }
+  }
+
+  if (replicas == 1)
+  {
+    free(cs);
+    return NDBT_OK;
+  }
+
+  int nodes[MAX_NODES];
+  int cnt = 0;
+  for (int i = 0; i < cs->no_of_nodes; i += replicas)
+  {
+    printf("%u ", cs->node_states[i].node_id);
+    nodes[cnt++] = cs->node_states[i].node_id;
+  }
+  printf("\n");
+
+  int initial = 0;
+  int nostart = 1;
+  int abort = 0;
+  int force = 1;
+  int disconnnect = 0;
+
+  /**
+   * restart half of the node...should be only restart half of the nodes
+   */
+  int res = ndb_mgm_restart4(mgmd.handle(), cnt, nodes,
+                             initial, nostart, abort, force, &disconnnect);
+
+  if (res == -1)
+  {
+    ndbout_c("%u res: %u ndb_mgm_get_latest_error: %u line: %u msg: %s",
+             __LINE__,
+             res,
+             ndb_mgm_get_latest_error(mgmd.handle()),
+             ndb_mgm_get_latest_error_line(mgmd.handle()),
+             ndb_mgm_get_latest_error_msg(mgmd.handle()));
+    return NDBT_FAILED;
+  }
+
+  {
+    ndb_mgm_cluster_state * cs2 = ndb_mgm_get_status2(mgmd.handle(),node_types);
+    if (cs2 == NULL)
+    {
+      printf("%s (%d)\n", ndb_mgm_get_latest_error_msg(mgmd.handle()),
+             ndb_mgm_get_latest_error(mgmd.handle()));
+      return NDBT_FAILED;
+    }
+
+    for (int i = 0; i < cs2->no_of_nodes; i++)
+    {
+      int node_id = cs2->node_states[i].node_id;
+      int expect = NDB_MGM_NODE_STATUS_STARTED;
+      for (int c = 0; c < cnt; c++)
+      {
+        if (node_id == nodes[c])
+        {
+          expect = NDB_MGM_NODE_STATUS_NOT_STARTED;
+          break;
+        }
+      }
+      if (cs2->node_states[i].node_status != expect)
+      {
+        ndbout_c("%u node %u expect: %u found: %u",
+                 __LINE__,
+                 cs2->node_states[i].node_id,
+                 expect,
+                 cs2->node_states[i].node_status);
+        return NDBT_FAILED;
+      }
+    }
+    free(cs2);
+  }
+
+  NdbRestarter restarter;
+  restarter.startAll();
+  restarter.waitClusterStarted();
+
+  /**
+   * restart half of the node...and all nodes in one node group
+   *   should restart cluster
+   */
+  cnt = 0;
+  for (int i = 0; i < replicas; i++)
+  {
+    printf("%u ", cs->node_states[i].node_id);
+    nodes[cnt++] = cs->node_states[i].node_id;
+  }
+  for (int i = replicas; i < cs->no_of_nodes; i += replicas)
+  {
+    printf("%u ", cs->node_states[i].node_id);
+    nodes[cnt++] = cs->node_states[i].node_id;
+  }
+  printf("\n");
+
+  res = ndb_mgm_restart4(mgmd.handle(), cnt, nodes,
+                         initial, nostart, abort, force, &disconnnect);
+
+  if (res == -1)
+  {
+    ndbout_c("%u res: %u ndb_mgm_get_latest_error: %u line: %u msg: %s",
+             __LINE__,
+             res,
+             ndb_mgm_get_latest_error(mgmd.handle()),
+             ndb_mgm_get_latest_error_line(mgmd.handle()),
+             ndb_mgm_get_latest_error_msg(mgmd.handle()));
+    return NDBT_FAILED;
+  }
+
+  {
+    ndb_mgm_cluster_state * cs2 = ndb_mgm_get_status2(mgmd.handle(),node_types);
+    if (cs2 == NULL)
+    {
+      printf("%s (%d)\n", ndb_mgm_get_latest_error_msg(mgmd.handle()),
+             ndb_mgm_get_latest_error(mgmd.handle()));
+      return NDBT_FAILED;
+    }
+
+    for (int i = 0; i < cs2->no_of_nodes; i++)
+    {
+      int expect = NDB_MGM_NODE_STATUS_NOT_STARTED;
+      if (cs2->node_states[i].node_status != expect)
+      {
+        ndbout_c("%u node %u expect: %u found: %u",
+                 __LINE__,
+                 cs2->node_states[i].node_id,
+                 expect,
+                 cs2->node_states[i].node_status);
+        return NDBT_FAILED;
+      }
+    }
+    free(cs2);
+  }
+
+  restarter.startAll();
+  restarter.waitClusterStarted();
+
+  free(cs);
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -2858,6 +3053,10 @@ TESTCASE("TestDumpEvents",
 TESTCASE("TestStatusAfterStop",
  	 "Test get status after stop "){
   STEPS(runTestStatusAfterStop, 1);
+}
+TESTCASE("Bug12928429", "")
+{
+  STEP(runBug12928429);
 }
 NDBT_TESTSUITE_END(testMgm);
 

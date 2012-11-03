@@ -36,7 +36,10 @@ public class TestBadPersistenceUnitNoConnectString extends TestCase {
             EntityManagerFactory emf = Persistence.createEntityManagerFactory(
                     getPersistenceUnitName());
             emf.createEntityManager();
-            assertNull("Unexpected emf for null connectString", emf);
+            if(emf != null) {
+                fail("Unexpected emf for null connectString");
+            }
+            
         } catch (RuntimeException ex) {
             // see if it has the connectString message
             if (!(ex.getMessage().contains("connectString"))) {

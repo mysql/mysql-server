@@ -625,21 +625,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       */
       if (file->name[0]  == '.')
         continue;
-#ifdef USE_SYMDIR
-      char buff[FN_REFLEN];
-      if (my_use_symdir && !strcmp(ext=fn_ext(file->name), ".sym"))
-      {
-	/* Only show the sym file if it points to a directory */
-	char *end;
-        *ext=0;                                 /* Remove extension */
-	unpack_dirname(buff, file->name);
-	end= strend(buff);
-	if (end != buff && end[-1] == FN_LIBCHAR)
-	  end[-1]= 0;				// Remove end FN_LIBCHAR
-        if (!mysql_file_stat(key_file_misc, buff, file->mystat, MYF(0)))
-               continue;
-       }
-#endif
       if (!MY_S_ISDIR(file->mystat->st_mode))
         continue;
 

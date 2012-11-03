@@ -31,10 +31,9 @@ let $mysqld_name=mysqld.1.1;
 --source include/restart_mysqld.inc
 #show binlog events in 'master-bin.000002';
 let $log_name=master-bin.000002;
-let $start_pos=107;
 let $end_pos=143;
 let $off_set=0;
--- source include/show_binlog_using_logname.inc
+-- source suite/ndb_rpl/t/show_binlog_using_logname.inc
 
 --disable_result_log
 --connection slave

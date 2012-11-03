@@ -59,7 +59,7 @@ public:
 /**
  *
  * a = Array type            - 2  Bits -> Max 3  (Bit 0-1)
- * t = Attribute type        - 5  Bits -> Max 31  (Bit 2-6)
+ * t = Attribute type        - 6  Bits -> Max 63  (Bit 2-7)
  * s = Attribute size        - 3  Bits -> Max 7  (Bit 8-10)
  *                                0 is for bit types, stored in bitmap
  *                                1-2 unused
@@ -76,7 +76,7 @@ public:
  *
  *           1111111111222222222233
  * 01234567890123456789012345678901
- * aattttt sssdnkpyzzzzzzzzzzzzzzzz
+ * aattttttsssdnkpyzzzzzzzzzzzzzzzz
  * aattsss n d k pyzzzzzzzzzzzzzzzz  [ old format ]
  *               
  */
@@ -85,7 +85,7 @@ public:
 #define AD_ARRAY_TYPE_MASK  (3)
 
 #define AD_TYPE_SHIFT       (2)
-#define AD_TYPE_MASK        (31)
+#define AD_TYPE_MASK        (63)
 
 #define AD_SIZE_SHIFT       (8)
 #define AD_SIZE_MASK        (7)

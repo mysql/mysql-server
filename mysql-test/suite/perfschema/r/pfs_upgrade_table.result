@@ -60,7 +60,7 @@ ERROR 1050 (42S01) at line 1200: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1235: Table 'events_statements_summary_by_digest' already exists
 ERROR 1050 (42S01) at line 1245: Table 'session_connect_attrs' already exists
 ERROR 1050 (42S01) at line 1251: Table 'session_account_connect_attrs' already exists
-ERROR 1644 (HY000) at line 1844: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 1956: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 show tables like "user_table";
 Tables_in_performance_schema (user_table)

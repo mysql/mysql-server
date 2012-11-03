@@ -1,3 +1,4 @@
+
 /*
    Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
 
@@ -39,6 +40,10 @@ struct DbspjErr
     ,OutOfRowMemory = 20015
     ,NodeFailure = 20016
     ,InvalidTreeNodeCount = 20017
+    ,IndexFragNotFound = 20018
+    ,NoSuchTable = 20019
+    ,DropTableInProgress = 20020
+    ,WrongSchemaVersion = 20021
   };
 };
 

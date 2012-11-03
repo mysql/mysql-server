@@ -27,7 +27,8 @@ ADD_CONVENIENCE_LIBRARY(ndbportlib
             NdbEnv.c NdbThread.c NdbHost.c NdbTCP.cpp
             NdbMem.c NdbConfig.c NdbTick.c NdbDir.cpp
             ndb_daemon.cc ${EXTRA_SRC}
-            NdbNuma.cpp)
+            NdbNuma.cpp NdbMutex_DeadlockDetector.cpp
+            NdbGetRUsage.cpp)
 TARGET_LINK_LIBRARIES(ndbportlib mysys ${LIBSOCKET})
 
 ADD_EXECUTABLE(NdbDir-t

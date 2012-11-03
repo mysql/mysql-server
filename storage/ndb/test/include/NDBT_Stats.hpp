@@ -59,20 +59,4 @@ private:
   double min, max;
 };
 
-inline
-double
-NDB_SQRT(double x){
-  assert(x >= 0);
-
-  double y = 0;
-  double s = 1;
-  double r = 0;
-  while(y <= x){
-    y += s;
-    s += 2;
-    r += 1;
-  }
-  return r - 1;
-}
-
 #endif

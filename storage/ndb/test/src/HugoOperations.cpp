@@ -411,20 +411,30 @@ int
 HugoOperations::setValues(NdbOperation* pOp, int rowId, int updateId)
 {
   // Define primary keys
-  int a;
   if (equalForRow(pOp, rowId) != 0)
     return NDBT_FAILED;
-  
-  for(a = 0; a<tab.getNoOfColumns(); a++){
-    if (tab.getColumn(a)->getPrimaryKey() == false){
-      if(setValueForAttr(pOp, a, rowId, updateId ) != 0){ 
+
+  if (setNonPkValues(pOp, rowId, updateId) != 0)
+    return NDBT_FAILED;
+
+  return NDBT_OK;
+}
+
+int
+HugoOperations::setNonPkValues(NdbOperation* pOp, int rowId, int updateId)
+{
+  for(int a = 0; a<tab.getNoOfColumns(); a++)
+  {
+    if (tab.getColumn(a)->getPrimaryKey() == false)
+    {
+      if(setValueForAttr(pOp, a, rowId, updateId ) != 0)
+      {
 	ERR(pTrans->getNdbError());
         setNdbError(pTrans->getNdbError());
 	return NDBT_FAILED;
       }
     }
   }
-  
   return NDBT_OK;
 }
 

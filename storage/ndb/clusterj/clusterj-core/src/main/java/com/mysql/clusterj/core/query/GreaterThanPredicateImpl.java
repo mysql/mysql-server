@@ -39,13 +39,24 @@ public class GreaterThanPredicateImpl extends ComparativePredicateImpl {
     }
 
     @Override
-    public void operationSetBounds(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
-        if (lastColumn) {
-            // last column may be strict
-            property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundLT, op);
+    public void markBoundsForCandidateIndices(CandidateIndexImpl[] candidateIndices) {
+        property.markLowerBound(candidateIndices, this, true);
+    }
+
+    @Override
+    public int operationSetBounds(QueryExecutionContext context, IndexScanOperation op, boolean lastColumn) {
+        Object lowerValue = param.getParameterValue(context);
+        if (lowerValue != null) {
+            if (lastColumn) {
+                // last column may be strict
+                property.operationSetBounds(lowerValue, IndexScanOperation.BoundType.BoundLT, op);
+            } else {
+                // not-last column must not be strict
+                property.operationSetBounds(lowerValue, IndexScanOperation.BoundType.BoundLE, op);
+            }
+            return LOWER_BOUND_SET;
         } else {
-            // not-last column must not be strict
-            property.operationSetBounds(param.getParameterValue(context), IndexScanOperation.BoundType.BoundLE, op);
+            return NO_BOUND_SET;
         }
     }
 

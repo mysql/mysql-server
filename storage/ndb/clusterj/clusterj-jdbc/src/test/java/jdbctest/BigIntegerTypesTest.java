@@ -36,6 +36,11 @@ create index idx_decimal_null_btree on bigintegertypes(decimal_null_btree);
 create unique index idx_decimal_null_both on bigintegertypes(decimal_null_both);
      */
 
+    @Override
+    protected boolean getCleanupAfterTest() {
+        return false;
+    }
+
     /** One of two tests in the superclass that we don't want to run */
     @Override
     public void testWriteJDBCReadNDB() {

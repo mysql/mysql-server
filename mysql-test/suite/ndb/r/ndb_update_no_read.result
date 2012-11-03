@@ -450,7 +450,7 @@ count(*)
 1000
 affected rows: 1
 @ndb_execute_count:=VARIABLE_VALUE-@ndb_init_execute_count
-5
+9
 affected rows: 1
 set autocommit=on;
 affected rows: 0
