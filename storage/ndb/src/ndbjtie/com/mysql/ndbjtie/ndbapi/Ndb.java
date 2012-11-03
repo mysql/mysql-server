@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ public class Ndb extends Wrapper implements NdbConst
     static public interface Key_part_ptrConstArray extends ArrayWrapper< Key_part_ptrConst >
     {
     }
-    static public class Key_part_ptrArray extends Wrapper implements Key_part_ptrConstArray 
+    static public class Key_part_ptrArray extends Wrapper implements Key_part_ptrConstArray
     {
         static public native Key_part_ptrArray create(int length);
         static public native void delete(Key_part_ptrArray e);
@@ -67,6 +67,39 @@ public class Ndb extends Wrapper implements NdbConst
         public final native void len(int/*_unsigned_*/ p0);
         static public final native Key_part_ptr create();
         static public final native void delete(Key_part_ptr p0);
+    }
+    public interface /*_struct_*/ PartitionSpecConst
+    {
+        public interface /*_enum_*/ SpecType
+        {
+            int PS_NONE = 0,
+                PS_USER_DEFINED = 1,
+                PS_DISTR_KEY_PART_PTR = 2,
+                PS_DISTR_KEY_RECORD = 3;
+        }
+        int/*_SpecType_*/ type() /*_const_*/;
+    }
+    static public class /*_struct_*/ PartitionSpec extends Wrapper implements PartitionSpecConst
+    {
+        static public final native int/*_Uint32_*/ size();
+        public final native int/*_SpecType_*/ type() /*_const_*/;
+        // MMM! support mapping <union> or check if needed
+        //union {
+        //    struct {
+        //        Uint32 partitionId;
+        //    } UserDefined;
+        //    struct {
+        //        const Key_part_ptr* tableKeyParts;
+        //        void* xfrmbuf;
+        //        Uint32 xfrmbuflen;
+        //    } KeyPartPtr;
+        //    struct {
+        //        const NdbRecord* keyRecord;
+        //        const char* keyRow;
+        //        void* xfrmbuf;
+        //        Uint32 xfrmbuflen;
+        //    } KeyRecord;
+        //};
     }
     public final native NdbTransaction/*_NdbTransaction *_*/ startTransaction(NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ table, Key_part_ptrConstArray/*_const Key_part_ptr *_*/ keyData, ByteBuffer/*_void *_*/ xfrmbuf /*_= 0_*/, int/*_Uint32_*/ xfrmbuflen /*_= 0_*/);
     public final native NdbTransaction/*_NdbTransaction *_*/ startTransaction(NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ table, int/*_Uint32_*/ partitionId);

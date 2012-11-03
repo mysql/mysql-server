@@ -22,7 +22,7 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/test/include
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/debugger)
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 
-ADD_LIBRARY(ndbNDBT STATIC
+ADD_CONVENIENCE_LIBRARY(ndbNDBT
         NDBT_ReturnCodes.cpp
         NDBT_Error.cpp
         NDBT_Tables.cpp
@@ -52,3 +52,4 @@ ADD_LIBRARY(ndbNDBT STATIC
 	HugoQueryBuilder.cpp
         HugoQueries.cpp
 )
+TARGET_LINK_LIBRARIES(ndbNDBT ${LIBM})

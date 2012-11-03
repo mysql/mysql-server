@@ -63,7 +63,7 @@ bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
                                               const char*,
-                                              Sql_condition::enum_warning_level,
+                                              Sql_condition::enum_severity_level,
                                               const char*,
                                               Sql_condition ** cond_hdl)
 {
@@ -106,7 +106,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -136,7 +136,7 @@ bool
 Repair_mrg_table_error_handler::handle_condition(THD *,
                                                  uint sql_errno,
                                                  const char*,
-                                                 Sql_condition::enum_warning_level level,
+                                                 Sql_condition::enum_severity_level level,
                                                  const char*,
                                                  Sql_condition ** cond_hdl)
 {
@@ -600,7 +600,7 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
   if (share || (thd->is_error() &&
-      thd->get_stmt_da()->sql_errno() != ER_NO_SUCH_TABLE))
+      thd->get_stmt_da()->mysql_errno() != ER_NO_SUCH_TABLE))
   {
     DBUG_RETURN(share);
   }
@@ -2316,7 +2316,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
 
@@ -2335,7 +2335,7 @@ private:
 bool MDL_deadlock_handler::handle_condition(THD *,
                                             uint sql_errno,
                                             const char*,
-                                            Sql_condition::enum_warning_level,
+                                            Sql_condition::enum_severity_level,
                                             const char*,
                                             Sql_condition ** cond_hdl)
 {
@@ -4057,7 +4057,7 @@ recover_from_failed_open(THD *thd)
         ha_create_table_from_engine(thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->get_stmt_da()->clear_warning_info(thd->query_id);
+        thd->get_stmt_da()->reset_condition_info(thd->query_id);
         thd->clear_error();                 // Clear error message
         thd->mdl_context.release_transactional_locks();
         break;
@@ -4227,7 +4227,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
           lead to a deadlock, detected by MDL subsystem.
           If possible, we try to resolve such deadlocks by releasing all
           metadata locks and restarting the pre-locking process.
-          To prevent the error from polluting the diagnostics area
+          To prevent the error from polluting the Diagnostics Area
           in case of successful resolution, install a special error
           handler for ER_LOCK_DEADLOCK error.
         */

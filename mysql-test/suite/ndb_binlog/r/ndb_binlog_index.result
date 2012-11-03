@@ -1,0 +1,253 @@
+-------------------------------------------------
+First run using ndb_binlog_index table containing
+epoch end position information
+-------------------------------------------------
+show create table mysql.ndb_binlog_index;
+Table	Create Table
+ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
+  `Position` bigint(20) unsigned NOT NULL,
+  `File` varchar(255) NOT NULL,
+  `epoch` bigint(20) unsigned NOT NULL,
+  `inserts` int(10) unsigned NOT NULL,
+  `updates` int(10) unsigned NOT NULL,
+  `deletes` int(10) unsigned NOT NULL,
+  `schemaops` int(10) unsigned NOT NULL,
+  `orig_server_id` int(10) unsigned NOT NULL,
+  `orig_epoch` bigint(20) unsigned NOT NULL,
+  `gci` int(10) unsigned NOT NULL,
+  `next_position` bigint(20) unsigned NOT NULL,
+  `next_file` varchar(255) NOT NULL,
+  PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+mysql.ndb_binlog_index has next_file column? 1
+create table t1 (a int, b varchar(400)) engine=ndb;
+Test pure epochs
+----------------
+insert into t1 values(1, repeat('B', 400));
+insert into t1 values(1, repeat('F', 400));
+insert into t1 values(1, repeat('E', 400));
+flush logs;
+---------------------------------------------------------------------------
+Mismatches between Binlog index next_pos and Binlog COMMIT event pos
+---------------------------------------------------------------------------
+epoch	calculated_pos	stored_pos
+Done
+reset master;
+Test interleaved epochs and DDL
+------------------------------
+insert into t1 values(1, repeat('R', 400));
+create table t2 (a int) engine=ndb;
+insert into t1 values(1, repeat('A', 400));
+create table t3 (a int) engine=ndb;
+insert into t1 value(1, repeat('A', 400));
+flush logs;
+---------------------------------------------------------------------------
+Mismatches between Binlog index next_pos and Binlog COMMIT event pos
+---------------------------------------------------------------------------
+epoch	calculated_pos	stored_pos
+Done
+Test multithreaded interleaved epochs and DDL
+---------------------------------------------
+Issue DDL and DML concurrently on server1
+They will interleave in the Binlog according to Binlog mutex
+interactions between DDL executing server thread and binlog injector
+
+Check Binlog on DDL-source MySQLD to ensure that binlog index positions
+'cover' the Binlog
+Check Binlog on other MySQLD to ensure that binlog index positions
+'cover' the Binlog (DDL here is 'fabricated' by Binlog injector thread
+
+reset master;
+reset master;
+set sql_log_bin=0;
+create procedure dmlload (seconds int)
+begin
+set @x=time_to_sec(current_time()) + seconds;
+repeat
+start transaction;
+insert into t1 values (2, repeat('I', 400));
+commit;
+start transaction;
+update t1 set b=repeat('Z', 400) where a=2;
+commit;
+start transaction;
+delete from t1 where a=2;
+commit;
+until @x <= time_to_sec(current_time())
+end repeat;
+end%
+create procedure ddlload(seconds int)
+begin
+set @x=time_to_sec(current_time()) + seconds;
+repeat
+create table fmc (a int) engine=myisam;
+create table bah(a int) engine=ndb;
+drop table bah;
+drop table fmc;
+until @x <= time_to_sec(current_time())
+end repeat;
+end%
+set sql_log_bin=1;
+call ddlload(25);
+call dmlload(25);
+Now check binlog index vs binlog itself on Server1
+flush logs;
+---------------------------------------------------------------------------
+Mismatches between Binlog index next_pos and Binlog COMMIT event pos
+---------------------------------------------------------------------------
+epoch	calculated_pos	stored_pos
+Done
+Now check binlog index vs binlog itself on Server2
+flush logs;
+---------------------------------------------------------------------------
+Mismatches between Binlog index next_pos and Binlog COMMIT event pos
+---------------------------------------------------------------------------
+epoch	calculated_pos	stored_pos
+Done
+drop procedure ddlload;
+drop procedure dmlload;
+Cleanup
+drop table t1;
+drop table t2;
+drop table t3;
+------------------------------------------------
+Second run using ndb_binlog_index table without
+epoch end position information
+------------------------------------------------
+alter table mysql.ndb_binlog_index drop column next_file;
+alter table mysql.ndb_binlog_index drop column next_position;
+reset master;
+show create table mysql.ndb_binlog_index;
+Table	Create Table
+ndb_binlog_index	CREATE TABLE `ndb_binlog_index` (
+  `Position` bigint(20) unsigned NOT NULL,
+  `File` varchar(255) NOT NULL,
+  `epoch` bigint(20) unsigned NOT NULL,
+  `inserts` int(10) unsigned NOT NULL,
+  `updates` int(10) unsigned NOT NULL,
+  `deletes` int(10) unsigned NOT NULL,
+  `schemaops` int(10) unsigned NOT NULL,
+  `orig_server_id` int(10) unsigned NOT NULL,
+  `orig_epoch` bigint(20) unsigned NOT NULL,
+  `gci` int(10) unsigned NOT NULL,
+  PRIMARY KEY (`epoch`,`orig_server_id`,`orig_epoch`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+mysql.ndb_binlog_index has next_file column? 0
+create table t1 (a int, b varchar(400)) engine=ndb;
+Test pure epochs
+----------------
+insert into t1 values(1, repeat('B', 400));
+insert into t1 values(1, repeat('F', 400));
+insert into t1 values(1, repeat('E', 400));
+flush logs;
+Nothing to verify
+reset master;
+Test interleaved epochs and DDL
+------------------------------
+insert into t1 values(1, repeat('R', 400));
+create table t2 (a int) engine=ndb;
+insert into t1 values(1, repeat('A', 400));
+create table t3 (a int) engine=ndb;
+insert into t1 value(1, repeat('A', 400));
+flush logs;
+Nothing to verify
+Test multithreaded interleaved epochs and DDL
+---------------------------------------------
+Issue DDL and DML concurrently on server1
+They will interleave in the Binlog according to Binlog mutex
+interactions between DDL executing server thread and binlog injector
+
+Check Binlog on DDL-source MySQLD to ensure that binlog index positions
+'cover' the Binlog
+Check Binlog on other MySQLD to ensure that binlog index positions
+'cover' the Binlog (DDL here is 'fabricated' by Binlog injector thread
+
+reset master;
+reset master;
+set sql_log_bin=0;
+create procedure dmlload (seconds int)
+begin
+set @x=time_to_sec(current_time()) + seconds;
+repeat
+start transaction;
+insert into t1 values (2, repeat('I', 400));
+commit;
+start transaction;
+update t1 set b=repeat('Z', 400) where a=2;
+commit;
+start transaction;
+delete from t1 where a=2;
+commit;
+until @x <= time_to_sec(current_time())
+end repeat;
+end%
+create procedure ddlload(seconds int)
+begin
+set @x=time_to_sec(current_time()) + seconds;
+repeat
+create table fmc (a int) engine=myisam;
+create table bah(a int) engine=ndb;
+drop table bah;
+drop table fmc;
+until @x <= time_to_sec(current_time())
+end repeat;
+end%
+set sql_log_bin=1;
+call ddlload(25);
+call dmlload(25);
+Now check binlog index vs binlog itself on Server1
+flush logs;
+Nothing to verify
+Now check binlog index vs binlog itself on Server2
+flush logs;
+---------------------------------------------------------------------------
+Mismatches between Binlog index next_pos and Binlog COMMIT event pos
+---------------------------------------------------------------------------
+epoch	calculated_pos	stored_pos
+Done
+drop procedure ddlload;
+drop procedure dmlload;
+Cleanup
+drop table t1;
+drop table t2;
+drop table t3;
+Now restore original schema
+reset master;
+alter table mysql.ndb_binlog_index add column next_position bigint unsigned not null;
+alter table mysql.ndb_binlog_index add column next_file varchar(255) not null;
+reset master;
+--------------------------------------
+Quick test of ndb-log-empty-epochs = 1
+--------------------------------------
+select * from mysql.ndb_binlog_index order by epoch;
+Position	File	epoch	inserts	updates	deletes	schemaops	orig_server_id	orig_epoch	gci	next_position	next_file
+include/show_binlog_events.inc
+show variables like 'ndb_log_empty_epochs';
+Variable_name	Value
+ndb_log_empty_epochs	OFF
+set global ndb_log_empty_epochs=1;
+show variables like 'ndb_log_empty_epochs';
+Variable_name	Value
+ndb_log_empty_epochs	ON
+Allow some empty epochs to pass...
+Show that we have entries in ndb_binlog_index
+select count(1) > 0 from mysql.ndb_binlog_index;
+count(1) > 0
+1
+Show that all ndb_binlog_index entries have the same file + position
+select bi1.epoch, bi1.Position, bi1.File, bi1.next_position, bi1.next_file,
+bi2.epoch, bi2.Position, bi2.File, bi2.next_position, bi2.next_file
+from mysql.ndb_binlog_index as bi1,
+mysql.ndb_binlog_index as bi2
+where
+# Start and Next not same
+bi1.Position != bi1.next_position OR
+bi1.File != bi1.next_file OR
+# All epochs not the same
+bi1.Position != bi2.Position OR
+bi1.File != bi2.File;
+epoch	Position	File	next_position	next_file	epoch	Position	File	next_position	next_file
+Show that we have no epochs in the Binlog
+include/show_binlog_events.inc
+Disable
+set global ndb_log_empty_epochs=0;

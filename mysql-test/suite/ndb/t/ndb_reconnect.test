@@ -76,3 +76,69 @@ insert into t1 values (2, "row 1", 37);
 
 # cleanup
 drop table t1;
+
+#
+#Bug #13824846 FRM FILES ARE CREATED FOR MYSQLD, BUT TABLE DOES NOT EXIST IN CLUSTER
+#
+
+connection default;
+create table t1(a int, b varchar(10), c date) engine=ndb;
+delimiter //;
+CREATE TRIGGER trg1 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN
+   SET new.c = '1901-01-01 01:01:01';
+End //
+delimiter ;//
+
+insert into t1 values (1, "row 1", NULL),(2, "row 2", NULL);
+select * from t1 order by a;
+
+create table t2(a int, b varchar(10), c date) engine=myisam;
+delimiter //;
+CREATE TRIGGER trg2 BEFORE UPDATE ON t2 FOR EACH ROW BEGIN
+   SET new.c = '1901-01-01 01:01:01';
+End //
+delimiter ;//
+
+# drop the ndb table inside ndb
+--exec $NDB_DROP_TABLE --no-defaults -d test t1 >> $NDB_TOOLS_OUTPUT 
+
+# Restart cluster nodes and clear all meta-data
+--exec $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" -e "all restart" >> $NDB_TOOLS_OUTPUT
+# Wait for all nodes to enter "started"
+--exec $NDB_WAITER --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" >> $NDB_TOOLS_OUTPUT
+
+#
+# Wait until the connection to the
+# cluster has been restored or timeout occurs
+#
+connection default;
+--disable_result_log
+--disable_query_log
+--source include/ndb_not_readonly.inc
+--enable_result_log
+--enable_query_log
+
+# Create the table again to check there are no conflicts
+create table t1(a int, b varchar(10), c date) engine=ndb;
+delimiter //;
+CREATE TRIGGER trg1 BEFORE UPDATE ON t1 FOR EACH ROW BEGIN
+   SET new.c = '1902-02-02 02:02:02';
+End //
+delimiter ;//
+
+insert into t1 values (1, "row 1", NULL),(2, "row 2", NULL);
+select * from t1 order by a;
+
+# Check that only ndb tables have been cleaned away
+--error ER_TABLE_EXISTS_ERROR
+create table t2(a int, b varchar(10), c date) engine=myisam;
+drop table t2;
+create table t2(a int, b varchar(10), c date) engine=myisam;
+delimiter //;
+CREATE TRIGGER trg2 BEFORE UPDATE ON t2 FOR EACH ROW BEGIN
+   SET new.c = '1901-01-01 01:01:01';
+End //
+delimiter ;//
+
+# cleanup
+drop table t1, t2;

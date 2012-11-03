@@ -27,6 +27,7 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 import com.mysql.clusterj.tie.DbImpl.BufferManager;
 
 import com.mysql.ndbjtie.ndbapi.NdbScanOperation;
+import com.mysql.ndbjtie.ndbapi.NdbOperationConst.LockMode;
 
 /**
  *
@@ -43,6 +44,14 @@ class ScanResultDataImpl extends ResultDataImpl {
 
     private NdbScanOperation ndbScanOperation = null;
 
+    /** The number to skip */
+    protected long skip = 0;
+
+    /** The limit */
+    protected long limit = Long.MAX_VALUE;
+
+    /** The record counter during the scan */
+    protected long recordCounter = 0;
 
     /** Flags for iterating a scan */
     protected final int RESULT_READY = 0;
@@ -51,14 +60,21 @@ class ScanResultDataImpl extends ResultDataImpl {
 
     public ScanResultDataImpl(NdbScanOperation ndbScanOperation, List<Column> storeColumns,
             int maximumColumnId, int bufferSize, int[] offsets, int[] lengths, int maximumColumnLength,
-            BufferManager bufferManager) {
+            BufferManager bufferManager, long skip, long limit) {
         super(ndbScanOperation, storeColumns, maximumColumnId, bufferSize, offsets, lengths,
                 bufferManager, false);
         this.ndbScanOperation = ndbScanOperation;
+        this.skip = skip;
+        this.limit = limit;
     }
 
     @Override
     public boolean next() {
+        if (recordCounter >= limit) {
+            // the next record is past the limit; we have delivered all the rows
+            ndbScanOperation.close(true, true);
+            return false;
+        }
         // NdbScanOperation may have many results.
         boolean done = false;
         boolean fetch = false;
@@ -67,7 +83,17 @@ class ScanResultDataImpl extends ResultDataImpl {
             int result = ndbScanOperation.nextResult(fetch, force);
             switch (result) {
                 case RESULT_READY:
-                    return true;
+                    if (++recordCounter > skip) {
+                        // this record is past the skip
+                        // if scanning with locks, grab the lock for the current transaction
+                        if (ndbScanOperation.getLockMode() != LockMode.LM_CommittedRead) { 
+                            ndbScanOperation.lockCurrentTuple();
+                        }
+                        return true;
+                    } else {
+                        // skip this record
+                        break;
+                    }
                 case SCAN_FINISHED:
                     ndbScanOperation.close(true, true);
                     return false;

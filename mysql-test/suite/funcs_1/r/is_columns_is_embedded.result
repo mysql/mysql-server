@@ -1,6 +1,6 @@
 SELECT * FROM information_schema.columns
 WHERE table_schema = 'information_schema'
-AND table_name <> 'profiling' AND table_name not like 'innodb_%'
+AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
 ORDER BY table_schema, table_name, column_name;
 TABLE_CATALOG	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	ORDINAL_POSITION	COLUMN_DEFAULT	IS_NULLABLE	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	NUMERIC_PRECISION	NUMERIC_SCALE	DATETIME_PRECISION	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE	COLUMN_KEY	EXTRA	PRIVILEGES	COLUMN_COMMENT
 def	information_schema	CHARACTER_SETS	CHARACTER_SET_NAME	1		NO	varchar	32	96	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(32)				
@@ -350,7 +350,7 @@ CHARACTER_SET_NAME,
 COLLATION_NAME
 FROM information_schema.columns
 WHERE table_schema = 'information_schema'
-AND table_name <> 'profiling' AND table_name not like 'innodb_%'
+AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH = 1
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
@@ -362,7 +362,7 @@ CHARACTER_SET_NAME,
 COLLATION_NAME
 FROM information_schema.columns
 WHERE table_schema = 'information_schema'
-AND table_name <> 'profiling' AND table_name not like 'innodb_%'
+AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH <> 1
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
@@ -374,7 +374,7 @@ CHARACTER_SET_NAME,
 COLLATION_NAME
 FROM information_schema.columns
 WHERE table_schema = 'information_schema'
-AND table_name <> 'profiling' AND table_name not like 'innodb_%'
+AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
 AND CHARACTER_OCTET_LENGTH / CHARACTER_MAXIMUM_LENGTH IS NULL
 ORDER BY CHARACTER_SET_NAME, COLLATION_NAME, COL_CML;
 COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
@@ -396,7 +396,7 @@ COLLATION_NAME,
 COLUMN_TYPE
 FROM information_schema.columns
 WHERE table_schema = 'information_schema'
-AND table_name <> 'profiling' AND table_name not like 'innodb_%'
+AND table_name <> 'profiling' AND table_name not like 'innodb_%' AND table_name not like 'ndb%'
 ORDER BY TABLE_SCHEMA, TABLE_NAME, ORDINAL_POSITION;
 COL_CML	TABLE_SCHEMA	TABLE_NAME	COLUMN_NAME	DATA_TYPE	CHARACTER_MAXIMUM_LENGTH	CHARACTER_OCTET_LENGTH	CHARACTER_SET_NAME	COLLATION_NAME	COLUMN_TYPE
 3.0000	information_schema	CHARACTER_SETS	CHARACTER_SET_NAME	varchar	32	96	utf8	utf8_general_ci	varchar(32)

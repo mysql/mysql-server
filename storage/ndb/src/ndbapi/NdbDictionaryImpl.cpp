@@ -265,6 +265,15 @@ NdbColumnImpl::init(Type t)
     m_cs = NULL;
     m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
     break;
+  case Time2:
+  case Datetime2:
+  case Timestamp2:
+    m_precision = 0;
+    m_scale = 0;
+    m_length = 1;
+    m_cs = NULL;
+    m_arrayType = NDB_ARRAYTYPE_FIXED;
+    break;
   default:
   case Undefined:
     assert(false);
@@ -1260,7 +1269,7 @@ NdbTableImpl::buildColumnHash(){
       Uint32 bucket = hv & m_columnHashMask;
       bucket = (bucket < size ? bucket : bucket - size);
       m_columnHash[bucket] = (sz << 16) | (((size - bucket) + pos) << 1);
-      for(size_t j = 0; j<sz; j++, pos++){
+      for(unsigned j = 0; j<sz; j++, pos++){
 	Uint32 col = chains[i][j];	
 	Uint32 hv = hashValues[col];
 	if (m_columnHash.push_back((col << 16) | hv))
@@ -2539,7 +2548,7 @@ NdbDictInterface::getTable(class NdbApiSignal * signal,
       }
       for (Uint32 i = 0; i<tmp.m_map.size(); i++)
       {
-        assert(tmp.m_map[i] <= 255);
+        assert(tmp.m_map[i] <= NDB_PARTITION_MASK);
         rt->m_hash_map.push_back(tmp.m_map[i]);
       }
     }
@@ -3448,6 +3457,7 @@ NdbDictInterface::compChangeMask(const NdbTableImpl &old_impl,
     {
       const NdbColumnImpl *col= impl.m_columns[i];
       if(!col->m_dynamic || !col->m_nullable ||
+         !col->m_defaultValue.empty() ||
          col->m_storageType == NDB_STORAGETYPE_DISK ||
          col->m_pk ||
          col->m_distributionKey ||
@@ -6795,8 +6805,6 @@ NdbDictionaryImpl::initialiseColumnData(bool isIndex,
   recCol->orgAttrSize= col->m_orgAttrSize;
   if (recCol->offset+recCol->maxSize > rec->m_row_size)
     rec->m_row_size= recCol->offset+recCol->maxSize;
-  /* Round data size to whole words + 4 bytes of AttributeHeader. */
-  rec->m_max_transid_ai_bytes+= (recCol->maxSize+7) & ~3;
   recCol->charset_info= col->m_cs;
   recCol->compare_function= NdbSqlUtil::getType(col->m_type).m_cmp;
   recCol->flags= 0;
@@ -6985,7 +6993,6 @@ NdbDictionaryImpl::createRecord(const NdbTableImpl *table,
   }
 
   rec->m_row_size= 0;
-  rec->m_max_transid_ai_bytes= 0;
   for (i= 0; i<length; i++)
   {
     const NdbDictionary::RecordSpecification *rs= &recSpec[i];
@@ -8218,6 +8225,7 @@ NdbDictInterface::create_hashmap(const NdbHashMapImpl& src,
   hm.HashMapBuckets = src.getMapLen();
   for (Uint32 i = 0; i<hm.HashMapBuckets; i++)
   {
+    assert(NdbHashMapImpl::getImpl(src).m_map[i] <= NDB_PARTITION_MASK);
     hm.HashMapValues[i] = NdbHashMapImpl::getImpl(src).m_map[i];
   }
 
