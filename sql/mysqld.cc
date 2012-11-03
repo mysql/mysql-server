@@ -1751,7 +1751,9 @@ bool gtid_server_init()
 }
 
 #ifndef MCP_BUG14798275
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 extern int ndbcluster_binlog_end(THD*);
+#endif
 #endif
 
 
@@ -1773,6 +1775,7 @@ void clean_up(bool print_message)
   sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
 #ifndef MCP_BUG14798275
+#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
 #ifdef EMBEDDED_LIBRARY
   /*
      In embedded compile the ha_binlog_end call above is #ifdefed
@@ -1785,6 +1788,7 @@ void clean_up(bool print_message)
      being destroyed.
   */
   (void)ndbcluster_binlog_end(current_thd);
+#endif
 #endif
 #endif
 
