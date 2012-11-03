@@ -1,0 +1,121 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+CREATE TABLE `loadreptable` (
+`nid` int(11) NOT NULL,
+`nom` char(255) DEFAULT NULL,
+`prenom` char(255) DEFAULT NULL,
+`abc` char(255) DEFAULT NULL,
+`wkz` char(255) DEFAULT NULL,
+`xyz` char(255) DEFAULT NULL,
+PRIMARY KEY (`nid`) USING HASH
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE PROCEDURE MAJ ()
+BEGIN
+DECLARE fini INT default 0;
+WHILE fini < 20 DO
+DELETE FROM loadreptable WHERE nid > 2;
+UPDATE loadreptable SET nid=nid+1 ORDER BY nid DESC;
+UPDATE loadreptable SET
+nom="xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+xxx";
+INSERT INTO loadreptable VALUES(1,"w","t","y","k","b");
+SET fini=fini+1;
+END WHILE;
+END ;
+//
+call MAJ();
+"master"
+select count(*) from loadreptable;
+count(*)
+3
+"slave"
+select count(*) from loadreptable;
+count(*)
+3
+call MAJ();
+"master"
+select count(*) from loadreptable;
+count(*)
+3
+"slave"
+select count(*) from loadreptable;
+count(*)
+3
+call MAJ();
+"master"
+select count(*) from loadreptable;
+count(*)
+3
+"slave"
+select count(*) from loadreptable;
+count(*)
+3
+call MAJ();
+"master"
+select count(*) from loadreptable;
+count(*)
+3
+"slave"
+select count(*) from loadreptable;
+count(*)
+3
+call MAJ();
+"master"
+select count(*) from loadreptable;
+count(*)
+3
+"slave"
+select count(*) from loadreptable;
+count(*)
+3
+call MAJ();
+"master"
+select count(*) from loadreptable;
+count(*)
+3
+"slave"
+select count(*) from loadreptable;
+count(*)
+3
+call MAJ();
+"master"
+select count(*) from loadreptable;
+count(*)
+3
+"slave"
+select count(*) from loadreptable;
+count(*)
+3
+call MAJ();
+"master"
+select count(*) from loadreptable;
+count(*)
+3
+"slave"
+select count(*) from loadreptable;
+count(*)
+3
+call MAJ();
+"master"
+select count(*) from loadreptable;
+count(*)
+3
+"slave"
+select count(*) from loadreptable;
+count(*)
+3
+call MAJ();
+"master"
+select count(*) from loadreptable;
+count(*)
+3
+"slave"
+select count(*) from loadreptable;
+count(*)
+3
+drop table loadreptable;
+drop procedure MAJ;
+include/rpl_end.inc

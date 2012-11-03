@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,12 +22,12 @@
     <class>com.mysql.clusterj.jpatest.model.B0</class>
     <!--
     <properties>
-      <property name="openjpa.ConnectionURL" value="jdbc:mysql://localhost:9306/test"/>
+      <property name="openjpa.ConnectionURL" value="jdbc:mysql://localhost:3306/test"/>
       <property name="openjpa.ConnectionDriverName" value="com.mysql.jdbc.Driver"/>
       <property name="openjpa.ConnectionRetainMode" value="transaction"/>
       <property name="openjpa.DataCache" value="false"/>
       <property name="openjpa.BrokerFactory" value="ndb"/>
-      <property name="openjpa.ndb.connectString" value="localhost:9311"/>
+      <property name="openjpa.ndb.connectString" value="localhost:1186"/>
     </properties>
     -->
   </persistence-unit>
@@ -57,13 +57,13 @@
     <class>com.mysql.clusterj.jpatest.model.TimestampAsUtilDateTypes</class>
     <class>com.mysql.clusterj.jpatest.model.TimestampAsSqlTimestampTypes</class>
     <properties>
-      <property name="openjpa.ConnectionURL" value="jdbc:mysql://localhost:9306/test"/>
+      <property name="openjpa.ConnectionURL" value="jdbc:mysql://localhost:3306/test"/>
       <property name="openjpa.ConnectionDriverName" value="com.mysql.jdbc.Driver"/>
       <property name="openjpa.ConnectionRetainMode" value="transaction"/>
       <property name="openjpa.DataCache" value="false"/>
       <property name="openjpa.Log" value="SQL=trace"/>
       <property name="openjpa.BrokerFactory" value="ndb"/>
-      <property name="openjpa.ndb.connectString" value="localhost:9311"/>
+      <property name="openjpa.ndb.connectString" value="localhost:1186"/>
     </properties>
   </persistence-unit>
   <persistence-unit name="jdbc" transaction-type="RESOURCE_LOCAL">
@@ -83,7 +83,7 @@
     <class>com.mysql.clusterj.jpatest.model.LongIntStringPKOneOne</class>
     <class>com.mysql.clusterj.jpatest.model.LongIntStringFKOneOne</class>
     <properties>
-      <property name="openjpa.ConnectionURL" value="jdbc:mysql://localhost:9306/test"/>
+      <property name="openjpa.ConnectionURL" value="jdbc:mysql://localhost:3306/test"/>
       <property name="openjpa.ConnectionDriverName" value="com.mysql.jdbc.Driver"/>
       <property name="openjpa.ConnectionRetainMode" value="transaction"/>
       <property name="openjpa.DataCache" value="false"/>
@@ -94,7 +94,7 @@
     <class>com.mysql.clusterj.jpatest.model.Employee</class>
     <properties>
       <property name="openjpa.BrokerFactory" value="ndb"/>
-      <property name="openjpa.ConnectionURL" value="jdbc:mysql://localhost:9306/test"/>
+      <property name="openjpa.ConnectionURL" value="jdbc:mysql://localhost:3306/test"/>
       <property name="openjpa.ConnectionDriverName" value="com.mysql.jdbc.Driver"/>
     </properties>
   </persistence-unit>

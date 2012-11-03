@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 CREATE TABLE t1 (a int key, b int) ENGINE=NDB;
 SHOW TABLES;
@@ -9,6 +12,9 @@ INSERT INTO t1 VALUES (1,2);
 INSERT INTO t1 VALUES (2,3);
 STOP SLAVE;
 include/rpl_change_topology.inc [new topology=1->2->1]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE;
 include/wait_for_slave_to_start.inc
 include/check_slave_is_running.inc

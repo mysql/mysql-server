@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,16 +17,18 @@
 
 package com.mysql.clusterj.core.spi;
 
+import java.lang.reflect.InvocationHandler;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 
 import com.mysql.clusterj.DynamicObjectDelegate;
+import com.mysql.clusterj.core.CacheManager;
 
 /** ValueHandler is the interface that must be implemented for core
  * components to access values of a managed instance.
  *
  */
-public interface ValueHandler extends DynamicObjectDelegate {
+public interface ValueHandler extends DynamicObjectDelegate, InvocationHandler {
 
     public String pkToString(DomainTypeHandler<?> domainTypeHandler);
 
@@ -42,6 +44,8 @@ public interface ValueHandler extends DynamicObjectDelegate {
     byte[] getBytes(int fieldNumber);
     short getShort(int fieldNumber);
     int getInt(int fieldNumber);
+    byte[] getLobBytes(int fieldNumber);
+    String getLobString(int fieldNumber);
     long getLong(int fieldNumber);
     float getFloat(int fieldNumber);
     double getDouble(int fieldNumber);
@@ -69,6 +73,8 @@ public interface ValueHandler extends DynamicObjectDelegate {
     void setLong(int fieldNumber, long value);
     void setFloat(int fieldNumber, float value);
     void setDouble(int fieldNumber, double value);
+    void setLobBytes(int fieldNumber, byte[] value);
+    void setLobString(int fieldNumber, String value);
     void setObjectBoolean(int fieldNumber, Boolean value);
     void setObjectByte(int fieldNumber, Byte value);
     void setObjectShort(int fieldNumber, Short value);
@@ -83,5 +89,9 @@ public interface ValueHandler extends DynamicObjectDelegate {
     void setJavaUtilDate(int fieldNumber, java.util.Date value);
     void setJavaSqlTime(int fieldNumber, java.sql.Time value);
     void setJavaSqlTimestamp(int fieldNumber, java.sql.Timestamp value);
+
+    void setCacheManager(CacheManager cm);
+    void setProxy(Object proxy);
+    Object getProxy();
 
 }

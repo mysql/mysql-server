@@ -15,7 +15,7 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitest.cmake)
 
-ADD_LIBRARY(ndbbank STATIC
+ADD_CONVENIENCE_LIBRARY(ndbbank
             Bank.cpp BankLoad.cpp)
 
 ADD_EXECUTABLE(testBank testBank.cpp)

@@ -66,6 +66,7 @@ public:
     return false;
   }
 
+  static bool priv_tables_are_in_ndb(THD*);
 };
 
 #endif

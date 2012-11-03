@@ -279,10 +279,12 @@ ndb_serialize_cond(const Item *item, void *arg)
                 (context->expecting_field_result(field->result_type()) ||
                  // Date and year can be written as string or int
                  ((type == MYSQL_TYPE_TIME ||
+                   type == MYSQL_TYPE_TIME2 ||
                    type == MYSQL_TYPE_DATE || 
                    type == MYSQL_TYPE_NEWDATE || 
                    type == MYSQL_TYPE_YEAR ||
-                   type == MYSQL_TYPE_DATETIME)
+                   type == MYSQL_TYPE_DATETIME ||
+                   type == MYSQL_TYPE_DATETIME2)
                   ? (context->expecting_field_result(STRING_RESULT) ||
                      context->expecting_field_result(INT_RESULT))
                   : TRUE)) &&
@@ -303,10 +305,12 @@ ndb_serialize_cond(const Item *item, void *arg)
               {
                 // We have not seen second argument yet
                 if (type == MYSQL_TYPE_TIME ||
+                    type == MYSQL_TYPE_TIME2 ||
                     type == MYSQL_TYPE_DATE || 
                     type == MYSQL_TYPE_NEWDATE || 
                     type == MYSQL_TYPE_YEAR ||
-                    type == MYSQL_TYPE_DATETIME)
+                    type == MYSQL_TYPE_DATETIME ||
+                    type == MYSQL_TYPE_DATETIME2)
                 {
                   context->expect_only(Item::STRING_ITEM);
                   context->expect(Item::INT_ITEM);
@@ -347,10 +351,12 @@ ndb_serialize_cond(const Item *item, void *arg)
                 if ((field->result_type() == STRING_RESULT) &&
                     !context->expecting_collation(item->collation.collation)
                     && type != MYSQL_TYPE_TIME
+                    && type != MYSQL_TYPE_TIME2
                     && type != MYSQL_TYPE_DATE
                     && type != MYSQL_TYPE_NEWDATE
                     && type != MYSQL_TYPE_YEAR
-                    && type != MYSQL_TYPE_DATETIME)
+                    && type != MYSQL_TYPE_DATETIME
+                    && type != MYSQL_TYPE_DATETIME2)
                 {
                   DBUG_PRINT("info", ("Found non-matching collation %s",  
                                       item->collation.collation->name)); 
@@ -496,16 +502,15 @@ ndb_serialize_cond(const Item *item, void *arg)
           case Item_func::LIKE_FUNC:
           {
             Ndb_expect_stack* expect_next= new Ndb_expect_stack();
-            DBUG_PRINT("info", ("LIKE_FUNC"));      
+            DBUG_PRINT("info", ("LIKE_FUNC"));
 
             if (((const Item_func_like *)func_item)->escape_was_used_in_parsing())
             {
               DBUG_PRINT("info", ("LIKE expressions with ESCAPE not supported"));
               context->supported= FALSE;
             }
-            
             curr_cond->ndb_item= new Ndb_item(func_item->functype(),
-                                              func_item);      
+                                              func_item);
 
             /*
               Ndb currently only supports pushing
@@ -766,11 +771,9 @@ ndb_serialize_cond(const Item *item, void *arg)
           {
 #ifndef DBUG_OFF
             char buff[256];
-            String str(buff,0, system_charset_info);
-            //str.length(0);// Magnus
-            Item_string *string_item= (Item_string *) item;
-            DBUG_PRINT("info", ("value \"%s\"", 
-                                string_item->val_str(&str)->ptr()));
+            String str(buff, 0, system_charset_info);
+            const_cast<Item*>(item)->print(&str, QT_ORDINARY);
+            DBUG_PRINT("info", ("value: '%s'", str.c_ptr_safe()));
 #endif
             NDB_ITEM_QUALIFICATION q;
             q.value_type= Item::STRING_ITEM;
@@ -1029,11 +1032,9 @@ ndb_serialize_cond(const Item *item, void *arg)
             {
   #ifndef DBUG_OFF
               char buff[256];
-              String str(buff,0, system_charset_info);
-              //str.length(0);// Magnus
-              Item_string *string_item= (Item_string *) item;
-              DBUG_PRINT("info", ("value \"%s\"", 
-                                  string_item->val_str(&str)->ptr()));
+              String str(buff, 0, system_charset_info);
+              const_cast<Item*>(item)->print(&str, QT_ORDINARY);
+              DBUG_PRINT("info", ("value: '%s'", str.c_ptr_safe()));
   #endif
               NDB_ITEM_QUALIFICATION q;
               q.value_type= Item::STRING_ITEM;
@@ -1359,18 +1360,28 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_LIKE_FUNC:
     {
       if (!value || !field) break;
-      if ((value->qualification.value_type != Item::STRING_ITEM) &&
-          (value->qualification.value_type != Item::VARBIN_ITEM))
-          break;
+      bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
       // Save value in right format for the field type
-      value->save_in_field(field);
+      uint32 val_len= value->save_in_field(field);
+      char buff[MAX_FIELD_WIDTH];
+      String str(buff,sizeof(buff),field->get_field_charset());
+      if (val_len > field->get_field()->field_length)
+        str.set(value->get_val(), val_len, field->get_field_charset());
+      else
+        field->get_field_val_str(&str);
+      uint32 len= str.length();
+      const char *val=
+        ((value->is_const_func() || value->is_cached()) && is_string)?
+        str.ptr()
+        : value->get_val();
       DBUG_PRINT("info", ("Generating LIKE filter: like(%d,%s,%d)", 
-                          field->get_field_no(), value->get_val(), 
-                          value->pack_length()));
+                          field->get_field_no(),
+                          val,
+                          len));
       if (filter->cmp(NdbScanFilter::COND_LIKE, 
                       field->get_field_no(),
-                      value->get_val(),
-                      value->pack_length()) == -1)
+                      val,
+                      len) == -1)
         DBUG_RETURN(1);
       cond= cond->next->next->next;
       DBUG_RETURN(0);
@@ -1378,18 +1389,28 @@ ha_ndbcluster_cond::build_scan_filter_predicate(Ndb_cond * &cond,
     case NDB_NOTLIKE_FUNC:
     {
       if (!value || !field) break;
-      if ((value->qualification.value_type != Item::STRING_ITEM) &&
-          (value->qualification.value_type != Item::VARBIN_ITEM))
-          break;
+      bool is_string= (value->qualification.value_type == Item::STRING_ITEM);
       // Save value in right format for the field type
-      value->save_in_field(field);
+      uint32 val_len= value->save_in_field(field);
+      char buff[MAX_FIELD_WIDTH];
+      String str(buff,sizeof(buff),field->get_field_charset());
+      if (val_len > field->get_field()->field_length)
+        str.set(value->get_val(), val_len, field->get_field_charset());
+      else
+        field->get_field_val_str(&str);
+      uint32 len= str.length();
+      const char *val=
+        ((value->is_const_func() || value->is_cached()) && is_string)?
+        str.ptr()
+        : value->get_val();
       DBUG_PRINT("info", ("Generating NOTLIKE filter: notlike(%d,%s,%d)", 
-                          field->get_field_no(), value->get_val(), 
-                          value->pack_length()));
+                          field->get_field_no(),
+                          (value->pack_length() > len)?value->get_val():val,
+                          (value->pack_length() > len)?value->pack_length():len));
       if (filter->cmp(NdbScanFilter::COND_NOT_LIKE, 
                       field->get_field_no(),
-                      value->get_val(),
-                      value->pack_length()) == -1)
+                      (value->pack_length() > len)?value->get_val():val,
+                      (value->pack_length() > len)?value->pack_length():len) == -1)
         DBUG_RETURN(1);
       cond= cond->next->next->next;
       DBUG_RETURN(0);
@@ -1548,7 +1569,7 @@ ha_ndbcluster_cond::generate_scan_filter(NdbInterpretedCode* code,
       {
         // err.message has static storage
         DBUG_PRINT("info", ("%s", err.message));
-        push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning(current_thd, Sql_condition::SL_WARNING,
                      err.code, err.message);
       }
       else
@@ -1620,7 +1641,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
 #ifndef DBUG_OFF
   {
     DBUG_PRINT("info", ("key parts:%u length:%u",
-                        key_info->key_parts, key_info->key_length));
+                        key_info->user_defined_key_parts, key_info->key_length));
     const key_range* keylist[2]={ start_key, end_key };
     for (uint j=0; j <= 1; j++)
     {
@@ -1635,7 +1656,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
         sprintf(buf, "key range %u: flag:%u part", j, key->flag);
         const KEY_PART_INFO* key_part=key_info->key_part;
         const uchar* ptr=key->key;
-        for (uint i=0; i < key_info->key_parts; i++)
+        for (uint i=0; i < key_info->user_defined_key_parts; i++)
         {
           sprintf(buf+strlen(buf), " %u:", i);
           for (uint k=0; k < key_part->store_length; k++)
@@ -1674,7 +1695,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
     if (start_key != 0 &&
         start_key->flag == HA_READ_AFTER_KEY &&
         end_key == 0 &&
-        key_info->key_parts == 1)
+        key_info->user_defined_key_parts == 1)
     {
       const KEY_PART_INFO* key_part=key_info->key_part;
       if (key_part->null_bit != 0) // nullable (must be)
@@ -1708,7 +1729,7 @@ int ha_ndbcluster_cond::generate_scan_filter_from_key(NdbInterpretedCode* code,
     {
       const KEY_PART_INFO* key_part=key_info->key_part;
       const uchar* ptr=start_key->key;
-      for (uint i=0; i < key_info->key_parts; i++)
+      for (uint i=0; i < key_info->user_defined_key_parts; i++)
       {
         const Field* field=key_part->field;
         if (key_part->null_bit) // nullable
