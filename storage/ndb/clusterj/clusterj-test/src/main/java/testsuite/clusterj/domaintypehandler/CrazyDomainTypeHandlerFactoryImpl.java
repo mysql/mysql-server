@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,8 +23,10 @@ import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandlerFactory;
 import com.mysql.clusterj.core.spi.ValueHandler;
+import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.store.ClusterTransaction;
 import com.mysql.clusterj.core.store.Column;
+import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.PartitionKey;
@@ -56,7 +58,8 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
         }
     }
 
-    public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary) {
+    public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary,
+            ValueHandlerFactory valueHandlerFactory) {
         String className = domainClass.getSimpleName();
         if (className.startsWith("Throw")) {
             String throwClassName = className.substring(5);
@@ -103,7 +106,11 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Nice Job!");
                 }
 
-                public T newInstance() {
+                public T newInstance(Db db) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                }
+
+                public T newInstance(ValueHandler valueHandler) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
@@ -159,7 +166,7 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
-                public ValueHandler createKeyValueHandler(Object keys) {
+                public ValueHandler createKeyValueHandler(Object keys, Db db) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
 
@@ -196,6 +203,15 @@ public class CrazyDomainTypeHandlerFactoryImpl implements DomainTypeHandlerFacto
                 public void objectSetKeys(Object keys, Object instance) {
                     throw new UnsupportedOperationException("Not supported yet.");
                 }
+
+                public void setUnsupported(String reason) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+               }
+
+                public T newInstance(ResultData resultData, Db db) {
+                    throw new UnsupportedOperationException("Not supported yet.");
+                }
+
             };
         } else {
             return null;

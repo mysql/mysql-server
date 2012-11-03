@@ -55,9 +55,6 @@ struct LocalConfig {
   bool init(const char *connectString = 0,
 	    const char *fileName = 0);
 
-  void printError() const;
-  void printUsage() const;
-
   void setError(int lineNumber, const char * _msg);
   bool readConnectString(const char *, const char *info);
   bool readFile(const char * file, bool &fopenError);

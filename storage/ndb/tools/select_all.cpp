@@ -117,7 +117,7 @@ static void usage()
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  load_defaults("my",load_default_groups,&argc,&argv);
+  ndb_load_defaults(NULL, load_default_groups,&argc,&argv);
   const char* _tabname;
   int ho_error;
 #ifndef DBUG_OFF

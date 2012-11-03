@@ -771,7 +771,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     We reuse name_buff since it is available.
   */
 #ifdef HAVE_READLINK
-  if (my_use_symdir &&
+  if (my_enable_symlinks &&
       create_info->data_file_name &&
       create_info->data_file_name[0] != '#')
   {
@@ -788,7 +788,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   {
     if (create_info->data_file_name)
     {
-      push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED,
                           ER_DEFAULT(WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
@@ -801,7 +801,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
   /* Archive engine never uses INDEX DIRECTORY. */
   if (create_info->index_file_name)
   {
-    push_warning_printf(table_arg->in_use, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(table_arg->in_use, Sql_condition::SL_WARNING,
                         WARN_OPTION_IGNORED,
                         ER_DEFAULT(WARN_OPTION_IGNORED),
                         "INDEX DIRECTORY");

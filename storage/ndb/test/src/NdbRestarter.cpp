@@ -59,7 +59,7 @@ int NdbRestarter::getDbNodeId(int _i){
   if (getStatus() != 0)
     return -1;
 
-  for(size_t i = 0; i < ndbNodes.size(); i++){     
+  for(unsigned i = 0; i < ndbNodes.size(); i++){     
     if (i == (unsigned)_i){
       return ndbNodes[i].node_id;
     }
@@ -114,7 +114,7 @@ NdbRestarter::restartNodes(int * nodes, int cnt,
     for (int j = 0; j<cnt; j++)
     {
       int _nodeId = nodes[j];
-      for(size_t i = 0; i < ndbNodes.size(); i++)
+      for(unsigned i = 0; i < ndbNodes.size(); i++)
       {
         if(ndbNodes[i].node_id == _nodeId)
         {
@@ -147,7 +147,7 @@ NdbRestarter::getMasterNodeId(){
   
   int min = 0;
   int node = -1;
-  for(size_t i = 0; i < ndbNodes.size(); i++){
+  for(unsigned i = 0; i < ndbNodes.size(); i++){
     if(min == 0 || ndbNodes[i].dynamic_id < min){
       min = ndbNodes[i].dynamic_id;
       node = ndbNodes[i].node_id;
@@ -165,7 +165,7 @@ NdbRestarter::getNodeGroup(int nodeId){
   if (getStatus() != 0)
     return -1;
   
-  for(size_t i = 0; i < ndbNodes.size(); i++)
+  for(unsigned i = 0; i < ndbNodes.size(); i++)
   {
     if(ndbNodes[i].node_id == nodeId)
     {
@@ -184,7 +184,7 @@ NdbRestarter::getNextMasterNodeId(int nodeId){
   if (getStatus() != 0)
     return -1;
   
-  size_t i;
+  unsigned i;
   for(i = 0; i < ndbNodes.size(); i++)
   {
     if(ndbNodes[i].node_id == nodeId)
@@ -244,7 +244,7 @@ NdbRestarter::getRandomNodeOtherNodeGroup(int nodeId, int rand){
     return -1;
   
   int node_group = -1;
-  for(size_t i = 0; i < ndbNodes.size(); i++){
+  for(unsigned i = 0; i < ndbNodes.size(); i++){
     if(ndbNodes[i].node_id == nodeId){
       node_group = ndbNodes[i].node_group;
       break;
@@ -274,7 +274,7 @@ NdbRestarter::getRandomNodeSameNodeGroup(int nodeId, int rand){
     return -1;
   
   int node_group = -1;
-  for(size_t i = 0; i < ndbNodes.size(); i++){
+  for(unsigned i = 0; i < ndbNodes.size(); i++){
     if(ndbNodes[i].node_id == nodeId){
       node_group = ndbNodes[i].node_group;
       break;
@@ -347,7 +347,7 @@ NdbRestarter::waitClusterState(ndb_mgm_node_status _status,
   }
   
   // Collect all nodes into nodes
-  for (size_t i = 0; i < ndbNodes.size(); i++){
+  for (unsigned i = 0; i < ndbNodes.size(); i++){
     nodes[i] = ndbNodes[i].node_id;
     numNodes++;
   }
@@ -388,7 +388,7 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 	 * First check if any node is not starting
 	 * then it's no idea to wait anymore
 	 */
-	for (size_t n = 0; n < ndbNodes.size(); n++){
+	for (unsigned n = 0; n < ndbNodes.size(); n++){
 	  if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED &&
 	      ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTING)
 	    waitMore = false;
@@ -426,7 +426,7 @@ NdbRestarter::waitNodesState(const int * _nodes, int _num_nodes,
 
     for (int i = 0; i < _num_nodes; i++){
       ndb_mgm_node_state* ndbNode = NULL;
-      for (size_t n = 0; n < ndbNodes.size(); n++){
+      for (unsigned n = 0; n < ndbNodes.size(); n++){
 	if (ndbNodes[n].node_id == _nodes[i])
 	  ndbNode = &ndbNodes[n];
       }
@@ -713,7 +713,7 @@ int NdbRestarter::insertErrorInAllNodes(int _error){
 
   int result = 0;
  
-  for(size_t i = 0; i < ndbNodes.size(); i++){     
+  for(unsigned i = 0; i < ndbNodes.size(); i++){     
     g_debug << "inserting error in node " << ndbNodes[i].node_id << endl;
     if (insertErrorInNode(ndbNodes[i].node_id, _error) == -1)
       result = -1;
@@ -751,7 +751,7 @@ int NdbRestarter::dumpStateAllNodes(const int * _args, int _num_args){
 
  int result = 0;
  
- for(size_t i = 0; i < ndbNodes.size(); i++){     
+ for(unsigned i = 0; i < ndbNodes.size(); i++){     
    g_debug << "dumping state in node " << ndbNodes[i].node_id << endl;
    if (dumpStateOneNode(ndbNodes[i].node_id, _args, _num_args) == -1)
      result = -1;
@@ -841,7 +841,7 @@ NdbRestarter::checkClusterAlive(const int * deadnodes, int num_nodes)
   for (int i = 0; i<num_nodes; i++)
     mask.set(deadnodes[i]);
   
-  for (size_t n = 0; n < ndbNodes.size(); n++)
+  for (unsigned n = 0; n < ndbNodes.size(); n++)
   {
     if (mask.get(ndbNodes[n].node_id))
       continue;
@@ -862,7 +862,7 @@ NdbRestarter::rollingRestart(Uint32 flags)
   NdbNodeBitmask ng_mask;
   NdbNodeBitmask restart_nodes;
   Vector<int> nodes;
-  for(size_t i = 0; i < ndbNodes.size(); i++)
+  for(unsigned i = 0; i < ndbNodes.size(); i++)
   { 
     if (ng_mask.get(ndbNodes[i].node_group) == false)
     {
@@ -911,7 +911,7 @@ NdbRestarter::getMasterNodeVersion(int& version)
   int masterNodeId = getMasterNodeId();
   if (masterNodeId != -1)
   {
-    for(size_t i = 0; i < ndbNodes.size(); i++)
+    for(unsigned i = 0; i < ndbNodes.size(); i++)
     {
       if (ndbNodes[i].node_id == masterNodeId)
       {
@@ -964,7 +964,7 @@ NdbRestarter::getNodeTypeVersionRange(ndb_mgm_node_type type,
   minVer = 0;
   maxVer = 0;
   
-  for(size_t i = 0; i < nodeVec->size(); i++)
+  for(unsigned i = 0; i < nodeVec->size(); i++)
   {
     int nodeVer = (*nodeVec)[i].version;
     if ((minVer == 0) ||
@@ -984,7 +984,7 @@ NdbRestarter::getNodeStatus(int nodeid)
   if (getStatus() != 0)
     return -1;
 
-  for (size_t n = 0; n < ndbNodes.size(); n++)
+  for (unsigned n = 0; n < ndbNodes.size(); n++)
   {
     if (ndbNodes[n].node_id == nodeid)
       return ndbNodes[n].node_status;
@@ -992,4 +992,39 @@ NdbRestarter::getNodeStatus(int nodeid)
   return -1;
 }
 
+Vector<Vector<int> >
+NdbRestarter::splitNodes()
+{
+  Vector<int> part0;
+  Vector<int> part1;
+  Bitmask<255> ngmask;
+  for (int i = 0; i < getNumDbNodes(); i++)
+  {
+    int nodeId = getDbNodeId(i);
+    int ng = getNodeGroup(nodeId);
+    if (ngmask.get(ng))
+    {
+      part1.push_back(nodeId);
+    }
+    else
+    {
+      ngmask.set(ng);
+      part0.push_back(nodeId);
+    }
+  }
+  Vector<Vector<int> > result;
+  if ((rand() % 100) > 50)
+  {
+    result.push_back(part0);
+    result.push_back(part1);
+  }
+  else
+  {
+    result.push_back(part1);
+    result.push_back(part0);
+  }
+  return result;
+}
+
 template class Vector<ndb_mgm_node_state>;
+template class Vector<Vector<int> >;

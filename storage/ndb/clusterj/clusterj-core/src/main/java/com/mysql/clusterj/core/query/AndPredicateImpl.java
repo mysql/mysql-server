@@ -61,11 +61,13 @@ public class AndPredicateImpl extends PredicateImpl {
         }
     }
 
+    @Override
     public Predicate or(Predicate predicate) {
         throw new UnsupportedOperationException(
                 local.message("ERR_NotImplemented"));
     }
 
+    @Override
     public Predicate not() {
         throw new UnsupportedOperationException(
                 local.message("ERR_NotImplemented"));
@@ -109,6 +111,7 @@ public class AndPredicateImpl extends PredicateImpl {
     /** Set the keys into the operation for each predicate.
      * Each predicate must be an equal predicate for a primary or unique key.
      */
+    @Override
     public void operationEqual(QueryExecutionContext context,
             Operation op) {
         for (PredicateImpl predicate: predicates) {
@@ -118,17 +121,6 @@ public class AndPredicateImpl extends PredicateImpl {
             }
             predicate.operationEqual(context, op);
         }
-    }
-
-    /** Get the best index for the operation. Delegate to the method
-     * in the superclass, passing the array of predicates.
-     *
-     * @return the best index
-     */
-    @Override
-    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContext context) {
-        return getBestCandidateIndexFor(context, predicates.toArray(
-                new PredicateImpl[predicates.size()]));
     }
 
     /** Get the number of conditions in the top level predicate.
@@ -144,4 +136,14 @@ public class AndPredicateImpl extends PredicateImpl {
     protected int getNumberOfConditionsInPredicate() {
         return predicates.size();
     }
+
+    /** Return an array of top level predicates that might be used with indices.
+     * 
+     * @return an array of top level predicates (defaults to {this}).
+     */
+    @Override
+    protected PredicateImpl[] getTopLevelPredicates() {
+        return predicates.toArray(new PredicateImpl[predicates.size()]);
+    }
+
 }

@@ -44,7 +44,8 @@ struct SchemaTransBeginRef {
     BusyWithNR = 711,
     TooManySchemaTrans = 780,
     IncompatibleVersions = 763,
-    Nodefailure = 786
+    Nodefailure = 786,
+    OutOfSchemaTransMemory = 796
   };
   Uint32 senderRef;
   Uint32 transId;
@@ -80,6 +81,7 @@ struct SchemaTransEndConf {
 struct SchemaTransEndRef {
   enum ErrorCode {
     NoError = 0,
+    Busy = 701,
     NotMaster = 702,
     InvalidTransKey = 781,
     InvalidTransId = 782,

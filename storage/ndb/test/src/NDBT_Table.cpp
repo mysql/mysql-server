@@ -20,78 +20,11 @@
 #include <NdbTimer.hpp>
 #include <NDBT.hpp>
 
-class NdbOut& 
+class NdbOut&
 operator <<(class NdbOut& ndbout, const NDBT_Table & tab)
 {
   ndbout << "-- " << tab.getName() << " --" << endl;
-  
-  ndbout << "Version: " <<  tab.getObjectVersion() << endl; 
-  ndbout << "Fragment type: " <<  (unsigned) tab.getFragmentType() << endl; 
-  ndbout << "K Value: " <<  tab.getKValue()<< endl; 
-  ndbout << "Min load factor: " <<  tab.getMinLoadFactor()<< endl;
-  ndbout << "Max load factor: " <<  tab.getMaxLoadFactor()<< endl; 
-  ndbout << "Temporary table: " <<  (tab.getStoredTable() ? "no" : "yes") << endl;
-  ndbout << "Number of attributes: " <<  tab.getNoOfColumns() << endl;
-  ndbout << "Number of primary keys: " <<  tab.getNoOfPrimaryKeys() << endl;
-  ndbout << "Length of frm data: " << tab.getFrmLength() << endl;
-  ndbout << "Row Checksum: " << tab.getRowChecksumIndicator() << endl;
-  ndbout << "Row GCI: " << tab.getRowGCIIndicator() << endl;
-  ndbout << "SingleUserMode: " << (Uint32) tab.getSingleUserMode() << endl;
-  ndbout << "ForceVarPart: " << tab.getForceVarPart() << endl;
-  ndbout << "FragmentCount: " << tab.getFragmentCount() << endl;
-  ndbout << "ExtraRowGciBits: " << tab.getExtraRowGciBits() << endl;
-  ndbout << "ExtraRowAuthorBits: " << tab.getExtraRowAuthorBits() << endl;
-
-  //<< ((tab.getTupleKey() == TupleId) ? " tupleid" : "") <<endl;
-  ndbout << "TableStatus: ";
-  switch(tab.getObjectStatus()){
-  case NdbDictionary::Object::New:
-    ndbout << "New" << endl;
-    break;
-  case NdbDictionary::Object::Changed:
-    ndbout << "Changed" << endl;
-    break;
-  case NdbDictionary::Object::Retrieved:
-    ndbout << "Retrieved" << endl;
-    break;
-  default:
-    ndbout << "Unknown(" << (unsigned) tab.getObjectStatus() << ")" << endl;
-  }
-  
-  ndbout << "-- Attributes -- " << endl;
-  int noOfAttributes = tab.getNoOfColumns();
-  for(int i = 0; i<noOfAttributes; i++){
-    ndbout << (* (const NDBT_Attribute*)tab.getColumn(i)) << endl;
-  }
+  ndbout << NdbDictionary::Table(tab);
   
   return ndbout;
 }
-
-class NdbOut& operator <<(class NdbOut&, const NdbDictionary::Index & idx)
-{
-  ndbout << idx.getName();
-  ndbout << "(";
-  for (unsigned i=0; i < idx.getNoOfColumns(); i++)
-  {
-    const NdbDictionary::Column *col = idx.getColumn(i);
-    ndbout << col->getName();
-    if (i < idx.getNoOfColumns()-1)
-      ndbout << ", ";
-  }
-  ndbout << ")";
-  
-  ndbout << " - ";
-  switch (idx.getType()) {
-  case NdbDictionary::Object::UniqueHashIndex:
-    ndbout << "UniqueHashIndex";
-    break;
-  case NdbDictionary::Object::OrderedIndex:
-    ndbout << "OrderedIndex";
-    break;
-  default:
-    ndbout << "Type " << (unsigned) idx.getType();
-    break;
-  }
-  return ndbout;
-}
-

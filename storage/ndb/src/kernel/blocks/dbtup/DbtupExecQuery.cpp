@@ -166,6 +166,20 @@ Dbtup::calculateChecksum(Tuple_header* tuple_ptr,
   return checksum;
 }
 
+int
+Dbtup::corruptedTupleDetected(KeyReqStruct *req_struct)
+{
+  ndbout_c("Tuple corruption detected."); 
+  if (c_crashOnCorruptedTuple)
+  {
+    ndbout_c(" Exiting."); 
+    ndbrequire(false);
+  }
+  terrorCode= ZTUPLE_CORRUPTED_ERROR;
+  tupkeyErrorLab(req_struct);
+  return -1;
+}
+
 /* ----------------------------------------------------------------- */
 /* -----------       INSERT_ACTIVE_OP_LIST            -------------- */
 /* ----------------------------------------------------------------- */
@@ -1014,10 +1028,7 @@ int Dbtup::handleReadReq(Signal* signal,
   if ((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
       (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) {
     jam();
-    ndbout_c("here2");
-    terrorCode= ZTUPLE_CORRUPTED_ERROR;
-    tupkeyErrorLab(req_struct);
-    return -1;
+    return corruptedTupleDetected(req_struct);
   }
 
   const Uint32 node = refToNode(sendBref);
@@ -1139,8 +1150,8 @@ int Dbtup::handleUpdateReq(Signal* signal,
   if ((regTabPtr->m_bits & Tablerec::TR_Checksum) &&
       (calculateChecksum(req_struct->m_tuple_ptr, regTabPtr) != 0)) 
   {
-    terrorCode= ZTUPLE_CORRUPTED_ERROR;
-    goto error;
+    jam();
+    return corruptedTupleDetected(req_struct);
   }
 
   req_struct->m_tuple_ptr= dst;
@@ -1821,6 +1832,7 @@ int Dbtup::handleInsertReq(Signal* signal,
    */
   if(mem_insert)
   {
+    terrorCode = 0;
     if (!rowid)
     {
       if (ERROR_INSERTED(4018))
@@ -1927,7 +1939,13 @@ int Dbtup::handleInsertReq(Signal* signal,
       terrorCode = 1601;
       goto disk_prealloc_error;
     }
-    
+
+    if (!Local_key::isShort(frag_page_id))
+    {
+      terrorCode = 1603;
+      goto disk_prealloc_error;
+    }
+
     int ret= disk_page_prealloc(signal, fragPtr, &tmp, size);
     if (unlikely(ret < 0))
     {
@@ -2007,7 +2025,10 @@ null_check_error:
 
 mem_error:
   jam();
-  terrorCode= ZMEM_NOMEM_ERROR;
+  if (terrorCode == 0)
+  {
+    terrorCode= ZMEM_NOMEM_ERROR;
+  }
   goto update_error;
 
 log_space_error:
@@ -3909,7 +3930,7 @@ Dbtup::validate_page(Tablerec* regTabPtr, Var_page* p)
   if(mm_vars == 0)
     return;
   
-  for(Uint32 F= 0; F<MAX_FRAG_PER_NODE; F++)
+  for(Uint32 F= 0; F<NDB_ARRAY_SIZE(regTabPtr->fragrec); F++)
   {
     FragrecordPtr fragPtr;
 
