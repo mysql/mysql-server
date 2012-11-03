@@ -136,6 +136,7 @@ enum os_file_create_t {
 /** Types for file create @{ */
 #define	OS_DATA_FILE			100
 #define OS_LOG_FILE			101
+#define OS_DATA_TEMP_FILE		102
 /* @} */
 
 /** Error codes from os_file_get_last_error @{ */
