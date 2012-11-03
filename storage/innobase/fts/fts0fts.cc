@@ -4134,9 +4134,14 @@ fts_sync_begin(
 
 	sync->trx = trx_allocate_for_background();
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  SYNC deleted count: %ld size: %lu bytes\n",
-		ib_vector_size(cache->deleted_doc_ids), cache->total_size);
+	if (fts_enable_diag_print) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"FTS SYNC for table %s, deleted count: %ld size: "
+			"%lu bytes",
+			sync->table->name,
+			ib_vector_size(cache->deleted_doc_ids),
+			cache->total_size);
+	}
 }
 
 /*********************************************************************//**
@@ -4155,8 +4160,10 @@ fts_sync_index(
 
 	trx->op_info = "doing SYNC index";
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  SYNC words: %ld\n", rbt_size(index_cache->words));
+	if (fts_enable_diag_print) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"SYNC words: %ld", rbt_size(index_cache->words));
+	}
 
 	ut_ad(rbt_validate(index_cache->words));
 
@@ -4228,10 +4235,14 @@ fts_sync_commit(
 			ut_strerr(error));
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: SYNC time : %lusecs: elapsed %lf ins/sec\n",
-		(ulong) (ut_time() - sync->start_time),
-		(double) n_nodes/ (double) elapsed_time);
+	if (fts_enable_diag_print && elapsed_time) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"SYNC for table %s: SYNC time : %lu secs: "
+			"elapsed %lf ins/sec",
+			sync->table->name,
+			(ulong) (ut_time() - sync->start_time),
+			(double) n_nodes/ (double) elapsed_time);
+	}
 
 	trx_free_for_background(trx);
 
