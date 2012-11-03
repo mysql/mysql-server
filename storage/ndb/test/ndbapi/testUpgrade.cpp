@@ -592,15 +592,48 @@ int runCheckStarted(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+int
+runCreateIndexT1(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDict = pNdb->getDictionary();
+  const NdbDictionary::Table* pTab = pDict->getTable("T1");
+  if (pTab == 0)
+  {
+    g_err << "getTable(T1) error: " << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  NdbDictionary::Index ind;
+  ind.setName("T1X1");
+  ind.setTable("T1");
+  ind.setType(NdbDictionary::Index::OrderedIndex);
+  ind.setLogging(false);
+  ind.addColumn("KOL2");
+  ind.addColumn("KOL3");
+  ind.addColumn("KOL4");
+  if (pDict->createIndex(ind, *pTab) != 0)
+  {
+    g_err << "createIndex(T1X1) error: " << pDict->getNdbError() << endl;
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int 
 runCreateAllTables(NDBT_Context* ctx, NDBT_Step* step)
 {
+  Uint32 useRangeScanT1 = ctx->getProperty("UseRangeScanT1", (Uint32)0);
+
   ndbout_c("createAllTables");
   if (NDBT_Tables::createAllTables(GETNDB(step), false, true))
     return NDBT_FAILED;
 
   for (int i = 0; i<NDBT_Tables::getNumTables(); i++)
     table_list.push_back(BaseString(NDBT_Tables::getTable(i)->getName()));
+
+  if (useRangeScanT1)
+    if (runCreateIndexT1(ctx, step) != NDBT_OK)
+      return NDBT_FAILED;
 
   return NDBT_OK;
 }
@@ -680,6 +713,8 @@ runClearAll(NDBT_Context* ctx, NDBT_Step* step)
 int
 runBasic(NDBT_Context* ctx, NDBT_Step* step)
 {
+  Uint32 useRangeScanT1 = ctx->getProperty("UseRangeScanT1", (uint32)0);
+
   Ndb* pNdb = GETNDB(step);
   NdbDictionary::Dictionary * pDict = pNdb->getDictionary();
   int records = ctx->getNumRecords();
@@ -705,6 +740,32 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
         // (or check if it does)
         if (strcmp(tab->getName(), "T1") == 0)
           trans.pkInterpretedUpdateRecords(pNdb, records);
+        if (strcmp(tab->getName(), "T1") == 0 &&
+            useRangeScanT1)
+        {
+          const NdbDictionary::Index* pInd = pDict->getIndex("T1X1", "T1");
+          if (pInd == 0)
+          {
+            g_err << "getIndex(T1X1) error: " << pDict->getNdbError() << endl;
+            return NDBT_FAILED;
+          }
+          // bug#13834481 - bound values do not matter
+          const Uint32 lo = 0x11110000;
+          const Uint32 hi = 0xaaaa0000;
+          HugoTransactions::HugoBound bound_arr[6];
+          int bound_cnt = 0;
+          for (int j = 0; j <= 1; j++) {
+            int n = rand() % 4;
+            for (int i = 0; i < n; i++) {
+              HugoTransactions::HugoBound& b = bound_arr[bound_cnt++];
+              b.attr = i;
+              b.type = (j == 0 ? 0 : 2); // LE/GE
+              b.value = (j == 0 ? &lo : &hi);
+            }
+          }
+          g_info << "range scan T1 with " << bound_cnt << " bounds" << endl;
+          trans.scanReadRecords(pNdb, pInd, records, 0, 0, NdbOperation::LM_Read, 0, bound_cnt, bound_arr);
+        }
         trans.clearTable(pNdb, records/2);
         trans.loadTable(pNdb, records/2);
         break;
@@ -835,7 +896,7 @@ runPostUpgradeChecks(NDBT_Context* ctx, NDBT_Step* step)
    *   automatically by NDBT...
    *   so when we enter here, this is already tested
    */
-  NdbBackup backup(GETNDB(step)->getNodeId()+1);
+  NdbBackup backup;
 
   ndbout << "Starting backup..." << flush;
   if (backup.start() != 0)
@@ -1063,6 +1124,7 @@ POSTUPGRADE("Upgrade_FS")
 TESTCASE("Upgrade_Traffic",
 	 "Test upgrade with traffic, all tables and restart --initial")
 {
+  TC_PROPERTY("UseRangeScanT1", (Uint32)1);
   INITIALIZER(runCheckStarted);
   INITIALIZER(runCreateAllTables);
   STEP(runUpgrade_Traffic);
@@ -1077,6 +1139,7 @@ POSTUPGRADE("Upgrade_Traffic")
 TESTCASE("Upgrade_Traffic_FS",
 	 "Test upgrade with traffic, all tables and restart using FS")
 {
+  TC_PROPERTY("UseRangeScanT1", (Uint32)1);
   TC_PROPERTY("KeepFS", 1);
   INITIALIZER(runCheckStarted);
   INITIALIZER(runCreateAllTables);

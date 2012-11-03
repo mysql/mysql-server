@@ -20,13 +20,13 @@
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
-    <version>7.1.16-SNAPSHOT</version>
+    <version>7.1.22-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-api</artifactId>
   <packaging>bundle</packaging>
-  <version>7.1.16-SNAPSHOT</version>
+  <version>7.1.22-SNAPSHOT</version>
   <name>ClusterJ API</name>
   <description>The API for ClusterJ</description>
   <build>
@@ -53,13 +53,6 @@
       </plugin>
     </plugins>
   </build>   
-  <dependencies>
-    <dependency>
-      <groupId>junit</groupId>
-      <artifactId>junit</artifactId>
-      <scope>test</scope>
-    </dependency>
-  </dependencies>   
   <properties>
     <netbeans.hint.useExternalMaven>false</netbeans.hint.useExternalMaven>
   </properties>

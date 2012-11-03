@@ -5,6 +5,9 @@
 # Don't test when thread_pool active
 --source include/not_threadpool.inc
 
+# Test lists tables in Information_schema, and ndb adds some
+-- source include/not_ndb_is.inc
+
 --disable_warnings
 DROP TABLE IF EXISTS t1,t2,test1,test2;
 --enable_warnings

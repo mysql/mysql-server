@@ -34,7 +34,7 @@ struct restore_callback_t {
 };
 
 struct char_n_padding_struct {
-Uint32 n_old;
+Uint32 n_old; // used also for time precision
 Uint32 n_new;
 char new_row[1];
 };
@@ -133,6 +133,8 @@ public:
 
   static AttrConvType check_compat_sizes(const NDBCOL &old_col,
                                          const NDBCOL &new_col);
+  static AttrConvType check_compat_precision(const NDBCOL &old_col,
+                                             const NDBCOL &new_col);
   static AttrConvType check_compat_promotion(const NDBCOL &old_col,
                                              const NDBCOL &new_col);
   static AttrConvType check_compat_lossy(const NDBCOL &old_col,
@@ -152,6 +154,26 @@ public:
   template< typename T, typename S >
   static void *
   convert_integral(const void * source, void * target, bool & truncated);
+
+  // times with fractional seconds, see wl#946
+  static void*
+  convert_time_time2(const void * source, void * target, bool &);
+  static void*
+  convert_time2_time(const void * source, void * target, bool &);
+  static void*
+  convert_time2_time2(const void * source, void * target, bool &);
+  static void*
+  convert_datetime_datetime2(const void * source, void * target, bool &);
+  static void*
+  convert_datetime2_datetime(const void * source, void * target, bool &);
+  static void*
+  convert_datetime2_datetime2(const void * source, void * target, bool &);
+  static void*
+  convert_timestamp_timestamp2(const void * source, void * target, bool &);
+  static void*
+  convert_timestamp2_timestamp(const void * source, void * target, bool &);
+  static void*
+  convert_timestamp2_timestamp2(const void * source, void * target, bool &);
 
   // returns the handler function checking type conversion compatibility
   AttrCheckCompatFunc 

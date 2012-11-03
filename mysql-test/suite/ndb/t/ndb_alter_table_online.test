@@ -235,7 +235,7 @@ ALTER ONLINE TABLE t1 ADD c TIMESTAMP;
 --source ndb_show_tables_result.inc
 select name from ndb_show_tables_results where id = @t1_id and name like '%t1%' and type like '%UserTable%';
 
-ALTER TABLE t1 ADD c TIMESTAMP;
+ALTER TABLE t1 ADD c TIMESTAMP DEFAULT 0;
 
 INSERT INTO t1 values (2,2,'2007-09-19 18:46:02');
 SELECT * FROM t1 ORDER BY a;
@@ -689,3 +689,47 @@ alter online table t1 add column c502 varchar(2000);
 delete from t1;
 drop table t1;
 
+
+#
+# Bug #13830980 MYSQL COMPLAINS OF NOT SUPPORTING ALTER ONLINE EVEN WHEN VALID OPTIONS ARE USED
+#
+
+create table t1(a int(10) unsigned not null auto_increment,
+                b varchar(20) default 'x',
+                c varchar(20) default null,
+                primary key (a) ) engine=ndbcluster;
+
+--error ER_NOT_SUPPORTED_YET
+alter online table t1 add e varchar(20) default 'x' column_format dynamic;
+alter online table t1 add e varchar(20) default null column_format dynamic;
+drop table t1;
+
+#
+# Bug #12755722 61528: INNODB BACKEND CRASHES ON ALTER TABLE STATEMENT (MYSQL SERVER HAS GONE AWAY
+#
+
+CREATE TABLE categorylinks (
+  cl_from int(10) unsigned NOT NULL DEFAULT '0',
+  cl_to varbinary(255) NOT NULL DEFAULT '',
+  cl_sortkey varbinary(70) NOT NULL DEFAULT '',
+  cl_timestamp timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE
+CURRENT_TIMESTAMP,
+  UNIQUE KEY cl_from (cl_from,cl_to),
+  KEY cl_sortkey (cl_to,cl_sortkey,cl_from),
+  KEY cl_timestamp (cl_to,cl_timestamp)
+) ENGINE=ndb DEFAULT CHARSET=binary;
+
+ALTER TABLE categorylinks
+        CHANGE COLUMN cl_sortkey cl_sortkey varbinary(230) NOT NULL default
+'',
+        ADD COLUMN cl_sortkey_prefix varchar(255) binary NOT NULL default '',
+        ADD COLUMN cl_collation varbinary(32) NOT NULL default '',
+        ADD COLUMN cl_type ENUM('page', 'subcat', 'file') NOT NULL default
+'page',
+        ADD INDEX (cl_collation),
+        DROP INDEX cl_sortkey,
+        ADD INDEX cl_sortkey (cl_to, cl_type, cl_sortkey, cl_from);
+
+SHOW CREATE TABLE categorylinks;
+
+DROP TABLE categorylinks;

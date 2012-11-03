@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 
 -------- switch to master -------
@@ -404,6 +407,8 @@ MAX(f1)
 
 -------- switch to master -------
 ROLLBACK;
+Warnings:
+Warning	1752	Some temporary tables were dropped, but these operations could not be rolled back.
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 5
@@ -598,6 +603,8 @@ MAX(f1)
 
 -------- switch to master -------
 ROLLBACK;
+Warnings:
+Warning	1751	The creation of some temporary tables could not be rolled back.
 SELECT MAX(f1) FROM t1;
 MAX(f1)
 8
@@ -1408,12 +1415,12 @@ TEST-INFO: SLAVE:  The INSERT is committed (Succeeded)
 -------- switch to master -------
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t1	SET @a:=1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1	INSERT	t1	SET @a:=1	BEFORE	NULL	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 
 -------- switch to slave --------
 SHOW TRIGGERS;
 Trigger	Event	Table	Statement	Timing	Created	sql_mode	Definer	character_set_client	collation_connection	Database Collation
-trg1	INSERT	t1	SET @a:=1	BEFORE	NULL		root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
+trg1	INSERT	t1	SET @a:=1	BEFORE	NULL	NO_ENGINE_SUBSTITUTION	root@localhost	latin1	latin1_swedish_ci	latin1_swedish_ci
 
 -------- switch to master -------
 
