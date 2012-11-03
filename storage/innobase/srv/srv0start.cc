@@ -1392,7 +1392,7 @@ open_or_create_temp_data_files()
 
 			files[i] = os_file_create(
 				innodb_file_data_key, name, OS_FILE_CREATE,
-				OS_FILE_NORMAL, OS_DATA_FILE, &ret);
+				OS_FILE_NORMAL, OS_DATA_TEMP_FILE, &ret);
 
 			if (!ret
 			    && os_file_get_last_error(false)
