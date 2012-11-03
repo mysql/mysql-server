@@ -1,0 +1,39 @@
+--source suite/ndb_memcache/include/have_memcache.inc
+
+# Basic data type tests for 
+# TINYINT    tt018
+# SMALLINT   tt019
+# MEDIUMINT  tt020
+# INT        tt021
+# BIGINT     tt022
+
+--source suite/ndb_memcache/include/datatypes_tables.inc
+--perl
+
+use strict;
+use lib "lib";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache->new();
+my $r = $mc->connect("localhost",$port);
+
+foreach my $test ( "tt018", "tt019", "tt020", "tt021", "tt022") {
+  $mc->set("$test:1" ,  1);
+  $mc->set("$test:0" ,  0);
+  $mc->set("$test:-1", -1);
+
+  ($mc->get("$test:0") == 0)   || die "get failed $test/0";
+  ($mc->get("$test:-1") == -1) || die "get failed $test/-1";
+  ($mc->get("$test:1") == 1)   || die "get failed $test/1";
+}
+
+EOF
+
+SELECT * FROM tt018 order by mkey;
+SELECT * FROM tt019 order by mkey;
+SELECT * FROM tt020 order by mkey;
+SELECT * FROM tt021 order by mkey;
+SELECT * FROM tt022 order by mkey;
+

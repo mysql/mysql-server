@@ -272,6 +272,10 @@ SignalDataPrintFunctions[] = {
   ,{ GSN_GET_CONFIG_REF, printGET_CONFIG_REF }
   ,{ GSN_GET_CONFIG_CONF, printGET_CONFIG_CONF }
 
+  ,{ GSN_LCP_STATUS_REQ, printLCP_STATUS_REQ }
+  ,{ GSN_LCP_STATUS_CONF, printLCP_STATUS_CONF }
+  ,{ GSN_LCP_STATUS_REF, printLCP_STATUS_REF }
+
   ,{ 0, 0 }
 };
 

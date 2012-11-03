@@ -198,6 +198,9 @@ public:
       break;
     case(NDB_FIELD):
       return (char*) value.field_value->field->ptr; 
+    case(NDB_FUNCTION):
+      if(qualification.value_type == Item::STRING_ITEM)
+        return value.item->str_value.ptr();
     default:
       break;
     }
@@ -205,26 +208,60 @@ public:
     return NULL;
   };
 
-  void save_in_field(Ndb_item *field_item)
+  const CHARSET_INFO *get_field_charset()
   {
+    Field *field= get_field();
+    if (field)
+      return field->charset();
+
+    return NULL;
+  }
+
+  String *get_field_val_str(String *str)
+  {
+    Field *field= get_field();
+    if (field)
+      return field->val_str(str);
+
+    return NULL;
+  }
+
+  bool is_const_func()
+  {
+    const Item *item= value.item;
+
+    if (item->type() == Item::FUNC_ITEM)
+    {
+      Item_func *func_item= (Item_func *) item;
+      if (func_item->const_item())
+        return true;
+    }
+    return false;
+  };
+
+  bool is_cached()
+  {
+    const Item *item= value.item;
+
+    return (item->type() == Item::CACHE_ITEM);
+  };
+
+
+  uint32 save_in_field(Ndb_item *field_item)
+  {
+    uint32 length= 0;
     DBUG_ENTER("save_in_field");
     Field *field = field_item->value.field_value->field;
     const Item *item= value.item;
     if (item && field)
     {
-      DBUG_PRINT("info", ("item length %u, field length %u",
-                          item->max_length, field->field_length));
-      if (item->max_length > field->field_length)
-      {
-        DBUG_PRINT("info", ("Comparing field with longer value"));
-        DBUG_PRINT("info", ("Field can store %u", field->field_length));
-      }
+      length= item->max_length;
       my_bitmap_map *old_map=
         dbug_tmp_use_all_columns(field->table, field->table->write_set);
       ((Item *)item)->save_in_field(field, FALSE);
       dbug_tmp_restore_column_map(field->table->write_set, old_map);
     }
-    DBUG_VOID_RETURN;
+    DBUG_RETURN(length);
   };
 
   static NDB_FUNC_TYPE item_func_to_ndb_func(Item_func::Functype fun)

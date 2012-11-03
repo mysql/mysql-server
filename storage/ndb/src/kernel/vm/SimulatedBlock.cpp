@@ -161,15 +161,20 @@ SimulatedBlock::initCommon()
   this->getParam("FragmentInfoHash", &count);
   c_fragmentInfoHash.setSize(count);
 
-  count = 5;
+  Uint32 def = 5;
+#ifdef NDBD_MULTITHREADED
+  def += globalData.getBlockThreads();
+#endif
+
+  count = def;
   this->getParam("ActiveMutexes", &count);
   c_mutexMgr.setSize(count);
-  
-  count = 5;
+
+  count = def;
   this->getParam("ActiveCounters", &count);
   c_counterMgr.setSize(count);
 
-  count = 5;
+  count = def;
   this->getParam("ActiveThreadSync", &count);
   c_syncThreadPool.setSize(count);
 }
@@ -1827,7 +1832,7 @@ SimulatedBlock::infoEvent(const char * msg, ...) const {
   BaseString::vsnprintf(buf, 96, msg, ap); // 96 = 100 - 4
   va_end(ap);
   
-  int len = strlen(buf) + 1;
+  size_t len = strlen(buf) + 1;
   if(len > 96){
     len = 96;
     buf[95] = 0;
@@ -1847,7 +1852,7 @@ SimulatedBlock::infoEvent(const char * msg, ...) const {
   signalT.header.theSendersBlockRef      = reference();
   signalT.header.theTrace                = tTrace;
   signalT.header.theSignalId             = tSignalId;
-  signalT.header.theLength               = ((len+3)/4)+1;
+  signalT.header.theLength               = (Uint32)((len+3)/4)+1;
   
 #ifdef NDBD_MULTITHREADED
   sendlocal(m_threadId,
@@ -1872,7 +1877,7 @@ SimulatedBlock::warningEvent(const char * msg, ...) const {
   BaseString::vsnprintf(buf, 96, msg, ap); // 96 = 100 - 4
   va_end(ap);
   
-  int len = strlen(buf) + 1;
+  size_t len = strlen(buf) + 1;
   if(len > 96){
     len = 96;
     buf[95] = 0;
@@ -1892,7 +1897,7 @@ SimulatedBlock::warningEvent(const char * msg, ...) const {
   signalT.header.theSendersBlockRef      = reference();
   signalT.header.theTrace                = tTrace;
   signalT.header.theSignalId             = tSignalId;
-  signalT.header.theLength               = ((len+3)/4)+1;
+  signalT.header.theLength               = (Uint32)((len+3)/4)+1;
 
 #ifdef NDBD_MULTITHREADED
   sendlocal(m_threadId,

@@ -1744,7 +1744,7 @@ NdbOperation::receiveTCKEYREF(const NdbApiSignal* aSignal)
   if (aSignal->getLength() == TcKeyRef::SignalLength)
   {
     // Signal may contain additional error data
-    theError.details = (char *) aSignal->readData(5);
+    theError.details = (char *)UintPtr(aSignal->readData(5));
   }
 
   theStatus = Finished;

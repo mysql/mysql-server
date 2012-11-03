@@ -1,6 +1,5 @@
 /*
- *  Copyright 2010 Sun Microsystems, Inc.
- *  All rights reserved. Use is subject to license terms.
+ *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -43,7 +42,11 @@ class BlobImpl implements Blob {
     static final Logger logger = LoggerFactoryService.getFactory()
             .getInstance(BlobImpl.class);
 
-    private NdbBlob ndbBlob;
+    protected NdbBlob ndbBlob;
+
+    public BlobImpl() {
+        // this is only for NdbRecordBlobImpl constructor when there is no ndbBlob available yet
+    }
 
     public BlobImpl(NdbBlob blob) {
         this.ndbBlob = blob;
@@ -71,6 +74,10 @@ class BlobImpl implements Blob {
     }
 
     public void writeData(byte[] array) {
+        if (array == null) {
+            setNull();
+            return;
+        }
         // TODO can we really skip this when updating to an empty blob?
         if (array.length == 0) return;
         ByteBuffer buffer = null;
@@ -84,6 +91,10 @@ class BlobImpl implements Blob {
     }
 
     public void setValue(byte[] array) {
+        if (array == null) {
+            setNull();
+            return;
+        }
         // TODO can we really skip this when updating to an empty blob?
         if (array.length == 0) return;
         ByteBuffer buffer = null;

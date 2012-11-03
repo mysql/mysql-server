@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -92,6 +92,8 @@ class ColumnImpl implements Column {
 
     private boolean nullable;
 
+    private boolean lob = false;
+
     public ColumnImpl(String tableName, ColumnConst ndbColumn) {
         this.columnName = ndbColumn.getName();
         this.columnId = ndbColumn.getColumnNo();
@@ -178,11 +180,13 @@ class ColumnImpl implements Column {
             case ColumnConst.Type.Blob:
                 this.prefixLength = 0;
                 this.columnSpace = inlineSize;
+                this.lob = true;
                 break;
             case ColumnConst.Type.Text:
                 this.prefixLength = 0;
                 this.columnSpace = inlineSize;
                 this.charsetNumber = ndbColumn.getCharsetNumber();
+                this.lob = true;
                 mapCharsetName();
                 break;
             case ColumnConst.Type.Bit:
@@ -209,7 +213,7 @@ class ColumnImpl implements Column {
                 break;
             case ColumnConst.Type.Timestamp:
                 this.prefixLength = 0;
-                this.columnSpace = 4;
+                this.columnSpace = 0;
                 break;
             default: throw new ClusterJFatalInternalException(
                     local.message("ERR_Unknown_Column_Type",
@@ -310,6 +314,10 @@ class ColumnImpl implements Column {
         }
     }
 
+    public int getSize() {
+        return size;
+    }
+
     public int getColumnId() {
         return columnId;
     }
@@ -345,6 +353,10 @@ class ColumnImpl implements Column {
 
     public boolean getNullable() {
         return nullable;
+    }
+
+    public boolean isLob() {
+        return lob;
     }
 
 }

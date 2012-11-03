@@ -21,9 +21,6 @@
 
 #include <mysql/plugin.h>
 
-int ndbinfo_init(void *plugin);
-int ndbinfo_deinit(void *plugin);
-
 class ha_ndbinfo: public handler
 {
 public:

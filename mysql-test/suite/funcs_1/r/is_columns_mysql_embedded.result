@@ -96,6 +96,8 @@ def	mysql	ndb_binlog_index	epoch	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	
 def	mysql	ndb_binlog_index	File	2	NULL	NO	varchar	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)				
 def	mysql	ndb_binlog_index	gci	10	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned				
 def	mysql	ndb_binlog_index	inserts	4	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned				
+def	mysql	ndb_binlog_index	next_file	12	NULL	NO	varchar	255	255	NULL	NULL	NULL	latin1	latin1_swedish_ci	varchar(255)				
+def	mysql	ndb_binlog_index	next_position	11	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned				
 def	mysql	ndb_binlog_index	orig_epoch	9	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned	PRI			
 def	mysql	ndb_binlog_index	orig_server_id	8	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(10) unsigned	PRI			
 def	mysql	ndb_binlog_index	Position	1	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned				
@@ -438,6 +440,8 @@ NULL	mysql	ndb_binlog_index	schemaops	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	ndb_binlog_index	orig_server_id	int	NULL	NULL	NULL	NULL	int(10) unsigned
 NULL	mysql	ndb_binlog_index	orig_epoch	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
 NULL	mysql	ndb_binlog_index	gci	int	NULL	NULL	NULL	NULL	int(10) unsigned
+NULL	mysql	ndb_binlog_index	next_position	bigint	NULL	NULL	NULL	NULL	bigint(20) unsigned
+1.0000	mysql	ndb_binlog_index	next_file	varchar	255	255	latin1	latin1_swedish_ci	varchar(255)
 3.0000	mysql	plugin	name	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	mysql	plugin	dl	varchar	128	384	utf8	utf8_general_ci	varchar(128)
 3.0000	mysql	proc	db	char	64	192	utf8	utf8_bin	char(64)
