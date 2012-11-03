@@ -20,10 +20,11 @@
 
 #include <NdbEventOperation.hpp>
 #include <signaldata/SumaImpl.hpp>
-#include <transporter/TransporterDefinitions.hpp>
 #include <NdbRecAttr.hpp>
 #include <AttributeHeader.hpp>
 #include <UtilBuffer.hpp>
+#include <Vector.hpp>
+#include <NdbMutex.h>
 
 #define NDB_EVENT_OP_MAGIC_NUMBER 0xA9F301B4
 //#define EVENT_DEBUG

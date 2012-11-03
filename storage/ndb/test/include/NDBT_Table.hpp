@@ -58,7 +58,6 @@ class NDBT_Table : public NdbDictionary::Table {
    * Print meta information about table 
    * (information on how it is strored, what the attributes look like etc.)
    */
-  friend class NdbOut& operator <<(class NdbOut&, const NDBT_Table &);
 public: 
   
   NDBT_Table(const char* name, 
@@ -93,6 +92,7 @@ public:
     // validate() might cause initialization order problem with charset
     NdbError error;
     int ret = aggregate(error);
+    (void)ret;
     assert(ret == 0);
   }
   
@@ -105,14 +105,5 @@ const NdbDictionary::Table *
 NDBT_Table::discoverTableFromDb(Ndb* ndb, const char * name){
   return ndb->getDictionary()->getTable(name);
 }
-
-
-/**
- * Print meta information about index
- * (information on how it is strored, what the attributes look like etc.)
- */
-class NdbOut& operator <<(class NdbOut&, const NdbDictionary::Index &);
-
-
 
 #endif

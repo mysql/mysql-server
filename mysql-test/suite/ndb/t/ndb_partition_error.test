@@ -16,7 +16,7 @@ set new=on;
 #
 # Partition by range, generate node group error
 #
---error 1005
+--error 1031 
 CREATE TABLE t1 (
 a int not null,
 b int not null,

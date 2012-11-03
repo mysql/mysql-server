@@ -351,17 +351,22 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           because it's already known that the table is badly damaged.
         */
 
-        Diagnostics_area *da= thd->get_stmt_da();
-        Warning_info tmp_wi(thd->query_id, false);
-
-        da->push_warning_info(&tmp_wi);
+        Diagnostics_area tmp_da(thd->query_id, false);
+        thd->push_diagnostics_area(&tmp_da);
 
         open_error= open_temporary_tables(thd, table);
 
         if (!open_error)
           open_error= open_and_lock_tables(thd, table, TRUE, 0);
 
-        da->pop_warning_info();
+        thd->pop_diagnostics_area();
+        if (tmp_da.is_error())
+        {
+          // Copy the exception condition information.
+          thd->get_stmt_da()->set_error_status(tmp_da.mysql_errno(),
+                                               tmp_da.message_text(),
+                                               tmp_da.returned_sqlstate());
+        }
       }
       else
       {
@@ -478,16 +483,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (!table->table)
     {
       DBUG_PRINT("admin", ("open table failed"));
-      if (thd->get_stmt_da()->is_warning_info_empty())
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+      if (thd->get_stmt_da()->cond_count() == 0)
+        push_warning(thd, Sql_condition::SL_WARNING,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->view &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::SL_WARNING,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
       if (thd->get_stmt_da()->is_error() &&
-          table_not_corrupt_error(thd->get_stmt_da()->sql_errno()))
+          table_not_corrupt_error(thd->get_stmt_da()->mysql_errno()))
         result_code= HA_ADMIN_FAILED;
       else
         /* Default failure code is corrupt table */
@@ -651,14 +656,14 @@ send_result:
         protocol->prepare_for_resend();
         protocol->store(table_name, system_charset_info);
         protocol->store((char*) operator_name, system_charset_info);
-        protocol->store(warning_level_names[err->get_level()].str,
-                        warning_level_names[err->get_level()].length,
+        protocol->store(warning_level_names[err->severity()].str,
+                        warning_level_names[err->severity()].length,
                         system_charset_info);
-        protocol->store(err->get_message_text(), system_charset_info);
+        protocol->store(err->message_text(), system_charset_info);
         if (protocol->write())
           goto err;
       }
-      thd->get_stmt_da()->clear_warning_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd->query_id);
     }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
@@ -807,7 +812,7 @@ send_result_message:
         DBUG_ASSERT(thd->is_error() || thd->killed);
         if (thd->is_error())
         {
-          const char *err_msg= thd->get_stmt_da()->message();
+          const char *err_msg= thd->get_stmt_da()->message_text();
           if (!thd->vio_ok())
           {
             sql_print_error("%s", err_msg);

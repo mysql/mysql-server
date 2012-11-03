@@ -112,6 +112,10 @@ TCP_Transporter::TCP_Transporter(TransporterRegistry &t_reg,
   setIf(sockOptTcpMaxSeg, conf->tcp.tcpMaxsegSize, 0);
 
   m_overload_limit = overload_limit(conf);
+  /**
+   * Always set slowdown limit to 60% of overload limit
+   */
+  m_slowdown_limit = m_overload_limit * 6 / 10;
 }
 
 
@@ -375,6 +379,7 @@ ok:
   iovec_data_sent(sum_sent);
   sendCount += send_cnt;
   sendSize  += sum_sent;
+  m_bytes_sent += sum_sent;
   if(sendCount >= reportFreq)
   {
     get_callback_obj()->reportSendLen(remoteNodeId, sendCount, sendSize);
@@ -386,7 +391,8 @@ ok:
 }
 
 int
-TCP_Transporter::doReceive() {
+TCP_Transporter::doReceive(TransporterReceiveHandle& recvdata)
+{
   // Select-function must return the socket for read
   // before this method is called
   // It reads the external TCP/IP interface once
@@ -415,10 +421,11 @@ TCP_Transporter::doReceive() {
       
       receiveCount ++;
       receiveSize  += nBytesRead;
+      m_bytes_received += nBytesRead;
       
       if(receiveCount == reportFreq){
-	get_callback_obj()->reportReceiveLen(remoteNodeId,
-                                             receiveCount, receiveSize);
+        recvdata.reportReceiveLen(remoteNodeId,
+                                  receiveCount, receiveSize);
 	receiveCount = 0;
 	receiveSize  = 0;
       }

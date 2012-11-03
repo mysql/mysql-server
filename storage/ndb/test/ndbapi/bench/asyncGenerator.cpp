@@ -27,6 +27,8 @@
 #include <NdbOut.hpp>
 #include <NdbSleep.h>
 
+void getRandomSubscriberNumber(SubscriberNumber number);
+
 /***************************************************************
 * L O C A L   C O N S T A N T S                                *
 ***************************************************************/
@@ -39,7 +41,6 @@
 * L O C A L   F U N C T I O N S                                *
 ***************************************************************/
 
-static void getRandomSubscriberNumber(SubscriberNumber number);
 static void getRandomServerId(ServerId *serverId);
 static void getRandomChangedBy(ChangedBy changedBy);
 //static void getRandomChangedTime(ChangedTime changedTime);
@@ -89,11 +90,13 @@ static unsigned maxsize = 0;
 ****************************************************************
 ***************************************************************/
 
-static void getRandomSubscriberNumber(SubscriberNumber number)
+extern int subscriberCount;
+
+void getRandomSubscriberNumber(SubscriberNumber number)
 {
    uint32 tmp;
    char sbuf[SUBSCRIBER_NUMBER_LENGTH + 1];
-   tmp = myRandom48(NO_OF_SUBSCRIBERS);
+   tmp = myRandom48(subscriberCount);
    sprintf(sbuf, "%.*d", SUBSCRIBER_NUMBER_LENGTH, tmp);
    memcpy(number, sbuf, SUBSCRIBER_NUMBER_LENGTH);
 }
