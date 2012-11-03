@@ -1,0 +1,16 @@
+SELECT mkey, val1, val2, val3 FROM ndbmemcache.demo_table_tabs;
+mkey	val1	val2	val3
+10	anglophilia	backtrack	10
+11	catarrh	dogmatic	11
+12	earthworm	fish	12
+13	gordian	hellene	13
+14	igneous	jubilee	14
+15	kelpie	limp	15
+16	mop	noose	16
+17	oil	pig	17
+18	quagmire	relic	18
+19	scum	tic	19
+20	um	van	20
+21	westphalian	xeroma	21
+22	yip	zoo	22
+DELETE FROM ndbmemcache.demo_table_tabs;

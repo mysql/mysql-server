@@ -10,7 +10,8 @@ create table t9
 c1  tinyint, c2  smallint, c3  mediumint, c4  int,
 c5  integer, c6  bigint, c7  float, c8  double,
 c9  double precision, c10 real, c11 decimal(7, 4), c12 numeric(8, 4),
-c13 date, c14 datetime, c15 timestamp, c16 time,
+c13 date, c14 datetime, c15 timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP 
+ON UPDATE CURRENT_TIMESTAMP, c16 time,
 c17 year, c18 tinyint, c19 bool, c20 char,
 c21 char(10), c22 varchar(30), c23 tinyblob, c24 tinytext,
 c25 blob, c26 text, c27 mediumblob, c28 mediumtext,
@@ -63,8 +64,8 @@ def	test	t9	t9	c11	c11	246	9	6	Y	32768	4	63
 def	test	t9	t9	c12	c12	246	10	6	Y	32768	4	63
 def	test	t9	t9	c13	c13	10	10	10	Y	128	0	63
 def	test	t9	t9	c14	c14	12	19	19	Y	128	0	63
-def	test	t9	t9	c15	c15	7	19	19	N	9441	0	63
-def	test	t9	t9	c16	c16	11	8	8	Y	128	0	63
+def	test	t9	t9	c15	c15	7	19	19	N	9345	0	63
+def	test	t9	t9	c16	c16	11	10	8	Y	128	0	63
 def	test	t9	t9	c17	c17	13	4	4	Y	32864	0	63
 def	test	t9	t9	c18	c18	1	4	1	Y	32768	0	63
 def	test	t9	t9	c19	c19	1	1	1	Y	32768	0	63
@@ -1163,7 +1164,7 @@ def					ref	253	1024	0	Y	0	31	8
 def					rows	8	10	1	Y	32928	0	63
 def					Extra	253	255	0	N	1	31	8
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	2	
+1	SIMPLE	t9	ALL	NULL	NULL	NULL	NULL	2	NULL
 test_sequence
 ------ delete tests ------
 delete from t1 ;
@@ -1776,7 +1777,7 @@ t5	CREATE TABLE `t5` (
   `param08` longtext,
   `const09` datetime DEFAULT NULL,
   `param09` longtext,
-  `const10` int(10) NOT NULL DEFAULT '0',
+  `const10` int(11) NOT NULL DEFAULT '0',
   `param10` bigint(20) DEFAULT NULL,
   `const11` int(4) DEFAULT NULL,
   `param11` bigint(20) DEFAULT NULL,
@@ -1806,7 +1807,7 @@ def	test	t5	t5	const08	const08	253	19	19	N	1	0	8
 def	test	t5	t5	param08	param08	252	4294967295	19	Y	16	0	8
 def	test	t5	t5	const09	const09	12	19	19	Y	128	0	63
 def	test	t5	t5	param09	param09	252	4294967295	19	Y	16	0	8
-def	test	t5	t5	const10	const10	3	10	9	N	32769	0	63
+def	test	t5	t5	const10	const10	3	11	9	N	32769	0	63
 def	test	t5	t5	param10	param10	8	20	9	Y	32768	0	63
 def	test	t5	t5	const11	const11	3	4	4	Y	32768	0	63
 def	test	t5	t5	param11	param11	8	20	4	Y	32768	0	63
@@ -2945,49 +2946,53 @@ test_sequence
 -- insert into date/time columns --
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Warnings:
+Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
-Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
 Note	1265	Data truncated for column 'c13' at row 1
+Note	1265	Data truncated for column 'c16' at row 1
 Warning	1265	Data truncated for column 'c17' at row 1
 Warnings:
-Note	1265	Data truncated for column 'c13' at row 1
-Warning	1265	Data truncated for column 'c17' at row 1
-Warnings:
-Warning	1264	Out of range value for column 'c13' at row 1
-Warning	1264	Out of range value for column 'c14' at row 1
+Warning	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value for column 'c13' at row 1
-Warning	1264	Out of range value for column 'c14' at row 1
+Warning	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value for column 'c13' at row 1
-Warning	1264	Out of range value for column 'c14' at row 1
+Warning	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1
 Warnings:
-Warning	1264	Out of range value for column 'c13' at row 1
-Warning	1264	Out of range value for column 'c14' at row 1
+Warning	1265	Data truncated for column 'c13' at row 1
+Warning	1265	Data truncated for column 'c14' at row 1
 Warning	1265	Data truncated for column 'c15' at row 1
 Warning	1264	Out of range value for column 'c16' at row 1
 Warning	1264	Out of range value for column 'c17' at row 1

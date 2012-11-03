@@ -26,7 +26,7 @@ IF("${WITH_CLASSPATH}" MATCHES "openjpa-(.+).jar")
 ENDIF()
 
 SET(DEP ndbjtie.jar
-        tie.jar
+        jtie.jar
         clusterj-api.jar
         clusterj-core.jar
         clusterj-tie.jar)
@@ -61,3 +61,6 @@ CREATE_JAR(clusterj
   MERGE_JARS ${JARS}
   MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/clusterj_manifest.mf
   DEPENDENCIES ${DEP} )
+
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${JAVA_NDB_VERSION}.jar
+        DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)

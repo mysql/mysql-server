@@ -1,5 +1,4 @@
-
-# Copyright © 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -14,7 +13,8 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
+ADD_SUBDIRECTORY(myapi)
 ADD_SUBDIRECTORY(myjapi)
 ADD_SUBDIRECTORY(unload)
 
-
+ADD_EXECUTABLE(jtie_unit_tests-t jtie_unit_tests-t.cpp)

@@ -19,6 +19,10 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
     ${CMAKE_SOURCE_DIR}/storage/ndb/cmake)
 
 MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
+
+OPTION(NDB_DETECT_MYSQL_CLUSTER_BUILD
+  "Autodetect MySQL Cluster and turn on build of ndbcluster and NDB " ON)
+MARK_AS_ADVANCED(NDB_DETECT_MYSQL_CLUSTER_BUILD)
     
 # Check if this is MySQL Cluster build i.e the MySQL Server
 # version string ends in -ndb-Y.Y.Y[-status]    
@@ -27,8 +31,6 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
   IF(${version_string} MATCHES "(.*)-ndb-(.*)")
     SET(mysql_version ${CMAKE_MATCH_1})
     SET(cluster_version ${CMAKE_MATCH_2})
-    
-    MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
     
     # Sanity check that the mysql_version matches precalcuated
     # values from higher level scripts  
@@ -43,9 +45,12 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
       SET(MYSQL_CLUSTER_VERSION_BUILD ${CMAKE_MATCH_3})
     ENDIF()
 
-    # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
-    # that this is a MySQL Cluster build, yay!
-    SET(MYSQL_CLUSTER_VERSION ${cluster_version})
+    IF(NDB_DETECT_MYSQL_CLUSTER_BUILD)
+      MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
+      # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
+      # that this is a MySQL Cluster build, yay!
+      SET(MYSQL_CLUSTER_VERSION ${cluster_version})
+    ENDIF()
   ENDIF()
 ENDMACRO()
 
@@ -59,6 +64,7 @@ IF(CMAKE_CXX_FLAGS)
   STRING(REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
 ENDIF()
 
+
 NDB_CHECK_MYSQL_CLUSTER(${VERSION})
 
 #
@@ -67,6 +73,7 @@ NDB_CHECK_MYSQL_CLUSTER(${VERSION})
 SET(NDBCLUSTER_SOURCES
   ../../sql/ha_ndbcluster.cc
   ../../sql/ha_ndbcluster_cond.cc
+  ../../sql/ha_ndbcluster_push.cc
   ../../sql/ha_ndbcluster_connection.cc
   ../../sql/ha_ndbcluster_binlog.cc
   ../../sql/ha_ndb_index_stat.cc
@@ -77,9 +84,20 @@ SET(NDBCLUSTER_SOURCES
   ../../sql/ndb_thd_ndb.cc
   ../../sql/ndb_global_schema_lock.cc
   ../../sql/ndb_mi.cc
+  ../../sql/ndb_conflict_trans.cc
+  ../../sql/ndb_anyvalue.cc
+  ../../sql/ndb_ndbapi_util.cc
+  ../../sql/ndb_binlog_extra_row_info.cc
+  ../../sql/ndb_event_data.cc
+  ../../sql/ndb_schema_object.cc
+  ../../sql/ndb_schema_dist.cc
+  ../../sql/ndb_component.cc
+  ../../sql/ndb_local_schema.cc
+  ../../sql/ndb_repl_tab.cc
+  ../../sql/ndb_conflict.cc
 )
 
-# Inlude directories used when building ha_ndbcluster
+# Include directories used when building ha_ndbcluster
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(NOT MYSQL_CLUSTER_VERSION)
@@ -92,11 +110,11 @@ IF(NOT MYSQL_CLUSTER_VERSION)
  # Pushdown of join queries not supported in non
  # MySQL Cluster version yet, compile ndbcluster without it
  ADD_DEFINITIONS(-DNDB_WITHOUT_JOIN_PUSHDOWN)
- # COLUMN_FORMAT not supported in non MySQL Cluster version yet 
- ADD_DEFINITIONS(-DNDB_WITHOUT_COLUMN_FORMAT)
- # Global schema lock hook not available, compile without
- ADD_DEFINITIONS(-DNDB_WITHOUT_GLOBAL_SCHEMA_LOCK)
 ENDIF()
+
+# Online alter table currently not supported in trunk-cluster
+# in preparation for inplace alter table
+ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
 
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
@@ -106,18 +124,22 @@ ENDIF()
 
 MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
   ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
-  LINK_LIBRARIES ndbclient)
+  LINK_LIBRARIES ndbclient_static)
 
 #
-# Add NDB binaries if ndbcluster is built
+# Build NDB only if MYSQL_ADD_PLUGIN has decided(by looking at various
+# cmake args same as all other plugins have) to build ndbcluster(our handler)
 #
 IF (NOT WITH_NDBCLUSTER)
-  # Not building NDB 
   MESSAGE(STATUS "Not building NDB")
   RETURN()
 ENDIF()
 
-MESSAGE(STATUS "Building NDB")
+IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
+  MESSAGE(STATUS "Building NDB 32-bit")
+ELSE()
+  MESSAGE(STATUS "Building NDB 64-bit")
+ENDIF()
 
 INCLUDE(${CMAKE_CURRENT_SOURCE_DIR}/ndb_configure.cmake)
 
@@ -170,9 +192,9 @@ IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE MATCHES "Debug")
   SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DVM_TRACE -DNDB_DEBUG -DERROR_INSERT -DARRAY_GUARD -DACC_SAFE_QUEUE -DAPI_TRACE")
 ELSE()
   IF(WITH_ERROR_INSERT)
-    SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DERROR_INSERT")
+    ADD_DEFINITIONS(-DERROR_INSERT)
   ENDIF()
-  SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DNDEBUG")
+  ADD_DEFINITIONS(-DNDEBUG)
 ENDIF()
 
 SET(NDB_CCFLAGS "${NDB_CCFLAGS} $ENV{NDB_EXTRA_FLAGS}") 
@@ -184,7 +206,7 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NDB_CCFLAGS}")
 # Check for Java and JDK needed by ndbjtie and clusterj
 INCLUDE(FindJava)
 INCLUDE(FindJNI)
-INCLUDE("${CMAKE_SOURCE_DIR}/storage/ndb/config/type_JAVA.cmake")
+INCLUDE("${NDB_SOURCE_DIR}/config/type_JAVA.cmake")
 
 IF(JAVA_COMPILE AND JAVA_ARCHIVE)
   MESSAGE(STATUS "Found Java")
@@ -212,9 +234,10 @@ ADD_SUBDIRECTORY(test)
 IF(WITH_NDB_TEST)
   ADD_SUBDIRECTORY(src/cw/cpcd)
 ENDIF()
-IF (HAVE_JDK)
+IF (HAVE_JAVA AND HAVE_JDK)
   ADD_SUBDIRECTORY(clusterj)
 ENDIF()
+ADD_SUBDIRECTORY(memcache)
 
 IF(WITHOUT_PARTITION_STORAGE_ENGINE)
   MESSAGE(FATAL_ERROR "NDBCLUSTER can't be compiled without PARTITION")

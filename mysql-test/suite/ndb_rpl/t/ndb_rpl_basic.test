@@ -189,10 +189,12 @@ set GLOBAL slave_transaction_retries=1;
 --echo **** On Master ****
 UPDATE t1 SET `nom`="DEAD" WHERE `nid`=1;
 
---echo **** On Slave ****
 # Wait for deadlock to be detected.
 # When detected, the slave will stop, so we just wait for it to stop.
-connection slave;
+# Use different connection to slave to avoid implicit commit
+# caused by START SLAVE
+--connection slave1
+--echo **** On Slave ****
 
 # Replication should have stopped, since max retries were not enough.
 # verify with show slave status
@@ -212,7 +214,9 @@ source include/start_slave.inc;
 # retries have been made. See BUG#35183.
 sleep 5;
 
-# commit transaction to release lock on row and let replication succeed
+# Switch back to the slave connection with the lock and commit the
+# transaction to release lock on row and let replication succeed
+--connection slave
 select * from t1 order by nid;
 COMMIT;
 

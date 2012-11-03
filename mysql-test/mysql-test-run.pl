@@ -2831,7 +2831,7 @@ sub check_ndbcluster_support ($) {
   # Check if this is MySQL Cluster, ie. mysql version string ends
   # with -ndb-Y.Y.Y[-status]
   if ( defined $mysql_version_extra &&
-       $mysql_version_extra =~ /^-ndb-/ )
+       $mysql_version_extra =~ /-ndb-([0-9]*)\.([0-9]*)\.([0-9]*)/ )
   {
     mtr_report(" - MySQL Cluster");
     # Enable ndb engine and add more test suites
@@ -3075,10 +3075,17 @@ sub ndbd_start {
 # > 5.0 { 'character-sets-dir' => \&fix_charset_dir },
 
   my $exe= $exe_ndbd;
-  if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)
-  {
-    # Use ndbmtd every other time
-    $exe= $exe_ndbmtd;
+  if ($exe_ndbmtd)
+  { if ($ENV{MTR_NDBMTD})
+    {
+      # ndbmtd forced by env var MTR_NDBMTD
+      $exe= $exe_ndbmtd;
+    }
+    if (($exe_ndbmtd_counter++ % 2) == 0)
+    {
+      # Use ndbmtd every other time
+      $exe= $exe_ndbmtd;
+    }
   }
 
   my $path_ndbd_log= "$dir/ndbd.log";

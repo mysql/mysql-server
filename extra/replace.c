@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -1064,7 +1064,7 @@ static int convert_file(REPLACE *rep, char * name)
 
   /* check if name is a symlink */
 #ifdef HAVE_READLINK  
-  org_name= (!my_disable_symlinks && 
+  org_name= (my_enable_symlinks &&
              !my_readlink(link_name, name, MYF(0))) ? link_name : name;
 #endif
   if (!(in= my_fopen(org_name,O_RDONLY,MYF(MY_WME))))

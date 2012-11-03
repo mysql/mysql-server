@@ -101,17 +101,19 @@ trp_client::complete_poll()
   m_facade->complete_poll(this);
 }
 
-void
+int
 trp_client::do_forceSend(int val)
 {
+  int did_send = 1;
   if (val == 0)
   {
-    m_facade->checkForceSend(m_blockNo);
+    did_send = m_facade->checkForceSend(m_blockNo);
   }
   else if (val == 1)
   {
     m_facade->forceSend(m_blockNo);
   }
+  return did_send;
 }
 
 int
