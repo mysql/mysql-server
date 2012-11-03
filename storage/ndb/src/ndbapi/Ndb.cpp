@@ -162,6 +162,8 @@ Ndb::NDB_connect(Uint32 tNode, Uint32 instance)
         if (prev != 0)
         {
           prev->theNext = curr->theNext;
+          if (!curr->theNext)
+            theConnectionArrayLast[tNode] = prev;
           curr->theNext = tConArray;
           theConnectionArray[tNode] = curr;
         }
@@ -210,12 +212,10 @@ Ndb::NDB_connect(Uint32 tNode, Uint32 instance)
     //************************************************
     // Send and receive was successful
     //************************************************
-    NdbTransaction* tPrevFirst = theConnectionArray[tNode];
     tNdbCon->setConnectedNodeId(tNode, nodeSequence);
     
     tNdbCon->setMyBlockReference(theMyRef);
-    theConnectionArray[tNode] = tNdbCon;
-    tNdbCon->theNext = tPrevFirst;
+    prependConnectionArray(tNdbCon, tNode);
     DBUG_RETURN(1);
   } else {
 //****************************************************************************
@@ -261,6 +261,8 @@ Ndb::getConnectedNdbTransaction(Uint32 nodeId, Uint32 instance){
         {
           assert(false); // Should have been moved in NDB_connect
           prev->theNext = next->theNext;
+          if (!next->theNext)
+            theConnectionArrayLast[nodeId] = prev;
           goto found_middle;
         }
         else
@@ -276,7 +278,7 @@ Ndb::getConnectedNdbTransaction(Uint32 nodeId, Uint32 instance){
     return 0;
   }
 found_first:
-  theConnectionArray[nodeId] = next->theNext;
+  removeConnectionArray(next, nodeId);
 found_middle:
   next->theNext = NULL;
 
@@ -944,6 +946,48 @@ Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId, Uint32 instance)
   DBUG_RETURN(tConnection);
 }//Ndb::startTransactionLocal()
 
+void
+Ndb::appendConnectionArray(NdbTransaction *aCon, Uint32 nodeId)
+{
+  NdbTransaction *last = theConnectionArrayLast[nodeId];
+  if (last)
+  {
+    last->theNext = aCon;
+  }
+  else
+  {
+    theConnectionArray[nodeId] = aCon;
+  }
+  aCon->theNext = NULL;
+  theConnectionArrayLast[nodeId] = aCon;
+}
+
+void
+Ndb::prependConnectionArray(NdbTransaction *aCon, Uint32 nodeId)
+{
+  NdbTransaction *first = theConnectionArray[nodeId];
+  aCon->theNext = first;
+  if (!first)
+  {
+    theConnectionArrayLast[nodeId] = aCon;
+  }
+  theConnectionArray[nodeId] = aCon;
+}
+
+void
+Ndb::removeConnectionArray(NdbTransaction *first, Uint32 nodeId)
+{
+  NdbTransaction *next = first->theNext;
+  if (!next)
+  {
+    theConnectionArray[nodeId] = theConnectionArrayLast[nodeId] = NULL;
+  }
+  else
+  {
+    theConnectionArray[nodeId] = next;
+  }
+}
+
 /*****************************************************************************
 void closeTransaction(NdbTransaction* aConnection);
 
@@ -1044,8 +1088,8 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
     /**
      * Put it back in idle list for that node
      */
-    aConnection->theNext = theConnectionArray[nodeId];
-    theConnectionArray[nodeId] = aConnection;
+    appendConnectionArray(aConnection, nodeId);
+
     DBUG_VOID_RETURN;
   } else {
     aConnection->theReleaseOnClose = false;
@@ -2254,13 +2298,31 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
 void
 Ndb::setCustomData(void* _customDataPtr)
 {
-  theImpl->customDataPtr = _customDataPtr;
+  theImpl->customData = Uint64(_customDataPtr);
 }
 
 void*
 Ndb::getCustomData() const
 {
-  return theImpl->customDataPtr;
+  return (void*)theImpl->customData;
+}
+
+void
+Ndb::setCustomData64(Uint64 _customData)
+{
+  theImpl->customData = _customData;
+}
+
+Uint64
+Ndb::getCustomData64() const
+{
+  return theImpl->customData;
+}
+
+Uint64
+Ndb::getNextTransactionId() const
+{
+  return theFirstTransId;
 }
 
 Uint32
@@ -2290,7 +2352,10 @@ const char* ClientStatNames [] =
   "TransLocalReadRowCount",
   "DataEventsRecvdCount",
   "NonDataEventsRecvdCount",
-  "EventBytesRecvdCount"
+  "EventBytesRecvdCount",
+  "ForcedSendsCount",
+  "UnforcedSendsCount",
+  "DeferredSendsCount"
 };
 
 Uint64

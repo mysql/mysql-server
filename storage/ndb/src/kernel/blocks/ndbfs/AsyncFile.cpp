@@ -110,7 +110,7 @@ AsyncFile::writeReq(Request * request)
     bool write_not_complete = true;
 
     while(write_not_complete) {
-      int totsize = 0;
+      size_t totsize = 0;
       off_t offset = request->par.readWrite.pages[page_num].offset;
       char* bufptr = theWriteBuffer;
 
@@ -128,7 +128,7 @@ AsyncFile::writeReq(Request * request)
           if (((i + 1) < request->par.readWrite.numberOfPages)) {
             // There are more pages to write
             // Check that offsets are consequtive
-            off_t tmp = page_offset + request->par.readWrite.pages[i].size;
+            off_t tmp=(off_t)(page_offset+request->par.readWrite.pages[i].size);
             if (tmp != request->par.readWrite.pages[i+1].offset) {
               // Next page is not aligned with previous, not allowed
               DEBUG(ndbout_c("Page offsets are not aligned"));
@@ -143,7 +143,7 @@ AsyncFile::writeReq(Request * request)
               break;
             }
           }
-          page_offset += request->par.readWrite.pages[i].size;
+          page_offset += (off_t)request->par.readWrite.pages[i].size;
         }
         bufptr = theWriteBuffer;
       } else {

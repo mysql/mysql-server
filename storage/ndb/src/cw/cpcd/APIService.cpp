@@ -182,7 +182,7 @@ CPCDAPISession::runSession(){
 
     switch(ctx.m_status){
     case Parser_t::Ok:
-      for(size_t i = 0; i<ctx.m_aliasUsed.size(); i++)
+      for(unsigned i = 0; i<ctx.m_aliasUsed.size(); i++)
 	ndbout_c("Used alias: %s -> %s", 
 		 ctx.m_aliasUsed[i]->name, ctx.m_aliasUsed[i]->realName);
       break;
@@ -199,7 +199,7 @@ CPCDAPISession::runSession(){
 void
 CPCDAPISession::stopSession(){
   CPCD::RequestStatus rs;
-  for(size_t i = 0; i<m_temporaryProcesses.size(); i++){
+  for(unsigned i = 0; i<m_temporaryProcesses.size(); i++){
     Uint32 id = m_temporaryProcesses[i];
     m_cpcd.undefineProcess(&rs, id);
   }
@@ -215,7 +215,7 @@ CPCDAPISession::loadFile(){
 
     switch(ctx.m_status){
     case Parser_t::Ok:
-      for(size_t i = 0; i<ctx.m_aliasUsed.size(); i++)
+      for(unsigned i = 0; i<ctx.m_aliasUsed.size(); i++)
 	ndbout_c("Used alias: %s -> %s", 
 		 ctx.m_aliasUsed[i]->name, ctx.m_aliasUsed[i]->realName);
       break;
@@ -348,7 +348,7 @@ CPCDAPISession::listProcesses(Parser_t::Context & /* unused */,
   m_output->println("%s", "");
   
 
-  for(size_t i = 0; i < proclist->size(); i++) {
+  for(unsigned i = 0; i < proclist->size(); i++) {
     CPCD::Process *p = (*proclist)[i];
 
     m_output->println("process");

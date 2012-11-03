@@ -12,5 +12,4 @@ Qcache_queries_in_cache	0
 show status like "Qcache_inserts";
 Variable_name	Value
 Qcache_inserts	0
-SET GLOBAL query_cache_size=default;
-SET GLOBAL query_cache_type=default;
+SET GLOBAL query_cache_size=0;

@@ -31,6 +31,7 @@
 #include "trp_client.hpp"
 #include "trp_node.hpp"
 #include "NdbWaiter.hpp"
+#include "WakeupHandler.hpp"
 
 template <class T>
 struct Ndb_free_list_t 
@@ -81,6 +82,9 @@ public:
 
   NdbWaiter             theWaiter;
 
+  WakeupHandler* wakeHandler;
+  Uint32 wakeContext;
+
   NdbEventOperationImpl *m_ev_op;
 
   int m_optimized_node_selection;
@@ -125,7 +129,7 @@ public:
 
   BaseString m_systemPrefix; // Buffer for preformatted for <sys>/<def>/
   
-  void* customDataPtr;
+  Uint64 customData;
 
   Uint64 clientStats[ Ndb::NumClientStatistics ];
   
@@ -191,6 +195,7 @@ public:
    */
   virtual void trp_deliver_signal(const NdbApiSignal*,
                                   const LinearSectionPtr p[3]);
+  virtual void trp_wakeup();
   virtual void recordWaitTimeNanos(Uint64 nanos);
   // Is node available for running transactions
   bool   get_node_alive(NodeId nodeId) const;
@@ -599,6 +604,13 @@ NdbImpl::sendFragmentedSignal(NdbApiSignal * signal, Uint32 nodeId,
     return raw_sendFragmentedSignal(signal, nodeId, ptr, secs);
   }
   return -1;
+}
+
+inline
+void
+NdbImpl::trp_wakeup()
+{
+  wakeHandler->notifyWakeup();
 }
 
 #endif

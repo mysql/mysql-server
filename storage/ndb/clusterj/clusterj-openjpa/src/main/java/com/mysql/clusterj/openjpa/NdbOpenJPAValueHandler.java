@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,10 +18,13 @@
 package com.mysql.clusterj.openjpa;
 
 import com.mysql.clusterj.ColumnMetadata;
+import com.mysql.clusterj.core.CacheManager;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.util.Logger;
 import com.mysql.clusterj.core.util.LoggerFactoryService;
+
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.sql.Date;
@@ -309,6 +312,39 @@ public class NdbOpenJPAValueHandler implements ValueHandler {
     }
 
     public void set(int columnNumber, Object value) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public byte[] getLobBytes(int fieldNumber) {
+        return (byte[])sm.fetchObject(fieldNumber);
+    }
+
+    public String getLobString(int fieldNumber) {
+        return sm.fetchString(fieldNumber);
+    }
+
+    public void setCacheManager(CacheManager cm) {
+        // we do not need a cache manager...
+    }
+
+    public void setLobBytes(int fieldNumber, byte[] value) {
+        sm.storeObject(fieldNumber, value);
+    }
+
+    public void setLobString(int fieldNumber, String value) {
+        sm.storeString(fieldNumber, value);
+    }
+
+    public void setProxy(Object proxy) {
+        // we do not support Proxy domain model
+    }
+
+    public Object invoke(Object proxy, Method method, Object[] args)
+            throws Throwable {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public Object getProxy() {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 

@@ -690,7 +690,7 @@ calories smallint(5) unsigned DEFAULT NULL,
 PRIMARY KEY (DishID),
 INDEX i USING HASH (countrycode,calories)
 ) ENGINE=ndbcluster;
-ERROR HY000: Can't create table 'test.nationaldish' (errno: 138)
+ERROR 42000: Table 'nationaldish' uses an extension that doesn't exist in this MySQL version
 create table nationaldish (DishID int(10) unsigned NOT NULL AUTO_INCREMENT,
 CountryCode char(3) NOT NULL,
 DishTitle varchar(64) NOT NULL,
