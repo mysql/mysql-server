@@ -10603,9 +10603,22 @@ void JOIN::cleanup(bool full)
 
     if (full)
     {
+      JOIN_TAB *sort_tab= first_linear_tab(this, WITHOUT_CONST_TABLES);
+      if (pre_sort_join_tab)
+      {
+        if (sort_tab && sort_tab->select == pre_sort_join_tab->select)
+        {
+          pre_sort_join_tab->select= NULL;
+        }
+        else
+          clean_pre_sort_join_tab();
+      }
+
       for (tab= first_linear_tab(this, WITH_CONST_TABLES); tab; 
            tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
+      {
 	tab->cleanup();
+      }
     }
     else
     {
@@ -18849,6 +18862,8 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   TABLE *table;
   SQL_SELECT *select;
   JOIN_TAB *tab;
+  int err= 0;
+  bool quick_created= FALSE;
   DBUG_ENTER("create_sort_index");
 
   if (join->table_count == join->const_tables)
@@ -18856,17 +18871,60 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   tab=    join->join_tab + join->const_tables;
   table=  tab->table;
   select= tab->select;
+  
+  JOIN_TAB *save_pre_sort_join_tab= NULL;
+  if (join->pre_sort_join_tab)
+  {
+    /*
+      we've already been in this function, and stashed away the original access 
+      method in join->pre_sort_join_tab, restore it now.
+    */
+    
+    /* First, restore state of the handler */
+    if (join->pre_sort_index != MAX_KEY)
+    {
+      if (table->file->ha_index_or_rnd_end())
+        goto err;
+      if (join->pre_sort_idx_pushed_cond)
+      {
+        table->file->idx_cond_push(join->pre_sort_index,
+                                 join->pre_sort_idx_pushed_cond);
+      }
+    }
+    else
+    {
+      if (table->file->ha_index_or_rnd_end() || 
+          table->file->ha_rnd_init(TRUE))
+        goto err;
+    }
+
+    /* Second, restore access method parameters */
+    tab->records=           join->pre_sort_join_tab->records;
+    tab->select=            join->pre_sort_join_tab->select;
+    tab->select_cond=       join->pre_sort_join_tab->select_cond;
+    tab->type=              join->pre_sort_join_tab->type;
+    tab->read_first_record= join->pre_sort_join_tab->read_first_record; 
+
+    save_pre_sort_join_tab= join->pre_sort_join_tab;
+    join->pre_sort_join_tab= NULL;
+  }
+  else
+  {
+    /* 
+      Save index #, save index condition. Do it right now, because MRR may 
+    */
+    if (table->file->inited == handler::INDEX)
+    {
+      join->pre_sort_index= table->file->active_index;
+      join->pre_sort_idx_pushed_cond= table->file->pushed_idx_cond;
+      // no need to save key_read
+    }
+    else
+      join->pre_sort_index= MAX_KEY;
+  }
 
   /* Currently ORDER BY ... LIMIT is not supported in subqueries. */
   DBUG_ASSERT(join->group_list || !join->is_in_subquery());
-
-  /* 
-    If we have a select->quick object that is created outside of
-    create_sort_index() and this is part of a subquery that
-    potentially can be executed multiple times then we should not
-    delete the quick object on exit from this function.
-  */
-  bool keep_quick= select && select->quick && join->join_tab_save;
 
   /*
     When there is SQL_BIG_RESULT do not sort using index for GROUP BY,
@@ -18919,7 +18977,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
 			    get_quick_select_for_ref(thd, table, &tab->ref, 
                                                      tab->found_records))))
 	goto err;
-      DBUG_ASSERT(!keep_quick);
+      quick_created= TRUE;
     }
   }
 
@@ -18935,7 +18993,27 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
   table->sort.found_records=filesort(thd, table,join->sortorder, length,
                                      select, filesort_limit, 0,
                                      &examined_rows);
+
+  if (quick_created)
+  {
+    /* This will delete the quick select. */
+    select->cleanup();
+  }
+
+  if (!join->pre_sort_join_tab)
+  {
+    if (save_pre_sort_join_tab)
+      join->pre_sort_join_tab= save_pre_sort_join_tab;
+    else if (!(join->pre_sort_join_tab= (JOIN_TAB*)thd->alloc(sizeof(JOIN_TAB))))
+      goto err;
+  }
+
+  *(join->pre_sort_join_tab)= *tab;
+  
+  /*TODO: here, close the index scan, cancel index-only read. */
   tab->records= table->sort.found_records;	// For SQL_CALC_ROWS
+#if 0 
+  /* MariaDB doesn't need the following: */
   if (select)
   {
     /*
@@ -18952,6 +19030,7 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     tablesort_result_cache= table->sort.io_cache;
     table->sort.io_cache= NULL;
 
+   // select->cleanup();				// filesort did select
     /*
       If a quick object was created outside of create_sort_index()
       that might be reused, then do not call select->cleanup() since
@@ -18974,17 +19053,60 @@ create_sort_index(THD *thd, JOIN *join, ORDER *order,
     // Restore the output resultset
     table->sort.io_cache= tablesort_result_cache;
   }
+#endif
+  tab->select=NULL;
   tab->set_select_cond(NULL, __LINE__);
-  tab->last_inner= 0;
-  tab->first_unmatched= 0;
   tab->type=JT_ALL;				// Read with normal read_record
   tab->read_first_record= join_init_read_record;
+  tab->table->file->ha_index_or_rnd_end();
+  
+  if (err)
+    goto err;
+
   tab->join->examined_rows+=examined_rows;
-  table->disable_keyread(); // Restore if we used indexes
   DBUG_RETURN(table->sort.found_records == HA_POS_ERROR);
 err:
   DBUG_RETURN(-1);
 }
+
+
+void JOIN::clean_pre_sort_join_tab()
+{
+  //TABLE *table=  pre_sort_join_tab->table;
+  /*
+   Note: we can come here for fake_select_lex object. That object will have
+   the table already deleted by st_select_lex_unit::cleanup().  
+    We rely on that fake_select_lex didn't have quick select.
+  */
+#if 0  
+  if (pre_sort_join_tab->select && pre_sort_join_tab->select->quick)
+  {
+    /*
+      We need to preserve tablesort's output resultset here, because
+      QUICK_INDEX_MERGE_SELECT::~QUICK_INDEX_MERGE_SELECT (called by
+      SQL_SELECT::cleanup()) may free it assuming it's the result of the quick
+      select operation that we no longer need. Note that all the other parts of
+      this data structure are cleaned up when
+      QUICK_INDEX_MERGE_SELECT::get_next encounters end of data, so the next
+      SQL_SELECT::cleanup() call changes sort.io_cache alone.
+    */
+    IO_CACHE *tablesort_result_cache;
+
+    tablesort_result_cache= table->sort.io_cache;
+    table->sort.io_cache= NULL;
+    pre_sort_join_tab->select->cleanup();
+    table->quick_keys.clear_all();  // as far as we cleanup select->quick
+    table->intersect_keys.clear_all();
+    table->sort.io_cache= tablesort_result_cache;
+  }
+#endif
+  //table->disable_keyread(); // Restore if we used indexes
+  if (pre_sort_join_tab->select && pre_sort_join_tab->select->quick)
+  {
+    pre_sort_join_tab->select->cleanup();
+  }
+}
+
 
 /*****************************************************************************
   Remove duplicates from tmp table

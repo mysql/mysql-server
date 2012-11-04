@@ -10944,6 +10944,13 @@ int QUICK_RANGE_SELECT::reset()
   DBUG_ENTER("QUICK_RANGE_SELECT::reset");
   last_range= NULL;
   cur_range= (QUICK_RANGE**) ranges.buffer;
+  
+  if (file->inited == handler::RND)
+  {
+    /* Handler could be left in this state by MRR */
+    if ((error= file->ha_rnd_end()))
+      DBUG_RETURN(error);
+  }
 
   if (file->inited == handler::NONE)
   {

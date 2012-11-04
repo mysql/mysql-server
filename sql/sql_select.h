@@ -897,6 +897,14 @@ protected:
 
 public:
   JOIN_TAB *join_tab, **best_ref;
+  
+  /* 
+    Saved join_tab for pre_sorting. create_sort_index() will save here.. 
+  */
+  JOIN_TAB *pre_sort_join_tab;
+  uint pre_sort_index;
+  Item *pre_sort_idx_pushed_cond;
+  void clean_pre_sort_join_tab();
 
   /*
     For "Using temporary+Using filesort" queries, JOIN::join_tab can point to
@@ -1279,6 +1287,8 @@ public:
     outer_ref_cond= pseudo_bits_cond= NULL;
     in_to_exists_where= NULL;
     in_to_exists_having= NULL;
+
+    pre_sort_join_tab= NULL;
   }
 
   int prepare(Item ***rref_pointer_array, TABLE_LIST *tables, uint wind_num,

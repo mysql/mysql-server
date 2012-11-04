@@ -204,6 +204,32 @@ DROP VIEW v1;
 DROP TABLE t1,t2,t3;
 
 --echo #
+--echo # MDEV-536: LP:1050806 - different result for a query using subquery 
+--echo #
+DROP TABLE IF EXISTS `t1`;
+
+CREATE TABLE `t1` (
+  `node_uid` bigint(20) unsigned DEFAULT NULL,
+  `date` datetime DEFAULT NULL,
+  `mirror_date` datetime DEFAULT NULL,
+  KEY `date` (`date`)
+) ENGINE=MyISAM;
+
+INSERT INTO `t1` VALUES (2085,'2012-01-01 00:00:00','2013-01-01 00:00:00');
+INSERT INTO `t1` VALUES (2084,'2012-02-01 00:00:00','2013-01-01 00:00:00');
+INSERT INTO `t1` VALUES (2088,'2012-03-01 00:00:00','2013-01-01 00:00:00');
+
+SELECT * FROM (
+  SELECT node_uid, date, mirror_date, @result := 0 AS result
+  FROM t1
+  WHERE date < '2012-12-12 12:12:12'
+    AND node_uid in (2085, 2084)
+  ORDER BY mirror_date ASC
+) AS calculated_result;
+
+DROP TABLE t1;
+
+--echo #
 --echo # MDEV-567: Wrong result from a query with correlated subquery if ICP is allowed
 --echo #
 CREATE TABLE t1 (a int, b int, INDEX idx(a));
@@ -220,7 +246,75 @@ SELECT * FROM t3
                 WHERE t1.a = t2.a AND t2.a BETWEEN 7 AND 9
                       AND t3.b = t1.b
               GROUP BY t1.b);
-DROP TABLE t1, t2, t3;
+
+
+set @tmp_mdev567=@@optimizer_switch;
+set optimizer_switch='mrr=off';
+SELECT * FROM t3
+  WHERE a = (SELECT COUNT(DISTINCT t2.b) FROM t1, t2
+                WHERE t1.a = t2.a AND t2.a BETWEEN 7 AND 9
+                      AND t3.b = t1.b
+              GROUP BY t1.b);
+
+DROP TABLE t1,t2,t3;
+set optimizer_switch=@tmp_mdev567;
+
+--echo #
+--echo # MDEV-614, also MDEV-536, also LP:1050806:
+--echo #  different result for a query using subquery between 5.5.25 and 5.5.27
+--echo #
+
+CREATE TABLE `t1` (
+  `node_uid` bigint(20) unsigned DEFAULT NULL,
+  `date` datetime DEFAULT NULL,
+  `mirror_date` datetime DEFAULT NULL,
+  KEY `date` (`date`)
+) ENGINE=MyISAM;
+
+INSERT INTO `t1` VALUES (2085,'2012-01-01 00:00:00','2013-01-01 00:00:00');
+INSERT INTO `t1` VALUES (2084,'2012-02-01 00:00:00','2013-01-01 00:00:00');
+INSERT INTO `t1` VALUES (2088,'2012-03-01 00:00:00','2013-01-01 00:00:00');
+
+explain
+SELECT * FROM (
+  SELECT node_uid, date, mirror_date, @result := 0 AS result
+  FROM t1
+  WHERE date < '2012-12-12 12:12:12'
+    AND node_uid in (2085, 2084)
+  ORDER BY mirror_date ASC
+) AS calculated_result;
+
+SELECT * FROM (
+  SELECT node_uid, date, mirror_date, @result := 0 AS result
+  FROM t1
+  WHERE date < '2012-12-12 12:12:12'
+    AND node_uid in (2085, 2084)
+  ORDER BY mirror_date ASC
+) AS calculated_result;
+
+set @tmp_mdev614=@@optimizer_switch;
+set optimizer_switch='mrr=off';
+explain
+SELECT * FROM (
+  SELECT node_uid, date, mirror_date, @result := 0 AS result
+  FROM t1
+  WHERE date < '2012-12-12 12:12:12'
+    AND node_uid in (2085, 2084)
+  ORDER BY mirror_date ASC
+) AS calculated_result;
+
+SELECT * FROM (
+  SELECT node_uid, date, mirror_date, @result := 0 AS result
+  FROM t1
+  WHERE date < '2012-12-12 12:12:12'
+    AND node_uid in (2085, 2084)
+  ORDER BY mirror_date ASC
+) AS calculated_result;
+
+set optimizer_switch=@tmp_mdev614;
+
+DROP TABLE t1;
+
 
 set optimizer_switch=@subselect2_test_tmp;
 
