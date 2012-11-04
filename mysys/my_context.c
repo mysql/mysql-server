@@ -456,7 +456,7 @@ my_context_spawn(struct my_context *c, void (*f)(void *), void *d)
     (
      "movl %%esp, (%[save])\n\t"
      "movl %[stack], %%esp\n\t"
-#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 4
+#if __GNUC__ >= 4 && __GNUC_MINOR__ >= 4 && !defined(__INTEL_COMPILER)
      /*
        This emits a DWARF DW_CFA_undefined directive to make the return address
        undefined. This indicates that this is the top of the stack frame, and
