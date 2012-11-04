@@ -1,5 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
-#
+# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.  #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -135,6 +134,12 @@ IF (NOT WITH_NDBCLUSTER)
   RETURN()
 ENDIF()
 
+OPTION(WITH_NDB_JAVA
+  "Include NDB Cluster Java components" OFF)
+IF(WITH_NDB_JAVA)
+  MESSAGE(STATUS "Include NDB Java components")
+ENDIF()
+
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
   MESSAGE(STATUS "Building NDB 32-bit")
 ELSE()
@@ -203,29 +208,33 @@ MESSAGE(STATUS "Using extra FLAGS for ndb: \"${NDB_CCFLAGS}\"")
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NDB_CCFLAGS}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NDB_CCFLAGS}")
 
-# Check for Java and JDK needed by ndbjtie and clusterj
-INCLUDE(FindJava)
-INCLUDE(FindJNI)
-INCLUDE("${NDB_SOURCE_DIR}/config/type_JAVA.cmake")
+SET(HAVE_JAVA FALSE)
+SET(HAVE_JDK FALSE)
+IF(WITH_NDB_JAVA)
+  # Check for Java and JDK needed by ndbjtie and clusterj
+  INCLUDE(FindJava)
+  INCLUDE(FindJNI)
+  INCLUDE("${NDB_SOURCE_DIR}/config/type_JAVA.cmake")
 
-IF(JAVA_COMPILE AND JAVA_ARCHIVE)
-  MESSAGE(STATUS "Found Java")
-  SET(HAVE_JAVA TRUE)
-ELSE()
-  MESSAGE(STATUS "Could not find Java")
-  SET(HAVE_JAVA FALSE)
-ENDIF()
+  IF(JAVA_COMPILE AND JAVA_ARCHIVE)
+    MESSAGE(STATUS "Found Java")
+    SET(HAVE_JAVA TRUE)
+  ELSE()
+    MESSAGE(FATAL_ERROR "Could not find Java")
+  ENDIF()
 
-IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
-  MESSAGE(STATUS "Found JDK")
-  SET(HAVE_JDK TRUE)
-ELSE()
-  MESSAGE(STATUS "Could not find JDK")
-  SET(HAVE_JDK FALSE)
-ENDIF()
+  IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
+    MESSAGE(STATUS "Found JDK")
+    SET(HAVE_JDK TRUE)
+  ELSE()
+    MESSAGE(FATAL_ERROR "Could not find JDK")
+  ENDIF()
 
-SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
-  "Enable the classpath for MySQL Cluster Java Connector")
+  SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
+    "Enable the classpath for MySQL Cluster Java Connector")
+ELSE(WITH_NDB_JAVA)
+  MESSAGE(STATUS "Excluding Cluster Java components") 
+ENDIF(WITH_NDB_JAVA)
 
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(src)
