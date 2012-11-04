@@ -366,26 +366,6 @@ sub main {
 
   if (!$opt_suites) {
     $opt_suites= $DEFAULT_SUITES;
-
-    # Check for any extra suites to enable based on the path name
-    my %extra_suites=
-      (
-       "mysql-5.1-new-ndb"              => "ndb_team",
-       "mysql-5.1-new-ndb-merge"        => "ndb_team",
-       "mysql-5.1-telco-6.2"            => "ndb_team",
-       "mysql-5.1-telco-6.2-merge"      => "ndb_team",
-       "mysql-5.1-telco-6.3"            => "ndb_team",
-       "mysql-6.0-ndb"                  => "ndb_team",
-      );
-
-    foreach my $dir ( reverse splitdir($basedir) ) {
-      my $extra_suite= $extra_suites{$dir};
-      if (defined $extra_suite) {
-	mtr_report("Found extra suite: $extra_suite");
-	$opt_suites= "$extra_suite,$opt_suites";
-	last;
-      }
-    }
   }
   mtr_report("Using suites: $opt_suites") unless @opt_cases;
 
@@ -409,7 +389,6 @@ sub main {
     unshift(@$tests, $tinfo);
   }
 
-  print "vardir: $opt_vardir\n";
   initialize_servers();
 
   #######################################################################
