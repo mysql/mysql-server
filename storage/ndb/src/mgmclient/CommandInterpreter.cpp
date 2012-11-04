@@ -1128,8 +1128,10 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   DBUG_PRINT("enter",("line='%s'", _line));
   m_error= 0;
 
-  if(_line == NULL) {
-    ndbout_c("ERROR: Internal error at %s:%d.", __FILE__, __LINE__);
+  if(_line == NULL)
+  {
+    // Pressing Ctrl-C on some platforms will cause 'readline' to
+    // to return NULL, handle it as graceful exit of ndb_mgm 
     m_error = -1;
     DBUG_RETURN(false); // Terminate gracefully
   }
