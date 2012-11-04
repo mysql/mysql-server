@@ -1098,8 +1098,6 @@ echo "====="                                                       >> $STATUS_HI
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
 %endif
 
-%attr(755, root, root) %{_libdir}/mysql/libndbclient_static.a
-
 %attr(755, root, root) %{_libdir}/libndbclient.so
 %attr(755, root, root) %{_libdir}/libndbclient.so.6.0.0
 %if %(test "@MEMCACHED_ROOT_DIR@" '!=' "MEMCACHED_ROOT_DIR-NOTFOUND" && echo 1 || echo 0)
@@ -1158,6 +1156,7 @@ echo "====="                                                       >> $STATUS_HI
 %{_libdir}/mysql/libmysqlclient.a
 %{_libdir}/mysql/libmysqlclient_r.a
 %{_libdir}/mysql/libmysqlservices.a
+%attr(755, root, root) %{_libdir}/mysql/libndbclient_static.a
 
 # ----------------------------------------------------------------------------
 %files -n MySQL-Cluster-shared%{product_suffix}
