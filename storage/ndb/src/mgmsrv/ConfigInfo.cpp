@@ -1155,7 +1155,7 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     ConfigInfo::CI_USED,
     CI_RESTART_INITIAL,
     ConfigInfo::CI_STRING,
-    0,
+    "sparse",
     0, 0 },
 
   {
@@ -3844,7 +3844,6 @@ public:
         else
           fprintf(m_out, "UNKNOWN\n");
       }
-      fprintf(m_out, "\n");
       break;
 
     case ConfigInfo::CI_INT:
@@ -3860,7 +3859,6 @@ public:
         fprintf(m_out, "(");
       fprintf(m_out, "Min: %llu, ", info.getMin(section, param_name));
       fprintf(m_out, "Max: %llu)\n", info.getMax(section, param_name));
-      fprintf(m_out, "\n");
       break;
 
     case ConfigInfo::CI_BITMASK:
@@ -3873,11 +3871,45 @@ public:
       else if (info.hasDefault(section, param_name))
         fprintf(m_out, "Default: %s\n",
               info.getDefaultString(section, param_name));
-      fprintf(m_out, "\n");
       break;
     case ConfigInfo::CI_SECTION:
-      break;
+      return;
     }
+
+    Uint32 flags = info.getFlags(section, param_name);
+    bool comma = false;
+    bool new_line_needed = false;
+    if (flags & ConfigInfo::CI_CHECK_WRITABLE)
+    {
+      comma= true;
+      new_line_needed = true;
+      fprintf(m_out, "writable");
+    }
+    if (flags & ConfigInfo::CI_RESTART_SYSTEM)
+    {
+      if (comma)
+        fprintf(m_out, ", system");
+      else
+      {
+        comma = true;
+        fprintf(m_out, "system");
+      }
+      new_line_needed = true;
+    }
+    if (flags & ConfigInfo::CI_RESTART_INITIAL)
+    {
+      if (comma)
+        fprintf(m_out, ", initial");
+      else
+      {
+        comma = true;
+        fprintf(m_out, "initial");
+      }
+      new_line_needed = true;
+    }
+    if (new_line_needed)
+      fprintf(m_out, "\n");
+    fprintf(m_out, "\n");
   }
 };
 
