@@ -169,7 +169,10 @@ status_block status_block_too_big =
   { ENGINE_E2BIG, "Value too large"                   };
 
 status_block status_block_no_mem =
-  { ENGINE_ENOMEM, "NDB out of data memory"           }; 
+  { ENGINE_ENOMEM, "NDB out of data memory"           };
+
+status_block status_block_temp_failure = 
+  { ENGINE_TMPFAIL, "NDB Temporary Error"             };
 
 void worker_set_cas(ndb_pipeline *p, uint64_t *cas) {  
   /* Be careful here --  ndbmc_atomic32_t might be a signed type.
@@ -729,6 +732,11 @@ void callback_main(int, NdbTransaction *tx, void *itemptr) {
     DEBUG_PRINT("Duplicate key on insert.");
     if(wqitem->cas) * wqitem->cas = 0ULL;
     wqitem->status = & status_block_bad_add;    
+  }
+  /* Overload Error, e.g. 410 "REDO log files overloaded" */
+  else if(tx->getNdbError().classification == NdbError::OverloadError) {
+    log_ndb_error(tx->getNdbError());
+    wqitem->status = & status_block_temp_failure;
   }
   /* Attempt to insert via unique index access */
   else if(tx->getNdbError().code == 897) {
