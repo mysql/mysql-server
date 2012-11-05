@@ -32,6 +32,7 @@
 
 --source include/not_embedded.inc
 --source include/not_threadpool.inc
+--source include/not_valgrind.inc
 
 SET @global_slow_launch_time = @@GLOBAL.slow_launch_time;
 
