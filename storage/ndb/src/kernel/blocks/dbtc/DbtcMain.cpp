@@ -1307,6 +1307,7 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
   tuserpointer = signal->theData[2];
   if (tapiPointer >= capiConnectFilesize) {
     jam();
+    ndbassert(false);
     signal->theData[0] = tuserpointer;
     signal->theData[1] = ZINVALID_CONNECTION;
     signal->theData[2] = __LINE__;
@@ -1337,6 +1338,7 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
                    GSN_TCRELEASECONF, signal, 1, JBB);
       } else {
         jam();
+        ndbassert(false);
         signal->theData[0] = tuserpointer;
         signal->theData[1] = ZINVALID_CONNECTION;
 	signal->theData[2] = __LINE__;
@@ -1346,6 +1348,7 @@ void Dbtc::execTCRELEASEREQ(Signal* signal)
       }
     } else {
       jam();
+      ndbassert(false);
       signal->theData[0] = tuserpointer;
       signal->theData[1] = ZINVALID_CONNECTION;
       signal->theData[2] = __LINE__;
