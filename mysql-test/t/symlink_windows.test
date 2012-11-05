@@ -22,6 +22,7 @@
 # Creation date: 2012-11-01
 
 --source include/windows.inc
+--source include/not_embedded.inc
 let MYSQLD_DATADIR= `select @@datadir`;
 perl;
 my $fname= "$ENV{'MYSQLD_DATADIR'}testdb.sym";
