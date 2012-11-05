@@ -404,14 +404,11 @@ SELECT last_t1();
 --error ER_MUST_CHANGE_PASSWORD
 CALL test_t1(last_t1() + 1);
 
---echo # setting a password with a user name is no good
---error ER_MUST_CHANGE_PASSWORD
+--echo # setting a password with a user name is ok if it exactly matches the
+--echo # authenticated user.
 SET PASSWORD FOR must_change@localhost = PASSWORD('aha3');
---error ER_MUST_CHANGE_PASSWORD
 SELECT USER();
---error ER_MUST_CHANGE_PASSWORD
 SELECT last_t1();
---error ER_MUST_CHANGE_PASSWORD
 CALL test_t1(last_t1() + 1);
 
 --echo # setting a password for the current user works
