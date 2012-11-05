@@ -1,0 +1,58 @@
+# Copyright (c) 2012, Oracle and/or its affiliates. All rights
+# reserved.
+#
+# This program is free software; you can redistribute it and/or
+# modify it under the terms of the GNU General Public License
+# as published by the Free Software Foundation; version 2 of
+# the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+# 02110-1301  USA
+#
+# This test checks if for .sym files (symbolic links on Windows) a depreciation warning 
+# is existing in the error log.
+# Created by Horst Hunger
+# Creation date: 2012-11-01
+
+--source include/windows.inc
+--source include/not_embedded.inc
+let MYSQLD_DATADIR= `select @@datadir`;
+perl;
+my $fname= "$ENV{'MYSQLD_DATADIR'}testdb.sym";
+  open(FILE, ">", $fname) or die;
+  print FILE "$ENV{'MYSQLTEST_VARDIR'}/testdb";
+  close FILE;
+EOF
+
+--disable_warnings
+DROP DATABASE IF EXISTS testdb;
+--enable_warnings
+CREATE DATABASE testdb;
+USE testdb;
+CREATE TABLE t1 (a int not null auto_increment, b char(16) not null, primary key (a)) 
+ENGINE=myisam ;
+INSERT INTO t1 (b) VALUES ("test"),("test1"),("test2"),("test3");
+SELECT * from t1;
+
+perl;
+my $found_pattern = 0;
+my $fname= "$ENV{'MYSQLTEST_VARDIR'}/log/mysqld.1.err";
+open(FILE, "<", $fname) or die;
+my @lines= <FILE>;
+# those must be in the file for the test to pass
+foreach my $one_line (@lines)
+{
+   $found_pattern= 1  if ($one_line =~ /Symbolic links based on .sym files are deprecated/);
+}
+close FILE;
+print "Found: $found_pattern\n";
+EOF
+
+DROP DATABASE testdb;
