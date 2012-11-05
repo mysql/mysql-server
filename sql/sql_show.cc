@@ -631,8 +631,9 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       {
 	/* Only show the sym file if it points to a directory */
 	char *end;
+        my_bool not_used;
         *ext=0;                                 /* Remove extension */
-	unpack_dirname(buff, file->name);
+	unpack_dirname(buff, file->name, &not_used);
 	end= strend(buff);
 	if (end != buff && end[-1] == FN_LIBCHAR)
 	  end[-1]= 0;				// Remove end FN_LIBCHAR
