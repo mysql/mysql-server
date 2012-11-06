@@ -1,0 +1,67 @@
+[atrt]
+basedir = CHOOSE_dir
+baseport = 14000
+clusters = .4node
+fix-nodeid=1
+mt = 2
+
+[ndb_mgmd]
+
+[mysqld]
+skip-innodb
+loose-skip-bdb
+skip-grant-tables
+socket=mysql.sock
+
+ndbcluster=1
+ndb-force-send=1
+ndb-use-exact-count=0
+ndb-extra-logging=1
+ndb-autoincrement-prefetch-sz=256
+engine-condition-pushdown=1
+ndb-cluster-connection-pool=4
+
+key_buffer = 256M
+max_allowed_packet = 16M
+sort_buffer_size = 512K
+read_buffer_size = 256K
+read_rnd_buffer_size = 512K
+myisam_sort_buffer_size = 8M
+max-connections=200
+thread-cache-size=128
+
+query_cache_type = 0
+query_cache_size = 0
+table_open_cache=1024
+table_definition_cache=256
+
+loose-ndb-join-pushdown=1
+loose-ndb-index-stat-enable=1
+
+[client]
+protocol=tcp
+
+[cluster_config.4node]
+ndb_mgmd = CHOOSE_host1
+ndbd = CHOOSE_host5,CHOOSE_host6,CHOOSE_host7,CHOOSE_host8
+ndbapi= CHOOSE_host2,CHOOSE_host3,CHOOSE_host4,,,,,,,,
+mysqld = CHOOSE_host1
+
+NoOfReplicas = 2
+IndexMemory = 250M
+DataMemory = 1500M
+BackupMemory = 64M
+MaxNoOfConcurrentScans = 100
+MaxNoOfSavedMessages= 5
+NoOfFragmentLogFiles = 8
+FragmentLogFileSize = 64M
+ODirect=1
+MaxNoOfExecutionThreads=8
+
+SharedGlobalMemory=256M
+DiskPageBufferMemory=256M
+FileSystemPath=/data0/autotest
+FileSystemPathDataFiles=/data1/autotest
+FileSystemPathUndoFiles=/data2/autotest
+InitialLogfileGroup=undo_buffer_size=64M;undofile01.dat:256M;undofile02.dat:256M
+InitialTablespace=datafile01.dat:256M;datafile02.dat:256M

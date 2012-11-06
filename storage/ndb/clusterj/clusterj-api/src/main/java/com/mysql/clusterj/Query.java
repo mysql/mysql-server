@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,12 @@ public interface Query<E> {
 
     /** The query explain index used key */
     static final String INDEX_USED = "IndexUsed";
+
+    /** Ordering */
+    static enum Ordering {
+        ASCENDING, 
+        DESCENDING;
+    };
 
     /** Set the value of a parameter. If called multiple times for the same
      * parameter, silently replace the value.
@@ -102,5 +108,43 @@ public interface Query<E> {
      * @throws ClusterJUserException if not all parameters are bound
      */
     Map<String, Object> explain();
+
+    /**
+     * Set limits on results to return. The execution of the query is
+     * modified to return only a subset of results. If the filter would
+     * normally return 100 instances, skip is set to 50, and
+     * limit is set to 40, then the first 50 results that would have 
+     * been returned are skipped, the next 40 results are returned and the
+     * remaining 10 results are ignored.
+     * <p>
+     * Skip must be greater than or equal to 0. Limit must be greater than or equal to 0.
+     * Limits may not be used with deletePersistentAll.
+     * @param skip the number of results to skip
+     * @param limit the number of results to return after skipping;
+     * use Long.MAX_VALUE for no limit.
+     */
+    void setLimits (long skip, long limit);
+
+    /** Set ordering for the results of this query. The execution of the query
+     * is modified to use an index previously defined.
+     * <ul><li>There must be an index defined on the columns mapped to
+     * the ordering fields, in the order of the ordering fields.
+     * </li><li>There must be no gaps in the ordering fields relative to the index.
+     * </li><li>All ordering fields must be in the index, but not all
+     * fields in the index need be in the ordering fields.
+     * </li><li>If an "in" predicate is used in the filter on a field in the ordering,
+     * it can only be used with the first field.
+     * </li><li>If any of these conditions is violated, ClusterJUserException is
+     * thrown when the query is executed.
+     * </li></ul>
+     * If an "in" predicate is used, each element in the parameter
+     * defines a separate range, and ordering is performed within that range.
+     * There may be a better (more efficient) index based on the filter,
+     * but specifying the ordering will force the query to use an index
+     * that contains the ordering fields.
+     * @param ordering either Ordering.ASCENDING or Ordering.DESCENDING
+     * @param orderingFields the fields to order by
+     */
+    void setOrdering(Ordering ordering, String... orderingFields);
 
 }

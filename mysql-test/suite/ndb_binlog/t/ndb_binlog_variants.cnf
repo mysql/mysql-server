@@ -18,7 +18,6 @@ ndb-wait-connected=20
 ndb-wait-setup=120
 ndb-cluster-connection-pool=1
 binlog-format=row
-ndb-index-stat-enable=0
 
 [mysqld.1.1]
 ndb-log-update-as-write=1

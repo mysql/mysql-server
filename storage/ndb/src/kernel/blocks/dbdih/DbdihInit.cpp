@@ -319,10 +319,16 @@ Dbdih::Dbdih(Block_context& ctx):
   nodeGroupRecord = 0;
   nodeRecord = 0;
   c_nextNodeGroup = 0;
-  c_fragments_per_node = 1;
+  c_fragments_per_node_ = 0;
   bzero(c_node_groups, sizeof(c_node_groups));
-  c_diverify_queue_cnt = 1;
-
+  if (globalData.ndbMtTcThreads == 0)
+  {
+    c_diverify_queue_cnt = 1;
+  }
+  else
+  {
+    c_diverify_queue_cnt = globalData.ndbMtTcThreads;
+  }
 }//Dbdih::Dbdih()
 
 Dbdih::~Dbdih()

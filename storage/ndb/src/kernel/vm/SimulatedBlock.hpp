@@ -507,7 +507,7 @@ protected:
     };
     Uint32 prevHash;
     
-    inline bool equal(FragmentInfo & p) const {
+    inline bool equal(FragmentInfo const & p) const {
       return m_senderRef == p.m_senderRef && m_fragmentId == p.m_fragmentId;
     }
     
@@ -634,7 +634,9 @@ private:
    * In MT LQH main instance is the LQH proxy and the others ("workers")
    * are real LQHs run by multiple threads.
    */
-  enum { MaxInstances = 1 + MAX_NDBMT_LQH_WORKERS + 1 }; // main+lqh+extra
+protected:
+  enum { MaxInstances = NDBMT_MAX_BLOCK_INSTANCES };
+private:
   SimulatedBlock** theInstanceList; // set in main, indexed by instance
   SimulatedBlock* theMainInstance;  // set in all
   /*
@@ -1360,10 +1362,10 @@ SectionHandle::~SectionHandle()
 
 struct Hash2FragmentMap
 {
-  STATIC_CONST( MAX_MAP = 240 );
+  STATIC_CONST( MAX_MAP = NDB_DEFAULT_HASHMAP_BUCKETS );
   Uint32 m_cnt;
   Uint32 m_fragments;
-  Uint8 m_map[MAX_MAP];
+  Uint16 m_map[MAX_MAP];
   Uint32 nextPool;
   Uint32 m_object_id;
 };
