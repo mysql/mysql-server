@@ -19,10 +19,6 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 
 MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
 
-OPTION(NDB_DETECT_MYSQL_CLUSTER_BUILD
-  "Autodetect MySQL Cluster and turn on build of ndbcluster and NDB " ON)
-MARK_AS_ADVANCED(NDB_DETECT_MYSQL_CLUSTER_BUILD)
-    
 # Check if this is MySQL Cluster build i.e the MySQL Server
 # version string ends in -ndb-Y.Y.Y[-status]    
 MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
@@ -30,7 +26,7 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
   IF(${version_string} MATCHES "(.*)-ndb-(.*)")
     SET(mysql_version ${CMAKE_MATCH_1})
     SET(cluster_version ${CMAKE_MATCH_2})
-    
+
     # Sanity check that the mysql_version matches precalcuated
     # values from higher level scripts  
     IF(NOT ${mysql_version} EQUAL "${MYSQL_NO_DASH_VERSION}")
@@ -44,12 +40,10 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
       SET(MYSQL_CLUSTER_VERSION_BUILD ${CMAKE_MATCH_3})
     ENDIF()
 
-    IF(NDB_DETECT_MYSQL_CLUSTER_BUILD)
-      MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
-      # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
-      # that this is a MySQL Cluster build, yay!
-      SET(MYSQL_CLUSTER_VERSION ${cluster_version})
-    ENDIF()
+    MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
+    # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
+    # that this is a MySQL Cluster build, yay!
+    SET(MYSQL_CLUSTER_VERSION ${cluster_version})
   ENDIF()
 ENDMACRO()
 
@@ -117,8 +111,14 @@ ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
 
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
-IF(MYSQL_CLUSTER_VERSION)
-  SET(is_default_plugin "DEFAULT")
+OPTION(WITH_NDB_DEFAULT_PLUGIN_DETECT
+  "Autodetect MySQL Cluster version and set ndbcluster as DEFAULT plugin" ON)
+MARK_AS_ADVANCED(WITH_NDB_DEFAULT_PLUGIN_DETECT)
+IF(WITH_NDB_DEFAULT_PLUGIN_DETECT)
+  IF(MYSQL_CLUSTER_VERSION)
+    # ndbcluster is DEFAULT plugin in MySQL Cluster
+    SET(is_default_plugin "DEFAULT")
+  ENDIF()
 ENDIF()
 
 MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
