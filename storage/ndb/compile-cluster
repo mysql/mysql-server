@@ -110,8 +110,9 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
     # Use default options for building
     print("compile-cluster: vanilla build requested, no sugar\n");
 
-    # Turn off autodetect of MySQL Cluster build
-    push(@args, "-DNDB_DETECT_MYSQL_CLUSTER_BUILD=0");
+    # Turn off automatic detection of WITH_NDBCLUSTER
+    # in MySQL Cluster version(i.e when version string ends in -ndb-Y.Y.Y)
+    push(@args, "-DWITH_NDB_DEFAULT_PLUGIN_DETECT=0");
   }
   else
   {
