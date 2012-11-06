@@ -7159,3 +7159,104 @@ Qmgr::handleFailFromSuspect(Signal* signal,
 
   failReportLab(signal, sourceNode, (FailRep::FailCause) reason, getOwnNodeId());
 }
+
+void
+Qmgr::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  Ndbinfo::Ratelimit rl;
+
+  jamEntry();
+  switch(req.tableId) {
+  case Ndbinfo::MEMBERSHIP_TABLEID:
+  {
+    jam();
+    Ndbinfo::Row row(signal, req);
+    row.write_uint32(getOwnNodeId());
+    row.write_uint32(getNodeState().nodeGroup);
+    row.write_uint32(cneighbourl);
+    row.write_uint32(cneighbourh);
+    row.write_uint32(cpresident);
+
+    // President successor
+    Uint32 successor = 0;
+    {
+      NodeRecPtr nodePtr;
+      UintR minDynamicId = (UintR)-1;
+      for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+      {
+        jam();
+        ptrAss(nodePtr, nodeRec);
+        if (nodePtr.p->phase == ZRUNNING)
+        {
+          if ((nodePtr.p->ndynamicId & 0xFFFF) < minDynamicId)
+          {
+            jam();
+            if (cpresident !=  nodePtr.i)
+            {
+              minDynamicId = (nodePtr.p->ndynamicId & 0xFFFF);
+              successor = nodePtr.i;
+            }
+          }
+        }
+      }
+    }
+    row.write_uint32(successor);
+
+    NodeRecPtr myNodePtr;
+    myNodePtr.i = getOwnNodeId();
+    ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
+    row.write_uint32(myNodePtr.p->ndynamicId);
+
+    row.write_uint32(arbitRec.node); // arbitrator
+
+    char ticket[20]; // Need 16 characters + 1 for trailing '\0'
+    arbitRec.ticket.getText(ticket, sizeof(ticket));
+    row.write_string(ticket);
+
+    row.write_uint32(arbitRec.state);
+
+    // arbitrator connected
+    row.write_uint32(c_connectedNodes.get(arbitRec.node));
+
+    // Find potential (rank1 and rank2) arbitrators that are connected.
+    NodeRecPtr aPtr;
+    // buf_size: Node nr (max 3 chars) and ', '  + trailing '\0'
+    const int buf_size = 5 * MAX_NODES + 1;
+    char buf[buf_size];
+
+    for (unsigned rank = 1; rank <= 2; rank++)
+    {
+      jam();
+      aPtr.i = 0;
+      const unsigned stop = NodeBitmask::NotFound;
+      int buf_offset = 0;
+      const char* delimiter = "";
+
+      while ((aPtr.i = arbitRec.apiMask[rank].find(aPtr.i + 1)) != stop)
+      {
+        jam();
+        ptrAss(aPtr, nodeRec);
+        if (c_connectedNodes.get(aPtr.i))
+        {
+          buf_offset += BaseString::snprintf(buf + buf_offset,
+                                             buf_size - buf_offset,
+                                             "%s%u", delimiter, aPtr.i);
+          delimiter = ", ";
+        }
+      }
+
+      if (buf_offset == 0)
+        row.write_string("-");
+      else
+        row.write_string(buf);
+    }
+
+    ndbinfo_send_row(signal, req, row, rl);
+    break;
+  }
+  default:
+    break;
+  }
+  ndbinfo_send_scan_conf(signal, req, rl);
+}
