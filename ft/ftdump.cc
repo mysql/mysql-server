@@ -441,12 +441,11 @@ readline (char *line, int maxline) {
 static int
 split_fields (char *line, char *fields[], int maxfields) {
     int i;
+    for (i=0; i<maxfields; i++)
+        fields[i] = NULL;
     for (i=0; i<maxfields; i++, line=NULL) {
         fields[i] = strtok(line, " ");
         if (fields[i] == NULL) {
-            for (; i < maxfields; ++i) {
-                fields[i] = NULL;
-            }
             break;
         }
     }
