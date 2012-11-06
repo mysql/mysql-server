@@ -336,7 +336,7 @@ ErrorBundle ErrorCodes[] = {
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
   { 850,  DMEC, AE, "Too long or too short default value"},
   { 851,  DMEC, AE, "Maximum 8052 bytes of FIXED columns supported"
-    ", use varchar or COLUMN_FORMAT DYNMIC instead" },
+    ", use varchar or COLUMN_FORMAT DYNAMIC instead" },
   { 876,  DMEC, AE, "876" },
   { 877,  DMEC, AE, "877" },
   { 878,  DMEC, AE, "878" },
