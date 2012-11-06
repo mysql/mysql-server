@@ -44,9 +44,9 @@ ERROR 42000: DELETE command denied to user 'ssl_user4'@'localhost' for table 't1
 drop user ssl_user1@localhost, ssl_user2@localhost,
 ssl_user3@localhost, ssl_user4@localhost, ssl_user5@localhost;
 drop table t1;
-mysqltest: Could not open connection 'default': 2026 SSL error: ASN: bad other signature confirmation
-mysqltest: Could not open connection 'default': 2026 SSL error: ASN: bad other signature confirmation
-mysqltest: Could not open connection 'default': 2026 SSL error: ASN: bad other signature confirmation
+mysqltest: Could not open connection 'default': 2026 SSL connection error: xxxx
+mysqltest: Could not open connection 'default': 2026 SSL connection error: xxxx
+mysqltest: Could not open connection 'default': 2026 SSL connection error: xxxx
 SSL error: Unable to get private key from ''
 mysqltest: Could not open connection 'default': 2026 SSL connection error
 SSL error: Unable to get certificate from ''

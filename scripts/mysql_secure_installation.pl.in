@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2010, Oracle and/or its affiliates
+# Copyright (c) 2007, 2012, Oracle and/or its affiliates.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ my $mysql;  # How to call the mysql client
 my $rootpass = "";
 
 
-$SIG{QUIT} = $SIG{INT} = sub {
+$SIG{QUIT} = $SIG{INT} = $SIG{TERM} = $SIG{ABRT} = $SIG{HUP} = sub {
   print "\nAborting!\n\n";
   echo_on();
   cleanup();
@@ -242,7 +242,11 @@ sub reload_privilege_tables {
 }
 
 sub cleanup {
-  unlink($config,$command);
+  print "Cleaning up...\n";
+
+  foreach my $file ($config, $command) {
+    unlink $file or warn "Warning: Could not unlink $file: $!\n";
+  }
 }
 
 
