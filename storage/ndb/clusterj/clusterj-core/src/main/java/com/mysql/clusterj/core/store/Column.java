@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -70,6 +70,12 @@ public interface Column {
      */
     public int getPrefixLength();
 
+    /** The size of a column in bytes. Integral types return the "precision" in bytes of the type
+     * (1, 2, 4, or 8 bytes). Character and byte types return 1. See getLength() for character and byte types.
+     * @return the size
+     */
+    public int getSize();
+
     /** The column ID, used for scans to compare column values.
      * 
      * @return the column id
@@ -115,5 +121,11 @@ public interface Column {
      * @return true if the column is nullable
      */
     public boolean getNullable();
+
+    /** Is this column a lob?
+     * 
+     * @return true if this column is a blob or text type
+     */
+    public boolean isLob();
 
 }

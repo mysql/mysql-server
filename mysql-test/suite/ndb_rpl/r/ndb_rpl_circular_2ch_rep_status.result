@@ -1,4 +1,10 @@
 include/rpl_init.inc [topology=1->2,4->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_connect.inc [creating master]
 include/rpl_connect.inc [creating master1]
 include/rpl_connect.inc [creating slave]
@@ -61,6 +67,12 @@ Now wait for all replication to quiesce
 Now swap replication channels around
 include/rpl_stop_slaves.inc
 include/rpl_change_topology.inc [new topology=2->1,3->4]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 Get current master status on Cluster A new master (next pos in Binlog)
 Master1 (3)
 Flush logs to ensure any pending update (e.g. reflected apply_status write row)

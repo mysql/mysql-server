@@ -17,7 +17,6 @@
 
 
 #include <SectionReader.hpp>
-#include <TransporterDefinitions.hpp>
 #include "LongSignal.hpp"
 
 #if 0

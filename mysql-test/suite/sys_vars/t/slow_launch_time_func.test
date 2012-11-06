@@ -32,6 +32,7 @@
 
 --source include/not_embedded.inc
 --source include/not_threadpool.inc
+--source include/not_valgrind.inc
 
 SET @global_slow_launch_time = @@GLOBAL.slow_launch_time;
 
@@ -53,6 +54,8 @@ let $value_before=
    query_get_value(show status like 'slow_launch_threads', Value, 1);
 --echo ** Connecting conn1 using username 'root' **
 CONNECT (conn1,localhost,root,,);
+# To assure that the connection has been established.
+SELECT 1;
 let $value_after=
    query_get_value(show status like 'slow_launch_threads', Value, 1);
 if (!`SELECT $value_after = $value_before + 1`)
@@ -76,7 +79,7 @@ disconnect conn1;
 # The value of slow_launch_threads must not change.                    #
 ########################################################################
 
-SET @@GLOBAL.slow_launch_time= 1000;
+SET @@GLOBAL.slow_launch_time= 10000;
 SELECT @@GLOBAL.slow_launch_time;
 
 let $value_before=

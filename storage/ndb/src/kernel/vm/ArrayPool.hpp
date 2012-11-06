@@ -99,6 +99,7 @@ public:
   void getPtr(ConstPtr<T> &) const;
   void getPtr(Ptr<T> &, bool CrashOnBoundaryError);
   void getPtr(ConstPtr<T> &, bool CrashOnBoundaryError) const;
+  void getPtrIgnoreAlloc(Ptr<T> &);
   
   /**
    * Get pointer for i value
@@ -166,6 +167,11 @@ public:
   struct Cache
   {
     Cache(Uint32 a0 = 512, Uint32 a1 = 256) { m_first_free = RNIL; m_free_cnt = 0; m_alloc_cnt = a0; m_max_free_cnt = a1; }
+    void init_cache(Uint32 a0, Uint32 a1)
+    {
+      m_alloc_cnt = a0;
+      m_max_free_cnt = a1;
+    }
     Uint32 m_first_free;
     Uint32 m_free_cnt;
     Uint32 m_alloc_cnt;
@@ -248,17 +254,24 @@ public:
 #endif
 
 protected:
-  Uint32 firstFree;
+  T * theArray;
   Uint32 size;
+  /*
+   * Protect size and theArray which are very seldomly updated from
+   * updates of often updated variables such as firstFree, noOfFree.
+   * Protect here means to have them on separate CPU cache lines to
+   * avoid false CPU cache line sharing.
+   */
+  char protect_read_var[NDB_CL_PADSZ(sizeof(Uint32) + sizeof(void*))];
+  Uint32 firstFree;
   Uint32 noOfFree;
   Uint32 noOfFreeMin;
-  T * theArray;
-  void * alloc_ptr;
 #ifdef ARRAY_GUARD
+  bool chunk;
   Uint32 bitmaskSz;
   Uint32 *theAllocatedBitmask;
-  bool chunk;
 #endif
+  void * alloc_ptr;
 };
 
 template <class T>
@@ -709,6 +722,26 @@ ArrayPool<T>::getConstPtr(Uint32 i, bool CrashOnBoundaryError) const {
     return &theArray[i];
   } else {
     return 0;
+  }
+}
+
+/**
+   getPtrIgnoreAlloc
+
+   getPtr, without array_guard /theAllocatedBitmask checks
+   Useful when looking at elements in the pool which may or may not
+   be allocated.
+   Retains the range check.
+*/
+template <class T>
+inline
+void
+ArrayPool<T>::getPtrIgnoreAlloc(Ptr<T> & ptr){
+  Uint32 i = ptr.i;
+  if(likely (i < size)){
+    ptr.p = &theArray[i];
+  } else {
+    ErrorReporter::handleAssert("ArrayPool<T>::getPtr", __FILE__, __LINE__);
   }
 }
   
@@ -1385,13 +1418,15 @@ UnsafeArrayPool<T>::getPtrForce(ConstPtr<T> & ptr, Uint32 i) const{
 template <class T>
 class SafeArrayPool : public ArrayPool<T> {
 public:
-  SafeArrayPool(NdbMutex* mutex = 0);
+  SafeArrayPool();
   ~SafeArrayPool();
   int lock();
   int unlock();
   bool seize(Ptr<T>&);
   void release(Uint32 i);
   void release(Ptr<T>&);
+
+  void setMutex(NdbMutex* mutex = 0);
 
 private:
   NdbMutex* m_mutex;
@@ -1403,7 +1438,16 @@ private:
 
 template <class T>
 inline
-SafeArrayPool<T>::SafeArrayPool(NdbMutex* mutex)
+SafeArrayPool<T>::SafeArrayPool()
+{
+  m_mutex = 0;
+  m_mutex_owner = false;
+}
+
+template <class T>
+inline
+void
+SafeArrayPool<T>::setMutex(NdbMutex* mutex)
 {
   if (mutex != 0) {
     m_mutex = mutex;
