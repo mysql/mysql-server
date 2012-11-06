@@ -29,12 +29,6 @@ namespace feedback {
 static const uint FOR_READING= 0;
 static const uint FOR_WRITING= 1;
 
-#ifdef MARIADB_BASE_VERSION
-#define ssl_connect(A,B,C,D) sslconnect(A,B,C,D)
-#else
-#define ssl_connect(A,B,C,D) sslconnect(A,B,C)
-#endif
-
 /**
   implementation of the Url class that sends the data via HTTP POST request.
 
@@ -199,12 +193,23 @@ int Url_http::send(const char* data, size_t data_length)
   struct st_VioSSLFd *UNINIT_VAR(ssl_fd);
   if (ssl)
   {
-    buf[0]= 0;
-    if (!(ssl_fd= new_VioSSLConnectorFd(0, 0, 0, 0, 0)) ||
-        ssl_connect(ssl_fd, vio, send_timeout, buf))
+    enum enum_ssl_init_error ssl_init_error= SSL_INITERR_NOERROR;
+    ulong ssl_error= 0;
+    if (!(ssl_fd= new_VioSSLConnectorFd(0, 0, 0, 0, 0, &ssl_init_error)) ||
+        sslconnect(ssl_fd, vio, send_timeout, &ssl_error))
     {
+      const char *err;
+      if (ssl_init_error != SSL_INITERR_NOERROR)
+        err= sslGetErrString(ssl_init_error);
+      else
+      {
+        ERR_error_string_n(ssl_error, buf, sizeof(buf));
+        buf[sizeof(buf)-1]= 0;
+        err= buf;
+      }
+
       sql_print_error("feedback plugin: ssl failed for url '%s' %s",
-                      full_url.str, buf);
+                      full_url.str, err);
       if (ssl_fd)
         free_vio_ssl_acceptor_fd(ssl_fd);
       closesocket(fd);
@@ -296,7 +301,7 @@ int Url_http::send(const char* data, size_t data_length)
   if (ssl)
   {
     SSL_CTX_free(ssl_fd->ssl_context);
-    my_free(ssl_fd, MYF(0));
+    my_free(ssl_fd);
   }
 #endif
 
