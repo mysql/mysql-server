@@ -147,7 +147,7 @@ unique (c30), unique (c31), unique (c32), unique (c33), unique (c34), unique (c3
 unique (c40), unique (c41), unique (c42), unique (c43), unique (c44), unique (c45), unique (c46), unique (c47),
 unique (c50), unique (c51), unique (c52), unique (c53), unique (c54), unique (c55), unique (c56), unique (c57),
 unique (c60), unique (c61), unique (c62), unique (c63), unique (c64), unique (c65), unique (c66), unique (c67),
-unique (c60), unique (c71), unique (c72), unique (c73), unique (c74), unique (c75), unique (c76)) engine = ndb;
+unique (c70), unique (c71), unique (c72), unique (c73), unique (c74), unique (c75), unique (c76)) engine = ndb;
 
 drop table t1;
 
