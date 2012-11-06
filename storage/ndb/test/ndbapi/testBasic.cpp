@@ -2159,6 +2159,7 @@ runBug54944(NDBT_Context* ctx, NDBT_Step* step)
   Ndb* pNdb = GETNDB(step);
   const NdbDictionary::Table * pTab = ctx->getTab();
   NdbRestarter res;
+  int databuffer = ctx->getProperty("DATABUFFER");
 
   for (Uint32 i = 0; i<5; i++)
   {
@@ -2175,7 +2176,10 @@ runBug54944(NDBT_Context* ctx, NDBT_Step* step)
       hugoOps.execute_NoCommit(pNdb);
     }
 
-    res.insertErrorInAllNodes(8087);
+    if (!databuffer)
+      res.insertErrorInAllNodes(8087);
+    else
+      res.insertErrorInAllNodes(8096);
 
     HugoTransactions hugoTrans(*pTab);
     hugoTrans.loadTableStartFrom(pNdb, 50000, 100);
@@ -3621,6 +3625,12 @@ TESTCASE("Bug54986", "")
 }
 TESTCASE("Bug54944", "")
 {
+  TC_PROPERTY("DATABUFFER", (Uint32)0);
+  INITIALIZER(runBug54944);
+}
+TESTCASE("Bug54944DATABUFFER", "")
+{
+  TC_PROPERTY("DATABUFFER", (Uint32)1);
   INITIALIZER(runBug54944);
 }
 TESTCASE("Bug59496_case1", "")
