@@ -130,7 +130,7 @@ public:
   }
   bool fix_fields(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   virtual bool exec();
   virtual void fix_length_and_dec();
   table_map used_tables() const;
@@ -176,8 +176,7 @@ public:
   friend int  Item_field::fix_outer_field(THD *, Field **, Item **);
   friend bool Item_ref::fix_fields(THD *, Item **);
   friend void Item_ident::fix_after_pullout(st_select_lex *parent_select,
-                                            st_select_lex *removed_select,
-                                            Item **ref);
+                                            st_select_lex *removed_selec);
   friend void mark_select_range_as_dependent(THD*,
                                              st_select_lex*, st_select_lex*,
                                              Field*, Item*, Item_ident*);
@@ -469,7 +468,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   bool fix_fields(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   bool init_left_expr_cache();
 
   /**
