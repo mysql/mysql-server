@@ -431,6 +431,13 @@ void Dbdict::execCONTINUEB(Signal* signal)
     jam();
     trans_commit_wait_gci(signal);
     break;
+  case ZGET_TABINFO_RETRY:
+    // We have waited a while. Now we send a new request to the master.
+    memmove(signal->theData, signal->theData+1, 
+            GetTabInfoReq::SignalLength * sizeof *signal->theData);
+    sendSignal(calcDictBlockRef(c_masterNodeId), GSN_GET_TABINFOREQ, signal,
+               GetTabInfoReq::SignalLength, JBB);
+    break;
   default :
     ndbrequire(false);
     break;
@@ -1974,6 +1981,7 @@ Dbdict::Dbdict(Block_context& ctx):
   addRecSignal(GSN_DUMP_STATE_ORD, &Dbdict::execDUMP_STATE_ORD);
   addRecSignal(GSN_GET_TABINFOREQ, &Dbdict::execGET_TABINFOREQ);
   addRecSignal(GSN_GET_TABLEID_REQ, &Dbdict::execGET_TABLEDID_REQ);
+  addRecSignal(GSN_GET_TABINFOREF, &Dbdict::execGET_TABINFOREF);
   addRecSignal(GSN_GET_TABINFO_CONF, &Dbdict::execGET_TABINFO_CONF);
   addRecSignal(GSN_CONTINUEB, &Dbdict::execCONTINUEB);
 
@@ -4142,6 +4150,52 @@ Dbdict::restart_fromWriteSchemaFile(Signal* signal,
 
   execute(signal, c_schemaRecord.m_callback, retCode);
 }
+
+void
+Dbdict::execGET_TABINFOREF(Signal* signal){
+  jamEntry();
+  /** 
+   * Make copy of 'ref' such that we can build 'req' without overwriting 
+   * source.
+   */
+  const GetTabInfoRef ref_copy =
+    *reinterpret_cast<const GetTabInfoRef*>(signal->getDataPtr());
+
+  if (ref_copy.errorCode == GetTabInfoRef::Busy)
+  {
+    jam();
+
+    /**
+     * Master is busy. Send delayed CONTINUEB to self to add some delay, then
+     * send new GET_TABINFOREQ to master.
+     */
+    signal->getDataPtrSend()[0] = ZGET_TABINFO_RETRY;
+
+    GetTabInfoReq* const req =
+      reinterpret_cast<GetTabInfoReq*>(signal->getDataPtrSend()+1);
+    memset(req, 0, sizeof *req);
+    req->senderRef = reference();
+    req->senderData = ref_copy.senderData;
+    req->requestType =
+      GetTabInfoReq::RequestById | GetTabInfoReq::LongSignalConf;
+    req->tableId = ref_copy.tableId;
+    req->schemaTransId = ref_copy.schemaTransId;
+    // Add a random 5-10ms delay.
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 5 + rand()%6, 
+                        GetTabInfoReq::SignalLength+1);
+  }
+  else
+  {
+    // Other error. Restart node.
+    char msg[250];
+    BaseString::snprintf(msg, sizeof(msg),
+                         "Got GET_TABINFOREF from node %u with unexpected "
+                         " error code %u", 
+                         refToNode(signal->getSendersBlockRef()),
+                         ref_copy.errorCode);
+    progError(__LINE__, NDBD_EXIT_RESTORE_SCHEMA, msg);
+  }
+} // Dbdict::execGET_TABINFOREF()
 
 void
 Dbdict::execGET_TABINFO_CONF(Signal* signal)
@@ -9993,12 +10047,31 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
     return;
   }//if
 
-  const Uint32 MAX_WAITERS = 5;
+  const Uint32 MAX_WAITERS = (MAX_NDB_NODES*3)/2;
 
-  if(c_retrieveRecord.busyState && fromTimeQueue == false)
+  // Test sending GET_TABINFOREF to DICT (Bug#14647210).
+  const bool testRef = refToMain(signal->senderBlockRef()) == DBDICT &&
+    ERROR_INSERTED_CLEAR(6026);
+  
+  if ((c_retrieveRecord.busyState || testRef) && fromTimeQueue == false)
   {
     jam();
-    if(c_retrieveRecord.noOfWaiters < MAX_WAITERS){
+
+    const Uint32 senderVersion = 
+      getNodeInfo(refToNode(signal->senderBlockRef())).m_version;
+
+    /**
+     * DBDICT may possibly generate large numbers of signals if many nodes
+     * are started at the same time, so we do not want to queue those using
+     * sendSignalWithDelay(). See also Bug#14647210. Signals from other 
+     * blocks we do queue localy, since these blocks may not retry on
+     * GET_TABINFOREF with error==busy, and since they also should not 
+     * generate large bursts of GET_TABINFOREQ.
+     */
+    if (c_retrieveRecord.noOfWaiters < MAX_WAITERS &&
+        (refToMain(signal->senderBlockRef()) != DBDICT ||
+         !ndbd_dict_get_tabinforef_implemented(senderVersion)))
+    {
       jam();
       c_retrieveRecord.noOfWaiters++;
 
@@ -10006,6 +10079,12 @@ void Dbdict::execGET_TABINFOREQ(Signal* signal)
 			  signal->length(),
 			  &handle);
       return;
+    }
+
+    if (!c_retrieveRecord.busyState)
+    {
+      ndbout << "Sending extra TABINFOREF to node"
+             << refToNode(signal->senderBlockRef()) << endl;
     }
     releaseSections(handle);
     sendGET_TABINFOREF(signal, req, GetTabInfoRef::Busy, __LINE__);
