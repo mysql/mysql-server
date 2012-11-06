@@ -4908,6 +4908,11 @@ send_result_message:
 
     case HA_ADMIN_TRY_ALTER:
     {
+      uint save_flags;
+      Alter_info *alter_info= &lex->alter_info;
+
+      /* Store the original value of alter_info->flags */
+      save_flags= alter_info->flags;
       /*
         This is currently used only by InnoDB. ha_innobase::optimize() answers
         "try with alter", so here we close the table, do an ALTER TABLE,
@@ -4915,9 +4920,18 @@ send_result_message:
         We have to end the row, so analyze could return more rows.
       */
       protocol->store(STRING_WITH_LEN("note"), system_charset_info);
-      protocol->store(STRING_WITH_LEN(
-          "Table does not support optimize, doing recreate + analyze instead"),
-                      system_charset_info);
+      if(alter_info->flags & ALTER_ADMIN_PARTITION)
+      {
+        protocol->store(STRING_WITH_LEN(
+        "Table does not support optimize on partitions. All partitions "
+        "will be rebuilt and analyzed."),system_charset_info);
+      }
+      else
+      {
+        protocol->store(STRING_WITH_LEN(
+        "Table does not support optimize, doing recreate + analyze instead"),
+        system_charset_info);
+      }
       if (protocol->write())
         goto err;
       ha_autocommit_or_rollback(thd, 0);
@@ -4941,9 +4955,15 @@ send_result_message:
       close_thread_tables(thd);
       if (!result_code) // recreation went ok
       {
+        /*
+          Reset the ALTER_ADMIN_PARTITION bit in alter_info->flags
+          to force analyze on all partitions.
+         */
+        alter_info->flags &= ~(ALTER_ADMIN_PARTITION);
         if ((table->table= open_ltable(thd, table, lock_type, 0)) &&
             ((result_code= table->table->file->ha_analyze(thd, check_opt)) > 0))
           result_code= 0; // analyze went ok
+        alter_info->flags= save_flags;
       }
       /* Start a new row for the final status row */
       protocol->prepare_for_resend();
