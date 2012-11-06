@@ -16,26 +16,27 @@ use My::Find;
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
+my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 
 #
 # Check if the needed jars and libs are available
 #
 
-my $clusterj_jar = my_find_file($basedir,
+my $clusterj_jar = my_find_file($bindir,
                                 [ "storage/ndb/clusterj", 
                                   "share/java",
                                   "share/mysql/java",
                                   "lib/java" ],
                                 "clusterj-*.jar", NOT_REQUIRED);
 
-my $clusterj_test_jar = my_find_file($basedir,
+my $clusterj_test_jar = my_find_file($bindir,
                                      [ "storage/ndb/clusterj/clusterj-test",
                                        "share/java",
                                        "share/mysql/java",
                                        "lib/java" ],
                                      "clusterj-test-*.jar", NOT_REQUIRED);
 
-my $ndbclient_lib = my_find_file($basedir,
+my $ndbclient_lib = my_find_file($bindir,
                                 ["storage/ndb/src/.libs", 
                                  "storage/ndb/src", 
                                  "lib/mysql",

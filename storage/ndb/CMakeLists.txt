@@ -134,12 +134,6 @@ IF (NOT WITH_NDBCLUSTER)
   RETURN()
 ENDIF()
 
-OPTION(WITH_NDB_JAVA
-  "Include NDB Cluster Java components" OFF)
-IF(WITH_NDB_JAVA)
-  MESSAGE(STATUS "Include NDB Java components")
-ENDIF()
-
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
   MESSAGE(STATUS "Building NDB 32-bit")
 ELSE()
@@ -210,6 +204,15 @@ SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NDB_CCFLAGS}")
 
 SET(HAVE_JAVA FALSE)
 SET(HAVE_JDK FALSE)
+SET(WITH_NDB_JAVA_DEFAULT ON)
+# Check if the default for WITH_NDB_JAVA should be overriden
+# by environment variable
+IF (DEFINED ENV{WITH_NDB_JAVA_DEFAULT})
+  SET(WITH_NDB_JAVA_DEFAULT $ENV{WITH_NDB_JAVA_DEFAULT})
+  MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to ${WITH_NDB_JAVA_DEFAULT}")
+ENDIF()
+OPTION(WITH_NDB_JAVA
+  "Include NDB Cluster Java components" ${WITH_NDB_JAVA_DEFAULT})
 IF(WITH_NDB_JAVA)
   # Check for Java and JDK needed by ndbjtie and clusterj
   INCLUDE(FindJava)
