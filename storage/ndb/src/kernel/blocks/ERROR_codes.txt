@@ -20,8 +20,8 @@ Next DBACC 3002
 Next DBTUP 4035
 Next DBLQH 5075
 Next DBDICT 6026
-Next DBDIH 7232
-Next DBTC 8092
+Next DBDIH 7236
+Next DBTC 8097
 Next CMVMI 9000
 Next BACKUP 10042
 Next DBUTIL 11002
@@ -392,6 +392,9 @@ DBTC LONG SIGNAL TESTING
 
 8085: Simulate execFIRE_TRIG_ORD DataBuffer exhaustion
 8086: Simulate execFIRE_TRIG_ORD segmented section exhaustion
+
+8087: Simulate commit ack marker exhaustion
+8096: Simulate commit ack marker databuffer exhaustion
 
 DBLQH LONG SIGNAL TESTING
 -------------------------
