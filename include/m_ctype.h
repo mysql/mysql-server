@@ -263,7 +263,7 @@ typedef struct my_charset_loader_st
 } MY_CHARSET_LOADER;
 
 
-extern int (*my_string_stack_guard)(void);
+extern int (*my_string_stack_guard)(int);
 
 /* See strings/CHARSET_INFO.txt for information about this structure  */
 typedef struct my_collation_handler_st
