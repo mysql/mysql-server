@@ -122,7 +122,7 @@ public:
   Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   table_map used_tables() const;
   /**
      Returns the pseudo tables depended upon in order to evaluate this
