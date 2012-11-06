@@ -4860,12 +4860,13 @@ my_tosort_unicode(MY_UNICASE_INFO *uni_plane, my_wc_t *wc, uint flags)
 **	 1 if matched with wildcard
 */
 
+static
 int
-my_wildcmp_unicode(const CHARSET_INFO *cs,
-                   const char *str,const char *str_end,
-                   const char *wildstr,const char *wildend,
-                   int escape, int w_one, int w_many,
-                   MY_UNICASE_INFO *weights)
+my_wildcmp_unicode_impl(const CHARSET_INFO *cs,
+                        const char *str,const char *str_end,
+                        const char *wildstr,const char *wildend,
+                        int escape, int w_one, int w_many,
+                        MY_UNICASE_INFO *weights, int recurse_level)
 {
   int result= -1;                             /* Not found, using wildcards */
   my_wc_t s_wc, w_wc;
@@ -4874,7 +4875,7 @@ my_wildcmp_unicode(const CHARSET_INFO *cs,
                const uchar *, const uchar *);
   mb_wc= cs->cset->mb_wc;
 
- if (my_string_stack_guard && my_string_stack_guard())
+ if (my_string_stack_guard && my_string_stack_guard(recurse_level))
    return 1;
   while (wildstr != wildend)
   {
@@ -4997,15 +4998,27 @@ my_wildcmp_unicode(const CHARSET_INFO *cs,
           return -1;
         
         str+= scan;
-        result= my_wildcmp_unicode(cs, str, str_end, wildstr, wildend,
-                                   escape, w_one, w_many,
-                                   weights);
+        result= my_wildcmp_unicode_impl(cs, str, str_end, wildstr, wildend,
+                                        escape, w_one, w_many,
+                                        weights, recurse_level + 1);
         if (result <= 0)
           return result;
       } 
     }
   }
   return (str != str_end ? 1 : 0);
+}
+
+int
+my_wildcmp_unicode(const CHARSET_INFO *cs,
+                   const char *str,const char *str_end,
+                   const char *wildstr,const char *wildend,
+                   int escape, int w_one, int w_many,
+                   MY_UNICASE_INFO *weights)
+{
+  return my_wildcmp_unicode_impl(cs, str, str_end,
+                                 wildstr, wildend,
+                                 escape, w_one, w_many, weights, 1);
 }
 
 
