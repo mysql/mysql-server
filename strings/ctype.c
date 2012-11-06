@@ -51,7 +51,7 @@
 #define my_snprintf "We cannot use my_snprintf in this file"
 
 
-int (*my_string_stack_guard)(void)= NULL;
+int (*my_string_stack_guard)(int)= NULL;
 
 static char *mstr(char *str,const char *src,size_t l1,size_t l2)
 {
