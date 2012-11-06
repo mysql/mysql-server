@@ -1,5 +1,9 @@
 -- source include/have_ndb.inc
 
+# Valgrinding slows the mysqld down and thus making it
+# impossible to fill the redo log of ndbd(s) -> skip test
+--source include/not_valgrind.inc
+
 use test;
 create table t1 (a varchar(1024)) engine=ndb max_rows=100000000;
 insert into t1 values (repeat('I', 1024));

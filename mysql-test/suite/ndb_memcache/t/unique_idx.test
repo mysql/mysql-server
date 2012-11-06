@@ -11,38 +11,7 @@
 
 --source suite/ndb_memcache/include/have_memcache.inc
 --source suite/ndb_memcache/include/memcached_wait_for_ready.inc
-
-
-# 
-# Configuration change for this test
-#
-
---disable_query_log
---disable_result_log
-USE ndbmemcache;
-CREATE TABLE test_unique_idx (pkey int PRIMARY KEY, 
-                              mkey char(40), 
-                              val varchar(200),
-                              UNIQUE INDEX (mkey)
-                              ) ENGINE=ndbcluster;
-
-INSERT INTO containers (name, db_schema, db_table, key_columns, value_columns)
-  VALUES("tt_uidx_pk", "ndbmemcache", "test_unique_idx", "pkey", "mkey,val"),
-        ("tt_uidx_rd", "ndbmemcache", "test_unique_idx", "mkey", "pkey,val"),
-        ("tt_uidx_uk", "ndbmemcache", "test_unique_idx", "mkey", "val");
-
-INSERT INTO key_prefixes(server_role_id, key_prefix, policy, container) 
-  VALUES(0, "tup:", "ndb-only", "tt_uidx_pk"),
-        (0, "tur:", "ndb-only", "tt_uidx_rd"),
-        (0, "tui:", "ndb-only", "tt_uidx_uk");
-
-UPDATE memcache_server_roles set update_timestamp = NOW() where role_id = 0;
---enable_query_log
---enable_result_log
-
-# 
-#  Memcache operations for this test
-#
+--source suite/ndb_memcache/include/misc_tables.inc
 
 --perl
 
@@ -55,12 +24,6 @@ my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
 
 my $mc = My::Memcache->new();
 my $r = $mc->connect("localhost",$port);
-
-my $cf_gen = $mc->wait_for_reconf();
-
-if($cf_gen == 0) {
-  Carp::confess("FAILED WAIT_FOR_RECONF");
-}
 
 # 1: SET on primary key
 $mc->set("tup:1","key1\tSuperbe!")        || Carp::confess("Failed test 1.A");
