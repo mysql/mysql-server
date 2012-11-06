@@ -331,9 +331,6 @@ ndbcluster_fill_is_table(handlerton *hton, THD *thd, TABLE_LIST *tables,
 }
 #endif
 
-
-handlerton *ndbcluster_hton;
-
 static handler *ndbcluster_create_handler(handlerton *hton,
                                           TABLE_SHARE *table,
                                           MEM_ROOT *mem_root)
@@ -7575,11 +7572,11 @@ int ha_ndbcluster::start_statement(THD *thd,
 
   if (table_count == 0)
   {
-    trans_register_ha(thd, FALSE, ndbcluster_hton);
+    trans_register_ha(thd, FALSE, ht);
     if (thd_options(thd) & (OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))
     {
       if (!trans)
-        trans_register_ha(thd, TRUE, ndbcluster_hton);
+        trans_register_ha(thd, TRUE, ht);
       thd_ndb->m_handler= NULL;
     }
     else
@@ -11843,6 +11840,8 @@ static MYSQL_SYSVAR_STR(
 
 extern int ndb_dictionary_is_mysqld;
 
+handlerton* ndbcluster_hton;
+
 static int ndbcluster_init(void *p)
 {
   DBUG_ENTER("ndbcluster_init");
@@ -15194,7 +15193,6 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
   int ret_val;
   Uint64 tmp[(MAX_KEY_SIZE_IN_WORDS*MAX_XFRM_MULTIPLY) >> 1];
   void *buf= (void*)&tmp[0];
-  Ndb *ndb= m_thd_ndb->ndb;
   DBUG_ENTER("ha_ndbcluster::calculate_key_hash_value");
 
   do
@@ -15208,7 +15206,7 @@ uint32 ha_ndbcluster::calculate_key_hash_value(Field **field_array)
     key_data[i++].len= len;
   } while (*(++field_array));
   key_data[i].ptr= 0;
-  if ((ret_val= ndb->computeHash(&hash_value, m_table,
+  if ((ret_val= Ndb::computeHash(&hash_value, m_table,
                                  key_data_ptr, buf, sizeof(tmp))))
   {
     DBUG_PRINT("info", ("ret_val = %d", ret_val));
