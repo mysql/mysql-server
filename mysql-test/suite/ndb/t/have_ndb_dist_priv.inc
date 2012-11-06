@@ -16,9 +16,10 @@ use My::Find;
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
+my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 
 #
-# Check if the needed tests are available
+# Check if the necessary files are available
 #
 my $sql_file = my_find_file($basedir,
                             ["storage/ndb/tools", "share/mysql/", "share" ],
