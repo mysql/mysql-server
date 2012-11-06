@@ -42,7 +42,7 @@ public class TestResult {
     public final List<String> successes = new ArrayList<String>();
     public final List<String> failures = new ArrayList<String>();
     public final List<Throwable> throwables = new ArrayList<Throwable>();
-    public TestListener listener;
+    public TestListener listener = newListener();
 
     public void addListener(TestListener listener) {
         this.listener = listener;
@@ -50,5 +50,24 @@ public class TestResult {
 
     public synchronized boolean wasSuccessful() {
         return failures.isEmpty();
+    }
+
+    public TestListener newListener() {
+        // This is a dummy listener in case the test runner doesn't set a listener
+        return new TestListener() {
+
+            public void addError(Test test, Throwable t) {
+            }
+
+            public void addFailure(Test test, AssertionFailedError t) {
+            }
+
+            public void endTest(Test test) {
+            }
+
+            public void startTest(Test test) {
+            }
+            
+        };
     }
 }

@@ -8965,6 +8965,56 @@ runBug57057(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+/**
+ * This is a regression test for Bug #14647210 "CAN CRASH ALL NODES EASILY 
+ * WHEN RESTARTING MORE THAN 6 NODES SIMULTANEOUSLY". The cause of this bug
+ * was that DICT did not handle GET_TABINFOREF signals.
+ */
+static int
+runGetTabInfoRef(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  if (restarter.getNumDbNodes() == 1)
+  {
+    g_info << "Cannot do this test with just one datanode." << endl;
+    return NDBT_OK;
+  }
+
+  /**
+   * This error insert makes DICT respond with GET_TABINFOREF where
+   * error==busy when receiving the next GET_TABINFOREQ signal.
+   */
+  require(restarter.insertErrorInAllNodes(6026) == 0);
+
+  int nodeSet[MAX_NDB_NODES];
+  for (int i = 0; i < restarter.getNumDbNodes() - 1; i++)
+  {
+    nodeSet[i] = restarter.getDbNodeId(i);
+    g_info << "Node " << nodeSet[i] << " will be stopped." << endl;
+  }
+
+  require(restarter.restartNodes(nodeSet, restarter.getNumDbNodes() - 1,
+                                 NdbRestarter::NRRF_NOSTART |
+                                 NdbRestarter::NRRF_ABORT) == 0);
+
+  g_info << "Waiting for nodes to stop." << endl;
+  require(restarter.waitNodesNoStart(nodeSet, restarter.getNumDbNodes() - 1)
+          == 0);
+
+  require(restarter.startNodes(nodeSet, restarter.getNumDbNodes() - 1) == 0);
+
+  g_info << "Waiting for nodes to start again." << endl;
+  if (restarter.waitClusterStarted() != 0)
+  {
+    g_err << "Failed to restart cluster " << endl;
+    require(restarter.insertErrorInAllNodes(0) == 0);
+    return NDBT_FAILED;
+  }
+
+  require(restarter.insertErrorInAllNodes(0) == 0);
+  return NDBT_OK;
+} // runGetTabInfoRef()
+
 int
 runBug13416603(NDBT_Context* ctx, NDBT_Step* step)
 {
@@ -9808,6 +9858,12 @@ TESTCASE("Bug57057",
   STEP(runBug57057);
   TC_PROPERTY("SubSteps", 1);
   STEP(runBug58277scan);
+}
+TESTCASE("GetTabInfoRef", "Regression test for bug #14647210 'CAN CRASH ALL "
+         "NODES EASILY WHEN RESTARTING MORE THAN 6 NODES SIMULTANEOUSLY'"
+         " (missing handling of GET_TABINFOREF signal).")
+{
+  INITIALIZER(runGetTabInfoRef);
 }
 TESTCASE("Bug13416603", "")
 {
