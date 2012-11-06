@@ -1,6 +1,9 @@
 # Tests for PERFORMANCE_SCHEMA
 # Verify that statistics aggregated by different criteria are consistent.
 
+## To skip the test with QC enabled till BUG#14830950 is fixed.
+-- source include/have_QC_Disabled.inc
+
 --source include/not_embedded.inc
 --source include/have_perfschema.inc
 
