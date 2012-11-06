@@ -1,0 +1,56 @@
+#!/bin/sh
+# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
+
+LOGFILE="$0.log"
+echo "running test... output in file: `pwd`/$LOGFILE"
+exec > "$LOGFILE"
+
+# some build configs place binaries in subdirectories
+BIN_DIR=${1:-"."}
+echo "all binaries assumed in subdirectory \'$BIN_DIR\'"
+
+# jvm
+JAVA="@Java_JAVA_EXECUTABLE_PATH@"
+JAVA_ARCH="@Java_JAVA_ARCH_OPT@"
+JAVA_FLAGS="-ea -Xcheck:jni"
+
+# this test
+JAVA_CLASS="test.NdbJTieSmokeTest"
+TEST_JAR="ndbjtie-test-@JAVA_NDB_VERSION@.jar"
+
+# dependencies
+NDBJTIE=".."
+NDBCLIENT="../.."
+NDBJTIE_JAR="$NDBJTIE/ndbjtie-@JAVA_NDB_VERSION@.jar"
+JAVA_CLASSPATH="-classpath $TEST_JAR:$NDBJTIE_JAR"
+JAVA_LIBPATH="-Djava.library.path=$NDBCLIENT/$BIN_DIR"
+JAVA_DEFS=""
+
+TEST="
+  $JAVA
+  $JAVA_ARCH $JAVA_FLAGS
+  $JAVA_CLASSPATH
+  $JAVA_LIBPATH
+  $JAVA_DEFS
+  $JAVA_CLASS"
+
+echo "running $TEST"
+echo
+$TEST
+STATUS=$?
+echo
+echo "exit status: $STATUS"
+exit "$STATUS"

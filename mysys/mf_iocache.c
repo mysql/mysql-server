@@ -259,7 +259,7 @@ int init_io_cache(IO_CACHE *info, File file, size_t cachesize,
   else
   {
     /* Clear mutex so that safe_mutex will notice that it's not initialized */
-    memset(&info->append_buffer_lock, 0, sizeof(info));
+    memset(&info->append_buffer_lock, 0, sizeof(info->append_buffer_lock));
   }
 #endif
 

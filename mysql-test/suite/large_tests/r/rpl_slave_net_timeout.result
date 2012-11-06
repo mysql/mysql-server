@@ -16,9 +16,6 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 set @@global.slave_net_timeout = @@global.net_read_timeout * 2;
 include/start_slave.inc
-include/stop_slave.inc
-select event_time from (select event_time from mysql.general_log as t_1 where command_type like 'Connect' order by event_time desc limit 2) as t_2 order by event_time desc limit 1 into @ts_last;
-select event_time from (select event_time from mysql.general_log as t_1 where command_type like 'Connect' order by event_time desc limit 2) as t_2 order by event_time asc limit 1 into @ts_prev;
 include/assert.inc [time between last reconnection and the reconnection before that should be >= slave_net_timeout]
 set @@global.general_log = @save_general_log;
 set @@global.log_output = @save_log_output;

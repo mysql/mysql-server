@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -22,6 +22,7 @@ import com.mysql.clusterj.ClusterJHelper;
 import com.mysql.clusterj.ClusterJUserException;
 import com.mysql.clusterj.core.spi.DomainTypeHandlerFactory;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
+import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -52,15 +53,16 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
         }
     }
 
-    public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary) {
-        DomainTypeHandler<T> handler;
+    public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary,
+            ValueHandlerFactory valueHandlerFactory) {
+        DomainTypeHandler<T> handler = null;
         StringBuffer errorMessages = new StringBuffer();
         for (DomainTypeHandlerFactory factory: domainTypeHandlerFactories) {
             try {
                 errorMessages.append("Trying factory ");
                 errorMessages.append(factory.toString());
                 errorMessages.append("\n");
-                handler = factory.createDomainTypeHandler(domainClass, dictionary);
+                handler = factory.createDomainTypeHandler(domainClass, dictionary, valueHandlerFactory);
                 if (handler != null) {
                     return handler;
                 }
@@ -74,7 +76,7 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
 
         try {
             errorMessages.append("Trying standard factory com.mysql.clusterj.core.metadata.DomainTypeHandlerImpl.\n");
-            handler = new DomainTypeHandlerImpl<T>(domainClass, dictionary);
+            handler = new DomainTypeHandlerImpl<T>(domainClass, dictionary, valueHandlerFactory);
             return handler;
         } catch (ClusterJException e) {
             errorMessages.append(e.toString());
@@ -82,6 +84,15 @@ public class DomainTypeHandlerFactoryImpl implements DomainTypeHandlerFactory {
         } catch (Exception e) {
             errorMessages.append(e.toString());
             throw new ClusterJUserException(errorMessages.toString(), e);
+        } finally {
+            // if handler is null, there may be a problem with the schema, so remove it from the local dictionary
+            if (handler == null) {
+                String tableName = DomainTypeHandlerImpl.getTableName(domainClass);
+                if (tableName != null) {
+                    logger.info(local.message("MSG_Removing_Schema", tableName, domainClass.getName()));
+                    dictionary.removeCachedTable(tableName);                    
+                }
+            }
         }
     }
 

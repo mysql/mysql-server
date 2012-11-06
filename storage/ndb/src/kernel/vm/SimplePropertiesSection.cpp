@@ -17,7 +17,6 @@
 */
 
 #include <SimpleProperties.hpp>
-#include <TransporterDefinitions.hpp>
 #include "LongSignal.hpp"
 #include "LongSignalImpl.hpp"
 #include "SimulatedBlock.hpp"

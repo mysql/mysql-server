@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,15 +15,10 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-
 #include <ndb_global.h>
-
-#include <SocketClient.hpp>
 #include <SocketAuthenticator.hpp>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
-#include <NdbOut.hpp>
-
 SocketAuthSimple::SocketAuthSimple(const char *username, const char *passwd) {
   if (username)
     m_username= strdup(username);
@@ -38,9 +33,9 @@ SocketAuthSimple::SocketAuthSimple(const char *username, const char *passwd) {
 SocketAuthSimple::~SocketAuthSimple()
 {
   if (m_passwd)
-    free((void*)m_passwd);
+    free(m_passwd);
   if (m_username)
-    free((void*)m_username);
+    free(m_username);
 }
 
 bool SocketAuthSimple::client_authenticate(NDB_SOCKET_TYPE sockfd)
@@ -48,11 +43,18 @@ bool SocketAuthSimple::client_authenticate(NDB_SOCKET_TYPE sockfd)
   SocketOutputStream s_output(sockfd);
   SocketInputStream  s_input(sockfd);
 
+  // Write username and password
   s_output.println("%s", m_username ? m_username : "");
   s_output.println("%s", m_passwd ? m_passwd : "");
 
   char buf[16];
-  if (s_input.gets(buf, 16) == 0) return false;
+
+  // Read authentication result
+  if (s_input.gets(buf, sizeof(buf)) == 0)
+    return false;
+  buf[sizeof(buf)-1]= 0;
+
+  // Verify authentication result
   if (strncmp("ok", buf, 2) == 0)
     return true;
 
@@ -61,25 +63,24 @@ bool SocketAuthSimple::client_authenticate(NDB_SOCKET_TYPE sockfd)
 
 bool SocketAuthSimple::server_authenticate(NDB_SOCKET_TYPE sockfd)
 {
-
   SocketOutputStream s_output(sockfd);
   SocketInputStream  s_input(sockfd);
 
   char buf[256];
 
-  if (s_input.gets(buf, 256) == 0) return false;
-  buf[255]= 0;
-  if (m_username)
-    free((void*)m_username);
-  m_username= strdup(buf);
+  // Read username
+  if (s_input.gets(buf, sizeof(buf)) == 0)
+    return false;
+  buf[sizeof(buf)-1]= 0;
 
-  if (s_input.gets(buf, 256) == 0) return false;
-  buf[255]= 0;
-  if (m_passwd)
-    free((void*)m_passwd);
-  m_passwd= strdup(buf);
+  // Read password
+  if (s_input.gets(buf, sizeof(buf)) == 0)
+    return false;
+  buf[sizeof(buf)-1]= 0;
 
+  // Write authentication result
   s_output.println("ok");
 
   return true;
 }
+

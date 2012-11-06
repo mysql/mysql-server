@@ -1585,6 +1585,7 @@ Trix::statOpSeize(Uint32& statPtrI)
       !c_statOpPool.seize(statPtr))
   {
     jam();
+    CLEAR_ERROR_INSERT_VALUE;
     D("statOpSeize: seize statOp failed");
     return false;
   }
@@ -1601,6 +1602,7 @@ Trix::statOpSeize(Uint32& statPtrI)
       !c_theSubscriptions.seize(subRecPtr))
   {
     jam();
+    CLEAR_ERROR_INSERT_VALUE;
     c_statOpPool.release(statPtr);
     D("statOpSeize: seize subRec failed");
     return false;
@@ -1642,7 +1644,8 @@ Trix::execINDEX_STAT_IMPL_REQ(Signal* signal)
   if (!statOpSeize(statPtrI))
   {
     jam();
-    statOpRef(signal, req, IndexStatRef::NoFreeStatOp, __LINE__);
+    const IndexStatImplReq reqCopy = *req;
+    statOpRef(signal, &reqCopy, IndexStatRef::NoFreeStatOp, __LINE__);
     return;
   }
   StatOp& stat = statOpGetPtr(statPtrI);
@@ -2435,6 +2438,8 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   SubscriptionRecord* subRec = c_theSubscriptions.getPtr(stat.m_subRecPtrI);
   D("statCleanExecute" << V(stat));
 
+  CRASH_INSERTION(18025);
+
   SectionHandle handle(this, signal);
   ndbrequire(handle.m_cnt == 2);
 
@@ -2462,7 +2467,7 @@ Trix::statCleanExecute(Signal* signal, StatOp& stat)
   ndbrequire(data.m_indexVersion == av[1]);
   data.m_sampleVersion = av[2];
   data.m_statKey = &av[3];
-  const char* kp = (const char*)data.m_statKey;
+  const unsigned char* kp = (const unsigned char*)data.m_statKey;
   const Uint32 kb = kp[0] + (kp[1] << 8);
   // key is not empty
   ndbrequire(kb != 0);
@@ -2608,6 +2613,8 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   SubscriptionRecord* subRec = c_theSubscriptions.getPtr(stat.m_subRecPtrI);
   D("statScanExecute" << V(stat));
 
+  CRASH_INSERTION(18026);
+
   SectionHandle handle(this, signal);
   ndbrequire(handle.m_cnt == 2);
 
@@ -2633,8 +2640,8 @@ Trix::statScanExecute(Signal* signal, StatOp& stat)
   ::copy(av, ptr1);
   data.m_statKey = &av[0];
   data.m_statValue = &av[kz];
-  const char* kp = (const char*)data.m_statKey;
-  const char* vp = (const char*)data.m_statValue;
+  const unsigned char* kp = (const unsigned char*)data.m_statKey;
+  const unsigned char* vp = (const unsigned char*)data.m_statValue;
   const Uint32 kb = kp[0] + (kp[1] << 8);
   const Uint32 vb = vp[0] + (vp[1] << 8);
   // key and value are not empty

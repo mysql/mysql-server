@@ -44,10 +44,10 @@ private:
     ZWAIT_ABORT_ALL                        = 14,
     ZCHECK_SCAN_ACTIVE_FAILED_LQH          = 15,
     TRIGGER_PENDING                        = 17,
-    
-    DelayTCKEYCONF = 18,
-    ZNF_CHECK_TRANSACTIONS = 19,
-    ZSEND_FIRE_TRIG_REQ = 20
+    DelayTCKEYCONF                         = 18,
+    ZNF_CHECK_TRANSACTIONS                 = 19,
+    ZSEND_FIRE_TRIG_REQ                    = 20,
+    ZSTART_FRAG_SCANS                      = 21
   };
 };
 

@@ -144,6 +144,10 @@ static const ErrStruct errArray[] =
    {NDBD_EXIT_SR_OUT_OF_DATAMEMORY, XCR,
     "Out of data memory during system restart, please increase DataMemory"},
 
+   /* LQH */
+   {NDBD_EXIT_LCP_SCAN_WATCHDOG_FAIL, XIE,
+    "LCP fragment scan watchdog detected a problem.  Please report a bug."},
+
    /* Ndbfs error messages */
    /* Most codes will have additional info, such as OS error code */
    {NDBD_EXIT_AFS_NOPATH,       XIE, "No file system path"},
@@ -267,7 +271,7 @@ const char *ndbd_exit_status_message(ndbd_exit_status status)
 
 int ndbd_exit_string(int err_no, char *str, unsigned int size)
 {
-  unsigned int len;
+  size_t len;
 
   ndbd_exit_classification cl;
   ndbd_exit_status st;
@@ -279,8 +283,8 @@ int ndbd_exit_string(int err_no, char *str, unsigned int size)
 
     len = my_snprintf(str, size-1, "%s: %s: %s", msg, st_msg, cl_msg);
     str[size-1]= '\0';
-  
-    return len;
+
+    return (int)len;
   }
   return -1;
 }

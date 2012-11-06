@@ -339,11 +339,18 @@ private:
     int m_activeFragCount;
     /** Number of fragments in 'm_fetchMoreFrags'. */
     int m_fetchMoreFragCount;
+
     /**
-     * Number of fragments where the final batch has been received
+     * Number of fragments where the final ResultSet has been received.
+     * (But not necessarily consumed!).
+     */
+    int m_finalFragReceivedCount;
+    /**
+     * Number of fragments where the final ResultSet has been received
      * and consumed.
      */
-    int m_finalFragCount;
+    int m_finalFragConsumedCount;
+
     /** Ordering of index scan result.*/
     NdbQueryOptions::ScanOrdering m_ordering;
     /** Needed for comparing records when ordering results.*/
@@ -357,9 +364,9 @@ private:
     NdbRootFragment** m_activeFrags;
     /**
      * Fragments from which we should request more ResultSets.
-     * Either due to the current batch has been consumed, or double buffering
-     * of result sets allows us to request another batch before the current
-     * has been consumed.
+     * Either due to the current ResultSets has been consumed,
+     * or double buffering of ResultSets allows us to request
+     * another batch before the current has been consumed.
      */
     NdbRootFragment** m_fetchMoreFrags;
 
@@ -595,6 +602,12 @@ public:
   /** A shorthand for getting the root operation. */
   NdbQueryOperationImpl& getRoot() const
   { return m_queryImpl.getRoot(); }
+
+  // A shorthand method.
+  Uint32 getInternalOpNo() const
+  {
+    return m_operationDef.getInternalOpNo();
+  }
 
   const NdbQueryDefImpl& getQueryDef() const
   { return m_queryImpl.getQueryDef(); }

@@ -29,10 +29,11 @@ Uint32 MAX_RECEIVED_SIGNALS = 1024;
 #endif
 
 Uint32
-TransporterRegistry::unpack(Uint32 * readPtr,
-			    Uint32 sizeOfData,
-			    NodeId remoteNodeId,
-			    IOState state) {
+TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
+                            Uint32 * readPtr,
+                            Uint32 sizeOfData,
+                            NodeId remoteNodeId,
+                            IOState state) {
   SignalHeader signalHeader;
   LinearSectionPtr ptr[3];
   
@@ -112,7 +113,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	sectionData += sz;
       }
 
-      callbackObj->deliver_signal(&signalHeader, prio, signalData, ptr);
+      recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       
       readPtr     += messageLen32;
       sizeOfData  -= messageLenBytes;
@@ -198,7 +199,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	  sectionData += sz;
 	}
 
-	callbackObj->deliver_signal(&signalHeader, prio, signalData, ptr);
+	recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
@@ -215,10 +216,11 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 }
 
 Uint32 *
-TransporterRegistry::unpack(Uint32 * readPtr,
-			    Uint32 * eodPtr,
-			    NodeId remoteNodeId,
-			    IOState state) {
+TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
+                            Uint32 * readPtr,
+                            Uint32 * eodPtr,
+                            NodeId remoteNodeId,
+                            IOState state) {
   SignalHeader signalHeader;
   LinearSectionPtr ptr[3];
   Uint32 loop_count = 0;
@@ -289,7 +291,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	sectionData += sz;
       }
       
-      callbackObj->deliver_signal(&signalHeader, prio, signalData, ptr);
+      recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       
       readPtr += messageLen32;
     }//while
@@ -366,7 +368,7 @@ TransporterRegistry::unpack(Uint32 * readPtr,
 	  sectionData += sz;
 	}
 
-	callbackObj->deliver_signal(&signalHeader, prio, signalData, ptr);
+	recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
