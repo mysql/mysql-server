@@ -4159,7 +4159,6 @@ is_ndbinfo(MYSQL* mysql, const char* dbname)
 
     if (!(row= mysql_fetch_row(res)))
     {
-      verbose_msg("-- Doesn't have ndbinfo engine\n");
       mysql_free_result(res);
       return 0;
     }
