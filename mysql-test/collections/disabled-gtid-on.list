@@ -1,8 +1,6 @@
 rpl_loaddata_s : Skipped and the reason requires further analysis.
 rpl_server_id2 : Skipped and the reason requires furhter analysis.
 rpl_server_id_ignore : Skipped and the reason requires further analysis.
-rpl_insert : Skipped and the reason requires furhter analysis.
-rpl_mix_insert_delayed : Skipped and the reason requires furhter analysis.
 rpl_row_mysqlbinlog : Skipped and the reason requires furhter analysis.
 rpl_typeconv : Skipped and the reason requires furhter analysis.
 rpl_slave_start: Skipped and the reason requires furhter analysis.
@@ -12,7 +10,6 @@ rpl_extra_col_slave_innodb : Skipped and the reason requires furhter analysis..
 rpl_extra_col_slave_myisam : Skipped and the reason requires furhter analysis.
 rpl_seconds_behind_master : Skipped and the reason requires furhter analysis.
 rpl_loaddata_fatal : Skipped and the reason requires furhter analysis.
-rpl_row_delayed_ins : Skipped and the reason requires furhter analysis.
 rpl_row_max_relay_size : Skipped and the reason requires furhter analysis.
 rpl_stm_000001 : Skipped and the reason requires furhter analysis.
 rpl_filter_tables_not_exist : Skipped and the reason requires furhter analysis.
@@ -27,12 +24,9 @@ rpl_row_img_eng_full : Skipped and the reason requires furhter analysis.
 skip_log_bin : Skipped and the reason requires furhter analysis.
 flush2 : Skipped and the reason requires furhter analysis.
 mysqldump-no-binlog : Skipped and the reason requires furhter analysis.
-delayed: Skipped and the reason requires further analysis.
 no_binlog: Skipped and the reason requires further analysis.
 openssl_1: Skipped and the reason requires further analysis.
-innodb-replace: Skipped and the reason requires further analysis.
 read_only_innodb: Skipped and the reason requires further analysis.
-sys_vars.delayed_insert_limit_func: Skipped and the reason requires further analysis.
 sp-lock: Skipped and the reason requires further analysis.
 lock_sync: Skipped and the reason requires further analysis.
 
@@ -87,7 +81,6 @@ binlog_row_ctype_ucs : Skipped because SHOW BINLOG/RELAY EVENTS produce differen
 binlog_row_drop_tbl : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
 binlog_row_drop_tmp_tbl : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
 binlog_server_id : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
-binlog_statement_insert_delayed : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
 binlog_stm_blackhole : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
 binlog_stm_ctype_ucs : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
 binlog_stm_do_db : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs.
@@ -139,9 +132,6 @@ binlog_truncate_myisam : Skipped because SHOW BINLOG/RELAY EVENTS produce differ
 
 
 
-rpl_stm_insert_delayed : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions. Check extra/rpl_tests/rpl_insert_delayed.test.
-rpl_row_insert_delayed : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions. Check extra/rpl_tests/rpl_insert_delayed.test.
-rpl_mixed_insert_delayed : Skipped because SHOW BINLOG/RELAY EVENTS produce different outputs and positions. Check extra/rpl_tests/rpl_insert_delayed.test.
 
 
 

@@ -11917,15 +11917,11 @@ insert_lock_option:
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
         | DELAYED_SYM
         {
-          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
-                                                    YYTHD->query());
-          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
-                                           YYLIP->yyLength() + 1;
-          $$= TL_WRITE_DELAYED;
+          $$= TL_WRITE_CONCURRENT_DEFAULT;
 
           push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                              ER_WARN_DEPRECATED_SYNTAX,
-                              ER(ER_WARN_DEPRECATED_SYNTAX),
+                              ER_WARN_LEGACY_SYNTAX_CONVERTED,
+                              ER(ER_WARN_LEGACY_SYNTAX_CONVERTED),
                               "INSERT DELAYED", "INSERT");
         }
         | HIGH_PRIORITY { $$= TL_WRITE; }
@@ -11935,15 +11931,11 @@ replace_lock_option:
           opt_low_priority { $$= $1; }
         | DELAYED_SYM
         {
-          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
-                                                    YYTHD->query());
-          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
-                                           YYLIP->yyLength() + 1;
-          $$= TL_WRITE_DELAYED;
+          $$= TL_WRITE_DEFAULT;
 
           push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                              ER_WARN_DEPRECATED_SYNTAX,
-                              ER(ER_WARN_DEPRECATED_SYNTAX),
+                              ER_WARN_LEGACY_SYNTAX_CONVERTED,
+                              ER(ER_WARN_LEGACY_SYNTAX_CONVERTED),
                               "REPLACE DELAYED", "REPLACE");
         }
         ;
@@ -12071,8 +12063,7 @@ opt_insert_update:
             Lex->duplicates= DUP_UPDATE;
             TABLE_LIST *first_table= Lex->select_lex.table_list.first;
             /* Fix lock for ON DUPLICATE KEY UPDATE */
-            if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT ||
-                first_table->lock_type == TL_WRITE_DELAYED)
+            if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
               first_table->lock_type= TL_WRITE_DEFAULT;
           }
           KEY_SYM UPDATE_SYM insert_update_list

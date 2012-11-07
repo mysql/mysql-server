@@ -3226,7 +3226,6 @@ bool check_column_name(const char *name)
   been opened.
 
   @param[in] table             The table to check
-  @param[in] table_f_count     Expected number of columns in the table
   @param[in] table_def         Expected structure of the table (column name
                                and type)
 
