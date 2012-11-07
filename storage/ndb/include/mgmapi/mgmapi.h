@@ -402,7 +402,11 @@ extern "C" {
   void ndb_mgm_destroy_handle(NdbMgmHandle * handle);
 
   /**
-   * Set a name of the handle.  Name is reported in cluster log.
+   * Set a name of the handle.
+   *
+   * NOTE! Name is reported in cluster log only when the
+   * handle subsequently is used to allocate a nodeid
+   * using ndb_mgm_alloc_nodeid().
    *
    * @param   handle        Management handle
    * @param   name          Name
