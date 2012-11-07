@@ -330,7 +330,6 @@ struct PFS_table_lock_stat_row
   PFS_stat_row m_read_external;
   PFS_stat_row m_write_allow_write;
   PFS_stat_row m_write_concurrent_insert;
-  PFS_stat_row m_write_delayed;
   PFS_stat_row m_write_low_priority;
   PFS_stat_row m_write_normal;
   PFS_stat_row m_write_external;
@@ -356,14 +355,12 @@ struct PFS_table_lock_stat_row
 
     m_write_allow_write.set(normalizer, & stat->m_stat[PFS_TL_WRITE_ALLOW_WRITE]);
     m_write_concurrent_insert.set(normalizer, & stat->m_stat[PFS_TL_WRITE_CONCURRENT_INSERT]);
-    m_write_delayed.set(normalizer, & stat->m_stat[PFS_TL_WRITE_DELAYED]);
     m_write_low_priority.set(normalizer, & stat->m_stat[PFS_TL_WRITE_LOW_PRIORITY]);
     m_write_normal.set(normalizer, & stat->m_stat[PFS_TL_WRITE]);
     m_write_external.set(normalizer, & stat->m_stat[PFS_TL_WRITE_EXTERNAL]);
 
     all_write.aggregate(& stat->m_stat[PFS_TL_WRITE_ALLOW_WRITE]);
     all_write.aggregate(& stat->m_stat[PFS_TL_WRITE_CONCURRENT_INSERT]);
-    all_write.aggregate(& stat->m_stat[PFS_TL_WRITE_DELAYED]);
     all_write.aggregate(& stat->m_stat[PFS_TL_WRITE_LOW_PRIORITY]);
     all_write.aggregate(& stat->m_stat[PFS_TL_WRITE]);
     all_write.aggregate(& stat->m_stat[PFS_TL_WRITE_EXTERNAL]);
