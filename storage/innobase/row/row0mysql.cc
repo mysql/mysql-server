@@ -806,11 +806,8 @@ row_prebuilt_free(
 	row_prebuilt_t*	prebuilt,	/*!< in, own: prebuilt struct */
 	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
 {
-	ulint	i;
-
-	if (UNIV_UNLIKELY
-	    (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
-	     || prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED)) {
+	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
+	    || prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED) {
 
 		fprintf(stderr,
 			"InnoDB: Error: trying to free a corrupt\n"
@@ -828,6 +825,8 @@ row_prebuilt_free(
 
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
 	prebuilt->magic_n2 = ROW_PREBUILT_FREED;
+
+	srv_stats.n_rows_read.add(prebuilt->n_rows_read);
 
 	btr_pcur_reset(&prebuilt->pcur);
 	btr_pcur_reset(&prebuilt->clust_pcur);
@@ -860,7 +859,7 @@ row_prebuilt_free(
 		byte*	base = prebuilt->fetch_cache[0] - 4;
 		byte*	ptr = base;
 
-		for (i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
+		for (ulint i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
 			byte*	row;
 			ulint	magic1;
 			ulint	magic2;
