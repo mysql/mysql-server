@@ -721,6 +721,17 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
   return false;
 }
 
+static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD *thd,
+                                                    set_var *var )
+{
+  if (var->type == OPT_GLOBAL)
+  {
+    my_error(ER_LOCAL_VARIABLE, MYF(0), self->name.str);
+    return true;
+  }
+  return false;
+}
+
 static Sys_var_test_flag Sys_core_file(
        "core_file", "write a core-file on crashes", TEST_CORE_ON_SIGNAL);
 
@@ -738,6 +749,21 @@ static Sys_var_enum Sys_binlog_format(
        binlog_format_names, DEFAULT(BINLOG_FORMAT_STMT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_format_check),
        ON_UPDATE(fix_binlog_format_after_update));
+
+static const char *rbr_exec_mode_names[]=
+       {"STRICT", "IDEMPOTENT", 0};
+static Sys_var_enum rbr_exec_mode(
+       "rbr_exec_mode",
+       "Modes for how row events should be executed. Legal values "
+       "are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode, "
+       "the server will not throw errors for operations that are idempotent. "
+       "In STRICT mode, server will throw errors for the operations that "
+       "cause a conflict.",
+       SESSION_VAR(rbr_exec_mode_options), NO_CMD_LINE,
+       rbr_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(prevent_global_rbr_exec_mode_idempotent),
+       ON_UPDATE(NULL));
 
 static const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
 static Sys_var_enum Sys_binlog_row_image(
@@ -2574,7 +2600,8 @@ static Sys_var_enum Slave_exec_mode(
        "In STRICT mode, replication will stop on any unexpected difference "
        "between the master and the slave",
        GLOBAL_VAR(slave_exec_mode_options), CMD_LINE(REQUIRED_ARG),
-       slave_exec_mode_names, DEFAULT(SLAVE_EXEC_MODE_STRICT));
+       slave_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT));
+
 const char *slave_type_conversions_name[]= {"ALL_LOSSY", "ALL_NON_LOSSY", 0};
 static Sys_var_set Slave_type_conversions(
        "slave_type_conversions",
