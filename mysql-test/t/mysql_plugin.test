@@ -372,11 +372,11 @@ let $MYSQL_PLUGIN_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQL_DATADIR --basedir=$MYSQ
 --echo # Show the help.
 --echo #
 --replace_result $MYSQL_PLUGIN mysql_plugin $MYSQL_SERVER_VERSION XX.XX.XX
---replace_regex /Ver [0-9.]+ Distrib [0-9.]+/Ver V.V.VV Distrib XX.XX.XX/ /XX-[a-z]*[0-9]*/XX/
+--replace_regex /Ver [0-9.]+/Ver V.V.VV/ 
 --exec $MYSQL_PLUGIN --help
 
 --replace_result $MYSQL_PLUGIN mysql_plugin $MYSQL_SERVER_VERSION XX.XX.XX
---replace_regex /Ver [0-9.]+ Distrib [0-9.]+/Ver V.V.VV Distrib XX.XX.XX/ /XX-[a-z]*[0-9]*/XX/
+--replace_regex /Ver [0-9.]+/Ver V.V.VV/
 --exec $MYSQL_PLUGIN --version
 
 #
