@@ -2884,40 +2884,12 @@ bool select_exists_subselect::send_data(List<Item> &items)
 int select_dumpvar::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 {
   unit= u;
-  List_iterator_fast<my_var> var_li(var_list);
-  List_iterator_fast<Item> it(list);
-  Item *item;
-  my_var *mv;
-  Item_func_set_user_var **suv;
-  
+
   if (var_list.elements != list.elements)
   {
     my_message(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT,
                ER(ER_WRONG_NUMBER_OF_COLUMNS_IN_SELECT), MYF(0));
     return 1;
-  }
-
-  /*
-    Iterate over the destination variables and mark them as being
-    updated in this query.
-    We need to do this at JOIN::prepare time to ensure proper
-    const detection of Item_func_get_user_var that is determined
-    by the presence of Item_func_set_user_vars
-  */
-
-  suv= set_var_items= (Item_func_set_user_var **) 
-    sql_alloc(sizeof(Item_func_set_user_var *) * list.elements);
-
-  while ((mv= var_li++) && (item= it++))
-  {
-    if (!mv->local)
-    {
-      *suv= new Item_func_set_user_var(mv->s, item);
-      (*suv)->fix_fields(thd, 0);
-    }
-    else
-      *suv= NULL;
-    suv++;
   }
 
   return 0;
@@ -3236,33 +3208,41 @@ bool select_dumpvar::send_data(List<Item> &items)
   List_iterator<Item> it(items);
   Item *item;
   my_var *mv;
-  Item_func_set_user_var **suv;
   DBUG_ENTER("select_dumpvar::send_data");
 
   if (unit->offset_limit_cnt)
   {						// using limit offset,count
     unit->offset_limit_cnt--;
-    DBUG_RETURN(0);
+    DBUG_RETURN(false);
   }
   if (row_count++) 
   {
     my_message(ER_TOO_MANY_ROWS, ER(ER_TOO_MANY_ROWS), MYF(0));
-    DBUG_RETURN(1);
+    DBUG_RETURN(true);
   }
-  for (suv= set_var_items; ((mv= var_li++) && (item= it++)); suv++)
+  while ((mv= var_li++) && (item= it++))
   {
     if (mv->local)
     {
-      DBUG_ASSERT(!*suv);
       if (thd->spcont->set_variable(thd, mv->offset, &item))
-	    DBUG_RETURN(1);
+	    DBUG_RETURN(true);
     }
     else
     {
-      DBUG_ASSERT(*suv);
-      (*suv)->save_item_result(item);
-      if ((*suv)->update())
-        DBUG_RETURN (1);
+      /*
+        Create Item_func_set_user_vars with delayed non-constness. We
+        do this so that Item_get_user_var::const_item() will return
+        the same result during
+        Item_func_set_user_var::save_item_result() as they did during
+        optimization and execution.
+       */
+      Item_func_set_user_var *suv=
+        new Item_func_set_user_var(mv->s, item, true);
+      if (suv->fix_fields(thd, 0))
+        DBUG_RETURN(true);
+      suv->save_item_result(item);
+      if (suv->update())
+        DBUG_RETURN(true);
     }
   }
   DBUG_RETURN(thd->is_error());
