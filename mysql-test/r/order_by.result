@@ -1945,3 +1945,52 @@ f0	f1	f2
 set sort_buffer_size= @save_sort_buffer_size;
 DROP TABLE t1;
 End of 5.3 tests
+#
+# Bug 54599: discarded fast range scan for query with 
+#            GROUP BY + ORDER BY + LIMIT 
+#
+create table t0 (a int);
+insert into t0 values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+create table t1 (a int, b int, index idx1(a,b), index idx2(b,a));
+insert into t1
+select 1000*s4.a+100*s3.a+10*s2.a + s1.a, 1000*s4.a+100*s3.a+10*s2.a+s1.a
+from t0 s1, t0 s2, t0 s3, t0 s4;
+analyze table t1;
+explain
+select b, count(*) num_cnt from t1
+where a > 9750 group by b order by num_cnt;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx1	idx1	5	NULL	502	Using where; Using index; Using temporary; Using filesort
+flush status;
+select b, count(*) num_cnt from t1
+where a > 9750 group by b order by num_cnt;
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	250
+Handler_read_last	0
+Handler_read_next	249
+Handler_read_prev	0
+Handler_read_rnd	249
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	250
+explain
+select b, count(*) num_cnt from t1 
+where a > 9750 group by b order by num_cnt limit 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	range	idx1	idx1	5	NULL	502	Using where; Using index; Using temporary; Using filesort
+flush status;
+select b, count(*) num_cnt from t1 
+where a > 9750 group by b order by num_cnt limit 1;
+show status like '%Handler_read%';
+Variable_name	Value
+Handler_read_first	0
+Handler_read_key	250
+Handler_read_last	0
+Handler_read_next	249
+Handler_read_prev	0
+Handler_read_rnd	1
+Handler_read_rnd_deleted	0
+Handler_read_rnd_next	250
+drop table t0, t1;
+End of 5.5 tests

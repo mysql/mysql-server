@@ -1652,3 +1652,44 @@ DROP TABLE t1;
 
 --echo End of 5.3 tests
 
+--echo #
+--echo # Bug 54599: discarded fast range scan for query with 
+--echo #            GROUP BY + ORDER BY + LIMIT 
+--echo #
+
+create table t0 (a int);
+insert into t0 values (0), (1), (2), (3), (4), (5), (6), (7), (8), (9);
+
+create table t1 (a int, b int, index idx1(a,b), index idx2(b,a));
+insert into t1
+  select 1000*s4.a+100*s3.a+10*s2.a + s1.a, 1000*s4.a+100*s3.a+10*s2.a+s1.a
+    from t0 s1, t0 s2, t0 s3, t0 s4;
+--disable_result_log
+analyze table t1;
+--enable_result_log
+
+explain
+select b, count(*) num_cnt from t1
+   where a > 9750 group by b order by num_cnt;
+flush status;
+--disable_result_log
+select b, count(*) num_cnt from t1
+   where a > 9750 group by b order by num_cnt;
+--enable_result_log
+show status like '%Handler_read%';
+
+explain
+select b, count(*) num_cnt from t1 
+  where a > 9750 group by b order by num_cnt limit 1;
+flush status;
+--disable_result_log
+select b, count(*) num_cnt from t1 
+  where a > 9750 group by b order by num_cnt limit 1;
+--enable_result_log
+show status like '%Handler_read%';
+
+drop table t0, t1;
+
+--echo End of 5.5 tests
+
+
