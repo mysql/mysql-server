@@ -8,10 +8,6 @@
 # cannot be created on windows
 --source include/not_windows.inc
 
-# Issues with innodb_change_buffering_debug on Windows, so the test scenario
-# cannot be created on windows
---source include/not_windows.inc
-
 # This test needs debug server
 --source include/have_debug.inc
 
