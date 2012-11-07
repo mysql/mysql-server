@@ -5,6 +5,10 @@
 # All MySQLDs log-apply-status
 # Infinite loops broken in the test using Ignore_server_ids mechanism
 
+[cluster_config.slave]
+# Add extra mysqld to second cluster
+mysqld=,
+
 [mysqld.1.1]
 server-id= 1
 log-bin

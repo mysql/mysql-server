@@ -29,6 +29,7 @@
 #include <blocks/mutexes.hpp>
 #include <signaldata/LCP.hpp>
 #include <NdbSeqLock.hpp>
+#include <CountingSemaphore.hpp>
 
 #ifdef DBDIH_C
 
@@ -106,10 +107,13 @@
 /* SIZES   */
 /*#########*/
 /*
- * Only pages enough for one table needed, since only
- * one metadata change at the time is allowed.
+ * Pages are used for flushing table definitions during LCP,
+ * and for other operations such as metadata changes etc
+ * 
  */
-#define ZPAGEREC PACK_TABLE_PAGES
+#define MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES 4
+#define MAX_CONCURRENT_DIH_TAB_DEF_OPS (MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES + 2)
+#define ZPAGEREC (MAX_CONCURRENT_DIH_TAB_DEF_OPS * PACK_TABLE_PAGES)
 #define ZCREATE_REPLICA_FILE_SIZE 4
 #define ZPROXY_MASTER_FILE_SIZE 10
 #define ZPROXY_FILE_SIZE 10
@@ -501,6 +505,7 @@ public:
     enum UpdateState {
       US_IDLE,
       US_LOCAL_CHECKPOINT,
+      US_LOCAL_CHECKPOINT_QUEUED,
       US_REMOVE_NODE,
       US_COPY_TAB_REQ,
       US_ADD_TABLE_MASTER,
@@ -1608,6 +1613,11 @@ private:
   Uint32 c_newest_restorable_gci;
   Uint32 c_set_initial_start_flag;
   Uint64 c_current_time; // Updated approx. every 10ms
+
+  /* Limit the number of concurrent table definition writes during LCP
+   * This avoids exhausting the DIH page pool
+   */
+  CountingSemaphore c_lcpTabDefWritesControl;
 
 public:
   enum LcpMasterTakeOverState {
