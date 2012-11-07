@@ -16,6 +16,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "test.h"
+#include <portability/toku_atomic.h>
 
 static DB_ENV *env;
 static DB *db;
@@ -29,7 +30,7 @@ long n_preads = 0;
 static void insert(int i, DB_TXN *txn);
 
 static ssize_t my_pread (int fd, void *buf, size_t count, off_t offset) {
-    long n_read_so_far = __sync_fetch_and_add(&n_preads, 1);
+    long n_read_so_far = toku_sync_fetch_and_add(&n_preads, 1);
     if (do_XX_on_pread==n_read_so_far && XX != NULL) {
 	// we're supposed to do the XX operation now.  Insert a row.
 	printf("Did XX\n");

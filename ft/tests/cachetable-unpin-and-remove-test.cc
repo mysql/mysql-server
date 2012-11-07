@@ -63,7 +63,7 @@ cachetable_unpin_and_remove_test (int n) {
 
         // verify that k is removed
         void *v;
-        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(testkeys[i].b), hi, &v);
+        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(testkeys[i].b), hi, PL_WRITE_EXPENSIVE, &v);
         assert(r != 0);
 
         testkeys[i] = testkeys[nkeys-1]; nkeys -= 1;

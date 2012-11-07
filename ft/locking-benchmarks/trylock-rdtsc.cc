@@ -13,6 +13,7 @@
 #include <sys/time.h>
 #include <unistd.h>
 #include <rdtsc.h>
+#include <portability/toku_atomic.h>
 
 float tdiff (struct timeval *start, struct timeval *end) {
     return 1e6*(end->tv_sec-start->tv_sec) +(end->tv_usec - start->tv_usec);
@@ -135,12 +136,12 @@ int main(int argc __attribute__((unused)), char **argv)
   {
       static int lock_for_lock_and_unlock;
       t_start = rdtsc();
-      (void)__sync_lock_test_and_set(&lock_for_lock_and_unlock, 1);
+      (void)toku_sync_lock_test_and_set(&lock_for_lock_and_unlock, 1);
       t_end   = rdtsc();
       printf("sync_lock_test_and_set took %llu clocks\n", t_end-t_start);
 
       t_start = rdtsc();
-      __sync_lock_release(&lock_for_lock_and_unlock);
+      toku_sync_lock_release(&lock_for_lock_and_unlock);
       t_end   = rdtsc();
       printf("sync_lock_release      took %llu clocks\n", t_end-t_start);
   }
@@ -148,7 +149,7 @@ int main(int argc __attribute__((unused)), char **argv)
 
   {
       t_start = rdtsc();
-      (void)__sync_synchronize();
+      (void)toku_sync_synchronize();
       t_end   = rdtsc();
       printf("sync_synchornize took %llu clocks\n", t_end-t_start);
   }

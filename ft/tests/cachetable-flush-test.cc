@@ -43,12 +43,12 @@ test_cachetable_def_flush (int n) {
         uint32_t hi;
         void *v;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
-        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, &v);
+        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, PL_WRITE_EXPENSIVE, &v);
         assert(r == 0 && v == (void *)(long)i);
         r = toku_test_cachetable_unpin(f1, make_blocknum(i), hi, CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);
         hi = toku_cachetable_hash(f2, make_blocknum(i));
-        r = toku_cachetable_maybe_get_and_pin(f2, make_blocknum(i), hi, &v);
+        r = toku_cachetable_maybe_get_and_pin(f2, make_blocknum(i), hi, PL_WRITE_EXPENSIVE, &v);
         assert(r == 0 && v == (void *)(long)i);
         r = toku_test_cachetable_unpin(f2, make_blocknum(i), hi, CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);
@@ -63,10 +63,10 @@ test_cachetable_def_flush (int n) {
         uint32_t hi;
         void *v;
         hi = toku_cachetable_hash(f1, make_blocknum(i));
-        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, &v);
+        r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(i), hi, PL_WRITE_EXPENSIVE, &v);
         assert(r != 0);
         hi = toku_cachetable_hash(f2, make_blocknum(i));
-        r = toku_cachetable_maybe_get_and_pin(f2, make_blocknum(i), hi, &v);
+        r = toku_cachetable_maybe_get_and_pin(f2, make_blocknum(i), hi, PL_WRITE_EXPENSIVE, &v);
         assert(r == 0);
         r = toku_test_cachetable_unpin(f2, make_blocknum(i), hi, CACHETABLE_CLEAN, make_pair_attr(1));
         assert(r == 0);

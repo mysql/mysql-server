@@ -150,8 +150,10 @@ rwlock_init(RWLOCK rwlock) {
 static __attribute__((__unused__))
 void
 rwlock_destroy(RWLOCK rwlock) {
-    assert(rwlock->reader == 0 && rwlock->want_read == 0);
-    assert(rwlock->writer == 0 && rwlock->want_write == 0);
+    paranoid_invariant(rwlock->reader == 0);
+    paranoid_invariant(rwlock->want_read == 0);
+    paranoid_invariant(rwlock->writer == 0);
+    paranoid_invariant(rwlock->want_write == 0);
     toku_cond_destroy(&rwlock->wait_read);
     toku_cond_destroy(&rwlock->wait_write);
 }
@@ -160,7 +162,7 @@ rwlock_destroy(RWLOCK rwlock) {
 // expects: mutex is locked
 
 static inline void rwlock_read_lock(RWLOCK rwlock, toku_mutex_t *mutex) {
-    assert(!rwlock->wait_users_go_to_zero);
+    paranoid_invariant(!rwlock->wait_users_go_to_zero);
     if (rwlock->writer || rwlock->want_write) {
         rwlock->want_read++;
         while (rwlock->writer || rwlock->want_write) {
@@ -175,8 +177,8 @@ static inline void rwlock_read_lock(RWLOCK rwlock, toku_mutex_t *mutex) {
 // expects: mutex is locked
 
 static inline void rwlock_read_unlock(RWLOCK rwlock) {
-    assert(rwlock->reader > 0);
-    assert(rwlock->writer == 0);
+    paranoid_invariant(rwlock->reader > 0);
+    paranoid_invariant(rwlock->writer == 0);
     rwlock->reader--;
     if (rwlock->reader == 0 && rwlock->want_write) {
         toku_cond_signal(&rwlock->wait_write);
@@ -190,7 +192,7 @@ static inline void rwlock_read_unlock(RWLOCK rwlock) {
 // expects: mutex is locked
 
 static inline void rwlock_write_lock(RWLOCK rwlock, toku_mutex_t *mutex) {
-    assert(!rwlock->wait_users_go_to_zero);
+    paranoid_invariant(!rwlock->wait_users_go_to_zero);
     if (rwlock->reader || rwlock->writer) {
         rwlock->want_write++;
         while (rwlock->reader || rwlock->writer) {
@@ -205,8 +207,8 @@ static inline void rwlock_write_lock(RWLOCK rwlock, toku_mutex_t *mutex) {
 // expects: mutex is locked
 
 static inline void rwlock_write_unlock(RWLOCK rwlock) {
-    assert(rwlock->reader == 0);
-    assert(rwlock->writer == 1);
+    paranoid_invariant(rwlock->reader == 0);
+    paranoid_invariant(rwlock->writer == 1);
     rwlock->writer--;
     if (rwlock->want_write) {
         toku_cond_signal(&rwlock->wait_write);
@@ -255,7 +257,7 @@ static inline void rwlock_wait_for_users(
     toku_mutex_t *mutex
     )
 {
-    assert(!rwlock->wait_users_go_to_zero);
+    paranoid_invariant(!rwlock->wait_users_go_to_zero);
     toku_cond_t cond;
     toku_cond_init(&cond, NULL);
     while (rwlock_users(rwlock) > 0) {

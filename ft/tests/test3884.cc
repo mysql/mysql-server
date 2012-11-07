@@ -171,7 +171,7 @@ test_split_on_boundary(void)
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
     verify_basement_node_msns(nodea, dummy_msn_3884);
     verify_basement_node_msns(nodeb, dummy_msn_3884);
@@ -244,7 +244,7 @@ test_split_with_everything_on_the_left(void)
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
     toku_unpin_ftnode(brt->ft, nodeb);
     r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
@@ -319,7 +319,7 @@ test_split_on_boundary_of_last_node(void)
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
     toku_unpin_ftnode(brt->ft, nodeb);
     r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
@@ -387,7 +387,7 @@ test_split_at_begin(void)
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
     toku_unpin_ftnode(brt->ft, nodeb);
     r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
@@ -451,7 +451,7 @@ test_split_at_end(void)
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
     toku_unpin_ftnode(brt->ft, nodeb);
     r = toku_close_ft_handle_nolsn(brt, NULL); assert(r == 0);
@@ -505,7 +505,7 @@ test_split_odd_nodes(void)
     FTNODE nodea, nodeb;
     DBT splitk;
     // if we haven't done it right, we should hit the assert in the top of move_leafentries
-    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, 0, NULL);
+    ftleaf_split(brt->ft, &sn, &nodea, &nodeb, &splitk, true, SPLIT_EVENLY, 0, NULL);
 
     verify_basement_node_msns(nodea, dummy_msn_3884);
     verify_basement_node_msns(nodeb, dummy_msn_3884);

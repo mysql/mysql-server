@@ -38,19 +38,19 @@ inline bool frwlock::queue_is_empty(void) const {
 }
 
 inline void frwlock::enq_item(queue_item *const item) {
-    invariant_null(item->next);
+    paranoid_invariant_null(item->next);
     if (m_wait_tail != nullptr) {
         m_wait_tail->next = item;
     } else {
-        invariant_null(m_wait_head);
+        paranoid_invariant_null(m_wait_head);
         m_wait_head = item;
     }
     m_wait_tail = item;
 }
 
 inline toku_cond_t *frwlock::deq_item(void) {
-    invariant_notnull(m_wait_head);
-    invariant_notnull(m_wait_tail);
+    paranoid_invariant_notnull(m_wait_head);
+    paranoid_invariant_notnull(m_wait_tail);
     queue_item *item = m_wait_head;
     m_wait_head = m_wait_head->next;
     if (m_wait_tail == item) {
@@ -79,10 +79,10 @@ inline void frwlock::write_lock(bool expensive) {
     toku_cond_destroy(&cond);
 
     // Now it's our turn.
-    invariant(m_num_want_write > 0);
-    invariant_zero(m_num_readers);
-    invariant_zero(m_num_writers);
-    invariant_zero(m_num_signaled_readers);
+    paranoid_invariant(m_num_want_write > 0);
+    paranoid_invariant_zero(m_num_readers);
+    paranoid_invariant_zero(m_num_writers);
+    paranoid_invariant_zero(m_num_signaled_readers);
 
     // Not waiting anymore; grab the lock.
     --m_num_want_write;
@@ -99,8 +99,8 @@ inline bool frwlock::try_write_lock(bool expensive) {
         return false;
     }
     // No one holds the lock.  Grant the write lock.
-    invariant_zero(m_num_want_write);
-    invariant_zero(m_num_want_read);
+    paranoid_invariant_zero(m_num_want_write);
+    paranoid_invariant_zero(m_num_want_read);
     m_num_writers = 1;
     m_current_writer_expensive = expensive;
     return true;
@@ -111,11 +111,11 @@ inline void frwlock::read_lock(void) {
     if (m_num_writers > 0 || m_num_want_write > 0) {
         if (!m_wait_read_is_in_queue) {
             // Throw the read cond_t onto the queue.
-            invariant(m_num_signaled_readers == m_num_want_read);
+            paranoid_invariant(m_num_signaled_readers == m_num_want_read);
             m_queue_item_read.next = nullptr;
             this->enq_item(&m_queue_item_read);
             m_wait_read_is_in_queue = true;
-            invariant(!m_read_wait_expensive);
+            paranoid_invariant(!m_read_wait_expensive);
             m_read_wait_expensive = (
                 m_current_writer_expensive || 
                 (m_num_expensive_want_write > 0)
@@ -127,9 +127,9 @@ inline void frwlock::read_lock(void) {
         toku_cond_wait(&m_wait_read, m_mutex);
 
         // Now it's our turn.
-        invariant_zero(m_num_writers);
-        invariant(m_num_want_read > 0);
-        invariant(m_num_signaled_readers > 0);
+        paranoid_invariant_zero(m_num_writers);
+        paranoid_invariant(m_num_want_read > 0);
+        paranoid_invariant(m_num_signaled_readers > 0);
 
         // Not waiting anymore; grab the lock.
         --m_num_want_read;
@@ -153,17 +153,17 @@ inline bool frwlock::try_read_lock(void) {
 inline void frwlock::maybe_signal_next_writer(void) {
     if (m_num_want_write > 0 && m_num_signaled_readers == 0 && m_num_readers == 0) {
         toku_cond_t *cond = this->deq_item();
-        invariant(cond != &m_wait_read);
+        paranoid_invariant(cond != &m_wait_read);
         // Grant write lock to waiting writer.
-        invariant(m_num_want_write > 0);
+        paranoid_invariant(m_num_want_write > 0);
         toku_cond_signal(cond);
     }
 }
 
 inline void frwlock::read_unlock(void) {
     toku_mutex_assert_locked(m_mutex);
-    invariant(m_num_writers == 0);
-    invariant(m_num_readers > 0);
+    paranoid_invariant(m_num_writers == 0);
+    paranoid_invariant(m_num_readers > 0);
     --m_num_readers;
     this->maybe_signal_next_writer();
 }
@@ -180,18 +180,18 @@ inline bool frwlock::read_lock_is_expensive(void) {
 
 
 inline void frwlock::maybe_signal_or_broadcast_next(void) {
-    invariant(m_num_signaled_readers == 0);
+    paranoid_invariant(m_num_signaled_readers == 0);
 
     if (this->queue_is_empty()) {
-        invariant(m_num_want_write == 0);
-        invariant(m_num_want_read == 0);
+        paranoid_invariant(m_num_want_write == 0);
+        paranoid_invariant(m_num_want_read == 0);
         return;
     }
     toku_cond_t *cond = this->deq_item();
     if (cond == &m_wait_read) {
         // Grant read locks to all waiting readers
-        invariant(m_wait_read_is_in_queue);
-        invariant(m_num_want_read > 0);
+        paranoid_invariant(m_wait_read_is_in_queue);
+        paranoid_invariant(m_num_want_read > 0);
         m_num_signaled_readers = m_num_want_read;
         m_wait_read_is_in_queue = false;
         m_read_wait_expensive = false;
@@ -199,14 +199,14 @@ inline void frwlock::maybe_signal_or_broadcast_next(void) {
     }
     else {
         // Grant write lock to waiting writer.
-        invariant(m_num_want_write > 0);
+        paranoid_invariant(m_num_want_write > 0);
         toku_cond_signal(cond);
     }
 }
 
 inline void frwlock::write_unlock(void) {
     toku_mutex_assert_locked(m_mutex);
-    invariant(m_num_writers == 1);
+    paranoid_invariant(m_num_writers == 1);
     m_num_writers = 0;
     m_current_writer_expensive = false;
     this->maybe_signal_or_broadcast_next();

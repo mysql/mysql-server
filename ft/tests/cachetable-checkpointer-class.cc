@@ -193,6 +193,7 @@ void checkpointer_test::add_pairs(struct cachefile *cf,
     attr.cache_pressure_size = 0;
     attr.is_valid = true;
     CACHETABLE_WRITE_CALLBACK cb;
+    ZERO_STRUCT(cb);  // All nullptr
 
     for (uint32_t i = k; i < count + k; ++i) {
         CACHEKEY key;
@@ -201,12 +202,12 @@ void checkpointer_test::add_pairs(struct cachefile *cf,
         pair_init(&(pairs[i]),
             cf,
             key,
-            NULL,
+            nullptr,
             attr,
             CACHETABLE_CLEAN,
             full_hash,
             cb,
-            NULL,
+            nullptr,
             m_cp.m_list);
 
         m_cp.m_list->put(&pairs[i]);

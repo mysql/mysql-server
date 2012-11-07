@@ -16,6 +16,7 @@
 #include "cachetable-internal.h"
 #include <memory.h>
 #include <toku_race_tools.h>
+#include <portability/toku_atomic.h>
 #include <portability/toku_pthread.h>
 #include <portability/toku_time.h>
 #include <util/rwlock.h>
@@ -95,6 +96,10 @@ static inline void pair_lock(PAIR p) {
 
 static inline void pair_unlock(PAIR p) {
     toku_mutex_unlock(p->mutex);
+}
+
+bool toku_ctpair_is_write_locked(PAIR pair) {
+    return pair->value_rwlock.writers() == 1;
 }
 
 void
@@ -706,7 +711,7 @@ static void cachetable_evicter(void* extra) {
 static void cachetable_partial_eviction(void* extra) {
     PAIR p = (PAIR)extra;
     CACHEFILE cf = p->cachefile;
-    p->ev->do_partial_eviction(p);
+    p->ev->do_partial_eviction(p, false);
     bjm_remove_background_job(cf->bjm);
 }
 
@@ -750,6 +755,7 @@ void pair_init(PAIR p,
     p->pe_est_callback = write_callback.pe_est_callback;
     p->cleaner_callback = write_callback.cleaner_callback;
     p->clone_callback = write_callback.clone_callback;
+    p->checkpoint_complete_callback = write_callback.checkpoint_complete_callback;
     p->write_extraargs = write_callback.write_extraargs;
 
     p->count = 0; // <CER> Is zero the correct init value?
@@ -915,6 +921,9 @@ checkpoint_cloned_pair_on_writer_thread(CACHETABLE ct, PAIR p) {
 static void
 write_locked_pair_for_checkpoint(CACHETABLE ct, PAIR p, bool checkpoint_pending)
 {
+    if (checkpoint_pending && p->checkpoint_complete_callback) {
+        p->checkpoint_complete_callback(p->value_data);
+    }
     if (p->dirty && checkpoint_pending) {
         if (p->clone_callback) {
             pair_lock(p);
@@ -952,6 +961,9 @@ write_pair_for_checkpoint_thread (evictor* ev, PAIR p)
     // will be cheap.  Also, much of the time we'll just be clearing
     // pending bits and that's definitely cheap. (see #5427)
     p->value_rwlock.write_lock(false);
+    if (p->checkpoint_pending && p->checkpoint_complete_callback) {
+        p->checkpoint_complete_callback(p->value_data);
+    }
     if (p->dirty && p->checkpoint_pending) {
         if (p->clone_callback) {
             nb_mutex_lock(&p->disk_nb_mutex, p->mutex);
@@ -1726,73 +1738,100 @@ int toku_cachetable_get_and_pin_with_dep_pairs (
 //  For example, imagine that we can modify a bit in a dirty parent, or modify a bit in a clean child, then we should modify
 //  the dirty parent (which will have to do I/O eventually anyway) rather than incur a full block write to modify one bit.
 //  Similarly, if the checkpoint is actually pending, we don't want to block on it.
-int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, void**value) {
+int toku_cachetable_maybe_get_and_pin (CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, pair_lock_type lock_type, void**value) {
     CACHETABLE ct = cachefile->cachetable;
     int r = -1;
     ct->list.pair_lock_by_fullhash(fullhash);
     PAIR p = ct->list.find_pair(cachefile, key, fullhash);
-    if (p && p->value_rwlock.try_write_lock(true)) {
-        // we got the write lock fast, so continue
-        ct->list.read_pending_cheap_lock();
-        //
-        // if pending a checkpoint, then we don't want to return
-        // the value to the user, because we are responsible for
-        // handling the checkpointing, which we do not want to do,
-        // because it is expensive
-        //
-        if (!p->dirty || p->checkpoint_pending) {
-            p->value_rwlock.write_unlock();
-            r = -1;
+    if (p) {
+        const bool lock_is_expensive = (lock_type == PL_WRITE_EXPENSIVE);
+        bool got_lock = false;
+        switch (lock_type) {
+        case PL_READ:
+            if (p->value_rwlock.try_read_lock()) {
+                got_lock = p->dirty;
+
+                if (!got_lock) {
+                    p->value_rwlock.read_unlock();
+                }
+            }
+            break;
+        case PL_WRITE_CHEAP:
+        case PL_WRITE_EXPENSIVE:
+            if (p->value_rwlock.try_write_lock(lock_is_expensive)) {
+                // we got the lock fast, so continue
+                ct->list.read_pending_cheap_lock();
+
+                // if pending a checkpoint, then we don't want to return
+                // the value to the user, because we are responsible for
+                // handling the checkpointing, which we do not want to do,
+                // because it is expensive
+                got_lock = p->dirty && !p->checkpoint_pending;
+
+                ct->list.read_pending_cheap_unlock();
+                if (!got_lock) {
+                    p->value_rwlock.write_unlock();
+                }
+            }
+            break;
         }
-        else {
+        if (got_lock) {
+            pair_touch(p);
             *value = p->value_data;
             r = 0;
         }
-        ct->list.read_pending_cheap_unlock();
-        pair_unlock(p);
     }
-    else {
-        ct->list.pair_unlock_by_fullhash(fullhash);
-    }
+    ct->list.pair_unlock_by_fullhash(fullhash);
     return r;
 }
 
 //Used by flusher threads to possibly pin child on client thread if pinning is cheap
 //Same as toku_cachetable_maybe_get_and_pin except that we don't care if the node is clean or dirty (return the node regardless).
 //All other conditions remain the same.
-int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, void**value) {
+int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE cachefile, CACHEKEY key, uint32_t fullhash, pair_lock_type lock_type, void**value) {
     CACHETABLE ct = cachefile->cachetable;
     int r = -1;
     ct->list.pair_lock_by_fullhash(fullhash);
     PAIR p = ct->list.find_pair(cachefile, key, fullhash);
-    if (p && p->value_rwlock.try_write_lock(true)) {
-        // got the write lock fast, so continue
-        ct->list.read_pending_cheap_lock();
-        //
-        // if pending a checkpoint, then we don't want to return
-        // the value to the user, because we are responsible for
-        // handling the checkpointing, which we do not want to do,
-        // because it is expensive
-        //
-        if (p->checkpoint_pending) {
-            if (p->dirty) {
-                p->value_rwlock.write_unlock();
-                r = -1;
+    if (p) {
+        const bool lock_is_expensive = (lock_type == PL_WRITE_EXPENSIVE);
+        bool got_lock = false;
+        switch (lock_type) {
+        case PL_READ:
+            if (p->value_rwlock.try_read_lock()) {
+                got_lock = true;
+            } else if (!p->value_rwlock.read_lock_is_expensive()) {
+                p->value_rwlock.write_lock(lock_is_expensive);
+                got_lock = true;
             }
-            else {
-                p->checkpoint_pending = false;
-                *value = p->value_data;
-                r = 0;
+            if (got_lock) {
+                pair_touch(p);
             }
+            pair_unlock(p);
+            break;
+        case PL_WRITE_CHEAP:
+        case PL_WRITE_EXPENSIVE:
+            if (p->value_rwlock.try_write_lock(lock_is_expensive)) {
+                got_lock = true;
+            } else if (!p->value_rwlock.write_lock_is_expensive()) {
+                p->value_rwlock.write_lock(lock_is_expensive);
+                got_lock = true;
+            }
+            if (got_lock) {
+                pair_touch(p);
+            }
+            pair_unlock(p);
+            if (got_lock) {
+                bool checkpoint_pending = get_checkpoint_pending(p, &ct->list);
+                write_locked_pair_for_checkpoint(ct, p, checkpoint_pending);
+            }
+            break;
         }
-        else {
+        if (got_lock) {
             *value = p->value_data;
             r = 0;
         }
-        ct->list.read_pending_cheap_unlock();
-        pair_unlock(p);
-    }
-    else {
+    } else {
         ct->list.pair_unlock_by_fullhash(fullhash);
     }
     return r;
@@ -3524,7 +3563,7 @@ void evictor::change_pair_attr(PAIR_ATTR old_attr, PAIR_ATTR new_attr) {
 // the size of the cachetable.
 //
 void evictor::add_to_size_current(long size) {
-    (void) __sync_fetch_and_add(&m_size_current, size);
+    (void) toku_sync_fetch_and_add(&m_size_current, size);
 }
 
 //
@@ -3532,7 +3571,7 @@ void evictor::add_to_size_current(long size) {
 // approximation of the cachetable size.
 //
 void evictor::remove_from_size_current(long size) {
-    (void) __sync_fetch_and_sub(&m_size_current, size);
+    (void) toku_sync_fetch_and_sub(&m_size_current, size);
 }
 
 //
@@ -3543,7 +3582,7 @@ uint64_t evictor::reserve_memory(double fraction) {
     toku_mutex_lock(&m_ev_thread_lock);
     reserved_memory = fraction * (m_low_size_watermark - m_size_reserved);
     m_size_reserved += reserved_memory;
-    (void) __sync_fetch_and_add(&m_size_current, reserved_memory);
+    (void) toku_sync_fetch_and_add(&m_size_current, reserved_memory);
     this->signal_eviction_thread();  
     toku_mutex_unlock(&m_ev_thread_lock);
 
@@ -3557,7 +3596,7 @@ uint64_t evictor::reserve_memory(double fraction) {
 // TODO: (Zardosht) comment this function
 //
 void evictor::release_reserved_memory(uint64_t reserved_memory){
-    (void) __sync_fetch_and_sub(&m_size_current, reserved_memory);
+    (void) toku_sync_fetch_and_sub(&m_size_current, reserved_memory);
     toku_mutex_lock(&m_ev_thread_lock);    
     m_size_reserved -= reserved_memory;
     // signal the eviction thread in order to possibly wake up sleeping clients
@@ -3710,7 +3749,6 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
         curr_in_clock->count--;
         // call the partial eviction callback
         curr_in_clock->value_rwlock.write_lock(true);
-        pair_unlock(curr_in_clock);
     
         void *value = curr_in_clock->value_data;
         void* disk_data = curr_in_clock->disk_data;
@@ -3726,13 +3764,15 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
             );
         if (cost == PE_CHEAP) {
             curr_in_clock->size_evicting_estimate = 0;
-            this->do_partial_eviction(curr_in_clock);
+            this->do_partial_eviction(curr_in_clock, true);
             bjm_remove_background_job(cf->bjm);
+            pair_unlock(curr_in_clock);
         }
         else if (cost == PE_EXPENSIVE) {
             // only bother running an expensive partial eviction
             // if it is expected to free space
             if (bytes_freed_estimate > 0) {
+                pair_unlock(curr_in_clock);
                 curr_in_clock->size_evicting_estimate = bytes_freed_estimate;
                 toku_mutex_lock(&m_ev_thread_lock);
                 m_size_evicting += bytes_freed_estimate;
@@ -3744,7 +3784,6 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
                     );
             }
             else {
-                pair_lock(curr_in_clock);
                 curr_in_clock->value_rwlock.write_unlock();
                 pair_unlock(curr_in_clock);
                 bjm_remove_background_job(cf->bjm);
@@ -3767,10 +3806,10 @@ exit:
 }
 
 //
-// on entry, pair's mutex is not held, but pair is pinned
+// on entry and exit, pair's mutex is held if pair_mutex_held is true
 // on exit, PAIR is unpinned
 //
-void evictor::do_partial_eviction(PAIR p) {
+void evictor::do_partial_eviction(PAIR p, bool pair_mutex_held) {
     PAIR_ATTR new_attr;
     PAIR_ATTR old_attr = p->attr;
     
@@ -3779,9 +3818,13 @@ void evictor::do_partial_eviction(PAIR p) {
     this->change_pair_attr(old_attr, new_attr);
     p->attr = new_attr;
     this->decrease_size_evicting(p->size_evicting_estimate);
-    pair_lock(p);
+    if (!pair_mutex_held) {
+        pair_lock(p);
+    }
     p->value_rwlock.write_unlock();
-    pair_unlock(p);
+    if (!pair_mutex_held) {
+        pair_unlock(p);
+    }
 }
 
 //

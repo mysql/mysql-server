@@ -173,12 +173,15 @@ typedef int (*CACHETABLE_CLEANER_CALLBACK)(void *ftnode_pv, BLOCKNUM blocknum, u
 
 typedef void (*CACHETABLE_CLONE_CALLBACK)(void* value_data, void** cloned_value_data, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
 
+typedef void (*CACHETABLE_CHECKPOINT_COMPLETE_CALLBACK)(void *value_data);
+
 typedef struct {
     CACHETABLE_FLUSH_CALLBACK flush_callback;
     CACHETABLE_PARTIAL_EVICTION_EST_CALLBACK pe_est_callback;
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback; 
     CACHETABLE_CLEANER_CALLBACK cleaner_callback;
     CACHETABLE_CLONE_CALLBACK clone_callback;
+    CACHETABLE_CHECKPOINT_COMPLETE_CALLBACK checkpoint_complete_callback;
     void* write_extraargs; // parameter for flush_callback, pe_est_callback, pe_callback, and cleaner_callback
 } CACHETABLE_WRITE_CALLBACK;
 
@@ -366,14 +369,14 @@ int toku_cachetable_get_and_pin_nonblocking (
     UNLOCKERS unlockers
     );
 
-int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, uint32_t /*fullhash*/, void**);
+int toku_cachetable_maybe_get_and_pin (CACHEFILE, CACHEKEY, uint32_t /*fullhash*/, pair_lock_type, void**);
 // Effect: Maybe get and pin a memory object.
 //  This function is similar to the get_and_pin function except that it
 //  will not attempt to fetch a memory object that is not in the cachetable or requires any kind of blocking to get it.  
 // Returns: If the the item is already in memory, then return 0 and store it in the
 // void**.  If the item is not in memory, then return a nonzero error number.
 
-int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE, CACHEKEY, uint32_t /*fullhash*/, void**);
+int toku_cachetable_maybe_get_and_pin_clean (CACHEFILE, CACHEKEY, uint32_t /*fullhash*/, pair_lock_type, void**);
 // Effect: Like maybe get and pin, but may pin a clean pair.
 
 int toku_cachetable_unpin(CACHEFILE, PAIR, enum cachetable_dirty dirty, PAIR_ATTR size);
@@ -556,5 +559,10 @@ int toku_cleaner_thread(void *cleaner_v);
 // The default of 1M is too high for drd tests, so this is a mechanism to set a smaller number.
 void toku_pair_list_set_lock_size(uint32_t num_locks);
 
+// Used by ft-ops.cc to figure out if it has the write lock on a pair.
+// Pretty hacky and not accurate enough, should be improved at the frwlock
+// layer.
+__attribute__((const,nonnull))
+bool toku_ctpair_is_write_locked(PAIR pair);
 
 #endif /* CACHETABLE_H */

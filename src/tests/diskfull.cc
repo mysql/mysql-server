@@ -9,6 +9,7 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <unistd.h>
+#include <portability/toku_atomic.h>
 
 #define DOERR(r) do { if (r!=0) { did_fail=1; fprintf(error_file, "%s:%d error %d (%s)\n", __FILE__, __LINE__, r, db_strerror(r)); }} while (0)
 
@@ -143,7 +144,7 @@ static int fail_at = FAIL_NEVER;
 static ssize_t
 pwrite_counting_and_failing (int fd, const void *buf, size_t size, toku_off_t off)
 {
-    int this_count = __sync_add_and_fetch(&write_count, 1);
+    int this_count = toku_sync_add_and_fetch(&write_count, 1);
     if (this_count>fail_at) {
         if (verbose>1) { printf("Failure imminent at %d:\n", fail_at); fflush(stdout); }
 	errno = ENOSPC;
@@ -156,7 +157,7 @@ pwrite_counting_and_failing (int fd, const void *buf, size_t size, toku_off_t of
 static ssize_t
 write_counting_and_failing (int fd, const void *buf, size_t size)
 {
-    int this_count = __sync_add_and_fetch(&write_count, 1);
+    int this_count = toku_sync_add_and_fetch(&write_count, 1);
     if (this_count>fail_at) {
         if (verbose>1) { printf("Failure imminent at %d:\n", fail_at); fflush(stdout); }
 	errno = ENOSPC;

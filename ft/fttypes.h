@@ -281,6 +281,10 @@ enum reactivity {
     RE_FISSIBLE
 };
 
+enum split_mode {
+    SPLIT_EVENLY,
+    SPLIT_LEFT_HEAVY,
+    SPLIT_RIGHT_HEAVY
+};
 
 #endif
-

@@ -18,6 +18,7 @@
 #include "ydb_db.h"
 #include "ydb_write.h"
 #include <lock_tree/locktree.h>
+#include <portability/toku_atomic.h>
 
 static YDB_DB_LAYER_STATUS_S ydb_db_layer_status;
 #ifdef STATUS_VALUE
@@ -275,7 +276,7 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
         if (txn) {
             id = toku_txn_get_txnid(db_txn_struct_i(txn)->tokutxn);
         } else {
-            id = __sync_fetch_and_add(&nontransactional_open_id, 1);
+            id = toku_sync_fetch_and_add(&nontransactional_open_id, 1);
         }
         create_iname_hint(dname, hint);
         iname = create_iname(db->dbenv, id, hint, NULL, -1);  // allocated memory for iname

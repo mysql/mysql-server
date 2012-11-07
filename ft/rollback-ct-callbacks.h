@@ -44,6 +44,7 @@ static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_rollback_log(FT 
     wc.pe_callback = toku_rollback_pe_callback;
     wc.cleaner_callback = toku_rollback_cleaner_callback;
     wc.clone_callback = toku_rollback_clone_callback;
+    wc.checkpoint_complete_callback = nullptr;
     wc.write_extraargs = h;
     return wc;
 }

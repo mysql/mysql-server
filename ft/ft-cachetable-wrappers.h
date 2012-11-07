@@ -108,7 +108,7 @@ toku_pin_ftnode_off_client_thread_and_maybe_move_messages(
  * This function may return a pinned ftnode to the caller, if pinning is cheap.
  * If the node is already locked, or is pending a checkpoint, the node is not pinned and -1 is returned.
  */
-int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, FTNODE *nodep);
+int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pair_lock_type lock_type, FTNODE *nodep);
 
 /**
  * Batched version of toku_pin_ftnode_off_client_thread, see cachetable
@@ -158,6 +158,6 @@ void
 toku_unpin_ftnode(FT h, FTNODE node);
 
 void
-toku_unpin_ftnode_read_only(FT_HANDLE brt, FTNODE node);
+toku_unpin_ftnode_read_only(FT ft, FTNODE node);
 
 #endif

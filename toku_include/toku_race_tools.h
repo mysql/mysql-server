@@ -8,7 +8,7 @@
 
 #include "config.h"
 
-#if defined(__linux__) && !defined(NVALGRIND)
+#if defined(__linux__) && defined(USE_VALGRIND)
 
 # include <valgrind/helgrind.h>
 # include <valgrind/drd.h>
@@ -21,6 +21,7 @@
 
 #else
 
+# define NVALGRIND 1
 # define TOKU_ANNOTATE_NEW_MEMORY(p, size) ((void) 0)
 # define TOKU_VALGRIND_HG_ENABLE_CHECKING(p, size) ((void) 0)
 # define TOKU_VALGRIND_HG_DISABLE_CHECKING(p, size) ((void) 0)

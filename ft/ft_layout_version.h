@@ -28,6 +28,7 @@ enum ft_layout_version_e {
     FT_LAYOUT_VERSION_20 = 20, // Deadshot: Add compression method to log_fcreate,
                                // mgr_last_xid after begin checkpoint,
                                // last_xid to shutdown
+    FT_LAYOUT_VERSION_21 = 21, // Ming: Add max_msn_in_ft to header
     FT_NEXT_VERSION,           // the version after the current version
     FT_LAYOUT_VERSION   = FT_NEXT_VERSION-1, // A hack so I don't have to change this line.
     FT_LAYOUT_MIN_SUPPORTED_VERSION = FT_LAYOUT_VERSION_13, // Minimum version supported

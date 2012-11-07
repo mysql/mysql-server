@@ -13,6 +13,7 @@
 
 #include <stdio.h>
 #include <memory.h>
+#include <portability/toku_atomic.h>
 
 struct toku_fair_rwlock_waiter_state {
     char is_read;
@@ -80,7 +81,7 @@ static __thread int tid=-1;
 static int next_tid=0;
 static int get_tid (void) {
     if (tid==-1) {
-	tid = __sync_fetch_and_add(&next_tid, 1);
+	tid = toku_sync_fetch_and_add(&next_tid, 1);
     }
     return tid;
 }
@@ -108,10 +109,10 @@ int toku_fair_rwlock_rdlock_slow (toku_fair_rwlock_t *rwlock) {
     if (s_get_qcount(s)==0 && !s_get_wlock(s)) goto C2;
     else goto C3;
  C2:
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_incr_rcount(s))) goto MU;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_incr_rcount(s))) goto MU;
     else goto R2;
  C3:
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_incr_qcount(s))) goto E;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_incr_qcount(s))) goto E;
     else goto R2;
  E:
     // Put me into the queue.
@@ -145,7 +146,7 @@ int toku_fair_rwlock_rdlock_slow (toku_fair_rwlock_t *rwlock) {
     s = rwlock->state;
     goto C4;
  C4:
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_incr_rcount(s_decr_qcount(s)))) goto MU;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_incr_rcount(s_decr_qcount(s)))) goto MU;
     else goto R4;
  MU:
     toku_mutex_unlock(&rwlock->mutex);
@@ -168,11 +169,11 @@ int toku_fair_rwlock_wrlock_slow (toku_fair_rwlock_t *rwlock) {
     if (s_get_qcount(s)==0 && !s_get_wlock(s) && s_get_rcount(s)==0) goto C2;
     else goto C3;
  C2:
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_set_wlock(s))) goto MU;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_set_wlock(s))) goto MU;
     else goto R2;
  C3:
     L(C3);
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_incr_qcount(s))) goto E;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_incr_qcount(s))) goto E;
     else goto R2;
  E:
     LP(E, rwlock->state);
@@ -202,7 +203,7 @@ int toku_fair_rwlock_wrlock_slow (toku_fair_rwlock_t *rwlock) {
     assert(!s_get_wlock(s));
     goto C4;
  C4:
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_set_wlock(s_decr_qcount(s)))) goto MU;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_set_wlock(s_decr_qcount(s)))) goto MU;
     else goto R4;
  MU:
     toku_mutex_unlock(&rwlock->mutex);
@@ -223,11 +224,11 @@ int toku_fair_rwlock_unlock_r_slow (toku_fair_rwlock_t *rwlock) {
     if (s_get_rcount(s)>1 || s_get_qcount(s)==0) goto C2;
     else goto C3;
  C2:
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_decr_rcount(s))) goto MU;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_decr_rcount(s))) goto MU;
     else goto R2;
  C3:
     // rcount==1 and qcount>0
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_decr_rcount(s))) goto WN;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_decr_rcount(s))) goto WN;
     else goto R2;
  WN:
     LP(WN, rwlock->state);
@@ -253,10 +254,10 @@ int toku_fair_rwlock_unlock_w_slow (toku_fair_rwlock_t *rwlock) {
     if (s_get_qcount(s)==0) goto C2;
     else goto C3;
  C2:
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_clear_wlock(s))) goto MU;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_clear_wlock(s))) goto MU;
     else goto R2;
  C3:
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_clear_wlock(s))) goto WN;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_clear_wlock(s))) goto WN;
     else goto R2;
  WN:
     LP(WN, rwlock->state);

@@ -5,6 +5,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "toku_pthread.h"
+#include <portability/toku_atomic.h>
 
 // Fair readers/writer locks.  These are fair (meaning first-come first-served.  No reader starvation, and no writer starvation).  And they are
 // probably faster than the linux readers/writer locks (pthread_rwlock_t).
@@ -84,7 +85,7 @@ static inline int toku_fair_rwlock_rdlock (toku_fair_rwlock_t *rwlock) {
     //if (s_get_qcount(s)==0 && !s_get_wlock(s)) goto C1;
     else goto ML;
  C1:
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_incr_rcount(s))) goto DONE;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_incr_rcount(s))) goto DONE;
     else goto START;
  DONE:
     return 0;
@@ -102,7 +103,7 @@ static inline int toku_fair_rwlock_wrlock (toku_fair_rwlock_t *rwlock) {
     if (s_get_qcount(s)==0 && !s_get_wlock(s) && s_get_rcount(s)==0) goto C1;
     else goto ML;
  C1:
-    if (__sync_bool_compare_and_swap(&rwlock->state, s, s_set_wlock(s))) goto DONE;
+    if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_set_wlock(s))) goto DONE;
     else goto START;
  DONE:
     return 0;
@@ -125,7 +126,7 @@ static inline int toku_fair_rwlock_unlock (toku_fair_rwlock_t *rwlock) {
 	if (s_get_qcount(s)==0) goto wC1;
 	else goto wML;
     wC1:
-	if (__sync_bool_compare_and_swap(&rwlock->state, s, s_clear_wlock(s))) goto wDONE;
+	if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_clear_wlock(s))) goto wDONE;
 	else goto wSTART;
     wDONE:
 	return 0;
@@ -140,7 +141,7 @@ static inline int toku_fair_rwlock_unlock (toku_fair_rwlock_t *rwlock) {
 	if (s_get_rcount(s)>1 || s_get_qcount(s)==0) goto rC1;
 	else goto rML;
     rC1:
-	if (__sync_bool_compare_and_swap(&rwlock->state, s, s_decr_rcount(s))) goto rDONE;
+	if (toku_sync_bool_compare_and_swap(&rwlock->state, s, s_decr_rcount(s))) goto rDONE;
 	else goto rSTART;
     rDONE:
 	return 0;

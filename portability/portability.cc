@@ -43,6 +43,7 @@
 #include "toku_os.h"
 #include "toku_time.h"
 #include "memory.h"
+#include <portability/toku_atomic.h>
 #include <util/partitioned_counter.h>
 
 int

@@ -89,6 +89,7 @@ ftleaf_split(
     FTNODE *nodeb,
     DBT *splitk,
     bool create_new_node,
+    enum split_mode split_mode,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes
     );

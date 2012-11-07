@@ -100,6 +100,9 @@ endif ()
 
 ## this hits with optimized builds somewhere in ftleaf_split, we don't
 ## know why but we don't think it's a big deal
+set_cflags_if_supported(
+  -Wno-error=strict-overflow
+  )
 set_ldflags_if_supported(
   -Wno-error=strict-overflow
   )
@@ -120,11 +123,6 @@ else ()
   set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 -flto -fuse-linker-plugin")
   set(CMAKE_EXE_LINKER_FLAGS "-g -fuse-linker-plugin ${CMAKE_EXE_LINKER_FLAGS}")
   set(CMAKE_SHARED_LINKER_FLAGS "-g -fuse-linker-plugin ${CMAKE_SHARED_LINKER_FLAGS}")
-endif ()
-
-option(USE_VALGRIND "Do not pass NVALGRIND to the compiler, because valgrind will be run on the generated executables." ON)
-if (NOT USE_VALGRIND)
-  set_property(DIRECTORY APPEND PROPERTY COMPILE_DEFINITIONS_RELEASE NVALGRIND=1)
 endif ()
 
 ## set warnings

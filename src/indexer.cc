@@ -26,6 +26,7 @@
 #include <ft/xids.h>
 #include <ft/log-internal.h>
 #include <ft/checkpoint.h>
+#include <portability/toku_atomic.h>
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -236,13 +237,13 @@ create_exit:
 
         *indexerp = indexer;
 
-        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE), 1);
-        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CURRENT), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(INDEXER_CURRENT), 1);
         if ( STATUS_VALUE(INDEXER_CURRENT) > STATUS_VALUE(INDEXER_MAX) )
             STATUS_VALUE(INDEXER_MAX) = STATUS_VALUE(INDEXER_CURRENT);   // NOT WORTH A LOCK TO MAKE THREADSAFE), may be inaccurate
 
     } else {
-        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE_FAIL), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(INDEXER_CREATE_FAIL), 1);
         free_indexer(indexer);
     }
 
@@ -472,9 +473,9 @@ build_index(DB_INDEXER *indexer) {
     //  - unique checks?
 
     if ( result == 0 ) {
-        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD), 1);
     } else {
-        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD_FAIL), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD_FAIL), 1);
     }
 
     return result;
@@ -484,7 +485,7 @@ build_index(DB_INDEXER *indexer) {
 static int
 close_indexer(DB_INDEXER *indexer) {
     int r = 0;
-    (void) __sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
+    (void) toku_sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
 
     // Mark txn as needing a checkpoint.
     // (This will cause a checkpoint, which is necessary
@@ -499,9 +500,9 @@ close_indexer(DB_INDEXER *indexer) {
     free_indexer(indexer);
 
     if ( r == 0 ) {
-        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CLOSE), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(INDEXER_CLOSE), 1);
     } else {
-        (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_CLOSE_FAIL), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(INDEXER_CLOSE_FAIL), 1);
     }
     return r;
 }
@@ -509,8 +510,8 @@ close_indexer(DB_INDEXER *indexer) {
 // Clients must not operate on any of the hot dbs concurrently with abort
 static int 
 abort_indexer(DB_INDEXER *indexer) {
-    (void) __sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
-    (void) __sync_fetch_and_add(&STATUS_VALUE(INDEXER_ABORT), 1);
+    (void) toku_sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
+    (void) toku_sync_fetch_and_add(&STATUS_VALUE(INDEXER_ABORT), 1);
     // Disassociate the indexer from the hot db and free_indexer
     disassociate_indexer_from_hot_dbs(indexer);
     free_indexer(indexer);

@@ -68,26 +68,30 @@ unsigned long toku_fifo_memory_footprint(FIFO fifo);  // return how much memory 
 void toku_fifo_iterate(FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, void*), void*);
 
 #define FIFO_ITERATE(fifo,keyvar,keylenvar,datavar,datalenvar,typevar,msnvar,xidsvar,is_freshvar,body) ({ \
-  for (int fifo_iterate_off = toku_fifo_iterate_internal_start(fifo);                          \
-       toku_fifo_iterate_internal_has_more(fifo, fifo_iterate_off);                        \
-       fifo_iterate_off = toku_fifo_iterate_internal_next(fifo, fifo_iterate_off)) {       \
-      struct fifo_entry *e = toku_fifo_iterate_internal_get_entry(fifo, fifo_iterate_off); \
-      ITEMLEN keylenvar = e->keylen;                                                       \
-      ITEMLEN datalenvar = e->vallen;                                                 \
-      enum ft_msg_type typevar = fifo_entry_get_msg_type(e);                         \
-      MSN     msnvar  = e->msn;                                                       \
-      XIDS    xidsvar = &e->xids_s;                                                   \
-      bytevec keyvar  = xids_get_end_of_array(xidsvar);                               \
-      bytevec datavar = (const uint8_t*)keyvar + e->keylen;                          \
-      bool is_freshvar = e->is_fresh;                                                 \
-      body;	\
+  for (int fifo_iterate_off = toku_fifo_iterate_internal_start(fifo);                                     \
+       toku_fifo_iterate_internal_has_more(fifo, fifo_iterate_off);                                       \
+       fifo_iterate_off = toku_fifo_iterate_internal_next(fifo, fifo_iterate_off)) {                      \
+      struct fifo_entry *e = toku_fifo_iterate_internal_get_entry(fifo, fifo_iterate_off);                \
+      ITEMLEN keylenvar = e->keylen;                                                                      \
+      ITEMLEN datalenvar = e->vallen;                                                                     \
+      enum ft_msg_type typevar = fifo_entry_get_msg_type(e);                                              \
+      MSN     msnvar  = e->msn;                                                                           \
+      XIDS    xidsvar = &e->xids_s;                                                                       \
+      bytevec keyvar  = xids_get_end_of_array(xidsvar);                                                   \
+      bytevec datavar = (const uint8_t*)keyvar + e->keylen;                                               \
+      bool is_freshvar = e->is_fresh;                                                                     \
+      body;                                                                                               \
   } })
+
+#define FIFO_CURRENT_ENTRY_MEMSIZE toku_fifo_internal_entry_memsize(e)
 
 // Internal functions for the iterator.
 int toku_fifo_iterate_internal_start(FIFO fifo);
 int toku_fifo_iterate_internal_has_more(FIFO fifo, int off);
 int toku_fifo_iterate_internal_next(FIFO fifo, int off);
 struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off);
+size_t toku_fifo_internal_entry_memsize(struct fifo_entry *e) __attribute__((const,nonnull));
+size_t toku_ft_msg_memsize_in_fifo(FT_MSG cmd) __attribute__((const,nonnull));
 
 DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry);
 struct fifo_entry *toku_fifo_get_entry(FIFO fifo, int off);

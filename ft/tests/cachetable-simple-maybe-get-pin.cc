@@ -26,37 +26,37 @@ cachetable_test (void) {
     void* v1;
     long s1;
     // nothing in cachetable, so this should fail
-    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, &v1);
+    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, PL_WRITE_EXPENSIVE, &v1);
     assert(r==-1);
     r = toku_cachetable_get_and_pin(f1, make_blocknum(1), 1, &v1, &s1, wc, def_fetch, def_pf_req_callback, def_pf_callback, true, NULL);
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_CLEAN, make_pair_attr(8));
 
     // maybe_get_and_pin_clean should succeed, maybe_get_and_pin should fail
-    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, &v1);
+    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, PL_WRITE_EXPENSIVE, &v1);
     assert(r==-1);
-    r = toku_cachetable_maybe_get_and_pin_clean(f1, make_blocknum(1), 1, &v1);
+    r = toku_cachetable_maybe_get_and_pin_clean(f1, make_blocknum(1), 1, PL_WRITE_EXPENSIVE, &v1);
     assert(r == 0);
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
     // maybe_get_and_pin_clean should succeed, maybe_get_and_pin should fail
-    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, &v1);
+    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, PL_WRITE_EXPENSIVE, &v1);
     assert(r==0);
     // now these calls should fail because the node is already pinned, and therefore in use
-    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, &v1);
+    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, PL_WRITE_EXPENSIVE, &v1);
     assert(r==-1);
-    r = toku_cachetable_maybe_get_and_pin_clean(f1, make_blocknum(1), 1, &v1);
+    r = toku_cachetable_maybe_get_and_pin_clean(f1, make_blocknum(1), 1, PL_WRITE_EXPENSIVE, &v1);
     assert(r==-1);
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
 
     // sanity check, this should still succeed, because the PAIR is dirty
-    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, &v1);
+    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, PL_WRITE_EXPENSIVE, &v1);
     assert(r==0);
     r = toku_test_cachetable_unpin(f1, make_blocknum(1), 1, CACHETABLE_DIRTY, make_pair_attr(8));
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
     toku_cachetable_begin_checkpoint(cp, NULL);
     // now these should fail, because the node should be pending a checkpoint
-    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, &v1);
+    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, PL_WRITE_EXPENSIVE, &v1);
     assert(r==-1);
-    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, &v1);
+    r = toku_cachetable_maybe_get_and_pin(f1, make_blocknum(1), 1, PL_WRITE_EXPENSIVE, &v1);
     assert(r==-1);
     toku_cachetable_end_checkpoint(
         cp, 

@@ -7,6 +7,7 @@
 #ifndef FTLOADER_ERROR_INJECTOR_H
 #define FTLOADER_ERROR_INJECTOR_H
 
+#include <portability/toku_atomic.h>
 
 static toku_mutex_t event_mutex = TOKU_MUTEX_INITIALIZER;
 static void lock_events(void) {
@@ -107,9 +108,9 @@ static void reset_my_malloc_counts(void) {
 
 __attribute__((__unused__))
 static void *my_malloc(size_t n) {
-    (void) __sync_fetch_and_add(&my_malloc_count, 1); // my_malloc_count++;
+    (void) toku_sync_fetch_and_add(&my_malloc_count, 1); // my_malloc_count++;
     if (n >= my_big_malloc_limit) {
-        (void) __sync_fetch_and_add(&my_big_malloc_count, 1); // my_big_malloc_count++;
+        (void) toku_sync_fetch_and_add(&my_big_malloc_count, 1); // my_big_malloc_count++;
         if (do_malloc_errors) {
             if (event_add_and_fetch() == event_count_trigger) {
                 event_hit();
@@ -125,9 +126,9 @@ static int do_realloc_errors = 0;
 
 __attribute__((__unused__))
 static void *my_realloc(void *p, size_t n) {
-    (void) __sync_fetch_and_add(&my_realloc_count, 1); // my_realloc_count++;
+    (void) toku_sync_fetch_and_add(&my_realloc_count, 1); // my_realloc_count++;
     if (n >= my_big_malloc_limit) {
-        (void) __sync_fetch_and_add(&my_big_realloc_count, 1); // my_big_realloc_count++;
+        (void) toku_sync_fetch_and_add(&my_big_realloc_count, 1); // my_big_realloc_count++;
         if (do_realloc_errors) {
             if (event_add_and_fetch() == event_count_trigger) {
                 event_hit();

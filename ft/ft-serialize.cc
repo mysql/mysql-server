@@ -134,8 +134,8 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
 {
     int r;
     FT ft = NULL;
-    invariant(version >= FT_LAYOUT_MIN_SUPPORTED_VERSION);
-    invariant(version <= FT_LAYOUT_VERSION);
+    paranoid_invariant(version >= FT_LAYOUT_MIN_SUPPORTED_VERSION);
+    paranoid_invariant(version <= FT_LAYOUT_VERSION);
     // We already know:
     //  we have an rbuf representing the header.
     //  The checksum has been validated
@@ -290,6 +290,12 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
         }
     }
 
+    MSN max_msn_in_ft;
+    max_msn_in_ft = ZERO_MSN;  // We'll upgrade it from the root node later if necessary
+    if (ft->layout_version_read_from_disk >= FT_LAYOUT_VERSION_21) {
+        max_msn_in_ft = rbuf_msn(rb);
+    }
+
     (void) rbuf_int(rb); //Read in checksum and ignore (already verified).
     if (rb->ndone != rb->size) {
         fprintf(stderr, "Header size did not match contents.\n");
@@ -317,6 +323,7 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
             .basementnodesize = basementnodesize,
             .compression_method = compression_method,
             .highest_unused_msn_for_upgrade = highest_unused_msn_for_upgrade,
+            .max_msn_in_ft = max_msn_in_ft,
             .time_of_last_optimize_begin = time_of_last_optimize_begin,
             .time_of_last_optimize_end = time_of_last_optimize_end,
             .count_of_optimize_in_progress = count_of_optimize_in_progress,
@@ -331,6 +338,12 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
         // This needs ft->h to be non-null, so we have to do it after we
         // read everything else.
         r = toku_upgrade_subtree_estimates_to_stat64info(fd, ft);
+        if (r != 0) {
+            goto exit;
+        }
+    }
+    if (ft->layout_version_read_from_disk < FT_LAYOUT_VERSION_21) {
+        r = toku_upgrade_msn_from_root_to_header(fd, ft);
         if (r != 0) {
             goto exit;
         }
@@ -366,10 +379,12 @@ serialize_ft_min_size (uint32_t version) {
     size_t size = 0;
 
     switch(version) {
+    case FT_LAYOUT_VERSION_21:
+        size += sizeof(MSN);       // max_msn_in_ft
     case FT_LAYOUT_VERSION_20:
     case FT_LAYOUT_VERSION_19:
         size += 1; // compression method
-        size += sizeof(uint64_t);  // highest_unused_msn_for_upgrade
+        size += sizeof(MSN);       // highest_unused_msn_for_upgrade
     case FT_LAYOUT_VERSION_18:
         size += sizeof(uint64_t);  // time_of_last_optimize_begin
         size += sizeof(uint64_t);  // time_of_last_optimize_end
@@ -412,9 +427,9 @@ serialize_ft_min_size (uint32_t version) {
             );
         break;
     default:
-        lazy_assert(false);
+        abort();
     }
-    
+
     lazy_assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
 }
@@ -637,7 +652,7 @@ toku_deserialize_ft_from(int fd,
         version = version_1;
     }
 
-    invariant(rb);
+    paranoid_invariant(rb);
     r = deserialize_ft_versioned(fd, rb, ft, version);
 
 exit:
@@ -694,6 +709,7 @@ void toku_serialize_ft_to_wbuf (
     wbuf_MSN(wbuf, h->msn_at_start_of_last_completed_optimize);
     wbuf_char(wbuf, (unsigned char) h->compression_method);
     wbuf_MSN(wbuf, h->highest_unused_msn_for_upgrade);
+    wbuf_MSN(wbuf, h->max_msn_in_ft);
     uint32_t checksum = x1764_finish(&wbuf->checksum);
     wbuf_int(wbuf, checksum);
     lazy_assert(wbuf->ndone == wbuf->size);

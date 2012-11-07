@@ -80,6 +80,18 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 #define resource_assert(a)      assert(a)      // indicates resource must be available, otherwise unrecoverable
 #define resource_assert_zero(a) assert_zero(a) // indicates resource must be available, otherwise unrecoverable
 
+#ifdef TOKU_DEBUG_PARANOID
+#define paranoid_invariant(a) assert(a)
+#define paranoid_invariant_null(a) assert_null(a)
+#define paranoid_invariant_notnull(a) assert(a)
+#define paranoid_invariant_zero(a) assert_zero(a)
+#else
+#define paranoid_invariant(a) ((void) 0)
+#define paranoid_invariant_null(a) ((void) 0)
+#define paranoid_invariant_notnull(a) ((void) 0)
+#define paranoid_invariant_zero(a) ((void) 0)
+#endif
+
 static inline int
 get_error_errno(void)
 {

@@ -53,18 +53,18 @@ void fast_msg_to_leafentry(
     LEAFENTRY *new_leafentry_p) ;
 
 int apply_msg_to_leafentry(FT_MSG   msg,
-			   LEAFENTRY old_leafentry, // NULL if there was no stored data.
-			   size_t *new_leafentry_memorysize, 
-			   LEAFENTRY *new_leafentry_p,
-			   OMT omt, 
-			   struct mempool *mp, 
-			   void **maybe_free,
+                           LEAFENTRY old_leafentry, // NULL if there was no stored data.
+                           size_t *new_leafentry_memorysize,
+                           LEAFENTRY *new_leafentry_p,
+                           OMT *omtp,
+                           struct mempool *mp,
+                           void **maybe_free,
                            int64_t * numbytes_delta_p);
 
 int garbage_collect_leafentry(LEAFENTRY old_leaf_entry,
                               LEAFENTRY *new_leaf_entry,
                               size_t *new_leaf_entry_memory_size,
-                              OMT omt,
+                              OMT *omtp,
                               struct mempool *mp,
                               void **maybe_free,
                               const xid_omt_t &snapshot_xids,

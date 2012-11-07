@@ -19,6 +19,7 @@
 #include <toku_stdint.h>
 #include <db.h>
 #include <toku_race_tools.h>
+#include <portability/toku_atomic.h>
 
 /* TODO: Yoni should check that all asserts make sense instead of panic,
          and all early returns make sense instead of panic,
@@ -342,15 +343,15 @@ toku_ltm_set_max_lock_memory(toku_ltm* mgr, uint64_t lock_memory_limit) {
 static inline void 
 ltm_incr_locks(toku_ltm* tree_mgr, uint32_t replace_locks) {
     assert(replace_locks <= tree_mgr->curr_locks);
-    (void) __sync_fetch_and_sub(&tree_mgr->curr_locks, replace_locks);
-    (void) __sync_fetch_and_add(&tree_mgr->curr_locks, 1);
+    (void) toku_sync_fetch_and_sub(&tree_mgr->curr_locks, replace_locks);
+    (void) toku_sync_fetch_and_add(&tree_mgr->curr_locks, 1);
 }
 
 static inline void 
 ltm_decr_locks(toku_ltm* tree_mgr, uint32_t locks) {
     assert(tree_mgr);
     assert(tree_mgr->curr_locks >= locks);
-    (void) __sync_fetch_and_sub(&tree_mgr->curr_locks, locks);
+    (void) toku_sync_fetch_and_sub(&tree_mgr->curr_locks, locks);
 }
 
 static int 
@@ -363,7 +364,7 @@ ltm_out_of_locks(toku_ltm *mgr) {
 
 static void
 ltm_incr_lock_memory(toku_ltm *mgr, size_t s) {
-    (void) __sync_add_and_fetch(&mgr->curr_lock_memory, s);
+    (void) toku_sync_add_and_fetch(&mgr->curr_lock_memory, s);
 }
 
 static void 
@@ -375,7 +376,7 @@ ltm_incr_lock_memory_callback(void *extra, size_t s) {
 static void 
 ltm_decr_lock_memory(toku_ltm *mgr, size_t s) {
     assert(mgr->curr_lock_memory >= s);
-    (void) __sync_sub_and_fetch(&mgr->curr_lock_memory, s);
+    (void) toku_sync_sub_and_fetch(&mgr->curr_lock_memory, s);
 }
 
 static void 

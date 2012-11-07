@@ -9,6 +9,8 @@
 #include <ft-flusher-internal.h>
 #include <ft-cachetable-wrappers.h>
 #include <ft.h>
+#include <toku_assert.h>
+#include <portability/toku_atomic.h>
 
 /* Status is intended for display to humans to help understand system behavior.
  * It does not need to be perfectly thread-safe.
@@ -98,11 +100,13 @@ find_heaviest_child(FTNODE node)
     int i;
 
     if (0) printf("%s:%d weights: %d", __FILE__, __LINE__, max_weight);
-    assert(node->n_children>0);
+    paranoid_invariant(node->n_children>0);
     for (i=1; i<node->n_children; i++) {
+#ifdef TOKU_DEBUG_PARANOID
         if (BP_WORKDONE(node,i)) {
             assert(toku_bnc_nbytesinbuf(BNC(node,i)) > 0);
         }
+#endif
         int this_weight = toku_bnc_nbytesinbuf(BNC(node,i)) + BP_WORKDONE(node,i);;
         if (0) printf(" %d", this_weight);
         if (max_weight < this_weight) {
@@ -180,7 +184,7 @@ pick_heaviest_child(FT UU(h),
                     void* UU(extra))
 {
     int childnum = find_heaviest_child(parent);
-    assert(toku_bnc_n_entries(BNC(parent, childnum))>0);
+    paranoid_invariant(toku_bnc_n_entries(BNC(parent, childnum))>0);
     return childnum;
 }
 
@@ -348,7 +352,7 @@ ctm_maybe_merge_child(struct flusher_advice *fa,
                       void *extra)
 {
     if (child->height == 0) {
-        (void) __sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_COMPLETED), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_COMPLETED), 1);
     }
     default_merge_child(fa, h, parent, childnum, child, extra);
 }
@@ -366,7 +370,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
     }
     else {
         struct ctm_extra ctme;
-        assert(parent->n_children > 1);
+        paranoid_invariant(parent->n_children > 1);
         int pivot_to_save;
         //
         // we have two cases, one where the childnum
@@ -413,12 +417,12 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             toku_assert_entire_node_in_memory(root_node);
         }
 
-        (void) __sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_STARTED), 1);
-        (void) __sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_STARTED), 1);
+        (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), 1);
 
         flush_some_child(h, root_node, &new_fa);
 
-        (void) __sync_fetch_and_sub(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), 1);
+        (void) toku_sync_fetch_and_sub(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), 1);
 
         toku_free(ctme.target_key.data);
     }
@@ -483,13 +487,14 @@ handle_split_of_child(
     DBT *splitk /* the data in the childsplitk is alloc'd and is consumed by this call. */
     )
 {
-    assert(node->height>0);
-    assert(0 <= childnum && childnum < node->n_children);
+    paranoid_invariant(node->height>0);
+    paranoid_invariant(0 <= childnum);
+    paranoid_invariant(childnum < node->n_children);
     toku_assert_entire_node_in_memory(node);
     toku_assert_entire_node_in_memory(childa);
     toku_assert_entire_node_in_memory(childb);
-    int old_count = toku_bnc_nbytesinbuf(BNC(node, childnum));
-    assert(old_count==0);
+    NONLEAF_CHILDINFO old_bnc = BNC(node, childnum);
+    paranoid_invariant(toku_bnc_nbytesinbuf(old_bnc)==0);
     int cnum;
     WHEN_NOT_GCOV(
     if (toku_ft_debug_mode) {
@@ -515,13 +520,20 @@ handle_split_of_child(
     memset(&node->bp[childnum+1],0,sizeof(node->bp[0]));
     node->n_children++;
 
-    assert(BP_BLOCKNUM(node, childnum).b==childa->thisnodename.b); // use the same child
+    paranoid_invariant(BP_BLOCKNUM(node, childnum).b==childa->thisnodename.b); // use the same child
 
     BP_BLOCKNUM(node, childnum+1) = childb->thisnodename;
     BP_WORKDONE(node, childnum+1)  = 0;
     BP_STATE(node,childnum+1) = PT_AVAIL;
 
-    set_BNC(node, childnum+1, toku_create_empty_nl());
+    NONLEAF_CHILDINFO new_bnc = toku_create_empty_nl();
+    for (unsigned int i = 0; i < (sizeof new_bnc->flow) / (sizeof new_bnc->flow[0]); ++i) {
+        // just split the flows in half for now, can't guess much better
+        // at the moment
+        new_bnc->flow[i] = old_bnc->flow[i] / 2;
+        old_bnc->flow[i] = (old_bnc->flow[i] + 1) / 2;
+    }
+    set_BNC(node, childnum+1, new_bnc);
 
     // Slide the keys over
     {
@@ -553,7 +565,7 @@ handle_split_of_child(
 }
 
 static int
-verify_in_mempool(OMTVALUE lev, uint32_t UU(idx), void *mpv)
+UU() verify_in_mempool(OMTVALUE lev, uint32_t UU(idx), void *mpv)
 {
     LEAFENTRY CAST_FROM_VOIDP(le, lev);
     struct mempool *CAST_FROM_VOIDP(mp, mpv);
@@ -563,8 +575,9 @@ verify_in_mempool(OMTVALUE lev, uint32_t UU(idx), void *mpv)
 }
 
 static void
-verify_all_in_mempool(FTNODE node)
+verify_all_in_mempool(FTNODE UU() node)
 {
+#ifdef TOKU_DEBUG_PARANOID
     if (node->height==0) {
         for (int i = 0; i < node->n_children; i++) {
             invariant(BP_STATE(node,i) == PT_AVAIL);
@@ -572,13 +585,14 @@ verify_all_in_mempool(FTNODE node)
             toku_omt_iterate(bn->buffer, verify_in_mempool, &bn->buffer_mempool);
         }
     }
+#endif
 }
 
 static uint64_t
 ftleaf_disk_size(FTNODE node)
 // Effect: get the disk size of a leafentry
 {
-    assert(node->height == 0);
+    paranoid_invariant(node->height == 0);
     toku_assert_entire_node_in_memory(node);
     uint64_t retval = 0;
     for (int i = 0; i < node->n_children; i++) {
@@ -587,8 +601,8 @@ ftleaf_disk_size(FTNODE node)
         for (uint32_t j=0; j < n_leafentries; j++) {
             OMTVALUE v;
             int r = toku_omt_fetch(curr_buffer, j, &v);
-            LEAFENTRY CAST_FROM_VOIDP(curr_le, v);
             assert_zero(r);
+            LEAFENTRY CAST_FROM_VOIDP(curr_le, v);
             retval += leafentry_disksize(curr_le);
         }
     }
@@ -598,47 +612,69 @@ ftleaf_disk_size(FTNODE node)
 static void
 ftleaf_get_split_loc(
     FTNODE node,
-    uint64_t sumlesizes,
-    int* bn_index,   // which basement within leaf
-    int* le_index    // which key within basement
+    enum split_mode split_mode,
+    int *num_left_bns,   // which basement within leaf
+    int *num_left_les    // which key within basement
     )
 // Effect: Find the location within a leaf node where we want to perform a split
-// bn_index is which basement node (which OMT) should be split.
-// le_index is index into OMT of the last key that should be on the left side of the split.
+// num_left_bns is how many basement nodes (which OMT) should be split to the left.
+// num_left_les is how many leafentries in OMT of the last bn should be on the left side of the split.
 {
-    assert(node->height == 0);
-    uint32_t size_so_far = 0;
-    for (int i = 0; i < node->n_children; i++) {
-        OMT curr_buffer = BLB_BUFFER(node, i);
-        uint32_t n_leafentries = toku_omt_size(curr_buffer);
-        for (uint32_t j=0; j < n_leafentries; j++) {
-            OMTVALUE lev;
-            int r = toku_omt_fetch(curr_buffer, j, &lev);
-            assert_zero(r);
-            LEAFENTRY CAST_FROM_VOIDP(curr_le, lev);
-            size_so_far += leafentry_disksize(curr_le);
-            if (size_so_far >= sumlesizes/2) {
-                *bn_index = i;
-                *le_index = j;
-                if ((*bn_index == node->n_children - 1) &&
-                    ((unsigned int) *le_index == n_leafentries - 1)) {
-                    // need to correct for when we're splitting after the
-                    // last element, that makes no sense
-                    if (*le_index > 0) {
-                        (*le_index)--;
-                    } else if (*bn_index > 0) {
-                        (*bn_index)--;
-                        *le_index = toku_omt_size(BLB_BUFFER(node, *bn_index)) - 1;
-                    } else {
-                        // we are trying to split a leaf with only one
-                        // leafentry in it
-                        abort();
+    switch (split_mode) {
+    case SPLIT_LEFT_HEAVY: {
+        *num_left_bns = node->n_children;
+        *num_left_les = toku_omt_size(BLB_BUFFER(node, *num_left_bns - 1));
+        if (*num_left_les == 0) {
+            *num_left_bns = node->n_children - 1;
+            *num_left_les = toku_omt_size(BLB_BUFFER(node, *num_left_bns - 1));
+            invariant(*num_left_les > 0);
+        }
+        goto exit;
+    }
+    case SPLIT_RIGHT_HEAVY: {
+        *num_left_bns = 1;
+        *num_left_les = 1;
+        goto exit;
+    }
+    case SPLIT_EVENLY: {
+        paranoid_invariant(node->height == 0);
+        // TODO: (Zardosht) see if we can/should make this faster, we iterate over the rows twice
+        uint64_t sumlesizes = ftleaf_disk_size(node);
+        uint32_t size_so_far = 0;
+        for (int i = 0; i < node->n_children; i++) {
+            OMT curr_buffer = BLB_BUFFER(node, i);
+            uint32_t n_leafentries = toku_omt_size(curr_buffer);
+            for (uint32_t j=0; j < n_leafentries; j++) {
+                OMTVALUE lev;
+                int r = toku_omt_fetch(curr_buffer, j, &lev);
+                assert_zero(r);
+                LEAFENTRY CAST_FROM_VOIDP(curr_le, lev);
+                size_so_far += leafentry_disksize(curr_le);
+                if (size_so_far >= sumlesizes/2) {
+                    *num_left_bns = i + 1;
+                    *num_left_les = j + 1;
+                    if (*num_left_bns == node->n_children &&
+                        (unsigned int) *num_left_les == n_leafentries) {
+                        // need to correct for when we're splitting after the
+                        // last element, that makes no sense
+                        if (*num_left_les > 1) {
+                            (*num_left_les)--;
+                        } else if (*num_left_bns > 1) {
+                            (*num_left_bns)--;
+                            *num_left_les = toku_omt_size(BLB_BUFFER(node, *num_left_bns - 1));
+                        } else {
+                            // we are trying to split a leaf with only one
+                            // leafentry in it
+                            abort();
+                        }
                     }
+                    goto exit;
                 }
-                goto exit;
             }
         }
     }
+    }
+    abort();
 exit:
     return;
 }
@@ -655,7 +691,7 @@ move_leafentries(
     )
 //Effect: move leafentries in the range [lbi, upe) from src_omt to newly created dest_omt
 {
-    assert(lbi < ube);
+    paranoid_invariant(lbi < ube);
     OMTVALUE *XMALLOC_N(ube-lbi, newleafpointers);    // create new omt
 
     size_t mpsize = toku_mempool_get_used_space(&src_bn->buffer_mempool);   // overkill, but safe
@@ -692,6 +728,7 @@ ftleaf_split(
     FTNODE *nodeb,
     DBT *splitk,
     bool create_new_node,
+    enum split_mode split_mode,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes)
 // Effect: Split a leaf node.
@@ -702,7 +739,7 @@ ftleaf_split(
 //   splitk is the right-most key of nodea
 {
 
-    invariant(node->height == 0);
+    paranoid_invariant(node->height == 0);
     STATUS_VALUE(FT_FLUSHER_SPLIT_LEAF)++;
     if (node->n_children) {
         // First move all the accumulated stat64info deltas into the first basement.
@@ -744,31 +781,20 @@ ftleaf_split(
     }
 
 
-    assert(node->height==0);
+    paranoid_invariant(node->height==0);
     toku_assert_entire_node_in_memory(node);
     verify_all_in_mempool(node);
     MSN max_msn_applied_to_node = node->max_msn_applied_to_node_on_disk;
 
-    // variables that say where we will do the split. We do it in the basement node indexed at
-    // at last_bn_on_left and at the index last_le_on_left_within_bn within that basement node.
-    int last_bn_on_left = 0;               // last_bn_on_left may or may not be fully included
-    int last_le_on_left_within_bn = 0;
+    // variables that say where we will do the split.
+    // After the split, there will be num_left_bns basement nodes in the left node,
+    // and the last basement node in the left node will have num_left_les leafentries.
+    int num_left_bns;
+    int num_left_les;
+    ftleaf_get_split_loc(node, split_mode, &num_left_bns, &num_left_les);
     {
-        {
-            // TODO: (Zardosht) see if we can/should make this faster, we iterate over the rows twice
-            uint64_t sumlesizes=0;
-            sumlesizes = ftleaf_disk_size(node);
-            // TODO: (Zardosht) #3537, figure out serial insertion optimization again later
-            // split in half
-            ftleaf_get_split_loc(
-                node,
-                sumlesizes,
-                &last_bn_on_left,
-                &last_le_on_left_within_bn
-                );
-        }
         // did we split right on the boundary between basement nodes?
-        const bool split_on_boundary = (last_le_on_left_within_bn == (int) toku_omt_size(BLB_BUFFER(node, last_bn_on_left)) - 1);
+        const bool split_on_boundary = (num_left_les == 0) || (num_left_les == (int) toku_omt_size(BLB_BUFFER(node, num_left_bns - 1)));
         // Now we know where we are going to break it
         // the two nodes will have a total of n_children+1 basement nodes
         // and n_children-1 pivots
@@ -781,8 +807,17 @@ ftleaf_split(
         //       (if split_on_boundary is false) will be affected.  All other mempools will remain intact. ???
 
         //set up the basement nodes in the new node
-        int num_children_in_node = last_bn_on_left + 1;
-        int num_children_in_b = node->n_children - last_bn_on_left - (split_on_boundary ? 1 : 0);
+        int num_children_in_node = num_left_bns;
+        // In the SPLIT_RIGHT_HEAVY case, we need to add 1 back because
+        // while it's not on the boundary, we do need node->n_children
+        // children in B.
+        int num_children_in_b = node->n_children - num_left_bns + (!split_on_boundary ? 1 : 0);
+        if (num_children_in_b == 0) {
+            // for uneven split, make sure we have at least 1 bn
+            paranoid_invariant(split_mode == SPLIT_LEFT_HEAVY);
+            num_children_in_b = 1;
+        }
+        paranoid_invariant(num_children_in_node > 0);
         if (create_new_node) {
             toku_initialize_empty_ftnode(
                 B,
@@ -808,19 +843,19 @@ ftleaf_split(
 
         // now move all the data
 
-        int curr_src_bn_index = last_bn_on_left;
+        int curr_src_bn_index = num_left_bns - 1;
         int curr_dest_bn_index = 0;
 
         // handle the move of a subset of data in last_bn_on_left from node to B
         if (!split_on_boundary) {
             BP_STATE(B,curr_dest_bn_index) = PT_AVAIL;
             uint32_t diff_size = 0;
-            destroy_basement_node (BLB(B, curr_dest_bn_index)); // Destroy B's empty OMT, so I can rebuild it from an array
+            destroy_basement_node(BLB(B, curr_dest_bn_index)); // Destroy B's empty OMT, so I can rebuild it from an array
             set_BNULL(B, curr_dest_bn_index);
             set_BLB(B, curr_dest_bn_index, toku_create_empty_bn_no_buffer());
             move_leafentries(BLB(B, curr_dest_bn_index),
                              BLB(node, curr_src_bn_index),
-                             last_le_on_left_within_bn+1,         // first row to be moved to B
+                             num_left_les,         // first row to be moved to B
                              toku_omt_size(BLB_BUFFER(node, curr_src_bn_index)),    // number of rows in basement to be split
                              &diff_size);
             BLB_MAX_MSN_APPLIED(B, curr_dest_bn_index) = BLB_MAX_MSN_APPLIED(node, curr_src_bn_index);
@@ -830,15 +865,20 @@ ftleaf_split(
         }
         curr_src_bn_index++;
 
-        invariant(B->n_children >= curr_dest_bn_index);
-        invariant(node->n_children >= curr_src_bn_index);
-        invariant(B->n_children - curr_dest_bn_index == node->n_children - curr_src_bn_index);
+        paranoid_invariant(B->n_children >= curr_dest_bn_index);
+        paranoid_invariant(node->n_children >= curr_src_bn_index);
+
         // move the rest of the basement nodes
         for ( ; curr_src_bn_index < node->n_children; curr_src_bn_index++, curr_dest_bn_index++) {
             destroy_basement_node(BLB(B, curr_dest_bn_index));
             set_BNULL(B, curr_dest_bn_index);
             B->bp[curr_dest_bn_index] = node->bp[curr_src_bn_index];
         }
+        if (curr_dest_bn_index < B->n_children) {
+            // B already has an empty basement node here.
+            BP_STATE(B, curr_dest_bn_index) = PT_AVAIL;
+        }
+
         node->n_children = num_children_in_node;
 
         //
@@ -847,7 +887,7 @@ ftleaf_split(
 
         // the child index in the original node that corresponds to the
         // first node in the right node of the split
-        int base_index = (split_on_boundary ? last_bn_on_left + 1 : last_bn_on_left);
+        int base_index = num_left_bns - (split_on_boundary ? 0 : 1);
         // make pivots in B
         for (int i=0; i < num_children_in_b-1; i++) {
             toku_copyref_dbt(&B->childkeys[i], node->childkeys[i+base_index]);
@@ -855,10 +895,10 @@ ftleaf_split(
             node->totalchildkeylens -= node->childkeys[i+base_index].size;
             toku_init_dbt(&node->childkeys[i+base_index]);
         }
-        if (split_on_boundary) {
+        if (split_on_boundary && split_mode != SPLIT_LEFT_HEAVY) {
             // destroy the extra childkey between the nodes, we'll
             // recreate it in splitk below
-            toku_free(node->childkeys[last_bn_on_left].data);
+            toku_free(node->childkeys[num_left_bns - 1].data);
         }
         REALLOC_N(num_children_in_node, node->bp);
         REALLOC_N(num_children_in_node-1, node->childkeys);
@@ -867,7 +907,7 @@ ftleaf_split(
     if (splitk) {
         memset(splitk, 0, sizeof *splitk);
         OMTVALUE lev;
-        OMT buffer = BLB_BUFFER(node, last_bn_on_left);
+        OMT buffer = BLB_BUFFER(node, num_left_bns - 1);
         int r = toku_omt_fetch(buffer, toku_omt_size(buffer) - 1, &lev);
         assert_zero(r); // that fetch should have worked.
         LEAFENTRY CAST_FROM_VOIDP(le, lev);
@@ -908,8 +948,8 @@ ft_nonleaf_split(
     int n_children_in_b = old_n_children-n_children_in_a;
     MSN max_msn_applied_to_node = node->max_msn_applied_to_node_on_disk;
     FTNODE B;
-    assert(node->height>0);
-    assert(node->n_children>=2); // Otherwise, how do we split?	 We need at least two children to split. */
+    paranoid_invariant(node->height>0);
+    paranoid_invariant(node->n_children>=2); // Otherwise, how do we split?	 We need at least two children to split. */
     create_new_ftnode_with_dep_nodes(h, &B, node->height, n_children_in_b, num_dependent_nodes, dependent_nodes);
     {
         /* The first n_children_in_a go into node a.
@@ -932,7 +972,7 @@ ft_nonleaf_split(
 
             // Delete a child, removing the preceeding pivot key.  The child number must be > 0
             {
-                assert(i>0);
+                paranoid_invariant(i>0);
                 if (i>n_children_in_a) {
                     toku_copyref_dbt(&B->childkeys[targchild-1], node->childkeys[i-1]);
                     B->totalchildkeylens += node->childkeys[i-1].size;
@@ -978,10 +1018,11 @@ ft_split_child(
     FTNODE node,
     int childnum,
     FTNODE child,
+    enum split_mode split_mode,
     struct flusher_advice *fa)
 {
-    assert(node->height>0);
-    assert(toku_bnc_nbytesinbuf(BNC(node, childnum))==0); // require that the buffer for this child is empty
+    paranoid_invariant(node->height>0);
+    paranoid_invariant(toku_bnc_nbytesinbuf(BNC(node, childnum))==0); // require that the buffer for this child is empty
     FTNODE nodea, nodeb;
     DBT splitk;
 
@@ -992,7 +1033,7 @@ ft_split_child(
     dep_nodes[0] = node;
     dep_nodes[1] = child;
     if (child->height==0) {
-        ftleaf_split(h, child, &nodea, &nodeb, &splitk, true, 2, dep_nodes);
+        ftleaf_split(h, child, &nodea, &nodeb, &splitk, true, split_mode, 2, dep_nodes);
     } else {
         ft_nonleaf_split(h, child, &nodea, &nodeb, &splitk, 2, dep_nodes);
     }
@@ -1040,8 +1081,8 @@ flush_this_child(
     }
     bring_node_fully_into_memory(child, h);
     toku_assert_entire_node_in_memory(child);
-    assert(node->height>0);
-    assert(child->thisnodename.b!=0);
+    paranoid_invariant(node->height>0);
+    paranoid_invariant(child->thisnodename.b!=0);
     // VERIFY_NODE does not work off client thread as of now
     //VERIFY_NODE(t, child);
     node->dirty = 1;
@@ -1062,10 +1103,10 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
     STATUS_VALUE(FT_FLUSHER_MERGE_LEAF)++;
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
-    assert(a->height == 0);
-    assert(b->height == 0);
-    assert(a->n_children > 0);
-    assert(b->n_children > 0);
+    paranoid_invariant(a->height == 0);
+    paranoid_invariant(b->height == 0);
+    paranoid_invariant(a->n_children > 0);
+    paranoid_invariant(b->n_children > 0);
 
     // Mark nodes as dirty before moving basements from b to a.
     // This way, whatever deltas are accumulated in the basements are
@@ -1148,7 +1189,7 @@ static void balance_leaf_nodes(
     merge_leaf_nodes(a,b);
     // now split them
     // because we are not creating a new node, we can pass in no dependent nodes
-    ftleaf_split(NULL, a, &a, &b, splitk, false, 0, NULL);
+    ftleaf_split(NULL, a, &a, &b, splitk, false, SPLIT_EVENLY, 0, NULL);
 }
 
 static void
@@ -1202,7 +1243,7 @@ maybe_merge_pinned_nonleaf_nodes(
 {
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
-    assert(parent_splitk->data);
+    paranoid_invariant(parent_splitk->data);
     int old_n_children = a->n_children;
     int new_n_children = old_n_children + b->n_children;
     XREALLOC_N(new_n_children, a->bp);
@@ -1262,7 +1303,7 @@ maybe_merge_pinned_nodes(
 //  splitk		(OUT):	If the two nodes did not get merged, the new pivot key between the two nodes.
 {
     MSN msn_max;
-    assert(a->height == b->height);
+    paranoid_invariant(a->height == b->height);
     toku_assert_entire_node_in_memory(parent);
     toku_assert_entire_node_in_memory(a);
     toku_assert_entire_node_in_memory(b);
@@ -1271,9 +1312,6 @@ maybe_merge_pinned_nodes(
         MSN msna = a->max_msn_applied_to_node_on_disk;
         MSN msnb = b->max_msn_applied_to_node_on_disk;
         msn_max = (msna.msn > msnb.msn) ? msna : msnb;
-        if (a->height > 0) {
-            invariant(msn_max.msn <= parent->max_msn_applied_to_node_on_disk.msn);  // parent msn must be >= children's msn
-        }
     }
     if (a->height == 0) {
         maybe_merge_pinned_leaf_nodes(a, b, parent_splitk, did_merge, did_rebalance, splitk, nodesize);
@@ -1312,7 +1350,7 @@ ft_merge_child(
 {
     // this function should not be called
     // if the child is not mergable
-    assert(node->n_children > 1);
+    paranoid_invariant(node->n_children > 1);
     toku_assert_entire_node_in_memory(node);
 
     int childnuma,childnumb;
@@ -1323,11 +1361,11 @@ ft_merge_child(
         childnuma = childnum_to_merge;
         childnumb = childnum_to_merge+1;
     }
-    assert(0 <= childnuma);
-    assert(childnuma+1 == childnumb);
-    assert(childnumb < node->n_children);
+    paranoid_invariant(0 <= childnuma);
+    paranoid_invariant(childnuma+1 == childnumb);
+    paranoid_invariant(childnumb < node->n_children);
 
-    assert(node->height>0);
+    paranoid_invariant(node->height>0);
 
     // We suspect that at least one of the children is fusible, but they might not be.
     // for test
@@ -1371,22 +1409,27 @@ ft_merge_child(
         maybe_merge_pinned_nodes(node, &node->childkeys[childnuma], childa, childb, &did_merge, &did_rebalance, &splitk, h->h->nodesize);
         if (childa->height>0) {
             for (int i=0; i+1<childa->n_children; i++) {
-                assert(childa->childkeys[i].data);
+                paranoid_invariant(childa->childkeys[i].data);
             }
         }
         //toku_verify_estimates(t,childa);
         // the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
         *did_react = (bool)(did_merge || did_rebalance);
         if (did_merge) {
-            assert(!splitk.data);
+            paranoid_invariant(!splitk.data);
         } else {
-            assert(splitk.data);
+            paranoid_invariant(splitk.data);
         }
 
         node->totalchildkeylens -= deleted_size; // The key was free()'d inside the maybe_merge_pinned_nodes.
 
         if (did_merge) {
-            destroy_nonleaf_childinfo(BNC(node, childnumb));
+            NONLEAF_CHILDINFO remaining_bnc = BNC(node, childnuma);
+            NONLEAF_CHILDINFO merged_bnc = BNC(node, childnumb);
+            for (unsigned int i = 0; i < (sizeof remaining_bnc->flow) / (sizeof remaining_bnc->flow[0]); ++i) {
+                remaining_bnc->flow[i] += merged_bnc->flow[i];
+            }
+            destroy_nonleaf_childinfo(merged_bnc);
             set_BNULL(node, childnumb);
             node->n_children--;
             memmove(&node->bp[childnumb],
@@ -1397,10 +1440,14 @@ ft_merge_child(
                     &node->childkeys[childnuma+1],
                     (node->n_children-childnumb)*sizeof(node->childkeys[0]));
             REALLOC_N(node->n_children-1, node->childkeys);
-            assert(BP_BLOCKNUM(node, childnuma).b == childa->thisnodename.b);
+            paranoid_invariant(BP_BLOCKNUM(node, childnuma).b == childa->thisnodename.b);
             childa->dirty = 1;  // just to make sure
             childb->dirty = 1;  // just to make sure
         } else {
+            // flow will be inaccurate for a while, oh well.  the children
+            // are leaves in this case so it's not a huge deal (we're
+            // pretty far down the tree)
+
             // If we didn't merge the nodes, then we need the correct pivot.
             toku_copyref_dbt(&node->childkeys[childnuma], splitk);
             node->totalchildkeylens += node->childkeys[childnuma].size;
@@ -1421,13 +1468,13 @@ ft_merge_child(
             merge_remove_key_callback,
             h
             );
-        assert(rrb==0);
+        assert_zero(rrb);
 
         // for test
         call_flusher_thread_callback(ft_flush_aflter_merge);
 
         // unlock the parent
-        assert(node->dirty);
+        paranoid_invariant(node->dirty);
         toku_unpin_ftnode_off_client_thread(h, node);
     }
     else {
@@ -1435,7 +1482,7 @@ ft_merge_child(
         call_flusher_thread_callback(ft_flush_aflter_rebalance);
 
         // unlock the parent
-        assert(node->dirty);
+        paranoid_invariant(node->dirty);
         toku_unpin_ftnode_off_client_thread(h, node);
         toku_unpin_ftnode_off_client_thread(h, childb);
     }
@@ -1463,7 +1510,7 @@ flush_some_child(
 {
     int dirtied = 0;
     NONLEAF_CHILDINFO bnc = NULL;
-    assert(parent->height>0);
+    paranoid_invariant(parent->height>0);
     toku_assert_entire_node_in_memory(parent);
 
     // pick the child we want to flush to
@@ -1496,7 +1543,7 @@ flush_some_child(
     // the parent before finishing reading in the entire child node.
     bool may_child_be_reactive = may_node_be_reactive(child);
 
-    assert(child->thisnodename.b!=0);
+    paranoid_invariant(child->thisnodename.b!=0);
     //VERIFY_NODE(brt, child);
 
     // only do the following work if there is a flush to perform
@@ -1508,7 +1555,9 @@ flush_some_child(
         // detach buffer
         BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
         bnc = BNC(parent, childnum);
-        set_BNC(parent, childnum, toku_create_empty_nl());
+        NONLEAF_CHILDINFO new_bnc = toku_create_empty_nl();
+        memcpy(new_bnc->flow, bnc->flow, sizeof bnc->flow);
+        set_BNC(parent, childnum, new_bnc);
     }
 
     //
@@ -1592,19 +1641,19 @@ flush_some_child(
         // it is responsibility of `ft_split_child` to unlock nodes of
         // parent and child as it sees fit
         //
-        assert(parent); // just make sure we have not accidentally unpinned parent
-        ft_split_child(h, parent, childnum, child, fa);
+        paranoid_invariant(parent); // just make sure we have not accidentally unpinned parent
+        ft_split_child(h, parent, childnum, child, SPLIT_EVENLY, fa);
     }
     else if (child_re == RE_FUSIBLE) {
         //
         // it is responsibility of `maybe_merge_child to unlock nodes of
         // parent and child as it sees fit
         //
-        assert(parent); // just make sure we have not accidentally unpinned parent
+        paranoid_invariant(parent); // just make sure we have not accidentally unpinned parent
         fa->maybe_merge_child(fa, h, parent, childnum, child, fa->extra);
     }
     else {
-        assert(false);
+        abort();
     }
 }
 
@@ -1657,7 +1706,7 @@ dummy_pick_heaviest_child(FT UU(h),
                     FTNODE UU(parent),
                     void* UU(extra))
 {
-    assert(false);
+    abort();
     return -1;
 }
 
@@ -1665,7 +1714,8 @@ void toku_ft_split_child(
     FT ft,
     FTNODE node,
     int childnum,
-    FTNODE child
+    FTNODE child,
+    enum split_mode split_mode
     )
 {
     struct flusher_advice fa;
@@ -1684,6 +1734,34 @@ void toku_ft_split_child(
         node,
         childnum, // childnum to split
         child,
+        split_mode,
+        &fa
+        );
+}
+
+void toku_ft_merge_child(
+    FT ft,
+    FTNODE node,
+    int childnum
+    )
+{
+    struct flusher_advice fa;
+    flusher_advice_init(
+        &fa,
+        dummy_pick_heaviest_child,
+        dont_destroy_basement_nodes,
+        never_recursively_flush,
+        default_merge_child,
+        dummy_update_status,
+        default_pick_child_after_split,
+        NULL
+        );
+    bool did_react;
+    ft_merge_child(
+        ft,
+        node,
+        childnum, // childnum to merge
+        &did_react,
         &fa
         );
 }
@@ -1816,13 +1894,13 @@ flush_node_on_background_thread(FT h, FTNODE parent)
     // and pick the child we want to flush to
     //
     int childnum = find_heaviest_child(parent);
-    assert(toku_bnc_n_entries(BNC(parent, childnum))>0);
+    paranoid_invariant(toku_bnc_n_entries(BNC(parent, childnum))>0);
     //
     // see if we can pin the child
     //
     FTNODE child;
     uint32_t childfullhash = compute_child_fullhash(h->cf, parent, childnum);
-    int r = toku_maybe_pin_ftnode_clean(h, BP_BLOCKNUM(parent, childnum), childfullhash, &child);
+    int r = toku_maybe_pin_ftnode_clean(h, BP_BLOCKNUM(parent, childnum), childfullhash, PL_WRITE_EXPENSIVE, &child);
     if (r != 0) {
         // In this case, we could not lock the child, so just place the parent on the background thread
         // In the callback, we will use flush_some_child, which checks to
@@ -1846,7 +1924,9 @@ flush_node_on_background_thread(FT h, FTNODE parent)
             parent->dirty = 1;
             BP_WORKDONE(parent, childnum) = 0;  // this buffer is drained, no work has been done by its contents
             NONLEAF_CHILDINFO bnc = BNC(parent, childnum);
-            set_BNC(parent, childnum, toku_create_empty_nl());
+            NONLEAF_CHILDINFO new_bnc = toku_create_empty_nl();
+            memcpy(new_bnc->flow, bnc->flow, sizeof bnc->flow);
+            set_BNC(parent, childnum, new_bnc);
 
             //
             // at this point, the buffer has been detached from the parent

@@ -11,6 +11,7 @@
 #include "partitioned_counter.h"
 #include "doubly_linked_list.h"
 #include "growable_array.h"
+#include <portability/toku_atomic.h>
 
 #ifdef __APPLE__
 // TODO(leif): The __thread declspec is broken in ways I don't understand
@@ -36,7 +37,7 @@ void destroy_partitioned_counter(PARTITIONED_COUNTER counter) {
 }
 
 void increment_partitioned_counter(PARTITIONED_COUNTER counter, uint64_t delta) {
-    (void) __sync_fetch_and_add(&counter->v, delta);
+    (void) toku_sync_fetch_and_add(&counter->v, delta);
 }
 
 uint64_t read_partitioned_counter(PARTITIONED_COUNTER counter) {

@@ -84,7 +84,7 @@ void rollback_empty_log_init(ROLLBACK_LOG_NODE log) {
     log->layout_version_read_from_disk = FT_LAYOUT_VERSION;
     log->dirty = true;
     log->sequence = 0;
-    log->previous = {0};
+    log->previous = make_blocknum(0);
     log->previous_hash = 0;
     log->oldest_logentry = NULL;
     log->newest_logentry = NULL;

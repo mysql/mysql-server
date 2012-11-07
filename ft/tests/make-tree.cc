@@ -138,7 +138,7 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     // set the new root to point to the new tree
     toku_ft_set_new_root_blocknum(brt->ft, newroot->thisnodename);
 
-    newroot->max_msn_applied_to_node_on_disk = last_dummymsn(); // capture msn of last message injected into tree
+    brt->ft->h->max_msn_in_ft = last_dummymsn(); // capture msn of last message injected into tree
 
     // unpin the new root
     toku_unpin_ftnode(brt->ft, newroot);

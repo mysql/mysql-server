@@ -89,9 +89,9 @@ static inline void unlock_for_blocktable (BLOCK_TABLE bt);
 static void 
 ft_set_dirty(FT ft, bool for_checkpoint){
     toku_mutex_assert_locked(&ft->blocktable->mutex);
-    assert(ft->h->type == FT_CURRENT);
+    paranoid_invariant(ft->h->type == FT_CURRENT);
     if (for_checkpoint) {
-        assert(ft->checkpoint_header->type == FT_CHECKPOINT_INPROGRESS);
+        paranoid_invariant(ft->checkpoint_header->type == FT_CHECKPOINT_INPROGRESS);
         ft->checkpoint_header->dirty = 1;
     }
     else {
@@ -134,10 +134,10 @@ toku_maybe_truncate_file_on_open(BLOCK_TABLE bt, int fd) {
 
 static void
 copy_translation(struct translation * dst, struct translation * src, enum translation_type newtype) {
-    assert(src->length_of_array >= src->smallest_never_used_blocknum.b); //verify invariant
-    assert(newtype==TRANSLATION_DEBUG ||
-           (src->type == TRANSLATION_CURRENT      && newtype == TRANSLATION_INPROGRESS) ||
-           (src->type == TRANSLATION_CHECKPOINTED && newtype == TRANSLATION_CURRENT));
+    paranoid_invariant(src->length_of_array >= src->smallest_never_used_blocknum.b); //verify invariant
+    paranoid_invariant(newtype==TRANSLATION_DEBUG ||
+                       (src->type == TRANSLATION_CURRENT      && newtype == TRANSLATION_INPROGRESS) ||
+                       (src->type == TRANSLATION_CHECKPOINTED && newtype == TRANSLATION_CURRENT));
     dst->type = newtype;
     dst->smallest_never_used_blocknum = src->smallest_never_used_blocknum;
     dst->blocknum_freelist_head       = src->blocknum_freelist_head; 
@@ -175,7 +175,7 @@ maybe_optimize_translation(struct translation *t) {
     //This is O(n) work, so do it only if you're already doing that.
 
     BLOCKNUM b;
-    assert(t->smallest_never_used_blocknum.b >= RESERVED_BLOCKNUMS);
+    paranoid_invariant(t->smallest_never_used_blocknum.b >= RESERVED_BLOCKNUMS);
     //Calculate how large the free suffix is.
     int64_t freed;
     {
@@ -212,7 +212,7 @@ void
 toku_block_translation_note_start_checkpoint_unlocked (BLOCK_TABLE bt) {
     toku_mutex_assert_locked(&bt->mutex);
     // Copy current translation to inprogress translation.
-    assert(bt->inprogress.block_translation == NULL);
+    paranoid_invariant(bt->inprogress.block_translation == NULL);
     //We're going to do O(n) work to copy the translation, so we
     //can afford to do O(n) work by optimizing the translation
     maybe_optimize_translation(&bt->current);
@@ -229,7 +229,7 @@ toku_block_translation_note_start_checkpoint_unlocked (BLOCK_TABLE bt) {
 void toku_block_translation_note_skipped_checkpoint (BLOCK_TABLE bt) {
     //Purpose, alert block translation that the checkpoint was skipped, e.x. for a non-dirty header
     lock_for_blocktable(bt);
-    assert(bt->inprogress.block_translation);
+    paranoid_invariant_notnull(bt->inprogress.block_translation);
     bt->checkpoint_skipped = true;
     unlock_for_blocktable(bt);
 }
@@ -267,7 +267,7 @@ toku_block_translation_note_end_checkpoint (BLOCK_TABLE bt, int fd) {
     // Free unused blocks
     lock_for_blocktable(bt);
     uint64_t allocated_limit_at_start = block_allocator_allocated_limit(bt->block_allocator);
-    assert(bt->inprogress.block_translation);
+    paranoid_invariant_notnull(bt->inprogress.block_translation);
     if (bt->checkpoint_skipped || bt->checkpoint_failed) {
         cleanup_failed_checkpoint(bt);
         goto end;
@@ -299,25 +299,31 @@ end:
     unlock_for_blocktable(bt);
 }
 
-
+__attribute__((nonnull,const))
+static inline bool
+is_valid_blocknum(struct translation *t, BLOCKNUM b) {
+    //Sanity check: Verify invariant
+    paranoid_invariant(t->length_of_array >= t->smallest_never_used_blocknum.b);
+    return b.b >= 0 && b.b < t->smallest_never_used_blocknum.b;
+}
 
 static inline void
-verify_valid_blocknum (struct translation *t, BLOCKNUM b) {
-    assert(b.b >= 0);
-    assert(b.b < t->smallest_never_used_blocknum.b);
+verify_valid_blocknum (struct translation *UU(t), BLOCKNUM UU(b)) {
+    paranoid_invariant(is_valid_blocknum(t, b));
+}
 
+__attribute__((nonnull,const))
+static inline bool
+is_valid_freeable_blocknum(struct translation *t, BLOCKNUM b) {
     //Sanity check: Verify invariant
-    assert(t->length_of_array >= t->smallest_never_used_blocknum.b);
+    paranoid_invariant(t->length_of_array >= t->smallest_never_used_blocknum.b);
+    return b.b >= RESERVED_BLOCKNUMS && b.b < t->smallest_never_used_blocknum.b;
 }
 
 //Can be freed
 static inline void
-verify_valid_freeable_blocknum (struct translation *t, BLOCKNUM b) {
-    assert(b.b >= RESERVED_BLOCKNUMS);
-    assert(b.b < t->smallest_never_used_blocknum.b);
-
-    //Sanity check: Verify invariant
-    assert(t->length_of_array >= t->smallest_never_used_blocknum.b);
+verify_valid_freeable_blocknum (struct translation *UU(t), BLOCKNUM UU(b)) {
+    paranoid_invariant(is_valid_freeable_blocknum(t, b));
 }
 
 static void
@@ -376,11 +382,9 @@ calculate_size_on_disk (struct translation *t) {
 // We cannot free the disk space allocated to this blocknum if it is still in use by the given translation table.
 static inline bool
 translation_prevents_freeing(struct translation *t, BLOCKNUM b, struct block_translation_pair *old_pair) {
-    bool r = (bool)
-        (t->block_translation &&
+    return (t->block_translation &&
          b.b < t->smallest_never_used_blocknum.b &&
          old_pair->u.diskoff == t->block_translation[b.b].u.diskoff);
-    return r;
 }
 
 static void
@@ -413,7 +417,7 @@ PRNTF("Freed", b.b, old_pair.size, old_pair.u.diskoff, bt);
 PRNTF("New", b.b, t->block_translation[b.b].size, t->block_translation[b.b].u.diskoff, bt);
     //Update inprogress btt if appropriate (if called because Pending bit is set).
     if (for_checkpoint) {
-        assert(b.b < bt->inprogress.length_of_array);
+        paranoid_invariant(b.b < bt->inprogress.length_of_array);
         bt->inprogress.block_translation[b.b] = t->block_translation[b.b];
     }
 }
@@ -449,17 +453,22 @@ toku_blocknum_realloc_on_disk (BLOCK_TABLE bt, BLOCKNUM b, DISKOFF size, DISKOFF
     unlock_for_blocktable(bt);
 }
 
+__attribute__((nonnull,const))
+static inline bool
+pair_is_unallocated(struct block_translation_pair *pair) {
+    return pair->size == 0 && pair->u.diskoff == diskoff_unused;
+}
+
 // Purpose of this function is to figure out where to put the inprogress btt on disk, allocate space for it there.
 static void
 blocknum_alloc_translation_on_disk_unlocked (BLOCK_TABLE bt) {
     toku_mutex_assert_locked(&bt->mutex);
 
     struct translation *t = &bt->inprogress;
-    assert(t->block_translation);
+    paranoid_invariant_notnull(t->block_translation);
     BLOCKNUM b = make_blocknum(RESERVED_BLOCKNUM_TRANSLATION);
-    struct block_translation_pair old_pair = t->block_translation[b.b];
     //Each inprogress is allocated only once
-    assert(old_pair.size == 0 && old_pair.u.diskoff == diskoff_unused);
+    paranoid_invariant(pair_is_unallocated(&t->block_translation[b.b]));
 
     //Allocate a new block
     int64_t size = calculate_size_on_disk(t);
@@ -560,7 +569,7 @@ toku_allocate_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *res, FT ft) {
         t->blocknum_freelist_head = next;
     }
     //Verify the blocknum is free
-    assert(t->block_translation[result.b].size == size_is_free);
+    paranoid_invariant(t->block_translation[result.b].size == size_is_free);
     //blocknum is not free anymore
     t->block_translation[result.b].u.diskoff = diskoff_unused;
     t->block_translation[result.b].size    = 0;
@@ -580,9 +589,8 @@ static void
 free_blocknum_in_translation(struct translation *t, BLOCKNUM b)
 {
     verify_valid_freeable_blocknum(t, b);
-    struct block_translation_pair old_pair = t->block_translation[b.b];
-    assert(old_pair.size != size_is_free);
-    
+    paranoid_invariant(t->block_translation[b.b].size != size_is_free);
+
     PRNTF("free_blocknum", b.b, t->block_translation[b.b].size, t->block_translation[b.b].u.diskoff, bt);
     t->block_translation[b.b].size                 = size_is_free;
     t->block_translation[b.b].u.next_free_blocknum = t->blocknum_freelist_head;
@@ -601,8 +609,8 @@ free_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *bp, FT ft, bool for_checkpoint)
 
     free_blocknum_in_translation(&bt->current, b);
     if (for_checkpoint) {
-        assert(ft->checkpoint_header->type == FT_CHECKPOINT_INPROGRESS);
-        free_blocknum_in_translation(&bt->inprogress, b);        
+        paranoid_invariant(ft->checkpoint_header->type == FT_CHECKPOINT_INPROGRESS);
+        free_blocknum_in_translation(&bt->inprogress, b);
     }
 
     //If the size is 0, no disk block has ever been assigned to this blocknum.
@@ -616,7 +624,10 @@ PRNTF("free_blocknum_free", b.b, old_pair.size, old_pair.u.diskoff, bt);
             block_allocator_free_block(bt->block_allocator, old_pair.u.diskoff);
         }
     }
-    else assert(old_pair.size==0 && old_pair.u.diskoff == diskoff_unused);
+    else {
+        paranoid_invariant(old_pair.size==0);
+        paranoid_invariant(old_pair.u.diskoff == diskoff_unused);
+    }
     ft_set_dirty(ft, for_checkpoint);
 }
 
@@ -626,11 +637,11 @@ toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *bp, FT ft, bool for_checkpoint) {
     free_blocknum_unlocked(bt, bp, ft, for_checkpoint);
     unlock_for_blocktable(bt);
 }
-    
+
 //Verify there are no free blocks.
 void
-toku_block_verify_no_free_blocknums(BLOCK_TABLE bt) {
-    assert(bt->current.blocknum_freelist_head.b == freelist_null.b);
+toku_block_verify_no_free_blocknums(BLOCK_TABLE UU(bt)) {
+    paranoid_invariant(bt->current.blocknum_freelist_head.b == freelist_null.b);
 }
 
 // Frees blocknums that have a size of 0 and unused diskoff
@@ -652,31 +663,54 @@ toku_free_unused_blocknums(BLOCK_TABLE bt, BLOCKNUM root) {
     unlock_for_blocktable(bt);
 }
 
-
-//Verify there are no data blocks except root.
-void
-toku_block_verify_no_data_blocks_except_root(BLOCK_TABLE bt, BLOCKNUM root) {
+__attribute__((nonnull,const,unused))
+static inline bool
+no_data_blocks_except_root(BLOCK_TABLE bt, BLOCKNUM root) {
+    bool ok = true;
     lock_for_blocktable(bt);
-    assert(root.b >= RESERVED_BLOCKNUMS);
     int64_t smallest = bt->current.smallest_never_used_blocknum.b;
-    for (int64_t i=RESERVED_BLOCKNUMS; i < smallest; i++) {
+    if (root.b < RESERVED_BLOCKNUMS) {
+        ok = false;
+        goto cleanup;
+    }
+    int64_t i;
+    for (i=RESERVED_BLOCKNUMS; i < smallest; i++) {
         if (i == root.b) {
             continue;
         }
         BLOCKNUM b = make_blocknum(i);
-        assert(bt->current.block_translation[b.b].size == size_is_free);
+        if (bt->current.block_translation[b.b].size != size_is_free) {
+            ok = false;
+            goto cleanup;
+        }
     }
+ cleanup:
     unlock_for_blocktable(bt);
+    return ok;
+}
+
+//Verify there are no data blocks except root.
+// TODO(leif): This actually takes a lock, but I don't want to fix all the callers right now.
+void
+toku_block_verify_no_data_blocks_except_root(BLOCK_TABLE UU(bt), BLOCKNUM UU(root)) {
+    paranoid_invariant(no_data_blocks_except_root(bt, root));
+}
+
+__attribute__((nonnull,const,unused))
+static inline bool
+blocknum_allocated(BLOCK_TABLE bt, BLOCKNUM b) {
+    lock_for_blocktable(bt);
+    struct translation *t = &bt->current;
+    verify_valid_blocknum(t, b);
+    bool ok = t->block_translation[b.b].size != size_is_free;
+    unlock_for_blocktable(bt);
+    return ok;
 }
 
 //Verify a blocknum is currently allocated.
 void
-toku_verify_blocknum_allocated(BLOCK_TABLE bt, BLOCKNUM b) {
-    lock_for_blocktable(bt);
-    struct translation *t = &bt->current;
-    verify_valid_blocknum(t, b);
-    assert(t->block_translation[b.b].size != size_is_free);
-    unlock_for_blocktable(bt);
+toku_verify_blocknum_allocated(BLOCK_TABLE UU(bt), BLOCKNUM UU(b)) {
+    paranoid_invariant(blocknum_allocated(bt, b));
 }
 
 //Only used by toku_dump_translation table (debug info)
@@ -834,12 +868,12 @@ blocktable_note_translation (BLOCK_ALLOCATOR allocator, struct translation *t) {
     //See RESERVED_BLOCKNUMS
 
     // Previously this added blocks one at a time.  Now we make an array and pass it in so it can be sorted and merged.  See #3218.
-    struct block_allocator_blockpair *MALLOC_N(t->smallest_never_used_blocknum.b, pairs);
+    struct block_allocator_blockpair *XMALLOC_N(t->smallest_never_used_blocknum.b, pairs);
     uint64_t n_pairs = 0;
     for (int64_t i=0; i<t->smallest_never_used_blocknum.b; i++) {
         struct block_translation_pair pair = t->block_translation[i];
         if (pair.size > 0) {
-            assert(pair.u.diskoff != diskoff_unused);
+            paranoid_invariant(pair.u.diskoff != diskoff_unused);
             int cur_pair = n_pairs++;
             pairs[cur_pair] = (struct block_allocator_blockpair) { .offset = (uint64_t) pair.u.diskoff,
                                                                    .size = (uint64_t) pair.size };
@@ -943,7 +977,7 @@ void
 toku_blocktable_internal_fragmentation (BLOCK_TABLE bt, int64_t *total_sizep, int64_t *used_sizep) {
     frag_extra info = {0,0};
     int r = toku_blocktable_iterate(bt, TRANSLATION_CHECKPOINTED, frag_helper, &info, false, true);
-    assert(r==0);
+    assert_zero(r);
 
     if (total_sizep) *total_sizep = info.total_space;
     if (used_sizep)  *used_sizep  = info.used_space;

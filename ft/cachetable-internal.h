@@ -134,6 +134,7 @@ struct ctpair {
     CACHETABLE_PARTIAL_EVICTION_CALLBACK pe_callback;
     CACHETABLE_CLEANER_CALLBACK cleaner_callback;
     CACHETABLE_CLONE_CALLBACK clone_callback;
+    CACHETABLE_CHECKPOINT_COMPLETE_CALLBACK checkpoint_complete_callback;
     void *write_extraargs;
 
     // access to these fields are protected by disk_nb_mutex
@@ -384,7 +385,7 @@ public:
     uint64_t reserve_memory(double fraction);
     void release_reserved_memory(uint64_t reserved_memory);
     void run_eviction_thread();
-    void do_partial_eviction(PAIR p);
+    void do_partial_eviction(PAIR p, bool pair_mutex_held);
     void evict_pair(PAIR p, bool checkpoint_pending);
     void wait_for_cache_pressure_to_subside();
     void signal_eviction_thread();

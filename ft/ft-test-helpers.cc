@@ -136,15 +136,18 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, const char 
                      .u = { .id = { toku_fill_dbt(&keydbt, key, keylen),
                                     toku_fill_dbt(&valdbt, val, vallen) } } };
 
+    static size_t zero_flow_deltas[] = { 0, 0 };
     toku_ft_node_put_cmd (
         brt->ft->compare_fun,
         brt->ft->update_fun,
         &brt->ft->cmp_descriptor,
         node,
+        -1,
         &cmd,
         true,
+        zero_flow_deltas,
         NULL
-        );    
+        );
 
     toku_verify_or_set_counts(node);
 
@@ -215,6 +218,8 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE brt, BLOCKNUM blocknum, enum ft_
     // using brt APIs.
     node->max_msn_applied_to_node_on_disk = msn;
     node->dirty = 1;
+    // Also hack max_msn_in_ft
+    brt->ft->h->max_msn_in_ft = msn;
 
     toku_unpin_ftnode(brt->ft, node);
     return 0;

@@ -6,6 +6,7 @@
 #include <toku_pthread.h>
 #include "test.h"
 #include "threaded_stress_test_helpers.h"
+#include <portability/toku_atomic.h>
 
 // set this to true for the recovery version of this stress test
 // the way this works is to include this header and set 
@@ -95,7 +96,7 @@ lock_and_maybe_open_some_db(ARG arg) {
         int i = myrandom_r(arg->random_data) % num_buckets;
         open_ith_db(bucket->env, &bucket->db, i);
         bucket->is_open = true;
-        assert(__sync_fetch_and_add(&open_buckets, 1) < num_buckets);
+        assert(toku_sync_fetch_and_add(&open_buckets, 1) < num_buckets);
         verbose_printf("opened db %d in bucket %d\n", i, k);
     }
     return bucket;
@@ -113,7 +114,7 @@ unlock_and_maybe_close_db(struct db_bucket *bucket, ARG arg) {
         int r = db->close(db, 0);
         CKERR(r);
         bucket->is_open = false;
-        int old_open_buckets = __sync_fetch_and_sub(&open_buckets, 1);
+        int old_open_buckets = toku_sync_fetch_and_sub(&open_buckets, 1);
         assert(old_open_buckets > 0);
         verbose_printf("decided to close a bucket's db before unlocking\n");
     }

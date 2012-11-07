@@ -8,6 +8,7 @@ list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ft/ft_loader-test-extractor-2
   ft/ft_loader-test-extractor-3
   ft/upgrade_test_simple
+  portability/test-cache-line-boundary-fails
   portability/try-leak-lost
   portability/try-leak-reachable
   portability/try-leak-uninit

@@ -44,6 +44,7 @@
 #include <unistd.h>
 #include <toku_race_tools.h>
 #include <toku_assert.h>
+#include <portability/toku_atomic.h>
 #include <memory.h>
 #include <util/partitioned_counter.h>
 #include "test.h"
@@ -167,7 +168,7 @@ static int oldcounter=0;
 
 static void* old_doit (void* v) {
     for (int i=0; i<N; i++) {
-	(void)__sync_fetch_and_add(&oldcounter, 1);
+	(void)toku_sync_fetch_and_add(&oldcounter, 1);
 	//if (i%0x1000 == 0) sched_yield();
     }
     return v;
@@ -305,7 +306,7 @@ static void *writer_test_fun (void *ta_v) {
 	if (i%1000 == 0) sched_yield();
 	increment_partitioned_counter(ta->pc, 1);
     }
-    uint64_t c __attribute__((__unused__)) = __sync_fetch_and_sub(&ta->unfinished_count, 1);
+    uint64_t c __attribute__((__unused__)) = toku_sync_fetch_and_sub(&ta->unfinished_count, 1);
     return ta_v;
 }
     

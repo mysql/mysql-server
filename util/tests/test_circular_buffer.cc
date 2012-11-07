@@ -8,6 +8,7 @@
 #include <util/circular_buffer.h>
 
 #include <toku_assert.h>
+#include <portability/toku_atomic.h>
 #include <memory.h>
 #include <toku_pthread.h>
 
@@ -62,7 +63,7 @@ static void test_with_threads(void) {
     ZERO_STRUCT(buf);
     buf.init(array, asize);
 
-    bool swapped = __sync_bool_compare_and_swap(&running, false, true);
+    bool swapped = toku_sync_bool_compare_and_swap(&running, false, true);
     invariant(swapped);
 
     struct consumer_extra extra = { .buf = &buf, .xorsum = 0 };
@@ -79,14 +80,14 @@ static void test_with_threads(void) {
 
     usleep(20 * 1000 * 1000);
 
-    swapped = __sync_bool_compare_and_swap(&running, true, false);
+    swapped = toku_sync_bool_compare_and_swap(&running, true, false);
     invariant(swapped);
 
     for (int i = 0; i < nproducers; ++i) {
         r = toku_pthread_join(producer_thds[i], nullptr);
         invariant_zero(r);
     }
-    swapped = __sync_bool_compare_and_swap(&producers_joined, false, true);
+    swapped = toku_sync_bool_compare_and_swap(&producers_joined, false, true);
     invariant(swapped);
 
     // kick it in case it's still waiting
