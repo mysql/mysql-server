@@ -643,43 +643,32 @@ select * from t1;
 x
 1
 insert into t2 values (1);
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
-Warnings:
-Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
-select * from t1;
-x
-1
-2
 INSERT INTO t1 (x) select (SELECT SUM(a)+1 FROM t2) FROM t2;
 select * from t1;
 x
 1
-2
 3
 3
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
 select * from t1;
 x
 1
-2
 3
 3
-11
-11
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
+9
+9
+INSERT INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
 ERROR 42S22: Unknown column 'x' in 'field list'
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
-Warnings:
-Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
+INSERT INTO t1 (x) SELECT (SELECT SUM(a)+b FROM t2) from t3;
 select * from t1;
 x
 1
-2
 3
 3
-11
-11
-2
+9
+9
+3
+4
 drop table t1, t2, t3;
 CREATE TABLE t1 (x int not null, y int, primary key (x));
 create table t2 (a int);
@@ -700,25 +689,10 @@ replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+2 FROM t2));
 select * from t1;
 x	y
 1	3
-replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a FROM t2));
-Warnings:
-Warning	1287	'REPLACE DELAYED' is deprecated and will be removed in a future release. Please use REPLACE instead
-select * from t1;
-x	y
-1	3
-4	1
-replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a+1 FROM t2));
-Warnings:
-Warning	1287	'REPLACE DELAYED' is deprecated and will be removed in a future release. Please use REPLACE instead
-select * from t1;
-x	y
-1	3
-4	2
 replace LOW_PRIORITY into t1 (x, y) VALUES ((SELECT a+1 FROM t2), (SELECT a FROM t2));
 select * from t1;
 x	y
 1	3
-4	2
 2	1
 drop table t1, t2, t3;
 SELECT * FROM (SELECT 1) b WHERE 1 IN (SELECT *);

@@ -27,7 +27,6 @@
 #include "strfunc.h"     // find_type
 #include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
 #include "sql_parse.h"   // check_table_access
-#include "sql_insert.h"  // kill_delayed_threads
 #include "sql_acl.h"     // *_ACL, check_grant_all_columns,
                          // check_column_grant_in_table_ref,
                          // get_column_grant
@@ -829,43 +828,6 @@ void free_io_cache(TABLE *table)
 }
 
 
-/**
-   Auxiliary function which allows to kill delayed threads for
-   particular table identified by its share.
-
-   @param share Table share.
-
-   @pre Caller should own locks on all Table_cache instances.
-*/
-
-static void kill_delayed_threads_for_table(TABLE_SHARE *share)
-{
-  table_cache_manager.assert_owner_all();
-
-  Table_cache_iterator it(share);
-  TABLE *tab;
-
-  while ((tab= it++))
-  {
-    THD *in_use= tab->in_use;
-
-    if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-        ! in_use->killed)
-    {
-      in_use->killed= THD::KILL_CONNECTION;
-      mysql_mutex_lock(&in_use->mysys_var->mutex);
-      if (in_use->mysys_var->current_cond)
-      {
-        mysql_mutex_lock(in_use->mysys_var->current_mutex);
-        mysql_cond_broadcast(in_use->mysys_var->current_cond);
-        mysql_mutex_unlock(in_use->mysys_var->current_mutex);
-      }
-      mysql_mutex_unlock(&in_use->mysys_var->mutex);
-    }
-  }
-}
-
-
 /*
   Close all tables which aren't in use by any thread
 
@@ -909,7 +871,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     refresh_version++;
     DBUG_PRINT("tcache", ("incremented global refresh_version to: %lu",
                           refresh_version));
-    kill_delayed_threads();
+
     /*
       Get rid of all unused TABLE and TABLE_SHARE instances. By doing
       this we automatically close all tables which were marked as "old".
@@ -928,11 +890,10 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
 
       if (share)
       {
-        kill_delayed_threads_for_table(share);
         /* tdc_remove_table() also sets TABLE_SHARE::version to 0. */
         tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
                          table->table_name, TRUE);
-	found=1;
+        found=1;
       }
     }
     if (!found)
@@ -5809,8 +5770,6 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         if (!query_table->placeholder() &&
             query_table->lock_type >= TL_WRITE_ALLOW_WRITE &&
             unique_keys > 1 && thd->lex->sql_command == SQLCOM_INSERT &&
-            /* Duplicate key update is not supported by INSERT DELAYED */
-            thd->get_command() != COM_DELAYED_INSERT &&
             thd->lex->duplicates == DUP_UPDATE)
           thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
       }

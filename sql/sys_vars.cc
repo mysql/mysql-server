@@ -1200,7 +1200,7 @@ static Sys_var_ulong Sys_delayed_insert_limit(
 static Sys_var_ulong Sys_delayed_insert_timeout(
        "delayed_insert_timeout",
        "How long a INSERT DELAYED thread should wait for INSERT statements "
-       "before terminating."
+       "before terminating. "
        "This variable is deprecated along with INSERT DELAYED.",
        GLOBAL_VAR(delayed_insert_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(DELAYED_WAIT_TIMEOUT),
@@ -1211,7 +1211,7 @@ static Sys_var_ulong Sys_delayed_queue_size(
        "delayed_queue_size",
        "What size queue (in rows) should be allocated for handling INSERT "
        "DELAYED. If the queue becomes full, any client that does INSERT "
-       "DELAYED will wait until there is room in the queue again."
+       "DELAYED will wait until there is room in the queue again. "
        "This variable is deprecated along with INSERT DELAYED.",
        GLOBAL_VAR(delayed_queue_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_QUEUE_SIZE), BLOCK_SIZE(1),
@@ -1705,8 +1705,7 @@ static Sys_var_ulong Sys_max_binlog_size(
 static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(max_connections +
-                   global_system_variables.max_insert_delayed_threads + 10);
+  resize_thr_alarm(max_connections + 10);
 #endif
   return false;
 }
@@ -1745,7 +1744,7 @@ static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
 static Sys_var_ulong Sys_max_insert_delayed_threads(
        "max_insert_delayed_threads",
        "Don't start more than this number of threads to handle INSERT "
-       "DELAYED statements. If set to zero INSERT DELAYED will be not used."
+       "DELAYED statements. If set to zero INSERT DELAYED will be not used. "
        "This variable is deprecated along with INSERT DELAYED.",
        SESSION_VAR(max_insert_delayed_threads),
        NO_CMD_LINE, VALID_RANGE(0, 16384), DEFAULT(20),
@@ -1756,7 +1755,7 @@ static Sys_var_ulong Sys_max_insert_delayed_threads(
 static Sys_var_ulong Sys_max_delayed_threads(
        "max_delayed_threads",
        "Don't start more than this number of threads to handle INSERT "
-       "DELAYED statements. If set to zero INSERT DELAYED will be not used."
+       "DELAYED statements. If set to zero INSERT DELAYED will be not used. "
        "This variable is deprecated along with INSERT DELAYED.",
        SESSION_VAR(max_insert_delayed_threads),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 16384), DEFAULT(20),

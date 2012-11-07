@@ -82,7 +82,6 @@
 /* ignore table flags */
 #define IGNORE_NONE 0x00 /* no ignore */
 #define IGNORE_DATA 0x01 /* don't dump data for this table */
-#define IGNORE_INSERT_DELAYED 0x02 /* table doesn't support INSERT DELAYED */
 
 /* general_log or slow_log tables under mysql database */
 static inline my_bool general_log_or_slow_log_tables(const char *db, 
@@ -104,7 +103,7 @@ static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 quick= 1, extended_insert= 1,
                 lock_tables=1,ignore_errors=0,flush_logs=0,flush_privileges=0,
                 opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
-                opt_delayed=0,create_options=1,opt_quoted=0,opt_databases=0,
+                create_options=1,opt_quoted=0,opt_databases=0,
                 opt_alldbs=0,opt_create_db=0,opt_lock_all_tables=0,
                 opt_set_charset=0, opt_dump_date=1,
                 opt_autocommit=0,opt_disable_keys=1,opt_xml=0,
@@ -287,9 +286,6 @@ static struct my_option my_long_options[] =
   {"default-character-set", OPT_DEFAULT_CHARSET,
    "Set the default character set.", &default_charset,
    &default_charset, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"delayed-insert", OPT_DELAYED, "Insert rows with INSERT DELAYED.",
-   &opt_delayed, &opt_delayed, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
-   0, 0},
   {"delete-master-logs", OPT_DELETE_MASTER_LOGS,
    "Delete logs on master after backup. This automatically enables --master-data.",
    &opt_delete_master_logs, &opt_delete_master_logs, 0,
@@ -947,8 +943,6 @@ static int get_options(int *argc, char ***argv)
   if (debug_check_flag)
     my_end_arg= MY_CHECK_ERROR;
 
-  if (opt_delayed)
-    opt_lock=0;                         /* Can't have lock with delayed */
   if (!path && (enclosed || opt_enclosed || escaped || lines_terminated ||
                 fields_terminated))
   {
@@ -2461,7 +2455,7 @@ static uint dump_routines_for_db(char *db)
 static uint get_table_structure(char *table, char *db, char *table_type,
                                 char *ignore_flag)
 {
-  my_bool    init=0, delayed, write_data, complete_insert;
+  my_bool    init=0, write_data, complete_insert;
   my_ulonglong num_fields;
   char       *result_table, *opt_quoted_table;
   const char *insert_option;
@@ -2486,14 +2480,6 @@ static uint get_table_structure(char *table, char *db, char *table_type,
 
   *ignore_flag= check_if_ignore_table(table, table_type);
 
-  delayed= opt_delayed;
-  if (delayed && (*ignore_flag & IGNORE_INSERT_DELAYED))
-  {
-    delayed= 0;
-    verbose_msg("-- Warning: Unable to use delayed inserts for table '%s' "
-                "because it's of type %s\n", table, table_type);
-  }
-
   complete_insert= 0;
   if ((write_data= !(*ignore_flag & IGNORE_DATA)))
   {
@@ -2507,8 +2493,7 @@ static uint get_table_structure(char *table, char *db, char *table_type,
       dynstr_set_checked(&insert_pat, "");
   }
 
-  insert_option= ((delayed && opt_ignore) ? " DELAYED IGNORE " :
-                  delayed ? " DELAYED " : opt_ignore ? " IGNORE " : "");
+  insert_option= (opt_ignore ? " IGNORE " : "");
 
   verbose_msg("-- Retrieving table structure for table %s...\n", table);
 
@@ -5053,12 +5038,11 @@ static void print_value(FILE *file, MYSQL_RES  *result, MYSQL_ROW row,
 /*
   SYNOPSIS
 
-  Check if we the table is one of the table types that should be ignored:
-  MRG_ISAM, MRG_MYISAM, if opt_delayed, if that table supports delayed inserts.
+  Check if the table is one of the table types that should be ignored:
+  MRG_ISAM, MRG_MYISAM.
+
   If the table should be altogether ignored, it returns a TRUE, FALSE if it
-  should not be ignored. If the user has selected to use INSERT DELAYED, it
-  sets the value of the bool pointer supports_delayed_inserts to 0 if not
-  supported, 1 if it is supported.
+  should not be ignored.
 
   ARGS
 
@@ -5107,26 +5091,9 @@ char check_if_ignore_table(const char *table_name, char *table_type)
     strmake(table_type, "VIEW", NAME_LEN-1);
   else
   {
-    /*
-      If the table type matches any of these, we do support delayed inserts.
-      Note: we do not want to skip dumping this table if if is not one of
-      these types, but we do want to use delayed inserts in the dump if
-      the table type is _NOT_ one of these types
-    */
     strmake(table_type, row[1], NAME_LEN-1);
-    if (opt_delayed)
-    {
-      if (strcmp(table_type,"MyISAM") &&
-          strcmp(table_type,"ISAM") &&
-          strcmp(table_type,"ARCHIVE") &&
-          strcmp(table_type,"HEAP") &&
-          strcmp(table_type,"MEMORY"))
-        result= IGNORE_INSERT_DELAYED;
-    }
 
-    /*
-      If these two types, we do want to skip dumping the table
-    */
+    /*  If these two types, we want to skip dumping the table. */
     if (!opt_no_data &&
         (!my_strcasecmp(&my_charset_latin1, table_type, "MRG_MyISAM") ||
          !strcmp(table_type,"MRG_ISAM") ||

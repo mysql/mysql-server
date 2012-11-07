@@ -364,7 +364,6 @@ struct Query_cache_tls
 
 #include "sql_lex.h"				/* Must be here */
 
-class Delayed_insert;
 class select_result;
 class Time_zone;
 
@@ -1611,14 +1610,13 @@ public:
 enum enum_thread_type
 {
   NON_SYSTEM_THREAD= 0,
-  SYSTEM_THREAD_DELAYED_INSERT= 1,
-  SYSTEM_THREAD_SLAVE_IO= 2,
-  SYSTEM_THREAD_SLAVE_SQL= 4,
-  SYSTEM_THREAD_NDBCLUSTER_BINLOG= 8,
-  SYSTEM_THREAD_EVENT_SCHEDULER= 16,
-  SYSTEM_THREAD_EVENT_WORKER= 32,
-  SYSTEM_THREAD_INFO_REPOSITORY= 64,
-  SYSTEM_THREAD_SLAVE_WORKER= 128
+  SYSTEM_THREAD_SLAVE_IO= 1,
+  SYSTEM_THREAD_SLAVE_SQL= 2,
+  SYSTEM_THREAD_NDBCLUSTER_BINLOG= 4,
+  SYSTEM_THREAD_EVENT_SCHEDULER= 8,
+  SYSTEM_THREAD_EVENT_WORKER= 16,
+  SYSTEM_THREAD_INFO_REPOSITORY= 32,
+  SYSTEM_THREAD_SLAVE_WORKER= 64
 };
 
 inline char const *
@@ -1628,7 +1626,6 @@ show_system_thread(enum_thread_type thread)
   switch (thread) {
     static char buf[64];
     RETURN_NAME_AS_STRING(NON_SYSTEM_THREAD);
-    RETURN_NAME_AS_STRING(SYSTEM_THREAD_DELAYED_INSERT);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_IO);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_SQL);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_NDBCLUSTER_BINLOG);
@@ -2100,7 +2097,6 @@ public:
     depending on whether low_priority_updates option is off or on.
   */
   thr_lock_type insert_lock_default;
-  Delayed_insert *di;
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
@@ -2958,7 +2954,7 @@ public:
   /*
     Initialize memory roots necessary for query processing and (!)
     pre-allocate memory for it. We can't do that in THD constructor because
-    there are use cases (acl_init, delayed inserts, watcher threads,
+    there are use cases (acl_init, watcher threads,
     killing mysqld) where it's vital to not allocate excessive and not used
     memory. Note, that we still don't return error from init_for_queries():
     if preallocation fails, we should notice that at the first call to
@@ -3060,11 +3056,8 @@ public:
     Invoked when acquiring an exclusive lock, for each thread that
     has a conflicting shared metadata lock.
 
-    This function:
-    - aborts waiting of the thread on a data lock, to make it notice
-      the pending exclusive lock and back off.
-    - if the thread is an INSERT DELAYED thread, sends it a KILL
-      signal to terminate it.
+    This function aborts waiting of the thread on a data lock, to make
+    it notice the pending exclusive lock and back off.
 
     @note This function does not wait for the thread to give away its
           locks. Waiting is done outside for all threads at once.
