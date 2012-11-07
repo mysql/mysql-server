@@ -1,5 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
-#
+# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.  #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -20,10 +19,6 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH}
 
 MESSAGE(STATUS "Using cmake version ${CMAKE_VERSION}")
 
-OPTION(NDB_DETECT_MYSQL_CLUSTER_BUILD
-  "Autodetect MySQL Cluster and turn on build of ndbcluster and NDB " ON)
-MARK_AS_ADVANCED(NDB_DETECT_MYSQL_CLUSTER_BUILD)
-    
 # Check if this is MySQL Cluster build i.e the MySQL Server
 # version string ends in -ndb-Y.Y.Y[-status]    
 MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
@@ -31,7 +26,7 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
   IF(${version_string} MATCHES "(.*)-ndb-(.*)")
     SET(mysql_version ${CMAKE_MATCH_1})
     SET(cluster_version ${CMAKE_MATCH_2})
-    
+
     # Sanity check that the mysql_version matches precalcuated
     # values from higher level scripts  
     IF(NOT ${mysql_version} EQUAL "${MYSQL_NO_DASH_VERSION}")
@@ -45,12 +40,10 @@ MACRO(NDB_CHECK_MYSQL_CLUSTER version_string)
       SET(MYSQL_CLUSTER_VERSION_BUILD ${CMAKE_MATCH_3})
     ENDIF()
 
-    IF(NDB_DETECT_MYSQL_CLUSTER_BUILD)
-      MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
-      # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
-      # that this is a MySQL Cluster build, yay!
-      SET(MYSQL_CLUSTER_VERSION ${cluster_version})
-    ENDIF()
+    MESSAGE(STATUS  "This is MySQL Cluster ${cluster_version}")
+    # Finally set MYSQL_CLUSTER_VERSION to be used as an indicator
+    # that this is a MySQL Cluster build, yay!
+    SET(MYSQL_CLUSTER_VERSION ${cluster_version})
   ENDIF()
 ENDMACRO()
 
@@ -118,8 +111,14 @@ ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
 
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
-IF(MYSQL_CLUSTER_VERSION)
-  SET(is_default_plugin "DEFAULT")
+OPTION(WITH_NDB_DEFAULT_PLUGIN_DETECT
+  "Autodetect MySQL Cluster version and set ndbcluster as DEFAULT plugin" ON)
+MARK_AS_ADVANCED(WITH_NDB_DEFAULT_PLUGIN_DETECT)
+IF(WITH_NDB_DEFAULT_PLUGIN_DETECT)
+  IF(MYSQL_CLUSTER_VERSION)
+    # ndbcluster is DEFAULT plugin in MySQL Cluster
+    SET(is_default_plugin "DEFAULT")
+  ENDIF()
 ENDIF()
 
 MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
@@ -203,29 +202,54 @@ MESSAGE(STATUS "Using extra FLAGS for ndb: \"${NDB_CCFLAGS}\"")
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NDB_CCFLAGS}")
 SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NDB_CCFLAGS}")
 
-# Check for Java and JDK needed by ndbjtie and clusterj
-INCLUDE(FindJava)
-INCLUDE(FindJNI)
-INCLUDE("${NDB_SOURCE_DIR}/config/type_JAVA.cmake")
-
-IF(JAVA_COMPILE AND JAVA_ARCHIVE)
-  MESSAGE(STATUS "Found Java")
-  SET(HAVE_JAVA TRUE)
+SET(HAVE_JAVA FALSE)
+SET(HAVE_JDK FALSE)
+SET(WITH_NDB_JAVA_DEFAULT ON)
+# Check if the default for WITH_NDB_JAVA should be overriden
+# by environment variable
+IF (DEFINED ENV{WITH_NDB_JAVA_DEFAULT})
+  SET(WITH_NDB_JAVA_DEFAULT $ENV{WITH_NDB_JAVA_DEFAULT})
+  MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to ${WITH_NDB_JAVA_DEFAULT}")
 ELSE()
-  MESSAGE(STATUS "Could not find Java")
-  SET(HAVE_JAVA FALSE)
+  # Check if the default for WITH_NDB_JAVA should be
+  # magically overriden
+  SET(magic_value "MySQL")
+  IF(DEFINED ENV{PRODUCT_ID})
+    SET(magic_value $ENV{PRODUCT_ID})
+  ENDIF()
+  IF (magic_value STREQUAL "bootstrap-cmake-tar-gz")
+    SET(WITH_NDB_JAVA_DEFAULT OFF)
+    MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to 0 since "
+                   "bootstrapping was detected")
+  ENDIF()
 ENDIF()
+OPTION(WITH_NDB_JAVA
+  "Include NDB Cluster Java components" ${WITH_NDB_JAVA_DEFAULT})
+IF(WITH_NDB_JAVA)
+  # Check for Java and JDK needed by ndbjtie and clusterj
+  INCLUDE(FindJava)
+  INCLUDE(FindJNI)
+  INCLUDE("${NDB_SOURCE_DIR}/config/type_JAVA.cmake")
 
-IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
-  MESSAGE(STATUS "Found JDK")
-  SET(HAVE_JDK TRUE)
-ELSE()
-  MESSAGE(STATUS "Could not find JDK")
-  SET(HAVE_JDK FALSE)
-ENDIF()
+  IF(JAVA_COMPILE AND JAVA_ARCHIVE)
+    MESSAGE(STATUS "Found Java")
+    SET(HAVE_JAVA TRUE)
+  ELSE()
+    MESSAGE(FATAL_ERROR "Could not find Java")
+  ENDIF()
 
-SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
-  "Enable the classpath for MySQL Cluster Java Connector")
+  IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
+    MESSAGE(STATUS "Found JDK")
+    SET(HAVE_JDK TRUE)
+  ELSE()
+    MESSAGE(FATAL_ERROR "Could not find JDK")
+  ENDIF()
+
+  SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
+    "Enable the classpath for MySQL Cluster Java Connector")
+ELSE(WITH_NDB_JAVA)
+  MESSAGE(STATUS "Excluding Cluster Java components") 
+ENDIF(WITH_NDB_JAVA)
 
 ADD_SUBDIRECTORY(include)
 ADD_SUBDIRECTORY(src)

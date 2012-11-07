@@ -26,7 +26,9 @@
 #include "ndbapi/NdbInfo.hpp"
 #include "../include/portlib/NdbDir.hpp"
 
-extern "C" void* JNI_OnLoad(void*, void*);
+#ifdef NDB_WITH_NDBJTIE
+extern "C" void _ndbjtie_exports(void);
+#endif
 extern "C" void ndb_usage(void);
 extern "C" void myRandom48Init(void);
 extern "C" void ndb_rand(void);
@@ -48,7 +50,7 @@ _ndbclient_exports(void)
   NdbInfo info(&cluster_connection, "");
   drop_instance(); // NdbPool
 #ifdef NDB_WITH_NDBJTIE
-  JNI_OnLoad(0,0);
+  _ndbjtie_exports();
 #endif
   ndb_usage();
   myRandom48Init();
