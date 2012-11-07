@@ -1,4 +1,5 @@
 --source suite/ndb_memcache/include/have_memcache.inc
+--source suite/ndb_memcache/include/misc_tables.inc
 
 --perl
 
@@ -154,19 +155,19 @@ sub run_test() {
   my $r2 = $mc->get("b:test8c");
   ($r2 == $val_13949 . "!?")    ||  Carp::confess("results unexpected"); 
 
-  # APPEND stress test
-  $mc->add("b:t9", $val_50);
+  # APPEND stress test.  This uses non-logging tables.
+  $mc->add("bxx:t9", $val_50);
   for my $i (2 .. 300) {
-    $mc->append("b:t9", $val_50);
-    my $r = $mc->get("b:t9");
+    $mc->append("bxx:t9", $val_50);
+    my $r = $mc->get("bxx:t9");
     ($r == $val_50 x $i) || Carp::confess("results unexpected");
   } 
     
-  # PREPEND stress test
-  $mc->add("b:t10", $val_50);
+  # PREPEND stress test.  This uses non-logging tables.
+  $mc->add("bxx:t10", $val_50);
   for my $i (2 .. 300) {
-    $mc->prepend("b:t10", $val_50);
-    my $r = $mc->get("b:t10");
+    $mc->prepend("bxx:t10", $val_50);
+    my $r = $mc->get("bxx:t10");
     ($r == $val_50 x $i) || Carp::confess("results unexpected");
   } 
 
@@ -183,4 +184,8 @@ USE ndbmemcache;
 SELECT mkey, string_value, ext_size, SUM(length(content)) AS total_parts
   FROM demo_table_large t1
   JOIN external_values  t2 ON (t1.ext_id = t2.id) 
+  GROUP BY mkey, string_value, ext_size;
+SELECT mkey, string_value, ext_size, SUM(length(content)) AS total_parts
+  FROM large_nolog t1
+  JOIN  external_nolog t2 ON (t1.ext_id = t2.id) 
   GROUP BY mkey, string_value, ext_size;
