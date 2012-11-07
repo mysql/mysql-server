@@ -2874,8 +2874,7 @@ table_map Item_field::resolved_used_tables() const
 }
 
 void Item_ident::fix_after_pullout(st_select_lex *parent_select,
-                                   st_select_lex *removed_select,
-                                   Item **ref)
+                                   st_select_lex *removed_select)
 {
   /*
     Some field items may be created for use in execution only, without
@@ -7887,25 +7886,23 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
 }
 
 void Item_outer_ref::fix_after_pullout(st_select_lex *parent_select,
-                                       st_select_lex *removed_select,
-                                       Item **ref_arg)
+                                       st_select_lex *removed_select)
 {
   if (depended_from == parent_select)
   {
-    *ref_arg= outer_ref;
-    outer_ref->fix_after_pullout(parent_select, removed_select, ref_arg);
+    //*ref_arg= outer_ref;
+    outer_ref->fix_after_pullout(parent_select, removed_select);
   }
   // @todo: Find an actual test case for this funcion.
   DBUG_ASSERT(false);
 }
 
 void Item_ref::fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select,
-                                 Item **ref_arg)
+                                 st_select_lex *removed_select)
 {
-  (*ref)->fix_after_pullout(parent_select, removed_select, ref);
+  (*ref)->fix_after_pullout(parent_select, removed_select);
 
-  Item_ident::fix_after_pullout(parent_select, removed_select, ref_arg);
+  Item_ident::fix_after_pullout(parent_select, removed_select);
 }
 
 
