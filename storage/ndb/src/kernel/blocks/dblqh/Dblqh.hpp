@@ -1095,6 +1095,8 @@ public:
     STATIC_CONST( PollingPeriodMillis = 10000 ); /* 10s */
     STATIC_CONST( WarnPeriodsWithNoProgress = 2); /* 20s */
     STATIC_CONST( MaxPeriodsWithNoProgress = 6 ); /* 60s */
+
+    SimulatedBlock* block;
     
     /* Should the watchdog be running? */
     bool scan_running;
@@ -1102,45 +1104,23 @@ public:
     /* Is there an active thread? */
     bool thread_active;
     
-    /* LCP position info from Backup block */
+    /* LCP position and state info from Backup block */
+    LcpStatusConf::LcpState lcpState;
     Uint32 tableId;
     Uint32 fragId;
-    Uint64 rowCount;
+    Uint64 completionStatus;
 
     /* Number of periods with no LCP progress observed */ 
     Uint32 pollCount;
 
     /* Reinitialise the watchdog */
-    void reset()
-    {
-      scan_running = false;
-      tableId = ~Uint32(0);
-      fragId = ~Uint32(0);
-      rowCount = ~Uint64(0);
-      pollCount = 0;
-    }
+    void reset();
 
     /* Handle an LCP Status report */
-    void handleLcpStatusRep(Uint32 repTableId,
+    void handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
+                            Uint32 repTableId,
                             Uint32 repFragId,
-                            Uint64 repRowCount)
-    {
-      if (scan_running)
-      {
-        if ((repRowCount != rowCount) ||
-            (repFragId != fragId) ||
-            (repTableId != tableId))
-        {
-          /* Something moved since last time, reset
-           * poll counter and data.
-           */
-          pollCount = 0;
-          tableId = repTableId;
-          fragId = repFragId;
-          rowCount = repRowCount;
-        }
-      }
-    }
+                            Uint64 repCompletionStatus);
   };
   
   LCPFragWatchdog c_lcpFragWatchdog;
