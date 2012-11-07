@@ -867,12 +867,14 @@ struct row_prebuilt_t {
 	ulint		idx_cond_n_cols;/*!< Number of fields in idx_cond_cols.
 					0 if and only if idx_cond == NULL. */
 	/*----------------------*/
-	ulint		magic_n2;	/*!< this should be the same as
-					magic_n */
-	/*----------------------*/
 	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API
 					query */
 	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
+	/*----------------------*/
+	ulint		n_rows_read;	/*!< Number of rows read */
+	/*----------------------*/
+	ulint		magic_n2;	/*!< this should be the same as
+					magic_n */
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
