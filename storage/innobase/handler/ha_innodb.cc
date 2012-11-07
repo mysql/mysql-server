@@ -7728,7 +7728,7 @@ ha_innobase::general_fetch(
 	case DB_SUCCESS:
 		error = 0;
 		table->status = 0;
-		srv_stats.n_rows_read.add((size_t) prebuilt->trx->id, 1);
+		++prebuilt->n_rows_read;
 		break;
 	case DB_RECORD_NOT_FOUND:
 		error = HA_ERR_END_OF_FILE;
