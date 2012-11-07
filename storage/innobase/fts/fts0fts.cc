@@ -1725,6 +1725,7 @@ fts_create_common_tables(
 	que_t*		graph;
 	fts_table_t	fts_table;
 	mem_heap_t*	heap = mem_heap_create(1024);
+	pars_info_t*	info;
 
 	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
 
@@ -1763,17 +1764,23 @@ fts_create_common_tables(
 		goto func_exit;
 	}
 
+	info = pars_info_create();
+
+	pars_info_bind_id(info, TRUE, "table_name", name);
+	pars_info_bind_id(info, TRUE, "index_name", FTS_DOC_ID_INDEX_NAME);
+	pars_info_bind_id(info, TRUE, "doc_id_col_name", FTS_DOC_ID_COL_NAME);
+
 	/* Create the FTS DOC_ID index on the hidden column. Currently this
 	is common for any FT index created on the table. */
 	graph = fts_parse_sql_no_dict_lock(
 		NULL,
-		NULL,
+		info,
 		mem_heap_printf(
 			heap,
 			"BEGIN\n"
 			""
-			"CREATE UNIQUE INDEX %s ON %s(%s);\n",
-			FTS_DOC_ID_INDEX_NAME, name, FTS_DOC_ID_COL_NAME));
+			"CREATE UNIQUE INDEX $index_name ON $table_name("
+			"$doc_id_col_name);\n"));
 
 	error = fts_eval_sql(trx, graph);
 	que_graph_free(graph);
