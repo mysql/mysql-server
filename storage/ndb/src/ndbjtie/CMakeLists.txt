@@ -22,8 +22,11 @@ IF(HAVE_JAVA)
   FILE(TO_NATIVE_PATH "${Java_JAVA_EXECUTABLE}" Java_JAVA_EXECUTABLE_PATH)
 
   # the JVM arch option when loading native libraries
-  MATH(EXPR Java_JAVA_ARCH "${CMAKE_SIZEOF_VOID_P} * 8")
-  SET(Java_JAVA_ARCH_OPT "-d${Java_JAVA_ARCH}")
+  IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
+    SET(Java_JAVA_ARCH_OPT "-d32")
+  ELSE()
+    SET(Java_JAVA_ARCH_OPT "-d64")
+  ENDIF()
 
 ENDIF(HAVE_JAVA)
 

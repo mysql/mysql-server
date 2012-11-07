@@ -317,6 +317,10 @@ max-time: 500
 cmd: testBasic
 args: -n Bug54944 T1
 
+max-time: 500
+cmd: testBasic
+args: -n Bug54944DATABUFFER T1
+
 max-time: 600
 cmd: testBasic
 args: -r 10 -n Bug59496_case1 T2
@@ -1876,6 +1880,10 @@ cmd: testDict
 args: -n DropWithTakeover T1
 
 max-time: 300
+cmd: testDict
+args: -n GetTabInfoRef T1
+
+max-time: 300
 cmd: testBasic
 args: -n LeakApiConnectObjects T1
 
@@ -1894,4 +1902,8 @@ args: -n ScanKeyInfoExhaust T1
 max-time : 300
 cmd: testDict
 args: -n Bug14645319 T1
+
+max-time : 1200
+cmd: testLimits
+args: -n SlowDihFileWrites T1
 
