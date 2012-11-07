@@ -208,6 +208,9 @@ Qmgr::Qmgr(Block_context& ctx)
   addRecSignal(GSN_NODE_PING_REQ, &Qmgr::execNODE_PINGREQ);
   addRecSignal(GSN_NODE_PING_CONF, &Qmgr::execNODE_PINGCONF);
 
+  // Ndbinfo signal
+  addRecSignal(GSN_DBINFO_SCANREQ, &Qmgr::execDBINFO_SCANREQ);
+
   initData();
 }//Qmgr::Qmgr()
 

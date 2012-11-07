@@ -844,7 +844,7 @@ void Dblqh::execNDB_STTOR(Signal* signal)
 /* ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++ */
 void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId) 
 {
-  UintR Ti;
+  UintR Ti, Tj;
   HostRecordPtr ThostPtr;
 
 /* ------- INITIATE ALL RECORDS ------- */
@@ -861,11 +861,19 @@ void Dblqh::startphase1Lab(Signal* signal, Uint32 _dummy, Uint32 ownNodeId)
      * Valid only if receiver has same number of LQH workers.
      * In general full instance key of fragment must be used.
      */
-    ThostPtr.p->hostLqhBlockRef = calcInstanceBlockRef(DBLQH, ThostPtr.i);
-    ThostPtr.p->hostTcBlockRef  = calcTcBlockRef(ThostPtr.i);
     ThostPtr.p->inPackedList = false;
-    ThostPtr.p->noOfPackedWordsLqh = 0;
-    ThostPtr.p->noOfPackedWordsTc  = 0;
+    for (Tj = 0; Tj < NDB_ARRAY_SIZE(ThostPtr.p->lqh_pack); Tj++)
+    {
+      ThostPtr.p->lqh_pack[Tj].noOfPackedWords = 0;
+      ThostPtr.p->lqh_pack[Tj].hostBlockRef =
+        numberToRef(DBLQH, Tj, ThostPtr.i);
+    }
+    for (Tj = 0; Tj < NDB_ARRAY_SIZE(ThostPtr.p->tc_pack); Tj++)
+    {
+      ThostPtr.p->tc_pack[Tj].noOfPackedWords = 0;
+      ThostPtr.p->tc_pack[Tj].hostBlockRef =
+        numberToRef(DBTC, Tj, ThostPtr.i);
+    }
     ThostPtr.p->nodestatus = ZNODE_DOWN;
   }//for
   cpackedListIndex = 0;
@@ -3452,6 +3460,7 @@ void Dblqh::execSEND_PACKED(Signal* signal)
 {
   HostRecordPtr Thostptr;
   UintR i;
+  UintR j;
   UintR TpackedListIndex = cpackedListIndex;
   jamEntry();
   for (i = 0; i < TpackedListIndex; i++) {
@@ -3459,14 +3468,22 @@ void Dblqh::execSEND_PACKED(Signal* signal)
     ptrAss(Thostptr, hostRecord);
     jam();
     ndbrequire(Thostptr.i - 1 < MAX_NDB_NODES - 1);
-    if (Thostptr.p->noOfPackedWordsLqh > 0) {
-      jam();
-      sendPackedSignalLqh(signal, Thostptr.p);
-    }//if
-    if (Thostptr.p->noOfPackedWordsTc > 0) {
-      jam();
-      sendPackedSignalTc(signal, Thostptr.p);
-    }//if
+    for (j = 0; j < NDB_ARRAY_SIZE(Thostptr.p->lqh_pack); j++)
+    {
+      struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[j];
+      if (container->noOfPackedWords > 0) {
+        jam();
+        sendPackedSignal(signal, container);
+      }
+    }
+    for (j = 0; j < NDB_ARRAY_SIZE(Thostptr.p->tc_pack); j++)
+    {
+      struct PackedWordsContainer * container = &Thostptr.p->tc_pack[j];
+      if (container->noOfPackedWords > 0) {
+        jam();
+        sendPackedSignal(signal, container);
+      }
+    }
     Thostptr.p->inPackedList = false;
   }//for
   cpackedListIndex = 0;
@@ -3708,33 +3725,39 @@ void Dblqh::execTUPKEYREF(Signal* signal)
   }//switch
 }//Dblqh::execTUPKEYREF()
 
-void Dblqh::sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr)
+void Dblqh::sendPackedSignal(Signal* signal,
+                             struct PackedWordsContainer * container)
 {
-  Uint32 noOfWords = ahostptr->noOfPackedWordsLqh;
-  BlockReference hostRef = ahostptr->hostLqhBlockRef;
+  Uint32 noOfWords = container->noOfPackedWords;
+  BlockReference hostRef = container->hostBlockRef;
+  container->noOfPackedWords = 0;
   MEMCOPY_NO_WORDS(&signal->theData[0],
-                   &ahostptr->packedWordsLqh[0],
+                   &container->packedWords[0],
                    noOfWords);
   sendSignal(hostRef, GSN_PACKED_SIGNAL, signal, noOfWords, JBB);
-  ahostptr->noOfPackedWordsLqh = 0;
-}//Dblqh::sendPackedSignalLqh()
-
-void Dblqh::sendPackedSignalTc(Signal* signal, HostRecord * ahostptr)
-{
-  Uint32 noOfWords = ahostptr->noOfPackedWordsTc;
-  BlockReference hostRef = ahostptr->hostTcBlockRef;
-  MEMCOPY_NO_WORDS(&signal->theData[0],
-                   &ahostptr->packedWordsTc[0],
-                   noOfWords);
-  sendSignal(hostRef, GSN_PACKED_SIGNAL, signal, noOfWords, JBB);
-  ahostptr->noOfPackedWordsTc = 0;
-}//Dblqh::sendPackedSignalTc()
+}
 
 void Dblqh::sendCommitLqh(Signal* signal, BlockReference alqhBlockref)
 {
+  Uint32 instanceKey = refToInstance(alqhBlockref);
+  ndbassert(refToMain(alqhBlockref) == DBLQH);
+
+  if (instanceKey > MAX_NDBMT_LQH_THREADS)
+  {
+    /* No send packed support in these cases */
+    jam();
+    signal->theData[0] = tcConnectptr.p->clientConnectrec;
+    signal->theData[1] = tcConnectptr.p->transid[0];
+    signal->theData[2] = tcConnectptr.p->transid[1];
+    sendSignal(alqhBlockref, GSN_COMMIT, signal, 3, JBB);
+    return;
+  }
+
   HostRecordPtr Thostptr;
+
   Thostptr.i = refToNode(alqhBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[instanceKey];
 
   Uint32 Tdata[5];
   Tdata[0] = tcConnectptr.p->clientConnectrec;
@@ -3751,40 +3774,41 @@ void Dblqh::sendCommitLqh(Signal* signal, BlockReference alqhBlockref)
     len = 4;
   }
 
-  // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers != 0;
-  if (send_unpacked) {
+  if (container->noOfPackedWords > 25 - len) {
     jam();
-    FragrecordPtr Tfragptr;
-    Tfragptr.i = tcConnectptr.p->fragmentptr;
-    c_fragment_pool.getPtr(Tfragptr);
-    memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    Uint32 Tnode = Thostptr.i;
-    Uint32 instanceKey = Tfragptr.p->lqhInstanceKey;
-    BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
-    sendSignal(lqhRef, GSN_COMMIT, signal, len, JBB);
-    return;
-  }
-
-  if (Thostptr.p->noOfPackedWordsLqh > 25 - 5) {
-    jam();
-    sendPackedSignalLqh(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }
 
   Tdata[0] |= (ZCOMMIT << 28);
-  Uint32 pos = Thostptr.p->noOfPackedWordsLqh;
-  memcpy(&Thostptr.p->packedWordsLqh[pos], &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsLqh = pos + len;
+  Uint32 pos = container->noOfPackedWords;
+  container->noOfPackedWords = pos + len;
+  memcpy(&container->packedWords[pos], &Tdata[0], len << 2);
 }
 
 void Dblqh::sendCompleteLqh(Signal* signal, BlockReference alqhBlockref)
 {
+  Uint32 instanceKey = refToInstance(alqhBlockref);
+  ndbassert(refToMain(alqhBlockref) == DBLQH);
+
+  if (instanceKey > MAX_NDBMT_LQH_THREADS)
+  {
+    /* No send packed support in these cases */
+    jam();
+    signal->theData[0] = tcConnectptr.p->clientConnectrec;
+    signal->theData[1] = tcConnectptr.p->transid[0];
+    signal->theData[2] = tcConnectptr.p->transid[1];
+    sendSignal(alqhBlockref, GSN_COMPLETE, signal, 3, JBB);
+    return;
+  }
+
   HostRecordPtr Thostptr;
+
   Thostptr.i = refToNode(alqhBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  struct PackedWordsContainer * container = &Thostptr.p->lqh_pack[instanceKey];
 
   Uint32 Tdata[3];
   Tdata[0] = tcConnectptr.p->clientConnectrec;
@@ -3792,39 +3816,28 @@ void Dblqh::sendCompleteLqh(Signal* signal, BlockReference alqhBlockref)
   Tdata[2] = tcConnectptr.p->transid[1];
   Uint32 len = 3;
 
-  // currently packed signal cannot address specific instance
-  const bool send_unpacked = getNodeInfo(Thostptr.i).m_lqh_workers != 0;
-  if (send_unpacked) {
+  if (container->noOfPackedWords > 22) {
     jam();
-    FragrecordPtr Tfragptr;
-    Tfragptr.i = tcConnectptr.p->fragmentptr;
-    c_fragment_pool.getPtr(Tfragptr);
-    memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    Uint32 Tnode = Thostptr.i;
-    Uint32 instanceKey = Tfragptr.p->lqhInstanceKey;
-    BlockReference lqhRef = numberToRef(DBLQH, instanceKey, Tnode);
-    sendSignal(lqhRef, GSN_COMPLETE, signal, len, JBB);
-    return;
-  }
-
-  if (Thostptr.p->noOfPackedWordsLqh > 22) {
-    jam();
-    sendPackedSignalLqh(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }
 
   Tdata[0] |= (ZCOMPLETE << 28);
-  Uint32 pos = Thostptr.p->noOfPackedWordsLqh;
-  memcpy(&Thostptr.p->packedWordsLqh[pos], &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsLqh = pos + len;
+  Uint32 pos = container->noOfPackedWords;
+  container->noOfPackedWords = pos + len;
+  memcpy(&container->packedWords[pos], &Tdata[0], len << 2);
 }
 
 void Dblqh::sendCommittedTc(Signal* signal, BlockReference atcBlockref)
 {
-  if (refToInstance(atcBlockref))
+  Uint32 instanceKey = refToInstance(atcBlockref);
+
+  ndbassert(refToMain(atcBlockref) == DBTC);
+  if (instanceKey > MAX_NDBMT_TC_THREADS)
   {
+    /* No send packed support in these cases */
     jam();
     signal->theData[0] = tcConnectptr.p->clientConnectrec;
     signal->theData[1] = tcConnectptr.p->transid[0];
@@ -3836,6 +3849,7 @@ void Dblqh::sendCommittedTc(Signal* signal, BlockReference atcBlockref)
   HostRecordPtr Thostptr;
   Thostptr.i = refToNode(atcBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  struct PackedWordsContainer * container = &Thostptr.p->tc_pack[instanceKey];
 
   Uint32 Tdata[3];
   Tdata[0] = tcConnectptr.p->clientConnectrec;
@@ -3843,34 +3857,28 @@ void Dblqh::sendCommittedTc(Signal* signal, BlockReference atcBlockref)
   Tdata[2] = tcConnectptr.p->transid[1];
   Uint32 len = 3;
 
-  // currently TC is single-threaded
-  const bool send_unpacked = false;
-  if (send_unpacked) {
+  if (container->noOfPackedWords > 22) {
     jam();
-    memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    BlockReference tcRef = Thostptr.p->hostTcBlockRef;
-    sendSignal(tcRef, GSN_COMMITTED, signal, len, JBB);
-    return;
-  }
-
-  if (Thostptr.p->noOfPackedWordsTc > 22) {
-    jam();
-    sendPackedSignalTc(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }
 
   Tdata[0] |= (ZCOMMITTED << 28);
-  Uint32 pos = Thostptr.p->noOfPackedWordsTc;
-  memcpy(&Thostptr.p->packedWordsTc[pos], &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsTc = pos + len;
+  Uint32 pos = container->noOfPackedWords;
+  container->noOfPackedWords = pos + len;
+  memcpy(&container->packedWords[pos], &Tdata[0], len << 2);
 }
 
 void Dblqh::sendCompletedTc(Signal* signal, BlockReference atcBlockref)
 {
-  if (refToInstance(atcBlockref))
+  Uint32 instanceKey = refToInstance(atcBlockref);
+
+  ndbassert(refToMain(atcBlockref) == DBTC);
+  if (instanceKey > MAX_NDBMT_TC_THREADS)
   {
+    /* No handling of send packed in those cases */
     jam();
     signal->theData[0] = tcConnectptr.p->clientConnectrec;
     signal->theData[1] = tcConnectptr.p->transid[0];
@@ -3882,6 +3890,7 @@ void Dblqh::sendCompletedTc(Signal* signal, BlockReference atcBlockref)
   HostRecordPtr Thostptr;
   Thostptr.i = refToNode(atcBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  struct PackedWordsContainer * container = &Thostptr.p->tc_pack[instanceKey];
 
   Uint32 Tdata[3];
   Tdata[0] = tcConnectptr.p->clientConnectrec;
@@ -3889,110 +3898,107 @@ void Dblqh::sendCompletedTc(Signal* signal, BlockReference atcBlockref)
   Tdata[2] = tcConnectptr.p->transid[1];
   Uint32 len = 3;
 
-  // currently TC is single-threaded
-  const bool send_unpacked = false;
-  if (send_unpacked) {
+  if (container->noOfPackedWords > 22) {
     jam();
-    memcpy(&signal->theData[0], &Tdata[0], len << 2);
-    BlockReference tcRef = Thostptr.p->hostTcBlockRef;
-    sendSignal(tcRef, GSN_COMMITTED, signal, len, JBB);
-    return;
-  }
-
-  if (Thostptr.p->noOfPackedWordsTc > 22) {
-    jam();
-    sendPackedSignalTc(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   } else {
     jam();
     updatePackedList(signal, Thostptr.p, Thostptr.i);
   }
 
   Tdata[0] |= (ZCOMPLETED << 28);
-  Uint32 pos = Thostptr.p->noOfPackedWordsTc;
-  memcpy(&Thostptr.p->packedWordsTc[pos], &Tdata[0], len << 2);
-  Thostptr.p->noOfPackedWordsTc = pos + len;
+  Uint32 pos = container->noOfPackedWords;
+  container->noOfPackedWords = pos + len;
+  memcpy(&container->packedWords[pos], &Tdata[0], len << 2);
 }
 
 void Dblqh::sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref)
 {
   LqhKeyConf* lqhKeyConf;
+  struct PackedWordsContainer * container;
+  bool send_packed = true;
   HostRecordPtr Thostptr;
-
-  bool packed= true;
   Thostptr.i = refToNode(atcBlockref);
+  Uint32 instanceKey = refToInstance(atcBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
-  if (refToBlock(atcBlockref) == DBTC) {
-    jam();
+  Uint32 block = refToMain(atcBlockref);
+
+  if (block == DBLQH)
+  {
+    if (instanceKey <= MAX_NDBMT_LQH_THREADS)
+    {
+      container = &Thostptr.p->lqh_pack[instanceKey];
+    }
+    else
+    {
+      send_packed = false;
+    }
+  }
+  else if (block == DBTC)
+  {
+    if (instanceKey <= MAX_NDBMT_TC_THREADS)
+    {
+      container = &Thostptr.p->tc_pack[instanceKey];
+    }
+    else
+    {
+      send_packed = false;
+    }
+  }
+  else
+  {
+    send_packed = false;
+  }
+
 /*******************************************************************
+// Normal path
 // This signal was intended for DBTC as part of the normal transaction
 // execution.
-********************************************************************/
-    if (Thostptr.p->noOfPackedWordsTc > (25 - LqhKeyConf::SignalLength)) {
-      jam();
-      sendPackedSignalTc(signal, Thostptr.p);
-    } else {
-      jam();
-      updatePackedList(signal, Thostptr.p, Thostptr.i);
-    }//if
-    lqhKeyConf = (LqhKeyConf *)
-      &Thostptr.p->packedWordsTc[Thostptr.p->noOfPackedWordsTc];
-    Thostptr.p->noOfPackedWordsTc += LqhKeyConf::SignalLength;
-  } else if(refToMain(atcBlockref) == DBLQH &&
-            refToInstance(atcBlockref) == instance()) {
-    //wl4391_todo check
-    jam();
-/*******************************************************************
+// More unusual path
 // This signal was intended for DBLQH as part of log execution or
 // node recovery.
+// Yet another path
+// Intended for DBSPJ as part of join processing
 ********************************************************************/
-    if (Thostptr.p->noOfPackedWordsLqh > (25 - LqhKeyConf::SignalLength)) {
+  if (send_packed)
+  {
+    if (container->noOfPackedWords > (25 - LqhKeyConf::SignalLength)) {
       jam();
-      sendPackedSignalLqh(signal, Thostptr.p);
+      sendPackedSignal(signal, container);
     } else {
       jam();
       updatePackedList(signal, Thostptr.p, Thostptr.i);
     }//if
     lqhKeyConf = (LqhKeyConf *)
-      &Thostptr.p->packedWordsLqh[Thostptr.p->noOfPackedWordsLqh];
-    Thostptr.p->noOfPackedWordsLqh += LqhKeyConf::SignalLength;
-  } else {
-    packed= false;
-    lqhKeyConf = (LqhKeyConf *)signal->getDataPtrSend();
+      &container->packedWords[container->noOfPackedWords];
+    container->noOfPackedWords += LqhKeyConf::SignalLength;
   }
+  else
+  {
+    lqhKeyConf = (LqhKeyConf *)&signal->theData[0];
+  }
+
   Uint32 ptrAndType = tcConnectptr.i | (ZLQHKEYCONF << 28);
   Uint32 tcOprec = tcConnectptr.p->tcOprec;
   Uint32 ownRef = cownref;
+  lqhKeyConf->connectPtr = ptrAndType;
+  lqhKeyConf->opPtr = tcOprec;
+  lqhKeyConf->userRef = ownRef;
+
   Uint32 readlenAi = tcConnectptr.p->readlenAi;
   Uint32 transid1 = tcConnectptr.p->transid[0];
   Uint32 transid2 = tcConnectptr.p->transid[1];
   Uint32 noFiredTriggers = tcConnectptr.p->noFiredTriggers;
-  lqhKeyConf->connectPtr = ptrAndType;
-  lqhKeyConf->opPtr = tcOprec;
-  lqhKeyConf->userRef = ownRef;
   lqhKeyConf->readLen = readlenAi;
   lqhKeyConf->transId1 = transid1;
   lqhKeyConf->transId2 = transid2;
   lqhKeyConf->noFiredTriggers = noFiredTriggers;
 
-  if(!packed)
+  if (!send_packed)
   {
     lqhKeyConf->connectPtr = tcConnectptr.i;
-    if (instance() == refToInstance(atcBlockref) &&
-        (Thostptr.i == 0 || Thostptr.i == getOwnNodeId()) &&
-        globalData.ndbMtTcThreads == 0)
-    {
-      /**
-       * This EXECUTE_DIRECT is multi-thread safe, as we only get here
-       * for RESTORE block.
-       */
-      EXECUTE_DIRECT(refToMain(atcBlockref), GSN_LQHKEYCONF,
-		     signal, LqhKeyConf::SignalLength);
-    }
-    else
-    {
-      sendSignal(atcBlockref, GSN_LQHKEYCONF,
-		 signal, LqhKeyConf::SignalLength, JBB);
-    }
+    sendSignal(atcBlockref, GSN_LQHKEYCONF,
+               signal, LqhKeyConf::SignalLength, JBB);
   }
 }//Dblqh::sendLqhkeyconfTc()
 
@@ -7595,7 +7601,10 @@ Dblqh::sendFireTrigConfTc(Signal* signal,
                           BlockReference atcBlockref,
                           Uint32 Tdata[])
 {
-  if (refToInstance(atcBlockref) != 0)
+  Uint32 instanceKey = refToInstance(atcBlockref);
+
+  ndbassert(refToMain(atcBlockref) == DBTC);
+  if (instanceKey > MAX_NDBMT_TC_THREADS)
   {
     jam();
     memcpy(signal->theData, Tdata, 4 * FireTrigConf::SignalLength);
@@ -7605,15 +7614,15 @@ Dblqh::sendFireTrigConfTc(Signal* signal,
   }
 
   HostRecordPtr Thostptr;
-  Uint32 len = FireTrigConf::SignalLength;
-
   Thostptr.i = refToNode(atcBlockref);
   ptrCheckGuard(Thostptr, chostFileSize, hostRecord);
+  Uint32 len = FireTrigConf::SignalLength;
+  struct PackedWordsContainer * container = &Thostptr.p->tc_pack[instanceKey];
 
-  if (Thostptr.p->noOfPackedWordsTc > (25 - len))
+  if (container->noOfPackedWords > (25 - len))
   {
     jam();
-    sendPackedSignalTc(signal, Thostptr.p);
+    sendPackedSignal(signal, container);
   }
   else
   {
@@ -7622,8 +7631,8 @@ Dblqh::sendFireTrigConfTc(Signal* signal,
   }
 
   ndbassert(FireTrigConf::SignalLength == 4);
-  Uint32 * dst = &Thostptr.p->packedWordsTc[Thostptr.p->noOfPackedWordsTc];
-  Thostptr.p->noOfPackedWordsTc += len;
+  Uint32 * dst = &container->packedWords[container->noOfPackedWords];
+  container->noOfPackedWords += len;
   dst[0] = Tdata[0] | (ZFIRE_TRIG_CONF << 28);
   dst[1] = Tdata[1];
   dst[2] = Tdata[2];
