@@ -58,7 +58,7 @@ ERROR 1050 (42S01) at line 1195: Table 'accounts' already exists
 ERROR 1050 (42S01) at line 1230: Table 'events_statements_summary_by_digest' already exists
 ERROR 1050 (42S01) at line 1240: Table 'session_connect_attrs' already exists
 ERROR 1050 (42S01) at line 1246: Table 'session_account_connect_attrs' already exists
-ERROR 1644 (HY000) at line 1951: Unexpected content found in the performance_schema database.
+ERROR 1644 (HY000) at line 1983: Unexpected content found in the performance_schema database.
 FATAL ERROR: Upgrade failed
 select name from mysql.event where db='performance_schema';
 name
