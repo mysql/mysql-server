@@ -1688,6 +1688,11 @@ int READ_INFO::next_line()
   {
     int chr = GET;
 #ifdef USE_MB
+    if (chr == my_b_EOF)
+    {
+      eof= 1;
+      return 1;
+    }
    if (my_mbcharlen(read_charset, chr) > 1)
    {
        for (uint i=1;
