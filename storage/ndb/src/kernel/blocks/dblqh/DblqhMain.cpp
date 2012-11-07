@@ -23641,7 +23641,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     /* Send LCP_STATUS_REQ to BACKUP */
     LcpStatusReq* req = (LcpStatusReq*) signal->getDataPtr();
     req->senderRef = reference();
-    req->reqData = 0;
+    req->senderData = 0;
     
     BlockReference backupRef = calcInstanceBlockRef(BACKUP);
     sendSignal(backupRef, GSN_LCP_STATUS_REQ, signal,
@@ -23988,7 +23988,7 @@ Dblqh::invokeLcpFragWatchdogThread(Signal* signal)
   
   LcpStatusReq* req = (LcpStatusReq*)signal->getDataPtr();
   req->senderRef = cownref;
-  req->reqData = 1;
+  req->senderData = 1;
   BlockReference backupRef = calcInstanceBlockRef(BACKUP);
   sendSignal(backupRef, GSN_LCP_STATUS_REQ, signal,
              LcpStatusReq::SignalLength, JBB);
@@ -24000,7 +24000,7 @@ Dblqh::execLCP_STATUS_CONF(Signal* signal)
   jamEntry();
   LcpStatusConf* conf = (LcpStatusConf*) signal->getDataPtr();
   
-  if (conf->reqData == 0)
+  if (conf->senderData == 0)
   {
     /* DUMP STATE variant */
     ndbout_c("Received LCP_STATUS_CONF from %x", conf->senderRef);
@@ -24008,8 +24008,8 @@ Dblqh::execLCP_STATUS_CONF(Signal* signal)
              conf->lcpState,
              conf->tableId,
              conf->fragId);
-    ndbout_c("  Replica done rows %llu",
-             (((Uint64)conf->replicaDoneRowsHi) << 32) + conf->replicaDoneRowsLo);
+    ndbout_c("  Completion State %llu",
+             (((Uint64)conf->completionStateHi) << 32) + conf->completionStateLo);
     ndbout_c("  Lcp done rows %llu, done bytes %llu",
              (((Uint64)conf->lcpDoneRowsHi) << 32) + conf->lcpDoneRowsLo,
              (((Uint64)conf->lcpDoneBytesHi) << 32) + conf->lcpDoneBytesLo);
@@ -24018,10 +24018,11 @@ Dblqh::execLCP_STATUS_CONF(Signal* signal)
   /* We can ignore the LCP status as if it's complete then we should
    * promptly stop watching
    */
-  c_lcpFragWatchdog.handleLcpStatusRep(conf->tableId,
+  c_lcpFragWatchdog.handleLcpStatusRep((LcpStatusConf::LcpState)conf->lcpState,
+                                       conf->tableId,
                                        conf->fragId,
-                                       (((Uint64)conf->replicaDoneRowsHi) << 32) + 
-                                       conf->replicaDoneRowsLo);
+                                       (((Uint64)conf->completionStateHi) << 32) + 
+                                       conf->completionStateLo);
 }
 
 void
@@ -24030,11 +24031,52 @@ Dblqh::execLCP_STATUS_REF(Signal* signal)
   jamEntry();
   LcpStatusRef* ref = (LcpStatusRef*) signal->getDataPtr();
 
-  ndbout_c("Received LCP_STATUS_REF from %x, reqData = %u with error code %u",
-           ref->senderRef, ref->reqData, ref->error);
+  ndbout_c("Received LCP_STATUS_REF from %x, senderData = %u with error code %u",
+           ref->senderRef, ref->senderData, ref->error);
 
   ndbrequire(false);
 }
+
+void
+Dblqh::LCPFragWatchdog::reset()
+{
+  jamBlock(block);
+  scan_running = false;
+  lcpState = LcpStatusConf::LCP_IDLE;
+  tableId = ~Uint32(0);
+  fragId = ~Uint32(0);
+  completionStatus = ~Uint64(0);
+  pollCount = 0;
+}
+
+void
+Dblqh::LCPFragWatchdog::handleLcpStatusRep(LcpStatusConf::LcpState repLcpState,
+                                           Uint32 repTableId,
+                                           Uint32 repFragId,
+                                           Uint64 repCompletionStatus)
+{
+  jamBlock(block);
+  if (scan_running)
+  {
+    jamBlock(block);
+    if ((repCompletionStatus != completionStatus) ||
+        (repFragId != fragId) ||
+        (repTableId != tableId) ||
+        (repLcpState != lcpState))
+    {
+      jamBlock(block);
+      /* Something moved since last time, reset
+       * poll counter and data.
+       */
+      pollCount = 0;
+      lcpState = repLcpState;
+      tableId = repTableId;
+      fragId = repFragId;
+      completionStatus = repCompletionStatus;
+    }
+  }
+}
+
 
 /**
  * checkLcpFragWatchdog
@@ -24063,20 +24105,27 @@ Dblqh::checkLcpFragWatchdog(Signal* signal)
       LCPFragWatchdog::WarnPeriodsWithNoProgress)
   {
     jam();
+    const char* completionStatusString = 
+      (c_lcpFragWatchdog.lcpState == LcpStatusConf::LCP_SCANNING?
+       "rows completed":
+       "bytes remaining.");
+    
     warningEvent("LCP Frag watchdog : No progress on table %u, frag %u for %u s."
-                 "  %llu rows completed",
+                 "  %llu %s",
                  c_lcpFragWatchdog.tableId,
                  c_lcpFragWatchdog.fragId,
                  (LCPFragWatchdog::PollingPeriodMillis * 
                   c_lcpFragWatchdog.pollCount) / 1000,
-                 c_lcpFragWatchdog.rowCount);
+                 c_lcpFragWatchdog.completionStatus,
+                 completionStatusString);
     ndbout_c("LCP Frag watchdog : No progress on table %u, frag %u for %u s."
-             "  %llu rows completed",
+             "  %llu %s",
              c_lcpFragWatchdog.tableId,
              c_lcpFragWatchdog.fragId,
              (LCPFragWatchdog::PollingPeriodMillis * 
               c_lcpFragWatchdog.pollCount) / 1000,
-             c_lcpFragWatchdog.rowCount);
+             c_lcpFragWatchdog.completionStatus,
+             completionStatusString);
     
     if (c_lcpFragWatchdog.pollCount >= 
         LCPFragWatchdog::MaxPeriodsWithNoProgress)
