@@ -6164,7 +6164,8 @@ int User_var_log_event::do_apply_event(Relay_log_info const *rli)
     }
   }
 
-  Item_func_set_user_var *e= new Item_func_set_user_var(user_var_name, it);
+  Item_func_set_user_var *e= 
+    new Item_func_set_user_var(user_var_name, it, false);
   /*
     Item_func_set_user_var can't substitute something else on its place =>
     0 can be passed as last argument (reference on item)

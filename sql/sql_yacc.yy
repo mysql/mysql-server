@@ -8980,7 +8980,7 @@ variable_aux:
           ident_or_text SET_VAR expr
           {
             Item_func_set_user_var *item;
-            $$= item= new (YYTHD->mem_root) Item_func_set_user_var($1, $3);
+            $$= item= new (YYTHD->mem_root) Item_func_set_user_var($1, $3, false);
             if ($$ == NULL)
               MYSQL_YYABORT;
             LEX *lex= Lex;
@@ -12970,7 +12970,7 @@ option_value:
           '@' ident_or_text equal expr
           {
             Item_func_set_user_var *item;
-            item= new (YYTHD->mem_root) Item_func_set_user_var($2, $4);
+            item= new (YYTHD->mem_root) Item_func_set_user_var($2, $4, false);
             if (item == NULL)
               MYSQL_YYABORT;
             set_var_user *var= new set_var_user(item);
