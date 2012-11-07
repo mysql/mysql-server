@@ -4792,6 +4792,13 @@ Backup::ready_to_write(bool ready, Uint32 sz, bool eof, BackupFile *fileP)
   ndbout << endl << "Current Millisecond is = ";
   ndbout << NdbTick_CurrentMillisecond() << endl;
 #endif
+
+  if (ERROR_INSERTED(10043) && eof)
+  {
+    /* Block indefinitely without closing the file */
+    return false;
+  }
+
   if ((ready || eof) &&
       m_words_written_this_period <= m_curr_disk_write_speed)
   {
@@ -5966,7 +5973,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
   const LcpStatusReq* req = (const LcpStatusReq*) signal->getDataPtr();
   
   const Uint32 senderRef = req->senderRef;
-  const Uint32 reqData = req->reqData;
+  const Uint32 senderData = req->senderData;
   Uint32 failCode = LcpStatusRef::NoLCPRecord;
 
   /* Find LCP backup, if there is one */
@@ -5985,18 +5992,23 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       switch (ptr.p->slaveState.getState())
       {
       case STARTED:
+        jam();
         state = LcpStatusConf::LCP_PREPARED;
         break;
       case SCANNING:
+        jam();
         state = LcpStatusConf::LCP_SCANNING;
         break;
       case STOPPING:
+        jam();
         state = LcpStatusConf::LCP_SCANNED;
         break;
       case DEFINED:
+        jam();
         state = LcpStatusConf::LCP_IDLE;
         break;
       default:
+        jam();
         ndbout_c("Unusual LCP state in LCP_STATUS_REQ() : %u",
                  ptr.p->slaveState.getState());
         state = LcpStatusConf::LCP_IDLE;
@@ -6007,12 +6019,12 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
       
       LcpStatusConf* conf = (LcpStatusConf*) signal->getDataPtr();
       conf->senderRef = reference();
-      conf->reqData = reqData;
+      conf->senderData = senderData;
       conf->lcpState = state;
       conf->tableId = UnsetConst;
       conf->fragId = UnsetConst;
-      conf->replicaDoneRowsHi = UnsetConst;
-      conf->replicaDoneRowsLo = UnsetConst;
+      conf->completionStateHi = UnsetConst;
+      conf->completionStateLo = UnsetConst;
       setWords(ptr.p->noOfRecords,
                conf->lcpDoneRowsHi,
                conf->lcpDoneRowsLo);
@@ -6020,9 +6032,11 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
                conf->lcpDoneBytesHi,
                conf->lcpDoneBytesLo);
       
-      if (state == LcpStatusConf::LCP_SCANNING)
+      if (state == LcpStatusConf::LCP_SCANNING ||
+          state == LcpStatusConf::LCP_SCANNED)
       {
-        /* Actually scanning a fragment, let's grab the details */
+        jam();
+        /* Actually scanning/closing a fragment, let's grab the details */
         TablePtr tabPtr;
         FragmentPtr fragPtr;
         BackupFilePtr filePtr;
@@ -6046,9 +6060,30 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
         ndbrequire(filePtr.p->backupPtr == ptr.i);
         conf->tableId = tabPtr.p->tableId;
         conf->fragId = fragPtr.p->fragmentId;
-        setWords(filePtr.p->operation.noOfRecords,
-                 conf->replicaDoneRowsHi,
-                 conf->replicaDoneRowsLo);
+        
+        if (state == LcpStatusConf::LCP_SCANNING)
+        {
+          jam();
+          setWords(filePtr.p->operation.noOfRecords,
+                   conf->completionStateHi,
+                   conf->completionStateLo);
+        }
+        else if (state == LcpStatusConf::LCP_SCANNED)
+        {
+          jam();
+          /* May take some time to drain the FS buffer, depending on
+           * size of buff, achieved rate.
+           * We provide the buffer fill level so that requestors
+           * can observe whether there's progress in this phase.
+           */
+          Uint64 flushBacklog = 
+            filePtr.p->operation.dataBuffer.getUsableSize() -
+            filePtr.p->operation.dataBuffer.getFreeSize();
+          
+          setWords(flushBacklog,
+                   conf->completionStateHi,
+                   conf->completionStateLo);
+        }
       }
       
       failCode = 0;
@@ -6067,7 +6102,7 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
   LcpStatusRef* ref = (LcpStatusRef*) signal->getDataPtr();
   
   ref->senderRef = reference();
-  ref->reqData = reqData;
+  ref->senderData = senderData;
   ref->error = failCode;
   
   sendSignal(senderRef, GSN_LCP_STATUS_REF, 
