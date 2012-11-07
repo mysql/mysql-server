@@ -8,7 +8,10 @@
 #
 
 --source include/have_ndb.inc
---source include/have_batch_key_access.inc
+if (!`select locate('batch_key_access', @@global.optimizer_switch) > 0`)
+{
+  skip Need batch_key_access;
+}
 
 set @@global.optimizer_switch='batch_key_access=on';
 
