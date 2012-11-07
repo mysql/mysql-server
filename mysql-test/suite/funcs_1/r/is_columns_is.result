@@ -113,6 +113,44 @@ NULL	information_schema	GLOBAL_STATUS	VARIABLE_NAME	1		NO	varchar	64	192	NULL	NU
 NULL	information_schema	GLOBAL_STATUS	VARIABLE_VALUE	2	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
 NULL	information_schema	GLOBAL_VARIABLES	VARIABLE_NAME	1		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE	2	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	ACCESS_TIME	10	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	BLOCK_ID	1	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	COMPRESSED_SIZE	15	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	DATA_SIZE	14	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	FIX_COUNT	6	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	FLUSH_TYPE	5	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	FREE_PAGE_CLOCK	19	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	INDEX_NAME	12	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	IO_FIX	17	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	IS_HASHED	7	NULL	YES	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	IS_OLD	18	NULL	YES	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	NEWEST_MODIFICATION	8	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	NUMBER_RECORDS	13	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	OLDEST_MODIFICATION	9	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	PAGE_NUMBER	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	PAGE_STATE	16	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	PAGE_TYPE	4	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	SPACE	2	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE	TABLE_NAME	11	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	ACCESS_TIME	10	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	COMPRESSED	16	NULL	YES	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	COMPRESSED_SIZE	15	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	DATA_SIZE	14	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	FIX_COUNT	6	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	FLUSH_TYPE	5	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	FREE_PAGE_CLOCK	19	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	INDEX_NAME	12	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	IO_FIX	17	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	IS_HASHED	7	NULL	YES	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	IS_OLD	18	NULL	YES	varchar	3	9	NULL	NULL	utf8	utf8_general_ci	varchar(3)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	LRU_POSITION	1	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	NEWEST_MODIFICATION	8	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	NUMBER_RECORDS	13	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	OLDEST_MODIFICATION	9	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	PAGE_NUMBER	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	PAGE_TYPE	4	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	SPACE	2	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	TABLE_NAME	11	NULL	YES	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES	fix_count	5	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES	flush_type	6	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES	lru_position	4	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
@@ -140,6 +178,41 @@ NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	n_recs	4	0	NO	bigint	NULL
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	old	10	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	page_no	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	space_id	2	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	DATABASE_PAGES	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	FREE_BUFFERS	2	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	HIT_RATE	21	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	LRU_IO_CURRENT	29	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	LRU_IO_TOTAL	28	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	MODIFIED_DATABASE_PAGES	5	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NOT_YOUNG_MAKE_PER_THOUSAND_GETS	23	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_PAGES_CREATED	15	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_PAGES_GET	20	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_PAGES_READ	14	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_PAGES_READ_AHEAD	24	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_PAGES_WRITTEN	16	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_READ_AHEAD_EVICTED	25	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	OLD_DATABASE_PAGES	4	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_CREATE_RATE	18	0	NO	double	NULL	NULL	12	NULL	NULL	NULL	double			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_MADE_NOT_YOUNG_RATE	13	0	NO	double	NULL	NULL	12	NULL	NULL	NULL	double			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_MADE_YOUNG	10	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_MADE_YOUNG_RATE	12	0	NO	double	NULL	NULL	12	NULL	NULL	NULL	double			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_NOT_MADE_YOUNG	11	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_READ_RATE	17	0	NO	double	NULL	NULL	12	NULL	NULL	NULL	double			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_WRITTEN_RATE	19	0	NO	double	NULL	NULL	12	NULL	NULL	NULL	double			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PENDING_DECOMPRESS	6	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PENDING_FLUSH_LIST	9	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PENDING_FLUSH_LRU	8	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PENDING_READS	7	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	POOL_SIZE	1	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	READ_AHEAD_EVICTED_RATE	27	0	NO	double	NULL	NULL	12	NULL	NULL	NULL	double			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	READ_AHEAD_RATE	26	0	NO	double	NULL	NULL	12	NULL	NULL	NULL	double			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	UNCOMPRESS_CURRENT	31	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	UNCOMPRESS_TOTAL	30	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	YOUNG_MAKE_PER_THOUSAND_GETS	22	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_CHANGED_PAGES	end_lsn	4	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
+NULL	information_schema	INNODB_CHANGED_PAGES	page_id	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select	
+NULL	information_schema	INNODB_CHANGED_PAGES	space_id	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11) unsigned			select	
+NULL	information_schema	INNODB_CHANGED_PAGES	start_lsn	3	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	INNODB_CMP	compress_ops	2	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select	
 NULL	information_schema	INNODB_CMP	compress_ops_ok	3	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select	
 NULL	information_schema	INNODB_CMP	compress_time	4	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(11)			select	
@@ -415,10 +488,6 @@ NULL	information_schema	VIEWS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf8	utf
 NULL	information_schema	VIEWS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	VIEWS	VIEW_DEFINITION	4	NULL	NO	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
 NULL	information_schema	XTRADB_ADMIN_COMMAND	result_message	1		NO	varchar	1024	3072	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select	
-NULL	information_schema	XTRADB_ENHANCEMENTS	comment	3		NO	varchar	100	300	NULL	NULL	utf8	utf8_general_ci	varchar(100)			select	
-NULL	information_schema	XTRADB_ENHANCEMENTS	description	2		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
-NULL	information_schema	XTRADB_ENHANCEMENTS	link	4		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
-NULL	information_schema	XTRADB_ENHANCEMENTS	name	1		NO	varchar	255	765	NULL	NULL	utf8	utf8_general_ci	varchar(255)			select	
 ##########################################################################
 # Show the quotient of CHARACTER_OCTET_LENGTH and CHARACTER_MAXIMUM_LENGTH
 ##########################################################################
@@ -460,6 +529,7 @@ COL_CML	DATA_TYPE	CHARACTER_SET_NAME	COLLATION_NAME
 NULL	bigint	NULL	NULL
 NULL	datetime	NULL	NULL
 NULL	decimal	NULL	NULL
+NULL	double	NULL	NULL
 NULL	int	NULL	NULL
 --> CHAR(0) is allowed (see manual), and here both CHARACHTER_* values
 --> are 0, which is intended behavior, and the result of 0 / 0 IS NULL
@@ -588,6 +658,44 @@ NULL	information_schema	FILES	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21) uns
 3.0000	information_schema	GLOBAL_STATUS	VARIABLE_VALUE	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
 3.0000	information_schema	GLOBAL_VARIABLES	VARIABLE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	GLOBAL_VARIABLES	VARIABLE_VALUE	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+NULL	information_schema	INNODB_BUFFER_PAGE	BLOCK_ID	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE	SPACE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE	PAGE_NUMBER	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_BUFFER_PAGE	PAGE_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	information_schema	INNODB_BUFFER_PAGE	FLUSH_TYPE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE	FIX_COUNT	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_BUFFER_PAGE	IS_HASHED	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+NULL	information_schema	INNODB_BUFFER_PAGE	NEWEST_MODIFICATION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE	OLDEST_MODIFICATION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE	ACCESS_TIME	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_BUFFER_PAGE	TABLE_NAME	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+3.0000	information_schema	INNODB_BUFFER_PAGE	INDEX_NAME	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+NULL	information_schema	INNODB_BUFFER_PAGE	NUMBER_RECORDS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE	DATA_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE	COMPRESSED_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_BUFFER_PAGE	PAGE_STATE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	INNODB_BUFFER_PAGE	IO_FIX	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	INNODB_BUFFER_PAGE	IS_OLD	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+NULL	information_schema	INNODB_BUFFER_PAGE	FREE_PAGE_CLOCK	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	LRU_POSITION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	SPACE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	PAGE_NUMBER	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_BUFFER_PAGE_LRU	PAGE_TYPE	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	FLUSH_TYPE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	FIX_COUNT	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_BUFFER_PAGE_LRU	IS_HASHED	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	NEWEST_MODIFICATION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	OLDEST_MODIFICATION	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	ACCESS_TIME	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_BUFFER_PAGE_LRU	TABLE_NAME	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+3.0000	information_schema	INNODB_BUFFER_PAGE_LRU	INDEX_NAME	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	NUMBER_RECORDS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	DATA_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	COMPRESSED_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+3.0000	information_schema	INNODB_BUFFER_PAGE_LRU	COMPRESSED	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+3.0000	information_schema	INNODB_BUFFER_PAGE_LRU	IO_FIX	varchar	64	192	utf8	utf8_general_ci	varchar(64)
+3.0000	information_schema	INNODB_BUFFER_PAGE_LRU	IS_OLD	varchar	3	9	utf8	utf8_general_ci	varchar(3)
+NULL	information_schema	INNODB_BUFFER_PAGE_LRU	FREE_PAGE_CLOCK	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 3.0000	information_schema	INNODB_BUFFER_POOL_PAGES	page_type	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES	space_id	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES	page_no	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
@@ -615,6 +723,41 @@ NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	old	bigint	NULL	NULL	NULL
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	lru_position	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	fix_count	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_BUFFER_POOL_PAGES_INDEX	flush_type	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	POOL_SIZE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	FREE_BUFFERS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	DATABASE_PAGES	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	OLD_DATABASE_PAGES	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	MODIFIED_DATABASE_PAGES	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PENDING_DECOMPRESS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PENDING_READS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PENDING_FLUSH_LRU	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PENDING_FLUSH_LIST	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_MADE_YOUNG	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_NOT_MADE_YOUNG	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_MADE_YOUNG_RATE	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_MADE_NOT_YOUNG_RATE	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_PAGES_READ	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_PAGES_CREATED	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_PAGES_WRITTEN	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_READ_RATE	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_CREATE_RATE	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	PAGES_WRITTEN_RATE	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_PAGES_GET	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	HIT_RATE	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	YOUNG_MAKE_PER_THOUSAND_GETS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NOT_YOUNG_MAKE_PER_THOUSAND_GETS	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_PAGES_READ_AHEAD	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	NUMBER_READ_AHEAD_EVICTED	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	READ_AHEAD_RATE	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	READ_AHEAD_EVICTED_RATE	double	NULL	NULL	NULL	NULL	double
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	LRU_IO_TOTAL	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	LRU_IO_CURRENT	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	UNCOMPRESS_TOTAL	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_BUFFER_POOL_STATS	UNCOMPRESS_CURRENT	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_CHANGED_PAGES	space_id	int	NULL	NULL	NULL	NULL	int(11) unsigned
+NULL	information_schema	INNODB_CHANGED_PAGES	page_id	int	NULL	NULL	NULL	NULL	int(11) unsigned
+NULL	information_schema	INNODB_CHANGED_PAGES	start_lsn	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
+NULL	information_schema	INNODB_CHANGED_PAGES	end_lsn	bigint	NULL	NULL	NULL	NULL	bigint(21) unsigned
 NULL	information_schema	INNODB_CMP	page_size	int	NULL	NULL	NULL	NULL	int(5)
 NULL	information_schema	INNODB_CMP	compress_ops	int	NULL	NULL	NULL	NULL	int(11)
 NULL	information_schema	INNODB_CMP	compress_ops_ok	int	NULL	NULL	NULL	NULL	int(11)
@@ -890,7 +1033,3 @@ NULL	information_schema	TRIGGERS	CREATED	datetime	NULL	NULL	NULL	NULL	datetime
 3.0000	information_schema	VIEWS	CHARACTER_SET_CLIENT	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	VIEWS	COLLATION_CONNECTION	varchar	32	96	utf8	utf8_general_ci	varchar(32)
 3.0000	information_schema	XTRADB_ADMIN_COMMAND	result_message	varchar	1024	3072	utf8	utf8_general_ci	varchar(1024)
-3.0000	information_schema	XTRADB_ENHANCEMENTS	name	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-3.0000	information_schema	XTRADB_ENHANCEMENTS	description	varchar	255	765	utf8	utf8_general_ci	varchar(255)
-3.0000	information_schema	XTRADB_ENHANCEMENTS	comment	varchar	100	300	utf8	utf8_general_ci	varchar(100)
-3.0000	information_schema	XTRADB_ENHANCEMENTS	link	varchar	255	765	utf8	utf8_general_ci	varchar(255)
