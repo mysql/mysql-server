@@ -1,0 +1,18 @@
+set @old_global_general_log=@@global.general_log;
+set global general_log=OFF;
+install plugin audit_null soname 'adt_null';
+select 1;
+1
+1
+select foobar;
+ERROR 42S22: Unknown column 'foobar' in 'field list'
+show status like 'audit_null%';
+Variable_name	Value
+Audit_null_called	6
+Audit_null_general_error	1
+Audit_null_general_log	0
+Audit_null_general_result	2
+uninstall plugin audit_null;
+Warnings:
+Warning	1620	Plugin is busy and will be uninstalled on shutdown
+set global general_log=@old_global_general_log;

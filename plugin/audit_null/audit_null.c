@@ -145,7 +145,7 @@ mysql_declare_plugin(audit_null)
 {
   MYSQL_AUDIT_PLUGIN,         /* type                            */
   &audit_null_descriptor,     /* descriptor                      */
-  "NULL_AUDIT",               /* name                            */
+  "AUDIT_NULL",               /* name                            */
   "Oracle Corp",              /* author                          */
   "Simple NULL Audit",        /* description                     */
   PLUGIN_LICENSE_GPL,
