@@ -1191,6 +1191,14 @@ void Dbdih::execFSWRITECONF(Signal* signal)
     break;
   case FileRecord::TABLE_WRITE:
     jam();
+    if (ERROR_INSERTED(7235))
+    {
+      jam();
+      filePtr.p->reqStatus = status;
+      /* Suspend processing of WRITECONFs */
+      sendSignalWithDelay(reference(), GSN_FSWRITECONF, signal, 1000, signal->getLength());
+      return;
+    }
     tableWriteLab(signal, filePtr);
     break;
   default:
@@ -13635,10 +13643,26 @@ void Dbdih::execLCP_FRAG_REP(Signal* signal)
        */
       tabPtr.p->tabLcpStatus = TabRecord::TLS_WRITING_TO_FILE;
       tabPtr.p->tabCopyStatus = TabRecord::CS_LCP_READ_TABLE;
-      tabPtr.p->tabUpdateState = TabRecord::US_LOCAL_CHECKPOINT;
-      signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
-      signal->theData[1] = tabPtr.i;
-      sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+
+      /**
+       * Check whether we should write immediately, or queue...
+       */
+      if (c_lcpTabDefWritesControl.requestMustQueue())
+      {
+        jam();
+        //ndbout_c("DIH : Queueing tab def flush op on table %u", tabPtr.i);
+        /* Mark as queued - will be started when an already running op completes */
+        tabPtr.p->tabUpdateState = TabRecord::US_LOCAL_CHECKPOINT_QUEUED;
+      }
+      else
+      {
+        /* Run immediately */
+        jam();
+        tabPtr.p->tabUpdateState = TabRecord::US_LOCAL_CHECKPOINT;
+        signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
+        signal->theData[1] = tabPtr.i;
+        sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+      }
       
       bool ret = checkLcpAllTablesDoneInLqh(__LINE__);
       if (ret && ERROR_INSERTED(7209))
@@ -14390,12 +14414,48 @@ void Dbdih::tableCloseLab(Signal* signal, FileRecordPtr filePtr)
   case TabRecord::US_LOCAL_CHECKPOINT:
     jam();
     releaseTabPages(tabPtr.i);
-    signal->theData[0] = DihContinueB::ZCHECK_LCP_COMPLETED;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
 
     tabPtr.p->tabCopyStatus = TabRecord::CS_IDLE;
     tabPtr.p->tabUpdateState = TabRecord::US_IDLE;
     tabPtr.p->tabLcpStatus = TabRecord::TLS_COMPLETED;
+
+    /* Check whether there's some queued table definition flush op to start */
+    if (c_lcpTabDefWritesControl.releaseMustStartQueued())
+    {
+      jam();
+      /* Some table write is queued - let's kick it off */
+      /* First find it...
+       *   By using the tabUpdateState to 'queue' operations, we lose
+       *   the original flush request order, which shouldn't matter.
+       *   In any case, the checkpoint proceeds by table id, as does this
+       *   search, so a similar order should result
+       */
+      TabRecordPtr tabPtr;
+      for (tabPtr.i = 0; tabPtr.i < ctabFileSize; tabPtr.i++)
+      {
+        ptrAss(tabPtr, tabRecord);
+        if (tabPtr.p->tabUpdateState == TabRecord::US_LOCAL_CHECKPOINT_QUEUED)
+        {
+          jam();
+          //ndbout_c("DIH : Starting queued table def flush op on table %u", tabPtr.i);
+          tabPtr.p->tabUpdateState = TabRecord::US_LOCAL_CHECKPOINT;
+          signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
+          signal->theData[1] = tabPtr.i;
+          sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+          return;
+        }
+      }
+      /* No queued table write found - error */
+      ndbout_c("DIH : Error in queued table writes : inUse %u queued %u total %u",
+               c_lcpTabDefWritesControl.inUse,
+               c_lcpTabDefWritesControl.queuedRequests,
+               c_lcpTabDefWritesControl.totalResources);
+      ndbrequire(false);
+    }
+    jam();
+    signal->theData[0] = DihContinueB::ZCHECK_LCP_COMPLETED;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 1, JBB);
+
     return;
     break;
   case TabRecord::US_REMOVE_NODE:
@@ -17620,46 +17680,121 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
   
   if (arg == DumpStateOrd::DihPrintFragmentation)
   {
-    infoEvent("Printing nodegroups --");
-    for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
+    Uint32 tableid = 0;
+    Uint32 fragid = 0;
+    if (signal->getLength() == 1)
     {
-      NodeGroupRecordPtr NGPtr;
-      NGPtr.i = c_node_groups[i];
-      ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
+      infoEvent("Printing nodegroups --");
+      for (Uint32 i = 0; i<cnoOfNodeGroups; i++)
+      {
+        jam();
+        NodeGroupRecordPtr NGPtr;
+        NGPtr.i = c_node_groups[i];
+        ptrCheckGuard(NGPtr, MAX_NDB_NODES, nodeGroupRecord);
 
-      infoEvent("NG %u(%u) ref: %u [ cnt: %u : %u %u %u %u ]",
-                NGPtr.i, NGPtr.p->nodegroupIndex, NGPtr.p->m_ref_count,
-                NGPtr.p->nodeCount,
-                NGPtr.p->nodesInGroup[0], NGPtr.p->nodesInGroup[1], NGPtr.p->nodesInGroup[2], NGPtr.p->nodesInGroup[3]);
-    }
-
-    infoEvent("Printing fragmentation of all tables --");
-    for(Uint32 i = 0; i<ctabFileSize; i++){
-      TabRecordPtr tabPtr;
-      tabPtr.i = i;
-      ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
-      
-      if(tabPtr.p->tabStatus != TabRecord::TS_ACTIVE)
-	continue;
-      
-      for(Uint32 j = 0; j < tabPtr.p->totalfragments; j++){
-	FragmentstorePtr fragPtr;
-	getFragstore(tabPtr.p, j, fragPtr);
-	
-	Uint32 nodeOrder[MAX_REPLICAS];
-	const Uint32 noOfReplicas = extractNodeInfo(jamBuffer(),
-                                                    fragPtr.p,
-                                                    nodeOrder);
-	char buf[100];
-	BaseString::snprintf(buf, sizeof(buf), " Table %d Fragment %d(%u) LP: %u - ", tabPtr.i, j, dihGetInstanceKey(fragPtr), fragPtr.p->m_log_part_id);
-	for(Uint32 k = 0; k < noOfReplicas; k++){
-	  char tmp[100];
-	  BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
-	  strcat(buf, tmp);
-	}
-	infoEvent("%s", buf);
+        infoEvent("NG %u(%u) ref: %u [ cnt: %u : %u %u %u %u ]",
+                  NGPtr.i, NGPtr.p->nodegroupIndex, NGPtr.p->m_ref_count,
+                  NGPtr.p->nodeCount,
+                  NGPtr.p->nodesInGroup[0], NGPtr.p->nodesInGroup[1], 
+                  NGPtr.p->nodesInGroup[2], NGPtr.p->nodesInGroup[3]);
       }
+      infoEvent("Printing fragmentation of all tables --");
     }
+    else if (signal->getLength() == 3)
+    {
+      jam();
+      tableid = dumpState->args[1];
+      fragid = dumpState->args[2];
+    }
+    else
+    {
+      return;
+    }
+
+    if (tableid >= ctabFileSize)
+    {
+      return;
+    }
+
+    TabRecordPtr tabPtr;
+    tabPtr.i = tableid;
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+    if (tabPtr.p->tabStatus == TabRecord::TS_ACTIVE &&
+        fragid < tabPtr.p->totalfragments)
+    {
+      dumpState->args[0] = DumpStateOrd::DihPrintOneFragmentation;
+      dumpState->args[1] = tableid;
+      dumpState->args[2] = fragid;
+      execDUMP_STATE_ORD(signal);
+    }
+
+    if (tabPtr.p->tabStatus != TabRecord::TS_ACTIVE ||
+        ++fragid >= tabPtr.p->totalfragments)
+    {
+        tableid++;
+        fragid = 0;
+    }
+
+    if (tableid < ctabFileSize)
+    {
+      dumpState->args[0] = DumpStateOrd::DihPrintFragmentation;
+      dumpState->args[1] = tableid;
+      dumpState->args[2] = fragid;
+      sendSignal(reference(), GSN_DUMP_STATE_ORD, signal, 3, JBB);
+    }
+  }
+
+  if (arg == DumpStateOrd::DihPrintOneFragmentation)
+  {
+    Uint32 tableid = RNIL;
+    Uint32 fragid = RNIL;
+
+    if (signal->getLength() == 3)
+    {
+      jam();
+      tableid = dumpState->args[1];
+      fragid = dumpState->args[2];
+    }
+    else
+    {
+      return;
+    }
+
+    if (tableid >= ctabFileSize)
+    {
+      return;
+    }
+
+    TabRecordPtr tabPtr;
+    tabPtr.i = tableid;
+    ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
+
+    if (fragid >= tabPtr.p->totalfragments)
+    {
+      return;
+    }
+
+    FragmentstorePtr fragPtr;
+    getFragstore(tabPtr.p, fragid, fragPtr);
+
+    Uint32 nodeOrder[MAX_REPLICAS];
+    const Uint32 noOfReplicas = extractNodeInfo(jamBuffer(),
+                                                fragPtr.p,
+                                                nodeOrder);
+    char buf[100];
+    BaseString::snprintf(buf, sizeof(buf), 
+                         " Table %d Fragment %d(%u) LP: %u - ",
+                         tabPtr.i, fragid, dihGetInstanceKey(fragPtr),
+                         fragPtr.p->m_log_part_id);
+
+    for(Uint32 k = 0; k < noOfReplicas; k++)
+    {
+      char tmp[100];
+      BaseString::snprintf(tmp, sizeof(tmp), "%d ", nodeOrder[k]);
+      strcat(buf, tmp);
+    }
+    infoEvent("%s", buf);
   }
   
   if (signal->theData[0] == 7000) {
@@ -18094,6 +18229,39 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     c_activeTakeOverList.next(ptr);
     signal->theData[0] = arg;
     signal->theData[1] = ptr.i;
+  }
+
+  if (arg == DumpStateOrd::DihDumpPageRecInfo)
+  {
+    jam();
+    ndbout_c("MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES %u", MAX_CONCURRENT_LCP_TAB_DEF_FLUSHES);
+    ndbout_c("MAX_CONCURRENT_DIH_TAB_DEF_OPS %u", MAX_CONCURRENT_DIH_TAB_DEF_OPS);
+    ndbout_c("MAX_CRASHED_REPLICAS %u", MAX_CRASHED_REPLICAS);
+    ndbout_c("MAX_LCP_STORED %u", MAX_LCP_STORED);
+    ndbout_c("MAX_REPLICAS %u", MAX_REPLICAS);
+    ndbout_c("MAX_NDB_PARTITIONS %u", MAX_NDB_PARTITIONS);
+    ndbout_c("PACK_REPLICAS_WORDS %u", PACK_REPLICAS_WORDS);
+    ndbout_c("PACK_FRAGMENT_WORDS %u", PACK_FRAGMENT_WORDS);
+    ndbout_c("PACK_TABLE_WORDS %u", PACK_TABLE_WORDS);
+    ndbout_c("PACK_TABLE_PAGE_WORDS %u", PACK_TABLE_PAGE_WORDS);
+    ndbout_c("PACK_TABLE_PAGES %u", PACK_TABLE_PAGES);
+    ndbout_c("ZPAGEREC %u", ZPAGEREC);
+    ndbout_c("Total bytes : %lu", ZPAGEREC * sizeof(PageRecord));
+    ndbout_c("LCP Tab def write ops inUse %u queued %u",
+             c_lcpTabDefWritesControl.inUse,
+             c_lcpTabDefWritesControl.queuedRequests);
+    Uint32 freeCount = 0;
+    PageRecordPtr tmp;
+    tmp.i = cfirstfreepage;
+    while (tmp.i != RNIL)
+    {
+      jam();
+      ptrCheckGuard(tmp, cpageFileSize, pageRecord);
+      freeCount++;
+      tmp.i = tmp.p->nextfreepage;
+    };
+    ndbout_c("Pages in use %u/%u", cpageFileSize - freeCount, cpageFileSize);
+    return;
   }
 
   if (arg == DumpStateOrd::SchemaResourceSnapshot)

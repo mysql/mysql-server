@@ -204,6 +204,7 @@ ErrorBundle ErrorCodes[] = {
     "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
   { 275,  DMEC, TR, "Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)" },
   { 279,  DMEC, TR, "Out of transaction markers in transaction coordinator" },
+  { 273,  DMEC, TR, "Out of transaction markers databuffer in transaction coordinator" },
   { 312,  DMEC, TR, "Out of LongMessageBuffer" },
   { 414,  DMEC, TR, "414" },
   { 418,  DMEC, TR, "Out of transaction buffers in LQH" },
@@ -358,7 +359,7 @@ ErrorBundle ErrorCodes[] = {
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
   { 850,  DMEC, AE, "Too long or too short default value"},
   { 851,  DMEC, AE, "Maximum 8052 bytes of FIXED columns supported"
-    ", use varchar or COLUMN_FORMAT DYNMIC instead" },
+    ", use varchar or COLUMN_FORMAT DYNAMIC instead" },
   { 876,  DMEC, AE, "876" },
   { 877,  DMEC, AE, "877" },
   { 878,  DMEC, AE, "878" },

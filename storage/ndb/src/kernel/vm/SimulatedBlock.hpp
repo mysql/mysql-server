@@ -103,6 +103,12 @@ struct Block_context
   class Ndbd_mem_manager& m_mm;
 };
 
+struct PackedWordsContainer
+{
+  BlockReference hostBlockRef;
+  Uint32 noOfPackedWords;
+  Uint32 packedWords[30];
+}; // 128 bytes
 class SimulatedBlock {
   friend class TraceLCP;
   friend class SafeCounter;
