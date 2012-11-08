@@ -33,8 +33,7 @@ function createBatch(session, start_value, number, testCase) {
   for (i = start_value; i < start_value + number; ++i) {
     object = new global.t_basic(i, 'Employee ' + i, i, i);
     batch.persist(object, function(err, callback_session, callback_i, callback_testCase) {
-      udebug.log('BatchTest.testBatchInsertAutocommit persist callback for ', callback_i);
-      if (err) {
+      if (err && !testCase.expectError) {
         callback_testCase.appendErrorMessage('Error inserting ' + callback_i + JSON.stringify(err));
       }
     }, session, i, testCase);
@@ -66,9 +65,10 @@ function verifyInsert(err, session, start_value, number, testCase) {
   for (j = start_value; j < start_value + number; ++j) {
     session.find(global.t_basic, j, function(err, found, testCase, callback_j, session) {
       var tx = session.currentTransaction();
-      if (err) {
+      if (err && !testCase.expectError) {
         testCase.appendErrorMessage(
             'BatchTest.verifyInsert find callback for ', j,' failed: ', JSON.stringify(err));
+        return;
       }
       found_j = 'undefined';
       if (found !== null) {
@@ -98,7 +98,7 @@ function verifyInsert(err, session, start_value, number, testCase) {
 };
 
 /***** Insert Autocommit ***/
-t1 = new harness.SerialTest('testBatchInsertAutocommit');
+var t1 = new harness.SerialTest('testBatchInsertAutocommit');
 t1.run = function() {
   var testCase = this;
   this.number_to_insert = 10;
@@ -110,7 +110,7 @@ t1.run = function() {
 };
 
 /***** Insert begin commit ***/
-t2 = new harness.SerialTest('testBatchInsertBeginCommit');
+var t2 = new harness.SerialTest('testBatchInsertBeginCommit');
 t2.run = function() {
   var testCase = this;
   this.number_to_insert = 10;
@@ -123,7 +123,7 @@ t2.run = function() {
 };
 
 /***** getSession ***/
-t3 = new harness.ConcurrentTest('getSession');
+var t3 = new harness.ConcurrentTest('getSession');
 t3.run = function() {
   var testCase = this;
   fail_openSession(testCase, function(session) {
@@ -136,5 +136,26 @@ t3.run = function() {
   });
 };
 
+/***** clear ***/
+var t4 = new harness.ConcurrentTest('clear');
+t4.expectError = true;
+t4.run = function() {
+  var testCase = this;
+  this.number_to_insert = 10;
+  // these values conflict with t1 but these values are cleared, not committed
+  this.start_value = 10000;
+  fail_openSession(testCase, function(session) {
+    var batch = createBatch(session, testCase.start_value, testCase.number_to_insert, testCase);
+    batch.clear();
+    batch.execute(function(err) {
+      if (err) {
+        testCase.appendError(err);
+      }
+    });
+    testCase.failOnError();
+  });
+};
+
+
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports.tests = [t1, t2, t3];
+module.exports.tests = [t1, t2, t3, t4];
