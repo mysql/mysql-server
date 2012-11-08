@@ -48,6 +48,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "page0zip.h"
 #include "log0recv.h"
 #include "srv0srv.h"
+#include "srv0start.h"
 
 /** The number of blocks from the LRU_old pointer onward, including
 the block pointed to, must be buf_LRU_old_ratio/BUF_LRU_OLD_RATIO_DIV
@@ -1428,13 +1429,12 @@ buf_LRU_make_block_old(
 Try to free a block.  If bpage is a descriptor of a compressed-only
 page, the descriptor object will be freed as well.
 
-NOTE: If this function returns TRUE, it will temporarily
-release buf_pool_mutex.  Furthermore, the page frame will no longer be
-accessible via bpage.
+NOTE: This will temporarily release buf_pool_mutex.  Furthermore, the
+page frame will no longer be accessible via bpage.
 
-The caller must hold buf_pool_mutex and buf_page_get_mutex(bpage) and
-release these two mutexes after the call.  No other
-buf_page_get_mutex() may be held when calling this function.
+The caller must hold buf_page_get_mutex(bpage) and release this mutex
+after the call.  No other buf_page_get_mutex() may be held when
+calling this function.
 @return TRUE if freed, FALSE otherwise. */
 UNIV_INTERN
 ibool
@@ -2098,6 +2098,12 @@ func_exit:
 /********************************************************************//**
 Dump the LRU page list to the specific file. */
 #define LRU_DUMP_FILE "ib_lru_dump"
+#define LRU_DUMP_TEMP_FILE "ib_lru_dump.tmp"
+#define LRU_OS_FILE_WRITE() \
+	os_file_write(LRU_DUMP_FILE, dump_file, buffer, \
+		(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL, \
+		(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)), \
+		UNIV_PAGE_SIZE)
 
 UNIV_INTERN
 ibool
@@ -2109,17 +2115,19 @@ buf_LRU_file_dump(void)
 	byte*		buffer_base = NULL;
 	byte*		buffer = NULL;
 	buf_page_t*	bpage;
+	buf_page_t*	first_bpage;
 	ulint		buffers;
 	ulint		offset;
-	ibool		ret = FALSE;
+	ulint		pages_written;
 	ulint		i;
+	ulint		total_pages;
 
 	for (i = 0; i < srv_n_data_files; i++) {
 		if (strstr(srv_data_file_names[i], LRU_DUMP_FILE) != NULL) {
 			fprintf(stderr,
 				" InnoDB: The name '%s' seems to be used for"
-				" innodb_data_file_path. Dumping LRU list is not"
-				" done for safeness.\n", LRU_DUMP_FILE);
+				" innodb_data_file_path. Dumping LRU list is"
+				"  not done for safeness.\n", LRU_DUMP_FILE);
 			goto end;
 		}
 	}
@@ -2132,7 +2140,7 @@ buf_LRU_file_dump(void)
 		goto end;
 	}
 
-	dump_file = os_file_create(LRU_DUMP_FILE, OS_FILE_OVERWRITE,
+	dump_file = os_file_create(LRU_DUMP_TEMP_FILE, OS_FILE_OVERWRITE,
 				OS_FILE_NORMAL, OS_DATA_FILE, &success);
 	if (!success) {
 		os_file_get_last_error(TRUE);
@@ -2142,12 +2150,21 @@ buf_LRU_file_dump(void)
 	}
 
 	mutex_enter(&LRU_list_mutex);
-	bpage = UT_LIST_GET_LAST(buf_pool->LRU);
+	bpage = first_bpage = UT_LIST_GET_FIRST(buf_pool->LRU);
+	total_pages = UT_LIST_GET_LEN(buf_pool->LRU);
 
-	buffers = offset = 0;
-	while (bpage != NULL) {
-		if (offset == 0) {
-			memset(buffer, 0, UNIV_PAGE_SIZE);
+	buffers = offset = pages_written = 0;
+	while (bpage != NULL && (pages_written++ < total_pages)) {
+
+		buf_page_t*	next_bpage = UT_LIST_GET_NEXT(LRU, bpage);
+
+		if (next_bpage == first_bpage) {
+			mutex_exit(&LRU_list_mutex);
+			success = FALSE;
+			fprintf(stderr,
+				"InnoDB: detected cycle in LRU, skipping "
+				"dump\n");
+			goto end;
 		}
 
 		mach_write_to_4(buffer + offset * 4, bpage->space);
@@ -2156,50 +2173,79 @@ buf_LRU_file_dump(void)
 		offset++;
 
 		if (offset == UNIV_PAGE_SIZE/4) {
-			success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
-					(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
-					(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
-					UNIV_PAGE_SIZE);
+			mutex_t		*next_block_mutex = NULL;
+
+			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+				mutex_exit(&LRU_list_mutex);
+				success = FALSE;
+				fprintf(stderr,
+					" InnoDB: stopped dumping lru pages"
+					" because of server shutdown.\n");
+				goto end;
+			}
+
+			/* while writing file, release buffer pool mutex but
+			   keep the next page fixed so we don't worry about
+			   our list iterator becoming invalid */
+			if (next_bpage) {
+				next_block_mutex = buf_page_get_mutex(
+							next_bpage);
+
+				mutex_enter(next_block_mutex);
+				next_bpage->buf_fix_count++;
+				mutex_exit(next_block_mutex);
+			}
+			mutex_exit(&LRU_list_mutex);
+
+			success = LRU_OS_FILE_WRITE();
+
+			/* grab this again here so that next_bpage
+			   can't be purged when we drop the fix_count */
+			mutex_enter(&LRU_list_mutex);
+
+			if (next_bpage) {
+				mutex_enter(next_block_mutex);
+				next_bpage->buf_fix_count--;
+				mutex_exit(next_block_mutex);
+			}
 			if (!success) {
 				mutex_exit(&LRU_list_mutex);
 				fprintf(stderr,
-					" InnoDB: cannot write page %lu of %s\n",
+					" InnoDB: cannot write page"
+					" %lu of %s\n",
 					buffers, LRU_DUMP_FILE);
 				goto end;
 			}
 			buffers++;
 			offset = 0;
+			bpage = next_bpage;
+		} else {
+			bpage = UT_LIST_GET_NEXT(LRU, bpage);
 		}
-
-		bpage = UT_LIST_GET_PREV(LRU, bpage);
-	}
+	} /* while(bpage ...) */
 	mutex_exit(&LRU_list_mutex);
 
-	if (offset == 0) {
-		memset(buffer, 0, UNIV_PAGE_SIZE);
-	}
-
 	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
 	offset++;
 	mach_write_to_4(buffer + offset * 4, 0xFFFFFFFFUL);
 	offset++;
 
-	success = os_file_write(LRU_DUMP_FILE, dump_file, buffer,
-			(buffers << UNIV_PAGE_SIZE_SHIFT) & 0xFFFFFFFFUL,
-			(buffers >> (32 - UNIV_PAGE_SIZE_SHIFT)),
-			UNIV_PAGE_SIZE);
-	if (!success) {
-		goto end;
-	}
-
-	ret = TRUE;
+	success = LRU_OS_FILE_WRITE();
 end:
-	if (dump_file != (os_file_t) -1)
+	if (dump_file != (os_file_t) -1) {
+		if (success) {
+			success = os_file_flush(dump_file, TRUE);
+		}
 		os_file_close(dump_file);
+	}
+	if (success) {
+		success = os_file_rename(LRU_DUMP_TEMP_FILE,
+			LRU_DUMP_FILE);
+	}
 	if (buffer_base)
 		ut_free(buffer_base);
 
-	return(ret);
+	return(success);
 }
 
 typedef struct {
@@ -2241,6 +2287,7 @@ buf_LRU_file_restore(void)
 	dump_record_t*	records = NULL;
 	ulint		size;
 	ulint		size_high;
+	ulint 		recsize = sizeof(dump_record_t);
 	ulint		length;
 
 	dump_file = os_file_create_simple_no_error_handling(
@@ -2248,7 +2295,15 @@ buf_LRU_file_restore(void)
 	if (!success || !os_file_get_size(dump_file, &size, &size_high)) {
 		os_file_get_last_error(TRUE);
 		fprintf(stderr,
-			" InnoDB: cannot open %s\n", LRU_DUMP_FILE);
+			" InnoDB: cannot open %s,"
+			" buffer pool preload not done\n",
+			LRU_DUMP_FILE);
+		goto end;
+	}
+
+	if (size == 0 || size_high > 0 || size % recsize) {
+		fprintf(stderr, " InnoDB: broken LRU dump file,"
+			" buffer pool preload not done\n");
 		goto end;
 	}
 
@@ -2332,6 +2387,14 @@ buf_LRU_file_restore(void)
 		if (offset % 16 == 15) {
 			os_aio_simulated_wake_handler_threads();
 			buf_flush_free_margin(FALSE);
+			/* skip loading of the rest of the file if we are
+ 			   terminating anyway*/
+			if (srv_shutdown_state != SRV_SHUTDOWN_NONE) {
+				fprintf(stderr,
+					" InnoDB: stopped loading LRU pages"
+					" because of server shutdown.\n");
+				break;
+			}
 		}
 
 		zip_size = fil_space_get_zip_size(space_id);

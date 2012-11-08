@@ -195,6 +195,9 @@ static my_bool	innobase_rollback_on_timeout		= FALSE;
 static my_bool	innobase_create_status_file		= FALSE;
 static my_bool	innobase_stats_on_metadata		= TRUE;
 static my_bool	innobase_use_sys_stats_table		= FALSE;
+#ifdef UNIV_DEBUG
+static ulong    innobase_sys_stats_root_page		= 0;
+#endif
 static my_bool	innobase_buffer_pool_shm_checksum	= TRUE;
 static uint	innobase_buffer_pool_shm_key		= 0;
 
@@ -939,11 +942,23 @@ convert_error_code_to_mysql(
 	case DB_TABLE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
-	case DB_TOO_BIG_RECORD:
-		my_error(ER_TOO_BIG_ROWSIZE, MYF(0),
-			 page_get_free_space_of_empty(flags
-						      & DICT_TF_COMPACT) / 2);
+	case DB_TOO_BIG_RECORD: {
+		/* If prefix is true then a 768-byte prefix is stored
+		locally for BLOB fields. Refer to dict_table_get_format() */
+		bool prefix = ((flags & DICT_TF_FORMAT_MASK)
+		 	       >> DICT_TF_FORMAT_SHIFT) < UNIV_FORMAT_B;
+		my_printf_error(ER_TOO_BIG_ROWSIZE,
+			"Row size too large (> %lu). Changing some columns "
+			"to TEXT or BLOB %smay help. In current row "
+			"format, BLOB prefix of %d bytes is stored inline.",
+			MYF(0),
+			page_get_free_space_of_empty(flags &
+				DICT_TF_COMPACT) / 2,
+			prefix ? "or using ROW_FORMAT=DYNAMIC "
+			"or ROW_FORMAT=COMPRESSED ": "",
+			prefix ? DICT_MAX_INDEX_COL_LEN : 0);
 		return(HA_ERR_TO_BIG_ROW);
+	}
 
 	case DB_NO_SAVEPOINT:
 		return(HA_ERR_NO_SAVEPOINT);
@@ -2368,6 +2383,10 @@ mem_free_and_error:
 	srv_extra_undoslots = (ibool) innobase_extra_undoslots;
 
 	srv_use_sys_stats_table = (ibool) innobase_use_sys_stats_table;
+
+#ifdef UNIV_DEBUG
+	srv_sys_stats_root_page = innobase_sys_stats_root_page;
+#endif
 
 	/* -------------- Log files ---------------------------*/
 
@@ -4265,6 +4284,27 @@ table_opened:
 	info(HA_STATUS_NO_LOCK | HA_STATUS_VARIABLE | HA_STATUS_CONST);
 
 	DBUG_RETURN(0);
+}
+
+UNIV_INTERN
+handler*
+ha_innobase::clone(
+/*===============*/
+	const char*	name,		/*!< in: table name */
+	MEM_ROOT*	mem_root)	/*!< in: memory context */
+{
+	ha_innobase* new_handler;
+
+	DBUG_ENTER("ha_innobase::clone");
+
+	new_handler = static_cast<ha_innobase*>(handler::clone(name,
+							       mem_root));
+	if (new_handler) {
+		new_handler->prebuilt->select_lock_type
+			= prebuilt->select_lock_type;
+	}
+
+	DBUG_RETURN(new_handler);
 }
 
 UNIV_INTERN
@@ -8695,7 +8735,7 @@ ha_innobase::check(
 
 	/* Enlarge the fatal lock wait timeout during CHECK TABLE. */
 	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold += 7200; /* 2 hours */
+	srv_fatal_semaphore_wait_threshold += SRV_SEMAPHORE_WAIT_EXTENSION;
 	mutex_exit(&kernel_mutex);
 
 	for (index = dict_table_get_first_index(prebuilt->table);
@@ -8791,7 +8831,7 @@ ha_innobase::check(
 
 	/* Restore the fatal lock wait timeout after CHECK TABLE. */
 	mutex_enter(&kernel_mutex);
-	srv_fatal_semaphore_wait_threshold -= 7200; /* 2 hours */
+	srv_fatal_semaphore_wait_threshold -= SRV_SEMAPHORE_WAIT_EXTENSION;
 	mutex_exit(&kernel_mutex);
 
 	prebuilt->trx->op_info = "";
@@ -11762,6 +11802,13 @@ static MYSQL_SYSVAR_BOOL(use_sys_stats_table, innobase_use_sys_stats_table,
   "So you should use ANALYZE TABLE command intentionally.",
   NULL, NULL, FALSE);
 
+#ifdef UNIV_DEBUG
+static MYSQL_SYSVAR_ULONG(persistent_stats_root_page,
+  innobase_sys_stats_root_page, PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
+  "Override the SYS_STATS root page id, 0 = no override (for testing only)",
+  NULL, NULL, 0, 0, ULONG_MAX, 0);
+#endif
+
 static MYSQL_SYSVAR_BOOL(adaptive_hash_index, btr_search_enabled,
   PLUGIN_VAR_OPCMDARG,
   "Enable InnoDB adaptive hash index (enabled by default).  "
@@ -11945,6 +11992,18 @@ static MYSQL_SYSVAR_ENUM(stats_method, srv_innodb_stats_method,
   "NULLS_UNEQUAL and NULLS_IGNORED",
    NULL, NULL, SRV_STATS_NULLS_EQUAL, &innodb_stats_method_typelib);
 
+static MYSQL_SYSVAR_BOOL(track_changed_pages, srv_track_changed_pages,
+    PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+    "Track the redo log for changed pages and output a changed page bitmap",
+    NULL, NULL, FALSE);
+
+static MYSQL_SYSVAR_ULONGLONG(changed_pages_limit, srv_changed_pages_limit,
+  PLUGIN_VAR_RQCMDARG,
+  "The maximum number of rows for "
+  "INFORMATION_SCHEMA.INNODB_CHANGED_PAGES table, "
+  "0 - unlimited",
+  NULL, NULL, 1000000, 0, ~0ULL, 0);
+
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 static MYSQL_SYSVAR_UINT(change_buffering_debug, ibuf_debug,
   PLUGIN_VAR_RQCMDARG,
@@ -12081,7 +12140,7 @@ static MYSQL_SYSVAR_UINT(auto_lru_dump, srv_auto_lru_dump,
   NULL, NULL, 0, 0, UINT_MAX32, 0);
 
 static MYSQL_SYSVAR_BOOL(blocking_lru_restore, innobase_blocking_lru_restore,
-  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  PLUGIN_VAR_OPCMDARG | PLUGIN_VAR_READONLY,
   "Block XtraDB startup process until buffer pool is full restored from a "
   "dump file (if present). Disabled by default.",
   NULL, NULL, FALSE);
@@ -12160,6 +12219,9 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(stats_auto_update),
   MYSQL_SYSVAR(stats_update_need_lock),
   MYSQL_SYSVAR(use_sys_stats_table),
+#ifdef UNIV_DEBUG
+  MYSQL_SYSVAR(persistent_stats_root_page),
+#endif
   MYSQL_SYSVAR(stats_sample_pages),
   MYSQL_SYSVAR(adaptive_hash_index),
   MYSQL_SYSVAR(stats_method),
@@ -12191,6 +12253,8 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(dict_size_limit),
   MYSQL_SYSVAR(use_sys_malloc),
   MYSQL_SYSVAR(change_buffering),
+  MYSQL_SYSVAR(track_changed_pages),
+  MYSQL_SYSVAR(changed_pages_limit),
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
   MYSQL_SYSVAR(change_buffering_debug),
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
@@ -12241,7 +12305,10 @@ i_s_innodb_admin_command,
 i_s_innodb_sys_tables,
 i_s_innodb_sys_indexes,
 i_s_innodb_sys_stats,
-i_s_innodb_patches
+i_s_innodb_changed_pages,
+i_s_innodb_buffer_page,
+i_s_innodb_buffer_page_lru,
+i_s_innodb_buffer_stats
 mysql_declare_plugin_end;
 maria_declare_plugin(xtradb)
 { /* InnoDB */
@@ -12276,7 +12343,10 @@ i_s_innodb_admin_command_maria,
 i_s_innodb_sys_tables_maria,
 i_s_innodb_sys_indexes_maria,
 i_s_innodb_sys_stats_maria,
-i_s_innodb_patches_maria
+i_s_innodb_changed_pages_maria,
+i_s_innodb_buffer_page_maria,
+i_s_innodb_buffer_page_lru_maria,
+i_s_innodb_buffer_stats_maria
 maria_declare_plugin_end;
 
 

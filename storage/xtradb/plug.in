@@ -93,13 +93,48 @@ MYSQL_PLUGIN_ACTIONS(xtradb,  [
 	if (res != 10 || c != 123) {
 	  return(1);
 	}
-
 	return(0);
       }
     ],
     [
       AC_DEFINE([HAVE_IB_GCC_ATOMIC_BUILTINS], [1],
                 [GCC atomic builtins are available])
+      AC_MSG_RESULT(yes)
+    ],
+    [
+      AC_MSG_RESULT(no)
+    ]
+  )
+
+  AC_MSG_CHECKING(whether GCC 64-bit atomic builtins are available)
+  # either define HAVE_IB_GCC_ATOMIC_BUILTINS_64 or not
+  AC_TRY_RUN(
+    [
+      #include <stdint.h>
+      int main()
+      {
+        int64_t x, y, res;
+
+	x = 10;
+	y = 123;
+	res = __sync_bool_compare_and_swap(&x, x, y);
+	if (!res || x != y) {
+	  return(1);
+	}
+
+	x = 10;
+	y = 123;
+	res = __sync_add_and_fetch(&x, y);
+	if (res != 123 + 10 || x != 123 + 10) {
+	  return(1);
+	}
+
+	return(0);
+      }
+    ],
+    [
+      AC_DEFINE([HAVE_IB_GCC_ATOMIC_BUILTINS_64], [1],
+                [GCC 64-bit atomic builtins are available])
       AC_MSG_RESULT(yes)
     ],
     [

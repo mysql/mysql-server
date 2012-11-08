@@ -1171,7 +1171,7 @@ Item_in_subselect::single_value_transformer(JOIN *join,
   }
   else
   {
-    Item *item= (Item*) select_lex->item_list.head();
+    Item *item= (Item*) select_lex->item_list.head()->real_item();
 
     if (select_lex->table_list.elements)
     {

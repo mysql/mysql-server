@@ -623,7 +623,7 @@ sub ok
   print " ]" if ($verbose);
   print " $test_counter - $com" unless $verbose;
   print "\n";
-  if ($verbose && defined($output) && length($output))
+  if (defined($output) && length($output))
   {
     print "$output\n";
   }

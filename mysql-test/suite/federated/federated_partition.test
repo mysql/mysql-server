@@ -4,7 +4,7 @@
 source have_federatedx.inc;
 source include/have_partition.inc;
 source include/have_innodb.inc;
-source federated.inc;
+source include/federated.inc;
 
 disable_warnings;
 drop table if exists t1;
@@ -50,4 +50,4 @@ drop table federated.t1_2;
 
 --echo End of 5.1 tests
 
-source federated_cleanup.inc;
+source include/federated_cleanup.inc;

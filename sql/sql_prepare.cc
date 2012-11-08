@@ -786,6 +786,14 @@ static bool insert_params_with_log(Prepared_statement *stmt, uchar *null_array,
         param->set_param_func(param, &read_pos, (uint) (data_end - read_pos));
         if (param->state == Item_param::NO_VALUE)
           DBUG_RETURN(1);
+
+        if (param->limit_clause_param && param->item_type != Item::INT_ITEM)
+        {
+          param->set_int(param->val_int(), MY_INT64_NUM_DECIMAL_DIGITS);
+          param->item_type= Item::INT_ITEM;
+          if (!param->unsigned_flag && param->value.integer < 0)
+            DBUG_RETURN(1);
+        }
       }
     }
     /*

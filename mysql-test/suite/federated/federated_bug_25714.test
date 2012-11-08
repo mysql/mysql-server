@@ -4,7 +4,7 @@ if (`select LENGTH("$MYSQL_BUG25714") = 0`)
   skip Need bug25714 test program;
 }
 
-source federated.inc;
+source suite/federated/include/federated.inc;
 
 connection master;
 # Disable concurrent inserts to avoid test failures when reading
@@ -59,4 +59,4 @@ SET @@GLOBAL.CONCURRENT_INSERT= @OLD_SLAVE_CONCURRENT_INSERT;
 
 
 
-source federated_cleanup.inc;
+source suite/federated/include/federated_cleanup.inc;

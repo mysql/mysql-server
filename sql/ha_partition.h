@@ -516,21 +516,13 @@ public:
   virtual int read_range_next();
 
 private:
+  bool init_record_priority_queue();
+  void destroy_record_priority_queue();
   int common_index_read(uchar * buf, bool have_start_key);
   int common_first_last(uchar * buf);
   int partition_scan_set_up(uchar * buf, bool idx_read_flag);
   int handle_unordered_next(uchar * buf, bool next_same);
   int handle_unordered_scan_next_partition(uchar * buf);
-  uchar *queue_buf(uint part_id)
-    {
-      return (m_ordered_rec_buffer +
-              (part_id * (m_rec_length + PARTITION_BYTES_IN_POS)));
-    }
-  uchar *rec_buf(uint part_id)
-    {
-      return (queue_buf(part_id) +
-              PARTITION_BYTES_IN_POS);
-    }
   int handle_ordered_index_scan(uchar * buf, bool reverse_order);
   int handle_ordered_next(uchar * buf, bool next_same);
   int handle_ordered_prev(uchar * buf);

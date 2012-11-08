@@ -60,6 +60,14 @@ extern os_event_t	srv_lock_timeout_thread_event;
 /* This event is set at shutdown to wakeup threads from sleep */
 extern os_event_t	srv_shutdown_event;
 
+/* This event is set on checkpoint completion to wake the redo log parser
+thread */
+extern os_event_t	srv_checkpoint_completed_event;
+
+/* This event is set on the online redo log following thread exit to signal
+that the (slow) shutdown may proceed */
+extern os_event_t	srv_redo_log_thread_finished_event;
+
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
@@ -125,6 +133,11 @@ extern ibool	srv_extra_undoslots;
 extern ibool	srv_recovery_stats;
 
 extern ulint	srv_use_purge_thread;
+
+extern my_bool	srv_track_changed_pages;
+
+extern
+ulonglong       srv_changed_pages_limit;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
@@ -213,6 +226,9 @@ extern unsigned long long	srv_stats_sample_pages;
 extern ulong	srv_stats_auto_update;
 extern ulint	srv_stats_update_need_lock;
 extern ibool	srv_use_sys_stats_table;
+#ifdef UNIV_DEBUG
+extern ulong	srv_sys_stats_root_page;
+#endif
 
 extern ibool	srv_use_doublewrite_buf;
 extern ibool	srv_use_checksums;
@@ -284,6 +300,7 @@ extern	ibool	srv_print_latch_waits;
 
 extern ulint	srv_activity_count;
 extern ulint	srv_fatal_semaphore_wait_threshold;
+#define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
 extern long long	srv_kill_idle_transaction;
 
@@ -641,6 +658,15 @@ UNIV_INTERN
 os_thread_ret_t
 srv_LRU_dump_restore_thread(
 /*====================*/
+	void*	arg);	/*!< in: a dummy parameter required by
+			os_thread_create */
+/******************************************************************//**
+A thread which follows the redo log and outputs the changed page bitmap.
+@return a dummy value */
+UNIV_INTERN
+os_thread_ret_t
+srv_redo_log_follow_thread(
+/*=======================*/
 	void*	arg);	/*!< in: a dummy parameter required by
 			os_thread_create */
 /******************************************************************//**

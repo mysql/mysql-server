@@ -1,6 +1,6 @@
 --source include/have_debug.inc
 --source include/long_test.inc
---source federated.inc
+--source include/federated.inc
 
 --echo #
 --echo # Bug#47525: MySQL crashed (Federated)
@@ -37,4 +37,4 @@ DROP TABLE t1;
 
 connection default;
 --echo # Federated cleanup
-source federated_cleanup.inc;
+source suite/federated/include/federated_cleanup.inc;

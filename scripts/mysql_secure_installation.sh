@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2002, 2010, Oracle and/or its affiliates
+# Copyright (c) 2002, 2012, Oracle and/or its affiliates.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 config=".my.cnf.$$"
 command=".mysql.$$"
 
-trap "interrupt" 2
+trap "interrupt" 1 2 3 6 15
 
 rootpass=""
 echo_n=
@@ -286,13 +286,16 @@ set_root_password() {
     if [ $? -eq 0 ]; then
 	echo "Password updated successfully!"
 	echo "Reloading privilege tables.."
-	reload_privilege_tables || exit 1
+	reload_privilege_tables
+	if [ $? -eq 1 ]; then
+		clean_and_exit
+	fi
 	echo
 	rootpass=$password1
 	make_config
     else
 	echo "Password update failed!"
-	exit 1
+	clean_and_exit
     fi
 
     return 0
@@ -304,7 +307,7 @@ remove_anonymous_users() {
 	echo " ... Success!"
     else
 	echo " ... Failed!"
-	exit 1
+	clean_and_exit
     fi
 
     return 0
@@ -364,6 +367,11 @@ cleanup() {
     rm -f $config $command
 }
 
+# Remove the files before exiting.
+clean_and_exit() {
+	cleanup
+	exit 1
+}
 
 # The actual script starts here
 

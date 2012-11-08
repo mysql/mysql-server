@@ -402,5 +402,130 @@ IF("${CMAKE_MAJOR_VERSION}.${CMAKE_MINOR_VERSION}.${CMAKE_PATCH_VERSION}" STREQU
  # CMake bug#11452, only in 2.8.3
  SET(CPACK_MONOLITHIC_INSTALL 1 CACHE INTERNAL "")
 ENDIF()
+
+IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
+  ADD_SUBDIRECTORY(internal)
+ENDIF()
+
+# Set up the installer
+SET(CPACK_PACKAGE_NAME "MariaDB")
+STRING(REPLACE "-MariaDB" "" CPACK_PACKAGE_VERSION ${VERSION})
+SET(CPACK_PACKAGE_VENDOR "Monty Program AB http://www.montyprogram.com")
+SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "MariaDB")
+SET(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_SOURCE_DIR}/COPYING)
+SET(CPACK_GENERATOR NSIS)
+
+# Use our own NSIS template
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/win/cmake" ${CMAKE_MODULE_PATH})
+
+# Installer components and grouping
+SET(CPACK_COMPONENT_GROUP_SERVER_DESCRIPTION "The files necessary for running the MariaDB server.")
+SET(CPACK_COMPONENT_GROUP_DEVELOPMENT_DESCRIPTION "Files used in development on the MariaDB server.")
+SET(CPACK_ALL_INSTALL_TYPES Normal Development)
+SET(CPACK_COMPONENT_RUNTIME_DISPLAY_NAME "MariaDB server")
+SET(CPACK_COMPONENT_RUNTIME_DESCRIPTION "The server itself. You want to install this one.")
+SET(CPACK_COMPONENT_RUNTIME_GROUP "Server")
+SET(CPACK_COMPONENT_RUNTIME_INSTALL_TYPES Normal Development)
+SET(CPACK_COMPONENT_HEADERS_DISPLAY_NAME "Development headers")
+SET(CPACK_COMPONENT_HEADERS_DESCRIPTION "Header files for development on MariaDB.")
+SET(CPACK_COMPONENT_HEADERS_DEPENDS runtime)
+SET(CPACK_COMPONENT_HEADERS_GROUP "Development")
+SET(CPACK_COMPONENT_HEADERS_INSTALL_TYPES Development)
+SET(CPACK_COMPONENT_EMBEDDED_DISPLAY_NAME "Embedded")
+SET(CPACK_COMPONENT_EMBEDDED_DESCRIPTION "Files for embedding MariaDB in other projects.")
+SET(CPACK_COMPONENT_EMBEDDED_DEPENDS headers)
+SET(CPACK_COMPONENT_EMBEDDED_GROUP "Development")
+SET(CPACK_COMPONENT_EMBEDDED_INSTALL_TYPES Development)
+SET(CPACK_COMPONENT_SCRIPTS_DISPLAY_NAME "Server scripts")
+SET(CPACK_COMPONENT_SCRIPTS_DESCRIPTION "SQL and Perl scripts to control and modify the server. You need a perl installation for some of these to work.")
+SET(CPACK_COMPONENT_SCRIPTS_DEPENDS runtime)
+SET(CPACK_COMPONENT_SCRIPTS_GROUP "Server")
+SET(CPACK_COMPONENT_SCRIPTS_INSTALL_TYPES Normal Development)
+SET(CPACK_COMPONENT_MYSQLTEST_DISPLAY_NAME "MariaDB test suite")
+SET(CPACK_COMPONENT_MYSQLTEST_DESCRIPTION "The MariaDB regression test suite.")
+SET(CPACK_COMPONENT_MYSQLTEST_DEPENDS runtime)
+SET(CPACK_COMPONENT_MYSQLTEST_GROUP "Testing")
+SET(CPACK_COMPONENT_MYSQLTEST_INSTALL_TYPES Normal Development)
+SET(CPACK_COMPONENT_SQLBENCH_DISPLAY_NAME "SQL Bench")
+SET(CPACK_COMPONENT_SQLBENCH_DESCRIPTION "The MariaDB benchmark suite.")
+SET(CPACK_COMPONENT_SQLBENCH_DEPENDS runtime)
+SET(CPACK_COMPONENT_SQLBENCH_GROUP "Testing")
+SET(CPACK_COMPONENT_SQLBENCH_INSTALL_TYPES Normal Development)
+
+# Add files to the installer
+INSTALL(FILES COPYING EXCEPTIONS-CLIENT DESTINATION .)
+INSTALL(FILES support-files/my-huge.ini support-files/my-innodb-heavy-4G.ini DESTINATION .)
+INSTALL(FILES support-files/my-large.ini support-files/my-medium.ini DESTINATION .)
+INSTALL(FILES support-files/my-small.ini DESTINATION .)
+INSTALL(FILES Docs/INSTALL-BINARY DESTINATION Docs)
+INSTALL(FILES COPYING DESTINATION Docs)
+FILE(GLOB headerfiles "${CMAKE_CURRENT_SOURCE_DIR}/include/*.h")
+INSTALL(FILES ${headerfiles} DESTINATION include COMPONENT headers)
+INSTALL(FILES include/mysql/plugin.h DESTINATION include/mysql COMPONENT headers)
+INSTALL(FILES libmysql/libmysql.def DESTINATION include COMPONENT headers)
+
+# Handle the database files
+FILE(GLOB datafiles "${CMAKE_CURRENT_SOURCE_DIR}/win/data/mysql/*")
+INSTALL(FILES ${datafiles} DESTINATION data/clean/mysql)
+INSTALL(FILES win/data/maria_log.00000001 win/data/maria_log_control DESTINATION data/clean)
+INSTALL(DIRECTORY win/data/test DESTINATION data/clean)
+SET(CPACK_NSIS_EXTRA_INSTALL_COMMANDS "${CPACK_NSIS_EXTRA_INSTALL_COMMANDS}
+  IfFileExists '$INSTDIR\\\\data\\\\mysql\\\\db.frm' 0 CopyDatabaseFiles
+    MessageBox MB_OK 'There are already database files present in the data directory. Clean database files are not written to the directory'
+    GoTo EndCopyDatabaseFiles
+  CopyDatabaseFiles:
+    CopyFiles '$INSTDIR\\\\data\\\\clean\\\\*' '$INSTDIR\\\\data'
+  EndCopyDatabaseFiles:")
+SET(CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS "${CPACK_NSIS_EXTRA_UNINSTALL_COMMANDS}
+  MessageBox MB_OK 'This will not delete the database files in $INSTDIR\\\\data'")
+
+# Files in the share dir
+INSTALL(FILES sql/share/errmsg.txt DESTINATION share COMPONENT runtime)
+FILE(GLOB charsets sql/share/charsets/*)
+INSTALL(FILES ${charsets} DESTINATION share/charsets COMPONENT runtime)
+FILE(GLOB share_dirs sql/share/*/errmsg.sys)
+FOREACH(ERRMSGFILE ${share_dirs})
+  STRING(REPLACE "//" "/" ERRMSGFILE ${ERRMSGFILE}) # Work around a cmake bug
+  FILE(RELATIVE_PATH DIRNAME ${PROJECT_SOURCE_DIR}/sql/share ${ERRMSGFILE})
+  STRING(REPLACE "/errmsg.sys" "" DIRNAME ${DIRNAME})
+  INSTALL(FILES ${ERRMSGFILE} DESTINATION share/${DIRNAME} COMPONENT runtime)
+ENDFOREACH(ERRMSGFILE ${share_dirs})
+
+# MTR files
+FILE(GLOB_RECURSE testfiles mysql-test/*)
+FOREACH(testfile ${testfiles})
+    FILE(RELATIVE_PATH dirname ${PROJECT_SOURCE_DIR} ${testfile})
+    GET_FILENAME_COMPONENT(dirname ${dirname} PATH)
+	GET_FILENAME_COMPONENT(filename ${testfile} NAME)
+	GET_FILENAME_COMPONENT(ext ${testfile} EXT)
+	SET(ok "yes")
+	IF (NOT "x_${ext}" STREQUAL "x_")
+		# Test if this is one of the extensions we don't want to install
+		STRING(TOLOWER ${ext} ext)
+		IF(${ext} STREQUAL ".dir" OR ${ext} STREQUAL ".vcproj" OR ${ext} STREQUAL ".user" OR ${ext} STREQUAL ".ilk"
+				OR ${ext} STREQUAL ".idb" OR ${ext} STREQUAL ".map" OR ${ext} STREQUAL ".gcov"
+				OR ${ext} STREQUAL ".supp" OR ${ext} STREQUAL ".am" OR ${ext} STREQUAL ".stress")
+			SET(ok "no")
+		ENDIF()
+	ENDIF(NOT "x_${ext}" STREQUAL "x_")
+	IF (${ok} STREQUAL "yes")
+		# Message("Dir: ${dirname}. File: ${filename}. Ext: ${ext}")
+		INSTALL(FILES ${testfile} DESTINATION ${dirname} COMPONENT mysqltest)
+	ENDIF(${ok} STREQUAL "yes")
+ENDFOREACH(testfile ${testfiles})
+
+# SQL Bench
+FILE(GLOB_RECURSE benchfiles sql-bench/*)
+FOREACH(testfile ${testfiles})
+    FILE(RELATIVE_PATH dirname ${PROJECT_SOURCE_DIR} ${testfile})
+    GET_FILENAME_COMPONENT(dirname ${dirname} PATH)
+	GET_FILENAME_COMPONENT(filename ${testfile} NAME)
+	IF(NOT ${dirname} STREQUAL "sql-bench" OR ${filename} STREQUAL "README")
+		INSTALL(FILES ${testfile} DESTINATION ${dirname} COMPONENT sqlbench)
+	ENDIF()
+ENDFOREACH(testfile ${testfiles})
+
+INCLUDE(InstallRequiredSystemLibraries)
+
 # This must always be the last line
 INCLUDE(CPack)

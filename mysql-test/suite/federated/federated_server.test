@@ -4,7 +4,7 @@
 # Slow test, don't run during staging part
 -- source include/not_staging.inc
 -- source include/big_test.inc
--- source federated.inc
+-- source include/federated.inc
 
 connection slave;
 create database first_db;
@@ -343,4 +343,4 @@ drop procedure p1;
 drop server if exists s;
 
 
-source federated_cleanup.inc;
+source suite/federated/include/federated_cleanup.inc;

@@ -74,25 +74,31 @@ drop table t1;
 #
 --exec echo "this query should not execute;" > $MYSQLTEST_VARDIR/tmp/test.sql
 # Handle that openssl gives different error messages from YaSSL.
---replace_regex /error:00000005:lib\(0\):func\(0\):DH lib/ASN: bad other signature confirmation/
+#--replace_regex /error:00000005:lib\(0\):func\(0\):DH lib/ASN: bad other signature confirmation/
+--replace_regex /2026 SSL .*error.*/2026 SSL connection error: xxxx/
 --error 1
 --exec $MYSQL_TEST --ssl-ca=$MYSQL_TEST_DIR/std_data/untrusted-cacert.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--echo
 
 #
 # Test that we can't open connection to server if we are using
 # a blank ca
 #
---replace_regex /error:00000005:lib\(0\):func\(0\):DH lib/ASN: bad other signature confirmation/
+#--replace_regex /error:00000005:lib\(0\):func\(0\):DH lib/ASN: bad other signature confirmation/
+--replace_regex /2026 SSL .*error.*/2026 SSL connection error: xxxx/
 --error 1
 --exec $MYSQL_TEST --ssl-ca= --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--echo
 
 #
 # Test that we can't open connection to server if we are using
 # a nonexistent ca file
 #
---replace_regex /error:00000005:lib\(0\):func\(0\):DH lib/ASN: bad other signature confirmation/
+#--replace_regex /error:00000005:lib\(0\):func\(0\):DH lib/ASN: bad other signature confirmation/
+--replace_regex /2026 SSL .*error.*/2026 SSL connection error: xxxx/
 --error 1
 --exec $MYSQL_TEST --ssl-ca=nonexisting_file.pem --max-connect-retries=1 < $MYSQLTEST_VARDIR/tmp/test.sql 2>&1
+--echo
 
 #
 # Test that we can't open connection to server if we are using

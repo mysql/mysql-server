@@ -1,7 +1,5 @@
 /*
-   Copyright (C) 2000 MySQL AB
-   Copyright (c) 2006, 2011, Oracle and/or its affiliates.
-   Copyright (C) 2010-2011 Monty Program Ab
+   Copyright (c) 2006, 2012, Oracle and/or its affiliates.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +18,8 @@
 #include "client_priv.h"
 #include <sslopt-vars.h>
 #include "../scripts/mysql_fix_privilege_tables_sql.c"
+
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 
 #define VER "1.2"
 
@@ -235,6 +235,7 @@ get_one_option(int optid, const struct my_option *opt,
   case '?':
     printf("%s  Ver %s Distrib %s, for %s (%s)\n",
            my_progname, VER, MYSQL_SERVER_VERSION, SYSTEM_TYPE, MACHINE_TYPE);
+    puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
     puts("MySQL utility for upgrading databases to new MySQL versions.\n");
     my_print_help(my_long_options);
     exit(0);

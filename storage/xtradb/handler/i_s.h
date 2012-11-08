@@ -36,7 +36,6 @@ extern struct st_mysql_plugin	i_s_innodb_cmp;
 extern struct st_mysql_plugin	i_s_innodb_cmp_reset;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem;
 extern struct st_mysql_plugin	i_s_innodb_cmpmem_reset;
-extern struct st_mysql_plugin	i_s_innodb_patches;
 extern struct st_mysql_plugin	i_s_innodb_rseg;
 extern struct st_mysql_plugin	i_s_innodb_table_stats;
 extern struct st_mysql_plugin	i_s_innodb_index_stats;
@@ -44,6 +43,10 @@ extern struct st_mysql_plugin	i_s_innodb_admin_command;
 extern struct st_mysql_plugin   i_s_innodb_sys_tables;
 extern struct st_mysql_plugin   i_s_innodb_sys_indexes;
 extern struct st_mysql_plugin	i_s_innodb_sys_stats;
+extern struct st_mysql_plugin	i_s_innodb_changed_pages;
+extern struct st_mysql_plugin	i_s_innodb_buffer_page;
+extern struct st_mysql_plugin	i_s_innodb_buffer_page_lru;
+extern struct st_mysql_plugin	i_s_innodb_buffer_stats;
 
 extern struct st_maria_plugin i_s_innodb_buffer_pool_pages_maria;
 extern struct st_maria_plugin i_s_innodb_buffer_pool_pages_index_maria;
@@ -55,7 +58,6 @@ extern struct st_maria_plugin i_s_innodb_cmp_maria;
 extern struct st_maria_plugin i_s_innodb_cmp_reset_maria;
 extern struct st_maria_plugin i_s_innodb_cmpmem_maria;
 extern struct st_maria_plugin i_s_innodb_cmpmem_reset_maria;
-extern struct st_maria_plugin i_s_innodb_patches_maria;
 extern struct st_maria_plugin i_s_innodb_rseg_maria;
 extern struct st_maria_plugin i_s_innodb_table_stats_maria;
 extern struct st_maria_plugin i_s_innodb_index_stats_maria;
@@ -63,5 +65,9 @@ extern struct st_maria_plugin i_s_innodb_admin_command_maria;
 extern struct st_maria_plugin i_s_innodb_sys_tables_maria;
 extern struct st_maria_plugin i_s_innodb_sys_indexes_maria;
 extern struct st_maria_plugin i_s_innodb_sys_stats_maria;
+extern struct st_maria_plugin i_s_innodb_changed_pages_maria;
+extern struct st_maria_plugin i_s_innodb_buffer_page_maria;
+extern struct st_maria_plugin i_s_innodb_buffer_page_lru_maria;
+extern struct st_maria_plugin i_s_innodb_buffer_stats_maria;
 
 #endif /* i_s_h */
