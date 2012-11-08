@@ -84,6 +84,7 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
       transactionHandler.firstTime = false;
       transactionHandler.executeOperations();
     };
+
     // execute begin operation the first time for non-autocommit
     if (this.firstTime) {
       transactionHandler.operationsList = operationsList;
@@ -459,7 +460,7 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
 
 
 exports.DBSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys, transaction, callback) {
-  udebug.log_detail('dbSession.buildReadOperation with indexHandler:', dbIndexHandler, keys);
+  udebug.log_detail('dbSession.buildDeleteOperation with indexHandler:', dbIndexHandler, keys);
   var dbTableHandler = dbIndexHandler.tableHandler;
   var fields = dbIndexHandler.getFields(keys);
   getMetadata(dbTableHandler);

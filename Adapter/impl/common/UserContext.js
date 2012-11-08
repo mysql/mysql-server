@@ -71,6 +71,8 @@ exports.UserContext = function(user_arguments, required_parameter_count, returne
   this.returned_parameter_count = returned_parameter_count;
   this.session = session;
   this.session_factory = session_factory;
+  /* indicates that batch.clear was called before this context had executed */
+  this.clear = false;
   if (this.session !== null) {
     this.autocommit = !this.session.tx.isActive();
   }
@@ -270,6 +272,10 @@ exports.UserContext.prototype.find = function() {
 
   function findOnTableHandler(err, dbTableHandler) {
     var dbSession, keys, index, transactionHandler;
+    if (userContext.clear) {
+      // if batch has been cleared, user callback has already been called
+      return;
+    }
     if (err) {
       userContext.applyCallback(err, null);
     } else {
@@ -288,6 +294,8 @@ exports.UserContext.prototype.find = function() {
           transactionHandler.execute([userContext.operation], function() {
             udebug.log_detail('find transactionHandler.execute callback.');
           });
+        } else if (typeof(userContext.operationDefinedCallback) === 'function') {
+          userContext.operationDefinedCallback(1);
         }
       }
     }
@@ -319,8 +327,13 @@ exports.UserContext.prototype.persist = function() {
   }
 
   function persistOnTableHandler(err, dbTableHandler) {
+    udebug.log_detail('UserContext.persist.persistOnTableHandler ' + err);
     var transactionHandler;
     var dbSession = userContext.session.dbSession;
+    if (userContext.clear) {
+      // if batch has been cleared, user callback has already been called
+      return;
+    }
     if (err) {
       userContext.applyCallback(err);
       return;
@@ -332,6 +345,8 @@ exports.UserContext.prototype.persist = function() {
         transactionHandler.execute([userContext.operation], function() {
           udebug.log_detail('persist transactionHandler.execute callback.');
         });
+      } else if (typeof(userContext.operationDefinedCallback) === 'function') {
+        userContext.operationDefinedCallback(1);
       }
     }
   }
@@ -365,6 +380,10 @@ exports.UserContext.prototype.remove = function() {
   function removeOnTableHandler(err, dbTableHandler) {
     var transactionHandler, object, dbIndexHandler;
     var dbSession = userContext.session.dbSession;
+    if (userContext.clear) {
+      // if batch has been cleared, user callback has already been called
+      return;
+    }
     if (err) {
       userContext.applyCallback(err, null);
     } else {
@@ -380,6 +399,8 @@ exports.UserContext.prototype.remove = function() {
           transactionHandler.execute([userContext.operation], function() {
             udebug.log_detail('remove transactionHandler.execute callback.');
           });
+        } else if (typeof(userContext.operationDefinedCallback) === 'function') {
+          userContext.operationDefinedCallback(1);
         }
       }
     }
@@ -395,21 +416,53 @@ exports.UserContext.prototype.remove = function() {
 /** Execute a batch
  * 
  */
-exports.UserContext.prototype.executeBatch = function(operations) {
+exports.UserContext.prototype.executeBatch = function(operationContexts) {
   var userContext = this;
+  userContext.operationContexts = operationContexts;
+  userContext.numberOfOperations = operationContexts.length;
+  userContext.numberOfOperationsDefined = 0;
+
+  // all operations have been executed and their user callbacks called
+  // now call the Batch.execute callback
   var executeBatchOnExecute = function(err) {
     userContext.applyCallback(err);
   };
 
-  var userContext = this;
-  var transactionHandler;
-  var dbSession;
-  // execute the batch
-  // analyze the batch to see if it's possible to optimize (e.g. all inserts, deletes, and updates with no finds)
-  // otherwise, just execute each operation separately
-  dbSession = this.session.dbSession;
-  transactionHandler = dbSession.getTransactionHandler();
-  transactionHandler.execute(operations, executeBatchOnExecute);    
+  // wait here until all operations have been defined
+  // if operations are not yet defined, the onTableHandler callback
+  // will call this function after the operation is defined
+  var executeBatchOnOperationDefined = function(definedOperationCount) {
+    userContext.numberOfOperationsDefined += definedOperationCount;
+    udebug.log_detail('UserContext.executeBatch expecting', userContext.numberOfOperations, 
+        'operations with', userContext.numberOfOperationsDefined, ' already defined.');
+    if (userContext.numberOfOperationsDefined === userContext.numberOfOperations) {
+      var operations = [];
+      // collect all operations from the operation contexts
+      userContext.operationContexts.forEach(function(operationContext) {
+        operations.push(operationContext.operation);
+      });
+      // execute the batch
+      var transactionHandler;
+      var dbSession;
+      dbSession = userContext.session.dbSession;
+      transactionHandler = dbSession.getTransactionHandler();
+      transactionHandler.execute(operations, executeBatchOnExecute);
+    }
+  };
+
+  // executeBatch starts here
+  // make sure all operations are defined
+  operationContexts.forEach(function(operationContext) {
+    // is the operation already defined?
+    if (typeof(operationContext.operation) !== 'undefined') {
+      userContext.numberOfOperationsDefined++;
+    } else {
+      // the operation has not been defined yet; set a callback for when the operation is defined
+      operationContext.operationDefinedCallback = executeBatchOnOperationDefined;
+    }
+  });
+  // now execute the operations
+  executeBatchOnOperationDefined(0);
 };
 
 /** Commit an active transaction. 
