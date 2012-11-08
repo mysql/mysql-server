@@ -2494,6 +2494,28 @@ row_merge_rename_tables(
 		goto err_exit;
 	}
 
+	/* Generate the redo logs for file operations */
+	fil_mtr_rename_log(old_table->space, old_name,
+			   new_table->space, new_table->name, tmp_name);
+
+	/* What if the redo logs are flushed to disk here?  This is
+	tested with following crash point */
+	DBUG_EXECUTE_IF("bug14669848_precommit", log_buffer_flush_to_disk();
+			DBUG_SUICIDE(););
+
+	/* File operations cannot be rolled back.  So, before proceeding
+	with file operations, commit the dictionary changes.*/
+	trx_commit_for_mysql(trx);
+
+	/* If server crashes here, the dictionary in InnoDB and MySQL
+	will differ.  The .ibd files and the .frm files must be swapped
+	manually by the administrator. No loss of data. */
+	DBUG_EXECUTE_IF("bug14669848", DBUG_SUICIDE(););
+
+	/* Ensure that the redo logs are flushed to disk.  The config
+	innodb_flush_log_at_trx_commit must not affect this. */
+	log_buffer_flush_to_disk();
+
 	/* The following calls will also rename the .ibd data files if
 	the tables are stored in a single-table tablespace */
 
