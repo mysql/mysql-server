@@ -49,10 +49,14 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
   add_test(ft/test-assertC test-assert ok)
 
   declare_custom_tests(benchmark-test)
-  add_test(ft/benchmark-test benchmark-test -q --fname dir.check_benchmark-test)
-  add_test(ft/benchmark-test_256 benchmark-test --valsize 256 --verify --fname dir.check_benchmark-test_256 1)
+  add_test(ft/benchmark-test benchmark-test -q --fname benchmark-test.ft)
+  add_test(ft/benchmark-test_256 benchmark-test --valsize 256 --verify --fname benchmark-test_256.ft 1)
+  add_test(ft/benchmark-test_256_vg benchmark-test --valsize 256 --verify --fname benchmark-test_256_vg.ft --periter 131072 1)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
-    dir.check_benchmark-test dir.check_benchmark-test_256)
+    benchmark-test.ft
+    benchmark-test_256.ft
+    benchmark-test_256_vg.ft
+    )
 
   declare_custom_tests(ftloader-test-merge-files-dbufio)
   add_test(ft/ftloader-test-merge-files-dbufio ftloader-test-merge-files-dbufio -r 8000 -s dir.check_ftloader-test-merge-files-dbufio)
