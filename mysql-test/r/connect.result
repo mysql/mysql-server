@@ -340,15 +340,16 @@ SELECT last_t1();
 ERROR HY000: You must SET PASSWORD before executing this statement
 CALL test_t1(last_t1() + 1);
 ERROR HY000: You must SET PASSWORD before executing this statement
-# setting a password with a user name is no good
+# setting a password with a user name is ok if it exactly matches the
+# authenticated user.
 SET PASSWORD FOR must_change@localhost = PASSWORD('aha3');
-ERROR HY000: You must SET PASSWORD before executing this statement
 SELECT USER();
-ERROR HY000: You must SET PASSWORD before executing this statement
+USER()
+must_change@localhost
 SELECT last_t1();
-ERROR HY000: You must SET PASSWORD before executing this statement
+last_t1()
+4
 CALL test_t1(last_t1() + 1);
-ERROR HY000: You must SET PASSWORD before executing this statement
 # setting a password for the current user works
 SET PASSWORD FOR CURRENT_USER() = PASSWORD('aha3');
 SELECT USER();
@@ -356,7 +357,7 @@ USER()
 must_change@localhost
 SELECT last_t1();
 last_t1()
-4
+5
 CALL test_t1(last_t1() + 1);
 # testing the ALTER USER command
 # try a single user

@@ -19,8 +19,8 @@
  */
 
 #ifdef __GNUC__
-/* Required for useconds_t */
-#define _XOPEN_SOURCE 500
+/* Required for useconds_t and C99 */
+#define _XOPEN_SOURCE 600
 #endif
 
 #include <unistd.h>

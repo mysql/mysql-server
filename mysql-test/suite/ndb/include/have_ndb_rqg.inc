@@ -18,6 +18,7 @@ use My::Find;
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
+my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 
 #
 # Check if the needed jars and libs are available
@@ -35,7 +36,7 @@ my $runrqg = my_find_file($basedir,
                           ["storage/ndb/test/rqg" ],
                           "run_rqg.sh", NOT_REQUIRED);
 
-my $exe_mysqltest = my_find_bin($basedir,
+my $exe_mysqltest = my_find_bin($bindir,
 		                ["client", "bin"],
                                 "mysqltest", NOT_REQUIRED);
 

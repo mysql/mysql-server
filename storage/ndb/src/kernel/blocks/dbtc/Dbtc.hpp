@@ -111,6 +111,7 @@
 #define ZCOMMIT_TYPE_ERROR 278
 
 #define ZNO_FREE_TC_MARKER 279
+#define ZNO_FREE_TC_MARKER_DATABUFFER 273
 #define ZNODE_SHUTDOWN_IN_PROGRESS 280
 #define ZCLUSTER_SHUTDOWN_IN_PROGRESS 281
 #define ZWRONG_STATE 282
@@ -397,6 +398,10 @@ public:
   typedef DataBuffer<11> AttributeBuffer;
  
   AttributeBuffer::DataBufferPool c_theAttributeBufferPool;
+
+  typedef DataBuffer<5> CommitAckMarkerBuffer;
+
+  CommitAckMarkerBuffer::DataBufferPool c_theCommitAckMarkerBufferPool;
 
   UintR c_transactionBufferSpace;
 
@@ -998,14 +1003,11 @@ public:
   /*       THIS RECORD IS ALIGNED TO BE 128 BYTES.        */
   /********************************************************/
   struct HostRecord {
+    struct PackedWordsContainer lqh_pack[MAX_NDBMT_LQH_THREADS+1];
+    struct PackedWordsContainer packTCKEYCONF;
     HostState hostStatus;
     LqhTransState lqhTransStatus;
     bool  inPackedList;
-    UintR noOfPackedWordsLqh;
-    UintR packedWordsLqh[26];
-    UintR noOfWordsTCKEYCONF;
-    UintR packedWordsTCKEYCONF[30];
-    BlockReference hostLqhBlockRef;
 
     enum NodeFailBits
     {
@@ -1017,7 +1019,7 @@ public:
     };
     Uint32 m_nf_bits;
     NdbNodeBitmask m_lqh_trans_conf;
-  }; /* p2c: size = 128 bytes */
+  };
   
   typedef Ptr<HostRecord> HostRecordPtr;
   
@@ -1454,7 +1456,8 @@ private:
   void sendPackedTCKEYCONF(Signal* signal,
                            HostRecord * ahostptr,
                            UintR hostId);
-  void sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr);
+  void sendPackedSignal(Signal* signal,
+                        struct PackedWordsContainer * container);
   Uint32 sendCommitLqh(Signal* signal,
                        TcConnectRecord * const regTcPtr);
   Uint32 sendCompleteLqh(Signal* signal,
@@ -1975,7 +1978,7 @@ public:
     Uint32 prevHash;
     Uint32 apiConnectPtr;
     Uint16 apiNodeId;
-    NdbNodeBitmask m_commit_ack_marker_nodes; 
+    CommitAckMarkerBuffer::Head theDataBuffer;
 
     inline bool equal(const CommitAckMarker & p) const {
       return ((p.transid1 == transid1) && (p.transid2 == transid2));
@@ -1984,6 +1987,12 @@ public:
     inline Uint32 hashValue() const {
       return transid1;
     }
+    bool insert_in_commit_ack_marker(Dbtc *tc,
+                                     Uint32 instanceKey,
+                                     NodeId nodeId);
+    // insert all keys when exact keys not known
+    bool insert_in_commit_ack_marker_all(Dbtc *tc,
+                                         NodeId nodeId);
   };
 
 private:
@@ -1995,9 +2004,10 @@ private:
   RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
   void execTC_COMMIT_ACK(Signal* signal);
-  void sendRemoveMarkers(Signal*, const CommitAckMarker *);
+  void sendRemoveMarkers(Signal*, CommitAckMarker *);
   void sendRemoveMarker(Signal* signal, 
 			NodeId nodeId,
+                        Uint32 instanceKey,
 			Uint32 transid1, 
 			Uint32 transid2);
   void removeMarkerForFailedAPI(Signal* signal, Uint32 nodeId, Uint32 bucket);

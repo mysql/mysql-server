@@ -950,16 +950,11 @@ public:
   typedef Ptr<GcpRecord> GcpRecordPtr;
 
   struct HostRecord {
+    struct PackedWordsContainer lqh_pack[MAX_NDBMT_LQH_THREADS+1];
+    struct PackedWordsContainer tc_pack[MAX_NDBMT_TC_THREADS+1];
     Uint8 inPackedList;
     Uint8 nodestatus;
-    Uint8 _unused[2];
-    UintR noOfPackedWordsLqh;
-    UintR packedWordsLqh[30];
-    UintR noOfPackedWordsTc;
-    UintR packedWordsTc[29];
-    BlockReference hostLqhBlockRef;
-    BlockReference hostTcBlockRef;
-  };// Size 128 bytes
+  };
   typedef Ptr<HostRecord> HostRecordPtr;
   
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
@@ -2433,8 +2428,8 @@ private:
   void sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref);
   void sendCommitLqh(Signal* signal, BlockReference alqhBlockref);
   void sendCompleteLqh(Signal* signal, BlockReference alqhBlockref);
-  void sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr);
-  void sendPackedSignalTc(Signal* signal, HostRecord * ahostptr);
+  void sendPackedSignal(Signal* signal,
+                        struct PackedWordsContainer * container);
   void cleanUp(Signal* signal);
   void sendAttrinfoLoop(Signal* signal);
   void sendAttrinfoSignal(Signal* signal);

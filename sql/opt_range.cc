@@ -6599,7 +6599,15 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         tree= &null_element;
       goto end;
     }
-    if (!(tree= new (alloc) SEL_ARG(field,is_null_string,is_null_string)))
+    uchar *null_string=
+      static_cast<uchar*>(alloc_root(alloc, key_part->store_length + 1));
+    if (!null_string)
+      goto end;                                 // out of memory
+
+    TRASH(null_string, key_part->store_length + 1);
+    memcpy(null_string, is_null_string, sizeof(is_null_string));
+
+    if (!(tree= new (alloc) SEL_ARG(field, null_string, null_string)))
       goto end;                                 // out of memory
     if (type == Item_func::ISNOTNULL_FUNC)
     {
@@ -11914,12 +11922,11 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
     { 
       /*
         cur_range specifies 'IS NULL'. In this case the argument points
-        to a "null value" (is_null_string) that may not always be long
-        enough for a direct memcpy to a field.
+        to a "null value" (a copy of is_null_string) that we do not
+        memcmp(), or memcpy to a field.
       */
       DBUG_ASSERT (field_length > 0);
       *key_ptr= 1;
-      memset(key_ptr+1, 0, field_length-1);
       key_ptr+= field_length;
       *key_infix_len+= field_length;
     }
