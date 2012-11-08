@@ -3,9 +3,9 @@
 #ident "$Id: omt-test.cc 46193 2012-07-26 17:12:18Z yfogel $"
 #ident "Copyright (c) 2007 Tokutek Inc.  All rights reserved."
 
-#include <algorithm>
-
 #include "test.h"
+
+#include <algorithm>
 
 #include <toku_portability.h>
 #include <errno.h>
