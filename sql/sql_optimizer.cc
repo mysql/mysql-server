@@ -9312,9 +9312,8 @@ bool JOIN::decide_subquery_strategy()
                        here.
    @returns false if success
 */
-bool
-JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_method
-                                           *method)
+bool JOIN::compare_costs_of_subquery_strategies(
+               Item_exists_subselect::enum_exec_method *method)
 {
   *method= Item_exists_subselect::EXEC_EXISTS;
 
@@ -9347,7 +9346,11 @@ JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_meth
   if (in_pred->in2exists_added_to_where())
   {
     Opt_trace_array trace_subqmat_steps(trace, "steps");
-    if (!(best_positions= new (thd->mem_root) POSITION[tables + 1]))
+
+    // Up to one extra slot per semi-join nest is needed (if materialized)
+    const uint sj_nests= select_lex->sj_nests.elements;
+
+    if (!(best_positions= new (thd->mem_root) POSITION[tables + sj_nests + 1]))
       return true;
 
     // Compute plans which do not use outer references
