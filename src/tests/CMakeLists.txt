@@ -193,6 +193,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       root_fifo_2
       root_fifo_32
       root_fifo_41
+      seqinsert
       shutdown-3344
       stat64
       stat64-create-modify-times
