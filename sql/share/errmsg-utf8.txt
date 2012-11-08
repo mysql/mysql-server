@@ -6958,6 +6958,9 @@ ER_GTID_PURGED_WAS_CHANGED
 ER_GTID_EXECUTED_WAS_CHANGED
   eng "GTID_EXECUTED was changed from '%s' to '%s'."
 
+ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
+  eng "Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated."
+
 #
 #  End of 5.6 error messages.
 #
