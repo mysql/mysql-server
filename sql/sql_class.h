@@ -2207,7 +2207,45 @@ public:
     return (variables.optimizer_switch & flag);
   }
 
+  enum binlog_filter_state
+  {
+    BINLOG_FILTER_UNKNOWN,
+    BINLOG_FILTER_CLEAR,
+    BINLOG_FILTER_SET
+  };
+
+  inline void reset_binlog_local_stmt_filter()
+  {
+    m_binlog_filter_state= BINLOG_FILTER_UNKNOWN;
+  }
+
+  inline void clear_binlog_local_stmt_filter()
+  {
+    DBUG_ASSERT(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
+    m_binlog_filter_state= BINLOG_FILTER_CLEAR;
+  }
+
+  inline void set_binlog_local_stmt_filter()
+  {
+    DBUG_ASSERT(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
+    m_binlog_filter_state= BINLOG_FILTER_SET;
+  }
+
+  inline binlog_filter_state get_binlog_local_stmt_filter()
+  {
+    return m_binlog_filter_state;
+  }
+
 private:
+  /**
+    Indicate if the current statement should be discarded
+    instead of written to the binlog.
+    This is used to discard special statements, such as
+    DML or DDL that affects only 'local' (non replicated)
+    tables, such as performance_schema.*
+  */
+  binlog_filter_state m_binlog_filter_state;
+
   /**
     Indicates the format in which the current statement will be
     logged.  This can only be set from @c decide_logging_format().
