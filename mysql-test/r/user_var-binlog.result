@@ -18,7 +18,6 @@ master-bin.000001	#	User var	#	#	@`var2`=_binary 0x61 COLLATE binary
 master-bin.000001	#	Query	#	#	use `test`; insert into t1 values (@var1),(@var2)
 master-bin.000001	#	Query	#	#	COMMIT
 flush logs;
-/*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;

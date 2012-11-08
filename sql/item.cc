@@ -2874,8 +2874,7 @@ table_map Item_field::resolved_used_tables() const
 }
 
 void Item_ident::fix_after_pullout(st_select_lex *parent_select,
-                                   st_select_lex *removed_select,
-                                   Item **ref)
+                                   st_select_lex *removed_select)
 {
   /*
     Some field items may be created for use in execution only, without
@@ -6039,10 +6038,6 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     field= new Field_double((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			    item_name.ptr(), decimals, 0, unsigned_flag);
     break;
-  case MYSQL_TYPE_NULL:
-    field= new Field_null((uchar*) 0, max_length, Field::NONE,
-			  item_name.ptr(), &my_charset_bin);
-    break;
   case MYSQL_TYPE_INT24:
     field= new Field_medium((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			    item_name.ptr(), 0, unsigned_flag);
@@ -6073,6 +6068,7 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     DBUG_ASSERT(0);
     /* If something goes awfully wrong, it's better to get a string than die */
   case MYSQL_TYPE_STRING:
+  case MYSQL_TYPE_NULL:
     if (fixed_length && max_length < CONVERT_IF_BIGGER_TO_BLOB)
     {
       field= new Field_string(max_length, maybe_null, item_name.ptr(),
@@ -7887,25 +7883,23 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
 }
 
 void Item_outer_ref::fix_after_pullout(st_select_lex *parent_select,
-                                       st_select_lex *removed_select,
-                                       Item **ref_arg)
+                                       st_select_lex *removed_select)
 {
   if (depended_from == parent_select)
   {
-    *ref_arg= outer_ref;
-    outer_ref->fix_after_pullout(parent_select, removed_select, ref_arg);
+    //*ref_arg= outer_ref;
+    outer_ref->fix_after_pullout(parent_select, removed_select);
   }
   // @todo: Find an actual test case for this funcion.
   DBUG_ASSERT(false);
 }
 
 void Item_ref::fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select,
-                                 Item **ref_arg)
+                                 st_select_lex *removed_select)
 {
-  (*ref)->fix_after_pullout(parent_select, removed_select, ref);
+  (*ref)->fix_after_pullout(parent_select, removed_select);
 
-  Item_ident::fix_after_pullout(parent_select, removed_select, ref_arg);
+  Item_ident::fix_after_pullout(parent_select, removed_select);
 }
 
 

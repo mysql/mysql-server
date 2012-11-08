@@ -29,7 +29,7 @@
 
 Uint32 dbinfo_blocks[] = { DBACC, DBTUP, BACKUP, DBTC, SUMA, DBUTIL,
                            TRIX, DBTUX, DBDICT, CMVMI, DBLQH, LGMAN,
-                           PGMAN, DBSPJ, THRMAN, TRPMAN, 0};
+                           PGMAN, DBSPJ, THRMAN, TRPMAN, QMGR, 0};
 
 Dbinfo::Dbinfo(Block_context& ctx) :
   SimulatedBlock(DBINFO, ctx)

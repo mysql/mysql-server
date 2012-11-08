@@ -116,12 +116,15 @@ public class Utility {
 
     // TODO: this is intended to investigate a class loader issue with Sparc java
     // The idea is to force loading the CharsetMap native class prior to calling the static create method
+    // First, make sure that the native library is loaded because CharsetMap depends on it
+    static {
+        ClusterConnectionServiceImpl.loadSystemLibrary("ndbclient");
+    }
     static Class<?> charsetMapClass = loadClass("com.mysql.ndbjtie.mysql.CharsetMap");
     static Class<?> loadClass(String className) {
         try {
             return Class.forName(className);
         } catch (ClassNotFoundException e) {
-            // TODO Auto-generated catch block
             throw new ClusterJUserException(local.message("ERR_Loading_Native_Class", className), e);
         }
     }

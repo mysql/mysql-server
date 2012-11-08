@@ -24,12 +24,13 @@ use My::Find;
 my $vardir = $ENV{MYSQLTEST_VARDIR} or die "Need MYSQLTEST_VARDIR";
 my $mysql_test_dir = $ENV{MYSQL_TEST_DIR} or die "Need MYSQL_TEST_DIR";
 my $basedir = dirname($mysql_test_dir);
+my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 my $ndb_connectstring = $ENV{NDB_CONNECTSTRING} or die "Need NDB_CONNECTSTRING";
 
 #
-# Check if the needed jars are available
+# Find ndb_config
 #
-my $ndb_config = my_find_file($basedir,
+my $ndb_config = my_find_file($bindir,
                               ["storage/ndb/tools", "bin"],
                               ["ndb_config", "ndb_config.exe"], NOT_REQUIRED);
 

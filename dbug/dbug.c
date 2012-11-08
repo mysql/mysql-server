@@ -667,10 +667,11 @@ int DbugParse(CODE_STATE *cs, const char *control)
       /* fall through */
     case 'a':
     case 'o':
+      /* In case we already have an open file. */
+      if (!is_shared(stack, out_file))
+        DBUGCloseFile(cs, stack->out_file);
       if (sign < 0)
       {
-        if (!is_shared(stack, out_file))
-          DBUGCloseFile(cs, stack->out_file);
         stack->flags &= ~FLUSH_ON_WRITE;
         stack->out_file= stderr;
         break;
