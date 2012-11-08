@@ -4397,12 +4397,16 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
   String *str1, *str2;
   const char *charp1, *charp2;
   enum_return_status status;
-  // get strings without lock
-  if (!args[0]->null_value && !args[1]->null_value &&
-      (str1= args[0]->val_str_ascii(&buf1)) != NULL &&
+  /*
+    We must execute args[*]->val_str_ascii() before checking
+    args[*]->null_value to ensure that them are updated when
+    this function is executed inside a stored procedure.
+  */
+  if ((str1= args[0]->val_str_ascii(&buf1)) != NULL &&
       (charp1= str1->c_ptr_safe()) != NULL &&
       (str2= args[1]->val_str_ascii(&buf2)) != NULL &&
-      (charp2= str2->c_ptr_safe()) != NULL)
+      (charp2= str2->c_ptr_safe()) != NULL &&
+      !args[0]->null_value && !args[1]->null_value)
   {
     Sid_map sid_map(NULL/*no rwlock*/);
     // compute sets while holding locks
@@ -4416,6 +4420,7 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
           set1.remove_gtid_set(&set2) == 0 &&
           !str->realloc((length= set1.get_string_length()) + 1))
       {
+        null_value= false;
         set1.to_string((char *)str->ptr());
         str->length(length);
         DBUG_RETURN(str);
