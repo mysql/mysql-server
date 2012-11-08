@@ -364,27 +364,15 @@ INSERT INTO t1 (x) VALUES ((SELECT b FROM t3));
 INSERT INTO t1 (x) VALUES ((SELECT a FROM t2));
 select * from t1;
 insert into t2 values (1);
-let $row_count_before= `SELECT COUNT(*) FROM t1`;
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
-let $wait_condition= SELECT COUNT(*) <> $row_count_before FROM t1;
---source include/wait_condition.inc
-select * from t1;
 INSERT INTO t1 (x) select (SELECT SUM(a)+1 FROM t2) FROM t2;
 select * from t1;
 # After this, only data based on old t1 records should have been added.
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
 select * from t1;
 -- error ER_BAD_FIELD_ERROR
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
-let $row_count_before= `SELECT COUNT(*) FROM t1`;
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
-let $wait_condition= SELECT COUNT(*) <> $row_count_before FROM t1;
---source include/wait_condition.inc
+INSERT INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
+INSERT INTO t1 (x) SELECT (SELECT SUM(a)+b FROM t2) from t3;
 select * from t1;
-#
-#TODO: should be uncommented after Bug#380 fix pushed
-#INSERT INTO t1 (x) SELECT (SELECT SUM(a)+b FROM t2) from t3;
-#select * from t1;
 drop table t1, t2, t3;
 
 #replace with subselects
@@ -401,17 +389,6 @@ replace into t1 (x, y) VALUES ((SELECT a FROM t3), (SELECT a+1 FROM t2));
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+1 FROM t2));
 select * from t1;
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+2 FROM t2));
-select * from t1;
-let $row_count_before= `SELECT COUNT(*) FROM t1`;
-replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a FROM t2));
-# We get one additional row
-let $wait_condition= SELECT COUNT(*) <> $row_count_before FROM t1;
---source include/wait_condition.inc
-select * from t1;
-let $row_count_before= `SELECT COUNT(*) FROM t1 WHERE y = 2`;
-replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a+1 FROM t2));
-let $wait_condition= SELECT COUNT(*) <> $row_count_before FROM t1 WHERE y = 2;
---source include/wait_condition.inc
 select * from t1;
 replace LOW_PRIORITY into t1 (x, y) VALUES ((SELECT a+1 FROM t2), (SELECT a FROM t2));
 select * from t1;

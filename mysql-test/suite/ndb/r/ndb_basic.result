@@ -590,11 +590,11 @@ length(b)
 13000
 drop table t1;
 create table t1 ( c50 char(255), c49 char(255), c48 char(255), c47 char(255), c46 char(255), c45 char(255), c44 char(255), c43 char(255), c42 char(255), c41 char(255), c40 char(255), c39 char(255), c38 char(255), c37 char(255), c36 char(255), c35 char(255), c34 char(255), c33 char(255), c32 char(255), c31 char(255), c30 char(255), c29 char(255), c28 char(255), c27 char(255), c26 char(255), c25 char(255), c24 char(255), c23 char(255), c22 char(255), c21 char(255), c20 char(255), c19 char(255), c18 char(255), c17 char(255), c16 char(255), c15 char(255), c14 char(255), c13 char(255), c12 char(255), c11 char(255), c10 char(255), c9 char(255), c8 char(255), c7 char(255), c6 char(255), c5 char(255), c4 char(255), c3 char(255), c2 char(255), c1 char(255), primary key using hash(c1)) engine=ndb;
-ERROR HY000: Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNMIC instead' from NDBCLUSTER
+ERROR HY000: Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
 show warnings;
 Level	Code	Message
-Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNMIC instead' from NDB
-Error	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNMIC instead' from NDBCLUSTER
+Warning	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDB
+Error	1296	Got error 851 'Maximum 8052 bytes of FIXED columns supported, use varchar or COLUMN_FORMAT DYNAMIC instead' from NDBCLUSTER
 create table `t1` (`a` int, b int, primary key (a,b)) engine=ndb partition by key(`a`,`b`,`a`);
 ERROR HY000: Duplicate partition field name 'a'
 create table t1 (

@@ -1686,7 +1686,7 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_SLEEP:
   case COM_CONNECT:				// Impossible here
   case COM_TIME:				// Impossible from client
-  case COM_DELAYED_INSERT:
+  case COM_DELAYED_INSERT: // INSERT DELAYED has been removed.
   case COM_END:
   default:
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
@@ -3342,16 +3342,8 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
 
-    /*
-      Since INSERT DELAYED doesn't support temporary tables, we could
-      not pre-open temporary tables for SQLCOM_INSERT / SQLCOM_REPLACE.
-      Open them here instead.
-    */
-    if (first_table->lock_type != TL_WRITE_DELAYED)
-    {
-      if ((res= open_temporary_tables(thd, all_tables)))
-        break;
-    }
+    if ((res= open_temporary_tables(thd, all_tables)))
+      break;
 
     if ((res= insert_precheck(thd, all_tables)))
       break;
@@ -3406,10 +3398,6 @@ end_with_restore_list:
 
     if (lex->sql_command == SQLCOM_REPLACE_SELECT)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_REPLACE_SELECT);
-
-    /* Fix lock for first table */
-    if (first_table->lock_type == TL_WRITE_DELAYED)
-      first_table->lock_type= TL_WRITE;
 
     /* Don't unlock tables until command is written to binary log */
     select_lex->options|= SELECT_NO_UNLOCK;

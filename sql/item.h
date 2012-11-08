@@ -775,12 +775,10 @@ public:
     @param parent_select  select_lex that tables are moved to.
     @param removed_select select_lex that tables are moved away from,
                           child of parent_select.
-    @param ref            updated with new ref whenever the function substitutes
-                          this item with another.
   */
   virtual void fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select,
-                                 Item **ref) {};
+                                 st_select_lex *removed_select)
+  {};
   /*
     should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
@@ -2076,7 +2074,7 @@ public:
   virtual table_map resolved_used_tables() const= 0;
   const char *full_name() const;
   virtual void fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select, Item **ref);
+                                 st_select_lex *removed_select);
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
   virtual void print(String *str, enum_query_type query_type);
@@ -3159,7 +3157,7 @@ public:
   void make_field(Send_field *field);
   bool fix_fields(THD *, Item **);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   type_conversion_status save_in_field(Field *field, bool no_conversions);
   void save_org_in_field(Field *field);
   enum Item_result result_type () const { return (*ref)->result_type(); }
@@ -3405,7 +3403,7 @@ public:
   }
   bool fix_fields(THD *, Item **);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   table_map used_tables() const
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
