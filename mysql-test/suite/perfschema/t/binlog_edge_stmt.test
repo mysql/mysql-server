@@ -5,7 +5,6 @@
 --source include/have_perfschema.inc
 
 set binlog_format=statement;
-call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
---source ../include/binlog_common.inc
+--source ../include/binlog_edge_common.inc
 
