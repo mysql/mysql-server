@@ -9403,6 +9403,14 @@ ha_innobase::create(
 	and make all further decisions based on this. */
 	bool		use_tablespace = srv_file_per_table;
 
+	/* if table is non-compressed temp-table then ignore file-per-table */
+	if ((create_info->options & HA_LEX_CREATE_TMP_TABLE)
+	    && (!(((form->s->row_type == ROW_TYPE_COMPRESSED)
+		   || (form->s->row_type == ROW_TYPE_DYNAMIC)
+		   || (create_info->key_block_size))
+		  && (srv_file_format >= UNIV_FORMAT_B))))
+		use_tablespace = false;
+	
 	/* Zip Shift Size - log2 - 9 of compressed page size,
 	zero for uncompressed */
 	ulint		flags;
