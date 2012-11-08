@@ -50,7 +50,7 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
 
   declare_custom_tests(benchmark-test)
   add_test(ft/benchmark-test benchmark-test -q --fname dir.check_benchmark-test)
-  add_test(ft/benchmark-test_256 benchmark-test --valsize 256 --verify 1 --fname dir.check_benchmark-test_256)
+  add_test(ft/benchmark-test_256 benchmark-test --valsize 256 --verify --fname dir.check_benchmark-test_256 1)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.check_benchmark-test dir.check_benchmark-test_256)
 
