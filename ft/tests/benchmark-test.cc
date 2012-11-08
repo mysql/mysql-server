@@ -12,9 +12,8 @@
 static const char *fname ="sinsert.ft_handle";
 
 enum { SERIAL_SPACING = 1<<6 };
-enum { ITEMS_TO_INSERT_PER_ITERATION = 1<<20 };
-//enum { ITEMS_TO_INSERT_PER_ITERATION = 1<<14 };
-enum { BOUND_INCREASE_PER_ITERATION = SERIAL_SPACING*ITEMS_TO_INSERT_PER_ITERATION };
+int64_t ITEMS_TO_INSERT_PER_ITERATION = 1<<20;
+int64_t BOUND_INCREASE_PER_ITERATION = SERIAL_SPACING*ITEMS_TO_INSERT_PER_ITERATION;
 
 enum { NODE_SIZE = 1<<20 };
 enum { BASEMENT_NODE_SIZE = 128 * 1024 };
@@ -142,6 +141,11 @@ test_main (int argc, const char *argv[]) {
                 i++;
                 keysize = atoi(argv[i]);
             }
+        } else if (strcmp(arg, "--periter") == 0) {
+            if (i+1 < argc) {
+                i++;
+                ITEMS_TO_INSERT_PER_ITERATION = atoi(argv[i]);
+            }
         } else if (strcmp(arg, "--valsize") == 0) {
             if (i+1 < argc) {
                 i++;
@@ -185,7 +189,7 @@ test_main (int argc, const char *argv[]) {
 	printf("nodesize=%d\n", nodesize);
 	printf("keysize=%d\n", keysize);
 	printf("valsize=%d\n", valsize);
-	printf("Serial and random insertions of %d per batch\n", ITEMS_TO_INSERT_PER_ITERATION);
+	printf("Serial and random insertions of %" PRId64 " per batch\n", ITEMS_TO_INSERT_PER_ITERATION);
         fflush(stdout);
     }
     setup();
