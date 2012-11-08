@@ -399,5 +399,5 @@ Wildcard: inf_rmation_schema
 +--------------------+
 SELECT table_schema, count(*) FROM information_schema.TABLES WHERE table_schema IN ('mysql', 'INFORMATION_SCHEMA', 'test', 'mysqltest') AND table_name<>'ndb_binlog_index' AND table_name<>'ndb_apply_status' GROUP BY TABLE_SCHEMA;
 table_schema	count(*)
-information_schema	50
+information_schema	55
 mysql	22
