@@ -462,14 +462,12 @@ int my_pthread_mutex_trylock(pthread_mutex_t *mutex);
 #ifdef HAVE_TIMESPEC_TS_SEC
 #ifndef diff_timespec
 #define diff_timespec(TS1, TS2) \
-  (((TS1.ts_sec * 1000000000) + TS1.ts_nsec) - \
-   ((TS2.ts_sec * 1000000000) + TS2.ts_nsec))
+  ((TS1.ts_sec - TS2.ts_sec) * 1000000000ULL + TS1.ts_nsec - TS2.ts_nsec)
 #endif /* !diff_timespec */
 #else
 #ifndef diff_timespec
 #define diff_timespec(TS1, TS2) \
-  (((TS1.tv_sec * 1000000000) + TS1.tv_nsec) - \
-   ((TS2.tv_sec * 1000000000) + TS2.tv_nsec))
+  ((TS1.tv_sec - TS2.tv_sec) * 1000000000ULL + TS1.tv_nsec - TS2.tv_nsec)
 #endif /* !diff_timespec */
 #endif /* HAVE_TIMESPEC_TS_SEC */
 
