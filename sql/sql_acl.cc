@@ -2358,6 +2358,17 @@ bool change_password(THD *thd, const char *host, const char *user,
         goto end;  
       }
     }
+    else
+    {
+      LEX_STRING plugin_name= {C_STRING_WITH_LEN("validate_password")};
+      if (plugin_is_ready(&plugin_name, MYSQL_VALIDATE_PASSWORD_PLUGIN))
+      {
+        String *password_str= new (thd->mem_root) String(new_password,
+                                                        thd->variables.
+                                                        character_set_client);
+        check_password_policy(password_str);
+      }
+    }
 
     /*
       Update loaded acl entry in memory.
