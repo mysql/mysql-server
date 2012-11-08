@@ -12,7 +12,18 @@ Audit_null_called	9
 Audit_null_general_error	1
 Audit_null_general_log	3
 Audit_null_general_result	2
+create procedure au1(x char(16)) select concat("test1", x);
+call au1("-12");
+concat("test1", x)
+test1-12
+show status like 'audit_null%';
+Variable_name	Value
+Audit_null_called	19
+Audit_null_general_error	1
+Audit_null_general_log	7
+Audit_null_general_result	5
 uninstall plugin audit_null;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown
+drop procedure au1;
 set global general_log=@old_global_general_log;

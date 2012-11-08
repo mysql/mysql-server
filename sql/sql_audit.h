@@ -37,8 +37,16 @@ extern void mysql_audit_acquire_plugins(THD *thd, uint event_class);
 #ifndef EMBEDDED_LIBRARY
 extern void mysql_audit_notify(THD *thd, uint event_class,
                                uint event_subtype, ...);
+
+static inline bool mysql_audit_general_enabled()
+{
+  return mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK;
+}
+
 #else
-#define mysql_audit_notify(...)
+static inline void mysql_audit_notify(THD *thd, uint event_class,
+                                      uint event_subtype, ...) { }
+#define mysql_audit_general_enabled() 0
 #endif
 extern void mysql_audit_release(THD *thd);
 
@@ -51,11 +59,6 @@ static inline uint make_user_name(THD *thd, char *buf)
                   sctx->user ? sctx->user : "", "] @ ",
                   sctx->host ? sctx->host : "", " [",
                   sctx->ip ? sctx->ip : "", "]", NullS) - buf;
-}
-
-static inline bool mysql_audit_general_enabled()
-{
-  return mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK;
 }
 
 /**
