@@ -8,9 +8,9 @@ select foobar;
 ERROR 42S22: Unknown column 'foobar' in 'field list'
 show status like 'audit_null%';
 Variable_name	Value
-Audit_null_called	6
+Audit_null_called	9
 Audit_null_general_error	1
-Audit_null_general_log	0
+Audit_null_general_log	3
 Audit_null_general_result	2
 uninstall plugin audit_null;
 Warnings:

@@ -53,6 +53,11 @@ static inline uint make_user_name(THD *thd, char *buf)
                   sctx->ip ? sctx->ip : "", "]", NullS) - buf;
 }
 
+static inline bool mysql_audit_general_enabled()
+{
+  return mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK;
+}
+
 /**
   Call audit plugins of GENERAL audit class, MYSQL_AUDIT_GENERAL_LOG subtype.
   
@@ -72,8 +77,7 @@ void mysql_audit_general_log(THD *thd, time_t time,
                              const char *cmd, uint cmdlen,
                              const char *query, uint querylen)
 {
-#ifndef EMBEDDED_LIBRARY
-  if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
+  if (mysql_audit_general_enabled())
   {
     CHARSET_INFO *clientcs= thd ? thd->variables.character_set_client
                                 : global_system_variables.character_set_client;
@@ -82,7 +86,6 @@ void mysql_audit_general_log(THD *thd, time_t time,
                        0, time, user, userlen, cmd, cmdlen,
                        query, querylen, clientcs, 0);
   }
-#endif
 }
 
 /**
@@ -101,8 +104,7 @@ static inline
 void mysql_audit_general(THD *thd, uint event_subtype,
                          int error_code, const char *msg)
 {
-#ifndef EMBEDDED_LIBRARY
-  if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
+  if (mysql_audit_general_enabled())
   {
     time_t time= my_time(0);
     uint msglen= msg ? strlen(msg) : 0;
@@ -130,7 +132,6 @@ void mysql_audit_general(THD *thd, uint event_subtype,
                        error_code, time, user, userlen, msg, msglen,
                        query.str(), query.length(), query.charset(), rows);
   }
-#endif
 }
 
 #define MYSQL_AUDIT_NOTIFY_CONNECTION_CONNECT(thd) mysql_audit_notify(\

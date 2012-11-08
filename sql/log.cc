@@ -1279,12 +1279,6 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
 
   DBUG_ASSERT(thd);
 
-  lock_shared();
-  if (!opt_log)
-  {
-    unlock();
-    return 0;
-  }
   user_host_len= make_user_name(thd, user_host_buff);
 
   current_time= my_hrtime();
@@ -1295,15 +1289,19 @@ bool LOGGER::general_log_write(THD *thd, enum enum_server_command command,
                           command_name[(uint) command].length,
                           query, query_length);
                         
-  while (*current_handler)
-    error|= (*current_handler++)->
-      log_general(thd, current_time, user_host_buff,
-                  user_host_len, thd->thread_id,
-                  command_name[(uint) command].str,
-                  command_name[(uint) command].length,
-                  query, query_length,
-                  thd->variables.character_set_client) || error;
-  unlock();
+  if (opt_log && log_command(thd, command))
+  {
+    lock_shared();
+    while (*current_handler)
+      error|= (*current_handler++)->
+        log_general(thd, current_time, user_host_buff,
+                    user_host_len, thd->thread_id,
+                    command_name[(uint) command].str,
+                    command_name[(uint) command].length,
+                    query, query_length,
+                    thd->variables.character_set_client) || error;
+    unlock();
+  }
 
   return error;
 }
@@ -5333,7 +5331,7 @@ bool general_log_write(THD *thd, enum enum_server_command command,
                        const char *query, uint query_length)
 {
   /* Write the message to the log if we want to log this king of commands */
-  if (logger.log_command(thd, command))
+  if (logger.log_command(thd, command) || mysql_audit_general_enabled())
     return logger.general_log_write(thd, command, query, query_length);
 
   return FALSE;

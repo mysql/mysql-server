@@ -1,3 +1,4 @@
+
 if (!$ADT_NULL_SO) {
   skip No NULL_AUDIT plugin;
 }
@@ -5,6 +6,7 @@ if (!$ADT_NULL_SO) {
 set @old_global_general_log=@@global.general_log;
 set global general_log=OFF;
 
+--disable_ps_protocol
 install plugin audit_null soname 'adt_null';
 
 select 1;
@@ -13,6 +15,7 @@ select foobar;
 show status like 'audit_null%';
 
 uninstall plugin audit_null;
+--enable_ps_protocol
 
 set global general_log=@old_global_general_log;
 
