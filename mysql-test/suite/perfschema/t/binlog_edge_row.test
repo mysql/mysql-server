@@ -6,5 +6,5 @@
 
 set binlog_format=row;
 
---source ../include/binlog_common.inc
+--source ../include/binlog_edge_common.inc
 

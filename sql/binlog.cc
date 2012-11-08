@@ -6953,6 +6953,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
   DBUG_PRINT("info", ("lex->get_stmt_unsafe_flags(): 0x%x",
                       lex->get_stmt_unsafe_flags()));
 
+  reset_binlog_local_stmt_filter();
+
   /*
     We should not decide logging format if the binlog is closed or
     binlogging is off, or if the statement is filtered out from the
@@ -7008,6 +7010,26 @@ int THD::decide_logging_format(TABLE_LIST *tables)
        are temporary.
     */
     bool write_all_non_transactional_are_tmp_tables= true;
+    /**
+      The number of tables used in the current statement,
+      that should be replicated.
+    */
+    uint replicated_tables_count= 0;
+    /**
+      The number of tables used in the current statement,
+      that should not be replicated.
+      A table should not be replicated when it is considered
+      'local' to a MySQL instance.
+      Currently, these tables are:
+      - mysql.slow_log
+      - mysql.general_log
+      - mysql.slave_relay_log_info
+      - mysql.slave_master_info
+      - mysql.slave_worker_info
+      - performance_schema.*
+      - TODO: information_schema.*
+    */
+    uint non_replicated_tables_count= 0;
 #ifndef DBUG_OFF
     {
       static const char *prelocked_mode_name[] = {
@@ -7029,14 +7051,33 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       if (table->placeholder())
         continue;
 
-      if (table->table->s->table_category == TABLE_CATEGORY_PERFORMANCE ||
-          table->table->s->table_category == TABLE_CATEGORY_LOG)
-        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
-
       handler::Table_flags const flags= table->table->file->ha_table_flags();
 
       DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
                           table->table_name, flags));
+
+      if (table->table->no_replicate)
+      {
+        /*
+          The statement uses a table that is not replicated.
+          The following properties about the table:
+          - persistent / transient
+          - transactional / non transactional
+          - temporary / permanent
+          - read or write
+          - multiple engines involved because of this table
+          are not relevant, as this table is completely ignored.
+          Because the statement uses a non replicated table,
+          using STATEMENT format in the binlog is impossible.
+          Either this statement will be discarded entirely,
+          or it will be logged (possibly partially) in ROW format.
+        */
+        lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
+        non_replicated_tables_count++;
+        continue;
+      }
+
+      replicated_tables_count++;
 
       my_bool trans= table->table->file->has_transactions();
 
@@ -7233,6 +7274,30 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           set_current_stmt_binlog_format_row_if_mixed();
         }
       }
+    }
+
+    if (non_replicated_tables_count > 0)
+    {
+      if ((replicated_tables_count == 0) || ! is_write)
+      {
+        DBUG_PRINT("info", ("decision: no logging, no replicated table affected"));
+        set_binlog_local_stmt_filter();
+      }
+      else
+      {
+        if (! is_current_stmt_binlog_format_row())
+        {
+          my_error((error= ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES), MYF(0));
+        }
+        else
+        {
+          clear_binlog_local_stmt_filter();
+        }
+      }
+    }
+    else
+    {
+      clear_binlog_local_stmt_filter();
     }
 
     if (!error && enforce_gtid_consistency &&
@@ -8083,6 +8148,15 @@ int THD::binlog_query(THD::enum_binlog_query_type qtype, char const *query_arg,
   DBUG_PRINT("enter", ("qtype: %s  query: '%s'",
                        show_query_type(qtype), query_arg));
   DBUG_ASSERT(query_arg && mysql_bin_log.is_open());
+
+  if (get_binlog_local_stmt_filter() == BINLOG_FILTER_SET)
+  {
+    /*
+      The current statement is to be ignored, and not written to
+      the binlog. Do not call issue_unsafe_warnings().
+    */
+    DBUG_RETURN(0);
+  }
 
   /*
     If we are not in prelocked mode, mysql_unlock_tables() will be
