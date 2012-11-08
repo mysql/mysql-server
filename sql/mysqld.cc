@@ -1340,7 +1340,6 @@ void clean_up(bool print_message)
   lex_free();				/* Free some memory */
   item_create_cleanup();
   set_var_free();
-  free_charsets();
   if (!opt_noacl)
   {
 #ifdef HAVE_DLOPEN
@@ -1390,6 +1389,7 @@ void clean_up(bool print_message)
 #ifdef USE_REGEX
   my_regex_end();
 #endif
+  free_charsets();
 #if defined(ENABLED_DEBUG_SYNC)
   /* End the debug sync facility. See debug_sync.cc. */
   debug_sync_end();
