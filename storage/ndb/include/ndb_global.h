@@ -189,7 +189,7 @@ extern "C" {
  * Zero length array not allowed in C
  * Add use of array to avoid compiler warning
  */
-#define STATIC_ASSERT(expr) { char static_assert[(expr)? 1 : 0] = {'\0'}; if (static_assert[0]) {}; }
+#define STATIC_ASSERT(expr) { char a_static_assert[(expr)? 1 : 0] = {'\0'}; if (a_static_assert[0]) {}; }
 #else
 #define STATIC_ASSERT(expr)
 #endif
@@ -267,6 +267,11 @@ extern "C" {
 #else
 #define ATTRIBUTE_NOINLINE
 #endif
+
+/**
+ * Pad to NDB_CL size
+ */
+#define NDB_CL_PADSZ(x) (NDB_CL - ((x) % NDB_CL))
 
 /*
  * require is like a normal assert, only it's always on (eg. in release)

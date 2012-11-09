@@ -87,6 +87,7 @@ struct Opt {
   // bugs
   int m_bug;
   int (*m_bugtest)();
+  bool m_nodrop;
   Opt() :
     m_batch(7),
     m_core(false),
@@ -118,7 +119,8 @@ struct Opt {
     m_rowsperf(10000),
     // bugs
     m_bug(0),
-    m_bugtest(0)
+    m_bugtest(0),
+    m_nodrop(false)
   {}
 };
 
@@ -142,6 +144,7 @@ printusage()
     << "  -seed N     random seed 0=loop number -1=random [" << d.m_seed << "]" << endl
     << "  -skip xxx   skip given tests (see list) [no tests]" << endl
     << "  -test xxx   only given tests (see list) [all tests]" << endl
+    << "  -nodrop     don't drop tables at end of test" << endl
     << "  -timeoutretries N Number of times to retry in deadlock situations [" 
     << d.m_timeout_retries << "]" << endl
     << "  -version N  blob version 1 or 2 [" << d.m_blob_version << "]" << endl
@@ -4200,6 +4203,10 @@ testmain()
       } // for (api
     } // for (storage
   } // for (loop
+  if (g_opt.m_nodrop == false)
+  {
+    dropTable();
+  }
   delete g_ndb;
   return 0;
 }
@@ -4499,6 +4506,10 @@ testperf()
   DBG("scan read overhead: " << t2.over(t1));
   t1.clr();
   t2.clr();
+  if (g_opt.m_nodrop == false)
+  {
+    g_dic->dropTable(tab.getName());
+  }
   delete g_ndb;
   return 0;
 }
@@ -5093,6 +5104,11 @@ NDB_COMMAND(testOdbcDriver, "testBlobs", "testBlobs", "testBlobs", 65535)
         continue;
       }
     }
+    if (strcmp(arg, "-nodrop") == 0) {
+      g_opt.m_nodrop = 1;
+      continue;
+    }
+
     // bugs
     if (strcmp(arg, "-bug") == 0) {
       if (++argv, --argc > 0) {

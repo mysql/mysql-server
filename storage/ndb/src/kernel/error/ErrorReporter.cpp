@@ -45,6 +45,23 @@ static void dumpJam(FILE* jamStream,
 		    const Uint32 thrdTheEmulatedJam[],
                     Uint32 aBlockNumber);
 
+static
+const char *
+ndb_basename(const char * path)
+{
+  if (path == NULL)
+    return NULL;
+
+  const char separator = '/';
+  const char * p = path + strlen(path);
+  while (p > path && p[0] != separator)
+    p--;
+
+  if (p[0] == separator)
+    return p + 1;
+
+  return p;
+}
 
 const char*
 ErrorReporter::formatTimeStampString(){
@@ -152,7 +169,7 @@ ErrorReporter::formatMessage(int thr_no,
                        faultID, 
                        (problemData == NULL) ? "" : problemData, 
                        objRef, 
-                       my_progname, 
+                       ndb_basename(my_progname),
                        processId, 
                        thrbuf,
                        NDB_VERSION_STRING,
@@ -161,18 +178,15 @@ ErrorReporter::formatMessage(int thr_no,
 
   if (theNameOfTheTraceFile)
   {
-    for (Uint32 i = 1 ; i < num_threads; i++)
+    sofar = (int)strlen(messptr);
+    if(sofar < MESSAGE_LENGTH)
     {
-      sofar = strlen(messptr);
-      if(sofar < MESSAGE_LENGTH)
-      {
-	BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
-			     " %s_t%u", theNameOfTheTraceFile, i);
-      }
+      BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
+                           " [t%u..t%u]", 1, num_threads);
     }
   }
 
-  sofar = strlen(messptr);
+  sofar = (int)strlen(messptr);
   if(sofar < MESSAGE_LENGTH)
   {
     BaseString::snprintf(messptr + sofar, MESSAGE_LENGTH - sofar,
@@ -202,9 +216,6 @@ ErrorReporter::handleAssert(const char* message, const char* file, int line, int
 #ifdef NO_EMULATED_JAM
   BaseString::snprintf(refMessage, 100, "file: %s lineNo: %d",
 	   file, line);
-  jam = NULL;
-  jamIndex = 0;
-  jamBlockNumber = 0;
 #else
   const EmulatedJamBuffer *jamBuffer =
     (EmulatedJamBuffer *)NdbThread_GetTlsKey(NDB_THREAD_TLS_JAM);
@@ -237,7 +248,7 @@ ErrorReporter::handleError(int messageID,
       nst = s_errorHandlerShutdownType;
   }
   
-  WriteMessage(messageID, problemData, objRef, nst);
+  WriteMessage(messageID, ndb_basename(problemData), objRef, nst);
 
   g_eventLogger->info("%s", problemData);
   g_eventLogger->info("%s", objRef);

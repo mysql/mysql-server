@@ -34,7 +34,7 @@ my $opt_debug;
 my $opt_build_type;
 my $opt_build = 1;
 my $opt_just_print;
-
+my $opt_vanilla;
 Getopt::Long::Configure("pass_through");
 GetOptions(
 
@@ -45,6 +45,7 @@ GetOptions(
   'build!' => \$opt_build,
   'c|just-configure' => sub { $opt_build = 0; },
   'n|just-print' => \$opt_just_print,
+  'vanilla' => \$opt_vanilla,
 ) or exit(1);
 
 # Find source root directory, assume this script is
@@ -73,6 +74,20 @@ my $cmake_version_id;
   die "Could not parse cmake version" unless ($cmake_version_id);
 }
 
+# Replace gcc with g++ in CXX environment variable
+if(defined $ENV{"CXX"} and $ENV{"CXX"} =~ m/gcc/)
+{
+  my $old_cxx= $ENV{"CXX"};
+  $ENV{"CXX"} =~ s/gcc/g++/;
+  print("compile-cluster: switched CXX compiler from '$old_cxx' to '$ENV{CXX}'\n");
+}
+
+# Remove -fno-exceptions from CXXFLAGS environment variable
+if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
+{
+  $ENV{"CXXFLAGS"} =~ s/-fno-exceptions//g;
+  print("compile-cluster: stripped off -fno-exceptions from CXXFLAGS='$ENV{CXXFLAGS}'\n");
+}
 
 #
 # Configure
@@ -84,18 +99,30 @@ my $cmake_version_id;
    
   my @args;
   
-  # Hardcoded options controlling how to build MySQL Server
-  push(@args, "-DWITH_SSL=bundled");
- 
   if ($opt_debug)
   {
     push(@args, "-DWITH_DEBUG=1");
     push(@args, "-DMYSQL_MAINTAINER_MODE=0");
   }
 
-  # Hardcoded options controlling how to build NDB
-  push(@args, "-DWITH_PLUGIN_NDBCLUSTER=1");
-  push(@args, "-DWITH_NDB_TEST=1");
+  if ($opt_vanilla)
+  {
+    # Use default options for building
+    print("compile-cluster: vanilla build requested, no sugar\n");
+
+    # Turn off automatic detection of WITH_NDBCLUSTER
+    # in MySQL Cluster version(i.e when version string ends in -ndb-Y.Y.Y)
+    push(@args, "-DWITH_NDB_DEFAULT_PLUGIN_DETECT=0");
+  }
+  else
+  {
+    # Hardcoded options controlling how to build MySQL Server
+    push(@args, "-DWITH_SSL=bundled"); # Consistent error messages
+
+    # Hardcoded options controlling how to build NDB
+    push(@args, "-DWITH_PLUGIN_NDBCLUSTER=1");
+    push(@args, "-DWITH_NDB_TEST=1");
+  }
 
   # The cmake generator to use
   if ($opt_build_type)

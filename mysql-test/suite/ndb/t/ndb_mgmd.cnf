@@ -1,0 +1,5 @@
+!include ../my.cnf
+
+[cluster_config.ndb_mgmd.1.1]
+LogDestination=FILE:maxsize=32000000,maxfiles=6
+

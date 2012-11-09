@@ -20,13 +20,13 @@
   <parent>
     <groupId>com.mysql.clusterj</groupId>
     <artifactId>clusterj-aggregate</artifactId>
-    <version>7.1.16-SNAPSHOT</version>
+    <version>7.1.22-SNAPSHOT</version>
   </parent>
   <modelVersion>4.0.0</modelVersion>
   <groupId>com.mysql.clusterj</groupId>
   <artifactId>clusterj-bindings</artifactId>
   <packaging>bundle</packaging>
-  <version>7.1.16-SNAPSHOT</version>
+  <version>7.1.22-SNAPSHOT</version>
   <name>ClusterJ Bindings</name>
   <description>The ndb-bindings implementation of ClusterJ storage spi</description>
   <build>

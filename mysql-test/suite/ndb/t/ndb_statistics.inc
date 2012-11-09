@@ -21,14 +21,12 @@ INSERT INTO t100(I,J)
 
 CREATE TABLE t10000 LIKE t10;
 
-# Insert into t10000 in two chunks to not
-#  exhaust MaxNoOfConcurrentOperations
+# Insert into t10000 into myisam and alter to ndb
+#  not to exhaust MaxNoOfConcurrentOperations
+ALTER TABLE t10000 ENGINE=MYISAM;
 INSERT INTO t10000(I,J)
-  SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y
-  WHERE X.J<50;
-INSERT INTO t10000(I,J)
-  SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y
-  WHERE X.J>=50;
+  SELECT X.J, X.J+(100*Y.J) FROM t100 AS X,t100 AS Y;
+ALTER TABLE t10000 ENGINE=NDBCLUSTER;
 
 ANALYZE TABLE t10,t100,t10000;
 

@@ -1,0 +1,83 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+[connection master]
+**** On Master ****
+drop table if exists test.marker;
+create table test.marker(a int) engine=innodb;
+insert into test.marker values (1);
+select * from test.marker;
+a
+1
+truncate table performance_schema.events_waits_history_long;
+truncate table performance_schema.events_statements_summary_by_digest;
+update performance_schema.setup_instruments
+set enabled='YES', timed='YES';
+**** On Slave ****
+truncate table performance_schema.events_waits_history_long;
+truncate table performance_schema.events_statements_summary_by_digest;
+update performance_schema.setup_instruments
+set enabled='YES', timed='NO';
+**** On Master ****
+select * from performance_schema.setup_instruments
+where timed='NO';
+NAME	ENABLED	TIMED
+select "This better be in the master" as in_master_digest;
+in_master_digest
+This better be in the master
+insert into performance_schema.setup_objects
+values ('TABLE', 'master', 'foo', 'YES', 'YES');
+select * from performance_schema.setup_objects
+order by object_type, object_schema, object_name;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+TABLE	%	%	YES	YES
+TABLE	information_schema	%	NO	NO
+TABLE	master	foo	YES	YES
+TABLE	mysql	%	NO	NO
+TABLE	performance_schema	%	NO	NO
+select digest, digest_text, count_star
+from performance_schema.events_statements_summary_by_digest
+where digest_text like "%in_%_digest%";
+digest	digest_text	count_star
+b7e9383d7c48ffb4f4f30f11f03f91c3	SELECT ? AS in_master_digest 	1
+insert into test.marker values (2);
+**** On Slave ****
+select * from test.marker;
+a
+1
+2
+select * from performance_schema.setup_instruments
+where timed='YES';
+NAME	ENABLED	TIMED
+select "This better be in the slave" as in_slave_digest;
+in_slave_digest
+This better be in the slave
+insert into performance_schema.setup_objects
+values ('TABLE', 'slave', 'foo', 'YES', 'YES');
+select * from performance_schema.setup_objects
+order by object_type, object_schema, object_name;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+TABLE	%	%	YES	YES
+TABLE	information_schema	%	NO	NO
+TABLE	mysql	%	NO	NO
+TABLE	performance_schema	%	NO	NO
+TABLE	slave	foo	YES	YES
+select digest, digest_text, count_star
+from performance_schema.events_statements_summary_by_digest
+where digest_text like "%in_%_digest%";
+digest	digest_text	count_star
+23162a38a22e7c2dfeefabe31e27afe1	SELECT ? AS in_slave_digest 	1
+**** On Master ****
+delete from performance_schema.setup_objects
+where object_schema='master';
+**** On Slave ****
+delete from performance_schema.setup_objects
+where object_schema='slave';
+select * from performance_schema.setup_objects;
+OBJECT_TYPE	OBJECT_SCHEMA	OBJECT_NAME	ENABLED	TIMED
+TABLE	mysql	%	NO	NO
+TABLE	performance_schema	%	NO	NO
+TABLE	information_schema	%	NO	NO
+TABLE	%	%	YES	YES
+include/rpl_end.inc

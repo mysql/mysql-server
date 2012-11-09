@@ -1,0 +1,61 @@
+--source suite/ndb_memcache/include/have_memcache.inc
+
+# Basic data type tests for 
+# TINYINT   UNSIGNED   tt013
+# SMALLINT  UNSIGNED   tt014
+# MEDIUMINT UNSIGNED   tt015
+# INT       UNSIGNED   tt016
+# BIGINT    UNSIGNED   tt017
+
+--source suite/ndb_memcache/include/datatypes_tables.inc
+--perl
+
+use strict;
+use lib "lib";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache->new();
+my $r = $mc->connect("localhost",$port);
+
+foreach my $test ( "tt013", "tt014", "tt015", "tt016", "tt017") {
+    
+  $mc->set("$test:0" ,  0);
+  $mc->set("$test:1" ,  1);
+  $mc->set("$test:2" ,  2);
+  
+  # Test that you can't store -1 in an unsigned column
+  $mc->set("$test:-1", -1);
+  ($mc->{error} eq "VALUE_TOO_LARGE") || die "$test:-1 " . $mc->{error};
+  
+  ($mc->get("$test:0") == 0)   || die "get failed $test/0";
+  ($mc->get("$test:1") == 1)   || die "get failed $test/1";
+  
+}
+  
+# Overflow tests 
+($mc->set("tt013:3", 300) == 0)  || die "expected overflow (TINY)";
+($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
+
+($mc->set("tt014:3", 80000) == 0)  || die "expected overflow (SMALL)";
+($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
+
+($mc->set("tt015:3", 40000000) == 0)  || die "expected overflow (MEDIUM)";
+($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
+
+#  INT overflow test is disabled because strotoul() on linux does not
+#  set ERANGE as the spec says it should.  Therefore as currently implemented
+#  overflow detection is unreliable.
+#  ($mc->set("tt016:3", 2**34) == 0)  || die "expected overflow (INT)";
+#  ($mc->{error} eq "VALUE_TOO_LARGE") || die $mc->{error};
+
+
+EOF
+
+SELECT * FROM tt013 order by mkey;
+SELECT * FROM tt014 order by mkey;
+SELECT * FROM tt015 order by mkey;
+SELECT * FROM tt016 order by mkey;
+SELECT * FROM tt017 order by mkey;
+

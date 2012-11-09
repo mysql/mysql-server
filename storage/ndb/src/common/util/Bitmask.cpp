@@ -368,6 +368,28 @@ test_find_fast(Result& res, const Bitmask<sz> & mask, unsigned iter, FUNC func)
 template<unsigned sz>
 inline
 void
+test_find_fast_reversed(Result& res, const Bitmask<sz> & mask, unsigned iter, FUNC func)
+{
+  Uint32 sum = 0;
+  Uint64 start = NdbTick_CurrentMillisecond();
+  for (Uint32 j = 0; j<iter; j++)
+  {
+
+    for (Uint32 n = BitmaskImpl::find_last(sz, mask.rep.data);
+         n != mask.NotFound;
+         n = BitmaskImpl::find_prev(sz, mask.rep.data, n - 1))
+    {
+      sum += (* func)(n);
+    }
+  }
+  Uint64 stop = NdbTick_CurrentMillisecond();
+  res.sum += sum;
+  res.elapsed += (stop - start);
+}
+
+template<unsigned sz>
+inline
+void
 test_toArray(Result& res, const Bitmask<sz> & mask, unsigned iter, FUNC func)
 {
   Uint32 sum = 0;
@@ -412,7 +434,7 @@ do_test(Uint32 len, FUNC func, const char * name, const char * dist)
   if (func == slow)
     iter = 3000;
 
-  Result res_find, res_fast, res_toArray, res_empty;
+  Result res_find, res_fast, res_fast_reversed, res_toArray, res_empty;
   for (Uint32 i = 0; i < (10000 / len); i++)
   {
     Bitmask<8> tmp;
@@ -437,6 +459,7 @@ do_test(Uint32 len, FUNC func, const char * name, const char * dist)
     }
     test_find(res_find, tmp, iter, func);
     test_find_fast(res_fast, tmp, iter, func);
+    test_find_fast_reversed(res_fast_reversed, tmp, iter, func);
     test_toArray(res_toArray, tmp, iter, func);
     test_empty(res_empty, len, iter, func);
   }
@@ -444,7 +467,8 @@ do_test(Uint32 len, FUNC func, const char * name, const char * dist)
   res_find.elapsed = sub0(res_find.elapsed, res_empty.elapsed);
   res_toArray.elapsed = sub0(res_toArray.elapsed, res_empty.elapsed);
   res_fast.elapsed = sub0(res_fast.elapsed, res_empty.elapsed);
-  Uint64 m = x_min(res_find.elapsed, res_toArray.elapsed, res_fast.elapsed);
+  res_fast_reversed.elapsed = sub0(res_fast_reversed.elapsed, res_empty.elapsed);
+  Uint64 m = x_min(res_find.elapsed, res_toArray.elapsed, res_fast_reversed.elapsed);
   if (m == 0)
     m = 1;
 
@@ -463,6 +487,16 @@ do_test(Uint32 len, FUNC func, const char * name, const char * dist)
          (1000000 * res_fast.elapsed / div),
          Uint32((100 * res_fast.elapsed) / m),
          res_fast.sum);
+         printf("toArray(%s,%s, %u) : %llu ns/iter (%.3u%%), (sum: %u)\n",
+         dist, name, len,
+         (1000000 * res_toArray.elapsed / div),
+         Uint32((100 * res_toArray.elapsed) / m),
+         res_toArray.sum);
+  printf("reversed(%s,%s, %u)    : %llu ns/iter (%.3u%%), (sum: %u)\n",
+         dist, name, len,
+         (1000000 * res_fast_reversed.elapsed / div),
+         Uint32((100 * res_fast_reversed.elapsed) / m),
+         res_fast_reversed.sum);
          printf("toArray(%s,%s, %u) : %llu ns/iter (%.3u%%), (sum: %u)\n",
          dist, name, len,
          (1000000 * res_toArray.elapsed / div),

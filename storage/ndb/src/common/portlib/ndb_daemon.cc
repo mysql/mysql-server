@@ -315,7 +315,7 @@ do_files(const char *pidfile_name, const char* logfile_name, int pidfd, int logf
                 pidfile_name, errno);
 
   char buf[32];
-  int length = my_snprintf(buf, sizeof(buf), "%ld",
+  int length = (int)my_snprintf(buf, sizeof(buf), "%ld",
                            (long)NdbHost_GetProcessId());
   if (write(pidfd, buf, length) != length)
     return ERR1("Failed to write pid to pidfile '%s', errno: %d",

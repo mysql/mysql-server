@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@ package com.mysql.clusterj.core.spi;
 import com.mysql.clusterj.core.CacheManager;
 import com.mysql.clusterj.core.query.CandidateIndexImpl;
 import com.mysql.clusterj.core.store.Column;
+import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Operation;
 import com.mysql.clusterj.core.store.PartitionKey;
 import com.mysql.clusterj.core.store.ResultData;
@@ -48,7 +49,7 @@ public interface DomainTypeHandler<T> {
 
     public Class<T> getProxyClass();
 
-    public T newInstance();
+    public T newInstance(Db db);
 
     public ValueHandler getValueHandler(Object instance);
 
@@ -76,7 +77,7 @@ public interface DomainTypeHandler<T> {
 
     public void operationSetModifiedNonPKValues(ValueHandler valueHandler, Operation op);
 
-    public ValueHandler createKeyValueHandler(Object keys);
+    public ValueHandler createKeyValueHandler(Object keys, Db db);
 
     public int[] getKeyFieldNumbers();
 
@@ -89,5 +90,11 @@ public interface DomainTypeHandler<T> {
     public String[] getFieldNames();
 
     public void operationSetValues(ValueHandler valueHandler, Operation op);
+
+    public void setUnsupported(String reason);
+
+    public T newInstance(ValueHandler valueHandler);
+
+    public T newInstance(ResultData resultData, Db db);
 
 }

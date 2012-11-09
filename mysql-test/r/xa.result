@@ -231,3 +231,26 @@ XA PREPARE 'xid1';
 XA ROLLBACK 'xid1';
 # Connection default
 DROP TABLE t1, t2;
+#
+# Bug#14670465 PLEASE PRINT HUMAN READABLE, ESCAPED 
+#              XID DATA IN XA RECOVER OUTPUT
+#
+#
+# xa Recover command was not diplaying non printable ASCII
+# characters in the XID previosuly. Now there is another column
+# in the result set which is a Hex Encoded String of the XID.
+#
+xa start 0xABCDEF1234567890, 0x01, 0x02 ;
+xa end 0xABCDEF1234567890, 0x01, 0x02 ;
+xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
+xa recover;
+formatID	gtrid_length	bqual_length	data
+2	8	1	0xABCDEF123456789001
+xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
+xa start 0x4142434445, 0x46, 0x02 ;
+xa end 0x4142434445, 0x46, 0x02 ;
+xa prepare 0x4142434445, 0x46, 0x02 ;
+xa recover;
+formatID	gtrid_length	bqual_length	data
+2	5	1	ABCDEF
+xa rollback 0x4142434445, 0x46, 0x02 ;

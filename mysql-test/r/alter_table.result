@@ -298,13 +298,6 @@ t1	0	a	1	a	A	3	NULL	NULL	YES	BTREE
 t1	0	a	2	b	A	300	NULL	NULL	YES	BTREE		
 t1	1	b	1	b	A	100	NULL	NULL	YES	BTREE		
 drop table t1;
-CREATE TABLE t1 (i int(10), index(i) );
-ALTER TABLE t1 DISABLE KEYS;
-INSERT DELAYED INTO t1 VALUES(1),(2),(3);
-Warnings:
-Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
-ALTER TABLE t1 ENABLE KEYS;
-drop table t1;
 CREATE TABLE t1 (
 Host varchar(16) binary NOT NULL default '',
 User varchar(16) binary NOT NULL default '',

@@ -129,15 +129,7 @@ userDbCommit(UserHandle *uh){
  * TRUE - Normal table
  * FALSE - Table w.o. checkpoing and logging
  */
-
-#ifdef	__cplusplus
-extern "C" {
-#endif
 extern int useTableLogging;
-#ifdef	__cplusplus
-}
-#endif
-
 
 int
 create_table_server(Ndb * pNdb){

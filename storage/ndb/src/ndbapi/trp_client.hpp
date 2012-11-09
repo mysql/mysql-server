@@ -35,6 +35,8 @@ public:
 
   virtual void trp_deliver_signal(const NdbApiSignal *,
                                   const LinearSectionPtr ptr[3]) = 0;
+  virtual void trp_wakeup()
+    {};
 
   Uint32 open(class TransporterFacade*, int blockNo = -1);
   void close();
@@ -44,7 +46,7 @@ public:
   void complete_poll();
   void wakeup();
 
-  void do_forceSend(int val = 1);
+  int do_forceSend(int val = 1);
 
   int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId);
   int raw_sendSignal(const NdbApiSignal*, Uint32 nodeId,

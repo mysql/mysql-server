@@ -1,0 +1,140 @@
+source suite.inc;
+source include/have_ndb.inc;
+result_format 2;
+
+call mtr.add_suppression("The table '.*' is full");
+
+select version();
+
+CREATE TABLE t1 (
+  c0 int unsigned not null primary key,
+  c00 char(255) not null default '',
+  c01 char(255) not null default '',
+  c02 char(255) not null default '',
+  c03 char(255) not null default '',
+  c04 char(255) not null default '',
+  c05 char(255) not null default '',
+  c06 char(255) not null default '',
+  c07 char(255) not null default '',
+  c08 char(255) not null default '',
+  c09 char(255) not null default '',
+  c10 char(255) not null default '',
+  c11 char(255) not null default '',
+  c12 char(255) not null default '',
+  c13 char(255) not null default '',
+  c14 char(255) not null default '',
+  c15 char(255) not null default '',
+  c16 char(255) not null default '',
+  c17 char(255) not null default '',
+  c18 char(255) not null default '',
+  c19 char(255) not null default '',
+  c20 char(255) not null default '',
+  c21 char(255) not null default '',
+  c22 char(255) not null default '',
+  c23 char(255) not null default '',
+  c24 char(255) not null default '',
+  c25 char(255) not null default '',
+  c26 char(255) not null default '',
+  c27 char(255) not null default '',
+  c28 char(255) not null default '',
+  c29 char(255) not null default ''
+) COMMENT='NDB_TABLE=NOLOGGING' ENGINE=ndbcluster partition by key(c0) partitions 1;
+
+let $batch = 200;
+
+## Load table...
+--echo Filling table with 15Gb of data
+disable_query_log;
+let $i = 0;
+let $lastgb = 0;
+while (`select (DATA_LENGTH / 1024 / 1024 / 1024) < 15 from INFORMATION_SCHEMA.PARTITIONS where table_name = 't1'`)
+{
+  let $b = $batch; # Number of values to INSERT per batch
+  let $separator = ;
+  let $sql = INSERT t1 (c0) VALUES;
+  while($b)
+  {
+    let $sql=$sql$separator($i*$batch + $b);
+    let $separator = ,;
+    dec $b;
+  }
+
+  --error 0,1297
+  eval $sql;
+  if (!$mysql_errno)
+  {
+    inc $i;
+  }
+
+  let $gb = `select round(DATA_LENGTH / 1024 / 1024 / 1024) from INFORMATION_SCHEMA.PARTITIONS where table_name = 't1'`;
+  if ($gb != $lastgb)
+  {
+    --echo $gb gb...
+    let $lastgb = $gb;
+  }
+}
+
+--echo Filling table up to 20Gb, expect error
+let $done = 0;
+while (!$done)
+{
+  let $b = $batch; # Number of values to INSERT per batch
+  let $separator = ;
+  let $sql = INSERT t1 (c0) VALUES;
+  while($b)
+  {
+    let $sql=$sql$separator($i*$batch + $b);
+    let $separator = ,;
+    dec $b;
+  }
+
+  --error 0,1114,1297
+  eval $sql;
+  if (!$mysql_errno)
+  {
+    inc $i;
+  }
+  if ($mysql_errno == 1114)
+  {
+    show warnings;
+    inc $done;
+  }
+  if (`select (DATA_LENGTH / 1024 / 1024 / 1024) >= 20 from INFORMATION_SCHEMA.PARTITIONS where table_name = 't1'`)
+  {
+    inc $done;
+    --echo 20g loaded!
+  }
+}
+enable_query_log;
+
+select count(*),max(c0)
+from t1;
+
+select (DATA_LENGTH / 1024 / 1024 / 1024)
+from INFORMATION_SCHEMA.PARTITIONS
+where table_name = 't1';
+
+--echo Clearing table
+disable_query_log;
+while ($i > 0)
+{
+  let $b = $batch; # 
+  let $separator = ;
+  let $sql = delete from t1 where c0 in (;
+  while($b)
+  {
+    let $sql=$sql$separator($i*$batch + $b);
+    let $separator = ,;
+    dec $b;
+  }
+  let $sql=$sql);
+  source run_query_with_retry.inc;
+
+  dec $i;
+}
+enable_query_log;
+
+drop table t1;
+
+## Test suceeded
+exit;

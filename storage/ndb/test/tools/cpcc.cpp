@@ -140,7 +140,7 @@ public:
 
   virtual bool evaluate(SimpleCpcClient* c, const SimpleCpcClient::Process & p){
     bool run = on_empty;
-    for(size_t i = 0; i<m_cond.size(); i++){
+    for(unsigned i = 0; i<m_cond.size(); i++){
       if(m_cond[i]->evaluate(c, p)){
 	run = true;
 	break;
@@ -172,7 +172,7 @@ void
 add_hosts(Vector<SimpleCpcClient*> & hosts, BaseString list){
   Vector<BaseString> split;
   list.split(split);
-  for(size_t i = 0; i<split.size(); i++){
+  for(unsigned i = 0; i<split.size(); i++){
     add_host(hosts, split[i]);
   }
 }
@@ -273,7 +273,7 @@ main(int argc, const char** argv){
 
 int
 connect(Vector<SimpleCpcClient*>& list){
-  for(size_t i = 0; i<list.size(); i++){
+  for(unsigned i = 0; i<list.size(); i++){
     if(list[i]->connect() != 0){
       ndbout_c("Failed to connect to %s:%d", 
 	       list[i]->getHost(), list[i]->getPort());
@@ -285,7 +285,7 @@ connect(Vector<SimpleCpcClient*>& list){
 
 int
 for_each(Vector<SimpleCpcClient*>& list, Expression & expr){
-  for(size_t i = 0; i<list.size(); i++){
+  for(unsigned i = 0; i<list.size(); i++){
     if(list[i] == 0)
       continue;
     Properties p;
@@ -294,7 +294,7 @@ for_each(Vector<SimpleCpcClient*>& list, Expression & expr){
       ndbout << "Failed to list processes on " 
 	     << list[i]->getHost() << ":" << list[i]->getPort() << endl;
     }
-    for(size_t j = 0; j<procs.size(); j++)
+    for(unsigned j = 0; j<procs.size(); j++)
       expr.evaluate(list[i], procs[j]);
   }
   return 0;

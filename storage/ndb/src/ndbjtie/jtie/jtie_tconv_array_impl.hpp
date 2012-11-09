@@ -359,17 +359,17 @@ struct ObjectArrayConvImpl {
 private:
     // Returns a new Java Object array with all elements initialized to null;
     // in case of a NULL return, an exception is pending.
-    J *
+    static J *
     newJavaObjectArray(jclass cls, jsize n, JNIEnv * env);
     
     // Copies objects referred by a Java Object array over a C object array;
     // a non-zero return value indicates failure with an exception pending.
-    cstatus
+    static cstatus
     copyToCObjectArray(C * c, jobjectArray j, jsize n, JNIEnv * env);
 
     // Initializes a Java Object array with references from a C object array;
     // a non-zero return value indicates failure with an exception pending.
-    cstatus
+    static cstatus
     copyToJavaObjectArray(jobjectArray j, C * c, jsize n, JNIEnv * env);
 };
 

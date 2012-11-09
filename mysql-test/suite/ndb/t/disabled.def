@@ -16,10 +16,23 @@ ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
 ndb_cache_trans           : Bug#42197 Query cache and autocommit
 ndb_disconnect_ddl        : Bug#31853 flaky testcase...
 
-ndb_sql_allow_batching   : SEAGULL WL3733 xxx_allow_batching
-
-ndb_temporary : SEAGULL patch to disallow temporary tables does not work
-
 ndb_dbug_lock : SEAGULL gsl locking order
 
-ndb_ddl_open_trans : SEAGULL mdl locking...
+#left for reference until they work
+# ndb_alter_table : Waiting for adaption to WL#946a
+# ndb_dd_alter : Waiting for adaption to WL#946
+# ndb_condition_pushdown : Waiting for adaption to WL#946
+# ndb_dd_disk2memory : Waiting for adaption to WL#946
+# ndb_dist_priv : Waiting for adaption to WL#946
+# ndb_dist_priv_bug_13340854 : Waiting for adaption to WL#946
+# ndb_rpl_stm_innodb : Waiting for adaption to WL#946
+# ndb_index_ordered : Waiting for adaption to WL#946
+# ndb_rpl_dd_advance : Waiting for adaption to WL#946
+# ndb_index_stat : Waiting for adaption to WL#946
+# ndb_partition_key : Waiting for adaption to WL#946
+# ndb_read_multi_range : Waiting for adaption to WL#946
+# ndb_restore_compat_compression : Waiting for adaption to WL#946
+# ndb_restore_misc : Waiting for adaption to WL#946
+# ndb_restore_schema_partitions : Waiting for adaption to WL#946
+# ps_7ndb : Waiting for adaption to WL#946
+

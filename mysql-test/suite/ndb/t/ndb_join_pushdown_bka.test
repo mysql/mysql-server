@@ -1,0 +1,20 @@
+#
+# Test of pushed joins, aka SPJ, or AQL.
+# (Test with defaults + 'batch_key_access=on')
+#
+# NOTE: BKA will turn of lots of pushed join, we 
+#       are unsure if this is the best strategy, or
+#       if its better/possible to sacrify the BKA
+#
+
+--source include/have_ndb.inc
+if (!`select locate('batch_key_access', @@global.optimizer_switch) > 0`)
+{
+  skip Need batch_key_access;
+}
+
+set @@global.optimizer_switch='batch_key_access=on';
+
+--source ndb_join_pushdown.inc 
+
+set @@global.optimizer_switch=default;

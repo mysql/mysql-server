@@ -1,6 +1,13 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 CREATE TABLE t1 (c1 CHAR(15), c2 CHAR(15), c3 INT, PRIMARY KEY (c3)) ENGINE = NDB ;
+STOP SLAVE;
+RESET MASTER;
+RESET SLAVE;
+START SLAVE;
 INSERT INTO t1 VALUES ("row1","will go away",1);
 SELECT * FROM t1 ORDER BY c3;
 c1	c2	c3
@@ -26,9 +33,6 @@ row3	C	3
 row4	D	4
 include/check_slave_is_running.inc
 STOP SLAVE;
-CHANGE MASTER TO
-master_log_file = 'master-bin.000001',
-master_log_pos = <the_pos> ;
 include/check_slave_no_error.inc
 START SLAVE;
 SELECT * FROM t1 ORDER BY c3;
@@ -57,4 +61,47 @@ c1	c2	c3
 row2	new on slave	2
 include/check_slave_is_running.inc
 DROP TABLE IF EXISTS t1;
+STOP SLAVE;
+RESET MASTER;
+RESET SLAVE;
+START SLAVE;
+Let's interleave some DDL and DML in the Binlog
+Some DDL
+create table t1(a int primary key) engine=ndb;
+First epoch transaction
+begin;
+insert into t1 values (1), (2), (3);
+commit;
+Sync slave and retrieve epoch
+SELECT @first_epoch:=MAX(epoch) FROM mysql.ndb_apply_status;
+@first_epoch:=MAX(epoch)
+<first_epoch>
+Slave contents
+select * from t1 ORDER by a;
+a
+1
+2
+3
+Get the next master binlog pos from the epoch
+Now let's do some more DDL and DML
+create table t2 (a int primary key) engine=ndb;
+begin;
+insert into t2 values (1), (2), (3);
+commit;
+include/check_slave_is_running.inc
+Stop slave and reset position to start of the applied epoch
+STOP SLAVE;
+include/check_slave_no_error.inc
+insert into mtr.test_suppressions values
+("Slave: Table \'t2\' already exists .*"),
+("Slave SQL: Error \'Table \'t2\' already exists\' .*");
+START SLAVE;
+include/wait_for_slave_sql_error.inc [errno=1050]
+Last_SQL_Error = 'Error 'Table 't2' already exists' on query. Default database: 'test'. Query: 'create table t2 (a int primary key) engine=ndb''
+STOP SLAVE;
+RESET MASTER;
+RESET SLAVE;
+START SLAVE;
+DROP TABLE t1;
+DROP TABLE t2;
 include/rpl_end.inc

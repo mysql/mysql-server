@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2003-2006 MySQL AB
-    All rights reserved. Use is subject to license terms.
+   Copyright (C) 2003-2006, 2011 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,12 +22,29 @@
 #include <NdbOut.hpp>
 
 /**
- * Template class used for implementing an
- *   list of object retreived from a pool
+ * SLMList implements a intrusive list using chaining
+ *   (with a single link)
+ *
+ * The entries in the (uninstansiated) meta class passed to the
+ * list must have the following methods:
+ *
+ *  -# nextList(U&) returning a reference to the next link
  */
-template <typename P, typename T, typename U = T>
-class SLListImpl 
+
+template <typename T, typename U = T> struct SLListDefaultMethods {
+static inline Uint32& nextList(U& t) { return t.nextList; }
+};
+
+template <typename P, typename T, typename M = SLListDefaultMethods<T> >
+class SLMList
 {
+public:
+  explicit SLMList(P& thePool);
+  ~SLMList() { }
+private:
+  SLMList(const SLMList&);
+  SLMList&  operator=(const SLMList&);
+
 public:
   /**
    * List head
@@ -45,8 +61,6 @@ public:
       return *this;
     }
   };
-  
-  SLListImpl(P & thePool);
   
   /**
    * Allocate an object from pool - update Ptr
@@ -119,7 +133,7 @@ public:
    * Add
    */
   void add(Ptr<T> & p){
-    p.p->U::nextList = head.firstItem;
+    M::nextList(*p.p) = head.firstItem;
     head.firstItem = p.i;
   }
 
@@ -142,7 +156,7 @@ public:
     while(i != RNIL){
       c++;
       const T * t = thePool.getPtr(i);
-      i = t->U::nextList;
+      i = M::nextList(*t);
     }
     return c;
   }
@@ -168,75 +182,75 @@ protected:
   P & thePool;
 };
 
-template <typename P, typename T, typename U = T>
-class LocalSLListImpl : public SLListImpl<P, T, U> 
+template <typename P, typename T, typename M = SLListDefaultMethods<T> >
+class LocalSLMList : public SLMList<P, T, M>
 {
 public:
-  LocalSLListImpl(P & thePool, typename SLListImpl<P, T, U>::HeadPOD & _src)
-    : SLListImpl<P, T, U>(thePool), src(_src)
+  LocalSLMList(P& thePool, typename SLMList<P, T, M>::HeadPOD& _src)
+    : SLMList<P, T, M>(thePool), src(_src)
   {
     this->head = src;
   }
   
-  ~LocalSLListImpl(){
+  ~LocalSLMList(){
     src = this->head;
   }
 private:
-  typename SLListImpl<P, T, U>::HeadPOD & src;
+  typename SLMList<P, T, M>::HeadPOD& src;
 };
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
-SLListImpl<P, T, U>::SLListImpl(P & _pool):
+SLMList<P, T, M>::SLMList(P& _pool):
   thePool(_pool)
 {
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
-SLListImpl<P, T, U>::Head::Head()
+SLMList<P, T, M>::Head::Head()
 {
   this->init();
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-SLListImpl<P, T, U>::seize(Ptr<T> & p)
+SLMList<P, T, M>::seize(Ptr<T>& p)
 {
   thePool.seize(p);
   T * t = p.p;
   Uint32 ff = head.firstItem;
   if(p.i != RNIL)
   {
-    t->U::nextList = ff;
+    M::nextList(*t) = ff;
     head.firstItem = p.i;
     return true;
   }
   return false;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-SLListImpl<P, T, U>::seizeId(Ptr<T> & p, Uint32 ir)
+SLMList<P, T, M>::seizeId(Ptr<T>& p, Uint32 ir)
 {
   thePool.seizeId(p, ir);
   T * t = p.p;
   Uint32 ff = head.firstItem;
   if(p.i != RNIL)
   {
-    t->U::nextList = ff;
+    M::nextList(*t) = ff;
     head.firstItem = p.i;
     return true;
   }
   return false;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-SLListImpl<P, T, U>::seizeN(Ptr<T> & p, Uint32 n)
+SLMList<P, T, M>::seizeN(Ptr<T>& p, Uint32 n)
 {
   for(Uint32 i = 0; i < n; i++)
   {
@@ -249,7 +263,7 @@ SLListImpl<P, T, U>::seizeN(Ptr<T> & p, Uint32 n)
       {
 	p.i = head.firstItem;
 	thePool.getPtr(p);
-	head.firstItem = p.p->U::nextList;
+         head.firstItem = M::nextList(*p.p);
 	thePool.release(p);
       }
       return false;
@@ -266,75 +280,75 @@ SLListImpl<P, T, U>::seizeN(Ptr<T> & p, Uint32 n)
 }
 
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void 
-SLListImpl<P, T, U>::remove()
+SLMList<P, T, M>::remove()
 {
   head.firstItem = RNIL;
 }  
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-SLListImpl<P, T, U>::remove_front(Ptr<T> & p)
+SLMList<P, T, M>::remove_front(Ptr<T>& p)
 {
   p.i = head.firstItem;
   if (p.i != RNIL)
   {
     p.p = thePool.getPtr(p.i);
-    head.firstItem = p.p->U::nextList;
+    head.firstItem = M::nextList(*p.p);
     return true;
   }
   return false;
 }  
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void
-SLListImpl<P, T, U>::add(Uint32 first, Ptr<T> & last)
+SLMList<P, T, M>::add(Uint32 first, Ptr<T>& last)
 {
-  last.p->U::nextList = head.firstItem;
+  M::nextList(*last.p) = head.firstItem;
   head.firstItem = first;
 }  
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void 
-SLListImpl<P, T, U>::release()
+SLMList<P, T, M>::release()
 {
   Ptr<T> ptr;
   Uint32 curr = head.firstItem;
   while(curr != RNIL)
   {
     thePool.getPtr(ptr, curr);
-    curr = ptr.p->U::nextList;
+    curr = M::nextList(*ptr.p);
     thePool.release(ptr);
   }
   head.firstItem = RNIL;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void 
-SLListImpl<P, T, U>::getPtr(Ptr<T> & p, Uint32 i) const 
+SLMList<P, T, M>::getPtr(Ptr<T>& p, Uint32 i) const
 {
   p.i = i;
   p.p = thePool.getPtr(i);
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 void 
-SLListImpl<P, T, U>::getPtr(Ptr<T> & p) const 
+SLMList<P, T, M>::getPtr(Ptr<T>& p) const
 {
   thePool.getPtr(p);
 }
   
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 T * 
-SLListImpl<P, T, U>::getPtr(Uint32 i) const 
+SLMList<P, T, M>::getPtr(Uint32 i) const
 {
   return thePool.getPtr(i);
 }
@@ -344,10 +358,10 @@ SLListImpl<P, T, U>::getPtr(Uint32 i) const
  *
  * Return i
  */
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-SLListImpl<P, T, U>::first(Ptr<T> & p) const 
+SLMList<P, T, M>::first(Ptr<T>& p) const
 {
   Uint32 i = head.firstItem;
   p.i = i;
@@ -360,12 +374,12 @@ SLListImpl<P, T, U>::first(Ptr<T> & p) const
   return false;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-SLListImpl<P, T, U>::next(Ptr<T> & p) const 
+SLMList<P, T, M>::next(Ptr<T>& p) const
 {
-  Uint32 i = p.p->U::nextList;
+  Uint32 i = M::nextList(*p.p);
   p.i = i;
   if(i != RNIL)
   {
@@ -376,28 +390,44 @@ SLListImpl<P, T, U>::next(Ptr<T> & p) const
   return false;
 }
 
-template <typename P, typename T, typename U>
+template <typename P, typename T, typename M>
 inline
 bool
-SLListImpl<P, T, U>::hasNext(const Ptr<T> & p) const 
+SLMList<P, T, M>::hasNext(const Ptr<T>& p) const
 {
-  return p.p->U::nextList != RNIL;
+  return M::nextList(*p.p) != RNIL;
 }
 
 // Specializations
 
-template <typename T, typename U = T>
-class SLList : public SLListImpl<ArrayPool<T>, T, U>
+template <typename P, typename T, typename U = T, typename M = SLListDefaultMethods<T, U> >
+class SLListImpl : public SLMList<P, T, M>
 {
 public:
-  SLList(ArrayPool<T> & p) : SLListImpl<ArrayPool<T>, T, U>(p) {}
+  SLListImpl(P& p) : SLMList<P, T, M>(p) {}
 };
 
-template <typename T, typename U = T>
-class LocalSLList : public LocalSLListImpl<ArrayPool<T>,T,U> {
+template <typename P, typename T, typename U = T, typename M = SLListDefaultMethods<T, U> >
+class LocalSLListImpl : public LocalSLMList<P, T, M> {
 public:
-  LocalSLList(ArrayPool<T> & p, typename SLList<T,U>::Head & _src)
-    : LocalSLListImpl<ArrayPool<T>,T,U>(p, _src) {}
+  LocalSLListImpl(P& p, typename SLMList<P, T, M>::Head& _src)
+    : LocalSLMList<P, T, M>(p, _src) {}
+};
+
+//
+
+template <typename T, typename U = T, typename M = SLListDefaultMethods<T, U> >
+class SLList : public SLMList<ArrayPool<T>, T, M>
+{
+public:
+  SLList(ArrayPool<T>& p) : SLMList<ArrayPool<T>, T, M>(p) {}
+};
+
+template <typename T, typename U = T, typename M = SLListDefaultMethods<T, U> >
+class LocalSLList : public LocalSLMList<ArrayPool<T>, T, M> {
+public:
+  LocalSLList(ArrayPool<T>& p, typename SLMList<ArrayPool<T>, T, M>::Head& _src)
+    : LocalSLMList<ArrayPool<T>, T, M>(p, _src) {}
 };
 
 
