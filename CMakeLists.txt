@@ -38,7 +38,6 @@ SET(WITH_BLACKHOLE_STORAGE_ENGINE 1 CACHE BOOL "Include blockhole storage engine
 SET(WITH_FEDERATEDX_STORAGE_ENGINE 1 CACHE BOOL "Include federatedx storage engine")
 SET(WITH_PARTITION_STORAGE_ENGINE 1 CACHE BOOL "Include partition storage engine")
 SET(WITH_ARIA_STORAGE_ENGINE 1 CACHE BOOL "Include aria storage engine")
-SET(WITH_PBXT_STORAGE_ENGINE 1 CACHE BOOL "Include pbxt storage engine")
 SET(WITH_XTRADB_STORAGE_ENGINE 1 CACHE BOOL "Include xtradb storage engine")
 SET(WITH_FEEDBACK_STORAGE_ENGINE 1 CACHE FORCE BOOL "Include feedback plugin")
 
