@@ -6471,8 +6471,14 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
         thd->security_ctx->user_matches(tmp->security_ctx))
     {
-      tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
-      error=0;
+      /* process the kill only if thread is not already undergoing any kill
+         connection.
+      */
+      if (tmp->killed != THD::KILL_CONNECTION)
+      {
+        tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
+      }
+      error= 0;
     }
     else
       error=ER_KILL_DENIED_ERROR;
