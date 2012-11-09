@@ -1673,4 +1673,6 @@ SELECT length(CAST(b AS CHAR)) FROM ubig;
 length(CAST(b AS CHAR))
 20
 DROP TABLE ubig;
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+1
 End of 5.1 tests.

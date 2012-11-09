@@ -1438,6 +1438,10 @@ SELECT length(CAST(b AS CHAR)) FROM ubig;
 
 DROP TABLE ubig;
 
+#
+# Bug #13889741: HANDLE_FATAL_SIGNAL IN _DB_ENTER_ | HANDLE_FATAL_SIGNAL IN STRNLEN
+#
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
 
 --echo End of 5.1 tests.
 
