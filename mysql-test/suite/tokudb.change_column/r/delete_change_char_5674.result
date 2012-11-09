@@ -1,0 +1,7 @@
+drop table if exists t;
+set default_storage_engine='tokudb';
+create table t (x char(4));
+insert into t values ('hi');
+delete from t where x='hi';
+alter table t change column x x char(5);
+drop table t;
