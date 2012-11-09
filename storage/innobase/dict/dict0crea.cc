@@ -259,8 +259,9 @@ dict_build_table_def_step(
 	table = node->table;
 	
 	error = dict_build_tablespace(table, thr_get_trx(thr)); 	
-	if (error != DB_SUCCESS)
+	if (error != DB_SUCCESS) {
 		return(error);
+	}
 	
 	row = dict_create_sys_tables_tuple(table, node->heap);
 
@@ -1124,10 +1125,10 @@ dict_truncate_index_tree(
 
 	if (drop && root_page_no == FIL_NULL) {
 		/* The tree has been freed. */
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Trying to TRUNCATE a missing index of table %s!\n",
+			index->table->name);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
-			" a missing index of table %s!\n", index->table->name);
 		drop = FALSE;
 	}
 
@@ -1136,10 +1137,9 @@ dict_truncate_index_tree(
 	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
-			" a missing .ibd file of table %s!\n", index->table->name);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Trying to TRUNCATE a missing .ibd file of table %s!\n",
+			index->table->name);
 	}
 
 	if (!drop) {
