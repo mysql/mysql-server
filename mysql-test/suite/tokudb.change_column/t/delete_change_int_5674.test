@@ -1,0 +1,17 @@
+# see #5684 for details 
+
+source include/have_tokudb.inc;
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+set default_storage_engine='tokudb';
+
+create table t (x int);
+insert into t values (1);
+delete from t where x=1;
+# the following statment crashes the expand int callback function
+alter table t change column x x bigint;
+
+drop table t;
