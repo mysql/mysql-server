@@ -935,7 +935,7 @@ void sp_instr_set::print(String *str)
   }
   str->qs_append(m_offset);
   str->qs_append(' ');
-  m_value_item->print(str, QT_ORDINARY);
+  m_value_item->print(str, QT_TO_ARGUMENT_CHARSET);
 }
 
 
@@ -957,7 +957,7 @@ void sp_instr_set_trigger_field::print(String *str)
   str->append(STRING_WITH_LEN("set_trigger_field "));
   m_trigger_field->print(str, QT_ORDINARY);
   str->append(STRING_WITH_LEN(":="));
-  m_value_item->print(str, QT_ORDINARY);
+  m_value_item->print(str, QT_TO_ARGUMENT_CHARSET);
 }
 
 

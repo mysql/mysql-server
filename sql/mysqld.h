@@ -655,7 +655,9 @@ enum enum_query_type
   /// Don't print a database if it's equal to the connection's database
   QT_NO_DEFAULT_DB= (1 << 3),
   /// When printing a derived table, don't print its expression, only alias
-  QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4)
+  QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4),
+  /// Print in charset of Item::print() argument (typically thd->charset()).
+  QT_TO_ARGUMENT_CHARSET= (1 << 5)
 };
 
 /* query_id */
