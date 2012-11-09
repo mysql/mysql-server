@@ -54,6 +54,8 @@
 #include "mysqld_error.h"
 #include "../sql/ha_ndbcluster_tables.h"
 
+#include <welcome_copyright_notice.h> /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
+
 /* Exit codes */
 
 #define EX_USAGE 1
@@ -587,8 +589,7 @@ static void short_usage_sub(void)
 static void usage(void)
 {
   print_version();
-  puts("By Igor Romanenko, Monty, Jani & Sinisa and others.");
-  puts("This software comes with ABSOLUTELY NO WARRANTY. This is free software,\nand you are welcome to modify and redistribute it under the GPL license.\n");
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Dumping structure and contents of MySQL databases and tables.");
   short_usage_sub();
   print_defaults("my",load_default_groups);

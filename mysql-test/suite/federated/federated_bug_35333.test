@@ -9,7 +9,7 @@
 --echo # to complete while still indicating a problem. This fix applies to any non-fatal system
 --echo # error that occurs during a query against I_S.TABLES.de
 
---source federated.inc
+--source suite/federated/include/federated.inc
 
 --disable_warnings
 # Federated database exists
@@ -74,4 +74,4 @@ DROP TABLE t1;
 --echo # Cleanup
 --echo #
 
---source federated_cleanup.inc
+--source suite/federated/include/federated_cleanup.inc

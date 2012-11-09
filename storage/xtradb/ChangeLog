@@ -1,3 +1,32 @@
+2012-08-29	The InnoDB Team
+
+	* btr/btr0btr.c, page/page0cur.c, page/page0page.c:
+	Fix Bug#14554000 CRASH IN PAGE_REC_GET_NTH_CONST(NTH=0)
+	DURING COMPRESSED PAGE SPLIT
+
+2012-08-16	The InnoDB Team
+
+	* btr/btr0cur.c:
+	Fix Bug#12595091 POSSIBLY INVALID ASSERTION IN
+	BTR_CUR_PESSIMISTIC_UPDATE()
+
+2012-08-16	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c:
+	Fix Bug#12845774 OPTIMISTIC INSERT/UPDATE USES WRONG HEURISTICS FOR
+	COMPRESSED PAGE SIZE
+
+2012-08-16	The InnoDB Team
+
+	* btr/btr0cur.c, page/page0page.c:
+	Fix Bug#13523839 ASSERTION FAILURES ON COMPRESSED INNODB TABLES
+
+2012-08-07	The InnoDB Team
+
+	* btr/btr0pcur.c, row/row0merge.c:
+	Fix Bug#14399148 INNODB TABLES UNDER LOAD PRODUCE DUPLICATE COPIES
+	OF ROWS IN QUERIES
+
 2012-03-15	The InnoDB Team
 
 	* fil/fil0fil.c, ibuf/ibuf0ibuf.c, include/fil0fil.h,

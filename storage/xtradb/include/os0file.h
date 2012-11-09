@@ -467,6 +467,14 @@ os_file_set_eof(
 /*============*/
 	FILE*		file);	/*!< in: file to be truncated */
 /***********************************************************************//**
+Truncates a file at the specified position.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_set_eof_at(
+	os_file_t	file, /*!< in: handle to a file */
+	ib_uint64_t	new_len);/*!< in: new file length */
+/***********************************************************************//**
 Flushes the write buffers of a given file to the disk.
 @return	TRUE if success */
 UNIV_INTERN

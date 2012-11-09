@@ -4,7 +4,7 @@
 # See Bug #40645 Test main.federated_innodb does not always clean up after itself
 
 source include/have_innodb.inc;
-source federated.inc;
+source suite/federated/include/federated.inc;
 
 #
 # Bug#25513 Federated transaction failures
@@ -36,4 +36,4 @@ connection slave;
 drop table federated.t1;
 
 
-source federated_cleanup.inc;
+source suite/federated/include/federated_cleanup.inc;

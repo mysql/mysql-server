@@ -2046,6 +2046,25 @@ os_file_set_eof(
 #endif /* __WIN__ */
 }
 
+/***********************************************************************//**
+Truncates a file at the specified position.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_set_eof_at(
+	os_file_t	file, /*!< in: handle to a file */
+	ib_uint64_t	new_len)/*!< in: new file length */
+{
+#ifdef __WIN__
+	/* TODO: untested! */
+	return(!_chsize_s(file, new_len));
+#else
+	/* TODO: works only with -D_FILE_OFFSET_BITS=64 ? */
+	return(!ftruncate(file, new_len));
+#endif
+}
+
+
 #ifndef __WIN__
 /***********************************************************************//**
 Wrapper to fsync(2) that retries the call on some errors.

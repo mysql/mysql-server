@@ -61,7 +61,7 @@ SET(XTRADB_SOURCES	btr/btr0btr.c btr/btr0cur.c btr/btr0pcur.c btr/btr0sea.c
 			ibuf/ibuf0ibuf.c
 			pars/lexyy.c pars/pars0grm.c pars/pars0opt.c pars/pars0pars.c pars/pars0sym.c
 			lock/lock0lock.c lock/lock0iter.c
-			log/log0log.c log/log0recv.c
+			log/log0log.c log/log0recv.c log/log0online.c
 			mach/mach0data.c
 			mem/mem0mem.c mem/mem0pool.c
 			mtr/mtr0log.c mtr/mtr0mtr.c

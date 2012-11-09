@@ -2759,11 +2759,19 @@ ibuf_insert_low(
 
 		root = ibuf_tree_root_get(&mtr);
 
-		err = btr_cur_pessimistic_insert(BTR_NO_LOCKING_FLAG
-						 | BTR_NO_UNDO_LOG_FLAG,
-						 cursor,
-						 ibuf_entry, &ins_rec,
-						 &dummy_big_rec, 0, thr, &mtr);
+		err = btr_cur_optimistic_insert(
+			BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG,
+			cursor, ibuf_entry, &ins_rec,
+			&dummy_big_rec, 0, thr, &mtr);
+
+		if (err == DB_FAIL) {
+			err = btr_cur_pessimistic_insert(
+				BTR_NO_LOCKING_FLAG
+				| BTR_NO_UNDO_LOG_FLAG,
+				cursor, ibuf_entry, &ins_rec,
+				&dummy_big_rec, 0, thr, &mtr);
+		}
+
 		if (err == DB_SUCCESS) {
 			/* Update the page max trx id field */
 			page_update_max_trx_id(btr_cur_get_block(cursor), NULL,

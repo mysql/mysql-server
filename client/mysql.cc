@@ -1,6 +1,6 @@
-/* Copyright (C) 2000-2009 MySQL AB
-   Copyright 2000, 2010-2011, Oracle and/or its affiliates.
-   Copyright 2000-2010 Monty Program Ab
+/*
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates.
+   Copyright (c) 2009, 2012, Monty Program Ab.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -119,6 +119,7 @@ extern "C" {
 #endif
 
 #include "completion_hash.h"
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #define PROMPT_CHAR '\\'
 #define DEFAULT_DELIMITER ";"
@@ -1186,7 +1187,7 @@ int main(int argc,char *argv[])
 	  mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
 
-  put_info(COPYRIGHT_NOTICE, INFO_INFO);
+  put_info(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"), INFO_INFO);
 
 #ifdef HAVE_READLINE
   initialize_readline((char*) my_progname);
@@ -1625,7 +1626,7 @@ static void usage(int version)
 
   if (version)
     return;
-  printf("%s", COPYRIGHT_NOTICE);
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   printf("Usage: %s [OPTIONS] [database]\n", my_progname);
   my_print_help(my_long_options);
   print_defaults("my", load_default_groups);
@@ -2853,7 +2854,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
 			   char *line __attribute__((unused)), char *help_arg)
 {
   MYSQL_ROW cur;
-  const char *server_cmd= buffer->ptr();
+  const char *server_cmd;
   char cmd_buf[100 + 1];
   MYSQL_RES *result;
   int error;
@@ -2868,9 +2869,12 @@ static int com_server_help(String *buffer __attribute__((unused)),
 		*++end_arg= '\0';
 	}
 	(void) strxnmov(cmd_buf, sizeof(cmd_buf), "help '", help_arg, "'", NullS);
-    server_cmd= cmd_buf;
   }
-  
+  else
+    (void) strxnmov(cmd_buf, sizeof(cmd_buf), "help ", help_arg, NullS);
+
+  server_cmd= cmd_buf;
+
   if (!status.batch)
   {
     old_buffer= *buffer;
@@ -2938,6 +2942,11 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else
     {
       put_info("\nNothing found", INFO_INFO);
+      if (strncasecmp(server_cmd, "help 'contents'", 15) == 0)
+      {
+         put_info("\nPlease check if 'help tables' are loaded.\n", INFO_INFO); 
+         goto err;
+      }
       put_info("Please try to run 'help contents' for a list of all accessible topics\n", INFO_INFO);
     }
   }

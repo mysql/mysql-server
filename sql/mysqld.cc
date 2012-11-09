@@ -272,6 +272,8 @@ extern "C" sig_handler handle_fatal_signal(int sig);
 
 /* Constants */
 
+#include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
+
 const char *show_comp_option_name[]= {"YES", "NO", "DISABLED"};
 /*
   WARNING: When adding new SQL modes don't forget to update the
@@ -8260,14 +8262,8 @@ static void usage(void)
   if (!default_collation_name)
     default_collation_name= (char*) default_charset_info->name;
   print_version();
-  puts("\
-Copyright (C) 2000-2008 MySQL AB, by Monty and others.\n\
-Copyright (C) 2000, 2011 Oracle.\n\
-Copyright (C) 2009-2011 Monty Program Ab.\n\
-This software comes with ABSOLUTELY NO WARRANTY. This is free software,\n\
-and you are welcome to modify and redistribute it under the GPL license\n\n\
-Starts the MariaDB database server.\n");
-
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
+  puts("Starts the MariaDB database server.\n");
   printf("Usage: %s [OPTIONS]\n", my_progname);
   if (!opt_verbose)
     puts("\nFor more help options (several pages), use mysqld --verbose --help.");

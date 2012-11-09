@@ -390,6 +390,10 @@ public:
 
 class Gis_line_string: public Geometry
 {
+  // Maximum number of points in LineString that can fit into String
+  static const uint32 max_n_points=
+    (uint32) (UINT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
+    POINT_DATA_SIZE;
 public:
   Gis_line_string() {}                        /* Remove gcc warning */
   virtual ~Gis_line_string() {}               /* Remove gcc warning */
@@ -450,6 +454,10 @@ public:
 
 class Gis_multi_point: public Geometry
 {
+  // Maximum number of points in MultiPoint that can fit into String
+  static const uint32 max_n_points=
+    (uint32) (UINT_MAX32 - WKB_HEADER_SIZE - 4 /* n_points */) /
+    (WKB_HEADER_SIZE + POINT_DATA_SIZE);
 public:
   Gis_multi_point() {}                        /* Remove gcc warning */
   virtual ~Gis_multi_point() {}               /* Remove gcc warning */

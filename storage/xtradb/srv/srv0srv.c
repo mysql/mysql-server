@@ -69,6 +69,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "thr0loc.h"
 #include "que0que.h"
 #include "srv0que.h"
+#include "log0online.h"
 #include "log0recv.h"
 #include "pars0pars.h"
 #include "usr0sess.h"
@@ -174,6 +175,10 @@ UNIV_INTERN ibool	srv_extra_undoslots = FALSE;
 UNIV_INTERN ibool	srv_recovery_stats = FALSE;
 
 UNIV_INTERN ulint	srv_use_purge_thread = 0;
+
+UNIV_INTERN my_bool	srv_track_changed_pages = TRUE;
+
+UNIV_INTERN ulonglong	srv_changed_pages_limit = 0;
 
 /* if TRUE, then we auto-extend the last data file */
 UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
@@ -419,6 +424,9 @@ UNIV_INTERN unsigned long long	srv_stats_sample_pages = 8;
 UNIV_INTERN ulong	srv_stats_auto_update = 1;
 UNIV_INTERN ulint	srv_stats_update_need_lock = 1;
 UNIV_INTERN ibool	srv_use_sys_stats_table = FALSE;
+#ifdef UNIV_DEBUG
+UNIV_INTERN ulong	srv_sys_stats_root_page = 0;
+#endif
 
 UNIV_INTERN ibool	srv_use_doublewrite_buf	= TRUE;
 UNIV_INTERN ibool	srv_use_checksums = TRUE;
@@ -738,6 +746,10 @@ UNIV_INTERN os_event_t	srv_lock_timeout_thread_event;
 
 UNIV_INTERN os_event_t	srv_shutdown_event;
 
+UNIV_INTERN os_event_t	srv_checkpoint_completed_event;
+
+UNIV_INTERN os_event_t	srv_redo_log_thread_finished_event;
+
 UNIV_INTERN srv_sys_t*	srv_sys	= NULL;
 
 /* padding to prevent other memory update hotspots from residing on
@@ -1045,6 +1057,9 @@ srv_init(void)
 	srv_lock_timeout_thread_event = os_event_create(NULL);
 	srv_shutdown_event = os_event_create(NULL);
 
+	srv_checkpoint_completed_event = os_event_create(NULL);
+	srv_redo_log_thread_finished_event = os_event_create(NULL);
+
 	for (i = 0; i < SRV_MASTER + 1; i++) {
 		srv_n_threads_active[i] = 0;
 		srv_n_threads[i] = 0;
@@ -1192,7 +1207,7 @@ retry:
 static void
 srv_conc_exit_innodb_timer_based(trx_t* trx)
 {
-        (void) os_atomic_increment_lint(&srv_conc_n_threads, -1);
+	(void) os_atomic_increment_lint(&srv_conc_n_threads, -1);
 	trx->declared_to_be_inside_innodb = FALSE;
 	trx->n_tickets_to_enter_innodb = 0;
 	return;
@@ -1399,7 +1414,7 @@ srv_conc_force_enter_innodb(
 	ut_ad(srv_conc_n_threads >= 0);
 #ifdef HAVE_ATOMIC_BUILTINS
 	if (srv_thread_concurrency_timer_based) {
-                (void) os_atomic_increment_lint(&srv_conc_n_threads, 1);
+		(void) os_atomic_increment_lint(&srv_conc_n_threads, 1);
 		trx->declared_to_be_inside_innodb = TRUE;
 		trx->n_tickets_to_enter_innodb = 1;
 		return;
@@ -2687,6 +2702,41 @@ exit_func:
 
 	OS_THREAD_DUMMY_RETURN;
 }
+
+/******************************************************************//**
+A thread which follows the redo log and outputs the changed page bitmap.
+@return a dummy value */
+UNIV_INTERN
+os_thread_ret_t
+srv_redo_log_follow_thread(
+/*=======================*/
+	void*	arg __attribute__((unused)))	/*!< in: a dummy parameter
+						     required by
+						     os_thread_create */
+{
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "Redo log follower thread starts, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif
+	my_thread_init();
+
+	do {
+		os_event_wait(srv_checkpoint_completed_event);
+		os_event_reset(srv_checkpoint_completed_event);
+
+		log_online_follow_redo_log();
+
+	} while (srv_shutdown_state < SRV_SHUTDOWN_LAST_PHASE);
+
+	log_online_read_shutdown();
+	os_event_set(srv_redo_log_thread_finished_event);
+
+	my_thread_end();
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
+
 
 /*******************************************************************//**
 Tells the InnoDB server that there has been activity in the database

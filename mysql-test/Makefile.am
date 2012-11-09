@@ -85,6 +85,7 @@ TEST_DIRS = t r include std_data std_data/parts collections \
 	extra/binlog_tests/ extra/rpl_tests \
 	suite/binlog suite/binlog/t suite/binlog/r suite/binlog/std_data \
 	suite/federated \
+	suite/federated/include \
 	suite/pbxt/t suite/pbxt/r suite/pbxt \
 	suite/vcol suite/vcol/t suite/vcol/r suite/vcol/inc \
 	suite/oqgraph suite/oqgraph/t suite/oqgraph/r  \

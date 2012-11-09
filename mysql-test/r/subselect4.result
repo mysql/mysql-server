@@ -1396,7 +1396,7 @@ ON SUBQUERY2_t3.f2)
 GROUP BY t1.f4 ORDER BY t1.f1 LIMIT 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t2	system	NULL	NULL	NULL	NULL	1	Using temporary; Using filesort
-1	PRIMARY	t1	index	NULL	f4	5	NULL	11	Using where
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	11	Using where
 2	DEPENDENT SUBQUERY	SUBQUERY2_t1	system	NULL	NULL	NULL	NULL	1	
 2	DEPENDENT SUBQUERY	SUBQUERY2_t2	index	NULL	f4	5	NULL	11	Using index
 2	DEPENDENT SUBQUERY	SUBQUERY2_t3	ALL	NULL	NULL	NULL	NULL	11	Using where; Using join buffer (flat, BNL join)
