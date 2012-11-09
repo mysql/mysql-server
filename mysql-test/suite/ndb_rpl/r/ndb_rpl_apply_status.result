@@ -1,5 +1,8 @@
 select * from mysql.ndb_apply_status;
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 *** on slave there should be zero rows ***
 select count(*) from mysql.ndb_apply_status;

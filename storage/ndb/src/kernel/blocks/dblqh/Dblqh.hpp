@@ -18,6 +18,7 @@
 #ifndef DBLQH_H
 #define DBLQH_H
 
+#ifndef DBLQH_STATE_EXTRACT
 #include <pc.hpp>
 #include <ndb_limits.h>
 #include <SimulatedBlock.hpp>
@@ -41,6 +42,7 @@
 class Dbacc;
 class Dbtup;
 class Lgman;
+#endif // DBLQH_STATE_EXTRACT
 
 #ifdef DBLQH_C
 // Constants
@@ -108,6 +110,9 @@ class Lgman;
 #define ZPOS_IN_WRITING 18
 #define ZPOS_PREV_PAGE_NO 19
 #define ZPOS_IN_FREE_LIST 20
+
+/* Specify number of log parts used to enable use of more LQH threads */
+#define ZPOS_NO_LOG_PARTS 21
 
 /* ------------------------------------------------------------------------- */
 /*       CONSTANTS FOR THE VARIOUS REPLICA AND NODE TYPES.                   */
@@ -244,6 +249,7 @@ class Lgman;
 #define ZWAIT_REORG_SUMA_FILTER_ENABLED 23
 #define ZREBUILD_ORDERED_INDEXES 24
 #define ZWAIT_READONLY 25
+#define ZLCP_FRAG_WATCHDOG 26
 
 /* ------------------------------------------------------------------------- */
 /*        NODE STATE DURING SYSTEM RESTART, VARIABLES CNODES_SR_STATE        */
@@ -410,10 +416,15 @@ class Lgman;
  *  - TEST 
  *  - LOG 
  */
-class Dblqh: public SimulatedBlock {
+class Dblqh 
+#ifndef DBLQH_STATE_EXTRACT
+  : public SimulatedBlock
+#endif
+{
   friend class DblqhProxy;
 
 public:
+#ifndef DBLQH_STATE_EXTRACT
   enum LcpCloseState {
     LCP_IDLE = 0,
     LCP_RUNNING = 1,       // LCP is running
@@ -564,7 +575,8 @@ public:
     Uint8 m_last_row;
     Uint8 m_reserved;
     Uint8 statScan;
-    Uint8 dummy[3]; // align?
+    Uint8 m_stop_batch;
+    Uint8 dummy[2]; // align?
   }; // Size 272 bytes
   typedef Ptr<ScanRecord> ScanRecordPtr;
 
@@ -902,16 +914,16 @@ public:
      *       would cost performance and doesn't seem like a good 
      *       idea. This is simple and it works.
      */
-    Uint16 gcpFilePtr[4];
+    Uint16 gcpFilePtr[NDB_MAX_LOG_PARTS];
     /** 
      *       The page number within the file for each log part.
      */
-    Uint16 gcpPageNo[4];
+    Uint16 gcpPageNo[NDB_MAX_LOG_PARTS];
     /**
      *       The word number within the last page that was written for
      *       each log part.
      */
-    Uint16 gcpWordNo[4];
+    Uint16 gcpWordNo[NDB_MAX_LOG_PARTS];
     /**
      *       The identity of this global checkpoint.
      */
@@ -919,12 +931,12 @@ public:
     /**
      *       The state of this global checkpoint, one for each log part.
      */
-    Uint8 gcpLogPartState[4];
+    Uint8 gcpLogPartState[NDB_MAX_LOG_PARTS];
     /**
      *       The sync state of this global checkpoint, one for each
      *       log part.
      */
-    Uint8 gcpSyncReady[4];
+    Uint8 gcpSyncReady[NDB_MAX_LOG_PARTS];
     /**
      *       User pointer of the sender of gcp_savereq (= master DIH).
      */
@@ -938,16 +950,11 @@ public:
   typedef Ptr<GcpRecord> GcpRecordPtr;
 
   struct HostRecord {
+    struct PackedWordsContainer lqh_pack[MAX_NDBMT_LQH_THREADS+1];
+    struct PackedWordsContainer tc_pack[MAX_NDBMT_TC_THREADS+1];
     Uint8 inPackedList;
     Uint8 nodestatus;
-    Uint8 _unused[2];
-    UintR noOfPackedWordsLqh;
-    UintR packedWordsLqh[30];
-    UintR noOfPackedWordsTc;
-    UintR packedWordsTc[29];
-    BlockReference hostLqhBlockRef;
-    BlockReference hostTcBlockRef;
-  };// Size 128 bytes
+  };
   typedef Ptr<HostRecord> HostRecordPtr;
   
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
@@ -1072,6 +1079,72 @@ public:
     void send_io(Uint32 bytes);
     void complete_io(Uint32 bytes);
   };
+
+  /**
+   * LCPFragWatchdog
+   *
+   * Structure tracking state of LCP fragment watchdog.
+   * This watchdog polls the state of the current LCP fragment
+   * scan to ensure that forward progress is maintained at
+   * a minimal rate.
+   * It only continues running while this LQH instance 
+   * thinks a fragment scan is ongoing
+   */
+  struct LCPFragWatchdog
+  {
+    STATIC_CONST( PollingPeriodMillis = 10000 ); /* 10s */
+    STATIC_CONST( WarnPeriodsWithNoProgress = 2); /* 20s */
+    STATIC_CONST( MaxPeriodsWithNoProgress = 6 ); /* 60s */
+    
+    /* Should the watchdog be running? */
+    bool scan_running;
+    
+    /* Is there an active thread? */
+    bool thread_active;
+    
+    /* LCP position info from Backup block */
+    Uint32 tableId;
+    Uint32 fragId;
+    Uint64 rowCount;
+
+    /* Number of periods with no LCP progress observed */ 
+    Uint32 pollCount;
+
+    /* Reinitialise the watchdog */
+    void reset()
+    {
+      scan_running = false;
+      tableId = ~Uint32(0);
+      fragId = ~Uint32(0);
+      rowCount = ~Uint64(0);
+      pollCount = 0;
+    }
+
+    /* Handle an LCP Status report */
+    void handleLcpStatusRep(Uint32 repTableId,
+                            Uint32 repFragId,
+                            Uint64 repRowCount)
+    {
+      if (scan_running)
+      {
+        if ((repRowCount != rowCount) ||
+            (repFragId != fragId) ||
+            (repTableId != tableId))
+        {
+          /* Something moved since last time, reset
+           * poll counter and data.
+           */
+          pollCount = 0;
+          tableId = repTableId;
+          fragId = repFragId;
+          rowCount = repRowCount;
+        }
+      }
+    }
+  };
+  
+  LCPFragWatchdog c_lcpFragWatchdog;
+    
     
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
   /* $$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$ */
@@ -1309,12 +1382,21 @@ public:
      *       command when that is needed.
      */
     UintR prevLogpage;
-    /**
-     *       The number of files remaining to gather GCI information
-     *       for during system restart.  Only used if number of files
-     *       is larger than 60.
-     */
-    UintR srRemainingFiles;
+    union {
+      /**
+       *       The number of files remaining to gather GCI information
+       *       for during system restart.  Only used if number of files
+       *       is larger than 60.
+       */
+      UintR srRemainingFiles;
+
+      /**
+       *       The index of the file which we should start loading redo
+       *       meta information from after the 'FRONTPAGE' file has been
+       *       closed.
+       */
+      UintR srLastFileIndex;
+    };
     /**
      *       The log file where to start executing the log during
      *       system restart.
@@ -1494,6 +1576,7 @@ public:
       ,OPEN_EXEC_LOG_CACHED = 28
       ,CLOSING_EXEC_LOG_CACHED = 29
 #endif
+      ,CLOSING_SR_FRONTPAGE = 30
     };
     
     /**
@@ -1922,8 +2005,8 @@ public:
       ,TABLE_READ_ONLY = 9
     };
     
-    UintR fragrec[MAX_FRAG_PER_NODE];
-    Uint16 fragid[MAX_FRAG_PER_NODE];
+    UintR fragrec[MAX_FRAG_PER_LQH];
+    Uint16 fragid[MAX_FRAG_PER_LQH];
     /**
      * Status of the table 
      */
@@ -1940,7 +2023,7 @@ public:
     Uint32 usageCountW; // writers
   }; // Size 100 bytes
   typedef Ptr<Tablerec> TablerecPtr;
-
+#endif // DBLQH_STATE_EXTRACT
   struct TcConnectionrec {
     enum ListState {
       NOT_IN_LIST = 0,
@@ -2021,6 +2104,7 @@ public:
       COPY_CONNECTED = 2,
       LOG_CONNECTED = 3
     };
+#ifndef DBLQH_STATE_EXTRACT
     ConnectState connectState;
     UintR copyCountWords;
     Uint32 keyInfoIVal;
@@ -2131,8 +2215,10 @@ public:
       Uint32 m_page_id[2];
       Local_key m_disk_ref[2];
     } m_nr_delete;
+#endif // DBLQH_STATE_EXTRACT
   }; /* p2c: size = 280 bytes */
-  
+
+#ifndef DBLQH_STATE_EXTRACT
   typedef Ptr<TcConnectionrec> TcConnectionrecPtr;
 
   struct TcNodeFailRecord {
@@ -2342,8 +2428,8 @@ private:
   void sendLqhkeyconfTc(Signal* signal, BlockReference atcBlockref);
   void sendCommitLqh(Signal* signal, BlockReference alqhBlockref);
   void sendCompleteLqh(Signal* signal, BlockReference alqhBlockref);
-  void sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr);
-  void sendPackedSignalTc(Signal* signal, HostRecord * ahostptr);
+  void sendPackedSignal(Signal* signal,
+                        struct PackedWordsContainer * container);
   void cleanUp(Signal* signal);
   void sendAttrinfoLoop(Signal* signal);
   void sendAttrinfoSignal(Signal* signal);
@@ -2551,9 +2637,9 @@ private:
   bool checkTransporterOverloaded(Signal* signal,
                                   const NodeBitmask& all,
                                   const class LqhKeyReq* req);
-  void noFreeRecordLab(Signal* signal, 
-		       const class LqhKeyReq * lqhKeyReq, 
-		       Uint32 errorCode);
+  void earlyKeyReqAbort(Signal* signal, 
+                        const class LqhKeyReq * lqhKeyReq, 
+                        Uint32 errorCode);
   void logLqhkeyrefLab(Signal* signal);
   void closeCopyLab(Signal* signal);
   void commitReplyLab(Signal* signal);
@@ -2628,6 +2714,7 @@ private:
   void openExecLogLab(Signal* signal);
   void checkInitCompletedLab(Signal* signal);
   void closingSrLab(Signal* signal);
+  void closingSrFrontPage(Signal* signal);
   void closeExecSrLab(Signal* signal);
   void execLogComp(Signal* signal);
   void execLogComp_extra_files_closed(Signal* signal);
@@ -2687,6 +2774,7 @@ private:
 
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, Ptr<TcConnectionrec>);
+  void ndbinfo_write_op(Ndbinfo::Row&, TcConnectionrecPtr tcPtr);
 
   void define_backup(Signal*);
   void execDEFINE_BACKUP_REF(Signal*);
@@ -2720,6 +2808,14 @@ private:
 
   void unlockError(Signal* signal, Uint32 error);
   void handleUserUnlockRequest(Signal* signal);
+  
+  void execLCP_STATUS_CONF(Signal* signal);
+  void execLCP_STATUS_REF(Signal* signal);
+
+  void startLcpFragWatchdog(Signal* signal);
+  void stopLcpFragWatchdog();
+  void invokeLcpFragWatchdogThread(Signal* signal);
+  void checkLcpFragWatchdog(Signal* signal);
   
   Dbtup* c_tup;
   Dbacc* c_acc;
@@ -2823,12 +2919,21 @@ private:
   UintR cfirstfreeLcpLoc;
   UintR clcpFileSize;
 
-#define ZLOG_PART_FILE_SIZE 4
   LogPartRecord *logPartRecord;
   LogPartRecordPtr logPartPtr;
   UintR clogPartFileSize;
   Uint32 clogFileSize; // In MBYTE
-  Uint32 cmaxLogFilesInPageZero; //
+  /* Max entries for log file:mb meta info in file page zero */
+  Uint32 cmaxLogFilesInPageZero; 
+  /* Max valid entries for log file:mb meta info in file page zero 
+   *  = cmaxLogFilesInPageZero - 1
+   * as entry zero (for current file) is invalid.
+   */
+  Uint32 cmaxValidLogFilesInPageZero;
+
+#if defined VM_TRACE || defined ERROR_INSERT
+  Uint32 cmaxLogFilesInPageZero_DUMP;
+#endif
 
 // Configurable
   LogFileRecord *logFileRecord;
@@ -3277,8 +3382,9 @@ public:
 
   void sendFireTrigConfTc(Signal* signal, BlockReference ref, Uint32 Tdata[]);
   bool check_fire_trig_pass(Uint32 op, Uint32 pass);
+#endif
 };
-
+#ifndef DBLQH_STATE_EXTRACT
 inline
 bool
 Dblqh::ScanRecord::check_scan_batch_completed() const
@@ -3286,7 +3392,8 @@ Dblqh::ScanRecord::check_scan_batch_completed() const
   Uint32 max_rows = m_max_batch_size_rows;
   Uint32 max_bytes = m_max_batch_size_bytes;
 
-  return (max_rows > 0 && (m_curr_batch_size_rows >= max_rows))  ||
+  return m_stop_batch ||
+    (max_rows > 0 && (m_curr_batch_size_rows >= max_rows))  ||
     (max_bytes > 0 && (m_curr_batch_size_bytes >= max_bytes));
 }
 
@@ -3401,5 +3508,5 @@ Dblqh::TRACE_OP_CHECK(const TcConnectionrec* regTcPtr)
 	   regTcPtr->operation == ZDELETE)) ||
     ERROR_INSERTED(5713);
 }
-
+#endif
 #endif

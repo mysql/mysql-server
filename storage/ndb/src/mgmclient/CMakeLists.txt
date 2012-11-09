@@ -15,7 +15,7 @@
 
 INCLUDE_DIRECTORIES(${NDB_SOURCE_DIR}/src/common/mgmcommon)
 
-ADD_LIBRARY(ndbmgmclient STATIC
+ADD_CONVENIENCE_LIBRARY(ndbmgmclient
             CommandInterpreter.cpp)
 
 MYSQL_ADD_EXECUTABLE(ndb_mgm

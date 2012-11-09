@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,11 @@ import com.mysql.clusterj.core.util.LoggerFactoryService;
 
 import com.mysql.clusterj.query.Predicate;
 
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.TreeSet;
+
 public abstract class PredicateImpl implements Predicate {
 
     /** My message translator */
@@ -45,6 +50,20 @@ public abstract class PredicateImpl implements Predicate {
     /** My domain object. */
     protected QueryDomainTypeImpl<?> dobj;
 
+    /** The primary/unique index for this query if it exists */
+    CandidateIndexImpl uniqueIndex;
+
+    /** The comparator for candidate indices, ordered descending by score */
+    Comparator<CandidateIndexImpl> candidateIndexComparator = new Comparator<CandidateIndexImpl>() {
+        public int compare(CandidateIndexImpl o1, CandidateIndexImpl o2) {
+            return o2.score - o1.score;
+        }
+    };
+
+    /** The candidate indices ordered by score */
+    private TreeSet<CandidateIndexImpl> scoredCandidateIndices =
+        new TreeSet<CandidateIndexImpl>(candidateIndexComparator);
+
     /** Scan types. */
     protected enum ScanType {
         INDEX_SCAN,
@@ -52,6 +71,15 @@ public abstract class PredicateImpl implements Predicate {
         UNIQUE_KEY,
         PRIMARY_KEY
     }
+
+    /** Indicates no bound set while setting bounds on index operations */
+    public static int NO_BOUND_SET = 0;
+    /** Indicates lower bound set while setting bounds on index operations */
+    public static int LOWER_BOUND_SET = 1;
+    /** Indicates upper bound set while setting bounds on index operations */
+    public static int UPPER_BOUND_SET = 2;
+    /** Indicates both bounds set while setting bounds on index operations */
+    public static int BOTH_BOUNDS_SET = 3;
 
     public PredicateImpl(QueryDomainTypeImpl<?> dobj) {
         this.dobj = dobj;
@@ -81,23 +109,22 @@ public abstract class PredicateImpl implements Predicate {
     }
 
     void markBoundsForCandidateIndices(QueryExecutionContext context, CandidateIndexImpl[] candidateIndices) {
-        throw new ClusterJFatalInternalException(
-                local.message("ERR_Implementation_Should_Not_Occur"));
+        // default is nothing to do
     }
 
-    public void operationSetBounds(QueryExecutionContext context,
+    public int operationSetBounds(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public void operationSetLowerBound(QueryExecutionContext context,
+    public int operationSetLowerBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public void operationSetUpperBound(QueryExecutionContext context,
+    public int operationSetUpperBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn){
         throw new ClusterJFatalInternalException(
                 local.message("ERR_Implementation_Should_Not_Occur"));
@@ -161,10 +188,14 @@ public abstract class PredicateImpl implements Predicate {
     }
 
     /** Mark all parameters as being required. */
-    public abstract void markParameters();
+    public void markParameters() {
+        // default is nothing to do
+    }
 
     /** Unmark all parameters as being required. */
-    public abstract void unmarkParameters();
+    public  void unmarkParameters() {
+        // default is nothing to do
+    }
 
     private void assertPredicateImpl(Predicate other) {
         if (!(other instanceof PredicateImpl)) {
@@ -177,54 +208,55 @@ public abstract class PredicateImpl implements Predicate {
         return dobj;
     }
 
-    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContext context) {
-        return getBestCandidateIndexFor(context, this);
+    public CandidateIndexImpl getBestCandidateIndex(QueryExecutionContext context, String[] orderingFields) {
+        return getBestCandidateIndexFor(context, getTopLevelPredicates(), orderingFields);
     }
 
     /** Get the best candidate index for the query, considering all indices
-     * defined and all predicates in the query.
+     * defined, ordering fields, and all predicates in the query. If a unique index is usable
+     * (no non-null parameters), then return it (ordering is not relevant for a single result).
+     * Otherwise, choose the first index which includes the ordering fields and for which there
+     * is at least one leading non-null parameter. If there are ordering fields and an index
+     * containing those fields, the index might be used as a last resort in case no better index can be found.
+     * @param context the query execution context
      * @param predicates the predicates
+     * @param orderingFields the ordering fields
      * @return the best index for the query
      */
     protected CandidateIndexImpl getBestCandidateIndexFor(QueryExecutionContext context,
-            PredicateImpl... predicates) {
-        // Create CandidateIndexImpl to decide how to scan.
-        CandidateIndexImpl[] candidateIndices = dobj.createCandidateIndexes();
-        // Iterate over predicates and have each one register with
-        // candidate indexes.
-        for (PredicateImpl predicateImpl : predicates) {
-            predicateImpl.markBoundsForCandidateIndices(context, candidateIndices);
+            PredicateImpl[] predicates, String[] orderingFields) {
+        // if there is a primary/unique index, see if it can be used in the current context
+        if (uniqueIndex != null && uniqueIndex.isUsable(context, null) > 0) {
+            if (logger.isDebugEnabled()) logger.debug("usable unique index: " + uniqueIndex.getIndexName());
+            return uniqueIndex;
         }
-        // Iterate over candidate indices to find one that is usable.
-        int highScore = 0;
-        // Holder for the best index; default to the index for null where clause
-        CandidateIndexImpl bestCandidateIndexImpl = 
-                CandidateIndexImpl.getIndexForNullWhereClause();
-        // Hash index operations require the predicates to have no extra conditions
-        // beyond the index columns.
-        int numberOfConditions = getNumberOfConditionsInPredicate();
-        for (CandidateIndexImpl candidateIndex : candidateIndices) {
-            if (candidateIndex.supportsConditionsOfLength(numberOfConditions)) {
-                // opportunity for a user-defined plugin to evaluate indices
-                int score = candidateIndex.getScore();
-                if (logger.isDetailEnabled()) {
-                    logger.detail("Score: " + score + " from " + candidateIndex);
-                }
-                if (score > highScore) {
-                    bestCandidateIndexImpl = candidateIndex;
-                    highScore = score;
+        // find the best candidate index by returning the highest scoring index that is usable
+        // in the current context; i.e. satisfies all ordering fields and has non-null parameters
+        // the scored candidate indices are already ordered by the number of query terms
+        CandidateIndexImpl lastResort = null;
+        for (CandidateIndexImpl index: scoredCandidateIndices) {
+            int usability = index.isUsable(context, orderingFields);
+            if (logger.isDebugEnabled()) logger.debug("index " + index.getIndexName() + " usability: " + usability);
+            if (usability > 0) {
+                return index;
+            } else if (usability == 0) {
+                if (!index.isUnique()) {
+                    if (logger.isDebugEnabled()) logger.debug("last resort: " + lastResort.getIndexName());
+                    // save this index; we might have to use it as a last resort
+                    lastResort = index;
                 }
             }
         }
-        if (logger.isDetailEnabled()) logger.detail("High score: " + highScore
-                + " from " + bestCandidateIndexImpl.getIndexName());
-        return bestCandidateIndexImpl;
+        // there is no index that is usable in the current context
+        // use the last resort if there is one and there are ordering fields
+        return (lastResort!=null && orderingFields!=null)?lastResort:CandidateIndexImpl.getIndexForNullWhereClause();
+
     }
 
     /** Get the number of conditions in the top level predicate.
-     * This is used to determine whether a hash index can be used. If there
+     * This is used to determine whether a unique index can be used. If there
      * are exactly the number of conditions as index columns, then the
-     * hash index might be used.
+     * unique index might be used.
      * By default (for equal, greaterThan, lessThan, greaterEqual, lessEqual)
      * there is one condition.
      * AndPredicateImpl overrides this method.
@@ -232,6 +264,84 @@ public abstract class PredicateImpl implements Predicate {
      */
     protected int getNumberOfConditionsInPredicate() {
         return 1;
+    }
+
+    /** Analyze this predicate to determine whether a primary key, unique key, or ordered index
+     * might be used. The result will be used during query execution once the actual parameters
+     * are known.
+     */
+    public void prepare() {
+        // Create CandidateIndexImpls
+        CandidateIndexImpl[] candidateIndices = dobj.createCandidateIndexes();
+        // Iterate over predicates and have each one register with
+        // candidate indexes.
+        for (PredicateImpl predicateImpl : getTopLevelPredicates()) {
+            predicateImpl.markBoundsForCandidateIndices(candidateIndices);
+        }
+        // Iterate over candidate indices to find those that are usable.
+        // Unique index operations require the predicates to have no extra conditions
+        // beyond the index columns because key operations cannot have filters.
+        // Btree index operations are ranked by the number of usable conditions
+        int numberOfConditions = getNumberOfConditionsInPredicate();
+        for (CandidateIndexImpl candidateIndex : candidateIndices) {
+            
+            if (candidateIndex.supportsConditionsOfLength(numberOfConditions)) {
+                candidateIndex.score();
+                int score = candidateIndex.getScore();
+                
+                if (score != 0 && candidateIndex.isUnique()) {
+                    // there can be only one unique index for a given predicate
+                    uniqueIndex = candidateIndex;
+                } else {
+                    // add possible indices to ordered map
+                    scoredCandidateIndices.add(candidateIndex);
+                }
+            if (logger.isDetailEnabled()) logger.detail("Score: " + score + " from " + candidateIndex.getIndexName());
+            }
+        }
+    }
+
+    protected void markBoundsForCandidateIndices(CandidateIndexImpl[] candidateIndices) {
+        // default is nothing to do
+    }
+
+    /** Return an array of top level predicates that might be used with indices.
+     * 
+     * @return an array of top level predicates (defaults to {this}).
+     */
+    protected PredicateImpl[] getTopLevelPredicates() {
+        return new PredicateImpl[] {this};
+    }
+
+    /** 
+     * Return the names of properties in the top level predicates.
+     * These might be used with indices.
+     * @return the top level property names
+     */
+    public List<String> getTopLevelPropertyNames() {
+        List<String> result = new ArrayList<String>();
+        PredicateImpl[] predicates = getTopLevelPredicates();
+        for (PredicateImpl predicate: predicates) {
+            PropertyImpl property = predicate.getProperty();
+            if (property != null) {
+                result.add(property.fmd.getName());
+            }
+        }
+        return result;
+    }
+
+    public ParameterImpl getParameter() {
+        // default is there is no parameter for this predicate
+        return null;
+    }
+
+    protected PropertyImpl getProperty() {
+        // default is there is no property for this predicate
+        return null;
+    }
+
+    public boolean isUsable(QueryExecutionContext context) {
+        return false;
     }
 
 }

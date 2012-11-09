@@ -1,0 +1,47 @@
+# CHAR
+
+--source suite/ndb_memcache/include/have_memcache.inc
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
+--source suite/ndb_memcache/include/datatypes_tables.inc
+
+--perl
+
+use strict;
+use Carp;
+use lib "lib";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+# Use a binary protocol connection (so keys can contain spaces)
+my $mc = My::Memcache::Binary->new();  
+my $r = $mc->connect("localhost",$port);
+
+# test CHAR key with VARCHAR value
+$mc->set("tck:a","fred")               || Carp::confess("FAILED # 01 (SET)");
+$mc->set("tck:1","frederick")          || Carp::confess("FAILED # 02 (SET)");
+$mc->set("tck:aa","frederica")         || Carp::confess("FAILED # 03 (SET)");
+$mc->set("tck:a b c d","freddy")       || Carp::confess("FAILED # 04 (SET)");
+  
+($mc->get("tck:aa") == "frederica")    || Carp::confess("FAILED # 05 (GET)");
+($mc->get("tck:a b c d") == "freddy")  || Carp::confess("FAILED # 06 (GET)");
+
+# test VARCHAR key with CHAR value
+$mc->set("tcv:a", "al")                || Carp::confess("FAILED # 07 (SET)");
+$mc->set("tcv:b", "alphonse")          || Carp::confess("FAILED # 08 (SET)");
+$mc->set("tcv:c", "allen")             || Carp::confess("FAILED # 09 (SET)");
+$mc->set("tcv:d", "alien invasion")    || Carp::confess("FAILED # 10 (SET)");
+
+($mc->get("tcv:d") == "alien invasion")|| Carp::confess("FAILED # 11 (GET)");
+($mc->get("tcv:a") == "al")            || Carp::confess("FAILED # 12 (GET)");
+($mc->get("tcv:ee") == "NOT_FOUND")    || Carp::confess("FAILED # 13 (GET)");
+
+EOF
+
+
+--sorted_result
+SELECT * FROM ndbmemcache.test_char_key;
+
+--sorted_result
+SELECT * FROM ndbmemcache.test_char_val;
+

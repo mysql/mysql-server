@@ -141,10 +141,10 @@ TABLE	test	t1	0	0	0	0	0	0	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	0	0	0	0	0	0	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	0
@@ -202,10 +202,10 @@ TABLE	test	t1	0	0	0	0	0	0	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	0	0	0	0	0	0	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	0
@@ -294,10 +294,10 @@ TABLE	test	t1	6	3	3	3	1	2	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	17	11	6	11	3	3	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	6
@@ -362,10 +362,10 @@ TABLE	test	t1	6	3	3	3	1	2	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	17	11	6	11	3	3	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	6
@@ -466,10 +466,10 @@ TABLE	test	t1	18	11	7	11	2	5	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	44	29	15	29	6	9	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	18
@@ -539,10 +539,10 @@ TABLE	test	t1	18	11	7	11	2	5	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	44	29	15	29	6	9	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	18
@@ -655,10 +655,10 @@ TABLE	test	t1	33	21	12	21	3	9	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	81	54	27	54	9	18	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	33
@@ -733,10 +733,10 @@ TABLE	test	t1	33	21	12	21	3	9	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	81	54	27	54	9	18	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	33
@@ -861,10 +861,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -941,10 +941,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1018,10 +1018,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1096,10 +1096,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1171,10 +1171,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1245,10 +1245,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1318,10 +1318,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1390,10 +1390,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1463,10 +1463,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1536,10 +1536,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1609,10 +1609,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1682,10 +1682,10 @@ TABLE	test	t1	51	33	18	33	4	14	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	128	86	42	86	12	30	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	51
@@ -1755,10 +1755,10 @@ TABLE	test	t1	0	0	0	0	0	0	0
 TABLE	test	t2	0	0	0	0	0	0	0
 TABLE	test	t3	0	0	0	0	0	0	0
 execute dump_waits_table_lock;
-object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_delayed	count_write_low_priority	count_write_external
-TABLE	test	t1	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t2	0	0	0	0	0	0	0	0	0	0	0
-TABLE	test	t3	0	0	0	0	0	0	0	0	0	0	0
+object_type	object_schema	object_name	count_star	count_read	count_write	count_read_normal	count_read_with_shared_locks	count_read_high_priority	count_read_no_insert	count_read_external	count_write_low_priority	count_write_external
+TABLE	test	t1	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t2	0	0	0	0	0	0	0	0	0	0
+TABLE	test	t3	0	0	0	0	0	0	0	0	0	0
 execute dump_objects_summary;
 object_type	object_schema	object_name	count_star
 TABLE	test	t1	0

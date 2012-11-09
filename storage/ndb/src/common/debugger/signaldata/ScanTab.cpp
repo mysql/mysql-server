@@ -78,9 +78,9 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
   size_t op_count= requestInfo & (~ScanTabConf::EndOfData);
   if (op_count)
   {
-    fprintf(output, " Operation(s) [api tc rows len]:\n");
     if (len == ScanTabConf::SignalLength + 4 * op_count)
     {
+      fprintf(output, " Operation(s) [api tc rows len]:\n");
       ScanTabConf::OpData * op = (ScanTabConf::OpData*)
         (theData + ScanTabConf::SignalLength);
       for(size_t i = 0; i<op_count; i++)
@@ -91,9 +91,9 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
         op++;
       }
     }
-    else
+    else if (len == ScanTabConf::SignalLength + 3 * op_count)
     {
-      assert(len == ScanTabConf::SignalLength + 3 * op_count);
+      fprintf(output, " Operation(s) [api tc rows len]:\n");      
       for(size_t i = 0; i<op_count; i++)
       {
         ScanTabConf::OpData * op = (ScanTabConf::OpData*)
@@ -103,6 +103,12 @@ printSCANTABCONF(FILE * output, const Uint32 * theData, Uint32 len, Uint16 recei
                 ScanTabConf::getRows(op->rows),
                 ScanTabConf::getLength(op->rows));
       }
+    }
+    else
+    {
+      // ScanTabConf::OpData stored in section 0 of signal.
+      assert(len == ScanTabConf::SignalLength);
+      fprintf(output, " Long signal. Cannot print operations.");
     }
     fprintf(output, "\n");
   }

@@ -32,7 +32,7 @@ select @test_var;
 alter procedure test_proc1 comment 'new comment';
 show create procedure test_proc1;
 Procedure	sql_mode	Create Procedure	character_set_client	collation_connection	Database Collation
-test_proc1		CREATE DEFINER=`root`@`localhost` PROCEDURE `test_proc1`(in var_in int)
+test_proc1	NO_ENGINE_SUBSTITUTION	CREATE DEFINER=`root`@`localhost` PROCEDURE `test_proc1`(in var_in int)
     COMMENT 'new comment'
 begin
 select * from t1 where a = var_in;

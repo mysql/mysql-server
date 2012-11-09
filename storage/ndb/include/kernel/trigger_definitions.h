@@ -198,16 +198,17 @@ struct TriggerInfo {
 
 struct NoOfFiredTriggers
 {
-  STATIC_CONST( DeferredBit = (Uint32(1) << 31) );
+  STATIC_CONST( DeferredUKBit = (Uint32(1) << 31) );
+  STATIC_CONST( DeferredBits = (DeferredUKBit));
 
   static Uint32 getFiredCount(Uint32 v) {
-    return v & ~(Uint32(DeferredBit));
+    return v & ~(Uint32(DeferredBits));
   }
-  static Uint32 getDeferredBit(Uint32 v) {
-    return (v & Uint32(DeferredBit)) != 0;
+  static Uint32 getDeferredUKBit(Uint32 v) {
+    return (v & Uint32(DeferredUKBit)) != 0;
   }
   static void setDeferredBit(Uint32 & v) {
-    v |= Uint32(DeferredBit);
+    v |= Uint32(DeferredUKBit);
   }
 };
 

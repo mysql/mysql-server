@@ -925,6 +925,41 @@ static bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   return false;
 }
 
+/**
+  Compare a LEX_USER against the current user as defined by the exact user and
+  host used during authentication.
+
+  @param user A pointer to a user which needs to be matched against the
+              current.
+
+  @see SET PASSWORD rules
+
+  @retval true The specified user is the authorized user
+  @retval false The user doesn't match
+*/
+
+bool match_authorized_user(Security_context *ctx, LEX_USER *user)
+{
+  if(user->user.str && my_strcasecmp(system_charset_info,
+                                     ctx->priv_user,
+                                     user->user.str) == 0)
+  {
+    /*
+      users match; let's compare hosts.
+      1. first compare with the host we actually authorized,
+      2. then see if we match the host mask of the priv_host
+    */
+    if (user->host.str && my_strcasecmp(system_charset_info,
+                                        user->host.str,
+                                        ctx->priv_host) == 0)
+    {
+      /* specified user exactly match the authorized user */
+      return true;
+    }
+  }
+  return false;
+}
+
 
 %}
 %union {
@@ -982,6 +1017,7 @@ static bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   Condition_information_item *cond_info_item;
   Condition_information_item::Name cond_info_item_name;
   List<Condition_information_item> *cond_info_list;
+  bool is_not_empty;
   Set_signal_information *signal_item_list;
 }
 
@@ -1903,6 +1939,8 @@ END_OF_INPUT
 %type <num> opt_slave_thread_option_list
 %type <num> slave_thread_option_list
 %type <num> slave_thread_option
+
+%type <is_not_empty> opt_union_order_or_limit
 
 %%
 
@@ -10809,6 +10847,13 @@ table_factor:
  */
 select_derived_union:
           select_derived opt_union_order_or_limit
+          {
+            if ($1 && $2)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
         | select_derived_union
           UNION_SYM
           union_option
@@ -11872,15 +11917,11 @@ insert_lock_option:
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
         | DELAYED_SYM
         {
-          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
-                                                    YYTHD->query());
-          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
-                                           YYLIP->yyLength() + 1;
-          $$= TL_WRITE_DELAYED;
+          $$= TL_WRITE_CONCURRENT_DEFAULT;
 
           push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                              ER_WARN_DEPRECATED_SYNTAX,
-                              ER(ER_WARN_DEPRECATED_SYNTAX),
+                              ER_WARN_LEGACY_SYNTAX_CONVERTED,
+                              ER(ER_WARN_LEGACY_SYNTAX_CONVERTED),
                               "INSERT DELAYED", "INSERT");
         }
         | HIGH_PRIORITY { $$= TL_WRITE; }
@@ -11890,15 +11931,11 @@ replace_lock_option:
           opt_low_priority { $$= $1; }
         | DELAYED_SYM
         {
-          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
-                                                    YYTHD->query());
-          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
-                                           YYLIP->yyLength() + 1;
-          $$= TL_WRITE_DELAYED;
+          $$= TL_WRITE_DEFAULT;
 
           push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
-                              ER_WARN_DEPRECATED_SYNTAX,
-                              ER(ER_WARN_DEPRECATED_SYNTAX),
+                              ER_WARN_LEGACY_SYNTAX_CONVERTED,
+                              ER(ER_WARN_LEGACY_SYNTAX_CONVERTED),
                               "REPLACE DELAYED", "REPLACE");
         }
         ;
@@ -12026,8 +12063,7 @@ opt_insert_update:
             Lex->duplicates= DUP_UPDATE;
             TABLE_LIST *first_table= Lex->select_lex.table_list.first;
             /* Fix lock for ON DUPLICATE KEY UPDATE */
-            if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT ||
-                first_table->lock_type == TL_WRITE_DELAYED)
+            if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
               first_table->lock_type= TL_WRITE_DEFAULT;
           }
           KEY_SYM UPDATE_SYM insert_update_list
@@ -14671,8 +14707,30 @@ option_value_no_option_type:
             lex->autocommit= TRUE;
             if (lex->sphead)
               lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
-            if (!user->user.str)
+            /*
+              'is_change_password' should be set if the user is setting his
+              own password. This is later used to determine if the password
+              expiration flag should be reset.
+              Either the user exactly matches the currently authroized user or
+              the CURRENT_USER keyword was used.
+
+              If CURRENT_USER was used for the <user> rule then
+              user->user.str=0. See rule below:
+              
+              user:
+                 [..]
+              | CURRENT_USER optional_braces
+                {
+                 [..]
+                  memset($$, 0, sizeof(LEX_USER));
+                }
+            */
+            if (user->user.str ||
+                match_authorized_user(&current_thd->main_security_ctx,
+                                      user))
               lex->is_change_password= TRUE;
+            else
+              lex->is_change_password= FALSE;
           }
         ;
 
@@ -15609,8 +15667,8 @@ union_opt:
         ;
 
 opt_union_order_or_limit:
-	  /* Empty */
-	| union_order_or_limit
+	  /* Empty */ { $$= false; }
+	| union_order_or_limit { $$= true; }
 	;
 
 union_order_or_limit:

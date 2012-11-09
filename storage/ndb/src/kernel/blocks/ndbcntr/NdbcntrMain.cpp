@@ -253,6 +253,7 @@ void Ndbcntr::execSYSTEM_ERROR(Signal* signal)
     break;
     
   case SystemError::CopySubscriptionRef:
+    CRASH_INSERTION(1003);
     BaseString::snprintf(buf, sizeof(buf), 
 	     "Node %d killed this node because "
 	     "it could not copy a subscription during node restart. "
@@ -2181,7 +2182,7 @@ Ndbcntr::createHashMap(Signal* signal, Uint32 idx)
   req->requestInfo = 0;
   req->transId = c_schemaTransId;
   req->transKey = c_schemaTransKey;
-  req->buckets = 240;
+  req->buckets = NDB_DEFAULT_HASHMAP_BUCKETS;
   req->fragments = 0;
   sendSignal(DBDICT_REF, GSN_CREATE_HASH_MAP_REQ, signal,
 	     CreateHashMapReq::SignalLength, JBB);
@@ -2204,8 +2205,8 @@ Ndbcntr::execCREATE_HASH_MAP_CONF(Signal* signal)
   if (conf->senderData == 0)
   {
     jam();
-    c_hashMapId = conf->objectId;
-    c_hashMapVersion = conf->objectVersion;
+    c_objectId = conf->objectId;
+    c_objectVersion = conf->objectVersion;
   }
 
   createSystableLab(signal, 0);
@@ -2274,8 +2275,8 @@ Ndbcntr::createDDObjects(Signal * signal, unsigned index)
     {
       jam();
       fg.TS_ExtentSize = Uint32(entry->size);
-      fg.TS_LogfileGroupId = RNIL;
-      fg.TS_LogfileGroupVersion = RNIL;
+      fg.TS_LogfileGroupId = c_objectId;
+      fg.TS_LogfileGroupVersion = c_objectVersion;
     }
 
     SimpleProperties::UnpackStatus s;
@@ -2310,8 +2311,8 @@ Ndbcntr::createDDObjects(Signal * signal, unsigned index)
     DictFilegroupInfo::File f; f.init();
     BaseString::snprintf(f.FileName, sizeof(f.FileName), "%s", entry->name);
     f.FileType = entry->type;
-    f.FilegroupId = RNIL;
-    f.FilegroupVersion = RNIL;
+    f.FilegroupId = c_objectId;
+    f.FilegroupVersion = c_objectVersion;
     f.FileSizeHi = Uint32(entry->size >> 32);
     f.FileSizeLo = Uint32(entry->size);
 
@@ -2371,6 +2372,8 @@ Ndbcntr::execCREATE_FILEGROUP_CONF(Signal* signal)
 {
   jamEntry();
   CreateFilegroupConf* conf = (CreateFilegroupConf*)signal->getDataPtr();
+  c_objectId = conf->filegroupId;
+  c_objectVersion = conf->filegroupVersion;
   createDDObjects(signal, conf->senderData + 1);
 }
 
@@ -2433,8 +2436,8 @@ void Ndbcntr::createSystableLab(Signal* signal, unsigned index)
   //w.add(DictTabInfo::KeyLength, 1);
   w.add(DictTabInfo::TableTypeVal, (Uint32)table.tableType);
   w.add(DictTabInfo::SingleUserMode, (Uint32)NDB_SUM_READ_WRITE);
-  w.add(DictTabInfo::HashMapObjectId, c_hashMapId);
-  w.add(DictTabInfo::HashMapVersion, c_hashMapVersion);
+  w.add(DictTabInfo::HashMapObjectId, c_objectId);
+  w.add(DictTabInfo::HashMapVersion, c_objectVersion);
 
   for (unsigned i = 0; i < table.columnCount; i++) {
     const SysColumn& column = table.columnList[i];

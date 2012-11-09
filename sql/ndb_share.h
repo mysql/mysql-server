@@ -22,8 +22,11 @@
 #include <my_alloc.h>        // MEM_ROOT
 #include <thr_lock.h>        // THR_LOCK
 #include <my_bitmap.h>       // MY_BITMAP
+#include <mysql_com.h>       // NAME_CHAR_LEN
+#include <sql_const.h>       // MAX_REF_PARTS
 
 #include <ndbapi/Ndb.hpp>    // Ndb::TupleIdRange
+#include "ndb_conflict.h"
 
 enum NDB_SHARE_STATE {
   NSS_INITIAL= 0,
@@ -31,109 +34,16 @@ enum NDB_SHARE_STATE {
   NSS_ALTERED 
 };
 
-
-enum enum_conflict_fn_type
-{
-  CFT_NDB_UNDEF = 0
-  ,CFT_NDB_MAX
-  ,CFT_NDB_OLD
-  ,CFT_NDB_MAX_DEL_WIN
-  ,CFT_NDB_EPOCH
-  ,CFT_NUMBER_OF_CFTS /* End marker */
-};
-
 #ifdef HAVE_NDB_BINLOG
-static const Uint32 MAX_CONFLICT_ARGS= 8;
-
-enum enum_conflict_fn_arg_type
+enum Ndb_binlog_type
 {
-  CFAT_END
-  ,CFAT_COLUMN_NAME
-  ,CFAT_EXTRA_GCI_BITS
-};
-
-struct st_conflict_fn_arg
-{
-  enum_conflict_fn_arg_type type;
-  const char *ptr;
-  uint32 len;
-  union
-  {
-    uint32 fieldno;      // CFAT_COLUMN_NAME
-    uint32 extraGciBits; // CFAT_EXTRA_GCI_BITS
-  };
-};
-
-struct st_conflict_fn_arg_def
-{
-  enum enum_conflict_fn_arg_type arg_type;
-  bool optional;
-};
-
-/* What type of operation was issued */
-enum enum_conflicting_op_type
-{                /* NdbApi          */
-  WRITE_ROW,     /* insert (!write) */
-  UPDATE_ROW,    /* update          */
-  DELETE_ROW     /* delete          */
-};
-
-/*
-  prepare_detect_func
-
-  Type of function used to prepare for conflict detection on
-  an NdbApi operation
-*/
-typedef int (* prepare_detect_func) (struct NDB_CONFLICT_FN_SHARE* cfn_share,
-                                     enum_conflicting_op_type op_type,
-                                     const uchar* old_data,
-                                     const uchar* new_data,
-                                     const MY_BITMAP* write_set,
-                                     class NdbInterpretedCode* code);
-
-struct st_conflict_fn_def
-{
-  const char *name;
-  enum_conflict_fn_type type;
-  const st_conflict_fn_arg_def* arg_defs;
-  prepare_detect_func prep_func;
-};
-
-/* What sort of conflict was found */
-enum enum_conflict_cause
-{
-  ROW_ALREADY_EXISTS,
-  ROW_DOES_NOT_EXIST,
-  ROW_IN_CONFLICT
-};
-
-/* NdbOperation custom data which points out handler and record. */
-struct Ndb_exceptions_data {
-  struct NDB_SHARE* share;
-  const NdbRecord* key_rec;
-  const uchar* row;
-  enum_conflicting_op_type op_type;
-};
-
-enum enum_conflict_fn_flags
-{
-  CFF_NONE = 0,
-  CFF_REFRESH_ROWS = 1
-};
-
-struct NDB_CONFLICT_FN_SHARE {
-  const st_conflict_fn_def* m_conflict_fn;
-
-  /* info about original table */
-  uint8 m_pk_cols;
-  uint8 m_resolve_column;
-  uint8 m_resolve_size;
-  uint8 m_flags;
-  uint16 m_offset[16];
-  uint16 m_resolve_offset;
-
-  const NdbDictionary::Table *m_ex_tab;
-  uint32 m_count;
+  NBT_DEFAULT                   = 0
+  ,NBT_NO_LOGGING               = 1
+  ,NBT_UPDATED_ONLY             = 2
+  ,NBT_FULL                     = 3
+  ,NBT_USE_UPDATE               = 4 /* bit 0x4 indicates USE_UPDATE */
+  ,NBT_UPDATED_ONLY_USE_UPDATE  = NBT_UPDATED_ONLY | NBT_USE_UPDATE
+  ,NBT_FULL_USE_UPDATE          = NBT_FULL         | NBT_USE_UPDATE
 };
 #endif
 
@@ -168,7 +78,6 @@ struct NDB_SHARE {
   struct Ndb_statistics stat;
   struct Ndb_index_stat* index_stat_list;
   bool util_thread; // if opened by util thread
-  uint32 connect_count;
   uint32 flags;
 #ifdef HAVE_NDB_BINLOG
   NDB_CONFLICT_FN_SHARE *m_cfn_share;
@@ -178,6 +87,21 @@ struct NDB_SHARE {
   char *old_names; // for rename table
   MY_BITMAP *subscriber_bitmap;
   class NdbEventOperation *new_op;
+
+  static NDB_SHARE* create(const char* key, size_t key_length,
+                         struct TABLE* table, const char* db_name,
+                         const char* table_name);
+  static void destroy(NDB_SHARE* share);
+
+  class Ndb_event_data* get_event_data_ptr() const;
+
+  void print(const char* where, FILE* file = stderr) const;
+
+  /*
+    Returns true if this share need to subscribe to
+    events from the table.
+  */
+  bool need_events(bool default_on) const;
 };
 
 
@@ -200,6 +124,82 @@ set_ndb_share_state(NDB_SHARE *share, NDB_SHARE_STATE state)
   pthread_mutex_lock(&share->mutex);
   share->state= state;
   pthread_mutex_unlock(&share->mutex);
+}
+
+
+/* NDB_SHARE.flags */
+#define NSF_HIDDEN_PK   1u /* table has hidden primary key */
+#define NSF_BLOB_FLAG   2u /* table has blob attributes */
+#define NSF_NO_BINLOG   4u /* table should not be binlogged */
+#define NSF_BINLOG_FULL 8u /* table should be binlogged with full rows */
+#define NSF_BINLOG_USE_UPDATE 16u  /* table update should be binlogged using
+                                     update log event */
+inline void set_binlog_logging(NDB_SHARE *share)
+{
+  DBUG_PRINT("info", ("set_binlog_logging"));
+  share->flags&= ~NSF_NO_BINLOG;
+}
+inline void set_binlog_nologging(NDB_SHARE *share)
+{
+  DBUG_PRINT("info", ("set_binlog_nologging"));
+  share->flags|= NSF_NO_BINLOG;
+}
+inline my_bool get_binlog_nologging(NDB_SHARE *share)
+{ return (share->flags & NSF_NO_BINLOG) != 0; }
+inline void set_binlog_updated_only(NDB_SHARE *share)
+{
+  DBUG_PRINT("info", ("set_binlog_updated_only"));
+  share->flags&= ~NSF_BINLOG_FULL;
+}
+inline void set_binlog_full(NDB_SHARE *share)
+{
+  DBUG_PRINT("info", ("set_binlog_full"));
+  share->flags|= NSF_BINLOG_FULL;
+}
+inline my_bool get_binlog_full(NDB_SHARE *share)
+{ return (share->flags & NSF_BINLOG_FULL) != 0; }
+inline void set_binlog_use_write(NDB_SHARE *share)
+{
+  DBUG_PRINT("info", ("set_binlog_use_write"));
+  share->flags&= ~NSF_BINLOG_USE_UPDATE;
+}
+inline void set_binlog_use_update(NDB_SHARE *share)
+{
+  DBUG_PRINT("info", ("set_binlog_use_update"));
+  share->flags|= NSF_BINLOG_USE_UPDATE;
+}
+inline my_bool get_binlog_use_update(NDB_SHARE *share)
+{ return (share->flags & NSF_BINLOG_USE_UPDATE) != 0; }
+
+
+NDB_SHARE *ndbcluster_get_share(const char *key,
+                                struct TABLE *table,
+                                bool create_if_not_exists,
+                                bool have_lock);
+NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share);
+void ndbcluster_free_share(NDB_SHARE **share, bool have_lock);
+void ndbcluster_real_free_share(NDB_SHARE **share);
+int handle_trailing_share(THD *thd, NDB_SHARE *share);
+int ndbcluster_prepare_rename_share(NDB_SHARE *share, const char *new_key);
+int ndbcluster_rename_share(THD *thd, NDB_SHARE *share);
+int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share);
+void ndbcluster_mark_share_dropped(NDB_SHARE*);
+inline NDB_SHARE *get_share(const char *key,
+                            struct TABLE *table,
+                            bool create_if_not_exists= TRUE,
+                            bool have_lock= FALSE)
+{
+  return ndbcluster_get_share(key, table, create_if_not_exists, have_lock);
+}
+
+inline NDB_SHARE *get_share(NDB_SHARE *share)
+{
+  return ndbcluster_get_share(share);
+}
+
+inline void free_share(NDB_SHARE **share, bool have_lock= FALSE)
+{
+  ndbcluster_free_share(share, have_lock);
 }
 
 #endif

@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 CREATE TABLE t1 (pk int primary key, uk int not null, unique(uk)) engine=ndb;
 insert into t1 values (1,1);
@@ -46,4 +49,35 @@ pk	uk
 4	3
 5	4
 drop table t1;
+CREATE TABLE t1 (a int not null,
+b int auto_increment, 
+uk int null, primary key(a,b), unique(uk)) 
+engine=ndb partition by key(a);
+CREATE TABLE t2 (a int not null auto_increment primary key) engine = ndb;
+begin;
+insert into t1 values (1,null,1), (1,null, 2), (1,null, 3), (1,null, 4);
+insert into t2 values (null), (null), (null), (null);
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+commit;
+select count(*) from t1;
+count(*)
+4
+select count(*) from t2;
+count(*)
+1024
+select count(*) from t1;
+count(*)
+4
+select count(*) from t2;
+count(*)
+1024
+drop table t1;
+drop table t2;
 include/rpl_end.inc

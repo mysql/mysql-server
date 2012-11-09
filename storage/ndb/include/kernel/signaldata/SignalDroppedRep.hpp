@@ -21,8 +21,8 @@
 
 #include "SignalData.hpp"
 
-class SignalDroppedRep {
-
+struct SignalDroppedRep
+{
   /**
    * Receiver(s)
    */
@@ -37,8 +37,7 @@ class SignalDroppedRep {
   friend class TransporterCallbackKernel;
 
   friend bool printSIGNAL_DROPPED_REP(FILE *, const Uint32 *, Uint32, Uint16);  
-public:
-private:
+
   Uint32 originalGsn;
   Uint32 originalLength;
   Uint32 originalSectionCount;

@@ -41,6 +41,7 @@ public:
                      const char* valPtr, Uint32 valLen);
   int getIdValue(NDBT_ResultRow* const pRow) const;
   int getUpdatesValue(NDBT_ResultRow* const pRow) const;
+  int getIdColNo() const { return m_idCol;}
   int isIdCol(int colId) { return m_idCol == colId; };
   int isUpdateCol(int colId){ return m_updatesCol == colId; };
 

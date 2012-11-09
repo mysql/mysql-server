@@ -31,12 +31,6 @@ ADD_EXECUTABLE(ndb_cpcd
         main.cpp)
 
 TARGET_LINK_LIBRARIES(ndb_cpcd
-               ndbmgmclient
-               ndbclient
-               dbug
-               mysys
-               strings
-               ndbgeneral
-               ndbportlib)
+               ndbclient_static)
 
 INSTALL(TARGETS ndb_cpcd DESTINATION bin)
