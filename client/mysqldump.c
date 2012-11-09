@@ -3406,7 +3406,8 @@ static void dump_table(char *table, char *db)
   if (!opt_events && !my_strcasecmp(&my_charset_latin1, db, "mysql") &&
       !my_strcasecmp(&my_charset_latin1, table, "event"))
   {
-    verbose_msg("-- Skipping data table mysql.event, --skip-events was used\n");
+    fprintf(stderr, "-- Warning: Skipping the data of table mysql.event."
+            " Specify the --events option explicitly.\n");
     DBUG_VOID_RETURN;
   }
 
