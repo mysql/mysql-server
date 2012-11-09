@@ -2590,8 +2590,9 @@ row_ins_sec_index_entry_low(
 	mtr_start(&mtr);
 
 	/* Disable i-buffering for temp-table indexes */
-	if (!dict_table_is_temporary(index->table))
+	if (!dict_table_is_temporary(index->table)) {
 		search_mode |= BTR_INSERT;
+	}
 
 	/* Ensure that we acquire index->lock when inserting into an
 	index with index->online_status == ONLINE_INDEX_COMPLETE, but

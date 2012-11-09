@@ -337,6 +337,10 @@ dict_build_tablespace(
 
 		mtr_start(&mtr);
 
+		if (dict_table_is_temporary(table)) {
+			mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+		}
+
 		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
 
 		mtr_commit(&mtr);
@@ -795,8 +799,9 @@ dict_create_index_tree(
 	mtr_start(&mtr);
 	
 	/* If temporary table then set logging off */
-	if (dict_table_is_temporary(index->table))
+	if (dict_table_is_temporary(index->table)) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	}
 	
 	dberr_t		err = DB_SUCCESS;
 	ulint		zip_size = dict_table_zip_size(index->table);
@@ -831,8 +836,8 @@ dict_create_index_tree(
 Drops the index tree associated with a row in SYS_INDEXES table. */
 UNIV_INTERN
 void
-dict_drop_index_tree(
-/*=================*/
+dict_drop_index_tree_step(
+/*======================*/
 	rec_t*	rec,	/*!< in/out: record in the clustered index
 			of SYS_INDEXES table */
 	mtr_t*	mtr)	/*!< in: mtr having the latch on the record page */
@@ -896,8 +901,8 @@ This interface is generally used for temp-tables where-in we don't
 update SYS_XXXXX table for temp-tables. */
 UNIV_INTERN
 void
-dict_drop_index_tree_wo_sys_tables_update(
-/*======================================*/
+dict_drop_index_tree(
+/*=================*/
 	dict_index_t*	index,		/*!< in: index */
 	ulint           page_no)	/*!< in: index page-no */
 {
@@ -952,8 +957,8 @@ Truncates the index tree associated with a row in SYS_INDEXES table.
 @return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
 ulint
-dict_truncate_index_tree(
-/*=====================*/
+dict_truncate_index_tree_step(
+/*==========================*/
 	dict_table_t*	table,	/*!< in: the table the index belongs to */
 	ulint		space,	/*!< in: 0=truncate,
 				nonzero=create the index tree in the
@@ -1089,8 +1094,8 @@ update SYS_XXXX table on creation.
 @return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
 void
-dict_truncate_index_tree_wo_sys_tables_update(
-/*===========================================*/
+dict_truncate_index_tree(
+/*=====================*/
 	dict_index_t*	index,	/*!< in: index */
 	ulint		space)	/*!< in: 0=truncate,
 				nonzero=create the index tree in the

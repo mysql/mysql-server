@@ -112,8 +112,8 @@ Truncates the index tree associated with a row in SYS_INDEXES table.
 @return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
 ulint
-dict_truncate_index_tree(
-/*=====================*/
+dict_truncate_index_tree_step(
+/*==========================*/
 	dict_table_t*	table,	/*!< in: the table the index belongs to */
 	ulint		space,	/*!< in: 0=truncate,
 				nonzero=create the index tree in the
@@ -132,8 +132,8 @@ update SYS_XXXX table on creation.
 @return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
 void
-dict_truncate_index_tree_wo_sys_tables_update(
-/*==========================================*/
+dict_truncate_index_tree(
+/*=====================*/
 	dict_index_t*	index,	/*!< in: index */
 	ulint		space);	/*!< in: 0=truncate,
 				nonzero=create the index tree in the
@@ -142,8 +142,8 @@ dict_truncate_index_tree_wo_sys_tables_update(
 Drops the index tree associated with a row in SYS_INDEXES table. */
 UNIV_INTERN
 void
-dict_drop_index_tree(
-/*=================*/
+dict_drop_index_tree_step(
+/*======================*/
 	rec_t*	rec,	/*!< in/out: record in the clustered index
 			of SYS_INDEXES table */
 	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
@@ -153,8 +153,8 @@ This interface is generally used for temp-tables for which we don't
 update SYS_XXXX table on creation. */
 UNIV_INTERN
 void
-dict_drop_index_tree_wo_sys_tables_update(
-/*======================================*/
+dict_drop_index_tree(
+/*=================*/
 	dict_index_t*   index,		/*!< in: index */
 	ulint		page_no);	/*!< in: index page-no */
 /****************************************************************//**
