@@ -372,9 +372,6 @@ NULL	information_schema	PARTITIONS	TABLE_NAME	3		NO	varchar	64	192	NULL	NULL	utf
 NULL	information_schema	PARTITIONS	TABLE_ROWS	13	0	NO	bigint	NULL	NULL	20	0	NULL	NULL	bigint(21) unsigned			select	
 NULL	information_schema	PARTITIONS	TABLE_SCHEMA	2		NO	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PARTITIONS	UPDATE_TIME	20	NULL	YES	datetime	NULL	NULL	NULL	NULL	NULL	NULL	datetime			select	
-NULL	information_schema	PBXT_STATISTICS	ID	1	0	NO	int	NULL	NULL	10	0	NULL	NULL	int(4)			select	
-NULL	information_schema	PBXT_STATISTICS	Name	2		NO	varchar	40	120	NULL	NULL	utf8	utf8_general_ci	varchar(40)			select	
-NULL	information_schema	PBXT_STATISTICS	Value	3	0	NO	bigint	NULL	NULL	19	0	NULL	NULL	bigint(8)			select	
 NULL	information_schema	PLUGINS	PLUGIN_AUTHOR	8	NULL	YES	varchar	64	192	NULL	NULL	utf8	utf8_general_ci	varchar(64)			select	
 NULL	information_schema	PLUGINS	PLUGIN_AUTH_VERSION	12	NULL	YES	varchar	80	240	NULL	NULL	utf8	utf8_general_ci	varchar(80)			select	
 NULL	information_schema	PLUGINS	PLUGIN_DESCRIPTION	9	NULL	YES	longtext	4294967295	4294967295	NULL	NULL	utf8	utf8_general_ci	longtext			select	
@@ -986,9 +983,6 @@ NULL	information_schema	PARTITIONS	CHECKSUM	bigint	NULL	NULL	NULL	NULL	bigint(21
 3.0000	information_schema	PARTITIONS	PARTITION_COMMENT	varchar	80	240	utf8	utf8_general_ci	varchar(80)
 3.0000	information_schema	PARTITIONS	NODEGROUP	varchar	12	36	utf8	utf8_general_ci	varchar(12)
 3.0000	information_schema	PARTITIONS	TABLESPACE_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
-NULL	information_schema	PBXT_STATISTICS	ID	int	NULL	NULL	NULL	NULL	int(4)
-3.0000	information_schema	PBXT_STATISTICS	Name	varchar	40	120	utf8	utf8_general_ci	varchar(40)
-NULL	information_schema	PBXT_STATISTICS	Value	bigint	NULL	NULL	NULL	NULL	bigint(8)
 3.0000	information_schema	PLUGINS	PLUGIN_NAME	varchar	64	192	utf8	utf8_general_ci	varchar(64)
 3.0000	information_schema	PLUGINS	PLUGIN_VERSION	varchar	20	60	utf8	utf8_general_ci	varchar(20)
 3.0000	information_schema	PLUGINS	PLUGIN_STATUS	varchar	10	30	utf8	utf8_general_ci	varchar(10)

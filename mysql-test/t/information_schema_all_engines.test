@@ -3,18 +3,19 @@
 # available (since these engines inject tables into INFORMATION_SCHEMA).
 
 --source include/not_embedded.inc
---source include/have_pbxt.inc
 --source include/have_innodb.inc
 --source include/not_staging.inc
 
 use INFORMATION_SCHEMA;
 --replace_result Tables_in_INFORMATION_SCHEMA Tables_in_information_schema
+--sorted_result
 show tables;
 
 #
 # Bug#18925: subqueries with MIN/MAX functions on INFORMATION_SCHEMA 
 #
 
+--sorted_result
 SELECT t.table_name, c1.column_name
   FROM information_schema.tables t
        INNER JOIN
@@ -29,6 +30,7 @@ SELECT t.table_name, c1.column_name
                   c2.table_name = t.table_name AND
                   c2.column_name LIKE '%SCHEMA%'
         );
+--sorted_result
 SELECT t.table_name, c1.column_name
   FROM information_schema.tables t
        INNER JOIN
