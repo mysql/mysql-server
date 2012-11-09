@@ -124,8 +124,9 @@ row_undo_ins_remove_clust_rec(
 		/* Drop the index tree associated with the row in
 		SYS_INDEXES table: */
 
-		dict_drop_index_tree(btr_pcur_get_rec(&(node->pcur)), &mtr);
-
+		dict_drop_index_tree_step(btr_pcur_get_rec(&(node->pcur)), 
+						&mtr);
+		
 		mtr_commit(&mtr);
 
 		mtr_start(&mtr);

@@ -1623,7 +1623,8 @@ btr_create(
 	trees in the same mtr, otherwise the latch on a bitmap page would
 	prevent it because of the latching order.
 	Note: Insert Buffering is disabled for temporary tables. */
-	if (!dict_table_is_temporary(index->table) && !(type & DICT_CLUSTERED)) {
+	if (!(dict_table_is_temporary(index->table))
+	    && !(type & DICT_CLUSTERED)) {
 		ibuf_reset_free_bits(block);
 	}
 
@@ -1655,8 +1656,9 @@ btr_free_but_not_root(
 
 leaf_loop:
 	mtr_start(&mtr);
-	if (index && dict_table_is_temporary(index->table))
+	if (index && dict_table_is_temporary(index->table)) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	}
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);
@@ -1680,8 +1682,9 @@ leaf_loop:
 	}
 top_loop:
 	mtr_start(&mtr);
-	if (index && dict_table_is_temporary(index->table))
+	if (index && dict_table_is_temporary(index->table)) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	}
 
 	root = btr_page_get(space, zip_size, root_page_no, RW_X_LATCH,
 			    NULL, &mtr);

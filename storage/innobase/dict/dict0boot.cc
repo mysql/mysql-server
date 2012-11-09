@@ -79,12 +79,11 @@ dict_hdr_get_new_id(
 	ib_id_t		id;
 	mtr_t		mtr;
 
-	ut_ad(table);
-
 	mtr_start(&mtr);
 
-	if (dict_table_is_temporary(table))
+	if (dict_table_is_temporary(table)) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	}
 
 	dict_hdr = dict_hdr_get(&mtr);
 
