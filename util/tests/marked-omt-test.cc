@@ -5,8 +5,6 @@
 
 #include "test.h"
 
-#include <algorithm>
-
 #include <toku_portability.h>
 #include <errno.h>
 #include <stdio.h>
