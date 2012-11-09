@@ -3197,6 +3197,220 @@ run_again:
 }
 
 /*********************************************************************//**
+Truncate index and update SYS_XXXX tables accordingly. */
+UNIV_INTERN
+void
+truncate_index_with_sys_table_update(
+/*==================================*/
+	dict_table_t*	table,		/*!< in: table */
+	ulint		recreate_space)	/*!< in: space re-create status */
+{
+	mem_heap_t*	heap;
+	byte*		buf;
+	dtuple_t*	tuple;
+	dfield_t*	dfield;
+	dict_index_t*	sys_index;
+	btr_pcur_t	pcur;
+	mtr_t		mtr;
+
+	/* scan SYS_INDEXES for all indexes of the table */
+	heap = mem_heap_create(800);
+
+	tuple = dtuple_create(heap, 1);
+	dfield = dtuple_get_nth_field(tuple, 0);
+
+	buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
+	mach_write_to_8(buf, table->id);
+
+	dfield_set_data(dfield, buf, 8);
+	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
+	dict_index_copy_types(tuple, sys_index, 1);
+
+	mtr_start(&mtr);
+	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
+				  BTR_MODIFY_LEAF, &pcur, &mtr);
+	for (;;) {
+		rec_t*		rec;
+		const byte*	field;
+		ulint		len;
+		ulint		root_page_no;
+
+		if (!btr_pcur_is_on_user_rec(&pcur)) {
+			/* The end of SYS_INDEXES has been reached. */
+			break;
+		}
+
+		rec = btr_pcur_get_rec(&pcur);
+
+		field = rec_get_nth_field_old(
+			rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
+		ut_ad(len == 8);
+
+		if (memcmp(buf, field, len) != 0) {
+			/* End of indexes for the table (TABLE_ID mismatch). */
+			break;
+		}
+
+		if (rec_get_deleted_flag(rec, FALSE)) {
+			/* The index has been dropped. */
+			goto next_rec;
+		}
+
+		/* This call may commit and restart mtr and reposition pcur. */
+		root_page_no = dict_truncate_index_tree_step(
+			table, recreate_space, &pcur, &mtr);
+
+		rec = btr_pcur_get_rec(&pcur);
+
+		if (root_page_no != FIL_NULL) {
+			page_rec_write_field(
+				rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
+				root_page_no, &mtr);
+			/* We will need to commit and restart the
+			mini-transaction in order to avoid deadlocks.
+			The dict_truncate_index_tree_step() call has 
+			allocated a page in this mini-transaction, 
+			and the rest of this loop could latch another 
+			index page. */
+			mtr_commit(&mtr);
+			mtr_start(&mtr);
+			btr_pcur_restore_position(BTR_MODIFY_LEAF,
+						  &pcur, &mtr);
+		}
+
+next_rec:
+		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+
+	mem_heap_free(heap);
+
+	return;
+}
+
+/*********************************************************************//**
+Truncation also result in assignment of new table id 
+Update these ids to SYS_XXXX tables. */
+UNIV_INTERN
+dberr_t
+update_new_object_ids(
+/*==================*/
+	dict_table_t*	table,			/*!< in: table */
+	table_id_t	new_id,			/*!< in: new table id */
+	ulint		old_space,		/*!< in: old space id */
+	ibool		has_internal_doc_id,	/*!< in: has doc col (fts) */
+	trx_t*		trx)			/*!< in: transaction handle */
+{
+	dberr_t		err	= DB_SUCCESS;
+	pars_info_t*	info 	= NULL;
+
+	info = pars_info_create();
+	pars_info_add_int4_literal(info, "new_space", (lint) table->space);
+	pars_info_add_ull_literal(info, "old_id", table->id);
+	pars_info_add_ull_literal(info, "new_id", new_id);
+
+	err = que_eval_sql(info,
+			   "PROCEDURE RENUMBER_TABLE_ID_PROC () IS\n"
+			   "BEGIN\n"
+			   "UPDATE SYS_TABLES"
+			   " SET ID = :new_id, SPACE = :new_space\n"
+			   " WHERE ID = :old_id;\n"
+			   "UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
+			   " WHERE TABLE_ID = :old_id;\n"
+			   "UPDATE SYS_INDEXES"
+			   " SET TABLE_ID = :new_id,"
+			   " SPACE = :new_space\n"
+			   " WHERE TABLE_ID = :old_id;\n"
+			   "END;\n"
+			   , FALSE, trx);
+
+	if (err == DB_SUCCESS && old_space != table->space) {
+		info = pars_info_create();
+
+		pars_info_add_int4_literal(
+			info, "old_space", (lint) old_space);
+		pars_info_add_int4_literal
+			(info, "new_space", (lint) table->space);
+
+		err = que_eval_sql(info,
+				   "PROCEDURE "
+				   "RENUMBER_TABLESPACE_PROC () IS\n"
+				   "BEGIN\n"
+				   "UPDATE SYS_TABLESPACES"
+				   " SET SPACE = :new_space\n"
+				   " WHERE SPACE = :old_space;\n"
+				   "UPDATE SYS_DATAFILES"
+				   " SET SPACE = :new_space"
+				   " WHERE SPACE = :old_space;\n"
+				   "END;\n"
+				   , FALSE, trx);
+	}
+
+	DBUG_EXECUTE_IF("ib_ddl_crash_before_fts_truncate", err = DB_ERROR;);
+
+	if (err != DB_SUCCESS) {
+		trx->error_state = DB_SUCCESS;
+		trx_rollback_to_savepoint(trx, NULL);
+		trx->error_state = DB_SUCCESS;
+
+		/* Update system table failed.  Table in memory metadata
+		could be in an inconsistent state, mark the in-memory
+		table->corrupted to be true. In the long run, this 
+		should be fixed by atomic truncate table */
+		table->corrupted = true;
+
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Unable to assign a new identifier to table %s" 
+			" after truncating it.  Background"
+			" processes may corrupt the table!\n", 
+			table->name);
+
+		/* Failed to update the table id, so drop the new
+		FTS auxiliary tables */
+		if (has_internal_doc_id) {
+			ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+
+			table_id_t	id = table->id;
+
+			table->id = new_id;
+
+			fts_drop_tables(trx, table);
+
+			table->id = id;
+
+			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+		}
+
+		err = DB_ERROR;
+	} else {
+		/* Drop the old FTS index */
+		if (has_internal_doc_id) {
+			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+			fts_drop_tables(trx, table);
+			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+		}
+
+		DBUG_EXECUTE_IF("ib_truncate_crash_after_fts_drop",
+				DBUG_SUICIDE(););
+
+		dict_table_change_id_in_cache(table, new_id);
+
+		/* Reset the Doc ID in cache to 0 */
+		if (has_internal_doc_id && table->fts->cache) {
+			table->fts->fts_status |= TABLE_DICT_LOCKED;
+			fts_update_next_doc_id(trx, table, NULL, 0);
+			fts_cache_clear(table->fts->cache, TRUE);
+			fts_cache_init(table->fts->cache);
+			table->fts->fts_status &= ~TABLE_DICT_LOCKED;
+		}
+	}
+
+	return(err);
+}
+
+/*********************************************************************//**
 Truncates a table for MySQL.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
@@ -3208,16 +3422,9 @@ row_truncate_table_for_mysql(
 {
 	dict_foreign_t*	foreign;
 	dberr_t		err;
-	mem_heap_t*	heap;
-	byte*		buf;
-	dtuple_t*	tuple;
-	dfield_t*	dfield;
-	dict_index_t*	sys_index;
-	btr_pcur_t	pcur;
 	mtr_t		mtr;
 	table_id_t	new_id;
 	ulint		recreate_space = 0;
-	pars_info_t*	info = NULL;
 	ibool		has_internal_doc_id;
 	ulint		old_space = table->space;
 
@@ -3447,86 +3654,10 @@ row_truncate_table_for_mysql(
 		sync up */
 		dict_table_x_lock_indexes(table);
 	}
-	
+
 	if (!dict_table_is_temporary(table)) {
-
-		/* scan SYS_INDEXES for all indexes of the table */
-		heap = mem_heap_create(800);
-
-		tuple = dtuple_create(heap, 1);
-		dfield = dtuple_get_nth_field(tuple, 0);
-
-		buf = static_cast<byte*>(mem_heap_alloc(heap, 8));
-		mach_write_to_8(buf, table->id);
-
-		dfield_set_data(dfield, buf, 8);
-		sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
-		dict_index_copy_types(tuple, sys_index, 1);
-
-		mtr_start(&mtr);
-		btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
-					  BTR_MODIFY_LEAF, &pcur, &mtr);
-		for (;;) {
-			rec_t*		rec;
-			const byte*	field;
-			ulint		len;
-			ulint		root_page_no;
-
-			if (!btr_pcur_is_on_user_rec(&pcur)) {
-				/* The end of SYS_INDEXES has been reached. */
-				break;
-			}
-
-			rec = btr_pcur_get_rec(&pcur);
-
-			field = rec_get_nth_field_old(
-				rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
-			ut_ad(len == 8);
-
-			if (memcmp(buf, field, len) != 0) {
-				/* End of indexes for the table 
-				(TABLE_ID mismatch). */
-				break;
-			}
-
-			if (rec_get_deleted_flag(rec, FALSE)) {
-				/* The index has been dropped. */
-				goto next_rec;
-			}
-
-			/* This call may commit and restart mtr
-			and reposition pcur. */
-			root_page_no = dict_truncate_index_tree_step(
-					table, recreate_space, &pcur, &mtr);
-
-			rec = btr_pcur_get_rec(&pcur);
-
-			if (root_page_no != FIL_NULL) {
-				page_rec_write_field(
-					rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
-					root_page_no, &mtr);
-				/* We will need to commit and restart the
-				mini-transaction in order to avoid deadlocks.
-				The dict_truncate_index_tree_step() call has 
-				allocated a page in this mini-transaction, 
-				and the rest of this loop could latch another 
-				index page. */
-				mtr_commit(&mtr);
-				mtr_start(&mtr);
-				btr_pcur_restore_position(BTR_MODIFY_LEAF,
-							  &pcur, &mtr);
-			}
-
-next_rec:
-			btr_pcur_move_to_next_user_rec(&pcur, &mtr);
-		}
-
-		btr_pcur_close(&pcur);
-		mtr_commit(&mtr);
-
-		mem_heap_free(heap);
-	}
-	else {
+		truncate_index_with_sys_table_update(table, recreate_space);
+	} else {
 		/* For temporary tables we don't have entries in
 		SYS_XXXX tables. This reduces truncate job to following:
 		- truncate indexes (free and re-create btree). */
@@ -3589,110 +3720,8 @@ next_rec:
 	}
 
 	if (!dict_table_is_temporary(table)) {
-		info = pars_info_create();
-		pars_info_add_int4_literal(info, "new_space", 
-					   (lint) table->space);
-		pars_info_add_ull_literal(info, "old_id", table->id);
-		pars_info_add_ull_literal(info, "new_id", new_id);
-
-		err = que_eval_sql(info,
-				   "PROCEDURE RENUMBER_TABLE_ID_PROC () IS\n"
-				   "BEGIN\n"
-				   "UPDATE SYS_TABLES"
-				   " SET ID = :new_id, SPACE = :new_space\n"
-				   " WHERE ID = :old_id;\n"
-				   "UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
-				   " WHERE TABLE_ID = :old_id;\n"
-				   "UPDATE SYS_INDEXES"
-				   " SET TABLE_ID = :new_id,"
-				   " SPACE = :new_space\n"
-				   " WHERE TABLE_ID = :old_id;\n"
-				   "END;\n"
-				   , FALSE, trx);
-
-		if (err == DB_SUCCESS && old_space != table->space) {
-			info = pars_info_create();
-
-			pars_info_add_int4_literal(
-				info, "old_space", (lint) old_space);
-			pars_info_add_int4_literal
-				(info, "new_space", (lint) table->space);
-
-			err = que_eval_sql(info,
-					   "PROCEDURE "
-					   "RENUMBER_TABLESPACE_PROC () IS\n"
-					   "BEGIN\n"
-					   "UPDATE SYS_TABLESPACES"
-					   " SET SPACE = :new_space\n"
-					   " WHERE SPACE = :old_space;\n"
-					   "UPDATE SYS_DATAFILES"
-					   " SET SPACE = :new_space"
-					   " WHERE SPACE = :old_space;\n"
-					   "END;\n"
-					   , FALSE, trx);
-		}
-
-		DBUG_EXECUTE_IF("ib_ddl_crash_before_fts_truncate", 
-				err = DB_ERROR;);
-
-		if (err != DB_SUCCESS) {
-			trx->error_state = DB_SUCCESS;
-			trx_rollback_to_savepoint(trx, NULL);
-			trx->error_state = DB_SUCCESS;
-
-			/* Update system table failed.  Table in memory metadata
-			could be in an inconsistent state, mark the in-memory
-			table->corrupted to be true. In the long run, this 
-			should be fixed by atomic truncate table */
-			table->corrupted = true;
-
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Unable to assign a new identifier to"
-			      " table ", stderr);
-			ut_print_name(stderr, trx, TRUE, table->name);
-			fputs("\n"
-			      "InnoDB: after truncating it.  Background"
-			      " processes may corrupt the table!\n", stderr);
-
-			/* Failed to update the table id, so drop the new
-			FTS auxiliary tables */
-			if (has_internal_doc_id) {
-				ut_ad(trx->state == TRX_STATE_NOT_STARTED);
-
-				table_id_t	id = table->id;
-
-				table->id = new_id;
-
-				fts_drop_tables(trx, table);
-
-				table->id = id;
-
-				ut_ad(trx->state != TRX_STATE_NOT_STARTED);
-			}
-
-			err = DB_ERROR;
-		} else {
-			/* Drop the old FTS index */
-			if (has_internal_doc_id) {
-				ut_ad(trx->state != TRX_STATE_NOT_STARTED);
-				fts_drop_tables(trx, table);
-				ut_ad(trx->state != TRX_STATE_NOT_STARTED);
-			}
-
-			DBUG_EXECUTE_IF("ib_truncate_crash_after_fts_drop",
-					DBUG_SUICIDE(););
-
-			dict_table_change_id_in_cache(table, new_id);
-
-			/* Reset the Doc ID in cache to 0 */
-			if (has_internal_doc_id && table->fts->cache) {
-				table->fts->fts_status |= TABLE_DICT_LOCKED;
-				fts_update_next_doc_id(trx, table, NULL, 0);
-				fts_cache_clear(table->fts->cache, TRUE);
-				fts_cache_init(table->fts->cache);
-				table->fts->fts_status &= ~TABLE_DICT_LOCKED;
-			}
-		}
+		err = update_new_object_ids(
+			table, new_id, old_space, has_internal_doc_id, trx);
 	}
 	else {
 		dict_table_change_id_in_cache(table, new_id);
@@ -4094,7 +4123,8 @@ check_next_foreign:
 		/* We use the private SQL parser of Innobase to generate the
 		query graphs needed in deleting the dictionary data from system
 		tables in Innobase. Deleting a row from SYS_INDEXES table also
-		frees the file segments of the B-tree associated with the index. */
+		frees the file segments of the B-tree associated with the 
+		index. */
 
 		info = pars_info_create();
 
