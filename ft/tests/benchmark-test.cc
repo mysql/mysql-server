@@ -24,6 +24,7 @@ static enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSIO
 static int keysize = sizeof (long long);
 static int valsize = sizeof (long long);
 static int do_verify =0; /* Do a slow verify after every insert. */
+static int verify_period = 1; /* how many inserts between verifies. */
 
 static int do_serial = 1;
 static int do_random = 1;
@@ -57,7 +58,13 @@ static void insert (long long v) {
     memset(vc, 0, sizeof vc);
     long_long_to_array(vc, v);
     toku_ft_insert(t, toku_fill_dbt(&kt, kc, keysize), toku_fill_dbt(&vt, vc, valsize), 0);
-    if (do_verify) toku_cachetable_verify(ct);
+    if (do_verify) {
+        static int inserts_since_last_verify = 0;
+        inserts_since_last_verify++;
+        if (inserts_since_last_verify % verify_period == 0) {
+            toku_cachetable_verify(ct);
+        }
+    }
 }
 
 static void serial_insert_from (long long from) {
@@ -120,6 +127,7 @@ static void usage(void) {
     printf("[--noserial]\n");
     printf("[--norandom]\n");
     printf("[--verify]\n");
+    printf("[--verify_period PERIOD]\n");
 }
 
 int
@@ -153,6 +161,11 @@ test_main (int argc, const char *argv[]) {
             }
         } else if (strcmp(arg, "--verify")==0) {
 	    do_verify = 1;
+        } else if (strcmp(arg, "--verify_period")==0) {
+            if (i+1 < argc) {
+                i++;
+                verify_period = atoi(argv[i]);
+            }
         } else if (strcmp(arg, "--noserial") == 0) {
             do_serial = 0;
         } else if (strcmp(arg, "--fname") == 0) {

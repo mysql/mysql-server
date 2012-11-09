@@ -50,12 +50,10 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
 
   declare_custom_tests(benchmark-test)
   add_test(ft/benchmark-test benchmark-test -q --fname benchmark-test.ft)
-  add_test(ft/benchmark-test_256 benchmark-test --valsize 256 --verify --fname benchmark-test_256.ft 1)
-  add_test(ft/benchmark-test_256_vg benchmark-test --valsize 256 --verify --fname benchmark-test_256_vg.ft --periter 131072 1)
+  add_test(ft/benchmark-test_256 benchmark-test --valsize 256 --verify --verify_period 4096 --fname benchmark-test_256.ft 1)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     benchmark-test.ft
     benchmark-test_256.ft
-    benchmark-test_256_vg.ft
     )
 
   declare_custom_tests(ftloader-test-merge-files-dbufio)
