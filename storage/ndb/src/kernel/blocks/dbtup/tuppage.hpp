@@ -63,8 +63,14 @@ struct Tup_fixsize_page
   struct File_formats::Page_header m_page_header;
   Uint32 m_restart_seq;
   Uint32 page_state;
-  Uint32 next_page;
-  Uint32 prev_page;
+  union {
+    Uint32 next_page;
+    Uint32 nextList;
+  };
+  union {
+    Uint32 prev_page;
+    Uint32 prevList;
+  };
   Uint32 first_cluster_page;
   Uint32 last_cluster_page;
   Uint32 next_cluster_page;
@@ -108,8 +114,14 @@ struct Tup_varsize_page
   struct File_formats::Page_header m_page_header;
   Uint32 m_restart_seq;
   Uint32 page_state;
-  Uint32 next_page;
-  Uint32 prev_page;
+  union {
+    Uint32 next_page;
+    Uint32 nextList;
+  };
+  union {
+    Uint32 prev_page;
+    Uint32 prevList;
+  };
   Uint32 first_cluster_page;
   Uint32 last_cluster_page;
   Uint32 next_cluster_page;
@@ -258,6 +270,11 @@ struct Tup_varsize_page
   bool is_free(Uint32 page_idx) const
   {
     return ((get_index_word(page_idx) & FREE) != 0) ? true : false;
+  }
+
+  bool is_empty() const
+  {
+    return high_index == 1;
   }
 };
 

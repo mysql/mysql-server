@@ -91,5 +91,7 @@ primary key(col0)) engine = ndb;
 begin;
 insert into t1 (col0) values (1);
 alter online table t1 add column col32 int COLUMN_FORMAT DYNAMIC;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 commit;
 drop table t1;

@@ -60,6 +60,8 @@
 #define RESTORE    0x106
 #define DBINFO     0x107
 #define DBSPJ      0x108
+#define THRMAN     0x109
+#define TRPMAN     0x10A
 
 const BlockReference BACKUP_REF  = numberToRef(BACKUP, 0);
 const BlockReference DBTC_REF    = numberToRef(DBTC, 0);
@@ -82,6 +84,8 @@ const BlockReference PGMAN_REF   = numberToRef(PGMAN, 0);
 const BlockReference RESTORE_REF = numberToRef(RESTORE, 0);
 const BlockReference DBINFO_REF  = numberToRef(DBINFO, 0);
 const BlockReference DBSPJ_REF  = numberToRef(DBSPJ, 0);
+const BlockReference THRMAN_REF  = numberToRef(THRMAN, 0);
+const BlockReference TRPMAN_REF  = numberToRef(TRPMAN, 0);
 
 static inline void __hide_warnings_unused_ref_vars(void) {
   // Hide annoying warnings about unused variables
@@ -92,10 +96,11 @@ static inline void __hide_warnings_unused_ref_vars(void) {
   (void)DBUTIL_REF;  (void)SUMA_REF;    (void)DBTUX_REF;
   (void)TSMAN_REF;   (void)LGMAN_REF;   (void)PGMAN_REF;
   (void)RESTORE_REF; (void)DBINFO_REF;  (void)DBSPJ_REF;
+  (void)THRMAN_REF;  (void)TRPMAN_REF;
 }
 
 const BlockNumber MIN_BLOCK_NO = BACKUP;
-const BlockNumber MAX_BLOCK_NO = DBSPJ;
+const BlockNumber MAX_BLOCK_NO = TRPMAN;
 const BlockNumber NO_OF_BLOCKS = (MAX_BLOCK_NO - MIN_BLOCK_NO + 1);
 
 /**

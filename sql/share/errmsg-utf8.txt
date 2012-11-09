@@ -3385,44 +3385,10 @@ ER_SYNTAX_ERROR 42000
         spa "Algo está equivocado en su sintax"
         swe "Du har något fel i din syntax"
         ukr "У вас помилка у синтаксисі SQL"
-ER_DELAYED_CANT_CHANGE_LOCK  
-        cze "Zpožděný insert threadu nebyl schopen získat požadovaný zámek pro tabulku %-.192s"
-        dan "Forsinket indsættelse tråden (delayed insert thread) kunne ikke opnå lås på tabellen %-.192s"
-        nla "'Delayed insert' thread kon de aangevraagde 'lock' niet krijgen voor tabel %-.192s"
+ER_UNUSED1
         eng "Delayed insert thread couldn't get requested lock for table %-.192s"
-        est "INSERT DELAYED lõim ei suutnud saada soovitud lukku tabelile %-.192s"
-        fre "La tâche 'delayed insert' n'a pas pu obtenir le verrou démandé sur la table %-.192s"
-        ger "Verzögerter (DELAYED) Einfüge-Thread konnte die angeforderte Sperre für Tabelle '%-.192s' nicht erhalten"
-        hun "A kesleltetett beillesztes (delayed insert) thread nem kapott zatolast a %-.192s tablahoz"
-        ita "Il thread di inserimento ritardato non riesce ad ottenere il lock per la tabella %-.192s"
-        jpn "'Delayed insert'スレッドが表 '%-.192s' のロックを取得できませんでした。"
-        kor "지연된 insert 쓰레드가 테이블 %-.192s의 요구된 락킹을 처리할 수 없었습니다."
-        por "'Thread' de inserção retardada (atrasada) pois não conseguiu obter a trava solicitada para tabela '%-.192s'"
-        rum "Thread-ul pentru inserarea aminata nu a putut obtine lacatul (lock) pentru tabela %-.192s"
-        rus "Поток, обслуживающий отложенную вставку (delayed insert), не смог получить запрашиваемую блокировку на таблицу %-.192s"
-        serbian "Prolongirani 'INSERT' thread nije mogao da dobije traženo zaključavanje tabele '%-.192s'"
-        spa "Thread de inserción retarda no pudiendo bloquear para la tabla %-.192s"
-        swe "DELAYED INSERT-tråden kunde inte låsa tabell '%-.192s'"
-        ukr "Гілка для INSERT DELAYED не може отримати блокування для таблиці %-.192s"
-ER_TOO_MANY_DELAYED_THREADS  
-        cze "Příliš mnoho zpožděných threadů"
-        dan "For mange slettede tråde (threads) i brug"
-        nla "Te veel 'delayed' threads in gebruik"
+ER_UNUSED2
         eng "Too many delayed threads in use"
-        est "Liiga palju DELAYED lõimesid kasutusel"
-        fre "Trop de tâche 'delayed' en cours"
-        ger "Zu viele verzögerte (DELAYED) Threads in Verwendung"
-        hun "Tul sok kesletetett thread (delayed)"
-        ita "Troppi threads ritardati in uso"
-        jpn "'Delayed insert'スレッドが多すぎます。"
-        kor "너무 많은 지연 쓰레드를 사용하고 있습니다."
-        por "Excesso de 'threads' retardadas (atrasadas) em uso"
-        rum "Prea multe threaduri aminate care sint in uz"
-        rus "Слишком много потоков, обслуживающих отложенную вставку (delayed insert)"
-        serbian "Previše prolongiranih thread-ova je u upotrebi"
-        spa "Muchos threads retardados en uso"
-        swe "Det finns redan 'max_delayed_threads' trådar i använding"
-        ukr "Забагато затриманих гілок використовується"
 ER_ABORTING_CONNECTION 08S01 
         cze "Zrušeno spojení %ld do databáze: '%-.192s' uživatel: '%-.48s' (%-.64s)"
         dan "Afbrudt forbindelse %ld til database: '%-.192s' bruger: '%-.48s' (%-.64s)"
@@ -3671,30 +3637,8 @@ ER_TABLE_CANT_HANDLE_AUTO_INCREMENT 42000
         spa "El tipo de tabla usada no permite soporte para columnas AUTO_INCREMENT"
         swe "Den använda tabelltypen kan inte hantera AUTO_INCREMENT-kolumner"
         ukr "Використаний тип таблиці не підтримує AUTO_INCREMENT стовбці"
-ER_DELAYED_INSERT_TABLE_LOCKED  
-        cze "INSERT DELAYED není možno s tabulkou '%-.192s' použít, protože je zamčená pomocí LOCK TABLES"
-        dan "INSERT DELAYED kan ikke bruges med tabellen '%-.192s', fordi tabellen er låst med LOCK TABLES"
-        nla "INSERT DELAYED kan niet worden gebruikt bij table '%-.192s', vanwege een 'lock met LOCK TABLES"
+ER_UNUSED3
         eng "INSERT DELAYED can't be used with table '%-.192s' because it is locked with LOCK TABLES"
-        est "INSERT DELAYED ei saa kasutada tabeli '%-.192s' peal, kuna see on lukustatud LOCK TABLES käsuga"
-        fre "INSERT DELAYED ne peut être utilisé avec la table '%-.192s', car elle est verrouée avec LOCK TABLES"
-        ger "INSERT DELAYED kann für Tabelle '%-.192s' nicht verwendet werden, da sie mit LOCK TABLES gesperrt ist"
-        greek "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        hun "Az INSERT DELAYED nem hasznalhato a '%-.192s' tablahoz, mert a tabla zarolt (LOCK TABLES)"
-        ita "L'inserimento ritardato (INSERT DELAYED) non puo` essere usato con la tabella '%-.192s', perche` soggetta a lock da 'LOCK TABLES'"
-        jpn "表 '%-.192s' はLOCK TABLESでロックされているため、INSERT DELAYEDを使用できません。"
-        kor "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        nor "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        norwegian-ny "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        pol "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        por "INSERT DELAYED não pode ser usado com a tabela '%-.192s', porque ela está travada com LOCK TABLES"
-        rum "INSERT DELAYED nu poate fi folosit cu tabela '%-.192s', deoarece este locked folosing LOCK TABLES"
-        rus "Нельзя использовать INSERT DELAYED для таблицы '%-.192s', потому что она заблокирована с помощью LOCK TABLES"
-        serbian "Komanda 'INSERT DELAYED' ne može biti iskorištena u tabeli '%-.192s', zbog toga što je zaključana komandom 'LOCK TABLES'"
-        slo "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        spa "INSERT DELAYED no puede ser usado con tablas '%-.192s', porque esta bloqueada con LOCK TABLES"
-        swe "INSERT DELAYED kan inte användas med tabell '%-.192s', emedan den är låst med LOCK TABLES"
-        ukr "INSERT DELAYED не може бути використано з таблицею '%-.192s', тому що її заблоковано з LOCK TABLES"
 ER_WRONG_COLUMN_NAME 42000 
         cze "Nesprávné jméno sloupce '%-.100s'"
         dan "Forkert kolonnenavn '%-.100s'"
@@ -6390,7 +6334,7 @@ ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
 
 ER_BINLOG_UNSAFE_LIMIT
   eng "The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted."
-ER_BINLOG_UNSAFE_INSERT_DELAYED
+ER_UNUSED4
   eng "The statement is unsafe because it uses INSERT DELAYED. This is unsafe because the times when rows are inserted cannot be predicted."
 ER_BINLOG_UNSAFE_SYSTEM_TABLE
   eng "The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves."
@@ -6955,6 +6899,9 @@ ER_GTID_PURGED_WAS_CHANGED
 ER_GTID_EXECUTED_WAS_CHANGED
   eng "GTID_EXECUTED was changed from '%s' to '%s'."
 
+ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
+  eng "Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated."
+
 #
 #  End of 5.6 error messages.
 #
@@ -6976,6 +6923,9 @@ ER_STORAGE_ENGINE_NOT_LOADED
 
 ER_GET_STACKED_DA_WITHOUT_ACTIVE_HANDLER 0Z002
   eng "GET STACKED DIAGNOSTICS when handler not active"
+
+ER_WARN_LEGACY_SYNTAX_CONVERTED
+  eng "%s is no longer supported. The statement was converted to %s."
 
 #
 #  End of 5.7 error messages.

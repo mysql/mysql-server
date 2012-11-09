@@ -17,6 +17,7 @@
 
 #include <ndb_global.h>
 
+#include <TransporterRegistry.hpp>
 #include "Configuration.hpp"
 #include <ErrorHandlingMacros.hpp>
 #include "GlobalData.hpp"
@@ -116,7 +117,8 @@ void
 Configuration::fetch_configuration(const char* _connect_string,
                                    int force_nodeid,
                                    const char* _bind_address,
-                                   NodeId allocated_nodeid)
+                                   NodeId allocated_nodeid,
+                                   int connect_retries, int connect_delay)
 {
   /**
    * Fetch configuration from management server
@@ -143,7 +145,7 @@ Configuration::fetch_configuration(const char* _connect_string,
 	      m_config_retriever->getErrorString());
   }
 
-  if(m_config_retriever->do_connect(12,5,1) == -1){
+  if(m_config_retriever->do_connect(connect_retries, connect_delay, 1) == -1){
     const char * s = m_config_retriever->getErrorString();
     if(s == 0)
       s = "No error given!";
@@ -164,7 +166,7 @@ Configuration::fetch_configuration(const char* _connect_string,
   else
   {
 
-    const int alloc_retries = 2;
+    const int alloc_retries = 10;
     const int alloc_delay = 3;
     globalData.ownId = cr.allocNodeId(alloc_retries, alloc_delay);
     if(globalData.ownId == 0)
@@ -315,7 +317,10 @@ Configuration::setupConfiguration(){
 
   Uint32 total_send_buffer = 0;
   iter.get(CFG_TOTAL_SEND_BUFFER_MEMORY, &total_send_buffer);
-  globalTransporterRegistry.allocate_send_buffers(total_send_buffer);
+  Uint64 extra_send_buffer = 0;
+  iter.get(CFG_EXTRA_SEND_BUFFER_MEMORY, &extra_send_buffer);
+  globalTransporterRegistry.allocate_send_buffers(total_send_buffer,
+                                                  extra_send_buffer);
   
   if(iter.get(CFG_DB_NO_SAVE_MSGS, &_maxErrorLogs)){
     ERROR_SET(fatal, NDBD_EXIT_INVALID_CONFIG, "Invalid configuration fetched", 
@@ -436,18 +441,21 @@ Configuration::setupConfiguration(){
                 m_thr_config.getErrorMessage());
     }
   }
-  if (thrconfigstring)
+  if (NdbIsMultiThreaded())
   {
-    ndbout_c("ThreadConfig: input: %s LockExecuteThreadToCPU: %s => parsed: %s",
-             thrconfigstring,
-             lockmask ? lockmask : "",
-             m_thr_config.getConfigString());
-  }
-  else
-  {
-    ndbout_c("ThreadConfig (old ndb_mgmd) LockExecuteThreadToCPU: %s => parsed: %s",
-             lockmask ? lockmask : "",
-             m_thr_config.getConfigString());
+    if (thrconfigstring)
+    {
+      ndbout_c("ThreadConfig: input: %s LockExecuteThreadToCPU: %s => parsed: %s",
+               thrconfigstring,
+               lockmask ? lockmask : "",
+               m_thr_config.getConfigString());
+    }
+    else
+    {
+      ndbout_c("ThreadConfig (old ndb_mgmd) LockExecuteThreadToCPU: %s => parsed: %s",
+               lockmask ? lockmask : "",
+               m_thr_config.getConfigString());
+    }
   }
 
   ConfigValues* cf = ConfigValuesFactory::extractCurrentSection(iter.m_config);
@@ -456,6 +464,55 @@ Configuration::setupConfiguration(){
     ndb_mgm_destroy_iterator(m_clusterConfigIter);
   m_clusterConfigIter = ndb_mgm_create_configuration_iterator
     (p, CFG_SECTION_NODE);
+
+  /**
+   * This is parts of get_multithreaded_config
+   */
+  do
+  {
+    globalData.isNdbMt = NdbIsMultiThreaded();
+    if (!globalData.isNdbMt)
+      break;
+
+    globalData.ndbMtTcThreads = m_thr_config.getThreadCount(THRConfig::T_TC);
+    globalData.ndbMtSendThreads =
+      m_thr_config.getThreadCount(THRConfig::T_SEND);
+    globalData.ndbMtReceiveThreads =
+      m_thr_config.getThreadCount(THRConfig::T_RECV);
+
+    globalData.isNdbMtLqh = true;
+    {
+      if (m_thr_config.getMtClassic())
+      {
+        globalData.isNdbMtLqh = false;
+      }
+    }
+
+    if (!globalData.isNdbMtLqh)
+      break;
+
+    Uint32 threads = m_thr_config.getThreadCount(THRConfig::T_LDM);
+    Uint32 workers = threads;
+    iter.get(CFG_NDBMT_LQH_WORKERS, &workers);
+
+#ifdef VM_TRACE
+    // testing
+    {
+      const char* p;
+      p = NdbEnv_GetEnv("NDBMT_LQH_WORKERS", (char*)0, 0);
+      if (p != 0)
+        workers = atoi(p);
+    }
+#endif
+
+
+    assert(workers != 0 && workers <= MAX_NDBMT_LQH_WORKERS);
+    assert(threads != 0 && threads <= MAX_NDBMT_LQH_THREADS);
+    assert(workers % threads == 0);
+
+    globalData.ndbMtLqhWorkers = workers;
+    globalData.ndbMtLqhThreads = threads;
+  } while (0);
 
   calcSizeAlt(cf);
 
@@ -630,6 +687,12 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     lqhInstances = globalData.ndbMtLqhWorkers;
   }
 
+  Uint32 tcInstances = 1;
+  if (globalData.ndbMtTcThreads > 1)
+  {
+    tcInstances = globalData.ndbMtTcThreads;
+  }
+
   Uint64 indexMem = 0, dataMem = 0;
   ndb_mgm_get_int64_parameter(&db, CFG_DB_DATA_MEM, &dataMem);
   ndb_mgm_get_int64_parameter(&db, CFG_DB_INDEX_MEM, &indexMem);
@@ -756,7 +819,8 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
 #if NDB_VERSION_D < NDB_MAKE_VERSION(7,2,0)
     noOfLocalScanRecords = (noOfDBNodes * noOfScanRecords) + 
 #else
-    noOfLocalScanRecords = 4 * (noOfDBNodes * noOfScanRecords) +
+    noOfLocalScanRecords = tcInstances * lqhInstances *
+      (noOfDBNodes * noOfScanRecords) +
 #endif
       1 /* NR */ + 
       1 /* LCP */; 
@@ -777,13 +841,6 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
      * Acc Size Alt values
      */
     // Can keep 65536 pages (= 0.5 GByte)
-    cfg.put(CFG_ACC_DIR_RANGE, 
-	    2 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas); 
-    
-    cfg.put(CFG_ACC_DIR_ARRAY,
-	    (noOfIndexPages >> 8) + 
-	    2 * NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
-    
     cfg.put(CFG_ACC_FRAGMENT,
 	    NO_OF_FRAG_PER_NODE * noOfAccTables* noOfReplicas);
     
@@ -849,6 +906,14 @@ Configuration::calcSizeAlt(ConfigValues * ownConfig){
     
     cfg.put(CFG_LQH_SCAN, 
 	    noOfLocalScanRecords);
+  }
+  
+  {
+    /**
+     * Spj Size Alt values
+     */
+    cfg.put(CFG_SPJ_TABLE, 
+	    noOfMetaTables);
   }
   
   {
@@ -983,7 +1048,7 @@ Configuration::setLockCPU(NdbThread * pThread,
   }
   else if (!NdbIsMultiThreaded())
   {
-    BlockNumber list[] = { CMVMI };
+    BlockNumber list[] = { DBDIH };
     res = m_thr_config.do_bind(pThread, list, 1);
   }
 

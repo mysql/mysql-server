@@ -18,6 +18,7 @@
 #ifndef DBTC_H
 #define DBTC_H
 
+#ifndef DBTC_STATE_EXTRACT
 #include <ndb_limits.h>
 #include <pc.hpp>
 #include <SimulatedBlock.hpp>
@@ -28,6 +29,7 @@
 #include <DataBuffer.hpp>
 #include <Bitmask.hpp>
 #include <AttributeList.hpp>
+#include <signaldata/DihScanTab.hpp>
 #include <signaldata/AttrInfo.hpp>
 #include <signaldata/LqhTransConf.hpp>
 #include <signaldata/LqhKey.hpp>
@@ -37,6 +39,7 @@
 #include <signaldata/EventReport.hpp>
 #include <trigger_definitions.h>
 #include <SignalCounter.hpp>
+#endif
 
 #ifdef DBTC_C
 /*
@@ -108,6 +111,7 @@
 #define ZCOMMIT_TYPE_ERROR 278
 
 #define ZNO_FREE_TC_MARKER 279
+#define ZNO_FREE_TC_MARKER_DATABUFFER 273
 #define ZNODE_SHUTDOWN_IN_PROGRESS 280
 #define ZCLUSTER_SHUTDOWN_IN_PROGRESS 281
 #define ZWRONG_STATE 282
@@ -143,23 +147,26 @@
 #define ZTRANS_TOO_BIG 261
 #endif
 
-class Dbtc: public SimulatedBlock {
+class Dbtc
+#ifndef DBTC_STATE_EXTRACT
+  : public SimulatedBlock
+#endif
+{
 public:
 
+#ifndef DBTC_STATE_EXTRACT
   /**
    * Incase of mt-TC...only one instance will perform actual take-over
    *   let this be TAKE_OVER_INSTANCE
    */
   STATIC_CONST( TAKE_OVER_INSTANCE = 1 );
+#endif
 
   enum ConnectionState {
     CS_CONNECTED = 0,
     CS_DISCONNECTED = 1,
     CS_STARTED = 2,
     CS_RECEIVING = 3,
-    CS_PREPARED = 4,
-    CS_START_PREPARING = 5,
-    CS_REC_PREPARING = 6,
     CS_RESTART = 7,
     CS_ABORTING = 8,
     CS_COMPLETING = 9,
@@ -191,6 +198,7 @@ public:
     CS_WAIT_FIRE_TRIG_REQ = 27
   };
 
+#ifndef DBTC_STATE_EXTRACT
   enum OperationState {
     OS_CONNECTED = 1,
     OS_OPERATING = 2,
@@ -380,6 +388,7 @@ public:
    * Pool of trigger data record
    */
   ArrayPool<TcDefinedTriggerData> c_theDefinedTriggerPool;
+  RSS_AP_SNAPSHOT(c_theDefinedTriggerPool);
 
   /**
    * The list of active triggers
@@ -389,6 +398,10 @@ public:
   typedef DataBuffer<11> AttributeBuffer;
  
   AttributeBuffer::DataBufferPool c_theAttributeBufferPool;
+
+  typedef DataBuffer<5> CommitAckMarkerBuffer;
+
+  CommitAckMarkerBuffer::DataBufferPool c_theCommitAckMarkerBufferPool;
 
   UintR c_transactionBufferSpace;
 
@@ -488,6 +501,7 @@ public:
   ArrayPool<TcFiredTriggerData> c_theFiredTriggerPool;
   DLHashTable<TcFiredTriggerData> c_firedTriggerHash;
   AttributeBuffer::DataBufferPool c_theTriggerAttrInfoPool;
+  RSS_AP_SNAPSHOT(c_theFiredTriggerPool);
 
   Uint32 c_maxNumberOfDefinedTriggers;
   Uint32 c_maxNumberOfFiredTriggers;
@@ -567,6 +581,7 @@ public:
    * Pool of index data record
    */
   ArrayPool<TcIndexData> c_theIndexPool;
+  RSS_AP_SNAPSHOT(c_theIndexPool);
   
   /**
    * The list of defined indexes
@@ -626,6 +641,7 @@ public:
    * Pool of index data record
    */
   ArrayPool<TcIndexOperation> c_theIndexOperationPool;
+  RSS_AP_SNAPSHOT(c_theIndexOperationPool);
 
   UintR c_maxNumberOfIndexOperations;   
 
@@ -734,7 +750,7 @@ public:
       TF_EXEC_FLAG       = 4,
       TF_COMMIT_ACK_MARKER_RECEIVED = 8,
       TF_DEFERRED_CONSTRAINTS = 16, // check constraints in deferred fashion
-      TF_DEFERRED_TRIGGERS = 32, // trans has deferred triggers
+      TF_DEFERRED_UK_TRIGGERS = 32, // trans has deferred UK triggers
       TF_END = 0
     };
     Uint32 m_flags;
@@ -876,7 +892,7 @@ public:
       SOF_TRIGGER = 16,               // A trigger
       SOF_REORG_COPY = 32,
       SOF_REORG_DELETE = 64,
-      SOF_DEFERRED_TRIGGER = 128      // Op has deferred trigger
+      SOF_DEFERRED_UK_TRIGGER = 128   // Op has deferred trigger
     };
     
     static inline bool isIndexOp(Uint8 flags) {
@@ -987,14 +1003,11 @@ public:
   /*       THIS RECORD IS ALIGNED TO BE 128 BYTES.        */
   /********************************************************/
   struct HostRecord {
+    struct PackedWordsContainer lqh_pack[MAX_NDBMT_LQH_THREADS+1];
+    struct PackedWordsContainer packTCKEYCONF;
     HostState hostStatus;
     LqhTransState lqhTransStatus;
     bool  inPackedList;
-    UintR noOfPackedWordsLqh;
-    UintR packedWordsLqh[26];
-    UintR noOfWordsTCKEYCONF;
-    UintR packedWordsTCKEYCONF[30];
-    BlockReference hostLqhBlockRef;
 
     enum NodeFailBits
     {
@@ -1006,7 +1019,7 @@ public:
     };
     Uint32 m_nf_bits;
     NdbNodeBitmask m_lqh_trans_conf;
-  }; /* p2c: size = 128 bytes */
+  };
   
   typedef Ptr<HostRecord> HostRecordPtr;
   
@@ -1443,7 +1456,8 @@ private:
   void sendPackedTCKEYCONF(Signal* signal,
                            HostRecord * ahostptr,
                            UintR hostId);
-  void sendPackedSignalLqh(Signal* signal, HostRecord * ahostptr);
+  void sendPackedSignal(Signal* signal,
+                        struct PackedWordsContainer * container);
   Uint32 sendCommitLqh(Signal* signal,
                        TcConnectRecord * const regTcPtr);
   Uint32 sendCompleteLqh(Signal* signal,
@@ -1478,13 +1492,20 @@ private:
   void handleScanStop(Signal* signal, UintR aFailedNode);
   void initScanTcrec(Signal* signal);
   Uint32 initScanrec(ScanRecordPtr,  const class ScanTabReq*,
-		   const UintR scanParallel, 
-		   const UintR noOprecPerFrag,
-                   const Uint32 aiLength,
-                   const Uint32 keyLength);
+                     const UintR scanParallel,
+                     const UintR noOprecPerFrag,
+                     const Uint32 aiLength,
+                     const Uint32 keyLength,
+                     const Uint32 apiPtr[]);
   void initScanfragrec(Signal* signal);
   void releaseScanResources(Signal*, ScanRecordPtr, bool not_started = false);
   ScanRecordPtr seizeScanrec(Signal* signal);
+  void startFragScansLab(Signal*, Uint32 tableId,
+                        SectionHandle&, Uint32 secOffs);
+  void startFragScanLab(Signal*, Uint32 tableId,
+                        const DihScanGetNodesConf::FragItem& fragConf);
+
+  void sendDihGetNodesReq(Signal*, ScanRecordPtr);
   void sendScanFragReq(Signal*, ScanRecord*, ScanFragRec*, bool);
   void sendScanTabConf(Signal* signal, ScanRecordPtr);
   void close_scan_req(Signal*, ScanRecordPtr, bool received_req);
@@ -1588,8 +1609,11 @@ private:
 			     TcConnectRecord* trigOp);
   void restoreTriggeringOpState(Signal* signal, 
 				TcConnectRecord* trigOp);
-  void trigger_op_finished(Signal* signal, ApiConnectRecordPtr,
-                           TcConnectRecord* triggeringOp);
+  void trigger_op_finished(Signal* signal,
+                           ApiConnectRecordPtr,
+                           Uint32 triggerPtrI,
+                           TcConnectRecord* triggeringOp,
+                           Uint32 returnCode);
   void continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp);
 
   void executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr);
@@ -1763,9 +1787,12 @@ private:
     Uint64 cabortCount;
     Uint64 c_scan_count;
     Uint64 c_range_scan_count;
+    Uint64 clocalReadCount;
+    Uint64 clocalWriteCount;
 
     // Resource usage counter(not monotonic)
     Uint32 cconcurrentOp;
+    Uint32 cconcurrentScans;
 
     MonotonicCounters() :
      cattrinfoCount(0),
@@ -1777,6 +1804,8 @@ private:
      cabortCount(0),
      c_scan_count(0),
      c_range_scan_count(0),
+     clocalReadCount(0),
+     clocalWriteCount(0),
      cconcurrentOp(0) {}
 
     Uint32 build_event_rep(Signal* signal)
@@ -1794,6 +1823,8 @@ private:
       const Uint32 abortCount =       diff(signal, 13, cabortCount);
       const Uint32 scan_count =       diff(signal, 15, c_scan_count);
       const Uint32 range_scan_count = diff(signal, 17, c_range_scan_count);
+      const Uint32 localread_count = diff(signal, 19, clocalReadCount);
+      const Uint32 localwrite_count = diff(signal, 21, clocalWriteCount);
 
       signal->theData[0] = NDB_LE_TransReportCounters;
       signal->theData[1] = transCount;
@@ -1806,7 +1837,9 @@ private:
       signal->theData[8] = abortCount;
       signal->theData[9] = scan_count;
       signal->theData[10] = range_scan_count;
-      return 11;
+      signal->theData[11] = localread_count;
+      signal->theData[12] = localwrite_count;
+      return 13;
     }
 
     Uint32 build_continueB(Signal* signal) const
@@ -1815,7 +1848,9 @@ private:
       const Uint64* vars[] = {
         &cattrinfoCount, &ctransCount, &ccommitCount,
         &creadCount, &csimpleReadCount, &cwriteCount,
-        &cabortCount, &c_scan_count, &c_range_scan_count };
+        &cabortCount, &c_scan_count, &c_range_scan_count,
+        &clocalReadCount, &clocalWriteCount
+      };
       const size_t num = sizeof(vars)/sizeof(vars[0]);
 
       for (size_t i = 0; i < num; i++)
@@ -1833,6 +1868,7 @@ private:
       return (Uint32)(curr - old);
     }
   } c_counters;
+  RSS_OP_SNAPSHOT(cconcurrentOp);
 
   Uint16 cownNodeid;
   Uint16 terrorCode;
@@ -1845,6 +1881,8 @@ private:
   UintR clastgcp;
   UintR cfirstfreeGcp;
   UintR cfirstfreeScanrec;
+  UintR cConcScanCount;
+  RSS_OP_SNAPSHOT(cConcScanCount);
 
   TableRecordPtr tabptr;
   UintR cfirstfreeApiConnectFail;
@@ -1859,6 +1897,7 @@ private:
   UintR cscanrecFileSize;
 
   UnsafeArrayPool<ScanFragRec> c_scan_frag_pool;
+  RSS_AP_SNAPSHOT(c_scan_frag_pool);
   ScanFragRecPtr scanFragptr;
 
   UintR cscanFragrecFileSize;
@@ -1924,10 +1963,9 @@ private:
   UintR tconfig1;
   UintR tconfig2;
 
-  UintR cdata[32];
   UintR ctransidFailHash[512];
   UintR ctcConnectFailHash[1024];
-  
+
   /**
    * Commit Ack handling
    */
@@ -1940,7 +1978,7 @@ public:
     Uint32 prevHash;
     Uint32 apiConnectPtr;
     Uint16 apiNodeId;
-    NdbNodeBitmask m_commit_ack_marker_nodes; 
+    CommitAckMarkerBuffer::Head theDataBuffer;
 
     inline bool equal(const CommitAckMarker & p) const {
       return ((p.transid1 == transid1) && (p.transid2 == transid2));
@@ -1949,6 +1987,12 @@ public:
     inline Uint32 hashValue() const {
       return transid1;
     }
+    bool insert_in_commit_ack_marker(Dbtc *tc,
+                                     Uint32 instanceKey,
+                                     NodeId nodeId);
+    // insert all keys when exact keys not known
+    bool insert_in_commit_ack_marker_all(Dbtc *tc,
+                                         NodeId nodeId);
   };
 
 private:
@@ -1957,11 +2001,13 @@ private:
   
   ArrayPool<CommitAckMarker>   m_commitAckMarkerPool;
   DLHashTable<CommitAckMarker> m_commitAckMarkerHash;
+  RSS_AP_SNAPSHOT(m_commitAckMarkerPool);
   
   void execTC_COMMIT_ACK(Signal* signal);
-  void sendRemoveMarkers(Signal*, const CommitAckMarker *);
+  void sendRemoveMarkers(Signal*, CommitAckMarker *);
   void sendRemoveMarker(Signal* signal, 
 			NodeId nodeId,
+                        Uint32 instanceKey,
 			Uint32 transid1, 
 			Uint32 transid2);
   void removeMarkerForFailedAPI(Signal* signal, Uint32 nodeId, Uint32 bucket);
@@ -1989,6 +2035,7 @@ private:
 
   bool validate_filter(Signal*);
   bool match_and_print(Signal*, ApiConnectRecordPtr);
+  bool ndbinfo_write_trans(Ndbinfo::Row&, ApiConnectRecordPtr);
 
 #ifdef ERROR_INSERT
   bool testFragmentDrop(Signal* signal);
@@ -2105,6 +2152,7 @@ private:
 #endif
   Uint32 m_deferred_enabled;
   Uint32 m_max_writes_per_trans;
+#endif
 };
 
 #endif

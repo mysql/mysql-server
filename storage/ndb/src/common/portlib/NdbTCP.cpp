@@ -25,6 +25,11 @@
 #define INADDR_NONE -1                          /* Error value from inet_addr */
 #endif
 
+/* Return codes from getaddrinfo() */
+/* EAI_NODATA is obsolete and has been removed from some platforms */
+#ifndef EAI_NODATA
+#define EAI_NODATA EAI_NONAME
+#endif
 
 extern "C"
 int

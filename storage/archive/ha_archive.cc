@@ -231,7 +231,7 @@ Archive_share::Archive_share()
 
 
 ha_archive::ha_archive(handlerton *hton, TABLE_SHARE *table_arg)
-  :handler(hton, table_arg), share(NULL), delayed_insert(0), bulk_insert(0)
+  :handler(hton, table_arg), share(NULL), bulk_insert(0)
 {
   /* Set our original buffer from pre-allocated memory */
   buffer.set((char *)byte_buffer, IO_SIZE, system_charset_info);
@@ -771,7 +771,7 @@ int ha_archive::create(const char *name, TABLE *table_arg,
     We reuse name_buff since it is available.
   */
 #ifdef HAVE_READLINK
-  if (my_use_symdir &&
+  if (my_enable_symlinks &&
       create_info->data_file_name &&
       create_info->data_file_name[0] != '#')
   {
@@ -878,7 +878,7 @@ int ha_archive::real_write_row(uchar *buf, azio_stream *writer)
     DBUG_RETURN(-1);
   }
 
-  if (!delayed_insert || !bulk_insert)
+  if (!bulk_insert)
     share->dirty= TRUE;
 
   DBUG_RETURN(0);
@@ -1324,10 +1324,7 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf)
   if (error == Z_STREAM_ERROR || error == Z_DATA_ERROR )
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
 
-  /* 
-    If the record is the wrong size, the file is probably damaged, unless 
-    we are dealing with a delayed insert or a bulk insert.
-  */
+  /* If the record is the wrong size, the file is probably damaged. */
   if ((ulong) read != table->s->reclength)
     DBUG_RETURN(HA_ERR_END_OF_FILE);
 
@@ -1610,11 +1607,6 @@ THR_LOCK_DATA **ha_archive::store_lock(THD *thd,
                                        THR_LOCK_DATA **to,
                                        enum thr_lock_type lock_type)
 {
-  if (lock_type == TL_WRITE_DELAYED)
-    delayed_insert= TRUE;
-  else
-    delayed_insert= FALSE;
-
   if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) 
   {
     /* 
@@ -1683,7 +1675,7 @@ int ha_archive::info(uint flag)
   }
 
   /* 
-    This should be an accurate number now, though bulk and delayed inserts can
+    This should be an accurate number now, though bulk inserts can
     cause the number to be inaccurate.
   */
   stats.records= share->rows_recorded;

@@ -1,0 +1,195 @@
+# Hard coded Makefile for windows
+#
+# Tip: If you want to be able to build 32bit and 64 bit versions
+#      on the same machine you can install libevent and pthreads in
+#      let's say: /usr/local32 and /usr/local64 and you should
+#      be able to compile with:
+#      make -f win32/Makefile.mingw LOCAL=/usr/local32
+#      make -f win32/Makefile.mingw LOCAL=/usr/local64 CC=x86_64-w64-mingw32-gcc
+#
+
+CC = gcc
+LOCAL=/usr/local
+LOCALLIB=-L${LOCAL}/lib
+LOCALINC=-I${LOCAL}/include
+DEST=${LOCAL}
+INSTALLDIRS=${DEST}/bin ${DEST}/lib ${DEST}/include/memcached
+
+OBJDIR = .libs \
+	 .libs/engines \
+         .libs/daemon \
+         .libs/engines/default_engine \
+         .libs/extensions/daemon \
+         .libs/extensions/loggers \
+         .libs/extensions/protocol \
+         .libs/programs \
+         .libs/testsuite \
+         .libs/utilities \
+         .libs/win32
+
+BINARIES= mcstat.exe \
+          memcached.exe \
+          engine_testapp.exe \
+	  sizes.exe \
+	  .libs/ascii_scrub.so \
+          .libs/basic_engine_testsuite.so \
+          .libs/default_engine.so \
+          .libs/example_protocol.so \
+          .libs/eventlog_logger.so \
+          .libs/stdin_term_handler.so
+
+LIB=${LOCALLIB}
+INCLUDE=-Iinclude -I. -Idaemon -Iprograms -Iextensions -Iwin32 -I.libs ${LOCALINC}
+
+all: ${BINARIES}
+
+install: ${BINARIES} ${INSTALLDIRS}
+	cp memcached.exe .libs/default_engine.so .libs/ascii_scrub.so ${DEST}/lib
+	cp mcstat.exe ${DEST}/bin
+	cp include/memcached/* ${DEST}/include/memcached
+
+CFLAGS = -std=gnu99 -O2 -g -DNDEBUG -fno-strict-aliasing -Wall \
+ -Wstrict-prototypes -Wmissing-prototypes -Wmissing-declarations \
+ -Wredundant-decls \
+ ${INCLUDE} -DHAVE_CONFIG_H
+
+MCSTAT_SRC = programs/mcstat.c win32/win32.c
+MCSTAT_OBJS = ${MCSTAT_SRC:%.c=.libs/%.o}
+
+MEMCACHED_SRC = \
+	      daemon/cache.c \
+	      daemon/hash.c \
+	      daemon/isasl.c \
+	      daemon/memcached.c \
+	      daemon/sasl_defs.c \
+	      daemon/stats.c \
+	      daemon/thread.c \
+	      daemon/topkeys.c \
+	      utilities/config_parser.c \
+	      utilities/engine_loader.c \
+	      utilities/extension_loggers.c\
+	      utilities/genhash.c \
+	      utilities/util.c \
+	      win32/defs.c \
+	      win32/dlfcn.c \
+	      win32/win32.c
+MEMCACHED_OBJS = ${MEMCACHED_SRC:%.c=.libs/%.o}
+
+ENGINE_TESTAPP_SRC = \
+		   programs/engine_testapp.c \
+		   programs/mock_server.c \
+		   utilities/config_parser.c \
+		   utilities/engine_loader.c \
+		   utilities/extension_loggers.c \
+		   utilities/util.c \
+		   win32/dlfcn.c
+ENGINE_TESTAPP_OBJS = ${ENGINE_TESTAPP_SRC:%.c=.libs/%.o}
+
+SIZES_SRC = programs/sizes.c
+SIZES_OBJS = ${SIZES_SRC:%.c=.libs/%.o}
+
+DEFAULT_ENGINE_SRC = \
+		   engines/default_engine/assoc.c \
+		   engines/default_engine/default_engine.c \
+		   engines/default_engine/items.c \
+		   engines/default_engine/slabs.c \
+		   utilities/util.c
+DEFAULT_ENGINE_OBJS = ${DEFAULT_ENGINE_SRC:%.c=.libs/%.o}
+
+ASCII_SCRUB_SRC = extensions/protocol/ascii_scrub.c
+ASCII_SCRUB_OBJS = ${ASCII_SCRUB_SRC:%.c=.libs/%.o}
+
+EXAMPLE_PROTOCOL_SRC = extensions/protocol/example_protocol.c
+EXAMPLE_PROTOCOL_OBJS = ${EXAMPLE_PROTOCOL_SRC:%.c=.libs/%.o}
+
+STDIN_TERM_HANDLER_SRC = extensions/daemon/stdin_check.c
+STDIN_TERM_HANDLER_OBJS = ${STDIN_TERM_HANDLER_SRC:%.c=.libs/%.o}
+
+EVENTLOG_LOGGER_SRC = extensions/loggers/eventlog_logger.c
+EVENTLOG_LOGGER_OBJS = ${EVENTLOG_LOGGER_SRC:%.c=.libs/%.o}
+
+BASIC_ENGINE_TESTSUITE_SRC = testsuite/basic_engine_testsuite.c
+BASIC_ENGINE_TESTSUITE_OBJS = ${BASIC_ENGINE_TESTSUITE_SRC:%.c=.libs/%.o}
+
+GENFILES=.libs/config_version.h
+
+mcstat.exe: ${OBJDIR} ${GENFILES} $(MCSTAT_OBJS)
+	${LINK.c} -o $@ $(MCSTAT_OBJS) \
+                  ${LIB} -lmswsock -lws2_32
+
+memcached.exe: ${OBJDIR} ${GENFILES} $(MEMCACHED_OBJS)
+	${LINK.c} -o $@ $(MEMCACHED_OBJS) \
+                  ${LIB} -levent -lmswsock \
+                  -lws2_32 -lpthread
+
+engine_testapp.exe: ${OBJDIR} ${GENFILES} $(ENGINE_TESTAPP_OBJS)
+	${LINK.c} -o $@ $(ENGINE_TESTAPP_OBJS) \
+                  ${LIB} -levent -lmswsock \
+                  -lws2_32 -lpthread
+
+sizes.exe: ${OBJDIR} ${GENFILES} $(SIZES_OBJS)
+	${LINK.c} -o $@ $(SIZES_OBJS)
+
+.libs/default_engine.so: ${OBJDIR} $(DEFAULT_ENGINE_OBJS)
+	${LINK.c} -o $@ -shared ${DEFAULT_ENGINE_OBJS} \
+                  ${LIB} -lws2_32 -lpthread
+
+.libs/ascii_scrub.so: ${OBJDIR} $(ASCII_SCRUB_OBJS)
+	${LINK.c} -o $@ -shared ${ASCII_SCRUB_OBJS}
+
+.libs/example_protocol.so: ${OBJDIR} $(EXAMPLE_PROTOCOL_OBJS)
+	${LINK.c} -o $@ -shared ${EXAMPLE_PROTOCOL_OBJS}
+
+.libs/stdin_term_handler.so: ${OBJDIR} $(STDIN_TERM_HANDLER_OBJS)
+	${LINK.c} -o $@ -shared ${STDIN_TERM_HANDLER_OBJS} ${LIBS} \
+                  ${LIB} -lpthread
+
+.libs/eventlog_logger.so: ${OBJDIR} $(EVENTLOG_LOGGER_OBJS)
+	${LINK.c} -o $@ -shared ${EVENTLOG_LOGGER_OBJS} ${LIBS} \
+                  ${LIB}
+
+.libs/basic_engine_testsuite.so: ${OBJDIR} $(BASIC_ENGINE_TESTSUITE_OBJS)
+	${LINK.c} -o $@ -shared ${BASIC_ENGINE_TESTSUITE_OBJS} ${LIB} -lpthread -lws2_32
+
+.libs/config_version.h:
+	./win32/config.sh
+
+${OBJDIR} ${INSTALLDIRS}:; -@mkdir -p $@
+
+.libs/%.o: %.c
+	${COMPILE.c} -MMD $< -o $@
+
+clean:
+	$(RM) ${BINARIES} \
+              ${ASCII_SCRUB_OBJS:.o=.d} \
+              ${ASCII_SCRUB_OBJS} \
+              ${BASIC_ENGINE_TESTSUITE_OBJS:.o=.d} \
+              ${BASIC_ENGINE_TESTSUITE_OBJS} \
+              ${DEFAULT_ENGINE_OBJS:.o=.d} \
+              ${DEFAULT_ENGINE_OBJS} \
+              ${ENGINE_TESTAPP_OBJS:.o=.d} \
+              ${ENGINE_TESTAPP_OBJS} \
+              ${EXAMPLE_PROTOCOL_OBJS:.o=.d} \
+              ${EXAMPLE_PROTOCOL_OBJS} \
+              ${GENFILES} \
+              ${MCSTAT_OBJS:.o=.d} \
+              ${MCSTAT_OBJS} \
+              ${MEMCACHED_OBJS:.o=.d} \
+              ${MEMCACHED_OBJS} \
+              ${SIZES_OBJS:.o=.d} \
+              ${SIZES_OBJS} \
+              ${EVENTLOG_LOGGER_OBJS:.o=.d} \
+              ${EVENTLOG_LOGGER_OBJS} \
+              ${STDIN_TERM_HANDLER_OBJS:.o=.d} \
+              ${STDIN_TERM_HANDLER_OBJS}
+
+-include ${ASCII_SCRUB_OBJS:.o=.d} \
+         ${BASIC_ENGINE_TESTSUITE_OBJS:.o=.d} \
+         ${DEFAULT_ENGINE_OBJS:.o=.d} \
+         ${ENGINE_TESTAPP_OBJS:.o=.d} \
+         ${EXAMPLE_PROTOCOL_OBJS:.o=.d} \
+         ${MEMCACHED_OBJS:.o=.d} \
+         ${MCSTAT_OBJS:.o=.d} \
+         ${SIZES_OBJS:.o=.d} \
+         ${EVENTLOG_LOGGER_OBJS:.o=.d} \
+         ${STDIN_TERM_HANDLER_OBJS:.o=.d}

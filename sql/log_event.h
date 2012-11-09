@@ -1099,7 +1099,7 @@ public:
     A storage to cache the global system variable's value.
     Handling of a separate event will be governed its member.
   */
-  ulong slave_exec_mode;
+  ulong rbr_exec_mode;
 
   /**
     Defines the type of the cache, if any, where the event will be

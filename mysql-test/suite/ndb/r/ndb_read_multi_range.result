@@ -602,12 +602,14 @@ t1.a + t2.a*10 + t3.a*100 + t4.a*1000,
 from
 t2 as t1, t2 as t2, t2 as t3, t2 as t4
 where (t1.a + t2.a*10 + t3.a*100 + t4.a*1000) < 3000;
+set optimizer_switch='block_nested_loop=off';
 explain
 SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM 
 t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	3000	Using temporary
-1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	6	Using where; Distinct
+1	SIMPLE	t2	range	PRIMARY	PRIMARY	4	NULL	6	Using where; Using MRR; Distinct
 SELECT DISTINCT STRAIGHT_JOIN t1.pk FROM 
 t1 LEFT JOIN t2 ON t2.a = t1.a AND t2.pk != 6;
+set optimizer_switch='block_nested_loop=default';
 drop table t1, t2;

@@ -898,13 +898,26 @@ bool JOIN::destroy()
   cond_equal= 0;
 
   cleanup(1);
-  if (join_tab)
+
+  if (join_tab) // We should not have tables > 0 and join_tab != NULL
+  for (uint i= 0; i < tables; i++)
   {
-    for (JOIN_TAB *tab= join_tab; tab < join_tab + tables; tab++)
+    JOIN_TAB *const tab= join_tab + i;
+
+    DBUG_ASSERT(!tab->table || !tab->table->sort.record_pointers);
+    if (tab->op)
     {
-      DBUG_ASSERT(!tab->table || !tab->table->sort.record_pointers);
-      tab->table= NULL;
+      if (tab->op->type() == QEP_operation::OT_TMP_TABLE)
+      {
+        free_tmp_table(thd, tab->table);
+        delete tab->tmp_table_param;
+        tab->tmp_table_param= NULL;
+      }
+      tab->op->free();
+      tab->op= NULL;
     }
+
+    tab->table= NULL;
   }
  /* Cleanup items referencing temporary table columns */
   cleanup_item_list(tmp_all_fields1);
@@ -2997,18 +3010,6 @@ void JOIN_TAB::cleanup()
     table->reginfo.join_tab= NULL;
   }
   end_read_record(&read_record);
-  if (op)
-  {
-    if (op->type() == QEP_operation::OT_TMP_TABLE)
-    {
-      free_tmp_table(join->thd, table);
-      table= NULL;
-      delete tmp_table_param;
-      tmp_table_param= NULL;
-    }
-    op->free();
-    op= NULL;
-  }
 }
 
 uint JOIN_TAB::sjm_query_block_id() const

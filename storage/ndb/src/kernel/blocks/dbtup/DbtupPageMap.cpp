@@ -230,6 +230,15 @@ Dbtup::allocFragPage(Uint32 * err, Fragrecord* regFragPtr)
   {
     jam();
     pageId = max;
+    if (!Local_key::isShort(pageId))
+    {
+      /**
+       * TODO: remove when ACC supports 48 bit references
+       */
+      jam();
+      * err = 889;
+      return RNIL;
+    }
     Uint32 * ptr = map.set(2 * pageId);
     if (unlikely(ptr == 0))
     {

@@ -102,6 +102,24 @@ set_env_var(const BaseString& existing,
   return newEnv;
 }
 
+static
+char *
+dirname(const char * path)
+{
+  char * s = strdup(path);
+  size_t len = strlen(s);
+  for (size_t i = 1; i<len; i++)
+  {
+    if (s[len - i] == '/')
+    {
+      s[len - i] = 0;
+      return s;
+    }
+  }
+  free(s);
+  return 0;
+}
+
 
 Vector<atrt_process> g_saved_procs;
 
@@ -162,13 +180,47 @@ do_change_version(atrt_config& config, SqlResultSet& command,
                                   BaseString("MYSQL_BASE_DIR"),
                                   BaseString(new_prefix));
   proc.m_proc.m_env.assign(newEnv);
-  BaseString suffix(proc.m_proc.m_path.substr(strlen(old_prefix)));
-  proc.m_proc.m_path.assign(new_prefix).append(suffix);
+
+  ssize_t pos = proc.m_proc.m_path.lastIndexOf('/') + 1;
+  BaseString exename(proc.m_proc.m_path.substr(pos));
+  char * exe = find_bin_path(new_prefix, exename.c_str());
+  proc.m_proc.m_path = exe;
+  if (exe)
+  {
+    free(exe);
+  }
   if (process_args && strlen(process_args))
   {
     /* Beware too long args */
     proc.m_proc.m_args.append(" ");
     proc.m_proc.m_args.append(process_args);
+  }
+
+  {
+    /**
+     * In 5.5...binaries aren't compiled with rpath
+     * So we need an explicit LD_LIBRARY_PATH
+     * So when upgrading..we need to change LD_LIBRARY_PATH
+     * So I hate 5.5...
+     */
+    ssize_t p0 = proc.m_proc.m_env.indexOf(" LD_LIBRARY_PATH=");
+    ssize_t p1 = proc.m_proc.m_env.indexOf(' ', p0 + 1);
+
+    BaseString part0 = proc.m_proc.m_env.substr(0, p0);
+    BaseString part1 = proc.m_proc.m_env.substr(p1);
+
+    proc.m_proc.m_env.assfmt("%s%s",
+                             part0.c_str(),
+                             part1.c_str());
+
+    BaseString lib(g_libmysqlclient_so_path);
+    ssize_t pos = lib.lastIndexOf('/') + 1;
+    BaseString libname(lib.substr(pos));
+    char * exe = find_bin_path(new_prefix, libname.c_str());
+    char * dir = dirname(exe);
+    proc.m_proc.m_env.appfmt(" LD_LIBRARY_PATH=%s", dir);
+    free(exe);
+    free(dir);
   }
 
   ndbout << proc << endl;

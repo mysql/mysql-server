@@ -57,7 +57,7 @@ class SocketInputStream : public InputStream {
   bool m_startover;
   bool m_timedout;
 public:
-  SocketInputStream(NDB_SOCKET_TYPE socket, unsigned read_timeout_ms = 60000);
+  SocketInputStream(NDB_SOCKET_TYPE socket, unsigned read_timeout_ms = 3000);
   virtual ~SocketInputStream() {}
   char* gets(char * buf, int bufLen);
   bool timedout() { return m_timedout; }

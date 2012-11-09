@@ -100,6 +100,13 @@ public:
    */
   void sync_down(const char * key);
   void sync_up_and_wait(const char * key, Uint32 count = 0);
+
+  /**
+   * safety for slow machines...
+   * 0 means no safety
+   */
+  bool closeToTimeout(int safety_percent = 0);
+
 private:
   friend class NDBT_Step;
   friend class NDBT_TestSuite;
@@ -120,6 +127,9 @@ private:
   Properties props;
   NdbMutex* propertyMutexPtr;
   NdbCondition* propertyCondPtr;
+
+  int m_env_timeout;
+  Uint64 m_test_start_time;
 };
 
 typedef int (NDBT_TESTFUNC)(NDBT_Context*, NDBT_Step*);

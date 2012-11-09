@@ -3204,6 +3204,8 @@ row_ins_step(
 
 	if (node->state == INS_NODE_SET_IX_LOCK) {
 
+		node->state = INS_NODE_ALLOC_ROW_ID;
+
 		/* It may be that the current session has not yet started
 		its transaction, or it has been committed: */
 
@@ -3222,8 +3224,6 @@ row_ins_step(
 
 		node->trx_id = trx->id;
 same_trx:
-		node->state = INS_NODE_ALLOC_ROW_ID;
-
 		if (node->ins_type == INS_SEARCHED) {
 			/* Reset the cursor */
 			sel_node->state = SEL_NODE_OPEN;

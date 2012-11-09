@@ -574,13 +574,6 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
       memcmp(pos - rootdir_len, FN_ROOTDIR, rootdir_len) != 0)
     pos= strnmov(pos, FN_ROOTDIR, end - pos);
   pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, NullS);
-#ifdef USE_SYMDIR
-  if (!(flags & SKIP_SYMDIR_ACCESS))
-  {
-    unpack_dirname(buff, buff);
-    pos= strend(buff);
-  }
-#endif
   pos= strxnmov(pos, end - pos, tbbuff, ext, NullS);
 
   DBUG_PRINT("exit", ("buff: '%s'", buff));
@@ -3259,15 +3252,23 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     /* Set field charset. */
     save_cs= sql_field->charset= get_sql_field_charset(sql_field,
                                                        create_info);
-    if ((sql_field->flags & BINCMP_FLAG) &&
-	!(sql_field->charset= get_charset_by_csname(sql_field->charset->csname,
-						    MY_CS_BINSORT,MYF(0))))
+    if (sql_field->flags & BINCMP_FLAG)
     {
-      char tmp[65];
-      strmake(strmake(tmp, save_cs->csname, sizeof(tmp)-4),
-              STRING_WITH_LEN("_bin"));
-      my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
-      DBUG_RETURN(TRUE);
+      // e.g. CREATE TABLE t1 (a CHAR(1) BINARY);
+      if (!(sql_field->charset= get_charset_by_csname(sql_field->charset->csname,
+                                                      MY_CS_BINSORT,MYF(0))))
+      {
+        char tmp[65];
+        strmake(strmake(tmp, save_cs->csname, sizeof(tmp)-4),
+                STRING_WITH_LEN("_bin"));
+        my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
+        DBUG_RETURN(TRUE);
+      }
+      /*
+        Now that we have sql_field->charset set properly,
+        we don't need the BINCMP_FLAG any longer.
+      */
+      sql_field->flags&= ~BINCMP_FLAG;
     }
 
     /*
@@ -6703,7 +6704,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       if (alter)
       {
-	if (def->sql_type == MYSQL_TYPE_BLOB)
+	if (def->flags & BLOB_FLAG)
 	{
 	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
           goto err;

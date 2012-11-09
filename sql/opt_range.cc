@@ -1855,6 +1855,26 @@ QUICK_RANGE::QUICK_RANGE()
   min_keypart_map(0), max_keypart_map(0)
 {}
 
+QUICK_RANGE::QUICK_RANGE(const uchar *min_key_arg, uint min_length_arg,
+                         key_part_map min_keypart_map_arg,
+                         const uchar *max_key_arg, uint max_length_arg,
+                         key_part_map max_keypart_map_arg,
+                         uint flag_arg)
+  : min_key(NULL),
+    max_key(NULL),
+    min_length((uint16) min_length_arg),
+    max_length((uint16) max_length_arg),
+    flag((uint16) flag_arg),
+    min_keypart_map(min_keypart_map_arg),
+    max_keypart_map(max_keypart_map_arg)
+{
+  min_key= static_cast<uchar*>(sql_memdup(min_key_arg, min_length_arg + 1));
+  max_key= static_cast<uchar*>(sql_memdup(max_key_arg, max_length_arg + 1));
+  // If we get is_null_string as argument, the memdup is undefined behavior.
+  DBUG_ASSERT(min_key_arg != is_null_string);
+  DBUG_ASSERT(max_key_arg != is_null_string);
+}
+
 SEL_ARG::SEL_ARG(SEL_ARG &arg) :Sql_alloc()
 {
   DBUG_ASSERT(arg.type != MAYBE_KEY);  // Would need left=right=NULL
@@ -6579,7 +6599,15 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
         tree= &null_element;
       goto end;
     }
-    if (!(tree= new (alloc) SEL_ARG(field,is_null_string,is_null_string)))
+    uchar *null_string=
+      static_cast<uchar*>(alloc_root(alloc, key_part->store_length + 1));
+    if (!null_string)
+      goto end;                                 // out of memory
+
+    TRASH(null_string, key_part->store_length + 1);
+    memcpy(null_string, is_null_string, sizeof(is_null_string));
+
+    if (!(tree= new (alloc) SEL_ARG(field, null_string, null_string)))
       goto end;                                 // out of memory
     if (type == Item_func::ISNOTNULL_FUNC)
     {
@@ -6835,7 +6863,11 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       tree->min_flag=NO_MIN_RANGE;		/* From start */
     else
     {						// > NULL
-      tree->min_value=is_null_string;
+      if (!(tree->min_value=
+            static_cast<uchar*>(alloc_root(alloc, key_part->store_length+1))))
+        goto end;
+      TRASH(tree->min_value, key_part->store_length + 1);
+      memcpy(tree->min_value, is_null_string, sizeof(is_null_string));
       tree->min_flag=NEAR_MIN;
     }
     break;
@@ -9665,7 +9697,7 @@ key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
   KEY_PART_INFO *curr_part, *end_part;
   const uchar* end_ptr= key + key_len;
   curr_part= key_info->key_part;
-  end_part= curr_part + key_info->key_parts;
+  end_part= curr_part + key_info->user_defined_key_parts;
 
   for (; curr_part != end_part && key < end_ptr; curr_part++)
   {
@@ -11890,12 +11922,11 @@ get_constant_key_infix(KEY *index_info, SEL_ARG *index_range_tree,
     { 
       /*
         cur_range specifies 'IS NULL'. In this case the argument points
-        to a "null value" (is_null_string) that may not always be long
-        enough for a direct memcpy to a field.
+        to a "null value" (a copy of is_null_string) that we do not
+        memcmp(), or memcpy to a field.
       */
       DBUG_ASSERT (field_length > 0);
       *key_ptr= 1;
-      memset(key_ptr+1, 0, field_length-1);
       key_ptr+= field_length;
       *key_infix_len+= field_length;
     }

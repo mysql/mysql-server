@@ -53,6 +53,7 @@ void Qmgr::initData()
   nodePtr.i = getOwnNodeId();
   ptrAss(nodePtr, nodeRec);
   nodePtr.p->blockRef = reference();
+  ndbrequire(getNodeInfo(getOwnNodeId()).m_type == NodeInfo::DB);
 
   c_connectedNodes.set(getOwnNodeId());
   setNodeInfo(getOwnNodeId()).m_version = NDB_VERSION;
@@ -91,9 +92,45 @@ void Qmgr::initData()
   c_allow_api_connect = 0;
   ctoStatus = Q_NOT_ACTIVE;
   clatestTransactionCheck = 0;
+
+  for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++)
+  {
+    ptrAss(nodePtr, nodeRec);
+    nodePtr.p->ndynamicId = 0;
+    nodePtr.p->hbOrder = 0;
+    Uint32 cnt = 0;
+    Uint32 type = getNodeInfo(nodePtr.i).m_type;
+    switch(type){
+    case NodeInfo::DB:
+      jam();
+      nodePtr.p->phase = ZINIT;
+      c_definedNodes.set(nodePtr.i);
+      break;
+    case NodeInfo::API:
+      jam();
+      nodePtr.p->phase = ZAPI_INACTIVE;
+      break;
+    case NodeInfo::MGM:
+      jam();
+      /**
+       * cmvmi allows ndb_mgmd to connect directly
+       */
+      nodePtr.p->phase = ZAPI_INACTIVE;
+      break;
+    default:
+      jam();
+      nodePtr.p->phase = ZAPI_INACTIVE;
+    }
+
+    set_hb_count(nodePtr.i) = cnt;
+    nodePtr.p->sendPrepFailReqStatus = Q_NOT_ACTIVE;
+    nodePtr.p->sendCommitFailReqStatus = Q_NOT_ACTIVE;
+    nodePtr.p->sendPresToStatus = Q_NOT_ACTIVE;
+    nodePtr.p->failState = NORMAL;
+  }//for
 }//Qmgr::initData()
 
-void Qmgr::initRecords() 
+void Qmgr::initRecords()
 {
   // Records with dynamic sizes
 }//Qmgr::initRecords()
@@ -170,6 +207,9 @@ Qmgr::Qmgr(Block_context& ctx)
   // Connectivity check signals
   addRecSignal(GSN_NODE_PING_REQ, &Qmgr::execNODE_PINGREQ);
   addRecSignal(GSN_NODE_PING_CONF, &Qmgr::execNODE_PINGCONF);
+
+  // Ndbinfo signal
+  addRecSignal(GSN_DBINFO_SCANREQ, &Qmgr::execDBINFO_SCANREQ);
 
   initData();
 }//Qmgr::Qmgr()
