@@ -25,17 +25,17 @@ insert into my_tx_table(a)
 select thread_id from performance_schema.threads;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_non_tx_table(a)
 select thread_id from performance_schema.threads;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_bh_table(a)
 select thread_id from performance_schema.threads;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_tx_table(a)
 select id from information_schema.processlist;
 insert into my_non_tx_table(a)
@@ -46,77 +46,77 @@ insert into my_tx_table(a)
 select thread_id from mysql.general_log;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_non_tx_table(a)
 select thread_id from mysql.general_log;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_bh_table(a)
 select thread_id from mysql.general_log;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_tx_table(a)
 select thread_id from mysql.slow_log;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_non_tx_table(a)
 select thread_id from mysql.slow_log;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_bh_table(a)
 select thread_id from mysql.slow_log;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_tx_table(a)
 select Relay_log_pos from mysql.slave_relay_log_info;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_non_tx_table(a)
 select Relay_log_pos from mysql.slave_relay_log_info;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_bh_table(a)
 select Relay_log_pos from mysql.slave_relay_log_info;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_tx_table(a)
 select Master_log_pos from mysql.slave_master_info;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_non_tx_table(a)
 select Master_log_pos from mysql.slave_master_info;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_bh_table(a)
 select Master_log_pos from mysql.slave_master_info;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_tx_table(a)
 select Relay_log_pos from mysql.slave_worker_info;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_non_tx_table(a)
 select Relay_log_pos from mysql.slave_worker_info;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 insert into my_bh_table(a)
 select Relay_log_pos from mysql.slave_worker_info;
 show errors;
 Level	Code	Message
-Error	1843	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
+Error	1844	Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT and at least one table is not replicated.
 use test;
 drop table if exists marker_multi_update;
 Warnings:

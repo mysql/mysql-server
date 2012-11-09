@@ -6878,6 +6878,9 @@ ER_FK_CANNOT_DELETE_PARENT
 ER_MALFORMED_PACKET
   eng "Malformed communication packet."
 
+ER_READ_ONLY_MODE
+        eng "Running in read-only mode"
+
 ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
   eng "When GTID_NEXT is set to a GTID, you must explicitly set it again after a COMMIT or ROLLBACK. If you see this error message in the slave SQL thread, it means that a table in the current transaction is transactional on the master and non-transactional on the slave. In a client connection, it means that you executed SET GTID_NEXT before a transaction and forgot to set GTID_NEXT to a different identifier or to 'AUTOMATIC' after COMMIT or ROLLBACK. Current GTID_NEXT is '%s'."
 
@@ -6914,9 +6917,6 @@ ER_ERROR_ON_MASTER
 
 ER_INCONSISTENT_ERROR
   eng "Query caused different errors on master and slave. Error on master: message (format)='%s' error code=%d; Error on slave:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
-
-ER_READ_ONLY_MODE
-        eng "Running in read-only mode"
 
 ER_STORAGE_ENGINE_NOT_LOADED
         eng "Storage engine for table '%s'.'%s' is not loaded."
