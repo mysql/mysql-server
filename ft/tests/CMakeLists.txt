@@ -49,8 +49,8 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
   add_test(ft/test-assertC test-assert ok)
 
   declare_custom_tests(benchmark-test)
-  add_test(ft/benchmark-test benchmark-test -q --fname benchmark-test.ft)
-  add_test(ft/benchmark-test_256 benchmark-test --valsize 256 --verify --verify_period 4096 --fname benchmark-test_256.ft 1)
+  add_test(ft/benchmark-test benchmark-test -q --fname benchmark-test.ft 1)
+  add_test(ft/benchmark-test_256 benchmark-test --valsize 256 --periter 131072 --verify --verify_period 4096 --fname benchmark-test_256.ft 1)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     benchmark-test.ft
     benchmark-test_256.ft
@@ -134,18 +134,10 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
   set_tests_properties(${long_tests} PROPERTIES TIMEOUT 3600)
   ## some take even longer, with valgrind
   set(extra_long_tests
+    ft/benchmark-test
+    ft/benchmark-test_256
     ft/is_empty
     ft/subblock-test-checksum
     )
   set_tests_properties(${extra_long_tests} PROPERTIES TIMEOUT 7200)
-  ## these take a really long time with valgrind
-  set(phenomenally_long_tests
-    ft/benchmark-test
-    )
-  set_tests_properties(${phenomenally_long_tests} PROPERTIES TIMEOUT 14400)
-  ## whoa
-  set(catastrophically_long_tests
-    ft/benchmark-test_256
-    )
-  set_tests_properties(${catastrophically_long_tests} PROPERTIES TIMEOUT 28800)
 endif(BUILD_TESTING OR BUILD_FT_TESTS)
