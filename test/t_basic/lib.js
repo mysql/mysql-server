@@ -45,6 +45,32 @@ global.t_basic_magic_key = function(id) {
   this.magic = id;
 };
 
+/** Verify the instance or append an error message to the test case */
+global.verify_t_basic = function(err, instance, id, testCase, domainObject) {
+  if (err) {
+    testCase.appendErrorMessage(err);
+    return;
+  }
+  if (typeof(instance) !== 'object') {
+    testCase.appendErrorMessage('Result for id ' + id + ' is not an object: ' + typeof(instance));
+  }
+  if (instance === null) {
+    testCase.appendErrorMessage('Result for id ' + id + ' is null.');
+    return;
+  }
+  if (domainObject) {
+    if (typeof(instance.getAge) !== 'function') {
+      testCase.appendErrorMessage('Result for id ' + id + ' is not a domain object');
+      return;
+    }
+  }
+  udebug.log_detail('instance for id ', id, ':', instance);
+  testCase.errorIfNotEqual('fail to verify id', id, instance.id);
+  testCase.errorIfNotEqual('fail to verify age', id, instance.age);
+  testCase.errorIfNotEqual('fail to verify name', 'Employee ' + id, instance.name);
+  testCase.errorIfNotEqual('fail to verify magic', id, instance.magic);
+};
+
 /** Verify the instance or fail the test case */
 global.fail_verify_t_basic = function(err, instance, id, testCase, domainObject) {
   if (err) {

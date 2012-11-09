@@ -292,11 +292,11 @@ DBTableHandler.prototype.getColumnMetadata = function() {
    * from the parameter and matched against property names in the
    * mapping.
 */
-function chooseIndex(self, keys) {
+function chooseIndex(self, keys, uniqueOnly) {
   udebug.log("chooseIndex");
   var idxs = self.dbTable.indexes;
   var keyFieldNames, firstIdxFieldName;
-  var i, j, f, n, index, nmatches;
+  var i, j, f, n, index, nmatches, x;
   
   udebug.log_detail("chooseIndex for:", JSON.stringify(keys));
   
@@ -307,13 +307,19 @@ function chooseIndex(self, keys) {
   }
   else {
     /* Keys is an object */ 
-     keyFieldNames = Object.keys(keys);
+     keyFieldNames = [];
+     for (x in keys) {
+       // only include properties of the keys itself that are defined and not null
+       if (keys.hasOwnProperty(x) && keys[x]) {
+         keyFieldNames.push(x);
+       }
+     }
 
     /* First look for a unique index.  All columns must match. */
     for(i = 0 ; i < idxs.length ; i++) {
       index = idxs[i];
       if(index.isUnique) {
-        udebug.log_detail("Considering:", index.name || "primary key");
+        udebug.log_detail("Considering:", (index.name || "primary key ") + " for " + JSON.stringify(keys));
         // Each key field resolves to a column, which must be in the index
         nmatches = 0;
         for(j = 0 ; j < index.columnNumbers.length ; j++) {
@@ -322,7 +328,7 @@ function chooseIndex(self, keys) {
           udebug.log_detail("index part", j, "is column", n, ":", f.fieldName);
           if(typeof keys[f.fieldName] !== 'undefined') {
             nmatches++;
-            udebug.log_detail("match!", nmatches);
+            udebug.log_detail("match! ", nmatches);
           }
         }
         if(nmatches === index.columnNumbers.length) {
@@ -332,12 +338,19 @@ function chooseIndex(self, keys) {
       }    
     }
 
+    // if unique only, return failure
+    if (uniqueOnly) {
+      udebug.log("chooseIndex for unique index FAILED");
+      return null;
+    }
+
     /* Then look for an ordered index.  A prefix match is OK. */
     /* Return the first suitable index we find (which might not be the best) */
-    /* A better algorithm might be to return the one with the longest train of matches */
+    /* TODO: A better algorithm might be to return the one with the longest train of matches */
     for(i = 0 ; i < idxs.length ; i++) {
       index = idxs[i];
       if(index.isOrdered) {
+        // f is the field corresponding to the first column in the index
         f = self.columnNumberToFieldMap[index.columnNumbers[0]];
         if(keyFieldNames.indexOf(f.fieldName) >= 0) {
          udebug.log("chooseIndex picked ordered index", i);
@@ -388,10 +401,17 @@ DBTableHandler.prototype.set = function(obj, fieldNumber, value) {
 /* Set all member values of object according to an ordered array of fields 
 */
 DBTableHandler.prototype.setFields = function(obj, values) {
-  var i;
-  for(i = 0; i < this.getMappedFieldCount() ; i ++) {
-    if(values[i]) {
-      this.set(obj, i, values[i]);
+//  var i;
+//  for(i = 0; i < this.getMappedFieldCount() ; i ++) {
+//    if(values[i]) {
+//      this.set(obj, i, values[i]);
+//    }
+//  }
+  var x;
+  // copy values into the domain object
+  for (x in values) {
+    if (values.hasOwnProperty(x)) {
+      obj[x] = values[x];
     }
   }
 };
@@ -433,9 +453,9 @@ DBIndexHandler.prototype = {
    choose an index to use as an access path for the operation,
    and return a DBIndexHandler for that index.
 */
-DBTableHandler.prototype.getIndexHandler = function(keys) {
+DBTableHandler.prototype.getIndexHandler = function(keys, uniqueOnly) {
   udebug.log("getIndexHandler");
-  var idx = chooseIndex(this, keys);
+  var idx = chooseIndex(this, keys, uniqueOnly);
   var handler = null;
   if(idx) {
     handler = new DBIndexHandler(this, idx);

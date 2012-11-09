@@ -281,7 +281,7 @@ exports.UserContext.prototype.find = function() {
     } else {
       userContext.dbTableHandler = dbTableHandler;
       keys = userContext.user_arguments[1];
-      index = dbTableHandler.getIndexHandler(keys);
+      index = dbTableHandler.getIndexHandler(keys, true);
       if (index === null) {
         err = new Error('UserContext.find unable to get an index to use for ' + JSON.stringify(keys));
         userContext.applyCallback(err, null);
@@ -317,7 +317,7 @@ exports.UserContext.prototype.persist = function() {
 
   function persistOnResult(err, dbOperation) {
     udebug.log('persist.persistOnResult');
-    // return any error code plus the original user object
+    // return any error code
     var error = checkOperation(err, dbOperation);
     if (error) {
       userContext.applyCallback(error);
@@ -358,6 +358,71 @@ exports.UserContext.prototype.persist = function() {
   getTableHandler(ctor, userContext.session, persistOnTableHandler);
 };
 
+/** Load the object.
+ * 
+ */
+exports.UserContext.prototype.load = function() {
+  var userContext = this;
+  var tableHandler;
+
+  function loadOnResult(err, dbOperation) {
+    udebug.log('load.loadOnResult');
+    var result, values;
+    var error = checkOperation(err, dbOperation);
+    if (error) {
+      userContext.applyCallback(err);
+      return;
+    }
+    values = dbOperation.result.value;
+    // apply the values to the parameter domain object
+    userContext.dbTableHandler.setFields(userContext.user_arguments[0], values);
+    userContext.applyCallback(null);      
+  }
+
+  function loadOnTableHandler(err, dbTableHandler) {
+    var dbSession, keys, index, transactionHandler;
+    if (userContext.clear) {
+      // if batch has been cleared, user callback has already been called
+      return;
+    }
+    if (err) {
+      userContext.applyCallback(err);
+    } else {
+      userContext.dbTableHandler = dbTableHandler;
+      // the domain object must provide PRIMARY or unique key
+      keys = userContext.user_arguments[0];
+      // ask getIndexHandler for only unique key indexes
+      index = dbTableHandler.getIndexHandler(keys, true);
+      if (index === null) {
+        err = new Error('Illegal argument: load unable to get a unique index to use for ' + JSON.stringify(keys));
+        userContext.applyCallback(err);
+      } else {
+        // create the load operation and execute it
+        dbSession = userContext.session.dbSession;
+        transactionHandler = dbSession.getTransactionHandler();
+        userContext.operation = dbSession.buildReadOperation(index, keys, transactionHandler, loadOnResult);
+        if (userContext.execute) {
+          transactionHandler.execute([userContext.operation], function() {
+            udebug.log_detail('load transactionHandler.execute callback.');
+          });
+        } else if (typeof(userContext.operationDefinedCallback) === 'function') {
+          userContext.operationDefinedCallback(1);
+        }
+      }
+    }
+  }
+
+  // load starts here
+  // session.load(instance, callback)
+  // get DBTableHandler for instance constructor
+  if (typeof(userContext.user_arguments[0].mynode) !== 'object') {
+    userContext.applyCallback(new Error('Illegal argument: load requires a mapped domain object.'));
+    return;
+  }
+  var ctor = userContext.user_arguments[0].mynode.constructor;
+  getTableHandler(ctor, userContext.session, loadOnTableHandler);
+};
+
 /** Remove the object.
  * 
  */
@@ -388,9 +453,9 @@ exports.UserContext.prototype.remove = function() {
       userContext.applyCallback(err, null);
     } else {
       object = userContext.user_arguments[0];
-      dbIndexHandler = dbTableHandler.getIndexHandler(object);
+      dbIndexHandler = dbTableHandler.getIndexHandler(object, true);
       if (dbIndexHandler === null) {
-        err = new Error('UserContext.find unable to get an index to use for ' + JSON.stringify(keys));
+        err = new Error('UserContext.remove unable to get an index to use for ' + JSON.stringify(keys));
         userContext.applyCallback(err, null);
       } else {
         transactionHandler = dbSession.getTransactionHandler();
