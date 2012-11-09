@@ -622,7 +622,17 @@ Use MONITOR_DEC if appropriate mutex protection exists.
 		}							\
 	}
 
+#ifdef UNIV_DEBUG_VALGRIND
+# define MONITOR_CHECK_DEFINED(value) do {	\
+	mon_type_t m = value;			\
+	UNIV_MEM_ASSERT_RW(&m, sizeof m);	\
+} while (0)
+#else /* UNIV_DEBUG_VALGRIND */
+# define MONITOR_CHECK_DEFINED(value) (void) 0
+#endif /* UNIV_DEBUG_VALGRIND */
+
 #define	MONITOR_INC_VALUE(monitor, value)				\
+	MONITOR_CHECK_DEFINED(value);					\
 	if (MONITOR_IS_ON(monitor)) {					\
 		MONITOR_VALUE(monitor) += (mon_type_t) (value);		\
 		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
@@ -631,6 +641,7 @@ Use MONITOR_DEC if appropriate mutex protection exists.
 	}
 
 #define	MONITOR_DEC_VALUE(monitor, value)				\
+	MONITOR_CHECK_DEFINED(value);					\
 	if (MONITOR_IS_ON(monitor)) {					\
 		ut_ad(MONITOR_VALUE(monitor) >= (mon_type_t) (value);	\
 		MONITOR_VALUE(monitor) -= (mon_type_t) (value);		\
@@ -659,6 +670,7 @@ could already be checked as a module group */
 
 /** Directly set a monitor counter's value */
 #define	MONITOR_SET(monitor, value)					\
+	MONITOR_CHECK_DEFINED(value);					\
 	if (MONITOR_IS_ON(monitor)) {					\
 		MONITOR_VALUE(monitor) = (mon_type_t) (value);		\
 		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
@@ -671,9 +683,10 @@ could already be checked as a module group */
 
 /** Add time difference between now and input "value" (in seconds) to the
 monitor counter
-@monitor	monitor to update for the time difference
-@value		the start time value */
+@param monitor	monitor to update for the time difference
+@param value	the start time value */
 #define	MONITOR_INC_TIME_IN_MICRO_SECS(monitor, value)			\
+	MONITOR_CHECK_DEFINED(value);					\
 	if (MONITOR_IS_ON(monitor)) {					\
 		ullint	old_time = (value);				\
 		value = ut_time_us(NULL);				\
@@ -683,15 +696,16 @@ monitor counter
 /** This macro updates 3 counters in one call. However, it only checks the
 main/first monitor counter 'monitor', to see it is on or off to decide
 whether to do the update.
-@monitor		the main monitor counter to update. It accounts for
+@param monitor		the main monitor counter to update. It accounts for
 			the accumulative value for the counter.
-@monitor_n_calls	counter that counts number of times this macro is
+@param monitor_n_calls	counter that counts number of times this macro is
 			called
-@monitor_per_call	counter that records the current and max value of
+@param monitor_per_call	counter that records the current and max value of
 			each incremental value
-@value			incremental value to record this time */
+@param value		incremental value to record this time */
 #define MONITOR_INC_VALUE_CUMULATIVE(					\
 		monitor, monitor_n_calls, monitor_per_call, value)	\
+	MONITOR_CHECK_DEFINED(value);					\
 	if (MONITOR_IS_ON(monitor)) {					\
 		MONITOR_VALUE(monitor_n_calls)++;			\
 		MONITOR_VALUE(monitor_per_call) = (mon_type_t) (value);	\
@@ -709,6 +723,7 @@ whether to do the update.
 /** Directly set a monitor counter's value, and if the value
 is monotonically increasing, only max value needs to be updated */
 #define	MONITOR_SET_UPD_MAX_ONLY(monitor, value)			\
+	MONITOR_CHECK_DEFINED(value);					\
 	if (MONITOR_IS_ON(monitor)) {					\
 		MONITOR_VALUE(monitor) = (mon_type_t) (value);		\
 		if (MONITOR_VALUE(monitor) > MONITOR_MAX_VALUE(monitor)) {  \
@@ -719,6 +734,7 @@ is monotonically increasing, only max value needs to be updated */
 /** Some values such as log sequence number are montomically increasing
 number, do not need to record max/min values */
 #define MONITOR_SET_SIMPLE(monitor, value)				\
+	MONITOR_CHECK_DEFINED(value);					\
 	if (MONITOR_IS_ON(monitor)) {					\
 		MONITOR_VALUE(monitor) = (mon_type_t) (value);		\
 	}
@@ -747,9 +763,11 @@ consolidate information from existing system status variables. */
 
 /** Save the passed-in value to mon_start_value field of monitor
 counters */
-#define MONITOR_SAVE_START(monitor, value)				\
+#define MONITOR_SAVE_START(monitor, value) do {				\
+	MONITOR_CHECK_DEFINED(value);					\
 	(MONITOR_START_VALUE(monitor) =					\
-		 (mon_type_t) (value) - MONITOR_VALUE_RESET(monitor))
+		(mon_type_t) (value) - MONITOR_VALUE_RESET(monitor));	\
+	} while (0)
 
 /** Save the passed-in value to mon_last_value field of monitor
 counters */
