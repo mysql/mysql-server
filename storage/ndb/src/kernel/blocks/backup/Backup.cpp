@@ -6041,15 +6041,6 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
         FragmentPtr fragPtr;
         BackupFilePtr filePtr;
         
-        ptr.p->tables.first(tabPtr);
-        if (tabPtr.i == RNIL)
-        {
-          jam();
-          failCode = LcpStatusRef::NoTableRecord;
-          break;
-        }
-        tabPtr.p->fragments.getPtr(fragPtr, 0);
-        ndbrequire(fragPtr.p->tableId == tabPtr.p->tableId);
         if (ptr.p->dataFilePtr == RNIL)
         {
           jam();
@@ -6058,8 +6049,16 @@ Backup::execLCP_STATUS_REQ(Signal* signal)
         }
         c_backupFilePool.getPtr(filePtr, ptr.p->dataFilePtr);
         ndbrequire(filePtr.p->backupPtr == ptr.i);
-        conf->tableId = tabPtr.p->tableId;
-        conf->fragId = fragPtr.p->fragmentId;
+
+        ptr.p->tables.first(tabPtr);
+        if (tabPtr.i != RNIL)
+        {
+          jam();
+          tabPtr.p->fragments.getPtr(fragPtr, 0);
+          ndbrequire(fragPtr.p->tableId == tabPtr.p->tableId);
+          conf->tableId = tabPtr.p->tableId;
+          conf->fragId = fragPtr.p->fragmentId;
+        }
         
         if (state == LcpStatusConf::LCP_SCANNING)
         {
