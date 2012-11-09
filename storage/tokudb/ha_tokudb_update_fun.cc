@@ -653,13 +653,13 @@ tokudb_expand_variable_offsets(
     extra_pos += sizeof offset_start;
 
     assert(extra_pos == (uchar *)extra->data + extra->size);
-    assert(offset_start + number_of_offsets < old_val->size);
 
     DBT new_val; memset(&new_val, 0, sizeof new_val);
 
     if (old_val != NULL) {
+        assert(offset_start + number_of_offsets < old_val->size);
+    
         // compute the new val from the old val
-
         uchar *old_val_ptr = (uchar *)old_val->data;
 
         // allocate space for the new val's data
@@ -737,11 +737,12 @@ tokudb_expand_int_field(
 
     assert(extra_pos == (uchar *)extra->data + extra->size); // consumed the entire message
     assert(new_length >= old_length); // expand only
-    assert(the_offset + old_length <= old_val->size); // old field within the old val
 
     DBT new_val; memset(&new_val, 0, sizeof new_val);
 
     if (old_val != NULL) {
+        assert(the_offset + old_length <= old_val->size); // old field within the old val
+
         // compute the new val from the old val
         uchar *old_val_ptr = (uchar *)old_val->data;
 
@@ -835,11 +836,12 @@ tokudb_expand_char_field(
 
     assert(extra_pos == (uchar *)extra->data + extra->size); // consumed the entire message
     assert(new_length >= old_length); // expand only
-    assert(the_offset + old_length <= old_val->size); // old field within the old val
 
     DBT new_val; memset(&new_val, 0, sizeof new_val);
 
     if (old_val != NULL) {
+        assert(the_offset + old_length <= old_val->size); // old field within the old val
+
         // compute the new val from the old val
         uchar *old_val_ptr = (uchar *)old_val->data;
 
