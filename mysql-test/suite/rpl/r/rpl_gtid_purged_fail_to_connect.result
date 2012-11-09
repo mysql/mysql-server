@@ -8,15 +8,18 @@ include/gtid_utils.inc
 ######## Initialize ########
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 include/stop_slave.inc
+include/stop_dump_threads.inc
 INSERT INTO t1 VALUES (1);
-RESET MASTER;
+FLUSH LOGS;
 INSERT INTO t1 VALUES (2);
+PURGE BINARY LOGS TO 'master-bin.000002';
+include/assert.inc [PURGE BINARY LOGS successfully removed all but the latest files]
 INSERT INTO t1 VALUES (2);
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
 START SLAVE;
 include/wait_for_slave_io_error.inc [errno=1236 # ER_MASTER_FATAL_ERROR_READING_BINLOG]
 include/stop_slave_sql.inc
-CHANGE MASTER TO MASTER_LOG_FILE = 'master-bin.000001', MASTER_LOG_POS = MASTER_POS, MASTER_AUTO_POSITION = 0;
+CHANGE MASTER TO MASTER_LOG_FILE = 'master-bin.000002', MASTER_LOG_POS = MASTER_POS, MASTER_AUTO_POSITION = 0;
 include/start_slave.inc
 include/assert.inc [t1 should contain only one row with the value 2]
 ######## Clean up ########

@@ -779,6 +779,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
   bool using_gtid_protocol= slave_gtid_executed != NULL;
   bool searching_first_gtid= using_gtid_protocol;
   bool skip_group= false;
+  bool binlog_has_previous_gtids_log_event= false;
   Sid_map *sid_map= slave_gtid_executed ? slave_gtid_executed->get_sid_map() : NULL;
 
   IO_CACHE log;
@@ -899,10 +900,15 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     GOTO_ERR;
   }
-  if (pos < BIN_LOG_HEADER_SIZE || pos > my_b_filelength(&log))
+  if (pos < BIN_LOG_HEADER_SIZE)
   {
-    errmsg= "Client requested master to start replication from \
-impossible position";
+    errmsg= "Client requested master to start replication from position < 4";
+    my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
+    GOTO_ERR;
+  }
+  if (pos > my_b_filelength(&log))
+  {
+    errmsg= "Client requested master to start replication from position > file size";
     my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
     GOTO_ERR;
   }
@@ -1065,6 +1071,7 @@ impossible position";
   while (!net->error && net->vio != 0 && !thd->killed)
   {
     Log_event_type event_type= UNKNOWN_EVENT;
+    bool goto_next_binlog= false;
 
     /* reset the transmit packet for the event read from binary log
        file */
@@ -1186,6 +1193,7 @@ impossible position";
         break;
 
       case PREVIOUS_GTIDS_LOG_EVENT:
+        binlog_has_previous_gtids_log_event= true;
         if (gtid_mode == 0)
         {
           my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
@@ -1198,9 +1206,23 @@ impossible position";
         break;
 
       default:
-        /* do nothing */
+        if (!binlog_has_previous_gtids_log_event && using_gtid_protocol)
+          /*
+            If we come here, it means we are seeing a 'normal' DML/DDL
+            event (e.g. query_log_event) without having seen any
+            Previous_gtid_log_event. That means we are in an old
+            binlog (no previous_gtids_log_event). When using the GTID
+            protocol, that means we must skip the entire binary log
+            and jump to the next one.
+          */
+          goto_next_binlog= true;
+
         break;
       }
+
+      if (goto_next_binlog)
+        // stop reading from this binlog
+        break;
 
       DBUG_PRINT("info", ("EVENT_TYPE %d SEARCHING %d SKIP_GROUP %d file %s pos %lld\n",
                  event_type, searching_first_gtid, skip_group, log_file_name,
@@ -1284,7 +1306,7 @@ impossible position";
     if (test_for_non_eof_log_read_errors(error, &errmsg))
       GOTO_ERR;
 
-    if (mysql_bin_log.is_active(log_file_name))
+    if (mysql_bin_log.is_active(log_file_name) && !goto_next_binlog)
     {
       /*
         Block until there is more data in the log
@@ -1454,6 +1476,7 @@ impossible position";
             break;
 
           case PREVIOUS_GTIDS_LOG_EVENT:
+            binlog_has_previous_gtids_log_event= true;
             if (gtid_mode == 0)
             {
               my_errno= ER_MASTER_FATAL_ERROR_READING_BINLOG;
@@ -1465,11 +1488,21 @@ impossible position";
             skip_group= false;
             break;
           default:
-            /* do nothing */
+            if (!binlog_has_previous_gtids_log_event && using_gtid_protocol)
+              /*
+                If we come here, it means we are seeing a 'normal' DML/DDL
+                event (e.g. query_log_event) without having seen any
+                Previous_gtid_log_event. That means we are in an old
+                binlog (no previous_gtids_log_event). When using the GTID
+                protocol, that means we must skip the entire binary log
+                and jump to the next one.
+              */
+              goto_next_binlog= true;
+
             break;
           }
 
-          if (!skip_group)
+          if (!skip_group && !goto_next_binlog)
           {
             THD_STAGE_INFO(thd, stage_sending_binlog_event_to_slave);
             pos = my_b_tell(&log);
@@ -1511,9 +1544,15 @@ impossible position";
       }
     }
     else
+      goto_next_binlog= true;
+
+    if (goto_next_binlog)
     {
+      // need this to break out of the for loop from switch
       bool loop_breaker = 0;
-      /* need this to break out of the for loop from switch */
+
+      // clear flag because we open a new binlog
+      binlog_has_previous_gtids_log_event= false;
 
       THD_STAGE_INFO(thd, stage_finished_reading_one_binlog_switching_to_next_binlog);
       switch (mysql_bin_log.find_next_log(&linfo, 1)) {
@@ -1543,12 +1582,19 @@ impossible position";
       
       /*
         Call fake_rotate_event() in case the previous log (the one which
-        we have just finished reading) did not contain a Rotate event
-        (for example (I don't know any other example) the previous log
-        was the last one before the master was shutdown & restarted).
+        we have just finished reading) did not contain a Rotate event.
+        There are at least two cases when this can happen:
+
+        - The previous binary log was the last one before the master was
+          shutdown and restarted.
+
+        - The previous binary log was GTID-free (did not contain a
+          Previous_gtids_log_event) and the slave is connecting using
+          the GTID protocol.
+
         This way we tell the slave about the new log's name and
-        position.  If the binlog is 5.0, the next event we are going to
-        read and send is Format_description_log_event.
+        position.  If the binlog is 5.0 or later, the next event we
+        are going to read and send is Format_description_log_event.
       */
       if ((file=open_binlog_file(&log, log_file_name, &errmsg)) < 0 ||
           fake_rotate_event(net, packet, log_file_name, BIN_LOG_HEADER_SIZE,
