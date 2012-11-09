@@ -1686,7 +1686,8 @@ row_upd_sec_index_entry(
 	if (referenced || dict_table_is_temporary(index->table)) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 	} else {
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+		mode = BTR_MODIFY_LEAF 
+			| BTR_ALREADY_S_LATCHED 
 			| BTR_DELETE_MARK;
 	}
 
@@ -2350,7 +2351,7 @@ row_upd_clust_step(
 
 		ut_ad(!dict_index_is_online_ddl(index));
 
-		dict_drop_index_tree(btr_pcur_get_rec(pcur), &mtr);
+		dict_drop_index_tree_step(btr_pcur_get_rec(pcur), &mtr);
 
 		mtr_commit(&mtr);
 

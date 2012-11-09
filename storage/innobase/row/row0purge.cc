@@ -403,8 +403,9 @@ row_purge_remove_sec_if_poss_leaf(
 	pcur.btr_cur.thr = static_cast<que_thr_t*>(que_node_get_parent(node));
 	
 	search_mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-	if(!dict_table_is_temporary(index->table))
+	if(!dict_table_is_temporary(index->table)) {
 		search_mode |= BTR_DELETE;
+	}	
 
 	search_result = row_search_index_entry(
 		index, entry, search_mode, &pcur, &mtr);

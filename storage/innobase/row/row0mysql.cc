@@ -2445,20 +2445,21 @@ row_create_index_for_mysql(
 	}
 	else {
 		err = dict_build_index_def(table, index, trx);
-		if (err != DB_SUCCESS)
+		if (err != DB_SUCCESS) {
 			goto error_handling;
+		}
 
 		index_id_t index_id = index->id;
 
-		/* add index to dictionary cache and also free 
-		index object */
+		/* add index to dictionary cache and also free index object */
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
-			trx_is_strict(trx) || 
-			dict_table_get_format(table) >= UNIV_FORMAT_B);
+			(trx_is_strict(trx) 
+			 || dict_table_get_format(table) >= UNIV_FORMAT_B));
 
-		if (err != DB_SUCCESS)
+		if (err != DB_SUCCESS) {
 			goto error_handling;
+		}
 
 		/* as above function has freed index object re-load it 
 		now from dictionary cache using index_id */
@@ -2467,11 +2468,12 @@ row_create_index_for_mysql(
 		index->table = table;
 
 		mem_heap_t* create_index_tree_heap = mem_heap_create(256);
+
 		err = dict_create_index_tree(
 			index, trx, create_index_tree_heap);
-
-		if (err != DB_SUCCESS) 
+		if (err != DB_SUCCESS) { 
 			dict_index_remove_from_cache(table, index);
+		}
 
 		mem_heap_free(create_index_tree_heap);
 	}
@@ -3492,7 +3494,7 @@ row_truncate_table_for_mysql(
 
 			/* This call may commit and restart mtr
 			and reposition pcur. */
-			root_page_no = dict_truncate_index_tree(
+			root_page_no = dict_truncate_index_tree_step(
 					table, recreate_space, &pcur, &mtr);
 
 			rec = btr_pcur_get_rec(&pcur);
@@ -3503,7 +3505,7 @@ row_truncate_table_for_mysql(
 					root_page_no, &mtr);
 				/* We will need to commit and restart the
 				mini-transaction in order to avoid deadlocks.
-				The dict_truncate_index_tree() call has 
+				The dict_truncate_index_tree_step() call has 
 				allocated a page in this mini-transaction, 
 				and the rest of this loop could latch another 
 				index page. */
@@ -3529,8 +3531,7 @@ next_rec:
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index;
  		     index = UT_LIST_GET_NEXT(indexes, index)) {
-			dict_truncate_index_tree_wo_sys_tables_update(
-				index, recreate_space);
+			dict_truncate_index_tree(index, recreate_space);
 		}
 	}
 
@@ -4194,8 +4195,7 @@ check_next_foreign:
 	     	     index != NULL;
 	     	     index = dict_table_get_next_index(index)) {
 			/* remove the index object associated. */
-			dict_drop_index_tree_wo_sys_tables_update(
-				index, *page_no++);
+			dict_drop_index_tree(index, *page_no++);
 			err = DB_SUCCESS;
 		}
 
