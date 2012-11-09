@@ -469,6 +469,18 @@ my_socket thd_get_fd(THD *thd)
 }
 
 /**
+  Set thread specific environment required for thd cleanup in thread pool.
+
+  @param thd            THD object
+
+  @retval               1 if thread-specific enviroment could be set else 0
+*/
+int thd_store_globals(THD* thd)
+{
+  return thd->store_globals();
+}
+
+/**
   Get thread attributes for connection threads
 
   @retval      Reference to thread attribute for connection threads
