@@ -270,6 +270,16 @@ DBTableHandler.prototype.allColumnsMapped = function() {
   return (this.dbTable.columns.length === this.fieldNumberToColumnMap.length);
 };
 
+/** allFieldsIncluded(values)
+ *  IMMEDIATE
+ *  Boolean: returns True if values include all mapped fields
+ */
+DBTableHandler.prototype.allFieldsIncluded = function(values) {
+  // TODO make sure all fields are included
+  // better to return a list of fields that are found instead of boolean
+  // the caller can then easily construct the appropriate database statement
+  return true;
+};
 
 /* getColumnMetadata() 
    IMMEDIATE 
