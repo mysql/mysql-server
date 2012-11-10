@@ -415,6 +415,63 @@ exports.UserContext.prototype.save = function() {
   getTableHandler(ctor, userContext.session, saveOnTableHandler);
 };
 
+/** Update the object.
+ * 
+ */
+exports.UserContext.prototype.update = function() {
+  var userContext = this;
+  var tableHandler, object, indexHandler;
+
+  function updateOnResult(err, dbOperation) {
+    // return any error code
+    var error = checkOperation(err, dbOperation);
+    if (error) {
+      userContext.applyCallback(error);
+    } else {
+      userContext.applyCallback(null);      
+    }
+  }
+
+  function updateOnTableHandler(err, dbTableHandler) {
+    var transactionHandler;
+    var dbSession = userContext.session.dbSession;
+    if (userContext.clear) {
+      // if batch has been cleared, user callback has already been called
+      return;
+    }
+    if (err) {
+      userContext.applyCallback(err);
+      return;
+    } else {
+      transactionHandler = dbSession.getTransactionHandler();
+      object = userContext.user_arguments[0];
+      indexHandler = dbTableHandler.getIndexHandler(object);
+      if (!indexHandler.dbIndex.isPrimaryKey) {
+        userContext.applyCallback(
+            new Error('Illegal argument: parameter of update must include all primary key columns.'));
+        return;
+      }
+      userContext.operation = dbSession.buildUpdateOperation(indexHandler, object, object, transactionHandler, updateOnResult);
+      if (userContext.execute) {
+        transactionHandler.execute([userContext.operation], function() {
+        });
+      } else if (typeof(userContext.operationDefinedCallback) === 'function') {
+        userContext.operationDefinedCallback(1);
+      }
+    }
+  }
+
+  // update starts here
+  // update(object, callback)
+  if (typeof(userContext.user_arguments[0].mynode) !== 'object') {
+    userContext.applyCallback(new Error('Illegal argument: update requires a mapped domain object.'));
+    return;
+  }
+  // get DBTableHandler for constructor
+  var ctor = userContext.user_arguments[0].mynode.constructor;
+  getTableHandler(ctor, userContext.session, updateOnTableHandler);
+};
+
 /** Load the object.
  * 
  */

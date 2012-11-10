@@ -27,10 +27,10 @@ var udebug = unified_debug.getLogger("t_basic/lib.js");
 
 /** The t_basic domain object */
 global.t_basic = function(id, name, age, magic) {
-  this.id = id;
-  this.name = name;
-  this.age = age;
-  this.magic = magic;
+  if (typeof id !== 'undefined') this.id = id;
+  if (typeof name !== 'undefined') this.name = name;
+  if (typeof age !== 'undefined') this.age = age;
+  if (typeof magic !== 'undefined') this.magic = magic;
 };
 
 global.t_basic.prototype.getAge = function() {return this.age;};
