@@ -186,7 +186,6 @@ function InsertOperation(sql, data, callback) {
 
   function onInsert(err, status) {
     if (err) {
-      udebug.log('dbSession.InsertOperation err callback: ', err);
       op.result.error.code = exports.DBSession.translateError(err.code);
       udebug.log('dbSession.InsertOperation err code:', err.code, op.result.error.code);
       op.result.success = false;
@@ -194,7 +193,6 @@ function InsertOperation(sql, data, callback) {
         op.callback(err, null);
       }
     } else {
-      udebug.log('MySQLConnection.dbSession.InsertOperation NO ERROR callback: ' + JSON.stringify(status));
       op.result.error.code = 0;
       op.result.value = op.data;
       op.result.success = true;
@@ -209,6 +207,42 @@ function InsertOperation(sql, data, callback) {
   this.execute = function(connection, operationCompleteCallback) {
     op.operationCompleteCallback = operationCompleteCallback;
     connection.query(this.sql, this.data, onInsert);
+  };
+}
+
+function WriteOperation(sql, data, callback) {
+  udebug.log('dbSession.WriteOperation with', sql, data);
+
+  var op = this;
+  this.sql = sql;
+  this.data = data;
+  this.callback = callback;
+  this.result = {};
+  this.result.error = {};
+
+  function onWrite(err, status) {
+    if (err) {
+      op.result.error.code = exports.DBSession.translateError(err.code);
+      udebug.log('dbSession.WriteOperation err code:', err.code, op.result.error.code);
+      op.result.success = false;
+      if (typeof(op.callback) === 'function') {
+        op.callback(err, null);
+      }
+    } else {
+      op.result.error.code = 0;
+      op.result.value = op.data;
+      op.result.success = true;
+      if (typeof(op.callback) === 'function') {
+        op.callback(null, op);
+      }
+    }
+    // now call the transaction execution callback
+    op.operationCompleteCallback(op);
+  }
+
+  this.execute = function(connection, operationCompleteCallback) {
+    op.operationCompleteCallback = operationCompleteCallback;
+    connection.query(this.sql, this.data, onWrite);
   };
 }
 
@@ -523,6 +557,7 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys
   udebug.log_detail('dbSession.buildUpdateOperation with indexHandler:', dbIndexHandler, keys, values);
   var object;
   var dbTableHandler = dbIndexHandler.tableHandler;
+  getMetadata(dbTableHandler);
   // build the SQL Update statement along with the data values
   var updateSetSQL = 'UPDATE ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' SET ';
   var updateWhereSQL = ' WHERE ';
@@ -575,6 +610,69 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys
 updateSetSQL += updateWhereSQL;
 udebug.log('dbSession.buildUpdateOperation SQL:', updateSetSQL);
 return new UpdateOperation(updateSetSQL, keyFields, updateFields, callback);
+};
+
+exports.DBSession.prototype.buildWriteOperation = function(dbIndexHandler, values, transaction, callback) {
+  udebug.log_detail('dbSession.buildWriteOperation with indexHandler:', dbIndexHandler, values);
+  var dbTableHandler = dbIndexHandler.tableHandler;
+  var fields = dbTableHandler.getFields(values);
+  getMetadata(dbTableHandler);
+  // if the values include all mapped fields, use the pre-built dbTableHandler.mysql.duplicateSQL
+  if (dbTableHandler.allFieldsIncluded(values)) {
+    return new WriteOperation(dbTableHandler.mysql.duplicateSQL, fields, callback);
+  }
+  // build the SQL Write statement along with the data values
+  var updateSetSQL = 'UPDATE ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' SET ';
+  var updateWhereSQL = ' WHERE ';
+  var separatorWhereSQL = '';
+  var separatorWriteSetSQL = '';
+  var updateFields = [];
+  var keyFields = [];
+  // get an array of key field names
+  var keyFieldNames = [];
+  var j, field;
+  for(j = 0 ; j < dbIndexHandler.fieldNumberToFieldMap.length ; j++) {
+    keyFieldNames.push(dbIndexHandler.fieldNumberToFieldMap[j].fieldName);
+  }
+  // get an array of persistent field names
+  var valueFieldNames = [];
+  for(j = 0 ; j < dbTableHandler.fieldNumberToFieldMap.length ; j++) {
+    field = dbTableHandler.fieldNumberToFieldMap[j];
+    // TODO: exclude not persistent fields and fields that are part of the index
+    if (!field.NotPersistent) {
+      valueFieldNames.push(dbTableHandler.fieldNumberToFieldMap[j].fieldName);
+    }
+  }
+  
+  var x, columnName;
+  for (x in values) {
+    if (values.hasOwnProperty(x)) {
+      if (keyFieldNames.indexOf(x) !== -1) {
+        // add the key value to the keyFields
+        keyFields.push(values[x]);
+        // add the key field to the WHERE clause
+        columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
+        updateWhereSQL += separatorWhereSQL + columnName + ' = ? ';
+        separatorWhereSQL = 'AND ';
+      }
+    }
+  }
+  for (x in values) {
+    if (values.hasOwnProperty(x)) {
+      if (valueFieldNames.indexOf(x) !== -1) {
+        // add the value in the object to the updateFields
+        updateFields.push(values[x]);
+        // add the value field to the SET clause
+        columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
+        updateSetSQL += separatorWriteSetSQL + columnName + ' = ?';
+        separatorWriteSetSQL = ', ';
+      }
+    }
+  }
+
+  updateSetSQL += updateWhereSQL;
+  udebug.log('dbSession.buildWriteOperation SQL:', updateSetSQL);
+  return new WriteOperation(updateSetSQL, keyFields, updateFields, callback);
 };
 
 exports.DBSession.prototype.begin = function() {

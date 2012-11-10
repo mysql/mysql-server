@@ -358,6 +358,63 @@ exports.UserContext.prototype.persist = function() {
   getTableHandler(ctor, userContext.session, persistOnTableHandler);
 };
 
+/** Save the object. If the row already exists, overwrite non-pk columns.
+ * 
+ */
+exports.UserContext.prototype.save = function() {
+  var userContext = this;
+  var tableHandler, object, indexHandler;
+
+  function saveOnResult(err, dbOperation) {
+    // return any error code
+    var error = checkOperation(err, dbOperation);
+    if (error) {
+      userContext.applyCallback(error);
+    } else {
+      userContext.applyCallback(null);      
+    }
+  }
+
+  function saveOnTableHandler(err, dbTableHandler) {
+    var transactionHandler;
+    var dbSession = userContext.session.dbSession;
+    if (userContext.clear) {
+      // if batch has been cleared, user callback has already been called
+      return;
+    }
+    if (err) {
+      userContext.applyCallback(err);
+      return;
+    } else {
+      transactionHandler = dbSession.getTransactionHandler();
+      object = userContext.user_arguments[0];
+      indexHandler = dbTableHandler.getIndexHandler(object);
+      if (!indexHandler.dbIndex.isPrimaryKey) {
+        userContext.applyCallback(
+            new Error('Illegal argument: parameter of save must include all primary key columns.'));
+        return;
+      }
+      userContext.operation = dbSession.buildWriteOperation(indexHandler, object, transactionHandler, saveOnResult);
+      if (userContext.execute) {
+        transactionHandler.execute([userContext.operation], function() {
+        });
+      } else if (typeof(userContext.operationDefinedCallback) === 'function') {
+        userContext.operationDefinedCallback(1);
+      }
+    }
+  }
+
+  // save starts here
+  // save(object, callback)
+  if (typeof(userContext.user_arguments[0].mynode) !== 'object') {
+    userContext.applyCallback(new Error('Illegal argument: save requires a mapped domain object.'));
+    return;
+  }
+  // get DBTableHandler for constructor
+  var ctor = userContext.user_arguments[0].mynode.constructor;
+  getTableHandler(ctor, userContext.session, saveOnTableHandler);
+};
+
 /** Load the object.
  * 
  */
