@@ -156,6 +156,13 @@ enum frm_type_enum
 
 enum release_type { RELEASE_NORMAL, RELEASE_WAIT_FOR_DROP };
 
+enum enum_vcol_update_mode
+{
+  VCOL_UPDATE_FOR_READ= 0,
+  VCOL_UPDATE_FOR_WRITE,
+  VCOL_UPDATE_ALL
+};
+
 typedef struct st_filesort_info
 {
   IO_CACHE *io_cache;           /* If sorted through filesort */

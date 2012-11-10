@@ -8066,7 +8066,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       copy_ptr->do_copy(copy_ptr);
     }
     prev_insert_id= to->file->next_insert_id;
-    update_virtual_fields(thd, to, TRUE);
+    update_virtual_fields(thd, to, VCOL_UPDATE_FOR_WRITE);
     if (thd->is_error())
     {
       error= 1;
