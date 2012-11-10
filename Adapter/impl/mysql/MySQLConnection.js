@@ -554,7 +554,7 @@ exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, 
 
 
 exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys, values, transaction, callback) {
-  udebug.log_detail('dbSession.buildUpdateOperation with indexHandler:', dbIndexHandler, keys, values);
+  udebug.log('dbSession.buildUpdateOperation with indexHandler:', dbIndexHandler.dbIndex, keys, values);
   var object;
   var dbTableHandler = dbIndexHandler.tableHandler;
   getMetadata(dbTableHandler);
@@ -566,7 +566,7 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys
   var updateFields = [];
   var keyFields = [];
   // get an array of key field names
-  var keyFieldNames = [];
+  var valueFieldName, keyFieldNames = [];
   var j, field;
   for(j = 0 ; j < dbIndexHandler.fieldNumberToFieldMap.length ; j++) {
     keyFieldNames.push(dbIndexHandler.fieldNumberToFieldMap[j].fieldName);
@@ -575,9 +575,10 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys
   var valueFieldNames = [];
   for(j = 0 ; j < dbTableHandler.fieldNumberToFieldMap.length ; j++) {
     field = dbTableHandler.fieldNumberToFieldMap[j];
-    // TODO: exclude not persistent fields and fields that are part of the index
-    if (!field.NotPersistent) {
-      valueFieldNames.push(dbTableHandler.fieldNumberToFieldMap[j].fieldName);
+    valueFieldName = field.fieldName;
+    // exclude not persistent fields and fields that are part of the index
+    if (!field.NotPersistent && keyFieldNames.indexOf(valueFieldName) === -1) {
+      valueFieldNames.push(valueFieldName);
     }
   }
   
