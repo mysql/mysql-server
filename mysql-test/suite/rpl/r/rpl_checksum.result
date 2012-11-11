@@ -84,8 +84,7 @@ include/stop_slave.inc
 create table t2 (a int);
 set @@global.debug='d,simulate_checksum_test_failure';
 start slave io_thread;
-include/wait_for_slave_io_error.inc [errno=1595]
-Last_IO_Error = 'Relay log write failure: could not queue event from master'
+include/wait_for_slave_io_error.inc [errno=1595, 1743]
 set @@global.debug='';
 start slave io_thread;
 include/sync_slave_io_with_master.inc

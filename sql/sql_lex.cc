@@ -48,6 +48,8 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 const LEX_STRING null_lex_str= {NULL, 0};
 const LEX_STRING empty_lex_str= {(char *) "", 0};
 /**
+  Mapping from enum values in enum_binlog_stmt_unsafe to error codes.
+
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
 */
@@ -55,7 +57,6 @@ const int
 Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
 {
   ER_BINLOG_UNSAFE_LIMIT,
-  ER_BINLOG_UNSAFE_INSERT_DELAYED,
   ER_BINLOG_UNSAFE_SYSTEM_TABLE,
   ER_BINLOG_UNSAFE_AUTOINC_COLUMNS,
   ER_BINLOG_UNSAFE_UDF,

@@ -1,0 +1,52 @@
+###############################################################################
+# This test checks the basics of setting the variable rbr_exec_mode
+#
+################################################################################
+--source include/not_embedded.inc
+
+set @saved_session_rbr_exec_mode = @@session.rbr_exec_mode;
+
+# GLOBAL SETTINGS
+--error ER_LOCAL_VARIABLE
+SET global rbr_exec_mode=DEFAULT;
+SELECT @@global.rbr_exec_mode;
+
+--error ER_LOCAL_VARIABLE
+SET global rbr_exec_mode='IDEMPOTENT';
+SELECT @@global.rbr_exec_mode;
+
+--error ER_LOCAL_VARIABLE
+SET global rbr_exec_mode='STRICT';
+SELECT @@global.rbr_exec_mode;
+
+# SESSION SETTINGS
+SELECT @@session.rbr_exec_mode;
+
+SET session rbr_exec_mode=DEFAULT;
+SELECT @@session.rbr_exec_mode;
+
+SET session rbr_exec_mode='IDEMPOTENT';
+SELECT @@session.rbr_exec_mode;
+
+SET session rbr_exec_mode='STRICT';
+SELECT @@session.rbr_exec_mode;
+
+# checking that setting variable to a non existing value raises error
+# INVALID SESSION SETTINGS
+--error ER_WRONG_VALUE_FOR_VAR
+SET session rbr_exec_mode='STIRCT';
+SELECT @@session.rbr_exec_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET session rbr_exec_mode='';
+SELECT @@session.rbr_exec_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET session rbr_exec_mode='1';
+SELECT @@session.rbr_exec_mode;
+
+--error ER_WRONG_VALUE_FOR_VAR
+SET session rbr_exec_mode=NULL;
+SELECT @@session.rbr_exec_mode;
+
+set session rbr_exec_mode = @saved_session_rbr_exec_mode;

@@ -1654,6 +1654,21 @@ int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
 }
 
 
+/**
+  This function converts the XID to HEX string form prefixed by '0x' 
+
+  @buf has to be atleast (XIDDATASIZE*2+2+1) in size
+*/
+static uint xid_to_hex_str(char *buf, size_t buf_len, XID *xid)
+{
+  *buf++= '0';
+  *buf++= 'x';
+
+  return bin_to_hex_str(buf, buf_len-2, (char*)&xid->data,
+                        xid->gtrid_length+xid->bqual_length) + 2;
+}
+
+
 #ifndef DBUG_OFF
 /**
   @note
@@ -1858,6 +1873,31 @@ int ha_recover(HASH *commit_list)
   DBUG_RETURN(0);
 }
 
+
+/**
+  This function checks if the XID consists of all printable charaters
+  i.e ASCII 32 - 127 and returns true if it is so.
+
+  @xid has to be pointer to a valid XID
+*/
+static bool is_printable_xid(XID *xid)
+{
+  int i;
+  unsigned char *c= (unsigned char*)&xid->data;
+  int xid_len= xid->gtrid_length+xid->bqual_length;
+
+  for (i=0; i < xid_len; i++, c++)
+  {
+    if(*c < 32 || *c > 127)
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 /**
   return the list of XID's to a client, the same way SHOW commands do.
 
@@ -1877,7 +1917,7 @@ bool mysql_xa_recover(THD *thd)
   field_list.push_back(new Item_int(NAME_STRING("formatID"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_int(NAME_STRING("gtrid_length"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_int(NAME_STRING("bqual_length"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_empty_string("data",XIDDATASIZE));
+  field_list.push_back(new Item_empty_string("data", XIDDATASIZE*2+2));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -1892,8 +1932,25 @@ bool mysql_xa_recover(THD *thd)
       protocol->store_longlong((longlong)xs->xid.formatID, FALSE);
       protocol->store_longlong((longlong)xs->xid.gtrid_length, FALSE);
       protocol->store_longlong((longlong)xs->xid.bqual_length, FALSE);
-      protocol->store(xs->xid.data, xs->xid.gtrid_length+xs->xid.bqual_length,
-                      &my_charset_bin);
+      
+      if(is_printable_xid(&xs->xid) == true)
+      {
+        protocol->store(xs->xid.data, xs->xid.gtrid_length+xs->xid.bqual_length,
+                        &my_charset_bin);
+      }
+      else
+      {
+        uint xid_str_len;
+        /* 
+          xid_buf contains enough space for 0x followed by HEX representation of
+          the binary XID data and one null termination character.
+        */
+        char xid_buf[XIDDATASIZE*2+2+1];
+
+        xid_str_len= xid_to_hex_str(xid_buf, sizeof(xid_buf), &xs->xid);
+        protocol->store(xid_buf, xid_str_len, &my_charset_bin);
+      }
+      
       if (protocol->write())
       {
         mysql_mutex_unlock(&LOCK_xid_cache);
@@ -1906,6 +1963,7 @@ bool mysql_xa_recover(THD *thd)
   my_eof(thd);
   DBUG_RETURN(0);
 }
+
 
 /**
   @details
@@ -6868,6 +6926,7 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
   if (table->s->cached_row_logging_check == -1)
   {
     int const check(table->s->tmp_table == NO_TMP_TABLE &&
+                    ! table->no_replicate &&
                     binlog_filter->db_ok(table->s->db.str));
     table->s->cached_row_logging_check= check;
   }
@@ -6976,8 +7035,6 @@ int binlog_log_row(TABLE* table,
                           const uchar *after_record,
                           Log_func *log_func)
 {
-  if (table->no_replicate)
-    return 0;
   bool error= 0;
   THD *const thd= table->in_use;
 
