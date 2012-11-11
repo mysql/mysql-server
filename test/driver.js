@@ -91,6 +91,7 @@ Driver.prototype.reportResultsAndExit = function() {
   //  udebug.log('Driver.reportResultsAndExit closing', sessionFactory.key);
   //  sessionFactory.close();
   //});
+  console.log("Started: ", this.result.listener.started);
   console.log("Passed:  ", this.result.passed.length);
   console.log("Failed:  ", this.result.failed.length);
   console.log("Skipped: ", this.result.skipped.length);
@@ -218,12 +219,16 @@ if (driver.numberOfRunningSuites === 0) {
   driver.reportResultsAndExit();
 }
 
+function onTimeout() { 
+  var nwait = driver.result.listener.started - driver.result.listener.ended;
+  var tests = (nwait === 1 ? " test:" : " tests:");
+  console.log('TIMEOUT: still waiting for', nwait, tests);
+  driver.result.listener.listRunningTests();
+  driver.reportResultsAndExit();
+}
+
 // set a timeout to prevent process from waiting forever
 if(timeoutMillis > 0) {
   udebug.log('Setting timeout of', timeoutMillis);
-  setTimeout(function() {
-    var nwait = driver.result.listener.started - driver.result.listener.ended;
-    var tests = (nwait === 1 ? " test." : " tests.");
-    console.log('TIMEOUT: still waiting for', nwait, tests);
-  }, timeoutMillis);
+  setTimeout(onTimeout, timeoutMillis);
 }
