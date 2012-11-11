@@ -2321,9 +2321,23 @@ partititon_err:
   memset(bitmaps, 0, bitmap_size*3);
 #endif
 
-  outparam->no_replicate= outparam->file &&
-                          test(outparam->file->ha_table_flags() &
-                               HA_HAS_OWN_BINLOGGING);
+  if ((share->table_category == TABLE_CATEGORY_LOG) ||
+      (share->table_category == TABLE_CATEGORY_RPL_INFO))
+  {
+    outparam->no_replicate= TRUE;
+  }
+  else if (outparam->file)
+  {
+    handler::Table_flags flags= outparam->file->ha_table_flags();
+    outparam->no_replicate= ! test(flags & (HA_BINLOG_STMT_CAPABLE
+                                            | HA_BINLOG_ROW_CAPABLE))
+                            || test(flags & HA_HAS_OWN_BINLOGGING);
+  }
+  else
+  {
+    outparam->no_replicate= FALSE;
+  }
+
   thd->status_var.opened_tables++;
 
   DBUG_RETURN (0);
@@ -3226,7 +3240,6 @@ bool check_column_name(const char *name)
   been opened.
 
   @param[in] table             The table to check
-  @param[in] table_f_count     Expected number of columns in the table
   @param[in] table_def         Expected structure of the table (column name
                                and type)
 

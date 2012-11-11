@@ -644,7 +644,7 @@ ha_myisam::ha_myisam(handlerton *hton, TABLE_SHARE *table_arg)
                   HA_BINLOG_ROW_CAPABLE | HA_BINLOG_STMT_CAPABLE |
                   HA_DUPLICATE_POS | HA_CAN_INDEX_BLOBS | HA_AUTO_PART_KEY |
                   HA_FILE_BASED | HA_CAN_GEOMETRY | HA_NO_TRANSACTIONS |
-                  HA_CAN_INSERT_DELAYED | HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
+                  HA_CAN_BIT_FIELD | HA_CAN_RTREEKEYS |
                   HA_HAS_RECORDS | HA_STATS_RECORDS_IS_EXACT | HA_CAN_REPAIR),
    can_enable_indexes(1)
 {}

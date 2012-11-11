@@ -75,8 +75,7 @@ set @dump_all=FALSE;
 # - MIN(events_waits_summary_global_by_event_name) <=
 #   MIN(events_waits_summary_by_thread_by_event_name)
 # There will be equality only when no thread is removed,
-# that is if no thread disconnects, or no sub thread (for example insert
-# delayed) ever completes.
+# that is if no thread disconnects, or no sub thread ever completes.
 # A thread completing will cause rows in
 # events_waits_summary_by_thread_by_event_name to be removed.
 

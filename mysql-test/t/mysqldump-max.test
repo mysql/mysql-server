@@ -57,8 +57,8 @@ select * from t4;
 select * from t5; 
 select * from t6; 
 
---exec $MYSQL_DUMP --skip-comments --delayed-insert --insert-ignore --databases test
---exec $MYSQL_DUMP --skip-comments --delayed-insert --databases test
+--exec $MYSQL_DUMP --skip-comments --insert-ignore --databases test
+--exec $MYSQL_DUMP --skip-comments --databases test
 
 drop table t1; 
 drop table t2; 
