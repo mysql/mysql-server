@@ -721,6 +721,17 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
   return false;
 }
 
+static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD *thd,
+                                                    set_var *var )
+{
+  if (var->type == OPT_GLOBAL)
+  {
+    my_error(ER_LOCAL_VARIABLE, MYF(0), self->name.str);
+    return true;
+  }
+  return false;
+}
+
 static Sys_var_test_flag Sys_core_file(
        "core_file", "write a core-file on crashes", TEST_CORE_ON_SIGNAL);
 
@@ -738,6 +749,21 @@ static Sys_var_enum Sys_binlog_format(
        binlog_format_names, DEFAULT(BINLOG_FORMAT_STMT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_format_check),
        ON_UPDATE(fix_binlog_format_after_update));
+
+static const char *rbr_exec_mode_names[]=
+       {"STRICT", "IDEMPOTENT", 0};
+static Sys_var_enum rbr_exec_mode(
+       "rbr_exec_mode",
+       "Modes for how row events should be executed. Legal values "
+       "are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode, "
+       "the server will not throw errors for operations that are idempotent. "
+       "In STRICT mode, server will throw errors for the operations that "
+       "cause a conflict.",
+       SESSION_VAR(rbr_exec_mode_options), NO_CMD_LINE,
+       rbr_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(prevent_global_rbr_exec_mode_idempotent),
+       ON_UPDATE(NULL));
 
 static const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
 static Sys_var_enum Sys_binlog_row_image(
@@ -1200,7 +1226,7 @@ static Sys_var_ulong Sys_delayed_insert_limit(
 static Sys_var_ulong Sys_delayed_insert_timeout(
        "delayed_insert_timeout",
        "How long a INSERT DELAYED thread should wait for INSERT statements "
-       "before terminating."
+       "before terminating. "
        "This variable is deprecated along with INSERT DELAYED.",
        GLOBAL_VAR(delayed_insert_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(DELAYED_WAIT_TIMEOUT),
@@ -1211,7 +1237,7 @@ static Sys_var_ulong Sys_delayed_queue_size(
        "delayed_queue_size",
        "What size queue (in rows) should be allocated for handling INSERT "
        "DELAYED. If the queue becomes full, any client that does INSERT "
-       "DELAYED will wait until there is room in the queue again."
+       "DELAYED will wait until there is room in the queue again. "
        "This variable is deprecated along with INSERT DELAYED.",
        GLOBAL_VAR(delayed_queue_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_QUEUE_SIZE), BLOCK_SIZE(1),
@@ -1705,8 +1731,7 @@ static Sys_var_ulong Sys_max_binlog_size(
 static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(max_connections +
-                   global_system_variables.max_insert_delayed_threads + 10);
+  resize_thr_alarm(max_connections + 10);
 #endif
   return false;
 }
@@ -1745,7 +1770,7 @@ static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
 static Sys_var_ulong Sys_max_insert_delayed_threads(
        "max_insert_delayed_threads",
        "Don't start more than this number of threads to handle INSERT "
-       "DELAYED statements. If set to zero INSERT DELAYED will be not used."
+       "DELAYED statements. If set to zero INSERT DELAYED will be not used. "
        "This variable is deprecated along with INSERT DELAYED.",
        SESSION_VAR(max_insert_delayed_threads),
        NO_CMD_LINE, VALID_RANGE(0, 16384), DEFAULT(20),
@@ -1756,7 +1781,7 @@ static Sys_var_ulong Sys_max_insert_delayed_threads(
 static Sys_var_ulong Sys_max_delayed_threads(
        "max_delayed_threads",
        "Don't start more than this number of threads to handle INSERT "
-       "DELAYED statements. If set to zero INSERT DELAYED will be not used."
+       "DELAYED statements. If set to zero INSERT DELAYED will be not used. "
        "This variable is deprecated along with INSERT DELAYED.",
        SESSION_VAR(max_insert_delayed_threads),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 16384), DEFAULT(20),
@@ -2575,7 +2600,8 @@ static Sys_var_enum Slave_exec_mode(
        "In STRICT mode, replication will stop on any unexpected difference "
        "between the master and the slave",
        GLOBAL_VAR(slave_exec_mode_options), CMD_LINE(REQUIRED_ARG),
-       slave_exec_mode_names, DEFAULT(SLAVE_EXEC_MODE_STRICT));
+       slave_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT));
+
 const char *slave_type_conversions_name[]= {"ALL_LOSSY", "ALL_NON_LOSSY", 0};
 static Sys_var_set Slave_type_conversions(
        "slave_type_conversions",

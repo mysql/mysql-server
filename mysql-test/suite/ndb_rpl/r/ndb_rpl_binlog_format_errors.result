@@ -80,7 +80,7 @@ SET @@session.binlog_format = MIXED;
 INSERT INTO t_stmt VALUES (UUID());
 ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. Statement is unsafe because it uses a system function that may return a different value on the slave.
 * Multi-unsafe statement and stmt-only engine
-INSERT DELAYED INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, NULL) FROM mysql.general_log LIMIT 1;
+INSERT INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, NULL) FROM mysql.general_log LIMIT 1;
 ERROR HY000: Cannot execute statement: impossible to write to binary log since statement is unsafe, storage engine is limited to statement-based logging, and BINLOG_FORMAT = MIXED. The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted.
 ---- binlog_format=statement ----
 [on slave]

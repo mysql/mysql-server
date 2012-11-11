@@ -1848,36 +1848,6 @@ c1
 4
 4
 UNLOCK TABLES;
-#
-# Insert delayed
-#
-INSERT DELAYED INTO t4 VALUES(44);
-DELETE FROM t4 WHERE c1 = 44;
-INSERT DELAYED INTO t3 VALUES(33);
-Warnings:
-Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
-SELECT * FROM t4 ORDER BY c1;
-c1
-1
-2
-3
-4
-4
-33
-LOCK TABLES t3 WRITE, t2 WRITE, t4 WRITE, t1 WRITE;
-INSERT DELAYED INTO t4 VALUES(444);
-Got one of the listed errors
-INSERT DELAYED INTO t3 VALUES(333);
-Got one of the listed errors
-SELECT * FROM t4 ORDER BY c1;
-c1
-1
-2
-3
-4
-4
-33
-UNLOCK TABLES;
 DROP TABLE t1, t2, t3, t4;
 #
 # Recursive inclusion of merge tables in their union clauses.

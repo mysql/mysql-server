@@ -9629,10 +9629,12 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
       /*
         - Skip innactive keys
         - Skip unique keys without nullable parts
+        - Skip indices that do not support ha_index_next() e.g. full-text
         - Skip primary keys
       */
       if (!(table->s->keys_in_use.is_set(key)) ||
           ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
+          !(table->file->index_flags(key, 0, true) & HA_READ_NEXT) ||
           (key == table->s->primary_key))
         continue;
 
@@ -9979,7 +9981,7 @@ int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *r
   {
     int actual_error= convert_handler_error(error, thd, m_table);
     bool idempotent_error= (idempotent_error_code(error) &&
-                           (slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT));
+                           (rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT));
     bool ignored_error= (idempotent_error == 0 ?
                          ignored_error_code(actual_error) : 0);
 
@@ -10625,7 +10627,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
       }
     }
    /**
-     if the slave_exec_mode is set to Idempotent, we cannot expect the hash to
+     if the rbr_exec_mode is set to Idempotent, we cannot expect the hash to
      be empty. In such cases we count the number of idempotent errors and check
      if it is equal to or greater than the number of rows left in the hash.
     */
@@ -11030,7 +11032,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                              &m_cols_ai : &m_cols);
     bitmap_intersect(table->write_set, after_image);
 
-    this->slave_exec_mode= slave_exec_mode_options; // fix the mode
+    if (thd->slave_thread) // set the mode for slave
+      this->rbr_exec_mode= slave_exec_mode_options;
+    else //set the mode for user thread
+      this->rbr_exec_mode= thd->variables.rbr_exec_mode_options;
 
     // Do event specific preparations
     error= do_before_row_operations(rli);
@@ -12117,7 +12122,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
   */
-  if ((slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT) ||
+  if ((rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT) ||
       (m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER))
   {
     /*
@@ -12186,7 +12191,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
   int local_error= 0;
   m_table->next_number_field=0;
   m_table->auto_increment_field_not_null= FALSE;
-  if ((slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT) ||
+  if ((rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT) ||
       m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
   {
     m_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -12511,7 +12516,7 @@ int
 Write_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
-  int error= write_row(rli, slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT);
+  int error= write_row(rli, rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT);
 
   if (error && !thd->is_error())
   {

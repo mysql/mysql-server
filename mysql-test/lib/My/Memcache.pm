@@ -33,10 +33,9 @@
 ###  $mc->get(key)                      returns value or undef
 ###  $mc->delete(key)                   returns 1 on success, 0 on failure
 ###  $mc->stats(stat_key)               get stats; returns a hash
-###  $mc->incr(key, amount)             returns the new value or undef
-###  $mc->decr(key, amount)             like incr. (Note: In the Binary protocol
-###                                     only, incr and decr can take a 3rd 
-###                                     argument, the initial value). 
+###  $mc->incr(key, amount, [initial])  returns the new value or undef
+###  $mc->decr(key, amount, [initial])  like incr.  The third argument is used
+###                                     in the Binary protocol ONLY. 
 ###  $mc->flush()                       flush_all
 ###
 ###  $mc->set_expires(sec)              Set TTL for all store operations
@@ -52,43 +51,58 @@
 ###    or zero on timeout/error. 
 
 use strict;
-use lib 'lib';
 use IO::Socket::INET;
 use IO::File;
 use Carp;
-use mtr_report;            # for main::mtr_verbose()
-
-require "mtr_process.pl";  # for mtr_ping_port() 
-require "mtr_misc.pl";     # for mtr_milli_sleep()
+use Time::HiRes;
 
 package My::Memcache;
 
 sub new {
   my $pkg = shift;
+  # min/max wait refer to msec. wait during temporary errors.  Both powers of 2.
   bless { "created" => 1 , "error" => "" , "cf_gen" => 0,
-          "exptime" => 0 , "flags" => 0
+          "req_id" => 0, "minWait" => 4,  "maxWait" => 8192, 
+          "temp_errors" => 0 , "total_wait" => 0
         }, $pkg;
+}
+
+
+# Common code to ASCII and BINARY protocols:
+
+sub fail {
+  my $self = shift;
+  my $msg = 
+      "error:       " . $self->{error} . "\n" .
+      "req_id:      " . $self->{req_id} . "\n" .
+      "temp_errors: " . $self->{temp_errors} . "\n".
+      "total_wait:  " . $self->{total_wait} . "\n";
+  while(my $extra = shift) { 
+    $msg .= $extra . "\n"; 
+  }
+  Carp::confess($msg);
 }
 
 sub connect {
   my $self = shift;
   my $host = shift;
   my $port = shift; 
+  my $conn;
   
   # Wait for memcached to be ready, up to ten seconds.
   my $retries = 100;
-  while($retries && (::mtr_ping_port($port) == 0))
-  {
-     ::mtr_milli_sleep(100);
-     $retries--;
-  }
+  do {
+    $conn = IO::Socket::INET->new(PeerAddr => "$host:$port", Proto => "tcp");
+    if(! $conn) { 
+      Time::HiRes::usleep(100 * 1000);
+      $retries--;   
+    }
+  } while($retries && !$conn);
 
-  my $conn = IO::Socket::INET->new(PeerAddr => "$host:$port", Proto => "tcp");
   if($conn) {
     $self->{connection} = $conn;
     $self->{connected} = 1;
     $self->{server} = "$host:$port";
-    $self->{bin_req_id} = 0;
     return 1;
   }
   $self->{error} = "CONNECTION_FAILED";
@@ -98,20 +112,6 @@ sub connect {
 sub DESTROY {
   my $self = shift;
   $self->{connection}->close();
-}
-
-sub note_config_version {
-  my $self = shift;
-
-  my $vardir = $ENV{MYSQLTEST_VARDIR};
-  # Fetch the memcached current config generation number and save it
-  my %stats = $self->stats("reconf");
-  my $F = IO::File->new("$vardir/tmp/memcache_cf_gen", "w") or die;
-  my $ver = $stats{"Running"};
-  print $F "$ver\n";
-  $F->close();
-
-  $self->{cf_gen} = $ver;
 }
 
 sub set_expires {
@@ -126,6 +126,32 @@ sub set_flags {
   my $flags = shift;
   
   $self->{flags} = $flags;
+}
+
+# Some member variables are per-request.  
+# Clear them in preparation for a new request, and increment the request counter.
+sub new_request {
+  my $self = shift;
+  $self->{error} = undef;
+  $self->{exptime} = 0;
+  $self->{flags} = 0;
+  $self->{req_id}++;
+}
+
+
+# note_config_version and wait_for_reconf are only for use by mysql-test-run
+sub note_config_version {
+  my $self = shift;
+
+  my $vardir = $ENV{MYSQLTEST_VARDIR};
+  # Fetch the memcached current config generation number and save it
+  my %stats = $self->stats("reconf");
+  my $F = IO::File->new("$vardir/tmp/memcache_cf_gen", "w") or die;
+  my $ver = $stats{"Running"};
+  print $F "$ver\n";
+  $F->close();
+
+  $self->{cf_gen} = $ver;
 }
 
 sub wait_for_reconf {
@@ -157,7 +183,6 @@ sub wait_for_reconf {
   return $new_gen;
 }
   
-
 # wait_for_config_generation($cf_gen)
 # Wait until memcached is running config generation >= to $cf_gen
 # Returns 0 on error/timeout, or the actual running generation number
@@ -169,7 +194,7 @@ sub wait_for_config_generation {
   my $retries = 100;   # 100 retries x 100 ms = 10s
   
   while($retries && ! $ready) {
-    ::mtr_milli_sleep(100);     
+    Time::HiRes::usleep(100 * 1000);
     my %stats = $self->stats("reconf");
     if($stats{"Running"} >= $cf_gen) {
       $ready = $stats{"Running"};
@@ -181,16 +206,44 @@ sub wait_for_config_generation {
   return $ready;
 }
 
+#  -----------------------------------------------------------------------
+#  ------------------          ASCII PROTOCOL         --------------------
+#  -----------------------------------------------------------------------
+
+sub ascii_command {
+  my $self = shift;
+  my $packet = shift;
+  my $sock = $self->{connection};
+  my $waitTime = $self->{minWait};
+  my $maxWait = $self->{maxWait};
+  my $reply;
+  
+  do {
+    $self->new_request();
+    $sock->print($packet) || Carp::confess("send error: ". $packet);
+    $reply = $sock->getline();
+    $self->normalize_error($reply);
+    if($self->{error} eq "SERVER_TEMPORARY_ERROR") {
+      if($waitTime < $maxWait) {
+        $self->{temp_errors} += 1;
+        $self->{total_wait} += ( Time::HiRes::usleep($waitTime * 1000) / 1000);
+        $waitTime *= 2;
+      }
+      else {
+        $self->fail("Too Many Temporary Errors", $waitTime);
+      }
+    }
+  } while($self->{error} eq "SERVER_TEMPORARY_ERROR" && $waitTime <= $maxWait);
+    
+  return $reply;
+}
+
   
 sub delete {
   my $self = shift;
   my $key = shift;
-  my $sock = $self->{connection}; 
   
-  $sock->print("delete $key\r\n") || Carp::confess "send error";
-  
-  $self->{error} = $sock->getline();
-  return $self->{error} =~ "^DELETED" ? 1 : $self->normalize_error();
+  return ($self->ascii_command("delete $key\r\n") =~ "^DELETED");
 }
 
 
@@ -199,62 +252,49 @@ sub _txt_store {
   my $cmd = shift;
   my $key = shift;
   my $value = shift;
-  my $sock = $self->{connection};
-  
-  $sock->printf("%s %s %d %d %d\r\n%s\r\n",$cmd, $key, 
-                $self->{flags}, $self->{exptime}, length($value), $value);
-  return $sock->getline();
+  my $packet = sprintf("%s %s %d %d %d\r\n%s\r\n",$cmd, $key, $self->{flags}, 
+                       $self->{exptime}, length($value), $value);
+  $self->ascii_command($packet);
+  return ($self->{error} eq "OK");
 }
 
 
 sub set {
-  my ($self, $key, $value) = @_;
-  
-  $self->{error} = $self->_txt_store("set", $key, $value);
-  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+  my ($self, $key, $value) = @_;  
+  return $self->_txt_store("set", $key, $value);
 }
 
 
 sub add {
-  my ($self, $key, $value) = @_;
-  
-  $self->{error} = $self->_txt_store("add", $key, $value);
-  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+  my ($self, $key, $value) = @_;  
+  return $self->_txt_store("add", $key, $value);
 }
 
 
 sub append {
-  my ($self, $key, $value) = @_;
-  
-  $self->{error} = $self->_txt_store("append", $key, $value);
-  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+  my ($self, $key, $value) = @_;  
+  return $self->_txt_store("append", $key, $value);
 }
 
 
 sub prepend {    
-  my ($self, $key, $value) = @_;
-  
-  $self->{error} = $self->_txt_store("prepend", $key, $value);
-  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+  my ($self, $key, $value) = @_;  
+  return $self->_txt_store("prepend", $key, $value);
 }
 
 
 sub replace {
-  my ($self, $key, $value) = @_;
-  
-  $self->{error} = $self->_txt_store("replace", $key, $value);
-  return $self->{error} =~ "^STORED" ? 1 : $self->normalize_error();
+  my ($self, $key, $value) = @_;  
+  return $self->_txt_store("replace", $key, $value);
 }
 
 
 sub get {
   my $self = shift;
-  my $key = shift;
-  my $sock = $self->{connection};
-  
-  $sock->print("get $key\r\n") || Carp::confess "send error";
-  my $response = $sock->getline();
+  my $key = shift;  
   my $val;
+  my $sock = $self->{connection};
+  my $response =  $self->ascii_command("get $key\r\n");
   
   if ($response =~ /^END/) 
   {
@@ -277,24 +317,13 @@ sub get {
 
 sub _txt_math {
   my ($self, $cmd, $key, $delta) = @_;
-  my $sock = $self->{connection};
+  my $response = $self->ascii_command("$cmd $key $delta \r\n");
   
-  $sock->print("$cmd $key $delta \r\n") || Carp::confess "send error";
-  my $response = $sock->getline();
-  my $val;
-  
-  if ($response =~ "^NOT_FOUND")
-  {
-    $self->{error} = "NOT_FOUND";
+  if ($response =~ "^NOT_FOUND" || $response =~ "ERROR") {
+    $self->normalize_error($response);
     return undef;
   }
-  elsif ($response =~ "ERROR")
-  {
-    $self->{error} = $response;
-    $self->normalize_error();
-    return undef;
-  }
-  
+
   $response =~ /(\d+)/;
   return $1;
 }
@@ -317,6 +346,7 @@ sub stats {
   my $key = shift;
   my $sock = $self->{connection};
 
+  $self->new_request();
   $sock->print("stats $key\r\n") || Carp::confess "send error";
   
   $self->{error} = "OK";
@@ -335,31 +365,30 @@ sub stats {
 sub flush {
   my $self = shift;
   my $key = shift;
-  my $sock = $self->{connection}; 
-  
-  $sock->print("flush_all\r\n") || Carp::confess "send error";
-  
-  $self->{error} = $sock->getline();
-  return $self->{error} =~ "^OK" ? 1 : $self->normalize_error();
+  my $result = $self->ascii_command("flush_all\r\n");  
+  return ($self->{error} eq "OK");
 }
 
 
 # Try to provide consistent error messagees across ascii & binary protocols
 sub normalize_error {
   my $self = shift;
+  my $reply = shift;
   my %error_message = (
   "STORED\r\n"                         => "OK",
   "EXISTS\r\n"                         => "KEY_EXISTS",
+  "NOT_FOUND\r\n"                      => "NOT_FOUND",
+  "NOT_STORED\r\n"                     => "NOT_STORED",
   "CLIENT_ERROR value too big\r\n"     => "VALUE_TOO_LARGE",
   "SERVER_ERROR object too large for cache\r\n"     => "VALUE_TOO_LARGE",
   "CLIENT_ERROR invalid arguments\r\n" => "INVALID_ARGUMENTS",
   "SERVER_ERROR not my vbucket\r\n"    => "NOT_MY_VBUCKET",
   "SERVER_ERROR out of memory\r\n"     => "SERVER_OUT_OF_MEMORY",
   "SERVER_ERROR not supported\r\n"     => "NOT_SUPPORTED",
-  "SERVER_ERROR internal\r\n"          => "INTERNAL_ERROR"
+  "SERVER_ERROR internal\r\n"          => "INTERNAL_ERROR",
+  "SERVER_ERROR temporary failure\r\n" => "SERVER_TEMPORARY_ERROR"
   );  
-  my $norm_error = $error_message{$self->{error}};
-  $self->{error} = $norm_error if(defined($norm_error));
+  $self->{error} = $error_message{$reply};
   return 0;
 } 
 
@@ -417,11 +446,11 @@ sub send_binary_request {
   my $cas_hi     = 0;
   my $cas_lo     = 0;
 
-  $self->{bin_req_id}++;
+  $self->new_request();
   
   my $header = pack(BINARY_HEADER_FMT, BINARY_REQUEST, $cmd,
                     $key_len, $extra_len, 0, 0, $total_len, 
-                    $self->{bin_req_id}, $cas_hi, $cas_lo);
+                    $self->{req_id}, $cas_hi, $cas_lo);
   my $packet = $header . $extra_header . $key . $val;
 
   $sock->send($packet) || Carp::confess "send failed";
@@ -432,7 +461,7 @@ sub get_binary_response {
   my $self = shift;
   my $sock = $self->{connection};
   my $header_len = length(pack(BINARY_HEADER_FMT));
-  my $expected = $self->{bin_req_id};
+  my $expected = $self->{req_id};
   my $header;
   my $body="";
 
@@ -459,6 +488,32 @@ sub get_binary_response {
 
   return ($status, $value, $key, $extras);
 }  
+
+
+sub binary_command {
+  my $self = shift;
+  my ($cmd, $key, $value, $extra_header) = @_;
+  my $waitTime = $self->{minWait};
+  my $maxWait = $self->{maxWait};
+  my $status;
+  
+  do {
+    $self->send_binary_request($cmd, $key, $value, $extra_header);  
+    ($status) = $self->get_binary_response();
+    if($status == 0x86) {
+      if($waitTime < $maxWait) {
+        $self->{temp_errors} += 1;
+        $self->{total_wait} += ( Time::HiRes::usleep($waitTime * 1000) / 1000);
+        $waitTime *= 2;
+      }
+      else {
+        $self->fail("Too Many Temporary Errors", $waitTime);
+      }
+    }
+  } while($status == 0x86 && $waitTime <= $maxWait);
+
+  return ($status == 0) ? 1 : undef;
+}
 
 
 sub bin_math {
@@ -490,13 +545,10 @@ sub bin_store {
   my $self = shift;
   my $cmd = shift;
   my $key = shift;
-  my $value = shift;
-  
+  my $value = shift;  
   my $extra_header = pack "NN", $self->{flags}, $self->{exptime};
-  $self->send_binary_request($cmd, $key, $value, $extra_header);
   
-  my ($status) = $self->get_binary_response();
-  return ($status == 0) ? 1 : 0;
+  return $self->binary_command($cmd, $key, $value, $extra_header);
 }
 
 
@@ -508,6 +560,7 @@ sub get {
   my ($status, $value) = $self->get_binary_response();
   return ($status == 0) ? $value : undef;
 }
+
 
 sub stats {
   my $self = shift;
@@ -549,23 +602,17 @@ sub replace {
 
 sub append {
   my ($self, $key, $value) = @_;
-  $self->send_binary_request(BIN_CMD_APPEND, $key, $value, '');
-  my ($status) = $self->get_binary_response();
-  return ($status == 0) ? 1 : 0;
+  return $self->binary_command(BIN_CMD_APPEND, $key, $value, '');
 }
 
 sub prepend {
   my ($self, $key, $value) = @_;
-  $self->send_binary_request(BIN_CMD_PREPEND, $key, $value, '');
-  my ($status) = $self->get_binary_response();
-  return ($status == 0) ? 1 : 0;
+  return $self->binary_command(BIN_CMD_PREPEND, $key, $value, '');
 }
 
 sub delete { 
   my ($self, $key) = @_;
-  $self->send_binary_request(BIN_CMD_DELETE, $key, '', '');
-  my ($status, $value) = $self->get_binary_response();
-  return ($status == 0) ? 1 : 0;
+  return $self->binary_command(BIN_CMD_DELETE, $key, '', '');
 }
   
 sub incr {

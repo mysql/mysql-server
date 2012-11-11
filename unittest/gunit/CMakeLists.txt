@@ -268,10 +268,10 @@ ENDIF()
 SET(SERVER_TESTS
   copy_info
   create_field
-  delayable_insert_operation
   field
   get_diagnostics
   handler
+  insert_delayed
   item
   item_func_now_local
   join_tab_sort

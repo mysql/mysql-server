@@ -76,6 +76,7 @@ public:
     DihDumpNodeRestartInfo = 16, // 16 DIH Dump node restart info
     DihDumpNodeStatusInfo = 17,// 17 DIH Dump node status info
     DihPrintFragmentation = 18,// 18 DIH Print fragmentation
+    DihPrintOneFragmentation = 19,// 18 DIH Print info about one fragmentation
     // 19 NDBFS Fipple with O_SYNC, O_CREATE etc.
     // 20-24 BACKUP
     NdbcntrTestStopOnError = 25,
@@ -160,6 +161,7 @@ public:
     DihAddFragFailCleanedUp = 7019,
     // 7020
     // 7021
+    DihDumpPageRecInfo = 7032,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,

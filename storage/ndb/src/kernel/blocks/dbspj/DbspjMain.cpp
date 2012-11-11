@@ -721,9 +721,9 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
 
     if (ERROR_INSERTED_CLEAR(17001))
     {
+      jam();
       ndbout_c("Injecting OutOfQueryMem error 17001 at line %d file %s",
                 __LINE__,  __FILE__);
-      jam();
       break;
     }
     if (unlikely(!m_request_pool.seize(ah, requestPtr)))
@@ -2569,10 +2569,11 @@ Dbspj::execTRANSID_AI(Signal* signal)
   {
     jam();
     Uint32 err;
-    if (ERROR_INSERTED_CLEAR(17120) ||
-        (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17121)))
+    if (ERROR_INSERTED(17120) ||
+       (ERROR_INSERTED(17121) && treeNodePtr.p->m_parentPtrI != RNIL))
     {
       jam();
+      CLEAR_ERROR_INSERT_VALUE;
       abort(signal, requestPtr, DbspjErr::OutOfRowMemory);
     }
     else if ((err = storeRow(requestPtr, treeNodePtr, row)) != 0)
@@ -3073,9 +3074,9 @@ Dbspj::allocPage(Ptr<RowPage> & ptr)
     jam();
     if (ERROR_INSERTED_CLEAR(17003))
     {
+      jam();
       ndbout_c("Injecting failed '::allocPage', error 17003 at line %d file %s",
                __LINE__,  __FILE__);
-      jam();
       return false;
     }
     ptr.p = (RowPage*)m_ctx.m_mm.alloc_page(RT_SPJ_DATABUFFER,
@@ -3155,10 +3156,11 @@ Dbspj::checkTableError(Ptr<TreeNode> treeNodePtr) const
               << ", tableOrIndexId: " << treeNodePtr.p->m_tableOrIndexId
               << ", error: " << err);
   }
-  if (ERROR_INSERTED_CLEAR(17520) ||
+  if (ERROR_INSERTED(17520) ||
       ERROR_INSERTED(17521) && (rand() % 7) == 0)
   {
     jam();
+    CLEAR_ERROR_INSERT_VALUE;
     ndbout_c("::checkTableError, injecting NoSuchTable error at line %d file %s",
               __LINE__,  __FILE__);
     return DbspjErr::NoSuchTable;
@@ -3505,11 +3507,12 @@ Dbspj::lookup_send(Signal* signal,
          * - 17072: Fail on lookup_send() if treeNode not root
          */
 
-        if (ERROR_INSERTED_CLEAR(17070) ||
-            (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17071)) ||
-            (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17072)))
+        if (ERROR_INSERTED(17070) ||
+           (ERROR_INSERTED(17071) && treeNodePtr.p->isLeaf()) ||
+           (ERROR_INSERTED(17072) && treeNodePtr.p->m_parentPtrI != RNIL))
         {
           jam();
+          CLEAR_ERROR_INSERT_VALUE;
           ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                    __LINE__,  __FILE__);
           releaseSection(keyInfoPtrI);
@@ -3548,11 +3551,12 @@ Dbspj::lookup_send(Signal* signal,
      * - 17031: Fail on lookup_send() if 'isLeaf'
      * - 17032: Fail on lookup_send() if treeNode not root 
      */
-    if (ERROR_INSERTED_CLEAR(17030) ||
-        (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17031)) ||
-        (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17032)))
+    if (ERROR_INSERTED(17030) ||
+       (ERROR_INSERTED(17031) && treeNodePtr.p->isLeaf()) ||
+       (ERROR_INSERTED(17032) && treeNodePtr.p->m_parentPtrI != RNIL))
     {
       jam();
+      CLEAR_ERROR_INSERT_VALUE;
       req->tableSchemaVersion += (1 << 16); // Provoke 'Invalid schema version'
     }
 
@@ -3584,11 +3588,12 @@ Dbspj::lookup_send(Signal* signal,
      * - 17021: Fail on lookup_send() if 'isLeaf'
      * - 17022: Fail on lookup_send() if treeNode not root 
      */
-    if (ERROR_INSERTED_CLEAR(17020) ||
-        (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17021)) ||
-        (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17022)))
+    if (ERROR_INSERTED(17020) ||
+       (ERROR_INSERTED(17021) && treeNodePtr.p->isLeaf()) ||
+       (ERROR_INSERTED(17022) && treeNodePtr.p->m_parentPtrI != RNIL))
     {
       jam();
+      CLEAR_ERROR_INSERT_VALUE;
       releaseSections(handle);
       err = DbspjErr::NodeFailure;
       break;
@@ -3893,11 +3898,12 @@ Dbspj::lookup_parent_row(Signal* signal,
      * - 17041: Fail on lookup_parent_row() if 'isLeaf'
      * - 17042: Fail on lookup_parent_row() if treeNode not root 
      */
-    if (ERROR_INSERTED_CLEAR(17040) ||
-        (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17041)) ||
-        (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17042)))
+    if (ERROR_INSERTED(17040) ||
+       (ERROR_INSERTED(17041) && treeNodePtr.p->isLeaf()) ||
+       (ERROR_INSERTED(17042) && treeNodePtr.p->m_parentPtrI != RNIL))
     {
       jam();
+      CLEAR_ERROR_INSERT_VALUE;
       err = DbspjErr::OutOfQueryMemory;
       break;
     }
@@ -4013,11 +4019,12 @@ Dbspj::lookup_parent_row(Signal* signal,
        * - 17082: Fail on lookup_parent_row: if treeNode not root
        */
 
-      if (ERROR_INSERTED_CLEAR(17080) ||
-          (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17081)) ||
-          (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17082)))
+      if (ERROR_INSERTED(17080) ||
+         (ERROR_INSERTED(17081) && treeNodePtr.p->isLeaf()) ||
+         (ERROR_INSERTED(17082) && treeNodePtr.p->m_parentPtrI != RNIL))
       {
         jam();
+        CLEAR_ERROR_INSERT_VALUE;
         ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                  __LINE__,  __FILE__);
         err = DbspjErr::OutOfSectionMemory;
@@ -4464,9 +4471,9 @@ Dbspj::scanFrag_build(Build_context& ctx,
     Ptr<ScanFragHandle> scanFragHandlePtr;
     if (ERROR_INSERTED_CLEAR(17004))
     {
+      jam();
       ndbout_c("Injecting OutOfQueryMemory error 17004 at line %d file %s",
                __LINE__,  __FILE__);
-      jam();
       err = DbspjErr::OutOfQueryMemory;
       break;
     }
@@ -5811,11 +5818,13 @@ Dbspj::scanIndex_parent_row(Signal* signal,
        * - 17062: Fail on scanIndex_parent_row if treeNode not root
        * - 17063: Fail on scanIndex_parent_row at a random node of the query tree
        */
-      if (ERROR_INSERTED_CLEAR(17060) ||
-          ((rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17061)) ||
-          ((treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17062))) ||
-          ((treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17063))))
+      if (ERROR_INSERTED(17060) ||
+         (ERROR_INSERTED(17061) && (treeNodePtr.p->isLeaf())) ||
+         (ERROR_INSERTED(17062) && (treeNodePtr.p->m_parentPtrI != RNIL)) ||
+         (ERROR_INSERTED(17063) && (rand() % 7) == 0))
       {
+        jam();
+        CLEAR_ERROR_INSERT_VALUE;
         ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                  __LINE__,  __FILE__);
         err = DbspjErr::OutOfSectionMemory;
@@ -6252,12 +6261,13 @@ Dbspj::scanIndex_send(Signal* signal,
            * - 17093: Fail on scanIndex_send() if treeNode not root
            */
 
-          if (ERROR_INSERTED_CLEAR(17090) ||
-              (requestsSent > 1 && ERROR_INSERTED_CLEAR(17091)) ||
-              (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17092)) ||
-              (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17093)))
+          if (ERROR_INSERTED(17090) ||
+             (ERROR_INSERTED(17091) && requestsSent > 1) ||
+             (ERROR_INSERTED(17092) && treeNodePtr.p->isLeaf()) ||
+             (ERROR_INSERTED(17093) && treeNodePtr.p->m_parentPtrI != RNIL))
           {
             jam();
+            CLEAR_ERROR_INSERT_VALUE;
             ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                      __LINE__,  __FILE__);
             err = DbspjErr::OutOfSectionMemory;
@@ -6310,11 +6320,12 @@ Dbspj::scanIndex_send(Signal* signal,
          */
         jam();
 
-        if (ERROR_INSERTED_CLEAR(17110) ||
-            (treeNodePtr.p->isLeaf() && ERROR_INSERTED_CLEAR(17111)) ||
-            (treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17112)))
+        if (ERROR_INSERTED(17110) ||
+           (ERROR_INSERTED(17111) && treeNodePtr.p->isLeaf()) ||
+           (ERROR_INSERTED(17112) && treeNodePtr.p->m_parentPtrI != RNIL))
         {
           jam();
+          CLEAR_ERROR_INSERT_VALUE;
           ndbout_c("Injecting invalid schema version error at line %d file %s",
                    __LINE__,  __FILE__);
           // Provoke 'Invalid schema version' in order to receive SCAN_FRAGREF
@@ -7273,7 +7284,7 @@ bool
 Dbspj::appendToSection(Uint32& firstSegmentIVal,
                          const Uint32* src, Uint32 len)
 {
-  if (fi_cnt++ % 13 == 0 && ERROR_INSERTED(17510))
+  if (ERROR_INSERTED(17510) && fi_cnt++ % 13 == 0)
   {
     jam();
     ndbout_c("Injecting appendToSection error 17510 at line %d file %s",
@@ -7998,14 +8009,15 @@ Dbspj::parseDA(Build_context& ctx,
      * - 17052: Fail on parseDA if treeNode not root
      * - 17053: Fail on parseDA at a random node of the query tree
      */
-    if (ERROR_INSERTED_CLEAR(17050) ||
-        ((treeNodePtr.p->isLeaf() &&  ERROR_INSERTED_CLEAR(17051))) ||
-        ((treeNodePtr.p->m_parentPtrI != RNIL && ERROR_INSERTED_CLEAR(17052)))||
-        ((rand() % 7) == 0 && ERROR_INSERTED_CLEAR(17053)))
+    if (ERROR_INSERTED(17050) ||
+       (ERROR_INSERTED(17051) && (treeNodePtr.p->isLeaf())) ||
+       (ERROR_INSERTED(17052) && (treeNodePtr.p->m_parentPtrI != RNIL)) ||
+       (ERROR_INSERTED(17053) && (rand() % 7) == 0))
     {
+      jam();
+      CLEAR_ERROR_INSERT_VALUE;
       ndbout_c("Injecting OutOfSectionMemory error at line %d file %s",
                 __LINE__,  __FILE__);
-      jam();
       err = DbspjErr::OutOfSectionMemory;
       break;
     }

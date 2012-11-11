@@ -86,9 +86,9 @@ enum enum_ha_read_modes { RFIRST, RNEXT, RPREV, RLAST, RKEY, RNEXT_SAME };
 
 enum enum_delay_key_write { DELAY_KEY_WRITE_NONE, DELAY_KEY_WRITE_ON,
 			    DELAY_KEY_WRITE_ALL };
-enum enum_slave_exec_mode { SLAVE_EXEC_MODE_STRICT,
-                            SLAVE_EXEC_MODE_IDEMPOTENT,
-                            SLAVE_EXEC_MODE_LAST_BIT };
+enum enum_rbr_exec_mode { RBR_EXEC_MODE_STRICT,
+                          RBR_EXEC_MODE_IDEMPOTENT,
+                          RBR_EXEC_MODE_LAST_BIT };
 enum enum_slave_type_conversions { SLAVE_TYPE_CONVERSIONS_ALL_LOSSY,
                                    SLAVE_TYPE_CONVERSIONS_ALL_NON_LOSSY};
 enum enum_slave_rows_search_algorithms { SLAVE_ROWS_TABLE_SCAN = (1U << 0),
@@ -364,7 +364,6 @@ struct Query_cache_tls
 
 #include "sql_lex.h"				/* Must be here */
 
-class Delayed_insert;
 class select_result;
 class Time_zone;
 
@@ -448,6 +447,7 @@ typedef struct system_variables
   ulong group_concat_max_len;
 
   ulong binlog_format; ///< binlog format for this thd (see enum_binlog_format)
+  ulong rbr_exec_mode_options;
   my_bool binlog_direct_non_trans_update;
   ulong binlog_row_image; 
   my_bool sql_log_bin;
@@ -1611,14 +1611,13 @@ public:
 enum enum_thread_type
 {
   NON_SYSTEM_THREAD= 0,
-  SYSTEM_THREAD_DELAYED_INSERT= 1,
-  SYSTEM_THREAD_SLAVE_IO= 2,
-  SYSTEM_THREAD_SLAVE_SQL= 4,
-  SYSTEM_THREAD_NDBCLUSTER_BINLOG= 8,
-  SYSTEM_THREAD_EVENT_SCHEDULER= 16,
-  SYSTEM_THREAD_EVENT_WORKER= 32,
-  SYSTEM_THREAD_INFO_REPOSITORY= 64,
-  SYSTEM_THREAD_SLAVE_WORKER= 128
+  SYSTEM_THREAD_SLAVE_IO= 1,
+  SYSTEM_THREAD_SLAVE_SQL= 2,
+  SYSTEM_THREAD_NDBCLUSTER_BINLOG= 4,
+  SYSTEM_THREAD_EVENT_SCHEDULER= 8,
+  SYSTEM_THREAD_EVENT_WORKER= 16,
+  SYSTEM_THREAD_INFO_REPOSITORY= 32,
+  SYSTEM_THREAD_SLAVE_WORKER= 64
 };
 
 inline char const *
@@ -1628,7 +1627,6 @@ show_system_thread(enum_thread_type thread)
   switch (thread) {
     static char buf[64];
     RETURN_NAME_AS_STRING(NON_SYSTEM_THREAD);
-    RETURN_NAME_AS_STRING(SYSTEM_THREAD_DELAYED_INSERT);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_IO);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_SQL);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_NDBCLUSTER_BINLOG);
@@ -2100,7 +2098,6 @@ public:
     depending on whether low_priority_updates option is off or on.
   */
   thr_lock_type insert_lock_default;
-  Delayed_insert *di;
 
   /* <> 0 if we are inside of trigger or stored function. */
   uint in_sub_stmt;
@@ -2183,7 +2180,45 @@ public:
     return (variables.optimizer_switch & flag);
   }
 
+  enum binlog_filter_state
+  {
+    BINLOG_FILTER_UNKNOWN,
+    BINLOG_FILTER_CLEAR,
+    BINLOG_FILTER_SET
+  };
+
+  inline void reset_binlog_local_stmt_filter()
+  {
+    m_binlog_filter_state= BINLOG_FILTER_UNKNOWN;
+  }
+
+  inline void clear_binlog_local_stmt_filter()
+  {
+    DBUG_ASSERT(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
+    m_binlog_filter_state= BINLOG_FILTER_CLEAR;
+  }
+
+  inline void set_binlog_local_stmt_filter()
+  {
+    DBUG_ASSERT(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
+    m_binlog_filter_state= BINLOG_FILTER_SET;
+  }
+
+  inline binlog_filter_state get_binlog_local_stmt_filter()
+  {
+    return m_binlog_filter_state;
+  }
+
 private:
+  /**
+    Indicate if the current statement should be discarded
+    instead of written to the binlog.
+    This is used to discard special statements, such as
+    DML or DDL that affects only 'local' (non replicated)
+    tables, such as performance_schema.*
+  */
+  binlog_filter_state m_binlog_filter_state;
+
   /**
     Indicates the format in which the current statement will be
     logged.  This can only be set from @c decide_logging_format().
@@ -2958,7 +2993,7 @@ public:
   /*
     Initialize memory roots necessary for query processing and (!)
     pre-allocate memory for it. We can't do that in THD constructor because
-    there are use cases (acl_init, delayed inserts, watcher threads,
+    there are use cases (acl_init, watcher threads,
     killing mysqld) where it's vital to not allocate excessive and not used
     memory. Note, that we still don't return error from init_for_queries():
     if preallocation fails, we should notice that at the first call to
@@ -3060,11 +3095,8 @@ public:
     Invoked when acquiring an exclusive lock, for each thread that
     has a conflicting shared metadata lock.
 
-    This function:
-    - aborts waiting of the thread on a data lock, to make it notice
-      the pending exclusive lock and back off.
-    - if the thread is an INSERT DELAYED thread, sends it a KILL
-      signal to terminate it.
+    This function aborts waiting of the thread on a data lock, to make
+    it notice the pending exclusive lock and back off.
 
     @note This function does not wait for the thread to give away its
           locks. Waiting is done outside for all threads at once.

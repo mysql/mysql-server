@@ -1141,6 +1141,9 @@ public:
   my_bool key_read;
   my_bool no_keyread;
   my_bool locked_by_logger;
+  /**
+    If set, indicate that the table is not replicated by the server.
+  */
   my_bool no_replicate;
   my_bool locked_by_name;
   my_bool fulltext_searched;

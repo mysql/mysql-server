@@ -490,6 +490,18 @@ my_socket thd_get_fd(THD *thd)
 }
 
 /**
+  Set thread specific environment required for thd cleanup in thread pool.
+
+  @param thd            THD object
+
+  @retval               1 if thread-specific enviroment could be set else 0
+*/
+int thd_store_globals(THD* thd)
+{
+  return thd->store_globals();
+}
+
+/**
   Get thread attributes for connection threads
 
   @retval      Reference to thread attribute for connection threads
@@ -1365,6 +1377,7 @@ void THD::init(void)
   tx_read_only= variables.tx_read_only;
   update_charset();
   reset_current_stmt_binlog_format_row();
+  reset_binlog_local_stmt_filter();
   memset(&status_var, 0, sizeof(status_var));
   binlog_row_event_extra_data= 0;
 
@@ -1819,16 +1832,6 @@ bool THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
 {
   THD *in_use= ctx_in_use->get_thd();
   bool signalled= FALSE;
-  if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-      !in_use->killed)
-  {
-    in_use->killed= THD::KILL_CONNECTION;
-    mysql_mutex_lock(&in_use->mysys_var->mutex);
-    if (in_use->mysys_var->current_cond)
-      mysql_cond_broadcast(in_use->mysys_var->current_cond);
-    mysql_mutex_unlock(&in_use->mysys_var->mutex);
-    signalled= TRUE;
-  }
 
   if (needs_thr_lock_abort)
   {
@@ -1951,6 +1954,14 @@ void THD::cleanup_after_query()
     rand_used= 0;
     binlog_accessed_db_names= NULL;
   }
+  /*
+    Forget the binlog stmt filter for the next query.
+    There are some code paths that:
+    - do not call THD::decide_logging_format()
+    - do call THD::binlog_query(),
+    making this reset necessary.
+  */
+  reset_binlog_local_stmt_filter();
   if (first_successful_insert_id_in_cur_stmt > 0)
   {
     /* set what LAST_INSERT_ID() will return */
@@ -3658,16 +3669,15 @@ void Security_context::destroy()
     my_free(host);
     host= NULL;
   }
-  if (user != delayed_user)
+  if (user)
   {
     my_free(user);
     user= NULL;
   }
-
   if (external_user)
   {
     my_free(external_user);
-    user= NULL;
+    external_user= NULL;
   }
 
   my_free(ip);

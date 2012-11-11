@@ -243,6 +243,25 @@ DECLARE_NDBINFO_TABLE(OPERATIONS, 12) =
   }
 };
 
+DECLARE_NDBINFO_TABLE(MEMBERSHIP, 13) =
+{ { "membership", 13, 0, "membership" },
+  {
+    {"node_id",         Ndbinfo::Number, "node id"},
+    {"group_id",        Ndbinfo::Number, "node group id"},
+    {"left_node",       Ndbinfo::Number, "Left node in heart beat chain"},
+    {"right_node",      Ndbinfo::Number, "Right node in heart beat chain"},
+    {"president",       Ndbinfo::Number, "President nodeid"},
+    {"successor",       Ndbinfo::Number, "President successor"},
+    {"dynamic_id",      Ndbinfo::Number, "President, Configured_heartbeat order"},
+    {"arbitrator",      Ndbinfo::Number, "Arbitrator nodeid"},
+    {"arb_ticket",      Ndbinfo::String, "Arbitrator ticket"},
+    {"arb_state",       Ndbinfo::Number, "Arbitrator state"},
+    {"arb_connected",   Ndbinfo::Number, "Arbitrator connected"},
+    {"conn_rank1_arbs", Ndbinfo::String, "Connected rank 1 arbitrators"},
+    {"conn_rank2_arbs", Ndbinfo::String, "Connected rank 2 arbitrators"}
+  }
+};
+
 #define DBINFOTBL(x) { Ndbinfo::x##_TABLEID, (Ndbinfo::Table*)&ndbinfo_##x }
 
 static
@@ -266,7 +285,8 @@ struct ndbinfo_table_list_entry {
   DBINFOTBL(THREADBLOCKS),
   DBINFOTBL(THREADSTAT),
   DBINFOTBL(TRANSACTIONS),
-  DBINFOTBL(OPERATIONS)
+  DBINFOTBL(OPERATIONS),
+  DBINFOTBL(MEMBERSHIP)
 };
 
 static int no_ndbinfo_tables =
