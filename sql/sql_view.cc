@@ -915,7 +915,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     sql_mode_t sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
-    lex->unit.print(&view_query, QT_ORDINARY);
+    lex->unit.print(&view_query, QT_TO_ARGUMENT_CHARSET); 
     lex->unit.print(&is_query,
                     enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));
 

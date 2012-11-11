@@ -1416,12 +1416,20 @@ Ndb::sendRecSignal(Uint16 node_id,
   */
   theImpl->incClientStat(WaitMetaRequestCount, 1);
   PollGuard poll_guard(* theImpl);
+
+  /**
+   * Either we supply the correct conn_seq and ret_conn_seq == 0
+   *     or we supply conn_seq == 0 and ret_conn_seq != 0
+   */
   read_conn_seq= theImpl->getNodeSequence(node_id);
+  bool ok =
+    (conn_seq == read_conn_seq && ret_conn_seq == 0) ||
+    (conn_seq == 0 && ret_conn_seq != 0);
+
   if (ret_conn_seq)
     *ret_conn_seq= read_conn_seq;
-  if ((theImpl->get_node_alive(node_id)) &&
-      ((read_conn_seq == conn_seq) ||
-       (conn_seq == 0))) {
+  if ((theImpl->get_node_alive(node_id)) && ok)
+  {
     if (theImpl->check_send_size(node_id, send_size)) {
       return_code = theImpl->sendSignal(aSignal, node_id);
       if (return_code != -1) {
@@ -1434,9 +1442,8 @@ Ndb::sendRecSignal(Uint16 node_id,
       return_code = -4;
     }//if
   } else {
-    if ((theImpl->get_node_stopping(node_id)) &&
-        ((read_conn_seq == conn_seq) ||
-         (conn_seq == 0))) {
+    if ((theImpl->get_node_stopping(node_id)) && ok)
+    {
       return_code = -5;
     } else {
       return_code = -2;

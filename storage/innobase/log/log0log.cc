@@ -745,9 +745,6 @@ log_init(void)
 
 	log_sys->lsn = LOG_START_LSN;
 
-	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
-		    log_sys->lsn - log_sys->last_checkpoint_lsn);
-
 	ut_a(LOG_BUFFER_SIZE >= 16 * OS_FILE_LOG_BLOCK_SIZE);
 	ut_a(LOG_BUFFER_SIZE >= 4 * UNIV_PAGE_SIZE);
 
@@ -793,7 +790,6 @@ log_init(void)
 
 	log_sys->next_checkpoint_no = 0;
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
-	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE, 0);
 	log_sys->n_pending_checkpoint_writes = 0;
 
 

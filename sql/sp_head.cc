@@ -1824,14 +1824,6 @@ bool sp_head::merge_table_list(THD *thd,
       tname[tlen]= '\0';
 
       /*
-        Upgrade the lock type because this table list will be used
-        only in pre-locked mode, in which DELAYED inserts are always
-        converted to normal inserts.
-      */
-      if (table->lock_type == TL_WRITE_DELAYED)
-        table->lock_type= TL_WRITE;
-
-      /*
         We ignore alias when we check if table was already marked as temporary
         (and therefore should not be prelocked). Otherwise we will erroneously
         treat table with same name but with different alias as non-temporary.
