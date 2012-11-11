@@ -119,7 +119,7 @@ static enum enum_remote_proto {
 static char *opt_remote_proto_str= 0;
 static char *database= 0;
 static char *output_file= 0;
-static my_bool force_opt= 0, short_form= 0;
+static my_bool force_opt= 0, short_form= 0, idempotent_mode= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1, raw_mode= 0;
 static my_bool to_last_remote_log= 0, stop_never= 0;
@@ -1259,6 +1259,9 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"host", 'h', "Get the binlog from server.", &host, &host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"idempotent", 'i', "Notify the server to use idempotent mode before "
+   "applying Row Events", &idempotent_mode, &idempotent_mode, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in the specified directory.",
    &dirname_for_local_load, &dirname_for_local_load, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -2683,9 +2686,6 @@ int main(int argc, char** argv)
 
   if (!raw_mode)
   {
-    fprintf(result_file,
-            "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
-
     if (disable_log_bin)
       fprintf(result_file,
               "/*!32316 SET @OLD_SQL_LOG_BIN=@@SQL_LOG_BIN, SQL_LOG_BIN=0*/;\n");
@@ -2705,6 +2705,13 @@ int main(int argc, char** argv)
               "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"
               "\n/*!40101 SET NAMES %s */;\n", charset);
   }
+  /*
+    In case '--idempotent' or '-i' options has been used, we will notify the
+    server to use idempotent mode for the following events.
+   */
+  if (idempotent_mode)
+    fprintf(result_file,
+            "/*!50700 SET @@SESSION.RBR_EXEC_MODE=IDEMPOTENT*/;\n\n");
 
   for (save_stop_position= stop_position, stop_position= ~(my_off_t)0 ;
        (--argc >= 0) ; )
@@ -2736,6 +2743,14 @@ int main(int argc, char** argv)
               "/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
               "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
   }
+
+  /*
+    We should unset the RBR_EXEC_MODE since the user may concatenate output of
+    multiple runs of mysqlbinlog, all of which may not run in idempotent mode.
+   */
+  if (idempotent_mode)
+    fprintf(result_file,
+            "/*!50700 SET @@SESSION.RBR_EXEC_MODE=STRICT*/;\n");
 
   if (tmpdir.list)
     free_tmpdir(&tmpdir);

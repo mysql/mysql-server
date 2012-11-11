@@ -4409,6 +4409,7 @@ ha_innobase::commit_inplace_alter_table(
 	int				err	= 0;
 	bool				new_clustered;
 	dict_table_t*			fk_table = NULL;
+	ulonglong			max_autoinc;
 
 	ut_ad(!srv_read_only_mode);
 
@@ -4425,6 +4426,31 @@ ha_innobase::commit_inplace_alter_table(
 		method if commit=true. */
 		DBUG_RETURN(rollback_inplace_alter_table(
 				    ha_alter_info, table_share, prebuilt));
+	}
+
+	if (!altered_table->found_next_number_field) {
+		/* There is no AUTO_INCREMENT column in the table
+		after the ALTER operation. */
+		max_autoinc = 0;
+	} else if (ctx && ctx->add_autoinc != ULINT_UNDEFINED) {
+		/* An AUTO_INCREMENT column was added. Get the last
+		value from the sequence, which may be based on a
+		supplied AUTO_INCREMENT value. */
+		max_autoinc = ctx->sequence.last();
+	} else if ((ha_alter_info->handler_flags
+		    & Alter_inplace_info::CHANGE_CREATE_OPTION)
+		   && (ha_alter_info->create_info->used_fields
+		       & HA_CREATE_USED_AUTO)) {
+		/* An AUTO_INCREMENT value was supplied, but the table
+		was not rebuilt. Get the user-supplied value. */
+		max_autoinc = ha_alter_info->create_info->auto_increment_value;
+	} else {
+		/* An AUTO_INCREMENT value was not specified.
+		Read the old counter value from the table. */
+		ut_ad(table->found_next_number_field);
+		dict_table_autoinc_lock(prebuilt->table);
+		max_autoinc = dict_table_autoinc_read(prebuilt->table);
+		dict_table_autoinc_unlock(prebuilt->table);
 	}
 
 	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
@@ -4776,6 +4802,7 @@ undo_add_fk:
 				ut_ad(fk_trx != trx);
 				trx_commit_for_mysql(fk_trx);
 			}
+
 			row_prebuilt_free(prebuilt, TRUE);
 			error = row_merge_drop_table(trx, old_table, false);
 			prebuilt = row_create_prebuilt(
@@ -5102,21 +5129,9 @@ trx_rollback:
 
 func_exit:
 
-	if (err == 0
-	    && (ha_alter_info->create_info->used_fields
-		& HA_CREATE_USED_AUTO)) {
-
-		if (ctx != 0 && altered_table->found_next_number_field != 0) {
-			ha_alter_info->create_info->auto_increment_value =
-				ctx->sequence.last();
-		}
-
+	if (err == 0 && altered_table->found_next_number_field != 0) {
 		dict_table_autoinc_lock(prebuilt->table);
-
-		dict_table_autoinc_initialize(
-			prebuilt->table,
-			ha_alter_info->create_info->auto_increment_value);
-
+		dict_table_autoinc_initialize(prebuilt->table, max_autoinc);
 		dict_table_autoinc_unlock(prebuilt->table);
 	}
 

@@ -94,7 +94,7 @@ if ($commands == recovery)
   SET GLOBAL debug="d,rotate_slave_debug_group";
   --source include/start_slave_io.inc
   let $wait_condition=SELECT Master_log_pos = $m_before_master_pos AND Master_log_name = "$m_before_master_file" FROM mysql.slave_master_info;
-  let $slave_failure_printout= 1;
+  let $show_rpl_debug_info= 1;
   --source include/wait_condition.inc
 
   #### Crashing server after assigning and processing jobs ######

@@ -1721,6 +1721,7 @@ fts_create_common_tables(
 	que_t*		graph;
 	fts_table_t	fts_table;
 	mem_heap_t*	heap = mem_heap_create(1024);
+	pars_info_t*	info;
 
 	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
 
@@ -1759,17 +1760,23 @@ fts_create_common_tables(
 		goto func_exit;
 	}
 
+	info = pars_info_create();
+
+	pars_info_bind_id(info, TRUE, "table_name", name);
+	pars_info_bind_id(info, TRUE, "index_name", FTS_DOC_ID_INDEX_NAME);
+	pars_info_bind_id(info, TRUE, "doc_id_col_name", FTS_DOC_ID_COL_NAME);
+
 	/* Create the FTS DOC_ID index on the hidden column. Currently this
 	is common for any FT index created on the table. */
 	graph = fts_parse_sql_no_dict_lock(
 		NULL,
-		NULL,
+		info,
 		mem_heap_printf(
 			heap,
 			"BEGIN\n"
 			""
-			"CREATE UNIQUE INDEX %s ON %s(%s);\n",
-			FTS_DOC_ID_INDEX_NAME, name, FTS_DOC_ID_COL_NAME));
+			"CREATE UNIQUE INDEX $index_name ON $table_name("
+			"$doc_id_col_name);\n"));
 
 	error = fts_eval_sql(trx, graph);
 	que_graph_free(graph);
@@ -4130,9 +4137,14 @@ fts_sync_begin(
 
 	sync->trx = trx_allocate_for_background();
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  SYNC deleted count: %ld size: %lu bytes\n",
-		ib_vector_size(cache->deleted_doc_ids), cache->total_size);
+	if (fts_enable_diag_print) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"FTS SYNC for table %s, deleted count: %ld size: "
+			"%lu bytes",
+			sync->table->name,
+			ib_vector_size(cache->deleted_doc_ids),
+			cache->total_size);
+	}
 }
 
 /*********************************************************************//**
@@ -4151,8 +4163,10 @@ fts_sync_index(
 
 	trx->op_info = "doing SYNC index";
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  SYNC words: %ld\n", rbt_size(index_cache->words));
+	if (fts_enable_diag_print) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"SYNC words: %ld", rbt_size(index_cache->words));
+	}
 
 	ut_ad(rbt_validate(index_cache->words));
 
@@ -4224,10 +4238,14 @@ fts_sync_commit(
 			ut_strerr(error));
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, "  InnoDB: SYNC time : %lusecs: elapsed %lf ins/sec\n",
-		(ulong) (ut_time() - sync->start_time),
-		(double) n_nodes/ (double) elapsed_time);
+	if (fts_enable_diag_print && elapsed_time) {
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"SYNC for table %s: SYNC time : %lu secs: "
+			"elapsed %lf ins/sec",
+			sync->table->name,
+			(ulong) (ut_time() - sync->start_time),
+			(double) n_nodes/ (double) elapsed_time);
+	}
 
 	trx_free_for_background(trx);
 
