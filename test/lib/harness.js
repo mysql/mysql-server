@@ -437,25 +437,30 @@ function Listener() {
   this.started = 0;
   this.ended   = 0;
   this.printStackTraces = false;
+  this.running = [];
 }
 
 Listener.prototype.startTest = function(t) { 
   this.started++;
+  this.running[t.index] = t.fullName();
 };
 
 Listener.prototype.pass = function(t) {
   this.ended++;
+  delete this.running[t.index];
   console.log("[pass]", t.fullName() );
 };
 
 Listener.prototype.skip = function(t, message) {
   this.skipped++;
+  delete this.running[t.index];
   console.log("[skipped]", t.fullName(), "\t", message);
 };
 
 Listener.prototype.fail = function(t, e) {
   var message = "";
   this.ended++;
+  delete this.running[t.index];
   if(e) {
     message = e.toString();
     if (typeof(e.message) !== 'undefined') {
@@ -469,6 +474,12 @@ Listener.prototype.fail = function(t, e) {
   console.log("[FAIL]", t.fullName(), "\t", message);
 };
 
+Listener.prototype.listRunningTests = function() {
+  function listElement(e) {
+    console.log("  " + e);
+  }
+  this.running.forEach(listElement);
+}
 
 /* Result 
 */
