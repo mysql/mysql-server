@@ -247,7 +247,11 @@ Suite.prototype.createTests = function() {
   var suite, i;
   
   if(stat.isFile()) {
-    this.addTestsFromFile(this.path);
+    var testFile = this.path;
+    this.path = path.dirname(testFile);
+    this.addTestsFromFile(path.join(this.path, "SmokeTest.js"));
+    this.addTestsFromFile(testFile);
+    this.addTestsFromFile(path.join(this.path, "ClearSmokeTest.js"));
   }
   else if(stat.isDirectory()) {
     var files = fs.readdirSync(this.path);
