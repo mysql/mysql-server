@@ -5100,9 +5100,12 @@ Uint32 Qmgr::getArbitTimeout()
     break;
   case ARBIT_INIT:              // not used
     jam();
-  case ARBIT_FIND:              // not used
+  case ARBIT_FIND:
     jam();
-    return 1000;
+    /* This timeout will be used only to print out a warning
+     * when a suitable arbitrator is not found.
+     */
+    return 60000;
   case ARBIT_PREP1:
     jam();
   case ARBIT_PREP2:
@@ -5507,12 +5510,26 @@ Qmgr::stateArbitFind(Signal* signal)
         ptrAss(aPtr, nodeRec);
         if (aPtr.p->phase != ZAPI_ACTIVE)
           continue;
+        ndbrequire(c_connectedNodes.get(aPtr.i));
         arbitRec.node = aPtr.i;
         arbitRec.state = ARBIT_PREP1;
         arbitRec.newstate = true;
         stateArbitPrep(signal);
         return;
       }
+    }
+
+    /* If the president cannot find a suitable arbitrator then
+     * it will report this once a minute. Success in finding
+     * an arbitrator will be notified when the arbitrator
+     * accepts and acks the offer.
+    */
+
+    if (arbitRec.getTimediff() > getArbitTimeout()) {
+      jam();
+      g_eventLogger->warning("Could not find an arbitrator, cluster is not partition-safe");
+      warningEvent("Could not find an arbitrator, cluster is not partition-safe");
+      arbitRec.setTimestamp();
     }
     return;
     break;
@@ -5627,6 +5644,35 @@ Qmgr::execARBIT_PREPREQ(Signal* signal)
     reportArbitEvent(signal, NDB_LE_ArbitState);
     arbitRec.state = ARBIT_RUN;
     arbitRec.newstate = true;
+
+    // Non-president node logs.
+    if (!c_connectedNodes.get(arbitRec.node))
+    {
+      char buf[20]; // needs 16 + 1 for '\0'
+      arbitRec.ticket.getText(buf, sizeof(buf));
+      g_eventLogger->warning("President %u proposed disconnected "
+                             "node %u as arbitrator [ticket=%s]. "
+                             "Cluster may be partially connected. "
+                             "Connected nodes: %s",
+                             cpresident, arbitRec.node, buf,
+                             BaseString::getPrettyTextShort(c_connectedNodes).c_str());
+
+      warningEvent("President %u proposed disconnected node %u "
+                   "as arbitrator [ticket %s]",
+                   cpresident, arbitRec.node, buf);
+      warningEvent("Cluster may be partially connected. Connected nodes: ");
+
+      // Split the connected-node list, since warningEvents are
+      // limited to ~24 words / 96 chars
+      BaseString tmp(BaseString::getPrettyTextShort(c_connectedNodes).c_str());
+      Vector<BaseString> split;
+      tmp.split(split, "", 92);
+      for(unsigned i = 0; i < split.size(); ++i)
+      {
+        warningEvent("%s", split[i].c_str());
+      }
+    }
+
     if (sd->code == ArbitCode::PrepAtrun) {
       jam();
       return;
@@ -6038,6 +6084,13 @@ Qmgr::reportArbitEvent(Signal* signal, Ndb_logevent_type type,
   sd->node = arbitRec.node;
   sd->ticket = arbitRec.ticket;
   sd->mask = mask;
+
+  // Log to console/stdout
+  LogLevel ll;
+  ll.setLogLevel(LogLevel::llNodeRestart, 15);
+  g_eventLogger->log(type, &signal->theData[0],
+                     ArbitSignalData::SignalLength, 0, &ll);
+
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal,
     ArbitSignalData::SignalLength, JBB);
 }
@@ -7105,4 +7158,105 @@ Qmgr::handleFailFromSuspect(Signal* signal,
   sendSignal(CMVMI_REF, GSN_EVENT_REP, signal, 4, JBB);
 
   failReportLab(signal, sourceNode, (FailRep::FailCause) reason, getOwnNodeId());
+}
+
+void
+Qmgr::execDBINFO_SCANREQ(Signal *signal)
+{
+  DbinfoScanReq req= *(DbinfoScanReq*)signal->theData;
+  Ndbinfo::Ratelimit rl;
+
+  jamEntry();
+  switch(req.tableId) {
+  case Ndbinfo::MEMBERSHIP_TABLEID:
+  {
+    jam();
+    Ndbinfo::Row row(signal, req);
+    row.write_uint32(getOwnNodeId());
+    row.write_uint32(getNodeState().nodeGroup);
+    row.write_uint32(cneighbourl);
+    row.write_uint32(cneighbourh);
+    row.write_uint32(cpresident);
+
+    // President successor
+    Uint32 successor = 0;
+    {
+      NodeRecPtr nodePtr;
+      UintR minDynamicId = (UintR)-1;
+      for (nodePtr.i = 1; nodePtr.i < MAX_NDB_NODES; nodePtr.i++)
+      {
+        jam();
+        ptrAss(nodePtr, nodeRec);
+        if (nodePtr.p->phase == ZRUNNING)
+        {
+          if ((nodePtr.p->ndynamicId & 0xFFFF) < minDynamicId)
+          {
+            jam();
+            if (cpresident !=  nodePtr.i)
+            {
+              minDynamicId = (nodePtr.p->ndynamicId & 0xFFFF);
+              successor = nodePtr.i;
+            }
+          }
+        }
+      }
+    }
+    row.write_uint32(successor);
+
+    NodeRecPtr myNodePtr;
+    myNodePtr.i = getOwnNodeId();
+    ptrCheckGuard(myNodePtr, MAX_NDB_NODES, nodeRec);
+    row.write_uint32(myNodePtr.p->ndynamicId);
+
+    row.write_uint32(arbitRec.node); // arbitrator
+
+    char ticket[20]; // Need 16 characters + 1 for trailing '\0'
+    arbitRec.ticket.getText(ticket, sizeof(ticket));
+    row.write_string(ticket);
+
+    row.write_uint32(arbitRec.state);
+
+    // arbitrator connected
+    row.write_uint32(c_connectedNodes.get(arbitRec.node));
+
+    // Find potential (rank1 and rank2) arbitrators that are connected.
+    NodeRecPtr aPtr;
+    // buf_size: Node nr (max 3 chars) and ', '  + trailing '\0'
+    const int buf_size = 5 * MAX_NODES + 1;
+    char buf[buf_size];
+
+    for (unsigned rank = 1; rank <= 2; rank++)
+    {
+      jam();
+      aPtr.i = 0;
+      const unsigned stop = NodeBitmask::NotFound;
+      int buf_offset = 0;
+      const char* delimiter = "";
+
+      while ((aPtr.i = arbitRec.apiMask[rank].find(aPtr.i + 1)) != stop)
+      {
+        jam();
+        ptrAss(aPtr, nodeRec);
+        if (c_connectedNodes.get(aPtr.i))
+        {
+          buf_offset += BaseString::snprintf(buf + buf_offset,
+                                             buf_size - buf_offset,
+                                             "%s%u", delimiter, aPtr.i);
+          delimiter = ", ";
+        }
+      }
+
+      if (buf_offset == 0)
+        row.write_string("-");
+      else
+        row.write_string(buf);
+    }
+
+    ndbinfo_send_row(signal, req, row, rl);
+    break;
+  }
+  default:
+    break;
+  }
+  ndbinfo_send_scan_conf(signal, req, rl);
 }

@@ -3210,26 +3210,17 @@ void Item_string::print(String *str, enum_query_type query_type)
     }
     else
     {
-      if (my_charset_same(str_value.charset(), system_charset_info))
-        str_value.print(str); // already in system_charset_info
-      else // need to convert
-      {
-        THD *thd= current_thd;
-        LEX_STRING utf8_lex_str;
-
-        thd->convert_string(&utf8_lex_str,
-                            system_charset_info,
-                            str_value.ptr(),
-                            str_value.length(),
-                            str_value.charset());
-
-        String utf8_str(utf8_lex_str.str,
-                        utf8_lex_str.length,
-                        system_charset_info);
-
-        utf8_str.print(str);
-      }
+      // Convert to system charset.
+      convert_and_print(&str_value, str, system_charset_info);
     }
+  }
+  else if(query_type & QT_TO_ARGUMENT_CHARSET)
+  {
+    /*
+      Convert the string literals to str->charset(),
+      which is typically equal to charset_set_client.
+    */
+    convert_and_print(&str_value, str, str->charset());
   }
   else
   {
@@ -9565,3 +9556,33 @@ void view_error_processor(THD *thd, void *data)
 {
   ((TABLE_LIST *)data)->hide_view_error(thd);
 }
+
+
+/**
+  Helper method: Convert string to the given charset, then print.
+
+  @param from_str     String to be converted. 
+  @param to_str       Query string.
+  @param to_cs        Character set to which the string is to be converted.
+*/
+void convert_and_print(String *from_str, String *to_str, 
+                       const CHARSET_INFO *to_cs)
+{
+  if (my_charset_same(from_str->charset(), to_cs))
+  {
+    from_str->print(to_str);     // already in to_cs, no need to convert
+  }
+  else // need to convert
+  {
+    THD *thd= current_thd;
+    LEX_STRING lex_str;
+    thd->convert_string(&lex_str,
+                        to_cs,
+                        from_str->ptr(),
+                        from_str->length(),
+                        from_str->charset());
+    String tmp(lex_str.str, lex_str.length, to_cs);
+    tmp.print(to_str);
+  }
+}
+

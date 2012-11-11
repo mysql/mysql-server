@@ -292,31 +292,6 @@ end|
 delimiter ;|
 insert into t11 values("try_560_");
 
-# Test that INSERT DELAYED works in mixed mode (BUG#20649)
-insert delayed into t2 values("delay_1_");
-insert delayed into t2 values(concat("delay_2_",UUID()));
-insert delayed into t2 values("delay_6_");
-
-# Test for BUG#20633 (INSERT DELAYED RAND()/user_variable does not
-# replicate fine in statement-based ; we test that in mixed mode it
-# works).
-insert delayed into t2 values(rand());
-set @a=2.345;
-insert delayed into t2 values(@a);
-
-# With INSERT DELAYED, rows are written to the binlog after they are
-# written to the table. Therefore, it is not enough to wait until the
-# rows make it to t2 on the master (the rows may not be in the binlog
-# at that time, and may still not be in the binlog when
-# sync_slave_with_master is later called). Instead, we wait until the
-# rows make it to t2 on the slave. We first call
-# sync_slave_with_master, so that we are sure that t2 has been created
-# on the slave.
-sync_slave_with_master;
-let $wait_condition= SELECT COUNT(*) = 19 FROM mysqltest1.t2;
---source include/wait_condition.inc
-connection master;
-
 # If you want to do manual testing of the mixed mode regarding UDFs (not
 # testable automatically as quite platform- and compiler-dependent),
 # you just need to set the variable below to 1, and to

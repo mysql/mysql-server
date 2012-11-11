@@ -376,7 +376,7 @@ let $MYSQL_PLUGIN_CMD= $MYSQL_PLUGIN -n --datadir=$MYSQL_DATADIR --basedir=$MYSQ
 --exec $MYSQL_PLUGIN --help
 
 --replace_result $MYSQL_PLUGIN mysql_plugin $MYSQL_SERVER_VERSION XX.XX.XX
---replace_regex /Ver [0-9.]+/Ver V.V.VV/
+--replace_regex /Ver [0-9.]+/Ver V.V.VV/ 
 --exec $MYSQL_PLUGIN --version
 
 #

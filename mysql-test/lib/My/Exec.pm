@@ -34,15 +34,23 @@ sub get_logfile_name {
     return $logfile_name;
 }
 
-# Save a set of lines to a file
-sub save_file {
-    my $filename = shift;
-    my $lines    = shift;
+# Show the last "max_lines" from file
+sub show_last_lines_from_file {
+    my ($filename, $max_lines) = @_;
 
-    my $F = IO::File->new($filename, "w") or die "Can't write to '$filename': $!";
-    foreach my $line (@$lines) {
-        print $F $line
+    my $F = IO::File->new($filename, "r")
+      or print "Failed to open file '$filename' for reading: $!\n" and return;
+
+    my @input = <$F>;
+    my $lines = scalar(@input);
+    $lines = $max_lines if $lines > $max_lines;
+    print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
+    print "Last '$lines' lines of output from command:\n";
+    foreach my $line (splice(@input, -$lines))
+    {
+      print $line;
     }
+    print "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n";
     $F->close();
 }
 
@@ -66,10 +74,14 @@ sub exec_print_on_error {
 
     my $logfile_name = get_logfile_name($cmd);
 
-    $cmd .= " 2>&1";
-    my @output = `$cmd`;
-    print "Result of '$cmd': $?, logfile: '$logfile_name'\n";
-    save_file($logfile_name, \@output);
+    # Redirect stdout and stderr of command to log file
+    $cmd .= " > $logfile_name 2>&1";
+
+    # Execute command
+    print "Running '$cmd'\n";
+    system($cmd);
+
+    print "Result of '$cmd': $?\n";
     if ($? == 0)
     {
 	# Test program suceeded
@@ -91,14 +103,8 @@ sub exec_print_on_error {
 	print "Test program killed by signal $sig\n" if $sig;
 	print "Test program failed with error $return\n" if $return;
 
-	# Show the last lines of the output 
-	my $lines = scalar(@output);
-	$lines = $max_lines if $lines > $max_lines;
-	print "Last '$lines' lines of output from command:\n";  
-	foreach my $line (splice(@output, -$lines))
-	{
-	    print $line;
-	}
+	# Show the "max_lines" last lines from the log file
+	show_last_lines_from_file($logfile_name, $max_lines);
     }
     return 0;
 }

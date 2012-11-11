@@ -6585,7 +6585,17 @@ injectApplyStatusWriteRow(injector::transaction& trans,
 
   /*
     Intialize apply_status_table->record[0]
+
+    When iterating past the end of the last epoch, the first event of
+    the new epoch may be on ndb_apply_status.  Its event data saved
+    in record[0] would be overwritten here by a subsequent event on a
+    normal table.  So save and restore its record[0].
   */
+  static const ulong sav_max= 512; // current is 284
+  const ulong sav_len= apply_status_table->s->reclength;
+  DBUG_ASSERT(sav_len <= sav_max);
+  uchar sav_buf[sav_max];
+  memcpy(sav_buf, apply_status_table->record[0], sav_len);
   empty_record(apply_status_table);
 
   apply_status_table->field[0]->store((longlong)::server_id, true);
@@ -6611,6 +6621,7 @@ injectApplyStatusWriteRow(injector::transaction& trans,
 
   assert(ret == 0);
 
+  memcpy(apply_status_table->record[0], sav_buf, sav_len);
   DBUG_RETURN(true);
 }
 

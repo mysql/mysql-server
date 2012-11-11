@@ -138,7 +138,7 @@ SET(INSTALL_PLUGINTESTDIR_STANDALONE    ${plugin_tests})
 #
 # RPM layout
 #
-# See "SPECIFIC-ULN/mysql-5.5-libdir.patch" for the differences
+# See "packaging/rpm-uln/mysql-5.5-libdir.patch" for the differences
 # which apply to RPMs in ULN (Oracle Linux), that patch file will
 # be applied at build time via "rpmbuild".
 #

@@ -1131,3 +1131,40 @@ uint convert_to_printable(char *to, size_t to_len,
     *t= '\0';
   return t - to;
 }
+
+
+/**
+  Convert a buffer to printable HEX encoded string
+  For eg: ABCDEF1234
+
+
+  @param    to          output buffer
+  @param    to_len      size of the output buffer (from_len*2 + 1 or greater)
+  @param    from        input buffer
+  @param    from_len    size of the input buffer
+
+  @return   number of bytes in the output string
+*/
+uint bin_to_hex_str(char *to, size_t to_len, char *from, size_t from_len)
+{
+  char *out;
+  char *in;
+  size_t i;
+
+  if (to_len < ((from_len * 2) + 1))
+    return 0 ;
+
+  out= to;
+  in= from;
+
+  for (i=0; i < from_len; i++, in++)
+  {
+    *out++=_dig_vec_upper[((unsigned char) *in) >> 4];
+    *out++=_dig_vec_upper[((unsigned char) *in) & 0xF];
+  }
+
+  *out= '\0';
+
+  return out - to;
+}
+
