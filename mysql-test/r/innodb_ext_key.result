@@ -613,6 +613,26 @@ Handler_read_prev	0
 Handler_read_rnd	0
 Handler_read_rnd_deleted	0
 Handler_read_rnd_next	0
+#
+# Bug mdev-3851: ref access used instead of expected eq_ref access
+#                when extended_keys=on
+#
+create table t0 (a int);
+insert into t0 values (1), (2), (3), (4), (5);
+create index i_p_size on part(p_size);
+set optimizer_switch='extended_keys=on';
+explain
+select * from t0, part ignore index (primary)
+where p_partkey=t0.a and p_size=1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t0	ALL	NULL	NULL	NULL	NULL	5	Using where
+1	SIMPLE	part	eq_ref	i_p_size	i_p_size	9	const,dbt3_s001.t0.a	1	
+select * from t0,  part ignore index (primary)
+where p_partkey=t0.a and p_size=1;
+a	p_partkey	p_name	p_mfgr	p_brand	p_type	p_size	p_container	p_retailprice	p_comment
+2	2	blush rosy metallic lemon navajo	Manufacturer#1	Brand#13	LARGE BRUSHED BRASS	1	LG CASE	902	final platelets hang f
+drop table t0;
+drop index i_p_size on part;
 DROP DATABASE dbt3_s001;
 use test;
 #

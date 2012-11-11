@@ -287,6 +287,27 @@ select o_orderkey, p_partkey
         and o_orderkey=l_orderkey and p_partkey=l_partkey;
 show status like 'handler_read%';
 
+--echo #
+--echo # Bug mdev-3851: ref access used instead of expected eq_ref access
+--echo #                when extended_keys=on
+--echo #
+
+create table t0 (a int);
+insert into t0 values (1), (2), (3), (4), (5);
+create index i_p_size on part(p_size);
+
+set optimizer_switch='extended_keys=on';
+
+explain
+select * from t0, part ignore index (primary)
+  where p_partkey=t0.a and p_size=1;
+
+select * from t0,  part ignore index (primary)
+  where p_partkey=t0.a and p_size=1;
+
+drop table t0;
+drop index i_p_size on part; 
+
 DROP DATABASE dbt3_s001;
 
 use test;

@@ -282,6 +282,9 @@ enum ha_base_keytype {
 #define HA_USES_BLOCK_SIZE	 ((uint) 32768)
 #define HA_SORT_ALLOWS_SAME      512    /* Intern bit when sorting records */
 
+/* This flag can be used only in KEY::ext_key_flags */
+#define HA_EXT_NOSAME            131072
+
 	/* These flags can be added to key-seg-flag */
 
 #define HA_SPACE_PACK		 1	/* Pack space in key-seg */

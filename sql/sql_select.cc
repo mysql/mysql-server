@@ -5378,7 +5378,8 @@ best_access_path(JOIN      *join,
             !ref_or_null_part)
         {                                         /* use eq key */
           max_key_part= (uint) ~0;
-          if ((key_flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME)
+          if ((key_flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME ||
+	      test(key_flags & HA_EXT_NOSAME))
           {
             tmp = prev_record_reads(join->positions, idx, found_ref);
             records=1.0;
@@ -7966,18 +7967,23 @@ static bool create_ref_for_key(JOIN *join, JOIN_TAB *j,
   *ref_key=0;				// end_marker
   if (j->type == JT_FT)
     DBUG_RETURN(0);
+  ulong key_flags= j->table->actual_key_flags(keyinfo);
   if (j->type == JT_CONST)
     j->table->const_table= 1;
-  else if (((j->table->actual_key_flags(keyinfo) &
-            (HA_NOSAME | HA_NULL_PART_KEY))
-           != HA_NOSAME) ||
+  else if (((key_flags & (HA_NOSAME | HA_NULL_PART_KEY))!= HA_NOSAME) ||
 	   keyparts != j->table->actual_n_key_parts(keyinfo) ||
            null_ref_key)
   {
-    /* Must read with repeat */
-    j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
-    j->ref.null_ref_key= null_ref_key;
-    j->ref.null_ref_part= null_ref_part;
+    if (test(key_flags & HA_EXT_NOSAME) && keyparts == keyinfo->ext_key_parts &&
+        !null_ref_key)
+      j->type= JT_EQ_REF;
+    else
+    {
+      /* Must read with repeat */
+      j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
+      j->ref.null_ref_key= null_ref_key;
+      j->ref.null_ref_part= null_ref_part;
+    }
   }
   else if (keyuse_uses_no_tables)
   {

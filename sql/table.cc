@@ -981,7 +981,6 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     keyinfo->ext_key_part_map= 0;
     if (share->use_ext_keys && i)
     {
-      keyinfo->ext_key_flags= keyinfo->flags | HA_NOSAME;
       keyinfo->ext_key_part_map= 0;
       for (j= 0; 
            j < first_key_parts && keyinfo->ext_key_parts < MAX_REF_PARTS;
@@ -1002,7 +1001,9 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           keyinfo->ext_key_parts++;
           keyinfo->ext_key_part_map|= 1 << j;
         }
-      } 
+      }
+      if (j == first_key_parts)
+        keyinfo->ext_key_flags= keyinfo->flags | HA_NOSAME | HA_EXT_NOSAME;
     }
     share->ext_key_parts+= keyinfo->ext_key_parts;  
   }
