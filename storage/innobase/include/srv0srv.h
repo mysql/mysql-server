@@ -569,6 +569,9 @@ struct export_var_struct{
 	ulint innodb_rows_inserted;
 	ulint innodb_rows_updated;
 	ulint innodb_rows_deleted;
+#ifdef UNIV_DEBUG
+	ulint innodb_purge_trx_id_age;
+#endif /* UNIV_DEBUG */
 };
 
 /* The server system struct */
