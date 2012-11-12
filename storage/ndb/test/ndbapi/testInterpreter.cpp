@@ -209,8 +209,8 @@ int runTestBug19537(NDBT_Context* ctx, NDBT_Step* step){
   // write from register 1 to 32-bit column KOL2
   const Uint64 reg_val = 0x0102030405060708ULL;
   Uint32 reg_ptr32[2];
-  memcpy(reg_ptr32+0, (Uint8*)&reg_val, sizeof(Uint32));
-  memcpy(reg_ptr32+1, ((Uint8*)&reg_val)+4, sizeof(Uint32));
+  memcpy(&(reg_ptr32[0]), (Uint8*)&reg_val, sizeof(Uint32));
+  memcpy(&(reg_ptr32[1]), ((Uint8*)&reg_val)+4, sizeof(Uint32));
   if (reg_ptr32[0] == 0x05060708 && reg_ptr32[1] == 0x01020304) {
     g_err << "runTestBug19537: platform is LITTLE endian" << endl;
   } else if (reg_ptr32[0] == 0x01020304 && reg_ptr32[1] == 0x05060708) {
