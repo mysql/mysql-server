@@ -27,6 +27,10 @@ use Cwd 'abs_path';
 use File::Basename;
 use Getopt::Long;
 
+# Automatically flush STDOUT
+select(STDOUT);
+$| = 1;
+
 # Only add the command line options handled by this script, 
 # thus acting like a filter and passing all other arguments
 # straight through
