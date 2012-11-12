@@ -1341,12 +1341,6 @@ open_or_create_temp_data_files()
 	ulint		flags;
 	ulint		size_of_temp_tablespace = 0;
 
-	/* Under read-only mode user can't create temp-tables so leave
-	the state as is. */
-	if (srv_read_only_mode) {
-		return(DB_SUCCESS);
-	}
-
 	if (srv_temp_tablespace.srv_n_temp_data_files >= 1000) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,

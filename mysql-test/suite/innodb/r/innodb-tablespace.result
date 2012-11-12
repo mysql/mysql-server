@@ -323,15 +323,18 @@ CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQ
 ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
 Error	1031	Table storage engine for 't1' doesn't have this option
 SET SESSION innodb_strict_mode = OFF;
 CREATE TEMPORARY TABLE t1 (a int KEY, b text) engine=InnoDB DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir';
 Warnings:
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
 Warning	1618	<DATA DIRECTORY> option ignored
 SHOW WARNINGS;
 Level	Code	Message
+Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: DATA DIRECTORY cannot be used for TEMPORARY tables.
 Warning	1618	<DATA DIRECTORY> option ignored
 SHOW CREATE TABLE t1;
