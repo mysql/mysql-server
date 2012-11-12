@@ -638,3 +638,12 @@ innobase_copy_frm_flags_from_table_share(
 /*=====================================*/
 	dict_table_t*	innodb_table,		/*!< in/out: InnoDB table */
 	TABLE_SHARE*	table_share);		/*!< in: table share */
+/*********************************************************************//**
+Check if table is non-compressed temporary table.
+@return true if non-compressed temporary table. */
+UNIV_INTERN
+bool
+innobase_table_is_noncompressed_temporary(
+/*======================================*/
+	HA_CREATE_INFO* create_info,
+	TABLE*		form);

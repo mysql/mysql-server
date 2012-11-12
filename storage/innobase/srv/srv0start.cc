@@ -440,6 +440,7 @@ srv_parse_data_file_paths_and_sizes(
 	return(TRUE);
 }
 
+#if 0
 /*********************************************************************//**
 Reads the temp data files and their sizes from a character string
 given in the .cnf file.
@@ -455,11 +456,11 @@ srv_parse_temp_data_file_paths_and_sizes(
 	ulint	size;
 	ulint	i	= 0;
 
-	srv_temp_tablespace.srv_auto_extend_last_temp_data_file = false;
-	srv_temp_tablespace.srv_last_temp_data_file_size_max = 0;
-	srv_temp_tablespace.srv_temp_data_file_names = NULL;
-	srv_temp_tablespace.srv_temp_data_file_sizes = NULL;
-	srv_temp_tablespace.srv_temp_data_file_is_raw_partition = NULL;
+	srv_temp_tablespace.m_auto_extend_last_temp_data_file = false;
+	srv_temp_tablespace.m_last_temp_data_file_size_max = 0;
+	srv_temp_tablespace.m_temp_data_file_names = NULL;
+	srv_temp_tablespace.m_temp_data_file_sizes = NULL;
+	srv_temp_tablespace.m_temp_data_file_is_raw_partition = NULL;
 
 	input_str = str;
 
@@ -536,19 +537,19 @@ srv_parse_temp_data_file_paths_and_sizes(
 		return(false);
 	}
 
-	srv_temp_tablespace.srv_temp_data_file_names = static_cast<char**>(
+	srv_temp_tablespace.m_temp_data_file_names = static_cast<char**>(
 		malloc(i *
-		       sizeof *srv_temp_tablespace.srv_temp_data_file_names));
+		       sizeof *srv_temp_tablespace.m_temp_data_file_names));
 
-	srv_temp_tablespace.srv_temp_data_file_sizes = static_cast<ulint*>(
+	srv_temp_tablespace.m_temp_data_file_sizes = static_cast<ulint*>(
 		malloc(i *
-		       sizeof *srv_temp_tablespace.srv_temp_data_file_sizes));
+		       sizeof *srv_temp_tablespace.m_temp_data_file_sizes));
 
 	ulint** raw_status =
-		&(srv_temp_tablespace.srv_temp_data_file_is_raw_partition);
+		&(srv_temp_tablespace.m_temp_data_file_is_raw_partition);
 	*raw_status = static_cast<ulint*>(malloc(i * sizeof *raw_status));
 
-	srv_temp_tablespace.srv_n_temp_data_files = i;
+	srv_temp_tablespace.m_n_temp_data_files = i;
 
 	/* Then store the actual values to our arrays */
 
@@ -556,9 +557,9 @@ srv_parse_temp_data_file_paths_and_sizes(
 	i = 0;
 
 	ulint* last_file_max =
-		&(srv_temp_tablespace.srv_last_temp_data_file_size_max);
+		&(srv_temp_tablespace.m_last_temp_data_file_size_max);
 	bool* auto_extend =
-		&(srv_temp_tablespace.srv_auto_extend_last_temp_data_file);
+		&(srv_temp_tablespace.m_auto_extend_last_temp_data_file);
 
 	while (*str != '\0') {
 		path = str;
@@ -583,8 +584,8 @@ srv_parse_temp_data_file_paths_and_sizes(
 
 		str = srv_parse_megabytes(str, &size);
 
-		srv_temp_tablespace.srv_temp_data_file_names[i] = path;
-		srv_temp_tablespace.srv_temp_data_file_sizes[i] = size;
+		srv_temp_tablespace.m_temp_data_file_names[i] = path;
+		srv_temp_tablespace.m_temp_data_file_sizes[i] = size;
 
 		if (0 == strncmp(str, ":autoextend",
 				 (sizeof ":autoextend") - 1)) {
@@ -634,10 +635,10 @@ srv_parse_temp_data_file_paths_and_sizes(
 	}
 
 	/* Ensure temp-data-files are not same as data-files */
-	for (ulint k1 = 0; k1 < srv_temp_tablespace.srv_n_temp_data_files;
+	for (ulint k1 = 0; k1 < srv_temp_tablespace.m_n_temp_data_files;
 	     k1++) {
 		char* temp_data_fname =
-			srv_temp_tablespace.srv_temp_data_file_names[k1];
+			srv_temp_tablespace.m_temp_data_file_names[k1];
 
 		for (ulint k2 = 0; k2 < srv_n_data_files; k2++) {
 
@@ -651,7 +652,7 @@ srv_parse_temp_data_file_paths_and_sizes(
 	}
 
 	/* Disable raw device for temp-tablespace */
-	for (ulint k = 0; k < srv_temp_tablespace.srv_n_temp_data_files; k++) {
+	for (ulint k = 0; k < srv_temp_tablespace.m_n_temp_data_files; k++) {
 		if (*raw_status[k] != SRV_NOT_RAW) {
 			return(false);
 		}
@@ -659,6 +660,7 @@ srv_parse_temp_data_file_paths_and_sizes(
 
 	return(true);
 }
+#endif
 
 /*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
@@ -682,19 +684,19 @@ srv_free_paths_and_sizes(void)
 		srv_data_file_is_raw_partition = NULL;
 	}
 
-	if (srv_temp_tablespace.srv_temp_data_file_names) {
-		free(srv_temp_tablespace.srv_temp_data_file_names);
-		srv_temp_tablespace.srv_temp_data_file_names = NULL;
+	if (srv_temp_tablespace.m_temp_data_file_names) {
+		free(srv_temp_tablespace.m_temp_data_file_names);
+		srv_temp_tablespace.m_temp_data_file_names = NULL;
 	}
 
-	if (srv_temp_tablespace.srv_temp_data_file_sizes) {
-		free(srv_temp_tablespace.srv_temp_data_file_sizes);
-		srv_temp_tablespace.srv_temp_data_file_sizes = NULL;
+	if (srv_temp_tablespace.m_temp_data_file_sizes) {
+		free(srv_temp_tablespace.m_temp_data_file_sizes);
+		srv_temp_tablespace.m_temp_data_file_sizes = NULL;
 	}
 
-	if (srv_temp_tablespace.srv_temp_data_file_is_raw_partition) {
-		free(srv_temp_tablespace.srv_temp_data_file_is_raw_partition);
-		srv_temp_tablespace.srv_temp_data_file_is_raw_partition = NULL;
+	if (srv_temp_tablespace.m_temp_data_file_is_raw_partition) {
+		free(srv_temp_tablespace.m_temp_data_file_is_raw_partition);
+		srv_temp_tablespace.m_temp_data_file_is_raw_partition = NULL;
 	}
 }
 
@@ -1335,34 +1337,34 @@ Creates or opens database temp data files and closes them.
 static
 dberr_t
 open_or_create_temp_data_files()
-/*================================*/
+/*============================*/
 {
 	ibool		ret;
 	ulint		flags;
 	ulint		size_of_temp_tablespace = 0;
 
-	if (srv_temp_tablespace.srv_n_temp_data_files >= 1000) {
+	if (srv_temp_tablespace.m_n_temp_data_files >= 1000) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Can only have < 1000 temp data files, you have "
 			"defined %lu",
-			(ulong) srv_temp_tablespace.srv_n_temp_data_files);
+			(ulong) srv_temp_tablespace.m_n_temp_data_files);
 
 		return(DB_ERROR);
 	}
 
 	srv_normalize_path_for_win(srv_data_home);
 
-	for (ulint i = 0; i < srv_temp_tablespace.srv_n_temp_data_files; i++) {
+	for (ulint i = 0; i < srv_temp_tablespace.m_n_temp_data_files; i++) {
 		char	name[10000];
 		ulint	dirnamelen;
 
 		srv_normalize_path_for_win(
-			srv_temp_tablespace.srv_temp_data_file_names[i]);
+			srv_temp_tablespace.m_temp_data_file_names[i]);
 		dirnamelen = strlen(srv_data_home);
 
 		ut_a(dirnamelen +
-		     strlen(srv_temp_tablespace.srv_temp_data_file_names[i])
+		     strlen(srv_temp_tablespace.m_temp_data_file_names[i])
 		     < (sizeof name) - 1);
 
 		memcpy(name, srv_data_home, dirnamelen);
@@ -1373,63 +1375,36 @@ open_or_create_temp_data_files()
 		}
 
 		strcpy(name + dirnamelen,
-		       srv_temp_tablespace.srv_temp_data_file_names[i]);
+		       srv_temp_tablespace.m_temp_data_file_names[i]);
 
+		/* remove existing file always as we re-create temp-talbespace
+		on restart */
 		os_file_delete_if_exists(name);
 
 		ulint current_partition_raw_status =
-		srv_temp_tablespace.srv_temp_data_file_is_raw_partition[i];
+		srv_temp_tablespace.m_temp_data_file_is_raw_partition[i];
 
-		if (current_partition_raw_status == 0) {
-			/* First we try to create the file: if it already
-			exists, ret will get value FALSE */
-
-			files[i] = os_file_create(
-				innodb_file_data_key, name, OS_FILE_CREATE,
-				OS_FILE_NORMAL, OS_DATA_TEMP_FILE, &ret);
-
-			if (!ret
-			    && os_file_get_last_error(false)
-			    != OS_FILE_ALREADY_EXISTS
+		/* First we try to create the file: if it already
+		exists, ret will get value FALSE */
+		files[i] = os_file_create(
+			innodb_file_data_key, name, OS_FILE_CREATE,
+			OS_FILE_NORMAL, OS_DATA_TEMP_FILE, &ret);
+		if (!ret
+		    && os_file_get_last_error(false)
+		    != OS_FILE_ALREADY_EXISTS
 #ifdef UNIV_AIX
-			    /* AIX 5.1 after security patch ML7 may have
-			    errno set to 0 here, which causes our
-			    function to return 100; work around that
-			    AIX problem */
-			    && os_file_get_last_error(false) != 100
+		    /* AIX 5.1 after security patch ML7 may have
+		    errno set to 0 here, which causes our
+		    function to return 100; work around that
+		    AIX problem */
+		    && os_file_get_last_error(false) != 100
 #endif /* UNIV_AIX */
-			    ) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Creating or opening %s failed!",
-					name);
+		   ) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Creating or opening %s failed!",
+				name);
 
-				return(DB_ERROR);
-			}
-
-		} else if (current_partition_raw_status == SRV_NEW_RAW) {
-			/* The partition is opened, not created; then it is
-			written over */
-
-			srv_start_raw_disk_in_use = TRUE;
-			srv_temp_tablespace.srv_temp_data_created_new_raw =
-				true;
-
-			files[i] = os_file_create(
-				innodb_file_data_key, name, OS_FILE_OPEN_RAW,
-				OS_FILE_NORMAL, OS_DATA_FILE, &ret);
-
-			if (!ret) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Error in opening %s", name);
-
-				return(DB_ERROR);
-			}
-		} else if (current_partition_raw_status == SRV_OLD_RAW) {
-			srv_start_raw_disk_in_use = TRUE;
-
-			ret = FALSE;
-		} else {
-			ut_a(0);
+			return(DB_ERROR);
 		}
 
 		/* We created the data file and now write it full of zeros */
@@ -1438,17 +1413,17 @@ open_or_create_temp_data_files()
 			"initial size is %lu MB. Wait while database "
 			"physically writes the file full....",
 			name,
-			(ulong) (srv_temp_tablespace.srv_temp_data_file_sizes[i]
+			(ulong) (srv_temp_tablespace.m_temp_data_file_sizes[i]
 				 >> (20 - UNIV_PAGE_SIZE_SHIFT)));
 
 		ret = os_file_set_size(
 			name, files[i],
 			(os_offset_t)
-			srv_temp_tablespace.srv_temp_data_file_sizes[i]
+			srv_temp_tablespace.m_temp_data_file_sizes[i]
 			<< UNIV_PAGE_SIZE_SHIFT);
 
 		size_of_temp_tablespace +=
-			srv_temp_tablespace.srv_temp_data_file_sizes[i];
+			srv_temp_tablespace.m_temp_data_file_sizes[i];
 
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1463,10 +1438,10 @@ open_or_create_temp_data_files()
 			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
 			dict_hdr_get_new_id(
 				NULL, NULL,
-				&srv_temp_tablespace.srv_temp_tablespace_id);
+				&srv_temp_tablespace.m_temp_tablespace_id);
 			fil_space_create(
 				name,
-				srv_temp_tablespace.srv_temp_tablespace_id,
+				srv_temp_tablespace.m_temp_tablespace_id,
 				flags, FIL_TABLESPACE);
 		}
 
@@ -1474,8 +1449,8 @@ open_or_create_temp_data_files()
 
 		if (!fil_node_create(
 			name,
-			srv_temp_tablespace.srv_temp_data_file_sizes[i],
-			srv_temp_tablespace.srv_temp_tablespace_id,
+			srv_temp_tablespace.m_temp_data_file_sizes[i],
+			srv_temp_tablespace.m_temp_tablespace_id,
 			current_partition_raw_status != 0)) {
 			return(DB_ERROR);
 		}
@@ -1486,7 +1461,7 @@ open_or_create_temp_data_files()
 
 		mtr_start(&mtr);
 
-		fsp_header_init(srv_temp_tablespace.srv_temp_tablespace_id,
+		fsp_header_init(srv_temp_tablespace.m_temp_tablespace_id,
 				size_of_temp_tablespace, &mtr);
 
 		mtr_commit(&mtr);

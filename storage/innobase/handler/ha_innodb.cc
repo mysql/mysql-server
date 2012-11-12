@@ -2957,7 +2957,7 @@ mem_free_and_error:
 	internal_innobase_temp_data_file_path = my_strdup(
 		innobase_temp_data_file_path, MYF(MY_FAE));
 
-	ret = srv_parse_temp_data_file_paths_and_sizes(
+	ret = srv_temp_tablespace.init_params(
 		internal_innobase_temp_data_file_path);
 	if (ret == false) {
 		sql_print_error(
@@ -3937,16 +3937,16 @@ ha_innobase::table_flags() const
 
 	/* stats.records are approx. as it is not protected by mutex/latch.
 	In case of temp-table, it is not visible across trx + lifetime is
-	bounded by connection/server lifetime stats.records act as exact
-	count of number of rows. */
-	if (prebuilt && prebuilt->table) {
-		if (dict_table_is_temporary(prebuilt->table)) {
-			return(int_table_flags
-			       | HA_STATS_RECORDS_IS_EXACT
-			       | HA_BINLOG_STMT_CAPABLE);
-		}	
+	bounded by connection/server lifetime and so stats.records act as
+	an exact count of number of rows. */
+	if (prebuilt
+	    && prebuilt->table
+	    && dict_table_is_temporary(prebuilt->table)) {
+		return(int_table_flags
+		       | HA_STATS_RECORDS_IS_EXACT
+		       | HA_BINLOG_STMT_CAPABLE);
 	}
-	
+
 	return(int_table_flags | HA_BINLOG_STMT_CAPABLE);
 }
 
@@ -9384,6 +9384,24 @@ index_bad:
 	DBUG_RETURN(true);
 }
 
+/*********************************************************************//**
+Check if table is non-compressed temporary table.
+@return true if non-compressed temporary table. */
+UNIV_INTERN
+bool
+innobase_table_is_noncompressed_temporary(
+/*======================================*/
+	HA_CREATE_INFO* create_info,
+	TABLE*          form)
+{
+	return((create_info->options & HA_LEX_CREATE_TMP_TABLE)
+	       && (!(((form->s->row_type == ROW_TYPE_COMPRESSED)
+		      || (form->s->row_type == ROW_TYPE_DYNAMIC)
+		      || (create_info->key_block_size))
+	       && (srv_file_format >= UNIV_FORMAT_B))));
+}
+
+
 /*****************************************************************//**
 Creates a new table to an InnoDB database.
 @return	error number */
@@ -9417,13 +9435,9 @@ ha_innobase::create(
 	bool		use_tablespace = srv_file_per_table;
 
 	/* if table is non-compressed temp-table then ignore file-per-table */
-	if ((create_info->options & HA_LEX_CREATE_TMP_TABLE)
-	    && (!(((form->s->row_type == ROW_TYPE_COMPRESSED)
-		   || (form->s->row_type == ROW_TYPE_DYNAMIC)
-		   || (create_info->key_block_size))
-		  && (srv_file_format >= UNIV_FORMAT_B))))
+	if (innobase_table_is_noncompressed_temporary(create_info, form))
 		use_tablespace = false;
-	
+
 	/* Zip Shift Size - log2 - 9 of compressed page size,
 	zero for uncompressed */
 	ulint		flags;

@@ -178,9 +178,9 @@ UNIV_INTERN ulint*	srv_data_file_is_raw_partition = NULL;
 
 /* If the following is TRUE we do not allow inserts etc. This protects
 the user from forgetting the 'newraw' keyword to my.cnf */
-
 UNIV_INTERN ibool	srv_created_new_raw	= FALSE;
 
+/*----------------------- TEMP DATA FILES ---------------------- */
 UNIV_INTERN srv_temp_tablespace_t srv_temp_tablespace;
 
 /*------------------------- LOG FILES ------------------------ */
@@ -1042,19 +1042,19 @@ srv_normalize_init_values(void)
 			* ((1024 * 1024) / UNIV_PAGE_SIZE);
 	}
 
-	n = srv_temp_tablespace.srv_n_temp_data_files;
+	n = srv_temp_tablespace.m_n_temp_data_files;
 
 	for (i = 0; i < n; i++) {
-		srv_temp_tablespace.srv_temp_data_file_sizes[i] =
-		srv_temp_tablespace.srv_temp_data_file_sizes[i]
+		srv_temp_tablespace.m_temp_data_file_sizes[i] =
+			srv_temp_tablespace.m_temp_data_file_sizes[i]
 			* ((1024 * 1024) / UNIV_PAGE_SIZE);
 	}
 
 	srv_last_file_size_max = srv_last_file_size_max
 		* ((1024 * 1024) / UNIV_PAGE_SIZE);
 
-	srv_temp_tablespace.srv_last_temp_data_file_size_max =
-		srv_temp_tablespace.srv_last_temp_data_file_size_max
+	srv_temp_tablespace.m_last_temp_data_file_size_max =
+		srv_temp_tablespace.m_last_temp_data_file_size_max
 		* ((1024 * 1024) / UNIV_PAGE_SIZE);
 
 	srv_log_file_size = srv_log_file_size / UNIV_PAGE_SIZE;
@@ -2835,5 +2835,213 @@ srv_purge_wakeup(void)
 			srv_release_threads(SRV_WORKER, n_workers);
 		}
 	}
+}
+
+/**********************************************************************//**
+Parse the input params and populate member variables.
+@return true on successfull parse else false*/
+UNIV_INTERN
+bool
+srv_temp_tablespace_t::init_params(
+/*===============================*/
+	char*   str)     /*!< in: parse and obtain init value */
+{
+	char*	input_str;
+	char*	path;
+	ulint	size;
+	ulint	i	= 0;
+
+	m_auto_extend_last_temp_data_file = false;
+	m_last_temp_data_file_size_max = 0;
+	m_temp_data_file_names = NULL;
+	m_temp_data_file_sizes = NULL;
+	m_temp_data_file_is_raw_partition = NULL;
+
+	input_str = str;
+
+	/*---------------------- PASS 1 ---------------------------*/
+	/* First calculate the number of data files and check syntax:
+	path:size[M | G];path:size[M | G]... . Note that a Windows path may
+	contain a drive name and a ':'. */
+	while (*str != '\0') {
+		path = str;
+
+		while ((*str != ':' && *str != '\0')
+		       || (*str == ':'
+			   && (*(str + 1) == '\\' || *(str + 1) == '/'
+			       || *(str + 1) == ':'))) {
+			str++;
+		}
+
+		if (*str == '\0') {
+			return(false);
+		}
+
+		str++;
+
+		str = parse_megabytes(str, &size);
+
+		if (0 == strncmp(str, ":autoextend",
+				 (sizeof ":autoextend") - 1)) {
+
+			str += (sizeof ":autoextend") - 1;
+
+			if (0 == strncmp(str, ":max:",
+					 (sizeof ":max:") - 1)) {
+
+				str += (sizeof ":max:") - 1;
+
+				str = parse_megabytes(str, &size);
+			}
+
+			if (*str != '\0') {
+
+				return(false);
+			}
+		}
+
+		if (strlen(str) >= 6
+		    && *str == 'n'
+		    && *(str + 1) == 'e'
+		    && *(str + 2) == 'w') {
+			str += 3;
+		}
+
+		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
+			str += 3;
+		}
+
+		if (size == 0) {
+			return(false);
+		}
+
+		i++;
+
+		if (*str == ';') {
+			str++;
+		} else if (*str != '\0') {
+
+			return(false);
+		}
+	}
+
+	if (i == 0) {
+		/* If innodb_temp_data_file_path was defined it must contain
+		at least one data file definition */
+		return(false);
+	}
+
+	m_temp_data_file_names = static_cast<char**>(
+		malloc(i *
+		       sizeof *srv_temp_tablespace.m_temp_data_file_names));
+
+	m_temp_data_file_sizes = static_cast<ulint*>(
+		malloc(i *
+		       sizeof *srv_temp_tablespace.m_temp_data_file_sizes));
+
+	m_temp_data_file_is_raw_partition = static_cast<ulint*>(
+		malloc(i * sizeof *m_temp_data_file_is_raw_partition));
+
+	srv_temp_tablespace.m_n_temp_data_files = i;
+
+	/*---------------------- PASS 2 ---------------------------*/
+	/* Then store the actual values to our arrays */
+	str = input_str;
+	i = 0;
+
+	while (*str != '\0') {
+		path = str;
+
+		/* Note that we must step over the ':' in a Windows path;
+		a Windows path normally looks like C:\ibdata\ibdata1:1G, but
+		a Windows raw partition may have a specification like
+		\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw */
+
+		while ((*str != ':' && *str != '\0')
+		       || (*str == ':'
+			   && (*(str + 1) == '\\' || *(str + 1) == '/'
+			       || *(str + 1) == ':'))) {
+			str++;
+		}
+
+		if (*str == ':') {
+			/* Make path a null-terminated string */
+			*str = '\0';
+			str++;
+		}
+
+		str = parse_megabytes(str, &size);
+
+		m_temp_data_file_names[i] = path;
+		m_temp_data_file_sizes[i] = size;
+
+		if (0 == strncmp(str, ":autoextend",
+				 (sizeof ":autoextend") - 1)) {
+
+			m_auto_extend_last_temp_data_file = true;
+
+			str += (sizeof ":autoextend") - 1;
+
+			if (0 == strncmp(str, ":max:",
+					 (sizeof ":max:") - 1)) {
+
+				str += (sizeof ":max:") - 1;
+
+				str = parse_megabytes(
+					str, &m_last_temp_data_file_size_max);
+			}
+
+			if (*str != '\0') {
+
+				return(false);
+			}
+		}
+
+		(m_temp_data_file_is_raw_partition)[i] = 0;
+
+		if (strlen(str) >= 6
+		    && *str == 'n'
+		    && *(str + 1) == 'e'
+		    && *(str + 2) == 'w') {
+			str += 3;
+			(m_temp_data_file_is_raw_partition)[i] = SRV_NEW_RAW;
+		}
+
+		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
+			str += 3;
+
+			if ((m_temp_data_file_is_raw_partition)[i] == 0) {
+				(m_temp_data_file_is_raw_partition)[i] =
+					SRV_OLD_RAW;
+			}
+		}
+
+		i++;
+
+		if (*str == ';') {
+			str++;
+		}
+	}
+
+	/* Ensure temp-data-files are not same as data-files */
+	for (ulint k1 = 0; k1 < m_n_temp_data_files; k1++) {
+		char* temp_data_fname = m_temp_data_file_names[k1];
+		for (ulint k2 = 0; k2 < srv_n_data_files; k2++) {
+			char* data_fname = srv_data_file_names[k2];
+			if(innobase_strcasecmp(
+				temp_data_fname, data_fname) == 0) {
+					return(false);
+			}
+		}
+	}
+
+	/* Disable raw device for temp-tablespace */
+	for (ulint k = 0; k < m_n_temp_data_files; k++) {
+		if ((m_temp_data_file_is_raw_partition)[k] != SRV_NOT_RAW) {
+			return(false);
+		}
+	}
+
+	return(true);
 }
 

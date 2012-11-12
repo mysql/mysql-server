@@ -100,6 +100,10 @@ keyc	c
 9	a
 10	a
 set autocommit=1;
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
 drop procedure populate_t1;
 drop table t1;
 SET global innodb_file_per_table = @global_innodb_file_per_table_orig;
