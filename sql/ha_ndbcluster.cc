@@ -8562,8 +8562,7 @@ static int create_ndb_column(THD *thd,
   }
   else
     col.setAutoIncrement(FALSE);
- 
-#ifndef NDB_WITHOUT_COLUMN_FORMAT
+
   DBUG_PRINT("info", ("storage: %u  format: %u  ",
                       field->field_storage_type(),
                       field->column_format()));
@@ -8598,7 +8597,6 @@ static int create_ndb_column(THD *thd,
       dynamic= (create_info->row_type == ROW_TYPE_DYNAMIC);
     break;
   }
-#endif
   DBUG_PRINT("info", ("Column %s is declared %s", field->field_name,
                       (dynamic) ? "dynamic" : "static"));
   if (type == NDBCOL::StorageTypeDisk)
@@ -8610,7 +8608,6 @@ static int create_ndb_column(THD *thd,
       dynamic= false;
     }
 
-#ifndef NDB_WITHOUT_COLUMN_FORMAT
     if (thd && field->column_format() == COLUMN_FORMAT_TYPE_DYNAMIC)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
@@ -8620,7 +8617,6 @@ static int create_ndb_column(THD *thd,
                           "column will become FIXED",
                           field->field_name);
     }
-#endif
   }
 
   switch (create_info->row_type) {
@@ -9172,7 +9168,6 @@ int ha_ndbcluster::create(const char *name,
     KEY_PART_INFO *end= key_part + key_info->key_parts;
     for (; key_part != end; key_part++)
     {
-#ifndef NDB_WITHOUT_COLUMN_FORMAT
       if (key_part->field->field_storage_type() == HA_SM_DISK)
       {
         push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -9185,7 +9180,6 @@ int ha_ndbcluster::create(const char *name,
         result= HA_ERR_UNSUPPORTED;
         goto abort_return;
       }
-#endif
       tab.getColumn(key_part->fieldnr-1)->setStorageType(
                              NdbDictionary::Column::StorageTypeMemory);
     }
@@ -9627,7 +9621,6 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   for (; key_part != end; key_part++) 
   {
     Field *field= key_part->field;
-#ifndef NDB_WITHOUT_COLUMN_FORMAT
     if (field->field_storage_type() == HA_SM_DISK)
     {
       push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_ERROR,
@@ -9639,7 +9632,6 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
                           "STORAGE DISK is not supported");
       DBUG_RETURN(HA_ERR_UNSUPPORTED);
     }
-#endif
     DBUG_PRINT("info", ("attr: %s", field->field_name));
     if (ndb_index.addColumnName(field->field_name))
     {
