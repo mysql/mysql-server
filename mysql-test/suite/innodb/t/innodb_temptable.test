@@ -59,7 +59,8 @@ drop table t1;
 #
 # Test for bulk loading.
 #
-create temporary table t1 (keyc int, c char(100), primary key(keyc)) engine=innodb;
+create temporary table t1 (keyc int, c char(100), primary key(keyc))
+engine=innodb;
 delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
