@@ -450,6 +450,7 @@ extern mysql_pfs_key_t	srv_error_monitor_thread_key;
 extern mysql_pfs_key_t	srv_monitor_thread_key;
 extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	recv_writer_thread_key;
 
 /* This macro register the current thread and its key with performance
 schema */
