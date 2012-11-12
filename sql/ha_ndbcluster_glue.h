@@ -66,12 +66,6 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   return close_cached_tables(thd, tables, wait_for_refresh, LONG_TIMEOUT);
 }
 
-/* simple_open_n_lock_tables has been removed */
-inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
-{
-  return open_and_lock_tables(thd, tables, FALSE, 0);
-}
-
 /* Online alter table not supported */
 #define NDB_WITHOUT_ONLINE_ALTER
 
