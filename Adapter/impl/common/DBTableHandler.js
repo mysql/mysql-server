@@ -225,8 +225,6 @@ DBTableHandler.prototype.newResultObject = function(values) {
     this.newObjectConstructor.call(newDomainObj);
   }
 
-  udebug.log("newResultObject done", newDomainObj);
-  
   if (typeof(values) === 'object') {
     var x;
     // copy values into the new domain object
@@ -236,6 +234,7 @@ DBTableHandler.prototype.newResultObject = function(values) {
       }
     }
   }
+  udebug.log("newResultObject done", newDomainObj);
   return newDomainObj;
 };
 

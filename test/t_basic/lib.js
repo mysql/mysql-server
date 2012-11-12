@@ -52,7 +52,7 @@ global.verify_t_basic = function(err, instance, id, testCase, domainObject) {
     return;
   }
   if (typeof(instance) !== 'object') {
-    testCase.appendErrorMessage('Result for id ' + id + ' is not an object: ' + typeof(instance));
+    testCase.appendErrorMessage('Result for id ' + id + ' is not an object; actual type: ' + typeof(instance));
   }
   if (instance === null) {
     testCase.appendErrorMessage('Result for id ' + id + ' is null.');
@@ -78,15 +78,16 @@ global.fail_verify_t_basic = function(err, instance, id, testCase, domainObject)
     return;
   }
   if (typeof(instance) !== 'object') {
-    testCase.fail(new Error('Result is not an object: ' + typeof(instance)));
+    testCase.fail(new Error('Result for id ' + id + ' is not an object; actual type: ' + typeof(instance)));
+    return;
   }
   if (instance === null) {
-    testCase.fail(new Error('Result is null.'));
+    testCase.fail(new Error('Result for id ' + id + ' is null.'));
     return;
   }
   if (domainObject) {
     if (typeof(instance.getAge) !== 'function') {
-      testCase.fail(new Error('Result is not a domain object'));
+      testCase.fail(new Error('Result for id ' + id + ' is not a domain object'));
       return;
     }
   }
