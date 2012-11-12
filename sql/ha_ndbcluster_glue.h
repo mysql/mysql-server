@@ -75,16 +75,6 @@ inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
 /* Online alter table not supported */
 #define NDB_WITHOUT_ONLINE_ALTER
 
-/* Column format not supported */
-#define NDB_WITHOUT_COLUMN_FORMAT
-
-enum column_format_type {
-  COLUMN_FORMAT_TYPE_NOT_USED= -1,
-  COLUMN_FORMAT_TYPE_DEFAULT=   0,
-  COLUMN_FORMAT_TYPE_FIXED=     1,
-  COLUMN_FORMAT_TYPE_DYNAMIC=   2
-};
-
 /* Tablespace in .frm and TABLE_SHARE->tablespace not supported */
 #define NDB_WITHOUT_TABLESPACE_IN_FRM
 
