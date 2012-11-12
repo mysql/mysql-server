@@ -302,19 +302,19 @@ print_restart_info(void)
   }
 
   fprintf(stderr, "*** initial node restart ***\n");
-  for (size_t i = 0; i < initial_node.size(); i++) {
+  for (unsigned i = 0; i < initial_node.size(); i++) {
     fprintf(stderr, "%s\n", initial_node[i]);
   }
   fprintf(stderr, "\n");
 
   fprintf(stderr, "*** system restart ***\n");
-  for (size_t i = 0; i < system.size(); i++) {
+  for (unsigned i = 0; i < system.size(); i++) {
     fprintf(stderr, "%s\n", system[i]);
   }
   fprintf(stderr, "\n");
 
   fprintf(stderr, "*** initial system restart ***\n");
-  for (size_t i = 0; i < initial_system.size(); i++) {
+  for (unsigned i = 0; i < initial_system.size(); i++) {
     fprintf(stderr, "%s\n", initial_system[i]);
   }
   fprintf(stderr, "\n");
