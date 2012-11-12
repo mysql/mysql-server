@@ -260,20 +260,25 @@ JOIN::create_intermediate_table(JOIN_TAB *tab, List<Item> *tmp_table_fields,
         add_sorting_to_table(join_tab + const_tables, &group_list))
       goto err;
 
-    if (alloc_group_fields(this, group_list) ||
-        make_sum_func_list(all_fields, fields_list, true) ||
-        prepare_sum_aggregators(sum_funcs,
-                                !join_tab->is_using_agg_loose_index_scan()) ||
-        setup_sum_funcs(thd, sum_funcs))
+    if (alloc_group_fields(this, group_list))
+      goto err;
+    if (make_sum_func_list(all_fields, fields_list, true))
+      goto err;
+    if (prepare_sum_aggregators(sum_funcs,
+                                !join_tab->is_using_agg_loose_index_scan()))
+      goto err;
+    if (setup_sum_funcs(thd, sum_funcs))
       goto err;
     group_list= NULL;
   }
   else
   {
-    if (make_sum_func_list(all_fields, fields_list, false) ||
-        prepare_sum_aggregators(sum_funcs,
-                                !join_tab->is_using_agg_loose_index_scan()) ||
-        setup_sum_funcs(thd, sum_funcs))
+    if (make_sum_func_list(all_fields, fields_list, false))
+      goto err;
+    if (prepare_sum_aggregators(sum_funcs,
+                                !join_tab->is_using_agg_loose_index_scan()))
+      goto err;
+    if (setup_sum_funcs(thd, sum_funcs))
       goto err;
 
     if (!group_list && !table->distinct && order && simple_order)
@@ -1059,7 +1064,9 @@ sub_select_op(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   */
   DBUG_ASSERT(join_tab->use_quick != QS_DYNAMIC_RANGE);
 
-  DBUG_RETURN(op->put_record());
+  rc= op->put_record();
+
+  DBUG_RETURN(rc);
 }
 
 
