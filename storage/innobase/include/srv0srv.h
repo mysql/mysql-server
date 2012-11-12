@@ -129,38 +129,93 @@ struct srv_stats_t {
 
 struct srv_temp_tablespace_t {
 
-	/** This is dynamically allocated on each start of server. */
-	ulint	srv_temp_tablespace_id;
+public:
+	srv_temp_tablespace_t() :
+		m_temp_tablespace_id(0),
+		m_n_temp_data_files(0),
+		m_temp_data_file_names(NULL),
+		m_temp_data_file_sizes(NULL),
+		m_auto_extend_last_temp_data_file(false),
+		m_last_temp_data_file_size_max(0),
+		m_temp_data_auto_extend_increment(8),
+		m_temp_data_file_is_raw_partition(NULL),
+		m_temp_data_created_new_raw(false) {
+	}
 
-	ulint	srv_n_temp_data_files;
-	char**	srv_temp_data_file_names;
+	/**
+	Parse the input params and populate member variables.
+	@return true on successfull parse else false*/
+	bool init_params(
+		char*	str);	/*!< in: parse and obtain init value */
+
+protected:
+	srv_temp_tablespace_t(const srv_temp_tablespace_t& rSource);
+	srv_temp_tablespace_t& operator=(
+		const srv_temp_tablespace_t& rSource);
+
+private:
+	/**
+	Convert a numeric string that optionally ends in G or M, to a number
+	containing megabytes.
+	@return next character in string */
+	char* parse_megabytes(
+		char*   str,    /*!< in: string with a quantity in bytes */
+		ulint*  megs)   /*!< out: the number in megabytes */
+	{
+		char*   endp;
+		ulint   size;
+
+		size = strtoul(str, &endp, 10);
+
+		str = endp;
+
+		switch (*str) {
+		case 'G': case 'g':
+			size *= 1024;
+			/* fall through */
+		case 'M': case 'm':
+			str++;
+			break;
+		default:
+			size /= 1024 * 1024;
+			break;
+		}
+
+		*megs = size;
+		return(str);
+	}
+
+public:
+	/** This is dynamically allocated on each start of server. */
+	ulint	m_temp_tablespace_id;
+
+	/** Number of temp data files specified by user that together
+	creates temp tablespace */
+	ulint	m_n_temp_data_files;
+
+	/** Temp data files names */
+	char**	m_temp_data_file_names;
 
 	/** size in database pages */
-	ulint*	srv_temp_data_file_sizes;
+	ulint*	m_temp_data_file_sizes;
 
 	/** if TRUE, then we auto-extend the last data file */
-	bool	srv_auto_extend_last_temp_data_file;
+	bool	m_auto_extend_last_temp_data_file;
+
 	/** if != 0, this tells the max size auto-extending may increase the
 	last data file size */
-	ulint	srv_last_temp_data_file_size_max;
+	ulint	m_last_temp_data_file_size_max;
+
 	/** If the last data file is auto-extended, we add this
 	many pages to it at a time */
-	ulong	srv_temp_data_auto_extend_increment;
-	ulint*	srv_temp_data_file_is_raw_partition;
+	ulong	m_temp_data_auto_extend_increment;
+
+	/** Indicate if any of the data file is raw parition */
+	ulint*	m_temp_data_file_is_raw_partition;
 
 	/** If the following is true we do not allow inserts etc. This protects
 	the user from forgetting the 'newraw' keyword to my.cnf */
-	bool	srv_temp_data_created_new_raw;
-
-	srv_temp_tablespace_t() : srv_temp_tablespace_id(0),
-		srv_n_temp_data_files(0), srv_temp_data_file_names(NULL),
-		srv_temp_data_file_sizes(NULL),
-		srv_auto_extend_last_temp_data_file(false),
-		srv_last_temp_data_file_size_max(0),
-		srv_temp_data_auto_extend_increment(8),
-		srv_temp_data_file_is_raw_partition(NULL),
-		srv_temp_data_created_new_raw(false) {
-	}
+	bool	m_temp_data_created_new_raw;
 };
 
 extern const char*	srv_main_thread_op_info;

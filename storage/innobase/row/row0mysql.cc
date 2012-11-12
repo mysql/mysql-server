@@ -2251,7 +2251,7 @@ err_exit:
 	err = trx->error_state;
 
 	if (table->space != TRX_SYS_SPACE
-	    && table->space != srv_temp_tablespace.srv_temp_tablespace_id) {
+	    && table->space != srv_temp_tablespace.m_temp_tablespace_id) {
 		ut_a(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE));
 
 		/* Update SYS_TABLESPACES and SYS_DATAFILES if a new
@@ -4194,7 +4194,7 @@ check_next_foreign:
 
 		if (err == DB_SUCCESS
 		    && space_id != TRX_SYS_SPACE
-		    && space_id != srv_temp_tablespace.srv_temp_tablespace_id) {
+		    && space_id != srv_temp_tablespace.m_temp_tablespace_id) {
 			if (!is_temp
 			    && !fil_space_for_table_exists_in_mem(
 					space_id, tablename, FALSE,
