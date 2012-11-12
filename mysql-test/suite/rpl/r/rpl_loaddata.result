@@ -31,7 +31,7 @@ create table t1(a int, b int, unique(b));
 insert into t1 values(1,10);
 load data infile '../../std_data/rpl_loaddata.dat' into table t1;
 call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .10. for key .b.. on query.* Error_code: 1062");
-call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.*error code=1062.*Error on slave:.*Error_code: 1845");
+call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.*error code=1062.*Error on slave:.*Error_code: 1847");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 include/wait_for_slave_sql_error_and_skip.inc [errno=1062]
 include/check_slave_no_error.inc
@@ -82,7 +82,7 @@ load data infile '../../std_data/rpl_loaddata2.dat' into table t2 fields
 terminated by ',' optionally enclosed by '%' escaped by '@' lines terminated by
 '\n##\n' starting by '>' ignore 1 lines;
 ERROR 23000: Duplicate entry '2003-03-22' for key 'day'
-include/wait_for_slave_sql_error.inc [errno=1845,1756]
+include/wait_for_slave_sql_error.inc [errno=1847,1756]
 drop table t1, t2;
 drop table t1, t2;
 CREATE TABLE t1 (word CHAR(20) NOT NULL PRIMARY KEY) ENGINE=INNODB;
