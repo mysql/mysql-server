@@ -1053,7 +1053,7 @@ srv_normalize_init_values(void)
 	srv_last_file_size_max = srv_last_file_size_max
 		* ((1024 * 1024) / UNIV_PAGE_SIZE);
 
-	srv_temp_tablespace.srv_last_temp_data_file_size_max = 
+	srv_temp_tablespace.srv_last_temp_data_file_size_max =
 		srv_temp_tablespace.srv_last_temp_data_file_size_max
 		* ((1024 * 1024) / UNIV_PAGE_SIZE);
 
