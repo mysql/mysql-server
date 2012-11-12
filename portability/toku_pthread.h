@@ -86,6 +86,14 @@ toku_mutex_init(toku_mutex_t *mutex, const toku_pthread_mutexattr_t *attr) {
 }
 
 static inline void
+toku_adaptive_mutex_init(toku_mutex_t *mutex) {
+    pthread_mutexattr_t attr;
+    pthread_mutexattr_init(&attr);
+    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ADAPTIVE_NP);
+    toku_mutex_init(mutex, &attr);
+}
+
+static inline void
 toku_mutex_destroy(toku_mutex_t *mutex) {
 #if TOKU_PTHREAD_DEBUG
     invariant(mutex->valid);
