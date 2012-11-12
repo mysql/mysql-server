@@ -886,8 +886,10 @@ dict_stats_update_transient(
 
 	index = dict_table_get_first_index(table);
 
-	table->stat_n_rows = index->stat_n_diff_key_vals[
-		dict_index_get_n_unique(index) - 1];
+	if (!dict_table_is_temporary(table)) {
+		table->stat_n_rows = index->stat_n_diff_key_vals[
+			dict_index_get_n_unique(index) - 1];
+	}
 
 	table->stat_clustered_index_size = index->stat_index_size;
 
@@ -2060,7 +2062,9 @@ dict_stats_update_persistent(
 
 	ulint	n_unique = dict_index_get_n_unique(index);
 
-	table->stat_n_rows = index->stat_n_diff_key_vals[n_unique - 1];
+	if (!dict_table_is_temporary(table)) {
+		table->stat_n_rows = index->stat_n_diff_key_vals[n_unique - 1];
+	}
 
 	table->stat_clustered_index_size = index->stat_index_size;
 
