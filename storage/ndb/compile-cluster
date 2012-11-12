@@ -440,6 +440,7 @@ sub build_cmd {
 #
 package WarningParser::Warning;
 use strict;
+use Cwd 'abs_path';
 
 sub new {
   my ($class, $file, $line, $text)= @_;
@@ -557,11 +558,14 @@ sub new_warning {
     # file does not contain directory, add currently
     # tracked dir
     my $dir = $self->{DIR};
-    my $srcdir = $self->{SRCDIR};
-    $dir =~ s/^$srcdir//; # Remove leading srcdir
-    $dir =~ s:^\/::; # Remove leading slash
     $file= "$dir/$file";
   }
+  my $srcdir = $self->{SRCDIR};
+  # srcdir is in abs_path form, convert also file to abs_path
+  $file = abs_path($file);
+  $file =~ s/^$srcdir//; # Remove leading srcdir
+  $file =~ s:^\/::; # Remove leading slash
+
   return WarningParser::Warning->new($file, $line, $text);
 }
 

@@ -30,4 +30,4 @@
 #define uint3korr(A)  (Uint32) (((Uint32) ((Uint8) (A)[0])) +\
                                 (((Uint32) ((Uint8) (A)[1])) << 8) +\
                                 (((Uint32) ((Uint8) (A)[2])) << 16))
-                                
+
