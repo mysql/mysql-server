@@ -476,17 +476,6 @@ static int tokudb_init_func(void *p) {
     // db_env->set_lg_regionmax(db_env, tokudb_region_size);
 #endif
 
-    // config the locks
-#if 0 // QQQ no lock types yet
-    DBUG_PRINT("info", ("tokudb_lock_type: 0x%lx\n", tokudb_lock_type));
-    db_env->set_lk_detect(db_env, tokudb_lock_type);
-#endif
-    r = db_env->set_lk_max_locks(db_env, 0xffffffff);
-    if (r) {
-        DBUG_PRINT("info", ("tokudb_set_max_locks %d\n", r));
-        goto error;
-    }
-
     if (db_env->set_redzone) {
         r = db_env->set_redzone(db_env, tokudb_fs_reserve_percent);
         if (r && (tokudb_debug & TOKUDB_DEBUG_INIT))
