@@ -440,7 +440,6 @@ sub build_cmd {
 #
 package WarningParser::Warning;
 use strict;
-use Cwd 'abs_path';
 
 sub new {
   my ($class, $file, $line, $text)= @_;
@@ -517,6 +516,7 @@ sub is_cluster_warning {
 
 package WarningParser;
 use strict;
+use Cwd 'abs_path';
 
 sub new {
   my $class= shift;
