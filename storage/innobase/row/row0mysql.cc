@@ -2419,12 +2419,12 @@ row_create_index_for_mysql(
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-	/* For temp-table we avoid insertion into SYS_XXXX tables to 
+	/* For temp-table we avoid insertion into SYS_XXXX tables to
 	maintain performance and so we have separate path that directly
 	just updates dictonary cache. */
 	if (!(dict_table_is_temporary(table))) {
-		/* Note that the space id where we store the index is 
-		inherited from the table in dict_build_index_def_step() 
+		/* Note that the space id where we store the index is
+		inherited from the table in dict_build_index_def_step()
 		in dict0crea.cc. */
 
 		heap = mem_heap_create(512);
@@ -2454,14 +2454,14 @@ row_create_index_for_mysql(
 		/* add index to dictionary cache and also free index object */
 		err = dict_index_add_to_cache(
 			table, index, FIL_NULL,
-			(trx_is_strict(trx) 
+			(trx_is_strict(trx)
 			 || dict_table_get_format(table) >= UNIV_FORMAT_B));
 
 		if (err != DB_SUCCESS) {
 			goto error_handling;
 		}
 
-		/* as above function has freed index object re-load it 
+		/* as above function has freed index object re-load it
 		now from dictionary cache using index_id */
 		index = dict_index_get_if_in_cache_low(index_id);
 		ut_a(index != NULL);
@@ -2471,7 +2471,7 @@ row_create_index_for_mysql(
 
 		err = dict_create_index_tree(
 			index, trx, create_index_tree_heap);
-		if (err != DB_SUCCESS) { 
+		if (err != DB_SUCCESS) {
 			dict_index_remove_from_cache(table, index);
 		}
 
@@ -2973,7 +2973,7 @@ row_discard_tablespace(
 
 	table_id_t	new_id;
 
-	if (!dict_table_is_temporary(table)) {	
+	if (!dict_table_is_temporary(table)) {
 		/* Set the TABLESPACE DISCARD flag in the table definition
 		on disk. */
 		err = row_import_update_discarded_flag(
@@ -3268,9 +3268,9 @@ truncate_index_with_sys_table_update(
 				root_page_no, &mtr);
 			/* We will need to commit and restart the
 			mini-transaction in order to avoid deadlocks.
-			The dict_truncate_index_tree_step() call has 
-			allocated a page in this mini-transaction, 
-			and the rest of this loop could latch another 
+			The dict_truncate_index_tree_step() call has
+			allocated a page in this mini-transaction,
+			and the rest of this loop could latch another
 			index page. */
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
@@ -3291,7 +3291,7 @@ next_rec:
 }
 
 /*********************************************************************//**
-Truncation also result in assignment of new table id 
+Truncation also result in assignment of new table id
 Update these ids to SYS_XXXX tables. */
 UNIV_INTERN
 dberr_t
@@ -3304,7 +3304,7 @@ update_new_object_ids(
 	trx_t*		trx)			/*!< in: transaction handle */
 {
 	dberr_t		err	= DB_SUCCESS;
-	pars_info_t*	info 	= NULL;
+	pars_info_t*	info	= NULL;
 
 	info = pars_info_create();
 	pars_info_add_int4_literal(info, "new_space", (lint) table->space);
@@ -3357,14 +3357,14 @@ update_new_object_ids(
 
 		/* Update system table failed.  Table in memory metadata
 		could be in an inconsistent state, mark the in-memory
-		table->corrupted to be true. In the long run, this 
+		table->corrupted to be true. In the long run, this
 		should be fixed by atomic truncate table */
 		table->corrupted = true;
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Unable to assign a new identifier to table %s" 
+			"Unable to assign a new identifier to table %s"
 			" after truncating it.  Background"
-			" processes may corrupt the table!\n", 
+			" processes may corrupt the table!\n",
 			table->name);
 
 		/* Failed to update the table id, so drop the new
@@ -3568,7 +3568,7 @@ row_truncate_table_for_mysql(
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	/* Temporary tables don't need undo logging for autocommit stmt.
-	On crash (i.e. mysql restart) temporary tables are anyways not 
+	On crash (i.e. mysql restart) temporary tables are anyways not
 	accessible. */
 	if (!dict_table_is_temporary(table)) {
 		/* Assign an undo segment for the transaction, so that the
@@ -3663,7 +3663,7 @@ row_truncate_table_for_mysql(
 		- truncate indexes (free and re-create btree). */
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index;
- 		     index = UT_LIST_GET_NEXT(indexes, index)) {
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
 			dict_truncate_index_tree(index, recreate_space);
 		}
 	}
@@ -4123,7 +4123,7 @@ check_next_foreign:
 		/* We use the private SQL parser of Innobase to generate the
 		query graphs needed in deleting the dictionary data from system
 		tables in Innobase. Deleting a row from SYS_INDEXES table also
-		frees the file segments of the B-tree associated with the 
+		frees the file segments of the B-tree associated with the
 		index. */
 
 		info = pars_info_create();
@@ -4224,8 +4224,8 @@ check_next_foreign:
 	{
 		page_no = page_nos;
 		for (dict_index_t* index = dict_table_get_first_index(table);
-	     	     index != NULL;
-	     	     index = dict_table_get_next_index(index)) {
+		     index != NULL;
+		     index = dict_table_get_next_index(index)) {
 			/* remove the index object associated. */
 			dict_drop_index_tree(index, *page_no++);
 			err = DB_SUCCESS;
@@ -4300,7 +4300,7 @@ check_next_foreign:
 
 		dict_table_remove_from_cache(table);
 
-		if (!is_temp 
+		if (!is_temp
 		    && dict_load_table(tablename, TRUE,
 				       DICT_ERR_IGNORE_NONE) != NULL) {
 			ut_print_timestamp(stderr);
