@@ -86,11 +86,21 @@ toku_mutex_init(toku_mutex_t *mutex, const toku_pthread_mutexattr_t *attr) {
 }
 
 static inline void
-toku_adaptive_mutex_init(toku_mutex_t *mutex) {
-    pthread_mutexattr_t attr;
-    pthread_mutexattr_init(&attr);
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ADAPTIVE_NP);
-    toku_mutex_init(mutex, &attr);
+toku_mutexattr_init(toku_pthread_mutexattr_t *attr) {
+    int r = pthread_mutexattr_init(attr);
+    assert_zero(r);
+}
+
+static inline void
+toku_mutexattr_settype(toku_pthread_mutexattr_t *attr, int type) {
+    int r = pthread_mutexattr_settype(attr, type);
+    assert_zero(r);
+}
+
+static inline void
+toku_mutexattr_destroy(toku_pthread_mutexattr_t *attr) {
+    int r = pthread_mutexattr_destroy(attr);
+    assert_zero(r);
 }
 
 static inline void
