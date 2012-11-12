@@ -1710,7 +1710,7 @@ os_file_create_func(
 		return((os_file_t) -1);
 	}
 
-	ut_a(type == OS_LOG_FILE 
+	ut_a(type == OS_LOG_FILE
 	     || type == OS_DATA_FILE
 	     || type == OS_DATA_TEMP_FILE);
 	ut_a(purpose == OS_FILE_AIO || purpose == OS_FILE_NORMAL);

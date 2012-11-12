@@ -3941,7 +3941,7 @@ ha_innobase::table_flags() const
 	count of number of rows. */
 	if (prebuilt && prebuilt->table) {
 		if (dict_table_is_temporary(prebuilt->table)) {
-			return(int_table_flags 
+			return(int_table_flags
 			       | HA_STATS_RECORDS_IS_EXACT
 			       | HA_BINLOG_STMT_CAPABLE);
 		}	
@@ -10837,7 +10837,7 @@ ha_innobase::info_low(
 		set. That way SHOW TABLE STATUS will show the best estimate,
 		while the optimizer never sees the table empty. */
 
-		if (n_rows == 0 
+		if (n_rows == 0
 		    && !(flag & HA_STATUS_TIME)
 		    && (!dict_table_is_temporary(ib_table))) {
 			n_rows++;
