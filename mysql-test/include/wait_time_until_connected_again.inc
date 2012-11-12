@@ -18,7 +18,7 @@ while ($mysql_errno)
   dec $counter;
   if (!$counter)
   {
-    --echo counter: $counter
+    --echo Waited $WAIT_COUNT * 0.1 sec.
     --die Server failed to restart
   }
   --sleep 0.1
