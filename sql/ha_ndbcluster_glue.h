@@ -77,19 +77,12 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 
 #endif
 
-
-extern ulong opt_server_id_mask;
-
 static inline
 uint32 thd_unmasked_server_id(const THD* thd)
 {
-#ifndef NDB_WITHOUT_SERVER_ID_BITS
   const uint32 unmasked_server_id = thd->unmasked_server_id;
   assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
   return unmasked_server_id;
-#else
-  return thd->server_id;
-#endif
 }
 
 
