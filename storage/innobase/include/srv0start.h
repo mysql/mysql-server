@@ -54,7 +54,7 @@ srv_parse_data_file_paths_and_sizes(
 	char*	str);	/*!< in/out: the data file path string */
 /*********************************************************************//**
 Parse temporary tablespace configuration.
-@return	TRUE if ok, FALSE on parse error */
+@return	true if ok, false on parse error */
 UNIV_INTERN
 bool
 srv_parse_temp_data_file_paths_and_sizes(
