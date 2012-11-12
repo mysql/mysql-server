@@ -126,7 +126,7 @@ dict_truncate_index_tree_step(
 				on the record page. The mtr may be
 				committed and restarted in this call. */
 /*******************************************************************//**
-Truncates the index tree but don't update SYS_XXXX table. 
+Truncates the index tree but don't update SYS_XXXX table.
 This interface is generally used for temp-tables for which we don't
 update SYS_XXXX table on creation.
 @return	new root page number, or FIL_NULL on failure */
@@ -148,7 +148,7 @@ dict_drop_index_tree_step(
 			of SYS_INDEXES table */
 	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
 /*******************************************************************//**
-Drops the index tree but don't update SYS_INDEXES table. 
+Drops the index tree but don't update SYS_INDEXES table.
 This interface is generally used for temp-tables for which we don't
 update SYS_XXXX table on creation. */
 UNIV_INTERN

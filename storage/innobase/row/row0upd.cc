@@ -1686,8 +1686,8 @@ row_upd_sec_index_entry(
 	if (referenced || dict_table_is_temporary(index->table)) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 	} else {
-		mode = BTR_MODIFY_LEAF 
-			| BTR_ALREADY_S_LATCHED 
+		mode = BTR_MODIFY_LEAF
+			| BTR_ALREADY_S_LATCHED
 			| BTR_DELETE_MARK;
 	}
 
