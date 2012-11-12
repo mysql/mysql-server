@@ -88,7 +88,7 @@ SET @@collation_connection = @collation_connection_saved||
 INSERT INTO global_suppressions VALUES
  (".SELECT UNIX_TIMESTAMP... failed on master"),
  ("Aborted connection"),
- ("Client requested master to start replication from impossible position"),
+ ("Client requested master to start replication from position"),
  ("Could not find first log file name in binary log"),
  ("Enabling keys got errno"),
  ("Error reading master configuration"),
