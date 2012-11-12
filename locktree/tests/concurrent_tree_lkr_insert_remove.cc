@@ -40,9 +40,9 @@ static uint64_t check_for_range_and_count(concurrent_tree::locked_keyrange *lkr,
         keyrange target_range;
         bool target_range_found;
 
-        bool fn(const keyrange &range, TXNID txnid) { 
+        bool fn(const keyrange &query_range, TXNID txnid) { 
             (void) txnid;
-            if (range.compare(cmp, target_range) == keyrange::comparison::EQUALS) {
+            if (query_range.compare(cmp, target_range) == keyrange::comparison::EQUALS) {
                 invariant(!target_range_found);
                 target_range_found = true;
             }

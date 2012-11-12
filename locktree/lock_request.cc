@@ -26,7 +26,7 @@ void lock_request::create(uint64_t wait_time) {
     m_state = state::UNINITIALIZED;
 
     m_wait_time = wait_time;
-    m_wait_cond = TOKU_COND_INITIALIZER;
+    toku_cond_init(&m_wait_cond, nullptr);
 }
 
 // destroy a lock request.
@@ -152,7 +152,8 @@ void lock_request::calculate_cond_wakeup_time(struct timespec *ts) {
     int64_t usec = now.tv_usec + ((m_wait_time % 1000) * 1000);
     int64_t d_sec = usec / 1000000;
     int64_t d_usec = usec % 1000000;
-    *ts = { sec + d_sec, d_usec * 1000 };
+    ts->tv_sec = sec + d_sec;
+    ts->tv_nsec = d_usec * 1000;
 }
 
 // sleep on the lock request until it becomes resolved or the wait time has elapsed.
