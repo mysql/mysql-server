@@ -636,12 +636,12 @@ srv_parse_temp_data_file_paths_and_sizes(
 	/* Ensure temp-data-files are not same as data-files */
 	for (ulint k1 = 0; k1 < srv_temp_tablespace.srv_n_temp_data_files;
 	     k1++) {
-		char* temp_data_fname = 
+		char* temp_data_fname =
 			srv_temp_tablespace.srv_temp_data_file_names[k1];
 
 		for (ulint k2 = 0; k2 < srv_n_data_files; k2++) {
 
-			char* data_fname = srv_data_file_names[k2]; 
+			char* data_fname = srv_data_file_names[k2];
 
 			if(innobase_strcasecmp(
 				temp_data_fname, data_fname) == 0) {
@@ -1345,7 +1345,7 @@ open_or_create_temp_data_files()
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Can only have < 1000 temp data files, you have "
-			"defined %lu", 
+			"defined %lu",
 			(ulong) srv_temp_tablespace.srv_n_temp_data_files);
 
 		return(DB_ERROR);
@@ -1361,7 +1361,7 @@ open_or_create_temp_data_files()
 			srv_temp_tablespace.srv_temp_data_file_names[i]);
 		dirnamelen = strlen(srv_data_home);
 
-		ut_a(dirnamelen + 
+		ut_a(dirnamelen +
 		     strlen(srv_temp_tablespace.srv_temp_data_file_names[i])
 		     < (sizeof name) - 1);
 
@@ -1372,12 +1372,12 @@ open_or_create_temp_data_files()
 			name[dirnamelen++] = SRV_PATH_SEPARATOR;
 		}
 
-		strcpy(name + dirnamelen, 
+		strcpy(name + dirnamelen,
 		       srv_temp_tablespace.srv_temp_data_file_names[i]);
 
 		os_file_delete_if_exists(name);
 
-		ulint current_partition_raw_status = 
+		ulint current_partition_raw_status =
 		srv_temp_tablespace.srv_temp_data_file_is_raw_partition[i];
 
 		if (current_partition_raw_status == 0) {
@@ -1411,7 +1411,7 @@ open_or_create_temp_data_files()
 			written over */
 
 			srv_start_raw_disk_in_use = TRUE;
-			srv_temp_tablespace.srv_temp_data_created_new_raw = 
+			srv_temp_tablespace.srv_temp_data_created_new_raw =
 				true;
 
 			files[i] = os_file_create(
@@ -1443,11 +1443,11 @@ open_or_create_temp_data_files()
 
 		ret = os_file_set_size(
 			name, files[i],
-			(os_offset_t) 
+			(os_offset_t)
 			srv_temp_tablespace.srv_temp_data_file_sizes[i]
 			<< UNIV_PAGE_SIZE_SHIFT);
 
-		size_of_temp_tablespace += 
+		size_of_temp_tablespace +=
 			srv_temp_tablespace.srv_temp_data_file_sizes[i];
 
 		if (!ret) {
@@ -1462,10 +1462,10 @@ open_or_create_temp_data_files()
 		if (i == 0) {
 			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
 			dict_hdr_get_new_id(
-				NULL, NULL, 
+				NULL, NULL,
 				&srv_temp_tablespace.srv_temp_tablespace_id);
 			fil_space_create(
-				name, 
+				name,
 				srv_temp_tablespace.srv_temp_tablespace_id,
 				flags, FIL_TABLESPACE);
 		}
@@ -1473,7 +1473,7 @@ open_or_create_temp_data_files()
 		ut_a(fil_validate());
 
 		if (!fil_node_create(
-			name, 
+			name,
 			srv_temp_tablespace.srv_temp_data_file_sizes[i],
 			srv_temp_tablespace.srv_temp_tablespace_id,
 			current_partition_raw_status != 0)) {
