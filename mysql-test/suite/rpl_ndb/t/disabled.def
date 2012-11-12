@@ -12,7 +12,3 @@
 
 rpl_ndb_set_null       : bug #51100
 rpl_ndb_row_implicit_commit_binlog : BUG#12586131 - fails on SET PASSWORD
-rpl_ndb_dist_priv : Waiting for adaption to WL#946
-rpl_ndb_extra_col_master : Waiting for adaption to WL#946
-rpl_ndb_extra_col_slave : Waiting for adaption to WL#946
-rpl_ndb_row_basic : Waiting for adaption to WL#946
