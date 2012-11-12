@@ -70,7 +70,8 @@ i	f	c
 97	1.4	delhi
 96	1.5	ahmedabad
 drop table t1;
-create temporary table t1 (keyc int, c char(100), primary key(keyc)) engine=innodb;
+create temporary table t1 (keyc int, c char(100), primary key(keyc))
+engine=innodb;
 CREATE PROCEDURE populate_t1()
 BEGIN
 DECLARE i INT DEFAULT 1;
