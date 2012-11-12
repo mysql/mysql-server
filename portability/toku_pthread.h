@@ -81,6 +81,7 @@ toku_mutex_init(toku_mutex_t *mutex, const toku_pthread_mutexattr_t *attr) {
     mutex->locked = false;
     invariant(!mutex->valid);
     mutex->valid = true;
+    mutex->owner = 0;
 #endif
 }
 
@@ -102,6 +103,7 @@ toku_mutex_lock(toku_mutex_t *mutex) {
 #if TOKU_PTHREAD_DEBUG
     invariant(mutex->valid);
     invariant(!mutex->locked);
+    invariant(mutex->owner == 0);
     mutex->locked = true;
     mutex->owner = pthread_self();
 #endif
@@ -110,6 +112,7 @@ toku_mutex_lock(toku_mutex_t *mutex) {
 static inline void
 toku_mutex_unlock(toku_mutex_t *mutex) {
 #if TOKU_PTHREAD_DEBUG
+    invariant(mutex->owner == pthread_self());
     invariant(mutex->valid);
     invariant(mutex->locked);
     mutex->locked = false;
@@ -123,10 +126,31 @@ toku_mutex_unlock(toku_mutex_t *mutex) {
 static inline void
 toku_mutex_assert_locked(const toku_mutex_t *mutex) {
     invariant(mutex->locked);
+    invariant(mutex->owner == pthread_self());
 }
 #else
 static inline void
 toku_mutex_assert_locked(const toku_mutex_t *mutex __attribute__((unused))) {
+}
+#endif
+
+// asserting that a mutex is unlocked only makes sense
+// if the calling thread can guaruntee that no other threads
+// are trying to lock this mutex at the time of the assertion
+// 
+// a good example of this is a tree with mutexes on each node.
+// when a node is locked the caller knows that no other threads
+// can be trying to lock its childrens' mutexes. the children
+// are in one of two fixed states: locked or unlocked.
+#if TOKU_PTHREAD_DEBUG
+static inline void
+toku_mutex_assert_unlocked(toku_mutex_t *mutex) {
+    invariant(mutex->owner == 0);
+    invariant(!mutex->locked);
+}
+#else
+static inline void
+toku_mutex_assert_unlocked(toku_mutex_t *mutex __attribute__((unused))) {
 }
 #endif
 

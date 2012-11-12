@@ -5,7 +5,7 @@
 
 // generate a tree with unsorted pivots and check that brt->verify finds them
 
-#include "includes.h"
+
 #include <ft-cachetable-wrappers.h>
 #include "test.h"
 

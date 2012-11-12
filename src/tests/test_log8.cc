@@ -37,7 +37,7 @@ static void insert_some (int outeri, bool close_env) {
 #if IS_TDB
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
 #endif
-    r=env->set_lk_max_locks(env, 2*maxcount); CKERR(r);
+    
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|create_flag, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
 
     r=db_create(&db, env, 0); CKERR(r);
@@ -85,7 +85,7 @@ static void make_db (bool close_env) {
 #if IS_TDB
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
 #endif
-    r=env->set_lk_max_locks(env, 2*maxcount); CKERR(r);
+    
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &tid, 0); assert(r==0);

@@ -9,6 +9,9 @@ const char *toku_copyright_string = "Copyright (c) 2007-2012 Tokutek Inc.  All r
 
 #include <toku_portability.h>
 #include <toku_pthread.h>
+#include <toku_assert.h>
+
+#include <db.h>
 #include <ctype.h>
 #include <errno.h>
 #include <limits.h>
@@ -16,32 +19,34 @@ const char *toku_copyright_string = "Copyright (c) 2007-2012 Tokutek Inc.  All r
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <memory.h>
+
 #include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
-#include <db.h>
-#include "toku_assert.h"
-#include "ydb.h"
-#include "ydb-internal.h"
+
+#include <util/partitioned_counter.h>
+
 #include <ft/ft-flusher.h>
 #include <ft/cachetable.h>
 #include <ft/log.h>
-#include "memory.h"
 #include <ft/checkpoint.h>
 #include <ft/key.h>
-#include "loader.h"
-#include "indexer.h"
 #include <ft/ftloader.h>
 #include <ft/log_header.h>
 #include <ft/ft.h>
+#include <ft/txn_manager.h>
+
+#include "ydb.h"
+#include "ydb-internal.h"
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"
 #include "ydb_env_func.h"
 #include "ydb_db.h"
 #include "ydb_write.h"
 #include "ydb_txn.h"
-#include "ft/txn_manager.h"
-#include <util/partitioned_counter.h>
+#include "loader.h"
+#include "indexer.h"
 
 // Include ydb_lib.cc here so that its constructor/destructor gets put into
 // ydb.o, to make sure they don't get erased at link time (when linking to
@@ -61,7 +66,6 @@ const char *toku_copyright_string = "Copyright (c) 2007-2012 Tokutek Inc.  All r
 // Set when env is panicked, never cleared.
 static int env_is_panicked = 0;
 
-
 void
 env_panic(DB_ENV * env, int cause, const char * msg) {
     if (cause == 0)
@@ -74,7 +78,6 @@ env_panic(DB_ENV * env, int cause, const char * msg) {
 }
 
 static int env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp);
-
 
 /********************************************************************************
  * Status is intended for display to humans to help understand system behavior.
@@ -136,11 +139,9 @@ ydb_layer_get_status(YDB_LAYER_STATUS statp) {
     *statp = ydb_layer_status;
 }
 
-
 /********************************************************************************
  * End of ydb_layer local status section.
  */
-
 
 static DB_ENV * volatile most_recent_env;   // most recently opened env, used for engine status on crash.  Note there are likely to be races on this if you have multiple threads creating and closing environments in parallel.  We'll declare it volatile since at least that helps make sure the compiler doesn't optimize away certain code (e.g., if while debugging, you write a code that spins on most_recent_env, you'd like to compiler not to optimize your code away.)
 
@@ -150,7 +151,6 @@ const char * fileopsdirectory = "tokudb.directory";
 static int env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt);
 static int toku_maybe_get_engine_status_text (char* buff, int buffsize);  // for use by toku_assert
 static void toku_maybe_set_env_panic(int code, const char * msg);               // for use by toku_assert
-
 
 static const char single_process_lock_file[] = "/__tokudb_lock_dont_delete_me_";
 
@@ -183,10 +183,6 @@ single_process_unlock(int *lockfd) {
     }
     return 0;
 }
-
-/** The default maximum number of persistent locks in a lock tree  */
-static const uint32_t __toku_env_default_locks_limit = 0x7FFFFFFF;
-static const uint64_t __toku_env_default_lock_memory_limit = 1000*1024;
 
 static inline DBT*
 init_dbt_realloc(DBT *dbt) {
@@ -274,7 +270,6 @@ env_fs_poller(void *arg) {
         in_yellow += (avail_size < 2 * env_fs_redzone(env, total_size));
         in_red += (avail_size < env_fs_redzone(env, total_size));
     }
-
 
     env->i->fs_seq++;                    // how many times through this polling loop?
     uint64_t now = env->i->fs_seq;
@@ -435,7 +430,6 @@ static const char * last_lsn_of_v13_key       = "last_lsn_of_v13";
 static const char * upgrade_v19_time_key      = "upgrade_v19_time";      
 static const char * upgrade_v19_footprint_key = "upgrade_v19_footprint";
 
-
 // Values read from (or written into) persistent environment,
 // kept here for read-only access from engine status.
 // Note, persistent_upgrade_status info is separate in part to simplify its exclusion from engine status until relevant.
@@ -534,7 +528,6 @@ maybe_upgrade_persistent_environment_dictionary(DB_ENV * env, DB_TXN * txn, LSN 
     return r;
 }
 
-
 // Capture contents of persistent_environment dictionary so that it can be read by engine status
 static void
 capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
@@ -590,16 +583,12 @@ capture_persistent_env_contents (DB_ENV * env, DB_TXN * txn) {
 
 }
 
-
-
-
 // return 0 if log exists or ENOENT if log does not exist
 static int
 ydb_recover_log_exists(DB_ENV *env) {
     int r = tokudb_recover_log_exists(env->i->real_log_dir);
     return r;
 }
-
 
 // Validate that all required files are present, no side effects.
 // Return 0 if all is well, ENOENT if some files are present but at least one is missing, 
@@ -702,7 +691,6 @@ validate_env(DB_ENV * env, bool * valid_newenv, bool need_rollback_cachefile) {
     return r;
 }
 
-
 // The version of the environment (on disk) is the version of the recovery log.  
 // If the recovery log is of the current version, then there is no upgrade to be done.  
 // If the recovery log is of an old version, then replacing it with a new recovery log
@@ -730,8 +718,6 @@ unlock_single_process(DB_ENV *env) {
     lazy_assert_zero(r);
 }
 
-static int toku_db_lt_panic(DB* db, int r);
-
 // Open the environment.
 // If this is a new environment, then create the necessary files.
 // Return 0 on success, ENOENT if any of the expected necessary files are missing.
@@ -755,7 +741,6 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
 
     HANDLE_EXTRA_FLAGS(env, flags, 
                        DB_CREATE|DB_PRIVATE|DB_INIT_LOG|DB_INIT_TXN|DB_RECOVER|DB_INIT_MPOOL|DB_INIT_LOCK|DB_THREAD);
-
 
     // DB_CREATE means create if env does not exist, and Tokudb requires it because
     // Tokudb requries DB_PRIVATE.
@@ -875,9 +860,6 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         assert_zero(r);
     }
 
-    r = toku_ltm_open(env->i->ltm);
-    assert_zero(r);
-
     unused_flags &= ~DB_INIT_MPOOL; // we always init an mpool.
     unused_flags &= ~DB_CREATE;     // we always do DB_CREATE
     unused_flags &= ~DB_INIT_LOCK;  // we check this later (e.g. in db->open)
@@ -927,7 +909,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         assert_zero(r);
         r = db_use_builtin_key_cmp(env->i->persistent_environment);
         assert_zero(r);
-        r = db_open_iname(env->i->persistent_environment, txn, environmentdictionary, DB_CREATE, mode);
+        r = toku_db_open_iname(env->i->persistent_environment, txn, environmentdictionary, DB_CREATE, mode);
         assert_zero(r);
         if (newenv) {
             // create new persistent_environment
@@ -962,7 +944,7 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         assert_zero(r);
         r = db_use_builtin_key_cmp(env->i->directory);
         assert_zero(r);
-        r = db_open_iname(env->i->directory, txn, fileopsdirectory, DB_CREATE, mode);
+        r = toku_db_open_iname(env->i->directory, txn, fileopsdirectory, DB_CREATE, mode);
         assert_zero(r);
     }
     if (using_txns) {
@@ -989,7 +971,6 @@ cleanup:
     }
     return r;
 }
-
 
 static int 
 env_close(DB_ENV * env, uint32_t flags) {
@@ -1071,10 +1052,7 @@ env_close(DB_ENV * env, uint32_t flags) {
     }
 
     env_fs_destroy(env);
-    if (env->i->ltm) {
-        toku_ltm_close(env->i->ltm);
-        env->i->ltm = NULL;
-    }
+    env->i->ltm.destroy();
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
     if (env->i->lg_dir)
@@ -1145,6 +1123,8 @@ env_set_cachesize(DB_ENV * env, uint32_t gbytes, uint32_t bytes, int ncache) {
     return 0;
 }
 
+static int env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, uint32_t flags);
+
 static int
 locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, uint32_t flags) {
     int ret, r;
@@ -1159,7 +1139,7 @@ locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *db
 
     // cannot begin a checkpoint
     toku_multi_operation_client_lock();
-    r = toku_env_dbremove(env, child_txn, fname, dbname, flags);
+    r = env_dbremove(env, child_txn, fname, dbname, flags);
     toku_multi_operation_client_unlock();
 
     if (using_txns) {
@@ -1173,6 +1153,8 @@ locked_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *db
     }
     return r;
 }
+
+static int env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, uint32_t flags);
 
 static int
 locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, uint32_t flags) {
@@ -1188,7 +1170,7 @@ locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbn
 
     // cannot begin a checkpoint
     toku_multi_operation_client_lock();
-    r = toku_env_dbrename(env, child_txn, fname, dbname, newname, flags);
+    r = env_dbrename(env, child_txn, fname, dbname, newname, flags);
     toku_multi_operation_client_unlock();
 
     if (using_txns) {
@@ -1202,7 +1184,6 @@ locked_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbn
     }
     return r;
 }
-
 
 #if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR >= 3
 
@@ -1313,46 +1294,13 @@ env_set_lk_detect(DB_ENV * env, uint32_t UU(detect)) {
 }
 
 static int 
-env_set_lk_max_locks(DB_ENV *env, uint32_t locks_limit) {
-    HANDLE_PANICKED_ENV(env);
-    int r;
-    if (env_opened(env)) {
-        r = EINVAL;
-    } else {
-        r = toku_ltm_set_max_locks(env->i->ltm, locks_limit);
-    }
-    return r;
-}
-
-#if DB_VERSION_MAJOR == 4 && DB_VERSION_MINOR <= 4
-static int 
-env_set_lk_max(DB_ENV * env, uint32_t lk_max) {
-    return env_set_lk_max_locks(env, lk_max);
-}
-
-#endif
-
-static int 
-env_get_lk_max_locks(DB_ENV *env, uint32_t *lk_maxp) {
-    HANDLE_PANICKED_ENV(env);
-    int r;
-    if (lk_maxp == NULL) 
-        r = EINVAL;
-    else {
-        r = toku_ltm_get_max_locks(env->i->ltm, lk_maxp);
-    }
-    return r;
-}
-
-
-static int 
 env_set_lk_max_memory(DB_ENV *env, uint64_t lock_memory_limit) {
     HANDLE_PANICKED_ENV(env);
-    int r;
+    int r = 0;
     if (env_opened(env)) {
         r = EINVAL;
     } else {
-        r = toku_ltm_set_max_lock_memory(env->i->ltm, lock_memory_limit);
+        r = env->i->ltm.set_max_lock_memory(lock_memory_limit);
     }
     return r;
 }
@@ -1360,10 +1308,10 @@ env_set_lk_max_memory(DB_ENV *env, uint64_t lock_memory_limit) {
 static int 
 env_get_lk_max_memory(DB_ENV *env, uint64_t *lk_maxp) {
     HANDLE_PANICKED_ENV(env);
-    int r = toku_ltm_get_max_lock_memory(env->i->ltm, lk_maxp);
-    return r;
+    uint32_t max_lock_memory = env->i->ltm.get_max_lock_memory();
+    *lk_maxp = max_lock_memory;
+    return 0;
 }
-
 
 //void toku__env_set_noticecall (DB_ENV *env, void (*noticecall)(DB_ENV *, db_notices)) {
 //    env->i->noticecall = noticecall;
@@ -1453,7 +1401,6 @@ env_txn_recover (DB_ENV *env, DB_PREPLIST preplist[/*count*/], long count, /*out
     toku_free(preps);
     return r;
 }
-
 
 static int
 env_get_txn_from_xid (DB_ENV *env, /*in*/ TOKU_XA_XID *xid, /*out*/ DB_TXN **txnp) {
@@ -1592,7 +1539,6 @@ env_set_update (DB_ENV *env, int (*update_function)(DB *, const DBT *key, const 
     env->i->update_function = update_function;
 }
 
-
 static int
 env_set_generate_row_callback_for_put(DB_ENV *env, generate_row_for_put_func generate_row_for_put) {
     HANDLE_PANICKED_ENV(env);
@@ -1629,13 +1575,13 @@ env_set_redzone(DB_ENV *env, int redzone) {
 
 static int
 env_get_lock_timeout(DB_ENV *env, uint64_t *lock_timeout_msec) {
-    toku_ltm_get_lock_wait_time(env->i->ltm, lock_timeout_msec);
+    *lock_timeout_msec = env->i->ltm.get_lock_wait_time();
     return 0;
 }
 
 static int
 env_set_lock_timeout(DB_ENV *env, uint64_t lock_timeout_msec) {
-    toku_ltm_set_lock_wait_time(env->i->ltm, lock_timeout_msec);
+    env->i->ltm.set_lock_wait_time(lock_timeout_msec);
     return 0;
 }
 
@@ -1795,7 +1741,6 @@ memory_get_status(void) {
 }
 #undef MEMORY_STATUS_VALUE
 
-
 // how many rows are in engine status?
 static int
 env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
@@ -1806,7 +1751,10 @@ env_get_engine_status_num_rows (DB_ENV * UU(env), uint64_t * num_rowsp) {
     num_rows += LE_STATUS_NUM_ROWS;
     num_rows += CP_STATUS_NUM_ROWS;
     num_rows += CT_STATUS_NUM_ROWS;
+    // TODO: 5416 determine necessary locktree statistics
+#if 0
     num_rows += LTM_STATUS_NUM_ROWS;
+#endif
     num_rows += FT_STATUS_NUM_ROWS;
     num_rows += FT_FLUSHER_STATUS_NUM_ROWS;
     num_rows += FT_HOT_STATUS_NUM_ROWS;
@@ -1896,13 +1844,6 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
             }
         }
         {
-            LTM_STATUS_S ltmstat;
-            toku_ltm_get_status(env->i->ltm, &ltmstat);
-            for (int i = 0; i < LTM_STATUS_NUM_ROWS && row < maxrows; i++) {
-                engstat[row++] = ltmstat.status[i];
-            }
-        }
-        {
             FT_STATUS_S ftstat;
             toku_ft_get_status(&ftstat);
             for (int i = 0; i < FT_STATUS_NUM_ROWS && row < maxrows; i++) {
@@ -1985,7 +1926,6 @@ env_get_engine_status (DB_ENV * env, TOKU_ENGINE_STATUS_ROW engstat, uint64_t ma
     }
     return r;
 }
-
 
 // Fill buff with text description of engine status up to bufsiz bytes.
 // Intended for use by test programs that do not have the handlerton available,
@@ -2119,21 +2059,6 @@ env_crash(DB_ENV * UU(db_env), const char* msg, const char * fun, const char* fi
     return -1;  // placate compiler
 }
 
-static int 
-toku_db_lt_panic(DB* db, int r) {
-    assert(r!=0);
-    assert(db && db->i && db->dbenv && db->dbenv->i);
-    DB_ENV* env = db->dbenv;
-    const char * panic_string;
-
-    if (r < 0) panic_string = toku_lt_strerror((TOKU_LT_ERROR)r);
-    else       panic_string = "Error in locktree.\n";
-
-    env_panic(env, r, panic_string);
-
-    return toku_ydb_do_error(env, r, "%s", panic_string);
-}
-
 static int
 env_get_cursor_for_directory(DB_ENV* env, DB_TXN* txn, DBC** c) {
     if (!env_opened(env)) {
@@ -2146,8 +2071,6 @@ static int
 toku_env_create(DB_ENV ** envp, uint32_t flags) {
     int r = ENOSYS;
     DB_ENV* result = NULL;
-
-    engine_status_enable = 1;
 
     if (flags!=0)    { r = EINVAL; goto cleanup; }
     MALLOC(result);
@@ -2177,8 +2100,6 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     USENV(set_lg_dir);
     USENV(set_lg_max);
     USENV(get_lg_max);
-    USENV(set_lk_max_locks);
-    USENV(get_lk_max_locks);
     USENV(set_lk_max_memory);
     USENV(get_lk_max_memory);
     USENV(get_iname);
@@ -2245,12 +2166,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     assert_zero(r);
     assert(result->i->logger);
 
-    r = toku_ltm_create(&result->i->ltm,
-                        __toku_env_default_locks_limit,
-                        __toku_env_default_lock_memory_limit,
-                        toku_db_lt_panic);
-    assert_zero(r);
-    assert(result->i->ltm);
+    result->i->ltm.create(toku_db_lt_on_create_callback, toku_db_lt_on_destroy_callback);
 
     r = toku_omt_create(&result->i->open_dbs);
     toku_mutex_init(&result->i->open_dbs_lock, NULL);
@@ -2372,11 +2288,10 @@ env_dbremove_subdb(DB_ENV * env, DB_TXN * txn, const char *fname, const char *db
         int bytes = snprintf(subdb_full_name, sizeof(subdb_full_name), "%s/%s", fname, dbname);
         assert(bytes==(int)sizeof(subdb_full_name)-1);
         const char *null_subdbname = NULL;
-        r = toku_env_dbremove(env, txn, subdb_full_name, null_subdbname, flags);
+        r = env_dbremove(env, txn, subdb_full_name, null_subdbname, flags);
     }
     return r;
 }
-
 
 // see if we can acquire a table lock for the given dname.
 // requires: write lock on dname in the directory. dictionary
@@ -2391,7 +2306,7 @@ can_acquire_table_lock(DB_ENV *env, DB_TXN *txn, const char *iname_in_env) {
 
     r = toku_db_create(&db, env, 0);
     assert_zero(r);
-    r = db_open_iname(db, txn, iname_in_env, 0, 0);
+    r = toku_db_open_iname(db, txn, iname_in_env, 0, 0);
     assert_zero(r);
     r = toku_db_pre_acquire_table_lock(db, txn);
     if (r == 0) {
@@ -2405,8 +2320,8 @@ can_acquire_table_lock(DB_ENV *env, DB_TXN *txn, const char *iname_in_env) {
     return got_lock;
 }
 
-int
-toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, uint32_t flags) {
+static int
+env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, uint32_t flags) {
     int r;
     HANDLE_PANICKED_ENV(env);
     if (!env_opened(env) || flags != 0) {
@@ -2448,7 +2363,7 @@ toku_env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbna
     }
     r = toku_db_create(&db, env, 0);
     lazy_assert_zero(r);
-    r = db_open_iname(db, txn, iname, 0, 0);
+    r = toku_db_open_iname(db, txn, iname, 0, 0);
     lazy_assert_zero(r);
     if (txn) {
         // Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
@@ -2506,14 +2421,13 @@ env_dbrename_subdb(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbna
             assert(bytes==(int)sizeof(new_full_name)-1);
         }
         const char *null_subdbname = NULL;
-        r = toku_env_dbrename(env, txn, subdb_full_name, null_subdbname, new_full_name, flags);
+        r = env_dbrename(env, txn, subdb_full_name, null_subdbname, new_full_name, flags);
     }
     return r;
 }
 
-
-int
-toku_env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, uint32_t flags) {
+static int
+env_dbrename(DB_ENV *env, DB_TXN *txn, const char *fname, const char *dbname, const char *newname, uint32_t flags) {
     int r;
     HANDLE_PANICKED_ENV(env);
     if (!env_opened(env) || flags != 0) {
@@ -2662,7 +2576,6 @@ static void __attribute__((__used__))
 include_toku_pthread_yield (void) {
     toku_pthread_yield();
 }
-
 
 // For test purposes only, translate dname to iname
 // YDB lock is NOT held when this function is called,

@@ -8,7 +8,7 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
-#include "omt.h"
+#include <util/omt.h>
 #include "fttypes.h"
 #include <portability/toku_pthread.h>
 #include <util/omt.h>

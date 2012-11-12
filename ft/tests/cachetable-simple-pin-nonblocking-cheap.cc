@@ -2,7 +2,7 @@
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id: cachetable-simple-pin-nonblocking.cc 46977 2012-08-19 01:56:34Z zardosht $"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
-#include "includes.h"
+
 #include "test.h"
 
 static void

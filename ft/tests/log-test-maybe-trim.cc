@@ -6,8 +6,8 @@
 // verify that the log file trimmer does not delete the log file containing the
 // begin checkpoint when the checkpoint log entries span multiple log files.
 
+#include "logcursor.h"
 #include "test.h"
-#include "includes.h"
 
 #ifndef dname
 #define dname __SRCFILE__ ".dir"
@@ -32,7 +32,7 @@ test_main (int argc __attribute__((__unused__)),
     toku_log_begin_checkpoint(logger, &begin_lsn, true, 0, 0);
     LSN end_lsn;
     toku_log_end_checkpoint(logger, &end_lsn, true, begin_lsn, 0, 0, 0);
-    r = toku_logger_maybe_trim_log(logger, begin_lsn); assert(r == 0);
+    toku_logger_maybe_trim_log(logger, begin_lsn);
     r = toku_logger_close(&logger); assert(r == 0);
 
     // verify all log entries prior the begin checkpoint are trimmed

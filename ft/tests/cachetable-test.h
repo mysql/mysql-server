@@ -3,7 +3,7 @@
 #ident "$Id: cachetable-checkpointer_test.cc 45903 2012-07-19 13:06:39Z leifwalsh $"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 
-#include "includes.h"
+
 #include "cachetable-internal.h"
 
 //

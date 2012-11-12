@@ -133,6 +133,15 @@ toku_do_assert_zero_fail (uintptr_t expr, const char *expr_as_string, const char
     toku_do_backtrace_abort();
 }
 
+void
+toku_do_assert_expected_fail (uintptr_t expr, uintptr_t expected, const char *expr_as_string, const char *function, const char *file, int line, int caller_errno) {
+    char msg[MSGLEN];
+    snprintf(msg, MSGLEN, "%s:%d %s: Assertion `%s == %" PRIuPTR "' failed (errno=%d) (%s=%" PRIuPTR ")\n", file, line, function, expr_as_string, expected, caller_errno, expr_as_string, expr);
+    perror(msg);
+    set_panic_if_not_panicked(caller_errno, msg);
+    toku_do_backtrace_abort();
+}
+
 void 
 toku_do_assert(int expr, const char *expr_as_string, const char *function, const char* file, int line, int caller_errno) {
     if (expr == 0)

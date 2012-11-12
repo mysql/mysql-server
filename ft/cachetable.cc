@@ -145,10 +145,7 @@ checkpoint_thread (void *checkpointer_v)
 {
     CHECKPOINTER CAST_FROM_VOIDP(cp, checkpointer_v);
     int r = toku_checkpoint(cp, cp->get_logger(), NULL, NULL, NULL, NULL, SCHEDULED_CHECKPOINT);
-    if (r) {
-        fprintf(stderr, "%s:%d Got error %d while doing checkpoint\n", __FILE__, __LINE__, r);
-        abort(); // Don't quite know what to do with these errors.
-    }
+    invariant_zero(r);
     return r;
 }
 

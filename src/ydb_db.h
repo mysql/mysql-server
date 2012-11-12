@@ -3,13 +3,14 @@
 #ident "$Id$"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-// This file defines the public interface to the ydb library
 
-#if !defined(TOKU_YDB_DB_H)
+#ifndef TOKU_YDB_DB_H
 #define TOKU_YDB_DB_H
 
-#include "ydb_txn.h"
+#include <ft/ft.h>
 
+#include "ydb-internal.h"
+#include "ydb_txn.h"
 
 typedef enum {
     YDB_LAYER_DIRECTORY_WRITE_LOCKS = 0,        /* total directory write locks taken */
@@ -26,19 +27,29 @@ typedef struct {
 
 void ydb_db_layer_get_status(YDB_DB_LAYER_STATUS statp);
 
+//
+// export the following locktree create/destroy callbacks so
+// the environment can pass them to the locktree manager.
+//
+struct lt_on_create_callback_extra {
+    DB_TXN *txn;
+    FT_HANDLE ft_handle;
+};
+void toku_db_lt_on_create_callback(toku::locktree *lt, void *extra);
+void toku_db_lt_on_destroy_callback(toku::locktree *lt);
 
 /* db methods */
 static inline int db_opened(DB *db) {
     return db->i->opened != 0;
 }
 
-static inline toku_dbt_cmp 
+static inline ft_compare_func
 toku_db_get_compare_fun(DB* db) {
-    return db->i->ft_handle->ft->compare_fun;
+    return toku_ft_get_bt_compare(db->i->ft_handle);
 }
 
 int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn);
-int db_open_iname(DB * db, DB_TXN * txn, const char *iname, uint32_t flags, int mode);
+int toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname, uint32_t flags, int mode);
 int toku_db_pre_acquire_table_lock(DB *db, DB_TXN *txn);
 int toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, uint32_t flags);
 int toku_db_create(DB ** db, DB_ENV * env, uint32_t flags);
@@ -78,7 +89,4 @@ toku_db_destruct_autotxn(DB_TXN *txn, int r, bool changed) {
     return r; 
 }
 
-
-
-
-#endif
+#endif /* TOKU_YDB_DB_H */

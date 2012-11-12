@@ -6,7 +6,7 @@
 // generate a tree with misrouted messages in the child buffers.
 // check that brt verify finds them.
 
-#include "includes.h"
+
 #include <ft-cachetable-wrappers.h>
 #include "test.h"
 

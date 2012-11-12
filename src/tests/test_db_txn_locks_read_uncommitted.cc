@@ -160,8 +160,13 @@ table_scan(char txn, bool success) {
                                      dbt_init(&data, 0, 0),
                                      DB_NEXT);
     }
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    if (success) invariant(r == DB_NOTFOUND || r == DB_LOCK_NOTGRANTED || r == DB_LOCK_DEADLOCK);
+    else         CKERR2s(r, DB_LOCK_NOTGRANTED, DB_LOCK_DEADLOCK);
+#else
     if (success) CKERR2(r, DB_NOTFOUND);
     else         CKERR2s(r, DB_LOCK_NOTGRANTED, DB_LOCK_DEADLOCK);
+#endif
 }
 
 static void

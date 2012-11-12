@@ -85,7 +85,11 @@ int test_main(int argc, char * const argv[]) {
     test_del_rmw(env, db, DB_SERIALIZABLE, DB_READ_UNCOMMITTED, 0, 0, 0);
     test_del_rmw(env, db, DB_SERIALIZABLE, DB_READ_COMMITTED,   0, 0, 0);
     test_del_rmw(env, db, DB_SERIALIZABLE, DB_TXN_SNAPSHOT,     0, 0, 0);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    test_del_rmw(env, db, DB_SERIALIZABLE, DB_SERIALIZABLE,     0, 0, DB_LOCK_NOTGRANTED);
+#else
     test_del_rmw(env, db, DB_SERIALIZABLE, DB_SERIALIZABLE,     0, 0, 0);
+#endif
 
     // t1: prelock write, del(2)
     // t2: set(1)

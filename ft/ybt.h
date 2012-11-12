@@ -11,16 +11,42 @@
 #include "fttypes.h"
 #include <db.h>
 
+// TODO: John
+// Document this API a little better so that DBT
+// memory management can be morm widely understood.
 
 DBT *toku_init_dbt(DBT *);
+
 DBT *toku_init_dbt_flags(DBT *, uint32_t flags);
+
 void toku_destroy_dbt(DBT *);
+
 DBT *toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len);
+
 DBT *toku_copyref_dbt(DBT *dst, const DBT src);
-DBT *toku_clone_dbt(DBT *dst, const DBT src);
+
+DBT *toku_clone_dbt(DBT *dst, const DBT &src);
+
 int toku_dbt_set(ITEMLEN len, bytevec val, DBT *d, struct simple_dbt *sdbt);
+
 int toku_dbt_set_value(DBT *, bytevec *val, ITEMLEN vallen, void **staticptrp, bool ybt1_disposable);
+
 void toku_sdbt_cleanup(struct simple_dbt *sdbt);
 
+// returns: special DBT pointer representing positive infinity
+const DBT *toku_dbt_positive_infinity(void);
 
-#endif
+// returns: special DBT pointer representing negative infinity
+const DBT *toku_dbt_negative_infinity(void);
+
+// returns: true if the given dbt is either positive or negative infinity
+bool toku_dbt_is_infinite(const DBT *dbt);
+
+// effect: compares two potentially infinity-valued dbts
+// requires: at least one is infinite (assert otherwise)
+int toku_dbt_infinite_compare(const DBT *a, const DBT *b);
+
+// returns: true if the given dbts have the same data pointer and size
+bool toku_dbt_equals(const DBT *a, const DBT *b);
+
+#endif /* TOKU_YBT_H */

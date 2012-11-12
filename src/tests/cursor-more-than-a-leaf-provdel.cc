@@ -28,7 +28,7 @@ setup (void) {
 #ifdef USE_BDB
     r=env->set_lk_max_objects(env, 2*num_insert); CKERR(r);
 #endif
-    r=env->set_lk_max_locks(env, 2*num_insert); CKERR(r);
+    
     r=env->open(env, ENVDIR, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
 

@@ -6,7 +6,7 @@
 // generate a tree with a single leaf node containing unsorted keys
 // check that brt verify finds them
 
-#include "includes.h"
+
 #include <ft-cachetable-wrappers.h>
 #include "test.h"
 

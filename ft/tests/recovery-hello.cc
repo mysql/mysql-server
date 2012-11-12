@@ -6,7 +6,7 @@
 // test recovery of "hello" comments
 
 #include "test.h"
-#include "includes.h"
+
 
 #define TESTDIR __SRCFILE__ ".dir"
 

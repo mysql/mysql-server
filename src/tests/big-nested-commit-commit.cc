@@ -87,7 +87,7 @@ setup (void) {
 #ifdef TOKUDB
     r=env->set_redzone(env, 0); CKERR(r);
 #endif
-    r=env->set_lk_max_locks(env, N); CKERR(r);
+    
 #ifndef TOKUDB
     r=env->set_lk_max_objects(env, N); CKERR(r);
 #endif

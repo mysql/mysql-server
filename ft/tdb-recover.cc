@@ -10,7 +10,8 @@
 //    cd ../src/tests/tmpdir
 //    ../../../ft/recover ../dir.test_log2.c.tdb
 
-#include "includes.h"
+#include "ft-ops.h"
+#include "recover.h"
 
 static int recovery_main(int argc, const char *const argv[]);
 

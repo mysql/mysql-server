@@ -42,6 +42,7 @@ void toku_do_assert(int /*expr*/,const char*/*expr_as_string*/,const char */*fun
 
 void toku_do_assert_fail(const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/) __attribute__((__visibility__("default"))) __attribute__((__noreturn__));
 void toku_do_assert_zero_fail(uintptr_t/*expr*/, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/) __attribute__((__visibility__("default"))) __attribute__((__noreturn__));
+void toku_do_assert_expected_fail(uintptr_t/*expr*/, uintptr_t /*expected*/, const char*/*expr_as_string*/,const char */*fun*/,const char*/*file*/,int/*line*/, int/*errno*/) __attribute__((__visibility__("default"))) __attribute__((__noreturn__));
 
 // Define GCOV if you want to get test-coverage information that ignores the assert statements.
 // #define GCOV
@@ -51,9 +52,11 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 #if defined(GCOV) || TOKU_WINDOWS
 #define assert(expr)      toku_do_assert((expr) != 0, #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno())
 #define assert_zero(expr) toku_do_assert((expr) == 0, #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno())
+#define assert_equals(expr, expected) toku_do_assert((expr) == (expected), (expected), #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno())
 #else
 #define assert(expr)      ((expr)      ? (void)0 : toku_do_assert_fail(#expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
 #define assert_zero(expr) ((expr) == 0 ? (void)0 : toku_do_assert_zero_fail((uintptr_t)(expr), #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
+#define assert_equals(expr, expected) ((expr) == (expected) ? (void)0 : toku_do_assert_expected_fail((uintptr_t)(expr), (uintptr_t)(expected), #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
 #define assert_null(expr) ((expr) == nullptr ? (void)0 : toku_do_assert_zero_fail((uintptr_t)(expr), #expr, __FUNCTION__, __FILE__, __LINE__, get_maybe_error_errno()))
 #endif
 
@@ -66,6 +69,7 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 #endif
 
 #if !defined(__clang__)
+#include <type_traits>
 # define ENSURE_POD(type) static_assert(std::is_pod<type>::value, #type " isn't POD")
 #else
 # define ENSURE_POD(type) // TEMP, clang is much more strict about POD.
@@ -73,12 +77,15 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 
 #define lazy_assert(a)          assert(a)      // indicates code is incomplete 
 #define lazy_assert_zero(a)     assert_zero(a) // indicates code is incomplete 
+#define lazy_assert_equals(a, b)     assert_equals(a, b) // indicates code is incomplete 
 #define invariant(a)            assert(a)      // indicates a code invariant that must be true
 #define invariant_null(a)       assert_null(a) // indicates a code invariant that must be true
 #define invariant_notnull(a)    assert(a)      // indicates a code invariant that must be true
 #define invariant_zero(a)       assert_zero(a) // indicates a code invariant that must be true
+#define invariant_equals(a, b)       assert_equals(a, b) // indicates a code invariant that must be true
 #define resource_assert(a)      assert(a)      // indicates resource must be available, otherwise unrecoverable
 #define resource_assert_zero(a) assert_zero(a) // indicates resource must be available, otherwise unrecoverable
+#define resource_assert_equals(a, b) assert_equals(a, b) // indicates resource must be available, otherwise unrecoverable
 
 #ifdef TOKU_DEBUG_PARANOID
 #define paranoid_invariant(a) assert(a)

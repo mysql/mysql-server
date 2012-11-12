@@ -4,7 +4,7 @@
 /* verify that get_and_pin waits while a prefetch block is pending */
 #ident "$Id$"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
-#include "includes.h"
+
 #include "test.h"
 
 bool do_pf;

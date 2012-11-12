@@ -9,7 +9,7 @@
 //  * Thread 2 calls end_checkpoint, tries to write lock the root, sets want_write, and blocks on the rwlock because there is a reader.
 //  * Thread 1 calls apply_cmd_to_in_memory_leaves, calls get_and_pin_if_in_memory, tries to get a read lock on the root node and blocks on the rwlock because there is a write request on the lock.
 
-#include "includes.h"
+
 #include "checkpoint.h"
 #include "test.h"
 

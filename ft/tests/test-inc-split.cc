@@ -32,7 +32,7 @@
  */
 
 #include "test.h"
-#include "includes.h"
+
 
 static TOKUTXN const null_txn = 0;
 static DB * const null_db = 0;

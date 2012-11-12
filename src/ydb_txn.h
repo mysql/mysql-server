@@ -8,12 +8,13 @@
 #if !defined(TOKU_YDB_TXN_H)
 #define TOKU_YDB_TXN_H
 
-
 // begin, commit, and abort use the multi operation lock 
 // internally to synchronize with begin checkpoint. callers
 // should not hold the multi operation lock.
 
 int toku_txn_begin(DB_ENV *env, DB_TXN * stxn, DB_TXN ** txn, uint32_t flags);
+
+void toku_txn_note_db_row_lock(DB_TXN *txn, DB *db, const DBT *left_key, const DBT *right_key);
 
 int locked_txn_commit(DB_TXN *txn, uint32_t flags);
 

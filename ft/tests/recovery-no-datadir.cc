@@ -6,7 +6,7 @@
 // test recovery with no data directory 
 
 #include "test.h"
-#include "includes.h"
+
 
 #define TESTDIR __SRCFILE__ ".dir"
 

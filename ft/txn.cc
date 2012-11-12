@@ -5,11 +5,11 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 
-#include "includes.h"
+#include "ft.h"
 #include "txn.h"
+#include "log-internal.h"
 #include "checkpoint.h"
 #include "ule.h"
-#include <toku_race_tools.h>
 #include "rollback-apply.h"
 #include "txn_manager.h"
 

@@ -2,7 +2,6 @@
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id: cachetable-cleaner-thread-simple.cc 48237 2012-09-24 18:27:59Z esmet $"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
-#include "includes.h"
 #include "test.h"
 
 //

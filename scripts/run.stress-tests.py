@@ -717,7 +717,8 @@ if __name__ == '__main__':
     parser.add_option_group(test_group)
 
 
-    default_testnames = ['test_stress1.tdb',
+    default_testnames = ['test_stress0.tdb',
+                         'test_stress1.tdb',
                          'test_stress2.tdb',
                          'test_stress3.tdb',
                          'test_stress4.tdb',

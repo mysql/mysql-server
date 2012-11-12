@@ -6,7 +6,7 @@
 // test recovery with a fopen that references a missing file
 
 #include "test.h"
-#include "includes.h"
+
 
 #define TESTDIR __SRCFILE__ ".dir"
 

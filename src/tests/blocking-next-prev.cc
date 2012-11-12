@@ -85,7 +85,11 @@ static void blocking_next(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
 
     if (verbose)
         printf("%lu next=%d\n", (unsigned long) toku_pthread_self(), r);
-    assert(r == DB_NOTFOUND || r == DB_LOCK_DEADLOCK);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    assert(r == DB_NOTFOUND || r == DB_LOCK_DEADLOCK || r == DB_LOCK_NOTGRANTED);
+#else
+    assert(r == DB_NOTFOUND);
+#endif
 
     int rr = cursor->c_close(cursor); assert(rr == 0);
 
@@ -131,7 +135,11 @@ static void blocking_prev(DB_ENV *db_env, DB *db, uint64_t nrows UU(), long slee
 
     if (verbose)
         printf("%lu prev=%d\n", (unsigned long) toku_pthread_self(), r);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    assert(r == DB_NOTFOUND || r == DB_LOCK_DEADLOCK || r == DB_LOCK_NOTGRANTED);
+#else
     assert(r == DB_NOTFOUND);
+#endif
 
     int rr = cursor->c_close(cursor); assert(rr == 0);
 

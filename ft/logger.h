@@ -7,7 +7,7 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-
+#include "fttypes.h"
 #include "ft_layout_version.h"
 
 enum {
@@ -51,8 +51,7 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn);
 // Maybe trim the log entries from the log that are older than the given LSN
 // Effect: find all of the log files whose largest LSN is smaller than the
 // given LSN and delete them.
-// Returns: 0 if success
-int toku_logger_maybe_trim_log(TOKULOGGER logger, LSN oldest_open_lsn);
+void toku_logger_maybe_trim_log(TOKULOGGER logger, LSN oldest_open_lsn);
 
 void toku_logger_log_fcreate(TOKUTXN txn, const char *fname, FILENUM filenum, uint32_t mode, uint32_t flags, uint32_t nodesize, uint32_t basementnodesize, enum toku_compression_method compression_method);
 void toku_logger_log_fdelete(TOKUTXN txn, FILENUM filenum);

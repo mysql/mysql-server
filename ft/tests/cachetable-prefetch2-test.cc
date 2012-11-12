@@ -5,7 +5,7 @@
 // fetches the block once.
 #ident "$Id$"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
-#include "includes.h"
+
 #include "test.h"
 
 static int fetch_calls = 0;

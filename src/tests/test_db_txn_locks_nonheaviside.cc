@@ -244,13 +244,22 @@ test_both (uint32_t db_flags) {
     /* ********************************************************************** */
     setup_dbs();
     cget(true, false, 'a', 1, 1, 0, 0, db_flags);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    cget(false, false, 'b', 1, 1, 0, 0, db_flags);
+#else
     cget(true, false, 'b', 1, 1, 0, 0, db_flags);
+#endif
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
     cget(true, false, 'a', 1, 1, 0, 0, db_flags);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    cget(false, false, 'b', 1, 1, 0, 0, db_flags);
+    put(true, 'a', 1, 1);
+#else
     cget(true, false, 'b', 1, 1, 0, 0, db_flags);
     put(false, 'a', 1, 1);
+#endif
     early_commit('b');
     put(true, 'a', 1, 1);
     cget(true, true, 'a', 1, 1, 1, 1, db_flags);
@@ -357,23 +366,41 @@ test_set_range (uint32_t flag, int i) {
     /* ********************************************************************** */
     setup_dbs();
     cget(true, false, 'a', i*1, i*1, 0, 0, flag);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    cget(false, false, 'b', i*2, i*1, 0, 0, flag);
+#else
     cget(true, false, 'b', i*2, i*1, 0, 0, flag);
+#endif
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
     cget(true, false, 'a', i*1, i*1, 0, 0, flag);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    cget(false, false, 'b', i*1, i*1, 0, 0, flag);
+#else
     cget(true, false, 'b', i*1, i*1, 0, 0, flag);
+#endif
     close_dbs();
     /* ********************************************************************** */
     setup_dbs();
     cget(true, false, 'a', i*1, i*1, 0, 0, flag);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    cget(false, false, 'b', i*5, i*5, 0, 0, flag);
+    put(true, 'a', i*7, i*6);
+    put(true, 'a', i*5, i*5);
+#else
     cget(true, false, 'b', i*5, i*5, 0, 0, flag);
     put(false, 'a', i*7, i*6);
     put(false, 'a', i*5, i*5);
+#endif
     put(true,  'a', i*4, i*4);
     put(true,  'b', -i*1, i*4);
     put(false,  'b', i*2, i*4);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+    put(true, 'a', i*5, i*4);
+#else
     put(false, 'a', i*5, i*4);
+#endif
     early_commit('b');
     put(true, 'a', i*7, i*6);
     put(true, 'a', i*5, i*5);

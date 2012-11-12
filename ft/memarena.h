@@ -17,8 +17,7 @@
  *  A memarena (as currently implemented) is not suitable for interprocess memory sharing.  No reason it couldn't be made to work though.
  */
 
-#include <sys/types.h>
-
+#include "fttypes.h"
 
 MEMARENA memarena_create_presized (size_t initial_size);
 // Effect: Create a memarena with initial size.  In case of ENOMEM, aborts.

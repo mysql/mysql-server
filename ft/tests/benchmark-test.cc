@@ -6,7 +6,6 @@
 #include "test.h"
 
 /* Insert a bunch of stuff */
-#include "includes.h"
 #include <toku_time.h>
 
 static const char *fname ="sinsert.ft";

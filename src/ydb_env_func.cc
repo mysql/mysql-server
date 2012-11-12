@@ -5,11 +5,16 @@
 #ident "$Id$"
 
 #include <toku_portability.h>
+
+#include <memory.h>
 #include <db.h>
-#include <ft/ft-internal.h>
+
+#include <ft/ft-ops.h>
 #include <ft/ft-flusher.h>
 #include <ft/checkpoint.h>
+#include <ft/recover.h>
 #include <ft/ftloader.h>
+
 #include "ydb_env_func.h"
 
 // For test purposes only.
@@ -20,7 +25,7 @@ void * checkpoint_callback_extra     = NULL;
 void (*checkpoint_callback2_f)(void*) = NULL;
 void * checkpoint_callback2_extra     = NULL;
 
-uint32_t  engine_status_enable = 1;   // if zero, suppress engine status output on failed assert, for test programs only
+bool engine_status_enable = true; // if false, suppress engine status output on failed assert, for test programs only
 
 void db_env_set_func_fsync (int (*fsync_function)(int)) {
     toku_set_func_fsync(fsync_function);
@@ -123,7 +128,7 @@ db_env_set_mvcc_garbage_collection_verification(uint32_t verification_mode) {
 
 // Purpose: allow test programs that expect to fail to suppress engine status output on failed assert.
 void
-db_env_enable_engine_status(uint32_t enable) {
+db_env_enable_engine_status(bool enable) {
     engine_status_enable = enable;
 }
 

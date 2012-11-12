@@ -16,22 +16,19 @@
  */
 
 #include <toku_portability.h>
+#include <portability/toku_atomic.h>
 #include <stdio.h>
 #include <string.h>
-#include "ydb-internal.h"
-#include <ft/ftloader.h>
-#include "loader.h"
-#include "ydb_load.h"
-#include <ft/checkpoint.h>
-#include <ft/ft-internal.h>
+
 #include <ft/ft.h>
+#include <ft/ftloader.h>
+#include <ft/checkpoint.h>
+
+#include "ydb-internal.h"
 #include "ydb_db.h"
-#include <portability/toku_atomic.h>
+#include "ydb_load.h"
 
-
-#define lazy_assert(a) assert(a) // indicates code is incomplete 
-#define invariant(a) assert(a) // indicates a code invariant that must be true
-#define resource_assert(a) assert(a) // indicates resource must be available, otherwise unrecoverable
+#include "loader.h"
 
 enum {MAX_FILE_SIZE=256};
 

@@ -4,10 +4,12 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "includes.h"
+#include <toku_stdlib.h>
+#include <toku_include/toku_portability.h>
+
+#include "x1764.h"
 
 #define PRINT 0
-
 
 uint32_t x1764_memory_simple (const void *buf, int len)
 {

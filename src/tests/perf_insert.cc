@@ -37,7 +37,8 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
             myargs[i].operation_extra = &spe[i];
         }
     }
-    run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
+    const bool crash_at_end = false;
+    run_workers(myargs, num_threads, cli_args->time_of_test, crash_at_end, cli_args);
 }
 
 int
@@ -45,6 +46,11 @@ test_main(int argc, char *const argv[]) {
     struct cli_args args = get_default_args_for_perf();
     args.num_elements = 0;  // want to start with empty DBs
     parse_stress_test_args(argc, argv, &args);
+    // when there are multiple threads, its valid for two of them to
+    // generate the same key and one of them fail with DB_LOCK_NOTGRANTED
+    if (args.num_put_threads > 1) {
+        args.crash_on_operation_failure = false;
+    }
     stress_test_main_with_cmp(&args, stress_uint64_dbt_cmp);
     return 0;
 }

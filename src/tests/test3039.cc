@@ -137,7 +137,11 @@ void* reader_thread (void *arg)
 	snprintf(key,  sizeof(key),  "%016llx", value);
 	keyd.size = strlen(key)+1;
 	int r = db->get(db, txn, &keyd, &datad, 0);
+#ifdef BLOCKING_ROW_LOCKS_READS_NOT_SHARED
+        invariant(r == 0 || r == DB_LOCK_NOTGRANTED || r == DB_LOCK_DEADLOCK);
+#else
 	CKERR(r);
+#endif
 	rs->n_did_read++;
 	n_read_so_far ++;
     }
