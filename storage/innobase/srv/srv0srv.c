@@ -2087,6 +2087,15 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
 	export_vars.innodb_truncated_status_writes = srv_truncated_status_writes;
 
+#ifdef UNIV_DEBUG
+	if (trx_sys->max_trx_id < purge_sys->done_trx_no) {
+		export_vars.innodb_purge_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_trx_id_age =
+		  trx_sys->max_trx_id - purge_sys->done_trx_no;
+	}
+#endif /* UNIV_DEBUG */
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
@@ -2772,6 +2781,26 @@ loop:
 
 	for (i = 0; i < 10; i++) {
 		ulint	cur_time = ut_time_ms();
+
+#ifdef UNIV_DEBUG
+		if (btr_cur_limit_optimistic_insert_debug
+		    && srv_n_purge_threads == 0) {
+			/* If btr_cur_limit_optimistic_insert_debug is enabled
+			and no purge_threads, purge opportunity is increased
+			by x100 (1purge/100msec), to speed up debug scripts
+			which should wait for purged. */
+			next_itr_time -= 900;
+
+			srv_main_thread_op_info = "master purging";
+
+			srv_master_do_purge();
+
+			if (srv_fast_shutdown && srv_shutdown_state > 0) {
+
+				goto background_loop;
+			}
+		}
+#endif /* UNIV_DEBUG */
 
 		/* ALTER TABLE in MySQL requires on Unix that the table handler
 		can drop tables lazily after there no longer are SELECT

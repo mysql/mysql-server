@@ -236,6 +236,7 @@ trx_purge_sys_create(
 	purge_sys->purge_trx_no = 0;
 	purge_sys->purge_undo_no = 0;
 	purge_sys->next_stored = FALSE;
+	ut_d(purge_sys->done_trx_no = 0);
 
 	rw_lock_create(trx_purge_latch_key,
 		       &purge_sys->latch, SYNC_PURGE_LATCH);
@@ -655,6 +656,12 @@ trx_purge_truncate_if_arr_empty(void)
 /*=================================*/
 {
 	static ulint	count;
+
+#ifdef UNIV_DEBUG
+	if (purge_sys->arr->n_used == 0) {
+		purge_sys->done_trx_no = purge_sys->purge_trx_no;
+	}
+#endif /* UNIV_DEBUG */
 
 	if (!(++count % TRX_SYS_N_RSEGS) && purge_sys->arr->n_used == 0) {
 

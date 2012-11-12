@@ -156,6 +156,10 @@ struct trx_purge_struct{
 					than this */
 	undo_no_t	purge_undo_no;	/*!< Purge has advanced past all records
 					whose undo number is less than this */
+#ifdef UNIV_DEBUG
+	trx_id_t	done_trx_no;	/* Indicate 'purge pointer' which have
+					purged already accurately. */
+#endif /* UNIV_DEBUG */
 	/*-----------------------------*/
 	ibool		next_stored;	/*!< TRUE if the info of the next record
 					to purge is stored below: if yes, then

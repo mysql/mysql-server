@@ -742,6 +742,9 @@ struct export_var_struct{
 	ulint innodb_rows_updated;		/*!< srv_n_rows_updated */
 	ulint innodb_rows_deleted;		/*!< srv_n_rows_deleted */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
+#ifdef UNIV_DEBUG
+	ulint innodb_purge_trx_id_age;		/*!< max_trx_id - purged trx_id */
+#endif /* UNIV_DEBUG */
 };
 
 /** Thread slot in the thread table */
