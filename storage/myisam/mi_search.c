@@ -945,9 +945,7 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
                  ("Found too long binary packed key: %u of %u at 0x%lx",
                   length, keyinfo->maxlength, (long) *page_pos));
       DBUG_DUMP("key", *page_pos, 16);
-      mi_print_error(keyinfo->share, HA_ERR_CRASHED);
-      my_errno=HA_ERR_CRASHED;
-      DBUG_RETURN(0);                                 /* Wrong key */
+      goto crashed;                                  /* Wrong key */
     }
     /* Key is packed against prev key, take prefix from prev key. */
     from= key;
@@ -990,6 +988,8 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
         if (from == from_end) { from=page;  from_end=page_end; }
         length+= (uint) ((*key++ = *from++));
       }
+      if (length > keyseg->length)
+        goto crashed;
     }
     else
       length=keyseg->length;
@@ -1029,15 +1029,18 @@ uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
     if (from_end != page_end)
     {
       DBUG_PRINT("error",("Error when unpacking key"));
-      mi_print_error(keyinfo->share, HA_ERR_CRASHED);
-      my_errno=HA_ERR_CRASHED;
-      DBUG_RETURN(0);                                 /* Error */
+      goto crashed;                                 /* Error */
     }
     /* Copy data pointer and, if appropriate, key block pointer. */
     memcpy((uchar*) key,(uchar*) from,(size_t) length);
     *page_pos= from+length;
   }
   DBUG_RETURN((uint) (key-start_key)+keyseg->length);
+
+  crashed:
+    mi_print_error(keyinfo->share, HA_ERR_CRASHED);
+    my_errno= HA_ERR_CRASHED;
+    DBUG_RETURN(0);
 }
 
 

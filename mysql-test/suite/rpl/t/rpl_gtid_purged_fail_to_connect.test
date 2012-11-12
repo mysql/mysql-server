@@ -31,29 +31,35 @@ CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 --source include/stop_slave.inc
 
 --connection master
+# Need to kill the dump thread explicitly: stop slave does not do
+# that, and if the dump thread is slow, it will still be reading from
+# the old binlog at the time we do PURGE BINARY LOGS below. That would
+# prevent PURGE BINARY LOGS from purging the log.
+--source include/stop_dump_threads.inc
+
 INSERT INTO t1 VALUES (1);
 
-#FLUSH LOGS;
-#--let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
-#--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
-#INSERT INTO t1 VALUES (2);
-#eval PURGE BINARY LOGS TO '$master_file';
-# Bug 13727933 prevents using PURGE
-# Todo: restore PURGE and remove the following workaround 
+FLUSH LOGS;
+--let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
+--let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
+INSERT INTO t1 VALUES (2);
+eval PURGE BINARY LOGS TO '$master_file';
 
-RESET MASTER;
+--let $assert_cond= "[SHOW MASTER STATUS, File, 1]" = "$master_file"
+--let $assert_text= PURGE BINARY LOGS successfully removed all but the latest files
+--source include/assert.inc
+
 --let $master_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --let $master_pos= query_get_value(SHOW MASTER STATUS, Position, 1)
 INSERT INTO t1 VALUES (2);
 --save_master_pos
 
 --connection slave
-
-INSERT INTO t1 VALUES (2); # Todo: remove as a part of Bug 13727933 workaround
-
 CHANGE MASTER TO MASTER_AUTO_POSITION = 1;
 
 START SLAVE;
+# BUG#13727933 causes this test to fail sporadically on the following line
+# apparently the binlog is not always purged on the master (?)
 --let $slave_io_errno= 1236 # ER_MASTER_FATAL_ERROR_READING_BINLOG
 --source include/wait_for_slave_io_error.inc
 --source include/stop_slave_sql.inc
