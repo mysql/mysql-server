@@ -2948,7 +2948,8 @@ mem_free_and_error:
 	auto-extending. */
 
 	if (!innobase_temp_data_file_path) {
-		innobase_temp_data_file_path = (char*) "ibdatatmp1:12M:autoextend";
+		innobase_temp_data_file_path =
+			(char*) "ibdatatmp1:12M:autoextend";
 	}
 
 	/* Since InnoDB edits the argument in the next call, we make another
