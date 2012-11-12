@@ -1913,6 +1913,15 @@ srv_export_innodb_status(void)
 	export_vars.innodb_rows_updated = srv_n_rows_updated;
 	export_vars.innodb_rows_deleted = srv_n_rows_deleted;
 
+#ifdef UNIV_DEBUG
+	if (ut_dulint_cmp(trx_sys->max_trx_id, purge_sys->done_trx_no) < 0) {
+		export_vars.innodb_purge_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_trx_id_age =
+		  ut_dulint_minus(trx_sys->max_trx_id, purge_sys->done_trx_no);
+	}
+#endif /* UNIV_DEBUG */
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
@@ -2387,6 +2396,29 @@ loop:
 			+ buf_pool->n_pages_written;
 		srv_main_thread_op_info = "sleeping";
 
+#ifdef UNIV_DEBUG
+		if (btr_cur_limit_optimistic_insert_debug) {
+			/* If btr_cur_limit_optimistic_insert_debug is enabled
+			and no purge_threads, purge opportunity is increased
+			by x100 (1purge/100msec), to speed up debug scripts
+			which should wait for purged. */
+
+			if (!skip_sleep) {
+				os_thread_sleep(100000);
+			}
+
+			do {
+				if (srv_fast_shutdown
+				    && srv_shutdown_state > 0) {
+					goto background_loop;
+				}
+
+				srv_main_thread_op_info = "purging";
+				n_pages_purged = trx_purge();
+
+			} while (n_pages_purged);
+		} else
+#endif /* UNIV_DEBUG */
 		if (!skip_sleep) {
 
 			os_thread_sleep(1000000);
