@@ -66,24 +66,8 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
   return close_cached_tables(thd, tables, wait_for_refresh, LONG_TIMEOUT);
 }
 
-/* simple_open_n_lock_tables has been removed */
-inline int simple_open_n_lock_tables(THD *thd, TABLE_LIST *tables)
-{
-  return open_and_lock_tables(thd, tables, FALSE, 0);
-}
-
 /* Online alter table not supported */
 #define NDB_WITHOUT_ONLINE_ALTER
-
-/* Column format not supported */
-#define NDB_WITHOUT_COLUMN_FORMAT
-
-enum column_format_type {
-  COLUMN_FORMAT_TYPE_NOT_USED= -1,
-  COLUMN_FORMAT_TYPE_DEFAULT=   0,
-  COLUMN_FORMAT_TYPE_FIXED=     1,
-  COLUMN_FORMAT_TYPE_DYNAMIC=   2
-};
 
 /* Tablespace in .frm and TABLE_SHARE->tablespace not supported */
 #define NDB_WITHOUT_TABLESPACE_IN_FRM
@@ -112,25 +96,12 @@ enum column_format_type {
 
 #endif
 
-#if MYSQL_VERSION_ID >= 50600
-
-/* No support for --server-id-bits and thd->unmasked_server_id, yet */
-#define NDB_WITHOUT_SERVER_ID_BITS
-
-#endif
-
-extern ulong opt_server_id_mask;
-
 static inline
 uint32 thd_unmasked_server_id(const THD* thd)
 {
-#ifndef NDB_WITHOUT_SERVER_ID_BITS
   const uint32 unmasked_server_id = thd->unmasked_server_id;
   assert(thd->server_id == (thd->unmasked_server_id & opt_server_id_mask));
   return unmasked_server_id;
-#else
-  return thd->server_id;
-#endif
 }
 
 
