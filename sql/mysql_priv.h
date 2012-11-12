@@ -742,6 +742,9 @@ enum enum_table_ref_type
   External variables
 */
 extern ulong server_id, concurrency;
+#ifndef MCP_BUG52305
+extern ulong opt_server_id_mask;
+#endif
 
 
 typedef my_bool (*qc_engine_callback)(THD *thd, char *table_key,
