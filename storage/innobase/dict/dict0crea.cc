@@ -257,12 +257,12 @@ dict_build_table_def_step(
 	dberr_t         error;
 
 	table = node->table;
-	
-	error = dict_build_tablespace(table, thr_get_trx(thr)); 	
+
+	error = dict_build_tablespace(table, thr_get_trx(thr)); 
 	if (error != DB_SUCCESS) {
 		return(error);
 	}
-	
+
 	row = dict_create_sys_tables_tuple(table, node->heap);
 
 	ins_node_set_new_row(node->tab_def, row);
@@ -662,7 +662,7 @@ dict_build_index_def(
 		/* Record only the first table id. */
 		trx->table_id = table->id;
 	}
-	
+
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || dict_index_is_clust(index));
 
@@ -798,12 +798,12 @@ dict_create_index_tree(
 	sys_indexes */
 
 	mtr_start(&mtr);
-	
+
 	/* If temporary table then set logging off */
 	if (dict_table_is_temporary(index->table)) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 	}
-	
+
 	dberr_t		err = DB_SUCCESS;
 	ulint		zip_size = dict_table_zip_size(index->table);
 
@@ -897,7 +897,7 @@ dict_drop_index_tree_step(
 }
 
 /*******************************************************************//**
-Drops the index tree but don't update SYS_INDEXES table. 
+Drops the index tree but don't update SYS_INDEXES table.
 This interface is generally used for temp-tables where-in we don't
 update SYS_XXXXX table for temp-tables. */
 UNIV_INTERN
@@ -917,7 +917,7 @@ dict_drop_index_tree(
 	mtr_start(&mtr);
 	if(dict_table_is_temporary(index->table))
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
-	
+
 	root_page_no = page_no;
 
 	if (root_page_no == FIL_NULL) {
@@ -1089,7 +1089,7 @@ create:
 }
 
 /*******************************************************************//**
-Truncates the index tree but don't update SYS_XXXX table. 
+Truncates the index tree but don't update SYS_XXXX table.
 This interface is generally used for temp-tables for which we don't
 update SYS_XXXX table on creation.
 @return	new root page number, or FIL_NULL on failure */
