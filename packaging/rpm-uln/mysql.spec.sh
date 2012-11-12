@@ -244,8 +244,7 @@ Patch13: mysql-expired-certs.patch
        # Will not be used by MySQL
 # Patch14: mysql-missing-string-code.patch   Undecided, will not work in 5.5 (cmake)
 # Patch15: mysql-lowercase-bug.patch         Fixed in MySQL 5.1.54 and 5.5.9
-# Patch16: mysql-chain-certs.patch           Currently, this patch is broken
-#                                  by server code changes to "vio/viosslfactories.c"
+Patch16: mysql-chain-certs.patch
 Patch17: mysql-5.5-libdir.patch
 Patch18: mysql-5.5-fix-tests.patch
 Patch19: mysql-5.5-mtr1.patch
@@ -400,8 +399,7 @@ cd %{src_dir} # read about "%setup -n"
 # %patch10 -p1
 # %patch13 -p1
 # %patch14 -p1
-# %patch16 -p1           Currently, this patch is broken
-#                                  by server code changes to "vio/viosslfactories.c"
+%patch16 -p1
 %patch17 -p1
 %patch18 -p1
 %patch19 -p1

@@ -13,7 +13,7 @@
 #
 #   OR
 #
-#    let $slave_failure_printout= 1; # to force post-failure printout
+#    let $show_rpl_debug_info= 1; # to force post-failure printout
 #    let $wait_timeout= 60; # Override default 30 seconds with 60.
 #    let $wait_condition=
 #      SELECT c = 3 FROM t;
@@ -53,16 +53,9 @@ while ($wait_counter)
 }
 if (!$success)
 {
-  if ($slave_failure_printout)
+  if ($show_rpl_debug_info)
   {
-     --connection slave
-     --echo
-     --echo *** Slave server status: ***
-     --echo
-     --query_vertical show slave status
-     --query_vertical show processlist
-     --query_vertical select * from mysql.slave_relay_log_info
-     --query_vertical select * from mysql.slave_master_info
+    --source include/show_rpl_debug_info.inc
   }
   die Timeout in wait_condition.inc for $wait_condition;
 }
