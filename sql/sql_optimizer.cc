@@ -139,6 +139,9 @@ JOIN::optimize()
   trace_optimize.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
 
+  // Needed in case optimizer short-cuts, set properly in make_tmp_tables_info()
+  fields= &select_lex->item_list;
+
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
   if (flatten_subqueries())
     DBUG_RETURN(1); /* purecov: inspected */
