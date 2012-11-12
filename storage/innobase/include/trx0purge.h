@@ -172,6 +172,10 @@ struct trx_purge_t{
 	purge_iter_t	limit;		/* The 'purge pointer' which advances
 					during a purge, and which is used in
 					history list truncation */
+#ifdef UNIV_DEBUG
+	purge_iter_t	done;		/* Indicate 'purge pointer' which have
+					purged already accurately. */
+#endif /* UNIV_DEBUG */
 	/*-----------------------------*/
 	ibool		next_stored;	/*!< TRUE if the info of the next record
 					to purge is stored below: if yes, then
