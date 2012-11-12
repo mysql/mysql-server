@@ -2244,6 +2244,7 @@ ha_innobase::ha_innobase(
 	handlerton*	hton,
 	TABLE_SHARE*	table_arg)
 	:handler(hton, table_arg),
+	prebuilt(NULL),
 	int_table_flags(HA_REC_NOT_IN_SEQ |
 		  HA_NULL_IN_KEY |
 		  HA_CAN_INDEX_BLOBS |
@@ -3934,6 +3935,18 @@ ha_innobase::table_flags() const
 		return(int_table_flags);
 	}
 
+	/* stats.records are approx. as it is not protected by mutex/latch.
+	In case of temp-table, it is not visible across trx + lifetime is
+	bounded by connection/server lifetime stats.records act as exact
+	count of number of rows. */
+	if (prebuilt && prebuilt->table) {
+		if (dict_table_is_temporary(prebuilt->table)) {
+			return(int_table_flags 
+			       | HA_STATS_RECORDS_IS_EXACT
+			       | HA_BINLOG_STMT_CAPABLE);
+		}	
+	}
+	
 	return(int_table_flags | HA_BINLOG_STMT_CAPABLE);
 }
 
@@ -10824,7 +10837,9 @@ ha_innobase::info_low(
 		set. That way SHOW TABLE STATUS will show the best estimate,
 		while the optimizer never sees the table empty. */
 
-		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
+		if (n_rows == 0 
+		    && !(flag & HA_STATUS_TIME)
+		    && (!dict_table_is_temporary(ib_table))) {
 			n_rows++;
 		}
 
