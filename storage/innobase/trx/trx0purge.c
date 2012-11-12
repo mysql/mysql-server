@@ -209,6 +209,7 @@ trx_purge_sys_create(void)
 	purge_sys->purge_trx_no = ut_dulint_zero;
 	purge_sys->purge_undo_no = ut_dulint_zero;
 	purge_sys->next_stored = FALSE;
+	ut_d(purge_sys->done_trx_no = ut_dulint_zero);
 
 	rw_lock_create(&purge_sys->latch, SYNC_PURGE_LATCH);
 
@@ -576,6 +577,7 @@ trx_purge_truncate_if_arr_empty(void)
 	ut_ad(mutex_own(&(purge_sys->mutex)));
 
 	if (purge_sys->arr->n_used == 0) {
+		ut_d(purge_sys->done_trx_no = purge_sys->purge_trx_no);
 
 		trx_purge_truncate_history();
 

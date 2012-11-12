@@ -49,6 +49,10 @@ ulint	btr_cur_n_sea		= 0;
 ulint	btr_cur_n_non_sea_old	= 0;
 ulint	btr_cur_n_sea_old	= 0;
 
+#ifdef UNIV_DEBUG
+uint	btr_cur_limit_optimistic_insert_debug = 0;
+#endif /* UNIV_DEBUG */
+
 /* In the optimistic insert, if the insert does not fit, but this much space
 can be released by page reorganize, then it is reorganized */
 
@@ -1022,6 +1026,9 @@ calculate_sizes_again:
 		goto calculate_sizes_again;
 	}
 
+	LIMIT_OPTIMISTIC_INSERT_DEBUG(page_get_n_recs(page),
+				      goto fail);
+
 	/* If there have been many consecutive inserts, and we are on the leaf
 	level, check if we have to split the page to reserve enough free space
 	for future updates of records. */
@@ -1034,7 +1041,9 @@ calculate_sizes_again:
 	    && (0 == level)
 	    && (btr_page_get_split_rec_to_right(cursor, &dummy_rec)
 		|| btr_page_get_split_rec_to_left(cursor, &dummy_rec))) {
-
+#ifdef UNIV_DEBUG
+fail:
+#endif /* UNIV_DEBUG */
 		if (big_rec_vec) {
 			dtuple_convert_back_big_rec(index, entry, big_rec_vec);
 		}

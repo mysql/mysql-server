@@ -1,0 +1,128 @@
+# Test for bug #14676111: WRONG PAGE_LEVEL WRITTEN FOR UPPER THAN FATHER PAGE AT BTR_LIFT_PAGE_UP()
+
+-- source include/have_innodb_plugin.inc
+-- source include/have_debug.inc
+
+if (`select count(*)=0 from information_schema.global_variables where variable_name = 'INNODB_LIMIT_OPTIMISTIC_INSERT_DEBUG'`)
+{
+  --skip Test requires InnoDB built with UNIV_DEBUG definition.
+}
+
+--disable_query_log
+set @old_innodb_limit_optimistic_insert_debug = @@innodb_limit_optimistic_insert_debug;
+--enable_query_log
+--disable_warnings
+drop table if exists t1;
+--enable_warnings
+
+CREATE TABLE t1 (a int not null primary key) engine=InnoDB;
+
+let $wait_condition=
+  SELECT VARIABLE_VALUE < 1 FROM INFORMATION_SCHEMA.GLOBAL_STATUS
+  WHERE VARIABLE_NAME = 'INNODB_PURGE_TRX_ID_AGE';
+
+#
+# make 4 leveled straight tree
+#
+set global innodb_limit_optimistic_insert_debug = 2;
+insert into t1 values (1);
+insert into t1 values (5);
+#current tree form
+# (1, 5)
+
+insert into t1 values (4);
+#records in a page is limited to 2 artificially. root rise occurs
+#current tree form
+#   (1, 5)
+#(1, 4) (5)
+
+insert into t1 values (3);
+#current tree form
+#    (1, 5)
+#  (1, 4) (5)
+#(1, 3) (4) (5)
+
+insert into t1 values (2);
+#current tree form
+#      (1, 5)
+#    (1, 4) (5)
+#  (1, 3) (4) (5)
+#(1, 2) (3) (4) (5)
+
+analyze table t1;
+select DATA_LENGTH / 16384 from information_schema.TABLES where TABLE_SCHEMA = 'test' and TABLE_NAME = 't1';
+
+delete from t1 where a=4;
+--source include/wait_condition.inc
+#deleting 1 record of 2 records don't cause merge artificially.
+#current tree form
+#      (1, 5)
+#    (1)    (5)
+#  (1, 3)     (5)
+#(1, 2) (3)     (5)
+
+analyze table t1;
+select DATA_LENGTH / 16384 from information_schema.TABLES where TABLE_SCHEMA = 'test' and TABLE_NAME = 't1';
+
+delete from t1 where a=5;
+--source include/wait_condition.inc
+#deleting 1 record of 2 records don't cause merge artificially.
+#current tree form
+#      (1)
+#    (1)
+#  (1, 3) <- lift up this level next, when deleting node ptr
+#(1, 2) (3) <- merged next
+
+analyze table t1;
+select DATA_LENGTH / 16384 from information_schema.TABLES where TABLE_SCHEMA = 'test' and TABLE_NAME = 't1';
+
+#
+# cause merge at level 0
+#
+
+#disable the artificial limitation of records in a page
+set global innodb_limit_optimistic_insert_debug = 10000;
+delete from t1 where a=2;
+--source include/wait_condition.inc
+#merge page occurs. and lift up occurs.
+#current tree form
+#      (1)
+#    (1)
+#  (1, 3)
+
+analyze table t1;
+select DATA_LENGTH / 16384 from information_schema.TABLES where TABLE_SCHEMA = 'test' and TABLE_NAME = 't1';
+
+insert into t1 values (2);
+#current tree form
+#      (1)
+#    (1) <- lift up this level next, because it is not root
+#  (1, 2, 3)
+
+delete from t1 where a=2;
+--source include/wait_condition.inc
+#current tree form
+#      (1)
+#    (1, 3)
+
+analyze table t1;
+select DATA_LENGTH / 16384 from information_schema.TABLES where TABLE_SCHEMA = 'test' and TABLE_NAME = 't1';
+
+insert into t1 values (2);
+#current tree form
+#      (1)
+#    (1, 2, 3) <- lift up this level next, because the father is root
+
+delete from t1 where a=2;
+--source include/wait_condition.inc
+#current tree form
+#      (1, 3)
+
+analyze table t1;
+select DATA_LENGTH / 16384 from information_schema.TABLES where TABLE_SCHEMA = 'test' and TABLE_NAME = 't1';
+
+drop table t1;
+
+--disable_query_log
+set global innodb_limit_optimistic_insert_debug = @old_innodb_limit_optimistic_insert_debug;
+--enable_query_log
