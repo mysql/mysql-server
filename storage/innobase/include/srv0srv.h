@@ -138,7 +138,7 @@ public:
 		m_auto_extend_last_temp_data_file(false),
 		m_last_temp_data_file_size_max(0),
 		m_temp_data_auto_extend_increment(8),
-		m_temp_data_file_is_raw_partition(NULL),
+		m_temp_data_file_raw_type(NULL),
 		m_temp_data_created_new_raw(false) {
 	}
 
@@ -210,8 +210,8 @@ public:
 	many pages to it at a time */
 	ulong	m_temp_data_auto_extend_increment;
 
-	/** Indicate if any of the data file is raw parition */
-	ulint*	m_temp_data_file_is_raw_partition;
+	/** Capture raw type for each file/partition. */
+	ulint*	m_temp_data_file_raw_type;
 
 	/** If the following is true we do not allow inserts etc. This protects
 	the user from forgetting the 'newraw' keyword to my.cnf */

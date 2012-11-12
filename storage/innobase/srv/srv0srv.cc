@@ -2855,7 +2855,7 @@ srv_temp_tablespace_t::init_params(
 	m_last_temp_data_file_size_max = 0;
 	m_temp_data_file_names = NULL;
 	m_temp_data_file_sizes = NULL;
-	m_temp_data_file_is_raw_partition = NULL;
+	m_temp_data_file_raw_type = NULL;
 
 	input_str = str;
 
@@ -2939,8 +2939,8 @@ srv_temp_tablespace_t::init_params(
 		malloc(i *
 		       sizeof *srv_temp_tablespace.m_temp_data_file_sizes));
 
-	m_temp_data_file_is_raw_partition = static_cast<ulint*>(
-		malloc(i * sizeof *m_temp_data_file_is_raw_partition));
+	m_temp_data_file_raw_type= static_cast<ulint*>(
+		malloc(i * sizeof *m_temp_data_file_raw_type));
 
 	srv_temp_tablespace.m_n_temp_data_files = i;
 
@@ -2997,22 +2997,21 @@ srv_temp_tablespace_t::init_params(
 			}
 		}
 
-		(m_temp_data_file_is_raw_partition)[i] = 0;
+		(m_temp_data_file_raw_type)[i] = 0;
 
 		if (strlen(str) >= 6
 		    && *str == 'n'
 		    && *(str + 1) == 'e'
 		    && *(str + 2) == 'w') {
 			str += 3;
-			(m_temp_data_file_is_raw_partition)[i] = SRV_NEW_RAW;
+			(m_temp_data_file_raw_type)[i] = SRV_NEW_RAW;
 		}
 
 		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
 			str += 3;
 
-			if ((m_temp_data_file_is_raw_partition)[i] == 0) {
-				(m_temp_data_file_is_raw_partition)[i] =
-					SRV_OLD_RAW;
+			if ((m_temp_data_file_raw_type)[i] == 0) {
+				(m_temp_data_file_raw_type)[i] = SRV_OLD_RAW;
 			}
 		}
 
@@ -3037,7 +3036,7 @@ srv_temp_tablespace_t::init_params(
 
 	/* Disable raw device for temp-tablespace */
 	for (ulint k = 0; k < m_n_temp_data_files; k++) {
-		if ((m_temp_data_file_is_raw_partition)[k] != SRV_NOT_RAW) {
+		if ((m_temp_data_file_raw_type)[k] != SRV_NOT_RAW) {
 			return(false);
 		}
 	}
