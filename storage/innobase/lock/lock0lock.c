@@ -3261,6 +3261,80 @@ lock_rec_restore_from_page_infimum(
 
 /*=========== DEADLOCK CHECKING ======================================*/
 
+/*********************************************************************//**
+rewind(3) the file used for storing the latest detected deadlock and
+print a heading message to stderr if printing of all deadlocks to stderr
+is enabled. */
+UNIV_INLINE
+void
+lock_deadlock_start_print()
+/*=======================*/
+{
+	rewind(lock_latest_err_file);
+	ut_print_timestamp(lock_latest_err_file);
+
+	if (srv_print_all_deadlocks) {
+		fprintf(stderr, "InnoDB: transactions deadlock detected, "
+			"dumping detailed information.\n");
+		ut_print_timestamp(stderr);
+	}
+}
+
+/*********************************************************************//**
+Print a message to the deadlock file and possibly to stderr. */
+UNIV_INLINE
+void
+lock_deadlock_fputs(
+/*================*/
+	const char*	msg)	/*!< in: message to print */
+{
+	fputs(msg, lock_latest_err_file);
+
+	if (srv_print_all_deadlocks) {
+		fputs(msg, stderr);
+	}
+}
+
+/*********************************************************************//**
+Print transaction data to the deadlock file and possibly to stderr. */
+UNIV_INLINE
+void
+lock_deadlock_trx_print(
+/*====================*/
+	trx_t*	trx,		/*!< in: transaction */
+	ulint	max_query_len)	/*!< in: max query length to print, or 0 to
+				use the default max length */
+{
+	trx_print(lock_latest_err_file, trx, max_query_len);
+
+	if (srv_print_all_deadlocks) {
+		trx_print(stderr, trx, max_query_len);
+	}
+}
+
+/*********************************************************************//**
+Print lock data to the deadlock file and possibly to stderr. */
+UNIV_INLINE
+void
+lock_deadlock_lock_print(
+/*=====================*/
+	const lock_t*	lock)	/*!< in: record or table type lock */
+{
+	if (lock_get_type_low(lock) == LOCK_REC) {
+		lock_rec_print(lock_latest_err_file, lock);
+
+		if (srv_print_all_deadlocks) {
+			lock_rec_print(stderr, lock);
+		}
+	} else {
+		lock_table_print(lock_latest_err_file, lock);
+
+		if (srv_print_all_deadlocks) {
+			lock_table_print(stderr, lock);
+		}
+	}
+}
+
 /********************************************************************//**
 Checks if a lock request results in a deadlock.
 @return TRUE if a deadlock was detected and we chose trx as a victim;
@@ -3304,30 +3378,25 @@ retry:
 		/* If the lock search exceeds the max step
 		or the max depth, the current trx will be
 		the victim. Print its information. */
-		rewind(lock_latest_err_file);
-		ut_print_timestamp(lock_latest_err_file);
+		lock_deadlock_start_print();
 
-		fputs("TOO DEEP OR LONG SEARCH IN THE LOCK TABLE"
-		      " WAITS-FOR GRAPH, WE WILL ROLL BACK"
-		      " FOLLOWING TRANSACTION \n",
-		      lock_latest_err_file);
+		lock_deadlock_fputs(
+			"TOO DEEP OR LONG SEARCH IN THE LOCK TABLE"
+			" WAITS-FOR GRAPH, WE WILL ROLL BACK"
+			" FOLLOWING TRANSACTION \n\n"
+			"*** TRANSACTION:\n");
 
-		fputs("\n*** TRANSACTION:\n", lock_latest_err_file);
-		      trx_print(lock_latest_err_file, trx, 3000);
+		lock_deadlock_trx_print(trx, 3000);
 
-		fputs("*** WAITING FOR THIS LOCK TO BE GRANTED:\n",
-		      lock_latest_err_file);
+		lock_deadlock_fputs(
+			"*** WAITING FOR THIS LOCK TO BE GRANTED:\n");
 
-		if (lock_get_type(lock) == LOCK_REC) {
-			lock_rec_print(lock_latest_err_file, lock);
-		} else {
-			lock_table_print(lock_latest_err_file, lock);
-		}
+		lock_deadlock_lock_print(lock);
+
 		break;
 
 	case LOCK_VICTIM_IS_START:
-		fputs("*** WE ROLL BACK TRANSACTION (2)\n",
-		      lock_latest_err_file);
+		lock_deadlock_fputs("*** WE ROLL BACK TRANSACTION (2)\n");
 		break;
 
 	default:
@@ -3442,45 +3511,33 @@ lock_deadlock_recursive(
 				point: a deadlock detected; or we have
 				searched the waits-for graph too long */
 
-				FILE*	ef = lock_latest_err_file;
+				lock_deadlock_start_print();
 
-				rewind(ef);
-				ut_print_timestamp(ef);
+				lock_deadlock_fputs("\n*** (1) TRANSACTION:\n");
 
-				fputs("\n*** (1) TRANSACTION:\n", ef);
+				lock_deadlock_trx_print(wait_lock->trx, 3000);
 
-				trx_print(ef, wait_lock->trx, 3000);
+				lock_deadlock_fputs(
+					"*** (1) WAITING FOR THIS LOCK"
+					" TO BE GRANTED:\n");
 
-				fputs("*** (1) WAITING FOR THIS LOCK"
-				      " TO BE GRANTED:\n", ef);
+				lock_deadlock_lock_print(wait_lock);
 
-				if (lock_get_type_low(wait_lock) == LOCK_REC) {
-					lock_rec_print(ef, wait_lock);
-				} else {
-					lock_table_print(ef, wait_lock);
-				}
+				lock_deadlock_fputs("*** (2) TRANSACTION:\n");
 
-				fputs("*** (2) TRANSACTION:\n", ef);
+				lock_deadlock_trx_print(lock->trx, 3000);
 
-				trx_print(ef, lock->trx, 3000);
+				lock_deadlock_fputs(
+					"*** (2) HOLDS THE LOCK(S):\n");
 
-				fputs("*** (2) HOLDS THE LOCK(S):\n", ef);
+				lock_deadlock_lock_print(lock);
 
-				if (lock_get_type_low(lock) == LOCK_REC) {
-					lock_rec_print(ef, lock);
-				} else {
-					lock_table_print(ef, lock);
-				}
+				lock_deadlock_fputs(
+					"*** (2) WAITING FOR THIS LOCK"
+					" TO BE GRANTED:\n");
 
-				fputs("*** (2) WAITING FOR THIS LOCK"
-				      " TO BE GRANTED:\n", ef);
+				lock_deadlock_lock_print(start->wait_lock);
 
-				if (lock_get_type_low(start->wait_lock)
-				    == LOCK_REC) {
-					lock_rec_print(ef, start->wait_lock);
-				} else {
-					lock_table_print(ef, start->wait_lock);
-				}
 #ifdef UNIV_DEBUG
 				if (lock_print_waits) {
 					fputs("Deadlock detected\n",
@@ -3503,8 +3560,8 @@ lock_deadlock_recursive(
 				as a victim to try to avoid deadlocking our
 				recursion starting point transaction */
 
-				fputs("*** WE ROLL BACK TRANSACTION (1)\n",
-				      ef);
+				lock_deadlock_fputs(
+					"*** WE ROLL BACK TRANSACTION (1)\n");
 
 				wait_lock->trx->was_chosen_as_deadlock_victim
 					= TRUE;
