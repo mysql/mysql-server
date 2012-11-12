@@ -440,228 +440,6 @@ srv_parse_data_file_paths_and_sizes(
 	return(TRUE);
 }
 
-#if 0
-/*********************************************************************//**
-Reads the temp data files and their sizes from a character string
-given in the .cnf file.
-@return	TRUE if ok, FALSE on parse error */
-UNIV_INTERN
-bool
-srv_parse_temp_data_file_paths_and_sizes(
-/*=====================================*/
-	char*	str)	/*!< in/out: the data file path string */
-{
-	char*	input_str;
-	char*	path;
-	ulint	size;
-	ulint	i	= 0;
-
-	srv_temp_tablespace.m_auto_extend_last_temp_data_file = false;
-	srv_temp_tablespace.m_last_temp_data_file_size_max = 0;
-	srv_temp_tablespace.m_temp_data_file_names = NULL;
-	srv_temp_tablespace.m_temp_data_file_sizes = NULL;
-	srv_temp_tablespace.m_temp_data_file_is_raw_partition = NULL;
-
-	input_str = str;
-
-	/* First calculate the number of data files and check syntax:
-	path:size[M | G];path:size[M | G]... . Note that a Windows path may
-	contain a drive name and a ':'. */
-
-	while (*str != '\0') {
-		path = str;
-
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'
-			       || *(str + 1) == ':'))) {
-			str++;
-		}
-
-		if (*str == '\0') {
-			return(false);
-		}
-
-		str++;
-
-		str = srv_parse_megabytes(str, &size);
-
-		if (0 == strncmp(str, ":autoextend",
-				 (sizeof ":autoextend") - 1)) {
-
-			str += (sizeof ":autoextend") - 1;
-
-			if (0 == strncmp(str, ":max:",
-					 (sizeof ":max:") - 1)) {
-
-				str += (sizeof ":max:") - 1;
-
-				str = srv_parse_megabytes(str, &size);
-			}
-
-			if (*str != '\0') {
-
-				return(false);
-			}
-		}
-
-		if (strlen(str) >= 6
-		    && *str == 'n'
-		    && *(str + 1) == 'e'
-		    && *(str + 2) == 'w') {
-			str += 3;
-		}
-
-		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
-			str += 3;
-		}
-
-		if (size == 0) {
-			return(false);
-		}
-
-		i++;
-
-		if (*str == ';') {
-			str++;
-		} else if (*str != '\0') {
-
-			return(false);
-		}
-	}
-
-	if (i == 0) {
-		/* If innodb_temp_data_file_path was defined it must contain
-		at least one data file definition */
-
-		return(false);
-	}
-
-	srv_temp_tablespace.m_temp_data_file_names = static_cast<char**>(
-		malloc(i *
-		       sizeof *srv_temp_tablespace.m_temp_data_file_names));
-
-	srv_temp_tablespace.m_temp_data_file_sizes = static_cast<ulint*>(
-		malloc(i *
-		       sizeof *srv_temp_tablespace.m_temp_data_file_sizes));
-
-	ulint** raw_status =
-		&(srv_temp_tablespace.m_temp_data_file_is_raw_partition);
-	*raw_status = static_cast<ulint*>(malloc(i * sizeof *raw_status));
-
-	srv_temp_tablespace.m_n_temp_data_files = i;
-
-	/* Then store the actual values to our arrays */
-
-	str = input_str;
-	i = 0;
-
-	ulint* last_file_max =
-		&(srv_temp_tablespace.m_last_temp_data_file_size_max);
-	bool* auto_extend =
-		&(srv_temp_tablespace.m_auto_extend_last_temp_data_file);
-
-	while (*str != '\0') {
-		path = str;
-
-		/* Note that we must step over the ':' in a Windows path;
-		a Windows path normally looks like C:\ibdata\ibdata1:1G, but
-		a Windows raw partition may have a specification like
-		\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw */
-
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'
-			       || *(str + 1) == ':'))) {
-			str++;
-		}
-
-		if (*str == ':') {
-			/* Make path a null-terminated string */
-			*str = '\0';
-			str++;
-		}
-
-		str = srv_parse_megabytes(str, &size);
-
-		srv_temp_tablespace.m_temp_data_file_names[i] = path;
-		srv_temp_tablespace.m_temp_data_file_sizes[i] = size;
-
-		if (0 == strncmp(str, ":autoextend",
-				 (sizeof ":autoextend") - 1)) {
-
-			*auto_extend = true;
-
-			str += (sizeof ":autoextend") - 1;
-
-			if (0 == strncmp(str, ":max:",
-					 (sizeof ":max:") - 1)) {
-
-				str += (sizeof ":max:") - 1;
-
-				str = srv_parse_megabytes(
-					str, last_file_max);
-			}
-
-			if (*str != '\0') {
-
-				return(false);
-			}
-		}
-
-		(*raw_status)[i] = 0;
-
-		if (strlen(str) >= 6
-		    && *str == 'n'
-		    && *(str + 1) == 'e'
-		    && *(str + 2) == 'w') {
-			str += 3;
-			(*raw_status)[i] = SRV_NEW_RAW;
-		}
-
-		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
-			str += 3;
-
-			if ((*raw_status)[i] == 0) {
-				(*raw_status)[i] = SRV_OLD_RAW;
-			}
-		}
-
-		i++;
-
-		if (*str == ';') {
-			str++;
-		}
-	}
-
-	/* Ensure temp-data-files are not same as data-files */
-	for (ulint k1 = 0; k1 < srv_temp_tablespace.m_n_temp_data_files;
-	     k1++) {
-		char* temp_data_fname =
-			srv_temp_tablespace.m_temp_data_file_names[k1];
-
-		for (ulint k2 = 0; k2 < srv_n_data_files; k2++) {
-
-			char* data_fname = srv_data_file_names[k2];
-
-			if(innobase_strcasecmp(
-				temp_data_fname, data_fname) == 0) {
-					return(false);
-			}
-		}
-	}
-
-	/* Disable raw device for temp-tablespace */
-	for (ulint k = 0; k < srv_temp_tablespace.m_n_temp_data_files; k++) {
-		if (*raw_status[k] != SRV_NOT_RAW) {
-			return(false);
-		}
-	}
-
-	return(true);
-}
-#endif
-
 /*********************************************************************//**
 Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
 and srv_parse_log_group_home_dirs(). */
@@ -694,9 +472,9 @@ srv_free_paths_and_sizes(void)
 		srv_temp_tablespace.m_temp_data_file_sizes = NULL;
 	}
 
-	if (srv_temp_tablespace.m_temp_data_file_is_raw_partition) {
-		free(srv_temp_tablespace.m_temp_data_file_is_raw_partition);
-		srv_temp_tablespace.m_temp_data_file_is_raw_partition = NULL;
+	if (srv_temp_tablespace.m_temp_data_file_raw_type) {
+		free(srv_temp_tablespace.m_temp_data_file_raw_type);
+		srv_temp_tablespace.m_temp_data_file_raw_type = NULL;
 	}
 }
 
@@ -1343,6 +1121,10 @@ open_or_create_temp_data_files()
 	ulint		flags;
 	ulint		size_of_temp_tablespace = 0;
 
+	if (srv_read_only_mode) {
+		return(DB_SUCCESS);
+	}
+
 	if (srv_temp_tablespace.m_n_temp_data_files >= 1000) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1381,11 +1163,8 @@ open_or_create_temp_data_files()
 		on restart */
 		os_file_delete_if_exists(name);
 
-		ulint current_partition_raw_status =
-		srv_temp_tablespace.m_temp_data_file_is_raw_partition[i];
-
 		/* First we try to create the file: if it already
-		exists, ret will get value FALSE */
+		exists, ret will get value FALSE. */
 		files[i] = os_file_create(
 			innodb_file_data_key, name, OS_FILE_CREATE,
 			OS_FILE_NORMAL, OS_DATA_TEMP_FILE, &ret);
@@ -1448,10 +1227,8 @@ open_or_create_temp_data_files()
 		ut_a(fil_validate());
 
 		if (!fil_node_create(
-			name,
-			srv_temp_tablespace.m_temp_data_file_sizes[i],
-			srv_temp_tablespace.m_temp_tablespace_id,
-			current_partition_raw_status != 0)) {
+			name, srv_temp_tablespace.m_temp_data_file_sizes[i],
+			srv_temp_tablespace.m_temp_tablespace_id, FALSE)) {
 			return(DB_ERROR);
 		}
 	}
