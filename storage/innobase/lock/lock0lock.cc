@@ -37,6 +37,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "trx0purge.h"
 #include "dict0mem.h"
+#include "dict0boot.h"
 #include "trx0sys.h"
 #include "pars0pars.h" /* pars_complete_graph_for_exec() */
 #include "que0que.h" /* que_node_get_parent() */
@@ -46,6 +47,7 @@ Created 5/7/1996 Heikki Tuuri
 #include "srv0mon.h"
 #include "ut0vec.h"
 #include "btr0btr.h"
+#include "dict0boot.h"
 
 /* Restricts the length of search we will do in the waits-for
 graph of transactions */
@@ -410,9 +412,10 @@ lock_rec_validate_page(
 /* The lock system */
 UNIV_INTERN lock_sys_t*	lock_sys	= NULL;
 
-/* We store info on the latest deadlock error to this buffer. InnoDB
+/** We store info on the latest deadlock error to this buffer. InnoDB
 Monitor will then fetch it and print */
 UNIV_INTERN ibool	lock_deadlock_found = FALSE;
+/** Only created if !srv_read_only_mode */
 static FILE*		lock_latest_err_file;
 
 /********************************************************************//**
@@ -483,9 +486,13 @@ lock_report_trx_id_insanity(
 
 /*********************************************************************//**
 Checks that a transaction id is sensible, i.e., not in the future.
-@return	TRUE if ok */
-static
-ibool
+@return	true if ok */
+#ifdef UNIV_DEBUG
+UNIV_INTERN
+#else
+static __attribute__((nonnull, warn_unused_result))
+#endif
+bool
 lock_check_trx_id_sanity(
 /*=====================*/
 	trx_id_t	trx_id,		/*!< in: trx id */
@@ -493,7 +500,7 @@ lock_check_trx_id_sanity(
 	dict_index_t*	index,		/*!< in: index */
 	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
 {
-	ibool		is_ok;
+	bool		is_ok;
 	trx_id_t	max_trx_id;
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
@@ -607,8 +614,10 @@ lock_sys_create(
 
 	lock_sys->rec_hash = hash_create(n_cells);
 
-	lock_latest_err_file = os_file_create_tmpfile();
-	ut_a(lock_latest_err_file);
+	if (!srv_read_only_mode) {
+		lock_latest_err_file = os_file_create_tmpfile();
+		ut_a(lock_latest_err_file);
+	}
 }
 
 /*********************************************************************//**
@@ -3430,11 +3439,13 @@ lock_deadlock_start_print()
 /*=======================*/
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
 	rewind(lock_latest_err_file);
 	ut_print_timestamp(lock_latest_err_file);
 
 	if (srv_print_all_deadlocks) {
+		ut_print_timestamp(stderr);
 		fprintf(stderr, "InnoDB: transactions deadlock detected, "
 			"dumping detailed information.\n");
 		ut_print_timestamp(stderr);
@@ -3449,10 +3460,12 @@ lock_deadlock_fputs(
 /*================*/
 	const char*	msg)	/*!< in: message to print */
 {
-	fputs(msg, lock_latest_err_file);
+	if (!srv_read_only_mode) {
+		fputs(msg, lock_latest_err_file);
 
-	if (srv_print_all_deadlocks) {
-		fputs(msg, stderr);
+		if (srv_print_all_deadlocks) {
+			fputs(msg, stderr);
+		}
 	}
 }
 
@@ -3466,15 +3479,12 @@ lock_deadlock_trx_print(
 	ulint		max_query_len)	/*!< in: max query length to print,
 					or 0 to use the default max length */
 {
-	ulint	n_rec_locks;
-	ulint	n_trx_locks;
-	ulint	heap_size;
-
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
-	n_rec_locks = lock_number_of_rows_locked(&trx->lock);
-	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
-	heap_size = mem_heap_get_size(trx->lock.lock_heap);
+	ulint	n_rec_locks = lock_number_of_rows_locked(&trx->lock);
+	ulint	n_trx_locks = UT_LIST_GET_LEN(trx->lock.trx_locks);
+	ulint	heap_size = mem_heap_get_size(trx->lock.lock_heap);
 
 	mutex_enter(&trx_sys->mutex);
 
@@ -3498,6 +3508,7 @@ lock_deadlock_lock_print(
 	const lock_t*	lock)	/*!< in: record or table type lock */
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
 	if (lock_get_type_low(lock) == LOCK_REC) {
 		lock_rec_print(lock_latest_err_file, lock);
@@ -3620,6 +3631,7 @@ lock_deadlock_notify(
 						deadlock */
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
 	lock_deadlock_start_print();
 
@@ -3802,7 +3814,9 @@ lock_deadlock_search(
 
 			/* Found a cycle. */
 
-			lock_deadlock_notify(ctx, lock);
+			if (!srv_read_only_mode) {
+				lock_deadlock_notify(ctx, lock);
+			}
 
 			return(lock_deadlock_select_victim(ctx)->id);
 
@@ -3873,6 +3887,7 @@ lock_deadlock_joining_trx_print(
 	const lock_t*	lock)		/*!< in: lock trx wants */
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(!srv_read_only_mode);
 
 	/* If the lock search exceeds the max step
 	or the max depth, the current trx will be
@@ -3959,7 +3974,9 @@ lock_deadlock_check_and_resolve(
 			ut_a(trx == ctx.start);
 			ut_a(victim_trx_id == trx->id);
 
-			lock_deadlock_joining_trx_print(trx, lock);
+			if (!srv_read_only_mode) {
+				lock_deadlock_joining_trx_print(trx, lock);
+			}
 
 			MONITOR_INC(MONITOR_DEADLOCK);
 
@@ -4561,10 +4578,37 @@ lock_release(
 	     lock = UT_LIST_GET_LAST(trx->lock.trx_locks)) {
 
 		if (lock_get_type_low(lock) == LOCK_REC) {
-			lock_rec_dequeue_from_page(lock);
 
+#ifdef UNIV_DEBUG
+			/* Check if the transcation locked a record
+			in a system table in X mode. It should have set
+			the dict_op code correctly if it did. */
+			if (lock->index->table->id < DICT_HDR_FIRST_ID
+			    && lock_get_mode(lock) == LOCK_X) {
+
+				ut_ad(lock_get_mode(lock) != LOCK_IX);
+				ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
+			}
+#endif /* UNIV_DEBUG */
+
+			lock_rec_dequeue_from_page(lock);
 		} else {
+			dict_table_t*	table;
+
+			table = lock->un_member.tab_lock.table;
+#ifdef UNIV_DEBUG
 			ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+
+			/* Check if the transcation locked a system table
+			in IX mode. It should have set the dict_op code
+			correctly if it did. */
+			if (table->id < DICT_HDR_FIRST_ID
+			    && (lock_get_mode(lock) == LOCK_X
+				|| lock_get_mode(lock) == LOCK_IX)) {
+
+				ut_ad(trx->dict_operation != TRX_DICT_OP_NONE);
+			}
+#endif /* UNIV_DEBUG */
 
 			if (lock_get_mode(lock) != LOCK_IS
 			    && trx->undo_no != 0) {
@@ -4573,8 +4617,7 @@ lock_release(
 				block the use of the MySQL query cache for
 				all currently active transactions. */
 
-				lock->un_member.tab_lock.table
-					->query_cache_inv_trx_id = max_trx_id;
+				table->query_cache_inv_trx_id = max_trx_id;
 			}
 
 			lock_table_dequeue(lock);
@@ -5050,7 +5093,9 @@ lock_print_info_summary(
 		      "LATEST DETECTED DEADLOCK\n"
 		      "------------------------\n", file);
 
-		ut_copy_file(file, lock_latest_err_file);
+		if (!srv_read_only_mode) {
+			ut_copy_file(file, lock_latest_err_file);
+		}
 	}
 
 	fputs("------------\n"
@@ -6674,10 +6719,14 @@ lock_trx_release_locks(
 {
 	assert_trx_in_list(trx);
 
-	if (UNIV_UNLIKELY(trx_state_eq(trx, TRX_STATE_PREPARED))) {
+	if (trx_state_eq(trx, TRX_STATE_PREPARED)) {
 		mutex_enter(&trx_sys->mutex);
 		ut_a(trx_sys->n_prepared_trx > 0);
 		trx_sys->n_prepared_trx--;
+		if (trx->is_recovered) {
+			ut_a(trx_sys->n_prepared_recovered_trx > 0);
+			trx_sys->n_prepared_recovered_trx--;
+		}
 		mutex_exit(&trx_sys->mutex);
 	} else {
 		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
@@ -6865,3 +6914,50 @@ lock_table_has_locks(
 
 	return(has_locks);
 }
+
+#ifdef UNIV_DEBUG
+/*******************************************************************//**
+Check if the transaction holds any locks on the sys tables
+or its records.
+@return	the strongest lock found on any sys table or 0 for none */
+UNIV_INTERN
+const lock_t*
+lock_trx_has_sys_table_locks(
+/*=========================*/
+	const trx_t*	trx)	/*!< in: transaction to check */
+{
+	const lock_t*	strongest_lock = 0;
+	lock_mode	strongest = LOCK_NONE;
+
+	lock_mutex_enter();
+
+	/* Note: ib_vector_size() can be 0. */
+	for (lint i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
+		const lock_t*	lock;
+
+		lock = *static_cast<const lock_t**>(
+			ib_vector_get(trx->lock.table_locks, i));
+
+		if (lock == NULL) {
+			continue;
+		}
+
+		ut_ad(trx == lock->trx);
+		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
+		ut_ad(lock->un_member.tab_lock.table != NULL);
+
+		lock_mode	mode = lock_get_mode(lock);
+
+		if (dict_is_sys_table(lock->un_member.tab_lock.table->id)
+		    && lock_mode_stronger_or_eq(mode, strongest)) {
+
+			strongest = mode;
+			strongest_lock = lock;
+		}
+	}
+
+	lock_mutex_exit();
+
+	return(strongest_lock);
+}
+#endif /* UNIV_DEBUG */

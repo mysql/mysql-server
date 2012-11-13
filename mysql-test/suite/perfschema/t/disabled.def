@@ -9,6 +9,9 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
+hostcache_ipv4_max_con : BUG#14627287 27th Sept, 2012 Mayank
+hostcache_ipv6_max_con : BUG#14627287 27th Sept, 2012 Mayank
+
 event_aggregate_no_a_no_h : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
 event_aggregate_no_a_no_u_no_h : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
 event_aggregate_no_a_no_u : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
@@ -20,6 +23,7 @@ event_aggregate : BUG#13742882 PERFSCHEMA.EVENT_AGGREGATE .. FAIL SPORADICALLY
 statement_digest_consumers : BUG#14700280 PERFSCHEMA DIGEST RESULT VARIES
 statement_digest_long_query : BUG#14700280 PERFSCHEMA DIGEST RESULT VARIES
 statement_digest : BUG#14700280 PERFSCHEMA DIGEST RESULT VARIES
+digest_table_full : BUG#14700280 PERFSCHEMA DIGEST RESULT VARIES
 pfs_upgrade_view : Bug#14700294 PFS_UPGRADE_* - RESULT LINE NUMBER DIFF WHEN MYSQL_SYSTEM_TABLES.SQL MODIFIED
 pfs_upgrade_proc : Bug#14700294 PFS_UPGRADE_* - RESULT LINE NUMBER DIFF WHEN MYSQL_SYSTEM_TABLES.SQL MODIFIED
 pfs_upgrade_func : Bug#14700294 PFS_UPGRADE_* - RESULT LINE NUMBER DIFF WHEN MYSQL_SYSTEM_TABLES.SQL MODIFIED

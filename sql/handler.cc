@@ -2893,10 +2893,9 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   {
     if (!(error= ha_rnd_init(1)))
     {
-      int end_error;
-      while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED)
+      while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED)
         /* skip deleted row */;
-      end_error= ha_rnd_end();
+      const int end_error= ha_rnd_end();
       if (!error)
         error= end_error;
     }
@@ -2906,9 +2905,8 @@ int handler::read_first_row(uchar * buf, uint primary_key)
     /* Find the first row through the primary key */
     if (!(error= ha_index_init(primary_key, 0)))
     {
-      int end_error;
       error= ha_index_first(buf);
-      end_error= ha_index_end();
+      const int end_error= ha_index_end();
       if (!error)
         error= end_error;
     }
@@ -3308,14 +3306,15 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
                                         table->read_set);
   column_bitmaps_signal();
+
   if (ha_index_init(table->s->next_number_index, 1))
   {
     /* This should never happen, assert in debug, and fail in release build */
     DBUG_ASSERT(0);
     *first_value= ULONGLONG_MAX;
-    *nb_reserved_values= 0;
     DBUG_VOID_RETURN;
   }
+
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
     error= ha_index_last(table->record[1]);

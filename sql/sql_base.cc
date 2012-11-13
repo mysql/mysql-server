@@ -3808,24 +3808,19 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
     entry->file->implicit_emptied= 0;
     if (mysql_bin_log.is_open())
     {
-      char *query, *end;
-      uint query_buf_size= 20 + share->db.length + share->table_name.length +1;
-      if ((query= (char*) my_malloc(query_buf_size,MYF(MY_WME))))
-      {
-        /* this DELETE FROM is needed even with row-based binlogging */
-        end = strxmov(strmov(query, "DELETE FROM `"),
-                      share->db.str,"`.`",share->table_name.str,"`", NullS);
-        int errcode= query_error_code(thd, TRUE);
-        if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                              query, (ulong)(end-query),
-                              FALSE, FALSE, FALSE, errcode))
-        {
-          my_free(query);
-          return TRUE;
-        }
-        my_free(query);
-      }
-      else
+      bool error= false;
+      String temp_buf;
+      error= temp_buf.append("DELETE FROM ");
+      append_identifier(thd, &temp_buf, share->db.str, strlen(share->db.str));
+      error= temp_buf.append(".");
+      append_identifier(thd, &temp_buf, share->table_name.str,
+                        strlen(share->table_name.str));
+      int errcode= query_error_code(thd, TRUE);
+      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                            temp_buf.c_ptr_safe(), temp_buf.length(),
+                            FALSE, FALSE, FALSE, errcode))
+        return TRUE;
+      if (error)
       {
         /*
           As replication is maybe going to be corrupted, we need to warn the

@@ -1016,8 +1016,9 @@ fulltext key (`a`), fulltext key (`a`)
 ) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
 Warnings:
 Note	1831	Duplicate index 'a_2' defined on the table 'test.t21'. This is deprecated and will be disallowed in a future release.
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE;
+ERROR 42000: This version of MySQL doesn't yet support 'ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE'
 ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
-ERROR HY000: InnoDB presently supports one FULLTEXT index creation at a time
 DROP TABLE t21;
 CREATE TABLE `t21` (`a` text, `b` int not null,
 fulltext key (`a`)) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
@@ -1190,3 +1191,32 @@ id
 4
 5
 DROP TABLE t1;
+CREATE TABLE `t` (`a` char(20) character set utf8 default null,
+fulltext key (`a`)) ENGINE=INNODB;
+INSERT INTO `t` VALUES ('a');
+INSERT INTO `t` VALUES ('aaa');
+SELECT MATCH(`a`) AGAINST (0x22dd22) FROM `t`;
+MATCH(`a`) AGAINST (0x22dd22)
+0
+0
+SELECT MATCH(`a`) AGAINST (0x2222) FROM `t`;
+MATCH(`a`) AGAINST (0x2222)
+0
+0
+SELECT MATCH(`a`) AGAINST (0x22) FROM `t`;
+MATCH(`a`) AGAINST (0x22)
+0
+0
+SELECT MATCH(`a`) AGAINST (0x2261616122) FROM `t`;
+MATCH(`a`) AGAINST (0x2261616122)
+0
+0.0906190574169159
+SELECT MATCH(`a`) AGAINST (0x2261dd6122) FROM `t`;
+MATCH(`a`) AGAINST (0x2261dd6122)
+0
+0
+SELECT MATCH(`a`) AGAINST (0x2261dd612222226122) FROM `t`;
+MATCH(`a`) AGAINST (0x2261dd612222226122)
+0
+0
+DROP TABLE t;

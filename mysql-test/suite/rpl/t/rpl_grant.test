@@ -66,12 +66,16 @@ CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
 --eval GRANT ALL ON $dbname.* TO '$dbuser'@'localhost'
 --error ER_NONEXISTING_GRANT
 --eval REVOKE ALL ON $dbname.* FROM '$dbuser'@'localhost', 'b54866_fake_user'
---sync_slave_with_master
 
-## assert that the slave did not fail: revoke grant event was logged
-## with the correct error # and when slave replays it, it runs into
-## the same error (so it is expected)
--- source include/check_slave_no_error.inc
+--connection slave
+call mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the master.*");
+--let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+--source include/wait_for_slave_sql_error.inc
+# Skip incident event caused by failed REVOKE
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+--source include/start_slave_sql.inc
+--connection master
+--sync_slave_with_master
 
 ## assert that grants are the same on master and on slave for $dbuser
 --connection master
@@ -83,20 +87,6 @@ CREATE TABLE t1 ( c1 INT, c2 INT, c3 INT );
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
-
-## assert that query that fails on master because of revoked grant
-## will also fail on the slave (otherwise the slave would report
-## that the master logged the event with a failure #, but the it did
-## not run into the expected issue).
-##
-## This checks that partially revoked grants - due to master error - 
-## are revoked on the slave as well.
---connect(con1,localhost,$dbuser,,)
-CREATE TABLE test.t2 ( i INT );
---eval CREATE TRIGGER test.tr AFTER INSERT ON test.t2 FOR EACH ROW INSERT INTO $dbname.t1 VALUES (new.i)
---error ER_TABLEACCESS_DENIED_ERROR
-INSERT INTO test.t2 VALUES (1);
---disconnect con1
 
 --echo ##########
 --echo ########## TABLE GRANTS
@@ -113,10 +103,9 @@ INSERT INTO test.t2 VALUES (1);
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
 
-## revoke should now fail and partially succeed
+## revoke should now fail and log a incident event
 --connection master
 --error ER_NONEXISTING_GRANT
-## event must be logged with the error ER_NONEXISTING_GRANT
 --eval REVOKE ALTER ON TABLE $dbname.t1 FROM '$dbuser'@'localhost', 'b54866_fake_user'
 
 ## assert that ALTER grant is revoked on slave and slave does not stop
@@ -125,15 +114,18 @@ INSERT INTO test.t2 VALUES (1);
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
 
+--connection slave
+--let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+--source include/wait_for_slave_sql_error.inc
+# Skip incident event caused by failed REVOKE
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+--source include/start_slave_sql.inc
+--connection master
 --sync_slave_with_master
+
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
-
-## assert that the slave did not fail: revoke grant event was logged
-## with the correct error # and when slave replays it, it runs into
-## the same error (so it is expected)
--- source include/check_slave_no_error.inc
 
 --echo ##########
 --echo ########## setup (PART II)
@@ -167,16 +159,22 @@ DELIMITER ;|
 --error ER_NONEXISTING_GRANT
 --eval REVOKE EXECUTE ON PROCEDURE $dbname.b54866_p FROM '$dbuser'@'localhost', 'b54866_fake_user'
 
-## assert that ALTER grant is revoked on slave and slave does not stop
 --echo ****** Checking grants on the master for user: $dbuser ******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
 
+--connection slave
+--let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+--source include/wait_for_slave_sql_error.inc
+# Skip incident event caused by failed REVOKE
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+--source include/start_slave_sql.inc
+--connection master
 --sync_slave_with_master
+
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
--- source include/check_slave_no_error.inc
 
 --echo ##########
 --echo ########## FUNCTION
@@ -186,17 +184,23 @@ DELIMITER ;|
 --error ER_NONEXISTING_GRANT
 --eval REVOKE EXECUTE ON FUNCTION $dbname.b54866_f FROM '$dbuser'@'localhost', 'b54866_fake_user'
 
-## assert that ALTER grant is revoked on slave and slave does not stop
 --connection master
 --echo ****** Checking grants on the master for user: $dbuser ******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
 
+--connection slave
+--let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+--source include/wait_for_slave_sql_error.inc
+# Skip incident event caused by failed REVOKE
+SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+--source include/start_slave_sql.inc
+--connection master
 --sync_slave_with_master
+
 --echo ****** Checking grants on the slave for user: $dbuser *******
 --eval SHOW GRANTS FOR '$dbuser'@'localhost'
 --echo *************************************************************
--- source include/check_slave_no_error.inc
 
 --echo ##########
 --echo ########## empty revokes should not be binlogged
@@ -206,30 +210,24 @@ DELIMITER ;|
 
 ## assert that failing revoke on non existing user will not 
 ## be binlogged
--- let $current_log_pos_before= query_get_value(SHOW MASTER STATUS, Position, 1)
 -- error ER_NONEXISTING_GRANT
 REVOKE EXECUTE ON PROCEDURE b54866_p FROM 'fake_user'@'localhost';
 -- error ER_NONEXISTING_GRANT
 REVOKE EXECUTE ON FUNCTION b54866_f FROM 'fake_user'@'localhost';
 -- error ER_REVOKE_GRANTS
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'fake_user'@'localhost';
--- let $current_log_pos_after= query_get_value(SHOW MASTER STATUS, Position, 1)
 
-if (`SELECT $current_log_pos_after - $current_log_pos_before`)
+--connection slave
+--let $errors= 3
+while ($errors)
 {
-  -- source include/show_rpl_debug_info.inc
-  -- die 
+  --let $slave_sql_errno= convert_error(ER_SLAVE_INCIDENT)
+  --source include/wait_for_slave_sql_error.inc
+  # Skip incident event caused by failed REVOKE
+  SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
+  --source include/start_slave_sql.inc
+  --dec $errors
 }
-
-if (!`SELECT $current_log_pos_after - $current_log_pos_before`)
-{
-  --echo ### No binary log entries were detected for empty revoke operations
-}
-
-## there should be nothing to left to sync, but anyway
--- sync_slave_with_master
-## assert that the slave is not stopped
--- source include/check_slave_no_error.inc
 
 --echo ##########
 --echo ########## Cleanup
@@ -237,7 +235,6 @@ if (!`SELECT $current_log_pos_after - $current_log_pos_before`)
 --connection master
 DROP PROCEDURE b54866_p;
 DROP FUNCTION b54866_f;
-DROP TABLE test.t2;
 --eval DROP USER '$dbuser'@'localhost'
 --eval DROP DATABASE $dbname
 --sync_slave_with_master

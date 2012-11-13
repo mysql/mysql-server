@@ -53,6 +53,10 @@ Created 1/8/1996 Heikki Tuuri
 UNIV_INTERN mysql_pfs_key_t	autoinc_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+/** Prefix for tmp tables, adopted from sql/table.h */
+#define tmp_file_prefix		"#sql"
+#define tmp_file_prefix_length	4
+
 /**********************************************************************//**
 Creates a table memory object.
 @return	own: table object */
@@ -591,3 +595,27 @@ dict_mem_index_free(
 
 	mem_heap_free(index->heap);
 }
+
+/*******************************************************************//**
+Create a temporary tablename.
+@return temporary tablename suitable for InnoDB use */
+UNIV_INTERN
+char*
+dict_mem_create_temporary_tablename(
+/*================================*/
+	mem_heap_t*	heap,	/*!< in: memory heap */
+	const char*	dbtab,	/*!< in: database/table name */
+	table_id_t	id)	/*!< in: InnoDB table id */
+{
+	const char*	dbend   = strchr(dbtab, '/');
+	ut_ad(dbend);
+	size_t		dblen   = dbend - dbtab + 1;
+	size_t		size = tmp_file_prefix_length + 4 + 9 + 9 + dblen;
+
+	char*	name = static_cast<char*>(mem_heap_alloc(heap, size));
+	memcpy(name, dbtab, dblen);
+	ut_snprintf(name + dblen, size - dblen,
+		    tmp_file_prefix "-ib" UINT64PF, id);
+	return(name);
+}
+

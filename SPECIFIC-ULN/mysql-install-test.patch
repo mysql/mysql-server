@@ -1,0 +1,33 @@
+Improve the documentation that will be installed in the mysql-test RPM.
+
+
+diff -Naur mysql-5.1.43.orig/mysql-test/README mysql-5.1.43/mysql-test/README
+--- mysql-5.1.43.orig/mysql-test/README	2010-01-15 12:14:43.000000000 -0500
++++ mysql-5.1.43/mysql-test/README	2010-02-13 21:18:06.000000000 -0500
+@@ -6,6 +6,16 @@
+ actually have a co-existing MySQL installation. The tests will not
+ conflict with it.
+ 
++For use in Red Hat distributions, you should run the script as user mysql,
++so the best bet is something like
++	cd /usr/share/mysql-test
++	sudo -u mysql ./mysql-test-run
++This will use the installed mysql executables, but will run a private copy
++of the server process (using data files within /usr/share/mysql-test),
++so you need not start the mysqld service beforehand.
++To clean up afterwards, remove the created "var" subdirectory, eg
++	sudo -u mysql rm -rf /usr/share/mysql-test/var
++
+ All tests must pass. If one or more of them fail on your system, please
+ read the following manual section for instructions on how to report the
+ problem:
+@@ -25,7 +35,8 @@
+ 
+ With no test cases named on the command line, mysql-test-run falls back
+ to the normal "non-extern" behavior. The reason for this is that some
+-tests cannot run with an external server.
++tests cannot run with an external server (because they need to control the
++options with which the server is started).
+ 
+ 
+ You can create your own test cases. To create a test case, create a new

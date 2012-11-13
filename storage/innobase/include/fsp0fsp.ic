@@ -222,4 +222,93 @@ fsp_flags_set_page_size(
 	return(flags);
 }
 
+/********************************************************************//**
+Calculates the descriptor index within a descriptor page.
+@return	descriptor index */
+UNIV_INLINE
+ulint
+xdes_calc_descriptor_index(
+/*=======================*/
+	ulint	zip_size,	/*!< in: compressed page size in bytes;
+				0 for uncompressed pages */
+	ulint	offset)		/*!< in: page offset */
+{
+	ut_ad(ut_is_2pow(zip_size));
+
+	if (zip_size == 0) {
+		return(ut_2pow_remainder(offset, UNIV_PAGE_SIZE)
+		       / FSP_EXTENT_SIZE);
+	} else {
+		return(ut_2pow_remainder(offset, zip_size) / FSP_EXTENT_SIZE);
+	}
+}
+
+/**********************************************************************//**
+Gets a descriptor bit of a page.
+@return	TRUE if free */
+UNIV_INLINE
+ibool
+xdes_get_bit(
+/*=========*/
+	const xdes_t*	descr,	/*!< in: descriptor */
+	ulint		bit,	/*!< in: XDES_FREE_BIT or XDES_CLEAN_BIT */
+	ulint		offset)	/*!< in: page offset within extent:
+				0 ... FSP_EXTENT_SIZE - 1 */
+{
+	ut_ad(offset < FSP_EXTENT_SIZE);
+	ut_ad(bit == XDES_FREE_BIT || bit == XDES_CLEAN_BIT);
+
+	ulint	index = bit + XDES_BITS_PER_PAGE * offset;
+
+	ulint	bit_index = index % 8;
+	ulint	byte_index = index / 8;
+
+	return(ut_bit_get_nth(
+			mach_read_ulint(descr + XDES_BITMAP + byte_index,
+					MLOG_1BYTE),
+			bit_index));
+}
+
+/********************************************************************//**
+Calculates the page where the descriptor of a page resides.
+@return	descriptor page offset */
+UNIV_INLINE
+ulint
+xdes_calc_descriptor_page(
+/*======================*/
+	ulint	zip_size,	/*!< in: compressed page size in bytes;
+				0 for uncompressed pages */
+	ulint	offset)		/*!< in: page offset */
+{
+#ifndef DOXYGEN /* Doxygen gets confused by these */
+# if UNIV_PAGE_SIZE_MAX <= XDES_ARR_OFFSET				\
+			   + (UNIV_PAGE_SIZE_MAX / FSP_EXTENT_SIZE_MAX)	\
+			   * XDES_SIZE_MAX
+#  error
+# endif
+# if UNIV_ZIP_SIZE_MIN <= XDES_ARR_OFFSET				\
+			  + (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE_MIN)	\
+			  * XDES_SIZE_MIN
+#  error
+# endif
+#endif /* !DOXYGEN */
+
+	ut_ad(UNIV_PAGE_SIZE > XDES_ARR_OFFSET
+	      + (UNIV_PAGE_SIZE / FSP_EXTENT_SIZE)
+	      * XDES_SIZE);
+	ut_ad(UNIV_ZIP_SIZE_MIN > XDES_ARR_OFFSET
+	      + (UNIV_ZIP_SIZE_MIN / FSP_EXTENT_SIZE)
+	      * XDES_SIZE);
+
+	ut_ad(ut_is_2pow(zip_size));
+
+	if (zip_size == 0) {
+		return(ut_2pow_round(offset, UNIV_PAGE_SIZE));
+	} else {
+		ut_ad(zip_size > XDES_ARR_OFFSET
+		      + (zip_size / FSP_EXTENT_SIZE) * XDES_SIZE);
+		return(ut_2pow_round(offset, zip_size));
+	}
+}
+
 #endif /* !UNIV_INNOCHECKSUM */

@@ -1827,6 +1827,8 @@ DROP TABLE m1, t1;
 drop table if exists t_parent;
 --enable_warnings
 set @save_table_definition_cache=@@global.table_definition_cache;
+set @save_table_open_cache=@@global.table_open_cache;
+set @@global.table_open_cache=400;
 --echo #
 --echo # Set @@global.table_definition_cache to minimum
 --echo #
@@ -1876,6 +1878,7 @@ while ($1)
 --enable_query_log
 drop table t_parent;
 set @@global.table_definition_cache=@save_table_definition_cache;
+set @@global.table_open_cache=@save_table_open_cache;
 
 #
 # WL#4144 - Lock MERGE engine children

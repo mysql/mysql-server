@@ -1,0 +1,184 @@
+'#---------------------WL6372_VAR_8_01----------------------#'
+SELECT COUNT(@@GLOBAL.sort_buffer_size);
+COUNT(@@GLOBAL.sort_buffer_size)
+1
+1 Expected
+SELECT @@GLOBAL.sort_buffer_size;
+@@GLOBAL.sort_buffer_size
+262144
+262144 Expected
+'#---------------------WL6372_VAR_8_02----------------------#'
+SET @@local.sort_buffer_size=9999999;
+SET @@session.sort_buffer_size=9999999;
+SET @@GLOBAL.sort_buffer_size=9999999;
+SET @@local.sort_buffer_size=DEFAULT;
+SET @@session.sort_buffer_size=DEFAULT;
+SET @@GLOBAL.sort_buffer_size=DEFAULT;
+SELECT @@GLOBAL.sort_buffer_size;
+@@GLOBAL.sort_buffer_size
+262144
+262144 Expected
+SELECT @@SESSION.sort_buffer_size;
+@@SESSION.sort_buffer_size
+262144
+262144 Expected
+SELECT @@LOCAL.sort_buffer_size;
+@@LOCAL.sort_buffer_size
+262144
+262144 Expected
+'#---------------------WL6372_VAR_8_03----------------------#'
+SELECT @@GLOBAL.sort_buffer_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='sort_buffer_size';
+@@GLOBAL.sort_buffer_size = VARIABLE_VALUE
+1
+1 Expected
+SELECT @@session.sort_buffer_size = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='sort_buffer_size';
+@@session.sort_buffer_size = VARIABLE_VALUE
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.sort_buffer_size);
+COUNT(@@GLOBAL.sort_buffer_size)
+1
+1 Expected
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='sort_buffer_size';
+COUNT(VARIABLE_VALUE)
+1
+1 Expected
+'#---------------------WL6372_VAR_8_04----------------------#'
+SELECT @@sort_buffer_size = @@GLOBAL.sort_buffer_size;
+@@sort_buffer_size = @@GLOBAL.sort_buffer_size
+1
+1 Expected
+SELECT COUNT(@@sort_buffer_size);
+COUNT(@@sort_buffer_size)
+1
+1 Expected
+SELECT COUNT(@@local.sort_buffer_size);
+COUNT(@@local.sort_buffer_size)
+1
+1 Expected
+SELECT COUNT(@@SESSION.sort_buffer_size);
+COUNT(@@SESSION.sort_buffer_size)
+1
+1 Expected
+SELECT COUNT(@@GLOBAL.sort_buffer_size);
+COUNT(@@GLOBAL.sort_buffer_size)
+1
+1 Expected
+SELECT sort_buffer_size = @@SESSION.sort_buffer_size;
+ERROR 42S22: Unknown column 'sort_buffer_size' in 'field list'
+Expected error 'Unknown column sort_buffer_size in field list'
+'#---------------------WL6372_VAR_8_05----------------------#'
+Check the size of the vardir
+The output size is in unit blocks
+TRUE
+TRUE Expected
+'#---------------------WL6372_VAR_8_06----------------------#'
+# create a table
+===============
+create table & Index
+===============
+CREATE TABLE tab1 (col_1 text(10))
+ENGINE=INNODB ;
+#insert some 10 records 
+===============
+Load the data
+===============
+SET @col_1 = repeat('a', 10);
+INSERT INTO tab1
+VALUES (@col_1);
+INSERT INTO tab1
+VALUES (@col_1);
+INSERT INTO tab1
+VALUES (@col_1);
+INSERT INTO tab1
+VALUES (@col_1);
+INSERT INTO tab1
+VALUES (@col_1);
+INSERT INTO tab1
+VALUES (@col_1);
+INSERT INTO tab1
+VALUES (@col_1);
+INSERT INTO tab1
+VALUES (@col_1);
+INSERT INTO tab1
+VALUES (@col_1);
+INSERT INTO tab1
+VALUES (@col_1);
+commit;
+select variable_value from information_schema.global_status where variable_name ='Sort_merge_passes';
+variable_value
+0
+0 Expected
+select variable_value from information_schema.global_status where variable_name ='Sort_rows';
+variable_value
+732
+732 Expected
+select variable_value from information_schema.global_status where variable_name ='Sort_scan';
+variable_value
+7
+7 Expected
+select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
+count(1)
+100000
+100000 Expected
+select variable_value from information_schema.global_status where variable_name ='Sort_merge_passes';
+variable_value
+1
+1 Expected
+select variable_value from information_schema.global_status where variable_name ='Sort_rows';
+variable_value
+100732
+100732 Expected
+select variable_value from information_schema.global_status where variable_name ='Sort_scan';
+variable_value
+8
+8 Expected
+select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
+count(1)
+100000
+100000 Expected
+select variable_value from information_schema.global_status where variable_name ='Sort_merge_passes';
+variable_value
+2
+2 Expected
+select variable_value from information_schema.global_status where variable_name ='Sort_rows';
+variable_value
+200732
+200732 Expected
+select variable_value from information_schema.global_status where variable_name ='Sort_scan';
+variable_value
+9
+9 Expected
+'#---------------------WL6372_VAR_8_07----------------------#'
+# Restart server with sort_buffer_size 9999999;
+SELECT @@GLOBAL.sort_buffer_size;
+@@GLOBAL.sort_buffer_size
+9999999
+9999999 Expected
+SELECT @@SESSION.sort_buffer_size;
+@@SESSION.sort_buffer_size
+9999999
+9999999 Expected
+SET @@GLOBAL.sort_buffer_size=DEFAULT;
+SELECT @@GLOBAL.sort_buffer_size;
+@@GLOBAL.sort_buffer_size
+262144
+262144 Expected
+SET @@SESSION.sort_buffer_size=DEFAULT;
+SELECT @@SESSION.sort_buffer_size;
+@@SESSION.sort_buffer_size
+262144
+262144 Expected
+SET @@LOCAL.sort_buffer_size=DEFAULT;
+SELECT @@LOCAL.sort_buffer_size;
+@@LOCAL.sort_buffer_size
+262144
+262144 Expected
+#cleanup
+DROP TABLE IF EXISTS tab1;

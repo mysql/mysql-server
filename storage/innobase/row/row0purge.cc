@@ -538,10 +538,9 @@ row_purge_del_mark(
 
 /***********************************************************//**
 Purges an update of an existing record. Also purges an update of a delete
-marked record if that record contained an externally stored field.
-@return true if purged, false if skipped */
-static __attribute__((nonnull, warn_unused_result))
-bool
+marked record if that record contained an externally stored field. */
+static __attribute__((nonnull))
+void
 row_purge_upd_exist_or_extern_func(
 /*===============================*/
 #ifdef UNIV_DEBUG
@@ -555,20 +554,6 @@ row_purge_upd_exist_or_extern_func(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_SHARED));
 #endif /* UNIV_SYNC_DEBUG */
-
-	if (dict_index_get_online_status(dict_table_get_first_index(
-						 node->table))
-	    == ONLINE_INDEX_CREATION) {
-		for (ulint i = 0; i < upd_get_n_fields(node->update); i++) {
-
-			const upd_field_t*	ufield
-				= upd_get_nth_field(node->update, i);
-
-			if (dfield_is_ext(&ufield->new_val)) {
-				return(false);
-			}
-		}
-	}
 
 	if (node->rec_type == TRX_UNDO_UPD_DEL_REC
 	    || (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
@@ -685,8 +670,6 @@ skip_secondaries:
 			mtr_commit(&mtr);
 		}
 	}
-
-	return(true);
 }
 
 #ifdef UNIV_DEBUG
@@ -817,9 +800,20 @@ row_purge_record_func(
 					were updated */
 {
 	dict_index_t*	clust_index;
-	bool		purged		= true;
+	bool		purged	= true;
 
 	clust_index = dict_table_get_first_index(node->table);
+
+	if (dict_index_get_online_status(clust_index)
+	    == ONLINE_INDEX_CREATION) {
+		/* During online ALTER TABLE that rebuils the table,
+		we must preserve all undo log records to avoid false
+		duplicates by the row_ins_duplicate_is_newer() check.
+		Also, row_log_table_apply() may need to access
+		off-page columns that would be freed in purge. */
+		purged = false;
+		goto func_exit;
+	}
 
 	node->index = dict_table_get_next_index(clust_index);
 
@@ -834,14 +828,12 @@ row_purge_record_func(
 		}
 		/* fall through */
 	case TRX_UNDO_UPD_EXIST_REC:
-		if (!row_purge_upd_exist_or_extern(thr, node, undo_rec)) {
-			purged = false;
-			break;
-		}
+		row_purge_upd_exist_or_extern(thr, node, undo_rec);
 		MONITOR_INC(MONITOR_N_UPD_EXIST_EXTERN);
 		break;
 	}
 
+func_exit:
 	if (node->found_clust) {
 		btr_pcur_close(&node->pcur);
 	}

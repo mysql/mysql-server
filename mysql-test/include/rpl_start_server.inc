@@ -11,6 +11,7 @@
 # [--let $rpl_omit_print_server_parameters= 0]
 # [--let $rpl_debug_trace= 1]
 # [--let $rpl_debug= 1]
+# [--let $rpl_server_error= 0]
 # --source include/rpl_start_server.inc
 #
 # Parameters:
@@ -43,6 +44,9 @@
 #
 #   $rpl_debug
 #     See include/rpl_init.inc
+#
+#   $rpl_server_error
+#     If set, failure of the server startup is expected. 
 #
 # ==== See also ====
 #
@@ -112,8 +116,10 @@ EOF
 
 #--exec echo "$_rpl_start_server_command" > $MYSQLTEST_VARDIR/tmp/mysqld.$rpl_server_number.expect
 
---source include/rpl_reconnect.inc
+if (!$rpl_server_error)
+{
+  --source include/rpl_reconnect.inc
 
-
---let $include_filename= rpl_start_server.inc [$_rpl_start_server_info]
---source include/end_include_file.inc
+  --let $include_filename= rpl_start_server.inc [$_rpl_start_server_info]
+  --source include/end_include_file.inc
+}

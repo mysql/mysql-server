@@ -1770,6 +1770,12 @@ static Sys_var_ulong Sys_metadata_locks_cache_size(
        VALID_RANGE(1, 1024*1024), DEFAULT(MDL_LOCKS_CACHE_SIZE_DEFAULT),
        BLOCK_SIZE(1));
 
+static Sys_var_ulong Sys_metadata_locks_hash_instances(
+       "metadata_locks_hash_instances", "Number of metadata locks hash instances",
+       READ_ONLY GLOBAL_VAR(mdl_locks_hash_partitions), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(1, 1024), DEFAULT(MDL_LOCKS_HASH_PARTITIONS_DEFAULT),
+       BLOCK_SIZE(1));
+
 static Sys_var_ulong Sys_pseudo_thread_id(
        "pseudo_thread_id",
        "This variable is for internal server use",
@@ -2447,7 +2453,7 @@ static Sys_var_ulong Sys_query_cache_size(
        "query_cache_size",
        "The memory allocated to store results from old queries",
        GLOBAL_VAR(query_cache_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1024),
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(1024U*1024U), BLOCK_SIZE(1024),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_query_cache_size));
 
@@ -2487,7 +2493,7 @@ static Sys_var_enum Sys_query_cache_type(
        "except SELECT SQL_NO_CACHE ... queries. DEMAND = Cache only "
        "SELECT SQL_CACHE ... queries",
        SESSION_VAR(query_cache_type), CMD_LINE(REQUIRED_ARG),
-       query_cache_type_names, DEFAULT(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       query_cache_type_names, DEFAULT(0), NO_MUTEX_GUARD, NOT_IN_BINLOG,
        ON_CHECK(check_query_cache_type));
 
 static Sys_var_mybool Sys_query_cache_wlock_invalidate(
@@ -2854,7 +2860,8 @@ static Sys_var_charptr Sys_system_time_zone(
 static Sys_var_ulong Sys_table_def_size(
        "table_definition_cache",
        "The number of cached table definitions",
-       GLOBAL_VAR(table_def_size), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(table_def_size),
+       CMD_LINE(REQUIRED_ARG, OPT_TABLE_DEFINITION_CACHE),
        VALID_RANGE(TABLE_DEF_CACHE_MIN, 512*1024),
        DEFAULT(TABLE_DEF_CACHE_DEFAULT),
        BLOCK_SIZE(1),
@@ -2905,7 +2912,8 @@ static Sys_var_ulong Sys_table_cache_instances(
 static Sys_var_ulong Sys_thread_cache_size(
        "thread_cache_size",
        "How many threads we should keep in a cache for reuse",
-       GLOBAL_VAR(max_blocked_pthreads), CMD_LINE(REQUIRED_ARG),
+       GLOBAL_VAR(max_blocked_pthreads),
+       CMD_LINE(REQUIRED_ARG, OPT_THREAD_CACHE_SIZE),
        VALID_RANGE(0, 16384), DEFAULT(0), BLOCK_SIZE(1));
 
 /**
@@ -3296,12 +3304,14 @@ static Sys_var_bit Sys_unique_checks(
 static Sys_var_bit Sys_profiling(
        "profiling", "profiling",
        SESSION_VAR(option_bits), NO_CMD_LINE, OPTION_PROFILING,
-       DEFAULT(FALSE));
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_ulong Sys_profiling_history_size(
        "profiling_history_size", "Limit of query profiling memory",
        SESSION_VAR(profiling_history_size), CMD_LINE(REQUIRED_ARG),
-       VALID_RANGE(0, 100), DEFAULT(15), BLOCK_SIZE(1));
+       VALID_RANGE(0, 100), DEFAULT(15), BLOCK_SIZE(1), NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 #endif
 
 static Sys_var_harows Sys_select_limit(
@@ -3684,7 +3694,8 @@ static Sys_var_have Sys_have_openssl(
 
 static Sys_var_have Sys_have_profiling(
        "have_profiling", "have_profiling",
-       READ_ONLY GLOBAL_VAR(have_profiling), NO_CMD_LINE);
+       READ_ONLY GLOBAL_VAR(have_profiling), NO_CMD_LINE, NO_MUTEX_GUARD,
+       NOT_IN_BINLOG, ON_CHECK(0), ON_UPDATE(0), DEPRECATED(""));
 
 static Sys_var_have Sys_have_query_cache(
        "have_query_cache", "have_query_cache",
@@ -4088,7 +4099,7 @@ static Sys_var_ulong Sys_host_cache_size(
        "host_cache_size",
        "How many host names should be cached to avoid resolving.",
        GLOBAL_VAR(host_cache_size),
-       CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 65536),
+       CMD_LINE(REQUIRED_ARG, OPT_HOST_CACHE_SIZE), VALID_RANGE(0, 65536),
        DEFAULT(HOST_CACHE_SIZE),
        BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL),

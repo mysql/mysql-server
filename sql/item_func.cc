@@ -4076,7 +4076,7 @@ longlong Item_master_gtid_set_wait::val_int()
   int event_count= 0;
 
   null_value=0;
-  if (thd->slave_thread || !gtid)
+  if (thd->slave_thread || !gtid || 0 == gtid_mode)
   {
     null_value = 1;
     return event_count;
@@ -4601,13 +4601,17 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
     return TRUE;
   }
   entry_thread_id= thd->thread_id;
-  /* 
-     Remember the last query which updated it, this way a query can later know
-     if this variable is a constant item in the query (it is if update_query_id
-     is different from query_id).
-  */
 end:
-  entry->update_query_id= thd->query_id;
+  /* 
+    Remember the last query which updated it, this way a query can later know
+    if this variable is a constant item in the query (it is if update_query_id
+    is different from query_id).
+
+    If this object has delayed setting of non-constness, we delay this
+    until Item_func_set-user_var::save_item_result().
+  */
+  if (!delayed_non_constness)
+    entry->update_query_id= thd->query_id;
   return FALSE;
 }
 
@@ -5003,6 +5007,13 @@ void Item_func_set_user_var::save_item_result(Item *item)
     DBUG_ASSERT(0);
     break;
   }
+  /*
+    Set the ID of the query that last updated this variable. This is
+    usually set by Item_func_set_user_var::set_entry(), but if this
+    item has delayed setting of non-constness, we must do it now.
+   */
+  if (delayed_non_constness)
+    entry->update_query_id= current_thd->query_id;
   DBUG_VOID_RETURN;
 }
 
@@ -5407,7 +5418,8 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     thd->lex= &lex_tmp;
     lex_start(thd);
     tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
-                                                                       new Item_null())));
+                                                                       new Item_null(),
+                                                                       false)));
     /* Create the variable */
     if (sql_set_variables(thd, &tmp_var_list))
     {
@@ -5569,7 +5581,7 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 bool Item_func_get_user_var::set_value(THD *thd,
                                        sp_rcontext * /*ctx*/, Item **it)
 {
-  Item_func_set_user_var *suv= new Item_func_set_user_var(name, *it);
+  Item_func_set_user_var *suv= new Item_func_set_user_var(name, *it, false);
   /*
     Item_func_set_user_var is not fixed after construction, call
     fix_fields().

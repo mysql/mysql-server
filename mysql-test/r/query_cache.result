@@ -1637,7 +1637,7 @@ Variable_name	Value
 Qcache_queries_in_cache	1
 drop database db2;
 drop database db3;
-set GLOBAL query_cache_type=default;
+set GLOBAL query_cache_type=1;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;

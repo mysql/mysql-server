@@ -2769,18 +2769,14 @@ bool subselect_indexsubquery_engine::scan_table()
   // We never need to do a table scan of the materialized table.
   DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
 
-  if (table->file->inited &&
-      (error= table->file->ha_index_end()))
+  if ((table->file->inited &&
+       (error= table->file->ha_index_end())) ||
+      (error= table->file->ha_rnd_init(1)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
- 
-  if ((error= table->file->ha_rnd_init(1)))
-  {
-    (void) report_error(table, error);
-    DBUG_RETURN(true);
-  }
+
   table->file->extra_opt(HA_EXTRA_CACHE,
                          current_thd->variables.read_buff_size);
   table->null_row= 0;
@@ -2789,7 +2785,7 @@ bool subselect_indexsubquery_engine::scan_table()
     error=table->file->ha_rnd_next(table->record[0]);
     if (error && error != HA_ERR_END_OF_FILE)
     {
-      error= report_error(table, error);
+      error= report_handler_error(table, error);
       break;
     }
     /* No more rows */
@@ -3026,7 +3022,7 @@ bool subselect_indexsubquery_engine::exec()
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, !unique /* sorted */)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
   error= table->file->ha_index_read_map(table->record[0],
@@ -3035,7 +3031,7 @@ bool subselect_indexsubquery_engine::exec()
                                         HA_READ_KEY_EXACT);
   if (error &&
       error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    error= report_error(table, error);
+    error= report_handler_error(table, error);
   else
   {
     for (;;)
@@ -3066,7 +3062,7 @@ bool subselect_indexsubquery_engine::exec()
                                               tab->ref.key_length);
         if (error && error != HA_ERR_END_OF_FILE)
         {
-          error= report_error(table, error);
+          error= report_handler_error(table, error);
           break;
         }
       }

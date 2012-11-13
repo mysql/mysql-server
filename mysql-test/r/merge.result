@@ -2414,6 +2414,8 @@ End of 5.1 tests
 #
 drop table if exists t_parent;
 set @save_table_definition_cache=@@global.table_definition_cache;
+set @save_table_open_cache=@@global.table_open_cache;
+set @@global.table_open_cache=400;
 #
 # Set @@global.table_definition_cache to minimum
 #
@@ -2442,6 +2444,7 @@ deallocate prepare stmt;
 #
 drop table t_parent;
 set @@global.table_definition_cache=@save_table_definition_cache;
+set @@global.table_open_cache=@save_table_open_cache;
 DROP DATABASE IF EXISTS mysql_test1;
 CREATE DATABASE mysql_test1;
 CREATE TABLE t1 ... DATA DIRECTORY=... INDEX DIRECTORY=...

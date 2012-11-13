@@ -1,13 +1,19 @@
 SET @start_global_value = @@global.profiling;
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 SELECT @start_global_value;
 @start_global_value
 0
 select @@global.profiling;
 @@global.profiling
 0
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 select @@session.profiling;
 @@session.profiling
 0
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 show global variables like 'profiling';
 Variable_name	Value
 profiling	OFF
@@ -21,13 +27,21 @@ select * from information_schema.session_variables where variable_name='profilin
 VARIABLE_NAME	VARIABLE_VALUE
 PROFILING	OFF
 set global profiling=1;
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 set session profiling=ON;
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 select @@global.profiling;
 @@global.profiling
 1
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 select @@session.profiling;
 @@session.profiling
 1
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 show global variables like 'profiling';
 Variable_name	Value
 profiling	ON
@@ -41,13 +55,21 @@ select * from information_schema.session_variables where variable_name='profilin
 VARIABLE_NAME	VARIABLE_VALUE
 PROFILING	ON
 set global profiling=0;
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 set session profiling=OFF;
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 select @@global.profiling;
 @@global.profiling
 0
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 select @@session.profiling;
 @@session.profiling
 0
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 show global variables like 'profiling';
 Variable_name	Value
 profiling	OFF
@@ -67,6 +89,10 @@ ERROR 42000: Incorrect argument type to variable 'profiling'
 set global profiling="foo";
 ERROR 42000: Variable 'profiling' can't be set to the value of 'foo'
 SET @@global.profiling = @start_global_value;
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
 SELECT @@global.profiling;
 @@global.profiling
 0
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.

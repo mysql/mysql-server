@@ -15,8 +15,10 @@ sum_distinct-big         : Bug#11764126 2010-11-15 mattiasj was not tested
 archive-big              : Bug#11817185 2011-03-10 Anitha Disabled since this leads to timeout on Solaris Sparc
 log_tables-big           : Bug#11756699 2010-11-15 mattiasj report already exists
 ds_mrr-big @solaris      : Bug#14168107 2012-04-03 Hemant disabled new test added by Olav Sandstå,since this leads to timeout on Solaris on slow sparc servers
-partition_locking_4	 : Bug#13924750 2012-04-04 lost connection.
+partition_locking_4      : Bug#13924750 2012-04-04 lost connection.
 mysql_embedded_client_test	: Bug#13964673 2012-04-16 amitbha since most of the test cases are failing
+user_limits              : BUG#14627287 27th Sept, 2012 Mayank
+mysql_client_test_embedded : Bug#14722862 2012-10-09 Disabled since this test is failing on all platforms
 
 file_contents            : Bug#12585902 2011-09-27 magnus file_contents.test fails when building from "bzr export"
 invalid_packet : Bug #14705941  INVALID_PACKET.TEST DEPENDS ON NC

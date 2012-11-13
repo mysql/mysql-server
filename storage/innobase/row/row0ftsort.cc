@@ -200,7 +200,7 @@ row_fts_psort_info_init(
 
 	if (!psort_info) {
 		ut_free(dup);
-		return FALSE;
+		return(FALSE);
 	}
 
 	sort_event = os_event_create(NULL);
@@ -219,7 +219,7 @@ row_fts_psort_info_init(
 	if (!common_info) {
 		ut_free(dup);
 		mem_free(psort_info);
-		return FALSE;
+		return(FALSE);
 	}
 
 	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
@@ -778,7 +778,7 @@ exit:
 				  	}
 				}
 
-				# write out the last batch 
+				# write out the last batch
 				if (offset > 0) {
 					row_merge_write();
 					offset++;
@@ -1349,7 +1349,7 @@ row_fts_merge_insert(
 		count_diag += (int) psort_info[i].merge_file[id]->n_rec;
 	}
 
-	if (fts_enable_diag_print) { 
+	if (fts_enable_diag_print) {
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB_FTS: to inserted %lu records\n",
 			(ulong) count_diag);

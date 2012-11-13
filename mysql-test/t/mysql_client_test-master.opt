@@ -1,5 +1,6 @@
 --general-log=1 
 --general-log-file=$MYSQLTEST_VARDIR/log/master.log 
 --log-output=FILE,TABLE
+--query_cache_type=1
 $PLUGIN_AUTH_OPT
 $PLUGIN_AUTH_LOAD

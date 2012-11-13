@@ -367,7 +367,7 @@ DELIMITER /*!*/;
 ROLLBACK/*!*/;
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1000000000/*!*/;
 SET @@session.pseudo_thread_id=#/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -388,7 +388,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0' /* BIT(1) meta=1 nullable=1 is_null=0 */
 # at #
@@ -405,7 +405,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'1' /* BIT(1) meta=1 nullable=1 is_null=0 */
 # at #
@@ -432,7 +432,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0000001' /* BIT(7) meta=7 nullable=1 is_null=0 */
 # at #
@@ -449,7 +449,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0000010' /* BIT(7) meta=7 nullable=1 is_null=0 */
 # at #
@@ -466,7 +466,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0000100' /* BIT(7) meta=7 nullable=1 is_null=0 */
 # at #
@@ -483,7 +483,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0001000' /* BIT(7) meta=7 nullable=1 is_null=0 */
 # at #
@@ -500,7 +500,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0010000' /* BIT(7) meta=7 nullable=1 is_null=0 */
 # at #
@@ -517,7 +517,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0100000' /* BIT(7) meta=7 nullable=1 is_null=0 */
 # at #
@@ -534,7 +534,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'1000000' /* BIT(7) meta=7 nullable=1 is_null=0 */
 # at #
@@ -551,7 +551,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'1111111' /* BIT(7) meta=7 nullable=1 is_null=0 */
 # at #
@@ -568,7 +568,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=b'1111111' /* BIT(7) meta=7 nullable=1 is_null=0 */
 # at #
@@ -585,7 +585,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=b'0010000' /* BIT(7) meta=7 nullable=1 is_null=0 */
 ### SET
@@ -614,7 +614,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'00010010010010001001' /* BIT(20) meta=516 nullable=1 is_null=0 */
 ###   @2='ab' /* STRING(2) meta=65026 nullable=1 is_null=0 */
@@ -642,7 +642,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0000000000000000000000000000000000000000000000000000000000000001' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 # at #
@@ -659,7 +659,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0000000000000000000000000000000000000000000000000000000000000010' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 # at #
@@ -676,7 +676,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'0000000000000000000000000000000000000000000000000000000010000000' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 # at #
@@ -693,7 +693,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'1111111111111111111111111111111111111111111111111111111111111111' /* BIT(64) meta=2048 nullable=1 is_null=0 */
 # at #
@@ -720,13 +720,13 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=2 /* TINYINT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=3 /* TINYINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -743,7 +743,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -760,7 +760,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
 ### SET
@@ -779,7 +779,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -806,10 +806,10 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-128 (128) /* TINYINT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -826,7 +826,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=-1 (255) /* TINYINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -853,7 +853,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -870,7 +870,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=1 /* TINYINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -897,7 +897,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1234 /* SHORTINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -914,7 +914,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=1234 /* SHORTINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -941,10 +941,10 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-32768 (32768) /* SHORTINT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -961,7 +961,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=-32768 (32768) /* SHORTINT meta=0 nullable=1 is_null=0 */
 ### SET
@@ -980,7 +980,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=-1 (65535) /* SHORTINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1007,7 +1007,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=12345 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1024,7 +1024,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=12345 /* MEDIUMINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1051,10 +1051,10 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-8388608 (8388608) /* MEDIUMINT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-1 (16777215) /* MEDIUMINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1071,7 +1071,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=-8388608 (8388608) /* MEDIUMINT meta=0 nullable=1 is_null=0 */
 ### SET
@@ -1090,7 +1090,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=-1 (16777215) /* MEDIUMINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1117,7 +1117,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=123456 /* INT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1134,7 +1134,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=123456 /* INT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1161,10 +1161,10 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-2147483648 (2147483648) /* INT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-1 (4294967295) /* INT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1181,7 +1181,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=-2147483648 (2147483648) /* INT meta=0 nullable=1 is_null=0 */
 ### SET
@@ -1200,7 +1200,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=-1 (4294967295) /* INT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1227,7 +1227,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1234567890 /* LONGINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1244,7 +1244,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=1234567890 /* LONGINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1271,10 +1271,10 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-9223372036854775808 (9223372036854775808) /* LONGINT meta=0 nullable=1 is_null=0 */
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-1 (18446744073709551615) /* LONGINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1291,7 +1291,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=-9223372036854775808 (9223372036854775808) /* LONGINT meta=0 nullable=1 is_null=0 */
 ### SET
@@ -1310,7 +1310,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=-1 (18446744073709551615) /* LONGINT meta=0 nullable=1 is_null=0 */
 # at #
@@ -1337,7 +1337,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=123.223...              /* FLOAT meta=4 nullable=1 is_null=0 */
 # at #
@@ -1354,7 +1354,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=123.223...              /* FLOAT meta=4 nullable=1 is_null=0 */
 # at #
@@ -1381,7 +1381,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=123434.223... /* DOUBLE meta=8 nullable=1 is_null=0 */
 # at #
@@ -1398,7 +1398,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=123434.223... /* DOUBLE meta=8 nullable=1 is_null=0 */
 # at #
@@ -1425,7 +1425,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=000000124.450000000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
 # at #
@@ -1442,7 +1442,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=-000000543.210000000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
 # at #
@@ -1459,7 +1459,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=000000124.450000000 /* DECIMAL(10,5) meta=2565 nullable=1 is_null=0 */
 # at #
@@ -1486,7 +1486,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2001:02:03' /* DATE meta=0 nullable=1 is_null=0 */
 # at #
@@ -1503,7 +1503,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2001:02:03' /* DATE meta=0 nullable=1 is_null=0 */
 # at #
@@ -1530,7 +1530,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2001-02-03 10:20:30' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -1547,7 +1547,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='2001-02-03 10:20:30' /* DATETIME(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -1575,7 +1575,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=981184830 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
 # at #
@@ -1592,7 +1592,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=981184830 /* TIMESTAMP(0) meta=0 nullable=0 is_null=0 */
 # at #
@@ -1619,7 +1619,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='11:22:33' /* TIME(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -1636,7 +1636,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='11:22:33' /* TIME(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -1663,7 +1663,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=2001 /* YEAR meta=0 nullable=1 is_null=0 */
 # at #
@@ -1680,7 +1680,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=2001 /* YEAR meta=0 nullable=1 is_null=0 */
 # at #
@@ -1707,7 +1707,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -1724,7 +1724,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -1751,7 +1751,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 # at #
@@ -1768,7 +1768,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 # at #
@@ -1795,7 +1795,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='b' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -1812,7 +1812,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='b' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -1839,7 +1839,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' /* STRING(255) meta=65279 nullable=1 is_null=0 */
 # at #
@@ -1856,7 +1856,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc' /* STRING(255) meta=65279 nullable=1 is_null=0 */
 # at #
@@ -1883,7 +1883,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='a' /* STRING(3) meta=65027 nullable=1 is_null=0 */
 # at #
@@ -1900,7 +1900,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='a' /* STRING(3) meta=65027 nullable=1 is_null=0 */
 # at #
@@ -1927,7 +1927,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 # at #
@@ -1944,7 +1944,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 # at #
@@ -1971,7 +1971,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='a' /* STRING(3) meta=65027 nullable=1 is_null=0 */
 # at #
@@ -1988,7 +1988,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='a' /* STRING(3) meta=65027 nullable=1 is_null=0 */
 # at #
@@ -2015,7 +2015,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* STRING(765) meta=57085 nullable=1 is_null=0 */
 # at #
@@ -2032,7 +2032,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* STRING(765) meta=57085 nullable=1 is_null=0 */
 # at #
@@ -2049,10 +2049,10 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* STRING(765) meta=57085 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* STRING(765) meta=57085 nullable=1 is_null=0 */
 # at #
@@ -2079,7 +2079,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00a' /* STRING(2) meta=65026 nullable=1 is_null=0 */
 # at #
@@ -2096,7 +2096,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00a' /* STRING(2) meta=65026 nullable=1 is_null=0 */
 # at #
@@ -2123,7 +2123,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 # at #
@@ -2140,7 +2140,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 # at #
@@ -2167,7 +2167,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00a' /* STRING(2) meta=65026 nullable=1 is_null=0 */
 # at #
@@ -2184,7 +2184,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00a' /* STRING(2) meta=65026 nullable=1 is_null=0 */
 # at #
@@ -2211,7 +2211,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a' /* STRING(510) meta=61182 nullable=1 is_null=0 */
 # at #
@@ -2228,7 +2228,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�' /* STRING(510) meta=61182 nullable=1 is_null=0 */
 # at #
@@ -2245,10 +2245,10 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a' /* STRING(510) meta=61182 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�\x00�' /* STRING(510) meta=61182 nullable=1 is_null=0 */
 # at #
@@ -2275,7 +2275,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -2292,7 +2292,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -2319,7 +2319,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='a' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
 # at #
@@ -2336,7 +2336,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='a' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
 # at #
@@ -2363,7 +2363,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 # at #
@@ -2380,7 +2380,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 # at #
@@ -2407,7 +2407,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(261) meta=261 nullable=1 is_null=0 */
 # at #
@@ -2424,7 +2424,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(261) meta=261 nullable=1 is_null=0 */
 # at #
@@ -2451,7 +2451,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -2468,7 +2468,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -2495,7 +2495,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='a' /* VARSTRING(3) meta=3 nullable=1 is_null=0 */
 # at #
@@ -2512,7 +2512,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='a' /* VARSTRING(3) meta=3 nullable=1 is_null=0 */
 # at #
@@ -2539,7 +2539,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(765) meta=765 nullable=1 is_null=0 */
 # at #
@@ -2556,7 +2556,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* VARSTRING(765) meta=765 nullable=1 is_null=0 */
 # at #
@@ -2573,10 +2573,10 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(765) meta=765 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* VARSTRING(765) meta=765 nullable=1 is_null=0 */
 # at #
@@ -2603,7 +2603,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(783) meta=783 nullable=1 is_null=0 */
 # at #
@@ -2620,7 +2620,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* VARSTRING(783) meta=783 nullable=1 is_null=0 */
 # at #
@@ -2637,10 +2637,10 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa' /* VARSTRING(783) meta=783 nullable=1 is_null=0 */
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='ßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßßß' /* VARSTRING(783) meta=783 nullable=1 is_null=0 */
 # at #
@@ -2667,7 +2667,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -2684,7 +2684,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -2711,7 +2711,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00a' /* VARSTRING(2) meta=2 nullable=1 is_null=0 */
 # at #
@@ -2728,7 +2728,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00a' /* VARSTRING(2) meta=2 nullable=1 is_null=0 */
 # at #
@@ -2755,7 +2755,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b' /* VARSTRING(510) meta=510 nullable=1 is_null=0 */
 # at #
@@ -2772,7 +2772,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b' /* VARSTRING(510) meta=510 nullable=1 is_null=0 */
 # at #
@@ -2799,7 +2799,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b' /* VARSTRING(522) meta=522 nullable=1 is_null=0 */
 # at #
@@ -2816,7 +2816,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b\x00a\x00b' /* VARSTRING(522) meta=522 nullable=1 is_null=0 */
 # at #
@@ -2843,7 +2843,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -2860,7 +2860,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x02' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -2877,7 +2877,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -2894,7 +2894,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -2921,7 +2921,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 # at #
@@ -2938,7 +2938,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='' /* STRING(0) meta=65024 nullable=1 is_null=0 */
 # at #
@@ -2965,7 +2965,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -2982,7 +2982,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x02' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -2999,7 +2999,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -3016,7 +3016,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='a' /* STRING(1) meta=65025 nullable=1 is_null=0 */
 # at #
@@ -3043,7 +3043,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* STRING(255) meta=65279 nullable=1 is_null=0 */
 # at #
@@ -3060,7 +3060,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x02' /* STRING(255) meta=65279 nullable=1 is_null=0 */
 # at #
@@ -3077,7 +3077,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a' /* STRING(255) meta=65279 nullable=1 is_null=0 */
 # at #
@@ -3094,7 +3094,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='' /* STRING(255) meta=65279 nullable=1 is_null=0 */
 # at #
@@ -3121,7 +3121,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -3138,7 +3138,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='' /* VARSTRING(0) meta=0 nullable=1 is_null=0 */
 # at #
@@ -3165,7 +3165,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
 # at #
@@ -3182,7 +3182,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x02' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
 # at #
@@ -3199,7 +3199,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='a' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
 # at #
@@ -3216,7 +3216,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x02' /* VARSTRING(1) meta=1 nullable=1 is_null=0 */
 # at #
@@ -3243,7 +3243,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 # at #
@@ -3260,7 +3260,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 # at #
@@ -3277,7 +3277,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00a\x00' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 # at #
@@ -3294,7 +3294,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x02' /* VARSTRING(255) meta=255 nullable=1 is_null=0 */
 # at #
@@ -3321,7 +3321,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='tinyblob1' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
 # at #
@@ -3338,7 +3338,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='tinyblob1' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
 # at #
@@ -3365,7 +3365,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='blob1' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
 # at #
@@ -3382,7 +3382,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='blob1' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
 # at #
@@ -3409,7 +3409,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='mediumblob1' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
 # at #
@@ -3426,7 +3426,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='mediumblob1' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
 # at #
@@ -3453,7 +3453,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='longblob1' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
 # at #
@@ -3470,7 +3470,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='longblob1' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
 # at #
@@ -3497,7 +3497,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='tinytext1' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
 # at #
@@ -3514,7 +3514,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='tinytext1' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
 # at #
@@ -3541,7 +3541,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='text1' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
 # at #
@@ -3558,7 +3558,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='text1' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
 # at #
@@ -3585,7 +3585,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='mediumtext1' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
 # at #
@@ -3602,7 +3602,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='mediumtext1' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
 # at #
@@ -3629,7 +3629,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='longtext1' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
 # at #
@@ -3646,7 +3646,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='longtext1' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
 # at #
@@ -3673,7 +3673,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00t\x00i\x00n\x00y\x00t\x00e\x00x\x00t\x001' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
 # at #
@@ -3690,7 +3690,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00t\x00i\x00n\x00y\x00t\x00e\x00x\x00t\x001' /* TINYBLOB/TINYTEXT meta=1 nullable=1 is_null=0 */
 # at #
@@ -3717,7 +3717,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00t\x00e\x00x\x00t\x001' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
 # at #
@@ -3734,7 +3734,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00t\x00e\x00x\x00t\x001' /* BLOB/TEXT meta=2 nullable=1 is_null=0 */
 # at #
@@ -3761,7 +3761,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00m\x00e\x00d\x00i\x00u\x00m\x00t\x00e\x00x\x00t\x001' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
 # at #
@@ -3778,7 +3778,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00m\x00e\x00d\x00i\x00u\x00m\x00t\x00e\x00x\x00t\x001' /* MEDIUMBLOB/MEDIUMTEXT meta=3 nullable=1 is_null=0 */
 # at #
@@ -3805,7 +3805,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='\x00l\x00o\x00n\x00g\x00t\x00e\x00x\x00t\x001' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
 # at #
@@ -3822,7 +3822,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1='\x00l\x00o\x00n\x00g\x00t\x00e\x00x\x00t\x001' /* LONGBLOB/LONGTEXT meta=4 nullable=1 is_null=0 */
 # at #
@@ -3849,7 +3849,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=2 /* ENUM(1 byte) meta=63233 nullable=1 is_null=0 */
 # at #
@@ -3866,7 +3866,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=2 /* ENUM(1 byte) meta=63233 nullable=1 is_null=0 */
 # at #
@@ -3893,7 +3893,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'00000011' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 # at #
@@ -3910,7 +3910,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'00000101' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 # at #
@@ -3927,7 +3927,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'00000110' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 # at #
@@ -3944,7 +3944,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'00000111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 # at #
@@ -3961,7 +3961,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'00001111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 # at #
@@ -3978,7 +3978,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'00011111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 # at #
@@ -3995,7 +3995,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=b'00111111' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 # at #
@@ -4012,7 +4012,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
-### DELETE FROM test.t1
+### DELETE FROM `test`.`t1`
 ### WHERE
 ###   @1=b'00000011' /* SET(1 bytes) meta=63489 nullable=1 is_null=0 */
 # at #
@@ -4042,7 +4042,7 @@ BEGIN
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='00:00:01.123456' /* TIME(6) meta=6 nullable=1 is_null=0 */
 ###   @2='00:00:01.12346' /* TIME(5) meta=5 nullable=1 is_null=0 */
@@ -4065,7 +4065,7 @@ BEGIN
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='20:20:20.000000' /* TIME(6) meta=6 nullable=1 is_null=0 */
 ###   @2='20:20:20.00000' /* TIME(5) meta=5 nullable=1 is_null=0 */
@@ -4087,7 +4087,7 @@ BEGIN
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='20:20:20.123456' /* TIME(6) meta=6 nullable=1 is_null=0 */
 ###   @2='20:20:20.12346' /* TIME(5) meta=5 nullable=1 is_null=0 */
@@ -4122,7 +4122,7 @@ BEGIN
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2001-01-01 00:00:00.123456' /* DATETIME(6) meta=6 nullable=1 is_null=0 */
 ###   @2='2001-01-01 00:00:00.12346' /* DATETIME(5) meta=5 nullable=1 is_null=0 */
@@ -4144,7 +4144,7 @@ BEGIN
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2002-02-02 20:20:20.000000' /* DATETIME(6) meta=6 nullable=1 is_null=0 */
 ###   @2='2002-02-02 20:20:20.00000' /* DATETIME(5) meta=5 nullable=1 is_null=0 */
@@ -4166,7 +4166,7 @@ BEGIN
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1='2002-02-02 20:20:20.123456' /* DATETIME(6) meta=6 nullable=1 is_null=0 */
 ###   @2='2002-02-02 20:20:20.12346' /* DATETIME(5) meta=5 nullable=1 is_null=0 */
@@ -4201,7 +4201,7 @@ BEGIN
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=978307200.123456 /* TIMESTAMP(6) meta=6 nullable=0 is_null=0 */
 ###   @2=978307200.12346 /* TIMESTAMP(5) meta=5 nullable=0 is_null=0 */
@@ -4223,7 +4223,7 @@ BEGIN
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1012681220.000000 /* TIMESTAMP(6) meta=6 nullable=0 is_null=0 */
 ###   @2=1012681220.00000 /* TIMESTAMP(5) meta=5 nullable=0 is_null=0 */
@@ -4245,7 +4245,7 @@ BEGIN
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #020202 23:20:20 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1012681220.123456 /* TIMESTAMP(6) meta=6 nullable=0 is_null=0 */
 ###   @2=1012681220.12346 /* TIMESTAMP(5) meta=5 nullable=0 is_null=0 */
@@ -4282,7 +4282,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
@@ -4300,7 +4300,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t1
+### INSERT INTO `test`.`t1`
 ### SET
 ###   @1=0 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=0 is_null=0 */
@@ -4318,7 +4318,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
@@ -4336,7 +4336,7 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
-### INSERT INTO test.t2
+### INSERT INTO `test`.`t2`
 ### SET
 ###   @1=0 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=0 is_null=0 */
@@ -4358,28 +4358,28 @@ BEGIN
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id #
 # at #
 #010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
 ### SET
 ###   @1=10 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
-### UPDATE test.t1
+### UPDATE `test`.`t1`
 ### WHERE
 ###   @1=0 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=0 is_null=0 */
 ### SET
 ###   @1=10 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=0 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1=1 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
 ### SET
 ###   @1=20 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=0 /* INT meta=0 nullable=0 is_null=0 */
-### UPDATE test.t2
+### UPDATE `test`.`t2`
 ### WHERE
 ###   @1=0 /* INT meta=0 nullable=0 is_null=0 */
 ###   @2=1 /* INT meta=0 nullable=0 is_null=0 */

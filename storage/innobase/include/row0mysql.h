@@ -299,6 +299,18 @@ row_unlock_for_mysql(
 					to reposition the cursors. */
 	__attribute__((nonnull));
 /*********************************************************************//**
+Checks if a table name contains the string "/#sql" which denotes temporary
+tables in MySQL.
+@return true if temporary table */
+UNIV_INTERN
+bool
+row_is_mysql_tmp_table_name(
+/*========================*/
+	const char*	name) __attribute__((warn_unused_result));
+				/*!< in: table name in the form
+				'database/tablename' */
+
+/*********************************************************************//**
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
 @return	own: update node */
@@ -858,7 +870,7 @@ struct row_prebuilt_t {
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
 	/*----------------------*/
-	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API 
+	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API
 					query */
 	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
 };

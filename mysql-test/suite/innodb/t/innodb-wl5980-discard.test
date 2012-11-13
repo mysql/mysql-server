@@ -323,7 +323,7 @@ CHECK TABLE t5980;
 --echo # so do not display it.
 --echo #
 --disable_result_log
---error ER_IO_READ_ERROR
+--error ER_NO_SUCH_TABLE
 ALTER TABLE t5980 IMPORT TABLESPACE;
 --enable_result_log
 --error ER_TABLESPACE_DISCARDED
@@ -704,5 +704,6 @@ call mtr.add_suppression("InnoDB: Could not find a valid tablespace file for");
 call mtr.add_suppression("InnoDB: Tablespace open failed for");
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table ");
 call mtr.add_suppression("InnoDB: Table test/t5980.* does not have an .ibd file in the database directory.");
+call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
 -- enable_query_log
 

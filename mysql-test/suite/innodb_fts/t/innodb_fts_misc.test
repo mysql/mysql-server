@@ -932,7 +932,8 @@ CREATE TABLE `t21` (`a` text, `b` int not null,
 fulltext key (`a`), fulltext key (`a`)
 ) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
 
---error ER_INNODB_FT_LIMIT
+--error ER_NOT_SUPPORTED_YET
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE;
 ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
 
 DROP TABLE t21;
@@ -1120,3 +1121,24 @@ SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
 
 DROP TABLE t1;
+
+# Test for Bug 14588091 - FTS: BUFFER OVERFLOW IN FTS_AST_CREATE_NODE_TEXT
+CREATE TABLE `t` (`a` char(20) character set utf8 default null,
+fulltext key (`a`)) ENGINE=INNODB;
+INSERT INTO `t` VALUES ('a');
+INSERT INTO `t` VALUES ('aaa');
+
+# 0x22 is the '"', 0xdd is not encoded in utf8
+SELECT MATCH(`a`) AGAINST (0x22dd22) FROM `t`;
+SELECT MATCH(`a`) AGAINST (0x2222) FROM `t`;
+SELECT MATCH(`a`) AGAINST (0x22) FROM `t`;
+
+# this should show one match
+SELECT MATCH(`a`) AGAINST (0x2261616122) FROM `t`;
+
+# again 0xdd should be ignored
+SELECT MATCH(`a`) AGAINST (0x2261dd6122) FROM `t`;
+
+SELECT MATCH(`a`) AGAINST (0x2261dd612222226122) FROM `t`;
+
+DROP TABLE t;

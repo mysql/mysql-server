@@ -605,14 +605,15 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
   {
     TABLE *table= sjm->table;
 
-    List_iterator<Item> it(*sjm->subq_exprs);
+    List_iterator<Item> it(sjm->sj_nest->nested_join->sj_inner_exprs);
     Item *item;
     while ((item= it++))
     {
       if (item->is_null())
         DBUG_RETURN(NESTED_LOOP_OK);
     }
-    fill_record(thd, table->field, *sjm->subq_exprs, 1, NULL);
+    fill_record(thd, table->field, sjm->sj_nest->nested_join->sj_inner_exprs,
+                1, NULL);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if ((error= table->file->ha_write_row(table->record[0])))
@@ -1046,6 +1047,9 @@ sub_select_op(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
       rc= sub_select(join, join_tab, end_of_records);
     DBUG_RETURN(rc);
   }
+  if (join_tab->prepare_scan())
+    DBUG_RETURN(NESTED_LOOP_ERROR);
+
   /*
     setup_join_buffering() disables join buffering if QS_DYNAMIC_RANGE is
     enabled.
@@ -1196,6 +1200,9 @@ sub_select(JOIN *join,JOIN_TAB *join_tab,bool end_of_records)
     DBUG_RETURN(nls);
   }
   READ_RECORD *info= &join_tab->read_record;
+
+  if (join_tab->prepare_scan())
+    DBUG_RETURN(NESTED_LOOP_ERROR);
 
   if (join_tab->starts_weedout())
   {
@@ -1715,7 +1722,7 @@ evaluate_null_complemented_join_record(JOIN *join, JOIN_TAB *join_tab)
 
 /** Help function when we get some an error from the table handler. */
 
-int report_error(TABLE *table, int error)
+int report_handler_error(TABLE *table, int error)
 {
   if (error == HA_ERR_END_OF_FILE || error == HA_ERR_KEY_NOT_FOUND)
   {
@@ -1723,11 +1730,14 @@ int report_error(TABLE *table, int error)
     return -1;					// key not found; ok
   }
   /*
-    Locking reads can legally return also these errors, do not
-    print them to the .err log
+    Do not spam the error log with these temporary errors:
+       LOCK_DEADLOCK LOCK_WAIT_TIMEOUT TABLE_DEF_CHANGED
+    Also skip printing to error log if the current thread has been killed.
   */
-  if (error != HA_ERR_LOCK_DEADLOCK && error != HA_ERR_LOCK_WAIT_TIMEOUT
-      && !table->in_use->killed)
+  if (error != HA_ERR_LOCK_DEADLOCK &&
+      error != HA_ERR_LOCK_WAIT_TIMEOUT &&
+      error != HA_ERR_TABLE_DEF_CHANGED &&
+      !table->in_use->killed)
     sql_print_error("Got error %d when reading table '%s'",
 		    error, table->s->path.str);
   table->file->print_error(error,MYF(0));
@@ -1743,7 +1753,7 @@ int safe_index_read(JOIN_TAB *tab)
                                             tab->ref.key_buff,
                                             make_prev_keypart_map(tab->ref.key_parts),
                                             HA_READ_KEY_EXACT)))
-    return report_error(table, error);
+    return report_handler_error(table, error);
   return 0;
 }
 
@@ -1897,7 +1907,7 @@ join_read_system(JOIN_TAB *tab)
 					   table->s->primary_key)))
     {
       if (error != HA_ERR_END_OF_FILE)
-	return report_error(table, error);
+	return report_handler_error(table, error);
       mark_as_null_row(tab->table);
       empty_record(table);			// Make empty record
       return -1;
@@ -1929,8 +1939,6 @@ join_read_const(JOIN_TAB *tab)
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_const");
 
-  if (tab->prepare_scan())
-    DBUG_RETURN(1);
 
   if (table->status & STATUS_GARBAGE)		// If first read
   {
@@ -1951,7 +1959,7 @@ join_read_const(JOIN_TAB *tab)
       empty_record(table);
       if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
       {
-        const int ret= report_error(table, error);
+        const int ret= report_handler_error(table, error);
         DBUG_RETURN(ret);
       }
       DBUG_RETURN(-1);
@@ -1990,15 +1998,12 @@ join_read_key(JOIN_TAB *tab)
   TABLE_REF *table_ref= &tab->ref;
   int error;
 
-  if (tab->prepare_scan())
-    return 1;
-
   if (!table->file->inited)
   {
     DBUG_ASSERT(!tab->sorted);  // Don't expect sort req. for single row.
     if ((error= table->file->ha_index_init(table_ref->key, tab->sorted)))
     {
-      (void) report_error(table, error);
+      (void) report_handler_error(table, error);
       return 1;
     }
   }
@@ -2029,7 +2034,7 @@ join_read_key(JOIN_TAB *tab)
                                           make_prev_keypart_map(table_ref->key_parts),
                                           HA_READ_KEY_EXACT);
     if (error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_error(table, error);
+      return report_handler_error(table, error);
 
     if (! error)
     {
@@ -2090,12 +2095,24 @@ join_read_key_unlock_row(st_join_table *tab)
 static int
 join_read_linked_first(JOIN_TAB *tab)
 {
+  int error;
   TABLE *table= tab->table;
   DBUG_ENTER("join_read_linked_first");
 
   DBUG_ASSERT(!tab->sorted); // Pushed child can't be sorted
-  if (!table->file->inited)
-    table->file->ha_index_init(tab->ref.key, tab->sorted);
+  if (!table->file->inited &&
+      (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
+  {
+    (void) report_handler_error(table, error);
+    DBUG_RETURN(error);
+  }
+
+  /* Perform "Late NULLs Filtering" (see internals manual for explanations) */
+  if (tab->ref.impossible_null_ref())
+  {
+    DBUG_PRINT("info", ("join_read_linked_first null_rejected"));
+    DBUG_RETURN(-1);
+  }
 
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
   {
@@ -2105,11 +2122,11 @@ join_read_linked_first(JOIN_TAB *tab)
 
   // 'read' itself is a NOOP: 
   //  handler::index_read_pushed() only unpack the prefetched row and set 'status'
-  int error=table->file->index_read_pushed(table->record[0],
-                                      tab->ref.key_buff,
-                                      make_prev_keypart_map(tab->ref.key_parts));
+  error=table->file->index_read_pushed(table->record[0],
+                                       tab->ref.key_buff,
+                                       make_prev_keypart_map(tab->ref.key_parts));
   if (unlikely(error && error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE))
-    DBUG_RETURN(report_error(table, error));
+    DBUG_RETURN(report_handler_error(table, error));
 
   table->null_row=0;
   int rc= table->status ? -1 : 0;
@@ -2126,7 +2143,7 @@ join_read_linked_next(READ_RECORD *info)
   if (error)
   {
     if (unlikely(error != HA_ERR_END_OF_FILE))
-      DBUG_RETURN(report_error(table, error));
+      DBUG_RETURN(report_handler_error(table, error));
     table->status= STATUS_GARBAGE;
     DBUG_RETURN(-1);
   }
@@ -2158,14 +2175,11 @@ join_read_always_key(JOIN_TAB *tab)
   int error;
   TABLE *table= tab->table;
 
-  if (tab->prepare_scan())
-    return 1;
-
   /* Initialize the index first */
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     return 1;
   }
 
@@ -2185,7 +2199,7 @@ join_read_always_key(JOIN_TAB *tab)
                                              HA_READ_KEY_EXACT)))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_error(table, error);
+      return report_handler_error(table, error);
     return -1; /* purecov: inspected */
   }
   return 0;
@@ -2206,7 +2220,7 @@ join_read_last_key(JOIN_TAB *tab)
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     return 1;
   }
   if (cp_buffer_from_ref(tab->join->thd, table, &tab->ref))
@@ -2216,7 +2230,7 @@ join_read_last_key(JOIN_TAB *tab)
                                               make_prev_keypart_map(tab->ref.key_parts))))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      return report_error(table, error);
+      return report_handler_error(table, error);
     return -1; /* purecov: inspected */
   }
   return 0;
@@ -2243,7 +2257,7 @@ join_read_next_same(READ_RECORD *info)
                                               tab->ref.key_length)))
   {
     if (error != HA_ERR_END_OF_FILE)
-      return report_error(table, error);
+      return report_handler_error(table, error);
     table->status= STATUS_GARBAGE;
     return -1;
   }
@@ -2269,7 +2283,7 @@ join_read_prev_same(READ_RECORD *info)
   DBUG_ASSERT(table->file->pushed_idx_cond == NULL);
 
   if ((error= table->file->ha_index_prev(table->record[0])))
-    return report_error(table, error);
+    return report_handler_error(table, error);
   if (key_cmp_if_same(table, tab->ref.key_buff, tab->ref.key,
                       tab->ref.key_length))
   {
@@ -2312,8 +2326,6 @@ join_init_quick_read_record(JOIN_TAB *tab)
 
 int read_first_record_seq(JOIN_TAB *tab)
 {
-  if (tab->prepare_scan())
-    return 1;
   if (tab->read_record.table->file->ha_rnd_init(1))
     return 1;
   return (*tab->read_record.read_record)(&tab->read_record);
@@ -2343,8 +2355,6 @@ int join_init_read_record(JOIN_TAB *tab)
 {
   int error;
 
-  if (tab->prepare_scan())                    // Prepare table for scanning.
-    return 1;
   if (tab->distinct && tab->remove_duplicates())  // Remove duplicates.
     return 1;
   if (tab->filesort && tab->sort_table())     // Sort table.
@@ -2353,7 +2363,7 @@ int join_init_read_record(JOIN_TAB *tab)
   if (tab->select && tab->select->quick && (error= tab->select->quick->reset()))
   {
     /* Ensures error status is propageted back to client */
-    report_error(tab->table, error);
+    report_handler_error(tab->table, error);
     return 1;
   }
   if (init_read_record(&tab->read_record, tab->join->thd, tab->table,
@@ -2457,13 +2467,13 @@ join_read_first(JOIN_TAB *tab)
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->index, tab->sorted)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     return 1;
   }
   if ((error= tab->table->file->ha_index_first(tab->table->record[0])))
   {
     if (error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-      report_error(table, error);
+      report_handler_error(table, error);
     return -1;
   }
   return 0;
@@ -2475,7 +2485,7 @@ join_read_next(READ_RECORD *info)
 {
   int error;
   if ((error= info->table->file->ha_index_next(info->record)))
-    return report_error(info->table, error);
+    return report_handler_error(info->table, error);
   return 0;
 }
 
@@ -2495,11 +2505,11 @@ join_read_last(JOIN_TAB *tab)
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->index, tab->sorted)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     return 1;
   }
   if ((error= tab->table->file->ha_index_last(tab->table->record[0])))
-    return report_error(table, error);
+    return report_handler_error(table, error);
   return 0;
 }
 
@@ -2509,7 +2519,7 @@ join_read_prev(READ_RECORD *info)
 {
   int error;
   if ((error= info->table->file->ha_index_prev(info->record)))
-    return report_error(info->table, error);
+    return report_handler_error(info->table, error);
   return 0;
 }
 
@@ -2523,13 +2533,13 @@ join_ft_read_first(JOIN_TAB *tab)
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, tab->sorted)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     return 1;
   }
   table->file->ft_init();
 
   if ((error= table->file->ft_read(table->record[0])))
-    return report_error(table, error);
+    return report_handler_error(table, error);
   return 0;
 }
 
@@ -2538,7 +2548,7 @@ join_ft_read_next(READ_RECORD *info)
 {
   int error;
   if ((error= info->table->file->ft_read(info->table->record[0])))
-    return report_error(info->table, error);
+    return report_handler_error(info->table, error);
   return 0;
 }
 

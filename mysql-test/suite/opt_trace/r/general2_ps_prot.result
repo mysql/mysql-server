@@ -3292,6 +3292,37 @@ from t0 where a in
                   "attaching_conditions_to_tables": {
                     "original_condition": "((`t2`.`a` = `t1`.`a`) and (`t3`.`a` = `t1`.`a`) and (<cache>(`t0`.`a`) = (`t1`.`a` + `t1`.`a`)))",
                     "attached_conditions_computation": [
+                      {
+                        "table": "`t1`",
+                        "rechecking_index_usage": {
+                          "range_analysis": {
+                            "table_scan": {
+                              "rows": 10,
+                              "cost": 14
+                            } /* table_scan */,
+                            "potential_range_indices": [
+                              {
+                                "index": "a",
+                                "usable": true,
+                                "key_parts": [
+                                  "a"
+                                ] /* key_parts */
+                              }
+                            ] /* potential_range_indices */,
+                            "best_covering_index_scan": {
+                              "index": "a",
+                              "cost": 3.2093,
+                              "chosen": true
+                            } /* best_covering_index_scan */,
+                            "setup_range_conditions": [
+                            ] /* setup_range_conditions */,
+                            "group_index_range": {
+                              "chosen": false,
+                              "cause": "not_single_table"
+                            } /* group_index_range */
+                          } /* range_analysis */
+                        } /* rechecking_index_usage */
+                      }
                     ] /* attached_conditions_computation */,
                     "attached_conditions_summary": [
                       {

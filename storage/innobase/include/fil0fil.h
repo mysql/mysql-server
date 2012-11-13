@@ -39,8 +39,13 @@ Created 10/25/1995 Heikki Tuuri
 #include "log0log.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include <list>
+
 // Forward declaration
 struct trx_t;
+struct fil_space_t;
+
+typedef std::list<const char*> space_name_list_t;
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
@@ -199,17 +204,19 @@ fil_space_get_type(
 	ulint	id);	/*!< in: space id */
 #endif /* !UNIV_HOTBACKUP */
 /*******************************************************************//**
-Appends a new file to the chain of files of a space. File must be closed. */
+Appends a new file to the chain of files of a space. File must be closed.
+@return pointer to the file name, or NULL on error */
 UNIV_INTERN
-void
+char*
 fil_node_create(
 /*============*/
 	const char*	name,	/*!< in: file name (file must be closed) */
 	ulint		size,	/*!< in: file size in database blocks, rounded
 				downwards to an integer */
 	ulint		id,	/*!< in: space id where to append */
-	ibool		is_raw);/*!< in: TRUE if a raw device or
+	ibool		is_raw)	/*!< in: TRUE if a raw device or
 				a raw disk partition */
+	__attribute__((nonnull, warn_unused_result));
 #ifdef UNIV_LOG_ARCHIVE
 /****************************************************************//**
 Drops files from the start of a file space, so that its size is cut by
@@ -324,6 +331,14 @@ UNIV_INTERN
 void
 fil_close_all_files(void);
 /*=====================*/
+/*******************************************************************//**
+Closes the redo log files. There must not be any pending i/o's or not
+flushed modifications in the files. */
+UNIV_INTERN
+void
+fil_close_log_files(
+/*================*/
+	bool	free);	/*!< in: whether to free the memory object */
 /*******************************************************************//**
 Sets the max tablespace id counter if the given number is bigger than the
 previous value. */
@@ -634,11 +649,15 @@ fil_space_for_table_exists_in_mem(
 					data dictionary, so that
 					we can print a warning about orphaned
 					tablespaces */
-	ibool		print_error_if_does_not_exist);
+	ibool		print_error_if_does_not_exist,
 					/*!< in: print detailed error
 					information to the .err log if a
 					matching tablespace is not found from
 					memory */
+	bool		adjust_space,	/*!< in: whether to adjust space id
+					when find table space mismatch */
+	mem_heap_t*	heap,		/*!< in: heap memory */
+	table_id_t	table_id);	/*!< in: table id */
 #else /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the
@@ -858,7 +877,7 @@ struct PageCallback {
 	/**
 	Set the name of the physical file and the file handle that is used
 	to open it for the file that is being iterated over.
-	@param filename - then physical name of the tablespace file. 
+	@param filename - then physical name of the tablespace file.
 	@param file - OS file handle */
 	void set_file(const char* filename, os_file_t file) UNIV_NOTHROW
 	{
@@ -933,7 +952,18 @@ fil_get_space_id_for_table(
 	const char*	name);	/*!< in: table name in the standard
 				'databasename/tablename' format */
 
-struct fil_space_t;
+/**
+Iterate over all the spaces in the space list and fetch the
+tablespace names. It will return a copy of the name that must be
+freed by the caller using: delete[].
+@return DB_SUCCESS if all OK. */
+UNIV_INTERN
+dberr_t
+fil_get_space_names(
+/*================*/
+	space_name_list_t&	space_name_list)
+				/*!< in/out: Vector for collecting the names. */
+	__attribute__((warn_unused_result));
 
 #endif /* !UNIV_INNOCHECKSUM */
 
