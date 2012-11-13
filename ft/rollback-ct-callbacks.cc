@@ -217,6 +217,8 @@ void toku_rollback_clone_callback(
     else {
         *cloned_value_data = &cloned_rollback;
     }
+    // clear the dirty bit, because the node has been cloned
+    log->dirty = 0;
     new_attr->is_valid = false;
 }
 
