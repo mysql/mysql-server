@@ -9,6 +9,11 @@
 # job buffer overflow as too many requests was
 # sent in parallel from the SPJ block.
 # (bug#14709490)
+#
+# '--replace_column 9 ###' is used for explains throughout
+# the test as experience has shown that 'rows' estimates
+# may vary depending on OS, compiler and .. phase of moon.
+#
 ########################################################
 
 --source include/not_embedded.inc
@@ -175,12 +180,14 @@ eval $query2;
 -- echo ===============================
 -- echo Run single instance of 'query3' 
 -- echo ===============================
+--replace_column 9 ###
 eval explain $query3;
 eval $query3;
 
 -- echo ===============================
 -- echo Run single instance of 'query4' 
 -- echo ===============================
+--replace_column 9 ###
 eval explain $query4;
 eval $query4;
 
@@ -229,6 +236,7 @@ reap;
 -- echo Run multiple 'query3' in parallel 
 -- echo =================================
 let $query = $query3;
+--replace_column 9 ###
 eval explain $query;
 connection j1;
 send_eval $query;
@@ -249,6 +257,7 @@ reap;
 -- echo Run multiple 'query4' in parallel 
 -- echo =================================
 let $query = $query4;
+--replace_column 9 ###
 eval explain $query;
 connection j1;
 send_eval $query;
