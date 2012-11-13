@@ -40,6 +40,7 @@ my $opt_build = 1;
 my $opt_just_print;
 my $opt_vanilla;
 my $opt_autotest;
+my $opt_distcheck;
 my $opt_parse_log;
 Getopt::Long::Configure("pass_through");
 GetOptions(
@@ -53,6 +54,7 @@ GetOptions(
   'n|just-print' => \$opt_just_print,
   'vanilla' => \$opt_vanilla,
   'autotest' => \$opt_autotest,
+  'distcheck' => \$opt_distcheck,
 
   # Special switch --parse-log=<file> which reads a log file (from build) and
   # parses it for warnings
@@ -139,7 +141,14 @@ if (!$opt_build)
 }
 
 {
-    build_cmd("make", "-C $srcdir");
+  my @args;
+  push(@args, "-C $srcdir");
+  build_cmd("make", @args);
+
+  if ($opt_distcheck)
+  {
+    build_cmd("make", @args, "distcheck");
+  }
 }
 
 exit(0);
