@@ -1618,7 +1618,8 @@ int QUICK_ROR_INTERSECT_SELECT::init_ror_merged_scan(bool reuse_handler)
       There is no use of this->file. Use it for the first of merged range
       selects.
     */
-    if ((error= quick->init_ror_merged_scan(TRUE)))
+    int error= quick->init_ror_merged_scan(TRUE);
+    if (error)
       DBUG_RETURN(error);
     quick->file->extra(HA_EXTRA_KEYREAD_PRESERVE_FIELDS);
   }
@@ -8671,12 +8672,9 @@ typedef struct st_range_seq_entry
 /*
   MRR range sequence, SEL_ARG* implementation: SEL_ARG graph traversal context
 */
-typedef struct st_sel_arg_range_seq
+class Sel_arg_range_sequence
 {
-  uint keyno;      /* index of used tree in SEL_TREE structure */
-  uint real_keyno; /* Number of the index in tables */
-  PARAM *param;
-  SEL_ARG *start; /* Root node of the traversed SEL_ARG* graph */
+private:
   
   /**
     Stack of ranges for the curr_kp first keyparts. Used by
@@ -8721,9 +8719,54 @@ typedef struct st_sel_arg_range_seq
        - values in stack after this: stack[1, 1:3, 1:3:6]
    */
   RANGE_SEQ_ENTRY stack[MAX_REF_PARTS];
-  int curr_kp; /* Index of last used element in the above array */
-  bool at_start; /* TRUE <=> The traversal has just started */
-} SEL_ARG_RANGE_SEQ;
+  /*
+    Index of last used element in the above array. A value of -1 means
+    that the stack is empty.
+  */
+  int curr_kp;
+
+public:
+  uint keyno;      /* index of used tree in SEL_TREE structure */
+  uint real_keyno; /* Number of the index in tables */
+  
+  PARAM * const param;
+  SEL_ARG *start; /* Root node of the traversed SEL_ARG* graph */
+
+  Sel_arg_range_sequence(PARAM *param_arg) : param(param_arg) { reset(); }
+
+  void reset()
+  {
+    stack[0].key_tree= NULL;
+    stack[0].min_key= (uchar*)param->min_key;
+    stack[0].min_key_flag= 0;
+    stack[0].min_key_parts= 0;
+
+    stack[0].max_key= (uchar*)param->max_key;
+    stack[0].max_key_flag= 0;
+    stack[0].max_key_parts= 0;
+    curr_kp= -1;
+  }  
+
+  bool stack_empty() const { return (curr_kp == -1); }
+
+  void stack_push_range(SEL_ARG *key_tree);
+
+  void stack_pop_range()
+  {
+    DBUG_ASSERT(!stack_empty());
+    if (curr_kp == 0)
+      reset();
+    else 
+      curr_kp--;
+  }
+
+  int stack_size() const { return curr_kp + 1; }
+
+  RANGE_SEQ_ENTRY *stack_top()
+  {
+    return stack_empty() ? NULL : &stack[curr_kp];
+  }
+};
 
 
 /*
@@ -8741,50 +8784,67 @@ typedef struct st_sel_arg_range_seq
 
 range_seq_t sel_arg_range_seq_init(void *init_param, uint n_ranges, uint flags)
 {
-  SEL_ARG_RANGE_SEQ *seq= (SEL_ARG_RANGE_SEQ*)init_param;
-  seq->at_start= TRUE;
-  seq->stack[0].key_tree= NULL;
-  seq->stack[0].min_key= (uchar*)seq->param->min_key;
-  seq->stack[0].min_key_flag= 0;
-  seq->stack[0].min_key_parts= 0;
-
-  seq->stack[0].max_key= (uchar*)seq->param->max_key;
-  seq->stack[0].max_key_flag= 0;
-  seq->stack[0].max_key_parts= 0;
-  seq->curr_kp= 0;
+  Sel_arg_range_sequence *seq= 
+    static_cast<Sel_arg_range_sequence*>(init_param);
+  seq->reset();
   return init_param;
 }
 
 
-static void push_range_to_stack(SEL_ARG_RANGE_SEQ *arg, SEL_ARG *key_tree)
+void Sel_arg_range_sequence::stack_push_range(SEL_ARG *key_tree)
 {
 
-  RANGE_SEQ_ENTRY *cur= &arg->stack[arg->curr_kp+1];
-  RANGE_SEQ_ENTRY *prev= &arg->stack[arg->curr_kp];
-  
-  cur->key_tree= key_tree;
-  cur->min_key= prev->min_key;
-  cur->max_key= prev->max_key;
-  cur->min_key_parts= prev->min_key_parts;
-  cur->max_key_parts= prev->max_key_parts;
+  DBUG_ASSERT((uint)curr_kp+1 < MAX_REF_PARTS);
 
-  uint16 stor_length= arg->param->key[arg->keyno][key_tree->part].store_length;
+  RANGE_SEQ_ENTRY *push_position= &stack[curr_kp + 1];
+  RANGE_SEQ_ENTRY *last_added_kp= stack_top();
+  if (stack_empty())
+  {
+    /*
+       If we get here this is either 
+         a) the first time a range sequence is constructed for this
+            range access method (in which case stack[0] has not been
+            modified since the constructor was called), or
+         b) there are multiple ranges for the first keypart in the
+            condition (and we have called stack_pop_range() to empty
+            the stack). 
+       In both cases, reset() has been called and all fields in
+       push_position have been reset. All we need to do is to copy the
+       min/max key flags from the predicate we're about to add to
+       stack[0].
+    */
+    push_position->min_key_flag= key_tree->min_flag;
+    push_position->max_key_flag= key_tree->max_flag;
+  }
+  else
+  {
+    push_position->min_key= last_added_kp->min_key;
+    push_position->max_key= last_added_kp->max_key;
+    push_position->min_key_parts= last_added_kp->min_key_parts;
+    push_position->max_key_parts= last_added_kp->max_key_parts;
+    push_position->min_key_flag= last_added_kp->min_key_flag |
+                                 key_tree->min_flag;
+    push_position->max_key_flag= last_added_kp->max_key_flag |
+                                 key_tree->max_flag;
+  }
+
+  push_position->key_tree= key_tree;
+  uint16 stor_length= param->key[keyno][key_tree->part].store_length;
   /* psergey-merge-done:
   key_tree->store(arg->param->key[arg->keyno][key_tree->part].store_length,
                   &cur->min_key, prev->min_key_flag,
                   &cur->max_key, prev->max_key_flag);
   */
-  cur->min_key_parts += key_tree->store_min(stor_length, &cur->min_key,
-                                            prev->min_key_flag);
-  cur->max_key_parts += key_tree->store_max(stor_length, &cur->max_key,
-                                            prev->max_key_flag);
-
-  cur->min_key_flag= prev->min_key_flag | key_tree->min_flag;
-  cur->max_key_flag= prev->max_key_flag | key_tree->max_flag;
+  push_position->min_key_parts+=
+    key_tree->store_min(stor_length, &push_position->min_key,
+                        last_added_kp ? last_added_kp->min_key_flag : 0);
+  push_position->max_key_parts+=
+    key_tree->store_max(stor_length, &push_position->max_key,
+                        last_added_kp ? last_added_kp->max_key_flag : 0);
 
   if (key_tree->is_null_interval())
-    cur->min_key_flag |= NULL_RANGE;
-  (arg->curr_kp)++;
+    push_position->min_key_flag |= NULL_RANGE;
+  curr_kp++;
 }
 
 
@@ -8816,9 +8876,9 @@ static void push_range_to_stack(SEL_ARG_RANGE_SEQ *arg, SEL_ARG *key_tree)
 uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
 {
   SEL_ARG *key_tree;
-  SEL_ARG_RANGE_SEQ *seq= (SEL_ARG_RANGE_SEQ*)rseq;
+  Sel_arg_range_sequence *seq= static_cast<Sel_arg_range_sequence*>(rseq);
 
-  if (seq->at_start)
+  if (seq->stack_empty())
   {
     /*
       This is the first time sel_arg_range_seq_next is called.
@@ -8826,7 +8886,6 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
       keypart
     */
     key_tree= seq->start;
-    seq->at_start= FALSE;
 
     /*
       Move to the first range for the first keypart. Save this range
@@ -8834,7 +8893,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
       any
     */
     key_tree= key_tree->first();
-    push_range_to_stack(seq, key_tree);
+    seq->stack_push_range(key_tree);
   }
   else
   {
@@ -8844,43 +8903,42 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
       function found. seq->stack[current_keypart].key_tree points to a
       leaf in the R-B tree of the last keypart that was part of the
       former range. This is the starting point for finding the next
-      range. @see SEL_ARG_RANGE_SEQ::stack
+      range. @see Sel_arg_range_sequence::stack
     */
-    key_tree= seq->stack[seq->curr_kp].key_tree;
-
     // See if there are more ranges in this or any of the previous keyparts
     while (true)
     {
+      key_tree= seq->stack_top()->key_tree;
+      seq->stack_pop_range();
       if (key_tree->next)
       {
         /* This keypart has more ranges */
         DBUG_ASSERT(key_tree->next != &null_element);
         key_tree= key_tree->next;
 
-        seq->curr_kp--;
         /*
           save the next range for this keypart and carry on to ranges in
           the next keypart if any
         */
-        push_range_to_stack(seq, key_tree);
+        seq->stack_push_range(key_tree);
         seq->param->is_ror_scan= FALSE;
         break;
       }
 
-      if (seq->curr_kp == 1) 
+      if (seq->stack_empty())
       {
         // There are no more ranges for the first keypart: we're done
         return 1;
       }
-
       /* 
-         No more ranges for the current keypart. Step back to the
-         previous keypart
+         There are no more ranges for the current keypart. Step back
+         to the previous keypart and see if there are more ranges
+         there.
       */
-      seq->curr_kp--;
-      key_tree= seq->stack[seq->curr_kp].key_tree;
     }
   }
+
+  DBUG_ASSERT(!seq->stack_empty());
 
   /*
     Add range info for the next keypart if
@@ -8896,16 +8954,49 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
          key_tree->next_key_part->type == SEL_ARG::KEY_RANGE)    // 3)
   {
     {
-      RANGE_SEQ_ENTRY *cur= &seq->stack[seq->curr_kp];
-      const uint min_key_length= cur->min_key - seq->param->min_key;
-      const uint max_key_length= cur->max_key - seq->param->max_key;
-      const uint len= cur->min_key - cur[-1].min_key;
-      
-      if ((min_key_length != max_key_length ||
-           memcmp(cur[-1].min_key, cur[-1].max_key, len) ||
-           key_tree->min_flag || key_tree->max_flag))
+      DBUG_PRINT("info", ("while(): key_tree->part %d",key_tree->part));
+      RANGE_SEQ_ENTRY *cur= seq->stack_top();
+      const uint min_key_total_length= cur->min_key - seq->param->min_key;
+      const uint max_key_total_length= cur->max_key - seq->param->max_key;
+
+      /*
+        Check if more ranges can be added. This is the case if all
+        predicates for keyparts handled so far are equality
+        predicates. If either of the following apply, there are
+        non-equality predicates in stack[]:
+
+        1) min_key_total_length != max_key_total_length (because
+           equality ranges are stored as "min_key = max_key = <value>")
+        2) memcmp(<min_key_values>,<max_key_values>) != 0 (same argument as 1)
+        3) A min or max flag has been set: Because flags denote ranges
+           ('<', '<=' etc), any value but 0 indicates a non-equality
+           predicate.
+       */
+
+      uchar* min_key_start;
+      uchar* max_key_start;
+      uint cur_key_length;
+
+      if (seq->stack_size() == 1)
       {
-        /* 
+        min_key_start= seq->param->min_key;
+        max_key_start= seq->param->max_key;
+        cur_key_length= min_key_total_length;
+      }
+      else
+      {
+        const RANGE_SEQ_ENTRY prev= cur[-1];
+        min_key_start= prev.min_key;
+        max_key_start= prev.max_key;
+        cur_key_length= cur->min_key - prev.min_key;
+      }
+
+      if ((min_key_total_length != max_key_total_length) ||         // 1)
+          (memcmp(min_key_start, max_key_start, cur_key_length)) || // 2)
+          (key_tree->min_flag || key_tree->max_flag))               // 3)
+      {
+        DBUG_PRINT("info", ("while(): inside if()"));
+        /*
           The range predicate up to and including the one in key_tree
           is usable by range access but does not allow subranges made
           up from predicates in later keyparts. This may e.g. be
@@ -8955,14 +9046,16 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
       range predicate for the current keypart allows us to make use of
       them. Move to the first range predicate for the next keypart.
       Push this range predicate to seq->stack and move on to the next
-      keypart (if any). @see SEL_ARG_RANGE_SEQ::stack
+      keypart (if any). @see Sel_arg_range_sequence::stack
     */
     key_tree= key_tree->next_key_part->first();
-    push_range_to_stack(seq, key_tree);
+    seq->stack_push_range(key_tree);
   }
 
-  // We now have a full range predicate in seq->stack[seq->curr_kp]
-  RANGE_SEQ_ENTRY *cur= &seq->stack[seq->curr_kp];
+  DBUG_ASSERT(!seq->stack_empty() && (seq->stack_top() != NULL));
+
+  // We now have a full range predicate in seq->stack_top()
+  RANGE_SEQ_ENTRY *cur= seq->stack_top();
   PARAM *param= seq->param;
   uint min_key_length= cur->min_key - param->min_key;
 
@@ -8978,7 +9071,7 @@ uint sel_arg_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range)
   else
   {
     range->range_flag= cur->min_key_flag | cur->max_key_flag;
-    
+
     range->start_key.key=    param->min_key;
     range->start_key.length= cur->min_key - param->min_key;
     range->start_key.keypart_map= make_prev_keypart_map(cur->min_key_parts);
@@ -9086,7 +9179,7 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
                            SEL_ARG *tree, bool update_tbl_stats, 
                            uint *mrr_flags, uint *bufsize, Cost_estimate *cost)
 {
-  SEL_ARG_RANGE_SEQ seq;
+  Sel_arg_range_sequence seq(param);
   RANGE_SEQ_IF seq_if = {sel_arg_range_seq_init, sel_arg_range_seq_next, 0, 0};
   handler *file= param->table->file;
   ha_rows rows;
@@ -9103,7 +9196,6 @@ ha_rows check_quick_select(PARAM *param, uint idx, bool index_only,
 
   seq.keyno= idx;
   seq.real_keyno= keynr;
-  seq.param= param;
   seq.start= tree;
 
   param->range_count=0;
@@ -10487,12 +10579,25 @@ int QUICK_SELECT_DESC::get_next()
       handler know where to end the scan in order to avoid that the
       ICP implemention continues to read past the range boundary.
     */
-    if (file->pushed_idx_cond && !eqrange_all_keyparts)
+    if (file->pushed_idx_cond)
     {
-      key_range min_range;
-      last_range->make_min_endpoint(&min_range);
-      if(min_range.length > 0)
-        file->set_end_range(&min_range, handler::RANGE_SCAN_DESC);
+      if (!eqrange_all_keyparts)
+      {
+        key_range min_range;
+        last_range->make_min_endpoint(&min_range);
+        if(min_range.length > 0)
+          file->set_end_range(&min_range, handler::RANGE_SCAN_DESC);
+        else
+          file->set_end_range(NULL, handler::RANGE_SCAN_DESC);
+      }
+      else
+      {
+        /*
+          Will use ha_index_next_same() for reading records. In case we have
+          set the end range for an earlier range, this need to be cleared.
+        */
+        file->set_end_range(NULL, handler::RANGE_SCAN_ASC);
+      }
     }
 
     if (last_range->flag & NO_MAX_RANGE)        // Read last record

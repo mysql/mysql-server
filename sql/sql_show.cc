@@ -43,8 +43,6 @@
 #include "set_var.h"
 #include "sql_trigger.h"
 #include "sql_derived.h"
-#include "authors.h"
-#include "contributors.h"
 #include "sql_partition.h"
 #ifdef HAVE_EVENT_SCHEDULER
 #include "events.h"
@@ -243,74 +241,6 @@ int fill_plugins(THD *thd, TABLE_LIST *tables, Item *cond)
     DBUG_RETURN(1);
 
   DBUG_RETURN(0);
-}
-
-
-/***************************************************************************
-** List all Authors.
-** If you can update it, you get to be in it :)
-***************************************************************************/
-
-bool mysqld_show_authors(THD *thd)
-{
-  List<Item> field_list;
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_authors");
-
-  field_list.push_back(new Item_empty_string("Name",40));
-  field_list.push_back(new Item_empty_string("Location",40));
-  field_list.push_back(new Item_empty_string("Comment",80));
-
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  show_table_authors_st *authors;
-  for (authors= show_table_authors; authors->name; authors++)
-  {
-    protocol->prepare_for_resend();
-    protocol->store(authors->name, system_charset_info);
-    protocol->store(authors->location, system_charset_info);
-    protocol->store(authors->comment, system_charset_info);
-    if (protocol->write())
-      DBUG_RETURN(TRUE);
-  }
-  my_eof(thd);
-  DBUG_RETURN(FALSE);
-}
-
-
-/***************************************************************************
-** List all Contributors.
-** Please get permission before updating
-***************************************************************************/
-
-bool mysqld_show_contributors(THD *thd)
-{
-  List<Item> field_list;
-  Protocol *protocol= thd->protocol;
-  DBUG_ENTER("mysqld_show_contributors");
-
-  field_list.push_back(new Item_empty_string("Name",40));
-  field_list.push_back(new Item_empty_string("Location",40));
-  field_list.push_back(new Item_empty_string("Comment",80));
-
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
-    DBUG_RETURN(TRUE);
-
-  show_table_contributors_st *contributors;
-  for (contributors= show_table_contributors; contributors->name; contributors++)
-  {
-    protocol->prepare_for_resend();
-    protocol->store(contributors->name, system_charset_info);
-    protocol->store(contributors->location, system_charset_info);
-    protocol->store(contributors->comment, system_charset_info);
-    if (protocol->write())
-      DBUG_RETURN(TRUE);
-  }
-  my_eof(thd);
-  DBUG_RETURN(FALSE);
 }
 
 
@@ -1193,7 +1123,8 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 {
   const char *name_end;
   char quote_char;
-  int q= get_quote_char_for_identifier(thd, name, length);
+  int q;
+  q= thd ? get_quote_char_for_identifier(thd, name, length) : '`';
 
   if (q == EOF)
   {

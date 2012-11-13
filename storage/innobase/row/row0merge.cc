@@ -565,7 +565,7 @@ row_merge_tuple_cmp(
 	const dfield_t*	bf	= b.fields;
 	ulint		n	= n_uniq;
 
-	ut_ad(n_field > 0);
+	ut_ad(n_uniq > 0);
 	ut_ad(n_uniq <= n_field);
 
 	/* Compare the fields of the tuples until a difference is
@@ -1614,11 +1614,7 @@ write_buffers:
 						err = DB_DUPLICATE_KEY;
 						trx->error_key_num
 							= key_numbers[i];
-						if (row) {
-							goto func_exit;
-						} else {
-							goto all_done;
-						}
+						break;
 					}
 				} else {
 					row_merge_buf_sort(buf, NULL);
@@ -1654,7 +1650,7 @@ write_buffers:
 					     block)) {
 				err = DB_OUT_OF_FILE_SPACE;
 				trx->error_key_num = i;
-				goto func_exit;
+				break;
 			}
 
 			UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
@@ -1681,6 +1677,10 @@ write_buffers:
 
 		if (row == NULL) {
 			goto all_done;
+		}
+
+		if (err != DB_SUCCESS) {
+			goto func_exit;
 		}
 
 		mem_heap_empty(row_heap);
@@ -1731,7 +1731,8 @@ wait_again:
 	/* Update the next Doc ID we used. Table should be locked, so
 	no concurrent DML */
 	if (max_doc_id) {
-		fts_update_next_doc_id(new_table, old_table->name, max_doc_id);
+		fts_update_next_doc_id(
+			0, new_table, old_table->name, max_doc_id);
 	}
 
 	trx->op_info = "";
@@ -2005,7 +2006,7 @@ row_merge(
 
 	for (; foffs0 < ihalf && foffs1 < file->offset; foffs0++, foffs1++) {
 
-		if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
+		if (trx_is_interrupted(trx)) {
 			return(DB_INTERRUPTED);
 		}
 
@@ -2040,7 +2041,7 @@ row_merge(
 	ut_ad(foffs0 == ihalf);
 
 	while (foffs1 < file->offset) {
-		if (UNIV_UNLIKELY(trx_is_interrupted(trx))) {
+		if (trx_is_interrupted(trx)) {
 			return(DB_INTERRUPTED);
 		}
 
@@ -2227,6 +2228,7 @@ row_merge_insert_index_tuples(
 	ulint*			offsets;
 	mrec_buf_t*		buf;
 
+	ut_ad(!srv_read_only_mode);
 	ut_ad(!(index->type & DICT_FTS));
 	ut_ad(del_marks == (dict_index_get_online_status(index)
 			    != ONLINE_INDEX_COMPLETE));
@@ -2461,7 +2463,7 @@ row_merge_lock_table(
 	dberr_t		err;
 	sel_node_t*	node;
 
-	ut_ad(trx);
+	ut_ad(!srv_read_only_mode);
 	ut_ad(mode == LOCK_X || mode == LOCK_S);
 
 	heap = mem_heap_create(512);
@@ -2548,6 +2550,7 @@ row_merge_drop_index_dict(
 	dberr_t		error;
 	pars_info_t*	info;
 
+	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
@@ -2614,6 +2617,7 @@ row_merge_drop_indexes_dict(
 	dberr_t		error;
 	pars_info_t*	info;
 
+	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
@@ -2663,6 +2667,7 @@ row_merge_drop_indexes(
 	dict_index_t*	index;
 	dict_index_t*	next_index;
 
+	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
 	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
@@ -2924,6 +2929,8 @@ row_merge_file_destroy(
 /*===================*/
 	merge_file_t*	merge_file)	/*!< in/out: merge file structure */
 {
+	ut_ad(!srv_read_only_mode);
+
 	if (merge_file->fd != -1) {
 		row_merge_file_destroy_low(merge_file->fd);
 		merge_file->fd = -1;
@@ -2999,6 +3006,8 @@ row_merge_rename_index_to_drop(
 {
 	dberr_t		err;
 	pars_info_t*	info = pars_info_create();
+
+	ut_ad(!srv_read_only_mode);
 
 	/* We use the private SQL parser of Innobase to generate the
 	query graphs needed in renaming indexes. */
@@ -3086,6 +3095,7 @@ row_merge_rename_tables(
 	pars_info_t*	info;
 	char		old_name[MAX_FULL_NAME_LEN + 1];
 
+	ut_ad(!srv_read_only_mode);
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -3282,6 +3292,8 @@ row_merge_create_index(
 	ulint		n_fields = index_def->n_fields;
 	ulint		i;
 
+	ut_ad(!srv_read_only_mode);
+
 	/* Create the index prototype, using the passed in def, this is not
 	a persistent operation. We pass 0 as the space id, and determine at
 	a lower level the space id where to store the table. */
@@ -3353,6 +3365,8 @@ row_merge_drop_table(
 					to release and reacquire
 					dict_operation_lock */
 {
+	ut_ad(!srv_read_only_mode);
+
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_ref_count == 0);
 
@@ -3406,6 +3420,7 @@ row_merge_build_indexes(
 	fts_psort_t*		merge_info = NULL;
 	ib_int64_t		sig_count = 0;
 
+	ut_ad(!srv_read_only_mode);
 	ut_ad((old_table == new_table) == !col_map);
 	ut_ad(!add_cols || col_map);
 

@@ -1,0 +1,23 @@
+################################################################################
+# Purpose:                                                                     #
+#  Tests around number of partitions                                           #
+#------------------------------------------------------------------------------#
+# Original Author: Horst Hunger                                                #
+# Original Date: 2012-08-30                                                    #
+# Change Author:                                                               #
+# Change Date:                                                                 #
+# Change:                                                                      #
+################################################################################
+
+# General not engine specific settings and requirements
+
+# The server must support partitioning.
+--source include/have_partition.inc
+
+#------------------------------------------------------------------------------#
+# Engine specific settings and requirements
+
+##### Storage engine to be tested
+let $engine= 'MyISAM';
+
+--source suite/parts/inc/partition_max_sub_parts_range.inc

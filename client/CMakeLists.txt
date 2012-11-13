@@ -26,6 +26,11 @@ INCLUDE_DIRECTORIES(
   ${CMAKE_CURRENT_BINARY_DIR}
 )
 
+
+## We will need libeay32.dll and ssleay32.dll when running client executables.
+COPY_OPENSSL_DLLS(copy_openssl_client)
+
+
 ADD_DEFINITIONS(${READLINE_DEFINES})
 ADD_DEFINITIONS(${SSL_DEFINES})
 MYSQL_ADD_EXECUTABLE(mysql completion_hash.cc mysql.cc readline.cc sql_string.cc)

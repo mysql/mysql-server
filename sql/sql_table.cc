@@ -2244,6 +2244,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   {
     bool is_trans;
     char *db=table->db;
+    int db_len= table->db_length;
     handlerton *table_type;
     enum legacy_db_type frm_db_type= DB_TYPE_UNKNOWN;
 
@@ -2307,14 +2308,14 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           Don't write the database name if it is the current one (or if
           thd->db is NULL).
         */
-        built_ptr_query->append("`");
         if (thd->db == NULL || strcmp(db,thd->db) != 0)
         {
-          built_ptr_query->append(db);
-          built_ptr_query->append("`.`");
+          append_identifier(thd, built_ptr_query, db, db_len);
+          built_ptr_query->append(".");
         }
-        built_ptr_query->append(table->table_name);
-        built_ptr_query->append("`,");
+        append_identifier(thd, built_ptr_query, table->table_name,
+                          strlen(table->table_name));
+        built_ptr_query->append(",");
       }
       /*
         This means that a temporary table was droped and as such there
@@ -2373,15 +2374,15 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
           Don't write the database name if it is the current one (or if
           thd->db is NULL).
         */
-        built_query.append("`");
         if (thd->db == NULL || strcmp(db,thd->db) != 0)
         {
-          built_query.append(db);
-          built_query.append("`.`");
+          append_identifier(thd, &built_query, db, db_len);
+          built_query.append(".");
         }
 
-        built_query.append(table->table_name);
-        built_query.append("`,");
+        append_identifier(thd, &built_query, table->table_name,
+                          strlen(table->table_name));
+        built_query.append(",");
       }
     }
     DEBUG_SYNC(thd, "rm_table_no_locks_before_delete_table");

@@ -407,8 +407,6 @@ void init_update_queries(void)
   sql_command_flags[SQLCOM_SHOW_SLAVE_HOSTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_BINLOG_EVENTS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_STORAGE_ENGINES]= CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_AUTHORS]=     CF_STATUS_COMMAND;
-  sql_command_flags[SQLCOM_SHOW_CONTRIBUTORS]= CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_PRIVILEGES]=  CF_STATUS_COMMAND;
   sql_command_flags[SQLCOM_SHOW_WARNS]=       CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
   sql_command_flags[SQLCOM_SHOW_ERRORS]=      CF_STATUS_COMMAND | CF_DIAGNOSTIC_STMT;
@@ -3561,12 +3559,6 @@ end_with_restore_list:
                            thd->security_ctx->priv_user),
                           lex->verbose);
     break;
-  case SQLCOM_SHOW_AUTHORS:
-    res= mysqld_show_authors(thd);
-    break;
-  case SQLCOM_SHOW_CONTRIBUTORS:
-    res= mysqld_show_contributors(thd);
-    break;
   case SQLCOM_SHOW_PRIVILEGES:
     res= mysqld_show_privileges(thd);
     break;
@@ -5857,6 +5849,7 @@ mysql_new_select(LEX *lex, bool move_down)
 {
   SELECT_LEX *select_lex;
   THD *thd= lex->thd;
+  Name_resolution_context *outer_context= lex->current_context();
   DBUG_ENTER("mysql_new_select");
 
   if (!(select_lex= new (thd->mem_root) SELECT_LEX()))
@@ -5891,7 +5884,17 @@ mysql_new_select(LEX *lex, bool move_down)
       By default we assume that it is usual subselect and we have outer name
       resolution context, if no we will assign it to 0 later
     */
-    select_lex->context.outer_context= &select_lex->outer_select()->context;
+    if (select_lex->outer_select()->parsing_place == IN_ON)
+      /*
+        This subquery is part of an ON clause, so we need to link the
+        name resolution context for this subquery with the ON context.
+
+        @todo In which cases is this not the same as
+        &select_lex->outer_select()->context?
+      */
+      select_lex->context.outer_context= outer_context;
+    else
+      select_lex->context.outer_context= &select_lex->outer_select()->context;
   }
   else
   {
@@ -6852,6 +6855,7 @@ push_new_name_resolution_context(THD *thd,
     left_op->first_leaf_for_name_resolution();
   on_context->last_name_resolution_table=
     right_op->last_leaf_for_name_resolution();
+  on_context->select_lex= thd->lex->current_select;
   return thd->lex->push_context(on_context);
 }
 

@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -76,6 +76,7 @@ INSTALL(FILES
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_security_commands.sql
   ${FIX_PRIVILEGES_SQL}
   DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
 )
@@ -199,16 +200,13 @@ ELSE()
 ENDIF()
 
 IF(UNIX)
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.sh
-  ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db ESCAPE_QUOTES @ONLY)
-  SET(DEST ${INSTALL_SCRIPTDIR})
   SET(EXT)
 ELSE()
- CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.pl.in
-   ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db.pl ESCAPE_QUOTES @ONLY)
- SET(DEST ${INSTALL_SCRIPTDIR})
- SET(EXT ".pl")
+  SET(EXT ".pl")
 ENDIF()
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.pl.in
+  ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db${EXT} ESCAPE_QUOTES @ONLY)
+SET(DEST ${INSTALL_SCRIPTDIR})
 
 INSTALL_SCRIPT(
  "${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db${EXT}"
@@ -320,7 +318,6 @@ ELSE()
     mysql_config
     mysql_fix_extensions
     mysql_setpermission
-    mysql_secure_installation
     mysql_zap
     mysqlaccess
     mysqlaccess.conf
@@ -351,6 +348,18 @@ ELSE()
       DESTINATION ${INSTALL_BINDIR}
       COMPONENT ${${file}_COMPONENT}
      )
+  ENDFOREACH()
+
+  # Input files with pl.in extension - drop the extension completely
+  SET(PLIN_FILES mysql_secure_installation)
+  FOREACH(file ${PLIN_FILES})
+    CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${file}.pl.in
+      ${CMAKE_CURRENT_BINARY_DIR}/${file} ESCAPE_QUOTES @ONLY)
+    EXECUTE_PROCESS(COMMAND chmod +x ${CMAKE_CURRENT_BINARY_DIR}/${file})
+    IF(NOT ${file}_COMPONENT)
+      SET(${file}_COMPONENT Server)
+    ENDIF()
+    INSTALL_SCRIPT(${CMAKE_CURRENT_BINARY_DIR}/${file} COMPONENT ${${file}_COMPONENT})
   ENDFOREACH()
 ENDIF()
 

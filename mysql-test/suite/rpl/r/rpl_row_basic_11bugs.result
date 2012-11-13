@@ -99,7 +99,7 @@ a
 7
 8
 9
-SET GLOBAL QUERY_CACHE_SIZE=0;
+SET GLOBAL QUERY_CACHE_SIZE=DEFAULT;
 DROP TABLE t1;
 ================ Test for BUG#22550 ================
 include/rpl_reset.inc

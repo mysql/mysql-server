@@ -997,11 +997,16 @@ longlong Item_func_spatial_rel::val_int()
 
   collector.prepare_operation();
   scan_it.init(&collector);
-  if (spatial_rel == SP_EQUALS_FUNC)
+  /* Note: other functions might be checked here as well. */
+  if (spatial_rel == SP_EQUALS_FUNC ||
+      spatial_rel == SP_WITHIN_FUNC ||
+      spatial_rel == SP_CONTAINS_FUNC)
   {
     result= (g1->get_class_info()->m_type_id == g1->get_class_info()->m_type_id) &&
             func_equals();
-    goto exit;
+    if (spatial_rel == SP_EQUALS_FUNC || 
+        result) // for SP_WITHIN_FUNC and SP_CONTAINS_FUNC
+      goto exit;
   }
 
   if (func.alloc_states())

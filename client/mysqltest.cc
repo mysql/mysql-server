@@ -1049,6 +1049,8 @@ static void show_query(MYSQL* mysql, const char* query)
       fprintf(stderr, "---- %d. ----\n", row_num);
       for(i= 0; i < num_fields; i++)
       {
+      /* looks ugly , but put here to convince parfait */
+        assert(lengths);
         fprintf(stderr, "%s\t%.*s\n",
                 fields[i].name,
                 (int)lengths[i], row[i] ? row[i] : "NULL");
@@ -1123,6 +1125,8 @@ static void show_warnings_before_error(MYSQL* mysql)
 
       for(i= 0; i < num_fields; i++)
       {
+      /* looks ugly , but put here to convince parfait */
+        assert(lengths);
         fprintf(stderr, "%.*s ", (int)lengths[i],
                 row[i] ? row[i] : "NULL");
       }
@@ -7125,8 +7129,12 @@ void append_result(DYNAMIC_STRING *ds, MYSQL_RES *res)
     uint i;
     lengths = mysql_fetch_lengths(res);
     for (i = 0; i < num_fields; i++)
+    {
+      /* looks ugly , but put here to convince parfait */
+      assert(lengths);
       append_field(ds, i, &fields[i],
                    row[i], lengths[i], !row[i]);
+    }
     if (!display_result_vertically)
       dynstr_append_mem(ds, "\n", 1);
   }
@@ -7849,13 +7857,6 @@ end:
   }
   revert_properties();
 
-  /* Close the statement if - no reconnect, need new prepare */
-  if (mysql->reconnect)
-  {
-    mysql_stmt_close(stmt);
-    cur_con->stmt= NULL;
-  }
-
   /*
     We save the return code (mysql_stmt_errno(stmt)) from the last call sent
     to the server into the mysqltest builtin variable $mysql_errno. This
@@ -7863,6 +7864,14 @@ end:
   */
 
   var_set_errno(mysql_stmt_errno(stmt));
+
+  /* Close the statement if - no reconnect, need new prepare */
+  if (mysql->reconnect)
+  {
+    mysql_stmt_close(stmt);
+    cur_con->stmt= NULL;
+  }
+
 
   DBUG_VOID_RETURN;
 }
@@ -10133,6 +10142,7 @@ REPLACE *init_replace(char * *from, char * *to,uint count,
       else
       {
 	new_set=make_new_set(&sets);
+        assert(new_set);
 	set=sets.set+set_nr;			/* if realloc */
 	new_set->table_offset=set->table_offset;
 	new_set->found_len=set->found_len;

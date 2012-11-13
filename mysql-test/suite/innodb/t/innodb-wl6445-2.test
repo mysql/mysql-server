@@ -1,0 +1,242 @@
+######## suite/innodb/t/innodb-wl6445-2                     ##########
+#                                                                    #
+# Testcase for worklog WL#6445: InnoDB should be able to work with   #
+# read-only tables
+# All sub-test in this file focus on changinf file permission and    #
+# restarting server in read only. It verifies necessary operations   #
+# are blocked                                                        #
+#                                                                    #
+#                                                                    #
+# Creation:                                                          #
+# 2011-09-06 Implemented this test as part of WL#6445                #
+#                                                                    #
+######################################################################
+
+
+# Not supported in embedded
+--source include/not_embedded.inc
+
+-- source include/have_innodb.inc
+# *nix specific command to remove write permission 
+# wanted to use perl to save original permission of file and restore back after
+# chnage but could not find way to do.(with perl we could run test on windows too)
+-- source include/not_windows.inc
+
+let MYSQLD_DATADIR =`SELECT @@datadir`;
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+let $innodb_file_format = `SELECT @@innodb_file_format`;
+let $innodb_large_prefix_orig = `select @@innodb_large_prefix`;
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+SET GLOBAL innodb_file_format = `Barracuda`;
+SELECT @@innodb_file_format;
+
+set global innodb_large_prefix=1;
+SELECT @@innodb_large_prefix;
+
+let $MYSQLD_DATADIR = `SELECT @@datadir`;
+
+
+--disable_warnings
+DROP DATABASE IF EXISTS testdb_wl6445;
+--enable_warnings
+CREATE DATABASE testdb_wl6445;
+
+
+#------------------------------------------------------------------------------
+# Testcase covers
+# a) Create table/data , 
+# b) remove write permission of ibdata , ib_logfile0  
+# c) restart server in --innodb-read-only mode and verfiy DDL/DML/DCL in read only mode
+#------------------------------------------------------------------------------
+--echo case # 1
+
+SET GLOBAL innodb_file_per_table = 1;
+SET GLOBAL innodb_file_format = `Barracuda`;
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+
+# remove write permissions 
+--exec chmod a-w $MYSQLD_DATADIR/ibdata1
+--exec chmod a-w $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
+--exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
+#
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+USE testdb_wl6445;
+SELECT i FROM t1 ORDER BY i;
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+--ERROR ER_OPEN_AS_READONLY
+CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
+--ERROR ER_CANT_LOCK
+UPDATE t1 SET i = i+1;
+
+# Fix in next revision - known ( no data returned)
+# SHOW ENGINE INNODB STATUS;
+FLUSH STATUS;
+FLUSH LOGS;
+FLUSH TABLES t1;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+
+
+#------------------------------------------------------------------------------
+#clenaup
+#------------------------------------------------------------------------------
+#
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--exec chmod 0644 $MYSQLD_DATADIR/ibdata1
+--exec chmod 0644 $MYSQLD_DATADIR/ib_logfile0
+--exec chmod 0660 $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+DROP DATABASE IF EXISTS testdb_wl6445;
+
+
+#------------------------------------------------------------------------------
+# Testcase covers
+# a) Create table/data , 
+# b) remove write permission of ibdata , ib_logfile0 when server is running
+# c) restart server in --innodb-read-only mode and verfiy DDL/DML/DCL in read only mode
+#------------------------------------------------------------------------------
+--echo case # 2
+--disable_warnings
+DROP DATABASE IF EXISTS testdb_wl6445;
+--enable_warnings
+CREATE DATABASE testdb_wl6445;
+
+USE testdb_wl6445;
+CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+
+# remove write permissions 
+--exec chmod a-w $MYSQLD_DATADIR/ibdata1
+--exec chmod a-w $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
+--exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
+#
+# check dml/ddl after removing write permission 
+CREATE TABLE t2 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
+INSERT INTO t2 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+UPDATE t2 SET i = i + 10;
+SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
+DELETE FROM t2;
+SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
+
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+USE testdb_wl6445;
+SELECT i FROM t1 ORDER BY i;
+SELECT i FROM t2 ORDER BY i;
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+
+--ERROR ER_CANT_LOCK
+INSERT INTO t1 VALUES (11,repeat('a',200)),(12,repeat('b',200)),(13,repeat('c',200));
+SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
+#--ERROR ER_OPEN_AS_READONLY
+--ERROR ER_CANT_LOCK
+CREATE TABLE t2 ( i int , j blob) ENGINE = Innodb;
+--ERROR ER_CANT_LOCK
+UPDATE t1 SET i = i+1;
+
+# Fix in next revision - known ( no data returned)
+# SHOW ENGINE INNODB STATUS;
+FLUSH STATUS;
+FLUSH LOGS;
+FLUSH TABLES t1,t2;
+FLUSH TABLES WITH READ LOCK;
+UNLOCK TABLES;
+
+
+#------------------------------------------------------------------------------
+# Testcase covers
+# a) Create table/data , 
+# b) remove write permission of ibdata , ib_logfile0  
+# c) try to restart server without --innodb-read-only mode 
+#------------------------------------------------------------------------------
+#  Note : write permission is already removed in previous case so we just
+#         start server without --innodb-read-only option
+
+--echo case # 3
+
+# We let our server restart attempts write to the file $error_log.
+let $error_log= $MYSQLTEST_VARDIR/log/my_restart.err;
+--error 0,1
+--remove_file $error_log
+# $error_log has to be processed by include/search_pattern_in_file.inc which
+# contains Perl code requiring that the environment variable SEARCH_FILE points
+# to this file.
+let SEARCH_FILE= $error_log;
+
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+
+--echo #    Try to restart the server without --innodb-read-only after removing
+--echo #    write permissions of system tablespace. Server should not start.
+--echo #    This confirms server is not automatically started in read-only mode.
+#----------------------------------------------------------------------------------
+# Detailed explanations of what happens are placed nearby the checks.
+--error 1
+--exec $MYSQLD_CMD --loose-console > $error_log 2>&1
+
+# We get depending on the platform either "./ibdata1" or ".\ibdata1".
+let SEARCH_PATTERN=InnoDB: The system tablespace must be writable;
+--source include/search_pattern_in_file.inc
+
+
+#------------------------------------------------------------------------------
+#clenaup
+#------------------------------------------------------------------------------
+#
+# Do something while server is down
+--exec chmod 0644 $MYSQLD_DATADIR/ibdata1
+--exec chmod 0644 $MYSQLD_DATADIR/ib_logfile0
+--exec chmod 0660 $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
+--error 0,1
+--remove_file $error_log
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+USE testdb_wl6445;
+DROP DATABASE testdb_wl6445;
+eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
+eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
+eval SET GLOBAL innodb_large_prefix = $innodb_large_prefix_orig;

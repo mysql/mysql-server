@@ -429,9 +429,13 @@ int Gcalc_result_receiver::complete_shape()
   }
   if (n_points == 1)
   {
-    if (cur_shape == Gcalc_function::shape_hole)
+    if (cur_shape == Gcalc_function::shape_hole ||
+        cur_shape == Gcalc_function::shape_polygon)
     {
-      // All points of a hole had the same coordinates -remove this hole.
+      /*
+        All points of a hole (or a polygon) have the same 
+        coordinates - remove the shape.
+      */
       buffer.length(shape_pos);
       DBUG_RETURN(0);
     }
@@ -444,23 +448,22 @@ int Gcalc_result_receiver::complete_shape()
   else
   {
     DBUG_ASSERT(cur_shape != Gcalc_function::shape_point);
-    if (cur_shape == Gcalc_function::shape_hole)
+    if (cur_shape == Gcalc_function::shape_hole ||
+        cur_shape == Gcalc_function::shape_polygon)
     {
       shape_area+= prev_x*first_y - prev_y*first_x;
+      /* Remove a hole (or a polygon) if its area == 0. */
       if (fabs(shape_area) < 1e-8)
       {
         buffer.length(shape_pos);
         DBUG_RETURN(0);
       }
-    }
-
-    if ((cur_shape == Gcalc_function::shape_polygon ||
-          cur_shape == Gcalc_function::shape_hole) &&
-        prev_x == first_x && prev_y == first_y)
-    {
-      n_points--;
-      buffer.write_at_position(shape_pos+4, n_points);
-      goto do_complete;
+      if (prev_x == first_x && prev_y == first_y)
+      {
+        n_points--;
+        buffer.write_at_position(shape_pos + 4, n_points);
+        goto do_complete;
+      }
     }
     buffer.write_at_position(shape_pos+4, n_points);
   }

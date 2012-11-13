@@ -34,12 +34,6 @@ fts_write_object_id(
 	ib_id_t		id,		/* in: a table/index id */
 	char*		str)		/* in: buffer to write the id to */
 {
-#ifdef __WIN__
-# define UINT64PFx	"%016I64u"
-#else
-# define UINT64PFx	"%016"PRIx64
-# endif /* __WIN__ */
-
         // FIXME: Use ut_snprintf()
 	return(sprintf(str, UINT64PFx, id));
 }
@@ -54,7 +48,7 @@ fts_read_object_id(
 	ib_id_t*	id,		/* out: an id */
 	const char*	str)		/* in: buffer to read from */
 {
-	return(sscanf(str, IB_ID_FMT, id) == 2);
+	return(sscanf(str, UINT64PFx, id) == 1);
 }
 
 /******************************************************************//**

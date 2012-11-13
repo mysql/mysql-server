@@ -704,20 +704,16 @@ static void destroy_sj_tmp_tables(JOIN *join)
     free_tmp_table(join->thd, table);
   }
   join->sj_tmp_tables.empty();
-  join->sjm_exec_list.empty();
 }
 
 
-/*
-  Remove all records from all temp tables used by NL-semijoin runtime
+/**
+  Remove all rows from all temp tables used by NL-semijoin runtime
 
-  SYNOPSIS
-    clear_sj_tmp_tables()
-      join  The join to remove tables for
+  @param join  The join to remove tables for
 
-  DESCRIPTION
-    Remove all records from all temp tables used by NL-semijoin runtime. This 
-    must be done before every join re-execution.
+  All rows must be removed from all temporary tables before every join
+  re-execution.
 */
 
 static int clear_sj_tmp_tables(JOIN *join)
@@ -733,8 +729,13 @@ static int clear_sj_tmp_tables(JOIN *join)
   Semijoin_mat_exec *sjm;
   List_iterator<Semijoin_mat_exec> it2(join->sjm_exec_list);
   while ((sjm= it2++))
-    join->join_tab[sjm->mat_table_index].materialized= false;
-
+  {
+    JOIN_TAB *const tab= join->join_tab + sjm->mat_table_index;
+    DBUG_ASSERT(tab->materialize_table);
+    tab->materialized= false;
+    // The materialized table must be re-read on next evaluation:
+    tab->table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+  }
   return 0;
 }
 
@@ -912,6 +913,7 @@ bool JOIN::destroy()
   Semijoin_mat_exec *sjm;
   while ((sjm= sjm_list_it++))
     delete sjm;
+  sjm_exec_list.empty();
 
   keyuse.clear();
   DBUG_RETURN(test(error));
@@ -1378,14 +1380,13 @@ bool JOIN::get_best_combination()
 
       Semijoin_mat_exec *const sjm_exec=
         new (thd->mem_root)
-        Semijoin_mat_exec((pos_table->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
-                          remaining_sjm_inner, outer_target, inner_target,
-                          &sj_nest->nested_join->sj_inner_exprs);
+        Semijoin_mat_exec(sj_nest,
+                          (pos_table->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
+                          remaining_sjm_inner, outer_target, inner_target);
       if (!sjm_exec)
         DBUG_RETURN(true);
 
       (join_tab + outer_target)->sj_mat_exec= sjm_exec;
-      sj_nest->sj_mat_exec= sjm_exec;
 
       if (setup_materialized_table(join_tab + outer_target, sjm_index,
                                    pos_table, best_positions + sjm_index))
@@ -2593,7 +2594,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   const TABLE_LIST *const emb_sj_nest= inner_pos->table->emb_sj_nest;
   Semijoin_mat_optimize *const sjm_opt= &emb_sj_nest->nested_join->sjm;
   Semijoin_mat_exec *const sjm_exec= tab->sj_mat_exec;
-  const uint field_count= sjm_exec->subq_exprs->elements;
+  const uint field_count= emb_sj_nest->nested_join->sj_inner_exprs.elements;
 
   DBUG_ASSERT(inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP ||
               inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
@@ -2616,7 +2617,8 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   name[len] = '\0';
   TABLE *table;
   if (!(table= create_tmp_table(thd, &sjm_exec->table_param, 
-                                *sjm_exec->subq_exprs, NULL, 
+                                emb_sj_nest->nested_join->sj_inner_exprs,
+                                NULL, 
                                 true /* distinct */, 
                                 true /* save_sum_fields */,
                                 thd->variables.option_bits |
@@ -2686,6 +2688,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   if (!sjm_exec->is_scan)
   {
     sjm_pos->key= keyuse->begin(); // MaterializeLookup will use the index
+    tab->keyuse= keyuse->begin();
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
     sjm_pos->set_prefix_costs(1.0, fanout);
@@ -5181,7 +5184,8 @@ bool JOIN::make_tmp_tables_info()
     if (join_tab &&
         ordered_index_usage !=
         (group_list ? ordered_index_group_by : ordered_index_order_by) &&
-        join_tab[curr_tmp_table].type != JT_CONST) // Don't sort 1 row
+        join_tab[curr_tmp_table].type != JT_CONST &&
+        join_tab[curr_tmp_table].type != JT_EQ_REF) // Don't sort 1 row
     {
       // Sort either first non-const table or the last tmp table
       JOIN_TAB *sort_tab= &join_tab[curr_tmp_table];
@@ -5313,7 +5317,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   double fanout= 1;
   ha_rows table_records= table->file->stats.records;
   bool group= join && join->group && order == join->group_list;
-  ha_rows ref_key_quick_rows= HA_POS_ERROR;
+  ha_rows refkey_rows_estimate= table->quick_condition_rows;
   const bool has_limit= (select_limit != HA_POS_ERROR);
 
   /*
@@ -5339,9 +5343,6 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   else
     keys= usable_keys;
 
-  if (ref_key >= 0 && table->covering_keys.is_set(ref_key))
-    ref_key_quick_rows= table->quick_rows[ref_key];
-
   if (join)
   {
     read_time= tab->position->read_time;
@@ -5352,6 +5353,21 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   else
     read_time= table->file->scan_time();
 
+  /*
+    Calculate the selectivity of the ref_key for REF_ACCESS. For
+    RANGE_ACCESS we use table->quick_condition_rows.
+  */
+  if (ref_key >= 0 && tab->type == JT_REF)
+  {
+    if (table->quick_keys.is_set(ref_key))
+      refkey_rows_estimate= table->quick_rows[ref_key];
+    else
+    {
+      const KEY *ref_keyinfo= table->key_info + ref_key;
+      refkey_rows_estimate= ref_keyinfo->rec_per_key[tab->ref.key_parts - 1];
+    }
+    set_if_bigger(refkey_rows_estimate, 1);
+  }
   for (nr=0; nr < table->s->keys ; nr++)
   {
     int direction;
@@ -5428,17 +5444,17 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           with ref_key. Thus, to select first N records we have to scan
           N/selectivity(ref_key) index entries. 
           selectivity(ref_key) = #scanned_records/#table_records =
-          table->quick_condition_rows/table_records.
+          refkey_rows_estimate/table_records.
           In any case we can't select more than #table_records.
-          N/(table->quick_condition_rows/table_records) > table_records 
-          <=> N > table->quick_condition_rows.
-        */ 
-        if (select_limit > table->quick_condition_rows)
+          N/(refkey_rows_estimate/table_records) > table_records
+          <=> N > refkey_rows_estimate.
+         */
+        if (select_limit > refkey_rows_estimate)
           select_limit= table_records;
         else
           select_limit= (ha_rows) (select_limit *
                                    (double) table_records /
-                                    table->quick_condition_rows);
+                                    refkey_rows_estimate);
         rec_per_key= keyinfo->rec_per_key[keyinfo->key_parts-1];
         set_if_bigger(rec_per_key, 1);
         /*
@@ -5459,8 +5475,12 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
             index_scan_time < read_time)
         {
           ha_rows quick_records= table_records;
+          ha_rows refkey_select_limit= (ref_key >= 0 &&
+                                        table->covering_keys.is_set(ref_key)) ?
+                                        refkey_rows_estimate :
+                                        HA_POS_ERROR;
           if ((is_best_covering && !is_covering) ||
-              (is_covering && ref_key_quick_rows < select_limit))
+              (is_covering && refkey_select_limit < select_limit))
             continue;
           if (table->quick_keys.is_set(nr))
             quick_records= table->quick_rows[nr];

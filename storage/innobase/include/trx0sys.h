@@ -607,6 +607,14 @@ struct trx_sys_t{
 					otherwise */
 	ulint		n_prepared_trx;	/*!< Number of transactions currently
 					in the XA PREPARED state */
+	ulint		n_prepared_recovered_trx; /*!< Number of transactions
+					currently in XA PREPARED state that are
+					also recovered. Such transactions cannot
+					be added during runtime. They can only
+					occur after recovery if mysqld crashed
+					while there were XA PREPARED
+					transactions. We disable query cache
+					if such transactions exist. */
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */

@@ -1827,6 +1827,12 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
       }
       if (sortorder->field->maybe_null())
         total_length++;                       // Place for NULL marker
+
+      if (sortorder->field->result_type() == STRING_RESULT &&
+          !sortorder->field->is_temporal())
+      {
+        set_if_smaller(sortorder->length, thd->variables.max_sort_length);
+      }
     }
     else
     {
@@ -1858,7 +1864,6 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
 #endif
 	break;
       case DECIMAL_RESULT:
-        // NOTE: max length here is 65 bytes, we might need to truncate!
         sortorder->length=
           my_decimal_get_binary_size(sortorder->item->max_length - 
                                      (sortorder->item->decimals ? 1 : 0),
@@ -1876,7 +1881,6 @@ sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
       if (sortorder->item->maybe_null)
         total_length++;                       // Place for NULL marker
     }
-    set_if_smaller(sortorder->length, thd->variables.max_sort_length);
     total_length+= sortorder->length;
   }
   sortorder->field= NULL;                       // end marker

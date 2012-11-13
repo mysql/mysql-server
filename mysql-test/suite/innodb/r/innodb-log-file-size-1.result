@@ -1,0 +1,178 @@
+call mtr.add_suppression("InnoDB: Resizing redo log");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
+call mtr.add_suppression("InnoDB: New log files created");
+call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+@@innodb_file_per_table
+1
+SET GLOBAL innodb_file_format = `Barracuda`;
+SELECT @@innodb_file_format;
+@@innodb_file_format
+Barracuda
+SELECT @@innodb_log_file_size;
+@@innodb_log_file_size
+1048576
+SELECT @@innodb_log_files_in_group;
+@@innodb_log_files_in_group
+2
+DROP DATABASE IF EXISTS db_wl6494;
+CREATE DATABASE db_wl6494;
+USE db_wl6494;
+CREATE TABLE t1(id INT PRIMARY KEY,bfield blob) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
+(3,repeat('c',2000));
+START TRANSACTION;
+INSERT INTO t1 VALUES (11,repeat('a',2000)),(12,repeat('b',2000)),
+(13,repeat('c',2000));
+SAVEPOINT A;
+INSERT INTO t1 VALUES (21,repeat('a',2000)),(22,repeat('b',2000)),
+(23,repeat('c',2000));
+SAVEPOINT B;
+SELECT id,LEFT(bfield,20) FROM t1;
+id	LEFT(bfield,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+11	aaaaaaaaaaaaaaaaaaaa
+12	bbbbbbbbbbbbbbbbbbbb
+13	cccccccccccccccccccc
+21	aaaaaaaaaaaaaaaaaaaa
+22	bbbbbbbbbbbbbbbbbbbb
+23	cccccccccccccccccccc
+ROLLBACK TO A;
+COMMIT;
+SELECT id,LEFT(bfield,20) FROM t1;
+id	LEFT(bfield,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+11	aaaaaaaaaaaaaaaaaaaa
+12	bbbbbbbbbbbbbbbbbbbb
+13	cccccccccccccccccccc
+The size of the ib_logfile0 file: 2 
+The size of the ib_logfile1 file: 2 
+The size of the ib_logfile2 file: 2 
+The size of the ib_logfile3 file: 2 
+The size of the ib_logfile4 file: 2 
+USE db_wl6494;
+SELECT id,LEFT(bfield,20) FROM t1;
+id	LEFT(bfield,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+11	aaaaaaaaaaaaaaaaaaaa
+12	bbbbbbbbbbbbbbbbbbbb
+13	cccccccccccccccccccc
+INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
+(3,repeat('c',2000));
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+INSERT INTO t1 VALUES (21,repeat('a',2000)),(22,repeat('b',2000)),
+(23,repeat('c',2000));
+SELECT id,LEFT(bfield,20) FROM t1;
+id	LEFT(bfield,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+11	aaaaaaaaaaaaaaaaaaaa
+12	bbbbbbbbbbbbbbbbbbbb
+13	cccccccccccccccccccc
+21	aaaaaaaaaaaaaaaaaaaa
+22	bbbbbbbbbbbbbbbbbbbb
+23	cccccccccccccccccccc
+DROP TABLE t1;
+DROP DATABASE db_wl6494;
+SELECT @@innodb_log_file_size;
+@@innodb_log_file_size
+3145728
+SELECT @@innodb_log_files_in_group;
+@@innodb_log_files_in_group
+3
+DROP DATABASE IF EXISTS db_wl6494;
+CREATE DATABASE db_wl6494;
+USE db_wl6494;
+CREATE TABLE t1(id INT PRIMARY KEY,bfield blob) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
+(3,repeat('c',2000));
+START TRANSACTION;
+INSERT INTO t1 VALUES (11,repeat('a',2000)),(12,repeat('b',2000)),
+(13,repeat('c',2000));
+SAVEPOINT A;
+INSERT INTO t1 VALUES (21,repeat('a',2000)),(22,repeat('b',2000)),
+(23,repeat('c',2000));
+SAVEPOINT B;
+SELECT id,LEFT(bfield,20) FROM t1;
+id	LEFT(bfield,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+11	aaaaaaaaaaaaaaaaaaaa
+12	bbbbbbbbbbbbbbbbbbbb
+13	cccccccccccccccccccc
+21	aaaaaaaaaaaaaaaaaaaa
+22	bbbbbbbbbbbbbbbbbbbb
+23	cccccccccccccccccccc
+ROLLBACK TO A;
+COMMIT;
+SELECT id,LEFT(bfield,20) FROM t1;
+id	LEFT(bfield,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+11	aaaaaaaaaaaaaaaaaaaa
+12	bbbbbbbbbbbbbbbbbbbb
+13	cccccccccccccccccccc
+SELECT @@innodb_log_file_size;
+@@innodb_log_file_size
+2097152
+SELECT @@innodb_log_files_in_group;
+@@innodb_log_files_in_group
+2
+USE db_wl6494;
+SELECT id,LEFT(bfield,20) FROM t1;
+id	LEFT(bfield,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+11	aaaaaaaaaaaaaaaaaaaa
+12	bbbbbbbbbbbbbbbbbbbb
+13	cccccccccccccccccccc
+INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
+(3,repeat('c',2000));
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+INSERT INTO t1 VALUES (21,repeat('a',2000)),(22,repeat('b',2000)),
+(23,repeat('c',2000));
+SELECT id,LEFT(bfield,20) FROM t1;
+id	LEFT(bfield,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+11	aaaaaaaaaaaaaaaaaaaa
+12	bbbbbbbbbbbbbbbbbbbb
+13	cccccccccccccccccccc
+21	aaaaaaaaaaaaaaaaaaaa
+22	bbbbbbbbbbbbbbbbbbbb
+23	cccccccccccccccccccc
+"test misc 1"
+"test misc 2"
+"test misc 3"
+"test misc 4"
+"test misc 5"
+"test misc 6"
+USE db_wl6494;
+SELECT id,LEFT(bfield,20) FROM t1;
+id	LEFT(bfield,20)
+1	aaaaaaaaaaaaaaaaaaaa
+2	bbbbbbbbbbbbbbbbbbbb
+3	cccccccccccccccccccc
+11	aaaaaaaaaaaaaaaaaaaa
+12	bbbbbbbbbbbbbbbbbbbb
+13	cccccccccccccccccccc
+21	aaaaaaaaaaaaaaaaaaaa
+22	bbbbbbbbbbbbbbbbbbbb
+23	cccccccccccccccccccc
+INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
+(3,repeat('c',2000));
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+DROP TABLE t1;
+DROP DATABASE db_wl6494;

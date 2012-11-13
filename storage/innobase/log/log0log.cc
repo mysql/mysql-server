@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2012, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -1343,6 +1343,8 @@ log_write_up_to(
 #endif /* UNIV_DEBUG */
 	ulint		unlock;
 
+	ut_ad(!srv_read_only_mode);
+
 	if (recv_no_ibuf_operations) {
 		/* Recovery is running and no operations on the log files are
 		allowed yet (the variable name .._no_ibuf_.. is misleading) */
@@ -1553,6 +1555,7 @@ log_buffer_flush_to_disk(void)
 {
 	lsn_t	lsn;
 
+	ut_ad(!srv_read_only_mode);
 	mutex_enter(&(log_sys->mutex));
 
 	lsn = log_sys->lsn;
@@ -1758,6 +1761,7 @@ log_group_checkpoint(
 	byte*		buf;
 	ulint		i;
 
+	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&(log_sys->mutex)));
 #if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
 # error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
@@ -1945,12 +1949,13 @@ log_groups_write_checkpoint_info(void)
 
 	ut_ad(mutex_own(&(log_sys->mutex)));
 
-	group = UT_LIST_GET_FIRST(log_sys->log_groups);
+	if (!srv_read_only_mode) {
+		for (group = UT_LIST_GET_FIRST(log_sys->log_groups);
+		     group;
+		     group = UT_LIST_GET_NEXT(log_groups, group)) {
 
-	while (group) {
-		log_group_checkpoint(group);
-
-		group = UT_LIST_GET_NEXT(log_groups, group);
+			log_group_checkpoint(group);
+		}
 	}
 }
 
@@ -1974,6 +1979,8 @@ log_checkpoint(
 				made to log files */
 {
 	lsn_t	oldest_lsn;
+
+	ut_ad(!srv_read_only_mode);
 
 	if (recv_recovery_is_on()) {
 		recv_apply_hashed_log_recs(TRUE);
@@ -3092,10 +3099,8 @@ logs_empty_and_mark_files_at_shutdown(void)
 	const char*		thread_name;
 	ibool			server_busy;
 
-	if (srv_print_verbose_log) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr, " InnoDB: Starting shutdown...\n");
-	}
+	ib_logf(IB_LOG_LEVEL_INFO, "Starting shutdown...");
+
 	/* Wait until the master thread and all other operations are idle: our
 	algorithm only works if the server is idle at shutdown */
 
@@ -3116,9 +3121,8 @@ loop:
 		threads check will be done later. */
 
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Waiting for %s to exit\n",
-				thread_name);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for %s to exit", thread_name);
 			count = 0;
 		}
 
@@ -3135,9 +3139,8 @@ loop:
 	if (total_trx > 0) {
 
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Waiting for %lu "
-				"active transactions to finish\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for %lu active transactions to finish",
 				(ulong) total_trx);
 
 			count = 0;
@@ -3182,9 +3185,9 @@ loop:
 				break;
 			}
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Waiting for %s "
-				"to be suspended\n", thread_type);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for %s to be suspended",
+				thread_type);
 			count = 0;
 		}
 
@@ -3200,10 +3203,9 @@ loop:
 		++count;
 		os_thread_sleep(100000);
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Waiting for page_cleaner to "
-				"finish flushing of buffer pool\n");
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for page_cleaner to "
+				"finish flushing of buffer pool");
 			count = 0;
 		}
 	}
@@ -3218,10 +3220,9 @@ loop:
 
 	if (server_busy) {
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Pending checkpoint_writes: %lu\n"
-				" InnoDB: Pending log flush writes: %lu\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Pending checkpoint_writes: %lu. "
+				"Pending log flush writes: %lu",
 				(ulong) log_sys->n_pending_checkpoint_writes,
 				(ulong) log_sys->n_pending_writes);
 			count = 0;
@@ -3233,9 +3234,8 @@ loop:
 
 	if (pending_io) {
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Waiting for %lu buffer page "
-				"I/Os to complete\n",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for %lu buffer page I/Os to complete",
 				(ulong) pending_io);
 			count = 0;
 		}
@@ -3247,41 +3247,50 @@ loop:
 	log_archive_all();
 #endif /* UNIV_LOG_ARCHIVE */
 	if (srv_fast_shutdown == 2) {
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: MySQL has requested a very fast shutdown"
-			" without flushing "
-			"the InnoDB buffer pool to data files."
-			" At the next mysqld startup "
-			"InnoDB will do a crash recovery!\n");
+		if (!srv_read_only_mode) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"MySQL has requested a very fast shutdown "
+				"without flushing the InnoDB buffer pool to "
+				"data files. At the next mysqld startup "
+				"InnoDB will do a crash recovery!");
 
-		/* In this fastest shutdown we do not flush the buffer pool:
-		it is essentially a 'crash' of the InnoDB server. Make sure
-		that the log is all flushed to disk, so that we can recover
-		all committed transactions in a crash recovery. We must not
-		write the lsn stamps to the data files, since at a startup
-		InnoDB deduces from the stamps if the previous shutdown was
-		clean. */
+			/* In this fastest shutdown we do not flush the
+			buffer pool:
 
-		log_buffer_flush_to_disk();
+			it is essentially a 'crash' of the InnoDB server.
+			Make sure that the log is all flushed to disk, so
+			that we can recover all committed transactions in
+			a crash recovery. We must not write the lsn stamps
+			to the data files, since at a startup InnoDB deduces
+			from the stamps if the previous shutdown was clean. */
 
-		/* Check that the background threads stay suspended */
-		thread_name = srv_any_background_threads_are_active();
-		if (thread_name != NULL) {
-			fprintf(stderr,
-				"InnoDB: Warning: background thread %s"
-				" woke up during shutdown\n", thread_name);
-			goto loop;
+			log_buffer_flush_to_disk();
+
+			/* Check that the background threads stay suspended */
+			thread_name = srv_any_background_threads_are_active();
+
+			if (thread_name != NULL) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Background thread %s woke up "
+					"during shutdown", thread_name);
+				goto loop;
+			}
 		}
 
 		srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
+
 		fil_close_all_files();
+
 		thread_name = srv_any_background_threads_are_active();
+
 		ut_a(!thread_name);
+
 		return;
 	}
 
-	log_make_checkpoint_at(LSN_MAX, TRUE);
+	if (!srv_read_only_mode) {
+		log_make_checkpoint_at(LSN_MAX, TRUE);
+	}
 
 	mutex_enter(&log_sys->mutex);
 
@@ -3317,15 +3326,17 @@ loop:
 	/* Check that the background threads stay suspended */
 	thread_name = srv_any_background_threads_are_active();
 	if (thread_name != NULL) {
-		fprintf(stderr,
-			"InnoDB: Warning: background thread %s"
-			" woke up during shutdown\n", thread_name);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Background thread %s woke up during shutdown",
+			thread_name);
 
 		goto loop;
 	}
 
-	fil_flush_file_spaces(FIL_TABLESPACE);
-	fil_flush_file_spaces(FIL_LOG);
+	if (!srv_read_only_mode) {
+		fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_LOG);
+	}
 
 	/* The call fil_write_flushed_lsn_to_data_files() will pass the buffer
 	pool: therefore it is essential that the buffer pool has been
@@ -3335,9 +3346,8 @@ loop:
 	if (!buf_all_freed()) {
 
 		if (srv_print_verbose_log && count > 600) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, " InnoDB: Waiting for dirty buffer "
-				"pages to be flushed\n");
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for dirty buffer pages to be flushed");
 			count = 0;
 		}
 
@@ -3347,31 +3357,38 @@ loop:
 	srv_shutdown_state = SRV_SHUTDOWN_LAST_PHASE;
 
 	/* Make some checks that the server really is quiet */
-	ut_a(srv_get_active_thread_type() == SRV_NONE);
+	srv_thread_type	type = srv_get_active_thread_type();
+	ut_a(type == SRV_NONE);
 
-	ut_a(buf_all_freed());
+	bool	freed = buf_all_freed();
+	ut_a(freed);
+
 	ut_a(lsn == log_sys->lsn);
 
 	if (lsn < srv_start_lsn) {
-		fprintf(stderr,
-			"InnoDB: Error: log sequence number"
-			" at shutdown " LSN_PF "\n"
-			"InnoDB: is lower than at startup " LSN_PF "!\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Log sequence number at shutdown " LSN_PF " "
+			"is lower than at startup " LSN_PF "!",
 			lsn, srv_start_lsn);
 	}
 
 	srv_shutdown_lsn = lsn;
 
-	fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);
+	if (!srv_read_only_mode) {
+		fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);
 
-	fil_flush_file_spaces(FIL_TABLESPACE);
+		fil_flush_file_spaces(FIL_TABLESPACE);
+	}
 
 	fil_close_all_files();
 
 	/* Make some checks that the server really is quiet */
-	ut_a(srv_get_active_thread_type() == SRV_NONE);
+	type = srv_get_active_thread_type();
+	ut_a(type == SRV_NONE);
 
-	ut_a(buf_all_freed());
+	freed = buf_all_freed();
+	ut_a(freed);
+
 	ut_a(lsn == log_sys->lsn);
 }
 
@@ -3505,7 +3522,7 @@ log_refresh_stats(void)
 	log_sys->last_printout_time = time(NULL);
 }
 
-/**********************************************************************
+/********************************************************//**
 Closes a log group. */
 static
 void
@@ -3535,12 +3552,12 @@ log_group_close(
 	mem_free(group);
 }
 
-/**********************************************************
-Shutdown the log system but do not release all the memory. */
+/********************************************************//**
+Closes all log groups. */
 UNIV_INTERN
 void
-log_shutdown(void)
-/*==============*/
+log_group_close_all(void)
+/*=====================*/
 {
 	log_group_t*	group;
 
@@ -3554,6 +3571,16 @@ log_shutdown(void)
 
 		log_group_close(prev_group);
 	}
+}
+
+/********************************************************//**
+Shutdown the log system but do not release all the memory. */
+UNIV_INTERN
+void
+log_shutdown(void)
+/*==============*/
+{
+	log_group_close_all();
 
 	mem_free(log_sys->buf_ptr);
 	log_sys->buf_ptr = NULL;
@@ -3581,7 +3608,7 @@ log_shutdown(void)
 	recv_sys_close();
 }
 
-/**********************************************************
+/********************************************************//**
 Free the log system data structures. */
 UNIV_INTERN
 void

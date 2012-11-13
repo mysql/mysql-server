@@ -1,3 +1,4 @@
+SET DEBUG_SYNC='RESET';
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, INDEX(c2)) ENGINE = InnoDB;
 CREATE TABLE t2 (
 c2 INT PRIMARY KEY,
@@ -8,6 +9,8 @@ ERROR HY000: Cannot drop index 'c2': needed in a foreign key constraint
 DROP TABLE t2;
 SET DEBUG_SYNC = 'innodb_after_inplace_alter_table SIGNAL drop WAIT_FOR fk';
 DROP INDEX c2 ON t1;
+# Establish session con1 (user=root)
+# Session con1
 SET DEBUG_SYNC = 'now WAIT_FOR drop';
 CREATE TABLE t2 (
 c2 INT PRIMARY KEY,
@@ -15,9 +18,12 @@ CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
 ENGINE = InnoDB;
 ERROR HY000: Cannot add foreign key constraint
 SET DEBUG_SYNC = 'now SIGNAL fk';
+# Session default
+/* reap */ DROP INDEX c2 ON t1;
 CREATE TABLE t2 (
 c2 INT PRIMARY KEY,
 CONSTRAINT t2c2 FOREIGN KEY (c2) REFERENCES t1 (c2))
 ENGINE = InnoDB;
 ERROR HY000: Cannot add foreign key constraint
+SET DEBUG_SYNC='RESET';
 DROP TABLE t1;

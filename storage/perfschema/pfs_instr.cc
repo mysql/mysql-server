@@ -860,8 +860,11 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_dbname_length= 0;
         pfs->m_command= 0;
         pfs->m_start_time= 0;
+        pfs->m_processlist_state_ptr= NULL;
         pfs->m_processlist_state_length= 0;
+        pfs->m_processlist_info_ptr= NULL;
         pfs->m_processlist_info_length= 0;
+        pfs->m_processlist_lock.set_allocated();
 
         pfs->m_host= NULL;
         pfs->m_user= NULL;

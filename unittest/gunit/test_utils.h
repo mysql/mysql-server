@@ -19,6 +19,7 @@
 
 #include "sql_error.h"
 #include "sql_class.h"
+#include "set_var.h"
 
 namespace my_testing {
 

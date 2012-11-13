@@ -361,6 +361,8 @@ extern PSI_cond_key key_BINLOG_update_cond,
 extern PSI_cond_key key_BINLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_COND_done;
 extern PSI_cond_key key_RELAYLOG_update_cond;
+extern PSI_cond_key key_BINLOG_prep_xids_cond;
+extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
 
 extern PSI_thread_key key_thread_bootstrap, key_thread_delayed_insert,
@@ -629,7 +631,10 @@ enum options_mysqld
   OPT_SSL_CRLPATH,
   OPT_PFS_INSTRUMENT,
   OPT_DEFAULT_AUTH,
-  OPT_SECURE_AUTH
+  OPT_SECURE_AUTH,
+  OPT_THREAD_CACHE_SIZE,
+  OPT_HOST_CACHE_SIZE,
+  OPT_TABLE_DEFINITION_CACHE
 };
 
 

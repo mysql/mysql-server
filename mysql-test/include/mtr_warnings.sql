@@ -239,6 +239,9 @@ INSERT INTO global_suppressions VALUES
   of events, this warning is emitted.
   */
  ("Slave SQL: Coordinator thread of multi-threaded slave is being stopped in the middle of assigning a group of events.*"),
+ 
+ ("Changed limits: max_open_files: *  max_connections: *  table_cache: *"),
+ ("Could not increase number of max_open_files to more than *"),
 
  ("THE_LAST_SUPPRESSION")||
 

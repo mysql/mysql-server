@@ -228,6 +228,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   PSI_mutex_key m_key_LOCK_sync;
   /** The instrumentation key to use for @ update_cond. */
   PSI_cond_key m_key_update_cond;
+  /** The instrumentation key to use for @ prep_xids_cond. */
+  PSI_cond_key m_key_prep_xids_cond;
   /** The instrumentation key to use for opening the log file. */
   PSI_file_key m_key_file_log;
   /** The instrumentation key to use for opening the log index file. */
@@ -402,6 +404,7 @@ public:
                     PSI_mutex_key key_LOCK_sync_queue,
                     PSI_cond_key key_COND_done,
                     PSI_cond_key key_update_cond,
+                    PSI_cond_key key_prep_xids_cond,
                     PSI_file_key key_file_log,
                     PSI_file_key key_file_log_index)
   {
@@ -417,6 +420,7 @@ public:
     m_key_LOCK_commit= key_LOCK_commit;
     m_key_LOCK_sync= key_LOCK_sync;
     m_key_update_cond= key_update_cond;
+    m_key_prep_xids_cond= key_prep_xids_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
   }
