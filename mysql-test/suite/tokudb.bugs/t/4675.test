@@ -1,0 +1,21 @@
+--source include/have_tokudb.inc
+#
+# Record inconsistency.
+#
+#
+SET DEFAULT_STORAGE_ENGINE = 'tokudb';
+
+--disable_warnings
+DROP TABLE IF EXISTS foo;
+--enable_warnings
+create table foo (a int auto_increment, primary key (a))engine=TokuDB, auto_increment=5;
+insert into foo values (),(),(),();
+select * from foo;
+truncate table foo;
+select * from foo;
+insert into foo values (),(),(),();
+select * from foo;
+ 
+# Final cleanup.
+DROP TABLE foo;
+
