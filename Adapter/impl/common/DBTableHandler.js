@@ -271,13 +271,19 @@ DBTableHandler.prototype.allColumnsMapped = function() {
 
 /** allFieldsIncluded(values)
  *  IMMEDIATE
- *  Boolean: returns True if values include all mapped fields
+ *  returns array of indexes of fields included in values
  */
 DBTableHandler.prototype.allFieldsIncluded = function(values) {
-  // TODO make sure all fields are included
-  // better to return a list of fields that are found instead of boolean
-  // the caller can then easily construct the appropriate database statement
-  return true;
+  // return a list of fields indexes that are found
+  // the caller can easily construct the appropriate database statement
+  var i, f, result = [];
+  for (i = 0; i < this.fieldNumberToFieldMap.length; ++i) {
+    f = this.fieldNumberToFieldMap[i];
+    if (typeof(values[i]) !== 'undefined') {
+      result.push(i);
+    }
+  }
+  return result;
 };
 
 /* getColumnMetadata() 

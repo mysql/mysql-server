@@ -18,8 +18,6 @@
  02110-1301  USA
  */
 
-// TODO save with some but not all fields included
-
 /***** Save no update***/
 var t1 = new harness.ConcurrentTest("testSaveNoUpdate");
 t1.run = function() {
@@ -186,4 +184,67 @@ t6.run = function() {
   });
 };
 
-module.exports.tests = [t1, t2, t3, t4, t5, t6];
+/***** Save partial ***/
+var t7 = new harness.ConcurrentTest("testSavePartial");
+t7.run = function() {
+  var testCase = this;
+  var object = new global.t_basic(4040, 'Employee 4040', 4040, 4040);
+  var object2;
+  fail_openSession(testCase, function(session) {
+    session.save(object, function(err, session2) {
+      if (err) {
+        testCase.fail(err);
+        return;
+      }
+      // now save an object with the same primary key but different name and magic
+      object2 = new global.t_basic(4040, 'Employee 4050', 4050, 4050);
+      // remove age from update object --> age will not be changed
+      delete object2.age;
+      session2.save(object2, function(err, session3) {
+        if (err) {
+          testCase.fail(err);
+          return;
+        }
+        session3.find('t_basic', 4040, function(err, object3) {
+          // verify that object3 has updated name field from object2
+          testCase.errorIfNotEqual('testSaveUpdate mismatch on name', 'Employee 4050', object3.name);
+          testCase.errorIfNotEqual('testSaveUpdate mismatch on magic', 4050, object3.magic);
+          // age should be unchanged
+          testCase.errorIfNotEqual('testSaveUpdate mismatch on age', 4040, object3.age);
+          testCase.failOnError();
+        });
+      }, session2);
+    }, session);
+  });
+};
+
+/***** Save partial no update***/
+var t8 = new harness.ConcurrentTest("testSavePartialNoUpdate");
+t8.run = function() {
+  var testCase = this;
+  var object = new global.t_basic(4060, 'Employee 4060', 4060, 4060);
+  // do not persist age --> age is null
+  delete object.age;
+  fail_openSession(testCase, function(session) {
+    // save the object with just id, name, and magic
+    session.save(object, function(err, session2) {
+      if (err) {
+        testCase.fail(err);
+        return;
+      }
+      session2.find(global.t_basic, 4060, function(err, object2) {
+        if (err) {
+          testCase.fail(err);
+          return;
+        }
+        testCase.errorIfNotEqual('mismatch on id', 4060, object2.id);
+        testCase.errorIfNotEqual('mismatch on name', 'Employee 4060', object2.name);
+        testCase.errorIfNotEqual('mismatch on age', null, object2.age);
+        testCase.errorIfNotEqual('mismatch on magic', 4060, object2.magic);
+        testCase.failOnError();
+      });
+    }, session);
+  });
+};
+
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8];
