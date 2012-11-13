@@ -7012,7 +7012,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     uint replicated_tables_count= 0;
     /**
-      The number of tables used in the current statement,
+      The number of tables written to in the current statement,
       that should not be replicated.
       A table should not be replicated when it is considered
       'local' to a MySQL instance.
@@ -7024,6 +7024,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       - mysql.slave_worker_info
       - performance_schema.*
       - TODO: information_schema.*
+      In practice, from this list, only performance_schema.* tables
+      are written to by user queries.
     */
     uint non_replicated_tables_count= 0;
 #ifndef DBUG_OFF
@@ -7069,8 +7071,12 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           or it will be logged (possibly partially) in ROW format.
         */
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
-        non_replicated_tables_count++;
-        continue;
+
+        if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        {
+          non_replicated_tables_count++;
+          continue;
+        }
       }
 
       replicated_tables_count++;
