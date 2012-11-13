@@ -614,66 +614,48 @@ return new UpdateOperation(updateSetSQL, keyFields, updateFields, callback);
 };
 
 exports.DBSession.prototype.buildWriteOperation = function(dbIndexHandler, values, transaction, callback) {
-  udebug.log_detail('dbSession.buildWriteOperation with indexHandler:', dbIndexHandler, values);
+  udebug.log_detail('buildWriteOperation with indexHandler:', dbIndexHandler, values);
   var dbTableHandler = dbIndexHandler.tableHandler;
-  var fields = dbTableHandler.getFields(values);
+  var fieldValues = dbTableHandler.getFields(values);
   getMetadata(dbTableHandler);
+  // get the field metadata object for each value in field metadata order
+  var fieldIndexes = dbTableHandler.allFieldsIncluded(fieldValues);
+  udebug.log_detail('buildWriteOperation fieldValues: ', fieldValues, ' fieldIndexes: ', fieldIndexes);
   // if the values include all mapped fields, use the pre-built dbTableHandler.mysql.duplicateSQL
-  if (dbTableHandler.allFieldsIncluded(values)) {
-    return new WriteOperation(dbTableHandler.mysql.duplicateSQL, fields, callback);
+  if (fieldValues.length === fieldIndexes.length) {
+    return new WriteOperation(dbTableHandler.mysql.duplicateSQL, fieldValues, callback);
   }
-  // build the SQL Write statement along with the data values
-  var updateSetSQL = 'UPDATE ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' SET ';
-  var updateWhereSQL = ' WHERE ';
-  var separatorWhereSQL = '';
-  var separatorWriteSetSQL = '';
-  var updateFields = [];
-  var keyFields = [];
-  // get an array of key field names
-  var keyFieldNames = [];
-  var j, field;
-  for(j = 0 ; j < dbIndexHandler.fieldNumberToFieldMap.length ; j++) {
-    keyFieldNames.push(dbIndexHandler.fieldNumberToFieldMap[j].fieldName);
-  }
-  // get an array of persistent field names
-  var valueFieldNames = [];
-  for(j = 0 ; j < dbTableHandler.fieldNumberToFieldMap.length ; j++) {
-    field = dbTableHandler.fieldNumberToFieldMap[j];
-    // TODO: exclude not persistent fields and fields that are part of the index
-    if (!field.NotPersistent) {
-      valueFieldNames.push(dbTableHandler.fieldNumberToFieldMap[j].fieldName);
-    }
+  // build the SQL insert statement along with the data values
+  var writeSQL = 'INSERT INTO ' + dbTableHandler.dbTable.database + '.' + dbTableHandler.dbTable.name + ' (';
+  var valuesSQL = ') VALUES (';
+  var duplicateSQL = ' ON DUPLICATE KEY UPDATE ';
+  var duplicateClause = '';
+  var separator = ' ';
+  var statementValues = [];
+  var i;
+  var fieldIndex;
+  var f;
+  
+  for (i = 0; i < fieldIndexes.length; ++i) {
+    fieldIndex = fieldIndexes[i];
+    f = dbTableHandler.fieldNumberToFieldMap[fieldIndex];
+    // add the column name to the write SQL
+    writeSQL += separator + f.columnName;
+    // add the column name to the duplicate SQL
+    // add the value to the values SQL
+    duplicateClause = separator + f.columnName + ' = VALUES (' + f.columnName + ')';
+    duplicateSQL += duplicateClause;
+    valuesSQL += separator + '?';
+    separator = ', ';
+    statementValues.push(fieldValues[fieldIndex]);
   }
   
-  var x, columnName;
-  for (x in values) {
-    if (values.hasOwnProperty(x)) {
-      if (keyFieldNames.indexOf(x) !== -1) {
-        // add the key value to the keyFields
-        keyFields.push(values[x]);
-        // add the key field to the WHERE clause
-        columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
-        updateWhereSQL += separatorWhereSQL + columnName + ' = ? ';
-        separatorWhereSQL = 'AND ';
-      }
-    }
-  }
-  for (x in values) {
-    if (values.hasOwnProperty(x)) {
-      if (valueFieldNames.indexOf(x) !== -1) {
-        // add the value in the object to the updateFields
-        updateFields.push(values[x]);
-        // add the value field to the SET clause
-        columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
-        updateSetSQL += separatorWriteSetSQL + columnName + ' = ?';
-        separatorWriteSetSQL = ', ';
-      }
-    }
-  }
+  valuesSQL += ')';
+  writeSQL += valuesSQL;
+  writeSQL += duplicateSQL;
 
-  updateSetSQL += updateWhereSQL;
-  udebug.log('dbSession.buildWriteOperation SQL:', updateSetSQL);
-  return new WriteOperation(updateSetSQL, keyFields, updateFields, callback);
+  udebug.log_detail('dbSession.buildWriteOperation SQL:', writeSQL);
+  return new WriteOperation(writeSQL, statementValues, callback);
 };
 
 exports.DBSession.prototype.begin = function() {
