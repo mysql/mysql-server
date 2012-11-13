@@ -11,8 +11,9 @@
 # (bug#14709490)
 ########################################################
 
--- source include/have_ndb.inc
--- source include/have_multi_ndb.inc
+--source include/not_embedded.inc
+--source include/have_ndb.inc
+--source include/have_multi_ndb.inc
 
 connect (ddl,localhost,root,,test);
 connect (j1,localhost,root,,test);
