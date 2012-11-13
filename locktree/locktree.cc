@@ -46,6 +46,15 @@ void locktree::create(manager::memory_tracker *mem_tracker, DICTIONARY_ID dict_i
     m_lock_request_info.pending_lock_requests.create();
     m_lock_request_info.mutex = TOKU_MUTEX_INITIALIZER;
     m_lock_request_info.should_retry_lock_requests = false;
+
+    // Threads read the should retry bit without a lock
+    // for performance. It's ok to read the wrong value.
+    // - If you think you should but you shouldn't, you waste a little time.
+    // - If you think you shouldn't but you should, then some other thread
+    // will come around to do the work of retrying requests instead of you.
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(
+            &m_lock_request_info.should_retry_lock_requests,
+            sizeof(m_lock_request_info.should_retry_lock_requests));
 }
 
 void locktree::destroy(void) {

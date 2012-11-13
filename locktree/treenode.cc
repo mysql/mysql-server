@@ -4,6 +4,8 @@
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include <toku_race_tools.h>
+
 void treenode::mutex_lock(void) {
     toku_mutex_lock(&m_mutex);
 }
@@ -345,6 +347,28 @@ bool treenode::right_imbalanced(int threshold) const {
     return m_right_child.ptr != nullptr && right_depth > threshold + left_depth;
 }
 
+/*
+ * How to make helgrind happy about tree rotations and new mutex orderings:
+ *
+ * // Tell helgrind that we unlocked it so that the next call doesn't get a "destroyed a locked mutex" error.
+ * // Tell helgrind that we destroyed the mutex.
+ * VALGRIND_HG_MUTEX_UNLOCK_PRE(&locka);
+ * VALGRIND_HG_MUTEX_DESTROY_PRE(&locka);
+ *
+ * // And recreate it.  It would be better to simply be able to say that the order on these two can now be reversed, because this code forgets all the ordering information for this mutex.
+ * // Then tell helgrind that we have locked it again.
+ * VALGRIND_HG_MUTEX_INIT_POST(&locka, 0);
+ * VALGRIND_HG_MUTEX_LOCK_POST(&locka);
+ *
+ * When the ordering of two locks changes, we don't need tell Helgrind about do both locks.  Just one is good enough.
+ */
+
+#define RESET_LOCKED_MUTEX_ORDERING_INFO(mutex)  \
+    VALGRIND_HG_MUTEX_UNLOCK_PRE(mutex); \
+    VALGRIND_HG_MUTEX_DESTROY_PRE(mutex); \
+    VALGRIND_HG_MUTEX_INIT_POST(mutex, 0); \
+    VALGRIND_HG_MUTEX_LOCK_POST(mutex);
+
 // effect: rebalances the subtree rooted at this node
 //         using AVL style O(1) rotations. unlocks this
 //         node if it is not the new root of the subtree.
@@ -398,11 +422,14 @@ treenode *treenode::maybe_rebalance(void) {
     //
     // one of them is the new root. we unlock everything except the new root.
     if (child && child != new_root) {
+        RESET_LOCKED_MUTEX_ORDERING_INFO(&child->m_mutex);
         child->mutex_unlock();
     }
     if (this != new_root) {
+        RESET_LOCKED_MUTEX_ORDERING_INFO(&m_mutex);
         mutex_unlock();
     }
+    RESET_LOCKED_MUTEX_ORDERING_INFO(&new_root->m_mutex);
     return new_root;
 }
 
