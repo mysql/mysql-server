@@ -493,13 +493,7 @@ static inline void setup_fake_db (DB *fake_db, DESCRIPTOR orig_desc) {
     fake_db->cmp_descriptor = orig_desc;
 }
 
-#define FAST_FAKE_DB
-
-#ifdef FAST_FAKE_DB
-#define FAKE_DB(db, desc) struct __toku_db db; db.cmp_descriptor = desc;
-#else
 #define FAKE_DB(db, desc) struct __toku_db db; setup_fake_db(&db, (desc));
-#endif
 
 struct ft_options {
     unsigned int nodesize;
