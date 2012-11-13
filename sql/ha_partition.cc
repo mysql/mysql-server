@@ -3067,6 +3067,7 @@ void ha_partition::free_partition_bitmaps()
   bitmap_free(&m_bulk_insert_started);
   bitmap_free(&m_locked_partitions);
   bitmap_free(&m_partitions_to_reset);
+  bitmap_free(&m_key_not_found_partitions);
 }
 
 
@@ -3102,6 +3103,19 @@ bool ha_partition::init_partition_bitmaps()
   }
   bitmap_clear_all(&m_partitions_to_reset);
 
+  /*
+    Initialize the bitmap we use to keep track of partitions which returned
+    HA_ERR_KEY_NOT_FOUND from index_read_map.
+  */
+  if (bitmap_init(&m_key_not_found_partitions, NULL, m_tot_parts, FALSE))
+  {
+    bitmap_free(&m_bulk_insert_started);
+    bitmap_free(&m_locked_partitions);
+    bitmap_free(&m_partitions_to_reset);
+    DBUG_RETURN(true);
+  }
+  bitmap_clear_all(&m_key_not_found_partitions);
+  m_key_not_found= false;
   /* Initialize the bitmap for read/lock_partitions */
   if (!m_is_clone_of)
   {
@@ -4994,21 +5008,24 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
 }
 
 
-/*
+/**
   Common routine for a number of index_read variants
 
-  SYNOPSIS
-    ha_partition::common_index_read()
-      buf             Buffer where the record should be returned
-      have_start_key  TRUE <=> the left endpoint is available, i.e. 
-                      we're in index_read call or in read_range_first
-                      call and the range has left endpoint
-
-                      FALSE <=> there is no left endpoint (we're in
-                      read_range_first() call and the range has no left
-                      endpoint)
+  @param buf             Buffer where the record should be returned.
+  @param have_start_key  TRUE <=> the left endpoint is available, i.e. 
+                         we're in index_read call or in read_range_first
+                         call and the range has left endpoint.
+                         FALSE <=> there is no left endpoint (we're in
+                         read_range_first() call and the range has no left
+                         endpoint).
  
-  DESCRIPTION
+  @return Operation status
+    @retval 0      OK 
+    @retval HA_ERR_END_OF_FILE   Whole index scanned, without finding the record.
+    @retval HA_ERR_KEY_NOT_FOUND Record not found, but index cursor positioned.
+    @retval other  error code.
+
+  @details
     Start scanning the range (when invoked from read_range_first()) or doing 
     an index lookup (when invoked from index_read_XXX):
      - If possible, perform partition selection
@@ -5018,10 +5035,6 @@ int ha_partition::index_read_map(uchar *buf, const uchar *key,
              handle_unordered_scan_next_partition)
         YES: Fill the priority queue and get the record that is the first in
              the ordering
-
-  RETURN
-    0      OK 
-    other  HA_ERR_END_OF_FILE or other error code.
 */
 
 int ha_partition::common_index_read(uchar *buf, bool have_start_key)
@@ -5031,14 +5044,16 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
   bool reverse_order= FALSE;
   DBUG_ENTER("ha_partition::common_index_read");
 
-  DBUG_PRINT("info", ("m_ordered %u m_ordered_scan_ong %u have_start_key %u",
-                      m_ordered, m_ordered_scan_ongoing, have_start_key));
+  DBUG_PRINT("info", ("m_ordered %u m_ordered_scan_ong %u",
+                      m_ordered, m_ordered_scan_ongoing));
 
   if (have_start_key)
   {
     m_start_key.length= key_len= calculate_key_len(table, active_index, 
                                                    m_start_key.key,
                                                    m_start_key.keypart_map);
+    DBUG_PRINT("info", ("have_start_key map %lu find_flag %u len %u",
+                        m_start_key.keypart_map, m_start_key.flag, key_len));
     DBUG_ASSERT(key_len);
   }
   if ((error= partition_scan_set_up(buf, have_start_key)))
@@ -5056,24 +5071,16 @@ int ha_partition::common_index_read(uchar *buf, bool have_start_key)
   }
   DBUG_PRINT("info", ("m_ordered %u m_o_scan_ong %u have_start_key %u",
                       m_ordered, m_ordered_scan_ongoing, have_start_key));
-  if (!m_ordered_scan_ongoing ||
-      (have_start_key && m_start_key.flag == HA_READ_KEY_EXACT &&
-       !m_pkey_is_clustered &&
-       key_len >= m_curr_key_info[0]->key_length))
+  if (!m_ordered_scan_ongoing)
    {
     /*
-      We use unordered index scan either when read_range is used and flag
-      is set to not use ordered or when an exact key is used and in this
-      case all records will be sorted equal and thus the sort order of the
-      resulting records doesn't matter.
+      We use unordered index scan when read_range is used and flag
+      is set to not use ordered.
       We also use an unordered index scan when the number of partitions to
       scan is only one.
       The unordered index scan will use the partition set created.
-      Need to set unordered scan ongoing since we can come here even when
-      it isn't set.
     */
     DBUG_PRINT("info", ("doing unordered scan"));
-    m_ordered_scan_ongoing= FALSE;
     error= handle_unordered_scan_next_partition(buf);
   }
   else
@@ -5191,7 +5198,7 @@ int ha_partition::common_first_last(uchar *buf)
 int ha_partition::index_read_last_map(uchar *buf, const uchar *key,
                                       key_part_map keypart_map)
 {
-  DBUG_ENTER("ha_partition::index_read_last");
+  DBUG_ENTER("ha_partition::index_read_last_map");
 
   m_ordered= TRUE;				// Safety measure
   end_range= 0;
@@ -5287,6 +5294,8 @@ int ha_partition::index_next(uchar * buf)
     TODO(low priority):
     If we want partition to work with the HANDLER commands, we
     must be able to do index_last() -> index_prev() -> index_next()
+    and if direction changes, we must step back those partitions in
+    the record queue so we don't return a value from the wrong direction.
   */
   DBUG_ASSERT(m_index_scan_type != partition_index_last);
   if (!m_ordered_scan_ongoing)
@@ -5530,9 +5539,17 @@ int ha_partition::partition_scan_set_up(uchar * buf, bool idx_read_flag)
 
 int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
 {
-  handler *file= m_file[m_part_spec.start_part];
+  handler *file;
   int error;
   DBUG_ENTER("ha_partition::handle_unordered_next");
+
+  if (m_part_spec.start_part >= m_tot_parts)
+  {
+    /* Should never happen! */
+    DBUG_ASSERT(0);
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+  file= m_file[m_part_spec.start_part];
 
   /*
     We should consider if this should be split into three functions as
@@ -5594,6 +5611,7 @@ int ha_partition::handle_unordered_next(uchar *buf, bool is_next_same)
 int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
 {
   uint i= m_part_spec.start_part;
+  int saved_error= HA_ERR_END_OF_FILE;
   DBUG_ENTER("ha_partition::handle_unordered_scan_next_partition");
 
   if (i)
@@ -5647,26 +5665,33 @@ int ha_partition::handle_unordered_scan_next_partition(uchar * buf)
     }
     if ((error != HA_ERR_END_OF_FILE) && (error != HA_ERR_KEY_NOT_FOUND))
       DBUG_RETURN(error);
-    DBUG_PRINT("info", ("HA_ERR_END_OF_FILE on partition %d", i));
+
+    /*
+      If HA_ERR_KEY_NOT_FOUND, we must return that error instead of 
+      HA_ERR_END_OF_FILE, to be able to continue search.
+    */
+    if (saved_error != HA_ERR_KEY_NOT_FOUND)
+      saved_error= error;
+    DBUG_PRINT("info", ("END_OF_FILE/KEY_NOT_FOUND on partition %d", i));
   }
-  m_part_spec.start_part= NO_CURRENT_PART_ID;
-  DBUG_RETURN(HA_ERR_END_OF_FILE);
+  if (saved_error == HA_ERR_END_OF_FILE)
+    m_part_spec.start_part= NO_CURRENT_PART_ID;
+  DBUG_RETURN(saved_error);
 }
 
 
-/*
-  Common routine to start index scan with ordered results
+/**
+  Common routine to start index scan with ordered results.
 
-  SYNOPSIS
-    handle_ordered_index_scan()
-    out:buf                       Read row in MySQL Row Format
+  @param[out] buf  Read row in MySQL Row Format
 
-  RETURN VALUE
-    HA_ERR_END_OF_FILE            End of scan
-    0                             Success
-    other                         Error code
+  @return Operation status
+    @retval HA_ERR_END_OF_FILE  End of scan
+    @retval HA_ERR_KEY_NOT_FOUNE  End of scan
+    @retval 0                   Success
+    @retval other               Error code
 
-  DESCRIPTION
+  @details
     This part contains the logic to handle index scans that require ordered
     output. This includes all except those started by read_range_first with
     the flag ordered set to FALSE. Thus most direct index_read and all
@@ -5688,8 +5713,14 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
   uint j= 0;
   bool found= FALSE;
   uchar *part_rec_buf_ptr= m_ordered_rec_buffer;
+  int saved_error= HA_ERR_END_OF_FILE;
   DBUG_ENTER("ha_partition::handle_ordered_index_scan");
 
+  if (m_key_not_found)
+  {
+    m_key_not_found= false;
+    bitmap_clear_all(&m_key_not_found_partitions);
+  }
   m_top_entry= NO_CURRENT_PART_ID;
   queue_remove_all(&m_queue);
   DBUG_ASSERT(bitmap_is_set(&m_part_info->read_partitions,
@@ -5753,6 +5784,13 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
     {
       DBUG_RETURN(error);
     }
+    else if (error == HA_ERR_KEY_NOT_FOUND)
+    {
+      DBUG_PRINT("info", ("HA_ERR_KEY_NOT_FOUND from partition %u", i));
+      bitmap_set_bit(&m_key_not_found_partitions, i);
+      m_key_not_found= true;
+      saved_error= error;
+    }
     part_rec_buf_ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
   }
   if (found)
@@ -5770,7 +5808,7 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
     DBUG_PRINT("info", ("Record returned from partition %d", m_top_entry));
     DBUG_RETURN(0);
   }
-  DBUG_RETURN(HA_ERR_END_OF_FILE);
+  DBUG_RETURN(saved_error);
 }
 
 
@@ -5798,6 +5836,58 @@ void ha_partition::return_top_record(uchar *buf)
 }
 
 
+/**
+  Add index_next/prev from partitions without exact match.
+
+  If there where any partitions that returned HA_ERR_KEY_NOT_FOUND when
+  ha_index_read_map was done, those partitions must be included in the
+  following index_next/prev call.
+*/
+
+int ha_partition::handle_ordered_index_scan_key_not_found()
+{
+  int error;
+  uint i;
+  uchar *part_buf= m_ordered_rec_buffer;
+  uchar *curr_rec_buf= NULL;
+  DBUG_ENTER("ha_partition::handle_ordered_index_scan_key_not_found");
+  DBUG_ASSERT(m_key_not_found);
+  /*
+    Loop over all used partitions to get the correct offset
+    into m_ordered_rec_buffer.
+  */
+  for (i= bitmap_get_first_set(&m_part_info->read_partitions);
+       i < m_tot_parts;
+       i= bitmap_get_next_set(&m_part_info->read_partitions, i))
+  {
+    if (bitmap_is_set(&m_key_not_found_partitions, i))
+    {
+      /*
+        This partition is used and did return HA_ERR_KEY_NOT_FOUND
+        in index_read_map.
+      */
+      curr_rec_buf= part_buf + PARTITION_BYTES_IN_POS;
+      error= m_file[i]->ha_index_next(curr_rec_buf);
+      /* HA_ERR_KEY_NOT_FOUND is not allowed from index_next! */
+      DBUG_ASSERT(error != HA_ERR_KEY_NOT_FOUND);
+      if (!error)
+        queue_insert(&m_queue, part_buf);
+      else if (error != HA_ERR_END_OF_FILE && error != HA_ERR_KEY_NOT_FOUND)
+        DBUG_RETURN(error);
+    }
+    part_buf+= m_rec_length + PARTITION_BYTES_IN_POS;
+  }
+  DBUG_ASSERT(curr_rec_buf);
+  bitmap_clear_all(&m_key_not_found_partitions);
+  m_key_not_found= false;
+
+  /* Update m_top_entry, which may have changed. */
+  uchar *key_buffer= queue_top(&m_queue);
+  m_top_entry= uint2korr(key_buffer);
+  DBUG_RETURN(0);
+}
+
+
 /*
   Common routine to handle index_next with ordered results
 
@@ -5817,9 +5907,45 @@ int ha_partition::handle_ordered_next(uchar *buf, bool is_next_same)
   int error;
   uint part_id= m_top_entry;
   uchar *rec_buf= queue_top(&m_queue) + PARTITION_BYTES_IN_POS;
-  handler *file= m_file[part_id];
+  handler *file;
   DBUG_ENTER("ha_partition::handle_ordered_next");
   
+  if (m_key_not_found)
+  {
+    if (is_next_same)
+    {
+      /* Only rows which match the key. */
+      m_key_not_found= false;
+      bitmap_clear_all(&m_key_not_found_partitions);
+    }
+    else
+    {
+      /* There are partitions not included in the index record queue. */
+      uint old_elements= m_queue.elements;
+      if ((error= handle_ordered_index_scan_key_not_found()))
+        DBUG_RETURN(error);
+      /*
+        If the queue top changed, i.e. one of the partitions that gave
+        HA_ERR_KEY_NOT_FOUND in index_read_map found the next record,
+        return it.
+        Otherwise replace the old with a call to index_next (fall through).
+      */
+      if (old_elements != m_queue.elements && part_id != m_top_entry)
+      {
+        return_top_record(buf);
+        DBUG_RETURN(0);
+      }
+    }
+  }
+  if (part_id >= m_tot_parts)
+  {
+    /* This should never happen! */
+    DBUG_ASSERT(0);
+    DBUG_RETURN(HA_ERR_END_OF_FILE);
+  }
+
+  file= m_file[part_id];
+
   if (m_index_scan_type == partition_read_range)
   {
     error= file->read_range_next();

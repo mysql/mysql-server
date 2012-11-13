@@ -56,7 +56,6 @@ int gtid_acquire_ownership_single(THD *thd)
         Don't skip the statement here, skip it in
         gtid_pre_statement_checks.
       */
-      DBUG_ASSERT(gtid_state->get_owner(gtid_next) == 0);
       break;
     }
     my_thread_id owner= gtid_state->get_owner(gtid_next);
@@ -193,7 +192,6 @@ int gtid_acquire_ownership_multiple(THD *thd)
   {
     if (!gtid_state->is_logged(g))
     {
-      DBUG_ASSERT(gtid_state->get_owner(g) == 0);
       if (gtid_state->acquire_ownership(thd, g) != RETURN_STATUS_OK ||
           thd->owned_gtid_set._add_gtid(g))
       {
@@ -344,12 +342,7 @@ int gtid_rollback(THD *thd)
   DBUG_ENTER("gtid_rollback");
 
   global_sid_lock->rdlock();
-  // gtid_state->update(..., false) can't fail.
-#ifndef DBUG_OFF
-  DBUG_ASSERT(gtid_state->update(thd, false) == RETURN_STATUS_OK);
-#else
-  gtid_state->update(thd, false);
-#endif
+  gtid_state->update_on_rollback(thd);
   global_sid_lock->unlock();
 
   DBUG_RETURN(0);

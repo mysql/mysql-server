@@ -1423,7 +1423,6 @@ public:
   Field_map used_fields;
 };
 
-class Semijoin_mat_exec;
 class Index_hint;
 class Item_exists_subselect;
 
@@ -1529,7 +1528,6 @@ public:
     nest's children).
   */
   table_map     sj_inner_tables;
-  Semijoin_mat_exec *sj_mat_exec;
 
   COND_EQUAL    *cond_equal;            /* Used with outer join */
   /*

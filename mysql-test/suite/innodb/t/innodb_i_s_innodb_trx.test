@@ -1,0 +1,100 @@
+#
+# Test that transaction data is correctly "visualized" in
+# INFORMATION_SCHEMA.INNODB_TRX
+#
+
+# Make sure the locks keep waiting until they are released,
+# even on a busy system.
+SET GLOBAL innodb_lock_wait_timeout=600;
+
+DESCRIBE INFORMATION_SCHEMA.INNODB_TRX;
+
+-- disable_warnings
+DROP TABLE IF EXISTS t1;
+-- enable_warnings
+
+CREATE TABLE t1 (
+	c01 INT,
+	c02 INT,
+	PRIMARY KEY (c01)
+) ENGINE=INNODB STATS_AUTO_RECALC=0;
+
+INSERT INTO t1 VALUES
+(1,2),(2,4),(3,6),(4,8);
+
+CREATE TABLE t2 (
+	c01 INT,
+	c02 INT,
+	PRIMARY KEY (c01),
+	FOREIGN KEY fk1 (c02) REFERENCES t1 (c01)
+) ENGINE=INNODB STATS_AUTO_RECALC=0;
+
+INSERT INTO t2 VALUES
+(1,1),(2,2),(3,3);
+
+-- source include/count_sessions.inc
+
+-- connect (con_trx,localhost,root,,)
+-- connect (con_verify_innodb_trx,localhost,root,,)
+
+-- connection con_trx
+SET autocommit=0;
+INSERT INTO t1 VALUES (5,10);
+SELECT * FROM t1 FOR UPDATE;
+
+let $wait_timeout= 300;
+let $wait_condition=
+  SELECT COUNT(*) = 1 FROM INFORMATION_SCHEMA.INNODB_TRX;
+-- source include/wait_condition.inc
+
+-- connection con_verify_innodb_trx
+SELECT trx_state, trx_weight, trx_tables_in_use, trx_tables_locked,
+trx_rows_locked, trx_rows_modified, trx_concurrency_tickets,
+trx_isolation_level, trx_unique_checks, trx_foreign_key_checks
+FROM INFORMATION_SCHEMA.INNODB_TRX;
+
+-- connection con_trx
+ROLLBACK;
+SET FOREIGN_KEY_CHECKS = 0;
+SET UNIQUE_CHECKS = 0;
+SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
+BEGIN;
+INSERT INTO t1 VALUES (6,12);
+
+let $wait_timeout= 300;
+let $wait_condition=
+  SELECT trx_unique_checks = 0 FROM INFORMATION_SCHEMA.INNODB_TRX;
+-- source include/wait_condition.inc
+
+-- connection con_verify_innodb_trx
+SELECT trx_isolation_level, trx_unique_checks, trx_foreign_key_checks
+FROM INFORMATION_SCHEMA.INNODB_TRX;
+
+-- connection con_trx
+ROLLBACK;
+SET FOREIGN_KEY_CHECKS = 1;
+SET UNIQUE_CHECKS = 1;
+BEGIN;
+-- error 1452
+INSERT INTO t2 VALUES (4,10);
+
+let $wait_timeout= 300;
+let $wait_condition=
+  SELECT trx_unique_checks  = 1 FROM INFORMATION_SCHEMA.INNODB_TRX;
+-- source include/wait_condition.inc
+
+-- connection con_verify_innodb_trx
+SELECT trx_state, trx_isolation_level, trx_last_foreign_key_error
+FROM INFORMATION_SCHEMA.INNODB_TRX;
+
+-- connection default
+
+-- disconnect con_trx
+-- disconnect con_verify_innodb_trx
+
+DROP TABLE t2;
+DROP TABLE t1;
+
+-- source include/wait_until_count_sessions.inc
+
+SET GLOBAL innodb_lock_wait_timeout=default;

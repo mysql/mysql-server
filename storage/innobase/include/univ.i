@@ -403,6 +403,16 @@ database name and table name. In addition, 14 bytes is added for:
 #define MAX_FULL_NAME_LEN				\
 	(MAX_TABLE_NAME_LEN + MAX_DATABASE_NAME_LEN + 14)
 
+/** The maximum length in bytes that a database name can occupy when stored in
+UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
+mysql_com.h if you are to use this macro. */
+#define MAX_DB_UTF8_LEN		(NAME_LEN + 1)
+
+/** The maximum length in bytes that a table name can occupy when stored in
+UTF8, including the terminating '\0', see dict_fs2utf8(). You must include
+mysql_com.h if you are to use this macro. */
+#define MAX_TABLE_UTF8_LEN	(NAME_LEN + sizeof(srv_mysql50_table_name_prefix))
+
 /*
 			UNIVERSAL TYPE DEFINITIONS
 			==========================
@@ -422,6 +432,7 @@ macro ULINTPF. */
 # define UINT32PF	"%I32u"
 # define INT64PF	"%I64d"
 # define UINT64PF	"%I64u"
+# define UINT64PFx	"%016I64u"
 typedef __int64 ib_int64_t;
 typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;
@@ -430,6 +441,7 @@ typedef unsigned __int32 ib_uint32_t;
 # define UINT32PF	"%"PRIu32
 # define INT64PF	"%"PRId64
 # define UINT64PF	"%"PRIu64
+# define UINT64PFx	"%016"PRIx64
 typedef int64_t ib_int64_t;
 typedef uint64_t ib_uint64_t;
 typedef uint32_t ib_uint32_t;

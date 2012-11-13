@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -24,6 +24,7 @@
 #
 #  RPM
 #    Build as per default RPM layout, with prefix=/usr
+#    Note: The layout for ULN RPMs differs, see the "RPM" section.
 #
 #  DEB
 #    Build as per STANDALONE, prefix=/opt/mysql/server-$major.$minor
@@ -133,6 +134,10 @@ SET(INSTALL_PLUGINTESTDIR_STANDALONE    ${plugin_tests})
 
 #
 # RPM layout
+#
+# See "SPECIFIC-ULN/mysql-5.5-libdir.patch" for the differences
+# which apply to RPMs in ULN (Oracle Linux), that patch file will
+# be applied at build time via "rpmbuild".
 #
 SET(INSTALL_BINDIR_RPM                  "bin")
 SET(INSTALL_SBINDIR_RPM                 "sbin")

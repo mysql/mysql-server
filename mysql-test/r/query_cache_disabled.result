@@ -11,4 +11,4 @@ SET GLOBAL query_cache_size=1024*1024;
 SHOW GLOBAL VARIABLES LIKE 'query_cache_size';
 Variable_name	Value
 query_cache_size	1048576
-SET GLOBAL query_cache_size=0;
+SET GLOBAL query_cache_size=DEFAULT;

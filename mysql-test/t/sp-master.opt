@@ -1,0 +1,2 @@
+${?PB_HOST_SPECIFIC_MYSQLD_ARGS}
+--query_cache_type=1

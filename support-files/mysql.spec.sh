@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -325,20 +325,6 @@ Group:          Applications/Databases
 Provides:       MySQL-Cluster-client
 Obsoletes:      MySQL-Cluster-client
 
-%description -n MySQL-Cluster-client%{product_suffix}
-This package contains the standard MySQL clients and administration tools.
-
-For a description of MySQL see the base MySQL RPM or http://www.mysql.com/
-
-# ----------------------------------------------------------------------------
-%package -n MySQL-Cluster-test%{product_suffix}
-Requires:       MySQL-Cluster-client%{product_suffix} perl
-Summary:        MySQL Cluster - Test suite
-Group:          Applications/Databases
-Provides:       MySQL-Cluster-test
-Obsoletes:      MySQL-Cluster-test
-AutoReqProv:    no
-
 %description -n MySQL-Cluster-test%{product_suffix}
 This package contains the MySQL regression test suite.
 
@@ -568,8 +554,13 @@ fi
 # Check if we can safely upgrade.  An upgrade is only safe if it's from one
 # of our RPMs in the same version family.
 
-installed=`rpm -q --whatprovides MySQL-Cluster-server 2> /dev/null`
+# Handle both ways of spelling the capability.
+installed=`rpm -q --whatprovides mysql-cluster-server 2> /dev/null`
+if [ $? -ne 0 -o -z "$installed" ]; then
+  installed=`rpm -q --whatprovides MySQL-Cluster-server 2> /dev/null`
+fi
 if [ $? -eq 0 -a -n "$installed" ]; then
+  installed=`echo $installed | sed 's/\([^ ]*\) .*/\1/'` # Tests have shown duplicated package names
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
   myoldvendor='%{mysql_old_vendor}'
@@ -672,7 +663,9 @@ NEW_VERSION=%{mysql_version}-%{release}
 
 # The "pre" section code is also run on a first installation,
 # when there  is no data directory yet. Protect against error messages.
-if [ -d $mysql_datadir ] ; then
+# Check for the existence of subdirectory "mysql/", the database of system
+# tables like "mysql.user".
+if [ -d $mysql_datadir/mysql ] ; then
 	echo "MySQL RPM upgrade to version $NEW_VERSION"  > $STATUS_FILE
 	echo "'pre' step running at `date`"          >> $STATUS_FILE
 	echo                                         >> $STATUS_FILE
@@ -786,7 +779,13 @@ if ! grep '^MySQL RPM upgrade' $STATUS_FILE >/dev/null 2>&1 ; then
 	# Fix bug#45415: no "mysql_install_db" on an upgrade
 	# Do this as a negative to err towards more "install" runs
 	# rather than to miss one.
-	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user} --random-passwords
+
+	# Attention: Now 'root' is the only database user,
+	# its password is a random value found in ~/.mysql_secret,
+	# and the "password expired" flag is set:
+	# Any client needs that password, and the first command
+	# executed must be a new "set password"!
 fi
 
 # ----------------------------------------------------------------------
@@ -974,7 +973,7 @@ echo "====="                                                       >> $STATUS_HI
 %doc %{src_dir}/Docs/ChangeLog
 %doc %{src_dir}/Docs/INFO_SRC*
 %doc release/Docs/INFO_BIN*
-%doc release/support-files/my-*.cnf
+%doc release/support-files/my-default.cnf
 
 %doc %attr(644, root, root) %{_infodir}/mysql.info*
 
@@ -1196,6 +1195,17 @@ echo "====="                                                       >> $STATUS_HI
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed Oct 10 2012 Bjorn Munch <bjorn.munch@oracle.com>
+
+- Replace old my-*.cnf config file examples with template my-default.cnf
+
+* Fri Oct 05 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Let the installation use the new option "--random-passwords" of "mysql_install_db".
+  (Bug# 12794345 Ensure root password)
+- Fix an inconsistency: "new install" vs "upgrade" are told from the (non)existence
+  of "$mysql_datadir/mysql" (holding table "mysql.user" and other system stuff).
+
 * Tue Jul 24 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Add a macro "runselftest":
@@ -1207,6 +1217,10 @@ echo "====="                                                       >> $STATUS_HI
 * Mon Jul 16 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Add the man page for the "mysql_config_editor".
+
+* Mon Jun 11 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Make sure newly added "SPECIFIC-ULN/" directory does not disturb packaging.
 
 * Wed Feb 29 2012 Brajmohan Saxena <brajmohan.saxena@oracle.com>
 

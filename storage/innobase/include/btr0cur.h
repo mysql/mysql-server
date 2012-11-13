@@ -45,7 +45,10 @@ enum {
 	BTR_KEEP_POS_FLAG = 8,
 	/** the caller is creating the index or wants to bypass the
 	index->info.online creation log */
-	BTR_CREATE_FLAG = 16
+	BTR_CREATE_FLAG = 16,
+	/** the caller is rebuilding the table, preserving the same
+	PRIMARY KEY */
+	BTR_CREATE_SAME_PK_FLAG = 32
 };
 
 #ifndef UNIV_HOTBACKUP
@@ -697,7 +700,7 @@ btr_cur_set_deleted_flag_for_ibuf(
 					when the tablespace is
 					uncompressed */
 	ibool		val,		/*!< in: value to set */
-	mtr_t*		mtr);		/*!< in: mtr */
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
 /*######################################################################*/
 
 /** In the pessimistic delete, if the page data size drops below this

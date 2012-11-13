@@ -1,0 +1,298 @@
+######## suite/innodb/t/innodb-wl6445-1                     ##########
+#                                                                    #
+# Testcase for worklog WL#6494: InnoDB should be able to work if     #
+# redo log file size mismatch
+# Test resizing the InnoDB redo log.
+#                                                                    #
+#                                                                    #
+# Creation:                                                          #
+# 2011-09-26 Implemented this test as part of WL#6494                #
+#                                                                    #
+######################################################################
+
+
+# Not supported in embedded
+--source include/not_embedded.inc
+
+-- source include/have_innodb.inc
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+if (`SELECT @@innodb_log_file_size = 2097152`) {
+  --skip Test requires innodb_log_file_size!=2M.
+}
+
+# restart with innodb-fast-shutdown=2 to on stopping it , behave as crash
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --innodb-fast-shutdown=2 --innodb-log-file-size=1M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+
+call mtr.add_suppression("InnoDB: Resizing redo log");
+call mtr.add_suppression("InnoDB: Starting to delete and rewrite log files");
+call mtr.add_suppression("InnoDB: New log files created");
+call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles");
+
+let MYSQLD_DATADIR =`SELECT @@datadir`;
+let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
+let $innodb_file_format = `SELECT @@innodb_file_format`;
+let $innodb_log_file_size = `SELECT @@innodb_log_file_size`;
+
+SET GLOBAL innodb_file_per_table = 1;
+SELECT @@innodb_file_per_table;
+
+SET GLOBAL innodb_file_format = `Barracuda`;
+SELECT @@innodb_file_format;
+
+SELECT @@innodb_log_file_size;
+SELECT @@innodb_log_files_in_group;
+
+
+# Testcase 1 - set log file size > existing size and innodb_log_files_in_group > old value
+--disable_warnings
+DROP DATABASE IF EXISTS db_wl6494;
+--enable_warnings
+CREATE DATABASE db_wl6494;
+USE db_wl6494;
+
+CREATE TABLE t1(id INT PRIMARY KEY,bfield blob) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
+(3,repeat('c',2000));
+START TRANSACTION;
+INSERT INTO t1 VALUES (11,repeat('a',2000)),(12,repeat('b',2000)),
+(13,repeat('c',2000));
+SAVEPOINT A;
+INSERT INTO t1 VALUES (21,repeat('a',2000)),(22,repeat('b',2000)),
+(23,repeat('c',2000));
+SAVEPOINT B;
+SELECT id,LEFT(bfield,20) FROM t1;
+ROLLBACK TO A;
+COMMIT;
+SELECT id,LEFT(bfield,20) FROM t1;
+
+# restart with different redo log size
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+# set log size from 2*1M to 5*2M
+--exec echo "restart: --innodb-log-file-size=2M --innodb_log_files_in_group=5  --log-error=$MYSQLTEST_VARDIR/log/case1.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case1.err;
+let SEARCH_PATTERN= InnoDB: Starting crash recovery;
+--source include/search_pattern_in_file.inc
+
+# Check size of ib_logfile* when innodb_log_files_in_group is set
+perl;
+ my $dir = $ENV{'MYSQLD_DATADIR'};
+ $file = "ib_logfile0";
+ $size_in_MB = (-s "$dir/$file") / (1024 * 1024);;
+ print "The size of the $file file: $size_in_MB \n";
+ $file = "ib_logfile1";
+ $size_in_MB = (-s "$dir/$file") / (1024 * 1024);;
+ print "The size of the $file file: $size_in_MB \n";
+ $file = "ib_logfile2";
+ $size_in_MB = (-s "$dir/$file") / (1024 * 1024);;
+ print "The size of the $file file: $size_in_MB \n";
+ $file = "ib_logfile3";
+ $size_in_MB = (-s "$dir/$file") / (1024 * 1024);;
+ print "The size of the $file file: $size_in_MB \n";
+ $file = "ib_logfile4";
+ $size_in_MB = (-s "$dir/$file") / (1024 * 1024);;
+ print "The size of the $file file: $size_in_MB \n";
+EOF
+
+
+USE db_wl6494;
+SELECT id,LEFT(bfield,20) FROM t1;
+--ERROR ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
+(3,repeat('c',2000));
+INSERT INTO t1 VALUES (21,repeat('a',2000)),(22,repeat('b',2000)),
+(23,repeat('c',2000));
+SELECT id,LEFT(bfield,20) FROM t1;
+
+# clenaup of test
+# restart with different redo log size
+DROP TABLE t1;
+DROP DATABASE db_wl6494;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--error 0,1
+--move_file $SEARCH_FILE $MYSQLTEST_VARDIR/log/mysqld.1.err.old1
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+# set log size to 3*3M
+--exec echo "restart: --innodb-fast-shutdown=2 --innodb-log-file-size=3M --innodb_log_files_in_group=3" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SELECT @@innodb_log_file_size;
+SELECT @@innodb_log_files_in_group;
+
+# Testcase 2 - set log file size < existing size and innodb_log_files_in_group < old value
+--disable_warnings
+DROP DATABASE IF EXISTS db_wl6494;
+--enable_warnings
+CREATE DATABASE db_wl6494;
+USE db_wl6494;
+
+CREATE TABLE t1(id INT PRIMARY KEY,bfield blob) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
+(3,repeat('c',2000));
+START TRANSACTION;
+INSERT INTO t1 VALUES (11,repeat('a',2000)),(12,repeat('b',2000)),
+(13,repeat('c',2000));
+SAVEPOINT A;
+INSERT INTO t1 VALUES (21,repeat('a',2000)),(22,repeat('b',2000)),
+(23,repeat('c',2000));
+SAVEPOINT B;
+SELECT id,LEFT(bfield,20) FROM t1;
+ROLLBACK TO A;
+COMMIT;
+SELECT id,LEFT(bfield,20) FROM t1;
+
+# restart with different redo log size
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+# set log size from 3*3M to 2*2M
+--exec echo "restart: --innodb-log-file-size=2M --innodb_log_files_in_group=2  --log-error=$MYSQLTEST_VARDIR/log/case2.err" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--source include/wait_until_connected_again.inc
+
+SELECT @@innodb_log_file_size;
+SELECT @@innodb_log_files_in_group;
+
+
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/case2.err;
+let SEARCH_PATTERN= InnoDB: Starting crash recovery;
+--source include/search_pattern_in_file.inc
+
+
+USE db_wl6494;
+SELECT id,LEFT(bfield,20) FROM t1;
+--ERROR ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
+(3,repeat('c',2000));
+INSERT INTO t1 VALUES (21,repeat('a',2000)),(22,repeat('b',2000)),
+(23,repeat('c',2000));
+SELECT id,LEFT(bfield,20) FROM t1;
+
+# end of testcase 2. Do not drop table/database as it is used in foloowing case
+
+# testcase misc
+let MYSQLD_DATADIR= `select @@datadir`;
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+let $args=--loose-console > $SEARCH_FILE 2>&1;
+
+# Stop the server
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server
+--source include/wait_until_disconnected.inc
+
+--echo "test misc 1"
+--error 1
+--exec $MYSQLD_CMD $args --innodb-log-group-home-dir=foo\;bar
+let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir, or a wrong number of mirrored log groups;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo "test misc 2"
+--error 1
+--exec $MYSQLD_CMD $args --innodb-mirrored-log-groups=2
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo "test misc 3"
+--error 1
+--exec $MYSQLD_CMD $args --innodb-read-only
+let SEARCH_PATTERN= InnoDB: Cannot resize log files in read-only mode;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+
+--echo "test misc 4"
+# We should have perfectly synced files here.
+# Rename the log files, and trigger an error in recovery.
+#--move_file $MYSQLD_DATADIR/ib_logfile101 $MYSQLD_DATADIR/ib_logfile0
+--move_file $MYSQLD_DATADIR/ib_logfile1 $MYSQLD_DATADIR/ib_logfile1_hidden
+--error 1
+--exec $MYSQLD_CMD $args
+let SEARCH_PATTERN= InnoDB: Only one log file found;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+#--move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile101
+--move_file $MYSQLD_DATADIR/ib_logfile1_hidden $MYSQLD_DATADIR/ib_logfile1
+
+--echo "test misc 5"
+# make copy of ib_logfile0 before editing
+--move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile0_hidden
+perl;
+die unless open(FILE, ">$ENV{MYSQLD_DATADIR}/ib_logfile0");
+print FILE "garbage";
+close(FILE);
+EOF
+--error 1
+--exec $MYSQLD_CMD $args
+let SEARCH_PATTERN= InnoDB: .*ib_logfile0 size 7 is not a multiple of innodb_page_size;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+--remove_file $MYSQLD_DATADIR/ib_logfile0
+--move_file $MYSQLD_DATADIR/ib_logfile0_hidden $MYSQLD_DATADIR/ib_logfile0
+
+
+--echo "test misc 6"
+--move_file $MYSQLD_DATADIR/ib_logfile1 $MYSQLD_DATADIR/ib_logfile1_hidden
+perl;
+die unless open(FILE, ">$ENV{MYSQLD_DATADIR}/ib_logfile1");
+print FILE "junkfill" x 131072;
+close(FILE);
+EOF
+
+--error 1
+--exec $MYSQLD_CMD $args
+let SEARCH_PATTERN= InnoDB: .*ib_logfile1 is of different size;
+--source include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+--remove_file $MYSQLD_DATADIR/ib_logfile1
+--move_file $MYSQLD_DATADIR/ib_logfile0 $MYSQLD_DATADIR/ib_logfile0_hidden
+
+# restart server
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+USE db_wl6494;
+SELECT id,LEFT(bfield,20) FROM t1;
+--ERROR ER_DUP_ENTRY
+INSERT INTO t1 VALUES (1,repeat('a',2000)),(2,repeat('b',2000)),
+(3,repeat('c',2000));
+
+# cleanup and set original values
+DROP TABLE t1;
+DROP DATABASE db_wl6494;
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/log/mysqld.1.err.old1
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/log/case1.err
+--error 0,1
+--remove_file $MYSQLTEST_VARDIR/log/case2.err
+--remove_file $MYSQLD_DATADIR/ib_logfile0_hidden
+--remove_file $MYSQLD_DATADIR/ib_logfile1_hidden
+--disable_query_log
+eval SET GLOBAL INNODB_FILE_FORMAT=$innodb_file_format;
+eval SET GLOBAL INNODB_FILE_PER_TABLE=$innodb_file_per_table;
+--enable_query_log
+

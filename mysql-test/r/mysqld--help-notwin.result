@@ -411,6 +411,8 @@ The following options may be given as the first argument:
  --memlock           Lock mysqld in memory.
  --metadata-locks-cache-size=# 
  Size of unused metadata locks cache
+ --metadata-locks-hash-instances=# 
+ Number of metadata locks hash instances
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
@@ -1025,7 +1027,7 @@ general-log FALSE
 group-concat-max-len 1024
 gtid-mode OFF
 help TRUE
-host-cache-size 128
+host-cache-size 279
 ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
@@ -1090,6 +1092,7 @@ max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
 metadata-locks-cache-size 1024
+metadata-locks-hash-instances 8
 min-examined-row-limit 0
 multi-range-count 256
 myisam-block-size 1024
@@ -1153,7 +1156,7 @@ performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 169
+performance-schema-max-statement-classes 167
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50
@@ -1169,8 +1172,8 @@ profiling-history-size 15
 query-alloc-block-size 8192
 query-cache-limit 1048576
 query-cache-min-res-unit 4096
-query-cache-size 0
-query-cache-type ON
+query-cache-size 1048576
+query-cache-type OFF
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
@@ -1227,11 +1230,9 @@ sync-master-info 10000
 sync-relay-log 10000
 sync-relay-log-info 10000
 sysdate-is-now FALSE
-table-definition-cache 400
-table-open-cache 400
 table-open-cache-instances 1
 tc-heuristic-recover COMMIT
-thread-cache-size 0
+thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
 time-format %H:%i:%s

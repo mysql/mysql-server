@@ -1975,7 +1975,13 @@ int mi_sort_index(MI_CHECK *param, register MI_INFO *info, char * name)
        key++,keyinfo++)
   {
     if (! mi_is_key_active(info->s->state.key_map, key))
+    {
+      /* Since the key is not active, this should not be read, but we
+      initialize it anyway to silence a Valgrind warn when passing that
+      chunk of memory to pwrite(). */
+      index_pos[key]= HA_OFFSET_ERROR;
       continue;
+    }
 
     if (share->state.key_root[key] != HA_OFFSET_ERROR)
     {

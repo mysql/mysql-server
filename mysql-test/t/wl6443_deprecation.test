@@ -16,6 +16,14 @@ select @@global.datetime_format;
 set @@global.max_tmp_tables= 64;
 set @@global.max_tmp_tables= @@global.max_tmp_tables;
 set @@global.max_tmp_tables= @default_max_tmp_tables;
+select @@global.profiling;
+select @@local.profiling;
+select @@global.profiling_history_size;
+select @@local.profiling_history_size;
+select @@global.have_profiling;
+set @@local.profiling= @@global.profiling;
+set @@local.profiling_history_size= @@global.profiling_history_size;
+set @wl6443_have_profiling= @@global.have_profiling;
 
 --echo # SHOW PROFILE and SHOW PROFILES
 

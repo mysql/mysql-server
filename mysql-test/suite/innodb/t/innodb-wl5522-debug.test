@@ -15,6 +15,7 @@
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;
 let $pathfix=/: '.*test_wl5522.*t1.ibd'/: 'test_wl5522\\t1.ibd'/;
+let $strerrfix=/ (\(.+\))//;
 
 SET GLOBAL innodb_file_per_table = 1;
 SELECT @@innodb_file_per_table;
@@ -396,7 +397,12 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 SET SESSION debug="+d,ib_import_io_read_error_1";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+perl;
+do 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
 
 --error ER_IO_READ_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -415,7 +421,12 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 SET SESSION debug="+d,ib_import_io_read_error_2";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+perl;
+do 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
 
 --error ER_IO_READ_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -423,7 +434,6 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 SET SESSION debug="-d,ib_import_io_read_error_2";
 
 DROP TABLE test_wl5522.t1;
-
 
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
@@ -435,7 +445,12 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 SET SESSION debug="+d,ib_import_io_read_error_3";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+perl;
+do 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
 
 --error ER_IO_READ_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -443,7 +458,6 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 SET SESSION debug="-d,ib_import_io_read_error_3";
 
 DROP TABLE test_wl5522.t1;
-
 
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
@@ -455,7 +469,12 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 SET SESSION debug="+d,ib_import_io_read_error_4";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+perl;
+do 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
 
 --error ER_IO_READ_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -463,7 +482,6 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 SET SESSION debug="-d,ib_import_io_read_error_4";
 
 DROP TABLE test_wl5522.t1;
-
 
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
@@ -475,7 +493,12 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 SET SESSION debug="+d,ib_import_io_read_error_5";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+perl;
+do 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
 
 --error ER_IO_READ_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -483,7 +506,6 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 SET SESSION debug="-d,ib_import_io_read_error_5";
 
 DROP TABLE test_wl5522.t1;
-
 
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
@@ -495,7 +517,12 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 SET SESSION debug="+d,ib_import_io_read_error_6";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+perl;
+do 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
 
 --error ER_IO_READ_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -503,7 +530,6 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 SET SESSION debug="-d,ib_import_io_read_error_6";
 
 DROP TABLE test_wl5522.t1;
-
 
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
@@ -515,7 +541,12 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 SET SESSION debug="+d,ib_import_io_read_error_7";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+perl;
+do 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
 
 --error ER_IO_READ_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -523,7 +554,6 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 SET SESSION debug="-d,ib_import_io_read_error_7";
 
 DROP TABLE test_wl5522.t1;
-
 
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
@@ -535,7 +565,12 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 SET SESSION debug="+d,ib_import_io_read_error_8";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+perl;
+do 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
 
 --error ER_IO_READ_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -543,7 +578,6 @@ ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 SET SESSION debug="-d,ib_import_io_read_error_8";
 
 DROP TABLE test_wl5522.t1;
-
 
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
@@ -555,7 +589,12 @@ SELECT COUNT(*) FROM test_wl5522.t1;
 
 SET SESSION debug="+d,ib_import_io_read_error_9";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+perl;
+do 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
 
 --error ER_IO_READ_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
@@ -564,7 +603,7 @@ SET SESSION debug="-d,ib_import_io_read_error_9";
 
 DROP TABLE test_wl5522.t1;
 
-
+# Test string read failure
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
 
@@ -573,17 +612,21 @@ ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 --error ER_TABLESPACE_DISCARDED
 SELECT COUNT(*) FROM test_wl5522.t1;
 
-SET SESSION debug="+d,ib_import_io_read_error_10";
+SET SESSION debug="+d,ib_import_string_read_error";
 
---replace_regex /'.*t1.cfg'/'t1.cfg'/
+perl;
+do 'include/innodb-util.inc';
+ib_restore_cfg_files("test_wl5522", "t1");
+EOF
+
+--replace_regex $strerrfix
 
 --error ER_IO_READ_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
-SET SESSION debug="-d,ib_import_io_read_error_10";
+SET SESSION debug="-d,ib_import_string_read_error";
 
 DROP TABLE test_wl5522.t1;
-
 
 # Test OOM error during import
 
@@ -649,6 +692,7 @@ perl;
 do 'include/innodb-util.inc';
 ib_unlink_tablespace("test_wl5522", "t1");
 EOF
+
 
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 INSERT INTO test_wl5522.t1 VALUES (1);
@@ -864,8 +908,6 @@ ib_unlink_tablespace("test_wl5522", "t1");
 EOF
 
 ####
-
-
 # Test handling of internal failure error
 CREATE TABLE test_wl5522.t1 (c1 INT) ENGINE = Innodb;
 
@@ -1420,6 +1462,7 @@ set global innodb_monitor_reset_all = default;
 -- enable_warnings
 
 --disable_query_log
+call mtr.add_suppression("InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!");
 call mtr.add_suppression("'Resource temporarily unavailable'");
 call mtr.add_suppression("Monitor ibuf_merges is already enabled");
 call mtr.add_suppression("Monitor ibuf_merges_insert is already enabled");
@@ -1437,6 +1480,7 @@ call mtr.add_suppression("t1.ibd: Page .* at offset .* looks corrupted");
 call mtr.add_suppression("but tablespace with that id or name does not exist");
 call mtr.add_suppression("Failed to find tablespace for table '\"test_wl5522\".\"t1\"' in the cache");
 call mtr.add_suppression("Could not find a valid tablespace file for 'test_wl5522.*t1'");
+call mtr.add_suppression("while reading index meta-data, expected to read 44 bytes but read only 0 bytes");
 --enable_query_log
 
 #cleanup

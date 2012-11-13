@@ -833,7 +833,7 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
     if ((error= table->file->ha_rnd_init(1)))
     {
       table->file->print_error(error, MYF(0));
-      return error;
+      DBUG_RETURN(error);
     }
 
     /* Continue until we find the right record or have made a full loop */
@@ -868,10 +868,10 @@ static int find_and_fetch_row(TABLE *table, uchar *key)
        break;
 
       default:
-  table->file->print_error(error, MYF(0));
+        table->file->print_error(error, MYF(0));
         DBUG_PRINT("info", ("Record not found"));
         (void) table->file->ha_rnd_end();
-  DBUG_RETURN(error);
+        DBUG_RETURN(error);
       }
     }
     while (restart_count < 2 && record_compare(table));

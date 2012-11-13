@@ -3000,6 +3000,14 @@ private:
     return HA_ERR_WRONG_COMMAND;
   }
 
+  /**
+    Update a single row.
+
+    Note: If HA_ERR_FOUND_DUPP_KEY is returned, the handler must read
+    all columns of the row so MySQL can create an error message. If
+    the columns required for the error message are not read, the error
+    message will contain garbage.
+  */
   virtual int update_row(const uchar *old_data __attribute__((unused)),
                          uchar *new_data __attribute__((unused)))
   {
@@ -3076,12 +3084,15 @@ public:
     that another call to bulk_update_row will occur OR a call to
     exec_bulk_update before the set of updates in this query is concluded.
 
+    Note: If HA_ERR_FOUND_DUPP_KEY is returned, the handler must read
+    all columns of the row so MySQL can create an error message. If
+    the columns required for the error message are not read, the error
+    message will contain garbage.
+
     @param    old_data       Old record
     @param    new_data       New record
     @param    dup_key_found  Number of duplicate keys found
 
-    @retval  0   Bulk delete used by handler
-    @retval  1   Bulk delete not used, normal operation used
   */
   virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
                               uint *dup_key_found)

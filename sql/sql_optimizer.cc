@@ -2924,15 +2924,12 @@ static void update_depend_map(JOIN *join, ORDER *order)
 
 bool JOIN::update_equalities_for_sjm()
 {
-  List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
-  TABLE_LIST *sj_nest;
-  while ((sj_nest= sj_list_it++))
+  List_iterator<Semijoin_mat_exec> it(sjm_exec_list);
+  Semijoin_mat_exec *sjm_exec;
+  while ((sjm_exec= it++))
   {
-    Semijoin_mat_exec *sjm_exec= sj_nest->sj_mat_exec;
-    if (sjm_exec == NULL)
-      continue;
+    TABLE_LIST *const sj_nest= sjm_exec->sj_nest;
 
-    // This is a semi-join nest with materialization strategy chosen.
     DBUG_ASSERT(!sj_nest->outer_join_nest());
     /*
       A materialized semi-join nest cannot actually be an inner part of an
@@ -2964,7 +2961,7 @@ bool JOIN::update_equalities_for_sjm()
            keyuse->key == tab->position->key->key;
            keyuse++)
       {
-        List_iterator<Item> it(*sjm_exec->subq_exprs);
+        List_iterator<Item> it(sj_nest->nested_join->sj_inner_exprs);
         Item *old;
         uint fieldno= 0;
         while ((old= it++))
@@ -6730,12 +6727,16 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
 
   /* Unlink the child select_lex: */
   subq_lex->master_unit()->exclude_level();
+  parent_lex->removed_select= subq_lex;
   /*
     Update the resolver context - needed for Item_field objects that have been
     replaced in the item tree for this execution, but are still needed for
     subsequent executions.
   */
-  subq_lex->context.select_lex= parent_lex;
+  for (st_select_lex *select= parent_lex->removed_select;
+       select != NULL;
+       select= select->removed_select)
+    select->context.select_lex= parent_lex;
   /*
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
@@ -7648,19 +7649,41 @@ static bool make_join_select(JOIN *join, Item *cond)
 	  if (!tab->const_keys.is_clear_all() &&
 	      tab->table->reginfo.impossible_range)
 	    DBUG_RETURN(1);				// Impossible range
-	  /*
-	    We plan to scan all rows.
-	    Check again if we should use an index.
-	    We could have used an column from a previous table in
-	    the index if we are using limit and this is the first table
-	  */
+          /*
+            We plan to scan all rows.
+            Check again if we should use an index. We can use an index if:
 
-	  if ((cond &&
-              !tab->keys.is_subset(tab->const_keys) && i > 0) ||
-	      (!tab->const_keys.is_clear_all() && i == join->const_tables &&
-	       join->unit->select_limit_cnt < tab->position->records_read &&
-	       !(join->select_options & OPTION_FOUND_ROWS)))
-	  {
+            1a) There is a condition that range optimizer can work on, and
+            1b) There are non-constant conditions on one or more keys, and
+            1c) Some of the non-constant fields may have been read
+                already. This may be the case if this is not the first
+                table in the join OR this is a subselect with
+                non-constant conditions referring to an outer table
+                (dependent subquery)
+                or,
+            2a) There are conditions only relying on constants
+            2b) This is the first non-constant table
+            2c) There is a limit of rows to read that is lower than
+                the fanout for this table (i.e., the estimated number
+                of rows that will be produced for this table per row
+                combination of previous tables)
+            2d) The query is NOT run with FOUND_ROWS() (because in that
+                case we have to scan through all rows to count them anyway)
+          */
+
+          if ((cond &&                                                // 1a
+               !tab->keys.is_subset(tab->const_keys) &&               // 1b
+               (i > 0 ||                                              // 1c
+                (join->select_lex->master_unit()->item &&
+                 cond->used_tables() & OUTER_REF_TABLE_BIT)
+                )
+               ) ||
+              (!tab->const_keys.is_clear_all() &&                     // 2a
+               i == join->const_tables &&                             // 2b
+               join->unit->select_limit_cnt < tab->position->records_read && // 2c
+               !(join->select_options & OPTION_FOUND_ROWS))          // 2d
+              )
+          {
             Opt_trace_object trace_one_table(trace);
             trace_one_table.add_utf8_table(tab->table);
             Opt_trace_object trace_table(trace, "rechecking_index_usage");
@@ -7680,7 +7703,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 	      sel->cond->quick_fix_field();
 
             if (sel->test_quick_select(thd, tab->keys,
-                                       used_tables & ~ current_map,
+                                       used_tables & ~tab->table->map,
                                        (join->select_options &
                                         OPTION_FOUND_ROWS ?
                                         HA_POS_ERROR :
@@ -7697,7 +7720,7 @@ static bool make_join_select(JOIN *join, Item *cond)
                 DBUG_RETURN(1);                 // Impossible WHERE
               Opt_trace_object trace_without_on(trace, "without_ON_clause");
               if (sel->test_quick_select(thd, tab->keys,
-                                         used_tables & ~ current_map,
+                                         used_tables & ~tab->table->map,
                                          (join->select_options &
                                           OPTION_FOUND_ROWS ?
                                           HA_POS_ERROR :
@@ -9499,31 +9522,26 @@ JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_meth
  */
 void JOIN::refine_best_rowcount()
 {
+  // If plan is const, 0 or 1 rows should be returned
+  DBUG_ASSERT(!plan_is_const() || best_rowcount <= 1);
+
   if (plan_is_const())
     return;
+
   /*
-    Calculate estimated number of rows for materialized derived
-    table/view.
+    Setting estimate to 1 row would mark a derived table as const.
+    The row count is bumped to the nearest higher value, so that the
+    query block will not be evaluated during optimization.
   */
-  if (unit->select_limit_cnt != HA_POS_ERROR)
-  {
-    /*
-      There will be no more rows than defined in the LIMIT clause. Use it
-      as an estimate.
-    */
-    set_if_smaller(best_rowcount, unit->select_limit_cnt);
-  }
-  else
-  {
-    /*
-      Since it's only an estimate it's inaccurate. Setting estimate to 1
-      row in some cases will make derived table a constant one.
-      Currently it's impossible to revert it to non-const. Thus we
-      adjust estimated # of rows to make derived table not a const one.
-    */
-    if (best_rowcount <= 1)
-      best_rowcount= 2;
-  }
+  if (best_rowcount <= 1)
+    best_rowcount= 2;
+
+  /*
+    There will be no more rows than defined in the LIMIT clause. Use it
+    as an estimate. If LIMIT 1 is specified, the query block will be
+    considered "const", with actual row count 0 or 1.
+  */
+  set_if_smaller(best_rowcount, unit->select_limit_cnt);
 }
 
 /**

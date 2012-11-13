@@ -176,6 +176,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
+int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 
 void append_identifier(THD *thd, String *packet, const char *name,
 		       uint length);
@@ -191,8 +192,6 @@ void mysqld_list_processes(THD *thd,const char *user,bool verbose);
 int mysqld_show_status(THD *thd);
 int mysqld_show_variables(THD *thd,const char *wild);
 bool mysqld_show_storage_engines(THD *thd);
-bool mysqld_show_authors(THD *thd);
-bool mysqld_show_contributors(THD *thd);
 bool mysqld_show_privileges(THD *thd);
 char *make_backup_log_name(char *buff, const char *name, const char* log_ext);
 void calc_sum_of_all_status(STATUS_VAR *to);

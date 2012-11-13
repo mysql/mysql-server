@@ -628,7 +628,7 @@ page_copy_rec_list_end(
 		Furthermore, btr_compress() may set FIL_PAGE_PREV to
 		FIL_NULL on new_page while leaving it intact on
 		new_page_zip.  So, we cannot validate new_page_zip. */
-		ut_a(page_zip_validate_low(page_zip, page, TRUE));
+		ut_a(page_zip_validate_low(page_zip, page, index, TRUE));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 	ut_ad(buf_block_get_frame(block) == page);
@@ -950,7 +950,7 @@ page_delete_rec_list_end(
 	ut_ad(size == ULINT_UNDEFINED || size < UNIV_PAGE_SIZE);
 	ut_ad(!page_zip || page_rec_is_comp(rec));
 #ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip, page));
+	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
 	if (page_rec_is_infimum(rec)) {
@@ -992,7 +992,7 @@ page_delete_rec_list_end(
 						  ULINT_UNDEFINED, &heap);
 			rec = rec_get_next_ptr(rec, TRUE);
 #ifdef UNIV_ZIP_DEBUG
-			ut_a(page_zip_validate(page_zip, page));
+			ut_a(page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 			page_cur_delete_rec(&cur, index, offsets, mtr);
 		} while (page_offset(rec) != PAGE_NEW_SUPREMUM);
@@ -1132,7 +1132,8 @@ page_delete_rec_list_start(
 		between btr_attach_half_pages() and insert_page = ...
 		when btr_page_get_split_rec_to_left() holds
 		(direction == FSP_DOWN). */
-		ut_a(!page_zip || page_zip_validate_low(page_zip, page, TRUE));
+		ut_a(!page_zip
+		     || page_zip_validate_low(page_zip, page, index, TRUE));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
@@ -1203,9 +1204,10 @@ page_move_rec_list_end(
 			= buf_block_get_page_zip(block);
 		ut_a(!new_page_zip == !page_zip);
 		ut_a(!new_page_zip
-		     || page_zip_validate(new_page_zip, new_page));
+		     || page_zip_validate(new_page_zip, new_page, index));
 		ut_a(!page_zip
-		     || page_zip_validate(page_zip, page_align(split_rec)));
+		     || page_zip_validate(page_zip, page_align(split_rec),
+					  index));
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
@@ -2324,6 +2326,20 @@ page_validate(
 		}
 	}
 
+	if (dict_index_is_sec_or_ibuf(index) && page_is_leaf(page)
+	    && page_get_n_recs(page) > 0) {
+		trx_id_t	max_trx_id	= page_get_max_trx_id(page);
+		trx_id_t	sys_max_trx_id	= trx_sys_get_max_trx_id();
+
+		if (max_trx_id == 0 || max_trx_id > sys_max_trx_id) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"PAGE_MAX_TRX_ID out of bounds: "
+				TRX_ID_FMT ", " TRX_ID_FMT,
+				max_trx_id, sys_max_trx_id);
+			goto func_exit2;
+		}
+	}
+
 	heap = mem_heap_create(UNIV_PAGE_SIZE + 200);
 
 	/* The following buffer is used to check that the
@@ -2657,13 +2673,13 @@ page_delete_rec(
 
 	if (no_compress_needed) {
 #ifdef UNIV_ZIP_DEBUG
-		ut_a(page_zip == 0 || page_zip_validate(page_zip, page));
+		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
 		page_cur_delete_rec(pcur, index, offsets, 0);
 
 #ifdef UNIV_ZIP_DEBUG
-		ut_a(page_zip == 0 || page_zip_validate(page_zip, page));
+		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 	}
 

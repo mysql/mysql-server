@@ -48,7 +48,10 @@ sp_rcontext::~sp_rcontext()
   if (m_var_table)
     free_blobs(m_var_table);
 
-  // Leave m_visible_handlers, m_activated_handlers, m_var_items, m_cstack
+  while (m_activated_handlers.elements())
+    delete m_activated_handlers.pop();
+
+  // Leave m_visible_handlers, m_var_items, m_cstack
   // and m_case_expr_holders untouched.
   // They are allocated in mem roots and will be freed accordingly.
 }
@@ -209,7 +212,7 @@ void sp_rcontext::exit_handler(sp_pcontext *target_scope)
 {
   // Pop the current handler frame.
 
-  m_activated_handlers.pop();
+  delete m_activated_handlers.pop();
 
   // Pop frames below the target scope level.
 
@@ -218,7 +221,7 @@ void sp_rcontext::exit_handler(sp_pcontext *target_scope)
     int handler_level= m_activated_handlers.at(i)->handler->scope->get_level();
 
     if (handler_level > target_scope->get_level())
-      m_activated_handlers.pop();
+      delete m_activated_handlers.pop();
   }
 }
 
@@ -354,13 +357,9 @@ bool sp_rcontext::handle_sql_condition(THD *thd,
                                 // (e.g. "bad data").
 
   /* Add a frame to handler-call-stack. */
-  Sql_condition_info *cond_info=
-    new (callers_arena->mem_root) Sql_condition_info(found_condition,
-                                                     callers_arena);
-  Handler_call_frame *frame=
-    new (callers_arena->mem_root) Handler_call_frame(found_handler,
-                                                     cond_info,
-                                                     continue_ip);
+  Handler_call_frame *frame= new Handler_call_frame(found_handler,
+                                                    found_condition,
+                                                    continue_ip);
   m_activated_handlers.append(frame);
 
   *ip= handler_entry->first_ip;

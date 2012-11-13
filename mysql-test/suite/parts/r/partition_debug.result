@@ -3,6 +3,7 @@ DROP TABLE IF EXISTS t1;
 # WL#4445: EXCHANGE PARTITION WITH TABLE
 # Verify ddl_log in case of crashing.
 call mtr.add_suppression("Attempting backtrace. You can use the following information to find out");
+call mtr.add_suppression('InnoDB: The log sequence numbers [0-9]+ and [0-9]+ in ibdata files do not match the log sequence number [0-9]+ in the ib_logfiles!');
 SET SESSION debug="+d,exchange_partition_abort_1";
 CREATE TABLE t2 (a INT, b VARCHAR(64));
 INSERT INTO t2 VALUES (5, "Original from table t2"), (6, "Original from table t2"), (7, "Original from table t2"), (8, "Original from table t2");

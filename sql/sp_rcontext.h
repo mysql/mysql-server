@@ -113,7 +113,7 @@ public:
   /// standard SQL-condition processing (Diagnostics_area should contain an
   /// object for active SQL-condition, not just information stored in DA's
   /// fields).
-  class Sql_condition_info : public Sql_alloc
+  class Sql_condition_info
   {
   public:
     /// SQL error code.
@@ -126,21 +126,20 @@ public:
     char sql_state[SQLSTATE_LENGTH + 1];
 
     /// Text message.
-    char *message;
+    char message[MYSQL_ERRMSG_SIZE];
 
     /// The constructor.
     ///
     /// @param _sql_condition  The SQL condition.
     /// @param arena           Query arena for SP
-    Sql_condition_info(const Sql_condition *_sql_condition,
-                       Query_arena *arena)
+    Sql_condition_info(const Sql_condition *_sql_condition)
       :sql_errno(_sql_condition->get_sql_errno()),
        level(_sql_condition->get_level())
     {
       memcpy(sql_state, _sql_condition->get_sqlstate(), SQLSTATE_LENGTH);
       sql_state[SQLSTATE_LENGTH]= '\0';
 
-      message= strdup_root(arena->mem_root, _sql_condition->get_message_text());
+      strncpy(message, _sql_condition->get_message_text(), MYSQL_ERRMSG_SIZE);
     }
   };
 
@@ -148,14 +147,14 @@ private:
   /// This class represents a call frame of SQL-handler (one invocation of a
   /// handler). Basically, it's needed to store continue instruction pointer for
   /// CONTINUE SQL-handlers.
-  class Handler_call_frame : public Sql_alloc
+  class Handler_call_frame
   {
   public:
     /// Handler definition (from parsing context).
     const sp_handler *handler;
 
     /// SQL-condition, triggered handler activation.
-    const Sql_condition_info *sql_condition;
+    const Sql_condition_info sql_condition;
 
     /// Continue-instruction-pointer for CONTINUE-handlers.
     /// The attribute contains 0 for EXIT-handlers.
@@ -166,7 +165,7 @@ private:
     /// @param _sql_condition SQL-condition, triggered handler activation.
     /// @param _continue_ip   Continue instruction pointer.
     Handler_call_frame(const sp_handler *_handler,
-                       const Sql_condition_info *_sql_condition,
+                       const Sql_condition *_sql_condition,
                        uint _continue_ip)
      :handler(_handler),
       sql_condition(_sql_condition),
@@ -230,7 +229,7 @@ public:
   const Sql_condition_info *raised_condition() const
   {
     return m_activated_handlers.elements() ?
-      (*m_activated_handlers.back())->sql_condition : NULL;
+      &(*m_activated_handlers.back())->sql_condition : NULL;
   }
 
   /// Handle current SQL condition (if any).

@@ -4935,13 +4935,16 @@ void TABLE::clear_column_bitmaps()
 }
 
 
-/*
+/**
   Tell handler we are going to call position() and rnd_pos() later.
   
-  NOTES:
   This is needed for handlers that uses the primary key to find the
   row. In this case we have to extend the read bitmap with the primary
   key fields.
+
+  @note: Calling this function does not initialize the table for
+  reading using rnd_pos(). rnd_init() still has to be called before
+  rnd_pos().
 */
 
 void TABLE::prepare_for_position()

@@ -1,2 +1,0 @@
-perl mysql-test-run.pl --timer --force --parallel=auto --comment=n_all --vardir=var-n_all --experimental=collections/default.experimental --skip-ndb --unit-tests
-perl mysql-test-run.pl --timer --big-test --testcase-timeout=60 --force --parallel=auto --comment=n_big --vardir=var-n_big --big-test --suite=rpl,binlog --experimental=collections/default.experimental --skip-ndb

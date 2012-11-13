@@ -135,7 +135,7 @@ const char *fts_default_stopword[] =
 };
 
 /** For storing table info when checking for orphaned tables. */
-struct fts_sys_table_t {
+struct fts_aux_table_t {
 	table_id_t	id;		/*!< Table id */
 	table_id_t	parent_id;	/*!< Parent table id */
 	table_id_t	index_id;	/*!< Table FT index id */
@@ -289,6 +289,7 @@ fts_add_doc_by_id(
 	doc_id_t	doc_id,		/*!< in: doc id */
 	ib_vector_t*	fts_indexes __attribute__((unused)));
 					/*!< in: affected fts indexes */
+#ifdef FTS_DOC_STATS_DEBUG
 /****************************************************************//**
 Check whether a particular word (term) exists in the FTS index.
 @return DB_SUCCESS if all went fine */
@@ -302,6 +303,7 @@ fts_is_word_in_index(
 	const fts_string_t* word,	/*!< in: the word to check */
 	ibool*		found)		/*!< out: TRUE if exists */
 	__attribute__((nonnull, warn_unused_result));
+#endif /* FTS_DOC_STATS_DEBUG */
 
 /******************************************************************//**
 Update the last document id. This function could create a new
@@ -1224,7 +1226,7 @@ fts_tokenizer_word_get(
 	if (rbt_search(cache->stopword_info.cached_stopword,
 		       &parent, text) == 0) {
 
-		return NULL;
+		return(NULL);
 	}
 
 	/* Check if we found a match, if not then add word to tree. */
@@ -1454,39 +1456,37 @@ fts_cache_add_doc(
 /****************************************************************//**
 Drops a table. If the table can't be found we return a SUCCESS code.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull))
+static __attribute__((nonnull, warn_unused_result))
 dberr_t
 fts_drop_table(
 /*===========*/
 	trx_t*		trx,			/*!< in: transaction */
 	const char*	table_name)		/*!< in: table to drop */
 {
-	dberr_t	error = DB_SUCCESS;
+	dict_table_t*	table;
+	dberr_t		error = DB_SUCCESS;
 
-	/* Check that the table exists in our data dictionary. */
-	if (dict_table_get_low(table_name)) {
+	/* Check that the table exists in our data dictionary.
+	Similar to regular drop table case, we will open table with
+	DICT_ERR_IGNORE_INDEX_ROOT and DICT_ERR_IGNORE_CORRUPT option */
+	table = dict_table_open_on_name(
+		table_name, TRUE, FALSE,
+		static_cast<dict_err_ignore_t>(
+                        DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT));
 
-#ifdef FTS_INTERNAL_DIAG_PRINT
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Dropping %s\n", table_name);
-#endif
+	if (table != 0) {
+
+		dict_table_close(table, TRUE, FALSE);
 
 		error = row_drop_table_for_mysql(table_name, trx, TRUE);
 
-		/* We only return the status of the last error. */
 		if (error != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Error: (%s) dropping "
-				"FTS index table %s\n",
-				ut_strerr(error), table_name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unale to drop FTS index aux table %s: %s",
+				table_name, ut_strerr(error));
 		}
 	} else {
-		if (fts_enable_diag_print) {
-			/* FIXME: Should provide appropriate error return code
-			rather than printing message indiscriminately. */
-			ib_logf(IB_LOG_LEVEL_WARN, "%s not found.\n",
-				table_name);
-		}
+		error = DB_FAIL;
 	}
 
 	return(error);
@@ -1519,7 +1519,7 @@ fts_drop_common_tables(
 		err = fts_drop_table(trx, table_name);
 
 		/* We only return the status of the last error. */
-		if (err != DB_SUCCESS) {
+		if (err != DB_SUCCESS && err != DB_FAIL) {
 			error = err;
 		}
 
@@ -1558,7 +1558,7 @@ fts_drop_index_split_tables(
 		err = fts_drop_table(trx, table_name);
 
 		/* We only return the status of the last error. */
-		if (err != DB_SUCCESS) {
+		if (err != DB_SUCCESS && err != DB_FAIL) {
 			error = err;
 		}
 
@@ -1578,17 +1578,15 @@ fts_drop_index_tables(
 	trx_t*		trx,		/*!< in: transaction */
 	dict_index_t*	index)		/*!< in: Index to drop */
 {
-	dberr_t			err;
-	dberr_t			error = DB_SUCCESS;
 	fts_table_t		fts_table;
-	ulint			j;
+	dberr_t			error = DB_SUCCESS;
 
 	static const char*	index_tables[] = {
 		"DOC_ID",
 		NULL
 	};
 
-	err = fts_drop_index_split_tables(trx, index);
+	dberr_t	err = fts_drop_index_split_tables(trx, index);
 
 	/* We only return the status of the last error. */
 	if (err != DB_SUCCESS) {
@@ -1597,18 +1595,17 @@ fts_drop_index_tables(
 
 	FTS_INIT_INDEX_TABLE(&fts_table, NULL, FTS_INDEX_TABLE, index);
 
-	for (j = 0; index_tables[j] != NULL; ++j) {
-		dberr_t	err;
+	for (ulint i = 0; index_tables[i] != NULL; ++i) {
 		char*	table_name;
 
-		fts_table.suffix = index_tables[j];
+		fts_table.suffix = index_tables[i];
 
 		table_name = fts_get_table_name(&fts_table);
 
 		err = fts_drop_table(trx, table_name);
 
 		/* We only return the status of the last error. */
-		if (err != DB_SUCCESS) {
+		if (err != DB_SUCCESS && err != DB_FAIL) {
 			error = err;
 		}
 
@@ -1630,10 +1627,12 @@ fts_drop_all_index_tables(
 	trx_t*		trx,			/*!< in: transaction */
 	fts_t*		fts)			/*!< in: fts instance */
 {
-	ulint		i;
 	dberr_t		error = DB_SUCCESS;
 
-	for (i = 0; i < ib_vector_size(fts->indexes); ++i) {
+	for (ulint i = 0;
+	     fts->indexes != 0 && i < ib_vector_size(fts->indexes);
+	     ++i) {
+
 		dberr_t		err;
 		dict_index_t*	index;
 
@@ -1666,6 +1665,8 @@ fts_drop_tables(
 	fts_table_t	fts_table;
 
 	FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
+
+	/* TODO: This is not atomic and can cause problems during recovery. */
 
 	error = fts_drop_common_tables(trx, &fts_table);
 
@@ -1705,10 +1706,10 @@ UNIV_INTERN
 dberr_t
 fts_create_common_tables(
 /*=====================*/
-	trx_t*		trx,			/*!< in: transaction */
-	const dict_table_t* table,		/*!< in: table with FTS index */
-	const char*	name,			/*!< in: table name normalized.*/
-	bool		skip_doc_id_index)	/*!< in: Skip index on doc id */
+	trx_t*		trx,		/*!< in: transaction */
+	const dict_table_t* table,	/*!< in: table with FTS index */
+	const char*	name,		/*!< in: table name normalized.*/
+	bool		skip_doc_id_index)/*!< in: Skip index on doc id */
 {
 	char*		sql;
 	dberr_t		error;
@@ -1843,8 +1844,8 @@ fts_create_one_index_table(
 		trx->error_state = error;
 		dict_mem_table_free(new_table);
 		new_table = NULL;
-		fprintf(stderr, "  InnoDB: Warning: Fail to create FTS "
-				"  index table %s \n", table_name);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Fail to create FTS index table %s", table_name);
 	}
 
 	mem_free(table_name);
@@ -1883,6 +1884,7 @@ fts_create_index_tables_low(
 	/* Create the FTS auxiliary tables that are specific
 	to an FTS index. */
 	sql = fts_prepare_sql(&fts_table, fts_create_index_tables_sql);
+
 	graph = fts_parse_sql_no_dict_lock(NULL, NULL, sql);
 	mem_free(sql);
 
@@ -1912,9 +1914,7 @@ fts_create_index_tables_low(
 		que_graph_free(graph);
 	}
 
-	if (error == DB_SUCCESS) {
-		error = fts_sql_commit(trx);
-	} else {
+	if (error != DB_SUCCESS) {
 		/* We have special error handling here */
 
 		trx->error_state = DB_SUCCESS;
@@ -1943,12 +1943,19 @@ fts_create_index_tables(
 	trx_t*			trx,	/*!< in: transaction */
 	const dict_index_t*	index)	/*!< in: the index instance */
 {
+	dberr_t		err;
 	dict_table_t*	table;
 
 	table = dict_table_get_low(index->table_name);
 	ut_a(table != NULL);
 
-	return(fts_create_index_tables_low(trx, index, table->name, table->id));
+	err = fts_create_index_tables_low(trx, index, table->name, table->id);
+
+	if (err == DB_SUCCESS) {
+		trx_commit(trx);
+	}
+
+	return(err);
 }
 #if 0
 /******************************************************************//**
@@ -1962,22 +1969,22 @@ fts_get_state_str(
 {
 	switch (state) {
 	case FTS_INSERT:
-		return "INSERT";
+		return("INSERT");
 
 	case FTS_MODIFY:
-		return "MODIFY";
+		return("MODIFY");
 
 	case FTS_DELETE:
-		return "DELETE";
+		return("DELETE");
 
 	case FTS_NOTHING:
-		return "NOTHING";
+		return("NOTHING");
 
 	case FTS_INVALID:
-		return "INVALID";
+		return("INVALID");
 
 	default:
-		return "UNKNOWN";
+		return("UNKNOWN");
 	}
 }
 #endif
@@ -2390,6 +2397,7 @@ fts_get_max_cache_size(
 }
 #endif
 
+#ifdef FTS_DOC_STATS_DEBUG
 /*********************************************************************//**
 Get the total number of words in the FTS for a particular FTS index.
 @return DB_SUCCESS if all OK else error code */
@@ -2429,6 +2437,7 @@ fts_get_total_word_count(
 
 	return(error);
 }
+#endif /* FTS_DOC_STATS_DEBUG */
 
 /*********************************************************************//**
 Update the next and last Doc ID in the CONFIG table to be the input
@@ -2438,6 +2447,7 @@ UNIV_INTERN
 void
 fts_update_next_doc_id(
 /*===================*/
+	trx_t*			trx,		/*!< in/out: transaction */
 	const dict_table_t*	table,		/*!< in: table */
 	const char*		table_name,	/*!< in: table name, or NULL */
 	doc_id_t		doc_id)		/*!< in: DOC ID to set */
@@ -2448,7 +2458,7 @@ fts_update_next_doc_id(
 	table->fts->cache->first_doc_id = table->fts->cache->next_doc_id;
 
 	fts_update_sync_doc_id(
-		table, table_name, table->fts->cache->synced_doc_id, NULL);
+		table, table_name, table->fts->cache->synced_doc_id, trx);
 
 }
 
@@ -2644,8 +2654,7 @@ fts_update_sync_doc_id(
 
 	info = pars_info_create();
 
-	// FIXME: Get rid of snprintf
-	id_len = snprintf(
+	id_len = ut_snprintf(
 		(char*) id, sizeof(id), FTS_DOC_ID_FORMAT, doc_id + 1);
 
 	pars_info_bind_varchar_literal(info, "doc_id", id, id_len);
@@ -2665,9 +2674,9 @@ fts_update_sync_doc_id(
 			fts_sql_commit(trx);
 			cache->synced_doc_id = doc_id;
 		} else {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Error: (%s) "
-				"while updating last doc id.\n",
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"(%s) while updating last doc id.",
 				ut_strerr(error));
 
 			fts_sql_rollback(trx);
@@ -3575,6 +3584,20 @@ fts_doc_fetch_by_doc_id(
 		} else {
 			ut_ad(option == FTS_FETCH_DOC_BY_ID_LARGE);
 
+			/* This is used for crash recovery of table with
+			hidden DOC ID or FTS indexes. We will scan the table
+			to re-processing user table rows whose DOC ID or
+			FTS indexed documents have not been sync-ed to disc
+			during recent crash.
+			In the case that all fulltext indexes are dropped
+			for a table, we will keep the "hidden" FTS_DOC_ID
+			column, and this scan is to retreive the largest
+			DOC ID being used in the table to determine the
+			appropriate next DOC ID.
+			In the case of there exists fulltext index(es), this
+			operation will re-tokenize any docs that have not
+			been sync-ed to the disk, and re-prime the FTS
+			cached */
 			graph = fts_parse_sql(
 				NULL,
 				info,
@@ -3582,8 +3605,7 @@ fts_doc_fetch_by_doc_id(
 					"DECLARE FUNCTION my_func;\n"
 					"DECLARE CURSOR c IS"
 					" SELECT %s, %s FROM %s"
-					" WHERE %s > :doc_id"
-					" ORDER BY %s;\n"
+					" WHERE %s > :doc_id;\n"
 					"BEGIN\n"
 					""
 					"OPEN c;\n"
@@ -3596,7 +3618,6 @@ fts_doc_fetch_by_doc_id(
 					"CLOSE c;",
 					FTS_DOC_ID_COL_NAME,
 					select_str, index->table_name,
-					FTS_DOC_ID_COL_NAME,
 					FTS_DOC_ID_COL_NAME));
 		}
 		if (get_doc) {
@@ -3756,10 +3777,12 @@ fts_sync_write_words(
 	ulint		n_nodes = 0;
 	ulint		n_words = 0;
 	const ib_rbt_node_t* rbt_node;
-	ulint		n_new_words = 0;
 	dberr_t		error = DB_SUCCESS;
 	ibool		print_error = FALSE;
+#ifdef FTS_DOC_STATS_DEBUG
 	dict_table_t*	table = index_cache->index->table;
+	ulint		n_new_words = 0;
+#endif /* FTS_DOC_STATS_DEBUG */
 
 	FTS_INIT_INDEX_TABLE(
 		&fts_table, NULL, FTS_INDEX_TABLE, index_cache->index);
@@ -3784,9 +3807,10 @@ fts_sync_write_words(
 
 		fts_table.suffix = fts_get_suffix(selected);
 
+#ifdef FTS_DOC_STATS_DEBUG
 		/* Check if the word exists in the FTS index and if not
 		then we need to increment the total word count stats. */
-		if (error == DB_SUCCESS) {
+		if (error == DB_SUCCESS && fts_enable_diag_print) {
 			ibool	found = FALSE;
 
 			error = fts_is_word_in_index(
@@ -3800,6 +3824,7 @@ fts_sync_write_words(
 				++n_new_words;
 			}
 		}
+#endif /* FTS_DOC_STATS_DEBUG */
 
 		n_nodes += ib_vector_size(word->nodes);
 
@@ -3835,19 +3860,23 @@ fts_sync_write_words(
 		ut_free(rbt_remove_node(index_cache->words, rbt_node));
 	}
 
-	if (error == DB_SUCCESS && n_new_words > 0) {
+#ifdef FTS_DOC_STATS_DEBUG
+	if (error == DB_SUCCESS && n_new_words > 0 && fts_enable_diag_print) {
 		fts_table_t	fts_table;
 
 		FTS_INIT_FTS_TABLE(&fts_table, NULL, FTS_COMMON_TABLE, table);
 
 		/* Increment the total number of words in the FTS index */
-		fts_config_increment_index_value(
+		error = fts_config_increment_index_value(
 			trx, index_cache->index, FTS_TOTAL_WORD_COUNT,
 			n_new_words);
 	}
+#endif /* FTS_DOC_STATS_DEBUG */
 
-	printf("Avg number of nodes: %lf\n",
-	       (double) n_nodes / (double) (n_words > 1 ? n_words : 1));
+	if (fts_enable_diag_print) {
+		printf("Avg number of nodes: %lf\n",
+		       (double) n_nodes / (double) (n_words > 1 ? n_words : 1));
+	}
 
 	return(error);
 }
@@ -3968,7 +3997,6 @@ fts_sync_write_doc_stats(
 
 	return(error);
 }
-#endif /* FTS_DOC_STATS_DEBUG */
 
 /*********************************************************************//**
 Callback to check the existince of a word.
@@ -4078,6 +4106,7 @@ fts_is_word_in_index(
 
 	return(error);
 }
+#endif /* FTS_DOC_STATS_DEBUG */
 
 /*********************************************************************//**
 Begin Sync, create transaction, acquire locks, etc. */
@@ -4511,10 +4540,13 @@ fts_init_doc_id(
 
 	rw_lock_x_lock(&table->fts->cache->lock);
 
+	/* Return if the table is already initialized for DOC ID */
 	if (table->fts->cache->first_doc_id != FTS_NULL_DOC_ID) {
 		rw_lock_x_unlock(&table->fts->cache->lock);
 		return(0);
 	}
+
+	DEBUG_SYNC_C("fts_initialize_doc_id");
 
 	/* Then compare this value with the ID value stored in the CONFIG
 	table. The larger one will be our new initial Doc ID */
@@ -4669,7 +4701,7 @@ fts_update_max_cache_size(
 
 	trx_free_for_background(trx);
 }
-#endif
+#endif /* FTS_CACHE_SIZE_DEBUG */
 
 /*********************************************************************//**
 Free the modified rows of a table. */
@@ -5560,7 +5592,7 @@ static
 ibool
 fts_is_aux_table_name(
 /*==================*/
-	fts_sys_table_t*table,		/*!< out: table info */
+	fts_aux_table_t*table,		/*!< out: table info */
 	const char*	name,		/*!< in: table name */
 	ulint		len)		/*!< in: length of table name */
 {
@@ -5585,7 +5617,6 @@ fts_is_aux_table_name(
 	length will be at the very least greater than 20 bytes. */
 	if (ptr != NULL && len > 20 && strncmp(ptr, "FTS_", 4) == 0) {
 		ulint		i;
-
 
 		/* Skip the prefix. */
 		ptr += 4;
@@ -5661,7 +5692,7 @@ fts_read_tables(
 	void*		user_arg)	/*!< in: pointer to ib_vector_t */
 {
 	int		i;
-	fts_sys_table_t*table;
+	fts_aux_table_t*table;
 	mem_heap_t*	heap;
 	ibool		done = FALSE;
 	ib_vector_t*	tables = static_cast<ib_vector_t*>(user_arg);
@@ -5673,7 +5704,7 @@ fts_read_tables(
 
 	/* We will use this heap for allocating strings. */
 	heap = static_cast<mem_heap_t*>(tables->allocator->arg);
-	table = static_cast<fts_sys_table_t*>(ib_vector_push(tables, NULL));
+	table = static_cast<fts_aux_table_t*>(ib_vector_push(tables, NULL));
 
 	memset(table, 0x0, sizeof(*table));
 
@@ -5699,8 +5730,8 @@ fts_read_tables(
 
 			table->name = static_cast<char*>(
 				mem_heap_dup(heap, data, len + 1));
-			table->name[len] = '\0';
-			printf("Found [%.*s]\n", (int) len, table->name);
+
+			table->name[len] = 0;
 			break;
 
 		case 1: /* ID */
@@ -5721,42 +5752,41 @@ fts_read_tables(
 Check and drop all orphaned FTS auxiliary tables, those that don't have
 a parent table or FTS index defined on them.
 @return DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
-dberr_t
+static __attribute__((nonnull))
+void
 fts_check_and_drop_orphaned_tables(
 /*===============================*/
 	trx_t*		trx,			/*!< in: transaction */
 	ib_vector_t*	tables)			/*!< in: tables to check */
 {
-	ulint		i;
-	dberr_t		error = DB_SUCCESS;
-
-	for (i = 0; i < ib_vector_size(tables); ++i) {
+	for (ulint i = 0; i < ib_vector_size(tables); ++i) {
 		dict_table_t*		table;
-		fts_sys_table_t*	sys_table;
-		ibool			drop = FALSE;
+		fts_aux_table_t*	aux_table;
+		bool			drop = false;
 
-		sys_table = static_cast<fts_sys_table_t*>(
+		aux_table = static_cast<fts_aux_table_t*>(
 			ib_vector_get(tables, i));
 
 		table = dict_table_open_on_id(
-			sys_table->parent_id, FALSE, FALSE);
+			aux_table->parent_id, TRUE, FALSE);
 
 		if (table == NULL || table->fts == NULL) {
 
-			drop = TRUE;
+			drop = true;
 
-		} else if (sys_table->index_id != 0) {
-			ulint		j;
+		} else if (aux_table->index_id != 0) {
 			index_id_t	id;
-			fts_t*	fts;
+			fts_t*		fts;
 
-			drop = TRUE;
+			drop = true;
 			fts = table->fts;
-			id = sys_table->index_id;
+			id = aux_table->index_id;
 
 			/* Search for the FT index in the table's list. */
-			for (j = 0; j < ib_vector_size(fts->indexes); ++j) {
+			for (ulint j = 0;
+			     j < ib_vector_size(fts->indexes);
+			     ++j) {
+
 				const dict_index_t*	index;
 
 				index = static_cast<const dict_index_t*>(
@@ -5764,28 +5794,36 @@ fts_check_and_drop_orphaned_tables(
 
 				if (index->id == id) {
 
-					drop = FALSE;
+					drop = false;
 					break;
 				}
 			}
 		}
 
 		if (table) {
-			dict_table_close(table, FALSE, FALSE);
+			dict_table_close(table, TRUE, FALSE);
 		}
 
 		if (drop) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: Warning: Parent table of "
-				"FT auxiliary table %s not found.\n",
-				sys_table->name);
 
-			/* We ignore drop errors. */
-			fts_drop_table(trx, sys_table->name);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Parent table of FTS auxiliary table %s not "
+				"found.", aux_table->name);
+
+			dberr_t	err = fts_drop_table(trx, aux_table->name);
+
+			if (err == DB_FAIL) {
+				char*	path;
+
+				path = fil_make_ibd_name(
+					aux_table->name, false);
+
+				os_file_delete_if_exists(path);
+
+				mem_free(path);
+			}
 		}
 	}
-
-	return(error);
 }
 
 /**********************************************************************//**
@@ -5796,19 +5834,62 @@ void
 fts_drop_orphaned_tables(void)
 /*==========================*/
 {
-	trx_t*		trx;
-	pars_info_t*	info;
-	mem_heap_t*	heap;
-	que_t*		graph;
-	ib_vector_t*	tables;
-	ib_alloc_t*	heap_alloc;
-	dberr_t		error = DB_SUCCESS;
+	trx_t*			trx;
+	pars_info_t*		info;
+	mem_heap_t*		heap;
+	que_t*			graph;
+	ib_vector_t*		tables;
+	ib_alloc_t*		heap_alloc;
+	space_name_list_t	space_name_list;
+	dberr_t			error = DB_SUCCESS;
+
+	/* Note: We have to free the memory after we are done with the list. */
+	error = fil_get_space_names(space_name_list);
+
+	if (error == DB_OUT_OF_MEMORY) {
+		ib_logf(IB_LOG_LEVEL_ERROR, "Out of memory");
+		ut_error;
+	}
 
 	heap = mem_heap_create(1024);
 	heap_alloc = ib_heap_allocator_create(heap);
 
 	/* We store the table ids of all the FTS indexes that were found. */
-	tables = ib_vector_create(heap_alloc, sizeof(fts_sys_table_t), 128);
+	tables = ib_vector_create(heap_alloc, sizeof(fts_aux_table_t), 128);
+
+	/* Get the list of all known .ibd files and check for orphaned
+	FTS auxiliary files in that list. We need to remove them because
+	users can't map them back to table names and this will create
+	unnecessary clutter. */
+
+	for (space_name_list_t::iterator it = space_name_list.begin();
+	     it != space_name_list.end();
+	     ++it) {
+
+		fts_aux_table_t*	fts_aux_table;
+
+		fts_aux_table = static_cast<fts_aux_table_t*>(
+			ib_vector_push(tables, NULL));
+
+		memset(fts_aux_table, 0x0, sizeof(*fts_aux_table));
+
+		if (!fts_is_aux_table_name(fts_aux_table, *it, strlen(*it))) {
+			ib_vector_pop(tables);
+		} else {
+			ulint	len = strlen(*it);
+
+			fts_aux_table->id = fil_get_space_id_for_table(*it);
+
+			/* We got this list from fil0fil.cc. The tablespace
+			with this name must exist. */
+			ut_a(fts_aux_table->id != ULINT_UNDEFINED);
+
+			fts_aux_table->name = static_cast<char*>(
+				mem_heap_dup(heap, *it, len + 1));
+
+			fts_aux_table->name[len] = 0;
+		}
+	}
 
 	trx = trx_allocate_for_background();
 	trx->op_info = "dropping orphaned FTS tables";
@@ -5840,10 +5921,7 @@ fts_drop_orphaned_tables(void)
 		error = fts_eval_sql(trx, graph);
 
 		if (error == DB_SUCCESS) {
-			error = fts_check_and_drop_orphaned_tables(trx, tables);
-		}
-
-		if (error == DB_SUCCESS) {
+			fts_check_and_drop_orphaned_tables(trx, tables);
 			fts_sql_commit(trx);
 			break;				/* Exit the loop. */
 		} else {
@@ -5854,14 +5932,14 @@ fts_drop_orphaned_tables(void)
 			ut_print_timestamp(stderr);
 
 			if (error == DB_LOCK_WAIT_TIMEOUT) {
-				fprintf(stderr, "  InnoDB: Warning: lock wait "
-					"timeout reading SYS_TABLES. "
-					"Retrying!\n");
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"lock wait timeout reading SYS_TABLES. "
+					"Retrying!");
 
 				trx->error_state = DB_SUCCESS;
 			} else {
-				fprintf(stderr, "  InnoDB: Error: (%s) "
-					"while reading SYS_TABLES.\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) while reading SYS_TABLES.",
 					ut_strerr(error));
 
 				break;			/* Exit the loop. */
@@ -5877,6 +5955,14 @@ fts_drop_orphaned_tables(void)
 
 	if (heap != NULL) {
 		mem_heap_free(heap);
+	}
+
+	/** Free the memory allocated to store the .ibd names. */
+	for (space_name_list_t::iterator it = space_name_list.begin();
+	     it != space_name_list.end();
+	     ++it) {
+
+		delete[] *it;
 	}
 }
 

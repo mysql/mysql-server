@@ -4466,34 +4466,6 @@ public:
   bool send_data(List<Item> &items);
 };
 
-struct st_table_ref;
-
-
-/**
-  Executor structure for the materialized semi-join info, which contains
-   - Description of expressions selected from subquery
-   - The sj-materialization temporary table
-*/
-class Semijoin_mat_exec : public Sql_alloc
-{
-public:
-  Semijoin_mat_exec(bool is_scan, uint table_count, uint mat_table_index,
-                    uint inner_table_index, List<Item> *const subq_exprs)
-    :is_scan(is_scan), table_count(table_count),
-     mat_table_index(mat_table_index), inner_table_index(inner_table_index),
-    subq_exprs(subq_exprs), table_param(), table(NULL)
-  {}
-  ~Semijoin_mat_exec()
-  {}
-  const bool is_scan;           ///< TRUE if executing a scan, FALSE if lookup
-  const uint table_count;       ///< Number of tables in the sj-nest
-  const uint mat_table_index;   ///< Index in join_tab for materialized table
-  const uint inner_table_index; ///< Index in join_tab for first inner table
-  List<Item> *const subq_exprs; ///< List of expressions describing temp. table
-  TMP_TABLE_PARAM table_param;  ///< The temptable and its related info
-  TABLE *table;                 ///< Reference to temporary table
-};
-
 
 /* Structs used when sorting */
 
@@ -4923,7 +4895,6 @@ public:
 
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
-  Item_func_set_user_var **set_var_items;
 public:
   List<my_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}

@@ -416,6 +416,12 @@ public:
   virtual void get_query(String *sql_query) const
   { sql_query->append(m_query.str, m_query.length); }
 
+  virtual bool on_after_expr_parsing(THD *thd)
+  {
+    m_valid= true;
+    return false;
+  }
+
 private:
   /// Complete query of the SQL-statement.
   LEX_STRING m_query;
@@ -1213,6 +1219,12 @@ public:
 
   virtual void get_query(String *sql_query) const
   { sql_query->append(m_cursor_query.str, m_cursor_query.length); }
+
+  virtual bool on_after_expr_parsing(THD *thd)
+  {
+    m_valid= true;
+    return false;
+  }
 
 private:
   /// This attribute keeps the cursor SELECT statement.

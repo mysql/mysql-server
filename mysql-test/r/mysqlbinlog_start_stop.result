@@ -31,7 +31,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -66,7 +66,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -120,7 +120,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
@@ -157,7 +157,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -194,7 +194,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
@@ -222,7 +222,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -268,7 +268,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -296,7 +296,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -326,7 +326,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -364,7 +364,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -390,7 +390,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -436,7 +436,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -473,7 +473,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
@@ -502,7 +502,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -539,7 +539,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -577,7 +577,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -605,7 +605,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
@@ -634,7 +634,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -662,7 +662,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -700,7 +700,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -737,7 +737,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -775,7 +775,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -803,7 +803,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -841,7 +841,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -871,7 +871,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -906,7 +906,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -959,7 +959,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
@@ -996,7 +996,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -1032,7 +1032,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
@@ -1060,7 +1060,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -1106,7 +1106,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -1134,7 +1134,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -1164,7 +1164,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -1202,7 +1202,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1228,7 +1228,7 @@ ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -1274,7 +1274,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1310,7 +1310,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
@@ -1339,7 +1339,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1376,7 +1376,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -1414,7 +1414,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1441,7 +1441,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1956560400/*!*/;
 INSERT INTO t1 VALUES(2)
 /*!*/;
@@ -1470,7 +1470,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1498,7 +1498,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -1536,7 +1536,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1573,7 +1573,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -1611,7 +1611,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1639,7 +1639,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;
@@ -1677,7 +1677,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1705,7 +1705,7 @@ SET @@session.lc_time_names=0/*!*/;
 SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1925024400/*!*/;
 INSERT INTO t1 VALUES(1)
 /*!*/;

@@ -1,0 +1,298 @@
+###############################################################################
+#                                                                             #
+# Variable Name: table_open_cache                                             #
+# Scope: Global                                                               #
+# Access Type: Dynamic                                                         #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-08-31                                                   #
+# Author : Tanjot Singh Uppal                                                 #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable table_open_cache           #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#              * Functionality Check                                          #
+#              * Accessability Check                                          #
+#                                                                             #               
+# This test does not perform the crash recovery on this variable              # 
+# For crash recovery test on default change please run the ibtest             #
+###############################################################################
+
+-- source include/have_innodb.inc
+-- source include/not_embedded.inc
+-- source include/have_innodb_16k.inc
+
+if (`select $PS_PROTOCOL != 0`)
+{
+   --skip Test requires: ps-protocol disabled
+}
+
+
+
+echo '#________________________VAR_05_table_open_cache__________________#'
+echo '##'
+--echo '#---------------------WL6372_VAR_5_01----------------------#'
+####################################################################
+#   Checking default value                                         #
+####################################################################
+SELECT COUNT(@@GLOBAL.table_open_cache);
+--echo 1 Expected
+
+SELECT @@GLOBAL.table_open_cache;
+--echo 2000 Expected
+
+
+--echo '#---------------------WL6372_VAR_5_02----------------------#'
+#################################################################################
+# Checking the Default value post starting the server with other value          #
+#################################################################################
+--echo # Restart server with table_open_cache 1
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+-- exec echo "restart:--table_open_cache=1  " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+SELECT @@GLOBAL.table_open_cache;
+--echo 1 Expected
+
+SET @@GLOBAL.table_open_cache=DEFAULT;
+SELECT @@GLOBAL.table_open_cache;
+--echo 2000 Expected
+
+
+--echo '#---------------------WL6372_VAR_5_03----------------------#'
+####################################################################
+#   Checking Value can be set - Dynamic                            #
+####################################################################
+
+--error ER_GLOBAL_VARIABLE
+SET @@local.table_open_cache=1;
+--echo Expected error 'Global variable'
+
+--error ER_GLOBAL_VARIABLE
+SET @@session.table_open_cache=1;
+--echo Expected error 'Global variable'
+
+SET @@GLOBAL.table_open_cache=1;
+SET @@GLOBAL.table_open_cache=DEFAULT;
+
+
+SELECT @@GLOBAL.table_open_cache;
+--echo 2000 Expected
+
+--echo '#---------------------WL6372_VAR_5_04----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+SELECT @@GLOBAL.table_open_cache = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='table_open_cache';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.table_open_cache);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='table_open_cache';
+--echo 1 Expected
+
+
+
+--echo '#---------------------WL6372_VAR_5_05----------------------#'
+################################################################################
+#  Checking Variable Scope                                                     #
+################################################################################
+SELECT @@table_open_cache = @@GLOBAL.table_open_cache;
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.table_open_cache);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.table_open_cache);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.table_open_cache);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT table_open_cache = @@SESSION.table_open_cache;
+--echo Expected error 'Unknown column table_open_cache in field list'
+
+
+
+--echo '#---------------------WL6372_VAR_5_06----------------------#'
+###############################################################################
+# Checking the /Var  directory size                                           #
+###############################################################################
+-- source include/vardir_size_check.inc
+--echo TRUE Expected
+
+--echo '#---------------------WL6372_VAR_5_07----------------------#'
+#################################################################################
+# Checking the size of table cache functionality                                #
+#################################################################################
+--echo # create 3 tables and insert 1 row each
+--disable_warnings
+DROP TABLE IF EXISTS tab1;
+DROP TABLE IF EXISTS tab2;
+DROP TABLE IF EXISTS tab3;
+--enable_warnings
+
+let $i = 1;
+
+let $table = tab1;
+--source include/create_table.inc
+--source include/Load_data.inc
+
+let $table = tab2;
+--source include/create_table.inc
+--source include/Load_data.inc
+
+let $table = tab3;
+--source include/create_table.inc
+--source include/Load_data.inc
+flush tables;
+flush status;
+set @@GLOBAL.table_open_cache=2;
+--echo # open two tables
+
+select 1 from tab1;
+--echo 1 Expected
+
+select 1 from tab2;
+--echo 1 Expected
+
+set @opened_tables = (select variable_value from information_schema.session_status where variable_name ='Opened_tables');
+set @open_cache_hits = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits');
+set @open_cache_miss = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses');
+set @open_cache_overflow = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows');
+
+--echo # table_open_cache hit 1
+select 1 from tab1;
+--echo 1 Expected
+
+--echo # table_open_cache hit 2
+select 1 from tab2;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables;
+--echo 1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2;
+--echo 1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss;
+--echo 1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow;
+--echo 1 Expected
+
+--echo # open third table
+select 1 from tab3;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1;
+--echo 1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 2;
+--echo 1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1;
+--echo 1 Expected
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1;
+--echo 1 Expected
+
+flush status;
+
+set @global_opened_tables = (select variable_value from information_schema.global_status where variable_name ='Opened_tables');
+set @global_open_cache_hits = (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_hits');
+set @global_open_cache_miss = (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_misses');
+set @global_open_cache_overflow = (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows');
+
+
+--echo # opening table 2 from another client session
+connect (con1,localhost,root,,);
+
+set @opened_tables = (select variable_value from information_schema.session_status where variable_name ='Opened_tables');
+set @open_cache_hits = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits');
+set @open_cache_miss = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses');
+set @open_cache_overflow = (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows');
+
+select 1 from tab2;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits + 1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow;
+--echo 1 Expected
+
+flush status;
+
+connection default;
+
+select (select variable_value from information_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables;
+--echo 1 Expected
+
+select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_hits') = @global_open_cache_hits + 1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_misses') = @global_open_cache_miss;
+--echo 1 Expected
+
+select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow;
+--echo 1 Expected
+
+
+connection con1;
+
+select 1 from tab1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Opened_tables') = @opened_tables + 1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_hits') = @open_cache_hits;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_misses') = @open_cache_miss + 1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.session_status where variable_name ='Table_open_cache_overflows') = @open_cache_overflow + 1;
+
+flush status;
+connection default;
+
+select (select variable_value from information_schema.global_status where variable_name ='Opened_tables') = @global_opened_tables + 1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_hits') = @global_open_cache_hits + 1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_misses') = @global_open_cache_miss + 1;
+--echo 1 Expected
+
+select (select variable_value from information_schema.global_status where variable_name ='Table_open_cache_overflows') = @global_open_cache_overflow + 1;
+--echo 1 Expected
+
+disconnect con1;
+
+--echo #cleanup
+connection default;
+
+DROP TABLE IF EXISTS tab1;
+DROP TABLE IF EXISTS tab2;
+DROP TABLE IF EXISTS tab3;
+set @@GLOBAL.table_open_cache=DEFAULT;
+

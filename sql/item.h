@@ -462,10 +462,13 @@ struct Name_resolution_context: Sql_alloc
   void (*error_processor)(THD *, void *);
   void *error_processor_data;
 
-  /*
-    When TRUE items are resolved in this context both against the
-    SELECT list and this->table_list. If FALSE, items are resolved
-    only against this->table_list.
+  /**
+    When TRUE, items are resolved in this context against
+    SELECT_LEX::item_list, SELECT_lex::group_list and
+    this->table_list. If FALSE, items are resolved only against
+    this->table_list.
+
+    @see st_select_lex::item_list, st_select_lex::group_list
   */
   bool resolve_in_select_list;
 

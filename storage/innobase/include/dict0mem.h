@@ -377,6 +377,17 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
+/*******************************************************************//**
+Create a temporary tablename.
+@return temporary tablename suitable for InnoDB use */
+UNIV_INTERN __attribute__((nonnull, warn_unused_result))
+char*
+dict_mem_create_temporary_tablename(
+/*================================*/
+	mem_heap_t*	heap,	/*!< in: memory heap */
+	const char*	dbtab,	/*!< in: database/table name */
+	table_id_t	id);	/*!< in: InnoDB table id */
+
 /** Data structure for a column in a table */
 struct dict_col_t{
 	/*----------------------*/
@@ -538,10 +549,15 @@ struct dict_index_t{
 	unsigned	type:DICT_IT_BITS;
 				/*!< index type (DICT_CLUSTERED, DICT_UNIQUE,
 				DICT_UNIVERSAL, DICT_IBUF, DICT_CORRUPT) */
-	unsigned	trx_id_offset:10;/*!< position of the trx id column
+#define MAX_KEY_LENGTH_BITS 12
+	unsigned	trx_id_offset:MAX_KEY_LENGTH_BITS;
+				/*!< position of the trx id column
 				in a clustered index record, if the fields
 				before it are known to be of a fixed size,
 				0 otherwise */
+#if (1<<MAX_KEY_LENGTH_BITS) < MAX_KEY_LENGTH
+# error (1<<MAX_KEY_LENGTH_BITS) < MAX_KEY_LENGTH
+#endif
 	unsigned	n_user_defined_cols:10;
 				/*!< number of columns the user defined to
 				be in the index: in the internal
@@ -727,6 +743,14 @@ struct dict_table_t{
 				user tries to query such an orphaned table */
 	unsigned	cached:1;/*!< TRUE if the table object has been added
 				to the dictionary cache */
+	unsigned	to_be_dropped:1;
+				/*!< TRUE if the table is to be dropped, but
+				not yet actually dropped (could in the bk
+				drop list); It is turned on at the beginning
+				of row_drop_table_for_mysql() and turned off
+				just before we start to update system tables
+				for the drop. It is protected by
+				dict_operation_lock */
 	unsigned	n_def:10;/*!< number of columns defined so far */
 	unsigned	n_cols:10;/*!< number of columns */
 	unsigned	can_be_evicted:1;

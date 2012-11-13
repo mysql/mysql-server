@@ -129,6 +129,7 @@ table_threads::table_threads()
 void table_threads::make_row(PFS_thread *pfs)
 {
   pfs_lock lock;
+  pfs_lock processlist_lock;
   PFS_thread_class *safe_class;
 
   m_row_exists= false;
@@ -166,12 +167,30 @@ void table_threads::make_row(PFS_thread *pfs)
 
   m_row.m_command= pfs->m_command;
   m_row.m_start_time= pfs->m_start_time;
+
+  /* Protect this reader against attribute changes. */
+  pfs->m_lock.begin_optimistic_lock(&processlist_lock);
+
   /* FIXME: need to copy it ? */
   m_row.m_processlist_state_ptr= pfs->m_processlist_state_ptr;
   m_row.m_processlist_state_length= pfs->m_processlist_state_length;
   /* FIXME: need to copy it ? */
   m_row.m_processlist_info_ptr= pfs->m_processlist_info_ptr;
   m_row.m_processlist_info_length= pfs->m_processlist_info_length;
+
+  if (! pfs->m_lock.end_optimistic_lock(& processlist_lock))
+  {
+    /*
+      Columns PROCESSLIST_STATE or PROCESSLIST_INFO are being
+      updated while we read them, and are unsafe to use.
+      Do not discard the entire row.
+      Do not loop waiting for a stable value.
+      Just return NULL values for these columns.
+    */
+    m_row.m_processlist_state_length= 0;
+    m_row.m_processlist_info_length= 0;
+  }
+
   m_row.m_enabled_ptr= &pfs->m_enabled;
 
   if (pfs->m_lock.end_optimistic_lock(& lock))
