@@ -40,6 +40,7 @@ my $opt_build = 1;
 my $opt_just_print;
 my $opt_vanilla;
 my $opt_autotest;
+my $opt_distcheck;
 my $opt_parse_log;
 Getopt::Long::Configure("pass_through");
 GetOptions(
@@ -53,6 +54,7 @@ GetOptions(
   'n|just-print' => \$opt_just_print,
   'vanilla' => \$opt_vanilla,
   'autotest' => \$opt_autotest,
+  'distcheck' => \$opt_distcheck,
 
   # Special switch --parse-log=<file> which reads a log file (from build) and
   # parses it for warnings
@@ -232,7 +234,14 @@ if (!$opt_build)
 }
 
 {
-    build_cmd("make", "-C $srcdir");
+  my @args;
+  push(@args, "-C $srcdir");
+  build_cmd("make", @args);
+
+  if ($opt_distcheck)
+  {
+    build_cmd("make", @args, "distcheck");
+  }
 }
 
 exit(0);
@@ -255,13 +264,35 @@ sub build_cmd {
   print "compile-cluster: '$cmd_str'\n";
   return if ($opt_just_print);
   $cmd_str.= " 2>&1";
-  my ($chld_out, $chld_in);
-  my $pid = open2($chld_out, $chld_in, $cmd_str) or die $!;
+
   # Create warning parser and pass every ouput line through it
   my $parser = WarningParser->new(srcdir => $srcdir,
 				  unified => 1,
                                   verbose => 1,
                                   track_dirs => !$is_windows);
+
+  my ($chld_out, $chld_in);
+  my $pid = open2($chld_out, $chld_in, $cmd_str) or die $!;
+
+  # Install handler to make sure that build is killed
+  # off even in case the perl script dies
+  local $SIG{__DIE__} = sub {
+      print STDERR "Ooops, script died! Killing the build(pid = $pid)\n";
+
+      # NOTE! Kill with negative signal number means kill process group
+      my $ret = kill(-9, $pid);
+      print STDERR "  kill(-9, $pid) -> $ret\n";
+
+      # Just checking, should return 0
+      $ret = kill(0, $pid);
+      print STDERR "  kill(0, $pid) ->  $ret\n";
+
+      # Wait for process to terminate
+      print STDERR "  waitpid($pid, 0)\n";
+      $ret= waitpid($pid, 0);
+      print STDERR "  waitpid returned $ret!\n";
+  };
+
   while (my $line = <$chld_out>)
   {
     if (!$parser->parse_line($line))
@@ -290,11 +321,12 @@ package WarningParser::Warning;
 use strict;
 
 sub new {
-  my ($class, $file, $line, $text)= @_;
+  my ($class, $file, $line, $text, $compiler)= @_;
   my $self= bless {
     FILE => $file,
     LINE => $line,
     TEXT => $text,
+    COMPILER => $compiler,
   }, $class;
   return $self;
 }
@@ -400,21 +432,35 @@ sub new {
 }
 
 sub new_warning {
-  my ($self, $file, $line, $text) = @_;
+  my ($self, $file, $line, $text, $compiler) = @_;
+  #print "new_warning>\n";
+  #print "file: '$file', line: $line, text: '$text', compiler: '$compiler'\n";
+  my $srcdir = $self->{SRCDIR};
+  #print "srcdir: $srcdir\n";
   if ($self->{TRACK_DIRS})
   {
-    # file does not contain directory, add currently
+    # "file" does not contain directory, add currently
     # tracked dir
     my $dir = $self->{DIR};
     $file= "$dir/$file";
   }
-  my $srcdir = $self->{SRCDIR};
-  # srcdir is in abs_path form, convert also file to abs_path
-  $file = abs_path($file);
+  if (! -e $file)
+  {
+    # safety, "file" does not always contain full path
+    # and thus calling 'abs_path' on a non existing file
+    # would make the script die
+    print "Hmmpf, creating warning for file without full path!\n";
+  }
+  else
+  {
+    # "srcdir" is in abs_path form, convert also "file" to abs_path
+    $file = abs_path($file);
+  }
+
   $file =~ s/^$srcdir//; # Remove leading srcdir
   $file =~ s:^\/::; # Remove leading slash
 
-  return WarningParser::Warning->new($file, $line, $text);
+  return WarningParser::Warning->new($file, $line, $text, $compiler);
 }
 
 sub parse_warning {
@@ -441,29 +487,29 @@ sub parse_warning {
   }
 
   # cmake and Visual Studio 10(seems to use msbuild)
-  if ($line =~ /^\s*(.*)\((\d+)\): warning ([^ ]*:.*)$/)
+  if ($line =~ /^(\d+>)?\s*(.*)\((\d+)\): warning ([^ ]*:.*)$/)
   {
-    return $self->new_warning($1, $2, $3);
+    return $self->new_warning($2, $3, $4, "vs10_msbuild");
   }
 
   # cmake and Visual Studio 9
   if ($line =~ /^(\d+>)?(?:[a-z]:)?([^:()]*)\((\d+)\) : warning ([^ ]*:.*)$/)
   {
     my ($project, $file, $lineno, $text) = ($1, $2, $3, $4);
-    return $self->new_warning($file, $lineno, $text);
+    return $self->new_warning($file, $lineno, $text, "vs9");
   }
 
   # cmake and gcc with line number AND column
   if ($line =~ /([^ ]+\.(c|h|cc|cpp|hpp|ic|i|y|l)):([0-9]+):([0-9]+):[ \t]*warning:[ \t]*(.*)$/)
   {
     my ($file, $junk, $lineno, $colno, $text) = ($1, $2, $3, $4, $5);
-    return $self->new_warning($file, $lineno, $text);
+    return $self->new_warning($file, $lineno, $text, , "gcc_with_col");
   }
 
   # cmake and gcc
   if ($line =~ /([^ ]+\.(c|h|cc|cpp|hpp|ic|i|y|l)):[ \t]*([0-9]+):[ \t]*warning:[ \t]*(.*)$/)
   {
-    return $self->new_warning($1, $3, $4);
+    return $self->new_warning($1, $3, $4, "gcc");
   }
 
   return undef;
