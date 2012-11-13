@@ -20,6 +20,7 @@ void treenode::init(comparator *cmp) {
     // use an adaptive mutex at each node since we expect the time the
     // lock is held to be relatively short compared to a context switch.
     // indeed, this improves performance at high thread counts considerably.
+    memset(&m_mutex, 0, sizeof(toku_mutex_t));
     toku_pthread_mutexattr_t attr;
     toku_mutexattr_init(&attr);
     toku_mutexattr_settype(&attr, TOKU_MUTEX_ADAPTIVE);
