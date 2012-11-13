@@ -27,6 +27,8 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     dbtablehandler = require("../common/DBTableHandler.js"),
     udebug         = unified_debug.getLogger("NdbConnectionPool.js"),
     ndb_is_initialized = false,
+    pendingListTables = {},
+    pendingGetMetadata = {},
     proto;
 
 
@@ -215,6 +217,20 @@ proto.getDBSession = function(index, user_callback) {
 };
 
 
+function makeCascadedCallback(container, key) {
+  var cascade = function(param1, param2) {
+    var callbackList = container[key];
+    udebug.log("CascadedCallback for", key, "with", callbackList.length, "user callbacks");
+    var i;
+    for(i = 0 ; i < callbackList.length ; i++) { 
+      callbackList[i](param1, param2);
+    }
+    delete container[key];
+  };
+  return cascade;
+}
+
+
 /** List all tables in the schema
   * ASYNC
   * 
@@ -224,7 +240,17 @@ proto.listTables = function(databaseName, dbSession, user_callback) {
   udebug.log("listTables");
   assert(databaseName && user_callback);
   var dictSessionImpl = dbSession ? dbSession.impl : this.dictionary;
-  adapter.ndb.impl.DBDictionary.listTables(dictSessionImpl, databaseName, user_callback);
+  if(pendingListTables[databaseName]) {
+    udebug.log("listTables", databaseName, "pending");
+    pendingListTables[databaseName].push(user_callback);
+  }
+  else {
+    udebug.log("listTables", databaseName, "NEW");
+    pendingListTables[databaseName] = [];
+    pendingListTables[databaseName].push(user_callback);
+    var masterCallback = makeCascadedCallback(pendingListTables, databaseName);
+    adapter.ndb.impl.DBDictionary.listTables(dictSessionImpl, databaseName, masterCallback);
+  }
 };
 
 
@@ -237,9 +263,19 @@ proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
   udebug.log("getTableMetadata");
   assert(dbname && tabname && user_callback);
   var dictSessionImpl = dbSession ? dbSession.impl : this.dictionary;
+  var tableKey = dbname + "." + tabname;
   // TODO: Wrap the NdbError in a large explicit error message db.tbl not in ndb engine
-  udebug.log_detail(dictSessionImpl, dbname, tabname, user_callback);
-  adapter.ndb.impl.DBDictionary.getTable(dictSessionImpl, dbname, tabname, user_callback);
+  if(pendingGetMetadata[tableKey]) {
+    udebug.log("getTableMetadata", tableKey, "pending");
+    pendingGetMetadata[tableKey].push(user_callback);
+  }
+  else {
+    udebug.log("getTableMetadata", tableKey, "NEW");
+    pendingGetMetadata[tableKey] = [];
+    pendingGetMetadata[tableKey].push(user_callback);
+    var masterCallback = makeCascadedCallback(pendingGetMetadata, tableKey);
+    adapter.ndb.impl.DBDictionary.getTable(dictSessionImpl, dbname, tabname, masterCallback);
+  }
 };
 
 
