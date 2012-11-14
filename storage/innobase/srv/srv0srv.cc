@@ -1460,6 +1460,16 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
 
+#ifdef UNIV_DEBUG
+	if (purge_sys->done.trx_no == 0
+	    || trx_sys->rw_max_trx_id < purge_sys->done.trx_no - 1) {
+		export_vars.innodb_purge_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_trx_id_age =
+		  trx_sys->rw_max_trx_id - purge_sys->done.trx_no + 1;
+	}
+#endif /* UNIV_DEBUG */
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 

@@ -1243,6 +1243,14 @@ run_synchronously:
 
 	ut_a(purge_sys->n_submitted == purge_sys->n_completed);
 
+#ifdef UNIV_DEBUG
+	if (purge_sys->limit.trx_no == 0) {
+		purge_sys->done = purge_sys->iter;
+	} else {
+		purge_sys->done = purge_sys->limit;
+	}
+#endif /* UNIV_DEBUG */
+
 	if (truncate) {
 		trx_purge_truncate();
 	}

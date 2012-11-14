@@ -933,8 +933,6 @@ bool st_select_lex_unit::change_result(select_result_interceptor *new_result,
 
 List<Item> *st_select_lex_unit::get_unit_column_types()
 {
-  SELECT_LEX *sl= first_select();
-
   if (is_union())
   {
     DBUG_ASSERT(prepared);
@@ -942,7 +940,24 @@ List<Item> *st_select_lex_unit::get_unit_column_types()
     return &types;
   }
 
-  return &sl->item_list;
+  return &first_select()->item_list;
+}
+
+
+/**
+  Get field list for this query expression.
+
+  For a UNION of query blocks, return the field list of the created
+  temporary table.
+  For a single query block, return the field list after all possible
+  intermediate query processing steps are completed.
+
+  @returns List containing fields of the query expression.
+*/
+
+List<Item> *st_select_lex_unit::get_field_list()
+{
+  return is_union() ? &item_list : first_select()->join->fields;
 }
 
 
