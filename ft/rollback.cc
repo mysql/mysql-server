@@ -111,7 +111,7 @@ static void rollback_initialize_for_txn(
     log->newest_logentry = NULL;
     log->rollentry_arena = memarena_create();
     log->rollentry_resident_bytecount = 0;
-
+    log->dirty = true;
 }
 
 void make_rollback_log_empty(ROLLBACK_LOG_NODE log) {
