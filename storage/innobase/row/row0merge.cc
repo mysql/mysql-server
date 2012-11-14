@@ -3375,26 +3375,22 @@ row_merge_is_index_usable(
 }
 
 /*********************************************************************//**
-Drop the old table.
+Drop a table.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	table,		/*!< in: table to drop */
-	bool		nonatomic)	/*!< in: whether it is permitted
-					to release and reacquire
-					dict_operation_lock */
+	dict_table_t*	table)		/*!< in: table to drop */
 {
 	ut_ad(!srv_read_only_mode);
 
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_ref_count == 0);
 
-	return(row_drop_table_for_mysql(table->name, trx, false, nonatomic));
+	return(row_drop_table_for_mysql(table->name, trx, false, false));
 }
-
 
 /*********************************************************************//**
 Build indexes on a table by reading a clustered index,
