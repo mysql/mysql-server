@@ -53,6 +53,7 @@
                      // mysql_user_table_is_in_short_password_format
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
+#include "debug_sync.h"                         // DEBUG_SYNC
 #include "hostname.h"                           // host_cache_size
 #include "sql_show.h"                           // opt_ignore_db_dirs
 #include "table_cache.h"                        // Table_cache_manager
@@ -3879,6 +3880,21 @@ static Sys_var_charptr Sys_slave_load_tmpdir(
 
 static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
+  DEBUG_SYNC(thd, "fix_slave_net_timeout");
+
+  /*
+   Here we have lock on LOCK_global_system_variables and we need
+    lock on LOCK_active_mi. In START_SLAVE handler, we take these
+    two locks in different order. This can lead to DEADLOCKs. See
+    BUG#14236151 for more details.
+   So we release lock on LOCK_global_system_variables before acquiring
+    lock on LOCK_active_mi. But this could lead to isolation issues
+    between multiple seters. Hence introducing secondary guard
+    for this global variable and releasing the lock here and acquiring
+    locks back again at the end of this function.
+   */
+  mysql_mutex_unlock(&LOCK_slave_net_timeout);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_active_mi);
   DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
                      slave_net_timeout,
@@ -3888,14 +3904,17 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                         ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                         ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_slave_net_timeout);
   return false;
 }
+static PolyLock_mutex PLock_slave_net_timeout(&LOCK_slave_net_timeout);
 static Sys_var_uint Sys_slave_net_timeout(
        "slave_net_timeout", "Number of seconds to wait for more data "
        "from a master/slave connection before aborting the read",
        GLOBAL_VAR(slave_net_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(SLAVE_NET_TIMEOUT), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       &PLock_slave_net_timeout, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_slave_net_timeout));
 
 static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
@@ -3917,6 +3936,13 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 }
 static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
 {
+
+  /*
+   To understand the below two unlock statments, please see comments in
+    fix_slave_net_timeout function above
+   */
+  mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi != NULL)
   {
@@ -3935,14 +3961,17 @@ static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
     mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
   return 0;
 }
+static PolyLock_mutex PLock_sql_slave_skip_counter(&LOCK_sql_slave_skip_counter);
 static Sys_var_uint Sys_slave_skip_counter(
        "sql_slave_skip_counter", "sql_slave_skip_counter",
        GLOBAL_VAR(sql_slave_skip_counter), NO_CMD_LINE,
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_skip_counter),
-       ON_UPDATE(fix_slave_skip_counter));
+       &PLock_sql_slave_skip_counter, NOT_IN_BINLOG,
+       ON_CHECK(check_slave_skip_counter), ON_UPDATE(fix_slave_skip_counter));
 
 static Sys_var_charptr Sys_slave_skip_errors(
        "slave_skip_errors", "Tells the slave thread to continue "
