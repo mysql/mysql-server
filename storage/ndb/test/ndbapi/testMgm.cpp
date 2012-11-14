@@ -2917,6 +2917,118 @@ runBug12928429(NDBT_Context* ctx, NDBT_Step* step)
   return NDBT_OK;
 }
 
+int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbMgmd mgmd;
+
+  if (!mgmd.connect())
+    return NDBT_FAILED;
+
+  // Get connectstring from main connection
+  char constr[256];
+  if (!ctx->m_cluster_connection.get_connectstring(constr,
+                                                   sizeof(constr)))
+  {
+    g_err << "Too short buffer for connectstring" << endl;
+    return NDBT_FAILED;
+  }
+
+  struct test_parameter
+  {
+    Uint32 key;
+    Uint32 NdbApiConfig::*ptr;
+    Uint32 values[2];
+  } parameters[] =
+  {
+    { CFG_MAX_SCAN_BATCH_SIZE,                   &NdbApiConfig::m_scan_batch_size, { 10, 1000 } },
+    { CFG_BATCH_BYTE_SIZE,                       &NdbApiConfig::m_batch_byte_size, { 10, 1000 } },
+    { CFG_BATCH_SIZE,                            &NdbApiConfig::m_batch_size,      { 10, 1000 } },
+    { CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION, &NdbApiConfig::m_default_queue_option,
+      { OPERATION_REDO_PROBLEM_ACTION_ABORT, OPERATION_REDO_PROBLEM_ACTION_QUEUE } }
+  };
+  // Catch if new members are added to NdbApiConfig,
+  // if so add tests and adjust expected size
+  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 20);
+
+  for (size_t i = 0; i < NDB_ARRAY_SIZE(parameters[0].values) ; i ++)
+  {
+    /**
+     * Setup configuration
+     */
+
+    // Get the binary config
+    Config conf;
+    if (!mgmd.get_config(conf))
+      return false;
+
+    ConfigValues::Iterator iter(conf.m_configValues->m_config);
+    for (Uint32 section_no = 1; section_no < MAX_NODES; section_no ++)
+    {
+      Uint32 type;
+      if (!iter.openSection(CFG_SECTION_NODE, section_no))
+        continue;
+
+      if (iter.get(CFG_TYPE_OF_SECTION, &type) &&
+          type == NDB_MGM_NODE_TYPE_API)
+      {
+        for (size_t param = 0; param < NDB_ARRAY_SIZE(parameters) ; param ++)
+        {
+          iter.set(parameters[param].key, parameters[param].values[i]);
+        }
+      }
+
+      iter.closeSection();
+    }
+
+    // Set the modified config
+    if (!mgmd.set_config(conf))
+      return false;
+
+    /**
+     * Connect api
+     */
+
+    Ndb_cluster_connection con(constr);
+
+    const int retries = 12;
+    const int retry_delay = 5;
+    const int verbose = 1;
+    if (con.connect(retries, retry_delay, verbose) != 0)
+    {
+      g_err << "Ndb_cluster_connection.connect failed" << endl;
+      return NDBT_FAILED;
+    }
+
+    /**
+     * Check api configuration
+     */
+
+    NDBT_Context conctx(con);
+
+    for (size_t param = 0; param < NDB_ARRAY_SIZE(parameters) ; param ++)
+    {
+      Uint32 expected = parameters[param].values[i];
+      Uint32 got = conctx.getConfig().*parameters[param].ptr;
+      if (got != expected)
+      {
+        int j;
+        for(j = 0; j < ConfigInfo::m_NoOfParams ; j ++)
+        {
+          if (ConfigInfo::m_ParamInfo[j]._paramId == parameters[param].key)
+            break;
+        }
+        g_err << "Paramater ";
+        if (j < ConfigInfo::m_NoOfParams)
+          g_err << ConfigInfo::m_ParamInfo[j]._fname << " (" << parameters[param].key << ")";
+        else
+          g_err << "Unknown (" << parameters[param].key << ")";
+        g_err << ": Expected " << expected << " got " << got << endl;
+      }
+    }
+  }
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testMgm);
 DRIVER(DummyDriver); /* turn off use of NdbApi */
 TESTCASE("ApiSessionFailure",
@@ -3057,6 +3169,10 @@ TESTCASE("TestStatusAfterStop",
 TESTCASE("Bug12928429", "")
 {
   STEP(runBug12928429);
+}
+TESTCASE("TestNdbApiConfig", "")
+{
+  STEP(runTestNdbApiConfig);
 }
 NDBT_TESTSUITE_END(testMgm);
 
