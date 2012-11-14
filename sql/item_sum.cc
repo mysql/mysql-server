@@ -3535,7 +3535,24 @@ void Item_func_group_concat::print(String *str, enum_query_type query_type)
     }
   }
   str->append(STRING_WITH_LEN(" separator \'"));
-  str->append(*separator);
+
+  if (query_type & QT_TO_SYSTEM_CHARSET)
+  {
+    // Convert to system charset.
+   convert_and_print(separator, str, system_charset_info);
+  }
+  else if (query_type & QT_TO_ARGUMENT_CHARSET)
+  {
+    /*
+      Convert the string literals to str->charset(),
+      which is typically equal to charset_set_client.
+    */
+   convert_and_print(separator, str, str->charset());
+  }
+  else
+  {
+    separator->print(str);
+  }
   str->append(STRING_WITH_LEN("\')"));
 }
 
