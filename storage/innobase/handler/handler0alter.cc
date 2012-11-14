@@ -31,6 +31,7 @@ Smart ALTER TABLE
 
 #include "dict0crea.h"
 #include "dict0dict.h"
+#include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "log0log.h"
@@ -2652,11 +2653,10 @@ prepare_inplace_alter_table_dict(
 		/* Create the table. */
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-		indexed_table = dict_load_table(
-			new_table_name, TRUE, DICT_ERR_IGNORE_NONE);
-
-		if (indexed_table) {
-			row_merge_drop_table(trx, indexed_table, true);
+		if (dict_table_get_low(new_table_name)) {
+			my_error(ER_TABLE_EXISTS_ERROR, MYF(0),
+				 new_table_name);
+			goto new_clustered_failed;
 		}
 
 		/* The initial space id 0 may be overridden later. */
@@ -3036,7 +3036,7 @@ error_handled:
 			}
 
 			dict_table_close(indexed_table, TRUE, FALSE);
-			row_merge_drop_table(trx, indexed_table, false);
+			row_merge_drop_table(trx, indexed_table);
 
 			/* Free the log for online table rebuild, if
 			one was allocated. */
@@ -3991,7 +3991,7 @@ rollback_inplace_alter_table(
 
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
-		err = row_merge_drop_table(ctx->trx, ctx->indexed_table, false);
+		err = row_merge_drop_table(ctx->trx, ctx->indexed_table);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -4804,7 +4804,7 @@ undo_add_fk:
 			}
 
 			row_prebuilt_free(prebuilt, TRUE);
-			error = row_merge_drop_table(trx, old_table, false);
+			error = row_merge_drop_table(trx, old_table);
 			prebuilt = row_create_prebuilt(
 				ctx->indexed_table, table->s->reclength);
 			err = 0;
@@ -4839,7 +4839,7 @@ drop_new_clustered:
 			}
 
 			dict_table_close(ctx->indexed_table, TRUE, FALSE);
-			row_merge_drop_table(trx, ctx->indexed_table, false);
+			row_merge_drop_table(trx, ctx->indexed_table);
 			ctx->indexed_table = NULL;
 			goto trx_commit;
 		}

@@ -850,6 +850,9 @@ sync_latch_meta_init()
 	LATCH_ADD(SrvLatches, "recv_sys",
 		  SYNC_RECV, recv_sys_mutex_key);
 
+	LATCH_ADD(SrvLatches, "recv_writer",
+		  SYNC_LEVEL_VARYING, recv_writer_mutex_key);
+
 	LATCH_ADD(SrvLatches, "rseg",
 		  SYNC_RSEG, rseg_mutex_key);
 

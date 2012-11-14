@@ -619,6 +619,10 @@ struct trx_sys_t{
 	trx_id_t	max_trx_id;	/*!< The smallest number not yet
 					assigned as a transaction id or
 					transaction number */
+#ifdef UNIV_DEBUG
+	trx_id_t	rw_max_trx_id;	/*!< Max trx id of read-write transactions
+					which exist or existed */
+#endif
 	trx_list_t	rw_trx_list;	/*!< List of active and committed in
 					memory read-write transactions, sorted
 					on trx id, biggest first. Recovered
