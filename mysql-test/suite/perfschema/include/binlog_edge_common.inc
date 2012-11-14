@@ -4,11 +4,13 @@
 # Changes affecting non replicated tables are never written to the binlog.
 # Executing these statements may or may not work, as the statements involved
 # are edge cases.
-# In STATEMENT binlog format, execution should break with
-# error ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES.
 # In MIXED or ROW binlog format, execution should succeed,
 # and only partial data (the rows affecting replicated tables only)
 # should be written to the binlog.
+# In STATEMENT binlog format, execution should
+# raise a warning (ER_BINLOG_UNSAFE_STATEMENT) if a non replicated table is
+# only read from, or fail with an error (ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES)
+# if a non replicated table is written to.
 #
 # SHOW ERRORS will print in the
 # test .result file the exact outcome.
@@ -18,6 +20,8 @@ RESET MASTER;
 --disable_warnings
 drop database if exists my_replicated_db;
 --enable_warnings
+
+call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 
 create database my_replicated_db;
 
@@ -51,20 +55,14 @@ use my_replicated_db;
 # - non replicated tables
 # - replicated tables
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_tx_table(a)
   select thread_id from performance_schema.threads;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_non_tx_table(a)
   select thread_id from performance_schema.threads;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_bh_table(a)
   select thread_id from performance_schema.threads;
-show errors;
 
 # For the information_schema,
 # no error is enforced yet.
@@ -79,80 +77,50 @@ insert into my_non_tx_table(a)
 insert into my_bh_table(a)
   select id from information_schema.processlist;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_tx_table(a)
   select thread_id from mysql.general_log;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_non_tx_table(a)
   select thread_id from mysql.general_log;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_bh_table(a)
   select thread_id from mysql.general_log;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_tx_table(a)
   select thread_id from mysql.slow_log;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_non_tx_table(a)
   select thread_id from mysql.slow_log;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_bh_table(a)
   select thread_id from mysql.slow_log;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_tx_table(a)
   select Relay_log_pos from mysql.slave_relay_log_info;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_non_tx_table(a)
   select Relay_log_pos from mysql.slave_relay_log_info;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_bh_table(a)
   select Relay_log_pos from mysql.slave_relay_log_info;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_tx_table(a)
   select Master_log_pos from mysql.slave_master_info;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_non_tx_table(a)
   select Master_log_pos from mysql.slave_master_info;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_bh_table(a)
   select Master_log_pos from mysql.slave_master_info;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_tx_table(a)
   select Relay_log_pos from mysql.slave_worker_info;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_non_tx_table(a)
   select Relay_log_pos from mysql.slave_worker_info;
-show errors;
 
---error 0, ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
 insert into my_bh_table(a)
   select Relay_log_pos from mysql.slave_worker_info;
-show errors;
 
 use test;
 drop table if exists marker_multi_update;
