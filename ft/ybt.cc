@@ -30,7 +30,7 @@ toku_destroy_dbt(DBT *dbt) {
     case DB_DBT_MALLOC:
     case DB_DBT_REALLOC:
         toku_free(dbt->data);
-        dbt->data = NULL;
+        toku_init_dbt(dbt);
         break;
     }
 }

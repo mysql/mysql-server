@@ -3912,41 +3912,24 @@ void
 toku_ft_cursor_set_range_lock(FT_CURSOR cursor, const DBT *left, const DBT *right,
                                bool left_is_neg_infty, bool right_is_pos_infty)
 {
-    if (cursor->range_lock_left_key.data) {
-        toku_free(cursor->range_lock_left_key.data);
-        toku_init_dbt(&cursor->range_lock_left_key);
-    }
-    if (cursor->range_lock_right_key.data) {
-        toku_free(cursor->range_lock_right_key.data);
-        toku_init_dbt(&cursor->range_lock_right_key);
-    }
-
+    // Destroy any existing keys and then clone the given left, right keys
+    toku_destroy_dbt(&cursor->range_lock_left_key);
     if (left_is_neg_infty) {
         cursor->left_is_neg_infty = true;
     } else {
-        toku_fill_dbt(&cursor->range_lock_left_key,
-                      toku_xmemdup(left->data, left->size), left->size);
+        toku_clone_dbt(&cursor->range_lock_left_key, *left);
     }
+
+    toku_destroy_dbt(&cursor->range_lock_right_key);
     if (right_is_pos_infty) {
         cursor->right_is_pos_infty = true;
     } else {
-        toku_fill_dbt(&cursor->range_lock_right_key,
-                      toku_xmemdup(right->data, right->size), right->size);
+        toku_clone_dbt(&cursor->range_lock_right_key, *right);
     }
 }
 
 void toku_ft_cursor_close(FT_CURSOR cursor) {
     ft_cursor_cleanup_dbts(cursor);
-#if 0
-    if (cursor->range_lock_left_key.data) {
-        toku_free(cursor->range_lock_left_key.data);
-        toku_destroy_dbt(&cursor->range_lock_left_key);
-    }
-    if (cursor->range_lock_right_key.data) {
-        toku_free(cursor->range_lock_right_key.data);
-        toku_destroy_dbt(&cursor->range_lock_right_key);
-    }
-#endif
     toku_destroy_dbt(&cursor->range_lock_left_key);
     toku_destroy_dbt(&cursor->range_lock_right_key);
     toku_free(cursor);
