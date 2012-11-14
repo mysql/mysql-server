@@ -23,6 +23,7 @@
 #include <Vector.hpp>
 #include <NdbMutex.h>
 #include "DictCache.hpp"
+#include "kernel/ndb_limits.h"
 
 extern NdbMutex *g_ndb_connection_mutex;
 
