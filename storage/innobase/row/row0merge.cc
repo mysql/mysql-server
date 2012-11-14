@@ -421,8 +421,18 @@ row_merge_buf_add(
 		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
 
 		if (ifield->fixed_len) {
-			ut_ad(len == ifield->fixed_len);
+#ifdef UNIV_DEBUG
+			ulint	mbminlen = DATA_MBMINLEN(col->mbminmaxlen);
+			ulint	mbmaxlen = DATA_MBMAXLEN(col->mbminmaxlen);
+
+			/* len should be between size calcualted base on
+			mbmaxlen and mbminlen */
+			ut_ad(len <= ifield->fixed_len);
+			ut_ad(!mbmaxlen || len >= mbminlen
+			      * (ifield->fixed_len / mbmaxlen));
+
 			ut_ad(!dfield_is_ext(field));
+#endif /* UNIV_DEBUG */
 		} else if (dfield_is_ext(field)) {
 			extra_size += 2;
 		} else if (len < 128
@@ -3365,26 +3375,22 @@ row_merge_is_index_usable(
 }
 
 /*********************************************************************//**
-Drop the old table.
+Drop a table.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	table,		/*!< in: table to drop */
-	bool		nonatomic)	/*!< in: whether it is permitted
-					to release and reacquire
-					dict_operation_lock */
+	dict_table_t*	table)		/*!< in: table to drop */
 {
 	ut_ad(!srv_read_only_mode);
 
 	/* There must be no open transactions on the table. */
 	ut_a(table->n_ref_count == 0);
 
-	return(row_drop_table_for_mysql(table->name, trx, false, nonatomic));
+	return(row_drop_table_for_mysql(table->name, trx, false, false));
 }
-
 
 /*********************************************************************//**
 Build indexes on a table by reading a clustered index,
