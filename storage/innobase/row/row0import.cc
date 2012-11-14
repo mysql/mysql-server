@@ -2204,7 +2204,12 @@ row_import_discard_changes(
 		"Discarding tablespace of table %s: %s",
 		table_name, ut_strerr(err));
 
-	row_mysql_lock_data_dictionary(trx);
+	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
+		ut_a(trx->dict_operation_lock_mode == 0);
+		row_mysql_lock_data_dictionary(trx);
+	}
+
+	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	/* Since we update the index root page numbers on disk after
 	we've done a successful import. The table will not be loadable.
@@ -3729,13 +3734,6 @@ row_import_for_mysql(
 		}
 	}
 
-	/* Update the root pages of the table's indexes. */
-	err = row_import_update_index_root(trx, table, false, false);
-
-	if (err != DB_SUCCESS) {
-		return(row_import_error(prebuilt, trx, err));
-	}
-
 	ib_logf(IB_LOG_LEVEL_INFO, "Phase III - Flush changes to disk");
 
 	/* Ensure that all pages dirtied during the IMPORT make it to disk.
@@ -3752,13 +3750,22 @@ row_import_for_mysql(
 		ib_logf(IB_LOG_LEVEL_INFO, "Phase IV - Flush complete");
 	}
 
-	mutex_enter(&dict_sys->mutex);
+	/* On error the lock and mutex will be released in the function:
+	row_import_discard_changes() */
+
+	row_mysql_lock_data_dictionary(trx);
+
+	/* Update the root pages of the table's indexes. */
+	err = row_import_update_index_root(trx, table, false, true);
+
+	if (err != DB_SUCCESS) {
+		return(row_import_error(prebuilt, trx, err));
+	}
 
 	/* Update the table's discarded flag, unset it. */
 	err = row_import_update_discarded_flag(trx, table->id, false, true);
 
 	if (err != DB_SUCCESS) {
-		mutex_exit(&dict_sys->mutex);
 		return(row_import_error(prebuilt, trx, err));
 	}
 
@@ -3779,9 +3786,9 @@ row_import_for_mysql(
 		dict_table_autoinc_unlock(table);
 	}
 
-	mutex_exit(&dict_sys->mutex);
-
 	ut_a(err == DB_SUCCESS);
+
+	row_mysql_unlock_data_dictionary(trx);
 
 	return(row_import_cleanup(prebuilt, trx, err));
 }
