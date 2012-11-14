@@ -80,6 +80,7 @@ private:
   friend class Ndb_cluster_connection;
   friend class NdbEventBuffer;
   friend class SignalSender;
+  friend class NDBT_Context;
   
   struct Node
   {
