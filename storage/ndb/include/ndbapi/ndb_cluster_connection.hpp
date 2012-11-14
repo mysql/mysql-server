@@ -221,6 +221,7 @@ private:
   friend class Ndb_cluster_connection_impl;
   friend class SignalSender;
   friend class NdbWaitGroup;
+  friend class NDBT_Context;
   class Ndb_cluster_connection_impl & m_impl;
   Ndb_cluster_connection(Ndb_cluster_connection_impl&);
 
