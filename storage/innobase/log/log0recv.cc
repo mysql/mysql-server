@@ -157,6 +157,20 @@ UNIV_INTERN mysql_pfs_key_t	trx_rollback_clean_thread_key;
 UNIV_INTERN mysql_pfs_key_t	recv_sys_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+#ifndef UNIV_HOTBACKUP
+# ifdef UNIV_PFS_THREAD
+UNIV_INTERN mysql_pfs_key_t	recv_writer_thread_key;
+# endif /* UNIV_PFS_THREAD */
+
+# ifdef UNIV_PFS_MUTEX
+UNIV_INTERN mysql_pfs_key_t	recv_writer_mutex_key;
+# endif /* UNIV_PFS_MUTEX */
+
+/** Flag indicating if recv_writer thread is active. */
+UNIV_INTERN bool		recv_writer_thread_active = false;
+UNIV_INTERN os_thread_t		recv_writer_thread_handle = 0;
+#endif /* !UNIV_HOTBACKUP */
+
 /* prototypes */
 
 #ifndef UNIV_HOTBACKUP
@@ -184,6 +198,7 @@ recv_sys_create(void)
 	recv_sys = static_cast<recv_sys_t*>(mem_zalloc(sizeof(*recv_sys)));
 
 	mutex_create("recv_sys", &recv_sys->mutex);
+	mutex_create("recv_writer", &recv_sys->writer_mutex);
 
 	recv_sys->heap = NULL;
 	recv_sys->addr_hash = NULL;
@@ -212,6 +227,11 @@ recv_sys_close(void)
 		if (recv_sys->last_block_buf_start != NULL) {
 			mem_free(recv_sys->last_block_buf_start);
 		}
+
+#ifndef UNIV_HOTBACKUP
+		ut_ad(!recv_writer_thread_active);
+		mutex_free(&recv_sys->writer_mutex);
+#endif /* !UNIV_HOTBACKUP */
 
 		mutex_free(&recv_sys->mutex);
 
@@ -289,6 +309,58 @@ recv_sys_var_init(void)
 
 	recv_max_page_lsn = 0;
 }
+
+/******************************************************************//**
+recv_writer thread tasked with flushing dirty pages from the buffer
+pools.
+@return a dummy parameter */
+extern "C" UNIV_INTERN
+os_thread_ret_t
+DECLARE_THREAD(recv_writer_thread)(
+/*===============================*/
+	void*	arg __attribute__((unused)))
+			/*!< in: a dummy parameter required by
+			os_thread_create */
+{
+	ut_ad(!srv_read_only_mode);
+
+#ifdef UNIV_PFS_THREAD
+	pfs_register_thread(recv_writer_thread_key);
+#endif /* UNIV_PFS_THREAD */
+
+#ifdef UNIV_DEBUG_THREAD_CREATION
+	fprintf(stderr, "InnoDB: recv_writer thread running, id %lu\n",
+		os_thread_pf(os_thread_get_curr_id()));
+#endif /* UNIV_DEBUG_THREAD_CREATION */
+
+	recv_writer_thread_active = true;
+
+	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
+
+		os_thread_sleep(100000);
+
+		mutex_enter(&recv_sys->writer_mutex);
+
+		if (!recv_recovery_on) {
+			mutex_exit(&recv_sys->writer_mutex);
+			break;
+		}
+
+		/* Flush pages from end of LRU if required */
+		buf_flush_LRU_tail();
+
+		mutex_exit(&recv_sys->writer_mutex);
+	}
+
+	recv_writer_thread_active = false;
+
+	/* We count the number of threads in os_thread_exit().
+	A created thread should always use that to exit and not
+	use return() to exit. */
+	os_thread_exit(NULL);
+
+	OS_THREAD_DUMMY_RETURN;
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /************************************************************
@@ -309,9 +381,7 @@ recv_sys_init(
 	flush_list during recovery process.
 	As this initialization is done while holding the buffer pool
 	mutex we perform it before acquiring recv_sys->mutex. */
-#ifndef UNIV_HOTBACKUP
 	buf_flush_init_flush_rbt();
-#endif /* !UNIV_HOTBACKUP */
 
 	mutex_enter(&(recv_sys->mutex));
 
@@ -1866,6 +1936,13 @@ loop:
 		mutex_exit(&(recv_sys->mutex));
 		mutex_exit(&(log_sys->mutex));
 
+		/* Stop the recv_writer thread from issuing any LRU
+		flush batches. */
+		mutex_enter(&recv_sys->writer_mutex);
+
+		/* Wait for any currently run batch to end. */
+		buf_flush_wait_LRU_batch_end();
+
 		success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
 
 		ut_a(success);
@@ -1873,6 +1950,9 @@ loop:
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
 		buf_pool_invalidate();
+
+		/* Allow batches from recv_writer thread. */
+		mutex_exit(&recv_sys->writer_mutex);
 
 		mutex_enter(&(log_sys->mutex));
 		mutex_enter(&(recv_sys->mutex));
@@ -3182,9 +3262,19 @@ recv_recovery_from_checkpoint_start_func(
 			}
 		}
 
-		if (!recv_needed_recovery && !srv_read_only_mode) {
-			/* Init the doublewrite buffer memory structure */
-			buf_dblwr_init_or_restore_pages(FALSE);
+		if (!srv_read_only_mode) {
+			if (recv_needed_recovery) {
+				/* Spawn the background thread to
+				flush dirty pages from the buffer
+				pools. */
+				recv_writer_thread_handle =
+					os_thread_create(
+					recv_writer_thread, 0, 0);
+			} else {
+				/* Init the doublewrite buffer memory
+				 structure */
+				buf_dblwr_init_or_restore_pages(FALSE);
+			}
 		}
 	}
 
@@ -3321,9 +3411,39 @@ recv_recovery_from_checkpoint_finish(void)
 			"InnoDB: a backup!\n");
 	}
 
-	/* Free the resources of the recovery system */
+	/* Make sure that the recv_writer thread is done. This is
+	required because it grabs various mutexes and we want to
+	ensure that when we enable sync_order_checks there is no
+	mutex currently held by any thread. */
+	mutex_enter(&recv_sys->writer_mutex);
 
+	/* Free the resources of the recovery system */
 	recv_recovery_on = FALSE;
+
+	/* By acquring the mutex we ensure that the recv_writer thread
+	won't trigger any more LRU batchtes. Now wait for currently
+	in progress batches to finish. */
+	buf_flush_wait_LRU_batch_end();
+
+	mutex_exit(&recv_sys->writer_mutex);
+
+	ulint count = 0;
+	while (recv_writer_thread_active) {
+		++count;
+		os_thread_sleep(100000);
+		if (srv_print_verbose_log && count > 600) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Waiting for recv_writer to "
+				"finish flushing of buffer pool");
+			count = 0;
+		}
+	}
+
+#ifdef __WIN__
+	if (recv_writer_thread_handle) {
+		CloseHandle(recv_writer_thread_handle);
+	}
+#endif /* __WIN__ */
 
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_debug_free();
@@ -3353,6 +3473,8 @@ recv_recovery_rollback_active(void)
 	/* Switch latching order checks on in sync0check.cc */
 	sync_check_enable();
 #endif /* UNIV_SYNC_DEBUG */
+
+	ut_ad(!recv_writer_thread_active);
 
 	/* We can't start any (DDL) transactions if UNDO logging
 	has been disabled, additionally disable ROLLBACK of recovered

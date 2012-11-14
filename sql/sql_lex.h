@@ -649,6 +649,7 @@ public:
   friend bool subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
+  List<Item> *get_field_list();
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
