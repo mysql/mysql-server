@@ -365,6 +365,7 @@ trx_list_rw_insert_ordered(
 
 		if (trx2 == NULL) {
 			UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
+			ut_d(trx_sys->rw_max_trx_id = trx->id);
 		} else {
 			UT_LIST_INSERT_AFTER(
 				trx_list, trx_sys->rw_trx_list, trx2, trx);
@@ -766,7 +767,9 @@ trx_start_low(
 		      || srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO);
 
 		UT_LIST_ADD_FIRST(trx_list, trx_sys->rw_trx_list, trx);
+
 		ut_d(trx->in_rw_trx_list = true);
+		ut_d(trx_sys->rw_max_trx_id = trx->id);
 
 		ut_ad(trx_sys_validate_trx_list());
 
