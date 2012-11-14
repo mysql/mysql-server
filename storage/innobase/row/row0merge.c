@@ -347,8 +347,18 @@ row_merge_buf_add(
 		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
 
 		if (ifield->fixed_len) {
-			ut_ad(len == ifield->fixed_len);
+#ifdef UNIV_DEBUG
+			ulint	mbminlen = DATA_MBMINLEN(col->mbminmaxlen);
+			ulint	mbmaxlen = DATA_MBMAXLEN(col->mbminmaxlen);
+
+			/* len should be between size calcualted base on
+			mbmaxlen and mbminlen */
+			ut_ad(len <= ifield->fixed_len);
+			ut_ad(!mbmaxlen || len >= mbminlen
+			      * (ifield->fixed_len / mbmaxlen));
+
 			ut_ad(!dfield_is_ext(field));
+#endif /* UNIV_DEBUG */
 		} else if (dfield_is_ext(field)) {
 			extra_size += 2;
 		} else if (len < 128
