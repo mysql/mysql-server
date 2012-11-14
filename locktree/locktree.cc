@@ -55,6 +55,7 @@ void locktree::create(manager::memory_tracker *mem_tracker, DICTIONARY_ID dict_i
     TOKU_VALGRIND_HG_DISABLE_CHECKING(
             &m_lock_request_info.should_retry_lock_requests,
             sizeof(m_lock_request_info.should_retry_lock_requests));
+    TOKU_DRD_IGNORE_VAR(m_lock_request_info.should_retry_lock_requests);
 }
 
 void locktree::destroy(void) {
@@ -324,7 +325,10 @@ void locktree::reset_single_txnid_optimization(TXNID txnid) {
 
 bool locktree::try_single_txnid_release_optimization(TXNID txnid) {
     bool released = false;
-    if (m_single_txnid_optimization_possible) {
+    TOKU_DRD_IGNORE_VAR(m_single_txnid_optimization_possible);
+    bool optimization_possible = m_single_txnid_optimization_possible;
+    TOKU_DRD_STOP_IGNORING_VAR(m_single_txnid_optimization_possible);
+    if (optimization_possible) {
         // check the bit again with a prepared locked keyrange,
         // which protects the optimization bits and rangetree data
         concurrent_tree::locked_keyrange lkr;
