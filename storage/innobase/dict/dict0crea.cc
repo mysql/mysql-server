@@ -290,14 +290,16 @@ dict_build_tablespace(
 
 	use_tablespace = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
 
-	dict_hdr_get_new_id(table, &table->id, NULL, NULL);
+	dict_hdr_get_new_id(
+		&table->id, NULL, NULL, dict_table_is_temporary(table));
 
 	trx->table_id = table->id;
 
 	if (use_tablespace) {
 		/* This table will not use the system tablespace.
 		Get a new space id. */
-		dict_hdr_get_new_id(table, NULL, NULL, &space);
+		dict_hdr_get_new_id(
+			NULL, NULL, &space, dict_table_is_temporary(table));
 
 		DBUG_EXECUTE_IF(
 			"ib_create_table_fail_out_of_space_ids",
@@ -625,7 +627,8 @@ dict_build_index_def_step(
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || dict_index_is_clust(index));
 
-	dict_hdr_get_new_id(table, NULL, &index->id, NULL);
+	dict_hdr_get_new_id(
+		NULL, &index->id, NULL, dict_table_is_temporary(table));
 
 	/* Inherit the space id from the table; we store all indexes of a
 	table in the same tablespace */
@@ -666,7 +669,8 @@ dict_build_index_def(
 	ut_ad((UT_LIST_GET_LEN(table->indexes) > 0)
 	      || dict_index_is_clust(index));
 
-	dict_hdr_get_new_id(table, NULL, &index->id, NULL);
+	dict_hdr_get_new_id(
+		NULL, &index->id, NULL, dict_table_is_temporary(table));
 
 	/* Inherit the space id from the table; we store all indexes of a
 	table in the same tablespace */
@@ -779,9 +783,7 @@ dberr_t
 dict_create_index_tree(
 /*====================*/
 	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx,	/*!< in: InnoDB transaction handle */
-	mem_heap_t*	heap)	/*!< in: memory heap from which the memory for
-					the built tuple is allocated */
+	trx_t*		trx)	/*!< in: InnoDB transaction handle */
 {
 	mtr_t		mtr;
 	ulint		page_no = FIL_NULL;
@@ -1109,7 +1111,7 @@ dict_truncate_index_tree(
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
-	
+
 	mtr_start(&mtr);
 	if (dict_table_is_temporary(index->table))
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
@@ -1118,7 +1120,7 @@ dict_truncate_index_tree(
 	type = index->type;
 
 	if (drop) {
-		/* if new tablespace is created then use it else use 
+		/* if new tablespace is created then use it else use
 		existing one */
 		space = index->space;
 	}

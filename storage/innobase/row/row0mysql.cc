@@ -2467,15 +2467,10 @@ row_create_index_for_mysql(
 		ut_a(index != NULL);
 		index->table = table;
 
-		mem_heap_t* create_index_tree_heap = mem_heap_create(256);
-
-		err = dict_create_index_tree(
-			index, trx, create_index_tree_heap);
+		err = dict_create_index_tree(index, trx);
 		if (err != DB_SUCCESS) {
 			dict_index_remove_from_cache(table, index);
 		}
-
-		mem_heap_free(create_index_tree_heap);
 	}
 
 	/* Create the index specific FTS auxiliary tables. */
@@ -2793,7 +2788,8 @@ row_mysql_table_id_reassign(
 	dberr_t		err;
 	pars_info_t*	info	= pars_info_create();
 
-	dict_hdr_get_new_id(table, new_id, NULL, NULL);
+	dict_hdr_get_new_id(
+		new_id, NULL, NULL, dict_table_is_temporary(table));
 
 	/* Remove all locks except the table-level S and X locks. */
 	lock_remove_all_on_table(table, FALSE);
@@ -3007,7 +3003,8 @@ row_discard_tablespace(
 		}
 	}
 	else {
-		dict_hdr_get_new_id(table, &new_id, NULL, NULL);
+		dict_hdr_get_new_id(
+			&new_id, NULL, NULL, dict_table_is_temporary(table));
 	}
 
 	/* Discard the physical file that is used for the tablespace. */
@@ -3600,7 +3597,9 @@ row_truncate_table_for_mysql(
 
 			dict_index_t*	index;
 
-			dict_hdr_get_new_id(table, NULL, NULL, &space);
+			dict_hdr_get_new_id(
+				NULL, NULL, &space,
+				dict_table_is_temporary(table));
 
 			/* Lock all index trees for this table. We must
 			do so after dict_hdr_get_new_id() to preserve
@@ -3672,7 +3671,8 @@ row_truncate_table_for_mysql(
 	subsequent work relates to table level metadata change */
 	dict_table_x_unlock_indexes(table);
 
-	dict_hdr_get_new_id(table, &new_id, NULL, NULL);
+	dict_hdr_get_new_id(
+		&new_id, NULL, NULL, dict_table_is_temporary(table));
 
 	/* Create new FTS auxiliary tables with the new_id, and
 	drop the old index later, only if everything runs successful. */
