@@ -140,9 +140,6 @@ static char*	srv_monitor_file_name;
 static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
 	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
 
-/** Store Temp-Tablespace ID that we generate dynmaically on every re-start */
-UNIV_INTERN ulint	srv_tmp_tablespace_id = 0;
-
 /** */
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
