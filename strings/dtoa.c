@@ -827,9 +827,9 @@ static Bigint *s2b(const char *s, int nd0, int nd, ULong y9, Stack_alloc *alloc)
 }
 
 
-static int hi0bits(register ULong x)
+static int hi0bits(ULong x)
 {
-  register int k= 0;
+  int k= 0;
 
   if (!(x & 0xffff0000))
   {
@@ -863,8 +863,8 @@ static int hi0bits(register ULong x)
 
 static int lo0bits(ULong *y)
 {
-  register int k;
-  register ULong x= *y;
+  int k;
+  ULong x= *y;
 
   if (x & 7)
   {
@@ -1182,7 +1182,7 @@ static Bigint *diff(Bigint *a, Bigint *b, Stack_alloc *alloc)
 
 static double ulp(U *x)
 {
-  register Long L;
+  Long L;
   U u;
 
   L= (word0(x) & Exp_mask) - (P - 1)*Exp_msk1;

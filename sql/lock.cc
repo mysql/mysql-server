@@ -345,7 +345,7 @@ end:
 
 static int lock_external(THD *thd, TABLE **tables, uint count)
 {
-  reg1 uint i;
+  uint i;
   int lock_type,error;
   DBUG_ENTER("lock_external");
 
@@ -480,7 +480,7 @@ void mysql_lock_remove(THD *thd, MYSQL_LOCK *locked,TABLE *table)
 {
   if (locked)
   {
-    reg1 uint i;
+    uint i;
     for (i=0; i < locked->table_count; i++)
     {
       if (locked->table[i] == table)
