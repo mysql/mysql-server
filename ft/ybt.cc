@@ -52,6 +52,14 @@ DBT *toku_copyref_dbt(DBT *dst, const DBT src) {
     return dst;
 }
 
+DBT *toku_copy_dbt(DBT *dst, const DBT &src) {
+    dst->flags = src.flags;
+    dst->ulen = src.ulen;
+    dst->size = src.size;
+    dst->data = src.data;
+    return dst;
+}
+
 DBT *toku_clone_dbt(DBT *dst, const DBT &src) {
     dst->flags = DB_DBT_MALLOC;
     dst->ulen = 0;
