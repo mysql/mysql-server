@@ -3945,7 +3945,9 @@ ha_innobase::table_flags() const
 	/* stats.records are approx. as it is not protected by mutex/latch.
 	In case of temp-table, it is not visible across trx + lifetime is
 	bounded by connection/server lifetime and so stats.records act as
-	an exact count of number of rows. */
+	an exact count of number of rows.
+	TODO: If in future we can get an indication that this temp-table is
+	from optimizer then we want to disable stats collection. */
 	if (prebuilt
 	    && prebuilt->table
 	    && dict_table_is_temporary(prebuilt->table)) {
