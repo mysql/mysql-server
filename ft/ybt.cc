@@ -37,10 +37,16 @@ toku_destroy_dbt(DBT *dbt) {
 
 DBT *
 toku_fill_dbt(DBT *dbt, bytevec k, ITEMLEN len) {
-    dbt->flags = 0;
-    dbt->ulen = 0;
+    toku_init_dbt(dbt);
     dbt->size=len;
     dbt->data=(char*)k;
+    return dbt;
+}
+
+DBT *toku_memdup_dbt(DBT *dbt, const void *k, size_t len) {
+    toku_init_dbt_flags(dbt, DB_DBT_MALLOC);
+    dbt->size = len;
+    dbt->data = toku_xmemdup(k, len);
     return dbt;
 }
 
@@ -61,11 +67,7 @@ DBT *toku_copy_dbt(DBT *dst, const DBT &src) {
 }
 
 DBT *toku_clone_dbt(DBT *dst, const DBT &src) {
-    dst->flags = DB_DBT_MALLOC;
-    dst->ulen = 0;
-    dst->size = src.size;
-    dst->data = toku_xmemdup(src.data, src.size);
-    return dst;
+    return toku_memdup_dbt(dst, src.data, src.size);
 }
 
 void
