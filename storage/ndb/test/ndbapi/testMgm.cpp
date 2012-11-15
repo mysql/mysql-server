@@ -2924,15 +2924,6 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
   if (!mgmd.connect())
     return NDBT_FAILED;
 
-  // Get connectstring from main connection
-  char constr[256];
-  if (!ctx->m_cluster_connection.get_connectstring(constr,
-                                                   sizeof(constr)))
-  {
-    g_err << "Too short buffer for connectstring" << endl;
-    return NDBT_FAILED;
-  }
-
   struct test_parameter
   {
     Uint32 key;
@@ -2943,12 +2934,19 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
     { CFG_MAX_SCAN_BATCH_SIZE,                   &NdbApiConfig::m_scan_batch_size, { 10, 1000 } },
     { CFG_BATCH_BYTE_SIZE,                       &NdbApiConfig::m_batch_byte_size, { 10, 1000 } },
     { CFG_BATCH_SIZE,                            &NdbApiConfig::m_batch_size,      { 10, 1000 } },
+    // Skip test of m_waitfor_timeout since it is not configurable in API-section
     { CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION, &NdbApiConfig::m_default_queue_option,
       { OPERATION_REDO_PROBLEM_ACTION_ABORT, OPERATION_REDO_PROBLEM_ACTION_QUEUE } }
   };
   // Catch if new members are added to NdbApiConfig,
   // if so add tests and adjust expected size
-  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 20);
+  NDB_STATIC_ASSERT(sizeof(NdbApiConfig) == 5 * sizeof(Uint32));
+
+  Config savedconf;
+  if (!mgmd.get_config(savedconf))
+    return NDBT_FAILED;
+
+  int retval = NDBT_FAILED;
 
   for (size_t i = 0; i < NDB_ARRAY_SIZE(parameters[0].values) ; i ++)
   {
@@ -2959,13 +2957,13 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
     // Get the binary config
     Config conf;
     if (!mgmd.get_config(conf))
-      return false;
+      goto cleanup;
 
     ConfigValues::Iterator iter(conf.m_configValues->m_config);
-    for (Uint32 section_no = 1; section_no < MAX_NODES; section_no ++)
+    for (Uint32 nodeid = 1; nodeid < MAX_NODES; nodeid ++)
     {
       Uint32 type;
-      if (!iter.openSection(CFG_SECTION_NODE, section_no))
+      if (!iter.openSection(CFG_SECTION_NODE, nodeid))
         continue;
 
       if (iter.get(CFG_TYPE_OF_SECTION, &type) &&
@@ -2982,13 +2980,13 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
 
     // Set the modified config
     if (!mgmd.set_config(conf))
-      return false;
+      goto cleanup;
 
     /**
      * Connect api
      */
 
-    Ndb_cluster_connection con(constr);
+    Ndb_cluster_connection con(mgmd.getConnectString());
 
     const int retries = 12;
     const int retry_delay = 5;
@@ -2996,7 +2994,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
     if (con.connect(retries, retry_delay, verbose) != 0)
     {
       g_err << "Ndb_cluster_connection.connect failed" << endl;
-      return NDBT_FAILED;
+      goto cleanup;
     }
 
     /**
@@ -3004,6 +3002,7 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
      */
 
     NDBT_Context conctx(con);
+    int failures = 0;
 
     for (size_t param = 0; param < NDB_ARRAY_SIZE(parameters) ; param ++)
     {
@@ -3017,16 +3016,36 @@ int runTestNdbApiConfig(NDBT_Context* ctx, NDBT_Step* step)
           if (ConfigInfo::m_ParamInfo[j]._paramId == parameters[param].key)
             break;
         }
-        g_err << "Paramater ";
+        g_err << "Parameter ";
         if (j < ConfigInfo::m_NoOfParams)
           g_err << ConfigInfo::m_ParamInfo[j]._fname << " (" << parameters[param].key << ")";
         else
           g_err << "Unknown (" << parameters[param].key << ")";
         g_err << ": Expected " << expected << " got " << got << endl;
+        failures++;
       }
+      if (failures > 0)
+        goto cleanup;
     }
   }
-  return NDBT_OK;
+
+  retval = NDBT_OK;
+
+cleanup:
+  // Restore conf after upgrading config generation
+  Config conf;
+  if (!mgmd.get_config(conf))
+    return NDBT_FAILED;
+
+  savedconf.setGeneration(conf.getGeneration());
+
+  if (!mgmd.set_config(savedconf))
+  {
+    g_err << "Failed to restore config." << endl;
+    return NDBT_FAILED;
+  }
+
+  return retval;
 }
 
 NDBT_TESTSUITE(testMgm);
