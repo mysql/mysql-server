@@ -167,7 +167,6 @@ rec_get_n_extern_new(
 {
 	const byte*	nulls;
 	const byte*	lens;
-	dict_field_t*	field;
 	ulint		null_mask;
 	ulint		n_extern;
 	ulint		i;
@@ -188,10 +187,13 @@ rec_get_n_extern_new(
 
 	/* read the lengths of fields 0..n */
 	do {
-		ulint	len;
+		const dict_field_t*	field
+			= dict_index_get_nth_field(index, i);
+		const dict_col_t*	col
+			= dict_field_get_col(field);
+		ulint			len;
 
-		field = dict_index_get_nth_field(index, i);
-		if (!(dict_field_get_col(field)->prtype & DATA_NOT_NULL)) {
+		if (!(col->prtype & DATA_NOT_NULL)) {
 			/* nullable field => read the null flag */
 
 			if (UNIV_UNLIKELY(!(byte) null_mask)) {
@@ -209,8 +211,6 @@ rec_get_n_extern_new(
 
 		if (UNIV_UNLIKELY(!field->fixed_len)) {
 			/* Variable-length field: read the length */
-			const dict_col_t*	col
-				= dict_field_get_col(field);
 			len = *lens--;
 			/* If the maximum length of the field is up
 			to 255 bytes, the actual length is always
@@ -239,16 +239,15 @@ rec_get_n_extern_new(
 Determine the offset to each field in a leaf-page record
 in ROW_FORMAT=COMPACT.  This is a special case of
 rec_init_offsets() and rec_get_offsets_func(). */
-UNIV_INTERN
+UNIV_INLINE __attribute__((nonnull))
 void
 rec_init_offsets_comp_ordinary(
 /*===========================*/
 	const rec_t*		rec,	/*!< in: physical record in
 					ROW_FORMAT=COMPACT */
-	ulint			extra,	/*!< in: number of bytes to reserve
-					between the record header and
-					the data payload
-					(usually REC_N_NEW_EXTRA_BYTES) */
+	ibool			temp,	/*!< in: whether to use the
+					format for temporary files in
+					index creation */
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	ulint*			offsets)/*!< in/out: array of offsets;
 					in: n=rec_offs_n_fields(offsets) */
@@ -256,27 +255,38 @@ rec_init_offsets_comp_ordinary(
 	ulint		i		= 0;
 	ulint		offs		= 0;
 	ulint		any_ext		= 0;
-	const byte*	nulls		= rec - (extra + 1);
+	const byte*	nulls		= temp
+		? rec - 1
+		: rec - (1 + REC_N_NEW_EXTRA_BYTES);
 	const byte*	lens		= nulls
 		- UT_BITS_IN_BYTES(index->n_nullable);
-	dict_field_t*	field;
 	ulint		null_mask	= 1;
 
 #ifdef UNIV_DEBUG
-	/* We cannot invoke rec_offs_make_valid() here, because it can hold
-	that extra != REC_N_NEW_EXTRA_BYTES.  Similarly, rec_offs_validate()
-	will fail in that case, because it invokes rec_get_status(). */
+	/* We cannot invoke rec_offs_make_valid() here if temp=TRUE.
+	Similarly, rec_offs_validate() will fail in that case, because
+	it invokes rec_get_status(). */
 	offsets[2] = (ulint) rec;
 	offsets[3] = (ulint) index;
 #endif /* UNIV_DEBUG */
 
+	ut_ad(temp || dict_table_is_comp(index->table));
+
+	if (temp && dict_table_is_comp(index->table)) {
+		/* No need to do adjust fixed_len=0. We only need to
+		adjust it for ROW_FORMAT=REDUNDANT. */
+		temp = FALSE;
+	}
+
 	/* read the lengths of fields 0..n */
 	do {
-		ulint	len;
+		const dict_field_t*	field
+			= dict_index_get_nth_field(index, i);
+		const dict_col_t*	col
+			= dict_field_get_col(field);
+		ulint			len;
 
-		field = dict_index_get_nth_field(index, i);
-		if (!(dict_field_get_col(field)->prtype
-		      & DATA_NOT_NULL)) {
+		if (!(col->prtype & DATA_NOT_NULL)) {
 			/* nullable field => read the null flag */
 
 			if (UNIV_UNLIKELY(!(byte) null_mask)) {
@@ -296,10 +306,9 @@ rec_init_offsets_comp_ordinary(
 			null_mask <<= 1;
 		}
 
-		if (UNIV_UNLIKELY(!field->fixed_len)) {
+		if (!field->fixed_len
+		    || (temp && !dict_col_get_fixed_size(col, temp))) {
 			/* Variable-length field: read the length */
-			const dict_col_t*	col
-				= dict_field_get_col(field);
 			len = *lens--;
 			/* If the maximum length of the field is up
 			to 255 bytes, the actual length is always
@@ -393,9 +402,8 @@ rec_init_offsets(
 				= dict_index_get_n_unique_in_tree(index);
 			break;
 		case REC_STATUS_ORDINARY:
-			rec_init_offsets_comp_ordinary(rec,
-						       REC_N_NEW_EXTRA_BYTES,
-						       index, offsets);
+			rec_init_offsets_comp_ordinary(
+				rec, FALSE, index, offsets);
 			return;
 		}
 
@@ -766,17 +774,19 @@ rec_get_nth_field_offs_old(
 /**********************************************************//**
 Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
 @return	total size */
-UNIV_INTERN
+UNIV_INLINE __attribute__((warn_unused_result, nonnull(1,2)))
 ulint
-rec_get_converted_size_comp_prefix(
-/*===============================*/
+rec_get_converted_size_comp_prefix_low(
+/*===================================*/
 	const dict_index_t*	index,	/*!< in: record descriptor;
 					dict_table_is_comp() is
 					assumed to hold, even if
 					it does not */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
-	ulint*			extra)	/*!< out: extra size */
+	ulint*			extra,	/*!< out: extra size */
+	ibool			temp)	/*!< in: whether this is a
+					temporary file record */
 {
 	ulint	extra_size;
 	ulint	data_size;
@@ -785,15 +795,25 @@ rec_get_converted_size_comp_prefix(
 	ut_ad(fields);
 	ut_ad(n_fields > 0);
 	ut_ad(n_fields <= dict_index_get_n_fields(index));
+	ut_ad(!temp || extra);
 
-	extra_size = REC_N_NEW_EXTRA_BYTES
+	extra_size = temp
+		? UT_BITS_IN_BYTES(index->n_nullable)
+		: REC_N_NEW_EXTRA_BYTES
 		+ UT_BITS_IN_BYTES(index->n_nullable);
 	data_size = 0;
+
+	if (temp && dict_table_is_comp(index->table)) {
+		/* No need to do adjust fixed_len=0. We only need to
+		adjust it for ROW_FORMAT=REDUNDANT. */
+		temp = FALSE;
+	}
 
 	/* read the lengths of fields 0..n */
 	for (i = 0; i < n_fields; i++) {
 		const dict_field_t*	field;
 		ulint			len;
+		ulint			fixed_len;
 		const dict_col_t*	col;
 
 		field = dict_index_get_nth_field(index, i);
@@ -809,8 +829,14 @@ rec_get_converted_size_comp_prefix(
 			continue;
 		}
 
-		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
+		ut_ad(len <= col->len || col->mtype == DATA_BLOB
+		      || (col->len == 0 && col->mtype == DATA_VARCHAR));
 
+		fixed_len = field->fixed_len;
+		if (temp && fixed_len
+		    && !dict_col_get_fixed_size(col, temp)) {
+			fixed_len = 0;
+		}
 		/* If the maximum length of a variable-length field
 		is up to 255 bytes, the actual length is always stored
 		in one byte. If the maximum length is more than 255
@@ -818,19 +844,19 @@ rec_get_converted_size_comp_prefix(
 		0..127.  The length will be encoded in two bytes when
 		it is 128 or more, or when the field is stored externally. */
 
-		if (field->fixed_len) {
+		if (fixed_len) {
 #ifdef UNIV_DEBUG
 			ulint	mbminlen = DATA_MBMINLEN(col->mbminmaxlen);
 			ulint	mbmaxlen = DATA_MBMAXLEN(col->mbminmaxlen);
 
-			ut_ad(len <= field->fixed_len);
+			ut_ad(len <= fixed_len);
 
 			ut_ad(!mbmaxlen || len >= mbminlen
-			      * (field->fixed_len / mbmaxlen));
+			      * (fixed_len / mbmaxlen));
 
 			/* dict_index_add_col() should guarantee this */
 			ut_ad(!field->prefix_len
-			      || field->fixed_len == field->prefix_len);
+			      || fixed_len == field->prefix_len);
 #endif /* UNIV_DEBUG */
 		} else if (dfield_is_ext(&fields[i])) {
 			ut_ad(col->len >= 256 || col->mtype == DATA_BLOB);
@@ -848,11 +874,28 @@ rec_get_converted_size_comp_prefix(
 		data_size += len;
 	}
 
-	if (UNIV_LIKELY_NULL(extra)) {
+	if (extra) {
 		*extra = extra_size;
 	}
 
 	return(extra_size + data_size);
+}
+
+/**********************************************************//**
+Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
+@return	total size */
+UNIV_INTERN
+ulint
+rec_get_converted_size_comp_prefix(
+/*===============================*/
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	const dfield_t*		fields,	/*!< in: array of data fields */
+	ulint			n_fields,/*!< in: number of data fields */
+	ulint*			extra)	/*!< out: extra size */
+{
+	ut_ad(dict_table_is_comp(index->table));
+	return(rec_get_converted_size_comp_prefix_low(
+		       index, fields, n_fields, extra, FALSE));
 }
 
 /**********************************************************//**
@@ -899,8 +942,8 @@ rec_get_converted_size_comp(
 		return(ULINT_UNDEFINED);
 	}
 
-	return(size + rec_get_converted_size_comp_prefix(index, fields,
-							 n_fields, extra));
+	return(size + rec_get_converted_size_comp_prefix_low(
+		       index, fields, n_fields, extra, FALSE));
 }
 
 /***********************************************************//**
@@ -1077,19 +1120,18 @@ rec_convert_dtuple_to_rec_old(
 
 /*********************************************************//**
 Builds a ROW_FORMAT=COMPACT record out of a data tuple. */
-UNIV_INTERN
+UNIV_INLINE __attribute__((nonnull))
 void
 rec_convert_dtuple_to_rec_comp(
 /*===========================*/
 	rec_t*			rec,	/*!< in: origin of record */
-	ulint			extra,	/*!< in: number of bytes to
-					reserve between the record
-					header and the data payload
-					(normally REC_N_NEW_EXTRA_BYTES) */
 	const dict_index_t*	index,	/*!< in: record descriptor */
-	ulint			status,	/*!< in: status bits of the record */
 	const dfield_t*		fields,	/*!< in: array of data fields */
-	ulint			n_fields)/*!< in: number of data fields */
+	ulint			n_fields,/*!< in: number of data fields */
+	ulint			status,	/*!< in: status bits of the record */
+	ibool			temp)	/*!< in: whether to use the
+					format for temporary files in
+					index creation */
 {
 	const dfield_t*	field;
 	const dtype_t*	type;
@@ -1101,31 +1143,44 @@ rec_convert_dtuple_to_rec_comp(
 	ulint		n_node_ptr_field;
 	ulint		fixed_len;
 	ulint		null_mask	= 1;
-	ut_ad(extra == 0 || dict_table_is_comp(index->table));
-	ut_ad(extra == 0 || extra == REC_N_NEW_EXTRA_BYTES);
+	ut_ad(temp || dict_table_is_comp(index->table));
 	ut_ad(n_fields > 0);
 
-	switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
-	case REC_STATUS_ORDINARY:
+	if (temp) {
+		ut_ad(status == REC_STATUS_ORDINARY);
 		ut_ad(n_fields <= dict_index_get_n_fields(index));
 		n_node_ptr_field = ULINT_UNDEFINED;
-		break;
-	case REC_STATUS_NODE_PTR:
-		ut_ad(n_fields == dict_index_get_n_unique_in_tree(index) + 1);
-		n_node_ptr_field = n_fields - 1;
-		break;
-	case REC_STATUS_INFIMUM:
-	case REC_STATUS_SUPREMUM:
-		ut_ad(n_fields == 1);
-		n_node_ptr_field = ULINT_UNDEFINED;
-		break;
-	default:
-		ut_error;
-		return;
+		nulls = rec - 1;
+		if (dict_table_is_comp(index->table)) {
+			/* No need to do adjust fixed_len=0. We only
+			need to adjust it for ROW_FORMAT=REDUNDANT. */
+			temp = FALSE;
+		}
+	} else {
+		nulls = rec - (REC_N_NEW_EXTRA_BYTES + 1);
+
+		switch (UNIV_EXPECT(status, REC_STATUS_ORDINARY)) {
+		case REC_STATUS_ORDINARY:
+			ut_ad(n_fields <= dict_index_get_n_fields(index));
+			n_node_ptr_field = ULINT_UNDEFINED;
+			break;
+		case REC_STATUS_NODE_PTR:
+			ut_ad(n_fields
+			      == dict_index_get_n_unique_in_tree(index) + 1);
+			n_node_ptr_field = n_fields - 1;
+			break;
+		case REC_STATUS_INFIMUM:
+		case REC_STATUS_SUPREMUM:
+			ut_ad(n_fields == 1);
+			n_node_ptr_field = ULINT_UNDEFINED;
+			break;
+		default:
+			ut_error;
+			return;
+		}
 	}
 
 	end = rec;
-	nulls = rec - (extra + 1);
 	lens = nulls - UT_BITS_IN_BYTES(index->n_nullable);
 	/* clear the SQL-null flags */
 	memset(lens + 1, 0, nulls - lens);
@@ -1171,6 +1226,10 @@ rec_convert_dtuple_to_rec_comp(
 
 		ifield = dict_index_get_nth_field(index, i);
 		fixed_len = ifield->fixed_len;
+		if (temp && fixed_len
+		    && !dict_col_get_fixed_size(ifield->col, temp)) {
+			fixed_len = 0;
+		}
 		/* If the maximum length of a variable-length field
 		is up to 255 bytes, the actual length is always stored
 		in one byte. If the maximum length is more than 255
@@ -1240,8 +1299,7 @@ rec_convert_dtuple_to_rec_new(
 	rec = buf + extra_size;
 
 	rec_convert_dtuple_to_rec_comp(
-		rec, REC_N_NEW_EXTRA_BYTES, index, status,
-		dtuple->fields, dtuple->n_fields);
+		rec, index, dtuple->fields, dtuple->n_fields, status, FALSE);
 
 	/* Set the info bits of the record */
 	rec_set_info_and_status_bits(rec, dtuple_get_info_bits(dtuple));
@@ -1301,6 +1359,54 @@ rec_convert_dtuple_to_rec(
 	}
 #endif /* UNIV_DEBUG */
 	return(rec);
+}
+
+#ifndef UNIV_HOTBACKUP
+/**********************************************************//**
+Determines the size of a data tuple prefix in ROW_FORMAT=COMPACT.
+@return	total size */
+UNIV_INTERN
+ulint
+rec_get_converted_size_temp(
+/*========================*/
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	const dfield_t*		fields,	/*!< in: array of data fields */
+	ulint			n_fields,/*!< in: number of data fields */
+	ulint*			extra)	/*!< out: extra size */
+{
+	return(rec_get_converted_size_comp_prefix_low(
+		       index, fields, n_fields, extra, TRUE));
+}
+
+/******************************************************//**
+Determine the offset to each field in temporary file.
+@see rec_convert_dtuple_to_temp() */
+UNIV_INTERN
+void
+rec_init_offsets_temp(
+/*==================*/
+	const rec_t*		rec,	/*!< in: temporary file record */
+	const dict_index_t*	index,	/*!< in: record descriptor */
+	ulint*			offsets)/*!< in/out: array of offsets;
+					in: n=rec_offs_n_fields(offsets) */
+{
+	rec_init_offsets_comp_ordinary(rec, TRUE, index, offsets);
+}
+
+/*********************************************************//**
+Builds a temporary file record out of a data tuple.
+@see rec_init_offsets_temp() */
+UNIV_INTERN
+void
+rec_convert_dtuple_to_temp(
+/*=======================*/
+	rec_t*			rec,		/*!< out: record */
+	const dict_index_t*	index,		/*!< in: record descriptor */
+	const dfield_t*		fields,		/*!< in: array of data fields */
+	ulint			n_fields)	/*!< in: number of fields */
+{
+	rec_convert_dtuple_to_rec_comp(rec, index, fields, n_fields,
+				       REC_STATUS_ORDINARY, TRUE);
 }
 
 /**************************************************************//**
@@ -1513,6 +1619,7 @@ rec_copy_prefix_to_buf(
 
 	return(*buf + (rec - (lens + 1)));
 }
+#endif /* UNIV_HOTBACKUP */
 
 /***************************************************************//**
 Validates the consistency of an old-style physical record.
