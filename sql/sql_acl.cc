@@ -8349,7 +8349,7 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
 
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
 {
-  reg3 int flag;
+  int flag;
   DBUG_ENTER("wild_case_compare");
   DBUG_PRINT("enter",("str: '%s'  wildstr: '%s'",str,wildstr));
   while (*wildstr)

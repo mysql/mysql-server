@@ -2936,7 +2936,7 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
 */
 int handler::read_first_row(uchar * buf, uint primary_key)
 {
-  register int error;
+  int error;
   DBUG_ENTER("handler::read_first_row");
 
   ha_statistic_increment(&SSV::ha_read_first_count);

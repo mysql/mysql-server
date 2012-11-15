@@ -22,8 +22,8 @@
 
 size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)
 {
-  register uint32 l;
-  register uchar *map= cs->to_upper;
+  uint32 l;
+  uchar *map= cs->to_upper;
   char *str_orig= str;
   
   while (*str)
@@ -43,8 +43,8 @@ size_t my_caseup_str_mb(const CHARSET_INFO *cs, char *str)
 
 size_t my_casedn_str_mb(const CHARSET_INFO *cs, char *str)
 {
-  register uint32 l;
-  register uchar *map= cs->to_lower;
+  uint32 l;
+  uchar *map= cs->to_lower;
   char *str_orig= str;
   
   while (*str)
@@ -77,9 +77,9 @@ size_t my_caseup_mb(const CHARSET_INFO *cs, char *src, size_t srclen,
                     char *dst __attribute__((unused)),
                     size_t dstlen __attribute__((unused)))
 {
-  register uint32 l;
-  register char *srcend= src + srclen;
-  register uchar *map= cs->to_upper;
+  uint32 l;
+  char *srcend= src + srclen;
+  uchar *map= cs->to_upper;
 
   DBUG_ASSERT(cs->caseup_multiply == 1);
   DBUG_ASSERT(src == dst && srclen == dstlen);
@@ -112,9 +112,9 @@ size_t my_casedn_mb(const CHARSET_INFO *cs, char *src, size_t srclen,
                     char *dst __attribute__((unused)),
                     size_t dstlen __attribute__((unused)))
 {
-  register uint32 l;
-  register char *srcend= src + srclen;
-  register uchar *map=cs->to_lower;
+  uint32 l;
+  char *srcend= src + srclen;
+  uchar *map=cs->to_lower;
 
   DBUG_ASSERT(cs->casedn_multiply == 1);
   DBUG_ASSERT(src == dst && srclen == dstlen);  
@@ -218,8 +218,8 @@ my_caseup_mb_varlen(const CHARSET_INFO *cs, char *src, size_t srclen,
 
 int my_strcasecmp_mb(const CHARSET_INFO *cs,const char *s, const char *t)
 {
-  register uint32 l;
-  register uchar *map=cs->to_upper;
+  uint32 l;
+  uchar *map=cs->to_upper;
   
   while (*s && *t)
   {
@@ -376,7 +376,7 @@ int my_wildcmp_mb(const CHARSET_INFO *cs,
 size_t my_numchars_mb(const CHARSET_INFO *cs __attribute__((unused)),
 		      const char *pos, const char *end)
 {
-  register size_t count= 0;
+  size_t count= 0;
   while (pos < end) 
   {
     uint mb_len;
@@ -429,7 +429,7 @@ uint my_instr_mb(const CHARSET_INFO *cs,
                  const char *s, size_t s_length,
                  my_match_t *match, uint nmatch)
 {
-  register const char *end, *b0;
+  const char *end, *b0;
   int res= 0;
   
   if (s_length <= b_length)

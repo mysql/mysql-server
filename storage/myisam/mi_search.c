@@ -59,8 +59,8 @@ int _mi_check_index(MI_INFO *info, int inx)
         **          1 if one should continue search on higher level
         */
 
-int _mi_search(register MI_INFO *info, register MI_KEYDEF *keyinfo,
-               uchar *key, uint key_len, uint nextflag, register my_off_t pos)
+int _mi_search(MI_INFO *info, MI_KEYDEF *keyinfo,
+               uchar *key, uint key_len, uint nextflag, my_off_t pos)
 {
   my_bool last_key;
   int error,flag;
@@ -178,11 +178,11 @@ err:
         /* ret_pos point to where find or bigger key starts */
         /* ARGSUSED */
 
-int _mi_bin_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
+int _mi_bin_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
                    uchar *key, uint key_len, uint comp_flag, uchar **ret_pos,
                    uchar *buff __attribute__((unused)), my_bool *last_key)
 {
-  reg4 int start,mid,end,save_end;
+  int start,mid,end,save_end;
   int flag;
   uint totlength,nod_flag,not_used[2];
   DBUG_ENTER("_mi_bin_search");
@@ -242,7 +242,7 @@ int _mi_bin_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
     < 0         Not found.
 */
 
-int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
+int _mi_seq_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
                    uchar *key, uint key_len, uint comp_flag, uchar **ret_pos,
                    uchar *buff, my_bool *last_key)
 {
@@ -286,7 +286,7 @@ int _mi_seq_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
 } /* _mi_seq_search */
 
 
-int _mi_prefix_search(MI_INFO *info, register MI_KEYDEF *keyinfo, uchar *page,
+int _mi_prefix_search(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
                       uchar *key, uint key_len, uint nextflag, uchar **ret_pos,
                       uchar *buff, my_bool *last_key)
 {
@@ -594,7 +594,7 @@ my_off_t _mi_kpos(uint nod_flag, uchar *after_key)
 
         /* Save pos to a key_block */
 
-void _mi_kpointer(register MI_INFO *info, register uchar *buff, my_off_t pos)
+void _mi_kpointer(MI_INFO *info, uchar *buff, my_off_t pos)
 {
   pos/=MI_MIN_KEY_BLOCK_LENGTH;
   switch (info->s->base.key_reflength) {
@@ -749,8 +749,8 @@ void _mi_dpointer(MI_INFO *info, uchar *buff, my_off_t pos)
 
         /* same as _mi_get_key but used with fixed length keys */
 
-uint _mi_get_static_key(register MI_KEYDEF *keyinfo, uint nod_flag,
-                       register uchar **page, register uchar *key)
+uint _mi_get_static_key(MI_KEYDEF *keyinfo, uint nod_flag,
+                       uchar **page, uchar *key)
 {
   memcpy((uchar*) key,(uchar*) *page,
          (size_t) (keyinfo->keylength+nod_flag));
@@ -773,10 +773,10 @@ uint _mi_get_static_key(register MI_KEYDEF *keyinfo, uint nod_flag,
     key_length + length of data pointer
 */
 
-uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
-                      register uchar **page_pos, register uchar *key)
+uint _mi_get_pack_key(MI_KEYDEF *keyinfo, uint nod_flag,
+                      uchar **page_pos, uchar *key)
 {
-  reg1 HA_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   uchar *start_key,*page=*page_pos;
   uint length;
 
@@ -910,10 +910,10 @@ uint _mi_get_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
 
 /* key that is packed relatively to previous */
 
-uint _mi_get_binary_pack_key(register MI_KEYDEF *keyinfo, uint nod_flag,
-                             register uchar **page_pos, register uchar *key)
+uint _mi_get_binary_pack_key(MI_KEYDEF *keyinfo, uint nod_flag,
+                             uchar **page_pos, uchar *key)
 {
-  reg1 HA_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   uchar *start_key,*page,*page_end,*from,*from_end;
   uint length,tmp;
   DBUG_ENTER("_mi_get_binary_pack_key");
@@ -1164,9 +1164,9 @@ uchar *_mi_get_last_key(MI_INFO *info, MI_KEYDEF *keyinfo, uchar *page,
 
         /* Calculate length of key */
 
-uint _mi_keylength(MI_KEYDEF *keyinfo, register uchar *key)
+uint _mi_keylength(MI_KEYDEF *keyinfo, uchar *key)
 {
-  reg1 HA_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   uchar *start;
 
   if (! (keyinfo->flag & (HA_VAR_LENGTH_KEY | HA_BINARY_PACK_KEY)))
@@ -1199,10 +1199,10 @@ uint _mi_keylength(MI_KEYDEF *keyinfo, register uchar *key)
   after '0xDF' but find 'ss'
 */
 
-uint _mi_keylength_part(MI_KEYDEF *keyinfo, register uchar *key,
+uint _mi_keylength_part(MI_KEYDEF *keyinfo, uchar *key,
 			HA_KEYSEG *end)
 {
-  reg1 HA_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   uchar *start= key;
 
   for (keyseg=keyinfo->seg ; keyseg != end ; keyseg++)
@@ -1226,7 +1226,7 @@ uint _mi_keylength_part(MI_KEYDEF *keyinfo, register uchar *key,
 
 uchar *_mi_move_key(MI_KEYDEF *keyinfo, uchar *to, uchar *from)
 {
-  reg1 uint length;
+  uint length;
   memcpy((uchar*) to, (uchar*) from,
          (size_t) (length=_mi_keylength(keyinfo,from)));
   return to+length;
@@ -1235,7 +1235,7 @@ uchar *_mi_move_key(MI_KEYDEF *keyinfo, uchar *to, uchar *from)
         /* Find next/previous record with same key */
         /* This can't be used when database is touched after last read */
 
-int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
+int _mi_search_next(MI_INFO *info, MI_KEYDEF *keyinfo,
                     uchar *key, uint key_length, uint nextflag, my_off_t pos)
 {
   int error;
@@ -1317,8 +1317,8 @@ int _mi_search_next(register MI_INFO *info, register MI_KEYDEF *keyinfo,
         /* Search after position for the first row in an index */
         /* This is stored in info->lastpos */
 
-int _mi_search_first(register MI_INFO *info, register MI_KEYDEF *keyinfo,
-                     register my_off_t pos)
+int _mi_search_first(MI_INFO *info, MI_KEYDEF *keyinfo,
+                     my_off_t pos)
 {
   uint nod_flag;
   uchar *page;
@@ -1361,8 +1361,8 @@ int _mi_search_first(register MI_INFO *info, register MI_KEYDEF *keyinfo,
         /* Search after position for the last row in an index */
         /* This is stored in info->lastpos */
 
-int _mi_search_last(register MI_INFO *info, register MI_KEYDEF *keyinfo,
-                    register my_off_t pos)
+int _mi_search_last(MI_INFO *info, MI_KEYDEF *keyinfo,
+                    my_off_t pos)
 {
   uint nod_flag;
   uchar *buff,*page;
@@ -1466,7 +1466,7 @@ _mi_calc_var_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
                              uchar *org_key, uchar *prev_key, uchar *key,
                              MI_KEY_PARAM *s_temp)
 {
-  reg1 HA_KEYSEG *keyseg;
+  HA_KEYSEG *keyseg;
   int length;
   uint key_length,ref_length,org_key_length=0,
        length_pack,new_key_length,diff_flag,pack_marker;
@@ -1826,8 +1826,8 @@ _mi_calc_bin_pack_key_length(MI_KEYDEF *keyinfo,uint nod_flag,uchar *next_key,
 /* store key without compression */
 
 void _mi_store_static_key(MI_KEYDEF *keyinfo __attribute__((unused)),
-                          register uchar *key_pos,
-                          register MI_KEY_PARAM *s_temp)
+                          uchar *key_pos,
+                          MI_KEY_PARAM *s_temp)
 {
   memcpy((uchar*) key_pos,(uchar*) s_temp->key,(size_t) s_temp->totlength);
 }
@@ -1841,8 +1841,8 @@ void _mi_store_static_key(MI_KEYDEF *keyinfo __attribute__((unused)),
 
 
 void _mi_store_var_pack_key(MI_KEYDEF *keyinfo  __attribute__((unused)),
-                            register uchar *key_pos,
-                            register MI_KEY_PARAM *s_temp)
+                            uchar *key_pos,
+                            MI_KEY_PARAM *s_temp)
 {
   uint length;
   uchar *start;
@@ -1904,8 +1904,8 @@ void _mi_store_var_pack_key(MI_KEYDEF *keyinfo  __attribute__((unused)),
 /* variable length key with prefix compression */
 
 void _mi_store_bin_pack_key(MI_KEYDEF *keyinfo  __attribute__((unused)),
-                            register uchar *key_pos,
-                            register MI_KEY_PARAM *s_temp)
+                            uchar *key_pos,
+                            MI_KEY_PARAM *s_temp)
 {
   store_key_length_inc(key_pos,s_temp->ref_length);
   memcpy((char*) key_pos,(char*) s_temp->key+s_temp->ref_length,
