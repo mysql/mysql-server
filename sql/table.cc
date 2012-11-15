@@ -2367,7 +2367,7 @@ partititon_err:
     free_share		Is 1 if we also want to free table_share
 */
 
-int closefrm(register TABLE *table, bool free_share)
+int closefrm(TABLE *table, bool free_share)
 {
   int error=0;
   DBUG_ENTER("closefrm");
@@ -2408,7 +2408,7 @@ int closefrm(register TABLE *table, bool free_share)
 
 /* Deallocate temporary blob storage */
 
-void free_blobs(register TABLE *table)
+void free_blobs(TABLE *table)
 {
   uint *ptr, *end;
   for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
@@ -2771,7 +2771,7 @@ static uint find_field(Field **fields, uchar *record, uint start, uint length)
 
 	/* Check that the integer is in the internal */
 
-int set_zone(register int nr, int min_zone, int max_zone)
+int set_zone(int nr, int min_zone, int max_zone)
 {
   if (nr<=min_zone)
     return (min_zone);
@@ -2782,9 +2782,9 @@ int set_zone(register int nr, int min_zone, int max_zone)
 
 	/* Adjust number to next larger disk buffer */
 
-ulong next_io_size(register ulong pos)
+ulong next_io_size(ulong pos)
 {
-  reg2 ulong offset;
+  ulong offset;
   if ((offset= pos & (IO_SIZE-1)))
     return pos-offset+IO_SIZE;
   return pos;
@@ -2859,7 +2859,7 @@ File create_frm(THD *thd, const char *name, const char *db,
                 const char *table, uint reclength, uchar *fileinfo,
   		HA_CREATE_INFO *create_info, uint keys, KEY *key_info)
 {
-  register File file;
+  File file;
   ulong length;
   uchar fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;

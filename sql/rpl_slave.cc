@@ -242,7 +242,7 @@ static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 void init_thread_mask(int* mask, Master_info* mi, bool inverse)
 {
   bool set_io = mi->slave_running, set_sql = mi->rli->slave_running;
-  register int tmp_mask=0;
+  int tmp_mask=0;
   DBUG_ENTER("init_thread_mask");
 
   if (set_io)

@@ -399,7 +399,7 @@ static bool send_prep_stmt(Prepared_statement *stmt,
 
 static ulong get_param_length(uchar **packet, ulong len)
 {
-  reg1 uchar *pos= *packet;
+  uchar *pos= *packet;
   if (len < 1)
     return 0;
   if (*pos < 251)

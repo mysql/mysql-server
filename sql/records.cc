@@ -630,7 +630,7 @@ static int rr_cmp(const void *p_ref_length, const void *a, const void *b)
 
 static int rr_from_cache(READ_RECORD *info)
 {
-  reg1 uint i;
+  uint i;
   ulong length;
   my_off_t rest_of_file;
   int16 error;

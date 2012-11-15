@@ -912,7 +912,7 @@ static int findopt(char *optpat, uint length,
   2.) Returns -1 if strings differ, 0 if they are equal
 */
 
-my_bool getopt_compare_strings(register const char *s, register const char *t,
+my_bool getopt_compare_strings(const char *s, const char *t,
 			       uint length)
 {
   char const *end= s + length;
