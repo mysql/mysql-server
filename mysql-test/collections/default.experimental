@@ -18,9 +18,4 @@ rpl.rpl_row_sp011  @solaris              # Bug#11753919 2011-07-25 sven Several 
 sys_vars.max_sp_recursion_depth_func @solaris # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 sys_vars.wait_timeout_func                    # Bug#11750645 2010-04-26 alik wait_timeout_func fails
 
-# BUG #59055 : All ndb tests should be removed from the repository
-# Leaving the sys_vars tests for now. sys_vars.all_vars.test fails on removing ndb tests
-sys_vars.ndb_log_update_as_write_basic
-sys_vars.have_ndbcluster_basic
-sys_vars.ndb_log_updated_only_basic
 sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
