@@ -869,6 +869,11 @@ srv_printf_innodb_monitor(). */
 extern ulint	btr_cur_n_sea_old;
 #endif /* !UNIV_HOTBACKUP */
 
+#ifdef UNIV_DEBUG
+/* Flag to limit optimistic insert records */
+extern uint	btr_cur_limit_optimistic_insert_debug;
+#endif /* UNIV_DEBUG */
+
 #ifndef UNIV_NONINL
 #include "btr0cur.ic"
 #endif
