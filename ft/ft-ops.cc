@@ -1388,7 +1388,7 @@ init_childinfo(FTNODE node, int childnum, FTNODE child) {
 
 static void
 init_childkey(FTNODE node, int childnum, const DBT *pivotkey) {
-    toku_copyref_dbt(&node->childkeys[childnum], *pivotkey);
+    toku_copy_dbt(&node->childkeys[childnum], *pivotkey);
     node->totalchildkeylens += pivotkey->size;
 }
 
@@ -4801,7 +4801,7 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
 static inline int
 search_which_child_cmp_with_bound(DB *db, ft_compare_func cmp, FTNODE node, int childnum, ft_search_t *search, DBT *dbt)
 {
-    return cmp(db, toku_copyref_dbt(dbt, node->childkeys[childnum]), &search->pivot_bound);
+    return cmp(db, toku_copy_dbt(dbt, node->childkeys[childnum]), &search->pivot_bound);
 }
 
 int
@@ -4823,7 +4823,7 @@ toku_ft_search_which_child(
     int mi;
     while (lo < hi) {
         mi = (lo + hi) / 2;
-        toku_copyref_dbt(&pivotkey, node->childkeys[mi]);
+        toku_copy_dbt(&pivotkey, node->childkeys[mi]);
         // search->compare is really strange, and only works well with a
         // linear search, it makes binary search a pita.
         //
@@ -4885,7 +4885,7 @@ toku_ft_search_which_child(
     }
     for (c = 0; c < node->n_children-1; c++) {
         int p = (search->direction == FT_SEARCH_LEFT) ? child[c] : child[c] - 1;
-        toku_copyref_dbt(&pivotkey, node->childkeys[p]);
+        toku_copy_dbt(&pivotkey, node->childkeys[p]);
         if (search_pivot_is_bounded(search, desc, cmp, &pivotkey) && search->compare(search, &pivotkey)) {
             return child[c];
         }
