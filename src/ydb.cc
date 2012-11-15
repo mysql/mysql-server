@@ -1948,10 +1948,10 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     if (r) {
         n += snprintf(buff + n, bufsiz - n, "Engine status not available: ");
         if (!env) {
-        n += snprintf(buff + n, bufsiz - n, "no environment\n");
+            n += snprintf(buff + n, bufsiz - n, "no environment\n");
         }
         else if (!(env->i)) {
-        n += snprintf(buff + n, bufsiz - n, "environment internal struct is null\n");
+            n += snprintf(buff + n, bufsiz - n, "environment internal struct is null\n");
         }
         else if (!env_opened(env)) {
             n += snprintf(buff + n, bufsiz - n, "environment is not open\n");
@@ -2025,7 +2025,7 @@ static int
 toku_maybe_get_engine_status_text (char * buff, int buffsize) {
     DB_ENV * env = most_recent_env;
     int r;
-    if (engine_status_enable) {
+    if (engine_status_enable && env != NULL) {
         r = env_get_engine_status_text(env, buff, buffsize);
     }
     else {
