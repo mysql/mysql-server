@@ -143,11 +143,11 @@ get_file_pathname(void) {
 }
 
 
-static int 
+static int
 getsizeM(void) {
     toku_struct_stat buf;
     int r = toku_stat(path, &buf);
-    CKERR(r);    
+    CKERR(r);
     int sizeM = (int)buf.st_size >> 20;
     check_fragmentation();
     if (verbose>1)
@@ -156,52 +156,64 @@ getsizeM(void) {
 }
 
 static void
-test_filesize (void)
+test_filesize (bool sequential)
 {
     int N=1<<14;
     int r, i, sizeM;
 
     get_file_pathname();
-    
+
     for (int iter = 0; iter < 3; iter++) {
-	int offset = N * iter;
+        int offset = N * iter;
 
-	for (i=0; i<N; i++) {
-	    insert_n(i + offset, INSERT_BIG);
-	}
-	
-	r = env->txn_checkpoint(env, 0, 0, 0);
-	CKERR(r);
-	int sizefirst = sizeM = getsizeM();
-	if (verbose) printf("Filesize after iteration %d insertion and checkpoint = %dM\n", iter, sizeM);
-	
-	int preserve = 2;
-	for (i = preserve; i<(N); i++) {  // leave a little at the beginning
-	    delete_n(i + offset);
-	}
-	optimize();
+        if (sequential) {
+            for (i=0; i<N; i++) {
+                insert_n(i + offset, INSERT_BIG);
+            }
+        } else {
+            for (i=N-1; i>=0; --i) {
+                insert_n(i + offset, INSERT_BIG);
+            }
+        }
 
-	r = env->txn_checkpoint(env, 0, 0, 0);
-	CKERR(r);
-	sizeM = getsizeM();
-	if (verbose) printf("Filesize after iteration %d deletion and checkpoint 1 = %dM\n", iter, sizeM);
+        r = env->txn_checkpoint(env, 0, 0, 0);
+        CKERR(r);
+        int sizefirst = sizeM = getsizeM();
+        if (verbose) printf("Filesize after iteration %d insertion and checkpoint = %dM\n", iter, sizeM);
 
-	for (i=0; i<N; i++) {
-	    insert_n(i + offset, INSERT_SMALL);
-	}
-	for (i = preserve; i<(N); i++) {  // leave a little at the beginning
-	    delete_n(i + offset);
-	}
-	optimize();
-	r = env->txn_checkpoint(env, 0, 0, 0);
-	CKERR(r);
-	sizeM = getsizeM();
-	if (verbose) printf("Filesize after iteration %d deletion and checkpoint 2 = %dM\n", iter, sizeM);
-        assert(sizeM < sizefirst);
+        int preserve = 2;
+        for (i = preserve; i<(N); i++) {  // leave a little at the beginning
+            delete_n(i + offset);
+        }
+        optimize();
 
-	if (verbose) printf("ninsert = %d\n", ninsert);
-	if (verbose) printf("nread = %d, nread_notfound = %d, nread_failed = %d\n", nread, nread_notfound, nread_failed);
-	if (verbose) printf("ndelete = %d, ndelete_notfound = %d, ndelete_failed = %d\n", ndelete, ndelete_notfound, ndelete_failed);
+        r = env->txn_checkpoint(env, 0, 0, 0);
+        CKERR(r);
+        sizeM = getsizeM();
+        if (verbose) printf("Filesize after iteration %d deletion and checkpoint 1 = %dM\n", iter, sizeM);
+
+        if (sequential) {
+            for (i=0; i<N; i++) {
+                insert_n(i + offset, INSERT_SMALL);
+            }
+        } else {
+            for (i=N-1; i>=0; --i) {
+                insert_n(i + offset, INSERT_SMALL);
+            }
+        }
+        for (i = preserve; i<(N); i++) {  // leave a little at the beginning
+            delete_n(i + offset);
+        }
+        optimize();
+        r = env->txn_checkpoint(env, 0, 0, 0);
+        CKERR(r);
+        sizeM = getsizeM();
+        if (verbose) printf("Filesize after iteration %d deletion and checkpoint 2 = %dM\n", iter, sizeM);
+        assert(sizeM <= sizefirst);
+
+        if (verbose) printf("ninsert = %d\n", ninsert);
+        if (verbose) printf("nread = %d, nread_notfound = %d, nread_failed = %d\n", nread, nread_notfound, nread_failed);
+        if (verbose) printf("ndelete = %d, ndelete_notfound = %d, ndelete_failed = %d\n", ndelete, ndelete_notfound, ndelete_failed);
     }
 }
 
@@ -209,7 +221,16 @@ int test_main (int argc __attribute__((__unused__)), char * const argv[] __attri
     parse_args(argc, argv);
     setup();
     if (verbose) print_engine_status(env);
-    test_filesize();
+    test_filesize(true);
+    if (verbose) {
+        print_engine_status(env);
+    }
+    check_fragmentation();
+    if (verbose) print_fragmentation();
+    close_em();
+    setup();
+    if (verbose) print_engine_status(env);
+    test_filesize(false);
     if (verbose) {
         print_engine_status(env);
     }
