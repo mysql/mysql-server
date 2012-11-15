@@ -829,10 +829,19 @@ rec_get_converted_size_comp_prefix(
 		it is 128 or more, or when the field is stored externally. */
 
 		if (field->fixed_len) {
-			ut_ad(len == field->fixed_len);
+#ifdef UNIV_DEBUG
+			ulint	mbminlen = DATA_MBMINLEN(col->mbminmaxlen);
+			ulint	mbmaxlen = DATA_MBMAXLEN(col->mbminmaxlen);
+
+			ut_ad(len <= field->fixed_len);
+
+			ut_ad(!mbmaxlen || len >= mbminlen
+			      * (field->fixed_len / mbmaxlen));
+
 			/* dict_index_add_col() should guarantee this */
 			ut_ad(!field->prefix_len
 			      || field->fixed_len == field->prefix_len);
+#endif /* UNIV_DEBUG */
 		} else if (dfield_is_ext(&fields[i])) {
 			ut_ad(col->len >= 256 || col->mtype == DATA_BLOB);
 			extra_size += 2;
@@ -1180,8 +1189,17 @@ rec_convert_dtuple_to_rec_comp(
 		0..127.  The length will be encoded in two bytes when
 		it is 128 or more, or when the field is stored externally. */
 		if (fixed_len) {
-			ut_ad(len == fixed_len);
+#ifdef UNIV_DEBUG
+			ulint	mbminlen = DATA_MBMINLEN(
+				ifield->col->mbminmaxlen);
+			ulint	mbmaxlen = DATA_MBMAXLEN(
+				ifield->col->mbminmaxlen);
+
+			ut_ad(len <= fixed_len);
+			ut_ad(!mbmaxlen || len >= mbminlen
+			      * (fixed_len / mbmaxlen));
 			ut_ad(!dfield_is_ext(field));
+#endif /* UNIV_DEBUG */
 		} else if (dfield_is_ext(field)) {
 			ut_ad(ifield->col->len >= 256
 			      || ifield->col->mtype == DATA_BLOB);

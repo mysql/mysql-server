@@ -5817,7 +5817,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
       true. This occurs for example if a MyISAM statement is executed
       with row-based replication on.
    */
-    if (real_trans && xid && trans->rw_ha_count > 1)
+    if (real_trans && xid && trans->rw_ha_count > 1 && !trans->no_2pc)
     {
       Xid_log_event end_evt(thd, xid);
       if (cache_mngr->trx_cache.finalize(thd, &end_evt))
@@ -7012,7 +7012,7 @@ int THD::decide_logging_format(TABLE_LIST *tables)
     */
     uint replicated_tables_count= 0;
     /**
-      The number of tables used in the current statement,
+      The number of tables written to in the current statement,
       that should not be replicated.
       A table should not be replicated when it is considered
       'local' to a MySQL instance.
@@ -7024,6 +7024,8 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       - mysql.slave_worker_info
       - performance_schema.*
       - TODO: information_schema.*
+      In practice, from this list, only performance_schema.* tables
+      are written to by user queries.
     */
     uint non_replicated_tables_count= 0;
 #ifndef DBUG_OFF
@@ -7069,8 +7071,12 @@ int THD::decide_logging_format(TABLE_LIST *tables)
           or it will be logged (possibly partially) in ROW format.
         */
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_TABLE);
-        non_replicated_tables_count++;
-        continue;
+
+        if (table->lock_type >= TL_WRITE_ALLOW_WRITE)
+        {
+          non_replicated_tables_count++;
+          continue;
+        }
       }
 
       replicated_tables_count++;
