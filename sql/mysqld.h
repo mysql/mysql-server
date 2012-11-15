@@ -315,6 +315,8 @@ extern PSI_mutex_key
   key_LOCK_lock_db, key_LOCK_logger, key_LOCK_manager,
   key_LOCK_prepared_stmt_count,
   key_LOCK_server_started,
+  key_LOCK_sql_slave_skip_counter,
+  key_LOCK_slave_net_timeout,
   key_LOCK_table_share, key_LOCK_thd_data,
   key_LOCK_user_conn, key_LOCK_uuid_generator, key_LOG_LOCK_log,
   key_master_info_data_lock, key_master_info_run_lock,
@@ -555,7 +557,8 @@ extern mysql_mutex_t
        LOCK_crypt, LOCK_timezone,
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
-       LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count;
+       LOCK_prepared_stmt_count, LOCK_error_messages, LOCK_connection_count,
+       LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
