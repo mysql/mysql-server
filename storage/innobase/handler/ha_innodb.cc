@@ -9781,8 +9781,8 @@ ha_innobase::discard_or_import_tablespace(
 
 	dict_table = prebuilt->table;
 
-	if (dict_table->space == TRX_SYS_SPACE) {
-
+	if (dict_table->space == TRX_SYS_SPACE
+	    || dict_table->space == srv_temp_tablespace.m_temp_tablespace_id) {
 		ib_senderrf(
 			prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLE_IN_SYSTEM_TABLESPACE,
