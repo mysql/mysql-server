@@ -258,7 +258,7 @@ dict_build_table_def_step(
 
 	table = node->table;
 
-	error = dict_build_tablespace(table, thr_get_trx(thr)); 
+	error = dict_build_tablespace(table, thr_get_trx(thr));
 	if (error != DB_SUCCESS) {
 		return(error);
 	}
