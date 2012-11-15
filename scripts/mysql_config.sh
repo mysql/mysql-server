@@ -92,11 +92,7 @@ plugindir_rel=`echo $plugindir | sed -e "s;^$basedir/;;"`
 fix_path plugindir $plugindir_rel lib/mysql/plugin lib/plugin
 
 pkgincludedir='@pkgincludedir@'
-if [ -f "$basedir/include/mysql/mysql.h" ]; then
-  pkgincludedir="$basedir/include/mysql"
-elif [ -f "$basedir/include/mysql.h" ]; then
-  pkgincludedir="$basedir/include"
-fi
+fix_path pkgincludedir include/mysql
 
 version='@VERSION@'
 socket='@MYSQL_UNIX_ADDR@'
@@ -125,8 +121,11 @@ if [ -r "$pkglibdir/libmygcc.a" ]; then
   embedded_libs="$embedded_libs -lmygcc "
 fi
 
-cflags="-I$pkgincludedir @CFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
+if [ "$basedir" != "/usr" ]; then
+  include="$include -I$pkgincludedir/.."
+fi
+cflags="$include @CFLAGS@ " #note: end space!
 
 # Remove some options that a client doesn't have to care about
 # FIXME until we have a --cxxflags, we need to remove -Xa
