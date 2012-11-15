@@ -1,3 +1,10 @@
+2012-11-15	The InnoDB Team
+
+	* include/data0type.ic, include/rem0rec.h,
+	rem/rem0rec.c, row/row0merge.c:
+	Fix Bug#15874001 CREATE INDEX ON A UTF8 CHAR COLUMN FAILS WITH
+	ROW_FORMAT=REDUNDANT
+
 2012-10-18	The InnoDB Team
 
 	* row/row0sel.c:

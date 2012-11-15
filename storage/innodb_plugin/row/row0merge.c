@@ -291,6 +291,7 @@ row_merge_buf_add(
 		const dict_field_t*	ifield;
 		const dict_col_t*	col;
 		ulint			col_no;
+		ulint			fixed_len;
 		const dfield_t*		row_field;
 		ulint			len;
 
@@ -340,9 +341,21 @@ row_merge_buf_add(
 
 		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
 
-		if (ifield->fixed_len) {
-			ut_ad(len == ifield->fixed_len);
+		fixed_len = ifield->fixed_len;
+		if (fixed_len && !dict_table_is_comp(index->table)
+		    && col->mbminlen != col->mbmaxlen) {
+			/* CHAR in ROW_FORMAT=REDUNDANT is always
+			fixed-length, but in the temporary file it is
+			variable-length for variable-length character
+			sets. */
+			fixed_len = 0;
+		}
+
+		if (fixed_len) {
+			ut_ad(len == fixed_len);
 			ut_ad(!dfield_is_ext(field));
+ 			ut_ad(!col->mbmaxlen || len >= col->mbminlen
+			      * (fixed_len / col->mbmaxlen));
 		} else if (dfield_is_ext(field)) {
 			extra_size += 2;
 		} else if (len < 128
@@ -363,12 +376,11 @@ row_merge_buf_add(
 		ulint	size;
 		ulint	extra;
 
-		size = rec_get_converted_size_comp(index,
-						   REC_STATUS_ORDINARY,
-						   entry, n_fields, &extra);
+		size = rec_get_converted_size_temp(
+			index, entry, n_fields, &extra);
 
-		ut_ad(data_size + extra_size + REC_N_NEW_EXTRA_BYTES == size);
-		ut_ad(extra_size + REC_N_NEW_EXTRA_BYTES == extra);
+		ut_ad(data_size + extra_size == size);
+		ut_ad(extra_size == extra);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -572,14 +584,9 @@ row_merge_buf_write(
 		ulint		extra_size;
 		const dfield_t*	entry		= buf->tuples[i];
 
-		size = rec_get_converted_size_comp(index,
-						   REC_STATUS_ORDINARY,
-						   entry, n_fields,
-						   &extra_size);
+		size = rec_get_converted_size_temp(
+			index, entry, n_fields, &extra_size);
 		ut_ad(size >= extra_size);
-		ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
-		extra_size -= REC_N_NEW_EXTRA_BYTES;
-		size -= REC_N_NEW_EXTRA_BYTES;
 
 		/* Encode extra_size + 1 */
 		if (extra_size + 1 < 0x80) {
@@ -592,9 +599,8 @@ row_merge_buf_write(
 
 		ut_ad(b + size < block[1]);
 
-		rec_convert_dtuple_to_rec_comp(b + extra_size, 0, index,
-					       REC_STATUS_ORDINARY,
-					       entry, n_fields);
+		rec_convert_dtuple_to_temp(b + extra_size, index,
+					   entry, n_fields);
 
 		b += size;
 
@@ -841,7 +847,7 @@ err_exit:
 
 		*mrec = *buf + extra_size;
 
-		rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
+		rec_init_offsets_temp(*mrec, index, offsets);
 
 		data_size = rec_offs_data_size(offsets);
 
@@ -860,7 +866,7 @@ err_exit:
 
 	*mrec = b + extra_size;
 
-	rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
+	rec_init_offsets_temp(*mrec, index, offsets);
 
 	data_size = rec_offs_data_size(offsets);
 	ut_ad(extra_size + data_size < sizeof *buf);
