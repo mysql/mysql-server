@@ -3043,6 +3043,12 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
         goto end;
       }
     }
+
+    /* if we have a password supplied we update the expiration field */
+    if (table->s->fields >= MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
+        password_len > 0)
+      table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N", 1,
+                                                             system_charset_info);
   }
 
   if (old_row_exists)
