@@ -1,0 +1,64 @@
+drop table if exists t1;
+set global innodb_stats_persistent = false;
+CREATE TABLE t1 (a int not null primary key) engine=InnoDB;
+set global innodb_limit_optimistic_insert_debug = 2;
+insert into t1 values (1);
+insert into t1 values (5);
+insert into t1 values (4);
+insert into t1 values (3);
+insert into t1 values (2);
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+10
+delete from t1 where a=4;
+set global innodb_purge_stop_now=ON;
+set global innodb_purge_run_now=ON;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+8
+delete from t1 where a=5;
+set global innodb_purge_stop_now=ON;
+set global innodb_purge_run_now=ON;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+5
+set global innodb_limit_optimistic_insert_debug = 0;
+delete from t1 where a=2;
+set global innodb_purge_stop_now=ON;
+set global innodb_purge_run_now=ON;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+3
+insert into t1 values (2);
+delete from t1 where a=2;
+set global innodb_purge_stop_now=ON;
+set global innodb_purge_run_now=ON;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+2
+insert into t1 values (2);
+delete from t1 where a=2;
+set global innodb_purge_stop_now=ON;
+set global innodb_purge_run_now=ON;
+analyze table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	analyze	status	OK
+select CLUST_INDEX_SIZE from information_schema.INNODB_SYS_TABLESTATS where NAME = 'test/t1';
+CLUST_INDEX_SIZE
+1
+drop table t1;

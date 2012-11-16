@@ -67,7 +67,7 @@ struct Pack_header_error_handler: public Internal_error_handler
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
   bool is_handled;
@@ -80,7 +80,7 @@ Pack_header_error_handler::
 handle_condition(THD *,
                  uint sql_errno,
                  const char*,
-                 Sql_condition::enum_warning_level,
+                 Sql_condition::enum_severity_level,
                  const char*,
                  Sql_condition ** cond_hdl)
 {
@@ -543,7 +543,7 @@ static uchar *pack_screens(List<Create_field> &create_fields,
                            uint *info_length, uint *screens,
                            bool small_file)
 {
-  reg1 uint i;
+  uint i;
   uint row,start_row,end_row,fields_on_screen;
   uint length,cols;
   uchar *info,*pos,*start_screen;
@@ -883,7 +883,7 @@ static uint get_interval_id(uint *int_count,List<Create_field> &create_fields,
 static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset)
 {
-  reg2 uint i;
+  uint i;
   uint int_count, comment_length=0;
   uchar buff[MAX_FIELD_WIDTH];
   Create_field *field;
@@ -1091,9 +1091,6 @@ static bool make_empty_rec(THD *thd, File file,
   thd->count_cuted_fields= CHECK_FIELD_WARN;    // To find wrong default values
   while ((field=it++))
   {
-    /*
-      regfield don't have to be deleted as it's allocated with sql_alloc()
-    */
     Field *regfield= make_field(&share,
                                 buff+field->offset + data_offset,
                                 field->length,
@@ -1146,7 +1143,11 @@ static bool make_empty_rec(THD *thd, File file,
 
         my_error(ER_INVALID_DEFAULT, MYF(0), regfield->field_name);
         error= 1;
-        delete regfield; //To avoid memory leak
+        /*
+          Delete to avoid memory leak for fields that allocate extra
+          memory (e.g Field_blob::value)
+        */
+        delete regfield;
         goto err;
       }
     }
@@ -1162,6 +1163,11 @@ static bool make_empty_rec(THD *thd, File file,
       regfield->store(ER(ER_NO), (uint) strlen(ER(ER_NO)),system_charset_info);
     else
       regfield->reset();
+    /*
+      Delete to avoid memory leak for fields that allocate extra
+      memory (e.g Field_blob::value)
+    */
+    delete regfield;
   }
   DBUG_ASSERT(data_offset == ((null_count + 7) / 8));
 

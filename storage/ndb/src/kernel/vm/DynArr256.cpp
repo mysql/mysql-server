@@ -33,6 +33,7 @@ struct DA256Free
 {
   Uint32 m_magic;
   Uint32 m_next_free;
+  Uint32 m_prev_free;
 };
 
 struct DA256Node
@@ -44,7 +45,44 @@ struct DA256Page
 {
   struct DA256CL m_header[2];
   struct DA256Node m_nodes[30];
+
+  bool get(Uint32 node, Uint32 idx, Uint32 type_id, Uint32*& val_ptr) const;
+  bool is_empty() const;
+  bool is_full() const;
+  Uint32 first_free() const;
+  Uint32 last_free() const;
 };
+
+inline
+bool DA256Page::is_empty() const
+{
+  return !(0x7fff & (m_header[0].m_magic | m_header[1].m_magic));
+}
+
+inline
+bool DA256Page::is_full() const
+{
+  return !(0x7fff & ~(m_header[0].m_magic & m_header[1].m_magic));
+}
+
+inline
+Uint32 DA256Page::first_free() const
+{
+  Uint32 node = BitmaskImpl::ctz(~m_header[0].m_magic | 0x8000);
+  if (node == 15)
+    node = 15 + BitmaskImpl::ctz(~m_header[1].m_magic | 0x8000);
+  return node;
+}
+
+inline
+Uint32 DA256Page::last_free() const
+{
+  Uint32 node = 29 - BitmaskImpl::clz((~m_header[1].m_magic << 17) | 0x10000);
+  if (node == 14)
+    node = 14 - BitmaskImpl::clz((~m_header[0].m_magic << 17) | 0x10000);
+  return node;
+}
+
 
 #undef require
 #define require(x) require_exit_or_core_with_printer((x), 0, ndbout_printer)
@@ -52,17 +90,33 @@ struct DA256Page
 //#define DA256_USE_PREFETCH
 #define DA256_EXTRA_SAFE
 
+#ifdef TAP_TEST
+#define UNIT_TEST
+#include "NdbTap.hpp"
+#endif
 
 #ifdef UNIT_TEST
+#include "my_sys.h"
 #ifdef USE_CALLGRIND
 #include <valgrind/callgrind.h>
 #else
 #define CALLGRIND_TOGGLE_COLLECT()
 #endif
+Uint32 verbose = 0;
 Uint32 allocatedpages = 0;
+Uint32 releasedpages = 0;
+Uint32 maxallocatedpages = 0;
 Uint32 allocatednodes = 0;
 Uint32 releasednodes = 0;
+Uint32 maxallocatednodes = 0;
 #endif
+
+static
+inline
+Uint32 div15(Uint32 x)
+{
+  return ((x << 8) + (x << 4) + x + 255) >> 12;
+}
 
 inline
 void
@@ -79,6 +133,7 @@ DynArr256Pool::DynArr256Pool()
 {
   m_type_id = RNIL;
   m_first_free = RNIL;
+  m_last_free = RNIL;
   m_memroot = 0;
 }
 
@@ -95,6 +150,35 @@ DynArr256Pool::init(NdbMutex* m, Uint32 type_id, const Pool_context & pc)
   m_type_id = type_id;
   m_memroot = (DA256Page*)m_ctx.get_memroot();
   m_mutex = m;
+}
+
+inline
+bool
+DA256Page::get(Uint32 node, Uint32 idx, Uint32 type_id, Uint32*& val_ptr) const
+{
+  Uint32 *magic_ptr, p;
+  if (idx != 255)
+  {
+    Uint32 line = div15(idx);
+    Uint32* ptr = (Uint32*)(m_nodes + node);
+
+    p = 0;
+    val_ptr = (ptr + 1 + idx + line);
+    magic_ptr =(ptr + (idx & ~15));
+  }
+  else
+  {
+    Uint32 b = (node + 1) >> 4;
+    Uint32 * ptr = (Uint32*)(m_header+b);
+
+    p = node - (b << 4) + b;
+    val_ptr = (ptr + 1 + p);
+    magic_ptr = ptr;
+  }
+
+  Uint32 magic = *magic_ptr;
+
+  return ((magic & (1 << p)) && (magic >> 16) == type_id);
 }
 
 static const Uint32 g_max_sizes[5] = { 0, 256, 65536, 16777216, ~0 };
@@ -119,6 +203,9 @@ DynArr256::get(Uint32 pos) const
     return 0;
   }
   
+#ifdef VM_TRACE
+  require((m_head.m_sz > 0) && (pos <= m_head.m_high_pos));
+#endif
 #ifdef DA256_USE_PX
   Uint32 px[4] = { (pos >> 24) & 255, 
 		   (pos >> 16) & 255, 
@@ -142,34 +229,13 @@ DynArr256::get(Uint32 pos) const
     Uint32 page_no = ptrI >> DA256_BITS;
     Uint32 page_idx = ptrI & DA256_MASK;
     DA256Page * page = memroot + page_no;
-    
-    Uint32 *magic_ptr, p;
-    if (p0 != 255)
-    {
-      Uint32 line = ((p0 << 8) + (p0 << 4) + p0 + 255) >> 12;
-      Uint32 * ptr = (Uint32*)(page->m_nodes + page_idx);
-      
-      p = 0;
-      retVal = (ptr + 1 + p0 + line);
-      magic_ptr =(ptr + (p0 & ~15));
-    }
-    else
-    {
-      Uint32 b = (page_idx + 1) >> 4;
-      Uint32 * ptr = (Uint32*)(page->m_header+b);
-      
-      p = page_idx - (b << 4) + b;
-      retVal = (ptr + 1 + p);
-      magic_ptr = ptr;
-    }
-    
-    ptrI = *retVal;
-    Uint32 magic = *magic_ptr;
-    
-    if (unlikely(! ((magic & (1 << p)) && (magic >> 16) == type_id)))
+
+    if (unlikely(! page->get(page_idx, p0, type_id, retVal)))
       goto err;
+
+    ptrI = *retVal;
   }
-  
+
   return retVal;
 err:
   require(false);
@@ -222,33 +288,17 @@ DynArr256::set(Uint32 pos)
     Uint32 page_idx = ptrI & DA256_MASK;
     DA256Page * page = memroot + page_no;
     
-    Uint32 *magic_ptr, p;
-    if (p0 != 255)
-    {
-      Uint32 line = ((p0 << 8) + (p0 << 4) + p0 + 255) >> 12;
-      Uint32 * ptr = (Uint32*)(page->m_nodes + page_idx);
-
-      p = 0;
-      magic_ptr = (ptr + (p0 & ~15));
-      retVal = (ptr + 1 + p0 + line);
-    }
-    else
-    {
-      Uint32 b = (page_idx + 1) >> 4;
-      Uint32 * ptr = (Uint32*)(page->m_header+b);
-      
-      p = page_idx - (b << 4) + b;
-      magic_ptr = ptr;
-      retVal = (ptr + 1 + p);
-    }
-     
-    ptrI = * retVal;
-    Uint32 magic = *magic_ptr;
-
-    if (unlikely(! ((magic & (1 << p)) && (magic >> 16) == type_id)))
+    if (unlikely(! page->get(page_idx, p0, type_id, retVal)))
       goto err;
+
+    ptrI = * retVal;
   } 
   
+#ifdef VM_TRACE
+  if (pos > m_head.m_high_pos)
+    m_head.m_high_pos = pos;
+#endif
+
   return retVal;
   
 err:
@@ -294,16 +344,14 @@ initpage(DA256Page* p, Uint32 page_no, Uint32 type_id)
   {
     free = (DA256Free*)(p->m_nodes+i);
     free->m_magic = type_id;
-    free->m_next_free = (page_no << DA256_BITS) + (i + 1);
+    free->m_next_free = RNIL;
+    free->m_prev_free = RNIL;
 #ifdef DA256_EXTRA_SAFE
     DA256Node* node = p->m_nodes+i;
     for (j = 0; j<17; j++)
       node->m_lines[j].m_magic = type_id;
 #endif
   }
-  
-  free = (DA256Free*)(p->m_nodes+29);
-  free->m_next_free = RNIL;
 }
 
 bool
@@ -355,8 +403,7 @@ void
 DynArr256::init(ReleaseIterator &iter)
 {
   iter.m_sz = 1;
-  iter.m_pos = 0;
-  iter.m_ptr_i[0] = RNIL;
+  iter.m_pos = ~(~0U << (8 * m_head.m_sz));
   iter.m_ptr_i[1] = m_head.m_ptr_i;
   iter.m_ptr_i[2] = RNIL;
   iter.m_ptr_i[3] = RNIL;
@@ -369,94 +416,100 @@ DynArr256::init(ReleaseIterator &iter)
  * 0 - done
  * 1 - data
  * 2 - no data
+ *
+ * if ptrVal is NULL, truncate work in trim mode and will stop
+ * (return 0) as soon value is not RNIL
  */
 Uint32
-DynArr256::release(ReleaseIterator &iter, Uint32 * retptr)
+DynArr256::truncate(Uint32 trunc_pos, ReleaseIterator& iter, Uint32* ptrVal)
 {
-  Uint32 sz = iter.m_sz;
-  Uint32 ptrI = iter.m_ptr_i[sz];
-  Uint32 page_no = ptrI >> DA256_BITS;
-  Uint32 page_idx = ptrI & DA256_MASK;
   Uint32 type_id = (~m_pool.m_type_id) & 0xFFFF;
   DA256Page * memroot = m_pool.m_memroot;
-  DA256Page * page = memroot + page_no;
 
-  if (ptrI != RNIL)
+  for (;;)
   {
-    Uint32 p0 = iter.m_pos & 255;
-    for (; p0<256; p0++)
+    if (iter.m_sz == 0 ||
+        iter.m_pos < trunc_pos ||
+        m_head.m_sz == 0)
     {
-      Uint32 *retVal, *magic_ptr, p;
-      if (p0 != 255)
+      return 0;
+    }
+
+    Uint32* refPtr;
+    Uint32 ptrI = iter.m_ptr_i[iter.m_sz];
+    Uint32 page_no = ptrI >> DA256_BITS;
+    Uint32 page_idx = (ptrI & DA256_MASK) ;
+    DA256Page* page = memroot + page_no;
+    Uint32 node_addr = (iter.m_pos >> (8 * (m_head.m_sz - iter.m_sz)));
+    Uint32 node_index = node_addr & 255;
+    bool is_value = (iter.m_sz == m_head.m_sz);
+
+    if (unlikely(! page->get(page_idx, node_index, type_id, refPtr)))
+    {
+      require(false);
+    }
+    assert(refPtr != NULL);
+    if (ptrVal != NULL)
+    {
+      *ptrVal = *refPtr;
+    }
+    else if (is_value && *refPtr != RNIL)
+    {
+      return 0;
+    }
+
+    if (iter.m_sz == 1 &&
+        node_addr == 0)
+    {
+      assert(iter.m_ptr_i[iter.m_sz] == m_head.m_ptr_i);
+      assert(iter.m_ptr_i[iter.m_sz + 1] == RNIL);
+      iter.m_ptr_i[iter.m_sz] = is_value ? RNIL : *refPtr;
+      m_pool.release(m_head.m_ptr_i);
+      m_head.m_sz --;
+      m_head.m_ptr_i = iter.m_ptr_i[iter.m_sz];
+      if (is_value)
+        return 1;
+    }
+    else if (is_value || iter.m_ptr_i[iter.m_sz + 1] == *refPtr)
+    { // sz--
+      Uint32 ptrI = *refPtr;
+      if (!is_value)
       {
-	Uint32 line = ((p0 << 8) + (p0 << 4) + p0 + 255) >> 12;
-	Uint32 * ptr = (Uint32*)(page->m_nodes + page_idx);
-	
-	p = 0;
-	retVal = (ptr + 1 + p0 + line);
-	magic_ptr =(ptr + (p0 & ~15));
+        if (ptrI != RNIL)
+        {
+          m_pool.release(ptrI);
+          *refPtr = iter.m_ptr_i[iter.m_sz+1] = RNIL;
+        }
+      }
+      if (node_index == 0)
+      {
+        iter.m_sz --;
+      }
+      else if (!is_value && ptrI == RNIL)
+      {
+        assert((~iter.m_pos & ~(0xffffffff << (8 * (m_head.m_sz - iter.m_sz)))) == 0);
+        iter.m_pos -= 1U << (8 * (m_head.m_sz - iter.m_sz));
       }
       else
       {
-	Uint32 b = (page_idx + 1) >> 4;
-	Uint32 * ptr = (Uint32*)(page->m_header+b);
-	
-	p = page_idx - (b << 4) + b;
-	retVal = (ptr + 1 + p);
-	magic_ptr = ptr;
+        assert((iter.m_pos & ~(0xffffffff << (8 * (m_head.m_sz - iter.m_sz)))) == 0);
+        iter.m_pos --;
       }
-      
-      Uint32 magic = *magic_ptr;
-      Uint32 val = *retVal;
-      if (unlikely(! ((magic & (1 << p)) && (magic >> 16) == type_id)))
-	goto err;
-      
-      if (sz == m_head.m_sz)
-      {
-	* retptr = val;
-	p0++;
-	if (p0 != 256)
-	{
-	  /**
-	   * Move next
-	   */
-	  iter.m_pos &= ~(Uint32)255;
-	  iter.m_pos |= p0;
-	}
-	else
-	{
-	  /**
-	   * Move up
-	   */
-	  m_pool.release(ptrI);
-	  iter.m_sz --;
-	  iter.m_pos >>= 8;
-	}
-	return 1;
-      }
-      else if (val != RNIL)
-      {
-	iter.m_sz++;
-	iter.m_ptr_i[iter.m_sz] = val;
-	iter.m_pos = (p0 << 8);
-	* retVal = RNIL;
-	return 2;
-      }
+#ifdef VM_TRACE
+      if (iter.m_pos < m_head.m_high_pos)
+        m_head.m_high_pos = iter.m_pos;
+#endif
+      if (is_value && ptrVal != NULL)
+        return 1;
     }
-    
-    assert(p0 == 256);
-    m_pool.release(ptrI);
-    iter.m_sz --;
-    iter.m_pos >>= 8;
-    return 2;
+    else
+    { // sz++
+      assert(iter.m_ptr_i[iter.m_sz + 1] == RNIL);
+      iter.m_sz ++;
+      iter.m_ptr_i[iter.m_sz] = *refPtr;
+      return 2;
+    }
   }
-  
-  new (&m_head) Head();
-  return 0;
-  
-err:
-  require(false);
-  return false;
 }
 
 static
@@ -510,6 +563,8 @@ seizenode(DA256Page* page, Uint32 idx, Uint32 type_id)
 
 #ifdef UNIT_TEST
   allocatednodes++;
+  if (allocatednodes - releasednodes > maxallocatednodes)
+    maxallocatednodes = allocatednodes - releasednodes;
 #endif
   return true;
 }
@@ -582,28 +637,45 @@ DynArr256Pool::seize()
       initpage(page, page_no, type_id);
 #ifdef UNIT_TEST
       allocatedpages++;
+      if (allocatedpages - releasedpages > maxallocatedpages)
+        maxallocatedpages = allocatedpages - releasedpages;
 #endif
     }
     else
     {
       return RNIL;
     }
-    ff = (page_no << DA256_BITS);
+    m_last_free = m_first_free = ff = page_no;
   }
   else
   {
-    page = memroot + (ff >> DA256_BITS);
+    page = memroot + ff;
   }
   
-  Uint32 idx = ff & DA256_MASK;
+  Uint32 idx = page->first_free();
   DA256Free * ptr = (DA256Free*)(page->m_nodes + idx);
   if (likely(ptr->m_magic == type_id))
   {
-    Uint32 next = ptr->m_next_free;
+    Uint32 last_free = page->last_free();
+    Uint32 next_page = ((DA256Free*)(page->m_nodes + last_free))->m_next_free;
     if (likely(seizenode(page, idx, type_id)))
     {
-      m_first_free = next;    
-      return ff;
+      if (page->is_full())
+      {
+        assert(m_first_free == ff);
+        m_first_free = next_page;
+        if (m_first_free == RNIL)
+        {
+          assert(m_last_free == ff);
+          m_last_free = RNIL;
+        }
+        else
+        {
+          page = memroot + next_page;
+          ((DA256Free*)(page->m_nodes + page->last_free()))->m_prev_free = RNIL;
+        }
+      }
+      return (ff << DA256_BITS) | idx;
     }
   }
   
@@ -621,15 +693,61 @@ DynArr256Pool::release(Uint32 ptrI)
   Uint32 page_idx = ptrI & DA256_MASK;
   DA256Page * memroot = m_memroot;
   DA256Page * page = memroot + page_no;
-  
   DA256Free * ptr = (DA256Free*)(page->m_nodes + page_idx);
+
+  Guard2 g(m_mutex);
+  Uint32 last_free = page->last_free();
   if (likely(releasenode(page, page_idx, type_id)))
   {
     ptr->m_magic = type_id;
-    Guard2 g(m_mutex);
-    Uint32 ff = m_first_free;
-    ptr->m_next_free = ff;
-    m_first_free = ptrI;
+    if (last_free > 29)
+    { // Add last to page free list
+      Uint32 lf = m_last_free;
+      ptr->m_prev_free = lf;
+      ptr->m_next_free = RNIL;
+      m_last_free = page_no;
+      if (m_first_free == RNIL)
+        m_first_free = page_no;
+
+      if (lf != RNIL)
+      {
+        page = memroot + lf;
+        DA256Free* pptr = (DA256Free*)(page->m_nodes + page->last_free());
+        pptr->m_next_free = page_no;
+      }
+    }
+    else if (page->is_empty())
+    {
+      // TODO msundell: release_page
+      // unlink from free page list
+      Uint32 nextpage = ((DA256Free*)(page->m_nodes + last_free))->m_next_free;
+      Uint32 prevpage = ((DA256Free*)(page->m_nodes + last_free))->m_prev_free;
+      m_ctx.release_page(type_id, page_no);
+#ifdef UNIT_TEST
+      releasedpages ++;
+#endif
+      if (nextpage != RNIL)
+      {
+        page = memroot + nextpage;
+        ((DA256Free*)(page->m_nodes + page->last_free()))->m_prev_free = prevpage;
+      }
+      if (prevpage != RNIL)
+      {
+        page = memroot + prevpage;
+        ((DA256Free*)(page->m_nodes + page->last_free()))->m_next_free = nextpage;
+      }
+      if (m_first_free == page_no)
+      {
+        m_first_free = nextpage;
+      }
+      if (m_last_free == page_no)
+        m_last_free = prevpage;
+    }
+    else if (page_idx > last_free)
+    { // last free node in page tracks free page list links
+      ptr->m_next_free = ((DA256Free*)(page->m_nodes + last_free))->m_next_free;
+      ptr->m_prev_free = ((DA256Free*)(page->m_nodes + last_free))->m_prev_free;
+    }
     return;
   }
   require(false);
@@ -637,25 +755,41 @@ DynArr256Pool::release(Uint32 ptrI)
 
 #ifdef UNIT_TEST
 
-#include <NdbTick.h>
-#include "ndbd_malloc_impl.hpp"
-#include "SimulatedBlock.hpp"
-
-Ndbd_mem_manager mm;
-Configuration cfg;
-Block_context ctx(cfg, mm);
-struct BB : public SimulatedBlock
+static
+bool
+release(DynArr256& arr)
 {
-  BB(int no, Block_context& ctx) : SimulatedBlock(no, ctx) {}
-};
-
-BB block(DBACC, ctx);
+  DynArr256::ReleaseIterator iter;
+  arr.init(iter);
+  Uint32 val;
+  Uint32 cnt=0;
+  Uint64 start;
+  if (verbose > 2)
+    ndbout_c("allocatedpages: %d (max %d) releasedpages: %d allocatednodes: %d (max %d) releasednodes: %d",
+           allocatedpages, maxallocatedpages,
+           releasedpages,
+           allocatednodes, maxallocatednodes,
+           releasednodes);
+  start = my_micro_time();
+  while (arr.release(iter, &val))
+    cnt++;
+  start = my_micro_time() - start;
+  if (verbose > 1)
+    ndbout_c("allocatedpages: %d (max %d) releasedpages: %d allocatednodes: %d (max %d) releasednodes: %d (%llu us)"
+             " releasecnt: %d",
+             allocatedpages, maxallocatedpages,
+             releasedpages,
+             allocatednodes, maxallocatednodes,
+             releasednodes,
+             start, cnt);
+  return true;
+}
 
 static
-void
+bool
 simple(DynArr256 & arr, int argc, char* argv[])
 {
-  ndbout_c("argc: %d", argc);
+  if (verbose) ndbout_c("argc: %d", argc);
   for (Uint32 i = 1; i<(Uint32)argc; i++)
   {
     Uint32 * s = arr.set(atoi(argv[i]));
@@ -675,12 +809,13 @@ simple(DynArr256 & arr, int argc, char* argv[])
     
     Uint32 * g = arr.get(atoi(argv[i]));
     Uint32 v = g ? *g : ~0;
-    ndbout_c("p: %p %p %d", s, g, v);
+    if (verbose) ndbout_c("p: %p %p %d", s, g, v);
   }
+  return true;
 }
 
 static
-void
+bool
 basic(DynArr256& arr, int argc, char* argv[])
 {
 #define MAXLEN 65536
@@ -737,29 +872,19 @@ basic(DynArr256& arr, int argc, char* argv[])
     }
     }
   }
-}
-
-unsigned long long 
-micro()
-{
-  struct timeval tv;
-  gettimeofday(&tv, 0);
-  unsigned long long ret = tv.tv_sec;
-  ret *= 1000000;
-  ret += tv.tv_usec;
-  return ret;
+  return true;
 }
 
 static
-void
+bool
 read(DynArr256& arr, int argc, char ** argv)
 {
   Uint32 cnt = 100000;
   Uint64 mbytes = 16*1024;
-  Uint32 seed = time(0);
+  Uint32 seed = (Uint32) time(0);
   Uint32 seq = 0, seqmask = 0;
 
-  for (Uint32 i = 2; i<argc; i++)
+  for (int i = 1; i < argc; i++)
   {
     if (strncmp(argv[i], "--mbytes=", sizeof("--mbytes=")-1) == 0)
     {
@@ -781,10 +906,17 @@ read(DynArr256& arr, int argc, char ** argv)
   /**
    * Populate with 5Mb
    */
-  Uint32 maxidx = (1024*mbytes+31) / 32;
+
+  if (mbytes >= 134217720)
+  {
+    ndberr.println("--mbytes must be less than 134217720");
+    return false;
+  }
+  Uint32 maxidx = (Uint32)((1024*mbytes+31) / 32);
   Uint32 nodes = (maxidx+255) / 256;
   Uint32 pages = (nodes + 29)/ 30;
-  ndbout_c("%lldmb data -> %d entries (%dkb)",
+  if (verbose)
+    ndbout_c("%lldmb data -> %d entries (%dkb)",
 	   mbytes, maxidx, 32*pages);
   
   for (Uint32 i = 0; i<maxidx; i++)
@@ -802,13 +934,14 @@ read(DynArr256& arr, int argc, char ** argv)
     seqmask = ~(Uint32)0;
   }
 
-  ndbout_c("Timing %d %s reads (seed: %u)", cnt, 
+  if (verbose)
+    ndbout_c("Timing %d %s reads (seed: %u)", cnt,
 	   seq ? "sequential" : "random", seed);
 
   for (Uint32 i = 0; i<10; i++)
   {
     Uint32 sum0 = 0, sum1 = 0;
-    Uint64 start = micro();
+    Uint64 start = my_micro_time();
     for (Uint32 i = 0; i<cnt; i++)
     {
       Uint32 idx = ((rand() & (~seqmask)) + ((i + seq) & seqmask)) % maxidx;
@@ -816,22 +949,24 @@ read(DynArr256& arr, int argc, char ** argv)
       sum0 += idx;
       sum1 += *ptr;
     }
-    start = micro() - start;
-    float uspg = start; uspg /= cnt;
-    ndbout_c("Elapsed %lldus diff: %d -> %f us/get", start, sum0 - sum1, uspg);
+    start = my_micro_time() - start;
+    float uspg = (float)start; uspg /= cnt;
+    if (verbose)
+      ndbout_c("Elapsed %lldus diff: %d -> %f us/get", start, sum0 - sum1, uspg);
   }
+  return true;
 }
 
 static
-void
+bool
 write(DynArr256& arr, int argc, char ** argv)
 {
   Uint32 seq = 0, seqmask = 0;
   Uint32 cnt = 100000;
   Uint64 mbytes = 16*1024;
-  Uint32 seed = time(0);
+  Uint32 seed = (Uint32) time(0);
 
-  for (Uint32 i = 2; i<argc; i++)
+  for (int i = 1; i<argc; i++)
   {
     if (strncmp(argv[i], "--mbytes=", sizeof("--mbytes=")-1) == 0)
     {
@@ -853,10 +988,17 @@ write(DynArr256& arr, int argc, char ** argv)
   /**
    * Populate with 5Mb
    */
-  Uint32 maxidx = (1024*mbytes+31) / 32;
+
+  if (mbytes >= 134217720)
+  {
+    ndberr.println("--mbytes must be less than 134217720");
+    return false;
+  }
+  Uint32 maxidx = (Uint32)((1024*mbytes+31) / 32);
   Uint32 nodes = (maxidx+255) / 256;
   Uint32 pages = (nodes + 29)/ 30;
-  ndbout_c("%lldmb data -> %d entries (%dkb)",
+  if (verbose)
+    ndbout_c("%lldmb data -> %d entries (%dkb)",
 	   mbytes, maxidx, 32*pages);
 
   srand(seed);
@@ -867,53 +1009,83 @@ write(DynArr256& arr, int argc, char ** argv)
     seqmask = ~(Uint32)0;
   }
 
-  ndbout_c("Timing %d %s writes (seed: %u)", cnt, 
+  if (verbose)
+    ndbout_c("Timing %d %s writes (seed: %u)", cnt,
 	   seq ? "sequential" : "random", seed);
   for (Uint32 i = 0; i<10; i++)
   {
-    Uint64 start = micro();
+    Uint64 start = my_micro_time();
     for (Uint32 i = 0; i<cnt; i++)
     {
       Uint32 idx = ((rand() & (~seqmask)) + ((i + seq) & seqmask)) % maxidx;
       Uint32 *ptr = arr.set(idx);
+      if (ptr == NULL) break; /* out of memory */
       *ptr = i;
     }
-    start = micro() - start;
-    float uspg = start; uspg /= cnt;
-    ndbout_c("Elapsed %lldus -> %f us/set", start, uspg);
-    DynArr256::ReleaseIterator iter;
-    arr.init(iter);
-    Uint32 val;
-    while(arr.release(iter, &val));
+    start = my_micro_time() - start;
+    float uspg = (float)start; uspg /= cnt;
+    if (verbose)
+      ndbout_c("Elapsed %lldus -> %f us/set", start, uspg);
+    if (!release(arr))
+      return false;
   }
+  return true;
 }
+
+static
+void
+usage(FILE *f, int argc, char **argv)
+{
+  fprintf(stderr, "Usage:\n");
+  fprintf(stderr, "\t%s --simple <index1> <index2> ... <indexN>\n", argv[0]);
+  fprintf(stderr, "\t%s --basic\n", argv[0]);
+  fprintf(stderr, "\t%s { --read | --write } [ --mbytes=<megabytes> | --mbytes=<gigabytes>[gG] ] [ --cnt=<count> ] [ --seq ]\n", argv[0]);
+  fprintf(stderr, "defaults:\n");
+  fprintf(stderr, "\t--mbytes=16g\n");
+  fprintf(stderr, "\t--cnt=100000\n");
+}
+
+# include "test_context.hpp"
+
+#ifdef TAP_TEST
+static
+char* flatten(int argc, char** argv) /* NOT MT-SAFE */
+{
+  static char buf[10000];
+  size_t off = 0;
+  for (; argc > 0; argc--, argv++)
+  {
+    int i = 0;
+    if (off > 0 && (off + 1 < sizeof(buf)))
+      buf[off++] = ' ';
+    for (i = 0; (off + 1 < sizeof(buf)) && argv[0][i] != 0; i++, off++)
+      buf[off] = argv[0][i];
+    buf[off] = 0;
+  }
+  return buf;
+}
+#endif
 
 int
 main(int argc, char** argv)
 {
-  if (0)
+#ifndef TAP_TEST
+  verbose = 1;
+  if (argc == 1) {
+    usage(stderr, argc, argv);
+    exit(2);
+  }
+#else
+  verbose = 0;
+#endif
+  while (argc > 1 && strcmp(argv[1], "-v") == 0)
   {
-    for (Uint32 i = 0; i<30; i++)
-    {
-      Uint32 b = (i + 1) >> 4;
-      Uint32 p = i - (b << 4) + b;
-      printf("[ %d %d %d ]\n", i, b, p);
-    }
-    return 0;
+    verbose++;
+    argc--;
+    argv++;
   }
 
-  Pool_context pc;
-  pc.m_block = &block;
-  
-  Resource_limit rl;
-  rl.m_min = 0;
-  rl.m_max = 10000;
-  rl.m_resource_id = 0;
-  mm.set_resource_limit(rl);
-  if(!mm.init())
-  {
-    abort();
-  }
+  Pool_context pc = test_context(10000 /* pages */);
 
   DynArr256Pool pool;
   pool.init(0x2001, pc);
@@ -921,97 +1093,73 @@ main(int argc, char** argv)
   DynArr256::Head head;
   DynArr256 arr(pool, head);
 
-  if (strcmp(argv[1], "--simple") == 0)
-    simple(arr, argc, argv);
-  else if (strcmp(argv[1], "--basic") == 0)
-    basic(arr, argc, argv);
-  else if (strcmp(argv[1], "--read") == 0)
-    read(arr, argc, argv);
-  else if (strcmp(argv[1], "--write") == 0)
-    write(arr, argc, argv);
-
-  DynArr256::ReleaseIterator iter;
-  arr.init(iter);
-  Uint32 cnt = 0, val;
-  while (arr.release(iter, &val)) cnt++;
-  
-  ndbout_c("allocatedpages: %d allocatednodes: %d releasednodes: %d"
-	   " releasecnt: %d",
-	   allocatedpages, 
-	   allocatednodes,
-	   releasednodes,
-	   cnt);
-  
-  return 0;
-#if 0
-  printf("sizeof(DA256Page): %d\n", sizeof(DA256Page));
-
-  DA256Page page;
-
-  for (Uint32 i = 0; i<10000; i++)
+#ifdef TAP_TEST
+  if (argc == 1)
   {
-    Uint32 arg = rand() & 255;
-    Uint32 base = 0;
-    Uint32 idx = arg & 256;
-    printf("%d\n", arg);
-
-    assert(base <= 30);
-    
-    if (idx == 255)
-    {
-      Uint32 b = (base + 1) >> 4;
-      Uint32 p = base - (b << 4) + b;
-      Uint32 magic = page.m_header[b].m_magic;
-      Uint32 retVal = page.m_header[b].m_data[p];
-      
-      require(magic & (1 << p));
-      return retVal;
-    }
-    else
-    {
-      // 4 bit extra offset per idx
-      Uint32 line = idx / 15;
-      Uint32 off = idx % 15;
-      
-      {
-	Uint32 pos = 1 + idx + line;
-	Uint32 magic = pos & ~15;
-	
-	Uint32 * ptr = (Uint32*)&page.m_nodes[base];
-	assert((ptr + pos) == &page.m_nodes[base].m_lines[line].m_data[off]);
-	assert((ptr + magic) == &page.m_nodes[base].m_lines[line].m_magic);
-      }
-    }
+    char *argv[2] = { (char*)"dummy", NULL };
+    plan(5);
+    ok(simple(arr, 1, argv), "simple");
+    ok(basic(arr, 1, argv), "basic");
+    ok(read(arr, 1, argv), "read");
+    ok(write(arr, 1, argv), "write");
+  }
+  else if (strcmp(argv[1], "--simple") == 0)
+  {
+    plan(2);
+    ok(simple(arr, argc - 1, argv + 1), "simple %s", flatten(argc - 1, argv + 1));
+  }
+  else if (strcmp(argv[1], "--basic") == 0)
+  {
+    plan(2);
+    ok(basic(arr, argc - 1, argv + 1), "basic %s", flatten(argc - 1, argv + 1));
+  }
+  else if (strcmp(argv[1], "--read") == 0)
+  {
+    plan(2);
+    ok(read(arr, argc - 1, argv + 1), "read %s", flatten(argc - 1, argv + 1));
+  }
+  else if (strcmp(argv[1], "--write") == 0)
+  {
+    plan(2);
+    ok(write(arr, argc - 1, argv + 1), "write %s", flatten(argc - 1, argv + 1));
+  }
+  else
+  {
+    usage(stderr, argc, argv);
+    BAIL_OUT("Bad usage: %s %s", argv[0], flatten(argc - 1, argv + 1));
+  }
+#else
+  if (strcmp(argv[1], "--simple") == 0)
+    simple(arr, argc - 1, argv + 1);
+  else if (strcmp(argv[1], "--basic") == 0)
+    basic(arr, argc - 1, argv + 1);
+  else if (strcmp(argv[1], "--read") == 0)
+    read(arr, argc - 1, argv + 1);
+  else if (strcmp(argv[1], "--write") == 0)
+    write(arr, argc - 1, argv + 1);
+  else
+  {
+    usage(stderr, argc, argv);
+    exit(2);
   }
 #endif
-}
 
-Uint32 g_currentStartPhase;
-Uint32 g_start_type;
-NdbNodeBitmask g_nowait_nodes;
+  release(arr);
+  if (verbose)
+    ndbout_c("allocatedpages: %d (max %d) releasedpages: %d allocatednodes: %d (max %d) releasednodes: %d",
+           allocatedpages, maxallocatedpages,
+           releasedpages,
+           allocatednodes, maxallocatednodes,
+           releasednodes);
 
-void
-UpgradeStartup::sendCmAppChg(Ndbcntr& cntr, Signal* signal, Uint32 startLevel){
-}
-
-void
-UpgradeStartup::execCM_APPCHG(SimulatedBlock & block, Signal* signal){
-}
-
-void
-UpgradeStartup::sendCntrMasterReq(Ndbcntr& cntr, Signal* signal, Uint32 n){
-}
-
-void
-UpgradeStartup::execCNTR_MASTER_REPLY(SimulatedBlock & block, Signal* signal){
-}
-
-#include <SimBlockList.hpp>
-
-void
-SimBlockList::unload()
-{
-
+#ifdef TAP_TEST
+  ok(allocatednodes == releasednodes &&
+     allocatedpages == releasedpages,
+     "release");
+  return exit_status();
+#else
+  return 0;
+#endif
 }
 
 #endif

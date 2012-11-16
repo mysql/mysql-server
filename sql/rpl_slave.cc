@@ -242,7 +242,7 @@ static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 void init_thread_mask(int* mask, Master_info* mi, bool inverse)
 {
   bool set_io = mi->slave_running, set_sql = mi->rli->slave_running;
-  register int tmp_mask=0;
+  int tmp_mask=0;
   DBUG_ENTER("init_thread_mask");
 
   if (set_io)
@@ -2644,14 +2644,41 @@ bool show_slave_status(THD* thd, Master_info* mi)
     protocol->store(mi->ssl_key, &my_charset_bin);
 
     /*
-      Seconds_Behind_Master: if SQL thread is running and I/O thread is
-      connected, we can compute it otherwise show NULL (i.e. unknown).
+      The pseudo code to compute Seconds_Behind_Master:
+        if (SQL thread is running)
+        {
+          if (SQL thread processed all the available relay log)
+          {
+            if (IO thread is running)
+              print 0;
+            else
+              print NULL;
+          }
+          else
+            compute Seconds_Behind_Master;
+        }
+        else
+          print NULL;
     */
-    if ((mi->slave_running == MYSQL_SLAVE_RUN_CONNECT) &&
-        mi->rli->slave_running)
+    if (mi->rli->slave_running)
     {
-      long time_diff= ((long)(time(0) - mi->rli->last_master_timestamp)
-                       - mi->clock_diff_with_master);
+      /* Check if SQL thread is at the end of relay log
+           Checking should be done using two conditions
+           condition1: compare the log positions and
+           condition2: compare the file names (to handle rotation case)
+      */
+      if ((mi->get_master_log_pos() == mi->rli->get_group_master_log_pos()) &&
+           (!strcmp(mi->get_master_log_name(), mi->rli->get_group_master_log_name())))
+      {
+        if (mi->slave_running == MYSQL_SLAVE_RUN_CONNECT)
+          protocol->store(0LL);
+        else
+          protocol->store_null();
+      }
+      else
+      {
+        long time_diff= ((long)(time(0) - mi->rli->last_master_timestamp)
+                                - mi->clock_diff_with_master);
       /*
         Apparently on some systems time_diff can be <0. Here are possible
         reasons related to MySQL:
@@ -2672,8 +2699,9 @@ bool show_slave_status(THD* thd, Master_info* mi)
         last_master_timestamp == 0 (an "impossible" timestamp 1970) is a
         special marker to say "consider we have caught up".
       */
-      protocol->store((longlong)(mi->rli->last_master_timestamp ?
-                                 max(0L, time_diff) : 0));
+        protocol->store((longlong)(mi->rli->last_master_timestamp ?
+                                   max(0L, time_diff) : 0));
+      }
     }
     else
     {
@@ -2965,9 +2993,9 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
     int4store(ptr_buffer, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
-    memcpy(ptr_buffer, mi->get_master_log_name(), BINLOG_NAME_INFO_SIZE);
+    memcpy(ptr_buffer, "", BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
-    int8store(ptr_buffer, mi->get_master_log_pos());
+    int8store(ptr_buffer, 4);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
 
     int4store(ptr_buffer, encoded_data_size);
@@ -3767,7 +3795,7 @@ static int exec_relay_log_event(THD* thd, Relay_log_info* rli)
         else
         {
           thd->is_fatal_error= 1;
-          rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+          rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                       "Slave SQL thread retried transaction %lu time(s) "
                       "in vain, giving up. Consider raising the value of "
                       "the slave_transaction_retries variable.", rli->trans_retries);
@@ -5428,9 +5456,9 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
 
   if (check_temp_dir(rli->slave_patternload_file))
   {
-    rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(), 
+    rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                 "Unable to use slave's temporary directory %s - %s", 
-                slave_load_tmpdir, thd->get_stmt_da()->message());
+                slave_load_tmpdir, thd->get_stmt_da()->message_text());
     goto err;
   }
 
@@ -5440,9 +5468,9 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
     execute_init_command(thd, &opt_init_slave, &LOCK_sys_init_slave);
     if (thd->is_slave_error)
     {
-      rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+      rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                   "Slave SQL thread aborted. Can't execute init_slave query,"
-                  "'%s'", thd->get_stmt_da()->message());
+                  "'%s'", thd->get_stmt_da()->message_text());
       goto err;
     }
   }
@@ -5505,22 +5533,22 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
 
         if (thd->is_error())
         {
-          char const *const errmsg= thd->get_stmt_da()->message();
+          char const *const errmsg= thd->get_stmt_da()->message_text();
 
           DBUG_PRINT("info",
-                     ("thd->get_stmt_da()->sql_errno()=%d; "
+                     ("thd->get_stmt_da()->get_mysql_errno()=%d; "
                       "rli->last_error.number=%d",
-                      thd->get_stmt_da()->sql_errno(), last_errno));
+                      thd->get_stmt_da()->mysql_errno(), last_errno));
           if (last_errno == 0)
           {
             /*
  	      This function is reporting an error which was not reported
  	      while executing exec_relay_log_event().
  	    */ 
-            rli->report(ERROR_LEVEL, thd->get_stmt_da()->sql_errno(),
+            rli->report(ERROR_LEVEL, thd->get_stmt_da()->mysql_errno(),
                         "%s", errmsg);
           }
-          else if (last_errno != thd->get_stmt_da()->sql_errno())
+          else if (last_errno != thd->get_stmt_da()->mysql_errno())
           {
             /*
              * An error was reported while executing exec_relay_log_event()
@@ -5529,7 +5557,7 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
              * what caused the problem.
              */  
             sql_print_error("Slave (additional info): %s Error_code: %d",
-                            errmsg, thd->get_stmt_da()->sql_errno());
+                            errmsg, thd->get_stmt_da()->mysql_errno());
           }
         }
 
@@ -5544,9 +5572,10 @@ log '%s' at position %s, relay log '%s' position: %s", rli->get_rpl_log_name(),
         bool udf_error = false;
         while ((err= it++))
         {
-          if (err->get_sql_errno() == ER_CANT_OPEN_LIBRARY)
+          if (err->mysql_errno() == ER_CANT_OPEN_LIBRARY)
             udf_error = true;
-          sql_print_warning("Slave: %s Error_code: %d", err->get_message_text(), err->get_sql_errno());
+          sql_print_warning("Slave: %s Error_code: %d",
+                            err->message_text(), err->mysql_errno());
         }
         if (udf_error)
           sql_print_error("Error loading user-defined library, slave SQL "
@@ -7574,12 +7603,12 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
   {
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (thd->vio_ok() && !thd->net.vio->ssl_arg)
-      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER(ER_INSECURE_PLAIN_TEXT));
 #endif
 #if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning(thd, Sql_condition::SL_NOTE,
                  ER_INSECURE_PLAIN_TEXT,
                  ER(ER_INSECURE_PLAIN_TEXT));
 #endif
@@ -7714,13 +7743,13 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
           /* Issuing warning then started without --skip-slave-start */
           if (!opt_skip_slave_start)
-            push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+            push_warning(thd, Sql_condition::SL_NOTE,
                          ER_MISSING_SKIP_SLAVE,
                          ER(ER_MISSING_SKIP_SLAVE));
           if (mi->rli->opt_slave_parallel_workers != 0)
           {
             mi->rli->opt_slave_parallel_workers= 0;
-            push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+            push_warning_printf(thd, Sql_condition::SL_NOTE,
                                 ER_MTS_FEATURE_IS_NOT_SUPPORTED,
                                 ER(ER_MTS_FEATURE_IS_NOT_SUPPORTED),
                                 "UNTIL condtion",
@@ -7733,7 +7762,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         /* MTS technical limitation no support of trans retry */
         if (mi->rli->opt_slave_parallel_workers != 0 && slave_trans_retries != 0)
         {
-          push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+          push_warning_printf(thd, Sql_condition::SL_NOTE,
                               ER_MTS_FEATURE_IS_NOT_SUPPORTED,
                               ER(ER_MTS_FEATURE_IS_NOT_SUPPORTED),
                               "slave_transaction_retries",
@@ -7742,7 +7771,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         }
       }
       else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos || thd->lex->mi.gtid)
-        push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_UNTIL_COND_IGNORED,
+        push_warning(thd, Sql_condition::SL_NOTE, ER_UNTIL_COND_IGNORED,
                      ER(ER_UNTIL_COND_IGNORED));
 
       if (!slave_errno)
@@ -7757,7 +7786,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
   else
   {
     /* no error if all threads are already started, only a warning */
-    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_SLAVE_WAS_RUNNING,
+    push_warning(thd, Sql_condition::SL_NOTE, ER_SLAVE_WAS_RUNNING,
                  ER(ER_SLAVE_WAS_RUNNING));
   }
 
@@ -7834,7 +7863,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
   {
     //no error if both threads are already stopped, only a warning
     slave_errno= 0;
-    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_SLAVE_WAS_NOT_RUNNING,
+    push_warning(thd, Sql_condition::SL_NOTE, ER_SLAVE_WAS_NOT_RUNNING,
                  ER(ER_SLAVE_WAS_NOT_RUNNING));
   }
   unlock_slave_threads(mi);
@@ -8078,16 +8107,16 @@ bool change_master(THD* thd, Master_info* mi)
   {
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
     if (thd->vio_ok() && !thd->net.vio->ssl_arg)
-      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning(thd, Sql_condition::SL_NOTE,
                    ER_INSECURE_PLAIN_TEXT,
                    ER(ER_INSECURE_PLAIN_TEXT));
 #endif
 #if !defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
-    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning(thd, Sql_condition::SL_NOTE,
                  ER_INSECURE_PLAIN_TEXT,
                  ER(ER_INSECURE_PLAIN_TEXT));
 #endif
-    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning(thd, Sql_condition::SL_NOTE,
                  ER_INSECURE_CHANGE_MASTER,
                  ER(ER_INSECURE_CHANGE_MASTER));
   }
@@ -8181,7 +8210,7 @@ bool change_master(THD* thd, Master_info* mi)
   if (lex_mi->ssl || lex_mi->ssl_ca || lex_mi->ssl_capath ||
       lex_mi->ssl_cert || lex_mi->ssl_cipher || lex_mi->ssl_key ||
       lex_mi->ssl_verify_server_cert || lex_mi->ssl_crl || lex_mi->ssl_crlpath)
-    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning(thd, Sql_condition::SL_NOTE,
                  ER_SLAVE_IGNORED_SSL_PARAMS, ER(ER_SLAVE_IGNORED_SSL_PARAMS));
 #endif
 

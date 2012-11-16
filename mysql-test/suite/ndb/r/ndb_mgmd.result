@@ -1,0 +1,5 @@
+#
+# BUG#11764570 NDB_ERROR_REPORTER ONLY COLLECTS LOGS MATCHING NAME NDB_*.
+#
+Make sure that ndb_mgmd creates ndb_<nodeid>_cluster.log file
+Make sure that ndb_mgmd does _not_ create logger.log file

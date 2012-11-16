@@ -141,7 +141,7 @@ struct buf_page_info_t{
 #define RETURN_IF_INNODB_NOT_STARTED(plugin_name)			\
 do {									\
 	if (!srv_was_started) {						\
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,	\
+		push_warning_printf(thd, Sql_condition::SL_WARNING,	\
 				    ER_CANT_FIND_SYSTEM_REC,		\
 				    "InnoDB: SELECTing from "		\
 				    "INFORMATION_SCHEMA.%s but "	\
@@ -6044,7 +6044,7 @@ i_s_sys_tables_fill_table(
 		if (!err_msg) {
 			i_s_dict_fill_sys_tables(thd, table_rec, tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -6345,7 +6345,7 @@ i_s_sys_tables_fill_table_stats(
 			i_s_dict_fill_sys_tablestats(thd, table_rec,
 						     tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -6606,7 +6606,7 @@ i_s_sys_indexes_fill_table(
 			i_s_dict_fill_sys_indexes(thd, table_id, &index_rec,
 						 tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -6846,7 +6846,7 @@ i_s_sys_columns_fill_table(
 						 &column_rec,
 						 tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -7059,7 +7059,7 @@ i_s_sys_fields_fill_table(
 						 pos, tables->table);
 			last_id = index_id;
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -7286,7 +7286,7 @@ i_s_sys_foreign_fill_table(
 			i_s_dict_fill_sys_foreign(thd, &foreign_rec,
 						 tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -7507,7 +7507,7 @@ i_s_sys_foreign_cols_fill_table(
 				thd, name, for_col_name, ref_col_name, pos,
 				tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -7774,7 +7774,7 @@ i_s_sys_tablespaces_fill_table(
 				thd, space, name, flags,
 				tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -7966,7 +7966,7 @@ i_s_sys_datafiles_fill_table(
 			i_s_dict_fill_sys_datafiles(
 				thd, space, path, tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}

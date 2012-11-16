@@ -48,6 +48,8 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 const LEX_STRING null_lex_str= {NULL, 0};
 const LEX_STRING empty_lex_str= {(char *) "", 0};
 /**
+  Mapping from enum values in enum_binlog_stmt_unsafe to error codes.
+
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
 */
@@ -55,7 +57,6 @@ const int
 Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
 {
   ER_BINLOG_UNSAFE_LIMIT,
-  ER_BINLOG_UNSAFE_INSERT_DELAYED,
   ER_BINLOG_UNSAFE_SYSTEM_TABLE,
   ER_BINLOG_UNSAFE_AUTOINC_COLUMNS,
   ER_BINLOG_UNSAFE_UDF,
@@ -631,7 +632,7 @@ static LEX_STRING get_quoted_token(Lex_input_stream *lip,
 
 static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 {
-  reg1 uchar c,sep;
+  uchar c,sep;
   uint found_escape=0;
   const CHARSET_INFO *cs= lip->m_thd->charset();
 
@@ -861,7 +862,7 @@ static inline uint int_token(const char *str,uint length)
 */
 bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 {
-  reg1 uchar c;
+  uchar c;
   while (! lip->eof())
   {
     c= lip->yyGet();
@@ -964,9 +965,9 @@ int MYSQLlex(void *arg, void *yythd)
 
 int lex_one_token(void *arg, void *yythd)
 {
-  reg1	uchar c= 0;
+  uchar c= 0;
   bool comment_closed;
-  int	tokval, result_state;
+  int tokval, result_state;
   uint length;
   enum my_lex_states state;
   THD *thd= (THD *)yythd;

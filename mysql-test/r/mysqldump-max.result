@@ -101,9 +101,11 @@ CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT  DELAYED IGNORE INTO `t1` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
+INSERT  IGNORE INTO `t1` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
+UNLOCK TABLES;
 DROP TABLE IF EXISTS `t2`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -113,9 +115,11 @@ CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t2` WRITE;
 /*!40000 ALTER TABLE `t2` DISABLE KEYS */;
-INSERT  DELAYED IGNORE INTO `t2` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
+INSERT  IGNORE INTO `t2` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t2` ENABLE KEYS */;
+UNLOCK TABLES;
 DROP TABLE IF EXISTS `t3`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -125,9 +129,11 @@ CREATE TABLE `t3` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t3` WRITE;
 /*!40000 ALTER TABLE `t3` DISABLE KEYS */;
-INSERT  DELAYED IGNORE INTO `t3` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
+INSERT  IGNORE INTO `t3` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t3` ENABLE KEYS */;
+UNLOCK TABLES;
 DROP TABLE IF EXISTS `t4`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -137,9 +143,11 @@ CREATE TABLE `t4` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t4` WRITE;
 /*!40000 ALTER TABLE `t4` DISABLE KEYS */;
-INSERT  DELAYED IGNORE INTO `t4` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
+INSERT  IGNORE INTO `t4` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t4` ENABLE KEYS */;
+UNLOCK TABLES;
 DROP TABLE IF EXISTS `t5`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -149,9 +157,11 @@ CREATE TABLE `t5` (
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t5` WRITE;
 /*!40000 ALTER TABLE `t5` DISABLE KEYS */;
-INSERT  DELAYED IGNORE INTO `t5` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
+INSERT  IGNORE INTO `t5` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t5` ENABLE KEYS */;
+UNLOCK TABLES;
 DROP TABLE IF EXISTS `t6`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -161,9 +171,11 @@ CREATE TABLE `t6` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t6` WRITE;
 /*!40000 ALTER TABLE `t6` DISABLE KEYS */;
 INSERT  IGNORE INTO `t6` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t6` ENABLE KEYS */;
+UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;
@@ -198,9 +210,11 @@ CREATE TABLE `t1` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t1` WRITE;
 /*!40000 ALTER TABLE `t1` DISABLE KEYS */;
-INSERT  DELAYED INTO `t1` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
+INSERT INTO `t1` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t1` ENABLE KEYS */;
+UNLOCK TABLES;
 DROP TABLE IF EXISTS `t2`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -210,9 +224,11 @@ CREATE TABLE `t2` (
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t2` WRITE;
 /*!40000 ALTER TABLE `t2` DISABLE KEYS */;
-INSERT  DELAYED INTO `t2` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
+INSERT INTO `t2` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t2` ENABLE KEYS */;
+UNLOCK TABLES;
 DROP TABLE IF EXISTS `t3`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -222,9 +238,11 @@ CREATE TABLE `t3` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t3` WRITE;
 /*!40000 ALTER TABLE `t3` DISABLE KEYS */;
-INSERT  DELAYED INTO `t3` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
+INSERT INTO `t3` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t3` ENABLE KEYS */;
+UNLOCK TABLES;
 DROP TABLE IF EXISTS `t4`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -234,9 +252,11 @@ CREATE TABLE `t4` (
 ) ENGINE=MEMORY DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t4` WRITE;
 /*!40000 ALTER TABLE `t4` DISABLE KEYS */;
-INSERT  DELAYED INTO `t4` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
+INSERT INTO `t4` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t4` ENABLE KEYS */;
+UNLOCK TABLES;
 DROP TABLE IF EXISTS `t5`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -246,9 +266,11 @@ CREATE TABLE `t5` (
 ) ENGINE=ARCHIVE DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t5` WRITE;
 /*!40000 ALTER TABLE `t5` DISABLE KEYS */;
-INSERT  DELAYED INTO `t5` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
+INSERT INTO `t5` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t5` ENABLE KEYS */;
+UNLOCK TABLES;
 DROP TABLE IF EXISTS `t6`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -258,9 +280,11 @@ CREATE TABLE `t6` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
+LOCK TABLES `t6` WRITE;
 /*!40000 ALTER TABLE `t6` DISABLE KEYS */;
 INSERT INTO `t6` VALUES (1,'first value'),(2,'first value'),(3,'first value'),(4,'first value'),(5,'first value');
 /*!40000 ALTER TABLE `t6` ENABLE KEYS */;
+UNLOCK TABLES;
 /*!40103 SET TIME_ZONE=@OLD_TIME_ZONE */;
 
 /*!40101 SET SQL_MODE=@OLD_SQL_MODE */;

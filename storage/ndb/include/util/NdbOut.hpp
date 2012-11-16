@@ -93,11 +93,6 @@ private:
   bool m_autoflush;
 };
 
-#ifdef NDB_WIN
-typedef int(*NdbOutF)(char*);
-extern NdbOutF ndbout_svc;
-#endif
-
 inline NdbOut& NdbOut::operator<<(NdbOut& (* _f)(NdbOut&)) {
   (* _f)(*this); 
   return * this; 

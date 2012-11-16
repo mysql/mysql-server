@@ -974,21 +974,14 @@ let $statement= insert into t1_temp values (1);
 let $cleanup_stmt= delete from t1_temp limit 1;
 --source include/check_ftwrl_compatible.inc
 
---echo #
---echo # 18.c) INSERT DELAYED is incompatible with FTWRL.
-let $statement= insert delayed into t1_base values (1);
-let $cleanup_stmt1= ;
---source include/check_ftwrl_incompatible.inc
-delete from t1_base;
-
 --echo # 
---echo # 18.d) INSERT SELECT into base table is incompatible with FTWRL.
+--echo # 18.c) INSERT SELECT into base table is incompatible with FTWRL.
 let $statement= insert into t1_base select * from t1_temp;
 let $cleanup_stmt1= ;
 --source include/check_ftwrl_incompatible.inc
 
 --echo #
---echo # 18.e) INSERT SELECT into temp table is compatible with FTWRL.
+--echo # 18.d) INSERT SELECT into temp table is compatible with FTWRL.
 let $statement= insert into t1_temp select * from t1_base;
 let $cleanup_stmt= ;
 --source include/check_ftwrl_compatible.inc

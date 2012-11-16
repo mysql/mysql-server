@@ -978,6 +978,7 @@ static void test_wl4435_2()
     rc= mysql_query(mysql, "DROP PROCEDURE p1");
     myquery(rc);
   }
+  mct_close_log();
 }
 
 
@@ -1041,6 +1042,7 @@ static void test_wl4435_2()
   rc= mysql_stmt_next_result(ps); \
   DIE_UNLESS(rc == 0); \
   \
+  mysql_free_result(rs_metadata); \
   mysql_stmt_free_result(ps); \
   mysql_stmt_close(ps); \
   \
@@ -6266,7 +6268,7 @@ static void test_temporal_param()
 
   /* Initialize DATETIME value */
   tm.neg= 0;
-  tm.time_type= MYSQL_TYPE_DATETIME;
+  tm.time_type= MYSQL_TIMESTAMP_DATETIME;
   tm.year= 2001;
   tm.month= 10;
   tm.day= 20;
@@ -6312,7 +6314,7 @@ static void test_temporal_param()
 
   /* Initialize TIME value */
   tm.neg= 0;
-  tm.time_type= MYSQL_TYPE_TIME;
+  tm.time_type= MYSQL_TIMESTAMP_TIME;
   tm.year= tm.month= tm.day= 0;
   tm.hour= 10;
   tm.minute= 10;
@@ -6348,7 +6350,7 @@ static void test_temporal_param()
 static void test_pure_coverage()
 {
   MYSQL_STMT *stmt;
-  MYSQL_BIND my_bind[1];
+  MYSQL_BIND my_bind[2];
   int        rc;
   ulong      length;
 
@@ -6410,6 +6412,7 @@ static void test_pure_coverage()
   rc= mysql_stmt_execute(stmt);
   check_execute(stmt, rc);
 
+  // NOTE: stmt now has two columns, but only my_bind[0] is initialized.
   my_bind[0].buffer_type= MYSQL_TYPE_GEOMETRY;
   rc= mysql_stmt_bind_result(stmt, my_bind);
   check_execute_r(stmt, rc); /* unsupported buffer type */
@@ -6431,7 +6434,8 @@ static void test_pure_coverage()
 static void test_buffers()
 {
   MYSQL_STMT *stmt;
-  MYSQL_BIND my_bind[1];
+  // The test_pure table has two columns.
+  MYSQL_BIND my_bind[2];
   int        rc;
   ulong      length;
   my_bool    is_null;
@@ -9141,7 +9145,7 @@ static void test_parse_error_and_bad_length()
   DIE_UNLESS(rc);
   if (!opt_silent)
     fprintf(stdout, "Got error (as expected): '%s'\n", mysql_error(mysql));
-  rc= mysql_real_query(mysql, "SHOW DATABASES", 100);
+  rc= mysql_real_query(mysql, "SHOW DATABASES", 12); // Incorrect length.
   DIE_UNLESS(rc);
   if (!opt_silent)
     fprintf(stdout, "Got error (as expected): '%s'\n", mysql_error(mysql));
@@ -9152,7 +9156,7 @@ static void test_parse_error_and_bad_length()
     fprintf(stdout, "Got error (as expected): '%s'\n", mysql_error(mysql));
   stmt= mysql_stmt_init(mysql);
   DIE_UNLESS(stmt);
-  rc= mysql_stmt_prepare(stmt, "SHOW DATABASES", 100);
+  rc= mysql_stmt_prepare(stmt, "SHOW DATABASES", 12); // Incorrect length.
   DIE_UNLESS(rc != 0);
   if (!opt_silent)
     fprintf(stdout, "Got error (as expected): '%s'\n", mysql_stmt_error(stmt));
@@ -16190,6 +16194,7 @@ static void test_bug27876()
 
   rc= mysql_query(mysql, "set names default");
   myquery(rc);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -17120,6 +17125,7 @@ static void test_bug31669()
   DIE_UNLESS(rc);
 
   memset(buff, 'a', sizeof(buff));
+  buff[sizeof(buff) - 1] = '\0';
 
   rc= mysql_change_user(mysql, buff, buff, buff);
   DIE_UNLESS(rc);
@@ -17978,6 +17984,8 @@ static void test_bug43560(void)
   rc= mysql_stmt_execute(stmt);
   DIE_UNLESS(rc && mysql_stmt_errno(stmt) == CR_SERVER_LOST);
 
+  mysql_stmt_close(stmt);
+
   opt_drop_db= 0;
   client_disconnect(conn);
   rc= mysql_query(mysql, "DROP TABLE t1");
@@ -18277,6 +18285,7 @@ static void test_bug42373()
   DIE_UNLESS(rc == 1);
 
   mysql_stmt_close(stmt);
+  mysql_close(&con);
 
   /* Now try with a multi-statement. */
   DIE_UNLESS(mysql_client_init(&con));

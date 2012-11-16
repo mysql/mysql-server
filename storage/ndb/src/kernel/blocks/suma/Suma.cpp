@@ -2456,12 +2456,16 @@ Suma::execDIH_SCAN_TAB_CONF(Signal* signal)
 
   DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
   req->senderRef = reference();
-  req->senderData = ptr.i;
   req->tableId = tableId;
-  req->fragId = 0;
   req->scanCookie = scanCookie;
+  req->fragCnt = 1;
+  req->fragItem[0].senderData = ptr.i;
+  req->fragItem[0].fragId = 0;
+
   sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
-             DihScanGetNodesReq::SignalLength, JBB);
+             DihScanGetNodesReq::FixedSignalLength
+             + DihScanGetNodesReq::FragItem::Length,
+             JBB);
 
   DBUG_VOID_RETURN;
 }
@@ -2470,18 +2474,26 @@ void
 Suma::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
 {
   jamEntry();
-  DBUG_ENTER("Suma::execDIGETPRIMCONF");
+  DBUG_ENTER("Suma::execDIH_SCAN_GET_NODES_CONF");
+
+  /**
+   * Assume a short signal, with a single FragItem being returned
+   * as we do only single fragment requests in
+   * DIH_SCAN_GET_NODES_REQs sent from SUMA.
+   */
   ndbassert(signal->getNoOfSections() == 0);
+  ndbassert(signal->getLength() ==
+            DihScanGetNodesConf::FixedSignalLength
+            + DihScanGetNodesConf::FragItem::Length);
 
   DihScanGetNodesConf* conf = (DihScanGetNodesConf*)signal->getDataPtr();
-  const Uint32 nodeCount = conf->count;
   const Uint32 tableId = conf->tableId;
-  const Uint32 fragNo = conf->fragId;
-
+  const Uint32 fragNo = conf->fragItem[0].fragId;
+  const Uint32 nodeCount = conf->fragItem[0].count;
   ndbrequire(nodeCount > 0 && nodeCount <= MAX_REPLICAS);
 
   Ptr<SyncRecord> ptr;
-  c_syncPool.getPtr(ptr, conf->senderData);
+  c_syncPool.getPtr(ptr, conf->fragItem[0].senderData);
 
   {
     LocalDataBuffer<15> fragBuf(c_dataBufferPool, ptr.p->m_fragments);
@@ -2490,9 +2502,9 @@ Suma::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
      * Add primary node for fragment to list
      */
     FragmentDescriptor fd;
-    fd.m_fragDesc.m_nodeId = conf->nodes[0];
+    fd.m_fragDesc.m_nodeId = conf->fragItem[0].nodes[0];
     fd.m_fragDesc.m_fragmentNo = fragNo;
-    fd.m_fragDesc.m_lqhInstanceKey = conf->instanceKey;
+    fd.m_fragDesc.m_lqhInstanceKey = conf->fragItem[0].instanceKey;
     if (ptr.p->m_frag_id == ZNIL)
     {
       signal->theData[2] = fd.m_dummy;
@@ -2506,7 +2518,7 @@ Suma::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
       const Uint32 ownNodeId = getOwnNodeId();
       Uint32 i = 0;
       for (i = 0; i < nodeCount; i++)
-        if (conf->nodes[i] == ownNodeId)
+        if (conf->fragItem[0].nodes[i] == ownNodeId)
           break;
       if (i == nodeCount)
       {
@@ -2530,12 +2542,16 @@ Suma::execDIH_SCAN_GET_NODES_CONF(Signal* signal)
 
   DihScanGetNodesReq* req = (DihScanGetNodesReq*)signal->getDataPtrSend();
   req->senderRef = reference();
-  req->senderData = ptr.i;
   req->tableId = tableId;
-  req->fragId = nextFrag;
   req->scanCookie = ptr.p->m_scan_cookie;
+  req->fragCnt = 1;
+  req->fragItem[0].senderData = ptr.i;
+  req->fragItem[0].fragId = nextFrag;
+
   sendSignal(DBDIH_REF, GSN_DIH_SCAN_GET_NODES_REQ, signal,
-             DihScanGetNodesReq::SignalLength, JBB);
+             DihScanGetNodesReq::FixedSignalLength
+             + DihScanGetNodesReq::FragItem::Length,
+             JBB);
 
   DBUG_VOID_RETURN;
 }
@@ -3139,7 +3155,28 @@ Suma::execSUB_START_REQ(Signal* signal){
                     senderRef, senderData, subPtr.p->m_errorCode);
     return;
   }
-  
+
+  switch(getNodeInfo(refToNode(subscriberRef)).m_type){
+  case NodeInfo::DB:
+  case NodeInfo::API:
+  case NodeInfo::MGM:
+    if (!ERROR_INSERTED_CLEAR(13047))
+      break;
+  default:
+    /**
+     * This can happen if we start...with a new config
+     *   that has dropped a node...that has a subscription active
+     *   (or maybe internal error ??)
+     *
+     * If this is a node-restart, it means that we will refuse to start
+     * If not, this mean that substart will simply fail...
+     */
+    jam();
+    sendSubStartRef(signal, senderRef, senderData,
+                    SubStartRef::SubscriberNodeIdUndefined);
+    return;
+  }
+
   SubscriberPtr subbPtr;
   if(!c_subscriberPool.seize(subbPtr))
   {

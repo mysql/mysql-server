@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 Setup circular replication
 RESET MASTER;
@@ -8,6 +11,9 @@ where variable_name like 'server_id';
 @slave_server_id:=(variable_value+0)
 3
 CHANGE MASTER TO master_host="127.0.0.1",master_port=SLAVE_PORT,master_user="root";
+Warnings:
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE;
 select @master_server_id:=(variable_value+0)
 from information_schema.global_variables
@@ -36,17 +42,9 @@ create table test.t2(a int primary key, b int) engine = ndb;
 Test 1 : Basic two-way replication
 ----------------------------------
 insert into test.t1 values (1, "Metropole");
--- Give time for a new epoch on the Master
--- Insert something to ensure the new epoch is noticed
-replace into test.t2 values (2, 1);
--- Flushed to slave
-select * from test.t1 order by a;
-a	b
-1	Metropole
--- Flushed back to Master
-select * from test.t1 order by a;
-a	b
-1	Metropole
+FLUSH LOGS;
+-- Verify that Max rep epoch has been updated
+-- Primary Cluster Max Rep Epoch now beyond the original update epoch
 -- Now update data on slave
 update test.t1 set b="Favorit" where a=1;
 -- Now check data on master
@@ -719,17 +717,9 @@ create table test.t2(a int primary key, b int) engine = ndb;
 Test 1 : Basic two-way replication
 ----------------------------------
 insert into test.t1 values (1, "Metropole");
--- Give time for a new epoch on the Master
--- Insert something to ensure the new epoch is noticed
-replace into test.t2 values (2, 1);
--- Flushed to slave
-select * from test.t1 order by a;
-a	b
-1	Metropole
--- Flushed back to Master
-select * from test.t1 order by a;
-a	b
-1	Metropole
+FLUSH LOGS;
+-- Verify that Max rep epoch has been updated
+-- Primary Cluster Max Rep Epoch now beyond the original update epoch
 -- Now update data on slave
 update test.t1 set b="Favorit" where a=1;
 -- Now check data on master
@@ -1402,17 +1392,9 @@ create table test.t2(a int primary key, b int) engine = ndb;
 Test 1 : Basic two-way replication
 ----------------------------------
 insert into test.t1 values (1, "Metropole");
--- Give time for a new epoch on the Master
--- Insert something to ensure the new epoch is noticed
-replace into test.t2 values (2, 1);
--- Flushed to slave
-select * from test.t1 order by a;
-a	b
-1	Metropole
--- Flushed back to Master
-select * from test.t1 order by a;
-a	b
-1	Metropole
+FLUSH LOGS;
+-- Verify that Max rep epoch has been updated
+-- Primary Cluster Max Rep Epoch now beyond the original update epoch
 -- Now update data on slave
 update test.t1 set b="Favorit" where a=1;
 -- Now check data on master
@@ -2085,17 +2067,9 @@ create table test.t2(a int primary key, b int) engine = ndb;
 Test 1 : Basic two-way replication
 ----------------------------------
 insert into test.t1 values (1, "Metropole");
--- Give time for a new epoch on the Master
--- Insert something to ensure the new epoch is noticed
-replace into test.t2 values (2, 1);
--- Flushed to slave
-select * from test.t1 order by a;
-a	b
-1	Metropole
--- Flushed back to Master
-select * from test.t1 order by a;
-a	b
-1	Metropole
+FLUSH LOGS;
+-- Verify that Max rep epoch has been updated
+-- Primary Cluster Max Rep Epoch now beyond the original update epoch
 -- Now update data on slave
 update test.t1 set b="Favorit" where a=1;
 -- Now check data on master
@@ -2857,17 +2831,17 @@ insert into mysql.ndb_replication values
 ("test", "t3", 0, 7, "NDB\$EPOCH(32)"),
 ("test", "t4", 0, 7, "NDB\$EPOCH(-1)");
 create table test.t3 (a int primary key) engine=ndb;
-ERROR HY000: Can't create table 'test.t3' (errno: 1626)
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1626	Error in parsing conflict function. Message: NDB$EPOCH(32), Too many extra Gci bits at ')'
-Error	1005	Can't create table 'test.t3' (errno: 1626)
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
 create table test.t4 (a int primary key) engine=ndb;
-ERROR HY000: Can't create table 'test.t4' (errno: 1626)
+ERROR HY000: Got error 1626 'Unknown error code' from NDBCLUSTER
 show warnings;
 Level	Code	Message
 Warning	1626	Error in parsing conflict function. Message: NDB$EPOCH(-1), Too many extra Gci bits at ')'
-Error	1005	Can't create table 'test.t4' (errno: 1626)
+Error	1296	Got error 1626 'Unknown error code' from NDBCLUSTER
 -- Force sync before dropping table to avoid race
 flush logs;
 flush logs;

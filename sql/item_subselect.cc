@@ -627,8 +627,7 @@ bool Item_subselect::exec()
 */
 
 void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
-                                       st_select_lex *removed_select,
-                                       Item **ref)
+                                       st_select_lex *removed_select)
 
 {
   /* Clear usage information for this subquery predicate object */
@@ -641,17 +640,15 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
   for (SELECT_LEX *sel= unit->first_select(); sel; sel= sel->next_select())
   {
     if (sel->where)
-      sel->where->fix_after_pullout(parent_select, removed_select,
-                                    &sel->where);
+      sel->where->fix_after_pullout(parent_select, removed_select);
 
     if (sel->having)
-      sel->having->fix_after_pullout(parent_select, removed_select,
-                                     &sel->having);
+      sel->having->fix_after_pullout(parent_select, removed_select);
 
     List_iterator<Item> li(sel->item_list);
     Item *item;
     while ((item=li++))
-      item->fix_after_pullout(parent_select, removed_select, li.ref());
+      item->fix_after_pullout(parent_select, removed_select);
 
     /*
       No need to call fix_after_pullout() for outer-join conditions, as these
@@ -663,14 +660,12 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
     for (ORDER *order= (ORDER*) sel->order_list.first;
          order;
          order= order->next)
-      (*order->item)->fix_after_pullout(parent_select, removed_select,
-                                        order->item);
+      (*order->item)->fix_after_pullout(parent_select, removed_select);
 
     for (ORDER *group= (ORDER*) sel->group_list.first;
          group;
          group= group->next)
-      (*group->item)->fix_after_pullout(parent_select, removed_select,
-                                        group->item);
+      (*group->item)->fix_after_pullout(parent_select, removed_select);
   }
 }
 
@@ -924,7 +919,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning(thd, Sql_condition::SL_NOTE,
 		   ER_SELECT_REDUCED, warn_buff);
     }
     substitution= select_lex->item_list.head();
@@ -1855,7 +1850,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-	  push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+	  push_warning(thd, Sql_condition::SL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
 	DBUG_RETURN(RES_REDUCE);
@@ -2327,12 +2322,11 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 
 
 void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select,
-                                          Item **ref)
+                                          st_select_lex *removed_select)
 {
-  Item_subselect::fix_after_pullout(parent_select, removed_select, ref);
+  Item_subselect::fix_after_pullout(parent_select, removed_select);
 
-  left_expr->fix_after_pullout(parent_select, removed_select, &left_expr);
+  left_expr->fix_after_pullout(parent_select, removed_select);
 
   used_tables_cache|= left_expr->used_tables();
 }

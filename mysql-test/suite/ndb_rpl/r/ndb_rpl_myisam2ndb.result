@@ -1,6 +1,9 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
-SET storage_engine=myisam;
+SET default_storage_engine=myisam;
 --- Doing pre test cleanup --- 
 DROP TABLE IF EXISTS t1;
 --- Start test 1 Basic testing ---

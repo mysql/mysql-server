@@ -127,7 +127,7 @@
 
 // -------- ERROR INSERT MACROS -------
 #ifdef ERROR_INSERT
-#define ERROR_INSERT_VARIABLE UintR cerrorInsert, c_error_insert_extra
+#define ERROR_INSERT_VARIABLE mutable UintR cerrorInsert, c_error_insert_extra
 #define ERROR_INSERTED(x) (cerrorInsert == (x))
 #define ERROR_INSERTED_CLEAR(x) (cerrorInsert == (x) ? (cerrorInsert = 0, true) : false)
 #define ERROR_INSERT_VALUE cerrorInsert
@@ -165,7 +165,7 @@
 // need large value.
 /* ------------------------------------------------------------------------- */
 #define NO_OF_FRAG_PER_NODE 1
-#define MAX_FRAG_PER_NODE 8
+#define MAX_FRAG_PER_LQH 8
 
 /**
 * DIH allocates fragments in chunk for fast find of fragment record.

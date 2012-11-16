@@ -26,10 +26,12 @@ int desc_logfilegroup(Ndb *myndb, char* name);
 int desc_undofile(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 int desc_tablespace(Ndb *myndb,char* name);
+int desc_index(Ndb *myndb, char* name);
 int desc_table(Ndb *myndb,char* name);
 int desc_hashmap(Ndb_cluster_connection &con, Ndb *myndb, char* name);
 
 static const char* _dbname = "TEST_DB";
+static const char* _tblname = NULL;
 static int _unqualified = 0;
 static int _partinfo = 0;
 static int _blobinfo = 0;
@@ -60,6 +62,9 @@ static struct my_option my_long_options[] =
   { "extra-node-info", 'n', "Print node info for partitions (requires -p)",
     (uchar**) &_nodeinfo, (uchar**) &_nodeinfo, 0,
     GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "table", 't', "Base table for index",
+    (uchar**) &_tblname, (uchar**) &_tblname, 0,
+    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0 },
   { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
@@ -73,13 +78,13 @@ static void usage()
   ndb_usage(short_usage_sub, load_default_groups, my_long_options);
 }
 
-static void print_part_info(Ndb* pNdb, NDBT_Table* pTab);
+static void print_part_info(Ndb* pNdb, NdbDictionary::Table const* pTab);
 
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
 
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  load_defaults("my",load_default_groups,&argc,&argv);
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
   int ho_error;
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_desc.trace";
@@ -109,7 +114,9 @@ int main(int argc, char** argv){
 
   for(int i= 0; i<argc;i++)
   {
-    if(desc_table(&MyNdb,argv[i]))
+    if (desc_index(&MyNdb, argv[i]))
+      ;
+    else if(desc_table(&MyNdb, argv[i]))
       ;
     else if(desc_tablespace(&MyNdb,argv[i]))
       ;
@@ -248,44 +255,36 @@ int desc_datafile(Ndb_cluster_connection &con, Ndb *myndb, char* name)
   return 1;
 }
 
+int desc_index(Ndb *myndb, char* name)
+{
+  NdbDictionary::Dictionary * dict= myndb->getDictionary();
+  NdbDictionary::Index const* pIndex;
+
+  /* need to know base table */
+  if (_tblname == NULL)
+    return 0;
+
+  while ((pIndex = dict->getIndex(name, _tblname)) == NULL && --_retries >= 0)
+    NdbSleep_SecSleep(1);
+  if (pIndex == NULL)
+    return 0;
+
+  ndbout << "-- " << pIndex->getName() << " --" << endl;
+  dict->print(ndbout, *pIndex);
+
+  return 1;
+}
+
 int desc_table(Ndb *myndb, char* name)
 {
   NdbDictionary::Dictionary * dict= myndb->getDictionary();
-  NDBT_Table* pTab;
-  while ((pTab = (NDBT_Table*)dict->getTable(name)) == NULL && --_retries >= 0) NdbSleep_SecSleep(1);
+  NdbDictionary::Table const* pTab;
+  while ((pTab = dict->getTable(name)) == NULL && --_retries >= 0) NdbSleep_SecSleep(1);
   if (!pTab)
     return 0;
 
-  ndbout << (* pTab) << endl;
-
-  NdbDictionary::Dictionary::List list;
-  if (dict->listIndexes(list, name) != 0){
-    ndbout << name << ": " << dict->getNdbError() << endl;
-    return NDBT_ProgramExit(NDBT_FAILED);
-  }
-
-  ndbout << "-- Indexes -- " << endl;
-  ndbout << "PRIMARY KEY(";
-  unsigned j;
-  for (j= 0; (int)j < pTab->getNoOfPrimaryKeys(); j++)
-  {
-    const NdbDictionary::Column * col= pTab->getColumn(pTab->getPrimaryKey(j));
-    ndbout << col->getName();
-    if ((int)j < pTab->getNoOfPrimaryKeys()-1)
-      ndbout << ", ";
-  }
-  ndbout << ") - UniqueHashIndex" << endl;
-  for (j= 0; j < list.count; j++) {
-    NdbDictionary::Dictionary::List::Element& elt = list.elements[j];
-    const NdbDictionary::Index *pIdx = dict->getIndex(elt.name, name);
-    if (!pIdx){
-      ndbout << name << ": " << dict->getNdbError() << endl;
-      return NDBT_ProgramExit(NDBT_FAILED);
-    }
-
-    ndbout << (*pIdx) << endl;
-  }
-  ndbout << endl;
+  ndbout << "-- " << pTab->getName() << " --" << endl;
+  dict->print(ndbout, *pTab);
 
   if (_partinfo)
   {
@@ -319,7 +318,7 @@ struct InfoInfo
 
 
 static 
-void print_part_info(Ndb* pNdb, NDBT_Table* pTab)
+void print_part_info(Ndb* pNdb, NdbDictionary::Table const* pTab)
 {
   InfoInfo g_part_info[] = {
     { "Partition", 0, NdbDictionary::Column::FRAGMENT },

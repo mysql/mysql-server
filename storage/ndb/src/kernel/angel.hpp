@@ -26,7 +26,9 @@ angel_run(const char* progname,
           const char* bind_address,
           bool initial,
           bool no_start,
-          bool daemon);
+          bool daemon,
+          int connnect_retries,
+          int connect_delay);
 
 void
 angel_stop(void);

@@ -26,23 +26,18 @@
 #include <random.h>
 #include <NDBT.hpp>
 
-#ifdef	__cplusplus
-extern "C" {
-#endif
 int useTableLogging;
-#ifdef	__cplusplus
-}
-#endif
-
+int subscriberCount;
 
 static 
 void usage(const char *prog)
 {
   
   ndbout_c(
-	   "Usage: %s [-l]\n"
-	   "  -l                  Use logging and checkpointing on tables\n",
-	   prog);
+	   "Usage: %s [-l][-s <count>]\n"
+	   "  -l                  Use logging and checkpointing on tables\n"
+           "  -s <count>          Number of subscribers to populate, default %u\n",
+	   prog, NO_OF_SUBSCRIBERS);
   
   exit(1);
 }
@@ -54,11 +49,23 @@ NDB_COMMAND(DbCreate, "DbCreate", "DbCreate", "DbCreate", 16384)
   UserHandle *uh;
   
   useTableLogging = 0;
-  
+  subscriberCount = NO_OF_SUBSCRIBERS;
+
   for(i = 1; i<argc; i++){
     if(strcmp(argv[i], "-l") == 0){
       useTableLogging = 1;
-    } else {
+    }
+    else if (strcmp(argv[i], "-s") == 0)
+    {
+      if ((i + 1 >= argc) ||
+          (sscanf(argv[i+1], "%u", &subscriberCount) == -1))
+      {
+        usage(argv[0]);
+        return 0;
+      }
+      i++;
+    }
+    else {
       usage(argv[0]);
       return 0;
     }
@@ -66,6 +73,8 @@ NDB_COMMAND(DbCreate, "DbCreate", "DbCreate", "DbCreate", 16384)
 
   ndbout_c("Using %s tables",
 	   useTableLogging ? "logging" : "temporary");
+  ndbout_c("Populating %u subscribers",
+           subscriberCount);
   
   myRandom48Init(0x3e6f);
   

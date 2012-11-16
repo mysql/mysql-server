@@ -490,6 +490,18 @@ my_socket thd_get_fd(THD *thd)
 }
 
 /**
+  Set thread specific environment required for thd cleanup in thread pool.
+
+  @param thd            THD object
+
+  @retval               1 if thread-specific enviroment could be set else 0
+*/
+int thd_store_globals(THD* thd)
+{
+  return thd->store_globals();
+}
+
+/**
   Get thread attributes for connection threads
 
   @retval      Reference to thread attribute for connection threads
@@ -707,7 +719,7 @@ int thd_tx_is_read_only(const THD *thd)
 extern "C"
 void thd_inc_row_count(THD *thd)
 {
-  thd->get_stmt_da()->inc_current_row_for_warning();
+  thd->get_stmt_da()->inc_current_row_for_condition();
 }
 
 
@@ -825,7 +837,7 @@ char *thd_security_context(THD *thd, char *buffer, unsigned int length,
 bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 uint sql_errno,
                                                 const char* sqlstate,
-                                                Sql_condition::enum_warning_level level,
+                                                Sql_condition::enum_severity_level level,
                                                 const char* msg,
                                                 Sql_condition ** cond_hdl)
 {
@@ -1051,7 +1063,7 @@ void THD::push_internal_handler(Internal_error_handler *handler)
 
 bool THD::handle_condition(uint sql_errno,
                            const char* sqlstate,
-                           Sql_condition::enum_warning_level level,
+                           Sql_condition::enum_severity_level level,
                            const char* msg,
                            Sql_condition ** cond_hdl)
 {
@@ -1090,7 +1102,7 @@ void THD::raise_error(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_ERROR,
+                         Sql_condition::SL_ERROR,
                          msg);
 }
 
@@ -1106,7 +1118,7 @@ void THD::raise_error_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_ERROR,
+                         Sql_condition::SL_ERROR,
                          ebuff);
   DBUG_VOID_RETURN;
 }
@@ -1116,7 +1128,7 @@ void THD::raise_warning(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_WARN,
+                         Sql_condition::SL_WARNING,
                          msg);
 }
 
@@ -1132,7 +1144,7 @@ void THD::raise_warning_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_WARN,
+                         Sql_condition::SL_WARNING,
                          ebuff);
   DBUG_VOID_RETURN;
 }
@@ -1146,7 +1158,7 @@ void THD::raise_note(uint sql_errno)
   const char* msg= ER(sql_errno);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_NOTE,
+                         Sql_condition::SL_NOTE,
                          msg);
   DBUG_VOID_RETURN;
 }
@@ -1165,7 +1177,7 @@ void THD::raise_note_printf(uint sql_errno, ...)
   va_end(args);
   (void) raise_condition(sql_errno,
                          NULL,
-                         Sql_condition::WARN_LEVEL_NOTE,
+                         Sql_condition::SL_NOTE,
                          ebuff);
   DBUG_VOID_RETURN;
 }
@@ -1192,7 +1204,7 @@ struct timeval THD::query_start_timeval_trunc(uint decimals)
 
 Sql_condition* THD::raise_condition(uint sql_errno,
                                     const char* sqlstate,
-                                    Sql_condition::enum_warning_level level,
+                                    Sql_condition::enum_severity_level level,
                                     const char* msg)
 {
   Diagnostics_area *da= get_stmt_da();
@@ -1200,10 +1212,10 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   DBUG_ENTER("THD::raise_condition");
 
   if (!(variables.option_bits & OPTION_SQL_NOTES) &&
-      (level == Sql_condition::WARN_LEVEL_NOTE))
+      (level == Sql_condition::SL_NOTE))
     DBUG_RETURN(NULL);
 
-  da->opt_clear_warning_info(query_id);
+  da->opt_reset_condition_info(query_id);
 
   /*
     TODO: replace by DBUG_ASSERT(sql_errno != 0) once all bugs similar to
@@ -1217,24 +1229,24 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
-  if ((level == Sql_condition::WARN_LEVEL_WARN) &&
+  if ((level == Sql_condition::SL_WARNING) &&
       really_abort_on_warning())
   {
     /*
       FIXME:
       push_warning and strict SQL_MODE case.
     */
-    level= Sql_condition::WARN_LEVEL_ERROR;
+    level= Sql_condition::SL_ERROR;
     killed= THD::KILL_BAD_DATA;
   }
 
   switch (level)
   {
-  case Sql_condition::WARN_LEVEL_NOTE:
-  case Sql_condition::WARN_LEVEL_WARN:
+  case Sql_condition::SL_NOTE:
+  case Sql_condition::SL_WARNING:
     got_warning= 1;
     break;
-  case Sql_condition::WARN_LEVEL_ERROR:
+  case Sql_condition::SL_ERROR:
     break;
   default:
     DBUG_ASSERT(FALSE);
@@ -1249,7 +1261,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     NULL,
     da->push_warning(this, sql_errno, sqlstate, level, msg));
 
-  if (level == Sql_condition::WARN_LEVEL_ERROR)
+  if (level == Sql_condition::SL_ERROR)
   {
     is_slave_error=  1; // needed to catch query errors during replication
 
@@ -1272,7 +1284,7 @@ Sql_condition* THD::raise_condition(uint sql_errno,
       if (!da->is_error())
       {
         set_row_count_func(-1);
-        da->set_error_status(sql_errno, msg, sqlstate, cond);
+        da->set_error_status(sql_errno, msg, sqlstate);
       }
     }
   }
@@ -1365,6 +1377,7 @@ void THD::init(void)
   tx_read_only= variables.tx_read_only;
   update_charset();
   reset_current_stmt_binlog_format_row();
+  reset_binlog_local_stmt_filter();
   memset(&status_var, 0, sizeof(status_var));
   binlog_row_event_extra_data= 0;
 
@@ -1819,16 +1832,6 @@ bool THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
 {
   THD *in_use= ctx_in_use->get_thd();
   bool signalled= FALSE;
-  if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-      !in_use->killed)
-  {
-    in_use->killed= THD::KILL_CONNECTION;
-    mysql_mutex_lock(&in_use->mysys_var->mutex);
-    if (in_use->mysys_var->current_cond)
-      mysql_cond_broadcast(in_use->mysys_var->current_cond);
-    mysql_mutex_unlock(&in_use->mysys_var->mutex);
-    signalled= TRUE;
-  }
 
   if (needs_thr_lock_abort)
   {
@@ -1950,7 +1953,28 @@ void THD::cleanup_after_query()
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     rand_used= 0;
     binlog_accessed_db_names= NULL;
+#ifndef EMBEDDED_LIBRARY
+    /*
+      Clean possible unused INSERT_ID events by current statement.
+      is_update_query() is needed to ignore SET statements:
+        Statements that don't update anything directly and don't
+        used stored functions. This is mostly necessary to ignore
+        statements in binlog between SET INSERT_ID and DML statement
+        which is intended to consume its event (there can be other
+        SET statements between them).
+    */
+    if ((rli_slave || rli_fake) && is_update_query(lex->sql_command))
+      auto_inc_intervals_forced.empty();
+#endif
   }
+  /*
+    Forget the binlog stmt filter for the next query.
+    There are some code paths that:
+    - do not call THD::decide_logging_format()
+    - do call THD::binlog_query(),
+    making this reset necessary.
+  */
+  reset_binlog_local_stmt_filter();
   if (first_successful_insert_id_in_cur_stmt > 0)
   {
     /* set what LAST_INSERT_ID() will return */
@@ -2663,7 +2687,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
 
         Non-ASCII separator arguments are not fully supported
     */
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::SL_WARNING,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
                  ER(WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED));
   }
@@ -2694,7 +2718,7 @@ select_export::prepare(List<Item> &list, SELECT_LEX_UNIT *u)
       (exchange->opt_enclosed && non_string_results &&
        field_term_length && strchr(NUMERIC_CHARS, field_term_char)))
   {
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::SL_WARNING,
                  ER_AMBIGUOUS_FIELD_TERM, ER(ER_AMBIGUOUS_FIELD_TERM));
     is_ambiguous_field_term= TRUE;
   }
@@ -2775,7 +2799,7 @@ bool select_export::send_data(List<Item> &items)
         convert_to_printable(printable_buff, sizeof(printable_buff),
                              error_pos, res->ptr() + res->length() - error_pos,
                              res->charset(), 6);
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,
                             ER(ER_TRUNCATED_WRONG_VALUE_FOR_FIELD),
                             "string", printable_buff,
@@ -2786,7 +2810,7 @@ bool select_export::send_data(List<Item> &items)
         /*
           result is longer than UINT_MAX32 and doesn't fit into String
         */
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             WARN_DATA_TRUNCATED, ER(WARN_DATA_TRUNCATED),
                             item->full_name(), static_cast<long>(row_count));
       }
@@ -3580,7 +3604,7 @@ bool select_dumpvar::send_data(List<Item> &items)
 bool select_dumpvar::send_eof()
 {
   if (! row_count)
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning(thd, Sql_condition::SL_WARNING,
                  ER_SP_FETCH_NO_DATA, ER(ER_SP_FETCH_NO_DATA));
   /*
     Don't send EOF if we're in error condition (which implies we've already
@@ -3658,16 +3682,15 @@ void Security_context::destroy()
     my_free(host);
     host= NULL;
   }
-  if (user != delayed_user)
+  if (user)
   {
     my_free(user);
     user= NULL;
   }
-
   if (external_user)
   {
     my_free(external_user);
-    user= NULL;
+    external_user= NULL;
   }
 
   my_free(ip);

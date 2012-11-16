@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +24,7 @@ import com.mysql.clusterj.core.store.Dictionary;
  */
 public interface DomainTypeHandlerFactory {
 
-    public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary);
+    public <T> DomainTypeHandler<T> createDomainTypeHandler(Class<T> domainClass, Dictionary dictionary,
+            ValueHandlerFactory valueHandlerFactory);
 
 }

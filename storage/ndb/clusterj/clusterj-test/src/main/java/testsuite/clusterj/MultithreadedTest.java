@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
         for (int i = 0; i < numberToCreate; ++i) {
             Customer customer = session.newInstance(Customer.class);
             customer.setId(i);
-            customer.setName("Customer number " + i);
+            customer.setName("Customer number " + i + " (initial)");
             customer.setMagic(i * 100);
             customers.add(customer);
         }
@@ -167,14 +167,20 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
         Query<OrderLine> query = session.createQuery(queryOrderType);        
         for (Order order: orders) {
             int orderId = order.getId();
+            if (getDebug()) System.out.println("Read order " + orderId + " total " + order.getValue());
             // replace order with its persistent representation
             order = session.find(Order.class, orderId);
             double expectedTotal = order.getValue();
             double actualTotal = 0.0d;
+            List<OrderLine> orderLines = new ArrayList<OrderLine>();
             for (OrderLine orderLine: getOrderLines(session, query, orderId)) {
+                orderLines.add(orderLine);
+                if (getDebug()) System.out.println("order " + orderLine.getOrderId() +
+                        " orderline " + orderLine.getId() + " value " + orderLine.getTotalValue());
                 actualTotal += orderLine.getTotalValue();
             }
-            errorIfNotEqual("For order " + orderId + ", order value does not equal sum of order line values.",
+            errorIfNotEqual("For order " + orderId + ", order value does not equal sum of order line values."
+                    + " orderLines: " + dump(orderLines),
                     expectedTotal, actualTotal);
         }
         failOnError();
@@ -253,6 +259,8 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
         Double orderValue = 0.0d;
         // now create some order lines
         int numberOfOrderLines = random.nextInt(maximumOrderLinesPerOrder);
+        if (getDebug()) System.out.println("Create Order " + orderid
+                + " with numberOfOrderLines: " + numberOfOrderLines);
         for (int i = 0; i < numberOfOrderLines; ++i) {
             int orderLineNumber = getNextOrderLineId();
             OrderLine orderLine = session.newInstance(OrderLine.class);
@@ -264,8 +272,9 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
             orderLine.setUnitPrice(unitPrice);
             double orderLineValue = unitPrice * quantity;
             orderValue += orderLineValue;
-            if (getDebug()) System.out.println("For order " + orderid + " orderline " + orderLineNumber + 
-                    " order line value " + orderLineValue + " order value " + orderValue);
+            if (getDebug()) System.out.println("Create orderline " + orderLineNumber + " for Order " + orderid
+                    + " quantity " + quantity + " price " + unitPrice
+                    + " order line value " + orderLineValue + " order value " + orderValue);
             orderLine.setTotalValue(orderLineValue);
             addOrderLine(orderLine);
             session.persist(orderLine);
@@ -367,9 +376,9 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
             if (numberOfOrders < 10) {
                 return null;
             }
-            int orderId = random.nextInt(numberOfOrders);
+            int which = random.nextInt(numberOfOrders);
             ++numberOfDeletedOrders;
-            return orders.remove(orderId);
+            return orders.remove(which);
         }
     }
 
@@ -394,7 +403,8 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
      */
     private int getNextCustomerId() {
         synchronized(customers) {
-            return nextCustomerId++;
+            int result = nextCustomerId++;
+            return result;
         }
     }
     
@@ -403,7 +413,8 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
      */
     private int getNextOrderId() {
         synchronized(orders) {
-            return nextOrderId++;
+            int result = nextOrderId++;
+            return result;
         }
     }
 
@@ -412,7 +423,8 @@ public class MultithreadedTest extends AbstractClusterJModelTest {
      */
     private int getNextOrderLineId() {
         synchronized(orderlines) {
-            return nextOrderLineId++;
+            int result = nextOrderLineId++;
+            return result;
         }
     }
     

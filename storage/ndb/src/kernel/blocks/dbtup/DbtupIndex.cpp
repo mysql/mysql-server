@@ -552,14 +552,14 @@ Dbtup::buildIndex(Signal* signal, Uint32 buildPtrI)
   do {
     // get fragment
     FragrecordPtr fragPtr;
-    if (buildPtr.p->m_fragNo == MAX_FRAG_PER_NODE) {
+    if (buildPtr.p->m_fragNo == NDB_ARRAY_SIZE(tablePtr.p->fragrec)) {
       jam();
       // build ready
       buildIndexReply(signal, buildPtr.p);
       c_buildIndexList.release(buildPtr);
       return;
     }
-    ndbrequire(buildPtr.p->m_fragNo < MAX_FRAG_PER_NODE);
+    ndbrequire(buildPtr.p->m_fragNo < NDB_ARRAY_SIZE(tablePtr.p->fragrec));
     fragPtr.i= tablePtr.p->fragrec[buildPtr.p->m_fragNo];
     if (fragPtr.i == RNIL) {
       jam();
@@ -809,7 +809,8 @@ Dbtup::execALTER_TAB_CONF(Signal* signal)
   else
   {
     jam();
-    ndbrequire(buildPtr.p->m_fragNo >= MAX_FRAG_PER_NODE);
+    TablerecPtr tablePtr;
+    ndbrequire(buildPtr.p->m_fragNo >= NDB_ARRAY_SIZE(tablePtr.p->fragid));
     buildIndexReply(signal, buildPtr.p);
     c_buildIndexList.release(buildPtr);
     return;
@@ -830,7 +831,7 @@ Dbtup::buildIndexOffline_table_readonly(Signal* signal, Uint32 buildPtrI)
   tablePtr.i= buildReq->tableId;
   ptrCheckGuard(tablePtr, cnoOfTablerec, tablerec);
 
-  for (;buildPtr.p->m_fragNo < MAX_FRAG_PER_NODE;
+  for (;buildPtr.p->m_fragNo < NDB_ARRAY_SIZE(tablePtr.p->fragrec);
        buildPtr.p->m_fragNo++)
   {
     jam();
@@ -906,7 +907,7 @@ Dbtup::mt_scan_init(Uint32 tableId, Uint32 fragId,
 
   FragrecordPtr fragPtr;
   fragPtr.i = RNIL;
-  for (Uint32 i = 0; i<MAX_FRAG_PER_NODE; i++)
+  for (Uint32 i = 0; i<NDB_ARRAY_SIZE(tablePtr.p->fragid); i++)
   {
     if (tablePtr.p->fragid[i] == fragId)
     {
@@ -1011,8 +1012,10 @@ Dbtup::execBUILD_INDX_IMPL_REF(Signal* signal)
   ndbrequire(buildPtr.p->m_outstanding);
   buildPtr.p->m_outstanding--;
 
+  TablerecPtr tablePtr;
   buildPtr.p->m_errorCode = (BuildIndxImplRef::ErrorCode)err;
-  buildPtr.p->m_fragNo = MAX_FRAG_PER_NODE; // No point in starting any more
+  // No point in starting any more
+  buildPtr.p->m_fragNo = NDB_ARRAY_SIZE(tablePtr.p->fragrec);
   buildIndexOffline_table_readonly(signal, ptr);
 }
 

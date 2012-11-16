@@ -1,0 +1,135 @@
+create table parent(a int primary key, b int) engine=ndb;
+create table child(a int, b int, primary key(a,b)) engine=ndb;
+alter table parent partition by key(a) partitions 128;
+alter table child  partition by key(a,b) partitions 128;
+insert into parent values (1,1), (2,2), (3,3), (4,4);
+insert into parent select a+4, b+4 from parent;
+insert into parent select a+8, b+8 from parent;
+insert into parent select a+16, b+16 from parent;
+insert into parent select a+32, b+32 from parent;
+insert into parent select a+64, b+64 from parent;
+insert into parent select a+128, b+128 from parent;
+insert into child select * from parent;
+analyze table parent, child;
+Table	Op	Msg_type	Msg_text
+test.parent	analyze	status	OK
+test.child	analyze	status	OK
+set ndb_join_pushdown = false;
+explain select straight_join count(*) from parent
+join child as c1 on c1.a = parent.b
+join child as c2 on c2.a = parent.b
+join child as c3 on c3.a = parent.b
+join child as c4 on c4.a = parent.b
+join child as c5 on c5.a = parent.b
+join child as c6 on c6.a = parent.b
+join child as c7 on c7.a = parent.b
+join child as c8 on c8.a = parent.b
+join child as c9 on c9.a = parent.b
+join child as c10 on c10.a = parent.b
+join child as c11 on c11.a = parent.b
+join child as c12 on c12.a = parent.b
+join child as c13 on c13.a = parent.b
+join child as c14 on c14.a = parent.b
+join child as c15 on c15.a = parent.b
+join child as c16 on c16.a = parent.b
+where parent.b < 2
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	ALL	NULL	NULL	NULL	NULL	256	Using where with pushed condition
+1	SIMPLE	c1	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c2	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c3	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c4	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c5	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c6	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c7	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c8	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c9	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c10	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c11	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c12	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c13	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c14	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c15	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+1	SIMPLE	c16	ref	PRIMARY	PRIMARY	4	test.parent.b	1	NULL
+select straight_join count(*) from parent
+join child as c1 on c1.a = parent.b
+join child as c2 on c2.a = parent.b
+join child as c3 on c3.a = parent.b
+join child as c4 on c4.a = parent.b
+join child as c5 on c5.a = parent.b
+join child as c6 on c6.a = parent.b
+join child as c7 on c7.a = parent.b
+join child as c8 on c8.a = parent.b
+join child as c9 on c9.a = parent.b
+join child as c10 on c10.a = parent.b
+join child as c11 on c11.a = parent.b
+join child as c12 on c12.a = parent.b
+join child as c13 on c13.a = parent.b
+join child as c14 on c14.a = parent.b
+join child as c15 on c15.a = parent.b
+join child as c16 on c16.a = parent.b
+where parent.b < 2
+;
+count(*)
+1
+set ndb_join_pushdown = true;
+explain select straight_join count(*) from parent
+join child as c1 on c1.a = parent.b
+join child as c2 on c2.a = parent.b
+join child as c3 on c3.a = parent.b
+join child as c4 on c4.a = parent.b
+join child as c5 on c5.a = parent.b
+join child as c6 on c6.a = parent.b
+join child as c7 on c7.a = parent.b
+join child as c8 on c8.a = parent.b
+join child as c9 on c9.a = parent.b
+join child as c10 on c10.a = parent.b
+join child as c11 on c11.a = parent.b
+join child as c12 on c12.a = parent.b
+join child as c13 on c13.a = parent.b
+join child as c14 on c14.a = parent.b
+join child as c15 on c15.a = parent.b
+join child as c16 on c16.a = parent.b
+where parent.b < 2
+;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	parent	ALL	NULL	NULL	NULL	NULL	256	Parent of 17 pushed join@1; Using where with pushed condition
+1	SIMPLE	c1	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'parent' in pushed join@1
+1	SIMPLE	c2	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c1' in pushed join@1
+1	SIMPLE	c3	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c2' in pushed join@1
+1	SIMPLE	c4	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c3' in pushed join@1
+1	SIMPLE	c5	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c4' in pushed join@1
+1	SIMPLE	c6	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c5' in pushed join@1
+1	SIMPLE	c7	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c6' in pushed join@1
+1	SIMPLE	c8	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c7' in pushed join@1
+1	SIMPLE	c9	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c8' in pushed join@1
+1	SIMPLE	c10	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c9' in pushed join@1
+1	SIMPLE	c11	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c10' in pushed join@1
+1	SIMPLE	c12	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c11' in pushed join@1
+1	SIMPLE	c13	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c12' in pushed join@1
+1	SIMPLE	c14	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c13' in pushed join@1
+1	SIMPLE	c15	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c14' in pushed join@1
+1	SIMPLE	c16	ref	PRIMARY	PRIMARY	4	test.parent.b	1	Child of 'c15' in pushed join@1
+select straight_join count(*) from parent
+join child as c1 on c1.a = parent.b
+join child as c2 on c2.a = parent.b
+join child as c3 on c3.a = parent.b
+join child as c4 on c4.a = parent.b
+join child as c5 on c5.a = parent.b
+join child as c6 on c6.a = parent.b
+join child as c7 on c7.a = parent.b
+join child as c8 on c8.a = parent.b
+join child as c9 on c9.a = parent.b
+join child as c10 on c10.a = parent.b
+join child as c11 on c11.a = parent.b
+join child as c12 on c12.a = parent.b
+join child as c13 on c13.a = parent.b
+join child as c14 on c14.a = parent.b
+join child as c15 on c15.a = parent.b
+join child as c16 on c16.a = parent.b
+where parent.b < 2
+;
+count(*)
+1
+drop table parent, child;

@@ -2257,6 +2257,12 @@ explain select * from t where x like "aa?";
 select * from t where x like "aa?";
 explain select * from t where x not like "aa?";
 select * from t where x not like "aa?";
+select * from t where x like "%a%";
+select * from t where x not like "%b%";
+select * from t where x like replace(concat("%", "b%"),"b","a");
+select * from t where x not like replace(concat("%", "a%"),"a","b");
+select * from t where x like concat("%", replace("b%","b","a"));
+select * from t where x not like concat("%", replace("a%","a","b"));
 drop table t;
 
 # Bug#57735 BETWEEN in pushed condition cause garbage to be read in ::unpack_record() 
@@ -2283,31 +2289,6 @@ select * from t where x like 'ye%' order by x;
 explain select * from t where x not like 'ye%' order by x;
 select * from t where x not like 'ye%' order by x;
 drop table t;
-
-# Bug#58134: Incorrectly condition pushdown inside subquery to NDB engine
-set @@optimizer_switch = 'engine_condition_pushdown=on';
-
-create table t (pk int, i int) engine = ndb;
-insert into t values (1,3), (3,6), (6,9), (9,1);
-create table subq (pk int, i int) engine = ndb;
-insert into subq values (1,3), (3,6), (6,9), (9,1);
-
-# 'Explain extended' to verify that only 'subq.i=3' is pushed
-explain extended 
-select * from t where exists
-  (select * from t as subq where subq.i=3 and t.i=3);
-explain extended 
-  select * from t where exists
-    (select * from subq where subq.i=3 and t.i=3);
-
---sorted_result
-select * from t where exists
-  (select * from t as subq where subq.i=3 and t.i=3);
---sorted_result
-select * from t where exists
-  (select * from subq where subq.i=3 and t.i=3);
-
-drop table t,subq;
 
 # Bug#58553 Queries with pushed conditions causes 'explain extended' to crash mysqld
 create table tx (
@@ -2345,27 +2326,6 @@ group by t2.c;
 
 drop table tx;
 
-# Bug#58791 Incorrect result as Cluster may fail to reject an unpushable condition
-
-create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
-insert into t values (1,0), (2,0), (3,0), (4,0);
-
-set @@optimizer_switch='engine_condition_pushdown=on';
-
-# Multiple instances of same table (t as table<n>, ) confused 
-# ha_ndbcluster::cond_push() which accepted
-# '(table1.pk1 = 7 or table2.pk1 = 3)' as a pushable cond.
-# for 'table2'
-#
-
---sorted_result
-select table1.pk1, table2.pk1, table1.pk2, table2.pk2
- from t as table1, t as table2
- where table2.pk1 in (0,3) and
-   (table1.pk1 = 7 or table2.pk1 = 3);
-
-drop table t;
-
 # Bug#58134: Incorrectly condition pushdown inside subquery to NDB engine
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 
@@ -2389,13 +2349,99 @@ select * from t where exists
 select * from t where exists
   (select * from subq where subq.i=3 and t.i=3);
 
-# extra test of subquery
-explain extended
-select * from t
-where i = (select max(i) from t);
-
 drop table t,subq;
+
+
+
+# Bug#58791 Incorrect result as Cluster may fail to reject an unpushable condition
+
+create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
+insert into t values (1,0), (2,0), (3,0), (4,0);
+
+set @@optimizer_switch='engine_condition_pushdown=on';
+
+# Multiple instances of same table (t as table<n>, ) confused 
+# ha_ndbcluster::cond_push() which accepted
+# '(table1.pk1 = 7 or table2.pk1 = 3)' as a pushable cond.
+# for 'table2'
+#
+
+--sorted_result
+select table1.pk1, table2.pk1, table1.pk2, table2.pk2
+ from t as table1, t as table2
+ where table2.pk1 in (0,3) and
+   (table1.pk1 = 7 or table2.pk1 = 3);
+
+drop table t;
+
+# Bug#11765142 58073: CONCAT AND OR GIVE INCORRECT QUERY RESULTS
+create table mytable(i int, s varchar(255) ) engine = ndb;
+insert into mytable values(0,"Text Hej"),(1, "xText aaja");
+set @@optimizer_switch = 'engine_condition_pushdown=on';
+
+ select * from mytable where s like concat("%Text","%") or s like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") or s like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s like "%Text1%" order by i;
+ select * from mytable where s not like concat("%Text","%") or s not like concat("%Text","%") order by i;
+ select * from mytable where s not like concat("%Text1","%") or s not like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") or s not like "%Text%" order by i;
+ select * from mytable where s like concat("%Text1","%") or s not like "%Text%" order by i;
+
+
+ select * from mytable where s like concat("%Text","%") and s like concat("%Text","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") and s like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s like "%Text1%" order by i;
+ select * from mytable where s not like concat("%Text","%") and s not like concat("%Text","%") order by i;
+ select * from mytable where s not like concat("%Text","%") and s not like concat("%Text1","%") order by i;
+ select * from mytable where s like concat("%Text","%") and s not like "%Text%" order by i;
+ select * from mytable where s like concat("%Text","%") and s not like "%Text1%" order by i;
+
+ select * from mytable where s like replace(concat("%Xext","%"),"X", "T") order by i;
+ select * from mytable where s not like replace(concat("%Text","%"),"T", "X") order by i;
+ select * from mytable where s like concat(replace("%Xext","X", "T"),"%") order by i;
+ select * from mytable where s not like concat(replace("%Text","T", "X"),"%") order by i;
+
+
+drop table mytable;
+
+# Bug #13400970   CRASH WITH ICP AND NULL FIELDS
+create table mytab(a char(20),b char(20),
+key a (a)) engine=ndbcluster default charset=latin1;
+insert into mytab values (null,null),(-1,1);
+select b from mytab where a like -1 having `b` like 1;
+
+drop table mytab;
+
+# Bug #13579318 LIKE SEARCH DOESN'T MATCH ANY ROWS ON A MULTI BYTE CHARSET COLUMN
+create table t(a bigint unsigned not null primary key auto_increment, b varchar(100)) character set utf8 engine ndb;
+
+insert into t (b) values('abc'),('aaa'),('bbb'),('ccc');
+--sorted_result
+select * from t where b like 'a%';
+--sorted_result
+select * from t where b not like 'a%';
+drop table t;
+
+# Bug #13604447 61064: SELECT QUERIES USING ESCAPE SYNTAX FAIL
+create table escapetest ( emailaddress varchar(255) default null, id int not
+null default '0') engine=ndbcluster;
+insert into escapetest values('test_data@test.org', 1);
+explain select * from escapetest where emailaddress like "test_%";
+select * from escapetest where emailaddress like "test_%";
+explain select * from escapetest where emailaddress like "test|_%" escape '|';
+select * from escapetest where emailaddress like "test|_%" escape '|';
+drop table escapetest;
 
 set @@session.optimizer_switch = @old_ecpd;
 DROP TABLE t1,t2,t3,t4,t5;
+
+--echo #
+--echo # Bug#14106592  DEBUG BUILD CRASH IN NDB_SERIALIZE_COND()
+--echo #
+create table t1(a time) engine=ndbcluster;
+insert into t1 values ('00:00:00'),('01:01:01');
+select 1 from t1 where a >= geomfromtext('1');
+drop table t1;
 

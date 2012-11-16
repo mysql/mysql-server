@@ -45,7 +45,7 @@
 #include "sql_partition.h"  /* mem_alloc_error, partition_info, HASH_PARTITION */
 #include "sql_acl.h"                          /* *_ACL */
 #include "password.h"       /* my_make_scrambled_password_323, my_make_scrambled_password */
-#include "sql_class.h"      /* Key_part_spec, enum_filetype, Diag_condition_item_name */
+#include "sql_class.h"      /* Key_part_spec, enum_filetype */
 #include "rpl_slave.h"
 #include "lex_symbol.h"
 #include "item_create.h"
@@ -925,6 +925,41 @@ static bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   return false;
 }
 
+/**
+  Compare a LEX_USER against the current user as defined by the exact user and
+  host used during authentication.
+
+  @param user A pointer to a user which needs to be matched against the
+              current.
+
+  @see SET PASSWORD rules
+
+  @retval true The specified user is the authorized user
+  @retval false The user doesn't match
+*/
+
+bool match_authorized_user(Security_context *ctx, LEX_USER *user)
+{
+  if(user->user.str && my_strcasecmp(system_charset_info,
+                                     ctx->priv_user,
+                                     user->user.str) == 0)
+  {
+    /*
+      users match; let's compare hosts.
+      1. first compare with the host we actually authorized,
+      2. then see if we match the host mask of the priv_host
+    */
+    if (user->host.str && my_strcasecmp(system_charset_info,
+                                        user->host.str,
+                                        ctx->priv_host) == 0)
+    {
+      /* specified user exactly match the authorized user */
+      return true;
+    }
+  }
+  return false;
+}
+
 
 %}
 %union {
@@ -973,7 +1008,7 @@ static bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   enum enum_filetype filetype;
   enum Foreign_key::fk_option m_fk_option;
   enum enum_yes_no_unknown m_yes_no_unk;
-  Diag_condition_item_name diag_condition_item_name;
+  enum_condition_item_name da_condition_item_name;
   Diagnostics_information::Which_area diag_area;
   Diagnostics_information *diag_info;
   Statement_information_item *stmt_info_item;
@@ -982,6 +1017,8 @@ static bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   Condition_information_item *cond_info_item;
   Condition_information_item::Name cond_info_item_name;
   List<Condition_information_item> *cond_info_list;
+  bool is_not_empty;
+  Set_signal_information *signal_item_list;
 }
 
 %{
@@ -1520,6 +1557,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %token  SQL_SYM                       /* SQL-2003-R */
 %token  SQL_THREAD
 %token  SSL_SYM
+%token  STACKED_SYM                   /* SQL-2003-N */
 %token  STARTING
 %token  STARTS_SYM
 %token  START_SYM                     /* SQL-2003-R */
@@ -1877,7 +1915,7 @@ END_OF_INPUT
 %type <filetype> data_or_xml
 
 %type <NONE> signal_stmt resignal_stmt
-%type <diag_condition_item_name> signal_condition_information_item_name
+%type <da_condition_item_name> signal_condition_information_item_name
 
 %type <diag_area> which_area;
 %type <diag_info> diagnostics_information;
@@ -1887,6 +1925,8 @@ END_OF_INPUT
 %type <cond_info_item> condition_information_item;
 %type <cond_info_item_name> condition_information_item_name;
 %type <cond_info_list> condition_information;
+%type <signal_item_list> signal_information_item_list;
+%type <signal_item_list> opt_set_signal_information;
 
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
@@ -1899,6 +1939,8 @@ END_OF_INPUT
 %type <num> opt_slave_thread_option_list
 %type <num> slave_thread_option_list
 %type <num> slave_thread_option
+
+%type <is_not_empty> opt_union_order_or_limit
 
 %%
 
@@ -2246,7 +2288,7 @@ master_def:
             }
             if (Lex->mi.heartbeat_period > slave_net_timeout)
             {
-              push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+              push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
                                   ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                                   ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
             }
@@ -2254,7 +2296,7 @@ master_def:
             {
               if (Lex->mi.heartbeat_period != 0.0)
               {
-                push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
                                     ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN,
                                     ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MIN));
                 Lex->mi.heartbeat_period= 0.0;
@@ -2371,7 +2413,7 @@ create:
               lex->create_info.db_type=
                 lex->create_info.options & HA_LEX_CREATE_TMP_TABLE ?
                 ha_default_temp_handlerton(thd) : ha_default_handlerton(thd);
-              push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+              push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
                                   ER_WARN_USING_OTHER_HANDLER,
                                   ER(ER_WARN_USING_OTHER_HANDLER),
                                   ha_resolve_storage_engine_name(lex->create_info.db_type),
@@ -3336,11 +3378,9 @@ signal_stmt:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            Yacc_state *state= & thd->m_parser_state->m_yacc;
 
             lex->sql_command= SQLCOM_SIGNAL;
-            lex->m_sql_cmd=
-              new (thd->mem_root) Sql_cmd_signal($2, state->m_set_signal_info);
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_signal($2, $3);
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -3386,34 +3426,24 @@ opt_signal_value:
 
 opt_set_signal_information:
           /* empty */
-          {
-            YYTHD->m_parser_state->m_yacc.m_set_signal_info.clear();
-          }
+          { $$= new (YYTHD->mem_root) Set_signal_information(); }
         | SET signal_information_item_list
+          { $$= $2; }
         ;
 
 signal_information_item_list:
           signal_condition_information_item_name EQ signal_allowed_expr
           {
-            Set_signal_information *info;
-            info= & YYTHD->m_parser_state->m_yacc.m_set_signal_info;
-            int index= (int) $1;
-            info->clear();
-            info->m_item[index]= $3;
+            $$= new (YYTHD->mem_root) Set_signal_information();
+            if ($$->set_item($1, $3))
+              MYSQL_YYABORT;
           }
         | signal_information_item_list ','
           signal_condition_information_item_name EQ signal_allowed_expr
           {
-            Set_signal_information *info;
-            info= & YYTHD->m_parser_state->m_yacc.m_set_signal_info;
-            int index= (int) $3;
-            if (info->m_item[index] != NULL)
-            {
-              my_error(ER_DUP_SIGNAL_SET, MYF(0),
-                       Diag_condition_item_names[index].str);
+            $$= $1;
+            if ($$->set_item($3, $5))
               MYSQL_YYABORT;
-            }
-            info->m_item[index]= $5;
           }
         ;
 
@@ -3448,29 +3478,29 @@ signal_allowed_expr:
 /* conditions that can be set in signal / resignal */
 signal_condition_information_item_name:
           CLASS_ORIGIN_SYM
-          { $$= DIAG_CLASS_ORIGIN; }
+          { $$= CIN_CLASS_ORIGIN; }
         | SUBCLASS_ORIGIN_SYM
-          { $$= DIAG_SUBCLASS_ORIGIN; }
+          { $$= CIN_SUBCLASS_ORIGIN; }
         | CONSTRAINT_CATALOG_SYM
-          { $$= DIAG_CONSTRAINT_CATALOG; }
+          { $$= CIN_CONSTRAINT_CATALOG; }
         | CONSTRAINT_SCHEMA_SYM
-          { $$= DIAG_CONSTRAINT_SCHEMA; }
+          { $$= CIN_CONSTRAINT_SCHEMA; }
         | CONSTRAINT_NAME_SYM
-          { $$= DIAG_CONSTRAINT_NAME; }
+          { $$= CIN_CONSTRAINT_NAME; }
         | CATALOG_NAME_SYM
-          { $$= DIAG_CATALOG_NAME; }
+          { $$= CIN_CATALOG_NAME; }
         | SCHEMA_NAME_SYM
-          { $$= DIAG_SCHEMA_NAME; }
+          { $$= CIN_SCHEMA_NAME; }
         | TABLE_NAME_SYM
-          { $$= DIAG_TABLE_NAME; }
+          { $$= CIN_TABLE_NAME; }
         | COLUMN_NAME_SYM
-          { $$= DIAG_COLUMN_NAME; }
+          { $$= CIN_COLUMN_NAME; }
         | CURSOR_NAME_SYM
-          { $$= DIAG_CURSOR_NAME; }
+          { $$= CIN_CURSOR_NAME; }
         | MESSAGE_TEXT_SYM
-          { $$= DIAG_MESSAGE_TEXT; }
+          { $$= CIN_MESSAGE_TEXT; }
         | MYSQL_ERRNO_SYM
-          { $$= DIAG_MYSQL_ERRNO; }
+          { $$= CIN_MYSQL_ERRNO; }
         ;
 
 resignal_stmt:
@@ -3478,12 +3508,9 @@ resignal_stmt:
           {
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
-            Yacc_state *state= & thd->m_parser_state->m_yacc;
 
             lex->sql_command= SQLCOM_RESIGNAL;
-            lex->m_sql_cmd=
-              new (thd->mem_root) Sql_cmd_resignal($2,
-                                                   state->m_set_signal_info);
+            lex->m_sql_cmd= new (thd->mem_root) Sql_cmd_resignal($2, $3);
             if (lex->m_sql_cmd == NULL)
               MYSQL_YYABORT;
           }
@@ -3509,6 +3536,8 @@ which_area:
           { $$= Diagnostics_information::CURRENT_AREA; }
         | CURRENT_SYM
           { $$= Diagnostics_information::CURRENT_AREA; }
+        | STACKED_SYM
+          { $$= Diagnostics_information::STACKED_AREA; }
         ;
 
 diagnostics_information:
@@ -6157,7 +6186,7 @@ storage_engines:
                 MYSQL_YYABORT;
               }
               $$= 0;
-              push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+              push_warning_printf(thd, Sql_condition::SL_WARNING,
                                   ER_UNKNOWN_STORAGE_ENGINE,
                                   ER(ER_UNKNOWN_STORAGE_ENGINE),
                                   $1.str);
@@ -6404,7 +6433,7 @@ type:
               {
                 /* Reset unsupported positive column width to default value */
                 Lex->length= NULL;
-                push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+                push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
                                     ER_INVALID_YEAR_COLUMN_LENGTH,
                                     ER(ER_INVALID_YEAR_COLUMN_LENGTH),
                                     length);
@@ -10818,6 +10847,13 @@ table_factor:
  */
 select_derived_union:
           select_derived opt_union_order_or_limit
+          {
+            if ($1 && $2)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
         | select_derived_union
           UNION_SYM
           union_option
@@ -11881,15 +11917,11 @@ insert_lock_option:
         | LOW_PRIORITY  { $$= TL_WRITE_LOW_PRIORITY; }
         | DELAYED_SYM
         {
-          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
-                                                    YYTHD->query());
-          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
-                                           YYLIP->yyLength() + 1;
-          $$= TL_WRITE_DELAYED;
+          $$= TL_WRITE_CONCURRENT_DEFAULT;
 
-          push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
-                              ER_WARN_DEPRECATED_SYNTAX,
-                              ER(ER_WARN_DEPRECATED_SYNTAX),
+          push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
+                              ER_WARN_LEGACY_SYNTAX_CONVERTED,
+                              ER(ER_WARN_LEGACY_SYNTAX_CONVERTED),
                               "INSERT DELAYED", "INSERT");
         }
         | HIGH_PRIORITY { $$= TL_WRITE; }
@@ -11899,15 +11931,11 @@ replace_lock_option:
           opt_low_priority { $$= $1; }
         | DELAYED_SYM
         {
-          Lex->keyword_delayed_begin_offset= (uint)(YYLIP->get_tok_start() -
-                                                    YYTHD->query());
-          Lex->keyword_delayed_end_offset= Lex->keyword_delayed_begin_offset +
-                                           YYLIP->yyLength() + 1;
-          $$= TL_WRITE_DELAYED;
+          $$= TL_WRITE_DEFAULT;
 
-          push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
-                              ER_WARN_DEPRECATED_SYNTAX,
-                              ER(ER_WARN_DEPRECATED_SYNTAX),
+          push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
+                              ER_WARN_LEGACY_SYNTAX_CONVERTED,
+                              ER(ER_WARN_LEGACY_SYNTAX_CONVERTED),
                               "REPLACE DELAYED", "REPLACE");
         }
         ;
@@ -12035,8 +12063,7 @@ opt_insert_update:
             Lex->duplicates= DUP_UPDATE;
             TABLE_LIST *first_table= Lex->select_lex.table_list.first;
             /* Fix lock for ON DUPLICATE KEY UPDATE */
-            if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT ||
-                first_table->lock_type == TL_WRITE_DELAYED)
+            if (first_table->lock_type == TL_WRITE_CONCURRENT_DEFAULT)
               first_table->lock_type= TL_WRITE_DEFAULT;
           }
           KEY_SYM UPDATE_SYM insert_update_list
@@ -12433,7 +12460,7 @@ show_param:
           { Lex->sql_command = SQLCOM_SHOW_ERRORS;}
         | PROFILES_SYM
           {
-            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+            push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
                                 ER_WARN_DEPRECATED_SYNTAX,
                                 ER(ER_WARN_DEPRECATED_SYNTAX),
                                 "SHOW PROFILES", "Performance Schema");
@@ -12441,7 +12468,7 @@ show_param:
           }
         | PROFILE_SYM opt_profile_defs opt_profile_args opt_limit_clause_init
           {
-            push_warning_printf(YYTHD, Sql_condition::WARN_LEVEL_WARN,
+            push_warning_printf(YYTHD, Sql_condition::SL_WARNING,
                                 ER_WARN_DEPRECATED_SYNTAX,
                                 ER(ER_WARN_DEPRECATED_SYNTAX),
                                 "SHOW PROFILE", "Performance Schema");
@@ -14253,6 +14280,7 @@ keyword_sp:
         | SQL_BUFFER_RESULT        {}
         | SQL_NO_CACHE_SYM         {}
         | SQL_THREAD               {}
+        | STACKED_SYM              {}
         | STARTS_SYM               {}
         | STATS_AUTO_RECALC_SYM    {}
         | STATS_PERSISTENT_SYM     {}
@@ -14679,8 +14707,30 @@ option_value_no_option_type:
             lex->autocommit= TRUE;
             if (lex->sphead)
               lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
-            if (!user->user.str)
+            /*
+              'is_change_password' should be set if the user is setting his
+              own password. This is later used to determine if the password
+              expiration flag should be reset.
+              Either the user exactly matches the currently authroized user or
+              the CURRENT_USER keyword was used.
+
+              If CURRENT_USER was used for the <user> rule then
+              user->user.str=0. See rule below:
+              
+              user:
+                 [..]
+              | CURRENT_USER optional_braces
+                {
+                 [..]
+                  memset($$, 0, sizeof(LEX_USER));
+                }
+            */
+            if (user->user.str ||
+                match_authorized_user(&current_thd->main_security_ctx,
+                                      user))
               lex->is_change_password= TRUE;
+            else
+              lex->is_change_password= FALSE;
           }
         ;
 
@@ -15617,8 +15667,8 @@ union_opt:
         ;
 
 opt_union_order_or_limit:
-	  /* Empty */
-	| union_order_or_limit
+	  /* Empty */ { $$= false; }
+	| union_order_or_limit { $$= true; }
 	;
 
 union_order_or_limit:
@@ -16238,7 +16288,7 @@ sf_tail:
                 If a collision exists, it should not be silenced but fixed.
               */
               push_warning_printf(thd,
-                                  Sql_condition::WARN_LEVEL_NOTE,
+                                  Sql_condition::SL_NOTE,
                                   ER_NATIVE_FCT_NAME_COLLISION,
                                   ER(ER_NATIVE_FCT_NAME_COLLISION),
                                   sp->m_name.str);

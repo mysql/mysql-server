@@ -114,6 +114,7 @@ struct sys_var_with_base
 #include "lex_symbol.h"
 #if MYSQL_LEX
 #include "item_func.h"            /* Cast_target used in sql_yacc.h */
+#include "sql_signal.h"
 #include "sql_get_diagnostics.h"  /* Types used in sql_yacc.h */
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
@@ -648,6 +649,7 @@ public:
   friend bool subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
+  List<Item> *get_field_list();
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -1231,11 +1233,19 @@ public:
   }
 
   /**
-    Enumeration listing of all types of unsafe statement.
+    All types of unsafe statements.
 
-    @note The order of elements of this enumeration type must
-    correspond to the order of the elements of the @c explanations
-    array defined in the body of @c THD::issue_unsafe_warnings.
+    @note The int values of the enum elements are used to point to
+    bits in two bitmaps in two different places:
+
+    - Query_tables_list::binlog_stmt_flags
+    - THD::binlog_unsafe_warning_flags
+    
+    Hence in practice this is not an enum at all, but a map from
+    symbols to bit indexes.
+
+    The ordering of elements in this enum must correspond to the order of
+    elements in the array binlog_stmt_unsafe_errcode.
   */
   enum enum_binlog_stmt_unsafe {
     /**
@@ -1243,11 +1253,6 @@ public:
       be predicted.
     */
     BINLOG_STMT_UNSAFE_LIMIT= 0,
-    /**
-      INSERT DELAYED is unsafe because the time when rows are inserted
-      cannot be predicted.
-    */
-    BINLOG_STMT_UNSAFE_INSERT_DELAYED,
     /**
       Access to log tables is unsafe because slave and master probably
       log different things.
@@ -2428,9 +2433,10 @@ public:
   */
   uint8 create_view_suid;
 
-  /*
-    stmt_definition_begin is intended to point to the next word after
-    DEFINER-clause in the following statements:
+  /**
+    Intended to point to the next word after DEFINER-clause in the
+    following statements:
+
       - CREATE TRIGGER (points to "TRIGGER");
       - CREATE PROCEDURE (points to "PROCEDURE");
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
@@ -2438,20 +2444,9 @@ public:
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
-
-    keyword_delayed_begin_offset is the offset to the beginning of the DELAYED
-    keyword in INSERT DELAYED statement. keyword_delayed_end_offset is the
-    offset to the character right after the DELAYED keyword.
   */
-  union {
-    const char *stmt_definition_begin;
-    uint keyword_delayed_begin_offset;
-  };
-
-  union {
-    const char *stmt_definition_end;
-    uint keyword_delayed_end_offset;
-  };
+  const char *stmt_definition_begin;
+  const char *stmt_definition_end;
 
   /**
     During name resolution search only in the table list given by 
@@ -2609,36 +2604,6 @@ public:
 
 
 /**
-  Set_signal_information is a container used in the parsed tree to represent
-  the collection of assignments to condition items in the SIGNAL and RESIGNAL
-  statements.
-*/
-class Set_signal_information
-{
-public:
-  /** Empty default constructor, use clear() */
- Set_signal_information() {} 
-
-  /** Copy constructor. */
-  Set_signal_information(const Set_signal_information& set);
-
-  /** Destructor. */
-  ~Set_signal_information()
-  {}
-
-  /** Clear all items. */
-  void clear();
-
-  /**
-    For each condition item assignment, m_item[] contains the parsed tree
-    that represents the expression assigned, if any.
-    m_item[] is an array indexed by Diag_condition_item_name.
-  */
-  Item *m_item[LAST_DIAG_SET_PROPERTY+1];
-};
-
-
-/**
   The internal state of the syntax parser.
   This object is only available during parsing,
   and is private to the syntax parser implementation (sql_yacc.yy).
@@ -2655,7 +2620,6 @@ public:
   {
     yacc_yyss= NULL;
     yacc_yyvs= NULL;
-    m_set_signal_info.clear();
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
     m_ha_rkey_mode= HA_READ_KEY_EXACT;
@@ -2685,12 +2649,6 @@ public:
     my_yyoverflow().
   */
   uchar *yacc_yyvs;
-
-  /**
-    Fragments of parsed tree,
-    used during the parsing of SIGNAL and RESIGNAL.
-  */
-  Set_signal_information m_set_signal_info;
 
   /**
     Type of lock to be used for tables being added to the statement's

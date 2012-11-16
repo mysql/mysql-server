@@ -60,7 +60,7 @@ CPCD::findUniqueId() {
     if(id == 0)
       ok = false;
 
-    for(size_t i = 0; i<m_processes.size(); i++) {
+    for(unsigned i = 0; i<m_processes.size(); i++) {
       if(m_processes[i]->m_id == id)
 	ok = false;
     }
@@ -76,7 +76,7 @@ CPCD::defineProcess(RequestStatus * rs, Process * arg){
 
   Guard tmp(m_processes);
 
-  for(size_t i = 0; i<m_processes.size(); i++) {
+  for(unsigned i = 0; i<m_processes.size(); i++) {
     Process * proc = m_processes[i];
     
     if((strcmp(arg->m_name.c_str(), proc->m_name.c_str()) == 0) && 
@@ -106,7 +106,7 @@ CPCD::undefineProcess(CPCD::RequestStatus *rs, int id) {
   Guard tmp(m_processes);
 
   Process * proc = 0;
-  size_t i;
+  unsigned i;
   for(i = 0; i < m_processes.size(); i++) {
     if(m_processes[i]->m_id == id) {
       proc = m_processes[i];
@@ -142,7 +142,7 @@ CPCD::startProcess(CPCD::RequestStatus *rs, int id) {
 
     Guard tmp(m_processes);
     
-    for(size_t i = 0; i < m_processes.size(); i++) {
+    for(unsigned i = 0; i < m_processes.size(); i++) {
       if(m_processes[i]->m_id == id) {
 	proc = m_processes[i];
 	break;
@@ -185,7 +185,7 @@ CPCD::stopProcess(CPCD::RequestStatus *rs, int id) {
   Guard tmp(m_processes);
 
   Process * proc = 0;
-  for(size_t i = 0; i < m_processes.size(); i++) {
+  for(unsigned i = 0; i < m_processes.size(); i++) {
     if(m_processes[i]->m_id == id) {
       proc = m_processes[i];
       break;
@@ -264,7 +264,7 @@ CPCD::saveProcessList(){
     return false;
   }
 
-  for(size_t i = 0; i<m_processes.size(); i++){
+  for(unsigned i = 0; i<m_processes.size(); i++){
     m_processes[i]->print(f);
     fprintf(f, "\n");
 
@@ -367,7 +367,7 @@ CPCD::loadProcessList(){
   sess.loadFile();
   loadingProcessList = false;
 
-  size_t i;
+  unsigned i;
   Vector<int> temporary;
   for(i = 0; i<m_processes.size(); i++){
     Process * proc = m_processes[i];

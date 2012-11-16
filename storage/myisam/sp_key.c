@@ -31,7 +31,7 @@ static int sp_get_geometry_mbr(uchar *(*wkb), uchar *end, uint n_dims,
                               double *mbr, int top);
 static int sp_mbr_from_wkb(uchar (*wkb), uint size, uint n_dims, double *mbr);
 
-uint sp_make_key(register MI_INFO *info, uint keynr, uchar *key,
+uint sp_make_key(MI_INFO *info, uint keynr, uchar *key,
 		 const uchar *record, my_off_t filepos)
 {
   HA_KEYSEG *keyseg;

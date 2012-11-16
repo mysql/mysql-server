@@ -225,7 +225,7 @@ public:
   /**
    * Get the ordinal position of this operation within the QueryDef.
    */
-  Uint32 getQueryOperationIx() const;
+  Uint32 getOpNo() const;
 
   Uint32 getNoOfParentOperations() const;
   const NdbQueryOperationDef* getParentOperation(Uint32 i) const;
@@ -330,6 +330,7 @@ public:
   {}
 
 private:
+  friend class NdbQueryBuilder;
   friend class NdbQueryIndexScanOperationDefImpl;
   const NdbQueryOperand* const *m_low;  // 'Pointer to array of pointers', NULL terminated
   const bool m_lowInclusive;

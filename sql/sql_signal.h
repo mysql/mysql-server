@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,6 +16,61 @@
 #ifndef SQL_SIGNAL_H
 #define SQL_SIGNAL_H
 
+#include "sql_alloc.h"
+#include "sp_pcontext.h"
+
+/**
+   This enumeration list all the condition item names of a condition in the
+   SQL condition area.
+*/
+enum enum_condition_item_name
+{
+  /*
+    Conditions that can be set by the user (SIGNAL/RESIGNAL),
+    and by the server implementation.
+  */
+
+  CIN_CLASS_ORIGIN= 0,
+  CIN_FIRST_PROPERTY= CIN_CLASS_ORIGIN,
+  CIN_SUBCLASS_ORIGIN= 1,
+  CIN_CONSTRAINT_CATALOG= 2,
+  CIN_CONSTRAINT_SCHEMA= 3,
+  CIN_CONSTRAINT_NAME= 4,
+  CIN_CATALOG_NAME= 5,
+  CIN_SCHEMA_NAME= 6,
+  CIN_TABLE_NAME= 7,
+  CIN_COLUMN_NAME= 8,
+  CIN_CURSOR_NAME= 9,
+  CIN_MESSAGE_TEXT= 10,
+  CIN_MYSQL_ERRNO= 11,
+  CIN_LAST_PROPERTY= CIN_MYSQL_ERRNO
+};
+
+
+/**
+  Set_signal_information is a container used in the parsed tree to represent
+  the collection of assignments to condition items in the SIGNAL and RESIGNAL
+  statements.
+*/
+class Set_signal_information : public Sql_alloc
+{
+public:
+  Set_signal_information()
+  { memset(m_item, 0, sizeof(m_item)); }
+
+  ~Set_signal_information() {}
+
+  bool set_item(enum_condition_item_name name, Item *item);
+
+  /**
+    For each condition item assignment, m_item[] contains the parsed tree
+    that represents the expression assigned, if any.
+    m_item[] is an array indexed by enum_condition_item_name.
+  */
+  Item *m_item[CIN_LAST_PROPERTY + 1];
+};
+
+
 /**
   Sql_cmd_common_signal represents the common properties of the
   SIGNAL and RESIGNAL statements.
@@ -29,7 +84,7 @@ protected:
     @param set collection of signal condition item assignments.
   */
   Sql_cmd_common_signal(const sp_condition_value *cond,
-                        const Set_signal_information& set)
+                        Set_signal_information *set)
     : Sql_cmd(),
       m_cond(cond),
       m_set_signal_information(set)
@@ -48,7 +103,7 @@ protected:
   */
   static void assign_defaults(Sql_condition *cond,
                               bool set_level_code,
-                              Sql_condition::enum_warning_level level,
+                              Sql_condition::enum_severity_level level,
                               int sqlcode);
 
   /**
@@ -68,14 +123,6 @@ protected:
   int eval_signal_informations(THD *thd, Sql_condition *cond);
 
   /**
-    Raise a SQL condition.
-    @param thd the current thread.
-    @param cond the condition to raise.
-    @return false on success.
-  */
-  bool raise_condition(THD *thd, Sql_condition *cond);
-
-  /**
     The condition to signal or resignal.
     This member is optional and can be NULL (RESIGNAL).
   */
@@ -85,7 +132,7 @@ protected:
     Collection of 'SET item = value' assignments in the
     SIGNAL/RESIGNAL statement.
   */
-  Set_signal_information m_set_signal_information;
+  Set_signal_information *m_set_signal_information;
 };
 
 /**
@@ -100,7 +147,7 @@ public:
     @param set the collection of signal informations to signal.
   */
   Sql_cmd_signal(const sp_condition_value *cond,
-                 const Set_signal_information& set)
+                 Set_signal_information *set)
     : Sql_cmd_common_signal(cond, set)
   {}
 
@@ -127,7 +174,7 @@ public:
     @param set the collection of signal informations to resignal.
   */
   Sql_cmd_resignal(const sp_condition_value *cond,
-                   const Set_signal_information& set)
+                   Set_signal_information *set)
     : Sql_cmd_common_signal(cond, set)
   {}
 

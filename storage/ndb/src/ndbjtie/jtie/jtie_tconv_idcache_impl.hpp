@@ -1,6 +1,5 @@
 /*
- Copyright 2010 Sun Microsystems, Inc.
- All rights reserved. Use is subject to license terms.
+ Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -80,8 +79,6 @@ jniGetMemberID< jfieldID >(JNIEnv * env,
 
 // ---------------------------------------------------------------------------
 
-// XXX document these macros...
-
 /**
  * Defines an info type describing a field member of a Java class.
  */
@@ -99,7 +96,7 @@ jniGetMemberID< jfieldID >(JNIEnv * env,
  */
 #define JTIE_DEFINE_CLASS_MEMBER_INFO( T, IDT )                 \
     struct T {                                                  \
-        static const char * const class_name;                   \
+        static const char * const jclass_name;                  \
         static const char * const member_name;                  \
         static const char * const member_descriptor;            \
         typedef IDT * memberID_t;                               \
@@ -108,16 +105,36 @@ jniGetMemberID< jfieldID >(JNIEnv * env,
 /**
  * Instantiates an info type describing a member of a Java class.
  */
-#define JTIE_INSTANTIATE_CLASS_MEMBER_INFO( T, CN, MN, MD )             \
-    const char * const T::class_name = CN;                              \
-    const char * const T::member_name = MN;                             \
-    const char * const T::member_descriptor = MD;                       \
+// XXX: unify JTIE_INSTANTIATE_CLASS_MEMBER_INFO_0 and _1
+//      Windows CL requires this version for T = non-template type
+#define JTIE_INSTANTIATE_CLASS_MEMBER_INFO_0( T, JCN, JMN, JMD )        \
+    const char * const T::jclass_name = JCN;                            \
+    const char * const T::member_name = JMN;                            \
+    const char * const T::member_descriptor = JMD;                      \
+    template<> unsigned long MemberId< T >::nIdLookUps = 0;             \
+    template<> jclass MemberIdCache< T >::gClassRef = NULL;             \
+    template<> T::memberID_t MemberIdCache< T >::mid = NULL;            \
+    template struct MemberId< T >;                                      \
+    template struct MemberIdCache< T >;
+
+/**
+ * Instantiates an info type describing a member of a Java class.
+ */
+// XXX: unify JTIE_INSTANTIATE_CLASS_MEMBER_INFO_0 and _1
+//      Windows CL requires this version for T = template type
+#define JTIE_INSTANTIATE_CLASS_MEMBER_INFO_1( T, JCN, JMN, JMD )        \
+    template<> const char * const T::jclass_name = JCN;                 \
+    template<> const char * const T::member_name = JMN;                 \
+    template<> const char * const T::member_descriptor = JMD;           \
+    template<> unsigned long MemberId< T >::nIdLookUps = 0;             \
+    template<> jclass MemberIdCache< T >::gClassRef = NULL;             \
+    template<> T::memberID_t MemberIdCache< T >::mid = NULL;            \
     template struct MemberId< T >;                                      \
     template struct MemberIdCache< T >;
 
 /**
  * Provides uniform access to the JNI Field/Method ID of a Java class member
- * as described by the member info type 'C'.
+ * specified by a info type M.
  *
  * This base class does not cache the member ID and the class object, but
  * it retrieves the member ID from JNI upon each access; different caching
@@ -152,9 +169,9 @@ jniGetMemberID< jfieldID >(JNIEnv * env,
  *
  * Derived classes implement any caching underneath this usage pattern.
  */
-template< typename C >
+template< typename M >
 struct MemberId {
-    typedef typename C::memberID_t ID_t;
+    typedef typename M::memberID_t ID_t;
 
     // number of JNI Get<Field|Method>ID() invocations for statistics
     static unsigned long nIdLookUps;
@@ -176,7 +193,7 @@ struct MemberId {
 
     /**
      * Returns a JNI Reference to the class declaring the member specified
-     * by info type 'C'.
+     * by info type M.
      *
      * Depending upon the underlying caching strategy, a returned reference
      * may be local or global, weak or strong; the scope of its use must be
@@ -195,23 +212,23 @@ struct MemberId {
      */
     static jclass getClass(JNIEnv * env) {
         assert(env->ExceptionCheck() == JNI_OK);
-        jclass cls = env->FindClass(C::class_name);
+        jclass cls = env->FindClass(M::jclass_name);
         if (cls == NULL) { // break out for better diagnostics
             assert(env->ExceptionCheck() != JNI_OK); // exception pending
+            env->ExceptionDescribe(); // print error diagnostics to stderr
 
-//#ifndef NDEBUG // XXX for debugging
-            // print error diagnostics
-            char m[256];
-#ifndef _WIN32
-            snprintf(m, 256, "JTie: failed to find Java class '%s'\n",
+#if 0  // for debugging: raise a fatal error
+#ifdef _WIN32
+#define SNPRINTF _snprintf
 #else
-            _snprintf(m, 256, "JTie: failed to find Java class '%s'\n",
+#define SNPRINTF snprintf
 #endif
-                     (C::class_name == NULL ? "NULL" : C::class_name));
-            fprintf(stderr, m);
-            env->ExceptionDescribe();
-            env->FatalError(m); // XXX for debugging
-//#endif // NDEBUG
+            char m[1024];
+            SNPRINTF(m, sizeof(m), "JTie: failed to find Java class '%s'",
+                     (M::jclass_name == NULL ? "NULL" : M::jclass_name));
+            fprintf(stderr, "%s\n", m);
+            env->FatalError(m);
+#endif
         } else {
             assert(env->ExceptionCheck() == JNI_OK); // ok
         }
@@ -241,7 +258,7 @@ struct MemberId {
         // multithreaded access ok, inaccurate if non-atomic increment
         nIdLookUps++;
         return jniGetMemberID< ID_t >(env, cls,
-                                      C::member_name, C::member_descriptor);
+                                      M::member_name, M::member_descriptor);
     }
 
     /**
@@ -260,9 +277,9 @@ struct MemberId {
 /**
  * Base class for caching of JNI Field/Method IDs.
  */
-template< typename C >
-struct MemberIdCache : MemberId< C > {
-    typedef typename C::memberID_t ID_t;
+template< typename M >
+struct MemberIdCache : MemberId< M > {
+    typedef typename M::memberID_t ID_t;
 
     static ID_t getId(JNIEnv * env, jclass cls) {
         assert(cls != NULL);
@@ -284,10 +301,10 @@ protected:
  * Provides caching of JNI Field/Method IDs using weak class references,
  * allowing classes to be unloaded when no longer used by Java code.
  */
-template< typename C >
-struct MemberIdWeakCache : MemberIdCache< C > {
-    typedef MemberId< C > A;
-    typedef MemberIdCache< C > Base;
+template< typename M >
+struct MemberIdWeakCache : MemberIdCache< M > {
+    typedef MemberId< M > A;
+    typedef MemberIdCache< M > Base;
 
     static void setClass(JNIEnv * env, jclass cls) {
         assert(cls != NULL);
@@ -326,10 +343,10 @@ struct MemberIdWeakCache : MemberIdCache< C > {
  * Provides caching of JNI Field/Method IDs using strong class references,
  * preventing classes from being unloaded even if no longer used by Java code.
  */
-template< typename C >
-struct MemberIdStrongCache : MemberIdCache< C > {
-    typedef MemberId< C > A;
-    typedef MemberIdCache< C > Base;
+template< typename M >
+struct MemberIdStrongCache : MemberIdCache< M > {
+    typedef MemberId< M > A;
+    typedef MemberIdCache< M > Base;
 
     static void setClass(JNIEnv * env, jclass cls) {
         assert(cls != NULL);
@@ -364,9 +381,9 @@ struct MemberIdStrongCache : MemberIdCache< C > {
  * Provides caching of JNI Field/Method IDs using weak class references
  * with preloading (at class initialization) -- VERY TRICKY, NOT SUPPORTED.
  */
-template< typename C >
-struct MemberIdPreloadedWeakCache : MemberIdWeakCache< C > {
-    typedef MemberIdWeakCache< C > Base;
+template< typename M >
+struct MemberIdPreloadedWeakCache : MemberIdWeakCache< M > {
+    typedef MemberIdWeakCache< M > Base;
 
     using Base::setClass; // use as inherited (some compiler wanted this)
 
@@ -389,9 +406,9 @@ struct MemberIdPreloadedWeakCache : MemberIdWeakCache< C > {
  * Provides caching of JNI Field/Method IDs using strong class references
  * with preloading (at class initialization) -- VERY TRICKY, NOT SUPPORTED.
  */
-template< typename C >
-struct MemberIdPreloadedStrongCache : MemberIdStrongCache< C > {
-    typedef MemberIdStrongCache< C > Base;
+template< typename M >
+struct MemberIdPreloadedStrongCache : MemberIdStrongCache< M > {
+    typedef MemberIdStrongCache< M > Base;
 
     using Base::setClass; // use as inherited (some compiler wanted this)
 
@@ -406,16 +423,6 @@ struct MemberIdPreloadedStrongCache : MemberIdStrongCache< C > {
 
     using Base::releaseRef; // use as inherited (some compiler wanted this)
 };
-
-// XXX static initialization <-> multiple compilation units <-> jtie_lib.hpp
-template< typename C > unsigned long MemberId< C >
-    ::nIdLookUps = 0;
-
-template< typename C > jclass MemberIdCache< C >
-    ::gClassRef = NULL;
-
-template< typename C > typename C::memberID_t MemberIdCache< C >
-    ::mid = NULL;
 
 // XXX document
 
@@ -435,29 +442,29 @@ enum JniMemberIdCaching {
 /**
  * Generic class for member ID access with selection of caching strategy.
  */
-template< JniMemberIdCaching M, typename C >
+template< JniMemberIdCaching S, typename M >
 struct JniMemberId;
 
-template< typename C >
-struct JniMemberId< NO_CACHING, C >
-    : MemberId< C > {};
+template< typename M >
+struct JniMemberId< NO_CACHING, M >
+    : MemberId< M > {};
 
-template< typename C >
-struct JniMemberId< WEAK_CACHING, C >
-    : MemberIdWeakCache< C > {};
+template< typename M >
+struct JniMemberId< WEAK_CACHING, M >
+    : MemberIdWeakCache< M > {};
 
-template< typename C >
-struct JniMemberId< STRONG_CACHING, C >
-    : MemberIdStrongCache< C > {};
+template< typename M >
+struct JniMemberId< STRONG_CACHING, M >
+    : MemberIdStrongCache< M > {};
 
 #if 0 // preloaded caching very tricky, not supported at this time
-template< typename C >
-struct JniMemberId< WEAK_CACHING_PRELOAD, C >
-    : MemberIdPreloadedWeakCache< C > {};
+template< typename M >
+struct JniMemberId< WEAK_CACHING_PRELOAD, M >
+    : MemberIdPreloadedWeakCache< M > {};
 
-template< typename C >
-struct JniMemberId< STRONG_CACHING_PRELOAD, C >
-    : MemberIdPreloadedStrongCache< C > {};
+template< typename M >
+struct JniMemberId< STRONG_CACHING_PRELOAD, M >
+    : MemberIdPreloadedStrongCache< M > {};
 #endif // preloaded caching very tricky, not supported at this time
 
 // ---------------------------------------------------------------------------

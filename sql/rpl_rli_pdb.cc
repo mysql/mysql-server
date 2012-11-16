@@ -14,6 +14,8 @@
 #define HASH_DYNAMIC_INIT 4
 #define HASH_DYNAMIC_INCR 1
 
+using std::min;
+
 /*
   Please every time you add a new field to the worker slave info, update
   what follows. For now, this is just used to get the number of fields.
@@ -58,7 +60,7 @@ const char *info_slave_worker_fields []=
 };
 
 /*
-  Number of records in the mts partition hash below which 
+  Number of records in the mts partition hash below which
   entries with zero usage are tolerated so could be quickly
   recycled.
 */
@@ -103,7 +105,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
   mysql_cond_init(key_cond_slave_parallel_worker, &jobs_cond, NULL);
 }
 
-Slave_worker::~Slave_worker() 
+Slave_worker::~Slave_worker()
 {
   end_info();
   if (jobs.inited_queue)
@@ -164,21 +166,22 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   my_init_dynamic_array(&jobs.Q, sizeof(Slave_job_item), jobs.size, 0);
   for (k= 0; k < jobs.size; k++)
     insert_dynamic(&jobs.Q, (uchar*) &empty);
+
   DBUG_ASSERT(jobs.Q.elements == jobs.size);
-  
-  wq_overrun_cnt= 0;
+
+  wq_overrun_cnt= excess_cnt= 0;
+  underrun_level= (ulong) ((rli->mts_worker_underrun_level * jobs.size) / 100.0);
   // overrun level is symmetric to underrun (as underrun to the full queue)
-  overrun_level=
-    (ulong) (((100 - rli->mts_worker_underrun_level) * jobs.size) / 100.0);
+  overrun_level= jobs.size - underrun_level;
 
   DBUG_RETURN(0);
 }
 
 /**
-   A part of Slave worker iitializer that provides a 
+   A part of Slave worker iitializer that provides a
    minimum context for MTS recovery.
 
-   @param is_gaps_collecting_phase 
+   @param is_gaps_collecting_phase
 
           clarifies what state the caller
           executes this method from. When it's @c true
@@ -191,7 +194,7 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
           nad should not read the last session time stale info.
           Its info will be ultimately reset once all gaps are executed
           to finish off recovery.
-          
+
    @return 0 on success, non-zero for a failure
 */
 int Slave_worker::rli_init_info(bool is_gaps_collecting_phase)
@@ -213,9 +216,9 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase)
   /*
     This checks if the repository was created before and thus there
     will be values to be read. Please, do not move this call after
-    the handler->init_info(). 
+    the handler->init_info().
   */
-  return_check= check_info(); 
+  return_check= check_info();
   if (return_check == ERROR_CHECKING_REPOSITORY ||
       (return_check == REPOSITORY_DOES_NOT_EXIST && is_gaps_collecting_phase))
     goto err;
@@ -225,8 +228,8 @@ int Slave_worker::rli_init_info(bool is_gaps_collecting_phase)
 
   bitmap_init(&group_executed, NULL, num_bits, FALSE);
   bitmap_init(&group_shifted, NULL, num_bits, FALSE);
-  
-  if (is_gaps_collecting_phase && 
+
+  if (is_gaps_collecting_phase &&
       (DBUG_EVALUATE_IF("mts_slave_worker_init_at_gaps_fails", true, false) ||
        read_info(handler)))
   {
@@ -385,7 +388,7 @@ bool Slave_worker::write_info(Rpl_info_handler *to)
 bool Slave_worker::reset_recovery_info()
 {
   DBUG_ENTER("Slave_worker::reset_recovery_info");
-  
+
   set_group_master_log_name("");
   set_group_master_log_pos(0);
 
@@ -435,7 +438,7 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool 
   }
 
   DBUG_ASSERT(ptr_g->checkpoint_seqno <= (c_rli->checkpoint_group - 1));
-  
+
   bitmap_set_bit(&group_executed, ptr_g->checkpoint_seqno);
   checkpoint_seqno= ptr_g->checkpoint_seqno;
   group_relay_log_pos= ev->future_event_relay_log_pos;
@@ -612,8 +615,8 @@ TABLE* mts_move_temp_tables_to_thd(THD *thd, TABLE *temporary_tables)
   TABLE *table= temporary_tables;
   if (!table)
     return NULL;
-  
-  // accept only the list head 
+
+  // accept only the list head
   DBUG_ASSERT(!temporary_tables->prev);
 
   // walk along the source list and associate the tables with thd
@@ -634,11 +637,11 @@ TABLE* mts_move_temp_tables_to_thd(THD *thd, TABLE *temporary_tables)
 /**
    Relocating references of temporary tables of a database
    of the entry argument from THD into the entry.
-   
+
    @param thd    THD pointer of the source temporary_tables list
    @param entry  a pointer to db_worker_hash_entry record
                  containing database descriptor and temporary_tables list.
-                 
+
 */
 static void move_temp_tables_to_entry(THD* thd, db_worker_hash_entry* entry)
 {
@@ -660,7 +663,7 @@ static void move_temp_tables_to_entry(THD* thd, db_worker_hash_entry* entry)
 /**
    The function produces a reference to the struct of a Worker
    that has been or will be engaged to process the @c dbname -keyed  partition (D).
-   It checks a local to Coordinator CGAP list first and returns 
+   It checks a local to Coordinator CGAP list first and returns
    @c last_assigned_worker when found (todo: assert).
 
    Otherwise, the partition is appended to the current group list:
@@ -679,7 +682,7 @@ static void move_temp_tables_to_entry(THD* thd, db_worker_hash_entry* entry)
 
         W_d := W_c := W_{least_occupied}
 
-        APH .=  a new (D, W_d, 1) 
+        APH .=  a new (D, W_d, 1)
 
    In a case APH contains W_d == W_c, (assert U >= 1)
 
@@ -707,7 +710,7 @@ static void move_temp_tables_to_entry(THD* thd, db_worker_hash_entry* entry)
    @param  last_worker caller opts for this Worker, it must be
                        rli->last_assigned_worker if one is determined.
 
-   @note modifies  CGAP, APH and unlinks @c dbname -keyd temporary tables 
+   @note modifies  CGAP, APH and unlinks @c dbname -keyd temporary tables
          from C's thd->temporary_tables to move them into the entry record.
 
    @return the pointer to a Worker struct
@@ -720,8 +723,8 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
   DYNAMIC_ARRAY *workers= &rli->workers;
 
   /*
-    A dynamic array to store the mapping_db_to_worker hash elements 
-    that needs to be deleted, since deleting the hash entires while 
+    A dynamic array to store the mapping_db_to_worker hash elements
+    that needs to be deleted, since deleting the hash entires while
     iterating over it is wrong.
   */
   DYNAMIC_ARRAY hash_element;
@@ -836,7 +839,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       for (uint i=0; i < hash_element.elements; i++)
       {
         db_worker_hash_entry *temp_entry= *(db_worker_hash_entry **) dynamic_array_ptr(&hash_element, i);
-        my_hash_delete(&mapping_db_to_worker, (uchar*) temp_entry);        
+        my_hash_delete(&mapping_db_to_worker, (uchar*) temp_entry);
       }
         /* Deleting the dynamic array */
       delete_dynamic(&hash_element);
@@ -858,7 +861,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     /* There is a record. Either  */
     if (entry->usage == 0)
     {
-      entry->worker= (!last_worker) ? 
+      entry->worker= (!last_worker) ?
         get_least_occupied_worker(workers) : last_worker;
       entry->worker->usage_partition++;
       entry->usage++;
@@ -886,7 +889,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
       do
       {
         thd->ENTER_COND(&slave_worker_hash_cond,
-                                   &slave_worker_hash_lock, 
+                                   &slave_worker_hash_lock,
                                    &stage_slave_waiting_worker_to_release_partition,
                                    &old_stage);
         mysql_cond_wait(&slave_worker_hash_cond, &slave_worker_hash_lock);
@@ -904,7 +907,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
     }
   }
 
-  /* 
+  /*
      relocation belonging to db temporary tables from C to W via entry
   */
   if (entry->usage == 1 && need_temp_tables)
@@ -921,7 +924,7 @@ Slave_worker *map_db_to_worker(const char *dbname, Relay_log_info *rli,
         thd->temporary_tables= NULL;
       }
     }
-#ifndef DBUG_OFF      
+#ifndef DBUG_OFF
     else
     {
       // all entries must have been emptied from temps by the caller
@@ -957,7 +960,7 @@ err:
    in debug built by tests that need it.
 
    @param ws  dynarray of pointers to Slave_worker
-   
+
    @return a pointer to chosen Slave_worker instance
 
 */
@@ -969,9 +972,9 @@ Slave_worker *get_least_occupied_worker(DYNAMIC_ARRAY *ws)
 
   DBUG_ENTER("get_least_occupied_worker");
 
-  DBUG_EXECUTE_IF("mts_distribute_round_robin", 
+  DBUG_EXECUTE_IF("mts_distribute_round_robin",
                   {
-                    worker= 
+                    worker=
                       *((Slave_worker **)
                         dynamic_array_ptr(ws, w_rr % ws->elements));
                     sql_print_information("Chosing worker id %lu, the following "
@@ -989,7 +992,7 @@ Slave_worker *get_least_occupied_worker(DYNAMIC_ARRAY *ws)
       usage= (*ptr_current_worker)->usage_partition;
     }
   }
-  
+
   DBUG_ASSERT(worker != NULL);
 
   DBUG_RETURN(worker);
@@ -1074,8 +1077,8 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     {
       usage_partition--;
       /*
-        The detached entry's temp table list, possibly updated, remains 
-        with the entry at least until time Coordinator will deallocate it 
+        The detached entry's temp table list, possibly updated, remains
+        with the entry at least until time Coordinator will deallocate it
         from the hash, that is either due to stop or extra size of the hash.
       */
       DBUG_ASSERT(usage_partition >= 0);
@@ -1128,9 +1131,9 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
 
    Content of the being dequeued item is copied to the arg-pointer
    location.
-      
+
    @return the queue's array index that the de-queued item
-           located at, or an error as an int outside the legacy 
+           located at, or an error as an int outside the legacy
            [0, size) (value `size' is excluded) range.
 */
 
@@ -1146,7 +1149,7 @@ ulong circular_buffer_queue::de_queue(uchar *val)
   ret= entry;
   get_dynamic(&Q, val, entry);
   len--;
-  
+
   // pre boundary cond
   if (avail == size)
     avail= entry;
@@ -1166,7 +1169,7 @@ ulong circular_buffer_queue::de_queue(uchar *val)
 
 /**
    Similar to de_queue() but removing an item from the tail side.
-   
+
    return  the queue's array index that the de-queued item
            located at, or an error.
 */
@@ -1181,7 +1184,7 @@ ulong circular_buffer_queue::de_tail(uchar *val)
   avail= (entry + len - 1) % size;
   get_dynamic(&Q, val, avail);
   len--;
-  
+
   // post boundary cond
   if (avail == entry)
     entry= size;
@@ -1194,7 +1197,7 @@ ulong circular_buffer_queue::de_tail(uchar *val)
   return avail;
 }
 
-/** 
+/**
     @return  the index where the arg item has been located
              or an error.
 */
@@ -1216,7 +1219,7 @@ ulong circular_buffer_queue::en_queue(void *item)
   // pre-boundary cond
   if (entry == size)
     entry= avail;
-  
+
   avail= (avail + 1) % size;
   len++;
 
@@ -1224,7 +1227,7 @@ ulong circular_buffer_queue::en_queue(void *item)
   if (avail == entry)
     avail= size;
 
-  DBUG_ASSERT(avail == entry || 
+  DBUG_ASSERT(avail == entry ||
               len == (avail >= entry) ?
               (avail - entry) : (size + avail - entry));
   DBUG_ASSERT(avail != entry);
@@ -1303,7 +1306,7 @@ bool Slave_committed_queue::count_done(Relay_log_info* rli)
 /**
    The queue is processed from the head item by item
    to purge items representing committed groups.
-   Progress in GAQ is assessed through comparision of GAQ index value 
+   Progress in GAQ is assessed through comparision of GAQ index value
    with Worker's @c last_group_done_index.
    Purging breaks at a first discovered gap, that is an item
    that the assinged item->w_id'th Worker has not yet completed.
@@ -1410,7 +1413,7 @@ ulong Slave_committed_queue::move_queue_head(DYNAMIC_ARRAY *ws)
 }
 
 /**
-   Method should be executed at slave system stop to 
+   Method should be executed at slave system stop to
    cleanup dynamically allocated items that remained as unprocessed
    by Coordinator and Workers in their regular execution course.
 */
@@ -1446,7 +1449,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
 
 /**
    Function is called by Coordinator when it identified an event
-   requiring sequential execution. 
+   requiring sequential execution.
    Creating sequential context for the event includes waiting
    for the assigned to Workers tasks to be completed and their
    resources such as temporary tables be returned to Coordinator's
@@ -1455,14 +1458,14 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
 
    @param  rli     Relay_log_info instance of Coordinator
    @param  ignore  Optional Worker instance pointer if the sequential context
-                   is established due for the ignore Worker. Its resources 
+                   is established due for the ignore Worker. Its resources
                    are to be retained.
-                   
+
    @note   Resources that are not occupied by Workers such as
            a list of temporary tables held in unused (zero-usage) records
            of APH are relocated to the Coordinator placeholder.
 
-   @return non-negative number of released by Workers partitions 
+   @return non-negative number of released by Workers partitions
            (one partition by one Worker can count multiple times)
 
            or -1 to indicate there has been a failure on a not-ignored Worker
@@ -1482,16 +1485,16 @@ int wait_for_workers_to_finish(Relay_log_info const *rli, Slave_worker *ignore)
   llstr(const_cast<Relay_log_info*>(rli)->get_event_relay_log_pos(), llbuf);
   if (log_warnings > 1)
     sql_print_information("Coordinator and workers enter synchronization procedure "
-                          "when scheduling event relay-log: %s pos: %s", 
-                          const_cast<Relay_log_info*>(rli)->get_event_relay_log_name(), 
+                          "when scheduling event relay-log: %s pos: %s",
+                          const_cast<Relay_log_info*>(rli)->get_event_relay_log_name(),
                           llbuf);
 
   for (uint i= 0, ret= 0; i < hash->records; i++)
   {
     db_worker_hash_entry *entry;
-       
+
     mysql_mutex_lock(&slave_worker_hash_lock);
-  
+
     entry= (db_worker_hash_entry*) my_hash_element(hash, i);
 
     DBUG_ASSERT(entry);
@@ -1540,7 +1543,7 @@ int wait_for_workers_to_finish(Relay_log_info const *rli, Slave_worker *ignore)
   {
     if (log_warnings > 1)
       sql_print_information("Coordinator synchronized with Workers, "
-                            "waited entries: %d, cant_sync: %d", 
+                            "waited entries: %d, cant_sync: %d",
                             ret, cant_sync);
 
     const_cast<Relay_log_info*>(rli)->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
@@ -1566,14 +1569,14 @@ static int en_queue(Slave_jobs_queue *jobs, Slave_job_item *item)
   // pre-boundary cond
   if (jobs->entry == jobs->size)
     jobs->entry= jobs->avail;
-  
+
   jobs->avail= (jobs->avail + 1) % jobs->size;
   jobs->len++;
 
   // post-boundary cond
   if (jobs->avail == jobs->entry)
     jobs->avail= jobs->size;
-  DBUG_ASSERT(jobs->avail == jobs->entry || 
+  DBUG_ASSERT(jobs->avail == jobs->entry ||
               jobs->len == (jobs->avail >= jobs->entry) ?
               (jobs->avail - jobs->entry) : (jobs->size + jobs->avail - jobs->entry));
   return jobs->avail;
@@ -1593,7 +1596,7 @@ static void * head_queue(Slave_jobs_queue *jobs, Slave_job_item *ret)
   get_dynamic(&jobs->Q, (uchar*) ret, jobs->entry);
 
   DBUG_ASSERT(ret->data);         // todo: move to caller
- 
+
   return ret;
 }
 
@@ -1610,7 +1613,7 @@ Slave_job_item * de_queue(Slave_jobs_queue *jobs, Slave_job_item *ret)
   }
   get_dynamic(&jobs->Q, (uchar*) ret, jobs->entry);
   jobs->len--;
-  
+
   // pre boundary cond
   if (jobs->avail == jobs->size)
     jobs->avail= jobs->entry;
@@ -1680,24 +1683,32 @@ bool append_item_to_jobs(slave_job_item *job_item,
   mysql_mutex_unlock(&rli->pending_jobs_lock);
 
   /*
-    Sleep unless there is an underrunning Worker and the current Worker 
-    queue is not empty.
+    Sleep unless there is an underrunning Worker and the current Worker
+    queue is empty or filled lightly (not more than underrun level).
   */
-  if (rli->mts_wq_underrun_w_id == MTS_WORKER_UNDEF && worker->jobs.len > 0)
+  if (rli->mts_wq_underrun_w_id == MTS_WORKER_UNDEF &&
+      worker->jobs.len > worker->underrun_level)
   {
     /*
-      todo: experiment with weight to get a good approximation formula
+      todo: experiment with weight to get a good approximation formula.
+      Max possible nap time is choosen 1 ms.
       The bigger the excessive overrun counter the longer the nap.
     */
     ulong nap_weight= rli->mts_wq_excess_cnt + 1;
-    /* 
+    /*
        Nap time is a product of a weight factor and the basic nap unit.
        The weight factor is proportional to the worker queues overrun excess
-       counter. For example when there is only one overruning Worker
-       the max nap_weight as 0.1 * worker->jobs.size is
+       counter. For example when there were only one overruning Worker
+       the max nap_weight as 0.1 * worker->jobs.size would be
        about 1600 so the max nap time is approx 0.008 secs.
+       Such value is not reachable because of min().
+       Notice, granularity of sleep depends on the resolution of the software
+       clock, High-Resolution Timer (HRT) configuration. Without HRT
+       the precision of wake-up through @c select() may be greater or
+       equal 1 ms. So don't expect the nap last a prescribed fraction of 1 ms
+       in such case.
     */
-    my_sleep(nap_weight * rli->mts_coordinator_basic_nap);
+    my_sleep(min<ulong>(1000, nap_weight * rli->mts_coordinator_basic_nap));
     rli->mts_wq_no_underrun_cnt++;
   }
 
@@ -1707,14 +1718,14 @@ bool append_item_to_jobs(slave_job_item *job_item,
   while (worker->running_status == Slave_worker::RUNNING && !thd->killed &&
          (ret= en_queue(&worker->jobs, job_item)) == -1)
   {
-    thd->ENTER_COND(&worker->jobs_cond, &worker->jobs_lock, 
+    thd->ENTER_COND(&worker->jobs_cond, &worker->jobs_lock,
                     &stage_slave_waiting_worker_queue, &old_stage);
     worker->jobs.overfill= TRUE;
     worker->jobs.waited_overfill++;
     rli->mts_wq_overfill_cnt++;
     mysql_cond_wait(&worker->jobs_cond, &worker->jobs_lock);
     thd->EXIT_COND(&old_stage);
-    
+
     mysql_mutex_lock(&worker->jobs_lock);
   }
   if (ret != -1)
@@ -1722,7 +1733,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
     worker->curr_jobs++;
     if (worker->jobs.len == 1)
       mysql_cond_signal(&worker->jobs_cond);
-    
+
     mysql_mutex_unlock(&worker->jobs_lock);
   }
   else
@@ -1745,7 +1756,7 @@ bool append_item_to_jobs(slave_job_item *job_item,
 
    @param worker    a pointer to the waiting Worker struct
    @param job_item  a pointer to struct carrying a reference to an event
-   
+
    @return NULL failure or
            a-pointer to an item.
 */
@@ -1784,7 +1795,7 @@ struct slave_job_item* pop_jobs_item(Slave_worker *worker, Slave_job_item *job_i
 
 /**
   MTS worker main routine.
-  The worker thread loops in waiting for an event, executing it and 
+  The worker thread loops in waiting for an event, executing it and
   fixing statistics counters.
 
   @param worker    a pointer to the assigned Worker struct
@@ -1794,7 +1805,7 @@ struct slave_job_item* pop_jobs_item(Slave_worker *worker, Slave_job_item *job_i
   @note the function maintains worker's CGEP and modifies APH, updates
         the current group item in GAQ via @c slave_worker_ends_group().
 
-  @return 0 success 
+  @return 0 success
          -1 got killed or an error happened during appying
 */
 int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
@@ -1829,7 +1840,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   {
     worker->curr_group_seen_begin= true; // The current group is started with B-event
     worker->end_group_sets_max_dbs= true;
-  } 
+  }
   else if (!is_gtid_event(ev))
   {
     if ((part_event=
@@ -1869,7 +1880,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   worker->set_future_event_relay_log_pos(ev->future_event_relay_log_pos);
   error= ev->do_apply_event_worker(worker);
   if (ev->ends_group() || (!worker->curr_group_seen_begin &&
-                           /* 
+                           /*
                               p-events of B/T-less {p,g} group (see
                               legends of Log_event::get_slave_worker)
                               obviously can't commit.
@@ -1915,15 +1926,14 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   rli->pending_jobs--;
   rli->mts_pending_jobs_size -= ev->data_written;
   DBUG_ASSERT(rli->mts_pending_jobs_size < rli->mts_pending_jobs_size_max);
-  
+
   /*
-    The positive branch is underrun: number of pending assignments 
+    The positive branch is underrun: number of pending assignments
     is less than underrun level.
     Zero of jobs.len has to reset underrun w_id as the worker may get
     the next piece of assignement in a long time.
   */
-  if (((rli->mts_worker_underrun_level * worker->jobs.size) / 100.0 >
-       worker->jobs.len) && (worker->jobs.len != 0))
+  if (worker->underrun_level > worker->jobs.len && worker->jobs.len != 0)
   {
     rli->mts_wq_underrun_w_id= worker->id;
   } else if (rli->mts_wq_underrun_w_id == worker->id)
@@ -1931,13 +1941,12 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
     // reset only own marking
     rli->mts_wq_underrun_w_id= MTS_WORKER_UNDEF;
   }
-  
+
   /*
     Overrun handling.
     Incrementing the Worker private and the total excess counter corresponding
-    to number of events filled in at over
-    (100 - rli->mts_worker_underrun_level) level.
-    The increment amount to the total counter is a difference between 
+    to number of events filled above the overrun_level.
+    The increment amount to the total counter is a difference between
     the current and the previous private excess (worker->wq_overrun_cnt).
     When the current queue length drops below overrun_level the global
     counter is decremented, the local is reset.
@@ -1945,22 +1954,30 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
   if (worker->overrun_level < worker->jobs.len)
   {
     ulong last_overrun= worker->wq_overrun_cnt;
+    ulong excess_delta;
 
-    worker->wq_overrun_cnt= worker->jobs.len - worker->overrun_level; //current
-    rli->mts_wq_excess_cnt+= (worker->wq_overrun_cnt - last_overrun);
+    /* current overrun */
+    worker->wq_overrun_cnt= worker->jobs.len - worker->overrun_level;
+    excess_delta= worker->wq_overrun_cnt - last_overrun;
+    worker->excess_cnt+= excess_delta;
+    rli->mts_wq_excess_cnt+= excess_delta;
     rli->mts_wq_overrun_cnt++;  // statistics
 
     // guarding correctness of incrementing in case of the only one Worker
     DBUG_ASSERT(rli->workers.elements != 1 ||
                 rli->mts_wq_excess_cnt == worker->wq_overrun_cnt);
   }
-  else if (worker->wq_overrun_cnt > 0)
+  else if (worker->excess_cnt > 0)
   {
-    // When level drops below the total excess is decremented
-    rli->mts_wq_excess_cnt -= worker->wq_overrun_cnt;
+    // When level drops below the total excess is decremented by the
+    // value of the worker's contribution to the total excess.
+    rli->mts_wq_excess_cnt-= worker->excess_cnt;
+    worker->excess_cnt= 0;
     worker->wq_overrun_cnt= 0; // and the local is reset
 
     DBUG_ASSERT(rli->mts_wq_excess_cnt >= 0);
+    DBUG_ASSERT(rli->mts_wq_excess_cnt == 0 || rli->workers.elements > 1);
+
   }
 
   /* coordinator can be waiting */
@@ -1970,7 +1987,7 @@ int slave_worker_exec_job(Slave_worker *worker, Relay_log_info *rli)
     rli->mts_wq_oversize= FALSE;
     mysql_cond_signal(&rli->pending_jobs_cond);
   }
-  
+
   mysql_mutex_unlock(&rli->pending_jobs_lock);
 
   worker->events_done++;
@@ -1991,7 +2008,7 @@ err:
   {
     delete ev;
   }
-  
+
 
   DBUG_RETURN(error);
 }

@@ -291,6 +291,7 @@ static void end_pager();
 static void init_tee(const char *);
 static void end_tee();
 static const char* construct_prompt();
+static inline void reset_prompt(char *in_string, bool *ml_comment);
 static char *get_arg(char *line, my_bool get_next_arg);
 static void init_username();
 static void add_int_to_prompt(int toadd);
@@ -2167,6 +2168,7 @@ static int read_and_execute(bool interactive)
       if (line && (nread == 0))
       {
         tee_puts("^C", stdout);
+        reset_prompt(&in_string, &ml_comment);
         continue;
       }
       else if (*line == 0x1A)                   /* (Ctrl + Z) */
@@ -2180,6 +2182,7 @@ static int read_and_execute(bool interactive)
       {
         sigint_received= 0;
         tee_puts("^C", stdout);
+        reset_prompt(&in_string, &ml_comment);
         continue;
       }
 #endif                                          /* defined(__WIN__) */
@@ -2249,6 +2252,16 @@ static int read_and_execute(bool interactive)
   real_binary_mode= FALSE;
   return status.exit_status;
 }
+
+
+static inline void
+reset_prompt(char *in_string, bool *ml_comment)
+{
+  glob_buffer.length(0);
+  *ml_comment= 0;
+  *in_string= 0;
+}
+
 
 /**
    It checks if the input is a short form command. It returns the command's
@@ -3007,7 +3020,7 @@ char *index(const char *s,int c)
 
 char *rindex(const char *s,int c)
 {
-  reg3 char *t;
+  char *t;
 
   t = NullS;
   do if (*s == (char) c) t = (char*) s; while (*s++);
@@ -3296,7 +3309,7 @@ static int
 com_help(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
-  reg1 int i, j;
+  int i, j;
   char * help_arg= strchr(line,' '), buff[32], *end;
   if (help_arg)
   {

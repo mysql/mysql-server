@@ -152,7 +152,7 @@ INSERT INTO t_stmt VALUES (UUID());
 # that so that the result is NULL and we instead use autoinc.
 --echo * Multi-unsafe statement and stmt-only engine
 --error ER_BINLOG_UNSAFE_AND_STMT_ENGINE
-INSERT DELAYED INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, NULL) FROM mysql.general_log LIMIT 1;
+INSERT INTO t_double_autoinc SELECT CONCAT(UUID(), @@hostname, NULL) FROM mysql.general_log LIMIT 1;
 
 
 --echo ---- binlog_format=statement ----

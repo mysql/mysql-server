@@ -237,8 +237,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
 
 
 void Item_func::fix_after_pullout(st_select_lex *parent_select,
-                                  st_select_lex *removed_select,
-                                  Item **ref)
+                                  st_select_lex *removed_select)
 {
   Item **arg,**arg_end;
 
@@ -250,8 +249,8 @@ void Item_func::fix_after_pullout(st_select_lex *parent_select,
   {
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
-      (*arg)->fix_after_pullout(parent_select, removed_select, arg);
-      Item *item= *arg;
+      Item *const item= *arg;
+      item->fix_after_pullout(parent_select, removed_select);
 
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
@@ -729,7 +728,7 @@ void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
   if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_DIVISION_BY_ZERO,
+    push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
                  ER(ER_DIVISION_BY_ZERO));
   null_value= 1;
 }
@@ -1136,7 +1135,7 @@ longlong Item_func_signed::val_int_from_str(int *error)
   if (*error > 0 || end != start+ length)
   {
     ErrConvString err(res);
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
                         err.ptr());
@@ -1161,7 +1160,7 @@ longlong Item_func_signed::val_int()
   value= val_int_from_str(&error);
   if (value < 0 && error == 0)
   {
-    push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(current_thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                  "Cast to signed converted positive out-of-range integer to "
                  "it's negative complement");
   }
@@ -1202,7 +1201,7 @@ longlong Item_func_unsigned::val_int()
 
   value= val_int_from_str(&error);
   if (error < 0)
-    push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(current_thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                  "Cast to unsigned converted negative integer to it's "
                  "positive complement");
   return value;
@@ -1270,7 +1269,7 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
   return dec;
 
 err:
-  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
                       item_name.ptr(), 1L);
@@ -3328,8 +3327,8 @@ longlong Item_func_ord::val_int()
 #ifdef USE_MB
   if (use_mb(res->charset()))
   {
-    register const char *str=res->ptr();
-    register uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());
+    const char *str=res->ptr();
+    uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());
     if (!l)
       return (longlong)((uchar) *str);
     while (l--)
@@ -4460,7 +4459,7 @@ longlong Item_func_benchmark::val_int()
     {
       char buff[22];
       llstr(((longlong) loop_count), buff);
-      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
                           "count", buff, "benchmark");
     }

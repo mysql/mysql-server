@@ -551,6 +551,7 @@ static SYMBOL symbols[] = {
   { "SQL_TSI_QUARTER",  SYM(QUARTER_SYM)},
   { "SQL_TSI_YEAR",     SYM(YEAR_SYM)},
   { "SSL",		SYM(SSL_SYM)},
+  { "STACKED",          SYM(STACKED_SYM)},
   { "START",		SYM(START_SYM)},
   { "STARTING",		SYM(STARTING)},
   { "STARTS",		SYM(STARTS_SYM)},

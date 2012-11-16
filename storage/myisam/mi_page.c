@@ -19,7 +19,7 @@
 
 	/* Fetch a key-page in memory */
 
-uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
+uchar *_mi_fetch_keypage(MI_INFO *info, MI_KEYDEF *keyinfo,
 			 my_off_t page, int level, 
                          uchar *buff, int return_buffer)
 {
@@ -61,10 +61,10 @@ uchar *_mi_fetch_keypage(register MI_INFO *info, MI_KEYDEF *keyinfo,
 
 	/* Write a key-page on disk */
 
-int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
+int _mi_write_keypage(MI_INFO *info, MI_KEYDEF *keyinfo,
 		      my_off_t page, int level, uchar *buff)
 {
-  reg3 uint length;
+  uint length;
   DBUG_ENTER("_mi_write_keypage");
 
 #ifndef FAST					/* Safety check */
@@ -96,7 +96,7 @@ int _mi_write_keypage(register MI_INFO *info, register MI_KEYDEF *keyinfo,
 
 	/* Remove page from disk */
 
-int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
+int _mi_dispose(MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
                 int level)
 {
   my_off_t old_link;
@@ -118,7 +118,7 @@ int _mi_dispose(register MI_INFO *info, MI_KEYDEF *keyinfo, my_off_t pos,
 
 	/* Make new page on disk */
 
-my_off_t _mi_new(register MI_INFO *info, MI_KEYDEF *keyinfo, int level)
+my_off_t _mi_new(MI_INFO *info, MI_KEYDEF *keyinfo, int level)
 {
   my_off_t pos;
   uchar buff[8];

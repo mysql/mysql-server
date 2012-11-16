@@ -11,11 +11,11 @@ partitions 3
 (partition x1 values less than (5) nodegroup 12,
 partition x2 values less than (10) nodegroup 13,
 partition x3 values less than (20) nodegroup 14);
-ERROR HY000: Can't create table 'test.t1' (errno: 140)
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 show warnings;
 Level	Code	Message
 Warning	1296	Got error 771 'Given NODEGROUP doesn't exist in this cluster' from NDB
-Error	1005	Can't create table 'test.t1' (errno: 140)
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1 (
 a int not null,
 b int not null,

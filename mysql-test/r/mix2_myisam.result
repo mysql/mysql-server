@@ -660,12 +660,6 @@ SELECT MIN(B),MAX(b) FROM t1 WHERE t1.a = 1;
 MIN(B)	MAX(b)
 1	1
 drop table t1;
-CREATE TABLE t1 (a int unsigned NOT NULL) engine=MyISAM;
-INSERT INTO t1 VALUES (1);
-SELECT * FROM t1;
-a
-1
-DROP TABLE t1;
 create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h int, i int, j int, k int, l int, m int, n int, o int, p int, q int, r int, s int, t int, u int, v int, w int, x int, y int, z int, a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int, b1 int, b2 int, b3 int, b4 int, b5 int, b6 int) engine = MyISAM;
 insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
 explain select * from t1 where a > 0 and a < 50;

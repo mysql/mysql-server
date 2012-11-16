@@ -39,13 +39,6 @@ enum THD_NDB_OPTIONS
     lock, as one other mysqld already has the lock.
   */
   TNO_NO_LOCK_SCHEMA_OP= 1 << 1
-  /*
-    Skip drop of ndb table in delete_table.  Used when calling
-    mysql_rm_table_part2 in "show tables", as we do not want to
-    remove ndb tables "by mistake".  The table should not exist
-    in ndb in the first place.
-  */
-  ,TNO_NO_NDB_DROP_TABLE=    1 << 2
 };
 
 enum THD_NDB_TRANS_OPTIONS
@@ -53,6 +46,8 @@ enum THD_NDB_TRANS_OPTIONS
   TNTO_INJECTED_APPLY_STATUS= 1 << 0
   ,TNTO_NO_LOGGING=           1 << 1
   ,TNTO_TRANSACTIONS_OFF=     1 << 2
+  ,TNTO_NO_REMOVE_STRAY_FILES=  1 << 3
+  ,TNTO_APPLYING_BINLOG=      1 << 4
 };
 
 class Thd_ndb 
@@ -135,8 +130,8 @@ public:
   bool has_required_global_schema_lock(const char* func);
 
   unsigned m_connect_count;
-  bool valid_ndb(void);
-  bool recycle_ndb(THD* thd);
+  bool valid_ndb(void) const;
+  bool recycle_ndb(void);
 };
 
 #endif

@@ -14,7 +14,7 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SET(DEP ndbjtie.jar
-        tie.jar
+        jtie.jar
         clusterj-api.jar
         clusterj-core.jar
         clusterj-tie.jar)
@@ -41,5 +41,9 @@ CREATE_JAR(clusterjpa ${JAVA_SOURCES}
   CLASSPATH ${CLASSPATH}
   MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/clusterjpa_manifest.mf
   DEPENDENCIES ${DEP}
+  EXTRA_FILES src/main/resources/META-INF
+              src/main/resources/com
   MERGE_JARS ${JARS})
 
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterjpa-${MYSQL_CLUSTER_VERSION}.jar
+        DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)

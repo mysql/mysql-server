@@ -435,8 +435,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   Item_change_list old_change_list;
   String old_packet;
   Object_creation_ctx *saved_creation_ctx;
-  Diagnostics_area *da= thd->get_stmt_da();
-  Warning_info sp_wi(da->warning_info_id(), false);
+  Diagnostics_area *caller_da= thd->get_stmt_da();
+  Diagnostics_area sp_da(caller_da->statement_id(), false);
 
   /*
     Just reporting a stack overrun error
@@ -514,9 +514,8 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->is_slave_error= 0;
   old_arena= thd->stmt_arena;
 
-  /* Push a new warning information area. */
-  da->copy_sql_conditions_to_wi(thd, &sp_wi);
-  da->push_warning_info(&sp_wi);
+  /* Push a new Diagnostics Area. */
+  thd->push_diagnostics_area(&sp_da);
 
   /*
     Switch query context. This has to be done early as this is sometimes
@@ -616,7 +615,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     }
 
     /* Reset number of warnings for this query. */
-    thd->get_stmt_da()->reset_for_next_command();
+    thd->get_stmt_da()->reset_statement_cond_count();
 
     DBUG_PRINT("execute", ("Instruction %u", ip));
 
@@ -707,35 +706,44 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->stmt_arena= old_arena;
   state= STMT_EXECUTED;
 
-  /*
-    Restore the caller's original warning information area:
-      - warnings generated during trigger execution should not be
-        propagated to the caller on success;
-      - if there was an exception during execution, warning info should be
-        propagated to the caller in any case.
-  */
-  da->pop_warning_info();
+  if (err_status)
+  {
+    /*
+      If the SP ended with an exception, transfer the exception condition
+      information to the Diagnostics Area of the caller.
+    */
+    caller_da->set_error_status(thd->get_stmt_da()->mysql_errno(),
+                                thd->get_stmt_da()->message_text(),
+                                thd->get_stmt_da()->returned_sqlstate());
+  }
 
+  /*
+    - conditions generated during trigger execution should not be
+    propagated to the caller on success;
+    - if there was an exception during execution, conditions should be
+    propagated to the caller in any case.
+  */
   if (err_status || merge_da_on_success)
   {
     /*
-      If a routine body is empty or if a routine did not generate any warnings,
-      do not duplicate our own contents by appending the contents of the called
-      routine. We know that the called routine did not change its warning info.
+      If a routine body is empty or if a routine did not generate any
+      conditions, do not duplicate our own contents by appending the contents
+      of the called routine. We know that the called routine did not change its
+      Diagnostics Area.
 
-      On the other hand, if the routine body is not empty and some statement in
-      the routine generates a warning or uses tables, warning info is guaranteed
-      to have changed. In this case we know that the routine warning info
-      contains only new warnings, and thus we perform a copy.
+      On the other hand, if the routine body is not empty and some statement
+      in the routine generates a condition or uses tables, Diagnostics Area
+      is guaranteed to have changed. In this case we know that the routine
+      Diagnostics Area contains only new conditions, and thus we perform a copy.
     */
-    if (da->warning_info_changed(&sp_wi))
+    if (caller_da->diagnostics_area_changed(&sp_da))
     {
       /*
         If the invocation of the routine was a standalone statement,
         rather than a sub-statement, in other words, if it's a CALL
         of a procedure, rather than invocation of a function or a
         trigger, we need to clear the current contents of the caller's
-        warning info.
+        Diagnostics Area.
 
         This is per MySQL rules: if a statement generates a warning,
         warnings from the previous statement are flushed.  Normally
@@ -743,11 +751,34 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
         push_warning() to avoid invocation of condition handlers or
         escalation of warnings to errors.
       */
-      da->opt_clear_warning_info(thd->query_id);
-      da->copy_sql_conditions_from_wi(thd, &sp_wi);
-      da->remove_marked_sql_conditions();
+      caller_da->opt_reset_condition_info(thd->query_id);
+
+      if (!err_status && thd->get_stmt_da() != &sp_da)
+      {
+        /*
+          If we are RETURNing directly from a handler and the handler has
+          executed successfully, only transfer the conditions that were
+          raised during handler execution. Conditions that were present
+          when the handler was activated, are considered handled.
+        */
+        caller_da->copy_new_sql_conditions(thd, thd->get_stmt_da());
+      }
+      else // err_status || thd->get_stmt_da() == sp_da
+      {
+        /*
+          If we ended with an exception or the SP exited without any handler
+          active, transfer all conditions to the Diagnostics Area of the caller.
+        */
+        caller_da->copy_sql_conditions_from_da(thd, thd->get_stmt_da());
+      }
     }
   }
+
+  // Restore the caller's original Diagnostics Area.
+  while (thd->get_stmt_da() != &sp_da)
+    thd->pop_diagnostics_area();
+  thd->pop_diagnostics_area();
+  DBUG_ASSERT(thd->get_stmt_da() == caller_da);
 
  done:
   DBUG_PRINT("info", ("err_status: %d  killed: %d  is_slave_error: %d  report_error: %d",
@@ -1102,7 +1133,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       if (mysql_bin_log.write_event(&qinfo) &&
           thd->binlog_evt_union.unioned_events_trans)
       {
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+        push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                      "Invoked ROUTINE modified a transactional table but MySQL "
                      "failed to reflect this change in the binary log");
         err_status= TRUE;
@@ -1741,7 +1772,7 @@ bool sp_head::show_routine_code(THD *thd)
         Since this is for debugging purposes only, we don't bother to
         introduce a special error code for it.
       */
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR, tmp);
+      push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR, tmp);
     }
     protocol->prepare_for_resend();
     protocol->store((longlong)ip);
@@ -1791,14 +1822,6 @@ bool sp_head::merge_table_list(THD *thd,
       memcpy(tname+tlen, table->alias, alen);
       tlen+= alen;
       tname[tlen]= '\0';
-
-      /*
-        Upgrade the lock type because this table list will be used
-        only in pre-locked mode, in which DELAYED inserts are always
-        converted to normal inserts.
-      */
-      if (table->lock_type == TL_WRITE_DELAYED)
-        table->lock_type= TL_WRITE;
 
       /*
         We ignore alias when we check if table was already marked as temporary
