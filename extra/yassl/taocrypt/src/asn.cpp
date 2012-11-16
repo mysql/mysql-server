@@ -986,12 +986,26 @@ bool CertDecoder::ConfirmSignature(Source& pub)
         hasher.reset(NEW_TC SHA);
         ht = SHAh;
     }
+    else if (signatureOID_ == SHA256wRSA || signatureOID_ == SHA256wDSA) {
+        hasher.reset(NEW_TC SHA256);
+        ht = SHA256h;
+    }
+#ifdef WORD64_AVAILABLE
+    else if (signatureOID_ == SHA384wRSA) {
+        hasher.reset(NEW_TC SHA384);
+        ht = SHA384h;
+    }
+    else if (signatureOID_ == SHA512wRSA) {
+        hasher.reset(NEW_TC SHA512);
+        ht = SHA512h;
+    }
+#endif
     else {
         source_.SetError(UNKOWN_SIG_E);
         return false;
     }
 
-    byte digest[SHA::DIGEST_SIZE];      // largest size
+    byte digest[MAX_SHA2_DIGEST_SIZE];      // largest size
 
     hasher->Update(source_.get_buffer() + certBegin_, sigIndex_ - certBegin_);
     hasher->Final(digest);
@@ -1064,7 +1078,14 @@ word32 DER_Encoder::SetAlgoID(HashType aOID, byte* output)
                                       0x02, 0x05, 0x05, 0x00  };
     static const byte md2AlgoID[] = { 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d,
                                       0x02, 0x02, 0x05, 0x00};
-
+    static const byte sha256AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
+                                         0x04, 0x02, 0x01, 0x05, 0x00 };
+#ifdef WORD64_AVAILABLE
+    static const byte sha384AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
+                                         0x04, 0x02, 0x02, 0x05, 0x00 };
+    static const byte sha512AlgoID[] = { 0x60, 0x86, 0x48, 0x01, 0x65, 0x03,
+                                         0x04, 0x02, 0x03, 0x05, 0x00 };
+#endif
     int algoSz = 0;
     const byte* algoName = 0;
 
@@ -1073,6 +1094,23 @@ word32 DER_Encoder::SetAlgoID(HashType aOID, byte* output)
         algoSz = sizeof(shaAlgoID);
         algoName = shaAlgoID;
         break;
+
+    case SHA256h:
+        algoSz = sizeof(sha256AlgoID);
+        algoName = sha256AlgoID;
+        break;
+
+#ifdef WORD64_AVAILABLE
+    case SHA384h:
+        algoSz = sizeof(sha384AlgoID);
+        algoName = sha384AlgoID;
+        break;
+
+    case SHA512h:
+        algoSz = sizeof(sha512AlgoID);
+        algoName = sha512AlgoID;
+        break;
+#endif
 
     case MD2h:
         algoSz = sizeof(md2AlgoID);
