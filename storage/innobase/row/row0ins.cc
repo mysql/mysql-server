@@ -2265,35 +2265,6 @@ row_ins_must_modify_rec(
 }
 
 /***************************************************************//**
-Turn off logging+locking based on temp-table and auto-commit state.*/
-UNIV_INLINE
-void
-turn_off_lock_and_log_if_temp_table(
-/*================================*/
-	bool		is_temp,	/*!< in: true if temp-table */
-	trx_t*		trx,		/*!< in: current active trx */
-	mtr_t*		mtr,		/*!< out: mini-transaction */
-	ulint*		flags)		/*!< out: undo log and lock flags */
-{
-	/* turn-off redo and undo logging for temporary table.
-	- redo-logging is turned-off for temporary table only.
-	  redo-logging done for other db objects viz. rollback segment
-	  creation is not blocked.
-	- undo-loggng is turned-off for temporary table only if, current
-	  DML stmt is part of single commit trx.
-	- turn-off locking if table is temporary as it not shared
-	  by other session trx. */
-	if (is_temp) {
-		mtr_set_log_mode(mtr, MTR_LOG_NONE);
-		if (flags
-		    && !(thd_test_options(trx->mysql_thd,
-			 OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
-			*flags |= BTR_NO_UNDO_LOG_FLAG;
-	}
-	return;
-}
-
-/***************************************************************//**
 Tries to insert an entry into a clustered index, ignoring foreign key
 constraints. If a record with the same unique key is found, the other
 record is necessarily marked deleted by a committed transaction, or a
@@ -2331,7 +2302,7 @@ row_ins_clust_index_entry_low(
 	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
 
 	mtr_start(&mtr);
-	turn_off_lock_and_log_if_temp_table(
+	turn_off_logging_if_temp_table(
 		dict_table_is_temporary(index->table), thr_get_trx(thr),
 		&mtr, &flags);
 
@@ -2557,7 +2528,7 @@ row_ins_sec_mtr_start_and_check_if_aborted(
 	ut_ad(!dict_index_is_clust(index));
 
 	mtr_start(mtr);
-	turn_off_lock_and_log_if_temp_table(
+	turn_off_logging_if_temp_table(
 		dict_table_is_temporary(index->table), trx, mtr, NULL);
 
 	if (!check) {
@@ -2624,7 +2595,7 @@ row_ins_sec_index_entry_low(
 	ut_ad(thr_get_trx(thr)->id);
 
 	mtr_start(&mtr);
-	turn_off_lock_and_log_if_temp_table(
+	turn_off_logging_if_temp_table(
 		dict_table_is_temporary(index->table), thr_get_trx(thr),
 		&mtr, &flags);
 
@@ -2804,7 +2775,7 @@ row_ins_index_entry_big_rec_func(
 	DEBUG_SYNC_C_IF_THD(trx->mysql_thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
-	turn_off_lock_and_log_if_temp_table(
+	turn_off_logging_if_temp_table(
 		dict_table_is_temporary(index->table), trx, &mtr, NULL);
 
 	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,

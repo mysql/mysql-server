@@ -18,6 +18,12 @@ create temporary table t (
 	) engine=innodb;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 select * from t;
+delete from t where i = 10;
+delete from t where f < 3.4;
+select * from t;
+delete from t where i = 10;
+delete from t;
+select * from t;
 drop table if exists t;
 
 #
@@ -52,6 +58,12 @@ insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 select * from t;
 rollback;
 select * from t;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+begin;
+delete from t;
+select * from t;
+rollback;
+select * from t;
 drop table if exists t;
 
 #
@@ -69,8 +81,19 @@ insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 select * from t;
 rollback to first;
 select * from t;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+begin;
+delete from t where i = 10;
+select * from t;
+savepoint first;
+delete from t;
+select * from t;
+rollback to first;
+select * from t;
+commit;
+select * from t;
 drop table if exists t;
 
 #
-#
+# end of tc
 #

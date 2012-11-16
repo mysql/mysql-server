@@ -216,6 +216,16 @@ mtr_commit(
 /*=======*/
 	mtr_t*	mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull));
+/***************************************************************//**
+Turn off redo logging if table is temp + undo if autocommit=on. */
+UNIV_INTERN
+void
+turn_off_logging_if_temp_table(
+/*============================*/
+        bool            is_temp,        /*!< in: true if temp-table */
+        trx_t*          trx,            /*!< in: current active trx */
+        mtr_t*          mtr,            /*!< out: mini-transaction */
+        ulint*          flags);		/*!< out: undo log and lock flags */
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
 @return	savepoint */
