@@ -4793,6 +4793,7 @@ bool ha_partition::init_record_priority_queue()
          i < m_tot_parts;
          i= bitmap_get_next_set(&m_part_info->read_partitions, i))
     {
+      DBUG_PRINT("info", ("init rec-buf for part %u", i));
       int2store(ptr, i);
       ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
     }
@@ -5725,11 +5726,27 @@ int ha_partition::handle_ordered_index_scan(uchar *buf, bool reverse_order)
   DBUG_ASSERT(bitmap_is_set(&m_part_info->read_partitions,
                             m_part_spec.start_part));
 
-  DBUG_PRINT("info", ("m_part_spec.start_part %d", m_part_spec.start_part));
-  for (i= m_part_spec.start_part;
+  /*
+    Position part_rec_buf_ptr to point to the first used partition >=
+    start_part. There may be partitions marked by used_partitions,
+    but is before start_part. These partitions has allocated record buffers
+    but is dynamically pruned, so those buffers must be skipped.
+  */
+  for (i= bitmap_get_first_set(&m_part_info->read_partitions);
+       i < m_part_spec.start_part;
+       i= bitmap_get_next_set(&m_part_info->read_partitions, i))
+  {
+    part_rec_buf_ptr+= m_rec_length + PARTITION_BYTES_IN_POS;
+  }
+  DBUG_PRINT("info", ("m_part_spec.start_part %u first_used_part %u",
+                      m_part_spec.start_part, i));
+  for (/* continue from above */ ;
        i <= m_part_spec.end_part;
        i= bitmap_get_next_set(&m_part_info->read_partitions, i))
   {
+    DBUG_PRINT("info", ("reading from part %u (scan_type: %u)",
+                        i, m_index_scan_type));
+    DBUG_ASSERT(i == uint2korr(part_rec_buf_ptr));
     uchar *rec_buf_ptr= part_rec_buf_ptr + PARTITION_BYTES_IN_POS;
     int error;
     handler *file= m_file[i];
