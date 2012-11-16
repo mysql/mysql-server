@@ -1144,7 +1144,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
             user.user_resource.conn_per_hour)
           mqh_used=1;
 
-        if (table->s->fields >= 36)
+        if (table->s->fields > MYSQL_USER_FIELD_MAX_USER_CONNECTIONS)
         {
           /* Starting from 5.0.3 we have max_user_connections field */
           ptr= get_field(thd->mem_root,
