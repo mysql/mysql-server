@@ -1273,7 +1273,7 @@ buf_pool_init_instance(
 		     SYNC_BUF_FLUSH_LIST);
 
 	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-		buf_pool->no_flush[i] = os_event_create(NULL);
+		buf_pool->no_flush[i] = os_event_create();
 	}
 
 	buf_pool->watch = (buf_page_t*) mem_zalloc(
