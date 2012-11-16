@@ -2781,6 +2781,7 @@ UNIV_INTERN
 dberr_t
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
+	ulint           flags,  /*!< in: undo logging and locking flags */
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
 	rec_t*		rec,	/*!< in/out: record */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
@@ -2817,7 +2818,7 @@ btr_cur_del_mark_set_clust_rec(
 		return(err);
 	}
 
-	err = trx_undo_report_row_operation(0, TRX_UNDO_MODIFY_OP, thr,
+	err = trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr,
 					    index, NULL, NULL, 0, rec, offsets,
 					    &roll_ptr);
 	if (err != DB_SUCCESS) {

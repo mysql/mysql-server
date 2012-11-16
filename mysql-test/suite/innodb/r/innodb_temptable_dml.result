@@ -13,6 +13,16 @@ i	f
 20	3.3
 30	4.4
 40	5.5
+delete from t where i = 10;
+delete from t where f < 3.4;
+select * from t;
+i	f
+30	4.4
+40	5.5
+delete from t where i = 10;
+delete from t;
+select * from t;
+i	f
 drop table if exists t;
 create temporary table t (
 i int,
@@ -60,6 +70,18 @@ i	f
 rollback;
 select * from t;
 i	f
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+begin;
+delete from t;
+select * from t;
+i	f
+rollback;
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
 drop table if exists t;
 create temporary table t (
 i int,
@@ -79,4 +101,28 @@ i	f
 rollback to first;
 select * from t;
 i	f
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+begin;
+delete from t where i = 10;
+select * from t;
+i	f
+20	3.3
+30	4.4
+40	5.5
+savepoint first;
+delete from t;
+select * from t;
+i	f
+rollback to first;
+select * from t;
+i	f
+20	3.3
+30	4.4
+40	5.5
+commit;
+select * from t;
+i	f
+20	3.3
+30	4.4
+40	5.5
 drop table if exists t;
