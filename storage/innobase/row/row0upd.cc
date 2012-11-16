@@ -1915,6 +1915,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_upd_clust_rec_by_insert(
 /*========================*/
+	ulint           flags,  /*!< in: undo logging and locking flags */
 	upd_node_t*	node,	/*!< in/out: row update node */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	que_thr_t*	thr,	/*!< in: query thread */
@@ -1932,7 +1933,6 @@ row_upd_clust_rec_by_insert(
 	ibool		change_ownership	= FALSE;
 	rec_t*		rec;
 	ulint*		offsets			= NULL;
-	ulint		flags			= 0;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -2070,6 +2070,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_upd_clust_rec(
 /*==============*/
+	ulint           flags,  /*!< in: undo logging and locking flags */
 	upd_node_t*	node,	/*!< in: row update node */
 	dict_index_t*	index,	/*!< in: clustered index */
 	ulint*		offsets,/*!< in: rec_get_offsets() on node->pcur */
@@ -2107,12 +2108,12 @@ row_upd_clust_rec(
 
 	if (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE) {
 		err = btr_cur_update_in_place(
-			BTR_NO_LOCKING_FLAG, btr_cur,
+			flags | BTR_NO_LOCKING_FLAG, btr_cur,
 			offsets, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 	} else {
 		err = btr_cur_optimistic_update(
-			BTR_NO_LOCKING_FLAG, btr_cur,
+			flags | BTR_NO_LOCKING_FLAG, btr_cur,
 			&offsets, offsets_heap, node->update,
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 	}
@@ -2139,6 +2140,9 @@ row_upd_clust_rec(
 	down the index tree */
 
 	mtr_start(mtr);
+        turn_off_logging_if_temp_table(
+                dict_table_is_temporary(index->table), thr_get_trx(thr),
+                mtr, &flags);
 
 	/* NOTE: this transaction has an s-lock or x-lock on the record and
 	therefore other transactions cannot modify the record when we have no
@@ -2156,7 +2160,7 @@ row_upd_clust_rec(
 	}
 
 	err = btr_cur_pessimistic_update(
-		BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur,
+		flags | BTR_NO_LOCKING_FLAG | BTR_KEEP_POS_FLAG, btr_cur,
 		&offsets, offsets_heap, heap, &big_rec,
 		node->update, node->cmpl_info,
 		thr, thr_get_trx(thr)->id, mtr);
@@ -2420,7 +2424,7 @@ row_upd_clust_step(
 	if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
 
 		err = row_upd_clust_rec(
-			node, index, offsets, &heap, thr, &mtr);
+			flags, node, index, offsets, &heap, thr, &mtr);
 		goto exit_func;
 	}
 
@@ -2441,7 +2445,7 @@ row_upd_clust_step(
 		externally! */
 
 		err = row_upd_clust_rec_by_insert(
-			node, index, thr, referenced, &mtr);
+			flags, node, index, thr, referenced, &mtr);
 
 		if (err != DB_SUCCESS) {
 
@@ -2451,7 +2455,7 @@ row_upd_clust_step(
 		node->state = UPD_NODE_UPDATE_ALL_SEC;
 	} else {
 		err = row_upd_clust_rec(
-			node, index, offsets, &heap, thr, &mtr);
+			flags, node, index, offsets, &heap, thr, &mtr);
 
 		if (err != DB_SUCCESS) {
 
