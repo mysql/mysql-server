@@ -1253,7 +1253,7 @@ maybe_merge_pinned_nonleaf_nodes(
     XREALLOC_N(new_n_children-1, a->childkeys);
     toku_copy_dbt(&a->childkeys[old_n_children-1], *parent_splitk);
     a->totalchildkeylens += parent_splitk->size;
-    for (int i = 0; i < b->n_children; ++i) {
+    for (int i = 0; i < b->n_children - 1; ++i) {
         toku_copy_dbt(&a->childkeys[old_n_children + i], b->childkeys[i]);
         a->totalchildkeylens += b->childkeys[i].size;
         toku_init_dbt(&b->childkeys[i]);
