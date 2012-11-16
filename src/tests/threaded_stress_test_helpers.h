@@ -1534,8 +1534,8 @@ static int run_workers(
     r = toku_pthread_join(time_tid, &ret); assert_zero(r);
     if (verbose) printf("%lu joined\n", (unsigned long) time_tid);
     // Set an alarm that will kill us if it takes too long to join all the
-    // threads (i.e. there is some runaway thread).
-    unsigned int remaining = alarm((num_seconds / 10 < 30) ? 30 : num_seconds / 10);
+    // threads (i.e. there is some runaway thread). Give ten minutes to start.
+    unsigned int remaining = alarm((num_seconds / 10 < 600) ? 600 : num_seconds / 10);
     assert_zero(remaining);
     for (int i = 0; i < num_threads; ++i) {
         r = toku_pthread_join(tids[i], &ret); assert_zero(r);
