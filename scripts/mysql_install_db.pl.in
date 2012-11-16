@@ -93,15 +93,20 @@ EOF2
                        uses the compiled binaries and support files within the
                        source tree, useful for if you don't want to install
                        MySQL yet and just want to create the system tables.
+EOF3
+  if ( $^O !~ m/^(MSWin32|cygwin)$/ ) {
+    print <<EOF4;
   --user=user_name     The login username to use for running mysqld.  Files
                        and directories created by mysqld will be owned by this
                        user.  You must be root to use this option.  By default
                        mysqld runs using your current login name and files and
                        directories that it creates will be owned by you.
-
+EOF4
+  }
+  print <<EOF5;
 Any other options are passed to the mysqld program.
 
-EOF3
+EOF5
   exit 1;
 }
 
@@ -633,10 +638,30 @@ if ( ! -d $parent ) {
         "restart this script.",
         "If some other path was intended, please use the correct path when restarting this script.");
 }
+
+my $opt_user= $opt->{user};
+my @pwnam;
+if ($opt_user)
+{
+  if ( $^O =~ m/^(MSWin32|cygwin)$/ )
+  {
+    warning($opt, "The --user option is not supported on Windows, ignoring");
+    $opt_user= undef;
+  }
+  else
+  {
+    @pwnam= getpwnam($opt_user);
+  }
+}
+
 foreach my $dir ( $opt->{ldata}, "$opt->{ldata}/mysql", "$opt->{ldata}/test" )
 {
   mkdir($dir, 0700) unless -d $dir;
-  chown($opt->{user}, $dir) if -w "/" and !$opt->{user};
+  if ($opt_user and -w "/")
+  {
+    chown($pwnam[2], $pwnam[3], $dir)
+      or error($opt, "Could not chown directory $dir");
+  }
 }
 
 push(@args, "--user=$opt->{user}") if $opt->{user};
