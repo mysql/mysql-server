@@ -1,0 +1,76 @@
+#
+# TC to test temp-table DML aspcted (esp. temp-table
+# optimization changes.
+#
+--source include/have_innodb.inc
+#
+# autocommit
+#
+use test;
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+create temporary table t (
+	i int,
+	f float,
+	primary key pk_index(i),
+	index sec_index(f)
+	) engine=innodb;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+drop table if exists t;
+
+#
+# begin - commit - rollback
+#
+create temporary table t (
+	i int,
+	f float,
+	primary key pk_index(i),
+	index sec_index(f)
+	) engine=innodb;
+begin;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+commit;
+select * from t;
+rollback;
+select * from t;
+drop table if exists t;
+
+#
+# begin - rollback
+#
+create temporary table t (
+	i int,
+	f float,
+	primary key pk_index(i),
+	index sec_index(f)
+	) engine=innodb;
+begin;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+rollback;
+select * from t;
+drop table if exists t;
+
+#
+# start trx - savepoint - rollback - commit
+#
+create temporary table t (
+	i int,
+	f float,
+	primary key pk_index(i),
+	index sec_index(f)
+	) engine=innodb;
+start transaction;
+savepoint first;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+rollback to first;
+select * from t;
+drop table if exists t;
+
+#
+#
+#

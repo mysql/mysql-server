@@ -1,0 +1,82 @@
+use test;
+drop table if exists t;
+create temporary table t (
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine=innodb;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+drop table if exists t;
+create temporary table t (
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine=innodb;
+begin;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+commit;
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+rollback;
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+drop table if exists t;
+create temporary table t (
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine=innodb;
+begin;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+rollback;
+select * from t;
+i	f
+drop table if exists t;
+create temporary table t (
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine=innodb;
+start transaction;
+savepoint first;
+insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
+rollback to first;
+select * from t;
+i	f
+drop table if exists t;
