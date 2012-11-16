@@ -485,15 +485,11 @@ struct ft {
     bool blackhole;
 };
 
-// Copy the descriptor into a temporary variable, and tell DRD that subsequent code happens after reading that pointer.
-// In combination with the annotation in toku_ft_update_descriptor, this seems to be enough to convince test_4015 that all is well.
-// Otherwise, drd complains that the newly malloc'd descriptor string is touched later by some comparison operation.
-static inline void setup_fake_db (DB *fake_db, DESCRIPTOR orig_desc) {
-    memset(fake_db, 0, sizeof *fake_db);
-    fake_db->cmp_descriptor = orig_desc;
-}
-
-#define FAKE_DB(db, desc) struct __toku_db db; setup_fake_db(&db, (desc));
+// Allocate a DB struct off the stack and only set its comparison
+// descriptor. We don't bother setting any other fields because
+// the comparison function doesn't need it, and we would like to
+// reduce the CPU work done per comparison.
+#define FAKE_DB(db, desc) struct __toku_db db; fake_db->cmp_descriptor = desc;
 
 struct ft_options {
     unsigned int nodesize;
