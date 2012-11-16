@@ -1625,6 +1625,7 @@ row_upd_sec_index_entry(
 	dberr_t			err	= DB_SUCCESS;
 	trx_t*			trx	= thr_get_trx(thr);
 	ulint			mode;
+	ulint			flags = 0;
 	enum row_search_result	search_result;
 
 	ut_ad(trx->id);
@@ -1651,6 +1652,10 @@ row_upd_sec_index_entry(
 #endif /* UNIV_DEBUG */
 
 	mtr_start(&mtr);
+        turn_off_logging_if_temp_table(
+                dict_table_is_temporary(index->table), thr_get_trx(thr),
+                &mtr, &flags);
+
 	mtr_s_lock(dict_index_get_lock(index), &mtr);
 
 	switch (dict_index_get_online_status(index)) {
@@ -1743,7 +1748,7 @@ row_upd_sec_index_entry(
 		if (!rec_get_deleted_flag(
 			    rec, dict_table_is_comp(index->table))) {
 			err = btr_cur_del_mark_set_sec_rec(
-				0, btr_cur, TRUE, thr, &mtr);
+				flags, btr_cur, TRUE, thr, &mtr);
 
 			if (err == DB_SUCCESS && referenced) {
 
@@ -1927,6 +1932,7 @@ row_upd_clust_rec_by_insert(
 	ibool		change_ownership	= FALSE;
 	rec_t*		rec;
 	ulint*		offsets			= NULL;
+	ulint		flags			= 0;
 
 	ut_ad(node);
 	ut_ad(dict_index_is_clust(index));
@@ -1970,7 +1976,7 @@ row_upd_clust_rec_by_insert(
 		ut_ad(page_rec_is_user_rec(rec));
 
 		err = btr_cur_del_mark_set_clust_rec(
-			btr_cur_get_block(btr_cur), rec, index, offsets,
+			flags, btr_cur_get_block(btr_cur), rec, index, offsets,
 			thr, mtr);
 		if (err != DB_SUCCESS) {
 err_exit:
@@ -2225,6 +2231,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_upd_del_mark_clust_rec(
 /*=======================*/
+	ulint           flags,  /*!< in: undo logging and locking flags */
 	upd_node_t*	node,	/*!< in: row update node */
 	dict_index_t*	index,	/*!< in: clustered index */
 	ulint*		offsets,/*!< in/out: rec_get_offsets() for the
@@ -2255,7 +2262,7 @@ row_upd_del_mark_clust_rec(
 	locks, because we assume that we have an x-lock on the record */
 
 	err = btr_cur_del_mark_set_clust_rec(
-		btr_cur_get_block(btr_cur), btr_cur_get_rec(btr_cur),
+		flags, btr_cur_get_block(btr_cur), btr_cur_get_rec(btr_cur),
 		index, offsets, thr, mtr);
 	if (err == DB_SUCCESS && referenced) {
 		/* NOTE that the following call loses the position of pcur ! */
@@ -2290,6 +2297,7 @@ row_upd_clust_step(
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets;
 	ibool		referenced;
+	ulint		flags	= 0;
 	rec_offs_init(offsets_);
 
 	index = dict_table_get_first_index(node->table);
@@ -2301,6 +2309,9 @@ row_upd_clust_step(
 	/* We have to restore the cursor to its position */
 
 	mtr_start(&mtr);
+        turn_off_logging_if_temp_table(
+                dict_table_is_temporary(index->table), thr_get_trx(thr),
+                &mtr, &flags);
 
 	/* If the restoration does not succeed, then the same
 	transaction has deleted the record on which the cursor was,
@@ -2385,7 +2396,7 @@ row_upd_clust_step(
 
 	if (node->is_delete) {
 		err = row_upd_del_mark_clust_rec(
-			node, index, offsets, thr, referenced, &mtr);
+			flags, node, index, offsets, thr, referenced, &mtr);
 
 		if (err == DB_SUCCESS) {
 			node->state = UPD_NODE_UPDATE_ALL_SEC;

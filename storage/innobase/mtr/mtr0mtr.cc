@@ -34,6 +34,8 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
+#include "sql_priv.h"
+#include "btr0cur.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "log0recv.h"
@@ -335,6 +337,33 @@ mtr_commit(
 	}
 #endif /* UNIV_DEBUG_VALGRIND */
 	ut_d(mtr->state = MTR_COMMITTED);
+}
+
+/***************************************************************//**
+Turn off redo logging if table is temp + undo if autocommit=on. */
+UNIV_INTERN
+void
+turn_off_logging_if_temp_table(
+/*============================*/
+	bool		is_temp,	/*!< in: true if temp-table */
+	trx_t*		trx,		/*!< in: current active trx */
+	mtr_t*		mtr,		/*!< out: mini-transaction */
+	ulint*		flags)		/*!< out: undo log and lock flags */
+{
+	/* turn-off redo and undo logging for temporary table.
+	- redo-logging is turned-off for temporary table only.
+	  redo-logging done for other db objects viz. rollback segment
+	  creation is not blocked.
+	- undo-loggng is turned-off for temporary table only if, current
+	  DML stmt is part of single commit trx. */
+	if (is_temp) {
+		mtr_set_log_mode(mtr, MTR_LOG_NONE);
+		if (flags
+		    && !(thd_test_options(trx->mysql_thd,
+			 OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
+			*flags |= BTR_NO_UNDO_LOG_FLAG;
+	}
+	return;
 }
 
 #ifndef UNIV_HOTBACKUP
