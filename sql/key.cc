@@ -54,8 +54,8 @@ using std::max;
 int find_ref_key(KEY *key, uint key_count, uchar *record, Field *field,
                  uint *key_length, uint *keypart)
 {
-  reg2 int i;
-  reg3 KEY *key_info;
+  int i;
+  KEY *key_info;
   uint fieldpos;
 
   fieldpos= field->offset(record);
@@ -480,7 +480,7 @@ int key_cmp(KEY_PART_INFO *key_part, const uchar *key, uint key_length)
     if (key_part->null_bit)
     {
       /* This key part allows null values; NULL is lower than everything */
-      register bool field_is_null= key_part->field->is_null();
+      bool field_is_null= key_part->field->is_null();
       if (*key)                                 // If range key is null
       {
 	/* the range is expecting a null value */

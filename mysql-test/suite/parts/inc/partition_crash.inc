@@ -18,7 +18,8 @@ SELECT * FROM t1;
 --list_files $DATADIR/test
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
---source include/wait_until_connected_again.inc
+let $WAIT_COUNT=3000;
+--source include/wait_time_until_connected_again.inc
 --echo # State after crash recovery
 --replace_result #p# #P# #sp# #SP#
 --list_files $DATADIR/test

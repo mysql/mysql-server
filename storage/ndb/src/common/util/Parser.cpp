@@ -78,7 +78,7 @@ bool
 Empty(const char * str){
   if(str == 0)
     return true;
-  const int len = strlen(str);
+  const int len = (int)strlen(str);
   if(len == 0)
     return false;
   for(int i = 0; i<len; i++)
@@ -96,7 +96,7 @@ void
 trim(char * str){
   if(str == NULL)
     return;
-  int len = strlen(str);
+  int len = (int)strlen(str);
   for(len--; str[len] == '\n' || str[len] == ' ' || str[len] == '\t'; len--)
     str[len] = 0;
   
@@ -156,7 +156,7 @@ ParserImpl::run(Context * ctx, const class Properties ** pDst,
     return false;
   }
 
-  int last= strlen(ctx->m_currentToken);
+  int last= (int)strlen(ctx->m_currentToken);
   if(last>0)
     last--;
 

@@ -1541,7 +1541,7 @@ my_bool acl_reload(THD *thd)
     if (thd->get_stmt_da()->is_error())
     {
       sql_print_error("Fatal error: Can't open and lock privilege tables: %s",
-                      thd->get_stmt_da()->message());
+                      thd->get_stmt_da()->message_text());
     }
     goto end;
   }
@@ -2308,6 +2308,12 @@ bool change_password(THD *thd, const char *host, const char *user,
                                                        new_password,
                                                        new_password_len + 1);
         acl_user->auth_string.length= new_password_len;
+        /*
+          Since we're changing the password for the user we need to reset the
+          expiration flag.
+        */
+        acl_user->password_expired= false;
+        thd->security_ctx->password_expired= false;
       }
     } else
     {
@@ -2369,7 +2375,7 @@ bool change_password(THD *thd, const char *host, const char *user,
   }
   else
   {
-     push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+     push_warning(thd, Sql_condition::SL_NOTE,
                   ER_SET_PASSWORD_AUTH_PLUGIN, ER(ER_SET_PASSWORD_AUTH_PLUGIN));
      /*
        An undefined password factory could very well mean that the password
@@ -7990,7 +7996,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
 
@@ -8005,18 +8011,18 @@ Silence_routine_definer_errors::handle_condition(
   THD *thd,
   uint sql_errno,
   const char*,
-  Sql_condition::enum_warning_level level,
+  Sql_condition::enum_severity_level level,
   const char* msg,
   Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
-  if (level == Sql_condition::WARN_LEVEL_ERROR)
+  if (level == Sql_condition::SL_ERROR)
   {
     switch (sql_errno)
     {
       case ER_NONEXISTING_PROC_GRANT:
         /* Convert the error into a warning. */
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::SL_WARNING,
                      sql_errno, msg);
         return TRUE;
       default:
@@ -8343,7 +8349,7 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
 
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
 {
-  reg3 int flag;
+  int flag;
   DBUG_ENTER("wild_case_compare");
   DBUG_PRINT("enter",("str: '%s'  wildstr: '%s'",str,wildstr));
   while (*wildstr)

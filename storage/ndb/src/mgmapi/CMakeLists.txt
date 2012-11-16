@@ -17,7 +17,6 @@
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_util.cmake)
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include/mgmapi
                     ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel
-                    ${CMAKE_SOURCE_DIR}/storage/ndb/mgmsrv
 )
 ADD_DEFINITIONS(-DNDB_MGMAPI)
 ADD_CONVENIENCE_LIBRARY(ndbmgmapi

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2010, 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,13 @@
 */
 #define NDB_MAKE_VERSION(A,B,C) (((A) << 16) | ((B) << 8)  | ((C) << 0))
 
+/*
+  Creates a stringified version from major, minor and build
+  ex: NDB_MAKE_STRING_VERSION(7,0,22) => "7.0.22"
+*/
+#define NDB_MAKE_QUOTED_VERSION(A,B,C) #A "." #B "." #C
+#define NDB_MAKE_STRING_VERSION(A,B,C) NDB_MAKE_QUOTED_VERSION(A,B,C)
+
 /* NDB version numbers and status  */
 #define NDB_VERSION_MAJOR @NDB_VERSION_MAJOR@
 #define NDB_VERSION_MINOR @NDB_VERSION_MINOR@
@@ -36,6 +43,12 @@
 /* Composite version number for NDB */
 #define NDB_VERSION_D \
   NDB_MAKE_VERSION(NDB_VERSION_MAJOR, NDB_VERSION_MINOR, NDB_VERSION_BUILD)
+
+/* Version string for NDB, ex: "ndb-7.0.22" */
+#define NDB_NDB_VERSION_STRING \
+  "ndb-" NDB_MAKE_STRING_VERSION(NDB_VERSION_MAJOR, \
+                                 NDB_VERSION_MINOR, \
+                                 NDB_VERSION_BUILD) NDB_VERSION_STATUS
 
 /*
   The version number of the MySQL Server that NDB is built
@@ -691,6 +704,122 @@ ndbd_get_config_supported(Uint32 x)
     return x >= NDBD_GET_CONFIG_SUPPORT_70;
 
   return x >= NDBD_GET_CONFIG_SUPPORT_71;
+}
+
+#define NDBD_CONFIGURABLE_LOG_PARTS_70 NDB_MAKE_VERSION(7,0,29)
+#define NDBD_CONFIGURABLE_LOG_PARTS_71 NDB_MAKE_VERSION(7,1,18)
+#define NDBD_CONFIGURABLE_LOG_PARTS_72 NDB_MAKE_VERSION(7,2,3)
+
+static
+inline
+int
+ndb_configurable_log_parts(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor < 2)
+  {
+    if (minor == 0)
+      return x >= NDBD_CONFIGURABLE_LOG_PARTS_70;
+    else if (minor == 1)
+      return x >= NDBD_CONFIGURABLE_LOG_PARTS_71;
+  }
+  return x >= NDBD_CONFIGURABLE_LOG_PARTS_72;
+}
+
+#define NDBD_128_INSTANCES_ADDRESS_70 NDB_MAKE_VERSION(7,0,31)
+#define NDBD_128_INSTANCES_ADDRESS_71 NDB_MAKE_VERSION(7,1,20)
+#define NDBD_128_INSTANCES_ADDRESS_72 NDB_MAKE_VERSION(7,2,5)
+
+static
+inline
+int
+ndbd_128_instances_address(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor < 2)
+  {
+    if (minor == 0)
+      return x >= NDBD_128_INSTANCES_ADDRESS_70;
+    else if (minor == 1)
+      return x >= NDBD_128_INSTANCES_ADDRESS_71;
+  }
+  return x >= NDBD_128_INSTANCES_ADDRESS_72;
+}
+
+#define NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_70 NDB_MAKE_VERSION(7,0,34)
+#define NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_71 NDB_MAKE_VERSION(7,1,23)
+#define NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_72 NDB_MAKE_VERSION(7,2,7)
+
+static
+inline
+int
+ndbd_scan_tabreq_implicit_parallelism(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor < 2)
+  {
+    if (minor == 0)
+      return x >= NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_70;
+    else if (minor == 1)
+      return x >= NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_71;
+  }
+  return x >= NDBD_SCAN_TABREQ_IMPLICIT_PARALLELISM_72;
+}
+
+#define NDBD_FIXED_LOOKUP_QUERY_ABORT_72 NDB_MAKE_VERSION(7,2,5)
+
+static
+inline
+int
+ndbd_fixed_lookup_query_abort(Uint32 x)
+{
+  const Uint32 major = (x >> 16) & 0xFF;
+  const Uint32 minor = (x >>  8) & 0xFF;
+
+  if (major == 7 && minor < 2)
+  {
+    // Only experimental support of SPJ pre 7.2.0.
+    // Assume we support 'fixed-abort' as we want it tested.
+    return 1;
+  }
+  return x >= NDBD_FIXED_LOOKUP_QUERY_ABORT_72;
+}
+
+/**
+ * NOTE1:
+ *   Even though pushed join support wasn't GA intil 7.2.4
+ *   we claim support for it in all 7.2.x versions.
+ * NOTE2:
+ *   By a mistake this online upgrade check was not
+ *   added until version 7.2.6
+ */
+#define NDBD_JOIN_PUSHDOWN NDB_MAKE_VERSION(7,2,0)
+
+static
+inline
+int
+ndb_join_pushdown(Uint32 x)
+{
+  return x >= NDBD_JOIN_PUSHDOWN;
+}
+
+/**
+ * DICT did not have a function for receiving GET_TABINFOREF signals
+ * (see Bug#14647210).
+ */
+#define NDBD_DICT_GET_TABINFOREF_IMPLEMENTED NDB_MAKE_VERSION(7, 2, 9)
+
+inline
+int
+ndbd_dict_get_tabinforef_implemented(Uint32 x)
+{
+  return x >= NDBD_DICT_GET_TABINFOREF_IMPLEMENTED;
 }
 
 #endif

@@ -14,28 +14,18 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA */
 
-#include <kernel_types.h>
-#include <TransporterDefinitions.hpp>
-
 #ifndef ndb_mt_hpp
 #define ndb_mt_hpp
 
+#include <kernel_types.h>
+#include <TransporterDefinitions.hpp>
 
-/*
-  For now, we use locks to only have one thread at the time running in the
-  transporter as sender, and only one as receiver.
-
-  Thus, we can use a global variable to record the id of the current
-  transporter threads. Only valid while holding the transporter receive lock.
-*/
-extern Uint32 receiverThreadId;
+Uint32 mt_get_instance_count(Uint32 block);
 
 /* Assign block instances to thread */
-void add_thr_map(Uint32 block, Uint32 instance, Uint32 thr_no);
-void add_main_thr_map();
-void add_lqh_worker_thr_map(Uint32 block, Uint32 instance);
-void add_extra_worker_thr_map(Uint32 block, Uint32 instance);
-void finalize_thr_map();
+void mt_init_thr_map();
+void mt_add_thr_map(Uint32 block, Uint32 instance);
+void mt_finalize_thr_map();
 
 void sendlocal(Uint32 self, const struct SignalHeader *s,
                const Uint32 *data, const Uint32 secPtr[3]);
@@ -57,6 +47,8 @@ SendStatus mt_send_remote(Uint32 self, const SignalHeader *sh, Uint8 prio,
  */
 void mt_section_lock();
 void mt_section_unlock();
+
+int mt_checkDoJob(Uint32 receiver_thread_idx);
 
 /**
  * Are we (not) multi threaded
@@ -86,5 +78,44 @@ void mt_wakeup(class SimulatedBlock*);
  */
 void mt_assert_own_thread(class SimulatedBlock*);
 #endif
+
+/**
+ * return list of references running in this thread
+ */
+Uint32
+mt_get_blocklist(class SimulatedBlock*, Uint32 dst[], Uint32 len);
+
+
+struct ndb_thr_stat
+{
+  Uint32 thr_no;
+  Uint64 os_tid;
+  const char * name;
+  Uint64 loop_cnt;
+  Uint64 exec_cnt;
+  Uint64 wait_cnt;
+  Uint64 local_sent_prioa;
+  Uint64 local_sent_priob;
+  Uint64 remote_sent_prioa;
+  Uint64 remote_sent_priob;
+};
+
+void
+mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst);
+
+/**
+ * Get TransporterReceiveHandle for a specific trpman instance
+ *   Currently used for error insert that block/unblock traffic
+ */
+class TransporterReceiveHandle *
+mt_get_trp_receive_handle(unsigned instance);
+
+/**
+ * return receiver thread handling a particular node
+ *   returned number is indexed from 0 and upwards to #receiver threads
+ *   (or MAX_NODES is none)
+ */
+Uint32
+mt_get_recv_thread_idx(NodeId nodeId);
 
 #endif

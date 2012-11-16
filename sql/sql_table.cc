@@ -518,21 +518,21 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
 
 
 /*
-  Creates path to a file: mysql_data_dir/db/table.ext
+  @brief Creates path to a file: mysql_data_dir/db/table.ext
 
-  SYNOPSIS
-   build_table_filename()
-     buff                       Where to write result in my_charset_filename.
+  @param buff                   Where to write result in my_charset_filename.
                                 This may be the same as table_name.
-     bufflen                    buff size
-     db                         Database name in system_charset_info.
-     table_name                 Table name in system_charset_info.
-     ext                        File extension.
-     flags                      FN_FROM_IS_TMP or FN_TO_IS_TMP or FN_IS_TMP
+  @param bufflen                buff size
+  @param db                     Database name in system_charset_info.
+  @param table_name             Table name in system_charset_info.
+  @param ext                    File extension.
+  @param flags                  FN_FROM_IS_TMP or FN_TO_IS_TMP or FN_IS_TMP
                                 table_name is temporary, do not change.
+  @param was_truncated          points to location that will be
+                                set to true if path was truncated,
+                                to false otherwise.
 
-  NOTES
-
+  @note
     Uses database and table name, and extension to create
     a file name in mysql_data_dir. Database and table
     names are converted from system_charset_info into "fscs".
@@ -546,25 +546,26 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
     be derivable from the table name. So we cannot use
     build_tmptable_filename() for them.
 
-  RETURN
+  @return
     path length
 */
 
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
-                          const char *table_name, const char *ext, uint flags)
+                          const char *table_name, const char *ext,
+                          uint flags, bool *was_truncated)
 {
-  char dbbuff[FN_REFLEN];
-  char tbbuff[FN_REFLEN];
+  char tbbuff[FN_REFLEN], dbbuff[FN_REFLEN];
+  uint tab_len, db_len;
   DBUG_ENTER("build_table_filename");
   DBUG_PRINT("enter", ("db: '%s'  table_name: '%s'  ext: '%s'  flags: %x",
                        db, table_name, ext, flags));
 
   if (flags & FN_IS_TMP) // FN_FROM_IS_TMP | FN_TO_IS_TMP
-    strnmov(tbbuff, table_name, sizeof(tbbuff));
+    tab_len= strnmov(tbbuff, table_name, sizeof(tbbuff)) - tbbuff;
   else
-    (void) tablename_to_filename(table_name, tbbuff, sizeof(tbbuff));
+    tab_len= tablename_to_filename(table_name, tbbuff, sizeof(tbbuff));
 
-  (void) tablename_to_filename(db, dbbuff, sizeof(dbbuff));
+  db_len= tablename_to_filename(db, dbbuff, sizeof(dbbuff));
 
   char *end = buff + bufflen;
   /* Don't add FN_ROOTDIR if mysql_data_home already includes it */
@@ -573,12 +574,22 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
   if (pos - rootdir_len >= buff &&
       memcmp(pos - rootdir_len, FN_ROOTDIR, rootdir_len) != 0)
     pos= strnmov(pos, FN_ROOTDIR, end - pos);
+  else
+      rootdir_len= 0;
   pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, NullS);
-#ifdef USE_SYMDIR
-  unpack_dirname(buff, buff);
-  pos= strend(buff);
-#endif
   pos= strxnmov(pos, end - pos, tbbuff, ext, NullS);
+
+  /**
+    Mark OUT param if path gets truncated.
+    Most of functions which invoke this function are sure that the
+    path will not be truncated. In case some functions are not sure,
+    we can use 'was_truncated' OUTPARAM
+  */
+  *was_truncated= false;
+  if (pos == end &&
+      (bufflen < mysql_data_home_len + rootdir_len + db_len +
+                 strlen(FN_ROOTDIR) + tab_len + strlen(ext)))
+    *was_truncated= true;
 
   DBUG_PRINT("exit", ("buff: '%s'", buff));
   DBUG_RETURN(pos - buff);
@@ -2401,7 +2412,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
         tbl_name.append('.');
         tbl_name.append(String(table->table_name,system_charset_info));
 
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+        push_warning_printf(thd, Sql_condition::SL_NOTE,
                             ER_BAD_TABLE_ERROR, ER(ER_BAD_TABLE_ERROR),
                             tbl_name.c_ptr());
       }
@@ -2726,7 +2737,7 @@ bool check_duplicates_in_interval(const char *set_or_name,
                  name, err.ptr(), set_or_name);
         return 1;
       }
-      push_warning_printf(thd,Sql_condition::WARN_LEVEL_NOTE,
+      push_warning_printf(thd,Sql_condition::SL_NOTE,
                           ER_DUPLICATED_VALUE_IN_TYPE,
                           ER(ER_DUPLICATED_VALUE_IN_TYPE),
                           name, err.ptr(), set_or_name);
@@ -3174,7 +3185,7 @@ static bool check_duplicate_key(THD *thd,
 
     if (all_columns_are_identical)
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_DUP_INDEX, ER(ER_DUP_INDEX),
                           key_info->name,
                           thd->lex->query_tables->db,
@@ -3256,15 +3267,23 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     /* Set field charset. */
     save_cs= sql_field->charset= get_sql_field_charset(sql_field,
                                                        create_info);
-    if ((sql_field->flags & BINCMP_FLAG) &&
-	!(sql_field->charset= get_charset_by_csname(sql_field->charset->csname,
-						    MY_CS_BINSORT,MYF(0))))
+    if (sql_field->flags & BINCMP_FLAG)
     {
-      char tmp[65];
-      strmake(strmake(tmp, save_cs->csname, sizeof(tmp)-4),
-              STRING_WITH_LEN("_bin"));
-      my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
-      DBUG_RETURN(TRUE);
+      // e.g. CREATE TABLE t1 (a CHAR(1) BINARY);
+      if (!(sql_field->charset= get_charset_by_csname(sql_field->charset->csname,
+                                                      MY_CS_BINSORT,MYF(0))))
+      {
+        char tmp[65];
+        strmake(strmake(tmp, save_cs->csname, sizeof(tmp)-4),
+                STRING_WITH_LEN("_bin"));
+        my_error(ER_UNKNOWN_COLLATION, MYF(0), tmp);
+        DBUG_RETURN(TRUE);
+      }
+      /*
+        Now that we have sql_field->charset set properly,
+        we don't need the BINCMP_FLAG any longer.
+      */
+      sql_field->flags&= ~BINCMP_FLAG;
     }
 
     /*
@@ -3926,7 +3945,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	      char warn_buff[MYSQL_ERRMSG_SIZE];
 	      my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_KEY),
 			  length);
-	      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+	      push_warning(thd, Sql_condition::SL_WARNING,
 			   ER_TOO_LONG_KEY, warn_buff);
               /* Align key length to multibyte char boundary */
               length-= length % sql_field->charset->mbmaxlen;
@@ -3973,7 +3992,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_TOO_LONG_KEY),
 		      length);
-	  push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+	  push_warning(thd, Sql_condition::SL_WARNING,
 		       ER_TOO_LONG_KEY, warn_buff);
           /* Align key length to multibyte char boundary */
           length-= length % sql_field->charset->mbmaxlen;
@@ -4158,7 +4177,7 @@ bool validate_comment_length(THD *thd, const char *comment_str,
                         comment_name, static_cast<ulong>(max_len));
     /* do not push duplicate warnings */
     if (!thd->get_stmt_da()->has_sql_condition(warn_buff, length)) 
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::SL_WARNING,
                    err_code, warn_buff);
     *comment_len= tmp_len;
   }
@@ -4233,7 +4252,7 @@ static bool prepare_blob_field(THD *thd, Create_field *sql_field)
     my_snprintf(warn_buff, sizeof(warn_buff), ER(ER_AUTO_CONVERT), sql_field->field_name,
             (sql_field->charset == &my_charset_bin) ? "VARBINARY" : "VARCHAR",
             (sql_field->charset == &my_charset_bin) ? "BLOB" : "TEXT");
-    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_AUTO_CONVERT,
+    push_warning(thd, Sql_condition::SL_NOTE, ER_AUTO_CONVERT,
                  warn_buff);
   }
 
@@ -4597,7 +4616,7 @@ bool create_table_impl(THD *thd,
   {
     if (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS)
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::SL_NOTE,
                           ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                           alias);
       error= 0;
@@ -4723,11 +4742,11 @@ bool create_table_impl(THD *thd,
   if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
   {
     if (create_info->data_file_name)
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (create_info->index_file_name)
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
     create_info->data_file_name= create_info->index_file_name= 0;
@@ -4809,7 +4828,7 @@ err:
 
 warn:
   error= FALSE;
-  push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+  push_warning_printf(thd, Sql_condition::SL_NOTE,
                       ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
                       alias);
   goto err;
@@ -4835,8 +4854,17 @@ bool mysql_create_table_no_lock(THD *thd,
     build_tmptable_filename(thd, path, sizeof(path));
   else
   {
+    bool was_truncated;
+    int length;
     const char *alias= table_case_name(create_info, table_name);
-    build_table_filename(path, sizeof(path) - 1, db, alias, "", 0);
+    length= build_table_filename(path, sizeof(path) - 1, db, alias,
+                                 "", 0, &was_truncated);
+    // Check if we hit FN_REFLEN bytes along with file extension.
+    if (was_truncated || length+reg_ext_length > FN_REFLEN)
+    {
+      my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path)-1, path);
+      return true;
+    }
   }
 
   return create_table_impl(thd, db, table_name, path, create_info, alter_info,
@@ -4994,6 +5022,8 @@ mysql_rename_table(handlerton *base, const char *old_db,
   char tmp_name[NAME_LEN+1];
   handler *file;
   int error=0;
+  int length;
+  bool was_truncated;
   DBUG_ENTER("mysql_rename_table");
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
                        old_db, old_name, new_db, new_name));
@@ -5003,8 +5033,14 @@ mysql_rename_table(handlerton *base, const char *old_db,
 
   build_table_filename(from, sizeof(from) - 1, old_db, old_name, "",
                        flags & FN_FROM_IS_TMP);
-  build_table_filename(to, sizeof(to) - 1, new_db, new_name, "",
-                       flags & FN_TO_IS_TMP);
+  length= build_table_filename(to, sizeof(to) - 1, new_db, new_name, "",
+                               flags & FN_TO_IS_TMP, &was_truncated);
+  // Check if we hit FN_REFLEN bytes along with file extension.
+  if (was_truncated || length+reg_ext_length > FN_REFLEN)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(to)-1, to);
+    DBUG_RETURN(TRUE);
+  }
 
   /*
     If lower_case_table_names == 2 (case-preserving but case-insensitive
@@ -6107,7 +6143,7 @@ bool alter_table_manage_keys(TABLE *table, int indexes_were_disabled,
 
   if (error == HA_ERR_WRONG_COMMAND)
   {
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning_printf(current_thd, Sql_condition::SL_NOTE,
                         ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                         table->s->table_name.str);
     error= 0;
@@ -6700,7 +6736,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       if (alter)
       {
-	if (def->sql_type == MYSQL_TYPE_BLOB)
+	if (def->flags & BLOB_FLAG)
 	{
 	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
           goto err;
@@ -7360,7 +7396,7 @@ simple_rename_or_index_change(THD *thd, TABLE_LIST *table_list,
 
     if (error == HA_ERR_WRONG_COMMAND)
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::SL_NOTE,
                           ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                           table->alias);
       error= 0;
@@ -8337,7 +8373,7 @@ end_temporary:
   my_snprintf(alter_ctx.tmp_name, sizeof(alter_ctx.tmp_name),
               ER(ER_INSERT_INFO),
 	      (ulong) (copied + deleted), (ulong) deleted,
-	      (ulong) thd->get_stmt_da()->current_statement_warn_count());
+	      (ulong) thd->get_stmt_da()->current_statement_cond_count());
   my_ok(thd, copied + deleted, 0L, alter_ctx.tmp_name);
   DBUG_RETURN(false);
 
@@ -8359,7 +8395,7 @@ err_new_table_cleanup:
     Report error here.
   */
   if (alter_ctx.error_if_not_empty &&
-      thd->get_stmt_da()->current_row_for_warning())
+      thd->get_stmt_da()->current_row_for_condition())
   {
     uint f_length;
     enum enum_mysql_timestamp_type t_type= MYSQL_TIMESTAMP_DATE;
@@ -8382,7 +8418,7 @@ err_new_table_cleanup:
     }
     bool save_abort_on_warning= thd->abort_on_warning;
     thd->abort_on_warning= true;
-    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
                                  ErrConvString(my_zero_datetime6, f_length),
                                  t_type,
                                  alter_ctx.datetime_field->field_name);
@@ -8532,7 +8568,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
       my_snprintf(warn_buff, sizeof(warn_buff), 
                   "ORDER BY ignored as there is a user-defined clustered index"
                   " in the table '%-.192s'", from->s->table_name.str);
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+      push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                    warn_buff);
     }
     else
@@ -8567,7 +8603,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
   }
   if (ignore && !alter_ctx->fk_error_if_delete_row)
     to->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  thd->get_stmt_da()->reset_current_row_for_warning();
+  thd->get_stmt_da()->reset_current_row_for_condition();
   restore_record(to, s->default_values);        // Create empty record
   while (!(error=info.read_record(&info)))
   {
@@ -8667,7 +8703,7 @@ copy_data_between_tables(TABLE *from,TABLE *to,
     }
     else
       found_count++;
-    thd->get_stmt_da()->inc_current_row_for_warning();
+    thd->get_stmt_da()->inc_current_row_for_condition();
   }
   end_read_record(&info);
   free_io_cache(from);
@@ -8924,7 +8960,7 @@ static bool check_engine(THD *thd, const char *db_name,
 
   if (req_engine && req_engine != *new_engine)
   {
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
                        ER_WARN_USING_OTHER_HANDLER,
                        ER(ER_WARN_USING_OTHER_HANDLER),
                        ha_resolve_storage_engine_name(*new_engine),

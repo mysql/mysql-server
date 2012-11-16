@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -90,6 +90,8 @@ public:
   {
     m_transporter_registry.set_status_overloaded(remoteNodeId,
                                                  used >= m_overload_limit);
+    m_transporter_registry.set_status_slowdown(remoteNodeId,
+                                               used >= m_slowdown_limit);
   }
 
   virtual int doSend() = 0;
@@ -139,8 +141,6 @@ protected:
    */
   char remoteHostName[256];
   char localHostName[256];
-  struct in_addr remoteHostAddress;
-  struct in_addr localHostAddress;
 
   int m_s_port;
 
@@ -149,8 +149,6 @@ protected:
   
   const bool isServer;
 
-  unsigned createIndex;
-  
   int byteOrder;
   bool compressionUsed;
   bool checksumUsed;
@@ -159,6 +157,9 @@ protected:
   Uint32 m_max_send_buffer;
   /* Overload limit, as configured with the OverloadLimit config parameter. */
   Uint32 m_overload_limit;
+  Uint32 m_slowdown_limit;
+  Uint64 m_bytes_sent;
+  Uint64 m_bytes_received;
 
 private:
 

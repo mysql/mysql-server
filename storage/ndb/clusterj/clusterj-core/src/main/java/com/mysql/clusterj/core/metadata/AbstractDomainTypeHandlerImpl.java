@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -34,6 +34,7 @@ import com.mysql.clusterj.core.spi.DomainFieldHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.ValueHandler;
 import com.mysql.clusterj.core.store.Column;
+import com.mysql.clusterj.core.store.Db;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.store.IndexOperation;
 import com.mysql.clusterj.core.store.Operation;
@@ -75,6 +76,9 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
     /** The id field(s) for the class, mapped to primary key columns */
     protected DomainFieldHandler[] idFieldHandlers;
 
+    /** The field(s) for the class */
+    protected DomainFieldHandler[] fieldHandlers;
+
     /** The PrimaryKey column names. */
     protected String[] primaryKeyColumnNames;
 
@@ -114,6 +118,9 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
 
     /** Set of index names to check for duplicates. */
     protected Set<String> indexNames = new HashSet<String>();
+
+    /** Errors reported during construction; see getUnsupported(), setUnsupported(String) */
+    private StringBuilder reasons = null;
 
     /** Register a primary key column field. This is used to associate
      * primary key and partition key column names with field handlers.
@@ -233,6 +240,10 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
 
     public DomainFieldHandler[] getIdFieldHandlers() {
         return idFieldHandlers;
+    }
+
+    public DomainFieldHandler[] getFieldHandlers() {
+        return fieldHandlers;
     }
 
     public DomainFieldHandler getFieldHandler(String fieldName) {
@@ -374,7 +385,7 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public ValueHandler createKeyValueHandler(Object keys) {
+    public ValueHandler createKeyValueHandler(Object keys, Db db) {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
@@ -398,7 +409,11 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
-    public T newInstance() {
+    public T newInstance(Db db) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
+    }
+
+    public T newInstance(ResultData resultData, Db db) {
         throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
@@ -426,6 +441,21 @@ public abstract class AbstractDomainTypeHandlerImpl<T> implements DomainTypeHand
 
     public String[] getFieldNames() {
         return fieldNames;
+    }
+
+    public void setUnsupported(String reason) {
+        if (reasons == null) {
+            reasons = new StringBuilder();
+        }
+        reasons.append(reason);
+    }
+
+    public String getUnsupported() {
+        return reasons == null?null:reasons.toString();
+    }
+
+    public T newInstance(ValueHandler valueHandler) {
+        throw new ClusterJFatalInternalException(local.message("ERR_Implementation_Should_Not_Occur"));
     }
 
 }

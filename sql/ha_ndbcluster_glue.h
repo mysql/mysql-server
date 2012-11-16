@@ -38,6 +38,8 @@
 #include "transaction.h"
 #include "sql_test.h"       // print_where
 #include "key.h"            // key_restore
+#include "rpl_constants.h"  // Transid in Binlog
+#include "rpl_slave.h"      // Silent retry definition
 #else
 #include "mysql_priv.h"
 #endif
@@ -74,6 +76,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
 #define NDB_NO_MYSQL_RM_TABLE_PART2
 
 #endif
+
 
 extern ulong opt_server_id_mask;
 
@@ -114,7 +117,7 @@ void thd_set_command(THD* thd, enum enum_server_command command)
 #endif
 }
 
-/* get pointer to diagnostic area for statement from THD */
+/* get pointer to Diagnostics Area for statement from THD */
 static inline
 Diagnostics_area* thd_stmt_da(THD* thd)
 {
@@ -230,12 +233,5 @@ uint partition_info_num_subparts(const partition_info* part_info)
   return part_info->num_subparts;
 #endif
 }
-
-#if MYSQL_VERSION_ID >= 50600
-
-/* New multi range read interface replaced original mrr */
-#define NDB_WITH_NEW_MRR_INTERFACE
-
-#endif
 
 #endif

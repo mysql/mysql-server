@@ -1137,7 +1137,7 @@ public:
   { return DERIVATION_IMPLICIT; }
   virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
-  bool set_warning(Sql_condition::enum_warning_level, unsigned int code,
+  bool set_warning(Sql_condition::enum_severity_level, unsigned int code,
                    int cuted_increment) const;
   inline bool check_overflow(int op_result)
   {
@@ -1224,7 +1224,7 @@ public:
 
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
-  friend int cre_myisam(char * name, register TABLE *form, uint options,
+  friend int cre_myisam(char * name, TABLE *form, uint options,
 			ulonglong auto_increment_value);
   friend class Copy_field;
   friend class Item_avg_field;
@@ -1403,11 +1403,6 @@ protected:
   {
     handle_int64(to, from, low_byte_first_from, table->s->db_low_byte_first);
     return from + sizeof(int64);
-  }
-
-  bool field_flags_are_binary()
-  {
-    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
   }
 
 };
@@ -2241,7 +2236,7 @@ protected:
     @param IN  ts_type         Timestamp type (time, date, datetime, none)
     @param IN  cuted_inctement Incrementing of cut field counter
   */
-  void set_datetime_warning(Sql_condition::enum_warning_level level, uint code,
+  void set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
                             ErrConvString str,
                             timestamp_type ts_type, int cuted_increment);
 public:
@@ -3809,11 +3804,6 @@ public:
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, const CHARSET_INFO *cs,
             uint uint_geom_type);
-
-  bool field_flags_are_binary()
-  {
-    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
-  }
 
   ha_storage_media field_storage_type() const
   {

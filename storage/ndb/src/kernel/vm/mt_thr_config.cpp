@@ -30,9 +30,11 @@ static const struct THRConfig::Entries m_entries[] =
   // name    type              min  max
   { "main",  THRConfig::T_MAIN,  1, 1 },
   { "ldm",   THRConfig::T_LDM,   1, MAX_NDBMT_LQH_THREADS },
-  { "recv",  THRConfig::T_RECV,  1, 1 },
+  { "recv",  THRConfig::T_RECV,  1, MAX_NDBMT_RECEIVE_THREADS },
   { "rep",   THRConfig::T_REP,   1, 1 },
-  { "io",    THRConfig::T_IO,    1, 1 }
+  { "io",    THRConfig::T_IO,    1, 1 },
+  { "tc",    THRConfig::T_TC,    0, MAX_NDBMT_TC_THREADS },
+  { "send",  THRConfig::T_SEND,  0, MAX_NDBMT_SEND_THREADS }
 };
 
 static const struct THRConfig::Param m_params[] =
@@ -123,6 +125,73 @@ THRConfig::add(T_Type t)
   m_threads[t].push_back(tmp);
 }
 
+static
+void
+computeThreadConfig(Uint32 MaxNoOfExecutionThreads,
+                    Uint32 & tcthreads,
+                    Uint32 & lqhthreads,
+                    Uint32 & sendthreads,
+                    Uint32 & recvthreads)
+{
+  assert(MaxNoOfExecutionThreads >= 9);
+  static const struct entry
+  {
+    Uint32 M;
+    Uint32 lqh;
+    Uint32 tc;
+    Uint32 send;
+    Uint32 recv;
+  } table[] = {
+    { 9, 4, 2, 0, 1 },
+    { 10, 4, 2, 1, 1 },
+    { 11, 4, 3, 1, 1 },
+    { 12, 4, 3, 1, 2 },
+    { 13, 4, 3, 2, 2 },
+    { 14, 4, 4, 2, 2 },
+    { 15, 4, 5, 2, 2 },
+    { 16, 8, 3, 1, 2 },
+    { 17, 8, 4, 1, 2 },
+    { 18, 8, 4, 2, 2 },
+    { 19, 8, 5, 2, 2 },
+    { 20, 8, 5, 2, 3 },
+    { 21, 8, 5, 3, 3 },
+    { 22, 8, 6, 3, 3 },
+    { 23, 8, 7, 3, 3 },
+    { 24, 12, 5, 2, 3 },
+    { 25, 12, 6, 2, 3 },
+    { 26, 12, 6, 3, 3 },
+    { 27, 12, 7, 3, 3 },
+    { 28, 12, 7, 3, 4 },
+    { 29, 12, 8, 3, 4 },
+    { 30, 12, 8, 4, 4 },
+    { 31, 12, 9, 4, 4 },
+    { 32, 16, 8, 3, 3 },
+    { 33, 16, 8, 3, 4 },
+    { 34, 16, 8, 4, 4 },
+    { 35, 16, 9, 4, 4 },
+    { 36, 16, 10, 4, 4 },
+    { 37, 16, 10, 4, 5 },
+    { 38, 16, 11, 4, 5 },
+    { 39, 16, 11, 5, 5 },
+    { 40, 16, 12, 5, 5 },
+    { 41, 16, 12, 5, 6 },
+    { 42, 16, 13, 5, 6 },
+    { 43, 16, 13, 6, 6 },
+    { 44, 16, 14, 6, 6 }
+  };
+
+  Uint32 P = MaxNoOfExecutionThreads - 9;
+  if (P >= NDB_ARRAY_SIZE(table))
+  {
+    P = NDB_ARRAY_SIZE(table) - 1;
+  }
+
+  lqhthreads = table[P].lqh;
+  tcthreads = table[P].tc;
+  sendthreads = table[P].send;
+  recvthreads = table[P].recv;
+}
+
 int
 THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
                     unsigned __ndbmt_lqh_threads,
@@ -137,10 +206,14 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
     add(T_LDM);
     add(T_MAIN);
     add(T_IO);
-    return do_bindings();
+    const bool allow_too_few_cpus = true;
+    return do_bindings(allow_too_few_cpus);
   }
 
+  Uint32 tcthreads = 0;
   Uint32 lqhthreads = 0;
+  Uint32 sendthreads = 0;
+  Uint32 recvthreads = 1;
   switch(MaxNoOfExecutionThreads){
   case 0:
   case 1:
@@ -153,8 +226,16 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
   case 6:
     lqhthreads = 2; // TC + receiver + SUMA + 2 * LQH
     break;
-  default:
+  case 7:
+  case 8:
     lqhthreads = 4; // TC + receiver + SUMA + 4 * LQH
+    break;
+  default:
+    computeThreadConfig(MaxNoOfExecutionThreads,
+                        tcthreads,
+                        lqhthreads,
+                        sendthreads,
+                        recvthreads);
   }
 
   if (__ndbmt_lqh_threads)
@@ -162,20 +243,37 @@ THRConfig::do_parse(unsigned MaxNoOfExecutionThreads,
     lqhthreads = __ndbmt_lqh_threads;
   }
 
-  add(T_MAIN);
-  add(T_REP);
-  add(T_RECV);
+  add(T_MAIN); /* Global */
+  add(T_REP);  /* Local, main consumer is SUMA */
+  for(Uint32 i = 0; i < recvthreads; i++)
+  {
+    add(T_RECV);
+  }
   add(T_IO);
   for(Uint32 i = 0; i < lqhthreads; i++)
   {
     add(T_LDM);
   }
+  for(Uint32 i = 0; i < tcthreads; i++)
+  {
+    add(T_TC);
+  }
+  for(Uint32 i = 0; i < sendthreads; i++)
+  {
+    add(T_SEND);
+  }
 
-  return do_bindings() || do_validate();
+  // If we have set TC-threads...we say that this is "new" code
+  // and give error for having too few CPU's in mask compared to #threads
+  // started
+  const bool allow_too_few_cpus = (tcthreads == 0 &&
+                                   sendthreads == 0 &&
+                                   recvthreads == 1);
+  return do_bindings(allow_too_few_cpus) || do_validate();
 }
 
 int
-THRConfig::do_bindings()
+THRConfig::do_bindings(bool allow_too_few_cpus)
 {
   if (m_LockIoThreadsToCPU.count() == 1)
   {
@@ -283,6 +381,13 @@ THRConfig::do_bindings()
                         "LockExecuteThreadToCPU. Only %u specified "
                         " but %u was needed, this may cause contention.\n",
                         cnt, num_threads);
+
+      if (!allow_too_few_cpus)
+      {
+        m_err_msg.assfmt("Too few CPU's specifed with LockExecuteThreadToCPU. "
+                         "This is not supported when using multiple TC threads");
+        return -1;
+      }
     }
 
     if (cnt >= num_threads)
@@ -432,11 +537,16 @@ THRConfig::do_validate()
   }
 
   /**
-   * LDM can be 1 2 4
+   * LDM can be 1 2 4 8 12 16
    */
-  if (m_threads[T_LDM].size() == 3)
+  if (m_threads[T_LDM].size() != 1 &&
+      m_threads[T_LDM].size() != 2 &&
+      m_threads[T_LDM].size() != 4 &&
+      m_threads[T_LDM].size() != 8 &&
+      m_threads[T_LDM].size() != 12 &&
+      m_threads[T_LDM].size() != 16)
   {
-    m_err_msg.assfmt("No of LDM-instances can be 1,2,4. Specified: %u",
+    m_err_msg.assfmt("No of LDM-instances can be 1,2,4,8,12,16. Specified: %u",
                      m_threads[T_LDM].size());
     return -1;
   }
@@ -867,7 +977,18 @@ THRConfig::do_parse(const char * ThreadConfig)
       add((T_Type)i);
   }
 
-  return do_bindings() || do_validate();
+  const bool allow_too_few_cpus =
+    m_threads[T_TC].size() == 0 &&
+    m_threads[T_SEND].size() == 0 &&
+    m_threads[T_RECV].size() == 1;
+
+  int res = do_bindings(allow_too_few_cpus);
+  if (res != 0)
+  {
+    return res;
+  }
+
+  return do_validate();
 }
 
 unsigned
@@ -908,17 +1029,21 @@ THRConfigApplier::find_thread(const unsigned short instancelist[], unsigned cnt)
   {
     return &m_threads[T_REP][instanceNo];
   }
-  else if ((instanceNo = findBlock(CMVMI, instancelist, cnt)) >= 0)
-  {
-    return &m_threads[T_RECV][instanceNo];
-  }
   else if ((instanceNo = findBlock(DBDIH, instancelist, cnt)) >= 0)
   {
     return &m_threads[T_MAIN][instanceNo];
   }
+  else if ((instanceNo = findBlock(DBTC, instancelist, cnt)) >= 0)
+  {
+    return &m_threads[T_TC][instanceNo - 1]; // remove proxy
+  }
   else if ((instanceNo = findBlock(DBLQH, instancelist, cnt)) >= 0)
   {
     return &m_threads[T_LDM][instanceNo - 1]; // remove proxy...
+  }
+  else if ((instanceNo = findBlock(TRPMAN, instancelist, cnt)) >= 0)
+  {
+    return &m_threads[T_RECV][instanceNo - 1]; // remove proxy
   }
   return 0;
 }
@@ -928,6 +1053,21 @@ THRConfigApplier::appendInfo(BaseString& str,
                              const unsigned short list[], unsigned cnt) const
 {
   const T_Thread* thr = find_thread(list, cnt);
+  appendInfo(str, thr);
+}
+
+void
+THRConfigApplier::appendInfoSendThread(BaseString& str,
+                                       unsigned instance_no) const
+{
+  const T_Thread* thr = &m_threads[T_SEND][instance_no];
+  appendInfo(str, thr);
+}
+
+void
+THRConfigApplier::appendInfo(BaseString& str,
+                             const T_Thread* thr) const
+{
   assert(thr != 0);
   str.appfmt("(%s) ", getEntryName(thr->m_type));
   if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
@@ -938,6 +1078,14 @@ THRConfigApplier::appendInfo(BaseString& str,
   {
     str.appfmt("cpuset: [ %s ] ", m_cpu_sets[thr->m_bind_no].str().c_str());
   }
+}
+
+const char *
+THRConfigApplier::getName(const unsigned short list[], unsigned cnt) const
+{
+  const T_Thread* thr = find_thread(list, cnt);
+  assert(thr != 0);
+  return getEntryName(thr->m_type);
 }
 
 int
@@ -951,27 +1099,27 @@ THRConfigApplier::do_bind(NdbThread* thread,
                           const unsigned short list[], unsigned cnt)
 {
   const T_Thread* thr = find_thread(list, cnt);
-  if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
-  {
-    int res = NdbThread_LockCPU(thread, thr->m_bind_no);
-    if (res == 0)
-      return 1;
-    else
-      return -res;
-  }
-#if TODO
-  else if (thr->m_bind_type == T_Thread::B_CPUSET_BOUND)
-  {
-  }
-#endif
-
-  return 0;
+  return do_bind(thread, thr);
 }
 
 int
 THRConfigApplier::do_bind_io(NdbThread* thread)
 {
   const T_Thread* thr = &m_threads[T_IO][0];
+  return do_bind(thread, thr);
+}
+
+int
+THRConfigApplier::do_bind_send(NdbThread* thread, unsigned instance)
+{
+  const T_Thread* thr = &m_threads[T_SEND][instance];
+  return do_bind(thread, thr);
+}
+
+int
+THRConfigApplier::do_bind(NdbThread* thread,
+                          const T_Thread* thr)
+{
   if (thr->m_bind_type == T_Thread::B_CPU_BOUND)
   {
     int res = NdbThread_LockCPU(thread, thr->m_bind_no);
@@ -1014,6 +1162,8 @@ TAPTEST(mt_thr_config)
         "ldm={count=3,cpubind=1-2,5 },  ldm",
         "ldm={cpuset=1-3,count=3 },ldm",
         "main,ldm={},ldm",
+        "main,ldm={},ldm,tc",
+        "main,ldm={},ldm,tc,tc",
         0
       };
 
@@ -1026,6 +1176,7 @@ TAPTEST(mt_thr_config)
         "main={ keso=88, count=23},ldm,ldm",
         "main={ cpuset=1-3 }, ldm={cpuset=3-4}",
         "main={ cpuset=1-3 }, ldm={cpubind=2}",
+        "tc,tc,tc={count=25}",
         0
       };
 
@@ -1065,51 +1216,256 @@ TAPTEST(mt_thr_config)
       /** threads, LockExecuteThreadToCPU, answer */
       "1-8",
       "ldm={count=4}",
+      "OK",
       "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7}",
 
       "1-5",
       "ldm={count=4}",
+      "OK",
       "main={cpubind=5},ldm={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},recv={cpubind=5},rep={cpubind=5}",
 
       "1-3",
       "ldm={count=4}",
+      "OK",
       "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=2},ldm={cpubind=3},recv={cpubind=1},rep={cpubind=1}",
 
       "1-4",
       "ldm={count=4}",
+      "OK",
       "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=2},recv={cpubind=1},rep={cpubind=1}",
 
       "1-8",
       "ldm={count=4},io={cpubind=8}",
+      "OK",
       "main={cpubind=1},ldm={cpubind=2},ldm={cpubind=3},ldm={cpubind=4},ldm={cpubind=5},recv={cpubind=6},rep={cpubind=7},io={cpubind=8}",
 
       "1-8",
       "ldm={count=4,cpubind=1,4,5,6}",
+      "OK",
       "main={cpubind=2},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=3},rep={cpubind=7}",
+
+      "1-9",
+      "ldm={count=4,cpubind=1,4,5,6},tc,tc",
+      "OK",
+      "main={cpubind=2},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=3},rep={cpubind=7},tc={cpubind=8},tc={cpubind=9}",
+
+      "1-8",
+      "ldm={count=4,cpubind=1,4,5,6},tc",
+      "OK",
+      "main={cpubind=2},ldm={cpubind=1},ldm={cpubind=4},ldm={cpubind=5},ldm={cpubind=6},recv={cpubind=3},rep={cpubind=7},tc={cpubind=8}",
+
+      "1-8",
+      "ldm={count=4,cpubind=1,4,5,6},tc,tc",
+      "FAIL",
+      "Too few CPU's specifed with LockExecuteThreadToCPU. This is not supported when using multiple TC threads",
 
       // END
       0
     };
 
-    for (unsigned i = 0; t[i]; i+= 3)
+    for (unsigned i = 0; t[i]; i+= 4)
     {
       THRConfig tmp;
       tmp.setLockExecuteThreadToCPU(t[i+0]);
-      int res = tmp.do_parse(t[i+1]);
-      int ok = strcmp(tmp.getConfigString(), t[i+2]) == 0;
+      const int _res = tmp.do_parse(t[i+1]);
+      const int expect_res = strcmp(t[i+2], "OK") == 0 ? 0 : -1;
+      const int res = _res == expect_res ? 0 : -1;
+      int ok = expect_res == 0 ?
+        strcmp(tmp.getConfigString(), t[i+3]) == 0:
+        strcmp(tmp.getErrorMessage(), t[i+3]) == 0;
       printf("mask: %s conf: %s => %s(%s) - %s - %s\n",
              t[i+0],
              t[i+1],
-             res == 0 ? "OK" : "FAIL",
-             res == 0 ? "" : tmp.getErrorMessage(),
+             _res == 0 ? "OK" : "FAIL",
+             _res == 0 ? "" : tmp.getErrorMessage(),
              tmp.getConfigString(),
              ok == 1 ? "CORRECT" : "INCORRECT");
+
       OK(res == 0);
       OK(ok == 1);
     }
   }
 
+  for (Uint32 i = 9; i < 48; i++)
+  {
+    Uint32 t,l,s,r;
+    computeThreadConfig(i, t, l, s, r);
+    printf("MaxNoOfExecutionThreads: %u lqh: %u tc: %u send: %u recv: %u main: 1 rep: 1 => sum: %u\n",
+           i, l, t, s, r,
+           2 + l + t + s + r);
+  }
+
   return 1;
+}
+
+#endif
+
+#if 0
+
+/**
+ * This c-program was written by mikael ronstrom to
+ *  produce good distribution of threads, given MaxNoOfExecutionThreads
+ *
+ * Good is based on his experience experimenting/benchmarking
+ */
+#include <stdio.h>
+
+#define Uint32 unsigned int
+#define TC_THREAD_INDEX 0
+#define SEND_THREAD_INDEX 1
+#define RECV_THREAD_INDEX 2
+#define LQH_THREAD_INDEX 3
+#define MAIN_THREAD_INDEX 4
+#define REP_THREAD_INDEX 5
+
+#define NUM_CHANGE_INDEXES 3
+#define NUM_INDEXES 6
+
+static double mult_factor[NUM_CHANGE_INDEXES];
+
+static void
+set_changeable_thread(Uint32 num_threads[NUM_INDEXES],
+                      double float_num_threads[NUM_CHANGE_INDEXES],
+                      Uint32 index)
+{
+  num_threads[index] = (Uint32)(float_num_threads[index]);
+  float_num_threads[index] -= num_threads[index];
+}
+
+static Uint32
+calculate_total(Uint32 num_threads[NUM_INDEXES])
+{
+  Uint32 total = 0;
+  Uint32 i;
+  for (i = 0; i < NUM_INDEXES; i++)
+  {
+    total += num_threads[i];
+  }
+  return total;
+}
+
+static Uint32
+find_min_index(double float_num_threads[NUM_CHANGE_INDEXES])
+{
+  Uint32 min_index = 0;
+  Uint32 i;
+  double min = float_num_threads[0];
+
+  for (i = 1; i < NUM_CHANGE_INDEXES; i++)
+  {
+    if (min > float_num_threads[i])
+    {
+      min = float_num_threads[i];
+      min_index = i;
+    }
+  }
+  return min_index;
+}
+
+static Uint32
+find_max_index(double float_num_threads[NUM_CHANGE_INDEXES])
+{
+  Uint32 max_index = 0;
+  Uint32 i;
+  double max = float_num_threads[0];
+
+  for (i = 1; i < NUM_CHANGE_INDEXES; i++)
+  {
+    if (max < float_num_threads[i])
+    {
+      max = float_num_threads[i];
+      max_index = i;
+    }
+  }
+  return max_index;
+}
+
+static void
+add_thread(Uint32 num_threads[NUM_INDEXES],
+           double float_num_threads[NUM_CHANGE_INDEXES])
+{
+  Uint32 i;
+  Uint32 max_index = find_max_index(float_num_threads);
+  num_threads[max_index]++;
+  float_num_threads[max_index] -= (double)1;
+  for (i = 0; i < NUM_CHANGE_INDEXES; i++)
+    float_num_threads[i] += mult_factor[i];
+}
+
+static void
+remove_thread(Uint32 num_threads[NUM_INDEXES],
+              double float_num_threads[NUM_CHANGE_INDEXES])
+{
+  Uint32 i;
+  Uint32 min_index = find_min_index(float_num_threads);
+  num_threads[min_index]--;
+  float_num_threads[min_index] += (double)1;
+  for (i = 0; i < NUM_CHANGE_INDEXES; i++)
+    float_num_threads[i] -= mult_factor[i];
+}
+
+static void
+define_num_threads_per_type(Uint32 max_no_exec_threads,
+                            Uint32 num_threads[NUM_INDEXES])
+{
+  Uint32 total_threads;
+  Uint32 num_lqh_threads;
+  Uint32 i;
+  double float_num_threads[NUM_CHANGE_INDEXES];
+
+  /* Baseline to start calculations at */
+  num_threads[MAIN_THREAD_INDEX] = 1; /* Fixed */
+  num_threads[REP_THREAD_INDEX] = 1; /* Fixed */
+  num_lqh_threads = (max_no_exec_threads / 8) * 4;
+  if (num_lqh_threads > 16)
+    num_lqh_threads = 16;
+  num_threads[LQH_THREAD_INDEX] = num_lqh_threads;
+
+  /**
+   * Rest of calculations are about calculating number of tc threads,
+   * send threads and receive threads based on this input.
+   * We do this by calculating a floating point number and using this to
+   * select the next thread group to have one more added/removed.
+   */
+  mult_factor[TC_THREAD_INDEX] = 0.465;
+  mult_factor[SEND_THREAD_INDEX] = 0.19;
+  mult_factor[RECV_THREAD_INDEX] = 0.215;
+  for (i = 0; i < NUM_CHANGE_INDEXES; i++)
+    float_num_threads[i] = 0.5 + (mult_factor[i] * num_lqh_threads);
+
+  set_changeable_thread(num_threads, float_num_threads, TC_THREAD_INDEX);
+  set_changeable_thread(num_threads, float_num_threads, SEND_THREAD_INDEX);
+  set_changeable_thread(num_threads, float_num_threads, RECV_THREAD_INDEX);
+
+  total_threads = calculate_total(num_threads);
+
+  while (total_threads != max_no_exec_threads)
+  {
+    if (total_threads < max_no_exec_threads)
+      add_thread(num_threads, float_num_threads);
+    else
+      remove_thread(num_threads, float_num_threads);
+    total_threads = calculate_total(num_threads);
+  }
+}
+
+int main(int argc, char *argv)
+{
+  Uint32 num_threads[NUM_INDEXES];
+  Uint32 i;
+
+  printf("MaxNoOfExecutionThreads,LQH,TC,send,recv\n");
+  for (i = 9; i < 45; i++)
+  {
+    define_num_threads_per_type(i, num_threads);
+    printf("{ %u, %u, %u, %u, %u },\n",
+           i,
+           num_threads[LQH_THREAD_INDEX],
+           num_threads[TC_THREAD_INDEX],
+           num_threads[SEND_THREAD_INDEX],
+           num_threads[RECV_THREAD_INDEX]);
+  }
+  return 0;
 }
 
 #endif

@@ -68,8 +68,11 @@
 #define NDB_TYPE_OLDDECIMALUNSIGNED     28
 #define NDB_TYPE_DECIMAL                29
 #define NDB_TYPE_DECIMALUNSIGNED        30
+#define NDB_TYPE_TIME2                  31
+#define NDB_TYPE_DATETIME2              32
+#define NDB_TYPE_TIMESTAMP2             33
 
-#define NDB_TYPE_MAX                    31
+#define NDB_TYPE_MAX                    34
 
 
 /*
@@ -124,5 +127,23 @@
 #define NDB_INDEX_STAT_HEAD_EVENT    "ndb_index_stat_head_event"
 
 #define NDB_INDEX_STAT_PREFIX        "ndb_index_stat"
+
+/**
+ * Defines for NDB$INFO.OPERATIONS
+ */
+#define NDB_INFO_OP_UNKNOWN  0
+#define NDB_INFO_OP_READ     1
+#define NDB_INFO_OP_READ_SH  2
+#define NDB_INFO_OP_READ_EX  3
+#define NDB_INFO_OP_INSERT   4
+#define NDB_INFO_OP_UPDATE   5
+#define NDB_INFO_OP_DELETE   6
+#define NDB_INFO_OP_WRITE    7
+#define NDB_INFO_OP_UNLOCK   8
+#define NDB_INFO_OP_REFRESH  9
+#define NDB_INFO_OP_SCAN_UNKNOWN (256 + 0)
+#define NDB_INFO_OP_SCAN         (256 + 1)
+#define NDB_INFO_OP_SCAN_SH      (256 + 2)
+#define NDB_INFO_OP_SCAN_EX      (256 + 3)
 
 #endif

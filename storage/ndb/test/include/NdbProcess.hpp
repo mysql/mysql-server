@@ -26,7 +26,7 @@
 class NdbProcess
 {
 #ifdef _WIN32
-  tyepdef DWORD pid_t;
+  typedef DWORD pid_t;
 #endif
   pid_t m_pid;
   BaseString m_name;

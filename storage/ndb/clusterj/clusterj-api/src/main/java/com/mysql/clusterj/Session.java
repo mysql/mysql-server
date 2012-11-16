@@ -229,4 +229,12 @@ public interface Session {
      */
     void markModified(Object instance, String fieldName);
 
+    /** Unload the schema definition for a class. This must be done after the schema
+     * definition has changed in the database due to an alter table command.
+     * The next time the class is used the schema will be reloaded.
+     * @param cls the class for which the schema is unloaded
+     * @return the name of the schema that was unloaded
+     */
+    String unloadSchema(Class<?> cls);
+
 }

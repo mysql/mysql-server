@@ -1,3 +1,5 @@
+--skip Bug#14801541 TRANSACTION IN ENGINE WITHOUT 2PC SUPPORT IS LOGGED AS XID-ENDED
+
 #
 # test different behavior of ndb using different binlog formats
 #

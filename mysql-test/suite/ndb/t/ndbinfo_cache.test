@@ -24,8 +24,6 @@ select * from counters;
 show status like "Qcache_queries_in_cache";
 show status like "Qcache_inserts";
 
-# Turn off query cache
-SET GLOBAL query_cache_size=default;
-SET GLOBAL query_cache_type=default;
+SET GLOBAL query_cache_size=0;
 
 --source ndbinfo_drop.inc

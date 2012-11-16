@@ -21,9 +21,33 @@
 #include <NdbMutex.h>
 #include <NdbMem.h>
 
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+#include "NdbMutex_DeadlockDetector.h"
+#endif
+
 #ifdef NDB_MUTEX_STAT
 static FILE * statout = 0;
 #endif
+
+#if defined NDB_MUTEX_STAT || defined NDB_MUTEX_DEADLOCK_DETECTOR
+#define NDB_MUTEX_STRUCT
+#endif
+
+void
+NdbMutex_SysInit()
+{
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  NdbMutex_DeadlockDetectorInit();
+#endif
+}
+
+void
+NdbMutex_SysEnd()
+{
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  NdbMutex_DeadlockDetectorEnd();
+#endif
+}
 
 NdbMutex* NdbMutex_Create()
 {
@@ -59,12 +83,15 @@ int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
   int result;
   pthread_mutex_t * p;
   DBUG_ENTER("NdbMutex_Init");
+  (void)name;
+
+#ifdef NDB_MUTEX_STRUCT
+  bzero(pNdbMutex, sizeof(NdbMutex));
+  p = &pNdbMutex->mutex;
 
 #ifdef NDB_MUTEX_STAT
-  bzero(pNdbMutex, sizeof(NdbMutex));
   pNdbMutex->min_lock_wait_time_ns = ~(Uint64)0;
   pNdbMutex->min_hold_time_ns = ~(Uint64)0;
-  p = &pNdbMutex->mutex;
   if (name == 0)
   {
     snprintf(pNdbMutex->name, sizeof(pNdbMutex->name), "%p",
@@ -79,9 +106,10 @@ int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
   {
     statout = stdout;
   }
+#endif
+
 #else
   p = pNdbMutex;
-  (void)name;
 #endif
 
 #if defined(VM_TRACE) && \
@@ -99,6 +127,13 @@ int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
 #else
   result = pthread_mutex_init(p, 0);
 #endif
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  if (result == 0)
+  {
+    ndb_mutex_created(pNdbMutex);
+  }
+#endif
   DBUG_RETURN(result);
 }
 
@@ -109,7 +144,11 @@ int NdbMutex_Destroy(NdbMutex* p_mutex)
   if (p_mutex == NULL)
     return -1;
 
-#ifdef NDB_MUTEX_STAT
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  ndb_mutex_destoyed(p_mutex);
+#endif
+
+#ifdef NDB_MUTEX_STRUCT
   result = pthread_mutex_destroy(&p_mutex->mutex);
 #else
   result = pthread_mutex_destroy(p_mutex);
@@ -201,10 +240,16 @@ int NdbMutex_Lock(NdbMutex* p_mutex)
     p_mutex->cnt_lock++;
     p_mutex->lock_start_time_ns = stop;
   }
+#elif defined NDB_MUTEX_STRUCT
+  result = pthread_mutex_lock(&p_mutex->mutex);
 #else
   result = pthread_mutex_lock(p_mutex);
 #endif
   assert(result == 0);
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  ndb_mutex_locked(p_mutex);
+#endif
 
   return result;
 }
@@ -234,10 +279,16 @@ int NdbMutex_Unlock(NdbMutex* p_mutex)
       dumpstat(p_mutex);
     }
   }
+#elif defined NDB_MUTEX_STRUCT
+  result = pthread_mutex_unlock(&p_mutex->mutex);
 #else
   result = pthread_mutex_unlock(p_mutex);
 #endif
   assert(result == 0);
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  ndb_mutex_unlocked(p_mutex);
+#endif
 
   return result;
 }
@@ -261,10 +312,20 @@ int NdbMutex_Trylock(NdbMutex* p_mutex)
   {
     __sync_fetch_and_add(&p_mutex->cnt_trylock_nok, 1);
   }
+#elif defined NDB_MUTEX_STRUCT
+  result = pthread_mutex_trylock(&p_mutex->mutex);
 #else
   result = pthread_mutex_trylock(p_mutex);
 #endif
   assert(result == 0 || result == EBUSY);
+
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  if (result == 0)
+  {
+    ndb_mutex_try_locked(p_mutex);
+  }
+#endif
+
 
   return result;
 }

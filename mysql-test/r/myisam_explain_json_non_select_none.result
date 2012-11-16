@@ -5875,14 +5875,6 @@ Handler_read_rnd_next	1
 
 DROP TABLE t1, t2;
 DROP VIEW v1;
-#68
-CREATE TABLE t1 (i INT);
-EXPLAIN INSERT DELAYED INTO t1 VALUES (1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
-DROP TABLE t1;
 #69
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (2), (3);

@@ -261,3 +261,10 @@ commit;
 show tables;
 drop table t1;
 
+#
+# The mysql.ndb_schema table should be not be visible in SHOW TABLES
+# or I_S.TABLES
+#
+SHOW TABLES FROM mysql LIKE 'ndb_schema';
+SELECT count(1) FROM INFORMATION_SCHEMA.TABLES
+  WHERE TABLE_SCHEMA = 'mysql' AND TABLE_NAME = 'ndb_schema';

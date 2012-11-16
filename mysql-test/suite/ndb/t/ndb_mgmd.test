@@ -1,0 +1,13 @@
+--source include/have_ndb.inc
+
+--echo #
+--echo # BUG#11764570 NDB_ERROR_REPORTER ONLY COLLECTS LOGS MATCHING NAME NDB_$ID*.
+--echo #
+
+--echo Make sure that ndb_mgmd creates ndb_<nodeid>_cluster.log file
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/ndb_3_cluster.log
+
+--echo Make sure that ndb_mgmd does _not_ create logger.log file
+--error 1
+--file_exists $MYSQLTEST_VARDIR/mysql_cluster.1/ndb_mgmd.1/logger.log
+

@@ -27,8 +27,7 @@
 #define QRY_CHAR_OPERAND_TRUNCATED 4804
 #define QRY_NUM_OPERAND_RANGE 4805
 #define QRY_MULTIPLE_PARENTS 4806
-#define QRY_UNKONWN_PARENT 4807
-#define QRY_UNKNOWN_COLUMN 4808
+#define QRY_UNKNOWN_PARENT 4807
 #define QRY_UNRELATED_INDEX 4809
 #define QRY_WRONG_INDEX_TYPE 4810
 #define QRY_OPERAND_ALREADY_BOUND 4811
@@ -44,6 +43,7 @@
 #define QRY_CHAR_PARAMETER_TRUNCATED 4823
 #define QRY_MULTIPLE_SCAN_SORTED 4824
 #define QRY_BATCH_SIZE_TOO_SMALL 4825
+#define QRY_EMPTY_PROJECTION 4826
 
 #ifdef __cplusplus
 #include <Vector.hpp>
@@ -274,6 +274,9 @@ public:
   NdbQueryOptionsImpl(const NdbQueryOptionsImpl&);
   ~NdbQueryOptionsImpl();
 
+  NdbQueryOptions::ScanOrdering getOrdering() const
+  { return m_scanOrder; }
+
 private:
   NdbQueryOptions::MatchType     m_matchType;
   NdbQueryOptions::ScanOrdering  m_scanOrder;
@@ -343,12 +346,6 @@ public:
   const NdbInterpretedCode* getInterpretedCode() const
   { return m_options.m_interpretedCode; }
 
-  Uint32 assignQueryOperationId(Uint32& nodeId)
-  { if (getType()==NdbQueryOperationDef::UniqueIndexAccess) nodeId++;
-    m_id = nodeId++;
-    return m_id;
-  }
-
   // Establish a linked parent <-> child relationship with this operation
   int linkWithParent(NdbQueryOperationDefImpl* parentOp);
 
@@ -385,6 +382,15 @@ public:
   virtual const IndexBound* getBounds() const
   { return NULL; } 
 
+  /** 
+   * True if this is a prunable scan and there are NdbQueryParamOperands in the
+   * distribution key.
+   */
+  virtual bool hasParamInPruneKey() const
+  {
+    return false;
+  }
+
   // Return 'true' is query type is a multi-row scan
   virtual bool isScanOperation() const = 0;
 
@@ -417,19 +423,26 @@ protected:
   explicit NdbQueryOperationDefImpl (const NdbTableImpl& table,
                                      const NdbQueryOptionsImpl& options,
                                      const char* ident,
-                                     Uint32 ix,
+                                     Uint32 opNo,
+                                     Uint32 internalOpNo,
                                      int& error);
 public:
   // Get the ordinal position of this operation within the query def.
-  Uint32 getQueryOperationIx() const
-  { return m_ix; }
+  Uint32 getOpNo() const
+  { return m_opNo; }
 
   // Get id of node as known inside queryTree
-  Uint32 getQueryOperationId() const
-  { return m_id; }
+  Uint32 getInternalOpNo() const
+  { return m_internalOpNo; }
 
   // Get type of query operation
   virtual NdbQueryOperationDef::Type getType() const = 0;
+
+  /**
+   * Used for telling if parent at depth n has more siblings. (In that case
+   * we need to draw a horisontal line leading to that sibling.)
+   */
+  typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> SiblingMask;
 
   /** Print query tree graph to trace file (using recursion).
    * @param depth Number of ancestor nodes that this node has.
@@ -438,7 +451,7 @@ public:
    */
   void printTree(
            Uint32 depth, 
-           Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> hasMoreSiblingsMask) const;
+           SiblingMask hasMoreSiblingsMask) const;
 
 protected:
   // QueryTree building:
@@ -474,9 +487,9 @@ private:
 private:
   const NdbTableImpl& m_table;
   const char* const m_ident; // Optional name specified by aplication
-  const Uint32 m_ix;         // Index of this operation within operation array
-  Uint32       m_id;         // Operation id when materialized into queryTree.
-                             // If op has index, index id is 'm_id-1'.
+  const Uint32 m_opNo;       // Index of this operation within operation array
+  const Uint32 m_internalOpNo;// Operation id when materialized into queryTree.
+                          // If op has index, index opNo is 'm_internalOpNo-1'.
 
   // Optional (or default) options specified when building query:
   // - Scan order which may specify ascending or descending scan order
@@ -504,7 +517,8 @@ public:
                            const NdbTableImpl& table,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error);
 
   virtual bool isScanOperation() const
@@ -518,7 +532,7 @@ protected:
   virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const
   { return 0; }
 
-  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef) const
+  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef)
   { return 0; }
 
 }; // class NdbQueryScanOperationDefImpl
@@ -548,11 +562,16 @@ public:
   virtual const IndexBound* getBounds() const
   { return &m_bound; } 
 
+  bool hasParamInPruneKey() const
+  {
+    return m_paramInPruneKey;
+  }
+
 protected:
   // Append pattern for creating complete range bounds to serialized code 
   virtual Uint32 appendBoundPattern(Uint32Buffer& serializedDef) const;
 
-  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef) const;
+  virtual Uint32 appendPrunePattern(Uint32Buffer& serializedDef);
 
 private:
 
@@ -562,7 +581,8 @@ private:
                            const NdbQueryIndexBound* bound,
                            const NdbQueryOptionsImpl& options,
                            const char* ident,
-                           Uint32      ix,
+                           Uint32      opNo,
+                           Uint32      internalOpNo,
                            int& error);
 
   // Append pattern for creating a single bound value to serialized code 
@@ -577,6 +597,12 @@ private:
 
   /** True if there is a set of bounds.*/
   IndexBound m_bound;
+
+  /** 
+   * True if scan is prunable and there are NdbQueryParamOperands in the 
+   * distribution key.
+   */
+  bool m_paramInPruneKey;
 }; // class NdbQueryIndexScanOperationDefImpl
 
 
@@ -665,6 +691,13 @@ private:
   int takeOwnership(NdbQueryOperationDefImpl*);
 
   bool contains(const NdbQueryOperationDefImpl*);
+
+  // Get interal operation number of the next operation.
+  Uint32 getNextInternalOpNo() const
+  { 
+    return m_operations.size() == 0 ? 0 :
+      m_operations[m_operations.size()-1]->getInternalOpNo()+1;
+  }
 
   NdbQueryBuilder m_interface;
   NdbError m_error;

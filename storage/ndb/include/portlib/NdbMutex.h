@@ -30,11 +30,12 @@ extern "C" {
 #else
 #include <pthread.h>
 #endif
-#ifndef NDB_MUTEX_STAT
+#if !defined NDB_MUTEX_STAT && !defined NDB_MUTEX_DEADLOCK_DETECTOR
 typedef pthread_mutex_t NdbMutex;
 #else
 typedef struct {
   pthread_mutex_t mutex;
+#ifdef NDB_MUTEX_STAT
   unsigned cnt_lock;
   unsigned cnt_lock_contention;
   unsigned cnt_trylock_ok;
@@ -47,6 +48,10 @@ typedef struct {
   unsigned long long max_hold_time_ns;
   unsigned long long lock_start_time_ns;
   char name[32];
+#endif
+#ifdef NDB_MUTEX_DEADLOCK_DETECTOR
+  struct ndb_mutex_state * m_mutex_state;
+#endif
 } NdbMutex;
 #endif
 

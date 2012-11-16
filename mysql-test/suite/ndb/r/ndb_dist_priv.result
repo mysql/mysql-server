@@ -137,6 +137,11 @@ DROP USER 'newuser'@'localhost';
 DROP USER 'user2'@'localhost';
 DROP USER 'user3'@'localhost';
 DROP TABLE t1;
+=== test restart of mysqld ===
+flush privileges;
+=== test truncate ===
+truncate mysql.proxies_priv;
+flush privileges;
 call mysql.mysql_cluster_backup_privileges();
 call mysql.mysql_cluster_backup_privileges();
 call mysql.mysql_cluster_restore_local_privileges();

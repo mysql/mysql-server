@@ -25,7 +25,7 @@
 	   HA_ERR_KEY_NOT_FOUND = Record not found with key
 	*/
 
-int heap_rsame(register HP_INFO *info, uchar *record, int inx)
+int heap_rsame(HP_INFO *info, uchar *record, int inx)
 {
   HP_SHARE *share=info->s;
   DBUG_ENTER("heap_rsame");

@@ -29,7 +29,7 @@ class AttribList {
 public:
   AttribList(){};
   ~AttribList(){
-    for(size_t i = 0; i < attriblist.size(); i++){      
+    for(unsigned i = 0; i < attriblist.size(); i++){      
       delete attriblist[i];
     }
   };
@@ -335,7 +335,7 @@ void AttribList::buildAttribList(const NdbDictionary::Table* pTab){
   attriblist.push_back(attr);  
 
 #if 1
-  for(size_t j = 0; j < attriblist.size(); j++){
+  for(unsigned j = 0; j < attriblist.size(); j++){
 
     g_info << attriblist[j]->numAttribs << ": " ;
     for(int a = 0; a < attriblist[j]->numAttribs; a++)

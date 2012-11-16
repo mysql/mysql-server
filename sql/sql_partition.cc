@@ -1098,7 +1098,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
       goto end;
     }
     else
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning(thd, Sql_condition::SL_WARNING,
                    ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR,
                    ER(ER_WRONG_EXPR_IN_PARTITION_FUNC_ERROR));
   }
@@ -6542,20 +6542,20 @@ static void alter_partition_lock_handling(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (thd->locked_tables_mode)
   {
     Diagnostics_area *stmt_da= NULL;
-    Diagnostics_area tmp_stmt_da;
+    Diagnostics_area tmp_stmt_da(thd->query_id, false);
 
     if (thd->is_error())
     {
       /* reopen might fail if we have a previous error, use a temporary da. */
       stmt_da= thd->get_stmt_da();
-      thd->set_stmt_da(&tmp_stmt_da);
+      thd->push_diagnostics_area(&tmp_stmt_da);
     }
 
     if (thd->locked_tables_list.reopen_tables(thd))
       sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
 
     if (stmt_da)
-      thd->set_stmt_da(stmt_da);
+      thd->pop_diagnostics_area();
   }
 }
 
@@ -6659,14 +6659,14 @@ err_exclusive_lock:
       if (drop_partition)
       {
         /* Table is still ok, but we left a shadow frm file behind. */
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 1,
+        push_warning_printf(thd, Sql_condition::SL_WARNING, 1,
                             "%s %s",
            "Operation was unsuccessful, table is still intact,",
            "but it is possible that a shadow frm file was left behind");
       }
       else
       {
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 1,
+        push_warning_printf(thd, Sql_condition::SL_WARNING, 1,
                             "%s %s %s %s",
            "Operation was unsuccessful, table is still intact,",
            "but it is possible that a shadow frm file was left behind.",
@@ -6682,7 +6682,7 @@ err_exclusive_lock:
            Failed during install of shadow frm file, table isn't intact
            and dropped partitions are still there
         */
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 1,
+        push_warning_printf(thd, Sql_condition::SL_WARNING, 1,
                             "%s %s %s",
           "Failed during alter of partitions, table is no longer intact.",
           "The frm file is in an unknown state, and a backup",
@@ -6696,7 +6696,7 @@ err_exclusive_lock:
           ask the user to perform the action manually. We remove the log
           records and ask the user to perform the action manually.
         */
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 1,
+        push_warning_printf(thd, Sql_condition::SL_WARNING, 1,
                             "%s %s",
               "Failed during drop of partitions, table is intact.",
               "Manual drop of remaining partitions is required");
@@ -6708,7 +6708,7 @@ err_exclusive_lock:
           certainly in a very bad state so we give user warning and disable
           the table by writing an ancient frm version into it.
         */
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 1,
+        push_warning_printf(thd, Sql_condition::SL_WARNING, 1,
                             "%s %s %s",
            "Failed during renaming of partitions. We are now in a position",
            "where table is not reusable",
@@ -6737,7 +6737,7 @@ err_exclusive_lock:
         even though we reported an error the operation was successfully
         completed.
       */
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 1,"%s %s",
+      push_warning_printf(thd, Sql_condition::SL_WARNING, 1,"%s %s",
          "Operation was successfully completed by failure handling,",
          "after failure of normal operation");
     }
@@ -6746,20 +6746,20 @@ err_exclusive_lock:
   if (thd->locked_tables_mode)
   {
     Diagnostics_area *stmt_da= NULL;
-    Diagnostics_area tmp_stmt_da;
+    Diagnostics_area tmp_stmt_da(thd->query_id, false);
 
     if (thd->is_error())
     {
       /* reopen might fail if we have a previous error, use a temporary da. */
       stmt_da= thd->get_stmt_da();
-      thd->set_stmt_da(&tmp_stmt_da);
+      thd->push_diagnostics_area(&tmp_stmt_da);
     }
 
     if (thd->locked_tables_list.reopen_tables(thd))
       sql_print_warning("We failed to reacquire LOCKs in ALTER TABLE");
 
     if (stmt_da)
-      thd->set_stmt_da(stmt_da);
+      thd->pop_diagnostics_area();
   }
 
   DBUG_VOID_RETURN;

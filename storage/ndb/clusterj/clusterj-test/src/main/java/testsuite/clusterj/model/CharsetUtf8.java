@@ -18,7 +18,6 @@
 
 package testsuite.clusterj.model;
 
-import com.mysql.clusterj.annotation.Lob;
 import com.mysql.clusterj.annotation.PersistenceCapable;
 import com.mysql.clusterj.annotation.PrimaryKey;
 
@@ -35,7 +34,6 @@ public interface CharsetUtf8 extends CharsetModel {
     public String getMediumColumn();
     public void setMediumColumn(String value);
 
-    @Lob
     public String getLargeColumn();
     public void setLargeColumn(String value);
     
