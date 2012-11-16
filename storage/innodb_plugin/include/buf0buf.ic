@@ -531,15 +531,15 @@ UNIV_INLINE
 void
 buf_page_set_accessed(
 /*==================*/
-	buf_page_t*	bpage,		/*!< in/out: control block */
-	ulint		time_ms)	/*!< in: ut_time_ms() */
+	buf_page_t*	bpage)	/*!< in/out: control block */
 {
 	ut_a(buf_page_in_file(bpage));
-	ut_ad(buf_pool_mutex_own());
+	ut_ad(!buf_pool_mutex_own());
+	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
 
 	if (!bpage->access_time) {
 		/* Make this the time of the first access. */
-		bpage->access_time = time_ms;
+		bpage->access_time = ut_time_ms();
 	}
 }
 
