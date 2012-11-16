@@ -2073,6 +2073,14 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
       DBUG_RETURN(true);
     }
+
+    /* Disable drop of system tables, such as those in the PERFORMANCE_SCHEMA */
+    if (my_strcasecmp(system_charset_info, PERFORMANCE_SCHEMA_DB_NAME.str,
+                      table->db) == 0)
+    {
+      my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0), "DROP TABLE");
+      DBUG_RETURN(true);
+    }
   }
 
   if (!drop_temporary)
