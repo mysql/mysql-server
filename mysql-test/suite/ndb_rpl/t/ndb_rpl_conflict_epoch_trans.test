@@ -1,0 +1,746 @@
+#
+# Test engine native conflict resolution for ndb
+#   NDB$EPOCH_TRANS() function
+#
+#
+--source include/have_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--echo Setup circular replication
+
+--connection slave
+RESET MASTER;
+select @slave_server_id:=(variable_value+0)
+       from information_schema.global_variables
+       where variable_name like 'server_id';
+let $SLAVE_SERVER_ID= query_get_value('select @slave_server_id as v',v,1);
+
+--connection master
+--replace_result $SLAVE_MYPORT SLAVE_PORT
+--eval CHANGE MASTER TO master_host="127.0.0.1",master_port=$SLAVE_MYPORT,master_user="root"
+START SLAVE;
+select @master_server_id:=(variable_value+0)
+       from information_schema.global_variables
+       where variable_name like 'server_id';
+let $MASTER_SERVER_ID= query_get_value('select @master_server_id as v',v,1);
+
+--echo Setup ndb_replication and t1$EX exceptions table
+
+--disable_warnings
+--disable_query_log
+--connection master
+drop table if exists mysql.ndb_replication;
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_warnings
+--enable_query_log
+
+--echo Populate ndb_replication table as necessary
+eval replace into mysql.ndb_replication values
+  ("test", "t1", $SLAVE_SERVER_ID, 7, NULL),
+  ("test", "t1", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()");
+eval replace into mysql.ndb_replication values
+  ("test", "t2", $SLAVE_SERVER_ID, 7, NULL),
+  ("test", "t2", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()");
+
+create table test.t1 (
+  a int primary key,
+  b varchar(2000)) engine=ndb;
+
+create table test.t2 (
+  a int primary key,
+  b varchar(2000)) engine=ndb;
+
+--sync_slave_with_master slave
+
+--connection master
+--echo Add some data
+insert into test.t1 values
+ (1, "Initial data 1"),
+ (2, "Initial data 2"),
+ (3, "Initial data 3"),
+ (4, "Initial data 4"),
+ (5, "Initial data 5"),
+ (6, "Initial data 6"),
+ (7, "Initial data 7"),
+ (8, "Initial data 8"),
+ (9, "Initial data 9"),
+ (10, "Initial data 10");
+
+--echo Show basic row-level conflict detection
+--echo ---------------------------------------
+--sync_slave_with_master slave
+--connection slave
+
+stop slave;
+
+--connection master
+
+update t1 set b="Primary first change 2" where a=2;
+select * from test.t1 order by a;
+
+--connection slave
+
+update t1 set b="Secondary first change 2" where a=2;
+select * from test.t1 order by a;
+
+--sync_slave_with_master master
+
+--echo Primary should have rejected change from Secondary, keeping its value
+
+select * from t1 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--connection slave
+
+start slave;
+
+--connection master
+
+--sync_slave_with_master slave
+
+--connection slave
+
+--echo Secondary should have been realigned to Primary
+
+select * from t1 order by a;
+
+--echo Show rollback of whole secondary transaction
+--echo --------------------------------------------
+
+--connection slave
+
+stop slave;
+
+--connection master
+update t1 set b="Primary second change 4" where a=4;
+
+select * from test.t1 order by a;
+
+--connection slave
+begin;
+update t1 set b="Secondary second change 4" where a=4;
+update t1 set b="Secondary second change 5" where a=5;
+commit;
+
+select * from test.t1 order by a;
+
+--sync_slave_with_master master
+
+--connection master
+
+--echo Primary should have rejected secondary changes on both rows
+select * from test.t1 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--connection slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+
+--connection slave
+
+--echo Secondary should have been realigned to Primary
+select * from test.t1 order by a;
+
+--echo Show rollback of dependent transaction as well
+--echo ----------------------------------------------
+
+--connection slave
+stop slave;
+
+--connection master
+update t1 set b="Primary third change 1" where a=1;
+
+select * from test.t1 order by a;
+
+--connection slave
+
+begin;
+update t1 set b="Secondary third change 3" where a=3;
+update t1 set b="Secondary third change 1" where a=1; # Conflict here
+commit;
+begin;
+update t1 set b="Secondary fourth change 3" where a=3; # Dependency on conflict here
+insert into t1 values (11,"Secondary fourth change 11");
+commit;
+
+select * from test.t1 order by a;
+
+--sync_slave_with_master master
+--connection master
+
+--echo Primary should have rejected all secondary changes
+select * from test.t1 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_stable.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--connection slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+--connection slave
+
+--echo Secondary should have been realigned to Primary
+
+select * from test.t1 order by a;
+
+
+--echo Show rollback of dependent transaction across different tables
+--echo --------------------------------------------------------------
+
+--connection slave
+stop slave;
+
+--connection master
+
+update t1 set b="Primary fifth change 6" where a=6;
+
+select * from test.t1 order by a;
+
+--connection slave
+
+begin;
+update t1 set b="Secondary fifth change 6" where a=6; # Conflict row
+insert into t2 values (1, "Secondary fifth change 1");
+insert into t2 values (2, "Secondary fifth change 2");
+commit;
+begin;
+update t2 set b="Secondary sixth change 1" where a=2; # Dependent row
+insert into t2 values (3, "Secondary sixth change 2");
+commit;
+
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--sync_slave_with_master master
+--connection master
+
+--echo Primary should have rejected all secondary changes
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_stable.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--connection slave
+start slave;
+--connection master
+
+--sync_slave_with_master slave
+
+--echo Secondary should have been realigned to primary
+select * from test.t1 order by a;
+select * from test.t2 order by a;
+
+--echo Show that whole epoch is not rolled back
+--echo ----------------------------------------
+# Whole epoch is rolled back when --ndb-serverid-transid-bits is 0!
+
+--connection slave
+stop slave;
+
+--connection master
+update t1 set b="Primary is king" where a=10;
+
+--connection slave
+begin;
+update t1 set b="Secondary is emperor" where a=10;
+insert into t1 values (11, "Secondary is pleni-potentiary");
+commit;
+
+begin;
+insert into t1 values (12, "Secondary ruled once");
+insert into t1 values (13, "This history will not be lost");
+insert into t1 values (14, "Look on my works ye mighty, and despair");
+commit;
+
+--sync_slave_with_master master
+--connection master
+
+--echo Primary should have rejected conflicting trans (emperor, pleni-potentiary)
+--echo but accepted unrelated trans (history)
+
+select * from t1 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--connection slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+--connection slave
+
+--echo Secondary should be aligned with Primary
+
+select * from t1 order by a;
+
+
+--echo Show that non-conflicting ancestors are not implicated
+--echo ------------------------------------------------------
+
+--connection slave
+stop slave;
+
+--connection master
+update t1 set b="7 : Primary is king" where a=7;
+
+--echo Primary state
+select * from test.t1 order by a;
+
+--connection slave
+
+# 'Innocent' secondary transaction
+begin;
+update t1 set b="8 : Secondary innocent" where a=8;
+update t1 set b="9 : Secondary innocent" where a=9;
+commit;
+
+--echo Secondary with innocent
+select * from test.t1 order by a;
+
+# 'Guilty secondary transaction, affecting one of the same rows as innocent
+begin;
+update t1 set b="9 : Secondary guilty" where a=9; # Dependency on innocent
+update t1 set b="7 : Secondary guilty" where a=7; # Conflict row
+commit;
+
+--echo Secondary with guilty overlaid
+select * from test.t1 order by a;
+
+--sync_slave_with_master master
+
+--connection master
+
+--echo Primary cluster should have rejected 'guilty' secondary transaction, but
+--echo accepted 'innocent' secondary transaction.
+
+select * from test.t1 order by a;
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--connection slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+--connection slave
+
+--echo Secondary cluster should be realigned with Primary
+
+select * from test.t1 order by a;
+
+
+--connection master
+
+--echo Classic banking example
+--echo -----------------------
+
+eval replace into mysql.ndb_replication values
+  ("test", "balances", $SLAVE_SERVER_ID, 7, NULL),
+  ("test", "balances", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()");
+
+# Transactions table may not need conflict-detection?
+eval replace into mysql.ndb_replication values
+  ("test", "transactions", $SLAVE_SERVER_ID, 7, NULL),
+  ("test", "transactions", $MASTER_SERVER_ID, 7, "NDB\$EPOCH_TRANS()");
+
+create table test.balances
+(name     varchar(100) primary key,
+ balance  int) engine=ndb;
+
+create table test.transactions$EX
+ (server_id             int unsigned,
+  master_server_id      int unsigned,
+  master_epoch          bigint unsigned,
+  count                 int unsigned,
+  auto_key              int not null,
+  from_name             varchar(100) not null,
+  to_name               varchar(100) not null,
+  detail                varchar(100) not null,
+  primary key(server_id, master_server_id, master_epoch, count))
+engine=ndb;
+
+
+create table test.transactions
+(auto_key      int auto_increment,
+ from_name     varchar(100),
+ to_name       varchar(100),
+ detail        varchar(100),
+ amount        int,
+ primary key(auto_key, from_name, to_name, detail)) engine=ndb;
+
+--echo Initialise balances across both bank sites
+insert into test.balances values
+ ("Larry", 100),
+ ("Employee-1", 0),
+ ("Employee-2", 0),
+ ("Yacht dealer", 0),
+ ("Newsagent", 0);
+
+--sync_slave_with_master slave
+--connection slave
+# Sync back to master, to ensure that what follows on slave,
+# is in a separate epoch transaction.
+# This is needed to get stable counts, not for correctness
+#
+FLUSH LOGS; # To give a position to sync
+--sync_slave_with_master master
+
+
+--echo Bank sites are disconnected
+--connection slave
+stop slave;
+--connection master
+
+--echo Larry buys a yacht using Primary bank site
+
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+  values ("Larry", "Yacht dealer", "Yacht purchase", 50);
+update test.balances set balance = balance - 50 where name = "Larry";
+update test.balances set balance = balance + 50 where name = "Yacht dealer";
+commit;
+
+--echo Show yacht transaction records
+
+select * from test.transactions order by auto_key;
+select * from test.balances order by name;
+
+--connection slave
+--echo Larry pays employees using Secondary bank site
+
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+  values ("Larry", "Employee-1", "Payment to Employee-1", 1);
+update test.balances set balance = balance - 1 where name = "Larry";
+update test.balances set balance = balance + 1 where name = "Employee-1";
+commit;
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+  values ("Larry", "Employee-2", "Payment to Employee-2", 1);
+update test.balances set balance = balance - 1 where name = "Larry";
+update test.balances set balance = balance + 1 where name = "Employee-2";
+commit;
+
+--echo Employee-2 buys yacht magazine using Secondary bank site
+begin;
+insert into test.transactions (from_name, to_name, detail, amount)
+  values ("Employee-2", "Newsagent", "Buy yacht magazine", 1);
+update test.balances set balance = balance - 1 where name = "Employee-2";
+update test.balances set balance = balance + 1 where name = "Newsagent";
+commit;
+
+--echo Show employee transactions
+
+select * from test.transactions order by auto_key;
+select * from test.balances order by name;
+
+--sync_slave_with_master master
+
+--echo Bank sites re-connected
+--connection slave
+start slave;
+
+--connection master
+--sync_slave_with_master slave
+
+--connection master
+
+--echo Records at Primary bank site
+
+select * from test.transactions order by auto_key;
+select * from test.balances order by name;
+
+--echo Exceptions at Primary bank site
+
+select server_id, master_server_id, count, auto_key, from_name, to_name, detail
+  from test.transactions$EX order by count;
+
+--echo Conflict handling activity at Primary bank site
+--echo Expect :
+--echo   1 conflict from slave T1 on Larry's balance
+--echo   1 conflict from slave T2 on Larry's balance
+--echo  =2 row conflicts
+--echo
+--echo 3 (user) transactions rejected
+--echo 9 rows rejected (3 per transaction)
+--echo Variability : # epoch transactions, # row conflicts detected
+--echo               1-3                   2-3
+--echo               # detect_iter_count
+--echo               1-3
+--echo We only check stable values
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_stable.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--connection slave
+
+--echo Records at Secondary bank site
+
+select * from test.transactions order by auto_key;
+select * from test.balances order by name;
+
+--sync_slave_with_master master
+
+--connection master
+drop table test.balances;
+drop table test.transactions;
+drop table test.transactions$EX;
+
+--echo Test mixing transactional and non transactional
+--echo -----------------------------------------------
+--echo Remove old data from t1
+--connection master
+delete from test.t1;
+--sync_slave_with_master slave
+--connection master
+
+--echo Define table with row-based epoch detection
+eval replace into mysql.ndb_replication values
+           ("test", "t3", $SLAVE_SERVER_ID, 7, NULL),
+           ("test", "t3", $MASTER_SERVER_ID, 7, 'NDB\$EPOCH()');
+
+create table t3 (a int primary key, b int) engine=ndb;
+create table t4 (a int primary key, b int) engine=ndb;
+create table t5 (a int primary key, b longtext) engine=ndb;
+
+--echo Insert some data
+
+insert into test.t1 values
+  (1,1),
+  (2,2),
+  (3,3),
+  (4,4),
+  (5,5),
+  (6,6);
+
+insert into test.t3 values
+  (11,11),
+  (12,12),
+  (13,13),
+  (14,14),
+  (15,15),
+  (16,16);
+
+insert into test.t4 values
+  (21,21),
+  (22,22),
+  (23,23),
+  (24,24),
+  (25,25),
+  (26,26);
+
+insert into test.t5 values
+  (1, REPEAT("B", 10000)),
+  (2, REPEAT("E", 10000)),
+  (3, REPEAT("A", 10000));
+
+--echo Allow to propagate
+--sync_slave_with_master slave
+
+--connection slave
+FLUSH LOGS;  # Ensure Inserts are in previous epoch trans to what follows
+--sync_slave_with_master master
+
+--echo Case 1 : Transactional detection affects row - based entries in same trans
+--connection slave
+stop slave;
+--connection master
+update test.t1 set b=100 where a=1;
+
+--connection slave
+# t3 is in a table without trans conflict detection (but with row based)
+# t4 is in a table without any detection
+# t1 is in a table with trans conflict detection
+begin;
+update test.t3 set b=1100 where a=11;
+update test.t4 set b=2100 where a=21;
+update test.t1 set b=1000 where a=1;
+commit;
+
+--echo Show slave transaction effect
+select * from test.t1 order by a;
+select * from test.t3 order by a;
+select * from test.t4 order by a;
+
+
+--sync_slave_with_master master
+
+--connection master
+--echo Expect Primary to have rejected whole trans across 3 tables
+
+select * from test.t1 order by a;
+select * from test.t3 order by a;
+select * from test.t4 order by a;
+
+--echo Expect 1 transaction rejected, 3 rows rejected
+--echo        1 conflict row, 1 epoch, 1 iteration
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--echo Now restart rep to Secondary, and check realignment
+--connection slave
+start slave;
+--connection master
+--sync_slave_with_master slave
+--connection slave
+
+select * from test.t1 order by a;
+select * from test.t3 order by a;
+select * from test.t4 order by a;
+
+--echo Case 2 : Row based detection does not affect other transaction entries
+--connection slave
+stop slave;
+--connection master
+update test.t3 set b=1200 where a=12;
+
+--connection slave
+# Transaction conflicts with master, on table without transactional
+# conflict detection
+# Conflict will be detected on row, but no other transaction state
+# will be reverted
+#
+begin;
+update test.t3 set b=1201 where a=12;
+update test.t4 set b=2200 where a=22;
+update test.t1 set b=2000 where a=2;
+commit;
+
+--echo Show effect of transaction on Secondary
+select * from test.t1 order by a;
+select * from test.t3 order by a;
+select * from test.t4 order by a;
+
+--sync_slave_with_master master
+
+--echo Show effect of transaction on Primary
+--echo Only t3 should have been reverted
+
+--connection master
+select * from test.t1 order by a;
+select * from test.t3 order by a;
+select * from test.t4 order by a;
+
+--echo Expect all counters to be zero
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info.inc
+
+--source suite/ndb_rpl/t/ndb_trans_conflict_info_init.inc
+
+--echo Show effect of transaction on Secondary
+--connection slave
+start slave;
+--connection master
+--sync_slave_with_master slave
+--connection slave
+
+select * from test.t1 order by a;
+select * from test.t3 order by a;
+select * from test.t4 order by a;
+
+flush logs;
+--sync_slave_with_master master
+
+--echo Case 3 : Check behaviour where table with Blob is implicated
+--echo          in transactional conflict.  Should result in Slave
+--echo          stopping with an error.
+
+--connection slave
+STOP SLAVE;
+
+--connection master
+
+--echo Setup warning suppression
+--disable_query_log
+call mtr.add_suppression("Transaction conflict handling on table t5 failed as table has Blobs which cannot be refreshed");
+call mtr.add_suppression("NDBCLUSTER Error_code: 1296");
+--enable_query_log
+
+
+begin;
+update t1 set b= 11 where a=1;
+commit;
+
+--connection slave
+begin;
+update t1 set b= 111 where a=1;                 # Conflict
+update t1 set b= 222 where a=2;                 # Implicated row
+update t5 set b= REPEAT("T", 10000) where a=3;  # ImplicatedBlob update
+commit;
+
+--echo Show effect of transaction on Secondary
+select * from test.t1 order by a;
+select left(b,1), length(b) from test.t5 order by a;
+
+--echo Check that Primary Slave has stopped
+--connection master
+
+--let $slave_sql_errno=1296
+--source include/wait_for_slave_sql_error.inc
+#SHOW SLAVE STATUS;
+
+--echo Restart Primary Slave
+set global sql_slave_skip_counter=1;
+
+START SLAVE;
+
+--connection slave
+
+--echo Restart Secondary Slave
+START SLAVE;
+
+flush logs;
+--sync_slave_with_master master
+
+--connection master
+drop table test.t3;
+drop table test.t4;
+drop table test.t5;
+
+# Cleanup
+--connection master
+drop table mysql.ndb_replication;
+drop table test.t1;
+drop table test.t2;
+
+--sync_slave_with_master slave
+
+--connection slave
+flush logs;
+--sync_slave_with_master master
+stop slave;
+reset slave;
+#change master to master_host='';
+--source include/rpl_end.inc
+
+# TODO
+# More complex dependencies

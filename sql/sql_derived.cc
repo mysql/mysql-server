@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,9 +222,9 @@ exit:
     if (derived->view)
     {
       if (thd->is_error() &&
-          (thd->get_stmt_da()->sql_errno() == ER_BAD_FIELD_ERROR ||
-          thd->get_stmt_da()->sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
-          thd->get_stmt_da()->sql_errno() == ER_SP_DOES_NOT_EXIST))
+          (thd->get_stmt_da()->mysql_errno() == ER_BAD_FIELD_ERROR ||
+          thd->get_stmt_da()->mysql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
+          thd->get_stmt_da()->mysql_errno() == ER_SP_DOES_NOT_EXIST))
       {
         thd->clear_error();
         my_error(ER_VIEW_INVALID, MYF(0), derived->db,

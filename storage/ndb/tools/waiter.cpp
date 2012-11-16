@@ -88,7 +88,7 @@ void catch_signal(int signum)
 int main(int argc, char** argv){
   NDB_INIT(argv[0]);
   ndb_opt_set_usage_funcs(short_usage_sub, usage);
-  load_defaults("my",load_default_groups,&argc,&argv);
+  ndb_load_defaults(NULL,load_default_groups,&argc,&argv);
 
 #ifndef DBUG_OFF
   opt_debug= "d:t:O,/tmp/ndb_waiter.trace";
@@ -322,7 +322,7 @@ waitClusterStatus(const char* _addr,
 	 * First check if any node is not starting
 	 * then it's no idea to wait anymore
 	 */
-	for (size_t n = 0; n < ndbNodes.size(); n++){
+	for (unsigned n = 0; n < ndbNodes.size(); n++){
 	  if (ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTED &&
 	      ndbNodes[n].node_status != NDB_MGM_NODE_STATUS_STARTING)
 	    waitMore = false;
@@ -359,7 +359,7 @@ waitClusterStatus(const char* _addr,
     allInState = (ndbNodes.size() > 0);
 
     /* Loop through all nodes and check their state */
-    for (size_t n = 0; n < ndbNodes.size(); n++) {
+    for (unsigned n = 0; n < ndbNodes.size(); n++) {
       ndb_mgm_node_state* ndbNode = &ndbNodes[n];
 
       assert(ndbNode != NULL);

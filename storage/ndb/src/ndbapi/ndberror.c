@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -98,6 +98,7 @@ static const char* empty_string = "";
  * 4700 - "" Event
  * 4800 - API, QueryBuilder
  * 5000 - Management server
+ * 20000 - SPJ
  */
 
 static
@@ -140,8 +141,34 @@ ErrorBundle ErrorCodes[] = {
     "Transaction was committed but all read information was not "
     "received due to node crash" },
   { 4119, DMEC, NR, "Simple/dirty read failed due to node failure" },
+
+  /**
+   * SPJ error codes
+   */ 
+
+  { 20000, DMEC, TR, "Query aborted due out of operation records" },
+  { 20001, DMEC, IE, "Query aborted due to empty query tree" },
+  { 20002, DMEC, IE, "Query aborted due to invalid request" },
+  { 20003, DMEC, IE, "Query aborted due to  unknown query operation" },
+  { 20004, DMEC, IE, "Query aborted due to invalid tree node specification" },
+  { 20005, DMEC, IE, "Query aborted due to invalid tree parameter specification" },
+  { 20006, DMEC, TR, "Query aborted due to out of LongMessageBuffer" },
+  { 20007, DMEC, IE, "Query aborted due to invalid pattern" },
+  { 20008, DMEC, TR, "Query aborted due to out of query memory" },
+  { 20009, DMEC, IE, "Query aborted due to query node too big" },
+  { 20010, DMEC, IE, "Query aborted due to query node parameters too big" },
+  { 20011, DMEC, IE, "Query aborted due to both tree and parameters contain interpreted program" },
+  { 20012, DMEC, IE, "Query aborted due to invalid tree parameter specification: Key parameter bits mismatch" },
+  { 20013, DMEC, IE, "Query aborted due to invalid tree parameter specification: Incorrect key parameter count" },
+  { 20014, DMEC, IE, "Query aborted due to internal error" },
+  { 20015, DMEC, TR, "Query aborted due to out of row memory" },
   { 20016, DMEC, NR, "Query aborted due to node failure" },
-  
+  { 20017, DMEC, IE, "Query aborted due to invalid node count" },
+  { 20018, DMEC, IE, "Query aborted due to index fragment not found" },
+  { 20019, HA_ERR_NO_SUCH_TABLE, SE, "Query table not defined" },
+  { 20020, HA_ERR_NO_SUCH_TABLE, SE, "Query table is being dropped" },
+  { 20021, HA_ERR_TABLE_DEF_CHANGED, SE, "Query table definition has changed" },
+
   /**
    * Node shutdown
    */
@@ -177,6 +204,8 @@ ErrorBundle ErrorCodes[] = {
     "Out of operation records in transaction coordinator (increase MaxNoOfConcurrentOperations)" },
   { 275,  DMEC, TR, "Out of transaction records for complete phase (increase MaxNoOfConcurrentTransactions)" },
   { 279,  DMEC, TR, "Out of transaction markers in transaction coordinator" },
+  { 273,  DMEC, TR, "Out of transaction markers databuffer in transaction coordinator" },
+  { 312,  DMEC, TR, "Out of LongMessageBuffer" },
   { 414,  DMEC, TR, "414" },
   { 418,  DMEC, TR, "Out of transaction buffers in LQH" },
   { 419,  DMEC, TR, "419" },
@@ -187,7 +216,7 @@ ErrorBundle ErrorCodes[] = {
   { 805,  DMEC, TR, "Out of attrinfo records in tuple manager" },
   { 830,  DMEC, TR, "Out of add fragment operation records" },
   { 873,  DMEC, TR, "Out of attrinfo records for scan in tuple manager" },
-  { 899,  DMEC, IE, "Internal error: rowid already allocated" },
+  { 899,  DMEC, TR, "Rowid already allocated" },
   { 1217, DMEC, TR, "Out of operation records in local data manager (increase MaxNoOfLocalOperations)" },
   { 1218, DMEC, TR, "Send Buffers overloaded in NDB kernel" },
   { 1220, DMEC, TR, "REDO log files overloaded (increase FragmentLogFileSize)" },
@@ -210,16 +239,21 @@ ErrorBundle ErrorCodes[] = {
   { 623,  HA_ERR_RECORD_FILE_FULL, IS, "623" },
   { 624,  HA_ERR_RECORD_FILE_FULL, IS, "624" },
   { 625,  HA_ERR_INDEX_FILE_FULL, IS, "Out of memory in Ndb Kernel, hash index part (increase IndexMemory)" },
-  { 633,  HA_ERR_INDEX_FILE_FULL, IS, "Table fragment hash index has reached maximum possible size" },
+  { 633,  HA_ERR_INDEX_FILE_FULL, IS,
+    "Table fragment hash index has reached maximum possible size" },
   { 640,  DMEC, IS, "Too many hash indexes (should not happen)" },
   { 826,  HA_ERR_RECORD_FILE_FULL, IS, "Too many tables and attributes (increase MaxNoOfAttributes or MaxNoOfTables)" },
   { 827,  HA_ERR_RECORD_FILE_FULL, IS, "Out of memory in Ndb Kernel, table data (increase DataMemory)" },
+  { 889,  HA_ERR_RECORD_FILE_FULL, IS,
+    "Table fragment fixed data reference has reached maximum possible value (specify MAXROWS or increase no of partitions)"},
   { 902,  HA_ERR_RECORD_FILE_FULL, IS, "Out of memory in Ndb Kernel, ordered index data (increase DataMemory)" },
   { 903,  HA_ERR_INDEX_FILE_FULL, IS, "Too many ordered indexes (increase MaxNoOfOrderedIndexes)" },
   { 904,  HA_ERR_INDEX_FILE_FULL, IS, "Out of fragment records (increase MaxNoOfOrderedIndexes)" },
   { 905,  DMEC, IS, "Out of attribute records (increase MaxNoOfAttributes)" },
   { 1601, HA_ERR_RECORD_FILE_FULL, IS, "Out extents, tablespace full" },
   { 1602, DMEC, IS,"No datafile in tablespace" },
+  { 1603, HA_ERR_RECORD_FILE_FULL, IS,
+    "Table fragment fixed data reference has reached maximum possible value (specify MAXROWS or increase no of partitions)"},
 
   /**
    * TimeoutExpired 
@@ -325,7 +359,7 @@ ErrorBundle ErrorCodes[] = {
   { 831,  DMEC, AE, "Too many nullable/bitfields in table definition" },
   { 850,  DMEC, AE, "Too long or too short default value"},
   { 851,  DMEC, AE, "Maximum 8052 bytes of FIXED columns supported"
-    ", use varchar or COLUMN_FORMAT DYNMIC instead" },
+    ", use varchar or COLUMN_FORMAT DYNAMIC instead" },
   { 876,  DMEC, AE, "876" },
   { 877,  DMEC, AE, "877" },
   { 878,  DMEC, AE, "878" },
@@ -462,7 +496,7 @@ ErrorBundle ErrorCodes[] = {
   { 919,  DMEC, TR, "Cannot execute index stats update" },
   { 1224, HA_WRONG_CREATE_OPTION, SE, "Too many fragments" },
   { 1225, DMEC, SE, "Table not defined in local query handler" },
-  { 1226, DMEC, SE, "Table is being dropped" },
+  { 1226, HA_ERR_NO_SUCH_TABLE, SE, "Table is being dropped" },
   { 1227, HA_WRONG_CREATE_OPTION, SE, "Invalid schema version" },
   { 1228, DMEC, SE, "Cannot use drop table for drop index" },
   { 1229, DMEC, SE, "Too long frm data supplied" },
@@ -493,7 +527,8 @@ ErrorBundle ErrorCodes[] = {
   { 786,  DMEC, NR, "Schema transaction aborted due to node-failure" },
   { 792,  DMEC, SE, "Default value for primary key column not supported" },
   { 794,  DMEC, AE, "Schema feature requires data node upgrade" },
-  
+  { 796,  DMEC, SE, "Out of schema transaction memory" },
+
   /**
    * FunctionNotImplemented
    */
@@ -551,6 +586,11 @@ ErrorBundle ErrorCodes[] = {
   { 4718, DMEC, IE, "Index stats samples data or memory cache is invalid" },
   { 4719, DMEC, IE, "Index stats internal error" },
   { 4720, DMEC, AE, "Index stats sys tables " NDB_INDEX_STAT_PREFIX " partly missing or invalid" },
+  { 4721, DMEC, IE, "Mysqld: index stats thread not open for requests" },
+  { 4722, DMEC, IE, "Mysqld: index stats entry unexpectedly not found" },
+  { 4723, DMEC, AE, "Mysqld: index stats request ignored due to recent error" },
+  { 4724, DMEC, AE, "Mysqld: index stats request aborted by stats thread" },
+  { 4725, DMEC, AE, "Index stats were deleted by another process" },
   
   /**
    * Still uncategorized
@@ -577,6 +617,7 @@ ErrorBundle ErrorCodes[] = {
   { 1426, DMEC, SE, "No such subscriber" },
   { 1427, DMEC, NR, "Api node died, when SUB_START_REQ reached node "},
   { 1428, DMEC, IE, "No replica to scan on this node (internal index stats error)" },
+  { 1429, DMEC, IE, "Subscriber node undefined in SubStartReq (config change\?\?)" },
 
   { 4004, DMEC, AE, "Attribute name or id not found in the table" },
   
@@ -591,6 +632,7 @@ ErrorBundle ErrorCodes[] = {
   { 4116, DMEC, AE, "Operation was not defined correctly, probably missing a key" },
   { 4117, DMEC, AE, "Could not start transporter, configuration error"}, 
   { 4118, DMEC, AE, "Parameter error in API call" },
+  { 4120, DMEC, AE, "Scan already complete" },
   { 4300, DMEC, AE, "Tuple Key Type not correct" },
   { 4301, DMEC, AE, "Fragment Type not correct" },
   { 4302, DMEC, AE, "Minimum Load Factor not correct" },
@@ -792,10 +834,8 @@ ErrorBundle ErrorCodes[] = {
     "Numeric operand out of range" },
   { QRY_MULTIPLE_PARENTS, DMEC, AE, 
     "Multiple 'parents' specified in linkedValues for this operation" },
-  { QRY_UNKONWN_PARENT, DMEC, AE, 
+  { QRY_UNKNOWN_PARENT, DMEC, AE,
     "Unknown 'parent' specified in linkedValue" },
-  { QRY_UNKNOWN_COLUMN, DMEC, AE, 
-    "Unknown 'column' specified in linkedValue" },
   { QRY_UNRELATED_INDEX, DMEC, AE, 
     "Specified 'index' does not belong to specified 'table'" },
   { QRY_WRONG_INDEX_TYPE, DMEC, AE, 
@@ -827,6 +867,8 @@ ErrorBundle ErrorCodes[] = {
     "Parallelism cannot be restricted for sorted scans." },
   { QRY_BATCH_SIZE_TOO_SMALL, DMEC, AE, 
     "Batch size for sub scan cannot be smaller than number of fragments." },
+  { QRY_EMPTY_PROJECTION, DMEC, AE,
+    "Query has operation with empty projection." },
 
   { NO_CONTACT_WITH_PROCESS, DMEC, AE,
     "No contact with the process (dead ?)."},
@@ -978,17 +1020,17 @@ int ndb_error_string(int err_no, char *str, int size)
   int len;
 
   assert(size > 1);
-  if(size <= 1) 
+  if(size <= 1)
     return 0;
+
   error.code = err_no;
   ndberror_update(&error);
 
-  len =
-    my_snprintf(str, size-1, "%s: %s: %s", error.message,
+  len = (int)my_snprintf(str, size-1, "%s: %s: %s", error.message,
 		ndberror_status_message(error.status),
 		ndberror_classification_message(error.classification));
   str[size-1]= '\0';
-  
+
   if (error.classification != UE)
     return len;
   return -len;

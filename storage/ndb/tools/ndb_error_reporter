@@ -81,6 +81,17 @@ foreach my $node (@nodes)
     system 'scp -p '.$recurse.$config_username.config($node,'host').
 	':'.config($node,'datadir')."/ndb_".$node."* ".
 	"$reportdir/\n";
+
+    # Extract cluster log name from LogDestination(if any)
+    foreach my $file_handler (grep(s/^FILE://i, split(/;/, config($node, 'LogDestination'))))
+    {
+      foreach my $file_name (grep(s/^filename=//i, split(/,/, $file_handler)))
+      {
+        print "  Copying cluster log from '$file_name' on node $node...\n";
+        system 'scp -p '.$config_username.config($node,'host').
+            ':'.$file_name.". $reportdir/\n";
+      }
+    }
 }
 
 print "\n\n Copying configuration file...\n\n\t$config_file\n\n";

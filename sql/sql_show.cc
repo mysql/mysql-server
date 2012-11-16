@@ -625,21 +625,6 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       */
       if (file->name[0]  == '.')
         continue;
-#ifdef USE_SYMDIR
-      char buff[FN_REFLEN];
-      if (my_use_symdir && !strcmp(ext=fn_ext(file->name), ".sym"))
-      {
-	/* Only show the sym file if it points to a directory */
-	char *end;
-        *ext=0;                                 /* Remove extension */
-	unpack_dirname(buff, file->name);
-	end= strend(buff);
-	if (end != buff && end[-1] == FN_LIBCHAR)
-	  end[-1]= 0;				// Remove end FN_LIBCHAR
-        if (!mysql_file_stat(key_file_misc, buff, file->mystat, MYF(0)))
-               continue;
-       }
-#endif
       if (!MY_S_ISDIR(file->mystat->st_mode))
         continue;
 
@@ -766,7 +751,7 @@ public:
   }
 
   bool handle_condition(THD *thd, uint sql_errno, const char * /* sqlstate */,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char *message, Sql_condition ** /* cond_hdl */)
   {
     /*
@@ -801,7 +786,7 @@ public:
       */
     case ER_NO_SUCH_TABLE:
       /* Established behavior: warn if underlying tables are missing. */
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 
+      push_warning_printf(thd, Sql_condition::SL_WARNING, 
                           ER_VIEW_INVALID,
                           ER(ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
@@ -811,7 +796,7 @@ public:
 
     case ER_SP_DOES_NOT_EXIST:
       /* Established behavior: warn if underlying functions are missing. */
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, 
+      push_warning_printf(thd, Sql_condition::SL_WARNING, 
                           ER_VIEW_INVALID,
                           ER(ER_VIEW_INVALID),
                           m_top_view->get_db_name(),
@@ -1959,7 +1944,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     We can't just use table->query, because our SQL_MODE may trigger
     a different syntax, like when ANSI_QUOTES is defined.
   */
-  table->view->unit.print(buff, QT_ORDINARY);
+  table->view->unit.print(buff, QT_TO_ARGUMENT_CHARSET); 
 
   if (table->with_check != VIEW_CHECK_NONE)
   {
@@ -3410,7 +3395,7 @@ fill_schema_table_by_open(THD *thd, bool is_show_fields_or_keys,
     of backward compatibility.
   */
   if (!is_show_fields_or_keys && result && thd->is_error() &&
-      thd->get_stmt_da()->sql_errno() == ER_NO_SUCH_TABLE)
+      thd->get_stmt_da()->mysql_errno() == ER_NO_SUCH_TABLE)
   {
     /*
       Hide error for a non-existing table.
@@ -3509,7 +3494,8 @@ static int fill_schema_table_names(THD *thd, TABLE *table,
       default:
         DBUG_ASSERT(0);
       }
-    if (thd->is_error() && thd->get_stmt_da()->sql_errno() == ER_NO_SUCH_TABLE)
+    if (thd->is_error() &&
+        thd->get_stmt_da()->mysql_errno() == ER_NO_SUCH_TABLE)
       {
         thd->clear_error();
         return 0;
@@ -3717,7 +3703,7 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
     */
     DBUG_ASSERT(can_deadlock);
 
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         ER_WARN_I_S_SKIPPED_TABLE,
                         ER(ER_WARN_I_S_SKIPPED_TABLE),
                         table_list.db, table_list.table_name);
@@ -3847,7 +3833,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition ** cond_hdl)
   {
@@ -4440,13 +4426,14 @@ err:
       column with the error text, and clear the error so that the operation
       can continue.
     */
-    const char *error= thd->is_error() ? thd->get_stmt_da()->message() : "";
+    const char *error= thd->is_error() ? thd->get_stmt_da()->message_text() : "";
     table->field[20]->store(error, strlen(error), cs);
 
     if (thd->is_error())
     {
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   thd->get_stmt_da()->mysql_errno(),
+                   thd->get_stmt_da()->message_text());
       thd->clear_error();
     }
   }
@@ -4611,8 +4598,9 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
         rather than in SHOW COLUMNS
       */
       if (thd->is_error())
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                     thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
+        push_warning(thd, Sql_condition::SL_WARNING,
+                     thd->get_stmt_da()->mysql_errno(),
+                     thd->get_stmt_da()->message_text());
       thd->clear_error();
       res= 0;
     }
@@ -5297,8 +5285,9 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
         rather than in SHOW KEYS
       */
       if (thd->is_error())
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                     thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
+        push_warning(thd, Sql_condition::SL_WARNING,
+                     thd->get_stmt_da()->mysql_errno(),
+                     thd->get_stmt_da()->message_text());
       thd->clear_error();
       res= 0;
     }
@@ -5516,8 +5505,9 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
     if (schema_table_store_record(thd, table))
       DBUG_RETURN(1);
     if (res && thd->is_error())
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   thd->get_stmt_da()->mysql_errno(),
+                   thd->get_stmt_da()->message_text());
   }
   if (res)
     thd->clear_error();
@@ -5550,8 +5540,9 @@ static int get_schema_constraints_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   thd->get_stmt_da()->mysql_errno(),
+                   thd->get_stmt_da()->message_text());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5653,8 +5644,9 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   thd->get_stmt_da()->mysql_errno(),
+                   thd->get_stmt_da()->message_text());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -5734,8 +5726,9 @@ static int get_schema_key_column_usage_record(THD *thd,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   thd->get_stmt_da()->mysql_errno(),
+                   thd->get_stmt_da()->message_text());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -6021,8 +6014,9 @@ static int get_schema_partitions_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   thd->get_stmt_da()->mysql_errno(),
+                   thd->get_stmt_da()->message_text());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -6545,8 +6539,9 @@ get_referential_constraints_record(THD *thd, TABLE_LIST *tables,
   if (res)
   {
     if (thd->is_error())
-      push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
-                   thd->get_stmt_da()->sql_errno(), thd->get_stmt_da()->message());
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   thd->get_stmt_da()->mysql_errno(),
+                   thd->get_stmt_da()->message_text());
     thd->clear_error();
     DBUG_RETURN(0);
   }
@@ -7123,8 +7118,8 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
 
 
 /**
-  Fill INFORMATION_SCHEMA-table, leave correct Diagnostics_area /
-  Warning_info state after itself.
+  Fill INFORMATION_SCHEMA-table, leave correct Diagnostics_area
+  state after itself.
 
   This function is a wrapper around ST_SCHEMA_TABLE::fill_table(), which
   may "partially silence" some errors. The thing is that during
@@ -7137,14 +7132,15 @@ int make_schema_select(THD *thd, SELECT_LEX *sel,
   database.
 
   Those errors are cleared (the error status is cleared from
-  Diagnostics_area) inside fill_table(), but they remain in Warning_info
-  (Warning_info is not cleared because it may contain useful warnings).
+  Diagnostics_area) inside fill_table(), but they remain in the
+  Diagnostics_area condition list (the list is not cleared because
+  it may contain useful warnings).
 
-  This function is responsible for making sure that Warning_info does not
-  contain warnings corresponding to the cleared errors.
+  This function is responsible for making sure that Diagnostics_area
+  does not contain warnings corresponding to the cleared errors.
 
   @note: THD::no_warnings_for_error used to be set before calling
-  fill_table(), thus those errors didn't go to Warning_info. This is not
+  fill_table(), thus those errors didn't go to Diagnostics_area. This is not
   the case now (THD::no_warnings_for_error was eliminated as a hack), so we
   need to take care of those warnings here.
 
@@ -7162,38 +7158,42 @@ static bool do_fill_table(THD *thd,
 {
   // NOTE: fill_table() may generate many "useless" warnings, which will be
   // ignored afterwards. On the other hand, there might be "useful"
-  // warnings, which should be presented to the user. Warning_info usually
+  // warnings, which should be presented to the user. Diagnostics_area usually
   // stores no more than THD::variables.max_error_count warnings.
   // The problem is that "useless warnings" may occupy all the slots in the
-  // Warning_info, so "useful warnings" get rejected. In order to avoid
-  // that problem we create a Warning_info instance, which is capable of
+  // Diagnostics_area, so "useful warnings" get rejected. In order to avoid
+  // that problem we create a Diagnostics_area instance, which is capable of
   // storing "unlimited" number of warnings.
   Diagnostics_area *da= thd->get_stmt_da();
-  Warning_info wi_tmp(thd->query_id, true);
-
-  da->push_warning_info(&wi_tmp);
+  Diagnostics_area tmp_da(thd->query_id, true);
+  thd->push_diagnostics_area(&tmp_da);
+  // Remove existing conditions from the pushed DA so we don't get them twice
+  // when we call copy_non_errors_from_da below.
+  tmp_da.reset_condition_info(thd->query_id);
 
   bool res= table_list->schema_table->fill_table(
     thd, table_list, join_table->condition());
 
-  da->pop_warning_info();
+  thd->pop_diagnostics_area();
 
   // Pass an error if any.
-
-  if (da->is_error())
+  if (tmp_da.is_error())
   {
+    da->set_error_status(tmp_da.mysql_errno(),
+                         tmp_da.message_text(),
+                         tmp_da.returned_sqlstate());
     da->push_warning(thd,
-                     da->sql_errno(),
-                     da->get_sqlstate(),
-                     Sql_condition::WARN_LEVEL_ERROR,
-                     da->message());
+                     tmp_da.mysql_errno(),
+                     tmp_da.returned_sqlstate(),
+                     Sql_condition::SL_ERROR,
+                     tmp_da.message_text());
   }
 
   // Pass warnings (if any).
   //
-  // Filter out warnings with WARN_LEVEL_ERROR level, because they
+  // Filter out warnings with SL_ERROR level, because they
   // correspond to the errors which were filtered out in fill_table().
-  da->copy_non_errors_from_wi(thd, &wi_tmp);
+  da->copy_non_errors_from_da(thd, &tmp_da);
 
   return res;
 }

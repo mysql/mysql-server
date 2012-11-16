@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -182,7 +182,7 @@ void Gcalc_function::debug_print_function_buffer()
     DBUG_PRINT("info", ("[%d]=%d c_op=%d (%s) mask=%d n_ops=%d",
                        i, c_op, func, c_op_name, mask, n_ops));
     if (thd->get_gis_debug())
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           ER_UNKNOWN_ERROR, "[%d] %s[%d]%s",
                           i, c_op_name, n_ops, s_name);
   }

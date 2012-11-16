@@ -56,7 +56,8 @@ public:
   };
 
   struct NdbRestart {
-    typedef int (restartFunc)(NDBT_Context*, NdbRestarter&, const NdbRestart*);
+    typedef int (restartFunc)(NDBT_Context*, NdbRestarter&, const NdbRestart*,
+                              int safety);
     
     NdbRestart(const char* _name,
 	       NdbRestartType _type,
@@ -74,13 +75,16 @@ public:
 
   int getNumRestarts();
 
-  int executeRestart(NDBT_Context*, int _num, unsigned int _to = 120);
-  int executeRestart(NDBT_Context*, const char* _name, unsigned int _to = 120);
+  int executeRestart(NDBT_Context*, int _num,
+                     unsigned int _to = 120, int safety = 0);
+  int executeRestart(NDBT_Context*, const char* _name,
+                     unsigned int _to = 120, int safety = 0);
 
   void listRestarts();
   void listRestarts(NdbRestartType _type);
 private:
-  int executeRestart(NDBT_Context*, const NdbRestart*, unsigned int _timeout);
+  int executeRestart(NDBT_Context*, const NdbRestart*,
+                     unsigned int _timeout, int safety);
 
   struct NdbErrorInsert {
     NdbErrorInsert(const char* _name,

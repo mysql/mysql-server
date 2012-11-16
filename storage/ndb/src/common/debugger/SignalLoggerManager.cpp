@@ -18,7 +18,7 @@
 #include <ndb_global.h>
 
 #include "SignalLoggerManager.hpp"
-#include <LongSignal.hpp>
+#include "TransporterDefinitions.hpp"
 #include <GlobalSignalNumbers.h>
 #include <DebuggerNames.hpp>
 #include <NdbTick.h>
@@ -67,8 +67,11 @@ SignalLoggerManager::~SignalLoggerManager()
 FILE *
 SignalLoggerManager::setOutputStream(FILE * output)
 {
-  if(outputStream != 0){
+  if (outputStream != 0)
+  {
+    lock();
     fflush(outputStream);
+    unlock();
   }
 
   FILE * out = outputStream;
@@ -85,8 +88,12 @@ SignalLoggerManager::getOutputStream() const
 void
 SignalLoggerManager::flushSignalLog()
 {
-  if(outputStream != 0)
+  if (outputStream != 0)
+  {
+    lock();
     fflush(outputStream);
+    unlock();
+  }
 }
 
 void
@@ -126,7 +133,7 @@ getParameter(char *blocks[NO_OF_BLOCKS], const char * par, const char * line)
   char * tmp = copy;
   bool done = false;
   while(!done){
-    int len = strcspn(tmp, ", ;:\0");
+    int len = (int)strcspn(tmp, ", ;:\0");
     if(len == 0)
       done = true;
     else {

@@ -742,7 +742,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   }
 
   if (status.warnings > 0)
-    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
                                  ErrConvString(str), warn_type, warn_name);
 
   return value;
@@ -1917,8 +1917,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 
 
 void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select,
-                                          Item **ref)
+                                          st_select_lex *removed_select)
 {
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
@@ -1930,7 +1929,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
     So, just forward the call to the Item_in_subselect object.
   */
 
-  args[1]->fix_after_pullout(parent_select, removed_select, &args[1]);
+  args[1]->fix_after_pullout(parent_select, removed_select);
 
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
@@ -4836,8 +4835,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 
 
 void Item_cond::fix_after_pullout(st_select_lex *parent_select,
-                                  st_select_lex *removed_select,
-                                  Item **ref)
+                                  st_select_lex *removed_select)
 {
   List_iterator<Item> li(list);
   Item *item;
@@ -4852,8 +4850,7 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
 
   while ((item=li++))
   {
-    item->fix_after_pullout(parent_select, removed_select, li.ref());
-    item= *li.ref();
+    item->fix_after_pullout(parent_select, removed_select);
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
     if (functype() == COND_AND_FUNC && abort_on_null)

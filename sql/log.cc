@@ -242,7 +242,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sql_state,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
   const char *message() const { return m_message; }
@@ -252,7 +252,7 @@ bool
 Silence_log_table_errors::handle_condition(THD *,
                                            uint,
                                            const char*,
-                                           Sql_condition::enum_warning_level,
+                                           Sql_condition::enum_severity_level,
                                            const char* msg,
                                            Sql_condition ** cond_hdl)
 {
@@ -1393,7 +1393,7 @@ static int find_uniq_filename(char *name)
   uint                  i;
   char                  buff[FN_REFLEN], ext_buf[FN_REFLEN];
   struct st_my_dir     *dir_info;
-  reg1 struct fileinfo *file_info;
+  struct fileinfo *file_info;
   ulong                 max_found= 0, next= 0, number= 0;
   size_t		buf_length, length;
   char			*start, *end;
@@ -2137,10 +2137,10 @@ bool general_log_write(THD *thd, enum enum_server_command command,
     0	String is not a number
 */
 
-static bool test_if_number(register const char *str,
+static bool test_if_number(const char *str,
 			   ulong *res, bool allow_wildcards)
 {
-  reg2 int flag;
+  int flag;
   const char *start;
   DBUG_ENTER("test_if_number");
 

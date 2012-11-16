@@ -1,0 +1,592 @@
+drop table if exists t1, t1sum;
+select @@session.time_zone;
+@@session.time_zone
+SYSTEM
+set time_zone = '+00:00';
+select @@session.time_zone;
+@@session.time_zone
++00:00
+# create query summary table
+create table t1sum (
+pk int primary key,
+cnt int unsigned not null,
+crc bigint unsigned
+) engine=myisam;
+# PART 1: data load and queries
+# create table prec 3
+create table t1 (
+a int not null,
+b year not null default '2000',
+c date not null default '2000-01-02',
+d time(3) not null default '10:11:12.123',
+e datetime(3) not null default '2000-01-02 10:11:12.123',
+f timestamp(3) not null default '2000-01-02 10:11:12.123',
+primary key using hash (a),
+index bx (b),
+index cx (c),
+index dx (d),
+index ex (e),
+index fx (f)
+) engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(3) NOT NULL DEFAULT '10:11:12.123',
+  `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  `f` timestamp(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12.123
+e Datetime2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12.123
+f Timestamp2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872.123
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# test defaults
+insert into t1(a) values (0);
+select * from t1;
+a	b	c	d	e	f
+0	2000	2000-01-02	10:11:12.123	2000-01-02 10:11:12.123	2000-01-02 10:11:12.123
+delete from t1;
+# load data
+load data local infile 'suite/ndb/data/wl946_main3.dat'
+  into table t1 fields terminated by ',' lines terminated by '\n';
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1099869477618
+# verify ndb_select_all
+create temporary table t1tmp1 (
+x char(255)
+) engine=myisam;
+load data infile 'DUMP_FILE1' into table t1tmp1;
+delete from t1tmp1 where x not regexp '^[0-9]*,';
+select x from t1tmp1 into outfile 'DUMP_FILE2';
+create temporary table t1tmp2 (
+a int primary key,
+b char(40),
+c char(40),
+d char(40),
+e char(40),
+f char(40)
+) engine=myisam;
+load data infile 'DUMP_FILE2' into table t1tmp2
+fields terminated by ',' lines terminated by '\n';
+update t1tmp2 set f = replace(f, '\r', '');
+select count(*), sum(crc32(concat(a,b,c,d,e,unix_timestamp(f)))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,unix_timestamp(f))))
+500	1042802316591
+select count(*), sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f))) from t1tmp2;
+count(*)	sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f)))
+500	1042802316591
+drop table t1tmp1;
+drop table t1tmp2;
+# index queries
+select * from t1 where b = '2011';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where c = '2007-12-01';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where d = '-13:38:50.785';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where e = '8321-12-27 21:08:47.878';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where f = '1979-12-28 20:02:06.999';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select sum(cnt), sum(crc32(concat(cnt,crc))) from t1sum;
+sum(cnt)	sum(crc32(concat(cnt,crc)))
+69971	828138701178
+# check results via myisam
+alter table t1 engine=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(3) NOT NULL DEFAULT '10:11:12.123',
+  `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  `f` timestamp(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1099869477618
+select * from t1 where b = '2011';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where c = '2007-12-01';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where d = '-13:38:50.785';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where e = '8321-12-27 21:08:47.878';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select * from t1 where f = '1979-12-28 20:02:06.999';
+a	b	c	d	e	f
+379	2011	2007-12-01	-13:38:50.785	8321-12-27 21:08:47.878	1979-12-28 20:02:06.999
+select sum(cnt), sum(crc32(concat(cnt,crc))) from t1sum;
+sum(cnt)	sum(crc32(concat(cnt,crc)))
+69971	828138701178
+# drop table prec 3
+drop table t1;
+# create table prec 6
+create table t1 (
+a int not null,
+b year not null default '2000',
+c date not null default '2000-01-02',
+d time(6) not null default '10:11:12.123456',
+e datetime(6) not null default '2000-01-02 10:11:12.123456',
+f timestamp(6) not null default '2000-01-02 10:11:12.123456',
+primary key using hash (a),
+index bx (b),
+index cx (c),
+index dx (d),
+index ex (e),
+index fx (f)
+) engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
+  `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
+  `f` timestamp(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12.123456
+e Datetime2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12.123456
+f Timestamp2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872.123456
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# test defaults
+insert into t1(a) values (0);
+select * from t1;
+a	b	c	d	e	f
+0	2000	2000-01-02	10:11:12.123456	2000-01-02 10:11:12.123456	2000-01-02 10:11:12.123456
+delete from t1;
+# load data
+load data local infile 'suite/ndb/data/wl946_main6.dat'
+  into table t1 fields terminated by ',' lines terminated by '\n';
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1091780159996
+# verify ndb_select_all
+create temporary table t1tmp1 (
+x char(255)
+) engine=myisam;
+load data infile 'DUMP_FILE1' into table t1tmp1;
+delete from t1tmp1 where x not regexp '^[0-9]*,';
+select x from t1tmp1 into outfile 'DUMP_FILE2';
+create temporary table t1tmp2 (
+a int primary key,
+b char(40),
+c char(40),
+d char(40),
+e char(40),
+f char(40)
+) engine=myisam;
+load data infile 'DUMP_FILE2' into table t1tmp2
+fields terminated by ',' lines terminated by '\n';
+update t1tmp2 set f = replace(f, '\r', '');
+select count(*), sum(crc32(concat(a,b,c,d,e,unix_timestamp(f)))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,unix_timestamp(f))))
+500	1102908582969
+select count(*), sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f))) from t1tmp2;
+count(*)	sum(crc32(concat(a,b,c,d,replace(e,'/',' '),f)))
+500	1102908582969
+drop table t1tmp1;
+drop table t1tmp2;
+# index queries
+select * from t1 where b = '1984';
+a	b	c	d	e	f
+95	1984	2099-12-21	15:11:51.840792	1917-01-19 09:13:16.715589	2032-03-16 20:53:59.869710
+select * from t1 where c = '2099-12-21';
+a	b	c	d	e	f
+95	1984	2099-12-21	15:11:51.840792	1917-01-19 09:13:16.715589	2032-03-16 20:53:59.869710
+select * from t1 where d = '15:11:51.840792';
+a	b	c	d	e	f
+95	1984	2099-12-21	15:11:51.840792	1917-01-19 09:13:16.715589	2032-03-16 20:53:59.869710
+select * from t1 where e = '1917-01-19 09:13:16.715589';
+a	b	c	d	e	f
+95	1984	2099-12-21	15:11:51.840792	1917-01-19 09:13:16.715589	2032-03-16 20:53:59.869710
+select * from t1 where f = '2032-03-16 20:53:59.869710';
+a	b	c	d	e	f
+95	1984	2099-12-21	15:11:51.840792	1917-01-19 09:13:16.715589	2032-03-16 20:53:59.869710
+select sum(cnt), sum(crc32(concat(cnt,crc))) from t1sum;
+sum(cnt)	sum(crc32(concat(cnt,crc)))
+69575	874482681592
+# check results via myisam
+alter table t1 engine=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
+  `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
+  `f` timestamp(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1091780159996
+select * from t1 where b = '1984';
+a	b	c	d	e	f
+95	1984	2099-12-21	15:11:51.840792	1917-01-19 09:13:16.715589	2032-03-16 20:53:59.869710
+select * from t1 where c = '2099-12-21';
+a	b	c	d	e	f
+95	1984	2099-12-21	15:11:51.840792	1917-01-19 09:13:16.715589	2032-03-16 20:53:59.869710
+select * from t1 where d = '15:11:51.840792';
+a	b	c	d	e	f
+95	1984	2099-12-21	15:11:51.840792	1917-01-19 09:13:16.715589	2032-03-16 20:53:59.869710
+select * from t1 where e = '1917-01-19 09:13:16.715589';
+a	b	c	d	e	f
+95	1984	2099-12-21	15:11:51.840792	1917-01-19 09:13:16.715589	2032-03-16 20:53:59.869710
+select * from t1 where f = '2032-03-16 20:53:59.869710';
+a	b	c	d	e	f
+95	1984	2099-12-21	15:11:51.840792	1917-01-19 09:13:16.715589	2032-03-16 20:53:59.869710
+select sum(cnt), sum(crc32(concat(cnt,crc))) from t1sum;
+sum(cnt)	sum(crc32(concat(cnt,crc)))
+69575	874482681592
+# drop table prec 6
+drop table t1;
+# PART 2: backup and restore
+# create table prec 3
+create table t1 (
+a int not null,
+b year not null default '2000',
+c date not null default '2000-01-02',
+d time(3) not null default '10:11:12.123',
+e datetime(3) not null default '2000-01-02 10:11:12.123',
+f timestamp(3) not null default '2000-01-02 10:11:12.123',
+primary key using hash (a),
+index bx (b),
+index cx (c),
+index dx (d),
+index ex (e),
+index fx (f)
+) engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(3) NOT NULL DEFAULT '10:11:12.123',
+  `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  `f` timestamp(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12.123
+e Datetime2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12.123
+f Timestamp2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872.123
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# load data
+load data local infile 'suite/ndb/data/wl946_main3.dat'
+  into table t1 fields terminated by ',' lines terminated by '\n';
+# run backup
+# drop table prec 3
+drop table t1;
+# restore meta from backup
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(3) NOT NULL DEFAULT '10:11:12.123',
+  `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  `f` timestamp(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12.123
+e Datetime2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12.123
+f Timestamp2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872.123
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# restore data from backup
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1099869477618
+# drop table prec 3
+drop table t1;
+# create table prec 6
+create table t1 (
+a int not null,
+b year not null default '2000',
+c date not null default '2000-01-02',
+d time(6) not null default '10:11:12.123456',
+e datetime(6) not null default '2000-01-02 10:11:12.123456',
+f timestamp(6) not null default '2000-01-02 10:11:12.123456',
+primary key using hash (a),
+index bx (b),
+index cx (c),
+index dx (d),
+index ex (e),
+index fx (f)
+) engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
+  `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
+  `f` timestamp(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12.123456
+e Datetime2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12.123456
+f Timestamp2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872.123456
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# load data
+load data local infile 'suite/ndb/data/wl946_main6.dat'
+  into table t1 fields terminated by ',' lines terminated by '\n';
+# run backup
+# drop table prec 6
+drop table t1;
+# restore meta from backup
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
+  `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
+  `f` timestamp(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12.123456
+e Datetime2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12.123456
+f Timestamp2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872.123456
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# restore data from backup
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1091780159996
+# check contents truncated to prec 3
+drop table if exists t1tmp;
+create temporary table t1tmp (
+x char(255)
+) engine=myisam;
+insert into t1tmp select concat(a,b,c,left(d,length(d)-3),left(e,length(e)-3),left(f,length(f)-3)) from t1;
+select count(*), sum(crc32(x)) from t1tmp;
+count(*)	sum(crc32(x))
+500	992449343770
+drop table t1tmp;
+# drop table prec 6
+drop table t1;
+# PART 3: restore with data promote and demote
+# create table prec 6
+create table t1 (
+a int not null,
+b year not null default '2000',
+c date not null default '2000-01-02',
+d time(6) not null default '10:11:12.123456',
+e datetime(6) not null default '2000-01-02 10:11:12.123456',
+f timestamp(6) not null default '2000-01-02 10:11:12.123456',
+primary key using hash (a),
+index bx (b),
+index cx (c),
+index dx (d),
+index ex (e),
+index fx (f)
+) engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(6) NOT NULL DEFAULT '10:11:12.123456',
+  `e` datetime(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
+  `f` timestamp(6) NOT NULL DEFAULT '2000-01-02 10:11:12.123456',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12.123456
+e Datetime2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12.123456
+f Timestamp2(6) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872.123456
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# restore data from backup with promote
+# check contents
+select count(*), sum(crc32(replace(concat(a,b,c,d,e,f),".000","."))) from t1;
+count(*)	sum(crc32(replace(concat(a,b,c,d,e,f),".000",".")))
+500	1099869477618
+# drop table prec 6
+drop table t1;
+# create table prec 3
+create table t1 (
+a int not null,
+b year not null default '2000',
+c date not null default '2000-01-02',
+d time(3) not null default '10:11:12.123',
+e datetime(3) not null default '2000-01-02 10:11:12.123',
+f timestamp(3) not null default '2000-01-02 10:11:12.123',
+primary key using hash (a),
+index bx (b),
+index cx (c),
+index dx (d),
+index ex (e),
+index fx (f)
+) engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time(3) NOT NULL DEFAULT '10:11:12.123',
+  `e` datetime(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  `f` timestamp(3) NOT NULL DEFAULT '2000-01-02 10:11:12.123',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12.123
+e Datetime2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12.123
+f Timestamp2(3) NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872.123
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# restore data from backup with demote
+# check contents truncated to prec 3
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	992449343770
+set time_zone = default;
+select @@session.time_zone;
+@@session.time_zone
+SYSTEM
+drop table t1, t1sum;

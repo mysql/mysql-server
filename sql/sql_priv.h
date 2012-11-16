@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -45,7 +45,7 @@
 #define WARN_DEPRECATED(Thd,Old,New)                            \
   do {                                                                      \
     if (((THD *) Thd) != NULL)                                              \
-      push_warning_printf(((THD *) Thd), Sql_condition::WARN_LEVEL_WARN,    \
+      push_warning_printf(((THD *) Thd), Sql_condition::SL_WARNING,    \
                         ER_WARN_DEPRECATED_SYNTAX,                          \
                         ER(ER_WARN_DEPRECATED_SYNTAX),                      \
                         (Old), (New));                                      \

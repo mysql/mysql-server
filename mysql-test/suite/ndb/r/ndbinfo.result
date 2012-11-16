@@ -36,9 +36,14 @@ table_id	table_name	comment
 8	counters	monotonic counters
 9	nodes	node status
 10	diskpagebuffer	disk page buffer info
+11	threadblocks	which blocks are run in which threads
+12	threadstat	Statistics on execution threads
+13	transactions	transactions
+14	operations	operations
+15	membership	membership
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-11
+16
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -49,11 +54,16 @@ table_id	table_name	comment
 8	counters	monotonic counters
 9	nodes	node status
 10	diskpagebuffer	disk page buffer info
+11	threadblocks	which blocks are run in which threads
+12	threadstat	Statistics on execution threads
+13	transactions	transactions
+14	operations	operations
+15	membership	membership
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
 COUNT(*)
-121
+256
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -71,11 +81,16 @@ table_id	table_name
 10	diskpagebuffer
 6	logbuffers
 5	logspaces
+15	membership
 9	nodes
+14	operations
 3	pools
 7	resources
 0	tables
 2	test
+11	threadblocks
+12	threadstat
+13	transactions
 4	transporters
 
 SELECT table_id, column_id, column_name FROM ndb$columns LIMIT 7;
@@ -123,6 +138,11 @@ table_id
 8
 9
 10
+11
+12
+13
+14
+15
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -300,6 +320,193 @@ SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
 node_id
 1
 2
+
+desc threadblocks;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+block_name	varchar(512)	YES		NULL	
+block_instance	int(10) unsigned	YES		NULL	
+select distinct block_name from threadblocks order by 1;
+block_name
+BACKUP
+CMVMI
+DBACC
+DBDICT
+DBDIH
+DBINFO
+DBLQH
+DBSPJ
+DBTC
+DBTUP
+DBTUX
+DBUTIL
+LGMAN
+NDBCNTR
+NDBFS
+PGMAN
+QMGR
+RESTORE
+SUMA
+THRMAN
+TRIX
+TRPMAN
+TSMAN
+desc threadstat;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+thr_no	int(10) unsigned	YES		NULL	
+thr_nm	varchar(512)	YES		NULL	
+c_loop	bigint(20) unsigned	YES		NULL	
+c_exec	bigint(20) unsigned	YES		NULL	
+c_wait	bigint(20) unsigned	YES		NULL	
+c_l_sent_prioa	bigint(20) unsigned	YES		NULL	
+c_l_sent_priob	bigint(20) unsigned	YES		NULL	
+c_r_sent_prioa	bigint(20) unsigned	YES		NULL	
+c_r_sent_priob	bigint(20) unsigned	YES		NULL	
+os_tid	bigint(20) unsigned	YES		NULL	
+os_now	bigint(20) unsigned	YES		NULL	
+os_ru_utime	bigint(20) unsigned	YES		NULL	
+os_ru_stime	bigint(20) unsigned	YES		NULL	
+os_ru_minflt	bigint(20) unsigned	YES		NULL	
+os_ru_majflt	bigint(20) unsigned	YES		NULL	
+os_ru_nvcsw	bigint(20) unsigned	YES		NULL	
+os_ru_nivcsw	bigint(20) unsigned	YES		NULL	
+select count(*) > 0 block_name from threadstat;
+block_name
+1
+
+desc cluster_transactions;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+block_instance	int(10) unsigned	YES		NULL	
+transid	bigint(22) unsigned	YES		NULL	
+state	varchar(256)	YES		NULL	
+count_operations	int(10) unsigned	YES		NULL	
+outstanding_operations	int(10) unsigned	YES		NULL	
+inactive_seconds	int(10) unsigned	YES		NULL	
+client_node_id	bigint(21) unsigned	YES		NULL	
+client_block_ref	bigint(21) unsigned	YES		NULL	
+desc server_transactions;
+Field	Type	Null	Key	Default	Extra
+mysql_connection_id	bigint(21) unsigned	NO		0	
+node_id	int(10) unsigned	YES		NULL	
+block_instance	int(10) unsigned	YES		NULL	
+transid	bigint(22) unsigned	YES		NULL	
+state	varchar(256)	YES		NULL	
+count_operations	int(10) unsigned	YES		NULL	
+outstanding_operations	int(10) unsigned	YES		NULL	
+inactive_seconds	int(10) unsigned	YES		NULL	
+client_node_id	bigint(21) unsigned	YES		NULL	
+client_block_ref	bigint(21) unsigned	YES		NULL	
+desc cluster_operations;
+Field	Type	Null	Key	Default	Extra
+node_id	int(10) unsigned	YES		NULL	
+block_instance	int(10) unsigned	YES		NULL	
+transid	bigint(22) unsigned	YES		NULL	
+operation_type	varchar(9)	YES		NULL	
+state	varchar(256)	YES		NULL	
+tableid	int(10) unsigned	YES		NULL	
+fragmentid	int(10) unsigned	YES		NULL	
+client_node_id	bigint(21) unsigned	YES		NULL	
+client_block_ref	bigint(21) unsigned	YES		NULL	
+tc_node_id	bigint(21) unsigned	YES		NULL	
+tc_block_no	bigint(21) unsigned	YES		NULL	
+tc_block_instance	bigint(21) unsigned	YES		NULL	
+desc server_operations;
+Field	Type	Null	Key	Default	Extra
+mysql_connection_id	bigint(21) unsigned	NO		0	
+node_id	int(10) unsigned	YES		NULL	
+block_instance	int(10) unsigned	YES		NULL	
+transid	bigint(22) unsigned	YES		NULL	
+operation_type	varchar(9)	YES		NULL	
+state	varchar(256)	YES		NULL	
+tableid	int(10) unsigned	YES		NULL	
+fragmentid	int(10) unsigned	YES		NULL	
+client_node_id	bigint(21) unsigned	YES		NULL	
+client_block_ref	bigint(21) unsigned	YES		NULL	
+tc_node_id	bigint(21) unsigned	YES		NULL	
+tc_block_no	bigint(21) unsigned	YES		NULL	
+tc_block_instance	bigint(21) unsigned	YES		NULL	
+
+create table t1 (a int primary key) engine = ndb;
+begin;
+insert into t1 values (1);
+select state, count_operations, outstanding_operations,
+IF(client_node_id <= 255, "<client_node_id>", "<incorrect node id>") 
+  client_node_id
+from server_transactions;
+state	count_operations	outstanding_operations	client_node_id
+Started	1	0	<client_node_id>
+select node_id, operation_type, state,
+IF(tc_node_id <= 48, "<tc_node_id>", "<incorrect nodeid>") tc_node_id,
+IF(client_node_id <= 255, "<client_node_id>", "<incorrect node id>") 
+  client_node_id
+from server_operations
+order by 1;
+node_id	operation_type	state	tc_node_id	client_node_id
+1	INSERT	Prepared	<tc_node_id>	<client_node_id>
+2	INSERT	Prepared	<tc_node_id>	<client_node_id>
+
+select st.state, st.count_operations, st.outstanding_operations,
+       so.node_id, so.state, so.operation_type
+from server_transactions st,
+     server_operations so
+where st.transid = so.transid
+  and so.tc_node_id = st.node_id
+  and so.tc_block_instance = st.block_instance
+  and so.client_node_id = st.client_node_id
+  and so.client_block_ref = st.client_block_ref;
+state	count_operations	outstanding_operations	node_id	state	operation_type
+Started	1	0	1	Prepared	INSERT
+Started	1	0	2	Prepared	INSERT
+rollback;
+drop table t1;
+
+select distinct resource_name
+from resources
+order by 1;
+resource_name
+DATA_MEMORY
+DISK_OPERATIONS
+DISK_PAGE_BUFFER
+DISK_RECORDS
+FILE_BUFFERS
+JOBBUFFER
+QUERY_MEMORY
+RESERVED
+SCHEMA_TRANS_MEMORY
+TRANSPORTER_BUFFERS
+
+select distinct counter_name
+from counters
+order by 1;
+counter_name
+ABORTS
+ATTRINFO
+COMMITS
+CONST_PRUNED_RANGE_SCANS_RECEIVED
+LOCAL_RANGE_SCANS_SENT
+LOCAL_READS
+LOCAL_READS_SENT
+LOCAL_TABLE_SCANS_SENT
+LOCAL_WRITES
+OPERATIONS
+PRUNED_RANGE_SCANS_RECEIVED
+RANGE_SCANS
+RANGE_SCANS_RECEIVED
+READS
+READS_NOT_FOUND
+READS_RECEIVED
+REMOTE_RANGE_SCANS_SENT
+REMOTE_READS_SENT
+SCAN_BATCHES_RETURNED
+SCAN_ROWS_RETURNED
+SIMPLE_READS
+TABLE_SCANS
+TABLE_SCANS_RECEIVED
+TRANSACTIONS
+WRITES
 
 set @@global.ndbinfo_offline=TRUE;
 select @@ndbinfo_offline;

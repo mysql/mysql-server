@@ -1,0 +1,4 @@
+SELECT string_value, math_value
+FROM ndbmemcache.demo_table where mkey='test_key_2';
+string_value	math_value
+1512	1512

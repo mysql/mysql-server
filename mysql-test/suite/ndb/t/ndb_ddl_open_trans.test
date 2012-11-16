@@ -1,5 +1,11 @@
+--source include/not_embedded.inc
 -- source include/have_multi_ndb.inc
 
+--disable_query_log
+# This test provokes failure to lock metadata on second mysqld  
+connection server2;
+call mtr.add_suppression("Failed to acquire metadata lock");
+--enable_query_log
 
 #
 # alter - rename
@@ -22,11 +28,11 @@ drop table t2;
 
 connection server1;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 connection server2;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 #
 # alter online add column
@@ -49,11 +55,11 @@ drop table t1;
 
 connection server1;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 connection server2;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 #
 # alter offline add column
@@ -77,11 +83,11 @@ drop table t1;
 
 connection server1;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 connection server2;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 #
 # online create index
@@ -104,11 +110,11 @@ drop table t1;
 
 connection server1;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 connection server2;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 #
 # online drop index
@@ -131,11 +137,11 @@ drop table t1;
 
 connection server1;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 connection server2;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 #
 # alter db
@@ -159,8 +165,8 @@ drop database testdb;
 
 connection server1;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;
 
 connection server2;
 --error 0,1193
-set global ndb_check_shares=1;
+set global ndb_dbg_check_shares=1;

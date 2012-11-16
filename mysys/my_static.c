@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -105,5 +105,5 @@ ulonglong query_performance_frequency, query_performance_offset;
 my_bool my_disable_locking=0;
 my_bool my_disable_async_io=0;
 my_bool my_disable_flush_key_blocks=0;
-my_bool my_disable_symlinks=0;
+my_bool my_enable_symlinks= 1;
 

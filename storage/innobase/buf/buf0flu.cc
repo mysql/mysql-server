@@ -2027,23 +2027,21 @@ Clears up tail of the LRU lists:
 The depth to which we scan each buffer pool is controlled by dynamic
 config parameter innodb_LRU_scan_depth.
 @return total pages flushed */
-UNIV_INLINE
+UNIV_INTERN
 ulint
-page_cleaner_flush_LRU_tail(void)
-/*=============================*/
+buf_flush_LRU_tail(void)
+/*====================*/
 {
-	ulint	i;
-	ulint	j;
 	ulint	total_flushed = 0;
 
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 
 		buf_pool_t*	buf_pool = buf_pool_from_array(i);
 
 		/* We divide LRU flush into smaller chunks because
 		there may be user threads waiting for the flush to
 		end in buf_LRU_get_free_block(). */
-		for (j = 0;
+		for (ulint j = 0;
 		     j < srv_LRU_scan_depth;
 		     j += PAGE_CLEANER_LRU_BATCH_CHUNK_SIZE) {
 
@@ -2074,14 +2072,12 @@ page_cleaner_flush_LRU_tail(void)
 
 /*********************************************************************//**
 Wait for any possible LRU flushes that are in progress to end. */
-UNIV_INLINE
+UNIV_INTERN
 void
-page_cleaner_wait_LRU_flush(void)
-/*=============================*/
+buf_flush_wait_LRU_batch_end(void)
+/*==============================*/
 {
-	ulint	i;
-
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
@@ -2369,7 +2365,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 			last_activity = srv_get_activity_count();
 
 			/* Flush pages from end of LRU if required */
-			n_flushed = page_cleaner_flush_LRU_tail();
+			n_flushed = buf_flush_LRU_tail();
 
 			/* Flush pages from flush_list if required */
 			n_flushed += page_cleaner_flush_pages_if_needed();
@@ -2429,7 +2425,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	sweep and we'll come out of the loop leaving behind dirty pages
 	in the flush_list */
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-	page_cleaner_wait_LRU_flush();
+	buf_flush_wait_LRU_batch_end();
 
 	bool	success;
 

@@ -76,7 +76,7 @@ bool handle_select(THD *thd, select_result *result,
 {
   bool res;
   LEX *lex= thd->lex;
-  register SELECT_LEX *select_lex = &lex->select_lex;
+  SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
 
@@ -898,13 +898,26 @@ bool JOIN::destroy()
   cond_equal= 0;
 
   cleanup(1);
-  if (join_tab)
+
+  if (join_tab) // We should not have tables > 0 and join_tab != NULL
+  for (uint i= 0; i < tables; i++)
   {
-    for (JOIN_TAB *tab= join_tab; tab < join_tab + tables; tab++)
+    JOIN_TAB *const tab= join_tab + i;
+
+    DBUG_ASSERT(!tab->table || !tab->table->sort.record_pointers);
+    if (tab->op)
     {
-      DBUG_ASSERT(!tab->table || !tab->table->sort.record_pointers);
-      tab->table= NULL;
+      if (tab->op->type() == QEP_operation::OT_TMP_TABLE)
+      {
+        free_tmp_table(thd, tab->table);
+        delete tab->tmp_table_param;
+        tab->tmp_table_param= NULL;
+      }
+      tab->op->free();
+      tab->op= NULL;
     }
+
+    tab->table= NULL;
   }
  /* Cleanup items referencing temporary table columns */
   cleanup_item_list(tmp_all_fields1);
@@ -2997,18 +3010,6 @@ void JOIN_TAB::cleanup()
     table->reginfo.join_tab= NULL;
   }
   end_read_record(&read_record);
-  if (op)
-  {
-    if (op->type() == QEP_operation::OT_TMP_TABLE)
-    {
-      free_tmp_table(join->thd, table);
-      table= NULL;
-      delete tmp_table_param;
-      tmp_table_param= NULL;
-    }
-    op->free();
-    op= NULL;
-  }
 }
 
 uint JOIN_TAB::sjm_query_block_id() const
@@ -5059,8 +5060,9 @@ bool JOIN::make_tmp_tables_info()
       // for the first table
       if (group_list || tmp_table_param.sum_func_count)
       {
-        if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true) ||
-            prepare_sum_aggregators(sum_funcs,
+        if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
+          DBUG_RETURN(true);
+        if (prepare_sum_aggregators(sum_funcs,
                                     !join_tab->is_using_agg_loose_index_scan()))
           DBUG_RETURN(true);
         group_list= NULL;
@@ -5159,13 +5161,14 @@ bool JOIN::make_tmp_tables_info()
       join_tab[primary_tables + tmp_tables - 1].all_fields= &tmp_all_fields3;
       join_tab[primary_tables + tmp_tables - 1].fields= &tmp_fields_list3;
     }
-    if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true) || 
-        prepare_sum_aggregators(sum_funcs,
+    if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
+      DBUG_RETURN(true);
+    if (prepare_sum_aggregators(sum_funcs,
                                 !join_tab ||
-                                !join_tab-> is_using_agg_loose_index_scan()) ||
-        setup_sum_funcs(thd, sum_funcs) ||
-        thd->is_fatal_error)
-      DBUG_RETURN(1);
+                                !join_tab-> is_using_agg_loose_index_scan()))
+      DBUG_RETURN(true);
+    if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error)
+      DBUG_RETURN(true);
   }
   if (group_list || order)
   {

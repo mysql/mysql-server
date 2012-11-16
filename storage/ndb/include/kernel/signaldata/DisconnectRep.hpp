@@ -30,7 +30,7 @@ struct DisconnectRep
    * Receiver(s)
    */
   friend class Qmgr;
-  friend class Cmvmi; // Cmvmi
+  friend class Trpman;
   friend class ClusterMgr;
 
   /**

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -12,7 +12,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
 */
 
 #ifndef DBSPJ_H
@@ -58,6 +58,15 @@ private:
   BLOCK_DEFINES(Dbspj);
 
   /**
+   * Signals from DICT
+   */
+  void execTC_SCHVERREQ(Signal* signal);
+  void execTAB_COMMITREQ(Signal* signal);
+  void execPREP_DROP_TAB_REQ(Signal* signal);
+  void execDROP_TAB_REQ(Signal* signal);
+  void execALTER_TAB_REQ(Signal* signal);
+
+  /**
    * Signals from TC
    */
   void execLQHKEYREQ(Signal* signal);
@@ -68,6 +77,8 @@ private:
   void execDIH_SCAN_TAB_CONF(Signal*);
   void execDIH_SCAN_GET_NODES_REF(Signal*);
   void execDIH_SCAN_GET_NODES_CONF(Signal*);
+
+  void execSIGNAL_DROPPED_REP(Signal*);
 
   /**
    * Signals from LQH
@@ -106,6 +117,40 @@ public:
   typedef DataBuffer2<14, LocalArenaPoolImpl> PatternStore;
   typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_pattern_store;
   typedef Bitmask<(NDB_SPJ_MAX_TREE_NODES+31)/32> TreeNodeBitMask;
+
+  /* *********** TABLE RECORD ********************************************* */
+
+  /********************************************************/
+  /* THIS RECORD CONTAINS THE CURRENT SCHEMA VERSION OF   */
+  /* ALL TABLES IN THE SYSTEM.                            */
+  /********************************************************/
+  struct TableRecord {
+    TableRecord() 
+    : m_currentSchemaVersion(0), m_flags(0)
+    {};
+
+    TableRecord(Uint32 schemaVersion)
+    : m_currentSchemaVersion(schemaVersion), m_flags(TR_PREPARED)
+    {};
+
+    Uint32 m_currentSchemaVersion;
+    Uint16 m_flags;
+
+    enum {
+      TR_ENABLED      = 1 << 0,
+      TR_DROPPING     = 1 << 1,
+      TR_PREPARED     = 1 << 2
+    };
+    Uint8 get_enabled()     const { return (m_flags & TR_ENABLED)      != 0; }
+    Uint8 get_dropping()    const { return (m_flags & TR_DROPPING)     != 0; }
+    Uint8 get_prepared()    const { return (m_flags & TR_PREPARED)     != 0; }
+    void set_enabled(Uint8 f)     { f ? m_flags |= (Uint16)TR_ENABLED      : m_flags &= ~(Uint16)TR_ENABLED; }
+    void set_dropping(Uint8 f)    { f ? m_flags |= (Uint16)TR_DROPPING     : m_flags &= ~(Uint16)TR_DROPPING; }
+    void set_prepared(Uint8 f)    { f ? m_flags |= (Uint16)TR_PREPARED : m_flags &= ~(Uint16)TR_PREPARED; }
+
+    Uint32 checkTableError(Uint32 schemaVersion) const;
+  };
+  typedef Ptr<TableRecord> TableRecordPtr;
 
   struct RowRef
   {
@@ -296,7 +341,6 @@ public:
     Uint32 m_senderRef;  // TC (used for routing)
     Uint32 m_scan_cnt;
     Signal* m_start_signal; // Argument to first node in tree
-    SegmentedSectionPtr m_keyPtr;
 
     TreeNodeBitMask m_scans; // TreeNodes doing scans
 
@@ -580,6 +624,8 @@ public:
     Uint32 m_fragCount;
     // The number of fragments that we scan in parallel.
     Uint32 m_parallelism;
+    // True if we are still receiving the first batch for this operation.
+    bool   m_firstBatch;
     /**
      * True if this is the first instantiation of this operation. A child
      * operation will be instantiated once for each batch of its parent.
@@ -630,7 +676,7 @@ public:
 
     TreeNode()
     : m_magic(MAGIC), m_state(TN_END),
-      m_parentPtrI(RNIL), m_requestPtrI(0),
+      m_parentPtrI(RNIL), m_requestPtrI(RNIL),
       m_ancestors()
     {
     }
@@ -773,6 +819,13 @@ public:
 
     bool isLeaf() const { return (m_bits & T_LEAF) != 0;}
 
+    // table or index this TreeNode operates on, and its schemaVersion
+    Uint32 m_tableOrIndexId;
+    Uint32 m_schemaVersion;
+
+    // TableId if 'm_tableOrIndexId' is an index, else equal 
+    Uint32 m_primaryTableId; 
+
     Uint32 m_bits;
     Uint32 m_state;
     Uint32 m_node_no;
@@ -869,6 +922,7 @@ public:
     Uint32 m_senderRef;
     Uint32 m_senderData;
     Uint32 m_rootResultData;
+    Uint32 m_rootFragId;
     Uint32 m_transId[2];
     TreeNode_list::Head m_nodes;
     TreeNodeCursor_list::Head m_cursor_nodes;
@@ -1040,6 +1094,9 @@ private:
   TreeNode_pool m_treenode_pool;
   ScanFragHandle_pool m_scanfraghandle_pool;
 
+  TableRecord *m_tableRecord;
+  UintR c_tabrecFilesize;
+
   NdbNodeBitmask c_alive_nodes;
 
   void do_init(Request*, const LqhKeyReq*, Uint32 senderRef);
@@ -1084,8 +1141,6 @@ private:
   void releaseRow(Ptr<Request>, RowRef ref);
   void registerActiveCursor(Ptr<Request>, Ptr<TreeNode>);
   void nodeFail_checkRequests(Signal*);
-
-  void cleanupChildBranch(Ptr<Request>, Ptr<TreeNode>);
   void cleanup_common(Ptr<Request>, Ptr<TreeNode>);
 
   /**
@@ -1169,6 +1224,9 @@ private:
 
   Uint32 getResultRef(Ptr<Request> requestPtr);
 
+  Uint32 checkTableError(Ptr<TreeNode> treeNodePtr) const;
+  Uint32 getNodes(Signal*, BuildKeyReq&, Uint32 tableId);
+
   /**
    * Lookup
    */
@@ -1195,7 +1253,6 @@ private:
 
   Uint32 computeHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
   Uint32 computePartitionHash(Signal*, BuildKeyReq&, Uint32 table, Uint32 keyInfoPtrI);
-  Uint32 getNodes(Signal*, BuildKeyReq&, Uint32 tableId);
 
   /**
    * ScanFrag
@@ -1229,14 +1286,13 @@ private:
   void scanIndex_execSCAN_FRAGCONF(Signal*, Ptr<Request>, Ptr<TreeNode>, Ptr<ScanFragHandle>);
   void scanIndex_parent_row(Signal*,Ptr<Request>,Ptr<TreeNode>, const RowPtr&);
   void scanIndex_fixupBound(Ptr<ScanFragHandle> fragPtr, Uint32 ptrI, Uint32);
-  void scanIndex_send(Signal*,Ptr<Request>,Ptr<TreeNode>);
-  void scanIndex_send(Signal* signal,
-                      Ptr<Request> requestPtr,
-                      Ptr<TreeNode> treeNodePtr,
-                      Uint32 noOfFrags,
-                      Uint32 bs_bytes,
-                      Uint32 bs_rows,
-                      Uint32& batchRange);
+  Uint32 scanIndex_send(Signal* signal,
+                        Ptr<Request> requestPtr,
+                        Ptr<TreeNode> treeNodePtr,
+                        Uint32 noOfFrags,
+                        Uint32 bs_bytes,
+                        Uint32 bs_rows,
+                        Uint32& batchRange);
   void scanIndex_batchComplete(Signal* signal);
   Uint32 scanIndex_findFrag(Local_ScanFragHandle_list &, Ptr<ScanFragHandle>&,
                             Uint32 fragId);
@@ -1252,6 +1308,10 @@ private:
 
   void scanIndex_release_rangekeys(Ptr<Request>, Ptr<TreeNode>);
 
+  Uint32 scanindex_sendDihGetNodesReq(Signal* signal,
+                                      Ptr<Request> requestPtr,
+                                      Ptr<TreeNode> treeNodePtr);
+
   /**
    * Page manager
    */
@@ -1262,11 +1322,18 @@ private:
   SLList<RowPage>::Head m_free_page_list;
   ArrayPool<RowPage> m_page_pool;
 
+  /* Random fault injection */
+
+#ifdef ERROR_INSERT
+  bool appendToSection(Uint32& firstSegmentIVal,
+                       const Uint32* src, Uint32 len);
+#endif
+
   /**
    * Scratch buffers...
    */
-  Uint32 m_buffer0[8192]; // 32k
-  Uint32 m_buffer1[8192]; // 32k
+  Uint32 m_buffer0[16*1024]; // 64k
+  Uint32 m_buffer1[16*1024]; // 64k
 };
 
 #endif

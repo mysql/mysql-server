@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 CREATE TABLE t1 (c1 INT KEY) ROW_FORMAT=DYNAMIC ENGINE=NDB;
 INSERT INTO t1 VALUES (1),(2),(3);
@@ -26,14 +29,24 @@ c1	c2
 7	7
 8	8
 ALTER ONLINE TABLE t1 ADD c CHAR(19);
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 INSERT INTO t1 values (11,1,"a");
 ALTER ONLINE TABLE t1 ADD d FLOAT;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 INSERT INTO t1 VALUES(12, 2,'b', -3.402823466E+38);
 ALTER ONLINE TABLE t1 ADD f DECIMAL(5,2);
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 INSERT INTO t1 VALUES(14, 4,'d', -3.402823466E+38, 456.78);
 ALTER ONLINE TABLE t1 ADD g DATETIME;
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 INSERT INTO t1 VALUES(15, 5,'e', -3.402823466E+38, 456.78, '2007-10-26 12:00:00');
 ALTER ONLINE TABLE t1 ADD h BINARY(4);
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 INSERT INTO t1 VALUES(16, 6,'f', -3.402823466E+38, 456.78, '2007-10-26 12:00:00',"abcd");
 **********************
 "Master data"
@@ -108,6 +121,8 @@ CREATE TABLE t1 (a INT UNSIGNED KEY, b INT UNSIGNED) ROW_FORMAT=DYNAMIC ENGINE N
 INSERT INTO t1 VALUES(1,1),(2,2);
 BEGIN;
 ALTER ONLINE TABLE t1 ADD c CHAR(19), ADD d VARCHAR(255), ADD e char(255);
+Warnings:
+Warning	1287	'ONLINE' is deprecated and will be removed in a future release. Please use ALGORITHM=INPLACE instead
 INSERT INTO t1 VALUES (3,0,'3','3','3'),(4,0,'4','4','4'),(5,0,null,null,null);
 UPDATE t1 SET c = 'aaa', d = 'bbb', e = 'ccc' WHERE a = 4;
 COMMIT;

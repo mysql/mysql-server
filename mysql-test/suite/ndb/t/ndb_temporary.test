@@ -24,7 +24,7 @@ drop table t1;
 # create temporary like on an ndb table should give an error (bug#57437)
 #
 CREATE TABLE bar ( id TINYINT NOT NULL AUTO_INCREMENT PRIMARY KEY ) ENGINE=NDBCluster ;
---error ER_CANT_CREATE_TABLE
+--error ER_PARTITION_NO_TEMPORARY
 CREATE TEMPORARY TABLE foo LIKE bar ;
 DROP TABLE bar;
 
@@ -32,7 +32,7 @@ DROP TABLE bar;
 # if default storage engine=ndb, temporary tables
 # without explicit engine= should be created as myisam
 #
-SET SESSION storage_engine=NDBCLUSTER;
+SET SESSION default_storage_engine=NDBCLUSTER;
 create table t1 (a int key);
 
 # verify that we have a ndb table

@@ -1,0 +1,14 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+# Config for 8 LQH blocks in order to allow total 128 partitions
+# with two datanodes.
+ThreadConfig=main={count=1},ldm={count=8},recv={count=1},io={count=1},tc={count=1},send={count=1},rep={count=1}
+NoOfReplicas=1
+NoOfFragmentLogParts=8
+LongMessageBuffer=8M
+
+[ENV]
+# Need to always use ndbmtd when we want lots of partitions
+# (Avoid mixed 'round robin' use of mt / non-mt) 
+MTR_NDBMTD= 1

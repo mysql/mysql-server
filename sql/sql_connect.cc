@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -784,7 +784,7 @@ void end_connection(THD *thd)
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip,
                         (thd->get_stmt_da()->is_error() ?
-                         thd->get_stmt_da()->message() :
+                         thd->get_stmt_da()->message_text() :
                          ER(ER_UNKNOWN_ERROR)));
     }
   }
@@ -826,7 +826,7 @@ void prepare_new_connection_state(THD* thd)
                         thd->db ? thd->db : "unconnected",
                         sctx->user ? sctx->user : "unauthenticated",
                         sctx->host_or_ip, "init_connect command failed");
-      sql_print_warning("%s", thd->get_stmt_da()->message());
+      sql_print_warning("%s", thd->get_stmt_da()->message_text());
 
       thd->lex->current_select= 0;
       my_net_set_read_timeout(net, thd->variables.net_wait_timeout);

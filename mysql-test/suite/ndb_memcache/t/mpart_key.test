@@ -1,0 +1,35 @@
+
+--source suite/ndb_memcache/include/have_memcache.inc
+--source suite/ndb_memcache/include/memcached_wait_for_ready.inc
+--source suite/ndb_memcache/include/misc_tables.inc
+
+--perl
+
+use strict;
+use Carp;
+use lib "lib";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+# Use a binary protocol connection (so keys can contain spaces)
+my $mc = My::Memcache::Binary->new();  
+my $r = $mc->connect("localhost",$port);
+
+$mc->delete("hashtag:oscon\t1");
+$mc->delete("hashtag:mysql\t1"); 
+$mc->delete("hashtag:oscon\t2");
+
+$mc->set("hashtag:oscon\t1","fred")      || Carp::confess("FAILED # 01 (SET)");
+$mc->add("hashtag:mysql\t1","frederick") || Carp::confess("FAILED # 02 (SET)");
+$mc->set("hashtag:oscon\t2","freddy")    || Carp::confess("FAILED # 03 (SET)");
+  
+($mc->get("hashtag:oscon\t1") == "fred")      || Carp::confess("FAILED # 04 (GET)");
+($mc->get("hashtag:mysql\t1") == "frederick") || Carp::confess("FAILED # 05 (GET)");
+($mc->get("hashtag:oscon\t2") == "freddy")    || Carp::confess("FAILED # 06 (GET)");
+
+EOF
+
+
+--sorted_result
+SELECT * FROM ndbmemcache.hashtags;

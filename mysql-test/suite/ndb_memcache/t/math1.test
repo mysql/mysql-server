@@ -1,0 +1,29 @@
+
+--source suite/ndb_memcache/include/have_memcache.inc
+
+
+# Test that numeric value is stored in both the string_value column
+# and the math_value column
+
+--perl
+
+use strict;
+use lib "lib/";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache->new();
+my $r = $mc->connect("localhost",$port);
+
+if($r == 0) {
+  print STDERR "DID NOT CONNECT TO MEMCACHE AT PORT $port \n";
+}
+else {
+  $mc->set("test_key_2", 1512);
+}
+
+EOF
+
+SELECT string_value, math_value
+FROM ndbmemcache.demo_table where mkey='test_key_2';
