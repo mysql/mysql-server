@@ -1234,8 +1234,9 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
     {
       file_log= file_log_handler->get_mysql_slow_log();
 
-      file_log->open_slow_log(opt_slow_logname);
-      if (table_log_handler->activate_log(thd, QUERY_LOG_SLOW))
+      if (file_log->open_slow_log(opt_slow_logname))
+        res= TRUE;
+      else if (table_log_handler->activate_log(thd, QUERY_LOG_SLOW))
       {
         /* Error printed by open table in activate_log() */
         res= TRUE;
@@ -1253,8 +1254,9 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
     {
       file_log= file_log_handler->get_mysql_log();
 
-      file_log->open_query_log(opt_logname);
-      if (table_log_handler->activate_log(thd, QUERY_LOG_GENERAL))
+      if (file_log->open_query_log(opt_logname))
+        res= TRUE;
+      else if (table_log_handler->activate_log(thd, QUERY_LOG_GENERAL))
       {
         /* Error printed by open table in activate_log() */
         res= TRUE;
