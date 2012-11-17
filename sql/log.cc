@@ -5710,12 +5710,9 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
     pthread_mutex_unlock(&LOCK_active);
     pthread_mutex_lock(&p->lock);
     p->waiters++;
-    for (;;)
+    while (p->state == DIRTY && syncing)
     {
-      int not_dirty = p->state != DIRTY;
       pthread_mutex_unlock(&p->lock);
-      if (not_dirty || !syncing)
-        break;
       pthread_cond_wait(&p->cond, &LOCK_sync);
       pthread_mutex_lock(&p->lock);
     }
