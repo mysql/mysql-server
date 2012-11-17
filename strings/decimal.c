@@ -1190,7 +1190,7 @@ int decimal2longlong(const decimal_t *from, longlong *to)
 
     And for -1234567890.1234 it would be
 
-                7E F2 04 37 2D FB 2D
+                7E F2 04 C7 2D FB 2D
 */
 int decimal2bin(const decimal_t *from, uchar *to, int precision, int frac)
 {

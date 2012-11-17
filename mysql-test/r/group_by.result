@@ -2097,7 +2097,7 @@ NULL
 drop table t1;
 # End of 5.2 tests
 #
-#  BUG#872702: Crash in add_ref_to_table_cond() when grouping by a PK
+#  lp:872702 Crash in add_ref_to_table_cond() when grouping by a PK
 #
 CREATE TABLE t1 (a int, PRIMARY KEY (a)) ;
 INSERT INTO t1 VALUES (14),(15),(16),(17),(18),(19),(20);
@@ -2111,4 +2111,15 @@ FROM t2
 GROUP BY 1;
 a
 DROP TABLE t1, t2;
+FLUSH STATUS;
+CREATE TABLE t1 (f1 INT, f2 decimal(20,1), f3 blob);
+INSERT INTO t1 values(11,NULL,'blob'),(11,NULL,'blob');
+SELECT f3, MIN(f2) FROM t1 GROUP BY f1 LIMIT 1;
+f3	MIN(f2)
+blob	NULL
+DROP TABLE t1;
+the value below *must* be 1
+show status like 'Created_tmp_disk_tables';
+Variable_name	Value
+Created_tmp_disk_tables	1
 # End of 5.3 tests
