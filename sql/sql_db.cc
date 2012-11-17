@@ -802,16 +802,6 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
   }
 
-  /*
-    Disable drop of system databases such as PERFORMANCE_SCHEMA
-  */
-  if (!in_bootstrap && (my_strcasecmp(system_charset_info,
-                                      PERFORMANCE_SCHEMA_DB_NAME.str, db) == 0))
-  {
-    my_error(ER_WRONG_PERFSCHEMA_USAGE, MYF(0), "DROP DATABASE");
-    goto exit;
-  }
-
   if (find_db_tables_and_rm_known_files(thd, dirp, db, path, &tables,
                                         &found_other_files))
     goto exit;
