@@ -15,7 +15,7 @@ const size_t num_points = 60;
 static const DBT *get_dbt_by_iteration(size_t i) {
     if (i == 0) {
         return toku_dbt_negative_infinity();
-    } else if (i < num_points) {
+    } else if (i < (num_points - 1)) {
         return get_dbt(i); 
     } else {
         return toku_dbt_positive_infinity();
