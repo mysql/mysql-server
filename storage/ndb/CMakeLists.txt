@@ -105,10 +105,6 @@ IF(NOT MYSQL_CLUSTER_VERSION)
  ADD_DEFINITIONS(-DNDB_WITHOUT_JOIN_PUSHDOWN)
 ENDIF()
 
- # Distributed privilege tables not supported in
- # in 7.3 yet...
- ADD_DEFINITIONS(-DNDB_WITHOUT_DIST_PRIV)
-
 # Online alter table currently not supported in trunk-cluster
 # in preparation for inplace alter table
 ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
