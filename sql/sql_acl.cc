@@ -1487,6 +1487,31 @@ static bool acl_trans_commit_and_close_tables(THD *thd)
   return result;
 }
 
+#ifndef MCP_WL6580
+/**
+  Notify handlerton(s) that privileges have changed
+
+  Interested handlertons may use this notification to update
+  its own privilege structures as well as propagating
+  the changing query to other destinations.
+
+*/
+
+static inline void
+acl_notify_htons(THD* thd,
+                const char* query, uint query_length)
+{
+  DBUG_ENTER("acl_notify_htons");
+  DBUG_PRINT("enter", ("db: %s", thd->db));
+  DBUG_PRINT("enter", ("query: '%s', length: %u", query, query_length));
+
+  ha_binlog_log_query(thd, NULL, LOGCOM_ACL_NOTIFY,
+                      query, query_length,
+                      thd->db, "");
+  DBUG_VOID_RETURN;
+}
+#endif
+
 
 /*
   Forget current user/db-level privileges and read new privileges
@@ -2394,6 +2419,11 @@ bool change_password(THD *thd, const char *host, const char *user,
                         table->file->has_transactions());
 end:
   result|= acl_trans_commit_and_close_tables(thd);
+
+#ifndef MCP_WL6580
+  if (!result)
+    acl_notify_htons(thd, buff, query_length);
+#endif
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -4434,6 +4464,11 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   result|= acl_trans_commit_and_close_tables(thd);
 
+#ifndef MCP_WL6580
+  if (!result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
+#endif
+
   if (!result) /* success */
     my_ok(thd);
 
@@ -4639,6 +4674,11 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   mysql_rwlock_unlock(&LOCK_grant);
 
   result|= acl_trans_commit_and_close_tables(thd);
+
+#ifndef MCP_WL6580
+  if (write_to_binlog && !result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
+#endif
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -4888,6 +4928,11 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   result|= acl_trans_commit_and_close_tables(thd);
   
+#ifndef MCP_WL6580
+  if (!result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
+#endif
+
   if (!result)
     my_ok(thd);
 
@@ -7446,6 +7491,11 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 
   result|= acl_trans_commit_and_close_tables(thd);
 
+#ifndef MCP_WL6580
+  if (some_users_created && !result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
+#endif
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -7534,6 +7584,11 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_unlock(&LOCK_grant);
 
   result|= acl_trans_commit_and_close_tables(thd);
+
+#ifndef MCP_WL6580
+  if (some_users_deleted && !result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
+#endif
 
   thd->variables.sql_mode= old_sql_mode;
   /* Restore the state of binlog format */
@@ -7635,6 +7690,11 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_unlock(&LOCK_grant);
 
   result|= acl_trans_commit_and_close_tables(thd);
+
+#ifndef MCP_WL6580
+  if (some_users_renamed && !result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
+#endif
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -7752,6 +7812,11 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_unlock(&LOCK_grant);
 
   result|= acl_trans_commit_and_close_tables(thd);
+
+#ifndef MCP_WL6580
+  if (some_passwords_expired && !result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
+#endif
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -7959,6 +8024,11 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   mysql_rwlock_unlock(&LOCK_grant);
 
   result|= acl_trans_commit_and_close_tables(thd);
+
+#ifndef MCP_WL6580
+  if (!result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
+#endif
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
