@@ -6929,6 +6929,10 @@ ER_WARN_LEGACY_SYNTAX_CONVERTED
 
 ER_IDENT_CAUSES_TOO_LONG_PATH
   eng "Long database name and identifier for object resulted in path length exceeding %d characters. Path: '%s'."
+
+ER_TABLE_TEMPORARY_TABLE_IMPORT_DISCARD
+  eng "Table '%-.192s' is temporary table. Discard and Import of tablespace is not allowed on temporary table."
+
 #
 #  End of 5.7 error messages.
 #
