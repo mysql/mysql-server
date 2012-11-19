@@ -282,4 +282,76 @@ CREATE TABLE t1 ( i INT );
 INSERT INTO t1 VALUES ( (SELECT 1 FROM ( SELECT * FROM t1 ) as a) );
 drop table t1;
 set optimizer_switch=@save_optimizer_switch;
+#
+# MDEV-3801 Reproducible sub select join crash on 5.3.8 and 5.3.9 
+#
+CREATE TABLE t1 (
+pk int(10) unsigned NOT NULL AUTO_INCREMENT,
+a char(2) DEFAULT NULL,
+PRIMARY KEY (pk),
+KEY a (a)
+) ENGINE=MyISAM;
+INSERT INTO t1 (a)
+VALUES (NULL),(NULL),(NULL),('AB'),(NULL),('CD'),(NULL),(NULL);
+INSERT INTO t1 SELECT NULL, a1.a FROM t1 a1, t1 a2, t1 a3, t1 a4, t1 a5;
+CREATE TABLE t2 (
+pk int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
+INSERT INTO t2 SELECT NULL FROM t2 a1, t2 a2, t2 a3, t2 a4, t2 a5;
+CREATE TABLE t3 (
+pk int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
+INSERT INTO t3 SELECT NULL FROM t3 a1, t3 a2, t3 a3, t3 a4, t3 a5;
+CREATE TABLE t4 (
+a char(2) NOT NULL DEFAULT '',
+PRIMARY KEY (a)
+) ENGINE=MyISAM;
+INSERT INTO t4 VALUES ('CD');
+set @@tmp_table_size=8192;
+EXPLAIN EXTENDED
+SELECT * FROM t3 AS tX JOIN t2 AS tY ON (tX.pk = tY.pk)
+WHERE
+tX.pk IN
+(SELECT *
+FROM (SELECT DISTINCT tA.pk
+FROM t3 AS tA
+JOIN t2 AS tB ON (tA.pk = tB.pk)
+JOIN t1 AS tC ON (tB.pk = tC.pk)
+JOIN t4 AS tD ON tC.a = tD.a) tU)
+limit 10;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	<subquery2>	ALL	distinct_key	NULL	NULL	NULL	1833	100.00	
+1	PRIMARY	tX	eq_ref	PRIMARY	PRIMARY	4	tU.pk	1	100.00	Using index
+1	PRIMARY	tY	eq_ref	PRIMARY	PRIMARY	4	tU.pk	1	100.00	Using index
+2	MATERIALIZED	<derived3>	ALL	NULL	NULL	NULL	NULL	1833	100.00	
+3	DERIVED	tD	system	PRIMARY	NULL	NULL	NULL	1	100.00	Using temporary
+3	DERIVED	tC	ref	PRIMARY,a	a	3	const	1833	100.00	
+3	DERIVED	tA	eq_ref	PRIMARY	PRIMARY	4	test.tC.pk	1	100.00	Using index
+3	DERIVED	tB	eq_ref	PRIMARY	PRIMARY	4	test.tC.pk	1	100.00	Using index; Distinct
+Warnings:
+Note	1003	select `test`.`tX`.`pk` AS `pk`,`test`.`tY`.`pk` AS `pk` from `test`.`t3` `tX` semi join ((select distinct `test`.`tA`.`pk` AS `pk` from `test`.`t3` `tA` join `test`.`t2` `tB` join `test`.`t1` `tC` join `test`.`t4` `tD` where ((`test`.`tA`.`pk` = `test`.`tC`.`pk`) and (`test`.`tB`.`pk` = `test`.`tC`.`pk`) and (`test`.`tC`.`a` = 'CD'))) `tU`) join `test`.`t2` `tY` where ((`test`.`tX`.`pk` = `tU`.`pk`) and (`test`.`tY`.`pk` = `tU`.`pk`)) limit 10
+SELECT * FROM t3 AS tX JOIN t2 AS tY ON (tX.pk = tY.pk)
+WHERE
+tX.pk IN
+(SELECT *
+FROM (SELECT DISTINCT tA.pk
+FROM t3 AS tA
+JOIN t2 AS tB ON (tA.pk = tB.pk)
+JOIN t1 AS tC ON (tB.pk = tC.pk)
+JOIN t4 AS tD ON tC.a = tD.a) tU)
+limit 10;
+pk	pk
+6	6
+16	16
+24	24
+32	32
+40	40
+48	48
+56	56
+64	64
+72	72
+80	80
+drop table t1, t2, t3, t4;
 set optimizer_switch=@exit_optimizer_switch;

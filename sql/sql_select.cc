@@ -8982,7 +8982,7 @@ void JOIN::drop_unused_derived_keys()
   JOIN_TAB *tab;
   for (tab= first_linear_tab(this, WITHOUT_CONST_TABLES); 
        tab; 
-       tab= next_linear_tab(this, tab, WITHOUT_BUSH_ROOTS))
+       tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
   {
     
     TABLE *table=tab->table;
