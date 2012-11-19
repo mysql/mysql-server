@@ -1152,7 +1152,7 @@ merge_leaf_nodes(FTNODE a, FTNODE b)
         LEAFENTRY CAST_FROM_VOIDP(le, lev);
         uint32_t keylen;
         void *key = le_key_and_len(le, &keylen);
-        toku_fill_dbt(&a->childkeys[a->n_children-1], toku_xmemdup(key, keylen), keylen);
+        toku_memdup_dbt(&a->childkeys[a->n_children-1], key, keylen);
         a->totalchildkeylens += keylen;
     }
 
