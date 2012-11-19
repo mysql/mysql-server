@@ -27,6 +27,7 @@ t0.run = function() {
 udebug      = unified_debug.getLogger("BatchTest.js");
 
 function createBatch(session, start_value, number, testCase) {
+  udebug.log("createBatch");
   var batch = session.createBatch();
   var i;
   var object;
@@ -42,7 +43,7 @@ function createBatch(session, start_value, number, testCase) {
 };
 
 function onExecuteBatch(err, session, start_value, number, testCase) {
-  udebug.log('BatchTest.onInsert');
+  udebug.log("onExecuteBatch");
   if (err) {
     testCase.fail(err);
     return;
@@ -54,7 +55,7 @@ function onExecuteBatch(err, session, start_value, number, testCase) {
 };
 
 function verifyInsert(err, session, start_value, number, testCase) {
-  udebug.log('BatchTest.verifyInsert');
+  udebug.log('verifyInsert');
   if (err) {
     testCase.fail(err);
     return;
@@ -158,4 +159,5 @@ t4.run = function() {
 
 
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports.tests = [t1, t2, t3, t4];
+// module.exports.tests = [t1, t2, t3, t4];
+module.exports.tests = [t1];

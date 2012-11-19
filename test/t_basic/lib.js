@@ -27,10 +27,10 @@ var udebug = unified_debug.getLogger("t_basic/lib.js");
 
 /** The t_basic domain object */
 global.t_basic = function(id, name, age, magic) {
-  this.id = id;
-  this.name = name;
-  this.age = age;
-  this.magic = magic;
+  if (typeof id !== 'undefined') this.id = id;
+  if (typeof name !== 'undefined') this.name = name;
+  if (typeof age !== 'undefined') this.age = age;
+  if (typeof magic !== 'undefined') this.magic = magic;
 };
 
 global.t_basic.prototype.getAge = function() {return this.age;};
@@ -45,6 +45,32 @@ global.t_basic_magic_key = function(id) {
   this.magic = id;
 };
 
+/** Verify the instance or append an error message to the test case */
+global.verify_t_basic = function(err, instance, id, testCase, domainObject) {
+  if (err) {
+    testCase.appendErrorMessage(err);
+    return;
+  }
+  if (typeof(instance) !== 'object') {
+    testCase.appendErrorMessage('Result for id ' + id + ' is not an object; actual type: ' + typeof(instance));
+  }
+  if (instance === null) {
+    testCase.appendErrorMessage('Result for id ' + id + ' is null.');
+    return;
+  }
+  if (domainObject) {
+    if (typeof(instance.getAge) !== 'function') {
+      testCase.appendErrorMessage('Result for id ' + id + ' is not a domain object');
+      return;
+    }
+  }
+  udebug.log_detail('instance for id ', id, ':', instance);
+  testCase.errorIfNotEqual('fail to verify id', id, instance.id);
+  testCase.errorIfNotEqual('fail to verify age', id, instance.age);
+  testCase.errorIfNotEqual('fail to verify name', 'Employee ' + id, instance.name);
+  testCase.errorIfNotEqual('fail to verify magic', id, instance.magic);
+};
+
 /** Verify the instance or fail the test case */
 global.fail_verify_t_basic = function(err, instance, id, testCase, domainObject) {
   if (err) {
@@ -52,15 +78,16 @@ global.fail_verify_t_basic = function(err, instance, id, testCase, domainObject)
     return;
   }
   if (typeof(instance) !== 'object') {
-    testCase.fail(new Error('Result is not an object: ' + typeof(instance)));
+    testCase.fail(new Error('Result for id ' + id + ' is not an object; actual type: ' + typeof(instance)));
+    return;
   }
   if (instance === null) {
-    testCase.fail(new Error('Result is null.'));
+    testCase.fail(new Error('Result for id ' + id + ' is null.'));
     return;
   }
   if (domainObject) {
     if (typeof(instance.getAge) !== 'function') {
-      testCase.fail(new Error('Result is not a domain object'));
+      testCase.fail(new Error('Result for id ' + id + ' is not a domain object'));
       return;
     }
   }
