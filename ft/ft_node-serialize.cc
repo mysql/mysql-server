@@ -573,10 +573,7 @@ rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
         LEAFENTRY CAST_FROM_VOIDP(curr_le_pivot, leafpointers[new_pivots[i]]);
         uint32_t keylen;
         void *key = le_key_and_len(curr_le_pivot, &keylen);
-        toku_fill_dbt(&node->childkeys[i],
-                      toku_xmemdup(key, keylen),
-                      keylen);
-        assert(node->childkeys[i].data);
+        toku_memdup_dbt(&node->childkeys[i], key, keylen);
         node->totalchildkeylens += keylen;
     }
 
@@ -1272,9 +1269,7 @@ deserialize_ftnode_info(
             bytevec childkeyptr;
             unsigned int cklen;
             rbuf_bytes(&rb, &childkeyptr, &cklen);
-            toku_fill_dbt(&node->childkeys[i],
-                          toku_xmemdup(childkeyptr, cklen),
-                          cklen);
+            toku_memdup_dbt(&node->childkeys[i], childkeyptr, cklen);
             node->totalchildkeylens += cklen;
         }
     }
@@ -1717,9 +1712,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         bytevec childkeyptr;
         unsigned int cklen;
         rbuf_bytes(rb, &childkeyptr, &cklen);         // 17. child key pointers
-        toku_fill_dbt(&node->childkeys[i],
-                      toku_xmemdup(childkeyptr, cklen),
-                      cklen);
+        toku_memdup_dbt(&node->childkeys[i], childkeyptr, cklen);
         node->totalchildkeylens += cklen;
     }
 
