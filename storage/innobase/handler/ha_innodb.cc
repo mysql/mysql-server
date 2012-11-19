@@ -8583,8 +8583,7 @@ err_col:
 	shut-down cycle. */
 	if (!(dict_table_is_temporary(table)))
 		err = row_create_table_for_mysql(table, trx, false);
-	else
-	{
+	else {
 		/* Create tablespace if configured. */
 		err = dict_build_tablespace(table, trx);
 		if (err == DB_SUCCESS)
