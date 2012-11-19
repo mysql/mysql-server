@@ -246,16 +246,17 @@ INSERT INTO t4 VALUES ('CD');
 
 set @@tmp_table_size=8192;
 
-EXPLAIN EXTENDED
-SELECT * FROM t3 AS tX JOIN t2 AS tY ON (tX.pk = tY.pk)
+--replace_column 9 #
+EXPLAIN
+SELECT * FROM t3 AS tx JOIN t2 AS ty ON (tx.pk = ty.pk)
 WHERE
-  tX.pk IN
+  tx.pk IN
   (SELECT *
-   FROM (SELECT DISTINCT tA.pk
-         FROM t3 AS tA
-              JOIN t2 AS tB ON (tA.pk = tB.pk)
-              JOIN t1 AS tC ON (tB.pk = tC.pk)
-              JOIN t4 AS tD ON tC.a = tD.a) tU)
+   FROM (SELECT DISTINCT ta.pk
+         FROM t3 AS ta
+              JOIN t2 AS tb ON (ta.pk = tb.pk)
+              JOIN t1 AS tc ON (tb.pk = tc.pk)
+              JOIN t4 AS td ON tc.a = td.a) tu)
 limit 10;
 
 SELECT * FROM t3 AS tX JOIN t2 AS tY ON (tX.pk = tY.pk)
