@@ -29,7 +29,7 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
         arg_init(&myargs[i], dbp, env, cli_args);
         myargs[i].operation = malloc_free_op;
     }
-    run_workers(myargs, num_threads, cli_args->time_of_test, false, cli_args);
+    run_workers(myargs, num_threads, cli_args->num_seconds, false, cli_args);
 }
 
 int

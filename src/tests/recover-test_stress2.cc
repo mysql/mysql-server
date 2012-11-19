@@ -30,7 +30,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     }
 
 
-    int num_seconds = random() % cli_args->time_of_test;
+    int num_seconds = random() % cli_args->num_seconds;
     run_workers(myargs, num_threads, num_seconds, true, cli_args);
 }
 

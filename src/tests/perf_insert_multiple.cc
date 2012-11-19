@@ -34,7 +34,7 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
         }
     }
     const bool crash_at_end = false;
-    run_workers(myargs, num_threads, cli_args->time_of_test, crash_at_end, cli_args);
+    run_workers(myargs, num_threads, cli_args->num_seconds, crash_at_end, cli_args);
 }
 
 int

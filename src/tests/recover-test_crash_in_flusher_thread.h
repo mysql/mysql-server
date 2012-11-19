@@ -68,14 +68,14 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     //myargs[0].update_pad_frequency = 0;
 
     db_env_set_flusher_thread_callback(flt_callback, env);
-    run_workers(myargs, num_threads, cli_args->time_of_test, true, cli_args);
+    run_workers(myargs, num_threads, cli_args->num_seconds, true, cli_args);
 }
 
 static int
 run_recover_flt_test(int argc, char *const argv[]) {
     struct cli_args args = get_default_args();
     // make test time arbitrarily high because we expect a crash
-    args.time_of_test = 1000000000;
+    args.num_seconds = 1000000000;
     args.num_elements = 2000;
     // we want to induce a checkpoint
     args.env_args.checkpointing_period = 0;
