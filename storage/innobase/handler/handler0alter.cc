@@ -38,7 +38,7 @@ Smart ALTER TABLE
 #include "rem0types.h"
 #include "row0log.h"
 #include "row0merge.h"
-#include "srv0srv.h"
+#include "srv0space.h"
 #include "trx0trx.h"
 #include "trx0roll.h"
 #include "ha_prototypes.h"
@@ -266,7 +266,7 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-	} else if (srv_created_new_raw || srv_force_recovery) {
+	} else if (srv_sys_space.created_new_raw() || srv_force_recovery) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 

@@ -345,6 +345,7 @@ SET(INNOBASE_SOURCES
 	srv/srv0conc.cc
 	srv/srv0mon.cc
 	srv/srv0srv.cc
+	srv/srv0space.cc
 	srv/srv0start.cc
 	sync/sync0arr.cc
 	sync/sync0rw.cc

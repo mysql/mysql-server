@@ -60,6 +60,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "dict0load.h"
 #include "dict0boot.h"
 #include "dict0stats_bg.h" /* dict_stats_event */
+#include "srv0space.h"
 #include "srv0start.h"
 #include "row0mysql.h"
 #include "ha_prototypes.h"
@@ -159,29 +160,6 @@ objects it takes a big chunk out of non-paged pool, which is better suited
 for tasks like IO than for storing idle event objects. */
 UNIV_INTERN ibool	srv_use_native_conditions = FALSE;
 #endif /* __WIN__ */
-
-/*------------------------- DATA FILES ------------------------ */
-UNIV_INTERN ulint	srv_n_data_files = 0;
-UNIV_INTERN char**	srv_data_file_names = NULL;
-/* size in database pages */
-UNIV_INTERN ulint*	srv_data_file_sizes = NULL;
-
-/* if TRUE, then we auto-extend the last data file */
-UNIV_INTERN ibool	srv_auto_extend_last_data_file	= FALSE;
-/* if != 0, this tells the max size auto-extending may increase the
-last data file size */
-UNIV_INTERN ulint	srv_last_file_size_max	= 0;
-/* If the last data file is auto-extended, we add this
-many pages to it at a time */
-UNIV_INTERN ulong	srv_auto_extend_increment = 8;
-UNIV_INTERN ulint*	srv_data_file_is_raw_partition = NULL;
-
-/* If the following is TRUE we do not allow inserts etc. This protects
-the user from forgetting the 'newraw' keyword to my.cnf */
-UNIV_INTERN ibool	srv_created_new_raw	= FALSE;
-
-/*----------------------- TEMP DATA FILES ---------------------- */
-UNIV_INTERN srv_temp_tablespace_t srv_temp_tablespace;
 
 /*------------------------- LOG FILES ------------------------ */
 UNIV_INTERN char*	srv_log_group_home_dir	= NULL;
@@ -1032,34 +1010,13 @@ void
 srv_normalize_init_values(void)
 /*===========================*/
 {
-	ulint	n;
-	ulint	i;
+	srv_sys_space.normalize();
 
-	n = srv_n_data_files;
+	srv_tmp_space.normalize();
 
-	for (i = 0; i < n; i++) {
-		srv_data_file_sizes[i] = srv_data_file_sizes[i]
-			* ((1024 * 1024) / UNIV_PAGE_SIZE);
-	}
+	srv_log_file_size /= UNIV_PAGE_SIZE;
 
-	n = srv_temp_tablespace.m_n_temp_data_files;
-
-	for (i = 0; i < n; i++) {
-		srv_temp_tablespace.m_temp_data_file_sizes[i] =
-			srv_temp_tablespace.m_temp_data_file_sizes[i]
-			* ((1024 * 1024) / UNIV_PAGE_SIZE);
-	}
-
-	srv_last_file_size_max = srv_last_file_size_max
-		* ((1024 * 1024) / UNIV_PAGE_SIZE);
-
-	srv_temp_tablespace.m_last_temp_data_file_size_max =
-		srv_temp_tablespace.m_last_temp_data_file_size_max
-		* ((1024 * 1024) / UNIV_PAGE_SIZE);
-
-	srv_log_file_size = srv_log_file_size / UNIV_PAGE_SIZE;
-
-	srv_log_buffer_size = srv_log_buffer_size / UNIV_PAGE_SIZE;
+	srv_log_buffer_size /= UNIV_PAGE_SIZE;
 
 	srv_lock_table_size = 5 * (srv_buf_pool_size / UNIV_PAGE_SIZE);
 }
@@ -2845,212 +2802,5 @@ srv_purge_wakeup(void)
 			srv_release_threads(SRV_WORKER, n_workers);
 		}
 	}
-}
-
-/**********************************************************************//**
-Parse the input params and populate member variables.
-@return true on successfull parse else false*/
-UNIV_INTERN
-bool
-srv_temp_tablespace_t::init_params(
-/*===============================*/
-	char*   str)     /*!< in: parse and obtain init value */
-{
-	char*	input_str;
-	char*	path;
-	ulint	size;
-	ulint	i	= 0;
-
-	m_auto_extend_last_temp_data_file = false;
-	m_last_temp_data_file_size_max = 0;
-	m_temp_data_file_names = NULL;
-	m_temp_data_file_sizes = NULL;
-	m_temp_data_file_raw_type = NULL;
-
-	input_str = str;
-
-	/*---------------------- PASS 1 ---------------------------*/
-	/* First calculate the number of data files and check syntax:
-	path:size[M | G];path:size[M | G]... . Note that a Windows path may
-	contain a drive name and a ':'. */
-	while (*str != '\0') {
-		path = str;
-
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'
-			       || *(str + 1) == ':'))) {
-			str++;
-		}
-
-		if (*str == '\0') {
-			return(false);
-		}
-
-		str++;
-
-		str = parse_megabytes(str, &size);
-
-		if (0 == strncmp(str, ":autoextend",
-				 (sizeof ":autoextend") - 1)) {
-
-			str += (sizeof ":autoextend") - 1;
-
-			if (0 == strncmp(str, ":max:",
-					 (sizeof ":max:") - 1)) {
-
-				str += (sizeof ":max:") - 1;
-
-				str = parse_megabytes(str, &size);
-			}
-
-			if (*str != '\0') {
-
-				return(false);
-			}
-		}
-
-		if (strlen(str) >= 6
-		    && *str == 'n'
-		    && *(str + 1) == 'e'
-		    && *(str + 2) == 'w') {
-			str += 3;
-		}
-
-		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
-			str += 3;
-		}
-
-		if (size == 0) {
-			return(false);
-		}
-
-		i++;
-
-		if (*str == ';') {
-			str++;
-		} else if (*str != '\0') {
-
-			return(false);
-		}
-	}
-
-	if (i == 0) {
-		/* If innodb_temp_data_file_path was defined it must contain
-		at least one data file definition */
-		return(false);
-	}
-
-	m_temp_data_file_names = static_cast<char**>(
-		malloc(i *
-		       sizeof *srv_temp_tablespace.m_temp_data_file_names));
-
-	m_temp_data_file_sizes = static_cast<ulint*>(
-		malloc(i *
-		       sizeof *srv_temp_tablespace.m_temp_data_file_sizes));
-
-	m_temp_data_file_raw_type= static_cast<ulint*>(
-		malloc(i * sizeof *m_temp_data_file_raw_type));
-
-	srv_temp_tablespace.m_n_temp_data_files = i;
-
-	/*---------------------- PASS 2 ---------------------------*/
-	/* Then store the actual values to our arrays */
-	str = input_str;
-	i = 0;
-
-	while (*str != '\0') {
-		path = str;
-
-		/* Note that we must step over the ':' in a Windows path;
-		a Windows path normally looks like C:\ibdata\ibdata1:1G, but
-		a Windows raw partition may have a specification like
-		\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw */
-
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'
-			       || *(str + 1) == ':'))) {
-			str++;
-		}
-
-		if (*str == ':') {
-			/* Make path a null-terminated string */
-			*str = '\0';
-			str++;
-		}
-
-		str = parse_megabytes(str, &size);
-
-		m_temp_data_file_names[i] = path;
-		m_temp_data_file_sizes[i] = size;
-
-		if (0 == strncmp(str, ":autoextend",
-				 (sizeof ":autoextend") - 1)) {
-
-			m_auto_extend_last_temp_data_file = true;
-
-			str += (sizeof ":autoextend") - 1;
-
-			if (0 == strncmp(str, ":max:",
-					 (sizeof ":max:") - 1)) {
-
-				str += (sizeof ":max:") - 1;
-
-				str = parse_megabytes(
-					str, &m_last_temp_data_file_size_max);
-			}
-
-			if (*str != '\0') {
-
-				return(false);
-			}
-		}
-
-		(m_temp_data_file_raw_type)[i] = 0;
-
-		if (strlen(str) >= 6
-		    && *str == 'n'
-		    && *(str + 1) == 'e'
-		    && *(str + 2) == 'w') {
-			str += 3;
-			(m_temp_data_file_raw_type)[i] = SRV_NEW_RAW;
-		}
-
-		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
-			str += 3;
-
-			if ((m_temp_data_file_raw_type)[i] == 0) {
-				(m_temp_data_file_raw_type)[i] = SRV_OLD_RAW;
-			}
-		}
-
-		i++;
-
-		if (*str == ';') {
-			str++;
-		}
-	}
-
-	/* Ensure temp-data-files are not same as data-files */
-	for (ulint k1 = 0; k1 < m_n_temp_data_files; k1++) {
-		char* temp_data_fname = m_temp_data_file_names[k1];
-		for (ulint k2 = 0; k2 < srv_n_data_files; k2++) {
-			char* data_fname = srv_data_file_names[k2];
-			if(innobase_strcasecmp(
-				temp_data_fname, data_fname) == 0) {
-					return(false);
-			}
-		}
-	}
-
-	/* Disable raw device for temp-tablespace */
-	for (ulint k = 0; k < m_n_temp_data_files; k++) {
-		if ((m_temp_data_file_raw_type)[k] != SRV_NOT_RAW) {
-			return(false);
-		}
-	}
-
-	return(true);
 }
 

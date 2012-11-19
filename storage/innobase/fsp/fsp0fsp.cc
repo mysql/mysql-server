@@ -48,7 +48,7 @@ Created 11/29/1995 Heikki Tuuri
 # include "log0log.h"
 #endif /* UNIV_HOTBACKUP */
 #include "dict0mem.h"
-#include "srv0start.h"
+#include "srv0space.h"
 
 
 #ifndef UNIV_HOTBACKUP
@@ -943,7 +943,7 @@ fsp_try_extend_data_file(
 
 	*actual_increase = 0;
 
-	if (space == 0 && !srv_auto_extend_last_data_file) {
+	if (space == 0 && !srv_sys_space.can_auto_extend_last_file()) {
 
 		/* We print the error message only once to avoid
 		spamming the error log. Note that we don't need
@@ -967,27 +967,10 @@ fsp_try_extend_data_file(
 
 	old_size = size;
 
-	if (space == 0) {
-		if (!srv_last_file_size_max) {
-			size_increase = SRV_AUTO_EXTEND_INCREMENT;
-		} else {
-			if (srv_last_file_size_max
-			    < srv_data_file_sizes[srv_n_data_files - 1]) {
+	if (space == TRX_SYS_SPACE) {
 
-				fprintf(stderr,
-					"InnoDB: Error: Last data file size"
-					" is %lu, max size allowed %lu\n",
-					(ulong) srv_data_file_sizes[
-						srv_n_data_files - 1],
-					(ulong) srv_last_file_size_max);
-			}
+		size_increase = srv_sys_space.get_increment();
 
-			size_increase = srv_last_file_size_max
-				- srv_data_file_sizes[srv_n_data_files - 1];
-			if (size_increase > SRV_AUTO_EXTEND_INCREMENT) {
-				size_increase = SRV_AUTO_EXTEND_INCREMENT;
-			}
-		}
 	} else {
 		/* We extend single-table tablespaces first one extent
 		at a time, but 4 at a time for bigger tablespaces. It is
@@ -1108,7 +1091,8 @@ fsp_fill_free_list(
 	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
 	ut_a(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
 
-	if (space == 0 && srv_auto_extend_last_data_file
+	if (space == TRX_SYS_SPACE
+	    && srv_sys_space.can_auto_extend_last_file()
 	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
 
 		/* Try to increase the last data file size */
@@ -1116,7 +1100,8 @@ fsp_fill_free_list(
 		size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 	}
 
-	if (space != 0 && !init_space
+	if (space != 0
+	    && !init_space
 	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
 
 		/* Try to increase the .ibd file size */
