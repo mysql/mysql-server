@@ -8581,9 +8581,9 @@ err_col:
 	correctness as temp-table information is still maintained
 	in memory and temp-table life-time doesn't go beyond server
 	shut-down cycle. */
-	if (!(dict_table_is_temporary(table)))
+	if (!dict_table_is_temporary(table)) {
 		err = row_create_table_for_mysql(table, trx, false);
-	else {
+	} else {
 		/* Create tablespace if configured. */
 		err = dict_build_tablespace(table, trx);
 		if (err == DB_SUCCESS)
@@ -9733,6 +9733,16 @@ ha_innobase::discard_or_import_tablespace(
 	}
 
 	dict_table = prebuilt->table;
+
+	if (dict_table_is_temporary(dict_table)) {
+
+		ib_senderrf(
+			prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			ER_TABLE_TEMPORARY_TABLE_IMPORT_DISCARD,
+			table->s->table_name.str);
+
+		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
+	}
 
 	if (dict_table->space == TRX_SYS_SPACE) {
 

@@ -2426,7 +2426,7 @@ row_create_index_for_mysql(
 	/* For temp-table we avoid insertion into SYS_XXXX tables to
 	maintain performance and so we have separate path that directly
 	just updates dictonary cache. */
-	if (!(dict_table_is_temporary(table))) {
+	if (!dict_table_is_temporary(table)) {
 		/* Note that the space id where we store the index is
 		inherited from the table in dict_build_index_def_step()
 		in dict0crea.cc. */
@@ -2446,8 +2446,7 @@ row_create_index_for_mysql(
 		err = trx->error_state;
 
 		que_graph_free((que_t*) que_node_get_parent(thr));
-	}
-	else {
+	} else {
 		err = dict_build_index_def(table, index, trx);
 		if (err != DB_SUCCESS) {
 			goto error_handling;
@@ -3005,8 +3004,7 @@ row_discard_tablespace(
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
-	}
-	else {
+	} else {
 		dict_hdr_get_new_id(
 			&new_id, NULL, NULL, dict_table_is_temporary(table));
 	}
@@ -3203,8 +3201,8 @@ UNIV_INTERN
 void
 truncate_index_with_sys_table_update(
 /*==================================*/
-	dict_table_t*	table,		/*!< in: table */
-	ulint		recreate_space)	/*!< in: space re-create status */
+	const dict_table_t*	table,		/*!< in: table */
+	ulint			recreate_space)	/*!< in: re-create tablespace */
 {
 	mem_heap_t*	heap;
 	byte*		buf;
@@ -3365,7 +3363,7 @@ update_new_object_ids(
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Unable to assign a new identifier to table %s"
 			" after truncating it.  Background"
-			" processes may corrupt the table!\n",
+			" processes may corrupt the table!",
 			table->name);
 
 		/* Failed to update the table id, so drop the new
@@ -3399,7 +3397,7 @@ update_new_object_ids(
 		dict_table_change_id_in_cache(table, new_id);
 
 		/* Reset the Doc ID in cache to 0 */
-		if (has_internal_doc_id && table->fts->cache) {
+		if (has_internal_doc_id && table->fts->cache != NULL) {
 			table->fts->fts_status |= TABLE_DICT_LOCKED;
 			fts_update_next_doc_id(trx, table, NULL, 0);
 			fts_cache_clear(table->fts->cache, TRUE);
@@ -3587,7 +3585,10 @@ row_truncate_table_for_mysql(
 		}
 	}
 
-	if (table->space && !table->dir_path_of_temp_table) {
+	/* TODO: Post WL6560 merge fix this to even consider
+	shared-temp-tablespace. */
+	if (table->space != TRX_SYS_SPACE
+	    && table->dir_path_of_temp_table == NULL) {
 		/* Discard and create the single-table tablespace. */
 		ulint	space	= table->space;
 		ulint	flags	= fil_space_get_flags(space);
@@ -3726,8 +3727,7 @@ row_truncate_table_for_mysql(
 	if (!dict_table_is_temporary(table)) {
 		err = update_new_object_ids(
 			table, new_id, old_space, has_internal_doc_id, trx);
-	}
-	else {
+	} else {
 		dict_table_change_id_in_cache(table, new_id);
 		err = DB_SUCCESS;
 	}
@@ -4122,7 +4122,7 @@ check_next_foreign:
 
 	/* As we don't insert entries to SYS_XXXX tables for temp-tables
 	we need to avoid running removal of these entries. */
-	if(!(dict_table_is_temporary(table)))
+	if(!dict_table_is_temporary(table))
 	{
 		/* We use the private SQL parser of Innobase to generate the
 		query graphs needed in deleting the dictionary data from system
