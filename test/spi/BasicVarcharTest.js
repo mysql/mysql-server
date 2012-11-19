@@ -46,8 +46,10 @@ var t1 = new harness.SerialTest("Insert"),
     t3 = new harness.SerialTest("Update"),
     t4 = new harness.SerialTest("Read_2"),
     t5 = new harness.SerialTest("Insert_Duplicate"), 
-    t6 = new harness.SerialTest("Delete"),
-    t7 = new harness.SerialTest("Delete_NotFound");
+    t6 = new harness.SerialTest("Write"),
+    t7 = new harness.SerialTest("Read_3"),
+    t8 = new harness.SerialTest("Delete"),
+    t9 = new harness.SerialTest("Delete_NotFound");
 
 
 /// Common prep
@@ -111,6 +113,15 @@ function do_update_op(testCase, dataObj) {
   tx.execute([ op ], testCase.checkResult);
 }
 
+function do_write_op(testCase, dataObj) {
+  assert(typeof testCase.checkResult === 'function');
+  udebug.log("do_write_op for", testCase.name);
+  var tx = dbSession.getTransactionHandler();
+  var dbix = dbt.getIndexHandler(dataObj);
+  var op = dbSession.buildWriteOperation(dbix, dataObj, tx, null);
+  tx.execute([ op ], testCase.checkResult);
+}
+
 function do_delete_op(testCase, keyObj) {
   udebug.log("do_delete_op for", testCase.name);
   var tx = dbSession.getTransactionHandler();
@@ -130,7 +141,7 @@ t1.checkResult = function(err, tx) {
   }
   else {
     op = tx.executedOperations.pop();
-    t1.errorIfNotEqual("operation failed", op.result.success, true);
+    t1.errorIfNotEqual("operation failed", true, op.result.success);
   }
   t1.failOnError();
 };
@@ -155,7 +166,7 @@ t2.checkResult = function(err, tx) {
     t2.errorIfNull("Null op", op);
     t2.errorIfNull("Null op.result", op.result);
     t2.errorIfNull("Null op.result.value", op.result.value);
-    t2.errorIfNotEqual("Expected Henry", op.result.value.name, "Henry");
+    t2.errorIfNotEqual("Expected Henry", "Henry", op.result.value.name);
   }
   t2.failOnError();
 };
@@ -177,7 +188,7 @@ t3.checkResult = function(err, tx) {
   else { 
     var op = tx.executedOperations.pop();
     if(op) {
-      t3.errorIfNotEqual("Operation failed", op.result.success, true);
+      t3.errorIfNotEqual("Operation failed", true, op.result.success);
     }
   }
   t3.failOnError();
@@ -201,7 +212,7 @@ t4.checkResult = function(err, tx) {
   else { 
     op = tx.executedOperations.pop();
     if (op.result.value !== null) {
-      t4.errorIfNotEqual("Expected Henrietta", op.result.value.name, 'Henrietta');
+      t4.errorIfNotEqual("Expected Henrietta", 'Henrietta', op.result.value.name);
     } else {
       t4.appendErrorMessage('No object found for Henrietta.');
     }
@@ -226,7 +237,7 @@ t5.checkResult = function(err, tx) {
   }
   else { 
     op = tx.executedOperations.pop();
-    t5.errorIfNotEqual("Expected 23000", op.result.error.code, "23000"); 
+    t5.errorIfNotEqual("Expected 23000", "23000", op.result.error.code);
   }
   t5.failOnError();
 };
@@ -236,50 +247,96 @@ t5.run = function() {
   prepare(t5, insertObj);
 };
 
-
-// DELETE 
-t6.runTestMethod = do_delete_op;
+// WRITE 
+t6.runTestMethod = do_write_op;
 
 t6.checkResult = function(err, tx) {
   udebug.log("checkResult t6");
-  var op;
-  if(err) { 
-    t6.appendErrorMessage("ExecuteCommit failed: " + err); 
-  } else {
-    op = tx.executedOperations.pop();
+  if(err) {
+    t6.appendErrorMessage("ExecuteCommit failed: " + err);  
+  }
+  else { 
+    var op = tx.executedOperations.pop();
+    if(op) {
+      t6.errorIfNotEqual("Operation failed", true, op.result.success);
+    }
   }
   t6.failOnError();
 };
 
 t6.run = function() {
-  var deleteKey = { id : 1 };
-  prepare(t6, deleteKey);
+  var dataObj =  { id : 1 , name : "Henry VI"};
+  prepare(t6, dataObj);
 };
-  
 
-// DELETE AGAIN 
-t7.runTestMethod = do_delete_op;
+// READ AGAIN
+t7.runTestMethod = do_read_op;
 
 t7.checkResult = function(err, tx) {
-  var op;
   udebug.log("checkResult t7");
+  var op;
   if(err) { 
-    t7.appendErrorMessage("ExecuteCommit failed: " + err); 
+    t7.appendErrorMessage("ExecuteCommit failed: " + err);  
   }
-  else  { 
+  else { 
     op = tx.executedOperations.pop();
-    t7.errorIfNotEqual("Expected 02000", op.result.error.code, "02000"); 
+    if (op.result.value !== null) {
+      t7.errorIfNotEqual("Expected Henry VI", 'Henry VI', op.result.value.name);
+    } else {
+      t7.appendErrorMessage('No object found for Henry VI.');
+    }
   }
   t7.failOnError();
 };
 
 t7.run = function() {
+  var readObj = { id: 1 };
+  prepare(t7, readObj);
+};
+
+// DELETE 
+t8.runTestMethod = do_delete_op;
+
+t8.checkResult = function(err, tx) {
+  udebug.log("checkResult t8");
+  var op;
+  if(err) { 
+    t8.appendErrorMessage("ExecuteCommit failed: " + err); 
+  } else {
+    op = tx.executedOperations.pop();
+  }
+  t8.failOnError();
+};
+
+t8.run = function() {
   var deleteKey = { id : 1 };
-  prepare(t7, deleteKey);
+  prepare(t8, deleteKey);
+};
+  
+
+// DELETE AGAIN 
+t9.runTestMethod = do_delete_op;
+
+t9.checkResult = function(err, tx) {
+  var op;
+  udebug.log("checkResult t9");
+  if(err) { 
+    t9.appendErrorMessage("ExecuteCommit failed: " + err); 
+  }
+  else  { 
+    op = tx.executedOperations.pop();
+    t9.errorIfNotEqual("Expected 02000", "02000", op.result.error.code);
+  }
+  t9.failOnError();
+};
+
+t9.run = function() {
+  var deleteKey = { id : 1 };
+  prepare(t9, deleteKey);
 };
 
 
-exports.tests = [ t1, t2, t3, t4, t5, t6, t7];
+exports.tests = [ t1, t2, t3, t4, t5, t6, t7, t8, t9];
 
 exports.tests[exports.tests.length - 1].teardown = function() {
   if(dbSession) {
