@@ -1,0 +1,450 @@
+/*****************************************************************************
+
+Copyright (c) 2012, Oracle and/or its affiliates. All Rights Reserved.
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation; version 2 of the License.
+
+This program is distributed in the hope that it will be useful, but WITHOUT
+ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+FOR A PARTICULAR PURPOSE. See the GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License along with
+this program; if not, write to the Free Software Foundation, Inc.,
+51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA
+
+*****************************************************************************/
+
+/**************************************************//**
+@file include/srv0space.h
+Multi file shared tablespace implementation.
+
+Created 2012-11-16 by Sunny Bains.
+*******************************************************/
+
+#ifndef srv0space_h
+#define srv0space_h
+
+#include "srv0srv.h"
+#include "os0file.h"
+
+/** Data structure that contains the information about shared tablespaces.
+Currently this can be the system tablespace or a temporary table tablespace */
+class Tablespace {
+
+	/** Types of raw partitions in innodb_data_file_path */
+	enum device_t {
+		SRV_NOT_RAW = 0,	/*!< Not a raw partition */
+		SRV_NEW_RAW,		/*!< A 'newraw' partition, only to be
+					initialized */
+		SRV_OLD_RAW		/*!< An initialized raw partition */
+	};
+
+	struct file_t {
+
+		file_t(const char* name, ulint size)
+			:
+			m_name(strdup(name)),
+			m_size(size),
+			m_type(SRV_NOT_RAW),
+			m_handle(~0),
+			m_exists(),
+			m_open_flags(OS_FILE_OPEN)
+		{
+			/* No op */
+		}
+
+		~file_t()
+		{
+			shutdown();
+		}
+
+		file_t(const file_t& file)
+			:
+			m_name(strdup(file.m_name)),
+			m_size(file.m_size),
+			m_type(file.m_type),
+			m_handle(file.m_handle),
+			m_exists(file.m_exists),
+			m_open_flags(file.m_open_flags)
+		{
+			/* No op */
+		}
+
+		file_t& operator=(const file_t& file)
+		{
+			m_name = strdup(file.m_name);
+			m_size = file.m_size;
+			m_type = file.m_type;
+			m_handle = file.m_handle;
+			m_exists = file.m_exists;
+			m_open_flags = file.m_open_flags;
+
+			return(*this);
+		}
+
+		void shutdown()
+		{
+			ut_a(m_handle == ~0);
+
+			if (m_name != 0) {
+				::free(m_name);
+				m_name = 0;
+			}
+		}
+
+		/** Temp data files names */
+		char*			m_name;
+
+		/** size in database pages */
+		ulint			m_size;
+
+		/** The type of the data file */
+		device_t		m_type;
+
+		/** Open file handle */
+		os_file_t		m_handle;
+
+		/** true if file already existed on startup */
+		bool			m_exists;
+
+		/** Flags to use for opening the data file */
+		os_file_create_t	m_open_flags;
+	};
+
+	typedef std::vector<file_t> files_t;
+
+public:
+	Tablespace()
+		:
+		m_space_id(ULINT_UNDEFINED),
+		m_files(),
+		m_auto_extend_last_file(),
+		m_last_file_size_max(),
+		m_created_new_raw(),
+		m_auto_extend_increment()
+	{
+	}
+
+	~Tablespace()
+	{
+		shutdown();
+		ut_ad(m_files.empty());
+		ut_ad(m_space_id == ULINT_UNDEFINED);
+	}
+
+	void set_space_id(ulint space_id)
+	{
+		ut_a(m_space_id == ULINT_UNDEFINED);
+		m_space_id = space_id;
+	}
+
+	/**
+	Parse the input params and populate member variables.
+	@param filepath - path to data files
+	@param supports_raw - true if it supports raw devices
+	@return true on success parse */
+	bool parse(const char* filepath, bool supports_raw);
+
+	/**
+	Check the data file specification.
+	@param create_new_db - true if a new database is to be created
+	@return DB_SUCCESS if all OK else error code */
+	dberr_t check_file_spec(ibool* create_new_db);
+
+	/**
+	Free the memory allocated by parse() */
+	void shutdown();
+
+	/** Normalize the file size, convert to extents. */
+	void normalize()
+	{
+		files_t::iterator	end = m_files.end();
+
+		for (files_t::iterator it = m_files.begin(); it != end; ++it) {
+
+			it->m_size *= (1024 * 1024) / UNIV_PAGE_SIZE;
+		}
+
+		m_last_file_size_max *= (1024 * 1024) / UNIV_PAGE_SIZE;
+	}
+
+	/* @return the space id of this tablespace. */
+	ulint space_id() const
+	{
+		return(m_space_id);
+	}
+
+	/** @return true if a new raw device was created. */
+	bool created_new_raw() const
+	{
+		return(m_created_new_raw);
+	}
+
+	/** @return auto_extend value setting */
+	ulint can_auto_extend_last_file() const
+	{
+		return(m_auto_extend_last_file);
+	}
+
+	/* Set the last file size.
+	@param size - the size to set */
+	void set_last_file_size(ulint size)
+	{
+		ut_a(!m_files.empty());
+		m_files.back().m_size = size;
+	}
+
+	/**
+	@return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
+	ulint get_sum_of_sizes() const;
+
+	/** @return next increment size */
+	ulint get_increment() const
+	{
+		ulint	increment;
+
+		if (m_last_file_size_max == 0) {
+			increment = get_autoextend_increment();
+		} else {
+			if (!is_valid_size()) {
+
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Last data file size is %lu, max "
+					"size allowed %lu",
+					last_file_size(),
+					m_last_file_size_max);
+			}
+
+			increment = m_last_file_size_max - last_file_size();
+		}
+
+		if (increment > get_autoextend_increment()) {
+			increment = get_autoextend_increment();
+		}
+
+		return(increment);
+	}
+
+	/**
+	Open or create the data files.
+
+	@param create_new_db - true if new database should be
+	@param min_flushed_lsn - min of flushed LSN
+	@param max_flushed_lsn - max of flushed LSN
+	@param sum_of_new_sizes - sum of sizes of new files added
+	@return DB_SUCCESS or error code */
+	dberr_t open(ulint* sum_of_new_sizes);
+
+	/**
+	Read the flush lsn values and check the header flags.
+
+	@param file - file control information
+	@param name - physical filename
+	@param min_flushed_lsn - min of flushed lsn values in data files
+	@param max_flushed_lsn - max of flushed lsn values in data files
+	@return DB_SUCCESS if all OK */
+	dberr_t read_lsn_and_check_flags(
+		lsn_t*		min_flushed_lsn,
+		lsn_t*		max_flushed_lsn);
+
+private:
+	/** @return the size of the last data file in the array */
+	ulint last_file_size() const
+	{
+		ut_ad(!m_files.empty());
+		return(m_files.back().m_size);
+	}
+
+	/** @return true if the last file size is valid. */
+	bool is_valid_size() const
+	{
+		return(m_last_file_size_max >= last_file_size());
+	}
+
+	/** @return the autoextend increment in pages. */
+	ulint get_autoextend_increment() const
+	{
+		return(m_auto_extend_increment
+		       * ((1024 * 1024) / UNIV_PAGE_SIZE));
+	}
+
+	bool is_raw_device(const file_t& file) const
+	{
+		return(file.m_type != SRV_NOT_RAW);
+	}
+
+	/** @return true if configured to use raw devices */
+	bool has_raw_device() const
+	{
+		files_t::const_iterator	end = m_files.end();
+
+		for (files_t::const_iterator it = m_files.begin();
+		     it != end;
+		     ++it) {
+
+			if (is_raw_device(*it)) {
+				return(true);
+			}
+		}
+
+		return(false);
+	}
+
+	/** @return true if the filename exists in the data files */
+	bool find(const char* filename) const
+	{
+		files_t::const_iterator	end = m_files.end();
+
+		for (files_t::const_iterator it = m_files.begin();
+		     it != end;
+		     ++it) {
+
+			if (innobase_strcasecmp(filename, it->m_name) == 0) {
+				return(true);
+			}
+		}
+
+		return(false);
+	}
+
+	/**
+	Note that the data file was not found.
+	@return DB_SUCESS or error code */
+	dberr_t file_not_found(file_t& file, ulint i, ibool* create_new_db);
+
+	/**
+	Note that the data file was found. */
+	void file_found(file_t& file, ulint i);
+
+	/**
+	Create a data file.
+	@param file - control info of file to be created.
+	@param name - physical filename
+	@return DB_SUCCESS or error code */
+	dberr_t create(file_t& file, const char* name);
+
+	/**
+	Create a data file.
+	@param file - control info of file to be created.
+	@param name - physical filename on FS
+	@return DB_SUCCESS or error code */
+	dberr_t create_file(file_t& file, const char* name);
+
+	/**
+	Set the size of the file.
+	@param file - data file spec
+	@param name - physical file name
+	@return DB_SUCCESS or error code */
+	dberr_t set_size(file_t& file, const char* name);
+
+	/**
+	Open a data file.
+	@param file - data file spec
+	@param name - physical file name
+	@return DB_SUCCESS or error code */
+	dberr_t open_file(file_t& file, const char* name);
+
+	/**
+	Open/create a data file.
+	@param file - data file spec
+	@param name - physical file name
+	@return DB_SUCCESS or error code */
+	dberr_t open_data_file(file_t& file, const char* name);
+
+	/** 
+	Check if a file can be opened in the correct mode.
+	@param file - file control information
+	@return DB_SUCCESS or error code. */
+	dberr_t check_file_status(const file_t& file) const;
+
+	/**
+	Verify the size of the physical file
+	@param file - file control info
+	@param name - physical filename on FS
+	@return DB_SUCCESS if OK else error code. */
+	dberr_t check_size(file_t& file, const char* name);
+
+	/**
+	Make physical filename from control info.
+	@param name - destination buffer
+	@param size - max size of name
+	@param file - control information */
+	void make_name(const file_t& file, char* name, ulint size) const;
+
+	/**
+	Convert a numeric string that optionally ends in G or M, to a number
+	containing megabytes.
+	@param str - string with a quantity in bytes
+	@param megs - out the number in megabytes
+	@return next character in string */
+	static char* parse_units(
+		char*		ptr,
+		ulint*		megs)
+	{
+		char*   	endp;
+
+		*megs = strtoul(ptr, &endp, 10);
+
+		ptr = endp;
+
+		switch (*ptr) {
+		case 'G': case 'g':
+			*megs *= 1024;
+			/* fall through */
+		case 'M': case 'm':
+			++ptr;
+			break;
+		default:
+			*megs /= 1024 * 1024;
+			break;
+		}
+
+		return(ptr);
+	}
+
+	/** Check if two shared tablespaces have common data file names. 
+	@param space1 - space to check
+	@param space2 - space to check
+	@return true if they have the same data filenames and paths */
+	static bool intersection(
+		const Tablespace&	space1,
+		const Tablespace&	space2);
+
+	// Disable copying
+	Tablespace(const Tablespace&);
+	Tablespace& operator=(const Tablespace&);
+
+	/** This is dynamically allocated on each start of server. */
+	ulint		m_space_id;
+
+	/** Data file information */
+	files_t		m_files;
+
+	/** if true, then we auto-extend the last data file */
+	bool		m_auto_extend_last_file;
+
+	/** if != 0, this tells the max size auto-extending may increase the
+	last data file size */
+	ulint		m_last_file_size_max;
+
+	/** If the following is true we do not allow
+	inserts etc. This protects the user from forgetting
+	the 'newraw' keyword to my.cnf */
+	bool		m_created_new_raw;
+
+public:
+	/* We have to make this public because it is a config variable. */
+
+	/** If the last data file is auto-extended, we add this
+	many pages to it at a time */
+	ulong		m_auto_extend_increment;
+};
+
+/** The control info of the system tablespace. */
+extern Tablespace srv_sys_space;
+
+/** The control info of a temporary table shared tablespace. */
+extern Tablespace srv_tmp_space;
+#endif /* srv0space_h */

@@ -44,6 +44,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "dict0priv.h"
 #include "fts0priv.h"
+#include "srv0space.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -325,7 +326,7 @@ dict_build_table_def_step(
 		/* All non-compressed temporary tables are stored in
 		shared temp-tablespace */
 		if (dict_table_is_temporary(table)) {
-			table->space = srv_temp_tablespace.m_temp_tablespace_id;
+			table->space = srv_tmp_space.space_id();
 		}
 	}
 

@@ -63,6 +63,7 @@ Created 2/16/1996 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "srv0srv.h"
+#include "srv0space.h"
 #ifndef UNIV_HOTBACKUP
 # include "trx0rseg.h"
 # include "os0proc.h"
@@ -159,40 +160,6 @@ UNIV_INTERN mysql_pfs_key_t	srv_purge_thread_key;
 #endif /* UNIV_PFS_THREAD */
 
 /*********************************************************************//**
-Convert a numeric string that optionally ends in G or M, to a number
-containing megabytes.
-@return	next character in string */
-static
-char*
-srv_parse_megabytes(
-/*================*/
-	char*	str,	/*!< in: string containing a quantity in bytes */
-	ulint*	megs)	/*!< out: the number in megabytes */
-{
-	char*	endp;
-	ulint	size;
-
-	size = strtoul(str, &endp, 10);
-
-	str = endp;
-
-	switch (*str) {
-	case 'G': case 'g':
-		size *= 1024;
-		/* fall through */
-	case 'M': case 'm':
-		str++;
-		break;
-	default:
-		size /= 1024 * 1024;
-		break;
-	}
-
-	*megs = size;
-	return(str);
-}
-
-/*********************************************************************//**
 Check if a file can be opened in read-write mode.
 @return	true if it doesn't exist or can be opened in rw mode. */
 static
@@ -247,232 +214,6 @@ srv_file_check_mode(
 	}
 
 	return(true);
-}
-
-/*********************************************************************//**
-Reads the data files and their sizes from a character string given in
-the .cnf file.
-@return	TRUE if ok, FALSE on parse error */
-UNIV_INTERN
-ibool
-srv_parse_data_file_paths_and_sizes(
-/*================================*/
-	char*	str)	/*!< in/out: the data file path string */
-{
-	char*	input_str;
-	char*	path;
-	ulint	size;
-	ulint	i	= 0;
-
-	srv_auto_extend_last_data_file = FALSE;
-	srv_last_file_size_max = 0;
-	srv_data_file_names = NULL;
-	srv_data_file_sizes = NULL;
-	srv_data_file_is_raw_partition = NULL;
-
-	input_str = str;
-
-	/* First calculate the number of data files and check syntax:
-	path:size[M | G];path:size[M | G]... . Note that a Windows path may
-	contain a drive name and a ':'. */
-
-	while (*str != '\0') {
-		path = str;
-
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'
-			       || *(str + 1) == ':'))) {
-			str++;
-		}
-
-		if (*str == '\0') {
-			return(FALSE);
-		}
-
-		str++;
-
-		str = srv_parse_megabytes(str, &size);
-
-		if (0 == strncmp(str, ":autoextend",
-				 (sizeof ":autoextend") - 1)) {
-
-			str += (sizeof ":autoextend") - 1;
-
-			if (0 == strncmp(str, ":max:",
-					 (sizeof ":max:") - 1)) {
-
-				str += (sizeof ":max:") - 1;
-
-				str = srv_parse_megabytes(str, &size);
-			}
-
-			if (*str != '\0') {
-
-				return(FALSE);
-			}
-		}
-
-		if (strlen(str) >= 6
-		    && *str == 'n'
-		    && *(str + 1) == 'e'
-		    && *(str + 2) == 'w') {
-			str += 3;
-		}
-
-		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
-			str += 3;
-		}
-
-		if (size == 0) {
-			return(FALSE);
-		}
-
-		i++;
-
-		if (*str == ';') {
-			str++;
-		} else if (*str != '\0') {
-
-			return(FALSE);
-		}
-	}
-
-	if (i == 0) {
-		/* If innodb_data_file_path was defined it must contain
-		at least one data file definition */
-
-		return(FALSE);
-	}
-
-	srv_data_file_names = static_cast<char**>(
-		malloc(i * sizeof *srv_data_file_names));
-
-	srv_data_file_sizes = static_cast<ulint*>(
-		malloc(i * sizeof *srv_data_file_sizes));
-
-	srv_data_file_is_raw_partition = static_cast<ulint*>(
-		malloc(i * sizeof *srv_data_file_is_raw_partition));
-
-	srv_n_data_files = i;
-
-	/* Then store the actual values to our arrays */
-
-	str = input_str;
-	i = 0;
-
-	while (*str != '\0') {
-		path = str;
-
-		/* Note that we must step over the ':' in a Windows path;
-		a Windows path normally looks like C:\ibdata\ibdata1:1G, but
-		a Windows raw partition may have a specification like
-		\\.\C::1Gnewraw or \\.\PHYSICALDRIVE2:1Gnewraw */
-
-		while ((*str != ':' && *str != '\0')
-		       || (*str == ':'
-			   && (*(str + 1) == '\\' || *(str + 1) == '/'
-			       || *(str + 1) == ':'))) {
-			str++;
-		}
-
-		if (*str == ':') {
-			/* Make path a null-terminated string */
-			*str = '\0';
-			str++;
-		}
-
-		str = srv_parse_megabytes(str, &size);
-
-		srv_data_file_names[i] = path;
-		srv_data_file_sizes[i] = size;
-
-		if (0 == strncmp(str, ":autoextend",
-				 (sizeof ":autoextend") - 1)) {
-
-			srv_auto_extend_last_data_file = TRUE;
-
-			str += (sizeof ":autoextend") - 1;
-
-			if (0 == strncmp(str, ":max:",
-					 (sizeof ":max:") - 1)) {
-
-				str += (sizeof ":max:") - 1;
-
-				str = srv_parse_megabytes(
-					str, &srv_last_file_size_max);
-			}
-
-			if (*str != '\0') {
-
-				return(FALSE);
-			}
-		}
-
-		(srv_data_file_is_raw_partition)[i] = 0;
-
-		if (strlen(str) >= 6
-		    && *str == 'n'
-		    && *(str + 1) == 'e'
-		    && *(str + 2) == 'w') {
-			str += 3;
-			(srv_data_file_is_raw_partition)[i] = SRV_NEW_RAW;
-		}
-
-		if (*str == 'r' && *(str + 1) == 'a' && *(str + 2) == 'w') {
-			str += 3;
-
-			if ((srv_data_file_is_raw_partition)[i] == 0) {
-				(srv_data_file_is_raw_partition)[i] = SRV_OLD_RAW;
-			}
-		}
-
-		i++;
-
-		if (*str == ';') {
-			str++;
-		}
-	}
-
-	return(TRUE);
-}
-
-/*********************************************************************//**
-Frees the memory allocated by srv_parse_data_file_paths_and_sizes()
-and srv_parse_log_group_home_dirs(). */
-UNIV_INTERN
-void
-srv_free_paths_and_sizes(void)
-/*==========================*/
-{
-	if (srv_data_file_names) {
-		free(srv_data_file_names);
-		srv_data_file_names = NULL;
-	}
-	if (srv_data_file_sizes) {
-		free(srv_data_file_sizes);
-		srv_data_file_sizes = NULL;
-	}
-
-	if (srv_data_file_is_raw_partition) {
-		free(srv_data_file_is_raw_partition);
-		srv_data_file_is_raw_partition = NULL;
-	}
-
-	if (srv_temp_tablespace.m_temp_data_file_names) {
-		free(srv_temp_tablespace.m_temp_data_file_names);
-		srv_temp_tablespace.m_temp_data_file_names = NULL;
-	}
-
-	if (srv_temp_tablespace.m_temp_data_file_sizes) {
-		free(srv_temp_tablespace.m_temp_data_file_sizes);
-		srv_temp_tablespace.m_temp_data_file_sizes = NULL;
-	}
-
-	if (srv_temp_tablespace.m_temp_data_file_raw_type) {
-		free(srv_temp_tablespace.m_temp_data_file_raw_type);
-		srv_temp_tablespace.m_temp_data_file_raw_type = NULL;
-	}
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -777,474 +518,6 @@ open_log_file(
 }
 
 /*********************************************************************//**
-Creates or opens database data files and closes them.
-@return	DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
-dberr_t
-open_or_create_data_files(
-/*======================*/
-	ibool*		create_new_db,	/*!< out: TRUE if new database should be
-					created */
-#ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,/*!< out: min of archived log
-					numbers in data files */
-	ulint*		max_arch_log_no,/*!< out: max of archived log
-					numbers in data files */
-#endif /* UNIV_LOG_ARCHIVE */
-	lsn_t*		min_flushed_lsn,/*!< out: min of flushed lsn
-					values in data files */
-	lsn_t*		max_flushed_lsn,/*!< out: max of flushed lsn
-					values in data files */
-	ulint*		sum_of_new_sizes)/*!< out: sum of sizes of the
-					new files added */
-{
-	ibool		ret;
-	ulint		i;
-	ibool		one_opened	= FALSE;
-	ibool		one_created	= FALSE;
-	os_offset_t	size;
-	ulint		flags;
-	ulint		space;
-	ulint		rounded_size_pages;
-	char		name[10000];
-
-	if (srv_n_data_files >= 1000) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can only have < 1000 data files, you have "
-			"defined %lu", (ulong) srv_n_data_files);
-
-		return(DB_ERROR);
-	}
-
-	*sum_of_new_sizes = 0;
-
-	*create_new_db = FALSE;
-
-	srv_normalize_path_for_win(srv_data_home);
-
-	for (i = 0; i < srv_n_data_files; i++) {
-		ulint	dirnamelen;
-
-		srv_normalize_path_for_win(srv_data_file_names[i]);
-		dirnamelen = strlen(srv_data_home);
-
-		ut_a(dirnamelen + strlen(srv_data_file_names[i])
-		     < (sizeof name) - 1);
-
-		memcpy(name, srv_data_home, dirnamelen);
-
-		/* Add a path separator if needed. */
-		if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
-			name[dirnamelen++] = SRV_PATH_SEPARATOR;
-		}
-
-		strcpy(name + dirnamelen, srv_data_file_names[i]);
-
-		/* Note: It will return true if the file doesn' exist. */
-
-		if (!srv_file_check_mode(name)) {
-
-			return(DB_FAIL);
-
-		} else if (srv_data_file_is_raw_partition[i] == 0) {
-
-			/* First we try to create the file: if it already
-			exists, ret will get value FALSE */
-
-			files[i] = os_file_create(
-				innodb_file_data_key, name, OS_FILE_CREATE,
-				OS_FILE_NORMAL, OS_DATA_FILE, &ret);
-
-			if (srv_read_only_mode) {
-
-				if (ret) {
-					goto size_check;
-				}
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Opening %s failed!", name);
-
-				return(DB_ERROR);
-
-			} else if (!ret
-				   && os_file_get_last_error(false)
-				   != OS_FILE_ALREADY_EXISTS
-#ifdef UNIV_AIX
-			    	   /* AIX 5.1 after security patch ML7 may have
-			           errno set to 0 here, which causes our
-				   function to return 100; work around that
-				   AIX problem */
-				   && os_file_get_last_error(false) != 100
-#endif /* UNIV_AIX */
-			    ) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Creating or opening %s failed!",
-					name);
-
-				return(DB_ERROR);
-			}
-
-		} else if (srv_data_file_is_raw_partition[i] == SRV_NEW_RAW) {
-
-			ut_a(!srv_read_only_mode);
-
-			/* The partition is opened, not created; then it is
-			written over */
-
-			srv_start_raw_disk_in_use = TRUE;
-			srv_created_new_raw = TRUE;
-
-			files[i] = os_file_create(
-				innodb_file_data_key, name, OS_FILE_OPEN_RAW,
-				OS_FILE_NORMAL, OS_DATA_FILE, &ret);
-
-			if (!ret) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Error in opening %s", name);
-
-				return(DB_ERROR);
-			}
-		} else if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
-			srv_start_raw_disk_in_use = TRUE;
-
-			ret = FALSE;
-		} else {
-			ut_a(0);
-		}
-
-		if (ret == FALSE) {
-			/* We open the data file */
-
-			if (one_created) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Data files can only be added at "
-					"the end of a tablespace, but "
-					"data file %s existed beforehand.",
-					name);
-				return(DB_ERROR);
-			}
-			if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
-				ut_a(!srv_read_only_mode);
-				files[i] = os_file_create(
-					innodb_file_data_key,
-					name, OS_FILE_OPEN_RAW,
-					OS_FILE_NORMAL, OS_DATA_FILE, &ret);
-			} else if (i == 0) {
-				files[i] = os_file_create(
-					innodb_file_data_key,
-					name, OS_FILE_OPEN_RETRY,
-					OS_FILE_NORMAL, OS_DATA_FILE, &ret);
-			} else {
-				files[i] = os_file_create(
-					innodb_file_data_key,
-					name, OS_FILE_OPEN, OS_FILE_NORMAL,
-					OS_DATA_FILE, &ret);
-			}
-
-			if (!ret) {
-
-				os_file_get_last_error(true);
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Can't open '%s'", name);
-
-				return(DB_ERROR);
-			}
-
-			if (srv_data_file_is_raw_partition[i] == SRV_OLD_RAW) {
-
-				goto skip_size_check;
-			}
-
-size_check:
-			size = os_file_get_size(files[i]);
-			ut_a(size != (os_offset_t) -1);
-			/* Round size downward to megabytes */
-
-			rounded_size_pages = (ulint)
-				(size >> UNIV_PAGE_SIZE_SHIFT);
-
-			if (i == srv_n_data_files - 1
-			    && srv_auto_extend_last_data_file) {
-
-				if (srv_data_file_sizes[i] > rounded_size_pages
-				    || (srv_last_file_size_max > 0
-					&& srv_last_file_size_max
-					< rounded_size_pages)) {
-
-					ib_logf(IB_LOG_LEVEL_ERROR,
-						"auto-extending "
-						"data file %s is "
-						"of a different size "
-						"%lu pages (rounded "
-						"down to MB) than specified "
-						"in the .cnf file: "
-						"initial %lu pages, "
-						"max %lu (relevant if "
-						"non-zero) pages!",
-						name,
-						(ulong) rounded_size_pages,
-						(ulong) srv_data_file_sizes[i],
-						(ulong)
-						srv_last_file_size_max);
-
-					return(DB_ERROR);
-				}
-
-				srv_data_file_sizes[i] = rounded_size_pages;
-			}
-
-			if (rounded_size_pages != srv_data_file_sizes[i]) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Data file %s is of a different "
-					"size %lu pages (rounded down to MB) "
-					"than specified in the .cnf file "
-					"%lu pages!",
-					name,
-					(ulong) rounded_size_pages,
-					(ulong) srv_data_file_sizes[i]);
-
-				return(DB_ERROR);
-			}
-skip_size_check:
-			fil_read_first_page(
-				files[i], one_opened, &flags, &space,
-#ifdef UNIV_LOG_ARCHIVE
-				min_arch_log_no, max_arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
-				min_flushed_lsn, max_flushed_lsn);
-
-			/* The first file of the system tablespace must
-			have space ID = TRX_SYS_SPACE.  The FSP_SPACE_ID
-			field in files greater than ibdata1 are unreliable. */
-			ut_a(one_opened || space == TRX_SYS_SPACE);
-
-			/* Check the flags for the first system tablespace
-			file only. */
-			if (!one_opened
-			    && UNIV_PAGE_SIZE
-			       != fsp_flags_get_page_size(flags)) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Data file \"%s\" uses page size %lu,"
-					"but the start-up parameter "
-					"is --innodb-page-size=%lu",
-					name,
-					fsp_flags_get_page_size(flags),
-					UNIV_PAGE_SIZE);
-
-				return(DB_ERROR);
-			}
-
-			one_opened = TRUE;
-		} else if (!srv_read_only_mode) {
-			/* We created the data file and now write it full of
-			zeros */
-
-			one_created = TRUE;
-
-			if (i > 0) {
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"Data file %s did not"
-					" exist: new to be created",
-					name);
-			} else {
-				ib_logf(IB_LOG_LEVEL_INFO,
-					"The first specified "
-					"data file %s did not exist: "
-					"a new database to be created!",
-					name);
-
-				*create_new_db = TRUE;
-			}
-
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Setting file %s size to %lu MB",
-				name,
-				(ulong) (srv_data_file_sizes[i]
-					 >> (20 - UNIV_PAGE_SIZE_SHIFT)));
-
-			ib_logf(IB_LOG_LEVEL_INFO,
-				"Database physically writes the"
-				" file full: wait...");
-
-			ret = os_file_set_size(
-				name, files[i],
-				(os_offset_t) srv_data_file_sizes[i]
-				<< UNIV_PAGE_SIZE_SHIFT);
-
-			if (!ret) {
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Error in creating %s: "
-					"probably out of disk space",
-					name);
-
-				return(DB_ERROR);
-			}
-
-			*sum_of_new_sizes += srv_data_file_sizes[i];
-		}
-
-		ret = os_file_close(files[i]);
-		ut_a(ret);
-
-		if (i == 0) {
-			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
-			fil_space_create(name, 0, flags, FIL_TABLESPACE);
-		}
-
-		ut_a(fil_validate());
-
-		if (!fil_node_create(name, srv_data_file_sizes[i], 0,
-				     srv_data_file_is_raw_partition[i] != 0)) {
-			return(DB_ERROR);
-		}
-	}
-
-	return(DB_SUCCESS);
-}
-
-/*********************************************************************//**
-Creates or opens database temp data files and closes them.
-@return	DB_SUCCESS or error code */
-static
-dberr_t
-open_or_create_temp_data_files()
-/*============================*/
-{
-	ibool		ret;
-	ulint		flags;
-	ulint		size_of_temp_tablespace = 0;
-
-	if (srv_read_only_mode) {
-		return(DB_SUCCESS);
-	}
-
-	if (srv_temp_tablespace.m_n_temp_data_files >= 1000) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Can only have < 1000 temp data files, you have "
-			"defined %lu",
-			(ulong) srv_temp_tablespace.m_n_temp_data_files);
-
-		return(DB_ERROR);
-	}
-
-	srv_normalize_path_for_win(srv_data_home);
-
-	for (ulint i = 0; i < srv_temp_tablespace.m_n_temp_data_files; i++) {
-		char	name[10000];
-		ulint	dirnamelen;
-
-		srv_normalize_path_for_win(
-			srv_temp_tablespace.m_temp_data_file_names[i]);
-		dirnamelen = strlen(srv_data_home);
-
-		ut_a(dirnamelen +
-		     strlen(srv_temp_tablespace.m_temp_data_file_names[i])
-		     < (sizeof name) - 1);
-
-		memcpy(name, srv_data_home, dirnamelen);
-
-		/* Add a path separator if needed. */
-		if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
-			name[dirnamelen++] = SRV_PATH_SEPARATOR;
-		}
-
-		strcpy(name + dirnamelen,
-		       srv_temp_tablespace.m_temp_data_file_names[i]);
-
-		/* remove existing file always as we re-create temp-talbespace
-		on restart */
-		os_file_delete_if_exists(name);
-
-		/* First we try to create the file: if it already
-		exists, ret will get value FALSE. */
-		files[i] = os_file_create(
-			innodb_file_data_key, name, OS_FILE_CREATE,
-			OS_FILE_NORMAL, OS_DATA_TEMP_FILE, &ret);
-		if (!ret
-		    && os_file_get_last_error(false)
-		    != OS_FILE_ALREADY_EXISTS
-#ifdef UNIV_AIX
-		    /* AIX 5.1 after security patch ML7 may have
-		    errno set to 0 here, which causes our
-		    function to return 100; work around that
-		    AIX problem */
-		    && os_file_get_last_error(false) != 100
-#endif /* UNIV_AIX */
-		   ) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Creating or opening %s failed!",
-				name);
-
-			return(DB_ERROR);
-		}
-
-		/* We created the data file and now write it full of zeros */
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Created tablespace %s for temporary tables, "
-			"initial size is %lu MB. Wait while database "
-			"physically writes the file full....",
-			name,
-			(ulong) (srv_temp_tablespace.m_temp_data_file_sizes[i]
-				 >> (20 - UNIV_PAGE_SIZE_SHIFT)));
-
-		ret = os_file_set_size(
-			name, files[i],
-			(os_offset_t)
-			srv_temp_tablespace.m_temp_data_file_sizes[i]
-			<< UNIV_PAGE_SIZE_SHIFT);
-
-		size_of_temp_tablespace +=
-			srv_temp_tablespace.m_temp_data_file_sizes[i];
-
-		if (!ret) {
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Error in creating %s: "
-				"probably out of disk space",
-				name);
-
-			return(DB_ERROR);
-		}
-
-		if (i == 0) {
-			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
-			dict_hdr_get_new_id(
-				NULL, NULL,
-				&srv_temp_tablespace.m_temp_tablespace_id);
-			fil_space_create(
-				name,
-				srv_temp_tablespace.m_temp_tablespace_id,
-				flags, FIL_TABLESPACE);
-		}
-
-		ut_a(fil_validate());
-
-		if (!fil_node_create(
-			name, srv_temp_tablespace.m_temp_data_file_sizes[i],
-			srv_temp_tablespace.m_temp_tablespace_id, FALSE)) {
-			return(DB_ERROR);
-		}
-	}
-
-	{
-		mtr_t	mtr;
-
-		mtr_start(&mtr);
-
-		fsp_header_init(srv_temp_tablespace.m_temp_tablespace_id,
-				size_of_temp_tablespace, &mtr);
-
-		mtr_commit(&mtr);
-	}
-
-	return(DB_SUCCESS);
-}
-
-/*********************************************************************//**
 Create undo tablespace.
 @return	DB_SUCCESS or error code */
 static
@@ -1314,7 +587,6 @@ srv_undo_tablespace_create(
 
 	return(err);
 }
-
 /*********************************************************************//**
 Open an undo tablespace.
 @return	DB_SUCCESS or error code */
@@ -1617,6 +889,62 @@ srv_start_wait_for_purge_to_start()
 }
 
 /********************************************************************
+Create the temporary file tablespace.
+@return DB_SUCCESS or error code. */
+static
+dberr_t
+srv_open_tmp_tablespace(
+/*====================*/
+	Tablespace*	tmp_space)		/*!< in/out: Tablespace */
+{
+	if (srv_read_only_mode) {
+		return(DB_SUCCESS);
+	}
+
+	ibool	create_new_temp_space;
+	ulint	temp_space_id = ULINT_UNDEFINED;
+
+	dict_hdr_get_new_id(NULL, NULL, &temp_space_id);
+
+	tmp_space->set_space_id(temp_space_id);
+
+	dberr_t	err = tmp_space->check_file_spec(&create_new_temp_space);
+
+	if (err == DB_FAIL) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The system temp tablespace must be writable!");
+
+		err = DB_ERROR;
+
+	} else if (err != DB_SUCCESS) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Could not create the system temp tablespace.");
+
+	} else if ((err = tmp_space->open(0)) != DB_SUCCESS) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unable to create shared temporary tablespace");
+
+	} else {
+
+		mtr_t	mtr;
+		ulint	size = tmp_space->get_sum_of_sizes();
+
+		ut_a(tmp_space->space_id() == temp_space_id
+		     && temp_space_id != ULINT_UNDEFINED);
+
+		mtr_start(&mtr);
+
+		fsp_header_init(tmp_space->space_id(), size, &mtr);
+
+		mtr_commit(&mtr);
+	}
+
+	return(err);
+}
+/********************************************************************
 Starts InnoDB and creates a new database if database files
 are not found and the user wants.
 @return	DB_SUCCESS or error code */
@@ -1626,13 +954,12 @@ innobase_start_or_create_for_mysql(void)
 /*====================================*/
 {
 	ibool		create_new_db;
-	lsn_t		min_flushed_lsn;
-	lsn_t		max_flushed_lsn;
+	lsn_t		min_flushed_lsn = 0;
+	lsn_t		max_flushed_lsn = 0;
 #ifdef UNIV_LOG_ARCHIVE
 	ulint		min_arch_log_no;
 	ulint		max_arch_log_no;
 #endif /* UNIV_LOG_ARCHIVE */
-	ulint		sum_of_new_sizes;
 	ulint		sum_of_data_file_sizes;
 	ulint		tablespace_size_in_header;
 	dberr_t		err;
@@ -2108,49 +1435,33 @@ innobase_start_or_create_for_mysql(void)
 		return(DB_ERROR);
 	}
 
-	sum_of_new_sizes = 0;
+	srv_normalize_path_for_win(srv_data_home);
 
-	for (i = 0; i < srv_n_data_files; i++) {
-#ifndef __WIN__
-		if (sizeof(off_t) < 5
-		    && srv_data_file_sizes[i]
-		    >= (ulint) (1 << (32 - UNIV_PAGE_SIZE_SHIFT))) {
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: Error: file size must be < 4 GB"
-				" with this MySQL binary\n");
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				" InnoDB: and operating system combination,"
-				" in some OS's < 2 GB\n");
+	ulint	sum_of_new_sizes;
 
-			return(DB_ERROR);
-		}
-#endif
-		sum_of_new_sizes += srv_data_file_sizes[i];
-	}
+	sum_of_new_sizes = srv_sys_space.get_sum_of_sizes();
 
-	if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
+        if (sum_of_new_sizes == ULINT_UNDEFINED) {
+                return(DB_ERROR);
+        } else if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
+
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Tablespace size must be at least 10 MB");
 
 		return(DB_ERROR);
 	}
 
-	err = open_or_create_data_files(&create_new_db,
-#ifdef UNIV_LOG_ARCHIVE
-					&min_arch_log_no, &max_arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
-					&min_flushed_lsn, &max_flushed_lsn,
-					&sum_of_new_sizes);
-	if (err == DB_FAIL) {
+	/* Check if the data files exist or not. */
+	err = srv_sys_space.check_file_spec(&create_new_db);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The system tablespace must be writable!");
-
+	if (err != DB_SUCCESS) {
 		return(DB_ERROR);
+	}
 
-	} else if (err != DB_SUCCESS) {
+	/* Open or create the data files. */
+	err = srv_sys_space.open(&sum_of_new_sizes);
+
+	if (err != DB_SUCCESS) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Could not open or create the system tablespace. If "
@@ -2166,10 +1477,13 @@ innobase_start_or_create_for_mysql(void)
 		return(err);
 	}
 
-#ifdef UNIV_LOG_ARCHIVE
-	srv_normalize_path_for_win(srv_arch_dir);
-	srv_arch_dir = srv_add_path_separator_if_needed(srv_arch_dir);
-#endif /* UNIV_LOG_ARCHIVE */
+	/* Read the values from the header page. */
+	err = srv_sys_space.read_lsn_and_check_flags(
+		&min_flushed_lsn, &max_flushed_lsn);
+
+	if (err != DB_SUCCESS) {
+		return(DB_ERROR);
+	}
 
 	dirnamelen = strlen(srv_log_group_home_dir);
 	ut_a(dirnamelen < (sizeof logfilename) - 10 - sizeof "ib_logfile");
@@ -2190,8 +1504,8 @@ innobase_start_or_create_for_mysql(void)
 
 		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
 
-		err = create_log_files(logfilename, dirnamelen,
-				       max_flushed_lsn, logfile0);
+		err = create_log_files(
+			logfilename, dirnamelen, max_flushed_lsn, logfile0);
 
 		if (err != DB_SUCCESS) {
 			return(err);
@@ -2643,20 +1957,9 @@ files_checked:
 		log_buffer_flush_to_disk();
 	}
 
-	/*--------------- Temp data files -------------------------*/
-	err = open_or_create_temp_data_files();
-	if (err == DB_FAIL) {
+	err = srv_open_tmp_tablespace(&srv_tmp_space);
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The system temp tablespace must be writable!");
-
-		return(DB_ERROR);
-
-	} else if (err != DB_SUCCESS) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Could not create the system temp tablespace.");
-
+	if (err != DB_SUCCESS) {
 		return(err);
 	}
 
@@ -2794,16 +2097,14 @@ files_checked:
 #ifdef UNIV_DEBUG
 	/* buf_debug_prints = TRUE; */
 #endif /* UNIV_DEBUG */
-	sum_of_data_file_sizes = 0;
 
-	for (i = 0; i < srv_n_data_files; i++) {
-		sum_of_data_file_sizes += srv_data_file_sizes[i];
-	}
+	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
+        ut_a(sum_of_new_sizes != ULINT_UNDEFINED);
 
 	tablespace_size_in_header = fsp_header_get_tablespace_size();
 
 	if (!srv_read_only_mode
-	    && !srv_auto_extend_last_data_file
+	    && !srv_sys_space.can_auto_extend_last_file()
 	    && sum_of_data_file_sizes != tablespace_size_in_header) {
 
 		ut_print_timestamp(stderr);
@@ -2847,7 +2148,7 @@ files_checked:
 	}
 
 	if (!srv_read_only_mode
-	    && srv_auto_extend_last_data_file
+	    && srv_sys_space.can_auto_extend_last_file()
 	    && sum_of_data_file_sizes < tablespace_size_in_header) {
 
 		ut_print_timestamp(stderr);
