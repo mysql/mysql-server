@@ -2073,7 +2073,7 @@ ft_nonleaf_put_cmd (ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node, i
     } else if (ft_msg_applies_all(cmd)) {
         ft_nonleaf_cmd_all(compare_fun, desc, node, cmd, is_fresh, flow_deltas);
     } else {
-        paranoid_invariant(ft_msg_applies_none(cmd));
+        paranoid_invariant(ft_msg_does_nothing(cmd));
     }
 }
 

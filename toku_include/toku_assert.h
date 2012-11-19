@@ -9,9 +9,10 @@
 /* This version will complain if NDEBUG is set. */
 /* It evaluates the argument and then calls a function  toku_do_assert() which takes all the hits for the branches not taken. */
 
-#include <stdint.h>
-#include "errno.h"
+#include "config.h"
 
+#include <stdint.h>
+#include <errno.h>
 
 #ifdef NDEBUG
 #error NDEBUG should not be set
@@ -87,12 +88,12 @@ extern void (*do_assert_hook)(void); // Set this to a function you want called a
 #define resource_assert_zero(a) assert_zero(a) // indicates resource must be available, otherwise unrecoverable
 #define resource_assert_equals(a, b) assert_equals(a, b) // indicates resource must be available, otherwise unrecoverable
 
-#ifdef TOKU_DEBUG_PARANOID
+#if TOKU_DEBUG_PARANOID
 #define paranoid_invariant(a) assert(a)
 #define paranoid_invariant_null(a) assert_null(a)
 #define paranoid_invariant_notnull(a) assert(a)
 #define paranoid_invariant_zero(a) assert_zero(a)
-#else
+#else // !TOKU_DEBUG_PARANOID
 #define paranoid_invariant(a) ((void) 0)
 #define paranoid_invariant_null(a) ((void) 0)
 #define paranoid_invariant_notnull(a) ((void) 0)
