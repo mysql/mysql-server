@@ -189,7 +189,6 @@ drop table mysql.db_backup;
 drop table mysql.tables_priv_backup;
 drop table mysql.columns_priv_backup;
 drop table mysql.procs_priv_backup;
-drop table mysql.host_backup;
 
 # Drop the distributed backup tables
 drop table mysql.ndb_user_backup;
@@ -197,7 +196,6 @@ drop table mysql.ndb_db_backup;
 drop table mysql.ndb_tables_priv_backup;
 drop table mysql.ndb_columns_priv_backup;
 drop table mysql.ndb_procs_priv_backup;
-drop table mysql.ndb_host_backup;
 
 # Drop the function and sprocs
 drop function mysql.mysql_cluster_privileges_are_distributed;
@@ -216,7 +214,6 @@ drop table mysql.db_backup;
 drop table mysql.tables_priv_backup;
 drop table mysql.columns_priv_backup;
 drop table mysql.procs_priv_backup;
-drop table mysql.host_backup;
 
 # The distributed backup tables should already have been dropped
 --error ER_NO_SUCH_TABLE
