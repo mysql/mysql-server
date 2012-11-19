@@ -72,7 +72,7 @@ UNIV_INTERN
 dberr_t
 dict_build_tablespace(
 /*==================*/
-	dict_table_t*	table,	/*!< in: table */
+	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx);	/*!< in: InnoDB transaction handle */
 /***********************************************************//**
 Creates an index. This is a high-level function used in SQL execution
@@ -110,21 +110,20 @@ UNIV_INTERN
 ulint
 dict_truncate_index_tree_step(
 /*==========================*/
-	dict_table_t*	table,	/*!< in: the table the index belongs to */
-	ulint		space,	/*!< in: 0=truncate,
-				nonzero=create the index tree in the
-				given tablespace */
-	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
-				record in the clustered index of
-				SYS_INDEXES table. The cursor may be
-				repositioned in this call. */
-	mtr_t*		mtr);	/*!< in: mtr having the latch
-				on the record page. The mtr may be
-				committed and restarted in this call. */
+	const dict_table_t*	table,	/*!< in: the table the index
+					belongs to */
+	ulint			space,	/*!< in: 0=truncate,
+					nonzero=create the index tree in the
+					given tablespace */
+	btr_pcur_t*		pcur,	/*!< in/out: persistent cursor pointing
+					to record in the clustered index of
+					SYS_INDEXES table. The cursor may be
+					repositioned in this call. */
+	mtr_t*			mtr);	/*!< in: mtr having the latch
+					on the record page. The mtr may be
+					committed and restarted in this call. */
 /*******************************************************************//**
 Truncates the index tree but don't update SYS_XXXX table.
-This interface is generally used for temp-tables for which we don't
-update SYS_XXXX table on creation.
 @return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
 void

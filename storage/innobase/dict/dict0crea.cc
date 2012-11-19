@@ -959,17 +959,18 @@ UNIV_INTERN
 ulint
 dict_truncate_index_tree_step(
 /*==========================*/
-	dict_table_t*	table,	/*!< in: the table the index belongs to */
-	ulint		space,	/*!< in: 0=truncate,
-				nonzero=create the index tree in the
-				given tablespace */
-	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
-				record in the clustered index of
-				SYS_INDEXES table. The cursor may be
-				repositioned in this call. */
-	mtr_t*		mtr)	/*!< in: mtr having the latch
-				on the record page. The mtr may be
-				committed and restarted in this call. */
+	const dict_table_t*	table,	/*!< in: the table the index
+					belongs to */
+	ulint			space,	/*!< in: 0=truncate,
+					nonzero=create the index tree in the
+					given tablespace */
+	btr_pcur_t*		pcur,	/*!< in/out: persistent cursor pointing
+					to record in the clustered index of
+					SYS_INDEXES table. The cursor may be
+					repositioned in this call. */
+	mtr_t*			mtr)	/*!< in: mtr having the latch
+					on the record page. The mtr may be
+					committed and restarted in this call. */
 {
 	ulint		root_page_no;
 	ibool		drop = !space;
@@ -1100,7 +1101,7 @@ dict_truncate_index_tree(
 				given tablespace */
 {
 	ulint		root_page_no;
-	ibool		drop = !space;
+	bool		drop = (space == TRX_SYS_SPACE) ? true : false;
 	ulint		zip_size;
 	ulint		type;
 	mtr_t		mtr;
@@ -1140,27 +1141,26 @@ dict_truncate_index_tree(
 			index->table->name);
 	}
 
-	if (!drop) {
-		/* If new tablespace is created then anyways we are
-		dropping existing tablespace so just ignore freeing
-		of btree as they will get dropped along with tablespace */
-		goto create;
+	/* If new tablespace is created then anyways we are
+	dropping existing tablespace so just ignore freeing
+	of btree as they will get dropped along with tablespace */
+	if (drop)
+	{
+		/* We free all the pages but the root page first; this operation
+		may span several mini-transactions */
+
+		btr_free_but_not_root(space, zip_size, root_page_no, NULL);
+
+		/* Then we free the root page in the same mini-transaction where
+		we create the b-tree and write its new root page number to the
+		appropriate field in the SYS_INDEXES record: this
+		mini-transaction marks the B-tree totally truncated */
+
+		btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, &mtr);
+
+		btr_free_root(space, zip_size, root_page_no, &mtr);
 	}
 
-	/* We free all the pages but the root page first; this operation
-	may span several mini-transactions */
-
-	btr_free_but_not_root(space, zip_size, root_page_no, NULL);
-
-	/* Then we free the root page in the same mini-transaction where
-	we create the b-tree and write its new root page number to the
-	appropriate field in the SYS_INDEXES record: this mini-transaction
-	marks the B-tree totally truncated */
-
-	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, &mtr);
-
-	btr_free_root(space, zip_size, root_page_no, &mtr);
-create:
 	mtr_commit(&mtr);
 
 	mtr_start(&mtr);
