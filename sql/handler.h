@@ -425,13 +425,6 @@ enum enum_binlog_command {
   LOGCOM_CREATE_DB,
   LOGCOM_ALTER_DB,
   LOGCOM_DROP_DB
-#ifndef MCP_WL6004_DISTRIBUTION
-  ,LOGCOM_CREATE_USER
-  ,LOGCOM_DROP_USER
-  ,LOGCOM_RENAME_USER
-  ,LOGCOM_GRANT
-  ,LOGCOM_REVOKE
-#endif
 };
 
 /* struct to hold information about the table that should be created */
