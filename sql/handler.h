@@ -425,6 +425,9 @@ enum enum_binlog_command {
   LOGCOM_CREATE_DB,
   LOGCOM_ALTER_DB,
   LOGCOM_DROP_DB
+#ifndef MCP_WL6580
+  ,LOGCOM_ACL_NOTIFY
+#endif
 };
 
 /* struct to hold information about the table that should be created */
