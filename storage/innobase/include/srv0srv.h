@@ -52,6 +52,8 @@ Created 10/10/1995 Heikki Tuuri
 #include "buf0checksum.h"
 #include "ut0counter.h"
 
+#include <vector>
+
 /* Global counters used inside InnoDB. */
 struct srv_stats_t {
 	typedef ib_counter_t<lsn_t, 1, single_indexer_t> lsn_ctr_1_t;
@@ -127,97 +129,6 @@ struct srv_stats_t {
 	ulint_ctr_64_t		n_rows_inserted;
 };
 
-struct srv_temp_tablespace_t {
-
-public:
-	srv_temp_tablespace_t() :
-		m_temp_tablespace_id(0),
-		m_n_temp_data_files(0),
-		m_temp_data_file_names(NULL),
-		m_temp_data_file_sizes(NULL),
-		m_auto_extend_last_temp_data_file(false),
-		m_last_temp_data_file_size_max(0),
-		m_temp_data_auto_extend_increment(8),
-		m_temp_data_file_raw_type(NULL),
-		m_temp_data_created_new_raw(false) {
-	}
-
-	/**
-	Parse the input params and populate member variables.
-	@return true on successfull parse else false*/
-	bool init_params(
-		char*	str);	/*!< in: parse and obtain init value */
-
-protected:
-	srv_temp_tablespace_t(const srv_temp_tablespace_t& rSource);
-	srv_temp_tablespace_t& operator=(
-		const srv_temp_tablespace_t& rSource);
-
-private:
-	/**
-	Convert a numeric string that optionally ends in G or M, to a number
-	containing megabytes.
-	@return next character in string */
-	char* parse_megabytes(
-		char*   str,    /*!< in: string with a quantity in bytes */
-		ulint*  megs)   /*!< out: the number in megabytes */
-	{
-		char*   endp;
-		ulint   size;
-
-		size = strtoul(str, &endp, 10);
-
-		str = endp;
-
-		switch (*str) {
-		case 'G': case 'g':
-			size *= 1024;
-			/* fall through */
-		case 'M': case 'm':
-			str++;
-			break;
-		default:
-			size /= 1024 * 1024;
-			break;
-		}
-
-		*megs = size;
-		return(str);
-	}
-
-public:
-	/** This is dynamically allocated on each start of server. */
-	ulint	m_temp_tablespace_id;
-
-	/** Number of temp data files specified by user that together
-	creates temp tablespace */
-	ulint	m_n_temp_data_files;
-
-	/** Temp data files names */
-	char**	m_temp_data_file_names;
-
-	/** size in database pages */
-	ulint*	m_temp_data_file_sizes;
-
-	/** if TRUE, then we auto-extend the last data file */
-	bool	m_auto_extend_last_temp_data_file;
-
-	/** if != 0, this tells the max size auto-extending may increase the
-	last data file size */
-	ulint	m_last_temp_data_file_size_max;
-
-	/** If the last data file is auto-extended, we add this
-	many pages to it at a time */
-	ulong	m_temp_data_auto_extend_increment;
-
-	/** Capture raw type for each file/partition. */
-	ulint*	m_temp_data_file_raw_type;
-
-	/** If the following is true we do not allow inserts etc. This protects
-	the user from forgetting the 'newraw' keyword to my.cnf */
-	bool	m_temp_data_created_new_raw;
-};
-
 extern const char*	srv_main_thread_op_info;
 
 /** Prefix used by MySQL to indicate pre-5.1 table name encoding */
@@ -246,8 +157,7 @@ extern char		srv_disable_sort_file_cache;
 
 /* If the last data file is auto-extended, we add this many pages to it
 at a time */
-#define SRV_AUTO_EXTEND_INCREMENT	\
-	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
+#define SRV_AUTO_EXTEND_INCREMENT (srv_sys_space.get_autoextend_increment())
 
 /* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 extern ib_mutex_t	srv_monitor_file_mutex;
@@ -325,23 +235,9 @@ extern ulint	srv_undo_tablespaces_open;
 /* The number of undo segments to use */
 extern ulong	srv_undo_logs;
 
-extern ulint	srv_n_data_files;
-extern char**	srv_data_file_names;
-extern ulint*	srv_data_file_sizes;
-extern ulint*	srv_data_file_is_raw_partition;
-
-extern ibool	srv_auto_extend_last_data_file;
-extern ulint	srv_last_file_size_max;
-
-extern srv_temp_tablespace_t	srv_temp_tablespace;
-
 extern char*	srv_log_group_home_dir;
 
 #ifndef UNIV_HOTBACKUP
-extern ulong	srv_auto_extend_increment;
-
-extern ibool	srv_created_new_raw;
-
 /** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
 #define SRV_N_LOG_FILES_MAX 100
 extern ulong	srv_n_log_files;
@@ -567,14 +463,6 @@ do {								\
 # endif /* UNIV_PFS_THREAD */
 
 #endif /* !UNIV_HOTBACKUP */
-
-/** Types of raw partitions in innodb_data_file_path */
-enum {
-	SRV_NOT_RAW = 0,	/*!< Not a raw partition */
-	SRV_NEW_RAW,		/*!< A 'newraw' partition, only to be
-				initialized */
-	SRV_OLD_RAW		/*!< An initialized raw partition */
-};
 
 /** Alternatives for the file flush option in Unix; see the InnoDB manual
 about what these mean */

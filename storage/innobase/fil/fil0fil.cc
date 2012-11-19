@@ -54,6 +54,7 @@ Created 10/25/1995 Heikki Tuuri
 # include "srv0srv.h"
 static ulint srv_data_read, srv_data_written;
 #endif /* !UNIV_HOTBACKUP */
+#include "srv0space.h"
 
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
@@ -1930,38 +1931,25 @@ fil_write_flushed_lsn_to_data_files(
 }
 
 /*******************************************************************//**
-Reads the flushed lsn, arch no, and tablespace flag fields from a data
+Reads the flushed lsn and tablespace flag fields from a data
 file at database startup. */
 UNIV_INTERN
 void
 fil_read_first_page(
 /*================*/
 	os_file_t	data_file,		/*!< in: open data file */
-	ibool		one_read_already,	/*!< in: TRUE if min and max
-						parameters below already
-						contain sensible data */
 	ulint*		flags,			/*!< out: tablespace flags */
 	ulint*		space_id,		/*!< out: tablespace ID */
-#ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,	/*!< out: min of archived
-						log numbers in data files */
-	ulint*		max_arch_log_no,	/*!< out: max of archived
-						log numbers in data files */
-#endif /* UNIV_LOG_ARCHIVE */
 	lsn_t*		min_flushed_lsn,	/*!< out: min of flushed
 						lsn values in data files */
 	lsn_t*		max_flushed_lsn)	/*!< out: max of flushed
 						lsn values in data files */
 {
-	byte*	buf;
-	byte*	page;
-	lsn_t	flushed_lsn;
-
-	buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
+	byte*	buf = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 
 	/* Align the memory for a possible read from a raw device */
 
-	page = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
+	byte*	page = static_cast<byte*>(ut_align(buf, UNIV_PAGE_SIZE));
 
 	os_file_read(data_file, page, 0, UNIV_PAGE_SIZE);
 
@@ -1969,34 +1957,17 @@ fil_read_first_page(
 
 	*space_id = fsp_header_get_space_id(page);
 
-	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
+	lsn_t	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
 	ut_free(buf);
-
-	if (!one_read_already) {
-		*min_flushed_lsn = flushed_lsn;
-		*max_flushed_lsn = flushed_lsn;
-#ifdef UNIV_LOG_ARCHIVE
-		*min_arch_log_no = arch_log_no;
-		*max_arch_log_no = arch_log_no;
-#endif /* UNIV_LOG_ARCHIVE */
-		return;
-	}
 
 	if (*min_flushed_lsn > flushed_lsn) {
 		*min_flushed_lsn = flushed_lsn;
 	}
+
 	if (*max_flushed_lsn < flushed_lsn) {
 		*max_flushed_lsn = flushed_lsn;
 	}
-#ifdef UNIV_LOG_ARCHIVE
-	if (*min_arch_log_no > arch_log_no) {
-		*min_arch_log_no = arch_log_no;
-	}
-	if (*max_arch_log_no < arch_log_no) {
-		*max_arch_log_no = arch_log_no;
-	}
-#endif /* UNIV_LOG_ARCHIVE */
 }
 
 /*================ SINGLE-TABLE TABLESPACES ==========================*/
@@ -3636,11 +3607,7 @@ fil_open_single_table_tablespace(
 	/* Read the first page of the datadir tablespace, if found. */
 	if (def.success) {
 		fil_read_first_page(
-			def.file, FALSE, &def.flags, &def.id,
-#ifdef UNIV_LOG_ARCHIVE
-			&space_arch_log_no, &space_arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
-			&def.lsn, &def.lsn);
+			def.file, &def.flags, &def.id, &def.lsn, &def.lsn);
 
 		/* Validate this single-table-tablespace with SYS_TABLES,
 		but do not compare the DATA_DIR flag, in case the
@@ -3660,16 +3627,15 @@ fil_open_single_table_tablespace(
 	/* Read the first page of the remote tablespace */
 	if (remote.success) {
 		fil_read_first_page(
-			remote.file, FALSE, &remote.flags, &remote.id,
-#ifdef UNIV_LOG_ARCHIVE
-			&remote.arch_log_no, &remote.arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
+			remote.file, &remote.flags, &remote.id,
 			&remote.lsn, &remote.lsn);
 
 		/* Validate this single-table-tablespace with SYS_TABLES,
 		but do not compare the DATA_DIR flag, in case the
 		tablespace was relocated. */
-		ulint mod_remote_flags = remote.flags & ~FSP_FLAGS_MASK_DATA_DIR;
+		ulint mod_remote_flags =
+			remote.flags & ~FSP_FLAGS_MASK_DATA_DIR;
+
 		if (remote.id == id && mod_remote_flags == mod_flags) {
 			valid_tablespaces_found++;
 			remote.valid = TRUE;
@@ -3685,11 +3651,7 @@ fil_open_single_table_tablespace(
 	/* Read the first page of the datadir tablespace, if found. */
 	if (dict.success) {
 		fil_read_first_page(
-			dict.file, FALSE, &dict.flags, &dict.id,
-#ifdef UNIV_LOG_ARCHIVE
-			&dict.arch_log_no, &dict.arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
-			&dict.lsn, &dict.lsn);
+			dict.file, &dict.flags, &dict.id, &dict.lsn, &dict.lsn);
 
 		/* Validate this single-table-tablespace with SYS_TABLES,
 		but do not compare the DATA_DIR flag, in case the
@@ -3914,11 +3876,7 @@ fil_validate_single_table_tablespace(
 	fsp_open_info*	fsp)		/*!< in/out: tablespace info */
 {
 	fil_read_first_page(
-		fsp->file, FALSE, &fsp->flags, &fsp->id,
-#ifdef UNIV_LOG_ARCHIVE
-		&fsp->arch_log_no, &fsp->arch_log_no,
-#endif /* UNIV_LOG_ARCHIVE */
-		&fsp->lsn, &fsp->lsn);
+		fsp->file, &fsp->flags, &fsp->id, &fsp->lsn, &fsp->lsn);
 
 	if (fsp->id == ULINT_UNDEFINED || fsp->id == 0) {
 		fprintf(stderr,
@@ -4841,14 +4799,14 @@ retry:
 	*actual_size = space->size;
 
 #ifndef UNIV_HOTBACKUP
-	if (space_id == 0) {
+	if (space_id == TRX_SYS_SPACE) {
 		ulint pages_per_mb = (1024 * 1024) / page_size;
 
 		/* Keep the last data file size info up to date, rounded to
 		full megabytes */
 
-		srv_data_file_sizes[srv_n_data_files - 1]
-			= (node->size / pages_per_mb) * pages_per_mb;
+		srv_sys_space.set_last_file_size(
+			(node->size / pages_per_mb) * pages_per_mb);
 	}
 #endif /* !UNIV_HOTBACKUP */
 
@@ -5649,13 +5607,12 @@ fil_validate(void)
 	fil_space_t*	space;
 	fil_node_t*	fil_node;
 	ulint		n_open		= 0;
-	ulint		i;
 
 	mutex_enter(&fil_system->mutex);
 
 	/* Look for spaces in the hash table */
 
-	for (i = 0; i < hash_get_n_cells(fil_system->spaces); i++) {
+	for (ulint i = 0; i < hash_get_n_cells(fil_system->spaces); i++) {
 
 		for (space = static_cast<fil_space_t*>(
 				HASH_GET_FIRST(fil_system->spaces, i));
