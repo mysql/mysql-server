@@ -94,7 +94,8 @@ enum perf_output_format {
 struct cli_args {
     int num_elements; // number of elements per DB
     int num_DBs; // number of DBs
-    int time_of_test; // how long test should run
+    int num_seconds; // how long test should run
+    int join_timeout; // how long to wait for threads to join before assuming deadlocks
     bool only_create; // true if want to only create DBs but not run stress
     bool only_stress; // true if DBs are already created and want to only run stress
     int update_broadcast_period_ms; // specific to test_stress3
@@ -245,7 +246,7 @@ human_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], c
         for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
             const uint64_t current = counters[t][op];
             if (cli_args->print_thread_performance) {
-                const double persecond = (double) current / cli_args->time_of_test;
+                const double persecond = (double) current / cli_args->num_seconds;
                 printf("\t%s\t%'12" PRIu64 " (%'12.1lf/s)", operation_names[op], current, persecond);
             }
             overall_totals[op] += current;
@@ -256,7 +257,7 @@ human_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], c
     }
     printf("All threads: ");
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-        const double totalpersecond = (double) overall_totals[op] / cli_args->time_of_test;
+        const double totalpersecond = (double) overall_totals[op] / cli_args->num_seconds;
         printf("\t%s\t%'12" PRIu64 " (%'12.1lf/s)", operation_names[op], overall_totals[op], totalpersecond);
     }
     printf("\n");
@@ -316,14 +317,14 @@ csv_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], con
         for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
             const uint64_t current = counters[t][op];
             if (cli_args->print_thread_performance) {
-                const double persecond = (double) current / cli_args->time_of_test;
+                const double persecond = (double) current / cli_args->num_seconds;
                 printf(",%" PRIu64 ",%.1lf", current, persecond);
             }
             overall_totals[op] += current;
         }
     }
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-        const double totalpersecond = (double) overall_totals[op] / cli_args->time_of_test;
+        const double totalpersecond = (double) overall_totals[op] / cli_args->num_seconds;
         printf(",%" PRIu64 ",%.1lf", overall_totals[op], totalpersecond);
     }
     printf("\n");
@@ -383,14 +384,14 @@ tsv_print_perf_totals(const struct cli_args *cli_args, uint64_t *counters[], con
         for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
             const uint64_t current = counters[t][op];
             if (cli_args->print_thread_performance) {
-                const double persecond = (double) current / cli_args->time_of_test;
+                const double persecond = (double) current / cli_args->num_seconds;
                 printf("\t%" PRIu64 "\t%.1lf", current, persecond);
             }
             overall_totals[op] += current;
         }
     }
     for (int op = 0; op < (int) NUM_OPERATION_TYPES; ++op) {
-        const double totalpersecond = (double) overall_totals[op] / cli_args->time_of_test;
+        const double totalpersecond = (double) overall_totals[op] / cli_args->num_seconds;
         printf("\t%" PRIu64 "\t%.1lf", overall_totals[op], totalpersecond);
     }
     printf("\n");
@@ -1534,8 +1535,8 @@ static int run_workers(
     r = toku_pthread_join(time_tid, &ret); assert_zero(r);
     if (verbose) printf("%lu joined\n", (unsigned long) time_tid);
     // Set an alarm that will kill us if it takes too long to join all the
-    // threads (i.e. there is some runaway thread). Give ten minutes to start.
-    unsigned int remaining = alarm((num_seconds / 10 < 600) ? 600 : num_seconds / 10);
+    // threads (i.e. there is some runaway thread).
+    unsigned int remaining = alarm(cli_args->join_timeout);
     assert_zero(remaining);
     for (int i = 0; i < num_threads; ++i) {
         r = toku_pthread_join(tids[i], &ret); assert_zero(r);
@@ -1919,7 +1920,8 @@ static struct cli_args UU() get_default_args(void) {
     struct cli_args DEFAULT_ARGS = {
         .num_elements = 150000,
         .num_DBs = 1,
-        .time_of_test = 180,
+        .num_seconds = 180,
+        .join_timeout = 600,
         .only_create = false,
         .only_stress = false,
         .update_broadcast_period_ms = 2000,
@@ -2289,7 +2291,8 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
     struct arg_type arg_types[] = {
         INT32_ARG_NONNEG("--num_elements",            num_elements,                  ""),
         INT32_ARG_NONNEG("--num_DBs",                 num_DBs,                       ""),
-        INT32_ARG_NONNEG("--num_seconds",             time_of_test,                  "s"),
+        INT32_ARG_NONNEG("--num_seconds",             num_seconds,                   "s"),
+        INT32_ARG_NONNEG("--join_timeout",            join_timeout,                  "s"),
         INT32_ARG_NONNEG("--node_size",               env_args.node_size,            " bytes"),
         INT32_ARG_NONNEG("--basement_node_size",      env_args.basement_node_size,   " bytes"),
         INT32_ARG_NONNEG("--rollback_node_size",      env_args.rollback_node_size,   " bytes"),
