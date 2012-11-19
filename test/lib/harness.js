@@ -211,6 +211,8 @@ function Suite(name, path) {
   this.clearSmokeTest = {};
   this.suite = {};
   this.numberOfRunningConcurrentTests = 0;
+  this.skipSmokeTest = false;
+  this.skipClearSmokeTest = false;
   udebug.log('Creating Suite for', name, path);
 }
 
@@ -319,7 +321,13 @@ Suite.prototype.runTests = function(result) {
     case 0:
       // smoke test
       // start the smoke test
-      tc.test(result);
+      if(this.skipSmokeTest) {
+        tc.result = result;
+        tc.skip("skipping SmokeTest");
+      }
+      else {
+        tc.test(result);
+      }
       break;
     case 1:
       // concurrent test is the first test
@@ -332,8 +340,14 @@ Suite.prototype.runTests = function(result) {
       break;
     case 3:
       // clear smoke test is the first test
-      tc.test(result);
-      break;
+      if(this.skipClearSmokeTest) {
+       tc.result = result;
+        tc.skip("skipping ClearSmokeTest");
+      }
+      else {
+        tc.test(result);
+        break;
+      }
   }
   return true;
 };
@@ -370,11 +384,14 @@ Suite.prototype.startSerialTests = function(result) {
 Suite.prototype.startClearSmokeTest = function(result) {
   assert(result);
   udebug.log('Suite.startClearSmokeTest');
-  if (this.clearSmokeTest && this.clearSmokeTest.test) {
+  if (this.skipClearSmokeTest) {
+    this.clearSmokeTest.result = result;
+    this.clearSmokeTest.skip("skipping ClearSmokeTest");
+  }
+  else if (this.clearSmokeTest && this.clearSmokeTest.test) {
     this.clearSmokeTest.test(result);
     return false;
   } 
-  // else:
   return true;
 };
 

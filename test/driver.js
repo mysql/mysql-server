@@ -41,6 +41,8 @@ function Driver() {
   this.suites = [];
   this.fileToRun = "";
   this.suitesToRun = "";
+  this.skipSmokeTest = false;
+  this.skipClearSmokeTest = false;
 }
 
 Driver.prototype.findSuites = function(directory) {
@@ -48,8 +50,11 @@ Driver.prototype.findSuites = function(directory) {
   
   if(this.fileToRun) {
     var suitename = path.dirname(this.fileToRun);
-    var pathname = path.join(directory, this.fileToRun);    
-    this.suites.push(new harness.Suite(suitename, pathname));
+    var pathname = path.join(directory, this.fileToRun); 
+    var suite = new harness.Suite(suitename, pathname);
+    if(this.skipSmokeTest)      { suite.skipSmokeTest = true;      }
+    if(this.skipClearSmokeTest) { suite.skipClearSmokeTest = true; }
+    this.suites.push(suite);
   }
   else { 
     /* Read the test directory, building list of suites */
@@ -59,7 +64,10 @@ Driver.prototype.findSuites = function(directory) {
       st = fs.statSync(path.join(directory, f));
       if (st.isDirectory() && this.isSuiteToRun(f)) {
         udebug.log('Driver.findSuites found directory', f);
-        this.suites.push(new harness.Suite(f, path.join(directory, f)));
+        var suite = new harness.Suite(f, path.join(directory, f));
+        if(this.skipSmokeTest)      { suite.skipSmokeTest = true;      }
+        if(this.skipClearSmokeTest) { suite.skipClearSmokeTest = true; }
+        this.suites.push(suite);
       }
     }
   }
@@ -122,7 +130,9 @@ var usageMessage =
   "      --file=<file>: only run the named test file\n" +
   "--adapter=<adapter>: only run on the named adapter (e.g. ndb or mysql)\n" +
   "       --timer=<ms>: set timeout (in msec); set to 0 to disable timer.\n" +
-  "--set <var>=<value>: set a global variable\n"
+  "--set <var>=<value>: set a global variable\n" +
+  "       --skip-smoke: do not run SmokeTest\n" +
+  "       --skip-clear: do not run ClearSmokeTest\n"
   ;
 
 // handle command line arguments
@@ -147,6 +157,12 @@ for(i = 2; i < process.argv.length ; i++) {
   case '--trace':
   case '-t':
     driver.result.listener.printStackTraces = true;
+    break;
+  case '--skip-smoke':
+    driver.skipSmokeTest = true;
+    break;
+  case '--skip-clear': 
+    driver.skipClearSmokeTest = true;
     break;
   case '--set':
     i++;  // next argument
