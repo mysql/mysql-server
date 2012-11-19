@@ -20,6 +20,8 @@
 
 global.util            = require("util");
 
+var udebug      = unified_debug.getLogger("GetMappingTest.js");
+
 expectedMappingFor_t_basic = {
     "table" : "t_basic",
     "database" : "test",
