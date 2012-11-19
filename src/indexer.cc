@@ -27,6 +27,7 @@
 #include <ft/log-internal.h>
 #include <ft/checkpoint.h>
 #include <portability/toku_atomic.h>
+#include "loader.h"
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status
@@ -203,7 +204,7 @@ toku_indexer_create_indexer(DB_ENV *env,
     //
     {
         DB_LOADER* loader = NULL;
-        rval = env->create_loader(env, txn, &loader, NULL, N, &dest_dbs[0], NULL, NULL, DB_PRELOCKED_WRITE | LOADER_USE_PUTS);
+        rval = toku_loader_create_loader(env, txn, &loader, NULL, N, &dest_dbs[0], NULL, NULL, DB_PRELOCKED_WRITE | LOADER_DISALLOW_PUTS, true);
         if (rval) {
             goto create_exit;
         }
@@ -473,6 +474,11 @@ build_index(DB_INDEXER *indexer) {
     //  - unique checks?
 
     if ( result == 0 ) {
+        // Perform a checkpoint so that all of the indexing makes it to disk before continuing.
+        // Otherwise indexing would not be crash-safe becasue none of the undo-do messages are in the recovery log.
+        DB_ENV *env = indexer->i->env;
+        CHECKPOINTER cp = toku_cachetable_get_checkpointer(env->i->cachetable);
+        toku_checkpoint(cp, env->i->logger, NULL, NULL, NULL, NULL, INDEXER_CHECKPOINT);
         (void) toku_sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD), 1);
     } else {
         (void) toku_sync_fetch_and_add(&STATUS_VALUE(INDEXER_BUILD_FAIL), 1);
@@ -486,14 +492,6 @@ static int
 close_indexer(DB_INDEXER *indexer) {
     int r = 0;
     (void) toku_sync_fetch_and_sub(&STATUS_VALUE(INDEXER_CURRENT), 1);
-
-    // Mark txn as needing a checkpoint.
-    // (This will cause a checkpoint, which is necessary
-    //   because these files are not necessarily on disk and all the operations
-    //   to create them are not in the recovery log.)
-    DB_TXN     *txn = indexer->i->txn;
-    TOKUTXN tokutxn = db_txn_struct_i(txn)->tokutxn;
-    toku_txn_require_checkpoint_on_commit(tokutxn);
 
     // Disassociate the indexer from the hot db and free_indexer
     disassociate_indexer_from_hot_dbs(indexer);

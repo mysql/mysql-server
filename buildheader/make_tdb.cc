@@ -272,7 +272,11 @@ static void print_defines (void) {
 
     /* LOADER flags */
     printf("/* LOADER flags */\n");
-    printf("#define LOADER_USE_PUTS 1\n"); // minimize space usage
+    {
+        uint32_t loader_flags = 0;
+        dodefine_from_track(loader_flags, LOADER_DISALLOW_PUTS); // Loader is only used for side effects.
+        dodefine_from_track(loader_flags, LOADER_COMPRESS_INTERMEDIATES);
+    }
 }
 
 static void print_db_env_struct (void) {
@@ -672,7 +676,7 @@ int main (int argc, char *const argv[] __attribute__((__unused__))) {
     printf("  uint8_t  stalled_on_checkpoint;\n");
     printf("} *TOKU_TXN_PROGRESS, TOKU_TXN_PROGRESS_S;\n");
     printf("typedef void(*TXN_PROGRESS_POLL_FUNCTION)(TOKU_TXN_PROGRESS, void*);\n");
-    printf("struct txn_stat {\n  uint64_t rollback_raw_count;\n};\n");
+    printf("struct txn_stat {\n  uint64_t rollback_raw_count;\n  uint64_t rollback_num_entries;\n};\n");
 
     print_db_txn_struct();
     print_db_txn_stat_struct();

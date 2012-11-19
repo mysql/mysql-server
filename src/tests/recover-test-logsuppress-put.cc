@@ -5,6 +5,7 @@
 
 
 // Verify that log-suppress recovery is done properly.  (See ticket 2781.)
+// TODO: determine if this is useful at all anymore (log suppression does not exist anymore)
 
 
 #include <sys/stat.h>
@@ -97,7 +98,7 @@ load(DB **dbs) {
         db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = LOADER_USE_PUTS;
+    uint32_t loader_flags = LOADER_COMPRESS_INTERMEDIATES;
 
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);                                                               

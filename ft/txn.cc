@@ -152,7 +152,6 @@ void toku_txn_create_txn (
         .live_root_txn_list = nullptr,
         .xids = xids,
         .begin_was_logged = false,
-        .checkpoint_needed_before_commit = false,
         .do_fsync = false,
         .force_fsync_on_commit = false,
         .do_fsync_lsn = ZERO_LSN,
@@ -246,20 +245,10 @@ int toku_txn_commit_txn(TOKUTXN txn, int nosync,
                                     poll, poll_extra);
 }
 
-
-void
-toku_txn_require_checkpoint_on_commit(TOKUTXN txn) {
-    txn->checkpoint_needed_before_commit = true;
-}
-
 struct xcommit_info {
     int r;
     TOKUTXN txn;
 };
-
-bool toku_txn_requires_checkpoint(TOKUTXN txn) {
-    return (!txn->parent && txn->checkpoint_needed_before_commit);
-}
 
 int toku_txn_commit_with_lsn(TOKUTXN txn, int nosync, LSN oplsn,
                              TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra) 
@@ -377,16 +366,10 @@ void toku_txn_close_txn(TOKUTXN txn) {
 }
 
 int remove_txn (const FT &h, const uint32_t UU(idx), TOKUTXN const txn);
-int remove_txn (const FT &h, const uint32_t UU(idx), TOKUTXN const txn)
+int remove_txn (const FT &h, const uint32_t UU(idx), TOKUTXN const UU(txn))
 // Effect:  This function is called on every open FT that a transaction used.
 //  This function removes the transaction from that FT.
 {
-    if (txn->txnid64==h->txnid_that_created_or_locked_when_empty) {
-        h->txnid_that_created_or_locked_when_empty = TXNID_NONE;
-    }
-    if (txn->txnid64==h->txnid_that_suppressed_recovery_logs) {
-        h->txnid_that_suppressed_recovery_logs = TXNID_NONE;
-    }
     toku_ft_remove_txn_ref(h);
 
     return 0;

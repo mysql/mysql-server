@@ -46,14 +46,6 @@ int
 note_ft_used_in_txns_parent(const FT &ft, uint32_t UU(index), TOKUTXN const child) {
     TOKUTXN parent = child->parent;
     toku_txn_maybe_note_ft(parent, ft);
-    if (ft->txnid_that_created_or_locked_when_empty == toku_txn_get_txnid(child)) {
-        //Pass magic "no rollback needed" flag to parent.
-        ft->txnid_that_created_or_locked_when_empty = toku_txn_get_txnid(parent);
-    }
-    if (ft->txnid_that_suppressed_recovery_logs == toku_txn_get_txnid(child)) {
-        //Pass magic "no recovery needed" flag to parent.
-        ft->txnid_that_suppressed_recovery_logs = toku_txn_get_txnid(parent);
-    }
     return 0;
 }
 
@@ -216,11 +208,6 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
         // Note the open brts, the omts must be merged
         r = txn->open_fts.iterate<struct tokutxn, note_ft_used_in_txns_parent>(txn);
         assert(r==0);
-
-        // Merge the list of headers that must be checkpointed before commit
-        if (txn->checkpoint_needed_before_commit) {
-            txn->parent->checkpoint_needed_before_commit = true;
-        }
 
         //If this transaction needs an fsync (if it commits)
         //save that in the parent.  Since the commit really happens in the root txn.

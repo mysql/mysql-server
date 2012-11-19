@@ -68,7 +68,8 @@ int NUM_DBS=default_NUM_DBS;
 int NUM_ROWS=default_NUM_ROWS;
 //static int NUM_ROWS=50000000;
 int CHECK_RESULTS=0;
-int USE_PUTS=0;
+int DISALLOW_PUTS=0;
+int COMPRESS=0;
 int event_trigger_lo=0;  // what event triggers to use?
 int event_trigger_hi =0; // 0 and 0 mean none.
 enum {MAGIC=311};
@@ -528,13 +529,17 @@ static void check_results(DB **dbs)
         CKERR(r);
         for(int i=0;i<NUM_ROWS;i++) {
             r = cursor->c_get(cursor, &key, &val, DB_NEXT);    
-            CKERR(r);
-            k = *(unsigned int*)key.data;
-            pkey_for_db_key = (j == 0) ? k : inv_twiddle32(k, j);
-            v = *(unsigned int*)val.data;
-            // test that we have the expected keys and values
-            assert((unsigned int)pkey_for_db_key == (unsigned int)pkey_for_val(v, j));
+            if (DISALLOW_PUTS) {
+                CKERR2(r, EINVAL);
+            } else {
+                CKERR(r);
+                k = *(unsigned int*)key.data;
+                pkey_for_db_key = (j == 0) ? k : inv_twiddle32(k, j);
+                v = *(unsigned int*)val.data;
+                // test that we have the expected keys and values
+                assert((unsigned int)pkey_for_db_key == (unsigned int)pkey_for_val(v, j));
 //            printf(" DB[%d] key = %10u, val = %10u, pkey_for_db_key = %10u, pkey_for_val=%10d\n", j, v, k, pkey_for_db_key, pkey_for_val(v, j));
+            }
         }
         {printf("."); fflush(stdout);}
         r = cursor->c_close(cursor);
@@ -596,7 +601,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
         db_flags[i] = DB_NOOVERWRITE; 
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = USE_PUTS; // set with -p option
+    uint32_t loader_flags = DISALLOW_PUTS | COMPRESS; // set with -p/-z option
 
     if (verbose >= 2) 
 	printf("old inames:\n");
@@ -612,8 +617,10 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
     r = loader->set_poll_function(loader, poll_function, expect_poll_void);
     CKERR(r);
 
-    if (verbose)
-	printf("USE_PUTS = %d\n", USE_PUTS);
+    if (verbose) {
+	printf("DISALLOW_PUTS = %d\n", DISALLOW_PUTS);
+	printf("COMPRESS = %d\n", COMPRESS);
+    }
     if (verbose >= 2) 
 	printf("new inames:\n");
     get_inames(new_inames, dbs);
@@ -627,7 +634,9 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
         dbt_init(&key, &k, sizeof(unsigned int));
         dbt_init(&val, &v, sizeof(unsigned int));
         r = loader->put(loader, &key, &val);
-	if (r != 0) {
+        if (DISALLOW_PUTS) {
+            assert(r == EINVAL);
+        } else if (r != 0) {
 	    assert(error_injection && error_injected);
 	    failed_put = r;
 	}
@@ -649,13 +658,13 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 	}
 	r = loader->close(loader);
 	CKERR(r);
-	if (!USE_PUTS) {
+	if (!DISALLOW_PUTS) {
 	    assert(poll_count>0);
 	    // You cannot count temp files here
 	}
     }
     else if (t == abort_via_poll) {
-	assert(!USE_PUTS);  // test makes no sense with USE_PUTS
+	assert(!DISALLOW_PUTS);  // test makes no sense with DISALLOW_PUTS
 	if (verbose)
 	    printf("closing, but expecting abort via poll\n");
 	r = loader->close(loader);
@@ -674,7 +683,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 	    else
 		printf("closing, expecting no error because number of system calls was less than predicted (%s)\n", type);
 	}
-	if (!USE_PUTS && error_injected) {
+	if (!DISALLOW_PUTS && error_injected) {
 	    if (r == 0) {
 		printf("loader->close() returned 0 but should have failed due to injected error from %s on call %d\n",
 		       err_type_str(t), trigger);
@@ -725,7 +734,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
 
 	r = txn->commit(txn, 0);
 	CKERR(r);
-	if (!USE_PUTS) {
+	if (!DISALLOW_PUTS) {
 	    assert_inames_missing(old_inames);
 	}
 	if ( CHECK_RESULTS ) {
@@ -736,7 +745,7 @@ static void test_loader(enum test_type t, DB **dbs, int trigger)
     else {
 	r = txn->abort(txn);
 	CKERR(r);
-	if (!USE_PUTS) {
+	if (!DISALLOW_PUTS) {
 	    assert_inames_missing(new_inames);
 	}
     }
@@ -962,7 +971,8 @@ static void usage(const char *cmd) {
     fprintf(stderr, "Usage: -h -c -s -p -d <num_dbs> -r <num_rows> -t <elow> <ehi> \n%s\n", cmd);
     fprintf(stderr, "  where -h              print this message.\n");
     fprintf(stderr, "        -c              check the results.\n");
-    fprintf(stderr, "        -p              LOADER_USE_PUTS.\n");
+    fprintf(stderr, "        -p              LOADER_DISALLOW_PUTS.\n");
+    fprintf(stderr, "        -z              LOADER_COMPRESS_INTERMEDIATES.\n");
     fprintf(stderr, "        -k              Test only normal operation and abort_via_poll (but thoroughly).\n");
     fprintf(stderr, "        -s              size_factor=1.\n");
     fprintf(stderr, "        -d <num_dbs>    Number of indexes to create (default=%d).\n", default_NUM_DBS);
@@ -998,8 +1008,10 @@ static void do_args(int argc, char * const argv[]) {
             NUM_ROWS = atoi(argv[0]);
         } else if (strcmp(argv[0], "-c")==0) {
             CHECK_RESULTS = 1;
+        } else if (strcmp(argv[0], "-z")==0) {
+            COMPRESS = LOADER_COMPRESS_INTERMEDIATES;
         } else if (strcmp(argv[0], "-p")==0) {
-            USE_PUTS = 0;
+            DISALLOW_PUTS = LOADER_DISALLOW_PUTS;
 	    printf("DISABLED Using puts as part of #4503\n");
         } else if (strcmp(argv[0], "-k")==0) {
 	    test_only_abort_via_poll = 1;
@@ -1010,7 +1022,7 @@ static void do_args(int argc, char * const argv[]) {
 	    argc--; argv++;
 	    event_trigger_hi = atoi(argv[0]);
 	} else if (strcmp(argv[0], "-s")==0) {
-	    db_env_set_loader_size_factor(1);            
+	    db_env_set_loader_size_factor(1);
         } else if (strcmp(argv[0],"-e") == 0 && argc > 1) {
             argc--; argv++;
             envdir = argv[0];

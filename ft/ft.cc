@@ -15,14 +15,6 @@
 #include <toku_assert.h>
 #include <portability/toku_atomic.h>
 
-void
-toku_ft_suppress_rollbacks(FT h, TOKUTXN txn) {
-    TXNID txnid = toku_txn_get_txnid(txn);
-    assert(h->txnid_that_created_or_locked_when_empty == TXNID_NONE ||
-           h->txnid_that_created_or_locked_when_empty == txnid);
-    h->txnid_that_created_or_locked_when_empty = txnid;
-}
-
 void 
 toku_reset_root_xid_that_created(FT ft, TXNID new_root_xid_that_created) {
     // Reset the root_xid_that_created field to the given value.  
@@ -107,22 +99,6 @@ ft_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
     FILENUM filenum = toku_cachefile_filenum(cf);
     bool unlink_on_close = toku_cachefile_is_unlink_on_close(cf);
     toku_log_fassociate(logger, NULL, 0, filenum, ft->h->flags, bs, unlink_on_close);
-}
-
-// maps to cf->log_suppress_rollback_during_checkpoint
-static void
-ft_log_suppress_rollback_during_checkpoint (CACHEFILE cf, void *header_v) {
-    FT h = (FT) header_v;
-    TXNID xid = h->txnid_that_created_or_locked_when_empty;
-    if (xid != TXNID_NONE) {
-        //Only log if useful.
-        TOKULOGGER logger = toku_cachefile_logger(cf);
-        FILENUM filenum = toku_cachefile_filenum (cf);
-        // We don't have access to the txn here, but the txn is
-        // necessarily already marked as non-readonly.  Use NULL.
-        TOKUTXN txn = NULL;
-        toku_log_suppress_rollback(logger, NULL, 0, txn, filenum, xid);
-    }
 }
 
 // Maps to cf->begin_checkpoint_userdata
@@ -331,7 +307,6 @@ static void ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
     toku_cachefile_set_userdata(ft->cf,
                                 ft,
                                 ft_log_fassociate_during_checkpoint,
-                                ft_log_suppress_rollback_during_checkpoint,
                                 ft_close,
                                 ft_checkpoint,
                                 ft_begin_checkpoint,
@@ -432,7 +407,6 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
     toku_cachefile_set_userdata(cf,
                                 (void*)h,
                                 ft_log_fassociate_during_checkpoint,
-                                ft_log_suppress_rollback_during_checkpoint,
                                 ft_close,
                                 ft_checkpoint,
                                 ft_begin_checkpoint,
@@ -720,15 +694,17 @@ toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft_h, TOKU
     if (txn) {
         toku_txn_maybe_note_ft(txn, new_ft); // mark new ft as touched by this txn
 
+        // There is no recovery log entry for redirect,
+        // and rollback log entries are not allowed for read-only transactions.
+        // Normally the recovery log entry would ensure the begin was logged.
+        if (!txn->begin_was_logged) {
+          toku_maybe_log_begin_txn_for_write_operation(txn);
+        }
         FILENUM old_filenum = toku_cachefile_filenum(old_ft->cf);
         FILENUM new_filenum = toku_cachefile_filenum(new_ft->cf);
         toku_logger_save_rollback_dictionary_redirect(txn, old_filenum, new_filenum);
-
-        TXNID xid = toku_txn_get_txnid(txn);
-        toku_ft_suppress_rollbacks(new_ft, txn);
-        toku_log_suppress_rollback(txn->logger, NULL, 0, txn, new_filenum, xid);
     }
-    
+
 cleanup:
     return r;
 }

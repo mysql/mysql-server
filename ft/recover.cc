@@ -629,26 +629,6 @@ static int toku_recover_backward_xstillopenprepared (struct logtype_xstillopenpr
     return 0;
 }
 
-static int toku_recover_suppress_rollback (struct logtype_suppress_rollback *UU(l), RECOVER_ENV UU(renv)) {
-    struct file_map_tuple *tuple = NULL;
-    int r = file_map_find(&renv->fmap, l->filenum, &tuple);
-    if (r==0) {
-        //File is open
-        TOKUTXN txn = NULL;
-        toku_txnid2txn(renv->logger, l->xid, &txn);
-        assert(txn!=NULL);
-        FT ft = tuple->ft_handle->ft;
-        toku_ft_suppress_rollbacks(ft, txn);
-        toku_txn_maybe_note_ft(txn, ft);
-    }
-    return 0;
-}
-
-static int toku_recover_backward_suppress_rollback (struct logtype_suppress_rollback *UU(l), RECOVER_ENV UU(renv)) {
-    // nothing
-    return 0;
-}
-
 static int toku_recover_xbegin (struct logtype_xbegin *l, RECOVER_ENV renv) {
     int r;
     r = recover_transaction(NULL, l->xid, l->parentxid, renv->logger);

@@ -152,7 +152,6 @@ struct tokutxn {
     bool begin_was_logged;
     // These are not read until a commit, prepare, or abort starts, and
     // they're "monotonic" (only go false->true) during operation:
-    bool checkpoint_needed_before_commit;
     bool do_fsync;
     bool force_fsync_on_commit;  //This transaction NEEDS an fsync once (if) it commits.  (commit means root txn)
 

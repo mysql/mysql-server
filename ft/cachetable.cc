@@ -2815,7 +2815,6 @@ void
 toku_cachefile_set_userdata (CACHEFILE cf,
                              void *userdata,
                              void (*log_fassociate_during_checkpoint)(CACHEFILE, void*),
-                             void (*log_suppress_rollback_during_checkpoint)(CACHEFILE, void*),
                              void (*close_userdata)(CACHEFILE, int, void*, bool, LSN),
                              void (*checkpoint_userdata)(CACHEFILE, int, void*),
                              void (*begin_checkpoint_userdata)(LSN, void*),
@@ -2824,7 +2823,6 @@ toku_cachefile_set_userdata (CACHEFILE cf,
                              void (*note_unpin_by_checkpoint)(CACHEFILE, void*)) {
     cf->userdata = userdata;
     cf->log_fassociate_during_checkpoint = log_fassociate_during_checkpoint;
-    cf->log_suppress_rollback_during_checkpoint = log_suppress_rollback_during_checkpoint;
     cf->close_userdata = close_userdata;
     cf->checkpoint_userdata = checkpoint_userdata;
     cf->begin_checkpoint_userdata = begin_checkpoint_userdata;
@@ -4181,34 +4179,27 @@ void checkpointer::log_begin_checkpoint() {
     TXNID last_xid = toku_txn_manager_get_last_xid(mgr);
     toku_log_begin_checkpoint(m_logger, &begin_lsn, 0, 0, last_xid);
     m_lsn_of_checkpoint_in_progress = begin_lsn;
-    
+
     // Log the list of open dictionaries.
     for (CACHEFILE cf = m_cf_list->m_head; cf; cf = cf->next) {
         assert(cf->log_fassociate_during_checkpoint);
         cf->log_fassociate_during_checkpoint(cf, cf->userdata);
     }
-    
+
     // Write open transactions to the log.
     r = toku_txn_manager_iter_over_live_txns<checkpointer, log_open_txn> (
-        m_logger->txn_manager, 
+        m_logger->txn_manager,
         this);
     assert(r == 0);
-    
-    // Writes list of dictionaries that have had
-    // rollback logs suppressed.
-    for (CACHEFILE cf = m_cf_list->m_head; cf; cf = cf->next) {
-        assert(cf->log_suppress_rollback_during_checkpoint);
-        cf->log_suppress_rollback_during_checkpoint(cf, cf->userdata);
-    }
 }
 
 //
-// Sets the pending bits of EVERY PAIR in the cachetable, regardless of 
+// Sets the pending bits of EVERY PAIR in the cachetable, regardless of
 // whether the PAIR is clean or not. It will be the responsibility of
 // end_checkpoint or client threads to simply clear the pending bit
 // if the PAIR is clean.
 //
-// On entry and exit , the pair list's read list lock is grabbed, and 
+// On entry and exit , the pair list's read list lock is grabbed, and
 // both pending locks are grabbed
 //
 void checkpointer::turn_on_pending_bits() {

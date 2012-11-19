@@ -20,9 +20,6 @@
 void toku_ft_unlink(FT_HANDLE handle);
 void toku_ft_unlink_on_commit(FT_HANDLE handle, TOKUTXN txn);
 
-//Effect: suppresses rollback logs
-void toku_ft_suppress_rollbacks(FT h, TOKUTXN txn);
-
 void toku_ft_init_reflock(FT ft);
 void toku_ft_destroy_reflock(FT ft);
 void toku_ft_grab_reflock(FT ft);
@@ -60,19 +57,19 @@ toku_ft_init(
 int toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) __attribute__ ((warn_unused_result));
 int toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft, TOKUTXN txn);
 void toku_reset_root_xid_that_created(FT h, TXNID new_root_xid_that_created);
-// Reset the root_xid_that_created field to the given value.  
+// Reset the root_xid_that_created field to the given value.
 // This redefines which xid created the dictionary.
 
 void toku_ft_add_txn_ref(FT h);
 void toku_ft_remove_txn_ref(FT h);
 
 void toku_calculate_root_offset_pointer ( FT h, CACHEKEY* root_key, uint32_t *roothash);
-void toku_ft_set_new_root_blocknum(FT h, CACHEKEY new_root_key); 
+void toku_ft_set_new_root_blocknum(FT h, CACHEKEY new_root_key);
 LSN toku_ft_checkpoint_lsn(FT h)  __attribute__ ((warn_unused_result));
 void toku_ft_stat64 (FT h, struct ftstat64_s *s);
 
-// unconditionally set the descriptor for an open FT. can't do this when 
-// any operation has already occurred on the ft. 
+// unconditionally set the descriptor for an open FT. can't do this when
+// any operation has already occurred on the ft.
 // see toku_ft_change_descriptor(), which is the transactional version
 // used by the ydb layer. it better describes the client contract.
 void toku_ft_update_descriptor(FT ft, DESCRIPTOR d);

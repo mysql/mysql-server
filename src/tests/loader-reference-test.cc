@@ -11,7 +11,8 @@
 static const char *envdir = ENVDIR;
 
 DB_ENV *env;
-int USE_PUTS=0;
+int DISALLOW_PUTS=0;
+int COMPRESS=0;
 enum {MAX_NAME=128};
 enum {NUM_DBS=1};
 enum {NUM_KV_PAIRS=3};
@@ -47,14 +48,14 @@ static void test_loader(DB **dbs)
     DB_LOADER *loader;
     uint32_t db_flags[NUM_DBS];
     uint32_t dbt_flags[NUM_DBS];
-    for(int i=0;i<NUM_DBS;i++) { 
-        db_flags[i] = DB_NOOVERWRITE; 
+    for(int i=0;i<NUM_DBS;i++) {
+        db_flags[i] = DB_NOOVERWRITE;
         dbt_flags[i] = 0;
     }
-    uint32_t loader_flags = USE_PUTS; // set with -p option
+    uint32_t loader_flags = DISALLOW_PUTS | COMPRESS; // set with -p or -c option
 
     // create and initialize loader
-    r = env->txn_begin(env, NULL, &txn, 0);                                                               
+    r = env->txn_begin(env, NULL, &txn, 0);
     CKERR(r);
     r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags);
     CKERR(r);
@@ -62,7 +63,7 @@ static void test_loader(DB **dbs)
     CKERR(r);
     r = loader->set_poll_function(loader, NULL, NULL);
     CKERR(r);
-    
+
     uint64_t before_puts = toku_test_get_latest_lsn(env);
     // using loader->put, put values into DB
     DBT key, val;
@@ -70,7 +71,11 @@ static void test_loader(DB **dbs)
         dbt_init(&key, &kv_pairs[i].key, sizeof(kv_pairs[i].key));
         dbt_init(&val, &kv_pairs[i].val, sizeof(kv_pairs[i].val));
         r = loader->put(loader, &key, &val);
-        CKERR(r);
+        if (DISALLOW_PUTS) {
+            CKERR2(r, EINVAL);
+        } else {
+            CKERR(r);
+        }
     }
     uint64_t after_puts = toku_test_get_latest_lsn(env);
     assert(before_puts == after_puts);
@@ -90,11 +95,15 @@ static void test_loader(DB **dbs)
         r = dbs[j]->cursor(dbs[j], txn, &cursor, 0);
         CKERR(r);
         for(int i=0;i<NUM_KV_PAIRS;i++) {
-            r = cursor->c_get(cursor, &key, &val, DB_NEXT);    
+            r = cursor->c_get(cursor, &key, &val, DB_NEXT);
 	    if (r!=0) { fprintf(stderr, "r==%d, failure\n", r); }
-            CKERR(r);
-            assert(*(int64_t*)key.data == kv_pairs[i].key);
-            assert(*(int64_t*)val.data == kv_pairs[i].val);
+            if (DISALLOW_PUTS) {
+                CKERR2(r, DB_NOTFOUND);
+            } else {
+                CKERR(r);
+                assert(*(int64_t*)key.data == kv_pairs[i].key);
+                assert(*(int64_t*)val.data == kv_pairs[i].val);
+            }
         }
         cursor->c_close(cursor);
     }
@@ -185,7 +194,9 @@ static void do_args(int argc, char * const argv[]) {
 	    fprintf(stderr, "Usage:\n%s\n", cmd);
 	    exit(resultcode);
         } else if (strcmp(argv[0], "-p")==0) {
-            USE_PUTS = 1;
+            DISALLOW_PUTS = LOADER_DISALLOW_PUTS;
+        } else if (strcmp(argv[0], "-z")==0) {
+            COMPRESS = LOADER_COMPRESS_INTERMEDIATES;
         } else if (strcmp(argv[0], "--block_size") == 0) {
             argc--; argv++;
             block_size = atoi(argv[0]);

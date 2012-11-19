@@ -89,9 +89,6 @@ struct __toku_loader_internal {
     void *poll_extra;
     char *temp_file_template;
 
-    DBT *ekeys;
-    DBT *evals;
-
     DBT err_key;   /* error key */
     DBT err_val;   /* error val */
     int err_i;     /* error i   */
@@ -109,21 +106,6 @@ struct __toku_loader_internal {
 static void free_loader_resources(DB_LOADER *loader) 
 {
     if ( loader->i ) {
-        for (int i=0; i<loader->i->N; i++) {
-            if (loader->i->ekeys &&
-                loader->i->ekeys[i].data &&
-                loader->i->ekeys[i].flags == DB_DBT_REALLOC) {
-                toku_free(loader->i->ekeys[i].data);
-            }
-            if (loader->i->evals &&
-                loader->i->evals[i].data &&
-                loader->i->evals[i].flags == DB_DBT_REALLOC) {
-                toku_free(loader->i->evals[i].data);
-            }
-        }
-        if (loader->i->ekeys)              toku_free(loader->i->ekeys);
-        if (loader->i->evals)              toku_free(loader->i->evals);
-
         if (loader->i->err_key.data)       toku_free(loader->i->err_key.data);
         if (loader->i->err_val.data)       toku_free(loader->i->err_val.data);
 
@@ -171,24 +153,27 @@ static int ft_loader_close_and_redirect(DB_LOADER *loader) {
 }
 
 
-static int create_loader(DB_ENV *env, 
-                              DB_TXN *txn, 
-                              DB_LOADER **blp, 
-                              DB *src_db, 
-                              int N, 
-                              DB *dbs[], 
-                              uint32_t db_flags[/*N*/], 
-                              uint32_t dbt_flags[/*N*/], 
-                              uint32_t loader_flags,
-                              bool check_empty)
-{
+// loader_flags currently has the following flags:
+//   LOADER_DISALLOW_PUTS     loader->put is not allowed.
+//                            Loader is only being used for its side effects
+//   DB_PRELOCKED_WRITE       Table lock is already held, no need to relock.
+int
+toku_loader_create_loader(DB_ENV *env,
+                          DB_TXN *txn,
+                          DB_LOADER **blp,
+                          DB *src_db,
+                          int N,
+                          DB *dbs[],
+                          uint32_t db_flags[/*N*/],
+                          uint32_t dbt_flags[/*N*/],
+                          uint32_t loader_flags,
+                          bool check_empty) {
     int rval;
-    bool use_ft_loader = (loader_flags == 0); 
 
     *blp = NULL;           // set later when created
 
     DB_LOADER *loader = NULL;
-    bool use_puts = loader_flags&LOADER_USE_PUTS;
+    bool puts_allowed = !(loader_flags & LOADER_DISALLOW_PUTS);
     XCALLOC(loader);       // init to all zeroes (thus initializing the error_callback and poll_func)
     XCALLOC(loader->i);    // init to all zeroes (thus initializing all pointers to NULL)
 
@@ -248,10 +233,8 @@ static int create_loader(DB_ENV *env,
         for (int i=0; i<N; i++) {
             brts[i] = dbs[i]->i->ft_handle;
         }
-        loader->i->ekeys = NULL;
-        loader->i->evals = NULL;
         LSN load_lsn;
-        rval = locked_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, use_ft_loader);
+        rval = locked_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, puts_allowed);
         if ( rval!=0 ) {
             toku_free(new_inames_in_env);
             toku_free(brts);
@@ -269,7 +252,7 @@ static int create_loader(DB_ENV *env,
                                  loader->i->temp_file_template,
                                  load_lsn,
                                  ttxn,
-                                 !use_puts);
+                                 puts_allowed);
         if ( rval!=0 ) {
             toku_free(new_inames_in_env);
             toku_free(brts);
@@ -278,18 +261,9 @@ static int create_loader(DB_ENV *env,
         loader->i->inames_in_env = new_inames_in_env;
         toku_free(brts);
 
-        if (use_puts) {
-            XCALLOC_N(loader->i->N, loader->i->ekeys);
-            XCALLOC_N(loader->i->N, loader->i->evals);
-            // the following function grabs the ydb lock, so we
-            // first unlock before calling it
+        if (!puts_allowed) {
             rval = ft_loader_close_and_redirect(loader);
             assert_zero(rval);
-            for (int i=0; i<N; i++) {
-                loader->i->ekeys[i].flags = DB_DBT_REALLOC;
-                loader->i->evals[i].flags = DB_DBT_REALLOC;
-                toku_ft_suppress_recovery_logs(dbs[i]->i->ft_handle, db_txn_struct_i(txn)->tokutxn);
-            }
             loader->i->ft_loader = NULL;
             // close the ft_loader and skip to the redirection
             rval = 0;
@@ -311,37 +285,6 @@ static int create_loader(DB_ENV *env,
     }
     return rval;
 }
-
-// loader_flags currently has three possible values:
-//   0                   use brt loader
-//   USE_PUTS            do not use brt loader, use log suppression mechanism (2440)
-//                       which results in recursive call here via toku_db_pre_acquire_table_lock()
-//   DB_PRELOCKED_WRITE  do not use brt loader, this is the recursive (inner) call via 
-//                       toku_db_pre_acquire_table_lock()
-int toku_loader_create_loader(DB_ENV *env, 
-                              DB_TXN *txn, 
-                              DB_LOADER **blp, 
-                              DB *src_db, 
-                              int N, 
-                              DB *dbs[], 
-                              uint32_t db_flags[/*N*/], 
-                              uint32_t dbt_flags[/*N*/], 
-                              uint32_t loader_flags)
-{
-    return create_loader(
-        env, 
-        txn, 
-        blp, 
-        src_db, 
-        N, 
-        dbs, 
-        db_flags, 
-        dbt_flags, 
-        loader_flags, 
-        true
-        );
-}
-
 
 int toku_loader_set_poll_function(DB_LOADER *loader,
                                   int (*poll_func)(void *extra, float progress),
@@ -377,16 +320,9 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
         goto cleanup;
     }
 
-    if (loader->i->loader_flags & LOADER_USE_PUTS) {
-        r = loader->i->env->put_multiple(loader->i->env,
-                                         loader->i->src_db, // src_db
-                                         loader->i->txn,
-                                         key, val,
-                                         loader->i->N, // num_dbs
-                                         loader->i->dbs, // (DB**)db_array
-                                         loader->i->ekeys, 
-                                         loader->i->evals,
-                                         loader->i->db_flags); // flags_array
+    if (loader->i->loader_flags & LOADER_DISALLOW_PUTS) {
+        r = EINVAL;
+        goto cleanup;
     }
     else {
         // calling toku_ft_loader_put without a lock assumes that the 
@@ -422,7 +358,7 @@ int toku_loader_put(DB_LOADER *loader, DBT *key, DBT *val)
 
 static void redirect_loader_to_empty_dictionaries(DB_LOADER *loader) {
     DB_LOADER* tmp_loader = NULL;
-    int r = create_loader(
+    int r = toku_loader_create_loader(
         loader->i->env,
         loader->i->txn,
         &tmp_loader,
@@ -446,7 +382,7 @@ int toku_loader_close(DB_LOADER *loader)
         if ( loader->i->error_callback != NULL ) {
             loader->i->error_callback(loader->i->dbs[loader->i->err_i], loader->i->err_i, loader->i->err_errno, &loader->i->err_key, &loader->i->err_val, loader->i->error_extra);
         }
-        if (!(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
+        if (!(loader->i->loader_flags & LOADER_DISALLOW_PUTS ) ) {
             r = toku_ft_loader_abort(loader->i->ft_loader, true);
             redirect_loader_to_empty_dictionaries(loader);
         }
@@ -455,7 +391,7 @@ int toku_loader_close(DB_LOADER *loader)
         }
     } 
     else { // no error outstanding 
-        if (!(loader->i->loader_flags & LOADER_USE_PUTS ) ) {
+        if (!(loader->i->loader_flags & LOADER_DISALLOW_PUTS ) ) {
             r = ft_loader_close_and_redirect(loader);
             if (r) {
                 redirect_loader_to_empty_dictionaries(loader);
@@ -481,7 +417,7 @@ int toku_loader_abort(DB_LOADER *loader)
         }
     }
 
-    if (!(loader->i->loader_flags & LOADER_USE_PUTS) ) {
+    if (!(loader->i->loader_flags & LOADER_DISALLOW_PUTS) ) {
         r = toku_ft_loader_abort(loader->i->ft_loader, true);
         lazy_assert_zero(r);
     }

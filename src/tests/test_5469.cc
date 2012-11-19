@@ -21,7 +21,7 @@ static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT *dest_key,
 }
 
 static void
-test_loader_abort (bool use_puts, bool abort_loader, bool abort_txn) {
+test_loader_abort (bool do_compress, bool abort_loader, bool abort_txn) {
     DB_ENV * env;
     DB *db;
     DB_TXN *txn;
@@ -35,7 +35,7 @@ test_loader_abort (bool use_puts, bool abort_loader, bool abort_txn) {
     DB_LOADER *loader;
     uint32_t db_flags = 0;
     uint32_t dbt_flags = 0;    
-    uint32_t loader_flags = use_puts ? LOADER_USE_PUTS : 0;
+    uint32_t loader_flags = do_compress ? LOADER_COMPRESS_INTERMEDIATES : 0;
     DBC* cursor = NULL;
 
     /* create the dup database file */

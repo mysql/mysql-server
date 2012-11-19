@@ -1453,7 +1453,7 @@ env_create_loader(DB_ENV *env,
                   uint32_t db_flags[/*N*/],
                   uint32_t dbt_flags[/*N*/],
                   uint32_t loader_flags) {
-    int r = toku_loader_create_loader(env, txn, blp, src_db, N, dbs, db_flags, dbt_flags, loader_flags);
+    int r = toku_loader_create_loader(env, txn, blp, src_db, N, dbs, db_flags, dbt_flags, loader_flags, true);
     return r;
 }
 

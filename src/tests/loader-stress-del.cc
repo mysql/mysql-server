@@ -23,7 +23,8 @@ enum {MAX_DBS=1024};
 int NUM_DBS=1;
 int NUM_ROWS=1000000;
 int CHECK_RESULTS=1;
-int USE_PUTS=0;
+int DISALLOW_PUTS=0;
+int COMPRESS=0;
 enum { old_default_cachesize=1024 }; // MB
 int CACHESIZE=old_default_cachesize;
 int ALLOW_DUPS=0;
@@ -247,13 +248,18 @@ static void check_results(DB **dbs) {
 
         // generate the expected keys
         unsigned int *expected_key = (unsigned int *) toku_malloc(NUM_ROWS * sizeof (unsigned int));
-        for (int i = 0; i < NUM_ROWS; i++)
+        for (int i = 0; i < NUM_ROWS; i++) {
             expected_key[i] = j == 0 ? (unsigned int)(i+1) : twiddle32(i+1, j);
+        }
         // sort the keys
         qsort(expected_key, NUM_ROWS, sizeof (unsigned int), uint_cmp);
 
         for (int i = 0; i < NUM_ROWS+1; i++) {
             r = cursor->c_get(cursor, &key, &val, DB_NEXT);
+            if (DISALLOW_PUTS) {
+                CKERR2(r, DB_NOTFOUND);
+                break;
+            }
             if (r == DB_NOTFOUND) {
                 assert(i == NUM_ROWS); // check that there are exactly NUM_ROWS in the dictionary
                 break;
@@ -393,16 +399,16 @@ static void test_loader(DB **dbs)
     uint32_t db_flags[MAX_DBS];
     uint32_t dbt_flags[MAX_DBS];
     uint32_t flags = DB_NOOVERWRITE;
-    if ( (USE_PUTS == 1) && (ALLOW_DUPS == 1) ) flags = 0;
+    if ( (DISALLOW_PUTS != 0) && (ALLOW_DUPS == 1) ) flags = 0;
     for(int i=0;i<MAX_DBS;i++) { 
         db_flags[i] = flags;
         dbt_flags[i] = 0;
     }
     
-    uint32_t loader_flags = USE_PUTS ? LOADER_USE_PUTS : 0; // set with -p option
+    uint32_t loader_flags = DISALLOW_PUTS | COMPRESS; // set with -p option
 
     // create and initialize loader
-    r = env->txn_begin(env, NULL, &txn, 0);                                                               
+    r = env->txn_begin(env, NULL, &txn, 0);
     CKERR(r);
     hiwater_start = hiwater;
     if (footprint_print)  printf("%s:%d Hiwater=%ld water=%ld\n", __FILE__, __LINE__, hiwater, water);
@@ -423,7 +429,11 @@ static void test_loader(DB **dbs)
         dbt_init(&key, &k, sizeof(unsigned int));
         dbt_init(&val, &v, sizeof(unsigned int));
         r = loader->put(loader, &key, &val);
-        CKERR(r);
+        if (DISALLOW_PUTS) {
+            CKERR2(r, EINVAL);
+        } else {
+            CKERR(r);
+        }
         if ( verbose) { if((i%10000) == 0){printf("."); fflush(stdout);} }
     }
     if ( verbose ) {printf("\n"); fflush(stdout);}        
@@ -445,7 +455,7 @@ static void test_loader(DB **dbs)
     CKERR2s(r,0,TOKUDB_CANCELED);
 
     if (r==0) {
-	if ( USE_PUTS == 0 ) {
+	if ( DISALLOW_PUTS == 0 ) {
 	    if (poll_count == 0) printf("%s:%d\n", __FILE__, __LINE__);
 	    assert(poll_count>0);
 	}
@@ -650,7 +660,9 @@ static void do_args(int argc, char * const argv[]) {
         } else if (strcmp(argv[0], "-c")==0) {
             CHECK_RESULTS = 1;
         } else if (strcmp(argv[0], "-p")==0) {
-            USE_PUTS = 1;
+            DISALLOW_PUTS = LOADER_DISALLOW_PUTS;
+        } else if (strcmp(argv[0], "-z")==0) {
+            COMPRESS = LOADER_COMPRESS_INTERMEDIATES;
         } else if (strcmp(argv[0], "-m")==0) {
             argc--; argv++;
             CACHESIZE = atoi(argv[0]);
