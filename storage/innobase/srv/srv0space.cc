@@ -34,11 +34,38 @@ UNIV_INTERN Tablespace srv_sys_space;
 /** The control info of a temporary table shared tablespace. */
 UNIV_INTERN Tablespace srv_tmp_space;
 
-// FIXME: Get rid of the name parameter, move to file_t
+/**
+Convert a numeric string that optionally ends in G or M, to a number
+containing megabytes.
+@param str - string with a quantity in bytes
+@param megs - out the number in megabytes
+@return next character in string */
+char*
+Tablespace::parse_units(char* ptr, ulint* megs)
+{
+	char*   	endp;
+
+	*megs = strtoul(ptr, &endp, 10);
+
+	ptr = endp;
+
+	switch (*ptr) {
+	case 'G': case 'g':
+		*megs *= 1024;
+		/* fall through */
+	case 'M': case 'm':
+		++ptr;
+		break;
+	default:
+		*megs /= 1024 * 1024;
+		break;
+	}
+
+	return(ptr);
+}
 
 /**
 Parse the input params and populate member variables.
-@param home_dir - MySQL data home directory
 @param filepath - path to data files
 @return true on success parse */
 UNIV_INTERN
@@ -235,7 +262,8 @@ Tablespace::parse(const char* filepath, bool supports_raw)
 	return(true);
 }
 
-/** Check if two shared tablespaces have common data file names. 
+/**
+Check if two shared tablespaces have common data file names. 
 @param space1 - space to check
 @param space2 - space to check
 @return true if they have the same data filenames and paths */
@@ -281,7 +309,8 @@ Tablespace::shutdown()
 	m_auto_extend_increment = 0;
 }
 
-/** @return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
+/**
+@return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
 ulint
 Tablespace::get_sum_of_sizes() const
 {
@@ -351,6 +380,7 @@ Tablespace::check_size(file_t& file)
 	/* Round size downward to megabytes */
 	ulint	rounded_size_pages = (ulint) (size >> UNIV_PAGE_SIZE_SHIFT);
 
+	/* If last file */
 	if (&file == &m_files.back() && m_auto_extend_last_file) {
 
 		if (file.m_size > rounded_size_pages
@@ -541,10 +571,9 @@ Tablespace::open_file(file_t& file)
 /**
 Read the flush lsn values and check the header flags.
 
-@param file - file control information
 @param min_flushed_lsn - min of flushed lsn values in data files
 @param max_flushed_lsn - max of flushed lsn values in data files
-@return DB_SUCCESS if all OK */
+@return DB_SUCCESS or error code */
 dberr_t
 Tablespace::read_lsn_and_check_flags(
 	lsn_t*		min_flushed_lsn,
@@ -831,9 +860,6 @@ Tablespace::check_file_spec(ibool* create_new_db)
 /**
 Opens/Creates the data files if they don't exist.
 
-@param create_new_db - TRUE if new database should be created
-@param min_flushed_lsn - min of flushed lsn values in data files
-@param max_flushed_lsn - max of flushed lsn values in data files
 @param sum_of_new_sizes - sum of sizes of the new files added 
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
@@ -904,4 +930,85 @@ Tablespace::open(ulint* sum_of_new_sizes)
 	}
 
 	return(err);
+}
+
+/**
+Normalize the file size, convert to extents. */
+void
+Tablespace::normalize()
+{
+	files_t::iterator	end = m_files.end();
+
+	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
+
+		it->m_size *= (1024 * 1024) / UNIV_PAGE_SIZE;
+	}
+
+	m_last_file_size_max *= (1024 * 1024) / UNIV_PAGE_SIZE;
+}
+
+
+/**
+@return next increment size */
+ulint
+Tablespace::get_increment() const
+{
+	ulint	increment;
+
+	if (m_last_file_size_max == 0) {
+		increment = get_autoextend_increment();
+	} else {
+
+		if (!is_valid_size()) {
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Last data file size is %lu, max "
+				"size allowed %lu",
+				last_file_size(),
+				m_last_file_size_max);
+		}
+
+		increment = m_last_file_size_max - last_file_size();
+	}
+
+	if (increment > get_autoextend_increment()) {
+		increment = get_autoextend_increment();
+	}
+
+	return(increment);
+}
+
+
+/**
+@return true if configured to use raw devices */
+bool
+Tablespace::has_raw_device() const
+{
+	files_t::const_iterator	end = m_files.end();
+
+	for (files_t::const_iterator it = m_files.begin(); it != end; ++it) {
+
+		if (is_raw_device(*it)) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
+/**
+@return true if the filename exists in the data files */
+bool
+Tablespace::find(const char* filename) const
+{
+	files_t::const_iterator	end = m_files.end();
+
+	for (files_t::const_iterator it = m_files.begin(); it != end; ++it) {
+
+		if (innobase_strcasecmp(filename, it->m_name) == 0) {
+			return(true);
+		}
+	}
+
+	return(false);
 }

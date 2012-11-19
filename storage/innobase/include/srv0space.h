@@ -163,6 +163,7 @@ public:
 		m_created_new_raw(),
 		m_auto_extend_increment()
 	{
+		/* No op */
 	}
 
 	~Tablespace()
@@ -172,6 +173,9 @@ public:
 		ut_ad(m_space_id == ULINT_UNDEFINED);
 	}
 
+	/**
+	Set the space id of the tablespace
+	@param space_id - space id to set */
 	void set_space_id(ulint space_id)
 	{
 		ut_a(m_space_id == ULINT_UNDEFINED);
@@ -195,38 +199,33 @@ public:
 	Free the memory allocated by parse() */
 	void shutdown();
 
-	/** Normalize the file size, convert to extents. */
-	void normalize()
-	{
-		files_t::iterator	end = m_files.end();
+	/**
+	Normalize the file size, convert to extents. */
+	void normalize();
 
-		for (files_t::iterator it = m_files.begin(); it != end; ++it) {
-
-			it->m_size *= (1024 * 1024) / UNIV_PAGE_SIZE;
-		}
-
-		m_last_file_size_max *= (1024 * 1024) / UNIV_PAGE_SIZE;
-	}
-
-	/* @return the space id of this tablespace. */
+	/**
+	@return the space id of this tablespace. */
 	ulint space_id() const
 	{
 		return(m_space_id);
 	}
 
-	/** @return true if a new raw device was created. */
+	/**
+	@return true if a new raw device was created. */
 	bool created_new_raw() const
 	{
 		return(m_created_new_raw);
 	}
 
-	/** @return auto_extend value setting */
+	/**
+	@return auto_extend value setting */
 	ulint can_auto_extend_last_file() const
 	{
 		return(m_auto_extend_last_file);
 	}
 
-	/* Set the last file size.
+	/**
+	Set the last file size.
 	@param size - the size to set */
 	void set_last_file_size(ulint size)
 	{
@@ -238,35 +237,12 @@ public:
 	@return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
 	ulint get_sum_of_sizes() const;
 
-	/** @return next increment size */
-	ulint get_increment() const
-	{
-		ulint	increment;
-
-		if (m_last_file_size_max == 0) {
-			increment = get_autoextend_increment();
-		} else {
-			if (!is_valid_size()) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Last data file size is %lu, max "
-					"size allowed %lu",
-					last_file_size(),
-					m_last_file_size_max);
-			}
-
-			increment = m_last_file_size_max - last_file_size();
-		}
-
-		if (increment > get_autoextend_increment()) {
-			increment = get_autoextend_increment();
-		}
-
-		return(increment);
-	}
+	/**
+	@return next increment size */
+	ulint get_increment() const;
 
 	/**
-	Open or create the data files.
+	Open the data files.
 
 	@param sum_of_new_sizes - sum of sizes of new files added
 	@return DB_SUCCESS or error code */
@@ -275,73 +251,49 @@ public:
 	/**
 	Read the flush lsn values and check the header flags.
 
-	@param file - file control information
 	@param min_flushed_lsn - min of flushed lsn values in data files
 	@param max_flushed_lsn - max of flushed lsn values in data files
-	@return DB_SUCCESS if all OK */
+	@return DB_SUCCESS or error code */
 	dberr_t read_lsn_and_check_flags(
 		lsn_t*		min_flushed_lsn,
 		lsn_t*		max_flushed_lsn);
 
 private:
-	/** @return the size of the last data file in the array */
+	/**
+	@return the size of the last data file in the array */
 	ulint last_file_size() const
 	{
 		ut_ad(!m_files.empty());
 		return(m_files.back().m_size);
 	}
 
-	/** @return true if the last file size is valid. */
+	/**
+	@return true if the last file size is valid. */
 	bool is_valid_size() const
 	{
 		return(m_last_file_size_max >= last_file_size());
 	}
 
-	/** @return the autoextend increment in pages. */
+	/**
+	@return the autoextend increment in pages. */
 	ulint get_autoextend_increment() const
 	{
 		return(m_auto_extend_increment
 		       * ((1024 * 1024) / UNIV_PAGE_SIZE));
 	}
 
+	/**
+	@return true if it is a RAW device. */
 	bool is_raw_device(const file_t& file) const
 	{
 		return(file.m_type != SRV_NOT_RAW);
 	}
 
 	/** @return true if configured to use raw devices */
-	bool has_raw_device() const
-	{
-		files_t::const_iterator	end = m_files.end();
-
-		for (files_t::const_iterator it = m_files.begin();
-		     it != end;
-		     ++it) {
-
-			if (is_raw_device(*it)) {
-				return(true);
-			}
-		}
-
-		return(false);
-	}
+	bool has_raw_device() const;
 
 	/** @return true if the filename exists in the data files */
-	bool find(const char* filename) const
-	{
-		files_t::const_iterator	end = m_files.end();
-
-		for (files_t::const_iterator it = m_files.begin();
-		     it != end;
-		     ++it) {
-
-			if (innobase_strcasecmp(filename, it->m_name) == 0) {
-				return(true);
-			}
-		}
-
-		return(false);
-	}
+	bool find(const char* filename) const;
 
 	/**
 	Note that the data file was not found.
@@ -405,30 +357,7 @@ private:
 	@param str - string with a quantity in bytes
 	@param megs - out the number in megabytes
 	@return next character in string */
-	static char* parse_units(
-		char*		ptr,
-		ulint*		megs)
-	{
-		char*   	endp;
-
-		*megs = strtoul(ptr, &endp, 10);
-
-		ptr = endp;
-
-		switch (*ptr) {
-		case 'G': case 'g':
-			*megs *= 1024;
-			/* fall through */
-		case 'M': case 'm':
-			++ptr;
-			break;
-		default:
-			*megs /= 1024 * 1024;
-			break;
-		}
-
-		return(ptr);
-	}
+	static char* parse_units(char* ptr, ulint* megs);
 
 	/** Check if two shared tablespaces have common data file names. 
 	@param space1 - space to check
@@ -442,6 +371,7 @@ private:
 	Tablespace(const Tablespace&);
 	Tablespace& operator=(const Tablespace&);
 
+private:
 	/** This is dynamically allocated on each start of server. */
 	ulint		m_space_id;
 
