@@ -346,7 +346,7 @@ Tablespace::get_sum_of_sizes() const
 
 /**
 Create/open a data file.
-@param file - control info of file to be created.
+@param file - data file spec
 @return DB_SUCCESS or error code */
 dberr_t
 Tablespace::open_data_file(file_t& file)
@@ -372,7 +372,7 @@ Tablespace::open_data_file(file_t& file)
 
 /**
 Verify the size of the physical file.
-@param file - control info of file to be created.
+@param file - data file spec
 @return DB_SUCCESS if OK else error code. */
 dberr_t
 Tablespace::check_size(file_t& file)
@@ -424,7 +424,7 @@ Tablespace::check_size(file_t& file)
 
 /**
 Make physical filename from control info.
-@param file - control information */
+@param file - data file spec */
 void
 Tablespace::make_name(file_t& file)
 {
@@ -486,7 +486,7 @@ Tablespace::set_size(file_t& file)
 
 /**
 Create a data file.
-@param file - control info of file to be created.
+@param file - data file spec
 @return DB_SUCCESS or error code */
 dberr_t
 Tablespace::create_file(file_t& file)
@@ -639,10 +639,10 @@ Tablespace::read_lsn_and_check_flags(
 
 /** 
 Check if a file can be opened in the correct mode.
-@param file - file control information
+@param file - data file spec
 @return DB_SUCCESS or error code. */
 dberr_t
-Tablespace::check_file_status(const file_t& file) const
+Tablespace::check_file_status(const file_t& file)
 {
 	os_file_stat_t	stat;
 
@@ -700,9 +700,11 @@ Tablespace::check_file_status(const file_t& file) const
 
 /**
 Note that the data file was not found.
+@param file - data file spec
+@param create_new_db - [out] true if a new instance to be created
 @return DB_SUCESS or error code */
 dberr_t
-Tablespace::file_not_found(file_t& file, ulint i, ibool* create_new_db)
+Tablespace::file_not_found(file_t& file, ibool* create_new_db)
 {
 	file.m_exists = false;
 
@@ -715,7 +717,7 @@ Tablespace::file_not_found(file_t& file, ulint i, ibool* create_new_db)
 
 		return(DB_ERROR);
 
-	} else if (i == 0) {
+	} else if (&file == &m_files.front()) {
 
 		/* First data file. */
 		ut_a(!*create_new_db);
@@ -729,7 +731,7 @@ Tablespace::file_not_found(file_t& file, ulint i, ibool* create_new_db)
 			? " : a new database to be created!"
 			: "");
 
-	} else if (i == (m_files.size() - 1)) {
+	} else if (&file == &m_files.back()) {
 
 		/* Last data file. */
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -768,9 +770,10 @@ Tablespace::file_not_found(file_t& file, ulint i, ibool* create_new_db)
 }
 
 /**
-Note that the data file was found. */
+Note that the data file was found.
+@param file - data file spec */
 void
-Tablespace::file_found(file_t& file, ulint i)
+Tablespace::file_found(file_t& file)
 {
 	/* Note that the file exists and can be opened
 	in the appropriate mode. */
@@ -781,7 +784,8 @@ Tablespace::file_found(file_t& file, ulint i)
 	case SRV_NOT_RAW:
 	case SRV_NEW_RAW:
 		file.m_open_flags =
-			(i == 0) ? OS_FILE_OPEN_RETRY : OS_FILE_OPEN;
+			(&file == &m_files.front())
+			? OS_FILE_OPEN_RETRY : OS_FILE_OPEN;
 		break;
 
 	case SRV_OLD_RAW:
@@ -792,7 +796,7 @@ Tablespace::file_found(file_t& file, ulint i)
 
 /**
 Check the data file specification.
-@param create_new_db - true if a new database is to be created
+@param create_new_db - [out] true if a new database is to be created
 @return DB_SUCCESS if all OK else error code */
 dberr_t
 Tablespace::check_file_spec(ibool* create_new_db)
@@ -820,15 +824,17 @@ Tablespace::check_file_spec(ibool* create_new_db)
 	/* If there is more than one data file and the last data file
 	doesn't exist, that is OK. We allow adding of new data files. */
 
-	for (ulint i = 0; i < m_files.size(); ++i) {
+	files_t::iterator	end = m_files.end();
 
-		make_name(m_files[i]);
+	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
 
-		err = check_file_status(m_files[i]);
+		make_name(*it);
+
+		err = check_file_status(*it);
 
 		if (err == DB_NOT_FOUND) {
 
-			err = file_not_found(m_files[i], i, create_new_db);
+			err = file_not_found(*it, create_new_db);
 
 			if (err != DB_SUCCESS) {
 				break;
@@ -841,19 +847,19 @@ Tablespace::check_file_spec(ibool* create_new_db)
 
 		} else if (*create_new_db) {
 
-			ut_ad(m_files[0].m_exists);
+			ut_ad(it->m_exists);
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"First data file \"%s\" of tablespace not "
 				"found but one of the other data files \"%s\" "
 				"exists.",
-				m_files[0].m_name, m_files[i].m_name);
+				it->m_name, it->m_name);
 
 			err = DB_ERROR;
 			break;
 
 		} else {
-			file_found(m_files[i], i);
+			file_found(*it);
 		}
 	}
 
@@ -877,21 +883,23 @@ Tablespace::open(ulint* sum_of_new_sizes)
 		*sum_of_new_sizes = 0;
 	}
 
-	for (ulint i = 0; i < m_files.size(); ++i) {
+	files_t::iterator	end = m_files.end();
 
-		if (m_files[i].m_exists) {
-			err = open_file(m_files[i]);
+	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
+
+		if (it->m_exists) {
+			err = open_file(*it);
 		} else {
-			err = create_file(m_files[i]);
+			err = create_file(*it);
 
 			if (sum_of_new_sizes) {
-				*sum_of_new_sizes += m_files[i].m_size;
+				*sum_of_new_sizes += it->m_size;
 			}
 
 			/* Set the correct open flags now that we have
 			successfully created the file. */
 			if (err == DB_SUCCESS) {
-				file_found(m_files[i], i);
+				file_found(*it);
 			}
 		}
 
@@ -901,13 +909,15 @@ Tablespace::open(ulint* sum_of_new_sizes)
 		
 		/* We can close the handle now and open the tablespace
 		the proper way. */
-		ibool	success = os_file_close(m_files[i].m_handle);
+		ibool	success = os_file_close(it->m_handle);
 		ut_a(success);
 
-		m_files[i].m_handle = ~0;
-		m_files[i].m_exists = true;
+		it->m_handle = ~0;
+		it->m_exists = true;
 
-		if (i == 0) {
+		if (it == m_files.begin()) {
+			/* First data file. */
+
 			ulint	flags;
 
 			flags = fsp_flags_set_page_size(0, UNIV_PAGE_SIZE);
@@ -915,16 +925,16 @@ Tablespace::open(ulint* sum_of_new_sizes)
 			/* Create the tablespace entry for the multi-file
 			tablespace in the tablespace manager. */
 			fil_space_create(
-				m_files[i].m_filename, m_space_id, flags,
+				it->m_filename, m_space_id, flags,
 				FIL_TABLESPACE);
 		}
 
 		ut_a(fil_validate());
 
 		/* Open the data file. */
-		char*	filename = fil_node_create(
-			m_files[i].m_filename, m_files[i].m_size,
-			m_space_id, m_files[i].m_type != SRV_NOT_RAW);
+		const char*	filename = fil_node_create(
+			it->m_filename, it->m_size,
+			m_space_id, it->m_type != SRV_NOT_RAW);
 
 		if (filename == 0) {
 		       err = DB_ERROR;
