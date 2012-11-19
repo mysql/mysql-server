@@ -3294,7 +3294,7 @@ UNIV_INTERN
 dberr_t
 update_new_object_ids(
 /*==================*/
-	dict_table_t*	table,			/*!< in: table */
+	dict_table_t*	table,			/*!< in/out: table */
 	table_id_t	new_id,			/*!< in: new table id */
 	ulint		old_space,		/*!< in: old space id */
 	ibool		has_internal_doc_id,	/*!< in: has doc col (fts) */

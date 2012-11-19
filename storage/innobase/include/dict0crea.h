@@ -85,16 +85,14 @@ dict_create_index_step(
 	que_thr_t*	thr);	/*!< in: query thread */
 /***************************************************************//**
 Builds an index definition but don't update sys_table.
-This interface is generally used for temp-tables for which we don't
-update SYS_XXXX table during creation for performance.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
 dict_build_index_def(
 /*=================*/
-	dict_table_t*	table,	/*!< in: table */
-	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx);	/*!< in: InnoDB transaction handle */
+	const dict_table_t*	table,	/*!< in: table */
+	dict_index_t*		index,	/*!< in/out: index */
+	trx_t*			trx);	/*!< in: InnoDB transaction handle */
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
 Don't update SYS_XXXX table.
@@ -103,7 +101,7 @@ UNIV_INTERN
 dberr_t
 dict_create_index_tree(
 /*====================*/
-	dict_index_t*	index,	/*!< in: index */
+	dict_index_t*	index,	/*!< in/out: index */
 	trx_t*		trx);	/*!< in: InnoDB transaction handle */
 /*******************************************************************//**
 Truncates the index tree associated with a row in SYS_INDEXES table.
@@ -132,7 +130,7 @@ UNIV_INTERN
 void
 dict_truncate_index_tree(
 /*=====================*/
-	dict_index_t*	index,	/*!< in: index */
+	dict_index_t*	index,	/*!< in/out: index */
 	ulint		space);	/*!< in: 0=truncate,
 				nonzero=create the index tree in the
 				given tablespace */
@@ -146,15 +144,13 @@ dict_drop_index_tree_step(
 			of SYS_INDEXES table */
 	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
 /*******************************************************************//**
-Drops the index tree but don't update SYS_INDEXES table.
-This interface is generally used for temp-tables for which we don't
-update SYS_XXXX table on creation. */
+Drops the index tree but don't update SYS_INDEXES table. */
 UNIV_INTERN
 void
 dict_drop_index_tree(
 /*=================*/
-	dict_index_t*   index,		/*!< in: index */
-	ulint		page_no);	/*!< in: index page-no */
+	const dict_index_t*	index,		/*!< in: index */
+	ulint			page_no);	/*!< in: index page-no */
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
 at server bootstrap or server start if they are not found or are
