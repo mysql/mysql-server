@@ -49,7 +49,7 @@
 		     X >= 'a' && X <= 'z' ? X-'a'+10 :\
 		     '\177')
 
-char *str2int(register const char *src, register int radix, long int lower,
+char *str2int(const char *src, int radix, long int lower,
 	      long int upper, long int *val)
 {
   int sign;			/* is number negative (+1) or positive (-1) */
@@ -57,7 +57,7 @@ char *str2int(register const char *src, register int radix, long int lower,
   long limit;			/* "largest" possible valid input */
   long scale;			/* the amount to multiply next digit by */
   long sofar;			/* the running value */
-  register int d;		/* (negative of) next digit */
+  int d;		/* (negative of) next digit */
   char *start;
   int digits[32];		/* Room for numbers */
 

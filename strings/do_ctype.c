@@ -71,8 +71,8 @@ char *argv[];
 	/* Read options */
 
 void get_options(argc,argv)
-register int *argc;
-register char **argv[];
+int *argc;
+char **argv[];
 {
   int help,version;
   char *pos,*progname;
@@ -126,8 +126,8 @@ register char **argv[];
 
 void init_case_convert()
 {
-  reg1 int16 i;
-  reg2 uchar *higher_pos,*lower_pos;
+  int16 i;
+  uchar *higher_pos,*lower_pos;
   DBUG_ENTER("init_case_convert");
 
   for (i=0 ; i <= MAX_CHAR_OK ; i++)

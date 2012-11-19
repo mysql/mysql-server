@@ -202,9 +202,9 @@ void delete_queue(QUEUE *queue)
 
 	/* Code for insert, search and delete of elements */
 
-void queue_insert(register QUEUE *queue, uchar *element)
+void queue_insert(QUEUE *queue, uchar *element)
 {
-  reg2 uint idx, next;
+  uint idx, next;
   DBUG_ASSERT(queue->elements < queue->max_elements);
   queue->root[0]= element;
   idx= ++queue->elements;
@@ -229,7 +229,7 @@ void queue_insert(register QUEUE *queue, uchar *element)
   
 */
 
-int queue_insert_safe(register QUEUE *queue, uchar *element)
+int queue_insert_safe(QUEUE *queue, uchar *element)
 {
 
   if (queue->elements == queue->max_elements)
@@ -248,7 +248,7 @@ int queue_insert_safe(register QUEUE *queue, uchar *element)
 	/* Remove item from queue */
 	/* Returns pointer to removed element */
 
-uchar *queue_remove(register QUEUE *queue, uint idx)
+uchar *queue_remove(QUEUE *queue, uint idx)
 {
   uchar *element;
   DBUG_ASSERT(idx < queue->max_elements);
@@ -269,7 +269,7 @@ void queue_replaced(QUEUE *queue)
 
 #ifndef OLD_VERSION
 
-void _downheap(register QUEUE *queue, uint idx)
+void _downheap(QUEUE *queue, uint idx)
 {
   uchar *element;
   uint elements,half_queue,offset_to_key, next_index;
@@ -323,7 +323,7 @@ void _downheap(register QUEUE *queue, uint idx)
     suit or new benchmarks anyone wants to run for comparisons.
   */
 	/* Fix heap when index have changed */
-void _downheap(register QUEUE *queue, uint idx)
+void _downheap(QUEUE *queue, uint idx)
 {
   uchar *element;
   uint elements,half_queue,next_index,offset_to_key;

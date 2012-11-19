@@ -24,7 +24,7 @@
 	   HA_ERR_END_OF_FILE = EOF.
 */
 
-int heap_scan_init(register HP_INFO *info)
+int heap_scan_init(HP_INFO *info)
 {
   DBUG_ENTER("heap_scan_init");
   info->lastinx= -1;
@@ -34,7 +34,7 @@ int heap_scan_init(register HP_INFO *info)
   DBUG_RETURN(0);
 }
 
-int heap_scan(register HP_INFO *info, uchar *record)
+int heap_scan(HP_INFO *info, uchar *record)
 {
   HP_SHARE *share=info->s;
   ulong pos;

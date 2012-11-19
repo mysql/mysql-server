@@ -73,7 +73,7 @@ static int sort_key_write(MI_SORT_PARAM *sort_param, const void *a);
 static my_off_t get_record_for_key(MI_INFO *info,MI_KEYDEF *keyinfo,
 				uchar *key);
 static int sort_insert_key(MI_SORT_PARAM  *sort_param,
-                           reg1 SORT_KEY_BLOCKS *key_block,
+                           SORT_KEY_BLOCKS *key_block,
 			   uchar *key, my_off_t prev_block);
 static int sort_delete_record(MI_SORT_PARAM *sort_param);
 /*static int flush_pending_blocks(MI_CHECK *param);*/
@@ -106,7 +106,7 @@ void myisamchk_init(MI_CHECK *param)
 
 	/* Check the status flags for the table */
 
-int chk_status(MI_CHECK *param, register MI_INFO *info)
+int chk_status(MI_CHECK *param, MI_INFO *info)
 {
   MYISAM_SHARE *share=info->s;
 
@@ -134,9 +134,9 @@ int chk_status(MI_CHECK *param, register MI_INFO *info)
 
 	/* Check delete links */
 
-int chk_del(MI_CHECK *param, register MI_INFO *info, uint test_flag)
+int chk_del(MI_CHECK *param, MI_INFO *info, uint test_flag)
 {
-  reg2 ha_rows i;
+  ha_rows i;
   uint delete_link_length;
   my_off_t empty,next_link,UNINIT_VAR(old_link);
   char buff[22],buff2[22];
@@ -242,7 +242,7 @@ wrong:
 
 	/* Check delete links in index file */
 
-static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
+static int check_k_link(MI_CHECK *param, MI_INFO *info, uint nr)
 {
   my_off_t next_link;
   uint block_size=(nr+1)*MI_MIN_KEY_BLOCK_LENGTH;
@@ -320,10 +320,10 @@ static int check_k_link(MI_CHECK *param, register MI_INFO *info, uint nr)
 
 	/* Check sizes of files */
 
-int chk_size(MI_CHECK *param, register MI_INFO *info)
+int chk_size(MI_CHECK *param, MI_INFO *info)
 {
   int error=0;
-  register my_off_t skr,size;
+  my_off_t skr,size;
   char buff[22],buff2[22];
   DBUG_ENTER("chk_size");
 
@@ -396,7 +396,7 @@ int chk_size(MI_CHECK *param, register MI_INFO *info)
 
 	/* Check keys */
 
-int chk_key(MI_CHECK *param, register MI_INFO *info)
+int chk_key(MI_CHECK *param, MI_INFO *info)
 {
   uint key,found_keys=0,full_text_keys=0,result=0;
   ha_rows keys;
@@ -914,7 +914,7 @@ static ha_checksum calc_checksum(ha_rows count)
 
 	/* Calc length of key in normal isam */
 
-static uint isam_key_length(MI_INFO *info, register MI_KEYDEF *keyinfo)
+static uint isam_key_length(MI_INFO *info, MI_KEYDEF *keyinfo)
 {
   uint length;
   HA_KEYSEG *keyseg;
@@ -1511,7 +1511,7 @@ static int mi_drop_all_indexes(MI_CHECK *param, MI_INFO *info, my_bool force)
 	/* Recover old table by reading each record and writing all keys */
 	/* Save new datafile-name in temp_filename */
 
-int mi_repair(MI_CHECK *param, register MI_INFO *info,
+int mi_repair(MI_CHECK *param, MI_INFO *info,
 	      char * name, int rep_quick)
 {
   int error,got_error;
@@ -1789,7 +1789,7 @@ err:
 
 static int writekeys(MI_SORT_PARAM *sort_param)
 {
-  register uint i;
+  uint i;
   uchar    *key;
   MI_INFO  *info=   sort_param->sort_info->info;
   uchar    *buff=   sort_param->record;
@@ -1856,10 +1856,10 @@ static int writekeys(MI_SORT_PARAM *sort_param)
 
 	/* Change all key-pointers that points to a records */
 
-int movepoint(register MI_INFO *info, uchar *record, my_off_t oldpos,
+int movepoint(MI_INFO *info, uchar *record, my_off_t oldpos,
 	      my_off_t newpos, uint prot_key)
 {
-  register uint i;
+  uint i;
   uchar *key;
   uint key_length;
   DBUG_ENTER("movepoint");
@@ -1933,10 +1933,10 @@ int flush_blocks(MI_CHECK *param, KEY_CACHE *key_cache, File file)
 
 	/* Sort index for more efficent reads */
 
-int mi_sort_index(MI_CHECK *param, register MI_INFO *info, char * name)
+int mi_sort_index(MI_CHECK *param, MI_INFO *info, char * name)
 {
-  reg2 uint key;
-  reg1 MI_KEYDEF *keyinfo;
+  uint key;
+  MI_KEYDEF *keyinfo;
   File new_file;
   my_off_t index_pos[HA_MAX_POSSIBLE_KEY];
   uint r_locks,w_locks;
@@ -2221,7 +2221,7 @@ err:
     <>0	Error
 */
 
-int mi_repair_by_sort(MI_CHECK *param, register MI_INFO *info,
+int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
 		      const char * name, int rep_quick)
 {
   int got_error;
@@ -2634,7 +2634,7 @@ err:
     <>0	Error
 */
 
-int mi_repair_parallel(MI_CHECK *param, register MI_INFO *info,
+int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
 			const char * name, int rep_quick)
 {
   int got_error;
@@ -3997,7 +3997,7 @@ static my_off_t get_record_for_key(MI_INFO *info, MI_KEYDEF *keyinfo,
 	/* Insert a key in sort-key-blocks */
 
 static int sort_insert_key(MI_SORT_PARAM *sort_param,
-			   register SORT_KEY_BLOCKS *key_block, uchar *key,
+			   SORT_KEY_BLOCKS *key_block, uchar *key,
 			   my_off_t prev_block)
 {
   uint a_length,t_length,nod_flag;
@@ -4184,7 +4184,7 @@ int flush_pending_blocks(MI_SORT_PARAM *sort_param)
 static SORT_KEY_BLOCKS *alloc_key_blocks(MI_CHECK *param, uint blocks,
                                          uint buffer_length)
 {
-  reg1 uint i;
+  uint i;
   SORT_KEY_BLOCKS *block;
   DBUG_ENTER("alloc_key_blocks");
 
