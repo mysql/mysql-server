@@ -2287,7 +2287,6 @@ static uint dump_routines_for_db(char *db)
   const char *routine_type[]= {"FUNCTION", "PROCEDURE"};
   char       db_name_buff[NAME_LEN*2+3], name_buff[NAME_LEN*2+3];
   char       *routine_name;
-  char       *query_str;
   int        i;
   FILE       *sql_file= md_result_file;
   MYSQL_RES  *routine_res, *routine_list_res;
@@ -2381,17 +2380,6 @@ static uint dump_routines_for_db(char *db)
               fprintf(sql_file, "/*!50003 DROP %s IF EXISTS %s */;\n",
                       routine_type[i], routine_name);
 
-            query_str= cover_definer_clause(row[2], strlen(row[2]),
-                                            C_STRING_WITH_LEN("50020"),
-                                            C_STRING_WITH_LEN("50003"),
-                                            C_STRING_WITH_LEN(" FUNCTION"));
-
-            if (!query_str)
-              query_str= cover_definer_clause(row[2], strlen(row[2]),
-                                              C_STRING_WITH_LEN("50020"),
-                                              C_STRING_WITH_LEN("50003"),
-                                              C_STRING_WITH_LEN(" PROCEDURE"));
-
             if (mysql_num_fields(routine_res) >= 6)
             {
               if (switch_db_collation(sql_file, db_name_buff, ";",
@@ -2429,9 +2417,9 @@ static uint dump_routines_for_db(char *db)
 
             fprintf(sql_file,
                     "DELIMITER ;;\n"
-                    "/*!50003 %s */;;\n"
+                    "%s ;;\n"
                     "DELIMITER ;\n",
-                    (const char *) (query_str != NULL ? query_str : row[2]));
+                    (const char *) row[2]);
 
             restore_sql_mode(sql_file, ";");
 
@@ -2446,7 +2434,6 @@ static uint dump_routines_for_db(char *db)
               }
             }
 
-            my_free(query_str);
           }
         } /* end of routine printing */
         mysql_free_result(routine_res);
