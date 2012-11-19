@@ -283,44 +283,51 @@ private:
 	}
 
 	/**
+	@param file - data file spec
 	@return true if it is a RAW device. */
 	bool is_raw_device(const file_t& file) const
 	{
 		return(file.m_type != SRV_NOT_RAW);
 	}
 
-	/** @return true if configured to use raw devices */
+	/**
+	@return true if configured to use raw devices */
 	bool has_raw_device() const;
 
-	/** @return true if the filename exists in the data files */
+	/**
+	@param filename - name to lookup in the data files
+	@return true if the filename exists in the data files */
 	bool find(const char* filename) const;
 
 	/**
 	Note that the data file was not found.
+	@param file - data file spec
+	@param create_new_db - [out] true if a new instances to be created
 	@return DB_SUCESS or error code */
-	dberr_t file_not_found(file_t& file, ulint i, ibool* create_new_db);
+	dberr_t file_not_found(file_t& file, ibool* create_new_db);
 
 	/**
-	Note that the data file was found. */
-	void file_found(file_t& file, ulint i);
+	Note that the data file was found.
+	@param file - data file spec */
+	void file_found(file_t& file);
 
 	/**
 	Create a data file.
-	@param file - control info of file to be created.
+	@param file - data file spec
 	@return DB_SUCCESS or error code */
 	dberr_t create(file_t& file);
 
 	/**
-	Create a data file.
-	@param file - control info of file to be created.
-	@return DB_SUCCESS or error code */
-	dberr_t create_file(file_t& file);
+	Verify the size of the physical file
+	@param file - data file spec
+	@return DB_SUCCESS if OK else error code. */
+	dberr_t check_size(file_t& file);
 
 	/**
-	Set the size of the file.
+	Create a data file.
 	@param file - data file spec
 	@return DB_SUCCESS or error code */
-	dberr_t set_size(file_t& file);
+	dberr_t create_file(file_t& file);
 
 	/**
 	Open a data file.
@@ -332,24 +339,24 @@ private:
 	Open/create a data file.
 	@param file - data file spec
 	@return DB_SUCCESS or error code */
-	dberr_t open_data_file(file_t& file);
+	static dberr_t open_data_file(file_t& file);
 
 	/** 
 	Check if a file can be opened in the correct mode.
 	@param file - file control information
 	@return DB_SUCCESS or error code. */
-	dberr_t check_file_status(const file_t& file) const;
+	static dberr_t check_file_status(const file_t& file);
 
 	/**
-	Verify the size of the physical file
-	@param file - file control info
-	@return DB_SUCCESS if OK else error code. */
-	dberr_t check_size(file_t& file);
+	Set the size of the file.
+	@param file - data file spec
+	@return DB_SUCCESS or error code */
+	static dberr_t set_size(file_t& file);
 
 	/**
 	Make physical filename from control info.
 	@param file - control information */
-	void make_name(file_t& file);
+	static void make_name(file_t& file);
 
 	/**
 	Convert a numeric string that optionally ends in G or M, to a number
