@@ -1234,8 +1234,9 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
     {
       file_log= file_log_handler->get_mysql_slow_log();
 
-      file_log->open_slow_log(opt_slow_logname);
-      if (table_log_handler->activate_log(thd, QUERY_LOG_SLOW))
+      if (file_log->open_slow_log(opt_slow_logname))
+        res= TRUE;
+      else if (table_log_handler->activate_log(thd, QUERY_LOG_SLOW))
       {
         /* Error printed by open table in activate_log() */
         res= TRUE;
@@ -1253,8 +1254,9 @@ bool LOGGER::activate_log_handler(THD* thd, uint log_type)
     {
       file_log= file_log_handler->get_mysql_log();
 
-      file_log->open_query_log(opt_logname);
-      if (table_log_handler->activate_log(thd, QUERY_LOG_GENERAL))
+      if (file_log->open_query_log(opt_logname))
+        res= TRUE;
+      else if (table_log_handler->activate_log(thd, QUERY_LOG_GENERAL))
       {
         /* Error printed by open table in activate_log() */
         res= TRUE;
@@ -1605,10 +1607,25 @@ bool MYSQL_LOG::open(
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Could not use %s for logging (error %d). \
-Turning logging off for the whole duration of the MySQL server process. \
-To turn it on again: fix the cause, \
-shutdown the MySQL server and restart it.", name, errno);
+  char log_open_file_error_message[96]= "";
+  if (strcmp(opt_slow_logname, name) == 0)
+  {
+    opt_slow_log= 0;
+    strcpy(log_open_file_error_message, "either restart the query logging "
+           "by using \"SET GLOBAL SLOW_QUERY_LOG=ON\" or");
+  }
+  else if (strcmp(opt_logname, name) == 0)
+  {
+    opt_log= 0;
+    strcpy(log_open_file_error_message, "either restart the query logging "
+           "by using \"SET GLOBAL GENERAL_LOG=ON\" or");
+  }
+
+  sql_print_error("Could not use %s for logging (error %d). "
+                  "Turning logging off for the server process. "
+                  "To turn it on again: fix the cause, "
+                  "then %s restart the MySQL server.", name, errno,
+                  log_open_file_error_message);
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
