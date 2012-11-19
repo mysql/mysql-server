@@ -41,16 +41,18 @@ class Tablespace {
 		SRV_OLD_RAW		/*!< An initialized raw partition */
 	};
 
+	/** Data file control information. */
 	struct file_t {
 
 		file_t(const char* name, ulint size)
 			:
-			m_name(strdup(name)),
+			m_name(::strdup(name)),
 			m_size(size),
 			m_type(SRV_NOT_RAW),
 			m_handle(~0),
 			m_exists(),
-			m_open_flags(OS_FILE_OPEN)
+			m_open_flags(OS_FILE_OPEN),
+			m_filename()
 		{
 			/* No op */
 		}
@@ -62,28 +64,56 @@ class Tablespace {
 
 		file_t(const file_t& file)
 			:
-			m_name(strdup(file.m_name)),
 			m_size(file.m_size),
 			m_type(file.m_type),
 			m_handle(file.m_handle),
 			m_exists(file.m_exists),
 			m_open_flags(file.m_open_flags)
 		{
-			/* No op */
+			m_name = ::strdup(file.m_name);
+			ut_a(m_name != 0);
+
+			if (file.m_filename != 0) {
+				m_filename = ::strdup(file.m_filename);
+				ut_a(m_filename != 0);
+			} else {
+				m_filename = 0;
+			}
 		}
 
 		file_t& operator=(const file_t& file)
 		{
-			m_name = strdup(file.m_name);
+			ut_a(this != &file);
+
+			if (m_name != 0) {
+				::free(m_name);
+			}
+
+			m_name = ::strdup(file.m_name);
+			ut_a(m_name != 0);
+
 			m_size = file.m_size;
 			m_type = file.m_type;
+
+			ut_a(m_handle == ~0);
 			m_handle = file.m_handle;
+
 			m_exists = file.m_exists;
 			m_open_flags = file.m_open_flags;
+
+			if (m_filename != 0) {
+				::free(m_filename);
+				m_filename = 0;
+			}
+
+			if (file.m_filename != 0) {
+				m_filename = ::strdup(file.m_filename);
+			}
 
 			return(*this);
 		}
 
+		/** Release the resources. */
 		void shutdown()
 		{
 			ut_a(m_handle == ~0);
@@ -91,6 +121,11 @@ class Tablespace {
 			if (m_name != 0) {
 				::free(m_name);
 				m_name = 0;
+			}
+
+			if (m_filename != 0) {
+				::free(m_filename);
+				m_filename = 0;
 			}
 		}
 
@@ -111,6 +146,9 @@ class Tablespace {
 
 		/** Flags to use for opening the data file */
 		os_file_create_t	m_open_flags;
+
+		/** Physical filename */
+		char*			m_filename;
 	};
 
 	typedef std::vector<file_t> files_t;
@@ -241,7 +279,6 @@ public:
 	Read the flush lsn values and check the header flags.
 
 	@param file - file control information
-	@param name - physical filename
 	@param min_flushed_lsn - min of flushed lsn values in data files
 	@param max_flushed_lsn - max of flushed lsn values in data files
 	@return DB_SUCCESS if all OK */
@@ -321,37 +358,32 @@ private:
 	/**
 	Create a data file.
 	@param file - control info of file to be created.
-	@param name - physical filename
 	@return DB_SUCCESS or error code */
-	dberr_t create(file_t& file, const char* name);
+	dberr_t create(file_t& file);
 
 	/**
 	Create a data file.
 	@param file - control info of file to be created.
-	@param name - physical filename on FS
 	@return DB_SUCCESS or error code */
-	dberr_t create_file(file_t& file, const char* name);
+	dberr_t create_file(file_t& file);
 
 	/**
 	Set the size of the file.
 	@param file - data file spec
-	@param name - physical file name
 	@return DB_SUCCESS or error code */
-	dberr_t set_size(file_t& file, const char* name);
+	dberr_t set_size(file_t& file);
 
 	/**
 	Open a data file.
 	@param file - data file spec
-	@param name - physical file name
 	@return DB_SUCCESS or error code */
-	dberr_t open_file(file_t& file, const char* name);
+	dberr_t open_file(file_t& file);
 
 	/**
 	Open/create a data file.
 	@param file - data file spec
-	@param name - physical file name
 	@return DB_SUCCESS or error code */
-	dberr_t open_data_file(file_t& file, const char* name);
+	dberr_t open_data_file(file_t& file);
 
 	/** 
 	Check if a file can be opened in the correct mode.
@@ -362,16 +394,13 @@ private:
 	/**
 	Verify the size of the physical file
 	@param file - file control info
-	@param name - physical filename on FS
 	@return DB_SUCCESS if OK else error code. */
-	dberr_t check_size(file_t& file, const char* name);
+	dberr_t check_size(file_t& file);
 
 	/**
 	Make physical filename from control info.
-	@param name - destination buffer
-	@param size - max size of name
 	@param file - control information */
-	void make_name(const file_t& file, char* name, ulint size) const;
+	void make_name(file_t& file);
 
 	/**
 	Convert a numeric string that optionally ends in G or M, to a number
