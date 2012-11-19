@@ -117,13 +117,9 @@ row_merge_buf_encode(
 	ulint	size;
 	ulint	extra_size;
 
-	size = rec_get_converted_size_comp_prefix(
+	size = rec_get_converted_size_temp(
 		index, entry->fields, n_fields, &extra_size);
 	ut_ad(size >= extra_size);
-	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
-
-	extra_size -= REC_N_NEW_EXTRA_BYTES;
-	size -= REC_N_NEW_EXTRA_BYTES;
 
 	/* Encode extra_size + 1 */
 	if (extra_size + 1 < 0x80) {
@@ -134,9 +130,8 @@ row_merge_buf_encode(
 		*(*b)++ = (byte) (extra_size + 1);
 	}
 
-	rec_convert_dtuple_to_rec_comp(*b + extra_size, 0, index,
-				       REC_STATUS_ORDINARY,
-				       entry->fields, n_fields);
+	rec_convert_dtuple_to_temp(*b + extra_size, index,
+				   entry->fields, n_fields);
 
 	*b += size;
 }
@@ -296,6 +291,7 @@ row_merge_buf_add(
 		ulint			len;
 		const dict_col_t*	col;
 		ulint			col_no;
+		ulint			fixed_len;
 		const dfield_t*		row_field;
 
 		col = ifield->col;
@@ -420,16 +416,27 @@ row_merge_buf_add(
 
 		ut_ad(len <= col->len || col->mtype == DATA_BLOB);
 
-		if (ifield->fixed_len) {
+		fixed_len = ifield->fixed_len;
+		if (fixed_len && !dict_table_is_comp(index->table)
+		    && DATA_MBMINLEN(col->mbminmaxlen)
+		    != DATA_MBMAXLEN(col->mbminmaxlen)) {
+			/* CHAR in ROW_FORMAT=REDUNDANT is always
+			fixed-length, but in the temporary file it is
+			variable-length for variable-length character
+			sets. */
+			fixed_len = 0;
+		}
+
+		if (fixed_len) {
 #ifdef UNIV_DEBUG
 			ulint	mbminlen = DATA_MBMINLEN(col->mbminmaxlen);
 			ulint	mbmaxlen = DATA_MBMAXLEN(col->mbminmaxlen);
 
 			/* len should be between size calcualted base on
 			mbmaxlen and mbminlen */
-			ut_ad(len <= ifield->fixed_len);
+			ut_ad(len <= fixed_len);
 			ut_ad(!mbmaxlen || len >= mbminlen
-			      * (ifield->fixed_len / mbmaxlen));
+			      * (fixed_len / mbmaxlen));
 
 			ut_ad(!dfield_is_ext(field));
 #endif /* UNIV_DEBUG */
@@ -459,11 +466,11 @@ row_merge_buf_add(
 		ulint	size;
 		ulint	extra;
 
-		size = rec_get_converted_size_comp_prefix(
+		size = rec_get_converted_size_temp(
 			index, entry->fields, n_fields, &extra);
 
-		ut_ad(data_size + extra == size);
-		ut_ad(extra_size + REC_N_NEW_EXTRA_BYTES == extra);
+		ut_ad(data_size + extra_size == size);
+		ut_ad(extra_size == extra);
 	}
 #endif /* UNIV_DEBUG */
 
@@ -885,7 +892,7 @@ err_exit:
 
 		*mrec = *buf + extra_size;
 
-		rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
+		rec_init_offsets_temp(*mrec, index, offsets);
 
 		data_size = rec_offs_data_size(offsets);
 
@@ -904,7 +911,7 @@ err_exit:
 
 	*mrec = b + extra_size;
 
-	rec_init_offsets_comp_ordinary(*mrec, 0, index, offsets);
+	rec_init_offsets_temp(*mrec, index, offsets);
 
 	data_size = rec_offs_data_size(offsets);
 	ut_ad(extra_size + data_size < sizeof *buf);
@@ -3375,7 +3382,10 @@ row_merge_is_index_usable(
 }
 
 /*********************************************************************//**
-Drop a table.
+Drop a table. The caller must have ensured that the background stats
+thread is not processing the table. This can be done by calling
+dict_stats_wait_bg_to_stop_using_tables() after locking the dictionary and
+before calling this function.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
@@ -3515,16 +3525,14 @@ row_merge_build_indexes(
 	sorting and inserting. */
 
 	for (i = 0; i < n_indexes; i++) {
-		dict_index_t*	sort_idx;
-
-		sort_idx = (indexes[i]->type & DICT_FTS)
-			? fts_sort_idx
-			: indexes[i];
+		dict_index_t*	sort_idx = indexes[i];
 
 		if (indexes[i]->type & DICT_FTS) {
 			os_event_t	fts_parallel_merge_event;
 			bool		all_exit = false;
 			ulint		trial_count = 0;
+
+			sort_idx = fts_sort_idx;
 
 			/* Now all children should complete, wait
 			a bit until they all finish using event */
@@ -3548,7 +3556,6 @@ row_merge_build_indexes(
 					"Not all child sort threads exited"
 					" when creating FTS index '%s'",
 					indexes[i]->name);
-					
 			}
 
 			fts_parallel_merge_event
@@ -3599,7 +3606,6 @@ wait_again:
 						" exited when creating FTS"
 						" index '%s'",
 						indexes[i]->name);
-						
 				}
 			} else {
 				/* This cannot report duplicates; an

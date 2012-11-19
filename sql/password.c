@@ -102,7 +102,7 @@ void randominit(struct rand_struct *rand_st, ulong seed1, ulong seed2)
 
 void hash_password(ulong *result, const char *password, uint password_len)
 {
-  register ulong nr=1345345333L, add=7, nr2=0x12345671L;
+  ulong nr=1345345333L, add=7, nr2=0x12345671L;
   ulong tmp;
   const char *password_end= password + password_len;
   for (; password < password_end; password++)
@@ -364,7 +364,7 @@ hex2octet(uint8 *to, const char *str, uint len)
   const char *str_end= str + len;
   while (str < str_end)
   {
-    register char tmp= char_val(*str++);
+    char tmp= char_val(*str++);
     *to++= (tmp << 4) | char_val(*str++);
   }
 }

@@ -275,7 +275,7 @@ static const char ALPHANUMERICS[]=
 
 static long int timedif(struct timeval a, struct timeval b)
 {
-    register int us, s;
+    int us, s;
  
     us = a.tv_usec - b.tv_usec;
     us /= 1000;

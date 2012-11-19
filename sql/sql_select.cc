@@ -76,7 +76,7 @@ bool handle_select(THD *thd, select_result *result,
 {
   bool res;
   LEX *lex= thd->lex;
-  register SELECT_LEX *select_lex = &lex->select_lex;
+  SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
 

@@ -632,7 +632,7 @@ static LEX_STRING get_quoted_token(Lex_input_stream *lip,
 
 static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 {
-  reg1 uchar c,sep;
+  uchar c,sep;
   uint found_escape=0;
   const CHARSET_INFO *cs= lip->m_thd->charset();
 
@@ -862,7 +862,7 @@ static inline uint int_token(const char *str,uint length)
 */
 bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 {
-  reg1 uchar c;
+  uchar c;
   while (! lip->eof())
   {
     c= lip->yyGet();
@@ -965,9 +965,9 @@ int MYSQLlex(void *arg, void *yythd)
 
 int lex_one_token(void *arg, void *yythd)
 {
-  reg1	uchar c= 0;
+  uchar c= 0;
   bool comment_closed;
-  int	tokval, result_state;
+  int tokval, result_state;
   uint length;
   enum my_lex_states state;
   THD *thd= (THD *)yythd;

@@ -1187,6 +1187,28 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     beginning of each command.
   */
   thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
+
+  /**
+    Enforce password expiration for all RPC commands, except the
+    following:
+
+    COM_QUERY does a more fine-grained check later.
+    COM_STMT_CLOSE and COM_STMT_SEND_LONG_DATA don't return anything.
+    COM_PING only discloses information that the server is running,
+       and that's available through other means.
+    COM_QUIT should work even for expired statements.
+  */
+  if (unlikely(thd->security_ctx->password_expired &&
+               command != COM_QUERY &&
+               command != COM_STMT_CLOSE &&
+               command != COM_STMT_SEND_LONG_DATA &&
+               command != COM_PING &&
+               command != COM_QUIT))
+  {
+    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+    goto done;
+  }
+
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1692,6 +1714,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
+
+done:
   DBUG_ASSERT(thd->derived_tables == NULL &&
               (thd->open_tables == NULL ||
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
@@ -6172,7 +6196,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                        List<String> *interval_list, const CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
-  register Create_field *new_field;
+  Create_field *new_field;
   LEX  *lex= thd->lex;
   uint8 datetime_precision= decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
@@ -6318,7 +6342,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                                              List<String> *partition_names,
                                              LEX_STRING *option)
 {
-  register TABLE_LIST *ptr;
+  TABLE_LIST *ptr;
   TABLE_LIST *previous_table_ref; /* The table preceding the current one. */
   char *alias_str;
   LEX *lex= thd->lex;
