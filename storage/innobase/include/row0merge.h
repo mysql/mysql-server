@@ -263,7 +263,10 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index);	/*!< in: index to check */
 /*********************************************************************//**
-Drop a table.
+Drop a table. The caller must have ensured that the background stats
+thread is not processing the table. This can be done by calling
+dict_stats_wait_bg_to_stop_using_tables() after locking the dictionary and
+before calling this function.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
