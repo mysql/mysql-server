@@ -268,9 +268,6 @@ public:
 	/**
 	Open or create the data files.
 
-	@param create_new_db - true if new database should be
-	@param min_flushed_lsn - min of flushed LSN
-	@param max_flushed_lsn - max of flushed LSN
 	@param sum_of_new_sizes - sum of sizes of new files added
 	@return DB_SUCCESS or error code */
 	dberr_t open(ulint* sum_of_new_sizes);
