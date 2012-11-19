@@ -80,7 +80,8 @@ Tablespace::parse(const char* filepath, bool supports_raw)
 	ut_ad(m_last_file_size_max == 0);
 	ut_ad(m_auto_extend_last_file == false);
 
-	char*	str = strdup(filepath);
+	char*	new_str = strdup(filepath);
+	char*	str = new_str;
 
 	input_str = str;
 
@@ -99,7 +100,7 @@ Tablespace::parse(const char* filepath, bool supports_raw)
 		}
 
 		if (*str == '\0') {
-			::free(str);
+			::free(new_str);
 			return(false);
 		}
 
@@ -121,7 +122,7 @@ Tablespace::parse(const char* filepath, bool supports_raw)
 			}
 
 			if (*str != '\0') {
-				::free(str);
+				::free(new_str);
 				return(false);
 			}
 		}
@@ -137,7 +138,7 @@ Tablespace::parse(const char* filepath, bool supports_raw)
 					"Tablespace doesn't support raw "
 					"devices");
 
-				::free(str);
+				::free(new_str);
 				return(false);
 			}
 
@@ -153,13 +154,13 @@ Tablespace::parse(const char* filepath, bool supports_raw)
 					"Tablespace doesn't support raw "
 					"devices");
 
-				::free(str);
+				::free(new_str);
 				return(false);
 			}
 		}
 
 		if (size == 0) {
-			::free(str);
+			::free(new_str);
 			return(false);
 		}
 
@@ -168,14 +169,14 @@ Tablespace::parse(const char* filepath, bool supports_raw)
 		if (*str == ';') {
 			str++;
 		} else if (*str != '\0') {
-			::free(str);
+			::free(new_str);
 			return(false);
 		}
 	}
 
 	if (n_files == 0) {
 		/* file_path must contain at least one data file definition */
-		::free(str);
+		::free(new_str);
 		return(false);
 	}
 
@@ -222,7 +223,7 @@ Tablespace::parse(const char* filepath, bool supports_raw)
 			}
 
 			if (*str != '\0') {
-				::free(str);
+				::free(new_str);
 				return(false);
 			}
 		}
@@ -258,6 +259,8 @@ Tablespace::parse(const char* filepath, bool supports_raw)
 	}
 
 	ut_ad(n_files == m_files.size());
+
+	::free(new_str);
 
 	return(true);
 }
