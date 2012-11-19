@@ -409,11 +409,12 @@ UNIV_INTERN
 void
 btr_free_but_not_root(
 /*==================*/
-	ulint		space,		/*!< in: space where created */
-	ulint		zip_size,	/*!< in: compressed page size in bytes
-					or 0 for uncompressed pages */
-	ulint		root_page_no,	/*!< in: root page number */
-	dict_index_t*	index);		/*!< in: index */
+	ulint                   space,		/*!< in: space where created */
+	ulint                   zip_size,	/*!< in: compressed page
+						size in bytes or 0 for
+						uncompressed pages */
+	ulint                   root_page_no,	/*!< in: root page number */
+	const dict_index_t*     index);		/*!< in: index */
 /************************************************************//**
 Frees the B-tree root page. Other tree MUST already have been freed. */
 UNIV_INTERN

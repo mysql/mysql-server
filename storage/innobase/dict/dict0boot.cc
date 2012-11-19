@@ -73,7 +73,7 @@ dict_hdr_get_new_id(
 					(not assigned if NULL) */
 	ulint*		space_id,	/*!< out: space id
 					(not assigned if NULL) */
-	bool		is_temp_table)	/*!< in: true if temp table */
+	const bool	is_temp_table)	/*!< in: true if temp table */
 {
 	dict_hdr_t*	dict_hdr;
 	ib_id_t		id;

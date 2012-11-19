@@ -254,20 +254,20 @@ dict_build_table_def_step(
 {
 	dict_table_t*	table;
 	dtuple_t*	row;
-	dberr_t         error;
+	dberr_t         err = DB_SUCCESS;
 
 	table = node->table;
 
-	error = dict_build_tablespace(table, thr_get_trx(thr));
-	if (error != DB_SUCCESS) {
-		return(error);
+	err = dict_build_tablespace(table, thr_get_trx(thr));
+	if (err != DB_SUCCESS) {
+		return(err);
 	}
 
 	row = dict_create_sys_tables_tuple(table, node->heap);
 
 	ins_node_set_new_row(node->tab_def, row);
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /***************************************************************//**
@@ -277,16 +277,16 @@ UNIV_INTERN
 dberr_t
 dict_build_tablespace(
 /*===================*/
-	dict_table_t*	table,	/*!< in: table */
+	dict_table_t*	table,	/*!< in/out: table */
 	trx_t*		trx)	/*!< in: InnoDB transaction handle */
 {
-	dberr_t		error;
+	dberr_t		err	= DB_SUCCESS;
 	const char*	path;
 	mtr_t		mtr;
 	ulint		space = 0;
 	bool		use_tablespace;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	use_tablespace = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
 
@@ -325,7 +325,7 @@ dict_build_tablespace(
 		ut_ad(!dict_table_zip_size(table)
 		      || dict_table_get_format(table) >= UNIV_FORMAT_B);
 
-		error = fil_create_new_single_table_tablespace(
+		err = fil_create_new_single_table_tablespace(
 			space, table->name, path,
 			dict_tf_to_fsp_flags(table->flags),
 			table->flags2,
@@ -333,9 +333,9 @@ dict_build_tablespace(
 
 		table->space = (unsigned int) space;
 
-		if (error != DB_SUCCESS) {
+		if (err != DB_SUCCESS) {
 
-			return(error);
+			return(err);
 		}
 
 		mtr_start(&mtr);
@@ -648,20 +648,18 @@ dict_build_index_def_step(
 
 /***************************************************************//**
 Builds an index definition but don't update sys_table.
-This interface is generally used for temp-tables for which we don't
-update SYS_XXXX table during creation for performance.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
 dict_build_index_def(
 /*=================*/
-	dict_table_t*	table,	/*!< in: table */
-	dict_index_t*	index,	/*!< in: index */
-	trx_t*		trx)	/*!< in: InnoDB transaction handle */
+	const dict_table_t*	table,	/*!< in: table */
+	dict_index_t*		index,	/*!< in/out: index */
+	trx_t*			trx)	/*!< in: InnoDB transaction handle */
 {
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
-	if (!trx->table_id) {
+	if (trx->table_id == 0) {
 		/* Record only the first table id. */
 		trx->table_id = table->id;
 	}
@@ -782,13 +780,13 @@ UNIV_INTERN
 dberr_t
 dict_create_index_tree(
 /*====================*/
-	dict_index_t*	index,	/*!< in: index */
+	dict_index_t*	index,	/*!< in/out: index */
 	trx_t*		trx)	/*!< in: InnoDB transaction handle */
 {
 	mtr_t		mtr;
 	ulint		page_no = FIL_NULL;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	if (index->type == DICT_FTS) {
 		/* FTS index does not need an index tree */
@@ -801,7 +799,7 @@ dict_create_index_tree(
 
 	mtr_start(&mtr);
 
-	/* If temporary table then set logging off */
+	/* If temporary table then disable redo logging */
 	if (dict_table_is_temporary(index->table)) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 	}
@@ -899,26 +897,25 @@ dict_drop_index_tree_step(
 }
 
 /*******************************************************************//**
-Drops the index tree but don't update SYS_INDEXES table.
-This interface is generally used for temp-tables where-in we don't
-update SYS_XXXXX table for temp-tables. */
+Drops the index tree but don't update SYS_INDEXES table. */
 UNIV_INTERN
 void
 dict_drop_index_tree(
 /*=================*/
-	dict_index_t*	index,		/*!< in: index */
-	ulint           page_no)	/*!< in: index page-no */
+	const dict_index_t*	index,		/*!< in: index */
+	ulint			page_no)	/*!< in: index page-no */
 {
 	ulint		root_page_no;
 	ulint		space;
 	ulint		zip_size;
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
-	if(dict_table_is_temporary(index->table))
+	if(dict_table_is_temporary(index->table)) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	}
 
 	root_page_no = page_no;
 
@@ -1092,14 +1089,12 @@ create:
 
 /*******************************************************************//**
 Truncates the index tree but don't update SYS_XXXX table.
-This interface is generally used for temp-tables for which we don't
-update SYS_XXXX table on creation.
 @return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
 void
 dict_truncate_index_tree(
 /*=====================*/
-	dict_index_t*	index,	/*!< in: index */
+	dict_index_t*	index,	/*!< in/out: index */
 	ulint		space)	/*!< in: 0=truncate,
 				nonzero=create the index tree in the
 				given tablespace */
@@ -1110,11 +1105,12 @@ dict_truncate_index_tree(
 	ulint		type;
 	mtr_t		mtr;
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
-	if (dict_table_is_temporary(index->table))
+	if (dict_table_is_temporary(index->table)) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	}
 
 	root_page_no = index->page;
 	type = index->type;
@@ -1128,7 +1124,7 @@ dict_truncate_index_tree(
 	if (drop && root_page_no == FIL_NULL) {
 		/* The tree has been freed. */
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Trying to TRUNCATE a missing index of table %s!\n",
+			"Trying to TRUNCATE a missing index of table %s!",
 			index->table->name);
 
 		drop = FALSE;
@@ -1140,7 +1136,7 @@ dict_truncate_index_tree(
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Trying to TRUNCATE a missing .ibd file of table %s!\n",
+			"Trying to TRUNCATE a missing .ibd file of table %s!",
 			index->table->name);
 	}
 
@@ -1169,8 +1165,9 @@ create:
 
 	mtr_start(&mtr);
 
-	if (dict_table_is_temporary(index->table))
+	if (dict_table_is_temporary(index->table)) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	}
 
 	root_page_no = btr_create(type, space, zip_size,
 				  index->id, index, &mtr);
