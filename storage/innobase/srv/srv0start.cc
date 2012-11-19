@@ -954,8 +954,8 @@ innobase_start_or_create_for_mysql(void)
 /*====================================*/
 {
 	ibool		create_new_db;
-	lsn_t		min_flushed_lsn = 0;
-	lsn_t		max_flushed_lsn = 0;
+	lsn_t		min_flushed_lsn;
+	lsn_t		max_flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
 	ulint		min_arch_log_no;
 	ulint		max_arch_log_no;
@@ -1476,6 +1476,10 @@ innobase_start_or_create_for_mysql(void)
 
 		return(err);
 	}
+
+	// FIXME: This could cause a SHARING VIOLATION on Windows (to be
+	// verified). If there is a problem then we need to read these
+	// values before closing the file in the open() method, like before.
 
 	/* Read the values from the header page. */
 	err = srv_sys_space.read_lsn_and_check_flags(
