@@ -2604,6 +2604,7 @@ void Item_ident::print(String *str, enum_query_type query_type)
   THD *thd= current_thd;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
   const char *d_name= db_name, *t_name= table_name;
+
   if (lower_case_table_names== 1 ||
       (lower_case_table_names == 2 && !alias_name_used))
   {
@@ -2628,10 +2629,10 @@ void Item_ident::print(String *str, enum_query_type query_type)
     append_identifier(thd, str, nm, (uint) strlen(nm));
     return;
   }
+
   if (db_name && db_name[0] && !alias_name_used)
   {
-    if (!(cached_table && cached_table->belong_to_view &&
-          cached_table->belong_to_view->compact_view_format))
+    if (!(query_type & QT_COMPACT_FORMAT))
     {
       const size_t d_name_len= strlen(d_name);
       if (!((query_type & QT_NO_DEFAULT_DB) &&
