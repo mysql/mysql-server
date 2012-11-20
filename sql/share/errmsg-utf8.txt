@@ -6927,6 +6927,8 @@ ER_GET_STACKED_DA_WITHOUT_ACTIVE_HANDLER 0Z002
 ER_WARN_LEGACY_SYNTAX_CONVERTED
   eng "%s is no longer supported. The statement was converted to %s."
 
+ER_IDENT_CAUSES_TOO_LONG_PATH
+  eng "Long database name and identifier for object resulted in path length exceeding %d characters. Path: '%s'."
 #
 #  End of 5.7 error messages.
 #

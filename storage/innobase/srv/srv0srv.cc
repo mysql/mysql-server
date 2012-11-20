@@ -925,16 +925,16 @@ srv_init(void)
 		for (ulint i = 0; i < srv_sys->n_sys_threads; ++i) {
 			srv_slot_t*	slot = &srv_sys->sys_threads[i];
 
-			slot->event = os_event_create("sys_thread");
+			slot->event = os_event_create();
 
 			ut_a(slot->event);
 		}
 
-		srv_error_event = os_event_create("error_event");
+		srv_error_event = os_event_create();
 
-		srv_monitor_event = os_event_create("monitor_event");
+		srv_monitor_event = os_event_create();
 
-		srv_buf_dump_event = os_event_create("buf_dump_event");
+		srv_buf_dump_event = os_event_create();
 
 		UT_LIST_INIT(srv_sys->tasks);
 	}
