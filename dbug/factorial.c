@@ -1,6 +1,6 @@
 #ifdef DBUG_OFF				/* We are testing dbug */
 
-int factorial(register int value) {
+int factorial(int value) {
 	if(value > 1) {
 		value *= factorial(value-1);
 	}
@@ -12,7 +12,7 @@ int factorial(register int value) {
 #include <my_global.h>
 
 int factorial (
-register int value)
+int value)
 {
     DBUG_ENTER ("factorial");
     DBUG_PRINT ("find", ("find %d factorial", value));

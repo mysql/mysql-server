@@ -4807,6 +4807,7 @@ ROR_INTERSECT_INFO* ror_intersect_init(const PARAM *param)
     return NULL;
   info->is_covering= FALSE;
   info->index_scan_costs= 0.0;
+  info->total_cost= 0.0;
   info->index_records= 0;
   info->out_rows= (double) param->table->file->stats.records;
   bitmap_clear_all(&info->covered_fields);

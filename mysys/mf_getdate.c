@@ -35,9 +35,9 @@
 */
 
 
-void get_date(register char * to, int flag, time_t date)
+void get_date(char * to, int flag, time_t date)
 {
-   reg2 struct tm *start_time;
+   struct tm *start_time;
    time_t skr;
 #if defined(HAVE_LOCALTIME_R) && defined(_REENTRANT)
   struct tm tm_tmp;

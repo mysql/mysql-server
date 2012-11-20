@@ -1074,8 +1074,6 @@ innobase_col_to_mysql(
 		ut_ad(flen >= len);
 		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
 		      >= DATA_MBMINLEN(col->mbminmaxlen));
-		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
-		      > DATA_MBMINLEN(col->mbminmaxlen) || flen == len);
 		memcpy(dest, data, len);
 		break;
 
@@ -3036,6 +3034,15 @@ error_handled:
 			}
 
 			dict_table_close(indexed_table, TRUE, FALSE);
+
+#ifdef UNIV_DDL_DEBUG
+			/* Nobody should have initialized the stats of the
+			newly created table yet. When this is the case, we
+			know that it has not been added for background stats
+			gathering. */
+			ut_a(!indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
 			row_merge_drop_table(trx, indexed_table);
 
 			/* Free the log for online table rebuild, if
@@ -3991,6 +3998,15 @@ rollback_inplace_alter_table(
 
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
+
+#ifdef UNIV_DDL_DEBUG
+		/* Nobody should have initialized the stats of the
+		newly created table yet. When this is the case, we
+		know that it has not been added for background stats
+		gathering. */
+		ut_a(!ctx->indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
 		err = row_merge_drop_table(ctx->trx, ctx->indexed_table);
 
 		switch (err) {
@@ -4839,6 +4855,15 @@ drop_new_clustered:
 			}
 
 			dict_table_close(ctx->indexed_table, TRUE, FALSE);
+
+#ifdef UNIV_DDL_DEBUG
+			/* Nobody should have initialized the stats of the
+			newly created table yet. When this is the case, we
+			know that it has not been added for background stats
+			gathering. */
+			ut_a(!ctx->indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
 			row_merge_drop_table(trx, ctx->indexed_table);
 			ctx->indexed_table = NULL;
 			goto trx_commit;
