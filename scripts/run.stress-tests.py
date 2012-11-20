@@ -66,6 +66,7 @@ class TestRunnerBase(object):
         self.tsize = tsize
         self.csize = csize
         self.default_test_time = default_test_time
+        self.long_test_index = randrange(16)
         self.savedir = savedir
 
         self.env = os.environ
@@ -117,7 +118,7 @@ class TestRunnerBase(object):
 
     @property
     def test_time(self):
-        if self.nruns % 16 == 0:
+        if self.nruns % 16 == self.long_test_index:
             return 3600
         else:
             return self.default_test_time
