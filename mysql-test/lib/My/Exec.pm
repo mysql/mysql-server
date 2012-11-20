@@ -35,6 +35,7 @@ sub get_logfile_name {
     # Get logfile name
     my @cmd_parts = split(' ', $cmd);
     my $logfile_base = fileparse($cmd_parts[0]);
+    $logfile_base =~ s/[^a-zA-Z0-9_]*//g; 
     my $logfile_name = "";
     my $log_dir = $ENV{MYSQLTEST_VARDIR};
     for my $i (1..100)
