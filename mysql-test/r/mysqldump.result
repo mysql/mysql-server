@@ -3347,7 +3347,7 @@ create view v1 as select * from t1;
 drop table t1;
 mysqldump {
 
--- failed on view `v1`: CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`id` AS `id` from `t1`
+-- failed on view `v1`: CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`id` AS `id` from `t1`
 
 } mysqldump
 drop view v1;
