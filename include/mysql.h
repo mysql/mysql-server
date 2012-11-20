@@ -47,9 +47,6 @@ extern "C" {
 #ifndef MYSQL_ABI_CHECK
 #include <sys/types.h>
 #endif
-#ifdef __LCC__
-#include <winsock2.h>				/* For windows */
-#endif
 typedef char my_bool;
 #if (defined(_WIN32) || defined(_WIN64)) && !defined(__WIN__)
 #define __WIN__
@@ -61,11 +58,13 @@ typedef char my_bool;
 #endif
 
 #ifndef my_socket_defined
-#ifdef __WIN__
-#define my_socket SOCKET
+#if defined (_WIN64)
+#define my_socket unsigned long long
+#elif defined (_WIN32)
+#define my_socket unsigned int
 #else
 typedef int my_socket;
-#endif /* __WIN__ */
+#endif /* _WIN64 */
 #endif /* my_socket_defined */
 #endif /* _global_h */
 
