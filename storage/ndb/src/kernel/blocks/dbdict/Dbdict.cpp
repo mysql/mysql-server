@@ -241,6 +241,17 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
                  iter.curr.p->m_trans_key, iter.curr.p->m_op_ref_count);
     }
   }
+  if (signal->theData[0] == DumpStateOrd::DictDumpLockQueue)
+  {
+    jam();
+    m_dict_lock.dump_queue(m_dict_lock_pool, this);
+    
+    /* Space for hex form of enough words for node bitmask + \0 */
+    char buf[(((MAX_NDB_NODES + 31)/32) * 8) + 1 ];
+    infoEvent("DICT : c_sub_startstop _outstanding %u _lock %s",
+              c_outstanding_sub_startstop,
+              c_sub_startstop_lock.getText(buf));
+  }
 
   if (signal->theData[0] == 8004)
   {
@@ -19517,6 +19528,53 @@ Dbdict::getDictLockType(Uint32 lockType)
 }
 
 void
+Dbdict::debugLockInfo(Signal* signal, 
+                      const char* text,
+                      Uint32 rc)
+{
+  if (!g_trace)
+    return;
+  
+  static const char* rctext = "Unknown result";
+  
+  switch(rc)
+  {
+  case UtilLockRef::OK:
+    rctext = "Success";
+    break;
+  case UtilLockRef::NoSuchLock:
+    rctext = "No such lock";
+    break;
+  case UtilLockRef::OutOfLockRecords:
+    rctext = "Out of records";
+    break;
+  case UtilLockRef::DistributedLockNotSupported:
+    rctext = "Distributed lock not supported";
+    break;
+  case UtilLockRef::LockAlreadyHeld:
+    rctext = "Already held";
+    break;
+  case UtilLockRef::InLockQueue:
+    rctext = "Queued";
+    break;
+    /* try returns these... */
+  case SchemaTransBeginRef::Busy:
+    rctext = "SchemaTransBeginRef::Busy";
+    break;
+  case SchemaTransBeginRef::BusyWithNR:
+    rctext = "SchemaTransBeginRef::BusyWithNR";
+    break;
+  default:
+    break;
+  }
+  
+  infoEvent("DICT : %s %u %s",
+            text,
+            rc,
+            rctext);
+}
+
+void
 Dbdict::sendDictLockInfoEvent(Signal*, const UtilLockReq* req, const char* text)
 {
   const Dbdict::DictLockType* lt = getDictLockType(req->extra);
@@ -19565,7 +19623,7 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
 
     c_sub_startstop_lock.set(refToNode(req.userRef));
 
-    g_eventLogger->info("granting dict lock to %u", refToNode(req.userRef));
+    g_eventLogger->info("granting SumaStartMe dict lock to %u", refToNode(req.userRef));
     DictLockConf* conf = (DictLockConf*)signal->getDataPtrSend();
     conf->userPtr = req.userPtr;
     conf->lockType = req.lockType;
@@ -19613,6 +19671,9 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
   }
 
   res = m_dict_lock.lock(this, m_dict_lock_pool, &lockReq, 0);
+  debugLockInfo(signal,
+                "DICT_LOCK_REQ lock",
+                res);
   switch(res){
   case 0:
     jam();
@@ -19626,7 +19687,8 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
     break;
   default:
     jam();
-    sendDictLockInfoEvent(signal, &lockReq, "lock request by node");
+    sendDictLockInfoEvent(signal, &lockReq, "lock request by node queued");
+    m_dict_lock.dump_queue(m_dict_lock_pool, this);
     break;
   }
   return;
@@ -19678,7 +19740,7 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
       ord->lockType == DictLockReq::SumaHandOver)
   {
     jam();
-    g_eventLogger->info("clearing dict lock for %u", refToNode(ord->senderRef));
+    g_eventLogger->info("clearing SumaStartMe dict lock for %u", refToNode(ord->senderRef));
     c_sub_startstop_lock.clear(refToNode(ord->senderRef));
     return;
   }
@@ -19686,8 +19748,12 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
   UtilLockReq lockReq;
   lockReq.senderData = req.userPtr;
   lockReq.senderRef = req.userRef;
-  lockReq.extra = DictLockReq::NodeRestartLock; // Should check...
-  Uint32 res = dict_lock_unlock(signal, &req);
+  DictLockReq::LockType lockType = DictLockReq::NodeRestartLock;
+  Uint32 res = dict_lock_unlock(signal, &req, &lockType);
+  debugLockInfo(signal,
+                "DICT_UNLOCK_ORD unlock",
+                res);
+  lockReq.extra = lockType;
   switch(res){
   case UtilUnlockRef::OK:
     jam();
@@ -20009,6 +20075,9 @@ void Dbdict::check_takeover_replies(Signal* signal)
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::SchemaTransLock;
     int lockError = dict_lock_trylock(&lockReq);
+    debugLockInfo(signal,
+                  "check_takeover_replies trylock 1",
+                  lockError);
     if (lockError != 0)
     {
       jam();
@@ -20079,6 +20148,9 @@ void Dbdict::check_takeover_replies(Signal* signal)
           lockReq.userRef = reference();
           lockReq.lockType = DictLockReq::SchemaTransLock;
           int lockError = dict_lock_trylock(&lockReq);
+          debugLockInfo(signal,
+                        "check_takeover_replies trylock 2",
+                        lockError);
           if (lockError != 0)
           {
             jam();
@@ -20642,19 +20714,30 @@ Dbdict::dict_lock_trylock(const DictLockReq* _req)
 #ifdef MARTIN
   infoEvent("Busy with schema transaction");
 #endif
+  if (g_trace)
+    m_dict_lock.dump_queue(m_dict_lock_pool, this);
+  
   return SchemaTransBeginRef::Busy;
 }
 
 Uint32
-Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req)
+Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req,
+                         DictLockReq::LockType* type)
 {
   UtilUnlockReq req;
   req.senderData = _req->userPtr;
   req.senderRef = _req->userRef;
 
-  Uint32 res = m_dict_lock.unlock(this, m_dict_lock_pool, &req);
+  UtilLockReq lockReq;
+  Uint32 res = m_dict_lock.unlock(this, m_dict_lock_pool, &req, 
+                                  &lockReq);
   switch(res){
   case UtilUnlockRef::OK:
+    if (type)
+    {
+      *type = (DictLockReq::LockType) lockReq.extra;
+    }
+    /* Fall through */
   case UtilUnlockRef::NotLockOwner:
     break;
   case UtilUnlockRef::NotInLockQueue:
@@ -20662,7 +20745,6 @@ Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req)
     return res;
   }
 
-  UtilLockReq lockReq;
   LockQueue::Iterator iter;
   if (m_dict_lock.first(this, m_dict_lock_pool, iter))
   {
@@ -20682,6 +20764,9 @@ Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req)
         conf->lockType = lockReq.extra;
         sendSignal(lockReq.senderRef, GSN_DICT_LOCK_CONF, signal,
                    DictLockConf::SignalLength, JBB);
+
+        sendDictLockInfoEvent(signal, &lockReq, 
+                              "queued lock request granted for node");
       }
 
       if (!m_dict_lock.next(iter))
@@ -24934,6 +25019,9 @@ Dbdict::execSCHEMA_TRANS_BEGIN_REQ(Signal* signal)
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::SchemaTransLock;
     int lockError = dict_lock_trylock(&lockReq);
+    debugLockInfo(signal,
+                  "SCHEMA_TRANS_BEGIN_REQ trylock",
+                  lockError);
     if (lockError != 0)
     {
       // remove the trans
@@ -25581,7 +25669,10 @@ Dbdict::handleTransReply(Signal* signal, SchemaTransPtr trans_ptr)
       sendTransClientReply(signal, trans_ptr);
       // unlock
       const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
-      dict_lock_unlock(signal, &lockReq);
+      Uint32 rc = dict_lock_unlock(signal, &lockReq);
+      debugLockInfo(signal,
+                    "handleTransReply unlock",
+                    rc);
       releaseSchemaTrans(trans_ptr);
     }
     else if (tLoc.m_phase == TransPhase::Parse) {
@@ -27072,7 +27163,10 @@ Dbdict::trans_end_recv_reply(Signal* signal, SchemaTransPtr trans_ptr)
 {
   // unlock
   const DictLockReq& lockReq = trans_ptr.p->m_lockReq;
-  dict_lock_unlock(signal, &lockReq);
+  Uint32 rc = dict_lock_unlock(signal, &lockReq);
+  debugLockInfo(signal,
+                "trans_end_recv_reply unlock",
+                rc);
 
   sendTransClientReply(signal, trans_ptr);
   check_partial_trans_end_recv_reply(trans_ptr);
