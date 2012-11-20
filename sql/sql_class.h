@@ -543,6 +543,8 @@ typedef struct system_variables
 
   double long_query_time_double;
 
+  my_bool pseudo_slave_mode;
+
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
 
