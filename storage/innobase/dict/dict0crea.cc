@@ -807,26 +807,25 @@ dict_create_index_tree(
 	dberr_t		err = DB_SUCCESS;
 	ulint		zip_size = dict_table_zip_size(index->table);
 
-	if (index->table->ibd_file_missing
-	    || dict_table_is_discarded(index->table)) {
+	/* Currently this function is being used by temp-tables only.
+	Import/Discard of temp-table is blocked and so this assert. */
+	ut_ad(index->table->ibd_file_missing
+	      || dict_table_is_discarded(index->table));
 
-		page_no = FIL_NULL;
-	} else {
-		page_no = btr_create(
-			index->type, index->space, zip_size,
-			index->id, index, &mtr);
+	page_no = btr_create(
+		index->type, index->space, zip_size,
+		index->id, index, &mtr);
 
-		index->page = page_no;
-		index->trx_id = trx->id;
+	index->page = page_no;
+	index->trx_id = trx->id;
 
-		if (page_no == FIL_NULL) {
-			err = DB_OUT_OF_FILE_SPACE;
-		}
-
-		DBUG_EXECUTE_IF("ib_import_create_index_failure_1",
-				page_no = FIL_NULL;
-				err = DB_OUT_OF_FILE_SPACE; );
+	if (page_no == FIL_NULL) {
+		err = DB_OUT_OF_FILE_SPACE;
 	}
+
+	DBUG_EXECUTE_IF("ib_import_create_index_failure_1",
+			page_no = FIL_NULL;
+			err = DB_OUT_OF_FILE_SPACE; );
 
 	mtr_commit(&mtr);
 

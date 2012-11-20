@@ -2972,41 +2972,36 @@ row_discard_tablespace(
 
 	table_id_t	new_id;
 
-	if (!dict_table_is_temporary(table)) {
-		/* Set the TABLESPACE DISCARD flag in the table definition
-		on disk. */
-		err = row_import_update_discarded_flag(
-			trx, table->id, true, true);
+	/* Set the TABLESPACE DISCARD flag in the table definition
+	on disk. */
+	err = row_import_update_discarded_flag(
+		trx, table->id, true, true);
 
-		if (err != DB_SUCCESS) {
-			return(err);
-		}
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
 
-		/* Update the index root pages in the system tables, on disk */
-		err = row_import_update_index_root(trx, table, true, true);
+	/* Update the index root pages in the system tables, on disk */
+	err = row_import_update_index_root(trx, table, true, true);
 
-		if (err != DB_SUCCESS) {
-			return(err);
-		}
+	if (err != DB_SUCCESS) {
+		return(err);
+	}
 
-		/* Drop all the FTS auxiliary tables. */
-		if (dict_table_has_fts_index(table)
-		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+	/* Drop all the FTS auxiliary tables. */
+	if (dict_table_has_fts_index(table)
+	    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
 
-			fts_drop_tables(trx, table);
-		}
+		fts_drop_tables(trx, table);
+	}
 
-		/* Assign a new space ID to the table definition so that purge
-		can ignore the changes. Update the system table on disk. */
+	/* Assign a new space ID to the table definition so that purge
+	can ignore the changes. Update the system table on disk. */
 
-		err = row_mysql_table_id_reassign(table, trx, &new_id);
+	err = row_mysql_table_id_reassign(table, trx, &new_id);
 
-		if (err != DB_SUCCESS) {
-			return(err);
-		}
-	} else {
-		dict_hdr_get_new_id(
-			&new_id, NULL, NULL, dict_table_is_temporary(table));
+	if (err != DB_SUCCESS) {
+		return(err);
 	}
 
 	/* Discard the physical file that is used for the tablespace. */
