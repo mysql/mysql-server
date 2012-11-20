@@ -195,8 +195,27 @@ if ($is_windows)
   push(@args, "$srcdir/configure");
   push(@args, "--enable-silent-rules");
 
+  # Standard MySQL Server 5.1 hardcoded options
+  push(@args, "--enable-assembler");
+  push(@args, "--with-extra-charsets=complex");
+  push(@args, "--enable-thread-safe-client");
+  push(@args, "--with-big-tables");
+  push(@args, "--enable-local-infile");
+  push(@args, "--with-ssl");
+
+  # Choose readline or libedit based
+  if (-d "$srcdir/cmd-line-utils/readline")
+  {
+    push(@args, "--with-readline");
+  }
+  elsif (-d "$srcdir/cmd-line-utils/libedit")
+  {
+    push(@args, "--with-libedit");
+  }
+
   if ($opt_debug)
   {
+    print("compile-cluster: debug build requested\n");
     push(@args, "--with-debug");
   }
 
@@ -207,9 +226,6 @@ if ($is_windows)
   }
   else
   {
-    # MySQL Server options
-    push(@args, "--with-ssl");
-
     # NDB options
     push(@args, "--with-plugin-ndbcluster");
     push(@args, "--with-ndb-test");
@@ -219,6 +235,8 @@ if ($is_windows)
   {
     print("compile-cluster: autotest build requested, extra everything\n");
     push(@args, "--with-ndb-ccflags='-DERROR_INSERT'");
+    push(@args, "--with-embedded-server");
+    push(@args, "--with-plugins=max");
   }
 
   cmd("sh", @args, @ARGV);

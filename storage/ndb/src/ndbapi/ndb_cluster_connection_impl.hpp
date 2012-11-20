@@ -23,6 +23,7 @@
 #include <Vector.hpp>
 #include <NdbMutex.h>
 #include "DictCache.hpp"
+#include "kernel/ndb_limits.h"
 
 extern NdbMutex *g_ndb_connection_mutex;
 
@@ -79,6 +80,7 @@ private:
   friend class Ndb_cluster_connection;
   friend class NdbEventBuffer;
   friend class SignalSender;
+  friend class NDBT_Context;
   
   struct Node
   {
