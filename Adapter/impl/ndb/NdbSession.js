@@ -199,7 +199,7 @@ NdbSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys,
 */
 NdbSession.prototype.getTransactionHandler = function() {
   udebug.log("getTransactionHandler");
-  if(this.tx) {
+  if(this.tx && this.tx.open) {
    udebug.log("getTransactionHandler -- return existing");
   }
   else {

@@ -38,6 +38,7 @@ function DBTransactionHandler(dbsession) {
   this.autocommit         = true;
   this.ndbtx              = null;
   this.state              = doc.DBTransactionStates[0];  // DEFINED
+  this.open               = true;
   this.executedOperations = [];
 }
 DBTransactionHandler.prototype = proto;
@@ -46,7 +47,7 @@ DBTransactionHandler.prototype = proto;
 /* Internal execute()
 */ 
 function execute(self, execMode, dbOperationList, callback) {
-  udebug.log("execute");
+  udebug.log("Internal execute");
   var table = dbOperationList[0].tableHandler.dbTable;
 
   function onCompleteTx(err, result) {
@@ -56,13 +57,15 @@ function execute(self, execMode, dbOperationList, callback) {
     self.error = err;
     self.success = err ? false : true;
     
-    /* Attach results to their operations */
-    ndboperation.completeExecutedOps(err, self.executedOperations);
-
     /* If we just executed with Commit or Rollback, close the NdbTransaction */
     if(execMode === adapter.ndbapi.Commit || execMode === adapter.ndbapi.Rollback) {
+      self.open = false;
       self.ndbtx.close();
     }
+
+    /* Attach results to their operations */
+    ndboperation.completeExecutedOps(err, self.executedOperations);
+    udebug.log("BACK IN execute onCompleteTx AFTER COMPLETED OPS");
 
     /* Next callback */
     if(callback) {
