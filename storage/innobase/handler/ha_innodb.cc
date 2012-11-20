@@ -9760,11 +9760,8 @@ ha_innobase::discard_or_import_tablespace(
 
 	dict_table = prebuilt->table;
 
-	if (dict_table->space == srv_sys_space.space_id()
-	    || dict_table->space == srv_tmp_space.space_id()) {
+	if (dict_table->space == srv_sys_space.space_id()) {
 
-                // FIXME: This error code has to change. It should now be
-                // ER_TABLE_IN_SHARED_TABLESPACE
 		ib_senderrf(
 			prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_TABLE_IN_SYSTEM_TABLESPACE,
