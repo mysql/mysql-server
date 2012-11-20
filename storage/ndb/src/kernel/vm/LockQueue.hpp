@@ -47,7 +47,7 @@ public:
   typedef ArrayPool<LockQueueElement> Pool;
   
   Uint32 lock(Pool&, const UtilLockReq * req, const UtilLockReq** lockOwner= 0);
-  Uint32 unlock(Pool&, const UtilUnlockReq* req);
+  Uint32 unlock(Pool&, const UtilUnlockReq* req, UtilLockReq* orig_req= 0);
   
   /**
    * After unlock

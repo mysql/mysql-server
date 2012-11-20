@@ -92,7 +92,8 @@ LockQueue::lock(Pool & thePool,
 
 Uint32
 LockQueue::unlock(Pool & thePool, 
-                  const UtilUnlockReq* req)
+                  const UtilUnlockReq* req,
+                  UtilLockReq* orig_req)
 {
   const Uint32 senderRef = req->senderRef;
   const Uint32 senderData = req->senderData;
@@ -119,6 +120,11 @@ LockQueue::unlock(Pool & thePool,
         jam();
         res = UtilUnlockRef::NotLockOwner;
       }
+      
+      /* Copy out orig request if ptr supplied */
+      if (orig_req)
+        *orig_req = lockEPtr.p->m_req;
+      
       queue.release(lockEPtr);
       return res;
     }
