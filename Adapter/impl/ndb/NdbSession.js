@@ -144,10 +144,10 @@ NdbSession.prototype.buildInsertOperation = function(tableHandler, row,
  
    RETURNS a DBOperation 
 */
-NdbSession.prototype.buildWriteOperation = function(dbTableHandler, row, 
+NdbSession.prototype.buildWriteOperation = function(dbIndexHandler, row, 
                                                     tx, callback) {
-  udebug.log("buildWriteOperation " + dbTableHandler.dbTable.name);
-  var op = ndboperation.newWriteOperation(tx, dbTableHandler, row);
+  udebug.log("buildWriteOperation");
+  var op = ndboperation.newWriteOperation(tx, dbIndexHandler, row);
   op.userCallback = callback;
   return op;
 };
@@ -199,7 +199,7 @@ NdbSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys,
 */
 NdbSession.prototype.getTransactionHandler = function() {
   udebug.log("getTransactionHandler");
-  if(this.tx) {
+  if(this.tx && this.tx.open) {
    udebug.log("getTransactionHandler -- return existing");
   }
   else {

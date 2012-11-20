@@ -42,7 +42,7 @@
  
    RETURNS a DBOperation 
 */
-  buildWriteOperation(dbTableHandler, row, transaction, callback);
+  buildWriteOperation(dbIndexHandler, row, transaction, callback);
 
 
 /* buildReadOperation(DBIndexHandler dbIndexHandler, 
