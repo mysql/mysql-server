@@ -553,7 +553,7 @@ def main(opts):
                 'jemalloc': opts.jemalloc,
                 'tsize': tsize,
                 'csize': csize,
-                'test_time': opts.test_time,
+                'default_test_time': opts.test_time,
                 'savedir': opts.savedir
                 }
             for test in opts.testnames:
