@@ -2983,7 +2983,7 @@ int cleaner::run_cleaner(void) {
             break;
         }
         // here we select a PAIR for cleaning
-        // look at some number of PAIRS, and 
+        // look at some number of PAIRS, and
         // pick what we think is the best one for cleaning
         //***** IMPORTANT ******
         // we MUST not pick a PAIR whose rating is 0. We have
@@ -3002,8 +3002,17 @@ int cleaner::run_cleaner(void) {
                 // Advance the cleaner head.
                 long score = 0;
                 // only bother with this pair if it has no current users
-                if (m_pl->m_cleaner_head->value_rwlock.users() > 0) {
+                if (m_pl->m_cleaner_head->value_rwlock.users() == 0) {
+                    // cleaner_thread_rate_pair will read this.  The
+                    // contract is that to look at p->attr, you need
+                    // either the pair's value_rwlock write-locked, or you
+                    // need the pair_lock *and* the pair's value_rwlock
+                    // read-locked.  Here we know nobody else has it
+                    // write-locked so it's safe, but DRD seems not to
+                    // understand that.
+                    TOKU_DRD_IGNORE_VAR(m_pl->m_cleaner_head->attr.cache_pressure_size);
                     score = cleaner_thread_rate_pair(m_pl->m_cleaner_head);
+                    TOKU_DRD_STOP_IGNORING_VAR(m_pl->m_cleaner_head->attr.cache_pressure_size);
                     if (score > best_score) {
                         best_score = score;
                         best_pair = m_pl->m_cleaner_head;
@@ -3019,10 +3028,13 @@ int cleaner::run_cleaner(void) {
             else {
                 n_seen++;
                 long score = 0;
+                // See above
+                TOKU_DRD_IGNORE_VAR(m_pl->m_cleaner_head->attr.cache_pressure_size);
                 score = cleaner_thread_rate_pair(m_pl->m_cleaner_head);
+                TOKU_DRD_STOP_IGNORING_VAR(m_pl->m_cleaner_head->attr.cache_pressure_size);
                 if (score > best_score) {
                     best_score = score;
-                    // Since we found a new best pair, we need to 
+                    // Since we found a new best pair, we need to
                     // free the old best pair.
                     if (best_pair) {
                         pair_unlock(best_pair);
@@ -3037,9 +3049,9 @@ int cleaner::run_cleaner(void) {
             m_pl->m_cleaner_head = m_pl->m_cleaner_head->clock_next;
         } while (m_pl->m_cleaner_head != first_pair && n_seen < CLEANER_N_TO_CHECK);
         m_pl->read_list_unlock();
-        
+
         //
-        // at this point, if we have found a PAIR for cleaning, 
+        // at this point, if we have found a PAIR for cleaning,
         // that is, best_pair != NULL, we do the clean
         //
         // if best_pair !=NULL, then best_pair->mutex is held
@@ -3070,12 +3082,11 @@ int cleaner::run_cleaner(void) {
             }
 
             bool cleaner_callback_called = false;
-            
+
             // it's theoretically possible that after writing a PAIR for checkpoint, the
             // PAIR's heuristic tells us nothing needs to be done. It is not possible
             // in Dr. Noga, but unit tests verify this behavior works properly.
-            if (cleaner_thread_rate_pair(best_pair) > 0) 
-            {
+            if (cleaner_thread_rate_pair(best_pair) > 0) {
                 r = best_pair->cleaner_callback(best_pair->value_data,
                                                     best_pair->key,
                                                     best_pair->fullhash,
