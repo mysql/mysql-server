@@ -3077,6 +3077,18 @@ row_discard_tablespace_for_mysql(
 
 	if (table == 0) {
 		err = DB_TABLE_NOT_FOUND;
+	} else if (dict_table_is_temporary(table)) {
+		char	table_name[MAX_FULL_NAME_LEN + 1];
+
+		innobase_format_name(
+			table_name, sizeof(table_name), table->name, FALSE);
+
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			    ER_TABLE_TEMPORARY_TABLE_IMPORT_DISCARD,
+			    table_name);
+
+		err = DB_ERROR;
+
 	} else if (table->space == TRX_SYS_SPACE) {
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
