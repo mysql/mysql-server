@@ -70,6 +70,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
       helperSpec.lock_mode  = this.lockMode;
       // fall through
     case 'update':
+    case 'write':
       helperSpec.mask       = this.columnMask;
       helperSpec.key_record = this.index.record;
       helperSpec.key_buffer = this.buffers.key;
@@ -93,6 +94,9 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
       break;
     case 'update':
       this.ndbop = helper.updateTuple(ndbTransaction);
+      break;
+    case 'write':
+      this.ndbop = helper.writeTuple(ndbTransaction);
       break;
   }
 
@@ -274,10 +278,18 @@ function newDeleteOperation(tx, dbIndexHandler, keys) {
 }
 
 
-function newWriteOperation(tx, tablehandler, row) {
- throw "ublah";
- // return new_Operation('write', tx, tablehandler, row);
+function newWriteOperation(tx, dbIndexHandler, row) {
+  udebug.log("newWriteOperation");
+  if(! dbIndexHandler.tableHandler) {
+    throw ("Invalid dbIndexHandler");
+  }
+  var op = new DBOperation("write", tx, dbIndexHandler.tableHandler);
+  op.values = row;
+  encodeRowBuffer(op);
+  encodeKeyBuffer(dbIndexHandler, op, row);
+  return op;
 }
+
 
 function newUpdateOperation(tx, dbIndexHandler, keys, row) {
   udebug.log("newUpdateOperation");

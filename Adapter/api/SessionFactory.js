@@ -68,13 +68,13 @@ SessionFactory.prototype.getTableMetadata = function() {
  */
 SessionFactory.prototype.getMapping = function(tableNameOrConstructor) {
   var type = typeof(tableNameOrConstructor);
+  udebug.log("getMapping", type);
   var tableHandler = null;
   var mynode;
   switch(type) {
   case 'function':
     // get the mapping from the tableHandler in prototype.mynode
-//    console.log('SessionFactory.getMapping for constructor "' + tableNameOrConstructor.name + '" ' +
-//        util.inspect(tableNameOrConstructor.prototype));
+    udebug.log_detail(tableNameOrConstructor.prototype);
     mynode = tableNameOrConstructor.prototype.mynode;
     tableHandler = mynode && mynode.tableHandler;
     break;

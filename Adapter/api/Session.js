@@ -53,6 +53,7 @@ exports.Session.prototype.listTables = function() {
 };
 
 exports.Session.prototype.getMapping = function(tableNameOrConstructor) {
+  udebug.log("getMapping");
   return this.sessionFactory.getMapping(tableNameOrConstructor);
 };
 
