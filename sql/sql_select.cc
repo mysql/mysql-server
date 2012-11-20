@@ -22831,6 +22831,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   ha_rows table_records= table->file->stats.records;
   bool group= join && join->group && order == join->group_list;
   ha_rows ref_key_quick_rows= HA_POS_ERROR;
+  const bool has_limit= (select_limit_arg != HA_POS_ERROR);
 
   /*
     If not used with LIMIT, only use keys if the whole query can be
@@ -22962,7 +22963,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
             be included into the result set.
           */  
           if (select_limit > table_records/rec_per_key)
-              select_limit= table_records;
+            select_limit= table_records;
           else
             select_limit= (ha_rows) (select_limit*rec_per_key);
         } /* group */
@@ -23044,7 +23045,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   
   *new_key= best_key;
   *new_key_direction= best_key_direction;
-  *new_select_limit= best_select_limit;
+  *new_select_limit= has_limit ? best_select_limit : table_records;
   if (new_used_key_parts != NULL)
     *new_used_key_parts= best_key_parts;
 

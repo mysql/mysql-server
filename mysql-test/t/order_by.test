@@ -1690,6 +1690,30 @@ show status like '%Handler_read%';
 
 drop table t0, t1;
 
+--echo #
+--echo # LP bug #1002508 : the number  of expected rows to be examined is off
+--echo # (bug #13528826)
+--echo #             
+
+CREATE TABLE t1(a int PRIMARY KEY, b int) ENGINE=myisam;
+INSERT INTO t1 VALUES
+  (5, 10), (2, 70), (7, 80), (6, 20), (1, 50), (9, 40), (8, 30), (3, 60);
+CREATE TABLE t2 (p int, a int, INDEX i_a(a)) ENGINE=myisam;
+INSERT INTO t2 VALUES
+  (103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
+  (107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
+
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a;
+
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 8;
+
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 100;
+
+DROP TABLE t1,t2;
+
 --echo End of 5.5 tests
 
 

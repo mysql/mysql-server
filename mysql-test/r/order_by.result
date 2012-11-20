@@ -1993,4 +1993,31 @@ Handler_read_rnd	1
 Handler_read_rnd_deleted	0
 Handler_read_rnd_next	250
 drop table t0, t1;
+#
+# LP bug #1002508 : the number  of expected rows to be examined is off
+# (bug #13528826)
+#             
+CREATE TABLE t1(a int PRIMARY KEY, b int) ENGINE=myisam;
+INSERT INTO t1 VALUES
+(5, 10), (2, 70), (7, 80), (6, 20), (1, 50), (9, 40), (8, 30), (3, 60);
+CREATE TABLE t2 (p int, a int, INDEX i_a(a)) ENGINE=myisam;
+INSERT INTO t2 VALUES
+(103, 7), (109, 3), (102, 3), (108, 1), (106, 3),
+(107, 7), (105, 1), (101, 3), (100, 7), (110, 1);
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	8	Using index
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 8;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
+EXPLAIN 
+SELECT t1.a FROM t1 LEFT JOIN t2 ON t1.a=t2.a ORDER BY t1.a LIMIT 100;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	8	Using index
+1	SIMPLE	t2	ref	i_a	i_a	5	test.t1.a	2	Using index
+DROP TABLE t1,t2;
 End of 5.5 tests
