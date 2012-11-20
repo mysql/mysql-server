@@ -177,7 +177,7 @@ int ndbcluster_connect(int (*connect_callback)(void))
         gettimeofday(&now_time, 0);
       } while (res != 0 && end_time.tv_sec > now_time.tv_sec);
 
-      const char *msg;
+      const char *msg= 0;
       if (res == 0)
       {
         msg= "all storage nodes connected";
