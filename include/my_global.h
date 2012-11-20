@@ -998,29 +998,6 @@ typedef char		my_bool; /* Small bool */
 #endif
 #endif
 
-/*
-  Defines to make it possible to prioritize register assignments. No
-  longer that important with modern compilers.
-*/
-#ifndef USING_X
-#define reg1 register
-#define reg2 register
-#define reg3 register
-#define reg4 register
-#define reg5 register
-#define reg6 register
-#define reg7 register
-#define reg8 register
-#define reg9 register
-#define reg10 register
-#define reg11 register
-#define reg12 register
-#define reg13 register
-#define reg14 register
-#define reg15 register
-#define reg16 register
-#endif
-
 #include <my_dbug.h>
 
 /* Some helper macros */

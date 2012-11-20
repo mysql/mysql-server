@@ -2354,7 +2354,7 @@ type_conversion_status Field_decimal::store(double nr)
     return TYPE_WARN_OUT_OF_RANGE;
   }
 
-  reg4 uint i;
+  uint i;
   size_t length;
   uchar fyllchar,*to;
   char buff[DOUBLE_TO_STRING_CONVERSION_BUFFER_SIZE];

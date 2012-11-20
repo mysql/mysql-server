@@ -421,7 +421,8 @@ enum enum_binlog_command {
   LOGCOM_DROP_TABLE,
   LOGCOM_CREATE_DB,
   LOGCOM_ALTER_DB,
-  LOGCOM_DROP_DB
+  LOGCOM_DROP_DB,
+  LOGCOM_ACL_NOTIFY
 };
 
 /* struct to hold information about the table that should be created */

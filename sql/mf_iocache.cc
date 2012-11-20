@@ -48,7 +48,7 @@ extern "C" {
 */
 
 
-int _my_b_net_read(register IO_CACHE *info, uchar *Buffer,
+int _my_b_net_read(IO_CACHE *info, uchar *Buffer,
 		   size_t Count __attribute__((unused)))
 {
   ulong read_length;

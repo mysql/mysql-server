@@ -115,7 +115,7 @@ trx_purge_sys_create(
 	purge_sys = static_cast<trx_purge_t*>(mem_zalloc(sizeof(*purge_sys)));
 
 	purge_sys->state = PURGE_STATE_INIT;
-	purge_sys->event = os_event_create("purge");
+	purge_sys->event = os_event_create();
 
 	/* Take ownership of ib_bh, we are responsible for freeing it. */
 	purge_sys->ib_bh = ib_bh;

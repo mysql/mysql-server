@@ -3773,8 +3773,8 @@ os_aio_array_create(
 	memset(array, 0x0, sizeof(*array));
 
 	array->mutex = os_mutex_create();
-	array->not_full = os_event_create(NULL);
-	array->is_empty = os_event_create(NULL);
+	array->not_full = os_event_create();
+	array->is_empty = os_event_create();
 
 	os_event_set(array->is_empty);
 
@@ -3995,7 +3995,7 @@ os_aio_init(
 		ut_malloc(n_segments * sizeof *os_aio_segment_wait_events));
 
 	for (ulint i = 0; i < n_segments; ++i) {
-		os_aio_segment_wait_events[i] = os_event_create(NULL);
+		os_aio_segment_wait_events[i] = os_event_create();
 	}
 
 	os_last_printout = ut_time();

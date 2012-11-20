@@ -134,7 +134,7 @@ int my_setwd(const char *dir, myf MyFlags)
 	/* Test if hard pathname */
 	/* Returns 1 if dirname is a hard path */
 
-int test_if_hard_path(register const char *dir_name)
+int test_if_hard_path(const char *dir_name)
 {
   if (dir_name[0] == FN_HOMELIB && dir_name[1] == FN_LIBCHAR)
     return (home_dir != NullS && test_if_hard_path(home_dir));
