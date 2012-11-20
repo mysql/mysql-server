@@ -19,7 +19,7 @@ Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4032
 Next DBLQH 5074
-Next DBDICT 6026
+Next DBDICT 6029
 Next DBDIH 7236
 Next DBTC 8090
 Next CMVMI 9000
@@ -581,6 +581,9 @@ Dbdict:
 6201 Set error code after handleTabInfoInit in master (index)
 6202 Set error code before CREATE_FRAGMENTATION in master
 6203 Set error code before CREATE_FRAGMENTATION in master (index)
+
+6027 Delay execution of DROP_TAB_REQ.
+6028 Delay execution of PREP_DROP_TAB_REQ.
 
 Dbtup:
 4014 - handleInsert - Out of undo buffer

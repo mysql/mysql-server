@@ -92,6 +92,7 @@ public:
     CmvmiMaintLockCPU = 505,
     CmvmiSchedulerSpinTimer = 506,
     // 1222-1225 DICT
+    DictDumpLockQueue = 1228,
     LqhDumpAllDefinedTabs = 1332,
     LqhDumpNoLogPages = 1333,
     LqhDumpOneScanRec = 2300,

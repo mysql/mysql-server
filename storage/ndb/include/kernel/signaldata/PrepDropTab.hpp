@@ -21,7 +21,7 @@
 
 #include "SignalData.hpp"
 
-class PrepDropTabReq {
+struct PrepDropTabReq {
   /**
    * Sender(s)
    */
@@ -45,7 +45,7 @@ private:
   Uint32 requestType; // @see DropTabReq::RequestType
 };
 
-class PrepDropTabConf {
+struct PrepDropTabConf {
   /**
    * Sender(s)
    */
@@ -68,7 +68,7 @@ private:
   Uint32 tableId;
 };
 
-class PrepDropTabRef {
+struct PrepDropTabRef {
   /**
    * Sender(s)
    */
@@ -80,6 +80,7 @@ class PrepDropTabRef {
    * Receiver(s)
    */
   friend class Dbdict;
+  friend class SafeCounter;
 
   friend bool printPREP_DROP_TAB_REF(FILE *, const Uint32 *, Uint32, Uint16);
 public:
@@ -94,7 +95,6 @@ public:
     NF_FakeErrorREF = 5
   };
   
-private:
   Uint32 senderRef;
   Uint32 senderData;
   Uint32 tableId;

@@ -307,6 +307,17 @@ Dbdict::execDUMP_STATE_ORD(Signal* signal)
       ndbout_c("%s m_ref_count: %d", buf, iter.curr.p->m_ref_count); 
     }
   }    
+  if (signal->theData[0] == DumpStateOrd::DictDumpLockQueue)
+  {
+    jam();
+    m_dict_lock.dump_queue(m_dict_lock_pool, this);
+    
+    /* Space for hex form of enough words for node bitmask + \0 */
+    char buf[(((MAX_NDB_NODES + 31)/32) * 8) + 1 ];
+    infoEvent("DICT : c_sub_startstop _outstanding %u _lock %s",
+              c_outstanding_sub_startstop,
+              c_sub_startstop_lock.getText(buf));
+  }
   
   if (signal->theData[0] == 8004)
   {
@@ -4070,7 +4081,15 @@ void Dbdict::execNODE_FAILREP(Signal* signal)
       lockReq.lockId = 0;
       lockReq.requestInfo = UtilLockReq::SharedLock;
       lockReq.extra = DictLockReq::NodeFailureLock;
-      m_dict_lock.lock(m_dict_lock_pool, &lockReq, 0);
+      
+      Uint32 rc = m_dict_lock.lock(m_dict_lock_pool, &lockReq, 0);
+      debugLockInfo(signal,
+                    "NODE_FAILREP Shared lock claim",
+                    rc);
+      if (rc != UtilLockRef::OK)
+      {
+        m_dict_lock.dump_queue(m_dict_lock_pool, this);
+      }
     }
   }
   
@@ -4196,6 +4215,9 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::CreateTableLock;
     parseRecord.errorCode = dict_lock_trylock(&lockReq);
+    debugLockInfo(signal,
+                  "CREATE_TABLE_REQ trylock",
+                  parseRecord.errorCode);
     if (parseRecord.errorCode)
     {
       jam();
@@ -4226,7 +4248,10 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
     
     if(parseRecord.errorCode != 0){
       jam();
-      dict_lock_unlock(0, &lockReq);
+      Uint32 rc = dict_lock_unlock(0, &lockReq);
+      debugLockInfo(signal,
+                    "CREATE_TABLE_REQ unlock on parse error",
+                    rc);
       c_opCreateTable.release(createTabPtr);
       if (!parseRecord.tablePtr.isNull())
       {
@@ -4300,7 +4325,10 @@ Dbdict::execCREATE_TABLE_REQ(Signal* signal){
     {
       jam();
       parseRecord.errorCode= signal->theData[0];
-      dict_lock_unlock(0, &lockReq);
+      Uint32 rc = dict_lock_unlock(0, &lockReq);
+      debugLockInfo(signal,
+                    "CREATE_TABLE_REQ unlock on create frag error",
+                    rc);
       c_opCreateTable.release(createTabPtr);
       releaseTableObject(parseRecord.tablePtr.i, true);
       break;
@@ -4469,6 +4497,9 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::AlterTableLock;
     aParseRecord.errorCode = dict_lock_trylock(&lockReq);
+    debugLockInfo(signal,
+                  "ALTER_TABLE_REQ trylock",
+                  aParseRecord.errorCode);
     if (aParseRecord.errorCode)
     {
       jam();
@@ -4501,7 +4532,10 @@ Dbdict::execALTER_TABLE_REQ(Signal* signal)
     if(aParseRecord.errorCode != 0)
     {
       jam();
-      dict_lock_unlock(0, &lockReq);
+      Uint32 rc = dict_lock_unlock(0, &lockReq);
+      debugLockInfo(signal,
+                    "ALTER_TABLE_REQ unlock on parse error",
+                    rc);
       c_opCreateTable.release(alterTabPtr);
       break;
     }
@@ -4597,7 +4631,10 @@ Dbdict::alterTable_backup_mutex_locked(Signal* signal,
     lockReq.userPtr = alterTabPtr.i;
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::AlterTableLock;
-    dict_lock_unlock(signal, &lockReq);
+    Uint32 rc = dict_lock_unlock(signal, &lockReq);
+    debugLockInfo(signal,
+                  "ALTER_TABLE_REQ unlock on backup ongoing",
+                  rc);
 
     c_opCreateTable.release(alterTabPtr);
     releaseSections(handle);
@@ -5246,8 +5283,11 @@ Dbdict::execALTER_TAB_CONF(Signal * signal){
       lockReq.userRef = reference();
       lockReq.userPtr = alterTabPtr.i;
       lockReq.lockType = DictLockReq::AlterTableLock;
-      dict_lock_unlock(signal, &lockReq);
-
+      Uint32 rc = dict_lock_unlock(signal, &lockReq);
+      debugLockInfo(signal,
+                    "ALTER_TAB_CONF unlock on completion",
+                    rc);
+      
       TableRecordPtr tabPtr;
       c_tableRecordPool.getPtr(tabPtr, alterTabPtr.p->m_tablePtrI);  
       releaseTableObject(tabPtr.i, false);
@@ -5739,7 +5779,10 @@ Dbdict::createTab_reply(Signal* signal,
     lockReq.userPtr = createTabPtr.i;
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::CreateTableLock;
-    dict_lock_unlock(signal, &lockReq);
+    Uint32 rc = dict_lock_unlock(signal, &lockReq);
+    debugLockInfo(signal,
+                  "CREATE_TABLE_REQ unlock on CreateTableDrop",
+                  rc);
 
     releaseCreateTableOp(signal,createTabPtr);
     
@@ -5805,7 +5848,10 @@ Dbdict::createTab_startLcpMutex_unlocked(Signal* signal,
   lockReq.userPtr = createTabPtr.i;
   lockReq.userRef = reference();
   lockReq.lockType = DictLockReq::CreateTableLock;
-  dict_lock_unlock(signal, &lockReq);
+  Uint32 rc = dict_lock_unlock(signal, &lockReq);
+  debugLockInfo(signal,
+                "CREATE_TABLE_REQ commit unlock",
+                rc);
 
   releaseCreateTableOp(signal,createTabPtr);
   return;
@@ -7303,6 +7349,9 @@ Dbdict::execDROP_TABLE_REQ(Signal* signal){
   lockReq.userRef = reference();
   lockReq.lockType = DictLockReq::DropTableLock;
   Uint32 err = dict_lock_trylock(&lockReq);
+  debugLockInfo(signal,
+                "DROP_TABLE_REQ trylock",
+                err);
   if (err)
   {
     jam();
@@ -7357,7 +7406,10 @@ Dbdict::dropTable_backup_mutex_locked(Signal* signal,
     lockReq.userPtr = dropTabPtr.i;
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::DropTableLock;
-    dict_lock_unlock(signal, &lockReq);
+    Uint32 rc = dict_lock_unlock(signal, &lockReq);
+    debugLockInfo(signal,
+                  "DROP_TABLE_REQ unlock on backup ongoing",
+                  rc);
 
     c_opDropTable.release(dropTabPtr);
   }
@@ -7429,8 +7481,12 @@ Dbdict::prepDropTab_nextStep(Signal* signal, DropTableRecordPtr dropTabPtr){
   prep->tableId = dropTabPtr.p->m_request.tableId;
   prep->requestType = dropTabPtr.p->m_requestType;
   
-  dropTabPtr.p->m_coordinatorData.m_signalCounter = c_aliveNodes;
   NodeReceiverGroup rg(block, c_aliveNodes);
+  {
+    SafeCounter safeCounter(c_counterMgr,
+                          dropTabPtr.p->m_coordinatorData.m_counter);
+    safeCounter.init<PrepDropTabRef>(rg, GSN_PREP_DROP_TAB_REF, dropTabPtr.p->key);
+  }
   sendSignal(rg, GSN_PREP_DROP_TAB_REQ, signal, 
 	     PrepDropTabReq::SignalLength, JBB);
   
@@ -7459,12 +7515,14 @@ Dbdict::execPREP_DROP_TAB_CONF(Signal * signal){
   ndbrequire(dropTabPtr.p->m_request.tableId == prep->tableId);
   ndbrequire(dropTabPtr.p->m_coordinatorData.m_gsn == GSN_PREP_DROP_TAB_REQ);
   
-  Uint32 nodeId = refToNode(prep->senderRef);
-  dropTabPtr.p->m_coordinatorData.m_signalCounter.clearWaitingFor(nodeId);
-  
-  if(!dropTabPtr.p->m_coordinatorData.m_signalCounter.done()){
-    jam();
-    return;
+  {
+    Uint32 nodeId = refToNode(prep->senderRef);
+    SafeCounter safeCounter(c_counterMgr, dropTabPtr.p->m_coordinatorData.m_counter);
+    if(!safeCounter.clearWaitingFor(nodeId))
+    {
+      jam();
+      return;
+    }
   }
   prepDropTab_nextStep(signal, dropTabPtr);
 }
@@ -7479,11 +7537,9 @@ Dbdict::execPREP_DROP_TAB_REF(Signal* signal){
   ndbrequire(c_opDropTable.find(dropTabPtr, prep->senderData));
   
   ndbrequire(dropTabPtr.p->m_coordinatorRef == reference());
-  ndbrequire(dropTabPtr.p->m_request.tableId == prep->tableId);
+  ndbrequire((dropTabPtr.p->m_request.tableId == prep->tableId) ||
+             (prep->errorCode == PrepDropTabRef::NF_FakeErrorREF));
   ndbrequire(dropTabPtr.p->m_coordinatorData.m_gsn == GSN_PREP_DROP_TAB_REQ);
-  
-  Uint32 nodeId = refToNode(prep->senderRef);
-  dropTabPtr.p->m_coordinatorData.m_signalCounter.clearWaitingFor(nodeId);
   
   Uint32 block = refToBlock(prep->senderRef);
   if((prep->errorCode == PrepDropTabRef::NoSuchTable && block == DBLQH) ||
@@ -7498,9 +7554,14 @@ Dbdict::execPREP_DROP_TAB_REF(Signal* signal){
     dropTabPtr.p->setErrorCode((Uint32)prep->errorCode);
   }
   
-  if(!dropTabPtr.p->m_coordinatorData.m_signalCounter.done()){
-    jam();
-    return;
+  {
+    Uint32 nodeId = refToNode(prep->senderRef);
+    SafeCounter safeCounter(c_counterMgr, dropTabPtr.p->m_coordinatorData.m_counter);
+    if(!safeCounter.clearWaitingFor(nodeId))
+    {
+      jam();
+      return;
+    }
   }
   prepDropTab_nextStep(signal, dropTabPtr);
 }
@@ -7568,8 +7629,11 @@ Dbdict::dropTableWaitGci(Signal* signal)
   req->tableId = dropTabPtr.p->m_request.tableId;
   req->requestType = dropTabPtr.p->m_requestType;
 
-  dropTabPtr.p->m_coordinatorData.m_signalCounter = c_aliveNodes;
+  
   NodeReceiverGroup rg(DBDICT, c_aliveNodes);
+  SafeCounter safeCounter(c_counterMgr,
+                          dropTabPtr.p->m_coordinatorData.m_counter);
+  safeCounter.init<DropTabRef>(rg, GSN_DROP_TAB_REF, dropTabPtr.p->key);
   sendSignal(rg, GSN_DROP_TAB_REQ, signal, 
 	     DropTabReq::SignalLength, JBB);
 }
@@ -7591,7 +7655,24 @@ Dbdict::execDROP_TAB_REF(Signal* signal){
     dropTab_localDROP_TAB_CONF(signal);
     return;
   }
-  ndbrequire(false);
+  else
+  {
+    jam();
+    ndbrequire(req->errorCode == DropTabRef::NF_FakeErrorREF);
+    DropTableRecordPtr dropTabPtr;  
+    ndbrequire(c_opDropTable.find(dropTabPtr, req->senderData));
+    ndbrequire(dropTabPtr.p->m_coordinatorRef == reference());
+    ndbrequire(dropTabPtr.p->m_coordinatorData.m_gsn == GSN_DROP_TAB_REQ);
+    
+    /* Extract tableid, and process as CONF */
+    Uint32 tableId = dropTabPtr.p->m_request.tableId;
+    DropTabConf* conf = (DropTabConf*) signal->getDataPtrSend();
+    conf->senderRef = req->senderRef;
+    conf->senderData = req->senderData;
+    conf->tableId = tableId;
+    signal->header.theLength = DropTabConf::SignalLength;
+    execDROP_TAB_CONF(signal);
+  }
 }
 
 void
@@ -7615,9 +7696,10 @@ Dbdict::execDROP_TAB_CONF(Signal* signal){
   ndbrequire(dropTabPtr.p->m_coordinatorData.m_gsn == GSN_DROP_TAB_REQ);
 
   Uint32 nodeId = refToNode(req->senderRef);
-  dropTabPtr.p->m_coordinatorData.m_signalCounter.clearWaitingFor(nodeId);
-  
-  if(!dropTabPtr.p->m_coordinatorData.m_signalCounter.done()){
+  SafeCounter safeCounter(c_counterMgr,
+                          dropTabPtr.p->m_coordinatorData.m_counter);
+  if (!safeCounter.clearWaitingFor(nodeId))
+  {
     jam();
     return;
   }
@@ -7635,7 +7717,10 @@ Dbdict::execDROP_TAB_CONF(Signal* signal){
   lockReq.userPtr = dropTabPtr.i;
   lockReq.userRef = reference();
   lockReq.lockType = DictLockReq::DropTableLock;
-  dict_lock_unlock(signal, &lockReq);
+  Uint32 rc = dict_lock_unlock(signal, &lockReq);
+  debugLockInfo(signal,
+                "DROP_TABLE_CONF unlock",
+                rc);
   
   c_opDropTable.release(dropTabPtr);
 }
@@ -7646,6 +7731,16 @@ Dbdict::execDROP_TAB_CONF(Signal* signal){
 void
 Dbdict::execPREP_DROP_TAB_REQ(Signal* signal){
   jamEntry();
+
+  if (ERROR_INSERTED(6028))
+  {
+    jam();
+    /* Defer */
+    sendSignalWithDelay(reference(), GSN_PREP_DROP_TAB_REQ, signal,
+                        1000, signal->length());
+    return;
+  }
+
   PrepDropTabReq * prep = (PrepDropTabReq*)signal->getDataPtrSend();  
 
   DropTableRecordPtr dropTabPtr;  
@@ -7740,6 +7835,15 @@ void
 Dbdict::execDROP_TAB_REQ(Signal* signal){
   jamEntry();
   DropTabReq * req = (DropTabReq*)signal->getDataPtrSend();  
+ 
+  if (ERROR_INSERTED(6027))
+  {
+    jam();
+    /* Defer */
+    sendSignalWithDelay(reference(), GSN_DROP_TAB_REQ, signal,
+                        1000, signal->length());
+    return;
+  }
 
   DropTableRecordPtr dropTabPtr;  
   ndbrequire(c_opDropTable.find(dropTabPtr, req->senderData));
@@ -8850,10 +8954,17 @@ Dbdict::execCREATE_INDX_REQ(Signal* signal)
         lockReq.lockType = DictLockReq::CreateIndexLock;
         tmperr = (CreateIndxRef::ErrorCode)dict_lock_trylock(&lockReq);
 
+        debugLockInfo(signal,
+                      "CREATE_INDEX_REQ trylock",
+                      (Uint32) tmperr);
+
         if (tmperr == 0)
         {
           jam();
-          dict_lock_unlock(0, &lockReq);
+          Uint32 rc = dict_lock_unlock(0, &lockReq);
+          debugLockInfo(signal,
+                        "CREATE_INDEX_REQ immediate unlock",
+                        rc);
         }
       }
 
@@ -9520,11 +9631,16 @@ Dbdict::execDROP_INDX_REQ(Signal* signal)
         lockReq.userRef = reference();
         lockReq.lockType = DictLockReq::DropIndexLock;
         tmperr = (DropIndxRef::ErrorCode)dict_lock_trylock(&lockReq);
-
+        debugLockInfo(signal,
+                      "DROP_INDEX_REQ trylock",
+                      (Uint32) tmperr);
         if (tmperr == 0)
         {
           jam();
-          dict_lock_unlock(0, &lockReq);
+          Uint32 rc = dict_lock_unlock(0, &lockReq);
+          debugLockInfo(signal,
+                        "DROP_INDEX_REQ immediate unlock",
+                        rc);
         }
       }
 
@@ -15015,6 +15131,53 @@ Dbdict::getDictLockType(Uint32 lockType)
 }
 
 void
+Dbdict::debugLockInfo(Signal* signal, 
+                      const char* text,
+                      Uint32 rc)
+{
+  if (!g_trace)
+    return;
+  
+  static const char* rctext = "Unknown result";
+  
+  switch(rc)
+  {
+  case UtilLockRef::OK:
+    rctext = "Success";
+    break;
+  case UtilLockRef::NoSuchLock:
+    rctext = "No such lock";
+    break;
+  case UtilLockRef::OutOfLockRecords:
+    rctext = "Out of records";
+    break;
+  case UtilLockRef::DistributedLockNotSupported:
+    rctext = "Distributed lock not supported";
+    break;
+  case UtilLockRef::LockAlreadyHeld:
+    rctext = "Already held";
+    break;
+  case UtilLockRef::InLockQueue:
+    rctext = "Queued";
+    break;
+    /* try returns these... */
+  case CreateTableRef::Busy:
+    rctext = "CreateTableRef::Busy";
+    break;
+  case CreateTableRef::BusyWithNR:
+    rctext = "CreateTableRef::BusyWithNR";
+    break;
+  default:
+    break;
+  }
+  
+  infoEvent("DICT : %s %u %s",
+            text,
+            rc,
+            rctext);
+}
+
+void
 Dbdict::sendDictLockInfoEvent(Signal*, const UtilLockReq* req, const char* text)
 {
   const Dbdict::DictLockType* lt = getDictLockType(req->extra);
@@ -15054,7 +15217,7 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
     
     c_sub_startstop_lock.set(refToNode(req.userRef));
     
-    g_eventLogger->info("granting dict lock to %u", refToNode(req.userRef));
+    g_eventLogger->info("granting SumaStartMe dict lock to %u", refToNode(req.userRef));
     DictLockConf* conf = (DictLockConf*)signal->getDataPtrSend();
     conf->userPtr = req.userPtr;
     conf->lockType = req.lockType;
@@ -15102,6 +15265,10 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
   }
   
   res = m_dict_lock.lock(m_dict_lock_pool, &lockReq, 0);
+  debugLockInfo(signal,
+                "DICT_LOCK_REQ lock",
+                res);
+
   switch(res){
   case 0:
     jam();
@@ -15115,7 +15282,8 @@ Dbdict::execDICT_LOCK_REQ(Signal* signal)
     break;
   default:
     jam();
-    sendDictLockInfoEvent(signal, &lockReq, "lock request by node");    
+    sendDictLockInfoEvent(signal, &lockReq, "lock request by node");  
+    m_dict_lock.dump_queue(m_dict_lock_pool, this);
     break;
   }
   return;
@@ -15166,7 +15334,7 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
   if (ord->lockType ==  DictLockReq::SumaStartMe)
   {
     jam();
-    g_eventLogger->info("clearing dict lock for %u", refToNode(ord->senderRef));
+    g_eventLogger->info("clearing SumaStartMe dict lock for %u", refToNode(ord->senderRef));
     c_sub_startstop_lock.clear(refToNode(ord->senderRef));
     return;
   }
@@ -15174,8 +15342,12 @@ Dbdict::execDICT_UNLOCK_ORD(Signal* signal)
   UtilLockReq lockReq;
   lockReq.senderData = req.userPtr;
   lockReq.senderRef = req.userRef;
-  lockReq.extra = DictLockReq::NodeRestartLock; // Should check...
-  Uint32 res = dict_lock_unlock(signal, &req);
+  DictLockReq::LockType lockType = DictLockReq::NodeRestartLock;
+  Uint32 res = dict_lock_unlock(signal, &req, &lockType);
+  debugLockInfo(signal,
+                "DICT_UNLOCK_ORD unlock",
+                res);
+  lockReq.extra = lockType;
   switch(res){
   case UtilUnlockRef::OK:
     jam();
@@ -15261,17 +15433,22 @@ Dbdict::dict_lock_trylock(const DictLockReq* _req)
     break;
   }
   
+  if (g_trace)
+    m_dict_lock.dump_queue(m_dict_lock_pool, this);
+  
   return CreateTableRef::Busy;
 }
 
 Uint32
-Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req)
+Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req,
+                         DictLockReq::LockType* type)
 {
   UtilUnlockReq req;
   req.senderData = _req->userPtr;
   req.senderRef = _req->userRef;
   
-  Uint32 res = m_dict_lock.unlock(m_dict_lock_pool, &req);
+  UtilLockReq orig_lock_req;
+  Uint32 res = m_dict_lock.unlock(m_dict_lock_pool, &req, &orig_lock_req);
   switch(res){
   case UtilUnlockRef::OK:
   case UtilUnlockRef::NotLockOwner:
@@ -15281,6 +15458,11 @@ Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req)
     return res;
   }
 
+  if (type)
+  {
+    *type = (DictLockReq::LockType) orig_lock_req.extra;
+  }
+  
   UtilLockReq lockReq;
   LockQueue::Iterator iter;
   if (m_dict_lock.first(m_dict_lock_pool, iter))
@@ -15301,6 +15483,8 @@ Dbdict::dict_lock_unlock(Signal* signal, const DictLockReq* _req)
         conf->lockType = lockReq.extra;
         sendSignal(lockReq.senderRef, GSN_DICT_LOCK_CONF, signal,
                    DictLockConf::SignalLength, JBB);
+        
+        sendDictLockInfoEvent(signal, &lockReq, "queued lock request granted for node");
       }        
       
       if (!m_dict_lock.next(iter))
@@ -15476,7 +15660,11 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal)
     lockReq.userPtr = trans_ptr.i;
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::CreateFileLock;
-    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
+    ref->errorCode = dict_lock_trylock(&lockReq);
+    debugLockInfo(signal,
+                  "CREATE_FILE_REQ trylock",
+                  ref->errorCode);
+    if (ref->errorCode != 0)
     {
       jam();
       ref->errorLine = __LINE__;      
@@ -15507,7 +15695,10 @@ Dbdict::execCREATE_FILE_REQ(Signal* signal)
         ref->status    = 0;
         ref->errorKey  = 0;
         ref->errorLine = __LINE__;
-        dict_lock_unlock(0, &lockReq);
+        Uint32 rc = dict_lock_unlock(0, &lockReq);
+        debugLockInfo(signal,
+                      "CREATE_FILE_REQ unlock at error 1",
+                      rc);
         c_Trans.release(trans_ptr);
         break;
       }
@@ -15598,7 +15789,12 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
     lockReq.userPtr = trans_ptr.i;
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::CreateFilegroupLock;
-    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
+    ref->errorCode = dict_lock_trylock(&lockReq);
+    debugLockInfo(signal,
+                  "CREATE_FILEGROUP_REQ trylock",
+                  ref->errorCode);
+
+    if (ref->errorCode != 0)
     {
       jam();
       ref->errorLine = __LINE__;      
@@ -15628,7 +15824,10 @@ Dbdict::execCREATE_FILEGROUP_REQ(Signal* signal)
         ref->status    = 0;
         ref->errorKey  = 0;
         ref->errorLine = __LINE__;
-        dict_lock_unlock(0, &lockReq);
+        Uint32 rc = dict_lock_unlock(0, &lockReq);
+        debugLockInfo(signal,
+                      "CREATE_FILEGROUP_REQ no free obj unlock",
+                      rc);
         c_Trans.release(trans_ptr);
         break;
       }
@@ -15733,7 +15932,12 @@ Dbdict::execDROP_FILE_REQ(Signal* signal)
     lockReq.userPtr = trans_ptr.i;
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::DropFileLock;
-    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
+    ref->errorCode = dict_lock_trylock(&lockReq);
+    debugLockInfo(signal,
+                  "DROP_FILE_REQ trylock",
+                  ref->errorCode);
+
+    if (ref->errorCode != 0)
     {
       jam();
       ref->errorLine = __LINE__;      
@@ -15849,7 +16053,11 @@ Dbdict::execDROP_FILEGROUP_REQ(Signal* signal)
     lockReq.userPtr = trans_ptr.i;
     lockReq.userRef = reference();
     lockReq.lockType = DictLockReq::DropFilegroupLock;
-    if ((ref->errorCode = dict_lock_trylock(&lockReq)))
+    ref->errorCode = dict_lock_trylock(&lockReq);
+    debugLockInfo(signal,
+                  "DROP_FILEGROUP trylock",
+                  ref->errorCode);
+    if (ref->errorCode != 0)
     {
       jam();
       ref->errorLine = __LINE__;      
@@ -16134,7 +16342,10 @@ Dbdict::trans_commit_complete_done(Signal* signal,
     ndbrequire(false);
   }
   
-  dict_lock_unlock(signal, &lockReq);
+  Uint32 rc = dict_lock_unlock(signal, &lockReq);
+  debugLockInfo(signal,
+                "FILE/FILEGROUP CREATE/DROP completed unlock",
+                rc);
   c_Trans.release(trans_ptr);
   return;
 }
@@ -16258,7 +16469,10 @@ Dbdict::trans_abort_complete_done(Signal* signal,
     ndbrequire(false);
   }
   
-  dict_lock_unlock(signal, &lockReq);
+  Uint32 rc = dict_lock_unlock(signal, &lockReq);
+  debugLockInfo(signal,
+                "FILE/FILEGROUP CREATE/DROP aborted unlock",
+                rc);
   c_Trans.release(trans_ptr);
   return;
 }

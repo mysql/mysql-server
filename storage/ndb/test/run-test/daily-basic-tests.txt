@@ -1557,3 +1557,7 @@ max-time : 1200
 cmd: testLimits
 args: -n SlowDihFileWrites T1
 
+max-time: 600
+cmd: testDict
+args: -n DropTabNF -l 3 T1
+
