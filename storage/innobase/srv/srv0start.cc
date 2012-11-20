@@ -908,7 +908,8 @@ srv_open_tmp_tablespace(
 
 	tmp_space->set_space_id(temp_space_id);
 
-	dberr_t	err = tmp_space->check_file_spec(&create_new_temp_space);
+	dberr_t	err = tmp_space->check_file_spec(
+			&create_new_temp_space, 12 * 1024 * 1024);
 
 	if (err == DB_FAIL) {
 
@@ -1437,28 +1438,18 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_normalize_path_for_win(srv_data_home);
 
-	ulint	sum_of_new_sizes;
-
-	sum_of_new_sizes = srv_sys_space.get_sum_of_sizes();
-
-        if (sum_of_new_sizes == ULINT_UNDEFINED) {
-                return(DB_ERROR);
-        } else if (sum_of_new_sizes < 10485760 / UNIV_PAGE_SIZE) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Tablespace size must be at least 10 MB");
-
-		return(DB_ERROR);
-	}
-
 	/* Check if the data files exist or not. */
-	err = srv_sys_space.check_file_spec(&create_new_db);
+	err = srv_sys_space.check_file_spec(&create_new_db, 10 * 1024 * 1024);
 
 	if (err != DB_SUCCESS) {
 		return(DB_ERROR);
 	}
 
 	/* Open or create the data files. */
+	ulint	sum_of_new_sizes;
+
+	sum_of_new_sizes = srv_sys_space.get_sum_of_sizes();
+
 	err = srv_sys_space.open(&sum_of_new_sizes);
 
 	if (err != DB_SUCCESS) {
