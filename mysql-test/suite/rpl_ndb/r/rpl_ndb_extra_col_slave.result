@@ -429,6 +429,8 @@ c1	c2	c3	c4	c5	c6	c7
 3	3.00	If is does not, I will open a bug	b1b1b1b1b1b1b1b1	QA	1	CURRENT_TIMESTAMP
 *** Add column on master that is a Extra on Slave ***
 ALTER TABLE t15 ADD COLUMN c6 INT AFTER c5;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 ********************************************
 *** Expect slave to fail with Error 1060 ***
 ********************************************
