@@ -10,7 +10,8 @@ let $MYSQL_DATA_DIR = `select @@datadir`;
 #
 # Test creation of shared tablespace.
 #
---list_files $MYSQL_DATA_DIR/
+--echo # files in MYSQL_DATA_DIR
+--list_files $MYSQL_DATA_DIR/ ib*tmp*
 
 #
 # Test generate dml+ddl operations
