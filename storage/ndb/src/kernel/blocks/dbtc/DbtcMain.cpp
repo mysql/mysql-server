@@ -11984,7 +11984,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_SAVE(c_theIndexOperationPool);
 #ifdef ERROR_INSERT
     rss_cconcurrentOp = c_counters.cconcurrentOp;
-#endif;
+#endif
   }
   if (arg == DumpStateOrd::TcResourceCheckLeak)
   {
@@ -11997,7 +11997,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     RSS_AP_SNAPSHOT_CHECK(c_theIndexOperationPool);
 #ifdef ERROR_INSERT
     ndbrequire(rss_cconcurrentOp == c_counters.cconcurrentOp);
-#endif;
+#endif
   }
 
   if (arg == DumpStateOrd::TcDumpPoolLevels)
