@@ -478,6 +478,10 @@ NdbThread_LockCPU(NDB_TID_TYPE threadId, Uint32 cpu_id)
 int
 NdbThread_SetHighPrioProperties(const char * spec)
 {
+  char * copy = 0;
+  char * prio = 0;
+  int found = 0;
+
   if (spec == 0)
   {
     f_high_prio_set = 0;
@@ -490,14 +494,14 @@ NdbThread_SetHighPrioProperties(const char * spec)
   while ((* spec == ' ') || (*spec == '\t'))
     spec++;
 
-  char * copy = strdup(spec);
+  copy = strdup(spec);
   if (copy == 0)
     return -1;
 
   /**
    * is there a "," in spec
    */
-  char * prio = strchr(copy, ',');
+  prio = strchr(copy, ',');
   if (prio)
   {
     * prio = 0;
@@ -514,7 +518,7 @@ NdbThread_SetHighPrioProperties(const char * spec)
   }
 
 #ifdef HAVE_PTHREAD_SETSCHEDPARAM
-  int found = 0;
+  found = 0;
 #ifdef SCHED_FIFO
   if (strcmp("fifo", copy) == 0)
   {
