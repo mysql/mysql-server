@@ -83,6 +83,8 @@ class TestRunnerBase(object):
                 self.env['LD_PRELOAD'] = preload
 
         self.nruns = 0
+        self.num_ptquery = 1
+        self.num_update = 1
         self.rundir = None
         self.outf = None
         self.times = [0, 0]
@@ -114,20 +116,6 @@ class TestRunnerBase(object):
             return 0
 
     @property
-    def num_ptquery(self):
-        if self.nruns % 2 < 1:
-            return 1
-        else:
-            return randrange(16)
-
-    @property
-    def num_update(self):
-        if self.nruns % 4 < 2:
-            return 1
-        else:
-            return randrange(16)
-
-    @property
     def envdir(self):
         return os.path.join(self.rundir, 'envdir')
 
@@ -150,6 +138,15 @@ class TestRunnerBase(object):
         copytree(self.envdir, self.prepareloc)
 
     def run(self):
+        if self.nruns % 2 < 1:
+            self.num_ptquery = 1
+        else:
+            self.num_ptquery = randrange(16)
+        if self.nruns % 4 < 2:
+            self.num_update = 1
+        else:
+            self.num_update = randrange(16)
+
         srctests = os.path.join(self.builddir, 'src', 'tests')
         self.rundir = mkdtemp(dir=srctests)
 
@@ -243,6 +240,7 @@ class TestRunnerBase(object):
     @property
     def testargs(self):
         return ['--num_seconds', str(self.test_time),
+                '--join_timeout', str(60 * 60 * 12),
                 '--no-crash_on_operation_failure',
                 '--num_ptquery_threads', str(self.num_ptquery),
                 '--num_update_threads', str(self.num_update)] + self.prepareargs
