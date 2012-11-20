@@ -2459,8 +2459,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
     if (view_name.str)
     {
       // A view
-      if (!(belong_to_view &&
-            belong_to_view->compact_view_format) &&
+      if (!(query_type & QT_COMPACT_FORMAT) &&
           !((query_type & QT_NO_DEFAULT_DB) &&
             db_is_default_db(view_db.str, view_db.length, thd)))
       {
@@ -2485,8 +2484,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
     {
       // A normal table
 
-      if (!(belong_to_view &&
-            belong_to_view->compact_view_format) &&
+      if (!(query_type & QT_COMPACT_FORMAT) &&
           !((query_type & QT_NO_DEFAULT_DB) &&
             db_is_default_db(db, db_length, thd)))
       {

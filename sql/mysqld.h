@@ -660,7 +660,9 @@ enum enum_query_type
   /// When printing a derived table, don't print its expression, only alias
   QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4),
   /// Print in charset of Item::print() argument (typically thd->charset()).
-  QT_TO_ARGUMENT_CHARSET= (1 << 5)
+  QT_TO_ARGUMENT_CHARSET= (1 << 5),
+  /// Print identifiers in compact format, omitting schema names.
+  QT_COMPACT_FORMAT= (1 << 6)
 };
 
 /* query_id */
