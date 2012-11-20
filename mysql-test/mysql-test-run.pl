@@ -338,14 +338,6 @@ my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
 
-# Used by --result-file for for formatting times
-
-sub isotime($) {
-  my ($sec,$min,$hr,$day,$mon,$yr)= gmtime($_[0]);
-  return sprintf "%d-%02d-%02dT%02d:%02d:%02dZ",
-    $yr+1900, $mon+1, $day, $hr, $min, $sec;
-}
-
 main();
 
 
