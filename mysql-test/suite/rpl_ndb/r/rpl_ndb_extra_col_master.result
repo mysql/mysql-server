@@ -100,13 +100,11 @@ f5 DOUBLE DEFAULT '2.00',
 f6 ENUM('a', 'b', 'c') default 'a',
 f7 DECIMAL(17,9) default '1000.00',
 f8 MEDIUMBLOB,
-f9 NUMERIC(6,4) default '2000.00',
+f9 NUMERIC(6,2) default '2000.00',
 f10 VARCHAR(1024),
 f11 BINARY(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
 f12 SET('a', 'b', 'c') default 'b')
 ENGINE='NDB';
-Warnings:
-Warning	1264	Out of range value for column 'f9' at row 1
 
 CREATE TABLE t3 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
 /* extra */
@@ -123,13 +121,11 @@ CREATE TABLE t4 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
 f5 DOUBLE DEFAULT '2.00', 
 f6 DECIMAL(17,9) default '1000.00',
 f7 MEDIUMBLOB,
-f8 NUMERIC(6,4) default '2000.00',
+f8 NUMERIC(6,2) default '2000.00',
 f9 VARCHAR(1024),
 f10 BINARY(20) not null default '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
 f11 CHAR(255))
 ENGINE='NDB';
-Warnings:
-Warning	1264	Out of range value for column 'f8' at row 1
 
 CREATE TABLE t31 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
 /* extra */
@@ -188,9 +184,6 @@ INSERT into t2 values (2, 2, 2, 'second',
 (3, 3, 3, 'third',
 3.0, 'b', 3000.0003, 'f8: medium size blob', 3000, 'f10: some var char',
 '01234567', 'c');
-Warnings:
-Warning	1264	Out of range value for column 'f9' at row 1
-Warning	1264	Out of range value for column 'f9' at row 2
 INSERT into t3 set f1=1, f2=1, f3=1, f4='first', f10='f10: some var char';
 INSERT into t4 set f1=1, f2=1, f3=1, f4='first', f7='f7: medium size blob', f10='f10:
 binary data';
@@ -966,13 +959,11 @@ f5 DOUBLE DEFAULT '2.00',
 f6 ENUM('a', 'b', 'c') default 'a',
 f7 DECIMAL(17,9) default '1000.00',
 f8 MEDIUMBLOB,
-f9 NUMERIC(6,4) default '2000.00',
+f9 NUMERIC(6,2) default '2000.00',
 f10 VARCHAR(1024),
 f11 BINARY(20) NOT NULL DEFAULT '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
 f12 SET('a', 'b', 'c') default 'b')
 ENGINE='NDB';
-Warnings:
-Warning	1264	Out of range value for column 'f9' at row 1
 
 CREATE TABLE t3 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
 /* extra */
@@ -989,13 +980,11 @@ CREATE TABLE t4 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
 f5 DOUBLE DEFAULT '2.00', 
 f6 DECIMAL(17,9) default '1000.00',
 f7 MEDIUMBLOB,
-f8 NUMERIC(6,4) default '2000.00',
+f8 NUMERIC(6,2) default '2000.00',
 f9 VARCHAR(1024),
 f10 BINARY(20) not null default '\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0\0',
 f11 CHAR(255))
 ENGINE='NDB';
-Warnings:
-Warning	1264	Out of range value for column 'f8' at row 1
 
 CREATE TABLE t31 (f1 INT, f2 INT, f3 INT PRIMARY KEY, f4 CHAR(20),
 /* extra */
@@ -1054,9 +1043,6 @@ INSERT into t2 values (2, 2, 2, 'second',
 (3, 3, 3, 'third',
 3.0, 'b', 3000.0003, 'f8: medium size blob', 3000, 'f10: some var char',
 '01234567', 'c');
-Warnings:
-Warning	1264	Out of range value for column 'f9' at row 1
-Warning	1264	Out of range value for column 'f9' at row 2
 INSERT into t3 set f1=1, f2=1, f3=1, f4='first', f10='f10: some var char';
 INSERT into t4 set f1=1, f2=1, f3=1, f4='first', f7='f7: medium size blob', f10='f10:
 binary data';
