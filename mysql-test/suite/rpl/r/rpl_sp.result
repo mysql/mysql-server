@@ -652,6 +652,7 @@ show function status like '%mysqltestbug36570%';
 Db	Name	Type	Definer	Modified	Created	Security_type	Comment	character_set_client	collation_connection	Database Collation
 test	mysqltestbug36570_f1	FUNCTION	root@localhost	t	t	DEFINER		latin1	latin1_swedish_ci	latin1_swedish_ci
 flush logs;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!40019 SET @@session.max_insert_delayed_threads=0*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
@@ -1178,6 +1179,7 @@ DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 use test;
 drop procedure mysqltestbug36570_p1;
 drop procedure ` mysqltestbug36570_p2`;
