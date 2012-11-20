@@ -88,7 +88,6 @@ else
   {
     push(@arch_paths, $win_path);
   }
-  $pathsep = "\\";
 }
 
 
@@ -109,12 +108,12 @@ sub java_exists {
    my $devnull = "/dev/null";
    $devnull = "NUL" if IS_WINDOWS;
 
-   system($exists . " " . $java_args . " -version > " . $devnull);
+   system("\"$exists\" " . $java_args . " -version > " . $devnull);
   
    my $ret =  $exists if ($? == 0);
    if($? == 0) {
      my $ret = $exists;
-     open(VER, "$exists  -version 2>&1 |");
+     open(VER, "\"$exists\"  -version 2>&1 |");
      $java_version = <VER>;
      close(VER);
    }
