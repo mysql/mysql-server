@@ -5623,8 +5623,9 @@ int TC_LOG_MMAP::open(const char *opt_name)
 
   syncing= 0;
   active=pages;
+  DBUG_ASSERT(npages >= 2);
   pool=pages+1;
-  pool_last=pages+npages-1;
+  pool_last_ptr= &((pages+npages-1)->next);
 
   return 0;
 
@@ -5655,8 +5656,8 @@ void TC_LOG_MMAP::get_active_from_pool()
   do
   {
     best_p= p= &pool;
-    if ((*p)->waiters == 0) // can the first page be used ?
-      break;                // yes - take it.
+    if ((*p)->waiters == 0 && (*p)->free > 0) // can the first page be used ?
+      break;                                  // yes - take it.
 
     best_free=0;            // no - trying second strategy
     for (p=&(*p)->next; *p; p=&(*p)->next)
@@ -5673,10 +5674,10 @@ void TC_LOG_MMAP::get_active_from_pool()
   safe_mutex_assert_owner(&LOCK_active);
   active=*best_p;
 
-  if ((*best_p)->next)              // unlink the page from the pool
-    *best_p=(*best_p)->next;
-  else
-    pool_last=*best_p;
+  /* Unlink the page from the pool. */
+  if (!(*best_p)->next)
+    pool_last_ptr= best_p;
+  *best_p=(*best_p)->next;
   pthread_mutex_unlock(&LOCK_pool);
 
   pthread_mutex_lock(&active->lock);
@@ -5783,12 +5784,9 @@ int TC_LOG_MMAP::log_xid(THD *thd, my_xid xid)
     pthread_mutex_unlock(&LOCK_active);
     pthread_mutex_lock(&p->lock);
     p->waiters++;
-    for (;;)
+    while (p->state == DIRTY && syncing)
     {
-      int not_dirty = p->state != DIRTY;
       pthread_mutex_unlock(&p->lock);
-      if (not_dirty || !syncing)
-        break;
       pthread_cond_wait(&p->cond, &LOCK_sync);
       pthread_mutex_lock(&p->lock);
     }
@@ -5840,8 +5838,8 @@ int TC_LOG_MMAP::sync()
 
   /* page is synced. let's move it to the pool */
   pthread_mutex_lock(&LOCK_pool);
-  pool_last->next=syncing;
-  pool_last=syncing;
+  (*pool_last_ptr)=syncing;
+  pool_last_ptr=&(syncing->next);
   syncing->next=0;
   syncing->state= err ? ERROR : POOL;
   pthread_cond_signal(&COND_pool);           // in case somebody's waiting
