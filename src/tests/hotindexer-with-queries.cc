@@ -8,7 +8,6 @@
 #include "toku_pthread.h"
 #include <db.h>
 #include <sys/stat.h>
-#include "toku_affinity.h"
 #include "key-val.h"
 
 enum {NUM_INDEXER_INDEXES=1};
@@ -213,13 +212,10 @@ static void run_test(void)
 
 // ------------ infrastructure ----------
 
-#include <sched.h>
-
 static inline void
 do_args (int argc, char * const argv[]) {
     const char *progname=argv[0];
     num_rows = NUM_ROWS;
-    int num_cpus = 0;
     argc--; argv++;
     while (argc>0) {
 	if (strcmp(argv[0],"-v")==0) {
@@ -229,31 +225,11 @@ do_args (int argc, char * const argv[]) {
         } else if (strcmp(argv[0],"-r")==0) {
             argc--; argv++;
             num_rows = atoi(argv[0]);
-        } else if (strcmp(argv[0], "--ncpus") == 0 && argc+1 > 0) {
-            argc--; argv++;
-            num_cpus = atoi(argv[0]);
 	} else {
 	    fprintf(stderr, "Usage:\n %s [-v] [-q] [-r rows]\n", progname);
 	    exit(1);
 	}
 	argc--; argv++;
-    }
-
-    if (num_cpus > 0) {
-        toku_cpuset_t cpuset;
-        TOKU_CPU_ZERO(&cpuset);
-        for (int i = 0; i < num_cpus; i++) {
-            TOKU_CPU_SET(i, &cpuset);
-        }
-        int r;
-        r = toku_setaffinity(toku_os_getpid(), sizeof cpuset, &cpuset);
-        assert(r == 0);
-
-        toku_cpuset_t use_cpuset;
-        TOKU_CPU_ZERO(&use_cpuset);
-        r = toku_getaffinity(toku_os_getpid(), sizeof use_cpuset, &use_cpuset);
-        assert(r == 0);
-        assert(memcmp(&cpuset, &use_cpuset, sizeof cpuset) == 0);
     }
 }
 

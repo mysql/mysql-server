@@ -5,8 +5,6 @@
 
 #include <util/threadpool.h>
 
-#include <portability/toku_affinity.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -15,9 +13,8 @@
 
 int verbose = 0;
 
-static int usage(int ncpus, int poolsize) {
+static int usage(int poolsize) {
     fprintf(stderr, "[-q] [-v] [--verbose] (%d)\n", verbose);
-    fprintf(stderr, "[--ncpus %d]\n", ncpus);
     fprintf(stderr, "[--poolsize %d]\n", poolsize);
     return 1;
 }
@@ -46,7 +43,6 @@ static void dotest(int poolsize, int nloops) {
 
 int main(int argc, char *argv[]) {
     // defaults
-    int ncpus = 0;
     int poolsize = 1;
     int nloops = 100000;
 
@@ -56,10 +52,6 @@ int main(int argc, char *argv[]) {
         char *arg = argv[i];
         if (arg[0] != '-')
             break;
-        if (strcmp(arg, "--ncpus") == 0 && i+1 < argc) {
-            ncpus = atoi(argv[++i]);
-            continue;
-        }
         if (strcmp(arg, "--poolsize") == 0 && i+1 < argc) {
             poolsize = atoi(argv[++i]);
             continue;
@@ -72,26 +64,10 @@ int main(int argc, char *argv[]) {
             verbose = verbose > 0 ? verbose-1 : 0;
             continue;
         }
-    
-        return usage(ncpus, poolsize);
+
+        return usage(poolsize);
     }
     int starti = i;
-
-    if (ncpus > 0) {
-        toku_cpuset_t cpuset;
-        TOKU_CPU_ZERO(&cpuset);
-        for (i = 0; i < ncpus; i++)
-            TOKU_CPU_SET(i, &cpuset);
-        int r;
-        r = toku_setaffinity(getpid(), sizeof cpuset, &cpuset);
-        assert(r == 0);
-        
-        toku_cpuset_t use_cpuset;
-        TOKU_CPU_ZERO(&use_cpuset);
-        r = toku_getaffinity(getpid(), sizeof use_cpuset, &use_cpuset);
-        assert(r == 0);
-        assert(memcmp(&cpuset, &use_cpuset, sizeof cpuset) == 0);
-    }
 
     if (starti == argc) {
         dotest(poolsize, nloops);
