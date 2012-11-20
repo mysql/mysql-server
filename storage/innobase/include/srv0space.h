@@ -341,7 +341,7 @@ private:
 	@return DB_SUCCESS or error code */
 	static dberr_t open_data_file(file_t& file);
 
-	/** 
+	/**
 	Check if a file can be opened in the correct mode.
 	@param file - file control information
 	@return DB_SUCCESS or error code. */
@@ -366,7 +366,7 @@ private:
 	@return next character in string */
 	static char* parse_units(char* ptr, ulint* megs);
 
-	/** Check if two shared tablespaces have common data file names. 
+	/** Check if two shared tablespaces have common data file names.
 	@param space1 - space to check
 	@param space2 - space to check
 	@return true if they have the same data filenames and paths */
