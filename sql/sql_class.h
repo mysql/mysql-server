@@ -506,6 +506,8 @@ typedef struct system_variables
 
   double long_query_time_double;
 
+  my_bool pseudo_slave_mode;
+
 } SV;
 
 
