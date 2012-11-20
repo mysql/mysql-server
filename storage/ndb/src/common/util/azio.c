@@ -83,6 +83,7 @@ size_t az_deflate_mem_size()
 
 voidpf az_alloc(voidpf opaque, uInt items, uInt size)
 {
+  void * retval;
   struct az_alloc_rec *r = (struct az_alloc_rec*)opaque;
 
   if((items * size) > r->mfree || r->mfree==0)
@@ -90,7 +91,7 @@ voidpf az_alloc(voidpf opaque, uInt items, uInt size)
 
   assert(r->mfree <= r->size);
 
-  void * retval= (r->mem + r->size) - r->mfree;
+  retval= (r->mem + r->size) - r->mfree;
   memset(retval, 0, items*size);
   VALGRIND_MAKE_MEM_DEFINED(retval,items*size);
   r->mfree -= items*size;
@@ -99,9 +100,10 @@ voidpf az_alloc(voidpf opaque, uInt items, uInt size)
 }
 void az_free(voidpf opaque, voidpf address)
 {
+  struct az_alloc_rec *r;
   (void)address;
   /* Oh how we hack. */
-  struct az_alloc_rec *r = (struct az_alloc_rec*)opaque;
+  r = (struct az_alloc_rec*)opaque;
   r->mfree= r->size;
   if(r->mfree==r->size)
     VALGRIND_MAKE_MEM_NOACCESS(r->mem,r->size);
@@ -434,12 +436,13 @@ int check_header(azio_stream *s)
   else if (    s->stream.next_in[0] == az_magic[0]
             && s->stream.next_in[1] == az_magic[1])
   {
+    unsigned char *header_block;
     if(s->stream.avail_in < AZHEADER_SIZE + AZMETA_BUFFER_SIZE)
     {
       s->z_err = Z_DATA_ERROR;
       return s->z_err;
     }
-    unsigned char *header_block = get_block(s,512);
+    header_block = get_block(s,512);
     if(!header_block)
       return my_errno;
     read_header(s, header_block);
@@ -610,10 +613,11 @@ unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, unsigned int len, int *
 
     if (s->z_err == Z_STREAM_END) {
       /* Check CRC and original size */
+      uInt gotcrc;
       s->crc = crc32(s->crc, start, (uInt)(s->stream.next_out - start));
       start = s->stream.next_out;
 
-      uInt gotcrc = getLong(s);
+      gotcrc = getLong(s);
       if (gotcrc != s->crc) {
         s->z_err = Z_DATA_ERROR;
       } else {
