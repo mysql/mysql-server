@@ -126,6 +126,8 @@ if ($opt_parse_log)
   {
     print("compile-cluster: autotest build requested, extra everything\n");
     push(@args, "--with-ndb-ccflags='-DERROR_INSERT'");
+    push(@args, "--with-embedded-server");
+    push(@args, "--with-plugins=max");
   }
 
   cmd("sh", @args, @ARGV);
