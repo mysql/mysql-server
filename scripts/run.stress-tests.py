@@ -57,7 +57,7 @@ class Killed(Exception):
     pass
 
 class TestRunnerBase(object):
-    def __init__(self, scheduler, builddir, installdir, rev, jemalloc, execf, tsize, csize, test_time, savedir):
+    def __init__(self, scheduler, builddir, installdir, rev, jemalloc, execf, tsize, csize, default_test_time, savedir):
         self.scheduler = scheduler
         self.builddir = builddir
         self.installdir = installdir
@@ -65,7 +65,7 @@ class TestRunnerBase(object):
         self.execf = execf
         self.tsize = tsize
         self.csize = csize
-        self.test_time = test_time
+        self.default_test_time = default_test_time
         self.savedir = savedir
 
         self.env = os.environ
@@ -114,6 +114,13 @@ class TestRunnerBase(object):
             return self.times[1] - self.times[0]
         else:
             return 0
+
+    @property
+    def test_time(self):
+        if self.nruns % 16 == 0:
+            return 3600
+        else:
+            return self.default_test_time
 
     @property
     def envdir(self):
