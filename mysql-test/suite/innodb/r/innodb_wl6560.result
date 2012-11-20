@@ -1,5 +1,14 @@
 set @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
 set global innodb_file_per_table = off;
+auto.cnf
+ib_logfile0
+ib_logfile1
+ibdata1
+ibtmp1
+mtr
+mysql
+performance_schema
+test
 drop table if exists t1;
 select @@global.innodb_file_per_table;
 @@global.innodb_file_per_table
@@ -69,6 +78,8 @@ i	f	c
 98	1.3	jaipur
 97	1.4	delhi
 96	1.5	ahmedabad
+alter table t1 import tablespace;
+ERROR HY000: Table 't1' in system tablespace
 drop table t1;
 create temporary table t1 (keyc int, c char(100), primary key(keyc))
 engine=innodb;

@@ -5,6 +5,12 @@
 #
 set @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
 set global innodb_file_per_table = off;
+let $MYSQL_DATA_DIR = `select @@datadir`;
+
+#
+# Test creation of shared tablespace.
+#
+--list_files $MYSQL_DATA_DIR/
 
 #
 # Test generate dml+ddl operations
@@ -51,6 +57,10 @@ insert into t1 values (98, 1.3, 'jaipur');
 insert into t1 values (97, 1.4, 'delhi');
 insert into t1 values (96, 1.5, 'ahmedabad');
 select * from t1;
+#
+# alter table
+--error ER_TABLE_IN_SYSTEM_TABLESPACE
+alter table t1 import tablespace;
 #
 # drop table
 drop table t1;
