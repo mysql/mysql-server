@@ -4702,6 +4702,29 @@ retry:
 	ib_table = dict_table_open_on_name(norm_name, FALSE, TRUE,
 					   DICT_ERR_IGNORE_NONE);
 
+	if (ib_table
+	    && ((!DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
+		 && table->s->fields != dict_table_get_n_user_cols(ib_table))
+		|| (DICT_TF2_FLAG_IS_SET(ib_table, DICT_TF2_FTS_HAS_DOC_ID)
+		    && (table->s->fields
+			!= dict_table_get_n_user_cols(ib_table) - 1)))) {
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"table %s contains %lu user defined columns "
+			"in InnoDB, but %lu columns in MySQL. Please "
+			"check INFORMATION_SCHEMA.INNODB_SYS_COLUMNS and "
+			REFMAN "innodb-troubleshooting.html "
+			"for how to resolve it",
+			norm_name, (ulong) dict_table_get_n_user_cols(ib_table),
+			(ulong) table->s->fields);
+
+		/* Mark this table as corrupted, so the drop table
+		or force recovery can still use it, but not others. */
+		ib_table->corrupted = true;
+		dict_table_close(ib_table, FALSE, FALSE);
+		ib_table = NULL;
+		is_part = NULL;
+	}
+
 	if (NULL == ib_table) {
 		if (is_part && retries < 10) {
 			/* MySQL partition engine hard codes the file name
