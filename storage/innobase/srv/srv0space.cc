@@ -266,7 +266,7 @@ Tablespace::parse(const char* filepath, bool supports_raw)
 }
 
 /**
-Check if two shared tablespaces have common data file names. 
+Check if two shared tablespaces have common data file names.
 @param space1 - space to check
 @param space2 - space to check
 @return true if they have the same data filenames and paths */
@@ -637,7 +637,7 @@ Tablespace::read_lsn_and_check_flags(
 	return(DB_SUCCESS);
 }
 
-/** 
+/**
 Check if a file can be opened in the correct mode.
 @param file - data file spec
 @return DB_SUCCESS or error code. */
@@ -690,7 +690,7 @@ Tablespace::check_file_status(const file_t& file)
 
 	case DB_NOT_FOUND:
 		break;
-	
+
 	default:
 		ut_ad(0);
 	}
@@ -869,7 +869,7 @@ Tablespace::check_file_spec(ibool* create_new_db)
 /**
 Opens/Creates the data files if they don't exist.
 
-@param sum_of_new_sizes - sum of sizes of the new files added 
+@param sum_of_new_sizes - sum of sizes of the new files added
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
@@ -906,7 +906,7 @@ Tablespace::open(ulint* sum_of_new_sizes)
 		if (err != DB_SUCCESS) {
 			break;
 		}
-		
+
 		/* We can close the handle now and open the tablespace
 		the proper way. */
 		ibool	success = os_file_close(it->m_handle);

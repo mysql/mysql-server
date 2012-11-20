@@ -50,7 +50,6 @@ Created 11/29/1995 Heikki Tuuri
 #include "dict0mem.h"
 #include "srv0space.h"
 
-
 #ifndef UNIV_HOTBACKUP
 /** Flag to indicate if we have printed the tablespace full error. */
 static ibool fsp_tbs_full_error_printed = FALSE;

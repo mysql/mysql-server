@@ -2807,7 +2807,7 @@ Free any resources that were allocated and return failure. */
 static
 int
 innobase_init_abort()
-/*=================*/ 
+/*=================*/
 {
 	DBUG_ENTER("innobase_init_abort");
 
