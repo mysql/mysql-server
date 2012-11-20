@@ -626,6 +626,8 @@ include/rpl_reset.inc
 
 *** Master Data Insert ***
 ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t15 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT,3.00),
@@ -1485,6 +1487,8 @@ include/rpl_reset.inc
 
 *** Master Data Insert ***
 ALTER TABLE t15 ADD COLUMN c2 DECIMAL(8,2) AFTER c7;
+Warnings:
+Warning	1478	Converted FIXED field to DYNAMIC to enable on-line ADD COLUMN
 set @b1 = 'b1b1b1b1';
 set @b1 = concat(@b1,@b1);
 INSERT INTO t15 () VALUES(1,@b1,'Kyle',DEFAULT,DEFAULT,3.00),
