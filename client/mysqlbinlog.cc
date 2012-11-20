@@ -2680,6 +2680,8 @@ int main(int argc, char** argv)
 
   if (!raw_mode)
   {
+    fprintf(result_file, "/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;\n");
+
     fprintf(result_file,
             "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
 
@@ -2732,6 +2734,8 @@ int main(int argc, char** argv)
               "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n"
               "/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
               "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
+
+    fprintf(result_file, "/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;\n");
   }
 
   if (tmpdir.list)
