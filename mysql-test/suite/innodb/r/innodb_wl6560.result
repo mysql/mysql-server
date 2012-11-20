@@ -1,14 +1,7 @@
 set @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
 set global innodb_file_per_table = off;
-auto.cnf
-ib_logfile0
-ib_logfile1
-ibdata1
+# files in MYSQL_DATA_DIR
 ibtmp1
-mtr
-mysql
-performance_schema
-test
 drop table if exists t1;
 select @@global.innodb_file_per_table;
 @@global.innodb_file_per_table
