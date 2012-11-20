@@ -103,6 +103,9 @@ IF(NOT MYSQL_CLUSTER_VERSION)
  # Pushdown of join queries not supported in non
  # MySQL Cluster version yet, compile ndbcluster without it
  ADD_DEFINITIONS(-DNDB_WITHOUT_JOIN_PUSHDOWN)
+ # Global schema lock not supported in non
+ # MySQL Cluster version yet, compile ndbcluster without it
+ ADD_DEFINITIONS(-DNDB_WITHOUT_GLOBAL_SCHEMA_LOCK)
 ENDIF()
 
 # Online alter table currently not supported in trunk-cluster
