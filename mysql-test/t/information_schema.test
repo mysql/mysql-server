@@ -1441,6 +1441,17 @@ SELECT length(CAST(b AS CHAR)) FROM ubig;
 
 DROP TABLE ubig;
 
+#
+# Bug #13889741: HANDLE_FATAL_SIGNAL IN _DB_ENTER_ | HANDLE_FATAL_SIGNAL IN STRNLEN
+#
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+grant usage on *.* to mysqltest_1@localhost;
+connect (con1, localhost, mysqltest_1,,);
+connection con1;
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+connection default;
+disconnect con1;
+drop user mysqltest_1@localhost;
 
 --echo End of 5.1 tests.
 

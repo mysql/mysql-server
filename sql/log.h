@@ -129,7 +129,7 @@ class TC_LOG_MMAP: public TC_LOG
   my_off_t file_length;
   uint npages, inited;
   uchar *data;
-  struct st_page *pages, *syncing, *active, *pool, *pool_last;
+  struct st_page *pages, *syncing, *active, *pool, **pool_last_ptr;
   /*
     note that, e.g. LOCK_active is only used to protect
     'active' pointer, to protect the content of the active page

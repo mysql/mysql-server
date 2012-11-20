@@ -1517,7 +1517,8 @@ find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
                     bool allow_rowid, uint *cached_field_index_ptr);
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
-int update_virtual_fields(THD *thd, TABLE *table, bool ignore_stored= FALSE);
+int update_virtual_fields(THD *thd, TABLE *table,
+      enum enum_vcol_update_mode vcol_update_mode= VCOL_UPDATE_FOR_READ);
 int dynamic_column_error_message(enum_dyncol_func_result rc);
 
 #endif /* MYSQL_SERVER */

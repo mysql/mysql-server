@@ -507,7 +507,9 @@ int mysql_update(THD *thd,
       while (!(error=info.read_record(&info)) && !thd->killed)
       {
         if (table->vfield)
-          update_virtual_fields(thd, table);
+          update_virtual_fields(thd, table,
+                                table->triggers ? VCOL_UPDATE_ALL :
+                                                  VCOL_UPDATE_FOR_READ);
         thd->examined_row_count++;
 	if (!select || (error= select->skip_record(thd)) > 0)
 	{
@@ -623,7 +625,9 @@ int mysql_update(THD *thd,
   while (!(error=info.read_record(&info)) && !thd->killed)
   {
     if (table->vfield)
-      update_virtual_fields(thd, table);
+      update_virtual_fields(thd, table,
+                            table->triggers ? VCOL_UPDATE_ALL :
+                                              VCOL_UPDATE_FOR_READ);
     thd->examined_row_count++;
     if (!select || select->skip_record(thd) > 0)
     {
