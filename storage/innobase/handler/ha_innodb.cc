@@ -2950,7 +2950,7 @@ innobase_init(
 	auto-extending. */
 
 	if (!innobase_temp_data_file_path) {
-		innobase_temp_data_file_path = (char*) "ibtmp:12M:autoextend";
+		innobase_temp_data_file_path = (char*) "ibtmp1:12M:autoextend";
 	}
 
 	/* We set the temporary tablspace id later, after recovery. */

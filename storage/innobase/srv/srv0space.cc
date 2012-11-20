@@ -797,9 +797,12 @@ Tablespace::file_found(file_t& file)
 /**
 Check the data file specification.
 @param create_new_db - [out] true if a new database is to be created
+@param min_expected_tablespace_size - [in] expected tablespace size in bytes
 @return DB_SUCCESS if all OK else error code */
 dberr_t
-Tablespace::check_file_spec(ibool* create_new_db)
+Tablespace::check_file_spec(
+	ibool* create_new_db,
+	ulint min_expected_tablespace_size)
 {
 	srv_normalize_path_for_win(srv_data_home);
 
@@ -814,6 +817,19 @@ Tablespace::check_file_spec(ibool* create_new_db)
 
 		return(DB_ERROR);
 	}
+
+	ulint tablespace_size = get_sum_of_sizes();
+	if (tablespace_size == ULINT_UNDEFINED) {
+		return(DB_ERROR);
+	} else if (tablespace_size
+		   < min_expected_tablespace_size / UNIV_PAGE_SIZE) {
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Tablespace size must be at least %ld MB",
+			min_expected_tablespace_size / (1024 * 1024));
+
+		return(DB_ERROR);
+        }
 
 	// FIXME: Check for duplicate data file names
 
