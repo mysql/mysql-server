@@ -27,8 +27,6 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     dbtablehandler = require("../common/DBTableHandler.js"),
     udebug         = unified_debug.getLogger("NdbConnectionPool.js"),
     ndb_is_initialized = false,
-    pendingListTables = {},
-    pendingGetMetadata = {},
     proto;
 
 
@@ -48,6 +46,25 @@ assert(typeof adapter.ndb.ndbapi.Ndb_cluster_connection === 'function');
 assert(typeof adapter.ndb.impl.DBSession.create === 'function');
 assert(typeof adapter.ndb.impl.DBDictionary.listTables === 'function');
 assert(typeof adapter.ndb.impl.DBDictionary.getTable === 'function');
+
+
+/* Each NdbSession object has a lock protecting dictionary access 
+*/ 
+function getDictionaryLock(ndbSession) {
+  if(ndbSession.lock === 0) {
+    ndbSession.lock = 1;
+    return true;
+  }
+  else {
+    return false;
+  }
+}
+
+function releaseDictionaryLock(ndbSession) {
+  assert(ndbSession.lock === 1);
+  ndbSession.lock = 0;
+}
+
 
 
 /* DBConnectionPool constructor.
@@ -75,6 +92,8 @@ proto = {
   is_connected         : false,
   dict_sess            : null,
   dictionary           : null,
+  pendingListTables    : {},
+  pendingGetMetadata   : {},
 };
 
 exports.DBConnectionPool.prototype = proto;
@@ -105,7 +124,7 @@ proto.connectSync = function() {
 
     /* Get sessionImpl and session for dictionary use */
     this.dictionary = adapter.ndb.impl.DBSession.create(this.ndbconn, db);  
-    this.dict_sess =  ndbsession.newDBSession(this, this.dictionary);
+    this.dict_sess  = ndbsession.newDBSession(this, this.dictionary);
   }
     
   return this.is_connected;
@@ -217,17 +236,72 @@ proto.getDBSession = function(index, user_callback) {
 };
 
 
-function makeCascadedCallback(container, key) {
-  var cascade = function(param1, param2) {
-    var callbackList = container[key];
-    udebug.log("CascadedCallback for", key, "with", callbackList.length, "user callbacks");
-    var i;
+/*
+ *  Implementation of listTables() and getTableMetadata() 
+ *
+ *  Design notes: 
+ *    A single Ndb can perform one metadata lookup at a time. 
+ *    An NdbSession object owns a dictionary lock and a queue of dictionary calls.
+ *    If we can get the lock, we run a call immediately; if not. place it on the queue.
+ *    
+ *    Also, it often happens in a Batch context that a bunch of operations all
+ *    need the same metadata.  So, for each dictionary call, we create a group callback,
+ *    and then add individual user callbacks to that group as they come in.
+ * 
+ *    The dictionary call and the group callback are both created by generator functions.
+ * 
+ *    Who runs the queue?  The group callback checks it after it all the user 
+ *    callbacks have completed. 
+ * 
+ */
+
+
+function makeGroupCallback(dbSession, container, key) {
+  var groupCallback = function(param1, param2) {
+    var callbackList, i, nextCall;
+    /* The Dictionay Call is complete */
+    releaseDictionaryLock(dbSession);
+
+    /* Run the user callbacks on our list */
+    callbackList = container[key];
+    udebug.log("GroupCallback for", key, "with", callbackList.length, "user callbacks");
     for(i = 0 ; i < callbackList.length ; i++) { 
       callbackList[i](param1, param2);
     }
+
+    /* Then clear the list */
     delete container[key];
+
+    /* If any dictionary calls have been queued up, run the next one. */
+    nextCall = dbSession.dictQueue.shift();
+    if(nextCall) {
+      getDictionaryLock(dbSession);
+      nextCall();
+    }
   };
-  return cascade;
+
+  return groupCallback;
+}
+
+
+function makeListTablesCall(dbSession, ndbConnectionPool, databaseName) {
+  var container = ndbConnectionPool.pendingListTables;
+  var groupCallback = makeGroupCallback(dbSession, container, databaseName);
+  var impl = dbSession.impl;
+  return function() {
+    adapter.ndb.impl.DBDictionary.listTables(impl, databaseName, groupCallback);
+  }
+}
+
+
+function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
+  var container = ndbConnectionPool.pendingGetMetadata;
+  var key = dbName + "." + tableName;
+  var groupCallback = makeGroupCallback(dbSession, container, key);
+  var impl = dbSession.impl;
+  return function() {
+    adapter.ndb.impl.DBDictionary.getTable(impl, dbName, tableName, groupCallback);
+  }
 }
 
 
@@ -239,17 +313,27 @@ function makeCascadedCallback(container, key) {
 proto.listTables = function(databaseName, dbSession, user_callback) {
   udebug.log("listTables");
   assert(databaseName && user_callback);
-  var dictSessionImpl = dbSession ? dbSession.impl : this.dictionary;
+  var dictSession = dbSession || this.dict_sess; 
+  var dictionaryCall;
+
   if(pendingListTables[databaseName]) {
-    udebug.log("listTables", databaseName, "pending");
-    pendingListTables[databaseName].push(user_callback);
+    // This request is already running, so add our own callback to its list
+    udebug.log("listTables", databaseName, "Adding request to pending group");
+    this.pendingListTables[databaseName].push(user_callback);
   }
   else {
-    udebug.log("listTables", databaseName, "NEW");
-    pendingListTables[databaseName] = [];
-    pendingListTables[databaseName].push(user_callback);
-    var masterCallback = makeCascadedCallback(pendingListTables, databaseName);
-    adapter.ndb.impl.DBDictionary.listTables(dictSessionImpl, databaseName, masterCallback);
+    this.pendingListTables[databaseName] = [];
+    this.pendingListTables[databaseName].push(user_callback);
+    dictionaryCall = makeListTablesCall(dictSession, this, databaseName);
+   
+    if(getDictionaryLock(dictSession)) { // Make the call directly
+      udebug.log("listTables", databaseName, "New group; running now.");
+      dictionaryCall();
+    }
+    else {  // otherwise place it on a queue
+      udebug.log("listTables", databaseName, "New group; on queue.");
+      dictSession.dictQueue.push(dictionaryCall);
+    }
   }
 };
 
@@ -260,21 +344,33 @@ proto.listTables = function(databaseName, dbSession, user_callback) {
   * getTableMetadata(databaseName, tableName, dbSession, callback(error, TableMetadata));
   */
 proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
+  var dictSession, tableKey, dictionaryCall;
   udebug.log("getTableMetadata");
   assert(dbname && tabname && user_callback);
-  var dictSessionImpl = dbSession ? dbSession.impl : this.dictionary;
-  var tableKey = dbname + "." + tabname;
+  dictSession = dbSession || this.dict_sess; 
+  tableKey = dbname + "." + tabname;
+
   // TODO: Wrap the NdbError in a large explicit error message db.tbl not in ndb engine
-  if(pendingGetMetadata[tableKey]) {
-    udebug.log("getTableMetadata", tableKey, "pending");
-    pendingGetMetadata[tableKey].push(user_callback);
+
+
+  if(this.pendingGetMetadata[tableKey]) {
+    // This request is already running, so add our own callback to its list
+    udebug.log("getTableMetadata", tableKey, "Adding request to pending group");
+    this.pendingGetMetadata[tableKey].push(user_callback);
   }
   else {
-    udebug.log("getTableMetadata", tableKey, "NEW");
-    pendingGetMetadata[tableKey] = [];
-    pendingGetMetadata[tableKey].push(user_callback);
-    var masterCallback = makeCascadedCallback(pendingGetMetadata, tableKey);
-    adapter.ndb.impl.DBDictionary.getTable(dictSessionImpl, dbname, tabname, masterCallback);
+    this.pendingGetMetadata[tableKey] = [];
+    this.pendingGetMetadata[tableKey].push(user_callback);
+    dictionaryCall = makeGetTableCall(dictSession, this, dbname, tabname);
+  
+    if(getDictionaryLock(dictSession)) { // Make the call directly
+      udebug.log("getTableMetadata", tableKey, "New group; running now.");
+      dictionaryCall();
+    }
+    else {  // otherwise place it on a queue
+      udebug.log("getTableMetadata", tableKey, "New group; on queue.");
+      dictSession.dictQueue.push(dictionaryCall);
+    }
   }
 };
 

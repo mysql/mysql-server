@@ -469,7 +469,7 @@ Handle<Value> getColumnType(const NdbDictionary::Column * col) {
     "TINYINT",        // 2  TINY UNSIGNED
     "SMALLINT",       // 3  SMALL INT
     "SMALLINT",       // 4  SMALL UNSIGNED
-    "MEDIUMINT",      // 5  MEDIIUM INT
+    "MEDIUMINT",      // 5  MEDIUM INT
     "MEDIUMINT",      // 6  MEDIUM UNSIGNED
     "INT",            // 7  INT
     "INT",            // 8  UNSIGNED
