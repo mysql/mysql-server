@@ -1181,7 +1181,8 @@ size_t dth_length_timestamp2(const NdbDictionary::Column *col, const void *buf) 
 
 int dth_encode_timestamp2(const NdbDictionary::Column *col, size_t len, 
                           const char *str, void *buf) {
-  
+  /* TODO: Implement this */
+  return len;
 }
 
 /* Read a timestamp into an int32.
