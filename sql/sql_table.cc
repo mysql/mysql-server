@@ -1953,6 +1953,7 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
   for (table= tables; table; table= table->next_local)
   {
     char *db=table->db;
+    int db_len= table->db_length;
     handlerton *table_type;
     enum legacy_db_type frm_db_type= DB_TYPE_UNKNOWN;
 
@@ -1975,14 +1976,14 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
           built_tmp_query.append("DROP TEMPORARY TABLE IF EXISTS ");
         }
 
-        built_tmp_query.append("`");
         if (thd->db == NULL || strcmp(db,thd->db) != 0)
         {
-          built_tmp_query.append(db);
-          built_tmp_query.append("`.`");
+          append_identifier(thd, &built_tmp_query, db, db_len);
+          built_tmp_query.append(".");
         }
-        built_tmp_query.append(table->table_name);
-        built_tmp_query.append("`,");
+        append_identifier(thd, &built_tmp_query, table->table_name,
+                          strlen(table->table_name));
+        built_tmp_query.append(",");
       }
 
       continue;
@@ -2008,15 +2009,14 @@ int mysql_rm_table_part2(THD *thd, TABLE_LIST *tables, bool if_exists,
         Don't write the database name if it is the current one (or if
         thd->db is NULL).
       */
-      built_query.append("`");
       if (thd->db == NULL || strcmp(db,thd->db) != 0)
       {
-        built_query.append(db);
-        built_query.append("`.`");
+        append_identifier(thd, &built_query, db, db_len);
+        built_query.append(".");
       }
-
-      built_query.append(table->table_name);
-      built_query.append("`,");
+      append_identifier(thd, &built_query, table->table_name,
+                        strlen(table->table_name));
+      built_query.append(",");
     }
 
     if (!drop_temporary)

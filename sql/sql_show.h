@@ -40,5 +40,6 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 int view_store_create_info(THD *thd, TABLE_LIST *table, String *buff);
 
 int copy_event_to_schema_table(THD *thd, TABLE *sch_table, TABLE *event_table);
+int get_quote_char_for_identifier(THD *thd, const char *name, uint length);
 
 #endif /* SQL_SHOW_H */
