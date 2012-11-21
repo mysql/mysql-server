@@ -2352,6 +2352,9 @@ public:
       bool xid_written:1;               // The session wrote an XID
       bool real_commit:1;               // Is this a "real" commit?
       bool commit_low:1;                // see MYSQL_BIN_LOG::ordered_commit
+#ifndef DBUG_OFF
+      bool ready_preempt:1;             // internal in MYSQL_BIN_LOG::ordered_commit
+#endif
     } flags;
 
     void cleanup()

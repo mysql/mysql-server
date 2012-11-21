@@ -1334,6 +1334,16 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
   if (!leader)
   {
     mysql_mutex_lock(&m_lock_done);
+#ifndef DBUG_OFF
+    /*
+      Leader can be awaiting all-clear to preempt follower's execution.
+      With setting the status the follower ensures it won't execute anything
+      including thread-specific code.
+    */
+    thd->transaction.flags.ready_preempt= 1;
+    if (leader_await_preempt_status)
+      mysql_cond_signal(&m_cond_preempt);
+#endif
     while (thd->transaction.flags.pending)
       mysql_cond_wait(&m_cond_done, &m_lock_done);
     mysql_mutex_unlock(&m_lock_done);
@@ -1360,6 +1370,22 @@ THD *Stage_manager::Mutex_queue::fetch_and_empty()
   unlock();
   DBUG_RETURN(result);
 }
+
+#ifndef DBUG_OFF
+void Stage_manager::clear_preempt_status(THD *head)
+{
+  DBUG_ASSERT(head);
+
+  mysql_mutex_lock(&m_lock_done);
+  while(!head->transaction.flags.ready_preempt)
+  {
+    leader_await_preempt_status= true;
+    mysql_cond_wait(&m_cond_preempt, &m_lock_done);
+  }
+  leader_await_preempt_status= false;
+  mysql_mutex_unlock(&m_lock_done);
+}
+#endif
 
 /**
   Write a rollback record of the transaction to the binary log.
@@ -6009,6 +6035,9 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first,
 {
   mysql_mutex_assert_owner(&LOCK_commit);
   Thread_excursion excursion(thd);
+#ifndef DBUG_OFF
+  thd->transaction.flags.ready_preempt= 1; // formality by the leader
+#endif
   for (THD *head= first ; head ; head = head->next_to_commit)
   {
     DBUG_PRINT("debug", ("Thread ID: %lu, commit_error: %d, flags.pending: %s",
@@ -6022,6 +6051,9 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first,
       If flush succeeded, attach to the session and commit it in the
       engines.
     */
+#ifndef DBUG_OFF
+    stage_manager.clear_preempt_status(head);
+#endif
     if (flush_error != 0)
       head->commit_error= flush_error;
     else if (int error= excursion.attach_to(head))
@@ -6031,6 +6063,9 @@ MYSQL_BIN_LOG::process_commit_stage_queue(THD *thd, THD *first,
       bool all= head->transaction.flags.real_commit;
       if (head->transaction.flags.commit_low)
       {
+        /* head is parked to have exited append() */
+        DBUG_ASSERT(head->transaction.flags.ready_preempt);
+
         if (int error= ha_commit_low(head, all))
           head->commit_error= error;
         else if (head->transaction.flags.xid_written)
@@ -6269,6 +6304,17 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   thd->transaction.flags.real_commit= all;
   thd->transaction.flags.xid_written= false;
   thd->transaction.flags.commit_low= !skip_commit;
+#ifndef DBUG_OFF
+  /*
+     The group commit Leader may have to wait for follower whose transaction
+     is not ready to be preempted. Initially the status is pessimistic.
+     Preemption guarding logics is necessary only when DBUG_ON is set.
+     It won't be required for the dbug-off case as long as the follower won't
+     execute any thread-specific write access code in this method, which is
+     the case as of current.
+  */
+  thd->transaction.flags.ready_preempt= 0;
+#endif
 
   DBUG_PRINT("enter", ("flags.pending: %s, commit_error: %d, thread_id: %lu",
                        YESNO(thd->transaction.flags.pending),
