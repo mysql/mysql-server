@@ -430,6 +430,11 @@ Tablespace::make_name(file_t& file)
 {
 	char	name[OS_FILE_MAX_PATH];
 
+	if (file.m_filename != 0) {
+		::free(file.m_filename);
+		file.m_filename = 0;
+	}
+
 	ut_a(file.m_filename == 0);
 
 	ulint	dirnamelen = strlen(srv_data_home);
@@ -1040,4 +1045,26 @@ Tablespace::find(const char* filename) const
 	}
 
 	return(false);
+}
+
+
+/**
+Delete all the data files. */
+void
+Tablespace::delete_files()
+{
+	srv_normalize_path_for_win(srv_data_home);
+
+	files_t::iterator	end = m_files.end();
+
+	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
+
+		make_name(*it);
+
+		if (os_file_delete_if_exists(it->m_filename)) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Removed temporary tablespace data file: "
+				"\"%s\"", it->m_name);
+		}
+	}
 }

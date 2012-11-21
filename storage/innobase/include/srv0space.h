@@ -261,6 +261,10 @@ public:
 		lsn_t*		min_flushed_lsn,
 		lsn_t*		max_flushed_lsn);
 
+	/**
+	Delete all the data files. */
+	void delete_files();
+
 private:
 	/**
 	@return the size of the last data file in the array */
