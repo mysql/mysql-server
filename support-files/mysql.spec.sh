@@ -374,7 +374,7 @@ CXXFLAGS=${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rt
 # Evaluate current setting of $DEBUG
 if [ $DEBUG -gt 0 ] ; then
 	OPT_COMMENT='--with-comment="%{debug_comment}"'
-	OPT_DEBUG='--with-debug'
+	OPT_DEBUG='--with-debug --enable-mysql-maintainer-mode=no'
 	CFLAGS=`echo   " $CFLAGS "   | \
 	    sed -e 's/ -O[0-9]* / /' -e 's/ -unroll2 / /' -e 's/ -ip / /' \
 	        -e 's/^ //' -e 's/ $//'`
@@ -1191,6 +1191,11 @@ fi
 # merging BK trees)
 ##############################################################################
 %changelog
+* Tue Sep 11 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Disable "maintainer mode" in debug builds, there is a cast ulonglong -> int
+  in the sources (since 2007) that would cause builds to fail.
+
 * Wed Sep 14 2011 Joerg Bruehe <joerg.bruehe@oracle.com>
 
 - Let the RPM capabilities ("obsoletes" etc) ensure that an upgrade may replace

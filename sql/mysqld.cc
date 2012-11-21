@@ -4838,7 +4838,7 @@ void create_thread_to_handle_connection(THD *thd)
   if (cached_thread_count > wake_thread)
   {
     /* Get thread from cache */
-    thread_cache.append(thd);
+    thread_cache.push_back(thd);
     wake_thread++;
     pthread_cond_signal(&COND_thread_cache);
   }
