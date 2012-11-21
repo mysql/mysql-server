@@ -232,6 +232,8 @@ UNIV_INTERN const byte*	srv_latin1_ordering;
 UNIV_INTERN my_bool	srv_use_sys_malloc	= TRUE;
 /* requested size in kilobytes */
 UNIV_INTERN ulint	srv_buf_pool_size	= ULINT_MAX;
+/* force virtual page preallocation (prefault) */
+UNIV_INTERN my_bool	srv_buf_pool_populate	= FALSE;
 /* requested number of buffer pool instances */
 UNIV_INTERN ulint       srv_buf_pool_instances  = 1;
 /* previously requested size */

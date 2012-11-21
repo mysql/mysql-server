@@ -64,7 +64,7 @@ buf_read_page_handle_error(
 					== BUF_BLOCK_FILE_PAGE);
 
 	/* First unfix and release lock on the bpage */
-	buf_pool_mutex_enter(buf_pool);
+	mutex_enter(&buf_pool->LRU_list_mutex);
 	mutex_enter(buf_page_get_mutex(bpage));
 	ut_ad(buf_page_get_io_fix(bpage) == BUF_IO_READ);
 	ut_ad(bpage->buf_fix_count == 0);
@@ -85,7 +85,7 @@ buf_read_page_handle_error(
 	buf_pool->n_pend_reads--;
 
 	mutex_exit(buf_page_get_mutex(bpage));
-	buf_pool_mutex_exit(buf_pool);
+	mutex_exit(&buf_pool->LRU_list_mutex);
 }
 
 /********************************************************************//**

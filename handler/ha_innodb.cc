@@ -2485,6 +2485,118 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 	reset_template(prebuilt);
 }
 
+/* The last read master log coordinates in the slave info file */
+static char	master_log_fname[TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN] = "";
+static int	master_log_pos;
+/* The slave relay log coordinates in the slave info file after startup */
+static char	original_relay_log_fname[TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN] = "";
+static int	original_relay_log_pos;
+/* The master log coordinates in the slave info file after startup */
+static char	original_master_log_fname[TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN] = "";
+static int	original_master_log_pos;
+
+/*****************************************************************//**
+Overwrites the MySQL relay log info file with the current master and relay log
+coordinates from InnoDB.  Skips overwrite if the master log position did not
+change from the last overwrite.  If the InnoDB master log position is equal
+to position that was read from the info file on startup before any overwrites,
+restores the original positions. */
+static
+void
+innobase_do_overwrite_relay_log_info(void)
+/*======================================*/
+{
+	char	info_fname[FN_REFLEN];
+	File	info_fd = -1;
+	int	error	= 0;
+	char	buff[FN_REFLEN*2+22*2+4];
+	char	*relay_info_log_pos;
+	size_t	buf_len;
+
+	if (master_log_fname[0] == '\0') {
+		fprintf(stderr,
+			"InnoDB: something wrong with relay-log.info. "
+			"InnoDB will not overwrite it.\n");
+		return;
+	}
+
+	if (strcmp(master_log_fname, trx_sys_mysql_master_log_name) == 0
+	    && master_log_pos == trx_sys_mysql_master_log_pos) {
+		fprintf(stderr,
+			"InnoDB: InnoDB and relay-log.info are synchronized. "
+			"InnoDB will not overwrite it.\n");
+		return;
+	}
+
+	/* If we overwrite the file back to the original master log position,
+	restore the original relay log position too.  This is required because
+	we might have rolled back a prepared transaction and restored the
+	original master log position from the InnoDB trx sys header, but the
+	corresponding relay log position points to an already-purged file. */
+	if (strcmp(original_master_log_fname, trx_sys_mysql_master_log_name)
+	    == 0
+	    && (original_master_log_pos	== trx_sys_mysql_master_log_pos)) {
+
+		strncpy(trx_sys_mysql_relay_log_name, original_relay_log_fname,
+			TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
+		trx_sys_mysql_relay_log_pos = original_relay_log_pos;
+	}
+
+	fn_format(info_fname, relay_log_info_file, mysql_data_home, "",
+		  MY_UNPACK_FILENAME | MY_RETURN_REAL_PATH);
+
+	if (access(info_fname, F_OK)) {
+		/* File does not exist */
+		error = 1;
+		goto skip_overwrite;
+	}
+
+	/* File exists */
+	info_fd = my_open(info_fname, O_RDWR|O_BINARY, MYF(MY_WME));
+	if (info_fd < 0) {
+		error = 1;
+		goto skip_overwrite;
+	}
+
+	relay_info_log_pos = strmov(buff, trx_sys_mysql_relay_log_name);
+	*relay_info_log_pos ++= '\n';
+	relay_info_log_pos = longlong2str(trx_sys_mysql_relay_log_pos,
+					  relay_info_log_pos, 10);
+	*relay_info_log_pos ++= '\n';
+	relay_info_log_pos = strmov(relay_info_log_pos,
+				    trx_sys_mysql_master_log_name);
+	*relay_info_log_pos ++= '\n';
+	relay_info_log_pos = longlong2str(trx_sys_mysql_master_log_pos,
+					  relay_info_log_pos, 10);
+	*relay_info_log_pos = '\n';
+
+	buf_len = (relay_info_log_pos - buff) + 1;
+	if (my_write(info_fd, (uchar *)buff, buf_len, MY_WME) != buf_len) {
+		error = 1;
+	} else if (my_sync(info_fd, MY_WME)) {
+		error = 1;
+	}
+
+	if (info_fd >= 0) {
+		my_close(info_fd, MYF(0));
+	}
+
+	strncpy(master_log_fname, trx_sys_mysql_relay_log_name,
+		TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
+	master_log_pos = trx_sys_mysql_master_log_pos;
+
+skip_overwrite:
+	if (error) {
+		fprintf(stderr,
+			"InnoDB: ERROR: error occured during overwriting "
+			"relay-log.info.\n");
+	} else {
+		fprintf(stderr,
+			"InnoDB: relay-log.info was overwritten.\n");
+	}
+}
+
+
 /*********************************************************************//**
 Opens an InnoDB database.
 @return	0 on success, error code on failure */
@@ -2619,12 +2731,13 @@ innobase_init(
 #ifdef HAVE_REPLICATION
 #ifdef MYSQL_SERVER
 	/* read master log position from relay-log.info if exists */
-	char fname[FN_REFLEN+128];
-	int pos;
+	char info_fname[FN_REFLEN];
+	char relay_log_fname[TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN];
+	int relay_log_pos;
 	int info_fd;
 	IO_CACHE info_file;
 
-	fname[0] = '\0';
+	info_fname[0] = '\0';
 
 	if(innobase_overwrite_relay_log_info) {
 
@@ -2633,13 +2746,14 @@ innobase_init(
 		" Updates by other storage engines may not be synchronized.\n");
 
 	bzero((char*) &info_file, sizeof(info_file));
-	fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
+	fn_format(info_fname, relay_log_info_file, mysql_data_home, "", 4+32);
 
 	int error=0;
 
-	if (!access(fname,F_OK)) {
+	if (!access(info_fname,F_OK)) {
 		/* exist */
-		if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0) {
+		if ((info_fd = my_open(info_fname, O_RDWR | O_BINARY,
+				       MYF(MY_WME))) < 0) {
 			error=1;
 		} else if (init_io_cache(&info_file, info_fd, IO_SIZE*2,
 					READ_CACHE, 0L, 0, MYF(MY_WME))) {
@@ -2650,16 +2764,18 @@ innobase_init(
 relay_info_error:
 			if (info_fd >= 0)
 				my_close(info_fd, MYF(0));
-			fname[0] = '\0';
+			master_log_fname[0] = '\0';
 			goto skip_relay;
 		}
 	} else {
-		fname[0] = '\0';
+		master_log_fname[0] = '\0';
 		goto skip_relay;
 	}
 
-	if (init_strvar_from_file(fname, sizeof(fname), &info_file, "") || /* dummy (it is relay-log) */
-	    init_intvar_from_file(&pos, &info_file, BIN_LOG_HEADER_SIZE)) { 
+	if (init_strvar_from_file(relay_log_fname, sizeof(relay_log_fname),
+				  &info_file, "")
+	    || /* dummy (it is relay-log) */ init_intvar_from_file(
+		    &relay_log_pos, &info_file, BIN_LOG_HEADER_SIZE)) {
 		end_io_cache(&info_file);
 		error=1;
 		goto relay_info_error;
@@ -2668,13 +2784,19 @@ relay_info_error:
 	fprintf(stderr,
 		"InnoDB: relay-log.info is detected.\n"
 		"InnoDB: relay log: position %u, file name %s\n",
-		pos, fname);
+		relay_log_pos, relay_log_fname);
 
-	strncpy(trx_sys_mysql_relay_log_name, fname, TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
-	trx_sys_mysql_relay_log_pos = (ib_int64_t) pos;
+	strncpy(trx_sys_mysql_relay_log_name, relay_log_fname,
+		TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
+	trx_sys_mysql_relay_log_pos = (ib_int64_t) relay_log_pos;
 
-	if (init_strvar_from_file(fname, sizeof(fname), &info_file, "") ||
-	    init_intvar_from_file(&pos, &info_file, 0)) {
+	strncpy(original_relay_log_fname, relay_log_fname,
+		TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
+	original_relay_log_pos = relay_log_pos;
+
+	if (init_strvar_from_file(master_log_fname, sizeof(master_log_fname),
+				  &info_file, "")
+	    || init_intvar_from_file(&master_log_pos, &info_file, 0)) {
 		end_io_cache(&info_file);
 		error=1;
 		goto relay_info_error;
@@ -2682,10 +2804,15 @@ relay_info_error:
 
 	fprintf(stderr,
 		"InnoDB: master log: position %u, file name %s\n",
-		pos, fname);
+		master_log_pos, master_log_fname);
 
-	strncpy(trx_sys_mysql_master_log_name, fname, TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
-	trx_sys_mysql_master_log_pos = (ib_int64_t) pos;
+	strncpy(trx_sys_mysql_master_log_name, master_log_fname,
+		TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
+	trx_sys_mysql_master_log_pos = (ib_int64_t) master_log_pos;
+
+	strncpy(original_master_log_fname, master_log_fname,
+		TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
+	original_master_log_pos = master_log_pos;
 
 	end_io_cache(&info_file);
 	if (info_fd >= 0)
@@ -3020,75 +3147,9 @@ innobase_change_buffering_inited_ok:
 		goto mem_free_and_error;
 	}
 
-#ifdef HAVE_REPLICATION
-#ifdef MYSQL_SERVER
 	if(innobase_overwrite_relay_log_info) {
-	/* If InnoDB progressed from relay-log.info, overwrite it */
-	if (fname[0] == '\0') {
-		fprintf(stderr,
-			"InnoDB: Something is wrong with the file relay-info.log. InnoDB will not overwrite it.\n");
-	} else if (0 != strcmp(fname, trx_sys_mysql_master_log_name)
-		   || pos != trx_sys_mysql_master_log_pos) {
-		/* Overwrite relay-log.info */
-		bzero((char*) &info_file, sizeof(info_file));
-		fn_format(fname, relay_log_info_file, mysql_data_home, "", 4+32);
-
-		int error = 0;
-
-		if (!access(fname,F_OK)) {
-			/* exist */
-			if ((info_fd = my_open(fname, O_RDWR|O_BINARY, MYF(MY_WME))) < 0) {
-				error = 1;
-			} else if (init_io_cache(&info_file, info_fd, IO_SIZE*2,
-						WRITE_CACHE, 0L, 0, MYF(MY_WME))) {
-				error = 1;
-			}
-
-			if (error) {
-				if (info_fd >= 0)
-					my_close(info_fd, MYF(0));
-				goto skip_overwrite;
-			}
-		} else {
-			error = 1;
-			goto skip_overwrite;
-		}
-
-		char buff[FN_REFLEN*2+22*2+4], *pos;
-
-		my_b_seek(&info_file, 0L);
-		pos=strmov(buff, trx_sys_mysql_relay_log_name);
-		*pos++='\n';
-		pos=longlong2str(trx_sys_mysql_relay_log_pos, pos, 10);
-		*pos++='\n';
-		pos=strmov(pos, trx_sys_mysql_master_log_name);
-		*pos++='\n';
-		pos=longlong2str(trx_sys_mysql_master_log_pos, pos, 10);
-		*pos='\n';
-
-		if (my_b_write(&info_file, (uchar*) buff, (size_t) (pos-buff)+1))
-			error = 1;
-		if (flush_io_cache(&info_file))
-			error = 1;
-
-		end_io_cache(&info_file);
-		if (info_fd >= 0)
-			my_close(info_fd, MYF(0));
-skip_overwrite:
-		if (error) {
-			fprintf(stderr,
-				"InnoDB: ERROR: An error occurred while overwriting relay-log.info.\n");
-		} else {
-			fprintf(stderr,
-				"InnoDB: The file relay-log.info was successfully overwritten.\n");
-		}
-	} else {
-		fprintf(stderr,
-			"InnoDB: InnoDB and relay-log.info are synchronized. InnoDB will not overwrite it.\n");
+		innobase_do_overwrite_relay_log_info();
 	}
-	}
-#endif /* MYSQL_SERVER */
-#endif /* HAVE_REPLICATION */
 
 	innobase_old_blocks_pct = buf_LRU_old_ratio_update(
 		innobase_old_blocks_pct, TRUE);
@@ -3194,6 +3255,32 @@ innobase_alter_table_flags(
 		| HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE);
 }
 
+/****************************************************************//**
+Copy the current replication position from MySQL to a transaction. */
+static
+void
+innobase_copy_repl_coords_to_trx(
+/*=============================*/
+	const THD*	thd,	/*!< in: thread handle */
+	trx_t*		trx)	/*!< in/out: transaction */
+{
+	if (thd && thd->slave_thread) {
+		const Relay_log_info*	rli = &active_mi->rli;
+
+		trx->mysql_master_log_file_name
+			= rli->group_master_log_name;
+		trx->mysql_master_log_pos
+			= ((ib_int64_t)rli->group_master_log_pos
+			   + ((ib_int64_t)
+			      rli->future_event_relay_log_pos
+			      - (ib_int64_t)rli->group_relay_log_pos));
+		trx->mysql_relay_log_file_name
+			= rli->group_relay_log_name;
+		trx->mysql_relay_log_pos
+			= (ib_int64_t)rli->future_event_relay_log_pos;
+	}
+}
+
 /*****************************************************************//**
 Commits a transaction in an InnoDB database. */
 static
@@ -3203,25 +3290,12 @@ innobase_commit_low(
 	trx_t*	trx)	/*!< in: transaction handle */
 {
 	if (trx_is_started(trx)) {
-#ifdef HAVE_REPLICATION
-#ifdef MYSQL_SERVER
-		THD *thd=current_thd;
 
-		if (thd && thd->slave_thread) {
-			/* Update the replication position info inside InnoDB */
-			trx->mysql_master_log_file_name
-				= active_mi->rli.group_master_log_name;
-			trx->mysql_master_log_pos
-				= ((ib_int64_t)active_mi->rli.group_master_log_pos +
-				   ((ib_int64_t)active_mi->rli.future_event_relay_log_pos -
-				    (ib_int64_t)active_mi->rli.group_relay_log_pos));
-			trx->mysql_relay_log_file_name
-				= active_mi->rli.group_relay_log_name;
-			trx->mysql_relay_log_pos
-				= (ib_int64_t)active_mi->rli.future_event_relay_log_pos;
-		}
-#endif /* MYSQL_SERVER */
-#endif /* HAVE_REPLICATION */
+		/* Save the current replication position for write to trx sys
+		header for undo purposes, see the comment at corresponding call
+		at innobase_xa_prepare(). */
+
+		innobase_copy_repl_coords_to_trx(current_thd, trx);
 
 		trx_commit_for_mysql(trx);
 	}
@@ -3438,6 +3512,9 @@ innobase_commit(
 
 	if (all
 	    || (!thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
+
+		DBUG_EXECUTE_IF("crash_innodb_before_commit",
+				DBUG_SUICIDE(););
 
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
@@ -11372,7 +11449,27 @@ innobase_xa_prepare(
 
 		ut_ad(trx_is_registered_for_2pc(trx));
 
+		/* Update the replication position info in current trx.  This
+		is different from the binlog position update that happens
+		during XA COMMIT.  In contrast to that, the slave position is
+		an actual part of the changes made by this transaction and thus
+		must be updated in the XA PREPARE stage.  Since the trx sys
+		header page changes are not undo-logged, again store this
+		position in a different field in the XA COMMIT stage, so that
+		it might be used in case of rollbacks. */
+
+		/* Since currently there might be only one slave SQL thread, we
+		don't need to take any precautions (e.g. prepare_commit_mutex)
+		to ensure position ordering.  Revisit this in 5.6 which has
+		both the multi-threaded replication to cause us problems and
+		the group commit to solve them.  */
+
+		innobase_copy_repl_coords_to_trx(thd, trx);
+
 		error = (int) trx_prepare_for_mysql(trx);
+
+		DBUG_EXECUTE_IF("crash_innodb_after_prepare",
+				DBUG_SUICIDE(););
 	} else {
 		/* We just mark the SQL statement ended and do not do a
 		transaction prepare */
@@ -11494,6 +11591,22 @@ innobase_rollback_by_xid(
 	if (trx) {
 		int	ret = innobase_rollback_trx(trx);
 		trx_free_for_background(trx);
+
+		if (innobase_overwrite_relay_log_info) {
+
+			/* On rollback of a prepared transaction revert the
+			current slave positions to the ones recorded by the
+			last COMMITTed transaction.  This has an effect of
+			undoing the position change caused by the transaction
+			being rolled back.  Assumes single-threaded slave SQL
+			thread.  If the server has non-master write traffic
+			with XA rollbacks, this will cause additional spurious
+			slave info log overwrites, which should be harmless. */
+
+			trx_sys_print_committed_mysql_master_log_pos();
+			innobase_do_overwrite_relay_log_info();
+		}
+
 		return(ret);
 	} else {
 		return(XAER_NOTA);
@@ -12494,6 +12607,12 @@ static MYSQL_SYSVAR_LONGLONG(buffer_pool_size, innobase_buffer_pool_size,
   "The size of the memory buffer InnoDB uses to cache data and indexes of its tables.",
   NULL, NULL, 128*1024*1024L, 32*1024*1024L, LONGLONG_MAX, 1024*1024L);
 
+static MYSQL_SYSVAR_BOOL(buffer_pool_populate, srv_buf_pool_populate,
+  PLUGIN_VAR_NOCMDARG | PLUGIN_VAR_READONLY,
+  "Preallocate (pre-fault) the page frames required for the mapping "
+  "established by the buffer pool memory region. Disabled by default.",
+  NULL, NULL, FALSE);
+
 static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Number of buffer pool instances, set to higher value on high-end machines to increase scalability",
@@ -12874,6 +12993,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(additional_mem_pool_size),
   MYSQL_SYSVAR(autoextend_increment),
   MYSQL_SYSVAR(buffer_pool_size),
+  MYSQL_SYSVAR(buffer_pool_populate),
   MYSQL_SYSVAR(buffer_pool_instances),
   MYSQL_SYSVAR(buffer_pool_shm_key),
   MYSQL_SYSVAR(buffer_pool_shm_checksum),
@@ -13019,7 +13139,10 @@ i_s_innodb_buffer_pool_pages,
 i_s_innodb_buffer_pool_pages_index,
 i_s_innodb_buffer_pool_pages_blob,
 i_s_innodb_admin_command,
-i_s_innodb_changed_pages
+i_s_innodb_changed_pages,
+i_s_innodb_buffer_page,
+i_s_innodb_buffer_page_lru,
+i_s_innodb_buffer_stats
 mysql_declare_plugin_end;
 
 /** @brief Initialize the default value of innodb_commit_concurrency.

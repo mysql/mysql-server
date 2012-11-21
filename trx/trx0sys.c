@@ -959,8 +959,31 @@ trx_sys_print_mysql_binlog_offset(void)
 }
 
 /*****************************************************************//**
-Prints to stderr the MySQL master log offset info in the trx system header if
-the magic number shows it valid. */
+Reads the log coordinates at the given offset in the trx sys header. */
+static
+void
+trx_sys_read_log_pos(
+/*=================*/
+	const trx_sysf_t*	sys_header,	/*!< in: the trx sys header */
+	uint			header_offset,	/*!< in: coord offset in the
+						header */
+	char*			log_fn,		/*!< out: the log file name */
+	ib_int64_t*		log_pos)	/*!< out: the log poistion */
+{
+	ut_memcpy(log_fn, sys_header + header_offset + TRX_SYS_MYSQL_LOG_NAME,
+		  TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
+
+	*log_pos =
+		(((ib_int64_t)mach_read_from_4(sys_header + header_offset
+				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
+		+ mach_read_from_4(sys_header + header_offset
+				   + TRX_SYS_MYSQL_LOG_OFFSET_LOW);
+}
+
+/*****************************************************************//**
+Prints to stderr the MySQL master log offset info in the trx system header
+PREPARE set of fields if the magic number shows it valid and stores it
+in global variables. */
 UNIV_INTERN
 void
 trx_sys_print_mysql_master_log_pos(void)
@@ -982,60 +1005,79 @@ trx_sys_print_mysql_master_log_pos(void)
 		return;
 	}
 
+	/* Copy the master log position info to global variables we can
+	use in ha_innobase.cc to initialize glob_mi to right values */
+	trx_sys_read_log_pos(sys_header, TRX_SYS_MYSQL_MASTER_LOG_INFO,
+			     trx_sys_mysql_master_log_name,
+			     &trx_sys_mysql_master_log_pos);
+
+	trx_sys_read_log_pos(sys_header, TRX_SYS_MYSQL_RELAY_LOG_INFO,
+			     trx_sys_mysql_relay_log_name,
+			     &trx_sys_mysql_relay_log_pos);
+
+	mtr_commit(&mtr);
+
 	fprintf(stderr,
 		"InnoDB: In a MySQL replication slave the last"
 		" master binlog file\n"
-		"InnoDB: position %lu %lu, file name %s\n",
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		+ TRX_SYS_MYSQL_LOG_NAME);
+		"InnoDB: position %llu, file name %s\n",
+		trx_sys_mysql_master_log_pos,
+		trx_sys_mysql_master_log_name);
 
 	fprintf(stderr,
 		"InnoDB: and relay log file\n"
-		"InnoDB: position %lu %lu, file name %s\n",
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_RELAY_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_RELAY_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-		sys_header + TRX_SYS_MYSQL_RELAY_LOG_INFO
-		+ TRX_SYS_MYSQL_LOG_NAME);
+		"InnoDB: position %llu, file name %s\n",
+		trx_sys_mysql_relay_log_pos,
+		trx_sys_mysql_relay_log_name);
+}
+
+/*****************************************************************//**
+Prints to stderr the MySQL master log offset info in the trx system header
+COMMIT set of fields if the magic number shows it valid and stores it
+in global variables. */
+UNIV_INTERN
+void
+trx_sys_print_committed_mysql_master_log_pos(void)
+/*==============================================*/
+{
+	trx_sysf_t*	sys_header;
+	mtr_t		mtr;
+
+	mtr_start(&mtr);
+
+	sys_header = trx_sysf_get(&mtr);
+
+	if (mach_read_from_4(sys_header + TRX_SYS_COMMIT_MASTER_LOG_INFO
+			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
+	    != TRX_SYS_MYSQL_LOG_MAGIC_N) {
+
+		mtr_commit(&mtr);
+
+		return;
+	}
 
 	/* Copy the master log position info to global variables we can
-	use in ha_innobase.cc to initialize glob_mi to right values */
+	   use in ha_innobase.cc to initialize glob_mi to right values */
+	trx_sys_read_log_pos(sys_header, TRX_SYS_COMMIT_MASTER_LOG_INFO,
+			     trx_sys_mysql_master_log_name,
+			     &trx_sys_mysql_master_log_pos);
 
-	ut_memcpy(trx_sys_mysql_master_log_name,
-		  sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		  + TRX_SYS_MYSQL_LOG_NAME,
-		  TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
+	trx_sys_read_log_pos(sys_header, TRX_SYS_COMMIT_RELAY_LOG_INFO,
+			     trx_sys_mysql_relay_log_name,
+			     &trx_sys_mysql_relay_log_pos);
 
-	trx_sys_mysql_master_log_pos
-		= (((ib_int64_t) mach_read_from_4(
-			    sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
-		+ ((ib_int64_t) mach_read_from_4(
-			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
-
-	ut_memcpy(trx_sys_mysql_relay_log_name,
-		  sys_header + TRX_SYS_MYSQL_RELAY_LOG_INFO
-		  + TRX_SYS_MYSQL_LOG_NAME,
-		  TRX_SYS_MYSQL_MASTER_LOG_NAME_LEN);
-
-	trx_sys_mysql_relay_log_pos
-		= (((ib_int64_t) mach_read_from_4(
-			    sys_header + TRX_SYS_MYSQL_RELAY_LOG_INFO
-			    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
-		+ ((ib_int64_t) mach_read_from_4(
-			   sys_header + TRX_SYS_MYSQL_RELAY_LOG_INFO
-			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
 	mtr_commit(&mtr);
+
+	fprintf(stderr,
+		"InnoDB: In a MySQL replication slave the last"
+		" master binlog file\n"
+		"InnoDB: position %llu, file name %s\n",
+		trx_sys_mysql_master_log_pos, trx_sys_mysql_master_log_name);
+
+	fprintf(stderr,
+		"InnoDB: and relay log file\n"
+		"InnoDB: position %llu, file name %s\n",
+		trx_sys_mysql_relay_log_pos, trx_sys_mysql_relay_log_name);
 }
 
 /****************************************************************//**

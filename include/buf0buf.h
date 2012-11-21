@@ -68,7 +68,10 @@ Created 11/5/1995 Heikki Tuuri
 					position of the block. */
 /* @} */
 
-#define MAX_BUFFER_POOLS 64		/*!< The maximum number of buffer
+#define MAX_BUFFER_POOLS_BITS	6 	/*!< Number of bits to representing
+					a buffer pool ID */
+#define MAX_BUFFER_POOLS	(1 << MAX_BUFFER_POOLS_BITS)
+					/*!< The maximum number of buffer
 					pools that can be defined */
 
 #define BUF_POOL_WATCH_SIZE 1		/*!< Maximum number of concurrent
@@ -233,6 +236,7 @@ ulint
 buf_pool_init(
 /*=========*/
 	ulint	size,		/*!< in: Size of the total pool in bytes */
+	ibool	populate,	/*!< in: Force virtual page preallocation */
 	ulint	n_instances);	/*!< in: Number of instances */
 /********************************************************************//**
 Frees the buffer pool at shutdown.  This must not be invoked before
@@ -778,6 +782,18 @@ void
 buf_print_io(
 /*=========*/
 	FILE*	file);	/*!< in: file where to print */
+/*******************************************************************//**
+Collect buffer pool stats information for a buffer pool. Also
+record aggregated stats if there are more than one buffer pool
+in the server */
+UNIV_INTERN
+void
+buf_stats_get_pool_info(
+/*====================*/
+	buf_pool_t*		buf_pool,	/*!< in: buffer pool */
+	ulint			pool_id,	/*!< in: buffer pool ID */
+	buf_pool_info_t*	all_pool_info);	/*!< in/out: buffer pool info
+						to fill */
 /*********************************************************************//**
 Returns the ratio in percents of modified pages in the buffer pool /
 database pages in the buffer pool.
@@ -1362,11 +1378,24 @@ void
 buf_get_total_stat(
 /*===============*/
 	buf_pool_stat_t*tot_stat);	/*!< out: buffer pool stats */
+/*********************************************************************//**
+Get the nth chunk's buffer block in the specified buffer pool.
+@return the nth chunk's buffer block. */
+UNIV_INLINE
+buf_block_t*
+buf_get_nth_chunk_block(
+/*====================*/
+	const buf_pool_t* buf_pool,	/*!< in: buffer pool instance */
+	ulint		n,		/*!< in: nth chunk in the buffer pool */
+	ulint*		chunk_size);	/*!< in: chunk size */
 
 #endif /* !UNIV_HOTBACKUP */
 
 /** The common buffer control block structure
 for compressed and uncompressed frames */
+
+/** Number of bits used for buffer page states. */
+#define BUF_PAGE_STATE_BITS	3
 
 struct buf_page_struct{
 	/** @name General fields
@@ -1382,7 +1411,8 @@ struct buf_page_struct{
 	unsigned	offset:32;	/*!< page number; also protected
 					by buf_pool->mutex. */
 
-	unsigned	state:3;	/*!< state of the control block; also
+	unsigned	state:BUF_PAGE_STATE_BITS;
+					/*!< state of the control block; also
 					protected by buf_pool->mutex.
 					State transitions from
 					BUF_BLOCK_READY_FOR_USE to

@@ -939,13 +939,13 @@ trx_write_serialisation_history(
 			sys_header,
 			trx->mysql_relay_log_file_name,
 			trx->mysql_relay_log_pos,
-			TRX_SYS_MYSQL_RELAY_LOG_INFO, &mtr);
+			TRX_SYS_COMMIT_RELAY_LOG_INFO, &mtr);
 
 		trx_sys_update_mysql_binlog_offset(
 			sys_header,
 			trx->mysql_master_log_file_name,
 			trx->mysql_master_log_pos,
-			TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
+			TRX_SYS_COMMIT_MASTER_LOG_INFO, &mtr);
 
 		trx->mysql_master_log_file_name = "";
 	}
@@ -2050,6 +2050,23 @@ trx_prepare_off_kernel(
 		}
 
 		mutex_exit(&(rseg->mutex));
+
+		if (trx->mysql_master_log_file_name[0] != '\0') {
+			/* This database server is a MySQL replication slave */
+			trx_sysf_t*	sys_header	= trx_sysf_get(&mtr);
+
+			trx_sys_update_mysql_binlog_offset(
+				sys_header,
+				trx->mysql_relay_log_file_name,
+				trx->mysql_relay_log_pos,
+				TRX_SYS_MYSQL_RELAY_LOG_INFO, &mtr);
+			trx_sys_update_mysql_binlog_offset(
+				sys_header,
+				trx->mysql_master_log_file_name,
+				trx->mysql_master_log_pos,
+				TRX_SYS_MYSQL_MASTER_LOG_INFO, &mtr);
+			trx->mysql_master_log_file_name = "";
+		}
 
 		/*--------------*/
 		mtr_commit(&mtr);	/* This mtr commit makes the

@@ -1254,11 +1254,25 @@ row_merge_read_clustered_index(
 				goto err_exit;
 			}
 
+			/* Store the cursor position on the last user
+			record on the page. */
+			btr_pcur_move_to_prev_on_page(&pcur);
+			/* Leaf pages must never be empty, unless
+			this is the only page in the index tree. */
+			ut_ad(btr_pcur_is_on_user_rec(&pcur)
+			      || buf_block_get_page_no(
+				      btr_pcur_get_block(&pcur))
+			      == clust_index->page);
+
 			btr_pcur_store_position(&pcur, &mtr);
 			mtr_commit(&mtr);
 			mtr_start(&mtr);
+			/* Restore position on the record, or its
+			predecessor if the record was purged
+			meanwhile. */
 			btr_pcur_restore_position(BTR_SEARCH_LEAF,
 						  &pcur, &mtr);
+			/* Move to the successor of the original record. */
 			has_next = btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 		}
 
@@ -2720,7 +2734,7 @@ row_merge_build_indexes(
 
 	merge_files = mem_alloc(n_indexes * sizeof *merge_files);
 	block_size = 3 * merge_sort_block_size;
-	block_mem = os_mem_alloc_large(&block_size);
+	block_mem = os_mem_alloc_large(&block_size, FALSE);
 
 	for (i = 0; i < UT_ARR_SIZE(block); i++) {
 		block[i] = (row_merge_block_t ) ((byte *) block_mem +

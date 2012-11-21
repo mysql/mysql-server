@@ -58,7 +58,8 @@ UNIV_INTERN
 void*
 os_mem_alloc_large(
 /*===============*/
-	ulint*	n);			/*!< in/out: number of bytes */
+	ulint*	n,			/*!< in/out: number of bytes */
+	ibool	populate);		/*!< in: virtual page preallocation */
 /****************************************************************//**
 Frees large pages memory. */
 UNIV_INTERN

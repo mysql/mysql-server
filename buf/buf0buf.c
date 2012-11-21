@@ -336,15 +336,6 @@ be effective only if PFS_GROUP_BUFFER_SYNC is defined. */
 # endif /* !PFS_SKIP_BUFFER_MUTEX_RWLOCK */
 #endif /* UNIV_PFS_MUTEX || UNIV_PFS_RWLOCK */
 
-/** A chunk of buffers.  The buffer pool is allocated in chunks. (moved to buf0buf.h)*/
-//struct buf_chunk_struct{
-//	ulint		mem_size;	/*!< allocated size of the chunk */
-//	ulint		size;		/*!< size of frames[] and blocks[] */
-//	void*		mem;		/*!< pointer to the memory area which
-//					was allocated for the frames */
-//	buf_block_t*	blocks;		/*!< array of buffer control blocks */
-//};
-
 /********************************************************************//**
 Gets the smallest oldest_modification lsn for any page in the pool. Returns
 zero if all modified pages have been flushed to disk.
@@ -1028,7 +1019,8 @@ buf_chunk_init(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_chunk_t*	chunk,		/*!< out: chunk of buffers */
-	ulint		mem_size)	/*!< in: requested size in bytes */
+	ulint		mem_size,	/*!< in: requested size in bytes */
+	ibool		populate)	/*!< in: virtual page preallocation */
 {
 	buf_block_t*	block;
 	byte*		frame;
@@ -1044,7 +1036,7 @@ buf_chunk_init(
 				  + (UNIV_PAGE_SIZE - 1), UNIV_PAGE_SIZE);
 
 	chunk->mem_size = mem_size;
-	chunk->mem = os_mem_alloc_large(&chunk->mem_size);
+	chunk->mem = os_mem_alloc_large(&chunk->mem_size, populate);
 
 	if (UNIV_UNLIKELY(chunk->mem == NULL)) {
 
@@ -1254,6 +1246,7 @@ buf_pool_init_instance(
 /*===================*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	ulint		buf_pool_size,	/*!< in: size in bytes */
+	ibool		populate,	/*!< in: virtual page preallocation */
 	ulint		instance_no)	/*!< in: id of the instance */
 {
 	ulint		i;
@@ -1286,7 +1279,7 @@ buf_pool_init_instance(
 
 		UT_LIST_INIT(buf_pool->free);
 
-		if (!buf_chunk_init(buf_pool, chunk, buf_pool_size)) {
+		if (!buf_chunk_init(buf_pool, chunk, buf_pool_size, populate)) {
 			mem_free(chunk);
 			mem_free(buf_pool);
 
@@ -1381,6 +1374,7 @@ ulint
 buf_pool_init(
 /*==========*/
 	ulint	total_size,	/*!< in: size of the total pool in bytes */
+	ibool	populate,	/*!< in: virtual page preallocation */
 	ulint	n_instances)	/*!< in: number of instances */
 {
 	ulint		i;
@@ -1398,7 +1392,7 @@ buf_pool_init(
 	for (i = 0; i < n_instances; i++) {
 		buf_pool_t*	ptr	= &buf_pool_ptr[i];
 
-		if (buf_pool_init_instance(ptr, size, i) != DB_SUCCESS) {
+		if (buf_pool_init_instance(ptr, size, populate, i) != DB_SUCCESS) {
 
 			/* Free all the instances created so far. */
 			buf_pool_free(i);
@@ -4973,7 +4967,7 @@ buf_stats_aggregate_pool_info(
 Collect buffer pool stats information for a buffer pool. Also
 record aggregated stats if there are more than one buffer pool
 in the server */
-static
+UNIV_INTERN
 void
 buf_stats_get_pool_info(
 /*====================*/
