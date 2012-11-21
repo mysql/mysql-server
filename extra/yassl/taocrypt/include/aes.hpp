@@ -92,7 +92,6 @@ typedef BlockCipher<ENCRYPTION, AES, CBC> AES_CBC_Encryption;
 typedef BlockCipher<DECRYPTION, AES, CBC> AES_CBC_Decryption;
 
 
-
 } // naemspace
 
 #endif // TAO_CRYPT_AES_HPP
