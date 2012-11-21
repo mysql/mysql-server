@@ -2960,6 +2960,10 @@ innobase_init(
                 DBUG_RETURN(innobase_init_abort());
         }
 
+	/* Delete the data files in the temporary tablespace. They are not
+	required for recovery. */
+	srv_tmp_space.delete_files();
+
 	/* -------------- All log files ---------------------------*/
 
 	/* The default dir for log files is the datadir of MySQL */
