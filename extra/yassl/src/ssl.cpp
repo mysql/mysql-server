@@ -27,7 +27,6 @@
 
 
 
-
 /*  see man pages for function descriptions */
 
 #include "runtime.hpp"
@@ -1014,7 +1013,7 @@ char* ERR_error_string(unsigned long errNumber, char* buffer)
   static char* msg = (char*)"Please supply a buffer for error string";
 
     if (buffer) {
-        SetErrorString(errNumber, buffer);
+        SetErrorString(YasslError(errNumber), buffer);
         return buffer;
     }
 
