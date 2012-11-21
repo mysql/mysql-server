@@ -8,7 +8,6 @@
 --source include/not_embedded.inc
 --source suite/ndb/include/have_connectorj.inc
 --source suite/ndb/include/have_java.inc
---source suite/ndb/include/have_junit.inc
 --source suite/ndb/include/have_clusterj.inc
 --source suite/ndb/include/have_clusterj_jpa.inc
 --source suite/ndb/include/have_openjpa.inc
