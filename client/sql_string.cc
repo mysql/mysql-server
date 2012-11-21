@@ -434,21 +434,6 @@ bool String::append(const char *s,uint32 arg_length, const CHARSET_INFO *cs)
 }
 
 
-#ifdef TO_BE_REMOVED
-bool String::append(FILE* file, uint32 arg_length, myf my_flags)
-{
-  if (realloc(str_length+arg_length))
-    return TRUE;
-  if (my_fread(file, (uchar*) Ptr + str_length, arg_length, my_flags))
-  {
-    shrink(str_length);
-    return TRUE;
-  }
-  str_length+=arg_length;
-  return FALSE;
-}
-#endif
-
 bool String::append(IO_CACHE* file, uint32 arg_length)
 {
   if (realloc(str_length+arg_length))

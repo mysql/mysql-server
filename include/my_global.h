@@ -409,12 +409,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
-/* Paranoid settings. Define I_AM_PARANOID if you are paranoid */
-#ifdef I_AM_PARANOID
-#define DONT_ALLOW_USER_CHANGE 1
-#define DONT_USE_MYSQL_PWD 1
-#endif
-
 /* Does the system remember a signal handler after a signal ? */
 #if !defined(HAVE_BSD_SIGNALS) && !defined(HAVE_SIGACTION)
 #define SIGNAL_HANDLER_RESET_ON_DELIVERY
