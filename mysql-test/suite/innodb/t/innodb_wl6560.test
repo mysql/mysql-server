@@ -1,4 +1,12 @@
 --source include/have_innodb.inc
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Embedded server does not support crashing
+--source include/not_embedded.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
 
 #
 # Will test following scenarios:
@@ -11,9 +19,8 @@
 # 4. Test bulk-loading that result in auto-extension of temp-tablespace.
 # 5. re-creation of temp-tablespace on re-start.
 #    also to ensure non-existence of existing temp-table.
-# 6. try to add crash point to ensure tablespace is recovered
-#    correctly after hitting crash point.
-#    (though there is no recovery involved).
+# 6. hit a crash point during tablespace creation to ensure temp-table
+#    is recovered correctly.
 # 7. restart server in innodb-read-only mode. this will also
 #    block creation of temp-tables.
 
@@ -115,11 +122,52 @@ drop procedure populate_t1;
 drop table t1;
 
 
+#-----------------------------------------------------------------------------
+#
+# 5. re-creation of temp-tablespace on re-start.
+#    also to ensure non-existence of existing temp-table.
+#
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
+insert into t1 values (1, 'c', 'b');
+select * from t1;
+--source include/restart_mysqld.inc
+--echo # files in MYSQL_DATA_DIR
+--list_files $MYSQL_DATA_DIR/ ib*tmp*
+use test;
+--error ER_NO_SUCH_TABLE
+select * from t1;
+
+
+#-----------------------------------------------------------------------------
+#
+# 6. hit a crash point during tablespace creation to ensure temp-table
+#    is recovered correctly.
+#
+let SEARCH_FILE= $MYSQLTEST_VARDIR/log/my_restart.err;
+let $args=--loose-console > $SEARCH_FILE 2>&1;
+let crash=$args --innodb-force-recovery-crash;
+#
+--source include/shutdown_mysqld.inc
+--echo --innodb-force-recovery-crash=100
+--error 3
+--exec $MYSQLD_CMD $crash=100
+--exec grep "InnoDB: Creating shared tablespace for temporary tables" $SEARCH_FILE
+--exec grep "innodb_force_recovery_crash=" $SEARCH_FILE
+--remove_file $SEARCH_FILE
+#
+--source include/start_mysqld.inc
+--echo # files in MYSQL_DATA_DIR
+--list_files $MYSQL_DATA_DIR/ ib*tmp*
+use test;
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
+insert into t1 values (1, 'c', 'b');
+select * from t1;
+
 
 #-----------------------------------------------------------------------------
 #
 # remove test-bed
 #
-SET global innodb_file_per_table = @global_innodb_file_per_table_orig;
+
 
 

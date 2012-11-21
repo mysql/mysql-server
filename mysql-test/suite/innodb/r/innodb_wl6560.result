@@ -227,4 +227,24 @@ count(*)
 0
 drop procedure populate_t1;
 drop table t1;
-SET global innodb_file_per_table = @global_innodb_file_per_table_orig;
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
+insert into t1 values (1, 'c', 'b');
+select * from t1;
+keyc	c1	c2
+1	c	b
+# files in MYSQL_DATA_DIR
+ibtmp1
+use test;
+select * from t1;
+ERROR 42S02: Table 'test.t1' doesn't exist
+--innodb-force-recovery-crash=100
+2012-11-21 13:50:10 9470 [Note] InnoDB: Creating shared tablespace for temporary tables
+innodb_force_recovery_crash=100
+# files in MYSQL_DATA_DIR
+ibtmp1
+use test;
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
+insert into t1 values (1, 'c', 'b');
+select * from t1;
+keyc	c1	c2
+1	c	b
