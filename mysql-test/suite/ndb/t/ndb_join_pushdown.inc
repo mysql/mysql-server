@@ -115,6 +115,19 @@ explain extended
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+where t1.a = 1 and t1.b = 1;
+--sorted_result
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+where t1.a = 1 and t1.b = 1;
+
+explain extended
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 --sorted_result
 select *
