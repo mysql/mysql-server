@@ -978,6 +978,7 @@ static void test_wl4435_2()
     rc= mysql_query(mysql, "DROP PROCEDURE p1");
     myquery(rc);
   }
+  mct_close_log();
 }
 
 
@@ -1041,6 +1042,7 @@ static void test_wl4435_2()
   rc= mysql_stmt_next_result(ps); \
   DIE_UNLESS(rc == 0); \
   \
+  mysql_free_result(rs_metadata); \
   mysql_stmt_free_result(ps); \
   mysql_stmt_close(ps); \
   \
@@ -16192,6 +16194,7 @@ static void test_bug27876()
 
   rc= mysql_query(mysql, "set names default");
   myquery(rc);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -17981,6 +17984,8 @@ static void test_bug43560(void)
   rc= mysql_stmt_execute(stmt);
   DIE_UNLESS(rc && mysql_stmt_errno(stmt) == CR_SERVER_LOST);
 
+  mysql_stmt_close(stmt);
+
   opt_drop_db= 0;
   client_disconnect(conn);
   rc= mysql_query(mysql, "DROP TABLE t1");
@@ -18280,6 +18285,7 @@ static void test_bug42373()
   DIE_UNLESS(rc == 1);
 
   mysql_stmt_close(stmt);
+  mysql_close(&con);
 
   /* Now try with a multi-statement. */
   DIE_UNLESS(mysql_client_init(&con));

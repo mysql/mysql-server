@@ -1405,11 +1405,6 @@ protected:
     return from + sizeof(int64);
   }
 
-  bool field_flags_are_binary()
-  {
-    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
-  }
-
 };
 
 
@@ -3809,11 +3804,6 @@ public:
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, const CHARSET_INFO *cs,
             uint uint_geom_type);
-
-  bool field_flags_are_binary()
-  {
-    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
-  }
 
   ha_storage_media field_storage_type() const
   {
