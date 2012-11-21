@@ -20,11 +20,6 @@ rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sp
 rpl.rpl_parallel_switch_sequential       # BUG#13626976 2012-02-07 dlenev Fails sporadically on pb2
 rpl.rpl_report_port                      # BUG#13812374 2012-05-10 Hemant Fails after the post fix for bug#13812374
 
-# BUG #59055 : All ndb tests should be removed from the repository
-# Leaving the sys_vars tests for now. sys_vars.all_vars.test fails on removing ndb tests
-sys_vars.ndb_log_update_as_write_basic
-sys_vars.have_ndbcluster_basic
-sys_vars.ndb_log_updated_only_basic
 sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 
 rpl.rpl_mixed_mts_rec_crash_safe @solaris          # Bug#12902514 2011-08-19 andrei mts recovery tests are slow
