@@ -5768,13 +5768,13 @@ select * from information_schema.global_status
 where variable_name = 'Ndb_scan_count';
 select * from t1 as x1 left join (t1 as x2 join t1 as x3 on x2.d=x3.c) on x1.b=x3.b;
 a	b	c	d	a	b	c	d	a	b	c	d
-1	NULL	1	1	1	NULL	1	1	1	NULL	1	1
+1	NULL	1	1	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL
 select scan_count.VARIABLE_NAME,
 old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE  
 from scan_count,information_schema.global_status as old 
 where old.variable_name = 'Ndb_scan_count';
 VARIABLE_NAME	old.VARIABLE_VALUE - scan_count.VARIABLE_VALUE
-NDB_SCAN_COUNT	3
+NDB_SCAN_COUNT	2
 drop table scan_count;
 drop table t1;
 create temporary table spj_counts_at_end
