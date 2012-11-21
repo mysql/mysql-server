@@ -3283,9 +3283,9 @@ check_enough_stack_size()
 {
   uchar stack_top;
 
-  if (current_thd != 0)
-    return check_stack_overrun(current_thd, STACK_MIN_SIZE,
-                             &stack_top);
+  THD *my_thd= current_thd;
+  if (my_thd != NULL)
+    return check_stack_overrun(my_thd, STACK_MIN_SIZE, &stack_top);
   return 0;
 }
 #endif
@@ -7080,7 +7080,7 @@ struct my_option my_long_options[]=
    NO_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"symbolic-links", 's', "Enable symbolic link support.",
-   &my_use_symdir, &my_use_symdir, 0, GET_BOOL, NO_ARG,
+   &my_enable_symlinks, &my_enable_symlinks, 0, GET_BOOL, NO_ARG,
    /*
      The system call realpath() produces warnings under valgrind and
      purify. These are not suppressed: instead we disable symlinks
@@ -8325,7 +8325,7 @@ mysqld_get_one_option(int optid,
     myisam_concurrent_insert=0;
     myisam_recover_options= HA_RECOVER_OFF;
     sp_automatic_privileges=0;
-    my_use_symdir=0;
+    my_enable_symlinks= 0;
     ha_open_options&= ~(HA_OPEN_ABORT_IF_CRASHED | HA_OPEN_DELAY_KEY_WRITE);
 #ifdef HAVE_QUERY_CACHE
     query_cache_size=0;
@@ -8677,15 +8677,11 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   global_system_variables.sql_mode=
     expand_sql_mode(global_system_variables.sql_mode);
 #if defined(HAVE_BROKEN_REALPATH)
-  my_use_symdir=0;
-  my_disable_symlinks=1;
+  my_enable_symlinks= 0;
   have_symlink=SHOW_OPTION_NO;
 #else
-  if (!my_use_symdir)
-  {
-    my_disable_symlinks=1;
+  if (!my_enable_symlinks)
     have_symlink=SHOW_OPTION_DISABLED;
-  }
 #endif
   if (opt_debugging)
   {

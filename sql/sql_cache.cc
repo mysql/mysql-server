@@ -1741,7 +1741,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
       qcache_se_key_len= build_table_filename(qcache_se_key_name,
                                               sizeof(qcache_se_key_name),
                                               table->db(), table->table(),
-                                              "", SKIP_SYMDIR_ACCESS);
+                                              "", 0);
    
       if (!(*table->callback())(thd, qcache_se_key_name,
                                 qcache_se_key_len, &engine_data))
