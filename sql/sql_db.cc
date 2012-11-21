@@ -316,7 +316,7 @@ static void del_dbopt(const char *path)
 
 static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 {
-  register File file;
+  File file;
   char buf[256]; // Should be enough for one option
   bool error=1;
 
@@ -552,6 +552,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   MY_STAT stat_info;
   uint create_options= create_info ? create_info->options : 0;
   uint path_len;
+  bool was_truncated;
   DBUG_ENTER("mysql_create_db");
 
   /* do not create 'information_schema' db */
@@ -570,7 +571,13 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     DBUG_RETURN(-1);
 
   /* Check directory */
-  path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
+  path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0,
+                                 &was_truncated);
+  if (was_truncated)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path)-1, path);
+    DBUG_RETURN(-1);
+  }
   path[path_len-1]= 0;                    // Remove last '/' from path
 
   if (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)))

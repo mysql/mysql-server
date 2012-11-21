@@ -45,20 +45,19 @@ connect(con4,127.0.0.1,kristofer,,,,,SSL);
 DROP USER 'kristofer'@'33.33.33.33';
 
 --echo #
---echo # BUG14807074 ALTER USER PASSWORD EXPIRE VS SHA256_PASSWORD
+--echo # BUG#14807074 ALTER USER PASSWORD EXPIRE VS SHA256_PASSWORD
 --echo #
 CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'sha256_password';
 SET PASSWORD FOR 'u1'@'localhost' = PASSWORD('pass');
 ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
 connect(con5,127.0.0.1,u1,pass,test,,,SSL);
 --error ER_MUST_CHANGE_PASSWORD
-SELECT * FROM t1;
+SELECT USER();
 SET @@OLD_PASSWORDS=2;
 SET PASSWORD=PASSWORD('pass2');
 
 connect(con6,127.0.0.1,u1,pass2,test,,,SSL);
---error ER_NO_SUCH_TABLE
-SELECT * FROM no_such_table;
+SELECT USER();
 
 connection default;
 DROP USER 'u1'@'localhost';

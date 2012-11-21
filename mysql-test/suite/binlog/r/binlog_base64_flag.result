@@ -29,7 +29,7 @@ a
 1
 3
 ==== Test --base64-output=never on a binlog with row events ====
-/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 # at 4
@@ -51,6 +51,7 @@ create table t1 (a int) engine= myisam
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
 ==== Test non-matching FD event and Row event ====
 BINLOG '
 4CdYRw8BAAAAYgAAAGYAAAAAAAQANS4xLjE1LW5kYi02LjEuMjQtZGVidWctbG9nAAAAAAAAAAAA

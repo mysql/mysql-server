@@ -53,6 +53,7 @@
                      // mysql_user_table_is_in_short_password_format
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
+#include "debug_sync.h"                         // DEBUG_SYNC
 #include "hostname.h"                           // host_cache_size
 #include "sql_show.h"                           // opt_ignore_db_dirs
 #include "table_cache.h"                        // Table_cache_manager
@@ -721,6 +722,17 @@ static bool fix_binlog_format_after_update(sys_var *self, THD *thd,
   return false;
 }
 
+static bool prevent_global_rbr_exec_mode_idempotent(sys_var *self, THD *thd,
+                                                    set_var *var )
+{
+  if (var->type == OPT_GLOBAL)
+  {
+    my_error(ER_LOCAL_VARIABLE, MYF(0), self->name.str);
+    return true;
+  }
+  return false;
+}
+
 static Sys_var_test_flag Sys_core_file(
        "core_file", "write a core-file on crashes", TEST_CORE_ON_SIGNAL);
 
@@ -738,6 +750,21 @@ static Sys_var_enum Sys_binlog_format(
        binlog_format_names, DEFAULT(BINLOG_FORMAT_STMT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(binlog_format_check),
        ON_UPDATE(fix_binlog_format_after_update));
+
+static const char *rbr_exec_mode_names[]=
+       {"STRICT", "IDEMPOTENT", 0};
+static Sys_var_enum rbr_exec_mode(
+       "rbr_exec_mode",
+       "Modes for how row events should be executed. Legal values "
+       "are STRICT (default) and IDEMPOTENT. In IDEMPOTENT mode, "
+       "the server will not throw errors for operations that are idempotent. "
+       "In STRICT mode, server will throw errors for the operations that "
+       "cause a conflict.",
+       SESSION_VAR(rbr_exec_mode_options), NO_CMD_LINE,
+       rbr_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(prevent_global_rbr_exec_mode_idempotent),
+       ON_UPDATE(NULL));
 
 static const char *binlog_row_image_names[]= {"MINIMAL", "NOBLOB", "FULL", NullS};
 static Sys_var_enum Sys_binlog_row_image(
@@ -1200,7 +1227,7 @@ static Sys_var_ulong Sys_delayed_insert_limit(
 static Sys_var_ulong Sys_delayed_insert_timeout(
        "delayed_insert_timeout",
        "How long a INSERT DELAYED thread should wait for INSERT statements "
-       "before terminating."
+       "before terminating. "
        "This variable is deprecated along with INSERT DELAYED.",
        GLOBAL_VAR(delayed_insert_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(DELAYED_WAIT_TIMEOUT),
@@ -1211,7 +1238,7 @@ static Sys_var_ulong Sys_delayed_queue_size(
        "delayed_queue_size",
        "What size queue (in rows) should be allocated for handling INSERT "
        "DELAYED. If the queue becomes full, any client that does INSERT "
-       "DELAYED will wait until there is room in the queue again."
+       "DELAYED will wait until there is room in the queue again. "
        "This variable is deprecated along with INSERT DELAYED.",
        GLOBAL_VAR(delayed_queue_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, ULONG_MAX), DEFAULT(DELAYED_QUEUE_SIZE), BLOCK_SIZE(1),
@@ -1705,8 +1732,7 @@ static Sys_var_ulong Sys_max_binlog_size(
 static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
 {
 #ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(max_connections +
-                   global_system_variables.max_insert_delayed_threads + 10);
+  resize_thr_alarm(max_connections + 10);
 #endif
   return false;
 }
@@ -1745,7 +1771,7 @@ static bool check_max_delayed_threads(sys_var *self, THD *thd, set_var *var)
 static Sys_var_ulong Sys_max_insert_delayed_threads(
        "max_insert_delayed_threads",
        "Don't start more than this number of threads to handle INSERT "
-       "DELAYED statements. If set to zero INSERT DELAYED will be not used."
+       "DELAYED statements. If set to zero INSERT DELAYED will be not used. "
        "This variable is deprecated along with INSERT DELAYED.",
        SESSION_VAR(max_insert_delayed_threads),
        NO_CMD_LINE, VALID_RANGE(0, 16384), DEFAULT(20),
@@ -1756,7 +1782,7 @@ static Sys_var_ulong Sys_max_insert_delayed_threads(
 static Sys_var_ulong Sys_max_delayed_threads(
        "max_delayed_threads",
        "Don't start more than this number of threads to handle INSERT "
-       "DELAYED statements. If set to zero INSERT DELAYED will be not used."
+       "DELAYED statements. If set to zero INSERT DELAYED will be not used. "
        "This variable is deprecated along with INSERT DELAYED.",
        SESSION_VAR(max_insert_delayed_threads),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 16384), DEFAULT(20),
@@ -2575,7 +2601,8 @@ static Sys_var_enum Slave_exec_mode(
        "In STRICT mode, replication will stop on any unexpected difference "
        "between the master and the slave",
        GLOBAL_VAR(slave_exec_mode_options), CMD_LINE(REQUIRED_ARG),
-       slave_exec_mode_names, DEFAULT(SLAVE_EXEC_MODE_STRICT));
+       slave_exec_mode_names, DEFAULT(RBR_EXEC_MODE_STRICT));
+
 const char *slave_type_conversions_name[]= {"ALL_LOSSY", "ALL_NON_LOSSY", 0};
 static Sys_var_set Slave_type_conversions(
        "slave_type_conversions",
@@ -3872,6 +3899,21 @@ static Sys_var_charptr Sys_slave_load_tmpdir(
 
 static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
 {
+  DEBUG_SYNC(thd, "fix_slave_net_timeout");
+
+  /*
+   Here we have lock on LOCK_global_system_variables and we need
+    lock on LOCK_active_mi. In START_SLAVE handler, we take these
+    two locks in different order. This can lead to DEADLOCKs. See
+    BUG#14236151 for more details.
+   So we release lock on LOCK_global_system_variables before acquiring
+    lock on LOCK_active_mi. But this could lead to isolation issues
+    between multiple seters. Hence introducing secondary guard
+    for this global variable and releasing the lock here and acquiring
+    locks back again at the end of this function.
+   */
+  mysql_mutex_unlock(&LOCK_slave_net_timeout);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_active_mi);
   DBUG_PRINT("info", ("slave_net_timeout=%u mi->heartbeat_period=%.3f",
                      slave_net_timeout,
@@ -3881,14 +3923,17 @@ static bool fix_slave_net_timeout(sys_var *self, THD *thd, enum_var_type type)
                         ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX,
                         ER(ER_SLAVE_HEARTBEAT_VALUE_OUT_OF_RANGE_MAX));
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_slave_net_timeout);
   return false;
 }
+static PolyLock_mutex PLock_slave_net_timeout(&LOCK_slave_net_timeout);
 static Sys_var_uint Sys_slave_net_timeout(
        "slave_net_timeout", "Number of seconds to wait for more data "
        "from a master/slave connection before aborting the read",
        GLOBAL_VAR(slave_net_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(1, LONG_TIMEOUT), DEFAULT(SLAVE_NET_TIMEOUT), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
+       &PLock_slave_net_timeout, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_slave_net_timeout));
 
 static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
@@ -3910,6 +3955,13 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
 }
 static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
 {
+
+  /*
+   To understand the below two unlock statments, please see comments in
+    fix_slave_net_timeout function above
+   */
+  mysql_mutex_unlock(&LOCK_sql_slave_skip_counter);
+  mysql_mutex_unlock(&LOCK_global_system_variables);
   mysql_mutex_lock(&LOCK_active_mi);
   if (active_mi != NULL)
   {
@@ -3928,14 +3980,17 @@ static bool fix_slave_skip_counter(sys_var *self, THD *thd, enum_var_type type)
     mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
   mysql_mutex_unlock(&LOCK_active_mi);
+  mysql_mutex_lock(&LOCK_global_system_variables);
+  mysql_mutex_lock(&LOCK_sql_slave_skip_counter);
   return 0;
 }
+static PolyLock_mutex PLock_sql_slave_skip_counter(&LOCK_sql_slave_skip_counter);
 static Sys_var_uint Sys_slave_skip_counter(
        "sql_slave_skip_counter", "sql_slave_skip_counter",
        GLOBAL_VAR(sql_slave_skip_counter), NO_CMD_LINE,
        VALID_RANGE(0, UINT_MAX), DEFAULT(0), BLOCK_SIZE(1),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_slave_skip_counter),
-       ON_UPDATE(fix_slave_skip_counter));
+       &PLock_sql_slave_skip_counter, NOT_IN_BINLOG,
+       ON_CHECK(check_slave_skip_counter), ON_UPDATE(fix_slave_skip_counter));
 
 static Sys_var_charptr Sys_slave_skip_errors(
        "slave_skip_errors", "Tells the slave thread to continue "
@@ -4161,6 +4216,64 @@ static Sys_var_ulong Sys_sp_cache_size(
        "one connection.",
        GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
+
+static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
+{
+  longlong previous_val= thd->variables.pseudo_slave_mode;
+  longlong val= (longlong) var->save_result.ulonglong_value;
+  bool rli_fake= false;
+
+#ifndef EMBEDDED_LIBRARY
+  rli_fake= thd->rli_fake ? true : false;
+#endif
+
+  if (rli_fake)
+  {
+    if (!val)
+    {
+#ifndef EMBEDDED_LIBRARY
+      thd->rli_fake->end_info();
+      delete thd->rli_fake;
+      thd->rli_fake= NULL;
+#endif
+    }
+    else if (previous_val && val)
+      goto ineffective;
+    else if (!previous_val && val)
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_WRONG_VALUE_FOR_VAR,
+                   "'pseudo_slave_mode' is already ON.");
+  }
+  else
+  {
+    if (!previous_val && !val)
+      goto ineffective;
+    else if (previous_val && !val)
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_WRONG_VALUE_FOR_VAR,
+                   "Slave applier execution mode not active, "
+                   "statement ineffective.");
+  }
+  goto end;
+
+ineffective:
+  push_warning(thd, Sql_condition::SL_WARNING,
+               ER_WRONG_VALUE_FOR_VAR,
+               "'pseudo_slave_mode' change was ineffective.");
+
+end:
+  return FALSE;
+}
+static Sys_var_mybool Sys_pseudo_slave_mode(
+       "pseudo_slave_mode",
+       "SET pseudo_slave_mode= 0,1 are commands that mysqlbinlog "
+       "adds to beginning and end of binary log dumps. While zero "
+       "value indeed disables, the actual enabling of the slave "
+       "applier execution mode is done implicitly when a "
+       "Format_description_event is sent through the session.",
+       SESSION_ONLY(pseudo_slave_mode), NO_CMD_LINE, DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_pseudo_slave_mode));
+
 
 #ifdef HAVE_REPLICATION
 static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)

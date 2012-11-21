@@ -52,7 +52,7 @@ void _mi_ft_segiterator_dummy_init(const uchar *record, uint len,
   so "1" means "OK", "0" means "EOF"
 */
 
-uint _mi_ft_segiterator(register FT_SEG_ITERATOR *ftsi)
+uint _mi_ft_segiterator(FT_SEG_ITERATOR *ftsi)
 {
   DBUG_ENTER("_mi_ft_segiterator");
 

@@ -57,7 +57,7 @@ C_MODE_END
 
 bool init_errmessage(void)
 {
-  const char **errmsgs, **ptr;
+  const char **errmsgs;
   DBUG_ENTER("init_errmessage");
 
   /*
@@ -74,8 +74,8 @@ bool init_errmessage(void)
     if (!(errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
                                             sizeof(char*), MYF(0))))
       DBUG_RETURN(TRUE);
-    for (ptr= errmsgs; ptr < errmsgs + ER_ERROR_LAST - ER_ERROR_FIRST; ptr++)
-	  *ptr= "";
+    for (uint i= 0; i <= ER_ERROR_LAST - ER_ERROR_FIRST; ++i)
+      errmsgs[i]= "";
   }
 
   /* Register messages for use with my_error(). */

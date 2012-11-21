@@ -139,6 +139,9 @@ JOIN::optimize()
   trace_optimize.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
 
+  // Needed in case optimizer short-cuts, set properly in make_tmp_tables_info()
+  fields= &select_lex->item_list;
+
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
   if (flatten_subqueries())
     DBUG_RETURN(1); /* purecov: inspected */
@@ -6427,8 +6430,7 @@ static void fix_list_after_tbl_changes(st_select_lex *parent_select,
   while ((table= it++))
   {
     if (table->join_cond())
-      table->join_cond()->fix_after_pullout(parent_select, removed_select,
-                                            table->join_cond_ref());
+      table->join_cond()->fix_after_pullout(parent_select, removed_select);
     if (table->nested_join)
       fix_list_after_tbl_changes(parent_select, removed_select,
                                  &table->nested_join->join_list);
@@ -6762,8 +6764,7 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
-  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, subq_lex,
-                                         &sj_nest->sj_on_expr);
+  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, subq_lex);
   fix_list_after_tbl_changes(parent_lex, subq_lex,
                              &sj_nest->nested_join->join_list);
 
@@ -9335,9 +9336,8 @@ bool JOIN::decide_subquery_strategy()
                        here.
    @returns false if success
 */
-bool
-JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_method
-                                           *method)
+bool JOIN::compare_costs_of_subquery_strategies(
+               Item_exists_subselect::enum_exec_method *method)
 {
   *method= Item_exists_subselect::EXEC_EXISTS;
 
@@ -9370,7 +9370,11 @@ JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_meth
   if (in_pred->in2exists_added_to_where())
   {
     Opt_trace_array trace_subqmat_steps(trace, "steps");
-    if (!(best_positions= new (thd->mem_root) POSITION[tables + 1]))
+
+    // Up to one extra slot per semi-join nest is needed (if materialized)
+    const uint sj_nests= select_lex->sj_nests.elements;
+
+    if (!(best_positions= new (thd->mem_root) POSITION[tables + sj_nests + 1]))
       return true;
 
     // Compute plans which do not use outer references

@@ -76,7 +76,7 @@ bool handle_select(THD *thd, select_result *result,
 {
   bool res;
   LEX *lex= thd->lex;
-  register SELECT_LEX *select_lex = &lex->select_lex;
+  SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
 
@@ -5060,8 +5060,9 @@ bool JOIN::make_tmp_tables_info()
       // for the first table
       if (group_list || tmp_table_param.sum_func_count)
       {
-        if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true) ||
-            prepare_sum_aggregators(sum_funcs,
+        if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
+          DBUG_RETURN(true);
+        if (prepare_sum_aggregators(sum_funcs,
                                     !join_tab->is_using_agg_loose_index_scan()))
           DBUG_RETURN(true);
         group_list= NULL;
@@ -5160,13 +5161,14 @@ bool JOIN::make_tmp_tables_info()
       join_tab[primary_tables + tmp_tables - 1].all_fields= &tmp_all_fields3;
       join_tab[primary_tables + tmp_tables - 1].fields= &tmp_fields_list3;
     }
-    if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true) || 
-        prepare_sum_aggregators(sum_funcs,
+    if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
+      DBUG_RETURN(true);
+    if (prepare_sum_aggregators(sum_funcs,
                                 !join_tab ||
-                                !join_tab-> is_using_agg_loose_index_scan()) ||
-        setup_sum_funcs(thd, sum_funcs) ||
-        thd->is_fatal_error)
-      DBUG_RETURN(1);
+                                !join_tab-> is_using_agg_loose_index_scan()))
+      DBUG_RETURN(true);
+    if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error)
+      DBUG_RETURN(true);
   }
   if (group_list || order)
   {

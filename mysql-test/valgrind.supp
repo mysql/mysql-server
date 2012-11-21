@@ -805,6 +805,7 @@
    fun:my_malloc
    fun:_Z22add_pfs_instr_to_arrayPKcS0_
    fun:mysqld_get_one_option
+   fun:my_handle_options
    fun:handle_options
    fun:_Z20handle_early_optionsv
 }
@@ -818,6 +819,18 @@
    fun:_Z25init_pfs_instrument_arrayv
    fun:_Z11mysqld_mainiPPc
    fun:main
+}
+
+{
+   missing shutdown_performance_schema 9a
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_Z22add_pfs_instr_to_arrayPKcS0_
+   fun:mysqld_get_one_option
+   fun:my_handle_options
+   fun:_Z20handle_early_optionsv
+   fun:_Z11mysqld_mainiPPc
 }
 
 # Same as shutdown_performance_schema 9,
@@ -1150,4 +1163,86 @@
    fun:_my_b_write
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
    fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
+}
+
+{
+   OpenSSL / one
+   Memcheck:Cond
+   fun:BN_bin2bn
+   fun:bnrand
+   fun:generate_key
+   fun:ssl3_ctx_ctrl
+}
+
+{
+   OpenSSL / two
+   Memcheck:Cond
+   fun:BN_num_bits_word
+   fun:BN_num_bits
+   fun:BN_mod_exp_mont_consttime
+   fun:generate_key
+   fun:ssl3_ctx_ctrl
+}
+
+{
+   OpenSSL / three
+   Memcheck:Value8
+   fun:BN_num_bits_word
+   fun:BN_num_bits
+   fun:BN_mod_exp_mont_consttime
+   fun:generate_key
+   fun:ssl3_ctx_ctrl
+}
+
+{
+   OpenSSL / four
+   Memcheck:Cond
+   ...
+   fun:ssl3_send_server_key_exchange
+   fun:ssl3_accept
+   fun:ssl_do
+}
+
+{
+   OpenSSL / five
+   Memcheck:Value8
+   ...
+   fun:ssl3_send_server_key_exchange
+   fun:ssl3_accept
+   fun:ssl_do
+}
+
+{
+   OpenSSL / five
+   Memcheck:Param
+   write(buf)
+   ...
+   fun:BIO_write
+   fun:buffer_ctrl
+   fun:ssl3_accept
+   fun:ssl_do
+}
+
+{
+   OpenSSL / xxx1
+   Memcheck:Value8
+   fun:bn_mul4x_mont_gather5
+}
+
+{
+   OpenSSL / xxx2
+   Memcheck:Value8
+   fun:bn_mul_mont
+}
+
+{
+   OpenSSL / xxx3
+   Memcheck:Value8
+   fun:bn_mul4x_mont
+}
+
+{
+   OpenSSL / xxx4
+   Memcheck:Value8
+   fun:bn_sqr4x_mont
 }

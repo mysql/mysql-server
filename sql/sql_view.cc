@@ -906,6 +906,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
   char dir_buff[FN_REFLEN + 1], path_buff[FN_REFLEN + 1];
   LEX_STRING dir, file, path;
   int error= 0;
+  bool was_truncated;
   DBUG_ENTER("mysql_register_view");
 
   /* Generate view definition and IS queries. */
@@ -915,7 +916,7 @@ static int mysql_register_view(THD *thd, TABLE_LIST *view,
     sql_mode_t sql_mode= thd->variables.sql_mode & MODE_ANSI_QUOTES;
     thd->variables.sql_mode&= ~MODE_ANSI_QUOTES;
 
-    lex->unit.print(&view_query, QT_ORDINARY);
+    lex->unit.print(&view_query, QT_TO_ARGUMENT_CHARSET); 
     lex->unit.print(&is_query,
                     enum_query_type(QT_TO_SYSTEM_CHARSET | QT_WITHOUT_INTRODUCERS));
 
@@ -987,7 +988,16 @@ loop_out:
   dir.str= dir_buff;
 
   path.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
-                                    view->db, view->table_name, reg_ext, 0);
+                                    view->db, view->table_name, reg_ext,
+                                    0, &was_truncated);
+  // Check if we hit FN_REFLEN bytes in path length
+  if (was_truncated)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path_buff)-1,
+             path_buff);
+    error= -1;
+    goto err;
+  }
   path.str= path_buff;
 
   file.str= path.str + dir.length;
@@ -2098,6 +2108,7 @@ mysql_rename_view(THD *thd,
   File_parser *parser;
   char path_buff[FN_REFLEN + 1];
   bool error= TRUE;
+  bool was_truncated;
   DBUG_ENTER("mysql_rename_view");
 
   pathstr.str= (char *) path_buff;
@@ -2128,20 +2139,27 @@ mysql_rename_view(THD *thd,
                       &file_parser_dummy_hook))
       goto err;
 
-    /* rename view and it's backups */
-    if (rename_in_schema_file(thd, view->db, view->table_name, new_db, new_name))
-      goto err;
-
     dir.str= dir_buff;
     dir.length= build_table_filename(dir_buff, sizeof(dir_buff) - 1,
                                      new_db, "", "", 0);
 
     pathstr.str= path_buff;
     pathstr.length= build_table_filename(path_buff, sizeof(path_buff) - 1,
-                                         new_db, new_name, reg_ext, 0);
-
+                                         new_db, new_name, reg_ext, 0,
+                                         &was_truncated);
+    // Check if we hit FN_REFLEN characters in path length
+    if (was_truncated)
+    {
+      my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path_buff)-1,
+               path_buff);
+      goto err;
+    }
     file.str= pathstr.str + dir.length;
     file.length= pathstr.length - dir.length;
+
+    /* rename view and it's backups */
+    if (rename_in_schema_file(thd, view->db, view->table_name, new_db, new_name))
+      goto err;
 
     if (sql_create_definition_file(&dir, &file, view_file_type,
                                    (uchar*)&view_def, view_parameters))

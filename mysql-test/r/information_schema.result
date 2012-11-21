@@ -736,7 +736,7 @@ where table_schema='test';
 constraint_name
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `test`.`t1`.`f1` AS `c` from `t1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`f1` AS `c` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show create table v3;

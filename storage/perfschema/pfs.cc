@@ -1194,7 +1194,6 @@ static enum_operation_type table_lock_operation_map[]=
   OPERATION_TYPE_TL_READ_NO_INSERTS, /* PFS_TL_READ_NO_INSERT */
   OPERATION_TYPE_TL_WRITE_ALLOW_WRITE, /* PFS_TL_WRITE_ALLOW_WRITE */
   OPERATION_TYPE_TL_WRITE_CONCURRENT_INSERT, /* PFS_TL_WRITE_CONCURRENT_INSERT */
-  OPERATION_TYPE_TL_WRITE_DELAYED, /* PFS_TL_WRITE_DELAYED */
   OPERATION_TYPE_TL_WRITE_LOW_PRIORITY, /* PFS_TL_WRITE_LOW_PRIORITY */
   OPERATION_TYPE_TL_WRITE_NORMAL, /* PFS_TL_WRITE */
   OPERATION_TYPE_TL_READ_EXTERNAL, /* PFS_TL_READ_EXTERNAL */
@@ -2182,7 +2181,7 @@ start_mutex_wait_v1(PSI_mutex_locker_state *state,
   if (! pfs_mutex->m_enabled)
     return NULL;
 
-  register uint flags;
+  uint flags;
   ulonglong timer_start= 0;
 
   if (flag_thread_instrumentation)
@@ -2280,7 +2279,7 @@ start_rwlock_wait_v1(PSI_rwlock_locker_state *state,
   if (! pfs_rwlock->m_enabled)
     return NULL;
 
-  register uint flags;
+  uint flags;
   ulonglong timer_start= 0;
 
   if (flag_thread_instrumentation)
@@ -2388,7 +2387,7 @@ start_cond_wait_v1(PSI_cond_locker_state *state,
   if (! pfs_cond->m_enabled)
     return NULL;
 
-  register uint flags;
+  uint flags;
   ulonglong timer_start= 0;
 
   if (flag_thread_instrumentation)
@@ -2483,8 +2482,6 @@ static inline PFS_TL_LOCK_TYPE lock_flags_to_lock_type(uint flags)
       return PFS_TL_WRITE_ALLOW_WRITE;
     case TL_WRITE_CONCURRENT_INSERT:
       return PFS_TL_WRITE_CONCURRENT_INSERT;
-    case TL_WRITE_DELAYED:
-      return PFS_TL_WRITE_DELAYED;
     case TL_WRITE_LOW_PRIORITY:
       return PFS_TL_WRITE_LOW_PRIORITY;
     case TL_WRITE:
@@ -2536,7 +2533,7 @@ start_table_io_wait_v1(PSI_table_locker_state *state,
   DBUG_ASSERT(pfs_thread ==
               my_pthread_getspecific_ptr(PFS_thread*, THR_PFS));
 
-  register uint flags;
+  uint flags;
   ulonglong timer_start= 0;
 
   if (flag_thread_instrumentation)
@@ -2662,7 +2659,7 @@ start_table_lock_wait_v1(PSI_table_locker_state *state,
 
   DBUG_ASSERT((uint) lock_type < array_elements(table_lock_operation_map));
 
-  register uint flags;
+  uint flags;
   ulonglong timer_start= 0;
 
   if (flag_thread_instrumentation)
@@ -2770,7 +2767,7 @@ get_thread_file_name_locker_v1(PSI_file_locker_state *state,
   if (flag_thread_instrumentation && ! pfs_thread->m_enabled)
     return NULL;
 
-  register uint flags;
+  uint flags;
 
   state->m_thread= reinterpret_cast<PSI_thread *> (pfs_thread);
   flags= STATE_FLAG_THREAD;
@@ -2839,7 +2836,7 @@ get_thread_file_stream_locker_v1(PSI_file_locker_state *state,
   if (! pfs_file->m_enabled)
     return NULL;
 
-  register uint flags;
+  uint flags;
 
   if (flag_thread_instrumentation)
   {
@@ -2945,7 +2942,7 @@ get_thread_file_descriptor_locker_v1(PSI_file_locker_state *state,
   DBUG_ASSERT(pfs_file->m_class != NULL);
   PFS_file_class *klass= pfs_file->m_class;
 
-  register uint flags;
+  uint flags;
 
   if (flag_thread_instrumentation)
   {
@@ -3034,7 +3031,7 @@ start_socket_wait_v1(PSI_socket_locker_state *state,
   if (!pfs_socket->m_enabled || pfs_socket->m_idle)
     return NULL;
 
-  register uint flags= 0;
+  uint flags= 0;
   ulonglong timer_start= 0;
 
   if (flag_thread_instrumentation)
@@ -3288,7 +3285,7 @@ start_idle_wait_v1(PSI_idle_locker_state* state, const char *src_file, uint src_
   if (!global_idle_class.m_enabled)
     return NULL;
 
-  register uint flags= 0;
+  uint flags= 0;
   ulonglong timer_start= 0;
 
   if (flag_thread_instrumentation)
@@ -3368,7 +3365,7 @@ static void end_idle_wait_v1(PSI_idle_locker* locker)
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
 
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
 
   if (flags & STATE_FLAG_TIMED)
   {
@@ -3436,7 +3433,7 @@ static void end_mutex_wait_v1(PSI_mutex_locker* locker, int rc)
   DBUG_ASSERT(mutex != NULL);
   PFS_thread *thread= reinterpret_cast<PFS_thread *> (state->m_thread);
 
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
 
   if (flags & STATE_FLAG_TIMED)
   {
@@ -3749,7 +3746,7 @@ static void end_table_io_wait_v1(PSI_table_locker* locker)
     break;
   }
 
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
 
   if (flags & STATE_FLAG_TIMED)
   {
@@ -3818,7 +3815,7 @@ static void end_table_lock_wait_v1(PSI_table_locker* locker)
 
   PFS_single_stat *stat= & table->m_table_stat.m_lock_stat.m_stat[state->m_index];
 
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
 
   if (flags & STATE_FLAG_TIMED)
   {
@@ -3978,7 +3975,7 @@ static void start_file_wait_v1(PSI_file_locker *locker,
   PSI_file_locker_state *state= reinterpret_cast<PSI_file_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
 
   if (flags & STATE_FLAG_TIMED)
   {
@@ -4014,7 +4011,7 @@ static void end_file_wait_v1(PSI_file_locker *locker,
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
   PFS_byte_stat *byte_stat;
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
   size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
 
   PFS_file_stat *file_stat;
@@ -4360,7 +4357,7 @@ get_thread_statement_locker_v1(PSI_statement_locker_state *state,
   if (! klass->m_enabled)
     return NULL;
 
-  register uint flags;
+  uint flags;
 
   if (flag_thread_instrumentation)
   {
@@ -4505,7 +4502,7 @@ refine_statement_v1(PSI_statement_locker *locker,
     return NULL;
   }
 
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
 
   if ((flags & STATE_FLAG_TIMED) && ! klass->m_timed)
     flags= flags & ~STATE_FLAG_TIMED;
@@ -4531,7 +4528,7 @@ static void start_statement_v1(PSI_statement_locker *locker,
   PSI_statement_locker_state *state= reinterpret_cast<PSI_statement_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
 
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
   ulonglong timer_start= 0;
 
   if (flags & STATE_FLAG_TIMED)
@@ -4729,7 +4726,7 @@ static void end_statement_v1(PSI_statement_locker *locker, void *stmt_da)
 
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
 
   if (flags & STATE_FLAG_TIMED)
   {
@@ -4945,7 +4942,7 @@ static void end_socket_wait_v1(PSI_socket_locker *locker, size_t byte_count)
   ulonglong timer_end= 0;
   ulonglong wait_time= 0;
   PFS_byte_stat *byte_stat;
-  register uint flags= state->m_flags;
+  uint flags= state->m_flags;
   size_t bytes= ((int)byte_count > -1 ? byte_count : 0);
 
   switch (state->m_operation)

@@ -518,21 +518,21 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
 
 
 /*
-  Creates path to a file: mysql_data_dir/db/table.ext
+  @brief Creates path to a file: mysql_data_dir/db/table.ext
 
-  SYNOPSIS
-   build_table_filename()
-     buff                       Where to write result in my_charset_filename.
+  @param buff                   Where to write result in my_charset_filename.
                                 This may be the same as table_name.
-     bufflen                    buff size
-     db                         Database name in system_charset_info.
-     table_name                 Table name in system_charset_info.
-     ext                        File extension.
-     flags                      FN_FROM_IS_TMP or FN_TO_IS_TMP or FN_IS_TMP
+  @param bufflen                buff size
+  @param db                     Database name in system_charset_info.
+  @param table_name             Table name in system_charset_info.
+  @param ext                    File extension.
+  @param flags                  FN_FROM_IS_TMP or FN_TO_IS_TMP or FN_IS_TMP
                                 table_name is temporary, do not change.
+  @param was_truncated          points to location that will be
+                                set to true if path was truncated,
+                                to false otherwise.
 
-  NOTES
-
+  @note
     Uses database and table name, and extension to create
     a file name in mysql_data_dir. Database and table
     names are converted from system_charset_info into "fscs".
@@ -546,25 +546,26 @@ uint tablename_to_filename(const char *from, char *to, uint to_length)
     be derivable from the table name. So we cannot use
     build_tmptable_filename() for them.
 
-  RETURN
+  @return
     path length
 */
 
 uint build_table_filename(char *buff, size_t bufflen, const char *db,
-                          const char *table_name, const char *ext, uint flags)
+                          const char *table_name, const char *ext,
+                          uint flags, bool *was_truncated)
 {
-  char dbbuff[FN_REFLEN];
-  char tbbuff[FN_REFLEN];
+  char tbbuff[FN_REFLEN], dbbuff[FN_REFLEN];
+  uint tab_len, db_len;
   DBUG_ENTER("build_table_filename");
   DBUG_PRINT("enter", ("db: '%s'  table_name: '%s'  ext: '%s'  flags: %x",
                        db, table_name, ext, flags));
 
   if (flags & FN_IS_TMP) // FN_FROM_IS_TMP | FN_TO_IS_TMP
-    strnmov(tbbuff, table_name, sizeof(tbbuff));
+    tab_len= strnmov(tbbuff, table_name, sizeof(tbbuff)) - tbbuff;
   else
-    (void) tablename_to_filename(table_name, tbbuff, sizeof(tbbuff));
+    tab_len= tablename_to_filename(table_name, tbbuff, sizeof(tbbuff));
 
-  (void) tablename_to_filename(db, dbbuff, sizeof(dbbuff));
+  db_len= tablename_to_filename(db, dbbuff, sizeof(dbbuff));
 
   char *end = buff + bufflen;
   /* Don't add FN_ROOTDIR if mysql_data_home already includes it */
@@ -573,8 +574,22 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
   if (pos - rootdir_len >= buff &&
       memcmp(pos - rootdir_len, FN_ROOTDIR, rootdir_len) != 0)
     pos= strnmov(pos, FN_ROOTDIR, end - pos);
+  else
+      rootdir_len= 0;
   pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, NullS);
   pos= strxnmov(pos, end - pos, tbbuff, ext, NullS);
+
+  /**
+    Mark OUT param if path gets truncated.
+    Most of functions which invoke this function are sure that the
+    path will not be truncated. In case some functions are not sure,
+    we can use 'was_truncated' OUTPARAM
+  */
+  *was_truncated= false;
+  if (pos == end &&
+      (bufflen < mysql_data_home_len + rootdir_len + db_len +
+                 strlen(FN_ROOTDIR) + tab_len + strlen(ext)))
+    *was_truncated= true;
 
   DBUG_PRINT("exit", ("buff: '%s'", buff));
   DBUG_RETURN(pos - buff);
@@ -4847,8 +4862,17 @@ bool mysql_create_table_no_lock(THD *thd,
     build_tmptable_filename(thd, path, sizeof(path));
   else
   {
+    bool was_truncated;
+    int length;
     const char *alias= table_case_name(create_info, table_name);
-    build_table_filename(path, sizeof(path) - 1, db, alias, "", 0);
+    length= build_table_filename(path, sizeof(path) - 1, db, alias,
+                                 "", 0, &was_truncated);
+    // Check if we hit FN_REFLEN bytes along with file extension.
+    if (was_truncated || length+reg_ext_length > FN_REFLEN)
+    {
+      my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path)-1, path);
+      return true;
+    }
   }
 
   return create_table_impl(thd, db, table_name, path, create_info, alter_info,
@@ -5014,6 +5038,8 @@ mysql_rename_table(handlerton *base, const char *old_db,
   char tmp_name[NAME_LEN+1];
   handler *file;
   int error=0;
+  int length;
+  bool was_truncated;
   DBUG_ENTER("mysql_rename_table");
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
                        old_db, old_name, new_db, new_name));
@@ -5023,8 +5049,14 @@ mysql_rename_table(handlerton *base, const char *old_db,
 
   build_table_filename(from, sizeof(from) - 1, old_db, old_name, "",
                        flags & FN_FROM_IS_TMP);
-  build_table_filename(to, sizeof(to) - 1, new_db, new_name, "",
-                       flags & FN_TO_IS_TMP);
+  length= build_table_filename(to, sizeof(to) - 1, new_db, new_name, "",
+                               flags & FN_TO_IS_TMP, &was_truncated);
+  // Check if we hit FN_REFLEN bytes along with file extension.
+  if (was_truncated || length+reg_ext_length > FN_REFLEN)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(to)-1, to);
+    DBUG_RETURN(TRUE);
+  }
 
   /*
     If lower_case_table_names == 2 (case-preserving but case-insensitive

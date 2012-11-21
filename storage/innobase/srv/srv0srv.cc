@@ -943,16 +943,16 @@ srv_init(void)
 		for (ulint i = 0; i < srv_sys->n_sys_threads; ++i) {
 			srv_slot_t*	slot = &srv_sys->sys_threads[i];
 
-			slot->event = os_event_create("sys_thread");
+			slot->event = os_event_create();
 
 			ut_a(slot->event);
 		}
 
-		srv_error_event = os_event_create("error_event");
+		srv_error_event = os_event_create();
 
-		srv_monitor_event = os_event_create("monitor_event");
+		srv_monitor_event = os_event_create();
 
-		srv_buf_dump_event = os_event_create("buf_dump_event");
+		srv_buf_dump_event = os_event_create();
 
 		UT_LIST_INIT(srv_sys->tasks);
 	}
@@ -1443,6 +1443,16 @@ srv_export_innodb_status(void)
 		srv_truncated_status_writes;
 
 	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
+
+#ifdef UNIV_DEBUG
+	if (purge_sys->done.trx_no == 0
+	    || trx_sys->rw_max_trx_id < purge_sys->done.trx_no - 1) {
+		export_vars.innodb_purge_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_trx_id_age =
+		  trx_sys->rw_max_trx_id - purge_sys->done.trx_no + 1;
+	}
+#endif /* UNIV_DEBUG */
 
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
@@ -2568,12 +2578,6 @@ srv_purge_coordinator_suspend(
 	ut_ad(!srv_read_only_mode);
 	ut_a(slot->type == SRV_PURGE);
 
-	rw_lock_x_lock(&purge_sys->latch);
-
-	purge_sys->running = false;
-
-	rw_lock_x_unlock(&purge_sys->latch);
-
 	bool		stop = false;
 
 	/** Maximum wait time on the purge event, in micro-seconds. */
@@ -2582,6 +2586,12 @@ srv_purge_coordinator_suspend(
 	do {
 		ulint		ret;
 		ib_int64_t	sig_count = srv_suspend_thread(slot);
+
+		rw_lock_x_lock(&purge_sys->latch);
+
+		purge_sys->running = false;
+
+		rw_lock_x_unlock(&purge_sys->latch);
 
 		/* We don't wait right away on the the non-timed wait because
 		we want to signal the thread that wants to suspend purge. */
@@ -2593,8 +2603,8 @@ srv_purge_coordinator_suspend(
 			ret = os_event_wait_time_low(
 				slot->event, SRV_PURGE_MAX_TIMEOUT, sig_count);
 		} else {
-			/* We don't want to waste time waiting if the
-			history list has increased by the time we get here
+			/* We don't want to waste time waiting, if the
+			history list increased by the time we got here,
 			unless purge has been stopped. */
 			ret = 0;
 		}

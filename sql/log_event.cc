@@ -1915,7 +1915,6 @@ my_b_write_sint32_and_uint32(IO_CACHE *file, int32 si, uint32 ui)
   
   @retval   - number of bytes scanned from ptr.
 */
-
 static size_t
 log_event_print_value(IO_CACHE *file, const uchar *ptr,
                       uint type, uint meta,
@@ -2103,8 +2102,12 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       d= i64 / 1000000;
       t= i64 % 1000000;
       my_b_printf(file, "%04d-%02d-%02d %02d:%02d:%02d",
-                  d / 10000, (d % 10000) / 100, d % 100,
-                  t / 10000, (t % 10000) / 100, t % 100);
+                  static_cast<int>(d / 10000),
+                  static_cast<int>(d % 10000) / 100,
+                  static_cast<int>(d % 100),
+                  static_cast<int>(t / 10000),
+                  static_cast<int>(t % 10000) / 100,
+                  static_cast<int>(t % 100));
       return 8;
     }
 
@@ -2317,7 +2320,7 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
     if (bitmap_is_set(cols_bitmap, i) == 0)
       continue;
     
-    my_b_printf(file, "###   @%d=", i + 1);
+    my_b_printf(file, "###   @%d=", static_cast<int>(i + 1));
     size_t size= log_event_print_value(file,is_null? NULL: value,
                                          td->type(i), td->field_metadata(i),
                                          typestr, sizeof(typestr));
@@ -2413,7 +2416,9 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   if (!(map= print_event_info->m_table_map.get_table(m_table_id)) ||
       !(td= map->create_table_def()))
   {
-    my_b_printf(file, "### Row event for unknown table #%d", m_table_id);
+    char llbuff[22];
+    my_b_printf(file, "### Row event for unknown table #%s",
+                llstr(m_table_id, llbuff));
     return;
   }
 
@@ -9308,7 +9313,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("m_table_id: %lu  m_flags: %d  m_width: %lu  data_size: %lu",
                      m_table_id, m_flags, m_width, (ulong) data_size));
 
-  m_rows_buf= (uchar*) my_malloc(data_size, MYF(MY_WME));
+  // Allocate one extra byte, in case we have to do uint3korr!
+  m_rows_buf= (uchar*) my_malloc(data_size + 1, MYF(MY_WME)); // didrik
   if (likely((bool)m_rows_buf))
   {
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -9412,8 +9418,10 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     my_ptrdiff_t const new_alloc= 
         block_size * ((cur_size + length + block_size - 1) / block_size);
 
-    uchar* const new_buf= (uchar*)my_realloc((uchar*)m_rows_buf, (uint) new_alloc,
-                                           MYF(MY_ALLOW_ZERO_PTR|MY_WME));
+    // Allocate one extra byte, in case we have to do uint3korr!
+    uchar* const new_buf=
+      (uchar*)my_realloc((uchar*)m_rows_buf, (uint) new_alloc + 1,
+                         MYF(MY_ALLOW_ZERO_PTR|MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 
@@ -9629,10 +9637,12 @@ search_key_in_table(TABLE *table, MY_BITMAP *bi_cols, uint key_type)
       /*
         - Skip innactive keys
         - Skip unique keys without nullable parts
+        - Skip indices that do not support ha_index_next() e.g. full-text
         - Skip primary keys
       */
       if (!(table->s->keys_in_use.is_set(key)) ||
           ((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) == HA_NOSAME) ||
+          !(table->file->index_flags(key, 0, true) & HA_READ_NEXT) ||
           (key == table->s->primary_key))
         continue;
 
@@ -9979,7 +9989,7 @@ int Rows_log_event::handle_idempotent_and_ignored_errors(Relay_log_info const *r
   {
     int actual_error= convert_handler_error(error, thd, m_table);
     bool idempotent_error= (idempotent_error_code(error) &&
-                           (slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT));
+                           (rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT));
     bool ignored_error= (idempotent_error == 0 ?
                          ignored_error_code(actual_error) : 0);
 
@@ -10625,7 +10635,7 @@ int Rows_log_event::do_hash_scan_and_update(Relay_log_info const *rli)
       }
     }
    /**
-     if the slave_exec_mode is set to Idempotent, we cannot expect the hash to
+     if the rbr_exec_mode is set to Idempotent, we cannot expect the hash to
      be empty. In such cases we count the number of idempotent errors and check
      if it is equal to or greater than the number of rows left in the hash.
     */
@@ -11030,7 +11040,10 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
                              &m_cols_ai : &m_cols);
     bitmap_intersect(table->write_set, after_image);
 
-    this->slave_exec_mode= slave_exec_mode_options; // fix the mode
+    if (thd->slave_thread) // set the mode for slave
+      this->rbr_exec_mode= slave_exec_mode_options;
+    else //set the mode for user thread
+      this->rbr_exec_mode= thd->variables.rbr_exec_mode_options;
 
     // Do event specific preparations
     error= do_before_row_operations(rli);
@@ -12117,7 +12130,7 @@ Write_rows_log_event::do_before_row_operations(const Slave_reporting_capability 
      todo: to introduce a property for the event (handler?) which forces
      applying the event in the replace (idempotent) fashion.
   */
-  if ((slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT) ||
+  if ((rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT) ||
       (m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER))
   {
     /*
@@ -12186,7 +12199,7 @@ Write_rows_log_event::do_after_row_operations(const Slave_reporting_capability *
   int local_error= 0;
   m_table->next_number_field=0;
   m_table->auto_increment_field_not_null= FALSE;
-  if ((slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT) ||
+  if ((rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT) ||
       m_table->s->db_type()->db_type == DB_TYPE_NDBCLUSTER)
   {
     m_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
@@ -12511,7 +12524,7 @@ int
 Write_rows_log_event::do_exec_row(const Relay_log_info *const rli)
 {
   DBUG_ASSERT(m_table != NULL);
-  int error= write_row(rli, slave_exec_mode == SLAVE_EXEC_MODE_IDEMPOTENT);
+  int error= write_row(rli, rbr_exec_mode == RBR_EXEC_MODE_IDEMPOTENT);
 
   if (error && !thd->is_error())
   {
