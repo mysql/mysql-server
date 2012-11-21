@@ -214,11 +214,30 @@ explain extended
 select *
 from t1
 join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+where t1.a = 1 and t1.b = 1;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	8	const,const	1	100.00	Parent of 3 pushed join@1
+1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	const,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	const,test.t1.c	1	100.00	Child of 't2' in pushed join@1
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t1`.`b` = 1) and (`test`.`t2`.`a` = 1) and (`test`.`t3`.`a` = 1) and (`test`.`t1`.`a` = 1))
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
+join t1 as t3 on t3.a = t2.a and t3.b = t2.b
+where t1.a = 1 and t1.b = 1;
+a	b	c	d	a	b	c	d	a	b	c	d
+1	1	1	1	1	1	1	1	1	1	1	1
+explain extended
+select *
+from t1
+join t1 as t2 on t2.a = t1.b and t2.b = t1.c
 join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`))
 select *
@@ -247,7 +266,7 @@ left join t1 as t3 on t3.a = t2.a and t3.b = t2.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` left join `test`.`t1` `t3` on(((`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`a` = `test`.`t1`.`b`))) where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`))
 select *
@@ -1262,8 +1281,8 @@ join t1 as t4 on t4.a = t3.a and t4.b = t2.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 4 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.a,test.t1.b	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t2.c	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t2.c	1	100.00	Child of 't3' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`b` = `test`.`t1`.`d`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t3`.`a` = `test`.`t1`.`c`) and (`test`.`t4`.`a` = `test`.`t1`.`c`))
 select straight_join *
@@ -1292,8 +1311,8 @@ join t1 as t4 on t4.a = t3.b and t4.b = t2.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 4 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.a,test.t1.b	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.d,test.t2.c	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.d,test.t2.c	1	100.00	Child of 't3' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`c`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`d`) and (`test`.`t4`.`a` = `test`.`t1`.`d`))
 select straight_join *
@@ -1376,8 +1395,8 @@ join t1 as t4 on t4.a = t1.c and t4.b = t2.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 4 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.a,test.t1.b	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t2.c	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t2.c	1	100.00	Child of 't3' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` join `test`.`t1` `t4` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`b` = `test`.`t1`.`d`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t3`.`a` = `test`.`t1`.`c`) and (`test`.`t4`.`a` = `test`.`t1`.`c`))
 select straight_join *
@@ -1485,8 +1504,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 6 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.a,test.t1.b	1	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	t2x	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3x	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't2x' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't2x' in pushed join@1
+1	SIMPLE	t3x	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't3' in pushed join@1
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t3x.c,test.t2x.c	1	100.00	Child of 't3x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t2x`.`a` AS `a`,`test`.`t2x`.`b` AS `b`,`test`.`t2x`.`c` AS `c`,`test`.`t2x`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t3x`.`a` AS `a`,`test`.`t3x`.`b` AS `b`,`test`.`t3x`.`c` AS `c`,`test`.`t3x`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t2x` join `test`.`t1` `t3` join `test`.`t1` `t3x` join `test`.`t1` `t4` where ((`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2x`.`b` = `test`.`t2`.`d`) and (`test`.`t2x`.`a` = `test`.`t2`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`d`) and (`test`.`t3x`.`b` = `test`.`t1`.`d`) and (`test`.`t3`.`a` = `test`.`t1`.`c`) and (`test`.`t3x`.`a` = `test`.`t1`.`c`) and (`test`.`t4`.`b` = `test`.`t2x`.`c`) and (`test`.`t4`.`a` = `test`.`t3x`.`c`))
@@ -1502,8 +1521,8 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	PRIMARY	NULL	NULL	NULL	16	100.00	Parent of 6 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.a,test.t1.b	1	100.00	Child of 't1' in pushed join@1
 1	SIMPLE	t2x	eq_ref	PRIMARY	PRIMARY	8	test.t2.c,test.t2.d	1	100.00	Child of 't2' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.b	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3x	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't2x' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.b	1	100.00	Child of 't2x' in pushed join@1
+1	SIMPLE	t3x	eq_ref	PRIMARY	PRIMARY	8	test.t1.c,test.t1.d	1	100.00	Child of 't3' in pushed join@1
 1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.t3x.c,test.t2x.c	1	100.00	Child of 't3x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t2x`.`a` AS `a`,`test`.`t2x`.`b` AS `b`,`test`.`t2x`.`c` AS `c`,`test`.`t2x`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t3x`.`a` AS `a`,`test`.`t3x`.`b` AS `b`,`test`.`t3x`.`c` AS `c`,`test`.`t3x`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t2x` join `test`.`t1` `t3` join `test`.`t1` `t3x` join `test`.`t1` `t4` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t2x`.`b` = `test`.`t2`.`d`) and (`test`.`t2x`.`a` = `test`.`t2`.`c`) and (`test`.`t2`.`b` = `test`.`t1`.`b`) and (`test`.`t3`.`b` = `test`.`t1`.`b`) and (`test`.`t3x`.`b` = `test`.`t1`.`d`) and (`test`.`t3`.`a` = `test`.`t1`.`c`) and (`test`.`t3x`.`a` = `test`.`t1`.`c`) and (`test`.`t4`.`b` = `test`.`t2x`.`c`) and (`test`.`t4`.`a` = `test`.`t3x`.`c`))
@@ -1809,7 +1828,7 @@ t1.a, t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1; Using temporary; Using filesort
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) order by `test`.`t1`.`c`,`test`.`t2`.`d`,`test`.`t1`.`a`,`test`.`t1`.`b`
 select *
@@ -1841,7 +1860,7 @@ order by t1.a,t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	100.00	Parent of 3 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) order by `test`.`t1`.`a`,`test`.`t1`.`b`
 select *
@@ -1873,7 +1892,7 @@ t1.a, t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1; Using temporary; Using filesort
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) order by `test`.`t1`.`a`,`test`.`t2`.`b`,`test`.`t1`.`b`
 select *
@@ -1905,7 +1924,7 @@ order by t1.a desc,t1.b desc;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	100.00	Parent of 3 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) order by `test`.`t1`.`a` desc,`test`.`t1`.`b` desc
 select *
@@ -1969,7 +1988,7 @@ order by t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	100.00	Parent of 3 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t1`.`c` AS `c`,`test`.`t1`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) order by `test`.`t1`.`a`
 explain extended
@@ -1995,7 +2014,7 @@ group by t1.a, t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	100.00	Parent of 3 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) group by `test`.`t1`.`a`,`test`.`t1`.`b`
 select t1.a, t1.b, count(*)
@@ -2026,7 +2045,7 @@ group by t1.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	8	NULL	16	100.00	Parent of 3 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) group by `test`.`t1`.`a`
 select t1.a, count(*)
@@ -2048,7 +2067,7 @@ group by t1.b;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	ALL	NULL	NULL	NULL	NULL	16	100.00	Parent of 3 pushed join@1; Using temporary; Using filesort
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't1' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.t1.b,test.t1.c	1	100.00	Child of 't2' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`b` AS `b`,count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` join `test`.`t1` `t3` where ((`test`.`t2`.`b` = `test`.`t1`.`c`) and (`test`.`t3`.`b` = `test`.`t1`.`c`) and (`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t3`.`a` = `test`.`t1`.`b`)) group by `test`.`t1`.`b`
 select t1.b, count(*)
@@ -5791,7 +5810,7 @@ CONST_PRUNED_RANGE_SCANS_RECEIVED	8
 LOCAL_TABLE_SCANS_SENT	296
 PRUNED_RANGE_SCANS_RECEIVED	27
 RANGE_SCANS_RECEIVED	736
-READS_RECEIVED	49
+READS_RECEIVED	50
 TABLE_SCANS_RECEIVED	296
 drop table spj_counts_at_startup;
 drop table spj_counts_at_end;
@@ -5802,9 +5821,9 @@ where new.variable_name = old.variable_name
 order by new.variable_name;
 variable_name	new.variable_value - old.variable_value
 NDB_PRUNED_SCAN_COUNT	8
-NDB_PUSHED_QUERIES_DEFINED	412
+NDB_PUSHED_QUERIES_DEFINED	414
 NDB_PUSHED_QUERIES_DROPPED	8
-NDB_PUSHED_QUERIES_EXECUTED	562
+NDB_PUSHED_QUERIES_EXECUTED	563
 NDB_SORTED_SCAN_COUNT	11
 drop table server_counts_at_startup;
 set ndb_join_pushdown = @save_ndb_join_pushdown;
