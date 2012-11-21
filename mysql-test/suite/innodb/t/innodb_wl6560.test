@@ -1,20 +1,45 @@
 --source include/have_innodb.inc
 
 #
+# Will test following scenarios:
+# 1. creation of shared temp-tablespace.
+# 2. ddl + dml operation involving temp-tablespace.
+#    insert/delete/update/select
+#    create/drop/alter/truncate/import-discard (though blocked).
+# 3. ddl + dml operation on compressed table.
+#    (table doesn't reside in shared temp-tablespace).
+# 4. Test bulk-loading that result in auto-extension of temp-tablespace.
+# 5. re-creation of temp-tablespace on re-start.
+#    also to ensure non-existence of existing temp-table.
+# 6. try to add crash point to ensure tablespace is recovered
+#    correctly after hitting crash point.
+#    (though there is no recovery involved).
+# 7. restart server in innodb-read-only mode. this will also
+#    block creation of temp-tables.
+
+#-----------------------------------------------------------------------------
+#
 # create test-bed
 #
 set @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
+set @global_innodb_file_format_orig= @@global.innodb_file_format;
 set global innodb_file_per_table = off;
 let $MYSQL_DATA_DIR = `select @@datadir`;
+let $MYSQL_TMP_DIR = `select @@tmpdir`;
 
+#-----------------------------------------------------------------------------
 #
-# Test creation of shared tablespace.
+# 1. creation of shared temp-tablespace.
 #
 --echo # files in MYSQL_DATA_DIR
 --list_files $MYSQL_DATA_DIR/ ib*tmp*
 
+
+#-----------------------------------------------------------------------------
 #
-# Test generate dml+ddl operations
+# 2. ddl + dml operation involving temp-tablespace.
+#    insert/delete/update/select
+#    create/drop/alter/truncate/import-discard (though blocked).
 #
 --disable_warnings
 drop table if exists t1;
@@ -22,42 +47,7 @@ drop table if exists t1;
 select @@global.innodb_file_per_table;
 create temporary table t1 (i int, f float, c char(100)) engine=innodb;
 #
-# insert test
-insert into t1 values (100, 1.1, 'pune');
-insert into t1 values (99, 1.2, 'mumbai');
-insert into t1 values (98, 1.3, 'jaipur');
-insert into t1 values (97, 1.4, 'delhi');
-insert into t1 values (96, 1.5, 'ahmedabad');
-select * from t1;
-#
-# add index using alter table table
-explain select * from t1 where f > 1.29999;
-alter table t1 add index sec_index(f);
-explain select * from t1 where f > 1.29999;
-select * from t1 where f > 1.29999;
-#
-explain select * from t1 where i = 100;
-alter table t1 add unique index pri_index(i);
-explain select * from t1 where i = 100;
-select * from t1 where i = 100;
-#
-# delete test
-delete from t1 where i < 97;
-insert into t1 values (96, 1.5, 'kolkata');
-select * from t1;
-#
-# update test
-update t1 set f = 1.44 where c = 'delhi';
-select * from t1;
-#
-# truncate table
-truncate table t1;
-insert into t1 values (100, 1.1, 'pune');
-insert into t1 values (99, 1.2, 'mumbai');
-insert into t1 values (98, 1.3, 'jaipur');
-insert into t1 values (97, 1.4, 'delhi');
-insert into t1 values (96, 1.5, 'ahmedabad');
-select * from t1;
+--source suite/innodb/include/innodb_temp_table_dml.inc
 #
 # alter table
 --error ER_TABLE_IN_SYSTEM_TABLESPACE
@@ -66,18 +56,48 @@ alter table t1 import tablespace;
 # drop table
 drop table t1;
 
+#-----------------------------------------------------------------------------
+#
+# 3. ddl + dml operation on compressed table.
+#    (table doesn't reside in shared temp-tablespace).
+#
+--echo #files in MYSQL_TMP_DIR
+--list_files $MYSQL_TMP_DIR/ *.ibd
+set global innodb_file_per_table = on;
+set global innodb_file_format = 'Barracuda';
+select @@global.innodb_file_per_table;
+create temporary table t1 (i int, f float, c char(100))
+engine=innodb key_block_size=4;
+show create table t1;
+--echo #files in MYSQL_TMP_DIR
+--replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
+--list_files $MYSQL_TMP_DIR/ *.ibd
+#
+--source suite/innodb/include/innodb_temp_table_dml.inc
+#
+# alter table
+alter table t1 discard tablespace;
+#--error ER_NO_SUCH_TABLE
+#alter table t1 import tablespace;
+#
+# drop table
+drop table t1;
+set global innodb_file_per_table = off;
+set global innodb_file_format = @global_innodb_file_format_orig;
 
+
+#-----------------------------------------------------------------------------
 #
-# Test for bulk loading.
+# 4. Test bulk-loading that result in auto-extension of temp-tablespace.
 #
-create temporary table t1 (keyc int, c char(100), primary key(keyc))
-engine=innodb;
+create temporary table t1 (keyc int, c1 char(100), c2 char(100),
+primary key(keyc)) engine=innodb;
 delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
         DECLARE i INT DEFAULT 1;
-        while (i <= 10000) DO
-		insert into t1 values (i, 'a');
+        while (i <= 20000) DO
+		insert into t1 values (i, 'a', 'b');
                 SET i = i + 1;
         END WHILE;
 END|
@@ -94,6 +114,9 @@ select count(*) from t1;
 drop procedure populate_t1;
 drop table t1;
 
+
+
+#-----------------------------------------------------------------------------
 #
 # remove test-bed
 #
