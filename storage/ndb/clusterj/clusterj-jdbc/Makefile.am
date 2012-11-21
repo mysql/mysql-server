@@ -108,8 +108,8 @@ classclusterj_jdbc.stamp: $(clusterj_jdbc_java) $(clusterj_jdbc_antlr)
 	fi
 	mkdir -p $(JAVAROOT)
 	if test -n "$?"; then \
-	  echo '$(CLASSPATH_ENV) $(JAVAC) -target $(JAVAC_TARGET) -d $(JAVAROOT) $(AM_JAVACFLAGS) $(JAVACFLAGS) $(clusterj_jdbc_java) $(clusterj_jdbc_antlr_src)' ; \
-	  $(CLASSPATH_ENV) $(JAVAC) -target $(JAVAC_TARGET) -d $(JAVAROOT) \
+	  echo '$(CLASSPATH_ENV) $(JAVAC) -target $(JAVAC_TARGET) -source $(JAVAC_TARGET) -d $(JAVAROOT) $(AM_JAVACFLAGS) $(JAVACFLAGS) $(clusterj_jdbc_java) $(clusterj_jdbc_antlr_src)' ; \
+	  $(CLASSPATH_ENV) $(JAVAC) -target $(JAVAC_TARGET) -source $(JAVAC_TARGET) -d $(JAVAROOT) \
 	    $(AM_JAVACFLAGS) $(JAVACFLAGS) $(clusterj_jdbc_java) $(clusterj_jdbc_antlr_src); \
 	fi
 	echo timestamp > classclusterj_jdbc.stamp
