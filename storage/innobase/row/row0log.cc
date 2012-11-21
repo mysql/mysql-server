@@ -385,7 +385,6 @@ row_log_table_delete(
 	ulint		avail_size;
 	mem_heap_t*	heap		= NULL;
 	const dtuple_t*	old_pk;
-	dtuple_t*	row;
 	row_ext_t*	ext;
 
 	ut_ad(dict_index_is_clust(index));
@@ -481,25 +480,26 @@ row_log_table_delete(
 	mrec_size = 4 + old_pk_size;
 
 	/* If the row is marked as rollback, we will need to
-	log the enought prefix of the BLOB unless both the
+	log the enough prefix of the BLOB unless both the
 	old and new table are in COMPACT or REDUNDANT format */
 	if ((dict_table_get_format(index->table) >= UNIV_FORMAT_B
 	     || dict_table_get_format(new_table) >= UNIV_FORMAT_B)
 	    && row_log_table_is_rollback(index, trx_id)) {
-		ulint	n_ext_cols = rec_offs_n_extern(offsets);
-
-		if (n_ext_cols) {
-			row = row_build(ROW_COPY_DATA, index, rec,
-					offsets, NULL, NULL, NULL, &ext, heap);
-			ut_a(row);
-
-			/* Log the row_ext_t, ext->ext and ext->buf */
-			ext_size += n_ext_cols * ext->max_len
-				+ sizeof(*ext)
-				+ n_ext_cols * sizeof(ulint)
-				+ (n_ext_cols - 1) * sizeof ext->len;
-
-			mrec_size += ext_size;
+		if (rec_offs_any_extern(offsets)) {
+			/* Build a cache of those off-page column
+			prefixes that are referenced by secondary
+			indexes. It can be that none of the off-page
+			columns are needed. */
+			row_build(ROW_COPY_DATA, index, rec,
+				  offsets, NULL, NULL, NULL, &ext, heap);
+			if (ext) {
+				/* Log the row_ext_t, ext->ext and ext->buf */
+				ext_size = ext->n_ext * ext->max_len
+					+ sizeof(*ext)
+					+ ext->n_ext * sizeof(ulint)
+					+ (ext->n_ext - 1) * sizeof ext->len;
+				mrec_size += ext_size;
+			}
 		}
 	}
 

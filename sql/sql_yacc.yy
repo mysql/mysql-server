@@ -985,6 +985,7 @@ static bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   /* #ifndef MCP_WL3749 */
   Alter_info::enum_alter_table_algorithm online_offline;
   /* #endif */
+  bool is_not_empty;
   Set_signal_information *signal_item_list;
 }
 
@@ -1916,6 +1917,8 @@ END_OF_INPUT
 %type <num> opt_slave_thread_option_list
 %type <num> slave_thread_option_list
 %type <num> slave_thread_option
+
+%type <is_not_empty> opt_union_order_or_limit
 
 %%
 
@@ -10910,6 +10913,13 @@ table_factor:
  */
 select_derived_union:
           select_derived opt_union_order_or_limit
+          {
+            if ($1 && $2)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
         | select_derived_union
           UNION_SYM
           union_option
@@ -15723,8 +15733,8 @@ union_opt:
         ;
 
 opt_union_order_or_limit:
-	  /* Empty */
-	| union_order_or_limit
+	  /* Empty */ { $$= false; }
+	| union_order_or_limit { $$= true; }
 	;
 
 union_order_or_limit:
