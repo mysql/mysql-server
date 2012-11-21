@@ -944,8 +944,8 @@ void do_eval(DYNAMIC_STRING *query_eval, const char *query,
              const char *query_end, my_bool pass_through_escape_chars)
 {
   const char *p;
-  register char c, next_c;
-  register int escaped = 0;
+  char c, next_c;
+  int escaped = 0;
   VAR *v;
   DBUG_ENTER("do_eval");
 
@@ -1426,7 +1426,6 @@ void die(const char *fmt, ...)
 {
   static int dying= 0;
   va_list args;
-  DBUG_ENTER("die");
   DBUG_PRINT("enter", ("start_lineno: %d", start_lineno));
 
   /*
@@ -2131,7 +2130,7 @@ C_MODE_START
 static uchar *get_var_key(const uchar* var, size_t *len,
                           my_bool __attribute__((unused)) t)
 {
-  register char* key;
+  char* key;
   key = ((VAR*)var)->name;
   *len = ((VAR*)var)->name_len;
   return (uchar*)key;
@@ -2571,6 +2570,7 @@ do_result_format_version(struct st_command *command)
   dynstr_append_mem(&ds_res, ds_version.str, ds_version.length);
   dynstr_append(&ds_res, "\n");
   dynstr_free(&ds_version);
+  DBUG_VOID_RETURN;
 }
 
 /* List of error names to error codes */
@@ -9361,7 +9361,7 @@ typedef struct st_pointer_array {		/* when using array-strings */
 
 struct st_replace *init_replace(char * *from, char * *to, uint count,
 				char * word_end_chars);
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name);
+int insert_pointer_name(POINTER_ARRAY *pa,char * name);
 void free_pointer_array(POINTER_ARRAY *pa);
 
 /*
@@ -9445,8 +9445,8 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
                             const char *str,
                             int len __attribute__((unused)))
 {
-  reg1 REPLACE *rep_pos;
-  reg2 REPLACE_STRING *rep_str;
+  REPLACE *rep_pos;
+  REPLACE_STRING *rep_str;
   const char *start, *from;
   DBUG_ENTER("replace_strings_append");
 
@@ -10344,7 +10344,7 @@ void internal_clear_bit(REP_SET *set, uint bit)
 
 void or_bits(REP_SET *to,REP_SET *from)
 {
-  reg1 uint i;
+  uint i;
   for (i=0 ; i < to->size_of_bits ; i++)
     to->bits[i]|=from->bits[i];
   return;
@@ -10446,7 +10446,7 @@ uint end_of_word(char * pos)
 #define PC_MALLOC		256	/* Bytes for pointers */
 #define PS_MALLOC		512	/* Bytes for data */
 
-int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
+int insert_pointer_name(POINTER_ARRAY *pa,char * name)
 {
   uint i,length,old_count;
   uchar *new_pos;

@@ -1067,7 +1067,7 @@ String *Item_func_reverse::val_str(String *str)
 #ifdef USE_MB
   if (use_mb(res->charset()))
   {
-    register uint32 l;
+    uint32 l;
     while (ptr < end)
     {
       if ((l= my_ismbchar(res->charset(),ptr,end)))
@@ -1115,7 +1115,7 @@ String *Item_func_replace::val_str(String *str)
   bool alloced=0;
 #ifdef USE_MB
   const char *ptr,*end,*strend,*search,*search_end;
-  register uint32 l;
+  uint32 l;
   bool binary_cmp;
 #endif
 
@@ -1167,7 +1167,7 @@ redo:
     {
         if (*ptr == *search)
         {
-          register char *i,*j;
+          char *i,*j;
           i=(char*) ptr+1; j=(char*) search+1;
           while (j != search_end)
             if (*i++ != *j++) goto skip;
@@ -1575,14 +1575,14 @@ String *Item_func_substr_index::val_str(String *str)
     const char *search= delimiter->ptr();
     const char *search_end= search+delimiter_length;
     int32 n=0,c=count,pass;
-    register uint32 l;
+    uint32 l;
     for (pass=(count>0);pass<2;++pass)
     {
       while (ptr < end)
       {
         if (*ptr == *search)
         {
-	  register char *i,*j;
+	  char *i,*j;
 	  i=(char*) ptr+1; j=(char*) search+1;
 	  while (j != search_end)
 	    if (*i++ != *j++) goto skip;
@@ -1747,7 +1747,7 @@ String *Item_func_rtrim::val_str(String *str)
   end= ptr+res->length();
 #ifdef USE_MB
   char *p=ptr;
-  register uint32 l;
+  uint32 l;
 #endif
   if (remove_length == 1)
   {
@@ -1834,7 +1834,7 @@ String *Item_func_trim::val_str(String *str)
   if (use_mb(res->charset()))
   {
     char *p=ptr;
-    register uint32 l;
+    uint32 l;
  loop:
     while (ptr + remove_length < end)
     {
@@ -4397,12 +4397,16 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
   String *str1, *str2;
   const char *charp1, *charp2;
   enum_return_status status;
-  // get strings without lock
-  if (!args[0]->null_value && !args[1]->null_value &&
-      (str1= args[0]->val_str_ascii(&buf1)) != NULL &&
+  /*
+    We must execute args[*]->val_str_ascii() before checking
+    args[*]->null_value to ensure that them are updated when
+    this function is executed inside a stored procedure.
+  */
+  if ((str1= args[0]->val_str_ascii(&buf1)) != NULL &&
       (charp1= str1->c_ptr_safe()) != NULL &&
       (str2= args[1]->val_str_ascii(&buf2)) != NULL &&
-      (charp2= str2->c_ptr_safe()) != NULL)
+      (charp2= str2->c_ptr_safe()) != NULL &&
+      !args[0]->null_value && !args[1]->null_value)
   {
     Sid_map sid_map(NULL/*no rwlock*/);
     // compute sets while holding locks
@@ -4416,6 +4420,7 @@ String *Item_func_gtid_subtract::val_str_ascii(String *str)
           set1.remove_gtid_set(&set2) == 0 &&
           !str->realloc((length= set1.get_string_length()) + 1))
       {
+        null_value= false;
         set1.to_string((char *)str->ptr());
         str->length(length);
         DBUG_RETURN(str);

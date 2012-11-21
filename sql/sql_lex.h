@@ -649,6 +649,7 @@ public:
   friend bool subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
+  List<Item> *get_field_list();
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -1232,11 +1233,19 @@ public:
   }
 
   /**
-    Enumeration listing of all types of unsafe statement.
+    All types of unsafe statements.
 
-    @note The order of elements of this enumeration type must
-    correspond to the order of the elements of the @c explanations
-    array defined in the body of @c THD::issue_unsafe_warnings.
+    @note The int values of the enum elements are used to point to
+    bits in two bitmaps in two different places:
+
+    - Query_tables_list::binlog_stmt_flags
+    - THD::binlog_unsafe_warning_flags
+    
+    Hence in practice this is not an enum at all, but a map from
+    symbols to bit indexes.
+
+    The ordering of elements in this enum must correspond to the order of
+    elements in the array binlog_stmt_unsafe_errcode.
   */
   enum enum_binlog_stmt_unsafe {
     /**
@@ -1244,11 +1253,6 @@ public:
       be predicted.
     */
     BINLOG_STMT_UNSAFE_LIMIT= 0,
-    /**
-      INSERT DELAYED is unsafe because the time when rows are inserted
-      cannot be predicted.
-    */
-    BINLOG_STMT_UNSAFE_INSERT_DELAYED,
     /**
       Access to log tables is unsafe because slave and master probably
       log different things.
@@ -2429,9 +2433,10 @@ public:
   */
   uint8 create_view_suid;
 
-  /*
-    stmt_definition_begin is intended to point to the next word after
-    DEFINER-clause in the following statements:
+  /**
+    Intended to point to the next word after DEFINER-clause in the
+    following statements:
+
       - CREATE TRIGGER (points to "TRIGGER");
       - CREATE PROCEDURE (points to "PROCEDURE");
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
@@ -2439,20 +2444,9 @@ public:
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
-
-    keyword_delayed_begin_offset is the offset to the beginning of the DELAYED
-    keyword in INSERT DELAYED statement. keyword_delayed_end_offset is the
-    offset to the character right after the DELAYED keyword.
   */
-  union {
-    const char *stmt_definition_begin;
-    uint keyword_delayed_begin_offset;
-  };
-
-  union {
-    const char *stmt_definition_end;
-    uint keyword_delayed_end_offset;
-  };
+  const char *stmt_definition_begin;
+  const char *stmt_definition_end;
 
   /**
     During name resolution search only in the table list given by 

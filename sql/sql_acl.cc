@@ -1144,7 +1144,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
             user.user_resource.conn_per_hour)
           mqh_used=1;
 
-        if (table->s->fields >= 36)
+        if (table->s->fields > MYSQL_USER_FIELD_MAX_USER_CONNECTIONS)
         {
           /* Starting from 5.0.3 we have max_user_connections field */
           ptr= get_field(thd->mem_root,
@@ -1485,6 +1485,30 @@ static bool acl_trans_commit_and_close_tables(THD *thd)
   }
 
   return result;
+}
+
+
+/**
+  Notify handlerton(s) that privileges have changed
+
+  Interested handlertons may use this notification to update
+  its own privilege structures as well as propagating
+  the changing query to other destinations.
+
+*/
+
+static inline void
+acl_notify_htons(THD* thd,
+                const char* query, uint query_length)
+{
+  DBUG_ENTER("acl_notify_htons");
+  DBUG_PRINT("enter", ("db: %s", thd->db));
+  DBUG_PRINT("enter", ("query: '%s', length: %u", query, query_length));
+
+  ha_binlog_log_query(thd, NULL, LOGCOM_ACL_NOTIFY,
+                      query, query_length,
+                      thd->db, "");
+  DBUG_VOID_RETURN;
 }
 
 
@@ -2405,6 +2429,9 @@ bool change_password(THD *thd, const char *host, const char *user,
 end:
   result|= acl_trans_commit_and_close_tables(thd);
 
+  if (!result)
+    acl_notify_htons(thd, buff, query_length);
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -3043,6 +3070,12 @@ static int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
         goto end;
       }
     }
+
+    /* if we have a password supplied we update the expiration field */
+    if (table->s->fields >= MYSQL_USER_FIELD_PASSWORD_EXPIRED &&
+        password_len > 0)
+      table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N", 1,
+                                                             system_charset_info);
   }
 
   if (old_row_exists)
@@ -4445,7 +4478,10 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
   result|= acl_trans_commit_and_close_tables(thd);
 
   if (!result) /* success */
+  {
+    acl_notify_htons(thd, thd->query(), thd->query_length());
     my_ok(thd);
+  }
 
   thd->lex->restore_backup_query_tables_list(&backup);
   /* Restore the state of binlog format */
@@ -4652,6 +4688,9 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   mysql_rwlock_unlock(&LOCK_grant);
 
   result|= acl_trans_commit_and_close_tables(thd);
+
+  if (write_to_binlog && !result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -4902,7 +4941,10 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   result|= acl_trans_commit_and_close_tables(thd);
   
   if (!result)
+  {
+    acl_notify_htons(thd, thd->query(), thd->query_length());
     my_ok(thd);
+  }
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -7450,6 +7492,9 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
 
   result|= acl_trans_commit_and_close_tables(thd);
 
+  if (some_users_created && !result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
+
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
   if (save_binlog_row_based)
@@ -7538,6 +7583,9 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_unlock(&LOCK_grant);
 
   result|= acl_trans_commit_and_close_tables(thd);
+
+  if (some_users_deleted && !result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
 
   thd->variables.sql_mode= old_sql_mode;
   /* Restore the state of binlog format */
@@ -7639,6 +7687,9 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_unlock(&LOCK_grant);
 
   result|= acl_trans_commit_and_close_tables(thd);
+
+  if (some_users_renamed && !result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -7756,6 +7807,9 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   mysql_rwlock_unlock(&LOCK_grant);
 
   result|= acl_trans_commit_and_close_tables(thd);
+
+  if (some_passwords_expired && !result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -7963,6 +8017,9 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   mysql_rwlock_unlock(&LOCK_grant);
 
   result|= acl_trans_commit_and_close_tables(thd);
+
+  if (!result)
+    acl_notify_htons(thd, thd->query(), thd->query_length());
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -8349,7 +8406,7 @@ show_proxy_grants(THD *thd, LEX_USER *user, char *buff, size_t buffsize)
 
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr)
 {
-  reg3 int flag;
+  int flag;
   DBUG_ENTER("wild_case_compare");
   DBUG_PRINT("enter",("str: '%s'  wildstr: '%s'",str,wildstr));
   while (*wildstr)

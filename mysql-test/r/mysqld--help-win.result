@@ -157,14 +157,14 @@ The following options may be given as the first argument:
  INSERT DELAYED.
  --delayed-insert-timeout=# 
  How long a INSERT DELAYED thread should wait for INSERT
- statements before terminating.This variable is deprecated
- along with INSERT DELAYED.
+ statements before terminating. This variable is
+ deprecated along with INSERT DELAYED.
  --delayed-queue-size=# 
  What size queue (in rows) should be allocated for
  handling INSERT DELAYED. If the queue becomes full, any
  client that does INSERT DELAYED will wait until there is
- room in the queue again.This variable is deprecated along
- with INSERT DELAYED.
+ room in the queue again. This variable is deprecated
+ along with INSERT DELAYED.
  --disconnect-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
  replication.
@@ -376,7 +376,7 @@ The following options may be given as the first argument:
  --max-delayed-threads=# 
  Don't start more than this number of threads to handle
  INSERT DELAYED statements. If set to zero INSERT DELAYED
- will be not used.This variable is deprecated along with
+ will be not used. This variable is deprecated along with
  INSERT DELAYED.
  --max-error-count=# Max number of errors/warnings to store for a statement
  --max-heap-table-size=# 
