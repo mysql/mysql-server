@@ -41,6 +41,7 @@ exports.newDBSession = function(pool, impl) {
   var dbSess = new NdbSession();
   dbSess.parentPool = pool;
   dbSess.impl = impl;
+  dbSess.dictQueue = [];
   return dbSess;
 };
 
@@ -72,6 +73,8 @@ NdbSession.prototype = {
   impl           : null,
   tx             : null,
   parentPool     : null,
+  lock           : 0,
+  dictQueue      : null
 };
 
 /*  getConnectionPool() 
