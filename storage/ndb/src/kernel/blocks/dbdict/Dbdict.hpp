@@ -4094,11 +4094,15 @@ public:
   };
   static const DictLockType* getDictLockType(Uint32 lockType);
   void sendDictLockInfoEvent(Signal*, const UtilLockReq*, const char* text);
+  void debugLockInfo(Signal* signal, 
+                     const char* text,
+                     Uint32 rc);
   void removeStaleDictLocks(Signal* signal, const Uint32* theFailedNodes);
 
 
   Uint32 dict_lock_trylock(const DictLockReq* req);
-  Uint32 dict_lock_unlock(Signal* signal, const DictLockReq* req);
+  Uint32 dict_lock_unlock(Signal* signal, const DictLockReq* req,
+                          DictLockReq::LockType* type=0);
 
   LockQueue::Pool m_dict_lock_pool;
   LockQueue m_dict_lock;
