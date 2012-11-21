@@ -112,6 +112,8 @@ public:
   struct Request;
   struct TreeNode;
   struct ScanFragHandle;
+  typedef DataBuffer2<14, LocalArenaPoolImpl> Correlation_list;
+  typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_correlation_list;
   typedef DataBuffer2<14, LocalArenaPoolImpl> Dependency_map;
   typedef LocalDataBuffer2<14, LocalArenaPoolImpl> Local_dependency_map;
   typedef DataBuffer2<14, LocalArenaPoolImpl> PatternStore;
@@ -792,6 +794,28 @@ public:
     Uint32 m_scanFragReq[ScanFragReq::SignalLength + 2];
   };
 
+  struct DeferredParentOps
+  {
+    /**
+     * m_correlations contains a list of Correlation Values (Uint32)
+     * which identifies parent rows which has been deferred. 
+     * m_pos are index into this array, identifying the next parent row
+     * for which to resume operation.
+     */
+    Correlation_list::Head m_correlations;
+    Uint16 m_pos; // Next row operation to resume 
+
+    DeferredParentOps() : m_correlations(), m_pos(0) {}
+
+    void init()  {
+      m_correlations.init();
+      m_pos = 0;
+    }
+    bool isEmpty() const {
+      return (m_pos == m_correlations.getSize());
+    }
+  };
+
   struct TreeNode_cursor_ptr
   {
     Uint32 nextList;
@@ -809,7 +833,8 @@ public:
     TreeNode()
     : m_magic(MAGIC), m_state(TN_END),
       m_parentPtrI(RNIL), m_requestPtrI(RNIL),
-      m_ancestors()
+      m_ancestors(),
+      m_resumeEvents(0), m_resumePtrI(RNIL)
     {
     }
 
@@ -818,6 +843,7 @@ public:
       m_info(0), m_bits(T_LEAF), m_state(TN_BUILDING),
       m_parentPtrI(RNIL), m_requestPtrI(request),
       m_ancestors(),
+      m_resumeEvents(0), m_resumePtrI(RNIL),
       nextList(RNIL), prevList(RNIL)
     {
 //    m_send.m_ref = 0;
@@ -945,8 +971,25 @@ public:
        */
       T_SCAN_REPEATABLE = 0x4000,
 
+      /**
+       * Exec of a previous REQ must complete before we can proceed.
+       * A ResumeEvent will later resume exec. of this operation
+       */
+      T_EXEC_SEQUENTIAL = 0x8000,
+
       // End marker...
       T_END = 0
+    };
+
+    /**
+     * Describe whether a LQHKEY-REF and/or CONF whould trigger a 
+     * exec resume of another TreeNode having T_EXEC_SEQUENTIAL.
+     * (Used as a bitmask)
+     */
+    enum TreeNodeResumeEvents
+    {
+      TN_RESUME_REF   = 0x01,
+      TN_RESUME_CONF  = 0x02
     };
 
     bool isLeaf() const { return (m_bits & T_LEAF) != 0;}
@@ -973,6 +1016,22 @@ public:
      * Rows buffered by this node
      */
     RowCollection m_rows;
+
+    /**
+     * T_EXEC_SEQUENTIAL cause execution of child operations to
+     * be deferred.  These operations are queued in the 'struct DeferredParentOps'
+     * Currently only Lookup operation might be deferred.
+     * Could later be extended to also cover index scans.
+     */
+    DeferredParentOps m_deferred;
+
+    /**
+     * Set of TreeNodeResumeEvents, possibly or'ed.
+     * Specify whether a REF or CONF will cause a resume
+     * of the TreeNode referred by 'm_resumePtrI'.
+     */
+    Uint32 m_resumeEvents;
+    Uint32 m_resumePtrI;
 
     union
     {
@@ -1251,6 +1310,7 @@ private:
   const OpInfo* getOpInfo(Uint32 op);
   Uint32 build(Build_context&,Ptr<Request>,SectionReader&,SectionReader&);
   Uint32 initRowBuffers(Ptr<Request>);
+  void buildExecPlan(Ptr<Request>, Ptr<TreeNode> node, Ptr<TreeNode> next);
   void checkPrepareComplete(Signal*, Ptr<Request>, Uint32 cnt);
   void start(Signal*, Ptr<Request>);
   void checkBatchComplete(Signal*, Ptr<Request>, Uint32 cnt);
@@ -1259,13 +1319,14 @@ private:
   void sendConf(Signal*, Ptr<Request>, bool is_complete);
   void complete(Signal*, Ptr<Request>);
   void cleanup(Ptr<Request>);
+  void cleanupBatch(Ptr<Request>);
   void abort(Signal*, Ptr<Request>, Uint32 errCode);
   Uint32 nodeFail(Signal*, Ptr<Request>, NdbNodeBitmask mask);
 
   Uint32 createNode(Build_context&, Ptr<Request>, Ptr<TreeNode> &);
   void reportBatchComplete(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void releaseScanBuffers(Ptr<Request> requestPtr);
-  void releaseRequestBuffers(Ptr<Request> requestPtr, bool reset);
+  void releaseRequestBuffers(Ptr<Request> requestPtr);
   void releaseNodeRows(Ptr<Request> requestPtr, Ptr<TreeNode>);
   void registerActiveCursor(Ptr<Request>, Ptr<TreeNode>);
   void nodeFail_checkRequests(Signal*);
@@ -1368,6 +1429,7 @@ private:
   Uint32 lookup_build(Build_context&,Ptr<Request>,
 		      const QueryNode*, const QueryNodeParameters*);
   void lookup_start(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void lookup_resume(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_send(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_execTRANSID_AI(Signal*, Ptr<Request>, Ptr<TreeNode>,
 			     const RowPtr&);
@@ -1375,6 +1437,7 @@ private:
   void lookup_execLQHKEYCONF(Signal*, Ptr<Request>, Ptr<TreeNode>);
   void lookup_parent_row(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowPtr &);
   void lookup_parent_batch_complete(Signal*, Ptr<Request>, Ptr<TreeNode>);
+  void lookup_row(Signal*, Ptr<Request>, Ptr<TreeNode>, const RowPtr &);
   void lookup_abort(Signal*, Ptr<Request>, Ptr<TreeNode>);
   Uint32 lookup_execNODE_FAILREP(Signal*signal, Ptr<Request>, Ptr<TreeNode>,
                                NdbNodeBitmask);
