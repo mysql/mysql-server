@@ -76,7 +76,7 @@ disconnect conn1;
 # The value of slow_launch_threads must not change.                    #
 ########################################################################
 
-SET @@GLOBAL.slow_launch_time= 1000;
+SET @@GLOBAL.slow_launch_time= 10000;
 SELECT @@GLOBAL.slow_launch_time;
 
 let $value_before=

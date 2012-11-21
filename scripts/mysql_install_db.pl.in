@@ -353,7 +353,9 @@ sub tell_root_password {
 sub generate_random_password {
   # Short term:
   # On (at least) Linux and Solaris, a "random" device is available, use it:
-  # cat /dev/urandom | tr -dc "[:alnum:]" | fold -w 8  | head -1
+  # cat /dev/urandom | LC_CTYPE=C tr -dc "[:alnum:]" | fold -w 8  | head -1
+  # Without LC_CTYPE, "tr" may not know the "alnum" character class -
+  # and there are user profiles which do not have this set.
   # Note: There is no guarantee the results will pass a validation checker
   # as resulted from WL#2739
   # http://wl.no.oracle.com/worklo/?tid=2739
@@ -364,7 +366,7 @@ sub generate_random_password {
   # http://search.cpan.org/~cgrau/String-MkPasswd/bin/mkpasswd.pl
   # Using it got approved recently.
   #
-  my $password = `cat /dev/urandom | tr -dc "[:alnum:]" | fold -w 8  | head -1`;
+  my $password = `cat /dev/urandom | LC_CTYPE=C tr -dc "[:alnum:]" | fold -w 8  | head -1`;
   chomp ($password);
   return $password;
 }

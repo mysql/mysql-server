@@ -822,6 +822,14 @@ extern int pthread_dummy(int);
 struct st_my_thread_var
 {
   int thr_errno;
+#if defined(__WIN__)
+/*
+  thr_winerr is used for returning the original OS error-code in Windows,
+  my_osmaperr() returns EINVAL for all unknown Windows errors, hence we
+  preserve the original Windows Error code in thr_winerr.
+*/
+  int thr_winerr;
+#endif
   mysql_cond_t suspend;
   mysql_mutex_t mutex;
   mysql_mutex_t * volatile current_mutex;
@@ -846,6 +854,10 @@ extern void **my_thread_var_dbug();
 extern uint my_thread_end_wait_time;
 #define my_thread_var (_my_thread_var())
 #define my_errno my_thread_var->thr_errno
+
+#if defined(__WIN__)
+#define my_winerr my_thread_var->thr_winerr
+#endif
 /*
   Keep track of shutdown,signal, and main threads so that my_end() will not
   report errors with them

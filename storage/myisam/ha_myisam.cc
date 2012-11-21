@@ -1980,7 +1980,7 @@ int ha_myisam::create(const char *name, register TABLE *table_arg,
   create_info.language= share->table_charset->number;
 
 #ifdef HAVE_READLINK
-  if (my_use_symdir)
+  if (my_enable_symlinks)
   {
     create_info.data_file_name= ha_create_info->data_file_name;
     create_info.index_file_name= ha_create_info->index_file_name;

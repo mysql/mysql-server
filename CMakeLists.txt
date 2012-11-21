@@ -440,6 +440,7 @@ ELSE()
   SET(CPACK_GENERATOR "TGZ")
 ENDIF() 
 ADD_SUBDIRECTORY(packaging/WiX)
+ADD_SUBDIRECTORY(packaging/solaris)
 
 # Create a single package with "make package"
 # (see http://public.kitware.com/Bug/view.php?id=11452)
