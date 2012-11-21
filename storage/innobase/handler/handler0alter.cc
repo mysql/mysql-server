@@ -31,6 +31,7 @@ Smart ALTER TABLE
 
 #include "dict0crea.h"
 #include "dict0dict.h"
+#include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "log0log.h"
@@ -1073,8 +1074,6 @@ innobase_col_to_mysql(
 		ut_ad(flen >= len);
 		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
 		      >= DATA_MBMINLEN(col->mbminmaxlen));
-		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
-		      > DATA_MBMINLEN(col->mbminmaxlen) || flen == len);
 		memcpy(dest, data, len);
 		break;
 
@@ -2652,11 +2651,10 @@ prepare_inplace_alter_table_dict(
 		/* Create the table. */
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-		indexed_table = dict_load_table(
-			new_table_name, TRUE, DICT_ERR_IGNORE_NONE);
-
-		if (indexed_table) {
-			row_merge_drop_table(trx, indexed_table, true);
+		if (dict_table_get_low(new_table_name)) {
+			my_error(ER_TABLE_EXISTS_ERROR, MYF(0),
+				 new_table_name);
+			goto new_clustered_failed;
 		}
 
 		/* The initial space id 0 may be overridden later. */
@@ -3036,7 +3034,16 @@ error_handled:
 			}
 
 			dict_table_close(indexed_table, TRUE, FALSE);
-			row_merge_drop_table(trx, indexed_table, false);
+
+#ifdef UNIV_DDL_DEBUG
+			/* Nobody should have initialized the stats of the
+			newly created table yet. When this is the case, we
+			know that it has not been added for background stats
+			gathering. */
+			ut_a(!indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
+			row_merge_drop_table(trx, indexed_table);
 
 			/* Free the log for online table rebuild, if
 			one was allocated. */
@@ -3991,7 +3998,16 @@ rollback_inplace_alter_table(
 
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
-		err = row_merge_drop_table(ctx->trx, ctx->indexed_table, false);
+
+#ifdef UNIV_DDL_DEBUG
+		/* Nobody should have initialized the stats of the
+		newly created table yet. When this is the case, we
+		know that it has not been added for background stats
+		gathering. */
+		ut_a(!ctx->indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
+		err = row_merge_drop_table(ctx->trx, ctx->indexed_table);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -4409,6 +4425,7 @@ ha_innobase::commit_inplace_alter_table(
 	int				err	= 0;
 	bool				new_clustered;
 	dict_table_t*			fk_table = NULL;
+	ulonglong			max_autoinc;
 
 	ut_ad(!srv_read_only_mode);
 
@@ -4425,6 +4442,31 @@ ha_innobase::commit_inplace_alter_table(
 		method if commit=true. */
 		DBUG_RETURN(rollback_inplace_alter_table(
 				    ha_alter_info, table_share, prebuilt));
+	}
+
+	if (!altered_table->found_next_number_field) {
+		/* There is no AUTO_INCREMENT column in the table
+		after the ALTER operation. */
+		max_autoinc = 0;
+	} else if (ctx && ctx->add_autoinc != ULINT_UNDEFINED) {
+		/* An AUTO_INCREMENT column was added. Get the last
+		value from the sequence, which may be based on a
+		supplied AUTO_INCREMENT value. */
+		max_autoinc = ctx->sequence.last();
+	} else if ((ha_alter_info->handler_flags
+		    & Alter_inplace_info::CHANGE_CREATE_OPTION)
+		   && (ha_alter_info->create_info->used_fields
+		       & HA_CREATE_USED_AUTO)) {
+		/* An AUTO_INCREMENT value was supplied, but the table
+		was not rebuilt. Get the user-supplied value. */
+		max_autoinc = ha_alter_info->create_info->auto_increment_value;
+	} else {
+		/* An AUTO_INCREMENT value was not specified.
+		Read the old counter value from the table. */
+		ut_ad(table->found_next_number_field);
+		dict_table_autoinc_lock(prebuilt->table);
+		max_autoinc = dict_table_autoinc_read(prebuilt->table);
+		dict_table_autoinc_unlock(prebuilt->table);
 	}
 
 	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
@@ -4776,8 +4818,9 @@ undo_add_fk:
 				ut_ad(fk_trx != trx);
 				trx_commit_for_mysql(fk_trx);
 			}
+
 			row_prebuilt_free(prebuilt, TRUE);
-			error = row_merge_drop_table(trx, old_table, false);
+			error = row_merge_drop_table(trx, old_table);
 			prebuilt = row_create_prebuilt(
 				ctx->indexed_table, table->s->reclength);
 			err = 0;
@@ -4812,7 +4855,16 @@ drop_new_clustered:
 			}
 
 			dict_table_close(ctx->indexed_table, TRUE, FALSE);
-			row_merge_drop_table(trx, ctx->indexed_table, false);
+
+#ifdef UNIV_DDL_DEBUG
+			/* Nobody should have initialized the stats of the
+			newly created table yet. When this is the case, we
+			know that it has not been added for background stats
+			gathering. */
+			ut_a(!ctx->indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
+			row_merge_drop_table(trx, ctx->indexed_table);
 			ctx->indexed_table = NULL;
 			goto trx_commit;
 		}
@@ -4860,15 +4912,6 @@ drop_new_clustered:
 				DBUG_ASSERT(0);
 			}
 		}
-
-		/* Commit of rollback add foreign constraint operations */
-		if (fk_trx && fk_trx != trx) {
-			if (err == 0) {
-				trx_commit_for_mysql(fk_trx);
-			} else {
-				trx_rollback_for_mysql(fk_trx);
-			}
-		}
 	}
 
 	if (err == 0
@@ -4897,16 +4940,56 @@ drop_new_clustered:
 	}
 
 	if (err == 0) {
+		if (fk_trx && fk_trx != trx) {
+			/* This needs to be placed before "trx_commit" marker,
+			since anyone called "goto trx_commit" has committed
+			or rolled back fk_trx before jumping here */
+			trx_commit_for_mysql(fk_trx);
+		}
 trx_commit:
 		trx_commit_for_mysql(trx);
 	} else {
 trx_rollback:
-		/* undo the in-memory addition of foreign key */
+		/* undo the addition of foreign key */
 		if (fk_trx) {
 			innobase_undo_add_fk(ctx, fk_table);
+
+			if (fk_trx != trx) {
+				trx_rollback_for_mysql(fk_trx);
+			}
 		}
 
 		trx_rollback_for_mysql(trx);
+
+		/* If there are newly added secondary indexes, above
+		rollback will revert the rename operation and put the
+		new indexes with the temp index prefix, we can drop
+		them here */
+		if (ctx && !new_clustered) {
+			ulint	i;
+
+			/* Need to drop the in-memory dict_index_t first
+			to avoid dict_table_check_for_dup_indexes()
+			assertion in row_merge_drop_indexes() in the case
+			of add and drop the same index */
+			for (i = 0; i < ctx->num_to_add; i++) {
+				dict_index_t*   index = ctx->add[i];
+				dict_index_remove_from_cache(
+					prebuilt->table, index);
+			}
+
+			if (ctx->num_to_add) {
+				trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+				row_merge_drop_indexes(trx, prebuilt->table,
+						       FALSE);
+				trx_commit_for_mysql(trx);
+			}
+
+			for (i = 0; i < ctx->num_to_drop; i++) {
+				dict_index_t*	index = ctx->drop[i];
+				index->to_be_dropped = false;
+			}
+		}
 	}
 
 	/* Flush the log to reduce probability that the .frm files and
@@ -5102,21 +5185,9 @@ trx_rollback:
 
 func_exit:
 
-	if (err == 0
-	    && (ha_alter_info->create_info->used_fields
-		& HA_CREATE_USED_AUTO)) {
-
-		if (ctx != 0 && altered_table->found_next_number_field != 0) {
-			ha_alter_info->create_info->auto_increment_value =
-				ctx->sequence.last();
-		}
-
+	if (err == 0 && altered_table->found_next_number_field != 0) {
 		dict_table_autoinc_lock(prebuilt->table);
-
-		dict_table_autoinc_initialize(
-			prebuilt->table,
-			ha_alter_info->create_info->auto_increment_value);
-
+		dict_table_autoinc_initialize(prebuilt->table, max_autoinc);
 		dict_table_autoinc_unlock(prebuilt->table);
 	}
 

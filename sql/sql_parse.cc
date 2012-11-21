@@ -1187,6 +1187,28 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     beginning of each command.
   */
   thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
+
+  /**
+    Enforce password expiration for all RPC commands, except the
+    following:
+
+    COM_QUERY does a more fine-grained check later.
+    COM_STMT_CLOSE and COM_STMT_SEND_LONG_DATA don't return anything.
+    COM_PING only discloses information that the server is running,
+       and that's available through other means.
+    COM_QUIT should work even for expired statements.
+  */
+  if (unlikely(thd->security_ctx->password_expired &&
+               command != COM_QUERY &&
+               command != COM_STMT_CLOSE &&
+               command != COM_STMT_SEND_LONG_DATA &&
+               command != COM_PING &&
+               command != COM_QUIT))
+  {
+    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+    goto done;
+  }
+
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1686,12 +1708,14 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   case COM_SLEEP:
   case COM_CONNECT:				// Impossible here
   case COM_TIME:				// Impossible from client
-  case COM_DELAYED_INSERT:
+  case COM_DELAYED_INSERT: // INSERT DELAYED has been removed.
   case COM_END:
   default:
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
+
+done:
   DBUG_ASSERT(thd->derived_tables == NULL &&
               (thd->open_tables == NULL ||
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
@@ -3348,16 +3372,8 @@ end_with_restore_list:
   {
     DBUG_ASSERT(first_table == all_tables && first_table != 0);
 
-    /*
-      Since INSERT DELAYED doesn't support temporary tables, we could
-      not pre-open temporary tables for SQLCOM_INSERT / SQLCOM_REPLACE.
-      Open them here instead.
-    */
-    if (first_table->lock_type != TL_WRITE_DELAYED)
-    {
-      if ((res= open_temporary_tables(thd, all_tables)))
-        break;
-    }
+    if ((res= open_temporary_tables(thd, all_tables)))
+      break;
 
     if ((res= insert_precheck(thd, all_tables)))
       break;
@@ -3412,10 +3428,6 @@ end_with_restore_list:
 
     if (lex->sql_command == SQLCOM_REPLACE_SELECT)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_REPLACE_SELECT);
-
-    /* Fix lock for first table */
-    if (first_table->lock_type == TL_WRITE_DELAYED)
-      first_table->lock_type= TL_WRITE;
 
     /* Don't unlock tables until command is written to binary log */
     select_lex->options|= SELECT_NO_UNLOCK;
@@ -6190,7 +6202,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                        List<String> *interval_list, const CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
-  register Create_field *new_field;
+  Create_field *new_field;
   LEX  *lex= thd->lex;
   uint8 datetime_precision= decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
@@ -6336,7 +6348,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                                              List<String> *partition_names,
                                              LEX_STRING *option)
 {
-  register TABLE_LIST *ptr;
+  TABLE_LIST *ptr;
   TABLE_LIST *previous_table_ref; /* The table preceding the current one. */
   char *alias_str;
   LEX *lex= thd->lex;
@@ -6963,8 +6975,14 @@ uint kill_one_thread(THD *thd, ulong id, bool only_kill_query)
     if ((thd->security_ctx->master_access & SUPER_ACL) ||
         thd->security_ctx->user_matches(tmp->security_ctx))
     {
-      tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
-      error=0;
+      /* process the kill only if thread is not already undergoing any kill
+         connection.
+      */
+      if (tmp->killed != THD::KILL_CONNECTION)
+      {
+        tmp->awake(only_kill_query ? THD::KILL_QUERY : THD::KILL_CONNECTION);
+      }
+      error= 0;
     }
     else
       error=ER_KILL_DENIED_ERROR;

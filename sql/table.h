@@ -1141,6 +1141,9 @@ public:
   my_bool key_read;
   my_bool no_keyread;
   my_bool locked_by_logger;
+  /**
+    If set, indicate that the table is not replicated by the server.
+  */
   my_bool no_replicate;
   my_bool locked_by_name;
   my_bool fulltext_searched;
@@ -1724,7 +1727,6 @@ public:
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   bool          multitable_view;        /* TRUE iff this is multitable view */
-  bool          compact_view_format;    /* Use compact format for SHOW CREATE VIEW */
   /* view where processed */
   bool          where_processed;
   /* TRUE <=> VIEW CHECK OPTION expression has been processed */

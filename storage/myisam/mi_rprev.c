@@ -25,7 +25,7 @@
 int mi_rprev(MI_INFO *info, uchar *buf, int inx)
 {
   int error,changed;
-  register uint flag;
+  uint flag;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("mi_rprev");
 

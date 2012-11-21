@@ -30,7 +30,7 @@ typedef struct {
 
 
 /* === regcomp.c === */
-typedef int (*my_regex_stack_check_t)();
+typedef int (*my_regex_stack_check_t)(int);
 extern int my_regcomp(my_regex_t *, const char *, int,
                       const CHARSET_INFO *charset);
 #define	MY_REG_BASIC	0000

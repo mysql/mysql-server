@@ -237,8 +237,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
 
 
 void Item_func::fix_after_pullout(st_select_lex *parent_select,
-                                  st_select_lex *removed_select,
-                                  Item **ref)
+                                  st_select_lex *removed_select)
 {
   Item **arg,**arg_end;
 
@@ -250,8 +249,8 @@ void Item_func::fix_after_pullout(st_select_lex *parent_select,
   {
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
-      (*arg)->fix_after_pullout(parent_select, removed_select, arg);
-      Item *item= *arg;
+      Item *const item= *arg;
+      item->fix_after_pullout(parent_select, removed_select);
 
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
@@ -3328,8 +3327,8 @@ longlong Item_func_ord::val_int()
 #ifdef USE_MB
   if (use_mb(res->charset()))
   {
-    register const char *str=res->ptr();
-    register uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());
+    const char *str=res->ptr();
+    uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());
     if (!l)
       return (longlong)((uchar) *str);
     while (l--)

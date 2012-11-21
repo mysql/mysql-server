@@ -268,7 +268,7 @@ void my_printv_error(uint error, const char *format, myf MyFlags, va_list ap)
   @param MyFlags   Flags
 */
 
-void my_message(uint error, const char *str, register myf MyFlags)
+void my_message(uint error, const char *str, myf MyFlags)
 {
   (*error_handler_hook)(error, str, MyFlags);
 }

@@ -360,6 +360,12 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	  }
 	  else if (pos->type == HA_KEYTYPE_BINARY)
 	    pos->charset= &my_charset_bin;
+          if (!(share->keyinfo[i].flag & HA_SPATIAL) &&
+              pos->start > share->base.reclength)
+          {
+            my_errno= HA_ERR_CRASHED;
+            goto err;
+          }
 	}
 	if (share->keyinfo[i].flag & HA_SPATIAL)
 	{
@@ -745,7 +751,7 @@ ulonglong mi_safe_mul(ulonglong a, ulonglong b)
 
 	/* Set up functions in structs */
 
-void mi_setup_functions(register MYISAM_SHARE *share)
+void mi_setup_functions(MYISAM_SHARE *share)
 {
   if (share->options & HA_OPTION_COMPRESS_RECORD)
   {
@@ -799,7 +805,7 @@ void mi_setup_functions(register MYISAM_SHARE *share)
 }
 
 
-static void setup_key_functions(register MI_KEYDEF *keyinfo)
+static void setup_key_functions(MI_KEYDEF *keyinfo)
 {
   if (keyinfo->key_alg == HA_KEY_ALG_RTREE)
   {

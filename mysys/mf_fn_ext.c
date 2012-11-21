@@ -35,7 +35,7 @@
 
 char *fn_ext(const char *name)
 {
-  register const char *pos, *gpos;
+  const char *pos, *gpos;
   DBUG_ENTER("fn_ext");
   DBUG_PRINT("mfunkt",("name: '%s'",name));
 

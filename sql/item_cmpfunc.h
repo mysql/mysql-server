@@ -283,7 +283,7 @@ public:
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   bool is_null();
   longlong val_int();
   void cleanup();
@@ -1666,7 +1666,7 @@ public:
   }
   bool fix_fields(THD *, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }

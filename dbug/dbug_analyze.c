@@ -127,10 +127,10 @@ static unsigned long lowstack = (ulong) ~0;
  */
 
 void push (name_pos, time_entered)
-register unsigned int name_pos;
-register unsigned long time_entered;
+unsigned int name_pos;
+unsigned long time_entered;
 {
-    register struct stack_t *t;
+    struct stack_t *t;
 
     DBUG_ENTER("push");
     if (++stacktop > STACKSIZ) {
@@ -153,12 +153,12 @@ register unsigned long time_entered;
  */
 
 unsigned int pop (name_pos, time_entered, child_time)
-register unsigned int *name_pos;
-register unsigned long *time_entered;
-register unsigned long *child_time;
+unsigned int *name_pos;
+unsigned long *time_entered;
+unsigned long *child_time;
 {
-    register struct stack_t *temp;
-    register unsigned int rtnval;
+    struct stack_t *temp;
+    unsigned int rtnval;
 
     DBUG_ENTER ("pop");
 
@@ -211,8 +211,8 @@ static unsigned int n_items = 0;	/* No. of items in the array so far */
 char *strsave (s)
 char *s;
 {
-    register char *retval;
-    register unsigned int len;
+    char *retval;
+    unsigned int len;
 
     DBUG_ENTER ("strsave");
     DBUG_PRINT ("strsave", ("%s",s));
@@ -233,8 +233,8 @@ char *s;
 unsigned int add (m_name)
 char *m_name;
 {
-    register unsigned int ind = 0;
-    register int cmp;
+    unsigned int ind = 0;
+    int cmp;
 
     DBUG_ENTER ("add");
     if (n_items == 0) {		/* First item to be added */
@@ -467,13 +467,13 @@ unsigned long int sum_calls, sum_time;
 
 void out_item (outf, m,called,timed)
 FILE *outf;
-register struct module_t *m;
+struct module_t *m;
 unsigned long int *called, *timed;
 {
     char *name = m -> name;
-    register unsigned int calls = m -> m_calls;
-    register unsigned long local_time = m -> m_time;
-    register unsigned long stkuse = m -> m_stkuse;
+    unsigned int calls = m -> m_calls;
+    unsigned long local_time = m -> m_time;
+    unsigned long stkuse = m -> m_stkuse;
     unsigned int import;
     double per_time = 0.0;
     double per_calls = 0.0;
@@ -514,8 +514,8 @@ unsigned long int *called, *timed;
 
 void out_body (outf, root,s_calls,s_time)
 FILE *outf;
-register unsigned int root;
-register unsigned long int *s_calls, *s_time;
+unsigned int root;
+unsigned long int *s_calls, *s_time;
 {
     unsigned long int calls, local_time;
 
@@ -566,7 +566,7 @@ extern char *optarg;
 
 int main (int argc, char **argv)
 {
-    register int c;
+    int c;
     int badflg = 0;
     FILE *infile;
     FILE *outfile = {stdout};

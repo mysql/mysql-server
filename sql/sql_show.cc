@@ -1894,6 +1894,7 @@ int
 view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
 {
   my_bool compact_view_name= TRUE;
+  my_bool compact_view_format= TRUE;
   my_bool foreign_db_mode= (thd->variables.sql_mode & (MODE_POSTGRESQL |
                                                        MODE_ORACLE |
                                                        MODE_MSSQL |
@@ -1905,7 +1906,7 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     /*
       print compact view name if the view belongs to the current database
     */
-    compact_view_name= table->compact_view_format= FALSE;
+    compact_view_format= compact_view_name= FALSE;
   else
   {
     /*
@@ -1913,14 +1914,13 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
       if this view only references table inside it's own db
     */
     TABLE_LIST *tbl;
-    table->compact_view_format= TRUE;
     for (tbl= thd->lex->query_tables;
          tbl;
          tbl= tbl->next_global)
     {
       if (strcmp(table->view_db.str, tbl->view ? tbl->view_db.str :tbl->db)!= 0)
       {
-        table->compact_view_format= FALSE;
+        compact_view_format= FALSE;
         break;
       }
     }
@@ -1944,7 +1944,10 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
     We can't just use table->query, because our SQL_MODE may trigger
     a different syntax, like when ANSI_QUOTES is defined.
   */
-  table->view->unit.print(buff, QT_ORDINARY);
+  table->view->unit.print(buff, 
+                          enum_query_type(QT_TO_ARGUMENT_CHARSET | 
+                                          (compact_view_format ?
+                                           QT_COMPACT_FORMAT : 0)));
 
   if (table->with_check != VIEW_CHECK_NONE)
   {
