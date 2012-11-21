@@ -2533,7 +2533,7 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  User_var_log_event(const char* buf,
+  User_var_log_event(const char* buf, uint event_len,
                      const Format_description_log_event *description_event);
   ~User_var_log_event() {}
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
@@ -2545,9 +2545,9 @@ public:
      and which case the applier adjusts execution path.
   */
   bool is_deferred() { return deferred; }
-  void set_deferred() { deferred= val; }
+  void set_deferred() { deferred= true; }
 #endif
-  bool is_valid() const { return 1; }
+  bool is_valid() const { return name != 0; }
 
 private:
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -4059,6 +4059,22 @@ private:
 bool slave_execute_deferred_events(THD *thd);
 
 #endif
+
+#ifdef MYSQL_SERVER
+/**
+  This is an utility function that adds a quoted identifier into the a buffer.
+  This also escapes any existance of the quote string inside the identifier.
+ */
+size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
+                                   const char* identifier,
+                                   uint length);
+#else
+size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
+#endif
+size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
+                                          const char* identifier,
+                                          uint length);
+
 
 /**
   @} (end of group Replication)

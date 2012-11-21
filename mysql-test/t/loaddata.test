@@ -580,36 +580,40 @@ DROP TABLE t1;
 connection default;
 disconnect con1;
 
+#############################################################################
+#           The below protion is moved to ctype_ucs.test                    #
+#############################################################################
+#--echo #
+#--echo # Bug #51876 : crash/memory underrun when loading data with ucs2 
+#--echo #   and reverse() function
+#--echo #
 
---echo #
---echo # Bug #51876 : crash/memory underrun when loading data with ucs2 
---echo #   and reverse() function
---echo #
+#--echo # Problem # 1 (original report): wrong parsing of ucs2 data
+#SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp.txt';
+#CREATE TABLE t1(a INT);
+#LOAD DATA INFILE 'tmpp.txt' INTO TABLE t1 CHARACTER SET ucs2
+#(@b) SET a=REVERSE(@b);
+#--echo # should return 2 zeroes (as the value is truncated)
+#SELECT * FROM t1;
 
---echo # Problem # 1 (original report): wrong parsing of ucs2 data
-SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp.txt';
-CREATE TABLE t1(a INT);
-LOAD DATA INFILE 'tmpp.txt' INTO TABLE t1 CHARACTER SET ucs2
-(@b) SET a=REVERSE(@b);
---echo # should return 2 zeroes (as the value is truncated)
-SELECT * FROM t1;
-
-DROP TABLE t1;
-let $MYSQLD_DATADIR= `select @@datadir`;
-remove_file $MYSQLD_DATADIR/test/tmpp.txt;
+#DROP TABLE t1;
+#let $MYSQLD_DATADIR= `select @@datadir`;
+#remove_file $MYSQLD_DATADIR/test/tmpp.txt;
 
 
---echo # Problem # 2 : if you write and read ucs2 data to a file they're lost
-SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp2.txt' CHARACTER SET ucs2;
-CREATE TABLE t1(a INT);
-LOAD DATA INFILE 'tmpp2.txt' INTO TABLE t1 CHARACTER SET ucs2
-(@b) SET a=REVERSE(@b);
---echo # should return 0 and 1 (10 reversed)
-SELECT * FROM t1;
+#--echo # Problem # 2 : if you write and read ucs2 data to a file they're lost
+#SELECT '00' UNION SELECT '10' INTO OUTFILE 'tmpp2.txt' CHARACTER SET ucs2;
+#CREATE TABLE t1(a INT);
+#LOAD DATA INFILE 'tmpp2.txt' INTO TABLE t1 CHARACTER SET ucs2
+#(@b) SET a=REVERSE(@b);
+#--echo # should return 0 and 1 (10 reversed)
+#SELECT * FROM t1;
 
-DROP TABLE t1;
-let $MYSQLD_DATADIR= `select @@datadir`;
-remove_file $MYSQLD_DATADIR/test/tmpp2.txt;
+#DROP TABLE t1;
+#let $MYSQLD_DATADIR= `select @@datadir`;
+#remove_file $MYSQLD_DATADIR/test/tmpp2.txt;
+######################################################################################
+
 
 --echo #
 --echo # Bug#11765139  58069: LOAD DATA INFILE: VALGRIND REPORTS INVALID MEMORY READS AND WRITES WITH U

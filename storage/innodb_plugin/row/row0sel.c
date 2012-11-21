@@ -3908,6 +3908,11 @@ wait_table_again:
 	}
 
 rec_loop:
+	if (trx_is_interrupted(trx)) {
+		err = DB_INTERRUPTED;
+		goto normal_return;
+	}
+
 	/*-------------------------------------------------------------*/
 	/* PHASE 4: Look for matching records in a loop */
 
@@ -4828,11 +4833,15 @@ row_search_autoinc_read_column(
 
 	rec_offs_init(offsets_);
 
-	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+	offsets = rec_get_offsets(rec, index, offsets, col_no + 1, &heap);
+
+	if (rec_offs_nth_sql_null(offsets, col_no)) {
+		/* There is no non-NULL value in the auto-increment column. */
+		value = 0;
+		goto func_exit;
+	}
 
 	data = rec_get_nth_field(rec, offsets, col_no, &len);
-
-	ut_a(len != UNIV_SQL_NULL);
 
 	switch (mtype) {
 	case DATA_INT:
@@ -4854,12 +4863,13 @@ row_search_autoinc_read_column(
 		ut_error;
 	}
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
-
 	if (!unsigned_type && (ib_int64_t) value < 0) {
 		value = 0;
+	}
+
+func_exit:
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
 	}
 
 	return(value);

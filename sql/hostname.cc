@@ -215,6 +215,15 @@ char * ip_to_hostname(struct in_addr *in, uint *errors)
   }
   my_gethostbyname_r_free();
 #else
+
+  DBUG_EXECUTE_IF("addr_fake_ipv4",
+                  {
+                    const char* fake_host= "santa.claus.ipv4.example.com";
+                    name=my_strdup(fake_host, MYF(0));
+                    add_hostname(in,name);
+                    DBUG_RETURN(name);
+                  };);
+
   VOID(pthread_mutex_lock(&LOCK_hostname));
   if (!(hp=gethostbyaddr((char*) in,sizeof(*in), AF_INET)))
   {
