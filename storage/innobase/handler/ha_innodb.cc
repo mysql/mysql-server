@@ -15890,7 +15890,7 @@ static MYSQL_SYSVAR_ULONG(force_recovery, srv_force_recovery,
 static MYSQL_SYSVAR_ULONG(force_recovery_crash, srv_force_recovery_crash,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "Kills the server during crash recovery.",
-  NULL, NULL, 0, 0, 10, 0);
+  NULL, NULL, 0, 0, 100, 0);
 #endif /* !DBUG_OFF */
 
 static MYSQL_SYSVAR_ULONG(page_size, srv_page_size,

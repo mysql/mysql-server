@@ -901,12 +901,17 @@ srv_open_tmp_tablespace(
 		return(DB_SUCCESS);
 	}
 
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Creating shared tablespace for temporary tables");
+
 	ibool	create_new_temp_space;
 	ulint	temp_space_id = ULINT_UNDEFINED;
 
 	dict_hdr_get_new_id(NULL, NULL, &temp_space_id);
 
 	tmp_space->set_space_id(temp_space_id);
+
+	RECOVERY_CRASH(100);
 
 	dberr_t	err = tmp_space->check_file_spec(
 			&create_new_temp_space, 12 * 1024 * 1024);
