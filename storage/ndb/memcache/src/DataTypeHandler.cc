@@ -44,21 +44,26 @@ extern EXTENSION_LOGGER_DESCRIPTOR *logger;
 #define DECODE_ARGS const NdbDictionary::Column *, char * &, const void * const
 #define SFDLEN_ARGS const NdbDictionary::Column *, const void * const
 #define ENCODE_ARGS const NdbDictionary::Column *, size_t, const char *, void * const
+#define NATIVE_READ_ARGS  Int32 &, const void * const, const NdbDictionary::Column *
+#define NATIVE_WRITE_ARGS Int32, void * const,  const NdbDictionary::Column *
 
 typedef int    impl_readFromNdb(DECODE_ARGS);
 typedef size_t impl_getStringifiedLength(SFDLEN_ARGS);
 typedef int    impl_writeToNdb(ENCODE_ARGS);
+typedef int    impl_read32(NATIVE_READ_ARGS);
+typedef int    impl_write32(NATIVE_WRITE_ARGS);
 
 /* Implementations for NumericHandlers */
-template<typename INTTYPE> int dth_read32(Int32 &, const void * const);
-template<typename INTTYPE> int dth_write32(Int32, void * const);
-int dth_read32_year(Int32 &, const void * const);
-int dth_write32_year(Int32, void * const);
-int dth_read32_medium(Int32 &, const void * const);
-int dth_write32_medium(Int32, void * const);
-int dth_read32_medium_unsigned(Int32 &, const void * const);
-int dth_write32_medium_unsigned(Int32, void * const);
-
+template<typename INTTYPE> int dth_read32(NATIVE_READ_ARGS);
+template<typename INTTYPE> int dth_write32(NATIVE_WRITE_ARGS);
+impl_read32  dth_read32_year;
+impl_write32 dth_write32_year;
+impl_read32  dth_read32_medium;
+impl_write32 dth_write32_medium;
+impl_read32  dth_read32_medium_unsigned;
+impl_write32 dth_write32_medium_unsigned;
+impl_read32  dth_read32_timestamp2;
+impl_write32 dth_write32_timestamp2;
 
 /* Implementations for readFromNdb() */
 impl_readFromNdb dth_decode_unsupported; 
@@ -83,6 +88,7 @@ impl_readFromNdb dth_decode_datetime;
 impl_readFromNdb dth_decode_float; 
 impl_readFromNdb dth_decode_double; 
 impl_readFromNdb dth_decode_decimal; 
+impl_readFromNdb dth_decode_timestamp2;
 
 
 /* Implementations for impl_getStringifiedLength() */
@@ -104,7 +110,7 @@ impl_getStringifiedLength dth_length_datetime;
 impl_getStringifiedLength dth_length_float;
 impl_getStringifiedLength dth_length_double;
 impl_getStringifiedLength dth_length_decimal;
-
+impl_getStringifiedLength dth_length_timestamp2;
 
 /* Implementations for writeToNdb() */
 impl_writeToNdb dth_encode_unsupported;
@@ -128,6 +134,7 @@ impl_writeToNdb dth_encode_time;
 impl_writeToNdb dth_encode_datetime;
 template<typename T> int dth_encode_fp(ENCODE_ARGS);
 impl_writeToNdb dth_encode_decimal;
+impl_writeToNdb dth_encode_timestamp2;
 
 /* Native Numeric Handlers */
 NumericHandler dth_native_int8   = { dth_read32<Int8>,  dth_write32<Int8>  };
@@ -140,6 +147,8 @@ NumericHandler dth_native_year   = { dth_read32_year, dth_write32_year };
 NumericHandler dth_native_medium = { dth_read32_medium, dth_write32_medium };
 NumericHandler dth_native_medium_unsigned = 
                  { dth_read32_medium_unsigned, dth_write32_medium_unsigned };
+NumericHandler dth_native_timestamp2 = 
+                  { dth_read32_timestamp2, dth_write32_timestamp2};
 
 
 /***** Singleton Handlers *****/
@@ -319,6 +328,13 @@ DataTypeHandler Handler_Decimal = {
   false
 };
 
+DataTypeHandler Handler_Timestamp2 = { 
+  dth_decode_timestamp2,
+  dth_length_timestamp2,
+  dth_encode_timestamp2,
+  & dth_native_timestamp2,
+  false
+};
 
 /*
  * getDataTypeHandlerForColumn() 
@@ -379,6 +395,9 @@ DataTypeHandler * getDataTypeHandlerForColumn(const NdbDictionary::Column *col) 
 
     case NdbDictionary::Column::Datetime:
       return & Handler_Datetime;
+
+    case NdbDictionary::Column::Timestamp2:
+      return & Handler_Timestamp2;
       
     case NdbDictionary::Column::Float:
       return & Handler_Float;
@@ -538,14 +557,16 @@ template<typename INTTYPE> size_t dth_length_u(const NdbDictionary::Column *,
 }
 
 /* read32: read the value from the buffer into an int32 */
-template<typename INTTYPE> int dth_read32(Int32 &result, const void * const buf) {
+template<typename INTTYPE> int dth_read32(Int32 &result, const void * const buf,
+                                          const NdbDictionary::Column *) {
   LOAD_ALIGNED_DATA(INTTYPE, i, buf);
   result = (Int32) i;
   return 1;
 }
 
 /* write32: write an int32 into the buffer */
-template<typename INTTYPE> int dth_write32(Int32 value, void *buf) {
+template<typename INTTYPE> int dth_write32(Int32 value, void *buf,
+                                           const NdbDictionary::Column *) {
   STORE_ALIGNED_DATA(INTTYPE, value, buf);
   return 1;
 }
@@ -680,12 +701,13 @@ int dth_encode_mediumint(const NdbDictionary::Column *col, size_t len,
   return len;
 }
 
-int dth_read32_medium(Int32 &result, const void * const buf) {
+int dth_read32_medium(Int32 &result, const void * const buf, 
+                      const NdbDictionary::Column *) {
   result = sint3korr((char *) buf);
   return 1;
 }
 
-int dth_write32_medium(Int32 value, void *buf) {
+int dth_write32_medium(Int32 value, void *buf, const NdbDictionary::Column *) {
   Int8 *cbuf = (Int8 *) buf;
   cbuf[0] = (Int8) (value);
   cbuf[1] = (Int8) (value >> 8);
@@ -727,12 +749,14 @@ int dth_encode_medium_unsigned(const NdbDictionary::Column *, size_t len,
   return len;
 }
 
-int dth_read32_medium_unsigned(Int32 &result, const void * const buf) {
+int dth_read32_medium_unsigned(Int32 &result, const void * const buf,
+                               const NdbDictionary::Column *) {
   result = uint3korr((char *) buf);
   return 1;
 }
 
-int dth_write32_medium_unsigned(Int32 value, void *buf) {
+int dth_write32_medium_unsigned(Int32 value, void *buf,
+                                const NdbDictionary::Column *) {
   Uint8 *cbuf = (Uint8 *) buf;
   cbuf[0] = (Uint8) (value);
   cbuf[1] = (Uint8) (value >> 8);
@@ -865,13 +889,14 @@ int dth_encode_year(const NdbDictionary::Column *, size_t len,
   return len;
 }
 
-int dth_read32_year(Int32 &result, const void * const buf) {
+int dth_read32_year(Int32 &result, const void * const buf, 
+                    const NdbDictionary::Column *) {
   Uint8 i = *((Uint8 *) buf);
   result = ((Int32) i) + 1900;
   return 1;
 }
 
-int dth_write32_year(Int32 value, void *buf) {
+int dth_write32_year(Int32 value, void *buf, const NdbDictionary::Column *) {
   if(value < 1900 || value > 2155) 
     return 0;
   Uint8 i = (Uint8) (value - 1900);
@@ -938,7 +963,7 @@ int dth_decode_date(const NdbDictionary::Column *, char * &str, const void *buf)
   time_helper tm = { 0,0,0,0,0,0,0, false };
 
   /* Read the encoded date from the buffer */
-  dth_read32_medium_unsigned(encoded_date, buf);
+  dth_read32_medium_unsigned(encoded_date, buf, 0);
 
   /* Unpack the encoded date */
   tm.day   = (encoded_date & 31);  // five bits
@@ -972,7 +997,7 @@ int dth_encode_date(const NdbDictionary::Column *, size_t len,
   encoded_date = (tm.year << 9) | (tm.month << 5) | tm.day;
 
   /* Store the encoded value as an UNSIGNED MEDIUM */
-  return dth_write32_medium_unsigned(encoded_date, (char *) buf);
+  return dth_write32_medium_unsigned(encoded_date, (char *) buf, 0);
 }
 
 
@@ -983,7 +1008,7 @@ int dth_decode_time(const NdbDictionary::Column *, char * &str, const void *buf)
   time_helper tm = { 0,0,0,0,0,0,0, false };
   
   /* Read the integer time from the buffer */
-  dth_read32_medium(int_time, buf);
+  dth_read32_medium(int_time, buf, 0);
   
   /* Factor it out */
   factor_HHMMSS(& tm, int_time);
@@ -1009,7 +1034,7 @@ int dth_encode_time(const NdbDictionary::Column *, size_t len,
   if(! safe_strtol(copybuff.ptr, &int_time)) return DTH_NUMERIC_OVERFLOW;
       
   /* Store the HHMMSS int as a MEDIUM INT */
-  return dth_write32_medium(int_time, (char *) buf);
+  return dth_write32_medium(int_time, (char *) buf, 0);
 }
 
 
@@ -1053,6 +1078,132 @@ int dth_encode_datetime(const NdbDictionary::Column *, size_t len,
   
   return 1;
 }
+
+/***** wl#946 MySQL 5.6: sub-second temporal types ******/
+
+/* buf points to the fractional part */
+int getFraction(const NdbDictionary::Column *col, const void *buf) {
+  int prec  = col->getPrecision();
+  int r = 0;
+  
+  switch(prec) {
+    case 0:
+      break;
+    case 1:
+      dth_read32<Uint8>(r, buf, col);
+      r /= 10;
+      break;
+    case 2:
+      dth_read32<Uint8>(r, buf, col);
+      break;
+    case 3:
+      dth_read32<Uint16>(r, buf, col);
+      r /= 10;
+      break;
+    case 4:
+      dth_read32<Uint16>(r, buf, col);
+      break;
+    case 5:
+      dth_read32_medium_unsigned(r, buf, col);
+      r /= 10;
+      break;
+    case 6:
+      dth_read32_medium_unsigned(r, buf, col);
+      break;
+  }
+    
+  return r;
+}
+
+
+void setFraction(const NdbDictionary::Column *col, int microsec, void *buf) {
+  int val = 0;
+  int prec  = col->getPrecision();
+  
+  switch(prec) {
+    case 6:
+    case 5:
+      val = microsec;
+      dth_write32_medium_unsigned(val, buf, col);
+      break;
+    case 4:
+    case 3:
+      val = microsec / 100;
+      dth_write32<Uint16>(val, buf, col);
+      break;
+    case 2:
+    case 1:
+      val = microsec / 10000;
+      dth_write32<Uint8>(val, buf, col);
+      break;      
+    case 0:
+      break; 
+  }
+
+  return;
+}
+
+
+/***** TIMESTAMP2 *****/
+
+int dth_decode_timestamp2(const NdbDictionary::Column *col, char * &str, 
+                          const void *buf) {
+  int whole, fraction, len;
+  const char * fspbuf = (char *) buf + 4;
+  
+  /* Get the whole number part */
+  dth_read32<Uint32>(whole, buf, col);
+  
+  /* Get the fractional part */
+  fraction = getFraction(col, fspbuf);
+
+  if(fraction) {
+    len = sprintf(str, "%d.%d", whole, fraction);
+  }
+  else {
+    len = printf(str, "%d", whole);
+  }
+  return len;
+}
+
+size_t dth_length_timestamp2(const NdbDictionary::Column *col, const void *buf) {
+  size_t len;
+  int prec = col->getPrecision();
+  
+  len = dth_length_u<Uint32>(col, buf);
+  if(prec > 0) {
+    len += 1;     /* for decimal point */
+    len += prec;  
+  }
+
+  return len;
+}
+
+int dth_encode_timestamp2(const NdbDictionary::Column *col, size_t len, 
+                          const char *str, void *buf) {
+  
+}
+
+/* Read a timestamp into an int32.
+   The fractional part is ignored.
+*/
+int dth_read32_timestamp2(int &result, const void * const buf,
+                          const NdbDictionary::Column *) {
+  LOAD_ALIGNED_DATA(unsigned int, i, buf);
+  result = (Int32) i;
+  return 1;
+}
+
+/* Write a timestamp from an int32.
+   The fractional part is set to zero.
+*/   
+int dth_write32_timestamp2(Int32 value, void *buf, 
+                           const NdbDictionary::Column *col) {
+  int r = dth_write32<unsigned int>(value, buf, col);
+  char * fspbuf = (char *) buf + 4;
+  setFraction(col, 0, fspbuf);
+  return r;
+}                           
 
 
 /***** FLOAT and DOUBLE *****/
