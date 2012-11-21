@@ -4849,7 +4849,7 @@ runDropTabNF(NDBT_Context* ctx, NDBT_Step* step)
   */
   
   NdbRestarter restarter;
-  Uint32 numScenarios = sizeof(DropTabNFScenarios) / sizeof(DropTabNFScenario);
+  int numScenarios = sizeof(DropTabNFScenarios) / sizeof(DropTabNFScenario);
   int numLoops = ctx->getNumLoops();
 
   for (int r=0; r < numLoops; r++)
