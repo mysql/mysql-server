@@ -328,7 +328,9 @@ bool mysql_delete(THD *thd, TABLE_LIST *table_list, COND *conds,
 	 ! thd->is_error())
   {
     if (table->vfield)
-      update_virtual_fields(thd, table);
+      update_virtual_fields(thd, table,
+                            table->triggers ? VCOL_UPDATE_ALL :
+                                              VCOL_UPDATE_FOR_READ);
     thd->examined_row_count++;
     // thd->is_error() is tested to disallow delete row on error
     if (!select || select->skip_record(thd) > 0)

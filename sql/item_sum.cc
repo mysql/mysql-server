@@ -2510,9 +2510,8 @@ Item_sum_hybrid::min_max_update_int_field()
 void
 Item_sum_hybrid::min_max_update_decimal_field()
 {
-  /* TODO: optimize: do not get result_field in case of args[0] is NULL */
   my_decimal old_val, nr_val;
-  const my_decimal *old_nr= result_field->val_decimal(&old_val);
+  const my_decimal *old_nr;
   const my_decimal *nr= args[0]->val_decimal(&nr_val);
   if (!args[0]->null_value)
   {
@@ -2520,16 +2519,17 @@ Item_sum_hybrid::min_max_update_decimal_field()
       old_nr=nr;
     else
     {
+      old_nr= result_field->val_decimal(&old_val);
       bool res= my_decimal_cmp(old_nr, nr) > 0;
       /* (cmp_sign > 0 && res) || (!(cmp_sign > 0) && !res) */
       if ((cmp_sign > 0) ^ (!res))
         old_nr=nr;
     }
     result_field->set_notnull();
+    result_field->store_decimal(old_nr);
   }
   else if (result_field->is_null(0))
     result_field->set_null();
-  result_field->store_decimal(old_nr);
 }
 
 

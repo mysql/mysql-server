@@ -5078,6 +5078,82 @@ SELECT col_int_nokey FROM ot
 
 DROP TABLE ot,it1,it2;
 
+--echo #
+--echo # MDEV-746
+--echo # Bug#13651009 WRONG RESULT FROM DERIVED TABLE IF THE SUBQUERY
+--echo # HAS AN EMPTY RESULT
+--echo #
+
+CREATE TABLE t1 (
+  pk int NOT NULL,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_time_key time NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_time_key (col_time_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  pk int NOT NULL AUTO_INCREMENT,
+  col_int_nokey int NOT NULL,
+  col_int_key int NOT NULL,
+  col_time_key time NOT NULL,
+  col_varchar_key varchar(1) NOT NULL,
+  col_varchar_nokey varchar(1) NOT NULL,
+  PRIMARY KEY (pk),
+  KEY col_int_key (col_int_key),
+  KEY col_time_key (col_time_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+) ENGINE=MyISAM;
+
+INSERT INTO t2 VALUES (1,4,4,'00:00:00','b','b');
+
+SET @var2:=4, @var3:=8;
+
+--echo
+--echo Testcase without inner subquery
+
+let $subq=
+SELECT @var3:=12, sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key + NULL) IS NULL OR
+      sq4_alias1.col_varchar_key = @var3;
+
+eval EXPLAIN $subq;
+eval $subq;
+SELECT @var3;
+
+# Now as derived table:
+eval EXPLAIN SELECT * FROM ( $subq ) AS alias3;
+eval SELECT * FROM ( $subq ) AS alias3;
+SELECT @var3;
+
+--echo
+--echo Testcase with inner subquery; crashed WL#6095
+SET @var3=8;
+let $subq=
+SELECT sq4_alias1.*
+FROM t1 AS sq4_alias1
+WHERE (sq4_alias1.col_varchar_key , sq4_alias1.col_varchar_nokey)
+      NOT IN
+      (SELECT c_sq1_alias1.col_varchar_key AS c_sq1_field1,
+              c_sq1_alias1.col_varchar_nokey AS c_sq1_field2
+       FROM t2 AS c_sq1_alias1
+       WHERE (c_sq1_alias1.col_int_nokey != @var2
+              OR c_sq1_alias1.pk != @var3));
+
+eval EXPLAIN $subq;
+eval $subq;
+# Now as derived table:
+eval EXPLAIN SELECT * FROM ( $subq ) AS alias3;
+eval SELECT * FROM ( $subq ) AS alias3;
+
+DROP TABLE t1,t2;
+
 --echo End of 5.2 tests
 
 --echo #

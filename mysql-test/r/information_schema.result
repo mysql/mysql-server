@@ -1678,6 +1678,12 @@ SELECT length(CAST(b AS CHAR)) FROM ubig;
 length(CAST(b AS CHAR))
 20
 DROP TABLE ubig;
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+1
+grant usage on *.* to mysqltest_1@localhost;
+select 1 from information_schema.tables where table_schema=repeat('a', 2000);
+1
+drop user mysqltest_1@localhost;
 End of 5.1 tests.
 #
 # Additional test for WL#3726 "DDL locking for all metadata objects"

@@ -4669,15 +4669,13 @@ int _ma_read_block_record2(MARIA_HA *info, uchar *record,
                            uchar *data, uchar *end_of_data)
 {
   MARIA_SHARE *share= info->s;
-  uchar *UNINIT_VAR(field_length_data), *blob_buffer, *start_of_data;
+  uchar *UNINIT_VAR(field_length_data), *UNINIT_VAR(blob_buffer), *start_of_data;
   uint flag, null_bytes, cur_null_bytes, row_extents, field_lengths;
   my_bool found_blob= 0;
   MARIA_EXTENT_CURSOR extent;
   MARIA_COLUMNDEF *column, *end_column;
   MARIA_ROW *cur_row= &info->cur_row;
   DBUG_ENTER("_ma_read_block_record2");
-
-  LINT_INIT(blob_buffer);
 
   start_of_data= data;
   flag= (uint) (uchar) data[0];
@@ -5106,6 +5104,7 @@ int _ma_read_block_record(MARIA_HA *info, uchar *record,
   uchar *data, *end_of_data, *buff;
   uint offset;
   uint block_size= share->block_size;
+  int ret;
   DBUG_ENTER("_ma_read_block_record");
   DBUG_PRINT("enter", ("rowid: %lu  page: %lu  rownr: %u",
                        (ulong) record_pos,
@@ -5127,7 +5126,8 @@ int _ma_read_block_record(MARIA_HA *info, uchar *record,
     my_errno= HA_ERR_RECORD_DELETED;           /* File crashed */
     DBUG_RETURN(HA_ERR_RECORD_DELETED);
   }
-  DBUG_RETURN(_ma_read_block_record2(info, record, data, end_of_data));
+  ret= _ma_read_block_record2(info, record, data, end_of_data);
+  DBUG_RETURN(ret);
 }
 
 

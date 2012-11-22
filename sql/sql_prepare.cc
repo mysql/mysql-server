@@ -2505,14 +2505,24 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       */
       if (sl->prep_where)
       {
-        sl->where= sl->prep_where->copy_andor_structure(thd);
+        /*
+          We need this rollback because memory allocated in
+          copy_andor_structure() will be freed
+        */
+        thd->change_item_tree((Item**)&sl->where,
+                              sl->prep_where->copy_andor_structure(thd));
         sl->where->cleanup();
       }
       else
         sl->where= NULL;
       if (sl->prep_having)
       {
-        sl->having= sl->prep_having->copy_andor_structure(thd);
+        /*
+          We need this rollback because memory allocated in
+          copy_andor_structure() will be freed
+        */
+        thd->change_item_tree((Item**)&sl->having,
+                              sl->prep_having->copy_andor_structure(thd));
         sl->having->cleanup();
       }
       else

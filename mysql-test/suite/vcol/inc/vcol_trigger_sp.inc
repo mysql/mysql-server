@@ -108,3 +108,44 @@ select * from t1;
 
 drop table t1,t2;
 drop procedure p1;
+
+--echo #
+--echo # Bug mdev-3845: values of virtual columns are not computed for triggers
+--echo #
+
+CREATE TABLE t1 (
+  a INTEGER UNSIGNED NULL DEFAULT NULL,
+  b INTEGER UNSIGNED GENERATED ALWAYS AS (a) VIRTUAL
+);
+
+CREATE TABLE t2 (c INTEGER UNSIGNED NOT NULL);
+
+DELIMITER |;
+
+CREATE TRIGGER t1_ins_aft
+  AFTER INSERT
+  ON t1
+  FOR EACH ROW
+BEGIN
+  INSERT INTO t2 (c) VALUES (NEW.b);
+END |
+
+CREATE TRIGGER t1_del_bef
+  BEFORE DELETE
+  ON t1
+  FOR EACH ROW
+BEGIN
+  INSERT INTO t2 (c) VALUES (OLD.b);
+END |
+
+DELIMITER ;|
+
+INSERT INTO t1 (a) VALUES (1), (2), (3);
+SELECT * FROM t2;
+DELETE FROM t1;
+SELECT * FROM t2;
+
+DROP TRIGGER t1_ins_aft;
+DROP TRIGGER t1_del_bef;
+DROP TABLE t1,t2;
+

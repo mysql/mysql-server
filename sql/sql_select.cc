@@ -1232,11 +1232,9 @@ JOIN::optimize()
     DBUG_RETURN(1);				// error == -1
   }
   if (const_table_map != found_const_table_map &&
-      !(select_options & SELECT_DESCRIBE) &&
-      (!conds ||
-       !(conds->used_tables() & RAND_TABLE_BIT) ||
-       select_lex->master_unit() == &thd->lex->unit)) // upper level SELECT
+      !(select_options & SELECT_DESCRIBE))
   {
+    // There is at least one empty const table
     zero_result_cause= "no matching row in const table";
     DBUG_PRINT("error",("Error: %s", zero_result_cause));
     error= 0;
@@ -9143,7 +9141,7 @@ void JOIN::drop_unused_derived_keys()
   JOIN_TAB *tab;
   for (tab= first_linear_tab(this, WITHOUT_CONST_TABLES); 
        tab; 
-       tab= next_linear_tab(this, tab, WITHOUT_BUSH_ROOTS))
+       tab= next_linear_tab(this, tab, WITH_BUSH_ROOTS))
   {
     
     TABLE *table=tab->table;
@@ -16498,6 +16496,17 @@ int safe_index_read(JOIN_TAB *tab)
 }
 
 
+/**
+  Reads content of constant table
+
+  @param tab  table
+  @param pos  position of table in query plan
+
+  @retval 0   ok, one row was found or one NULL-complemented row was created
+  @retval -1  ok, no row was found and no NULL-complemented row was created
+  @retval 1   error
+*/
+
 static int
 join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 {
@@ -16616,6 +16625,16 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
 }
 
 
+/**
+  Read a constant table when there is at most one matching row, using a table
+  scan.
+
+  @param tab			Table to read
+
+  @retval  0  Row was found
+  @retval  -1 Row was not found
+  @retval  1  Got an error (other than row not found) during read
+*/
 static int
 join_read_system(JOIN_TAB *tab)
 {
@@ -16648,12 +16667,9 @@ join_read_system(JOIN_TAB *tab)
 
   @param tab			Table to read
 
-  @retval
-    0	Row was found
-  @retval
-    -1   Row was not found
-  @retval
-    1   Got an error (other than row not found) during read
+  @retval  0  Row was found
+  @retval  -1 Row was not found
+  @retval  1  Got an error (other than row not found) during read
 */
 
 static int
@@ -18488,15 +18504,18 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
     */
   
     if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE ||
-        quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT || 
+        quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_INTERSECT ||
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
         quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT)
-      goto use_filesort;
-    ref_key=	   select->quick->index;
-    ref_key_parts= select->quick->used_key_parts;
+      ref_key= MAX_KEY;
+    else
+    {
+      ref_key= select->quick->index;
+      ref_key_parts= select->quick->used_key_parts;
+    }
   }
 
-  if (ref_key >= 0)
+  if (ref_key >= 0 && ref_key != MAX_KEY)
   {
     /*
       We come here when there is a REF key.
@@ -20593,40 +20612,66 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
   res_selected_fields.empty();
   res_all_fields.empty();
 
-  uint i, border= all_fields.elements - elements;
-  for (i= 0; (item= it++); i++)
+  uint border= all_fields.elements - elements;
+  for (uint i= 0; (item= it++); i++)
   {
     Field *field;
-
-    if ((item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM) ||
-        (item->type() == Item::FUNC_ITEM &&
-         ((Item_func*)item)->functype() == Item_func::SUSERVAR_FUNC))
+    if (item->with_sum_func && item->type() != Item::SUM_FUNC_ITEM)
       item_field= item;
-    else
+    else if (item->type() == Item::FIELD_ITEM)
+      item_field= item->get_tmp_table_item(thd);
+    else if (item->type() == Item::FUNC_ITEM &&
+             ((Item_func*)item)->functype() == Item_func::SUSERVAR_FUNC)
     {
-      if (item->type() == Item::FIELD_ITEM)
+      field= item->get_tmp_table_field();
+      if (field != NULL)
       {
-	item_field= item->get_tmp_table_item(thd);
+        /*
+          Replace "@:=<expression>" with "@:=<tmp table column>". Otherwise,
+          we would re-evaluate <expression>, and if expression were
+          a subquery, this would access already-unlocked tables.
+        */
+        Item_func_set_user_var* suv=
+          new Item_func_set_user_var((Item_func_set_user_var*) item);
+        Item_field *new_field= new Item_field(field);
+        if (!suv || !new_field || suv->fix_fields(thd, (Item**)&suv))
+          DBUG_RETURN(true);                  // Fatal error
+        ((Item *)suv)->name= item->name;
+        /*
+          We are replacing the argument of Item_func_set_user_var after its
+          value has been read. The argument's null_value should be set by
+          now, so we must set it explicitly for the replacement argument
+          since the null_value may be read without any preceeding call to
+          val_*().
+        */
+        new_field->update_null_value();
+        List<Item> list;
+        list.push_back(new_field);
+        suv->set_arguments(list);
+        item_field= suv;
       }
-      else if ((field= item->get_tmp_table_field()))
-      {
-	if (item->type() == Item::SUM_FUNC_ITEM && field->table->group)
-	  item_field= ((Item_sum*) item)->result_item(field);
-	else
-	  item_field= (Item*) new Item_field(field);
-	if (!item_field)
-	  DBUG_RETURN(TRUE);                    // Fatal error
+      else
+        item_field= item;
+    }
+    else if ((field= item->get_tmp_table_field()))
+    {
+      if (item->type() == Item::SUM_FUNC_ITEM && field->table->group)
+        item_field= ((Item_sum*) item)->result_item(field);
+      else
+        item_field= (Item*) new Item_field(field);
+      if (!item_field)
+        DBUG_RETURN(true);                    // Fatal error
 
-        if (item->real_item()->type() != Item::FIELD_ITEM)
-          field->orig_table= 0;
-	item_field->name= item->name;
-        if (item->type() == Item::REF_ITEM)
-        {
-          Item_field *ifield= (Item_field *) item_field;
-          Item_ref *iref= (Item_ref *) item;
-          ifield->table_name= iref->table_name;
-          ifield->db_name= iref->db_name;
-        }
+      if (item->real_item()->type() != Item::FIELD_ITEM)
+        field->orig_table= 0;
+      item_field->name= item->name;
+      if (item->type() == Item::REF_ITEM)
+      {
+        Item_field *ifield= (Item_field *) item_field;
+        Item_ref *iref= (Item_ref *) item;
+        ifield->table_name= iref->table_name;
+        ifield->db_name= iref->db_name;
+      }
 #ifndef DBUG_OFF
 	if (!item_field->name)
 	{
@@ -20638,20 +20683,20 @@ change_to_use_tmp_fields(THD *thd, Item **ref_pointer_array,
 	  item_field->name= sql_strmake(str.ptr(),str.length());
 	}
 #endif
-      }
-      else
-	item_field= item;
     }
+    else
+      item_field= item;
+
     res_all_fields.push_back(item_field);
     ref_pointer_array[((i < border)? all_fields.elements-i-1 : i-border)]=
       item_field;
   }
 
   List_iterator_fast<Item> itr(res_all_fields);
-  for (i= 0; i < border; i++)
+  for (uint i= 0; i < border; i++)
     itr++;
   itr.sublist(res_selected_fields, elements);
-  DBUG_RETURN(FALSE);
+  DBUG_RETURN(false);
 }
 
 
@@ -22856,7 +22901,8 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   else
     keys= usable_keys;
 
-  if (ref_key >= 0 && table->covering_keys.is_set(ref_key))
+  if (ref_key >= 0 && ref_key != MAX_KEY &&
+      table->covering_keys.is_set(ref_key))
     ref_key_quick_rows= table->quick_rows[ref_key];
 
   if (join)

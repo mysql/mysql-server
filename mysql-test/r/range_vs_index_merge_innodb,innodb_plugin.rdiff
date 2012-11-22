@@ -1,5 +1,5 @@
---- r/range_vs_index_merge_innodb.result	2012-03-24 17:12:02.124422000 +0100
-+++ r/range_vs_index_merge_innodb,innodb_plugin.reject	2012-03-24 18:00:13.647902620 +0100
+--- ./r/range_vs_index_merge_innodb.result	2012-11-21 19:35:14.000000000 +0100
++++ ./r/range_vs_index_merge_innodb,innodb_plugin.reject	2012-11-21 20:56:00.000000000 +0100
 @@ -50,14 +50,14 @@
  WHERE (Population >= 100000 OR Name LIKE 'P%') AND Country='CAN' OR
  (Population < 100000 OR Name Like 'T%') AND Country='ARG';
@@ -269,3 +269,12 @@
  SELECT Name, Country, Population FROM City WHERE
  (Name='Manila' AND Country='PHL') OR
  (Name='Addis Abeba' AND Country='ETH') OR          
+@@ -1346,7 +1346,7 @@
+ AND (Population >= 100000 AND Population < 120000)
+ ORDER BY Population LIMIT 5;
+ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+-1	SIMPLE	City	range	Country,Name,Population	Population	4	NULL	#	Using index condition; Using where
++1	SIMPLE	City	range	Country,Name,Population	Population	4	NULL	#	Using where
+ FLUSH STATUS;
+ SELECT * FROM City
+ WHERE ((Name > 'Ca' AND Name < 'Cf') OR (Country > 'E' AND Country < 'H'))

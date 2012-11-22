@@ -2394,6 +2394,12 @@ HAVING b > geomfromtext("")
 );
 1
 DROP TABLE t1;
+
+MDEV-612  Valgrind error in  ha_maria::check_if_incompatible_data
+
+CREATE TABLE t1 (a INT, b INT, KEY(a)) ENGINE=Aria PARTITION BY KEY(a) PARTITIONS 2;
+ALTER TABLE t1 ADD KEY (b);
+drop table t1;
 End of 5.1 tests
 #
 # BUG#55385: UPDATE statement throws an error, but still updates

@@ -1569,6 +1569,15 @@ public:
     :Item_func(b), cached_result_type(INT_RESULT),
      entry(NULL), entry_thread_id(0), name(a)
   {}
+  Item_func_set_user_var(Item_func_set_user_var *item)
+    :Item_func(item), cached_result_type(item->cached_result_type),
+     entry(item->entry), entry_thread_id(item->entry_thread_id),
+     value(item->value), decimal_buff(item->decimal_buff),
+     null_item(item->null_item), save_result(item->save_result),
+     name(item->name)
+  {
+    //fixed= 1;
+  }
   enum Functype functype() const { return SUSERVAR_FUNC; }
   double val_real();
   longlong val_int();

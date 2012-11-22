@@ -2395,6 +2395,14 @@ SELECT 1 FROM t1 WHERE b < SOME
 
 DROP TABLE t1;
 
+--echo
+--echo MDEV-612  Valgrind error in  ha_maria::check_if_incompatible_data
+--echo
+
+CREATE TABLE t1 (a INT, b INT, KEY(a)) ENGINE=Aria PARTITION BY KEY(a) PARTITIONS 2;
+ALTER TABLE t1 ADD KEY (b);
+drop table t1;
+
 --echo End of 5.1 tests
 
 --echo #

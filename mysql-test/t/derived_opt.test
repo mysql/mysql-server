@@ -212,5 +212,65 @@ INSERT INTO t1 VALUES ( (SELECT 1 FROM ( SELECT * FROM t1 ) as a) );
 drop table t1;
 set optimizer_switch=@save_optimizer_switch;
 
+--echo #
+--echo # MDEV-3801 Reproducible sub select join crash on 5.3.8 and 5.3.9 
+--echo #
+
+CREATE TABLE t1 (
+  pk int(10) unsigned NOT NULL AUTO_INCREMENT,
+  a char(2) DEFAULT NULL,
+  PRIMARY KEY (pk),
+  KEY a (a)
+) ENGINE=MyISAM;
+INSERT INTO t1 (a)
+VALUES (NULL),(NULL),(NULL),('AB'),(NULL),('CD'),(NULL),(NULL);
+INSERT INTO t1 SELECT NULL, a1.a FROM t1 a1, t1 a2, t1 a3, t1 a4, t1 a5;
+
+CREATE TABLE t2 (
+  pk int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
+INSERT INTO t2 SELECT NULL FROM t2 a1, t2 a2, t2 a3, t2 a4, t2 a5;
+
+CREATE TABLE t3 (
+  pk int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY
+) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL),(NULL);
+INSERT INTO t3 SELECT NULL FROM t3 a1, t3 a2, t3 a3, t3 a4, t3 a5;
+
+CREATE TABLE t4 (
+  a char(2) NOT NULL DEFAULT '',
+  PRIMARY KEY (a)
+) ENGINE=MyISAM;
+INSERT INTO t4 VALUES ('CD');
+
+set @@tmp_table_size=8192;
+
+--replace_column 9 #
+EXPLAIN
+SELECT * FROM t3 AS tx JOIN t2 AS ty ON (tx.pk = ty.pk)
+WHERE
+  tx.pk IN
+  (SELECT *
+   FROM (SELECT DISTINCT ta.pk
+         FROM t3 AS ta
+              JOIN t2 AS tb ON (ta.pk = tb.pk)
+              JOIN t1 AS tc ON (tb.pk = tc.pk)
+              JOIN t4 AS td ON tc.a = td.a) tu)
+limit 10;
+
+SELECT * FROM t3 AS tX JOIN t2 AS tY ON (tX.pk = tY.pk)
+WHERE
+  tX.pk IN
+  (SELECT *
+   FROM (SELECT DISTINCT tA.pk
+         FROM t3 AS tA
+              JOIN t2 AS tB ON (tA.pk = tB.pk)
+              JOIN t1 AS tC ON (tB.pk = tC.pk)
+              JOIN t4 AS tD ON tC.a = tD.a) tU)
+limit 10;
+
+drop table t1, t2, t3, t4;
+
 # The following command must be the last one the file 
 set optimizer_switch=@exit_optimizer_switch;

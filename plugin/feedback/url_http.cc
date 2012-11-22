@@ -261,18 +261,21 @@ int Url_http::send(const char* data, size_t data_length)
       Extract the first string between <h1>...</h1> tags
       and put it as a server reply into the error log.
     */
+    len= 0;
     for (;;)
     {
-      size_t i= vio_read(vio, (uchar*)buf + len, sizeof(buf) - len - 1);
+      size_t i= sizeof(buf) - len - 1;
+      if (i)
+        i= vio_read(vio, (uchar*)buf + len, i);
       if ((int)i <= 0)
         break;
       len+= i;
     }
-    if (len && len < sizeof(buf))
+    if (len)
     {
       char *from;
 
-      buf[len+1]= 0; // safety
+      buf[len]= 0; // safety
 
       if ((from= strstr(buf, "<h1>")))
       {

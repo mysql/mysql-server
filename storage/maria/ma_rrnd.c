@@ -30,6 +30,7 @@
 
 int maria_rrnd(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
 {
+  int ret;
   DBUG_ENTER("maria_rrnd");
 
   DBUG_ASSERT(filepos != HA_OFFSET_ERROR);
@@ -40,5 +41,6 @@ int maria_rrnd(MARIA_HA *info, uchar *buf, MARIA_RECORD_POS filepos)
     DBUG_RETURN(my_errno);
 
   info->cur_row.lastpos= filepos;               /* Remember for update */
-  DBUG_RETURN((*info->s->read_record)(info, buf, filepos));
+  ret= (*info->s->read_record)(info, buf, filepos);
+  DBUG_RETURN(ret);
 }

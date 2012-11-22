@@ -2484,9 +2484,10 @@ int ha_maria::info(uint flag)
     errkey= maria_info.errkey;
     my_store_ptr(dup_ref, ref_length, maria_info.dup_key_pos);
   }
-  /* Faster to always update, than to do it based on flag */
-  stats.update_time= maria_info.update_time;
-  stats.auto_increment_value= maria_info.auto_increment;
+  if (flag & HA_STATUS_TIME)
+    stats.update_time= maria_info.update_time;
+  if (flag & HA_STATUS_AUTO)
+    stats.auto_increment_value= maria_info.auto_increment;
 
   return 0;
 }

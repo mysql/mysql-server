@@ -3263,6 +3263,7 @@ btr_compress(
 
 	if (adjust) {
 		nth_rec = page_rec_get_n_recs_before(btr_cur_get_rec(cursor));
+		ut_ad(nth_rec > 0);
 	}
 
 	/* Decide the page to which we try to merge and which will inherit
@@ -3498,6 +3499,7 @@ func_exit:
 	mem_heap_free(heap);
 
 	if (adjust) {
+		ut_ad(nth_rec > 0);
 		btr_cur_position(
 			index,
 			page_rec_get_nth(merge_block->frame, nth_rec),
@@ -4011,8 +4013,22 @@ btr_index_page_validate(
 {
 	page_cur_t	cur;
 	ibool		ret	= TRUE;
+#ifndef DBUG_OFF
+	ulint		nth	= 1;
+#endif /* !DBUG_OFF */
 
 	page_cur_set_before_first(block, &cur);
+
+	/* Directory slot 0 should only contain the infimum record. */
+	DBUG_EXECUTE_IF("check_table_rec_next",
+			ut_a(page_rec_get_nth_const(
+				     page_cur_get_page(&cur), 0)
+			     == cur.rec);
+			ut_a(page_dir_slot_get_n_owned(
+				     page_dir_get_nth_slot(
+					     page_cur_get_page(&cur), 0))
+			     == 1););
+
 	page_cur_move_to_next(&cur);
 
 	for (;;) {
@@ -4025,6 +4041,16 @@ btr_index_page_validate(
 
 			return(FALSE);
 		}
+
+		/* Verify that page_rec_get_nth_const() is correctly
+		retrieving each record. */
+		DBUG_EXECUTE_IF("check_table_rec_next",
+				ut_a(cur.rec == page_rec_get_nth_const(
+					     page_cur_get_page(&cur),
+					     page_rec_get_n_recs_before(
+						     cur.rec)));
+				ut_a(nth++ == page_rec_get_n_recs_before(
+					     cur.rec)););
 
 		page_cur_move_to_next(&cur);
 	}
