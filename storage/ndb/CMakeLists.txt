@@ -59,12 +59,16 @@ IF(CMAKE_CXX_FLAGS)
 ENDIF()
 
 # Disable specific types of warnings for storage/ndb
-# NOTE! gcc allow -Wno-<warning> also for unrecognized
-# options, thus safe for older compiler versions
+# if the compiler supports the flag
 IF(CMAKE_COMPILER_IS_GNUCXX)
+  INCLUDE(CheckCXXCompilerFlag)
   FOREACH(warning "unused-but-set-variable")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" flag_supported)
+    IF(flag_supported)
+      MESSAGE(STATUS "Disabling -W${warning} warning")
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
+      SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
+    ENDIF()
   ENDFOREACH()
 ENDIF()
 
