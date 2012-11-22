@@ -2908,11 +2908,7 @@ void my_init_signals(void)
 #ifdef HAVE_STACKTRACE
     my_init_stacktrace();
 #endif
-#if defined(__amiga__)
-    sa.sa_handler=(void(*)())handle_fatal_signal;
-#else
     sa.sa_handler=handle_fatal_signal;
-#endif
     sigaction(SIGSEGV, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
 #ifdef SIGBUS

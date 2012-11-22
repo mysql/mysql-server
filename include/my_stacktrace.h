@@ -19,8 +19,7 @@
 #include <my_global.h>
 
 #ifdef TARGET_OS_LINUX
-#if defined (__x86_64__) || defined (__i386__) || \
-    (defined(__alpha__) && defined(__GNUC__))
+#if defined (__x86_64__) || defined (__i386__)
 #define HAVE_STACKTRACE 1
 #endif
 #elif defined(__WIN__) || defined(HAVE_PRINTSTACK)

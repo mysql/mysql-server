@@ -697,10 +697,8 @@ static struct my_option my_long_options[] =
     &opt_mysql_unix_port, &opt_mysql_unix_port, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #include <sslopt-longopts.h>
-#ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", &user,
     &user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"verbose", 'v',
    "More verbose output; you can use this multiple times to get even more "
    "verbose output.", &verbose, &verbose, 0, GET_NO_ARG, NO_ARG,

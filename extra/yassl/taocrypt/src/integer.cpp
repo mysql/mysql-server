@@ -161,17 +161,6 @@ DWord() {}
         #elif defined(_M_X64) || defined(_M_IA64)
             r.halfs_.low = _umul128(a, b, &r.halfs_.high);
 
-        #elif defined(__alpha__)
-            r.halfs_.low = a*b;
-            #ifdef __GNUC__
-                __asm__("umulh %1,%2,%0" : "=r" (r.halfs_.high)
-                    : "r" (a), "r" (b));
-            #elif defined(__DECCXX)
-                r.halfs_.high = asm("umulh %a0, %a1, %v0", a, b);
-            #else
-                #error unknown alpha compiler
-            #endif
-
         #elif defined(__ia64__)
             r.halfs_.low = a*b;
             __asm__("xmpy.hu %0=%1,%2" : "=f" (r.halfs_.high)
