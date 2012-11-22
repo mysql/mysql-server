@@ -3079,8 +3079,7 @@ row_discard_tablespace_for_mysql(
 			table_name, sizeof(table_name), table->name, FALSE);
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			    ER_TABLE_TEMPORARY_TABLE_IMPORT_DISCARD,
-			    table_name);
+			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
 
 		err = DB_ERROR;
 
@@ -4230,18 +4229,15 @@ check_next_foreign:
 				   "WHERE NAME = :table_name;\n"
 				   "END;\n"
 				   , FALSE, trx);
-	}
-	else
-	{
+	} else {
 		page_no = page_nos;
+		err = DB_SUCCESS;
 		for (dict_index_t* index = dict_table_get_first_index(table);
 		     index != NULL;
 		     index = dict_table_get_next_index(index)) {
 			/* remove the index object associated. */
 			dict_drop_index_tree(index, *page_no++);
-			err = DB_SUCCESS;
 		}
-
 	}
 
 	switch (err) {

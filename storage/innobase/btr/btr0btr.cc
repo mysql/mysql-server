@@ -1649,7 +1649,7 @@ btr_free_but_not_root(
 						in bytes or 0 for uncompressed
 						pages */
 	ulint			root_page_no,	/*!< in: root page number */
-	const dict_index_t*	index)		/*!< in: index */
+	bool			is_temp_table)	/*!< in: true if temp-table */
 {
 	ibool	finished;
 	page_t*	root;
@@ -1657,7 +1657,7 @@ btr_free_but_not_root(
 
 leaf_loop:
 	mtr_start(&mtr);
-	if (index != NULL && dict_table_is_temporary(index->table)) {
+	if(is_temp_table) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 	}
 
@@ -1683,7 +1683,7 @@ leaf_loop:
 	}
 top_loop:
 	mtr_start(&mtr);
-	if (index != NULL && dict_table_is_temporary(index->table)) {
+	if(is_temp_table) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
 	}
 

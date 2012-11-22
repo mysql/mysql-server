@@ -414,7 +414,7 @@ btr_free_but_not_root(
 						size in bytes or 0 for
 						uncompressed pages */
 	ulint                   root_page_no,	/*!< in: root page number */
-	const dict_index_t*     index);		/*!< in: index */
+	bool			is_temp_table);	/*!< in: true if temp-table */
 /************************************************************//**
 Frees the B-tree root page. Other tree MUST already have been freed. */
 UNIV_INTERN
