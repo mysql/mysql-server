@@ -97,9 +97,6 @@ IF(NOT MYSQL_CLUSTER_VERSION)
  # Online alter table not supported in non MySQL Cluster
  # versions yet, compile ndbcluster without online alter support
  ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
- # Distributed privilege tables not supported in non
- # MySQL Cluster version yet, compile ndbcluster without dist priv
- ADD_DEFINITIONS(-DNDB_WITHOUT_DIST_PRIV)
  # Pushdown of join queries not supported in non
  # MySQL Cluster version yet, compile ndbcluster without it
  ADD_DEFINITIONS(-DNDB_WITHOUT_JOIN_PUSHDOWN)
