@@ -1085,6 +1085,23 @@ static void ndb_notify_tables_writable()
   pthread_mutex_unlock(&ndbcluster_mutex);
 }
 
+
+#ifdef NDB_WITHOUT_MAKE_DB_LIST
+/*
+  Declare LOOKUP_FIELD_VALUES and make_db_list() until
+  stable interface to list available databases exist
+*/
+typedef struct st_lookup_field_values
+{
+  LEX_STRING db_value, table_value;
+  bool wild_db_value, wild_table_value;
+} LOOKUP_FIELD_VALUES;
+
+int make_db_list(THD *thd, List<LEX_STRING> *files,
+                 LOOKUP_FIELD_VALUES *lookup_field_vals,
+                 bool *with_i_schema);
+#endif
+
 /*
 
  */

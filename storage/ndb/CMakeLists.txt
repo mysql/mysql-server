@@ -100,6 +100,9 @@ IF(NOT MYSQL_CLUSTER_VERSION)
  # Pushdown of join queries not supported in non
  # MySQL Cluster version yet, compile ndbcluster without it
  ADD_DEFINITIONS(-DNDB_WITHOUT_JOIN_PUSHDOWN)
+ # The function 'make_db_list' i not available in non
+ # MySQL Cluster version yet, compile ndbcluster without it
+ ADD_DEFINITIONS(-DNDB_WITHOUT_MAKE_DB_LIST)
 ENDIF()
 
 SET(is_default_plugin "")
