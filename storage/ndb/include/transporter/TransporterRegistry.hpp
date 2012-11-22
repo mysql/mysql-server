@@ -108,13 +108,13 @@ struct TransporterReceiveData
   NodeBitmask m_transporters;
 
   /**
-   * Bitmask of transporters having data awaiting to be received
+   * Bitmask of nodes having data awaiting to be received
    * from its transporter.
    */
   NodeBitmask m_recv_transporters;
 
   /**
-   * Bitmask of transporters that has already received data buffered
+   * Bitmask of nodes that has already received data buffered
    * inside its transporter. Possibly "carried over" from last 
    * performReceive
    */
