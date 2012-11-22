@@ -2068,39 +2068,56 @@ dumpJobQueues(void)
 }
 
 /**
- * Transporter will receive 1024 signals (MAX_RECEIVED_SIGNALS)
- * before running check_job_buffers
+ * Receive thread will unpack 1024 signals (MAX_RECEIVED_SIGNALS)
+ * from Transporters before running another check_recv_queue
  *
- * This function returns 0 if there is space to receive this amount of
- *   signals
- * else 1
+ * This function returns true if there is not space to unpack
+ * this amount of signals, else false.
+ *
+ * Also used as callback function from yield() to recheck
+ * 'full' condition before going to sleep.
  */
-static int
-check_job_buffers(struct thr_repository* rep, Uint32 recv_thread_id)
+static bool
+check_recv_queue(void *arg)
 {
+  thr_job_queue_head *q_head = static_cast<thr_job_queue_head*>(arg);
+
   const Uint32 minfree = (1024 + MIN_SIGNALS_PER_PAGE - 1)/MIN_SIGNALS_PER_PAGE;
-  unsigned thr_no = first_receiver_thread_no + recv_thread_id;
-  const thr_data_aligned *thr_align_ptr = rep->m_thread;
+  /**
+   * NOTE: m_read_index is read wo/ lock (and updated by different thread)
+   *       but since the different thread can only consume
+   *       signals this means that the value returned from this
+   *       function is always conservative (i.e it can be better than
+   *       returned value, if read-index has moved but we didnt see it)
+   */
+  const unsigned ri = q_head->m_read_index;
+  const unsigned wi = q_head->m_write_index;
+  const unsigned busy = (wi >= ri) ? wi - ri : (thr_job_queue::SIZE - ri) + wi;
+  return (1 + minfree + busy >= thr_job_queue::SIZE);
+}
+
+/**
+ * Check if any of the receive queues for the threads being served
+ * by this receive thread, are full.
+ * If full: Return 'Thr_data*' for (one of) the thread(s)
+ *          which we have to wait for. (to consume from queue)
+ */
+static struct thr_data*
+get_congested_recv_queue(struct thr_repository* rep, Uint32 recv_thread_id)
+{
+  const unsigned thr_no = first_receiver_thread_no + recv_thread_id;
+  thr_data_aligned *thr_align_ptr = rep->m_thread;
+
   for (unsigned i = 0; i<num_threads; i++, thr_align_ptr++)
   {
-    /**
-     * NOTE: m_read_index is read wo/ lock (and updated by different thread)
-     *       but since the different thread can only consume
-     *       signals this means that the value returned from this
-     *       function is always conservative (i.e it can be better than
-     *       returned value, if read-index has moved but we didnt see it)
-     */
-    const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
-    const thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
-    unsigned ri = q_head->m_read_index;
-    unsigned wi = q_head->m_write_index;
-    unsigned busy = (wi >= ri) ? wi - ri : (thr_job_queue::SIZE - ri) + wi;
-    if (1 + minfree + busy >= thr_job_queue::SIZE)
+    struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
+    thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
+    if (check_recv_queue(q_head))
     {
-      return 1;
+      return thrptr;
     }
   }
-  return 0;
+  return NULL;
 }
 
 /**
@@ -2266,41 +2283,22 @@ int
 mt_checkDoJob(Uint32 recv_thread_idx)
 {
   struct thr_repository* rep = &g_thr_repository;
-  if (unlikely(check_job_buffers(rep, recv_thread_idx)))
-  {
-    do 
-    {
-      /**
-       * theoretically (or when we do single threaded by using ndbmtd with
-       * all in same thread) we should execute signals here...to 
-       * prevent dead-lock, but...with current ndbmtd only TRPMAN runs in
-       * this thread, and other thread is waiting for TRPMAN 
-       * except for QMGR open/close connection, but that is not
-       * (i think) sufficient to create a deadlock
-       */
 
-      /** FIXME:
-       *  On a CMT chip where #CPU >= #NDB-threads sched_yield() is
-       *  effectively a NOOP as there will normally be an idle CPU available
-       *  to immediately resume thread execution.
-       *  On a Niagara chip this may severely impact performance as the CPUs
-       *  are virtualized by timemultiplexing the physical core.
-       *  The thread should really be 'parked' on
-       *  a condition to free its execution resources.
-       */
-//    usleep(a-few-usec);  /* A micro-sleep would likely have been better... */
-#if defined HAVE_SCHED_YIELD
-      sched_yield();
-#elif defined _WIN32
-      SwitchToThread();
-#else
-      NdbSleep_MilliSleep(0);
-#endif
-
-    } while (check_job_buffers(rep, recv_thread_idx));
-  }
-
-  return 0;
+  /**
+   * Return '1' if we are not allowed to receive more signals
+   * into the job buffers from this 'recv_thread_idx'.
+   *
+   * NOTE:
+   *   We should not loop-wait for buffers to become available
+   *   here as we currently hold the receiver-lock. Furthermore
+   *   waiting too long here could cause the receiver thread to be
+   *   less responsive wrt. moving incoming (TCP) data from the 
+   *   TCPTransporters into the (local) receiveBuffers.
+   *   The thread could also oversleep on its other tasks as 
+   *   handling open/close of connections, and catching 
+   *   its own shutdown events
+   */
+  return (get_congested_recv_queue(rep, recv_thread_idx) != NULL);
 }
 
 /**
@@ -3655,13 +3653,33 @@ mt_receiver_thread_main(void *thr_arg)
     has_received = false;
     if (globalTransporterRegistry.pollReceive(1, recvdata))
     {
-      if (check_job_buffers(rep, recv_thread_idx) == 0)
+      watchDogCounter = 8;
+      lock(&rep->m_receive_lock[recv_thread_idx]);
+      const bool buffersFull = (globalTransporterRegistry.performReceive(recvdata) != 0);
+      unlock(&rep->m_receive_lock[recv_thread_idx]);
+      has_received = true;
+
+      if (buffersFull)       /* Receive queues(s) are full */
       {
-	watchDogCounter = 8;
-        lock(&rep->m_receive_lock[recv_thread_idx]);
-        globalTransporterRegistry.performReceive(recvdata);
-        unlock(&rep->m_receive_lock[recv_thread_idx]);
-        has_received = true;
+        thr_data* waitthr = get_congested_recv_queue(rep, recv_thread_idx);
+        if (waitthr != NULL) /* Will wait for buffers to be freed */
+        {
+          /**
+           * Wait for thread 'waitthr' to consume some of the
+           * pending signals in m_in_queue previously received 
+           * from this receive thread, 'thr_no'.
+           * Will recheck queue status with 'check_recv_queue' after latch
+           * has been set, and *before* going to sleep.
+           */
+          const Uint32 nano_wait = 1000*1000;    /* -> 1 ms */
+          thr_job_queue_head *wait_queue = waitthr->m_in_queue_head + thr_no;
+
+          const bool waited = yield(&wait_queue->m_waiter,
+                                    nano_wait,
+                                    check_recv_queue,
+                                    wait_queue);
+          (void)waited;
+        }
       }
     }
     selfptr->m_stat.m_loop_cnt++;
