@@ -62,7 +62,7 @@ static int validate_password_length;
 static int validate_password_number_count;
 static int validate_password_mixed_case_count;
 static int validate_password_special_char_count;
-static ulong validate_password_policy_number;
+static ulong validate_password_policy;
 static char *validate_password_dictionary_file;
 
 /* To read dictionary file into std::set */
@@ -147,7 +147,8 @@ static int validate_dictionary_check(mysql_string_handle password)
   return (1);
 }
 
-static int validate_password_policy(mysql_string_handle password, int policy)
+static int validate_password_policy_strength(mysql_string_handle password,
+                                             int policy)
 {
   int has_digit= 0;
   int has_lower= 0;
@@ -194,7 +195,7 @@ static int validate_password_policy(mysql_string_handle password, int policy)
 /* Actual plugin function which acts as a wrapper */
 static int validate_password(mysql_string_handle password)
 {
-  return validate_password_policy(password, validate_password_policy_number);
+  return validate_password_policy_strength(password, validate_password_policy);
 }
 
 /* Password strength between (0-100) */
@@ -216,7 +217,7 @@ static int get_password_strength(mysql_string_handle password)
   else
   {
     policy= PASSWORD_POLICY_LOW;
-    if (validate_password_policy(password, PASSWORD_POLICY_MEDIUM))
+    if (validate_password_policy_strength(password, PASSWORD_POLICY_MEDIUM))
     {
       policy= PASSWORD_POLICY_MEDIUM;
       if (validate_dictionary_check(password))
@@ -278,7 +279,7 @@ static MYSQL_SYSVAR_INT(special_char_count,
   "password validate special to ensure minimum special character in password",
   NULL, NULL, 1, 0, 0, 0);
 
-static MYSQL_SYSVAR_ENUM(policy_number, validate_password_policy_number,
+static MYSQL_SYSVAR_ENUM(policy, validate_password_policy,
   PLUGIN_VAR_RQCMDARG,
   "password_validate_policy choosen policy to validate password"
   "possible values are LOW MEDIUM (default), STRONG",
@@ -294,7 +295,7 @@ static struct st_mysql_sys_var* validate_password_system_variables[]= {
   MYSQL_SYSVAR(number_count),
   MYSQL_SYSVAR(mixed_case_count),
   MYSQL_SYSVAR(special_char_count),
-  MYSQL_SYSVAR(policy_number),
+  MYSQL_SYSVAR(policy),
   MYSQL_SYSVAR(dictionary_file),
   NULL
 };
