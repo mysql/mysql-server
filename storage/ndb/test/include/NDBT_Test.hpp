@@ -31,6 +31,7 @@
 #include <NdbApi.hpp>
 #include <NdbDictionary.hpp>
 #include <ndb_rand.h>
+#include "../../src/ndbapi/ndb_cluster_connection_impl.hpp"
 
 class NDBT_Step;
 class NDBT_TestCase;
@@ -107,6 +108,10 @@ public:
    */
   bool closeToTimeout(int safety_percent = 0);
 
+  /**
+   * Get config by beeing friend to ndb_cluster_connection_impl - ugly
+   */
+  NdbApiConfig const& getConfig() const;
 private:
   friend class NDBT_Step;
   friend class NDBT_TestSuite;
