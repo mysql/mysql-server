@@ -2111,4 +2111,45 @@ FROM t2
 GROUP BY 1;
 a
 DROP TABLE t1, t2;
+#
+#  Bug #1002146: Unneeded filesort if usage of join buffer is not allowed
+#  (bug mdev-645)
+#
+CREATE TABLE t1 (pk int PRIMARY KEY, a int, INDEX idx(a));
+INSERT INTO t1 VALUES (3,2), (2,3), (5,3), (6,4);
+CREATE TABLE t2 (pk int PRIMARY KEY, a int, INDEX idx(a));
+INSERT INTO t2 VALUES (9,0), (10,3), (6,4), (1,6), (3,100), (5,200);
+set join_cache_level=0;
+EXPLAIN
+SELECT t2.a FROM t2 STRAIGHT_JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+GROUP BY t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	idx	idx	5	NULL	5	Using where; Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using index
+SELECT t2.a FROM t2 STRAIGHT_JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+GROUP BY t2.a;
+a
+3
+4
+100
+200
+set join_cache_level=default;
+set @save_optimizer_switch=@@optimizer_switch;
+set optimizer_switch='outer_join_with_cache=off';
+EXPLAIN
+SELECT t2.a FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+GROUP BY t2.a;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	range	idx	idx	5	NULL	5	Using where; Using index
+1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	4	Using where; Using index
+SELECT t2.a FROM t2 LEFT JOIN t1 ON t2.a <> 0 WHERE t2.a <> 6
+GROUP BY t2.a;
+a
+0
+3
+4
+100
+200
+set optimizer_switch=@save_optimizer_switch;
+DROP TABLE t1,t2;
 # End of 5.3 tests

@@ -7422,8 +7422,9 @@ get_best_combination(JOIN *join)
     if ( !(keyuse= join->best_positions[tablenr].key))
     {
       j->type=JT_ALL;
-      if (tablenr != join->const_tables)
-	join->full_join=1;
+      if (join->best_positions[tablenr].use_join_buffer &&
+          tablenr != join->const_tables)
+	join->full_join= 1;
     }
 
     /*if (join->best_positions[tablenr].sj_strategy == SJ_OPT_LOOSE_SCAN)
@@ -8436,7 +8437,9 @@ make_join_select(JOIN *join,SQL_SELECT *select,COND *cond)
           We will use join cache here : prevent sorting of the first
           table only and sort at the end.
         */
-        if (i != join->const_tables && join->table_count > join->const_tables + 1)
+        if (i != join->const_tables &&
+            join->table_count > join->const_tables + 1 &&
+            join->best_positions[i].use_join_buffer)
           join->full_join= 1;
       }
 
