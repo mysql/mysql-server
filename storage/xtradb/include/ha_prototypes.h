@@ -111,7 +111,7 @@ UNIV_INTERN
 ibool
 thd_is_replication_slave_thread(
 /*============================*/
-	void*	thd);	/*!< in: thread handle (THD*) */
+	const void*	thd);	/*!< in: thread handle (THD*) */
 
 /******************************************************************//**
 Returns true if the transaction this thread is processing has edited

@@ -1543,7 +1543,8 @@ innobase_start_or_create_for_mysql(void)
 			((double) srv_buf_pool_size) / (1024 * 1024));
 	}
 
-	err = buf_pool_init(srv_buf_pool_size, srv_buf_pool_instances);
+	err = buf_pool_init(srv_buf_pool_size, (ibool) srv_buf_pool_populate,
+			    srv_buf_pool_instances);
 
 	ut_print_timestamp(stderr);
 	fprintf(stderr,

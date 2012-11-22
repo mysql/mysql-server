@@ -3650,11 +3650,18 @@ bitmap_fail:
 
 		root = ibuf_tree_root_get(&mtr);
 
-		err = btr_cur_pessimistic_insert(BTR_NO_LOCKING_FLAG
-						 | BTR_NO_UNDO_LOG_FLAG,
-						 cursor,
-						 ibuf_entry, &ins_rec,
-						 &dummy_big_rec, 0, thr, &mtr);
+		err = btr_cur_optimistic_insert(
+			BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG,
+			cursor, ibuf_entry, &ins_rec,
+			&dummy_big_rec, 0, thr, &mtr);
+
+		if (err == DB_FAIL) {
+			err = btr_cur_pessimistic_insert(
+				BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG,
+				cursor, ibuf_entry, &ins_rec,
+				&dummy_big_rec, 0, thr, &mtr);
+		}
+
 		mutex_exit(&ibuf_pessimistic_insert_mutex);
 		ibuf_size_update(root, &mtr);
 		mutex_exit(&ibuf_mutex);

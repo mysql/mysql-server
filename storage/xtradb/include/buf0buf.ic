@@ -36,6 +36,8 @@ Created 11/5/1995 Heikki Tuuri
 #include "buf0lru.h"
 #include "buf0rea.h"
 #include "srv0srv.h"
+#include "buf0types.h"
+
 /*********************************************************************//**
 Gets the current size of buffer buf_pool in bytes.
 @return size in bytes */
@@ -1353,5 +1355,22 @@ buf_pool_page_hash_x_unlock_all(void)
 		buf_pool = buf_pool_from_array(i);
 		rw_lock_x_unlock(&buf_pool->page_hash_latch);
 	}
+}
+/*********************************************************************//**
+Get the nth chunk's buffer block in the specified buffer pool.
+@return the nth chunk's buffer block. */
+UNIV_INLINE
+buf_block_t*
+buf_get_nth_chunk_block(
+/*====================*/
+	const buf_pool_t* buf_pool,	/*!< in: buffer pool instance */
+	ulint		n,		/*!< in: nth chunk in the buffer pool */
+	ulint*		chunk_size)	/*!< in: chunk size */
+{
+	const buf_chunk_t*	chunk;
+
+	chunk = buf_pool->chunks + n;
+	*chunk_size = chunk->size;
+	return(chunk->blocks);
 }
 #endif /* !UNIV_HOTBACKUP */

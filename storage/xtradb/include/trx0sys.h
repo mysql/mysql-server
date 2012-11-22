@@ -342,6 +342,14 @@ void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
 /*****************************************************************//**
+Prints to stderr the MySQL master log offset info in the trx system header
+COMMIT set of fields if the magic number shows it valid and stores it
+in global variables. */
+UNIV_INTERN
+void
+trx_sys_print_committed_mysql_master_log_pos(void);
+/*==============================================*/
+/*****************************************************************//**
 Prints to stderr the MySQL master log offset info in the trx system header if
 the magic number shows it valid. */
 UNIV_INTERN
@@ -534,9 +542,15 @@ We must remember this limit in order to keep file compatibility. */
 //# error "UNIV_PAGE_SIZE < 4096"
 //#endif
 /** The offset of the MySQL replication info in the trx system header;
-this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
+this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below.  These are
+written at prepare time and are the main copy. */
 #define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
 #define TRX_SYS_MYSQL_RELAY_LOG_INFO	(UNIV_PAGE_SIZE - 1500)
+
+/** The copy of the above which is made at transaction COMMIT time. If binlog
+crash recovery rollbacks a PREPAREd transaction, they are copied back. */
+#define TRX_SYS_COMMIT_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 3000)
+#define TRX_SYS_COMMIT_RELAY_LOG_INFO	(UNIV_PAGE_SIZE - 2500)
 
 /** The offset of the MySQL binlog offset info in the trx system header */
 #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)

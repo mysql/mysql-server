@@ -54,7 +54,7 @@ Created 1/20/1994 Heikki Tuuri
 #define INNODB_VERSION_BUGFIX	8
 
 #ifndef PERCONA_INNODB_VERSION
-#define PERCONA_INNODB_VERSION 29.0
+#define PERCONA_INNODB_VERSION 29.1
 #endif
 
 /* The following is the InnoDB version as shown in

@@ -2384,7 +2384,7 @@ buf_LRU_free_one_page(
 #endif
 	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
-	ut_ad(buf_pool_mutex_own(buf_pool));
+	ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 	ut_ad(mutex_own(block_mutex));
 
 	if (buf_LRU_block_remove_hashed_page(bpage, TRUE)

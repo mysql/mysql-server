@@ -29,7 +29,7 @@ select "---- -v -v -t ------" as "";
 DROP TABLE t1, t2;
 
 
-if (`select count(*) from information_schema.plugins where plugin_name='innodb' and plugin_auth_version > "1.1.8-29.0"`)
+if (`select count(*) from information_schema.plugins where plugin_name='innodb' and plugin_auth_version > "1.1.8-29.1"`)
 {
 # because of lp:1066512 this test shows xtradb I_S plugins, even when
 # xtradb is supposed to be disabled

@@ -32,12 +32,25 @@ Created 9/30/1995 Heikki Tuuri
 #include "ut0mem.h"
 #include "ut0byte.h"
 
+/* Linux release version */
+#if defined(UNIV_LINUX) && defined(_GNU_SOURCE)
+#include <string.h>		/* strverscmp() */
+#include <sys/utsname.h>	/* uname() */
+#endif
+
 /* FreeBSD for example has only MAP_ANON, Linux has MAP_ANONYMOUS and
 MAP_ANON but MAP_ANON is marked as deprecated */
 #if defined(MAP_ANONYMOUS)
 #define OS_MAP_ANON	MAP_ANONYMOUS
 #elif defined(MAP_ANON)
 #define OS_MAP_ANON	MAP_ANON
+#endif
+
+/* Linux's MAP_POPULATE */
+#if defined(MAP_POPULATE)
+#define OS_MAP_POPULATE	MAP_POPULATE
+#else
+#define OS_MAP_POPULATE	0
 #endif
 
 UNIV_INTERN ibool os_use_large_pages;
@@ -63,13 +76,32 @@ os_proc_get_number(void)
 }
 
 /****************************************************************//**
+Retrieve and compare operating system release.
+@return	TRUE if the OS release is equal to, or later than release. */
+UNIV_INTERN
+ibool
+os_compare_release(
+/*===============*/
+	const char*	release		/*!< in: OS release */
+	__attribute__((unused)))
+{
+#if defined(UNIV_LINUX) && defined(_GNU_SOURCE)
+	struct utsname name;
+	return uname(&name) == 0 && strverscmp(name.release, release) >= 0;
+#else
+	return 0;
+#endif
+}
+
+/****************************************************************//**
 Allocates large pages memory.
 @return	allocated memory */
 UNIV_INTERN
 void*
 os_mem_alloc_large(
 /*===============*/
-	ulint*	n)			/*!< in/out: number of bytes */
+	ulint*	n,			/*!< in/out: number of bytes */
+	ibool	populate)		/*!< in: virtual page preallocation */
 {
 	void*	ptr;
 	ulint	size;
@@ -155,12 +187,13 @@ skip:
 	ut_ad(ut_is_2pow(size));
 	size = *n = ut_2pow_round(*n + (size - 1), size);
 	ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-		   MAP_PRIVATE | OS_MAP_ANON, -1, 0);
+		   MAP_PRIVATE | OS_MAP_ANON |
+		   (populate ? OS_MAP_POPULATE : 0), -1, 0);
 	if (UNIV_UNLIKELY(ptr == (void*) -1)) {
 		fprintf(stderr, "InnoDB: mmap(%lu bytes) failed;"
 			" errno %lu\n",
 			(ulong) size, (ulong) errno);
-		ptr = NULL;
+		return(NULL);
 	} else {
 		os_fast_mutex_lock(&ut_list_mutex);
 		ut_total_allocated_memory += size;
@@ -168,6 +201,25 @@ skip:
 		UNIV_MEM_ALLOC(ptr, size);
 	}
 #endif
+
+#if OS_MAP_ANON && OS_MAP_POPULATE
+	/* MAP_POPULATE is only supported for private mappings
+	since Linux 2.6.23. */
+	populate = populate && !os_compare_release("2.6.23");
+
+	if (populate) {
+		fprintf(stderr, "InnoDB: Warning: mmap(MAP_POPULATE) "
+			"is not supported for private mappings. "
+			"Forcing preallocation by faulting in pages.\n");
+	}
+#endif
+
+	/* Initialize the entire buffer to force the allocation
+	of physical memory page frames. */
+	if (populate) {
+		memset(ptr, '\0', size);
+	}
+
 	return(ptr);
 }
 

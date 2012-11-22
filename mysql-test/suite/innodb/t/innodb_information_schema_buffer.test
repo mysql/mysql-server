@@ -3,11 +3,6 @@
 
 -- source include/have_innodb.inc
 
-if (`select plugin_auth_version <= "1.1.8-29.0" from information_schema.plugins where plugin_name='innodb'`)
-{
-  --skip Not fixed in XtraDB 1.1.8-29.0 or earlier
-}
-
 -- disable_result_log
 SELECT * FROM INFORMATION_SCHEMA.INNODB_BUFFER_POOL_STATS;
 
