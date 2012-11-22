@@ -238,8 +238,8 @@ use test;
 select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 --innodb-force-recovery-crash=100
-2012-11-21 13:50:10 9470 [Note] InnoDB: Creating shared tablespace for temporary tables
-innodb_force_recovery_crash=100
+1
+1
 # files in MYSQL_DATA_DIR
 ibtmp1
 use test;
@@ -248,3 +248,8 @@ insert into t1 values (1, 'c', 'b');
 select * from t1;
 keyc	c1	c2
 1	c	b
+use test;
+show tables;
+Tables_in_test
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
+ERROR HY000: Table 't1' is read only
