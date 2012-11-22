@@ -35,6 +35,12 @@
 #define MIN_DICTIONARY_WORD_LENGTH    4
 #define MAX_PASSWORD_LENGTH           100
 
+/*
+  Handle assigned when loading the plugin.
+  Used with the error reporting functions.
+*/
+
+static MYSQL_PLUGIN plugin_info_ptr;
 /*  
   These are the 3 password policies that this plugin allow to set
   and configure as per the requirements.
@@ -72,16 +78,27 @@ static void read_dictionary_file()
   long file_length;
 
   if (validate_password_dictionary_file == NULL)
+  {
+    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                          "Dictionary file not specified");
     return;
+  }
   std::ifstream dictionary_stream(validate_password_dictionary_file);
   if (!dictionary_stream)
+  {
+    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                          "Dictionary file not loaded");
     return;
+  }
   dictionary_stream.seekg(0, std::ios::end);
   file_length= dictionary_stream.tellg();
   dictionary_stream.seekg(0, std::ios::beg);
   if (file_length > MAX_DICTIONARY_FILE_LENGTH)
   {
     dictionary_stream.close();
+    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                          "Dictionary file size exceed",
+                          "MAX_DICTIONARY_FILE_LENGTH, not loaded");
     return;
   }
   while (dictionary_stream.good())
@@ -240,8 +257,9 @@ static struct st_mysql_validate_password validate_password_descriptor=
   read dictionary file into std::set.
 */
 
-static int validate_password_init(void *arg __attribute__((unused)))
+static int validate_password_init(MYSQL_PLUGIN plugin_info)
 {
+  plugin_info_ptr= plugin_info;
   read_dictionary_file();
   return (0);
 }
