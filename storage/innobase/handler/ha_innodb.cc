@@ -8588,9 +8588,8 @@ err_col:
 		err = dict_build_tablespace(table, trx);
 		if (err == DB_SUCCESS)
 		{
-			/* if tablespace is created add to table entry
-			to cache. temp-table are maintained in memory
-			and so can_be_evicted is FALSE. */
+			/* Temp-table are maintained in memory and so
+			can_be_evicted is FALSE. */
 			mem_heap_t* add_to_cache_heap = mem_heap_create(256);
 			dict_table_add_to_cache(
 				table, FALSE, add_to_cache_heap);
@@ -9738,8 +9737,7 @@ ha_innobase::discard_or_import_tablespace(
 
 		ib_senderrf(
 			prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-			ER_TABLE_TEMPORARY_TABLE_IMPORT_DISCARD,
-			table->s->table_name.str);
+			ER_CANNOT_DISCARD_TEMPORARY_TABLE);
 
 		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
 	}

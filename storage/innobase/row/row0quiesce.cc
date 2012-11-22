@@ -651,8 +651,7 @@ row_quiesce_set_state(
 			table_name, sizeof(table_name), table->name, FALSE);
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
-			    ER_TABLE_TEMPORARY_TABLE_IMPORT_DISCARD,
-			    table_name);
+			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
 
 		return(DB_UNSUPPORTED);
 	} else if (table->space == TRX_SYS_SPACE) {

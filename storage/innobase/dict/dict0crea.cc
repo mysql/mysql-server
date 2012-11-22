@@ -809,8 +809,8 @@ dict_create_index_tree(
 
 	/* Currently this function is being used by temp-tables only.
 	Import/Discard of temp-table is blocked and so this assert. */
-	ut_ad(index->table->ibd_file_missing
-	      || dict_table_is_discarded(index->table));
+	ut_ad((index->table->ibd_file_missing == 0)
+	      && (dict_table_is_discarded(index->table) == false));
 
 	page_no = btr_create(
 		index->type, index->space, zip_size,
@@ -881,7 +881,7 @@ dict_drop_index_tree_step(
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
-	btr_free_but_not_root(space, zip_size, root_page_no, NULL);
+	btr_free_but_not_root(space, zip_size, root_page_no, false);
 
 	/* Then we free the root page in the same mini-transaction where
 	we write FIL_NULL to the appropriate field in the SYS_INDEXES
@@ -917,36 +917,25 @@ dict_drop_index_tree(
 	}
 
 	root_page_no = page_no;
-
-	if (root_page_no == FIL_NULL) {
-		/* The tree has already been freed */
-
-		return;
-	}
-
 	space = index->space;
-
 	zip_size = fil_space_get_zip_size(space);
 
-	if (zip_size == ULINT_UNDEFINED) {
-		/* It is a single table tablespace and the .ibd file is
-		missing: do nothing */
+	/* If tree has already been freed or it is a single table
+	tablespace and the .ibd file is missing: do nothing
+	else free the all the pages */
+	if (root_page_no != FIL_NULL && zip_size != ULINT_UNDEFINED) {
 
-		return;
+		/* We free all the pages but the root page first; this operation
+		may span several mini-transactions */
+		btr_free_but_not_root(
+			space, zip_size, root_page_no,
+			dict_table_is_temporary(index->table));
+
+		/* Then we free the root page in the same mini-transaction where
+		we write FIL_NULL to the appropriate field in the SYS_INDEXES
+		record: this mini-transaction marks the B-tree totally freed */
+		btr_free_root(space, zip_size, root_page_no, &mtr);
 	}
-
-	/* We free all the pages but the root page first; this operation
-	may span several mini-transactions */
-
-	btr_free_but_not_root(space, zip_size, root_page_no, index);
-
-	/* Then we free the root page in the same mini-transaction where
-	we write FIL_NULL to the appropriate field in the SYS_INDEXES
-	record: this mini-transaction marks the B-tree totally freed */
-
-	/* printf("Dropping index tree in space %lu root page %lu\n", space,
-	root_page_no); */
-	btr_free_root(space, zip_size, root_page_no, &mtr);
 
 	mtr_commit(&mtr);
 }
@@ -1038,7 +1027,7 @@ dict_truncate_index_tree_step(
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
-	btr_free_but_not_root(space, zip_size, root_page_no, NULL);
+	btr_free_but_not_root(space, zip_size, root_page_no, false);
 
 	/* Then we free the root page in the same mini-transaction where
 	we create the b-tree and write its new root page number to the
@@ -1072,7 +1061,7 @@ create:
 		if (index->id == index_id && !(index->type & DICT_FTS)) {
 			root_page_no = btr_create(type, space, zip_size,
 						  index_id, index, mtr);
-			index->page = (unsigned int) root_page_no;
+			index->page = root_page_no;
 			return(root_page_no);
 		}
 	}
@@ -1148,14 +1137,17 @@ dict_truncate_index_tree(
 		/* We free all the pages but the root page first; this operation
 		may span several mini-transactions */
 
-		btr_free_but_not_root(space, zip_size, root_page_no, NULL);
+		btr_free_but_not_root(
+			space, zip_size, root_page_no,
+			dict_table_is_temporary(index->table));
 
 		/* Then we free the root page in the same mini-transaction where
 		we create the b-tree and write its new root page number to the
 		appropriate field in the SYS_INDEXES record: this
 		mini-transaction marks the B-tree totally truncated */
 
-		btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, &mtr);
+		btr_block_get(
+			space, zip_size, root_page_no, RW_X_LATCH, NULL, &mtr);
 
 		btr_free_root(space, zip_size, root_page_no, &mtr);
 	}
@@ -1170,7 +1162,7 @@ dict_truncate_index_tree(
 
 	root_page_no = btr_create(type, space, zip_size,
 				  index->id, index, &mtr);
-	index->page = (unsigned int) root_page_no;
+	index->page = root_page_no;
 
 	mtr_commit(&mtr);
 }
