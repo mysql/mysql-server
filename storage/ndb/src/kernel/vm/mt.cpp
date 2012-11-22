@@ -38,6 +38,8 @@
 #include "mt-asm.h"
 #include "mt-lock.hpp"
 
+static void dumpJobQueues(void);
+
 inline
 SimulatedBlock*
 GlobalData::mt_getBlock(BlockNumber blockNo, Uint32 instanceNo)
@@ -155,7 +157,7 @@ struct thr_wait
 static inline
 bool
 yield(struct thr_wait* wait, const Uint32 nsec,
-      bool (*check_callback)(struct thr_data *), struct thr_data *check_arg)
+      bool (*check_callback)(void *), void *check_arg)
 {
   volatile unsigned * val = &wait->m_futex_state;
 #ifndef NDEBUG
@@ -224,7 +226,7 @@ struct thr_wait
 static inline
 bool
 yield(struct thr_wait* wait, const Uint32 nsec,
-      bool (*check_callback)(struct thr_data *), struct thr_data *check_arg)
+      bool (*check_callback)(void *), void *check_arg)
 {
   struct timespec end;
   NdbCondition_ComputeAbsTime(&end, nsec/1000000);
@@ -585,12 +587,20 @@ struct thr_job_queue_head
   unsigned m_read_index;  // Read/written by consumer, read by producer
   unsigned m_write_index; // Read/written by producer, read by consumer
 
+  /**
+   * Waiter object: In case job queue is full, the produced thread
+   * will 'yield' on this waiter object until the consumer thread
+   * has consumed (at least) a job buffer.
+   */
+  thr_wait m_waiter;
+
   Uint32 used() const;
 };
 
 struct thr_job_queue
 {
   static const unsigned SIZE = 32;
+  static const unsigned SAFETY = 2;
 
   struct thr_job_buffer* m_buffers[SIZE];
 };
@@ -1386,7 +1396,7 @@ thr_send_threads::alert_send_thread(NodeId node)
 
 extern "C"
 bool
-check_available_send_data(struct thr_data *not_used)
+check_available_send_data(void *not_used)
 {
   (void)not_used;
   return !g_send_threads->data_available();
@@ -1552,6 +1562,7 @@ void
 job_buffer_full(struct thr_data* selfptr)
 {
   ndbout_c("job buffer full");
+  dumpJobQueues();
   abort();
 }
 
@@ -1560,6 +1571,7 @@ void
 out_of_job_buffer(struct thr_data* selfptr)
 {
   ndbout_c("out of job buffer");
+  dumpJobQueues();
   abort();
 }
 
@@ -2031,6 +2043,30 @@ flush_jbb_write_state(thr_data *selfptr)
   }
 }
 
+static
+void
+dumpJobQueues(void)
+{
+  const struct thr_repository* rep = &g_thr_repository;
+  for (unsigned from = 0; from<num_threads; from++)
+  {
+    for (unsigned to = 0; to<num_threads; to++)
+    {
+      const thr_data_aligned *thr_align_ptr = rep->m_thread + to;
+      const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
+      const thr_job_queue_head *q_head = thrptr->m_in_queue_head + from;
+
+      unsigned used = q_head->used();
+      if (used > 0)
+      {
+        ndbout << " job buffer " << from << " --> " << to
+               << ", used:" << used
+               << endl;
+      }
+    }
+  }
+}
+
 /**
  * Transporter will receive 1024 signals (MAX_RECEIVED_SIGNALS)
  * before running check_job_buffers
@@ -2086,6 +2122,29 @@ check_job_buffers(struct thr_repository* rep, Uint32 recv_thread_id)
  */
 static
 Uint32
+compute_free_buffers_in_queue(const thr_job_queue_head *q_head)
+{
+  /**
+   * NOTE: m_read_index is read wo/ lock (and updated by different thread)
+   *       but since the different thread can only consume
+   *       signals this means that the value returned from this
+   *       function is always conservative (i.e it can be better than
+   *       returned value, if read-index has moved but we didnt see it)
+   */
+  unsigned ri = q_head->m_read_index;
+  unsigned wi = q_head->m_write_index;
+  unsigned free = (wi < ri) ? ri - wi : (thr_job_queue::SIZE + ri) - wi;
+
+  assert(free <= thr_job_queue::SIZE);
+
+  if (free <= (1 + thr_job_queue::SAFETY))
+    return 0;
+  else 
+    return free - (1 + thr_job_queue::SAFETY);
+}
+
+static
+Uint32
 compute_max_signals_to_execute(Uint32 thr_no)
 {
   Uint32 minfree = thr_job_queue::SIZE;
@@ -2094,30 +2153,17 @@ compute_max_signals_to_execute(Uint32 thr_no)
 
   for (unsigned i = 0; i<num_threads; i++, thr_align_ptr++)
   {
-    /**
-     * NOTE: m_read_index is read wo/ lock (and updated by different thread)
-     *       but since the different thread can only consume
-     *       signals this means that the value returned from this
-     *       function is always conservative (i.e it can be better than
-     *       returned value, if read-index has moved but we didnt see it)
-     */
     const struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
     const thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
-    unsigned ri = q_head->m_read_index;
-    unsigned wi = q_head->m_write_index;
-    unsigned free = (wi < ri) ? ri - wi : (thr_job_queue::SIZE + ri) - wi;
-
-    assert(free <= thr_job_queue::SIZE);
+    unsigned free = compute_free_buffers_in_queue(q_head);
 
     if (free < minfree)
       minfree = free;
   }
 
-#define SAFETY 2
-
-  if (minfree >= (1 + SAFETY))
+  if (minfree > 0)
   {
-    return (3 + (minfree - (1 + SAFETY)) * MIN_SIGNALS_PER_PAGE) / 4;
+    return (3 + (minfree) * MIN_SIGNALS_PER_PAGE) / 4;
   }
   else
   {
@@ -3077,8 +3123,9 @@ read_jba_state(thr_data *selfptr)
 
 /* Check all job queues, return true only if all are empty. */
 static bool
-check_queues_empty(thr_data *selfptr)
+check_queues_empty(void *arg)
 {
+  thr_data *selfptr = static_cast<thr_data *>(arg);
   Uint32 thr_count = g_thr_repository.m_thread_count;
   bool empty = read_jba_state(selfptr);
   if (!empty)
@@ -3141,6 +3188,7 @@ execute_signals(thr_data *selfptr,
         r->m_read_buffer = read_buffer;
         r->m_read_pos = read_pos;
         r->m_read_end = read_end;
+        wakeup(&h->m_waiter);
       }
     }
 
@@ -3644,28 +3692,46 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
 }
 
 /**
- * check if out-queues of selfptr is full
- * return true is so
+ * Callback function used by yield() to recheck 
+ * 'job queue full' condition before going to sleep.
+ *
+ * Check if the specified 'thr_job_queue_head' (arg)
+ * is still full, return true if so.
  */
 static bool
-check_job_buffer_full(thr_data *selfptr)
+check_congested_job_queue(void *arg)
 {
-  Uint32 thr_no = selfptr->m_thr_no;
-  Uint32 tmp = compute_max_signals_to_execute(thr_no);
-#if 0
-  Uint32 perjb = tmp / g_thr_repository.m_thread_count;
+  const thr_job_queue_head *waitfor = static_cast<thr_job_queue_head*>(arg);
+  return (compute_free_buffers_in_queue(waitfor) == 0);
+}
 
-  if (perjb == 0)
+/**
+ * Check if any out-queues of selfptr is full.
+ * If full: Return 'Thr_data*' for (one of) the thread(s)
+ *          which we have to wait for. (to consume from queue)
+ */
+static struct thr_data*
+get_congested_job_queue(const thr_data *selfptr)
+{
+  const Uint32 thr_no = selfptr->m_thr_no;
+  struct thr_repository* rep = &g_thr_repository;
+  struct thr_data_aligned *thr_align_ptr = rep->m_thread;
+  struct thr_data *waitfor = NULL;
+
+  for (unsigned i = 0; i<num_threads; i++, thr_align_ptr++)
   {
-    return true;
-  }
+    struct thr_data *thrptr = &thr_align_ptr->m_thr_data;
+    thr_job_queue_head *q_head = thrptr->m_in_queue_head + thr_no;
 
-  return false;
-#else
-  if (tmp < g_thr_repository.m_thread_count)
-    return true;
-  return false;
-#endif
+    if (compute_free_buffers_in_queue(q_head) == 0)
+    {
+      if (thrptr != selfptr)  // Don't wait on myself (yet)
+        return thrptr;
+      else
+        waitfor = thrptr;
+    }
+  }
+  return waitfor;             // Possibly 'thrptr == selfptr'
 }
 
 /**
@@ -3716,6 +3782,7 @@ loop:
        */
       selfptr->m_max_signals_per_jb = 1;
       ndbout_c("%u - sleeploop 10!!", selfptr->m_thr_no);
+      dumpJobQueues();
       return true;
     }
 
@@ -3725,8 +3792,47 @@ loop:
       pending_send = do_send(selfptr, TRUE);
     }
 
-    const Uint32 wait = 1000000;    /* 1 ms */
-    yield(&selfptr->m_waiter, wait, check_job_buffer_full, selfptr);
+    struct thr_data* waitthr = get_congested_job_queue(selfptr);
+    if (waitthr == NULL)                 // Waiters resolved
+    {
+      goto loop;
+    }
+    else if (waitthr == selfptr)         // Avoid self-wait
+    {
+      //ndbout << "update_sched_config"
+      //       << ", thr_no=" << thr_no
+      //       << ", in 'self wait' - proceeding slowly" 
+      //       << endl;
+      selfptr->m_max_signals_per_jb = 1; // Proceed slowly
+      return sleeploop > 0;
+    }
+    else if (false)
+    {
+      ndbout << "update_sched_config"
+             << ", thr_no: " << thr_no << " waitfor: " << waitthr->m_thr_no
+             << endl;
+    }
+    /**
+     * Wait for thread 'waitthr' to consume some of the
+     * pending signals in m_in_queue[].
+     * Will recheck queue status with 'check_recv_queue'
+     * after latch has been set, and *before* going to sleep.
+     */
+    const Uint32 nano_wait = 1000*1000;    /* -> 1 ms */
+    thr_job_queue_head *wait_queue = waitthr->m_in_queue_head + thr_no;
+
+    const bool waited = yield(&wait_queue->m_waiter,
+                              nano_wait,
+                              check_congested_job_queue,
+                              wait_queue);
+    if (waited)
+    {
+      sleeploop++;
+      //ndbout << "update_sched_config"
+      //       << ", thr_no=" << thr_no
+      //       << ", waited due to 'job_buffers_full'" 
+      //       << endl;
+    }
     goto loop;
   }
 
@@ -4185,6 +4291,7 @@ thr_init(struct thr_repository* rep, struct thr_data *selfptr, unsigned int cnt,
   {
     selfptr->m_in_queue_head[i].m_read_index = 0;
     selfptr->m_in_queue_head[i].m_write_index = 0;
+    selfptr->m_in_queue_head[i].m_waiter.init();
     buffer = may_communicate(i,thr_no) 
               ? seize_buffer(rep, thr_no, false) : NULL;
     selfptr->m_in_queue[i].m_buffers[0] = buffer;
