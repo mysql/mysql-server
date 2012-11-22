@@ -4912,15 +4912,6 @@ drop_new_clustered:
 				DBUG_ASSERT(0);
 			}
 		}
-
-		/* Commit of rollback add foreign constraint operations */
-		if (fk_trx && fk_trx != trx) {
-			if (err == 0) {
-				trx_commit_for_mysql(fk_trx);
-			} else {
-				trx_rollback_for_mysql(fk_trx);
-			}
-		}
 	}
 
 	if (err == 0
@@ -4949,16 +4940,56 @@ drop_new_clustered:
 	}
 
 	if (err == 0) {
+		if (fk_trx && fk_trx != trx) {
+			/* This needs to be placed before "trx_commit" marker,
+			since anyone called "goto trx_commit" has committed
+			or rolled back fk_trx before jumping here */
+			trx_commit_for_mysql(fk_trx);
+		}
 trx_commit:
 		trx_commit_for_mysql(trx);
 	} else {
 trx_rollback:
-		/* undo the in-memory addition of foreign key */
+		/* undo the addition of foreign key */
 		if (fk_trx) {
 			innobase_undo_add_fk(ctx, fk_table);
+
+			if (fk_trx != trx) {
+				trx_rollback_for_mysql(fk_trx);
+			}
 		}
 
 		trx_rollback_for_mysql(trx);
+
+		/* If there are newly added secondary indexes, above
+		rollback will revert the rename operation and put the
+		new indexes with the temp index prefix, we can drop
+		them here */
+		if (ctx && !new_clustered) {
+			ulint	i;
+
+			/* Need to drop the in-memory dict_index_t first
+			to avoid dict_table_check_for_dup_indexes()
+			assertion in row_merge_drop_indexes() in the case
+			of add and drop the same index */
+			for (i = 0; i < ctx->num_to_add; i++) {
+				dict_index_t*   index = ctx->add[i];
+				dict_index_remove_from_cache(
+					prebuilt->table, index);
+			}
+
+			if (ctx->num_to_add) {
+				trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+				row_merge_drop_indexes(trx, prebuilt->table,
+						       FALSE);
+				trx_commit_for_mysql(trx);
+			}
+
+			for (i = 0; i < ctx->num_to_drop; i++) {
+				dict_index_t*	index = ctx->drop[i];
+				index->to_be_dropped = false;
+			}
+		}
 	}
 
 	/* Flush the log to reduce probability that the .frm files and

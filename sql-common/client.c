@@ -3077,7 +3077,6 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_client_name");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_os");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_platform");
-  rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_command_line");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_pid");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_thread");
   rc+= mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_DELETE, "_client_version");
@@ -3101,9 +3100,6 @@ set_connect_attributes(MYSQL *mysql, char *buff, size_t buf_len)
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_pid", buff);
 
 #ifdef __WIN__
-  rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD,
-                      "_command_line", GetCommandLine());
-
   snprintf(buff, buf_len, "%lu", (ulong) GetCurrentThreadId());
   rc+= mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "_thread", buff);
 #endif
@@ -3175,7 +3171,7 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if (!passwd)
   {
     passwd=mysql->options.password;
-#if !defined(DONT_USE_MYSQL_PWD) && !defined(MYSQL_SERVER)
+#if !defined(MYSQL_SERVER)
     if (!passwd)
       passwd=getenv("MYSQL_PWD");		/* get it from environment */
 #endif

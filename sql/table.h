@@ -1727,7 +1727,6 @@ public:
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   bool          multitable_view;        /* TRUE iff this is multitable view */
-  bool          compact_view_format;    /* Use compact format for SHOW CREATE VIEW */
   /* view where processed */
   bool          where_processed;
   /* TRUE <=> VIEW CHECK OPTION expression has been processed */

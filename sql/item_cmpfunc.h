@@ -258,6 +258,11 @@ class Item_cache;
    - Shortcut the evaluation of "NULL IN (...)" to NULL in the cases where we
      don't care if the result is NULL or FALSE.
 
+   args[1] keeps a reference to the Item_in_subselect object.
+
+   args[0] is a copy of Item_in_subselect's left expression and should be
+   kept equal also after resolving.
+
   NOTE
     It is not quite clear why the above listed functionality should be
     placed into a separate class called 'Item_in_optimizer'.
