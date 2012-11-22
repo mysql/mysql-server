@@ -3089,9 +3089,9 @@ os_file_status(
 {
 #ifdef __WIN__
 	int		ret;
-	struct _stat	statinfo;
+	struct _stat64	statinfo;
 
-	ret = _stat(path, &statinfo);
+	ret = _stat64(path, &statinfo);
 	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
 		/* file does not exist */
 		*exists = FALSE;
@@ -3164,9 +3164,9 @@ os_file_get_status(
 	int		ret;
 
 #ifdef __WIN__
-	struct _stat	statinfo;
+	struct _stat64	statinfo;
 
-	ret = _stat(path, &statinfo);
+	ret = _stat64(path, &statinfo);
 
 	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
 		/* file does not exist */

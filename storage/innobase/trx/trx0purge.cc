@@ -1322,6 +1322,28 @@ trx_purge_stop(void)
 		/* Wait for purge coordinator to signal that it
 		is suspended. */
 		os_event_wait_low(purge_sys->event, sig_count);
+	} else { 
+		bool	once = true; 
+
+		rw_lock_x_lock(&purge_sys->latch);
+
+		/* Wait for purge to signal that it has actually stopped. */ 
+		while (purge_sys->running) { 
+
+			if (once) { 
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Waiting for purge to stop");
+				once = false; 
+			}
+
+			rw_lock_x_unlock(&purge_sys->latch);
+
+			os_thread_sleep(10000); 
+
+			rw_lock_x_lock(&purge_sys->latch);
+		} 
+
+		rw_lock_x_unlock(&purge_sys->latch);
 	}
 
 	MONITOR_INC_VALUE(MONITOR_PURGE_STOP_COUNT, 1);

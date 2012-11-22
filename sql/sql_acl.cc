@@ -1213,7 +1213,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       else
       {
         user.ssl_type=SSL_TYPE_NONE;
-#ifndef TO_BE_REMOVED
         if (table->s->fields <= 13)
         {						// Without grant
           if (user.access & CREATE_ACL)
@@ -1225,7 +1224,6 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           user.access|= REPL_CLIENT_ACL | REPL_SLAVE_ACL;
         if (user.access & PROCESS_ACL)
           user.access|= SUPER_ACL | EXECUTE_ACL;
-#endif
       }
       (void) push_dynamic(&acl_users,(uchar*) &user);
       if (user.host.check_allow_all_hosts())
@@ -1334,13 +1332,11 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
       }
     }
     db.sort=get_sort(3,db.host.get_host(),db.db,db.user);
-#ifndef TO_BE_REMOVED
     if (table->s->fields <=  9)
     {						// Without grant
       if (db.access & CREATE_ACL)
 	db.access|=REFERENCES_ACL | INDEX_ACL | ALTER_ACL;
     }
-#endif
     (void) push_dynamic(&acl_dbs,(uchar*) &db);
   } // END reading records from mysql.db tables
   

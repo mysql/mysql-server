@@ -507,6 +507,8 @@ typedef struct system_variables
 
   double long_query_time_double;
 
+  my_bool pseudo_slave_mode;
+
   Gtid_specification gtid_next;
   Gtid_set_or_null gtid_next_list;
 
@@ -2323,6 +2325,9 @@ public:
       bool xid_written:1;               // The session wrote an XID
       bool real_commit:1;               // Is this a "real" commit?
       bool commit_low:1;                // see MYSQL_BIN_LOG::ordered_commit
+#ifndef DBUG_OFF
+      bool ready_preempt:1;             // internal in MYSQL_BIN_LOG::ordered_commit
+#endif
     } flags;
 
     void cleanup()
