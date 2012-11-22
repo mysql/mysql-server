@@ -2551,12 +2551,6 @@ srv_purge_coordinator_suspend(
 	ut_ad(!srv_read_only_mode);
 	ut_a(slot->type == SRV_PURGE);
 
-	rw_lock_x_lock(&purge_sys->latch);
-
-	purge_sys->running = false;
-
-	rw_lock_x_unlock(&purge_sys->latch);
-
 	bool		stop = false;
 
 	/** Maximum wait time on the purge event, in micro-seconds. */
@@ -2565,6 +2559,12 @@ srv_purge_coordinator_suspend(
 	do {
 		ulint		ret;
 		ib_int64_t	sig_count = srv_suspend_thread(slot);
+
+		rw_lock_x_lock(&purge_sys->latch);
+
+		purge_sys->running = false;
+
+		rw_lock_x_unlock(&purge_sys->latch);
 
 		/* We don't wait right away on the the non-timed wait because
 		we want to signal the thread that wants to suspend purge. */
@@ -2576,8 +2576,8 @@ srv_purge_coordinator_suspend(
 			ret = os_event_wait_time_low(
 				slot->event, SRV_PURGE_MAX_TIMEOUT, sig_count);
 		} else {
-			/* We don't want to waste time waiting if the
-			history list has increased by the time we get here
+			/* We don't want to waste time waiting, if the
+			history list increased by the time we got here,
 			unless purge has been stopped. */
 			ret = 0;
 		}
