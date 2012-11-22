@@ -199,9 +199,9 @@
     %endif
   %endif
 %else
-  %define generic_kernel %(uname -r | cut -d. -f1-2)
-  %define distro_description            Generic Linux (kernel %{generic_kernel})
-  %define distro_releasetag             linux%{generic_kernel}
+  %define glibc_version %(/lib/libc.so.6 | grep stable | cut -d, -f1 | cut -c38-)
+  %define distro_description            Generic Linux (glibc %{glibc_version})
+  %define distro_releasetag             linux-glibc%{glibc_version}
   %define distro_buildreq               gcc-c++ gperf ncurses-devel perl  time zlib-devel
   %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
