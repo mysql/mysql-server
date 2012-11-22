@@ -1142,13 +1142,13 @@ TransporterRegistry::pollReceive(Uint32 timeOutMillis,
     {
       for (int i = 0; i < num_socket_events; i++)
       {
-        const Uint32 trpid = recvdata.m_epoll_events[i].data.u32;
+        const Uint32 node_id = recvdata.m_epoll_events[i].data.u32;
         /**
          * check that it's assigned to "us"
          */
-        assert(recvdata.m_transporters.get(trpid));
+        assert(recvdata.m_transporters.get(node_id));
 
-        recvdata.m_recv_transporters.set(trpid);
+        recvdata.m_recv_transporters.set(node_id);
       }
     }
     else if (num_socket_events < 0)
