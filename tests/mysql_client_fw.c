@@ -1213,10 +1213,8 @@ static struct my_option client_test_long_options[] =
 {"testcase", 'c',
  "May disable some code when runs as mysql-test-run testcase.",
  0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DONT_ALLOW_USER_CHANGE
 {"user", 'u', "User for login if not current user", &opt_user,
  &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
 {"vardir", 'v', "Data dir for tests.", &opt_vardir,
  &opt_vardir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 {"getopt-ll-test", 'g', "Option for testing bug in getopt library",
