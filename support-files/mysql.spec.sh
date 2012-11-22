@@ -201,7 +201,7 @@
 %else
   %define glibc_version %(/lib/libc.so.6 | grep stable | cut -d, -f1 | cut -c38-)
   %define distro_description            Generic Linux (glibc %{glibc_version})
-  %define distro_releasetag             linux-glibc%{glibc_version}
+  %define distro_releasetag             linux_glibc%{glibc_version}
   %define distro_buildreq               gcc-c++ gperf ncurses-devel perl  time zlib-devel
   %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
