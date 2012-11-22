@@ -6234,6 +6234,7 @@ sub valgrind_exit_reports() {
     my $valgrind_rep= "";
     my $found_report= 0;
     my $err_in_report= 0;
+    my $ignore_report= 0;
 
     my $LOGF = IO::File->new($log_file)
       or mtr_error("Could not open file '$log_file' for reading: $!");
@@ -6263,8 +6264,15 @@ sub valgrind_exit_reports() {
         push (@culprits, $testname);
         next;
       }
+      # This line marks a report to be ignored
+      $ignore_report=1 if $line =~ /VALGRIND_DO_QUICK_LEAK_CHECK/;
       # This line marks the start of a valgrind report
       $found_report= 1 if $line =~ /^==\d+== .* SUMMARY:/;
+
+      if ($ignore_report && $found_report) {
+        $ignore_report= 0;
+        $found_report= 0;
+      }
 
       if ($found_report) {
         $line=~ s/^==\d+== //;
