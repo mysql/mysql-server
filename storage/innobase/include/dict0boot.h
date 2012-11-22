@@ -57,7 +57,7 @@ dict_hdr_get_new_id(
 					(not assigned if NULL) */
 	ulint*		space_id,	/*!< out: space id
 					(not assigned if NULL) */
-	const bool	is_temp_table);	/*!< in: true if temp table */
+	bool		is_temp_table);	/*!< in: true if temp table */
 /**********************************************************************//**
 Writes the current value of the row id counter to the dictionary header file
 page. */

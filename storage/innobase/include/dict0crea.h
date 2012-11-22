@@ -84,7 +84,7 @@ dict_create_index_step(
 /*===================*/
 	que_thr_t*	thr);	/*!< in: query thread */
 /***************************************************************//**
-Builds an index definition but don't update sys_table.
+Builds an index definition but doesn't update sys_table.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
@@ -100,7 +100,7 @@ Don't update SYS_XXXX table.
 UNIV_INTERN
 dberr_t
 dict_create_index_tree(
-/*====================*/
+/*===================*/
 	dict_index_t*	index,	/*!< in/out: index */
 	trx_t*		trx);	/*!< in: InnoDB transaction handle */
 /*******************************************************************//**
