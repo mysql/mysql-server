@@ -2978,7 +2978,7 @@ EXPLAIN
 SELECT a FROM t1 t WHERE a IN (SELECT b FROM t1, t2 WHERE b = a)
 GROUP BY a HAVING a != 'z';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t	index	idx_a	idx_a	4	NULL	3	Using index; Using temporary; Using filesort
+1	PRIMARY	t	index	idx_a	idx_a	4	NULL	1	Using index
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	MATERIALIZED	t1	ref	idx_a	idx_a	4	test.t2.b	2	Using index
@@ -2992,7 +2992,7 @@ EXPLAIN
 SELECT a FROM t1 t WHERE a IN (SELECT b FROM t1, t2 WHERE b = a)
 GROUP BY a HAVING a != 'z';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	t	index	idx_a	idx_a	4	NULL	3	Using index; Using temporary; Using filesort
+1	PRIMARY	t	index	idx_a	idx_a	4	NULL	1	Using index
 1	PRIMARY	<subquery2>	eq_ref	distinct_key	distinct_key	4	func	1	
 2	MATERIALIZED	t2	ALL	NULL	NULL	NULL	NULL	2	Using where
 2	MATERIALIZED	t1	ref	idx_a	idx_a	4	test.t2.b	2	Using index
