@@ -2056,6 +2056,11 @@ private:
 #endif
 
 #ifdef VM_TRACE
+/**
+ * my_attribute.h need GCC_VERSION defined from my_global.h,
+ * otherwise it will redefine __attribute__
+ */
+#include <my_global.h>
 #include <my_attribute.h>
   void printState(const char* fmt, ...)
     ATTRIBUTE_FORMAT(printf, 2, 3);
