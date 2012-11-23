@@ -130,7 +130,6 @@ drop table t1;
 call mtr.add_suppression("No space left on device");
 call mtr.add_suppression("table.+ full");
 call mtr.add_suppression("Cannot create file");
-call mtr.add_suppression("Could not remove temporary table");
 #
 set session debug="+d,ib_create_table_fail_disk_full";
 --error ER_RECORD_FILE_FULL
@@ -150,16 +149,6 @@ insert into t1 values (10, 11);
 set session debug="-d,ib_create_table_fail_at_create_index";
 create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
 insert into t1 values (10, 11);
-drop table t1;
-#
-set session debug="+d,row_drop_temp_table_for_mysql";
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
-insert into t1 values (10, 11);
-select * from t1;
-drop table t1;
-set session debug="-d,row_drop_temp_table_for_mysql";
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
-select * from t1;
 drop table t1;
 
 
