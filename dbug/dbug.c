@@ -1179,7 +1179,7 @@ void _db_return_(uint _line_, struct _db_stack_frame_ *_stack_frame_)
         pthread_mutex_lock(&THR_LOCK_dbug);
       DoPrefix(cs, _line_);
       Indent(cs, cs->level);
-      (void) fprintf(cs->stack->out_file, "<%s\n", cs->func);
+      (void) fprintf(cs->stack->out_file, "<%s %u\n", cs->func, _line_);
       DbugFlush(cs);
     }
   }

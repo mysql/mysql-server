@@ -309,7 +309,6 @@ SELECT `my.db`.f1(2);
 # Switching to default connection.
 DROP DATABASE `my.db`;
 USE test;
-set @@global.concurrent_insert= @old_concurrent_insert;
 #
 # Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
 #
@@ -330,3 +329,4 @@ Event	sql_mode	time_zone	Create Event	character_set_client	collation_connection	
 teste_bug11763507		SYSTEM	#	latin1	latin1_swedish_ci	latin1_swedish_ci
 DROP EVENT teste_bug11763507;
 #END OF BUG#11763507 test.
+set @@global.concurrent_insert= @old_concurrent_insert;

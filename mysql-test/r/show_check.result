@@ -1552,3 +1552,14 @@ RELEASE_LOCK('t')
 óóóó
 1
 SET NAMES latin1;
+#
+# WL#6454: Deprecate SHOW AUTHORS and SHOW CONTRIBUTORS
+#
+SHOW AUTHORS;
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1681	'SHOW AUTHORS' is deprecated and will be removed in a future release.
+SHOW CONTRIBUTORS;
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1681	'SHOW CONTRIBUTORS' is deprecated and will be removed in a future release.

@@ -179,21 +179,35 @@ GRANT PROXY ON ''@'' TO grant_plug;
 --error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
 GRANT PROXY ON grant_plug TO grant_plug_dest;
 
---echo this should fail : same user, but on a different host
---error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
+# Security context in THD contains two pairs of (user,host)
+# 1. (user,host) pair referring to inbound connection
+# 2. (priv_user,priv_host) pair obtained from mysql.user table after doing
+#    authnetication of incoming connection.
+# Granting/revoking proxy privileges, privileges should be checked wrt
+# (priv_user, priv_host) tuple that is obtained from mysql.user table
+# Following is a valid grant because effective user of connection is
+# grant_plug_dest@% and statement is trying to grant proxy on the same
+# user.
+--echo This is a valid grant
 GRANT PROXY ON grant_plug_dest TO grant_plug;
+REVOKE PROXY ON grant_plug_dest FROM grant_plug;
 
 --echo this should work : same user
-GRANT PROXY ON grant_plug_dest@localhost TO grant_plug_dest2;
-REVOKE PROXY ON grant_plug_dest@localhost FROM grant_plug_dest2;
+GRANT PROXY ON grant_plug_dest TO grant_plug_dest2;
+REVOKE PROXY ON grant_plug_dest FROM grant_plug_dest2;
 
---echo this should work : same user
+# grant_plug_dest@localhost is not the same as grant_plug_dest@%
+# so following grant/revoke should fail
+--echo this should fail : not the same user
+--error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
 GRANT PROXY ON grant_plug_dest@localhost TO grant_plug WITH GRANT OPTION;
+--echo this should fail : not the same user
+--error ER_ACCESS_DENIED_NO_PASSWORD_ERROR
 REVOKE PROXY ON grant_plug_dest@localhost FROM grant_plug;
 
 --echo this should fail : can't create users
 --error ER_CANT_CREATE_USER_WITH_GRANT
-GRANT PROXY ON grant_plug_dest@localhost TO grant_plug@localhost;
+GRANT PROXY ON grant_plug_dest TO grant_plug@localhost;
 
 connection default;
 --echo in default connection

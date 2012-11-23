@@ -282,25 +282,6 @@ row_undo(
 		} else {
 			node->state = UNDO_NODE_MODIFY;
 		}
-
-	} else if (node->state == UNDO_NODE_PREV_VERS) {
-
-		/* Undo should be done to the same clustered index record
-		again in this same rollback, restoring the previous version */
-
-		roll_ptr = node->new_roll_ptr;
-
-		node->undo_rec = trx_undo_get_undo_rec_low(roll_ptr,
-							   node->heap);
-		node->roll_ptr = roll_ptr;
-		node->undo_no = trx_undo_rec_get_undo_no(node->undo_rec);
-
-		if (trx_undo_roll_ptr_is_insert(roll_ptr)) {
-
-			node->state = UNDO_NODE_INSERT;
-		} else {
-			node->state = UNDO_NODE_MODIFY;
-		}
 	}
 
 	/* Prevent DROP TABLE etc. while we are rolling back this row.

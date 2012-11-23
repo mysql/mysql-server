@@ -1371,3 +1371,17 @@ SELECT RELEASE_LOCK('t');
 --connection default
 SET NAMES latin1;
 
+
+--echo #
+--echo # WL#6454: Deprecate SHOW AUTHORS and SHOW CONTRIBUTORS
+--echo #
+
+--disable_result_log
+SHOW AUTHORS;
+--enable_result_log
+SHOW WARNINGS;
+
+--disable_result_log
+SHOW CONTRIBUTORS;
+--enable_result_log
+SHOW WARNINGS;

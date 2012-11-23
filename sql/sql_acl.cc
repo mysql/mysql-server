@@ -49,6 +49,7 @@
 #include "sql_connect.h"
 #include "hostname.h"
 #include "sql_db.h"
+#include "sql_array.h"
 
 #ifndef MCP_WL6004_DISTRIBUTION
 #include "handler.h"
@@ -549,6 +550,18 @@ static bool update_user_table(THD *thd, TABLE *table,
 static my_bool acl_load(THD *thd, TABLE_LIST *tables);
 static my_bool grant_load(THD *thd, TABLE_LIST *tables);
 static inline void get_grantor(THD *thd, char* grantor);
+/*
+ Enumeration of various ACL's and Hashes used in handle_grant_struct()
+*/
+enum enum_acl_lists
+{
+  USER_ACL= 0,
+  DB_ACL,
+  COLUMN_PRIVILEGES_HASH,
+  PROC_PRIVILEGES_HASH,
+  FUNC_PRIVILEGES_HASH,
+  PROXY_USERS_ACL
+};
 
 /*
   Convert scrambled password to binary form, according to scramble type, 
@@ -2731,7 +2744,13 @@ replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
 
   get_grantor(thd, grantor);
 
-  table->file->ha_index_init(0, 1);
+  if ((error= table->file->ha_index_init(0, 1)))
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_PRINT("info", ("ha_index_init error"));
+    DBUG_RETURN(-1);
+  }
+
   if (table->file->index_read_map(table->record[0], user_key,
                                       HA_WHOLE_KEY,
                                       HA_READ_KEY_EXACT))
@@ -2973,7 +2992,12 @@ GRANT_TABLE::GRANT_TABLE(TABLE *form, TABLE *col_privs)
     key_copy(key, col_privs->record[0], col_privs->key_info, key_prefix_len);
     col_privs->field[4]->store("",0, &my_charset_latin1);
 
-    col_privs->file->ha_index_init(0, 1);
+    if (col_privs->file->ha_index_init(0, 1))
+    {
+      cols= 0;
+      return;
+    }
+
     if (col_privs->file->index_read_map(col_privs->record[0], (uchar*) key,
                                         (key_part_map)15, HA_READ_KEY_EXACT))
     {
@@ -3104,7 +3128,7 @@ static int replace_column_table(GRANT_TABLE *g_t,
 				const char *db, const char *table_name,
 				ulong rights, bool revoke_grant)
 {
-  int error=0,result=0;
+  int result=0;
   uchar key[MAX_KEY_LENGTH];
   uint key_prefix_length;
   KEY_PART_INFO *key_part= table->key_info->key_part;
@@ -3131,7 +3155,13 @@ static int replace_column_table(GRANT_TABLE *g_t,
 
   List_iterator <LEX_COLUMN> iter(columns);
   class LEX_COLUMN *column;
-  table->file->ha_index_init(0, 1);
+  int error= table->file->ha_index_init(0, 1);
+  if (error)
+  {
+    table->file->print_error(error, MYF(0));
+    DBUG_RETURN(-1);
+  }
+
   while ((column= iter++))
   {
     ulong privileges= column->rights;
@@ -4335,7 +4365,10 @@ static my_bool grant_load_procs_priv(TABLE *p_table)
   (void) my_hash_init(&func_priv_hash, &my_charset_utf8_bin,
                       0,0,0, (my_hash_get_key) get_grant_table,
                       0,0);
-  p_table->file->ha_index_init(0, 1);
+
+  if (p_table->file->ha_index_init(0, 1))
+    DBUG_RETURN(TRUE);
+
   p_table->use_all_columns();
 
   if (!p_table->file->index_first(p_table->record[0]))
@@ -4436,7 +4469,10 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
 
   t_table = tables[0].table;
   c_table = tables[1].table;
-  t_table->file->ha_index_init(0, 1);
+
+  if (t_table->file->ha_index_init(0, 1))
+    goto end_index_init;
+
   t_table->use_all_columns();
   c_table->use_all_columns();
 
@@ -4481,9 +4517,10 @@ static my_bool grant_load(THD *thd, TABLE_LIST *tables)
   return_val=0;					// Return ok
 
 end_unlock:
-  thd->variables.sql_mode= old_sql_mode;
   t_table->file->ha_index_end();
   my_pthread_setspecific_ptr(THR_MALLOC, save_mem_root_ptr);
+end_index_init:
+  thd->variables.sql_mode= old_sql_mode;
   DBUG_RETURN(return_val);
 }
 
@@ -6166,20 +6203,20 @@ static int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     Delete from grant structure if drop is true.
     Update in grant structure if drop is false and user_to is not NULL.
     Search in grant structure if drop is false and user_to is NULL.
-    Structures are numbered as follows:
-    0 acl_users
-    1 acl_dbs
-    2 column_priv_hash
-    3 proc_priv_hash
-    4 func_priv_hash
-    5 acl_proxy_users
+    Structures are enumerated as follows:
+    0 ACL_USER
+    1 ACL_DB
+    2 COLUMN_PRIVILIGES_HASH
+    3 PROC_PRIVILEGES_HASH
+    4 FUNC_PRIVILEGES_HASH
+    5 ACL_PROXY_USERS
 
   @retval > 0  At least one element matched.
   @retval 0    OK, but no element matched.
-  @retval -1   Wrong arguments to function.
+  @retval -1   Wrong arguments to function or Out of Memory.
 */
 
-static int handle_grant_struct(uint struct_no, bool drop,
+static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
                                LEX_USER *user_from, LEX_USER *user_to)
 {
   int result= 0;
@@ -6191,6 +6228,11 @@ static int handle_grant_struct(uint struct_no, bool drop,
   ACL_DB *acl_db= NULL;
   ACL_PROXY_USER *acl_proxy_user= NULL;
   GRANT_NAME *grant_name= NULL;
+  /*
+    Dynamic array acl_grant_name used to store pointers to all
+    GRANT_NAME objects
+  */
+  Dynamic_array<GRANT_NAME *> acl_grant_name;
   HASH *grant_name_hash= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
@@ -6203,25 +6245,25 @@ static int handle_grant_struct(uint struct_no, bool drop,
 
   /* Get the number of elements in the in-memory structure. */
   switch (struct_no) {
-  case 0:
+  case USER_ACL:
     elements= acl_users.elements;
     break;
-  case 1:
+  case DB_ACL:
     elements= acl_dbs.elements;
     break;
-  case 2:
+  case COLUMN_PRIVILEGES_HASH:
     elements= column_priv_hash.records;
     grant_name_hash= &column_priv_hash;
     break;
-  case 3:
+  case PROC_PRIVILEGES_HASH:
     elements= proc_priv_hash.records;
     grant_name_hash= &proc_priv_hash;
     break;
-  case 4:
+  case FUNC_PRIVILEGES_HASH:
     elements= func_priv_hash.records;
     grant_name_hash= &func_priv_hash;
     break;
-  case 5:
+  case PROXY_USERS_ACL:
     elements= acl_proxy_users.elements;
     break;
   default:
@@ -6239,27 +6281,27 @@ static int handle_grant_struct(uint struct_no, bool drop,
       Get a pointer to the element.
     */
     switch (struct_no) {
-    case 0:
+    case USER_ACL:
       acl_user= dynamic_element(&acl_users, idx, ACL_USER*);
       user= acl_user->user;
       host= acl_user->host.hostname;
     break;
 
-    case 1:
+    case DB_ACL:
       acl_db= dynamic_element(&acl_dbs, idx, ACL_DB*);
       user= acl_db->user;
       host= acl_db->host.hostname;
       break;
 
-    case 2:
-    case 3:
-    case 4:
+    case COLUMN_PRIVILEGES_HASH:
+    case PROC_PRIVILEGES_HASH:
+    case FUNC_PRIVILEGES_HASH:
       grant_name= (GRANT_NAME*) my_hash_element(grant_name_hash, idx);
       user= grant_name->user;
       host= grant_name->host.hostname;
       break;
 
-    case 5:
+    case PROXY_USERS_ACL:
       acl_proxy_user= dynamic_element(&acl_proxy_users, idx, ACL_PROXY_USER*);
       user= acl_proxy_user->get_user();
       host= acl_proxy_user->get_host();
@@ -6285,97 +6327,72 @@ static int handle_grant_struct(uint struct_no, bool drop,
     if ( drop )
     {
       switch ( struct_no ) {
-      case 0:
+      case USER_ACL:
         delete_dynamic_element(&acl_users, idx);
-        break;
-
-      case 1:
-        delete_dynamic_element(&acl_dbs, idx);
-        break;
-
-      case 2:
-      case 3:
-      case 4:
-        my_hash_delete(grant_name_hash, (uchar*) grant_name);
-	break;
-
-      case 5:
-        delete_dynamic_element(&acl_proxy_users, idx);
-        break;
-
-      }
-      elements--;
-      /*
+        elements--;
+        /*
         - If we are iterating through an array then we just have moved all
           elements after the current element one position closer to its head.
           This means that we have to take another look at the element at
           current position as it is a new element from the array's tail.
-        - If we are iterating through a hash the current element was replaced
-          with one of elements from the tail. So we also have to take a look
-          at the new element in current position.
-          Note that in our HASH implementation hash_delete() won't move any
-          elements with position after current one to position before the
-          current (i.e. from the tail to the head), so it is safe to continue
-          iteration without re-starting.
-      */
-      idx--;
+        - This is valid for USER_ACL, DB_ACL and PROXY_USERS_ACL.
+        */
+        idx--;
+        break;
+
+      case DB_ACL:
+        delete_dynamic_element(&acl_dbs, idx);
+        elements--;
+        idx--;
+        break;
+
+      case COLUMN_PRIVILEGES_HASH:
+      case PROC_PRIVILEGES_HASH:
+      case FUNC_PRIVILEGES_HASH:
+        /*
+          Deleting while traversing a hash table is not valid procedure and
+          hence we save pointers to GRANT_NAME objects for later processing.
+        */
+        if (acl_grant_name.append(grant_name))
+          DBUG_RETURN(-1);
+	break;
+
+      case PROXY_USERS_ACL:
+        delete_dynamic_element(&acl_proxy_users, idx);
+        elements--;
+        idx--;
+        break;
+
+      }
     }
     else if ( user_to )
     {
       switch ( struct_no ) {
-      case 0:
+      case USER_ACL:
         acl_user->user= strdup_root(&mem, user_to->user.str);
         acl_user->host.hostname= strdup_root(&mem, user_to->host.str);
         break;
 
-      case 1:
+      case DB_ACL:
         acl_db->user= strdup_root(&mem, user_to->user.str);
         acl_db->host.hostname= strdup_root(&mem, user_to->host.str);
         break;
 
-      case 2:
-      case 3:
-      case 4:
-        {
-          /*
-            Save old hash key and its length to be able properly update
-            element position in hash.
-          */
-          char *old_key= grant_name->hash_key;
-          size_t old_key_length= grant_name->key_length;
+      case COLUMN_PRIVILEGES_HASH:
+      case PROC_PRIVILEGES_HASH:
+      case FUNC_PRIVILEGES_HASH:
+        /*
+          Updating while traversing a hash table is not valid procedure and
+          hence we save pointers to GRANT_NAME objects for later processing.
+        */
+        if (acl_grant_name.append(grant_name))
+          DBUG_RETURN(-1);
+        break;
 
-          /*
-            Update the grant structure with the new user name and host name.
-          */
-          grant_name->set_user_details(user_to->host.str, grant_name->db,
-                                       user_to->user.str, grant_name->tname,
-                                       TRUE);
-
-          /*
-            Since username is part of the hash key, when the user name
-            is renamed, the hash key is changed. Update the hash to
-            ensure that the position matches the new hash key value
-          */
-          my_hash_update(grant_name_hash, (uchar*) grant_name, (uchar*) old_key,
-                         old_key_length);
-          /*
-            hash_update() operation could have moved element from the tail
-            of the hash to the current position. So we need to take a look
-            at the element in current position once again.
-            Thanks to the fact that hash_update() for our HASH implementation
-            won't move any elements from the tail of the hash to the positions
-            before the current one (a.k.a. head) it is safe to continue
-            iteration without restarting.
-          */
-          idx--;
-          break;
-        }
-
-      case 5:
+      case PROXY_USERS_ACL:
         acl_proxy_user->set_user (&mem, user_to->user.str);
         acl_proxy_user->set_host (&mem, user_to->host.str);
         break;
-
       }
     }
     else
@@ -6384,6 +6401,48 @@ static int handle_grant_struct(uint struct_no, bool drop,
       break;
     }
   }
+
+  if (drop || user_to)
+  {
+    /*
+      Traversing the elements stored in acl_grant_name dynamic array
+      to either delete or update them.
+    */
+    for (int i= 0; i < acl_grant_name.elements(); ++i)
+    {
+      grant_name= acl_grant_name.at(i);
+
+      if (drop)
+      {
+        my_hash_delete(grant_name_hash, (uchar *) grant_name);
+      }
+      else
+      {
+        /*
+          Save old hash key and its length to be able properly update
+          element position in hash.
+        */
+        char *old_key= grant_name->hash_key;
+        size_t old_key_length= grant_name->key_length;
+
+        /*
+          Update the grant structure with the new user name and host name.
+        */
+        grant_name->set_user_details(user_to->host.str, grant_name->db,
+                                     user_to->user.str, grant_name->tname,
+                                     TRUE);
+
+        /*
+          Since username is part of the hash key, when the user name
+          is renamed, the hash key is changed. Update the hash to
+          ensure that the position matches the new hash key value
+        */
+        my_hash_update(grant_name_hash, (uchar*) grant_name, (uchar*) old_key,
+                       old_key_length);
+      }
+    }
+  }
+
 #ifdef EXTRA_DEBUG
   DBUG_PRINT("loop",("scan struct: %u  result %d", struct_no, result));
 #endif
@@ -6421,6 +6480,7 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
 {
   int result= 0;
   int found;
+  int ret;
   DBUG_ENTER("handle_grant_data");
 
   /* Handle user table. */
@@ -6432,13 +6492,18 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   else
   {
     /* Handle user array. */
-    if ((handle_grant_struct(0, drop, user_from, user_to) && ! result) ||
-        found)
+    if (((ret= handle_grant_struct(USER_ACL, drop, user_from, user_to) > 0) &&
+         ! result) || found)
     {
       result= 1; /* At least one record/element found. */
       /* If search is requested, we do not need to search further. */
       if (! drop && ! user_to)
         goto end;
+    }
+    else if (ret < 0)
+    {
+      result= -1;
+      goto end;
     }
   }
 
@@ -6451,13 +6516,18 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   else
   {
     /* Handle db array. */
-    if (((handle_grant_struct(1, drop, user_from, user_to) && ! result) ||
-         found) && ! result)
+    if ((((ret= handle_grant_struct(DB_ACL, drop, user_from, user_to) > 0) &&
+          ! result) || found) && ! result)
     {
       result= 1; /* At least one record/element found. */
       /* If search is requested, we do not need to search further. */
       if (! drop && ! user_to)
         goto end;
+    }
+    else if (ret < 0)
+    {
+      result= -1;
+      goto end;
     }
   }
 
@@ -6470,22 +6540,34 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
   else
   {
     /* Handle procs array. */
-    if (((handle_grant_struct(3, drop, user_from, user_to) && ! result) ||
-         found) && ! result)
+    if ((((ret= handle_grant_struct(PROC_PRIVILEGES_HASH, drop, user_from,
+                                    user_to) > 0) && ! result) || found) &&
+        ! result)
     {
       result= 1; /* At least one record/element found. */
       /* If search is requested, we do not need to search further. */
       if (! drop && ! user_to)
         goto end;
     }
+    else if (ret < 0)
+    {
+      result= -1;
+      goto end;
+    }
     /* Handle funcs array. */
-    if (((handle_grant_struct(4, drop, user_from, user_to) && ! result) ||
-         found) && ! result)
+    if ((((ret= handle_grant_struct(FUNC_PRIVILEGES_HASH, drop, user_from,
+                                    user_to) > 0) && ! result) || found) &&
+        ! result)
     {
       result= 1; /* At least one record/element found. */
       /* If search is requested, we do not need to search further. */
       if (! drop && ! user_to)
         goto end;
+    }
+    else if (ret < 0)
+    {
+      result= -1;
+      goto end;
     }
   }
 
@@ -6514,9 +6596,12 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     else
     {
       /* Handle columns hash. */
-      if (((handle_grant_struct(2, drop, user_from, user_to) && ! result) ||
-           found) && ! result)
+      if ((((ret= handle_grant_struct(COLUMN_PRIVILEGES_HASH, drop, user_from,
+                                      user_to) > 0) && ! result) || found) &&
+          ! result)
         result= 1; /* At least one record/element found. */
+      else if (ret < 0)
+        result= -1;
     }
   }
 
@@ -6531,9 +6616,11 @@ static int handle_grant_data(TABLE_LIST *tables, bool drop,
     else
     {
       /* Handle proxies_priv array. */
-      if ((handle_grant_struct(5, drop, user_from, user_to) && !result) ||
-          found)
+      if (((ret= handle_grant_struct(PROXY_USERS_ACL, drop, user_from, user_to) > 0)
+           && !result) || found)
         result= 1; /* At least one record/element found. */
+      else if (ret < 0)
+        result= -1;
     }
   }
  end:
@@ -7506,14 +7593,25 @@ acl_check_proxy_grant_access(THD *thd, const char *host, const char *user,
     DBUG_RETURN(FALSE);
   }
 
-  /* one can grant proxy to himself to others */
-  if (!strcmp(thd->security_ctx->user, user) &&
+  /*
+    one can grant proxy for self to others.
+    Security context in THD contains two pairs of (user,host):
+    1. (user,host) pair referring to inbound connection.
+    2. (priv_user,priv_host) pair obtained from mysql.user table after doing
+        authnetication of incoming connection.
+    Privileges should be checked wrt (priv_user, priv_host) tuple, because
+    (user,host) pair obtained from inbound connection may have different
+    values than what is actually stored in mysql.user table and while granting
+    or revoking proxy privilege, user is expected to provide entries mentioned
+    in mysql.user table.
+  */
+  if (!strcmp(thd->security_ctx->priv_user, user) &&
       !my_strcasecmp(system_charset_info, host,
-                     thd->security_ctx->host))
+                     thd->security_ctx->priv_host))
   {
     DBUG_PRINT("info", ("strcmp (%s, %s) my_casestrcmp (%s, %s) equal", 
-                        thd->security_ctx->user, user,
-                        host, thd->security_ctx->host));
+                        thd->security_ctx->priv_user, user,
+                        host, thd->security_ctx->priv_host));
     DBUG_RETURN(FALSE);
   }
 
@@ -8877,8 +8975,6 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   bool packet_has_required_size= false;
   DBUG_ASSERT(mpvio->status == MPVIO_EXT::FAILURE);
 
-  if (mpvio->connect_errors)
-    reset_host_errors(mpvio->ip);
 
   uint charset_code= 0;
   end= (char *)net->read_pos;
@@ -8889,6 +8985,11 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
   */
   size_t bytes_remaining_in_packet= pkt_len;
   
+  DBUG_EXECUTE_IF("host_error_packet_length",
+                  {
+                    bytes_remaining_in_packet= 0;
+                  };);
+
   /*
     Peek ahead on the client capability packet and determine which version of
     the protocol should be used.
@@ -8946,6 +9047,11 @@ static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
     */
     charset_code= default_charset_info->number;
   }
+  DBUG_EXECUTE_IF("host_error_charset",
+                  {
+                    return packet_error;
+                  };);
+
 
   DBUG_PRINT("info", ("client_character_set: %u", charset_code));
   if (mpvio->charset_adapter->init_client_charset(charset_code))
@@ -9008,6 +9114,11 @@ skip_to_ssl:
       bytes_remaining_in_packet -= AUTH_PACKET_HEADER_SIZE_PROTO_40;
     }
     
+    DBUG_EXECUTE_IF("host_error_SSL_layering",
+                    {
+                      packet_has_required_size= 0;
+                    };);
+
     if (!packet_has_required_size)
       return packet_error;
   }
@@ -9039,6 +9150,11 @@ skip_to_ssl:
 
   size_t user_len;
   char *user= get_string(&end, &bytes_remaining_in_packet, &user_len);
+  DBUG_EXECUTE_IF("host_error_user",
+                  {
+                    user= NULL;
+                  };);
+
   if (user == NULL)
     return packet_error;
 
@@ -9065,6 +9181,11 @@ skip_to_ssl:
     */
     passwd= get_string(&end, &bytes_remaining_in_packet, &passwd_len);
   }
+
+  DBUG_EXECUTE_IF("host_error_password",
+                  {
+                    passwd= NULL;
+                  };);
 
   if (passwd == NULL)
     return packet_error;
@@ -9863,6 +9984,12 @@ acl_authenticate(THD *thd, uint connect_errors, uint com_change_user_pkt_len)
   */
   thd->net.skip_big_packet= TRUE;
 #endif
+
+  /*
+     Reset previous connection failures if any.
+  */
+  if (mpvio.connect_errors)
+    reset_host_errors(mpvio.ip);
 
   /* Ready to handle queries */
   DBUG_RETURN(0);

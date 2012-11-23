@@ -1,4 +1,4 @@
-# Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -592,6 +592,7 @@ fi
 
 installed=`rpm -q --whatprovides MySQL-Cluster-server 2> /dev/null`
 if [ $? -eq 0 -a -n "$installed" ]; then
+  installed=`echo $installed | sed 's/\([^ ]*\) .*/\1/'` # Tests have shown duplicated package names
   vendor=`rpm -q --queryformat='%{VENDOR}' "$installed" 2>&1`
   version=`rpm -q --queryformat='%{VERSION}' "$installed" 2>&1`
   myoldvendor='%{mysql_old_vendor}'
@@ -1223,6 +1224,10 @@ echo "====="                                                       >> $STATUS_HI
   this can be oveeridden via the command line by adding
       --define "runselftest 0"
   Failures of the test suite will NOT make the RPM build fail!
+
+* Mon Jun 11 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Make sure newly added "SPECIFIC-ULN/" directory does not disturb packaging.
   
 * Thu Jan 19 2012 Bjorn Munch <bjorn.munch@oracle.com>
 

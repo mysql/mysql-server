@@ -42,7 +42,9 @@ set global innodb_change_buffering_debug='foo';
 set global innodb_change_buffering_debug=-2;
 --error ER_WRONG_TYPE_FOR_VAR
 set global innodb_change_buffering_debug=1e1;
-set global innodb_change_buffering_debug=2;
+# The value 2 is supposed to kill the server if there are unmerged changes.
+# Do not try to set the value to 2 or anything that can be clamped to 2.
+#set global innodb_change_buffering_debug=2;
 
 #
 # Cleanup
