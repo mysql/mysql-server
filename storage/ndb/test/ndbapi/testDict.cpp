@@ -9352,6 +9352,123 @@ runBug14645319(NDBT_Context* ctx, NDBT_Step* step)
   return failures > 0 ? NDBT_FAILED : NDBT_OK;
 }
 
+static const char* control = "DropTabWorkerState";
+enum WorkerStates
+{
+  WS_INIT,
+  WS_IDLE,
+  WS_ACTIVE
+};
+
+int
+runDropTabWorker(NDBT_Context* ctx, NDBT_Step* step)
+{
+  while (!ctx->isTestStopped())
+  {
+    ctx->setProperty(control, WS_IDLE);
+    ctx->getPropertyWait(control, WS_ACTIVE);
+    if (ctx->isTestStopped())
+      return NDBT_OK;
+
+    Ndb* pNdb = GETNDB(step);
+    const char* tabName = ctx->getTab()->getName();
+    ndbout_c("Dropping table %s", tabName);
+    int rc = pNdb->getDictionary()->dropTable(tabName);
+    ndbout_c("Table drop return code : %d",
+             rc);
+  }
+  return NDBT_OK;
+}
+
+struct DropTabNFScenario
+{
+  Uint32 errorCode;
+  bool masterVictim;
+};
+
+static const DropTabNFScenario DropTabNFScenarios[] =
+{
+  { 6028, false }     /* Kill slave at top of PREP_DROP_TAB_REQ */
+  ,{ 6027, false }      /* Kill slave at top of DROP_TAB_REQ */
+//  ,{ 6028, true }      /* Kill master at top of PREP_DROP_TAB_REQ */
+  ,{ 6027, true }      /* Kill master at top of DROP_TAB_REQ */
+
+};
+
+int
+runDropTabNF(NDBT_Context* ctx, NDBT_Step* step)
+{
+  /* 
+     1. Create table
+     2. Insert error(s) on slave node
+     3. Drop table
+     4. Kill slave node
+     5. Wait for drop to complete
+     6. Wait for restart to complete
+
+     Variants
+     1.  Insert on slave/master
+     2.  Error code types
+  */
+  
+  NdbRestarter restarter;
+  int numScenarios = sizeof(DropTabNFScenarios) / sizeof(DropTabNFScenario);
+  int numLoops = ctx->getNumLoops();
+
+  for (int r=0; r < numLoops; r++)
+  {
+    ndbout_c("**** loop %d ****", r);
+    for (int n=0; n < numScenarios; n++)
+    {
+      ndbout_c("Creating table");
+      if (runCreateTheTable(ctx, step) != NDBT_OK)
+      {
+        return NDBT_FAILED;
+      }
+      
+      Uint32 errorCode = DropTabNFScenarios[n].errorCode;
+      int victimNode = 0;
+      const char* role;
+      if (DropTabNFScenarios[n].masterVictim)
+      {
+        victimNode = restarter.getMasterNodeId();
+        role = "M";
+      }
+      else
+      {
+        victimNode = restarter.getRandomNotMasterNodeId(rand());
+        role = "S";
+      }
+      ndbout_c("Chosen victim node : %u (%s)", victimNode, role);
+      
+      restarter.insertErrorInNode(victimNode, errorCode);
+      
+      ndbout_c("Inserted error %u in node %u", errorCode, victimNode);
+      
+      ndbout_c("Requesting drop tab");
+      ctx->getPropertyWait(control, WS_IDLE);
+      ctx->setProperty(control, WS_ACTIVE);
+      
+      ndbout_c("Restarting node %u", victimNode);
+      restarter.restartOneDbNode(victimNode);
+      ndbout_c("Node restarting....");
+      
+      ndbout_c("Waiting for drop table to complete...");
+      ctx->getPropertyWait(control, WS_IDLE);
+      ndbout_c("Drop table completed");
+      
+      ndbout_c("Waiting for node to recover");
+      restarter.waitNodesStarted(&victimNode, 1);
+      ndbout_c("Node started");
+    }
+  }
+
+  ndbout_c("**** stop ****");
+  ctx->stopTest();
+
+  return NDBT_OK;
+}
+
 NDBT_TESTSUITE(testDict);
 TESTCASE("testDropDDObjects",
          "* 1. start cluster\n"
