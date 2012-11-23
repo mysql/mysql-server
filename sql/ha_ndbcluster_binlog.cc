@@ -2175,7 +2175,7 @@ int ndbcluster_log_schema_op(THD *thd,
   char quoted_db1[2 + 2 * FN_REFLEN + 1];
   char quoted_db2[2 + 2 * FN_REFLEN + 1];
   char quoted_table2[2 + 2 * FN_REFLEN + 1];
-  int id_length= 0;
+  size_t id_length= 0;
   const char *type_str;
   int also_internal= 0;
   uint32 log_type= (uint32)type;
