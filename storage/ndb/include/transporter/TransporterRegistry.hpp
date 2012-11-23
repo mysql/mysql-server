@@ -108,27 +108,17 @@ struct TransporterReceiveData
   NodeBitmask m_transporters;
 
   /**
-   * Bitmask of nodes having data awaiting to be received
+   * Bitmask of transporters having data awaiting to be received
    * from its transporter.
    */
   NodeBitmask m_recv_transporters;
 
   /**
-   * Bitmask of nodes that has already received data buffered
+   * Bitmask of transporters that has already received data buffered
    * inside its transporter. Possibly "carried over" from last 
    * performReceive
    */
   NodeBitmask m_has_data_transporters;
-
-  /**
-   * Subset of m_has_data_transporters which we completed handling
-   * of in previous ::performReceive before we was interrupted due
-   * to lack of job buffers. Will skip these when we later retry 
-   * ::performReceive in order to avoid startvation of non-handled
-   * transporters.
-   */
-  NodeBitmask m_handled_transporters;
-
 #if defined(HAVE_EPOLL_CREATE)
   int m_epoll_fd;
   struct epoll_event *m_epoll_events;
@@ -589,7 +579,7 @@ public:
    * Receiving
    */
   Uint32 pollReceive(Uint32 timeOutMillis, TransporterReceiveHandle& mask);
-  Uint32 performReceive(TransporterReceiveHandle&);
+  void performReceive(TransporterReceiveHandle&);
   void update_connections(TransporterReceiveHandle&);
 
   inline Uint32 pollReceive(Uint32 timeOutMillis) {
@@ -597,9 +587,9 @@ public:
     return pollReceive(timeOutMillis, * receiveHandle);
   }
 
-  inline Uint32 performReceive() {
+  inline void performReceive() {
     assert(receiveHandle != 0);
-    return performReceive(* receiveHandle);
+    performReceive(* receiveHandle);
   }
 
   inline void update_connections() {
