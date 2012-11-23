@@ -40,3 +40,4 @@ ha_blackhole       storage/blackhole  BLACKHOLE_PLUGIN
 ha_federated       storage/federated  FEDERATED_PLUGIN
 mypluglib          plugin/fulltext    SIMPLE_PARSER
 libdaemon_example  plugin/daemon_example DAEMONEXAMPLE
+adt_null           plugin/audit_null  AUDIT_NULL

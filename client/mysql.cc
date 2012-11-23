@@ -244,6 +244,8 @@ static void init_username();
 static void add_int_to_prompt(int toadd);
 static int get_result_width(MYSQL_RES *res);
 static int get_field_disp_length(MYSQL_FIELD * field);
+static int normalize_dbname(const char *line, char *buff, uint buff_size);
+static int get_quote_count(const char *line);
 
 /* A structure which contains information on the commands this program
    can understand. */
@@ -4144,8 +4146,23 @@ com_use(String *buffer __attribute__((unused)), char *line)
   int select_db;
 
   bzero(buff, sizeof(buff));
-  strmake(buff, line, sizeof(buff) - 1);
-  tmp= get_arg(buff, 0);
+
+  /*
+    In case number of quotes exceed 2, we try to get
+    the normalized db name.
+  */
+  if (get_quote_count(line) > 2)
+  {
+    if (normalize_dbname(line, buff, sizeof(buff)))
+      return put_error(&mysql);
+    tmp= buff;
+  }
+  else
+  {
+    strmake(buff, line, sizeof(buff) - 1);
+    tmp= get_arg(buff, 0);
+  }
+
   if (!tmp || !*tmp)
   {
     put_info("USE must be followed by a database name", INFO_ERROR);
@@ -4208,6 +4225,62 @@ com_use(String *buffer __attribute__((unused)), char *line)
   }
 
   put_info("Database changed",INFO_INFO);
+  return 0;
+}
+
+/**
+  Normalize database name.
+
+  @param line [IN]          The command.
+  @param buff [OUT]         Normalized db name.
+  @param buff_size [IN]     Buffer size.
+
+  @return Operation status
+      @retval 0    Success
+      @retval 1    Failure
+
+  @note Sometimes server normilizes the database names
+        & APIs like mysql_select_db() expect normalized
+        database names. Since it is difficult to perform
+        the name conversion/normalization on the client
+        side, this function tries to get the normalized
+        dbname (indirectly) from the server.
+*/
+
+static int
+normalize_dbname(const char *line, char *buff, uint buff_size)
+{
+  MYSQL_RES *res= NULL;
+
+  /* Send the "USE db" commmand to the server. */
+  if (mysql_query(&mysql, line))
+    return 1;
+
+  /*
+    Now, get the normalized database name and store it
+    into the buff.
+  */
+  if (!mysql_query(&mysql, "SELECT DATABASE()") &&
+      (res= mysql_use_result(&mysql)))
+  {
+    MYSQL_ROW row= mysql_fetch_row(res);
+    if (row && row[0])
+    {
+      size_t len= strlen(row[0]);
+      /* Make sure there is enough room to store the dbname. */
+      if ((len > buff_size) || ! memcpy(buff, row[0], len))
+      {
+        mysql_free_result(res);
+        return 1;
+      }
+    }
+    mysql_free_result(res);
+  }
+
+  /* Restore the original database. */
+  if (current_db && mysql_select_db(&mysql, current_db))
+    return 1;
+
   return 0;
 }
 
@@ -4290,6 +4363,20 @@ char *get_arg(char *line, my_bool get_next_arg)
   return valid_arg ? start : NullS;
 }
 
+/*
+  Number of quotes present in the command's argument.
+*/
+static int
+get_quote_count(const char *line)
+{
+  int quote_count;
+  const char *ptr= line;
+
+  for(quote_count= 0; ptr ++ && *ptr; ptr= strpbrk(ptr, "\"\'`"))
+    quote_count ++;
+
+  return quote_count;
+}
 
 static int
 sql_real_connect(char *host,char *database,char *user,char *password,

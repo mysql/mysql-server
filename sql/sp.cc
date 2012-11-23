@@ -1442,7 +1442,6 @@ bool lock_db_routines(THD *thd, char *db)
 {
   TABLE *table;
   uint key_len;
-  int nxtres= 0;
   Open_tables_backup open_tables_state_backup;
   MDL_request_list mdl_requests;
   Lock_db_routines_error_handler err_handler;
@@ -1468,7 +1467,13 @@ bool lock_db_routines(THD *thd, char *db)
 
   table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
   key_len= table->key_info->key_part[0].store_length;
-  table->file->ha_index_init(0, 1);
+  int nxtres= table->file->ha_index_init(0, 1);
+  if (nxtres)
+  {
+    table->file->print_error(nxtres, MYF(0));
+    close_system_tables(thd, &open_tables_state_backup);
+    DBUG_RETURN(true);
+  }
 
   if (! table->file->index_read_map(table->record[0],
                                     table->field[MYSQL_PROC_FIELD_DB]->ptr,
@@ -1532,7 +1537,12 @@ sp_drop_db_routines(THD *thd, char *db)
   key_len= table->key_info->key_part[0].store_length;
 
   ret= SP_OK;
-  table->file->ha_index_init(0, 1);
+  if (table->file->ha_index_init(0, 1))
+  {
+    ret= SP_KEY_NOT_FOUND;
+    goto err_idx_init;
+  }
+
   if (! table->file->index_read_map(table->record[0],
                                     (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
                                     (key_part_map)1, HA_READ_KEY_EXACT))
@@ -1560,6 +1570,7 @@ sp_drop_db_routines(THD *thd, char *db)
   }
   table->file->ha_index_end();
 
+err_idx_init:
   close_thread_tables(thd);
   /*
     Make sure to only release the MDL lock on mysql.proc, not other

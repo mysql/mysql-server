@@ -475,14 +475,6 @@ disconnect addcon;
 DROP DATABASE `my.db`;
 USE test;
 
-#
-# Restore global concurrent_insert value. Keep in the end of the test file.
-#
-
-set @@global.concurrent_insert= @old_concurrent_insert;
-
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
 
 --echo #
 --echo # Bug#11763507 - 56224: FUNCTION NAME IS CASE-SENSITIVE
@@ -507,3 +499,13 @@ SHOW CREATE EVENT TESTE_bug11763507;
 
 DROP EVENT teste_bug11763507;
 --echo #END OF BUG#11763507 test.
+
+
+#
+# Restore global concurrent_insert value. Keep in the end of the test file.
+#
+
+set @@global.concurrent_insert= @old_concurrent_insert;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc
