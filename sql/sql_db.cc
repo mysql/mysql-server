@@ -25,6 +25,7 @@
 #include <my_dir.h>
 #include <m_ctype.h>
 #include "log.h"
+#include "log_event.h"
 #ifdef __WIN__
 #include <direct.h>
 #endif
@@ -720,12 +721,17 @@ not_silent:
   {
     char *query;
     uint query_length;
+    char db_name_quoted[2 * FN_REFLEN + sizeof("create database ") + 2];
+    int id_len= 0;
 
     if (!thd->query())                          // Only in replication
     {
-      query= 	     tmp_query;
-      query_length= (uint) (strxmov(tmp_query,"create database `",
-                                    db, "`", NullS) - tmp_query);
+      id_len= my_strmov_quoted_identifier(thd, (char *) db_name_quoted, db,
+                                          0);
+      db_name_quoted[id_len]= '\0';
+      query= tmp_query;
+      query_length= (uint) (strxmov(tmp_query,"create database ",
+                                    db_name_quoted, NullS) - tmp_query);
     }
     else
     {
@@ -893,7 +899,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   long deleted=0;
   int error= 0;
-  char	path[FN_REFLEN+16];
+  char	path[2 * FN_REFLEN + 16];
   MY_DIR *dirp;
   uint length;
   TABLE_LIST* dropped_tables= 0;
@@ -995,11 +1001,17 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   {
     const char *query;
     ulong query_length;
+    // quoted db name + wraping quote
+    char buffer_temp [2 * FN_REFLEN + 2];
+    int id_len= 0;
+
     if (!thd->query())
     {
       /* The client used the old obsolete mysql_drop_db() call */
       query= path;
-      query_length= (uint) (strxmov(path, "drop database `", db, "`",
+      id_len= my_strmov_quoted_identifier(thd, buffer_temp, db, strlen(db));
+      buffer_temp[id_len] ='\0';
+      query_length= (uint) (strxmov(path, "DROP DATABASE ", buffer_temp, "",
                                      NullS) - path);
     }
     else
@@ -1035,12 +1047,13 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
   else if (mysql_bin_log.is_open())
   {
     char *query, *query_pos, *query_end, *query_data_start;
+    char temp_identifier[ 2 * FN_REFLEN + 2];
     TABLE_LIST *tbl;
-    uint db_len;
+    uint db_len, id_length=0;
 
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
-    query_pos= query_data_start= strmov(query,"drop table ");
+    query_pos= query_data_start= strmov(query,"DROP TABLE ");
     query_end= query + MAX_DROP_TABLE_Q_LEN;
     db_len= strlen(db);
 
@@ -1060,10 +1073,10 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
         }
         query_pos= query_data_start;
       }
-
-      *query_pos++ = '`';
-      query_pos= strmov(query_pos,tbl->table_name);
-      *query_pos++ = '`';
+      id_length= my_strmov_quoted_identifier(thd, (char *)temp_identifier,
+                                      tbl->table_name, 0);
+      temp_identifier[id_length]= '\0';
+      query_pos= strmov(query_pos,(char *)&temp_identifier);
       *query_pos++ = ',';
     }
 

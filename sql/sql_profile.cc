@@ -39,6 +39,7 @@
 #define TIME_I_S_DECIMAL_SIZE (TIME_FLOAT_DIGITS*100)+(TIME_FLOAT_DIGITS-3)
 
 #define MAX_QUERY_LENGTH 300
+#define MAX_QUERY_HISTORY 101
 
 /* Reserved for systems that can't record the function name in source. */
 const char * const _unknown_func_ = "<unknown>";
@@ -233,9 +234,12 @@ void PROF_MEASUREMENT::collect()
 QUERY_PROFILE::QUERY_PROFILE(PROFILING *profiling_arg, const char *status_arg)
   :profiling(profiling_arg), profiling_query_id(0), query_source(NULL)
 {
-  profile_start= new PROF_MEASUREMENT(this, status_arg);
-  entries.push_back(profile_start);
-  profile_end= profile_start;
+  m_seq_counter= 1;
+  PROF_MEASUREMENT *prof= new PROF_MEASUREMENT(this, status_arg);
+  prof->m_seq= m_seq_counter++;
+  m_start_time_usecs= prof->time_usecs;
+  m_end_time_usecs= m_start_time_usecs;
+  entries.push_back(prof);
 }
 
 QUERY_PROFILE::~QUERY_PROFILE()
@@ -275,8 +279,13 @@ void QUERY_PROFILE::new_status(const char *status_arg,
   else
     prof= new PROF_MEASUREMENT(this, status_arg);
 
-  profile_end= prof;
+  prof->m_seq= m_seq_counter++;
+  m_end_time_usecs= prof->time_usecs;
   entries.push_back(prof);
+
+  /* Maintain the query history size. */
+  while (entries.elements > MAX_QUERY_HISTORY)
+    delete entries.pop();
 
   DBUG_VOID_RETURN;
 }
@@ -437,8 +446,7 @@ bool PROFILING::show_profiles()
 
     String elapsed;
 
-    PROF_MEASUREMENT *ps= prof->profile_start;
-    PROF_MEASUREMENT *pe= prof->profile_end;
+    double query_time_usecs= prof->m_end_time_usecs - prof->m_start_time_usecs;
 
     if (++idx <= unit->offset_limit_cnt)
       continue;
@@ -447,7 +455,7 @@ bool PROFILING::show_profiles()
 
     protocol->prepare_for_resend();
     protocol->store((uint32)(prof->profiling_query_id));
-    protocol->store((double)(pe->time_usecs - ps->time_usecs)/(1000.0*1000),
+    protocol->store((double)(query_time_usecs/(1000.0*1000)),
                     (uint32) TIME_FLOAT_DIGITS-1, &elapsed);
     if (prof->query_source != NULL)
       protocol->store(prof->query_source, strlen(prof->query_source),
@@ -507,17 +515,18 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond
       us also include a numbering of each state per query.  The query_id and
       the "seq" together are unique.
     */
-    ulonglong seq;
+    ulong seq;
 
     void *entry_iterator;
     PROF_MEASUREMENT *entry, *previous= NULL;
     /* ...and for each query, go through all its state-change steps. */
-    for (seq= 0, entry_iterator= query->entries.new_iterator();
+    for (entry_iterator= query->entries.new_iterator();
          entry_iterator != NULL;
          entry_iterator= query->entries.iterator_next(entry_iterator),
-         seq++, previous=entry, row_number++)
+         previous=entry, row_number++)
     {
       entry= query->entries.iterator_value(entry_iterator);
+      seq= entry->m_seq;
 
       /* Skip the first.  We count spans of fence, not fence-posts. */
       if (previous == NULL) continue;

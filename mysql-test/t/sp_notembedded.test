@@ -371,16 +371,6 @@ DELETE FROM mysql.user WHERE User='mysqltest_1';
 FLUSH PRIVILEGES;
 
 
-#
-# Restore global concurrent_insert value. Keep in the end of the test file.
-#
-
-set @@global.concurrent_insert= @old_concurrent_insert;
-
-# Wait till all disconnects are completed
---source include/wait_until_count_sessions.inc
-
-
 --echo #
 --echo # Bug#44521 Prepared Statement: CALL p() - crashes: `! thd->main_da.is_sent' failed et.al.
 --echo #
@@ -476,3 +466,13 @@ DROP EVENT teste_bug11763507;
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.1 tests
 --echo # ------------------------------------------------------------------
+
+
+#
+# Restore global concurrent_insert value. Keep in the end of the test file.
+#
+
+set @@global.concurrent_insert= @old_concurrent_insert;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

@@ -1,7 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/*
-   Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -164,6 +163,14 @@ protected:
 
 public:
   uint elements;
+
+  bool operator==(const base_list &rhs) const
+  {
+    return
+      elements == rhs.elements &&
+      first == rhs.first &&
+      last == rhs.last;
+  }
 
   inline void empty() { elements=0; first= &end_of_list; last=&first;}
   inline base_list() { empty(); }
