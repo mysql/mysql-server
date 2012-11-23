@@ -22,16 +22,8 @@
 #endif
 
 #include "sql_class.h"
+#include "sql_table.h"
 #include "mdl.h"
-
-
-// Avoid including all of sql_table.h and instead just duplicate
-// declare the function again
-extern uint
-build_table_filename(char *buff, size_t bufflen,
-                     const char *db, const char *table, const char *ext,
-                     uint flags);
-
 
 static const char *ndb_ext=".ndb";
 
