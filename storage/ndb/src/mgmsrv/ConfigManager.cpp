@@ -2078,7 +2078,7 @@ ConfigManager::fetch_config(void)
 
   if (tmp == NULL) {
     g_eventLogger->error("%s", m_config_retriever.getErrorString());
-    DBUG_RETURN(false);
+    DBUG_RETURN(NULL);
   }
 
   DBUG_RETURN(new Config(tmp));
