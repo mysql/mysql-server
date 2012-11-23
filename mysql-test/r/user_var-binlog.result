@@ -19,7 +19,7 @@ flush logs;
 DELIMITER /*!*/;
 ROLLBACK/*!*/;
 SET @`a b`:=_latin1 0x68656C6C6F COLLATE `latin1_swedish_ci`/*!*/;
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=10000/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;

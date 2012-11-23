@@ -25,6 +25,7 @@
 #include "sp_head.h"
 #include "sql_trigger.h"
 
+#include "sql_show.h"
 class READ_INFO {
   File	file;
   uchar	*buffer,			/* Buffer for read text */
@@ -619,23 +620,20 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   const char          *tbl= table_name_arg;
   const char          *tdb= (thd->db != NULL ? thd->db : db_arg);
   String              string_buf;
-
-  if (!thd->db || strcmp(db_arg, thd->db)) 
+  if (!thd->db || strcmp(db_arg, thd->db))
   {
     /*
-      If used database differs from table's database, 
-      prefix table name with database name so that it 
+      If used database differs from table's database,
+      prefix table name with database name so that it
       becomes a FQ name.
      */
     string_buf.set_charset(system_charset_info);
-    string_buf.append(db_arg);
-    string_buf.append("`");
+    append_identifier(thd, &string_buf, db_arg, strlen(db_arg));
     string_buf.append(".");
-    string_buf.append("`");
-    string_buf.append(table_name_arg);
-    tbl= string_buf.c_ptr_safe();
   }
-
+  append_identifier(thd, &string_buf, table_name_arg,
+                    strlen(table_name_arg));
+  tbl= string_buf.c_ptr_safe();
   Load_log_event       lle(thd, ex, tdb, tbl, fv, duplicates,
                            ignore, transactional_table);
 
@@ -660,11 +658,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       if (n++)
         pfields.append(", ");
       if (item->name)
-      {
-        pfields.append("`");
-        pfields.append(item->name);
-        pfields.append("`");
-      }
+        append_identifier(thd, &pfields, item->name, strlen(item->name));
       else
         item->print(&pfields, QT_ORDINARY);
     }
@@ -684,9 +678,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       val= lv++;
       if (n++)
         pfields.append(", ");
-      pfields.append("`");
-      pfields.append(item->name);
-      pfields.append("`");
+      append_identifier(thd, &pfields, item->name, strlen(item->name));
       pfields.append("=");
       val->print(&pfields, QT_ORDINARY);
     }

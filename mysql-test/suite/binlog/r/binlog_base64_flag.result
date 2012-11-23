@@ -35,7 +35,7 @@ DELIMITER /*!*/;
 # at 4
 <#>ROLLBACK/*!*/;
 # at 102
-<#>use test/*!*/;
+<#>use `test`/*!*/;
 SET TIMESTAMP=1196959712/*!*/;
 <#>SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=1, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
 SET @@session.sql_mode=0/*!*/;
