@@ -65,6 +65,7 @@ using std::max;
 
 bool mysql_user_table_is_in_short_password_format= false;
 bool auth_plugin_is_built_in(const char *plugin_name);
+bool auth_plugin_supports_expiration(const char *plugin_name);
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name);
 
 
@@ -1231,7 +1232,20 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           char *tmpstr= get_field(&global_acl_memory,
                                   table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]);
           if (tmpstr && (*tmpstr == 'Y' || *tmpstr == 'y'))
+          {
             user.password_expired= true;
+
+            if (!auth_plugin_supports_expiration(user.plugin.str))
+            {
+              sql_print_warning("'user' entry '%s@%s' has the password ignore "
+                                "flag raised, but its authentication plugin "
+                                "doesn't support password expiration. "
+                                "The user id will be ignored.",
+                                user.user ? user.user : "",
+                                user.host.get_host() ? user.host.get_host() : "");
+              continue;
+            }
+          }
         }
       } // end if (table->s->fields >= 31)
       else
@@ -1836,8 +1850,10 @@ static void acl_update_user(const char *user, const char *host,
       {
         if (plugin->length > 0)
         {
-          acl_user->plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
-          acl_user->plugin.length= plugin->length;
+          acl_user->plugin= *plugin;
+          optimize_plugin_compare_by_pointer(&acl_user->plugin);
+          if (!auth_plugin_is_built_in(acl_user->plugin.str))
+            acl_user->plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
           acl_user->auth_string.str= auth->str ?
             strmake_root(&global_acl_memory, auth->str,
                          auth->length) : const_cast<char*>("");
@@ -1906,8 +1922,10 @@ static void acl_insert_user(const char *user, const char *host,
   acl_user.host.update_hostname(*host ? strdup_root(&global_acl_memory, host) : 0);
   if (plugin->str[0])
   {
-    acl_user.plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
-    acl_user.plugin.length= plugin->length;
+    acl_user.plugin= *plugin;
+    optimize_plugin_compare_by_pointer(&acl_user.plugin);
+    if (!auth_plugin_is_built_in(acl_user.plugin.str))
+      acl_user.plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
     acl_user.auth_string.str= auth->str ?
       strmake_root(&global_acl_memory, auth->str,
                    auth->length) : const_cast<char*>("");
@@ -2711,6 +2729,27 @@ static bool test_if_create_new_users(THD *thd)
   }
   return create_new_users;
 }
+
+
+/**
+  Only the plugins that are known to use the mysql.user table 
+  to store their passwords support password expiration atm.
+  TODO: create a service and extend the plugin API to support
+  password expiration for external plugins.
+
+  @retval      false  expiration not supported
+  @retval      true   expiration supported
+*/
+bool auth_plugin_supports_expiration(const char *plugin_name)
+{
+ return (!plugin_name || !*plugin_name ||
+         plugin_name == native_password_plugin_name.str ||
+#if defined(HAVE_OPENSSL)
+         plugin_name == sha256_password_plugin_name.str ||
+#endif
+         plugin_name == old_password_plugin_name.str);
+}
+
 
 bool auth_plugin_is_built_in(const char *plugin_name)
 {
@@ -7776,6 +7815,7 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   {
     ACL_USER *acl_user;
    
+    /* add the defaults where needed */
     if (!(user_from= get_current_user(thd, tmp_user_from)))
     {
       result= true;
@@ -7784,14 +7824,33 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
+    /* look up the user */
+    if (!(acl_user= find_acl_user(user_from->host.str,
+                                   user_from->user.str, TRUE)))
+    {
+      result= true;
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+                  false);
+      continue;
+    }
+
+    /* Check if the user's authentication method supports expiration */
+    if (!auth_plugin_supports_expiration(acl_user->plugin.str))
+    {
+      result= true;
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+                  false);
+      continue;
+    }
+
+
+    /* update the mysql.user table */
     enum mysql_user_table_field password_field= MYSQL_USER_FIELD_PASSWORD;
-    if ((!(acl_user= find_acl_user(user_from->host.str,
-                                   user_from->user.str, TRUE))) ||
-         update_user_table(thd, table,
-                           acl_user->host.get_host() ?
-                           acl_user->host.get_host() : "",
-                           acl_user->user ? acl_user->user : "",
-                           NULL, 0, password_field, true))
+    if (update_user_table(thd, table,
+                          acl_user->host.get_host() ?
+                          acl_user->host.get_host() : "",
+                          acl_user->user ? acl_user->user : "",
+                          NULL, 0, password_field, true))
     {
       result= true;
       append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
@@ -9425,7 +9484,6 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
         When setting mpvio->acl_user_plugin we can save memory allocation if
         this is a built in plugin.
       */
-      optimize_plugin_compare_by_pointer(&acl_user_tmp->plugin);
       if (auth_plugin_is_built_in(acl_user_tmp->plugin.str))
         mpvio->acl_user_plugin= mpvio->acl_user->plugin;
       else
