@@ -13,7 +13,7 @@ dnl When changing the major version number please also check the switch
 dnl statement in mysqlbinlog::check_master_version().  You may also need
 dnl to update version.c in ndb.
 
-AC_INIT([MariaDB Server], [5.3.10-MariaDB], [], [mysql])
+AC_INIT([MariaDB Server], [5.3.11-MariaDB], [], [mysql])
 
 AC_CONFIG_SRCDIR([sql/mysqld.cc])
 AC_CANONICAL_SYSTEM
