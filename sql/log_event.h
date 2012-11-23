@@ -824,6 +824,8 @@ typedef struct st_print_event_info
   IO_CACHE body_cache;
   /* Indicate if the body cache has unflushed events */
   bool have_unflushed_events;
+
+  bool skipped_event_in_transaction;
 } PRINT_EVENT_INFO;
 #endif
 
