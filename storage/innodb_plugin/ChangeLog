@@ -1,3 +1,40 @@
+2012-10-18	The InnoDB Team
+
+	* row/row0sel.c:
+	Fix Bug#14758405: ALTER TABLE: ADDING SERIAL NULL DATATYPE: ASSERTION:
+	LEN <= SIZEOF(ULONGLONG)
+
+2012-10-16	The InnoDB Team
+
+	* dict/dict0dict.c, handler/handler0alter.cc, include/dict0dict.h:
+	Fix Bug#14729221 IN-PLACE ALTER TABLE REPORTS '' INSTEAD OF REAL
+	DUPLICATE VALUE FOR PREFIX KEYS
+
+2012-10-09	The InnoDB Team
+
+	* row/row0mysql.c:
+	Fix Bug#14708715 CREATE TABLE MEMORY LEAK ON DB_OUT_OF_FILE_SPACE
+
+2012-09-28	The InnoDB Team
+
+	* include/row0undo.h, row/row0umod.c, row/row0undo.c:
+	Fix Bug#13249921 ASSERT !BPAGE->FILE_PAGE_WAS_FREED, USUALLY
+	IN TRANSACTION ROLLBACK. This patch will ensure that the
+	undo logs will be applied in proper reverse order.
+
+2012-09-18	The InnoDB Team
+
+	* btr/btr0cur.c, handler/ha_innodb.cc, ibuf/ibuf0ibuf.c,
+	include/btr0cur.h:
+	Fix Bug#14636528 INNODB CHANGE BUFFERING IS NOT ENTIRELY CRASH-SAFE
+
+2012-09-17	The InnoDB Team
+
+	* btr/btr0btr.c, btr/btr0cur.c, buf/buf0lru.c,
+	include/page0zip.h, log/log0recv.c, page/page0cur.c,
+	page/page0page.c, page/page0zip.c:
+	Fix Bug#12701488 ASSERT PAGE_ZIP_VALIDATE, UNIV_ZIP_DEBUG
+
 2012-08-29	The InnoDB Team
 
 	* btr/btr0btr.c, page/page0cur.c, page/page0page.c:
