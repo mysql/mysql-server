@@ -349,7 +349,11 @@ void vio_delete(Vio* vio)
 */
 void vio_end(void)
 {
-#ifdef HAVE_YASSL
+#if defined(HAVE_YASSL)
   yaSSL_CleanUp();
+#elif defined(HAVE_OPENSSL)
+  ERR_free_strings();
+  EVP_cleanup();
+  CRYPTO_cleanup_all_ex_data();
 #endif
 }
