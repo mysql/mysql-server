@@ -2978,7 +2978,7 @@ dump:
 			/* The records only differ in the delete-mark.
 			Clear the delete-mark, like we did before
 			Bug #56680 was fixed. */
-			btr_cur_del_unmark_for_ibuf(rec, mtr);
+			btr_cur_set_deleted_flag_for_ibuf(rec, FALSE, mtr);
 updated_in_place:
 			mem_heap_free(heap);
 			return;
@@ -3058,6 +3058,22 @@ ibuf_delete_rec(
 
 	ut_ad(ibuf_inside());
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if (ibuf_debug == 2) {
+		/* Inject a fault (crash). We do this before trying
+		optimistic delete, because a pessimistic delete in the
+		change buffer would require a larger test case. */
+
+		/* Flag the buffered record as processed, to avoid
+		an assertion failure after crash recovery. */
+		btr_cur_set_deleted_flag_for_ibuf(
+			btr_pcur_get_rec(pcur), TRUE, mtr);
+		mtr_commit(mtr);
+		log_make_checkpoint_at(ut_dulint_max, TRUE);
+		DBUG_SUICIDE();
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur), mtr);
 
 	if (success) {
@@ -3072,7 +3088,13 @@ ibuf_delete_rec(
 		return(FALSE);
 	}
 
-	/* We have to resort to a pessimistic delete from ibuf */
+	/* We have to resort to a pessimistic delete from ibuf.
+	Delete-mark the record so that it will not be applied again,
+	in case the server crashes before the pessimistic delete is
+	made persistent. */
+	btr_cur_set_deleted_flag_for_ibuf(
+		btr_pcur_get_rec(pcur), TRUE, mtr);
+
 	btr_pcur_store_position(pcur, mtr);
 
 	btr_pcur_commit_specify_mtr(pcur, mtr);
@@ -3343,7 +3365,7 @@ loop:
 			fputs("InnoDB: Discarding record\n ", stderr);
 			rec_print_old(stderr, ibuf_rec);
 			fputs("\n from the insert buffer!\n\n", stderr);
-		} else if (page) {
+		} else if (page && !rec_get_deleted_flag(ibuf_rec, 0)) {
 			/* Now we have at pcur a record which should be
 			inserted to the index page; NOTE that the call below
 			copies pointers to fields in ibuf_rec, and we must
