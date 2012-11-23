@@ -4238,6 +4238,8 @@ check_next_foreign:
 			/* remove the index object associated. */
 			dict_drop_index_tree(index, *page_no++);
 		}
+		DBUG_EXECUTE_IF(
+			"row_drop_temp_table_for_mysql", err = DB_NOT_FOUND;);
 	}
 
 	switch (err) {
