@@ -3085,7 +3085,7 @@ c21 CHAR(255), c22 CHAR(255), c23 CHAR(255), c24 CHAR(255),
 c25 CHAR(255), c26 CHAR(255), c27 CHAR(255), c28 CHAR(255),
 c29 CHAR(255), c30 CHAR(255), c31 CHAR(255), c32 CHAR(255)
 ) ENGINE = InnoDB;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 8126. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> 8126). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 DROP TABLE IF EXISTS t1;
 Warnings:
 Note	1051	Unknown table 't1'

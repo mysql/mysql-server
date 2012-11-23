@@ -295,6 +295,7 @@ sub collect_one_suite($)
 			      "storage/*/mtr",
 			      # Look in plugin specific suite dir
 			      "plugin/$suite/tests",
+			      "internal/plugin/$suite/tests",
 			     ],
 			     [$suite, "mtr"], ($suite =~ /^i_/));
       return unless $suitedir;

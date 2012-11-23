@@ -58,7 +58,7 @@ Tables_in_db1
 t2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `db1`; drop table `t1`
+master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE `t1`
 DROP TABLE t3;
 DROP DATABASE db1;
 set binlog_format=mixed;
@@ -121,7 +121,7 @@ Tables_in_db1
 t2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `db1`; drop table `t1`
+master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE `t1`
 DROP TABLE t3;
 DROP DATABASE db1;
 set binlog_format=row;
@@ -185,7 +185,7 @@ Tables_in_db1
 t2
 show binlog events from <binlog_start>;
 Log_name	Pos	Event_type	Server_id	End_log_pos	Info
-master-bin.000001	#	Query	#	#	use `db1`; drop table `t1`
+master-bin.000001	#	Query	#	#	use `db1`; DROP TABLE `t1`
 DROP TABLE t3;
 DROP DATABASE db1;
 show databases;

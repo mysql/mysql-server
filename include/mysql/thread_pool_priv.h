@@ -62,24 +62,8 @@ void thd_set_mysys_var(THD *thd, st_my_thread_var *mysys_var);
 ulong  thd_get_net_wait_timeout(THD *thd);
 my_socket thd_get_fd(THD *thd);
 
-/* Interface class for  global thread  list iteration */
-class Thread_iterator
-{
-  public:
-    Thread_iterator() : m_iterator(threads) {}
-    THD* next()
-    {
-      THD* tmp = m_iterator++;
-      return tmp;
-    }
-  private:
-    /*
-      Don't allow copying  of this class.
-    */
-    Thread_iterator(const Thread_iterator&);
-    void operator=(const Thread_iterator&);
-    I_List_iterator<THD> m_iterator;
-};
+THD *first_global_thread();
+THD *next_global_thread(THD *thd);
 
 /* Print to the MySQL error log */
 void sql_print_error(const char *format, ...);

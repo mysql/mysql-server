@@ -601,6 +601,7 @@ DROP TABLE worklog5743;
 # Prefix index with utf8 charset + varchar.
 # For varchar we also log the column itself as oppose of TEXT so it error
 # with limit 1024 due to overhead.
+--replace_regex /> [0-9]*/> max_row_size/
 -- error 1118
 CREATE TABLE worklog5743 (col_1_varchar VARCHAR (4000) CHARACTER SET 'utf8',
 col_2_varchar VARCHAR (4000) CHARACTER SET 'utf8' ,

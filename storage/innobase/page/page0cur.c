@@ -310,7 +310,7 @@ page_cur_search_with_match(
 #endif /* UNIV_DEBUG */
 	page = buf_block_get_frame(block);
 #ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip, page));
+	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
 	page_check_dir(page);
@@ -1248,7 +1248,7 @@ page_cur_insert_rec_zip(
 
 	ut_ad(!page_rec_is_supremum(*current_rec));
 #ifdef UNIV_ZIP_DEBUG
-	ut_a(page_zip_validate(page_zip, page));
+	ut_a(page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
 	/* 1. Get the size of the physical record in the page */
@@ -1972,7 +1972,7 @@ page_cur_delete_rec(
 	}
 
 #ifdef UNIV_ZIP_DEBUG
-	ut_a(!page_zip || page_zip_validate(page_zip, page));
+	ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 }
 

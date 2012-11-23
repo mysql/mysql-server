@@ -63,7 +63,7 @@ if ($value == No such row)
 {
     set sql_log_bin=0;
     eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
-    set global rpl_semi_sync_master_timeout= 5000; /* 5s */
+    set global rpl_semi_sync_master_timeout= 60000; /* 60s */
     set sql_log_bin=1;
 }
 enable_query_log;
@@ -170,7 +170,7 @@ replace_result $_connections_semisync_slave CONNECTIONS_SEMISYNC_SLAVE;
 replace_result $_connections_normal_slave CONNECTIONS_NORMAL_SLAVE;
 eval select $_connections_semisync_slave - $_connections_normal_slave as 'Should be 0';
 
-let $i=300;
+let $i=10;
 echo [ insert records to table ];
 disable_query_log;
 while ($i)
@@ -234,6 +234,7 @@ source include/stop_slave.inc;
 
 connection master;
 echo [ on master ];
+set global rpl_semi_sync_master_timeout= 5000;
 
 # The first semi-sync check should be on because after slave stop,
 # there are no transactions on the master.
@@ -260,7 +261,7 @@ show status like 'Rpl_semi_sync_master_yes_tx';
 
 # Semi-sync status on master is now OFF, so all these transactions
 # will be replicated asynchronously.
-let $i=300;
+let $i=10;
 disable_query_log;
 while ($i)
 {
