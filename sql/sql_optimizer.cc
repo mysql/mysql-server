@@ -7312,13 +7312,8 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
           return NULL;                        // Always true
 	new_cond->argument_list()->push_back(fix);
       }
-      /*
-	Item_cond_or do not need fix_fields for execution, its parameters
-	are fixed or do not need fix_fields, too
-      */
-      new_cond->quick_fix_field();
-      new_cond->set_used_tables(cond->used_tables());
-      new_cond->top_level_item();
+      if (new_cond->fix_fields(current_thd, NULL))
+        return NULL;
       return new_cond;
     }
   }
