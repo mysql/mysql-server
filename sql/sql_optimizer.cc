@@ -9532,7 +9532,8 @@ void JOIN::refine_best_rowcount()
     The row count is bumped to the nearest higher value, so that the
     query block will not be evaluated during optimization.
   */
-  if (best_rowcount <= 1)
+  if (select_lex->linkage == DERIVED_TABLE_TYPE &&
+      best_rowcount <= 1)
     best_rowcount= 2;
 
   /*
