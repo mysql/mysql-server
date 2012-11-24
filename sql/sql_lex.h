@@ -2398,11 +2398,40 @@ struct LEX: public Query_tables_list
   bool contains_plaintext_password;
 
 private:
+  bool m_broken; ///< see mark_broken()
   /// Current SP parsing context.
   /// @see also sp_head::m_root_parsing_ctx.
   sp_pcontext *sp_current_parsing_ctx;
 
 public:
+
+  bool is_broken() const { return m_broken; }
+  /**
+     Certain permanent transformations (like in2exists), if they fail, may
+     leave the LEX in an inconsistent state. They should call the
+     following function, so that this LEX is not reused by another execution.
+
+     @todo If lex_start () were a member function of LEX, the "broken"
+     argument could always be "true" and thus could be removed.
+  */
+  void mark_broken(bool broken= true)
+  {
+    if (broken)
+    {
+      /*
+        "OPEN <cursor>" cannot be re-prepared if the cursor uses no tables
+        ("SELECT FROM DUAL"). Indeed in that case cursor_query is left empty
+        in constructions of sp_instr_cpush, and thus
+        sp_lex_instr::parse_expr() cannot re-prepare. So we mark the statement
+        as broken only if tables are used.
+      */
+      if (is_metadata_used())
+        m_broken= true;
+    }
+    else
+      m_broken= false;
+  }
+
   sp_pcontext *get_sp_current_parsing_ctx()
   { return sp_current_parsing_ctx; }
 

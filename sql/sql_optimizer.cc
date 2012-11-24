@@ -125,6 +125,10 @@ JOIN::optimize()
   // to prevent double initialization on EXPLAIN
   if (optimized)
     DBUG_RETURN(0);
+
+  // We may do transformations (like semi-join):
+  Prepare_error_tracker tracker(thd);
+
   optimized= true;
   const bool first_optimization= select_lex->first_cond_optimization;
   select_lex->first_cond_optimization= false;
