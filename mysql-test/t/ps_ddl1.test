@@ -172,8 +172,6 @@ while ($num)
    call p_verify_reprepare_count(1);
    dec $num;
 }
---echo # Why does the INSERT ... SELECT does not get a reprepare or is
---echo # only the counter not incremented?
 eval execute stmt8;
 call p_verify_reprepare_count(1);
 --enable_abort_on_error
