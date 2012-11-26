@@ -24,9 +24,6 @@
 
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_push.h"
 #include "ha_ndbcluster_binlog.h"
@@ -1547,5 +1544,3 @@ ndbcluster_build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
     }
   }
 } // ndbcluster_build_key_map
-
-#endif // WITH_NDBCLUSTER_STORAGE_ENGINE

@@ -596,7 +596,6 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 }
 
 
-#ifndef NDB_WITHOUT_DIST_PRIV
 // Determine if privilege tables are distributed, ie. stored in NDB
 bool
 Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
@@ -632,7 +631,6 @@ Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
   }
   DBUG_RETURN(distributed);
 }
-#endif
 
 static void
 ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binlog_command,
@@ -684,7 +682,6 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     type= SOT_DROP_DB;
     DBUG_ASSERT(FALSE);
     break;
-#ifndef NDB_WITHOUT_DIST_PRIV
   case LOGCOM_CREATE_USER:
     type= SOT_CREATE_USER;
     if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
@@ -725,7 +722,6 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
       log= 1;
     }
     break;
-#endif
   }
   if (log)
   {
@@ -1088,6 +1084,23 @@ static void ndb_notify_tables_writable()
   pthread_cond_broadcast(&COND_ndb_setup_complete);
   pthread_mutex_unlock(&ndbcluster_mutex);
 }
+
+
+#ifdef NDB_WITHOUT_MAKE_DB_LIST
+/*
+  Declare LOOKUP_FIELD_VALUES and make_db_list() until
+  stable interface to list available databases exist
+*/
+typedef struct st_lookup_field_values
+{
+  LEX_STRING db_value, table_value;
+  bool wild_db_value, wild_table_value;
+} LOOKUP_FIELD_VALUES;
+
+int make_db_list(THD *thd, List<LEX_STRING> *files,
+                 LOOKUP_FIELD_VALUES *lookup_field_vals,
+                 bool *with_i_schema);
+#endif
 
 /*
 
