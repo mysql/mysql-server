@@ -86,6 +86,14 @@ Created 10/8/1995 Heikki Tuuri
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
 
+#ifdef __WIN__
+/* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
+# define DEBUG_SYNC_C(dummy) ((void) 0)
+#else
+# include "m_string.h" /* for my_sys.h */
+# include "my_sys.h" /* DEBUG_SYNC_C */
+#endif
+
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
 UNIV_INTERN ibool	srv_lower_case_table_names	= FALSE;
@@ -1473,6 +1481,10 @@ srv_suspend_mysql_thread(
 	ut_ad(!mutex_own(&kernel_mutex));
 
 	trx = thr_get_trx(thr);
+
+	if (trx->mysql_thd != 0) {
+		DEBUG_SYNC_C("srv_suspend_mysql_thread_enter");
+	}
 
 	os_event_set(srv_lock_timeout_thread_event);
 
