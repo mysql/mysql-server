@@ -2417,7 +2417,7 @@ fil_check_pending_operations(
 {
 	ulint		count = 0;
 
-	ut_a(id != TRX_SYS_SPACE);
+	ut_a(id != srv_sys_space.space_id() && id != srv_tmp_space.space_id());
 	ut_ad(space);
 
 	*space = 0;
@@ -2496,7 +2496,7 @@ fil_close_tablespace(
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
-	ut_a(id != TRX_SYS_SPACE);
+	ut_a(id != srv_sys_space.space_id() && id != srv_tmp_space.space_id());
 
 	dberr_t		err = fil_check_pending_operations(id, &space, &path);
 
@@ -2562,7 +2562,7 @@ fil_delete_tablespace(
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
-	ut_a(id != TRX_SYS_SPACE);
+	ut_a(id != srv_sys_space.space_id() && id != srv_tmp_space.space_id());
 
 	dberr_t		err = fil_check_pending_operations(id, &space, &path);
 
@@ -4799,13 +4799,22 @@ retry:
 	*actual_size = space->size;
 
 #ifndef UNIV_HOTBACKUP
-	if (space_id == TRX_SYS_SPACE) {
+	if (space_id == srv_sys_space.space_id()) {
 		ulint pages_per_mb = (1024 * 1024) / page_size;
 
 		/* Keep the last data file size info up to date, rounded to
 		full megabytes */
 
 		srv_sys_space.set_last_file_size(
+			(node->size / pages_per_mb) * pages_per_mb);
+	}
+	if (space_id == srv_tmp_space.space_id()) {
+		ulint pages_per_mb = (1024 * 1024) / page_size;
+
+		/* Keep the last data file size info up to date, rounded to
+		full megabytes */
+
+		srv_tmp_space.set_last_file_size(
 			(node->size / pages_per_mb) * pages_per_mb);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -5201,7 +5210,9 @@ fil_io(
 
 	/* If we are deleting a tablespace we don't allow any read
 	operations on that. However, we do allow write operations. */
-	if (space == 0 || (type == OS_FILE_READ && space->stop_new_ops)) {
+	if (space == srv_sys_space.space_id()
+	    || space == srv_tmp_space.space_id()
+	    || (type == OS_FILE_READ && space->stop_new_ops)) {
 		mutex_exit(&fil_system->mutex);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
