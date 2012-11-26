@@ -473,6 +473,47 @@ row_upd_changes_field_size_or_external(
 
 	return(FALSE);
 }
+
+/***********************************************************//**
+Returns true if row update contains disowned external fields.
+@return true if the update contains disowned external fields. */
+UNIV_INTERN
+bool
+row_upd_changes_disowned_external(
+/*==============================*/
+	const upd_t*	update)	/*!< in: update vector */
+{
+	const upd_field_t*	upd_field;
+	const dfield_t*		new_val;
+	ulint			new_len;
+	ulint                   n_fields;
+	ulint			i;
+
+	n_fields = upd_get_n_fields(update);
+
+	for (i = 0; i < n_fields; i++) {
+		const byte*	field_ref;
+
+		upd_field = upd_get_nth_field(update, i);
+		new_val = &(upd_field->new_val);
+		new_len = dfield_get_len(new_val);
+
+		if (!dfield_is_ext(new_val)) {
+			continue;
+		}
+
+		ut_ad(new_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+		field_ref = static_cast<const byte*>(dfield_get_data(new_val))
+			    + new_len - BTR_EXTERN_FIELD_REF_SIZE;
+
+		if (field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************//**

@@ -16,6 +16,7 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "my_getopt.h"
 
@@ -57,6 +58,7 @@ extern void install_tap_listener();
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
+  ::testing::InitGoogleMock(&argc, argv);
   MY_INIT(argv[0]);
 
   if (handle_options(&argc, &argv, unittest_options, get_one_option))

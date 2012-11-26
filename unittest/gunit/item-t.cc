@@ -16,6 +16,7 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "test_utils.h"
 
@@ -29,6 +30,7 @@ namespace {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
+using ::testing::Return;
 
 class ItemTest : public ::testing::Test
 {
@@ -43,13 +45,13 @@ protected:
 
 
 /**
-  This is a simple mock Field class, which verifies that store() is called.
-  TODO: Introduce Google Mock to simplify writing of mock classes.
+  This is a simple mock Field class, illustrating how to set expectations on
+  type_conversion_status Field_long::store(longlong nr, bool unsigned_val);
 */
 class Mock_field_long : public Field_long
 {
 public:
-  Mock_field_long(uint32 lenght, longlong expected_value)
+  Mock_field_long(uint32 lenght)
     : Field_long(0,                             // ptr_arg
                  lenght,                        // len_arg
                  NULL,                          // null_ptr_arg
@@ -57,35 +59,17 @@ public:
                  Field::NONE,                   // unireg_check_arg
                  0,                             // field_name_arg
                  false,                         // zero_arg
-                 false),                        // unsigned_arg
-      m_store_called(0),
-      m_expected_value(expected_value)
+                 false)                         // unsigned_arg
   {}
-
-  // The destructor verifies that store() has been called.
-  virtual ~Mock_field_long()
-  {
-    EXPECT_EQ(1, m_store_called);
-  }
 
   // Avoid warning about hiding other overloaded versions of store().
   using Field_long::store;
 
   /*
     This is the only member function we need to override.
-    We expect it to be called with specific arguments.
+    Note: Sun Studio needs a little help in resolving longlong.
    */
-  virtual type_conversion_status store(longlong nr, bool unsigned_val)
-  {
-    EXPECT_EQ(m_expected_value, nr);
-    EXPECT_FALSE(unsigned_val);
-    ++m_store_called;
-    return TYPE_OK;
-  }
-
-private:
-  int      m_store_called;
-  longlong m_expected_value;
+  MOCK_METHOD2(store, type_conversion_status(::longlong nr, bool unsigned_val));
 };
 
 
@@ -113,11 +97,12 @@ TEST_F(ItemTest, ItemInt)
   EXPECT_EQ(&string_val, item_int->val_str(&string_val));
   EXPECT_STREQ(stringbuf, string_val.c_ptr_safe());
 
-  {
-    // New scope, since we have EXPECT_EQ in the destructor as well.
-    Mock_field_long field_val(item_int->max_length, val);
-    EXPECT_EQ(0, item_int->save_in_field(&field_val, true));
-  }
+  Mock_field_long field_val(item_int->max_length);
+  // We expect to be called with arguments(nr == val, unsigned_val == false)
+  EXPECT_CALL(field_val, store(val, false))
+    .Times(1)
+    .WillRepeatedly(Return(TYPE_OK));
+  EXPECT_EQ(TYPE_OK, item_int->save_in_field(&field_val, true));
 
   Item *clone= item_int->clone_item();
   EXPECT_TRUE(item_int->eq(clone, true));

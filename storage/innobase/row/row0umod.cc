@@ -280,7 +280,7 @@ row_undo_mod_clust(
 		      || rw_lock_own(&index->lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 		switch (node->rec_type) {
-		case TRX_UNDO_UPD_DEL_REC:
+		case TRX_UNDO_DEL_MARK_REC:
 			row_log_table_insert(
 				btr_pcur_get_rec(pcur), index, offsets);
 			break;
@@ -289,7 +289,7 @@ row_undo_mod_clust(
 				btr_pcur_get_rec(pcur), index, offsets,
 				rebuilt_old_pk);
 			break;
-		case TRX_UNDO_DEL_MARK_REC:
+		case TRX_UNDO_UPD_DEL_REC:
 			row_log_table_delete(
 				btr_pcur_get_rec(pcur), index, offsets,
 				node->trx->id);
@@ -729,6 +729,7 @@ row_undo_mod_upd_del_sec(
 	dberr_t		err	= DB_SUCCESS;
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
+	ut_ad(!node->undo_row);
 
 	heap = mem_heap_create(1024);
 
@@ -793,6 +794,8 @@ row_undo_mod_del_mark_sec(
 {
 	mem_heap_t*	heap;
 	dberr_t		err	= DB_SUCCESS;
+
+	ut_ad(!node->undo_row);
 
 	heap = mem_heap_create(1024);
 
@@ -976,7 +979,7 @@ row_undo_mod_parse_undo_rec(
 	ulint		info_bits;
 	ulint		type;
 	ulint		cmpl_info;
-	ibool		dummy_extern;
+	bool		dummy_extern;
 
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
 				    &dummy_extern, &undo_no, &table_id);
