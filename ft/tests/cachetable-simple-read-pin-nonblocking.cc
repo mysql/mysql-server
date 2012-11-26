@@ -63,7 +63,7 @@ static void *run_expensive_fetch(void *arg) {
 
 static void
 run_test (void) {
-    const int test_limit = 12;
+    const int test_limit = 20;
     int r;
     void *ret;
     CACHETABLE ct;
