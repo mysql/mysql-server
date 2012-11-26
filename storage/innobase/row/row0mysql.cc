@@ -3037,7 +3037,7 @@ row_discard_tablespace_for_mysql(
 
 	if (table == 0) {
 		err = DB_TABLE_NOT_FOUND;
-	} else if (table->space == TRX_SYS_SPACE) {
+	} else if (table->space == srv_sys_space.space_id()) {
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
 		innobase_format_name(
@@ -4197,7 +4197,7 @@ check_next_foreign:
 		print_msg = !(is_temp || ibd_file_missing);
 
 		if (err == DB_SUCCESS
-		    && space_id != TRX_SYS_SPACE
+		    && space_id != srv_sys_space.space_id()
 		    && space_id != srv_tmp_space.space_id()) {
 			if (!is_temp
 			    && !fil_space_for_table_exists_in_mem(

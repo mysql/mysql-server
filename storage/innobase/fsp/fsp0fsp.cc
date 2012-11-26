@@ -757,11 +757,13 @@ fsp_header_init(
 	flst_init(header + FSP_SEG_INODES_FREE, mtr);
 
 	mlog_write_ull(header + FSP_SEG_ID, 1, mtr);
-	if (space == 0) {
+	if (space == srv_sys_space.space_id()) {
 		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
 			   0, 0, DICT_IBUF_ID_MIN + space,
 			   dict_ind_redundant, mtr);
+	} else if (space == srv_tmp_space.space_id()) {
+		fsp_fill_free_list(FALSE, space, header, mtr);
 	} else {
 		fsp_fill_free_list(TRUE, space, header, mtr);
 	}
@@ -942,7 +944,8 @@ fsp_try_extend_data_file(
 
 	*actual_increase = 0;
 
-	if (space == 0 && !srv_sys_space.can_auto_extend_last_file()) {
+	if (space == srv_sys_space.space_id()
+	    && !srv_sys_space.can_auto_extend_last_file()) {
 
 		/* We print the error message only once to avoid
 		spamming the error log. Note that we don't need
@@ -960,13 +963,34 @@ fsp_try_extend_data_file(
 		return(FALSE);
 	}
 
+	if (space == srv_tmp_space.space_id()
+	    && !srv_tmp_space.can_auto_extend_last_file()) {
+
+		/* We print the error message only once to avoid
+		spamming the error log. Note that we don't need
+		to reset the flag to FALSE as dealing with this
+		error requires server restart. */
+		if (fsp_tbs_full_error_printed == FALSE) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Temp-Data file(s) ran out of space."
+				" Please add another temp-data file or"
+				" use \'autoextend\' for the last data file");
+			fsp_tbs_full_error_printed = TRUE;
+		}
+		return(FALSE);
+	}
+
 	size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
 	zip_size = fsp_flags_get_zip_size(
 		mach_read_from_4(header + FSP_SPACE_FLAGS));
 
 	old_size = size;
 
-	if (space == TRX_SYS_SPACE) {
+	if (space == srv_sys_space.space_id()) {
+
+		size_increase = srv_sys_space.get_increment();
+
+	} else if (space == srv_tmp_space.space_id()) {
 
 		size_increase = srv_sys_space.get_increment();
 
@@ -1090,8 +1114,17 @@ fsp_fill_free_list(
 	ut_a(zip_size <= UNIV_ZIP_SIZE_MAX);
 	ut_a(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
 
-	if (space == TRX_SYS_SPACE
+	if (space == srv_sys_space.space_id()
 	    && srv_sys_space.can_auto_extend_last_file()
+	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
+
+		/* Try to increase the last data file size */
+		fsp_try_extend_data_file(&actual_increase, space, header, mtr);
+		size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);
+	}
+
+	if (space == srv_tmp_space.space_id()
+	    && srv_tmp_space.can_auto_extend_last_file()
 	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
 
 		/* Try to increase the last data file size */
