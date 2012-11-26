@@ -725,23 +725,27 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       m_config.m_batch_size= batch_size;
     }
 
-    // Configure timeouts
-    Uint32 timeout = 120000;
-    for (iter.first(); iter.valid(); iter.next())
-    {
-      Uint32 tmp1 = 0, tmp2 = 0;
-      iter.get(CFG_DB_TRANSACTION_CHECK_INTERVAL, &tmp1);
-      iter.get(CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &tmp2);
-      tmp1 += tmp2;
-      if (tmp1 > timeout)
-        timeout = tmp1;
-    }
-    m_config.m_waitfor_timeout = timeout;
-
     Uint32 queue = 0;
     if (!iter.get(CFG_DEFAULT_OPERATION_REDO_PROBLEM_ACTION, &queue))
     {
       m_config.m_default_queue_option = queue;
+    }
+
+    // Configure timeouts
+    {
+      Uint32 timeout = 120000;
+      // Use new iterator to leave iter valid.
+      ndb_mgm_configuration_iterator iterall(config, CFG_SECTION_NODE);
+      for (; iterall.valid(); iterall.next())
+      {
+        Uint32 tmp1 = 0, tmp2 = 0;
+        iterall.get(CFG_DB_TRANSACTION_CHECK_INTERVAL, &tmp1);
+        iterall.get(CFG_DB_TRANSACTION_DEADLOCK_TIMEOUT, &tmp2);
+        tmp1 += tmp2;
+        if (tmp1 > timeout)
+          timeout = tmp1;
+      }
+      m_config.m_waitfor_timeout = timeout;
     }
   }
   DBUG_RETURN(init_nodes_vector(nodeId, config));
