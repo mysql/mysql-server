@@ -617,7 +617,7 @@ ErrorBundle ErrorCodes[] = {
   { 1426, DMEC, SE, "No such subscriber" },
   { 1427, DMEC, NR, "Api node died, when SUB_START_REQ reached node "},
   { 1428, DMEC, IE, "No replica to scan on this node (internal index stats error)" },
-  { 1429, DMEC, IE, "Subscriber node undefined in SubStartReq (config change\?\?)" },
+  { 1429, DMEC, IE, "Subscriber node undefined in SubStartReq (config change?)" },
 
   { 4004, DMEC, AE, "Attribute name or id not found in the table" },
   

@@ -80,6 +80,9 @@ JOIN::prepare(TABLE_LIST *tables_init,
   if (optimized)
     DBUG_RETURN(0);
 
+  // We may do subquery transformation, or Item substitution:
+  Prepare_error_tracker tracker(thd);
+
   if (order_init)
     explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
   if (group_init)
@@ -319,7 +322,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
 
 
   if (result && result->prepare(fields_list, unit_arg))
-    goto err;					/* purecov: inspected */
+    DBUG_RETURN(-1); /* purecov: inspected */
 
   /* Init join struct */
   count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
@@ -337,13 +340,13 @@ JOIN::prepare(TABLE_LIST *tables_init,
   if (implicit_grouping)
   {
     my_message(ER_WRONG_SUM_SELECT,ER(ER_WRONG_SUM_SELECT),MYF(0));
-    goto err;
+    DBUG_RETURN(-1); /* purecov: inspected */
   }
 #endif
   if (select_lex->olap == ROLLUP_TYPE && rollup_init())
-    goto err;
+    DBUG_RETURN(-1); /* purecov: inspected */
   if (alloc_func_list())
-    goto err;
+    DBUG_RETURN(-1); /* purecov: inspected */
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   {
@@ -356,15 +359,12 @@ JOIN::prepare(TABLE_LIST *tables_init,
       */
       Item *prune_cond= tbl->join_cond() ? tbl->join_cond() : conds;
       if (prune_partitions(thd, tbl->table, prune_cond))
-        goto err;
+        DBUG_RETURN(-1); /* purecov: inspected */
     }
   }
 #endif
 
   DBUG_RETURN(0); // All OK
-
-err:
-  DBUG_RETURN(-1);				/* purecov: inspected */
 }
 
 

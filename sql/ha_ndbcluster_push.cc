@@ -24,9 +24,6 @@
 
 
 #include "ha_ndbcluster_glue.h"
-
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-
 #include "ha_ndbcluster.h"
 #include "ha_ndbcluster_push.h"
 #include "ha_ndbcluster_binlog.h"
@@ -1105,35 +1102,31 @@ ndb_pushed_builder_ctx::optimize_query_plan()
     DBUG_ASSERT(!parents.contain(tab_no)); // No circular dependency!
 
     /**
-     * In order to take advantage of the parallelism in the SPJ block; 
+-    * In order to take advantage of the parallelism in the SPJ block;
      * Initial parent candidate is the first possible among 'parents'.
      * Will result in the most 'bushy' query plan (aka: star-join)
      */
     parent_no= parents.first_table(root_no);
 
-    if (table.m_fanout*table.m_child_fanout > 1.0 ||
-        !ndbcluster_is_lookup_operation(m_plan.get_table_access(tab_no)->get_access_type()))
+    /**
+     * Push optimization for execution of child operations:
+     *
+     * To take advantage of the selectivity of parent operations we 
+     * execute any parent operations with fanout <= 1 before this
+     * child operation. By making them depending on parent 
+     * operations with high selectivity, child will be eliminated when
+     * the parent returns no matching rows.
+     *
+     * -> Execute child operation after any such parents
+     */
+    for (uint candidate= parent_no+1; candidate<parents.length(); candidate++)
     {
-      /**
-       * This is a index-scan or lookup with scan childs.
-       * Push optimization for index-scan execute:
-       *
-       * These are relative expensive operation which we try to avoid to 
-       * execute whenever possible. By making them depending on parent 
-       * operations with high selectivity, they will be eliminated when
-       * the parent returns no matching rows.
-       *
-       * -> Execute index-scan after any such parents
-       */
-      for (uint candidate= parent_no+1; candidate<parents.length(); candidate++)
+      if (parents.contain(candidate))
       {
-        if (parents.contain(candidate))
-        {
-          if (m_tables[candidate].m_fanout > 1.0)
-            break;
+        if (m_tables[candidate].m_fanout > 1.0)
+          break;
 
-          parent_no= candidate;     // Parent candidate is selective, eval after
-        }
+        parent_no= candidate;     // Parent candidate is selective, eval after
       }
     }
 
@@ -1559,5 +1552,3 @@ ndbcluster_build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
     }
   }
 } // ndbcluster_build_key_map
-
-#endif // WITH_NDBCLUSTER_STORAGE_ENGINE
