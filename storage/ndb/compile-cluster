@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 
-# Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -27,6 +27,10 @@ use Cwd 'abs_path';
 use File::Basename;
 use Getopt::Long;
 
+# Automatically flush STDOUT
+select(STDOUT);
+$| = 1;
+
 # Only add the command line options handled by this script, 
 # thus acting like a filter and passing all other arguments
 # straight through
@@ -35,6 +39,9 @@ my $opt_build_type;
 my $opt_build = 1;
 my $opt_just_print;
 my $opt_vanilla;
+my $opt_autotest;
+my $opt_distcheck;
+my $opt_parse_log;
 Getopt::Long::Configure("pass_through");
 GetOptions(
 
@@ -46,6 +53,12 @@ GetOptions(
   'c|just-configure' => sub { $opt_build = 0; },
   'n|just-print' => \$opt_just_print,
   'vanilla' => \$opt_vanilla,
+  'autotest' => \$opt_autotest,
+  'distcheck' => \$opt_distcheck,
+
+  # Special switch --parse-log=<file> which reads a log file (from build) and
+  # parses it for warnings
+  'parse-log=s' => \$opt_parse_log,
 ) or exit(1);
 
 # Find source root directory, assume this script is
@@ -59,7 +72,24 @@ if ($^O eq "cygwin") {
   chomp $opt_srcdir;
 }
 
-# Check that cmake exists and figure out it's version 
+# Parse given log file for warnings
+if ($opt_parse_log)
+{
+  use IO::File;
+  my $file = IO::File->new($opt_parse_log, 'r')
+      or die "Failed to open file $opt_parse_log: $!";
+  my $parser = WarningParser->new(srcdir => $opt_srcdir,
+				  unified => 1,
+                                  verbose => 1);
+  while (my $line = <$file>)
+  {
+    $parser->parse_line($line);
+  }
+  $parser->report($0);
+  exit(0);
+}
+
+# Check that cmake exists and figure out it's version
 my $cmake_version_id;
 {
   my $version_text = `cmake --version`;
@@ -96,11 +126,11 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   # Remove old CMakeCache.txt(ignore if not exists) to
   # force fresh configure
   unlink("CMakeCache.txt");
-   
+
   my @args;
-  
   if ($opt_debug)
   {
+    print("compile-cluster: debug build requested\n");
     push(@args, "-DWITH_DEBUG=1");
     push(@args, "-DMYSQL_MAINTAINER_MODE=0");
   }
@@ -122,6 +152,13 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
     # Hardcoded options controlling how to build NDB
     push(@args, "-DWITH_PLUGIN_NDBCLUSTER=1");
     push(@args, "-DWITH_NDB_TEST=1");
+  }
+
+  if ($opt_autotest)
+  {
+    print("compile-cluster: autotest build requested, extra everything\n");
+    push(@args, "-DWITH_NDB_CCFLAGS='-DERROR_INSERT'");
+    push(@args, "-DWITH_EMBEDDED_SERVER=1");
   }
 
   # The cmake generator to use
@@ -313,16 +350,15 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
   cmd("cmake", @args);
 }
 
+#
+# Build
+#
 if (!$opt_build)
 {
   print "Configuration completed, skipping build(used --no-build)\n";
   exit(0);
 }
 
-
-#
-# Build
-#
 {
   if ($cmake_version_id >= 20800)
   {
@@ -344,7 +380,7 @@ if (!$opt_build)
       push(@args, $config);
     }
 
-    cmd("cmake", @args);
+    build_cmd("cmake", @args);
 
   }
   else
@@ -353,22 +389,379 @@ if (!$opt_build)
     die "You need to install cmake with version > 2.8"
       if ($^O eq "cygwin" or $^O eq "MSWin32");
 
-    cmd("make");
+    build_cmd("make");
   }
 }
 
-sub cmd {
-  my ($cmd, @a)= @_;
-  
-  if ($opt_just_print){
-    print "$cmd ", join(' ', @a), "\n";
-    return; 
-  }
-  
-  print "compile-cluster: calling '$cmd ", join(' ', @a), "'\n";
-  system($cmd, @a)
-    and print("command failed: $!\n")
-      and exit(1);
+if ($opt_distcheck)
+{
+    print "\n";
+    print "NOTE! 'make distcheck' not (yet) supported in this version\n";
+    print "\n";
 }
 
 exit(0);
+
+
+sub cmd {
+  my ($cmd, @a)= @_;
+  my $cmd_str = join(' ', $cmd, @a);
+  print "compile-cluster: '$cmd_str'\n";
+  return if ($opt_just_print);
+  system($cmd, @a)
+    and print("command '$cmd_str' failed\n")
+	  and exit(1);
+}
+
+use IPC::Open2;
+sub build_cmd {
+  my ($cmd, @args) = @_;
+  my $cmd_str = join(' ', $cmd, @args);
+  print "compile-cluster: '$cmd_str'\n";
+  return if ($opt_just_print);
+  $cmd_str.= " 2>&1";
+
+  # Create warning parser and pass every ouput line through it
+  my $parser = WarningParser->new(srcdir => $opt_srcdir,
+                                  unified => 1,
+                                  verbose => 1);
+
+  my ($chld_out, $chld_in);
+  my $pid = open2($chld_out, $chld_in, $cmd_str) or die $!;
+
+  # Install handler to make sure that build is killed
+  # off even in case the perl script dies
+  local $SIG{__DIE__} = sub {
+      print STDERR "Ooops, script died! Killing the build(pid = $pid)\n";
+
+      # NOTE! Kill with negative signal number means kill process group
+      my $ret = kill(-9, $pid);
+      print STDERR "  kill(-9, $pid) -> $ret\n";
+
+      # Just checking, should return 0
+      $ret = kill(0, $pid);
+      print STDERR "  kill(0, $pid) ->  $ret\n";
+
+      # Wait for process to terminate
+      print STDERR "  waitpid($pid, 0)\n";
+      $ret= waitpid($pid, 0);
+      print STDERR "  waitpid returned $ret!\n";
+  };
+
+  while (my $line = <$chld_out>)
+  {
+    if (!$parser->parse_line($line))
+    {
+      # Warning parser didn't print the line, print it
+      print $line;
+    }
+  }
+  waitpid($pid, 0);
+  my $exit_status = $?;
+  my $exit_code = ($exit_status >> 8);
+  print "Build completed with exit_code: $exit_code(status: $exit_status)\n";
+  if ($exit_code)
+  {
+    print("command '$cmd_str' failed: $!\n");
+    exit(1);
+  }
+  $parser->report($0);
+}
+
+
+# Perl class used by WarningParser for keeping
+# track of one individual warning
+#
+package WarningParser::Warning;
+use strict;
+
+sub new {
+  my ($class, $file, $line, $text, $compiler)= @_;
+  my $self= bless {
+    FILE => $file,
+    LINE => $line,
+    TEXT => $text,
+    COMPILER => $compiler,
+  }, $class;
+  return $self;
+}
+
+sub file {
+  my ($self) = @_;
+  return $self->{FILE};
+}
+
+sub line {
+  my ($self) = @_;
+  return $self->{LINE};
+}
+
+sub text {
+  my ($self) = @_;
+  return $self->{TEXT};
+}
+
+# Print the warning in verbose format for easier debugging
+sub print_verbose {
+  my ($self) = @_;
+
+  print "{\n";
+  foreach my $key (keys %$self)
+  {
+    print "  $key => '$self->{$key}'\n";
+  }
+  print "}\n";
+}
+
+# Print the warning in unified format(easy for automated build system to parse)
+# emulate gcc
+sub print_unified {
+  my ($self) = @_;
+  my $file = $self->file();
+  my $line = $self->line();
+  my $text = $self->text();
+  print "$file:$line: warning: $text\n";
+}
+
+sub suppress {
+  my ($self, $message) = @_;
+  die if exists $self->{SUPPRESSED}; # Already suppressed
+  die unless $message; # No message
+  $self->{SUPPRESSED} = $message;
+}
+
+sub is_suppressed {
+  my ($self) = @_;
+  return exists $self->{SUPPRESSED};
+}
+
+sub is_cluster_warning {
+  my ($self) = @_;
+  my $file = $self->{FILE};
+  # Have the string ndb in the file name(including
+  # directory so everything below storage/ndb is
+  # automatically included)
+  if ($file =~ /ndb/)
+  {
+    return 1;
+  }
+  return 0;
+}
+
+
+package WarningParser;
+use strict;
+use Cwd 'abs_path';
+
+sub new {
+  my $class= shift;
+  my %opts= ( @_ );
+  my $srcdir = $opts{srcdir} || die "Must supply srcdir";
+  my $verbose = $opts{verbose} || 0;
+  my $unified = $opts{unified} || 0;
+  my $track_dirs = $opts{track_dirs} || 0;
+
+  my $self= bless {
+    # empty array of warnings
+    WARNINGS => [],
+
+    # print each warning object as they are accumulated
+    VERBOSE => $verbose,
+
+    # print warnings in unified format(i.e the format
+    # is converted to look like standard gcc). This makes it
+    # easy for higher level tools to parse the warnings
+    # regardless of compiler.
+    UNIFIED => $unified,
+
+    # Need to keep track of current dir since file name in
+    # warnings does not include directory(this is normal
+    # in makefiles generated by automake)
+    TRACK_DIRS => $track_dirs,
+
+    # Location of source
+    SRCDIR => $srcdir,
+
+  }, $class;
+  return $self;
+}
+
+sub new_warning {
+  my ($self, $file, $line, $text, $compiler) = @_;
+  #print "new_warning>\n";
+  #print "file: '$file', line: $line, text: '$text', compiler: '$compiler'\n";
+  my $srcdir = $self->{SRCDIR};
+  #print "srcdir: $srcdir\n";
+  if ($self->{TRACK_DIRS})
+  {
+    # "file" does not contain directory, add currently
+    # tracked dir
+    my $dir = $self->{DIR};
+    $file= "$dir/$file";
+  }
+  if (! -e $file)
+  {
+    # safety, "file" does not always contain full path
+    # and thus calling 'abs_path' on a non existing file
+    # would make the script die
+    print "Hmmpf, creating warning for file without full path!\n";
+  }
+  else
+  {
+    # "srcdir" is in abs_path form, convert also "file" to abs_path
+    $file = abs_path($file);
+  }
+
+  $file =~ s/^$srcdir//; # Remove leading srcdir
+  $file =~ s:^\/::; # Remove leading slash
+
+  return WarningParser::Warning->new($file, $line, $text, $compiler);
+}
+
+sub parse_warning {
+  my ($self, $line) = @_;
+
+  if ($self->{TRACK_DIRS})
+  {
+    # Track current directory by parsing makes
+    # "Entering/Leaving directory" messages
+    if ($line =~ /Entering directory \`(.*)\'/)
+    {
+      my $dir= $1;
+      # Push previous dir onto stack before setting new
+      push(@{$self->{DIRSTACK}}, $self->{DIR});
+      $self->{DIR}= $dir;
+    }
+
+    if ($line =~ /Leaving directory \`(.*)\'/)
+    {
+      # Pop previous dir from stack and set it as current
+      my $prevdir= pop(@{$self->{DIRSTACK}});
+      $self->{DIR}= $prevdir;
+    }
+  }
+
+  # cmake and Visual Studio 10(seems to use msbuild)
+  if ($line =~ /^(\d+>)?\s*(.*)\((\d+)\): warning ([^ ]*:.*)$/)
+  {
+    return $self->new_warning($2, $3, $4, "vs10_msbuild");
+  }
+
+  # cmake and Visual Studio 9
+  if ($line =~ /^(\d+>)?(?:[a-z]:)?([^:()]*)\((\d+)\) : warning ([^ ]*:.*)$/)
+  {
+    my ($project, $file, $lineno, $text) = ($1, $2, $3, $4);
+    return $self->new_warning($file, $lineno, $text, "vs9");
+  }
+
+  # cmake and gcc with line number AND column
+  if ($line =~ /([^ ]+\.(c|h|cc|cpp|hpp|ic|i|y|l)):([0-9]+):([0-9]+):[ \t]*warning:[ \t]*(.*)$/)
+  {
+    my ($file, $junk, $lineno, $colno, $text) = ($1, $2, $3, $4, $5);
+    return $self->new_warning($file, $lineno, $text, , "gcc_with_col");
+  }
+
+  # cmake and gcc
+  if ($line =~ /([^ ]+\.(c|h|cc|cpp|hpp|ic|i|y|l)):[ \t]*([0-9]+):[ \t]*warning:[ \t]*(.*)$/)
+  {
+    return $self->new_warning($1, $3, $4, "gcc");
+  }
+
+  return undef;
+}
+
+sub suppress_warning {
+  my ($self, $w) = @_;
+
+  # Ignore files not owned by cluster team
+  if (!$w->is_cluster_warning())
+  {
+    $w->suppress('Warning in file not owned by cluster team');
+    return 1;
+  }
+
+  # List of supressions consisting of one regex for the dir+file name
+  # and one for the warning text. The suppression is stored as a
+  # list of arrays, where each array contains two precompiled
+  # regexes. If both expressions match, the warning is suppressed.
+  my @suppressions = (
+    # [ qr/<dirname+filename regex>/, qr/<warning regex>/ ],
+  );
+
+  foreach my $sup ( @suppressions )
+  {
+    my $file_pat = $sup->[0];
+    my $text_pat = $sup->[1];
+    if ($w->file() =~ /$file_pat/ and
+	$w->text() =~ /$text_pat/)
+    {
+      $w->suppress("Suppressed by file suppression: '$file_pat, $text_pat'");
+      return 1;
+    }
+  }
+
+  return 0;
+}
+
+# Parse a line for warnings and return 1 if warning was
+# found(even if it was suppressed)
+#
+sub parse_line {
+  my ($self, $line) = @_;
+  $self->{LINES}++;
+
+  # Remove trailing line feed and new line
+  $line =~ s/[\r]+$//g;
+  $line =~ s/[\n]+$//g;
+
+  my $w = $self->parse_warning($line);
+  if (defined $w)
+  {
+    if (!$self->suppress_warning($w))
+    {
+      if ($self->{UNIFIED})
+      {
+        # Print the warning in UNIFIED format
+        $w->print_unified();
+      }
+      else
+      {
+        # Just echo the line verbatim
+	print "\n$line\n";
+      }
+    }
+    # Print the warning object in verbose mode
+    $w->print_verbose() if $self->{VERBOSE};
+
+    # Save the warning for final report
+    push(@{$self->{WARNINGS}}, $w);
+
+    return 1;
+  }
+
+  return 0;
+}
+
+sub report {
+  my ($self, $prefix) = @_;
+  my $lines = $self->{LINES};
+
+  my $warnings = 0;
+  my $suppressed= 0;
+
+  foreach my $w (@{$self->{WARNINGS}})
+  {
+    if ($w->is_suppressed())
+    {
+      $suppressed++;
+    }
+    else
+    {
+      $warnings++;
+    }
+  }
+  my $total = $warnings + $suppressed;
+  print "$prefix: $warnings warnings found(suppressed $suppressed of total $total)\n";
+}
+
+1;
