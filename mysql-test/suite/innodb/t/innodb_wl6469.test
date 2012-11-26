@@ -103,8 +103,8 @@ show create table t1;
 --error ER_BAD_FIELD_ERROR
 select * from t1 where t1_f > 2.2;
 #
---error ER_PARSE_ERROR
-alter table t1 add index sec_index2(t1_c) algorithm=inplace;
+--error ER_NOT_SUPPORTED_YET
+alter table t1 add index sec_index2(t1_c), algorithm=inplace;
 select * from information_schema.innodb_sys_fields where name like 't1_%';
 #
 drop table t1;
@@ -133,21 +133,25 @@ call mtr.add_suppression("Cannot create file");
 #
 set session debug="+d,ib_create_table_fail_disk_full";
 --error ER_RECORD_FILE_FULL
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine=innodb;
 --error ER_NO_SUCH_TABLE
 insert into t1 values (10, 11);
 set session debug="-d,ib_create_table_fail_disk_full";
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine=innodb;
 insert into t1 values (10, 11);
 drop table t1;
 #
 set session debug="+d,ib_create_table_fail_at_create_index";
 --error ER_INDEX_COLUMN_TOO_LONG
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine=innodb;
 --error ER_NO_SUCH_TABLE
 insert into t1 values (10, 11);
 set session debug="-d,ib_create_table_fail_at_create_index";
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
+create temporary table t1
+	(a int, b int, primary key(a), index(b)) engine=innodb;
 insert into t1 values (10, 11);
 drop table t1;
 
