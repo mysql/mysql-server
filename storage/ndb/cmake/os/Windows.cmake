@@ -21,3 +21,9 @@
 GET_FILENAME_COMPONENT(_SCRIPT_DIR ${CMAKE_CURRENT_LIST_FILE} PATH)
 INCLUDE(${_SCRIPT_DIR}/WindowsCache.cmake)
 
+IF(MSVC)
+  # Enable "Full Path of Source Code File in Diagnostics" to avoid
+  # "guessing" which file was causing warnings or error
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /FC")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /FC")
+ENDIF()

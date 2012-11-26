@@ -63,6 +63,9 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #define TEST_SIGINT		1024	/**< Allow sigint on threads */
 #define TEST_SYNCHRONIZATION    2048    /**< get server to do sleep in
                                            some places */
+#define TEST_DO_QUICK_LEAK_CHECK 4096   /**< Do Valgrind leak check for
+                                           each command. */
+
 /* Function prototypes */
 void kill_mysql(void);
 void close_connection(THD *thd, uint sql_errno= 0);
