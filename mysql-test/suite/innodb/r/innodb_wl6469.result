@@ -126,8 +126,8 @@ t1	CREATE TEMPORARY TABLE `t1` (
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 select * from t1 where t1_f > 2.2;
 ERROR 42S22: Unknown column 't1_f' in 'where clause'
-alter table t1 add index sec_index2(t1_c) algorithm=inplace;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'algorithm=inplace' at line 1
+alter table t1 add index sec_index2(t1_c), algorithm=inplace;
+ERROR 42000: This version of MySQL doesn't yet support 'alter table t1 add index sec_index2(t1_c), algorithm=inplace'
 select * from information_schema.innodb_sys_fields where name like 't1_%';
 INDEX_ID	NAME	POS
 drop table t1;
@@ -145,34 +145,25 @@ drop table t1;
 call mtr.add_suppression("No space left on device");
 call mtr.add_suppression("table.+ full");
 call mtr.add_suppression("Cannot create file");
-call mtr.add_suppression("Could not remove temporary table");
 set session debug="+d,ib_create_table_fail_disk_full";
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine=innodb;
 ERROR HY000: The table 't1' is full
 insert into t1 values (10, 11);
 ERROR 42S02: Table 'test.t1' doesn't exist
 set session debug="-d,ib_create_table_fail_disk_full";
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine=innodb;
 insert into t1 values (10, 11);
 drop table t1;
 set session debug="+d,ib_create_table_fail_at_create_index";
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine=innodb;
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 insert into t1 values (10, 11);
 ERROR 42S02: Table 'test.t1' doesn't exist
 set session debug="-d,ib_create_table_fail_at_create_index";
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine=innodb;
 insert into t1 values (10, 11);
-drop table t1;
-set session debug="+d,row_drop_temp_table_for_mysql";
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
-insert into t1 values (10, 11);
-select * from t1;
-a	b
-10	11
-drop table t1;
-set session debug="-d,row_drop_temp_table_for_mysql";
-create temporary table t1 (a int, b int, primary key(a), index(b)) engine=innodb;
-select * from t1;
-a	b
 drop table t1;
