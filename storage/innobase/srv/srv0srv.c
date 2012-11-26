@@ -58,6 +58,8 @@ Created 10/8/1995 Heikki Tuuri
 *******************************************************/
 
 /* Dummy comment */
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 #include "srv0srv.h"
 
 #include "ut0mem.h"
@@ -1570,6 +1572,10 @@ srv_suspend_mysql_thread(
 	ut_ad(!mutex_own(&kernel_mutex));
 
 	trx = thr_get_trx(thr);
+
+	if (trx->mysql_thd != 0) {
+		DEBUG_SYNC_C("srv_suspend_mysql_thread_enter");
+	}
 
 	os_event_set(srv_lock_timeout_thread_event);
 
