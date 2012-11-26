@@ -18554,6 +18554,22 @@ static void test_progress_reporting()
   mysql_close(conn);
 }
 
+/**
+  MDEV-3885 - connection suicide via mysql_kill() causes assertion in server
+*/
+
+static void test_mdev3885() 
+{
+  int rc;
+  MYSQL *conn;
+
+  myheader("test_mdev3885");
+  conn= client_connect(0, MYSQL_PROTOCOL_TCP, 0);
+  rc= mysql_kill(conn, mysql_thread_id(conn));
+  DIE_UNLESS(rc == 0);
+  mysql_close(conn);
+}
+
 
 /**
   Bug#57058 SERVER_QUERY_WAS_SLOW not wired up.
@@ -19056,6 +19072,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug58036", test_bug58036 },
   { "test_bug57058", test_bug57058 },
   { "test_bug56976", test_bug56976 },
+  { "test_mdev3855", test_mdev3885 },
   { "test_bug11766854", test_bug11766854 },
   { "test_bug12337762", test_bug12337762 },
   { "test_progress_reporting", test_progress_reporting },
