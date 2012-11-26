@@ -663,6 +663,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/checkpoint_1.tdb
     ydb/drd_test_groupcommit_count.tdb
     ydb/env-put-multiple.tdb
+    ydb/filesize.tdb
     ydb/hot-optimize-table-tests.tdb
     ydb/loader-cleanup-test0.tdb
     ydb/loader-cleanup-test2.tdb
