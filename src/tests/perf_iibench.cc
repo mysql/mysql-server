@@ -19,8 +19,9 @@ struct iibench_op_extra {
     uint64_t autoincrement;
 };
 
-static uint64_t next_autoincrement(struct iibench_op_extra *info) {
-    return toku_sync_fetch_and_add(&info->autoincrement, 1);
+static uint64_t next_autoincrement_network_order(struct iibench_op_extra *info) {
+    uint64_t k = toku_sync_fetch_and_add(&info->autoincrement, 1);
+    return toku_htonl64(k);
 }
 
 static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void *stats_extra) {
@@ -49,7 +50,7 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
         fill_zeroed_array(valbuf, arg->cli->val_size, 
                 arg->random_data, arg->cli->compressibility);
         struct iibench_op_extra *CAST_FROM_VOIDP(info, operation_extra);
-        uint64_t pk = next_autoincrement(info);
+        uint64_t pk = next_autoincrement_network_order(info);
         dbt_init(&mult_key_dbt[0], &pk, sizeof pk);
         dbt_init(&mult_val_dbt[0], valbuf, sizeof valbuf);
         r = env->put_multiple(
