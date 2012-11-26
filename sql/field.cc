@@ -7501,6 +7501,8 @@ uint Field_varstring::is_equal(Create_field *new_field)
   {
     if (new_field->length == max_display_length())
       return IS_EQUAL_YES;
+    DBUG_ASSERT(0 == (new_field->length % field_charset->mbmaxlen));
+    DBUG_ASSERT(0 == (max_display_length() % field_charset->mbmaxlen));
     if (new_field->length > max_display_length() &&
 	((new_field->length <= 255 && max_display_length() <= 255) ||
 	 (new_field->length > 255 && max_display_length() > 255)))
