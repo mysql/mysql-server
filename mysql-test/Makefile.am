@@ -63,8 +63,7 @@ nobase_test_DATA = \
 	lib/My/File/Path.pm \
 	lib/My/SysInfo.pm \
 	lib/My/CoreDump.pm \
-	lib/My/SafeProcess/Base.pm \
-	lib/My/SafeProcess/safe_process.pl
+	lib/My/SafeProcess/Base.pm
 
 SUBDIRS =	lib/My/SafeProcess
 
