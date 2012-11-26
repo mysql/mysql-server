@@ -3003,16 +3003,7 @@ int cleaner::run_cleaner(void) {
                 long score = 0;
                 // only bother with this pair if it has no current users
                 if (m_pl->m_cleaner_head->value_rwlock.users() == 0) {
-                    // cleaner_thread_rate_pair will read this.  The
-                    // contract is that to look at p->attr, you need
-                    // either the pair's value_rwlock write-locked, or you
-                    // need the pair_lock *and* the pair's value_rwlock
-                    // read-locked.  Here we know nobody else has it
-                    // write-locked so it's safe, but DRD seems not to
-                    // understand that.
-                    TOKU_DRD_IGNORE_VAR(m_pl->m_cleaner_head->attr.cache_pressure_size);
                     score = cleaner_thread_rate_pair(m_pl->m_cleaner_head);
-                    TOKU_DRD_STOP_IGNORING_VAR(m_pl->m_cleaner_head->attr.cache_pressure_size);
                     if (score > best_score) {
                         best_score = score;
                         best_pair = m_pl->m_cleaner_head;
@@ -3028,10 +3019,7 @@ int cleaner::run_cleaner(void) {
             else {
                 n_seen++;
                 long score = 0;
-                // See above
-                TOKU_DRD_IGNORE_VAR(m_pl->m_cleaner_head->attr.cache_pressure_size);
                 score = cleaner_thread_rate_pair(m_pl->m_cleaner_head);
-                TOKU_DRD_STOP_IGNORING_VAR(m_pl->m_cleaner_head->attr.cache_pressure_size);
                 if (score > best_score) {
                     best_score = score;
                     // Since we found a new best pair, we need to
