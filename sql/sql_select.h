@@ -1141,6 +1141,8 @@ public:
   bool          skip_sort_order;
 
   bool need_tmp, hidden_group_fields;
+  /* TRUE if there was full cleunap of the JOIN */
+  bool cleaned;
   DYNAMIC_ARRAY keyuse;
   Item::cond_result cond_value, having_value;
   List<Item> all_fields; ///< to store all fields that used in query
@@ -1268,6 +1270,7 @@ public:
     zero_result_cause= 0;
     optimized= 0;
     initialized= 0;
+    cleaned= 0;
     cond_equal= 0;
     having_equal= 0;
     exec_const_cond= 0;

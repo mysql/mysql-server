@@ -2074,6 +2074,7 @@ JOIN::reinit()
                                     ULL(0));
 
   first_record= 0;
+  cleaned= false;
 
   if (exec_tmp_table1)
   {
@@ -10623,6 +10624,7 @@ void JOIN::cleanup(bool full)
       {
 	tab->cleanup();
       }
+      cleaned= true;
     }
     else
     {
@@ -22408,6 +22410,17 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   DBUG_ASSERT(thd);
 
   str->append(STRING_WITH_LEN("select "));
+
+  if (join && join->cleaned)
+  {
+    /*
+      JOIN already cleaned up so it is dangerous to print items
+      because temporary tables they pointed on could be freed.
+    */
+    str->append('#');
+    str->append(select_number);
+    return;
+  }
 
   /* First add options */
   if (options & SELECT_STRAIGHT_JOIN)

@@ -4751,4 +4751,39 @@ drop tables t1,t2;
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------
 
+--echo #
+--echo # MDEV-3874: Server crashes in Item_field::print on a SELECT
+--echo # from a MERGE view with materialization+semijoin, subquery, ORDER BY
+--echo #
+SET @save_optimizer_switch_MDEV_3874=@@optimizer_switch;
+
+SET optimizer_switch = 'materialization=on,semijoin=on';
+
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(7);
+
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (4),(6);
+
+CREATE TABLE t3 (c INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (1),(2);
+
+
+CREATE ALGORITHM=MERGE VIEW v1 AS SELECT  
+( SELECT a FROM t1 WHERE ( 1, 1 ) IN ( 
+SELECT b, c FROM t2, t3 HAVING c > 2 ) ) AS field1, 
+b + c AS field2 
+FROM t2, t3 AS table1
+GROUP BY field1, field2 ORDER BY field1;
+
+SELECT * FROM v1;
+
+drop view v1;
+drop table t1,t2,t3;
+SET optimizer_switch=@save_optimizer_switch_MDEV_3874;
+
+--echo # -----------------------------------------------------------------
+--echo # -- End of 5.5 tests.
+--echo # -----------------------------------------------------------------
+
 SET optimizer_switch=@save_optimizer_switch;
