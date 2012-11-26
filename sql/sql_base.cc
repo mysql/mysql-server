@@ -3818,7 +3818,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
       int errcode= query_error_code(thd, TRUE);
       if (thd->binlog_query(THD::STMT_QUERY_TYPE,
                             temp_buf.c_ptr_safe(), temp_buf.length(),
-                            FALSE, FALSE, FALSE, errcode))
+                            FALSE, TRUE, FALSE, errcode))
         return TRUE;
       if (error)
       {
