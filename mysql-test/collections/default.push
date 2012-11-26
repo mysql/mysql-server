@@ -3,3 +3,4 @@ perl mysql-test-run.pl --timer --force --parallel=auto --comment=ps_row --vardir
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=embedded --vardir=var-emebbed  --embedded --experimental=collections/default.experimental
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=rpl_binlog_row --vardir=var-rpl_binlog_row  --suite=rpl,binlog --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list
 perl mysql-test-run.pl --timer --force --parallel=auto --comment=funcs_1 --vardir=var-funcs_1 --suite=funcs_1 --experimental=collections/default.experimental
+
