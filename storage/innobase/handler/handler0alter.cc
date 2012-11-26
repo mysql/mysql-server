@@ -66,7 +66,6 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_INPLACE_REBUILD
 	| Alter_inplace_info::ADD_COLUMN
 	/*
 	| Alter_inplace_info::ALTER_COLUMN_TYPE
-	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
 	*/
 	;
 
@@ -89,6 +88,7 @@ static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_OPERATIONS
 	| Alter_inplace_info::DROP_UNIQUE_INDEX
 	| Alter_inplace_info::DROP_FOREIGN_KEY
 	| Alter_inplace_info::ALTER_COLUMN_NAME
+	| Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
 	| Alter_inplace_info::ADD_FOREIGN_KEY;
 
 /* Report an InnoDB error to the client by invoking my_error(). */
@@ -2463,6 +2463,8 @@ while preparing ALTER TABLE.
 @param n_drop_index	Number of indexes to drop
 @param drop_foreign	Foreign key constraints to be dropped, or NULL
 @param n_drop_foreign	Number of foreign key constraints to drop
+@param add_foreign	Foreign key constraints to be added, or NULL
+@param n_add_foreign	Number of foreign key constraints to add
 @param fts_doc_id_col	The column number of FTS_DOC_ID
 @param add_autoinc_col	The number of an added AUTO_INCREMENT column,
 			or ULINT_UNDEFINED if none was added
@@ -4127,7 +4129,7 @@ innobase_drop_foreign(
 	DBUG_RETURN(false);
 }
 
-/** Rename a column.
+/** Rename a column in the data dictionary.
 @param table_share	the TABLE_SHARE
 @param prebuilt		the prebuilt struct
 @param trx		data dictionary transaction
@@ -4310,14 +4312,10 @@ rename_foreign:
 	}
 
 	trx->op_info = "";
-	if (!new_clustered) {
-		/* Rename the column in the data dictionary cache. */
-		dict_mem_table_col_rename(prebuilt->table, nth_col, from, to);
-	}
 	DBUG_RETURN(false);
 }
 
-/** Rename columns.
+/** Rename columns in the data dictionary.
 @param ha_alter_info	Data used during in-place alter.
 @param new_clustered	whether the table has been rebuilt
 @param table		the TABLE
@@ -4366,6 +4364,171 @@ processed_field:
 	}
 
 	return(false);
+}
+
+/** Enlarge a column in the data dictionary.
+@param table_share	the TABLE_SHARE
+@param prebuilt		the prebuilt struct
+@param trx		data dictionary transaction
+@param nth_col		0-based index of the column
+@param new_len		new column length, in bytes
+@retval true		Failure
+@retval false		Success */
+static __attribute__((nonnull, warn_unused_result))
+bool
+innobase_enlarge_column(
+/*====================*/
+	const TABLE_SHARE*	table_share,
+	row_prebuilt_t*		prebuilt,
+	trx_t*			trx,
+	ulint			nth_col,
+	ulint			new_len)
+{
+	pars_info_t*	info;
+	dberr_t		error;
+
+	DBUG_ENTER("innobase_enlarge_column");
+
+	DBUG_ASSERT(trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
+	ut_ad(trx->dict_operation_lock_mode == RW_X_LATCH);
+	ut_ad(mutex_own(&dict_sys->mutex));
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(dict_table_get_nth_col(prebuilt->table, nth_col)->len < new_len);
+#ifdef UNIV_DEBUG
+	switch (dict_table_get_nth_col(prebuilt->table, nth_col)->mtype) {
+	case DATA_MYSQL:
+		/* NOTE: we could allow this when !(prtype & DATA_BINARY_TYPE)
+		and ROW_FORMAT is not REDUNDANT and mbminlen<mbmaxlen.
+		That is, we treat a UTF-8 CHAR(n) column somewhat like
+		a VARCHAR. */
+		ut_error;
+	case DATA_BINARY:
+	case DATA_VARCHAR:
+	case DATA_VARMYSQL:
+	case DATA_DECIMAL:
+	case DATA_BLOB:
+		break;
+	default:
+		ut_error;
+	}
+#endif /* UNIV_DEBUG */
+	info = pars_info_create();
+
+	pars_info_add_ull_literal(info, "tableid", prebuilt->table->id);
+	pars_info_add_int4_literal(info, "nth", nth_col);
+	pars_info_add_int4_literal(info, "new", new_len);
+
+	trx->op_info = "resizing column in SYS_COLUMNS";
+
+	error = que_eval_sql(
+		info,
+		"PROCEDURE RESIZE_SYS_COLUMNS_PROC () IS\n"
+		"BEGIN\n"
+		"UPDATE SYS_COLUMNS SET LEN=:new\n"
+		"WHERE TABLE_ID=:tableid AND POS=:nth;\n"
+		"END;\n",
+		FALSE, trx);
+
+	DBUG_EXECUTE_IF("ib_resize_column_error",
+			error = DB_OUT_OF_FILE_SPACE;);
+
+	if (error != DB_SUCCESS) {
+		my_error_innodb(error, table_share->table_name.str, 0);
+		trx->error_state = DB_SUCCESS;
+		trx->op_info = "";
+		DBUG_RETURN(true);
+	}
+
+	trx->op_info = "";
+	DBUG_RETURN(false);
+}
+
+/** Enlarge columns in the data dictionary.
+@param ha_alter_info	Data used during in-place alter.
+@param table		the TABLE
+@param table_share	the TABLE_SHARE
+@param prebuilt		the prebuilt struct
+@param trx		data dictionary transaction
+@retval true		Failure
+@retval false		Success */
+static __attribute__((nonnull, warn_unused_result))
+bool
+innobase_enlarge_columns(
+/*=====================*/
+	Alter_inplace_info*	ha_alter_info,
+	const TABLE*		table,
+	const TABLE_SHARE*	table_share,
+	row_prebuilt_t*		prebuilt,
+	trx_t*			trx)
+{
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+	uint i = 0;
+
+	for (Field** fp = table->field; *fp; fp++, i++) {
+		cf_it.rewind();
+		while (Create_field* cf = cf_it++) {
+			if (cf->field == *fp) {
+				if ((*fp)->is_equal(cf)
+				    == IS_EQUAL_PACK_LENGTH) {
+					if (innobase_enlarge_column(
+						    table_share,
+						    prebuilt, trx, i,
+						    cf->length)) {
+						return(true);
+					}
+				}
+
+				break;
+			}
+		}
+	}
+
+	return(false);
+}
+
+/** Enlarge columns in the data dictionary cache.
+@param ha_alter_info	Data used during in-place alter.
+@param table		the TABLE
+@param table_share	the TABLE_SHARE
+@param prebuilt		the prebuilt struct */
+static __attribute__((nonnull))
+void
+innobase_rename_or_enlarge_columns(
+/*===============================*/
+	Alter_inplace_info*	ha_alter_info,
+	const TABLE*		table,
+	const TABLE_SHARE*	table_share,
+	row_prebuilt_t*		prebuilt)
+{
+	List_iterator_fast<Create_field> cf_it(
+		ha_alter_info->alter_info->create_list);
+	uint i = 0;
+
+	for (Field** fp = table->field; *fp; fp++, i++) {
+		cf_it.rewind();
+		while (Create_field* cf = cf_it++) {
+			if (cf->field != *fp) {
+				continue;
+			}
+
+			if ((*fp)->is_equal(cf)
+			    == IS_EQUAL_PACK_LENGTH) {
+				dict_table_get_nth_col(
+					prebuilt->table, i)->len = cf->length;
+			}
+
+			if ((*fp)->flags & FIELD_IS_RENAMED) {
+				dict_mem_table_col_rename(
+					prebuilt->table, i,
+					cf->field->field_name, cf->field_name);
+			}
+
+			break;
+		}
+	}
 }
 
 /** Undo the in-memory addition of foreign key on table->foreign_list
@@ -4931,12 +5094,24 @@ drop_new_clustered:
 		}
 	}
 
-	if (err == 0 && !new_clustered
-	    && (ha_alter_info->handler_flags
-		& Alter_inplace_info::ALTER_COLUMN_NAME)
-	    && innobase_rename_columns(ha_alter_info, false, table,
-				       table_share, prebuilt, trx)) {
-		err = -1;
+	if (err == 0 && !new_clustered) {
+		if ((ha_alter_info->handler_flags
+		     & Alter_inplace_info::ALTER_COLUMN_NAME)
+		    && innobase_rename_columns(ha_alter_info, false, table,
+					       table_share, prebuilt, trx)) {
+			err = -1;
+		} else if ((Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
+			    & ha_alter_info->handler_flags)
+			   && innobase_enlarge_columns(
+				   ha_alter_info, table,
+				   table_share, prebuilt, trx)) {
+			err = -1;
+		} else if ((Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
+			    | Alter_inplace_info::ALTER_COLUMN_NAME)
+			   & ha_alter_info->handler_flags) {
+			innobase_rename_or_enlarge_columns(
+				ha_alter_info, table, table_share, prebuilt);
+		}
 	}
 
 	if (err == 0) {
