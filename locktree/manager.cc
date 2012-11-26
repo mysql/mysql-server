@@ -129,8 +129,11 @@ void locktree::manager::reference_lt(locktree *lt) {
     //
     // the caller can do this by already having an lt
     // reference or by holding the manager mutex.
-    uint32_t old_reference_count = toku_sync_fetch_and_add(&lt->m_reference_count, 1);
-    invariant(old_reference_count > 0);
+    //
+    // if the manager's mutex is held, it is ok for the
+    // reference count to transition from 0 to 1 (no race),
+    // since we're serialized with other opens and closes.
+    toku_sync_fetch_and_add(&lt->m_reference_count, 1);
 }
 
 void locktree::manager::release_lt(locktree *lt) {
