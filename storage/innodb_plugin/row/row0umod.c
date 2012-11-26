@@ -493,6 +493,7 @@ row_undo_mod_upd_del_sec(
 	ulint		err	= DB_SUCCESS;
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
+	ut_ad(!node->undo_row);
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
@@ -545,6 +546,8 @@ row_undo_mod_del_mark_sec(
 	dtuple_t*	entry;
 	dict_index_t*	index;
 	ulint		err;
+
+	ut_ad(!node->undo_row);
 
 	heap = mem_heap_create(1024);
 
