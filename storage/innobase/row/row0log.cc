@@ -797,8 +797,7 @@ row_log_table_update(
 Constructs the old PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR
 of a table that is being rebuilt.
 @return tuple of PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in the rebuilt table,
-or NULL if not being rebuilt online or the PRIMARY KEY definition
-does not change */
+or NULL if the PRIMARY KEY definition does not change */
 UNIV_INTERN
 const dtuple_t*
 row_log_table_get_pk(
