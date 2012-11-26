@@ -10,8 +10,8 @@
 //#error
 #endif
 
-
-#include <stdint.h>
+// TODO: This byte order stuff should all be in once place (ie: portability layer, not toku_include)
+#include <toku_htod.h>
 #include <arpa/inet.h>
 
 static inline uint32_t toku_htonl(uint32_t i) {
@@ -23,15 +23,23 @@ static inline uint32_t toku_ntohl(uint32_t i) {
 }
 
 static inline uint64_t toku_htonl64(uint64_t i) {
+#if HOST_BYTE_ORDER != NETWORK_BYTE_ORDER
     uint64_t a = ((uint64_t) htonl(i & 0xFFFFFFFF)) << 32;
     uint64_t b = htonl(i >> 32);
     return a | b;
+#else
+    return i;
+#endif
 }
 
 static inline uint64_t toku_ntohl64(uint64_t i) {
+#if HOST_BYTE_ORDER != NETWORK_BYTE_ORDER
     uint64_t a = ((uint64_t) ntohl(i & 0xFFFFFFFF)) << 32;
     uint64_t b = ntohl(i >> 32);
     return a | b;
+#else
+    return i;
+#endif
 }
 
 #endif
