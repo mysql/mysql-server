@@ -729,6 +729,7 @@ row_undo_mod_upd_del_sec(
 	dberr_t		err	= DB_SUCCESS;
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
+	ut_ad(!node->undo_row);
 
 	heap = mem_heap_create(1024);
 
@@ -793,6 +794,8 @@ row_undo_mod_del_mark_sec(
 {
 	mem_heap_t*	heap;
 	dberr_t		err	= DB_SUCCESS;
+
+	ut_ad(!node->undo_row);
 
 	heap = mem_heap_create(1024);
 
