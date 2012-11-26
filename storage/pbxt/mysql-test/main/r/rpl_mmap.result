@@ -1,0 +1,16 @@
+include/master-slave.inc
+[connection master]
+create table t1 (a int) engine=InnoDB;
+create table t2 (a int) engine=pbxt;
+begin;
+insert into t1 values (1);
+insert into t2 values (2);
+commit;
+select * from t1;
+a
+1
+select * from t2;
+a
+2
+drop table t1, t2;
+include/rpl_end.inc
