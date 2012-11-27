@@ -334,12 +334,7 @@ ndb_binlog_open_shadow_table(THD *thd, NDB_SHARE *share)
       (error= open_table_from_share(thd, shadow_table_share, "", 0,
                                     (uint) (OPEN_FRM_FILE_ONLY | DELAYED_OPEN | READ_ALL),
                                     0, shadow_table,
-#ifdef NDB_WITHOUT_ONLINE_ALTER
-                                    false
-#else
-                                    OTM_OPEN
-#endif
-                                    )))
+                                    OTM_OPEN)))
   {
     DBUG_PRINT("error", ("failed to open shadow table, error: %d my_errno: %d",
                          error, my_errno));
