@@ -2152,8 +2152,7 @@ row_upd_clust_rec(
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 	}
 
-	if (err == DB_SUCCESS && rebuilt_old_pk
-	    && dict_index_is_online_ddl(index)) {
+	if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
 		row_log_table_update(btr_cur_get_rec(btr_cur),
 				     index, offsets, rebuilt_old_pk);
 	}
@@ -2240,8 +2239,7 @@ row_upd_clust_rec(
 		ut_a(err == DB_SUCCESS);
 	}
 
-	if (err == DB_SUCCESS && rebuilt_old_pk
-	    && dict_index_is_online_ddl(index)) {
+	if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
 		row_log_table_update(btr_cur_get_rec(btr_cur),
 				     index, offsets, rebuilt_old_pk);
 	}
