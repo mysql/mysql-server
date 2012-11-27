@@ -16,71 +16,38 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "handler.h"
 
 /**
-  A fake handler which implements all the pure virtuals.
-  This can be used as a base class for mock handlers.
+  A mock handler which declares all the pure virtuals.
  */
-class Fake_HANDLER : public handler
+class Mock_HANDLER : public handler
 {
 public:
-  virtual int rnd_next(uchar*)
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual int rnd_pos(uchar*, uchar*)
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual void position(const uchar*)
-  { ADD_FAILURE() << "Unexpected call."; return; }
-  virtual int info(uint)
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual const char* table_type() const
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual const char** bas_ext() const
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual ulong index_flags(uint, uint, bool) const
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual THR_LOCK_DATA** store_lock(THD*, THR_LOCK_DATA**, thr_lock_type)
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual int open(const char*, int, uint)
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual int close()
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual int rnd_init(bool)
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual Table_flags table_flags() const
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
-  virtual int create(const char*, TABLE*, HA_CREATE_INFO*)
-  { ADD_FAILURE() << "Unexpected call."; return 0; }
+  // Declare all the pure-virtuals.
+  // Note: Sun Studio needs a little help in resolving uchar.
+  MOCK_METHOD0(close,    int());
+  MOCK_METHOD3(create,   int(const char *name, TABLE *form, HA_CREATE_INFO*));
+  MOCK_METHOD1(info,     int(unsigned ha_status_bitmap));
+  MOCK_METHOD3(open,     int(const char *name, int mode, uint test_if_locked));
+  MOCK_METHOD1(position, void(const ::uchar *record));
+  MOCK_METHOD1(rnd_init, int(bool scan));
+  MOCK_METHOD1(rnd_next, int(::uchar *buf));
+  MOCK_METHOD2(rnd_pos,  int(::uchar *buf, ::uchar *pos));
+  MOCK_METHOD3(store_lock,
+               THR_LOCK_DATA**(THD*, THR_LOCK_DATA**, thr_lock_type));
 
-  Fake_HANDLER(handlerton *ht_arg, TABLE_SHARE *share_arg)
+  MOCK_CONST_METHOD0(bas_ext,     const char**());
+  MOCK_CONST_METHOD3(index_flags, ulong(::uint idx, ::uint part, bool));
+  MOCK_CONST_METHOD0(table_flags, Table_flags());
+  MOCK_CONST_METHOD0(table_type,  const char*());
+
+  // Declare the members we actually want to test.
+  MOCK_METHOD2(print_error, void(int error, myf errflag));
+
+  Mock_HANDLER(handlerton *ht_arg, TABLE_SHARE *share_arg)
     : handler(ht_arg, share_arg)
   {}
-};
-
-/**
-  A mock handler for testing print_error().
-  TODO: Use gmock instead of this class.
- */
-class Mock_HANDLER : public Fake_HANDLER
-{
-public:
-  Mock_HANDLER(handlerton *ht_arg, TABLE_SHARE *share_arg)
-    : Fake_HANDLER(ht_arg, share_arg),
-      m_print_error_called(0),
-      m_expected_error(0)
-  {}
-  virtual void print_error(int error, myf errflag)
-  {
-    EXPECT_EQ(m_expected_error, error);
-    ++m_print_error_called;
-  }
-  void expect_error(int val)
-  {
-    m_expected_error= val;
-  }
-  int print_error_called() const { return m_print_error_called; }
-private:
-  int m_print_error_called;
-  int m_expected_error;
 };
