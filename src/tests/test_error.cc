@@ -44,7 +44,7 @@ test_main (int argc, char *const argv[]) {
     for (do_errpfx=0; do_errpfx<2; do_errpfx++) {
 	for (do_errfile=0; do_errfile<2; do_errfile++) {
 	    for (do_errcall=0; do_errcall<2; do_errcall++) {
-		char errfname[] = __SRCFILE__ ".errs";
+		char errfname[] = ENVDIR ".errs";
 		unlink(errfname);
 		{
 		    DB_ENV *env;

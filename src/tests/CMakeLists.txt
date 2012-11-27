@@ -329,7 +329,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   add_executable(test-5138.tdb test-5138)
   target_link_libraries(test-5138.tdb ${LIBTOKUDB}_static ${LIBTOKUPORTABILITY}_static)
   set_property(TARGET test-5138.tdb APPEND PROPERTY
-    COMPILE_DEFINITIONS "ENVDIR=\"dir.test-5138.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1;__SRCFILE__=test-5138")
+    COMPILE_DEFINITIONS "ENVDIR=\"dir.test-5138.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.test-5138.tdb")
   add_common_options_to_binary_targets(test-5138.tdb)
   add_test(ydb/test-5138.tdb test-5138.tdb)
@@ -344,7 +344,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     # some of those things (i.e. kibbutz in the threaded tests).
     target_link_libraries(${base}.tdb util ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_property(TARGET ${base}.tdb APPEND PROPERTY
-      COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_TDB;IS_TDB=1;TOKUDB=1;__SRCFILE__=${base}")
+      COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${bin}")
     add_common_options_to_binary_targets(${base}.tdb)
   endforeach(bin)
@@ -355,7 +355,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
 
       add_executable(${base}.bdb ${base})
       set_property(TARGET ${base}.bdb APPEND PROPERTY
-        COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_BDB;IS_TDB=0;TOKU_ALLOW_DEPRECATED;__SRCFILE__=${base}")
+        COMPILE_DEFINITIONS "ENVDIR=\"dir.${bin}\";USE_BDB;IS_TDB=0;TOKU_ALLOW_DEPRECATED")
       set_target_properties(${base}.bdb PROPERTIES
         INCLUDE_DIRECTORIES "${BDB_INCLUDE_DIR};${CMAKE_CURRENT_BINARY_DIR}/../../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../../toku_include;${CMAKE_CURRENT_SOURCE_DIR}/../../portability;${CMAKE_CURRENT_SOURCE_DIR}/../..")
       target_link_libraries(${base}.bdb ${LIBTOKUPORTABILITY} ${BDB_LIBRARIES})
@@ -379,7 +379,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     add_executable(${prefix}_${binary} ${source})
     target_link_libraries(${prefix}_${binary} util ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
     set_target_properties(${prefix}_${binary} PROPERTIES
-      COMPILE_DEFINITIONS "ENVDIR=\"dir.${prefix}_${source}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1;SRCFILE__=${source}")
+      COMPILE_DEFINITIONS "ENVDIR=\"dir.${prefix}_${source}.tdb\";USE_TDB;IS_TDB=1;TOKUDB=1")
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${prefix}_${source}.tdb")
     add_common_options_to_binary_targets(${prefix}_${binary})
   endfunction(add_custom_executable)
