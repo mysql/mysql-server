@@ -1,0 +1,17 @@
+--source include/have_tokudb.inc
+
+set default_storage_engine='tokudb';
+
+--disable_warnings
+drop table if exists t;
+--enable_warnings
+
+create table t (id int primary key, b int, key(b));
+
+set tokudb_enable_fast_update=1;
+set tokudb_disable_slow_update=1;
+
+--error ER_UNSUPPORTED_EXTENSION
+update t set b=b+1 where id=42;
+
+drop table t;

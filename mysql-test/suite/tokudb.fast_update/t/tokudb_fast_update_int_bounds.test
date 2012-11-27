@@ -1,0 +1,87 @@
+--source include/have_tokudb.inc
+
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create table tt (id int primary key, x int);
+insert into tt values (1,0),(2,-pow(2,31)),(3,pow(2,31)-1);
+create table ti like tt;
+alter table ti engine=innodb;
+insert into ti select * from tt;
+
+set tokudb_enable_fast_update=1;
+set tokudb_disable_slow_update=1;
+
+update tt set x=x+1 where id=1;
+update ti set x=x+1 where id=1;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set x=x-2 where id=1;
+update ti set x=x-2 where id=1;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set x=x+1 where id=1;
+update ti set x=x+1 where id=1;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set x=x-1 where id=2;
+update ti set x=x-1 where id=2;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set x=x+1 where id=2;
+update ti set x=x+1 where id=2;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set x=x+1 where id=3;
+update ti set x=x+1 where id=3;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set x=x-1 where id=3;
+update ti set x=x-1 where id=3;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+# test clip at maximum
+insert into tt values (4,pow(2,31)-10);
+insert into ti values (4,pow(2,31)-10);
+update tt set x=x+20 where id=4;
+update ti set x=x+20 where id=4;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+insert into tt values (5,pow(2,31)-10);
+insert into ti values (5,pow(2,31)-10);
+update tt set x=x - -20 where id=5;
+update ti set x=x - -20 where id=5;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+# test clip at minimum
+insert into tt values (6,-pow(2,31)+10);
+insert into ti values (6,-pow(2,31)+10);
+update tt set x=x-20 where id=6;
+update ti set x=x-20 where id=6;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+insert into tt values (7,-pow(2,31)+10);
+insert into ti values (7,-pow(2,31)+10);
+update tt set x=x + -20 where id=7;
+update ti set x=x + -20 where id=7;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+
+drop table tt, ti;
+
+
+

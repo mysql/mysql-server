@@ -1,0 +1,63 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+create table tt (id int primary key, x int);
+insert into tt values (1,0),(2,-pow(2,31)),(3,pow(2,31)-1);
+create table ti like tt;
+alter table ti engine=innodb;
+insert into ti select * from tt;
+set tokudb_enable_fast_update=1;
+set tokudb_disable_slow_update=1;
+update tt set x=x+1 where id=1;
+update ti set x=x+1 where id=1;
+include/diff_tables.inc [test.tt, test.ti]
+update tt set x=x-2 where id=1;
+update ti set x=x-2 where id=1;
+include/diff_tables.inc [test.tt, test.ti]
+update tt set x=x+1 where id=1;
+update ti set x=x+1 where id=1;
+include/diff_tables.inc [test.tt, test.ti]
+update tt set x=x-1 where id=2;
+update ti set x=x-1 where id=2;
+Warnings:
+Warning	1264	Out of range value for column 'x' at row 1
+include/diff_tables.inc [test.tt, test.ti]
+update tt set x=x+1 where id=2;
+update ti set x=x+1 where id=2;
+include/diff_tables.inc [test.tt, test.ti]
+update tt set x=x+1 where id=3;
+update ti set x=x+1 where id=3;
+Warnings:
+Warning	1264	Out of range value for column 'x' at row 1
+include/diff_tables.inc [test.tt, test.ti]
+update tt set x=x-1 where id=3;
+update ti set x=x-1 where id=3;
+include/diff_tables.inc [test.tt, test.ti]
+insert into tt values (4,pow(2,31)-10);
+insert into ti values (4,pow(2,31)-10);
+update tt set x=x+20 where id=4;
+update ti set x=x+20 where id=4;
+Warnings:
+Warning	1264	Out of range value for column 'x' at row 1
+include/diff_tables.inc [test.tt, test.ti]
+insert into tt values (5,pow(2,31)-10);
+insert into ti values (5,pow(2,31)-10);
+update tt set x=x - -20 where id=5;
+update ti set x=x - -20 where id=5;
+Warnings:
+Warning	1264	Out of range value for column 'x' at row 1
+include/diff_tables.inc [test.tt, test.ti]
+insert into tt values (6,-pow(2,31)+10);
+insert into ti values (6,-pow(2,31)+10);
+update tt set x=x-20 where id=6;
+update ti set x=x-20 where id=6;
+Warnings:
+Warning	1264	Out of range value for column 'x' at row 1
+include/diff_tables.inc [test.tt, test.ti]
+insert into tt values (7,-pow(2,31)+10);
+insert into ti values (7,-pow(2,31)+10);
+update tt set x=x + -20 where id=7;
+update ti set x=x + -20 where id=7;
+Warnings:
+Warning	1264	Out of range value for column 'x' at row 1
+include/diff_tables.inc [test.tt, test.ti]
+drop table tt, ti;
