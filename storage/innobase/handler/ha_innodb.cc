@@ -3119,14 +3119,16 @@ innobase_change_buffering_inited_ok:
 
 	if (innobase_buffer_pool_instances == 0) {
 		innobase_buffer_pool_instances = 8;
-#ifdef _WIN32
+
+#if defined(__WIN__) && !defined(_WIN64)
 		if (innobase_buffer_pool_size > 1331 * 1024 * 1024) {
 			innobase_buffer_pool_instances
-				= (long) (innobase_buffer_pool_size
-				/ (128 * 1024 * 1024));
+				= ut_min(MAX_BUFFER_POOLS,
+					(long) (innobase_buffer_pool_size
+					/ (128 * 1024 * 1024)));
 		}
-#endif
-}
+#endif /* defined(__WIN__) && !defined(_WIN64) */
+	}
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
 	srv_buf_pool_instances = (ulint) innobase_buffer_pool_instances;
 
