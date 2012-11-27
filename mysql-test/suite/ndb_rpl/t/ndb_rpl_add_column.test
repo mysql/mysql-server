@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source include/ndb_have_online_alter.inc
 --source suite/ndb_rpl/ndb_master-slave.inc
 
 #
