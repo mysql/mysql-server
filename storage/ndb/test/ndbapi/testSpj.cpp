@@ -904,13 +904,14 @@ NegativeTest::runSetBoundTest() const
                                  sizeof(NdbDictionary::RecordSpecification));
     ASSERT_ALWAYS(ordIdxRecord != NULL);
 
-    char boundRow[2+nt2StrLen+10];
-    memset(boundRow, 'x', sizeof boundRow);
-    // Set string lenght field.
-    *reinterpret_cast<Uint16*>(boundRow) = nt2StrLen+10;
+    struct { Uint8 len; char data[nt2StrLen + 10]; } boundRow;
+    memset(boundRow.data, 'x', sizeof(boundRow.data));
+    // Set string length field.
+    boundRow.len = nt2StrLen + 10;
 
     NdbIndexScanOperation::IndexBound
-      bound = {boundRow, 1, true, boundRow, 1, true, 0};
+      bound = {reinterpret_cast<const char*>(&boundRow), 1, true,
+               reinterpret_cast<const char*>(&boundRow), 1, true, 0};
 
     if (query->setBound(ordIdxRecord, &bound) == 0 ||
         query->getNdbError().code != Err_WrongFieldLength)
@@ -922,7 +923,7 @@ NegativeTest::runSetBoundTest() const
     }
 
     // Set correct string lengh.
-    *reinterpret_cast<Uint16*>(boundRow) = nt2StrLen;
+    boundRow.len = nt2StrLen;
     bound.range_no = 1;
     if (query->setBound(ordIdxRecord, &bound) == 0 ||
         query->getNdbError().code != QRY_ILLEGAL_STATE)
