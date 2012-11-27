@@ -1,0 +1,26 @@
+# test that char field updates are fast
+# test that char field primary keys are fast
+
+source include/have_tokudb.inc;
+
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists tt;
+enable_warnings;
+
+set tokudb_enable_fast_update=1;
+set tokudb_disable_slow_update=1;
+
+create table tt (id int primary key, x int);
+
+error ER_UNSUPPORTED_EXTENSION;
+update tt set x=1 where id='abc';
+
+error ER_UNSUPPORTED_EXTENSION;
+update tt set x='abc' where id=1;
+
+drop table tt;
+
+
+

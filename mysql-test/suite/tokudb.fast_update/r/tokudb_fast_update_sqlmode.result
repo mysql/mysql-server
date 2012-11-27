@@ -1,0 +1,18 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+set tokudb_enable_fast_update=1;
+set tokudb_disable_slow_update=1;
+create table t (id int primary key, x int not null);
+insert into t values (1,0);
+update t set x=42 where id=1;
+update t set x=x+1 where id=1;
+update t set x=x-1 where id=1;
+set session sql_mode="NO_ENGINE_SUBSTITUTION,traditional";
+update t set x=42 where id=1;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+update t set x=x+1 where id=1;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+update t set x=x-1 where id=1;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+set session sql_mode="NO_ENGINE_SUBSTITUTION";
+drop table t;

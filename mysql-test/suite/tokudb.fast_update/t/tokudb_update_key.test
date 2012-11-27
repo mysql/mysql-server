@@ -1,0 +1,60 @@
+source include/have_tokudb.inc;
+
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+set tokudb_enable_fast_update=1;
+set tokudb_disable_slow_update=1;
+
+# must have primary key
+create table t (ida int not null, idb bigint not null, idc tinyint unsigned not null, x bigint);
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
+error ER_UNSUPPORTED_EXTENSION;
+update t set x=x+1 where ida=1;
+drop table t;
+
+# must have no clustering keys
+create table t (ida int not null, idb bigint not null, idc tinyint unsigned not null, x bigint, clustering key(ida,idb,idc));
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
+error ER_UNSUPPORTED_EXTENSION;
+update t set x=x+1 where ida=1;
+drop table t;
+
+# update field must not be part of any key
+create table t (ida int not null, idb bigint not null, idc tinyint unsigned not null, x bigint, primary key(ida,idb,idc), key(x));
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
+error ER_UNSUPPORTED_EXTENSION;
+update t set x=x+1 where ida=1;
+drop table t;
+
+# test for point updates on compound keys
+create table t (ida int not null, idb bigint not null, idc tinyint unsigned not null, x bigint, primary key(ida,idb,idc));
+insert into t values (1,2,3,0);
+
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
+error ER_UNSUPPORTED_EXTENSION;
+update t set x=x+1 where ida=1;
+
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
+error ER_UNSUPPORTED_EXTENSION;
+update t set x=x+1 where ida=1 and idb=2;
+
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
+error ER_UNSUPPORTED_EXTENSION;
+update t set x=x+1 where ida=1 and idb=2 or idc=3;
+
+update t set x=x+1 where ida=1 and idb=2 and idc=3;
+select * from t;
+
+update t set x=x+1 where idc=3 and ida=1 and idb=2;
+select * from t;
+
+
+drop table t;
+
+
+
+

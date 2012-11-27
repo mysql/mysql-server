@@ -1,0 +1,20 @@
+set default_storage_engine='tokudb';
+drop table if exists tt, ti;
+set tokudb_enable_fast_upsert=1;
+set tokudb_disable_slow_upsert=1;
+create table tt (id int primary key, c char(32), b binary(32));
+create table ti like tt;
+alter table ti engine=innodb;
+insert into tt values (1,null,null) on duplicate key update c='hi';
+insert into ti values (1,null,null) on duplicate key update c='hi';
+include/diff_tables.inc [test.tt, test.ti]
+insert into tt values (1,null,null) on duplicate key update c='there';
+insert into ti values (1,null,null) on duplicate key update c='there';
+include/diff_tables.inc [test.tt, test.ti]
+insert into tt values (1,null,null) on duplicate key update b='you';
+insert into ti values (1,null,null) on duplicate key update b='you';
+include/diff_tables.inc [test.tt, test.ti]
+insert into tt values (1,null,null) on duplicate key update b='people';
+insert into ti values (1,null,null) on duplicate key update b='people';
+include/diff_tables.inc [test.tt, test.ti]
+drop table tt, ti;

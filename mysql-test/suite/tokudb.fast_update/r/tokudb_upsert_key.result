@@ -1,0 +1,20 @@
+set default_storage_engine='tokudb';
+drop table if exists t;
+set tokudb_enable_fast_upsert=1;
+set tokudb_disable_slow_upsert=1;
+create table t (a int, b char(32), c varchar(32), d blob);
+insert into t values (1,null,null,null) on duplicate key update a=42;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+drop table t;
+create table t (id int primary key, a int, b char(32), c varchar(32), d blob, clustering key(a));
+insert into t values (1,null,null,null,null) on duplicate key update a=42;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+drop table t;
+create table t (id int primary key, a int, b char(32), c varchar(32), d blob, key(a));
+insert into t values (1,null,null,null,null) on duplicate key update a=42;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+drop table t;
+create table t (id int primary key, a int, b char(32), c varchar(32), d blob, key(b, a));
+insert into t values (1,null,null,null,null) on duplicate key update a=42;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+drop table t;

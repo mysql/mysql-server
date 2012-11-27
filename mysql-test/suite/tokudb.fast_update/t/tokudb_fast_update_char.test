@@ -1,0 +1,97 @@
+# test that char field updates are fast
+# test that char field primary keys are fast
+
+source include/have_tokudb.inc;
+
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists tt, ti;
+enable_warnings;
+
+set tokudb_enable_fast_update=1;
+set tokudb_disable_slow_update=1;
+
+create table tt (id int primary key, c char(32), b binary(32));
+create table ti like tt;
+alter table ti engine=innodb;
+
+insert into tt values (1,null,null);
+insert into ti values (1,null,null);
+
+update tt set c='hi' where id=1;
+update ti set c='hi' where id=1;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set c='there' where id=1;
+update ti set c='there' where id=1;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+drop table tt, ti;
+
+create table tt (id char(8) primary key, c char(32), b binary(32));
+create table ti like tt;
+alter table ti engine=innodb;
+
+insert into tt values ('1',null,null);
+insert into ti values ('1',null,null);
+
+update tt set c='hi' where id='1';
+update ti set c='hi' where id='1';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set c='there' where id='1';
+update ti set c='there' where id='1';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+drop table tt, ti;
+
+create table tt (id varchar(8) primary key, a int, b char(32), c char(32), d binary(32));
+create table ti like tt;
+alter table ti engine=innodb;
+
+insert into tt values ('1',null,null,null,null);
+insert into ti values ('1',null,null,null,null);
+
+update tt set b='hi' where id='1';
+update ti set b='hi' where id='1';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set c='there' where id='1';
+update ti set c='there' where id='1';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+drop table tt, ti;
+
+create table tt (id varchar(8) primary key, a int, b char(32), c char(32), d binary(32));
+create table ti like tt;
+alter table ti engine=innodb;
+
+insert into tt values ('1',null,null,null,null);
+insert into ti values ('1',null,null,null,null);
+
+update tt set b='123' where id='1';
+update ti set b='123' where id='1';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set c=456 where id='1';
+update ti set c=456 where id='1';
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+update tt set c=789 where id=1;
+update ti set c=789 where id=1;
+let $diff_tables = test.tt, test.ti;
+source include/diff_tables.inc;
+
+drop table tt, ti;
+
+
+

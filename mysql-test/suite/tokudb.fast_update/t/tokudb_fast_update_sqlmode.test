@@ -1,0 +1,38 @@
+source include/have_tokudb.inc;
+
+set default_storage_engine='tokudb';
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+set tokudb_enable_fast_update=1;
+set tokudb_disable_slow_update=1;
+
+let $default_sql_mode = `select @@session.sql_mode`;
+
+create table t (id int primary key, x int not null);
+insert into t values (1,0);
+update t set x=42 where id=1;
+update t set x=x+1 where id=1;
+update t set x=x-1 where id=1;
+
+eval set session sql_mode="$default_sql_mode,traditional";
+
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
+error ER_UNSUPPORTED_EXTENSION;
+update t set x=42 where id=1;
+
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
+error ER_UNSUPPORTED_EXTENSION;
+update t set x=x+1 where id=1;
+
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
+error ER_UNSUPPORTED_EXTENSION;
+update t set x=x-1 where id=1;
+
+eval set session sql_mode="$default_sql_mode";
+
+drop table t;
+
+
