@@ -810,6 +810,7 @@ Dbtup::execALTER_TAB_CONF(Signal* signal)
   {
     jam();
     TablerecPtr tablePtr;
+    (void)tablePtr; // hide unused warning
     ndbrequire(buildPtr.p->m_fragNo >= NDB_ARRAY_SIZE(tablePtr.p->fragid));
     buildIndexReply(signal, buildPtr.p);
     c_buildIndexList.release(buildPtr);
@@ -1013,6 +1014,7 @@ Dbtup::execBUILD_INDX_IMPL_REF(Signal* signal)
   buildPtr.p->m_outstanding--;
 
   TablerecPtr tablePtr;
+  (void)tablePtr; // hide unused warning
   buildPtr.p->m_errorCode = (BuildIndxImplRef::ErrorCode)err;
   // No point in starting any more
   buildPtr.p->m_fragNo = NDB_ARRAY_SIZE(tablePtr.p->fragrec);
