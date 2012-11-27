@@ -15704,6 +15704,7 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table,
   DBUG_RETURN(0);
 }
 
+static
 bool set_up_tablespace(st_alter_tablespace *alter_info,
                        NdbDictionary::Tablespace *ndb_ts)
 {
@@ -15718,6 +15719,7 @@ bool set_up_tablespace(st_alter_tablespace *alter_info,
   return FALSE;
 }
 
+static
 bool set_up_datafile(st_alter_tablespace *alter_info,
                      NdbDictionary::Datafile *ndb_df)
 {
@@ -15732,6 +15734,7 @@ bool set_up_datafile(st_alter_tablespace *alter_info,
   return FALSE;
 }
 
+static
 bool set_up_logfile_group(st_alter_tablespace *alter_info,
                           NdbDictionary::LogfileGroup *ndb_lg)
 {
@@ -15746,6 +15749,7 @@ bool set_up_logfile_group(st_alter_tablespace *alter_info,
   return FALSE;
 }
 
+static
 bool set_up_undofile(st_alter_tablespace *alter_info,
                      NdbDictionary::Undofile *ndb_uf)
 {
@@ -15755,6 +15759,7 @@ bool set_up_undofile(st_alter_tablespace *alter_info,
   return FALSE;
 }
 
+static
 int ndbcluster_alter_tablespace(handlerton *hton,
                                 THD* thd, st_alter_tablespace *alter_info)
 {
