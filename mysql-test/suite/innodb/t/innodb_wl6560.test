@@ -23,6 +23,7 @@
 #    is recovered correctly.
 # 7. restart server in innodb-read-only mode. this will also
 #    block creation of temp-tables.
+# 8. try starting server with shared and temp-tablespace filename same.
 
 #-----------------------------------------------------------------------------
 #
@@ -33,10 +34,11 @@ set @global_innodb_file_format_orig= @@global.innodb_file_format;
 set global innodb_file_per_table = off;
 let $MYSQL_DATA_DIR = `select @@datadir`;
 let $MYSQL_TMP_DIR = `select @@tmpdir`;
-let SEARCH_FILE=$MYSQLTEST_VARDIR/log/my_restart.err;
-let $args=--loose-console > $SEARCH_FILE 2>&1;
-let crash=$args --innodb-force-recovery-crash;
-let readonly=$args --innodb_read_only;
+let SEARCH_FILE = $MYSQLTEST_VARDIR/log/my_restart.err;
+let $args = --loose-console > $SEARCH_FILE 2>&1;
+let crash = $args --innodb-force-recovery-crash;
+let readonly = $args --innodb_read_only;
+let nameconflicts = $args --innodb_data_file_path="ibdata1:12M:autoextend" --innodb_temp_data_file_path="ibdata1:12M:autoextend";
 
 #-----------------------------------------------------------------------------
 #
@@ -77,8 +79,8 @@ drop table t1;
 set global innodb_file_per_table = on;
 set global innodb_file_format = 'Barracuda';
 select @@global.innodb_file_per_table;
-create temporary table t1 (i int, f float, c char(100))
-engine=innodb key_block_size=4;
+create temporary table t1
+	(i int, f float, c char(100)) engine = innodb key_block_size = 4;
 show create table t1;
 --echo #files in MYSQL_TMP_DIR
 --replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
@@ -101,8 +103,9 @@ set global innodb_file_format = @global_innodb_file_format_orig;
 #
 # 4. Test bulk-loading that result in auto-extension of temp-tablespace.
 #
-create temporary table t1 (keyc int, c1 char(100), c2 char(100),
-primary key(keyc)) engine=innodb;
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc)) engine = innodb;
 delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
@@ -131,7 +134,7 @@ drop table t1;
 # 5. re-creation of temp-tablespace on re-start.
 #    also to ensure non-existence of existing temp-table.
 #
-create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
 insert into t1 values (1, 'c', 'b');
 select * from t1;
 --source include/restart_mysqld.inc
@@ -147,6 +150,7 @@ select * from t1;
 # 6. hit a crash point during tablespace creation to ensure temp-table
 #    is recovered correctly.
 #
+--echo "testing creation of tablepsace by enabling error path"
 --source include/shutdown_mysqld.inc
 --echo --innodb-force-recovery-crash=100
 --error 3
@@ -155,6 +159,7 @@ select * from t1;
 --exec grep "innodb_force_recovery_crash=" $SEARCH_FILE | wc -l
 --remove_file $SEARCH_FILE
 #
+--echo "restarting server in normal mode"
 --source include/start_mysqld.inc
 --echo # files in MYSQL_DATA_DIR
 --list_files $MYSQL_DATA_DIR/ ib*tmp*
@@ -169,6 +174,7 @@ select * from t1;
 #    block creation of temp-tables.
 #
 #
+--echo "testing temp-table creation in --innodb_read_only mode"
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --shutdown_server 10
 --source include/wait_until_disconnected.inc
@@ -183,7 +189,25 @@ select * from t1;
 use test;
 show tables;
 --error ER_OPEN_AS_READONLY
-create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
+
+#-----------------------------------------------------------------------------
+#
+# 8. try starting server with shared and temp-tablespace filename same.
+#
+--source include/shutdown_mysqld.inc
+--echo "testing system and temp tablespace name conflict"
+--error 1
+--exec $MYSQLD_CMD $nameconflicts
+--exec grep "system shared and system temp tablespace file name seems to be same" $SEARCH_FILE | wc -l
+--remove_file $SEARCH_FILE
+--echo "restarting server in normal mode"
+--source include/start_mysqld.inc
+#
+use test;
+show tables;
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
+drop table t1;
 
 #-----------------------------------------------------------------------------
 #

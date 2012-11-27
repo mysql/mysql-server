@@ -273,22 +273,30 @@ Check if two shared tablespaces have common data file names.
 bool
 Tablespace::intersection(const Tablespace& space1, const Tablespace& space2)
 {
-	// FIXME: This test may not be sufficient, if relative paths are
-	// used. I think we should do a stat and check the full path and
-	// do a better compare.
 	files_t::const_iterator	end = space1.m_files.end();
 
 	for (files_t::const_iterator it = space1.m_files.begin();
 	     it != end;
 	     ++it) {
 
-		if (space2.find(it->m_name)) {
+		if (space2.find(get_file_name(it->m_name))) {
 
 			return(true);
 		}
 	}
 
 	return(false);
+}
+
+/**
+Get the file name only
+@param filepath - filepath as specified by user (can be relative too).
+@return filename extract filepath */
+char*
+Tablespace::get_file_name(const char* filepath)
+{
+        char* last_slash = strrchr((char*) filepath, OS_FILE_PATH_SEPARATOR);
+        return(last_slash ? last_slash + 1 : (char*) filepath);
 }
 
 /**
@@ -1039,7 +1047,8 @@ Tablespace::find(const char* filename) const
 
 	for (files_t::const_iterator it = m_files.begin(); it != end; ++it) {
 
-		if (innobase_strcasecmp(filename, it->m_name) == 0) {
+		if (innobase_strcasecmp(
+			filename, get_file_name(it->m_name)) == 0) {
 			return(true);
 		}
 	}
