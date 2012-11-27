@@ -265,6 +265,14 @@ public:
 	Delete all the data files. */
 	void delete_files();
 
+	/** Check if two shared tablespaces have common data file names.
+	@param space1 - space to check
+	@param space2 - space to check
+	@return true if they have the same data filenames and paths */
+	static bool intersection(
+		const Tablespace&	space1,
+		const Tablespace&	space2);
+
 private:
 	/**
 	@return the size of the last data file in the array */
@@ -373,13 +381,11 @@ private:
 	@return next character in string */
 	static char* parse_units(char* ptr, ulint* megs);
 
-	/** Check if two shared tablespaces have common data file names.
-	@param space1 - space to check
-	@param space2 - space to check
-	@return true if they have the same data filenames and paths */
-	static bool intersection(
-		const Tablespace&	space1,
-		const Tablespace&	space2);
+	/**
+	Get the file name only
+	@param filepath - filepath as specified by user (can be relative too).
+	@return filename extract filepath */
+	static char* get_file_name(const char* filepath);
 
 	// Disable copying
 	Tablespace(const Tablespace&);

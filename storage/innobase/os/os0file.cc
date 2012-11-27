@@ -3269,13 +3269,6 @@ os_file_get_status(
 	return(DB_SUCCESS);
 }
 
-/* path name separator character */
-#ifdef __WIN__
-#  define OS_FILE_PATH_SEPARATOR	'\\'
-#else
-#  define OS_FILE_PATH_SEPARATOR	'/'
-#endif
-
 /****************************************************************//**
 This function returns a new path name after replacing the basename
 in an old path with a new basename.  The old_path is a full path
