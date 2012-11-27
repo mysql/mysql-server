@@ -4005,6 +4005,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
     case Q_UPDATED_DB_NAMES:
     {
+      uchar i= 0;
       CHECK_SPACE(pos, end, 1);
       mts_accessed_dbs= *pos++;
       /* 
@@ -4020,11 +4021,23 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
       DBUG_ASSERT(mts_accessed_dbs != 0);
 
-      for (uchar i= 0; i < mts_accessed_dbs; i++)
+      for (i= 0; i < mts_accessed_dbs && pos < start + status_vars_len; i++)
       {
-        strcpy(mts_accessed_db_names[i], (char*) pos);
+        DBUG_EXECUTE_IF("query_log_event_mts_corrupt_db_names",
+                        {
+                          if (mts_accessed_dbs == 2)
+                          {
+                            DBUG_ASSERT(pos[sizeof("d?") - 1] == 0);
+                            ((char*) pos)[sizeof("d?") - 1]= 'a';
+                          }});
+        strncpy(mts_accessed_db_names[i], (char*) pos,
+                min<ulong>(NAME_LEN, start + status_vars_len - pos));
+        if (mts_accessed_db_names[i][NAME_LEN - 1])
+          mts_accessed_db_names[i][NAME_LEN - 1]= 0;
         pos+= 1 + strlen((const char*) pos);
       }
+      if (i != mts_accessed_dbs || pos > start + status_vars_len)
+        DBUG_VOID_RETURN;
       break;
     }
     default:
