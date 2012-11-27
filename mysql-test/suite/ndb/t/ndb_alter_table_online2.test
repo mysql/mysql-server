@@ -8,7 +8,6 @@
 # Purpose: Add testing for online alter w/partitions
 #          and some original test cleanup and additions
 ##############################################################
---source include/ndb_have_online_alter.inc
 -- source include/have_multi_ndb.inc
 # test uses mysqlslap, hence not in embedded
 -- source include/not_embedded.inc
