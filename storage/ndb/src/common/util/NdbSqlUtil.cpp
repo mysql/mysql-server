@@ -1607,18 +1607,6 @@ static uint maxfrac[1 + maxprec] = {
 };
 
 static uint
-getrand()
-{
-  union {
-    uint32 n;
-    uchar b[4];
-  };
-  for (int i = 0; i < 4; i++)
-    b[i] = (uchar)ndb_rand();
-  return n;
-}
-
-static uint
 getrand(uint m)
 {
   assert(m != 0);
@@ -2010,7 +1998,7 @@ static int
 testmain()
 {
   ndb_init();
-  struct { char* env; int* val; } opt[] = {
+  struct { const char* env; int* val; } opt[] = {
     { "TEST_NDB_SQL_UTIL_SEED", &seed },
     { "TEST_NDB_SQL_UTIL_LOOPS", &loops },
     { "TEST_NDB_SQL_UTIL_VERBOSE", &verbose },
