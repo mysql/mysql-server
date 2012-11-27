@@ -1,0 +1,102 @@
+
+
+################ mysql-test\t\innodb_temp_data_file_path_basic.test ############
+#                                                                             #
+# Variable Name: innodb_temp_data_file_path                                   #
+# Scope: Global                                                               #
+# Access Type: Static                                                         #
+# Data Type: filename                                                         #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-12-27                                                   #
+# Author : Krunal Bauskar                                                     #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable innodb_temp_data_file_path#
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#                                                                             #
+# Reference: http://dev.mysql.com/doc/refman/5.1/en/                          #
+#  server-system-variables.html                                               #
+#                                                                             #
+###############################################################################
+
+--source include/have_innodb.inc
+
+--echo '#---------------------BS_STVARS_024_01----------------------#'
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SELECT COUNT(@@GLOBAL.innodb_temp_data_file_path);
+--echo 1 Expected
+
+
+--echo '#---------------------BS_STVARS_024_02----------------------#'
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SET @@GLOBAL.innodb_temp_data_file_path=1;
+--echo Expected error 'Read only variable'
+
+SELECT COUNT(@@GLOBAL.innodb_temp_data_file_path);
+--echo 1 Expected
+
+
+
+
+--echo '#---------------------BS_STVARS_024_03----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.innodb_temp_data_file_path = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='innodb_temp_data_file_path';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.innodb_temp_data_file_path);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='innodb_temp_data_file_path';
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_024_04----------------------#'
+################################################################################
+#  Check if accessing variable with and without GLOBAL point to same variable  #
+################################################################################
+SELECT @@innodb_temp_data_file_path = @@GLOBAL.innodb_temp_data_file_path;
+--echo 1 Expected
+
+
+
+--echo '#---------------------BS_STVARS_024_05----------------------#'
+################################################################################
+#Check if innodb_temp_data_file_path can be accessed with and without @@ sign  #
+################################################################################
+
+SELECT COUNT(@@innodb_temp_data_file_path);
+--echo 1 Expected
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@local.innodb_temp_data_file_path);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+--Error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT COUNT(@@SESSION.innodb_temp_data_file_path);
+--echo Expected error 'Variable is a GLOBAL variable'
+
+SELECT COUNT(@@GLOBAL.innodb_temp_data_file_path);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT innodb_temp_data_file_path = @@SESSION.innodb_temp_data_file_path;
+--echo Expected error 'Readonly variable'
+
+
