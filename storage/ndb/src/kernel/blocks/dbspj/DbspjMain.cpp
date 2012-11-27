@@ -3303,7 +3303,7 @@ Dbspj::checkTableError(Ptr<TreeNode> treeNodePtr) const
               << ", error: " << err);
   }
   if (ERROR_INSERTED(17520) ||
-      ERROR_INSERTED(17521) && (rand() % 7) == 0)
+      (ERROR_INSERTED(17521) && (rand() % 7) == 0))
   {
     jam();
     CLEAR_ERROR_INSERT_VALUE;
