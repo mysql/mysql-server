@@ -4,13 +4,28 @@
 // is expanded beyond 1 byte.
 enum {
     UPDATE_OP_COL_ADD_OR_DROP = 0,
+
     UPDATE_OP_EXPAND_VARIABLE_OFFSETS = 1,
     UPDATE_OP_EXPAND_INT = 2,
     UPDATE_OP_EXPAND_UINT = 3,
     UPDATE_OP_EXPAND_CHAR = 4,
     UPDATE_OP_EXPAND_BINARY = 5,
+
+    UPDATE_OP_SIMPLE_UPDATE = 10,
+    UPDATE_OP_SIMPLE_UPSERT = 11,
 };
-    
+
+// Field types used in the update messages
+enum {
+    UPDATE_TYPE_UNKNOWN = 0,
+    UPDATE_TYPE_INT = 1,
+    UPDATE_TYPE_UINT = 2,
+    UPDATE_TYPE_CHAR = 3,
+    UPDATE_TYPE_BINARY = 4,
+    UPDATE_TYPE_VARCHAR = 5,
+    UPDATE_TYPE_VARBINARY = 6,
+};
+
 #define UP_COL_ADD_OR_DROP UPDATE_OP_COL_ADD_OR_DROP
 
 // add or drop column sub-operations
@@ -61,34 +76,68 @@ enum {
 // So, upperbound is num_blobs(1+4+1+4) = num_columns*10
 
 // The expand varchar offsets message is used to expand the size of an offset from 1 to 2 bytes.
-// operation     1  == UPDATE_OP_EXPAND_VARIABLE_OFFSETS
-// n_offsets     4  number of offsets
-// offset_start  4  starting offset of the variable length field offsets 
+//     operation          1 == UPDATE_OP_EXPAND_VARIABLE_OFFSETS
+//     n_offsets          4 number of offsets
+//     offset_start       4 starting offset of the variable length field offsets 
 
 // These expand messages are used to expand the size of a fixed length field.  
 // The field type is encoded in the operation code.
-// operation     1  == UPDATE_OP_EXPAND_INT, UPDATE_OP_EXPAND_UINT, UPDATE_OP_EXPAND_CHAR, UPDATE_OP_EXPAND_BINARY
-// offset        4 starting offset of the field in the row's value
-// old length    4 the old length of the field's value
-// new length    4 the new length of the field's value
+//     operation          1 == UPDATE_OP_EXPAND_INT/UINT/CHAR/BINARY
+//     offset             4 offset of the field
+//     old length         4 the old length of the field's value
+//     new length         4 the new length of the field's value
 
-// operation     1  == UPDATE_OP_EXPAND_CHAR, UPDATE_OP_EXPAND_BINARY
-// offset        4 starting offset of the field in the row's value
-// old length    4 the old length of the field's value
-// new length    4 the new length of the field's value
-// pad char      1
+//     operation          1 == UPDATE_OP_EXPAND_CHAR/BINARY
+//     offset             4 offset of the field
+//     old length         4 the old length of the field's value
+//     new length         4 the new length of the field's value
+//     pad char           1
 
-// The int add and sub update messages are used to add or subtract a constant to or from an integer field.
-// operation     1 == UPDATE_OP_INT_ADD, UPDATE_OP_INT_SUB, UPDATE_OP_UINT_ADD, UPDATE_OP_UINT_SUB
-// offset        4 starting offset of the int type field
-// length        4 length of the int type field
-// value         4 value to add or subtract (common use case is increment or decrement by 1)
+// Simple row descriptor:
+//     fixed field offset 4
+//     var field offset   4
+//     var_offset_bytes   1
+//     num_var_fields     4
+
+// Field descriptor:
+//     field type         4
+//     field num          4
+//     field null num     4
+//     field offset       4
+//     field length       4
+
+// Simple update operation:
+//     update operation   4 == { '=', '+', '-' }
+//         x = k
+//         x = x + k
+//         x = x - k
+//     field descriptor
+//     optional value:
+//         value length   4 == N, length of the value
+//         value          N value to add or subtract
+
+// Simple update message:
+//     Operation          1 == UPDATE_OP_UPDATE_FIELD
+//     Update mode        4
+//     Simple row descriptor
+//     Simple update ops []
+
+// Simple upsert message:
+//     Operation          1 == UPDATE_OP_UPSERT
+//     Update mode        4
+//     Insert row:
+//         length         4 == N
+//         data           N
+//     Simple row descriptor
+//     Simple update ops [] 
+
+#include "tokudb_buffer.h"
+#include "tokudb_math.h"
 
 //
 // checks whether the bit at index pos in data is set or not
 //
-static inline bool 
-is_overall_null_position_set(uchar* data, uint32_t pos) {
+static inline bool is_overall_null_position_set(uchar* data, uint32_t pos) {
     uint32_t offset = pos/8;
     uchar remainder = pos%8; 
     uchar null_bit = 1<<remainder;
@@ -98,8 +147,7 @@ is_overall_null_position_set(uchar* data, uint32_t pos) {
 //
 // sets the bit at index pos in data to 1 if is_null, 0 otherwise
 // 
-static inline void 
-set_overall_null_position(uchar* data, uint32_t pos, bool is_null) {
+static inline void set_overall_null_position(uchar* data, uint32_t pos, bool is_null) {
     uint32_t offset = pos/8;
     uchar remainder = pos%8;
     uchar null_bit = 1<<remainder;
@@ -111,8 +159,7 @@ set_overall_null_position(uchar* data, uint32_t pos, bool is_null) {
     }
 }
 
-static inline void 
-copy_null_bits(
+static inline void copy_null_bits(
     uint32_t start_old_pos,
     uint32_t start_new_pos,
     uint32_t num_bits,
@@ -133,8 +180,7 @@ copy_null_bits(
     }
 }
 
-static inline void 
-copy_var_fields(
+static inline void copy_var_fields(
     uint32_t start_old_num_var_field, //index of var fields that we should start writing
     uint32_t num_var_fields, // number of var fields to copy
     uchar* old_var_field_offset_ptr, //static ptr to where offset bytes begin in old row
@@ -179,8 +225,7 @@ copy_var_fields(
     *num_offset_bytes_written = (uint32_t)(curr_new_var_field_offset_ptr - start_new_var_field_offset_ptr);
 }
 
-static inline uint32_t 
-copy_toku_blob(uchar* to_ptr, uchar* from_ptr, uint32_t len_bytes, bool skip) {
+static inline uint32_t copy_toku_blob(uchar* to_ptr, uchar* from_ptr, uint32_t len_bytes, bool skip) {
     uint32_t length = 0;
     if (!skip) {
         memcpy(to_ptr, from_ptr, len_bytes);
@@ -192,8 +237,7 @@ copy_toku_blob(uchar* to_ptr, uchar* from_ptr, uint32_t len_bytes, bool skip) {
     return (length + len_bytes);
 }
 
-static int 
-tokudb_hcad_update_fun(
+static int tokudb_hcad_update_fun(
     DB* db,
     const DBT *key,
     const DBT *old_val, 
@@ -624,8 +668,7 @@ cleanup:
 }
 
 // Expand the variable offset array in the old row given the update mesage in the extra.
-static int 
-tokudb_expand_variable_offsets(
+static int tokudb_expand_variable_offsets(
     DB* db,
     const DBT *key,
     const DBT *old_val, 
@@ -635,24 +678,22 @@ tokudb_expand_variable_offsets(
     ) 
 {
     int error = 0;
-    uchar *extra_pos = (uchar *)extra->data;
+    tokudb::buffer extra_val(extra->data, 0, extra->size);
 
     // decode the operation
-    uchar operation = extra_pos[0];
+    uchar operation;
+    extra_val.consume(&operation, sizeof operation);
     assert(operation == UPDATE_OP_EXPAND_VARIABLE_OFFSETS);
-    extra_pos += sizeof operation;
 
     // decode number of offsets
     uint32_t number_of_offsets;
-    memcpy(&number_of_offsets, extra_pos, sizeof number_of_offsets);
-    extra_pos += sizeof number_of_offsets;
+    extra_val.consume(&number_of_offsets, sizeof number_of_offsets);
 
     // decode the offset start
     uint32_t offset_start;
-    memcpy(&offset_start, extra_pos, sizeof offset_start);
-    extra_pos += sizeof offset_start;
+    extra_val.consume(&offset_start, sizeof offset_start);
 
-    assert(extra_pos == (uchar *)extra->data + extra->size);
+    assert(extra_val.size() == extra_val.limit());
 
     DBT new_val; memset(&new_val, 0, sizeof new_val);
 
@@ -706,8 +747,7 @@ cleanup:
 }
 
 // Expand an int field in a old row given the expand message in the extra.
-static int 
-tokudb_expand_int_field(
+static int tokudb_expand_int_field(
     DB* db,
     const DBT *key,
     const DBT *old_val, 
@@ -717,25 +757,19 @@ tokudb_expand_int_field(
     ) 
 {
     int error = 0;
-    uchar *extra_pos = (uchar *)extra->data;
+    tokudb::buffer extra_val(extra->data, 0, extra->size);
 
-    uchar operation = extra_pos[0];
+    uchar operation;
+    extra_val.consume(&operation, sizeof operation);
     assert(operation == UPDATE_OP_EXPAND_INT || operation == UPDATE_OP_EXPAND_UINT);
-    extra_pos += sizeof operation;
-
     uint32_t the_offset;
-    memcpy(&the_offset, extra_pos, sizeof the_offset);
-    extra_pos += sizeof the_offset;
-
+    extra_val.consume(&the_offset, sizeof the_offset);
     uint32_t old_length;
-    memcpy(&old_length, extra_pos, sizeof old_length);
-    extra_pos += sizeof old_length;
-
+    extra_val.consume(&old_length, sizeof old_length);
     uint32_t new_length;
-    memcpy(&new_length, extra_pos, sizeof new_length);
-    extra_pos += sizeof new_length;
+    extra_val.consume(&new_length, sizeof new_length);
+    assert(extra_val.size() == extra_val.limit());
 
-    assert(extra_pos == (uchar *)extra->data + extra->size); // consumed the entire message
     assert(new_length >= old_length); // expand only
 
     DBT new_val; memset(&new_val, 0, sizeof new_val);
@@ -801,8 +835,7 @@ cleanup:
 }
 
 // Expand a char field in a old row given the expand message in the extra.
-static int 
-tokudb_expand_char_field(
+static int tokudb_expand_char_field(
     DB* db,
     const DBT *key,
     const DBT *old_val, 
@@ -812,29 +845,21 @@ tokudb_expand_char_field(
     ) 
 {
     int error = 0;
-    uchar *extra_pos = (uchar *)extra->data;
+    tokudb::buffer extra_val(extra->data, 0, extra->size);
 
-    uchar operation = extra_pos[0];
+    uchar operation;
+    extra_val.consume(&operation, sizeof operation);
     assert(operation == UPDATE_OP_EXPAND_CHAR || operation == UPDATE_OP_EXPAND_BINARY);
-    extra_pos += sizeof operation;
-
     uint32_t the_offset;
-    memcpy(&the_offset, extra_pos, sizeof the_offset);
-    extra_pos += sizeof the_offset;
-
+    extra_val.consume(&the_offset, sizeof the_offset);
     uint32_t old_length;
-    memcpy(&old_length, extra_pos, sizeof old_length);
-    extra_pos += sizeof old_length;
-
+    extra_val.consume(&old_length, sizeof old_length);
     uint32_t new_length;
-    memcpy(&new_length, extra_pos, sizeof new_length);
-    extra_pos += sizeof new_length;
+    extra_val.consume(&new_length, sizeof new_length);
+    uchar pad_char;
+    extra_val.consume(&pad_char, sizeof pad_char);
+    assert(extra_val.size() == extra_val.limit());
 
-    uchar pad_char = 0;
-    memcpy(&pad_char, extra_pos, sizeof pad_char);
-    extra_pos += sizeof pad_char;
-
-    assert(extra_pos == (uchar *)extra->data + extra->size); // consumed the entire message
     assert(new_length >= old_length); // expand only
 
     DBT new_val; memset(&new_val, 0, sizeof new_val);
@@ -892,8 +917,290 @@ cleanup:
     return error;
 }
 
-int 
-tokudb_update_fun(
+class Simple_row_descriptor {
+public:
+    Simple_row_descriptor() : m_fixed_field_offset(0), m_var_field_offset(0), m_var_offset_bytes(0), m_num_var_fields(0) {
+    }
+    ~Simple_row_descriptor() {
+    }
+    void consume(tokudb::buffer &b) {
+        b.consume(&m_fixed_field_offset, sizeof m_fixed_field_offset);
+        b.consume(&m_var_field_offset, sizeof m_var_field_offset);
+        b.consume(&m_var_offset_bytes, sizeof m_var_offset_bytes);
+        b.consume(&m_num_var_fields, sizeof m_num_var_fields);
+    }
+    void append(tokudb::buffer &b) {
+        b.append(&m_fixed_field_offset, sizeof m_fixed_field_offset);
+        b.append(&m_var_field_offset, sizeof m_var_field_offset);
+        b.append(&m_var_offset_bytes, sizeof m_var_offset_bytes);
+        b.append(&m_num_var_fields, sizeof m_num_var_fields);
+    }
+public:
+    uint32_t m_fixed_field_offset;
+    uint32_t m_var_field_offset;
+    uint8_t  m_var_offset_bytes;
+    uint32_t m_num_var_fields;
+};
+
+// Update a fixed field: new_val@offset = extra_val
+static void set_fixed_field(uint32_t the_offset, uint32_t length, uint32_t field_num, uint32_t field_null_num,
+                            tokudb::buffer &new_val, void *extra_val) {
+    assert(the_offset + length <= new_val.size());
+    new_val.replace(the_offset, length, extra_val, length);
+    if (field_null_num)
+        set_overall_null_position((uchar *) new_val.data(), field_null_num & ~(1<<31), false);
+}
+
+// Update an int field: signed newval@offset = old_val@offset OP extra_val
+static void int_op(uint32_t operation, uint32_t update_mode, uint32_t the_offset, uint32_t length, uint32_t field_num, uint32_t field_null_num,
+                   tokudb::buffer &new_val, tokudb::buffer &old_val, void *extra_val) {
+    assert(the_offset + length <= new_val.size());
+    assert(the_offset + length <= old_val.size());
+    assert(length == 1 || length == 2 || length == 3 || length == 4 || length == 8);
+    assert(update_mode == 0);
+
+    uchar *old_val_ptr = (uchar *) old_val.data();
+    bool field_is_null = false;
+    if (field_null_num)
+        field_is_null = is_overall_null_position_set(old_val_ptr, field_null_num & ~(1<<31));
+    int64_t v = 0;
+    memcpy(&v, old_val_ptr + the_offset, length);
+    v = tokudb::int_sign_extend(v, 8*length);
+    int64_t extra_v = 0;
+    memcpy(&extra_v, extra_val, length);
+    extra_v = tokudb::int_sign_extend(extra_v, 8*length);
+    switch (operation) {
+    case '+':
+        if (!field_is_null) {
+            bool over;
+            v = tokudb::int_add(v, extra_v, 8*length, over);
+            if (over) {
+                if (extra_v > 0)
+                    v = tokudb::int_high_endpoint(8*length);
+                else
+                    v = tokudb::int_low_endpoint(8*length);
+                over = false;
+            }
+            if (!over)
+                new_val.replace(the_offset, length, &v, length);
+        }
+        break;
+    case '-':
+        if (!field_is_null) {
+            bool over;
+            v = tokudb::int_sub(v, extra_v, 8*length, over);
+            if (over) {
+                if (extra_v > 0)
+                    v = tokudb::int_low_endpoint(8*length);
+                else
+                    v = tokudb::int_high_endpoint(8*length);
+                over = false;
+            }
+            if (!over)
+                new_val.replace(the_offset, length, &v, length);
+        }
+        break;
+    default:
+        assert(0);
+    }
+}
+
+// Update an unsigned field: unsigned newval@offset = old_val@offset OP extra_val
+static void uint_op(uint32_t operation, uint32_t update_mode, uint32_t the_offset, uint32_t length, uint32_t field_num, uint32_t field_null_num,
+                    tokudb::buffer &new_val, tokudb::buffer &old_val, void *extra_val) {
+    assert(the_offset + length <= new_val.size());
+    assert(the_offset + length <= old_val.size());
+    assert(length == 1 || length == 2 || length == 3 || length == 4 || length == 8);
+    assert(update_mode == 0);
+
+    uchar *old_val_ptr = (uchar *) old_val.data();
+    bool field_is_null = false;
+    if (field_null_num)
+        field_is_null = is_overall_null_position_set(old_val_ptr, field_null_num & ~(1<<31));
+    uint64_t v = 0;
+    memcpy(&v, old_val_ptr + the_offset, length);
+    uint64_t extra_v = 0;
+    memcpy(&extra_v, extra_val, length);
+    switch (operation) {
+    case '+':
+        if (!field_is_null) {
+            bool over;
+            v = tokudb::uint_add(v, extra_v, 8*length, over);
+            if (over) {
+                v = tokudb::uint_high_endpoint(8*length);
+                over = false;
+            }
+            if (!over)
+                new_val.replace(the_offset, length, &v, length);
+        }
+        break;
+    case '-':
+        if (!field_is_null) {
+            bool over;
+            v = tokudb::uint_sub(v, extra_v, 8*length, over);
+            if (over) {
+                v = tokudb::uint_low_endpoint(8*length);
+                over = false;
+            }
+            if (!over)
+                new_val.replace(the_offset, length, &v, length);
+        }
+        break;
+    default:
+        assert(0);
+    }
+}
+
+// Decode and apply a sequence of update operations defined in the extra to the old value and put the result
+// in the new value.
+static void apply_updates(tokudb::buffer &new_val, tokudb::buffer &old_val, tokudb::buffer &extra_val,
+                         uint32_t update_mode, Simple_row_descriptor &sd) {
+    while (extra_val.size() < extra_val.limit()) {
+        // get the update operation
+        uint32_t update_operation;
+        extra_val.consume(&update_operation, sizeof update_operation);
+        uint32_t field_type;
+        extra_val.consume(&field_type, sizeof field_type);
+        uint32_t field_num;
+        extra_val.consume(&field_num, sizeof field_num);
+        uint32_t field_null_num;
+        extra_val.consume(&field_null_num, sizeof field_null_num);
+        uint32_t the_offset;
+        extra_val.consume(&the_offset, sizeof the_offset);
+        uint32_t length;
+        extra_val.consume(&length, sizeof length);
+        void *extra_val_ptr = extra_val.consume_ptr(length);
+
+        // apply the update
+        switch (field_type) {
+        case UPDATE_TYPE_INT:
+            if (update_operation == '=')
+                set_fixed_field(the_offset, length, field_num, field_null_num, new_val, extra_val_ptr);
+            else
+                int_op(update_operation, update_mode, the_offset, length, field_num, field_null_num, new_val, old_val, extra_val_ptr);
+            break;
+        case UPDATE_TYPE_UINT:
+            if (update_operation == '=')
+                set_fixed_field(the_offset, length, field_num, field_null_num, new_val, extra_val_ptr);
+            else
+                uint_op(update_operation, update_mode, the_offset, length, field_num, field_null_num, new_val, old_val, extra_val_ptr);
+            break;
+        case UPDATE_TYPE_CHAR:
+        case UPDATE_TYPE_BINARY:
+            if (update_operation == '=')
+                set_fixed_field(the_offset, length, field_num, field_null_num, new_val, extra_val_ptr);
+            else 
+                assert(0);
+            break;
+        default:
+            assert(0);
+            break;
+        }
+    }
+}
+
+// Simple update handler. Decode the update message, apply the update operations to the old value, and set
+// the new value.
+static int tokudb_simple_update_fun(
+    DB* db,
+    const DBT *key_dbt,
+    const DBT *old_val_dbt,
+    const DBT *extra,
+    void (*set_val)(const DBT *new_val_dbt, void *set_extra),
+    void *set_extra
+    )
+{
+    tokudb::buffer extra_val(extra->data, 0, extra->size);
+    
+    uchar operation;
+    extra_val.consume(&operation, sizeof operation);
+    assert(operation == UPDATE_OP_SIMPLE_UPDATE);
+
+    uint32_t update_mode;
+    extra_val.consume(&update_mode, sizeof update_mode);
+
+    if (old_val_dbt != NULL) {
+        // get the simple descriptor
+        Simple_row_descriptor sd;
+        sd.consume(extra_val);
+
+        tokudb::buffer old_val(old_val_dbt->data, old_val_dbt->size, old_val_dbt->size);
+
+        // new val = old val
+        tokudb::buffer new_val;
+        new_val.append(old_val_dbt->data, old_val_dbt->size);
+
+        // apply updates to new val
+        apply_updates(new_val, old_val, extra_val, update_mode, sd);
+
+        // set the new val
+        DBT new_val_dbt; memset(&new_val_dbt, 0, sizeof new_val_dbt);
+        new_val_dbt.data = new_val.data();
+        new_val_dbt.size = new_val.size();
+        set_val(&new_val_dbt, set_extra);
+    }
+
+    return 0;
+}
+
+// Simple upsert handler. Decode the upsert message. If the key does not exist, then insert a new value from the extra.
+// Otherwise, apply the update operations to the old value, and then set the new value.
+static int tokudb_simple_upsert_fun(
+    DB* db,
+    const DBT *key_dbt,
+    const DBT *old_val_dbt, 
+    const DBT *extra,
+    void (*set_val)(const DBT *new_val_dbt, void *set_extra),
+    void *set_extra
+    )
+{
+    tokudb::buffer extra_val(extra->data, 0, extra->size);
+
+    uchar operation;
+    extra_val.consume(&operation, sizeof operation);
+    assert(operation == UPDATE_OP_SIMPLE_UPSERT);
+
+    uint32_t update_mode;
+    extra_val.consume(&update_mode, sizeof update_mode);
+
+    uint32_t insert_length;
+    extra_val.consume(&insert_length, sizeof insert_length);
+    void *insert_row = extra_val.consume_ptr(insert_length);
+
+    if (old_val_dbt == NULL) {
+        // insert a new row
+        DBT new_val_dbt; memset(&new_val_dbt, 0, sizeof new_val_dbt);
+        new_val_dbt.size = insert_length;
+        new_val_dbt.data = insert_row;
+        set_val(&new_val_dbt, set_extra);
+    } else {
+        // decode the simple descriptor
+        Simple_row_descriptor sd;
+        sd.consume(extra_val);
+
+        tokudb::buffer old_val(old_val_dbt->data, old_val_dbt->size, old_val_dbt->size);
+
+        // new val = old val
+        tokudb::buffer new_val;
+        new_val.append(old_val_dbt->data, old_val_dbt->size);
+
+        // apply updates to new val
+        apply_updates(new_val, old_val, extra_val, update_mode, sd);
+
+        // set the new val
+        DBT new_val_dbt; memset(&new_val_dbt, 0, sizeof new_val_dbt);
+        new_val_dbt.data = new_val.data();
+        new_val_dbt.size = new_val.size();
+        set_val(&new_val_dbt, set_extra);
+    }
+
+    return 0;
+}
+
+// This function is the update callback function that is registered with the YDB environment.
+// It uses the first byte in the update message to identify the update message type and call
+// the handler for that message.
+int tokudb_update_fun(
     DB* db,
     const DBT *key,
     const DBT *old_val, 
@@ -904,7 +1211,7 @@ tokudb_update_fun(
 {
     uchar *extra_pos = (uchar *)extra->data;
     uchar operation = extra_pos[0];
-    int error = 0;
+    int error;
     switch (operation) {
     case UPDATE_OP_COL_ADD_OR_DROP:
         error = tokudb_hcad_update_fun(db, key, old_val, extra, set_val, set_extra);
@@ -919,6 +1226,12 @@ tokudb_update_fun(
     case UPDATE_OP_EXPAND_CHAR:
     case UPDATE_OP_EXPAND_BINARY:
         error = tokudb_expand_char_field(db, key, old_val, extra, set_val, set_extra);
+        break;
+    case UPDATE_OP_SIMPLE_UPDATE:
+        error = tokudb_simple_update_fun(db, key, old_val, extra, set_val, set_extra);
+        break;
+    case UPDATE_OP_SIMPLE_UPSERT:
+        error = tokudb_simple_upsert_fun(db, key, old_val, extra, set_val, set_extra);
         break;
     default:
         error = EINVAL;

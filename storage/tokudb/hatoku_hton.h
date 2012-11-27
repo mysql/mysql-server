@@ -33,6 +33,12 @@ uint get_tokudb_block_size(THD* thd);
 uint get_tokudb_read_block_size(THD* thd);
 uint get_tokudb_read_buf_size(THD* thd);
 srv_row_format_t get_row_format(THD *thd);
+#if TOKU_INCLUDE_UPSERT
+bool get_enable_fast_update(THD *thd);
+bool get_disable_slow_update(THD *thd);
+bool get_enable_fast_upsert(THD *thd);
+bool get_disable_slow_upsert(THD *thd);
+#endif
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;

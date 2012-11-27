@@ -661,15 +661,14 @@ void set_key_filter(MY_BITMAP* key_filter, KEY* key, TABLE* table, bool get_offs
                 // key is only the first 3 characters, and we end up losing the last 7 bytes of the
                 // column
                 //
-                TOKU_TYPE toku_type;
-                toku_type = mysql_to_toku_type(field);
-                switch(toku_type) {
-                case(toku_type_blob):
+                TOKU_TYPE toku_type = mysql_to_toku_type(field);
+                switch (toku_type) {
+                case toku_type_blob:
                     break;
-                case(toku_type_varbinary):
-                case(toku_type_varstring):
-                case(toku_type_fixbinary):
-                case(toku_type_fixstring):
+                case toku_type_varbinary:
+                case toku_type_varstring:
+                case toku_type_fixbinary:
+                case toku_type_fixstring:
                     if (key->key_part[curr_key_index].length == field->field_length) {
                         bitmap_set_bit(key_filter,i);
                     }
@@ -3829,7 +3828,7 @@ int ha_tokudb::write_row(uchar * record) {
             else {
                 update_max_auto_inc(share->status_block, share->last_auto_increment);
             }
-         }
+        }
         pthread_mutex_unlock(&share->mutex);
     }
 
@@ -8017,8 +8016,13 @@ void ha_tokudb::set_dup_value_for_pk(DBT* key) {
 // table admin 
 #include "ha_tokudb_admin.cc"
 
-// alter table code for various mysql distros
+// update functions
 #include "ha_tokudb_update_fun.cc"
+
+// fast updates
+#include "ha_tokudb_update.cc"
+
+// alter table code for various mysql distros
 #include "ha_tokudb_alter_51.cc"
 #include "ha_tokudb_alter_55.cc"
 #include "ha_tokudb_alter_56.cc"

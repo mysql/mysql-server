@@ -139,6 +139,36 @@ static MYSQL_THDVAR_UINT(read_buf_size,
     1*1024*1024,   // max
     1      // blocksize???
 );
+#if TOKU_INCLUDE_UPSERT
+static MYSQL_THDVAR_BOOL(enable_fast_update, 
+    PLUGIN_VAR_THDLOCAL, 
+    "enable fast update",
+    NULL, // check
+    NULL, // update
+    false // default
+);
+static MYSQL_THDVAR_BOOL(disable_slow_update, 
+    PLUGIN_VAR_THDLOCAL, 
+    "disable slow update",
+    NULL, // check
+    NULL, // update
+    false // default
+);
+static MYSQL_THDVAR_BOOL(enable_fast_upsert, 
+    PLUGIN_VAR_THDLOCAL, 
+    "enable fast upsert",
+    NULL, // check
+    NULL, // update
+    false // default
+);
+static MYSQL_THDVAR_BOOL(disable_slow_upsert, 
+    PLUGIN_VAR_THDLOCAL, 
+    "disable slow upsert",
+    NULL, // check
+    NULL, // update
+    false // default
+);
+#endif
 
 static void tokudb_checkpoint_lock(THD * thd);
 static void tokudb_checkpoint_unlock(THD * thd);
@@ -706,6 +736,24 @@ uint get_tokudb_read_block_size(THD* thd) {
 uint get_tokudb_read_buf_size(THD* thd) {
     return THDVAR(thd, read_buf_size);
 }
+
+#if TOKU_INCLUDE_UPSERT
+bool get_enable_fast_update(THD* thd) {
+    return (THDVAR(thd, enable_fast_update) != 0);
+}
+
+bool get_disable_slow_update(THD* thd) {
+    return (THDVAR(thd, disable_slow_update) != 0);
+}
+
+bool get_enable_fast_upsert(THD* thd) {
+    return (THDVAR(thd, enable_fast_upsert) != 0);
+}
+
+bool get_disable_slow_upsert(THD* thd) {
+    return (THDVAR(thd, disable_slow_upsert) != 0);
+}
+#endif
 
 typedef struct txn_progress_info {
     char status[200];
@@ -1628,6 +1676,12 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(read_block_size),
     MYSQL_SYSVAR(read_buf_size),
     MYSQL_SYSVAR(row_format),
+#if TOKU_INCLUDE_UPSERT
+    MYSQL_SYSVAR(enable_fast_update),
+    MYSQL_SYSVAR(disable_slow_update),
+    MYSQL_SYSVAR(enable_fast_upsert),
+    MYSQL_SYSVAR(disable_slow_upsert),
+#endif
     NULL
 };
 
