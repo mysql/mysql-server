@@ -2368,6 +2368,11 @@ struct Gtid_specification
   { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
   /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
   void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
+  /// Set the type to AUTOMATIC_GROUP.
+  void set_automatic()
+  {
+    type= AUTOMATIC_GROUP;
+  }
   /// Set to undefined if the current type is GTID_GROUP.
   void set_undefined()
   {
