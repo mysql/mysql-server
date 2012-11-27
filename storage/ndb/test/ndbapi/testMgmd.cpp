@@ -227,12 +227,12 @@ public:
   const BaseString connectstring(const Properties& config)
   {
     const char* hostname;
-    if (!get_section_string(config, m_name.c_str(), "HostName", &hostname))
-      return false;
+    require(!get_section_string(config, m_name.c_str(),
+                                "HostName", &hostname));
 
     Uint32 port;
-    if (!get_section_uint32(config, m_name.c_str(), "PortNumber", &port))
-      return false;
+    require(!get_section_uint32(config, m_name.c_str(),
+                                "PortNumber", &port));
 
     BaseString constr;
     constr.assfmt("%s:%d", hostname, port);
