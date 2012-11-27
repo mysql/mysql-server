@@ -330,24 +330,11 @@ ndbcluster_partition_flags()
           HA_CAN_PARTITION_UNIQUE | HA_USE_AUTO_PARTITION);
 }
 
-#ifndef NDB_WITHOUT_ONLINE_ALTER
 static uint
 ndbcluster_alter_partition_flags()
 {
   return HA_PARTITION_FUNCTION_SUPPORTED;
 }
-#else
-static uint
-ndbcluster_alter_table_flags(uint flags)
-{
-  if (flags & ALTER_DROP_PARTITION)
-    return 0;
-  else
-    return (HA_ONLINE_ADD_INDEX | HA_ONLINE_DROP_INDEX |
-            HA_ONLINE_ADD_UNIQUE_INDEX | HA_ONLINE_DROP_UNIQUE_INDEX |
-            HA_PARTITION_FUNCTION_SUPPORTED);
-}
-#endif
 
 #define NDB_AUTO_INCREMENT_RETRIES 100
 #define BATCH_FLUSH_SIZE (32768)
@@ -11757,13 +11744,8 @@ static int ndbcluster_init(void *p)
     h->show_status=      ndbcluster_show_status;    /* Show status */
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
-#ifndef NDB_WITHOUT_ONLINE_ALTER
     h->alter_partition_flags=
       ndbcluster_alter_partition_flags;             /* Alter partition flags */
-#else
-    h->alter_table_flags=
-      ndbcluster_alter_table_flags;                 /* Alter table flags */
-#endif
 #if MYSQL_VERSION_ID >= 50501
     h->fill_is_table=    ndbcluster_fill_is_table;
 #else
@@ -12290,9 +12272,7 @@ ulonglong ha_ndbcluster::table_flags(void) const
     HA_HAS_OWN_BINLOGGING |
     HA_BINLOG_ROW_CAPABLE |
     HA_HAS_RECORDS |
-#ifndef NDB_WITHOUT_ONLINE_ALTER
     HA_ONLINE_ALTER |
-#endif
     0;
 
   /*
@@ -14932,7 +14912,6 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   DBUG_RETURN(0);
 }
 
-#ifndef NDB_WITHOUT_ONLINE_ALTER
 static
 HA_ALTER_FLAGS supported_alter_operations()
 {
@@ -15724,7 +15703,6 @@ int ha_ndbcluster::alter_table_phase3(THD *thd, TABLE *table,
   alter_info->data= 0;
   DBUG_RETURN(0);
 }
-#endif
 
 bool set_up_tablespace(st_alter_tablespace *alter_info,
                        NdbDictionary::Tablespace *ndb_ts)
