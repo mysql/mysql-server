@@ -6717,7 +6717,7 @@ void sql_kill(THD *thd, ulong id, killed_state state)
   uint error;
   if (!(error= kill_one_thread(thd, id, state)))
   {
-    if ((!thd->killed) || (thd->thread_id == id))
+    if ((!thd->killed) || (thd->thread_id == id && thd->killed >= KILL_CONNECTION))
       my_ok(thd);
   }
   else
