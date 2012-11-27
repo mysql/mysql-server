@@ -1245,7 +1245,9 @@ fil_space_create(
 				"Tablespace '%s' exists in the cache "
 				"with id %lu", name, (ulong) id);
 
-			if (id == 0 || purpose != FIL_TABLESPACE) {
+			if (id == srv_sys_space.space_id()
+			    || id == srv_tmp_space.space_id()
+			    || purpose != FIL_TABLESPACE) {
 
 				mutex_exit(&fil_system->mutex);
 
@@ -5210,9 +5212,7 @@ fil_io(
 
 	/* If we are deleting a tablespace we don't allow any read
 	operations on that. However, we do allow write operations. */
-	if (space == srv_sys_space.space_id()
-	    || space == srv_tmp_space.space_id()
-	    || (type == OS_FILE_READ && space->stop_new_ops)) {
+	if (space == 0 || (type == OS_FILE_READ && space->stop_new_ops)) {
 		mutex_exit(&fil_system->mutex);
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
