@@ -264,10 +264,11 @@ int Record::getIntValue(int id, char *data) const {
   int idx = map[id];
   NumericHandler * h = handlers[idx]->native_handler;
   const char * buffer = data + specs[idx].offset;
+  const NdbDictionary::Column * col = specs[idx].column;
   int i = 0;
   
   if(h) {
-    if(h->read_int32(i, buffer) < 0) return 0;
+    if(h->read_int32(i, buffer, col) < 0) return 0;
   }
   else {
     logger->log(LOG_WARNING, 0, "getIntValue() failed for column %s - "
@@ -287,9 +288,10 @@ bool Record::setIntValue(int id, int value, char *data, Uint8 *mask) const {
 
   NumericHandler * h = handlers[idx]->native_handler;
   char * buffer = data + specs[idx].offset;
+  const NdbDictionary::Column * col = specs[idx].column;
   
   if(h) {
-    return (h->write_int32(value,buffer) > 0);
+    return (h->write_int32(value, buffer, col) > 0);
   } 
   else {
     logger->log(LOG_WARNING, 0, "setIntValue() failed for column %s - "
