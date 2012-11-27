@@ -7,7 +7,6 @@
 # Date 2006-08-28
 # Purpose: Add more testing for online alter
 ##############################################################
---source include/ndb_have_online_alter.inc
 --source include/have_multi_ndb.inc
 
 --disable_warnings
