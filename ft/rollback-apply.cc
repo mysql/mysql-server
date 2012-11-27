@@ -156,6 +156,7 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
         // list to the end of the parent log entry list.
         if (txn_has_current_rollback_log(txn)) {
             //Pin parent log
+            toku_txn_lock(txn->parent);
             ROLLBACK_LOG_NODE parent_log;
             toku_get_and_pin_rollback_log_for_new_entry(txn->parent, &parent_log);
 
@@ -203,6 +204,7 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
             toku_maybe_spill_rollbacks(txn->parent, parent_log);
             toku_rollback_log_unpin(txn->parent, parent_log);
             assert(r == 0);
+            toku_txn_unlock(txn->parent);
         }
 
         // Note the open brts, the omts must be merged
