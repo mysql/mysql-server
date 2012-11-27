@@ -2960,6 +2960,13 @@ innobase_init(
                 DBUG_RETURN(innobase_init_abort());
         }
 
+	/* Perform all sanity check before we take action of deleting files*/
+	if(Tablespace::intersection(srv_sys_space, srv_tmp_space)) {
+		sql_print_error("system shared and system temp"
+				" tablespace file name seems to be same");
+                DBUG_RETURN(innobase_init_abort());
+	}
+
 	/* Delete the data files in the temporary tablespace. They are not
 	required for recovery. */
 	srv_tmp_space.delete_files();
