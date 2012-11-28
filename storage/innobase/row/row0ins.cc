@@ -2831,7 +2831,7 @@ row_ins_clust_index_entry(
 #endif /* UNIV_DEBUG */
 
 	if (err != DB_FAIL) {
-
+		DEBUG_SYNC_C("row_ins_clust_index_entry_leaf_after");
 		return(err);
 	}
 
