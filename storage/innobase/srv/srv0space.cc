@@ -385,7 +385,7 @@ Verify the size of the physical file.
 dberr_t
 Tablespace::check_size(file_t& file)
 {
-	ulint	size = os_file_get_size(file.m_handle);
+	os_offset_t	size = os_file_get_size(file.m_handle);
 	ut_a(size != (os_offset_t) -1);
 
 	/* Round size downward to megabytes */
@@ -814,8 +814,8 @@ Check the data file specification.
 @return DB_SUCCESS if all OK else error code */
 dberr_t
 Tablespace::check_file_spec(
-	ibool* create_new_db,
-	ulint min_expected_tablespace_size)
+	ibool*	create_new_db,
+	ulint	min_expected_tablespace_size)
 {
 	srv_normalize_path_for_win(srv_data_home);
 
@@ -826,7 +826,7 @@ Tablespace::check_file_spec(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Can only have < 1000 data files, you have "
 			"defined %lu",
-                        m_files.size());
+                        (ulint) m_files.size());
 
 		return(DB_ERROR);
 	}
