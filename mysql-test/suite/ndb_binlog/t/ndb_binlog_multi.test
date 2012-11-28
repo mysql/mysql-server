@@ -1,4 +1,3 @@
---source include/ndb_have_online_alter.inc
 -- source include/have_multi_ndb.inc
 -- source include/have_binlog_format_mixed_or_row.inc
 

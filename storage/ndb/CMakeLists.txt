@@ -106,17 +106,10 @@ SET(NDBCLUSTER_SOURCES
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(NOT MYSQL_CLUSTER_VERSION)
- # Online alter table not supported in non MySQL Cluster
- # versions yet, compile ndbcluster without online alter support
- ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
- # The function 'make_db_list' i not available in non
+ # The function 'make_db_list' is not available in non
  # MySQL Cluster version yet, compile ndbcluster without it
  ADD_DEFINITIONS(-DNDB_WITHOUT_MAKE_DB_LIST)
 ENDIF()
-
-# Online alter table currently not supported in trunk-cluster
-# in preparation for inplace alter table
-ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
 
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
