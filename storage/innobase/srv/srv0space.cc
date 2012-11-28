@@ -504,7 +504,7 @@ Create a data file.
 dberr_t
 Tablespace::create_file(file_t& file)
 {
-	dberr_t	err;
+	dberr_t	err = DB_SUCCESS;
 
 	ut_a(!file.m_exists);
 	ut_a(!srv_read_only_mode);
@@ -844,9 +844,7 @@ Tablespace::check_file_spec(
 		return(DB_ERROR);
         }
 
-	// FIXME: Check for duplicate data file names
-
-	dberr_t	err;
+	dberr_t	err = DB_SUCCESS;
 
 	ut_a(!m_files.empty());
 
@@ -904,7 +902,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::open(ulint* sum_of_new_sizes)
 {
-	dberr_t		err;
+	dberr_t		err = DB_SUCCESS;
 
 	ut_ad(!m_files.empty());
 
