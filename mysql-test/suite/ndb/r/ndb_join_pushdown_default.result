@@ -88,6 +88,10 @@ EXPLAIN
             "PRIMARY"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a",
+            "b"
+          ],
           "key_length": "8",
           "ref": [
             "test.t1.b",
@@ -3811,7 +3815,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition (`test`.`y`.`b3` = 'Dole')
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
@@ -3827,7 +3831,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition (`test`.`y`.`b3` = 'Dole')
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
@@ -3843,7 +3847,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	518	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition (`test`.`y`.`b3` = 'Dole')
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	518	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
@@ -3859,11 +3863,12 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	20	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 a3	b3	c3	d3	a3	b3	c3	d3
+47	Dole            	2	47	47	Dole            	2	47
 drop table t3;
 create table t3 (a3 int, b3 varbinary(16), c3 int not null, d3 int not null, 
 primary key(a3,b3)) engine = ndb;
@@ -3874,7 +3879,7 @@ explain extended
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	ref	PRIMARY	PRIMARY	4	const	3	100.00	Parent of 2 pushed join@1
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	test.x.d3,const	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = 'Dole') and (`test`.`y`.`a3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 0x2f))
 select * from t3 x, t3 y where x.a3=0x2f and y.a3=x.d3 and y.b3='Dole';
@@ -3906,8 +3911,8 @@ insert into t3 values ('Doffen', 0x3f, 2, 0x3f);
 explain extended
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	eq_ref	PRIMARY	PRIMARY	22	const,const	1	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`x`.`a3` = 'Dole')
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition (`test`.`y`.`a3` = 'Dole')
+1	SIMPLE	x	eq_ref	PRIMARY	PRIMARY	22	const,const	1	100.00	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole') and (`test`.`x`.`b3` = 0x2f))
 select * from t3 x, t3 y where x.a3='Dole' and x.b3=0x2f and y.a3=x.a3 and y.b3=x.d3;
@@ -3916,8 +3921,8 @@ Dole	47	2	47	Dole	47	2	47
 explain extended
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	x	ref	PRIMARY	PRIMARY	18	const	3	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`x`.`a3` = 'Dole')
-1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1; Using where with pushed condition (`test`.`y`.`a3` = 'Dole')
+1	SIMPLE	x	ref	PRIMARY	PRIMARY	18	const	3	100.00	Parent of 2 pushed join@1
+1	SIMPLE	y	eq_ref	PRIMARY	PRIMARY	22	const,test.x.d3	1	100.00	Child of 'x' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`a3` AS `a3`,`test`.`x`.`b3` AS `b3`,`test`.`x`.`c3` AS `c3`,`test`.`x`.`d3` AS `d3`,`test`.`y`.`a3` AS `a3`,`test`.`y`.`b3` AS `b3`,`test`.`y`.`c3` AS `c3`,`test`.`y`.`d3` AS `d3` from `test`.`t3` `x` join `test`.`t3` `y` where ((`test`.`y`.`b3` = `test`.`x`.`d3`) and (`test`.`x`.`a3` = 'Dole') and (`test`.`y`.`a3` = 'Dole'))
 select * from t3 x, t3 y where x.a3='Dole' and y.a3=x.a3 and y.b3=x.d3;
@@ -4418,7 +4423,7 @@ select count(*)
 from t1 join t1 as t2 on t2.a = t1.b
 where t1.a = '\0123456789';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	10	const	1	100.00	Parent of 2 pushed join@1; Using where
+1	SIMPLE	t1	eq_ref	PRIMARY	PRIMARY	10	const	1	100.00	Parent of 2 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	10	test.t1.b	1	100.00	Child of 't1' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `count(*)` from `test`.`t1` join `test`.`t1` `t2` where ((`test`.`t2`.`a` = `test`.`t1`.`b`) and (`test`.`t1`.`a` = '\0123456789'))
@@ -5470,7 +5475,7 @@ insert into t1  values ('aaa', 1, 'aaa', 1);
 explain extended
 select * from t1 as q1, t1 as q2 where q1.a = 'aaa' and q1.c=q2.a;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	q1	ref	PRIMARY	PRIMARY	18	const	2	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`q1`.`a` = 'aaa')
+1	SIMPLE	q1	ref	PRIMARY	PRIMARY	18	const	2	100.00	Parent of 2 pushed join@1
 1	SIMPLE	q2	ref	PRIMARY	PRIMARY	18	test.q1.c	1	100.00	Child of 'q1' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select `test`.`q1`.`a` AS `a`,`test`.`q1`.`b` AS `b`,`test`.`q1`.`c` AS `c`,`test`.`q1`.`d` AS `d`,`test`.`q2`.`a` AS `a`,`test`.`q2`.`b` AS `b`,`test`.`q2`.`c` AS `c`,`test`.`q2`.`d` AS `d` from `test`.`t1` `q1` join `test`.`t1` `q2` where ((`test`.`q2`.`a` = `test`.`q1`.`c`) and (`test`.`q1`.`a` = 'aaa'))
