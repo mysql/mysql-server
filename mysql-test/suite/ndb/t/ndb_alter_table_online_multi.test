@@ -1,5 +1,4 @@
 -- source include/not_embedded.inc
--- source include/ndb_have_online_alter.inc
 -- source include/have_multi_ndb.inc
 
 --echo *******************************

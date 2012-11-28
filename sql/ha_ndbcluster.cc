@@ -343,7 +343,6 @@ ndbcluster_partition_flags()
           HA_CAN_PARTITION_UNIQUE | HA_USE_AUTO_PARTITION);
 }
 
-#ifndef NDB_WITHOUT_ONLINE_ALTER
 static uint
 ndbcluster_alter_table_flags(uint flags)
 {
@@ -352,32 +351,6 @@ ndbcluster_alter_table_flags(uint flags)
   else
     return (HA_PARTITION_FUNCTION_SUPPORTED);
 }
-#else
-static uint
-ndbcluster_alter_table_flags(uint flags)
-{
-  const uint f=
-    HA_INPLACE_ADD_INDEX_NO_READ_WRITE |
-    HA_INPLACE_DROP_INDEX_NO_READ_WRITE |
-    HA_INPLACE_ADD_UNIQUE_INDEX_NO_READ_WRITE |
-    HA_INPLACE_DROP_UNIQUE_INDEX_NO_READ_WRITE |
-    HA_INPLACE_ADD_PK_INDEX_NO_READ_WRITE |
-    HA_INPLACE_DROP_PK_INDEX_NO_READ_WRITE |
-    HA_INPLACE_ADD_INDEX_NO_WRITE |
-    HA_INPLACE_DROP_INDEX_NO_WRITE |
-    HA_INPLACE_ADD_UNIQUE_INDEX_NO_WRITE |
-    HA_INPLACE_DROP_UNIQUE_INDEX_NO_WRITE |
-    HA_INPLACE_ADD_PK_INDEX_NO_WRITE |
-    HA_INPLACE_DROP_PK_INDEX_NO_WRITE |
-    HA_PARTITION_FUNCTION_SUPPORTED |
-    0;
-
-  if (flags & ALTER_DROP_PARTITION)
-    return 0;
-
-  return f;
-}
-#endif
 
 #define NDB_AUTO_INCREMENT_RETRIES 100
 #define BATCH_FLUSH_SIZE (32768)
@@ -11856,8 +11829,7 @@ static int ndbcluster_init(void *p)
     h->show_status=      ndbcluster_show_status;    /* Show status */
     h->alter_tablespace= ndbcluster_alter_tablespace;    /* Show status */
     h->partition_flags=  ndbcluster_partition_flags; /* Partition flags */
-    h->alter_table_flags=
-      ndbcluster_alter_table_flags;                 /* Alter table flags */
+    h->alter_table_flags=ndbcluster_alter_table_flags; /* Alter table flags */
 #if MYSQL_VERSION_ID >= 50501
     h->fill_is_table=    ndbcluster_fill_is_table;
 #else
@@ -12420,9 +12392,7 @@ ulonglong ha_ndbcluster::table_flags(void) const
     HA_HAS_OWN_BINLOGGING |
     HA_BINLOG_ROW_CAPABLE |
     HA_HAS_RECORDS |
-#ifndef NDB_WITHOUT_ONLINE_ALTER
     HA_ONLINE_ALTER |
-#endif
     HA_READ_BEFORE_WRITE_REMOVAL |
     0;
 
@@ -15456,7 +15426,6 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   DBUG_RETURN(0);
 }
 
-#ifndef NDB_WITHOUT_ONLINE_ALTER
 static
 HA_ALTER_FLAGS supported_alter_operations()
 {
@@ -16273,8 +16242,9 @@ int ha_ndbcluster::alter_table_abort(THD *thd,
   free_share(&m_share); // Decrease ref_count
   DBUG_RETURN(error);
 }
-#endif
 
+
+static
 bool set_up_tablespace(st_alter_tablespace *alter_info,
                        NdbDictionary::Tablespace *ndb_ts)
 {
@@ -16289,6 +16259,7 @@ bool set_up_tablespace(st_alter_tablespace *alter_info,
   return FALSE;
 }
 
+static
 bool set_up_datafile(st_alter_tablespace *alter_info,
                      NdbDictionary::Datafile *ndb_df)
 {
@@ -16303,6 +16274,7 @@ bool set_up_datafile(st_alter_tablespace *alter_info,
   return FALSE;
 }
 
+static
 bool set_up_logfile_group(st_alter_tablespace *alter_info,
                           NdbDictionary::LogfileGroup *ndb_lg)
 {
@@ -16317,6 +16289,7 @@ bool set_up_logfile_group(st_alter_tablespace *alter_info,
   return FALSE;
 }
 
+static
 bool set_up_undofile(st_alter_tablespace *alter_info,
                      NdbDictionary::Undofile *ndb_uf)
 {
@@ -16326,6 +16299,7 @@ bool set_up_undofile(st_alter_tablespace *alter_info,
   return FALSE;
 }
 
+static
 int ndbcluster_alter_tablespace(handlerton *hton,
                                 THD* thd, st_alter_tablespace *alter_info)
 {
