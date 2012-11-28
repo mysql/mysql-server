@@ -1,5 +1,4 @@
 --source include/have_ndb.inc
---source include/ndb_have_online_alter.inc
 #error message differs slightly with statement based replication
 --source include/have_binlog_format_mixed_or_row.inc
 --source suite/ndb_rpl/ndb_master-slave.inc

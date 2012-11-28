@@ -3,7 +3,6 @@
 # Date: 2008-12
 # Purpose: ndb native default support test
 ##############################################################
---source include/ndb_have_online_alter.inc
 -- source include/have_ndb.inc
 -- source include/ndb_default_cluster.inc
 
