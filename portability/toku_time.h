@@ -82,8 +82,8 @@ typedef uint64_t tokutime_t;             // Time type used in by tokutek timers.
 //
 double tokutime_to_seconds(tokutime_t)  __attribute__((__visibility__("default"))); // Convert tokutime to seconds.
 
-// Get tokutime.  We want this to be fast, so we expose the implementation as RDTSC.
-static inline tokutime_t get_tokutime (void) {
+// Get the value of tokutime for right now.  We want this to be fast, so we expose the implementation as RDTSC.
+static inline tokutime_t toku_time_now(void) {
     uint32_t lo, hi;
     __asm__ __volatile__ ("rdtsc" : "=a" (lo), "=d" (hi));
     return (uint64_t)hi << 32 | lo;
@@ -93,13 +93,6 @@ static inline uint64_t toku_current_time_microsec(void) {
     struct timeval t;
     gettimeofday(&t, NULL);
     return t.tv_sec * (1UL * 1000 * 1000) + t.tv_usec;
-}
-
-static inline uint64_t toku_current_time_nanosec(void) {
-    struct timespec t;
-    int r = toku_clock_gettime(CLOCK_REALTIME, &t);
-    assert(r == 0);
-    return t.tv_sec * (1UL * 1000 * 1000 * 1000) + t.tv_nsec;
 }
 
 #endif

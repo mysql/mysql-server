@@ -1132,7 +1132,7 @@ static const int read_header_heuristic_max = 32*1024;
 #define MIN(a,b) (((a)>(b)) ? (b) : (a))
 #endif
 
-static void read_ftnode_header_from_fd_into_rbuf_if_small_enough (int fd, BLOCKNUM blocknum, FT h, struct rbuf *rb)
+static void read_ftnode_header_from_fd_into_rbuf_if_small_enough (int fd, BLOCKNUM blocknum, FT h, struct rbuf *rb, struct ftnode_fetch_extra *bfe)
 // Effect: If the header part of the node is small enough, then read it into the rbuf.  The rbuf will be allocated to be big enough in any case.
 {
     DISKOFF offset, size;
@@ -1142,11 +1142,15 @@ static void read_ftnode_header_from_fd_into_rbuf_if_small_enough (int fd, BLOCKN
     rbuf_init(rb, raw_block, read_size);
     {
         // read the block
+        tokutime_t io_t0 = toku_time_now();
         ssize_t rlen = toku_os_pread(fd, raw_block, read_size, offset);
+        tokutime_t io_t1 = toku_time_now();
         assert(rlen>=0);
         rbuf_init(rb, raw_block, rlen);
+        bfe->bytes_read = rlen;
+        bfe->read_time = io_t1 - io_t0;
+        toku_ft_status_update_pivot_fetch_reason(bfe);
     }
-    
 }
 
 //
@@ -1589,9 +1593,6 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
         r = toku_db_badformat();
         goto cleanup;
     }
-
-    // We got the entire header and node info!
-    toku_ft_status_update_pivot_fetch_reason(bfe);
 
     // Finish reading compressed the sub_block
     bytevec* cp;
@@ -2409,8 +2410,7 @@ deserialize_ftnode_from_fd(int fd,
                             STAT64INFO info)
 {
     struct rbuf rb = RBUF_INITIALIZER;
-    read_block_from_fd_into_rbuf(fd, blocknum, bfe->h, &rb);
-
+    read_block_from_fd_into_rbuf(fd, blocknum, bfe->h, &rb); 
     int r = deserialize_ftnode_from_rbuf(ftnode, ndd, blocknum, fullhash, bfe, info, &rb, fd);
     if (r != 0) {
         dump_bad_block(rb.buf,rb.size);
@@ -2433,7 +2433,7 @@ toku_deserialize_ftnode_from (int fd,
     toku_trace("deserial start");
     int r = 0;
     struct rbuf rb = RBUF_INITIALIZER;
-    read_ftnode_header_from_fd_into_rbuf_if_small_enough(fd, blocknum, bfe->h, &rb);
+    read_ftnode_header_from_fd_into_rbuf_if_small_enough(fd, blocknum, bfe->h, &rb, bfe);
 
     r = deserialize_ftnode_header_from_rbuf_if_small_enough(ftnode, ndd, blocknum, fullhash, bfe, &rb, fd);
     if (r != 0) {
