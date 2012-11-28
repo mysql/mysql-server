@@ -117,6 +117,19 @@ echo Request memoryusage from illegal nodeid 49;
 --error 255
 exec $mgm_cmd -e "49 REPORT MEMORYUSAGE";
 
+--echo For the following, we want to be running ndbmtd with multiple
+--echo LQH threads
+--echo NDBD (1 instance) is ok, but 2 instances indicates ndbmtd
+--echo with proxy and only 1 real instance, not interesting.
+--echo cnf file should make this impossible
+
+--echo Following query should have no results
+select   node_id, count(1) as instances 
+  from   ndbinfo.threadblocks 
+ where   block_name="BACKUP" 
+group by node_id 
+having   instances=2;
+
 echo ALL REPORT BACKUPSTATUS;
 exec $mgm_cmd -e "ALL REPORT BACKUPSTATUS";
 
