@@ -395,6 +395,10 @@ extern	ibool	srv_print_latch_waits;
 extern my_bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
+#ifdef UNIV_DEBUG
+extern my_bool	srv_purge_view_update_only_debug;
+#endif /* UNIV_DEBUG */
+
 extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
@@ -823,6 +827,8 @@ struct export_var_t{
 	ulint innodb_available_undo_logs;       /*!< srv_available_undo_logs */
 #ifdef UNIV_DEBUG
 	ulint innodb_purge_trx_id_age;		/*!< rw_max_trx_id - purged trx_id */
+	ulint innodb_purge_view_trx_id_age;	/*!< rw_max_trx_id
+						- purged view's min trx_id */
 #endif /* UNIV_DEBUG */
 };
 
