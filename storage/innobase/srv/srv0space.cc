@@ -601,8 +601,8 @@ Tablespace::read_lsn_and_check_flags(
 	*max_flushed_lsn = 0;
 	*min_flushed_lsn = LSN_MAX;
 
-	files_t::iterator	end = m_files.end();
-
+	files_t::iterator	end				= m_files.end();
+	bool			check_tablespace_attributes	= true;
 	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
 
 		ulint	flags;
@@ -630,10 +630,11 @@ Tablespace::read_lsn_and_check_flags(
 		ID = TRX_SYS_SPACE.  The FSP_SPACE_ID field in files greater
 		than ibdata1 are unreliable. */
 
-		ut_a(space == TRX_SYS_SPACE);
+		ut_a(!check_tablespace_attributes || space == TRX_SYS_SPACE);
 
 		/* Check the flags for the first system tablespace file only. */
-		if (UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
+		if (check_tablespace_attributes
+		    && UNIV_PAGE_SIZE != fsp_flags_get_page_size(flags)) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Data file \"%s\" uses page size %lu, "
@@ -645,6 +646,9 @@ Tablespace::read_lsn_and_check_flags(
 
 			return(DB_ERROR);
 		}
+
+		/* Check tablespace attributes only for first file. */
+		check_tablespace_attributes = false;
 	}
 
 	return(DB_SUCCESS);
