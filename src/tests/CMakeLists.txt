@@ -677,7 +677,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/shutdown-3344.tdb
     ydb/stat64-create-modify-times.tdb
     ydb/test1572.tdb
-    ydb/test3529.tdb
     ydb/test_abort4_19_0.tdb
     ydb/test_abort4_19_1.tdb
     ydb/test_abort5.tdb
@@ -714,6 +713,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/loader-stress-del.comp.loader
     ydb/loader-stress-test4.tdb
     ydb/test3039.tdb
+    ydb/test3529.tdb
     )
   if (BDB_FOUND)
     list(APPEND extra_long_tests
