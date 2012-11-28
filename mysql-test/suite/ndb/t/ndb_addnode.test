@@ -1,4 +1,3 @@
---source include/ndb_have_online_alter.inc
 -- source include/have_ndb.inc
 -- source include/not_embedded.inc
 --result_format 2
