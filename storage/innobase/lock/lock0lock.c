@@ -789,12 +789,16 @@ lock_reset_lock_and_trx_wait(
 /*=========================*/
 	lock_t*	lock)	/*!< in: record lock */
 {
-	ut_ad((lock->trx)->wait_lock == lock);
 	ut_ad(lock_get_wait(lock));
 
 	/* Reset the back pointer in trx to this waiting lock request */
 
-	(lock->trx)->wait_lock = NULL;
+	if (!(lock->type_mode & LOCK_CONV_BY_OTHER)) {
+		ut_ad((lock->trx)->wait_lock == lock);
+		(lock->trx)->wait_lock = NULL;
+	} else {
+		ut_ad(lock_get_type_low(lock) == LOCK_REC);
+	}
 	lock->type_mode &= ~LOCK_WAIT;
 }
 
@@ -1430,9 +1434,9 @@ lock_rec_has_expl(
 
 	while (lock) {
 		if (lock->trx == trx
+		    && !lock_is_wait_not_by_other(lock->type_mode)
 		    && lock_mode_stronger_or_eq(lock_get_mode(lock),
 						precise_mode & LOCK_MODE_MASK)
-		    && !lock_get_wait(lock)
 		    && (!lock_rec_get_rec_not_gap(lock)
 			|| (precise_mode & LOCK_REC_NOT_GAP)
 			|| heap_no == PAGE_HEAP_NO_SUPREMUM)
@@ -1730,7 +1734,7 @@ lock_rec_create(
 
 	HASH_INSERT(lock_t, hash, lock_sys->rec_hash,
 		    lock_rec_fold(space, page_no), lock);
-	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
+	if (lock_is_wait_not_by_other(type_mode)) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
@@ -1761,10 +1765,11 @@ lock_rec_enqueue_waiting(
 	const buf_block_t*	block,	/*!< in: buffer block containing
 					the record */
 	ulint			heap_no,/*!< in: heap number of the record */
+	lock_t*			lock,	/*!< in: lock object; NULL if a new
+					one should be created. */
 	dict_index_t*		index,	/*!< in: index of record */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
-	lock_t*	lock;
 	trx_t*	trx;
 
 	ut_ad(mutex_own(&kernel_mutex));
@@ -1799,9 +1804,17 @@ lock_rec_enqueue_waiting(
 		ut_ad(0);
 	}
 
-	/* Enqueue the lock request that will wait to be granted */
-	lock = lock_rec_create(type_mode | LOCK_WAIT,
-			       block, heap_no, index, trx);
+	if (lock == NULL) {
+		/* Enqueue the lock request that will wait to be granted */
+		lock = lock_rec_create(type_mode | LOCK_WAIT,
+				       block, heap_no, index, trx);
+	} else {
+		ut_ad(lock->type_mode & LOCK_WAIT);
+		ut_ad(lock->type_mode & LOCK_CONV_BY_OTHER);
+
+		lock->type_mode &= ~LOCK_CONV_BY_OTHER;
+		lock_set_lock_and_trx_wait(lock, trx);
+	}
 
 	/* Check if a deadlock occurs: if yes, remove the lock request and
 	return an error code */
@@ -2046,6 +2059,7 @@ lock_rec_lock_slow(
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	trx_t*	trx;
+	lock_t*	lock;
 
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad((LOCK_MODE_MASK & mode) != LOCK_S
@@ -2060,7 +2074,27 @@ lock_rec_lock_slow(
 
 	trx = thr_get_trx(thr);
 
-	if (lock_rec_has_expl(mode, block, heap_no, trx)) {
+	lock = lock_rec_has_expl(mode, block, heap_no, trx);
+	if (lock) {
+		if (lock->type_mode & LOCK_CONV_BY_OTHER) {
+			/* This lock or lock waiting was created by the other
+			transaction, not by the transaction (trx) itself.
+			So, the transaction (trx) should treat it collectly
+			according as whether granted or not. */
+
+			if (lock->type_mode & LOCK_WAIT) {
+				/* This lock request was not granted yet.
+				Should wait for granted. */
+
+				goto enqueue_waiting;
+			} else {
+				/* This lock request was already granted.
+				Just clearing the flag. */
+
+				lock->type_mode &= ~LOCK_CONV_BY_OTHER;
+			}
+		}
+
 		/* The trx already has a strong enough lock on rec: do
 		nothing */
 
@@ -2070,8 +2104,10 @@ lock_rec_lock_slow(
 		the queue, as this transaction does not have a lock strong
 		enough already granted on the record, we have to wait. */
 
+		ut_ad(lock == NULL);
+enqueue_waiting:
 		return(lock_rec_enqueue_waiting(mode, block, heap_no,
-						index, thr));
+						lock, index, thr));
 	} else if (!impl) {
 		/* Set the requested lock on the record */
 
@@ -2213,7 +2249,8 @@ lock_grant(
 	TRX_QUE_LOCK_WAIT state, and there is no need to end the lock wait
 	for it */
 
-	if (lock->trx->que_state == TRX_QUE_LOCK_WAIT) {
+	if (!(lock->type_mode & LOCK_CONV_BY_OTHER)
+	    && lock->trx->que_state == TRX_QUE_LOCK_WAIT) {
 		trx_end_lock_wait(lock->trx);
 	}
 }
@@ -2230,6 +2267,7 @@ lock_rec_cancel(
 {
 	ut_ad(mutex_own(&kernel_mutex));
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
+	ut_ad(!(lock->type_mode & LOCK_CONV_BY_OTHER));
 
 	/* Reset the bit (there can be only one set bit) in the lock bitmap */
 	lock_rec_reset_nth_bit(lock, lock_rec_find_set_bit(lock));
@@ -2372,8 +2410,12 @@ lock_rec_reset_and_release_wait(
 	lock = lock_rec_get_first(block, heap_no);
 
 	while (lock != NULL) {
-		if (lock_get_wait(lock)) {
+		if (lock_is_wait_not_by_other(lock->type_mode)) {
 			lock_rec_cancel(lock);
+		} else if (lock_get_wait(lock)) {
+			/* just reset LOCK_WAIT */
+			lock_rec_reset_nth_bit(lock, heap_no);
+			lock_reset_lock_and_trx_wait(lock);
 		} else {
 			lock_rec_reset_nth_bit(lock, heap_no);
 		}
@@ -3646,6 +3688,7 @@ lock_table_create(
 
 	ut_ad(table && trx);
 	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(!(type_mode & LOCK_CONV_BY_OTHER));
 
 	if ((type_mode & LOCK_MODE_MASK) == LOCK_AUTO_INC) {
 		++table->n_waiting_or_granted_auto_inc_locks;
@@ -4199,6 +4242,7 @@ lock_cancel_waiting_and_release(
 	lock_t*	lock)	/*!< in: waiting lock request */
 {
 	ut_ad(mutex_own(&kernel_mutex));
+	ut_ad(!(lock->type_mode & LOCK_CONV_BY_OTHER));
 
 	if (lock_get_type_low(lock) == LOCK_REC) {
 
@@ -5240,7 +5284,7 @@ lock_rec_insert_check_and_lock(
 		err = lock_rec_enqueue_waiting(LOCK_X | LOCK_GAP
 					       | LOCK_INSERT_INTENTION,
 					       block, next_rec_heap_no,
-					       index, thr);
+					       NULL, index, thr);
 	} else {
 		err = DB_SUCCESS;
 	}
@@ -5316,10 +5360,23 @@ lock_rec_convert_impl_to_expl(
 
 		if (!lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block,
 				       heap_no, impl_trx)) {
+			ulint	type_mode = (LOCK_REC | LOCK_X
+					     | LOCK_REC_NOT_GAP);
+
+			/* If the delete-marked record was locked already,
+			we should reserve lock waiting for impl_trx as
+			implicit lock. Because cannot lock at this moment.*/
+
+			if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))
+			    && lock_rec_other_has_conflicting(
+					LOCK_X | LOCK_REC_NOT_GAP, block,
+					heap_no, impl_trx)) {
+
+				type_mode |= (LOCK_WAIT | LOCK_CONV_BY_OTHER);
+			}
 
 			lock_rec_add_to_queue(
-				LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP,
-				block, heap_no, index, impl_trx);
+				type_mode, block, heap_no, index, impl_trx);
 		}
 	}
 }
