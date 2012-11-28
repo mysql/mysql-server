@@ -80,8 +80,10 @@ ddl_background_drop_tables	0
 ddl_online_create_index	0
 ddl_pending_alter_table	1
 INSERT INTO t1 VALUES(6,3,1);
-ERROR 23000: Can't write; duplicate key in table 't1'
 SET DEBUG_SYNC = 'now SIGNAL dml_done';
+ERROR HY000: Index c2 is corrupted
+DELETE FROM t1 WHERE c1=6;
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
 ddl_background_drop_indexes	0
