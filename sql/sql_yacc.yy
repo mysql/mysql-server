@@ -7885,6 +7885,16 @@ alter_list_item:
             lex->name= $3->table;
             lex->alter_info.flags|= Alter_info::ALTER_RENAME;
           }
+        | RENAME key_or_index field_ident TO_SYM field_ident
+          {
+            LEX *lex=Lex;
+            Alter_rename_key *ak= new (YYTHD->mem_root)
+                                    Alter_rename_key($3.str, $5.str);
+            if (ak == NULL)
+              MYSQL_YYABORT;
+            lex->alter_info.alter_rename_key_list.push_back(ak);
+            lex->alter_info.flags|= Alter_info::ALTER_RENAME_INDEX;
+          }
         | CONVERT_SYM TO_SYM charset charset_name_or_default opt_collate
           {
             if (!$4)

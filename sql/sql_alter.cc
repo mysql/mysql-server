@@ -24,6 +24,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   :drop_list(rhs.drop_list, mem_root),
   alter_list(rhs.alter_list, mem_root),
   key_list(rhs.key_list, mem_root),
+  alter_rename_key_list(rhs.alter_rename_key_list, mem_root),
   create_list(rhs.create_list, mem_root),
   flags(rhs.flags),
   keys_onoff(rhs.keys_onoff),
@@ -44,6 +45,7 @@ Alter_info::Alter_info(const Alter_info &rhs, MEM_ROOT *mem_root)
   list_copy_and_replace_each_value(drop_list, mem_root);
   list_copy_and_replace_each_value(alter_list, mem_root);
   list_copy_and_replace_each_value(key_list, mem_root);
+  list_copy_and_replace_each_value(alter_rename_key_list, mem_root);
   list_copy_and_replace_each_value(create_list, mem_root);
   /* partition_names are not deeply copied currently */
 }
