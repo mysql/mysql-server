@@ -609,7 +609,7 @@ Tablespace::read_lsn_and_check_flags(
 		ulint	space;
 
 		ut_a(it->m_exists);
-		ut_a(it->m_handle == ~0);
+		ut_a(it->m_handle == os_file_t(~0));
 
 		dberr_t	err = open_data_file(*it);
 
@@ -624,7 +624,7 @@ Tablespace::read_lsn_and_check_flags(
 		ibool	success = os_file_close(it->m_handle);
 		ut_a(success);
 
-		it->m_handle = ~0;
+		it->m_handle = os_file_t(~0);
 
 		/* The first file of the system tablespace must have space
 		ID = TRX_SYS_SPACE.  The FSP_SPACE_ID field in files greater
@@ -941,7 +941,7 @@ Tablespace::open(ulint* sum_of_new_sizes)
 		ibool	success = os_file_close(it->m_handle);
 		ut_a(success);
 
-		it->m_handle = ~0;
+		it->m_handle = os_file_t(~0);
 		it->m_exists = true;
 
 		if (it == m_files.begin()) {

@@ -49,7 +49,7 @@ class Tablespace {
 			m_name(::strdup(name)),
 			m_size(size),
 			m_type(SRV_NOT_RAW),
-			m_handle(~0),
+			m_handle(os_file_t(~0)),
 			m_exists(),
 			m_open_flags(OS_FILE_OPEN),
 			m_filename()
@@ -95,7 +95,7 @@ class Tablespace {
 			m_size = file.m_size;
 			m_type = file.m_type;
 
-			ut_a(m_handle == ~0);
+			ut_a(m_handle == os_file_t(~0));
 			m_handle = file.m_handle;
 
 			m_exists = file.m_exists;
@@ -116,7 +116,7 @@ class Tablespace {
 		/** Release the resources. */
 		void shutdown()
 		{
-			ut_a(m_handle == ~0);
+			ut_a(m_handle == os_file_t(~0));
 
 			if (m_name != 0) {
 				::free(m_name);
