@@ -45,6 +45,7 @@ extern EventLogger * g_eventLogger;
 void Dbtup::initData() 
 {
   TablerecPtr tablePtr;
+  (void)tablePtr; // hide unused warning
   cnoOfFragrec = NDB_ARRAY_SIZE(tablePtr.p->fragrec);
   cnoOfFragoprec = NDB_ARRAY_SIZE(tablePtr.p->fragrec);
   cnoOfAlterTabOps = NDB_ARRAY_SIZE(tablePtr.p->fragrec);
