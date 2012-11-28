@@ -5899,7 +5899,9 @@ static bool read_init_file(char *file_name)
 */
 void inc_thread_created(void)
 {
+  mysql_mutex_lock(&LOCK_status);
   thread_created++;
+  mysql_mutex_unlock(&LOCK_status);
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -5945,7 +5947,7 @@ void create_thread_to_handle_connection(THD *thd)
     char error_message_buff[MYSQL_ERRMSG_SIZE];
     /* Create new thread to handle connection */
     int error;
-    thread_created++;
+    inc_thread_created();
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
     thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
     if ((error= mysql_thread_create(key_thread_one_connection,
