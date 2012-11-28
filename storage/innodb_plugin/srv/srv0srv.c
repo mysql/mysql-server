@@ -85,6 +85,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "read0read.h"
 
 #ifdef __WIN__
 /* error LNK2001: unresolved external symbol _debug_sync_C_callback_ptr */
@@ -1982,6 +1983,16 @@ srv_export_innodb_status(void)
 	} else {
 		export_vars.innodb_purge_trx_id_age =
 		  ut_dulint_minus(trx_sys->max_trx_id, purge_sys->done_trx_no);
+	}
+
+	if (!purge_sys->view
+	    || ut_dulint_cmp(trx_sys->max_trx_id,
+			     purge_sys->view->up_limit_id) < 0) {
+		export_vars.innodb_purge_view_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_view_trx_id_age =
+		  ut_dulint_minus(trx_sys->max_trx_id,
+				  purge_sys->view->up_limit_id);
 	}
 #endif /* UNIV_DEBUG */
 

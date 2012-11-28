@@ -48,6 +48,10 @@ Created 10/8/1995 Heikki Tuuri
 #include "srv0start.h"
 #include "row0mysql.h"
 #include "ha_prototypes.h"
+#include "read0read.h"
+
+#include "m_string.h" /* for my_sys.h */
+#include "my_sys.h" /* DEBUG_SYNC_C */
 
 /* This is set to TRUE if the MySQL user has set it in MySQL; currently
 affects only FOREIGN KEY definition parsing */
@@ -1435,6 +1439,10 @@ srv_suspend_mysql_thread(
 
 	trx = thr_get_trx(thr);
 
+	if (trx->mysql_thd != 0) {
+		DEBUG_SYNC_C("srv_suspend_mysql_thread_enter");
+	}
+
 	os_event_set(srv_lock_timeout_thread_event);
 
 	mutex_enter(&kernel_mutex);
@@ -1919,6 +1927,16 @@ srv_export_innodb_status(void)
 	} else {
 		export_vars.innodb_purge_trx_id_age =
 		  ut_dulint_minus(trx_sys->max_trx_id, purge_sys->done_trx_no);
+	}
+
+	if (!purge_sys->view
+	    || ut_dulint_cmp(trx_sys->max_trx_id,
+			     purge_sys->view->up_limit_id) < 0) {
+		export_vars.innodb_purge_view_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_view_trx_id_age =
+		  ut_dulint_minus(trx_sys->max_trx_id,
+				  purge_sys->view->up_limit_id);
 	}
 #endif /* UNIV_DEBUG */
 
