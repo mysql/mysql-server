@@ -67,4 +67,4 @@ perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=
 
 #Run with Query Cache Enabled
 
-perl mysql-test-run.pl --timer --force --big-test --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
+#perl mysql-test-run.pl --timer --force --big-test --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M

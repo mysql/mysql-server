@@ -95,8 +95,8 @@ printLCP_STATUS_REQ(FILE * output, const Uint32 * theData,
                     Uint32 len, Uint16 receiverBlockNo){
   const LcpStatusReq* const sig = (LcpStatusReq*) theData;
   
-  fprintf(output, " SenderRef : %x ReqData : %u\n", 
-          sig->senderRef, sig->reqData);
+  fprintf(output, " SenderRef : %x SenderData : %u\n", 
+          sig->senderRef, sig->senderData);
   return true;
 }
 
@@ -105,10 +105,10 @@ printLCP_STATUS_CONF(FILE * output, const Uint32 * theData,
                      Uint32 len, Uint16 receiverBlockNo){
   const LcpStatusConf* const sig = (LcpStatusConf*) theData;
   
-  fprintf(output, " SenderRef : %x ReqData : %u LcpState : %u tableId : %u fragId : %u\n",
-          sig->senderRef, sig->reqData, sig->lcpState, sig->tableId, sig->fragId);
-  fprintf(output, " replica(DoneRows : %llu), lcpDone (Rows : %llu, Bytes : %llu)\n",
-          (((Uint64)sig->replicaDoneRowsHi) << 32) + sig->replicaDoneRowsLo,
+  fprintf(output, " SenderRef : %x SenderData : %u LcpState : %u tableId : %u fragId : %u\n",
+          sig->senderRef, sig->senderData, sig->lcpState, sig->tableId, sig->fragId);
+  fprintf(output, " replica(Progress : %llu), lcpDone (Rows : %llu, Bytes : %llu)\n",
+          (((Uint64)sig->completionStateHi) << 32) + sig->completionStateLo,
           (((Uint64)sig->lcpDoneRowsHi) << 32) + sig->lcpDoneRowsLo,
           (((Uint64)sig->lcpDoneBytesHi) << 32) + sig->lcpDoneBytesLo);
   return true;
@@ -119,7 +119,7 @@ printLCP_STATUS_REF(FILE * output, const Uint32 * theData,
                     Uint32 len, Uint16 receiverBlockNo){
   const LcpStatusRef* const sig = (LcpStatusRef*) theData;
   
-  fprintf(output, " SenderRef : %x, ReqData : %u Error : %u\n", 
-          sig->senderRef, sig->reqData, sig->error);
+  fprintf(output, " SenderRef : %x, SenderData : %u Error : %u\n", 
+          sig->senderRef, sig->senderData, sig->error);
   return true;
 }

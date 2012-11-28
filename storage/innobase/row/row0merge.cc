@@ -567,7 +567,7 @@ row_merge_tuple_cmp(
 
 no_report:
 	/* The n_uniq fields were equal, but we compare all fields so
-	that we will get the same order as in the B-tree. */
+	that we will get the same (internal) order as in the B-tree. */
 	for (n = n_field - n_uniq + 1; --n; ) {
 		cmp = cmp_dfield_dfield(af++, bf++);
 		if (cmp) {
@@ -575,9 +575,10 @@ no_report:
 		}
 	}
 
-	/* This should never be reached. Internally, an index must
-	never contain duplicate entries. */
-	ut_ad(0);
+	/* This should never be reached, except in a secondary index
+	when creating a secondary index and a PRIMARY KEY, and there
+	is a duplicate in the PRIMARY KEY that has not been detected
+	yet. Internally, an index must never contain duplicates. */
 	return(cmp);
 }
 

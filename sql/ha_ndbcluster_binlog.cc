@@ -594,7 +594,6 @@ ndbcluster_binlog_index_purge_file(THD *thd, const char *file)
 }
 
 
-#ifndef NDB_WITHOUT_DIST_PRIV
 // Determine if privilege tables are distributed, ie. stored in NDB
 bool
 Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
@@ -630,7 +629,6 @@ Ndb_dist_priv_util::priv_tables_are_in_ndb(THD* thd)
   }
   DBUG_RETURN(distributed);
 }
-#endif
 
 static void
 ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binlog_command,
@@ -682,48 +680,28 @@ ndbcluster_binlog_log_query(handlerton *hton, THD *thd, enum_binlog_command binl
     type= SOT_DROP_DB;
     DBUG_ASSERT(FALSE);
     break;
-#ifndef NDB_WITHOUT_DIST_PRIV
-  case LOGCOM_CREATE_USER:
-    type= SOT_CREATE_USER;
-    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
-    {
-      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
-      log= 1;
-    }
-    break;
-  case LOGCOM_DROP_USER:
-    type= SOT_DROP_USER;
-    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
-    {
-      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
-      log= 1;
-    }
-    break;
-  case LOGCOM_RENAME_USER:
-    type= SOT_RENAME_USER;
-    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
-    {
-      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
-      log= 1;
-    }
-    break;
-  case LOGCOM_GRANT:
+  case LOGCOM_ACL_NOTIFY:
     type= SOT_GRANT;
     if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
     {
       DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
       log= 1;
     }
+    /*
+      NOTE! Grant statements with db set to NULL is very rare but
+      may be provoked by for example dropping the currently selected
+      database. Since ndbcluster_log_schema_op does not allow
+      db to be NULL(can't create a key for the ndb_schem_object nor
+      writeNULL to ndb_schema), the situation is salvaged by setting db
+      to the constant string "mysql" which should work in most cases.
+
+      Interestingly enough this "hack" has the effect that grant statements
+      are written to the remote binlog in same format as if db would have
+      been NULL.
+    */
+    if (!db)
+      db = "mysql";
     break;
-  case LOGCOM_REVOKE:
-    type= SOT_REVOKE;
-    if (Ndb_dist_priv_util::priv_tables_are_in_ndb(thd))
-    {
-      DBUG_PRINT("info", ("Privilege tables have been distributed, logging statement"));
-      log= 1;
-    }
-    break;
-#endif
   }
   if (log)
   {
@@ -1086,6 +1064,23 @@ static void ndb_notify_tables_writable()
   pthread_cond_broadcast(&COND_ndb_setup_complete);
   pthread_mutex_unlock(&ndbcluster_mutex);
 }
+
+
+#ifdef NDB_WITHOUT_MAKE_DB_LIST
+/*
+  Declare LOOKUP_FIELD_VALUES and make_db_list() until
+  stable interface to list available databases exist
+*/
+typedef struct st_lookup_field_values
+{
+  LEX_STRING db_value, table_value;
+  bool wild_db_value, wild_table_value;
+} LOOKUP_FIELD_VALUES;
+
+int make_db_list(THD *thd, List<LEX_STRING> *files,
+                 LOOKUP_FIELD_VALUES *lookup_field_vals,
+                 bool *with_i_schema);
+#endif
 
 /*
 

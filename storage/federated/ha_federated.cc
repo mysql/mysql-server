@@ -622,11 +622,7 @@ int get_connection(MEM_ROOT *mem_root, FEDERATED_SHARE *share)
   share->username= server->username;
   share->password= server->password;
   share->database= server->db;
-#ifndef I_AM_PARANOID
-  share->port= server->port > 0 && server->port < 65536 ? 
-#else
-  share->port= server->port > 1023 && server->port < 65536 ? 
-#endif
+  share->port= server->port > 0 && server->port < 65536 ?
                (ushort) server->port : MYSQL_PORT;
   share->hostname= server->host;
   if (!(share->socket= server->socket) &&
