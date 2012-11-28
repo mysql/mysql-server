@@ -1048,6 +1048,27 @@ typedef struct st_ha_create_information
   enum ha_storage_media storage_media;  /* DEFAULT, DISK or MEMORY */
 } HA_CREATE_INFO;
 
+
+/**
+  Structure describing changes to an index to be caused by ALTER TABLE.
+*/
+
+struct KEY_PAIR
+{
+  /**
+    Pointer to KEY object describing old version of index in
+    TABLE::key_info array for TABLE instance representing old
+    version of table.
+  */
+  KEY *old_key;
+  /**
+    Pointer to KEY object describing new version of index in
+    Alter_inplace_info::key_info_buffer array.
+  */
+  KEY *new_key;
+};
+
+
 /**
   In-place alter handler context.
 
@@ -1193,6 +1214,14 @@ public:
   static const HA_ALTER_FLAGS ALTER_ALL_PARTITION        = 1L << 28;
 
   /**
+    Rename index. Note that we set this flag only if there are no other
+    changes to the index being renamed. Also for simplicity we don't
+    detect renaming of indexes which is done by dropping index and then
+    re-creating index with identical definition under different name.
+  */
+  static const HA_ALTER_FLAGS RENAME_INDEX               = 1L << 29;
+
+  /**
     Create options (like MAX_ROWS) for the new version of table.
 
     @note The referenced instance of HA_CREATE_INFO object was already
@@ -1254,6 +1283,19 @@ public:
   */
   uint *index_add_buffer;
 
+  /** Size of index_rename_buffer array. */
+  uint index_rename_count;
+
+  /**
+    Array of KEY_PAIR objects describing indexes being renamed.
+    For each index renamed it contains object with KEY_PAIR::old_key
+    pointing to KEY object belonging to the TABLE instance for old
+    version of table representing old version of index and with
+    KEY_PAIR::new_key pointing to KEY object for new version of
+    index in key_info_buffer member.
+  */
+  KEY_PAIR  *index_rename_buffer;
+
   /**
      Context information to allow handlers to keep context between in-place
      alter API calls.
@@ -1293,6 +1335,8 @@ public:
     index_drop_buffer(NULL),
     index_add_count(0),
     index_add_buffer(NULL),
+    index_rename_count(0),
+    index_rename_buffer(NULL),
     handler_ctx(NULL),
     handler_flags(0),
     modified_part_info(modified_part_info_arg),

@@ -16,9 +16,74 @@
 #ifndef SQL_ALTER_TABLE_H
 #define SQL_ALTER_TABLE_H
 
-class Alter_drop;
-class Alter_column;
 class Key;
+
+
+/**
+  Class representing DROP COLUMN, DROP KEY and DROP FOREIGN KEY
+  clauses in ALTER TABLE statement.
+*/
+
+class Alter_drop :public Sql_alloc {
+public:
+  enum drop_type {KEY, COLUMN, FOREIGN_KEY };
+  const char *name;
+  enum drop_type type;
+  Alter_drop(enum drop_type par_type,const char *par_name)
+    :name(par_name), type(par_type)
+  {
+    DBUG_ASSERT(par_name != NULL);
+  }
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for Key_part_spec::clone
+  */
+  Alter_drop *clone(MEM_ROOT *mem_root) const
+    { return new (mem_root) Alter_drop(*this); }
+};
+
+
+/**
+  Class representing SET DEFAULT and DROP DEFAULT clauses in
+  ALTER TABLE statement.
+*/
+
+class Alter_column :public Sql_alloc {
+public:
+  const char *name;
+  Item *def;
+  Alter_column(const char *par_name,Item *literal)
+    :name(par_name), def(literal) {}
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for Key_part_spec::clone
+  */
+  Alter_column *clone(MEM_ROOT *mem_root) const
+    { return new (mem_root) Alter_column(*this); }
+};
+
+
+/**
+  Class which instances represent RENAME INDEX clauses in
+  ALTER TABLE statement.
+*/
+
+class Alter_rename_key :public Sql_alloc {
+public:
+  const char *old_name;
+  const char *new_name;
+
+  Alter_rename_key(const char *old_name_arg, const char *new_name_arg)
+    : old_name(old_name_arg), new_name(new_name_arg)
+  { }
+
+  /**
+    Used to make a clone of this object for ALTER/CREATE TABLE
+    @sa comment for Key_part_spec::clone
+  */
+  Alter_rename_key *clone(MEM_ROOT *mem_root) const
+  { return new (mem_root) Alter_rename_key(*this); }
+};
 
 
 /**
@@ -123,6 +188,8 @@ public:
   // Set for ADD [COLUMN] FIRST | AFTER
   static const uint ALTER_COLUMN_ORDER          = 1L << 26;
 
+  // Set for RENAME INDEX
+  static const uint ALTER_RENAME_INDEX          = 1L << 27;
 
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
@@ -169,6 +236,8 @@ public:
   List<Alter_column>            alter_list;
   // List of keys, used by both CREATE and ALTER TABLE.
   List<Key>                     key_list;
+  // Keys to be renamed.
+  List<Alter_rename_key>        alter_rename_key_list;
   // List of columns, used by both CREATE and ALTER TABLE.
   List<Create_field>            create_list;
   // Type of ALTER TABLE operation.
@@ -198,6 +267,7 @@ public:
     drop_list.empty();
     alter_list.empty();
     key_list.empty();
+    alter_rename_key_list.empty();
     create_list.empty();
     flags= 0;
     keys_onoff= LEAVE_AS_IS;

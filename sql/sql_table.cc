@@ -5425,7 +5425,8 @@ static Create_field *get_field_by_index(Alter_info *alter_info, uint idx)
 
 
 /**
-  Check if index has changed in a new version of table.
+  Check if index has changed in a new version of table (ignore
+  possible rename of index).
 
   @param  alter_info  Alter_info describing the changes to table
                       (is necessary to find correspondence between
@@ -5436,9 +5437,9 @@ static Create_field *get_field_by_index(Alter_info *alter_info, uint idx)
   @returns True - if index has changed, false -otherwise.
 */
 
-static bool has_index_changed(Alter_info *alter_info,
-                              const KEY *table_key,
-                              const KEY *new_key)
+static bool has_index_def_changed(Alter_info *alter_info,
+                                  const KEY *table_key,
+                                  const KEY *new_key)
 {
   const KEY_PART_INFO *key_part, *new_part, *end;
   const Create_field *new_field;
@@ -5550,7 +5551,10 @@ static bool fill_alter_inplace_info(THD *thd,
           (KEY**) thd->alloc(sizeof(KEY*) * table->s->keys)) ||
       ! (ha_alter_info->index_add_buffer=
           (uint*) thd->alloc(sizeof(uint) *
-                            alter_info->key_list.elements)))
+                            alter_info->key_list.elements)) ||
+      ! (ha_alter_info->index_rename_buffer=
+          (KEY_PAIR*) thd->alloc(sizeof(KEY_PAIR) *
+                                 alter_info->alter_rename_key_list.elements)))
     DBUG_RETURN(true);
 
   /* First we setup ha_alter_flags based on what was detected by parser. */
@@ -5753,12 +5757,32 @@ static bool fill_alter_inplace_info(THD *thd,
   ha_alter_info->index_add_count= 0;
   for (table_key= table->key_info; table_key < table_key_end; table_key++)
   {
-    /* Search a new key with the same name. */
+    const char *key_name= table_key->name;
+
+    /*
+      Check if the key was renamed so we need to look it up in new
+      version of table under new name.
+    */
+    List_iterator_fast<Alter_rename_key> rename_key_it(alter_info->
+                                                       alter_rename_key_list);
+    Alter_rename_key *rename_key;
+
+    while ((rename_key= rename_key_it++))
+    {
+      if (! my_strcasecmp(system_charset_info, key_name,
+                          rename_key->old_name))
+      {
+        key_name= rename_key->new_name;
+        break;
+      }
+    }
+
+    /* Search a new key with the same (or new) name. */
     for (new_key= ha_alter_info->key_info_buffer;
          new_key < new_key_end;
          new_key++)
     {
-      if (! strcmp(table_key->name, new_key->name))
+      if (! strcmp(key_name, new_key->name))
         break;
     }
     if (new_key >= new_key_end)
@@ -5771,7 +5795,7 @@ static bool fill_alter_inplace_info(THD *thd,
       continue;
     }
 
-    if (has_index_changed(alter_info, table_key, new_key))
+    if (has_index_def_changed(alter_info, table_key, new_key))
     {
       /* Key modified. Add the key / key offset to both buffers. */
       ha_alter_info->index_drop_buffer
@@ -5781,6 +5805,20 @@ static bool fill_alter_inplace_info(THD *thd,
         [ha_alter_info->index_add_count++]=
         new_key - ha_alter_info->key_info_buffer;
       DBUG_PRINT("info", ("index changed: '%s'", table_key->name));
+    }
+    else if (key_name != table_key->name)
+    {
+      /*
+        Key was not modified but still was renamed. Add it to the
+        array of renamed keys.
+      */
+      ha_alter_info->handler_flags|= Alter_inplace_info::RENAME_INDEX;
+      KEY_PAIR *key_pair= ha_alter_info->index_rename_buffer +
+                          ha_alter_info->index_rename_count++;
+      key_pair->old_key= table_key;
+      key_pair->new_key= new_key;
+      DBUG_PRINT("info", ("index renamed: '%s' to '%s'",
+                          table_key->name, key_name));
     }
   }
   /*end of for (; table_key < table_key_end;) */
@@ -5792,10 +5830,27 @@ static bool fill_alter_inplace_info(THD *thd,
        new_key < new_key_end;
        new_key++)
   {
-    /* Search an old key with the same name. */
+    const char *key_name= new_key->name;
+    /*
+      First, check if the key was renamed so we need to look it up in
+      old version of the table under its old name.
+    */
+    List_iterator_fast<Alter_rename_key> rename_key_it(alter_info->
+                                                       alter_rename_key_list);
+    Alter_rename_key *rename_key;
+    while ((rename_key= rename_key_it++))
+    {
+      if (! my_strcasecmp(system_charset_info, key_name, rename_key->new_name))
+      {
+        key_name= rename_key->old_name;
+        break;
+      }
+    }
+
+    /* Search an old key with the same (or old) name. */
     for (table_key= table->key_info; table_key < table_key_end; table_key++)
     {
-      if (! strcmp(table_key->name, new_key->name))
+      if (! strcmp(table_key->name, key_name))
         break;
     }
     if (table_key >= table_key_end)
@@ -6610,6 +6665,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
   List<Create_field> new_create_list;
   /* New key definitions are added here */
   List<Key> new_key_list;
+  /*
+    Alter_info::alter_rename_key_list is also used by fill_alter_inplace_info()
+    call. So this function should not modify original list but rather work with
+    its copy.
+  */
+  List<Alter_rename_key> rename_key_list(alter_info->alter_rename_key_list,
+                                         thd->mem_root);
   List_iterator<Alter_drop> drop_it(alter_info->drop_list);
   List_iterator<Create_field> def_it(alter_info->create_list);
   List_iterator<Alter_column> alter_it(alter_info->alter_list);
@@ -6842,7 +6904,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
   for (uint i=0 ; i < table->s->keys ; i++,key_info++)
   {
-    char *key_name= key_info->name;
+    const char *key_name= key_info->name;
     Alter_drop *drop;
     drop_it.rewind();
     while ((drop=drop_it++))
@@ -6928,6 +6990,34 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       enum Key::Keytype key_type;
       memset(&key_create_info, 0, sizeof(key_create_info));
 
+      /* If this index is to stay in the table check if it has to be renamed. */
+      List_iterator<Alter_rename_key> rename_key_it(rename_key_list);
+      Alter_rename_key *rename_key;
+
+      while ((rename_key= rename_key_it++))
+      {
+        if (! my_strcasecmp(system_charset_info, key_name,
+                            rename_key->old_name))
+        {
+          if (! my_strcasecmp(system_charset_info, key_name,
+                              primary_key_name))
+          {
+            my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), rename_key->old_name);
+            goto err;
+          }
+          else if (! my_strcasecmp(system_charset_info, rename_key->new_name,
+                                   primary_key_name))
+          {
+            my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), rename_key->new_name);
+            goto err;
+          }
+
+          key_name= rename_key->new_name;
+          rename_key_it.remove();
+          break;
+        }
+      }
+
       key_create_info.algorithm= key_info->algorithm;
       if (key_info->flags & HA_USES_BLOCK_SIZE)
         key_create_info.block_size= key_info->block_size;
@@ -6994,10 +7084,10 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
     }
   }
-  if (alter_info->alter_list.elements)
+  if (rename_key_list.elements)
   {
-    my_error(ER_CANT_DROP_FIELD_OR_KEY, MYF(0),
-             alter_info->alter_list.head()->name);
+    my_error(ER_KEY_DOES_NOT_EXITS, MYF(0), rename_key_list.head()->old_name,
+             table->s->table_name.str);
     goto err;
   }
 
