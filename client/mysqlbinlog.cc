@@ -859,11 +859,11 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
       if (parent_query_skips)
       {
-        /* 
-          Even though there would be no need to set the flag here, 
-          since parent_query_skips is never true when handling "COMMIT" 
+        /*
+          Even though there would be no need to set the flag here,
+          since parent_query_skips is never true when handling "COMMIT"
           statements in the Query_log_event, we still need to handle DDL,
-          which causes a commit itself. 
+          which causes a commit itself.
         */
         print_event_info->skipped_event_in_transaction= true;
         goto end;
@@ -1040,7 +1040,9 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       Execute_load_query_log_event *exlq= (Execute_load_query_log_event*)ev;
       char *fname= load_processor.grab_fname(exlq->file_id);
 
-      if (!shall_skip_database(exlq->db))
+      if (shall_skip_database(exlq->db))
+        print_event_info->skipped_event_in_transaction= true;
+      else
       {
         if (fname)
         {
@@ -1057,8 +1059,6 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
           warning("Ignoring Execute_load_query since there is no "
                   "Begin_load_query event for file_id: %u", exlq->file_id);
       }
-      else
-        print_event_info->skipped_event_in_transaction= true;
 
       if (fname)
 	my_free(fname);
@@ -1187,8 +1187,8 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case GTID_LOG_EVENT:
     {
       if (print_event_info->skipped_event_in_transaction == true)
-        fprintf(result_file, "COMMIT /* added by mysqlbinlog */;\n");
-      print_event_info->skipped_event_in_transaction=false;
+        fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n", print_event_info->delimiter);
+      print_event_info->skipped_event_in_transaction= false;
 
       ev->print(result_file, print_event_info);
       if (head->error == -1)
@@ -1197,7 +1197,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     }
     case XID_EVENT:
     {
-      print_event_info->skipped_event_in_transaction=false;
+      print_event_info->skipped_event_in_transaction= false;
       ev->print(result_file, print_event_info);
       if (head->error == -1)
         goto err;
@@ -1206,12 +1206,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
     case PREVIOUS_GTIDS_LOG_EVENT:
       if (one_database && !opt_skip_gtids)
         warning("The option --database has been used. It may filter "
-                "parts of transactions. While used in together with "
-                "binary logs with global transaction identifiers it can "
-                "lead to undesired output. If you want to exclude or "
-                "include transactions, you should use the options "
-                "--exclude-gtids or --include-gtids, respectively, "
-                "instead.");
+                "parts of transactions, but will include the GTIDs in "
+                "any case. If you want to exclude or include transactions, "
+                "you should use the options --exclude-gtids or "
+                "--include-gtids, respectively, instead.");
       /* fall through */
     default:
       ev->print(result_file, print_event_info);
@@ -1796,11 +1794,11 @@ static Exit_status dump_log_entries(const char* logname)
   /* Set delimiter back to semicolon */
   if (!raw_mode)
   {
+    if (print_event_info.skipped_event_in_transaction)
+      fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n", print_event_info.delimiter);
+
     fprintf(result_file, "DELIMITER ;\n");
     strmov(print_event_info.delimiter, ";");
-
-    if (print_event_info.skipped_event_in_transaction)
-      fprintf(result_file, "COMMIT /* added by mysqlbinlog */;\n");
   }
   DBUG_RETURN(rc);
 }
