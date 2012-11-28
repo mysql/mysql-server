@@ -190,7 +190,7 @@ BackupProxy::sendSUM_EVENT_REP(Signal* signal, Uint32 ssId)
   };
   
   /* Words 3 -> 10 , various sums */
-  for (int w = 3; w < reportLen; w++)
+  for (Uint32 w = 3; w < reportLen; w++)
     ss.m_report[w] += signal->theData[w];
   
   if (!lastReply(ss))
