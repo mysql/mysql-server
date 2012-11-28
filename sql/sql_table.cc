@@ -5493,12 +5493,6 @@ static bool fill_alter_inplace_info(THD *thd,
   if (alter_info->flags & Alter_info::ALTER_ALL_PARTITION)
     ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_ALL_PARTITION;
 
-  if (alter_info->flags & Alter_info::ALTER_COLUMN_STORAGE_TYPE)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE;
-  if (alter_info->flags & Alter_info::ALTER_COLUMN_COLUMN_FORMAT)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
-
-
   /*
     If we altering table with old VARCHAR fields we will be automatically
     upgrading VARCHAR column types.
