@@ -1589,6 +1589,38 @@ trx_undo_prev_version_build(
 	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint	n_ext;
 
+		/* We should confirm the existence of disowned external data,
+		if the previous version record is delete marked. If the trx_id
+		of the previous record is seen by purge view, we should treat
+		it as missing history, because the disowned external data
+		might be purged already.
+
+		The inherited external data (BLOBs) can be freed (purged)
+		after trx_id was committed, provided that no view was started
+		before trx_id. If the purge view can see the committed
+		delete-marked record by trx_id, no transactions need to access
+		the BLOB. */
+
+		/* the row_upd_changes_disowned_external(update) call could be
+		omitted, but the synchronization on purge_sys->latch is likely
+		more expensive. */
+
+		if ((update->info_bits & REC_INFO_DELETED_FLAG)
+		    && row_upd_changes_disowned_external(update)) {
+			bool	missing_extern;
+
+			rw_lock_s_lock(&purge_sys->latch);
+			missing_extern = read_view_sees_trx_id(purge_sys->view,
+							       trx_id);
+			rw_lock_s_unlock(&purge_sys->latch);
+
+			if (missing_extern) {
+				/* treat as a fresh insert, not to
+				cause assertion error at the caller. */
+				return(true);
+			}
+		}
+
 		/* We have to set the appropriate extern storage bits in the
 		old version of the record: the extern bits in rec for those
 		fields that update does NOT update, as well as the bits for
