@@ -61,6 +61,10 @@ UNIV_INTERN mysql_pfs_key_t	trx_purge_latch_key;
 UNIV_INTERN mysql_pfs_key_t	purge_sys_bh_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+#ifdef UNIV_DEBUG
+UNIV_INTERN my_bool		srv_purge_view_update_only_debug;
+#endif /* UNIV_DEBUG */
+
 /*****************************************************************//**
 Checks if trx_id is >= purge_view: then it is guaranteed that its update
 undo log still exists in the system.
@@ -1179,6 +1183,12 @@ trx_purge(
 	mutex_exit(&kernel_mutex);
 
 	rw_lock_x_unlock(&(purge_sys->latch));
+
+#ifdef UNIV_DEBUG
+	if (srv_purge_view_update_only_debug) {
+		return(0);
+	}
+#endif
 
 	purge_sys->state = TRX_PURGE_ON;
 
