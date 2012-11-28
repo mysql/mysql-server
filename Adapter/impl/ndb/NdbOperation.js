@@ -173,7 +173,12 @@ function readResultRow(op) {
     offset  = record.getColumnOffset(i);
     encoder = encoders[col[i].ndbTypeId];
     assert(encoder);
-    value   = encoder.read(col[i], op.buffers.row, offset);
+    if(record.isNull(i, op.buffers.row)) {
+      value = null;
+    }
+    else {
+      value   = encoder.read(col[i], op.buffers.row, offset);
+    }
     dbt.set(resultRow, i, value);
   }
   op.result.value = resultRow;
