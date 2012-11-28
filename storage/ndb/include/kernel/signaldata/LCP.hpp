@@ -246,7 +246,7 @@ public:
 
 private:
   Uint32 senderRef;
-  Uint32 reqData;
+  Uint32 senderData;
 };
 
 struct LcpStatusConf
@@ -278,7 +278,7 @@ public:
   };
 private:
   Uint32 senderRef;
-  Uint32 reqData;
+  Uint32 senderData;
   /* Backup stuff */
   Uint32 lcpState;
   /* In lcpState == LCP_IDLE, refers to prev LCP
@@ -289,11 +289,18 @@ private:
   Uint32 lcpDoneBytesHi;
   Uint32 lcpDoneBytesLo;
   
-  /* Backup stuff valid iff lcpState == LCP_SCANNING */
   Uint32 tableId;
   Uint32 fragId;
-  Uint32 replicaDoneRowsHi;
-  Uint32 replicaDoneRowsLo;
+  /* Backup stuff valid iff lcpState == LCP_SCANNING or
+   * LCP_SCANNED
+   * For LCP_SCANNING contains row count of rows scanned
+   *  (Increases as scan proceeds)
+   * For LCP_SCANNED contains bytes remaining to be flushed
+   * to file.
+   *  (Decreases as buffer drains to file)
+   */
+  Uint32 completionStateHi;
+  Uint32 completionStateLo;
 };
 
 struct LcpStatusRef
@@ -325,7 +332,7 @@ public:
 
 private:
   Uint32 senderRef;
-  Uint32 reqData;
+  Uint32 senderData;
   Uint32 error;
 };
 
