@@ -189,18 +189,19 @@ OPTION(WITH_NDB_BINLOG
   "Disable NDB binlog" ON)
 
 OPTION(WITH_ERROR_INSERT
-  "Enable error injection in MySQL Cluster" OFF)
+  "Enable error injection in NDB" OFF)
 
 OPTION(WITH_NDB_DEBUG
-  "Disable special ndb debug features" OFF)
-
-SET(NDB_CCFLAGS "")
-IF(DEFINED WITH_NDB_CCFLAGS)
-  SET(NDB_CCFLAGS "${WITH_NDB_CCFLAGS}")
-ENDIF() 
+  "Enable special ndb NDB features(including ERROR_INSERT)" OFF)
 
 IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE MATCHES "Debug")
-  SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DVM_TRACE -DNDB_DEBUG -DERROR_INSERT -DARRAY_GUARD -DACC_SAFE_QUEUE -DAPI_TRACE")
+  MESSAGE(STATUS "Turning on special NDB debug features")
+  ADD_DEFINITIONS(-DVM_TRACE)
+  ADD_DEFINITIONS(-DNDB_DEBUG)
+  ADD_DEFINITIONS(-DERROR_INSERT)
+  ADD_DEFINITIONS(-DARRAY_GUARD)
+  ADD_DEFINITIONS(-DACC_SAFE_QUEUE)
+  ADD_DEFINITIONS(-DAPI_TRACE)
 ELSE()
   IF(WITH_ERROR_INSERT)
     ADD_DEFINITIONS(-DERROR_INSERT)
@@ -208,11 +209,22 @@ ELSE()
   ADD_DEFINITIONS(-DNDEBUG)
 ENDIF()
 
-SET(NDB_CCFLAGS "${NDB_CCFLAGS} $ENV{NDB_EXTRA_FLAGS}") 
-MESSAGE(STATUS "Using extra FLAGS for ndb: \"${NDB_CCFLAGS}\"") 
+# Set extra compiler switches from WITH_NDB_CCFLAGS
+SET(WITH_NDB_CCFLAGS "" CACHE STRING "Extra compiler flags for NDB")
+IF(WITH_NDB_CCFLAGS)
+  MESSAGE(STATUS "Appending extra compiler flags for NDB: \"${WITH_NDB_CCFLAGS}\"")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WITH_NDB_CCFLAGS}")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WITH_NDB_CCFLAGS}")
+ENDIF()
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NDB_CCFLAGS}")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NDB_CCFLAGS}")
+# Set extra compiler switches from environment variable NDB_EXTRA_FLAGS
+SET(ndb_flags_env $ENV{NDB_EXTRA_FLAGS})
+IF(ndb_flags_env)
+  MESSAGE(STATUS "Appending extra compiler flags for NDB from "
+                 "environment: \"${ndb_flags_env}\"")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ndb_flags_env}")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ndb_flags_env}")
+ENDIF()
 
 SET(HAVE_JAVA FALSE)
 SET(HAVE_JDK FALSE)
@@ -225,11 +237,9 @@ IF (DEFINED ENV{WITH_NDB_JAVA_DEFAULT})
 ELSE()
   # Check if the default for WITH_NDB_JAVA should be
   # magically overriden
-  SET(magic_value "MySQL")
-  IF(DEFINED ENV{PRODUCT_ID})
-    SET(magic_value $ENV{PRODUCT_ID})
-  ENDIF()
-  IF (magic_value STREQUAL "bootstrap-cmake-tar-gz")
+  SET(magic_value $ENV{PRODUCT_ID})
+  IF (magic_value STREQUAL "bootstrap-cmake-tar-gz" OR
+      magic_value STREQUAL "source-dist-tar-gz")
     SET(WITH_NDB_JAVA_DEFAULT OFF)
     MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to 0 since "
                    "bootstrapping was detected")
