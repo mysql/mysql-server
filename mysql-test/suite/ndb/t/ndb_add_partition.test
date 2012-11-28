@@ -1,4 +1,3 @@
---source include/ndb_have_online_alter.inc
 --source include/have_ndb.inc
 
 --disable_warnings
