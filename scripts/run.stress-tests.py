@@ -199,8 +199,13 @@ class TestRunnerBase(object):
                 copy(f, targetfor(f))
         fullexecf = os.path.join(self.builddir, 'src', 'tests', self.execf)
         copy(fullexecf, targetfor(fullexecf))
-        for lib in glob(os.path.join(self.installdir, 'lib', '*.so')):
-            copy(lib, targetfor(lib))
+        for libname in ['util/libutil.so', 'portability/libtokuportability.so', 'src/libtokudb.so']:
+            fulllibpath = os.path.join(self.builddir, libname)
+            targetpath = os.path.join(savedir, fulllibpath)
+            targetdir = os.path.dirname(targetpath)
+            if not os.path.exists(targetdir):
+                os.makedirs(targetdir)
+            copy(fulllibpath, targetpath)
 
         tarfile = '%s.tar' % savedir
         r = call(['tar', 'cf', os.path.basename(tarfile), os.path.basename(savedir)], cwd=os.path.dirname(savedir))
