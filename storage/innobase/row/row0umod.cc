@@ -84,7 +84,8 @@ row_undo_mod_clust_low(
 	const dtuple_t**rebuilt_old_pk,
 				/*!< out: row_log_table_get_pk()
 				before the update, or NULL if
-				the table is not being rebuilt online */
+				the table is not being rebuilt online or
+				the PRIMARY KEY definition does not change */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr; must be committed before
 				latching any further pages */
@@ -729,6 +730,7 @@ row_undo_mod_upd_del_sec(
 	dberr_t		err	= DB_SUCCESS;
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
+	ut_ad(!node->undo_row);
 
 	heap = mem_heap_create(1024);
 
@@ -794,6 +796,8 @@ row_undo_mod_del_mark_sec(
 	mem_heap_t*	heap;
 	dberr_t		err	= DB_SUCCESS;
 
+	ut_ad(!node->undo_row);
+
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
@@ -828,6 +832,8 @@ row_undo_mod_del_mark_sec(
 			row_undo_mod_sec_flag_corrupted(
 				thr_get_trx(thr), index);
 			err = DB_SUCCESS;
+			/* TODO: Bug#15920713 CREATE UNIQUE INDEX
+			REPORTS ER_INDEX_CORRUPT INSTEAD OF DUPLICATE */
 		} else if (err != DB_SUCCESS) {
 			break;
 		}
