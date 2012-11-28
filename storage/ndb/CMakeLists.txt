@@ -229,11 +229,9 @@ IF (DEFINED ENV{WITH_NDB_JAVA_DEFAULT})
 ELSE()
   # Check if the default for WITH_NDB_JAVA should be
   # magically overriden
-  SET(magic_value "MySQL")
-  IF(DEFINED ENV{PRODUCT_ID})
-    SET(magic_value $ENV{PRODUCT_ID})
-  ENDIF()
-  IF (magic_value STREQUAL "bootstrap-cmake-tar-gz")
+  SET(magic_value $ENV{PRODUCT_ID})
+  IF (magic_value STREQUAL "bootstrap-cmake-tar-gz" OR
+      magic_value STREQUAL "source-dist-tar-gz")
     SET(WITH_NDB_JAVA_DEFAULT OFF)
     MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to 0 since "
                    "bootstrapping was detected")
