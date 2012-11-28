@@ -1589,6 +1589,7 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
         r = toku_db_badformat();
         goto cleanup;
     }
+
     // We got the entire header and node info!
     toku_ft_status_update_pivot_fetch_reason(bfe);
 

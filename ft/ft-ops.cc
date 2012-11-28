@@ -187,7 +187,6 @@ status_init(void)
     STATUS_INIT(FT_CREATE_NONLEAF,                         PARCOUNT, "nonleaf nodes created");
     STATUS_INIT(FT_DESTROY_LEAF,                           PARCOUNT, "leaf nodes destroyed");
     STATUS_INIT(FT_DESTROY_NONLEAF,                        PARCOUNT, "nonleaf nodes destroyed");
-    STATUS_INIT(FT_MSG_KEYVAL_BYTES_IN,                    PARCOUNT, "bytes of keys/values injected at root (all trees, no message overhead)");
     STATUS_INIT(FT_MSG_BYTES_IN,                           PARCOUNT, "bytes of messages injected at root (all trees)");
     STATUS_INIT(FT_MSG_BYTES_OUT,                          PARCOUNT, "bytes of messages flushed from h1 nodes to leaves");
     STATUS_INIT(FT_MSG_BYTES_CURR,                         PARCOUNT, "bytes of messages currently in trees (estimate)");
@@ -2007,18 +2006,11 @@ toku_ftnode_hot_next_child(FTNODE node,
     return low;
 }
 
-static uint64_t
-ft_msg_keyval_size(FT_MSG msg) {
-    size_t keylen = msg->u.id.key->size;
-    size_t vallen = msg->u.id.val->size;
-    return keylen + vallen;
-}
-
 // TODO Use this function to clean up other places where bits of messages are passed around
 //      such as toku_bnc_insert_msg() and the call stack above it.
 static uint64_t
 ft_msg_size(FT_MSG msg) {
-    size_t keyval_size = ft_msg_keyval_size(msg);
+    size_t keyval_size = msg->u.id.key->size + msg->u.id.val->size;
     size_t xids_size = xids_get_serialize_size(msg->xids);
     return keyval_size + KEY_VALUE_OVERHEAD + FT_CMD_OVERHEAD + xids_size;
 }
@@ -2460,8 +2452,6 @@ static void inject_message_in_locked_node(FT ft, FTNODE node, int childnum, FT_M
             STATUS_INC(FT_MSG_NUM_BROADCAST, 1);
         }
     }
-    uint64_t keyval_size = ft_msg_keyval_size(cmd);
-    STATUS_INC(FT_MSG_KEYVAL_BYTES_IN, keyval_size);
 
     // verify that msn of latest message was captured in root node
     paranoid_invariant(cmd->msn.msn == node->max_msn_applied_to_node_on_disk.msn);
