@@ -548,7 +548,6 @@ static void set_tabname(const char *pathname, char *tabname);
                                      qc_engine_callback *engine_callback,
                                      ulonglong *engine_data);
 
-#ifndef NDB_WITHOUT_ONLINE_ALTER
   int check_if_supported_alter(TABLE *altered_table,
                                HA_CREATE_INFO *create_info,
                                HA_ALTER_INFO *alter_info,
@@ -571,7 +570,6 @@ static void set_tabname(const char *pathname, char *tabname);
                          HA_CREATE_INFO *create_info,
                          HA_ALTER_INFO *alter_info,
                          HA_ALTER_FLAGS *alter_flags);
-#endif
 
 private:
 #ifdef HAVE_NDB_BINLOG
@@ -657,9 +655,7 @@ private:
 
   int ndb_optimize_table(THD* thd, uint delay);
 
-#ifndef NDB_WITHOUT_ONLINE_ALTER
   int alter_frm(THD *thd, const char *file, NDB_ALTER_DATA *alter_data);
-#endif
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
