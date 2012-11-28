@@ -6742,39 +6742,33 @@ attribute:
             Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
             Lex->type|=
               (COLUMN_FORMAT_TYPE_DEFAULT << FIELD_FLAGS_COLUMN_FORMAT);
-            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_COLUMN_FORMAT;
           }
         | COLUMN_FORMAT_SYM FIXED_SYM
           {
             Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
             Lex->type|=
               (COLUMN_FORMAT_TYPE_FIXED << FIELD_FLAGS_COLUMN_FORMAT);
-            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_COLUMN_FORMAT;
           }
         | COLUMN_FORMAT_SYM DYNAMIC_SYM
           {
             Lex->type&= ~(FIELD_FLAGS_COLUMN_FORMAT_MASK);
             Lex->type|=
               (COLUMN_FORMAT_TYPE_DYNAMIC << FIELD_FLAGS_COLUMN_FORMAT);
-            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_COLUMN_FORMAT;
           }
         | STORAGE_SYM DEFAULT
           {
             Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
             Lex->type|= (HA_SM_DEFAULT << FIELD_FLAGS_STORAGE_MEDIA);
-            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_STORAGE_TYPE;
           }
         | STORAGE_SYM DISK_SYM
           {
             Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
             Lex->type|= (HA_SM_DISK << FIELD_FLAGS_STORAGE_MEDIA);
-            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_STORAGE_TYPE;
           }
         | STORAGE_SYM MEMORY_SYM
           {
             Lex->type&= ~(FIELD_FLAGS_STORAGE_MEDIA_MASK);
             Lex->type|= (HA_SM_MEMORY << FIELD_FLAGS_STORAGE_MEDIA);
-            Lex->alter_info.flags|= Alter_info::ALTER_COLUMN_STORAGE_TYPE;
           }
         ;
 
