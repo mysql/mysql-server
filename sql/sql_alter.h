@@ -123,12 +123,6 @@ public:
   // Set for ADD [COLUMN] FIRST | AFTER
   static const uint ALTER_COLUMN_ORDER          = 1L << 26;
 
-  // Change the storage type of column 
-  static const uint ALTER_COLUMN_STORAGE_TYPE = 1L << 27;
-
-  // Change the column format of column
-  static const uint ALTER_COLUMN_COLUMN_FORMAT = 1L << 28;
-
   enum enum_enable_or_disable { LEAVE_AS_IS, ENABLE, DISABLE };
 
   /**

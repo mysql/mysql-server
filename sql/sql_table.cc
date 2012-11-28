@@ -5576,25 +5576,6 @@ static bool fill_alter_inplace_info(THD *thd,
     DBUG_RETURN(true);
 
   /* First we setup ha_alter_flags based on what was detected by parser. */
-
-  /* Check partition changes */
-  if (alter_info->flags & Alter_info::ALTER_ADD_PARTITION)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ADD_PARTITION;
-  if (alter_info->flags & Alter_info::ALTER_DROP_PARTITION)
-    ha_alter_info->handler_flags|= Alter_inplace_info::DROP_PARTITION;
-  if (alter_info->flags & Alter_info::ALTER_PARTITION)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_PARTITION;
-  if (alter_info->flags & Alter_info::ALTER_COALESCE_PARTITION)
-    ha_alter_info->handler_flags|= Alter_inplace_info::COALESCE_PARTITION;
-  if (alter_info->flags & Alter_info::ALTER_REORGANIZE_PARTITION)
-    ha_alter_info->handler_flags|= Alter_inplace_info::REORGANIZE_PARTITION;
-  if (alter_info->flags & Alter_info::ALTER_TABLE_REORG)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_TABLE_REORG;
-  if (alter_info->flags & Alter_info::ALTER_REMOVE_PARTITIONING)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_REMOVE_PARTITIONING;
-  if (alter_info->flags & Alter_info::ALTER_ALL_PARTITION)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_ALL_PARTITION;
-
   if (alter_info->flags & Alter_info::ALTER_ADD_COLUMN)
     ha_alter_info->handler_flags|= Alter_inplace_info::ADD_COLUMN;
   if (alter_info->flags & Alter_info::ALTER_DROP_COLUMN)
@@ -5633,12 +5614,6 @@ static bool fill_alter_inplace_info(THD *thd,
     ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_REMOVE_PARTITIONING;
   if (alter_info->flags & Alter_info::ALTER_ALL_PARTITION)
     ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_ALL_PARTITION;
-
-  if (alter_info->flags & Alter_info::ALTER_COLUMN_STORAGE_TYPE)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_STORAGE_TYPE;
-  if (alter_info->flags & Alter_info::ALTER_COLUMN_COLUMN_FORMAT)
-    ha_alter_info->handler_flags|= Alter_inplace_info::ALTER_COLUMN_COLUMN_FORMAT;
-
 
   /*
     If we altering table with old VARCHAR fields we will be automatically
