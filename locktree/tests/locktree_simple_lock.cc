@@ -6,15 +6,6 @@
 
 #include "locktree_unit_test.h"
 
-#include <toku_time.h>
-
-__attribute__((__unused__))
-static long current_time_usec(void) {
-    struct timeval t;
-    gettimeofday(&t, NULL);
-    return t.tv_usec + t.tv_sec * 1000000;
-}
-
 namespace toku {
 
 // test simple, non-overlapping read locks and then write locks
