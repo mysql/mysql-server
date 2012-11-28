@@ -2233,8 +2233,8 @@ join tx as t4 on t4.a = t3.b and t4.b = t2.c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	tx	ALL	PRIMARY	NULL	NULL	NULL	2	100.00	Parent of 4 pushed join@1
 1	SIMPLE	t2	eq_ref	PRIMARY	PRIMARY	8	test.tx.a,test.tx.b	1	100.00	Child of 'tx' in pushed join@1
-1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.tx.c,test.tx.d	1	100.00	Child of 'tx' in pushed join@1
-1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.tx.d,test.t2.c	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t3	eq_ref	PRIMARY	PRIMARY	8	test.tx.c,test.tx.d	1	100.00	Child of 't2' in pushed join@1
+1	SIMPLE	t4	eq_ref	PRIMARY	PRIMARY	8	test.tx.d,test.t2.c	1	100.00	Child of 't3' in pushed join@1
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`tx`.`a` AS `a`,`test`.`tx`.`b` AS `b`,`test`.`tx`.`c` AS `c`,`test`.`tx`.`d` AS `d`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`test`.`t2`.`c` AS `c`,`test`.`t2`.`d` AS `d`,`test`.`t3`.`a` AS `a`,`test`.`t3`.`b` AS `b`,`test`.`t3`.`c` AS `c`,`test`.`t3`.`d` AS `d`,`test`.`t4`.`a` AS `a`,`test`.`t4`.`b` AS `b`,`test`.`t4`.`c` AS `c`,`test`.`t4`.`d` AS `d` from `test`.`tx` join `test`.`tx` `t2` join `test`.`tx` `t3` join `test`.`tx` `t4` where ((`test`.`t2`.`b` = `test`.`tx`.`b`) and (`test`.`t2`.`a` = `test`.`tx`.`a`) and (`test`.`t3`.`a` = `test`.`tx`.`c`) and (`test`.`t4`.`b` = `test`.`t2`.`c`) and (`test`.`t3`.`b` = `test`.`tx`.`d`) and (`test`.`t4`.`a` = `test`.`tx`.`d`))
 explain extended

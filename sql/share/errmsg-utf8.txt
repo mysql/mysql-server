@@ -5622,8 +5622,8 @@ ER_SP_WRONG_NAME 42000
         eng "Incorrect routine name '%-.192s'"
         ger "Ungültiger Routinenname '%-.192s'"
 ER_TABLE_NEEDS_UPGRADE
-        eng "Table upgrade required. Please do \"REPAIR TABLE `%-.32s`\" or dump/reload to fix it!"
-        ger "Tabellenaktualisierung erforderlich. Bitte zum Reparieren \"REPAIR TABLE `%-.32s`\" eingeben!"
+        eng "Table upgrade required. Please do \"REPAIR TABLE `%-.64s`\" or dump/reload to fix it!"
+        ger "Tabellenaktualisierung erforderlich. Bitte zum Reparieren \"REPAIR TABLE `%-.64s`\" eingeben!"
 ER_SP_NO_AGGREGATE 42000
         eng "AGGREGATE is not supported for stored functions"
         ger "AGGREGATE wird bei gespeicherten Funktionen nicht unterstützt"
@@ -6462,7 +6462,7 @@ ER_MULTI_UPDATE_KEY_CONFLICT
 # When translating this error message make sure to include "ALTER TABLE" in the
 # message as mysqlcheck parses the error message looking for ALTER TABLE.
 ER_TABLE_NEEDS_REBUILD
-        eng "Table rebuild required. Please do \"ALTER TABLE `%-.32s` FORCE\" or dump/reload to fix it!"
+        eng "Table rebuild required. Please do \"ALTER TABLE `%-.64s` FORCE\" or dump/reload to fix it!"
 
 WARN_OPTION_BELOW_LIMIT
   eng "The value of '%s' should be no less than the value of '%s'"
