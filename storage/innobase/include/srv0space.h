@@ -192,11 +192,12 @@ public:
 	/**
 	Check the data file specification.
 	@param create_new_db - true if a new database is to be created
-	@param min_expected_tablespace_size - [in] expected tablespace size in bytes
+	@param min_expected_tablespace_size - [in] expected tablespace
+		size in bytes
 	@return DB_SUCCESS if all OK else error code */
 	dberr_t check_file_spec(
-		ibool* create_new_db,
-		ulint min_expected_tablespace_size);
+		ibool*	create_new_db,
+		ulint	min_expected_tablespace_size);
 
 	/**
 	Free the memory allocated by parse() */
