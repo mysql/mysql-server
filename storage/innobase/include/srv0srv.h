@@ -176,6 +176,10 @@ extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
 
+#ifdef UNIV_DEBUG
+extern my_bool	srv_purge_view_update_only_debug;
+#endif /* UNIV_DEBUG */
+
 extern mutex_t*	kernel_mutex_temp;/* mutex protecting the server, trx structs,
 				query threads, and lock table: we allocate
 				it from dynamic memory to get it to the
@@ -571,6 +575,7 @@ struct export_var_struct{
 	ulint innodb_rows_deleted;
 #ifdef UNIV_DEBUG
 	ulint innodb_purge_trx_id_age;
+	ulint innodb_purge_view_trx_id_age;
 #endif /* UNIV_DEBUG */
 };
 

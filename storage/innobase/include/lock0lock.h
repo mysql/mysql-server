@@ -685,6 +685,13 @@ extern lock_sys_t*	lock_sys;
 				remains set when the waiting lock is granted,
 				or if the lock is inherited to a neighboring
 				record */
+#define LOCK_CONV_BY_OTHER 4096	/* this bit is set when the lock is created
+				by other transaction */
+/* Checks if this is a waiting lock created by lock->trx itself.
+@param type_mode lock->type_mode
+@return whether it is a waiting lock belonging to lock->trx */
+#define lock_is_wait_not_by_other(type_mode) \
+	((type_mode & (LOCK_CONV_BY_OTHER | LOCK_WAIT)) == LOCK_WAIT)
 
 /* When lock bits are reset, the following flags are available: */
 #define LOCK_RELEASE_WAIT	1
