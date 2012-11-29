@@ -2992,7 +2992,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
     int4store(ptr_buffer, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
-    memcpy(ptr_buffer, "", BINLOG_NAME_INFO_SIZE);
+    memset(ptr_buffer, 0, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
     int8store(ptr_buffer, 4);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;

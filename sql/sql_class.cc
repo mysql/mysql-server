@@ -1504,6 +1504,8 @@ void THD::cleanup(void)
 
   delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
+  if (gtid_mode > 0)
+    variables.gtid_next.set_automatic();
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
@@ -1960,6 +1962,19 @@ void THD::cleanup_after_query()
     auto_inc_intervals_in_cur_stmt_for_binlog.empty();
     rand_used= 0;
     binlog_accessed_db_names= NULL;
+#ifndef EMBEDDED_LIBRARY
+    /*
+      Clean possible unused INSERT_ID events by current statement.
+      is_update_query() is needed to ignore SET statements:
+        Statements that don't update anything directly and don't
+        used stored functions. This is mostly necessary to ignore
+        statements in binlog between SET INSERT_ID and DML statement
+        which is intended to consume its event (there can be other
+        SET statements between them).
+    */
+    if ((rli_slave || rli_fake) && is_update_query(lex->sql_command))
+      auto_inc_intervals_forced.empty();
+#endif
   }
   /*
     Forget the binlog stmt filter for the next query.

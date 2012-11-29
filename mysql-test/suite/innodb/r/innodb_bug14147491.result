@@ -1,0 +1,17 @@
+CALL mtr.add_suppression("InnoDB: Error: Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
+CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+# Create and populate the table to be corrupted
+CREATE TABLE t1 (a INT AUTO_INCREMENT PRIMARY KEY, b TEXT) ENGINE=InnoDB;
+INSERT INTO t1 (b) VALUES ('corrupt me');
+INSERT INTO t1 (b) VALUES ('corrupt me');
+# Restart server to flush buffers
+# Corrupt the table
+Munged a string.
+Munged a string.
+# Write file to make mysql-test-run.pl expect crash and restart
+SELECT * FROM t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Turn on reconnect
+# Wait for server to fully start
+# Cleanup
+DROP TABLE t1;
