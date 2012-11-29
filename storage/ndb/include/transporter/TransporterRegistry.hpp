@@ -294,6 +294,11 @@ public:
   bool get_using_default_send_buffer() const{ return m_use_default_send_buffer;}
 
   /**
+   * Get transporter's connect count
+   */
+  Uint32 get_connect_count(Uint32 nodeId);
+
+  /**
    * Set or clear overloaded bit.
    * Query if any overloaded bit is set.
    */
@@ -301,12 +306,22 @@ public:
   const NodeBitmask& get_status_overloaded() const;
   
   /**
+   * Get transporter's overload count since connect
+   */
+  Uint32 get_overload_count(Uint32 nodeId);
+
+  /**
    * Set or clear slowdown bit.
    * Query if any slowdown bit is set.
    */
   void set_status_slowdown(Uint32 nodeId, bool val);
   const NodeBitmask& get_status_slowdown() const;
  
+  /** 
+   * Get transporter's slowdown count since connect
+   */
+  Uint32 get_slowdown_count(Uint32 nodeId);
+
   /**
    * prepareSend
    *
@@ -517,6 +532,10 @@ private:
   virtual Uint32 updateWritePtr(NodeId node, Uint32 lenBytes, Uint32 prio);
   virtual bool forceSend(NodeId node);
 
+
+  /* Various internal */
+  void inc_overload_count(Uint32 nodeId);
+  void inc_slowdown_count(Uint32 nodeId);
 private:
   /* Send buffer pages. */
   struct SendBufferPage {
@@ -610,7 +629,11 @@ TransporterRegistry::set_status_overloaded(Uint32 nodeId, bool val)
 {
   assert(nodeId < MAX_NODES);
   if (val != m_status_overloaded.get(nodeId))
+  {
     m_status_overloaded.set(nodeId, val);
+    if (val)
+      inc_overload_count(nodeId);
+  }
   if (val)
     set_status_slowdown(nodeId, val);
 }
@@ -626,7 +649,11 @@ TransporterRegistry::set_status_slowdown(Uint32 nodeId, bool val)
 {
   assert(nodeId < MAX_NODES);
   if (val != m_status_slowdown.get(nodeId))
+  {
     m_status_slowdown.set(nodeId, val);
+    if (val)
+      inc_slowdown_count(nodeId);
+  }
 }
 
 inline const NodeBitmask&
