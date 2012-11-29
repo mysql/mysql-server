@@ -421,20 +421,21 @@ toku_cachefile_get_fd (CACHEFILE cf) {
     return cf->fd;
 }
 
-static CACHEFILE remove_cf_from_list_locked (CACHEFILE cf, CACHEFILE list) {
-    if (list==0) return 0;
-    else if (list==cf) {
-        return list->next;
-    } else {
-        list->next = remove_cf_from_list_locked(cf, list->next);
-        return list;
-    }
-}
-
 static void remove_cf_from_cachefiles_list (CACHEFILE cf) {
     CACHETABLE ct = cf->cachetable;
     ct->cf_list.write_lock();
-    ct->cf_list.m_head = remove_cf_from_list_locked(cf, ct->cf_list.m_head);
+    invariant(ct->cf_list.m_head != NULL);
+    if (cf == ct->cf_list.m_head) {
+        ct->cf_list.m_head = cf->next;
+    }
+    else {
+        CACHEFILE curr_cf = ct->cf_list.m_head;
+        while (curr_cf->next != cf) {
+            curr_cf = curr_cf->next;
+        }
+        // at this point, curr_cf->next is pointing to cf
+        curr_cf->next = cf->next;
+    }
     ct->cf_list.write_unlock();
 }
 
