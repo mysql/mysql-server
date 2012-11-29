@@ -78,17 +78,25 @@ DECLARE_NDBINFO_TABLE(POOLS,12) =
   }
 };
 
-DECLARE_NDBINFO_TABLE(TRANSPORTERS, 6) =
-{ { "transporters", 6, 0, "transporter status" },
+DECLARE_NDBINFO_TABLE(TRANSPORTERS, 11) =
+{ { "transporters", 11, 0, "transporter status" },
   {
-    {"node_id",            Ndbinfo::Number, ""},
-    {"remote_node_id",     Ndbinfo::Number, ""},
+    {"node_id",              Ndbinfo::Number, "Node id reporting"},
+    {"remote_node_id",       Ndbinfo::Number, "Node id at other end of link"},
 
-    {"connection_status",  Ndbinfo::Number, ""},
+    {"connection_status",    Ndbinfo::Number, "State of inter-node link"},
     
-    {"remote_address",     Ndbinfo::String, ""},
-    {"bytes_sent",         Ndbinfo::Number64, ""},
-    {"bytes_received",     Ndbinfo::Number64, ""}
+    {"remote_address",       Ndbinfo::String, "Address of remote node"},
+    {"bytes_sent",           Ndbinfo::Number64, "Bytes sent to remote node"},
+    {"bytes_received",       Ndbinfo::Number64, "Bytes received from remote node"},
+
+    {"connect_count",        Ndbinfo::Number, "Number of times connected" },
+    
+    {"overloaded",           Ndbinfo::Number, "Is link reporting overload"},
+    {"overload_count",       Ndbinfo::Number, "Number of overload onsets since connect"},
+    
+    {"slowdown",             Ndbinfo::Number, "Is link requesting slowdown"},
+    {"slowdown_count",       Ndbinfo::Number, "Number of slowdown onsets since connect"}
   }
 };
 
