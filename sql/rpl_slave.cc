@@ -8222,6 +8222,7 @@ bool change_master(THD* thd, Master_info* mi)
     mi->rli->relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
     mi->rli->set_group_relay_log_name(relay_log_name);
     mi->rli->set_event_relay_log_name(relay_log_name);
+    mi->rli->is_group_master_log_pos_invalid= true;
   }
 
   if (lex_mi->relay_log_pos)
@@ -8229,7 +8230,24 @@ bool change_master(THD* thd, Master_info* mi)
     need_relay_log_purge= 0;
     mi->rli->set_group_relay_log_pos(lex_mi->relay_log_pos);
     mi->rli->set_event_relay_log_pos(lex_mi->relay_log_pos);
+    mi->rli->is_group_master_log_pos_invalid= true;
   }
+
+  /*
+   Consider a situation like this
+
+     mysql> STOP SLAVE;
+     mysql> CHANGE MASTER TO RELAY_LOG_POS=4;
+     mysql> CHANGE_MASTER TO MASTER_HOST='something.example.com',
+                             MASTER_PORT=23789,
+                             MASTER_USER='repl_user';
+     mysql> START SLAVE;
+
+   In this case the group_master_log_pos is valid after the second change
+   master so this flag should be unset.
+   */
+  if (!lex_mi->relay_log_name && !lex_mi->relay_log_pos)
+    mi->rli->is_group_master_log_pos_invalid= false;
 
   /*
     If user did specify neither host nor port nor any log name nor any log
