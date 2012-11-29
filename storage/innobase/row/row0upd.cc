@@ -2074,6 +2074,8 @@ err_exit:
 		cursor succeeds. */
 
 		mtr_start(mtr);
+		turn_off_logging_if_temp_table(
+			dict_table_is_temporary(table), trx, mtr, NULL);
 
 		if (!btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr)) {
 			ut_error;
