@@ -338,14 +338,6 @@ my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
 
-# Used by --result-file for for formatting times
-
-sub isotime($) {
-  my ($sec,$min,$hr,$day,$mon,$yr)= gmtime($_[0]);
-  return sprintf "%d-%02d-%02dT%02d:%02d:%02dZ",
-    $yr+1900, $mon+1, $day, $hr, $min, $sec;
-}
-
 main();
 
 
@@ -6273,7 +6265,6 @@ sub valgrind_exit_reports() {
         $err_in_report= 1 if $line =~ /ERROR SUMMARY: [1-9]/;
         $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
-        $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
       }
     }
 
@@ -6299,6 +6290,7 @@ sub run_ctest() {
 
   # Just ignore if not configured/built to run ctest
   if (! -f "CTestTestfile.cmake") {
+    mtr_report("No unit tests found.");
     chdir($olddir);
     return;
   }
@@ -6309,6 +6301,7 @@ sub run_ctest() {
   # Also silently ignore if we don't have ctest and didn't insist
   # Special override: also ignore in Pushbuild, some platforms may not have it
   # Now, run ctest and collect output
+  $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
   my $ctest_out= `ctest $ctest_vs 2>&1`;
   if ($? == $no_ctest && $opt_ctest == -1 && ! defined $ENV{PB2WORKDIR}) {
     chdir($olddir);

@@ -1651,7 +1651,9 @@ bool close_temporary_tables(THD *thd)
       thd->variables.character_set_client= cs_save;
 
       thd->get_stmt_da()->set_overwrite_status(true);
-      if ((error= (mysql_bin_log.write_event(&qinfo) || error)))
+      if ((error= (mysql_bin_log.write_event(&qinfo) ||
+                   mysql_bin_log.commit(thd, true) ||
+                   error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
@@ -3818,7 +3820,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
       int errcode= query_error_code(thd, TRUE);
       if (thd->binlog_query(THD::STMT_QUERY_TYPE,
                             temp_buf.c_ptr_safe(), temp_buf.length(),
-                            FALSE, FALSE, FALSE, errcode))
+                            FALSE, TRUE, FALSE, errcode))
         return TRUE;
       if (error)
       {

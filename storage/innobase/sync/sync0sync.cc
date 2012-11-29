@@ -278,7 +278,7 @@ mutex_create_func(
 	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &mutex->os_fast_mutex);
 	mutex->lock_word = 0;
 #endif
-	mutex->event = os_event_create(NULL);
+	mutex->event = os_event_create();
 	mutex_set_waiters(mutex, 0);
 #ifdef UNIV_DEBUG
 	mutex->magic_n = MUTEX_MAGIC_N;
@@ -1475,7 +1475,7 @@ sync_init(void)
 	mutex_create(rw_lock_debug_mutex_key, &rw_lock_debug_mutex,
 		     SYNC_NO_ORDER_CHECK);
 
-	rw_lock_debug_event = os_event_create(NULL);
+	rw_lock_debug_event = os_event_create();
 	rw_lock_debug_waiters = FALSE;
 #endif /* UNIV_SYNC_DEBUG */
 }

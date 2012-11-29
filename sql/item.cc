@@ -7380,7 +7380,7 @@ void Item_ref::set_properties()
 
 table_map Item_ref::resolved_used_tables() const
 {
-  DBUG_ASSERT((*ref)->type() == FIELD_ITEM);
+  DBUG_ASSERT((*ref)->real_item()->type() == FIELD_ITEM);
   return ((Item_field*)(*ref))->resolved_used_tables();
 }
 
@@ -7884,13 +7884,13 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
 void Item_outer_ref::fix_after_pullout(st_select_lex *parent_select,
                                        st_select_lex *removed_select)
 {
-  if (depended_from == parent_select)
-  {
-    //*ref_arg= outer_ref;
-    outer_ref->fix_after_pullout(parent_select, removed_select);
-  }
-  // @todo: Find an actual test case for this funcion.
-  DBUG_ASSERT(false);
+  /*
+    If this assertion holds, we need not call fix_after_pullout() on both
+    *ref and outer_ref, and Item_ref::fix_after_pullout() is sufficient.
+  */
+  DBUG_ASSERT(*ref == outer_ref);
+
+  Item_ref::fix_after_pullout(parent_select, removed_select);
 }
 
 void Item_ref::fix_after_pullout(st_select_lex *parent_select,

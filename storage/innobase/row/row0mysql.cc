@@ -1331,7 +1331,8 @@ error_exit:
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 		if (was_lock_wait) {
-			ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
+			ut_ad(node->state == INS_NODE_INSERT_ENTRIES
+			      || node->state == INS_NODE_ALLOC_ROW_ID);
 			goto run_again;
 		}
 
@@ -2056,6 +2057,8 @@ row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
+
 	ut_a(trx->dict_operation_lock_mode == RW_S_LATCH);
 
 	rw_lock_s_unlock(&dict_operation_lock);
@@ -2094,6 +2097,8 @@ row_mysql_unlock_data_dictionary(
 /*=============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
+
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	/* Serialize data dictionary operations with dictionary mutex:

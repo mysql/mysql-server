@@ -125,6 +125,10 @@ JOIN::optimize()
   // to prevent double initialization on EXPLAIN
   if (optimized)
     DBUG_RETURN(0);
+
+  // We may do transformations (like semi-join):
+  Prepare_error_tracker tracker(thd);
+
   optimized= true;
   const bool first_optimization= select_lex->first_cond_optimization;
   select_lex->first_cond_optimization= false;
@@ -7312,13 +7316,8 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
           return NULL;                        // Always true
 	new_cond->argument_list()->push_back(fix);
       }
-      /*
-	Item_cond_or do not need fix_fields for execution, its parameters
-	are fixed or do not need fix_fields, too
-      */
-      new_cond->quick_fix_field();
-      new_cond->set_used_tables(cond->used_tables());
-      new_cond->top_level_item();
+      if (new_cond->fix_fields(current_thd, NULL))
+        return NULL;
       return new_cond;
     }
   }
@@ -9537,7 +9536,8 @@ void JOIN::refine_best_rowcount()
     The row count is bumped to the nearest higher value, so that the
     query block will not be evaluated during optimization.
   */
-  if (best_rowcount <= 1)
+  if (select_lex->linkage == DERIVED_TABLE_TYPE &&
+      best_rowcount <= 1)
     best_rowcount= 2;
 
   /*

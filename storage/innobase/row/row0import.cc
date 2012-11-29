@@ -2179,7 +2179,9 @@ PageConverter::operator() (
 }
 
 /*****************************************************************//**
-Clean up after import tablespace failure */
+Clean up after import tablespace failure, this function will acquire
+the dictionary latches on behalf of the transaction if the transaction
+hasn't already acquired them. */
 static	__attribute__((nonnull))
 void
 row_import_discard_changes(
@@ -2226,8 +2228,6 @@ row_import_discard_changes(
 
 	table->ibd_file_missing = TRUE;
 
-	row_mysql_unlock_data_dictionary(trx);
-
 	fil_close_tablespace(trx, table->space);
 }
 
@@ -2247,9 +2247,14 @@ row_import_cleanup(
 		row_import_discard_changes(prebuilt, trx, err);
 	}
 
+	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
+
 	DBUG_EXECUTE_IF("ib_import_before_commit_crash", DBUG_SUICIDE(););
 
 	trx_commit_for_mysql(trx);
+
+	row_mysql_unlock_data_dictionary(trx);
+
 	trx_free_for_mysql(trx);
 
 	prebuilt->trx->op_info = "";
@@ -3750,8 +3755,8 @@ row_import_for_mysql(
 		ib_logf(IB_LOG_LEVEL_INFO, "Phase IV - Flush complete");
 	}
 
-	/* On error the lock and mutex will be released in the function:
-	row_import_discard_changes() */
+	/* The dictionary latches will be released in in row_import_cleanup()
+	after the transaction commit, for both success and error. */
 
 	row_mysql_lock_data_dictionary(trx);
 
@@ -3787,8 +3792,6 @@ row_import_for_mysql(
 	}
 
 	ut_a(err == DB_SUCCESS);
-
-	row_mysql_unlock_data_dictionary(trx);
 
 	return(row_import_cleanup(prebuilt, trx, err));
 }
