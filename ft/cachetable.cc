@@ -1948,6 +1948,10 @@ maybe_pin_pair(
     else if (lock_type == PL_WRITE_EXPENSIVE || lock_type == PL_WRITE_CHEAP){
         if (p->value_rwlock.write_lock_is_expensive()) {
             run_unlockers(p, unlockers);
+            // change expensive to false because 
+            // we will unpin the pair immedietely
+            // after pinning it
+            expensive = false;
             retval = TOKUDB_TRY_AGAIN;
         }
         p->value_rwlock.write_lock(expensive);
