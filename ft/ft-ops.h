@@ -154,9 +154,9 @@ void toku_ft_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn);
 // Effect: Delete a key from a brt if the oplsn is newer than the brt lsn.  This function is called during recovery.
 void toku_ft_maybe_delete (FT_HANDLE brt, DBT *k, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging);
 
-void toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type);
-void toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids);
-void toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids);
+void toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type, TXNID oldest_referenced_xid);
+void toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids, TXNID oldest_referenced_xid);
+void toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids, TXNID oldest_referenced_xids);
 
 int toku_close_ft_handle_nolsn (FT_HANDLE, char **error_string)  __attribute__ ((warn_unused_result));
 

@@ -146,6 +146,7 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE brt, BLOCKNUM blocknum, const char 
         &cmd,
         true,
         zero_flow_deltas,
+        TXNID_NONE,
         NULL
         );
 

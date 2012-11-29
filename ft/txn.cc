@@ -151,6 +151,7 @@ void toku_txn_create_txn (
         .container_db_txn = container_db_txn,
         .live_root_txn_list = nullptr,
         .xids = xids,
+        .oldest_referenced_xid = TXNID_NONE,
         .begin_was_logged = false,
         .do_fsync = false,
         .force_fsync_on_commit = false,

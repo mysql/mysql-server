@@ -1522,6 +1522,7 @@ toku_ft_bn_apply_cmd_once (
     const FT_MSG cmd,
     uint32_t idx,
     LEAFENTRY le,
+    TXNID oldest_referenced_xid,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     )
@@ -1543,7 +1544,7 @@ toku_ft_bn_apply_cmd_once (
     // That means le is guaranteed to not cause a sigsegv but it may point to a mempool that is
     // no longer in use.  We'll have to release the old mempool later.
     {
-        int r = apply_msg_to_leafentry(cmd, le, &newsize, &new_le, &bn->buffer, &bn->buffer_mempool, &maybe_free, &numbytes_delta);
+        int r = apply_msg_to_leafentry(cmd, le, oldest_referenced_xid, &newsize, &new_le, &bn->buffer, &bn->buffer_mempool, &maybe_free, &numbytes_delta);
         invariant(r==0);
     }
 
@@ -1614,6 +1615,7 @@ struct setval_extra_s {
     const DBT *key;
     uint32_t idx;
     LEAFENTRY le;
+    TXNID oldest_referenced_xid;
     uint64_t * workdone;  // set by toku_ft_bn_apply_cmd_once()
     STAT64INFO stats_to_update;
 };
@@ -1646,6 +1648,7 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
         }
         toku_ft_bn_apply_cmd_once(svextra->bn, &msg,
                                   svextra->idx, svextra->le,
+                                  svextra->oldest_referenced_xid,
                                   svextra->workdone, svextra->stats_to_update);
         svextra->setval_r = 0;
     }
@@ -1657,6 +1660,7 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
 // the original msn seems cleaner and it preserves accountability at a lower layer.
 static int do_update(ft_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE bn, FT_MSG cmd, uint32_t idx,
                      LEAFENTRY le,
+                     TXNID oldest_referenced_xid,
                      uint64_t * workdone,
                      STAT64INFO stats_to_update) {
     LEAFENTRY le_for_update;
@@ -1700,7 +1704,7 @@ static int do_update(ft_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE bn
     }
 
     struct setval_extra_s setval_extra = {setval_tag, false, 0, bn, cmd->msn, cmd->xids,
-                                          keyp, idx, le_for_update, workdone, stats_to_update};
+                                          keyp, idx, le_for_update, oldest_referenced_xid, workdone, stats_to_update};
     // call handlerton's brt->update_fun(), which passes setval_extra to setval_fun()
     FAKE_DB(db, desc);
     int r = update_fun(
@@ -1723,6 +1727,7 @@ toku_ft_bn_apply_cmd (
     DESCRIPTOR desc,
     BASEMENTNODE bn,
     FT_MSG cmd,
+    TXNID oldest_referenced_xid,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     )
@@ -1764,7 +1769,7 @@ toku_ft_bn_apply_cmd (
             assert_zero(r);
             CAST_FROM_VOIDP(storeddata, storeddatav);
         }
-        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
+        toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
 
         // if the insertion point is within a window of the right edge of
         // the leaf then it is sequential
@@ -1796,7 +1801,7 @@ toku_ft_bn_apply_cmd (
         while (1) {
             uint32_t num_leafentries_before = toku_omt_size(bn->buffer);
 
-            toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
+            toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
 
             {
                 // Now we must find the next leafentry.
@@ -1842,7 +1847,7 @@ toku_ft_bn_apply_cmd (
             CAST_FROM_VOIDP(storeddata, storeddatav);
             int deleted = 0;
             if (!le_is_clean(storeddata)) { //If already clean, nothing to do.
-                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
+                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
                 uint32_t new_omt_size = toku_omt_size(bn->buffer);
                 if (new_omt_size != omt_size) {
                     paranoid_invariant(new_omt_size+1 == omt_size);
@@ -1868,7 +1873,7 @@ toku_ft_bn_apply_cmd (
             CAST_FROM_VOIDP(storeddata, storeddatav);
             int deleted = 0;
             if (le_has_xids(storeddata, cmd->xids)) {
-                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, workdone, stats_to_update);
+                toku_ft_bn_apply_cmd_once(bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
                 uint32_t new_omt_size = toku_omt_size(bn->buffer);
                 if (new_omt_size != omt_size) {
                     paranoid_invariant(new_omt_size+1 == omt_size);
@@ -1889,10 +1894,10 @@ toku_ft_bn_apply_cmd (
         r = toku_omt_find_zero(bn->buffer, toku_cmd_leafval_heaviside, &be,
                                &storeddatav, &idx);
         if (r==DB_NOTFOUND) {
-            r = do_update(update_fun, desc, bn, cmd, idx, NULL, workdone, stats_to_update);
+            r = do_update(update_fun, desc, bn, cmd, idx, NULL, oldest_referenced_xid, workdone, stats_to_update);
         } else if (r==0) {
             CAST_FROM_VOIDP(storeddata, storeddatav);
-            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, workdone, stats_to_update);
+            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
         } // otherwise, a worse error, just return it
         break;
     }
@@ -1904,7 +1909,7 @@ toku_ft_bn_apply_cmd (
             r = toku_omt_fetch(bn->buffer, idx, &storeddatav);
             assert_zero(r);
             CAST_FROM_VOIDP(storeddata, storeddatav);
-            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, workdone, stats_to_update);
+            r = do_update(update_fun, desc, bn, cmd, idx, storeddata, oldest_referenced_xid, workdone, stats_to_update);
             assert_zero(r);
 
             if (num_leafentries_before == toku_omt_size(bn->buffer)) {
@@ -2323,6 +2328,7 @@ void toku_bnc_flush_to_child(
                 &ftcmd,
                 is_fresh,
                 flow_deltas,
+                TXNID_NONE,
                 &stats_delta
                 );
             remaining_memsize -= FIFO_CURRENT_ENTRY_MEMSIZE;
@@ -2389,6 +2395,7 @@ toku_ft_node_put_cmd (
     FT_MSG cmd,
     bool is_fresh,
     size_t flow_deltas[],
+    TXNID oldest_referenced_xid,
     STAT64INFO stats_to_update
     )
 // Effect: Push CMD into the subtree rooted at NODE.
@@ -2405,7 +2412,7 @@ toku_ft_node_put_cmd (
     // and instead defer to these functions
     //
     if (node->height==0) {
-        toku_ft_leaf_apply_cmd(compare_fun, update_fun, desc, node, target_childnum, cmd, nullptr, stats_to_update);
+        toku_ft_leaf_apply_cmd(compare_fun, update_fun, desc, node, target_childnum, cmd, oldest_referenced_xid, nullptr, stats_to_update);
     } else {
         ft_nonleaf_put_cmd(compare_fun, desc, node, target_childnum, cmd, is_fresh, flow_deltas);
     }
@@ -2425,6 +2432,7 @@ void toku_ft_leaf_apply_cmd(
     FTNODE node,
     int target_childnum,  // which child to inject to, or -1 if unknown
     FT_MSG cmd,
+    TXNID oldest_referenced_xid,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     )
@@ -2469,6 +2477,7 @@ void toku_ft_leaf_apply_cmd(
                                  desc,
                                  bn,
                                  cmd,
+                                 oldest_referenced_xid,
                                  workdone,
                                  stats_to_update);
         } else {
@@ -2484,6 +2493,7 @@ void toku_ft_leaf_apply_cmd(
                                       desc,
                                       BLB(node, childnum),
                                       cmd,
+                                      oldest_referenced_xid,
                                       workdone,
                                       stats_to_update);
             } else {
@@ -2497,7 +2507,15 @@ void toku_ft_leaf_apply_cmd(
     VERIFY_NODE(t, node);
 }
 
-static void inject_message_in_locked_node(FT ft, FTNODE node, int childnum, FT_MSG_S *cmd, size_t flow_deltas[]) {
+static void inject_message_in_locked_node(
+    FT ft, 
+    FTNODE node, 
+    int childnum, 
+    FT_MSG_S *cmd, 
+    size_t flow_deltas[],
+    TXNID oldest_referenced_xid
+    ) 
+{
     // No guarantee that we're the writer, but oh well.
     // TODO(leif): Implement "do I have the lock or is it someone else?"
     // check in frwlock.  Should be possible with TOKU_PTHREAD_DEBUG, nop
@@ -2519,6 +2537,7 @@ static void inject_message_in_locked_node(FT ft, FTNODE node, int childnum, FT_M
         cmd,
         true,
         flow_deltas,
+        oldest_referenced_xid,
         &stats_delta
         );
     if (stats_delta.numbytes || stats_delta.numrows) {
@@ -2677,7 +2696,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
     abort();
 }
 
-static void inject_message_at_this_blocknum(FT ft, CACHEKEY cachekey, uint32_t fullhash, FT_MSG_S *cmd, size_t flow_deltas[])
+static void inject_message_at_this_blocknum(FT ft, CACHEKEY cachekey, uint32_t fullhash, FT_MSG_S *cmd, size_t flow_deltas[], TXNID oldest_referenced_xid)
 // Effect:
 //  Inject cmd into the node at this blocknum (cachekey).
 //  Gets a write lock on the node for you.
@@ -2689,7 +2708,7 @@ static void inject_message_at_this_blocknum(FT ft, CACHEKEY cachekey, uint32_t f
     toku_assert_entire_node_in_memory(node);
     paranoid_invariant(node->fullhash==fullhash);
     ft_verify_flags(ft, node);
-    inject_message_in_locked_node(ft, node, -1, cmd, flow_deltas);
+    inject_message_in_locked_node(ft, node, -1, cmd, flow_deltas, oldest_referenced_xid);
 }
 
 __attribute__((const))
@@ -2702,7 +2721,17 @@ static inline bool should_inject_in_node(seqinsert_loc loc, int height, int dept
     return (height == 0 || (loc == NEITHER_EXTREME && (height <= 1 || depth >= 2)));
 }
 
-static void push_something_in_subtree(FT ft, FTNODE subtree_root, int target_childnum, FT_MSG_S *cmd, size_t flow_deltas[], int depth, seqinsert_loc loc, bool just_did_split_or_merge)
+static void push_something_in_subtree(
+    FT ft, 
+    FTNODE subtree_root, 
+    int target_childnum, 
+    FT_MSG_S *cmd, 
+    size_t flow_deltas[], 
+    TXNID oldest_referenced_xid, 
+    int depth, 
+    seqinsert_loc loc, 
+    bool just_did_split_or_merge
+    )
 // Effects:
 //  Assign cmd an MSN from ft->h.
 //  Put cmd in the subtree rooted at node.  Due to promotion the message may not be injected directly in this node.
@@ -2739,7 +2768,7 @@ static void push_something_in_subtree(FT ft, FTNODE subtree_root, int target_chi
         default:
             STATUS_INC(FT_PRO_NUM_INJECT_DEPTH_GT3, 1); break;
         }
-        inject_message_in_locked_node(ft, subtree_root, target_childnum, cmd, flow_deltas);
+        inject_message_in_locked_node(ft, subtree_root, target_childnum, cmd, flow_deltas, oldest_referenced_xid);
     } else {
         int r;
         int childnum;
@@ -2828,13 +2857,13 @@ static void push_something_in_subtree(FT ft, FTNODE subtree_root, int target_chi
                     struct ftnode_fetch_extra bfe;
                     fill_bfe_for_full_read(&bfe, ft); // should be fully in memory, we just split it
                     toku_pin_ftnode_off_client_thread_batched(ft, subtree_root_blocknum, subtree_root_fullhash, &bfe, PL_READ, 0, nullptr, &newparent);
-                    push_something_in_subtree(ft, newparent, -1, cmd, flow_deltas, depth, loc, true);
+                    push_something_in_subtree(ft, newparent, -1, cmd, flow_deltas, oldest_referenced_xid, depth, loc, true);
                     return;
                 }
             }
 
             if (next_loc != NEITHER_EXTREME || child->dirty || toku_bnc_should_promote(ft, bnc)) {
-                push_something_in_subtree(ft, child, -1, cmd, flow_deltas, depth + 1, next_loc, false);
+                push_something_in_subtree(ft, child, -1, cmd, flow_deltas, oldest_referenced_xid, depth + 1, next_loc, false);
                 toku_sync_fetch_and_add(&bnc->flow[0], flow_deltas[0]);
                 // The recursive call unpinned the child, but
                 // we're responsible for unpinning subtree_root.
@@ -2870,12 +2899,12 @@ static void push_something_in_subtree(FT ft, FTNODE subtree_root, int target_chi
             default:
                 STATUS_INC(FT_PRO_NUM_INJECT_DEPTH_GT3, 1); break;
             }
-            inject_message_at_this_blocknum(ft, subtree_root_blocknum, subtree_root_fullhash, cmd, flow_deltas);
+            inject_message_at_this_blocknum(ft, subtree_root_blocknum, subtree_root_fullhash, cmd, flow_deltas, oldest_referenced_xid);
         }
     }
 }
 
-void toku_ft_root_put_cmd(FT ft, FT_MSG_S *cmd)
+void toku_ft_root_put_cmd(FT ft, FT_MSG_S *cmd, TXNID oldest_referenced_xid)
 // Effect:
 //  - assign msn to cmd and update msn in the header
 //  - push the cmd into the ft
@@ -2975,22 +3004,22 @@ void toku_ft_root_put_cmd(FT ft, FT_MSG_S *cmd)
         // If the root's a leaf or we're injecting a broadcast, drop the read lock and inject here.
         toku_unpin_ftnode_read_only(ft, node);
         STATUS_INC(FT_PRO_NUM_ROOT_H0_INJECT, 1);
-        inject_message_at_this_blocknum(ft, root_key, fullhash, cmd, flow_deltas);
+        inject_message_at_this_blocknum(ft, root_key, fullhash, cmd, flow_deltas, oldest_referenced_xid);
     } else if (node->height > 1) {
         // If the root's above height 1, we are definitely eligible for promotion.
-        push_something_in_subtree(ft, node, -1, cmd, flow_deltas, 0, LEFT_EXTREME | RIGHT_EXTREME, false);
+        push_something_in_subtree(ft, node, -1, cmd, flow_deltas, oldest_referenced_xid, 0, LEFT_EXTREME | RIGHT_EXTREME, false);
     } else {
         // The root's height 1.  We may be eligible for promotion here.
         // On the extremes, we want to promote, in the middle, we don't.
         int childnum = toku_ftnode_which_child(node, cmd->u.id.key, &ft->cmp_descriptor, ft->compare_fun);
         if (childnum == 0 || childnum == node->n_children - 1) {
             // On the extremes, promote.  We know which childnum we're going to, so pass that down too.
-            push_something_in_subtree(ft, node, childnum, cmd, flow_deltas, 0, LEFT_EXTREME | RIGHT_EXTREME, false);
+            push_something_in_subtree(ft, node, childnum, cmd, flow_deltas, oldest_referenced_xid, 0, LEFT_EXTREME | RIGHT_EXTREME, false);
         } else {
             // At height 1 in the middle, don't promote, drop the read lock and inject here.
             toku_unpin_ftnode_read_only(ft, node);
             STATUS_INC(FT_PRO_NUM_ROOT_H1_INJECT, 1);
-            inject_message_at_this_blocknum(ft, root_key, fullhash, cmd, flow_deltas);
+            inject_message_at_this_blocknum(ft, root_key, fullhash, cmd, flow_deltas, oldest_referenced_xid);
         }
     }
 }
@@ -3053,7 +3082,7 @@ void toku_ft_optimize (FT_HANDLE brt) {
         toku_init_dbt(&key);
         toku_init_dbt(&val);
         FT_MSG_S ftcmd = { FT_OPTIMIZE, ZERO_MSN, message_xids, .u = { .id = {&key,&val} } };
-        toku_ft_root_put_cmd(brt->ft, &ftcmd);
+        toku_ft_root_put_cmd(brt->ft, &ftcmd, TXNID_NONE);
         xids_destroy(&message_xids);
     }
 }
@@ -3127,7 +3156,7 @@ void toku_ft_maybe_insert (FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, bool
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         // do nothing
     } else {
-        toku_ft_send_insert(ft_h, key, val, message_xids, type);
+        toku_ft_send_insert(ft_h, key, val, message_xids, type, txn->oldest_referenced_xid);
     }
 }
 
@@ -3136,7 +3165,7 @@ ft_send_update_msg(FT_HANDLE brt, FT_MSG_S *msg, TOKUTXN txn) {
     msg->xids = (txn
                  ? toku_txn_get_xids(txn)
                  : xids_get_root_xids());
-    toku_ft_root_put_cmd(brt->ft, msg);
+    toku_ft_root_put_cmd(brt->ft, msg, txn->oldest_referenced_xid);
 }
 
 void toku_ft_maybe_update(FT_HANDLE ft_h, const DBT *key, const DBT *update_function_extra,
@@ -3205,15 +3234,15 @@ void toku_ft_maybe_update_broadcast(FT_HANDLE ft_h, const DBT *update_function_e
     }
 }
 
-void toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type) {
+void toku_ft_send_insert(FT_HANDLE brt, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type, TXNID oldest_referenced_xid) {
     FT_MSG_S ftcmd = { type, ZERO_MSN, xids, .u = { .id = { key, val } } };
-    toku_ft_root_put_cmd(brt->ft, &ftcmd);
+    toku_ft_root_put_cmd(brt->ft, &ftcmd, oldest_referenced_xid);
 }
 
-void toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids) {
+void toku_ft_send_commit_any(FT_HANDLE brt, DBT *key, XIDS xids, TXNID oldest_referenced_xid) {
     DBT val;
     FT_MSG_S ftcmd = { FT_COMMIT_ANY, ZERO_MSN, xids, .u = { .id = { key, toku_init_dbt(&val) } } };
-    toku_ft_root_put_cmd(brt->ft, &ftcmd);
+    toku_ft_root_put_cmd(brt->ft, &ftcmd, oldest_referenced_xid);
 }
 
 void toku_ft_delete(FT_HANDLE brt, DBT *key, TOKUTXN txn) {
@@ -3269,14 +3298,14 @@ void toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, bool oplsn_vali
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         // do nothing
     } else {
-        toku_ft_send_delete(ft_h, key, message_xids);
+        toku_ft_send_delete(ft_h, key, message_xids, txn->oldest_referenced_xid);
     }
 }
 
-void toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids) {
+void toku_ft_send_delete(FT_HANDLE brt, DBT *key, XIDS xids, TXNID oldest_referenced_xid) {
     DBT val; toku_init_dbt(&val);
     FT_MSG_S ftcmd = { FT_DELETE_ANY, ZERO_MSN, xids, .u = { .id = { key, &val } } };
-    toku_ft_root_put_cmd(brt->ft, &ftcmd);
+    toku_ft_root_put_cmd(brt->ft, &ftcmd, oldest_referenced_xid);
 }
 
 /* mempool support */
@@ -4143,6 +4172,7 @@ do_bn_apply_cmd(FT_HANDLE t, BASEMENTNODE bn, struct fifo_entry *entry, uint64_t
             &t->ft->cmp_descriptor,
             bn,
             &ftcmd,
+            TXNID_NONE,
             workdone,
             stats_to_update
             );

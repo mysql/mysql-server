@@ -913,7 +913,7 @@ int toku_cmd_leafval_heaviside (OMTVALUE leafentry, void *extra)
     __attribute__((__warn_unused_result__));
 
 // toku_ft_root_put_cmd() accepts non-constant cmd because this is where we set the msn
-void toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd);
+void toku_ft_root_put_cmd(FT h, FT_MSG_S * cmd, TXNID oldest_referenced_xid);
 
 void *mempool_malloc_from_omt(OMT *omtp, struct mempool *mp, size_t size, void **maybe_free);
 // Effect: Allocate a new object of size SIZE in MP.  If MP runs out of space, allocate new a new mempool space, and copy all the items
@@ -1073,6 +1073,7 @@ toku_ft_bn_apply_cmd_once (
     const FT_MSG cmd,
     uint32_t idx,
     LEAFENTRY le,
+    TXNID oldest_referenced_xid,
     uint64_t *workdonep,
     STAT64INFO stats_to_update
     );
@@ -1084,6 +1085,7 @@ toku_ft_bn_apply_cmd (
     DESCRIPTOR desc,
     BASEMENTNODE bn,
     FT_MSG cmd,
+    TXNID oldest_referenced_xid,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
@@ -1096,6 +1098,7 @@ toku_ft_leaf_apply_cmd (
     FTNODE node,
     int target_childnum,
     FT_MSG cmd,
+    TXNID oldest_referenced_xid,
     uint64_t *workdone,
     STAT64INFO stats_to_update
     );
@@ -1110,6 +1113,7 @@ toku_ft_node_put_cmd (
     FT_MSG cmd,
     bool is_fresh,
     size_t flow_deltas[],
+    TXNID oldest_referenced_xid,
     STAT64INFO stats_to_update
     );
 

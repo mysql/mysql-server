@@ -32,7 +32,7 @@ append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen)
     // apply an insert to the leaf node
     MSN msn = next_dummymsn();
     FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &theval }} };
-    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, NULL, NULL);
+    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, TXNID_NONE, NULL, NULL);
 
     // dont forget to dirty the node
     leafnode->dirty = 1;
