@@ -31,6 +31,7 @@ Smart ALTER TABLE
 
 #include "dict0crea.h"
 #include "dict0dict.h"
+#include "dict0priv.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
 #include "log0log.h"
@@ -175,45 +176,6 @@ innobase_fulltext_exist(
 		}
 	}
 
-	return(false);
-}
-
-/** Check if table to ALTER has foreign key with DELETE/UPDATE
-CONSTRAINT created with reference option CASCADE/SET NULL
-@param table		InnoDB table that is being altered
-@return			whether a CASCADE or SET NULL option exists */
-static
-bool
-innobase_fk_cscd_setnull_exist(
-/*===========================*/
-	const dict_table_t* table)
-{
-	/* For "ALTER .... INPLACE (LOCK=NONE/DEFAULT) we avoid online
-	inplace and so force it to use SHARED lock.
-	This is done to protect ALTER TABLE INPLACE against a bug in
-	MySQL MDL that fails to lock foreign key table while modifying
-	the parent table in a way that affects foreign table.
-	(For example: delete from parent; will affect child table if
-	there is fk-del-on-cascade/set-null dependency on child table.)
-	If avoided, this leads to an issue in form that parallel
-	transaction running ALTER TABLE is allowed to proceed on TABLE
-	that is already being modified by other transaction, further
-	causing data-inconsistency.
-	Remove this fix once WL#6049 is fixed as it would take
-	care of the issue in MySQL MDL locking.
-	Corresponding bug for this is bug#14219233 */
-	for (const dict_foreign_t* foreign =
-		UT_LIST_GET_FIRST(table->foreign_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
-		if (foreign->type
-		    & (DICT_FOREIGN_ON_DELETE_CASCADE
-		      | DICT_FOREIGN_ON_DELETE_SET_NULL
-		      | DICT_FOREIGN_ON_UPDATE_CASCADE
-		      | DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
-			return(true);
-		}
-	}
 	return(false);
 }
 
@@ -463,13 +425,6 @@ ha_innobase::check_if_supported_inplace_alter(
 		if (prebuilt->table->fts) {
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
-	} else if (innobase_fk_cscd_setnull_exist(prebuilt->table)) {
-		/* Refuse online ALTER TABLE (even dropping or
-		creating secondary indexes) if there are FOREIGN KEY
-		constraints with ON...CASCADE or ON...SET NULL
-		options. This limitation should be removed when WL#6049
-		(meta-data locking for FOREIGN KEY checks) is implemented. */
-		online = false;
 	} else if ((ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_INDEX)) {
 		/* Building a full-text index requires a lock.
@@ -1073,8 +1028,6 @@ innobase_col_to_mysql(
 		ut_ad(flen >= len);
 		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
 		      >= DATA_MBMINLEN(col->mbminmaxlen));
-		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
-		      > DATA_MBMINLEN(col->mbminmaxlen) || flen == len);
 		memcpy(dest, data, len);
 		break;
 
@@ -2552,8 +2505,7 @@ prepare_inplace_alter_table_dict(
 		|| add_autoinc_col != ULINT_UNDEFINED
 		|| num_fts_index > 0
 		|| (innobase_need_rebuild(ha_alter_info)
-		    && innobase_fulltext_exist(altered_table->s))
-		|| innobase_fk_cscd_setnull_exist(user_table);
+		    && innobase_fulltext_exist(altered_table->s));
 
 	if (num_fts_index > 1) {
 		my_error(ER_INNODB_FT_LIMIT, MYF(0));
@@ -2652,11 +2604,10 @@ prepare_inplace_alter_table_dict(
 		/* Create the table. */
 		trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-		indexed_table = dict_load_table(
-			new_table_name, TRUE, DICT_ERR_IGNORE_NONE);
-
-		if (indexed_table) {
-			row_merge_drop_table(trx, indexed_table, true);
+		if (dict_table_get_low(new_table_name)) {
+			my_error(ER_TABLE_EXISTS_ERROR, MYF(0),
+				 new_table_name);
+			goto new_clustered_failed;
 		}
 
 		/* The initial space id 0 may be overridden later. */
@@ -3036,7 +2987,16 @@ error_handled:
 			}
 
 			dict_table_close(indexed_table, TRUE, FALSE);
-			row_merge_drop_table(trx, indexed_table, false);
+
+#ifdef UNIV_DDL_DEBUG
+			/* Nobody should have initialized the stats of the
+			newly created table yet. When this is the case, we
+			know that it has not been added for background stats
+			gathering. */
+			ut_a(!indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
+			row_merge_drop_table(trx, indexed_table);
 
 			/* Free the log for online table rebuild, if
 			one was allocated. */
@@ -3991,7 +3951,16 @@ rollback_inplace_alter_table(
 
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
-		err = row_merge_drop_table(ctx->trx, ctx->indexed_table, false);
+
+#ifdef UNIV_DDL_DEBUG
+		/* Nobody should have initialized the stats of the
+		newly created table yet. When this is the case, we
+		know that it has not been added for background stats
+		gathering. */
+		ut_a(!ctx->indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
+		err = row_merge_drop_table(ctx->trx, ctx->indexed_table);
 
 		switch (err) {
 		case DB_SUCCESS:
@@ -4804,7 +4773,7 @@ undo_add_fk:
 			}
 
 			row_prebuilt_free(prebuilt, TRUE);
-			error = row_merge_drop_table(trx, old_table, false);
+			error = row_merge_drop_table(trx, old_table);
 			prebuilt = row_create_prebuilt(
 				ctx->indexed_table, table->s->reclength);
 			err = 0;
@@ -4839,7 +4808,16 @@ drop_new_clustered:
 			}
 
 			dict_table_close(ctx->indexed_table, TRUE, FALSE);
-			row_merge_drop_table(trx, ctx->indexed_table, false);
+
+#ifdef UNIV_DDL_DEBUG
+			/* Nobody should have initialized the stats of the
+			newly created table yet. When this is the case, we
+			know that it has not been added for background stats
+			gathering. */
+			ut_a(!ctx->indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
+			row_merge_drop_table(trx, ctx->indexed_table);
 			ctx->indexed_table = NULL;
 			goto trx_commit;
 		}
@@ -4887,15 +4865,6 @@ drop_new_clustered:
 				DBUG_ASSERT(0);
 			}
 		}
-
-		/* Commit of rollback add foreign constraint operations */
-		if (fk_trx && fk_trx != trx) {
-			if (err == 0) {
-				trx_commit_for_mysql(fk_trx);
-			} else {
-				trx_rollback_for_mysql(fk_trx);
-			}
-		}
 	}
 
 	if (err == 0
@@ -4924,16 +4893,56 @@ drop_new_clustered:
 	}
 
 	if (err == 0) {
+		if (fk_trx && fk_trx != trx) {
+			/* This needs to be placed before "trx_commit" marker,
+			since anyone called "goto trx_commit" has committed
+			or rolled back fk_trx before jumping here */
+			trx_commit_for_mysql(fk_trx);
+		}
 trx_commit:
 		trx_commit_for_mysql(trx);
 	} else {
 trx_rollback:
-		/* undo the in-memory addition of foreign key */
+		/* undo the addition of foreign key */
 		if (fk_trx) {
 			innobase_undo_add_fk(ctx, fk_table);
+
+			if (fk_trx != trx) {
+				trx_rollback_for_mysql(fk_trx);
+			}
 		}
 
 		trx_rollback_for_mysql(trx);
+
+		/* If there are newly added secondary indexes, above
+		rollback will revert the rename operation and put the
+		new indexes with the temp index prefix, we can drop
+		them here */
+		if (ctx && !new_clustered) {
+			ulint	i;
+
+			/* Need to drop the in-memory dict_index_t first
+			to avoid dict_table_check_for_dup_indexes()
+			assertion in row_merge_drop_indexes() in the case
+			of add and drop the same index */
+			for (i = 0; i < ctx->num_to_add; i++) {
+				dict_index_t*   index = ctx->add[i];
+				dict_index_remove_from_cache(
+					prebuilt->table, index);
+			}
+
+			if (ctx->num_to_add) {
+				trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+				row_merge_drop_indexes(trx, prebuilt->table,
+						       FALSE);
+				trx_commit_for_mysql(trx);
+			}
+
+			for (i = 0; i < ctx->num_to_drop; i++) {
+				dict_index_t*	index = ctx->drop[i];
+				index->to_be_dropped = false;
+			}
+		}
 	}
 
 	/* Flush the log to reduce probability that the .frm files and

@@ -1915,7 +1915,6 @@ my_b_write_sint32_and_uint32(IO_CACHE *file, int32 si, uint32 ui)
   
   @retval   - number of bytes scanned from ptr.
 */
-
 static size_t
 log_event_print_value(IO_CACHE *file, const uchar *ptr,
                       uint type, uint meta,
@@ -2075,8 +2074,12 @@ log_event_print_value(IO_CACHE *file, const uchar *ptr,
       d= i64 / 1000000;
       t= i64 % 1000000;
       my_b_printf(file, "%04d-%02d-%02d %02d:%02d:%02d",
-                  d / 10000, (d % 10000) / 100, d % 100,
-                  t / 10000, (t % 10000) / 100, t % 100);
+                  static_cast<int>(d / 10000),
+                  static_cast<int>(d % 10000) / 100,
+                  static_cast<int>(d % 100),
+                  static_cast<int>(t / 10000),
+                  static_cast<int>(t % 10000) / 100,
+                  static_cast<int>(t % 100));
       my_snprintf(typestr, typestr_length, "DATETIME");
       return 8;
     }
@@ -2264,11 +2267,11 @@ Rows_log_event::print_verbose_one_row(IO_CACHE *file, table_def *td,
     
     if (is_null)
     {
-      my_b_printf(file, "###   @%d=NULL", i + 1);
+      my_b_printf(file, "###   @%d=NULL", static_cast<int>(i + 1));
     }
     else
     {
-      my_b_printf(file, "###   @%d=", i + 1);
+      my_b_printf(file, "###   @%d=", static_cast<int>(i + 1));
       size_t size= log_event_print_value(file, value,
                                          td->type(i), td->field_metadata(i),
                                          typestr, sizeof(typestr));
@@ -2367,7 +2370,9 @@ void Rows_log_event::print_verbose(IO_CACHE *file,
   if (!(map= print_event_info->m_table_map.get_table(m_table_id)) ||
       !(td= map->create_table_def()))
   {
-    my_b_printf(file, "### Row event for unknown table #%d", m_table_id);
+    char llbuff[22];
+    my_b_printf(file, "### Row event for unknown table #%s",
+                llstr(m_table_id, llbuff));
     return;
   }
 
@@ -9250,7 +9255,8 @@ Rows_log_event::Rows_log_event(const char *buf, uint event_len,
   DBUG_PRINT("info",("m_table_id: %lu  m_flags: %d  m_width: %lu  data_size: %lu",
                      m_table_id, m_flags, m_width, (ulong) data_size));
 
-  m_rows_buf= (uchar*) my_malloc(data_size, MYF(MY_WME));
+  // Allocate one extra byte, in case we have to do uint3korr!
+  m_rows_buf= (uchar*) my_malloc(data_size + 1, MYF(MY_WME)); // didrik
   if (likely((bool)m_rows_buf))
   {
 #if !defined(MYSQL_CLIENT) && defined(HAVE_REPLICATION)
@@ -9354,8 +9360,10 @@ int Rows_log_event::do_add_row_data(uchar *row_data, size_t length)
     my_ptrdiff_t const new_alloc= 
         block_size * ((cur_size + length + block_size - 1) / block_size);
 
-    uchar* const new_buf= (uchar*)my_realloc((uchar*)m_rows_buf, (uint) new_alloc,
-                                           MYF(MY_ALLOW_ZERO_PTR|MY_WME));
+    // Allocate one extra byte, in case we have to do uint3korr!
+    uchar* const new_buf=
+      (uchar*)my_realloc((uchar*)m_rows_buf, (uint) new_alloc + 1,
+                         MYF(MY_ALLOW_ZERO_PTR|MY_WME));
     if (unlikely(!new_buf))
       DBUG_RETURN(HA_ERR_OUT_OF_MEM);
 

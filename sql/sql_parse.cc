@@ -1184,6 +1184,28 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     beginning of each command.
   */
   thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
+
+  /**
+    Enforce password expiration for all RPC commands, except the
+    following:
+
+    COM_QUERY does a more fine-grained check later.
+    COM_STMT_CLOSE and COM_STMT_SEND_LONG_DATA don't return anything.
+    COM_PING only discloses information that the server is running,
+       and that's available through other means.
+    COM_QUIT should work even for expired statements.
+  */
+  if (unlikely(thd->security_ctx->password_expired &&
+               command != COM_QUERY &&
+               command != COM_STMT_CLOSE &&
+               command != COM_STMT_SEND_LONG_DATA &&
+               command != COM_PING &&
+               command != COM_QUIT))
+  {
+    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+    goto done;
+  }
+
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1689,6 +1711,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
+
+done:
   DBUG_ASSERT(thd->derived_tables == NULL &&
               (thd->open_tables == NULL ||
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
@@ -2240,6 +2264,18 @@ mysql_execute_command(THD *thd)
 #endif
   DBUG_ENTER("mysql_execute_command");
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
+
+  if (unlikely(lex->is_broken()))
+  {
+    // Force a Reprepare, to get a fresh LEX
+    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+    if (reprepare_observer &&
+        reprepare_observer->report_error(thd))
+    {
+      DBUG_ASSERT(thd->is_error());
+      DBUG_RETURN(1);
+    }
+  }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;

@@ -821,6 +821,18 @@
    fun:main
 }
 
+{
+   missing shutdown_performance_schema 9a
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_Z22add_pfs_instr_to_arrayPKcS0_
+   fun:mysqld_get_one_option
+   fun:my_handle_options
+   fun:_Z20handle_early_optionsv
+   fun:_Z11mysqld_mainiPPc
+}
+
 # Same as shutdown_performance_schema 9,
 # but the compiler/linker can sometime change the
 # calls from:
@@ -1021,4 +1033,85 @@
    fun:_my_b_write
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
    fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
+}
+
+{
+   OpenSSL still reachable. One.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:lh_insert
+   fun:int_thread_set_item
+   fun:ERR_get_state
+   fun:ERR_put_error
+   fun:PEM_read_bio
+   fun:PEM_X509_INFO_read_bio
+   fun:X509_load_cert_crl_file
+   fun:by_file_ctrl
+   fun:X509_STORE_load_locations
+   fun:new_VioSSLFd
+   fun:new_VioSSLAcceptorFd
+}
+
+{
+   OpenSSL still reachable. Two.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:load_builtin_compressions
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:check_ssl_init
+   fun:new_VioSSLFd
+   fun:new_VioSSLAcceptorFd
+}
+
+{
+   OpenSSL still reachable. Three.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:load_builtin_compressions
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:check_ssl_init
+   fun:new_VioSSLFd
+   fun:new_VioSSLAcceptorFd
+}
+
+{
+   OpenSSL still reachable. Four.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:lh_new
+   fun:int_thread_get
+   fun:int_thread_set_item
+   fun:ERR_get_state
+   fun:ERR_put_error
+   fun:PEM_read_bio
+   fun:PEM_X509_INFO_read_bio
+   fun:X509_load_cert_crl_file
+   fun:by_file_ctrl
+   fun:X509_STORE_load_locations
+   fun:new_VioSSLFd
+   fun:new_VioSSLAcceptorFd
+}
+
+{
+   OpenSSL still reachable. Five.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:ERR_get_state
+   fun:ERR_put_error
+   fun:PEM_read_bio
+   fun:PEM_X509_INFO_read_bio
+   fun:X509_load_cert_crl_file
+   fun:by_file_ctrl
+   fun:X509_STORE_load_locations
+   fun:new_VioSSLFd
+   fun:new_VioSSLAcceptorFd
 }
