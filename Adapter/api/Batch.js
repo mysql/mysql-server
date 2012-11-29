@@ -91,32 +91,60 @@ exports.Batch.prototype.load = function() {
 };
 
 
-exports.Batch.prototype.persist = function() {
-  var context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
+exports.Batch.prototype.persist = function(tableIndicator) {
+  var context;
+  if (typeof(tableIndicator) === 'object') {
+    // persist(domainObject, callback)
+    context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
+  } else {
+    // persist(tableNameOrConstructor, values, callback)
+    context = new userContext.UserContext(arguments, 3, 1, this.session, this.session.sessionFactory, false);
+  }
   // delegate to context's persist function for execution
   context.persist();
   this.operationContexts.push(context);
 };
 
 
-exports.Batch.prototype.remove = function() {
-  var context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
+exports.Batch.prototype.remove = function(tableIndicator) {
+  var context;
+  if (typeof(tableIndicator) === 'object') {
+    // remove(domainObject, callback)
+    context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
+  } else {
+    // remove(tableNameOrConstructor, keys, callback)
+    context = new userContext.UserContext(arguments, 3, 1, this.session, this.session.sessionFactory, false);
+  }
   // delegate to context's remove function for execution
   context.remove();
   this.operationContexts.push(context);
 };
 
 
-exports.Batch.prototype.update = function() {
-  var context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
+exports.Batch.prototype.update = function(tableIndicator) {
+  var context;
+  if (typeof(tableIndicator) === 'object') {
+    // update(domainObject, callback)
+    context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
+  } else {
+    // update(tableNameOrConstructor, keys, values, callback)
+    context = new userContext.UserContext(arguments, 4, 1, this.session, this.session.sessionFactory, false);
+  }
   // delegate to context's update function for execution
   context.update();
   this.operationContexts.push(context);
 };
 
 
-exports.Batch.prototype.save = function() {
-  var context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
+exports.Batch.prototype.save = function(tableIndicator) {
+  var context;
+  if (typeof(tableIndicator) === 'object') {
+    // save(domainObject, callback)
+    context = new userContext.UserContext(arguments, 2, 1, this.session, this.session.sessionFactory, false);
+  } else {
+    // save(tableNameOrConstructor, values, callback)
+    context = new userContext.UserContext(arguments, 3, 1, this.session, this.session.sessionFactory, false);
+  }
   // delegate to context's save function for execution
   context.save();
   this.operationContexts.push(context);

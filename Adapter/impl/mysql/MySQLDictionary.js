@@ -285,6 +285,7 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
   var showCreateTable_callback = function(err, rows) {
     var result;
     if (err) {
+      udebug.log_detail('MySQLDictonary error from SHOW CREATE TABLE: ' + err);
       callback(err);
     } else {
       udebug.log_detail(rows);
