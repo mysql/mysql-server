@@ -2609,8 +2609,8 @@ void TC_LOG_MMAP::get_active_from_pool()
   active=*best_p;
   if (active->free == active->size) // we've chosen an empty page
   {
-    tc_log_cur_pages_used++;
-    set_if_bigger(tc_log_max_pages_used, tc_log_cur_pages_used);
+    statistic_inc_set_big_rwlock(tc_log_cur_pages_used, tc_log_max_pages_used,
+                                 &LOCK_status);
   }
 
   if ((*best_p)->next)              // unlink the page from the pool
