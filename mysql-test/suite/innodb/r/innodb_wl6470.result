@@ -1,116 +1,171 @@
-#
-# TC to test temp-table DML aspcted (esp. temp-table
-# optimization changes.
-#
---source include/have_innodb.inc
-#
-# autocommit
-#
 use test;
---disable_warnings
 drop table if exists t;
---enable_warnings
 create temporary table t (
-	i int,
-	f float,
-	primary key pk_index(i),
-	index sec_index(f)
-	) engine=innodb;
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine = innodb;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+rollback;
 select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
 update t set i = 50 where i = 40;
 update t set i = 60 where i = 30;
+rollback;
 select * from t;
+i	f
+10	2.2
+20	3.3
+60	4.4
+50	5.5
 delete from t where i = 10;
 delete from t where f < 3.4;
+rollback;
 select * from t;
+i	f
+60	4.4
+50	5.5
 delete from t where i = 10;
 delete from t;
 select * from t;
+i	f
 drop table if exists t;
-
-#
-# begin - commit - rollback
-#
 create temporary table t (
-	i int,
-	f float,
-	primary key pk_index(i),
-	index sec_index(f)
-	) engine=innodb;
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine = innodb;
 begin;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
 commit;
 select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
 rollback;
 select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
 drop table if exists t;
-
-#
-# begin - rollback
-#
 create temporary table t (
-	i int,
-	f float,
-	primary key pk_index(i),
-	index sec_index(f)
-	) engine=innodb;
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine = innodb;
 begin;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
 rollback;
 select * from t;
+i	f
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 begin;
 delete from t;
 select * from t;
+i	f
 rollback;
 select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
 begin;
 update t set i = 50 where i = 40;
 update t set i = 60 where i = 30;
 select * from t;
+i	f
+10	2.2
+20	3.3
+60	4.4
+50	5.5
 rollback;
 select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
 drop table if exists t;
-
-#
-# start trx - savepoint - rollback - commit
-#
 create temporary table t (
-	i int,
-	f float,
-	primary key pk_index(i),
-	index sec_index(f)
-	) engine=innodb;
+i int,
+f float,
+primary key pk_index(i),
+index sec_index(f)
+) engine = innodb;
 start transaction;
 savepoint first;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 select * from t;
+i	f
+10	2.2
+20	3.3
+30	4.4
+40	5.5
 rollback to first;
 select * from t;
+i	f
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
 begin;
 delete from t where i = 10;
 select * from t;
+i	f
+20	3.3
+30	4.4
+40	5.5
 savepoint first;
 delete from t;
 select * from t;
+i	f
 rollback to first;
 select * from t;
+i	f
+20	3.3
+30	4.4
+40	5.5
 commit;
 select * from t;
+i	f
+20	3.3
+30	4.4
+40	5.5
 begin;
 update t set i = 50 where i = 40;
 savepoint first;
 update t set i = 60 where i = 30;
 select * from t;
+i	f
+20	3.3
+60	4.4
+50	5.5
 rollback to first;
 select * from t;
+i	f
+20	3.3
+30	4.4
+50	5.5
 commit;
 drop table if exists t;
-
-#
-# end of tc
-#
