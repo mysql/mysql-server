@@ -100,6 +100,7 @@ my_bool	net_flush(NET *net);
 #include "client_settings.h"
 #include <sql_common.h>
 #include <mysql/client_plugin.h>
+#include "../libmysql/mysql_trace.h"  /* MYSQL_TRACE() instrumentation */
 
 #define native_password_plugin_name "mysql_native_password"
 #define old_password_plugin_name    "mysql_old_password"
@@ -124,6 +125,7 @@ CHARSET_INFO *default_client_charset_info = &my_charset_latin1;
 /* Server error code and message */
 unsigned int mysql_server_last_errno;
 char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
+
 
 /**
   Convert the connect timeout option to a timeout value for VIO
@@ -216,6 +218,7 @@ void set_mysql_error(MYSQL *mysql, int errcode, const char *sqlstate)
     net->last_errno= errcode;
     strmov(net->last_error, ER(errcode));
     strmov(net->sqlstate, sqlstate);
+    MYSQL_TRACE(ERROR, mysql, ());
   }
   else
   {
@@ -266,6 +269,8 @@ void set_mysql_extended_error(MYSQL *mysql, int errcode,
                format, args);
   va_end(args);
   strmov(net->sqlstate, sqlstate);
+
+  MYSQL_TRACE(ERROR, mysql, ());
 
   DBUG_VOID_RETURN;
 }
@@ -606,6 +611,8 @@ cli_safe_read(MYSQL *mysql)
   NET *net= &mysql->net;
   ulong len=0;
 
+  MYSQL_TRACE(READ_PACKET, mysql, ());
+
   if (net->vio != 0)
     len=my_net_read(net);
 
@@ -622,8 +629,18 @@ cli_safe_read(MYSQL *mysql)
                     CR_NET_PACKET_TOO_LARGE: CR_SERVER_LOST, unknown_sqlstate);
     return (packet_error);
   }
+
+  MYSQL_TRACE(PACKET_RECEIVED, mysql, (len, net->read_pos));
+  
   if (net->read_pos[0] == 255)
   {
+    /*
+      After server reprts an error, usually it is ready to accept new commands and
+      we set stage to READY_FOR_COMMAND. This can be modified by the caller of 
+      cli_safe_read().
+    */
+    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+
     if (len > 3)
     {
       char *pos=(char*) net->read_pos+1;
@@ -667,6 +684,7 @@ cli_safe_read(MYSQL *mysql)
                         net->last_error));
     return(packet_error);
   }
+
   return len;
 }
 
@@ -714,6 +732,9 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
   */
   net_clear(&mysql->net, (command != COM_QUIT));
 
+  MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+  MYSQL_TRACE(SEND_COMMAND, mysql, (command, header_length, arg_length, header, arg));
+
   if (net_write_command(net,(uchar) command, header, header_length,
 			arg, arg_length))
   {
@@ -727,6 +748,8 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
     end_server(mysql);
     if (mysql_reconnect(mysql) || stmt_skip)
       goto end;
+    
+    MYSQL_TRACE(SEND_COMMAND, mysql, (command, header_length, arg_length, header, arg));
     if (net_write_command(net,(uchar) command, header, header_length,
 			  arg, arg_length))
     {
@@ -734,10 +757,76 @@ cli_advanced_command(MYSQL *mysql, enum enum_server_command command,
       goto end;
     }
   }
+
+  MYSQL_TRACE(PACKET_SENT, mysql, (header_length + arg_length)); 
+
+#if defined(CLIENT_PROTOCOL_TRACING)
+  switch (command)
+  {
+  case COM_STMT_PREPARE:
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_PS_DESCRIPTION);
+    break;
+
+  case COM_STMT_FETCH:
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_ROW);
+    break;
+
+  /* 
+    No server reply is expected after these commands so we reamin ready
+    for the next command.
+ */
+  case COM_STMT_SEND_LONG_DATA: 
+  case COM_STMT_CLOSE:
+  case COM_REGISTER_SLAVE:
+  case COM_QUIT:
+    break;
+
+  /*
+    These replication commands are not supported and we bail out
+    by pretending that connection has been closed.
+  */
+  case COM_BINLOG_DUMP:
+  case COM_BINLOG_DUMP_GTID:
+  case COM_TABLE_DUMP:
+    MYSQL_TRACE(DISCONNECTED, mysql, ());
+    break;
+
+  /*
+    After COM_CHANGE_USER a regular authentication exchange
+    is performed.
+  */
+  case COM_CHANGE_USER:
+    MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
+    break;
+
+  /*
+    Server replies to COM_STATISTICS with a single packet 
+    containing a string with statistics information.
+  */
+  case COM_STATISTICS:
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_PACKET);
+    break;
+
+  default: MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT); break;
+  }
+#endif
+
   result=0;
   if (!skip_check)
+  {
     result= ((mysql->packet_length=cli_safe_read(mysql)) == packet_error ?
 	     1 : 0);
+
+#if defined(CLIENT_PROTOCOL_TRACING)
+    /*
+      Return to READY_FOR_COMMAND protocol stage in case server reports error 
+      or sends OK packet.
+    */
+    if (!result || mysql->net.read_pos[0] == 0x00)
+      MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+#endif
+  }
+
 end:
   DBUG_PRINT("exit",("result: %d", result));
   DBUG_RETURN(result);
@@ -799,6 +888,12 @@ my_bool flush_one_result(MYSQL *mysql)
     mysql->server_status=uint2korr(pos);
     pos+=2;
   }
+#if defined(CLIENT_PROTOCOL_TRACING)
+  if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+  else
+    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+#endif
   return FALSE;
 }
 
@@ -837,6 +932,12 @@ my_bool opt_flush_ok_packet(MYSQL *mysql, my_bool *is_ok_packet)
       mysql->warning_count=uint2korr(pos);
       pos+=2;
     }
+#if defined(CLIENT_PROTOCOL_TRACING)
+    if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
+      MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+    else
+      MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+#endif
   }
   return FALSE;
 }
@@ -872,13 +973,20 @@ static void cli_flush_use_result(MYSQL *mysql, my_bool flush_all_results)
       */
       DBUG_VOID_RETURN;
     }
+
     /*
       It's a result set, not an OK packet. A result set contains
       of two result set subsequences: field metadata, terminated
       with EOF packet, and result set data, again terminated with
       EOF packet. Read and flush them.
     */
-    if (flush_one_result(mysql) || flush_one_result(mysql))
+
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
+    if (flush_one_result(mysql))
+      DBUG_VOID_RETURN;                         /* An error occurred. */
+
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_ROW);
+    if (flush_one_result(mysql))
       DBUG_VOID_RETURN;                         /* An error occurred. */
   }
 
@@ -966,6 +1074,7 @@ void end_server(MYSQL *mysql)
   net_end(&mysql->net);
   free_old_query(mysql);
   errno= save_errno;
+  MYSQL_TRACE(DISCONNECTED, mysql, ());
   DBUG_VOID_RETURN;
 }
 
@@ -1571,6 +1680,12 @@ MYSQL_DATA *cli_read_rows(MYSQL *mysql,MYSQL_FIELD *mysql_fields,
     DBUG_PRINT("info",("status: %u  warning_count:  %u",
 		       mysql->server_status, mysql->warning_count));
   }
+#if defined(CLIENT_PROTOCOL_TRACING)
+  if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+  else
+    MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+#endif
   DBUG_PRINT("exit", ("Got %lu rows", (ulong) result->rows));
   DBUG_RETURN(result);
 }
@@ -1598,6 +1713,12 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
       mysql->warning_count= uint2korr(net->read_pos+1);
       mysql->server_status= uint2korr(net->read_pos+3);
     }
+#if defined(CLIENT_PROTOCOL_TRACING)
+    if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
+      MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+    else
+      MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+#endif
     return 1;				/* End of data */
   }
   prev_pos= 0;				/* allowed to write at packet[-1] */
@@ -1634,6 +1755,7 @@ read_one_row(MYSQL *mysql,uint fields,MYSQL_ROW row, ulong *lengths)
 /****************************************************************************
   Init MySQL structure or allocate one
 ****************************************************************************/
+
 
 MYSQL * STDCALL
 mysql_init(MYSQL *mysql)
@@ -1690,6 +1812,30 @@ mysql_init(MYSQL *mysql)
   mysql->options.secure_auth= TRUE;
 
   return mysql;
+}
+
+
+/*
+  MYSQL::extension handling (see sql_common.h for declaration
+  of st_mysql_extension structure). 
+*/
+
+struct st_mysql_extension* mysql_extension_init(struct st_mysql *mysql __attribute__((unused)))
+{
+  struct st_mysql_extension *ext;
+
+  ext= my_malloc(sizeof(struct st_mysql_extension), MYF(MY_WME | MY_ZEROFILL));
+  return ext;
+}
+
+
+void mysql_extension_free(struct st_mysql_extension *ext)
+{
+  if (!ext)
+    return;
+  if (ext->trace_data)
+    my_free(ext->trace_data);
+  my_free(ext);
 }
 
 
@@ -2293,6 +2439,17 @@ static auth_plugin_t sha256_password_client_plugin=
 extern auth_plugin_t win_auth_client_plugin;
 #endif
 
+/*
+  Test trace plugin can be used only in debug builds. In non-debug ones
+  it is ignored, even if it was enabled by build options (TEST_TRACE_PLUGIN macro).
+*/
+
+#if defined(CLIENT_PROTOCOL_TRACING) \
+    && defined(TEST_TRACE_PLUGIN) \
+    && !defined(DBUG_OFF)
+extern auth_plugin_t test_trace_plugin;
+#endif
+
 struct st_mysql_client_plugin *mysql_client_builtins[]=
 {
   (struct st_mysql_client_plugin *)&native_password_client_plugin,
@@ -2303,6 +2460,11 @@ struct st_mysql_client_plugin *mysql_client_builtins[]=
 #endif
 #ifdef AUTHENTICATION_WIN
   (struct st_mysql_client_plugin *)&win_auth_client_plugin,
+#endif
+#if defined(CLIENT_PROTOCOL_TRACING) \
+    && defined(TEST_TRACE_PLUGIN) \
+    && !defined(DBUG_OFF)
+  (struct st_mysql_client_plugin *)&test_trace_plugin,
 #endif
   0
 };
@@ -2600,6 +2762,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
       Send mysql->client_flag, max_packet_size - unencrypted otherwise
       the server does not know we want to do SSL
     */
+    MYSQL_TRACE(SEND_SSL_REQUEST, mysql, (end - buff, (const unsigned char*)buff));
     if (my_net_write(net, (uchar*)buff, (size_t) (end-buff)) || net_flush(net))
     {
       set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
@@ -2608,6 +2771,8 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
                                errno);
       goto error;
     }
+
+    MYSQL_TRACE_STAGE(mysql, SSL_NEGOTIATION);
 
     /* Create the VioSSLConnectorFd - init SSL and load certs */
     if (!(ssl_fd= new_VioSSLConnectorFd(options->ssl_key,
@@ -2629,6 +2794,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
 
     /* Connect to the server */
     DBUG_PRINT("info", ("IO layer change in progress..."));
+    MYSQL_TRACE(SSL_CONNECT, mysql, ());
     if (sslconnect(ssl_fd, net->vio,
                    (long) (mysql->options.connect_timeout), &ssl_error))
     {    
@@ -2650,6 +2816,9 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
                                ER(CR_SSL_CONNECTION_ERROR), cert_error);
       goto error;
     }
+
+    MYSQL_TRACE(SSL_CONNECTED, mysql, ());
+    MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
   }
 #endif /* HAVE_OPENSSL */
 
@@ -2701,6 +2870,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   end= (char *) send_client_connect_attrs(mysql, (uchar *) end);
 
   /* Write authentication package */
+  MYSQL_TRACE(SEND_AUTH_RESPONSE, mysql, (end-buff, (const unsigned char*)buff));
   if (my_net_write(net, (uchar*) buff, (size_t) (end-buff)) || net_flush(net))
   {
     set_mysql_extended_error(mysql, CR_SERVER_LOST, unknown_sqlstate,
@@ -2709,6 +2879,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
                              errno);
     goto error;
   }
+  MYSQL_TRACE(PACKET_SENT, mysql, (end-buff));
   my_afree(buff);
   return 0;
   
@@ -2800,11 +2971,19 @@ static int client_mpvio_write_packet(struct st_plugin_vio *mpv,
   else
   {
     NET *net= &mpvio->mysql->net;
+
+    MYSQL_TRACE(SEND_AUTH_DATA, mpvio->mysql, (pkt_len, pkt));
+
     if (mpvio->mysql->thd)
       res= 1; /* no chit-chat in embedded */
     else
       res= my_net_write(net, pkt, pkt_len) || net_flush(net);
-    if (res)
+
+    if (!res)
+    {
+      MYSQL_TRACE(PACKET_SENT, mpvio->mysql, (pkt_len));
+    }
+    else
       set_mysql_extended_error(mpvio->mysql, CR_SERVER_LOST, unknown_sqlstate,
                                ER(CR_SERVER_LOST_EXTENDED),
                                "sending authentication information",
@@ -2952,6 +3131,8 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
   mpvio.db= db;
   mpvio.plugin= auth_plugin;
 
+  MYSQL_TRACE(AUTH_PLUGIN, mysql, (auth_plugin->name));
+
   res= auth_plugin->authenticate_user((struct st_plugin_vio *)&mpvio, mysql);
   DBUG_PRINT ("info", ("authenticate_user returned %s", 
                        res == CR_OK ? "CR_OK" : 
@@ -3024,6 +3205,8 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
     if (check_plugin_enabled(mysql, auth_plugin))
       DBUG_RETURN(1);
 
+    MYSQL_TRACE(AUTH_PLUGIN, mysql, (auth_plugin->name));
+
     mpvio.plugin= auth_plugin;
     res= auth_plugin->authenticate_user((struct st_plugin_vio *)&mpvio, mysql);
 
@@ -3060,7 +3243,10 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
     net->read_pos[0] should always be 0 here if the server implements
     the protocol correctly
   */
-  DBUG_RETURN (mysql->net.read_pos[0] != 0);
+  res= (mysql->net.read_pos[0] != 0);
+
+  MYSQL_TRACE(AUTHENTICATED, mysql, ());
+  DBUG_RETURN(res);
 }
 
 
@@ -3187,6 +3373,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
   mysql->server_status=SERVER_STATUS_AUTOCOMMIT;
   DBUG_PRINT("info", ("Connecting"));
+
+  MYSQL_TRACE_STAGE(mysql, CONNECTING);
+  MYSQL_TRACE(CONNECTING, mysql, ());
 
   /*
     Part 0: Grab a socket and connect it to the server
@@ -3536,6 +3725,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if (mysql->options.max_allowed_packet)
     net->max_packet_size= mysql->options.max_allowed_packet;
 
+  MYSQL_TRACE(CONNECTED, mysql, ());
+  MYSQL_TRACE_STAGE(mysql, WAIT_FOR_INIT_PACKET);
+
   /* Get version info */
   mysql->protocol_version= PROTOCOL_VERSION;	/* Assume this */
   if (mysql->options.connect_timeout &&
@@ -3668,6 +3860,9 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
 
   mysql->client_flag= client_flag;
 
+  MYSQL_TRACE(INIT_PACKET_RECEIVED, mysql, (pkt_length, net->read_pos));
+  MYSQL_TRACE_STAGE(mysql, AUTHENTICATE);
+
   /*
     Part 2: invoke the plugin to send the authentication data to the server
   */
@@ -3675,6 +3870,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
   if (run_plugin_auth(mysql, scramble_data, scramble_data_len,
                       scramble_plugin, db))
     goto error;
+
+  MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
 
   /*
     Part 3: authenticated, finish the initialization of the connection
@@ -3997,6 +4194,9 @@ void STDCALL mysql_close(MYSQL *mysql)
     if (mysql->thd)
       (*mysql->methods->free_embedded_thd)(mysql);
 #endif
+    if (mysql->extension)
+      mysql_extension_free(mysql->extension);
+    mysql->extension= NULL;
     if (mysql->free_me)
       my_free(mysql);
   }
@@ -4041,12 +4241,20 @@ get_info:
 		       mysql->server_status, mysql->warning_count));
     if (pos < mysql->net.read_pos+length && net_field_length(&pos))
       mysql->info=(char*) pos;
+#if defined(CLIENT_PROTOCOL_TRACING)
+    if (mysql->server_status & SERVER_MORE_RESULTS_EXISTS)
+      MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+    else
+      MYSQL_TRACE_STAGE(mysql, READY_FOR_COMMAND);
+#endif
     DBUG_RETURN(0);
   }
 #ifdef MYSQL_CLIENT
   if (field_count == NULL_LENGTH)		/* LOAD DATA LOCAL INFILE */
   {
     int error;
+
+    MYSQL_TRACE_STAGE(mysql, FILE_REQUEST);
 
     if (!(mysql->options.client_flag & CLIENT_LOCAL_FILES))
     {
@@ -4055,6 +4263,9 @@ get_info:
     }   
 
     error= handle_local_infile(mysql,(char*) pos);
+
+    MYSQL_TRACE_STAGE(mysql, WAIT_FOR_RESULT);
+
     if ((length= cli_safe_read(mysql)) == packet_error || error)
       DBUG_RETURN(1);
     goto get_info;				/* Get info packet */
@@ -4062,6 +4273,8 @@ get_info:
 #endif
   if (!(mysql->server_status & SERVER_STATUS_AUTOCOMMIT))
     mysql->server_status|= SERVER_STATUS_IN_TRANS;
+
+  MYSQL_TRACE_STAGE(mysql, WAIT_FOR_FIELD_DEF);
 
   if (!(fields=cli_read_rows(mysql,(MYSQL_FIELD*)0, protocol_41(mysql) ? 7:5)))
     DBUG_RETURN(1);
@@ -4071,6 +4284,9 @@ get_info:
     DBUG_RETURN(1);
   mysql->status= MYSQL_STATUS_GET_RESULT;
   mysql->field_count= (uint) field_count;
+
+  MYSQL_TRACE_STAGE(mysql, WAIT_FOR_ROW);
+
   DBUG_PRINT("exit",("ok"));
   DBUG_RETURN(0);
 }
@@ -4764,3 +4980,5 @@ static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   return res ? CR_ERROR : CR_OK;
 }
+
+

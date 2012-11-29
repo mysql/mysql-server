@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -37,6 +37,10 @@
 #include "errmsg.h"
 #include <mysql/client_plugin.h>
 
+#if defined(CLIENT_PROTOCOL_TRACING)
+#include <mysql/plugin_trace.h>
+#endif
+
 struct st_client_plugin_int {
   struct st_client_plugin_int *next;
   void   *dlhandle;
@@ -51,7 +55,8 @@ static uint plugin_version[MYSQL_CLIENT_MAX_PLUGINS]=
 {
   0, /* these two are taken by Connector/C */
   0, /* these two are taken by Connector/C */
-  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION
+  MYSQL_CLIENT_AUTHENTICATION_PLUGIN_INTERFACE_VERSION,
+  MYSQL_CLIENT_TRACE_PLUGIN_INTERFACE_VERSION,
 };
 
 /*
@@ -143,6 +148,20 @@ add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
     goto err1;
   }
 
+#if defined(CLIENT_PROTOCOL_TRACING) && !defined(MYSQL_SERVER)
+  /*
+    If we try to load a protocol trace plugin but one is already
+    loaded (global trace_plugin pointer is not NULL) then we ignore
+    the new trace plugin and give error. This is done before the
+    new plugin gets initialized.
+  */
+  if (plugin->type == MYSQL_CLIENT_TRACE_PLUGIN && NULL != trace_plugin)
+  {
+    errmsg= "Can not load another trace plugin while one is already loaded";
+    goto err1;
+  }
+#endif
+
   /* Call the plugin initialization function, if any */
   if (plugin->init && plugin->init(errbuf, sizeof(errbuf), argc, args))
   {
@@ -164,6 +183,19 @@ add_plugin(MYSQL *mysql, struct st_mysql_client_plugin *plugin, void *dlhandle,
   p->next= plugin_list[plugin->type];
   plugin_list[plugin->type]= p;
   net_clear_error(&mysql->net);
+
+#if defined(CLIENT_PROTOCOL_TRACING) && !defined(MYSQL_SERVER)
+  /*
+    If loaded plugin is a protocol trace one, then set the global
+    trace_plugin pointer to point at it. When trace_plugin is not NULL,
+    each new connection will be traced using the plugin pointed by it
+    (see MYSQL_TRACE_STAGE() macro in libmysql/mysql_trace.h).
+  */
+  if (plugin->type == MYSQL_CLIENT_TRACE_PLUGIN)
+  {
+    trace_plugin = (struct st_mysql_client_plugin_TRACE*)plugin;
+  }
+#endif
 
   return plugin;
 
@@ -218,6 +250,7 @@ static void load_env_plugins(MYSQL *mysql)
   my_free(free_env);
 
 }
+
 
 /********** extern functions to be used by libmysql *********************/
 
@@ -285,6 +318,7 @@ void mysql_client_plugin_deinit()
   free_root(&mem_root, MYF(0));
   mysql_mutex_destroy(&LOCK_load_client_plugin);
 }
+
 
 /************* public facing functions, for client consumption *********/
 
