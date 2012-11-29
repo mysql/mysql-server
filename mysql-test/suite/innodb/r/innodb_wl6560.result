@@ -240,8 +240,6 @@ select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
 "testing creation of tablepsace by enabling error path"
 --innodb-force-recovery-crash=100
-1
-1
 "restarting server in normal mode"
 # files in MYSQL_DATA_DIR
 ibtmp1
@@ -258,7 +256,6 @@ Tables_in_test
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
 ERROR HY000: Table 't1' is read only
 "testing system and temp tablespace name conflict"
-1
 "restarting server in normal mode"
 use test;
 show tables;
