@@ -671,12 +671,12 @@ private:
 #endif
 #if TOKU_INCLUDE_UPSERT
 private:
-    int fast_update(THD *thd, List<Item> &fields, List<Item> &values, Item *conds);
-    bool check_fast_update(THD *thd, List<Item> &fields, List<Item> &values, Item *conds);
-    int send_update_message(List<Item> &fields, List<Item> &values, Item *conds, DB_TXN *txn);
-    int upsert(THD *thd, uchar *record, List<Item> &update_fields, List<Item> &update_values);
+    int fast_update(THD *thd, List<Item> &update_fields, List<Item> &update_values, Item *conds);
+    bool check_fast_update(THD *thd, List<Item> &update_fields, List<Item> &update_values, Item *conds);
+    int send_update_message(List<Item> &update_fields, List<Item> &update_values, Item *conds, DB_TXN *txn);
+    int upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values);
     bool check_upsert(THD *thd, List<Item> &update_fields, List<Item> &update_values);
-    int send_upsert_message(THD *thd, uchar *record, List<Item> &update_fields, List<Item> &update_values, DB_TXN *txn);
+    int send_upsert_message(THD *thd, List<Item> &update_fields, List<Item> &update_values, DB_TXN *txn);
 #endif
 };
 
