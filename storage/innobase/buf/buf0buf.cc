@@ -2698,17 +2698,29 @@ wait_until_unfixed:
 
 		buf_page_free_descriptor(bpage);
 
-		/* Decompress the page and apply buffered operations
-		while not holding buf_pool->mutex or block->mutex. */
+		/* Decompress the page while not holding
+		buf_pool->mutex or block->mutex. */
 
 		/* Page checksum verification is already done when
 		the page is read from disk. Hence page checksum
-		verification is not necesary when decompressing the page. */
+		verification is not necessary when decompressing the page. */
 		ut_a(buf_zip_decompress(block, FALSE));
 
 		if (UNIV_LIKELY(!recv_no_ibuf_operations)) {
-			ibuf_merge_or_delete_for_page(block, space, offset,
-						      zip_size, TRUE);
+			unsigned	accessed;
+
+			mutex_enter(&block->mutex);
+			accessed = buf_page_is_accessed(&block->page);
+			mutex_exit(&block->mutex);
+
+			if (accessed) {
+#ifdef UNIV_IBUF_COUNT_DEBUG
+				ut_a(ibuf_count_get(space, offset) == 0);
+#endif /* UNIV_IBUF_COUNT_DEBUG */
+			} else {
+				ibuf_merge_or_delete_for_page(
+					block, space, offset, zip_size, TRUE);
+			}
 		}
 
 		/* Unfix and unlatch the block. */
