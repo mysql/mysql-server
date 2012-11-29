@@ -1160,7 +1160,9 @@ public:
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
   my_bool m_needs_reopen;
+private:
   bool created; /* For tmp tables. TRUE <=> tmp table has been instantiated.*/
+public:
   uint max_keys; /* Size of allocated key_info array. */
 
   REGINFO reginfo;			/* field connections */
@@ -1227,24 +1229,50 @@ public:
   bool add_tmp_key(Field_map *key_parts, char *key_name);
   void use_index(int key_to_save);
 
-  inline void set_keyread(bool flag)
+  void set_keyread(bool flag)
   {
     DBUG_ASSERT(file);
     if (flag && !key_read)
     {
       key_read= 1;
-      file->extra(HA_EXTRA_KEYREAD);
+      if (is_created())
+        file->extra(HA_EXTRA_KEYREAD);
     }
     else if (!flag && key_read)
     {
       key_read= 0;
-      file->extra(HA_EXTRA_NO_KEYREAD);
+      if (is_created())
+        file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
 
   bool update_const_key_parts(Item *conds);
 
   bool check_read_removal(uint index);
+
+  /// Return true if table is instantiated, and false otherwise.
+  bool is_created() const { return created; }
+
+  /**
+    Set the table as "created", and enable flags in storage engine
+    that could not be enabled without an instantiated table.
+  */
+  void set_created()
+  {
+    if (created)
+      return;
+    if (key_read)
+      file->extra(HA_EXTRA_KEYREAD);
+    created= true;
+  }
+  /**
+    Set the contents of table to be "deleted", ie "not created", after having
+    deleted the contents.
+  */
+  void set_deleted()
+  {
+    created= false;
+  }
 };
 
 
