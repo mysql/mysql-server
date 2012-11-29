@@ -99,6 +99,14 @@ void Dblqh::initData()
   c_lcpFragWatchdog.block = this;
   c_lcpFragWatchdog.reset();
   c_lcpFragWatchdog.thread_active = false;
+
+  c_keyOverloads           = 0;
+  c_keyOverloadsTcNode     = 0;
+  c_keyOverloadsReaderApi  = 0;
+  c_keyOverloadsPeerNode   = 0;
+  c_keyOverloadsSubscriber = 0;
+  c_scanSlowDowns          = 0;
+
 }//Dblqh::initData()
 
 void Dblqh::initRecords() 
