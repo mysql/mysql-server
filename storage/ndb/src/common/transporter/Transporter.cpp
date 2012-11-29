@@ -45,6 +45,8 @@ Transporter::Transporter(TransporterRegistry &t_reg,
     m_packer(_signalId, _checksum), m_max_send_buffer(max_send_buffer),
     m_overload_limit(0xFFFFFFFF), m_slowdown_limit(0xFFFFFFFF),
     m_bytes_sent(0), m_bytes_received(0),
+    m_connect_count(0),
+    m_overload_count(0), m_slowdown_count(0),
     isMgmConnection(_isMgmConnection),
     m_connected(false),
     m_type(_type),
@@ -148,6 +150,9 @@ Transporter::connect_server(NDB_SOCKET_TYPE sockfd,
     msg.assfmt("line: %u : connect_server_impl failed", __LINE__);
     DBUG_RETURN(false);
   }
+
+  m_connect_count++;
+  resetCounters();
 
   m_connected  = true;
 
@@ -275,6 +280,9 @@ Transporter::connect_client(NDB_SOCKET_TYPE sockfd) {
   if (!connect_client_impl(sockfd))
     DBUG_RETURN(false);
 
+  m_connect_count++;
+  resetCounters();
+
   m_connected = true;
 
   DBUG_RETURN(true);
@@ -287,9 +295,15 @@ Transporter::doDisconnect() {
     return;
 
   m_connected = false;
-  m_bytes_sent = 0;
-  m_bytes_received = 0;
 
   disconnectImpl();
 }
 
+void
+Transporter::resetCounters()
+{
+  m_bytes_sent = 0;
+  m_bytes_received = 0;
+  m_overload_count = 0;
+  m_slowdown_count = 0;
+};
