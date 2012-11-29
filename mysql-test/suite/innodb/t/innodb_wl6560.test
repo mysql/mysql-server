@@ -155,8 +155,8 @@ select * from t1;
 --echo --innodb-force-recovery-crash=100
 --error 3
 --exec $MYSQLD_CMD $crash=100
---exec grep "InnoDB: Creating shared tablespace for temporary tables" $SEARCH_FILE | wc -l
---exec grep "innodb_force_recovery_crash=" $SEARCH_FILE | wc -l
+let SEARCH_PATTERN = InnoDB: Creating shared tablespace for temporary tables;
+--source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 #
 --echo "restarting server in normal mode"
@@ -199,7 +199,8 @@ create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb
 --echo "testing system and temp tablespace name conflict"
 --error 1
 --exec $MYSQLD_CMD $nameconflicts
---exec grep "system shared and system temp tablespace file name seems to be same" $SEARCH_FILE | wc -l
+let SEARCH_PATTERN = system shared and system temp tablespace file name seems to be same;
+--source ./include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --echo "restarting server in normal mode"
 --source include/start_mysqld.inc
