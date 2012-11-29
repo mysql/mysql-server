@@ -17,6 +17,10 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
+#include <vector>
+
+#include "handler-t.h"
+#include "fake_table.h"
 #include "test_utils.h"
 
 #include "opt_range.cc"
@@ -24,35 +28,191 @@
 namespace {
 
 using my_testing::Server_initializer;
+using my_testing::delete_container_pointers;
+using ::testing::Return;
+using ::testing::NiceMock;
+using ::testing::_;
+
+class Fake_RANGE_OPT_PARAM : public RANGE_OPT_PARAM
+{
+  KEY_PART m_key_parts[64];
+  Mem_root_array<KEY_PART_INFO, true> m_kpis;
+  
+public:
+
+  Fake_RANGE_OPT_PARAM(THD *thd_arg, MEM_ROOT *alloc_arg, TABLE *table_arg)
+    : m_kpis(alloc_arg)
+  {
+    m_kpis.reserve(64);
+
+    thd= thd_arg;
+    mem_root= alloc_arg;
+    current_table= 1<<0;
+    table= table_arg;
+
+    alloced_sel_args= 0;
+    using_real_indexes= true;
+    key_parts= m_key_parts;
+    key_parts_end= m_key_parts;
+    keys= 0;
+  }
+
+  void add_key(List<Field> fields_in_index)
+  {
+    List_iterator<Field> it(fields_in_index);
+    int cur_kp= 0;
+
+    table->key_info[keys].actual_key_parts= 0;
+    for (Field *cur_field= it++; cur_field; cur_field= it++, cur_kp++)
+    {
+      KEY_PART_INFO *kpi= m_kpis.end();  // Points past the end.
+      m_kpis.push_back(KEY_PART_INFO()); // kpi now points to a new element
+      kpi->init_from_field(cur_field);
+
+      key_parts_end->key=          keys;
+      key_parts_end->part=         cur_kp;
+      key_parts_end->length=       kpi->store_length;
+      key_parts_end->store_length= kpi->store_length;
+      key_parts_end->field=        kpi->field;
+      key_parts_end->null_bit=     kpi->null_bit;
+      key_parts_end->image_type =  Field::itRAW;
+
+      key_parts_end++;
+      table->key_info[keys].key_part[cur_kp]= *kpi;
+      table->key_info[keys].actual_key_parts++;
+    }
+    table->key_info[keys].user_defined_key_parts=
+      table->key_info[keys].actual_key_parts;
+    real_keynr[keys]= keys;
+    keys++;
+  }
+
+  ~Fake_RANGE_OPT_PARAM()
+  {
+    for (uint i= 0; i < keys; i++)
+    {
+      table->key_info[i].actual_key_parts= 0;
+      table->key_info[i].user_defined_key_parts= 0;
+    }
+  }
+
+};
+
+class Mock_field_long : public Field_long
+{
+private:
+  Fake_TABLE *m_fake_tbl;
+
+public:
+  Mock_field_long(THD *thd, Item *item, const char *name, bool create_table)
+    : Field_long(0,                           // ptr_arg
+                 8,                           // len_arg
+                 NULL,                        // null_ptr_arg
+                 0,                           // null_bit_arg
+                 Field::NONE,                 // unireg_check_arg
+                 name ? name : "field_name",  // field_name_arg
+                 false,                       // zero_arg
+                 false)                       // unsigned_arg
+  {
+    if (create_table)
+      m_fake_tbl= new Fake_TABLE(this);
+    else
+      m_fake_tbl= NULL;
+
+    this->ptr= (uchar*) alloc_root((thd->mem_root), KEY_LENGTH);
+    if (item)
+      item->save_in_field_no_warnings(this, true);
+  }
+
+  ~Mock_field_long()
+  {
+    delete m_fake_tbl;
+    m_fake_tbl= NULL;
+  }
+
+  // #bytes to store the value - see Field_long::key_lenght()
+  static const int KEY_LENGTH= 4;
+};
+
 
 class SelArgTest : public ::testing::Test
 {
 protected:
-  SelArgTest()
+  SelArgTest() : m_ftable(NULL), m_opt_param(NULL), m_mock_handler(NULL)
   {
-    memset(&m_opt_param, 0, sizeof(m_opt_param));
   }
 
   virtual void SetUp()
   {
     initializer.SetUp();
-    m_opt_param.thd= thd();
-    m_opt_param.mem_root= &m_alloc;
-    m_opt_param.current_table= 1<<0;
     init_sql_alloc(&m_alloc, thd()->variables.range_alloc_block_size, 0);
   }
 
   virtual void TearDown()
   {
+    delete_container_pointers(m_table_fields);
+    delete m_mock_handler;
+    delete m_opt_param;
+    delete m_ftable;
+
     initializer.TearDown();
     free_root(&m_alloc, MYF(0));
   }
 
   THD *thd() { return initializer.thd(); }
 
+  void create_table(List<char*> field_names_arg)
+  {
+    List_iterator<char*> fld_name_it(field_names_arg);
+    for (char **cur_name= fld_name_it++; *cur_name; cur_name= fld_name_it++)
+      m_field_list.push_back(new Mock_field_long(thd(), NULL,
+                                                 *cur_name, false));
+
+    create_table_common();
+  }
+
+  void create_table(const char *field_name)
+  {
+    m_field_list.push_back(new Mock_field_long(thd(), NULL,
+                                               field_name, false));
+    create_table_common();
+  }
+
+  void create_table(const char *field_name1, const char *field_name2)
+  {
+    m_field_list.push_back(new Mock_field_long(thd(), NULL,
+                                               field_name1, false));
+    m_field_list.push_back(new Mock_field_long(thd(), NULL,
+                                               field_name2, false));
+    create_table_common();
+  }
+
   Server_initializer initializer;
   MEM_ROOT           m_alloc;
-  RANGE_OPT_PARAM    m_opt_param;
+  
+  List<Field> m_field_list;
+  Fake_TABLE *m_ftable;
+  Fake_RANGE_OPT_PARAM *m_opt_param;
+  Mock_HANDLER *m_mock_handler;
+  std::vector<Mock_field_long*> m_table_fields;
+
+private:
+  void create_table_common()
+  {
+    m_ftable= new Fake_TABLE(m_field_list);
+    m_opt_param= new Fake_RANGE_OPT_PARAM(thd(), &m_alloc, m_ftable);
+    handlerton *hton= NULL;
+    m_mock_handler=
+      new NiceMock<Mock_HANDLER>(hton, m_ftable->get_share());
+    m_ftable->set_handler(m_mock_handler);
+
+    List_iterator<Field> it(m_field_list);
+    for (Field *cur_field= it++; cur_field; cur_field= it++)
+      m_table_fields.push_back(static_cast<Mock_field_long*>(cur_field));
+
+    ON_CALL(*m_mock_handler, index_flags(_, _, true))
+      .WillByDefault(Return(HA_READ_RANGE));
+  }
 };
 
 /*
@@ -91,64 +251,6 @@ const SEL_TREE *null_tree= NULL;
 const SEL_ARG  *null_arg= NULL;
 
 
-class Mock_field_long : public Field_long
-{
-public:
-  Mock_field_long(THD *thd, Item *item)
-    : Field_long(0,                             // ptr_arg
-                 8,                             // len_arg
-                 NULL,                          // null_ptr_arg
-                 0,                             // null_bit_arg
-                 Field::NONE,                   // unireg_check_arg
-                 "field_name",                  // field_name_arg
-                 false,                         // zero_arg
-                 false)                         // unsigned_arg
-  {
-    m_table_name= "mock_table";
-    memset(&m_share, 0, sizeof(m_share));
-    const char *foo= "mock_db";
-    m_share.db.str= const_cast<char*>(foo);
-    m_share.db.length= strlen(m_share.db.str);
-
-    bitmap_init(&share_allset, 0, sizeof(my_bitmap_map), 0);
-    bitmap_set_above(&share_allset, 0, 1); //all bits 1
-    m_share.all_set= share_allset;
-
-    memset(&m_table, 0, sizeof(m_table));
-    m_table.s= &m_share;
-
-    bitmap_init(&tbl_readset, 0, sizeof(my_bitmap_map), 0);
-    m_table.read_set= &tbl_readset;
-
-    bitmap_init(&tbl_writeset, 0, sizeof(my_bitmap_map), 0);
-    m_table.write_set= &tbl_writeset;
-
-    m_table.map= 1<<0;
-    m_table.in_use= thd;
-    this->table_name= &m_table_name;
-    this->table= &m_table;
-    this->ptr= (uchar*) alloc_root((thd->mem_root), KEY_LENGTH);
-    if (item)
-      item->save_in_field_no_warnings(this, true);      
-  }
-  ~Mock_field_long()
-  {
-    bitmap_free(&share_allset);
-    bitmap_free(&tbl_readset);
-    bitmap_free(&tbl_writeset);
-  }
-
-  // #bytes to store the value - see Field_long::key_lenght()
-  static const int KEY_LENGTH= 4;
-  const char *m_table_name;
-  TABLE_SHARE m_share;
-  TABLE       m_table;
-  MY_BITMAP   share_allset;
-  MY_BITMAP   tbl_readset;
-  MY_BITMAP   tbl_writeset;
-};
-
-
 static void print_selarg_ranges(String *s, SEL_ARG *sel_arg, 
                                 const KEY_PART_INFO *kpi)
 {
@@ -170,30 +272,216 @@ static void print_selarg_ranges(String *s, SEL_ARG *sel_arg,
 
 TEST_F(SelArgTest, SimpleCond)
 {
-  EXPECT_NE(null_tree, get_mm_tree(&m_opt_param, new Item_int(42)));
+  Fake_RANGE_OPT_PARAM opt_param(thd(), &m_alloc, NULL);
+  EXPECT_NE(null_tree, get_mm_tree(&opt_param, new Item_int(42)));
 }
 
 
 /*
-  TODO: Here we try to build a range, but a lot of mocking remains
-  before it works as intended. Currently get_mm_tree() returns NULL
-  because m_opt_param.key_parts and m_opt_param.key_parts_end have not
-  been setup. 
+  Exercise range optimizer without adding indexes
 */
-TEST_F(SelArgTest, EqualCond)
+TEST_F(SelArgTest, EqualCondNoIndexes)
 {
-  Mock_field_long field_long(thd(), NULL);
-  m_opt_param.table= &field_long.m_table;
-  SEL_TREE *tree= get_mm_tree(&m_opt_param,
+  Mock_field_long field_long(thd(), NULL, NULL, true);
+  Fake_RANGE_OPT_PARAM opt_param(thd(), &m_alloc, field_long.table);
+  SEL_TREE *tree= get_mm_tree(&opt_param,
                               new Item_equal(new Item_int(42),
                                              new Item_field(&field_long)));
   EXPECT_EQ(null_tree, tree);
 }
 
 
+/*
+  Exercise range optimizer with single column index
+*/
+TEST_F(SelArgTest, GetMMTreeSingleColIndex)
+{
+  create_table(NULL);
+
+  Mock_field_long *field_long= m_table_fields[0];
+
+  List<Field> index_list;
+  index_list.push_back(field_long);
+  m_opt_param->add_key(index_list);
+
+  char buff[512];
+  String range_string(buff, sizeof(buff), system_charset_info);
+  range_string.set_charset(system_charset_info);
+
+  // Expected result of next test:
+  const char expected[]= "result keys[0]: (42 <= field_name <= 42)";
+  SEL_TREE *tree= get_mm_tree(m_opt_param,
+                              new Item_equal(new Item_int(42),
+                                             new Item_field(field_long)));
+  range_string.length(0);
+  print_tree(&range_string, "result", tree, m_opt_param);
+  EXPECT_STREQ(expected, range_string.c_ptr());
+
+
+  // Expected result of next test:
+  const char expected2[]=
+    "result keys[0]: (42 <= field_name <= 42) OR (43 <= field_name <= 43)";
+  tree= get_mm_tree(m_opt_param,
+                    new Item_cond_or(new Item_equal(new Item_int(42),
+                                                    new Item_field(field_long)),
+                                     new Item_equal(new Item_int(43),
+                                                    new Item_field(field_long)))
+                    );
+  range_string.length(0);
+  print_tree(&range_string, "result", tree, m_opt_param);
+  EXPECT_STREQ(expected2, range_string.c_ptr());
+
+
+  // Expected result of next test:
+  const char expected3[]=
+    "result keys[0]: "
+    "(1 <= field_name <= 1) OR (2 <= field_name <= 2) OR "
+    "(3 <= field_name <= 3) OR (4 <= field_name <= 4) OR "
+    "(5 <= field_name <= 5) OR (6 <= field_name <= 6) OR "
+    "(7 <= field_name <= 7) OR (8 <= field_name <= 8)";
+  List<Item> or_list1;
+  or_list1.push_back(new Item_equal(new Item_int(1),
+                                    new Item_field(field_long)));
+  or_list1.push_back(new Item_equal(new Item_int(2),
+                                    new Item_field(field_long)));
+  or_list1.push_back(new Item_equal(new Item_int(3),
+                                    new Item_field(field_long)));
+  or_list1.push_back(new Item_equal(new Item_int(4),
+                                    new Item_field(field_long)));
+  or_list1.push_back(new Item_equal(new Item_int(5),
+                                    new Item_field(field_long)));
+  or_list1.push_back(new Item_equal(new Item_int(6),
+                                    new Item_field(field_long)));
+  or_list1.push_back(new Item_equal(new Item_int(7),
+                                    new Item_field(field_long)));
+  or_list1.push_back(new Item_equal(new Item_int(8),
+                                    new Item_field(field_long)));
+  tree= get_mm_tree(m_opt_param, new Item_cond_or(or_list1));
+  range_string.length(0);
+  print_tree(&range_string, "result", tree, m_opt_param);
+  EXPECT_STREQ(expected3, range_string.c_ptr());
+
+
+  // Expected result of next test:
+  const char expected4[]= "result keys[0]: (7 <= field_name <= 7)";
+  Item_equal *eq7= new Item_equal(new Item_int(7),
+                                  new Item_field(field_long));
+  tree= get_mm_tree(m_opt_param,
+                    new Item_cond_and(new Item_cond_or(or_list1), eq7));
+  range_string.length(0);
+  print_tree(&range_string, "result", tree, m_opt_param);
+  EXPECT_STREQ(expected4, range_string.c_ptr());
+
+
+  // Expected result of next test:
+  const char expected5[]=
+    "result keys[0]: "
+    "(1 <= field_name <= 1) OR (3 <= field_name <= 3) OR "
+    "(5 <= field_name <= 5) OR (7 <= field_name <= 7)";
+  List<Item> or_list2;
+  or_list2.push_back(new Item_equal(new Item_int(1),
+                                    new Item_field(field_long)));
+  or_list2.push_back(new Item_equal(new Item_int(3),
+                                    new Item_field(field_long)));
+  or_list2.push_back(new Item_equal(new Item_int(5),
+                                    new Item_field(field_long)));
+  or_list2.push_back(new Item_equal(new Item_int(7),
+                                    new Item_field(field_long)));
+  or_list2.push_back(new Item_equal(new Item_int(9),
+                                    new Item_field(field_long)));
+  tree= get_mm_tree(m_opt_param,
+                    new Item_cond_and(new Item_cond_or(or_list1),
+                                      new Item_cond_or(or_list2)));
+  range_string.length(0);
+  print_tree(&range_string, "result", tree, m_opt_param);
+  EXPECT_STREQ(expected5, range_string.c_ptr());
+}
+
+
+/*
+  Exercise range optimizer with multiple column index
+*/
+TEST_F(SelArgTest, GetMMTreeMultipleSingleColIndex)
+{
+  create_table(NULL);
+
+  Mock_field_long *field_long= m_table_fields[0];
+
+  List<Field> index_list;
+  index_list.push_back(field_long);
+  m_opt_param->add_key(index_list);
+  m_opt_param->add_key(index_list);
+
+  char buff[512];
+  String range_string(buff, sizeof(buff), system_charset_info);
+  range_string.set_charset(system_charset_info);
+
+  // Expected result of next test:
+  const char expected[]= 
+    "result keys[0]: (42 <= field_name <= 42)\n"
+    "result keys[1]: (42 <= field_name <= 42)";
+  SEL_TREE *tree= get_mm_tree(m_opt_param,
+                              new Item_equal(new Item_int(42),
+                                             new Item_field(field_long)));
+  range_string.length(0);
+  print_tree(&range_string, "result", tree, m_opt_param);
+  EXPECT_STREQ(expected, range_string.c_ptr());
+}
+
+
+/*
+  Exercise range optimizer with multiple single column indexes
+*/
+TEST_F(SelArgTest, GetMMTreeSingleMultiColIndex)
+{
+  create_table("field_1", "field_2");
+
+  Mock_field_long *field_long1= m_table_fields[0];
+  Mock_field_long *field_long2= m_table_fields[1];
+
+  List<Field> index_list;
+  index_list.push_back(field_long1);
+  index_list.push_back(field_long2);
+  m_opt_param->add_key(index_list);
+
+  char buff[512];
+  String range_string(buff, sizeof(buff), system_charset_info);
+  range_string.set_charset(system_charset_info);
+
+  // Expected result of next test:
+  const char expected[]= "result keys[0]: (42 <= field_1 <= 42)";
+  SEL_TREE *tree= get_mm_tree(m_opt_param,
+                              new Item_equal(new Item_int(42),
+                                             new Item_field(field_long1)));
+  range_string.length(0);
+  print_tree(&range_string, "result", tree, m_opt_param);
+  EXPECT_STREQ(expected, range_string.c_ptr());
+
+
+  // Expected result of next test:
+  const char expected3[]= "result keys[0]: "
+    "(42 <= field_1 <= 42 AND 10 <= field_2 <= 10)";
+
+  tree= get_mm_tree(m_opt_param,
+                    new
+                    Item_cond_and(new Item_equal(new Item_int(42),
+                                                 new Item_field(field_long1)),
+                                  new Item_equal(new Item_int(10),
+                                                 new Item_field(field_long2)))
+                    );
+
+  range_string.length(0);
+  print_tree(&range_string, "result", tree, m_opt_param);
+  EXPECT_STREQ(expected3, range_string.c_ptr());
+}
+
+
+/*
+  Create SelArg with various single valued predicate
+*/
 TEST_F(SelArgTest, SelArgOnevalue)
 {
-  Mock_field_long field_long7(thd(), new Item_int(7));
+  Mock_field_long field_long7(thd(), new Item_int(7), NULL, true);
 
   KEY_PART_INFO kpi;
   kpi.init_from_field(&field_long7);
@@ -234,10 +522,13 @@ TEST_F(SelArgTest, SelArgOnevalue)
 }
 
 
+/*
+  Create SelArg with a between predicate
+*/
 TEST_F(SelArgTest, SelArgBetween)
 {
-  Mock_field_long field_long3(thd(), new Item_int(3));
-  Mock_field_long field_long5(thd(), new Item_int(5));
+  Mock_field_long field_long3(thd(), new Item_int(3), NULL, true);
+  Mock_field_long field_long5(thd(), new Item_int(5), NULL, true);
 
   KEY_PART_INFO kpi;
   kpi.init_from_field(&field_long3);
@@ -288,10 +579,13 @@ TEST_F(SelArgTest, SelArgBetween)
   EXPECT_STREQ(expected6, range_string.c_ptr());
 }
 
+/*
+  Test SelArg::CopyMax
+*/
 TEST_F(SelArgTest, CopyMax)
 {
-  Mock_field_long field_long3(thd(), new Item_int(3));
-  Mock_field_long field_long5(thd(), new Item_int(5));
+  Mock_field_long field_long3(thd(), new Item_int(3), NULL, true);
+  Mock_field_long field_long5(thd(), new Item_int(5), NULL, true);
 
   KEY_PART_INFO kpi;
   kpi.init_from_field(&field_long3);
@@ -358,10 +652,13 @@ TEST_F(SelArgTest, CopyMax)
   EXPECT_STREQ(expected5, range_string.c_ptr());
 }
 
+/*
+  Test SelArg::CopyMin
+*/
 TEST_F(SelArgTest, CopyMin)
 {
-  Mock_field_long field_long3(thd(), new Item_int(3));
-  Mock_field_long field_long5(thd(), new Item_int(5));
+  Mock_field_long field_long3(thd(), new Item_int(3), NULL, true);
+  Mock_field_long field_long5(thd(), new Item_int(5), NULL, true);
 
   KEY_PART_INFO kpi;
   kpi.init_from_field(&field_long3);
@@ -429,10 +726,13 @@ TEST_F(SelArgTest, CopyMin)
 }
 
 
+/*
+  Test SelArg::KeyOr
+*/
 TEST_F(SelArgTest, KeyOr1)
 {
-  Mock_field_long field_long3(thd(), new Item_int(3));
-  Mock_field_long field_long4(thd(), new Item_int(4));
+  Mock_field_long field_long3(thd(), new Item_int(3), NULL, true);
+  Mock_field_long field_long4(thd(), new Item_int(4), NULL, true);
 
   KEY_PART_INFO kpi;
   kpi.init_from_field(&field_long3);

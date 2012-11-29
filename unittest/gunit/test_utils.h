@@ -23,6 +23,18 @@
 
 namespace my_testing {
 
+template<typename Container_type>
+void delete_container_pointers(Container_type &container)
+{
+  typename Container_type::iterator it1= container.begin();
+  typename Container_type::iterator it2= container.end();
+  for (; it1 != it2; ++it1)
+  {
+    delete (*it1);
+  }
+  container.clear();
+}
+
 void setup_server_for_unit_tests();
 void teardown_server_for_unit_tests();
 
