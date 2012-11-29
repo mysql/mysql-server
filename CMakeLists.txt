@@ -254,6 +254,28 @@ OPTION(OPTIMIZER_TRACE "Support tracing of Optimizer" ON)
 OPTION(INNODB_COMPILER_HINTS "Compile InnoDB with compiler hints" ON)
 MARK_AS_ADVANCED(INNODB_COMPILER_HINTS)
 
+#
+# Options related to client-side protocol tracing
+#
+
+OPTION(WITH_CLIENT_PROTOCOL_TRACING
+  "Support for client-side protocol tracing plugins" ON)
+OPTION(WITH_TEST_TRACE_PLUGIN
+  "Have a built-in test protocol trace plugin in libmysql (requires WITH_CLIENT_PROTOCOL_TRACING option)" OFF)
+
+# Sanity checks for protocol tracing options
+
+IF(WITH_TEST_TRACE_PLUGIN AND NOT WITH_CLIENT_PROTOCOL_TRACING)
+MESSAGE("WARNING: Test trace plugin was selected but client protocol tracing infrastructure is not enabled - ignoring")
+SET(WITH_TEST_TRACE_PLUGIN 0)
+ENDIF()
+
+IF(WITH_TEST_TRACE_PLUGIN AND NOT CMAKE_BUILD_TYPE MATCHES "Debug")
+  MESSAGE(SEND_ERROR 
+          "Test trace plugin was selected but it can be included only in debug binaries.
+          Set WITH_TEST_TRACE_PLUGIN to OFF or WITH_DEBUG to ON.")
+ENDIF()
+
 # Set DBUG_OFF and other optional release-only flags for non-debug project types
 FOREACH(BUILD_TYPE RELEASE RELWITHDEBINFO MINSIZEREL)
   FOREACH(LANG C CXX)
