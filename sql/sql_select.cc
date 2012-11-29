@@ -761,7 +761,7 @@ void JOIN::reset()
     for (uint tmp= primary_tables; tmp < primary_tables + tmp_tables; tmp++)
     {
       TABLE *tmp_table= join_tab[tmp].table;
-      if (!tmp_table->created)
+      if (!tmp_table->is_created())
         continue;
       tmp_table->file->extra(HA_EXTRA_RESET_STATE);
       tmp_table->file->ha_delete_all_rows();
@@ -1492,20 +1492,18 @@ bool JOIN::set_access_methods()
     if (tab->type == JT_CONST || tab->type == JT_SYSTEM)
       continue;                      // Handled in make_join_statistics()
 
-    DBUG_ASSERT(tab->match_tab == NULL);
-    tab->match_tab= NULL;  //non-nulls will be set later
-    tab->ref.key = -1;
-    tab->ref.key_parts=0;
-
-    Key_use *keyuse;
-    if (tab->keys.is_clear_all() ||
-        !(keyuse= tab->position->key) || 
-        tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)
+    Key_use *const keyuse= tab->position->key;
+    if (!keyuse)
     {
-      tab->type= JT_ALL; // @todo is this consistent for a LooseScan table ?
-      tab->index= tab->position->loosescan_key;
+      tab->type= JT_ALL;
       if (tableno > const_tables)
        full_join= true;
+     }
+    else if (tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)
+    {
+      DBUG_ASSERT(tab->keys.is_set(tab->position->loosescan_key));
+      tab->type= JT_ALL; // @todo is this consistent for a LooseScan table ?
+      tab->index= tab->position->loosescan_key;
      }
     else
     {
@@ -1605,6 +1603,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   TABLE *const table= j->table;
   KEY   *const keyinfo= table->key_info+key;
   Key_use *chosen_keyuses[MAX_REF_PARTS];
+
+  DBUG_ASSERT(j->keys.is_set(org_keyuse->key));
 
   if (ftkey)
   {
@@ -2812,7 +2812,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         tab[-1].next_select= sub_select_op;
 
       if (table->covering_keys.is_set(tab->ref.key) &&
-	  !table->no_keyread)
+          !table->no_keyread)
         table->set_keyread(TRUE);
       else
         push_index_cond(tab, tab->ref.key, icp_other_tables_ok,
@@ -2867,12 +2867,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	}
 	if (!table->no_keyread)
 	{
-	  if (tab->select && tab->select->quick &&
+          if (tab->select && tab->select->quick &&
               tab->select->quick->index != MAX_KEY && //not index_merge
-	      table->covering_keys.is_set(tab->select->quick->index))
+              table->covering_keys.is_set(tab->select->quick->index))
             table->set_keyread(TRUE);
-	  else if (!table->covering_keys.is_clear_all() &&
-		   !(tab->select && tab->select->quick))
+          else if (!table->covering_keys.is_clear_all() &&
+                   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
 	    /*
             It has turned out that the below change, while speeding things
@@ -2995,7 +2995,7 @@ void JOIN_TAB::cleanup()
   filesort= NULL;
   /* Skip non-existing derived tables/views result tables */
   if (table &&
-      (table->s->tmp_table != INTERNAL_TMP_TABLE || table->created))
+      (table->s->tmp_table != INTERNAL_TMP_TABLE || table->is_created()))
   {
     table->set_keyread(FALSE);
     table->file->ha_index_or_rnd_end();
@@ -3201,7 +3201,7 @@ void JOIN::cleanup(bool full)
       {
         if (!tab->table)
           continue;
-	if (tab->table->created)
+	if (tab->table->is_created())
         {
           tab->table->file->ha_index_or_rnd_end();
           if (tab->op &&

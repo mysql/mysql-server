@@ -482,15 +482,14 @@ JOIN::optimize()
     conds=new Item_int((longlong) 0,1);	// Always false
   }
 
+  drop_unused_derived_keys();
+
   if (set_access_methods())
   {
     error= 1;
     DBUG_PRINT("error",("Error from set_access_methods"));
     DBUG_RETURN(1);
   }
-
-  // We need all derived keys until access methods have been set.
-  drop_unused_derived_keys();
 
   // Update table dependencies after assigning ref access fields
   update_depend_map(this);
@@ -4826,7 +4825,7 @@ add_key_field(Key_field **key_fields,uint and_level, Item_func *cond,
   uint exists_optimize= 0;
   TABLE_LIST *table= field->table->pos_in_table_list;
   if (!table->derived_keys_ready && table->uses_materialization() &&
-      !field->table->created &&
+      !field->table->is_created() &&
       table->update_derived_keys(field, value, num_values))
     return;
   if (!(field->flags & PART_KEY_FLAG))
@@ -7076,7 +7075,7 @@ bool JOIN::generate_derived_keys()
   {
     table->derived_keys_ready= TRUE;
     /* Process tables that aren't materialized yet. */
-    if (table->uses_materialization() && !table->table->created &&
+    if (table->uses_materialization() && !table->table->is_created() &&
         table->generate_keys())
       return TRUE;
   }
@@ -7105,20 +7104,30 @@ void JOIN::drop_unused_derived_keys()
      1) it's a materialized derived table
      2) it's not yet instantiated
      3) some keys are defined for it
-     4) only one key defined and it's not chosen (this is used when there is
-        only one defined key and we need to leave it as is if it's used or
-        ignore it otherwise).
     */
     if (table &&
         table->pos_in_table_list->uses_materialization() &&     // (1)
-        !table->created &&                                       // (2)
-        (table->max_keys > 1 ||                                 // (3)
-        (table->max_keys == 1 && tab->ref.key < 0)))            // (4)
+        !table->is_created() &&                                 // (2)
+        table->max_keys > 0)                                    // (3)
     {
-      table->use_index(tab->ref.key);
-      /* Now there is only 1 index, point to it. */
-      if (tab->ref.key > 0)
-        tab->ref.key= 0;
+      Key_use *keyuse= tab->position->key;
+
+      table->use_index(keyuse ? keyuse->key : -1);
+
+      tab->keys.clear_all();
+      if (!keyuse)
+        continue;
+
+      /*
+        Update the selected "keyuse" to point to key number 0.
+        Notice that unused keyuse entries still point to the deleted
+        candidate keys. tab->keys should reference key object no. 0 as well.
+      */
+      tab->keys.set_bit(0);
+
+      const uint oldkey= keyuse->key;
+      for (; keyuse->table == table && keyuse->key == oldkey; keyuse++)
+        keyuse->key= 0;
     }
   }
 }
