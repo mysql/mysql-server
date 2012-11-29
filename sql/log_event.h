@@ -825,8 +825,8 @@ typedef struct st_print_event_info
   /* Indicate if the body cache has unflushed events */
   bool have_unflushed_events;
 
-  /* 
-     True if an event was skipped while printing the events of 
+  /*
+     True if an event was skipped while printing the events of
      a transaction and no COMMIT statement or XID event was ever
      output (ie, was filtered out as well). This can be triggered
      by the --database option of mysqlbinlog.
