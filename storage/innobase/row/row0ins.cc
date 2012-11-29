@@ -3220,6 +3220,9 @@ row_ins_step(
 
 		err = lock_table(0, node->table, LOCK_IX, thr);
 
+		DBUG_EXECUTE_IF("ib_row_ins_ix_lock_wait",
+				err = DB_LOCK_WAIT;);
+
 		if (err != DB_SUCCESS) {
 
 			goto error_handling;
