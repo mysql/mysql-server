@@ -72,6 +72,7 @@ public:
   }
 
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
 
   void test_store_string(const char *store_value, const int length,
                          const char *expected_string_result,
@@ -87,6 +88,7 @@ public:
     Mock_error_handler error_handler(table->in_use, expected_error_no);
     type_conversion_status err= store(store_value, length, &my_charset_latin1);
     val_str(&str, &unused);
+  
     EXPECT_STREQ(expected_string_result, str.ptr());
     EXPECT_EQ(expected_int_result, val_int());
     EXPECT_EQ(expected_real_result, val_real());
@@ -106,6 +108,7 @@ TEST_F(FieldNewDecimalTest, StoreLegalStringValues)
   Fake_TABLE table(&field_dec);
   table.in_use= thd();
   field_dec.make_writable();
+  field_dec.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   {
@@ -128,6 +131,7 @@ TEST_F(FieldNewDecimalTest, StoreIllegalStringValues)
   Fake_TABLE table(&field_dec);
   table.in_use= thd();
   field_dec.make_writable();
+  field_dec.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   // Truncated (precision beyond 3 decimals is lost)
@@ -206,6 +210,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckLegalValues)
   Fake_TABLE table(&field_dec);
   table.in_use= thd();
   field_dec.make_writable();
+  field_dec.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   my_decimal d10_01;
@@ -261,6 +266,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckOutOfRange)
   Fake_TABLE table(&field_dec);
   table.in_use= thd();
   field_dec.make_writable();
+  field_dec.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   my_decimal dTooHigh;
@@ -300,6 +306,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecOverflow)
   Fake_TABLE table(&field_dec);
   table.in_use= thd();
   field_dec.make_writable();
+  field_dec.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   my_decimal d10_01;
@@ -370,6 +377,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckEDecTrunkated)
   Fake_TABLE table(&field_dec);
   table.in_use= thd();
   field_dec.make_writable();
+  field_dec.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   my_decimal d10_01;
@@ -438,6 +446,7 @@ TEST_F(FieldNewDecimalTest, storeInternalWithErrorCheckRestOfParams)
   Fake_TABLE table(&field_dec);
   table.in_use= thd();
   field_dec.make_writable();
+  field_dec.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   my_decimal d10_01;
