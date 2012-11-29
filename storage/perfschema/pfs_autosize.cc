@@ -54,6 +54,7 @@ static const ulong file_per_share= 3;
 static const ulong socket_per_share= 0;
 static const ulong thread_per_share= 0;
 
+/** Performance schema sizing heuristics. */
 struct PFS_sizing_data
 {
   /** Default value for @c PFS_param.m_account_sizing. */

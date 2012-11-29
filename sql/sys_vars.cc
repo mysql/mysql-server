@@ -3222,8 +3222,8 @@ static Sys_var_bit Sys_log_off(
   This function sets the session variable thd->variables.sql_log_bin 
   to reflect changes to @@session.sql_log_bin.
 
-  @param[IN] self   A pointer to the sys_var, i.e. Sys_log_binlog.
-  @param[IN] type   The type either session or global.
+  @param[in] self   A pointer to the sys_var, i.e. Sys_log_binlog.
+  @param[in] type   The type either session or global.
 
   @return @c FALSE.
 */
@@ -3247,8 +3247,8 @@ static bool fix_sql_log_bin_after_update(sys_var *self, THD *thd,
     - the set is not called from within a function/trigger;
     - there is no on-going transaction.
 
-  @param[IN] self   A pointer to the sys_var, i.e. Sys_log_binlog.
-  @param[IN] var    A pointer to the set_var created by the parser.
+  @param[in] self   A pointer to the sys_var, i.e. Sys_log_binlog.
+  @param[in] var    A pointer to the set_var created by the parser.
 
   @return @c FALSE if the change is allowed, otherwise @c TRUE.
 */
