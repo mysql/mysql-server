@@ -76,7 +76,7 @@ connection default;
 DELETE FROM t1 WHERE c1 = 7;
 connection con1;
 # ADD FOREIGN KEY is not supported in-place
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 ADD FOREIGN KEY(c2) REFERENCES t1(c2), ALGORITHM = INPLACE;
 # The previous DEBUG_SYNC should be ignored, because an exclusive lock
 # has been requested and the online log is not being allocated.
