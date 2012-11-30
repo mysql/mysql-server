@@ -1786,26 +1786,14 @@ wait_until_unfixed:
 
 		buf_page_free_descriptor(bpage);
 
-		/* Decompress the page while not holding
-		buf_pool_mutex or block->mutex. */
+		/* Decompress the page and apply buffered operations
+		while not holding buf_pool_mutex or block->mutex. */
 		success = buf_zip_decompress(block, srv_use_checksums);
 		ut_a(success);
 
 		if (UNIV_LIKELY(!recv_no_ibuf_operations)) {
-			unsigned	accessed;
-
-			mutex_enter(&block->mutex);
-			accessed = buf_page_is_accessed(&block->page);
-			mutex_exit(&block->mutex);
-
-			if (accessed) {
-#ifdef UNIV_IBUF_COUNT_DEBUG
-				ut_a(ibuf_count_get(space, offset) == 0);
-#endif /* UNIV_IBUF_COUNT_DEBUG */
-			} else {
-				ibuf_merge_or_delete_for_page(
-					block, space, offset, zip_size, TRUE);
-			}
+			ibuf_merge_or_delete_for_page(block, space, offset,
+						      zip_size, TRUE);
 		}
 
 		/* Unfix and unlatch the block. */
