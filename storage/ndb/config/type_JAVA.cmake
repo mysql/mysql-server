@@ -16,6 +16,8 @@
 INCLUDE(libutils)
 INCLUDE(cmake_parse_arguments)
 
+SET(JAVAC_TARGET "1.6")
+
 # Build (if not already done) NDB version string used for generating jars etc.
 MACRO(SET_JAVA_NDB_VERSION)
 
@@ -145,15 +147,15 @@ MACRO(CREATE_JAR)
     MESSAGE(STATUS "enhancing ${TARGET}.jar")
     SET(ENHANCER org.apache.openjpa.enhance.PCEnhancer)
     ADD_CUSTOM_COMMAND( TARGET ${TARGET}.jar PRE_BUILD
-      COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
-      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}
+      COMMAND echo \"${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
+      COMMAND ${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}
       COMMAND echo \"${JAVA_RUNTIME} -classpath ${classpath_str}${separator}${WITH_CLASSPATH} ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}\"
       COMMAND ${JAVA_RUNTIME} -classpath "${classpath_str}${separator}${WITH_CLASSPATH}" ${ENHANCER} -p ${ARG_ENHANCE} -d ${TARGET_DIR}
     )
   ELSE()
     ADD_CUSTOM_COMMAND( TARGET ${TARGET}.jar PRE_BUILD
-      COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
-      COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
+      COMMAND echo \"${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
+      COMMAND ${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
     )
   ENDIF()
 
