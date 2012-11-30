@@ -109,8 +109,8 @@ EXTRA_DIST = \
 classclusterj_core.stamp: $(clusterj_core_java)
 	mkdir -p $(JAVAROOT)
 	if test -n "$?"; then \
-	  echo '$(CLASSPATH_ENV) $(JAVAC) -target $(JAVAC_TARGET) -d $(JAVAROOT) $(AM_JAVACFLAGS) $(JAVACFLAGS) $?' ; \
-	  $(CLASSPATH_ENV) $(JAVAC) -target $(JAVAC_TARGET) -d $(JAVAROOT) \
+	  echo '$(CLASSPATH_ENV) $(JAVAC) -target $(JAVAC_TARGET) -source $(JAVAC_TARGET) -d $(JAVAROOT) $(AM_JAVACFLAGS) $(JAVACFLAGS) $?' ; \
+	  $(CLASSPATH_ENV) $(JAVAC) -target $(JAVAC_TARGET) -source $(JAVAC_TARGET) -d $(JAVAROOT) \
 	    $(AM_JAVACFLAGS) $(JAVACFLAGS) $?; \
 	fi
 	echo timestamp > classclusterj_core.stamp
