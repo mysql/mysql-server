@@ -1187,6 +1187,7 @@ do_partial_fetch(
     assert(!p->dirty);
 
     pair_lock(p);
+    invariant(p->value_rwlock.writers());
     nb_mutex_lock(&p->disk_nb_mutex, p->mutex);
     pair_unlock(p);
     int r = pf_callback(p->value_data, p->disk_data, read_extraargs, cachefile->fd, &new_attr);
