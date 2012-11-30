@@ -127,7 +127,7 @@ run_test (void) {
 
         DB_BTREE_STAT64 s;
         r = db->stat64(db, NULL, &s); CKERR(r);
-        assert(s.bt_nkeys == 2 && s.bt_dsize == sizeof key + sizeof val);
+        assert(s.bt_nkeys == 1 && s.bt_dsize == sizeof key + sizeof val);
 
         r = db->close(db, 0);     CKERR(r);
 
