@@ -88,5 +88,70 @@ t5.run = function() {
   });
 };
 
+var t11 = new harness.SerialTest("testPersistNoArgument");
+t11.run = function() {
+  var testCase = this;
+  fail_openSession(testCase, function(session) {
+    try {
+      session.persist();
+      testCase.fail('Persist with no argument must fail.');
+    } catch(err) {
+      testCase.pass();
+    }
+  });
+};
+
+var t12 = new harness.SerialTest("testRemoveNoArgument");
+t12.run = function() {
+  var testCase = this;
+  fail_openSession(testCase, function(session) {
+    try {
+      session.remove();
+      testCase.fail('Remove with illenogal argument must fail.');
+    } catch(err) {
+      testCase.pass();
+    }
+  });
+};
+
+var t13 = new harness.SerialTest("testSaveNoArgument");
+t13.run = function() {
+  var testCase = this;
+  fail_openSession(testCase, function(session) {
+    try {
+      session.save();
+      testCase.fail('Save with no argument must fail.');
+    } catch(err) {
+      testCase.pass();
+    }
+  });
+};
+
+var t14 = new harness.SerialTest("testUpdateNoArgument");
+t14.run = function() {
+  var testCase = this;
+  fail_openSession(testCase, function(session) {
+    try {
+      session.update();
+      testCase.fail('Update with no argument must fail.');
+    } catch(err) {
+      testCase.pass();
+    }
+  });
+};
+
+var t15 = new harness.SerialTest("testFindNoArgument");
+t15.run = function() {
+  var testCase = this;
+  fail_openSession(testCase, function(session) {
+    try {
+      session.find();
+      testCase.fail('Find with no argument must fail.');
+    } catch(err) {
+      testCase.pass();
+    }
+  });
+};
+
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports.tests = [t1, t2, t3, t4, t5];
+module.exports.tests = [t1, t2, t3, t4, t5, t11, t12, t13, t14, t15];
