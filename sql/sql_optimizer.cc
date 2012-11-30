@@ -625,7 +625,8 @@ JOIN::optimize()
       skip_sort_order=
         test_if_skip_sort_order(tab, order, m_select_limit,
                                 true,           // no_changes
-                                &tab->table->keys_in_use_for_order_by);
+                                &tab->table->keys_in_use_for_order_by,
+                                "ORDER BY");
     }
     ORDER *o;
     if ((o= create_distinct_group(thd, ref_ptrs,
@@ -637,7 +638,8 @@ JOIN::optimize()
         skip_sort_order &&
         test_if_skip_sort_order(tab, group_list, m_select_limit,
                                 true,         // no_changes
-                                &tab->table->keys_in_use_for_group_by);
+                                &tab->table->keys_in_use_for_group_by,
+                                "GROUP BY");
       count_field_types(select_lex, &tmp_table_param, all_fields, 0);
       if ((skip_group && all_order_fields_used) ||
 	  m_select_limit == HA_POS_ERROR ||
@@ -945,7 +947,8 @@ JOIN::optimize()
           const ha_rows limit = need_tmp ? HA_POS_ERROR : m_select_limit;
 
           if (test_if_skip_sort_order(tab, group_list, limit, false, 
-                                      &tab->table->keys_in_use_for_group_by))
+                                      &tab->table->keys_in_use_for_group_by,
+                                      "GROUP BY"))
           {
             ordered_index_usage= ordered_index_group_by;
           }
@@ -972,7 +975,8 @@ JOIN::optimize()
              (simple_order || skip_sort_order)) // which is possibly skippable
     {
       if (test_if_skip_sort_order(tab, order, m_select_limit, false, 
-                                  &tab->table->keys_in_use_for_order_by))
+                                  &tab->table->keys_in_use_for_order_by,
+                                  "ORDER BY"))
       {
         ordered_index_usage= ordered_index_order_by;
       }
@@ -8815,7 +8819,10 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   if (join_tab->select)
   {
     if (join_tab->select->cond)
+    {
       error=(int) cond->add(join_tab->select->cond);
+      cond->update_used_tables();
+    }
     join_tab->set_jt_and_sel_condition(cond, __LINE__);
   }
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
