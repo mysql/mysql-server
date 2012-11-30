@@ -6961,6 +6961,45 @@ ER_GTID_EXECUTED_WAS_CHANGED
 ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
   eng "Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT, and both replicated and non replicated tables are written to."
 
+ER_ALTER_OPERATION_NOT_SUPPORTED 0A000
+  eng "%s is not supported for this operation. Try %s."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON 0A000
+  eng "%s is not supported. Reason: %s. Try %s."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COPY
+  eng "COPY algorithm requires a lock"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_PARTITION
+  eng "Partition specific operations do not yet support LOCK/ALGORITHM"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME
+  eng "Columns participating in a foreign key are renamed"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE
+  eng "Cannot change column type INPLACE"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_CHECK
+  eng "Adding foreign keys needs foreign_key_checks=OFF"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_IGNORE
+  eng "Creating unique indexes with IGNORE requires COPY algorithm to remove duplicate rows"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOPK
+  eng "Dropping a primary key is not allowed without also adding a new primary key"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_AUTOINC
+  eng "Adding an auto-increment column requires a lock"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_HIDDEN_FTS
+  eng "Cannot replace hidden FTS_DOC_ID with a user-visible one"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS
+  eng "Cannot drop or rename FTS_DOC_ID"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS
+  eng "Fulltext index creation requires a lock"
+
 #
 #  End of 5.6 error messages.
 #
