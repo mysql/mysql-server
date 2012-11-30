@@ -14,7 +14,7 @@
 
 -- source include/master-slave.inc
 -- source include/have_binlog_format_mixed_or_statement.inc
--- source include/not_mts_slave_parallel_workers.inc
+-- source include/only_mts_slave_parallel_workers.inc
 
 -- source extra/rpl_tests/rpl_show_relaylog_events.inc
 --source include/rpl_end.inc
