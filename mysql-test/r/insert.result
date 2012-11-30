@@ -577,10 +577,10 @@ DROP TABLE t1;
 CREATE TABLE t1( a INT );
 INSERT DELAYED INTO t1 VALUES ( 1 );
 Warnings:
-Warning	1850	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
+Warning	1863	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
 REPLACE DELAYED INTO t1 VALUES ( 1 );
 Warnings:
-Warning	1850	REPLACE DELAYED is no longer supported. The statement was converted to REPLACE.
+Warning	1863	REPLACE DELAYED is no longer supported. The statement was converted to REPLACE.
 DROP TABLE t1;
 SET GLOBAL delayed_insert_limit = DEFAULT;
 Warnings:
