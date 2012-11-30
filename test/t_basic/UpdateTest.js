@@ -18,16 +18,21 @@
  02110-1301  USA
  */
 
+var udebug = unified_debug.getLogger("t_basic/UpdateTest.js");
+
 /***** Update ***/
 var t1 = new harness.ConcurrentTest("testUpdate");
 t1.run = function() {
   var testCase = this;
-  // load the domain object 4020
+  // load the domain object 5020
   var object = new global.t_basic(5020, 'Employee 5020', 5020, 5020);
   var object2;
   fail_openSession(testCase, function(session) {
-    // persist object 4020
+    udebug.log("testUpdate OpenSession");
+    // persist object 5020
     session.persist(object, function(err, session2) {
+      udebug.log("testUpdate onPersist");
+      assert(session2 === session);
       if (err) {
         testCase.fail(err);
         return;
@@ -35,13 +40,16 @@ t1.run = function() {
       // now update the object with the same primary key but different magic
       object2 = new global.t_basic(5020, 'Employee 5020', 5020, 5029);
       session2.update(object2, function(err, session3) {
+        udebug.log("testUpdate onUpdate");
         if (err) {
           testCase.fail(err);
           return;
         }
+        assert(session3 === session2);
         session3.find('t_basic', 5020, function(err, object3) {
+          udebug.log("testUpdate onVerify");
           // verify that object3 has updated magic field from object2
-          testCase.errorIfNotEqual('testSaveUpdate mismatch on magic', 5029, object3.magic);
+          testCase.errorIfNotEqual('testUpdate mismatch on magic', 5029, object3.magic);
           testCase.failOnError();
         });
       }, session2);
@@ -210,3 +218,4 @@ t6.run = function() {
 };
 
 module.exports.tests = [t1, t2, t3, t4, t5, t6];
+
