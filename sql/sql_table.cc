@@ -6418,6 +6418,12 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
     goto rollback;
 
+  /*
+    If we are killed after this point, we should ignore and continue.
+    We have mostly completed the operation at this point, there should
+    be no long waits left.
+  */
+
   DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
       table->file->ha_commit_inplace_alter_table(altered_table,
                                                  ha_alter_info,
