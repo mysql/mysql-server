@@ -8,20 +8,6 @@
  * The mynode implementation will not ever define a property called "user".
  */
 
-  /** Get mappings for a table or class. 
-   * The result is a javascript
-   * object that has the same form as the parameter for Annotations mapClass.
-   * The parameter may be a table name, a mapped constructor function, or
-   * a domain object. 
-   * @param table the table name or constructor of a mapped class
-   * @param callback function to be called when mapping has been resolved, with parameters:
-   *   err: the node.js Error object
-   *   mapping: the mapping for the parameter
-   * @throws Error if the parameter is not an object, string, or function
-   * @return undefined
-   */
-  getMapping(Object domainObjectTableNameOrConstructor, Function(Object err, Object mapping [,...]) callback[,...]);
-
   /** Find a specific instance based on primary or unique key value.
    * The constructor parameter is the constructor function of a mapped domain object.
    * 
