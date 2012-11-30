@@ -7866,8 +7866,10 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
     If we updated it, we will have incorrect master coordinates and this
     could give false triggers in MASTER_POS_WAIT() that we have reached
     the target position when in fact we have not.
+    The group position is always unchanged in MTS mode because the event
+    is never executed so can't be scheduled to a Worker.
   */
-  if (thd->variables.option_bits & OPTION_BEGIN)
+  if ((thd->variables.option_bits & OPTION_BEGIN) || rli->is_parallel_exec())
     rli->inc_event_relay_log_pos();
   else
   {
