@@ -7275,7 +7275,10 @@ static bool fk_prepare_copy_alter_table(THD *thd, TABLE *table,
       DBUG_RETURN(true);
     }
     case FK_COLUMN_RENAMED:
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "ALGORITHM=COPY",
+               ER(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME),
+               "ALGORITHM=INPLACE");
       DBUG_RETURN(true);
     case FK_COLUMN_DROPPED:
     {
@@ -7338,7 +7341,10 @@ static bool fk_prepare_copy_alter_table(THD *thd, TABLE *table,
                f_key->foreign_id->str);
       DBUG_RETURN(true);
     case FK_COLUMN_RENAMED:
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "ALGORITHM=COPY",
+               ER(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME),
+               "ALGORITHM=INPLACE");
       DBUG_RETURN(true);
     case FK_COLUMN_DROPPED:
       my_error(ER_FK_COLUMN_CANNOT_DROP, MYF(0), bad_column_name,
@@ -7731,7 +7737,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_DEFAULT &&
         alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE)
     {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+               "LOCK=NONE/SHARED", "LOCK=EXCLUSIVE");
       DBUG_RETURN(true);
     }
     DBUG_RETURN(simple_rename_or_index_change(thd, table_list,
@@ -7769,14 +7776,24 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       ALGORITHM and LOCK clauses are generally not allowed by the
       parser for operations related to partitioning.
       The exceptions are ALTER_PARTITION and ALTER_REMOVE_PARTITIONING.
-      For consistency, we report ER_NOT_SUPPORTED_YET here.
+      For consistency, we report ER_ALTER_OPERATION_NOT_SUPPORTED here.
     */
     if (alter_info->requested_lock !=
-        Alter_info::ALTER_TABLE_LOCK_DEFAULT ||
-        alter_info->requested_algorithm !=
-        Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
+        Alter_info::ALTER_TABLE_LOCK_DEFAULT)
     {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "LOCK=NONE/SHARED/EXCLUSIVE",
+               ER(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_PARTITION),
+               "LOCK=DEFAULT");
+      DBUG_RETURN(true);
+    }
+    else if (alter_info->requested_algorithm !=
+             Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
+    {
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "ALGORITHM=COPY/INPLACE",
+               ER(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_PARTITION),
+               "ALGORITHM=DEFAULT");
       DBUG_RETURN(true);
     }
 
@@ -7822,7 +7839,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (alter_info->requested_algorithm ==
         Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
     {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+               "ALGORITHM=INPLACE", "ALGORITHM=COPY");
       DBUG_RETURN(true);
     }
     alter_info->requested_algorithm= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
@@ -8014,7 +8032,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                alter_info->requested_lock ==
                Alter_info::ALTER_TABLE_LOCK_SHARED)
       {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        ha_alter_info.report_unsupported_error("LOCK=NONE/SHARED",
+                                               "LOCK=EXCLUSIVE");
         close_temporary_table(thd, altered_table, true, false);
         goto err_new_table_cleanup;
       }
@@ -8025,7 +8044,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (alter_info->requested_lock ==
           Alter_info::ALTER_TABLE_LOCK_NONE)
       {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        ha_alter_info.report_unsupported_error("LOCK=NONE", "LOCK=SHARED");
         close_temporary_table(thd, altered_table, true, false);
         goto err_new_table_cleanup;
       }
@@ -8038,7 +8057,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (alter_info->requested_algorithm ==
           Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
       {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        ha_alter_info.report_unsupported_error("ALGORITHM=INPLACE",
+                                               "ALGORITHM=COPY");
+        close_temporary_table(thd, altered_table, true, false);
+        goto err_new_table_cleanup;
+      }
+      // COPY with LOCK=NONE is not supported, no point in trying.
+      if (alter_info->requested_lock ==
+          Alter_info::ALTER_TABLE_LOCK_NONE)
+      {
+        ha_alter_info.report_unsupported_error("LOCK=NONE", "LOCK=SHARED");
         close_temporary_table(thd, altered_table, true, false);
         goto err_new_table_cleanup;
       }
@@ -8081,7 +8109,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     // COPY algorithm doesn't work with concurrent writes.
     if (alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_NONE)
     {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "LOCK=NONE",
+               ER(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COPY),
+               "LOCK=SHARED");
       goto err_new_table_cleanup;
     }
 

@@ -1017,7 +1017,7 @@ fulltext key (`a`), fulltext key (`a`)
 Warnings:
 Warning	1831	Duplicate index 'a_2' defined on the table 'test.t21'. This is deprecated and will be disallowed in a future release.
 ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE'
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
 ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
 DROP TABLE t21;
 CREATE TABLE `t21` (`a` text, `b` int not null,
