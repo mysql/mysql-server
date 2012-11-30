@@ -261,6 +261,11 @@ HASH tokudb_open_tables;
 pthread_mutex_t tokudb_mutex;
 pthread_mutex_t tokudb_meta_mutex;
 
+static PARTITIONED_COUNTER tokudb_primary_key_bytes_inserted;
+void toku_hton_update_primary_key_bytes_inserted(uint64_t row_size) {
+    increment_partitioned_counter(tokudb_primary_key_bytes_inserted, row_size);
+}
+
 static ulonglong tokudb_lock_timeout;
 static ulong tokudb_cleaner_period;
 static ulong tokudb_cleaner_iterations;
@@ -564,6 +569,8 @@ static int tokudb_init_func(void *p) {
             goto error;
         }
     }
+
+    tokudb_primary_key_bytes_inserted = create_partitioned_counter();
 
     //3938: succeeded, set the init status flag and unlock
     tokudb_hton_initialized = 1;
@@ -1425,7 +1432,10 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
                 break;                
             }
             STATPRINT(mystat[row].legend, buf);
-        }  
+        }
+        uint64_t bytes_inserted = read_partitioned_counter(tokudb_primary_key_bytes_inserted);
+        snprintf(buf, bufsiz, "%" PRIu64, bytes_inserted);
+        STATPRINT("handlerton: primary key bytes inserted", buf);
     }  
     if (error) { my_errno = error; }
     TOKUDB_DBUG_RETURN(error);
