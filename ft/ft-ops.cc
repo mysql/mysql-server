@@ -221,7 +221,7 @@ status_init(void)
     STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_PREFETCH,       PARCOUNT, "basements fetched for prefetch (bytes)");
     STATUS_INIT(FT_TOKUTIME_BASEMENTS_FETCHED_PREFETCH,    TOKUTIME, "basements fetched for prefetch (seconds)");
     STATUS_INIT(FT_NUM_BASEMENTS_FETCHED_WRITE,            PARCOUNT, "basements fetched for write");
-    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_WRITE,          PARCOUNT, "basements fetched for write (bytes");
+    STATUS_INIT(FT_BYTES_BASEMENTS_FETCHED_WRITE,          PARCOUNT, "basements fetched for write (bytes)");
     STATUS_INIT(FT_TOKUTIME_BASEMENTS_FETCHED_WRITE,       TOKUTIME, "basements fetched for write (seconds)");
     // Buffers: For queries, aggressive fetching in prelocked range, prefetching, or writing.
     STATUS_INIT(FT_NUM_MSG_BUFFER_FETCHED_NORMAL,          PARCOUNT, "buffers fetched as a target of a query");
