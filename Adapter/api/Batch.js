@@ -39,10 +39,6 @@ exports.Batch.prototype.getSession = function() {
 };
 
 
-exports.Batch.prototype.getMapping = function(tableNameOrConstructor) {
-  return this.session.getMapping(tableNameOrConstructor);
-};
-
 exports.Batch.prototype.clearError = new Error('Batch was cleared.');
 
 exports.Batch.prototype.clear = function() {
