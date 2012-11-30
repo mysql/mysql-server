@@ -529,7 +529,7 @@ int toku_serialize_ftnode_to_memory (FTNODE node,
                                       bool do_rebalancing,
                                       bool in_parallel,
                               /*out*/ size_t *n_bytes_to_write,
-                              /*out*/ size_t *n_uncompresed_bytes,
+                              /*out*/ size_t *n_uncompressed_bytes,
                               /*out*/ char  **bytes_to_write);
 int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT h, bool for_checkpoint);
 int toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized_log, bool is_serialized,
