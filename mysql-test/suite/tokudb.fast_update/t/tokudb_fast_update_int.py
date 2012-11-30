@@ -59,13 +59,13 @@ def test_int(t, u, n):
     print "update t set x=-x where id=1;"
 
     # yes, we can update a field in a non-existent row and the row is not inserted
-    print "update t set x=x+1 where id=1000000;"
+    print "update t set x=x+1 where id=100;"
     print "select * from t;"
 
     # range updates are not yet fast
     print "replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;"
     print "error ER_UNSUPPORTED_EXTENSION;"
-    print "update t set x=x+1 where 1 <= id and id < 1000;"
+    print "update t set x=x+1 where 1 <= id and id < 100;"
 
     # full table updates are not yet fast
     print "replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;"

@@ -46,13 +46,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -103,13 +103,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -160,13 +160,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -217,13 +217,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -274,13 +274,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -331,13 +331,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -388,13 +388,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -445,13 +445,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -502,13 +502,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -559,13 +559,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -616,13 +616,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -673,13 +673,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -730,13 +730,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -787,13 +787,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -844,13 +844,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -901,13 +901,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -958,13 +958,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -1015,13 +1015,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -1072,13 +1072,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
@@ -1129,13 +1129,13 @@ update t set x=1+x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=-x where id=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
-update t set x=x+1 where id=1000000;
+update t set x=x+1 where id=100;
 select * from t;
 id	x
 1	0
 2	100
 3	0
-update t set x=x+1 where 1 <= id and id < 1000;
+update t set x=x+1 where 1 <= id and id < 100;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 update t set x=x+1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
