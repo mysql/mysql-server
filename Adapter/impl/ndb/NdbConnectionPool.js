@@ -316,7 +316,7 @@ proto.listTables = function(databaseName, dbSession, user_callback) {
   var dictSession = dbSession || this.dict_sess; 
   var dictionaryCall;
 
-  if(pendingListTables[databaseName]) {
+  if(this.pendingListTables[databaseName]) {
     // This request is already running, so add our own callback to its list
     udebug.log("listTables", databaseName, "Adding request to pending group");
     this.pendingListTables[databaseName].push(user_callback);
