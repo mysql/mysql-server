@@ -4373,6 +4373,7 @@ Dblqh::checkTransporterOverloaded(Signal* signal,
                                   const NodeBitmask& all,
                                   const LqhKeyReq* req)
 {
+  /* FC : Quick exit if the mask is clear? */
   // nodes likely to be affected by this op
   NodeBitmask mask;
   // tc
@@ -4395,7 +4396,58 @@ Dblqh::checkTransporterOverloaded(Signal* signal,
     mask.bitOR(suma->getSubscriberNodes());
   }
   mask.bitAND(all);
-  return !mask.isclear();
+  if (likely(mask.isclear()))
+  {
+    return false;
+  }
+
+  jam();
+  /* Overloaded, do some accounting */
+  c_keyOverloads++;
+  
+  if (tc_node < MAX_NODES && all.get(tc_node))
+  {
+    jam();
+    c_keyOverloadsTcNode++;
+  }
+  
+  if (op == ZREAD || op == ZREAD_EX || op == ZUNLOCK) 
+  {
+    jam();
+    // the receiver
+    Uint32 api_node = refToNode(req->variableData[0]);
+    if ((api_node < MAX_NODES) && // not worth to crash here
+        (all.get(api_node)))
+    {
+      jam();
+      c_keyOverloadsReaderApi++;
+    }
+  } 
+  else 
+  {
+    jam();
+    // write    
+    // next replica
+    Uint32 replica_node = LqhKeyReq::getNextReplicaNodeId(req->fragmentData);
+    if ((replica_node < MAX_NODES) &&
+        (all.get(replica_node)))
+    {
+      jam();
+      c_keyOverloadsPeerNode++;
+    }
+    
+    // event subscribers
+    const Suma* suma = (Suma*)globalData.getBlock(SUMA);
+    NodeBitmask subscribers = suma->getSubscriberNodes();
+    subscribers.bitAND(all);
+    if (!subscribers.isclear())
+    {
+      jam();
+      c_keyOverloadsSubscriber++;
+    }
+  }
+  
+  return true;
 }
 
 void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
@@ -4494,9 +4546,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     {
       if (checkTransporterOverloaded(signal, all, lqhKeyReq))
       {
-        /**
-         * TODO: We should have counters for this...
-         */
+        /* Overloaded, reject new work */
         jam();
         releaseSections(handle);
         earlyKeyReqAbort(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
@@ -11419,9 +11469,10 @@ void Dblqh::scanTupkeyConfLab(Signal* signal)
       /**
        * End scan batch if transporter-buffer are in slowdown state
        *
-       * TODO: We should have counters for this...
        */
       scanptr.p->m_stop_batch = 1;
+      
+      c_scanSlowDowns++;
     }
   }
 
@@ -23821,7 +23872,13 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
   case Ndbinfo::COUNTERS_TABLEID:
   {
     Ndbinfo::counter_entry counters[] = {
-      { Ndbinfo::OPERATIONS_COUNTER, c_Counters.operations }
+      { Ndbinfo::OPERATIONS_COUNTER,              c_Counters.operations },
+      { Ndbinfo::LQHKEY_OVERLOAD,                 c_keyOverloads },
+      { Ndbinfo::LQHKEY_OVERLOAD_TC,              c_keyOverloadsTcNode },
+      { Ndbinfo::LQHKEY_OVERLOAD_READER,          c_keyOverloadsReaderApi },
+      { Ndbinfo::LQHKEY_OVERLOAD_NODE_PEER,       c_keyOverloadsPeerNode },
+      { Ndbinfo::LQHKEY_OVERLOAD_SUBSCRIBER,      c_keyOverloadsSubscriber },
+      { Ndbinfo::LQHSCAN_SLOWDOWN,                c_scanSlowDowns }
     };
     const size_t num_counters = sizeof(counters) / sizeof(counters[0]);
 
