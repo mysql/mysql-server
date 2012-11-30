@@ -30,6 +30,30 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     udebug         = unified_debug.getLogger("NdbSession.js"),
     NdbSession;
 
+
+/** 
+  Relationships between NdbSession and NdbTransactionHandler
+  ----------------------------------------------------------  
+  A session has a single transaction visible to the user at any time: 
+  NdbSession.tx, which is created in NdbSession.getTransactionHandler() 
+  and persists until the user calls commit or rollback (or the transaction
+  auto-commits), at which point NdbSession.tx is reset to null.
+
+  It also has some number of transactions that have been sent to Ndb and are in
+  progress. This number is limited by the transaction capacity of an Ndb object.
+  Currently we say this limit is 1, due to the single-threaded nature of an Ndb:
+  with two, the main JS thread and the eio worker thread might modify an Ndb at
+  the same time. The counter of these is NdbSession.openNdbTransactions; the 
+  limit is NdbSession.maxNdbTransactions.  The counter is incremented before 
+  each call to Ndb.getTransaction() and decremented after NdbTransaction.close().
+  
+  Finally, if the list of in-transit NdbTransactions is full and the user tries 
+  to execute an additional one, NdbSession must enqueue the current transaction 
+  rather than executing it. The next transaction to complete will check the 
+  queue.  The queue is NdbSession.txQueue.  
+*/
+
+
 /*** Methods exported by this module but not in the public DBSession SPI ***/
 
 
@@ -41,6 +65,9 @@ exports.newDBSession = function(pool, impl) {
   var dbSess = new NdbSession();
   dbSess.parentPool = pool;
   dbSess.impl = impl;
+  dbSess.dictQueue = [];
+  dbSess.maxNdbTransactions = 1;  
+  dbSess.txQueue = [];
   return dbSess;
 };
 
@@ -53,10 +80,65 @@ exports.getNdb = function(dbsession) {
 };
 
 
-/* txDidCommit() 
+/* txIsOpen(NdbTransactionHandler) 
+   txisClosed(NdbTransactionHandler) 
 */
-exports.txDidCommit = function(self, ndbTxHandler) {
+exports.txIsOpen = function(ndbTransactionHandler) {
+  var self = ndbTransactionHandler.dbSession;
+  self.openNdbTransactions += 1;
+  assert(self.openNdbTransactions <= self.maxNdbTransactions);
+};
+
+exports.txIsClosed = function(ndbTransactionHandler) {
+  var self = ndbTransactionHandler.dbSession;
+  assert(self.openNdbTransactions > 0);
+  self.openNdbTransactions -= 1;
+};
+
+
+/* closeActiveTransaction(NdbTransactionHandler) 
+*/
+exports.closeActiveTransaction = function(ndbTransactionHandler) {
+  var self = ndbTransactionHandler.dbSession;
   self.tx = null;
+};
+
+
+/* txCanRunImmediately(NdbTransactionHandler)
+*/
+exports.txCanRunImmediately = function(ndbTransactionHandler) {
+  var self = ndbTransactionHandler.dbSession;
+  return (self.openNdbTransactions < self.maxNdbTransactions);
+};
+
+
+/* enqueueTransaction() 
+*/
+exports.enqueueTransaction = function(ndbTransactionHandler, 
+                                      dbOperationList, callback) {
+  udebug.log("enqueueTransaction");
+  var self = ndbTransactionHandler.dbSession;
+
+  var queueItem = {
+    tx:              ndbTransactionHandler,
+    dbOperationList: dbOperationList,
+    callback:        callback
+  };
+    
+  self.txQueue.push(queueItem);
+};
+
+
+/* runQueuedTransaction()
+*/
+exports.runQueuedTransaction = function(ndbTransactionHandler) {
+  var self = ndbTransactionHandler.dbSession;
+  var item = self.txQueue.pop();
+  if(item) {
+    udebug.log("runQueuedTransaction popped a tx from queue - remaining",
+               self.txQueue.length);
+    item.tx.execute(item.dbOperationList, item.callback);
+  }  
 };
 
 
@@ -69,9 +151,12 @@ NdbSession = function() {
 /* NdbSession prototype 
 */
 NdbSession.prototype = {
-  impl           : null,
-  tx             : null,
-  parentPool     : null,
+  impl                : null,
+  tx                  : null,
+  parentPool          : null,
+  lock                : 0,
+  dictQueue           : null,
+  openNdbTransactions : 0
 };
 
 /*  getConnectionPool() 
@@ -199,7 +284,7 @@ NdbSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys,
 */
 NdbSession.prototype.getTransactionHandler = function() {
   udebug.log("getTransactionHandler");
-  if(this.tx && this.tx.open) {
+  if(this.tx) {
    udebug.log("getTransactionHandler -- return existing");
   }
   else {
@@ -229,15 +314,7 @@ NdbSession.prototype.begin = function() {
    Callback is optional; if supplied, will receive (err).
 */
 NdbSession.prototype.commit = function(userCallback) {
-  assert(this.tx.autocommit === false);
-  var self = this;
-  
-  function NdbSessionCommitCallback(a, b) {
-    udebug.log("NdbSessionCommitCallback");
-    self.tx = null;
-    if(userCallback) { userCallback(a, b); }
-  }
-  this.tx.commit(NdbSessionCommitCallback);
+  this.tx.commit(userCallback);
 };
 
 
@@ -248,14 +325,6 @@ NdbSession.prototype.commit = function(userCallback) {
    Callback is optional; if supplied, will receive (err).
 */
 NdbSession.prototype.rollback = function (userCallback) {
-  assert(this.tx.autocommit === false);
-  var self = this;
-
-  function NdbSessionRollbackCallback(a, b) {
-    udebug.log("NdbSessionRollbackCallback");
-    self.tx = null;
-    if(userCallback) { userCallback(a, b); }
-  }
-  this.tx.rollback(NdbSessionRollbackCallback);
+  this.tx.rollback(userCallback);
 };
 

@@ -38,7 +38,6 @@ function DBTransactionHandler(dbsession) {
   this.autocommit         = true;
   this.ndbtx              = null;
   this.state              = doc.DBTransactionStates[0];  // DEFINED
-  this.open               = true;
   this.executedOperations = [];
 }
 DBTransactionHandler.prototype = proto;
@@ -47,21 +46,23 @@ DBTransactionHandler.prototype = proto;
 /* Internal execute()
 */ 
 function execute(self, execMode, dbOperationList, callback) {
-  udebug.log("Internal execute");
-  var table = dbOperationList[0].tableHandler.dbTable;
 
   function onCompleteTx(err, result) {
     udebug.log("execute onCompleteTx", err);
     
-    // Update our own success and error objects
+    /* Update our own success and error objects */
     self.error = err;
     self.success = err ? false : true;
     
     /* If we just executed with Commit or Rollback, close the NdbTransaction */
     if(execMode === adapter.ndbapi.Commit || execMode === adapter.ndbapi.Rollback) {
-      self.open = false;
       self.ndbtx.close();
+      ndbsession.txIsClosed(self);
     }
+
+    /* NdbSession may have queued transactions waiting to execute;
+       send the next one on its way */
+    ndbsession.runQueuedTransaction(self);
 
     /* Attach results to their operations */
     ndboperation.completeExecutedOps(err, self.executedOperations);
@@ -88,24 +89,37 @@ function execute(self, execMode, dbOperationList, callback) {
   function onStartTx(err, ndbtx) {
     var op, helper;
     if(err) {
-      udebug.log("execute onStartTx [ERROR].");
+      ndbsession.txIsClosed(self);
+      udebug.log("execute onStartTx [ERROR].", err);
       if(callback) {
         callback(err, self);
       }
       return;
     }
 
-    self.ndbtx = ndbtx; 
+    self.ndbtx = ndbtx;
     self.state = doc.DBTransactionStates[1]; // STARTED
     udebug.log("execute onStartTx. TC node:", ndbtx.getConnectedNodeId(),
                "operations:",  dbOperationList.length);
     prepareOperationsAndExecute();    
   }
 
+  /* execute() starts here */
+  udebug.log("Internal execute");
+  var table = dbOperationList[0].tableHandler.dbTable;
+
   if(self.state === "DEFINED") {
-    // TODO: partitionKey
-    var ndb = adapter.impl.DBSession.getNdb(self.dbSession.impl);
-    ndb.startTransaction(table, 0, 0, onStartTx);  
+    if(ndbsession.txCanRunImmediately(self)) {
+      // TODO: partitionKey
+      // TODO: stat counter
+      var ndb = adapter.impl.DBSession.getNdb(self.dbSession.impl);
+      ndbsession.txIsOpen(self);
+      ndb.startTransaction(table, 0, 0, onStartTx); 
+    }
+    else {          // We cannot get an NdbTransaction right now; queue one
+      // TODO: stat counter
+      ndbsession.enqueueTransaction(self, dbOperationList, callback);
+    }
   }
   else {  /* Transaction has already been started */
     assert(self.ndbtx);
@@ -129,15 +143,21 @@ proto.execute = function(dbOperationList, userCallback) {
     udebug.log("execute onExecCommit");
 
     dbTxHandler.state = doc.DBTransactionStates[2]; // COMMITTED
-    ndbsession.txDidCommit(dbTxHandler.dbSession, dbTxHandler);
 
     if(userCallback) {
       userCallback(err, dbTxHandler);
     }
   }
+
+  if(! dbOperationList.length) {
+    udebug.log("execute STUB EXECUTE (no operation list)");
+    userCallback(null, this);
+    return;
+  }
   
   if(this.autocommit) {
     udebug.log(" -- AutoCommit");
+    ndbsession.closeActiveTransaction(this);
     execute(this, execMode, dbOperationList, onExecCommit);
   }
   else {
@@ -157,15 +177,35 @@ proto.executeNoCommit = proto.execute;
    Commit work.
 */
 proto.commit = function commit(userCallback) {
-  udebug.log("commit");
+  assert(this.autocommit === false);
   var self = this;
-  
+
   function onNdbCommit(err, result) {
-    // TODO: Update our own success and error objects
+    udebug.log("commit onNdbCommit");
+
+    if(self.ndbtx) {
+      self.ndbtx.close();
+    }
+
+    self.error = err;
+    self.success = err ? false : true;    
     self.state = doc.DBTransactionStates[2]; // COMMITTED
+    ndbsession.txIsClosed(self);
+
+    /* NdbSession may have queued transactions waiting to execute;
+       send the next one on its way */
+    ndbsession.runQueuedTransaction(self);
+
+    /* Attach results to their operations */
+    ndboperation.completeExecutedOps(err, self.executedOperations);
+
+    /* Next callback */
     userCallback(err, self);
   }
 
+  /* commit begins here */
+  udebug.log("commit");
+  ndbsession.closeActiveTransaction(this);
   if(self.ndbtx) {  
     self.ndbtx.execute(adapter.ndbapi.Commit, adapter.ndbapi.AbortOnError,
                        0, onNdbCommit);
@@ -183,15 +223,37 @@ proto.commit = function commit(userCallback) {
    Roll back all previously executed operations.
 */
 proto.rollback = function rollback(callback) {
-  udebug.log("rollback");
+  assert(this.autocommit === false);
   var self = this;
-  
+
+  ndbsession.closeActiveTransaction(this);
+
   function onNdbRollback(err, result) {
-    // TODO: Update our own success and error objects
+    udebug.log("rollback onNdbRollback");
+    
+    if(self.ndbtx) {
+      self.ndbtx.close();
+    }
+    
+    self.error = err;
+    self.success = err ? false : true;    
     self.state = doc.DBTransactionStates[3]; // ROLLEDBACK
+    ndbsession.txIsClosed(self);
+
+    /* NdbSession may have queued transactions waiting to execute;
+       send the next one on its way */
+    ndbsession.runQueuedTransaction(self);
+
+    // TODO: Should the operation callbacks run, and if so, with what arguments?
+    
+    /* Next callback */
     callback(err, self);
   }
-  
+
+  /* rollback begins here */
+  udebug.log("rollback");
+  ndbsession.closeActiveTransaction(this);
+
   if(self.ndbtx) {
     self.ndbtx.execute(adapter.ndbapi.Rollback, adapter.ndbapi.DefaultAbortOption,
                        0, onNdbRollback);
