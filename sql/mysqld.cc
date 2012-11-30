@@ -691,6 +691,7 @@ SHOW_COMP_OPTION have_profiling;
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
+mysql_mutex_t LOCK_thread_created;
 mysql_mutex_t LOCK_thread_count;
 mysql_mutex_t
   LOCK_status, LOCK_error_log, LOCK_uuid_generator,
@@ -1891,6 +1892,7 @@ static void wait_for_signal_thread_to_end()
 static void clean_up_mutexes()
 {
   mysql_rwlock_destroy(&LOCK_grant);
+  mysql_mutex_destroy(&LOCK_thread_created);
   mysql_mutex_destroy(&LOCK_thread_count);
   mysql_mutex_destroy(&LOCK_log_throttle_qni);
   mysql_mutex_destroy(&LOCK_status);
@@ -4120,6 +4122,7 @@ You should consider changing lower_case_table_names to 1 or 2",
 
 static int init_thread_environment()
 {
+  mysql_mutex_init(0, &LOCK_thread_created, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_insert,
@@ -5899,9 +5902,9 @@ static bool read_init_file(char *file_name)
 */
 void inc_thread_created(void)
 {
-  mysql_mutex_lock(&LOCK_status);
+  mysql_mutex_lock(&LOCK_thread_created);
   thread_created++;
-  mysql_mutex_unlock(&LOCK_status);
+  mysql_mutex_unlock(&LOCK_thread_created);
 }
 
 #ifndef EMBEDDED_LIBRARY
