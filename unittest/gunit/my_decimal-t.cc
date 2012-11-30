@@ -117,6 +117,34 @@ int chars_2_decimal(const char *chars, my_decimal *to)
 }
 
 
+TEST_F(DecimalTest, Multiply)
+{
+  const char arg1[]=
+    "000000001."
+    "10000000000000000000" "00000000000000000000" "00000000000000000000"
+    "000000000000";
+  const char arg2[]= "1.75";
+  char buff[DECIMAL_MAX_STR_LENGTH];
+  int bufsz;
+  my_decimal prod;
+
+  EXPECT_EQ(E_DEC_OK, chars_2_decimal(arg1, &d1));
+  EXPECT_EQ(E_DEC_OK, chars_2_decimal(arg2, &d2));
+
+  // Limit the precision, otherwise "1.75" will be truncated to "1."
+  set_if_smaller(d1.frac, NOT_FIXED_DEC);
+  set_if_smaller(d2.frac, NOT_FIXED_DEC);
+  EXPECT_EQ(0, my_decimal_mul(E_DEC_FATAL_ERROR & ~E_DEC_OVERFLOW,
+                              &prod, &d1, &d2));
+  EXPECT_EQ(NOT_FIXED_DEC, d1.frac);
+  EXPECT_EQ(2, d2.frac);
+  EXPECT_EQ(NOT_FIXED_DEC, prod.frac);
+  bufsz= sizeof(buff);
+  EXPECT_EQ(0, decimal2string(&prod, buff, &bufsz, 0, 0, 0));
+  EXPECT_STREQ("1.9250000000000000000000000000000", buff);
+}
+
+
 /*
   This is a simple iterative implementation based on addition and subtraction,
   for verifying the result of decimal_mod().

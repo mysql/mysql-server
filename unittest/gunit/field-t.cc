@@ -390,6 +390,7 @@ TEST_F(FieldTest, CopyFieldSet)
 
   Field_set *f_from= create_field_set(&tl4);
   bitmap_set_all(f_from->table->write_set);
+  bitmap_set_all(f_from->table->read_set);
   uchar from_fieldval= static_cast<uchar>(typeset);
   f_from->ptr= &from_fieldval;
 
