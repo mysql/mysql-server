@@ -52,9 +52,9 @@ exports.Session.prototype.listTables = function() {
   context.listTables();
 };
 
-exports.Session.prototype.getMapping = function(tableNameOrConstructor) {
-  udebug.log("getMapping");
-  return this.sessionFactory.getMapping(tableNameOrConstructor);
+exports.Session.prototype.getMapping = function() {
+  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  context.getMapping();
 };
 
 

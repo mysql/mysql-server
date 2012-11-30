@@ -13,14 +13,6 @@
    */
   mapClass(Object token_object, Object objectAnnotations, function(err[, ...]) callback[, ...]);
 
-  /** Get mappings for a table or class. 
-   * IMMEDIATE
-   * The result is a javascript
-   * object that has the same form as the parameter for Annotations mapClass.
-   * @param table the table name or object prototype of a mapped class
-   * @return a TableMapping object or null if the table is not mapped
-   */
-  getMapping(Object table);
 
   /*
    * 
