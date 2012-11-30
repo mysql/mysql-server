@@ -1,0 +1,31 @@
+# test that query planner selects range scan rather than full scan of the primary key
+# see ticket #5733
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+set default_storage_engine='tokudb';
+
+create table t (id bigint primary key, x bigint not null);
+
+let $i=0;
+let $n=10000;
+while ($i < $n) {
+      eval insert into t values ($i,0);
+      inc $i;
+}
+
+explain select id from t where id>0 limit 10;
+explain select * from t where id>0 limit 10;
+
+explain select id from t where id>1000 limit 10;
+explain select * from t where id>1000 limit 10;
+
+explain select id from t where id>5000 limit 10;
+explain select * from t where id>5000 limit 10;
+
+explain select id from t where id>6000 limit 10;
+explain select * from t where id>6000 limit 10;
+
+drop table t;
