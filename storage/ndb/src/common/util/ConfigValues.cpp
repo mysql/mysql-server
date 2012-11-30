@@ -580,8 +580,9 @@ Uint32
 ConfigValues::getPackedSize() const {
 
   Uint32 size = 0;
+  Uint32 const* values = m_values;
   for(Uint32 i = 0; i < 2 * m_size; i += 2){
-    Uint32 key = m_values[i];
+    Uint32 key = values[i];
     if(key != CFV_KEY_FREE){
       switch(::getTypeOf(key)){
       case IntType:
@@ -593,7 +594,7 @@ ConfigValues::getPackedSize() const {
 	break;
       case StringType:
 	size += 8; // key + len
-	size += mod4((unsigned)strlen(* getString(m_values[i+1])) + 1);
+        size += mod4((unsigned)strlen(* getString(values[i+1])) + 1);
 	break;
       case InvalidType:
       default:
@@ -611,9 +612,10 @@ ConfigValues::pack(void * _dst, Uint32 _len) const {
   char * dst = (char*)_dst;
   memcpy(dst, Magic, sizeof(Magic)); dst += sizeof(Magic);
 
+  Uint32 const* values = m_values;
   for(i = 0; i < 2 * m_size; i += 2){
-    Uint32 key = m_values[i];
-    Uint32 val = m_values[i+1];
+    Uint32 key = values[i];
+    Uint32 val = values[i+1];
     if(key != CFV_KEY_FREE){
       switch(::getTypeOf(key)){
       case IntType:
