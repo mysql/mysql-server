@@ -6994,23 +6994,26 @@ double ha_tokudb::scan_time() {
 
 double ha_tokudb::keyread_time(uint index, uint ranges, ha_rows rows)
 {
-  if ((table->key_info[index].flags & HA_CLUSTERING) || (index == primary_key)) {
-    return read_time(index, ranges, rows);
-  }
-  /*
-    It is assumed that we will read trough the whole key range and that all
-    key blocks are half full (normally things are much better). It is also
-    assumed that each time we read the next key from the index, the handler
-    performs a random seek, thus the cost is proportional to the number of
-    blocks read. This model does not take into account clustered indexes -
-    engines that support that (e.g. InnoDB) may want to overwrite this method.
-  */
-  double keys_per_block= (stats.block_size/2.0/
-                          (table->key_info[index].key_length +
-                           ref_length) + 1);
-  return (rows + keys_per_block - 1)/ keys_per_block;
+    TOKUDB_DBUG_ENTER("ha_tokudb::keyread_time");
+    double ret_val;
+    if ((table->key_info[index].flags & HA_CLUSTERING) || (index == primary_key)) {
+        ret_val = read_time(index, ranges, rows);
+        DBUG_RETURN(ret_val);
+    }
+    /*
+      It is assumed that we will read trough the whole key range and that all
+      key blocks are half full (normally things are much better). It is also
+      assumed that each time we read the next key from the index, the handler
+      performs a random seek, thus the cost is proportional to the number of
+      blocks read. This model does not take into account clustered indexes -
+      engines that support that (e.g. InnoDB) may want to overwrite this method.
+    */
+    double keys_per_block= (stats.block_size/2.0/
+                            (table->key_info[index].key_length +
+                             ref_length) + 1);
+    ret_val = (rows + keys_per_block - 1)/ keys_per_block;
+    DBUG_RETURN(ret_val);
 }
-
 
 //
 // Calculate the time it takes to read a set of ranges through an index
@@ -7029,6 +7032,7 @@ double ha_tokudb::read_time(
     ha_rows rows
     )
 {
+    TOKUDB_DBUG_ENTER("ha_tokudb::read_time");
     double total_scan;
     double ret_val; 
     bool is_primary = (index == primary_key);
@@ -7070,9 +7074,14 @@ double ha_tokudb::read_time(
     ret_val = is_clustering ? ret_val + 0.00001 : ret_val;
     
 cleanup:
-    return ret_val;
+    DBUG_RETURN(ret_val);
 }
 
+double ha_tokudb::index_only_read_time(uint keynr, double records) {
+    TOKUDB_DBUG_ENTER("ha_tokudb::index_only_read_time");
+    double ret_val = keyread_time(keynr, 1, records);
+    DBUG_RETURN(ret_val);
+}
 
 //
 // Estimates the number of index records in a range. In case of errors, return
