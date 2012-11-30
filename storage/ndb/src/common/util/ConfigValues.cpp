@@ -60,14 +60,33 @@ getTypeOf(Uint32 k) {
   return (ConfigValues::ValueType)((k >> KP_TYPE_SHIFT) & KP_TYPE_MASK);
 }
 
-ConfigValues::ConfigValues(Uint32 sz, Uint32 dsz){
-  m_size = sz;
-  m_dataSize = dsz;
+ConfigValues::ConfigValues(Uint32 sz, Uint32 dsz)
+: m_size(sz),
+  m_dataSize(dsz)
+{
+  assert(dsz % sizeof(char const*) == 0);
+  assert(dsz % sizeof(Uint64) == 0);
+  assert(my_offsetof(ConfigValues, m_values) % 8 == 0);
   m_stringCount = 0;
   m_int64Count = 0;
   for(Uint32 i = 0; i<m_size; i++){
-    m_values[i << 1] = CFV_KEY_FREE;
+   m_values[i << 1] = CFV_KEY_FREE;
   }
+}
+
+ConfigValues*
+ConfigValues::constructInPlace(Uint32 keys, Uint32 data, void* place, size_t size)
+{
+  assert(size >= sizeInBytes(keys, data));
+  return new (place) ConfigValues(keys, data);
+}
+
+size_t
+ConfigValues::sizeInBytes(Uint32 keys, Uint32 data)
+{
+  return my_offsetof(ConfigValues, m_values) +
+         keys * 2 * sizeof(Uint32) +
+         data * sizeof(char);
 }
 
 ConfigValues::~ConfigValues(){
@@ -129,7 +148,7 @@ ConfigValues::getString(Uint32 index) const {
   const Uint32 * data = m_values + (m_size << 1);
   char * ptr = (char*)data;
   ptr += m_dataSize; 
-  ptr -= (index * sizeof(char *));
+  ptr -= ((index + 1) * sizeof(char *));
   return (char**)ptr;
 }
 
@@ -317,13 +336,11 @@ ConfigValuesFactory::~ConfigValuesFactory()
 }
 
 ConfigValues *
-ConfigValuesFactory::create(Uint32 keys, Uint32 data){
-  Uint32 sz = sizeof(ConfigValues);
-  sz += (2 * keys * sizeof(Uint32)); 
-  sz += data;
-  
+ConfigValuesFactory::create(Uint32 keys, Uint32 data)
+{
+  size_t sz = ConfigValues::sizeInBytes(keys, data);
   void * tmp = malloc(sz);
-  return new (tmp) ConfigValues(keys, data);
+  return ConfigValues::constructInPlace(keys, data, tmp, sz);
 }
 
 void
@@ -478,6 +495,7 @@ ConfigValuesFactory::put(const ConfigValues::Entry & entry){
     }
   }
   
+  assert(m_freeKeys > 0);
   switch(entry.m_type){
   case ConfigValues::IntType:
   case ConfigValues::SectionType:
@@ -494,6 +512,7 @@ ConfigValuesFactory::put(const ConfigValues::Entry & entry){
     char **  ref = m_cfg->getString(index);
     * ref = strdup(entry.m_string ? entry.m_string : "");
     m_freeKeys--;
+    assert(m_freeData >= sizeof(char*));
     m_freeData -= sizeof(char *);
     DEBUG printf("Putting at: %d(%d) (loop = %d) key: %d value(%d): %s\n", 
 		   pos, sz, 0, 
@@ -507,6 +526,7 @@ ConfigValuesFactory::put(const ConfigValues::Entry & entry){
     m_cfg->m_values[pos+1] = index;
     * m_cfg->get64(index) = entry.m_int64;
     m_freeKeys--;
+    assert(m_freeData >= 8);
     m_freeData -= 8;
     DEBUG printf("Putting at: %d(%d) (loop = %d) key: %d value64(%d): %lld\n", 
 		   pos, sz, 0, 
@@ -566,7 +586,7 @@ ConfigValuesFactory::extractCurrentSection(const ConfigValues::ConstIterator & c
 ConfigValues *
 ConfigValuesFactory::getConfigValues(){
   ConfigValues * ret = m_cfg;
-  m_cfg = create(10, 10);
+  m_cfg = create(10, 16);
   return ret;
 }
 
