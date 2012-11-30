@@ -3156,7 +3156,8 @@ void toku_ft_maybe_insert (FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, bool
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         // do nothing
     } else {
-        toku_ft_send_insert(ft_h, key, val, message_xids, type, txn->oldest_referenced_xid);
+        TXNID oldest_referenced_xid = (txn) ? txn->oldest_referenced_xid : TXNID_NONE;
+        toku_ft_send_insert(ft_h, key, val, message_xids, type, oldest_referenced_xid);
     }
 }
 
@@ -3165,7 +3166,9 @@ ft_send_update_msg(FT_HANDLE brt, FT_MSG_S *msg, TOKUTXN txn) {
     msg->xids = (txn
                  ? toku_txn_get_xids(txn)
                  : xids_get_root_xids());
-    toku_ft_root_put_cmd(brt->ft, msg, txn->oldest_referenced_xid);
+    
+    TXNID oldest_referenced_xid = (txn) ? txn->oldest_referenced_xid : TXNID_NONE;
+    toku_ft_root_put_cmd(brt->ft, msg, oldest_referenced_xid);
 }
 
 void toku_ft_maybe_update(FT_HANDLE ft_h, const DBT *key, const DBT *update_function_extra,
@@ -3298,7 +3301,8 @@ void toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, bool oplsn_vali
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         // do nothing
     } else {
-        toku_ft_send_delete(ft_h, key, message_xids, txn->oldest_referenced_xid);
+        TXNID oldest_referenced_xid = (txn) ? txn->oldest_referenced_xid : TXNID_NONE;
+        toku_ft_send_delete(ft_h, key, message_xids, oldest_referenced_xid);
     }
 }
 
