@@ -27,6 +27,8 @@ class ConfigValues {
   ConfigValues(Uint32 sz, Uint32 data);
 
 public:
+  static ConfigValues* constructInPlace(Uint32 keys, Uint32 data, void* place, size_t size);
+  static size_t sizeInBytes(Uint32 keys, Uint32 data);
   ~ConfigValues();
   
   enum ValueType {
@@ -100,8 +102,18 @@ private:
   Uint32 m_stringCount;
   Uint32 m_int64Count;
 
+  /**
+   * ConfigValues are constructed with different sizes.
+   * If we used dynamicly sized arrays the end of the
+   * class would look like:
+   *   struct alignas(8) { Uint32 key; Uint32 value_or_index; } m_values[m_size];
+   *   Uint64 alignas(8) m_data[m_int64Count];
+   *   char              m_free[m_dataSize - m_int64Count*8 - m_stringCount*sizeof(char*)];
+   *   char * alignas(sizeof(char *)) m_dataString[m_stringCount];
+   * Where m_dataString grows from top and down with index 0 on top.
+   * But now we only have a place holder for the first entry.
+   */
   Uint32 m_values[1];
-  void * m_data[1];
 };
 
 class ConfigValuesFactory {
@@ -112,7 +124,7 @@ public:
   Uint32 m_freeData;
 
 public:
-  ConfigValuesFactory(Uint32 keys = 50, Uint32 data = 10); // Initial
+  ConfigValuesFactory(Uint32 keys = 50, Uint32 data = 16); // Initial
   ConfigValuesFactory(ConfigValues * m_cfg);        //
   ~ConfigValuesFactory();
 
