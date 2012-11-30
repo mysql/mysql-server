@@ -132,10 +132,10 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
       
       var onTableMetadata = function(err, tableMetadata) {
         var tableHandler;
+        udebug.log('TableHandlerFactory.onTableMetadata for ', tableHandlerFactory.tableKey + ' with err: ' + err);
         if (err) {
           tableHandlerFactory.onTableHandler(err, null);
         } else {
-          udebug.log('TableHandlerFactory.onTableMetadata for ', tableHandlerFactory.tableKey);
           // check to see if the metadata has already been processed
           if (typeof tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey] === 'undefined') {
             // put the table metadata into the table metadata map
@@ -169,8 +169,8 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
               }
             }
           }
+          tableHandlerFactory.onTableHandler(null, tableHandler);
         }
-        tableHandlerFactory.onTableHandler(null, tableHandler);
       };
       
       // start of createTableHandler
@@ -647,6 +647,23 @@ exports.UserContext.prototype.remove = function() {
   }
   // get DBTableHandler for table indicator (domain object, constructor, or table name)
   getTableHandler(userContext.user_arguments[0], userContext.session, removeOnTableHandler);
+};
+
+/** Get Mapping
+ * 
+ */
+exports.UserContext.prototype.getMapping = function() {
+  var userContext = this;
+  function getMappingOnTableHandler(err, dbTableHandler) {
+    if (err) {
+      userContext.applyCallback(err, null);
+      return;
+    }
+    var mapping = dbTableHandler.resolvedMapping;
+    userContext.applyCallback(null, mapping);
+  }
+  // getMapping starts here
+  getTableHandler(userContext.user_arguments[0], userContext.session, getMappingOnTableHandler);  
 };
 
 /** Execute a batch

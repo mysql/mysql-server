@@ -22,7 +22,7 @@ global.util            = require("util");
 
 var udebug      = unified_debug.getLogger("GetMappingTest.js");
 
-expectedMappingFor_t_basic = {
+var expectedMappingFor_t_basic = {
     "table" : "t_basic",
     "database" : "test",
     "autoIncrementBatchSize" : 1,
@@ -51,11 +51,14 @@ t1.run = function() {
 };
 
 t1.testGetMapping = function(session, testCase) {
-  // verify the mapping
-  var result = session.getMapping(global.t_basic);
-  var expected = expectedMappingFor_t_basic;
-  verifyMapping(testCase, expected, result);
-  testCase.failOnError();
+  session.getMapping(global.t_basic, function(err, result, testCase2) {
+    if (err) {
+      testCase2.fail(err);
+      return;
+    }
+    verifyMapping(testCase2, expectedMappingFor_t_basic, result);
+    testCase2.failOnError();
+    }, testCase);
 };
 
 var t2 = new harness.SerialTest("getMappingForTableName");
@@ -64,11 +67,14 @@ t2.run = function() {
 };
 
 t2.testGetMapping = function(session, testCase) {
-  // verify the mapping
-  var result = session.getMapping('t_basic');
-  var expected = expectedMappingFor_t_basic;
-  verifyMapping(testCase, expected, result);
-  testCase.failOnError();
+  session.getMapping('t_basic', function(err, result, testCase2) {
+    if (err) {
+      testCase2.fail(err);
+      return;
+    }
+    verifyMapping(testCase2, expectedMappingFor_t_basic, result);
+    testCase2.failOnError();
+  }, testCase);
 };
 
 var t3 = new harness.SerialTest("getMappingForUnknownTableName");
@@ -77,10 +83,13 @@ t3.run = function() {
 };
 
 t3.testGetMapping = function(session, testCase) {
-  // verify the mapping
-  var result = session.getMapping('unknown');
-  testCase.errorIfNotEqual('getMapping for unknown table should return null', null, result);
-  testCase.failOnError();
+  session.getMapping('non_existent_table', function(err, result, testCase2) {
+    if (err) {
+      testCase2.pass();
+      return;
+    }
+    testCase2.fail('getMapping for unknown table should fail');
+  }, testCase);
 };
 
 var t4 = new harness.SerialTest("getMappingForUnMappedConstructor");
@@ -89,17 +98,65 @@ t4.run = function() {
 };
 
 t4.testGetMapping = function(session, testCase) {
-  // verify the mapping
-  var unmappedDomainClass = function(id, name, age, magic) {
-    this.id = id;
-    this.name = name;
-    this.age = age;
-    this.magic = magic;
+  var unmappedDomainClass = function() {
   };
-
-  var result = session.getMapping(unmappedDomainClass);
-  testCase.errorIfNotEqual('getMapping for unmapped constructor should return null', null, result);
-  testCase.failOnError();
+  session.getMapping(unmappedDomainClass, function(err, result, testCase2) {
+    if (err) {
+      testCase2.pass();
+      return;
+    }
+    testCase2.fail('getMapping for unmapped domain object should fail');
+  }, testCase);
 };
 
-module.exports.tests = [t1, t2, t3, t4];
+var t5 = new harness.SerialTest("getMappingForNumber");
+t5.run = function() {
+  fail_openSession(t5, t5.testGetMapping);
+};
+
+t5.testGetMapping = function(session, testCase) {
+  var unmappedDomainClass = function() {
+  };
+  try {
+    session.getMapping(1, function(err, result, testCase2) {
+      testCase2.fail('getMapping for 1 should fail');
+    }, testCase);
+  } catch (err) {
+    testCase.pass();
+  }
+};
+
+var t6 = new harness.SerialTest("getMappingForBoolean");
+t6.run = function() {
+  fail_openSession(t6, t6.testGetMapping);
+};
+
+t6.testGetMapping = function(session, testCase) {
+  var unmappedDomainClass = function() {
+  };
+  try {
+    session.getMapping(true, function(err, result, testCase2) {
+      testCase2.fail('getMapping for true should fail');
+    }, testCase);
+  } catch (err) {
+    testCase.pass();
+  }
+};
+
+var t7 = new harness.SerialTest("getMappingForDomainObject");
+t7.run = function() {
+  fail_openSession(t7, t7.testGetMapping);
+};
+
+t7.testGetMapping = function(session, testCase) {
+  session.getMapping(new global.t_basic(), function(err, result, testCase2) {
+    if (err) {
+      testCase2.fail(err);
+      return;
+    }
+    verifyMapping(testCase2, expectedMappingFor_t_basic, result);
+    testCase2.failOnError();
+    }, testCase);
+};
+
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7];
