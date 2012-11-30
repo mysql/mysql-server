@@ -3725,7 +3725,7 @@ public:
     @param tab_arg     table whose access path is being determined
     @param no_changes  whether a change to the access path is allowed
   */
-  Plan_change_watchdog(const JOIN_TAB *tab_arg, bool no_changes_arg)
+  Plan_change_watchdog(const JOIN_TAB *tab_arg, const bool no_changes_arg)
   {
     // Only to keep gcc 4.1.2-44 silent about uninitialized variables
     quick= NULL;
@@ -3785,7 +3785,7 @@ private:
   uint index;                     ///< copy of tab->index
 #else // in non-debug build, empty class
 public:
-  Plan_change_watchdog(const JOIN_TAB *tab_arg, bool no_changes_arg) {}
+  Plan_change_watchdog(const JOIN_TAB *tab_arg, const bool no_changes_arg) {}
 #endif
 };
 
@@ -3806,7 +3806,12 @@ public:
 
   The index must cover all fields in <order>, or it will not be considered.
 
-  @param no_changes No changes will be made to the query plan.
+  @param tab           NULL or JOIN_TAB of the accessed table
+  @param order         Linked list of ORDER BY arguments
+  @param select_limit  LIMIT value, or HA_POS_ERROR if no limit
+  @param no_changes    No changes will be made to the query plan.
+  @param map           key_map of applicable indexes.
+  @param clause_type   "ORDER BY" etc for printing in optimizer trace
 
   @todo
     - sergeyp: Results of all index merge selects actually are ordered 
@@ -3819,8 +3824,9 @@ public:
 */
 
 bool
-test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
-			bool no_changes, const key_map *map)
+test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
+                        const bool no_changes, const key_map *map,
+                        const char *clause_type)
 {
   int ref_key;
   uint ref_key_parts;
@@ -3831,7 +3837,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   QUICK_SELECT_I *save_quick= select ? select->quick : NULL;
   int best_key= -1;
   Item *orig_cond;
-  bool orig_cond_saved= false, ret, set_up_ref_access_to_key= false;
+  bool orig_cond_saved= false, set_up_ref_access_to_key= false;
+  bool can_skip_sorting= false;                  // used as return value
   int changed_key= -1;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
@@ -3912,16 +3919,18 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object
     trace_skip_sort_order(trace, "reconsidering_access_paths_for_index_ordering");
+  trace_skip_sort_order.add_alnum("clause", clause_type);
 
   if (ref_key >= 0)
   {
     /*
-      We come here when there is a REF key.
+      We come here when there is a {ref or or ordered range access} key.
     */
     if (!usable_keys.is_set(ref_key))
     {
       /*
-	We come here when ref_key is not among usable_keys
+        We come here when ref_key is not among usable_keys, try to find a
+        usable prefix key of that key.
       */
       uint new_ref_key;
       /*
@@ -3943,7 +3952,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           */
           set_up_ref_access_to_key= true;
         }
-	else
+	else if (!no_changes)
 	{
           /*
             The range optimizer constructed QUICK_RANGE for ref_key, and
@@ -3952,7 +3961,19 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             result in an incosistent QUICK_SELECT object. Below we
             create a new QUICK_SELECT from scratch so that all its
             parameres are set correctly by the range optimizer.
-           */
+
+            Note that the range optimizer is NOT called if
+            no_changes==true. This reason is that the range optimizer
+            cannot find a QUICK that can return ordered result unless
+            index access (ref or index scan) is also able to do so
+            (which test_if_order_by_key () will tell).
+            Admittedly, range access may be much more efficient than
+            e.g. index scan, but the only thing that matters when
+            no_change==true is the answer to the question: "Is it
+            possible to avoid sorting if an index is used to access
+            this table?". The answer does not depend on the outcome of
+            the range optimizer.
+          */
           key_map new_ref_key_map;  // Force the creation of quick select
           new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
@@ -3970,7 +3991,10 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                         tab->join->unit->select_limit_cnt,
                                         false,   // don't force quick range
                                         order->direction) <= 0)
-            goto use_filesort;
+          {
+            can_skip_sorting= false;
+            goto fix_ICP;
+          }
 	}
         ref_key= new_ref_key;
         changed_key= new_ref_key;
@@ -3983,6 +4007,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       goto check_reverse_order;
   }
   {
+    /*
+      There was no {ref or or ordered range access} key, or it was not
+      satisfying, neither was any prefix of it. Do a cost-based search on all
+      keys:
+    */
     uint best_key_parts= 0;
     uint saved_best_key_parts= 0;
     int best_key_direction= 0;
@@ -3995,6 +4024,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                              &select_limit, &best_key_parts,
                              &saved_best_key_parts);
 
+    if (best_key < 0)
+    {
+      // No usable key has been found
+      can_skip_sorting= false;
+      goto fix_ICP;
+    }
+
     /*
       filesort() and join cache are usually faster than reading in 
       index order and not using join cache, except in case that chosen
@@ -4005,49 +4041,47 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
          tab->join->primary_tables > tab->join->const_tables + 1) &&
          ((unsigned) best_key != table->s->primary_key ||
           !table->file->primary_key_is_clustered()))
-      goto use_filesort;
-
-    if (best_key >= 0)
     {
-      if (select &&
-          table->quick_keys.is_set(best_key) &&
-          !tab->quick_order_tested.is_set(best_key) &&
-          best_key != ref_key)
-      {
-        tab->quick_order_tested.set_bit(best_key);
-        Opt_trace_object
-          trace_recest(trace, "rows_estimation");
-        trace_recest.add_utf8_table(tab->table).
-          add_utf8("index", table->key_info[best_key].name);
-
-        key_map map;           // Force the creation of quick select
-        map.set_bit(best_key); // only best_key.
-        select->quick= 0;
-        select->test_quick_select(join->thd, 
-                                  map, 
-                                  0,        // empty table_map
-                                  join->select_options & OPTION_FOUND_ROWS ?
-                                  HA_POS_ERROR :
-                                  join->unit->select_limit_cnt,
-                                  true,     // force quick range
-                                  order->direction);
-      }
-      order_direction= best_key_direction;
-      /*
-        saved_best_key_parts is actual number of used keyparts found by the
-        test_if_order_by_key function. It could differ from keyinfo->key_parts,
-        thus we have to restore it in case of desc order as it affects
-        QUICK_SELECT_DESC behaviour.
-      */
-      used_key_parts= (order_direction == -1) ?
-        saved_best_key_parts :  best_key_parts;
-      changed_key= best_key;
-      // We will use index scan or range scan:
-      set_up_ref_access_to_key= false;
+      can_skip_sorting= false;
+      goto fix_ICP;
     }
-    else
-      goto use_filesort; 
-  } 
+
+    if (select &&
+        table->quick_keys.is_set(best_key) &&
+        !tab->quick_order_tested.is_set(best_key) &&
+        best_key != ref_key)
+    {
+      tab->quick_order_tested.set_bit(best_key);
+      Opt_trace_object
+        trace_recest(trace, "rows_estimation");
+      trace_recest.add_utf8_table(tab->table).
+        add_utf8("index", table->key_info[best_key].name);
+
+      key_map map;           // Force the creation of quick select
+      map.set_bit(best_key); // only best_key.
+      select->quick= 0;
+      select->test_quick_select(join->thd, 
+                                map, 
+                                0,        // empty table_map
+                                join->select_options & OPTION_FOUND_ROWS ?
+                                HA_POS_ERROR :
+                                join->unit->select_limit_cnt,
+                                true,     // force quick range
+                                order->direction);
+    }
+    order_direction= best_key_direction;
+    /*
+      saved_best_key_parts is actual number of used keyparts found by the
+      test_if_order_by_key function. It could differ from keyinfo->key_parts,
+      thus we have to restore it in case of desc order as it affects
+      QUICK_SELECT_DESC behaviour.
+    */
+    used_key_parts= (order_direction == -1) ?
+      saved_best_key_parts :  best_key_parts;
+    changed_key= best_key;
+    // We will use index scan or range scan:
+    set_up_ref_access_to_key= false;
+  }
 
 check_reverse_order:                  
   DBUG_ASSERT(order_direction != 0);
@@ -4061,16 +4095,38 @@ check_reverse_order:
         (In some cases test_if_order_by_key() can be called multiple times
       */
       if (select->quick->reverse_sorted())
-        goto skipped_filesort;
+      {
+        can_skip_sorting= true;
+        goto fix_ICP;
+      }
+
+      if (select->quick->reverse_sort_possible())
+        can_skip_sorting= true;
+      else
+      {
+        can_skip_sorting= false;
+        goto fix_ICP;
+      }
 
       /*
         test_quick_select() should not create a quick that cannot do
         reverse ordering
       */
-      DBUG_ASSERT((select->quick == save_quick) ||
-                  select->quick->reverse_sort_possible());
+      DBUG_ASSERT((select->quick == save_quick) || can_skip_sorting);
+    }
+    else
+    {
+      // Other index access (ref or scan) poses no problem
+      can_skip_sorting= true;
     }
   }
+  else
+  {
+    // ORDER BY ASC poses no problem
+    can_skip_sorting= true;
+  }
+
+  DBUG_ASSERT(can_skip_sorting);
 
   /*
     Update query plan with access pattern for doing 
@@ -4094,7 +4150,10 @@ check_reverse_order:
         keyuse++;
 
       if (create_ref_for_key(tab->join, tab, keyuse, tab->prefix_tables()))
-        goto use_filesort;
+      {
+        can_skip_sorting= false;
+        goto fix_ICP;
+      }
 
       DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
     }
@@ -4163,7 +4222,8 @@ check_reverse_order:
         if (!tmp)
         {
           tab->limit= 0;
-          goto use_filesort;            // Reverse sort failed -> filesort
+          can_skip_sorting= false;      // Reverse sort failed -> filesort
+          goto fix_ICP;
         }
         if (select->quick == save_quick)
           save_quick= 0;                // Because set_quick(tmp) frees it
@@ -4194,23 +4254,15 @@ check_reverse_order:
     }
     else if (select && select->quick)
       select->quick->need_sorted_output(true);
-
   } // QEP has been modified
 
+fix_ICP:
   /*
     Cleanup:
     We may have both a 'select->quick' and 'save_quick' (original)
     at this point. Delete the one that we won't use.
   */
-
-skipped_filesort:
-  ret= true;
-  goto fix_ICP;
-use_filesort:
-  ret= false;
-
-fix_ICP:
-  if (ret && !no_changes)
+  if (can_skip_sorting && !no_changes)
   {
     // Keep current (ordered) select->quick
     if (select && save_quick != select->quick)
@@ -4222,6 +4274,15 @@ fix_ICP:
     if (select && select->quick != save_quick)
       select->set_quick(save_quick);
   }
+
+  Opt_trace_object
+    trace_change_index(trace, "index_order_summary");
+  trace_change_index.add_utf8_table(tab->table)
+    .add("index_provides_order", can_skip_sorting)
+    .add_alnum("order_direction", order_direction == 1 ? "asc" :
+               ((order_direction == -1) ? "desc" :
+                "undefined"));
+
   if (changed_key >= 0)
   {
     bool cancelled_ICP= false;
@@ -4235,14 +4296,9 @@ fix_ICP:
     }
     if (unlikely(trace->is_started()))
     {
-      Opt_trace_object
-        trace_change_index(trace, "index_order_summary");
-      trace_change_index.add_utf8_table(tab->table);
       if (cancelled_ICP)
         trace_change_index.add("disabled_pushed_condition_on_old_index", true);
-      trace_change_index.add_utf8("index", table->key_info[changed_key].name).
-        add_alnum("order_direction", order_direction == 1 ? "asc" :
-                  ((order_direction == -1) ? "desc" : "undefined"));
+      trace_change_index.add_utf8("index", table->key_info[changed_key].name);
       trace_change_index.add("plan_changed", !no_changes);
       if (!no_changes)
       {
@@ -4253,12 +4309,19 @@ fix_ICP:
       }
     }
   }
+  else if (unlikely(trace->is_started()))
+  {
+    trace_change_index.add_utf8("index",
+                                ref_key >= 0 ?
+                                table->key_info[ref_key].name : "unknown");
+    trace_change_index.add("plan_changed", false);
+  }
   if (orig_cond_saved)
   {
     // ICP set up prior to the call, is still valid:
     tab->set_jt_and_sel_condition(orig_cond, __LINE__);
   }
-  DBUG_RETURN(ret);
+  DBUG_RETURN(can_skip_sorting);
 }
 
 
