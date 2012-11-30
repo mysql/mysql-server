@@ -823,6 +823,7 @@ static void set_ddl_log_entry_from_buf(uint read_entry,
 {
   uint inx;
   uchar single_char;
+  DBUG_ENTER("set_ddl_log_entry_from_buf");
   ddl_log_entry->entry_pos= read_entry;
   single_char= file_entry_buf[DDL_LOG_ENTRY_TYPE_POS];
   ddl_log_entry->entry_type= (enum ddl_log_entry_code)single_char;
@@ -835,6 +836,7 @@ static void set_ddl_log_entry_from_buf(uint read_entry,
   ddl_log_entry->from_name= (char*) &file_entry_buf[inx];
   inx+= global_ddl_log.name_len;
   ddl_log_entry->handler_name= (char*) &file_entry_buf[inx];
+  DBUG_VOID_RETURN;
 }
  
 
@@ -1396,7 +1398,7 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
   {
     if (read_ddl_log_file_entry(file_entry_buf, read_entry, IO_SIZE))
     {
-      /* Write to error log and continue with next log entry */
+      /* Print the error to the log and continue with next log entry */
       sql_print_error("Failed to read entry = %u from ddl log",
                       read_entry);
       break;
@@ -1407,7 +1409,7 @@ bool execute_ddl_log_entry(THD *thd, uint first_entry)
 
     if (execute_ddl_log_action(thd, &ddl_log_entry))
     {
-      /* Write to error log and continue with next log entry */
+      /* Print the error to the log and continue with next log entry */
       sql_print_error("Failed to execute action for entry = %u from ddl log",
                       read_entry);
       break;
