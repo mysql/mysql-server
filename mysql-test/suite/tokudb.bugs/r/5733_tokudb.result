@@ -10003,26 +10003,26 @@ insert into t values (9998,0);
 insert into t values (9999,0);
 explain select id from t where id>0 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	9999	Using where; Using index
+1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index
 explain select * from t where id>0 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	9999	Using where
+1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where
 explain select id from t where id>1000 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	8999	Using where; Using index
+1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index
 explain select * from t where id>1000 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	8999	Using where
+1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where
 explain select id from t where id>5000 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	4999	Using where; Using index
+1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index
 explain select * from t where id>5000 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	4999	Using where
+1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where
 explain select id from t where id>6000 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	3999	Using where; Using index
+1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where; Using index
 explain select * from t where id>6000 limit 10;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	3999	Using where
+1	SIMPLE	t	range	PRIMARY	PRIMARY	8	NULL	#	Using where
 drop table t;

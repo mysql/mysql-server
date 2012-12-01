@@ -16,16 +16,28 @@ while ($i < $n) {
       inc $i;
 }
 
+replace_column 9 #;
 explain select id from t where id>0 limit 10;
+
+replace_column 9 #;
 explain select * from t where id>0 limit 10;
 
+replace_column 9 #;
 explain select id from t where id>1000 limit 10;
+
+replace_column 9 #;
 explain select * from t where id>1000 limit 10;
 
+replace_column 9 #;
 explain select id from t where id>5000 limit 10;
+
+replace_column 9 #;
 explain select * from t where id>5000 limit 10;
 
+replace_column 9 #;
 explain select id from t where id>6000 limit 10;
+
+replace_column 9 #;
 explain select * from t where id>6000 limit 10;
 
 drop table t;
