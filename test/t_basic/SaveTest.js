@@ -49,7 +49,8 @@ t2.run = function() {
     // create objects
     for (i = start_number; i < start_number + number_of_objects; ++i) {
       object = new global.t_basic(i, 'Employee ' + i, i, i);
-      batch.save(object, function(err) {
+      // use variant save(constructor, object, callback)
+      batch.save(global.t_basic, object, function(err) {
         if (err) {
           testCase.appendErrorMessage(err);
         }
@@ -82,7 +83,8 @@ t3.run = function() {
   var object2;
   fail_openSession(testCase, function(session) {
     // save object 4020
-    session.save(object, function(err, session2) {
+    // use variant save(tableName, object, callback)
+    session.save('t_basic', object, function(err, session2) {
       if (err) {
         testCase.fail(err);
         return;
@@ -154,36 +156,6 @@ t4.run = function() {
   });
 };
 
-/***** Save illegal parameter ***/
-var t5 = new harness.ConcurrentTest("testSaveNoUpdate");
-t5.run = function() {
-  var testCase = this;
-  fail_openSession(testCase, function(session) {
-    session.save(1, function(err, session2) {
-      if (err) {
-        testCase.pass();
-        return;
-      }
-      testCase.fail(new Error('SaveTest.t5 illegal argument should fail.'));
-    });
-  });
-};
-
-/***** Save illegal parameter ***/
-var t6 = new harness.ConcurrentTest("testSaveNoUpdate");
-t6.run = function() {
-  var testCase = this;
-  fail_openSession(testCase, function(session) {
-    session.save('t_basic', function(err, session2) {
-      if (err) {
-        testCase.pass();
-        return;
-      }
-      testCase.fail(new Error('SaveTest.t6 illegal argument should fail.'));
-    });
-  });
-};
-
 /***** Save partial ***/
 var t7 = new harness.ConcurrentTest("testSavePartial");
 t7.run = function() {
@@ -247,4 +219,4 @@ t8.run = function() {
   });
 };
 
-module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8];
+module.exports.tests = [t1, t2, t3, t4, t7, t8];

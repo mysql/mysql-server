@@ -8,26 +8,8 @@
  * The mynode implementation will not ever define a property called "user".
  */
 
-  /** Get mappings for a table or class. 
-   * IMMEDIATE
-   * The result is a javascript
-   * object that has the same form as the parameter for Annotations mapClass.
-   * @param table the table name or constructor of a mapped class
-   * @return a TableMapping object or null if the table is not mapped
-   */
-  getMapping(Object tableNameOrConstructor);
-
   /** Find a specific instance based on primary or unique key value.
-   * A new object or null will always be provided in the callback.
-   *
-   * The parameter "mapping" is the property named mynode
-   * for a mapped type. This property is added by the getSession()
-   * connect() or connectSync() function based on the Annotations parameter.
-   * Alternatively, the mapping parameter may be the String name of the
-   * table in the database. If not already mapped, the table will be mapped
-   * using the default mapping.
-   * Alternatively, the mapping parameter may be the constructor function
-   * of the mapped type.
+   * The constructor parameter is the constructor function of a mapped domain object.
    * 
    * The parameter "keys" may be of any type. Keys must uniquely identify
    * a single row in the database. If keys is a simple type
@@ -42,17 +24,28 @@
    * are found, an error is reported.
    * The returned object will be loaded based on the mapping and the current
    * values in the database.
-   * 
    * For multi-column primary or unique keys, all key fields must be set.
    * 
-   * @param mapping the mapping between the database table and javascript object
+   * @param constructor the constructor function of a mapped domain object
    * @param keys the instance to find in the database
-   * @param callback function to be called when operation has completed,with parameters:
-   * err: the node.js Error object)
-   * instance: the domain model object or null if not found
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
+   *   instance: the domain model object or null if not found
    * @return undefined
    */
-  find(Object mapping, Object keys, Function(Object error, Object instance[, ...]) callback[, ...]);
+  find(Function constructor, Object keys, Function(Object error, Object instance[, ...]) callback[, ...]);
+
+  /** Find a specific instance based on primary or unique key value.
+   * See other variant for semantics.
+   * 
+   * @param tableName the table name
+   * @param keys the instance to find in the database
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
+   *   instance: the domain model object or null if not found
+   * @return undefined
+   */
+  find(String tableName, Object keys, Function(Object error, Object instance[, ...]) callback[, ...]);
 
   /** Load a specific instance by matching its primary or unique key with 
    * a database row. Load will never create a new domain object.
@@ -68,12 +61,11 @@
    * are found, an error is reported.
    * 
    * @param instance the instance to load from the database
-   * @param callback function to be called when operation has completed,with parameters:
+   * @param callback function to be called when operation has completed, with parameters:
    * err: the node.js Error object)
-   * instance: the domain model object
    * @return undefined
    */
-  load(Object instance, Function(Object error, Object instance[, ...]) callback[, ...]);
+  load(Object instance, Function(Object error [, ...]) callback[, ...]);
 
   /** Insert the instance into the database.
    *
@@ -85,16 +77,49 @@
    *
    * @param instance the instance to insert
    * @param callback function to be called when operation has completed,with parameters:
-   * err: the node.js Error object)
-   * instance: the domain model object
+   *   err: the node.js Error object
    * @return undefined
-   * 
    */
   persist(Object instance, Function(Object error[, ...]) callback[, ...]);
     
-  /** Delete a row from the database by its primary key.
-   * The parameter "keys" may be of any type. Keys must uniquely identify
-   * a single row in the database. If keys is a simple type
+  /** Insert the instance into the database. See the other variant for semantics.
+   *
+   * @param constructor the constructor function for a mapped domain object
+   * @param values: values for the new instance
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
+   * @return undefined
+   * 
+   */
+  persist(Function constructor, Object values, Function(Object error[, ...]) callback[, ...]);
+    
+  /** Insert the instance into the database. See the other variant for semantics.
+   *
+   * @param tableName the table name
+   * @param values: values for the new instance
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
+   * @return undefined
+   * 
+   */
+  persist(String tableName, Object values, Function(Object error[, ...]) callback[, ...]);
+    
+  /** Delete an instance of a class from the database by a primary or unique key.
+   * The key values in the object must uniquely identify
+   * a single row in the database. 
+   * If the instance does not exist in the database,
+   * an error is reported in the callback.
+   *
+   * @param the instance of a mapped domain object to delete from the database
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
+   * @return undefined
+   */
+  remove(Object instance, Function(Object error[, ...]) callback[, ...]);
+
+  /** Delete a row from the database by a unique or primary key.
+   * The constructor parameter is the constructor function for a mapped domain object.
+   * If keys is a simple type
    * (number or string), then the parameter type must be the 
    * same type as or compatible with the primary key type of the mapped object.
    * Otherwise, properties are taken
@@ -104,30 +129,25 @@
    * primary key, property names corresponding to unique key columns
    * will be used. If no complete primary or unique key properties
    * are found, an error is reported.
-   * If the instance does not exist in the database,
-   * an error is reported in the callback.
    *
-   * @param tableNameOrConstructor the table name or constructor
-   * @param keys the key of the object to delete
-   * @param callback function to be called when operation has completed,with parameters:
-   * err: the node.js Error object)
-   * instance: the domain model object
+   * @param constructor the constructor for a mapped domain object
+   * @param keys object containing the keys of the object to delete
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
    * @return undefined
    */
-  remove(Object tableNameOrConstructor, keys, Function(Object error[, ...]) callback[, ...]);
+  remove(Function constructor, Object keys, Function(Object error[, ...]) callback[, ...]);
 
-  /** Delete an instance of a class from the database by its primary key.
-   * Only the primary key field(s) is (are) used to determine which instance 
-   * is to be deleted. If the instance does not exist in the database,
-   * an error is reported in the callback.
+  /** Delete a row from the database by a unique or primary key.
+   * See other variant for semantics.
    *
-   * @param the instance to delete from the database
-   * @param callback function to be called when operation has completed,with parameters:
-   * err: the node.js Error object)
-   * instance: the domain model object
+   * @param tableName the table name
+   * @param keys object containing the keys of the object to delete
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
    * @return undefined
    */
-  remove(Object instance, Function(Object error[, ...]) callback[, ...]);
+  remove(String tableName, Object keys, Function(Object error[, ...]) callback[, ...]);
 
   /** Update the instance in the database without necessarily retrieving it.
    * The primary key field is used to determine which instance is to be updated.
@@ -137,42 +157,77 @@
    *
    * @param instance the instance to update
    * @param callback function to be called when operation has completed, with parameters:
-   * err: the node.js Error object
-   * instance: the instance that was passed to the update function
+   *   err: the node.js Error object
    * @return undefined
    */
   update(Object instance, Function(Object error[, ...]) callback[, ...]);
 
   /** Update the instance in the database without necessarily retrieving it.
-   * The primary key field of the keys object is used to determine which instance
+   * Unique key field(s) of the keys object determine which instance
    * is to be updated. The values object provides values to be updated.
+   * If the keys object contains all fields corresponding to the primary key,
+   * the primary key will identify the instance. If not, unique keys will be
+   * chosen non-deterministically.
    * If the instance does not exist in the database, an exception is reported
    * in the callback.
    * This method cannot be used to change the primary key.
    *
-   * @param tableNameOrConstructor the table name or constructor function
-   * @param keys an object containing the keys for the instance to update
+   * @param constructor constructor function of a mapped domain object
+   * @param keys an object containing unique keys for the instance to update
    * @param values an object containing values to update
-   * @param callback function to be called when operation has completed,with parameters:
-   * err: the node.js Error object
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
    * @return undefined
    */
-  update(Object tableNameOrConstructor, keys, values, Function(Object error[, ...]) callback[, ...]);
+  update(Function constructor, keys, values, Function(Object error[, ...]) callback[, ...]);
 
-    /** Save the instance in the database without checking for existence.
+  /** Update the instance in the database without necessarily retrieving it.
+   * See other variant for semantics.
+   *
+   * @param tableName the table name
+   * @param keys an object containing unique keys for the instance to update
+   * @param values an object containing values to update
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
+   * @return undefined
+   */
+  update(String tableName, keys, values, Function(Object error[, ...]) callback[, ...]);
+
+  /** Save the instance in the database without checking for existence.
    * The id field is used to determine which instance is to be saved.
    * If the instance exists in the database it will be updated.
    * If the instance does not exist, it will be created.
    *
-   * @param instance the instance to update
-   * @param callback function to be called when operation has completed,with parameters:
+   * @param instance the instance to insert or update
+   * @param callback function to be called when operation has completed, with parameters:
    * err: the node.js Error object)
-   * instance: the domain model object
    * @return undefined
    */
   save(Object instance, Function(Object error[, ...]) callback[, ...]);
 
-    /** Is "this" a batch?
+  /** Save the instance in the database without checking for existence.
+   * See other variant for semantics.
+   *
+   * @param constructor the constructor function of a mapped domain object
+   * @param values the values to insert or update
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
+   * @return undefined
+   */
+  save(Function constructor, Object values, Function(Object error[, ...]) callback[, ...]);
+
+  /** Save the instance in the database without checking for existence.
+   * See other variant for semantics.
+   *
+   * @param tableName the name of the table
+   * @param values the values to insert or update
+   * @param callback function to be called when operation has completed, with parameters:
+   *   err: the node.js Error object
+   * @return undefined
+   */
+  save(String tableName, Object values, Function(Object error[, ...]) callback[, ...]);
+
+  /** Is "this" a batch?
    * @return true if this context is a batch; false if this context is a session
    */
   isBatch();
