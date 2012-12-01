@@ -67,10 +67,11 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
       helperSpec.row_record = this.tableHandler.dbTable.record;
       break;
     case 'read':
-      helperSpec.lock_mode  = this.lockMode;
-      // fall through
     case 'update':
     case 'write':
+      if(this.opcode === 'read') {
+        helperSpec.lock_mode  = this.lockMode;
+      }
       helperSpec.mask       = this.columnMask;
       helperSpec.key_record = this.index.record;
       helperSpec.key_buffer = this.buffers.key;
