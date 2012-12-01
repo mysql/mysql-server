@@ -78,7 +78,7 @@ ssl_error_string[] =
   "No error",
   "Unable to get certificate",
   "Unable to get private key",
-  "Private key does not match the certificate public key"
+  "Private key does not match the certificate public key",
   "SSL_CTX_set_default_verify_paths failed",
   "Failed to set ciphers to use",
   "SSL_CTX_new failed"
