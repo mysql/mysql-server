@@ -700,8 +700,8 @@ mysql_mutex_t LOCK_gdl;
   @param entry_no                     Entry number to read
 
   @return Operation status
-    @retval TRUE                      Error
-    @retval FALSE                     Success
+    @retval true   Error
+    @retval false  Success
 */
 
 static bool read_ddl_log_file_entry(uint entry_no)
@@ -721,13 +721,13 @@ static bool read_ddl_log_file_entry(uint entry_no)
 
 
 /**
-  Write one entry from ddl log file.
+  Write one entry to ddl log file.
 
   @param entry_no                     Entry number to write
 
   @return Operation status
-    @retval TRUE                      Error
-    @retval FALSE                     Success
+    @retval true   Error
+    @retval false  Success
 */
 
 static bool write_ddl_log_file_entry(uint entry_no)
@@ -1726,14 +1726,16 @@ void execute_ddl_log_recovery()
 
 void release_ddl_log()
 {
-  DDL_LOG_MEMORY_ENTRY *free_list= global_ddl_log.first_free;
-  DDL_LOG_MEMORY_ENTRY *used_list= global_ddl_log.first_used;
+  DDL_LOG_MEMORY_ENTRY *free_list;
+  DDL_LOG_MEMORY_ENTRY *used_list;
   DBUG_ENTER("release_ddl_log");
 
   if (!global_ddl_log.do_release)
     DBUG_VOID_RETURN;
 
   mysql_mutex_lock(&LOCK_gdl);
+  free_list= global_ddl_log.first_free;
+  used_list= global_ddl_log.first_used;
   while (used_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
