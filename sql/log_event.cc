@@ -5668,12 +5668,7 @@ Format_description_log_event::do_shall_skip(Relay_log_info *rli)
 
 
 /**
-   Splits the event's 'server_version' string into three numeric pieces stored
-   into 'server_version_split':
-   X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
-   X.Yabc -> {X,Y,0}
-   Xabc -> {X,0,0}
-   'server_version_split' is then used for lookups to find if the server which
+   'server_version_split' is used for lookups to find if the server which
    created this event has some known bug.
 */
 void Format_description_log_event::calc_server_version_split()
