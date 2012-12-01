@@ -2183,7 +2183,8 @@ public:
       OP_ISLONGREQ              = 0x1,
       OP_SAVEATTRINFO           = 0x2,
       OP_SCANKEYINFOPOSSAVED    = 0x4,
-      OP_DEFERRED_CONSTRAINTS   = 0x8
+      OP_DEFERRED_CONSTRAINTS   = 0x8,
+      OP_NORMAL_PROTOCOL        = 0x10
     };
     Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
@@ -2619,6 +2620,7 @@ private:
                                   const class LqhKeyReq* req);
   void earlyKeyReqAbort(Signal* signal, 
                         const class LqhKeyReq * lqhKeyReq, 
+                        bool isLongReq,
                         Uint32 errorCode);
   void logLqhkeyrefLab(Signal* signal);
   void closeCopyLab(Signal* signal);
