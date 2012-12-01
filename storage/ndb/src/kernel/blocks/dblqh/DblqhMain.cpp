@@ -3032,12 +3032,24 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
  */
 void Dblqh::earlyKeyReqAbort(Signal* signal, 
                              const LqhKeyReq * lqhKeyReq,
+                             bool isLongReq,
                              Uint32 errCode) 
 {
   jamEntry();
   const Uint32 transid1  = lqhKeyReq->transId1;
   const Uint32 transid2  = lqhKeyReq->transId2;
-  const Uint32 reqInfo   = lqhKeyReq->requestInfo;
+  Uint32 treqInfo        = lqhKeyReq->requestInfo;
+
+  if (!isLongReq)
+  {
+    jam();
+    /* The inlined AI length does not matter here.  Zero it to avoid
+     * interpretation as 7.x bits (getNormalProtocolFlag).
+     * bug#14702377
+     */
+    LqhKeyReq::clearAIInLqhKeyReq(treqInfo);
+  }
+  const Uint32 reqInfo   = treqInfo;
   
   bool tcConnectRecAllocated = (tcConnectptr.i != RNIL);
 
@@ -4466,6 +4478,7 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
   
   const SignalDroppedRep* rep = (SignalDroppedRep*) &signal->theData[0];
   Uint32 originalGSN= rep->originalGsn;
+  const bool isLongReq = (rep->originalSectionCount > 0);
 
   DEBUG("SignalDroppedRep received for GSN " << originalGSN);
 
@@ -4483,7 +4496,7 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
     const LqhKeyReq * const truncatedLqhKeyReq = 
       (LqhKeyReq *) &rep->originalData[0];
     
-    earlyKeyReqAbort(signal, truncatedLqhKeyReq, ZGET_DATAREC_ERROR);
+    earlyKeyReqAbort(signal, truncatedLqhKeyReq, isLongReq, ZGET_DATAREC_ERROR);
 
     break;
   }
@@ -4538,6 +4551,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   const LqhKeyReq * const lqhKeyReq = (LqhKeyReq *)signal->getDataPtr();
   SectionHandle handle(this, signal);
+  const bool isLongReq = (handle.m_cnt > 0);
   tcConnectptr.i = RNIL;
 
   {
@@ -4549,7 +4563,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
         /* Overloaded, reject new work */
         jam();
         releaseSections(handle);
-        earlyKeyReqAbort(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+        earlyKeyReqAbort(signal, lqhKeyReq, isLongReq,
+                         ZTRANSPORTER_OVERLOADED_ERROR);
         return;
       }
     }
@@ -4559,7 +4574,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   {
     jam();
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq,
+                     ZTRANSPORTER_OVERLOADED_ERROR);
     return;
   }
 
@@ -4572,7 +4588,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 /* NO FREE TC RECORD AVAILABLE, THUS WE CANNOT HANDLE THE REQUEST.           */
 /* ------------------------------------------------------------------------- */
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, ZNO_TC_CONNECT_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNO_TC_CONNECT_ERROR);
     return;
   }//if
 
@@ -4595,10 +4611,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->storedProcId = ZNIL;
   regTcPtr->lqhKeyReqId = cTotalLqhKeyReqCount;
   regTcPtr->m_flags= 0;
-  bool isLongReq= false;
-  if (handle.m_cnt > 0)
+  if (isLongReq)
   {
-    isLongReq= true;
     regTcPtr->m_flags|= TcConnectionrec::OP_ISLONGREQ;
   }
 
@@ -4618,14 +4632,14 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   const Uint8 op = LqhKeyReq::getOperation(Treqinfo);
   if ((op == ZREAD || op == ZREAD_EX) && !getAllowRead()){
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, ZNODE_SHUTDOWN_IN_PROGESS);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_SHUTDOWN_IN_PROGESS);
     return;
   }
 
   if (unlikely(get_node_status(refToNode(sig5)) != ZNODE_UP))
   {
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_FAILURE_ERROR);
     return;
   }
   
@@ -4683,7 +4697,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       if (markerPtr.i == RNIL)
       {
         releaseSections(handle);
-        earlyKeyReqAbort(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
+        earlyKeyReqAbort(signal, lqhKeyReq, isLongReq,
+                         ZNO_FREE_MARKER_RECORDS_ERROR);
         return;
       }
       markerPtr.p->transid1 = sig1;
@@ -4781,6 +4796,17 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     regTcPtr->m_flags |= TcConnectionrec::OP_DEFERRED_CONSTRAINTS;
   }
 
+  Uint32 TnormalProtocolFlag = LqhKeyReq::getNormalProtocolFlag(Treqinfo);
+  if (isLongReq && TnormalProtocolFlag)
+  {
+    /**
+     * Only set normal protocol flag if long request.
+     * As above, short lqhKeyReq ai-length in-signal overlaps the bit.
+     * bug#14702377
+     */
+    regTcPtr->m_flags |= TcConnectionrec::OP_NORMAL_PROTOCOL;
+  }
+
   UintR TitcKeyLen = 0;
   Uint32 keyLenWithLQHReq = 0;
   UintR TreclenAiLqhkey   = 0;
@@ -4838,7 +4864,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     if (unlikely(!ok))
     {
       jam();
-      earlyKeyReqAbort(signal, lqhKeyReq, ZGET_DATAREC_ERROR);
+      earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZGET_DATAREC_ERROR);
       return;
     }
 
@@ -4856,7 +4882,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       ndbassert(! LqhKeyReq::getNrCopyFlag(Treqinfo));
       
       /* Reply with NO_TUPLE_FOUND */
-      earlyKeyReqAbort(signal, lqhKeyReq, ZNO_TUPLE_FOUND);
+      earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNO_TUPLE_FOUND);
       return;
     }
 
@@ -8256,7 +8282,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
   Uint32 operation = regTcPtr.p->operation;
   Uint32 dirtyOp = regTcPtr.p->dirtyOp;
   Uint32 opSimple = regTcPtr.p->opSimple;
-  Uint32 normalProtocol = LqhKeyReq::getNormalProtocolFlag(regTcPtr.p->reqinfo);
+  bool normalProtocol = (regTcPtr.p->m_flags &
+                         TcConnectionrec::OP_NORMAL_PROTOCOL);
 
   if (regTcPtr.p->activeCreat != Fragrecord::AC_IGNORED) {
     if (operation != ZREAD) {
@@ -9223,11 +9250,13 @@ void Dblqh::continueAbortLab(Signal* signal)
 void Dblqh::continueAfterLogAbortWriteLab(Signal* signal) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
+  bool normalProtocol = (regTcPtr->m_flags &
+                         TcConnectionrec::OP_NORMAL_PROTOCOL);
 
   remove_commit_marker(regTcPtr);
 
   if (regTcPtr->operation == ZREAD && regTcPtr->dirtyOp &&
-      !LqhKeyReq::getNormalProtocolFlag(regTcPtr->reqinfo))
+      !normalProtocol)
   {
     jam();
     TcKeyRef * const tcKeyRef = (TcKeyRef *) signal->getDataPtrSend();
