@@ -1021,7 +1021,7 @@ public:
     return thd ? thd->db : 0;
   }
 #else
-  Log_event() : temp_buf(0) {}
+  Log_event() : temp_buf(0), flags(0) {}
     /* avoid having to link mysqlbinlog against libpthread */
   static Log_event* read_log_event(IO_CACHE* file,
                                    const Format_description_log_event
@@ -2320,12 +2320,26 @@ public:
 #ifdef MYSQL_SERVER
   bool write(IO_CACHE* file);
 #endif
-  bool is_valid() const
+  bool header_is_valid() const
   {
     return ((common_header_len >= ((binlog_version==1) ? OLD_HEADER_LEN :
                                    LOG_EVENT_MINIMAL_HEADER_LEN)) &&
             (post_header_len != NULL));
   }
+
+  bool version_is_valid() const
+  {
+    /* It is invalid only when all version numbers are 0 */
+    return !(server_version_split[0] == 0 &&
+             server_version_split[1] == 0 &&
+             server_version_split[2] == 0);
+  }
+
+  bool is_valid() const
+  {
+    return header_is_valid() && version_is_valid();
+  }
+
   int get_data_size()
   {
     /*
