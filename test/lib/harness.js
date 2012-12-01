@@ -342,12 +342,12 @@ Suite.prototype.runTests = function(result) {
       // clear smoke test is the first test
       if(this.skipClearSmokeTest) {
        tc.result = result;
-        tc.skip("skipping ClearSmokeTest");
+       tc.skip("skipping ClearSmokeTest");
       }
       else {
         tc.test(result);
-        break;
       }
+      break;
   }
   return true;
 };
@@ -500,7 +500,7 @@ Listener.prototype.listRunningTests = function() {
     console.log("  " + e);
   }
   this.running.forEach(listElement);
-}
+};
 
 /* Result 
 */

@@ -110,9 +110,9 @@ exports.UserContext.prototype.listTables = function() {
   this.session_factory.dbConnectionPool.listTables(databaseName, dbSession, listTablesOnTableList);
 };
 
-/** Get the table handler for a table name or constructor.
+/** Get the table handler for a domain object, table name, or constructor.
  */
-var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) {
+var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTableHandler) {
 
   var TableHandlerFactory = function(mynode, tableName, sessionFactory, dbSession, mapping, ctor, onTableHandler) {
     this.tableName = tableName;
@@ -132,22 +132,26 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
       
       var onTableMetadata = function(err, tableMetadata) {
         var tableHandler;
+        udebug.log('TableHandlerFactory.onTableMetadata for ', tableHandlerFactory.tableKey + ' with err: ' + err);
         if (err) {
           tableHandlerFactory.onTableHandler(err, null);
         } else {
-          udebug.log('TableHandlerFactory.onTableMetadata for ', tableHandlerFactory.tableKey);
-          // put the table metadata into the table metadata map
-          tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey] = tableMetadata;
-          // we have the table metadata; now create the table handler
-          tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
-              tableHandlerFactory.ctor);
+          // check to see if the metadata has already been processed
+          if (typeof tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey] === 'undefined') {
+            // put the table metadata into the table metadata map
+            tableHandlerFactory.sessionFactory.tableMetadatas[tableHandlerFactory.tableKey] = tableMetadata;
+          }
+          // we have the table metadata; now create the table handler if needed
           if (tableHandlerFactory.mapping === null) {
             // put the default table handler into the session factory
             if (typeof(tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName]) === 'undefined') {
               udebug.log_detail('UserContext caching the table handler in the sessionFactory for ', 
                   tableHandlerFactory.tableName);
+              tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
+                  tableHandlerFactory.ctor);
               tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName] = tableHandler;
             } else {
+              tableHandler = tableHandlerFactory.sessionFactory.tableHandlers[tableHandlerFactory.tableName];
               udebug.log_detail('UserContext got tableHandler but someone else put it in the cache first for ', 
                   tableHandlerFactory.tableName);
             }
@@ -155,15 +159,18 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
             if (tableHandlerFactory.ctor) {
               if (typeof(tableHandlerFactory.ctor.prototype.mynode.tableHandler) === 'undefined') {
                 // if a domain object mapping, cache the table handler in the prototype
+                tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
+                    tableHandlerFactory.ctor);
                 tableHandlerFactory.ctor.prototype.mynode.tableHandler = tableHandler;
                 udebug.log_detail('UserContext caching the table handler in the prototype for constructor.');
               } else {
+                tableHandler = tableHandlerFactory.ctor.prototype.mynode.tableHandler;
                 udebug.log_detail('UserContext got tableHandler but someone else put it in the prototype first.');
               }
             }
           }
+          tableHandlerFactory.onTableHandler(null, tableHandler);
         }
-        tableHandlerFactory.onTableHandler(null, tableHandler);
       };
       
       // start of createTableHandler
@@ -184,28 +191,29 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
   };
     
   // start of getTableHandler 
-  var err, mynode, tableHandler, tableHandlerFactory;
+  var err, mynode, tableHandler, tableHandlerFactory, tableIndicatorType;
 
-  if (typeof(tableNameOrConstructor) === 'string') {
-    udebug.log_detail('UserContext.getTableHandler for table ', tableNameOrConstructor);
+  tableIndicatorType = typeof(domainObjectTableNameOrConstructor);
+  if (tableIndicatorType === 'string') {
+    udebug.log_detail('UserContext.getTableHandler for table ', domainObjectTableNameOrConstructor);
     // parameter is a table name; look up in table name to table handler hash
-    tableHandler = session.sessionFactory.tableHandlers[tableNameOrConstructor];
+    tableHandler = session.sessionFactory.tableHandlers[domainObjectTableNameOrConstructor];
     if (typeof(tableHandler) === 'undefined') {
-      udebug.log_detail('UserContext.getTableHandler did not find cached tableHandler for table ', tableNameOrConstructor);
+      udebug.log_detail('UserContext.getTableHandler did not find cached tableHandler for table ', domainObjectTableNameOrConstructor);
       // create a new table handler for a table name with no mapping
       // create a closure to create the table handler
       tableHandlerFactory = new TableHandlerFactory(
-          null, tableNameOrConstructor, session.sessionFactory, session.dbSession,
+          null, domainObjectTableNameOrConstructor, session.sessionFactory, session.dbSession,
           null, null, onTableHandler);
       tableHandlerFactory.createTableHandler(null);
     } else {
-      udebug.log_detail('UserContext.getTableHandler found cached tableHandler for table ', tableNameOrConstructor);
+      udebug.log_detail('UserContext.getTableHandler found cached tableHandler for table ', domainObjectTableNameOrConstructor);
       // send back the tableHandler
       onTableHandler(null, tableHandler);
     }
-  } else if (typeof(tableNameOrConstructor) === 'function') {
+  } else if (tableIndicatorType === 'function') {
     udebug.log_detail('UserContext.getTableHandler for constructor.');
-    mynode = tableNameOrConstructor.prototype.mynode;
+    mynode = domainObjectTableNameOrConstructor.prototype.mynode;
     // parameter is a constructor; it must have been annotated already
     if (typeof(mynode) === 'undefined') {
       err = new Error('User exception: constructor must have been annotated.');
@@ -218,7 +226,30 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
         tableHandlerFactory = new TableHandlerFactory(
             mynode, mynode.mapping.table, session.sessionFactory, session.dbSession, 
-            mynode.mapping, tableNameOrConstructor, onTableHandler);
+            mynode.mapping, domainObjectTableNameOrConstructor, onTableHandler);
+        tableHandlerFactory.createTableHandler();
+      } else {
+        udebug.log_detail('UserContext.getTableHandler found cached tableHandler for constructor.');
+        // prototype has been annotated; return the table handler
+        onTableHandler(null, tableHandler);
+      }
+    }
+  } else if (tableIndicatorType === 'object') {
+    udebug.log_detail('UserContext.getTableHandler for domain object.');
+    // parameter is a domain object; it must have been mapped already
+    mynode = domainObjectTableNameOrConstructor.mynode;
+    if (typeof(mynode) === 'undefined') {
+      err = new Error('User exception: constructor must have been annotated.');
+      onTableHandler(err, null);
+    } else {
+      tableHandler = mynode.tableHandler;
+      if (typeof(tableHandler) === 'undefined') {
+        udebug.log_detail('UserContext.getTableHandler did not find cached tableHandler for constructor.');
+        // create the tableHandler
+        // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
+        tableHandlerFactory = new TableHandlerFactory(
+            mynode, mynode.mapping.table, session.sessionFactory, session.dbSession, 
+            mynode.mapping, mynode.constructor, onTableHandler);
         tableHandlerFactory.createTableHandler();
       } else {
         udebug.log_detail('UserContext.getTableHandler found cached tableHandler for constructor.');
@@ -227,8 +258,8 @@ var getTableHandler = function(tableNameOrConstructor, session, onTableHandler) 
       }
     }
   } else {
-    err = new Error('User error: parameter must be a string or a constructor function.');
-    onTableHandler(err, null);
+    err = new Error('User error: parameter must be a domain object, string, or constructor function.');
+    throw err;
   }
 };
 
@@ -339,8 +370,7 @@ exports.UserContext.prototype.persist = function() {
       return;
     } else {
       transactionHandler = dbSession.getTransactionHandler();
-      object = userContext.user_arguments[0];
-      userContext.operation = dbSession.buildInsertOperation(dbTableHandler, object, transactionHandler, persistOnResult);
+      userContext.operation = dbSession.buildInsertOperation(dbTableHandler, userContext.values, transactionHandler, persistOnResult);
       if (userContext.execute) {
         transactionHandler.execute([userContext.operation], function() {
           udebug.log_detail('persist transactionHandler.execute callback.');
@@ -352,10 +382,18 @@ exports.UserContext.prototype.persist = function() {
   }
 
   // persist starts here
-  // persist(object, callback)
-  // get DBTableHandler for constructor
-  var ctor = userContext.user_arguments[0].mynode.constructor;
-  getTableHandler(ctor, userContext.session, persistOnTableHandler);
+  if (userContext.required_parameter_count === 2) {
+    // persist(object, callback)
+    userContext.values = userContext.user_arguments[0];
+  } else if (userContext.required_parameter_count === 3) {
+    // persist(tableNameOrConstructor, values, callback)
+    userContext.values = userContext.user_arguments[1];
+  } else {
+    throw new Error(
+        'Fatal internal error; wrong required_parameter_count ' + userContext.required_parameter_count);
+  }
+  // get DBTableHandler for table indicator (domain object, constructor, or table name)
+  getTableHandler(userContext.user_arguments[0], userContext.session, persistOnTableHandler);
 };
 
 /** Save the object. If the row already exists, overwrite non-pk columns.
@@ -387,14 +425,13 @@ exports.UserContext.prototype.save = function() {
       return;
     } else {
       transactionHandler = dbSession.getTransactionHandler();
-      object = userContext.user_arguments[0];
-      indexHandler = dbTableHandler.getIndexHandler(object);
+      indexHandler = dbTableHandler.getIndexHandler(userContext.values);
       if (!indexHandler.dbIndex.isPrimaryKey) {
         userContext.applyCallback(
             new Error('Illegal argument: parameter of save must include all primary key columns.'));
         return;
       }
-      userContext.operation = dbSession.buildWriteOperation(indexHandler, object, transactionHandler, saveOnResult);
+      userContext.operation = dbSession.buildWriteOperation(indexHandler, userContext.values, transactionHandler, saveOnResult);
       if (userContext.execute) {
         transactionHandler.execute([userContext.operation], function() {
         });
@@ -405,14 +442,19 @@ exports.UserContext.prototype.save = function() {
   }
 
   // save starts here
-  // save(object, callback)
-  if (typeof(userContext.user_arguments[0].mynode) !== 'object') {
-    userContext.applyCallback(new Error('Illegal argument: save requires a mapped domain object.'));
-    return;
+
+  if (userContext.required_parameter_count === 2) {
+    // save(object, callback)
+    userContext.values = userContext.user_arguments[0];
+  } else if (userContext.required_parameter_count === 3) {
+    // save(tableNameOrConstructor, values, callback)
+    userContext.values = userContext.user_arguments[1];
+  } else {
+    throw new Error(
+        'Fatal internal error; wrong required_parameter_count ' + userContext.required_parameter_count);
   }
-  // get DBTableHandler for constructor
-  var ctor = userContext.user_arguments[0].mynode.constructor;
-  getTableHandler(ctor, userContext.session, saveOnTableHandler);
+  // get DBTableHandler for table indicator (domain object, constructor, or table name)
+  getTableHandler(userContext.user_arguments[0], userContext.session, saveOnTableHandler);
 };
 
 /** Update the object.
@@ -444,14 +486,14 @@ exports.UserContext.prototype.update = function() {
       return;
     } else {
       transactionHandler = dbSession.getTransactionHandler();
-      object = userContext.user_arguments[0];
-      indexHandler = dbTableHandler.getIndexHandler(object);
-      if (!indexHandler.dbIndex.isPrimaryKey) {
+      indexHandler = dbTableHandler.getIndexHandler(userContext.keys);
+      // for variant update(object, callback) the object must include all primary keys
+      if (userContext.required_parameter_count === 2 && !indexHandler.dbIndex.isPrimaryKey) {
         userContext.applyCallback(
             new Error('Illegal argument: parameter of update must include all primary key columns.'));
         return;
       }
-      userContext.operation = dbSession.buildUpdateOperation(indexHandler, object, object, transactionHandler, updateOnResult);
+      userContext.operation = dbSession.buildUpdateOperation(indexHandler, userContext.keys, userContext.values, transactionHandler, updateOnResult);
       if (userContext.execute) {
         transactionHandler.execute([userContext.operation], function() {
         });
@@ -462,14 +504,21 @@ exports.UserContext.prototype.update = function() {
   }
 
   // update starts here
-  // update(object, callback)
-  if (typeof(userContext.user_arguments[0].mynode) !== 'object') {
-    userContext.applyCallback(new Error('Illegal argument: update requires a mapped domain object.'));
-    return;
+
+  if (userContext.required_parameter_count === 2) {
+    // update(object, callback)
+    userContext.keys = userContext.user_arguments[0];
+    userContext.values = userContext.user_arguments[0];
+  } else if (userContext.required_parameter_count === 4) {
+    // update(tableNameOrConstructor, keys, values, callback)
+    userContext.keys = userContext.user_arguments[1];
+    userContext.values = userContext.user_arguments[2];
+  } else {
+    throw new Error(
+        'Fatal internal error; wrong required_parameter_count ' + userContext.required_parameter_count);
   }
-  // get DBTableHandler for constructor
-  var ctor = userContext.user_arguments[0].mynode.constructor;
-  getTableHandler(ctor, userContext.session, updateOnTableHandler);
+  // get DBTableHandler for table indicator (domain object, constructor, or table name)
+  getTableHandler(userContext.user_arguments[0], userContext.session, updateOnTableHandler);
 };
 
 /** Load the object.
@@ -564,16 +613,15 @@ exports.UserContext.prototype.remove = function() {
       return;
     }
     if (err) {
-      userContext.applyCallback(err, null);
+      userContext.applyCallback(err);
     } else {
-      object = userContext.user_arguments[0];
-      dbIndexHandler = dbTableHandler.getIndexHandler(object, true);
+      dbIndexHandler = dbTableHandler.getIndexHandler(userContext.keys, true);
       if (dbIndexHandler === null) {
         err = new Error('UserContext.remove unable to get an index to use for ' + JSON.stringify(keys));
-        userContext.applyCallback(err, null);
+        userContext.applyCallback(err);
       } else {
         transactionHandler = dbSession.getTransactionHandler();
-        userContext.operation = dbSession.buildDeleteOperation(dbIndexHandler, object, transactionHandler, removeOnResult);
+        userContext.operation = dbSession.buildDeleteOperation(dbIndexHandler, userContext.keys, transactionHandler, removeOnResult);
         if (userContext.execute) {
           transactionHandler.execute([userContext.operation], function() {
             udebug.log_detail('remove transactionHandler.execute callback.');
@@ -586,10 +634,36 @@ exports.UserContext.prototype.remove = function() {
   }
 
   // remove starts here
-  // remove(object, callback)
-  // get DBTableHandler for constructor
-  var ctor = userContext.user_arguments[0].mynode.constructor;
-  getTableHandler(ctor, userContext.session, removeOnTableHandler);
+
+  if (userContext.required_parameter_count === 2) {
+    // remove(object, callback)
+    userContext.keys = userContext.user_arguments[0];
+  } else if (userContext.required_parameter_count === 3) {
+    // remove(tableNameOrConstructor, values, callback)
+    userContext.keys = userContext.user_arguments[1];
+  } else {
+    throw new Error(
+        'Fatal internal error; wrong required_parameter_count ' + userContext.required_parameter_count);
+  }
+  // get DBTableHandler for table indicator (domain object, constructor, or table name)
+  getTableHandler(userContext.user_arguments[0], userContext.session, removeOnTableHandler);
+};
+
+/** Get Mapping
+ * 
+ */
+exports.UserContext.prototype.getMapping = function() {
+  var userContext = this;
+  function getMappingOnTableHandler(err, dbTableHandler) {
+    if (err) {
+      userContext.applyCallback(err, null);
+      return;
+    }
+    var mapping = dbTableHandler.resolvedMapping;
+    userContext.applyCallback(null, mapping);
+  }
+  // getMapping starts here
+  getTableHandler(userContext.user_arguments[0], userContext.session, getMappingOnTableHandler);  
 };
 
 /** Execute a batch

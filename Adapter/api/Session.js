@@ -52,9 +52,9 @@ exports.Session.prototype.listTables = function() {
   context.listTables();
 };
 
-exports.Session.prototype.getMapping = function(tableNameOrConstructor) {
-  udebug.log("getMapping");
-  return this.sessionFactory.getMapping(tableNameOrConstructor);
+exports.Session.prototype.getMapping = function() {
+  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  context.getMapping();
 };
 
 
@@ -72,29 +72,57 @@ exports.Session.prototype.load = function() {
 };
 
 
-exports.Session.prototype.persist = function() {
-  var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
+exports.Session.prototype.persist = function(tableIndicator) {
+  var context;
+  if (typeof(tableIndicator) === 'object') {
+    // persist(domainObject, callback)
+    context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
+  } else {
+    // persist(tableNameOrConstructor, values, callback)
+    context = new userContext.UserContext(arguments, 3, 1, this, this.sessionFactory);
+  }
   // delegate to context's persist function for execution
   context.persist();
 };
 
 
-exports.Session.prototype.remove = function() {
-  var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
+exports.Session.prototype.remove = function(tableIndicator) {
+  var context;
+  if (typeof(tableIndicator) === 'object') {
+    // remove(domainObject, callback)
+    context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
+  } else {
+    // remove(tableNameOrConstructor, keys, callback)
+    context = new userContext.UserContext(arguments, 3, 1, this, this.sessionFactory);
+  }    
   // delegate to context's remove function for execution
   context.remove();
 };
 
 
-exports.Session.prototype.update = function() {
-  var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
+exports.Session.prototype.update = function(tableIndicator) {
+  var context;
+  if (typeof(tableIndicator) === 'object') {
+    // update(domainObject, callback)
+    context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
+  } else {
+    // update(tableNameOrConstructor, keys, values, callback)
+    context = new userContext.UserContext(arguments, 4, 1, this, this.sessionFactory);
+  }
   // delegate to context's update function for execution
   context.update();
 };
 
 
-exports.Session.prototype.save = function() {
-  var context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
+exports.Session.prototype.save = function(tableIndicator) {
+  var context;
+  if (typeof(tableIndicator) === 'object') {
+    // save(domainObject, callback)
+    context = new userContext.UserContext(arguments, 2, 1, this, this.sessionFactory);
+  } else {
+    // save(tableNameOrConstructor, values, callback)
+    context = new userContext.UserContext(arguments, 3, 1, this, this.sessionFactory);
+  }
   // delegate to context's save function for execution
   context.save();
 };

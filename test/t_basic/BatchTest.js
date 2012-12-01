@@ -19,7 +19,7 @@
  */
 
 /** Dummy test */
-t0 = new harness.SerialTest('dummy');
+var t0 = new harness.SerialTest('dummy');
 t0.run = function() {
   this.pass();
 };

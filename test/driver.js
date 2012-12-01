@@ -46,12 +46,12 @@ function Driver() {
 }
 
 Driver.prototype.findSuites = function(directory) {
-  var files, f, i, st;
+  var files, f, i, st, suite;
   
   if(this.fileToRun) {
     var suitename = path.dirname(this.fileToRun);
     var pathname = path.join(directory, this.fileToRun); 
-    var suite = new harness.Suite(suitename, pathname);
+    suite = new harness.Suite(suitename, pathname);
     if(this.skipSmokeTest)      { suite.skipSmokeTest = true;      }
     if(this.skipClearSmokeTest) { suite.skipClearSmokeTest = true; }
     this.suites.push(suite);
@@ -64,7 +64,7 @@ Driver.prototype.findSuites = function(directory) {
       st = fs.statSync(path.join(directory, f));
       if (st.isDirectory() && this.isSuiteToRun(f)) {
         udebug.log('Driver.findSuites found directory', f);
-        var suite = new harness.Suite(f, path.join(directory, f));
+        suite = new harness.Suite(f, path.join(directory, f));
         if(this.skipSmokeTest)      { suite.skipSmokeTest = true;      }
         if(this.skipClearSmokeTest) { suite.skipClearSmokeTest = true; }
         this.suites.push(suite);
@@ -116,7 +116,7 @@ Driver.prototype.reportResultsAndExit = function() {
 
 var driver = new Driver();
 var exit = false;
-var timeoutMillis = 8000;
+var timeoutMillis = 0;
 var val, values, i, pair;
 
 var usageMessage = 
@@ -129,7 +129,7 @@ var usageMessage =
   "   --suites=<suite>: only run the named suite(s)\n" +
   "      --file=<file>: only run the named test file\n" +
   "--adapter=<adapter>: only run on the named adapter (e.g. ndb or mysql)\n" +
-  "       --timer=<ms>: set timeout (in msec); set to 0 to disable timer.\n" +
+  "     --timeout=<ms>: set timeout (in msec); set to 0 to disable timeout.\n" +
   "--set <var>=<value>: set a global variable\n" +
   "       --skip-smoke: do not run SmokeTest\n" +
   "       --skip-clear: do not run ClearSmokeTest\n"
@@ -190,7 +190,7 @@ for(i = 2; i < process.argv.length ; i++) {
       case '--adapter':
         global.adapter = values[1];
         break;
-      case '--timer':
+      case '--timeout':
         timeoutMillis = values[1];
         break;
       default:
