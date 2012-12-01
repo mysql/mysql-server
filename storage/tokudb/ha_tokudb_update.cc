@@ -399,6 +399,14 @@ static bool clustering_keys_exist(TABLE *table) {
     return false;
 }
 
+static bool is_strict_mode(THD *thd) {
+#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
+    return thd->is_strict_mode();
+#else
+    return test(thd->variables.sql_mode & (MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES));
+#endif
+}
+
 #if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
 #include <binlog.h>
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
@@ -414,11 +422,9 @@ bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &valu
     if (!transaction)
         return false;
 
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
     // avoid strict mode arithmetic overflow issues
-    if (thd->is_strict_mode())
+    if (is_strict_mode(thd))
         return false;
-#endif
 
     // no triggers
     if (table->triggers) 
@@ -666,11 +672,9 @@ bool ha_tokudb::check_upsert(THD *thd, List<Item> &update_fields, List<Item> &up
     if (!transaction)
         return false;
 
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
     // avoid strict mode arithmetic overflow issues
-    if (thd->is_strict_mode())
+    if (is_strict_mode(thd))
         return false;
-#endif
 
     // no triggers
     if (table->triggers) 
