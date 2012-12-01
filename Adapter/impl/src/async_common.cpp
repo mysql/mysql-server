@@ -50,9 +50,7 @@ void main_thd_complete(uv_work_t *req) {
   delete req;
 
   /* exceptions */
-  // For some reason, enabling this causes exceptions to be thrown in tests
-  // that would otherwise succeed. 
-  //if(try_catch.HasCaught()) {
-  //  try_catch.ReThrow();
-  //}
+  if(try_catch.HasCaught()) {
+    try_catch.ReThrow();
+  }
 }
