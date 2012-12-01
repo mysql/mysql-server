@@ -55,9 +55,7 @@ function getDictionaryLock(ndbSession) {
     ndbSession.lock = 1;
     return true;
   }
-  else {
-    return false;
-  }
+  return false;
 }
 
 function releaseDictionaryLock(ndbSession) {
@@ -290,7 +288,7 @@ function makeListTablesCall(dbSession, ndbConnectionPool, databaseName) {
   var impl = dbSession.impl;
   return function() {
     adapter.ndb.impl.DBDictionary.listTables(impl, databaseName, groupCallback);
-  }
+  };
 }
 
 
@@ -301,7 +299,7 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
   var impl = dbSession.impl;
   return function() {
     adapter.ndb.impl.DBDictionary.getTable(impl, dbName, tableName, groupCallback);
-  }
+  };
 }
 
 
