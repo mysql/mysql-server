@@ -406,11 +406,10 @@ static LEX_STRING old_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_old_password")
 };
 
-#if defined(HAVE_OPENSSL)
 LEX_STRING sha256_password_plugin_name= {
   C_STRING_WITH_LEN("sha256_password")
 };
-#endif
+
 static LEX_STRING validate_password_plugin_name= {
   C_STRING_WITH_LEN("validate_password")
 };
@@ -10812,6 +10811,15 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
                               mpvio.acl_user->plugin.str));
     auth_plugin_name= mpvio.acl_user->plugin;
     res= do_auth_once(thd, &auth_plugin_name, &mpvio);
+    if (res <= CR_OK)
+    {
+      if (auth_plugin_name.str == native_password_plugin_name.str)
+        thd->variables.old_passwords= 0;
+      if (auth_plugin_name.str == old_password_plugin_name.str)
+        thd->variables.old_passwords= 1;
+      if (auth_plugin_name.str == sha256_password_plugin_name.str)
+        thd->variables.old_passwords= 2;
+    }
   }
 
   server_mpvio_update_thd(thd, &mpvio);
