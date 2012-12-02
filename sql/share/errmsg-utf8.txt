@@ -7000,6 +7000,9 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS
   eng "Fulltext index creation requires a lock"
 
+ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
+  eng "sql_slave_skip_counter can not be set when the server is running with GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction"
+
 #
 #  End of 5.6 error messages.
 #
