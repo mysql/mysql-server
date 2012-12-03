@@ -1,5 +1,8 @@
-static bool 
-tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error, bool check_field_index) {
+#if !defined(TOKUDB_ALTER_COMMON)
+#define TOKUDB_ALTER_COMMON
+
+static bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error, bool check_field_index) __attribute__((unused));
+static bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print_error, bool check_field_index) {
     bool retval;
     if (table->s->keys != altered_table->s->keys) {
         if (print_error) {
@@ -115,8 +118,8 @@ cleanup:
 // to evaluate whether a field is NULL or not. This value is a power of 2, from
 // 2^0 to 2^7. We return the position of the bit within the byte, which is
 // lg null_bit
-static inline uint32_t 
-get_null_bit_position(uint32_t null_bit) {
+static inline uint32_t get_null_bit_position(uint32_t null_bit) __attribute__((unused));
+static inline uint32_t get_null_bit_position(uint32_t null_bit) {
     uint32_t retval = 0;
     switch(null_bit) {
     case (1):
@@ -150,16 +153,16 @@ get_null_bit_position(uint32_t null_bit) {
 }
 
 // returns the index of the null bit of field. 
-static inline uint32_t 
-get_overall_null_bit_position(TABLE* table, Field* field) {
+static inline uint32_t get_overall_null_bit_position(TABLE* table, Field* field) __attribute__((unused));
+static inline uint32_t get_overall_null_bit_position(TABLE* table, Field* field) {
     uint32_t offset = get_null_offset(table, field);
     uint32_t null_bit = field->null_bit;
     return offset*8 + get_null_bit_position(null_bit);
 }
 
 // not static since 51 uses this and 56 does not
-bool 
-are_null_bits_in_order(TABLE* table) {
+static bool are_null_bits_in_order(TABLE* table) __attribute__((unused));
+static bool are_null_bits_in_order(TABLE* table) {
     uint32_t curr_null_pos = 0;
     bool first = true;
     bool retval = true;
@@ -182,8 +185,8 @@ are_null_bits_in_order(TABLE* table) {
     return retval;
 }
 
-static uint32_t 
-get_first_null_bit_pos(TABLE* table) {
+static uint32_t get_first_null_bit_pos(TABLE* table) __attribute__((unused));
+static uint32_t get_first_null_bit_pos(TABLE* table) {
     uint32_t table_pos = 0;
     for (uint i = 0; i < table->s->fields; i++) {
         Field* curr_field = table->field[i];
@@ -199,9 +202,8 @@ get_first_null_bit_pos(TABLE* table) {
     return table_pos;
 }
 
-#if 0
-static bool 
-is_column_default_null(TABLE* src_table, uint32_t field_index) {
+static bool is_column_default_null(TABLE* src_table, uint32_t field_index) __attribute__((unused));
+static bool is_column_default_null(TABLE* src_table, uint32_t field_index) {
     Field* curr_field = src_table->field[field_index];
     bool is_null_default = false;
     bool nullable = curr_field->null_bit != 0;
@@ -214,10 +216,8 @@ is_column_default_null(TABLE* src_table, uint32_t field_index) {
     }
     return is_null_default;
 }
-#endif
 
-static uint32_t 
-fill_static_row_mutator(
+static uint32_t fill_static_row_mutator(
     uchar* buf, 
     TABLE* orig_table,
     TABLE* altered_table,
@@ -283,8 +283,7 @@ fill_static_row_mutator(
     return pos - buf;
 }
 
-static uint32_t 
-fill_dynamic_row_mutator(
+static uint32_t fill_dynamic_row_mutator(
     uchar* buf,
     uint32_t* columns, 
     uint32_t num_columns,
@@ -391,8 +390,7 @@ fill_dynamic_row_mutator(
     return pos-buf;
 }
 
-static uint32_t 
-fill_static_blob_row_mutator(
+static uint32_t fill_static_blob_row_mutator(
     uchar* buf,
     TABLE* src_table,
     KEY_AND_COL_INFO* src_kc_info
@@ -415,8 +413,7 @@ fill_static_blob_row_mutator(
     return pos-buf;
 }
 
-static uint32_t 
-fill_dynamic_blob_row_mutator(
+static uint32_t fill_dynamic_blob_row_mutator(
     uchar* buf,
     uint32_t* columns, 
     uint32_t num_columns,
@@ -471,8 +468,7 @@ fill_dynamic_blob_row_mutator(
 // TODO: carefully review to make sure that the right information is used
 // TODO: namely, when do we get stuff from share->kc_info and when we get
 // TODO: it from altered_kc_info, and when is keynr associated with the right thing
-uint32_t 
-ha_tokudb::fill_row_mutator(
+uint32_t ha_tokudb::fill_row_mutator(
     uchar* buf, 
     uint32_t* columns, 
     uint32_t num_columns,
@@ -565,8 +561,7 @@ ha_tokudb::fill_row_mutator(
     return pos-buf;
 }
 
-static bool
-all_fields_are_same_type(TABLE *table_a, TABLE *table_b) {
+static bool all_fields_are_same_type(TABLE *table_a, TABLE *table_b) {
     if (table_a->s->fields != table_b->s->fields)
         return false;
     for (uint i = 0; i < table_a->s->fields; i++) {
@@ -578,13 +573,8 @@ all_fields_are_same_type(TABLE *table_a, TABLE *table_b) {
     return true;
 }
 
-static bool 
-column_rename_supported(
-    TABLE* orig_table, 
-    TABLE* new_table,
-    bool alter_column_order
-    ) 
-{
+static bool column_rename_supported(TABLE* orig_table, TABLE* new_table, bool alter_column_order)  __attribute__((unused));
+static bool column_rename_supported(TABLE* orig_table, TABLE* new_table, bool alter_column_order) {
     bool retval = false;
     bool keys_same_for_cr;
     uint num_fields_with_different_names = 0;
@@ -637,14 +627,8 @@ cleanup:
     return retval;
 }
 
-static int 
-find_changed_columns(
-    uint32_t* changed_columns,
-    uint32_t* num_changed_columns,
-    TABLE* smaller_table, 
-    TABLE* bigger_table
-    ) 
-{
+static int find_changed_columns(uint32_t* changed_columns, uint32_t* num_changed_columns, TABLE* smaller_table, TABLE* bigger_table) __attribute__((unused));
+static int find_changed_columns(uint32_t* changed_columns, uint32_t* num_changed_columns, TABLE* smaller_table, TABLE* bigger_table) {
     int retval;
     uint curr_new_col_index = 0;
     uint32_t curr_num_changed_columns=0;
@@ -691,8 +675,8 @@ cleanup:
     return retval;
 }
 
-static bool
-tables_have_same_keys_and_columns(TABLE* first_table, TABLE* second_table, bool print_error) {
+static bool tables_have_same_keys_and_columns(TABLE* first_table, TABLE* second_table, bool print_error) __attribute__((unused));
+static bool tables_have_same_keys_and_columns(TABLE* first_table, TABLE* second_table, bool print_error) {
     bool retval;
     if (first_table->s->null_bytes != second_table->s->null_bytes) {
         retval = false;
@@ -740,8 +724,7 @@ exit:
 
 #if TOKU_INCLUDE_WRITE_FRM_DATA
 // write the new frm data to the status dictionary using the alter table transaction
-int 
-ha_tokudb::write_frm_data(const uchar *frm_data, size_t frm_len) {
+int ha_tokudb::write_frm_data(const uchar *frm_data, size_t frm_len) {
     TOKUDB_DBUG_ENTER("write_frm_data");
 
     int error = 0;
@@ -757,4 +740,6 @@ ha_tokudb::write_frm_data(const uchar *frm_data, size_t frm_len) {
    
     TOKUDB_DBUG_RETURN(error);
 }
+#endif
+
 #endif
