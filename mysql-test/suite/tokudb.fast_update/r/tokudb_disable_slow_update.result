@@ -4,5 +4,5 @@ create table t (id int primary key, b int, key(b));
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 update t set b=b+1 where id=42;
-ERROR 42000: Table 't' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
