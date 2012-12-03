@@ -840,7 +840,18 @@ int binlog_cache_data::write_event(THD *thd, Log_event *ev)
     if (ev->write(&cache_log) != 0)
     {
       DBUG_EXECUTE_IF("simulate_disk_full_at_flush_pending",
-                      {DBUG_SET("-d,simulate_file_write_error");});
+                      {
+                        DBUG_SET("-d,simulate_file_write_error");
+                        DBUG_SET("-d,simulate_disk_full_at_flush_pending");
+                        /* 
+                           after +d,simulate_file_write_error the local cache
+                           is in unsane state. Since -d,simulate_file_write_error
+                           revokes the first simulation do_write_cache()
+                           can't be run without facing an assert.
+                           So it's blocked with the following 2nd simulation:
+                        */
+                        DBUG_SET("+d,simulate_do_write_cache_failure");
+                      });
       DBUG_RETURN(1);
     }
     if (ev->get_type_code() == XID_EVENT)
@@ -4994,6 +5005,16 @@ uint MYSQL_BIN_LOG::next_file_id()
 int MYSQL_BIN_LOG::do_write_cache(IO_CACHE *cache)
 {
   DBUG_ENTER("MYSQL_BIN_LOG::do_write_cache(IO_CACHE *)");
+
+  DBUG_EXECUTE_IF("simulate_do_write_cache_failure",
+                  {
+                    /* 
+                       see binlog_cache_data::write_event() that reacts on
+                       @c simulate_disk_full_at_flush_pending.
+                    */
+                    DBUG_SET("-d,simulate_do_write_cache_failure");
+                    DBUG_RETURN(ER_ERROR_ON_WRITE);
+                  });
 
   if (reinit_io_cache(cache, READ_CACHE, 0, 0, 0))
     DBUG_RETURN(ER_ERROR_ON_WRITE);

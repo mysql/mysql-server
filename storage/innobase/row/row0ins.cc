@@ -2633,11 +2633,31 @@ row_ins_sec_index_entry_low(
 		err = row_ins_scan_sec_index_for_duplicate(
 			flags, index, entry, thr, check, &mtr, offsets_heap);
 
-		if (err != DB_SUCCESS) {
-			goto func_exit;
-		}
-
 		mtr_commit(&mtr);
+
+		switch (err) {
+		case DB_SUCCESS:
+			break;
+		case DB_DUPLICATE_KEY:
+			if (*index->name == TEMP_INDEX_PREFIX) {
+				ut_ad(!thr_get_trx(thr)
+				      ->dict_operation_lock_mode);
+				mutex_enter(&dict_sys->mutex);
+				dict_set_corrupted_index_cache_only(
+					index, index->table);
+				mutex_exit(&dict_sys->mutex);
+				/* Do not return any error to the
+				caller. The duplicate will be reported
+				by ALTER TABLE or CREATE UNIQUE INDEX. */
+				/* TODO: Bug#15920713 CREATE UNIQUE INDEX
+				REPORTS ER_INDEX_CORRUPT
+				INSTEAD OF DUPLICATE */
+				err = DB_SUCCESS;
+			}
+			/* fall through */
+		default:
+			return(err);
+		}
 
 		if (row_ins_sec_mtr_start_and_check_if_aborted(
 			    &mtr, index, check, search_mode)) {
@@ -2811,7 +2831,7 @@ row_ins_clust_index_entry(
 #endif /* UNIV_DEBUG */
 
 	if (err != DB_FAIL) {
-
+		DEBUG_SYNC_C("row_ins_clust_index_entry_leaf_after");
 		return(err);
 	}
 
@@ -3199,6 +3219,9 @@ row_ins_step(
 		}
 
 		err = lock_table(0, node->table, LOCK_IX, thr);
+
+		DBUG_EXECUTE_IF("ib_row_ins_ix_lock_wait",
+				err = DB_LOCK_WAIT;);
 
 		if (err != DB_SUCCESS) {
 
