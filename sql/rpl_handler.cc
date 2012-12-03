@@ -249,19 +249,15 @@ int Trans_delegate::after_rollback(THD *thd, bool all)
 
 int Binlog_storage_delegate::after_flush(THD *thd,
                                          const char *log_file,
-                                         my_off_t log_pos,
-                                         bool synced)
+                                         my_off_t log_pos)
 {
   DBUG_ENTER("Binlog_storage_delegate::after_flush");
-  DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu, synced: %s",
-                       log_file, (ulonglong) log_pos, YESNO(synced)));
+  DBUG_PRINT("enter", ("log_file: %s, log_pos: %llu",
+                       log_file, (ulonglong) log_pos));
   Binlog_storage_param param;
-  uint32 flags=0;
-  if (synced)
-    flags |= BINLOG_STORAGE_IS_SYNCED;
 
   int ret= 0;
-  FOREACH_OBSERVER(ret, after_flush, thd, (&param, log_file, log_pos, flags));
+  FOREACH_OBSERVER(ret, after_flush, thd, (&param, log_file, log_pos));
   DBUG_RETURN(ret);
 }
 
