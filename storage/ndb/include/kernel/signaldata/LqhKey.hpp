@@ -134,6 +134,7 @@ private:
   static void setSeqNoReplica(UintR & requestInfo, UintR val);
   static void setLastReplicaNo(UintR & requestInfo, UintR val);
   static void setAIInLqhKeyReq(UintR & requestInfo, UintR val);
+  static void clearAIInLqhKeyReq(UintR & requestInfo);
   static void setKeyLen(UintR & requestInfo, UintR val);
   static void setSameClientAndTcFlag(UintR & requestInfo, UintR val);
   static void setReturnedReadLenAIFlag(UintR & requestInfo, UintR val);
@@ -510,6 +511,12 @@ void
 LqhKeyReq::setAIInLqhKeyReq(UintR & requestInfo, UintR val){
   ASSERT_MAX(val, RI_AI_IN_THIS_MASK, "LqhKeyReq::setAIInLqhKeyReq");
   requestInfo |= (val << RI_AI_IN_THIS_SHIFT);
+}
+
+inline
+void
+LqhKeyReq::clearAIInLqhKeyReq(UintR & requestInfo){
+  requestInfo &= ~((Uint32)RI_AI_IN_THIS_MASK << RI_AI_IN_THIS_SHIFT);
 }
 
 inline
