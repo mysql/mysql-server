@@ -436,6 +436,13 @@ Dbtup::load_diskpage(Signal* signal,
       flags |= Page_cache_client::DELAY_REQ;
       req.m_delay_until_time = NdbTick_CurrentMillisecond()+(Uint64)3000;
     }
+    if (ERROR_INSERTED(4035) && (rand() % 13) == 0)
+    {
+      // Disk access have to randomly wait max 16ms for a diskpage
+      Uint64 delay = (Uint64)(rand() % 16) + 1;
+      flags |= Page_cache_client::DELAY_REQ;
+      req.m_delay_until_time = NdbTick_CurrentMillisecond()+delay;
+    }
 #endif
     
     Page_cache_client pgman(this, c_pgman);

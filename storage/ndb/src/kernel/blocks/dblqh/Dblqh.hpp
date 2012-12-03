@@ -2127,6 +2127,7 @@ public:
     UintR simpleTcConnect;
     UintR tableref;
     UintR tcOprec;
+    UintR hashIndex;
     Uint32 tcHashKeyHi;
     UintR tcScanInfo;
     UintR tcScanRec;
