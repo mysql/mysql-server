@@ -3110,7 +3110,8 @@ bool prune_partitions(THD *thd, TABLE *table, Item *pprune_cond)
   if (!part_info)
     DBUG_RETURN(FALSE); /* not a partitioned table */
 
-  if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
+  if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION &&
+      part_info->is_auto_partitioned)
     DBUG_RETURN(false); /* Should not prune auto partitioned table */
 
   if (!pprune_cond)
