@@ -23,6 +23,10 @@ args: -n Upgrade_Traffic_FS T1
 max-time: 1200
 
 cmd: testUpgrade
+args: -n Bug14702377 T1
+max-time: 600
+
+cmd: testUpgrade
 args: -n Upgrade_Api_Only T1
 max-time: 1200
 
