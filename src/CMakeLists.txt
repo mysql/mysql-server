@@ -27,16 +27,16 @@ set_target_properties(tokudb_static_conv PROPERTIES POSITION_INDEPENDENT_CODE ON
 set(tokudb_source_libs tokudb_static_conv locktree_static ft_static util_static lzma ${LIBTOKUPORTABILITY} z ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
 merge_static_libs(${LIBTOKUDB}_static ${LIBTOKUDB}_static "${tokudb_source_libs}")
 
+## add gcov and define _GNU_SOURCE
+maybe_add_gcov_to_libraries(${LIBTOKUDB} tokudb_static_conv)
+set_property(TARGET ${LIBTOKUDB} tokudb_static_conv APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
+
 ## add a version script and set -fvisibility=hidden for the shared library
 configure_file(export.map . COPYONLY)
 if (NOT CMAKE_SYSTEM_NAME STREQUAL Darwin)
   add_space_separated_property(TARGET ${LIBTOKUDB} COMPILE_FLAGS -fvisibility=hidden -fvisibility-inlines-hidden)
   add_space_separated_property(TARGET ${LIBTOKUDB} LINK_FLAGS "-Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/export.map")
 endif ()
-
-## add gcov and define _GNU_SOURCE
-maybe_add_gcov_to_libraries(${LIBTOKUDB} ${LIBTOKUDB}_static)
-set_property(TARGET ${LIBTOKUDB} ${LIBTOKUDB}_static APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
 
 install(
   TARGETS ${LIBTOKUDB} ${LIBTOKUDB}_static

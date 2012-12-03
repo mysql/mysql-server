@@ -11,11 +11,16 @@ set(tokuportability_srcs
   )
 
 add_library(${LIBTOKUPORTABILITY} SHARED ${tokuportability_srcs})
-add_library(${LIBTOKUPORTABILITY}_static STATIC ${tokuportability_srcs})
-maybe_add_gcov_to_libraries(${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static)
-set_property(TARGET ${LIBTOKUPORTABILITY} ${LIBTOKUPORTABILITY}_static APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
-set_target_properties(${LIBTOKUPORTABILITY}_static PROPERTIES POSITION_INDEPENDENT_CODE ON)
+target_link_libraries(${LIBTOKUPORTABILITY} LINK_PRIVATE jemalloc)
 target_link_libraries(${LIBTOKUPORTABILITY} LINK_PUBLIC ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
+
+add_library(tokuportability_static_conv STATIC ${tokuportability_srcs})
+set_target_properties(tokuportability_static_conv PROPERTIES POSITION_INDEPENDENT_CODE ON)
+set(tokuportability_source_libs tokuportability_static_conv jemalloc ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
+merge_static_libs(${LIBTOKUPORTABILITY}_static ${LIBTOKUPORTABILITY}_static "${tokuportability_source_libs}")
+
+maybe_add_gcov_to_libraries(${LIBTOKUPORTABILITY} tokuportability_static_conv)
+set_property(TARGET ${LIBTOKUPORTABILITY} tokuportability_static_conv APPEND PROPERTY COMPILE_DEFINITIONS _GNU_SOURCE)
 
 set_property(SOURCE file memory os_malloc portability toku_assert toku_rwlock APPEND PROPERTY
   COMPILE_DEFINITIONS TOKU_ALLOW_DEPRECATED=1)
