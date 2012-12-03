@@ -419,6 +419,7 @@ restart:
 	NdbSleep_MilliSleep(50);
 	continue;
       }
+      setNdbError(err);
       return NDBT_FAILED;
     }
 
@@ -433,6 +434,8 @@ restart:
     if( pOp->readTuples(NdbOperation::LM_Exclusive, flags,
                         parallelism))
     {
+      ERR(pOp->getNdbError());
+      setNdbError(pOp->getNdbError());
       closeTransaction(pNdb);
       return NDBT_FAILED;
     }
