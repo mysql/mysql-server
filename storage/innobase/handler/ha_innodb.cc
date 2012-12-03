@@ -649,6 +649,8 @@ static SHOW_VAR innodb_status_variables[]= {
 #ifdef UNIV_DEBUG
   {"purge_trx_id_age",
   (char*) &export_vars.innodb_purge_trx_id_age,           SHOW_LONG},
+  {"purge_view_trx_id_age",
+  (char*) &export_vars.innodb_purge_view_trx_id_age,      SHOW_LONG},
 #endif /* UNIV_DEBUG */
   {NullS, NullS, SHOW_LONG}
 };
@@ -3119,14 +3121,16 @@ innobase_change_buffering_inited_ok:
 
 	if (innobase_buffer_pool_instances == 0) {
 		innobase_buffer_pool_instances = 8;
-#ifdef _WIN32
+
+#if defined(__WIN__) && !defined(_WIN64)
 		if (innobase_buffer_pool_size > 1331 * 1024 * 1024) {
 			innobase_buffer_pool_instances
-				= (long) (innobase_buffer_pool_size
-				/ (128 * 1024 * 1024));
+				= ut_min(MAX_BUFFER_POOLS,
+					(long) (innobase_buffer_pool_size
+					/ (128 * 1024 * 1024)));
 		}
-#endif
-}
+#endif /* defined(__WIN__) && !defined(_WIN64) */
+	}
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
 	srv_buf_pool_instances = (ulint) innobase_buffer_pool_instances;
 
@@ -16111,6 +16115,13 @@ static MYSQL_SYSVAR_UINT(limit_optimistic_insert_debug,
   btr_cur_limit_optimistic_insert_debug, PLUGIN_VAR_RQCMDARG,
   "Artificially limit the number of records per B-tree page (0=unlimited).",
   NULL, NULL, 0, 0, UINT_MAX32, 0);
+
+static MYSQL_SYSVAR_BOOL(trx_purge_view_update_only_debug,
+  srv_purge_view_update_only_debug, PLUGIN_VAR_NOCMDARG,
+  "Pause actual purging any delete-marked records, but merely update the purge view. "
+  "It is to create artificially the situation the purge view have been updated "
+  "but the each purges were not done yet.",
+  NULL, NULL, FALSE);
 #endif /* UNIV_DEBUG */
 
 static struct st_mysql_sys_var* innobase_system_variables[]= {
@@ -16255,6 +16266,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
 #ifdef UNIV_DEBUG
   MYSQL_SYSVAR(trx_rseg_n_slots_debug),
   MYSQL_SYSVAR(limit_optimistic_insert_debug),
+  MYSQL_SYSVAR(trx_purge_view_update_only_debug),
 #endif /* UNIV_DEBUG */
   NULL
 };

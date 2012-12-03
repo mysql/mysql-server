@@ -406,11 +406,10 @@ static LEX_STRING old_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_old_password")
 };
 
-#if defined(HAVE_OPENSSL)
 LEX_STRING sha256_password_plugin_name= {
   C_STRING_WITH_LEN("sha256_password")
 };
-#endif
+
 static LEX_STRING validate_password_plugin_name= {
   C_STRING_WITH_LEN("validate_password")
 };
@@ -10761,6 +10760,15 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
                               mpvio.acl_user->plugin.str));
     auth_plugin_name= mpvio.acl_user->plugin;
     res= do_auth_once(thd, &auth_plugin_name, &mpvio);
+    if (res <= CR_OK)
+    {
+      if (auth_plugin_name.str == native_password_plugin_name.str)
+        thd->variables.old_passwords= 0;
+      if (auth_plugin_name.str == old_password_plugin_name.str)
+        thd->variables.old_passwords= 1;
+      if (auth_plugin_name.str == sha256_password_plugin_name.str)
+        thd->variables.old_passwords= 2;
+    }
   }
 
   server_mpvio_update_thd(thd, &mpvio);
@@ -11245,6 +11253,18 @@ void deinit_rsa_keys(void)
   g_rsa_keys.free_memory();  
 }
 
+// Wraps a FILE handle, to ensure we always close it when returning.
+class FileCloser
+{
+  FILE *m_file;
+public:
+  FileCloser(FILE *to_be_closed) : m_file(to_be_closed) {}
+  ~FileCloser()
+  {
+    if (m_file != NULL)
+      fclose(m_file);
+  }
+};
 
 /**
   Loads the RSA key pair from disk and store them in a global variable. 
@@ -11299,6 +11319,7 @@ int init_rsa_keys(void)
     /* Don't return an error; server will still be able to operate. */
     return 0;
   }
+  FileCloser close_priv(priv_key_file);
 
   if (strchr(auth_rsa_public_key_path, FN_LIBCHAR) != NULL ||
       strchr(auth_rsa_public_key_path, FN_LIBCHAR2) != NULL)
@@ -11321,6 +11342,7 @@ int init_rsa_keys(void)
     /* Don't return an error; server will still be able to operate. */
     return 0;
   }
+  FileCloser close_public(public_key_file);
 
   RSA *rsa_private_key= RSA_new();
   if (g_rsa_keys.set_private_key(PEM_read_RSAPrivateKey(priv_key_file,

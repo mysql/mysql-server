@@ -832,6 +832,8 @@ row_undo_mod_del_mark_sec(
 			row_undo_mod_sec_flag_corrupted(
 				thr_get_trx(thr), index);
 			err = DB_SUCCESS;
+			/* TODO: Bug#15920713 CREATE UNIQUE INDEX
+			REPORTS ER_INDEX_CORRUPT INSTEAD OF DUPLICATE */
 		} else if (err != DB_SUCCESS) {
 			break;
 		}

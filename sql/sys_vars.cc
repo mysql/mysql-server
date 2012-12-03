@@ -3929,6 +3929,13 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
       my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
       result= true;
     }
+    if (gtid_mode == 3)
+    {
+      my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
+                 ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
+                 MYF(0));
+      result= true;
+    }
     mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
   mysql_mutex_unlock(&LOCK_active_mi);
