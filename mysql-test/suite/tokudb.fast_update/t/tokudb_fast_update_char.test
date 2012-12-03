@@ -2,6 +2,7 @@
 # test that char field primary keys are fast
 
 source include/have_tokudb.inc;
+source include/have_innodb.inc;
 
 set default_storage_engine='tokudb';
 

@@ -4,7 +4,7 @@ set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 create table tt (id int primary key, x int);
 update tt set x=1 where id='abc';
-ERROR 42000: Table 'tt' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 update tt set x='abc' where id=1;
-ERROR 42000: Table 'tt' uses an extension that doesn't exist in this MySQL version
+ERROR 42000: Table 'tt' uses an extension that doesn't exist in this XYZ version
 drop table tt;

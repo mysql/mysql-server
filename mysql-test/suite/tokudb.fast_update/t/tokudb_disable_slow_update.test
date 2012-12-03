@@ -11,6 +11,7 @@ create table t (id int primary key, b int, key(b));
 set tokudb_enable_fast_update=1;
 set tokudb_disable_slow_update=1;
 
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
 --error ER_UNSUPPORTED_EXTENSION
 update t set b=b+1 where id=42;
 
