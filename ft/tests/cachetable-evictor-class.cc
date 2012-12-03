@@ -152,7 +152,7 @@ void evictor_unit_test::verify_ev_m_size_reserved() {
     assert(m_ev.m_size_current == 150);
     assert(m_ev.m_size_evicting == 0);
     usleep(1*1024*1024); // sleep to give eviction thread a chance to wake up
-    assert(m_ev.m_num_eviction_thread_runs == 1);
+    assert(m_ev.m_num_eviction_thread_runs > 0);
     
     m_ev.m_size_current = 0;
     m_ev.destroy();
