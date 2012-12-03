@@ -273,6 +273,7 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   int records = ctx->getNumRecords();
   int queries = records/joinlevel;
   int until_stopped = ctx->getProperty("UntilStopped", (Uint32)0);
+  int inject_err = ctx->getProperty("ErrorCode");
   Uint32 stepNo = step->getStepNo();
 
   int i = 0;
@@ -284,6 +285,16 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
   const NdbQueryDef * q2 = qb2.createQuery();
   HugoQueries hugoTrans1(* q1);
   HugoQueries hugoTrans2(* q2);
+  NdbRestarter restarter;
+
+  if (inject_err)
+  {
+    ndbout << "insertErrorInAllNodes("<<inject_err<<")"<<endl;
+    if (restarter.insertErrorInAllNodes(inject_err) != 0){
+      g_info << "Could not insert error in all nodes "<<endl;
+      return NDBT_FAILED;
+    }
+  }
   while ((i<loops || until_stopped) && !ctx->isTestStopped())
   {
     g_info << i << ": ";
@@ -301,6 +312,7 @@ runJoin(NDBT_Context* ctx, NDBT_Step* step){
     addMask(ctx, (1 << stepNo), "Running");
   }
   g_info << endl;
+  restarter.insertErrorInAllNodes(0);
   return NDBT_OK;
 }
 
@@ -1406,6 +1418,12 @@ TESTCASE("ScanJoin", ""){
 TESTCASE("MixedJoin", ""){
   INITIALIZER(runLoadTable);
   STEPS(runJoin, 6);
+  FINALIZER(runClearTable);
+}
+TESTCASE("MixedJoinDiskWait", "Simulate disk wait during pushed joins"){
+  INITIALIZER(runLoadTable);
+  TC_PROPERTY("ErrorCode", 4035);
+  STEPS(runJoin, 4);
   FINALIZER(runClearTable);
 }
 TESTCASE("NF_Join", ""){
