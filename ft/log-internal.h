@@ -139,7 +139,6 @@ struct txn_roll_info {
 
 struct tokutxn {
     // These don't change after create:
-    const time_t starttime; // timestamp in seconds of transaction start
     const uint64_t txnid64; // this happens to be the first lsn
     const uint64_t ancestor_txnid64; // this is the lsn of root transaction
     const uint64_t snapshot_txnid64; // this is the lsn of the snapshot
