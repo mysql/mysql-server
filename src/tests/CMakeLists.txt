@@ -666,7 +666,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/drd_test_groupcommit_count.tdb
     ydb/env-put-multiple.tdb
     ydb/filesize.tdb
-    ydb/hot-optimize-table-tests.tdb
     ydb/loader-cleanup-test0.tdb
     ydb/loader-cleanup-test2.tdb
     ydb/manyfiles.tdb
@@ -691,7 +690,6 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/test_txn_nested4.tdb
     ydb/test_txn_nested5.tdb
     ydb/test_update_broadcast_stress.tdb
-    ydb/test_update_stress.tdb
     )
   if (BDB_FOUND)
     list(APPEND long_tests
@@ -708,6 +706,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   set(extra_long_tests
     ydb/drd_test_4015.tdb
     ydb/hotindexer-with-queries.tdb
+    ydb/hot-optimize-table-tests.tdb
     ydb/loader-dup-test0.tdb
     ydb/loader-stress-del.nop.loader
     ydb/loader-stress-del.p.loader
@@ -715,6 +714,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
     ydb/loader-stress-test4.tdb
     ydb/test3039.tdb
     ydb/test3529.tdb
+    ydb/test_update_stress.tdb
     )
   if (BDB_FOUND)
     list(APPEND extra_long_tests
