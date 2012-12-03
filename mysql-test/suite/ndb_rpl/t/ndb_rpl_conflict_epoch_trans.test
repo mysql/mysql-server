@@ -477,9 +477,11 @@ select * from test.transactions order by auto_key;
 select * from test.balances order by name;
 
 --echo Exceptions at Primary bank site
-
-select server_id, master_server_id, count, auto_key, from_name, to_name, detail
-  from test.transactions$EX order by count;
+# Note count not included here as it's non-deterministic
+# (CompletedOperations list order related to actual completion order related to
+#  universal randomness)
+select server_id, master_server_id, auto_key, from_name, to_name, detail
+  from test.transactions$EX order by auto_key, from_name, to_name, detail;
 
 --echo Conflict handling activity at Primary bank site
 --echo Expect :
