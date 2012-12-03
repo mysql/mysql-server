@@ -2053,7 +2053,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 {
   if (!log_name || !log_name[0])
   {
-    strmake(buff, pidfile_name, FN_REFLEN - strlen(suffix) - 1);
+    strmake(buff, default_logfile_name, FN_REFLEN - strlen(suffix) - 1);
     return (const char *)
       fn_format(buff, buff, "", suffix, MYF(MY_REPLACE_EXT|MY_REPLACE_DIR));
   }
