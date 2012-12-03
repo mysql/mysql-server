@@ -101,7 +101,8 @@ static char *alloc_query_str(ulong size);
 static void field_escape(DYNAMIC_STRING* in, const char *from);
 static my_bool  verbose= 0, opt_no_create_info= 0, opt_no_data= 0,
                 quick= 1, extended_insert= 1,
-                lock_tables=1,ignore_errors=0,flush_logs=0,flush_privileges=0,
+                lock_tables= 1, opt_force= 0, flush_logs= 0,
+                flush_privileges= 0,
                 opt_drop=1,opt_keywords=0,opt_lock=1,opt_compress=0,
                 create_options=1,opt_quoted=0,opt_databases=0,
                 opt_alldbs=0,opt_create_db=0,opt_lock_all_tables=0,
@@ -126,7 +127,7 @@ static char  *opt_password=0,*current_user=0,
              *lines_terminated=0, *enclosed=0, *opt_enclosed=0, *escaped=0,
              *where=0, *order_by=0,
              *opt_compatible_mode_str= 0,
-             *err_ptr= 0,
+             *err_ptr= 0, *opt_ignore_error= 0,
              *log_error_file= NULL;
 static char **defaults_argv= 0;
 static char compatible_mode_normal_str[255];
@@ -164,6 +165,9 @@ static char *shared_memory_base_name=0;
 #endif
 static uint opt_protocol= 0;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+
+DYNAMIC_ARRAY ignore_error;
+static int parse_ignore_error();
 
 /*
 Dynamic_string wrapper functions. In this file use these
@@ -356,7 +360,7 @@ static struct my_option my_long_options[] =
    &flush_privileges, &flush_privileges, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0,
    0, 0},
   {"force", 'f', "Continue even if we get an SQL error.",
-   &ignore_errors, &ignore_errors, 0, GET_BOOL, NO_ARG,
+   &opt_force, &opt_force, 0, GET_BOOL, NO_ARG,
    0, 0, 0, 0, 0, 0},
   {"help", '?', "Display this help message and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -365,6 +369,10 @@ static struct my_option my_long_options[] =
    &opt_hex_blob, &opt_hex_blob, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"host", 'h', "Connect to host.", &current_host,
    &current_host, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"ignore-error", OPT_MYSQLDUMP_IGNORE_ERROR, "A comma-separated list of "
+   "error numbers to be ignored if encountered during dump.",
+   &opt_ignore_error, &opt_ignore_error, 0, GET_STR_ALLOC, REQUIRED_ARG, 0,
+   0, 0, 0, 0, 0},
   {"ignore-table", OPT_IGNORE_TABLE,
    "Do not dump the specified table. To specify more than one table to ignore, "
    "use the directive multiple times, once for each table.  Each table must "
@@ -924,6 +932,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
                                                   opt->name)-1;
       break;
     }
+  case (int) OPT_MYSQLDUMP_IGNORE_ERROR:
+    /* Store the supplied list of errors into an array. */
+    if (parse_ignore_error())
+      exit(EX_EOM);
+    break;
   }
   return 0;
 }
@@ -1064,7 +1077,12 @@ static void die(int error_num, const char* fmt_reason, ...)
   fprintf(stderr, "%s: %s\n", my_progname, buffer);
   fflush(stderr);
 
-  ignore_errors= 0; /* force the exit */
+  /* force the exit */
+  opt_force= 0;
+  if (opt_ignore_error)
+    my_free(opt_ignore_error);
+  opt_ignore_error= 0;
+
   maybe_exit(error_num);
 }
 
@@ -1472,15 +1490,92 @@ static void free_resources()
     dynstr_free(&insert_pat);
   if (defaults_argv)
     free_defaults(defaults_argv);
+  if (opt_ignore_error)
+    my_free(opt_ignore_error);
+  delete_dynamic(&ignore_error);
   my_end(my_end_arg);
 }
 
+/**
+  Parse the list of error numbers to be ignored and store into a dynamic
+  array.
+
+  @return Operation status
+      @retval 0    Success
+      @retval >0   Failure
+*/
+static
+int parse_ignore_error()
+{
+  const char *search= ",";
+  char *token;
+  uint my_err;
+
+  DBUG_ENTER("parse_ignore_error");
+
+  if (my_init_dynamic_array(&ignore_error, sizeof(uint), 12, 12))
+    goto error;
+
+  token= strtok(opt_ignore_error, search);
+
+  while (token != NULL)
+  {
+    my_err= atoi(token);
+    // filter out 0s, if any
+    if (my_err != 0)
+    {
+      if (insert_dynamic(&ignore_error, &my_err))
+        goto error;
+    }
+    token= strtok(NULL, search);
+  }
+  DBUG_RETURN(0);
+
+error:
+  DBUG_RETURN(EX_EOM);
+}
+
+/**
+  Check if the last error should be ignored.
+      @retval 1     yes
+              0     no
+*/
+static my_bool do_ignore_error()
+{
+  uint i, last_errno, *my_err;
+  my_bool found= 0;
+
+  DBUG_ENTER("do_ignore_error");
+
+  last_errno= mysql_errno(mysql);
+
+  if (last_errno == 0)
+    goto done;
+
+  for (i= 0; i < ignore_error.elements; i++)
+  {
+    my_err= dynamic_element(&ignore_error, i, uint *);
+    if (last_errno == *my_err)
+    {
+      found= 1;
+      break;
+    }
+  }
+done:
+  DBUG_RETURN(found);
+}
 
 static void maybe_exit(int error)
 {
   if (!first_error)
     first_error= error;
-  if (ignore_errors)
+
+  /*
+    Return if --force is used; else return only if the
+    last error number is in the list of error numbers
+    specified using --ignore-error option.
+  */
+  if (opt_force || (opt_ignore_error && do_ignore_error()))
     return;
   if (mysql)
     mysql_close(mysql);
@@ -4612,7 +4707,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     }
     else
     {
-      if (!ignore_errors)
+      if (!opt_force)
       {
         dynstr_free(&lock_tables_query);
         free_root(&root, MYF(0));
@@ -4633,7 +4728,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
     if (mysql_real_query(mysql, lock_tables_query.str,
                          lock_tables_query.length-1))
     {
-      if (!ignore_errors)
+      if (!opt_force)
       {
         dynstr_free(&lock_tables_query);
         free_root(&root, MYF(0));
@@ -4647,7 +4742,7 @@ static int dump_selected_tables(char *db, char **table_names, int tables)
   {
     if (mysql_refresh(mysql, REFRESH_LOG))
     {
-      if (!ignore_errors)
+      if (!opt_force)
         free_root(&root, MYF(0));
       DB_error(mysql, "when doing refresh");
     }
@@ -4730,7 +4825,7 @@ static int do_show_master_status(MYSQL *mysql_con)
               comment_prefix, row[0], row[1]);
       check_io(md_result_file);
     }
-    else if (!ignore_errors)
+    else if (!opt_force)
     {
       /* SHOW MASTER STATUS reports nothing and --force is not enabled */
       my_printf_error(0, "Error: Binlogging on server not active",
@@ -4798,7 +4893,7 @@ static int do_show_slave_status(MYSQL *mysql_con)
     (opt_slave_data == MYSQL_OPT_SLAVE_DATA_COMMENTED_SQL) ? "-- " : "";
   if (mysql_query_with_error_report(mysql_con, &slave, "SHOW SLAVE STATUS"))
   {
-    if (!ignore_errors)
+    if (!opt_force)
     {
       /* SHOW SLAVE STATUS reports nothing and --force is not enabled */
       my_printf_error(0, "Error: Slave not set up", MYF(0));
@@ -4949,10 +5044,11 @@ static int start_transaction(MYSQL *mysql_con)
     fprintf(stderr, "-- %s: the combination of --single-transaction and "
             "--master-data requires a MySQL server version of at least 4.1 "
             "(current server's version is %s). %s\n",
-            ignore_errors ? "Warning" : "Error",
+            opt_force ? "Warning" : "Error",
             mysql_con->server_version ? mysql_con->server_version : "unknown",
-            ignore_errors ? "Continuing due to --force, backup may not be consistent across all tables!" : "Aborting.");
-    if (!ignore_errors)
+            opt_force ? "Continuing due to --force, backup may not be "
+            "consistent across all tables!" : "Aborting.");
+    if (!opt_force)
       exit(EX_MYSQLERR);
   }
 
