@@ -120,20 +120,17 @@ typedef struct Binlog_storage_observer {
      This callback is called after binlog has been flushed
 
      This callback is called after cached events have been flushed to
-     binary log file. Whether the binary log file is synchronized to
-     disk is indicated by the bit BINLOG_STORAGE_IS_SYNCED in @a flags.
+     binary log file but not yet synced.
 
      @param param Observer common parameter
      @param log_file Binlog file name been updated
      @param log_pos Binlog position after update
-     @param flags flags for binlog storage
 
      @retval 0 Sucess
      @retval 1 Failure
   */
   int (*after_flush)(Binlog_storage_param *param,
-                     const char *log_file, my_off_t log_pos,
-                     uint32 flags);
+                     const char *log_file, my_off_t log_pos);
 } Binlog_storage_observer;
 
 /**
