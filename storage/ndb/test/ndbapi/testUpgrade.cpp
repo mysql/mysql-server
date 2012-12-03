@@ -762,7 +762,24 @@ runBasic(NDBT_Context* ctx, NDBT_Step* step)
             }
           }
           g_info << "range scan T1 with " << bound_cnt << " bounds" << endl;
-          trans.scanReadRecords(pNdb, pInd, records, 0, 0, NdbOperation::LM_Read, 0, bound_cnt, bound_arr);
+          if (trans.scanReadRecords(pNdb, pInd, records, 0, 0,
+              NdbOperation::LM_Read, 0, bound_cnt, bound_arr) != 0)
+          {
+            const NdbError& err = trans.getNdbError();
+            /*
+             * bug#13834481 symptoms include timeouts and error 1231.
+             * Check for any non-temporary error.
+             */
+            if (err.status == NdbError::TemporaryError)
+            {
+              g_info << "range scan T1 temporary error: " << err << endl;
+            }
+            if (err.status != NdbError::TemporaryError)
+            {
+              g_err << "range scan T1 permanent error: " << err << endl;
+              return NDBT_FAILED;
+            }
+          }
         }
         trans.clearTable(pNdb, records/2);
         trans.loadTable(pNdb, records/2);
