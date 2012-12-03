@@ -4032,8 +4032,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
                           }});
         strncpy(mts_accessed_db_names[i], (char*) pos,
                 min<ulong>(NAME_LEN, start + status_vars_len - pos));
-        if (mts_accessed_db_names[i][NAME_LEN - 1])
-          mts_accessed_db_names[i][NAME_LEN - 1]= 0;
+        mts_accessed_db_names[i][NAME_LEN - 1]= 0;
         pos+= 1 + strlen((const char*) pos);
       }
       if (i != mts_accessed_dbs || pos > start + status_vars_len)
