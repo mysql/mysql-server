@@ -6360,6 +6360,27 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     flush_error= flush_cache_to_file(&flush_end_pos);
 
   /*
+    If the flush finished successfully, we can call the after_flush
+    hook. Being invoked here, we have the guarantee that the hook is
+    executed before the before/after_send_hooks on the dump thread
+    preventing race conditions among these plug-ins.
+  */
+  if (flush_error == 0)
+  {
+    const char *file_name_ptr= log_file_name + dirname_length(log_file_name);
+    DBUG_ASSERT(flush_end_pos != 0);
+    if (RUN_HOOK(binlog_storage, after_flush,
+                 (thd, file_name_ptr, flush_end_pos)))
+    {
+      sql_print_error("Failed to run 'after_flush' hooks");
+      flush_error= ER_ERROR_ON_WRITE;
+    }
+
+    signal_update();
+    DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
+  }
+
+  /*
     Stage #2: Syncing binary log file to disk
   */
   if (change_stage(thd, Stage_manager::SYNC_STAGE, wait_queue, &LOCK_log, &LOCK_sync))
@@ -6369,36 +6390,10 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     DBUG_RETURN(finish_commit(thd));
   }
   THD *final_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
-  bool synced= false;
   if (flush_error == 0 && total_bytes > 0)
   {
     std::pair<bool, bool> result= sync_binlog_file(false);
     flush_error= result.first;
-    synced= result.second;
-  }
-  
-  /*
-    If the sync finished successfully, we can call the after_flush
-    hook.
-  */
-  if (flush_error == 0)
-  {
-    const char *file_name_ptr= log_file_name + dirname_length(log_file_name);
-    DBUG_ASSERT(flush_end_pos != 0);
-    if (RUN_HOOK(binlog_storage, after_flush,
-                 (thd, file_name_ptr, flush_end_pos, synced)))
-    {
-      sql_print_error("Failed to run 'after_flush' hooks");
-      flush_error= ER_ERROR_ON_WRITE;
-    }
-    /*
-      Since we are not holding the LOCK_log here now, it is necessary
-      to have the signal_update after the after_flush hook.  Otherwise
-      the progress have not been recorded properly in the semi-sync
-      plugin.
-    */
-    signal_update();
-    DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
   }
 
   /*
