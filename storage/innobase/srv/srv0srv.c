@@ -85,6 +85,7 @@ Created 10/8/1995 Heikki Tuuri
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
 #include "os0sync.h" /* for HAVE_ATOMIC_BUILTINS */
+#include "read0read.h"
 #include "mysql/plugin.h"
 #include "mysql/service_thd_wait.h"
 

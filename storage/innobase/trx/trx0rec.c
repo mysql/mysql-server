@@ -36,6 +36,7 @@ Created 3/26/1996 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 #include "dict0dict.h"
 #include "ut0mem.h"
+#include "read0read.h"
 #include "row0ext.h"
 #include "row0upd.h"
 #include "que0que.h"
