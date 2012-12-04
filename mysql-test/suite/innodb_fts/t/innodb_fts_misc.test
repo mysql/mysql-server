@@ -92,37 +92,37 @@ INSERT INTO t1 (a,b) VALUES
 # This should only return the first document
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@2' IN BOOLEAN MODE);
 
 # This would return no document
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@1' IN BOOLEAN MODE);
 
 # This give you all three documents
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@3' IN BOOLEAN MODE);
 
 # Similar boundary testing for the words
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
+        AGAINST ('"test proximity"@3' IN BOOLEAN MODE);
 
 # Test with more word The last document will return, please notice there
 # is no ordering requirement for proximity search.
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+        AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
 
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
+        AGAINST ('"more test proximity"@2' IN BOOLEAN MODE);
 
 # The phrase search will not require exact word ordering
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"more fts proximity"@09' IN BOOLEAN MODE);
+        AGAINST ('"more fts proximity"@02' IN BOOLEAN MODE);
 
 DROP TABLE t1;
 
@@ -262,23 +262,23 @@ INSERT INTO t1 (a,b) VALUES
 
 
 SELECT id FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE
-MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 SELECT id FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
-MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 
 SELECT id FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE
-MATCH (t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+MATCH (t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
-MATCH t2.a,t2.b AGAINST ('"proximity search"@10' IN BOOLEAN MODE) 
+MATCH t2.a,t2.b AGAINST ('"proximity search"@2' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
-MATCH t2.a,t2.b AGAINST ('"more test proximity"@10' IN BOOLEAN MODE) 
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@3' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
-MATCH t2.a,t2.b AGAINST ('"more test proximity"@5' IN BOOLEAN MODE) 
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@2' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 
 
