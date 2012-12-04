@@ -26,7 +26,7 @@
 #include "rpl_handler.h"                        // delegates_init()
 #include "tztime.h"
 
-namespace {
+namespace item_func_now_local_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
