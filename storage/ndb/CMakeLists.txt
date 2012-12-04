@@ -252,11 +252,12 @@ IF(WITH_NDB_JAVA)
   # to point at the java found above
   IF(NOT DEFINED ENV{JAVA_HOME})
     # Convert to realpath
-    GET_FILENAME_COMPONENT(java_home ${JAVA_RUNTIME} REALPATH)
+    GET_FILENAME_COMPONENT(java_home ${JAVA_COMPILE} REALPATH)
     # Remove filename
     GET_FILENAME_COMPONENT(java_home ${java_home} PATH)
     # Remove dir
     GET_FILENAME_COMPONENT(java_home ${java_home} PATH)
+    MESSAGE(STATUS "Setting JAVA_HOME=${java_home}")
     SET(ENV{JAVA_HOME} ${java_home})
   ENDIF()
 
