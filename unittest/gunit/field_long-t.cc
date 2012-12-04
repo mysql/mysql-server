@@ -22,7 +22,7 @@
 
 #include "field.h"
 
-namespace {
+namespace field_long_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -384,6 +384,5 @@ TEST_F(FieldLongTest, StoreNullValue)
     EXPECT_EQ(1, error_handler.handle_called());
   }
 }
-
 
 }

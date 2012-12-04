@@ -24,7 +24,7 @@
 #include "sql_time.h"
 #include <my_decimal.h>
 
-namespace {
+namespace field_unittests {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -476,9 +476,11 @@ void test_make_sort_key(Field *field)
 }
 
 
-size_t mock_strnxfrm(const CHARSET_INFO *, uchar *, size_t, uint, const uchar *,
-                     size_t, uint);
-
+extern "C"
+{
+  static size_t mock_strnxfrm(const CHARSET_INFO *, uchar *, size_t,
+                              uint, const uchar *, size_t, uint);
+}
 
 class Mock_collation : public MY_COLLATION_HANDLER
 {
