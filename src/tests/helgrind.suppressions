@@ -29,3 +29,66 @@
    Helgrind:Race
    fun:pthread_join
 }
+{
+   unsafe_touch_clock
+   Helgrind:Race
+   fun:_ZL18unsafe_touch_clockP6ftnodei
+   fun:_Z27toku_ftnode_pf_req_callbackPvS_
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   fun:_ZL17toku_cond_destroyP9toku_cond
+   fun:_ZN4toku12lock_request7destroyEv
+   fun:_Z22toku_db_get_range_lockP9__toku_dbP13__toku_db_txnPK10__toku_dbtS5_N4toku12lock_request4typeE
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   fun:_ZL17toku_cond_destroyP9toku_cond
+   ...
+   fun:_ZL14ctpair_destroyP6ctpair
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   fun:_ZL17toku_cond_destroyP9toku_cond
+   fun:_ZL14rwlock_destroyP6rwlock
+   fun:_ZL16nb_mutex_destroyP8nb_mutex
+   fun:_Z23toku_blocktable_destroyPP11block_table
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   fun:_ZL17toku_cond_destroyP9toku_cond
+   fun:_Z11bjm_destroyP29background_job_manager_struct
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   fun:_ZL17toku_cond_destroyP9toku_cond
+   fun:_Z24toku_txn_manager_destroyP11txn_manager
+   fun:_Z17toku_logger_closePP10tokulogger
+}
+{
+   kde_bug_307082_cond_destroy_without_signal
+   Helgrind:Misc
+   ...
+   fun:pthread_cond_destroy@*
+   fun:_ZL17toku_cond_destroyP9toku_cond
+   fun:_Z24toku_thread_pool_destroyPP16toku_thread_pool
+   fun:_Z31toku_ft_serialize_layer_destroyv
+   fun:_Z21toku_ft_layer_destroyv
+   fun:_Z16toku_ydb_destroyv
+   fun:_ZL17libtokudb_destroyv
+}
