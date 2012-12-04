@@ -248,6 +248,18 @@ IF(WITH_NDB_JAVA)
   NDB_REQUIRE_VARIABLE(JAVA_COMPILE)
   NDB_REQUIRE_VARIABLE(JAVA_ARCHIVE)
 
+  # Help FindJNI by setting JAVA_HOME (if not already set)
+  # to point at the java found above
+  IF(NOT DEFINED ENV{JAVA_HOME})
+    # Convert to realpath
+    GET_FILENAME_COMPONENT(java_home ${JAVA_RUNTIME} REALPATH)
+    # Remove filename
+    GET_FILENAME_COMPONENT(java_home ${java_home} PATH)
+    # Remove dir
+    GET_FILENAME_COMPONENT(java_home ${java_home} PATH)
+    SET(ENV{JAVA_HOME} ${java_home})
+  ENDIF()
+
   FIND_PACKAGE(JNI REQUIRED)
   MESSAGE(STATUS "JNI_FOUND: ${JNI_FOUND}")
   MESSAGE(STATUS "JNI_INCLUDE_DIRS: ${JNI_INCLUDE_DIRS}")
