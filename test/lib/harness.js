@@ -81,7 +81,7 @@ ClearSmokeTest.prototype = new Test();
 
 
 Test.prototype.test = function(result) {
-  udebug.log('test starting:', this.name);
+  udebug.log('test starting:', this.suite.name, this.name);
   this.result = result;
   result.listener.startTest(this);
   this.setup();
@@ -94,7 +94,7 @@ Test.prototype.test = function(result) {
   }
 
   try {
-    udebug.log_detail('test.run:', this.name);
+    udebug.log_detail('test.run:', this.suite.name, this.name);
     if (!this.run()) {
       udebug.log_detail(this.name, 'started.');
       // async test must call Test.pass or Test.fail when done
@@ -103,11 +103,11 @@ Test.prototype.test = function(result) {
     // fail if any error messages have been reported
     if(! this.skipped) {
       if (this.errorMessages === '') {
-        udebug.log(this.name, 'result.pass');
+        udebug.log(this.name, this.suite.name, 'result.pass');
         result.pass(this);
       } else {
         this.failed = true;
-        udebug.log(this.name, 'result.fail');
+        udebug.log(this.name, this.suite.name, 'result.fail');
         result.fail(this, this.errorMessages);
       }
     }
@@ -358,7 +358,7 @@ Suite.prototype.startConcurrentTests = function(result) {
   udebug.log_detail('Suite.startConcurrentTests');
   if (this.firstConcurrentTestIndex !== -1) {
     this.concurrentTests.forEach(function(testCase) {
-      udebug.log_detail('Suite.startConcurrentTests starting ', testCase.name);
+      udebug.log_detail('Suite.startConcurrentTests starting ', self.name, testCase.name);
       testCase.test(result);
       self.numberOfConcurrentTestsStarted++;
     });
@@ -410,7 +410,7 @@ Suite.prototype.startNextSerialTest = function(index, result) {
 Suite.prototype.testCompleted = function(testCase) {
   var tc, index;
 
-  udebug.log_detail('Suite.testCompleted for testCase', testCase.name, 'phase', 
+  udebug.log_detail('Suite.testCompleted for', this.name, testCase.name, 'phase', 
                     testCase.phase);
   var result = testCase.result;
   switch (testCase.phase) {
@@ -442,7 +442,7 @@ Suite.prototype.testCompleted = function(testCase) {
         return false;
       }
       /* Done */
-      udebug.log('Suite.testCompleted there is no ClearSmokeTest so we are done.');
+      udebug.log('Suite.testCompleted there is no ClearSmokeTest so we are done with ' + testCase.suite.name);
       return true;
 
     case 3:   // the clear smoke test completed
@@ -557,7 +557,7 @@ var runSQL = function(sqlPath, source, callback) {
     if(p.mysql_password) { cmd += " --password=" + p.mysql_password; }
   }
   cmd += ' <' + sqlPath; 
-  udebug.log('harness runSQL forking process...');
+  udebug.log('harness runSQL forking process...' + cmd);
   var child = exec(cmd, childProcess);
 };
 
