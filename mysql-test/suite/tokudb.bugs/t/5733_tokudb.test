@@ -1,6 +1,8 @@
 # test that query planner selects range scan rather than full scan of the primary key
 # see ticket #5733
 
+source include/have_tokudb.inc;
+
 disable_warnings;
 drop table if exists t;
 enable_warnings;
