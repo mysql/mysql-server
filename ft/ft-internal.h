@@ -270,17 +270,11 @@ struct ftnode {
 // that have a read lock on an internal node may try to touch the clock
 // simultaneously
 //
-#define BP_TOUCH_CLOCK(node, i) do {                                    \
-        TOKU_VALGRIND_HG_DISABLE_CHECKING(&(node)->bp[i].clock_count, sizeof (node)->bp[i].clock_count); \
-        TOKU_DRD_IGNORE_VAR((node)->bp[i].clock_count);                 \
-        (node)->bp[i].clock_count = 1;                                  \
-        TOKU_DRD_STOP_IGNORING_VAR((node)->bp[i].clock_count);          \
-        TOKU_VALGRIND_HG_ENABLE_CHECKING(&(node)->bp[i].clock_count, sizeof (node)->bp[i].clock_count); \
-    } while (0)
+#define BP_TOUCH_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
 #define BP_SWEEP_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
 #define BP_SHOULD_EVICT(node, i) ((node)->bp[i].clock_count == 0)
 // not crazy about having these two here, one is for the case where we create new
-// nodes, such as in splits and creating new roots, and the other is for when 
+// nodes, such as in splits and creating new roots, and the other is for when
 // we are deserializing a node and not all bp's are touched
 #define BP_INIT_TOUCHED_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
 #define BP_INIT_UNTOUCHED_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
