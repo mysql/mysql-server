@@ -22,6 +22,13 @@
 
 namespace my_testing {
 
+int chars_2_decimal(const char *chars, my_decimal *to)
+{
+  char *end= strend(chars);
+  return string2decimal(chars, to, &end);
+}
+
+
 /*
   A mock error handler for error_handler_hook.
 */

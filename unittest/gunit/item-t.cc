@@ -26,7 +26,7 @@
 
 #include "mock_field_timestamp.h"
 
-namespace {
+namespace item_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;

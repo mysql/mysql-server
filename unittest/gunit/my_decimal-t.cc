@@ -20,8 +20,9 @@
 
 #include <my_decimal.h>
 
-namespace {
+namespace my_decimal_unittest {
 
+using my_testing::chars_2_decimal;
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
 
@@ -108,13 +109,6 @@ TEST_F(DecimalTest, Swap)
   EXPECT_EQ(0, my_decimal_cmp(&d1, &d2copy));
 }
 
-
-
-int chars_2_decimal(const char *chars, my_decimal *to)
-{
-  char *end= strend(chars);
-  return string2decimal(chars, to, &end);
-}
 
 
 TEST_F(DecimalTest, Multiply)
