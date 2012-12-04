@@ -1713,6 +1713,7 @@ do_possible_lock_wait:
                                 referenced_list, check_foreign)) {
 			if (check_foreign == foreign) {
 				verified = true;
+				break;
 			}
 		}
 
