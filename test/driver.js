@@ -222,11 +222,12 @@ driver.suites.forEach(function(suite) {
 });
 
 // now run tests
-driver.numberOfRunningSuites = 0;
+driver.numberOfRunningSuites = driver.suites.length;
 driver.suites.forEach(function(suite) {
   udebug.log('main running tests for', suite.name);
-  if (suite.runTests(driver.result)) {
-    driver.numberOfRunningSuites++;
+  if (!suite.runTests(driver.result)) {
+    // if there are no tests to run, this suite is finished
+    driver.numberOfRunningSuites--;
   }
 });
 
