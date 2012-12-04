@@ -1687,6 +1687,8 @@ end_scan:
 
 do_possible_lock_wait:
 	if (err == DB_LOCK_WAIT) {
+		bool		verified = false;
+
 		trx->error_state = err;
 
 		que_thr_stop_for_mysql(thr);
@@ -1700,12 +1702,28 @@ do_possible_lock_wait:
 			goto exit_func;
 		}
 
-		if (trx->error_state == DB_SUCCESS) {
-
-			goto run_again;
+		/* We had temporarily released dict_operation_lock in
+		above lock sleep wait, now we have the lock again, and
+		we will need to re-check whether the foreign key has been
+		dropped */
+		for (const dict_foreign_t* check_foreign = UT_LIST_GET_FIRST(
+			table->referenced_list);
+		     check_foreign;
+		     check_foreign = UT_LIST_GET_NEXT(
+                                referenced_list, check_foreign)) {
+			if (check_foreign == foreign) {
+				verified = true;
+				break;
+			}
 		}
 
-		err = trx->error_state;
+		if (!verified) {
+			err = DB_DICT_CHANGED;
+		} else if (trx->error_state == DB_SUCCESS) {
+			goto run_again;
+		} else {
+			err = trx->error_state;
+		}
 	}
 
 exit_func:
