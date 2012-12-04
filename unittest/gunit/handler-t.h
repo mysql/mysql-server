@@ -13,6 +13,9 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
 
+#ifndef HANDLER_T_INCLUDED
+#define HANDLER_T_INCLUDED
+
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
@@ -51,3 +54,6 @@ public:
     : handler(ht_arg, share_arg)
   {}
 };
+
+
+#endif  // HANDLER_T_INCLUDED

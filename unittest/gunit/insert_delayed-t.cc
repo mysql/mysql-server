@@ -21,7 +21,7 @@
 #include "thr_lock.h"
 #include "sql_lex.h"
 
-namespace {
+namespace insert_delayed_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
