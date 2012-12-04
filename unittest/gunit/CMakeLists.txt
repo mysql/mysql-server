@@ -205,7 +205,7 @@ SET(TESTS
   bounded_queue
   bounds_checked_array
   byteorder
-  client_string
+##  client_string TODO: move to a client test directory
   cost_estimate
   dbug
   decimal
@@ -213,7 +213,6 @@ SET(TESTS
   filesort_buffer
   filesort_compare
   mdl
-  mdl_mytap
   my_bitmap
   my_error
   my_fileutils
@@ -245,30 +244,76 @@ SET(SERVER_TESTS
   table_cache
 )
 
-FOREACH(test ${TESTS})
-  ADD_EXECUTABLE(${test}-t ${test}-t.cc)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
-  ADD_TEST(${test} ${test}-t)
-ENDFOREACH()
+## Merging tests into fewer executables saves *a lot* of
+## link time and disk space ...
+OPTION(MERGE_UNITTESTS "Merge tests into one executable" ON)
+IF (MERGE_UNITTESTS)
+  SET(MERGE_LARGE_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_large_tests.cc)
+  SET(MERGE_SMALL_TESTS ${CMAKE_CURRENT_BINARY_DIR}/merge_small_tests.cc)
+  SET_SOURCE_FILES_PROPERTIES(MERGE_SMALL_TESTS MERGE_LARGE_TESTS
+    PROPERTIES GENERATED 1)
 
-FOREACH(test ${SERVER_TESTS})
-  SET(SRC_FILES ${test}-t.cc)
+  INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
+
+  FILE(WRITE ${MERGE_LARGE_TESTS} "// Merging large unit tests\n")
+  FILE(WRITE ${MERGE_SMALL_TESTS} "// Merging small unit tests\n")
+  FOREACH(test ${TESTS})
+    FILE(APPEND ${MERGE_SMALL_TESTS} "#include \"${test}-t.cc\"\n")
+  ENDFOREACH()
+  FOREACH(test ${SERVER_TESTS})
+    FILE(APPEND ${MERGE_LARGE_TESTS} "#include \"${test}-t.cc\"\n")
+  ENDFOREACH()
+
+  ADD_EXECUTABLE(merge_small_tests-t ${MERGE_SMALL_TESTS})
+  SET(SRC_FILES ${MERGE_LARGE_TESTS})
   IF(WIN32)
     LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
   ENDIF()
-  IF(test MATCHES "table_cache")
-    LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
-    SET_SOURCE_FILES_PROPERTIES(
-      ../../storage/example/ha_example.cc
-      PROPERTIES COMPILE_FLAGS "-DDISABLE_DTRACE"
-    )
-  ENDIF()
-  ADD_EXECUTABLE(${test}-t ${SRC_FILES})
-  TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
-  TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
-  TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
-  ADD_TEST(${test} ${test}-t)
-ENDFOREACH()
+  LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
+  SET_SOURCE_FILES_PROPERTIES(
+    ../../storage/example/ha_example.cc
+    PROPERTIES COMPILE_FLAGS "-DDISABLE_DTRACE"
+  )
+  ADD_EXECUTABLE(merge_large_tests-t ${SRC_FILES})
+
+  TARGET_LINK_LIBRARIES(merge_small_tests-t
+    gunit_small sqlgunitlib strings dbug regex)
+  TARGET_LINK_LIBRARIES(merge_large_tests-t sql binlog rpl master slave sql)
+  TARGET_LINK_LIBRARIES(merge_large_tests-t
+    gunit_large strings dbug regex mysys)
+  TARGET_LINK_LIBRARIES(merge_large_tests-t sql binlog rpl master slave sql)
+
+  ADD_TEST(merge_large_tests merge_large_tests-t)
+  ADD_TEST(merge_small_tests merge_small_tests-t)
+
+ELSE()
+
+  FOREACH(test ${TESTS})
+    ADD_EXECUTABLE(${test}-t ${test}-t.cc)
+    TARGET_LINK_LIBRARIES(${test}-t gunit_small sqlgunitlib strings dbug regex)
+    ADD_TEST(${test} ${test}-t)
+  ENDFOREACH()
+  
+  FOREACH(test ${SERVER_TESTS})
+    SET(SRC_FILES ${test}-t.cc)
+    IF(WIN32)
+      LIST(APPEND SRC_FILES ../../sql/nt_servc.cc)
+    ENDIF()
+    IF(test MATCHES "table_cache")
+      LIST(APPEND SRC_FILES ../../storage/example/ha_example.cc)
+      SET_SOURCE_FILES_PROPERTIES(
+        ../../storage/example/ha_example.cc
+        PROPERTIES COMPILE_FLAGS "-DDISABLE_DTRACE"
+      )
+    ENDIF()
+    ADD_EXECUTABLE(${test}-t ${SRC_FILES})
+    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+    TARGET_LINK_LIBRARIES(${test}-t gunit_large strings dbug regex mysys)
+    TARGET_LINK_LIBRARIES(${test}-t sql binlog rpl master slave sql)
+    ADD_TEST(${test} ${test}-t)
+  ENDFOREACH()
+
+ENDIF()
 
 ## Most executables depend on libeay32.dll (through mysys_ssl).
 COPY_OPENSSL_DLLS(copy_openssl_gunit)

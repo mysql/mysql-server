@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <vector>
 
-namespace {
+namespace alignment_unittest {
 
 /*
   Testing performance penalty of accessing un-aligned data.

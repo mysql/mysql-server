@@ -22,7 +22,7 @@
 #include "item.h"
 #include "sql_get_diagnostics.h"
 
-namespace {
+namespace get_diagnostics_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;

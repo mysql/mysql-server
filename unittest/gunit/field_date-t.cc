@@ -23,7 +23,7 @@
 
 #include "field.h"
 
-namespace {
+namespace field_date_unittests {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
