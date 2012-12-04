@@ -323,12 +323,13 @@ void locktree::reset_single_txnid_optimization(TXNID txnid) {
     m_single_txnid_optimization_possible = true;
 }
 
+inline bool locktree::unsafe_read_single_txnid_optimization_possible(void) const {
+    return m_single_txnid_optimization_possible;
+}
+
 bool locktree::try_single_txnid_release_optimization(TXNID txnid) {
     bool released = false;
-    TOKU_DRD_IGNORE_VAR(m_single_txnid_optimization_possible);
-    bool optimization_possible = m_single_txnid_optimization_possible;
-    TOKU_DRD_STOP_IGNORING_VAR(m_single_txnid_optimization_possible);
-    if (optimization_possible) {
+    if (unsafe_read_single_txnid_optimization_possible()) {
         // check the bit again with a prepared locked keyrange,
         // which protects the optimization bits and rangetree data
         concurrent_tree::locked_keyrange lkr;
