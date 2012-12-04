@@ -17,6 +17,9 @@ DROP TABLE IF EXISTS t1;
 
 --let $DATADIR= `SELECT @@datadir;`
 
+# Waiting for wl#6723
+if (0)
+{
 --echo #
 --echo # Bug#12696518/Bug#11766879/60106:DIFF BETWEEN # OF INDEXES IN MYSQL
 --echo # VS INNODB, PARTITONING, ON INDEX CREATE
@@ -51,6 +54,7 @@ SELECT * FROM t1;
 SET SESSION debug= "-d,ha_partition_fail_final_add_index";
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
+}
 
 # Checking with #innodb what this is...
 call mtr.add_suppression("InnoDB: Warning: allocated tablespace .*, old maximum was");
