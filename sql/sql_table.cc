@@ -4434,11 +4434,7 @@ bool create_table_impl(THD *thd,
       partitions also in the call to check_partition_info. We transport
       this information in the default_db_type variable, it is either
       DB_TYPE_DEFAULT or the engine set in the ALTER TABLE command.
-
-      Check that we don't use foreign keys in the table since it won't
-      work even with InnoDB beneath it.
     */
-    List_iterator<Key> key_iterator(alter_info->key_list);
     Key *key;
     handlerton *part_engine_type= create_info->db_type;
     char *part_syntax_buf;
@@ -4484,15 +4480,6 @@ bool create_table_impl(THD *thd,
     {
       my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
       goto err;
-    }
-    while ((key= key_iterator++))
-    {
-      if (key->type == Key::FOREIGN_KEY &&
-          !part_info->is_auto_partitioned)
-      {
-        my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
-        goto err;
-      }
     }
     if ((part_engine_type == partition_hton) &&
         part_info->default_engine_type)
@@ -4597,6 +4584,25 @@ bool create_table_impl(THD *thd,
       {
         mem_alloc_error(sizeof(handler));
         DBUG_RETURN(TRUE);
+      }
+    }
+    /*
+      Unless table's storage engine supports partitioning natively
+      don't allow foreign keys on partitioned tables (they won't
+      work work even with InnoDB beneath of partitioning engine).
+      If storage engine handles partitioning natively (like NDB)
+      foreign keys support is possible, so we let the engine decide.
+    */
+    if (create_info->db_type == partition_hton)
+    {
+      List_iterator_fast<Key> key_iterator(alter_info->key_list);
+      while ((key= key_iterator++))
+      {
+        if (key->type == Key::FOREIGN_KEY)
+        {
+          my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+          goto err;
+        }
       }
     }
   }
