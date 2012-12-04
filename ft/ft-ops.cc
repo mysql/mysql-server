@@ -1704,12 +1704,11 @@ static int do_update(ft_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE bn
         uint32_t vallen;
         void *valp = le_latest_val_and_len(le, &vallen);
         vdbtp = toku_fill_dbt(&vdbt, valp, vallen);
-        le_for_update = le;
     } else {
         // otherwise, the val and leafentry are both going to be null
         vdbtp = NULL;
-        le_for_update = NULL;
     }
+    le_for_update = le;
 
     struct setval_extra_s setval_extra = {setval_tag, false, 0, bn, cmd->msn, cmd->xids,
                                           keyp, idx, le_for_update, oldest_referenced_xid, workdone, stats_to_update};
