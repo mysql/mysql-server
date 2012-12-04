@@ -1,0 +1,30 @@
+# test cases for strmov(tmp_db, db) -> strnmov replacement in sql_acl.cc
+
+#
+# http://seclists.org/fulldisclosure/2012/Dec/4
+#
+
+# in acl_get(), check_grant_db(), mysql_grant()
+grant file on *.* to user1@localhost with grant option;
+grant select on `a%`.* to user1@localhost with grant option;
+connect (conn1,localhost,user1,,);
+connection conn1;
+--error ER_WRONG_DB_NAME
+grant file on aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.* to 'user'@'%' identified by 'secret';
+connection default;
+disconnect conn1;
+drop user user1@localhost;
+
+# in acl_load()
+call mtr.add_suppression("Incorrect database name");
+alter table mysql.host modify Db varchar(200);
+alter table mysql.db modify Db varchar(200);
+insert mysql.host set db=concat('=>', repeat(_utf8 'й', 200));
+insert mysql.db set db=concat('=>', repeat(_utf8 'й', 200));
+flush privileges; # shouldn't crash here
+delete from mysql.host where db like '=>%';
+delete from mysql.db where db like '=>%';
+alter table mysql.host modify Db char(64);
+alter table mysql.db modify Db char(64);
+flush privileges;
+

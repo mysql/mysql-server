@@ -341,7 +341,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         convert db to lower case and give a warning if the db wasn't
         already in lower case
       */
-      (void) strmov(tmp_name, host.db);
+      char *end = strnmov(tmp_name, host.db, sizeof(tmp_name));
+      if (end >= tmp_name + sizeof(tmp_name))
+      {
+        sql_print_warning(ER(ER_WRONG_DB_NAME), host.db);
+        continue;
+      }
       my_casedn_str(files_charset_info, host.db);
       if (strcmp(host.db, tmp_name) != 0)
         sql_print_warning("'host' entry '%s|%s' had database in mixed "
@@ -595,7 +600,12 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
         convert db to lower case and give a warning if the db wasn't
         already in lower case
       */
-      (void)strmov(tmp_name, db.db);
+      char *end = strnmov(tmp_name, db.db, sizeof(tmp_name));
+      if (end >= tmp_name + sizeof(tmp_name))
+      {
+        sql_print_warning(ER(ER_WRONG_DB_NAME), db.db);
+        continue;
+      }
       my_casedn_str(files_charset_info, db.db);
       if (strcmp(db.db, tmp_name) != 0)
       {
@@ -2474,15 +2484,23 @@ static GRANT_NAME *name_hash_search(HASH *name_hash,
                                     const char *user, const char *tname,
                                     bool exact, bool name_tolower)
 {
-  char helping [SAFE_NAME_LEN*2+USERNAME_LENGTH+3], *name_ptr;
+  char helping[SAFE_NAME_LEN*2+USERNAME_LENGTH+3];
+  char *hend = helping + sizeof(helping);
   uint len;
   GRANT_NAME *grant_name,*found=0;
   HASH_SEARCH_STATE state;
 
-  name_ptr= strmov(strmov(helping, user) + 1, db) + 1;
-  len  = (uint) (strmov(name_ptr, tname) - helping) + 1;
+  char *db_ptr= strmov(helping, user) + 1;
+  char *tname_ptr= strnmov(db_ptr, db, hend - db_ptr) + 1;
+  if (tname_ptr > hend)
+    return 0; // invalid name = not found
+  char *end= strnmov(tname_ptr, tname, hend - tname_ptr) + 1;
+  if (end > hend)
+    return 0; // invalid name = not found
+
+  len  = (uint) (end - helping);
   if (name_tolower)
-    my_casedn_str(files_charset_info, name_ptr);
+    my_casedn_str(files_charset_info, tname_ptr);
   for (grant_name= (GRANT_NAME*) hash_first(name_hash, (uchar*) helping,
                                             len, &state);
        grant_name ;
@@ -3466,7 +3484,12 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
 
   if (lower_case_table_names && db)
   {
-    strmov(tmp_db,db);
+    char *end= strnmov(tmp_db,db, sizeof(tmp_db));
+    if (end >= tmp_db + sizeof(tmp_db))
+    {
+      my_error(ER_WRONG_DB_NAME ,MYF(0), db);
+      DBUG_RETURN(TRUE);
+    }
     my_casedn_str(files_charset_info, tmp_db);
     db=tmp_db;
   }
