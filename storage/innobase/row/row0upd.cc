@@ -226,6 +226,7 @@ row_upd_check_references_constraints(
 		row_mysql_freeze_data_dictionary(trx);
 	}
 
+run_again:
 	foreign = UT_LIST_GET_FIRST(table->referenced_list);
 
 	while (foreign) {
@@ -274,8 +275,10 @@ row_upd_check_references_constraints(
 				dict_table_close(ref_table, FALSE, FALSE);
 			}
 
-			if (err != DB_SUCCESS) {
-
+			/* Some table foreign key dropped, try again */
+			if (err == DB_DICT_CHANGED) {
+				goto run_again;
+			} else if (err != DB_SUCCESS) {
 				goto func_exit;
 			}
 		}
