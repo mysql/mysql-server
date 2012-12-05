@@ -428,5 +428,44 @@ set optimizer_switch=@save_optimizer_switch;
 
 DROP TABLE t1,t2;
 
+
+--echo #
+--echo # Bug mdev-3888: INSERT with UPDATE on duplicate keys
+--echo #                with extended_keys=on   
+--echo #
+
+CREATE TABLE t1 (
+c1 bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+c2 bigint(20) unsigned NOT NULL,
+c3 bigint(20) unsigned NOT NULL,
+c4 varchar(128) DEFAULT NULL,
+PRIMARY KEY (c1),
+UNIQUE KEY uq (c2,c3),
+KEY c3 (c3),
+KEY c4 (c4)
+) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8;
+
+
+set @save_optimizer_switch=@@optimizer_switch;
+
+set session optimizer_switch='extended_keys=off';
+INSERT INTO t1 (c2, c3, c4) VALUES (58291525, 2580, 'foobar')
+  ON DUPLICATE KEY UPDATE c4 = VALUES(c4);
+INSERT INTO t1 (c2, c3, c4) VALUES (58291525, 2580, 'foobar')
+  ON DUPLICATE KEY UPDATE c4 = VALUES(c4);
+
+DELETE FROM t1;
+
+set session optimizer_switch='extended_keys=on';
+INSERT INTO t1 (c2, c3, c4) VALUES (58291525, 2580, 'foobar')
+  ON DUPLICATE KEY UPDATE c4 = VALUES(c4);
+INSERT INTO t1 (c2, c3, c4) VALUES (58291525, 2580, 'foobar')
+  ON DUPLICATE KEY UPDATE c4 = VALUES(c4);
+
+set optimizer_switch=@save_optimizer_switch;
+
+DROP TABLE t1;
+
 set optimizer_switch=@save_ext_key_optimizer_switch;
 SET SESSION STORAGE_ENGINE=DEFAULT;
+

@@ -1677,9 +1677,10 @@ int write_record(THD *thd, TABLE *table,COPY_INFO *info)
 	  }
 	}
 	key_copy((uchar*) key,table->record[0],table->key_info+key_nr,0);
+        key_part_map keypart_map= (1 << table->key_info[key_nr].key_parts) - 1;
 	if ((error= (table->file->ha_index_read_idx_map(table->record[1],
                                                         key_nr, (uchar*) key,
-                                                        HA_WHOLE_KEY,
+                                                        keypart_map,
                                                         HA_READ_KEY_EXACT))))
 	  goto err;
       }
