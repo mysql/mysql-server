@@ -115,7 +115,7 @@ INSERT INTO t1 VALUES(6,3,1);
 SET DEBUG_SYNC = 'now SIGNAL dml_done';
 connection con1;
 # This is due to the duplicate entry (6,3,1).
---error ER_INDEX_CORRUPT
+--error ER_DUP_UNKNOWN_IN_INDEX
 reap;
 DELETE FROM t1 WHERE c1=6;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
