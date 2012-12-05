@@ -3453,6 +3453,7 @@ static void *eviction_thread(void *evictor_v) {
 //
 void evictor::init(long _size_limit, pair_list* _pl, KIBBUTZ _kibbutz, uint32_t eviction_period) {
     TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_ev_thread_is_running, sizeof m_ev_thread_is_running);
+    TOKU_VALGRIND_HG_DISABLE_CHECKING(&m_size_evicting, sizeof m_size_evicting);
 
     m_low_size_watermark = _size_limit;
     // these values are selected kind of arbitrarily right now as 
@@ -4012,7 +4013,7 @@ bool evictor::should_sleeping_clients_wakeup() {
 bool evictor::should_client_wake_eviction_thread() {
     return
         !m_ev_thread_is_running &&
-        ((unsafe_read_size_current() - unsafe_read_size_evicting()) > m_low_size_hysteresis);
+        ((unsafe_read_size_current() - m_size_evicting) > m_low_size_hysteresis);
 }
 
 //
@@ -4027,11 +4028,6 @@ bool evictor::eviction_needed() {
 inline int64_t evictor::unsafe_read_size_current(void) const {
     return m_size_current;
 }
-
-inline int64_t evictor::unsafe_read_size_evicting(void) const {
-    return m_size_evicting;
-}
-
 
 void evictor::fill_engine_status() {
     STATUS_VALUE(CT_SIZE_CURRENT)           = m_size_current;
