@@ -4504,8 +4504,16 @@ ha_innobase::commit_inplace_alter_table(
 					    == ONLINE_INDEX_COMPLETE);
 				DBUG_ASSERT(*index->name == TEMP_INDEX_PREFIX);
 				if (dict_index_is_corrupted(index)) {
-					my_error(ER_INDEX_CORRUPT, MYF(0),
-						 index->name + 1);
+					/* Report a duplicate key
+					error for the index that was
+					flagged corrupted, most likely
+					because a duplicate value was
+					inserted (directly or by
+					rollback) after
+					ha_innobase::inplace_alter_table()
+					completed. */
+					my_error(ER_DUP_UNKNOWN_IN_INDEX,
+						 MYF(0), index->name + 1);
 					DBUG_RETURN(true);
 				}
 			}
