@@ -1893,10 +1893,10 @@ private:
 extern "C" void my_message_sql(uint error, const char *str, myf MyFlags);
 
 
-/*
+/**
   Convert microseconds since epoch to timeval.
-  @param     micro_time  Microseconds.
-  @param OUT tm          A timeval variable to write to.
+  @param      micro_time  Microseconds.
+  @param[out] tm          A timeval variable to write to.
 */
 static inline void
 my_micro_time_to_timeval(ulonglong micro_time, struct timeval *tm)

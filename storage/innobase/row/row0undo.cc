@@ -218,7 +218,7 @@ row_undo_search_clust_to_pcur(
 		node->row = row_build(ROW_COPY_DATA, clust_index, rec,
 				      offsets, NULL,
 				      NULL, NULL, ext, node->heap);
-		if (node->update) {
+		if (node->rec_type == TRX_UNDO_UPD_EXIST_REC) {
 			node->undo_row = dtuple_copy(node->row, node->heap);
 			row_upd_replace(node->undo_row, &node->undo_ext,
 					clust_index, node->update, node->heap);

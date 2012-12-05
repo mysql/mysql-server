@@ -309,7 +309,7 @@ row_undo_ins_parse_undo_rec(
 	table_id_t	table_id;
 	ulint		type;
 	ulint		dummy;
-	ibool		dummy_extern;
+	bool		dummy_extern;
 
 	ut_ad(node);
 

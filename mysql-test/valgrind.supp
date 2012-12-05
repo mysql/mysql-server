@@ -1166,83 +1166,99 @@
 }
 
 {
-   OpenSSL / one
+   OpenSSL still reachable. One.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:lh_insert
+   fun:int_thread_set_item
+   fun:ERR_get_state
+   fun:ERR_put_error
+   fun:PEM_read_bio
+   fun:PEM_X509_INFO_read_bio
+   fun:X509_load_cert_crl_file
+   fun:by_file_ctrl
+   fun:X509_STORE_load_locations
+   fun:new_VioSSLFd
+   fun:new_VioSSLAcceptorFd
+}
+
+{
+   OpenSSL still reachable. Two.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:load_builtin_compressions
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:check_ssl_init
+   fun:new_VioSSLFd
+   fun:new_VioSSLAcceptorFd
+}
+
+{
+   OpenSSL still reachable. Three.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:load_builtin_compressions
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:check_ssl_init
+   fun:new_VioSSLFd
+   fun:new_VioSSLAcceptorFd
+}
+
+{
+   OpenSSL still reachable. Four.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:lh_new
+   fun:int_thread_get
+   fun:int_thread_set_item
+   fun:ERR_get_state
+   fun:ERR_put_error
+   fun:PEM_read_bio
+   fun:PEM_X509_INFO_read_bio
+   fun:X509_load_cert_crl_file
+   fun:by_file_ctrl
+   fun:X509_STORE_load_locations
+   fun:new_VioSSLFd
+   fun:new_VioSSLAcceptorFd
+}
+
+{
+   OpenSSL still reachable. Five.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:ERR_get_state
+   fun:ERR_put_error
+   fun:PEM_read_bio
+   fun:PEM_X509_INFO_read_bio
+   fun:X509_load_cert_crl_file
+   fun:by_file_ctrl
+   fun:X509_STORE_load_locations
+   fun:new_VioSSLFd
+   fun:new_VioSSLAcceptorFd
+}
+{
+   BUG#14801497 CONDITIONAL JUMP OR MOVE DEPENDS ON UNINITIALISED VALUE(S) IN CREATE_TMP_TABLE
    Memcheck:Cond
-   fun:BN_bin2bn
-   fun:bnrand
-   fun:generate_key
-   fun:ssl3_ctx_ctrl
-}
-
-{
-   OpenSSL / two
-   Memcheck:Cond
-   fun:BN_num_bits_word
-   fun:BN_num_bits
-   fun:BN_mod_exp_mont_consttime
-   fun:generate_key
-   fun:ssl3_ctx_ctrl
-}
-
-{
-   OpenSSL / three
-   Memcheck:Value8
-   fun:BN_num_bits_word
-   fun:BN_num_bits
-   fun:BN_mod_exp_mont_consttime
-   fun:generate_key
-   fun:ssl3_ctx_ctrl
-}
-
-{
-   OpenSSL / four
-   Memcheck:Cond
+   fun:_Z16create_tmp_tableP3THDP15TMP_TABLE_PARAMR4ListI4ItemEP8st_orderbbyyPKc
+   fun:_Z19create_schema_tableP3THDP10TABLE_LIST
+   fun:_Z18mysql_schema_tableP3THDP3LEXP10TABLE_LIST
    ...
-   fun:ssl3_send_server_key_exchange
-   fun:ssl3_accept
-   fun:ssl_do
-}
-
-{
-   OpenSSL / five
-   Memcheck:Value8
-   ...
-   fun:ssl3_send_server_key_exchange
-   fun:ssl3_accept
-   fun:ssl_do
-}
-
-{
-   OpenSSL / five
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:BIO_write
-   fun:buffer_ctrl
-   fun:ssl3_accept
-   fun:ssl_do
-}
-
-{
-   OpenSSL / xxx1
-   Memcheck:Value8
-   fun:bn_mul4x_mont_gather5
-}
-
-{
-   OpenSSL / xxx2
-   Memcheck:Value8
-   fun:bn_mul_mont
-}
-
-{
-   OpenSSL / xxx3
-   Memcheck:Value8
-   fun:bn_mul4x_mont
-}
-
-{
-   OpenSSL / xxx4
-   Memcheck:Value8
-   fun:bn_sqr4x_mont
+   fun:_Z11open_tablesP3THDPP10TABLE_LISTPjjP19Prelocking_strategy
+   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbjP19Prelocking_strategy
+   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbj
+   fun:_Z21mysql_execute_commandP3THD
+   fun:_Z11mysql_parseP3THDPcjP12Parser_state
+   fun:_Z16dispatch_command19enum_server_commandP3THDPcj
+   fun:_Z24do_handle_one_connectionP3THD
+   fun:handle_one_connection
+   fun:pfs_spawn_thread
 }

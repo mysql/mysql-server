@@ -1612,7 +1612,9 @@ bool close_temporary_tables(THD *thd)
       thd->variables.character_set_client= cs_save;
 
       thd->get_stmt_da()->set_overwrite_status(true);
-      if ((error= (mysql_bin_log.write_event(&qinfo) || error)))
+      if ((error= (mysql_bin_log.write_event(&qinfo) ||
+                   mysql_bin_log.commit(thd, true) ||
+                   error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
@@ -2542,7 +2544,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
     DBUG_RETURN(TRUE);
 
-  if (thd->killed)
+  if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed)
     DBUG_RETURN(TRUE);
 
   /*
@@ -3037,7 +3039,7 @@ table_found:
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
  reset:
-  table->created= TRUE;
+  table->set_created();
   /*
     Check that there is no reference to a condition from an earlier query
     (cf. Bug#58553). 
@@ -3047,10 +3049,8 @@ table_found:
   table_list->table= table;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (table->part_info &&
-      !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION))
+  if (table->part_info)
   {
-
     /* Set all [named] partitions as used. */
     if (table->part_info->set_partition_bitmaps(table_list))
       DBUG_RETURN(true);
@@ -3779,7 +3779,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
       int errcode= query_error_code(thd, TRUE);
       if (thd->binlog_query(THD::STMT_QUERY_TYPE,
                             temp_buf.c_ptr_safe(), temp_buf.length(),
-                            FALSE, FALSE, FALSE, errcode))
+                            FALSE, TRUE, FALSE, errcode))
         return TRUE;
       if (error)
       {
@@ -6071,7 +6071,9 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
       modify_slave_open_temp_tables(thd, 1);
   }
   tmp_table->pos_in_table_list= 0;
-  tmp_table->created= true;
+
+  tmp_table->set_created();
+
   DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,
                           tmp_table->s->table_name.str, (long) tmp_table));
   DBUG_RETURN(tmp_table);
