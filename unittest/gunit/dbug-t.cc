@@ -25,7 +25,7 @@
 using thread::Notification;
 using thread::Thread;
 
-namespace {
+namespace dbug_unittest {
 
 #if defined(DBUG_OFF)
 TEST(DebugTest, NoSuicide)
