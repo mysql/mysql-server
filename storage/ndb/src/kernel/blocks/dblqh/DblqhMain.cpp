@@ -3032,12 +3032,24 @@ void Dblqh::execTIME_SIGNAL(Signal* signal)
  */
 void Dblqh::earlyKeyReqAbort(Signal* signal, 
                              const LqhKeyReq * lqhKeyReq,
+                             bool isLongReq,
                              Uint32 errCode) 
 {
   jamEntry();
   const Uint32 transid1  = lqhKeyReq->transId1;
   const Uint32 transid2  = lqhKeyReq->transId2;
-  const Uint32 reqInfo   = lqhKeyReq->requestInfo;
+  Uint32 treqInfo        = lqhKeyReq->requestInfo;
+
+  if (!isLongReq)
+  {
+    jam();
+    /* The inlined AI length does not matter here.  Zero it to avoid
+     * interpretation as 7.x bits (getNormalProtocolFlag).
+     * bug#14702377
+     */
+    LqhKeyReq::clearAIInLqhKeyReq(treqInfo);
+  }
+  const Uint32 reqInfo   = treqInfo;
   
   bool tcConnectRecAllocated = (tcConnectptr.i != RNIL);
 
@@ -4284,6 +4296,32 @@ void Dblqh::lqhAttrinfoLab(Signal* signal, Uint32* dataPtr, Uint32 length)
 /* ------------------------------------------------------------------------- */
 /* ------         FIND TRANSACTION BY USING HASH TABLE               ------- */
 /*                                                                           */
+/* We keep a hash structure of TcConnectionrec which are identified by:      */
+/*  - Id of Transaction owning this TcConnectionrec.                         */
+/*  - A 'tcOpRec' id which uniquely(*below) identify this TcConnectionRec    */
+/*    within this specific transaction.                                      */
+/*  - An optional 'hashHi' id used for SCANREQs in cases where 'tcOpRec'     */
+/*    on its own cant provide uniqueness.                                    */
+/*    This is required in cases where there are multiple (internal) clients  */
+/*    producing REQs where the uniqueness is only guaranteed within          */
+/*    each client. Currently the only such client is the SPJ block.          */
+/*                                                                           */
+/* Hash lookup of TcConnectionrecPtr might be required for TcConnectionRecs  */
+/* having a lifetime beyond the initial REQ. That is:                        */
+/*  - Short requests awaiting for a later ATTR- or KEYINFO.                  */
+/*  - SCANREQ which may need a later NEXTREQ to fetch more or close scan     */
+/*  - Transactional (non-DirtyOp) REQs which need a later abort, commit      */
+/*    or unlock request.                                                     */
+/*                                                                           */
+/* TcConnectionrec's identified as not requiring hash lookup are not         */
+/* inserted in the hash table!                                               */
+/*                                                                           */
+/* NOTE:                                                                     */
+/*   The internal clients of NDB does *not* guarantee hash uniqueness        */
+/*   for LQHKEYREQs as described above (SPJ, node restart ..). However,      */
+/*   these requests are all 'long', 'dirtyOp'-requests and thus neither      */
+/*   inserted nor searched after in the hash table.                          */
+/*                                                                           */
 /* ------------------------------------------------------------------------- */
 int Dblqh::findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec,
                            Uint32 hi)
@@ -4306,6 +4344,7 @@ int Dblqh::findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec,
       jam();
       tcConnectptr.i = locTcConnectptr.i;
       tcConnectptr.p = locTcConnectptr.p;
+      ndbassert(tcConnectptr.p->hashIndex == ThashIndex);
       return (int)ZOK;
     }//if
     jam();
@@ -4363,6 +4402,7 @@ void Dblqh::seizeTcrec()
   locTcConnectptr.p->savePointId = 0;
   locTcConnectptr.p->gci_hi = 0;
   locTcConnectptr.p->gci_lo = 0;
+  locTcConnectptr.p->hashIndex = RNIL;
   cfirstfreeTcConrec = nextTc;
   tcConnectptr = locTcConnectptr;
   locTcConnectptr.p->connectState = TcConnectionrec::CONNECTED;
@@ -4466,6 +4506,7 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
   
   const SignalDroppedRep* rep = (SignalDroppedRep*) &signal->theData[0];
   Uint32 originalGSN= rep->originalGsn;
+  const bool isLongReq = (rep->originalSectionCount > 0);
 
   DEBUG("SignalDroppedRep received for GSN " << originalGSN);
 
@@ -4483,7 +4524,7 @@ void Dblqh::execSIGNAL_DROPPED_REP(Signal* signal)
     const LqhKeyReq * const truncatedLqhKeyReq = 
       (LqhKeyReq *) &rep->originalData[0];
     
-    earlyKeyReqAbort(signal, truncatedLqhKeyReq, ZGET_DATAREC_ERROR);
+    earlyKeyReqAbort(signal, truncatedLqhKeyReq, isLongReq, ZGET_DATAREC_ERROR);
 
     break;
   }
@@ -4538,6 +4579,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 
   const LqhKeyReq * const lqhKeyReq = (LqhKeyReq *)signal->getDataPtr();
   SectionHandle handle(this, signal);
+  const bool isLongReq = (handle.m_cnt > 0);
   tcConnectptr.i = RNIL;
 
   {
@@ -4549,7 +4591,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
         /* Overloaded, reject new work */
         jam();
         releaseSections(handle);
-        earlyKeyReqAbort(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+        earlyKeyReqAbort(signal, lqhKeyReq, isLongReq,
+                         ZTRANSPORTER_OVERLOADED_ERROR);
         return;
       }
     }
@@ -4559,7 +4602,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   {
     jam();
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, ZTRANSPORTER_OVERLOADED_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq,
+                     ZTRANSPORTER_OVERLOADED_ERROR);
     return;
   }
 
@@ -4572,7 +4616,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
 /* NO FREE TC RECORD AVAILABLE, THUS WE CANNOT HANDLE THE REQUEST.           */
 /* ------------------------------------------------------------------------- */
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, ZNO_TC_CONNECT_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNO_TC_CONNECT_ERROR);
     return;
   }//if
 
@@ -4595,10 +4639,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   regTcPtr->storedProcId = ZNIL;
   regTcPtr->lqhKeyReqId = cTotalLqhKeyReqCount;
   regTcPtr->m_flags= 0;
-  bool isLongReq= false;
-  if (handle.m_cnt > 0)
+  if (isLongReq)
   {
-    isLongReq= true;
     regTcPtr->m_flags|= TcConnectionrec::OP_ISLONGREQ;
   }
 
@@ -4618,14 +4660,14 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
   const Uint8 op = LqhKeyReq::getOperation(Treqinfo);
   if ((op == ZREAD || op == ZREAD_EX) && !getAllowRead()){
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, ZNODE_SHUTDOWN_IN_PROGESS);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_SHUTDOWN_IN_PROGESS);
     return;
   }
 
   if (unlikely(get_node_status(refToNode(sig5)) != ZNODE_UP))
   {
     releaseSections(handle);
-    earlyKeyReqAbort(signal, lqhKeyReq, ZNODE_FAILURE_ERROR);
+    earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNODE_FAILURE_ERROR);
     return;
   }
   
@@ -4683,7 +4725,8 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       if (markerPtr.i == RNIL)
       {
         releaseSections(handle);
-        earlyKeyReqAbort(signal, lqhKeyReq, ZNO_FREE_MARKER_RECORDS_ERROR);
+        earlyKeyReqAbort(signal, lqhKeyReq, isLongReq,
+                         ZNO_FREE_MARKER_RECORDS_ERROR);
         return;
       }
       markerPtr.p->transid1 = sig1;
@@ -4781,6 +4824,17 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     regTcPtr->m_flags |= TcConnectionrec::OP_DEFERRED_CONSTRAINTS;
   }
 
+  Uint32 TnormalProtocolFlag = LqhKeyReq::getNormalProtocolFlag(Treqinfo);
+  if (isLongReq && TnormalProtocolFlag)
+  {
+    /**
+     * Only set normal protocol flag if long request.
+     * As above, short lqhKeyReq ai-length in-signal overlaps the bit.
+     * bug#14702377
+     */
+    regTcPtr->m_flags |= TcConnectionrec::OP_NORMAL_PROTOCOL;
+  }
+
   UintR TitcKeyLen = 0;
   Uint32 keyLenWithLQHReq = 0;
   UintR TreclenAiLqhkey   = 0;
@@ -4838,7 +4892,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
     if (unlikely(!ok))
     {
       jam();
-      earlyKeyReqAbort(signal, lqhKeyReq, ZGET_DATAREC_ERROR);
+      earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZGET_DATAREC_ERROR);
       return;
     }
 
@@ -4856,7 +4910,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       ndbassert(! LqhKeyReq::getNrCopyFlag(Treqinfo));
       
       /* Reply with NO_TUPLE_FOUND */
-      earlyKeyReqAbort(signal, lqhKeyReq, ZNO_TUPLE_FOUND);
+      earlyKeyReqAbort(signal, lqhKeyReq, isLongReq, ZNO_TUPLE_FOUND);
       return;
     }
 
@@ -4914,24 +4968,40 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       return;
     }//if
   }//if
-  /* Check that no equal element exists */
-  ndbassert(findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
-                            regTcPtr->tcOprec, 0) == ZNOT_FOUND);
-  TcConnectionrecPtr localNextTcConnectptr;
-  Uint32 hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) & 1023;
-  localNextTcConnectptr.i = ctransidHash[hashIndex];
-  ctransidHash[hashIndex] = tcConnectptr.i;
-  regTcPtr->prevHashRec = RNIL;
-  regTcPtr->nextHashRec = localNextTcConnectptr.i;
-  if (localNextTcConnectptr.i != RNIL) {
-/* -------------------------------------------------------------------------- */
-/* ENSURE THAT THE NEXT RECORD HAS SET PREVIOUS TO OUR RECORD IF IT EXISTS    */
-/* -------------------------------------------------------------------------- */
-    ptrCheckGuard(localNextTcConnectptr, 
-                  ctcConnectrecFileSize, tcConnectionrec);
+
+  /**
+   * If this is a 'dirtyOp' we dont care about transaction semantics.
+   * There will then be no further abort, commit or unlock requests for
+   * this operation. Thus, we will never have to find this operation
+   * in the hashlist by calling findTransaction().
+   * If also all ATTR- and KEYINFOs has been received, there will be no
+   * ::execKEY- or ATTRINFO. (Long request, or all INFO fit in the REQ.)
+   *
+   * Thus we skip insertion in hashlist whenever not required.
+   */
+  if (regTcPtr->dirtyOp == ZFALSE ||                  //Transactional operation
+      regTcPtr->primKeyLen > keyLenWithLQHReq ||      //Await more KEYINFO
+      regTcPtr->totReclenAi > regTcPtr->currReclenAi) //Await more ATTRINFO
+  {
     jam();
-    ndbassert(localNextTcConnectptr.p->prevHashRec == RNIL);
-    localNextTcConnectptr.p->prevHashRec = tcConnectptr.i;
+    /* Check that no equal element exists */
+    ndbassert(findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
+                              regTcPtr->tcOprec, regTcPtr->tcHashKeyHi) == ZNOT_FOUND);
+
+    TcConnectionrecPtr localNextTcConnectptr;
+    Uint32 hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) & 1023;
+    localNextTcConnectptr.i = ctransidHash[hashIndex];
+    ctransidHash[hashIndex] = tcConnectptr.i;
+    regTcPtr->prevHashRec = RNIL;
+    regTcPtr->nextHashRec = localNextTcConnectptr.i;
+    regTcPtr->hashIndex = hashIndex;
+    if (localNextTcConnectptr.i != RNIL) {
+      ptrCheckGuard(localNextTcConnectptr, 
+                    ctcConnectrecFileSize, tcConnectionrec);
+      jam();
+      ndbassert(localNextTcConnectptr.p->prevHashRec == RNIL);
+      localNextTcConnectptr.p->prevHashRec = tcConnectptr.i;
+    }//if
   }//if
   if (tabptr.i >= ctabrecFileSize) {
     LQHKEY_error(signal, 5);
@@ -7375,6 +7445,19 @@ void Dblqh::deleteTransidHash(Signal* signal)
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
   TcConnectionrecPtr prevHashptr;
   TcConnectionrecPtr nextHashptr;
+  /**
+   * This operation has not been inserted in the hash list at all.
+   * (It is a non-transactional 'dirtyOp', or the request failed
+   *  before it was ever inserted in the hash list.)
+   */ 
+  if (regTcPtr->hashIndex == RNIL)
+  {
+    jam();
+    /* Check that this, or an equal, TcConnectionrec isn't hashed */
+    ndbassert(findTransaction(regTcPtr->transid[0], regTcPtr->transid[1], 
+                              regTcPtr->tcOprec, regTcPtr->tcHashKeyHi) == ZNOT_FOUND);
+    return;
+  }
 
   prevHashptr.i = regTcPtr->prevHashRec;
   nextHashptr.i = regTcPtr->nextHashRec;
@@ -7391,7 +7474,8 @@ void Dblqh::deleteTransidHash(Signal* signal)
 /* THE OPERATION WAS PLACED FIRST IN THE LIST OF THE HASH TABLE. NEED TO SET */
 /* A NEW LEADER OF THE LIST.                                                 */
 /* ------------------------------------------------------------------------- */
-    Uint32 hashIndex = (regTcPtr->transid[0] ^ regTcPtr->tcOprec) & 1023;
+    Uint32 hashIndex = regTcPtr->hashIndex;
+    ndbassert(hashIndex == ((regTcPtr->transid[0] ^ regTcPtr->tcOprec) & 1023));
     ndbassert(ctransidHash[hashIndex] == tcConnectptr.i);
     ctransidHash[hashIndex] = nextHashptr.i;
   }//if
@@ -7402,7 +7486,7 @@ void Dblqh::deleteTransidHash(Signal* signal)
     nextHashptr.p->prevHashRec = prevHashptr.i;
   }//if
 
-  regTcPtr->prevHashRec = regTcPtr->nextHashRec = RNIL;
+  regTcPtr->hashIndex = regTcPtr->prevHashRec = regTcPtr->nextHashRec = RNIL;
 }//Dblqh::deleteTransidHash()
 
 /* -------------------------------------------------------------------------
@@ -8256,7 +8340,8 @@ void Dblqh::commitContinueAfterBlockedLab(Signal* signal)
   Uint32 operation = regTcPtr.p->operation;
   Uint32 dirtyOp = regTcPtr.p->dirtyOp;
   Uint32 opSimple = regTcPtr.p->opSimple;
-  Uint32 normalProtocol = LqhKeyReq::getNormalProtocolFlag(regTcPtr.p->reqinfo);
+  bool normalProtocol = (regTcPtr.p->m_flags &
+                         TcConnectionrec::OP_NORMAL_PROTOCOL);
 
   if (regTcPtr.p->activeCreat != Fragrecord::AC_IGNORED) {
     if (operation != ZREAD) {
@@ -8545,6 +8630,7 @@ void Dblqh::completeUnusualLab(Signal* signal)
 void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr) 
 {
   jam();
+  ndbassert(locTcConnectptr.p->hashIndex==RNIL);
   Uint32 op = locTcConnectptr.p->operation;
   locTcConnectptr.p->tcTimer = 0;
   locTcConnectptr.p->transactionState = TcConnectionrec::TC_NOT_CONNECTED;
@@ -8578,6 +8664,7 @@ void Dblqh::releaseTcrec(Signal* signal, TcConnectionrecPtr locTcConnectptr)
 void Dblqh::releaseTcrecLog(Signal* signal, TcConnectionrecPtr locTcConnectptr) 
 {
   jam();
+  ndbassert(locTcConnectptr.p->hashIndex==RNIL);
   locTcConnectptr.p->tcTimer = 0;
   locTcConnectptr.p->transactionState = TcConnectionrec::TC_NOT_CONNECTED;
   locTcConnectptr.p->nextTcConnectrec = cfirstfreeTcConrec;
@@ -9223,11 +9310,13 @@ void Dblqh::continueAbortLab(Signal* signal)
 void Dblqh::continueAfterLogAbortWriteLab(Signal* signal) 
 {
   TcConnectionrec * const regTcPtr = tcConnectptr.p;
+  bool normalProtocol = (regTcPtr->m_flags &
+                         TcConnectionrec::OP_NORMAL_PROTOCOL);
 
   remove_commit_marker(regTcPtr);
 
   if (regTcPtr->operation == ZREAD && regTcPtr->dirtyOp &&
-      !LqhKeyReq::getNormalProtocolFlag(regTcPtr->reqinfo))
+      !normalProtocol)
   {
     jam();
     TcKeyRef * const tcKeyRef = (TcKeyRef *) signal->getDataPtrSend();
@@ -10608,6 +10697,7 @@ void Dblqh::execSCAN_FRAGREQ(Signal* signal)
   ctransidHash[hashIndex] = tcConnectptr.i;
   tcConnectptr.p->prevHashRec = RNIL;
   tcConnectptr.p->nextHashRec = nextHashptr.i;
+  tcConnectptr.p->hashIndex = hashIndex;
   if (nextHashptr.i != RNIL) {
     jam();
     /* ---------------------------------------------------------------------
