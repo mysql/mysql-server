@@ -4665,9 +4665,14 @@ bool xid_cache_insert(XID *xid, enum xa_states xa_state)
 bool xid_cache_insert(XID_STATE *xid_state)
 {
   mysql_mutex_lock(&LOCK_xid_cache);
-  DBUG_ASSERT(my_hash_search(&xid_cache, xid_state->xid.key(),
-                             xid_state->xid.key_length())==0);
-  my_bool res=my_hash_insert(&xid_cache, (uchar*)xid_state);
+  if (my_hash_search(&xid_cache, xid_state->xid.key(),
+      xid_state->xid.key_length()))
+  {
+    mysql_mutex_unlock(&LOCK_xid_cache);
+    my_error(ER_XAER_DUPID, MYF(0));
+    return true;
+  }
+  bool res= my_hash_insert(&xid_cache, (uchar*)xid_state);
   mysql_mutex_unlock(&LOCK_xid_cache);
   return res;
 }
