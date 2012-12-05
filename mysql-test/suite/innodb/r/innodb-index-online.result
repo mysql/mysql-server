@@ -81,7 +81,7 @@ ddl_online_create_index	0
 ddl_pending_alter_table	1
 INSERT INTO t1 VALUES(6,3,1);
 SET DEBUG_SYNC = 'now SIGNAL dml_done';
-ERROR HY000: Index c2 is corrupted
+ERROR 23000: Duplicate entry for key 'c2'
 DELETE FROM t1 WHERE c1=6;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
