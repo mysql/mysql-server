@@ -246,6 +246,8 @@ public:
   }
   void mdl_key_init(const MDL_key *rhs)
   {
+    DBUG_ASSERT(rhs->m_length <= NAME_LEN);
+    DBUG_ASSERT(rhs->m_db_name_length <= NAME_LEN);
     memcpy(m_ptr, rhs->m_ptr, rhs->m_length);
     m_length= rhs->m_length;
     m_db_name_length= rhs->m_db_name_length;
