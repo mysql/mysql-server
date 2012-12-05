@@ -678,6 +678,7 @@ struct PFS_socket_stat
   }
 };
 
+/** Connections statistics. */
 struct PFS_connection_stat
 {
   PFS_connection_stat()

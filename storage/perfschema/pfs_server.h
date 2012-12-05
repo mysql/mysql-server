@@ -55,11 +55,16 @@
   #define PFS_STATEMENTS_STACK_SIZE 10
 #endif
 
+/** Sizing hints, from the server configuration. */
 struct PFS_sizing_hints
 {
+  /** Value of @c Sys_table_def_size */
   long m_table_definition_cache;
+  /** Value of @c Sys_table_cache_size */
   long m_table_open_cache;
+  /** Value of @c Sys_max_connections */
   long m_max_connections;
+  /** Value of @c Sys_open_files_limit */
   long m_open_files_limit;
 };
 

@@ -33,11 +33,6 @@
 #include "thread_utils.h"
 #include "test_mdl_context_owner.h"
 
-pthread_key(MEM_ROOT**,THR_MALLOC);
-pthread_key(THD*, THR_THD);
-mysql_mutex_t LOCK_open;
-uint    opt_debug_sync_timeout= 0;
-
 /*
   Mock thd_wait_begin/end functions
 */
@@ -60,15 +55,6 @@ extern "C" void test_error_handler_hook(uint err, const char *str, myf MyFlags)
 }
 
 /*
-  A mock out-of-memory handler.
-  We do not expect this to be called during testing.
-*/
-extern "C" void sql_alloc_error_handler(void)
-{
-  ADD_FAILURE();
-}
-
-/*
   Mock away this global function.
   We don't need DEBUG_SYNC functionality in a unit test.
  */
@@ -79,10 +65,10 @@ void debug_sync(THD *thd, const char *sync_point_name, size_t name_len)
 }
 
 /*
-  Putting everything in an unnamed namespace prevents any (unintentional)
+  Putting everything in a namespace prevents any (unintentional)
   name clashes with the code under test.
 */
-namespace {
+namespace mdl_unittest {
 
 using thread::Notification;
 using thread::Thread;
