@@ -265,6 +265,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   }
   case Item::FIELD_ITEM:
   case Item::DEFAULT_VALUE_ITEM:
+  case Item::TRIGGER_FIELD_ITEM:
   {
     Item_field *field= (Item_field*) item;
     bool orig_modify= modify_item;
