@@ -16,6 +16,8 @@
 INCLUDE(libutils)
 INCLUDE(cmake_parse_arguments)
 
+SET(JAVAC_TARGET "1.6")
+
 # Build (if not already done) NDB version string used for generating jars etc.
 MACRO(SET_JAVA_NDB_VERSION)
 
@@ -91,8 +93,8 @@ MACRO(CREATE_JAR)
         OUTPUT ${MARKER}
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CLASS_DIR}
-        COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${ARG_BROKEN_JAVAC}\"
-        COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath "${classpath_str}" ${ARG_BROKEN_JAVAC}
+        COMMAND echo \"${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${ARG_BROKEN_JAVAC}\"
+        COMMAND ${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${ARG_BROKEN_JAVAC}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${JAVA_FILES}
         COMMENT "Building objects for ${TARGET}.jar"
@@ -102,8 +104,8 @@ MACRO(CREATE_JAR)
         OUTPUT ${MARKER}
         COMMAND ${CMAKE_COMMAND} -E remove_directory ${BUILD_DIR}
         COMMAND ${CMAKE_COMMAND} -E make_directory ${CLASS_DIR}
-        COMMAND echo \"${JAVA_COMPILE} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
-        COMMAND ${JAVA_COMPILE} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
+        COMMAND echo \"${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath ${classpath_str} ${JAVA_FILES}\"
+        COMMAND ${JAVA_COMPILE} -target ${JAVAC_TARGET} -source ${JAVAC_TARGET} -d ${TARGET_DIR} -classpath "${classpath_str}" ${JAVA_FILES}
         COMMAND ${CMAKE_COMMAND} -E touch ${MARKER}
         DEPENDS ${JAVA_FILES}
         COMMENT "Building objects for ${TARGET}.jar"
