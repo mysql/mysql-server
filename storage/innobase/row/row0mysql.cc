@@ -616,6 +616,7 @@ handle_new_error:
 	case DB_READ_ONLY:
 	case DB_FTS_INVALID_DOCID:
 	case DB_INTERRUPTED:
+	case DB_DICT_CHANGED:
 		if (savept) {
 			/* Roll back the latest, possibly incomplete
 			insertion or update */
