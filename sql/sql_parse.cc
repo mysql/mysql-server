@@ -6000,8 +6000,13 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
   ptr->next_name_resolution_table= NULL;
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
-                        MDL_TRANSACTION);
+
+  // Pure table aliases do not need to be locked:
+  if (!test(table_options & TL_OPTION_ALIAS))
+  {
+    ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
+                          MDL_TRANSACTION);
+  }
   DBUG_RETURN(ptr);
 }
 
