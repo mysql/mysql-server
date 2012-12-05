@@ -3807,7 +3807,7 @@ mt_job_thread_main(void *thr_arg)
     else
     {
       /* No signals processed, prepare to sleep to wait for more */
-      if (pending_send || send_sum > 0)
+      if ((pending_send + send_sum) > 0)
       {
         /* About to sleep, _must_ send now. */
         pending_send = do_send(selfptr, TRUE);
@@ -3836,7 +3836,7 @@ mt_job_thread_main(void *thr_arg)
      */
     if (sum >= selfptr->m_max_exec_signals)
     {
-      if (update_sched_config(selfptr, pending_send))
+      if (update_sched_config(selfptr, pending_send + send_sum))
       {
         /* Update current time after sleeping */
         now = NdbTick_CurrentMillisecond();
