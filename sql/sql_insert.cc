@@ -2100,7 +2100,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   /* Add selected items to field list */
   List_iterator_fast<Item> it(*items);
   Item *item;
-  Field *tmp_field;
+
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
@@ -2118,21 +2118,49 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   while ((item=it++))
   {
-    Create_field *cr_field;
-    Field *field, *def_field;
+    Field *tmp_table_field;
     if (item->type() == Item::FUNC_ITEM)
+    {
       if (item->result_type() != STRING_RESULT)
-        field= item->tmp_table_field(&tmp_table);
+        tmp_table_field= item->tmp_table_field(&tmp_table);
       else
-        field= item->tmp_table_field_from_field_type(&tmp_table, 0);
+        tmp_table_field= item->tmp_table_field_from_field_type(&tmp_table,
+                                                               false);
+    }
     else
-      field= create_tmp_field(thd, &tmp_table, item, item->type(),
-                              (Item ***) 0, &tmp_field, &def_field, 0, 0, 0, 0);
-    if (!field ||
-	!(cr_field=new Create_field(field,(item->type() == Item::FIELD_ITEM ?
-					   ((Item_field *)item)->field :
-					   (Field*) 0))))
-      DBUG_RETURN(0);
+    {
+      Field *from_field, *default_field;
+      tmp_table_field= create_tmp_field(thd, &tmp_table, item, item->type(),
+                                        (Item ***) NULL,
+                                        &from_field, &default_field,
+                                        false, false, false, false);
+    }
+
+    if (!tmp_table_field)
+      DBUG_RETURN(NULL);
+
+    Field *table_field;
+
+    switch (item->type())
+    {
+    /*
+      We have to take into account both the real table's fields and
+      pseudo-fields used in trigger's body. These fields are used
+      to copy defaults values later inside constructor of
+      the class Create_field.
+    */
+    case Item::FIELD_ITEM:
+    case Item::TRIGGER_FIELD_ITEM:
+      table_field= ((Item_field *) item)->field;
+      break;
+    default:
+      table_field= NULL;
+    }
+
+    Create_field *cr_field= new Create_field(tmp_table_field, table_field);
+
+    if (!cr_field)
+      DBUG_RETURN(NULL);
 
     /* Function defaults are removed */
     if (cr_field->unireg_check == Field::TIMESTAMP_DN_FIELD ||
@@ -2207,7 +2235,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
     }
     if (!table)                                   // open failed
-      DBUG_RETURN(0);
+      DBUG_RETURN(NULL);
   }
   DBUG_RETURN(table);
 }
