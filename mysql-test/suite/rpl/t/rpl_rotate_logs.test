@@ -18,7 +18,12 @@
 # Requires statement logging
 -- source include/have_binlog_format_mixed_or_statement.inc
 
+# Double connections to allow the correct debug information to be shown
+# when using rpl_assert.inc without rpl_init.inc
+--let $rpl_server_count= 2
+connect (server_2,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connect (server_1,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK);
 connect (slave,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK);
 
 # Create empty file
