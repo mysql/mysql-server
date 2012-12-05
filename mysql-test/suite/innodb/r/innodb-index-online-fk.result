@@ -7,8 +7,7 @@ CREATE INDEX tb ON child(a2);
 INSERT INTO child VALUES(10,20);
 ALTER TABLE child ADD FOREIGN KEY(a2) REFERENCES parent(b),
 ALGORITHM = INPLACE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE child ADD FOREIGN KEY(a2) REFERENCES parent(b),
-ALGORITHM = INPLACE'
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding foreign keys needs foreign_key_checks=OFF. Try ALGORITHM=COPY.
 SET foreign_key_checks = 0;
 ALTER TABLE child ADD CONSTRAINT fk_1 FOREIGN KEY (a2)
 REFERENCES parent(b) ON DELETE SET NULL ON UPDATE CASCADE,

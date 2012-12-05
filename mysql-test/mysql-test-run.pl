@@ -6243,6 +6243,7 @@ sub valgrind_exit_reports() {
     my $valgrind_rep= "";
     my $found_report= 0;
     my $err_in_report= 0;
+    my $ignore_report= 0;
 
     my $LOGF = IO::File->new($log_file)
       or mtr_error("Could not open file '$log_file' for reading: $!");
@@ -6272,8 +6273,15 @@ sub valgrind_exit_reports() {
         push (@culprits, $testname);
         next;
       }
+      # This line marks a report to be ignored
+      $ignore_report=1 if $line =~ /VALGRIND_DO_QUICK_LEAK_CHECK/;
       # This line marks the start of a valgrind report
       $found_report= 1 if $line =~ /^==\d+== .* SUMMARY:/;
+
+      if ($ignore_report && $found_report) {
+        $ignore_report= 0;
+        $found_report= 0;
+      }
 
       if ($found_report) {
         $line=~ s/^==\d+== //;
@@ -6281,7 +6289,6 @@ sub valgrind_exit_reports() {
         $err_in_report= 1 if $line =~ /ERROR SUMMARY: [1-9]/;
         $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
-        $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
       }
     }
 
@@ -6307,6 +6314,7 @@ sub run_ctest() {
 
   # Just ignore if not configured/built to run ctest
   if (! -f "CTestTestfile.cmake") {
+    mtr_report("No unit tests found.");
     chdir($olddir);
     return;
   }
@@ -6317,6 +6325,7 @@ sub run_ctest() {
   # Also silently ignore if we don't have ctest and didn't insist
   # Special override: also ignore in Pushbuild, some platforms may not have it
   # Now, run ctest and collect output
+  $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
   my $ctest_out= `ctest $ctest_vs 2>&1`;
   if ($? == $no_ctest && $opt_ctest == -1 && ! defined $ENV{PB2WORKDIR}) {
     chdir($olddir);

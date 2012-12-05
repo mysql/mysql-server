@@ -23,7 +23,7 @@
 
 #include "field.h"
 
-namespace {
+namespace field_datetime_unittests {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -69,6 +69,7 @@ public:
   }
 
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
 };
 
 
@@ -82,6 +83,7 @@ TEST_F(FieldDatetimeTest, StoreLegalStringValues)
   Fake_TABLE table(&field_dt);
   table.in_use= thd();
   field_dt.make_writable();
+  field_dt.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   {
@@ -108,6 +110,7 @@ TEST_F(FieldDatetimeTest, StoreIllegalStringValues)
   Fake_TABLE table(&field_dt);
   table.in_use= thd();
   field_dt.make_writable();
+  field_dt.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   // Bad year
@@ -191,6 +194,7 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroRestrictions)
   Fake_TABLE table(&field_dt);
   table.in_use= thd();
   field_dt.make_writable();
+  field_dt.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   for (int i= 0; i < no_modes; i++)
@@ -252,6 +256,7 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroDate)
   Fake_TABLE table(&field_dt);
   table.in_use= thd();
   field_dt.make_writable();
+  field_dt.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_DATE" set - Errors if date is all null
@@ -313,6 +318,7 @@ TEST_F(FieldDatetimeTest, StoreZeroDateSqlModeNoZeroInDate)
   Fake_TABLE table(&field_dt);
   table.in_use= thd();
   field_dt.make_writable();
+  field_dt.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_IN_DATE" set - Entire date zero is ok

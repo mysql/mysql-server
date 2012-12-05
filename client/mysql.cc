@@ -1739,10 +1739,8 @@ static struct my_option my_long_options[] =
    "Does not work in batch mode. Disable with --disable-tee. "
    "This option is disabled by default.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", &current_user,
    &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"safe-updates", 'U', "Only allow UPDATE and DELETE that uses keys.",
    &safe_updates, &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},

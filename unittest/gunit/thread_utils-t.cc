@@ -21,14 +21,6 @@
 
 #include "mdl.h"
 
-pthread_key(MEM_ROOT**,THR_MALLOC);
-pthread_key(THD*, THR_THD);
-
-extern "C" void sql_alloc_error_handler(void)
-{
-  ADD_FAILURE();
-}
-
 using thread::Mutex_lock;
 using thread::Notification;
 using thread::Thread;

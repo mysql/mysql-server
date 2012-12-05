@@ -968,6 +968,14 @@ struct PSI_digest_storage
 };
 typedef struct PSI_digest_storage PSI_digest_storage;
 
+/**
+  State data storage for @c digest_start, @c digest_add_token.
+  This structure provide temporary storage to a digest locker.
+  The content of this structure is considered opaque,
+  the fields are only hints of what an implementation
+  of the psi interface can use.
+  This memory is provided by the instrumented code for performance reasons.
+*/
 struct PSI_digest_locker_state
 {
   int m_last_id_index;
@@ -1455,9 +1463,20 @@ typedef void (*signal_cond_v1_t)
 typedef void (*broadcast_cond_v1_t)
   (struct PSI_cond *cond);
 
+/**
+  Record an idle instrumentation wait start event.
+  @param state data storage for the locker
+  @param file the source file name
+  @param line the source line number
+  @return an idle locker, or NULL
+*/
 typedef struct PSI_idle_locker* (*start_idle_wait_v1_t)
   (struct PSI_idle_locker_state_v1 *state, const char *src_file, uint src_line);
 
+/**
+  Record an idle instrumentation wait end event.
+  @param locker a thread locker for the running thread
+*/
 typedef void (*end_idle_wait_v1_t)
   (struct PSI_idle_locker *locker);
 
@@ -1902,9 +1921,19 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
 */
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
 
+/**
+  Get a digest locker for the current statement.
+  @param locker a statement locker for the running thread
+*/
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
 
+/**
+  Add a token to the current digest instrumentation.
+  @param locker a digest locker for the current statement
+  @param token the lexical token to add
+  @param yylval the lexical token attributes
+*/
 typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
 
@@ -1912,10 +1941,10 @@ typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
   Stores an array of connection attributes
   @param buffer         char array of length encoded connection attributes
                         in network format
-  @param length         legnth of the data in buffer
-  @param from_cs        charset in which @buffer is encodded
+  @param length         length of the data in buffer
+  @param from_cs        charset in which @c buffer is encoded
   @return state
-    @retval  non-0    attributes truncated
+    @retval  non_0    attributes truncated
     @retval  0        stored the attribute
 */
 typedef int (*set_thread_connect_attrs_v1_t)(const char *buffer, uint length,
