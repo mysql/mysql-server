@@ -1764,8 +1764,11 @@ row_ins_check_foreign_constraints(
 	while (foreign) {
 		if (foreign->foreign_index == index) {
 			dict_table_t*	ref_table = NULL;
+			dict_table_t*	foreign_table = foreign->foreign_table;
+			dict_table_t*	referenced_table
+						= foreign->referenced_table;
 
-			if (foreign->referenced_table == NULL) {
+			if (referenced_table == NULL) {
 
 				ref_table = dict_table_open_on_name(
 					foreign->referenced_table_name_lookup,
@@ -1778,9 +1781,9 @@ row_ins_check_foreign_constraints(
 				row_mysql_freeze_data_dictionary(trx);
 			}
 
-			if (foreign->referenced_table) {
+			if (referenced_table) {
 				os_inc_counter(dict_sys->mutex,
-					       foreign->foreign_table
+					       foreign_table
 					       ->n_foreign_key_checks_running);
 			}
 
@@ -1792,9 +1795,12 @@ row_ins_check_foreign_constraints(
 			err = row_ins_check_foreign_constraint(
 				TRUE, foreign, table, entry, thr);
 
-			if (foreign->referenced_table) {
+			DBUG_EXECUTE_IF("row_ins_dict_change_err",
+					err = DB_DICT_CHANGED;);
+
+			if (referenced_table) {
 				os_dec_counter(dict_sys->mutex,
-					       foreign->foreign_table
+					       foreign_table
 					       ->n_foreign_key_checks_running);
 			}
 
