@@ -4457,19 +4457,33 @@ TABLE *TABLE_LIST::get_real_join_table()
     DBUG_ASSERT(tbl->derived == NULL ||
                tbl->derived->first_select()->next_select() == NULL);
 
-    if (tbl->table)
-      table= tbl->table;
-    tbl= (tbl->view != NULL ?
-          tbl->view->select_lex.get_table_list() :
-          tbl->derived->first_select()->get_table_list());
-
-    /* find left table in outer join on this level */
-    while(tbl->outer_join & JOIN_TYPE_RIGHT)
     {
-      DBUG_ASSERT(tbl->next_local);
-      tbl= tbl->next_local;
+      List_iterator_fast<TABLE_LIST> ti;
+      {
+        List_iterator_fast<TABLE_LIST>
+          ti(tbl->view != NULL ?
+             tbl->view->select_lex.top_join_list :
+             tbl->derived->first_select()->top_join_list);
+        for (;;)
+        {
+          tbl= NULL;
+          /*
+            Find left table in outer join on this level
+            (the list is reverted).
+          */
+          for (TABLE_LIST *t= ti++; t; t= ti++)
+            tbl= t;
+          /*
+            It is impossible that the list is empty
+            so tbl can't be NULL after above loop.
+          */
+          if (!tbl->nested_join)
+            break;
+          /* go deeper if we've found nested join */
+          ti= tbl->nested_join->join_list;
+        }
+      }
     }
-
   }
 
   return tbl->table;
