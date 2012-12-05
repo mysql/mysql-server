@@ -2814,7 +2814,13 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
                        rowcount * inner_fanout * outer_fanout,
                        dst_pos, &loose_scan_pos);
       if (i == first_tab && loosescan)  // Use loose scan position
+      {
         *dst_pos= loose_scan_pos;
+        const double rows= rowcount * dst_pos->records_read;
+        dst_pos->set_prefix_costs(cost + dst_pos->read_time +
+                                  rows * ROW_EVALUATE_COST,
+                                  rows);
+      }
       pos= dst_pos;
     }
     else 

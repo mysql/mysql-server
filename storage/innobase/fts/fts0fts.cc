@@ -681,7 +681,7 @@ fts_add_index(
 
 	ib_vector_push(fts->indexes, &index);
 
-	index_cache = (fts_index_cache_t*) fts_find_index_cache(cache, index);
+	index_cache = fts_find_index_cache(cache, index);
 
 	if (!index_cache) {
 		/* Add new index cache structure */
@@ -870,8 +870,7 @@ fts_drop_index(
 
 		rw_lock_x_lock(&cache->init_lock);
 
-		index_cache = (fts_index_cache_t*) fts_find_index_cache(
-			cache, index);
+		index_cache = fts_find_index_cache(cache, index);
 
 		if (index_cache->words) {
 			fts_words_free(index_cache->words);
@@ -4926,7 +4925,7 @@ fts_get_doc_id_from_rec(
 Search the index specific cache for a particular FTS index.
 @return the index specific cache else NULL */
 UNIV_INTERN
-const fts_index_cache_t*
+fts_index_cache_t*
 fts_find_index_cache(
 /*=================*/
 	const fts_cache_t*	cache,		/*!< in: cache to search */
@@ -4934,7 +4933,8 @@ fts_find_index_cache(
 {
 	/* We cast away the const because our internal function, takes
 	non-const cache arg and returns a non-const pointer. */
-	return(fts_get_index_cache((fts_cache_t*) cache, index));
+	return(static_cast<fts_index_cache_t*>(
+		fts_get_index_cache((fts_cache_t*) cache, index)));
 }
 
 /*********************************************************************//**

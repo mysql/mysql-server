@@ -790,7 +790,7 @@ public:
   /**
     Save a temporal value in packed longlong format into a Field.
     Used in optimizer.
-    @param OUT field  The field to set the value to.
+    @param[out] field  The field to set the value to.
     @retval 0         On success.
     @retval >0        In error.
   */

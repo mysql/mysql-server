@@ -166,7 +166,6 @@ const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
 
-
 Log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
                               &LOCK_log_throttle_qni,
                               Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
@@ -2267,6 +2266,18 @@ mysql_execute_command(THD *thd)
 #endif
   DBUG_ENTER("mysql_execute_command");
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
+
+  if (unlikely(lex->is_broken()))
+  {
+    // Force a Reprepare, to get a fresh LEX
+    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+    if (reprepare_observer &&
+        reprepare_observer->report_error(thd))
+    {
+      DBUG_ASSERT(thd->is_error());
+      DBUG_RETURN(1);
+    }
+  }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
@@ -4917,6 +4928,36 @@ finish:
     thd->mdl_context.release_statement_locks();
   }
 
+#if defined(VALGRIND_DO_QUICK_LEAK_CHECK)
+  // Get incremental leak reports, for easier leak hunting.
+  // ./mtr --mem --mysqld='-T 4096' --valgrind-mysqld main.1st
+  // Note that with multiple connections, the report below may be misleading.
+  if (test_flags & TEST_DO_QUICK_LEAK_CHECK)
+  {
+    static unsigned long total_leaked_bytes= 0;
+    unsigned long leaked= 0;
+    unsigned long dubious __attribute__((unused));
+    unsigned long reachable __attribute__((unused));
+    unsigned long suppressed __attribute__((unused));
+    /*
+      We could possibly use VALGRIND_DO_CHANGED_LEAK_CHECK here,
+      but that is a fairly new addition to the Valgrind api.
+      Note: we dont want to check 'reachable' until we have done shutdown,
+      and that is handled by the final report anyways.
+      We print some extra information, to tell mtr to ignore this report.
+    */
+    sql_print_information("VALGRIND_DO_QUICK_LEAK_CHECK");
+    VALGRIND_DO_QUICK_LEAK_CHECK;
+    VALGRIND_COUNT_LEAKS(leaked, dubious, reachable, suppressed);
+    if (leaked > total_leaked_bytes)
+    {
+      sql_print_error("VALGRIND_COUNT_LEAKS reports %lu leaked bytes "
+                      "for query '%.*s'", leaked - total_leaked_bytes,
+                      static_cast<int>(thd->query_length()), thd->query());
+    }
+    total_leaked_bytes= leaked;
+  }
+#endif
   DBUG_RETURN(res || thd->is_error());
 }
 
