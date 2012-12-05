@@ -599,12 +599,12 @@ Larry	50
 Newsagent	0
 Yacht dealer	50
 Exceptions at Primary bank site
-select server_id, master_server_id, count, auto_key, from_name, to_name, detail
-from test.transactions$EX order by count;
-server_id	master_server_id	count	auto_key	from_name	to_name	detail
-1	3	1	1	Larry	Employee-1	Payment to Employee-1
-1	3	2	2	Larry	Employee-2	Payment to Employee-2
-1	3	3	3	Employee-2	Newsagent	Buy yacht magazine
+select server_id, master_server_id, auto_key, from_name, to_name, detail
+from test.transactions$EX order by auto_key, from_name, to_name, detail;
+server_id	master_server_id	auto_key	from_name	to_name	detail
+1	3	1	Larry	Employee-1	Payment to Employee-1
+1	3	2	Larry	Employee-2	Payment to Employee-2
+1	3	3	Employee-2	Newsagent	Buy yacht magazine
 Conflict handling activity at Primary bank site
 Expect :
 1 conflict from slave T1 on Larry's balance
