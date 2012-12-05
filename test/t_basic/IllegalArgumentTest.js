@@ -107,7 +107,7 @@ t12.run = function() {
   fail_openSession(testCase, function(session) {
     try {
       session.remove();
-      testCase.fail('Remove with illenogal argument must fail.');
+      testCase.fail('Remove with no argument must fail.');
     } catch(err) {
       testCase.pass();
     }
