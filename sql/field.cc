@@ -4992,8 +4992,8 @@ longlong Field_temporal_with_date::val_time_temporal()
   Convert a number in format YYMMDDhhmmss to string.
   Straight coded to avoid problem with slow longlong arithmetic and sprintf.
 
-  @param OUT  String - pointer to convert to.
-  @param      tmp    - number with datetime value.
+  @param[out] pos      pointer to convert to.
+  @param      tmp      number with datetime value.
 */
 static inline int
 my_datetime_number_to_str(char *pos, longlong tmp)
@@ -7646,11 +7646,11 @@ void Field_blob::put_length(uchar *pos, uint32 length)
 
 /**
   Store a blob value to memory storage.
-  @param     from         - the string value to store.
-  @param     length       - length of the string value.
-  @param     cs           - character set of the string value.
-  @param     max_length   - Cut at this length safely (multibyte aware).
-  @param OUT blob_storage - Memory storage to put value to.
+  @param      from         the string value to store.
+  @param      length       length of the string value.
+  @param      cs           character set of the string value.
+  @param      max_length   Cut at this length safely (multibyte aware).
+  @param[out] blob_storage Memory storage to put value to.
 */
 type_conversion_status
 Field_blob::store_to_mem(const char *from, uint length,

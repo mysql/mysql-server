@@ -27,7 +27,6 @@ using testing::TestEventListener;
 using testing::TestInfo;
 using testing::TestPartResult;
 using testing::UnitTest;
-using testing::UnitTest;
 
 
 /**
@@ -206,7 +205,8 @@ void TapEventListener::OnTestPartResult(const TestPartResult& test_part_result)
 {
   if (test_part_result.passed())
     return;
-  tap_diagnostic_printf(test_part_result_tostring(test_part_result));
+  // Don't prefix error messages with #, as the tap harness will hide them!
+  fprintf(stderr, "%s\n", test_part_result_tostring(test_part_result).c_str());
 }
 
 

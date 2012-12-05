@@ -2112,8 +2112,8 @@ protected:
     The value must be already properly rounded or truncated
     and checked for being a valid TIME/DATE/DATETIME value.
 
-    @param IN   ltime   MYSQL_TIME value.
-    @param OUT  error   Error flag vector, set in case of error.
+    @param[in]  ltime   MYSQL_TIME value.
+    @param[out] error   Error flag vector, set in case of error.
     @retval     false   In case of success.
     @retval     true    In case of error.
   */
@@ -2124,8 +2124,8 @@ protected:
     Low level routine to store a MYSQL_TIME value into a field
     with rounding according to the field decimals() value.
 
-    @param IN   ltime   MYSQL_TIME value.
-    @param OUT  error   Error flag vector, set in case of error.
+    @param[in]  ltime   MYSQL_TIME value.
+    @param[out] error   Error flag vector, set in case of error.
     @retval     false   In case of success.
     @retval     true    In case of error.    
   */
@@ -2136,8 +2136,8 @@ protected:
     Store a temporal value in lldiv_t into a field,
     with rounding according to the field decimals() value.
 
-    @param IN   lld     Temporal value.
-    @param OUT  warning Warning flag vector.
+    @param[in]  lld     Temporal value.
+    @param[out] warning Warning flag vector.
     @retval     false   In case of success.
     @retval     true    In case of error.    
   */
@@ -2146,11 +2146,11 @@ protected:
   /**
     Convert a string to MYSQL_TIME, according to the field type.
 
-    @param IN   str     String
-    @param IN   len     String length
-    @param IN   cs      String character set
-    @param OUT  ltime   The value is stored here
-    @param OUT  status  Conversion status
+    @param[in]  str     String
+    @param[in]  len     String length
+    @param[in]  cs      String character set
+    @param[out] ltime   The value is stored here
+    @param[out] status  Conversion status
     @retval     false   Conversion went fine, ltime contains a valid time
     @retval     true    Conversion failed, ltime was reset and contains nothing
   */
@@ -2163,11 +2163,11 @@ protected:
     into MYSQL_TIME, according to the field type. Nanoseconds
     are rounded to milliseconds and added to ltime->second_part.
 
-    @param IN   nr            Number
-    @param IN   unsigned_val  SIGNED/UNSIGNED flag
-    @param IN   nanoseconds   Fractional part in nanoseconds
-    @param OUT  ltime         The value is stored here
-    @param OUT  status        Conversion status
+    @param[in]  nr            Number
+    @param[in]  unsigned_val  SIGNED/UNSIGNED flag
+    @param[in]  nanoseconds   Fractional part in nanoseconds
+    @param[out] ltime         The value is stored here
+    @param[out] status        Conversion status
     @retval     false         On success
     @retval     true          On error
   */
@@ -2180,9 +2180,9 @@ protected:
   /**
     Convert an integer number into MYSQL_TIME, according to the field type.
 
-    @param IN   nr            Number
-    @param IN   unsigned_val  SIGNED/UNSIGNED flag
-    @param OUT  ltime         The value is stored here
+    @param[in]  nr            Number
+    @param[in]  unsigned_val  SIGNED/UNSIGNED flag
+    @param[out] ltime         The value is stored here
     @retval     false         On success
     @retval     true          On error
   */
@@ -2230,11 +2230,11 @@ protected:
   /**
     Set a single warning using make_truncated_value_warning().
     
-    @param IN  level           Warning level (error, warning, note)
-    @param IN  code            Warning code
-    @param IN  str             Warning parameter
-    @param IN  ts_type         Timestamp type (time, date, datetime, none)
-    @param IN  cuted_inctement Incrementing of cut field counter
+    @param[in] level           Warning level (error, warning, note)
+    @param[in] code            Warning code
+    @param[in] str             Warning parameter
+    @param[in] ts_type         Timestamp type (time, date, datetime, none)
+    @param[in] cuted_inctement Incrementing of cut field counter
   */
   void set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
                             ErrConvString str,

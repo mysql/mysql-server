@@ -119,10 +119,8 @@ let $wait_condition=
   AND info = '/* con1 send */ UPDATE parent SET a = 2';
 --source include/wait_condition.inc
 
---error ER_NOT_SUPPORTED_YET
-ALTER TABLE child ADD INDEX idx_2(B, C), DROP INDEX idx, LOCK=NONE;
 --error ER_LOCK_WAIT_TIMEOUT
-ALTER TABLE child ADD INDEX idx_2(B, C), DROP INDEX idx, ALGORITHM=INPLACE;
+ALTER TABLE child ADD INDEX idx_2(B, C), DROP INDEX idx, LOCK=NONE;
 
 SET DEBUG_SYNC = 'now SIGNAL alter';
 

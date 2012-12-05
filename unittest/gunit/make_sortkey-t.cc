@@ -25,7 +25,7 @@
 #include "filesort.h"
 #include "sql_sort.h"
 
-namespace {
+namespace make_sortkey_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;

@@ -36,6 +36,7 @@ typedef struct st_key_range key_range;
 #define HA_CAN_PARTITION       (1 << 0) /* Partition support */
 #define HA_CAN_UPDATE_PARTITION_KEY (1 << 1)
 #define HA_CAN_PARTITION_UNIQUE (1 << 2)
+/* If the engine will use auto partitioning even when not defined. */
 #define HA_USE_AUTO_PARTITION (1 << 3)
 
 #define NORMAL_PART_NAME 0

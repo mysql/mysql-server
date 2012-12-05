@@ -22,7 +22,7 @@
 #include <my_pthread.h>
 #include <my_bitmap.h>
 
-namespace {
+namespace my_bitmap_unittest {
 
 const uint MAX_TESTED_BITMAP_SIZE= 1024;
 
@@ -534,8 +534,20 @@ protected:
   uint bitsize;
 };
 
+const uint test_values[]=
+{
+   1,  2,  3,  4,  5,  6,  7,  8,  9, 10,
+  11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
+  21, 22, 23, 24, 25, 26, 27, 28, 29, 30,
+  31, 32, 33, 34, 35, 36, 37, 38, 39, 40,
+  2*32U - 1, 2*32U, 2*32U + 1,
+  3*32U - 1, 3*32U, 3*32U + 1,
+  4*32U - 1, 4*32U, 4*32U + 1,
+  MAX_TESTED_BITMAP_SIZE
+};
+
 INSTANTIATE_TEST_CASE_P(Foo, BitMapTest,
-                        ::testing::Range(1U, MAX_TESTED_BITMAP_SIZE, 1U));
+                        ::testing::ValuesIn(test_values));
 
 TEST_P(BitMapTest, TestSetGetClearBit)
 {

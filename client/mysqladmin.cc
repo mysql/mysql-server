@@ -195,10 +195,8 @@ static struct my_option my_long_options[] =
    &interval, &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
-#ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", &user,
    &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"verbose", 'v', "Write more information.", &opt_verbose,
    &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
