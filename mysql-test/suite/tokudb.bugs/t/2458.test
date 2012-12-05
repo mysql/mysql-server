@@ -15,9 +15,11 @@ create table t1(f1 int not null primary key, f2 int);
 create table t2(f1 int not null, key (f1));
 insert into t1 values (1,1),(2,2),(3,3);
 insert into t2 values (1),(2),(3);
+replace_column 9 NA;
 explain select t1.* from t1 left join t2 using(f1) group by t1.f1;
 alter table t1 drop primary key;
 alter table t1 add clustering index (f1);
+replace_column 9 NA;
 explain select t1.* from t1 left join t2 using(f1) group by t1.f1;
 drop table t1,t2;
 --echo #
