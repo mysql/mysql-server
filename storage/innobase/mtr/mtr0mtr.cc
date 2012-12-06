@@ -315,7 +315,8 @@ mtr_commit(
 	/* This is a dirty read, for debugging. */
 	ut_ad(!recv_no_log_write);
 
-	if (mtr->modifications && mtr->n_log_recs) {
+	if (mtr->modifications
+	    && (mtr->ignore_log_recs ? true : mtr->n_log_recs)) {
 		ut_ad(!srv_read_only_mode);
 		mtr_log_reserve_and_write(mtr);
 	}
@@ -358,6 +359,7 @@ turn_off_logging_if_temp_table(
 	  DML stmt is part of single commit trx. */
 	if (is_temp) {
 		mtr_set_log_mode(mtr, MTR_LOG_NONE);
+		mtr->ignore_log_recs = TRUE;
 		if (flags
 		    && !(thd_test_options(trx->mysql_thd,
 			 OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
