@@ -2357,7 +2357,7 @@ my_tz_find(THD *thd, const String *name)
   complete check this way it doesn't require looking (and having installed)
   the leap seconds table.
 
-  @param[in,out] broken down time structure as filled in by the OS
+  @param[in,out] t broken down time structure as filled in by the OS
 */
 
 void Time_zone::adjust_leap_second(MYSQL_TIME *t)
