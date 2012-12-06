@@ -226,6 +226,19 @@ dump_block_translation(FT h, uint64_t offset) {
     toku_blocknum_dump_translation(h->blocktable, make_blocknum(offset));
 }
 
+static void
+dump_fragmentation(int UU(f), FT h) {
+    int64_t used_space;
+    int64_t total_space;
+    toku_blocktable_internal_fragmentation(h->blocktable, &total_space, &used_space);
+    int64_t fragsizes = total_space - used_space;
+
+    printf("used size: %" PRId64 "\n",  used_space);
+    printf("total size: %" PRId64 "\n", total_space);
+    printf("fragsizes: %" PRId64 "\n", fragsizes);
+    printf("fragmentation: %.1f%%\n", 100. * ((double)fragsizes / (double)(total_space)));
+}
+
 typedef struct {
     int f;
     FT h;
@@ -235,7 +248,7 @@ typedef struct {
 } frag_help_extra;
 
 static int
-fragmentation_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void *extra) {
+nodesizes_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void *extra) {
     frag_help_extra *CAST_FROM_VOIDP(info, extra);
     FTNODE n;
     FTNODE_DISK_DATA ndd = NULL;
@@ -254,26 +267,17 @@ fragmentation_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void *extra)
     return 0;
 }
 
-static void 
-dump_fragmentation(int f, FT h) {
+static void
+dump_nodesizes(int f, FT h) {
     frag_help_extra info;
     memset(&info, 0, sizeof(info));
     info.f = f;
     info.h = h;
     toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
-                            fragmentation_helper, &info, true, true);
-    int64_t used_space;
-    int64_t total_space;
-    toku_blocktable_internal_fragmentation(h->blocktable, &total_space, &used_space);
-    int64_t fragsizes = total_space - used_space;
-
+                            nodesizes_helper, &info, true, true);
     printf("leafblocks: %" PRIu64 "\n", info.leafblocks);
     printf("blocksizes: %" PRIu64 "\n", info.blocksizes);
-    printf("used size: %" PRId64 "\n",  used_space);
-    printf("total size: %" PRId64 "\n", total_space);
     printf("leafsizes: %" PRIu64 "\n", info.leafsizes);
-    printf("fragsizes: %" PRId64 "\n", fragsizes);
-    printf("fragmentation: %.1f%%\n", 100. * ((double)fragsizes / (double)(total_space)));
 }
 
 typedef struct {
@@ -478,6 +482,7 @@ interactive_help(void) {
     fprintf(stderr, "bx OFFSET | block_translation OFFSET\n");
     fprintf(stderr, "dumpdata 0|1\n");
     fprintf(stderr, "fragmentation\n");
+    fprintf(stderr, "nodesizes\n");
     fprintf(stderr, "garbage\n");
     fprintf(stderr, "file OFFSET SIZE [outfilename]\n");
     fprintf(stderr, "quit\n");
@@ -560,6 +565,8 @@ main (int argc, const char *const argv[]) {
 		dump_block_translation(ft, offset);
 	    } else if (strcmp(fields[0], "fragmentation") == 0) {
 		dump_fragmentation(f, ft);
+	    } else if (strcmp(fields[0], "nodesizes") == 0) {
+		dump_nodesizes(f, ft);
             } else if (strcmp(fields[0], "garbage") == 0) {
                 dump_garbage_stats(f, ft);
 	    } else if (strcmp(fields[0], "file") == 0 && nfields >= 3) {
