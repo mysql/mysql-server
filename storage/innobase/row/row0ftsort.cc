@@ -563,7 +563,7 @@ fts_parallel_tokenization(
 	ulint			mycount[FTS_NUM_AUX_INDEX];
 	ib_uint64_t		total_rec = 0;
 	ulint			num_doc_processed = 0;
-	doc_id_t		last_doc_id;
+	doc_id_t		last_doc_id = 0;
 	ulint			zip_size;
 	mem_heap_t*		blob_heap = NULL;
 	fts_doc_t		doc;
@@ -745,7 +745,12 @@ loop:
 	}
 
 	if (doc_item) {
-		 prev_doc_item = doc_item;
+		prev_doc_item = doc_item;
+
+		if (last_doc_id != doc_item->doc_id) {
+			t_ctx.init_pos = 0;
+		}
+
 		retried = 0;
 	} else if (psort_info->state == FTS_PARENT_COMPLETE) {
 		retried++;

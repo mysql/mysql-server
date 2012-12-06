@@ -2113,11 +2113,11 @@ row_merge_sort(
 		error = row_merge(trx, dup, file, block, tmpfd,
 				  &num_runs, run_offset);
 
-		UNIV_MEM_ASSERT_RW(run_offset, num_runs * sizeof *run_offset);
-
 		if (error != DB_SUCCESS) {
 			break;
 		}
+
+		UNIV_MEM_ASSERT_RW(run_offset, num_runs * sizeof *run_offset);
 	} while (num_runs > 1);
 
 	mem_free(run_offset);

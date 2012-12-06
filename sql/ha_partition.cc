@@ -7610,13 +7610,32 @@ enum_alter_inplace_result
 ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
                                                Alter_inplace_info *ha_alter_info)
 {
+#ifdef PARTITION_SUPPORTS_INPLACE_ALTER
   uint index= 0;
   enum_alter_inplace_result result= HA_ALTER_INPLACE_NO_LOCK;
   ha_partition_inplace_ctx *part_inplace_ctx;
   THD *thd= ha_thd();
+#else
+  enum_alter_inplace_result result= HA_ALTER_INPLACE_NOT_SUPPORTED;
+#endif
 
   DBUG_ENTER("ha_partition::check_if_supported_inplace_alter");
 
+#ifndef PARTITION_SUPPORTS_INPLACE_ALTER
+  /*
+    Due to bug#14760210 partitions can be out-of-sync in case
+    commit_inplace_alter_table fails after the first partition.
+
+    Until we can either commit all partitions at the same time or
+    have an atomic recover on failure/crash we don't support any
+    inplace alter.
+
+    TODO: investigate what happens when indexes are out-of-sync
+    between partitions. If safe and possible to recover from,
+    then we could allow ADD/DROP INDEX.
+  */
+  DBUG_RETURN(result);
+#else
   part_inplace_ctx=
     new (thd->mem_root) ha_partition_inplace_ctx(thd, m_tot_parts);
   if (!part_inplace_ctx)
@@ -7645,6 +7664,7 @@ ha_partition::check_if_supported_inplace_alter(TABLE *altered_table,
   ha_alter_info->handler_ctx= part_inplace_ctx;
 
   DBUG_RETURN(result);
+#endif
 }
 
 

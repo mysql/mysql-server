@@ -23,7 +23,7 @@
 #include "filesort_utils.h"
 #include "my_sys.h"
 
-namespace {
+namespace bounded_queue_unittest {
 
 const int num_elements= 14;
 

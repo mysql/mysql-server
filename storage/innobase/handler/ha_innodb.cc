@@ -15779,7 +15779,7 @@ static MYSQL_SYSVAR_STR(ft_aux_table, fts_internal_tbl_name,
 static MYSQL_SYSVAR_ULONG(ft_cache_size, fts_max_cache_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
   "InnoDB Fulltext search cache size in bytes",
-  NULL, NULL, 32000000, 1600000, 80000000, 0);
+  NULL, NULL, 8000000, 1600000, 80000000, 0);
 
 static MYSQL_SYSVAR_ULONG(ft_min_token_size, fts_min_token_size,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_READONLY,
