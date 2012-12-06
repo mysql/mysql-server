@@ -92,13 +92,18 @@ dump_descriptor(DESCRIPTOR d) {
 }
 
 static void
-dump_header (int f, FT *header, CACHEFILE cf) {
+open_header (int f, FT *header, CACHEFILE cf) {
     FT ft = NULL;
     int r;
-    char timestr[26];
     r = toku_deserialize_ft_from (f, MAX_LSN, &ft);
     assert(r==0);
     ft->cf = cf;
+    *header = ft;
+}
+
+static void
+dump_header(FT ft) {
+    char timestr[26];
     printf("ft:\n");
     printf(" layout_version=%d\n", ft->h->layout_version);
     printf(" layout_version_original=%d\n", ft->h->layout_version_original);
@@ -120,7 +125,6 @@ dump_header (int f, FT *header, CACHEFILE cf) {
     dump_descriptor(&ft->descriptor);
     printf(" estimated numrows=%" PRId64 "\n", ft->in_memory_stats.numrows);
     printf(" estimated numbytes=%" PRId64 "\n", ft->in_memory_stats.numbytes);
-    *header = ft;
 }
 
 static int
@@ -233,10 +237,10 @@ dump_fragmentation(int UU(f), FT h) {
     toku_blocktable_internal_fragmentation(h->blocktable, &total_space, &used_space);
     int64_t fragsizes = total_space - used_space;
 
-    printf("used size: %" PRId64 "\n",  used_space);
-    printf("total size: %" PRId64 "\n", total_space);
-    printf("fragsizes: %" PRId64 "\n", fragsizes);
-    printf("fragmentation: %.1f%%\n", 100. * ((double)fragsizes / (double)(total_space)));
+    printf("used_size\t%" PRId64 "\n",  used_space);
+    printf("total_size\t%" PRId64 "\n", total_space);
+    printf("fragsizes\t%" PRId64 "\n", fragsizes);
+    printf("fragmentation\t%.1f\n", 100. * ((double)fragsizes / (double)(total_space)));
 }
 
 typedef struct {
@@ -275,9 +279,9 @@ dump_nodesizes(int f, FT h) {
     info.h = h;
     toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
                             nodesizes_helper, &info, true, true);
-    printf("leafblocks: %" PRIu64 "\n", info.leafblocks);
-    printf("blocksizes: %" PRIu64 "\n", info.blocksizes);
-    printf("leafsizes: %" PRIu64 "\n", info.leafsizes);
+    printf("leafblocks\t%" PRIu64 "\n", info.leafblocks);
+    printf("blocksizes\t%" PRIu64 "\n", info.blocksizes);
+    printf("leafsizes\t%" PRIu64 "\n", info.leafsizes);
 }
 
 static void
@@ -286,8 +290,8 @@ dump_garbage_stats(int f, FT ft) {
     uint64_t total_space = 0;
     uint64_t used_space = 0;
     toku_ft_get_garbage(ft, &total_space, &used_space);
-    printf("total_size: %zu\n", total_space);
-    printf("used_size:  %zu\n", used_space);
+    printf("total_size\t%zu\n", total_space);
+    printf("used_size\t%zu\n", used_space);
 }
 
 static uint32_t 
@@ -411,7 +415,7 @@ split_fields (char *line, char *fields[], int maxfields) {
 
 static int
 usage(const char *arg0) {
-    printf("Usage: %s [--nodata] [--interactive] [--rootnode] ftfilename\n", arg0);
+    printf("Usage: %s [--nodata] [--i[nteractive]|--fragmentation|--translation-table|--rootnode] ftfilename\n", arg0);
     return 1;
 }
 
@@ -454,6 +458,8 @@ getuint64(const char *f) {
 int 
 main (int argc, const char *const argv[]) {
     int interactive = 0;
+    int fragmentation = 0;
+    int translation_table = 0;
     int rootnode = 0;
 
     const char *arg0 = argv[0];
@@ -463,12 +469,17 @@ main (int argc, const char *const argv[]) {
 	    dump_data = 0;
 	} else if (strcmp(argv[0], "--interactive") == 0 || strcmp(argv[0], "--i") == 0) {
 	    interactive = 1;
+	} else if (strcmp(argv[0], "--fragmentation") == 0) {
+	    fragmentation = 1;
+	} else if (strcmp(argv[0], "--translation-table") == 0) {
+	    translation_table = 1;
 	} else if (strcmp(argv[0], "--rootnode") == 0) {
 	    rootnode = 1;
 	} else if (strcmp(argv[0], "--help") == 0) {
 	    return usage(arg0);
-	} else 
+	} else {
 	    break;
+        }
 	argc--; argv++;
     }
     if (argc != 1) return usage(arg0);
@@ -484,7 +495,11 @@ main (int argc, const char *const argv[]) {
     CACHEFILE cf = NULL;
     r = toku_cachetable_openfd (&cf, ct, f, n);
     assert(r==0);
-    dump_header(f, &ft, cf);
+    open_header(f, &ft, cf);
+    if (!fragmentation && !translation_table) {
+        // quick fix for now, we want those two to have clean output
+        dump_header(ft);
+    }
     if (interactive) {
         while (1) {
             printf("ftdump>"); fflush(stdout);
@@ -502,7 +517,8 @@ main (int argc, const char *const argv[]) {
 		interactive_help();
 	    } else if (strcmp(fields[0], "header") == 0) {
 		toku_ft_free(ft);
-		dump_header(f, &ft, cf);
+		open_header(f, &ft, cf);
+                dump_header(ft);
 	    } else if (strcmp(fields[0], "block") == 0 && nfields == 2) {
 		BLOCKNUM blocknum = make_blocknum(getuint64(fields[1]));
 		dump_block(f, blocknum, ft);
@@ -539,6 +555,10 @@ main (int argc, const char *const argv[]) {
 	}
     } else if (rootnode) {
 	dump_node(f, ft->h->root_blocknum, ft);
+    } else if (fragmentation) {
+        dump_fragmentation(f, ft);
+    } else if (translation_table) {
+        toku_dump_translation_table_pretty(stdout, ft->blocktable);
     } else {
 	printf("Block translation:");
 

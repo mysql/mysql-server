@@ -733,6 +733,19 @@ dump_translation(FILE *f, struct translation *t) {
 }
 
 //Only used by toku_ft_dump which is only for debugging purposes
+// "pretty" just means we use tabs so we can parse output easier later
+void
+toku_dump_translation_table_pretty(FILE *f, BLOCK_TABLE bt) {
+    lock_for_blocktable(bt);
+    struct translation *t = &bt->checkpointed;
+    assert(t->block_translation != nullptr);
+    for (int64_t i = 0; i < t->length_of_array; ++i) {
+        fprintf(f, "%" PRId64 "\t%" PRId64 "\t%" PRId64 "\n", i, t->block_translation[i].u.diskoff, t->block_translation[i].size);
+    }
+    unlock_for_blocktable(bt);
+}
+
+//Only used by toku_ft_dump which is only for debugging purposes
 void
 toku_dump_translation_table(FILE *f, BLOCK_TABLE bt) {
     lock_for_blocktable(bt);
