@@ -1115,3 +1115,20 @@
    fun:new_VioSSLFd
    fun:new_VioSSLAcceptorFd
 }
+{
+   BUG#14801497 CONDITIONAL JUMP OR MOVE DEPENDS ON UNINITIALISED VALUE(S) IN CREATE_TMP_TABLE
+   Memcheck:Cond
+   fun:_Z16create_tmp_tableP3THDP15TMP_TABLE_PARAMR4ListI4ItemEP8st_orderbbyyPKc
+   fun:_Z19create_schema_tableP3THDP10TABLE_LIST
+   fun:_Z18mysql_schema_tableP3THDP3LEXP10TABLE_LIST
+   ...
+   fun:_Z11open_tablesP3THDPP10TABLE_LISTPjjP19Prelocking_strategy
+   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbjP19Prelocking_strategy
+   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbj
+   fun:_Z21mysql_execute_commandP3THD
+   fun:_Z11mysql_parseP3THDPcjP12Parser_state
+   fun:_Z16dispatch_command19enum_server_commandP3THDPcj
+   fun:_Z24do_handle_one_connectionP3THD
+   fun:handle_one_connection
+   fun:pfs_spawn_thread
+}

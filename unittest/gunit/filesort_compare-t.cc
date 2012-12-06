@@ -23,7 +23,7 @@
 #include <memory>
 #include <vector>
 
-namespace {
+namespace filesort_compare_unittest {
 
 /*
   Below are some performance microbenchmarks in order to compare our sorting
@@ -68,7 +68,7 @@ inline void int_to_bytes(uchar *s, int val)
 }
 
 
-TEST(AlignmentTest, IntsToBytesToInt)
+TEST(BufferAlignmentTest, IntsToBytesToInt)
 {
   uchar buf[10];
   memset(buf, 0, sizeof(buf));

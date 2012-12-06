@@ -79,7 +79,7 @@ t1	CREATE TABLE `t1` (
   UNIQUE KEY `c2_2` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 ROW_FORMAT=COMPACT
 ALTER TABLE t1 DROP INDEX c2, ALGORITHM = INPLACE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 DROP INDEX c2, ALGORITHM = INPLACE'
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Dropping a primary key is not allowed without also adding a new primary key. Try ALGORITHM=COPY.
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (

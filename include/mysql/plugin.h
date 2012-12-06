@@ -497,7 +497,7 @@ struct handlerton;
 /*
   API for Replication plugin. (MYSQL_REPLICATION_PLUGIN)
 */
- #define MYSQL_REPLICATION_INTERFACE_VERSION 0x0100
+ #define MYSQL_REPLICATION_INTERFACE_VERSION 0x0200
  
  /**
     Replication plugin descriptor
