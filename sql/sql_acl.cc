@@ -64,6 +64,7 @@ using std::min;
 using std::max;
 
 bool mysql_user_table_is_in_short_password_format= false;
+my_bool disconnect_on_expired_password= TRUE;
 bool auth_plugin_is_built_in(const char *plugin_name);
 bool auth_plugin_supports_expiration(const char *plugin_name);
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name);
@@ -10849,6 +10850,24 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       general_log_print(thd, command, (char*) "%s@%s on %s",
                         mpvio.auth_info.user_name, mpvio.auth_info.host_or_ip,
                         mpvio.db.str ? mpvio.db.str : (char*) "");
+  }
+
+  if (unlikely(acl_user && acl_user->password_expired
+               && !(mpvio.client_capabilities &
+                    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
+               && disconnect_on_expired_password))
+  {
+    /*
+      Clients that don't signal password expiration support
+      get a connect error.
+    */
+    res= CR_ERROR;
+    mpvio.status= MPVIO_EXT::FAILURE;
+
+    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+    general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD));
+    if (log_warnings > 1)
+      sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD));
   }
 
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
