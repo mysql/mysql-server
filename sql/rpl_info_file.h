@@ -73,7 +73,7 @@ private:
   int do_clean_info();
   /**
     Returns the number of files that corresponds to param_info_fname.
-    If param_info_fname is a regular expression, @code expression is
+    If param_info_fname is a regular expression, @c expression is
     set.
 
     @param[in]  nparam              Number of fields in the file.

@@ -226,8 +226,12 @@ ha_innobase::check_if_supported_inplace_alter(
 	DBUG_ENTER("check_if_supported_inplace_alter");
 
 	if (srv_read_only_mode) {
+		ha_alter_info->unsupported_reason =
+			innobase_get_err_msg(ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	} else if (srv_created_new_raw || srv_force_recovery) {
+		ha_alter_info->unsupported_reason =
+			innobase_get_err_msg(ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -236,6 +240,8 @@ ha_innobase::check_if_supported_inplace_alter(
 		re-create the table and ha_innobase::create() will
 		return an error too. This is how we effectively
 		deny adding too many columns to a table. */
+		ha_alter_info->unsupported_reason =
+			innobase_get_err_msg(ER_TOO_MANY_FIELDS);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -244,6 +250,11 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	if (ha_alter_info->handler_flags
 	    & ~(INNOBASE_ONLINE_OPERATIONS | INNOBASE_INPLACE_REBUILD)) {
+		if (ha_alter_info->handler_flags
+			& (Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
+			   | Alter_inplace_info::ALTER_COLUMN_TYPE))
+			ha_alter_info->unsupported_reason = innobase_get_err_msg(
+				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -252,6 +263,8 @@ ha_innobase::check_if_supported_inplace_alter(
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ADD_FOREIGN_KEY)
 	    && prebuilt->trx->check_foreigns) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_CHECK);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -266,6 +279,8 @@ ha_innobase::check_if_supported_inplace_alter(
 	    && (ha_alter_info->handler_flags
 		& (Alter_inplace_info::ADD_PK_INDEX
 		   | Alter_inplace_info::ADD_UNIQUE_INDEX))) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_IGNORE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -275,6 +290,8 @@ ha_innobase::check_if_supported_inplace_alter(
 	     & (Alter_inplace_info::ADD_PK_INDEX
 		| Alter_inplace_info::DROP_PK_INDEX))
 	    == Alter_inplace_info::DROP_PK_INDEX) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOPK);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -288,9 +305,11 @@ ha_innobase::check_if_supported_inplace_alter(
 
 		/* See if MYSQL table has no pk but we do.*/
 		if (UNIV_UNLIKELY(primary_key >= MAX_KEY)
-		    && !row_table_got_default_clust_index(
-			prebuilt->table))
+		    && !row_table_got_default_clust_index(prebuilt->table)) {
+			ha_alter_info->unsupported_reason = innobase_get_err_msg(
+				ER_PRIMARY_CANT_HAVE_NULL);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
 	}
 
 	/* We should be able to do the operation in-place.
@@ -349,6 +368,8 @@ ha_innobase::check_if_supported_inplace_alter(
 				    system_charset_info,
 				    key_part->field->field_name,
 				    FTS_DOC_ID_COL_NAME)) {
+				ha_alter_info->unsupported_reason = innobase_get_err_msg(
+					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_HIDDEN_FTS);
 				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 			}
 
@@ -362,6 +383,8 @@ ha_innobase::check_if_supported_inplace_alter(
 				column values during online ALTER. */
 				DBUG_ASSERT(key_part->field == altered_table
 					    -> found_next_number_field);
+				ha_alter_info->unsupported_reason = innobase_get_err_msg(
+					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_AUTOINC);
 				online = false;
 			}
 		}
@@ -382,6 +405,8 @@ ha_innobase::check_if_supported_inplace_alter(
 				    system_charset_info,
 				    ha_alter_info->index_drop_buffer[i]->name,
 				    FTS_DOC_ID_INDEX_NAME)) {
+				ha_alter_info->unsupported_reason = innobase_get_err_msg(
+					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS);
 				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 			}
 		}
@@ -400,6 +425,8 @@ ha_innobase::check_if_supported_inplace_alter(
 				    system_charset_info,
 				    (*fp)->field_name,
 				    FTS_DOC_ID_COL_NAME)) {
+				ha_alter_info->unsupported_reason = innobase_get_err_msg(
+					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS);
 				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 			}
 		}
@@ -423,8 +450,12 @@ ha_innobase::check_if_supported_inplace_alter(
 		/* If the table already contains fulltext indexes,
 		refuse to rebuild the table natively altogether. */
 		if (prebuilt->table->fts) {
+			ha_alter_info->unsupported_reason = innobase_get_err_msg(
+				ER_INNODB_FT_LIMIT);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS);
 	} else if ((ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_INDEX)) {
 		/* Building a full-text index requires a lock.
@@ -442,6 +473,8 @@ ha_innobase::check_if_supported_inplace_alter(
 						  | HA_PACK_KEY
 						  | HA_GENERATED_KEY
 						  | HA_BINARY_PACK_KEY)));
+				ha_alter_info->unsupported_reason = innobase_get_err_msg(
+					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS);
 				online = false;
 				break;
 			}
@@ -4471,8 +4504,16 @@ ha_innobase::commit_inplace_alter_table(
 					    == ONLINE_INDEX_COMPLETE);
 				DBUG_ASSERT(*index->name == TEMP_INDEX_PREFIX);
 				if (dict_index_is_corrupted(index)) {
-					my_error(ER_INDEX_CORRUPT, MYF(0),
-						 index->name + 1);
+					/* Report a duplicate key
+					error for the index that was
+					flagged corrupted, most likely
+					because a duplicate value was
+					inserted (directly or by
+					rollback) after
+					ha_innobase::inplace_alter_table()
+					completed. */
+					my_error(ER_DUP_UNKNOWN_IN_INDEX,
+						 MYF(0), index->name + 1);
 					DBUG_RETURN(true);
 				}
 			}

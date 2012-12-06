@@ -265,6 +265,7 @@ Field *create_tmp_field(THD *thd, TABLE *table,Item *item, Item::Type type,
   }
   case Item::FIELD_ITEM:
   case Item::DEFAULT_VALUE_ITEM:
+  case Item::TRIGGER_FIELD_ITEM:
   {
     Item_field *field= (Item_field*) item;
     bool orig_modify= modify_item;
@@ -1589,8 +1590,10 @@ bool open_tmp_table(TABLE *table)
     return(1);
   }
   (void) table->file->extra(HA_EXTRA_QUICK);		/* Faster */
-  table->created= TRUE;
-  return(0);
+
+  table->set_created();
+
+  return false;
 }
 
 
@@ -1836,7 +1839,7 @@ free_tmp_table(THD *thd, TABLE *entry)
 
   filesort_free_buffers(entry, true);
 
-  if (entry->file && entry->created)
+  if (entry->is_created())
   {
     if (entry->db_stat)
       entry->file->ha_drop_table(entry->s->table_name.str);
@@ -1844,9 +1847,9 @@ free_tmp_table(THD *thd, TABLE *entry)
       entry->file->ha_delete_table(entry->s->table_name.str);
     delete entry->file;
     entry->file= NULL;
-    entry->created= FALSE;
-  }
 
+    entry->set_deleted();
+  }
   /* free blobs */
   for (Field **ptr=entry->field ; *ptr ; ptr++)
     (*ptr)->free();

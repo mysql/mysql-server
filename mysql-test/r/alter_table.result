@@ -1574,9 +1574,9 @@ ALTER TABLE t1 ADD INDEX i5(b), LOCK= INVALID;
 ERROR HY000: Unknown LOCK type 'INVALID'
 ALTER TABLE m1 ENABLE KEYS, LOCK= DEFAULT;
 ALTER TABLE m1 ENABLE KEYS, LOCK= NONE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, LOCK= NONE'
+ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
 ALTER TABLE m1 ENABLE KEYS, LOCK= SHARED;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, LOCK= SHARED'
+ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
 ALTER TABLE m1 ENABLE KEYS, LOCK= EXCLUSIVE;
 ALTER TABLE t1 DROP INDEX i1, DROP INDEX i2, DROP INDEX i3, DROP INDEX i4;
 #
@@ -1596,7 +1596,7 @@ info: Records: 0  Duplicates: 0  Warnings: 1
 Warnings:
 Warning	1831	Duplicate index 'i3' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= COPY, LOCK= NONE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD INDEX i4(b), ALGORITHM= COPY, LOCK= NONE'
+ERROR 0A000: LOCK=NONE is not supported. Reason: COPY algorithm requires a lock. Try LOCK=SHARED.
 ALTER TABLE t1 ADD INDEX i5(b), ALGORITHM= COPY, LOCK= SHARED;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 1
@@ -1608,13 +1608,13 @@ info: Records: 2  Duplicates: 0  Warnings: 1
 Warnings:
 Warning	1831	Duplicate index 'i6' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
 ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= NONE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= NONE'
+ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
 ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= SHARED;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= SHARED'
+ERROR 0A000: LOCK=NONE/SHARED is not supported for this operation. Try LOCK=EXCLUSIVE.
 ALTER TABLE m1 ENABLE KEYS, ALGORITHM= INPLACE, LOCK= EXCLUSIVE;
 affected rows: 0
 ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= NONE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= NONE'
+ERROR 0A000: LOCK=NONE is not supported. Reason: COPY algorithm requires a lock. Try LOCK=SHARED.
 ALTER TABLE m1 ENABLE KEYS, ALGORITHM= COPY, LOCK= SHARED;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
@@ -1714,7 +1714,7 @@ ALTER TABLE tm1 ADD FULLTEXT INDEX im4 (d2);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
 ALTER TABLE ti1 ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE ti1 ADD PRIMARY KEY(a), ALGORITHM=INPLACE'
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
 ALTER TABLE ti1 ADD PRIMARY KEY(a);
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0

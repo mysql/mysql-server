@@ -26,7 +26,7 @@
 #include "rpl_handler.h"                        // delegates_init()
 #include "sql_table.h"
 
-namespace {
+namespace sql_table_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
