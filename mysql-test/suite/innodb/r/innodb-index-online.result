@@ -54,7 +54,7 @@ ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 ERROR 23000: Duplicate entry '4' for key 'c2'
 DELETE FROM t1 WHERE c1 = 7;
 ALTER TABLE t1 ADD FOREIGN KEY(c2) REFERENCES t1(c2), ALGORITHM = INPLACE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD FOREIGN KEY(c2) REFERENCES t1(c2), ALGORITHM = INPLACE'
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding foreign keys needs foreign_key_checks=OFF. Try ALGORITHM=COPY.
 ALTER TABLE t1 ADD UNIQUE INDEX(c2), LOCK = EXCLUSIVE, ALGORITHM = INPLACE;
 DROP INDEX c2 ON t1;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
@@ -81,7 +81,7 @@ ddl_online_create_index	0
 ddl_pending_alter_table	1
 INSERT INTO t1 VALUES(6,3,1);
 SET DEBUG_SYNC = 'now SIGNAL dml_done';
-ERROR HY000: Index c2 is corrupted
+ERROR 23000: Duplicate entry for key 'c2'
 DELETE FROM t1 WHERE c1=6;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';

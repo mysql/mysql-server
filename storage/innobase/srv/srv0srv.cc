@@ -1452,6 +1452,14 @@ srv_export_innodb_status(void)
 		export_vars.innodb_purge_trx_id_age =
 		  trx_sys->rw_max_trx_id - purge_sys->done.trx_no + 1;
 	}
+
+	if (!purge_sys->view
+	    || trx_sys->rw_max_trx_id < purge_sys->view->up_limit_id) {
+		export_vars.innodb_purge_view_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_view_trx_id_age =
+		  trx_sys->rw_max_trx_id - purge_sys->view->up_limit_id;
+	}
 #endif /* UNIV_DEBUG */
 
 	mutex_exit(&srv_innodb_monitor_mutex);

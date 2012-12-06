@@ -79,7 +79,7 @@ if (!$keep_gtid_events)
 if ($keep_gtid_events)
 {
   let $pre_script= $pre_script
-    my DOLLARuuid_regex = '[0-9A-F]{8}-(?:[0-9A-F]{4}-){3}[0-9A-F]{12}';
+    my DOLLARuuid_regex = '[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}';
     my DOLLARuuid_sidno_regex = DOLLARuuid_regex.'(?::[0-9]+(?:-[0-9]+)?)+';
   ||
   --let $script= $script s{DOLLARuuid_sidno_regex(?:,DOLLARuuid_sidno_regex)*}{Gtid_set};

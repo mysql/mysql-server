@@ -81,6 +81,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
+   is_group_master_log_pos_invalid(false),
    log_space_total(0), ignore_log_space_limit(0),
    sql_force_rotate_relay(false),
    last_master_timestamp(0), slave_skip_counter(0),
@@ -701,8 +702,11 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
       without using --replicate-same-server-id (an unsupported
       configuration which does nothing), then group_master_log_pos
       will grow and group_master_log_name will stay "".
+      Also in case the group master log position is invalid (e.g. after
+      CHANGE MASTER TO RELAY_LOG_POS ), we will wait till the first event
+      is read and the log position is valid again.
     */
-    if (*group_master_log_name)
+    if (*group_master_log_name && !is_group_master_log_pos_invalid)
     {
       char *basename= (group_master_log_name +
                        dirname_length(group_master_log_name));
@@ -983,6 +987,12 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 
   if (log_pos > 0)  // 3.23 binlogs don't have log_posx
     group_master_log_pos= log_pos;
+  /*
+    If the master log position was invalidiated by say, "CHANGE MASTER TO
+    RELAY_LOG_POS=N", it is now valid,
+   */
+  if (is_group_master_log_pos_invalid)
+    is_group_master_log_pos_invalid= false;
 
   /*
     In MTS mode FD or Rotate event commit their solitary group to
