@@ -104,4 +104,8 @@ void toku_node_save_ct_pair(CACHEKEY UU(key), void *value_data, PAIR p);
 // mark the ft as a blackhole. any message injections will be a no op.
 void toku_ft_set_blackhole(FT_HANDLE ft_handle);
 
+// Effect: Calculates the total space and used space for a FT's leaf data.
+//         The difference between the two is MVCC garbage.
+void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space);
+
 #endif

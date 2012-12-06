@@ -45,31 +45,4 @@ TXNID uxr_get_txnid(UXRHANDLE uxr);
 //1 does much slower debugging
 #define GARBAGE_COLLECTION_DEBUG 0
 
-
-void fast_msg_to_leafentry(
-    FT_MSG   msg, // message to apply to leafentry
-    size_t *new_leafentry_memorysize, 
-    size_t *new_leafentry_disksize, 
-    LEAFENTRY *new_leafentry_p) ;
-
-int apply_msg_to_leafentry(FT_MSG   msg,
-                           LEAFENTRY old_leafentry, // NULL if there was no stored data.
-                           TXNID oldest_referenced_xid,
-                           size_t *new_leafentry_memorysize,
-                           LEAFENTRY *new_leafentry_p,
-                           OMT *omtp,
-                           struct mempool *mp,
-                           void **maybe_free,
-                           int64_t * numbytes_delta_p);
-
-int garbage_collect_leafentry(LEAFENTRY old_leaf_entry,
-                              LEAFENTRY *new_leaf_entry,
-                              size_t *new_leaf_entry_memory_size,
-                              OMT *omtp,
-                              struct mempool *mp,
-                              void **maybe_free,
-                              const xid_omt_t &snapshot_xids,
-                              const rx_omt_t &referenced_xids,
-                              const xid_omt_t &live_root_txns);
-
 #endif  // TOKU_ULE_H

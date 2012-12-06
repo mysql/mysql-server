@@ -65,11 +65,11 @@ toku_flusher_thread_set_callback(
 
 /**
  * Puts a workitem on the flusher thread queue, scheduling the node to be
- * flushed by flush_some_child.
+ * flushed by toku_ft_flush_some_child.
  */
 void
-flush_node_on_background_thread(
-    FT h,
+toku_ft_flush_node_on_background_thread(
+    FT ft,
     FTNODE parent
     );
 

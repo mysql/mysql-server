@@ -288,7 +288,7 @@ flt_update_status(FTNODE child,
 {
     struct flush_status_update_extra *fste = (struct flush_status_update_extra *) extra;
     update_flush_status(child, fste->cascades);
-    // If `flush_some_child` decides to recurse after this, we'll need
+    // If `toku_ft_flush_some_child` decides to recurse after this, we'll need
     // cascades to increase.  If not it doesn't matter.
     fste->cascades++;
 }
@@ -420,7 +420,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
         (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_STARTED), 1);
         (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), 1);
 
-        flush_some_child(h, root_node, &new_fa);
+        toku_ft_flush_some_child(h, root_node, &new_fa);
 
         (void) toku_sync_fetch_and_sub(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_RUNNING), 1);
 
@@ -436,7 +436,7 @@ ct_update_status(FTNODE child,
     struct flush_status_update_extra* fste = (struct flush_status_update_extra *) extra;
     update_flush_status(child, fste->cascades);
     STATUS_VALUE(FT_FLUSHER_CLEANER_NODES_DIRTIED) += dirtied;
-    // Incrementing this in case `flush_some_child` decides to recurse.
+    // Incrementing this in case `toku_ft_flush_some_child` decides to recurse.
     fste->cascades++;
 }
 
@@ -719,6 +719,23 @@ move_leafentries(
     }
 }
 
+static void ftnode_finalize_split(FTNODE node, FTNODE B, MSN max_msn_applied_to_node) {
+// Effect: Finalizes a split by updating some bits and dirtying both nodes
+    toku_assert_entire_node_in_memory(node);
+    toku_assert_entire_node_in_memory(B);
+    verify_all_in_mempool(node);
+    verify_all_in_mempool(B);
+
+    node->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
+    B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
+
+    // The new node in the split inherits the oldest known reference xid
+    B->oldest_known_referenced_xid = node->oldest_known_referenced_xid;
+
+    node->dirty = 1;
+    B->dirty = 1;
+}
+
 void
 ftleaf_split(
     FT h,
@@ -914,18 +931,9 @@ ftleaf_split(
         REALLOC_N(num_children_in_node-1, node->childkeys);
     }
 
-    verify_all_in_mempool(node);
-    verify_all_in_mempool(B);
-
-    node->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
-    B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
-
-    node->dirty = 1;
-    B->dirty = 1;
-
+    ftnode_finalize_split(node, B, max_msn_applied_to_node);
     *nodea = node;
     *nodeb = B;
-
 }    // end of ftleaf_split()
 
 void
@@ -989,15 +997,7 @@ ft_nonleaf_split(
         REALLOC_N(n_children_in_a-1, node->childkeys);
     }
 
-    node->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
-    B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
-
-    node->dirty = 1;
-    B->dirty = 1;
-    toku_assert_entire_node_in_memory(node);
-    toku_assert_entire_node_in_memory(B);
-    //VERIFY_NODE(t,node);
-    //VERIFY_NODE(t,B);
+    ftnode_finalize_split(node, B, max_msn_applied_to_node);
     *nodea = node;
     *nodeb = B;
 }
@@ -1050,16 +1050,31 @@ ft_split_child(
     if (picked_child == childnum ||
         (picked_child < 0 && nodea->height > 0 && fa->should_recursively_flush(nodea, fa->extra))) {
         toku_unpin_ftnode_off_client_thread(h, nodeb);
-        flush_some_child(h, nodea, fa);
+        toku_ft_flush_some_child(h, nodea, fa);
     }
     else if (picked_child == childnum + 1 ||
              (picked_child < 0 && nodeb->height > 0 && fa->should_recursively_flush(nodeb, fa->extra))) {
         toku_unpin_ftnode_off_client_thread(h, nodea);
-        flush_some_child(h, nodeb, fa);
+        toku_ft_flush_some_child(h, nodeb, fa);
     }
     else {
         toku_unpin_ftnode_off_client_thread(h, nodea);
         toku_unpin_ftnode_off_client_thread(h, nodeb);
+    }
+}
+
+static void bring_node_fully_into_memory(FTNODE node, FT ft) {
+    if (!is_entire_node_in_memory(node)) {
+        struct ftnode_fetch_extra bfe;
+        fill_bfe_for_full_read(&bfe, ft);
+        toku_cachetable_pf_pinned_pair(
+            node,
+            toku_ftnode_pf_callback,
+            &bfe,
+            ft->cf,
+            node->thisnodename,
+            toku_cachetable_hash(ft->cf, node->thisnodename)
+            );
     }
 }
 
@@ -1090,8 +1105,9 @@ flush_this_child(
     NONLEAF_CHILDINFO bnc = BNC(node, childnum);
     set_BNC(node, childnum, toku_create_empty_nl());
 
-    // now we have a bnc to flush to the child
-    toku_bnc_flush_to_child(h, bnc, child);
+    // now we have a bnc to flush to the child. pass down the parent's
+    // oldest known referenced xid as we flush down to the child.
+    toku_bnc_flush_to_child(h, bnc, child, node->oldest_known_referenced_xid);
     destroy_nonleaf_childinfo(bnc);
 }
 
@@ -1487,18 +1503,18 @@ ft_merge_child(
         toku_unpin_ftnode_off_client_thread(h, childb);
     }
     if (childa->height > 0 && fa->should_recursively_flush(childa, fa->extra)) {
-        flush_some_child(h, childa, fa);
+        toku_ft_flush_some_child(h, childa, fa);
     }
     else {
         toku_unpin_ftnode_off_client_thread(h, childa);
     }
 }
 
-void
-flush_some_child(
-    FT h,
+static void ft_flush_some_child_with_xid(
+    FT ft,
     FTNODE parent,
-    struct flusher_advice *fa)
+    struct flusher_advice *fa,
+    TXNID oldest_referenced_xid)
 // Effect: This function does the following:
 //   - Pick a child of parent (the heaviest child),
 //   - flush from parent to child,
@@ -1514,27 +1530,27 @@ flush_some_child(
     toku_assert_entire_node_in_memory(parent);
 
     // pick the child we want to flush to
-    int childnum = fa->pick_child(h, parent, fa->extra);
+    int childnum = fa->pick_child(ft, parent, fa->extra);
 
     // for test
     call_flusher_thread_callback(flt_flush_before_child_pin);
 
     // get the child into memory
     BLOCKNUM targetchild = BP_BLOCKNUM(parent, childnum);
-    toku_verify_blocknum_allocated(h->blocktable, targetchild);
-    uint32_t childfullhash = compute_child_fullhash(h->cf, parent, childnum);
+    toku_verify_blocknum_allocated(ft->blocktable, targetchild);
+    uint32_t childfullhash = compute_child_fullhash(ft->cf, parent, childnum);
     FTNODE child;
     struct ftnode_fetch_extra bfe;
     // Note that we don't read the entire node into memory yet.
     // The idea is let's try to do the minimum work before releasing the parent lock
-    fill_bfe_for_min_read(&bfe, h);
-    toku_pin_ftnode_off_client_thread(h, targetchild, childfullhash, &bfe, PL_WRITE_EXPENSIVE, 1, &parent, &child);
+    fill_bfe_for_min_read(&bfe, ft);
+    toku_pin_ftnode_off_client_thread(ft, targetchild, childfullhash, &bfe, PL_WRITE_EXPENSIVE, 1, &parent, &child);
 
     // for test
     call_flusher_thread_callback(ft_flush_aflter_child_pin);
 
     if (fa->should_destroy_basement_nodes(fa)) {
-        maybe_destroy_child_blbs(parent, child, h);
+        maybe_destroy_child_blbs(parent, child, ft);
     }
 
     //Note that at this point, we don't have the entire child in.
@@ -1567,7 +1583,7 @@ flush_some_child(
     // reactive, we can unpin the parent
     //
     if (!may_child_be_reactive) {
-        toku_unpin_ftnode_off_client_thread(h, parent);
+        toku_unpin_ftnode_off_client_thread(ft, parent);
         parent = NULL;
     }
 
@@ -1575,7 +1591,7 @@ flush_some_child(
     // now, if necessary, read/decompress the rest of child into memory,
     // so that we can proceed and apply the flush
     //
-    bring_node_fully_into_memory(child, h);
+    bring_node_fully_into_memory(child, ft);
 
     // It is possible after reading in the entire child,
     // that we now know that the child is not reactive
@@ -1583,9 +1599,9 @@ flush_some_child(
     // we wont be splitting/merging child
     // and we have already replaced the bnc
     // for the root with a fresh one
-    enum reactivity child_re = get_node_reactivity(child, h->h->nodesize);
+    enum reactivity child_re = get_node_reactivity(child, ft->h->nodesize);
     if (parent && child_re == RE_STABLE) {
-        toku_unpin_ftnode_off_client_thread(h, parent);
+        toku_unpin_ftnode_off_client_thread(ft, parent);
         parent = NULL;
     }
 
@@ -1601,9 +1617,10 @@ flush_some_child(
         }
         // do the actual flush
         toku_bnc_flush_to_child(
-            h,
+            ft,
             bnc,
-            child
+            child,
+            oldest_referenced_xid
             );
         destroy_nonleaf_childinfo(bnc);
     }
@@ -1612,7 +1629,7 @@ flush_some_child(
     // let's get the reactivity of the child again,
     // it is possible that the flush got rid of some values
     // and now the parent is no longer reactive
-    child_re = get_node_reactivity(child, h->h->nodesize);
+    child_re = get_node_reactivity(child, ft->h->nodesize);
     // if the parent has been unpinned above, then
     // this is our only option, even if the child is not stable
     // if the child is not stable, we'll handle it the next
@@ -1623,17 +1640,17 @@ flush_some_child(
         )
     {
         if (parent) {
-            toku_unpin_ftnode_off_client_thread(h, parent);
+            toku_unpin_ftnode_off_client_thread(ft, parent);
             parent = NULL;
         }
         //
-        // it is the responsibility of flush_some_child to unpin child
+        // it is the responsibility of ft_flush_some_child_with_xid to unpin child
         //
         if (child->height > 0 && fa->should_recursively_flush(child, fa->extra)) {
-            flush_some_child(h, child, fa);
+            ft_flush_some_child_with_xid(ft, child, fa, oldest_referenced_xid);
         }
         else {
-            toku_unpin_ftnode_off_client_thread(h, child);
+            toku_unpin_ftnode_off_client_thread(ft, child);
         }
     }
     else if (child_re == RE_FISSIBLE) {
@@ -1642,7 +1659,7 @@ flush_some_child(
         // parent and child as it sees fit
         //
         paranoid_invariant(parent); // just make sure we have not accidentally unpinned parent
-        ft_split_child(h, parent, childnum, child, SPLIT_EVENLY, fa);
+        ft_split_child(ft, parent, childnum, child, SPLIT_EVENLY, fa);
     }
     else if (child_re == RE_FUSIBLE) {
         //
@@ -1650,11 +1667,18 @@ flush_some_child(
         // parent and child as it sees fit
         //
         paranoid_invariant(parent); // just make sure we have not accidentally unpinned parent
-        fa->maybe_merge_child(fa, h, parent, childnum, child, fa->extra);
+        fa->maybe_merge_child(fa, ft, parent, childnum, child, fa->extra);
     }
     else {
         abort();
     }
+}
+
+void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa) {
+    // Vanilla flush_some_child flushes from parent to child without
+    // providing a meaningful oldest_referenced_xid. No simple garbage
+    // collection is performed.
+    return ft_flush_some_child_with_xid(ft, parent, fa, TXNID_NONE);
 }
 
 static void
@@ -1782,12 +1806,12 @@ toku_ftnode_cleaner_callback(
     int childnum = find_heaviest_child(node);
     update_cleaner_status(node, childnum);
 
-    // Either flush_some_child will unlock the node, or we do it here.
+    // Either toku_ft_flush_some_child will unlock the node, or we do it here.
     if (toku_bnc_nbytesinbuf(BNC(node, childnum)) > 0) {
         struct flusher_advice fa;
         struct flush_status_update_extra fste;
         ct_flusher_advice_init(&fa, &fste, h->h->nodesize);
-        flush_some_child(h, node, &fa);
+        toku_ft_flush_some_child(h, node, &fa);
     } else {
         toku_unpin_ftnode_off_client_thread(h, node);
     }
@@ -1798,6 +1822,7 @@ struct flusher_extra {
     FT h;
     FTNODE node;
     NONLEAF_CHILDINFO bnc;
+    TXNID oldest_referenced_xid;
 };
 
 //
@@ -1834,16 +1859,17 @@ static void flush_node_fun(void *fe_v)
         toku_bnc_flush_to_child(
             fe->h,
             fe->bnc,
-            fe->node
+            fe->node,
+            fe->oldest_referenced_xid
             );
         destroy_nonleaf_childinfo(fe->bnc);
 
         // after the flush has completed, now check to see if the node needs flushing
-        // If so, call flush_some_child on the node, and it is the responsibility
-        // of flush_some_child to unlock the node
-        // otherwise, we unlock the node here.
+        // If so, call ft_flush_some_child_with_xid on the node (because this flush intends to
+        // pass a meaningful oldest referenced xid for simple garbage collection), and it is the
+        // responsibility of the flush to unlock the node. otherwise, we unlock it here.
         if (fe->node->height > 0 && toku_ft_nonleaf_is_gorged(fe->node, fe->h->h->nodesize)) {
-            flush_some_child(fe->h, fe->node, &fa);
+            ft_flush_some_child_with_xid(fe->h, fe->node, &fa, fe->oldest_referenced_xid);
         }
         else {
             toku_unpin_ftnode_off_client_thread(fe->h,fe->node);
@@ -1853,8 +1879,8 @@ static void flush_node_fun(void *fe_v)
         // In this case, we were just passed a node with no
         // bnc, which means we are tasked with flushing some
         // buffer in the node.
-        // It is the responsibility of flush_some_child to unlock the node
-        flush_some_child(fe->h, fe->node, &fa);
+        // It is the responsibility of flush some child to unlock the node
+        ft_flush_some_child_with_xid(fe->h, fe->node, &fa, fe->oldest_referenced_xid);
     }
     remove_background_job_from_cf(fe->h->cf);
     toku_free(fe);
@@ -1864,12 +1890,14 @@ static void
 place_node_and_bnc_on_background_thread(
     FT h,
     FTNODE node,
-    NONLEAF_CHILDINFO bnc)
+    NONLEAF_CHILDINFO bnc,
+    TXNID oldest_referenced_xid)
 {
     struct flusher_extra *XMALLOC(fe);
     fe->h = h;
     fe->node = node;
     fe->bnc = bnc;
+    fe->oldest_referenced_xid = oldest_referenced_xid;
     cachefile_kibbutz_enq(h->cf, flush_node_fun, fe);
 }
 
@@ -1886,9 +1914,9 @@ place_node_and_bnc_on_background_thread(
 //     child needs to be split/merged), then we place the parent on the background thread.
 //     The parent will be unlocked on the background thread
 //
-void
-flush_node_on_background_thread(FT h, FTNODE parent)
+void toku_ft_flush_node_on_background_thread(FT h, FTNODE parent)
 {
+    TXNID oldest_known_referenced_xid = parent->oldest_known_referenced_xid;
     //
     // first let's see if we can detach buffer on client thread
     // and pick the child we want to flush to
@@ -1903,9 +1931,9 @@ flush_node_on_background_thread(FT h, FTNODE parent)
     int r = toku_maybe_pin_ftnode_clean(h, BP_BLOCKNUM(parent, childnum), childfullhash, PL_WRITE_EXPENSIVE, &child);
     if (r != 0) {
         // In this case, we could not lock the child, so just place the parent on the background thread
-        // In the callback, we will use flush_some_child, which checks to
+        // In the callback, we will use toku_ft_flush_some_child, which checks to
         // see if we should blow away the old basement nodes.
-        place_node_and_bnc_on_background_thread(h, parent, NULL);
+        place_node_and_bnc_on_background_thread(h, parent, NULL, oldest_known_referenced_xid);
     }
     else {
         //
@@ -1934,7 +1962,7 @@ flush_node_on_background_thread(FT h, FTNODE parent)
             // so, because we know for sure the child is not
             // reactive, we can unpin the parent
             //
-            place_node_and_bnc_on_background_thread(h, child, bnc);
+            place_node_and_bnc_on_background_thread(h, child, bnc, oldest_known_referenced_xid);
             toku_unpin_ftnode(h, parent);
         }
         else {
@@ -1944,7 +1972,7 @@ flush_node_on_background_thread(FT h, FTNODE parent)
             toku_unpin_ftnode(h, child);
             // Again, we'll have the parent on the background thread, so
             // we don't need to destroy the basement nodes yet.
-            place_node_and_bnc_on_background_thread(h, parent, NULL);
+            place_node_and_bnc_on_background_thread(h, parent, NULL, oldest_known_referenced_xid);
         }
     }
 }

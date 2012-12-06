@@ -30,6 +30,7 @@ enum ft_layout_version_e {
                                // last_xid to shutdown
     FT_LAYOUT_VERSION_21 = 21, // Ming: Add max_msn_in_ft to header,
                                //       Removed log suppression logentry
+    FT_LAYOUT_VERSION_22 = 22, // Ming: Add oldest known referenced xid to each ftnode, for better garbage collection
     FT_NEXT_VERSION,           // the version after the current version
     FT_LAYOUT_VERSION   = FT_NEXT_VERSION-1, // A hack so I don't have to change this line.
     FT_LAYOUT_MIN_SUPPORTED_VERSION = FT_LAYOUT_VERSION_13, // Minimum version supported

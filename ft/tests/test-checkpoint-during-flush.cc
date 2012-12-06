@@ -26,7 +26,7 @@ bool checkpoint_callback_called;
 toku_pthread_t checkpoint_tid;
 
 
-// callback functions for flush_some_child
+// callback functions for toku_ft_flush_some_child
 static bool
 dont_destroy_bn(void* UU(extra))
 {
@@ -160,7 +160,7 @@ doit (bool after_child_pin) {
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) > 0);
 
     // do the flush
-    flush_some_child(t->ft, node, &fa);
+    toku_ft_flush_some_child(t->ft, node, &fa);
     assert(checkpoint_callback_called);
 
     // now let's pin the root again and make sure it is flushed

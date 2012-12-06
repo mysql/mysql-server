@@ -33,7 +33,7 @@ typedef struct flusher_advice FLUSHER_ADVICE;
 typedef int (*FA_PICK_CHILD)(FT h, FTNODE parent, void* extra);
 
 /**
- * Decide whether to call `flush_some_child` on the child if it is
+ * Decide whether to call `toku_ft_flush_some_child` on the child if it is
  * stable and a nonleaf node.
  *
  * Flusher threads: yes if child is gorged
@@ -76,9 +76,9 @@ typedef bool (*FA_SHOULD_DESTROY_BN)(void* extra);
 
 /**
  * Update `ft_flusher_status` in whatever way necessary.  Called once
- * by `flush_some_child` right before choosing what to do next (split,
+ * by `toku_ft_flush_some_child` right before choosing what to do next (split,
  * merge, recurse), with the number of nodes that were dirtied by this
- * execution of `flush_some_child`.
+ * execution of `toku_ft_flush_some_child`.
  */
 typedef void (*FA_UPDATE_STATUS)(FTNODE child, int dirtied, void* extra);
 
@@ -109,17 +109,6 @@ struct flusher_advice {
     void* extra; // parameter passed into callbacks
 };
 
-// FIXME all of these need the toku prefix
-//
-// how about: 
-//
-// toku_ftnode_flush_some_child()
-// toku_fa_flusher_advice_init()
-// toku_fa_always_recursively_flush()
-// toku_fa_dont_destroy_basement_nodes()
-// toku_fa_default_merge_child()
-// toku_fa_default_pick_child_after_split()
-
 void
 flusher_advice_init(
     struct flusher_advice *fa,
@@ -132,11 +121,11 @@ flusher_advice_init(
     void* extra
     );
 
-void
-flush_some_child(
-    FT h,
+void toku_ft_flush_some_child(
+    FT ft,
     FTNODE parent,
-    struct flusher_advice *fa);
+    struct flusher_advice *fa
+    );
 
 bool
 always_recursively_flush(FTNODE child, void* extra);

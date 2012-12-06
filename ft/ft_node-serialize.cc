@@ -367,6 +367,7 @@ serialize_ftnode_info_size(FTNODE node)
     retval += 4; // nodesize
     retval += 4; // flags
     retval += 4; // height;
+    retval += 8; // oldest_known_referenced_xid
     retval += node->totalchildkeylens; // total length of pivots
     retval += (node->n_children-1)*4; // encode length of each pivot
     if (node->height > 0) {
@@ -390,6 +391,8 @@ static void serialize_ftnode_info(FTNODE node,
     wbuf_nocrc_uint(&wb, 0); // write a dummy value for where node->nodesize used to be
     wbuf_nocrc_uint(&wb, node->flags);
     wbuf_nocrc_int (&wb, node->height);    
+    wbuf_TXNID(&wb, node->oldest_known_referenced_xid);
+
     // pivot information
     for (int i = 0; i < node->n_children-1; i++) {
         wbuf_nocrc_bytes(&wb, node->childkeys[i].data, node->childkeys[i].size);
@@ -1264,6 +1267,9 @@ deserialize_ftnode_info(
     if (node->layout_version_read_from_disk < FT_LAYOUT_VERSION_19) {
         (void) rbuf_int(&rb); // optimized_for_upgrade
     }
+    if (node->layout_version_read_from_disk >= FT_LAYOUT_VERSION_22) {
+        rbuf_TXNID(&rb, &node->oldest_known_referenced_xid);
+    }
 
     // now create the basement nodes or childinfos, depending on whether this is a
     // leaf node or internal node
@@ -1505,6 +1511,17 @@ exit:
     return r;
 }
 
+static FTNODE alloc_ftnode_for_deserialize(uint32_t fullhash, BLOCKNUM blocknum) {
+// Effect: Allocate an FTNODE and fill in the values that are not read from
+    FTNODE XMALLOC(node);
+    node->fullhash = fullhash;
+    node->thisnodename = blocknum;
+    node->dirty = 0;
+    node->bp = nullptr;
+    node->oldest_known_referenced_xid = TXNID_NONE;
+    return node; 
+}
+
 static int
 deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
                                                       FTNODE_DISK_DATA* ndd, 
@@ -1518,13 +1535,7 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
 // Return 0 if it worked.  If something goes wrong (including that we are looking at some old data format that doesn't have partitions) then return nonzero.
 {
     int r = 0;
-    FTNODE XMALLOC(node);
-
-    // fill in values that are known and not stored in rb
-    node->fullhash = fullhash;
-    node->thisnodename = blocknum;
-    node->dirty = 0;
-    node->bp = NULL; // fill this in so we can free without a leak.
+    FTNODE node = alloc_ftnode_for_deserialize(fullhash, blocknum);
 
     if (rb->size < 24) {
         // TODO: What error do we return here?
@@ -2171,15 +2182,10 @@ deserialize_ftnode_from_rbuf(
 // Effect: deserializes a ftnode that is in rb (with pointer of rb just past the magic) into a FTNODE.
 {
     int r = 0;
-    FTNODE XMALLOC(node);
     struct sub_block sb_node_info;
-    // fill in values that are known and not stored in rb
-    node->fullhash = fullhash;
-    node->thisnodename = blocknum;
-    node->dirty = 0;
+    FTNODE node = alloc_ftnode_for_deserialize(fullhash, blocknum);
 
     // now start reading from rbuf
-
     // first thing we do is read the header information
     bytevec magic;
     rbuf_literal_bytes(rb, &magic, 8);

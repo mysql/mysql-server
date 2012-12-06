@@ -379,6 +379,7 @@ serialize_ft_min_size (uint32_t version) {
     size_t size = 0;
 
     switch(version) {
+    case FT_LAYOUT_VERSION_22:
     case FT_LAYOUT_VERSION_21:
         size += sizeof(MSN);       // max_msn_in_ft
     case FT_LAYOUT_VERSION_20:
