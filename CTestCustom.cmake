@@ -226,7 +226,7 @@ list(APPEND CTEST_CUSTOM_WARNING_EXCEPTION
   "clang: warning: unknown warning option"
   # don't complain about warnings in jemalloc source
   "jemalloc-3.2.0/src"
-  "jemalloc/internal/jemalloc_internal.h"
+  "jemalloc/internal"
   # don't complain about ranlib or libtool on empty archive
   "has no symbols"
   "the table of contents is empty"
