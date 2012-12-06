@@ -103,7 +103,7 @@ show create table t1;
 --error ER_BAD_FIELD_ERROR
 select * from t1 where t1_f > 2.2;
 #
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED
 alter table t1 add index sec_index2(t1_c), algorithm=inplace;
 select * from information_schema.innodb_sys_fields where name like 't1_%';
 #

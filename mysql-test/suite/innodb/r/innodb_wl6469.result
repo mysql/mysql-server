@@ -127,7 +127,7 @@ t1	CREATE TEMPORARY TABLE `t1` (
 select * from t1 where t1_f > 2.2;
 ERROR 42S22: Unknown column 't1_f' in 'where clause'
 alter table t1 add index sec_index2(t1_c), algorithm=inplace;
-ERROR 42000: This version of MySQL doesn't yet support 'alter table t1 add index sec_index2(t1_c), algorithm=inplace'
+ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
 select * from information_schema.innodb_sys_fields where name like 't1_%';
 INDEX_ID	NAME	POS
 drop table t1;
