@@ -700,8 +700,8 @@ mysql_mutex_t LOCK_gdl;
   @param entry_no                     Entry number to read
 
   @return Operation status
-    @retval TRUE                      Error
-    @retval FALSE                     Success
+    @retval true   Error
+    @retval false  Success
 */
 
 static bool read_ddl_log_file_entry(uint entry_no)
@@ -721,13 +721,13 @@ static bool read_ddl_log_file_entry(uint entry_no)
 
 
 /**
-  Write one entry from ddl log file.
+  Write one entry to ddl log file.
 
   @param entry_no                     Entry number to write
 
   @return Operation status
-    @retval TRUE                      Error
-    @retval FALSE                     Success
+    @retval true   Error
+    @retval false  Success
 */
 
 static bool write_ddl_log_file_entry(uint entry_no)
@@ -1726,14 +1726,16 @@ void execute_ddl_log_recovery()
 
 void release_ddl_log()
 {
-  DDL_LOG_MEMORY_ENTRY *free_list= global_ddl_log.first_free;
-  DDL_LOG_MEMORY_ENTRY *used_list= global_ddl_log.first_used;
+  DDL_LOG_MEMORY_ENTRY *free_list;
+  DDL_LOG_MEMORY_ENTRY *used_list;
   DBUG_ENTER("release_ddl_log");
 
   if (!global_ddl_log.do_release)
     DBUG_VOID_RETURN;
 
   mysql_mutex_lock(&LOCK_gdl);
+  free_list= global_ddl_log.first_free;
+  used_list= global_ddl_log.first_used;
   while (used_list)
   {
     DDL_LOG_MEMORY_ENTRY *tmp= used_list->next_log_entry;
@@ -2537,6 +2539,17 @@ err:
                                      built_non_trans_tmp_query.ptr(),
                                      built_non_trans_tmp_query.length(),
                                      FALSE, FALSE, FALSE, 0);
+          /*
+            When temporary and regular tables or temporary tables with
+            different storage engines are dropped on a single
+            statement, the original statement is split in two.
+            These two statements are logged in two events to binary
+            logs, when gtid_mode is ON each DDL event must have its own
+            GTID. Since drop temporary table does not implicitly
+            commit, in these cases we must force a commit.
+          */
+          if (gtid_mode > 0 && (trans_tmp_table_deleted || non_tmp_table_deleted))
+            error |= mysql_bin_log.commit(thd, true);
       }
       if (trans_tmp_table_deleted)
       {
@@ -2547,6 +2560,16 @@ err:
                                      built_trans_tmp_query.ptr(),
                                      built_trans_tmp_query.length(),
                                      TRUE, FALSE, FALSE, 0);
+          /*
+            When temporary and regular tables are dropped on a single
+            statement, the original statement is split in two.
+            These two statements are logged in two events to binary
+            logs, when gtid_mode is ON each DDL event must have its own
+            GTID. Since drop temporary table does not implicitly
+            commit, in these cases we must force a commit.
+          */
+          if (gtid_mode > 0 && non_tmp_table_deleted)
+            error |= mysql_bin_log.commit(thd, true);
       }
       if (non_tmp_table_deleted)
       {
@@ -4432,11 +4455,7 @@ bool create_table_impl(THD *thd,
       partitions also in the call to check_partition_info. We transport
       this information in the default_db_type variable, it is either
       DB_TYPE_DEFAULT or the engine set in the ALTER TABLE command.
-
-      Check that we don't use foreign keys in the table since it won't
-      work even with InnoDB beneath it.
     */
-    List_iterator<Key> key_iterator(alter_info->key_list);
     Key *key;
     handlerton *part_engine_type= create_info->db_type;
     char *part_syntax_buf;
@@ -4482,15 +4501,6 @@ bool create_table_impl(THD *thd,
     {
       my_error(ER_PARTITION_NO_TEMPORARY, MYF(0));
       goto err;
-    }
-    while ((key= key_iterator++))
-    {
-      if (key->type == Key::FOREIGN_KEY &&
-          !part_info->is_auto_partitioned)
-      {
-        my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
-        goto err;
-      }
     }
     if ((part_engine_type == partition_hton) &&
         part_info->default_engine_type)
@@ -4595,6 +4605,25 @@ bool create_table_impl(THD *thd,
       {
         mem_alloc_error(sizeof(handler));
         DBUG_RETURN(TRUE);
+      }
+    }
+    /*
+      Unless table's storage engine supports partitioning natively
+      don't allow foreign keys on partitioned tables (they won't
+      work work even with InnoDB beneath of partitioning engine).
+      If storage engine handles partitioning natively (like NDB)
+      foreign keys support is possible, so we let the engine decide.
+    */
+    if (create_info->db_type == partition_hton)
+    {
+      List_iterator_fast<Key> key_iterator(alter_info->key_list);
+      while ((key= key_iterator++))
+      {
+        if (key->type == Key::FOREIGN_KEY)
+        {
+          my_error(ER_FOREIGN_KEY_ON_PARTITIONED, MYF(0));
+          goto err;
+        }
       }
     }
   }
@@ -6418,6 +6447,12 @@ static bool mysql_inplace_alter_table(THD *thd,
   if (wait_while_table_is_used(thd, table, HA_EXTRA_PREPARE_FOR_RENAME))
     goto rollback;
 
+  /*
+    If we are killed after this point, we should ignore and continue.
+    We have mostly completed the operation at this point, there should
+    be no long waits left.
+  */
+
   DBUG_EXECUTE_IF("alter_table_rollback_new_index", {
       table->file->ha_commit_inplace_alter_table(altered_table,
                                                  ha_alter_info,
@@ -7275,7 +7310,10 @@ static bool fk_prepare_copy_alter_table(THD *thd, TABLE *table,
       DBUG_RETURN(true);
     }
     case FK_COLUMN_RENAMED:
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "ALGORITHM=COPY",
+               ER(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME),
+               "ALGORITHM=INPLACE");
       DBUG_RETURN(true);
     case FK_COLUMN_DROPPED:
     {
@@ -7338,7 +7376,10 @@ static bool fk_prepare_copy_alter_table(THD *thd, TABLE *table,
                f_key->foreign_id->str);
       DBUG_RETURN(true);
     case FK_COLUMN_RENAMED:
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "ALGORITHM=COPY",
+               ER(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME),
+               "ALGORITHM=INPLACE");
       DBUG_RETURN(true);
     case FK_COLUMN_DROPPED:
       my_error(ER_FK_COLUMN_CANNOT_DROP, MYF(0), bad_column_name,
@@ -7731,7 +7772,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_DEFAULT &&
         alter_info->requested_lock != Alter_info::ALTER_TABLE_LOCK_EXCLUSIVE)
     {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+               "LOCK=NONE/SHARED", "LOCK=EXCLUSIVE");
       DBUG_RETURN(true);
     }
     DBUG_RETURN(simple_rename_or_index_change(thd, table_list,
@@ -7769,14 +7811,24 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       ALGORITHM and LOCK clauses are generally not allowed by the
       parser for operations related to partitioning.
       The exceptions are ALTER_PARTITION and ALTER_REMOVE_PARTITIONING.
-      For consistency, we report ER_NOT_SUPPORTED_YET here.
+      For consistency, we report ER_ALTER_OPERATION_NOT_SUPPORTED here.
     */
     if (alter_info->requested_lock !=
-        Alter_info::ALTER_TABLE_LOCK_DEFAULT ||
-        alter_info->requested_algorithm !=
-        Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
+        Alter_info::ALTER_TABLE_LOCK_DEFAULT)
     {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "LOCK=NONE/SHARED/EXCLUSIVE",
+               ER(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_PARTITION),
+               "LOCK=DEFAULT");
+      DBUG_RETURN(true);
+    }
+    else if (alter_info->requested_algorithm !=
+             Alter_info::ALTER_TABLE_ALGORITHM_DEFAULT)
+    {
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "ALGORITHM=COPY/INPLACE",
+               ER(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_PARTITION),
+               "ALGORITHM=DEFAULT");
       DBUG_RETURN(true);
     }
 
@@ -7822,7 +7874,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     if (alter_info->requested_algorithm ==
         Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
     {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+               "ALGORITHM=INPLACE", "ALGORITHM=COPY");
       DBUG_RETURN(true);
     }
     alter_info->requested_algorithm= Alter_info::ALTER_TABLE_ALGORITHM_COPY;
@@ -8014,7 +8067,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                alter_info->requested_lock ==
                Alter_info::ALTER_TABLE_LOCK_SHARED)
       {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        ha_alter_info.report_unsupported_error("LOCK=NONE/SHARED",
+                                               "LOCK=EXCLUSIVE");
         close_temporary_table(thd, altered_table, true, false);
         goto err_new_table_cleanup;
       }
@@ -8025,7 +8079,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (alter_info->requested_lock ==
           Alter_info::ALTER_TABLE_LOCK_NONE)
       {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        ha_alter_info.report_unsupported_error("LOCK=NONE", "LOCK=SHARED");
         close_temporary_table(thd, altered_table, true, false);
         goto err_new_table_cleanup;
       }
@@ -8038,7 +8092,16 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
       if (alter_info->requested_algorithm ==
           Alter_info::ALTER_TABLE_ALGORITHM_INPLACE)
       {
-        my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+        ha_alter_info.report_unsupported_error("ALGORITHM=INPLACE",
+                                               "ALGORITHM=COPY");
+        close_temporary_table(thd, altered_table, true, false);
+        goto err_new_table_cleanup;
+      }
+      // COPY with LOCK=NONE is not supported, no point in trying.
+      if (alter_info->requested_lock ==
+          Alter_info::ALTER_TABLE_LOCK_NONE)
+      {
+        ha_alter_info.report_unsupported_error("LOCK=NONE", "LOCK=SHARED");
         close_temporary_table(thd, altered_table, true, false);
         goto err_new_table_cleanup;
       }
@@ -8081,7 +8144,10 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
     // COPY algorithm doesn't work with concurrent writes.
     if (alter_info->requested_lock == Alter_info::ALTER_TABLE_LOCK_NONE)
     {
-      my_error(ER_NOT_SUPPORTED_YET, MYF(0), thd->query());
+      my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+               "LOCK=NONE",
+               ER(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COPY),
+               "LOCK=SHARED");
       goto err_new_table_cleanup;
     }
 

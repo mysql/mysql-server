@@ -73,6 +73,7 @@ public:
 
   /* Averts ASSERT_COLUMN_MARKED_FOR_WRITE assertion. */
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
 
   void store_timestamp(const timeval *tm)
   {

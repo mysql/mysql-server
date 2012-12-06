@@ -695,6 +695,7 @@ SHOW_COMP_OPTION have_profiling;
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
+mysql_mutex_t LOCK_thread_created;
 mysql_mutex_t LOCK_thread_count, LOCK_thread_remove;
 mysql_mutex_t
   LOCK_error_log, LOCK_uuid_generator,
@@ -1911,6 +1912,7 @@ static void wait_for_signal_thread_to_end()
 static void clean_up_mutexes()
 {
   mysql_rwlock_destroy(&LOCK_grant);
+  mysql_mutex_destroy(&LOCK_thread_created);
   mysql_mutex_destroy(&LOCK_thread_count);
   mysql_mutex_destroy(&LOCK_log_throttle_qni);
   mysql_rwlock_destroy(&LOCK_status);
@@ -3547,7 +3549,11 @@ rpl_make_log_name(const char *opt,
   DBUG_ENTER("rpl_make_log_name");
   DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", opt, def, ext));
   char buff[FN_REFLEN];
-  const char *base= opt ? opt : def;
+  /*
+    opt[0] needs to be checked to make sure opt name is not an empty
+    string, incase it is an empty string default name will be considered
+  */
+  const char *base= (opt && opt[0]) ? opt : def;
   unsigned int options=
     MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
 
@@ -4005,10 +4011,7 @@ int init_common_variables()
 
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
-  {                                                             \
-    my_free(VAR); /* it could be an allocated empty string "" */ \
-    VAR= ALT;                                                    \
-  }
+    VAR= ALT;
 
   FIX_LOG_VAR(opt_logname,
               make_default_log_name(logname_path, ".log"));
@@ -4103,6 +4106,7 @@ You should consider changing lower_case_table_names to 1 or 2",
 
 static int init_thread_environment()
 {
+  mysql_mutex_init(0, &LOCK_thread_created, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_remove, 
                    &LOCK_thread_remove, MY_MUTEX_INIT_FAST);
@@ -4709,9 +4713,14 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   if (opt_bin_log)
   {
+    /*
+      opt_bin_logname[0] needs to be checked to make sure opt binlog name is
+      not an empty string, incase it is an empty string default file
+      extension will be passed
+     */
     log_bin_basename=
-      rpl_make_log_name(opt_bin_logname, pidfile_name,
-                        opt_bin_logname ? "" : "-bin");
+      rpl_make_log_name(opt_bin_logname, default_logfile_name,
+                        (opt_bin_logname && opt_bin_logname[0]) ? "" : "-bin");
     log_bin_index=
       rpl_make_log_name(opt_binlog_index_name, log_bin_basename, ".index");
     if (log_bin_basename == NULL || log_bin_index == NULL)
@@ -4730,9 +4739,14 @@ a file name for --log-bin-index option", opt_binlog_index_name);
               opt_bin_logname, opt_relay_logname, pidfile_name));
   if (opt_relay_logname)
   {
+    /*
+      opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
+      not an empty string, incase it is an empty string default file
+      extension will be passed
+     */
     relay_log_basename=
-      rpl_make_log_name(opt_relay_logname, pidfile_name,
-                        opt_relay_logname ? "" : "-relay-bin");
+      rpl_make_log_name(opt_relay_logname, default_logfile_name,
+                        (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
     relay_log_index=
       rpl_make_log_name(opt_relaylog_index_name, relay_log_basename, ".index");
     if (relay_log_basename == NULL || relay_log_index == NULL)
@@ -5896,7 +5910,9 @@ static bool read_init_file(char *file_name)
 */
 void inc_thread_created(void)
 {
+  mysql_mutex_lock(&LOCK_thread_created);
   thread_created++;
+  mysql_mutex_unlock(&LOCK_thread_created);
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -5942,7 +5958,7 @@ void create_thread_to_handle_connection(THD *thd)
     char error_message_buff[MYSQL_ERRMSG_SIZE];
     /* Create new thread to handle connection */
     int error;
-    thread_created++;
+    inc_thread_created();
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
     thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
     if ((error= mysql_thread_create(key_thread_one_connection,
