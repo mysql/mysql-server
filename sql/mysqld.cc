@@ -4122,7 +4122,8 @@ You should consider changing lower_case_table_names to 1 or 2",
 
 static int init_thread_environment()
 {
-  mysql_mutex_init(0, &LOCK_thread_created, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_thread_created,
+                   &LOCK_thread_created, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_status, &LOCK_status, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_delayed_insert,
@@ -9133,6 +9134,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
+PSI_mutex_key key_LOCK_thread_created;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -9204,7 +9206,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOG_INFO_lock, "LOG_INFO::lock", 0},
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
-  { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL}
+  { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
+  { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL }
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
