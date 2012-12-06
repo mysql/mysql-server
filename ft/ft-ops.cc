@@ -791,6 +791,7 @@ void toku_ftnode_clone_callback(
     *cloned_value_data = cloned_node;
 }
 
+static void ft_leaf_run_gc(FTNODE node, FT ft);
 
 void toku_ftnode_flush_callback (
     CACHEFILE UU(cachefile),
@@ -817,6 +818,9 @@ void toku_ftnode_flush_callback (
             ftnode_update_disk_stats(ftnode, h, for_checkpoint);
         }
         toku_assert_entire_node_in_memory(ftnode);
+        if (height == 0) {
+            ft_leaf_run_gc(ftnode, h);
+        }
         int r = toku_serialize_ftnode_to(fd, ftnode->thisnodename, ftnode, ndd, !is_clone, h, for_checkpoint);
         assert_zero(r);
         ftnode->layout_version_read_from_disk = FT_LAYOUT_VERSION;
@@ -2275,6 +2279,36 @@ ft_leaf_gc_all_les(FTNODE node,
     }
 }
 
+static void
+ft_leaf_run_gc(FTNODE node, FT ft) {
+    TOKULOGGER logger = toku_cachefile_logger(ft->cf);
+    if (logger) {
+        xid_omt_t snapshot_txnids;
+        rx_omt_t referenced_xids;
+        xid_omt_t live_root_txns;
+        toku_txn_manager_clone_state_for_gc(
+            logger->txn_manager,
+            snapshot_txnids,
+            referenced_xids,
+            live_root_txns
+            );
+        
+        // Perform garbage collection. Provide a full snapshot of the transaction
+        // system plus the oldest known referenced xid that could have had messages
+        // applied to this leaf.
+        //
+        // Using the oldest xid in either the referenced_xids or live_root_txns
+        // snapshots is not sufficient, because there could be something older that is neither
+        // live nor referenced, but instead aborted somewhere above us as a message in the tree.
+        ft_leaf_gc_all_les(node, ft, snapshot_txnids, referenced_xids, live_root_txns, node->oldest_known_referenced_xid);
+        
+        // Free the OMT's we used for garbage collecting.
+        snapshot_txnids.destroy();
+        live_root_txns.destroy();
+        referenced_xids.destroy();
+    }
+}
+
 void toku_bnc_flush_to_child(
     FT ft,
     NONLEAF_CHILDINFO bnc,
@@ -2321,37 +2355,13 @@ void toku_bnc_flush_to_child(
     if (stats_delta.numbytes || stats_delta.numrows) {
         toku_ft_update_stats(&ft->in_memory_stats, stats_delta);
     }
-    // Run garbage collection, if we are a leaf entry.
-    TOKULOGGER logger = toku_cachefile_logger(ft->cf);
-    if (child->height == 0 && logger) {
-        xid_omt_t snapshot_txnids;
-        rx_omt_t referenced_xids;
-        xid_omt_t live_root_txns;
-        toku_txn_manager_clone_state_for_gc(
-            logger->txn_manager,
-            snapshot_txnids,
-            referenced_xids,
-            live_root_txns
-            );
-        size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
-        STATUS_INC(FT_MSG_BYTES_OUT, buffsize);
-        // may be misleading if there's a broadcast message in there
-        STATUS_INC(FT_MSG_BYTES_CURR, -buffsize);
-
-        // Perform garbage collection. Provide a full snapshot of the transaction
-        // system plus the oldest known referenced xid that could have had messages
-        // applied to this leaf.
-        //
-        // Using the oldest xid in either the referenced_xids or live_root_txns
-        // snapshots is not sufficient, because there could be something older that is neither
-        // live nor referenced, but instead aborted somewhere above us as a message in the tree.
-        ft_leaf_gc_all_les(child, ft, snapshot_txnids, referenced_xids, live_root_txns, oldest_known_referenced_xid);
-
-        // Free the OMT's we used for garbage collecting.
-        snapshot_txnids.destroy();
-        live_root_txns.destroy();
-        referenced_xids.destroy();
+    if (child->height == 0) {
+        ft_leaf_run_gc(child, ft);
     }
+    size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
+    STATUS_INC(FT_MSG_BYTES_OUT, buffsize);
+    // may be misleading if there's a broadcast message in there
+    STATUS_INC(FT_MSG_BYTES_CURR, -buffsize);
 }
 
 bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) {
