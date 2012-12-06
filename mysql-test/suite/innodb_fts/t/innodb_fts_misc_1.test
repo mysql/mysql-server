@@ -66,8 +66,8 @@ SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION)
 SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
 
 
-SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
-SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+SELECT id1 FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
+SELECT id2 FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
 
 set global innodb_optimize_fulltext_only=1;
 optimize table t1;
@@ -276,8 +276,8 @@ SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN B
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial (+mysql -VÐƷWİ)' IN BOOLEAN MODE) ;
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('tutorial' WITH QUERY EXPANSION) ;
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@16' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"dbms database"@4' IN BOOLEAN MODE) ;
 
 # no records as data not COMMITted.
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('root') ;
@@ -286,8 +286,8 @@ SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('mysqld (+root)' IN BOOLEAN MODE) 
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('mysqld (-root)' IN BOOLEAN MODE) ;
 SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('root' WITH QUERY EXPANSION) ;
 SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('root' WITH QUERY EXPANSION) ;
-SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"database comparison"@09' IN BOOLEAN MODE) ;
-SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"database comparison"@09' IN BOOLEAN MODE) ;
+SELECT * FROM t1 WHERE MATCH (a1,b1) AGAINST ('"database comparison"@02' IN BOOLEAN MODE) ;
+SELECT * FROM t2 WHERE MATCH (a2,b2) AGAINST ('"database comparison"@02' IN BOOLEAN MODE) ;
 
 SELECT * FROM t1;
 SELECT * FROM t2;
@@ -529,17 +529,17 @@ INSERT INTO t1 (a,b) VALUES
 # This should only return the first document
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@2' IN BOOLEAN MODE);
 
 # This would return no document
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@1' IN BOOLEAN MODE);
 
 # This give you all three documents
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@3' IN BOOLEAN MODE);
 
 # Similar boundary testing for the words
 SELECT * FROM t1
@@ -550,16 +550,16 @@ SELECT * FROM t1
 # is no ordering requirement for proximity search.
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+        AGAINST ('"more test proximity"@2' IN BOOLEAN MODE);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
+        AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
 
 # The phrase search will not require exact word ordering
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"more fts proximity"@09' IN BOOLEAN MODE);
+        AGAINST ('"more fts proximity"@03' IN BOOLEAN MODE);
 
 
 UPDATE t1 SET a = UPPER(a) , b = UPPER(b) ;
@@ -637,33 +637,32 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"γυαλιὰ χωρὶς"@21' IN BOOLEAN MODE);
+        AGAINST ('"γυαλιὰ χωρὶς"@2' IN BOOLEAN MODE);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"query performace"@06' IN BOOLEAN MODE);
+        AGAINST ('"query performace"@02' IN BOOLEAN MODE);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"πάθω τίποτα"@18' IN BOOLEAN MODE);
-
-# Innodb error - no result returned (update result of query once fixed) (innodb limit , does not understand character boundry for japanses like charcter set
-SELECT * FROM t1
-        WHERE MATCH (a,b)
-        AGAINST ('"あさきゆめみじ　ゑひもせず"@50' IN BOOLEAN MODE);
+        AGAINST ('"πάθω τίποτα"@2' IN BOOLEAN MODE);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"あさきゆめみじ　ゑひもせず"@6' IN BOOLEAN MODE);
+        AGAINST ('"あさきゆめみじ ゑひもせず"@1' IN BOOLEAN MODE);
+
+SELECT * FROM t1
+        WHERE MATCH (a,b)
+        AGAINST ('"あさきゆめみじ ゑひもせず"@2' IN BOOLEAN MODE);
 
 ALTER TABLE t1 DROP INDEX idx;
 # Create the FTS index again
 CREATE FULLTEXT INDEX idx on t1 (a,b);
 
 # Innodb:error - no result returned (update result of query once fixed) (innodb limit , does not understand character boundry for japanses like charcter set)
-SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+SELECT * FROM t1 WHERE MATCH(a,b) AGAINST ("あさきゆめみじ ゑひもせず");
 # Update fails because where condition do not succeed which is incorrect (update result of query once fixed)
-UPDATE t1 SET a = "Pchnąć w tę łódź jeża" , b = "lub osiem skrzyń fig" WHERE MATCH(a,b) AGAINST ("あさきゆめみじ　ゑひもせず");
+UPDATE t1 SET a = "Pchnąć w tę łódź jeża" , b = "lub osiem skrzyń fig" WHERE MATCH(a,b) AGAINST ("あさきゆめみじ ゑひもせず");
 UPDATE t1 SET a = "В чащах юга жил-был цитрус? Да", b = "но фальшивый экземпляр! ёъ" WHERE MATCH(a,b) AGAINST ("вред*" IN BOOLEAN MODE);
 DELETE FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
 
@@ -676,7 +675,7 @@ SELECT * FROM t1 WHERE MATCH(a,b) AGAINST("+Sævör +úlpan" IN BOOLEAN MODE);
 
 SELECT * FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"łódź jeża"@15' IN BOOLEAN MODE);
+        AGAINST ('"łódź jeża"@2' IN BOOLEAN MODE);
 
 SELECT * FROM t1;
 DROP TABLE t1;

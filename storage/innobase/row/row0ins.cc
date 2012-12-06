@@ -1713,6 +1713,7 @@ do_possible_lock_wait:
                                 referenced_list, check_foreign)) {
 			if (check_foreign == foreign) {
 				verified = true;
+				break;
 			}
 		}
 
@@ -2671,10 +2672,11 @@ row_ins_sec_index_entry_low(
 				mutex_exit(&dict_sys->mutex);
 				/* Do not return any error to the
 				caller. The duplicate will be reported
-				by ALTER TABLE or CREATE UNIQUE INDEX. */
-				/* TODO: Bug#15920713 CREATE UNIQUE INDEX
-				REPORTS ER_INDEX_CORRUPT
-				INSTEAD OF DUPLICATE */
+				by ALTER TABLE or CREATE UNIQUE INDEX.
+				Unfortunately we cannot report the
+				duplicate key value to the DDL thread,
+				because the altered_table object is
+				private to its call stack. */
 				err = DB_SUCCESS;
 			}
 			/* fall through */

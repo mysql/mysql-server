@@ -56,7 +56,6 @@ sync_slave_with_master;
 # BUG#12190 CHANGE MASTER has differ path requiremts on MASTER_LOG_FILE and RELAY_LOG_FILE
 #
 
-if ($bug_59037_is_fixed == 'true') {
 --source include/rpl_reset.inc
 
 connection master;
@@ -103,7 +102,6 @@ eval set global relay_log_purge=$relay_log_purge;
 connection master;
 drop table t1;
 sync_slave_with_master;
-}
 
 #
 # BUG#44209: MASTER_CONNECT_RETRY and --master-retry-count disconnected from each other

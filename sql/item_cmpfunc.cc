@@ -786,9 +786,9 @@ static ulonglong get_date_from_str(THD *thd, String *str,
   Note, const_value may stay untouched, so the caller is responsible to
   initialize it.
 
-  @param date_arg        - date argument, it's name is used for error reporting.
-  @param str_arg         - string argument to get datetime value from.
-  @param OUT const_value - the converted value is stored here, if not NULL.
+  @param      date_arg    date argument, it's name is used for error reporting.
+  @param      str_arg     string argument to get datetime value from.
+  @param[out] const_value the converted value is stored here, if not NULL.
 
   @return true on error, false on success, false if str_arg is not a const.
 */
