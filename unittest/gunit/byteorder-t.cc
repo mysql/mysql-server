@@ -19,7 +19,7 @@
 
 #include "my_global.h"
 
-namespace {
+namespace byteorder_unittest {
 
 using std::numeric_limits;
 

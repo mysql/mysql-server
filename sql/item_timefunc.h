@@ -408,7 +408,7 @@ public:
   Item_timeval_func(Item *a) :Item_func(a) { }
   /**
     Return timestamp in "struct timeval" format.
-    @param OUT tm The value is store here.
+    @param[out] tm The value is store here.
     @retval false On success
     @retval true  On error
   */
@@ -528,10 +528,10 @@ protected:
   String ascii_buf; // Conversion buffer
   /**
     Get "native" temporal value as MYSQL_TIME
-    @param OUT ltime       The value is stored here.
-    @param IN  fuzzy_date  Date flags.
-    @retval    false       On success.
-    @retval    true        On error.
+    @param[out] ltime       The value is stored here.
+    @param[in]  fuzzy_date  Date flags.
+    @retval     false       On success.
+    @retval     true        On error.
   */
   virtual bool val_datetime(MYSQL_TIME *ltime, uint fuzzy_date)= 0; 
 

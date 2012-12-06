@@ -274,9 +274,9 @@ sql_print_message_func sql_print_message_handlers[3] =
   This method forms a new path + file name for the
   log specified in @c name.
 
-  @param[IN] buff    Location for building new string.
-  @param[IN] name    Name of the log file.
-  @param[IN] log_ext The extension for the log (e.g. .log).
+  @param[in] buff    Location for building new string.
+  @param[in] name    Name of the log file.
+  @param[in] log_ext The extension for the log (e.g. .log).
 
   @returns Pointer to new string containing the name.
 */
@@ -2053,7 +2053,7 @@ const char *MYSQL_LOG::generate_name(const char *log_name,
 {
   if (!log_name || !log_name[0])
   {
-    strmake(buff, pidfile_name, FN_REFLEN - strlen(suffix) - 1);
+    strmake(buff, default_logfile_name, FN_REFLEN - strlen(suffix) - 1);
     return (const char *)
       fn_format(buff, buff, "", suffix, MYF(MY_REPLACE_EXT|MY_REPLACE_DIR));
   }

@@ -24,7 +24,7 @@
 #include "test_utils.h"
 #include "sql_data_change.h"
 
-namespace {
+namespace copy_info_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;

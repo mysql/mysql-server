@@ -158,7 +158,7 @@ class Binlog_storage_delegate
 public:
   typedef Binlog_storage_observer Observer;
   int after_flush(THD *thd, const char *log_file,
-                  my_off_t log_pos, bool synced);
+                  my_off_t log_pos);
 };
 
 #ifdef HAVE_REPLICATION

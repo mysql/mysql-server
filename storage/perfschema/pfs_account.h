@@ -18,7 +18,7 @@
 
 /**
   @file storage/perfschema/pfs_account.h
-  Performance schema user@host (declarations).
+  Performance schema account (declarations).
 */
 
 #include "pfs_lock.h"
@@ -35,6 +35,7 @@ struct PFS_thread;
   @{
 */
 
+/** Hash key for an account. */
 struct PFS_account_key
 {
   /**
@@ -46,6 +47,7 @@ struct PFS_account_key
   uint m_key_length;
 };
 
+/** Per account statistics. */
 struct PFS_ALIGNED PFS_account : PFS_connection_slice
 {
 public:
