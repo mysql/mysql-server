@@ -19,7 +19,7 @@
 
 #include "sql_array.h"
 
-namespace {
+namespace bounds_check_array_unittest {
 
 typedef Bounds_checked_array<int> Int_array;
 
@@ -47,16 +47,18 @@ public:
   operator<<() is needed by the EXPECT macros.
   It is a template argument, so static rather than in unnamed namespace.
  */
-static inline std::ostream &operator<<(std::ostream &s, const Int_array &v)
+static inline
+std::ostream &operator<<(std::ostream &s,
+                         const bounds_check_array_unittest::Int_array &v)
 {
   return s << "{"
- << v.array() << ", "
- << v.size()
- << "}"
+           << v.array() << ", "
+           << v.size()
+           << "}"
     ;
 }
 
-namespace {
+namespace bounds_check_array_unittest  {
 
 TEST_F(BoundsCheckedArray, Empty)
 {

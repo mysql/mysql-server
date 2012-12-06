@@ -19,7 +19,7 @@
 
 #include "handler.h"
 
-namespace {
+namespace cost_estimate_unittest {
 
 TEST(CostEstimateTest, Basics)
 {

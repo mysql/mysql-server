@@ -328,7 +328,7 @@ void end_read_record(READ_RECORD *info)
   {
     info->table->set_keyread(FALSE);
   }
-  if (info->table && info->table->created)
+  if (info->table && info->table->is_created())
   {
     filesort_free_buffers(info->table,0);
     (void) info->table->file->extra(HA_EXTRA_NO_CACHE);

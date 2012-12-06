@@ -25,7 +25,7 @@ C_MODE_START
 
 int repl_semi_report_binlog_update(Binlog_storage_param *param,
 				   const char *log_file,
-				   my_off_t log_pos, uint32 flags)
+				   my_off_t log_pos)
 {
   int  error= 0;
 

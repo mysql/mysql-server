@@ -70,7 +70,7 @@ save_master_pos;
 connection slave;
 # 1062 = ER_DUP_ENTRY
 call mtr.add_suppression("Slave SQL.*Error .Duplicate entry .10. for key .b.. on query.* Error_code: 1062");
-call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.*error code=1062.*Error on slave:.*Error_code: 1847");
+call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.*error code=1062.*Error on slave:.*Error_code: 1862");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 --let $slave_sql_errno= 1062
 --source include/wait_for_slave_sql_error_and_skip.inc
@@ -161,10 +161,10 @@ if (`SELECT @@global.binlog_format != 'ROW'`)
   # Query causes error on master but not on slave. This causes the slave to
   # stop with error code 0 (which is wrong: see BUG#57287)
   # A new error code ER_INCONSISTENT_ERROR has been introduced instead of 0. 
-  # The error code is 1847
+  # The error code is 1862
   # 1756 = ER_MTS_INCONSISTENT_DATA
-  # 1847 = ER_INCONSISTENT_ERROR
-  --let $slave_sql_errno= 1847,1756
+  # 1862 = ER_INCONSISTENT_ERROR
+  --let $slave_sql_errno= 1862,1756
   --source include/wait_for_slave_sql_error.inc
   drop table t1, t2;
 }
@@ -187,7 +187,7 @@ DROP TABLE t1;
 
 -- let $db1= b48297_db1
 -- let $db2= b42897_db2
-
+ 
 -- connection master
 
 -- disable_warnings
