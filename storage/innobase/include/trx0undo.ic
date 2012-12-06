@@ -99,7 +99,9 @@ trx_undo_roll_ptr_is_insert(
 # error "TRUE != 1"
 #endif
 	ut_ad(roll_ptr < (1ULL << 56));
-	return((ibool) (roll_ptr >> 55));
+	/* roll_ptr = 0 if undo-log is not generated which can happen
+	if dml action is being done on temp-table with auto-commit=on */
+	return((roll_ptr == 0 ? TRUE : (ibool) (roll_ptr >> 55)));
 }
 
 /***********************************************************************//**
