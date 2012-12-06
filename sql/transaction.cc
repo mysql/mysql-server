@@ -567,15 +567,19 @@ bool trans_xa_start(THD *thd)
     my_error(ER_XAER_RMFAIL, MYF(0), xa_state_names[xa_state]);
   else if (thd->locked_tables_mode || thd->in_active_multi_stmt_transaction())
     my_error(ER_XAER_OUTSIDE, MYF(0));
-  else if (xid_cache_search(thd->lex->xid))
-    my_error(ER_XAER_DUPID, MYF(0));
   else if (!trans_begin(thd))
   {
     DBUG_ASSERT(thd->transaction.xid_state.xid.is_null());
     thd->transaction.xid_state.xa_state= XA_ACTIVE;
     thd->transaction.xid_state.rm_error= 0;
     thd->transaction.xid_state.xid.set(thd->lex->xid);
-    xid_cache_insert(&thd->transaction.xid_state);
+    if (xid_cache_insert(&thd->transaction.xid_state))
+    {
+      thd->transaction.xid_state.xa_state= XA_NOTR;
+      thd->transaction.xid_state.xid.null();
+      trans_rollback(thd);
+      DBUG_RETURN(true);
+    }
     DBUG_RETURN(FALSE);
   }
 
@@ -661,6 +665,16 @@ bool trans_xa_commit(THD *thd)
 
   if (!thd->transaction.xid_state.xid.eq(thd->lex->xid))
   {
+    /*
+      xid_state.in_thd is always true beside of xa recovery procedure.
+      Note, that there is no race condition here between xid_cache_search
+      and xid_cache_delete, since we always delete our own XID
+      (thd->lex->xid == thd->transaction.xid_state.xid).
+      The only case when thd->lex->xid != thd->transaction.xid_state.xid
+      and xid_state->in_thd == 0 is in the function
+      xa_cache_insert(XID, xa_states), which is called before starting
+      client connections, and thus is always single-threaded.
+    */
     XID_STATE *xs= xid_cache_search(thd->lex->xid);
     res= !xs || xs->in_thd;
     if (res)
