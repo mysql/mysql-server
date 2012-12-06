@@ -1581,10 +1581,19 @@ ulong acl_get(const char *host, const char *ip,
 {
   ulong host_access= ~(ulong)0, db_access= 0;
   uint i;
-  size_t key_length;
+  size_t key_length, copy_length;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
   DBUG_ENTER("acl_get");
+
+  copy_length= (size_t) (strlen(ip ? ip : "") +
+                 strlen(user ? user : "") +
+                 strlen(db ? db : ""));
+  /*
+    Make sure that strmov() operations do not result in buffer overflow.
+  */
+  if (copy_length >= ACL_KEY_LENGTH)
+    DBUG_RETURN(0);
 
   mysql_mutex_lock(&acl_cache->lock);
   end=strmov((tmp_db=strmov(strmov(key, ip ? ip : "")+1,user)+1),db);
@@ -4942,6 +4951,16 @@ bool check_grant_db(THD *thd,const char *db)
   char helping [NAME_LEN+USERNAME_LENGTH+2];
   uint len;
   bool error= TRUE;
+  size_t copy_length;
+
+  copy_length= (size_t) (strlen(sctx->priv_user ? sctx->priv_user : "") +
+                 strlen(db ? db : ""));
+
+  /*
+    Make sure that strmov() operations do not result in buffer overflow.
+  */
+  if (copy_length >= (NAME_LEN+USERNAME_LENGTH+2))
+    return 1;
 
   len= (uint) (strmov(strmov(helping, sctx->priv_user) + 1, db) - helping) + 1;
 
