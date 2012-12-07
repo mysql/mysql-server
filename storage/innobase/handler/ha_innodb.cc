@@ -3940,8 +3940,8 @@ ha_innobase::table_flags() const
 	an exact count of number of rows.
 	TODO: If in future we can get an indication that this temp-table is
 	from optimizer then we want to disable stats collection. */
-	if (prebuilt
-	    && prebuilt->table
+	if (prebuilt != NULL
+	    && prebuilt->table != NULL
 	    && dict_table_is_temporary(prebuilt->table)) {
 		return(int_table_flags
 		       | HA_STATS_RECORDS_IS_EXACT
@@ -9459,8 +9459,9 @@ ha_innobase::create(
 	bool		use_tablespace = srv_file_per_table;
 
 	/* if table is non-compressed temp-table then ignore file-per-table */
-	if (innobase_table_is_noncompressed_temporary(create_info, form))
+	if (innobase_table_is_noncompressed_temporary(create_info, form)) {
 		use_tablespace = false;
+	}
 
 	/* Zip Shift Size - log2 - 9 of compressed page size,
 	zero for uncompressed */
@@ -10881,7 +10882,7 @@ ha_innobase::info_low(
 
 		if (n_rows == 0
 		    && !(flag & HA_STATUS_TIME)
-		    && (!dict_table_is_temporary(ib_table))) {
+		    && !dict_table_is_temporary(ib_table)) {
 			n_rows++;
 		}
 

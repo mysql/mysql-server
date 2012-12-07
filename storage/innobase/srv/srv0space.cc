@@ -43,7 +43,7 @@ containing megabytes.
 char*
 Tablespace::parse_units(char* ptr, ulint* megs)
 {
-	char*   	endp;
+	char*		endp;
 
 	*megs = strtoul(ptr, &endp, 10);
 
@@ -1079,3 +1079,13 @@ Tablespace::delete_files()
 		}
 	}
 }
+
+/** Check if system-tablespace (shared + temp).
+@return true if system tablespace */
+bool
+Tablespace::is_system_tablespace(ulint id)
+{
+	return(id == srv_sys_space.space_id()
+	       || id == srv_tmp_space.space_id());
+}
+
