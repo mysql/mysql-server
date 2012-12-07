@@ -111,9 +111,9 @@ run_test (void) {
         r = txn->commit(txn, 0);    CKERR(r);
 
         r = db->stat64(db, NULL, &s); CKERR(r);
-        // garbage collection is not happening here yet, so 
-        // the number of keys should be 1
-        assert(s.bt_nkeys == 1 && s.bt_dsize == 0);
+        // garbage collection has happened in db->close, so 
+        // the number of keys should be 0
+        assert(s.bt_nkeys == 0 && s.bt_dsize == 0);
     }
 
     // verify update of non-existing key inserts a row

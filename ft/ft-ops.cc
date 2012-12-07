@@ -814,12 +814,12 @@ void toku_ftnode_flush_callback (
     assert(ftnode->thisnodename.b==nodename.b);
     int height = ftnode->height;
     if (write_me) {
-        if (height == 0 && !is_clone) {
-            ftnode_update_disk_stats(ftnode, h, for_checkpoint);
-        }
         toku_assert_entire_node_in_memory(ftnode);
         if (height == 0) {
             ft_leaf_run_gc(ftnode, h);
+        }
+        if (height == 0 && !is_clone) {
+            ftnode_update_disk_stats(ftnode, h, for_checkpoint);
         }
         int r = toku_serialize_ftnode_to(fd, ftnode->thisnodename, ftnode, ndd, !is_clone, h, for_checkpoint);
         assert_zero(r);
