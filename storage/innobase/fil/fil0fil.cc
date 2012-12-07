@@ -1245,8 +1245,7 @@ fil_space_create(
 				"Tablespace '%s' exists in the cache "
 				"with id %lu", name, (ulong) id);
 
-			if (id == srv_sys_space.space_id()
-			    || id == srv_tmp_space.space_id()
+			if (Tablespace::is_system_tablespace(id)
 			    || purpose != FIL_TABLESPACE) {
 
 				mutex_exit(&fil_system->mutex);
@@ -2419,7 +2418,7 @@ fil_check_pending_operations(
 {
 	ulint		count = 0;
 
-	ut_a(id != srv_sys_space.space_id() && id != srv_tmp_space.space_id());
+	ut_a(!Tablespace::is_system_tablespace(id));
 	ut_ad(space);
 
 	*space = 0;
@@ -2498,7 +2497,7 @@ fil_close_tablespace(
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
-	ut_a(id != srv_sys_space.space_id() && id != srv_tmp_space.space_id());
+	ut_a(!Tablespace::is_system_tablespace(id));
 
 	dberr_t		err = fil_check_pending_operations(id, &space, &path);
 
@@ -2564,7 +2563,7 @@ fil_delete_tablespace(
 	char*		path = 0;
 	fil_space_t*	space = 0;
 
-	ut_a(id != srv_sys_space.space_id() && id != srv_tmp_space.space_id());
+	ut_a(!Tablespace::is_system_tablespace(id));
 
 	dberr_t		err = fil_check_pending_operations(id, &space, &path);
 
@@ -4809,8 +4808,7 @@ retry:
 
 		srv_sys_space.set_last_file_size(
 			(node->size / pages_per_mb) * pages_per_mb);
-	}
-	if (space_id == srv_tmp_space.space_id()) {
+	} else if (space_id == srv_tmp_space.space_id()) {
 		ulint pages_per_mb = (1024 * 1024) / page_size;
 
 		/* Keep the last data file size info up to date, rounded to
