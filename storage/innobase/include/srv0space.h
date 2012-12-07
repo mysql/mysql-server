@@ -239,6 +239,22 @@ public:
 	}
 
 	/**
+	@return the autoextend increment in pages. */
+	ulint get_autoextend_increment() const
+	{
+		return(m_auto_extend_increment
+		       * ((1024 * 1024) / UNIV_PAGE_SIZE));
+	}
+
+	/**
+	@param set auto-increment size in pages */
+	void set_autoextend_increment(ulint pages)
+	{
+		m_auto_extend_increment = ((pages * UNIV_PAGE_SIZE)
+					   / (1024 * 1024));
+	}
+
+	/**
 	@return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
 	ulint get_sum_of_sizes() const;
 
@@ -293,14 +309,6 @@ private:
 	bool is_valid_size() const
 	{
 		return(m_last_file_size_max >= last_file_size());
-	}
-
-	/**
-	@return the autoextend increment in pages. */
-	ulint get_autoextend_increment() const
-	{
-		return(m_auto_extend_increment
-		       * ((1024 * 1024) / UNIV_PAGE_SIZE));
 	}
 
 	/**
