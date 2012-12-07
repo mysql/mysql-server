@@ -118,7 +118,7 @@ END|
 delimiter ;|
 set autocommit=0;
 select count(*) from t1;
-CALL populate_t1();
+call populate_t1();
 select count(*) from t1;
 select * from t1 limit 10;
 set autocommit=1;

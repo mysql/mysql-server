@@ -205,7 +205,7 @@ set autocommit=0;
 select count(*) from t1;
 count(*)
 0
-CALL populate_t1();
+call populate_t1();
 select count(*) from t1;
 count(*)
 20000
