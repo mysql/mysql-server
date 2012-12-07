@@ -295,8 +295,8 @@ dump_garbage_stats(int f, FT ft) {
     uint64_t total_space = 0;
     uint64_t used_space = 0;
     toku_ft_get_garbage(ft, &total_space, &used_space);
-    printf("total_size\t%zu\n", total_space);
-    printf("used_size\t%zu\n", used_space);
+    printf("total_size\t%" PRIu64 "\n", total_space);
+    printf("used_size\t%" PRIu64 "\n", used_space);
 }
 
 static uint32_t 
