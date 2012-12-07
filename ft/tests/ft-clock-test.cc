@@ -245,6 +245,7 @@ test_serialize_nonleaf(void) {
     sn.height = 1;
     sn.n_children = 2;
     sn.dirty = 1;
+    sn.oldest_known_referenced_xid = TXNID_NONE;
     hello_string = toku_strdup("hello");
     MALLOC_N(2, sn.bp);
     MALLOC_N(1, sn.childkeys);
@@ -343,6 +344,7 @@ test_serialize_leaf(void) {
     sn.height = 0;
     sn.n_children = 2;
     sn.dirty = 1;
+    sn.oldest_known_referenced_xid = TXNID_NONE;
     LEAFENTRY elts[3];
     elts[0] = le_malloc("a", "aval");
     elts[1] = le_malloc("b", "bval");
