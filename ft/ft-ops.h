@@ -219,6 +219,17 @@ struct ftstat64_s {
 
 void toku_ft_handle_stat64 (FT_HANDLE, TOKUTXN, struct ftstat64_s *stat);
 
+struct ftinfo64 {
+    uint64_t num_blocks_allocated;  // number of blocks in the blocktable
+    uint64_t num_blocks_in_use;     // number of blocks in use by most recent checkpoint
+    uint64_t size_allocated;        // sum of sizes of blocks in blocktable
+    uint64_t size_in_use;           // sum of sizes of blocks in use by most recent checkpoint
+};
+
+void toku_ft_handle_get_fractal_tree_info64(FT_HANDLE, struct ftinfo64 *);
+
+int toku_ft_handle_iterate_fractal_tree_block_map(FT_HANDLE, int (*)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*), void *);
+
 int toku_ft_layer_init(void) __attribute__ ((warn_unused_result));
 void toku_ft_open_close_lock(void);
 void toku_ft_open_close_unlock(void);

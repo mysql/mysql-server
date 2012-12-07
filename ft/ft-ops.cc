@@ -5748,6 +5748,14 @@ void toku_ft_handle_stat64 (FT_HANDLE brt, TOKUTXN UU(txn), struct ftstat64_s *s
     toku_ft_stat64(brt->ft, s);
 }
 
+void toku_ft_handle_get_fractal_tree_info64(FT_HANDLE ft_h, struct ftinfo64 *s) {
+    toku_ft_get_fractal_tree_info64(ft_h->ft, s);
+}
+
+int toku_ft_handle_iterate_fractal_tree_block_map(FT_HANDLE ft_h, int (*iter)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*), void *iter_extra) {
+    return toku_ft_iterate_fractal_tree_block_map(ft_h->ft, iter, iter_extra);
+}
+
 /* ********************* debugging dump ************************ */
 static int
 toku_dump_ftnode (FILE *file, FT_HANDLE brt, BLOCKNUM blocknum, int depth, const DBT *lorange, const DBT *hirange) {

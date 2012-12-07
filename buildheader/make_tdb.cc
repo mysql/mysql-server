@@ -443,6 +443,8 @@ static void print_db_struct (void) {
 			 "int (*verify_with_progress)(DB *, int (*progress_callback)(void *progress_extra, float progress), void *progress_extra, int verbose, int keep_going)",
 			 "int (*update)(DB *, DB_TXN*, const DBT *key, const DBT *extra, uint32_t flags)",
 			 "int (*update_broadcast)(DB *, DB_TXN*, const DBT *extra, uint32_t flags)",
+			 "int (*get_fractal_tree_info64)(DB*,uint64_t*,uint64_t*,uint64_t*,uint64_t*)",
+			 "int (*iterate_fractal_tree_block_map)(DB*,int(*)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*),void*)",
 			 NULL};
     sort_and_dump_fields("db", true, extra);
 }
