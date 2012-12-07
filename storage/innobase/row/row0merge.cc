@@ -2702,6 +2702,14 @@ row_merge_drop_indexes(
 					holding LOCK=SHARED MDL on the
 					table even after the MDL
 					upgrade timeout. */
+
+					/* We can remove a DICT_FTS
+					index from the cache, because
+					we do not allow ADD FULLTEXT INDEX
+					with LOCK=NONE. If we allowed that,
+					we should exclude FTS entries from
+					prebuilt->ins_node->entry_list
+					in ins_node_create_entry_list(). */
 					dict_index_remove_from_cache(
 						table, index);
 					index = prev;
@@ -2746,6 +2754,12 @@ row_merge_drop_indexes(
 	}
 
 	row_merge_drop_indexes_dict(trx, table->id);
+
+	/* Invalidate all row_prebuilt_t::ins_graph that are referring
+	to this table. That is, force row_get_prebuilt_insert_row() to
+	rebuild prebuilt->ins_node->entry_list). */
+	ut_ad(table->def_trx_id <= trx->id);
+	table->def_trx_id = trx->id;
 
 	next_index = dict_table_get_next_index(index);
 
@@ -3353,7 +3367,7 @@ row_merge_create_index(
 		/* Note the id of the transaction that created this
 		index, we use it to restrict readers from accessing
 		this index, to ensure read consistency. */
-		index->trx_id = trx->id;
+		ut_ad(index->trx_id == trx->id);
 	} else {
 		index = NULL;
 	}
