@@ -4005,6 +4005,7 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
     }
     case Q_UPDATED_DB_NAMES:
     {
+      uchar i= 0;
       CHECK_SPACE(pos, end, 1);
       mts_accessed_dbs= *pos++;
       /* 
@@ -4020,11 +4021,22 @@ Query_log_event::Query_log_event(const char* buf, uint event_len,
 
       DBUG_ASSERT(mts_accessed_dbs != 0);
 
-      for (uchar i= 0; i < mts_accessed_dbs; i++)
+      for (i= 0; i < mts_accessed_dbs && pos < start + status_vars_len; i++)
       {
-        strcpy(mts_accessed_db_names[i], (char*) pos);
+        DBUG_EXECUTE_IF("query_log_event_mts_corrupt_db_names",
+                        {
+                          if (mts_accessed_dbs == 2)
+                          {
+                            DBUG_ASSERT(pos[sizeof("d?") - 1] == 0);
+                            ((char*) pos)[sizeof("d?") - 1]= 'a';
+                          }});
+        strncpy(mts_accessed_db_names[i], (char*) pos,
+                min<ulong>(NAME_LEN, start + status_vars_len - pos));
+        mts_accessed_db_names[i][NAME_LEN - 1]= 0;
         pos+= 1 + strlen((const char*) pos);
       }
+      if (i != mts_accessed_dbs || pos > start + status_vars_len)
+        DBUG_VOID_RETURN;
       break;
     }
     default:
@@ -5655,12 +5667,7 @@ Format_description_log_event::do_shall_skip(Relay_log_info *rli)
 
 
 /**
-   Splits the event's 'server_version' string into three numeric pieces stored
-   into 'server_version_split':
-   X.Y.Zabc (X,Y,Z numbers, a not a digit) -> {X,Y,Z}
-   X.Yabc -> {X,Y,0}
-   Xabc -> {X,0,0}
-   'server_version_split' is then used for lookups to find if the server which
+   'server_version_split' is used for lookups to find if the server which
    created this event has some known bug.
 */
 void Format_description_log_event::calc_server_version_split()
@@ -7853,8 +7860,10 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
     If we updated it, we will have incorrect master coordinates and this
     could give false triggers in MASTER_POS_WAIT() that we have reached
     the target position when in fact we have not.
+    The group position is always unchanged in MTS mode because the event
+    is never executed so can't be scheduled to a Worker.
   */
-  if (thd->variables.option_bits & OPTION_BEGIN)
+  if ((thd->variables.option_bits & OPTION_BEGIN) || rli->is_parallel_exec())
     rli->inc_event_relay_log_pos();
   else
   {
@@ -13325,7 +13334,7 @@ st_print_event_info::st_print_event_info()
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
    thread_id(0), thread_id_printed(false),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
-   have_unflushed_events(FALSE)
+   have_unflushed_events(FALSE), skipped_event_in_transaction(false)
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at

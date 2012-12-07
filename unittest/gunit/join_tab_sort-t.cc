@@ -24,7 +24,7 @@
 
 #include <vector>
 
-namespace {
+namespace join_tab_sort_unittest {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;

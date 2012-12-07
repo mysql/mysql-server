@@ -18,7 +18,12 @@
 # Requires statement logging
 -- source include/have_binlog_format_mixed_or_statement.inc
 
+# Double connections to allow the correct debug information to be shown
+# when using rpl_assert.inc without rpl_init.inc
+--let $rpl_server_count= 2
+connect (server_2,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
 connect (master,localhost,root,,test,$MASTER_MYPORT,$MASTER_MYSOCK);
+connect (server_1,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK);
 connect (slave,localhost,root,,test,$SLAVE_MYPORT,$SLAVE_MYSOCK);
 
 # Create empty file
@@ -76,7 +81,17 @@ sync_slave_with_master;
 let $status_items= Master_Log_File, Relay_Master_Log_File;
 source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
-select * from t1;
+
+--let $assert_text= Table t1 should contain the first inserted line
+--let $query_result= query_get_value(select * from t1, "s", 1)
+--let $assert_cond= "$query_result" = "Could not break slave"
+--source include/rpl_assert.inc
+
+--let $assert_text= Table t1 should contain the second inserted line
+--let $query_result= query_get_value(select * from t1, "s", 2)
+--let $assert_cond= "$query_result" = "Tried hard"
+--source include/rpl_assert.inc
+
 connection master;
 flush logs;
 create table t2(m int not null auto_increment primary key);
@@ -87,7 +102,11 @@ create table t3 select * from temp_table;
 
 sync_slave_with_master;
 
-select * from t3;
+--let $query_result= query_get_value(select * from t3, "a", 1)
+--let $assert_text= Data in t3 should be equal to temp_table
+--let $assert_cond= "$query_result" = "testing temporary tables"
+--source include/rpl_assert.inc
+
 connection master;
 drop table temp_table, t3;
 
@@ -146,11 +165,30 @@ insert into t2 values (65);
 sync_slave_with_master;
 source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
-select * from t2;
+
+--let $assert_text= Table t2 should still contain the first inserted line after creation
+--let $assert_cond= [select * from t2,"m",1] = 34
+--source include/rpl_assert.inc
+
+--let $assert_text= Table t2 should contain the line inserted after the purge
+--let $assert_cond= [select * from t2,"m",2] = 65
+--source include/rpl_assert.inc
+
+--let $assert_text= Table t2 should still contain the second insert line after creation
+--let $assert_cond= [select * from t2,"m",3] = 67
+--source include/rpl_assert.inc
+
+--let $assert_text= Table t2 should still contain the third inserted line after creation
+--let $assert_cond= [select * from t2,"m",4] = 123
+--source include/rpl_assert.inc
+
+--let $assert_text= Table t2 should still contain the line from the duplicated key test
+--let $assert_cond= [select * from t2,"m",5] = 1234
+--source include/rpl_assert.inc
 
 #
 # Test forcing the replication log to rotate
-# 
+#
 
 connection master;
 create temporary table temp_table (a char(80) not null);
@@ -169,7 +207,11 @@ while ($1)
  dec $1;
 }
 enable_query_log;
-select count(*) from t3 where n >= 4;
+
+--let $assert_text= Table t3 should contain 90 lines on the master
+--let $assert_cond= [select count(*) from t3 where n >= 4,"count(*)",1] = 90
+--source include/rpl_assert.inc
+
 create table t4 select * from temp_table;
 let $last=query_get_value("SHOW MASTER STATUS", "File", 1);
 if (`select '$first' like '$last'`)
@@ -177,13 +219,21 @@ if (`select '$first' like '$last'`)
   --die No expected logs rotation
 } 
 sync_slave_with_master;
-select * from t4;
+
+--let $query_result= query_get_value(select * from t4, "a", 1)
+--let $assert_text= Data in t4 should be equal to temp_table
+--let $assert_cond= "$query_result" = "testing temporary tables part 2"
+--source include/rpl_assert.inc
 
 source include/check_slave_is_running.inc;
 # because of concurrent insert, the table may not be up to date
 # if we do not lock
 lock tables t3 read;
-select count(*) from t3 where n >= 4;
+
+--let $assert_text= Table t3 should contain 90 lines on the slave
+--let $assert_cond= [select count(*) from t3 where n >= 4,"count(*)",1] = 90
+--source include/rpl_assert.inc
+
 unlock tables;
 #clean up
 connection master;
