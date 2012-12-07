@@ -2934,6 +2934,10 @@ innobase_init(
 
 	/*--------------- Shared tablespaces -------------------------*/
 
+        /* Set the default auto-increment for temp-tablespace based
+	on system-variable. */
+        srv_tmp_space.set_autoextend_increment(
+		srv_sys_space.get_autoextend_increment());
 
 	/* Set default InnoDB temp data file size to 12 MB and let it be
 	auto-extending. */
