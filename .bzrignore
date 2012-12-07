@@ -2979,6 +2979,8 @@ unittest/examples/.deps/simple-t.Po
 unittest/examples/.deps/skip-t.Po
 unittest/examples/.deps/skip_all-t.Po
 unittest/examples/.deps/todo-t.Po
+unittest/gunit/merge_large_tests.cc
+unittest/gunit/merge_small_tests.cc
 unittest/mysys/*.t
 unittest/mysys/.deps/base64-t.Po
 unittest/mysys/.deps/my_atomic-t.Po

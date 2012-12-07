@@ -1454,7 +1454,7 @@ ER_DUP_ENTRY 23000 S1009
 	kor "중복된 입력 값 '%-.192s': key %d"
 	nor "Like verdier '%-.192s' for nøkkel %d"
 	norwegian-ny "Like verdiar '%-.192s' for nykkel %d"
-	pol "Powtórzone wyst?pienie '%-.192s' dla klucza %d"
+	pol "Powtórzone wystąpienie '%-.192s' dla klucza %d"
 	por "Entrada '%-.192s' duplicada para a chave %d"
 	rum "Cimpul '%-.192s' e duplicat pentru cheia %d"
 	rus "Дублирующаяся запись '%-.192s' по ключу %d"
@@ -6129,7 +6129,7 @@ ER_DUP_ENTRY_WITH_KEY_NAME 23000 S1009
         kor "중복된 입력 값 '%-.64s': key '%-.192s'"
         nor "Like verdier '%-.64s' for nøkkel '%-.192s'"
         norwegian-ny "Like verdiar '%-.64s' for nykkel '%-.192s'"
-        pol "Powtórzone wyst?pienie '%-.64s' dla klucza '%-.192s'"
+        pol "Powtórzone wystąpienie '%-.64s' dla klucza '%-.192s'"
         por "Entrada '%-.64s' duplicada para a chave '%-.192s'"
         rum "Cimpul '%-.64s' e duplicat pentru cheia '%-.192s'"
         rus "Дублирующаяся запись '%-.64s' по ключу '%-.192s'"
@@ -6960,6 +6960,73 @@ ER_GTID_EXECUTED_WAS_CHANGED
 
 ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
   eng "Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT, and both replicated and non replicated tables are written to."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED 0A000
+  eng "%s is not supported for this operation. Try %s."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON 0A000
+  eng "%s is not supported. Reason: %s. Try %s."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COPY
+  eng "COPY algorithm requires a lock"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_PARTITION
+  eng "Partition specific operations do not yet support LOCK/ALGORITHM"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME
+  eng "Columns participating in a foreign key are renamed"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE
+  eng "Cannot change column type INPLACE"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_CHECK
+  eng "Adding foreign keys needs foreign_key_checks=OFF"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_IGNORE
+  eng "Creating unique indexes with IGNORE requires COPY algorithm to remove duplicate rows"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOPK
+  eng "Dropping a primary key is not allowed without also adding a new primary key"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_AUTOINC
+  eng "Adding an auto-increment column requires a lock"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_HIDDEN_FTS
+  eng "Cannot replace hidden FTS_DOC_ID with a user-visible one"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS
+  eng "Cannot drop or rename FTS_DOC_ID"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS
+  eng "Fulltext index creation requires a lock"
+
+ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
+  eng "sql_slave_skip_counter can not be set when the server is running with GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction"
+
+ER_DUP_UNKNOWN_IN_INDEX 23000
+  cze "Zdvojený klíč (číslo klíče '%-.192s')"
+  dan "Flere ens nøgler for indeks '%-.192s'"
+  nla "Dubbele ingang voor zoeksleutel '%-.192s'"
+  eng "Duplicate entry for key '%-.192s'"
+  est "Kattuv väärtus võtmele '%-.192s'"
+  fre "Duplicata du champ pour la clef '%-.192s'"
+  ger "Doppelter Eintrag für Schlüssel '%-.192s'"
+  greek "Διπλή εγγραφή για το κλειδί '%-.192s'"
+  hun "Duplikalt bejegyzes a '%-.192s' kulcs szerint."
+  ita "Valore duplicato per la chiave '%-.192s'"
+  jpn "は索引 '%-.192s' で重複しています。"
+  kor "중복된 입력 값: key '%-.192s'"
+  nor "Like verdier for nøkkel '%-.192s'"
+  norwegian-ny "Like verdiar for nykkel '%-.192s'"
+  pol "Powtórzone wystąpienie dla klucza '%-.192s'"
+  por "Entrada duplicada para a chave '%-.192s'"
+  rum "Cimpul e duplicat pentru cheia '%-.192s'"
+  rus "Дублирующаяся запись по ключу '%-.192s'"
+  serbian "Dupliran unos za ključ '%-.192s'"
+  slo "Opakovaný kľúč (číslo kľúča '%-.192s')"
+  spa "Entrada duplicada para la clave '%-.192s'"
+  swe "Dubbel nyckel för nyckel '%-.192s'"
+  ukr "Дублюючий запис для ключа '%-.192s'"
 
 #
 #  End of 5.6 error messages.

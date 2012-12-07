@@ -65,6 +65,7 @@ using std::max;
 
 bool mysql_user_table_is_in_short_password_format= false;
 bool auth_plugin_is_built_in(const char *plugin_name);
+bool auth_plugin_supports_expiration(const char *plugin_name);
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name);
 
 
@@ -405,11 +406,10 @@ static LEX_STRING old_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_old_password")
 };
 
-#if defined(HAVE_OPENSSL)
 LEX_STRING sha256_password_plugin_name= {
   C_STRING_WITH_LEN("sha256_password")
 };
-#endif
+
 static LEX_STRING validate_password_plugin_name= {
   C_STRING_WITH_LEN("validate_password")
 };
@@ -1231,7 +1231,20 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
           char *tmpstr= get_field(&global_acl_memory,
                                   table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]);
           if (tmpstr && (*tmpstr == 'Y' || *tmpstr == 'y'))
+          {
             user.password_expired= true;
+
+            if (!auth_plugin_supports_expiration(user.plugin.str))
+            {
+              sql_print_warning("'user' entry '%s@%s' has the password ignore "
+                                "flag raised, but its authentication plugin "
+                                "doesn't support password expiration. "
+                                "The user id will be ignored.",
+                                user.user ? user.user : "",
+                                user.host.get_host() ? user.host.get_host() : "");
+              continue;
+            }
+          }
         }
       } // end if (table->s->fields >= 31)
       else
@@ -1836,8 +1849,10 @@ static void acl_update_user(const char *user, const char *host,
       {
         if (plugin->length > 0)
         {
-          acl_user->plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
-          acl_user->plugin.length= plugin->length;
+          acl_user->plugin= *plugin;
+          optimize_plugin_compare_by_pointer(&acl_user->plugin);
+          if (!auth_plugin_is_built_in(acl_user->plugin.str))
+            acl_user->plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
           acl_user->auth_string.str= auth->str ?
             strmake_root(&global_acl_memory, auth->str,
                          auth->length) : const_cast<char*>("");
@@ -1906,8 +1921,10 @@ static void acl_insert_user(const char *user, const char *host,
   acl_user.host.update_hostname(*host ? strdup_root(&global_acl_memory, host) : 0);
   if (plugin->str[0])
   {
-    acl_user.plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
-    acl_user.plugin.length= plugin->length;
+    acl_user.plugin= *plugin;
+    optimize_plugin_compare_by_pointer(&acl_user.plugin);
+    if (!auth_plugin_is_built_in(acl_user.plugin.str))
+      acl_user.plugin.str= strmake_root(&global_acl_memory, plugin->str, plugin->length);
     acl_user.auth_string.str= auth->str ?
       strmake_root(&global_acl_memory, auth->str,
                    auth->length) : const_cast<char*>("");
@@ -2027,10 +2044,19 @@ ulong acl_get(const char *host, const char *ip,
 {
   ulong host_access= ~(ulong)0, db_access= 0;
   uint i;
-  size_t key_length;
+  size_t key_length, copy_length;
   char key[ACL_KEY_LENGTH],*tmp_db,*end;
   acl_entry *entry;
   DBUG_ENTER("acl_get");
+
+  copy_length= (size_t) (strlen(ip ? ip : "") +
+                 strlen(user ? user : "") +
+                 strlen(db ? db : ""));
+  /*
+    Make sure that strmov() operations do not result in buffer overflow.
+  */
+  if (copy_length >= ACL_KEY_LENGTH)
+    DBUG_RETURN(0);
 
   mysql_mutex_lock(&acl_cache->lock);
   end=strmov((tmp_db=strmov(strmov(key, ip ? ip : "")+1,user)+1),db);
@@ -2711,6 +2737,27 @@ static bool test_if_create_new_users(THD *thd)
   }
   return create_new_users;
 }
+
+
+/**
+  Only the plugins that are known to use the mysql.user table 
+  to store their passwords support password expiration atm.
+  TODO: create a service and extend the plugin API to support
+  password expiration for external plugins.
+
+  @retval      false  expiration not supported
+  @retval      true   expiration supported
+*/
+bool auth_plugin_supports_expiration(const char *plugin_name)
+{
+ return (!plugin_name || !*plugin_name ||
+         plugin_name == native_password_plugin_name.str ||
+#if defined(HAVE_OPENSSL)
+         plugin_name == sha256_password_plugin_name.str ||
+#endif
+         plugin_name == old_password_plugin_name.str);
+}
+
 
 bool auth_plugin_is_built_in(const char *plugin_name)
 {
@@ -5801,6 +5848,16 @@ bool check_grant_db(THD *thd,const char *db)
   char helping [NAME_LEN+USERNAME_LENGTH+2];
   uint len;
   bool error= TRUE;
+  size_t copy_length;
+
+  copy_length= (size_t) (strlen(sctx->priv_user ? sctx->priv_user : "") +
+                 strlen(db ? db : ""));
+
+  /*
+    Make sure that strmov() operations do not result in buffer overflow.
+  */
+  if (copy_length >= (NAME_LEN+USERNAME_LENGTH+2))
+    return 1;
 
   len= (uint) (strmov(strmov(helping, sctx->priv_user) + 1, db) - helping) + 1;
 
@@ -7776,6 +7833,7 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   {
     ACL_USER *acl_user;
    
+    /* add the defaults where needed */
     if (!(user_from= get_current_user(thd, tmp_user_from)))
     {
       result= true;
@@ -7784,14 +7842,33 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
+    /* look up the user */
+    if (!(acl_user= find_acl_user(user_from->host.str,
+                                   user_from->user.str, TRUE)))
+    {
+      result= true;
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+                  false);
+      continue;
+    }
+
+    /* Check if the user's authentication method supports expiration */
+    if (!auth_plugin_supports_expiration(acl_user->plugin.str))
+    {
+      result= true;
+      append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
+                  false);
+      continue;
+    }
+
+
+    /* update the mysql.user table */
     enum mysql_user_table_field password_field= MYSQL_USER_FIELD_PASSWORD;
-    if ((!(acl_user= find_acl_user(user_from->host.str,
-                                   user_from->user.str, TRUE))) ||
-         update_user_table(thd, table,
-                           acl_user->host.get_host() ?
-                           acl_user->host.get_host() : "",
-                           acl_user->user ? acl_user->user : "",
-                           NULL, 0, password_field, true))
+    if (update_user_table(thd, table,
+                          acl_user->host.get_host() ?
+                          acl_user->host.get_host() : "",
+                          acl_user->user ? acl_user->user : "",
+                          NULL, 0, password_field, true))
     {
       result= true;
       append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
@@ -9425,7 +9502,6 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
         When setting mpvio->acl_user_plugin we can save memory allocation if
         this is a built in plugin.
       */
-      optimize_plugin_compare_by_pointer(&acl_user_tmp->plugin);
       if (auth_plugin_is_built_in(acl_user_tmp->plugin.str))
         mpvio->acl_user_plugin= mpvio->acl_user->plugin;
       else
@@ -10703,6 +10779,15 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
                               mpvio.acl_user->plugin.str));
     auth_plugin_name= mpvio.acl_user->plugin;
     res= do_auth_once(thd, &auth_plugin_name, &mpvio);
+    if (res <= CR_OK)
+    {
+      if (auth_plugin_name.str == native_password_plugin_name.str)
+        thd->variables.old_passwords= 0;
+      if (auth_plugin_name.str == old_password_plugin_name.str)
+        thd->variables.old_passwords= 1;
+      if (auth_plugin_name.str == sha256_password_plugin_name.str)
+        thd->variables.old_passwords= 2;
+    }
   }
 
   server_mpvio_update_thd(thd, &mpvio);
@@ -11187,6 +11272,18 @@ void deinit_rsa_keys(void)
   g_rsa_keys.free_memory();  
 }
 
+// Wraps a FILE handle, to ensure we always close it when returning.
+class FileCloser
+{
+  FILE *m_file;
+public:
+  FileCloser(FILE *to_be_closed) : m_file(to_be_closed) {}
+  ~FileCloser()
+  {
+    if (m_file != NULL)
+      fclose(m_file);
+  }
+};
 
 /**
   Loads the RSA key pair from disk and store them in a global variable. 
@@ -11241,6 +11338,7 @@ int init_rsa_keys(void)
     /* Don't return an error; server will still be able to operate. */
     return 0;
   }
+  FileCloser close_priv(priv_key_file);
 
   if (strchr(auth_rsa_public_key_path, FN_LIBCHAR) != NULL ||
       strchr(auth_rsa_public_key_path, FN_LIBCHAR2) != NULL)
@@ -11263,6 +11361,7 @@ int init_rsa_keys(void)
     /* Don't return an error; server will still be able to operate. */
     return 0;
   }
+  FileCloser close_public(public_key_file);
 
   RSA *rsa_private_key= RSA_new();
   if (g_rsa_keys.set_private_key(PEM_read_RSAPrivateKey(priv_key_file,

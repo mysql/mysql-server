@@ -4824,7 +4824,7 @@ i_s_innodb_buffer_page_fill(
 		const buf_page_info_t*	page_info;
 		const char*		table_name;
 		char			table_name_buf[MAX_FULL_NAME_LEN + 1];
-		const char*		table_name_bufend;
+		const char*		table_name_bufend = NULL;
 		const char*		index_name;
 		const char*		state_str;
 		enum buf_page_state	state;
@@ -5536,7 +5536,7 @@ i_s_innodb_buf_page_lru_fill(
 		const buf_page_info_t*	page_info;
 		const char*		table_name;
 		char			table_name_buf[MAX_FULL_NAME_LEN + 1];
-		const char*		table_name_bufend;
+		const char*		table_name_bufend = NULL;
 		const char*		index_name;
 		const char*		state_str;
 		enum buf_page_state	state;

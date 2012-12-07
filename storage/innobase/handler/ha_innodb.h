@@ -240,7 +240,9 @@ class ha_innobase: public handler
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info);
 	/** Allows InnoDB to update internal structures with concurrent
-	writes blocked. Invoked before inplace_alter_table().
+	writes blocked (provided that check_if_supported_inplace_alter()
+	did not return HA_ALTER_INPLACE_NO_LOCK).
+	This will be invoked before inplace_alter_table().
 
 	@param altered_table	TABLE object for new version of table.
 	@param ha_alter_info	Structure describing changes to be done
