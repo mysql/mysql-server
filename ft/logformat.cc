@@ -12,8 +12,6 @@
  *   The struct definitions.
  *   The Latex documentation.
  */
-#include <toku_portability.h>
-#include <toku_assert.h>
 #include <ctype.h>
 #include <errno.h>
 #include <stdarg.h>
@@ -23,6 +21,8 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <toku_portability.h>
+#include <toku_assert.h>
 
 
 typedef struct field {

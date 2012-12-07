@@ -3,13 +3,13 @@
 #ident "$Id: test-rwlock.cc 46971 2012-08-18 22:03:43Z zardosht $"
 #ident "Copyright (c) 2010 Tokutek Inc.  All rights reserved."
 
-#include <toku_portability.h>
 #include <errno.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/time.h>
 #include <sys/types.h>
 
+#include <toku_portability.h>
 #include <toku_assert.h>
 #include <portability/toku_fair_rwlock.h>
 #include <portability/toku_pthread.h>

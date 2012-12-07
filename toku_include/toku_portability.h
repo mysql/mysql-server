@@ -169,7 +169,7 @@ int      creat(const char *pathname, mode_t mode)   __attribute__((__deprecated_
 int      fstat(int fd, struct stat *buf)            __attribute__((__deprecated__));
 int      stat(const char *path, struct stat *buf)   __attribute__((__deprecated__));
 int      getpid(void)                               __attribute__((__deprecated__));
-#    if defined(__FreeBSD__)
+#    if defined(__FreeBSD__) || defined(__APPLE__)
 int syscall(int __sysno, ...)             __attribute__((__deprecated__));
 #    else
 long int syscall(long int __sysno, ...)             __attribute__((__deprecated__));
@@ -183,6 +183,8 @@ int      _dup2(int fd, int fd2)                     __attribute__((__deprecated_
 #undef strdup
 #    if defined(__FreeBSD__)
 char*    strdup(const char *)         __malloc_like __attribute__((__deprecated__));
+#    elif defined(__APPLE__)
+char*    strdup(const char *)         __attribute__((__deprecated__));
 #    else
 char*    strdup(const char *)         __THROW __attribute_malloc__ __nonnull ((1)) __attribute__((__deprecated__));
 #    endif
@@ -197,6 +199,10 @@ ssize_t  pwrite(int, const void *, size_t, off_t)   __attribute__((__deprecated_
 extern void *malloc(size_t)                    __malloc_like __attribute__((__deprecated__));
 extern void free(void*)                        __attribute__((__deprecated__));
 extern void *realloc(void*, size_t)            __malloc_like __attribute__((__deprecated__));
+#     elif defined(__APPLE__)
+extern void *malloc(size_t)                    __attribute__((__deprecated__));
+extern void free(void*)                        __attribute__((__deprecated__));
+extern void *realloc(void*, size_t)            __attribute__((__deprecated__));
 #     else
 extern void *malloc(size_t)                    __THROW __attribute__((__deprecated__));
 extern void free(void*)                        __THROW __attribute__((__deprecated__));
@@ -206,13 +212,16 @@ extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecat
 #    ifndef DONT_DEPRECATE_ERRNO
 //extern int errno __attribute__((__deprecated__));
 #    endif
-#pragma GCC poison u_int8_t
-#pragma GCC poison u_int16_t
-#pragma GCC poison u_int32_t
-#pragma GCC poison u_int64_t
-#pragma GCC poison BOOL
-#pragma GCC poison FALSE
-#pragma GCC poison TRUE
+#if !defined(__APPLE__)
+// Darwin headers use these types, we should not poison them
+# pragma GCC poison u_int8_t
+# pragma GCC poison u_int16_t
+# pragma GCC poison u_int32_t
+# pragma GCC poison u_int64_t
+# pragma GCC poison BOOL
+# pragma GCC poison FALSE
+# pragma GCC poison TRUE
+#endif
 #pragma GCC poison __sync_fetch_and_add
 #pragma GCC poison __sync_fetch_and_sub
 #pragma GCC poison __sync_fetch_and_or

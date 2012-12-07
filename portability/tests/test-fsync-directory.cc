@@ -5,9 +5,9 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 // use strace to very that the toku_fsync_directory function works
 
-#include "test.h"
 #include <stdlib.h>
 #include <string.h>
+#include "test.h"
 
 static int verbose = 0;
 

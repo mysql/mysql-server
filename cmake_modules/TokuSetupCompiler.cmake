@@ -4,8 +4,6 @@ endfunction(add_c_defines)
 
 if (APPLE)
   add_c_defines(DARWIN=1 _DARWIN_C_SOURCE)
-  message(WARNING "Setting TOKU_ALLOW_DEPRECATED on Darwin and with clang.  TODO: find a portable way to deprecate, and remove this.")
-  add_c_defines(TOKU_ALLOW_DEPRECATED)
 endif ()
 
 ## preprocessor definitions we want everywhere

@@ -8,9 +8,9 @@
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <stdint.h>
+#include <memory.h>
 #include <toku_portability.h>
 #include <toku_race_tools.h>
-#include <memory.h>
 #include "growable_array.h"
 
 namespace toku {

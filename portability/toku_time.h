@@ -9,40 +9,23 @@
 #include "config.h"
 #include <time.h>
 #include <sys/time.h>
+#include <stdint.h>
 
 
 static inline float toku_tdiff (struct timeval *a, struct timeval *b) {
     return (float)((a->tv_sec - b->tv_sec) + 1e-6 * (a->tv_usec - b->tv_usec));
 }
 
-#if !defined(HAVE_CLOCK_REALTIME) // OS X does not have clock_gettime, use clock_get_time
-# include <errno.h>
-# include <mach/clock.h>
-# include <mach/mach.h>
-typedef int clockid_t;
-# define CLOCK_REALTIME 0x01867234  // just something bogus, it doesn't matter
-#endif
-
-static inline int
-toku_clock_gettime(clockid_t clk_id, struct timespec *ts)
-{
 #if !defined(HAVE_CLOCK_REALTIME)
-    if (clk_id != CLOCK_REALTIME) {
-        // dunno how to fake any of the other ones on osx
-        return EINVAL;
-    }
-    clock_serv_t cclock;
-    mach_timespec_t mts;
-    host_get_clock_service(mach_host_self(), REALTIME_CLOCK, &cclock);
-    clock_get_time(cclock, &mts);
-    mach_port_deallocate(mach_task_self(), cclock);
-    ts->tv_sec = mts.tv_sec;
-    ts->tv_nsec = mts.tv_nsec;
-    return 0;
-#else
-    return clock_gettime(clk_id, ts);
+// OS X does not have clock_gettime, we fake clockid_t for the interface, and we'll implement it with clock_get_time.
+typedef int clockid_t;
+// just something bogus, it doesn't matter, we just want to make sure we're
+// only supporting this mode because we're not sure we can support other modes
+// without a real clock_gettime()
+#define CLOCK_REALTIME 0x01867234
 #endif
-}
+int
+toku_clock_gettime(clockid_t clk_id, struct timespec *ts);
 
 // *************** Performance timers ************************
 // What do you really want from a performance timer:
