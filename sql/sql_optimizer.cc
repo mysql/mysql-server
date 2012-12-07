@@ -7663,7 +7663,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 	      tab->table->reginfo.impossible_range)
 	    DBUG_RETURN(1);				// Impossible range
           /*
-            We plan to scan all rows.
+            We plan to scan (table/index/range scan).
             Check again if we should use an index. We can use an index if:
 
             1a) There is a condition that range optimizer can work on, and
@@ -7683,46 +7683,122 @@ static bool make_join_select(JOIN *join, Item *cond)
             2d) The query is NOT run with FOUND_ROWS() (because in that
                 case we have to scan through all rows to count them anyway)
           */
+          enum { DONT_RECHECK, NOT_FIRST_TABLE, LOW_LIMIT }
+          recheck_reason= DONT_RECHECK;
 
-          if ((cond &&                                                // 1a
-               !tab->keys.is_subset(tab->const_keys) &&               // 1b
-               (i > 0 ||                                              // 1c
-                (join->select_lex->master_unit()->item &&
-                 cond->used_tables() & OUTER_REF_TABLE_BIT)
-                )
-               ) ||
-              (!tab->const_keys.is_clear_all() &&                     // 2a
-               i == join->const_tables &&                             // 2b
-               join->unit->select_limit_cnt < tab->position->records_read && // 2c
-               !(join->select_options & OPTION_FOUND_ROWS))          // 2d
-              )
+          if (cond &&                                                // 1a
+              !tab->keys.is_subset(tab->const_keys) &&               // 1b
+              (i > 0 ||                                              // 1c
+               (join->select_lex->master_unit()->item &&
+                cond->used_tables() & OUTER_REF_TABLE_BIT)))
+            recheck_reason= NOT_FIRST_TABLE;
+          else if (!tab->const_keys.is_clear_all() &&               // 2a
+                   i == join->const_tables &&                       // 2b
+                   (join->unit->select_limit_cnt <
+                    tab->position->records_read) &&                 // 2c
+                   !(join->select_options & OPTION_FOUND_ROWS))     // 2d
+            recheck_reason= LOW_LIMIT;
+
+          if (recheck_reason != DONT_RECHECK)
           {
             Opt_trace_object trace_one_table(trace);
             trace_one_table.add_utf8_table(tab->table);
             Opt_trace_object trace_table(trace, "rechecking_index_usage");
+            if (recheck_reason == NOT_FIRST_TABLE)
+              trace_table.add_alnum("recheck_reason", "not_first_table");
+            else
+              trace_table.add_alnum("recheck_reason", "low_limit").
+                add("limit", join->unit->select_limit_cnt).
+                add("row_estimate", tab->position->records_read);
 
-	    /* Join with outer join condition */
-	    Item *orig_cond=sel->cond;
-	    sel->cond= and_conds(sel->cond, *tab->on_expr_ref);
+            /* Join with outer join condition */
+            Item *orig_cond=sel->cond;
+            sel->cond= and_conds(sel->cond, *tab->on_expr_ref);
 
-	    /*
+            /*
               We can't call sel->cond->fix_fields,
               as it will break tab->join_cond() if it's AND condition
               (fix_fields currently removes extra AND/OR levels).
               Yet attributes of the just built condition are not needed.
               Thus we call sel->cond->quick_fix_field for safety.
-	    */
-	    if (sel->cond && !sel->cond->fixed)
-	      sel->cond->quick_fix_field();
+            */
+            if (sel->cond && !sel->cond->fixed)
+              sel->cond->quick_fix_field();
 
-            if (sel->test_quick_select(thd, tab->keys,
+            key_map usable_keys= tab->keys;
+            ORDER::enum_order interesting_order= ORDER::ORDER_NOT_RELEVANT;
+
+            if (recheck_reason == LOW_LIMIT)
+            {
+              /*
+                If rechecking index usage due to a LIMIT lower than
+                the number of rows estimated to be read for this
+                table, it only makes sense to check the indexes that
+                provide the necessary order.
+              */
+              for (ORDER *tmp_order= join->order;
+                   tmp_order ;
+                   tmp_order=tmp_order->next)
+              {
+                Item *item= (*tmp_order->item)->real_item();
+                if (item->type() != Item::FIELD_ITEM)
+                {
+                  recheck_reason= DONT_RECHECK;
+                  break;
+                }
+
+                if ((interesting_order != ORDER::ORDER_NOT_RELEVANT) &&
+                    (interesting_order != tmp_order->direction))
+                {
+                  /*
+                    MySQL currently does not support multi-column
+                    indexes with a mix of ASC and DESC ordering, so if
+                    ORDER BY contains both, no index can provide
+                    correct order.
+                  */
+                  recheck_reason= DONT_RECHECK;
+                  break;
+                }
+
+                usable_keys.intersect(((Item_field*)item)->field->part_of_sortkey);
+                interesting_order= tmp_order->direction;
+
+                if (usable_keys.is_clear_all())
+                {
+                  // No usable keys
+                  recheck_reason= DONT_RECHECK;
+                  break;
+                }
+              }
+              /*
+                If the current plan is to use a range access on an
+                index that provides the order dictated by the ORDER BY
+                clause there is no need to recheck index usage; we
+                already know from the former call to
+                test_quick_select() that a range scan on the chosen
+                index is cheapest. Note that previous calls to
+                test_quick_select() did not take order direction
+                (ASC/DESC) into account, so in case of DESC ordering
+                we still need to recheck.
+              */
+              if (sel->quick && (sel->quick->index != MAX_KEY) &&
+                  usable_keys.is_set(sel->quick->index) &&
+                  (interesting_order != ORDER::ORDER_DESC ||
+                   sel->quick->reverse_sorted()))
+              {
+                recheck_reason= DONT_RECHECK;
+              }
+            }
+
+            if ((recheck_reason != DONT_RECHECK) &&
+                sel->test_quick_select(thd, usable_keys,
                                        used_tables & ~tab->table->map,
                                        (join->select_options &
                                         OPTION_FOUND_ROWS ?
                                         HA_POS_ERROR :
                                         join->unit->select_limit_cnt),
                                        false,   // don't force quick range
-                                       ORDER::ORDER_NOT_RELEVANT) < 0)
+                                       interesting_order) < 0)
             {
 	      /*
 		Before reporting "Impossible WHERE" for the whole query
