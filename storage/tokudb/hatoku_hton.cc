@@ -1169,6 +1169,261 @@ cleanup:
     return error;
 }
 
+static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *iname, TABLE *table, THD *thd) {
+    int error;
+    DB *db;
+    uint64_t bt_num_blocks_allocated;
+    uint64_t bt_num_blocks_in_use;
+    uint64_t bt_size_allocated;
+    uint64_t bt_size_in_use;
+
+    error = db_create(&db, db_env, 0);
+    if (error) {
+        goto exit;
+    }
+    error = db->open(db, NULL, (char *)dname->data, NULL, DB_BTREE, 0, 0666);
+    if (error) {
+        goto exit;
+    }
+    error = db->get_fractal_tree_info64(db,
+                                        &bt_num_blocks_allocated, &bt_num_blocks_in_use,
+                                        &bt_size_allocated, &bt_size_in_use);
+    {
+        int close_error = db->close(db, 0);
+        if (!error) {
+            error = close_error;
+        }
+    }
+    if (error) {
+        goto exit;
+    }
+
+    table->field[0]->store(
+        (char *)dname->data,
+        dname->size,
+        system_charset_info
+        );
+    table->field[1]->store(
+        (char *)iname->data,
+        iname->size,
+        system_charset_info
+        );
+    table->field[2]->store(bt_num_blocks_allocated, false);
+    table->field[3]->store(bt_num_blocks_in_use, false);
+    table->field[4]->store(bt_size_allocated, false);
+    table->field[5]->store(bt_size_in_use, false);
+
+    error = schema_table_store_record(thd, table);
+
+exit:
+    return error;
+}
+
+static int tokudb_fractal_tree_info(TABLE *table, THD *thd) {
+    int error;
+    DB_TXN* txn = NULL;
+    DBC* tmp_cursor = NULL;
+    DBT curr_key;
+    DBT curr_val;
+    memset(&curr_key, 0, sizeof curr_key);
+    memset(&curr_val, 0, sizeof curr_val);
+    error = db_env->txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
+    if (error) {
+        goto cleanup;
+    }
+    error = db_env->get_cursor_for_directory(db_env, txn, &tmp_cursor);
+    if (error) {
+        goto cleanup;
+    }
+    while (error == 0) {
+        error = tmp_cursor->c_get(
+            tmp_cursor,
+            &curr_key,
+            &curr_val,
+            DB_NEXT
+            );
+        if (!error) {
+            error = tokudb_report_fractal_tree_info_for_db(&curr_key, &curr_val, table, thd);
+        }
+    }
+    if (error == DB_NOTFOUND) {
+        error = 0;
+    }
+cleanup:
+    if (tmp_cursor) {
+        int r = tmp_cursor->c_close(tmp_cursor);
+        assert(r==0);
+    }
+    if (txn) {
+        commit_txn(txn, 0);
+    }
+    return error;
+}
+
+struct tokudb_report_fractal_tree_block_map_iterator_extra {
+    int64_t num_rows;
+    int64_t i;
+    uint64_t *checkpoint_counts;
+    int64_t *blocknums;
+    int64_t *diskoffs;
+    int64_t *sizes;
+};
+
+// This iterator is called while holding the blocktable lock.  We should be as quick as possible.
+// We don't want to do one call to get the number of rows, release the blocktable lock, and then do another call to get all the rows because the number of rows may change if we don't hold the lock.
+// As a compromise, we'll do some mallocs inside the lock on the first call, but everything else should be fast.
+static int tokudb_report_fractal_tree_block_map_iterator(uint64_t checkpoint_count,
+                                                          int64_t num_rows,
+                                                          int64_t blocknum,
+                                                          int64_t diskoff,
+                                                          int64_t size,
+                                                          void *iter_extra) {
+    struct tokudb_report_fractal_tree_block_map_iterator_extra *e = static_cast<struct tokudb_report_fractal_tree_block_map_iterator_extra *>(iter_extra);
+
+    assert(num_rows > 0);
+    if (e->num_rows == 0) {
+        e->checkpoint_counts = (uint64_t *) my_malloc(num_rows * (sizeof *e->checkpoint_counts), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->blocknums = (int64_t *) my_malloc(num_rows * (sizeof *e->blocknums), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->diskoffs = (int64_t *) my_malloc(num_rows * (sizeof *e->diskoffs), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->sizes = (int64_t *) my_malloc(num_rows * (sizeof *e->sizes), MYF(MY_WME|MY_ZEROFILL|MY_FAE));
+        e->num_rows = num_rows;
+    }
+
+    e->checkpoint_counts[e->i] = checkpoint_count;
+    e->blocknums[e->i] = blocknum;
+    e->diskoffs[e->i] = diskoff;
+    e->sizes[e->i] = size;
+    ++(e->i);
+
+    return 0;
+}
+
+static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const DBT *iname, TABLE *table, THD *thd) {
+    int error;
+    DB *db;
+    struct tokudb_report_fractal_tree_block_map_iterator_extra e = {
+        .num_rows = 0,
+        .i = 0,
+        .checkpoint_counts = NULL,
+        .blocknums = NULL,
+        .diskoffs = NULL,
+        .sizes = NULL,
+    };
+
+    error = db_create(&db, db_env, 0);
+    if (error) {
+        goto exit;
+    }
+    error = db->open(db, NULL, (char *)dname->data, NULL, DB_BTREE, 0, 0666);
+    if (error) {
+        goto exit;
+    }
+    error = db->iterate_fractal_tree_block_map(db, tokudb_report_fractal_tree_block_map_iterator, &e);
+    {
+        int close_error = db->close(db, 0);
+        if (!error) {
+            error = close_error;
+        }
+    }
+    if (error) {
+        goto exit;
+    }
+
+    // If not, we should have gotten an error and skipped this section of code
+    assert(e.i == e.num_rows);
+    for (int64_t i = 0; error == 0 && i < e.num_rows; ++i) {
+        table->field[0]->store(
+            (char *)dname->data,
+            dname->size,
+            system_charset_info
+            );
+        table->field[1]->store(
+            (char *)iname->data,
+            iname->size,
+            system_charset_info
+            );
+        table->field[2]->store(e.checkpoint_counts[i], false);
+        table->field[3]->store(e.blocknums[i], false);
+        static const int64_t freelist_null = -1;
+        static const int64_t diskoff_unused = -2;
+        if (e.diskoffs[i] == diskoff_unused || e.diskoffs[i] == freelist_null) {
+            table->field[4]->set_null();
+        } else {
+            table->field[4]->set_notnull();
+            table->field[4]->store(e.diskoffs[i], false);
+        }
+        static const int64_t size_is_free = -1;
+        if (e.sizes[i] == size_is_free) {
+            table->field[5]->set_null();
+        } else {
+            table->field[5]->set_notnull();
+            table->field[5]->store(e.sizes[i], false);
+        }
+
+        error = schema_table_store_record(thd, table);
+    }
+
+exit:
+    if (e.checkpoint_counts != NULL) {
+        my_free(e.checkpoint_counts, MYF(0));
+        e.checkpoint_counts = NULL;
+    }
+    if (e.blocknums != NULL) {
+        my_free(e.blocknums, MYF(0));
+        e.blocknums = NULL;
+    }
+    if (e.diskoffs != NULL) {
+        my_free(e.diskoffs, MYF(0));
+        e.diskoffs = NULL;
+    }
+    if (e.sizes != NULL) {
+        my_free(e.sizes, MYF(0));
+        e.sizes = NULL;
+    }
+    return error;
+}
+
+static int tokudb_fractal_tree_block_map(TABLE *table, THD *thd) {
+    int error;
+    DB_TXN* txn = NULL;
+    DBC* tmp_cursor = NULL;
+    DBT curr_key;
+    DBT curr_val;
+    memset(&curr_key, 0, sizeof curr_key);
+    memset(&curr_val, 0, sizeof curr_val);
+    error = db_env->txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
+    if (error) {
+        goto cleanup;
+    }
+    error = db_env->get_cursor_for_directory(db_env, txn, &tmp_cursor);
+    if (error) {
+        goto cleanup;
+    }
+    while (error == 0) {
+        error = tmp_cursor->c_get(
+            tmp_cursor,
+            &curr_key,
+            &curr_val,
+            DB_NEXT
+            );
+        if (!error) {
+            error = tokudb_report_fractal_tree_block_map_for_db(&curr_key, &curr_val, table, thd);
+        }
+    }
+    if (error == DB_NOTFOUND) {
+        error = 0;
+    }
+cleanup:
+    if (tmp_cursor) {
+        int r = tmp_cursor->c_close(tmp_cursor);
+        assert(r==0);
+    }
+    if (txn) {
+        commit_txn(txn, 0);
+    }
+    return error;
+}
+
 static int tokudb_get_user_data_size(TABLE *table, THD *thd, bool exact) {
     int error;
     DB* curr_db = NULL;
@@ -1741,6 +1996,10 @@ static int tokudb_user_data_done(void *p) {
 
 static struct st_mysql_information_schema tokudb_user_data_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
 
+static struct st_mysql_information_schema tokudb_fractal_tree_info_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+
+static struct st_mysql_information_schema tokudb_fractal_tree_block_map_information_schema = { MYSQL_INFORMATION_SCHEMA_INTERFACE_VERSION };
+
 static ST_FIELD_INFO tokudb_user_data_exact_field_info[] = {
     {"database_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"table_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
@@ -1751,6 +2010,26 @@ static ST_FIELD_INFO tokudb_user_data_exact_field_info[] = {
 static ST_FIELD_INFO tokudb_dictionary_field_info[] = {
     {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
     {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
+};
+
+static ST_FIELD_INFO tokudb_fractal_tree_info_field_info[] = {
+    {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"bt_num_blocks_allocated", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"bt_num_blocks_in_use", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"bt_size_allocated", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"bt_size_in_use", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
+};
+
+static ST_FIELD_INFO tokudb_fractal_tree_block_map_field_info[] = {
+    {"dictionary_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"internal_file_name", 256, MYSQL_TYPE_STRING, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"checkpoint_count", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"blocknum", 0, MYSQL_TYPE_LONGLONG, 0, 0, NULL, SKIP_OPEN_TABLE },
+    {"offset", 0, MYSQL_TYPE_LONGLONG, 0, MY_I_S_MAYBE_NULL, NULL, SKIP_OPEN_TABLE },
+    {"size", 0, MYSQL_TYPE_LONGLONG, 0, MY_I_S_MAYBE_NULL, NULL, SKIP_OPEN_TABLE },
     {NULL, 0, MYSQL_TYPE_NULL, 0, 0, NULL, SKIP_OPEN_TABLE}
 };
 
@@ -1803,6 +2082,54 @@ static int tokudb_user_data_exact_fill_table(THD *thd, TABLE_LIST *tables, COND 
     return error;
 }
 
+#if MYSQL_VERSION_ID >= 50600
+static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+#else
+static int tokudb_fractal_tree_info_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+#endif
+    int error;
+    TABLE *table = tables->table;
+
+    // 3938: Get a read lock on the status flag, since we must
+    // read it before safely proceeding
+    rw_rdlock(&tokudb_hton_initialized_lock);
+
+    if (!tokudb_hton_initialized) {
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        error = -1;
+    } else {
+        error = tokudb_fractal_tree_info(table, thd);
+    }
+
+    //3938: unlock the status flag lock
+    rw_unlock(&tokudb_hton_initialized_lock);
+    return error;
+}
+
+#if MYSQL_VERSION_ID >= 50600
+static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables, Item *cond) {
+#else
+static int tokudb_fractal_tree_block_map_fill_table(THD *thd, TABLE_LIST *tables, COND *cond) {
+#endif
+    int error;
+    TABLE *table = tables->table;
+
+    // 3938: Get a read lock on the status flag, since we must
+    // read it before safely proceeding
+    rw_rdlock(&tokudb_hton_initialized_lock);
+
+    if (!tokudb_hton_initialized) {
+        my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), "TokuDB");
+        error = -1;
+    } else {
+        error = tokudb_fractal_tree_block_map(table, thd);
+    }
+
+    //3938: unlock the status flag lock
+    rw_unlock(&tokudb_hton_initialized_lock);
+    return error;
+}
+
 static int tokudb_user_data_exact_init(void *p) {
     ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
     schema->fields_info = tokudb_user_data_exact_field_info;
@@ -1822,6 +2149,28 @@ static int tokudb_dictionary_info_init(void *p) {
 }
 
 static int tokudb_dictionary_info_done(void *p) {
+    return 0;
+}
+
+static int tokudb_fractal_tree_info_init(void *p) {
+    ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
+    schema->fields_info = tokudb_fractal_tree_info_field_info;
+    schema->fill_table = tokudb_fractal_tree_info_fill_table;
+    return 0;
+}
+
+static int tokudb_fractal_tree_info_done(void *p) {
+    return 0;
+}
+
+static int tokudb_fractal_tree_block_map_init(void *p) {
+    ST_SCHEMA_TABLE *schema = (ST_SCHEMA_TABLE *) p;
+    schema->fields_info = tokudb_fractal_tree_block_map_field_info;
+    schema->fill_table = tokudb_fractal_tree_block_map_fill_table;
+    return 0;
+}
+
+static int tokudb_fractal_tree_block_map_done(void *p) {
     return 0;
 }
 
@@ -1898,6 +2247,40 @@ mysql_declare_plugin(tokudb)
 #if MYSQL_VERSION_ID >= 50521
     0,                         /* flags */
 #endif
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_fractal_tree_info_information_schema, 
+    "TokuDB_fractal_tree_info", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_PROPRIETARY,
+    tokudb_fractal_tree_info_init,     /* plugin init */
+    tokudb_fractal_tree_info_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    NULL,                      /* config options */
+#if MYSQL_VERSION_ID >= 50521
+    0,                         /* flags */
+#endif
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_fractal_tree_block_map_information_schema, 
+    "TokuDB_fractal_tree_block_map", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_PROPRIETARY,
+    tokudb_fractal_tree_block_map_init,     /* plugin init */
+    tokudb_fractal_tree_block_map_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    NULL,                      /* config options */
+#if MYSQL_VERSION_ID >= 50521
+    0,                         /* flags */
+#endif
 }
 mysql_declare_plugin_end;
 
@@ -1958,6 +2341,36 @@ maria_declare_plugin(tokudb)
     PLUGIN_LICENSE_PROPRIETARY,
     tokudb_dictionary_info_init,     /* plugin init */
     tokudb_dictionary_info_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_fractal_tree_info_information_schema, 
+    "TokuDB_fractal_tree_info", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_PROPRIETARY,
+    tokudb_fractal_tree_info_init,     /* plugin init */
+    tokudb_fractal_tree_info_done,     /* plugin deinit */
+    TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
+    NULL,                      /* status variables */
+    NULL,                      /* system variables */
+    TOKUDB_PLUGIN_VERSION_STR, /* string version */
+    MariaDB_PLUGIN_MATURITY_STABLE /* maturity */
+},
+{
+    MYSQL_INFORMATION_SCHEMA_PLUGIN, 
+    &tokudb_fractal_tree_block_map_information_schema, 
+    "TokuDB_fractal_tree_block_map", 
+    "Tokutek Inc", 
+    "Tokutek TokuDB Storage Engine with Fractal Tree(tm) Technology",
+    PLUGIN_LICENSE_PROPRIETARY,
+    tokudb_fractal_tree_block_map_init,     /* plugin init */
+    tokudb_fractal_tree_block_map_done,     /* plugin deinit */
     TOKUDB_PLUGIN_VERSION,     /* 4.0.0 */
     NULL,                      /* status variables */
     NULL,                      /* system variables */
