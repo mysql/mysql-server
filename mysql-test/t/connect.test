@@ -465,6 +465,29 @@ DROP FUNCTION last_t1;
 DROP TABLE t1;
 DROP USER must_change@localhost;
 
+
+--echo #
+--echo # WL#6587:  Protocol support for password expiration
+--echo #
+
+CREATE USER wl6587@localhost IDENTIFIED BY 'wl6587';
+ALTER USER wl6587@localhost PASSWORD EXPIRE;
+
+--echo # non-interactive mysql should fail
+--error 1
+--exec $MYSQL -uwl6587 --password=wl6587 test -e "SELECT USER()" 2>&1
+
+--echo # mysqladmin non-password should fail
+--replace_regex /.*mysqladmin.*: connect/mysqladmin: connect/
+--error 1
+--exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uwl6587 --password=wl6587 status 2>&1
+
+--echo # mysqladmin password should work
+--exec $MYSQLADMIN -S $MASTER_MYSOCK -P $MASTER_MYPORT -uwl6587 --password=wl6587 password wl6587-2 2>&1
+
+DROP USER wl6587@localhost;
+
+
 --echo # ------------------------------------------------------------------
 --echo # -- End of 5.6 tests
 --echo # ------------------------------------------------------------------

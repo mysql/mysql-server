@@ -228,6 +228,7 @@ enum mysql_user_table_field
 
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
+extern my_bool disconnect_on_expired_password;
 extern const char *command_array[];
 extern uint        command_lengths[];
 
