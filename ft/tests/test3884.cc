@@ -78,6 +78,9 @@ insert_dummy_value(FTNODE node, int bn, long k)
     return leafentry_disksize(le);
 }
 
+// TODO: this stuff should be in ft/ft-ops.cc, not in a test.
+// it makes it incredibly hard to add things to an ftnode
+// when tests hard code initializations...
 static void
 setup_ftnode_header(struct ftnode *node)
 {
@@ -88,6 +91,7 @@ setup_ftnode_header(struct ftnode *node)
     node->height = 0;
     node->dirty = 1;
     node->totalchildkeylens = 0;
+    node->oldest_known_referenced_xid = TXNID_NONE;
 }
 
 static void
