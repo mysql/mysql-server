@@ -28,6 +28,7 @@ Created 2012-11-16 by Sunny Bains.
 
 #include "srv0srv.h"
 #include "os0file.h"
+#include <vector>
 
 /** Data structure that contains the information about shared tablespaces.
 Currently this can be the system tablespace or a temporary table tablespace */
@@ -273,6 +274,10 @@ public:
 	static bool intersection(
 		const Tablespace&	space1,
 		const Tablespace&	space2);
+
+	/** Check if system-tablespace (shared + temp).
+	@return true if system tablespace */
+	static bool is_system_tablespace(ulint id);
 
 private:
 	/**

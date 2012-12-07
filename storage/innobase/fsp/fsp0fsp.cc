@@ -992,7 +992,7 @@ fsp_try_extend_data_file(
 
 	} else if (space == srv_tmp_space.space_id()) {
 
-		size_increase = srv_sys_space.get_increment();
+		size_increase = srv_tmp_space.get_increment();
 
 	} else {
 		/* We extend single-table tablespaces first one extent
