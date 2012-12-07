@@ -94,6 +94,7 @@ class pair_list;
 //
 struct cachefile {
     CACHEFILE next;
+    CACHEFILE prev;
     bool for_checkpoint; //True if part of the in-progress checkpoint
 
     // If set and the cachefile closes, the file will be removed.
