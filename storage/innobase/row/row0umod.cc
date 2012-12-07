@@ -832,6 +832,12 @@ row_undo_mod_del_mark_sec(
 			row_undo_mod_sec_flag_corrupted(
 				thr_get_trx(thr), index);
 			err = DB_SUCCESS;
+			/* Do not return any error to the caller. The
+			duplicate will be reported by ALTER TABLE or
+			CREATE UNIQUE INDEX. Unfortunately we cannot
+			report the duplicate key value to the DDL
+			thread, because the altered_table object is
+			private to its call stack. */
 		} else if (err != DB_SUCCESS) {
 			break;
 		}

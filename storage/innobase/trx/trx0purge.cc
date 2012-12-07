@@ -69,6 +69,10 @@ UNIV_INTERN mysql_pfs_key_t	trx_purge_latch_key;
 UNIV_INTERN mysql_pfs_key_t	purge_sys_bh_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+#ifdef UNIV_DEBUG
+UNIV_INTERN my_bool		srv_purge_view_update_only_debug;
+#endif /* UNIV_DEBUG */
+
 /****************************************************************//**
 Builds a purge 'query' graph. The actual purge is performed by executing
 this query graph.
@@ -1199,6 +1203,12 @@ trx_purge(
 	purge_sys->view = read_view_purge_open(purge_sys->heap);
 
 	rw_lock_x_unlock(&purge_sys->latch);
+
+#ifdef UNIV_DEBUG
+	if (srv_purge_view_update_only_debug) {
+		return(0);
+	}
+#endif
 
 	/* Fetch the UNDO recs that need to be purged. */
 	n_pages_handled = trx_purge_attach_undo_recs(

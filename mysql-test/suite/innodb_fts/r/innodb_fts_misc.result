@@ -120,38 +120,39 @@ INSERT INTO t1 (a,b) VALUES
 'search, with proximity innodb');
 SELECT id FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+AGAINST ('"proximity search"@2' IN BOOLEAN MODE);
 id
 8
 SELECT id FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
+AGAINST ('"proximity search"@1' IN BOOLEAN MODE);
 id
 SELECT id FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+AGAINST ('"proximity search"@3' IN BOOLEAN MODE);
 id
 8
 9
 10
 SELECT id FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
+AGAINST ('"test proximity"@3' IN BOOLEAN MODE);
 id
 8
 9
+10
 SELECT id FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
 id
 10
 SELECT id FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
+AGAINST ('"more test proximity"@2' IN BOOLEAN MODE);
 id
 SELECT id FROM t1
 WHERE MATCH (a,b)
-AGAINST ('"more fts proximity"@09' IN BOOLEAN MODE);
+AGAINST ('"more fts proximity"@02' IN BOOLEAN MODE);
 id
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -270,30 +271,30 @@ INSERT INTO t1 (a,b) VALUES
 ('test more proximity fts search, test, more proximity and phrase',
 'search, with proximity innodb');
 SELECT id FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE
-MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 id
 7
 SELECT id FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
-MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 id
 8
 9
 SELECT id FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE
-MATCH (t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+MATCH (t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 id
 7
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
-MATCH t2.a,t2.b AGAINST ('"proximity search"@10' IN BOOLEAN MODE) 
+MATCH t2.a,t2.b AGAINST ('"proximity search"@2' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 id
 7
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
-MATCH t2.a,t2.b AGAINST ('"more test proximity"@10' IN BOOLEAN MODE) 
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@3' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 id
 9
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
-MATCH t2.a,t2.b AGAINST ('"more test proximity"@5' IN BOOLEAN MODE) 
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@2' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 id
 CREATE TABLE t2 ENGINE = InnoDB AS SELECT id FROM t1 WHERE
@@ -329,6 +330,8 @@ t2	CREATE TABLE `t2` (
 SELECT id FROM t2;
 id
 7
+8
+9
 DROP TABLE t2;
 DROP TABLE t1;
 CREATE TABLE t1 (
@@ -1017,7 +1020,7 @@ fulltext key (`a`), fulltext key (`a`)
 Warnings:
 Note	1831	Duplicate index 'a_2' defined on the table 'test.t21'. This is deprecated and will be disallowed in a future release.
 ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE'
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: InnoDB presently supports one FULLTEXT index creation at a time. Try ALGORITHM=COPY.
 ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
 DROP TABLE t21;
 CREATE TABLE `t21` (`a` text, `b` int not null,

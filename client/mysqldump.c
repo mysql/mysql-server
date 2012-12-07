@@ -5325,7 +5325,7 @@ static my_bool add_set_gtid_purged(MYSQL *mysql_con)
   {
     if (opt_comments)
       fprintf(md_result_file,
-          "\n--\n--GTID state at the beginning of the backup \n--\n\n");
+          "\n--\n-- GTID state at the beginning of the backup \n--\n\n");
 
     fprintf(md_result_file,"SET @@GLOBAL.GTID_PURGED='");
 

@@ -812,6 +812,8 @@ ut_strerr(
 		return("not found");
 	case DB_ONLINE_LOG_TOO_BIG:
 		return("Log size exceeded during online index creation");
+	case DB_DICT_CHANGED:
+		return("Table dictionary has changed");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */
