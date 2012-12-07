@@ -212,11 +212,18 @@ SET(TESTS
   dynarray
   filesort_buffer
   filesort_compare
+  like_range
   mdl
   my_bitmap
   my_error
   my_fileutils
   my_regex
+  mysys_base64
+  mysys_lf
+  mysys_my_atomic
+  mysys_my_malloc
+  mysys_my_rdtsc
+  mysys_my_vsnprintf
   sql_list
   sql_plist
   sql_string
