@@ -3883,6 +3883,7 @@ EXPLAIN SELECT 1 FROM
                       {
                         "table": "`t2`",
                         "rechecking_index_usage": {
+                          "recheck_reason": "not_first_table",
                           "range_analysis": {
                             "table_scan": {
                               "rows": 3,
@@ -4217,6 +4218,7 @@ EXPLAIN SELECT 1 FROM
                       {
                         "table": "`t2`",
                         "rechecking_index_usage": {
+                          "recheck_reason": "not_first_table",
                           "range_analysis": {
                             "table_scan": {
                               "rows": 3,

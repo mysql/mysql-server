@@ -1882,6 +1882,7 @@ ON table2 .col_int_key = table1 .col_int_key
                 {
                   "table": "`t1` `table2`",
                   "rechecking_index_usage": {
+                    "recheck_reason": "not_first_table",
                     "range_analysis": {
                       "table_scan": {
                         "rows": 4,
