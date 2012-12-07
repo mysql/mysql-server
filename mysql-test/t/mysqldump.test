@@ -2347,11 +2347,17 @@ INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
 --echo # Note : In the following dump the transaction
 --echo #        should start only after the logs are
 --echo #        flushed, as 'flush logs' causes implicit
---echo #        commit starting 5.5.
+--echo #        commit starting 5.5.Also, as stderr is
+--echo #        unbuffered, it is redirected to a different
+--echo #        file to avoid diffs due to bad stdout/stderr
+--echo #        order in the output.
 --echo
 --echo #### Dump starts here ####
 --replace_regex /-- Server version.*// /-- MySQL dump .*// /-- Dump completed on .*/-- Dump completed/
---exec $MYSQL_DUMP --verbose --single-transaction --flush-log b12809202_db 2>&1
+--exec $MYSQL_DUMP --verbose --single-transaction --flush-log b12809202_db 2>$MYSQLTEST_VARDIR/tmp/b12809202_stderr.sql
+--echo
+--echo ## stderr ##
+--cat_file $MYSQLTEST_VARDIR/tmp/b12809202_stderr.sql
 --echo
 --echo #### Dump ends here ####
 
@@ -2359,6 +2365,7 @@ INSERT INTO b12809202_db.t2 VALUES (1), (2), (3);
 DROP TABLE b12809202_db.t1;
 DROP TABLE b12809202_db.t2;
 DROP DATABASE b12809202_db;
+--remove_file $MYSQLTEST_VARDIR/tmp/b12809202_stderr.sql
 
 --echo #
 --echo # Delete all existing binary logs.
