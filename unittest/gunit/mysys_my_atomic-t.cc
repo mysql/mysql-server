@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,9 +13,20 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include "thr_template.c"
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#include <gtest/gtest.h>
 
-volatile uint32 b32;
+#include <my_global.h>
+#include <my_sys.h>
+#include <my_atomic.h>
+
+
+namespace mysys_my_atomic_unittest {
+
+#include "thr_template.cc"
+
+volatile int32 b32;
 volatile int32  c32;
 my_atomic_rwlock_t rwl;
 
@@ -149,10 +160,8 @@ pthread_handler_t test_atomic_cas(void *arg)
 
 void do_tests()
 {
-  plan(6);
-
   bad= my_atomic_initialize();
-  ok(!bad, "my_atomic_initialize() returned %d", bad);
+  EXPECT_FALSE(bad) << "my_atomic_initialize() returned";
 
   my_atomic_rwlock_init(&rwl);
 
@@ -174,10 +183,27 @@ void do_tests()
     volatile int64 b=0x1000200030004000LL;
     a64=0;
     my_atomic_add64(&a64, b);
-    ok(a64==b, "add64");
+    EXPECT_EQ(a64, b) << "add64";
   }
   a64=0;
   test_concurrently("my_atomic_add64", test_atomic_add64, THREADS, CYCLES);
 
   my_atomic_rwlock_destroy(&rwl);
+}
+
+
+TEST(Mysys, Atomic)
+{
+  mysql_mutex_init(0, &mutex, 0);
+  mysql_cond_init(0, &cond, NULL);
+  pthread_attr_init(&thr_attr);
+  pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
+ 
+  do_tests();
+
+  mysql_mutex_destroy(&mutex);
+  mysql_cond_destroy(&cond);
+  pthread_attr_destroy(&thr_attr);
+}
+
 }
