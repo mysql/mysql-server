@@ -6,6 +6,8 @@
 
 #include "log-internal.h"
 #include "logcursor.h"
+#include <limits.h>
+#include <unistd.h>
 
 enum lc_direction { LC_FORWARD, LC_BACKWARD, LC_FIRST, LC_LAST };
 
@@ -133,11 +135,11 @@ static int lc_create(TOKULOGCURSOR *lc, const char *log_dir) {
         cursor->logdir = (char *) toku_xmalloc(strlen(log_dir)+1);
         sprintf(cursor->logdir, "%s", log_dir);
     } else {
-        char *cwd = getcwd(NULL, 0);
+        char cwdbuf[PATH_MAX];
+        char *cwd = getcwd(cwdbuf, PATH_MAX);
         assert(cwd);
         cursor->logdir = (char *) toku_xmalloc(strlen(cwd)+strlen(log_dir)+2);
         sprintf(cursor->logdir, "%s/%s", cwd, log_dir);
-        toku_free(cwd);
     }
     cursor->logfiles = NULL;
     cursor->n_logfiles = 0;
