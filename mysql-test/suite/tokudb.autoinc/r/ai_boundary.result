@@ -966,7 +966,7 @@ id
 18446744073709551609
 select last_insert_id() from t limit 1;
 last_insert_id()
--7
+18446744073709551609
 insert into t set id=null;
 show warnings;
 Level	Code	Message
@@ -977,7 +977,7 @@ id
 18446744073709551610
 select last_insert_id() from t limit 1;
 last_insert_id()
--6
+18446744073709551610
 insert into t set id=null;
 show warnings;
 Level	Code	Message
@@ -989,7 +989,7 @@ id
 18446744073709551611
 select last_insert_id() from t limit 1;
 last_insert_id()
--5
+18446744073709551611
 insert into t set id=null;
 show warnings;
 Level	Code	Message
@@ -1002,7 +1002,7 @@ id
 18446744073709551612
 select last_insert_id() from t limit 1;
 last_insert_id()
--4
+18446744073709551612
 insert into t set id=null;
 show warnings;
 Level	Code	Message
@@ -1016,7 +1016,7 @@ id
 18446744073709551613
 select last_insert_id() from t limit 1;
 last_insert_id()
--3
+18446744073709551613
 insert into t set id=null;
 show warnings;
 Level	Code	Message
@@ -1031,25 +1031,25 @@ id
 18446744073709551614
 select last_insert_id() from t limit 1;
 last_insert_id()
--2
+18446744073709551614
 insert into t set id=null;
 Got one of the listed errors
 select last_insert_id() from t limit 1;
 last_insert_id()
--2
+18446744073709551614
 insert into t set id=null;
 Got one of the listed errors
 select last_insert_id() from t limit 1;
 last_insert_id()
--2
+18446744073709551614
 insert into t set id=null;
 Got one of the listed errors
 select last_insert_id() from t limit 1;
 last_insert_id()
--2
+18446744073709551614
 insert into t set id=null;
 Got one of the listed errors
 select last_insert_id() from t limit 1;
 last_insert_id()
--2
+18446744073709551614
 drop table t;
