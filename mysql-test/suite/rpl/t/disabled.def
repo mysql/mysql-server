@@ -13,3 +13,4 @@
 rpl_row_create_table : Bug#11759274 Feb 27 2010 andrei failed different way than earlier with bug#45576
 rpl_get_master_version_and_clock : Bug#11766137 Jan 05 2011 joro Valgrind warnings rpl_get_master_version_and_clock
 rpl_stm_until : BUG#59543 Jan 26 2011 alfranio Replication test from eits suite rpl_row_until times out
+rpl_row_until @macosx : BUG#15965353 RPL.RPL_ROW_UNTIL FAILS ON PB2 , PLATFORM= MACOSX10.6 X86_64 MAX 

@@ -26,6 +26,7 @@ let $master_pos_insert1_t2= query_get_value(SHOW BINLOG EVENTS, End_log_pos, 12)
 sync_slave_with_master;
 
 # Save relay log position for query INSERT INTO t2 VALUES (1),(2);
+let $relay_log_file= query_get_value(show slave status, Relay_Log_File,1);
 let $relay_pos_insert1_t2= query_get_value(show slave status, Relay_Log_Pos, 1);
 
 connection master;
@@ -68,9 +69,8 @@ SELECT * FROM t1;
 --source include/check_slave_param.inc
 
 # Try replicate all up to and not including the second insert to t2;
-echo START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', RELAY_LOG_POS=relay_pos_insert1_t2;
 --disable_query_log
-eval START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', RELAY_LOG_POS=$relay_pos_insert1_t2;
+eval START SLAVE UNTIL RELAY_LOG_FILE='$relay_log_file', RELAY_LOG_POS=$relay_pos_insert1_t2;
 --enable_query_log
 --source include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t2;
