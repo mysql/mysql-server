@@ -27,7 +27,6 @@ n
 3
 4
 include/check_slave_param.inc [Exec_Master_Log_Pos]
-START SLAVE UNTIL RELAY_LOG_FILE='slave-relay-bin.000002', RELAY_LOG_POS=relay_pos_insert1_t2
 include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t2;
 n
