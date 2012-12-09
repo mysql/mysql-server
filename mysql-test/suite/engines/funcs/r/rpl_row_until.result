@@ -13,8 +13,8 @@ DROP TABLE t2;
 include/stop_slave.inc
 RESET SLAVE;
 Warnings:
-Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Note	1759	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	1760	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=master_pos_drop_t1
 include/wait_for_slave_sql_to_stop.inc
 SELECT * FROM t1;
@@ -60,8 +60,7 @@ ERROR HY000: Incorrect parameter or combination of parameters for START SLAVE UN
 START SLAVE;
 START SLAVE UNTIL MASTER_LOG_FILE='master-bin.000001', MASTER_LOG_POS=MASTER_LOG_POS;
 Warnings:
-Note    1254    Slave is already running
+Note	1254	Slave is already running
 include/stop_slave.inc
 RESET SLAVE;
 include/rpl_end.inc
-
