@@ -3804,7 +3804,9 @@ int ha_tokudb::write_row(uchar * record) {
     }
 #endif
     if (table->next_number_field && record == table->record[0]) {
-        update_auto_increment();
+        error = update_auto_increment();
+        if (error)
+            goto cleanup;
     }
 
     //
@@ -7272,24 +7274,31 @@ void ha_tokudb::init_auto_increment() {
 void ha_tokudb::get_auto_increment(ulonglong offset, ulonglong increment, ulonglong nb_desired_values, ulonglong * first_value, ulonglong * nb_reserved_values) {
     TOKUDB_DBUG_ENTER("ha_tokudb::get_auto_increment");
     ulonglong nr;
+    bool over;
 
     pthread_mutex_lock(&share->mutex);
 
     if (share->auto_inc_create_value > share->last_auto_increment) {
         nr = share->auto_inc_create_value;
+        over = false;
         share->last_auto_increment = share->auto_inc_create_value;
     }
     else {
         nr = share->last_auto_increment + increment;
+        over = nr < share->last_auto_increment;
+        if (over)
+            nr = ULONGLONG_MAX;
     }
-    share->last_auto_increment = nr + (nb_desired_values - 1)*increment;
-    if (delay_updating_ai_metadata) {
-        ai_metadata_update_required = true;
+    if (!over) {
+        share->last_auto_increment = nr + (nb_desired_values - 1)*increment;
+        if (delay_updating_ai_metadata) {
+            ai_metadata_update_required = true;
+        }
+        else {
+            update_max_auto_inc(share->status_block, share->last_auto_increment);
+        }
     }
-    else {
-        update_max_auto_inc(share->status_block, share->last_auto_increment);
-    }
-
+        
     if (tokudb_debug & TOKUDB_DEBUG_AUTO_INCREMENT) {
         TOKUDB_TRACE("get_auto_increment(%lld,%lld,%lld):got:%lld:%lld\n",
                      offset, increment, nb_desired_values, nr, nb_desired_values);
