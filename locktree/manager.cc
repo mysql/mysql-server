@@ -138,15 +138,50 @@ void locktree::manager::reference_lt(locktree *lt) {
 
 void locktree::manager::release_lt(locktree *lt) {
     bool do_destroy = false;
-    // decrement using a thread safe sync fetch and sub,
-    // but double check for a zero ref count using the
-    // mutex so we serialize with get_lt()
+    DICTIONARY_ID dict_id = lt->m_dict_id;
+
+    // Release a reference on the locktree. If the count transitions to zero,
+    // then we *may* need to do the cleanup.
+    //
+    // Grab the manager's mutex and look for a locktree with this locktree's
+    // dictionary id. Since dictionary id's never get reused, any locktree 
+    // found must be the one we just released a reference on.
+    //
+    // At least two things could have happened since we got the mutex:
+    // - Another thread gets a locktree with the same dict_id, increments
+    // the reference count. In this case, we shouldn't destroy it.
+    // - Another thread gets a locktree with the same dict_id and then
+    // releases it quickly, transitioning the reference count from zero to
+    // one and back to zero. In this case, only one of us should destroy it.
+    // It doesn't matter which. We originally missed this case, see #5776.
+    //
+    // After 5776, the high level rule for release is described below.
+    //
+    // If a thread releases a locktree and notices the reference count transition
+    // to zero, then that thread must immediately:
+    // - assume the locktree object is invalid
+    // - grab the manager's mutex
+    // - search the locktree map for a locktree with the same dict_id and remove
+    // it, if it exists. the destroy may be deferred.
+    // - release the manager's mutex
+    //
+    // This way, if many threads transition the same locktree's reference count
+    // from 1 to zero and wait behind the manager's mutex, only one of them will
+    // do the actual destroy and the others will happily do nothing.
     uint32_t refs = toku_sync_sub_and_fetch(&lt->m_reference_count, 1);
     if (refs == 0) {
         mutex_lock();
-        if (lt->m_reference_count == 0) {
-            locktree_map_remove(lt);
-            do_destroy = true;
+        locktree *find_lt = locktree_map_find(dict_id);
+        if (find_lt != nullptr) {
+            // A locktree is still in the map with that dict_id, so it must be
+            // equal to lt. This is true because dictionary ids are never reused.
+            // If the reference count is zero, it's our responsibility to remove
+            // it and do the destroy. Otherwise, someone still wants it.
+            invariant(find_lt == lt);
+            if (lt->m_reference_count == 0) {
+                locktree_map_remove(lt);
+                do_destroy = true;
+            }
         }
         mutex_unlock();
     }
