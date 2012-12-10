@@ -4800,22 +4800,15 @@ retry:
 	*actual_size = space->size;
 
 #ifndef UNIV_HOTBACKUP
+	/* Keep the last data file size info up to date, rounded to
+	full megabytes */
+	ulint pages_per_mb = (1024 * 1024) / page_size;
+	ulint size_in_pages = ((node->size / pages_per_mb) * pages_per_mb);
+
 	if (space_id == srv_sys_space.space_id()) {
-		ulint pages_per_mb = (1024 * 1024) / page_size;
-
-		/* Keep the last data file size info up to date, rounded to
-		full megabytes */
-
-		srv_sys_space.set_last_file_size(
-			(node->size / pages_per_mb) * pages_per_mb);
+		srv_sys_space.set_last_file_size(size_in_pages);
 	} else if (space_id == srv_tmp_space.space_id()) {
-		ulint pages_per_mb = (1024 * 1024) / page_size;
-
-		/* Keep the last data file size info up to date, rounded to
-		full megabytes */
-
-		srv_tmp_space.set_last_file_size(
-			(node->size / pages_per_mb) * pages_per_mb);
+		srv_tmp_space.set_last_file_size(size_in_pages);
 	}
 #endif /* !UNIV_HOTBACKUP */
 

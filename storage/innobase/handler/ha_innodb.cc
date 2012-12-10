@@ -9423,10 +9423,10 @@ innobase_table_is_noncompressed_temporary(
 	TABLE*          form)
 {
 	return((create_info->options & HA_LEX_CREATE_TMP_TABLE)
-	       && (!(((form->s->row_type == ROW_TYPE_COMPRESSED)
-		      || (form->s->row_type == ROW_TYPE_DYNAMIC)
-		      || (create_info->key_block_size))
-	       && (srv_file_format >= UNIV_FORMAT_B))));
+	       && (!((form->s->row_type == ROW_TYPE_COMPRESSED
+		      || form->s->row_type == ROW_TYPE_DYNAMIC
+		      || create_info->key_block_size)
+	       && srv_file_format >= UNIV_FORMAT_B)));
 }
 
 
@@ -9803,11 +9803,16 @@ ha_innobase::discard_or_import_tablespace(
 
 	dict_table = prebuilt->table;
 
-	if (dict_table->space == srv_sys_space.space_id()
-	    || dict_table->space == srv_tmp_space.space_id()) {
+	if (dict_table_is_temporary(dict_table)) {
 
-		// FIXME: This error code has to change. It should now be
-		// ER_TABLE_IN_SHARED_TABLESPACE
+		ib_senderrf(
+			prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			ER_CANNOT_DISCARD_TEMPORARY_TABLE);
+
+		DBUG_RETURN(HA_ERR_TABLE_NEEDS_UPGRADE);
+	}
+
+	if (dict_table->space == srv_sys_space.space_id()) {
 
 		ib_senderrf(
 			prebuilt->trx->mysql_thd, IB_LOG_LEVEL_ERROR,

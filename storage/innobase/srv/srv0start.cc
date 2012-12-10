@@ -1473,10 +1473,6 @@ innobase_start_or_create_for_mysql(void)
 		return(err);
 	}
 
-	// FIXME: This could cause a SHARING VIOLATION on Windows (to be
-	// verified). If there is a problem then we need to read these
-	// values before closing the file in the open() method, like before.
-
 	if (!create_new_db) {
 		/* Read the values from the header page. */
 		err = srv_sys_space.read_lsn_and_check_flags(
