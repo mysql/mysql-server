@@ -387,6 +387,14 @@ btr_node_ptr_get_child_page_no(
 	const rec_t*	rec,	/*!< in: node pointer record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
 	__attribute__((nonnull, pure, warn_unused_result));
+/** The information is used for creating a new index tree when
+applying MLOG_FILE_TRUNCATE redo record during recovery */
+struct btr_create_t {
+	ulint		format_flags;	/*!< page format */
+	ulint		n_fields;	/*!< number of index fields */
+	ulint		field_len;	/*!< the length of index field */
+	const byte*	fields;		/*!< index field information */
+};
 /************************************************************//**
 Creates the root node for a new index tree.
 @return	page number of the created root, FIL_NULL if did not succeed */
@@ -394,14 +402,17 @@ UNIV_INTERN
 ulint
 btr_create(
 /*=======*/
-	ulint		type,	/*!< in: type of the index */
-	ulint		space,	/*!< in: space where created */
-	ulint		zip_size,/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	index_id_t	index_id,/*!< in: index id */
-	dict_index_t*	index,	/*!< in: index */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle */
-	__attribute__((nonnull));
+	ulint		type,		/*!< in: type of the index */
+	ulint		space,		/*!< in: space where created */
+	ulint		zip_size,	/*!< in: compressed page size in bytes
+					or 0 for uncompressed pages */
+	index_id_t	index_id,	/*!< in: index id */
+	dict_index_t*	index,		/*!< in: index */
+	btr_create_t*	btr_create_info,
+					/*!< in: used for applying
+					MLOG_FILE_TRUNCATE redo record
+					during recovery */
+	mtr_t*		mtr);		/*!< in: mini-transaction handle */
 /************************************************************//**
 Frees a B-tree except the root page, which MUST be freed after this
 by calling btr_free_root. */

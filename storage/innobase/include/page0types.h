@@ -63,6 +63,16 @@ ssize, which is the number of shifts from 512. */
 # error "PAGE_ZIP_SSIZE_MAX >= (1 << PAGE_ZIP_SSIZE_BITS)"
 #endif
 
+/** The information used for compressing a page when applying
+MLOG_FILE_TRUNCATE redo record during recovery */
+struct page_compress_t {
+	ulint		type;		/*!< index type */
+	ulint		index_id;	/*!< index id */
+	ulint		fields_num;	/*!< number of index fields */
+	ulint		field_len;	/*!< the length of index field */
+	const byte*	field_buf;	/*!< index field information */
+};
+
 /** Compressed page descriptor */
 struct page_zip_des_t
 {

@@ -809,6 +809,17 @@ os_file_set_eof(
 /*============*/
 	FILE*		file);	/*!< in: file to be truncated */
 /***********************************************************************//**
+Truncates a file to a specified size in bytes. Do nothing if the size
+preserved is smaller or equal than current size of file.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_truncate(
+/*=============*/
+	const char*	pathname,	/*!< in: file path */
+	os_file_t	file,		/*!< in: file to be truncated */
+	ulint		size);		/*!< in: size preserved in bytes */
+/***********************************************************************//**
 NOTE! Use the corresponding macro os_file_flush(), not directly this function!
 Flushes the write buffers of a given file to the disk.
 @return	TRUE if success */

@@ -952,6 +952,12 @@ ibuf_set_free_bits_func(
 
 	mtr_start(&mtr);
 
+	/* Do not log operations when applying MLOG_FILE_TRUNCATE log
+	record during recovery */
+	if (fil_space_is_truncated(page_get_space_id(page))) {
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+	}
+
 	space = buf_block_get_space(block);
 	page_no = buf_block_get_page_no(block);
 	zip_size = buf_block_get_zip_size(block);
@@ -4872,7 +4878,7 @@ reset_bit:
 
 /*********************************************************************//**
 Deletes all entries in the insert buffer for a given space id. This is used
-in DISCARD TABLESPACE and IMPORT TABLESPACE.
+in DISCARD TABLESPACE, IMPORT TABLESPACE and TRUNCATE TABLESPACE.
 NOTE: this does not update the page free bitmaps in the space. The space will
 become CORRUPT when you call this function! */
 UNIV_INTERN

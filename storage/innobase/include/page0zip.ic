@@ -436,7 +436,7 @@ page_zip_parse_compress_no_data(
 	was successful. Crash in this case. */
 
 	if (page
-	    && !page_zip_compress(page_zip, page, index, level, NULL)) {
+	    && !page_zip_compress(page_zip, page, index, level, NULL, NULL)) {
 		ut_error;
 	}
 

@@ -751,6 +751,8 @@ ut_strerr(
 		return("Tablespace already exists");
 	case DB_TABLESPACE_DELETED:
 		return("Tablespace deleted or being deleted");
+	case DB_TABLESPACE_TRUNCATED:
+		return("Tablespace was truncated");
 	case DB_TABLESPACE_NOT_FOUND:
 		return("Tablespace not found");
 	case DB_LOCK_TABLE_FULL:

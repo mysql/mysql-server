@@ -836,7 +836,7 @@ fsp_header_init(
 		fsp_fill_free_list(FALSE, space, header, mtr);
 		btr_create(DICT_CLUSTERED | DICT_UNIVERSAL | DICT_IBUF,
 			   0, 0, DICT_IBUF_ID_MIN + space,
-			   dict_ind_redundant, mtr);
+			   dict_ind_redundant, NULL, mtr);
 	} else {
 		fsp_fill_free_list(TRUE, space, header, mtr);
 	}
@@ -1226,6 +1226,12 @@ fsp_fill_free_list(
 			before returning from the fsp routine */
 
 			mtr_start(&ibuf_mtr);
+
+			/* Do not log operations when applying
+			MLOG_FILE_TRUNCATE log record during recovery */
+			if (fil_space_is_truncated(space)) {
+				mtr_set_log_mode(&ibuf_mtr, MTR_LOG_NONE);
+			}
 
 			block = buf_page_create(space,
 						    i + FSP_IBUF_BITMAP_OFFSET,

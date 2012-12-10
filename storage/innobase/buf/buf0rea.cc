@@ -194,6 +194,15 @@ buf_read_page_low(
 	thd_wait_end(NULL);
 
 	if (*err != DB_SUCCESS) {
+		if (*err == DB_TABLESPACE_TRUNCATED) {
+			buf_read_page_handle_error(bpage);
+			mutex_enter(&recv_sys->mutex);
+			ut_ad(recv_sys->n_addrs > 0);
+			recv_sys->n_addrs--;
+			mutex_exit(&recv_sys->mutex);
+			return(0);
+		}
+
 		if (ignore_nonexistent_pages || *err == DB_TABLESPACE_DELETED) {
 			buf_read_page_handle_error(bpage);
 			return(0);
