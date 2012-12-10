@@ -33,6 +33,7 @@ Created 2012-02-08 by Sunny Bains.
 #include "ibuf0ibuf.h"
 #include "srv0start.h"
 #include "trx0purge.h"
+#include "srv0space.h"
 
 /*********************************************************************//**
 Write the meta data (index user fields) config file.
@@ -643,7 +644,7 @@ row_quiesce_set_state(
 
 		return(DB_UNSUPPORTED);
 
-	} else if (table->space == TRX_SYS_SPACE) {
+	} else if (table->space == srv_sys_space.space_id()) {
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 
@@ -654,6 +655,19 @@ row_quiesce_set_state(
 			    ER_TABLE_IN_SYSTEM_TABLESPACE, table_name);
 
 		return(DB_UNSUPPORTED);
+
+        } else if (dict_table_is_temporary(table)) {
+
+                char    table_name[MAX_FULL_NAME_LEN + 1];
+
+                innobase_format_name(
+                        table_name, sizeof(table_name), table->name, FALSE);
+
+                ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+                            ER_CANNOT_DISCARD_TEMPORARY_TABLE);
+
+                return(DB_UNSUPPORTED);
+
 	} else if (row_quiesce_table_has_fts_index(table)) {
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
