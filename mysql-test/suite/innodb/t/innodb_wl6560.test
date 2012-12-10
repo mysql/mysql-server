@@ -8,6 +8,9 @@
 # Avoid CrashReporter popup on Mac
 --source include/not_crashrep.inc
 
+call mtr.add_suppression("Please add another temp-data file or use 'autoextend' for the last data file");
+call mtr.add_suppression("The table 't1' is full");
+
 #
 # Will test following scenarios:
 # 1. creation of shared temp-tablespace.
@@ -24,6 +27,8 @@
 # 7. restart server in innodb-read-only mode. this will also
 #    block creation of temp-tables.
 # 8. try starting server with shared and temp-tablespace filename same.
+# 9. try re-starting server with param so that temp-tablespace can't be expanded
+#    and insert enough data to make it full.
 
 #-----------------------------------------------------------------------------
 #
@@ -63,7 +68,9 @@ create temporary table t1 (i int, f float, c char(100)) engine=innodb;
 --source suite/innodb/include/innodb_temp_table_dml.inc
 #
 # alter table
---error ER_TABLE_IN_SYSTEM_TABLESPACE
+--error ER_CANNOT_DISCARD_TEMPORARY_TABLE
+alter table t1 discard tablespace;
+--error ER_CANNOT_DISCARD_TEMPORARY_TABLE
 alter table t1 import tablespace;
 #
 # drop table
@@ -89,15 +96,13 @@ show create table t1;
 --source suite/innodb/include/innodb_temp_table_dml.inc
 #
 # alter table
+--error ER_CANNOT_DISCARD_TEMPORARY_TABLE
 alter table t1 discard tablespace;
-#--error ER_NO_SUCH_TABLE
-#alter table t1 import tablespace;
 #
 # drop table
 drop table t1;
 set global innodb_file_per_table = off;
 set global innodb_file_format = @global_innodb_file_format_orig;
-
 
 #-----------------------------------------------------------------------------
 #
@@ -127,7 +132,6 @@ select count(*) from t1;
 #
 drop procedure populate_t1;
 drop table t1;
-
 
 #-----------------------------------------------------------------------------
 #
@@ -208,6 +212,46 @@ let SEARCH_PATTERN = system shared and system temp tablespace file name seems to
 use test;
 show tables;
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
+drop table t1;
+
+#-----------------------------------------------------------------------------
+#
+# 9. try re-starting server with param so that temp-tablespace can't be expanded
+#    and insert enough data to make it full.
+#
+--echo "test condition of full-temp-tablespace"
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+# Do something while server is down
+--enable_reconnect
+# Write file to make mysql-test-run.pl start up the server again
+--exec echo "restart: --innodb_temp_data_file_path=ibtmp1:12M " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--exec cat $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+use test;
+create temporary table t1
+	(keyc int, c1 char(100), c2 char(100),
+	 primary key(keyc)) engine = innodb;
+delimiter |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+        DECLARE i INT DEFAULT 1;
+        while (i <= 20000) DO
+		insert into t1 values (i, 'a', 'b');
+                SET i = i + 1;
+        END WHILE;
+END|
+delimiter ;|
+set autocommit=0;
+select count(*) from t1;
+--error ER_RECORD_FILE_FULL
+call populate_t1();
+#
+drop procedure populate_t1;
 drop table t1;
 
 #-----------------------------------------------------------------------------

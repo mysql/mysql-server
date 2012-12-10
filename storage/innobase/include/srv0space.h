@@ -162,6 +162,7 @@ public:
 		m_auto_extend_last_file(),
 		m_last_file_size_max(),
 		m_created_new_raw(),
+		m_is_tablespace_full(false),
 		m_auto_extend_increment()
 	{
 		/* No op */
@@ -181,6 +182,22 @@ public:
 	{
 		ut_a(m_space_id == ULINT_UNDEFINED);
 		m_space_id = space_id;
+	}
+
+	/**
+	Set tablespace full status
+	@param is_tablespace_full - true if full */
+	void set_tablespace_full_status(bool is_tablespace_full)
+	{
+		m_is_tablespace_full = is_tablespace_full;
+	}
+
+	/**
+	Get tablespace full status
+	@return true if table is full */
+	bool get_tablespace_full_status()
+	{
+		return(m_is_tablespace_full);
 	}
 
 	/**
@@ -423,6 +440,9 @@ private:
 	inserts etc. This protects the user from forgetting
 	the 'newraw' keyword to my.cnf */
 	bool		m_created_new_raw;
+
+	/** Tablespace full status */
+	bool			m_is_tablespace_full;
 
 public:
 	/* We have to make this public because it is a config variable. */
