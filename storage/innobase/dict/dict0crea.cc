@@ -682,7 +682,7 @@ dict_create_index_tree_step(
 	} else {
 		node->page_no = btr_create(
 			index->type, index->space, zip_size,
-			index->id, index, &mtr);
+			index->id, index, NULL, &mtr);
 
 		if (node->page_no == FIL_NULL) {
 			err = DB_OUT_OF_FILE_SPACE;
@@ -768,33 +768,27 @@ dict_drop_index_tree(
 }
 
 /*******************************************************************//**
-Truncates the index tree associated with a row in SYS_INDEXES table.
-@return	new root page number, or FIL_NULL on failure */
+Frees the index tree associated with a row in SYS_INDEXES table.
+@return root page number freed, or FIL_NULL on failure */
 UNIV_INTERN
 ulint
-dict_truncate_index_tree(
-/*=====================*/
+dict_free_index_tree(
+/*=================*/
 	dict_table_t*	table,	/*!< in: the table the index belongs to */
-	ulint		space,	/*!< in: 0=truncate,
-				nonzero=create the index tree in the
+	ulint		space,	/*!< in: free the index tree in the
 				given tablespace */
 	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
 				record in the clustered index of
 				SYS_INDEXES table. The cursor may be
 				repositioned in this call. */
 	mtr_t*		mtr)	/*!< in: mtr having the latch
-				on the record page. The mtr may be
-				committed and restarted in this call. */
+				on the record page.*/
 {
 	ulint		root_page_no;
-	ibool		drop = !space;
 	ulint		zip_size;
-	ulint		type;
-	index_id_t	index_id;
 	rec_t*		rec;
 	const byte*	ptr;
 	ulint		len;
-	dict_index_t*	index;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
@@ -806,38 +800,85 @@ dict_truncate_index_tree(
 
 	root_page_no = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
 
-	if (drop && root_page_no == FIL_NULL) {
+	if (root_page_no == FIL_NULL) {
 		/* The tree has been freed. */
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
-			" a missing index of table %s!\n", table->name);
-		drop = FALSE;
-	}
-
-	ptr = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__SPACE, &len);
-
-	ut_ad(len == 4);
-
-	if (drop) {
-		space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Trying to free a missing index "
+			"of table '%s'!", table->name);
+		return(FIL_NULL);
 	}
 
 	zip_size = fil_space_get_zip_size(space);
 
-	if (UNIV_UNLIKELY(zip_size == ULINT_UNDEFINED)) {
+	if (zip_size == ULINT_UNDEFINED) {
 		/* It is a single table tablespace and the .ibd file is
-		missing: do nothing */
-
-		ut_print_timestamp(stderr);
-		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
-			" a missing .ibd file of table %s!\n", table->name);
-		return(FIL_NULL);
+		missing: fatal error */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to free a missing .ibd file "
+			"of table '%s'!", table->name);
+		ut_error;
 	}
 
-	ptr = rec_get_nth_field_old(
-		rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
+	/* We free all the pages but the root page first; this operation
+	may span several mini-transactions */
+	btr_free_but_not_root(space, zip_size, root_page_no);
+
+	/* Then we free the root page, the mini-transaction marks the
+	B-tree totally freed */
+	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, mtr);
+
+	btr_free_root(space, zip_size, root_page_no, mtr);
+
+	/* We will need to commit the mini-transaction in order to avoid
+	deadlocks, because otherwise we would be freeing multiple pages
+	in the same mini-transaction. */
+	btr_pcur_store_position(pcur, mtr);
+
+	return(root_page_no);
+}
+
+/*******************************************************************//**
+Create the index tree associated with a row in SYS_INDEXES table.
+@return new root page number, or FIL_NULL on failure */
+UNIV_INTERN
+ulint
+dict_create_index_tree(
+/*===================*/
+	dict_table_t*	table,	/*!< in: the table the index belongs to */
+	ulint		space,	/*!< in: create a new index tree in the
+				given tablespace */
+	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
+				record in the clustered index of
+				SYS_INDEXES table. The cursor may be
+				repositioned in this call. */
+	mtr_t*		mtr)	/*!< in: mtr having the latch
+				on the record page. */
+{
+	ulint		root_page_no;
+	ulint		zip_size;
+	ulint		type;
+	index_id_t	index_id;
+	rec_t*		rec;
+	const byte*	ptr;
+	ulint		len;
+	dict_index_t*	index;
+
+	ut_ad(mutex_own(&dict_sys->mutex));
+	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
+	rec = btr_pcur_get_rec(pcur);
+
+	zip_size = fil_space_get_zip_size(space);
+
+	if (zip_size == ULINT_UNDEFINED) {
+		/* It is a single table tablespace and the .ibd file is
+		missing: fatal error */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"The .ibd file is missing of table '%s' "
+			"when creating index!", table->name);
+		ut_error;
+	}
+
+	ptr = rec_get_nth_field_old(rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
 	ut_ad(len == 4);
 	type = mach_read_from_4(ptr);
 
@@ -845,57 +886,26 @@ dict_truncate_index_tree(
 	ut_ad(len == 8);
 	index_id = mach_read_from_8(ptr);
 
-	if (!drop) {
-
-		goto create;
-	}
-
-	/* We free all the pages but the root page first; this operation
-	may span several mini-transactions */
-
-	btr_free_but_not_root(space, zip_size, root_page_no);
-
-	/* Then we free the root page in the same mini-transaction where
-	we create the b-tree and write its new root page number to the
-	appropriate field in the SYS_INDEXES record: this mini-transaction
-	marks the B-tree totally truncated */
-
-	btr_block_get(space, zip_size, root_page_no, RW_X_LATCH, NULL, mtr);
-
-	btr_free_root(space, zip_size, root_page_no, mtr);
-create:
-	/* We will temporarily write FIL_NULL to the PAGE_NO field
-	in SYS_INDEXES, so that the database will not get into an
-	inconsistent state in case it crashes between the mtr_commit()
-	below and the following mtr_commit() call. */
-	page_rec_write_field(rec, DICT_FLD__SYS_INDEXES__PAGE_NO,
-			     FIL_NULL, mtr);
-
-	/* We will need to commit the mini-transaction in order to avoid
-	deadlocks in the btr_create() call, because otherwise we would
-	be freeing and allocating pages in the same mini-transaction. */
 	btr_pcur_store_position(pcur, mtr);
-	mtr_commit(mtr);
 
-	mtr_start(mtr);
-	btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
+	index = UT_LIST_GET_FIRST(table->indexes);
 
 	/* Find the index corresponding to this SYS_INDEXES record. */
 	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
 		if (index->id == index_id) {
+
 			root_page_no = btr_create(type, space, zip_size,
-						  index_id, index, mtr);
+						  index_id, index, NULL, mtr);
 			index->page = (unsigned int) root_page_no;
 			return(root_page_no);
 		}
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		"  InnoDB: Index %llu of table %s is missing\n"
-		"InnoDB: from the data dictionary during TRUNCATE!\n",
+	ib_logf(IB_LOG_LEVEL_ERROR,
+		"Failed to create index with index id %llu of table %s "
+		"from the data dictionary during TRUNCATE!",
 		(ullint) index_id,
 		table->name);
 

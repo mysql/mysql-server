@@ -1,0 +1,107 @@
+set global innodb_file_per_table=on;
+call mtr.add_suppression("Warning: a page in the doublewrite buffer is not within space");
+# Verify that 'TRUNCATE TABLE' statement works fine and the size
+# of .ibd file is equal to the initial size after truncation.
+drop table if exists t1;
+create table t1(a int not null,
+b int not null,
+primary key (a),
+index (b))
+engine=innodb;
+select count(*) from t1;
+count(*)
+20000
+truncate table t1;
+# Verify that 'TRUNCATE TABLE' statement works fine, which can empty a table.
+select count(*) from t1;
+count(*)
+0
+# Check the size of .ibd file after truncation.
+The size of t1.ibd file is 114688 bytes.
+# Verify that the insertion to the table works fine after truncation.
+select count(*) from t1;
+count(*)
+25000
+drop table t1;
+# Verify that recovery works fine from a crash during
+# the drop of the second secondary to a table with
+# remote data directory.
+drop table if exists t1;
+set global innodb_file_format='Barracuda';
+#
+# Create and insert records into a table
+# that uses a remote DATA DIRECTORY.
+#
+create table t1(a int not null,
+b int not null,
+c int not null,
+primary key (a),
+index (b),
+index (c))
+row_format=dynamic engine=innodb data directory='mysql_tmp_dir/alt_dir';
+select count(*) from t1;
+count(*)
+17000
+# Write file to make mysql-test-run.pl expect crash and restart
+# Run the crashing query
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+0
+select count(*) from t1;
+count(*)
+20000
+drop table t1;
+# Verify that recovery works fine from a crash before
+# log checkpoint to a general table.
+drop table if exists t1;
+create table t1(a int not null,
+b int not null,
+c int not null,
+primary key (a),
+index (b),
+index (c))
+engine=innodb;
+select count(*) from t1;
+count(*)
+17000
+# Write file to make mysql-test-run.pl expect crash and restart
+# Run the crashing query
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+0
+select count(*) from t1;
+count(*)
+17000
+drop table t1;
+# Verify that recovery works fine from a crash during the
+# creation of the second secondary to a compressed table.
+drop table if exists t1;
+set global innodb_file_format='Barracuda';
+create table t1(a int not null,
+b int not null,
+c int not null,
+primary key (a),
+index (b),
+index (c))
+engine=innodb row_format=compressed key_block_size=8;
+select count(*) from t1;
+count(*)
+17000
+# Write file to make mysql-test-run.pl expect crash and restart
+# Run the crashing query
+truncate table t1;
+ERROR HY000: Lost connection to MySQL server during query
+# Restart the MySQL server
+select count(*) from t1;
+count(*)
+0
+select count(*) from t1;
+count(*)
+17000
+drop table t1;

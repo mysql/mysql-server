@@ -1,0 +1,73 @@
+# =====================  purpose  =================================
+#
+# Test case1, verify that 'TRUNCATE TABLE' statement works fine and
+# the size of .ibd file is equal to the initial size after truncation.
+#
+# Test case2, verify that the internal InnoDB 'TRUNCATE TABLE' statement
+# is atomic, recovery works fine from a crash during the truncation.
+#
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+# Embedded server does not support crashing
+--source include/not_embedded.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+--source include/have_innodb_16k.inc
+--source include/have_debug.inc
+
+--disable_query_log
+let $MYSQL_DATA_DIR= `select @@datadir`;
+let $data_directory = data directory='$MYSQL_TMP_DIR/alt_dir';
+
+let $innodb_file_per_table_orig=`select @@innodb_file_per_table`;
+let $innodb_file_format_orig=`select @@innodb_file_format`;
+let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
+--enable_query_log
+
+set global innodb_file_per_table=on;
+
+call mtr.add_suppression("Warning: a page in the doublewrite buffer is not within space");
+
+--echo # Verify that 'TRUNCATE TABLE' statement works fine and the size
+--echo # of .ibd file is equal to the initial size after truncation.
+--source suite/innodb/t/innodb_wl6501_truncate_size.inc
+
+--disable_query_log
+set session debug="+d,crash_during_drop_second_secondary";
+--enable_query_log
+--echo # Verify that recovery works fine from a crash during
+--echo # the drop of the second secondary to a table with
+--echo # remote data directory.
+--source suite/innodb/t/innodb_wl6501_remote_dir.inc
+--disable_query_log
+set session debug="-d,crash_during_drop_second_secondary";
+--enable_query_log
+
+--disable_query_log
+set session debug="+d,crash_before_log_checkpoint";
+--enable_query_log
+--echo # Verify that recovery works fine from a crash before
+--echo # log checkpoint to a general table.
+--source suite/innodb/t/innodb_wl6501_general.inc
+--disable_query_log
+set session debug="-d,crash_before_log_checkpoint";
+--enable_query_log
+
+--disable_query_log
+set session debug="+d,crash_after_truncate_tablespace";
+--enable_query_log
+--echo # Verify that recovery works fine from a crash during the
+--echo # creation of the second secondary to a compressed table.
+--source suite/innodb/t/innodb_wl6501_compress.inc
+--disable_query_log
+set session debug="-d,crash_after_truncate_tablespace";
+--enable_query_log
+
+-- disable_query_log
+eval set global innodb_file_format=$innodb_file_format_orig;
+eval set global innodb_file_format_max=$innodb_file_format_max_orig;
+eval set global innodb_file_per_table=$innodb_file_per_table_orig;
+-- enable_query_log
+

@@ -75,23 +75,37 @@ dict_create_index_step(
 /*===================*/
 	que_thr_t*	thr);	/*!< in: query thread */
 /*******************************************************************//**
-Truncates the index tree associated with a row in SYS_INDEXES table.
-@return	new root page number, or FIL_NULL on failure */
+Frees the index tree associated with a row in SYS_INDEXES table.
+@return root page number freed, or FIL_NULL on failure */
 UNIV_INTERN
 ulint
-dict_truncate_index_tree(
-/*=====================*/
+dict_free_index_tree(
+/*=================*/
 	dict_table_t*	table,	/*!< in: the table the index belongs to */
-	ulint		space,	/*!< in: 0=truncate,
-				nonzero=create the index tree in the
+	ulint		space,	/*!< in: free the index tree in the
 				given tablespace */
 	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
 				record in the clustered index of
 				SYS_INDEXES table. The cursor may be
 				repositioned in this call. */
 	mtr_t*		mtr);	/*!< in: mtr having the latch
-				on the record page. The mtr may be
-				committed and restarted in this call. */
+				on the record page. */
+/*******************************************************************//**
+Creates the index tree associated with a row in SYS_INDEXES table.
+@return new root page number, or FIL_NULL on failure */
+UNIV_INTERN
+ulint
+dict_create_index_tree(
+/*===================*/
+	dict_table_t*	table,	/*!< in: the table the index belongs to */
+	ulint		space,	/*!< in: create a new index tree in the
+				given tablespace */
+	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
+				record in the clustered index of
+				SYS_INDEXES table. The cursor may be
+				repositioned in this call. */
+	mtr_t*		mtr);	/*!< in: mtr having the latch
+				on the record page. */
 /*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table. */
 UNIV_INTERN

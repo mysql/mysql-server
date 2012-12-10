@@ -1843,7 +1843,7 @@ btr_cur_update_alloc_zip(
 	}
 
 	if (!page_zip_compress(
-		page_zip, page, index, compression_level,
+		page_zip, page, index, compression_level, NULL,
 		log_compressed ? mtr : NULL)) {
 		/* Unable to compress the page */
 		return(FALSE);

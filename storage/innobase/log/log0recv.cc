@@ -1237,8 +1237,9 @@ recv_parse_or_apply_log_rec_body(
 	case MLOG_FILE_CREATE:
 	case MLOG_FILE_RENAME:
 	case MLOG_FILE_DELETE:
+	case MLOG_FILE_TRUNCATE:
 	case MLOG_FILE_CREATE2:
-		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0, 0);
+		ptr = fil_op_log_parse_or_replay(ptr, end_ptr, type, 0, 0, 0);
 		break;
 	case MLOG_ZIP_WRITE_NODE_PTR:
 		ut_ad(!page || page_type == FIL_PAGE_INDEX);
@@ -1600,7 +1601,8 @@ recv_recover_page_func(
 			}
 		}
 
-		if (recv->start_lsn >= page_lsn) {
+		if (recv->start_lsn >= page_lsn
+		    && !fil_space_is_truncated(recv_addr->space)) {
 
 			lsn_t	end_lsn;
 
@@ -2318,7 +2320,22 @@ loop:
 			recv_check_incomplete_log_recs(ptr, len);
 #endif/* UNIV_LOG_DEBUG */
 
-		} else if (type == MLOG_FILE_CREATE
+		} else if (type == MLOG_FILE_TRUNCATE) {
+			if (NULL == fil_op_log_parse_or_replay(
+				body, end_ptr, type, space, page_no,
+				recv_sys->recovered_lsn)) {
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"File op log record of type "
+						"%lu space %lu does not "
+						"complete in the parse/replay "
+						"phase. Path %s",
+						(ulint) type, space,
+						(char*)(body + 2));
+
+					ut_error;
+			}
+		}
+		else if (type == MLOG_FILE_CREATE
 			   || type == MLOG_FILE_CREATE2
 			   || type == MLOG_FILE_RENAME
 			   || type == MLOG_FILE_DELETE) {
@@ -2333,7 +2350,7 @@ loop:
 
 				if (NULL == fil_op_log_parse_or_replay(
 					    body, end_ptr, type,
-					    space, page_no)) {
+					    space, page_no, 0)) {
 					fprintf(stderr,
 						"InnoDB: Error: file op"
 						" log record of type %lu"
@@ -2948,6 +2965,7 @@ recv_recovery_from_checkpoint_start_func(
 	}
 
 	recv_recovery_on = TRUE;
+	fil_space_truncated_reset();
 
 	recv_sys->limit_lsn = LIMIT_LSN;
 
@@ -3306,6 +3324,7 @@ recv_recovery_from_checkpoint_finish(void)
 	/* Free the resources of the recovery system */
 
 	recv_recovery_on = FALSE;
+	fil_space_truncated_reset();
 
 #ifndef UNIV_LOG_DEBUG
 	recv_sys_debug_free();

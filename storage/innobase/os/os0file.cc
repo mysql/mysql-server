@@ -1927,8 +1927,9 @@ os_file_get_size(
 /*=============*/
 	os_file_t	file)	/*!< in: handle to a file */
 {
-#ifdef __WIN__
 	os_offset_t	offset;
+	os_offset_t	cur_pos;
+#ifdef __WIN__
 	DWORD		high;
 	DWORD		low;
 
@@ -1942,8 +1943,13 @@ os_file_get_size(
 
 	return(offset);
 #else
-	return((os_offset_t) lseek(file, 0, SEEK_END));
-#endif
+	/* Store current position */
+	cur_pos = (os_offset_t) lseek(file, 0, SEEK_CUR);
+	offset = (os_offset_t) lseek(file, 0, SEEK_END);
+	/* Restore current position */
+	lseek(file, cur_pos, SEEK_SET);
+	return(offset);
+#endif /* __WIN__ */
 }
 
 /***********************************************************************//**
@@ -2041,6 +2047,48 @@ os_file_set_eof(
 #else /* __WIN__ */
 	return(!ftruncate(fileno(file), ftell(file)));
 #endif /* __WIN__ */
+}
+
+/***********************************************************************//**
+Truncates a file to a specified size in bytes. Do nothing if the size
+preserved is smaller or equal than current size of file.
+@return TRUE if success */
+UNIV_INTERN
+ibool
+os_file_truncate(
+/*=============*/
+	const char*     pathname,       /*!< in: file path */
+	os_file_t       file,		/*!< in: file to be truncated */
+	ulint		size)		/*!< in: size preserved in bytes */
+{
+	int		res;
+	os_offset_t	size_bytes;
+
+	size_bytes = os_file_get_size(file);
+
+	/* Do nothing if the size preserved is smaller or equal than
+	current size of file */
+	if (size >= size_bytes) {
+		return(TRUE);
+	}
+
+#ifdef __WIN__
+        int fd;
+	/* Get the file descriptor from the handle */
+	fd = _open_osfhandle((long)file, _O_TEXT);
+	/* Truncate the file */
+	res = _chsize(fd, size);
+	if (res == -1) {
+		os_file_handle_error_no_exit(pathname, "chsize", FALSE);
+	}
+#else /* __WIN__ */
+	res = ftruncate(file, size);
+	if (res == -1) {
+		os_file_handle_error_no_exit(pathname, "truncate", FALSE);
+	}
+#endif /* __WIN__ */
+
+	return(res == 0);
 }
 
 #ifndef __WIN__
@@ -2564,7 +2612,6 @@ try_again:
 	ret = os_file_pread(file, buf, n, offset);
 
 	if ((ulint) ret == n) {
-
 		return(TRUE);
 	}
 
@@ -2848,7 +2895,8 @@ retry:
 	least in Windows 2000, we may get here a specific error. Let us
 	retry the operation 100 times, with 1 second waits. */
 
-	if (GetLastError() == ERROR_LOCK_VIOLATION && n_retries < 100) {
+	err = (ulint) GetLastError();
+	if (err == ERROR_LOCK_VIOLATION && n_retries < 100) {
 
 		os_thread_sleep(1000000);
 
@@ -2858,8 +2906,6 @@ retry:
 	}
 
 	if (!os_has_said_disk_full) {
-
-		err = (ulint) GetLastError();
 
 		ut_print_timestamp(stderr);
 

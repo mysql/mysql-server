@@ -5,7 +5,7 @@
 #
 # two-level tree
 #
-
+call mtr.add_suppression("Trying to free a missing index of table 'test/t1'");
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings

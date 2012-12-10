@@ -1,5 +1,6 @@
 # This is the DDL function tests for innodb FTS
 
+call mtr.add_suppression("Trying to free a missing index of table 'test/fts_test'");
 -- source include/have_innodb.inc
 
 # Create FTS table

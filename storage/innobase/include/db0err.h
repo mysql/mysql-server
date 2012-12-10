@@ -143,8 +143,10 @@ enum dberr_t {
 					and if it's not then that API function
 					will return this error code */
 
-	DB_NOT_FOUND			/*!< Generic error code for "Not found"
+	DB_NOT_FOUND,			/*!< Generic error code for "Not found"
 					type of errors */
+
+	DB_TABLESPACE_TRUNCATED		/*!< tablespace was truncated */
 };
 
 #endif
