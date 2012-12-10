@@ -2585,10 +2585,6 @@ my_xpath_parse(MY_XPATH *xpath, const char *str, const char *strend)
 
 void Item_xml_str_func::fix_length_and_dec()
 {
-  String *xp, tmp;
-  MY_XPATH xpath;
-  int rc;
-
   nodeset_func= 0;
 
   if (agg_arg_charsets_for_comparison(collation, args, arg_count))
@@ -2603,22 +2599,34 @@ void Item_xml_str_func::fix_length_and_dec()
     return;
   }
 
-  if (!args[1]->const_item())
+  if (!args[1]->const_during_execution())
   {
     my_printf_error(ER_UNKNOWN_ERROR,
                     "Only constant XPATH queries are supported", MYF(0));
     return;
   }
 
-  if (!(xp= args[1]->val_str(&tmp)))
+  if (args[1]->const_item())
+    parse_xpath(args[1]);
+
+  max_length= MAX_BLOB_WIDTH;
+}
+
+void Item_xml_str_func::parse_xpath(Item* xpath_expr)
+{
+  String *xp, tmp;
+  MY_XPATH xpath;
+
+  if (!(xp= xpath_expr->val_str(&tmp)))
     return;
+
   my_xpath_init(&xpath);
   xpath.cs= collation.collation;
   xpath.debug= 0;
   xpath.pxml= &pxml;
   pxml.set_charset(collation.collation);
 
-  rc= my_xpath_parse(&xpath, xp->ptr(), xp->ptr() + xp->length());
+  int rc= my_xpath_parse(&xpath, xp->ptr(), xp->ptr() + xp->length());
 
   if (!rc)
   {
@@ -2632,7 +2640,6 @@ void Item_xml_str_func::fix_length_and_dec()
   nodeset_func= xpath.item;
   if (nodeset_func)
     nodeset_func->fix_fields(current_thd, &nodeset_func);
-  max_length= MAX_BLOB_WIDTH;
 }
 
 
@@ -2810,6 +2817,8 @@ String *Item_func_xml_extractvalue::val_str(String *str)
 {
   String *res;
   null_value= 0;
+  if (!nodeset_func)
+    parse_xpath(args[1]);
   if (!nodeset_func ||
       !(res= args[0]->val_str(str)) || 
       !parse_xml(res, &pxml) ||
@@ -2827,6 +2836,8 @@ String *Item_func_xml_update::val_str(String *str)
   String *res, *nodeset, *rep;
 
   null_value= 0;
+  if (!nodeset_func)
+    parse_xpath(args[1]);
   if (!nodeset_func || 
       !(res= args[0]->val_str(str)) ||
       !(rep= args[2]->val_str(&tmp_value3)) ||
