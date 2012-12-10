@@ -1,19 +1,18 @@
-/*
-  Copyright (c) 2008 MySQL AB, 2009 Sun Microsystems, Inc.
-  Use is subject to license terms.
+/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
 
-  This program is free software; you can redistribute it and/or modify
-  it under the terms of the GNU General Public License as published by
-  the Free Software Foundation; version 2 of the License.
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
 
-  This program is distributed in the hope that it will be useful,
-  but WITHOUT ANY WARRANTY; without even the implied warranty of
-  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-  GNU General Public License for more details.
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
 
-  You should have received a copy of the GNU General Public License
-  along with this program; if not, write to the Free Software
-  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02111-1307  USA */
+
 
 /*
   rdtsc3 -- multi-platform timer code
@@ -40,18 +39,35 @@
   The fourth line shows overheads, e.g. ticks takes 2044 cycles.
 */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#include <gtest/gtest.h>
+
 #include "my_global.h"
 #include "my_rdtsc.h"
-#include "tap.h"
 
-#define LOOP_COUNT 100
+namespace mysys_my_rdtsc_unittest {
 
-MY_TIMER_INFO myt;
+const int LOOP_COUNT= 100;
 
-void test_init()
+class RDTimeStampCounter : public ::testing::Test
+{
+protected:
+  void SetUp()
+  {
+    test_init();
+  }
+  void test_init();
+
+  MY_TIMER_INFO myt;
+};
+
+
+void RDTimeStampCounter::test_init()
 {
   my_timer_init(&myt);
 
+/*
   diag("----- Routine ---------------");
   diag("myt.cycles.routine          : %13llu", myt.cycles.routine);
   diag("myt.nanoseconds.routine     : %13llu", myt.nanoseconds.routine);
@@ -79,11 +95,11 @@ void test_init()
   diag("myt.microseconds.overhead   : %13llu", myt.microseconds.overhead);
   diag("myt.milliseconds.overhead   : %13llu", myt.milliseconds.overhead);
   diag("myt.ticks.overhead          : %13llu", myt.ticks.overhead);
-
-  ok(1, "my_timer_init() did not crash");
+*/
 }
 
-void test_cycle()
+
+TEST_F(RDTimeStampCounter, TestCycle)
 {
   ulonglong t1= my_timer_cycles();
   ulonglong t2;
@@ -102,15 +118,17 @@ void test_cycle()
   }
 
   /* Expect at most 1 backward, the cycle value can overflow */
-  ok((backward <= 1), "The cycle timer is strictly increasing");
+  EXPECT_TRUE((backward <= 1)) << "The cycle timer is strictly increasing";
 
   if (myt.cycles.routine != 0)
-    ok((nonzero != 0), "The cycle timer is implemented");
+    EXPECT_TRUE((nonzero != 0)) << "The cycle timer is implemented";
   else
-    ok((nonzero == 0), "The cycle timer is not implemented and returns 0");
+    EXPECT_TRUE((nonzero == 0))
+      << "The cycle timer is not implemented and returns 0";
 }
 
-void test_nanosecond()
+
+TEST_F(RDTimeStampCounter, TestNanosecond)
 {
   ulonglong t1= my_timer_nanoseconds();
   ulonglong t2;
@@ -128,15 +146,17 @@ void test_nanosecond()
     t1= t2;
   }
 
-  ok((backward == 0), "The nanosecond timer is increasing");
+  EXPECT_TRUE((backward == 0)) << "The nanosecond timer is increasing";
 
   if (myt.nanoseconds.routine != 0)
-    ok((nonzero != 0), "The nanosecond timer is implemented");
+    EXPECT_TRUE((nonzero != 0)) << "The nanosecond timer is implemented";
   else
-    ok((nonzero == 0), "The nanosecond timer is not implemented and returns 0");
+    EXPECT_TRUE((nonzero == 0))
+      << "The nanosecond timer is not implemented and returns 0";
 }
 
-void test_microsecond()
+
+TEST_F(RDTimeStampCounter, TestMicrosecond)
 {
   ulonglong t1= my_timer_microseconds();
   ulonglong t2;
@@ -154,15 +174,17 @@ void test_microsecond()
     t1= t2;
   }
 
-  ok((backward == 0), "The microsecond timer is increasing");
+  EXPECT_TRUE((backward == 0)) << "The microsecond timer is increasing";
 
   if (myt.microseconds.routine != 0)
-    ok((nonzero != 0), "The microsecond timer is implemented");
+    EXPECT_TRUE((nonzero != 0)) << "The microsecond timer is implemented";
   else
-    ok((nonzero == 0), "The microsecond timer is not implemented and returns 0");
+    EXPECT_TRUE((nonzero == 0))
+      << "The microsecond timer is not implemented and returns 0";
 }
 
-void test_millisecond()
+
+TEST_F(RDTimeStampCounter, TestMillisecond)
 {
   ulonglong t1= my_timer_milliseconds();
   ulonglong t2;
@@ -180,15 +202,17 @@ void test_millisecond()
     t1= t2;
   }
 
-  ok((backward == 0), "The millisecond timer is increasing");
+  EXPECT_TRUE((backward == 0)) << "The millisecond timer is increasing";
 
   if (myt.milliseconds.routine != 0)
-    ok((nonzero != 0), "The millisecond timer is implemented");
+    EXPECT_TRUE((nonzero != 0)) << "The millisecond timer is implemented";
   else
-    ok((nonzero == 0), "The millisecond timer is not implemented and returns 0");
+    EXPECT_TRUE((nonzero == 0))
+      << "The millisecond timer is not implemented and returns 0";
 }
 
-void test_tick()
+
+TEST_F(RDTimeStampCounter, TestTick)
 {
   ulonglong t1= my_timer_ticks();
   ulonglong t2;
@@ -206,26 +230,14 @@ void test_tick()
     t1= t2;
   }
 
-  ok((backward == 0), "The tick timer is increasing");
+  EXPECT_TRUE((backward == 0)) << "The tick timer is increasing";
 
   if (myt.ticks.routine != 0)
-    ok((nonzero != 0), "The tick timer is implemented");
+    EXPECT_TRUE((nonzero != 0)) << "The tick timer is implemented";
   else
-    ok((nonzero == 0), "The tick timer is not implemented and returns 0");
+    EXPECT_TRUE((nonzero == 0))
+      << "The tick timer is not implemented and returns 0";
 }
 
-int main(int argc __attribute__((unused)),
-         char ** argv __attribute__((unused)))
-{
-  plan(11);
 
-  test_init();
-  test_cycle();
-  test_nanosecond();
-  test_microsecond();
-  test_millisecond();
-  test_tick();
-
-  return 0;
 }
-

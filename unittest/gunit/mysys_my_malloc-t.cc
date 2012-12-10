@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,31 +13,32 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#include <gtest/gtest.h>
+
 #include <my_global.h>
 #include <my_sys.h>
-#include "tap.h"
 
-int main(void)
+namespace mysys_my_malloc_unittest {
+
+TEST(Mysys, Malloc)
 {
   void *p;
-  MY_INIT("my_malloc-t");
-
-  plan(4);
 
   p= my_malloc(0, MYF(0));
-  ok(p != NULL, "Zero-sized block allocation.");
+  EXPECT_TRUE(p != NULL) << "Zero-sized block allocation.";
 
   p= my_realloc(p, 32, MYF(0));
-  ok(p != NULL, "Reallocated zero-sized block.");
+  EXPECT_TRUE(p != NULL) << "Reallocated zero-sized block.";
 
   p= my_realloc(p, 16, MYF(0));
-  ok(p != NULL, "Trimmed block.");
+  EXPECT_TRUE(p != NULL) << "Trimmed block.";
 
   my_free(p);
   p= NULL;
 
-  ok((my_free(p), 1), "Free NULL pointer.");
-
-  return exit_status();
+  my_free(p);
 }
 
+}

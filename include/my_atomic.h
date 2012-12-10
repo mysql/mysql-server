@@ -280,7 +280,9 @@ make_atomic_store(ptr)
 
 #define MY_ATOMIC_OK       0
 #define MY_ATOMIC_NOT_1CPU 1
+C_MODE_START
 extern int my_atomic_initialize();
+C_MODE_END
 
 #endif
 
