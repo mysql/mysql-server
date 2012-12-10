@@ -11,7 +11,7 @@ static void test(int length_bits) {
     for (int64_t x = -max-1; x <= max; x++) {
         for (int64_t y = -max-1; y <= max; y++) {
             bool over;
-            int64_t n = int_add(x, y, length_bits, over);
+            int64_t n = int_add(x, y, length_bits, &over);
             printf("%lld %lld %lld %u\n", x, y, n, over);
         }
     }

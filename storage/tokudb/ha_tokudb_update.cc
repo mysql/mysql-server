@@ -568,7 +568,7 @@ static int save_in_field(Item *item, TABLE *table) {
 }
 
 // Generate an update message for an update operation and send it into the primary tree.  Return 0 if successful.
-int ha_tokudb::send_update_message(List<Item> &fields, List<Item> &values, Item *conds, DB_TXN *txn) {
+int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update_values, Item *conds, DB_TXN *txn) {
     int error;
 
     // Save the primary key from the where conditions
@@ -597,15 +597,16 @@ int ha_tokudb::send_update_message(List<Item> &fields, List<Item> &values, Item 
         
     uchar operation = UPDATE_OP_SIMPLE_UPDATE;
     update_message.append(&operation, sizeof operation);
-    uint32_t update_mode = 0;
-    update_message.append(&update_mode, sizeof update_mode);
     
     // append the descriptor
     marshall_simple_descriptor(update_message, table, share->kc_info, primary_key);    
 
     // append the updates
-    List_iterator<Item> lhs_i(fields);
-    List_iterator<Item> rhs_i(values);
+    uint32_t num_updates = update_fields.elements;
+    update_message.append(&num_updates, sizeof num_updates);
+
+    List_iterator<Item> lhs_i(update_fields);
+    List_iterator<Item> rhs_i(update_values);
     while (error == 0) {
         Item *lhs_item = lhs_i++;
         if (lhs_item == NULL)
@@ -718,8 +719,6 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
     // append the operation
     uchar operation = UPDATE_OP_SIMPLE_UPSERT;
     update_message.append(&operation, sizeof operation);
-    uint32_t update_mode = 0;
-    update_message.append(&update_mode, sizeof update_mode);
 
     // append the row
     uint32_t row_length = row.size;
@@ -730,6 +729,9 @@ int ha_tokudb::send_upsert_message(THD *thd, List<Item> &update_fields, List<Ite
     marshall_simple_descriptor(update_message, table, share->kc_info, primary_key);
 
     // append the update expressions
+    uint32_t num_updates = update_fields.elements;
+    update_message.append(&num_updates, sizeof num_updates);
+
     List_iterator<Item> lhs_i(update_fields);
     List_iterator<Item> rhs_i(update_values);
     while (1) {

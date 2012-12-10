@@ -27,24 +27,24 @@ static uint64_t uint_low_endpoint(uint length_bits) {
 // Add two unsigned integers with max maximum value.
 // If there is an overflow then set the sum to the max.
 // Return the sum and the overflow.
-static uint64_t uint_add(uint64_t x, uint64_t y, uint length_bits, bool &over) __attribute__((unused));
-static uint64_t uint_add(uint64_t x, uint64_t y, uint length_bits, bool &over) {
+static uint64_t uint_add(uint64_t x, uint64_t y, uint length_bits, bool *over) __attribute__((unused));
+static uint64_t uint_add(uint64_t x, uint64_t y, uint length_bits, bool *over) {
     uint64_t mask = uint_mask(length_bits);
     assert((x & ~mask) == 0 && (y & ~mask) == 0);
     uint64_t s = (x + y) & mask;
-    over = s < x;     // check for overflow
+    *over = s < x;     // check for overflow
     return s;
 }
 
 // Subtract two unsigned ints with max maximum value.
 // If there is an over then set the difference to 0.
 // Return the difference and the overflow.
-static uint64_t uint_sub(uint64_t x, uint64_t y, uint length_bits, bool &over) __attribute__((unused));
-static uint64_t uint_sub(uint64_t x, uint64_t y, uint length_bits, bool &over) {
+static uint64_t uint_sub(uint64_t x, uint64_t y, uint length_bits, bool *over) __attribute__((unused));
+static uint64_t uint_sub(uint64_t x, uint64_t y, uint length_bits, bool *over) {
     uint64_t mask = uint_mask(length_bits);
     assert((x & ~mask) == 0 && (y & ~mask) == 0);
     uint64_t s = (x - y) & mask;
-    over = s > x;    // check for overflow
+    *over = s > x;    // check for overflow
     return s;
 }
 
@@ -74,11 +74,11 @@ static int64_t int_sign_extend(int64_t n, uint length_bits) {
 // depending on the sign bit.
 // Sign extend to 64 bits.
 // Return the sum and the overflow.
-static int64_t int_add(int64_t x, int64_t y, uint length_bits, bool &over) __attribute__((unused));
-static int64_t int_add(int64_t x, int64_t y, uint length_bits, bool &over) {
+static int64_t int_add(int64_t x, int64_t y, uint length_bits, bool *over) __attribute__((unused));
+static int64_t int_add(int64_t x, int64_t y, uint length_bits, bool *over) {
     int64_t mask = uint_mask(length_bits);
     int64_t n = (x + y) & mask;
-    over = (((n ^ x) & (n ^ y)) >> (length_bits-1)) & 1;    // check for overflow
+    *over = (((n ^ x) & (n ^ y)) >> (length_bits-1)) & 1;    // check for overflow
     if (n & (1LL<<(length_bits-1)))
         n |= ~mask;    // sign extend
     return n;
@@ -89,11 +89,11 @@ static int64_t int_add(int64_t x, int64_t y, uint length_bits, bool &over) {
 // depending on the sign bit.
 // Sign extend to 64 bits.
 // Return the sum and the overflow.
-static int64_t int_sub(int64_t x, int64_t y, uint length_bits, bool &over) __attribute__((unused));
-static int64_t int_sub(int64_t x, int64_t y, uint length_bits, bool &over) {
+static int64_t int_sub(int64_t x, int64_t y, uint length_bits, bool *over) __attribute__((unused));
+static int64_t int_sub(int64_t x, int64_t y, uint length_bits, bool *over) {
     int64_t mask = uint_mask(length_bits);
     int64_t n = (x - y) & mask;
-    over = (((x ^ y) & (n ^ x)) >> (length_bits-1)) & 1;    // check for overflow
+    *over = (((x ^ y) & (n ^ x)) >> (length_bits-1)) & 1;    // check for overflow
     if (n & (1LL<<(length_bits-1)))
         n |= ~mask;    // sign extend
     return n;
