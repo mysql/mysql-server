@@ -10,4 +10,9 @@
 #
 ##############################################################################
 innodb_bug59641 : jonas 2010-10-15, started failing in spuriously in valgrind after 5.1.16 merge
-
+innodb_bug13510739 : Bug #15978766 TEST VALGRIND_REPORT FAILS INNODB TESTS
+innodb_bug13635833 : Bug #15978766 TEST VALGRIND_REPORT FAILS INNODB TESTS
+innodb_bug14007649 : Bug #15978766 TEST VALGRIND_REPORT FAILS INNODB TESTS
+innodb_bug14704286 : Bug #15978766 TEST VALGRIND_REPORT FAILS INNODB TESTS
+innodb_bug21704 : Bug #15978766 TEST VALGRIND_REPORT FAILS INNODB TESTS
+innodb_bug30423 : Bug #15978766 TEST VALGRIND_REPORT FAILS INNODB TESTS
