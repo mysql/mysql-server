@@ -180,6 +180,9 @@ enum enum_server_command
 /* Enable authentication response packet to be larger than 255 bytes. */
 #define CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA (1UL << 21)
 
+/* Don't close the connection for a connection with expired password. */
+#define CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS (1UL << 22)
+
 #define CLIENT_SSL_VERIFY_SERVER_CERT (1UL << 30)
 #define CLIENT_REMEMBER_OPTIONS (1UL << 31)
 
@@ -190,30 +193,32 @@ enum enum_server_command
 #endif
 
 /* Gather all possible capabilites (flags) supported by the server */
-#define CLIENT_ALL_FLAGS  (CLIENT_LONG_PASSWORD | \
-                           CLIENT_FOUND_ROWS | \
-                           CLIENT_LONG_FLAG | \
-                           CLIENT_CONNECT_WITH_DB | \
-                           CLIENT_NO_SCHEMA | \
-                           CLIENT_COMPRESS | \
-                           CLIENT_ODBC | \
-                           CLIENT_LOCAL_FILES | \
-                           CLIENT_IGNORE_SPACE | \
-                           CLIENT_PROTOCOL_41 | \
-                           CLIENT_INTERACTIVE | \
-                           CLIENT_SSL | \
-                           CLIENT_IGNORE_SIGPIPE | \
-                           CLIENT_TRANSACTIONS | \
-                           CLIENT_RESERVED | \
-                           CLIENT_SECURE_CONNECTION | \
-                           CLIENT_MULTI_STATEMENTS | \
-                           CLIENT_MULTI_RESULTS | \
-                           CLIENT_PS_MULTI_RESULTS | \
-                           CLIENT_SSL_VERIFY_SERVER_CERT | \
-                           CLIENT_REMEMBER_OPTIONS | \
-                           CLIENT_PLUGIN_AUTH | \
-                           CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA | \
-                           CLIENT_CONNECT_ATTRS)
+#define CLIENT_ALL_FLAGS  (CLIENT_LONG_PASSWORD \
+                           | CLIENT_FOUND_ROWS \
+                           | CLIENT_LONG_FLAG \
+                           | CLIENT_CONNECT_WITH_DB \
+                           | CLIENT_NO_SCHEMA \
+                           | CLIENT_COMPRESS \
+                           | CLIENT_ODBC \
+                           | CLIENT_LOCAL_FILES \
+                           | CLIENT_IGNORE_SPACE \
+                           | CLIENT_PROTOCOL_41 \
+                           | CLIENT_INTERACTIVE \
+                           | CLIENT_SSL \
+                           | CLIENT_IGNORE_SIGPIPE \
+                           | CLIENT_TRANSACTIONS \
+                           | CLIENT_RESERVED \
+                           | CLIENT_SECURE_CONNECTION \
+                           | CLIENT_MULTI_STATEMENTS \
+                           | CLIENT_MULTI_RESULTS \
+                           | CLIENT_PS_MULTI_RESULTS \
+                           | CLIENT_SSL_VERIFY_SERVER_CERT \
+                           | CLIENT_REMEMBER_OPTIONS \
+                           | CLIENT_PLUGIN_AUTH \
+                           | CLIENT_CONNECT_ATTRS \
+                           | CLIENT_PLUGIN_AUTH_LENENC_CLIENT_DATA \
+                           | CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS \
+)
 
 /*
   Switch off the flags that are optional and depending on build flags
