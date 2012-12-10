@@ -4420,7 +4420,12 @@ mysql_options(MYSQL *mysql,enum mysql_option option, const void *arg)
     mysql->options.extension->enable_cleartext_plugin= 
       (*(my_bool*) arg) ? TRUE : FALSE;
     break;
-
+  case MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS:
+    if (*(my_bool*) arg)
+      mysql->options.client_flag|= CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
+    else
+      mysql->options.client_flag&= ~CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS;
+    break;
 
   default:
     DBUG_RETURN(1);
