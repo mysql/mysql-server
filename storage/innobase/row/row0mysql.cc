@@ -3133,10 +3133,12 @@ row_truncate_table_for_mysql(
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
 	table_id_t	new_id;
-	ulint		recreate_space = 0;
 	pars_info_t*	info = NULL;
 	ibool		has_internal_doc_id;
-	ulint		old_space = table->space;
+	dict_index_t*	index;
+	ulint		buf_index;
+	ulint		flags = ULINT_UNDEFINED;
+	ulint		index_count;
 
 	/* How do we prevent crashes caused by ongoing operations on
 	the table? Old operations could try to access non-existent
@@ -3157,23 +3159,17 @@ row_truncate_table_for_mysql(
 	reallocated, the allocator will remove the ibuf entries for
 	it.
 
-	When we truncate *.ibd files by recreating them (analogous to
-	DISCARD TABLESPACE), we remove all entries for the table in the
-	insert buffer tree.  This is not strictly necessary, because
-	in 6) we will assign a new tablespace identifier, but we can
-	free up some space in the system tablespace.
+	When we prepare to truncate *.ibd files, we remove all entries
+	for the table in the insert buffer tree. This is not strictly
+	necessary, but we can free up some space in the system tablespace.
 
 	4) Linear readahead and random readahead: we use the same
 	method as in 3) to discard ongoing operations. (This is only
-	relevant for TRUNCATE TABLE by DISCARD TABLESPACE.)
+	relevant for TRUNCATE TABLE by TRUNCATE TABLESPACE.)
 
 	5) FOREIGN KEY operations: if
 	table->n_foreign_key_checks_running > 0, we do not allow the
-	TRUNCATE. We also reserve the data dictionary latch.
-
-	6) Crash recovery: To prevent the application of pre-truncation
-	redo log records on the truncated tablespace, we will assign
-	a new tablespace identifier to the truncated tablespace. */
+	TRUNCATE. We also reserve the data dictionary latch. */
 
 	ut_ad(table);
 
@@ -3271,7 +3267,7 @@ row_truncate_table_for_mysql(
 	trx_rollback_active() in case of a crash. */
 
 	trx->table_id = table->id;
-	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+	trx_set_dict_operation(trx, TRX_DICT_OP_INDEX);
 
 	/* Assign an undo segment for the transaction, so that the
 	transaction will be recovered after a crash. */
@@ -3289,73 +3285,25 @@ row_truncate_table_for_mysql(
 
 	trx->table_id = table->id;
 
-	if (table->space && !table->dir_path_of_temp_table) {
-		/* Discard and create the single-table tablespace. */
-		ulint	space	= table->space;
-		ulint	flags	= fil_space_get_flags(space);
-
-		ut_a(!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY));
-
-		dict_get_and_save_data_dir_path(table, true);
-
-		if (flags != ULINT_UNDEFINED
-		    && fil_discard_tablespace(space) == DB_SUCCESS) {
-
-			dict_index_t*	index;
-
-			dict_hdr_get_new_id(NULL, NULL, &space);
-
-			/* Lock all index trees for this table. We must
-			do so after dict_hdr_get_new_id() to preserve
-			the latch order */
-			dict_table_x_lock_indexes(table);
-
-			if (space == ULINT_UNDEFINED
-			    || fil_create_new_single_table_tablespace(
-				    space, table->name,
-				    table->data_dir_path,
-				    flags, table->flags2,
-				    FIL_IBD_FILE_INITIAL_SIZE)
-			    != DB_SUCCESS) {
-				dict_table_x_unlock_indexes(table);
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: TRUNCATE TABLE %s failed to"
-					" create a new tablespace\n",
-					table->name);
-				table->ibd_file_missing = 1;
-				err = DB_ERROR;
+	if (table->space != TRX_SYS_SPACE
+	    && !table->dir_path_of_temp_table) {
+		flags = fil_space_get_flags(table->space);
+		if (flags != ULINT_UNDEFINED) {
+			err = fil_prepare_for_truncate(table->space);
+			if (err != DB_SUCCESS) {
 				goto funct_exit;
 			}
-
-			recreate_space = space;
-
-			/* Replace the space_id in the data dictionary cache.
-			The persisent data dictionary (SYS_TABLES.SPACE
-			and SYS_INDEXES.SPACE) are updated later in this
-			function. */
-			table->space = space;
-			index = dict_table_get_first_index(table);
-			do {
-				index->space = space;
-				index = dict_table_get_next_index(index);
-			} while (index);
-
-			mtr_start(&mtr);
-			fsp_header_init(space,
-					FIL_IBD_FILE_INITIAL_SIZE, &mtr);
-			mtr_commit(&mtr);
 		}
-	} else {
-		/* Lock all index trees for this table, as we will
-		truncate the table/index and possibly change their metadata.
-		All DML/DDL are blocked by table level lock, with
-		a few exceptions such as queries into information schema
-		about the table, MySQL could try to access index stats
-		for this kind of query, we need to use index locks to
-		sync up */
-		dict_table_x_lock_indexes(table);
 	}
+
+	/* Lock all index trees for this table, as we will
+	truncate the table/index and possibly change their metadata.
+	All DML/DDL are blocked by table level lock, with
+	a few exceptions such as queries into information schema
+	about the table, MySQL could try to access index stats
+	for this kind of query, we need to use index locks to
+	sync up */
+	dict_table_x_lock_indexes(table);
 
 	/* scan SYS_INDEXES for all indexes of the table */
 	heap = mem_heap_create(800);
@@ -3370,9 +3318,133 @@ row_truncate_table_for_mysql(
 	sys_index = dict_table_get_first_index(dict_sys->sys_indexes);
 	dict_index_copy_types(tuple, sys_index, 1);
 
+	/* Collects and writes space id, table name, data directory
+	path, tablespace flags, table format, index ids, index types,
+	number of index fields and index field information of the
+	table into the TRUNCATE log record. */
+	if (table->space != TRX_SYS_SPACE
+	    && !table->dir_path_of_temp_table
+	    && flags != ULINT_UNDEFINED) {
+		truncate_rec_body_t	truncate_rec_body;
+		ulint			trx_id_col[INDEX_ID_BUF_LEN];
+		byte			fields_buf[FIELDS_LEN];	/*!< index field
+								information */
+		index_count		= 0;
+		buf_index		= 0;
+
+		mtr_start(&mtr);
+		btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
+					  BTR_MODIFY_LEAF, &pcur, &mtr);
+		for (;;) {
+			rec_t*		rec;
+			const byte*	field;
+			ulint		len;
+			const byte*	ptr;
+			ulint		type;
+			index_id_t	index_id;
+			byte		fields[FIELDS_LEN];
+
+			if (!btr_pcur_is_on_user_rec(&pcur)) {
+				/* The end of SYS_INDEXES has been reached. */
+				break;
+			}
+
+			rec = btr_pcur_get_rec(&pcur);
+
+			field = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_INDEXES__TABLE_ID, &len);
+			ut_ad(len == 8);
+
+			if (memcmp(buf, field, len) != 0) {
+				/* End of indexes for the table
+				(TABLE_ID mismatch). */
+				break;
+			}
+			if (rec_get_deleted_flag(rec, FALSE)) {
+				/* The index has been dropped. */
+				goto next_record;
+			}
+
+			ptr = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_INDEXES__TYPE, &len);
+			ut_ad(len == 4);
+			type = mach_read_from_4(ptr);
+			truncate_rec_body.type_buf[index_count] = type;
+
+			ptr = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_INDEXES__ID, &len);
+			ut_ad(len == 8);
+			index_id = mach_read_from_8(ptr);
+			truncate_rec_body.index_id_buf[index_count] = index_id;
+
+			if (!fsp_flags_is_compressed(flags)) {
+				truncate_rec_body.n_fields_buf[index_count] =
+					0;
+				truncate_rec_body.field_len_buf[index_count] =
+					0;
+				index_count++;
+				/* Skip to collect compressed index info */
+				goto next_record;
+			}
+			/* Collects info for creating compressed index page
+			during recovery */
+			for (index = UT_LIST_GET_FIRST(table->indexes);
+			     index;
+			     index = UT_LIST_GET_NEXT(indexes, index)) {
+				if (index->id == index_id) {
+					truncate_rec_body.
+						n_fields_buf[index_count] =
+						dict_index_get_n_fields(index);
+
+					if (dict_index_is_clust(index)) {
+						trx_id_col[index_count] =
+						dict_index_get_sys_col_pos(
+							index, DATA_TRX_ID);
+						ut_ad(trx_id_col[index_count]
+							> 0);
+						ut_ad(trx_id_col[index_count]
+							!= ULINT_UNDEFINED);
+					} else {
+						trx_id_col[index_count] = 0;
+					}
+
+					truncate_rec_body.
+						field_len_buf[index_count] =
+					page_zip_fields_encode(
+						truncate_rec_body.
+						n_fields_buf[index_count],
+						index,
+						trx_id_col[index_count],
+						fields);
+					memcpy(fields_buf + buf_index, fields,
+					       truncate_rec_body.
+					       field_len_buf[index_count]);
+					buf_index += truncate_rec_body.
+						field_len_buf[index_count];
+				}
+			}
+			index_count++;
+next_record:
+			btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+		}
+		fields_buf[buf_index + 1] = '\0';
+
+		btr_pcur_close(&pcur);
+		mtr_commit(&mtr);
+
+		truncate_rec_body.index_num = index_count;
+		truncate_rec_body.dir_path = table->data_dir_path;
+		truncate_rec_body.fields_buf = fields_buf;
+
+		fil_truncate_write_log(table->space, table->name, flags,
+				       table->flags, &truncate_rec_body);
+	}
+
 	mtr_start(&mtr);
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
 				  BTR_MODIFY_LEAF, &pcur, &mtr);
+	/* Free all the index trees associated with rows in SYS_INDEXES table */
+	index_count = 0;
 	for (;;) {
 		rec_t*		rec;
 		const byte*	field;
@@ -3400,10 +3472,90 @@ row_truncate_table_for_mysql(
 			goto next_rec;
 		}
 
-		/* This call may commit and restart mtr
-		and reposition pcur. */
-		root_page_no = dict_truncate_index_tree(table, recreate_space,
-							&pcur, &mtr);
+		root_page_no = dict_free_index_tree(table, table->space,
+						    &pcur, &mtr);
+		index_count++;
+		/* Crash during the drop of the second secondary */
+		if (index_count == INDEX_NUM_SECOND_SECONDARY) {
+			/* Waiting for MLOG_FILE_TRUNCATE record is written
+			into redo log before the crash. */
+			DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
+				sleep(TIME_WAIT_RECORD_INTO_REDO_LOG););
+			DBUG_EXECUTE_IF("crash_during_drop_second_secondary",
+				DBUG_SUICIDE(););
+		}
+
+		if (root_page_no != FIL_NULL) {
+			/* We will need to commit and restart the
+			mini-transaction in order to avoid deadlocks.
+			The dict_free_index_tree() call has freed
+			a page in this mini-transaction, and the rest
+			of this loop could latch another index page.*/
+			mtr_commit(&mtr);
+			mtr_start(&mtr);
+			btr_pcur_restore_position(BTR_MODIFY_LEAF,
+						  &pcur, &mtr);
+		}
+
+next_rec:
+		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
+	}
+
+	btr_pcur_close(&pcur);
+	mtr_commit(&mtr);
+
+	if (table->space != TRX_SYS_SPACE
+	    && !table->dir_path_of_temp_table
+	    && flags != ULINT_UNDEFINED) {
+		/* Invalidate in the buffer pool all pages belonging to the
+		tablespace */
+		buf_LRU_flush_or_remove_pages(table->space,
+			BUF_REMOVE_ALL_NO_WRITE, 0);
+		/* Remove all insert buffer entries for the tablespace */
+		ibuf_delete_for_discarded_space(table->space);
+
+		mtr_start(&mtr);
+		fsp_header_init(
+			table->space,
+			table->indexes.count + FIL_IBD_FILE_INITIAL_SIZE + 1,
+			&mtr);
+		mtr_commit(&mtr);
+	}
+
+	mtr_start(&mtr);
+	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
+				  BTR_MODIFY_LEAF, &pcur, &mtr);
+	/* Create new index trees associated with rows in SYS_INDEXES table */
+	for (;;) {
+		rec_t*          rec;
+		const byte*     field;
+		ulint           len;
+		ulint           root_page_no;
+
+		if (!btr_pcur_is_on_user_rec(&pcur)) {
+			/* The end of SYS_INDEXES has been reached. */
+			break;
+		}
+
+		rec = btr_pcur_get_rec(&pcur);
+
+		field = rec_get_nth_field_old(rec,
+					      DICT_FLD__SYS_INDEXES__TABLE_ID,
+					      &len);
+		ut_ad(len == 8);
+
+		if (memcmp(buf, field, len) != 0) {
+			/* End of indexes for the table (TABLE_ID mismatch). */
+			break;
+		}
+
+		if (rec_get_deleted_flag(rec, FALSE)) {
+			/* The index has been dropped. */
+			goto next_user_rec;
+		}
+
+		root_page_no = dict_create_index_tree(table, table->space,
+						      &pcur, &mtr);
 
 		rec = btr_pcur_get_rec(&pcur);
 
@@ -3413,7 +3565,7 @@ row_truncate_table_for_mysql(
 				root_page_no, &mtr);
 			/* We will need to commit and restart the
 			mini-transaction in order to avoid deadlocks.
-			The dict_truncate_index_tree() call has allocated
+			The dict_create_index_tree() call has allocated
 			a page in this mini-transaction, and the rest of
 			this loop could latch another index page. */
 			mtr_commit(&mtr);
@@ -3422,7 +3574,7 @@ row_truncate_table_for_mysql(
 						  &pcur, &mtr);
 		}
 
-next_rec:
+next_user_rec:
 		btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 	}
 
@@ -3481,42 +3633,21 @@ next_rec:
 
 	info = pars_info_create();
 
-	pars_info_add_int4_literal(info, "new_space", (lint) table->space);
 	pars_info_add_ull_literal(info, "old_id", table->id);
 	pars_info_add_ull_literal(info, "new_id", new_id);
 
 	err = que_eval_sql(info,
 			   "PROCEDURE RENUMBER_TABLE_ID_PROC () IS\n"
 			   "BEGIN\n"
-			   "UPDATE SYS_TABLES"
-			   " SET ID = :new_id, SPACE = :new_space\n"
+			   "UPDATE SYS_TABLES SET ID = :new_id\n"
 			   " WHERE ID = :old_id;\n"
 			   "UPDATE SYS_COLUMNS SET TABLE_ID = :new_id\n"
 			   " WHERE TABLE_ID = :old_id;\n"
-			   "UPDATE SYS_INDEXES"
-			   " SET TABLE_ID = :new_id, SPACE = :new_space\n"
+			   "UPDATE SYS_INDEXES SET TABLE_ID = :new_id\n"
 			   " WHERE TABLE_ID = :old_id;\n"
 			   "END;\n"
 			   , FALSE, trx);
 
-	if (err == DB_SUCCESS && old_space != table->space) {
-		info = pars_info_create();
-
-		pars_info_add_int4_literal(info, "old_space", (lint) old_space);
-		pars_info_add_int4_literal(info, "new_space", (lint) table->space);
-
-		err = que_eval_sql(info,
-				   "PROCEDURE RENUMBER_TABLESPACE_PROC () IS\n"
-				   "BEGIN\n"
-				   "UPDATE SYS_TABLESPACES"
-				   " SET SPACE = :new_space\n"
-				   " WHERE SPACE = :old_space;\n"
-				   "UPDATE SYS_DATAFILES"
-				   " SET SPACE = :new_space"
-				   " WHERE SPACE = :old_space;\n"
-				   "END;\n"
-				   , FALSE, trx);
-	}
 	if (err != DB_SUCCESS) {
 		trx->error_state = DB_SUCCESS;
 		trx_rollback_to_savepoint(trx, NULL);
@@ -3565,6 +3696,23 @@ next_rec:
 	dict_table_autoinc_unlock(table);
 
 	trx_commit_for_mysql(trx);
+
+	if (table->space != TRX_SYS_SPACE
+	    && !table->dir_path_of_temp_table
+	    && flags != ULINT_UNDEFINED) {
+		/* Waiting for MLOG_FILE_TRUNCATE record is written into
+		redo log before the crash. */
+		DBUG_EXECUTE_IF("crash_before_log_checkpoint",
+				sleep(TIME_WAIT_RECORD_INTO_REDO_LOG););
+		DBUG_EXECUTE_IF("crash_before_log_checkpoint", DBUG_SUICIDE(););
+		log_make_checkpoint_at(IB_ULONGLONG_MAX, TRUE);
+		err = fil_truncate_tablespace(
+			table->space, table->name,
+			table->data_dir_path, flags,
+			table->indexes.count + FIL_IBD_FILE_INITIAL_SIZE + 1);
+	}
+
+	DBUG_EXECUTE_IF("crash_after_truncate_tablespace", DBUG_SUICIDE(););
 
 funct_exit:
 

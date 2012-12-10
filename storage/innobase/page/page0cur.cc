@@ -1183,7 +1183,7 @@ page_cur_insert_rec_zip_reorg(
 	ulint		level = page_compression_level;
 
 	/* Recompress or reorganize and recompress the page. */
-	if (page_zip_compress(page_zip, page, index, level,
+	if (page_zip_compress(page_zip, page, index, level, NULL,
 			      log_compressed ? mtr : NULL)) {
 		if (!log_compressed) {
 			page_cur_insert_rec_write_log(

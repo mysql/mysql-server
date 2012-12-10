@@ -61,7 +61,7 @@ CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(128)
 ) ROW_FORMAT=redundant;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 1979. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(155)
@@ -71,7 +71,7 @@ CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(156)
 ) ROW_FORMAT=compact;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 1982. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(76)
@@ -81,7 +81,7 @@ CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(79)
 ) ROW_FORMAT=compressed;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 1982. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(155)
@@ -91,7 +91,7 @@ CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(156)
 ) ROW_FORMAT=dynamic;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 1982. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1 (a varchar(64) character set utf8,
 b varchar(64) character set utf8,
 c varchar(64) character set utf8,
@@ -394,7 +394,7 @@ CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 1982. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767)))
@@ -407,7 +407,7 @@ ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
 drop table t1;
 CREATE TABLE t1(c text, PRIMARY KEY (c(440)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 1982. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1(c text, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));

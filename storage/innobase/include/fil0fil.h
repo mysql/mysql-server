@@ -50,6 +50,11 @@ extern const char*	fil_path_to_mysql_datadir;
 /** Initial size of a single-table tablespace in pages */
 #define FIL_IBD_FILE_INITIAL_SIZE	4
 
+/* The length of index id buffer */
+#define INDEX_ID_BUF_LEN		1024
+/* The length of index fields encoded buffer */
+#define FIELDS_LEN			4096
+
 /** 'null' (undefined) page offset in the context of file spaces */
 #define	FIL_NULL	ULINT32_UNDEFINED
 
@@ -408,8 +413,9 @@ fil_op_log_parse_or_replay(
 	ulint	space_id,	/*!< in: the space id of the tablespace in
 				question, or 0 if the log record should
 				only be parsed but not replayed */
-	ulint	log_flags);	/*!< in: redo log flags
+	ulint	log_flags,	/*!< in: redo log flags
 				(stored in the page number parameter) */
+	lsn_t	recv_lsn);	/*!< in: the end LSN of the log record */
 /*******************************************************************//**
 Deletes a single-table tablespace. The tablespace must be cached in the
 memory cache.
@@ -422,6 +428,81 @@ fil_delete_tablespace(
 	buf_remove_t	buf_remove);	/*!< in: specify the action to take
 					on the tables pages in the buffer
 					pool */
+/** The body information of MLOG_FILE_TRUNCATE redo record */
+struct truncate_rec_body_t {
+	ulint		index_num;			/*!< the number
+							of index */
+	const char*	dir_path;			/*!< data dir
+							path of table */
+	const byte*	fields_buf;			/*!< index field
+							information */
+	index_id_t	index_id_buf[INDEX_ID_BUF_LEN];	/*!< all the
+							index ids */
+	ulint		type_buf[INDEX_ID_BUF_LEN];	/*!< types for
+							all indexes */
+	ulint		n_fields_buf[INDEX_ID_BUF_LEN];	/*!< number of
+							index fields */
+	ulint		field_len_buf[INDEX_ID_BUF_LEN];
+							/*!< the length
+							of index field */
+};
+/*******************************************************************//**
+Prepare for truncating a single-table tablespace. The tablespace
+must be cached in the memory cache.
+1) Check pending operations on a tablespace;
+2) Remove all insert buffer entries for the tablespace;
+@return DB_SUCCESS or error */
+UNIV_INTERN
+dberr_t
+fil_prepare_for_truncate(
+/*=====================*/
+	ulint	id);			/*!< in: space id */
+/*******************************************************************//**
+Write a log record for truncating a single-table tablespace.
+*/
+void
+fil_truncate_write_log(
+/*===================*/
+	ulint			space_id,	/*!< in: space id */
+	const char*		tablename,	/*!< in: the table name in the
+						usual databasename/tablename
+						format of InnoDB */
+	ulint			flags,		/*!< in: tablespace flags */
+	ulint			format_flags,	/*!< in: page format */
+	truncate_rec_body_t*	truncate_rec_body);
+						/*!< in: The body information
+						of MLOG_FILE_TRUNCATE redo
+						record */
+/*******************************************************************//**
+The set of the truncated tablespaces need to be initialized during recovery.
+@return true if the space is in the set, otherwise false */
+UNIV_INTERN
+bool
+fil_space_is_truncated(
+/*===================*/
+	ulint		id);		/* !< in: space id */
+/*******************************************************************//**
+Reset truncated space id */
+UNIV_INTERN
+void
+fil_space_truncated_reset(void);
+/*============================*/
+/*******************************************************************//**
+Truncate a single-table tablespace. The tablespace must be cached
+in the memory cache.
+@return DB_SUCCESS or error */
+UNIV_INTERN
+dberr_t
+fil_truncate_tablespace(
+/*====================*/
+	ulint		id,		/* !< in: space id */
+	const char*	tablename,	/*!< in: the table name in the usual
+					databasename/tablename format
+					of InnoDB */
+	const char*	dir_path,	/*!< in: NULL or a dir path */
+	ulint		flags,		/*!< in: tablespace flags */
+	ulint		size);		/*!< in: the reserved size of the
+					tablespace file in pages */
 /*******************************************************************//**
 Closes a single-table tablespace. The tablespace must be cached in the
 memory cache. Free all pages used by the tablespace.

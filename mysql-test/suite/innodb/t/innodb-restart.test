@@ -2,6 +2,11 @@
 # These test make sure that tables are visible after rebooting
 #
 
+# Valgrind would complain when writing a string with '\0' byte in the middle
+# into redo log, the case is caused by 'ALTER TABLE t6 TRUNCATE PARTITION p2'
+# statement when writing index field information into TRUNCATE redo log.
+--source include/not_valgrind.inc
+
 --source include/have_innodb.inc
 --source include/have_partition.inc
 --source include/not_embedded.inc

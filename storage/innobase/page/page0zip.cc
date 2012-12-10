@@ -473,7 +473,7 @@ page_zip_fixed_field_encode(
 /**********************************************************************//**
 Write the index information for the compressed page.
 @return	used size of buf */
-static
+UNIV_INTERN
 ulint
 page_zip_fields_encode(
 /*===================*/
@@ -1195,12 +1195,16 @@ UNIV_INTERN
 ibool
 page_zip_compress(
 /*==============*/
-	page_zip_des_t*	page_zip,/*!< in: size; out: data, n_blobs,
-				m_start, m_end, m_nonempty */
-	const page_t*	page,	/*!< in: uncompressed page */
-	dict_index_t*	index,	/*!< in: index of the B-tree node */
-	ulint		level,	/*!< in: commpression level */
-	mtr_t*		mtr)	/*!< in: mini-transaction, or NULL */
+	page_zip_des_t*	page_zip,	/*!< in: size; out: data, n_blobs,
+					m_start, m_end, m_nonempty */
+	const page_t*	page,		/*!< in: uncompressed page */
+	dict_index_t*	index,		/*!< in: index of the B-tree node */
+	ulint		level,		/*!< in: commpression level */
+	page_compress_t* page_comp_info,
+					/*!< in used for applying
+					MLOG_FILE_TRUNCATE redo log record
+					during recovery */
+	mtr_t*		mtr)		/*!< in: mini-transaction, or NULL */
 {
 	z_stream	c_stream;
 	int		err;
@@ -1216,6 +1220,7 @@ page_zip_compress(
 	ulint*		offsets	= NULL;
 	ulint		n_blobs	= 0;
 	byte*		storage;/* storage of uncompressed columns */
+	ulint		ind_id;
 #ifndef UNIV_HOTBACKUP
 	ullint		usec = ut_time_us(NULL);
 #endif /* !UNIV_HOTBACKUP */
@@ -1231,8 +1236,10 @@ page_zip_compress(
 	ut_a(fil_page_get_type(page) == FIL_PAGE_INDEX);
 	ut_ad(page_simple_validate_new((page_t*) page));
 	ut_ad(page_zip_simple_validate(page_zip));
-	ut_ad(dict_table_is_comp(index->table));
-	ut_ad(!dict_index_is_ibuf(index));
+	if (index) {
+		ut_ad(dict_table_is_comp(index->table));
+		ut_ad(!dict_index_is_ibuf(index));
+	}
 
 	UNIV_MEM_ASSERT_RW(page, UNIV_PAGE_SIZE);
 
@@ -1252,10 +1259,17 @@ page_zip_compress(
 		     == PAGE_NEW_SUPREMUM);
 	}
 
-	if (page_is_leaf(page)) {
-		n_fields = dict_index_get_n_fields(index);
+	if (fil_space_is_truncated(page_get_space_id(page))) {
+		ut_ad(page_comp_info != NULL);
+		n_fields = page_comp_info->fields_num;
+		ind_id = page_comp_info->index_id;
 	} else {
-		n_fields = dict_index_get_n_unique_in_tree(index);
+		if (page_is_leaf(page)) {
+			n_fields = dict_index_get_n_fields(index);
+		} else {
+			n_fields = dict_index_get_n_unique_in_tree(index);
+		}
+		ind_id = index->id;
 	}
 
 	/* The dense directory excludes the infimum and supremum records. */
@@ -1290,7 +1304,7 @@ page_zip_compress(
 	page_zip_stat[page_zip->ssize - 1].compressed++;
 	if (cmp_per_index_enabled) {
 		mutex_enter(&page_zip_stat_per_index_mutex);
-		page_zip_stat_per_index[index->id].compressed++;
+		page_zip_stat_per_index[ind_id].compressed++;
 		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -1334,19 +1348,24 @@ page_zip_compress(
 	c_stream.avail_out = buf_end - buf - 1;
 	/* Dense page directory and uncompressed columns, if any */
 	if (page_is_leaf(page)) {
-		if (dict_index_is_clust(index)) {
-			trx_id_col = dict_index_get_sys_col_pos(
-				index, DATA_TRX_ID);
-			ut_ad(trx_id_col > 0);
-			ut_ad(trx_id_col != ULINT_UNDEFINED);
-
+		if ((index && dict_index_is_clust(index))
+			|| (page_comp_info
+			&& (page_comp_info->type & DICT_CLUSTERED))) {
+			if (index) {
+				trx_id_col = dict_index_get_sys_col_pos(
+					index, DATA_TRX_ID);
+				ut_ad(trx_id_col > 0);
+				ut_ad(trx_id_col != ULINT_UNDEFINED);
+			}
 			slot_size = PAGE_ZIP_DIR_SLOT_SIZE
 				+ DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
 		} else {
 			/* Signal the absence of trx_id
 			in page_zip_fields_encode() */
-			ut_ad(dict_index_get_sys_col_pos(index, DATA_TRX_ID)
-			      == ULINT_UNDEFINED);
+			if (index) {
+				ut_ad(dict_index_get_sys_col_pos(
+					index, DATA_TRX_ID) == ULINT_UNDEFINED);
+			}
 			trx_id_col = 0;
 			slot_size = PAGE_ZIP_DIR_SLOT_SIZE;
 		}
@@ -1361,8 +1380,16 @@ page_zip_compress(
 	}
 
 	c_stream.avail_out -= n_dense * slot_size;
-	c_stream.avail_in = page_zip_fields_encode(n_fields, index,
-						   trx_id_col, fields);
+	if (fil_space_is_truncated(page_get_space_id(page))) {
+		ut_ad(page_comp_info != NULL);
+		c_stream.avail_in = page_comp_info->field_len;
+		for (ulint i = 0; i < page_comp_info->field_len; i++) {
+			fields[i] = page_comp_info->field_buf[i];
+		}
+	} else {
+		c_stream.avail_in = page_zip_fields_encode(
+			n_fields, index, trx_id_col, fields);
+	}
 	c_stream.next_in = fields;
 	if (UNIV_LIKELY(!trx_id_col)) {
 		trx_id_col = ULINT_UNDEFINED;
@@ -1436,7 +1463,7 @@ err_exit:
 		}
 #endif /* PAGE_ZIP_COMPRESS_DBG */
 #ifndef UNIV_HOTBACKUP
-		if (page_is_leaf(page)) {
+		if (page_is_leaf(page) && index) {
 			dict_index_zip_failure(index);
 		}
 
@@ -1445,7 +1472,7 @@ err_exit:
 			+= time_diff;
 		if (cmp_per_index_enabled) {
 			mutex_enter(&page_zip_stat_per_index_mutex);
-			page_zip_stat_per_index[index->id].compressed_usec
+			page_zip_stat_per_index[ind_id].compressed_usec
 				+= time_diff;
 			mutex_exit(&page_zip_stat_per_index_mutex);
 		}
@@ -1513,12 +1540,13 @@ err_exit:
 	page_zip_stat[page_zip->ssize - 1].compressed_usec += time_diff;
 	if (cmp_per_index_enabled) {
 		mutex_enter(&page_zip_stat_per_index_mutex);
-		page_zip_stat_per_index[index->id].compressed_ok++;
-		page_zip_stat_per_index[index->id].compressed_usec += time_diff;
+		page_zip_stat_per_index[ind_id].compressed_ok++;
+		page_zip_stat_per_index[ind_id].compressed_usec += time_diff;
 		mutex_exit(&page_zip_stat_per_index_mutex);
 	}
 
-	if (page_is_leaf(page)) {
+	if (page_is_leaf(page) &&
+		!fil_space_is_truncated(page_get_space_id(page))) {
 		dict_index_zip_success(index);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -4566,7 +4594,7 @@ page_zip_reorganize(
 	mtr_set_log_mode(mtr, log_mode);
 
 	if (!page_zip_compress(page_zip, page, index,
-			       page_compression_level, mtr)) {
+			       page_compression_level, NULL, mtr)) {
 
 #ifndef UNIV_HOTBACKUP
 		buf_block_free(temp_block);

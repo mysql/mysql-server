@@ -1032,7 +1032,7 @@ btr_page_create(
 	btr_blob_dbg_assert_empty(index, buf_block_get_page_no(block));
 
 	if (page_zip) {
-		page_create_zip(block, index, level, mtr);
+		page_create_zip(block, index, level, NULL, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
 		/* Set the level of the new index page */
@@ -1512,13 +1512,17 @@ UNIV_INTERN
 ulint
 btr_create(
 /*=======*/
-	ulint		type,	/*!< in: type of the index */
-	ulint		space,	/*!< in: space where created */
-	ulint		zip_size,/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	index_id_t	index_id,/*!< in: index id */
-	dict_index_t*	index,	/*!< in: index */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle */
+	ulint		type,		/*!< in: type of the index */
+	ulint		space,		/*!< in: space where created */
+	ulint		zip_size,	/*!< in: compressed page size in bytes
+					or 0 for uncompressed pages */
+	index_id_t	index_id,	/*!< in: index id */
+	dict_index_t*	index,		/*!< in: index */
+	btr_create_t*	btr_create_info,
+					/*!< in: used for applying
+					MLOG_FILE_TRUNCATE redo record
+					during recovery */
+	mtr_t*		mtr)		/*!< in: mini-transaction handle */
 {
 	ulint		page_no;
 	buf_block_t*	block;
@@ -1553,7 +1557,11 @@ btr_create(
 		ut_ad(buf_block_get_page_no(block) == IBUF_TREE_ROOT_PAGE_NO);
 	} else {
 #ifdef UNIV_BLOB_DEBUG
-		if ((type & DICT_CLUSTERED) && !index->blobs) {
+		/* The BLOB pointers can only exist in user records.
+		TRUNCATE gets rid of all user records. So we don't
+		need assign the BLOB pointers when applying
+		MLOG_FILE_TRUNCATE log record during recovery. */
+		if ((type & DICT_CLUSTERED) && index && !index->blobs) {
 			mutex_create(PFS_NOT_INSTRUMENTED,
 				     &index->blobs_mutex, SYNC_ANY_LATCH);
 			index->blobs = rbt_create(sizeof(btr_blob_dbg_t),
@@ -1602,10 +1610,28 @@ btr_create(
 	page_zip = buf_block_get_page_zip(block);
 
 	if (page_zip) {
-		page = page_create_zip(block, index, 0, mtr);
+		if (index) {
+			page = page_create_zip(block, index, 0, NULL, mtr);
+		} else {
+			ut_ad(btr_create_info != NULL);
+			page_compress_t	page_comp_info;
+			page_comp_info.type = type;
+			page_comp_info.index_id = index_id;
+			page_comp_info.fields_num = btr_create_info->n_fields;
+			page_comp_info.field_len = btr_create_info->field_len;
+			page_comp_info.field_buf = btr_create_info->fields;
+			page = page_create_zip(block, NULL, 0, &page_comp_info,
+					       mtr);
+		}
 	} else {
-		page = page_create(block, mtr,
-				   dict_table_is_comp(index->table));
+		if (index) {
+			page = page_create(block, mtr,
+					   dict_table_is_comp(index->table));
+		} else {
+			ut_ad(btr_create_info != NULL);
+			page = page_create(block, mtr,
+					   btr_create_info->format_flags);
+		}
 		/* Set the level of the new index page */
 		btr_page_set_level(page, NULL, 0, mtr);
 	}
@@ -1834,8 +1860,8 @@ btr_page_reorganize_low(
 	}
 
 	if (page_zip
-	    && !page_zip_compress(page_zip, page, index,
-				  compression_level, NULL)) {
+	    && !page_zip_compress(page_zip, page, index, compression_level,
+				  NULL, NULL)) {
 
 		/* Restore the old page and exit. */
 		btr_blob_dbg_restore(page, temp_page, index,
@@ -1995,7 +2021,7 @@ btr_page_empty(
 	segment headers, next page-field, etc.) is preserved intact */
 
 	if (page_zip) {
-		page_create_zip(block, index, level, mtr);
+		page_create_zip(block, index, level, NULL, mtr);
 	} else {
 		page_create(block, mtr, dict_table_is_comp(index->table));
 		btr_page_set_level(page, NULL, level, mtr);

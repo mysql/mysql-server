@@ -36,6 +36,12 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0pcur.h"
 #include "trx0types.h"
 
+/* The index number of the second secondary */
+#define INDEX_NUM_SECOND_SECONDARY	3
+
+/* The time of waiting for redo record is written into redo log */
+#define TIME_WAIT_RECORD_INTO_REDO_LOG	50
+
 // Forward declaration
 struct SysIndexCallback;
 
