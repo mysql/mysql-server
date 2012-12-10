@@ -4,15 +4,10 @@ set(utils tokudb_gen tokudb_load tokudb_dump)
 foreach(util ${utils})
   add_executable(${util} ${util})
   set_target_properties(${util} PROPERTIES
-    COMPILE_DEFINITIONS "IS_TDB=1;USE_TDB=1;TDB_IS_STATIC=0")
-  target_link_libraries(${util} ${LIBTOKUDB} ${LIBTOKUPORTABILITY})
-
-  add_executable(${util}_static ${util})
-  set_target_properties(${util}_static PROPERTIES
     COMPILE_DEFINITIONS "IS_TDB=1;USE_TDB=1;TDB_IS_STATIC=1")
-  target_link_libraries(${util}_static ${LIBTOKUDB}_static ft_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
+  target_link_libraries(${util} ${LIBTOKUDB}_static ft_static z lzma ${LIBTOKUPORTABILITY}_static ${CMAKE_THREAD_LIBS_INIT} ${EXTRA_SYSTEM_LIBS})
 
-  add_common_options_to_binary_targets(${util} ${util}_static)
+  add_common_options_to_binary_targets(${util})
 
   if(BDB_FOUND)
     add_executable(${util}.bdb ${util})

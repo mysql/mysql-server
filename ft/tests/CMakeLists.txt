@@ -104,17 +104,15 @@ if(BUILD_TESTING OR BUILD_FT_TESTS)
   add_test(ft/bnc-insert-benchmark bnc-insert-benchmark 100 4096000 1000)
 
   configure_file(run_ftdump_test.sh . COPYONLY)
-  foreach(dump ftdump ftdump_static)
-    add_executable(ft-test-for-${dump} ft-test)
-    target_link_libraries(ft-test-for-${dump} ft ${LIBTOKUPORTABILITY})
-    add_common_options_to_binary_targets(ft-test-for-${dump})
-    set_property(TARGET ft-test-for-${dump} APPEND PROPERTY
-      COMPILE_DEFINITIONS "__SRCFILE__=\"ft-test-for-${dump}\";TOKUSVNROOT=\"${TOKU_SVNROOT}\"")
-    set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "ft-test-for-${dump}.ft_handle")
-    add_test(
-      NAME ft/${dump}-test
-      COMMAND run_ftdump_test.sh $<TARGET_FILE:ft-test-for-${dump}> "ft-test-for-${dump}.ft_handle" $<TARGET_FILE:${dump}>)
-  endforeach(dump)
+  add_executable(ft-test-for-ftdump ft-test)
+  target_link_libraries(ft-test-for-ftdump ft ${LIBTOKUPORTABILITY})
+  add_common_options_to_binary_targets(ft-test-for-ftdump)
+  set_property(TARGET ft-test-for-ftdump APPEND PROPERTY
+    COMPILE_DEFINITIONS "__SRCFILE__=\"ft-test-for-ftdump\";TOKUSVNROOT=\"${TOKU_SVNROOT}\"")
+  set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "ft-test-for-ftdump.ft_handle")
+  add_test(
+    NAME ft/ftdump-test
+    COMMAND run_ftdump_test.sh $<TARGET_FILE:ft-test-for-ftdump> "ft-test-for-ftdump.ft_handle" $<TARGET_FILE:ftdump>)
 
   foreach(test ${tests})
     if(NOT "${test}" MATCHES "dir[.].*")

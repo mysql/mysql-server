@@ -631,7 +631,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   foreach(recover_test ${recover_tests})
     get_filename_component(base ${recover_test} NAME_WE)
     add_test(NAME ydb/${recover_test}
-      COMMAND run_recover_test.sh $<TARGET_FILE:${base}.tdb> "dir.${base}.tdb" $<TARGET_FILE:tdb-recover> $<TARGET_FILE:tokudb_dump_static>)
+      COMMAND run_recover_test.sh $<TARGET_FILE:${base}.tdb> "dir.${base}.tdb" $<TARGET_FILE:tdb-recover> $<TARGET_FILE:tokudb_dump>)
     set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES "dir.${base}.tdb" "dir.${base}.tdb.recover")
   endforeach(recover_test)
 
