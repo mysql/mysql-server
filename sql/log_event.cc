@@ -8176,17 +8176,6 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
         thd->variables.option_bits|= OPTION_RELAXED_UNIQUE_CHECKS;
     else
         thd->variables.option_bits&= ~OPTION_RELAXED_UNIQUE_CHECKS;
-#ifndef MCP_WL3733
-    /*
-      Note that unlike the other thd options set here, this one
-      comes from a global, and not from the incoming event.
-    */
-    if (opt_slave_allow_batching)
-      thd->variables.option_bits|= OPTION_ALLOW_BATCH;
-    else
-      thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
-#endif
-
 #ifndef MCP_WL5353
     if (m_extra_row_data)
       thd->binlog_row_event_extra_data = m_extra_row_data;
@@ -8317,6 +8306,21 @@ int Rows_log_event::do_apply_event(Relay_log_info const *rli)
       So we call set_time(), like in SBR. Presently it changes nothing.
     */
     thd->set_time((time_t)when);
+#ifndef MCP_WL3733
+    /*
+      Note that unlike the other thd options set here, this one
+      comes from a global, and not from the incoming event.
+      However, we set it for every event, as it is reset (below) after
+      every event.
+    */
+    DBUG_PRINT("info", ("do_apply_event, opt_slave_allow_batching is %u.",
+                        opt_slave_allow_batching));
+
+    if (opt_slave_allow_batching)
+      thd->variables.option_bits|= OPTION_ALLOW_BATCH;
+    else
+      thd->variables.option_bits&= ~OPTION_ALLOW_BATCH;
+#endif
 #ifndef MCP_WL5353
     if (m_extra_row_data)
         thd->binlog_row_event_extra_data = m_extra_row_data;
