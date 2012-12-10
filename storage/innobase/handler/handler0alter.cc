@@ -3165,7 +3165,9 @@ innobase_check_foreign_key_index(
 }
 
 /** Allows InnoDB to update internal structures with concurrent
-writes blocked. Invoked before inplace_alter_table().
+writes blocked (provided that check_if_supported_inplace_alter()
+did not return HA_ALTER_INPLACE_NO_LOCK).
+This will be invoked before inplace_alter_table().
 
 @param altered_table	TABLE object for new version of table.
 @param ha_alter_info	Structure describing changes to be done
@@ -3252,7 +3254,9 @@ ha_innobase::prepare_inplace_alter_table(
 		    ha_alter_info->key_count)) {
 err_exit_no_heap:
 		DBUG_ASSERT(prebuilt->trx->dict_operation_lock_mode == 0);
-		online_retry_drop_indexes(prebuilt->table, user_thd);
+		if (ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) {
+			online_retry_drop_indexes(prebuilt->table, user_thd);
+		}
 		DBUG_RETURN(true);
 	}
 
@@ -3621,7 +3625,9 @@ err_exit:
 
 func_exit:
 		DBUG_ASSERT(prebuilt->trx->dict_operation_lock_mode == 0);
-		online_retry_drop_indexes(prebuilt->table, user_thd);
+		if (ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) {
+			online_retry_drop_indexes(prebuilt->table, user_thd);
+		}
 		DBUG_RETURN(false);
 	}
 

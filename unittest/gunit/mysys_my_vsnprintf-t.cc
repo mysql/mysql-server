@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -13,9 +13,14 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
+#include <gtest/gtest.h>
+
 #include <my_global.h>
 #include <m_string.h>
-#include <tap.h>
+
+namespace mysys_my_vsnprintf_unittest {
 
 char buf[1024]; /* let's hope that's enough */
 
@@ -26,13 +31,13 @@ void test1(const char *res, const char *fmt, ...)
   va_start(args,fmt);
   len= my_vsnprintf(buf, sizeof(buf)-1, fmt, args);
   va_end(args);
-  ok(strlen(res) == len && strcmp(buf, res) == 0, "\"%s\"", buf);
+  EXPECT_EQ(len, strlen(res));
+  EXPECT_STREQ(buf, res);
 }
 
-int main(void)
-{
-  plan(58);
 
+TEST(Mysys, Vsnprintf)
+{
   test1("Constant string",
         "Constant string");
 
@@ -121,8 +126,6 @@ int main(void)
   test1("G with a width (ignored) and precision: <12.35>",
         "G with a width (ignored) and precision: <%10.5g>", 12.3456789);
 
-  diag("================================================================");
-
   test1("Hello",
         "Hello");
   test1("Hello int, 1",
@@ -177,6 +180,6 @@ int main(void)
   test1("My `DDDD` test CCCC, `DDD`",
         "My %1$`s test %2$s, %1$`-.3s", "DDDD", "CCCC");
 
-  return exit_status();
 }
 
+}
