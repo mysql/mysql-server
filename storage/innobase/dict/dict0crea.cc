@@ -341,7 +341,7 @@ dict_build_tablespace(
 		mtr_start(&mtr);
 
 		if (dict_table_is_temporary(table)) {
-			mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+			mtr_set_log_mode(&mtr, MTR_LOG_NONE_IGN_LOG_REC);
 		}
 
 		fsp_header_init(table->space, FIL_IBD_FILE_INITIAL_SIZE, &mtr);
@@ -803,7 +803,7 @@ dict_create_index_tree(
 
 	/* If temporary table then disable redo logging */
 	if (dict_table_is_temporary(index->table)) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE_IGN_LOG_REC);
 	}
 
 	dberr_t		err = DB_SUCCESS;
@@ -915,7 +915,7 @@ dict_drop_index_tree(
 
 	mtr_start(&mtr);
 	if(dict_table_is_temporary(index->table)) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE_IGN_LOG_REC);
 	}
 
 	root_page_no = page_no;
@@ -1100,7 +1100,7 @@ dict_truncate_index_tree(
 
 	mtr_start(&mtr);
 	if (dict_table_is_temporary(index->table)) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE_IGN_LOG_REC);
 	}
 
 	root_page_no = index->page;
@@ -1159,7 +1159,7 @@ dict_truncate_index_tree(
 	mtr_start(&mtr);
 
 	if (dict_table_is_temporary(index->table)) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NONE);
+		mtr_set_log_mode(&mtr, MTR_LOG_NONE_IGN_LOG_REC);
 	}
 
 	root_page_no = btr_create(type, space, zip_size,
