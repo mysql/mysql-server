@@ -37,15 +37,21 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 
 /* Logging modes for a mini-transaction */
-#define MTR_LOG_ALL		21	/* default mode: log all operations
-					modifying disk-based data */
-#define	MTR_LOG_NONE		22	/* log no operations */
-#define	MTR_LOG_NO_REDO		23	/* Don't generate REDO */
-/*#define	MTR_LOG_SPACE	23 */	/* log only operations modifying
-					file space page allocation data
-					(operations in fsp0fsp.* ) */
-#define	MTR_LOG_SHORT_INSERTS	24	/* inserts are logged in a shorter
-					form */
+#define MTR_LOG_ALL			21	/* default mode: log all
+						operations modifying
+						disk-based data */
+#define	MTR_LOG_NONE			22	/* log no operations */
+#define	MTR_LOG_NO_REDO			23	/* Don't generate REDO */
+/*#define	MTR_LOG_SPACE	23 */		/* log only operations
+						modifying file space page
+						allocation data
+						(operations in fsp0fsp.* ) */
+#define	MTR_LOG_SHORT_INSERTS		24	/* inserts are logged in
+						a shorter form */
+#define MTR_LOG_NONE_IGN_LOG_REC	25	/* log no operation and
+						and also set ignore log rec
+						to enable adding of pages
+						to flush list. */
 
 /* Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
@@ -385,6 +391,10 @@ struct mtr_t{
 	unsigned	made_dirty:1;
 				/*!< TRUE if mtr has made at least
 				one buffer pool page dirty */
+	unsigned	ignore_log_recs:1;
+				/*!< If TRUE, ignore n_log_recs and signal block
+				change notification for adding them to
+				flush-list based on mtr->modification only. */
 	ulint		n_log_recs;
 				/* count of how many page initial log records
 				have been written to the mtr log */
