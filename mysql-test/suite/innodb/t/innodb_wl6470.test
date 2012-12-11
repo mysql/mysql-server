@@ -221,6 +221,18 @@ select count(*) from t1;
 rollback;
 select count(*) from t1;
 #
+begin;
+select count(*) from t1;
+update t1 set b = repeat('a', 100) where i < 100;
+select * from t1 limit 1;
+select count(*) from t1;
+rollback;
+update t1 set b = repeat('a', 100) where i < 100;
+select * from t1 limit 1;
+#
+truncate table t1;
+select count(*) from t1;
+#
 drop table if exists t1;
 drop procedure populate_t1;
 drop procedure populate_t1_small;
