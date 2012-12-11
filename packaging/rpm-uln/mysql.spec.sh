@@ -508,21 +508,28 @@ mkdir release
 # TODO / FIXME: Do we need "scriptstub"?
 gcc $CFLAGS $LDFLAGS -o scriptstub "-DLIBDIR=\"%{_libdir}/mysql\"" %{SOURCE4}
 
-# TODO / FIXME: "libmysqld.so" should have been produced above  - WORK in PROGRESS
+# TODO / FIXME: "libmysqld.so" should have been produced above
 # regular build will make libmysqld.a but not libmysqld.so :-(
 cd release
 mkdir libmysqld/work
 cd libmysqld/work
-ar -x ../libmysqld.a
-rm rpl_utility.cc.o sql_binlog.cc.o  # Try-and-Error: These modules cause unresolved references
-gcc $CFLAGS $LDFLAGS -shared -Wl,-soname,libmysqld.so.0 -o libmysqld.so.0.0.1 \
-	*.o \
+# "libmysqld" provides the same ABI as "libmysqlclient", but it implements the server:
+# The shared object is identified by the full version,
+# for linkage selection the first two levels are sufficient so that upgrades are possible
+# (see "man ld", option "-soname").
+SO_FULL='%{mysql_version}'
+SO_USE=`echo $SO_FULL | sed -e 's/\([0-9]\.[0-9]\)\.[0-9]*/\1/'`
+# These two modules should pull everything else which is needed:
+ar -x ../libmysqld.a client.c.o signal_handler.cc.o
+gcc $CFLAGS $LDFLAGS -shared -Wl,-soname,libmysqld.so.$SO_USE -o libmysqld.so.$SO_FULL \
+	*.o ../libmysqld.a \
 	-lpthread -lcrypt -laio -lnsl -lssl -lcrypto -lz -lrt -lstdc++ -lm -lc
 # this is to check that we built a complete library
 cp %{SOURCE9} .
-ln -s libmysqld.so.0.0.1 libmysqld.so.0
-gcc -I../../include -I../../../%{src_dir}/include $CFLAGS mysql-embedded-check.c libmysqld.so.0
-LD_LIBRARY_PATH=. ldd ./a.out
+PROGNAME=`basename %{SOURCE9} .c`
+ln -s libmysqld.so.$SO_FULL libmysqld.so.$SO_USE
+gcc -I../../include -I../../../%{src_dir}/include $CFLAGS -o $PROGNAME %{SOURCE9} libmysqld.so.$SO_USE
+LD_LIBRARY_PATH=. ldd $PROGNAME
 cd ../..
 cd ..
 
@@ -618,9 +625,11 @@ mv ${RPM_BUILD_ROOT}%{_bindir}/mysql_config ${RPM_BUILD_ROOT}%{_libdir}/mysql/my
 install -m 0755 scriptstub ${RPM_BUILD_ROOT}%{_bindir}/mysql_config
 
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.a
-install -m 0755 release/libmysqld/work/libmysqld.so.0.0.1 ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so.0.0.1
-ln -s libmysqld.so.0.0.1 ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so.0
-ln -s libmysqld.so.0 ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so
+SO_FULL='%{mysql_version}'
+SO_USE=`echo $SO_FULL | sed -e 's/\([0-9]\.[0-9]\)\.[0-9]*/\1/'`
+install -m 0755 release/libmysqld/work/libmysqld.so.$SO_FULL ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so.$SO_FULL
+ln -s libmysqld.so.$SO_FULL ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so.$SO_USE
+ln -s libmysqld.so.$SO_USE  ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so
 
 rm -f ${RPM_BUILD_ROOT}%{_bindir}/comp_err
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/comp_err.1*
@@ -964,6 +973,12 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Thu Dec  7 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+- Change the way in which "libmysqld.so" is created: Using all object modules
+  was wrong, gcc / ld can resolve the dependencies from "libmysqld.a".
+  Also, identify the ".so" version from the MySQL version, "0.0.1" was wrong.
+  Bug#15972480
+  
 * Fri Nov  9 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - The "stack-guard.patch" needs to be adapted for MySQL 5.6,
   reflect that in a name change "5.5" -> "5.6".
