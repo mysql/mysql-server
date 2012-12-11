@@ -451,7 +451,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       orig_field_val= field->val_int();
     int rc;
     if (!(*item)->is_null() &&
-        (((rc= (*item)->save_in_field(field, 1)) == TYPE_OK) ||
+        (((rc= (*item)->save_in_field(field, true)) == TYPE_OK) ||
          rc == TYPE_NOTE_TIME_TRUNCATED)) // TS-TODO
     {
       int field_cmp= 0;
