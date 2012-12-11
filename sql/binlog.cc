@@ -5586,7 +5586,7 @@ int MYSQL_BIN_LOG::open_binlog(const char *opt_name)
     is never used for relay logs.
   */
   DBUG_ASSERT(!is_relay_log);
-  DBUG_ASSERT(total_ha_2pc > 1);
+  DBUG_ASSERT(total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log));
   DBUG_ASSERT(opt_name && opt_name[0]);
 
   if (!my_b_inited(&index_file))
