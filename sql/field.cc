@@ -1351,7 +1351,10 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     uchar null_bit_arg,
 	     utype unireg_check_arg, const char *field_name_arg)
-  :ptr(ptr_arg), m_null_ptr(null_ptr_arg),
+  :ptr(ptr_arg),
+   m_null_ptr(null_ptr_arg),
+   m_is_tmp_nullable(false),
+   m_is_tmp_null(false),
    table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
    unireg_check(unireg_check_arg),
@@ -1362,6 +1365,104 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
   comment.str= (char*) "";
   comment.length=0;
   field_index= 0;
+}
+
+
+/**
+  Check NOT NULL constraint on the field after temporary nullability is
+  disabled.
+
+  @param warning_no Warning to report.
+
+  @return TYPE_OK if the value is Ok, or corresponding error code from
+  the type_conversion_status enum.
+*/
+type_conversion_status Field::check_constraints(int warning_no) const
+{
+  /*
+    Ensure that Field::check_constraints() is called only when temporary
+    nullability is disabled.
+  */
+
+  DBUG_ASSERT(!is_tmp_nullable());
+
+  if (real_maybe_null())
+    return TYPE_OK; // If the field is nullable, we're Ok.
+
+  if (!m_is_tmp_null)
+    return TYPE_OK; // If the field was not NULL, we're Ok.
+
+  // The field has been set to NULL.
+
+  /*
+    If the field is of AUTO_INCREMENT, and the next number
+    has been assigned to it, we're Ok.
+  */
+
+  if (this == table->next_number_field)
+    return TYPE_OK;
+
+  /*
+    If the field is of TIMESTAMP its default value is CURRENT_TIMESTAMP,
+    so we're OK.
+  */
+
+  if (type() == MYSQL_TYPE_TIMESTAMP)
+    return TYPE_OK;
+
+  switch (m_count_cuted_fields_saved) {
+  case CHECK_FIELD_WARN:
+    set_warning(Sql_condition::SL_WARNING, warning_no, 1);
+    /* fall through */
+  case CHECK_FIELD_IGNORE:
+    return TYPE_OK;
+  case CHECK_FIELD_ERROR_FOR_NULL:
+    if (!table->in_use->no_errors)
+      my_error(ER_BAD_NULL_ERROR, MYF(0), field_name);
+    return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+  }
+
+  DBUG_ASSERT(0); // impossible
+  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+}
+
+
+/**
+  Set field to value NULL.
+
+  @param row_offset    This is the offset between the row being updated
+                       and table->record[0]
+*/
+void Field::set_null(my_ptrdiff_t row_offset)
+{
+  if (real_maybe_null())
+  {
+    m_null_ptr[row_offset]|= null_bit;
+  }
+  else if (is_tmp_nullable())
+  {
+    m_is_tmp_null= true;
+    m_count_cuted_fields_saved= table->in_use->count_cuted_fields;
+  }
+}
+
+
+/**
+  Set field to value NOT NULL.
+
+  @param row_offset    This is the offset between the row being updated
+                       and table->record[0]
+*/
+void Field::set_notnull(my_ptrdiff_t row_offset)
+{
+  if (real_maybe_null())
+  {
+    m_null_ptr[row_offset]&= (uchar) ~null_bit;
+  }
+  else if (is_tmp_nullable())
+  {
+    m_is_tmp_null= false;
+  }
 }
 
 
@@ -1395,7 +1496,8 @@ void Field::copy_data(my_ptrdiff_t src_record_offset)
     // Set to NULL if the source record is NULL, otherwise set to NOT-NULL.
     m_null_ptr[0]= (m_null_ptr[0]                 & ~null_bit) |
                    (m_null_ptr[src_record_offset] &  null_bit);
-  }
+  } else if (is_tmp_nullable())
+    m_is_tmp_null= false;
 }
 
 

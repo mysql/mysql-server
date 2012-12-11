@@ -2252,6 +2252,32 @@ bool Table_triggers_list::is_fields_updated_in_trigger(MY_BITMAP *used_fields,
 
 
 /**
+  Mark all trigger fields as "temporary nullable" and remember the current
+  THD::count_cuted_fields value.
+
+  @param thd Thread context.
+*/
+void Table_triggers_list::enable_fields_temporary_nullability(THD* thd)
+{
+  for (Field** next_field= trigger_table->field; *next_field; ++next_field)
+  {
+    (*next_field)->set_tmp_nullable(true);
+    (*next_field)->set_count_cuted_fields(thd->count_cuted_fields);
+  }
+}
+
+
+/**
+  Reset "temporary nullable" flag from trigger fields.
+*/
+void Table_triggers_list::disable_fields_temporary_nullability()
+{
+  for (Field** next_field= trigger_table->field; *next_field; ++next_field)
+    (*next_field)->set_tmp_nullable(false);
+}
+
+
+/**
   Mark fields of subject table which we read/set in its triggers
   as such.
 

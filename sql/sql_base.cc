@@ -8854,27 +8854,75 @@ err:
 }
 
 
+/**
+  Check the NOT NULL constraint on all the fields of the current record.
+
+  @param thd            Thread context.
+  @param fields         Collection of fields.
+  @param ignore_errors  Flag if errors should be suppressed.
+
+  @return Error status.
+*/
+static bool check_record(THD *thd, List<Item> &fields, bool ignore_errors)
+{
+  List_iterator_fast<Item> f(fields);
+  Item *fld;
+  Item_field *field;
+
+  while ((fld= f++))
+  {
+    field= fld->field_for_view_update();
+    if (field &&
+        field->field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK &&
+        !ignore_errors)
+    {
+      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      return true;
+    }
+  }
+  return thd->is_error();
+}
+
+
+/**
+  Check the NOT NULL constraint on all the fields of the current record.
+
+  @param thd  Thread context.
+  @param ptr  Fields.
+
+  @return Error status.
+*/
+static bool check_record(THD *thd, Field **ptr)
+{
+  Field *field;
+  while ((field = *ptr++) && !thd->is_error())
+  {
+    if (field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
+      return true;
+  }
+  return thd->is_error();
+}
+
+
 /*
   Fill fields in list with values from the list of items and invoke
   before triggers.
 
-  SYNOPSIS
-    fill_record_n_invoke_before_triggers()
-      thd           thread context
-      fields        Item_fields list to be filled
-      values        values to fill with
-      ignore_errors TRUE if we should ignore errors
-      triggers      object holding list of triggers to be invoked
-      event         event type for triggers to be invoked
+  @param thd           thread context
+  @param fields        Item_fields list to be filled
+  @param values        values to fill with
+  @param ignore_errors TRUE if we should ignore errors
+  @param triggers      object holding list of triggers to be invoked
+  @param event         event type for triggers to be invoked
 
   NOTE
     This function assumes that fields which values will be set and triggers
     to be invoked belong to the same table, and that TABLE::record[0] and
     record[1] buffers correspond to new and old versions of row respectively.
 
-  RETURN
-    FALSE   OK
-    TRUE    error occured
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occurred
 */
 
 bool
@@ -8883,11 +8931,22 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  bool fill_error=
-    fill_record(thd, fields, values, ignore_errors, NULL) ||
-    (triggers && triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true));
+  if (triggers)
+    triggers->enable_fields_temporary_nullability(thd);
 
-  return fill_error;
+  bool rc= fill_record(thd, fields, values, ignore_errors, NULL) ||
+           (triggers &&
+            triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true));
+
+  if (triggers)
+    triggers->disable_fields_temporary_nullability();
+
+  if (rc)
+    return true;
+
+  return triggers ?
+         check_record(thd, triggers->trigger_table->field) :
+         check_record(thd, fields, ignore_errors);
 }
 
 
@@ -8983,11 +9042,20 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  bool fill_error=
-    fill_record(thd, ptr, values, ignore_errors, NULL) ||
-    (triggers && triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true));
+  if (triggers)
+    triggers->enable_fields_temporary_nullability(thd);
 
-  return fill_error;
+  bool rc= fill_record(thd, ptr, values, ignore_errors, NULL) ||
+           (triggers &&
+            triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true));
+
+  if (triggers)
+    triggers->disable_fields_temporary_nullability();
+
+  if (rc)
+    return true;
+
+  return check_record(thd, ptr);
 }
 
 

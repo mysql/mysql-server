@@ -957,6 +957,13 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
       real_item= item->real_item();
 
+      /*
+        Enable temporary nullability for items that corresponds
+        to table fields.
+      */
+      if (real_item->type() == Item::FIELD_ITEM)
+        ((Item_field *)real_item)->field->set_tmp_nullable(true);
+
       if ((!read_info.enclosed &&
 	  (enclosed_length && length == 4 &&
            !memcmp(pos, STRING_WITH_LEN("NULL")))) ||
@@ -972,18 +979,19 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                      thd->get_stmt_da()->current_row_for_condition());
             DBUG_RETURN(1);
           }
-          // Try to set to NULL; if it fails, field remains at 0.
-          field->set_null();
-          if (!field->maybe_null())
+          if (!field->real_maybe_null() &&
+              field->type() == FIELD_TYPE_TIMESTAMP)
           {
-            if (field->type() == FIELD_TYPE_TIMESTAMP)
-            {
-              // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
-              Item_func_now_local::store_in(field);
-            }
-            else if (field != table->next_number_field)
-              field->set_warning(Sql_condition::SL_WARNING,
-                                 ER_WARN_NULL_TO_NOTNULL, 1);
+            // Specific of TIMESTAMP NOT NULL: set to CURRENT_TIMESTAMP.
+            Item_func_now_local::store_in(field);
+          }
+          else
+          {
+            /*
+              Set field to NULL. Later we will clear temporary nullability flag
+              and check NOT NULL constraint.
+            */
+            field->set_null();
           }
 	}
         else if (item->type() == Item::STRING_ITEM)
@@ -1080,12 +1088,41 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
     }
 
+    /*
+      Bypass all fields in the table and clear
+      temporary nullability flags for each one.
+    */
+    Item *real_item;
+    it.rewind();
+    while ((item= it++))
+    {
+      real_item= item->real_item();
+      if (real_item->type() == Item::FIELD_ITEM)
+        ((Item_field *)real_item)->field->set_tmp_nullable(false);
+    }
+
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
                                              table->triggers,
                                              TRG_EVENT_INSERT))
       DBUG_RETURN(1);
+
+    if (!table->triggers)
+    {
+      /*
+        If there isn't triggers for the table then bypass all fields
+        in the table and check for NOT NULL constraint for each one.
+      */
+      it.rewind();
+
+      while ((item= it++))
+      {
+        real_item= item->real_item();
+        if (real_item->type() == Item::FIELD_ITEM)
+          ((Item_field *) real_item)->field->check_constraints(ER_WARN_NULL_TO_NOTNULL);
+      }
+    }
 
     switch (table_list->view_check_option(thd,
                                           ignore_check_option_errors)) {

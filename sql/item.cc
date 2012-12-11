@@ -2534,7 +2534,7 @@ adjust_max_effective_column_length(Field *field_par, uint32 max_length)
 void Item_field::set_field(Field *field_par)
 {
   field=result_field=field_par;			// for easy coding with fields
-  maybe_null=field->maybe_null();
+  maybe_null= field->maybe_null() || field->is_tmp_nullable();
   decimals= field->decimals();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
