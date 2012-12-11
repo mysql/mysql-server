@@ -448,7 +448,7 @@ rm -rf %{src_dir}/mysql-test/lib/v1
 
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
+export CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
 export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 # Following "%ifarch" developed by RedHat, MySQL/Oracle does not support/maintain Linux/Sparc:
 # gcc seems to have some bugs on sparc as of 4.4.1, back off optimization
@@ -456,7 +456,7 @@ export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 %ifarch sparc sparcv9 sparc64
 CFLAGS=`echo $CFLAGS| sed -e "s|-O2|-O1|g" `
 %endif
-export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
+export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-%{?_smp_mflags}}
@@ -967,6 +967,8 @@ fi
 * Fri Nov  9 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - The "stack-guard.patch" needs to be adapted for MySQL 5.6,
   reflect that in a name change "5.5" -> "5.6".
+- Set CXX=g++ by default to add a dependency on libgcc/libstdc++.
+  Also, remove the use of the -fno-exceptions and -fno-rtti flags.
 
 * Tue Sep 18 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - Restrict the vendor check to Oracle: There is no history here
