@@ -18,7 +18,7 @@
  02110-1301  USA
 */
 
-/*global unified_debug, exports */
+/*global unified_debug, exports, api_dir, path */
 
 "use strict";
 
@@ -28,6 +28,8 @@ var mysql = require("mysql");
 var mysqlConnection = require("./MySQLConnection.js");
 var mysqlDictionary = require("./MySQLDictionary.js");
 var udebug = unified_debug.getLogger("MySQLConnectionPool.js");
+var stats_module = require(path.join(api_dir), "stats.js");
+var stats = stats_module.getWriter("spi","mysql","DBConnectionPool");
 
 
 /* Translate our properties to the driver's */
@@ -65,11 +67,13 @@ exports.DBConnectionPool = function(props) {
   // connections that are being used (wrapped by DBSession)
   this.openConnections = [];
   this.is_connected = false;
+  stats.incr("created");
 };
 
 
 exports.DBConnectionPool.prototype.connectSync = function() {
   var pooledConnection;
+  stats.incr("connect","sync");
 
   if (this.is_connected) {
     return;
@@ -90,6 +94,7 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
   var callback = user_callback;
   var connectionPool = this;
   var pooledConnection;
+  stats.incr("connect","async");
   
   if (this.is_connected) {
     udebug.log('MySQLConnectionPool.connect is already connected');
@@ -98,8 +103,10 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
     pooledConnection = mysql.createConnection(this.driverproperties);
     pooledConnection.connect(function(err) {
     if (err) {
+      stats.incr("connections","failed");
       callback(err);
     } else {
+      stats.incr("connections","succesful");
       connectionPool.pooledConnections[0] = pooledConnection;
       connectionPool.is_connected = true;
       callback(null, connectionPool);
@@ -239,7 +246,8 @@ exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tab
   // getTableMetadata starts here
   // getTableMetadata = function(databaseName, tableName, dbSession, user_callback)
   var pooledConnection, dictionary;
-  
+  stats.incr("getTableMetadata");
+
   if (dbSession) {
     // dbSession exists; call the dictionary directly
     pooledConnection = dbSession.pooledConnection;
@@ -302,6 +310,7 @@ exports.DBConnectionPool.prototype.listTables = function(databaseName, dbSession
   // listTables starts here
   // listTables = function(databaseName, dbSession, user_callback)
   var pooledConnection, dictionary;
+  stats.incr("listTables");
   
   if (dbSession) {
     // dbSession exists; call the dictionary directly
