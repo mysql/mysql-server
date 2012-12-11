@@ -116,9 +116,8 @@ Test.prototype.test = function(result) {
     udebug.log_detail('result.fail');
     this.failed = true;
     result.fail(this, e);
+    this.teardown();
   }
-
-  this.teardown(); 
 };
 
 Test.prototype.pass = function() {

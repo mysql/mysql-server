@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global assert, unified_debug, path, build_dir, spi_doc_dir */
+/*global assert, unified_debug, path, build_dir, api_dir, spi_doc_dir  */
 
 "use strict";
 
@@ -26,6 +26,8 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     ndbsession      = require("./NdbSession.js"),
     ndboperation    = require("./NdbOperation.js"),
     doc             = require(path.join(spi_doc_dir, "DBTransactionHandler")),
+    stats_module    = require(path.join(api_dir,"stats.js")),
+    stats           = stats_module.getWriter("spi","ndb","DBTransactionHandler"),
     udebug          = unified_debug.getLogger("NdbTransactionHandler.js"),
     proto           = doc.DBTransactionHandler,
     COMMIT          = adapter.ndbapi.Commit,
@@ -34,6 +36,7 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
 
 function DBTransactionHandler(dbsession) {
   udebug.log("constructor");
+  stats.incr("created");
   this.dbSession          = dbsession;
   this.autocommit         = true;
   this.ndbtx              = null;
@@ -157,11 +160,13 @@ proto.execute = function(dbOperationList, userCallback) {
   
   if(this.autocommit) {
     udebug.log(" -- AutoCommit");
+    stats.incr("execute","commit");
     ndbsession.closeActiveTransaction(this);
     execute(this, execMode, dbOperationList, onExecCommit);
   }
   else {
     udebug.log(" -- NoCommit");
+    stats.incr("execute","no_commit");
     execute(this, execMode, dbOperationList, userCallback);
   }
 };
@@ -178,6 +183,7 @@ proto.executeNoCommit = proto.execute;
 */
 proto.commit = function commit(userCallback) {
   assert(this.autocommit === false);
+  stats.incr("commit");
   var self = this;
 
   function onNdbCommit(err, result) {
@@ -224,6 +230,7 @@ proto.commit = function commit(userCallback) {
 */
 proto.rollback = function rollback(callback) {
   assert(this.autocommit === false);
+  stats.incr("rollback");
   var self = this;
 
   ndbsession.closeActiveTransaction(this);

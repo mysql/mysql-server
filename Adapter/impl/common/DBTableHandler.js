@@ -18,15 +18,16 @@
  02110-1301  USA
 */
 
-/*global unified_debug, path, api_doc_dir */
+/*global unified_debug, path, api_dir, api_doc_dir */
 
 "use strict";
 
 var assert = require("assert"),
     TableMappingDoc = require(path.join(api_doc_dir, "TableMapping")),
     FieldMappingDoc = require(path.join(api_doc_dir, "FieldMapping")),
+    stats_module    = require(path.join(api_dir, "stats")),
+    stats           = stats_module.getWriter("spi","common","DBTableHandler"),
     udebug          = unified_debug.getLogger("DBTableHander.js");
-
 
 /* A DBTableHandler (DBT) combines dictionary metadata with user annotations.  
    It manages setting and getting of columns based on the fields of a 
@@ -99,9 +100,14 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       n,               // a field or column number
       nMappedFields;
 
+  stats.incr("constructor_calls");
+
   if(! ( dbtable && dbtable.columns)) {
+    stats.incr("return_null");
     return null;
   }
+
+  stats.incr("created", dbtable.database, dbtable.name);
   
   this.dbTable = dbtable;
 
@@ -110,9 +116,11 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
 
   if(tablemapping) {     
+    stats.incr("explicit_mappings");
     this.mapping = tablemapping;
   }
   else {                                          // Create a default mapping
+    stats.incr("default_mappings");
     this.mapping = Object.create(TableMappingDoc.TableMapping);
     this.mapping.name     = this.dbTable.name;
     this.mapping.database = this.dbTable.database;
@@ -211,6 +219,7 @@ DBTableHandler.prototype.setResultConstructor = function(constructorFunction) {
 */
 DBTableHandler.prototype.newResultObject = function(values) {
   udebug.log("newResultObject");
+  stats.incr("result_objects_created");
   var newDomainObj;
   
   if(this.newObjectConstructor && this.newObjectConstructor.prototype) {
@@ -244,6 +253,7 @@ DBTableHandler.prototype.newResultObject = function(values) {
   Register a converter for a field in a domain object 
 */
 DBTableHandler.prototype.registerFieldConverter = function(fieldName, converter) {
+  stats.incr("field_converters_registered");
   var f = this.fieldNameToFieldMap[fieldName];
   if(f) {
     f.converter = converter;
@@ -435,6 +445,7 @@ DBTableHandler.prototype.setFields = function(obj, values) {
 /* DBIndexHandler constructor and prototype */
 function DBIndexHandler(parent, dbIndex) {
   udebug.log("DBIndexHandler constructor");
+  stats.incr("DBIndexHandler","created");
   var i, colNo;
 
   this.tableHandler = parent;

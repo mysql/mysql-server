@@ -18,13 +18,15 @@
  02110-1301  USA
  */
 
-/*global unified_debug, path, build_dir, spi_doc_dir, assert */
+/*global unified_debug, path, build_dir, api_dir, spi_doc_dir, assert */
 
 "use strict";
 
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     encoders      = require("./NdbTypeEncoders.js").defaultForType,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
+    stats_module  = require(path.join(api_dir,"stats.js")),
+    stats         = stats_module.getWriter("spi","ndb","DBOperation"),
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
 
@@ -42,6 +44,8 @@ var DBOperation = function(opcode, tx, tableHandler) {
   assert(tx);
   assert(tableHandler);
 
+  stats.incr("created",opcode);
+
   this.opcode       = opcode;
   this.transaction  = tx;
   this.tableHandler = tableHandler;
@@ -54,6 +58,7 @@ DBOperation.prototype = doc.DBOperation;
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
   udebug.log("prepare", this.opcode);
+  stats.incr("prepared");
   var helperSpec = {}, helper;
   switch(this.opcode) {
     case 'insert':
@@ -178,7 +183,7 @@ function readResultRow(op) {
       value = null;
     }
     else {
-      value   = encoder.read(col[i], op.buffers.row, offset);
+      value = encoder.read(col[i], op.buffers.row, offset);
     }
     dbt.set(resultRow, i, value);
   }
@@ -213,6 +218,7 @@ function completeExecutedOps(txError, txOperations) {
       udebug.log("completeExecutedOps op",i, op.state);
       op.result = new DBResult();
       ndberror = op.ndbop.getNdbError();
+      stats.incr("result_code", ndberror.code);
       if(ndberror.code === 0) {
         op.result.success = true;
       }
