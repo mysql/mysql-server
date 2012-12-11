@@ -1047,7 +1047,31 @@ public:
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+
+  /**
+    Bitmap of table fields (columns), which are explicitly set in the
+    INSERT INTO statement. It is declared here to avoid memory allocation
+    on MEM_ROOT).
+
+    @sa fields_set_during_insert.
+  */
+  MY_BITMAP     def_fields_set_during_insert;
+
   MY_BITMAP     *read_set, *write_set;          /* Active column sets */
+
+  /**
+    A pointer to the bitmap of table fields (columns), which are explicitly set
+    in the INSERT INTO statement.
+
+    fields_set_during_insert points to def_fields_set_during_insert
+    for base (non-temporary) tables. In other cases, it is NULL.
+    Triggers can not be defined for temporary tables, so this bitmap does not
+    matter for temporary tables.
+
+    @sa def_fields_set_during_insert.
+  */
+  MY_BITMAP     *fields_set_during_insert;
+
   /*
    The ID of the query that opened and is using this table. Has different
    meanings depending on the table type.
