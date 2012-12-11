@@ -242,8 +242,9 @@ static void check_unused(void)
 uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
                           bool tmp_table)
 {
-  uint key_length= (uint) (strmov(strmov(key, table_list->db)+1,
-                                  table_list->table_name)-key)+1;
+  uint key_length= create_table_def_key(key, table_list->db,
+                                        table_list->table_name);
+
   if (tmp_table)
   {
     int4store(key + key_length, thd->server_id);
@@ -619,13 +620,10 @@ void release_table_share(TABLE_SHARE *share, enum release_type type)
 TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 {
   char key[NAME_LEN*2+2];
-  TABLE_LIST table_list;
   uint key_length;
   safe_mutex_assert_owner(&LOCK_open);
 
-  table_list.db= (char*) db;
-  table_list.table_name= (char*) table_name;
-  key_length= create_table_def_key((THD*) 0, key, &table_list, 0);
+  key_length= create_table_def_key(key, db, table_name);
   return (TABLE_SHARE*) hash_search(&table_def_cache,(uchar*) key, key_length);
 }  
 
@@ -2419,7 +2417,7 @@ bool lock_table_name_if_not_cached(THD *thd, const char *db,
   uint key_length;
   DBUG_ENTER("lock_table_name_if_not_cached");
 
-  key_length= (uint)(strmov(strmov(key, db) + 1, table_name) - key) + 1;
+  key_length= create_table_def_key(key, db, table_name);
   VOID(pthread_mutex_lock(&LOCK_open));
 
   if (hash_search(&open_cache, (uchar *)key, key_length))
@@ -3025,7 +3023,7 @@ TABLE *open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
 TABLE *find_locked_table(THD *thd, const char *db,const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];
-  uint key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+  uint key_length= create_table_def_key(key, db, table_name);
 
   for (TABLE *table=thd->open_tables; table ; table=table->next)
   {
@@ -5737,17 +5735,27 @@ TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 }
 
 
-bool rm_temporary_table(handlerton *base, char *path)
+/**
+  Delete a temporary table.
+
+  @param base  Handlerton for table to be deleted.
+  @param path  Path to the table to be deleted (i.e. path
+               to its .frm without an extension).
+
+  @retval false - success.
+  @retval true  - failure.
+*/
+
+bool rm_temporary_table(handlerton *base, const char *path)
 {
   bool error=0;
   handler *file;
-  char *ext;
+  char frm_path[FN_REFLEN + 1];
   DBUG_ENTER("rm_temporary_table");
 
-  strmov(ext= strend(path), reg_ext);
-  if (my_delete(path,MYF(0)))
+  strxnmov(frm_path, sizeof(frm_path) - 1, path, reg_ext, NullS);
+  if (my_delete(frm_path, MYF(0)))
     error=1; /* purecov: inspected */
-  *ext= 0;				// remove extension
   file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
   if (file && file->ha_delete_table(path))
   {
@@ -8633,7 +8641,7 @@ bool remove_table_from_cache(THD *thd, const char *db, const char *table_name,
   DBUG_ENTER("remove_table_from_cache");
   DBUG_PRINT("enter", ("table: '%s'.'%s'  flags: %u", db, table_name, flags));
 
-  key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+  key_length= create_table_def_key(key, db, table_name);
   for (;;)
   {
     HASH_SEARCH_STATE state;
@@ -8831,12 +8839,14 @@ open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
 {
   LEX_STRING pathstr;
   File_parser *parser;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN+1];
   DBUG_ENTER("open_new_frm");
 
   /* Create path with extension */
-  pathstr.length= (uint) (strxmov(path, share->normalized_path.str, reg_ext,
-                                  NullS)- path);
+  pathstr.length= (uint) (strxnmov(path, sizeof(path) - 1,
+                                   share->normalized_path.str,
+                                   reg_ext,
+                                   NullS) - path);
   pathstr.str=    path;
 
   if ((parser= sql_parse_prepare(&pathstr, mem_root, 1)))
@@ -8977,7 +8987,7 @@ void mysql_wait_completed_table(ALTER_PARTITION_PARAM_TYPE *lpt, TABLE *my_table
   TABLE *table;
   DBUG_ENTER("mysql_wait_completed_table");
 
-  key_length=(uint) (strmov(strmov(key,lpt->db)+1,lpt->table_name)-key)+1;
+  key_length= create_table_def_key(key, lpt->db, lpt->table_name);
   VOID(pthread_mutex_lock(&LOCK_open));
   HASH_SEARCH_STATE state;
   for (table= (TABLE*) hash_first(&open_cache,(uchar*) key,key_length,
