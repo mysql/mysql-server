@@ -335,8 +335,16 @@ public:
                     const char *db, const char *name)
   {
     m_ptr[0]= (char) mdl_namespace;
-    m_db_name_length= (uint16) (strmov(m_ptr + 1, db) - m_ptr - 1);
-    m_length= (uint16) (strmov(m_ptr + m_db_name_length + 2, name) - m_ptr + 1);
+    /*
+      It is responsibility of caller to ensure that db and object names
+      are not longer than NAME_LEN. Still we play safe and try to avoid
+      buffer overruns.
+    */
+    DBUG_ASSERT(strlen(db) <= NAME_LEN && strlen(name) <= NAME_LEN);
+    m_db_name_length= static_cast<uint16>(strmake(m_ptr + 1, db, NAME_LEN) -
+                                          m_ptr - 1);
+    m_length= static_cast<uint16>(strmake(m_ptr + m_db_name_length + 2, name,
+                                          NAME_LEN) - m_ptr + 1);
   }
   void mdl_key_init(const MDL_key *rhs)
   {
