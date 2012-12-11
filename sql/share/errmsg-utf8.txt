@@ -6972,6 +6972,9 @@ ER_DUP_UNKNOWN_IN_INDEX 23000
   swe "Dubbel nyckel för nyckel '%-.192s'"
   ukr "Дублюючий запис для ключа '%-.192s'"
 
+ER_IDENT_CAUSES_TOO_LONG_PATH
+  eng "Long database name and identifier for object resulted in path length exceeding %d characters. Path: '%s'."
+
 #
 #  End of 5.6 error messages.
 #
