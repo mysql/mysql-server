@@ -14,6 +14,18 @@ create table t (ida int not null, idb bigint not null, idc tinyint unsigned not 
 update t set x=x+1 where ida=1;
 ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
 drop table t;
+create table t (ida int not null, idb bigint not null, idc tinyint unsigned not null, x bigint, primary key(ida), unique key (idb));
+update t set x=x+1 where ida=1;
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+drop table t;
+create table t (id char(32), x bigint, primary key(id(1)));
+update t set x=x+1 where id='hi';
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+drop table t;
+create table t (id varchar(32), x bigint, primary key(id(1)));
+update t set x=x+1 where id='hi';
+ERROR 42000: Table 't' uses an extension that doesn't exist in this XYZ version
+drop table t;
 create table t (ida int not null, idb bigint not null, idc tinyint unsigned not null, x bigint, primary key(ida,idb,idc));
 insert into t values (1,2,3,0);
 update t set x=x+1 where ida=1;
