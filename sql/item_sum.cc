@@ -971,7 +971,7 @@ bool Aggregator_distinct::add()
       return TRUE;
 
     for (Field **field=table->field ; *field ; field++)
-      if ((*field)->is_real_null(0))
+      if ((*field)->is_real_null())
         return 0;					// Don't count NULL
 
     if (tree)
@@ -3253,7 +3253,7 @@ bool Item_func_group_concat::add()
     if (!show_item->const_item())
     {
       Field *f= show_item->get_tmp_table_field();
-      if (f->is_real_null())
+      if (f->is_null_in_record((const uchar*) table->record[0]))
         return 0;                               // Skip row if it contains null
     }
   }
