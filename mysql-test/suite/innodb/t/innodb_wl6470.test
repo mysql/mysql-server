@@ -1,5 +1,3 @@
-
-
 --source include/have_innodb.inc
 
 ####################################################################
@@ -15,6 +13,7 @@
 #    savepoint.                                                    #
 # 5. bulk-insert with rollback + commit: this will ensure btree    #
 #    node split with rollback and commit.                          #
+# 6. test insert/delete/update of big-rec (blo)			   #
 ####################################################################
 
 
@@ -226,5 +225,65 @@ drop procedure populate_t1;
 drop procedure populate_t1_small;
 drop procedure populate_t1_small2;
 drop table t1;
+
+
+#-------------------------------------------------------------------
+#
+# 6. test insert/delete/update of big-rec (blo)			   #
+#
+use test;
+let $wait_condition=
+  select variable_value < 1 from information_schema.global_status
+  where variable_name = 'INNODB_PURGE_TRX_ID_AGE';
+create temporary table t1
+	(i int, b mediumblob,
+	 primary key pk(i), index sk(b(100))
+	) engine=innodb;
+delimiter |;
+create procedure populate_t1()
+	begin
+	declare i int default 1;
+        while (i <= 100) do
+		insert into t1 values (i, repeat(i,1000000));
+    		set i = i + 1;
+        end while;
+end|
+create procedure populate_t1_small()
+	begin
+	declare i int default 1;
+        while (i <= 8) do
+		insert into t1 values (i, repeat(i,1000000));
+    		set i = i + 1;
+        end while;
+end|
+delimiter ;|
+#
+begin;
+select count(*) from t1;
+call populate_t1();
+select count(*) from t1;
+delete from t1 where i < 10;
+select count(*) from t1;
+commit;
+set global innodb_purge_stop_now=ON;
+set global innodb_purge_run_now=ON;
+--source include/wait_condition.inc
+#
+delete from t1 where i < 20;
+select count(*) from t1;
+#
+begin;
+call populate_t1_small();
+select count(*) from t1;
+rollback;
+select count(*) from t1;
+#
+drop table if exists t1;
+drop procedure populate_t1;
+drop procedure populate_t1_small;
+
+#
+# remove test-bed
+#
 
 
