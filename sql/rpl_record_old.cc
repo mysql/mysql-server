@@ -28,7 +28,7 @@ pack_row_old(TABLE *table, MY_BITMAP const* cols,
   uchar *ptr;
   uint i;
   my_ptrdiff_t const rec_offset= record - table->record[0];
-  my_ptrdiff_t const def_offset= table->s->default_values - table->record[0];
+  my_ptrdiff_t const def_offset= table->default_values_offset();
   memcpy(row_data, record, n_null_bytes);
   ptr= row_data+n_null_bytes;
 
