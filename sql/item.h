@@ -24,6 +24,7 @@
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "field.h"                              /* Derivation */
 #include "sql_array.h"
+#include "sql_trigger.h"
 
 class Protocol;
 struct TABLE_LIST;
@@ -4048,7 +4049,11 @@ public:
 
   bool set_value(THD *thd, Item **it)
   {
-    return set_value(thd, NULL, it);
+    bool ret= set_value(thd, NULL, it);
+    if (!ret)
+      bitmap_set_bit(triggers->trigger_table->fields_set_during_insert,
+                     field_idx);
+    return ret;
   }
 
 private:

@@ -924,6 +924,18 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
 
 
 /**
+  Set field to temporary value NULL.
+*/
+void Field::set_tmp_null()
+{
+  m_is_tmp_null= true;
+
+  m_count_cuted_fields_saved= table ? table->in_use->count_cuted_fields :
+                                      current_thd->count_cuted_fields;
+}
+
+
+/**
   Return type of which can carry value of both given types in UNION result.
 
   @param a  type for merging
@@ -1359,7 +1371,8 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
    field_name(field_name_arg),
    unireg_check(unireg_check_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
-   is_created_from_null_item(FALSE)
+   is_created_from_null_item(FALSE),
+   m_warnings_pushed(0)
 {
   flags=real_maybe_null() ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
@@ -1377,7 +1390,7 @@ Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
   @return TYPE_OK if the value is Ok, or corresponding error code from
   the type_conversion_status enum.
 */
-type_conversion_status Field::check_constraints(int warning_no) const
+type_conversion_status Field::check_constraints(int mysql_errno)
 {
   /*
     Ensure that Field::check_constraints() is called only when temporary
@@ -1403,16 +1416,16 @@ type_conversion_status Field::check_constraints(int warning_no) const
     return TYPE_OK;
 
   /*
-    If the field is of TIMESTAMP its default value is CURRENT_TIMESTAMP,
-    so we're OK.
+    If the field is of TIMESTAMP its default value is CURRENT_TIMESTAMP
+    and was set before calling this method. Therefore m_is_tmp_null == false
+    for such field and we leave check_constraints() before this
+    DBUG_ASSERT is fired.
   */
-
-  if (type() == MYSQL_TYPE_TIMESTAMP)
-    return TYPE_OK;
+  DBUG_ASSERT (type() != MYSQL_TYPE_TIMESTAMP);
 
   switch (m_count_cuted_fields_saved) {
   case CHECK_FIELD_WARN:
-    set_warning(Sql_condition::SL_WARNING, warning_no, 1);
+    set_warning(Sql_condition::SL_WARNING, mysql_errno, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
     return TYPE_OK;
@@ -1441,8 +1454,7 @@ void Field::set_null(my_ptrdiff_t row_offset)
   }
   else if (is_tmp_nullable())
   {
-    m_is_tmp_null= true;
-    m_count_cuted_fields_saved= table->in_use->count_cuted_fields;
+    set_tmp_null();
   }
 }
 
@@ -1461,7 +1473,7 @@ void Field::set_notnull(my_ptrdiff_t row_offset)
   }
   else if (is_tmp_nullable())
   {
-    m_is_tmp_null= false;
+    reset_tmp_null();
   }
 }
 
@@ -6612,7 +6624,7 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
                                        const char *from_end_pos,
                                        const char *end,
                                        bool count_spaces,
-                                       const CHARSET_INFO *cs) const
+                                       const CHARSET_INFO *cs)
 {
   const char *pos;
   char tmp[32];
@@ -6656,7 +6668,7 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
 
 type_conversion_status
 Field_longstr::report_if_important_data(const char *pstr, const char *end,
-                                        bool count_spaces) const
+                                        bool count_spaces)
 {
   if ((pstr < end) && table->in_use->count_cuted_fields)
   {
@@ -10576,12 +10588,17 @@ uint32 Field_blob::max_display_length()
  Warning handling
 *****************************************************************************/
 
+
 /**
   Produce warning or note about data saved into field.
 
   @param level            - level of message (Note/Warning/Error)
   @param code             - error code of message to be produced
   @param cut_increment    - whenever we should increase cut fields count
+  @param view_db_name     - if set this is the database name for view
+                            that causes the warning
+  @param view_name        - if set this is the name of view that causes
+                            the warning
 
   @note
     This function won't produce warning and increase cut fields counter
@@ -10590,29 +10607,82 @@ uint32 Field_blob::max_display_length()
     if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
     This allows us to avoid notes in optimisation, like convert_constant_item().
 
+    In case of execution statements INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
+    the method emits only one warning message for the following
+    types of warning: ER_BAD_NULL_ERROR, ER_WARN_NULL_TO_NOTNULL,
+    ER_NO_DEFAULT_FOR_FIELD.
   @retval
     1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
   @retval
     0 otherwise
 */
 
-bool 
-Field::set_warning(Sql_condition::enum_severity_level level, uint code,
-                   int cut_increment) const
+bool Field::set_warning(Sql_condition::enum_severity_level level,
+                        uint code,
+                        int cut_increment,
+                        const char *view_db_name,
+                        const char *view_name)
 {
   /*
     If this field was created only for type conversion purposes it
     will have table == NULL.
   */
+
   THD *thd= table ? table->in_use : current_thd;
-  if (thd->count_cuted_fields)
+
+  if (!thd->count_cuted_fields)
+    return level >= Sql_condition::SL_WARNING;
+
+  thd->cuted_fields+= cut_increment;
+
+  if (thd->lex->sql_command != SQLCOM_INSERT &&
+      thd->lex->sql_command != SQLCOM_INSERT_SELECT &&
+      thd->lex->sql_command != SQLCOM_REPLACE &&
+      thd->lex->sql_command != SQLCOM_REPLACE_SELECT)
   {
-    thd->cuted_fields+= cut_increment;
+    // We aggregate warnings from only INSERT and REPLACE statements.
+
     push_warning_printf(thd, level, code, ER(code), field_name,
                         thd->get_stmt_da()->current_row_for_condition());
+
     return 0;
   }
-  return level >= Sql_condition::SL_WARNING;
+
+  unsigned int current_warning_mask= 0;
+
+  if (code == ER_BAD_NULL_ERROR)
+    current_warning_mask= BAD_NULL_ERROR_PUSHED;
+  else if (code == ER_NO_DEFAULT_FOR_FIELD)
+    current_warning_mask= NO_DEFAULT_FOR_FIELD_PUSHED;
+
+  if (current_warning_mask)
+  {
+    if (!(m_warnings_pushed & current_warning_mask))
+    {
+      push_warning_printf(thd, level, code, ER(code), field_name,
+                          thd->get_stmt_da()->current_row_for_condition());
+      m_warnings_pushed|= current_warning_mask;
+    }
+  }
+  else if (code == ER_NO_DEFAULT_FOR_VIEW_FIELD)
+  {
+    if (!(m_warnings_pushed & NO_DEFAULT_FOR_VIEW_FIELD_PUSHED))
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_NO_DEFAULT_FOR_VIEW_FIELD,
+                          ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
+                          view_db_name,
+                          view_name);
+      m_warnings_pushed|= NO_DEFAULT_FOR_VIEW_FIELD_PUSHED;
+    }
+  }
+  else
+  {
+    push_warning_printf(thd, level, code, ER(code), field_name,
+                        thd->get_stmt_da()->current_row_for_condition());
+  }
+
+  return 0;
 }
 
 

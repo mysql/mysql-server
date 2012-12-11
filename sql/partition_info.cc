@@ -455,12 +455,13 @@ bool partition_info::set_used_partition(List<Item> &fields,
 
   if (fields.elements || !values.elements)
   {
-    if (fill_record(thd, fields, values, false, &full_part_field_set))
+    if (fill_record(thd, fields, values, false, &full_part_field_set, NULL))
       goto err;
   }
   else
   {
-    if (fill_record(thd, table->field, values, false, &full_part_field_set))
+    if (fill_record(thd, table->field, values, false, &full_part_field_set,
+                    NULL))
       goto err;
   }
   DBUG_ASSERT(!table->auto_increment_field_not_null);
