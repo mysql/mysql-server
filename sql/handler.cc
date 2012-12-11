@@ -4663,7 +4663,8 @@ void handler::get_dynamic_partition_info(PARTITION_STATS *stat_info,
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-                    bool update_create_info)
+                    bool update_create_info,
+                    bool is_temp_table)
 {
   int error= 1;
   TABLE table;
@@ -4673,7 +4674,8 @@ int ha_create_table(THD *thd, const char *path,
   bool saved_abort_on_warning;
   DBUG_ENTER("ha_create_table");
 #ifdef HAVE_PSI_TABLE_INTERFACE
-  my_bool temp_table= (my_bool)is_prefix(table_name, tmp_file_prefix) ||
+  my_bool temp_table= (my_bool)is_temp_table ||
+               (my_bool)is_prefix(table_name, tmp_file_prefix) ||
                (create_info->options & HA_LEX_CREATE_TMP_TABLE ? TRUE : FALSE);
 #endif
   
@@ -5299,7 +5301,6 @@ int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan)
   DBUG_RETURN(args.err);
 }
 
-#ifdef HAVE_NDB_BINLOG
 /*
   TODO: change this into a dynamic struct
   List<handlerton> does not work as
@@ -5354,6 +5355,8 @@ static my_bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
   return FALSE;
 }
 
+#ifdef HAVE_NDB_BINLOG
+
 int ha_reset_logs(THD *thd)
 {
   binlog_func_st bfn= {BFN_RESET_LOGS, 0};
@@ -5371,13 +5374,6 @@ void ha_binlog_wait(THD* thd)
 {
   binlog_func_st bfn= {BFN_BINLOG_WAIT, 0};
   binlog_func_foreach(thd, &bfn);
-}
-
-int ha_binlog_end(THD* thd)
-{
-  binlog_func_st bfn= {BFN_BINLOG_END, 0};
-  binlog_func_foreach(thd, &bfn);
-  return 0;
 }
 
 int ha_binlog_index_purge_file(THD *thd, const char *file)
@@ -5436,6 +5432,13 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
     binlog_log_query_handlerton2(thd, hton, &b);
 }
 #endif
+
+int ha_binlog_end(THD* thd)
+{
+  binlog_func_st bfn= {BFN_BINLOG_END, 0};
+  binlog_func_foreach(thd, &bfn);
+  return 0;
+}
 
 /**
   Calculate cost of 'index only' scan for given index and number of records
