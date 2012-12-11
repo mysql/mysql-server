@@ -789,6 +789,26 @@ rollback;
 select count(*) from t1;
 count(*)
 81
+begin;
+select count(*) from t1;
+count(*)
+81
+update t1 set b = repeat('a', 100) where i < 100;
+select * from t1 limit 1;
+i	b
+20	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+select count(*) from t1;
+count(*)
+81
+rollback;
+update t1 set b = repeat('a', 100) where i < 100;
+select * from t1 limit 1;
+i	b
+20	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
 drop table if exists t1;
 drop procedure populate_t1;
 drop procedure populate_t1_small;
