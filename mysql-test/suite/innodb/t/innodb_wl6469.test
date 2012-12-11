@@ -1,4 +1,13 @@
--- source include/have_innodb.inc
+--source include/have_innodb.inc
+
+# Must have debug code to use SET SESSION debug
+--source include/have_debug.inc
+
+# Valgrind would complain about memory leaks when we crash on purpose.
+--source include/not_valgrind.inc
+
+# Embedded server does not support crashing
+--source include/not_embedded.inc
 
 #########################################################################
 #									#
