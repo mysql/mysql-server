@@ -5830,7 +5830,7 @@ INSERT INTO BB VALUES ('i'),('t');
 SELECT varchar_nokey FROM C
 WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey
 FROM BB);
-ERROR 21000: Operand should contain 2 column(s)
+ERROR 42S22: Unknown column 'OUTR' in 'IN/ALL/ANY subquery'
 SELECT varchar_nokey FROM C
 WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey, varchar_nokey
 FROM BB);
