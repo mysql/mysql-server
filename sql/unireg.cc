@@ -1131,7 +1131,7 @@ static bool make_empty_rec(THD *thd, File file,
         be constant.
       */
       DBUG_ASSERT(field->def->type() != Item::FUNC_ITEM);
-      type_conversion_status res= field->def->save_in_field(regfield, 1);
+      type_conversion_status res= field->def->save_in_field(regfield, true);
       if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
           res != TYPE_NOTE_TRUNCATED)
       {

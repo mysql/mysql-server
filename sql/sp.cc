@@ -2679,7 +2679,7 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 
   /* Save the value in the field. Convert the value if needed. */
 
-  expr_item->save_in_field(result_field, 0);
+  expr_item->save_in_field(result_field, false);
 
   thd->count_cuted_fields= save_count_cuted_fields;
   thd->abort_on_warning= save_abort_on_warning;
