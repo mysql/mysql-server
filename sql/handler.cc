@@ -5245,7 +5245,6 @@ int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan)
   DBUG_RETURN(args.err);
 }
 
-#ifdef HAVE_NDB_BINLOG
 /*
   TODO: change this into a dynamic struct
   List<handlerton> does not work as
@@ -5300,6 +5299,8 @@ static my_bool binlog_func_foreach(THD *thd, binlog_func_st *bfn)
   return FALSE;
 }
 
+#ifdef HAVE_NDB_BINLOG
+
 int ha_reset_logs(THD *thd)
 {
   binlog_func_st bfn= {BFN_RESET_LOGS, 0};
@@ -5317,13 +5318,6 @@ void ha_binlog_wait(THD* thd)
 {
   binlog_func_st bfn= {BFN_BINLOG_WAIT, 0};
   binlog_func_foreach(thd, &bfn);
-}
-
-int ha_binlog_end(THD* thd)
-{
-  binlog_func_st bfn= {BFN_BINLOG_END, 0};
-  binlog_func_foreach(thd, &bfn);
-  return 0;
 }
 
 int ha_binlog_index_purge_file(THD *thd, const char *file)
@@ -5382,6 +5376,13 @@ void ha_binlog_log_query(THD *thd, handlerton *hton,
     binlog_log_query_handlerton2(thd, hton, &b);
 }
 #endif
+
+int ha_binlog_end(THD* thd)
+{
+  binlog_func_st bfn= {BFN_BINLOG_END, 0};
+  binlog_func_foreach(thd, &bfn);
+  return 0;
+}
 
 /**
   Calculate cost of 'index only' scan for given index and number of records
