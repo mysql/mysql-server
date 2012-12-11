@@ -551,6 +551,19 @@ static bool resolve_subquery(THD *thd, JOIN *join)
 
   if (in_predicate)
   {
+    DBUG_ASSERT(select_lex == thd->lex->current_select);
+    thd->lex->current_select= outer;
+    char const *save_where= thd->where;
+    thd->where= "IN/ALL/ANY subquery";
+
+    bool result= !in_predicate->left_expr->fixed &&
+                  in_predicate->left_expr->fix_fields(thd,
+                                                     &in_predicate->left_expr);
+    thd->lex->current_select= select_lex;
+    thd->where= save_where;
+    if (result)
+      DBUG_RETURN(TRUE); /* purecov: deadcode */
+
     /*
       Check if the left and right expressions have the same # of
       columns, i.e. we don't have a case like 
@@ -565,18 +578,6 @@ static bool resolve_subquery(THD *thd, JOIN *join)
       DBUG_RETURN(TRUE);
     }
 
-    DBUG_ASSERT(select_lex == thd->lex->current_select);
-    thd->lex->current_select= outer;
-    char const *save_where= thd->where;
-    thd->where= "IN/ALL/ANY subquery";
-        
-    bool result= !in_predicate->left_expr->fixed &&
-                  in_predicate->left_expr->fix_fields(thd,
-                                                     &in_predicate->left_expr);
-    thd->lex->current_select= select_lex;
-    thd->where= save_where;
-    if (result)
-      DBUG_RETURN(TRUE); /* purecov: deadcode */
   }
 
   DBUG_PRINT("info", ("Checking if subq can be converted to semi-join"));
