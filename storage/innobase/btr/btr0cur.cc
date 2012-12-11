@@ -4430,6 +4430,9 @@ btr_store_big_rec_extern_fields(
 			page_t*		page;
 
 			mtr_start(&mtr);
+			turn_off_logging_if_temp_table(
+				dict_table_is_temporary(index->table),
+				NULL, &mtr, NULL);
 
 			if (prev_page_no == FIL_NULL) {
 				hint_page_no = 1 + rec_page_no;
@@ -4904,6 +4907,9 @@ btr_free_externally_stored_field(
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
+		turn_off_logging_if_temp_table(
+			dict_table_is_temporary(index->table),
+			NULL, &mtr, NULL);
 
 #ifdef UNIV_SYNC_DEBUG
 		rec_block =
