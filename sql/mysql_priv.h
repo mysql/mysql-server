@@ -1296,6 +1296,31 @@ bool mysql_truncate(THD *thd, TABLE_LIST *table_list, bool dont_send_ok);
 bool mysql_create_or_drop_trigger(THD *thd, TABLE_LIST *tables, bool create);
 uint create_table_def_key(THD *thd, char *key, TABLE_LIST *table_list,
                           bool tmp_table);
+
+/**
+  Create a table cache key for non-temporary table.
+
+  @param key         Buffer for key (must be at least NAME_LEN*2+2 bytes).
+  @param db          Database name.
+  @param table_name  Table name.
+
+  @return Length of key.
+
+  @sa create_table_def_key(thd, char *, table_list, bool)
+*/
+
+inline uint
+create_table_def_key(char *key, const char *db, const char *table_name)
+{
+  /*
+    In theory caller should ensure that both db and table_name are
+    not longer than NAME_LEN bytes. In practice we play safe to avoid
+    buffer overruns.
+  */
+  return (uint)(strmake(strmake(key, db, NAME_LEN) + 1, table_name,
+                        NAME_LEN) - key + 1);
+}
+
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list, char *key,
                              uint key_length, uint db_flags, int *error);
 void release_table_share(TABLE_SHARE *share, enum release_type type);
@@ -1593,7 +1618,7 @@ int lock_tables(THD *thd, TABLE_LIST *tables, uint counter, bool *need_reopen);
 int decide_logging_format(THD *thd, TABLE_LIST *tables);
 TABLE *open_temporary_table(THD *thd, const char *path, const char *db,
 			    const char *table_name, bool link_in_list);
-bool rm_temporary_table(handlerton *base, char *path);
+bool rm_temporary_table(handlerton *base, const char *path);
 void free_io_cache(TABLE *entry);
 void intern_close_table(TABLE *entry);
 bool close_thread_table(THD *thd, TABLE **table_ptr);
