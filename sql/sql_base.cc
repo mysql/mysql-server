@@ -8780,12 +8780,13 @@ err_no_arena:
 /*
   Fill fields with given items.
 
-  @param thd           thread handler
-  @param fields        Item_fields list to be filled
-  @param values        values to fill with
-  @param ignore_errors TRUE if we should ignore errors
-  @param bitmap        Bitmap over fields to fill
-
+  @param thd                        thread handler
+  @param fields                     Item_fields list to be filled
+  @param values                     values to fill with
+  @param ignore_errors              TRUE if we should ignore errors
+  @param bitmap                     Bitmap over fields to fill
+  @param insert_into_fields_bitmap  Bitmap for fields that is set
+                                    in fill_record
   @note fill_record() may set table->auto_increment_field_not_null and a
   caller should make sure that it is reset after their last call to this
   function.
@@ -8797,7 +8798,8 @@ err_no_arena:
 
 bool
 fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-            bool ignore_errors, MY_BITMAP *bitmap)
+            bool ignore_errors, MY_BITMAP *bitmap,
+            MY_BITMAP *insert_into_fields_bitmap)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
@@ -8845,6 +8847,9 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
     }
+    bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
+    if (insert_into_fields_bitmap)
+      bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
   }
   DBUG_RETURN(thd->is_error());
 err:
@@ -8904,6 +8909,69 @@ static bool check_record(THD *thd, Field **ptr)
 }
 
 
+/**
+  Check if SQL-statement is INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
+  and there is a trigger ON INSERT
+
+  @param event         event type for triggers to be invoked
+
+  @return Test result
+    @retval true    SQL-statement is
+                    INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
+                    and there is a trigger ON INSERT
+    @retval false   Either SQL-statement is not
+                    INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
+                    or there isn't a trigger ON INSERT
+*/
+inline bool command_invokes_insert_triggers(enum trg_event_type event,
+                                            enum_sql_command sql_command)
+{
+  /*
+    If it's 'INSERT INTO ... ON DUPLICATE KEY UPDATE ...' statement
+    the event is TRG_EVENT_UPDATE and the SQL-command is SQLCOM_INSERT.
+  */
+  return event == TRG_EVENT_INSERT &&
+        (sql_command == SQLCOM_INSERT ||
+         sql_command == SQLCOM_INSERT_SELECT ||
+         sql_command == SQLCOM_REPLACE ||
+         sql_command == SQLCOM_REPLACE_SELECT);
+}
+
+
+/**
+  Execute BEFORE INSERT trigger.
+
+  @param thd                        thread context
+  @param triggers                   object holding list of triggers
+                                    to be invoked
+  @param event                      event type for triggers to be invoked
+  @param insert_into_fields_bitmap  Bitmap for fields that is set
+                                    in fill_record
+
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occurred
+*/
+inline bool call_before_insert_triggers(THD *thd,
+                                        Table_triggers_list *triggers,
+                                        enum trg_event_type event,
+                                        MY_BITMAP *insert_into_fields_bitmap)
+{
+  TABLE *tbl= triggers->trigger_table;
+
+  for (Field** f= tbl->field; *f; ++f)
+  {
+    if (((*f)->flags & NO_DEFAULT_VALUE_FLAG) &&
+        !bitmap_is_set(insert_into_fields_bitmap, (*f)->field_index))
+    {
+      (*f)->set_tmp_null();
+    }
+  }
+
+  return triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
+}
+
+
 /*
   Fill fields in list with values from the list of items and invoke
   before triggers.
@@ -8929,35 +8997,66 @@ bool
 fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      List<Item> &values, bool ignore_errors,
                                      Table_triggers_list *triggers,
-                                     enum trg_event_type event)
+                                     enum trg_event_type event,
+                                     int num_fields)
 {
+  /*
+    If it's 'INSERT INTO ... ON DUPLICATE KEY UPDATE ...' statement
+    the event is TRG_EVENT_UPDATE and the SQL-command is SQLCOM_INSERT.
+  */
+
   if (triggers)
+  {
+    bool rc;
+
     triggers->enable_fields_temporary_nullability(thd);
 
-  bool rc= fill_record(thd, fields, values, ignore_errors, NULL) ||
-           (triggers &&
-            triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true));
+    if (command_invokes_insert_triggers(event, thd->lex->sql_command))
+    {
+      DBUG_ASSERT(num_fields);
 
-  if (triggers)
+      MY_BITMAP insert_into_fields_bitmap;
+      bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
+
+      rc= fill_record(thd, fields, values, ignore_errors, NULL,
+                      &insert_into_fields_bitmap);
+
+      if (!rc)
+        rc= call_before_insert_triggers(thd, triggers, event,
+                                        &insert_into_fields_bitmap);
+
+      bitmap_free(&insert_into_fields_bitmap);
+    }
+    else
+    {
+      rc= fill_record(thd, fields, values, ignore_errors, NULL, NULL) ||
+          triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
+    }
+
     triggers->disable_fields_temporary_nullability();
 
-  if (rc)
-    return true;
-
-  return triggers ?
-         check_record(thd, triggers->trigger_table->field) :
-         check_record(thd, fields, ignore_errors);
+    return rc ||
+           check_record(thd, triggers->trigger_table->field);
+  }
+  else
+  {
+    return
+        fill_record(thd, fields, values, ignore_errors, NULL, NULL) ||
+        check_record(thd, fields, ignore_errors);
+  }
 }
 
 
 /**
   Fill field buffer with values from Field list.
 
-  @param thd           thread handler
-  @param ptr           pointer on pointer to record
-  @param values        list of fields
-  @param ignore_errors True if we should ignore errors
-  @param bitmap        Bitmap over fields to fill
+  @param thd                        thread handler
+  @param ptr                        pointer on pointer to record
+  @param values                     list of fields
+  @param ignore_errors              True if we should ignore errors
+  @param bitmap                     Bitmap over fields to fill
+  @param insert_into_fields_bitmap  Bitmap for fields that is set
+                                    in fill_record
 
   @note fill_record() may set table->auto_increment_field_not_null and a
   caller should make sure that it is reset after their last call to this
@@ -8970,7 +9069,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
 
 bool
 fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
-            MY_BITMAP *bitmap)
+            MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
@@ -9002,6 +9101,14 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
       table->auto_increment_field_not_null= TRUE;
     if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       goto err;
+    /*
+      fill_record could be called as part of multi update and therefore
+      table->fields_set_during_insert could be NULL.
+    */
+    if (table->fields_set_during_insert)
+      bitmap_set_bit(table->fields_set_during_insert, field->field_index);
+    if (insert_into_fields_bitmap)
+      bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
   }
   DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
   DBUG_RETURN(thd->is_error());
@@ -9030,6 +9137,11 @@ err:
     This function assumes that fields which values will be set and triggers
     to be invoked belong to the same table, and that TABLE::record[0] and
     record[1] buffers correspond to new and old versions of row respectively.
+    This function is called during handling of statements
+    INSERT/INSERT SELECT/CREATE SELECT. It means that the only trigger's type
+    that can be invoked when this function is called is a BEFORE INSERT
+    trigger so we don't need to make branching based on the result of execution
+    function command_invokes_insert_triggers().
 
   RETURN
     FALSE   OK
@@ -9040,17 +9152,33 @@ bool
 fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      List<Item> &values, bool ignore_errors,
                                      Table_triggers_list *triggers,
-                                     enum trg_event_type event)
+                                     enum trg_event_type event,
+                                     int num_fields)
 {
+  bool rc;
+
   if (triggers)
+  {
+    DBUG_ASSERT(command_invokes_insert_triggers(event, thd->lex->sql_command));
+    DBUG_ASSERT(num_fields);
+
     triggers->enable_fields_temporary_nullability(thd);
 
-  bool rc= fill_record(thd, ptr, values, ignore_errors, NULL) ||
-           (triggers &&
-            triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true));
+    MY_BITMAP insert_into_fields_bitmap;
+    bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
 
-  if (triggers)
+    rc= fill_record(thd, ptr, values, ignore_errors, NULL,
+                    &insert_into_fields_bitmap);
+
+    if (!rc)
+      rc= call_before_insert_triggers(thd, triggers, event,
+                                      &insert_into_fields_bitmap);
+
+    bitmap_free(&insert_into_fields_bitmap);
     triggers->disable_fields_temporary_nullability();
+  }
+  else
+    rc= fill_record(thd, ptr, values, ignore_errors, NULL, NULL);
 
   if (rc)
     return true;

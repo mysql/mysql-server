@@ -34,7 +34,7 @@ class Mock_field_timestamp : public Field_timestamp
     EXPECT_FALSE(table == NULL) << "Out of memory";
     ptr= buffer;
     memset(buffer, 0, PACK_LENGTH);
-    null_ptr= &null_byte;
+    set_null_ptr(&null_byte, 1);
   }
 
 public:

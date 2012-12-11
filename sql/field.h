@@ -567,35 +567,71 @@ public:
    */
   bool is_created_from_null_item;
 
+private:
+  enum enum_pushed_warnings
+  {
+    BAD_NULL_ERROR_PUSHED= 1,
+    NO_DEFAULT_FOR_FIELD_PUSHED= 2,
+    NO_DEFAULT_FOR_VIEW_FIELD_PUSHED= 4
+  };
+
+  /*
+    Bitmask specifying which warnings have been already pushed in order
+    not to repeat the same warning for the collmn multiple times.
+    Uses values of enum_pushed_warnings to control pushed warnings.
+  */
+  unsigned int m_warnings_pushed;
+
+public:
   Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
         uchar null_bit_arg, utype unireg_check_arg,
         const char *field_name_arg);
-  virtual ~Field() {}
+
+  virtual ~Field()
+  { }
+
+  void reset_warnings()
+  { m_warnings_pushed= 0; }
 
   /**
-    Turn on/off temporary nullability for the field.
-
-    @param is_tmp_nullable    NULLability flag:
-                                  true - turn on temporary NULLability
-                                  false - turn off temporary NULLability
+    Turn on temporary nullability for the field.
   */
-  void set_tmp_nullable(bool is_tmp_nullable)
-  { m_is_tmp_nullable= is_tmp_nullable; }
+  void set_tmp_nullable()
+  {
+    m_is_tmp_nullable= true;
+  }
 
   /**
-    Return temporary NULLability flag.
+    Turn off temporary nullability for the field.
+  */
+  void reset_tmp_nullable()
+  {
+    m_is_tmp_nullable= false;
+  }
 
-    @return    true - if NULL can be assigned temporary to the Field
-               false - if NULL can not be assigned temporary to the Field
+  /**
+    Reset temporary NULL value for field
+  */
+  void reset_tmp_null()
+  {
+    m_is_tmp_null= false;
+  }
+
+  void set_tmp_null();
+
+  /**
+    @return temporary NULL-ability flag.
+    @retval true if NULL can be assigned temporary to the Field.
+    @retval false if NULL can not be assigned even temporary to the Field.
   */
   bool is_tmp_nullable() const
   { return m_is_tmp_nullable; }
 
   /**
-    Check whether Field has temporary value NULL.
-
-    @return    true - if the Field has temporary value NULL
-               false - if the Field's value is NOT NULL
+    @return whether Field has temporary value NULL.
+    @retval true if the Field has temporary value NULL.
+    @retval false if the Field's value is NOT NULL, or if the temporary
+    NULL-ability flag is reset.
   */
   bool is_tmp_null() const
   { return is_tmp_nullable() && m_is_tmp_null; }
@@ -972,17 +1008,14 @@ public:
     if (real_maybe_null())
       return test(record[null_offset()] & null_bit);
 
-    if (is_tmp_nullable())
-      return m_is_tmp_null;
-
-    return false;
+    return is_tmp_nullable() ? m_is_tmp_null : false;
   }
 
   void set_null(my_ptrdiff_t row_offset= 0);
 
   void set_notnull(my_ptrdiff_t row_offset= 0);
 
-  type_conversion_status check_constraints(int warning_no) const;
+  type_conversion_status check_constraints(int mysql_errno);
 
   /**
     Remember the value of THD::count_cuted_fields to handle possible
@@ -1236,8 +1269,37 @@ public:
   { return DERIVATION_IMPLICIT; }
   virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
-  bool set_warning(Sql_condition::enum_severity_level, unsigned int code,
-                   int cuted_increment) const;
+
+  /**
+    Produce warning or note about data saved into field.
+
+    @param level            - level of message (Note/Warning/Error)
+    @param code             - error code of message to be produced
+    @param cut_increment    - whenever we should increase cut fields count
+
+    @note
+      This function won't produce warning and increase cut fields counter
+      if count_cuted_fields == CHECK_FIELD_IGNORE for current thread.
+
+      if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
+      This allows us to avoid notes in optimization, like
+      convert_constant_item().
+
+    @retval
+      1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
+    @retval
+      0 otherwise
+  */
+  bool set_warning(Sql_condition::enum_severity_level level, unsigned int code,
+                   int cut_increment)
+  {
+    return set_warning(level, code, cut_increment, NULL, NULL);
+  }
+
+  bool set_warning(Sql_condition::enum_severity_level level, uint code,
+                   int cut_increment, const char *view_db,
+                   const char *view_name);
+
   inline bool check_overflow(int op_result)
   {
     return (op_result == E_DEC_OVERFLOW);
@@ -1592,14 +1654,14 @@ class Field_longstr :public Field_str
 protected:
   type_conversion_status report_if_important_data(const char *ptr,
                                                   const char *end,
-                                                  bool count_spaces) const;
+                                                  bool count_spaces);
   type_conversion_status
     check_string_copy_error(const char *well_formed_error_pos,
                             const char *cannot_convert_error_pos,
                             const char *from_end_pos,
                             const char *end,
                             bool count_spaces,
-                            const CHARSET_INFO *cs) const;
+                            const CHARSET_INFO *cs);
 public:
   Field_longstr(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
                 uchar null_bit_arg, utype unireg_check_arg,

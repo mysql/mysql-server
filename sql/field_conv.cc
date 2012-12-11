@@ -106,6 +106,16 @@ type_conversion_status set_field_to_null(Field *field)
     field->reset();
     return TYPE_OK;
   }
+  DBUG_ASSERT(0);
+
+#ifdef DBUG_OFF
+  /**
+    Can not be true, but do not take chances in production.
+    Test coverage discovered that the source code below wasn't
+    executed but to protect mysql server from unexpected behaviour
+    caused by some possible wrong code snippet in the server code base
+    we leave it for server compiled without debug.
+  */
   field->reset();
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
@@ -119,7 +129,8 @@ type_conversion_status set_field_to_null(Field *field)
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
-  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
+#endif
 }
 
 
@@ -151,18 +162,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   }
 
   if (no_conversions)
-  {
-    if (field->is_tmp_nullable())
-    {
-      field->set_null();
-      field->reset();
-      return TYPE_OK;
-    }
-    else
-    {
-      return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
-    }
-  }
+    return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 
   /*
     Check if this is a special type, which will get a special walue

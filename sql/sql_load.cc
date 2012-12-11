@@ -264,6 +264,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   }
 
   table= table_list->table;
+
+  for (Field **cur_field= table->field; *cur_field; ++cur_field)
+    (*cur_field)->reset_warnings();
+
   transactional_table= table->file->has_transactions();
 #ifndef EMBEDDED_LIBRARY
   is_concurrent= (table_list->lock_type == TL_WRITE_CONCURRENT_INSERT);
@@ -874,7 +878,8 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
                                              table->triggers,
-                                             TRG_EVENT_INSERT))
+                                             TRG_EVENT_INSERT,
+                                             table->s->fields))
       DBUG_RETURN(1);
 
     switch (table_list->view_check_option(thd,
@@ -962,7 +967,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         to table fields.
       */
       if (real_item->type() == Item::FIELD_ITEM)
-        ((Item_field *)real_item)->field->set_tmp_nullable(true);
+        ((Item_field *)real_item)->field->set_tmp_nullable();
 
       if ((!read_info.enclosed &&
 	  (enclosed_length && length == 4 &&
@@ -1088,41 +1093,47 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
     }
 
-    /*
-      Bypass all fields in the table and clear
-      temporary nullability flags for each one.
-    */
-    Item *real_item;
+    // Clear temporary nullability flags for every field in the table.
+
     it.rewind();
     while ((item= it++))
     {
-      real_item= item->real_item();
+      Item *real_item= item->real_item();
       if (real_item->type() == Item::FIELD_ITEM)
-        ((Item_field *)real_item)->field->set_tmp_nullable(false);
+        ((Item_field *)real_item)->field->reset_tmp_nullable();
     }
 
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
                                              table->triggers,
-                                             TRG_EVENT_INSERT))
+                                             TRG_EVENT_INSERT,
+                                             table->s->fields))
       DBUG_RETURN(1);
 
     if (!table->triggers)
     {
       /*
-        If there isn't triggers for the table then bypass all fields
-        in the table and check for NOT NULL constraint for each one.
+        If there is no trigger for the table then check the NOT NULL constraint
+        for every table field.
+
+        For the table that has BEFORE-INSERT trigger installed checking for
+        NOT NULL constraint is done inside function
+        fill_record_n_invoke_before_triggers() after all trigger instructions
+        has been executed.
       */
       it.rewind();
 
       while ((item= it++))
       {
-        real_item= item->real_item();
+        Item *real_item= item->real_item();
         if (real_item->type() == Item::FIELD_ITEM)
           ((Item_field *) real_item)->field->check_constraints(ER_WARN_NULL_TO_NOTNULL);
       }
     }
+
+    if (thd->is_error())
+      DBUG_RETURN(1);
 
     switch (table_list->view_check_option(thd,
                                           ignore_check_option_errors)) {
@@ -1295,7 +1306,8 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
                                              ignore_check_option_errors,
                                              table->triggers,
-                                             TRG_EVENT_INSERT))
+                                             TRG_EVENT_INSERT,
+                                             table->s->fields))
       DBUG_RETURN(1);
 
     switch (table_list->view_check_option(thd,
