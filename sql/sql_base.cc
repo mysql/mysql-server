@@ -316,8 +316,9 @@ uint create_table_def_key(THD *thd, char *key,
                           const TABLE_LIST *table_list,
                           bool tmp_table)
 {
-  uint key_length= (uint) (strmov(strmov(key, table_list->db)+1,
-                                  table_list->table_name)-key)+1;
+  uint key_length= create_table_def_key(key, table_list->db,
+                                        table_list->table_name);
+
   if (tmp_table)
   {
     int4store(key + key_length, thd->server_id);
@@ -815,13 +816,10 @@ void release_table_share(TABLE_SHARE *share)
 TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
 {
   char key[NAME_LEN*2+2];
-  TABLE_LIST table_list;
   uint key_length;
   mysql_mutex_assert_owner(&LOCK_open);
 
-  table_list.db= (char*) db;
-  table_list.table_name= (char*) table_name;
-  key_length= create_table_def_key((THD*) 0, key, &table_list, 0);
+  key_length= create_table_def_key(key, db, table_name);
   return (TABLE_SHARE*) my_hash_search(&table_def_cache,
                                        (uchar*) key, key_length);
 }  
@@ -3168,7 +3166,7 @@ err_unlock:
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];
-  uint key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+  uint key_length= create_table_def_key(key, db, table_name);
 
   for (TABLE *table= list; table ; table=table->next)
   {
@@ -5994,17 +5992,27 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
 }
 
 
-bool rm_temporary_table(handlerton *base, char *path)
+/**
+  Delete a temporary table.
+
+  @param base  Handlerton for table to be deleted.
+  @param path  Path to the table to be deleted (i.e. path
+               to its .frm without an extension).
+
+  @retval false - success.
+  @retval true  - failure.
+*/
+
+bool rm_temporary_table(handlerton *base, const char *path)
 {
   bool error=0;
   handler *file;
-  char *ext;
+  char frm_path[FN_REFLEN + 1];
   DBUG_ENTER("rm_temporary_table");
 
-  strmov(ext= strend(path), reg_ext);
-  if (mysql_file_delete(key_file_frm, path, MYF(0)))
+  strxnmov(frm_path, sizeof(frm_path) - 1, path, reg_ext, NullS);
+  if (mysql_file_delete(key_file_frm, frm_path, MYF(0)))
     error=1; /* purecov: inspected */
-  *ext= 0;				// remove extension
   file= get_new_handler((TABLE_SHARE*) 0, current_thd->mem_root, base);
   if (file && file->ha_delete_table(path))
   {
@@ -8943,7 +8951,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, table_name,
                                              MDL_EXCLUSIVE));
 
-  key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+  key_length= create_table_def_key(key, db, table_name);
 
   if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
                                             key_length)))
@@ -9056,12 +9064,14 @@ open_new_frm(THD *thd, TABLE_SHARE *share, const char *alias,
 {
   LEX_STRING pathstr;
   File_parser *parser;
-  char path[FN_REFLEN];
+  char path[FN_REFLEN+1];
   DBUG_ENTER("open_new_frm");
 
   /* Create path with extension */
-  pathstr.length= (uint) (strxmov(path, share->normalized_path.str, reg_ext,
-                                  NullS)- path);
+  pathstr.length= (uint) (strxnmov(path, sizeof(path) - 1,
+                                   share->normalized_path.str,
+                                   reg_ext,
+                                   NullS) - path);
   pathstr.str=    path;
 
   if ((parser= sql_parse_prepare(&pathstr, mem_root, 1)))
