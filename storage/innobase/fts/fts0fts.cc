@@ -2115,11 +2115,15 @@ static
 fts_trx_t*
 fts_trx_create(
 /*===========*/
-	trx_t*	trx)				/*!< in: InnoDB transaction */
+	trx_t*	trx)				/*!< in/out: InnoDB
+						transaction */
 {
-	fts_trx_t*	ftt;
-	ib_alloc_t*	heap_alloc;
-	mem_heap_t*	heap = mem_heap_create(1024);
+	fts_trx_t*		ftt;
+	ib_alloc_t*		heap_alloc;
+	mem_heap_t*		heap = mem_heap_create(1024);
+	trx_named_savept_t*	savep;
+
+	ut_a(trx->fts_trx == NULL);
 
 	ftt = static_cast<fts_trx_t*>(mem_heap_alloc(heap, sizeof(fts_trx_t)));
 	ftt->trx = trx;
@@ -2136,6 +2140,14 @@ fts_trx_create(
 	/* Default instance has no name and no heap. */
 	fts_savepoint_create(ftt->savepoints, NULL, NULL);
 	fts_savepoint_create(ftt->last_stmt, NULL, NULL);
+
+	/* Copy savepoints that already set before. */
+	for (savep = UT_LIST_GET_FIRST(trx->trx_savepoints);
+	     savep != NULL;
+	     savep = UT_LIST_GET_NEXT(trx_savepoints, savep)) {
+
+		fts_savepoint_take(trx, ftt, savep->name);
+	}
 
 	return(ftt);
 }
@@ -5297,16 +5309,15 @@ void
 fts_savepoint_take(
 /*===============*/
 	trx_t*		trx,		/*!< in: transaction */
+	fts_trx_t*	fts_trx,	/*!< in: fts transaction */
 	const char*	name)		/*!< in: savepoint name */
 {
 	mem_heap_t*		heap;
-	fts_trx_t*		fts_trx;
 	fts_savepoint_t*	savepoint;
 	fts_savepoint_t*	last_savepoint;
 
 	ut_a(name != NULL);
 
-	fts_trx = trx->fts_trx;
 	heap = fts_trx->heap;
 
 	/* The implied savepoint must exist. */

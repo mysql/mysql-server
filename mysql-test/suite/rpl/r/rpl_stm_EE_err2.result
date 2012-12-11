@@ -10,10 +10,10 @@ set sql_log_bin=1;
 insert into t1 values(1),(2);
 ERROR 23000: Duplicate entry '2' for key 'a'
 drop table t1;
-call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.* error code=1062.*Error on slave:.* Error_code: 1862");
+call mtr.add_suppression("Slave SQL.*Query caused different errors on master and slave.*Error on master:.* error code=1062.*Error on slave:.* Error_code: 1863");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 (expect different error codes on master and slave)
-include/wait_for_slave_sql_error.inc [errno=1862,1756]
+include/wait_for_slave_sql_error.inc [errno=1863,1756]
 drop table t1;
 include/stop_slave.inc
 RESET SLAVE;
