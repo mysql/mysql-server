@@ -52,9 +52,9 @@ class Mock_field_new_decimal : public Field_new_decimal
   void initialize()
   {
     ptr= buffer;
-    null_ptr= &null_byte;
     memset(buffer, 0, MAX_FIELD_WIDTH);
     null_byte= '\0';
+    set_null_ptr(&null_byte, 1);
   }
 
 public:

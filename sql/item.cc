@@ -2534,7 +2534,7 @@ adjust_max_effective_column_length(Field *field_par, uint32 max_length)
 void Item_field::set_field(Field *field_par)
 {
   field=result_field=field_par;			// for easy coding with fields
-  maybe_null=field->maybe_null();
+  maybe_null= field->maybe_null() || field->is_tmp_nullable();
   decimals= field->decimals();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
@@ -7959,9 +7959,7 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   if (def_field == NULL)
     goto error;
 
-  def_field->move_field_offset((my_ptrdiff_t)
-                               (def_field->table->s->default_values -
-                                def_field->table->record[0]));
+  def_field->move_field_offset(def_field->table->default_values_offset());
   set_field(def_field);
   return FALSE;
 
@@ -8206,7 +8204,7 @@ bool Item_trigger_field::set_value(THD *thd, sp_rcontext * /*ctx*/, Item **it)
 
   field->table->copy_blobs= true;
 
-  int err_code= item->save_in_field(field, 0);
+  int err_code= item->save_in_field(field, false);
 
   field->table->copy_blobs= copy_blobs_saved;
 
