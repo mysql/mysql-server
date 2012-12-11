@@ -8840,7 +8840,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
+    if ((value->save_in_field(rfield, false) < 0) && !ignore_errors)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
@@ -8883,9 +8883,11 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  return (fill_record(thd, fields, values, ignore_errors, NULL) ||
-          (triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE)));
+  bool fill_error=
+    fill_record(thd, fields, values, ignore_errors, NULL) ||
+    (triggers && triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true));
+
+  return fill_error;
 }
 
 
@@ -8939,7 +8941,7 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
       continue;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (value->save_in_field(field, 0) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+    if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       goto err;
   }
   DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
@@ -8981,9 +8983,11 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      Table_triggers_list *triggers,
                                      enum trg_event_type event)
 {
-  return (fill_record(thd, ptr, values, ignore_errors, NULL) ||
-          (triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE)));
+  bool fill_error=
+    fill_record(thd, ptr, values, ignore_errors, NULL) ||
+    (triggers && triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true));
+
+  return fill_error;
 }
 
 
