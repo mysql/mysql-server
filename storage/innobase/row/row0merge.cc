@@ -876,7 +876,7 @@ err_exit:
 		case. */
 
 		avail_size = &block[srv_sort_buf_size] - b;
-
+		ut_ad(avail_size < sizeof *buf);
 		memcpy(*buf, b, avail_size);
 
 		if (!row_merge_read(fd, ++(*foffs), block)) {
