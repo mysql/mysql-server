@@ -272,8 +272,16 @@ static uint create_table_def_key(THD *thd, char *key,
                                  const char *db_name, const char *table_name,
                                  bool tmp_table)
 {
-  uint key_length= (uint) (strmov(strmov(key, db_name) + 1, table_name) -
-                           key) + 1;
+  /*
+    In theory caller should ensure that both db and table_name are
+    not longer than NAME_LEN bytes. In practice we play safe to avoid
+    buffer overruns.
+  */
+  DBUG_ASSERT(strlen(db_name) <= NAME_LEN && strlen(table_name) <= NAME_LEN);
+  uint key_length= static_cast<uint>(strmake(strmake(key, db_name, NAME_LEN) +
+                                             1, table_name, NAME_LEN) - key +
+                                     1);
+
   if (tmp_table)
   {
     int4store(key + key_length, thd->server_id);
@@ -311,8 +319,10 @@ uint get_table_def_key(const TABLE_LIST *table_list, const char **key)
     is properly initialized, so table definition cache can be produced
     from key used by MDL subsystem.
   */
-  DBUG_ASSERT(!strcmp(table_list->db, table_list->mdl_request.key.db_name()) &&
-              !strcmp(table_list->table_name, table_list->mdl_request.key.name()));
+  DBUG_ASSERT(!strcmp(table_list->get_db_name(),
+                      table_list->mdl_request.key.db_name()) &&
+              !strcmp(table_list->get_table_name(),
+                      table_list->mdl_request.key.name()));
 
   *key= (const char*)table_list->mdl_request.key.ptr() + 1;
   return table_list->mdl_request.key.length() - 1;
@@ -3129,7 +3139,8 @@ err_unlock:
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];
-  uint key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+  uint key_length= create_table_def_key((THD*)NULL, key, db, table_name,
+                                        false);
 
   for (TABLE *table= list; table ; table=table->next)
   {
@@ -9167,7 +9178,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, table_name,
                                              MDL_EXCLUSIVE));
 
-  key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+  key_length= create_table_def_key(thd, key, db, table_name, false);
 
   if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
                                             key_length)))
