@@ -36,5 +36,12 @@ error ER_UNSUPPORTED_EXTENSION;
 insert into t values (1,null,null,null,null) on duplicate key update a=42;
 drop table t;
 
+# must have no unique keys
+create table t (id int primary key, a int, b char(32), c varchar(32), d blob, unique key(c));
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
+error ER_UNSUPPORTED_EXTENSION;
+insert into t values (1,null,null,null,null) on duplicate key update a=42;
+drop table t;
+
 
 
