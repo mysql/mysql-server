@@ -233,7 +233,7 @@ Source999: filter-requires-mysql.sh
 Patch2: mysql-5.5-errno.patch
 Patch4: mysql-5.5-testing.patch
 Patch5: mysql-install-test.patch
-Patch6: mysql-5.5-stack-guard.patch
+Patch6: mysql-5.6-stack-guard.patch
 # Patch7: mysql-disable-test.patch           Already fixed in current 5.1
 # Patch8: mysql-setschedparam.patch          Will not work in 5.5 (cmake)
 # Patch9: mysql-no-docs.patch                Will not work in 5.5 (cmake)
@@ -448,7 +448,7 @@ rm -rf %{src_dir}/mysql-test/lib/v1
 
 export PATH=${MYSQL_BUILD_PATH:-$PATH}
 export CC=${MYSQL_BUILD_CC:-${CC:-gcc}}
-export CXX=${MYSQL_BUILD_CXX:-${CXX:-gcc}}
+export CXX=${MYSQL_BUILD_CXX:-${CXX:-g++}}
 export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 # Following "%ifarch" developed by RedHat, MySQL/Oracle does not support/maintain Linux/Sparc:
 # gcc seems to have some bugs on sparc as of 4.4.1, back off optimization
@@ -456,7 +456,7 @@ export CFLAGS=${MYSQL_BUILD_CFLAGS:-${CFLAGS:-$RPM_OPT_FLAGS}}
 %ifarch sparc sparcv9 sparc64
 CFLAGS=`echo $CFLAGS| sed -e "s|-O2|-O1|g" `
 %endif
-export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors -fno-exceptions -fno-rtti}}
+export CXXFLAGS=${MYSQL_BUILD_CXXFLAGS:-${CXXFLAGS:-$RPM_OPT_FLAGS -felide-constructors}}
 export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-%{?_smp_mflags}}
@@ -508,21 +508,28 @@ mkdir release
 # TODO / FIXME: Do we need "scriptstub"?
 gcc $CFLAGS $LDFLAGS -o scriptstub "-DLIBDIR=\"%{_libdir}/mysql\"" %{SOURCE4}
 
-# TODO / FIXME: "libmysqld.so" should have been produced above  - WORK in PROGRESS
+# TODO / FIXME: "libmysqld.so" should have been produced above
 # regular build will make libmysqld.a but not libmysqld.so :-(
 cd release
 mkdir libmysqld/work
 cd libmysqld/work
-ar -x ../libmysqld.a
-rm rpl_utility.cc.o sql_binlog.cc.o  # Try-and-Error: These modules cause unresolved references
-gcc $CFLAGS $LDFLAGS -shared -Wl,-soname,libmysqld.so.0 -o libmysqld.so.0.0.1 \
-	*.o \
+# "libmysqld" provides the same ABI as "libmysqlclient", but it implements the server:
+# The shared object is identified by the full version,
+# for linkage selection the first two levels are sufficient so that upgrades are possible
+# (see "man ld", option "-soname").
+SO_FULL='%{mysql_version}'
+SO_USE=`echo $SO_FULL | sed -e 's/\([0-9]\.[0-9]\)\.[0-9]*/\1/'`
+# These two modules should pull everything else which is needed:
+ar -x ../libmysqld.a client.c.o signal_handler.cc.o
+gcc $CFLAGS $LDFLAGS -shared -Wl,-soname,libmysqld.so.$SO_USE -o libmysqld.so.$SO_FULL \
+	*.o ../libmysqld.a \
 	-lpthread -lcrypt -laio -lnsl -lssl -lcrypto -lz -lrt -lstdc++ -lm -lc
 # this is to check that we built a complete library
 cp %{SOURCE9} .
-ln -s libmysqld.so.0.0.1 libmysqld.so.0
-gcc -I../../include -I../../../%{src_dir}/include $CFLAGS mysql-embedded-check.c libmysqld.so.0
-LD_LIBRARY_PATH=. ldd ./a.out
+PROGNAME=`basename %{SOURCE9} .c`
+ln -s libmysqld.so.$SO_FULL libmysqld.so.$SO_USE
+gcc -I../../include -I../../../%{src_dir}/include $CFLAGS -o $PROGNAME %{SOURCE9} libmysqld.so.$SO_USE
+LD_LIBRARY_PATH=. ldd $PROGNAME
 cd ../..
 cd ..
 
@@ -618,9 +625,11 @@ mv ${RPM_BUILD_ROOT}%{_bindir}/mysql_config ${RPM_BUILD_ROOT}%{_libdir}/mysql/my
 install -m 0755 scriptstub ${RPM_BUILD_ROOT}%{_bindir}/mysql_config
 
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.a
-install -m 0755 release/libmysqld/work/libmysqld.so.0.0.1 ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so.0.0.1
-ln -s libmysqld.so.0.0.1 ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so.0
-ln -s libmysqld.so.0 ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so
+SO_FULL='%{mysql_version}'
+SO_USE=`echo $SO_FULL | sed -e 's/\([0-9]\.[0-9]\)\.[0-9]*/\1/'`
+install -m 0755 release/libmysqld/work/libmysqld.so.$SO_FULL ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so.$SO_FULL
+ln -s libmysqld.so.$SO_FULL ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so.$SO_USE
+ln -s libmysqld.so.$SO_USE  ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqld.so
 
 rm -f ${RPM_BUILD_ROOT}%{_bindir}/comp_err
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/comp_err.1*
@@ -646,6 +655,7 @@ rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/postinstall
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/mysql-*.spec
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/mysql-log-rotate
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/ChangeLog
+rm -fr ${RPM_BUILD_ROOT}%{_datadir}/mysql/solaris/
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-stress-test.pl.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-test-run.pl.1*
 
@@ -787,6 +797,7 @@ fi
 %{_bindir}/mysqlshow
 %{_bindir}/mysqlslap
 %{_bindir}/my_print_defaults
+%{_bindir}/mysql_config_editor
 
 %{_mandir}/man1/mysql.1*
 %{_mandir}/man1/mysql_config.1*
@@ -798,6 +809,7 @@ fi
 %{_mandir}/man1/mysqlshow.1*
 %{_mandir}/man1/mysqlslap.1*
 %{_mandir}/man1/my_print_defaults.1*
+%{_mandir}/man1/mysql_config_editor.1*
 
 %{_libdir}/mysql/mysqlbug
 %{_libdir}/mysql/mysql_config
@@ -814,6 +826,7 @@ fi
 
 %dir %{_datadir}/mysql
 %{_datadir}/mysql/english
+%lang(bg) %{_datadir}/mysql/bulgarian
 %lang(cs) %{_datadir}/mysql/czech
 %lang(da) %{_datadir}/mysql/danish
 %lang(nl) %{_datadir}/mysql/dutch
@@ -920,14 +933,16 @@ fi
 %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %{_mandir}/man8/mysqld.8*
 
+%{_datadir}/mysql/dictionary.txt
 %{_datadir}/mysql/errmsg-utf8.txt
 %{_datadir}/mysql/fill_help_tables.sql
+%{_datadir}/mysql/innodb_memcached_config.sql
 %{_datadir}/mysql/magic
+%{_datadir}/mysql/mysql_security_commands.sql
 %{_datadir}/mysql/mysql_system_tables.sql
 %{_datadir}/mysql/mysql_system_tables_data.sql
 %{_datadir}/mysql/mysql_test_data_timezone.sql
-%{_datadir}/mysql/my-*.cnf
-%{_datadir}/mysql/config.*.ini
+%{_datadir}/mysql/my-default.cnf
 
 /etc/rc.d/init.d/mysqld
 %attr(0755,mysql,mysql) %dir /var/run/mysqld
@@ -964,6 +979,22 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Mon Dec 10 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+- Replace old my-*.cnf config file examples with template my-default.cnf
+- Handle several files for packaging which are new in 5.6 (compared to 5.5).
+
+* Thu Dec  7 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+- Change the way in which "libmysqld.so" is created: Using all object modules
+  was wrong, gcc / ld can resolve the dependencies from "libmysqld.a".
+  Also, identify the ".so" version from the MySQL version, "0.0.1" was wrong.
+  Bug#15972480
+
+* Fri Nov  9 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+- The "stack-guard.patch" needs to be adapted for MySQL 5.6,
+  reflect that in a name change "5.5" -> "5.6".
+- Set CXX=g++ by default to add a dependency on libgcc/libstdc++.
+  Also, remove the use of the -fno-exceptions and -fno-rtti flags.
+
 * Tue Sep 18 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - Restrict the vendor check to Oracle: There is no history here
   which we have to allow for.
