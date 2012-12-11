@@ -233,7 +233,7 @@ Source999: filter-requires-mysql.sh
 Patch2: mysql-5.5-errno.patch
 Patch4: mysql-5.5-testing.patch
 Patch5: mysql-install-test.patch
-Patch6: mysql-5.5-stack-guard.patch
+Patch6: mysql-5.6-stack-guard.patch
 # Patch7: mysql-disable-test.patch           Already fixed in current 5.1
 # Patch8: mysql-setschedparam.patch          Will not work in 5.5 (cmake)
 # Patch9: mysql-no-docs.patch                Will not work in 5.5 (cmake)
@@ -964,6 +964,10 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Fri Nov  9 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+- The "stack-guard.patch" needs to be adapted for MySQL 5.6,
+  reflect that in a name change "5.5" -> "5.6".
+
 * Tue Sep 18 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - Restrict the vendor check to Oracle: There is no history here
   which we have to allow for.
