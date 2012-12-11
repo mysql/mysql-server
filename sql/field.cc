@@ -924,6 +924,18 @@ static enum_field_types field_types_merge_rules [FIELDTYPE_NUM][FIELDTYPE_NUM]=
 
 
 /**
+  Set field to temporary value NULL.
+*/
+void Field::set_tmp_null()
+{
+  m_is_tmp_null= true;
+
+  m_count_cuted_fields_saved= table ? table->in_use->count_cuted_fields :
+                                      current_thd->count_cuted_fields;
+}
+
+
+/**
   Return type of which can carry value of both given types in UNION result.
 
   @param a  type for merging
@@ -1351,17 +1363,118 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     uchar null_bit_arg,
 	     utype unireg_check_arg, const char *field_name_arg)
-  :ptr(ptr_arg), null_ptr(null_ptr_arg),
+  :ptr(ptr_arg),
+   m_null_ptr(null_ptr_arg),
+   m_is_tmp_nullable(false),
+   m_is_tmp_null(false),
    table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
    unireg_check(unireg_check_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
-   is_created_from_null_item(FALSE)
+   is_created_from_null_item(FALSE),
+   m_warnings_pushed(0)
 {
-  flags=null_ptr ? 0: NOT_NULL_FLAG;
+  flags=real_maybe_null() ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
   comment.length=0;
   field_index= 0;
+}
+
+
+/**
+  Check NOT NULL constraint on the field after temporary nullability is
+  disabled.
+
+  @param warning_no Warning to report.
+
+  @return TYPE_OK if the value is Ok, or corresponding error code from
+  the type_conversion_status enum.
+*/
+type_conversion_status Field::check_constraints(int mysql_errno)
+{
+  /*
+    Ensure that Field::check_constraints() is called only when temporary
+    nullability is disabled.
+  */
+
+  DBUG_ASSERT(!is_tmp_nullable());
+
+  if (real_maybe_null())
+    return TYPE_OK; // If the field is nullable, we're Ok.
+
+  if (!m_is_tmp_null)
+    return TYPE_OK; // If the field was not NULL, we're Ok.
+
+  // The field has been set to NULL.
+
+  /*
+    If the field is of AUTO_INCREMENT, and the next number
+    has been assigned to it, we're Ok.
+  */
+
+  if (this == table->next_number_field)
+    return TYPE_OK;
+
+  /*
+    If the field is of TIMESTAMP its default value is CURRENT_TIMESTAMP
+    and was set before calling this method. Therefore m_is_tmp_null == false
+    for such field and we leave check_constraints() before this
+    DBUG_ASSERT is fired.
+  */
+  DBUG_ASSERT (type() != MYSQL_TYPE_TIMESTAMP);
+
+  switch (m_count_cuted_fields_saved) {
+  case CHECK_FIELD_WARN:
+    set_warning(Sql_condition::SL_WARNING, mysql_errno, 1);
+    /* fall through */
+  case CHECK_FIELD_IGNORE:
+    return TYPE_OK;
+  case CHECK_FIELD_ERROR_FOR_NULL:
+    if (!table->in_use->no_errors)
+      my_error(ER_BAD_NULL_ERROR, MYF(0), field_name);
+    return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+  }
+
+  DBUG_ASSERT(0); // impossible
+  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+}
+
+
+/**
+  Set field to value NULL.
+
+  @param row_offset    This is the offset between the row being updated
+                       and table->record[0]
+*/
+void Field::set_null(my_ptrdiff_t row_offset)
+{
+  if (real_maybe_null())
+  {
+    m_null_ptr[row_offset]|= null_bit;
+  }
+  else if (is_tmp_nullable())
+  {
+    set_tmp_null();
+  }
+}
+
+
+/**
+  Set field to value NOT NULL.
+
+  @param row_offset    This is the offset between the row being updated
+                       and table->record[0]
+*/
+void Field::set_notnull(my_ptrdiff_t row_offset)
+{
+  if (real_maybe_null())
+  {
+    m_null_ptr[row_offset]&= (uchar) ~null_bit;
+  }
+  else if (is_tmp_nullable())
+  {
+    reset_tmp_null();
+  }
 }
 
 
@@ -1379,24 +1492,24 @@ void Field::hash(ulong *nr, ulong *nr2)
   }
 }
 
-size_t
-Field::do_last_null_byte() const
+size_t Field::do_last_null_byte() const
 {
-  DBUG_ASSERT(null_ptr == NULL || null_ptr >= table->record[0]);
-  if (null_ptr)
-    return null_offset() + 1;
-  return LAST_NULL_BYTE_UNDEF;
+  DBUG_ASSERT(!real_maybe_null() || m_null_ptr >= table->record[0]);
+  return real_maybe_null() ? null_offset() + 1 : (size_t) LAST_NULL_BYTE_UNDEF;
 }
 
 
-void Field::copy_from_tmp(int row_offset)
+void Field::copy_data(my_ptrdiff_t src_record_offset)
 {
-  memcpy(ptr,ptr+row_offset,pack_length());
-  if (null_ptr)
+  memcpy(ptr, ptr + src_record_offset, pack_length());
+
+  if (real_maybe_null())
   {
-    *null_ptr= (uchar) ((null_ptr[0] & (uchar) ~(uint) null_bit) |
-			(null_ptr[row_offset] & (uchar) null_bit));
-  }
+    // Set to NULL if the source record is NULL, otherwise set to NOT-NULL.
+    m_null_ptr[0]= (m_null_ptr[0]                 & ~null_bit) |
+                   (m_null_ptr[src_record_offset] &  null_bit);
+  } else if (is_tmp_nullable())
+    m_is_tmp_null= false;
 }
 
 
@@ -1894,7 +2007,7 @@ Field *Field::new_key_field(MEM_ROOT *root, TABLE *new_table,
   if ((tmp= new_field(root, new_table, table == new_table)))
   {
     tmp->ptr=      new_ptr;
-    tmp->null_ptr= new_null_ptr;
+    tmp->m_null_ptr= new_null_ptr;
     tmp->null_bit= new_null_bit;
   }
   return tmp;
@@ -6511,7 +6624,7 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
                                        const char *from_end_pos,
                                        const char *end,
                                        bool count_spaces,
-                                       const CHARSET_INFO *cs) const
+                                       const CHARSET_INFO *cs)
 {
   const char *pos;
   char tmp[32];
@@ -6555,7 +6668,7 @@ Field_longstr::check_string_copy_error(const char *well_formed_error_pos,
 
 type_conversion_status
 Field_longstr::report_if_important_data(const char *pstr, const char *end,
-                                        bool count_spaces) const
+                                        bool count_spaces)
 {
   if ((pstr < end) && table->in_use->count_cuted_fields)
   {
@@ -8909,7 +9022,7 @@ Field_bit::Field_bit(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
   flags|= UNSIGNED_FLAG;
   /*
     Ensure that Field::eq() can distinguish between two different bit fields.
-    (two bit fields that are not null, may have same ptr and null_ptr)
+    (two bit fields that are not null, may have same ptr and m_null_ptr)
   */
   if (!null_ptr_arg)
     null_bit= bit_ofs_arg;
@@ -8947,9 +9060,9 @@ Field_bit::do_last_null_byte() const
   */
   DBUG_PRINT("test", ("bit_ofs: %d, bit_len: %d  bit_ptr: 0x%lx",
                       bit_ofs, bit_len, (long) bit_ptr));
-  uchar *result;
+  const uchar *result;
   if (bit_len == 0)
-    result= null_ptr;
+    result= get_null_ptr();
   else if (bit_ofs + bit_len > 8)
     result= bit_ptr + 1;
   else
@@ -9407,7 +9520,7 @@ void Field_bit::set_default()
 {
   if (bit_len > 0)
   {
-    my_ptrdiff_t const offset= table->s->default_values - table->record[0];
+    my_ptrdiff_t offset= table->default_values_offset();
     uchar bits= get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
     set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
   }
@@ -10395,11 +10508,9 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   {
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff), charset);
-    my_ptrdiff_t diff;
 
     /* Get the value from default_values */
-    diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
-                          orig_field->table->record[0]);
+    my_ptrdiff_t diff= orig_field->table->default_values_offset();
     orig_field->move_field_offset(diff);	// Points now at default_values
     if (!orig_field->is_real_null())
     {
@@ -10477,12 +10588,17 @@ uint32 Field_blob::max_display_length()
  Warning handling
 *****************************************************************************/
 
+
 /**
   Produce warning or note about data saved into field.
 
   @param level            - level of message (Note/Warning/Error)
   @param code             - error code of message to be produced
   @param cut_increment    - whenever we should increase cut fields count
+  @param view_db_name     - if set this is the database name for view
+                            that causes the warning
+  @param view_name        - if set this is the name of view that causes
+                            the warning
 
   @note
     This function won't produce warning and increase cut fields counter
@@ -10491,29 +10607,82 @@ uint32 Field_blob::max_display_length()
     if count_cuted_fields == CHECK_FIELD_IGNORE then we ignore notes.
     This allows us to avoid notes in optimisation, like convert_constant_item().
 
+    In case of execution statements INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
+    the method emits only one warning message for the following
+    types of warning: ER_BAD_NULL_ERROR, ER_WARN_NULL_TO_NOTNULL,
+    ER_NO_DEFAULT_FOR_FIELD.
   @retval
     1 if count_cuted_fields == CHECK_FIELD_IGNORE and error level is not NOTE
   @retval
     0 otherwise
 */
 
-bool 
-Field::set_warning(Sql_condition::enum_severity_level level, uint code,
-                   int cut_increment) const
+bool Field::set_warning(Sql_condition::enum_severity_level level,
+                        uint code,
+                        int cut_increment,
+                        const char *view_db_name,
+                        const char *view_name)
 {
   /*
     If this field was created only for type conversion purposes it
     will have table == NULL.
   */
+
   THD *thd= table ? table->in_use : current_thd;
-  if (thd->count_cuted_fields)
+
+  if (!thd->count_cuted_fields)
+    return level >= Sql_condition::SL_WARNING;
+
+  thd->cuted_fields+= cut_increment;
+
+  if (thd->lex->sql_command != SQLCOM_INSERT &&
+      thd->lex->sql_command != SQLCOM_INSERT_SELECT &&
+      thd->lex->sql_command != SQLCOM_REPLACE &&
+      thd->lex->sql_command != SQLCOM_REPLACE_SELECT)
   {
-    thd->cuted_fields+= cut_increment;
+    // We aggregate warnings from only INSERT and REPLACE statements.
+
     push_warning_printf(thd, level, code, ER(code), field_name,
                         thd->get_stmt_da()->current_row_for_condition());
+
     return 0;
   }
-  return level >= Sql_condition::SL_WARNING;
+
+  unsigned int current_warning_mask= 0;
+
+  if (code == ER_BAD_NULL_ERROR)
+    current_warning_mask= BAD_NULL_ERROR_PUSHED;
+  else if (code == ER_NO_DEFAULT_FOR_FIELD)
+    current_warning_mask= NO_DEFAULT_FOR_FIELD_PUSHED;
+
+  if (current_warning_mask)
+  {
+    if (!(m_warnings_pushed & current_warning_mask))
+    {
+      push_warning_printf(thd, level, code, ER(code), field_name,
+                          thd->get_stmt_da()->current_row_for_condition());
+      m_warnings_pushed|= current_warning_mask;
+    }
+  }
+  else if (code == ER_NO_DEFAULT_FOR_VIEW_FIELD)
+  {
+    if (!(m_warnings_pushed & NO_DEFAULT_FOR_VIEW_FIELD_PUSHED))
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_NO_DEFAULT_FOR_VIEW_FIELD,
+                          ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
+                          view_db_name,
+                          view_name);
+      m_warnings_pushed|= NO_DEFAULT_FOR_VIEW_FIELD_PUSHED;
+    }
+  }
+  else
+  {
+    push_warning_printf(thd, level, code, ER(code), field_name,
+                        thd->get_stmt_da()->current_row_for_condition());
+  }
+
+  return 0;
 }
 
 
