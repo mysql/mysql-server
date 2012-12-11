@@ -100,7 +100,7 @@ static void do_field_to_null_str(Copy_field *copy)
 
 type_conversion_status set_field_to_null(Field *field)
 {
-  if (field->real_maybe_null())
+  if (field->real_maybe_null() || field->is_tmp_nullable())
   {
     field->set_null();
     field->reset();
@@ -149,8 +149,20 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     field->reset();
     return TYPE_OK;
   }
+
   if (no_conversions)
-    return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+  {
+    if (field->is_tmp_nullable())
+    {
+      field->set_null();
+      field->reset();
+      return TYPE_OK;
+    }
+    else
+    {
+      return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+    }
+  }
 
   /*
     Check if this is a special type, which will get a special walue
@@ -166,7 +178,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     Item_func_now_local::store_in(field);
     return TYPE_OK;			// Ok to set time to NULL
   }
-  
+
   // Note: we ignore any potential failure of reset() here.
   field->reset();
 
@@ -175,6 +187,14 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     field->table->auto_increment_field_not_null= FALSE;
     return TYPE_OK;		        // field is set in fill_record()
   }
+
+  if (field->is_tmp_nullable())
+  {
+    field->set_null();
+    field->reset();
+    return TYPE_OK;
+  }
+
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);

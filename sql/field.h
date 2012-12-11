@@ -489,6 +489,27 @@ private:
   */
   uchar *m_null_ptr;
 
+  /**
+    Flag: if the NOT-NULL field can be temporary NULL.
+  */
+  bool m_is_tmp_nullable;
+
+  /**
+    This is a flag with the following semantics:
+      - it can be changed only when m_is_tmp_nullable is true;
+      - it specifies if this field in the first current record
+        (TABLE::record[0]) was set to NULL (temporary NULL).
+
+    This flag is used for trigger handling.
+  */
+  bool m_is_tmp_null;
+
+  /**
+    The value of THD::count_cuted_fields at the moment of setting
+    m_is_tmp_null attribute.
+  */
+  enum_check_fields m_count_cuted_fields_saved;
+
 protected:
   const uchar *get_null_ptr() const
   { return m_null_ptr; }
@@ -550,6 +571,34 @@ public:
         uchar null_bit_arg, utype unireg_check_arg,
         const char *field_name_arg);
   virtual ~Field() {}
+
+  /**
+    Turn on/off temporary nullability for the field.
+
+    @param is_tmp_nullable    NULLability flag:
+                                  true - turn on temporary NULLability
+                                  false - turn off temporary NULLability
+  */
+  void set_tmp_nullable(bool is_tmp_nullable)
+  { m_is_tmp_nullable= is_tmp_nullable; }
+
+  /**
+    Return temporary NULLability flag.
+
+    @return    true - if NULL can be assigned temporary to the Field
+               false - if NULL can not be assigned temporary to the Field
+  */
+  bool is_tmp_nullable() const
+  { return m_is_tmp_nullable; }
+
+  /**
+    Check whether Field has temporary value NULL.
+
+    @return    true - if the Field has temporary value NULL
+               false - if the Field's value is NOT NULL
+  */
+  bool is_tmp_null() const
+  { return is_tmp_nullable() && m_is_tmp_null; }
 
   /* Store functions returns 1 on overflow and -1 on fatal error */
   virtual type_conversion_status store(const char *to, uint length,
@@ -869,6 +918,12 @@ public:
   bool is_temporal_with_date_and_time() const
   { return is_temporal_type_with_date_and_time(type()); }
 
+  /**
+    Check whether the full table's row is NULL or the Field has value NULL.
+
+    @return    true if the full table's row is NULL or the Field has value NULL
+               false if neither table's row nor the Field has value NULL
+  */
   bool is_null(my_ptrdiff_t row_offset= 0) const
   {
     /*
@@ -883,26 +938,61 @@ public:
       pointer, and its NULLity is recorded in the "null_bit" bit of
       m_null_ptr[row_offset].
     */
-    return table->null_row ? true : is_real_null(row_offset);
+    return table->null_row ?
+           true :
+           is_real_null(row_offset);
   }
 
+  /**
+    Check whether the Field has value NULL (temporary or actual).
+
+    @return   true if the Field has value NULL (temporary or actual)
+              false if the Field has value NOT NULL.
+  */
   bool is_real_null(my_ptrdiff_t row_offset= 0) const
-  { return real_maybe_null() ? test(m_null_ptr[row_offset] & null_bit) : false; }
+  {
+    if (real_maybe_null())
+      return test(m_null_ptr[row_offset] & null_bit);
 
+    if (is_tmp_nullable())
+      return m_is_tmp_null;
+
+    return false;
+  }
+
+  /**
+    Check if the Field has value NULL or the record specified by argument
+    has value NULL for this Field.
+
+    @return    true if the Field has value NULL or the record has value NULL
+               for thois Field.
+  */
   bool is_null_in_record(const uchar *record) const
-  { return real_maybe_null() ? test(record[null_offset()] & null_bit) : false; }
-
-  void set_null(my_ptrdiff_t row_offset= 0)
   {
     if (real_maybe_null())
-      m_null_ptr[row_offset]|= null_bit;
+      return test(record[null_offset()] & null_bit);
+
+    if (is_tmp_nullable())
+      return m_is_tmp_null;
+
+    return false;
   }
 
-  void set_notnull(my_ptrdiff_t row_offset= 0)
-  {
-    if (real_maybe_null())
-      m_null_ptr[row_offset]&= (uchar) ~null_bit;
-  }
+  void set_null(my_ptrdiff_t row_offset= 0);
+
+  void set_notnull(my_ptrdiff_t row_offset= 0);
+
+  type_conversion_status check_constraints(int warning_no) const;
+
+  /**
+    Remember the value of THD::count_cuted_fields to handle possible
+    NOT-NULL constraint errors after BEFORE-trigger execution is finished.
+    We should save the value of THD::count_cuted_fields before starting
+    BEFORE-trigger processing since during triggers execution the
+    value of THD::count_cuted_fields could be changed.
+  */
+  void set_count_cuted_fields(enum_check_fields count_cuted_fields)
+  { m_count_cuted_fields_saved= count_cuted_fields; }
 
   bool maybe_null(void) const
   { return real_maybe_null() || table->maybe_null; }
@@ -1017,7 +1107,7 @@ public:
   virtual void move_field_offset(my_ptrdiff_t ptr_diff)
   {
     ptr= ADD_TO_PTR(ptr, ptr_diff, uchar*);
-    if (m_null_ptr)
+    if (real_maybe_null())
       m_null_ptr= ADD_TO_PTR(m_null_ptr, ptr_diff, uchar*);
   }
 

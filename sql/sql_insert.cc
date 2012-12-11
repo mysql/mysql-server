@@ -319,6 +319,35 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
 
 
 /**
+   Wrapper for invocation of function check_that_all_fields_are_given_value.
+
+   @param[in] thd                 Thread handler
+   @param[in] table               Table to insert into
+   @param[in] table_list          Table list
+   @param[in]  abort_on_warning   Whether to report an error or a warning
+                                  if some INSERT field is not assigned.
+
+  @return Operation status.
+    @retval false   Success
+    @retval true    Failure
+ */
+static bool
+safely_check_that_all_fields_are_given_values(THD* thd, TABLE* table,
+                                              TABLE_LIST* table_list,
+                                              bool abort_on_warning)
+{
+  bool saved_abort_on_warning= thd->abort_on_warning;
+  thd->abort_on_warning= abort_on_warning;
+
+  bool res= check_that_all_fields_are_given_values(thd, table, table_list);
+
+  thd->abort_on_warning= saved_abort_on_warning;
+
+  return res;
+}
+
+
+/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -600,7 +629,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
   prepare_triggers_for_insert_stmt(table);
-
 
   if (table_list->prepare_where(thd, 0, TRUE) ||
       table_list->prepare_check_option(thd))
@@ -1097,18 +1125,16 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
 
     if (!res && check_fields)
     {
-      bool saved_abort_on_warning= thd->abort_on_warning;
-      thd->abort_on_warning= abort_on_warning;
-      res= check_that_all_fields_are_given_values(thd, 
-                                                  table ? table : 
-                                                  context->table_list->table,
-                                                  context->table_list);
-      thd->abort_on_warning= saved_abort_on_warning;
+      TABLE *t= table;
+      if (!t)
+        t= context->table_list->table;
+      res= safely_check_that_all_fields_are_given_values(thd, t,
+                                                         context->table_list,
+                                                         abort_on_warning);
     }
-
-   if (!res)
-     res= setup_fields(thd, Ref_ptr_array(),
-                       update_values, MARK_COLUMNS_READ, 0, 0);
+    if (!res)
+      res= setup_fields(thd, Ref_ptr_array(),
+                        update_values, MARK_COLUMNS_READ, 0, 0);
 
     if (!res && duplic == DUP_UPDATE)
     {
@@ -1619,17 +1645,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         check_insert_fields(thd, table_list, *fields, values,
                             !insert_into_view, 1, &map));
 
-  if (!res && fields->elements)
-  {
-    bool saved_abort_on_warning= thd->abort_on_warning;
-
-    thd->abort_on_warning= !ignore_errors && thd->is_strict_mode();
-
-    res= check_that_all_fields_are_given_values(thd, table_list->table, 
-                                                table_list);
-    thd->abort_on_warning= saved_abort_on_warning;
-  }
-
   if (duplicate_handling == DUP_UPDATE && !res)
   {
     Name_resolution_context *context= &lex->select_lex.context;
@@ -1744,8 +1759,19 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         table_list->prepare_check_option(thd));
 
   if (!res)
+  {
      prepare_triggers_for_insert_stmt(table);
 
+     // Check fields for the INSERT INTO ... SELECT statement.
+     if (fields->elements)
+     {
+       res= safely_check_that_all_fields_are_given_values(thd,
+                                                          table_list->table,
+                                                          table_list,
+                                                          !ignore_errors &&
+                                                          thd->is_strict_mode());
+     }
+  }
   DBUG_RETURN(res);
 }
 
