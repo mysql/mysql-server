@@ -1988,9 +1988,7 @@ bool Table_triggers_list::change_table_name(THD *thd, const char *db,
   */
 #ifndef DBUG_OFF
   uchar key[MAX_DBKEY_LENGTH];
-  uint key_length= (uint) (strmov(strmov((char*)&key[0], db)+1,
-                    old_table)-(char*)&key[0])+1;
-
+  uint key_length= create_table_def_key((char *)key, db, old_table);
   if (!is_table_name_exclusively_locked_by_this_thread(thd, key, key_length))
     safe_mutex_assert_owner(&LOCK_open);
 #endif
