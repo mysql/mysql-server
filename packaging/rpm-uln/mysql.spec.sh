@@ -655,6 +655,7 @@ rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/postinstall
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/mysql-*.spec
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/mysql-log-rotate
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/ChangeLog
+rm -fr ${RPM_BUILD_ROOT}%{_datadir}/mysql/solaris/
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-stress-test.pl.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-test-run.pl.1*
 
@@ -796,6 +797,7 @@ fi
 %{_bindir}/mysqlshow
 %{_bindir}/mysqlslap
 %{_bindir}/my_print_defaults
+%{_bindir}/mysql_config_editor
 
 %{_mandir}/man1/mysql.1*
 %{_mandir}/man1/mysql_config.1*
@@ -807,6 +809,7 @@ fi
 %{_mandir}/man1/mysqlshow.1*
 %{_mandir}/man1/mysqlslap.1*
 %{_mandir}/man1/my_print_defaults.1*
+%{_mandir}/man1/mysql_config_editor.1*
 
 %{_libdir}/mysql/mysqlbug
 %{_libdir}/mysql/mysql_config
@@ -823,6 +826,7 @@ fi
 
 %dir %{_datadir}/mysql
 %{_datadir}/mysql/english
+%lang(bg) %{_datadir}/mysql/bulgarian
 %lang(cs) %{_datadir}/mysql/czech
 %lang(da) %{_datadir}/mysql/danish
 %lang(nl) %{_datadir}/mysql/dutch
@@ -929,14 +933,16 @@ fi
 %{_mandir}/man1/mysql_tzinfo_to_sql.1*
 %{_mandir}/man8/mysqld.8*
 
+%{_datadir}/mysql/dictionary.txt
 %{_datadir}/mysql/errmsg-utf8.txt
 %{_datadir}/mysql/fill_help_tables.sql
+%{_datadir}/mysql/innodb_memcached_config.sql
 %{_datadir}/mysql/magic
+%{_datadir}/mysql/mysql_security_commands.sql
 %{_datadir}/mysql/mysql_system_tables.sql
 %{_datadir}/mysql/mysql_system_tables_data.sql
 %{_datadir}/mysql/mysql_test_data_timezone.sql
-%{_datadir}/mysql/my-*.cnf
-%{_datadir}/mysql/config.*.ini
+%{_datadir}/mysql/my-default.cnf
 
 /etc/rc.d/init.d/mysqld
 %attr(0755,mysql,mysql) %dir /var/run/mysqld
@@ -973,12 +979,16 @@ fi
 %{_mandir}/man1/mysql_client_test.1*
 
 %changelog
+* Mon Dec 10 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+- Replace old my-*.cnf config file examples with template my-default.cnf
+- Handle several files for packaging which are new in 5.6 (compared to 5.5).
+
 * Thu Dec  7 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - Change the way in which "libmysqld.so" is created: Using all object modules
   was wrong, gcc / ld can resolve the dependencies from "libmysqld.a".
   Also, identify the ".so" version from the MySQL version, "0.0.1" was wrong.
   Bug#15972480
-  
+
 * Fri Nov  9 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
 - The "stack-guard.patch" needs to be adapted for MySQL 5.6,
   reflect that in a name change "5.5" -> "5.6".
