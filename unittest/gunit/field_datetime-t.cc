@@ -51,9 +51,9 @@ private:
   void initialize()
   {
     ptr= buffer;
-    null_ptr= &null_byte;
     memset(buffer, 0, PACK_LENGTH);
     null_byte= '\0';
+    set_null_ptr(&null_byte, 1);
   }
 
 public:
