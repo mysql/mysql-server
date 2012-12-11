@@ -558,13 +558,18 @@ static int search_dir(const char * base_path, const char *tool_name,
   const char *last_fn_libchar;
 #endif
 
+  if ((strlen(base_path) + strlen(subdir) + 1) > FN_REFLEN)
+  {
+    fprintf(stderr, "WARNING: Search path is too long\n");
+    return 1;
+  }
   strcpy(source_path, base_path);
   strcat(source_path, subdir);
   fn_format(new_path, tool_name, source_path, "", MY_UNPACK_FILENAME);
   if (file_exists(new_path))
   {
     strcpy(tool_path, new_path);
-    return 1;
+    return 0;
   }  
 
 #if __WIN__
@@ -588,11 +593,11 @@ static int search_dir(const char * base_path, const char *tool_name,
     if (file_exists(win_abs_path))
     {
       strcpy(tool_path, win_abs_path);
-      return 1;
+      return 0;
     }
   }
 #endif
-  return 0;
+  return 1;
 }
 
 
@@ -617,12 +622,12 @@ static int search_paths(const char *base_path, const char *tool_name,
   };
   for (i = 0 ; i < (int)array_elements(paths); i++)
   {
-    if (search_dir(base_path, tool_name, paths[i], tool_path))
+    if (!search_dir(base_path, tool_name, paths[i], tool_path))
     {
-      return 1;
+      return 0;
     }
   }
-  return 0;
+  return 1;
 }
 
 
@@ -1006,7 +1011,7 @@ static int find_tool(const char *tool_name, char *tool_path)
   };
   for (i= 0; i < (int)array_elements(paths); i++)
   {
-    if (paths[i] && (search_paths(paths[i], tool_name, tool_path)))
+    if (paths[i] && !(search_paths(paths[i], tool_name, tool_path)))
       goto found;
   }
   fprintf(stderr, "WARNING: Cannot find %s.\n", tool_name);
