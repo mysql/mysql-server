@@ -6267,6 +6267,7 @@ sub valgrind_exit_reports() {
         $err_in_report= 1 if $line =~ /ERROR SUMMARY: [1-9]/;
         $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
+        $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
       }
     }
 
