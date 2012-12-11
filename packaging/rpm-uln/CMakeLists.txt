@@ -28,7 +28,7 @@ IF(UNIX)
 
   FOREACH(ulnfile filter-requires-mysql.sh generate-tarball.sh my.cnf my_config.h
           mysql-5.5-errno.patch mysql-5.5-fix-tests.patch mysql-5.5-libdir.patch
-          mysql-5.5-mtr1.patch mysql-5.5-stack-guard.patch mysql-5.5-testing.patch
+          mysql-5.5-mtr1.patch mysql-5.6-stack-guard.patch mysql-5.5-testing.patch
           mysql-chain-certs.patch mysql-embedded-check.c mysql-expired-certs.patch
           mysql.init mysql-install-test.patch mysql-strmov.patch scriptstub.c
           README.mysql-docs)
