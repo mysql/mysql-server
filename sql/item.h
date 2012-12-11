@@ -796,10 +796,13 @@ public:
   */
   virtual type_conversion_status save_in_field(Field *field,
                                                bool no_conversions);
+
   virtual void save_org_in_field(Field *field)
-  { (void) save_in_field(field, 1); }
+  { save_in_field(field, true); }
+
   virtual type_conversion_status save_safe_in_field(Field *field)
-  { return save_in_field(field, 1); }
+  { return save_in_field(field, true); }
+
   virtual bool send(Protocol *protocol, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type() const { return REAL_RESULT; }

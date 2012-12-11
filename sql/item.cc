@@ -7959,9 +7959,7 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   if (def_field == NULL)
     goto error;
 
-  def_field->move_field_offset((my_ptrdiff_t)
-                               (def_field->table->s->default_values -
-                                def_field->table->record[0]));
+  def_field->move_field_offset(def_field->table->default_values_offset());
   set_field(def_field);
   return FALSE;
 
@@ -8206,7 +8204,7 @@ bool Item_trigger_field::set_value(THD *thd, sp_rcontext * /*ctx*/, Item **it)
 
   field->table->copy_blobs= true;
 
-  int err_code= item->save_in_field(field, 0);
+  int err_code= item->save_in_field(field, false);
 
   field->table->copy_blobs= copy_blobs_saved;
 

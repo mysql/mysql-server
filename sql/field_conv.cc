@@ -550,7 +550,7 @@ void Copy_field::set(uchar *to,Field *from)
   null_row= &from->table->null_row;
   if (from->maybe_null())
   {
-    from_null_ptr=from->null_ptr;
+    from_null_ptr=from->get_null_ptr();
     from_bit=	  from->null_bit;
     to_ptr[0]=	  1;				// Null as default value
     to_null_ptr=  (uchar*) to_ptr++;
@@ -598,11 +598,11 @@ void Copy_field::set(Field *to,Field *from,bool save)
   null_row= &from->table->null_row;
   if (from->maybe_null())
   {
-    from_null_ptr=	from->null_ptr;
+    from_null_ptr=	from->get_null_ptr();
     from_bit=		from->null_bit;
     if (to_field->real_maybe_null())
     {
-      to_null_ptr=	to->null_ptr;
+      to_null_ptr=	to->get_null_ptr();
       to_bit=		to->null_bit;
       do_copy=	do_copy_null;
     }
@@ -618,7 +618,7 @@ void Copy_field::set(Field *to,Field *from,bool save)
   }
   else if (to_field->real_maybe_null())
   {
-    to_null_ptr=	to->null_ptr;
+    to_null_ptr=	to->get_null_ptr();
     to_bit=		to->null_bit;
     do_copy= do_copy_maybe_null;
   }

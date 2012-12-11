@@ -1351,14 +1351,14 @@ String *Field::val_int_as_str(String *val_buffer, my_bool unsigned_val)
 Field::Field(uchar *ptr_arg,uint32 length_arg,uchar *null_ptr_arg,
 	     uchar null_bit_arg,
 	     utype unireg_check_arg, const char *field_name_arg)
-  :ptr(ptr_arg), null_ptr(null_ptr_arg),
+  :ptr(ptr_arg), m_null_ptr(null_ptr_arg),
    table(0), orig_table(0), table_name(0),
    field_name(field_name_arg),
    unireg_check(unireg_check_arg),
    field_length(length_arg), null_bit(null_bit_arg), 
    is_created_from_null_item(FALSE)
 {
-  flags=null_ptr ? 0: NOT_NULL_FLAG;
+  flags=real_maybe_null() ? 0: NOT_NULL_FLAG;
   comment.str= (char*) "";
   comment.length=0;
   field_index= 0;
@@ -1379,23 +1379,22 @@ void Field::hash(ulong *nr, ulong *nr2)
   }
 }
 
-size_t
-Field::do_last_null_byte() const
+size_t Field::do_last_null_byte() const
 {
-  DBUG_ASSERT(null_ptr == NULL || null_ptr >= table->record[0]);
-  if (null_ptr)
-    return null_offset() + 1;
-  return LAST_NULL_BYTE_UNDEF;
+  DBUG_ASSERT(!real_maybe_null() || m_null_ptr >= table->record[0]);
+  return real_maybe_null() ? null_offset() + 1 : (size_t) LAST_NULL_BYTE_UNDEF;
 }
 
 
-void Field::copy_from_tmp(int row_offset)
+void Field::copy_data(my_ptrdiff_t src_record_offset)
 {
-  memcpy(ptr,ptr+row_offset,pack_length());
-  if (null_ptr)
+  memcpy(ptr, ptr + src_record_offset, pack_length());
+
+  if (real_maybe_null())
   {
-    *null_ptr= (uchar) ((null_ptr[0] & (uchar) ~(uint) null_bit) |
-			(null_ptr[row_offset] & (uchar) null_bit));
+    // Set to NULL if the source record is NULL, otherwise set to NOT-NULL.
+    m_null_ptr[0]= (m_null_ptr[0]                 & ~null_bit) |
+                   (m_null_ptr[src_record_offset] &  null_bit);
   }
 }
 
@@ -1894,7 +1893,7 @@ Field *Field::new_key_field(MEM_ROOT *root, TABLE *new_table,
   if ((tmp= new_field(root, new_table, table == new_table)))
   {
     tmp->ptr=      new_ptr;
-    tmp->null_ptr= new_null_ptr;
+    tmp->m_null_ptr= new_null_ptr;
     tmp->null_bit= new_null_bit;
   }
   return tmp;
@@ -8909,7 +8908,7 @@ Field_bit::Field_bit(uchar *ptr_arg, uint32 len_arg, uchar *null_ptr_arg,
   flags|= UNSIGNED_FLAG;
   /*
     Ensure that Field::eq() can distinguish between two different bit fields.
-    (two bit fields that are not null, may have same ptr and null_ptr)
+    (two bit fields that are not null, may have same ptr and m_null_ptr)
   */
   if (!null_ptr_arg)
     null_bit= bit_ofs_arg;
@@ -8947,9 +8946,9 @@ Field_bit::do_last_null_byte() const
   */
   DBUG_PRINT("test", ("bit_ofs: %d, bit_len: %d  bit_ptr: 0x%lx",
                       bit_ofs, bit_len, (long) bit_ptr));
-  uchar *result;
+  const uchar *result;
   if (bit_len == 0)
-    result= null_ptr;
+    result= get_null_ptr();
   else if (bit_ofs + bit_len > 8)
     result= bit_ptr + 1;
   else
@@ -9407,7 +9406,7 @@ void Field_bit::set_default()
 {
   if (bit_len > 0)
   {
-    my_ptrdiff_t const offset= table->s->default_values - table->record[0];
+    my_ptrdiff_t offset= table->default_values_offset();
     uchar bits= get_rec_bits(bit_ptr + offset, bit_ofs, bit_len);
     set_rec_bits(bits, bit_ptr, bit_ofs, bit_len);
   }
@@ -10395,11 +10394,9 @@ Create_field::Create_field(Field *old_field,Field *orig_field) :
   {
     char buff[MAX_FIELD_WIDTH];
     String tmp(buff,sizeof(buff), charset);
-    my_ptrdiff_t diff;
 
     /* Get the value from default_values */
-    diff= (my_ptrdiff_t) (orig_field->table->s->default_values-
-                          orig_field->table->record[0]);
+    my_ptrdiff_t diff= orig_field->table->default_values_offset();
     orig_field->move_field_offset(diff);	// Points now at default_values
     if (!orig_field->is_real_null())
     {
