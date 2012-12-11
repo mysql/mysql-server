@@ -3801,7 +3801,7 @@ innobase_savepoint(
 	error = trx_savepoint_for_mysql(trx, name, (ib_int64_t)0);
 
 	if (error == DB_SUCCESS && trx->fts_trx != NULL) {
-		fts_savepoint_take(trx, name);
+		fts_savepoint_take(trx, trx->fts_trx, name);
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
