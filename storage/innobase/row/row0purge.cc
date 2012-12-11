@@ -303,14 +303,26 @@ row_purge_remove_sec_if_poss_tree(
 	log_free_check();
 	mtr_start(&mtr);
 
-	mtr_x_lock(dict_index_get_lock(index), &mtr);
+	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* The index->online_status may change if the
+		index->name starts with TEMP_INDEX_PREFIX (meaning
+		that the index is or was being created online). It is
+		protected by index->lock. */
+		mtr_x_lock(dict_index_get_lock(index), &mtr);
 
-	if (dict_index_is_online_ddl(index)) {
-		/* Online secondary index creation will not copy any
-		delete-marked records. Therefore there is nothing to
-		be purged. We must also skip the purge when a completed
-		index is dropped by rollback_inplace_alter_table(). */
-		goto func_exit_no_pcur;
+		if (dict_index_is_online_ddl(index)) {
+			/* Online secondary index creation will not
+			copy any delete-marked records. Therefore
+			there is nothing to be purged. We must also
+			skip the purge when a completed index is
+			dropped by rollback_inplace_alter_table(). */
+			goto func_exit_no_pcur;
+		}
+	} else {
+		/* For secondary indexes,
+		index->online_status==ONLINE_INDEX_CREATION unless
+		index->name starts with TEMP_INDEX_PREFIX. */
+		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
 	search_result = row_search_index_entry(index, entry, BTR_MODIFY_TREE,
@@ -390,20 +402,38 @@ row_purge_remove_sec_if_poss_leaf(
 {
 	mtr_t			mtr;
 	btr_pcur_t		pcur;
+	ulint			mode;
 	enum row_search_result	search_result;
 	bool			success	= true;
 
 	log_free_check();
 
 	mtr_start(&mtr);
-	mtr_s_lock(dict_index_get_lock(index), &mtr);
 
-	if (dict_index_is_online_ddl(index)) {
-		/* Online secondary index creation will not copy any
-		delete-marked records. Therefore there is nothing to
-		be purged. We must also skip the purge when a completed
-		index is dropped by rollback_inplace_alter_table(). */
-		goto func_exit_no_pcur;
+	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* The index->online_status may change if the
+		index->name starts with TEMP_INDEX_PREFIX (meaning
+		that the index is or was being created online). It is
+		protected by index->lock. */
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+
+		if (dict_index_is_online_ddl(index)) {
+			/* Online secondary index creation will not
+			copy any delete-marked records. Therefore
+			there is nothing to be purged. We must also
+			skip the purge when a completed index is
+			dropped by rollback_inplace_alter_table(). */
+			goto func_exit_no_pcur;
+		}
+
+		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED | BTR_DELETE;
+	} else {
+		/* For secondary indexes,
+		index->online_status==ONLINE_INDEX_CREATION unless
+		index->name starts with TEMP_INDEX_PREFIX. */
+		ut_ad(!dict_index_is_online_ddl(index));
+
+		mode = BTR_MODIFY_LEAF | BTR_DELETE;
 	}
 
 	/* Set the purge node for the call to row_purge_poss_sec(). */
@@ -413,9 +443,7 @@ row_purge_remove_sec_if_poss_leaf(
 	pcur.btr_cur.thr = static_cast<que_thr_t*>(que_node_get_parent(node));
 
 	search_result = row_search_index_entry(
-		index, entry,
-		BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED | BTR_DELETE,
-		&pcur, &mtr);
+		index, entry, mode, &pcur, &mtr);
 
 	switch (search_result) {
 	case ROW_FOUND:
