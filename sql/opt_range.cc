@@ -6432,7 +6432,7 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
   */
 
   // Note that value may be a stored function call, executed here.
-  const type_conversion_status err= value->save_in_field_no_warnings(field, 1);
+  const type_conversion_status err= value->save_in_field_no_warnings(field, true);
   field->table->in_use->variables.sql_mode= orig_sql_mode;
 
   switch (err) {

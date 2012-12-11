@@ -47,9 +47,9 @@ class Mock_field_long : public Field_long
   void initialize()
   {
     ptr= buffer;
-    null_ptr= &null_byte;
     memset(buffer, 0, PACK_LENGTH);
     null_byte= '\0';
+    set_null_ptr(&null_byte, 1);
   }
 public:
   Mock_field_long()
@@ -361,11 +361,14 @@ TEST_F(FieldLongTest, StoreNullValue)
   // Save NULL value in a field that can NOT have NULL value
   field_long.set_null_ptr(NULL, 0);
   {
-    Mock_error_handler error_handler(thd(), WARN_DATA_TRUNCATED);
+    Mock_error_handler error_handler(thd(), 0);
+    // Save NULL value in a field that can be set to NULL temporary
+    field_long.set_tmp_nullable();
     err= set_field_to_null(&field_long);
     EXPECT_EQ(0, field_long.val_int());
     EXPECT_EQ(TYPE_OK, err);
-    EXPECT_EQ(1, error_handler.handle_called());
+    EXPECT_EQ(0, error_handler.handle_called());
+    field_long.reset_tmp_nullable();
   }
 
   {
