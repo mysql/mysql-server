@@ -1734,12 +1734,12 @@ INSERT INTO t1 VALUES (4),(3),(1),(2);
 #
 EXPLAIN DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	PRIMARY	PRIMARY	4	NULL	4	Using where
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	4	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	ALL	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
+1	SIMPLE	t1	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t1 WHERE (@a:= a) ORDER BY a LIMIT 1;;
@@ -1752,7 +1752,7 @@ EXPLAIN
       "table": {
         "delete": true,
         "table_name": "t1",
-        "access_type": "ALL",
+        "access_type": "index",
         "possible_keys": [
           "PRIMARY"
         ] /* possible_keys */,
@@ -2537,12 +2537,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	X	Using where
+1	SIMPLE	t2	index	a	a	15	NULL	X	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	X	X	Using where
+1	SIMPLE	t2	index	a	a	15	NULL	X	X	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -2555,7 +2555,7 @@ EXPLAIN
       "table": {
         "delete": true,
         "table_name": "t2",
-        "access_type": "ALL",
+        "access_type": "index",
         "possible_keys": [
           "a"
         ] /* possible_keys */,
@@ -3112,12 +3112,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	X	Using where
+1	SIMPLE	t2	index	a	a	15	NULL	X	Using where
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	X	X	Using where
+1	SIMPLE	t2	index	a	a	15	NULL	X	X	Using where
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -3130,7 +3130,7 @@ EXPLAIN
       "table": {
         "delete": true,
         "table_name": "t2",
-        "access_type": "ALL",
+        "access_type": "index",
         "possible_keys": [
           "a"
         ] /* possible_keys */,
@@ -3669,12 +3669,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	a	6	NULL	X	NULL
+1	SIMPLE	t2	index	a	a	6	NULL	X	NULL
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	a	6	NULL	X	X	NULL
+1	SIMPLE	t2	index	a	a	6	NULL	X	X	NULL
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON DELETE   FROM t2 ORDER BY a DESC, b DESC LIMIT 5;;
@@ -3687,7 +3687,7 @@ EXPLAIN
       "table": {
         "delete": true,
         "table_name": "t2",
-        "access_type": "ALL",
+        "access_type": "index",
         "possible_keys": [
           "a"
         ] /* possible_keys */,
@@ -4048,12 +4048,12 @@ INSERT INTO t2 (a, b, c) SELECT t1.i, t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	X	Using where; Using temporary
+1	SIMPLE	t2	index	a	a	15	NULL	X	Using where; Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	a	15	NULL	X	X	Using where; Using temporary
+1	SIMPLE	t2	index	a	a	15	NULL	X	X	Using where; Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET d = 10 WHERE b = 10 ORDER BY a, c LIMIT 5;;
@@ -4067,7 +4067,7 @@ EXPLAIN
       "table": {
         "update": true,
         "table_name": "t2",
-        "access_type": "ALL",
+        "access_type": "index",
         "possible_keys": [
           "a"
         ] /* possible_keys */,
@@ -4608,12 +4608,12 @@ INSERT INTO t2 (a, b) SELECT t1.i, t1.i FROM t1, t1 x1, t1 x2;
 #
 EXPLAIN UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ALL	a	a	6	NULL	X	Using temporary
+1	SIMPLE	t2	index	a	a	6	NULL	X	Using temporary
 FLUSH STATUS;
 FLUSH TABLES;
 EXPLAIN EXTENDED UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	ALL	a	a	6	NULL	X	X	Using temporary
+1	SIMPLE	t2	index	a	a	6	NULL	X	X	Using temporary
 # Status of EXPLAIN EXTENDED query
 Variable_name	Value
 EXPLAIN FORMAT=JSON UPDATE t2 SET c = 10 ORDER BY a DESC, b DESC LIMIT 5;;
@@ -4627,7 +4627,7 @@ EXPLAIN
       "table": {
         "update": true,
         "table_name": "t2",
-        "access_type": "ALL",
+        "access_type": "index",
         "possible_keys": [
           "a"
         ] /* possible_keys */,
