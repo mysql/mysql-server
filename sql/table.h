@@ -1250,6 +1250,9 @@ public:
 
   bool check_read_removal(uint index);
 
+  my_ptrdiff_t default_values_offset() const
+  { return (my_ptrdiff_t) (s->default_values - record[0]); }
+
   /// Return true if table is instantiated, and false otherwise.
   bool is_created() const { return created; }
 

@@ -2667,7 +2667,7 @@ bool partition_info::fix_column_value_functions(THD *thd,
         thd->variables.sql_mode= 0;
         save_got_warning= thd->got_warning;
         thd->got_warning= 0;
-        if (column_item->save_in_field(field, TRUE) ||
+        if (column_item->save_in_field(field, true) ||
             thd->got_warning)
         {
           my_error(ER_WRONG_TYPE_COLUMN_VALUE_ERROR, MYF(0));
