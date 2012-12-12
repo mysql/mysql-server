@@ -71,7 +71,8 @@ private:
   int do_init_info(uint instance);
   int do_init_info(enum_find_method method, uint instance);
   enum_return_check do_check_info();
-  enum_return_check do_check_info(uint instance);
+  enum_return_check do_check_info(uint instance,
+                                  const bool ignore_error);
   void do_end_info();
   int do_flush_info(const bool force);
   int do_remove_info();
