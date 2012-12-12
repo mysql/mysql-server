@@ -118,6 +118,7 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_CHECK_KEY 1024
 #define TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS 2048
 #define TOKUDB_DEBUG_ALTER_TABLE_INFO 4096
+#define TOKUDB_DEBUG_UPSERT 8192
 
 #define TOKUDB_TRACE(f, ...) \
     printf("%d:%s:%d:" f, my_tid(), __FILE__, __LINE__, ##__VA_ARGS__);
