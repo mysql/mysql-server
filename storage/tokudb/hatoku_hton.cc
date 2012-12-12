@@ -1142,14 +1142,21 @@ static int tokudb_dictionary_info(TABLE *table, THD *thd) {
             DB_NEXT
             );
         if (!error) {
+            // We store the NULL terminator in the directory so it's included in the size.
+            // See #5789
+            // Recalculate and check just to be safe.
+            size_t dname_len = strlen(curr_key.data);
+            size_t iname_len = strlen(curr_val.data);
+            assert(dname_len == curr_key.size - 1);
+            assert(iname_len == curr_val.size - 1);
             table->field[0]->store(
                 (char *)curr_key.data,
-                curr_key.size,
+                dname_len,
                 system_charset_info
                 );
             table->field[1]->store(
                 (char *)curr_val.data,
-                curr_val.size,
+                iname_len,
                 system_charset_info
                 );
             error = schema_table_store_record(thd, table);
@@ -1198,14 +1205,21 @@ static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *i
         goto exit;
     }
 
+    // We store the NULL terminator in the directory so it's included in the size.
+    // See #5789
+    // Recalculate and check just to be safe.
+    size_t dname_len = strlen(dname->data);
+    size_t iname_len = strlen(iname->data);
+    assert(dname_len == dname->size - 1);
+    assert(iname_len == iname->size - 1);
     table->field[0]->store(
         (char *)dname->data,
-        dname->size,
+        dname_len,
         system_charset_info
         );
     table->field[1]->store(
         (char *)iname->data,
-        iname->size,
+        iname_len,
         system_charset_info
         );
     table->field[2]->store(bt_num_blocks_allocated, false);
@@ -1332,14 +1346,21 @@ static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const D
     // If not, we should have gotten an error and skipped this section of code
     assert(e.i == e.num_rows);
     for (int64_t i = 0; error == 0 && i < e.num_rows; ++i) {
+        // We store the NULL terminator in the directory so it's included in the size.
+        // See #5789
+        // Recalculate and check just to be safe.
+        size_t dname_len = strlen(dname->data);
+        size_t iname_len = strlen(iname->data);
+        assert(dname_len == dname->size - 1);
+        assert(iname_len == iname->size - 1);
         table->field[0]->store(
             (char *)dname->data,
-            dname->size,
+            dname_len,
             system_charset_info
             );
         table->field[1]->store(
             (char *)iname->data,
-            iname->size,
+            iname_len,
             system_charset_info
             );
         table->field[2]->store(e.checkpoint_counts[i], false);
