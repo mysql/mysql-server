@@ -30,13 +30,6 @@ error ER_UNSUPPORTED_EXTENSION;
 update t set x=x+1 where ida=1;
 drop table t;
 
-# must have no unique keys
-create table t (ida int not null, idb bigint not null, idc tinyint unsigned not null, x bigint, primary key(ida), unique key (idb));
-replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
-error ER_UNSUPPORTED_EXTENSION;
-update t set x=x+1 where ida=1;
-drop table t;
-
 # must have no pk prefixed
 create table t (id char(32), x bigint, primary key(id(1)));
 replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
