@@ -1687,6 +1687,8 @@ bool Explain_table::explain_join_type()
   join_type jt;
   if (select && select->quick)
     jt= calc_join_type(select->quick->get_type());
+  else if (key != MAX_KEY)
+    jt= JT_INDEX_SCAN;
   else
     jt= JT_ALL;
 
