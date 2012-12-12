@@ -360,10 +360,12 @@ turn_off_logging_if_temp_table(
 	if (is_temp) {
 		mtr_set_log_mode(mtr, MTR_LOG_NONE);
 		mtr->ignore_log_recs = TRUE;
+		/*
 		if (flags
 		    && !(thd_test_options(trx->mysql_thd,
 			 OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
 			*flags |= BTR_NO_UNDO_LOG_FLAG;
+		*/
 	}
 	return;
 }
