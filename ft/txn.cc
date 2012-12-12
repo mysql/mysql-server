@@ -118,7 +118,7 @@ void toku_txn_create_txn (
     TXN_SNAPSHOT_TYPE snapshot_type,
     DB_TXN *container_db_txn,
     XIDS xids,
-    bool for_checkpoint
+    bool for_recovery
     )
 {
     assert(logger->rollback_cachefile);
@@ -144,7 +144,7 @@ void toku_txn_create_txn (
         .ancestor_txnid64 = TXNID_NONE,
         .snapshot_txnid64 = TXNID_NONE,
         .snapshot_type = snapshot_type,
-        .recovered_from_checkpoint = for_checkpoint,
+        .for_recovery = for_recovery,
         .logger = logger,
         .parent = parent_tokutxn,
         .container_db_txn = container_db_txn,
