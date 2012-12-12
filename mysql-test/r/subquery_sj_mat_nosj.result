@@ -2929,7 +2929,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 32,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (select `test`.`t11`.`a` from `test`.`t11` where 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,`test`.`t1`.`a` in ( <materialize> (/* select#2 */ select `test`.`t11`.`a` from `test`.`t11` where 1 ), <primary_index_lookup>(`test`.`t1`.`a` in <temporary table> on <auto_key> where ((`test`.`t1`.`a` = `materialized-subquery`.`a`)))))",
       "attached_subqueries": [
         {
           "table": {
@@ -3024,7 +3024,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 11,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`x`.`a` in <temporary table> on <auto_key> where ((`x`.`a` = `materialized-subquery`.`a`)))))",
+      "attached_condition": "<in_optimizer>(`x`.`a`,`x`.`a` in ( <materialize> (/* select#3 */ select `test`.`t1`.`a` from `test`.`t1` where 1 ), <primary_index_lookup>(`x`.`a` in <temporary table> on <auto_key> where ((`x`.`a` = `materialized-subquery`.`a`)))))",
       "attached_subqueries": [
         {
           "table": {
@@ -3278,7 +3278,7 @@ EXPLAIN
           "rows": 1000,
           "filtered": 79.3,
           "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (select `test`.`t2`.`a` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_key> where ((`test`.`t3`.`a` = `materialized-subquery`.`a`))))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))",
+          "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,`test`.`t3`.`a` in ( <materialize> (/* select#2 */ select `test`.`t2`.`a` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`t3`.`a` in <temporary table> on <auto_key> where ((`test`.`t3`.`a` = `materialized-subquery`.`a`))))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))",
           "attached_subqueries": [
             {
               "table": {
@@ -6234,7 +6234,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 16,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,`test`.`t2`.`Code` in ( <materialize> (/* select#2 */ select `test`.`t1`.`Country` from `test`.`t1` where (`test`.`t1`.`Population` > 5000000) ), <primary_index_lookup>(`test`.`t2`.`Code` in <temporary table> on <auto_key> where ((`test`.`t2`.`Code` = `materialized-subquery`.`Country`))))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -8030,7 +8030,7 @@ EXPLAIN
               ],
               "rows": 11,
               "filtered": 100,
-              "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized-subquery`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))",
+              "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`) in ( <materialize> (/* select#3 */ select `test`.`parent1`.`col_int_key` AS `p1`,`test`.`parent1`.`col_int_key` AS `p2` from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`)) where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`p1`) and (`test`.`grandparent1`.`col_int_key` = `materialized-subquery`.`p2`))))) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))",
               "attached_subqueries": [
                 {
                   "table": {
@@ -9803,7 +9803,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 6,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t2`.`vc`,`test`.`t2`.`vc` in ( <materialize> (select `test`.`t3`.`vc` from `test`.`t2` `t3` where 1 ), <primary_index_lookup>(`test`.`t2`.`vc` in <temporary table> on <auto_key> where ((`test`.`t2`.`vc` = `materialized-subquery`.`vc`)))))",
+          "attached_condition": "<in_optimizer>(`test`.`t2`.`vc`,`test`.`t2`.`vc` in ( <materialize> (/* select#2 */ select `test`.`t3`.`vc` from `test`.`t2` `t3` where 1 ), <primary_index_lookup>(`test`.`t2`.`vc` in <temporary table> on <auto_key> where ((`test`.`t2`.`vc` = `materialized-subquery`.`vc`)))))",
           "attached_subqueries": [
             {
               "table": {
@@ -9938,7 +9938,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 7,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>((`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`),(`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`) in ( <materialize> (select `test`.`derived2`.`col_varchar_nokey`,`test`.`derived2`.`col_varchar_key` from `test`.`t2` `derived2` where 1 ), <primary_index_lookup>(`derived1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`)))))",
+          "attached_condition": "<in_optimizer>((`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`),(`derived1`.`col_varchar_nokey`,`derived1`.`col_varchar_nokey`) in ( <materialize> (/* select#3 */ select `test`.`derived2`.`col_varchar_nokey`,`test`.`derived2`.`col_varchar_key` from `test`.`t2` `derived2` where 1 ), <primary_index_lookup>(`derived1`.`col_varchar_nokey` in <temporary table> on <auto_key> where ((`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_nokey`) and (`derived1`.`col_varchar_nokey` = `materialized-subquery`.`col_varchar_key`)))))",
           "attached_subqueries": [
             {
               "table": {
@@ -10052,7 +10052,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 20,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`) in ( <materialize> (select `test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_key`)))))",
+          "attached_condition": "<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`),(`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_nokey`) in ( <materialize> (/* select#2 */ select `test`.`t2`.`col_int_nokey`,`test`.`t2`.`col_int_key` from `test`.`t2` where 1 ), <primary_index_lookup>(`test`.`grandparent1`.`col_int_nokey` in <temporary table> on <auto_key> where ((`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_nokey`) and (`test`.`grandparent1`.`col_int_nokey` = `materialized-subquery`.`col_int_key`)))))",
           "attached_subqueries": [
             {
               "table": {
@@ -10242,7 +10242,7 @@ EXPLAIN
           ],
           "rows": 20,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>((`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`),(`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`) in ( <materialize> (select `test`.`sq2_alias2`.`col_varchar_key`,`test`.`sq2_alias1`.`col_varchar_nokey` from `test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2` where (`test`.`sq2_alias2`.`col_int_key` < 2) ), <primary_index_lookup>(`test`.`alias2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))))",
+          "attached_condition": "<in_optimizer>((`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`),(`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`) in ( <materialize> (/* select#2 */ select `test`.`sq2_alias2`.`col_varchar_key`,`test`.`sq2_alias1`.`col_varchar_nokey` from `test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2` where (`test`.`sq2_alias2`.`col_int_key` < 2) ), <primary_index_lookup>(`test`.`alias2`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_key`) and (`test`.`alias2`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))))",
           "attached_subqueries": [
             {
               "table": {
