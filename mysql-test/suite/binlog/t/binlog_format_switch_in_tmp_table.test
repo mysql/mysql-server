@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 #
 # Bug #45855 row events in binlog after switch from binlog_fmt=mix to stmt with open tmp tbl
 # Bug #45856 can't switch from binlog_format=row to mix with open tmp tbl

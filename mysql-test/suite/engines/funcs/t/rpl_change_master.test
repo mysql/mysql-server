@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Verify that after CHANGE MASTER, replication (I/O thread and SQL
 # thread) restart from where SQL thread left, not from where
 # I/O thread left (some old bug fixed in 4.0.17)

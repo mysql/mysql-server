@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # test case for BUG#4680 -- if there are extra files in the db directory
 # dropping the db on the master causes replication problems
 
