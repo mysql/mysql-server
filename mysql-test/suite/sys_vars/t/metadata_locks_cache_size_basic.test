@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 #
 # Basic test coverage for --metadata-locks-cache-size startup
 # parameter and corresponding read-only global @@metadata_locks_cache_size

@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 #
 # Test file for WL#1724 (Min/Max Optimization for Queries with Group By Clause).
 # The queries in this file test query execution via QUICK_GROUP_MIN_MAX_SELECT.

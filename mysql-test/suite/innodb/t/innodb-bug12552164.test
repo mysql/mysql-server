@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 CREATE TABLE worklog5743 (col_1_CHAR CHAR(255) , col_2_CHAR CHAR(255) ,
 PRIMARY KEY (col_1_CHAR)) engine = innodb;
 INSERT INTO worklog5743 VALUES(repeat("a", 200) , repeat("o", 200));

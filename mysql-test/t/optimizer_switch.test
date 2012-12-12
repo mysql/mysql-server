@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # This test checks that setting of optimizer_switch works correctly.
 # Test cases for bugs related to changing the setting of optimizer_switch,
 # should go here.

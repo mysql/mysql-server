@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 ########### implicit_char_to_num_conversion.test #######################
 #                                                                      #
 # This test aims at using string/char literal in comparison operators  #

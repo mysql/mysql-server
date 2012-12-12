@@ -1,2 +1,5 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 let $engine= MyISAM;
 --source suite/parts/inc/partition-dml-1-2.inc

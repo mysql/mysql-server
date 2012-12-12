@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # Check the impact of different entries in performance_schema.setup_actors
 # on when and how activity of users is recordeed in performance_schema.threads.
 # The checks for indirect activity caused by users, system threads etc.
