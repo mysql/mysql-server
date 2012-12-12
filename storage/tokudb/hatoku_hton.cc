@@ -1145,8 +1145,8 @@ static int tokudb_dictionary_info(TABLE *table, THD *thd) {
             // We store the NULL terminator in the directory so it's included in the size.
             // See #5789
             // Recalculate and check just to be safe.
-            size_t dname_len = strlen(curr_key.data);
-            size_t iname_len = strlen(curr_val.data);
+            size_t dname_len = strlen((const char *)curr_key.data);
+            size_t iname_len = strlen((const char *)curr_val.data);
             assert(dname_len == curr_key.size - 1);
             assert(iname_len == curr_val.size - 1);
             table->field[0]->store(
@@ -1208,20 +1208,22 @@ static int tokudb_report_fractal_tree_info_for_db(const DBT *dname, const DBT *i
     // We store the NULL terminator in the directory so it's included in the size.
     // See #5789
     // Recalculate and check just to be safe.
-    size_t dname_len = strlen(dname->data);
-    size_t iname_len = strlen(iname->data);
-    assert(dname_len == dname->size - 1);
-    assert(iname_len == iname->size - 1);
-    table->field[0]->store(
-        (char *)dname->data,
-        dname_len,
-        system_charset_info
-        );
-    table->field[1]->store(
-        (char *)iname->data,
-        iname_len,
-        system_charset_info
-        );
+    {
+        size_t dname_len = strlen((const char *)dname->data);
+        size_t iname_len = strlen((const char *)iname->data);
+        assert(dname_len == dname->size - 1);
+        assert(iname_len == iname->size - 1);
+        table->field[0]->store(
+            (char *)dname->data,
+            dname_len,
+            system_charset_info
+            );
+        table->field[1]->store(
+            (char *)iname->data,
+            iname_len,
+            system_charset_info
+            );
+    }
     table->field[2]->store(bt_num_blocks_allocated, false);
     table->field[3]->store(bt_num_blocks_in_use, false);
     table->field[4]->store(bt_size_allocated, false);
@@ -1349,8 +1351,8 @@ static int tokudb_report_fractal_tree_block_map_for_db(const DBT *dname, const D
         // We store the NULL terminator in the directory so it's included in the size.
         // See #5789
         // Recalculate and check just to be safe.
-        size_t dname_len = strlen(dname->data);
-        size_t iname_len = strlen(iname->data);
+        size_t dname_len = strlen((const char *)dname->data);
+        size_t iname_len = strlen((const char *)iname->data);
         assert(dname_len == dname->size - 1);
         assert(iname_len == iname->size - 1);
         table->field[0]->store(
