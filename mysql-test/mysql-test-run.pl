@@ -701,7 +701,9 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
-              my $log_file_name= $opt_vardir."/log/".$result->{shortname}.".log";
+              #saving the log file as filename.failed in case of retry
+              my $worker_logdir= $result->{savedir};
+              my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
               rename $log_file_name,$log_file_name.".failed";
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
