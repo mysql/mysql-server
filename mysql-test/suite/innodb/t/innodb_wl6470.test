@@ -1,4 +1,6 @@
 --source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/not_valgrind.inc
 
 ####################################################################
 # TC to test temp-table DML optimization changes for correctness   #
@@ -148,8 +150,13 @@ create temporary table t1
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc), index sec_index(c1)
 	) engine = innodb;
+create temporary table t2
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+	) engine = innodb;
 --source suite/innodb/include/innodb_dml_ops.inc
 drop table t1;
+drop table t2;
 #
 let $format = `select @@innodb_file_format`;
 set global innodb_file_format = 'Barracuda';
@@ -157,8 +164,13 @@ create temporary table t1
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc), index sec_index(c1)
 	) engine = innodb key_block_size = 4;
+create temporary table t2
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+	) engine = innodb key_block_size = 8;
 --source suite/innodb/include/innodb_dml_ops.inc
 drop table t1;
+drop table t2;
 eval set global innodb_file_format = $format;
 #
 let $file_per_table = `select @@innodb_file_per_table`;
@@ -167,8 +179,13 @@ create temporary table t1
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc), index sec_index(c1)
 	) engine = innodb;
+create temporary table t2
+        (keyc int, c1 char(100), c2 char(100),
+         primary key(keyc), index sec_index(c1)
+	) engine = innodb;
 --source suite/innodb/include/innodb_dml_ops.inc
 drop table t1;
+drop table t2;
 eval set global innodb_file_per_table = $file_per_table;
 #
 

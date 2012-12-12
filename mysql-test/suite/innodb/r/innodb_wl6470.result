@@ -173,384 +173,7 @@ create temporary table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc), index sec_index(c1)
 ) engine = innodb;
-create procedure populate_t1()
-begin
-declare i int default 1;
-while (i <= 20000) do
-insert into t1 values (i, 'a', 'b');
-set i = i + 1;
-end while;
-end|
-create procedure populate_t1_small()
-begin
-declare i int default 1;
-while (i <= 2000) do
-insert into t1 values (i, 'c', 'd');
-set i = i + 1;
-end while;
-end|
-create procedure populate_t1_small2()
-begin
-declare i int default 3000;
-while (i <= 5000) do
-insert into t1 values (i, 'e', 'f');
-set i = i + 1;
-end while;
-end|
-begin;
-select count(*) from t1;
-count(*)
-0
-call populate_t1();
-select count(*) from t1;
-count(*)
-20000
-select * from t1 limit 10;
-keyc	c1	c2
-1	a	b
-2	a	b
-3	a	b
-4	a	b
-5	a	b
-6	a	b
-7	a	b
-8	a	b
-9	a	b
-10	a	b
-rollback;
-select count(*) from t1;
-count(*)
-0
-begin;
-call populate_t1();
-select count(*) from t1;
-count(*)
-20000
-commit;
-select count(*) from t1;
-count(*)
-20000
-truncate table t1;
-select count(*) from t1;
-count(*)
-0
-call populate_t1_small();
-select count(*) from t1;
-count(*)
-2000
-rollback;
-select count(*) from t1;
-count(*)
-2000
-truncate table t1;
-call populate_t1();
-select count(*) from t1;
-count(*)
-20000
-delete from t1 where keyc <= 6000;
-select count(*) from t1;
-count(*)
-14000
-call populate_t1_small();
-select count(*) from t1;
-count(*)
-16000
-select * from t1 limit 10;
-keyc	c1	c2
-1	c	d
-2	c	d
-3	c	d
-4	c	d
-5	c	d
-6	c	d
-7	c	d
-8	c	d
-9	c	d
-10	c	d
-begin;
-call populate_t1_small2();
-select count(*) from t1;
-count(*)
-18001
-select * from t1 where keyc > 3000 limit 10;
-keyc	c1	c2
-3001	e	f
-3002	e	f
-3003	e	f
-3004	e	f
-3005	e	f
-3006	e	f
-3007	e	f
-3008	e	f
-3009	e	f
-3010	e	f
-rollback;
-select count(*) from t1;
-count(*)
-16000
-select * from t1 where keyc > 3000 limit 10;
-keyc	c1	c2
-6001	a	b
-6002	a	b
-6003	a	b
-6004	a	b
-6005	a	b
-6006	a	b
-6007	a	b
-6008	a	b
-6009	a	b
-6010	a	b
-update t1 set keyc = keyc + 200000;
-select * from t1 limit 10;
-keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
-rollback;
-begin;
-update t1 set keyc = keyc + 200000;
-select * from t1 limit 10;
-keyc	c1	c2
-400001	c	d
-400002	c	d
-400003	c	d
-400004	c	d
-400005	c	d
-400006	c	d
-400007	c	d
-400008	c	d
-400009	c	d
-400010	c	d
-rollback;
-select * from t1 limit 10;
-keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
-commit;
-select * from t1 limit 10;
-keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
-drop procedure populate_t1;
-drop procedure populate_t1_small;
-drop procedure populate_t1_small2;
-drop table t1;
-set global innodb_file_format = 'Barracuda';
-create temporary table t1
-(keyc int, c1 char(100), c2 char(100),
-primary key(keyc), index sec_index(c1)
-) engine = innodb key_block_size = 4;
-create procedure populate_t1()
-begin
-declare i int default 1;
-while (i <= 20000) do
-insert into t1 values (i, 'a', 'b');
-set i = i + 1;
-end while;
-end|
-create procedure populate_t1_small()
-begin
-declare i int default 1;
-while (i <= 2000) do
-insert into t1 values (i, 'c', 'd');
-set i = i + 1;
-end while;
-end|
-create procedure populate_t1_small2()
-begin
-declare i int default 3000;
-while (i <= 5000) do
-insert into t1 values (i, 'e', 'f');
-set i = i + 1;
-end while;
-end|
-begin;
-select count(*) from t1;
-count(*)
-0
-call populate_t1();
-select count(*) from t1;
-count(*)
-20000
-select * from t1 limit 10;
-keyc	c1	c2
-1	a	b
-2	a	b
-3	a	b
-4	a	b
-5	a	b
-6	a	b
-7	a	b
-8	a	b
-9	a	b
-10	a	b
-rollback;
-select count(*) from t1;
-count(*)
-0
-begin;
-call populate_t1();
-select count(*) from t1;
-count(*)
-20000
-commit;
-select count(*) from t1;
-count(*)
-20000
-truncate table t1;
-select count(*) from t1;
-count(*)
-0
-call populate_t1_small();
-select count(*) from t1;
-count(*)
-2000
-rollback;
-select count(*) from t1;
-count(*)
-2000
-truncate table t1;
-call populate_t1();
-select count(*) from t1;
-count(*)
-20000
-delete from t1 where keyc <= 6000;
-select count(*) from t1;
-count(*)
-14000
-call populate_t1_small();
-select count(*) from t1;
-count(*)
-16000
-select * from t1 limit 10;
-keyc	c1	c2
-1	c	d
-2	c	d
-3	c	d
-4	c	d
-5	c	d
-6	c	d
-7	c	d
-8	c	d
-9	c	d
-10	c	d
-begin;
-call populate_t1_small2();
-select count(*) from t1;
-count(*)
-18001
-select * from t1 where keyc > 3000 limit 10;
-keyc	c1	c2
-3001	e	f
-3002	e	f
-3003	e	f
-3004	e	f
-3005	e	f
-3006	e	f
-3007	e	f
-3008	e	f
-3009	e	f
-3010	e	f
-rollback;
-select count(*) from t1;
-count(*)
-16000
-select * from t1 where keyc > 3000 limit 10;
-keyc	c1	c2
-6001	a	b
-6002	a	b
-6003	a	b
-6004	a	b
-6005	a	b
-6006	a	b
-6007	a	b
-6008	a	b
-6009	a	b
-6010	a	b
-update t1 set keyc = keyc + 200000;
-select * from t1 limit 10;
-keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
-rollback;
-begin;
-update t1 set keyc = keyc + 200000;
-select * from t1 limit 10;
-keyc	c1	c2
-400001	c	d
-400002	c	d
-400003	c	d
-400004	c	d
-400005	c	d
-400006	c	d
-400007	c	d
-400008	c	d
-400009	c	d
-400010	c	d
-rollback;
-select * from t1 limit 10;
-keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
-commit;
-select * from t1 limit 10;
-keyc	c1	c2
-200001	c	d
-200002	c	d
-200003	c	d
-200004	c	d
-200005	c	d
-200006	c	d
-200007	c	d
-200008	c	d
-200009	c	d
-200010	c	d
-drop procedure populate_t1;
-drop procedure populate_t1_small;
-drop procedure populate_t1_small2;
-drop table t1;
-set global innodb_file_format = Antelope;
-set global innodb_file_per_table = 0;
-create temporary table t1
+create temporary table t2
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc), index sec_index(c1)
 ) engine = innodb;
@@ -735,10 +358,414 @@ keyc	c1	c2
 200008	c	d
 200009	c	d
 200010	c	d
+insert into t2 select * from t1 where keyc < 210001;
+select count(*) from t2;
+count(*)
+6000
 drop procedure populate_t1;
 drop procedure populate_t1_small;
 drop procedure populate_t1_small2;
 drop table t1;
+drop table t2;
+set global innodb_file_format = 'Barracuda';
+create temporary table t1
+(keyc int, c1 char(100), c2 char(100),
+primary key(keyc), index sec_index(c1)
+) engine = innodb key_block_size = 4;
+create temporary table t2
+(keyc int, c1 char(100), c2 char(100),
+primary key(keyc), index sec_index(c1)
+) engine = innodb key_block_size = 8;
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 20000) do
+insert into t1 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+create procedure populate_t1_small()
+begin
+declare i int default 1;
+while (i <= 2000) do
+insert into t1 values (i, 'c', 'd');
+set i = i + 1;
+end while;
+end|
+create procedure populate_t1_small2()
+begin
+declare i int default 3000;
+while (i <= 5000) do
+insert into t1 values (i, 'e', 'f');
+set i = i + 1;
+end while;
+end|
+begin;
+select count(*) from t1;
+count(*)
+0
+call populate_t1();
+select count(*) from t1;
+count(*)
+20000
+select * from t1 limit 10;
+keyc	c1	c2
+1	a	b
+2	a	b
+3	a	b
+4	a	b
+5	a	b
+6	a	b
+7	a	b
+8	a	b
+9	a	b
+10	a	b
+rollback;
+select count(*) from t1;
+count(*)
+0
+begin;
+call populate_t1();
+select count(*) from t1;
+count(*)
+20000
+commit;
+select count(*) from t1;
+count(*)
+20000
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+call populate_t1_small();
+select count(*) from t1;
+count(*)
+2000
+rollback;
+select count(*) from t1;
+count(*)
+2000
+truncate table t1;
+call populate_t1();
+select count(*) from t1;
+count(*)
+20000
+delete from t1 where keyc <= 6000;
+select count(*) from t1;
+count(*)
+14000
+call populate_t1_small();
+select count(*) from t1;
+count(*)
+16000
+select * from t1 limit 10;
+keyc	c1	c2
+1	c	d
+2	c	d
+3	c	d
+4	c	d
+5	c	d
+6	c	d
+7	c	d
+8	c	d
+9	c	d
+10	c	d
+begin;
+call populate_t1_small2();
+select count(*) from t1;
+count(*)
+18001
+select * from t1 where keyc > 3000 limit 10;
+keyc	c1	c2
+3001	e	f
+3002	e	f
+3003	e	f
+3004	e	f
+3005	e	f
+3006	e	f
+3007	e	f
+3008	e	f
+3009	e	f
+3010	e	f
+rollback;
+select count(*) from t1;
+count(*)
+16000
+select * from t1 where keyc > 3000 limit 10;
+keyc	c1	c2
+6001	a	b
+6002	a	b
+6003	a	b
+6004	a	b
+6005	a	b
+6006	a	b
+6007	a	b
+6008	a	b
+6009	a	b
+6010	a	b
+update t1 set keyc = keyc + 200000;
+select * from t1 limit 10;
+keyc	c1	c2
+200001	c	d
+200002	c	d
+200003	c	d
+200004	c	d
+200005	c	d
+200006	c	d
+200007	c	d
+200008	c	d
+200009	c	d
+200010	c	d
+rollback;
+begin;
+update t1 set keyc = keyc + 200000;
+select * from t1 limit 10;
+keyc	c1	c2
+400001	c	d
+400002	c	d
+400003	c	d
+400004	c	d
+400005	c	d
+400006	c	d
+400007	c	d
+400008	c	d
+400009	c	d
+400010	c	d
+rollback;
+select * from t1 limit 10;
+keyc	c1	c2
+200001	c	d
+200002	c	d
+200003	c	d
+200004	c	d
+200005	c	d
+200006	c	d
+200007	c	d
+200008	c	d
+200009	c	d
+200010	c	d
+commit;
+select * from t1 limit 10;
+keyc	c1	c2
+200001	c	d
+200002	c	d
+200003	c	d
+200004	c	d
+200005	c	d
+200006	c	d
+200007	c	d
+200008	c	d
+200009	c	d
+200010	c	d
+insert into t2 select * from t1 where keyc < 210001;
+select count(*) from t2;
+count(*)
+6000
+drop procedure populate_t1;
+drop procedure populate_t1_small;
+drop procedure populate_t1_small2;
+drop table t1;
+drop table t2;
+set global innodb_file_format = Antelope;
+set global innodb_file_per_table = 0;
+create temporary table t1
+(keyc int, c1 char(100), c2 char(100),
+primary key(keyc), index sec_index(c1)
+) engine = innodb;
+create temporary table t2
+(keyc int, c1 char(100), c2 char(100),
+primary key(keyc), index sec_index(c1)
+) engine = innodb;
+create procedure populate_t1()
+begin
+declare i int default 1;
+while (i <= 20000) do
+insert into t1 values (i, 'a', 'b');
+set i = i + 1;
+end while;
+end|
+create procedure populate_t1_small()
+begin
+declare i int default 1;
+while (i <= 2000) do
+insert into t1 values (i, 'c', 'd');
+set i = i + 1;
+end while;
+end|
+create procedure populate_t1_small2()
+begin
+declare i int default 3000;
+while (i <= 5000) do
+insert into t1 values (i, 'e', 'f');
+set i = i + 1;
+end while;
+end|
+begin;
+select count(*) from t1;
+count(*)
+0
+call populate_t1();
+select count(*) from t1;
+count(*)
+20000
+select * from t1 limit 10;
+keyc	c1	c2
+1	a	b
+2	a	b
+3	a	b
+4	a	b
+5	a	b
+6	a	b
+7	a	b
+8	a	b
+9	a	b
+10	a	b
+rollback;
+select count(*) from t1;
+count(*)
+0
+begin;
+call populate_t1();
+select count(*) from t1;
+count(*)
+20000
+commit;
+select count(*) from t1;
+count(*)
+20000
+truncate table t1;
+select count(*) from t1;
+count(*)
+0
+call populate_t1_small();
+select count(*) from t1;
+count(*)
+2000
+rollback;
+select count(*) from t1;
+count(*)
+2000
+truncate table t1;
+call populate_t1();
+select count(*) from t1;
+count(*)
+20000
+delete from t1 where keyc <= 6000;
+select count(*) from t1;
+count(*)
+14000
+call populate_t1_small();
+select count(*) from t1;
+count(*)
+16000
+select * from t1 limit 10;
+keyc	c1	c2
+1	c	d
+2	c	d
+3	c	d
+4	c	d
+5	c	d
+6	c	d
+7	c	d
+8	c	d
+9	c	d
+10	c	d
+begin;
+call populate_t1_small2();
+select count(*) from t1;
+count(*)
+18001
+select * from t1 where keyc > 3000 limit 10;
+keyc	c1	c2
+3001	e	f
+3002	e	f
+3003	e	f
+3004	e	f
+3005	e	f
+3006	e	f
+3007	e	f
+3008	e	f
+3009	e	f
+3010	e	f
+rollback;
+select count(*) from t1;
+count(*)
+16000
+select * from t1 where keyc > 3000 limit 10;
+keyc	c1	c2
+6001	a	b
+6002	a	b
+6003	a	b
+6004	a	b
+6005	a	b
+6006	a	b
+6007	a	b
+6008	a	b
+6009	a	b
+6010	a	b
+update t1 set keyc = keyc + 200000;
+select * from t1 limit 10;
+keyc	c1	c2
+200001	c	d
+200002	c	d
+200003	c	d
+200004	c	d
+200005	c	d
+200006	c	d
+200007	c	d
+200008	c	d
+200009	c	d
+200010	c	d
+rollback;
+begin;
+update t1 set keyc = keyc + 200000;
+select * from t1 limit 10;
+keyc	c1	c2
+400001	c	d
+400002	c	d
+400003	c	d
+400004	c	d
+400005	c	d
+400006	c	d
+400007	c	d
+400008	c	d
+400009	c	d
+400010	c	d
+rollback;
+select * from t1 limit 10;
+keyc	c1	c2
+200001	c	d
+200002	c	d
+200003	c	d
+200004	c	d
+200005	c	d
+200006	c	d
+200007	c	d
+200008	c	d
+200009	c	d
+200010	c	d
+commit;
+select * from t1 limit 10;
+keyc	c1	c2
+200001	c	d
+200002	c	d
+200003	c	d
+200004	c	d
+200005	c	d
+200006	c	d
+200007	c	d
+200008	c	d
+200009	c	d
+200010	c	d
+insert into t2 select * from t1 where keyc < 210001;
+select count(*) from t2;
+count(*)
+6000
+drop procedure populate_t1;
+drop procedure populate_t1_small;
+drop procedure populate_t1_small2;
+drop table t1;
+drop table t2;
 set global innodb_file_per_table = 1;
 use test;
 create temporary table t1
