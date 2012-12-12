@@ -212,19 +212,26 @@ xid_reads_committed_xid(TXNID tl1, TXNID xc, const xid_omt_t &snapshot_txnids, c
 // so we get rid of them.
 //
 static void
-ule_simple_garbage_collection(ULE ule, TXNID oldest_referenced_xid) {
+ule_simple_garbage_collection(ULE ule, TXNID oldest_referenced_xid, GC_INFO gc_info) {
     uint32_t curr_index = 0;
     uint32_t num_entries;
-    if (ule->num_cuxrs == 1 || oldest_referenced_xid == TXNID_NONE) {
+    if (ule->num_cuxrs == 1) {
         goto done;
     }
-    // starting at the top of the committed stack, find the first
-    // uxr with a txnid that is less than oldest_referenced_xid
-    for (uint32_t i = 0; i < ule->num_cuxrs; i++) {
-        curr_index = ule->num_cuxrs - i - 1;
-        if (ule->uxrs[curr_index].xid < oldest_referenced_xid) {
-            break;
+    if (gc_info.mvcc_needed) {
+        // starting at the top of the committed stack, find the first
+        // uxr with a txnid that is less than oldest_referenced_xid
+        for (uint32_t i = 0; i < ule->num_cuxrs; i++) {
+            curr_index = ule->num_cuxrs - i - 1;
+            if (ule->uxrs[curr_index].xid < oldest_referenced_xid) {
+                break;
+            }
         }
+    }
+    else {
+        // if mvcc is not needed, we can need the top committed
+        // value and nothing else
+        curr_index = ule->num_cuxrs - 1;
     }
     // curr_index is now set to the youngest uxr older than oldest_referenced_xid
     if (curr_index == 0) {
@@ -353,6 +360,7 @@ void
 toku_le_apply_msg(FT_MSG   msg,		// message to apply to leafentry
                   LEAFENTRY old_leafentry, // NULL if there was no stored data.
                   TXNID oldest_referenced_xid,
+                  GC_INFO gc_info,
                   size_t *new_leafentry_memorysize,
                   LEAFENTRY *new_leafentry_p,
                   OMT *omtp,
@@ -370,7 +378,7 @@ toku_le_apply_msg(FT_MSG   msg,		// message to apply to leafentry
 	oldnumbytes = ule_get_innermost_numbytes(&ule);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
-    ule_simple_garbage_collection(&ule, oldest_referenced_xid);
+    ule_simple_garbage_collection(&ule, oldest_referenced_xid, gc_info);
     int rval = le_pack(&ule,                // create packed leafentry
                        new_leafentry_memorysize,
                        new_leafentry_p,

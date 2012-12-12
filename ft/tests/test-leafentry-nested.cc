@@ -399,6 +399,7 @@ test_le_apply(ULE ule_initial, FT_MSG msg, ULE ule_expected) {
     toku_le_apply_msg(msg,
                       le_initial,
                       TXNID_NONE,
+                      make_gc_info(true),
                       &result_memsize,
                       &le_result,
                       NULL, 

@@ -40,7 +40,7 @@ append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen)
 
     // apply an insert to the leaf node
     FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u = {.id = { &thekey, &theval }} };
-    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, TXNID_NONE, NULL, NULL);
+    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, TXNID_NONE, make_gc_info(false), NULL, NULL);
 
     leafnode->max_msn_applied_to_node_on_disk = msn;
 
