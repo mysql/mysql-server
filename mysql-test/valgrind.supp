@@ -1036,25 +1036,7 @@
 }
 
 {
-   OpenSSL still reachable. One.
-   Memcheck:Leak
-   fun:malloc
-   fun:CRYPTO_malloc
-   fun:lh_insert
-   fun:int_thread_set_item
-   fun:ERR_get_state
-   fun:ERR_put_error
-   fun:PEM_read_bio
-   fun:PEM_X509_INFO_read_bio
-   fun:X509_load_cert_crl_file
-   fun:by_file_ctrl
-   fun:X509_STORE_load_locations
-   fun:new_VioSSLFd
-   fun:new_VioSSLAcceptorFd
-}
-
-{
-   OpenSSL still reachable. Two.
+   OpenSSL still reachable.
    Memcheck:Leak
    fun:malloc
    fun:CRYPTO_malloc
@@ -1064,56 +1046,6 @@
    fun:SSL_library_init
    fun:check_ssl_init
    fun:new_VioSSLFd
-   fun:new_VioSSLAcceptorFd
-}
-
-{
-   OpenSSL still reachable. Three.
-   Memcheck:Leak
-   fun:malloc
-   fun:CRYPTO_malloc
-   fun:sk_new
-   fun:load_builtin_compressions
-   fun:SSL_COMP_get_compression_methods
-   fun:SSL_library_init
-   fun:check_ssl_init
-   fun:new_VioSSLFd
-   fun:new_VioSSLAcceptorFd
-}
-
-{
-   OpenSSL still reachable. Four.
-   Memcheck:Leak
-   fun:malloc
-   fun:CRYPTO_malloc
-   fun:lh_new
-   fun:int_thread_get
-   fun:int_thread_set_item
-   fun:ERR_get_state
-   fun:ERR_put_error
-   fun:PEM_read_bio
-   fun:PEM_X509_INFO_read_bio
-   fun:X509_load_cert_crl_file
-   fun:by_file_ctrl
-   fun:X509_STORE_load_locations
-   fun:new_VioSSLFd
-   fun:new_VioSSLAcceptorFd
-}
-
-{
-   OpenSSL still reachable. Five.
-   Memcheck:Leak
-   fun:malloc
-   fun:CRYPTO_malloc
-   fun:ERR_get_state
-   fun:ERR_put_error
-   fun:PEM_read_bio
-   fun:PEM_X509_INFO_read_bio
-   fun:X509_load_cert_crl_file
-   fun:by_file_ctrl
-   fun:X509_STORE_load_locations
-   fun:new_VioSSLFd
-   fun:new_VioSSLAcceptorFd
 }
 {
    BUG#14801497 CONDITIONAL JUMP OR MOVE DEPENDS ON UNINITIALISED VALUE(S) IN CREATE_TMP_TABLE

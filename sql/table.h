@@ -1992,7 +1992,7 @@ public:
      @brief Returns the name of the database that the referenced table belongs
      to.
   */
-  char *get_db_name() { return view != NULL ? view_db.str : db; }
+  char *get_db_name() const { return view != NULL ? view_db.str : db; }
 
   /**
      @brief Returns the name of the table that this TABLE_LIST represents.
@@ -2000,7 +2000,7 @@ public:
      @details The unqualified table name or view name for a table or view,
      respectively.
    */
-  char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+  char *get_table_name() const { return view != NULL ? view_name.str : table_name; }
   int fetch_number_of_rows();
   bool update_derived_keys(Field*, Item**, uint);
   bool generate_keys();
