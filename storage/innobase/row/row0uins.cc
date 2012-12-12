@@ -78,6 +78,8 @@ row_undo_ins_remove_clust_rec(
 	ut_ad(dict_index_is_clust(index));
 
 	mtr_start(&mtr);
+        turn_off_logging_if_temp_table(
+		dict_table_is_temporary(index->table), NULL, &mtr, NULL);
 
 	/* This is similar to row_undo_mod_clust(). Even though we
 	call row_log_table_rollback() elsewhere, the DDL thread may
@@ -144,6 +146,8 @@ row_undo_ins_remove_clust_rec(
 retry:
 	/* If did not succeed, try pessimistic descent to tree */
 	mtr_start(&mtr);
+        turn_off_logging_if_temp_table(
+                dict_table_is_temporary(index->table), NULL, &mtr, NULL);
 
 	success = btr_pcur_restore_position(BTR_MODIFY_TREE,
 					    &(node->pcur), &mtr);
@@ -199,6 +203,8 @@ row_undo_ins_remove_sec_low(
 	log_free_check();
 
 	mtr_start(&mtr);
+        turn_off_logging_if_temp_table(
+                dict_table_is_temporary(index->table), NULL, &mtr, NULL);
 
 	if (mode == BTR_MODIFY_LEAF) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
