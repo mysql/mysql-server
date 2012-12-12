@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 #
 # Bug#12661768 UPDATE IGNORE CRASHES SERVER IF TABLE IS INNODB AND IT IS
 # PARENT FOR OTHER ONE

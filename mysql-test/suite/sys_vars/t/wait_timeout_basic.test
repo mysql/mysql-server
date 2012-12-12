@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 ############## mysql-test\t\wait_timeout_basic.test ###########################
 #                                                                             #
 # Variable Name: wait_timeout                                                 #

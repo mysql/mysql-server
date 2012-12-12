@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # suite/funcs_1/t/is_engines_archive.test
 #
 # Check the content of information_schema.engines

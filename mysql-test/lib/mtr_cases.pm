@@ -45,7 +45,7 @@ our $quick_collect;
 # default storage engine settings, and use MyISAM
 # as default.  (temporary option used in connection
 # with the change of default storage engine to InnoDB)
-our $default_myisam= 1;
+our $default_myisam= 0;
  
 
 sub collect_option {
@@ -669,8 +669,8 @@ sub optimize_cases {
 
 	$tinfo->{'ndb_test'}= 1
 	  if ( $default_engine =~ /^ndb/i );
-	$tinfo->{'innodb_test'}= 1
-	  if ( $default_engine =~ /^innodb/i );
+	$tinfo->{'myisam_test'}= 1
+	  if ( $default_engine =~ /^myisam/i );
       }
       if (defined $default_tmp_engine){
 
@@ -690,8 +690,8 @@ sub optimize_cases {
 
 	$tinfo->{'ndb_test'}= 1
 	  if ( $default_tmp_engine =~ /^ndb/i );
-	$tinfo->{'innodb_test'}= 1
-	  if ( $default_tmp_engine =~ /^innodb/i );
+	$tinfo->{'myisam_test'}= 1
+	  if ( $default_tmp_engine =~ /^myisam/i );
       }
     }
 
@@ -965,8 +965,8 @@ sub collect_one_test_case {
     $tinfo->{'ndb_test'}= 1
       if ( $default_storage_engine =~ /^ndb/i );
 
-    $tinfo->{'innodb_test'}= 1
-      if ( $default_storage_engine =~ /^innodb/i );
+    $tinfo->{'mysiam_test'}= 1
+      if ( $default_storage_engine =~ /^mysiam/i );
 
   }
 
@@ -1013,9 +1013,16 @@ sub collect_one_test_case {
     push(@{$tinfo->{'master_opt'}}, "--loose-federated");
     push(@{$tinfo->{'slave_opt'}}, "--loose-federated");
   }
-
-  if ( $tinfo->{'innodb_test'} )
+  if ( $tinfo->{'myisam_test'})
   {
+    # This is a temporary fix to allow non-innodb tests to run even if6yy
+    # the default storage engine is innodb.
+    push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=MyISAM");
+    push(@{$tinfo->{'slave_opt'}}, "--default-storage-engine=MyISAM");
+    push(@{$tinfo->{'master_opt'}}, "--default-tmp-storage-engine=MyISAM");
+    push(@{$tinfo->{'slave_opt'}}, "--default-tmp-storage-engine=MyISAM");
+  }
+ else {
     # This is a test that needs innodb
     if ( $::mysqld_variables{'innodb'} eq "OFF" ||
          ! exists $::mysqld_variables{'innodb'} )
@@ -1029,16 +1036,6 @@ sub collect_one_test_case {
       return $tinfo unless $do_innodb_plugin;
     }
   }
-  elsif ($default_myisam)
-  {
-    # This is a temporary fix to allow non-innodb tests to run even if
-    # the default storage engine is innodb.
-    push(@{$tinfo->{'master_opt'}}, "--default-storage-engine=MyISAM");
-    push(@{$tinfo->{'slave_opt'}}, "--default-storage-engine=MyISAM");
-    push(@{$tinfo->{'master_opt'}}, "--default-tmp-storage-engine=MyISAM");
-    push(@{$tinfo->{'slave_opt'}}, "--default-tmp-storage-engine=MyISAM");
-  }
-
   if ( $tinfo->{'need_binlog'} )
   {
     if (grep(/^--skip-log-bin/,  @::opt_extra_mysqld_opt) )
@@ -1163,8 +1160,8 @@ my @tags=
   "binlog_formats", ["row", "statement"]],
 
  ["include/have_log_bin.inc", "need_binlog", 1],
-
- ["include/have_innodb.inc", "innodb_test", 1],
+# an empty file to use test that needs myisam engine.
+ ["include/have_myisam.inc", "myisam_test", 1],
  ["include/big_test.inc", "big_test", 1],
  ["include/have_debug.inc", "need_debug", 1],
  ["include/have_ndb.inc", "ndb_test", 1],

@@ -1,3 +1,6 @@
+# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
+--source include/have_myisam.inc
+
 # WL #3031 This test tests the new servers table as well as
 # if federated can utilise the servers table
 -- source suite/federated/include/federated.inc
