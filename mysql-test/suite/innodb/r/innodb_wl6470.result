@@ -812,3 +812,48 @@ count(*)
 drop table if exists t1;
 drop procedure populate_t1;
 drop procedure populate_t1_small;
+use test;
+create temporary table t1 (i int, f float,
+primary key pk(i),
+unique index fk(f)
+) engine = innodb;
+insert into t1 values (1, 1.2), (2, 2.3), (3, 3.4);
+select * from t1;
+i	f
+1	1.2
+2	2.3
+3	3.4
+insert into t1 values (4, 4.5), (1, 5.6);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+select * from t1;
+i	f
+1	1.2
+2	2.3
+3	3.4
+insert into t1 values (4, 4.5), (5, 5.6);
+select * from t1;
+i	f
+1	1.2
+2	2.3
+3	3.4
+4	4.5
+5	5.6
+update t1 set i = 1 where i = 4;
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+truncate table t1;
+insert into t1 values (1, 1.2), (3, 2.3), (5, 3.4), (6, 7.4);
+select * from t1;
+i	f
+1	1.2
+3	2.3
+5	3.4
+6	7.4
+update t1 set i = i + 1;
+ERROR 23000: Duplicate entry '6' for key 'PRIMARY'
+select * from t1;
+i	f
+1	1.2
+3	2.3
+5	3.4
+6	7.4
+drop table t1;
