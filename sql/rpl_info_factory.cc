@@ -409,7 +409,13 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
        
   if (worker->rli_init_info(is_gaps_collecting_phase))
   {
-    msg= "Failed to intialize the worker info structure";
+    msg= "Failed to initialize the worker info structure";
+    goto err;
+  }
+
+  if (rli->info_thd && rli->info_thd->is_error())
+  {
+    msg= "Failed to initialize worker info table";
     goto err;
   }
 
@@ -517,7 +523,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
   DBUG_ASSERT((*handler_src) != NULL && (*handler_dest) != NULL &&
               (*handler_src) != (*handler_dest));
 
-  return_check_src= check_src_repository(info, handler_src);
+  return_check_src= check_src_repository(info, option, handler_src);
   return_check_dst= (*handler_dest)->do_check_info(info->get_internal_id());
 
   if (return_check_src == ERROR_CHECKING_REPOSITORY ||
@@ -611,12 +617,15 @@ err:
   the source repository exits.
 
   @param[in]  info         Either master info or relay log info.
+  @param[in]  option       Identifies the type of the repository that will
+                           be used, i.e., destination repository.
   @param[out] handler_src  Source repository from where information is
 
   @return enum_return_check The repository's status.
 */
 enum_return_check
 Rpl_info_factory::check_src_repository(Rpl_info *info,
+                                       uint option,
                                        Rpl_info_handler **handler_src)
 {
   enum_return_check return_check_src= ERROR_CHECKING_REPOSITORY;
@@ -627,8 +636,16 @@ Rpl_info_factory::check_src_repository(Rpl_info *info,
     /*
       This is not a live migration and we don't know whether the repository
       exists or not.
+
+      If we are using file repository and there is some error on table
+      repository (for instance, engine disabled) we can ignore it instead
+      of stopping replication.
+      A warning saying that table is not ready to be used will be logged.
     */
-    return_check_src= (*handler_src)->do_check_info(info->get_internal_id());
+    bool ignore_error= (INFO_REPOSITORY_FILE == option &&
+                        INFO_REPOSITORY_TABLE == (*handler_src)->do_get_rpl_info_type());
+    return_check_src= (*handler_src)->do_check_info(info->get_internal_id(),
+                                                    ignore_error);
   }
   else
   {
