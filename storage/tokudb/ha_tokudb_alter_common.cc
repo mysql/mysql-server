@@ -41,8 +41,8 @@ static bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print
             if (print_error) {
                 sql_print_error(
                     "keys disagree on if they are clustering, %d, %d",
-                    curr_orig_key->key_parts,
-                    curr_altered_key->key_parts
+                    get_key_parts(curr_orig_key),
+                    get_key_parts(curr_altered_key)
                     );
             }
             retval = false;
@@ -52,19 +52,19 @@ static bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print
             if (print_error) {
                 sql_print_error(
                     "keys disagree on if they are unique, %d, %d",
-                    curr_orig_key->key_parts,
-                    curr_altered_key->key_parts
+                    get_key_parts(curr_orig_key),
+                    get_key_parts(curr_altered_key)
                     );
             }
             retval = false;
             goto cleanup;
         }
-        if (curr_orig_key->key_parts != curr_altered_key->key_parts) {
+        if (get_key_parts(curr_orig_key) != get_key_parts(curr_altered_key)) {
             if (print_error) {
                 sql_print_error(
                     "keys have different number of parts, %d, %d",
-                    curr_orig_key->key_parts,
-                    curr_altered_key->key_parts
+                    get_key_parts(curr_orig_key),
+                    get_key_parts(curr_altered_key)
                     );
             }
             retval = false;
@@ -73,7 +73,7 @@ static bool tables_have_same_keys(TABLE* table, TABLE* altered_table, bool print
         //
         // now verify that each field in the key is the same
         //
-        for (uint32_t j = 0; j < curr_orig_key->key_parts; j++) {
+        for (uint32_t j = 0; j < get_key_parts(curr_orig_key); j++) {
             KEY_PART_INFO* curr_orig_part = &curr_orig_key->key_part[j];
             KEY_PART_INFO* curr_altered_part = &curr_altered_key->key_part[j];
             Field* curr_orig_field = curr_orig_part->field;
