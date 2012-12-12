@@ -2345,6 +2345,19 @@ bool change_password(THD *thd, const char *host, const char *user,
     acl_user->plugin.length= default_auth_plugin_name.length;
     acl_user->plugin.str= default_auth_plugin_name.str;
   }
+
+  if (new_password_len == 0)
+  {
+    String *password_str= new (thd->mem_root) String(new_password,
+                                                     thd->variables.
+                                                     character_set_client);
+    if (check_password_policy(password_str))
+    {
+      result= 1;
+      mysql_mutex_unlock(&acl_cache->lock);
+      goto end;
+    }
+  }
   
 #if defined(HAVE_OPENSSL)
   /*
@@ -11731,7 +11744,7 @@ int check_password_strength(String *password)
 }
 
 /* called when new user is created or exsisting password is changed */
-void check_password_policy(String *password)
+int check_password_policy(String *password)
 {
   plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
                                             MYSQL_VALIDATE_PASSWORD_PLUGIN);
@@ -11742,8 +11755,12 @@ void check_password_policy(String *password)
                       (st_mysql_validate_password *) plugin_decl(plugin)->info;
 
     if (!password_validate->validate_password(password))
+    {  
       my_error(ER_NOT_VALID_PASSWORD, MYF(0));
-
+      plugin_unlock(0, plugin);
+      return (1);
+    }
     plugin_unlock(0, plugin);
   }
+  return (0);
 }
