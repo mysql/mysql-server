@@ -13,7 +13,8 @@
 #    savepoint.                                                    #
 # 5. bulk-insert with rollback + commit: this will ensure btree    #
 #    node split with rollback and commit.                          #
-# 6. test insert/delete/update of big-rec (blo)			   #
+# 6. test insert/delete/update of big-rec (blob)		   #
+# 7. check error test-cases where-in insert/delete/update fails    #
 ####################################################################
 
 
@@ -32,6 +33,7 @@ create temporary table t (
 	index sec_index(f)
 	) engine = innodb;
 insert into t values (10, 2.2), (20, 3.3), (30, 4.4), (40, 5.5);
+#
 rollback;
 select * from t;
 update t set i = 50 where i = 40;
@@ -172,7 +174,7 @@ eval set global innodb_file_per_table = $file_per_table;
 
 #-------------------------------------------------------------------
 #
-# 6. test insert/delete/update of big-rec (blo)			   #
+# 6. test insert/delete/update of big-rec (blob)		   #
 #
 use test;
 let $wait_condition=
@@ -236,6 +238,33 @@ select count(*) from t1;
 drop table if exists t1;
 drop procedure populate_t1;
 drop procedure populate_t1_small;
+
+#-------------------------------------------------------------------
+#
+# 7. check error test-cases where-in insert/delete/update fails    #
+#
+use test;
+create temporary table t1 (i int, f float,
+	primary key pk(i),
+	unique index fk(f)
+	) engine = innodb;
+insert into t1 values (1, 1.2), (2, 2.3), (3, 3.4);
+select * from t1;
+--error ER_DUP_ENTRY
+insert into t1 values (4, 4.5), (1, 5.6);
+select * from t1;
+insert into t1 values (4, 4.5), (5, 5.6);
+select * from t1;
+#
+--error ER_DUP_ENTRY
+update t1 set i = 1 where i = 4;
+truncate table t1;
+insert into t1 values (1, 1.2), (3, 2.3), (5, 3.4), (6, 7.4);
+select * from t1;
+--error ER_DUP_ENTRY
+update t1 set i = i + 1;
+select * from t1;
+drop table t1;
 
 #
 # remove test-bed
