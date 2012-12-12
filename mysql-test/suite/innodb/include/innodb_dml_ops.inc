@@ -74,6 +74,9 @@ select * from t1 limit 10;
 commit;
 select * from t1 limit 10;
 #
+insert into t2 select * from t1 where keyc < 210001;
+select count(*) from t2;
+#
 drop procedure populate_t1;
 drop procedure populate_t1_small;
 drop procedure populate_t1_small2;
