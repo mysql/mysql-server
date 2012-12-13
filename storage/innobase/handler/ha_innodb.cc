@@ -8617,14 +8617,14 @@ err_col:
 	} else {
 		/* Create tablespace if configured. */
 		err = dict_build_tablespace(table, trx);
-		if (err == DB_SUCCESS)
-		{
+		if (err == DB_SUCCESS) {
 			/* Temp-table are maintained in memory and so
 			can_be_evicted is FALSE. */
 			mem_heap_t* add_to_cache_heap = mem_heap_create(256);
+
 			dict_table_add_to_cache(
 				table, FALSE, add_to_cache_heap);
-			err = DB_SUCCESS;
+
 			mem_heap_free(add_to_cache_heap);
 		}
 	}

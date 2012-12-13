@@ -73,7 +73,7 @@ dberr_t
 dict_build_tablespace(
 /*==================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	trx_t*		trx);	/*!< in: InnoDB transaction handle */
+	trx_t*		trx);	/*!< in/out: InnoDB transaction handle */
 /***********************************************************//**
 Creates an index. This is a high-level function used in SQL execution
 graphs.
@@ -87,12 +87,12 @@ dict_create_index_step(
 Builds an index definition but doesn't update sys_table.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-dberr_t
+void
 dict_build_index_def(
 /*=================*/
 	const dict_table_t*	table,	/*!< in: table */
 	dict_index_t*		index,	/*!< in/out: index */
-	trx_t*			trx);	/*!< in: InnoDB transaction handle */
+	trx_t*			trx);	/*!< in/out: InnoDB transaction handle */
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
 Don't update SYS_XXXX table.

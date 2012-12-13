@@ -2590,7 +2590,7 @@ row_ins_sec_index_entry_low(
 	ut_ad(thr_get_trx(thr)->id);
 	mtr_start(&mtr);
 
-	/* Disable i-buffering for temp-table indexes */
+	/* Disable insert buffering for temp-table indexes */
 	if (!dict_table_is_temporary(index->table)) {
 		search_mode |= BTR_INSERT;
 	}

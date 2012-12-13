@@ -278,7 +278,7 @@ dberr_t
 dict_build_tablespace(
 /*===================*/
 	dict_table_t*	table,	/*!< in/out: table */
-	trx_t*		trx)	/*!< in: InnoDB transaction handle */
+	trx_t*		trx)	/*!< in/out: InnoDB transaction handle */
 {
 	dberr_t		err	= DB_SUCCESS;
 	const char*	path;
@@ -649,15 +649,15 @@ dict_build_index_def_step(
 }
 
 /***************************************************************//**
-Builds an index definition but don't update sys_table.
+Builds an index definition without updating SYS_XXXX table.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
-dberr_t
+void
 dict_build_index_def(
 /*=================*/
 	const dict_table_t*	table,	/*!< in: table */
 	dict_index_t*		index,	/*!< in/out: index */
-	trx_t*			trx)	/*!< in: InnoDB transaction handle */
+	trx_t*			trx)	/*!< in/out: InnoDB transaction handle */
 {
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -679,8 +679,6 @@ dict_build_index_def(
 
 	/* Note that the index was created by this transaction. */
 	index->trx_id = trx->id;
-
-	return(DB_SUCCESS);
 }
 
 /***************************************************************//**
@@ -914,7 +912,7 @@ dict_drop_index_tree(
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	mtr_start(&mtr);
-	if(dict_table_is_temporary(index->table)) {
+	if (dict_table_is_temporary(index->table)) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE_IGN_LOG_REC);
 	}
 
@@ -923,7 +921,7 @@ dict_drop_index_tree(
 	zip_size = fil_space_get_zip_size(space);
 
 	/* If tree has already been freed or it is a single table
-	tablespace and the .ibd file is missing: do nothing
+	tablespace and the .ibd file is missing do nothing,
 	else free the all the pages */
 	if (root_page_no != FIL_NULL && zip_size != ULINT_UNDEFINED) {
 
@@ -933,9 +931,7 @@ dict_drop_index_tree(
 			space, zip_size, root_page_no,
 			dict_table_is_temporary(index->table));
 
-		/* Then we free the root page in the same mini-transaction where
-		we write FIL_NULL to the appropriate field in the SYS_INDEXES
-		record: this mini-transaction marks the B-tree totally freed */
+		/* Then we free the root page. */
 		btr_free_root(space, zip_size, root_page_no, &mtr);
 	}
 
@@ -1131,11 +1127,10 @@ dict_truncate_index_tree(
 			index->table->name);
 	}
 
-	/* If new tablespace is created then anyways we are
+	/* If new tablespace is created then anyway we are
 	dropping existing tablespace so just ignore freeing
 	of btree as they will get dropped along with tablespace */
-	if (drop)
-	{
+	if (drop) {
 		/* We free all the pages but the root page first; this operation
 		may span several mini-transactions */
 
