@@ -3694,9 +3694,15 @@ lock_deadlock_notify(
 
 	lock_deadlock_lock_print(lock);
 
-	lock_deadlock_fputs("*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n");
+	/* It is possible that the joining transaction was granted its
+	lock when we rolled back some other waiting transaction. */
 
-	lock_deadlock_lock_print(ctx->start->lock.wait_lock);
+	if (ctx->start->lock.wait_lock != 0) {
+		lock_deadlock_fputs(
+			"*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n");
+
+		lock_deadlock_lock_print(ctx->start->lock.wait_lock);
+	}
 
 #ifdef UNIV_DEBUG
 	if (lock_print_waits) {
@@ -3715,6 +3721,7 @@ lock_deadlock_select_victim(
 	const lock_deadlock_ctx_t*	ctx)	/*!< in: deadlock context */
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(ctx->start->lock.wait_lock != 0);
 	ut_ad(ctx->wait_lock->trx != ctx->start);
 
 	if (trx_weight_ge(ctx->wait_lock->trx, ctx->start)) {
@@ -3740,8 +3747,10 @@ lock_deadlock_check(
 {
 	ut_ad(lock_mutex_own());
 
-	/* If it is the joining transaction wait lock. */
-	if (lock == ctx->start->lock.wait_lock) {
+	/* If it is the joining transaction wait lock or the joining
+	transaction was granted its lock due to deadlock detection. */
+	if (lock == ctx->start->lock.wait_lock
+	    || ctx->start->lock.wait_lock == NULL) {
 		; /* Skip */
 	} else if (lock == ctx->wait_lock) {
 
@@ -3822,7 +3831,8 @@ lock_deadlock_push(
 }
 
 /********************************************************************//**
-Looks iteratively for a deadlock.
+Looks iteratively for a deadlock. Note: the joining transaction may
+have been granted its lock by the deadlock checks.
 @return 0 if no deadlock else the victim transaction id.*/
 static
 trx_id_t
