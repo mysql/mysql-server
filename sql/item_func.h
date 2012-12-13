@@ -1715,13 +1715,16 @@ public:
   virtual void print(String *str, enum_query_type query_type);
   void print_assignment(String *str, enum_query_type query_type);
   const char *func_name() const { return "set_user_var"; }
+
   type_conversion_status save_in_field(Field *field, bool no_conversions,
                                        bool can_use_result_field);
+
   type_conversion_status save_in_field(Field *field, bool no_conversions)
-  {
-    return save_in_field(field, no_conversions, 1);
-  }
-  void save_org_in_field(Field *field) { (void)save_in_field(field, 1, 0); }
+  { return save_in_field(field, no_conversions, true); }
+
+  void save_org_in_field(Field *field)
+  { save_in_field(field, true, false); }
+
   bool register_field_in_read_map(uchar *arg);
   bool set_entry(THD *thd, bool create_if_not_exists);
   void cleanup();

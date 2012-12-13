@@ -1,4 +1,4 @@
-
+--source include/have_ndb.inc
 
 # Test the fundamental ability to connect to a memcached server,
 # wait for it to become ready, set a value, and then retreive that 

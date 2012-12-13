@@ -7851,7 +7851,7 @@ static void test_cuted_rows()
   count= mysql_warning_count(mysql);
   if (!opt_silent)
     fprintf(stdout, "\n total warnings: %d", count);
-  DIE_UNLESS(count == 2);
+  DIE_UNLESS(count == 1);
 
   rc= mysql_query(mysql, "SHOW WARNINGS");
   myquery(rc);
@@ -7860,7 +7860,7 @@ static void test_cuted_rows()
   mytest(result);
 
   rc= my_process_result_set(result);
-  DIE_UNLESS(rc == 2);
+  DIE_UNLESS(rc == 1);
   mysql_free_result(result);
 
   rc= mysql_query(mysql, "INSERT INTO t1 VALUES('junk'), (876789)");
@@ -19146,6 +19146,98 @@ static void test_wl5924()
 }
 
 
+/*
+  WL#56587: Protocol support for password expiration
+*/
+static void test_wl6587()
+{
+  int rc;
+  MYSQL *l_mysql;
+  my_bool can;
+
+  myheader("test_wl6587");
+
+  /* initialize the server user */
+  rc= mysql_query(mysql,
+                  "CREATE USER wl6587_cli@localhost IDENTIFIED BY 'wl6587'");
+  myquery(rc);
+  rc= mysql_query(mysql, "ALTER USER wl6587_cli@localhost PASSWORD EXPIRE");
+  myquery(rc);
+
+  /* prepare the connection */
+  l_mysql= mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  /* connect must fail : the flag is off by default */
+  l_mysql= mysql_real_connect(l_mysql, opt_host, "wl6587_cli",
+                              "wl6587", "test", opt_port,
+                              opt_unix_socket, 0);
+  DIE_UNLESS(l_mysql == 0);
+
+  l_mysql= mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  /* try the last argument. should work */
+  l_mysql= mysql_real_connect(l_mysql, opt_host, "wl6587_cli",
+                         "wl6587", "test", opt_port,
+                         opt_unix_socket,
+                         CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS);
+  DIE_UNLESS(l_mysql != 0);
+
+  /* must fail : sandbox mode */
+  rc= mysql_query(l_mysql, "SELECT USER()");
+  myerror2(l_mysql,NULL);
+  DIE_UNLESS(rc != 0);
+
+  mysql_close(l_mysql);
+
+  /* try setting the option */
+
+  l_mysql= mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  can= TRUE;
+  rc= mysql_options(l_mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &can);
+  DIE_UNLESS(rc == 0);
+
+  l_mysql= mysql_real_connect(l_mysql, opt_host, "wl6587_cli",
+                         "wl6587", "test", opt_port,
+                         opt_unix_socket, 0);
+  DIE_UNLESS(l_mysql != 0);
+
+  /* must fail : sandbox mode */
+  rc= mysql_query(l_mysql, "SELECT USER()");
+  myerror2(l_mysql,NULL);
+  DIE_UNLESS(rc != 0);
+
+  mysql_close(l_mysql);
+
+  /* try change user against an expired account */
+
+  l_mysql= mysql_client_init(NULL);
+  DIE_UNLESS(l_mysql != NULL);
+
+  can= FALSE;
+  rc= mysql_options(l_mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &can);
+  DIE_UNLESS(rc == 0);
+
+
+  l_mysql= mysql_real_connect(l_mysql, opt_host, opt_user,
+                         opt_password, current_db, opt_port,
+                         opt_unix_socket, 0);
+  DIE_UNLESS(l_mysql != 0);
+
+  rc= mysql_change_user(l_mysql, "wl6587_cli", "wl6587", "test");
+  DIE_UNLESS(rc == TRUE);
+
+  mysql_close(l_mysql);
+
+  /* cleanup */
+  rc= mysql_query(mysql, "DROP USER wl6587_cli@localhost");
+  myquery(rc);
+}
+
+
 static struct my_tests_st my_tests[]= {
   { "disable_query_logs", disable_query_logs },
   { "test_view_sp_list_fields", test_view_sp_list_fields },
@@ -19416,6 +19508,7 @@ static struct my_tests_st my_tests[]= {
   { "test_bug13001491", test_bug13001491 },
   { "test_wl5968", test_wl5968 },
   { "test_wl5924", test_wl5924 },
+  { "test_wl6587", test_wl6587 },
   { 0, 0 }
 };
 

@@ -20,7 +20,7 @@ ENGINE=INNODB;
 
 let $check_cnt =
 SELECT COUNT(*) FROM information_schema.innodb_buffer_page_lru
-WHERE table_name LIKE '%ib_bp_test';
+WHERE table_name LIKE '%ib_bp_test%';
 
 # See that we have a small number of pages in the LRU
 -- eval $check_cnt

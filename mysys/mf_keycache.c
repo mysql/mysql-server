@@ -1512,7 +1512,7 @@ static void unlink_hash(KEY_CACHE *keycache, HASH_LINK *hash_link)
 static HASH_LINK *get_hash_link(KEY_CACHE *keycache,
                                 int file, my_off_t filepos)
 {
-  reg1 HASH_LINK *hash_link, **start;
+  HASH_LINK *hash_link, **start;
 #if defined(KEYCACHE_DEBUG)
   int cnt;
 #endif
@@ -2510,7 +2510,7 @@ uchar *key_cache_read(KEY_CACHE *keycache,
   if (keycache->key_cache_inited)
   {
     /* Key cache is used */
-    reg1 BLOCK_LINK *block;
+    BLOCK_LINK *block;
     uint read_length;
     uint offset;
     int page_st;
@@ -2740,7 +2740,7 @@ int key_cache_insert(KEY_CACHE *keycache,
   if (keycache->key_cache_inited)
   {
     /* Key cache is used */
-    reg1 BLOCK_LINK *block;
+    BLOCK_LINK *block;
     uint read_length;
     uint offset;
     int page_st;
@@ -3010,7 +3010,7 @@ int key_cache_write(KEY_CACHE *keycache,
   if (keycache->key_cache_inited)
   {
     /* Key cache is used */
-    reg1 BLOCK_LINK *block;
+    BLOCK_LINK *block;
     uint read_length;
     uint offset;
     int page_st;

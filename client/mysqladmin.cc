@@ -195,10 +195,8 @@ static struct my_option my_long_options[] =
    &interval, &interval, 0, GET_INT, REQUIRED_ARG, 0, 0, 0, 0,
    0, 0},
 #include <sslopt-longopts.h>
-#ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", &user,
    &user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"verbose", 'v', "Write more information.", &opt_verbose,
    &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
@@ -312,6 +310,8 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 int main(int argc,char *argv[])
 {
   int error= 0, ho_error;
+  int first_command;
+  my_bool can_handle_passwords;
   MYSQL mysql;
   char **commands, **save_argv;
 
@@ -386,6 +386,13 @@ int main(int argc,char *argv[])
   if (using_opt_enable_cleartext_plugin)
     mysql_options(&mysql, MYSQL_ENABLE_CLEARTEXT_PLUGIN, 
                   (char*) &opt_enable_cleartext_plugin);
+
+  first_command= find_type(argv[0], &command_typelib, FIND_TYPE_BASIC);
+  can_handle_passwords= 
+    (first_command == ADMIN_PASSWORD || first_command == ADMIN_OLD_PASSWORD) ?
+    TRUE : FALSE;
+  mysql_options(&mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS,
+                &can_handle_passwords);
 
   if (sql_connect(&mysql, option_wait))
   {

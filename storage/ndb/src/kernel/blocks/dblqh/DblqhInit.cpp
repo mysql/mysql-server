@@ -96,6 +96,7 @@ void Dblqh::initData()
 
   c_max_parallel_scans_per_frag = 32;
 
+  c_lcpFragWatchdog.block = this;
   c_lcpFragWatchdog.reset();
   c_lcpFragWatchdog.thread_active = false;
 }//Dblqh::initData()

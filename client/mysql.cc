@@ -1739,10 +1739,8 @@ static struct my_option my_long_options[] =
    "Does not work in batch mode. Disable with --disable-tee. "
    "This option is disabled by default.",
    0, 0, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DONT_ALLOW_USER_CHANGE
   {"user", 'u', "User for login if not current user.", &current_user,
    &current_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"safe-updates", 'U', "Only allow UPDATE and DELETE that uses keys.",
    &safe_updates, &safe_updates, 0, GET_BOOL, NO_ARG, 0, 0,
    0, 0, 0, 0},
@@ -2626,14 +2624,17 @@ static bool add_line(String &buffer, char *line, ulong line_length,
   {
     uint length=(uint) (out-line);
 
-    if (!truncated && !is_delimiter_command(line, length))
+    if (!truncated && (!is_delimiter_command(line, length) ||
+                       (*in_string || *ml_comment)))
     {
       /* 
         Don't add a new line in case there's a DELIMITER command to be 
         added to the glob buffer (e.g. on processing a line like 
         "<command>;DELIMITER <non-eof>") : similar to how a new line is 
         not added in the case when the DELIMITER is the first command 
-        entered with an empty glob buffer. 
+        entered with an empty glob buffer. However, if the delimiter is
+        part of a string or a comment, the new line should be added. (e.g.
+        SELECT '\ndelimiter\n';\n)
       */
       *out++='\n';
       length++;
@@ -3020,7 +3021,7 @@ char *index(const char *s,int c)
 
 char *rindex(const char *s,int c)
 {
-  reg3 char *t;
+  char *t;
 
   t = NullS;
   do if (*s == (char) c) t = (char*) s; while (*s++);
@@ -3309,7 +3310,7 @@ static int
 com_help(String *buffer __attribute__((unused)),
 	 char *line __attribute__((unused)))
 {
-  reg1 int i, j;
+  int i, j;
   char * help_arg= strchr(line,' '), buff[32], *end;
   if (help_arg)
   {
@@ -4848,6 +4849,8 @@ sql_real_connect(char *host,char *database,char *user,char *password,
 static void
 init_connection_options(MYSQL *mysql)
 {
+  my_bool interactive= status.batch ? FALSE : TRUE;
+
   if (opt_init_command)
     mysql_options(mysql, MYSQL_INIT_COMMAND, opt_init_command);
 
@@ -4917,7 +4920,8 @@ init_connection_options(MYSQL *mysql)
 
   mysql_options(mysql, MYSQL_OPT_CONNECT_ATTR_RESET, 0);
   mysql_options4(mysql, MYSQL_OPT_CONNECT_ATTR_ADD, "program_name", "mysql");
-  return;
+
+  mysql_options(mysql, MYSQL_OPT_CAN_HANDLE_EXPIRED_PASSWORDS, &interactive);
 }
 
 

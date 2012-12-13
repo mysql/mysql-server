@@ -2306,42 +2306,6 @@ row_printf_step(
 	return(thr);
 }
 
-/********************************************************************
-Creates a key in Innobase dtuple format.*/
-
-void
-row_create_key(
-/*===========*/
-	dtuple_t*	tuple,		/* in: tuple where to build;
-					NOTE: we assume that the type info
-					in the tuple is already according
-					to index! */
-	dict_index_t*	index,		/* in: index of the key value */
-	doc_id_t*	doc_id)		/* in: doc id to search. */
-{
-	dtype_t		type;
-	dict_field_t*	field;
-	doc_id_t	temp_doc_id;
-	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
-
-	ut_a(dict_index_get_n_unique(index) == 1);
-
-	/* Permit us to access any field in the tuple (ULINT_MAX): */
-	dtuple_set_n_fields(tuple, ULINT_MAX);
-
-	field = dict_index_get_nth_field(index, 0);
-	dict_col_copy_type(field->col, &type);
-	ut_a(dtype_get_mtype(&type) == DATA_INT);
-
-	/* Convert to storage byte order */
-	mach_write_to_8((byte*) &temp_doc_id, *doc_id);
-	*doc_id = temp_doc_id;
-
-	ut_a(sizeof(*doc_id) == field->fixed_len);
-	dfield_set_data(dfield, doc_id, field->fixed_len);
-
-	dtuple_set_n_fields(tuple, 1);
-}
 /****************************************************************//**
 Converts a key value stored in MySQL format to an Innobase dtuple. The last
 field of the key value may be just a prefix of a fixed length field: hence

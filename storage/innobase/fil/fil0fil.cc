@@ -3896,7 +3896,8 @@ fil_make_ibbackup_old_name(
 
 	memcpy(path, name, len);
 	memcpy(path + len, suffix, (sizeof suffix) - 1);
-	ut_sprintf_timestamp_without_extra_chars(path + len + sizeof suffix);
+	ut_sprintf_timestamp_without_extra_chars(
+		path + len + ((sizeof suffix) - 1));
 	return(path);
 }
 #endif /* UNIV_HOTBACKUP */

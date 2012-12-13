@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <vector>
 
-namespace {
+namespace alignment_unittest {
 
 /*
   Testing performance penalty of accessing un-aligned data.
@@ -117,7 +117,7 @@ public:
   }
 };
 
-#if defined(__i386__) || defined(__x86_64__)
+#if defined(__i386__) || defined(__x86_64__) || defined(__WIN__)
 
 
 TEST_F(AlignmentTest, AlignedSort)

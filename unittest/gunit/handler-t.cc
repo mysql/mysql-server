@@ -25,6 +25,8 @@ namespace {
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
 
+using ::testing::StrictMock;
+
 class HandlerTest : public ::testing::Test
 {
 protected:
@@ -48,17 +50,16 @@ TEST_F(HandlerTest, ReportErrorHandler)
 {
   Mock_field_datetime field_datetime;
   Fake_TABLE table(&field_datetime);
-  Mock_HANDLER mock_handler(NULL, table.get_share());
+  handlerton *hton= NULL;
+  StrictMock<Mock_HANDLER> mock_handler(hton, table.get_share());
   table.set_handler(&mock_handler);
 
   // This error should be ignored.
   EXPECT_EQ(-1, report_handler_error(&table, HA_ERR_END_OF_FILE));
-  EXPECT_EQ(0, mock_handler.print_error_called());
 
   // This one should not be printed to stderr, but passed on to the handler.
-  mock_handler.expect_error(HA_ERR_TABLE_DEF_CHANGED);
+  EXPECT_CALL(mock_handler, print_error(HA_ERR_TABLE_DEF_CHANGED, 0)).Times(1);
   EXPECT_EQ(1, report_handler_error(&table, HA_ERR_TABLE_DEF_CHANGED));
-  EXPECT_EQ(1, mock_handler.print_error_called());
 }
 
 }

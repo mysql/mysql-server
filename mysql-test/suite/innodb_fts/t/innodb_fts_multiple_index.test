@@ -90,83 +90,83 @@ INSERT INTO t1 (a,b) VALUES
          'search, with proximity innodb');
 
 INSERT INTO t1 (a,b) VALUES
-        ('test more proximity fts search, test, more proximity and phrase',
+        ('test more of proximity for fts search, test, more proximity and phrase',
          'search, with proximity innodb');
 
 # This should only return the first document
 SELECT * FROM t1
         WHERE MATCH (a)
-        AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@3' IN BOOLEAN MODE);
 
 # This would return no document
 SELECT * FROM t1
         WHERE MATCH (a)
-        AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@2' IN BOOLEAN MODE);
 
 # This give you all three documents
 SELECT * FROM t1
         WHERE MATCH (b)
-        AGAINST ('"proximity innodb"@14' IN BOOLEAN MODE);
+        AGAINST ('"proximity innodb"@4' IN BOOLEAN MODE);
 
 # Similar boundary testing for the words
 SELECT * FROM t1
         WHERE MATCH (a)
-        AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
+        AGAINST ('"test proximity"@3' IN BOOLEAN MODE);
 
 # Test with more word The last document will return, please notice there
 # is no ordering requirement for proximity search.
 SELECT * FROM t1
         WHERE MATCH (a)
-        AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+        AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
 
 SELECT * FROM t1
         WHERE MATCH (a)
-        AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
+        AGAINST ('"more test proximity"@2' IN BOOLEAN MODE);
 
 # The phrase search will not require exact word ordering
 SELECT * FROM t1
         WHERE MATCH (a)
-        AGAINST ('"more fts proximity"@09' IN BOOLEAN MODE);
+        AGAINST ('"more fts proximity"@02' IN BOOLEAN MODE);
 
 
 # Select word "tutorial" in the table - innodb crash
 SELECT * FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
-SELECT CONCAT(a,b) FROM t1 AS t2 WHERE 
+SELECT CONCAT(a,b) FROM t1 AS t2 WHERE
 MATCH (t2.a) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)
 ) OR t1.id = 3 ;
 
 
 # Select word "tutorial" in the table  - innodb crash
 SELECT * FROM t1 WHERE CONCAT(t1.a,t1.b) IN (
-SELECT CONCAT(a,b) FROM t1 AS t2 
-WHERE MATCH (t2.a) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+SELECT CONCAT(a,b) FROM t1 AS t2
+WHERE MATCH (t2.a) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)
 AND t2.id != 3) ;
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE id IN (SELECT MIN(id) FROM t1 WHERE 
+SELECT * FROM t1 WHERE id IN (SELECT MIN(id) FROM t1 WHERE
 MATCH (b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) OR id = 3 ;
 
 # Select word except  "tutorial" in the table
-SELECT * FROM t1 WHERE id NOT IN (SELECT MIN(id) FROM t1 
+SELECT * FROM t1 WHERE id NOT IN (SELECT MIN(id) FROM t1
 WHERE MATCH (b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)) ;
 
 
 # Select word "tutorial" in the table
-SELECT * FROM t1 WHERE EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
-MATCH (t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+SELECT * FROM t1 WHERE EXISTS (SELECT t2.id FROM t1 AS t2 WHERE
+MATCH (t2.b) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)
 AND t1.id = t2.id) ;
 
 
 # Select not word like "tutorial" using subquery
-SELECT * FROM t1 WHERE NOT EXISTS (SELECT t2.id FROM t1 AS t2 WHERE 
-MATCH (t2.a) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE) 
+SELECT * FROM t1 WHERE NOT EXISTS (SELECT t2.id FROM t1 AS t2 WHERE
+MATCH (t2.a) AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE)
 AND t1.id = t2.id) ;
 
 
 SELECT * FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE
-MATCH(t2.a) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+MATCH(t2.a) AGAINST ('"proximity search"@3' IN BOOLEAN MODE));
 SELECT * FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
-MATCH(t2.b) AGAINST ('"proximity innodb"@10' IN BOOLEAN MODE));
+MATCH(t2.b) AGAINST ('"proximity innodb"@3' IN BOOLEAN MODE));
 
 DROP TABLE t1;
 

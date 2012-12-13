@@ -23,7 +23,7 @@
 
 #include "field.h"
 
-namespace {
+namespace field_date_unittests {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -73,9 +73,9 @@ private:
   void initialize()
   {
     ptr= buffer;
-    null_ptr= &null_byte;
     memset(buffer, 0, PACK_LENGTH);
     null_byte= '\0';
+    set_null_ptr(&null_byte, 1);
   }
 public:
 
@@ -90,6 +90,7 @@ public:
   }
 
   void make_writable() { bitmap_set_bit(table->write_set, field_index); }
+  void make_readable() { bitmap_set_bit(table->read_set, field_index); }
 };
 
 
@@ -99,6 +100,7 @@ TEST_F(FieldDateTest, StoreLegalStringValues)
   Fake_TABLE table(&field_date);
   table.in_use= thd();
   field_date.make_writable();
+  field_date.make_readable();
 
   {
     SCOPED_TRACE("");
@@ -123,6 +125,7 @@ TEST_F(FieldDateTest, StoreIllegalStringValues)
   Fake_TABLE table(&field_date);
   table.in_use= thd();
   field_date.make_writable();
+  field_date.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   // Truncates time
@@ -178,6 +181,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroRestrictions)
   Fake_TABLE table(&field_date);
   table.in_use= thd();
   field_date.make_writable();
+  field_date.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   for (int i= 0; i < no_modes; i++)
@@ -225,6 +229,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroDate)
   Fake_TABLE table(&field_date);
   table.in_use= thd();
   field_date.make_writable();
+  field_date.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_DATE" set - Errors if date is all null
@@ -286,6 +291,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroInDate)
   Fake_TABLE table(&field_date);
   table.in_use= thd();
   field_date.make_writable();
+  field_date.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
   // With "MODE_NO_ZERO_IN_DATE" set - Entire date zero is ok

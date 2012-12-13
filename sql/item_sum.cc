@@ -971,7 +971,7 @@ bool Aggregator_distinct::add()
       return TRUE;
 
     for (Field **field=table->field ; *field ; field++)
-      if ((*field)->is_real_null(0))
+      if ((*field)->is_real_null())
         return 0;					// Don't count NULL
 
     if (tree)
@@ -991,7 +991,7 @@ bool Aggregator_distinct::add()
   }
   else
   {
-    item_sum->get_arg(0)->save_in_field(table->field[0], FALSE);
+    item_sum->get_arg(0)->save_in_field(table->field[0], false);
     if (table->field[0]->is_null())
       return 0;
     DBUG_ASSERT(tree);
@@ -2425,7 +2425,7 @@ void Item_sum_hybrid::min_max_update_temporal_field()
   nr= args[0]->val_temporal_by_field_type();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0))
+    if (result_field->is_null())
       old_nr= nr;
     else
     {
@@ -2436,7 +2436,7 @@ void Item_sum_hybrid::min_max_update_temporal_field()
     }
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store_packed(old_nr);
 }
@@ -2467,12 +2467,12 @@ void Item_sum_hybrid::min_max_update_real_field()
   nr= args[0]->val_real();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0) ||
+    if (result_field->is_null() ||
 	(cmp_sign > 0 ? old_nr > nr : old_nr < nr))
       old_nr=nr;
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store(old_nr);
 }
@@ -2486,7 +2486,7 @@ void Item_sum_hybrid::min_max_update_int_field()
   nr=args[0]->val_int();
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0))
+    if (result_field->is_null())
       old_nr=nr;
     else
     {
@@ -2499,7 +2499,7 @@ void Item_sum_hybrid::min_max_update_int_field()
     }
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store(old_nr, unsigned_flag);
 }
@@ -2517,7 +2517,7 @@ void Item_sum_hybrid::min_max_update_decimal_field()
   const my_decimal *nr= args[0]->val_decimal(&nr_val);
   if (!args[0]->null_value)
   {
-    if (result_field->is_null(0))
+    if (result_field->is_null())
       old_nr=nr;
     else
     {
@@ -2528,7 +2528,7 @@ void Item_sum_hybrid::min_max_update_decimal_field()
     }
     result_field->set_notnull();
   }
-  else if (result_field->is_null(0))
+  else if (result_field->is_null())
     result_field->set_null();
   result_field->store_decimal(old_nr);
 }

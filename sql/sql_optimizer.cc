@@ -125,6 +125,10 @@ JOIN::optimize()
   // to prevent double initialization on EXPLAIN
   if (optimized)
     DBUG_RETURN(0);
+
+  // We may do transformations (like semi-join):
+  Prepare_error_tracker tracker(thd);
+
   optimized= true;
   const bool first_optimization= select_lex->first_cond_optimization;
   select_lex->first_cond_optimization= false;
@@ -486,15 +490,14 @@ JOIN::optimize()
     conds=new Item_int((longlong) 0,1);	// Always false
   }
 
+  drop_unused_derived_keys();
+
   if (set_access_methods())
   {
     error= 1;
     DBUG_PRINT("error",("Error from set_access_methods"));
     DBUG_RETURN(1);
   }
-
-  // We need all derived keys until access methods have been set.
-  drop_unused_derived_keys();
 
   // Update table dependencies after assigning ref access fields
   update_depend_map(this);
@@ -630,7 +633,8 @@ JOIN::optimize()
       skip_sort_order=
         test_if_skip_sort_order(tab, order, m_select_limit,
                                 true,           // no_changes
-                                &tab->table->keys_in_use_for_order_by);
+                                &tab->table->keys_in_use_for_order_by,
+                                "ORDER BY");
       count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
     }
     ORDER *o;
@@ -643,7 +647,8 @@ JOIN::optimize()
         skip_sort_order &&
         test_if_skip_sort_order(tab, group_list, m_select_limit,
                                 true,         // no_changes
-                                &tab->table->keys_in_use_for_group_by);
+                                &tab->table->keys_in_use_for_group_by,
+                                "GROUP BY");
       count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
       if ((skip_group && all_order_fields_used) ||
 	  m_select_limit == HA_POS_ERROR ||
@@ -951,7 +956,8 @@ JOIN::optimize()
           const ha_rows limit = need_tmp ? HA_POS_ERROR : m_select_limit;
 
           if (test_if_skip_sort_order(tab, group_list, limit, false, 
-                                      &tab->table->keys_in_use_for_group_by))
+                                      &tab->table->keys_in_use_for_group_by,
+                                      "GROUP BY"))
           {
             ordered_index_usage= ordered_index_group_by;
           }
@@ -978,7 +984,8 @@ JOIN::optimize()
              (simple_order || skip_sort_order)) // which is possibly skippable
     {
       if (test_if_skip_sort_order(tab, order, m_select_limit, false, 
-                                  &tab->table->keys_in_use_for_order_by))
+                                  &tab->table->keys_in_use_for_order_by,
+                                  "ORDER BY"))
       {
         ordered_index_usage= ordered_index_order_by;
       }
@@ -4524,8 +4531,9 @@ static bool pull_out_semijoin_tables(JOIN *join)
       List<TABLE_LIST> *upper_join_list= (sj_nest->embedding != NULL) ?
           &sj_nest->embedding->nested_join->join_list : 
           &join->select_lex->top_join_list;
-      Query_arena *arena, backup;
-      arena= join->thd->activate_stmt_arena_if_needed(&backup);
+
+      Prepared_stmt_arena_holder ps_arena_holder(join->thd);
+
       while ((tbl= child_li++))
       {
         if (tbl->table &&
@@ -4537,12 +4545,10 @@ static bool pull_out_semijoin_tables(JOIN *join)
             pointers.
           */
           child_li.remove();
+
           if (upper_join_list->push_back(tbl))
-          {
-            if (arena)
-              join->thd->restore_active_arena(arena, &backup);
             DBUG_RETURN(TRUE);
-          }
+
           tbl->join_list= upper_join_list;
           tbl->embedding= sj_nest->embedding;
         }
@@ -4559,9 +4565,6 @@ static bool pull_out_semijoin_tables(JOIN *join)
         /* Also remove it from the list of SJ-nests: */
         sj_list_it.remove();
       }
-
-      if (arena)
-        join->thd->restore_active_arena(arena, &backup);
     }
   }
   DBUG_RETURN(FALSE);
@@ -4840,7 +4843,7 @@ add_key_field(Key_field **key_fields,uint and_level, Item_func *cond,
   uint exists_optimize= 0;
   TABLE_LIST *table= field->table->pos_in_table_list;
   if (!table->derived_keys_ready && table->uses_materialization() &&
-      !field->table->created &&
+      !field->table->is_created() &&
       table->update_derived_keys(field, value, num_values))
     return;
   if (!(field->flags & PART_KEY_FLAG))
@@ -6860,7 +6863,6 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
 
 bool JOIN::flatten_subqueries()
 {
-  Query_arena *arena, backup;
   Item_exists_subselect **subq;
   Item_exists_subselect **subq_end;
   bool outer_join_objection= false;
@@ -6910,9 +6912,11 @@ bool JOIN::flatten_subqueries()
            sj_subselects.size(), sj_subselects.element_size(),
            reinterpret_cast<qsort_cmp>(subq_sj_candidate_cmp));
 
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
   // #tables-in-parent-query + #tables-in-subquery + sj nests <= MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+
   uint table_count= tables;
   for (subq= sj_subselects.begin(); subq < subq_end; subq++)
   {
@@ -7008,8 +7012,6 @@ bool JOIN::flatten_subqueries()
     }
   }
 
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
   sj_subselects.clear();
   DBUG_RETURN(FALSE);
 }
@@ -7093,7 +7095,7 @@ bool JOIN::generate_derived_keys()
   {
     table->derived_keys_ready= TRUE;
     /* Process tables that aren't materialized yet. */
-    if (table->uses_materialization() && !table->table->created &&
+    if (table->uses_materialization() && !table->table->is_created() &&
         table->generate_keys())
       return TRUE;
   }
@@ -7122,20 +7124,30 @@ void JOIN::drop_unused_derived_keys()
      1) it's a materialized derived table
      2) it's not yet instantiated
      3) some keys are defined for it
-     4) only one key defined and it's not chosen (this is used when there is
-        only one defined key and we need to leave it as is if it's used or
-        ignore it otherwise).
     */
     if (table &&
         table->pos_in_table_list->uses_materialization() &&     // (1)
-        !table->created &&                                       // (2)
-        (table->max_keys > 1 ||                                 // (3)
-        (table->max_keys == 1 && tab->ref.key < 0)))            // (4)
+        !table->is_created() &&                                 // (2)
+        table->max_keys > 0)                                    // (3)
     {
-      table->use_index(tab->ref.key);
-      /* Now there is only 1 index, point to it. */
-      if (tab->ref.key > 0)
-        tab->ref.key= 0;
+      Key_use *keyuse= tab->position->key;
+
+      table->use_index(keyuse ? keyuse->key : -1);
+
+      tab->keys.clear_all();
+      if (!keyuse)
+        continue;
+
+      /*
+        Update the selected "keyuse" to point to key number 0.
+        Notice that unused keyuse entries still point to the deleted
+        candidate keys. tab->keys should reference key object no. 0 as well.
+      */
+      tab->keys.set_bit(0);
+
+      const uint oldkey= keyuse->key;
+      for (; keyuse->table == table && keyuse->key == oldkey; keyuse++)
+        keyuse->key= 0;
     }
   }
 }
@@ -7333,13 +7345,8 @@ make_cond_for_table_from_pred(Item *root_cond, Item *cond,
           return NULL;                        // Always true
 	new_cond->argument_list()->push_back(fix);
       }
-      /*
-	Item_cond_or do not need fix_fields for execution, its parameters
-	are fixed or do not need fix_fields, too
-      */
-      new_cond->quick_fix_field();
-      new_cond->set_used_tables(cond->used_tables());
-      new_cond->top_level_item();
+      if (new_cond->fix_fields(current_thd, NULL))
+        return NULL;
       return new_cond;
     }
   }
@@ -7672,7 +7679,7 @@ static bool make_join_select(JOIN *join, Item *cond)
 	      tab->table->reginfo.impossible_range)
 	    DBUG_RETURN(1);				// Impossible range
           /*
-            We plan to scan all rows.
+            We plan to scan (table/index/range scan).
             Check again if we should use an index. We can use an index if:
 
             1a) There is a condition that range optimizer can work on, and
@@ -7692,46 +7699,122 @@ static bool make_join_select(JOIN *join, Item *cond)
             2d) The query is NOT run with FOUND_ROWS() (because in that
                 case we have to scan through all rows to count them anyway)
           */
+          enum { DONT_RECHECK, NOT_FIRST_TABLE, LOW_LIMIT }
+          recheck_reason= DONT_RECHECK;
 
-          if ((cond &&                                                // 1a
-               !tab->keys.is_subset(tab->const_keys) &&               // 1b
-               (i > 0 ||                                              // 1c
-                (join->select_lex->master_unit()->item &&
-                 cond->used_tables() & OUTER_REF_TABLE_BIT)
-                )
-               ) ||
-              (!tab->const_keys.is_clear_all() &&                     // 2a
-               i == join->const_tables &&                             // 2b
-               join->unit->select_limit_cnt < tab->position->records_read && // 2c
-               !(join->select_options & OPTION_FOUND_ROWS))          // 2d
-              )
+          if (cond &&                                                // 1a
+              !tab->keys.is_subset(tab->const_keys) &&               // 1b
+              (i > 0 ||                                              // 1c
+               (join->select_lex->master_unit()->item &&
+                cond->used_tables() & OUTER_REF_TABLE_BIT)))
+            recheck_reason= NOT_FIRST_TABLE;
+          else if (!tab->const_keys.is_clear_all() &&               // 2a
+                   i == join->const_tables &&                       // 2b
+                   (join->unit->select_limit_cnt <
+                    tab->position->records_read) &&                 // 2c
+                   !(join->select_options & OPTION_FOUND_ROWS))     // 2d
+            recheck_reason= LOW_LIMIT;
+
+          if (recheck_reason != DONT_RECHECK)
           {
             Opt_trace_object trace_one_table(trace);
             trace_one_table.add_utf8_table(tab->table);
             Opt_trace_object trace_table(trace, "rechecking_index_usage");
+            if (recheck_reason == NOT_FIRST_TABLE)
+              trace_table.add_alnum("recheck_reason", "not_first_table");
+            else
+              trace_table.add_alnum("recheck_reason", "low_limit").
+                add("limit", join->unit->select_limit_cnt).
+                add("row_estimate", tab->position->records_read);
 
-	    /* Join with outer join condition */
-	    Item *orig_cond=sel->cond;
-	    sel->cond= and_conds(sel->cond, *tab->on_expr_ref);
+            /* Join with outer join condition */
+            Item *orig_cond=sel->cond;
+            sel->cond= and_conds(sel->cond, *tab->on_expr_ref);
 
-	    /*
+            /*
               We can't call sel->cond->fix_fields,
               as it will break tab->join_cond() if it's AND condition
               (fix_fields currently removes extra AND/OR levels).
               Yet attributes of the just built condition are not needed.
               Thus we call sel->cond->quick_fix_field for safety.
-	    */
-	    if (sel->cond && !sel->cond->fixed)
-	      sel->cond->quick_fix_field();
+            */
+            if (sel->cond && !sel->cond->fixed)
+              sel->cond->quick_fix_field();
 
-            if (sel->test_quick_select(thd, tab->keys,
+            key_map usable_keys= tab->keys;
+            ORDER::enum_order interesting_order= ORDER::ORDER_NOT_RELEVANT;
+
+            if (recheck_reason == LOW_LIMIT)
+            {
+              /*
+                If rechecking index usage due to a LIMIT lower than
+                the number of rows estimated to be read for this
+                table, it only makes sense to check the indexes that
+                provide the necessary order.
+              */
+              for (ORDER *tmp_order= join->order;
+                   tmp_order ;
+                   tmp_order=tmp_order->next)
+              {
+                Item *item= (*tmp_order->item)->real_item();
+                if (item->type() != Item::FIELD_ITEM)
+                {
+                  recheck_reason= DONT_RECHECK;
+                  break;
+                }
+
+                if ((interesting_order != ORDER::ORDER_NOT_RELEVANT) &&
+                    (interesting_order != tmp_order->direction))
+                {
+                  /*
+                    MySQL currently does not support multi-column
+                    indexes with a mix of ASC and DESC ordering, so if
+                    ORDER BY contains both, no index can provide
+                    correct order.
+                  */
+                  recheck_reason= DONT_RECHECK;
+                  break;
+                }
+
+                usable_keys.intersect(((Item_field*)item)->field->part_of_sortkey);
+                interesting_order= tmp_order->direction;
+
+                if (usable_keys.is_clear_all())
+                {
+                  // No usable keys
+                  recheck_reason= DONT_RECHECK;
+                  break;
+                }
+              }
+              /*
+                If the current plan is to use a range access on an
+                index that provides the order dictated by the ORDER BY
+                clause there is no need to recheck index usage; we
+                already know from the former call to
+                test_quick_select() that a range scan on the chosen
+                index is cheapest. Note that previous calls to
+                test_quick_select() did not take order direction
+                (ASC/DESC) into account, so in case of DESC ordering
+                we still need to recheck.
+              */
+              if (sel->quick && (sel->quick->index != MAX_KEY) &&
+                  usable_keys.is_set(sel->quick->index) &&
+                  (interesting_order != ORDER::ORDER_DESC ||
+                   sel->quick->reverse_sorted()))
+              {
+                recheck_reason= DONT_RECHECK;
+              }
+            }
+
+            if ((recheck_reason != DONT_RECHECK) &&
+                sel->test_quick_select(thd, usable_keys,
                                        used_tables & ~tab->table->map,
                                        (join->select_options &
                                         OPTION_FOUND_ROWS ?
                                         HA_POS_ERROR :
                                         join->unit->select_limit_cnt),
                                        false,   // don't force quick range
-                                       ORDER::ORDER_NOT_RELEVANT) < 0)
+                                       interesting_order) < 0)
             {
 	      /*
 		Before reporting "Impossible WHERE" for the whole query
@@ -8828,7 +8911,10 @@ static bool add_ref_to_table_cond(THD *thd, JOIN_TAB *join_tab)
   if (join_tab->select)
   {
     if (join_tab->select->cond)
+    {
       error=(int) cond->add(join_tab->select->cond);
+      cond->update_used_tables();
+    }
     join_tab->set_jt_and_sel_condition(cond, __LINE__);
   }
   else if ((join_tab->select= make_select(join_tab->table, 0, 0, cond, 0,
@@ -9558,7 +9644,8 @@ void JOIN::refine_best_rowcount()
     The row count is bumped to the nearest higher value, so that the
     query block will not be evaluated during optimization.
   */
-  if (best_rowcount <= 1)
+  if (select_lex->linkage == DERIVED_TABLE_TYPE &&
+      best_rowcount <= 1)
     best_rowcount= 2;
 
   /*

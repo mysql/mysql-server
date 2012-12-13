@@ -81,6 +81,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
+   is_group_master_log_pos_invalid(false),
    log_space_total(0), ignore_log_space_limit(0),
    sql_force_rotate_relay(false),
    last_master_timestamp(0), slave_skip_counter(0),
@@ -701,8 +702,11 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
       without using --replicate-same-server-id (an unsupported
       configuration which does nothing), then group_master_log_pos
       will grow and group_master_log_name will stay "".
+      Also in case the group master log position is invalid (e.g. after
+      CHANGE MASTER TO RELAY_LOG_POS ), we will wait till the first event
+      is read and the log position is valid again.
     */
-    if (*group_master_log_name)
+    if (*group_master_log_name && !is_group_master_log_pos_invalid)
     {
       char *basename= (group_master_log_name +
                        dirname_length(group_master_log_name));
@@ -860,10 +864,10 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
     const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
     const Owned_gtids* owned_gtids= gtid_state->get_owned_gtids();
 
-    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and \
-!is_intersection: %d",
+    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and "
+                        "!is_intersection_nonempty: %d",
       gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids),
-      !owned_gtids->is_intersection(&wait_gtid_set)));
+      !owned_gtids->is_intersection_nonempty(&wait_gtid_set)));
     logged_gtids->dbug_print("gtid_executed:");
     owned_gtids->dbug_print("owned_gtids:");
 
@@ -872,7 +876,7 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
       check if any GTID of wait_gtid_set is not yet committed.
     */
     if (wait_gtid_set.is_subset(logged_gtids) &&
-        !owned_gtids->is_intersection(&wait_gtid_set))
+        !owned_gtids->is_intersection_nonempty(&wait_gtid_set))
     {
       global_sid_lock->unlock();
       break;
@@ -983,6 +987,12 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 
   if (log_pos > 0)  // 3.23 binlogs don't have log_posx
     group_master_log_pos= log_pos;
+  /*
+    If the master log position was invalidiated by say, "CHANGE MASTER TO
+    RELAY_LOG_POS=N", it is now valid,
+   */
+  if (is_group_master_log_pos_invalid)
+    is_group_master_log_pos_invalid= false;
 
   /*
     In MTS mode FD or Rotate event commit their solitary group to
@@ -1275,7 +1285,7 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
         global_sid_lock->wrlock();
         /* Check if until GTIDs were already applied. */
         const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
-        if (until_sql_gtids.is_intersection(logged_gtids))
+        if (until_sql_gtids.is_intersection_nonempty(logged_gtids))
         {
           char *buffer= until_sql_gtids.to_string();
           global_sid_lock->unlock();

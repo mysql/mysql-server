@@ -35,6 +35,12 @@
 #define MIN_DICTIONARY_WORD_LENGTH    4
 #define MAX_PASSWORD_LENGTH           100
 
+/*
+  Handle assigned when loading the plugin.
+  Used with the error reporting functions.
+*/
+
+static MYSQL_PLUGIN plugin_info_ptr;
 /*  
   These are the 3 password policies that this plugin allow to set
   and configure as per the requirements.
@@ -62,7 +68,7 @@ static int validate_password_length;
 static int validate_password_number_count;
 static int validate_password_mixed_case_count;
 static int validate_password_special_char_count;
-static ulong validate_password_policy_number;
+static ulong validate_password_policy;
 static char *validate_password_dictionary_file;
 
 /* To read dictionary file into std::set */
@@ -72,16 +78,27 @@ static void read_dictionary_file()
   long file_length;
 
   if (validate_password_dictionary_file == NULL)
+  {
+    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                          "Dictionary file not specified");
     return;
+  }
   std::ifstream dictionary_stream(validate_password_dictionary_file);
   if (!dictionary_stream)
+  {
+    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                          "Dictionary file not loaded");
     return;
+  }
   dictionary_stream.seekg(0, std::ios::end);
   file_length= dictionary_stream.tellg();
   dictionary_stream.seekg(0, std::ios::beg);
   if (file_length > MAX_DICTIONARY_FILE_LENGTH)
   {
     dictionary_stream.close();
+    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                          "Dictionary file size exceed",
+                          "MAX_DICTIONARY_FILE_LENGTH, not loaded");
     return;
   }
   while (dictionary_stream.good())
@@ -147,7 +164,8 @@ static int validate_dictionary_check(mysql_string_handle password)
   return (1);
 }
 
-static int validate_password_policy(mysql_string_handle password, int policy)
+static int validate_password_policy_strength(mysql_string_handle password,
+                                             int policy)
 {
   int has_digit= 0;
   int has_lower= 0;
@@ -194,7 +212,7 @@ static int validate_password_policy(mysql_string_handle password, int policy)
 /* Actual plugin function which acts as a wrapper */
 static int validate_password(mysql_string_handle password)
 {
-  return validate_password_policy(password, validate_password_policy_number);
+  return validate_password_policy_strength(password, validate_password_policy);
 }
 
 /* Password strength between (0-100) */
@@ -216,7 +234,7 @@ static int get_password_strength(mysql_string_handle password)
   else
   {
     policy= PASSWORD_POLICY_LOW;
-    if (validate_password_policy(password, PASSWORD_POLICY_MEDIUM))
+    if (validate_password_policy_strength(password, PASSWORD_POLICY_MEDIUM))
     {
       policy= PASSWORD_POLICY_MEDIUM;
       if (validate_dictionary_check(password))
@@ -239,8 +257,9 @@ static struct st_mysql_validate_password validate_password_descriptor=
   read dictionary file into std::set.
 */
 
-static int validate_password_init(void *arg __attribute__((unused)))
+static int validate_password_init(MYSQL_PLUGIN plugin_info)
 {
+  plugin_info_ptr= plugin_info;
   read_dictionary_file();
   return (0);
 }
@@ -256,29 +275,88 @@ static int validate_password_deinit(void *arg __attribute__((unused)))
   return (0);
 }
 
+
+/*
+  update function for:
+  1. validate_password_length
+  2. validate_password_number_count
+  3. validate_password_mixed_case_count
+  4. validate_password_special_char_count
+*/
+static void
+length_update(MYSQL_THD thd __attribute__((unused)),
+              struct st_mysql_sys_var *var __attribute__((unused)),
+              void *var_ptr, const void *save)
+{
+  int new_validate_password_length;
+
+  /* check if there is an actual change */
+  if (*((int *)var_ptr) == *((int *)save))
+    return;
+
+  /*
+    set new value for system variable.
+    Note that we need not know for which of the above mentioned
+    variables, length_update() is called because var_ptr points
+    to the location at which corresponding static variable is
+    declared in this file.
+  */
+  *((int *)var_ptr)= *((int *)save);
+
+  /*
+    Any change in above mentioned system variables can trigger a change in
+    actual password length restriction applied by validate password plugin.
+    actual restriction on password length can be described as:
+
+    MAX(validate_password_length,
+        (validate_password_number_count +
+         2*validate_password_mixed_case_count +
+         validate_password_special_char_count))
+  */
+
+  new_validate_password_length= (validate_password_number_count +
+                                 (2 * validate_password_mixed_case_count) +
+                                 validate_password_special_char_count);
+
+  if (validate_password_length < new_validate_password_length)
+  {
+    /*
+       Raise a warning that effective restriction on password
+       length is changed.
+    */
+    my_plugin_log_message(&plugin_info_ptr, MY_WARNING_LEVEL,
+                          "Effective value of validate_password_length is changed. New value is %d",
+                          new_validate_password_length);
+
+    validate_password_length= new_validate_password_length;
+  }
+}
+
+
+
 /* Plugin system variables */
 
 static MYSQL_SYSVAR_INT(length, validate_password_length,
   PLUGIN_VAR_RQCMDARG,
   "Password validate length to check for minimum password_length",
-  NULL, NULL, 8, 0, 0, 0);
+  NULL, length_update, 8, 0, 0, 0);
 
 static MYSQL_SYSVAR_INT(number_count, validate_password_number_count,
   PLUGIN_VAR_RQCMDARG,
   "password validate digit to ensure minimum numeric character in password",
-  NULL, NULL, 1, 0, 0, 0);
+  NULL, length_update, 1, 0, 0, 0);
 
 static MYSQL_SYSVAR_INT(mixed_case_count, validate_password_mixed_case_count,
   PLUGIN_VAR_RQCMDARG,
   "Password validate mixed case to ensure minimum upper/lower case in password",
-  NULL, NULL, 1, 0, 0, 0);
+  NULL, length_update, 1, 0, 0, 0);
 
 static MYSQL_SYSVAR_INT(special_char_count,
   validate_password_special_char_count, PLUGIN_VAR_RQCMDARG,
   "password validate special to ensure minimum special character in password",
-  NULL, NULL, 1, 0, 0, 0);
+  NULL, length_update, 1, 0, 0, 0);
 
-static MYSQL_SYSVAR_ENUM(policy_number, validate_password_policy_number,
+static MYSQL_SYSVAR_ENUM(policy, validate_password_policy,
   PLUGIN_VAR_RQCMDARG,
   "password_validate_policy choosen policy to validate password"
   "possible values are LOW MEDIUM (default), STRONG",
@@ -294,7 +372,7 @@ static struct st_mysql_sys_var* validate_password_system_variables[]= {
   MYSQL_SYSVAR(number_count),
   MYSQL_SYSVAR(mixed_case_count),
   MYSQL_SYSVAR(special_char_count),
-  MYSQL_SYSVAR(policy_number),
+  MYSQL_SYSVAR(policy),
   MYSQL_SYSVAR(dictionary_file),
   NULL
 };

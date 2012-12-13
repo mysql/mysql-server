@@ -52,7 +52,7 @@ ib_wqueue_create(void)
 	mutex_create("work_queue", &wq->mutex);
 
 	wq->items = ib_list_create();
-	wq->event = os_event_create(NULL);
+	wq->event = os_event_create(0);
 
 	return(wq);
 }

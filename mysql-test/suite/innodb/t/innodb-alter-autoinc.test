@@ -2,10 +2,14 @@
 
 CREATE TABLE t1 (a INT) ENGINE=InnoDB;
 INSERT INTO t1 VALUES(347),(33101),(123),(45),(6);
+# NULL -> NOT NULL only allowed INPLACE if strict sql_mode is on.
+SET @old_sql_mode = @@sql_mode;
+SET @@sql_mode = 'STRICT_TRANS_TABLES';
 ALTER TABLE t1 ADD PRIMARY KEY(a);
+SET @@sql_mode = @old_sql_mode;
 
 # We cannot assign AUTO_INCREMENT values during online index creation.
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 DROP PRIMARY KEY, ADD id INT AUTO_INCREMENT PRIMARY KEY,
 	LOCK=NONE;
 
@@ -36,7 +40,7 @@ ROLLBACK;
 SHOW CREATE TABLE t1;
 
 # We cannot assign AUTO_INCREMENT values during online index creation.
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 DROP PRIMARY KEY, ADD id INT AUTO_INCREMENT PRIMARY KEY,
 	DROP COLUMN id, AUTO_INCREMENT = 42, LOCK=NONE;
 

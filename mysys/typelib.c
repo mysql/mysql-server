@@ -128,8 +128,8 @@ int find_type(const char *x, const TYPELIB *typelib, uint flags)
   first type is 1, 0 = empty field
 */
 
-void make_type(register char * to, register uint nr,
-	       register TYPELIB *typelib)
+void make_type(char * to, uint nr,
+	       TYPELIB *typelib)
 {
   DBUG_ENTER("make_type");
   if (!nr)

@@ -421,7 +421,8 @@ enum enum_binlog_command {
   LOGCOM_DROP_TABLE,
   LOGCOM_CREATE_DB,
   LOGCOM_ALTER_DB,
-  LOGCOM_DROP_DB
+  LOGCOM_DROP_DB,
+  LOGCOM_ACL_NOTIFY
 };
 
 /* struct to hold information about the table that should be created */
@@ -1276,8 +1277,23 @@ public:
 
   /** true for ALTER IGNORE TABLE ... */
   const bool ignore;
+
   /** true for online operation (LOCK=NONE) */
   bool online;
+
+  /**
+     Can be set by handler to describe why a given operation cannot be done
+     in-place (HA_ALTER_INPLACE_NOT_SUPPORTED) or why it cannot be done
+     online (HA_ALTER_INPLACE_NO_LOCK or HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE)
+     If set, it will be used with ER_ALTER_OPERATION_NOT_SUPPORTED_REASON if
+     results from handler::check_if_supported_inplace_alter() doesn't match
+     requirements set by user. If not set, the more generic
+     ER_ALTER_OPERATION_NOT_SUPPORTED will be used.
+
+     Please set to a properly localized string, for example using
+     my_get_err_msg(), so that the error message as a whole is localized.
+  */
+  const char *unsupported_reason;
 
   Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
                      Alter_info *alter_info_arg,
@@ -1296,13 +1312,26 @@ public:
     handler_flags(0),
     modified_part_info(modified_part_info_arg),
     ignore(ignore_arg),
-    online (false)
+    online(false),
+    unsupported_reason(NULL)
   {}
 
   ~Alter_inplace_info()
   {
     delete handler_ctx;
   }
+
+  /**
+    Used after check_if_supported_inplace_alter() to report
+    error if the result does not match the LOCK/ALGORITHM
+    requirements set by the user.
+
+    @param not_supported  Part of statement that was not supported.
+    @param try_instead    Suggestion as to what the user should
+                          replace not_supported with.
+  */
+  void report_unsupported_error(const char *not_supported,
+                                const char *try_instead);
 };
 
 
@@ -3304,7 +3333,9 @@ void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
                     const char *db, const char *table_name,
                     HA_CREATE_INFO *create_info,
-		    bool update_create_info);
+		                bool update_create_info,
+                    bool is_temp_table= false);
+
 int ha_delete_table(THD *thd, handlerton *db_type, const char *path,
                     const char *db, const char *alias, bool generate_warning);
 
@@ -3380,15 +3411,16 @@ void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          const char *query, uint query_length,
                          const char *db, const char *table_name);
 void ha_binlog_wait(THD *thd);
-int ha_binlog_end(THD *thd);
 #else
 #define ha_reset_logs(a) do {} while (0)
 #define ha_binlog_index_purge_file(a,b) do {} while (0)
 #define ha_reset_slave(a) do {} while (0)
 #define ha_binlog_log_query(a,b,c,d,e,f,g) do {} while (0)
 #define ha_binlog_wait(a) do {} while (0)
-#define ha_binlog_end(a)  do {} while (0)
 #endif
+
+/* It is required by basic binlog features on both MySQL server and libmysqld */
+int ha_binlog_end(THD *thd);
 
 const char *ha_legacy_type_name(legacy_db_type legacy_type);
 const char *get_canonical_filename(handler *file, const char *path,
