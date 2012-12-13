@@ -3168,7 +3168,7 @@ void toku_ft_maybe_insert (FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, bool
         // do nothing
     } else {
         TXNID oldest_referenced_xid = (txn) ? txn->oldest_referenced_xid : TXNID_NONE;
-        toku_ft_send_insert(ft_h, key, val, message_xids, type, oldest_referenced_xid, make_gc_info(!txn->for_recovery));
+        toku_ft_send_insert(ft_h, key, val, message_xids, type, oldest_referenced_xid, make_gc_info(txn ? !txn->for_recovery : false));
     }
 }
 
@@ -3179,7 +3179,7 @@ ft_send_update_msg(FT_HANDLE brt, FT_MSG_S *msg, TOKUTXN txn) {
                  : xids_get_root_xids());
     
     TXNID oldest_referenced_xid = (txn) ? txn->oldest_referenced_xid : TXNID_NONE;
-    toku_ft_root_put_cmd(brt->ft, msg, oldest_referenced_xid, make_gc_info(!txn->for_recovery));
+    toku_ft_root_put_cmd(brt->ft, msg, oldest_referenced_xid, make_gc_info(txn ? !txn->for_recovery : false));
 }
 
 void toku_ft_maybe_update(FT_HANDLE ft_h, const DBT *key, const DBT *update_function_extra,
@@ -3313,7 +3313,7 @@ void toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, bool oplsn_vali
         // do nothing
     } else {
         TXNID oldest_referenced_xid = (txn) ? txn->oldest_referenced_xid : TXNID_NONE;
-        toku_ft_send_delete(ft_h, key, message_xids, oldest_referenced_xid, make_gc_info(!txn->for_recovery));
+        toku_ft_send_delete(ft_h, key, message_xids, oldest_referenced_xid, make_gc_info(txn ? !txn->for_recovery : false));
     }
 }
 
