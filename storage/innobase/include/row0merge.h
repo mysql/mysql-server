@@ -349,9 +349,10 @@ row_merge_buf_empty(
 	row_merge_buf_t*	buf)	/*!< in,own: sort buffer */
 	__attribute__((warn_unused_result, nonnull));
 /*********************************************************************//**
-Create a merge file. */
+Create a merge file.
+@return file descriptor, or -1 on failure */
 UNIV_INTERN
-void
+int
 row_merge_file_create(
 /*==================*/
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
