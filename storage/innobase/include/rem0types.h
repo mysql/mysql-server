@@ -35,8 +35,13 @@ typedef byte	rec_t;
 #define REC_MAX_N_OWNED		(16 - 1)
 
 /* Maximum number of user defined fields/columns. The reserved columns
-are the ones InnoDB adds internally: DB_ROW_ID, DB_TRX_ID, DB_ROLL_PTR */
-#define REC_MAX_N_USER_FIELDS	(REC_MAX_N_FIELDS - DATA_N_SYS_COLS)
+are the ones InnoDB adds internally: DB_ROW_ID, DB_TRX_ID, DB_ROLL_PTR.
+We need "* 2" because mlog_parse_index() creates a dummy table object
+possibly, with some of the system columns in it, and then adds the 3
+system columns (again) using dict_table_add_system_columns(). The problem
+is that mlog_parse_index() cannot recognize the system columns by
+just having n_fields, n_uniq and the lengths of the columns. */
+#define REC_MAX_N_USER_FIELDS	(REC_MAX_N_FIELDS - DATA_N_SYS_COLS * 2)
 
 /* REC_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and is the maximum
 indexed field length (or indexed prefix length) for indexes on tables of

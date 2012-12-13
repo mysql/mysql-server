@@ -271,8 +271,16 @@ static uint create_table_def_key(THD *thd, char *key,
                                  const char *db_name, const char *table_name,
                                  bool tmp_table)
 {
-  uint key_length= (uint) (strmov(strmov(key, db_name) + 1, table_name) -
-                           key) + 1;
+  /*
+    In theory caller should ensure that both db and table_name are
+    not longer than NAME_LEN bytes. In practice we play safe to avoid
+    buffer overruns.
+  */
+  DBUG_ASSERT(strlen(db_name) <= NAME_LEN && strlen(table_name) <= NAME_LEN);
+  uint key_length= static_cast<uint>(strmake(strmake(key, db_name, NAME_LEN) +
+                                             1, table_name, NAME_LEN) - key +
+                                     1);
+
   if (tmp_table)
   {
     int4store(key + key_length, thd->server_id);
@@ -310,8 +318,10 @@ uint get_table_def_key(const TABLE_LIST *table_list, const char **key)
     is properly initialized, so table definition cache can be produced
     from key used by MDL subsystem.
   */
-  DBUG_ASSERT(!strcmp(table_list->db, table_list->mdl_request.key.db_name()) &&
-              !strcmp(table_list->table_name, table_list->mdl_request.key.name()));
+  DBUG_ASSERT(!strcmp(table_list->get_db_name(),
+                      table_list->mdl_request.key.db_name()) &&
+              !strcmp(table_list->get_table_name(),
+                      table_list->mdl_request.key.name()));
 
   *key= (const char*)table_list->mdl_request.key.ptr() + 1;
   return table_list->mdl_request.key.length() - 1;
@@ -1612,7 +1622,9 @@ bool close_temporary_tables(THD *thd)
       thd->variables.character_set_client= cs_save;
 
       thd->get_stmt_da()->set_overwrite_status(true);
-      if ((error= (mysql_bin_log.write_event(&qinfo) || error)))
+      if ((error= (mysql_bin_log.write_event(&qinfo) ||
+                   mysql_bin_log.commit(thd, true) ||
+                   error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
@@ -2518,7 +2530,7 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
 
 bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
 {
-  reg1	TABLE *table;
+  TABLE *table;
   const char *key;
   uint key_length;
   char	*alias= table_list->alias;
@@ -2542,7 +2554,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
     DBUG_RETURN(TRUE);
 
-  if (thd->killed)
+  if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed)
     DBUG_RETURN(TRUE);
 
   /*
@@ -3037,7 +3049,7 @@ table_found:
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
  reset:
-  table->created= TRUE;
+  table->set_created();
   /*
     Check that there is no reference to a condition from an earlier query
     (cf. Bug#58553). 
@@ -3047,10 +3059,8 @@ table_found:
   table_list->table= table;
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
-  if (table->part_info &&
-      !(table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION))
+  if (table->part_info)
   {
-
     /* Set all [named] partitions as used. */
     if (table->part_info->set_partition_bitmaps(table_list))
       DBUG_RETURN(true);
@@ -3090,7 +3100,8 @@ err_unlock:
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];
-  uint key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+  uint key_length= create_table_def_key((THD*)NULL, key, db, table_name,
+                                        false);
 
   for (TABLE *table= list; table ; table=table->next)
   {
@@ -3779,7 +3790,7 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
       int errcode= query_error_code(thd, TRUE);
       if (thd->binlog_query(THD::STMT_QUERY_TYPE,
                             temp_buf.c_ptr_safe(), temp_buf.length(),
-                            FALSE, FALSE, FALSE, errcode))
+                            FALSE, TRUE, FALSE, errcode))
         return TRUE;
       if (error)
       {
@@ -6071,7 +6082,9 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
       modify_slave_open_temp_tables(thd, 1);
   }
   tmp_table->pos_in_table_list= 0;
-  tmp_table->created= true;
+
+  tmp_table->set_created();
+
   DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,
                           tmp_table->s->table_name.str, (long) tmp_table));
   DBUG_RETURN(tmp_table);
@@ -6348,28 +6361,35 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
               table_list->alias, name, item_name, (ulong) ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
-  Query_arena *arena= 0, backup;  
-  
+
   DBUG_ASSERT(table_list->schema_table_reformed ||
               (ref != 0 && table_list->view != 0));
   for (; !field_it.end_of_fields(); field_it.next())
   {
     if (!my_strcasecmp(system_charset_info, field_it.name(), name))
     {
-      // in PS use own arena or data will be freed after prepare
-      if (register_tree_change &&
-          thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute())
-        arena= thd->activate_stmt_arena_if_needed(&backup);
-      /*
-        create_item() may, or may not create a new Item, depending on
-        the column reference. See create_view_field() for details.
-      */
-      Item *item= field_it.create_item(thd);
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
-      
-      if (!item)
-        DBUG_RETURN(0);
+      Item *item;
+
+      {
+        /*
+          Use own arena for Prepared Statements or data will be freed after
+          PREPARE.
+        */
+        Prepared_stmt_arena_holder ps_arena_holder(
+          thd,
+          register_tree_change &&
+            thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute());
+
+        /*
+          create_item() may, or may not create a new Item, depending on
+          the column reference. See create_view_field() for details.
+        */
+        item= field_it.create_item(thd);
+
+        if (!item)
+          DBUG_RETURN(0);
+      }
+
       /*
        *ref != NULL means that *ref contains the item that we need to
        replace. If the item was aliased by the user, set the alias to
@@ -6430,14 +6450,12 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
     field_it(*(table_ref->join_columns));
   Natural_join_column *nj_col, *curr_nj_col;
   Field *found_field;
-  Query_arena *arena, backup;
   DBUG_ENTER("find_field_in_natural_join");
   DBUG_PRINT("enter", ("field name: '%s', ref 0x%lx",
 		       name, (ulong) ref));
   DBUG_ASSERT(table_ref->is_natural_join && table_ref->join_columns);
   DBUG_ASSERT(*actual_table == NULL);
 
-  LINT_INIT(arena);
   LINT_INIT(found_field);
 
   for (nj_col= NULL, curr_nj_col= field_it++; curr_nj_col; 
@@ -6459,14 +6477,20 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   if (nj_col->view_field)
   {
     Item *item;
-    LINT_INIT(arena);
-    if (register_tree_change)
-      arena= thd->activate_stmt_arena_if_needed(&backup);
-    /*
-      create_item() may, or may not create a new Item, depending on the
-      column reference. See create_view_field() for details.
-    */
-    item= nj_col->create_item(thd);
+
+    {
+      Prepared_stmt_arena_holder ps_arena_holder(thd, register_tree_change);
+
+      /*
+        create_item() may, or may not create a new Item, depending on the
+        column reference. See create_view_field() for details.
+      */
+      item= nj_col->create_item(thd);
+
+      if (!item)
+        DBUG_RETURN(NULL);
+    }
+
     /*
      *ref != NULL means that *ref contains the item that we need to
      replace. If the item was aliased by the user, set the alias to
@@ -6478,11 +6502,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       item->item_name= (*ref)->item_name;
       item->real_item()->item_name= (*ref)->item_name;
     }
-    if (register_tree_change && arena)
-      thd->restore_active_arena(arena, &backup);
 
-    if (!item)
-      DBUG_RETURN(NULL);
     DBUG_ASSERT(nj_col->table_field == NULL);
     if (nj_col->table_ref->schema_table_reformed)
     {
@@ -7427,8 +7447,6 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  Query_arena *arena, backup;
-  bool result= TRUE;
   bool first_outer_loop= TRUE;
   /*
     Leaf table references to which new natural join columns are added
@@ -7445,8 +7463,9 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   DBUG_PRINT("info", ("operand_1: %s  operand_2: %s",
                       table_ref_1->alias, table_ref_2->alias));
 
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
   *found_using_fields= 0;
-  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   for (it_1.set(table_ref_1); !it_1.end_of_fields(); it_1.next())
   {
@@ -7455,7 +7474,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     /* true if field_name_1 is a member of using_fields */
     bool is_using_column_1;
     if (!(nj_col_1= it_1.get_or_create_column_ref(thd, leaf_1)))
-      goto err;
+      DBUG_RETURN(true);
     field_name_1= nj_col_1->name();
     is_using_column_1= using_fields && 
       test_if_string_in_list(field_name_1, using_fields);
@@ -7476,7 +7495,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       Natural_join_column *cur_nj_col_2;
       const char *cur_field_name_2;
       if (!(cur_nj_col_2= it_2.get_or_create_column_ref(thd, leaf_2)))
-        goto err;
+        DBUG_RETURN(true);
       cur_field_name_2= cur_nj_col_2->name();
       DBUG_PRINT ("info", ("cur_field_name_2=%s.%s", 
                            cur_nj_col_2->table_name() ? 
@@ -7501,7 +7520,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
             (found && (!using_fields || is_using_column_1)))
         {
           my_error(ER_NON_UNIQ_ERROR, MYF(0), field_name_1, thd->where);
-          goto err;
+          DBUG_RETURN(true);
         }
         nj_col_2= cur_nj_col_2;
         found= TRUE;
@@ -7534,7 +7553,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       Item_func_eq *eq_cond;
 
       if (!item_1 || !item_2)
-        goto err;                               // out of memory
+        DBUG_RETURN(true);                      // Out of memory.
 
       /*
         The following assert checks that the two created items are of
@@ -7564,10 +7583,10 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       */
       if (set_new_item_local_context(thd, item_ident_1, nj_col_1->table_ref) ||
           set_new_item_local_context(thd, item_ident_2, nj_col_2->table_ref))
-        goto err;
+        DBUG_RETURN(true);
 
       if (!(eq_cond= new Item_func_eq(item_ident_1, item_ident_2)))
-        goto err;                               /* Out of memory. */
+        DBUG_RETURN(true);                      // Out of memory.
 
       /*
         Add the new equi-join condition to the ON clause. Notice that
@@ -7618,12 +7637,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     we check for this error in store_natural_using_join_columns() when
     (found_using_fields < length(join_using_fields)).
   */
-  result= FALSE;
-
-err:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
-  DBUG_RETURN(result);
+  DBUG_RETURN(false);
 }
 
 
@@ -7672,18 +7686,16 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  Query_arena *arena, backup;
-  bool result= TRUE;
   List<Natural_join_column> *non_join_columns;
   DBUG_ENTER("store_natural_using_join_columns");
 
   DBUG_ASSERT(!natural_using_join->join_columns);
 
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   if (!(non_join_columns= new List<Natural_join_column>) ||
       !(natural_using_join->join_columns= new List<Natural_join_column>))
-    goto err;
+    DBUG_RETURN(true);
 
   /* Append the columns of the first join operand. */
   for (it_1.set(table_ref_1); !it_1.end_of_fields(); it_1.next())
@@ -7722,7 +7734,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
         {
           my_error(ER_BAD_FIELD_ERROR, MYF(0), using_field_name_ptr,
                    current_thd->where);
-          goto err;
+          DBUG_RETURN(true);
         }
         if (!my_strcasecmp(system_charset_info,
                            common_field->name(), using_field_name_ptr))
@@ -7748,12 +7760,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
     natural_using_join->join_columns->concat(non_join_columns);
   natural_using_join->is_join_columns_complete= TRUE;
 
-  result= FALSE;
-
-err:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
-  DBUG_RETURN(result);
+  DBUG_RETURN(false);
 }
 
 
@@ -7792,12 +7799,9 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
                              TABLE_LIST *left_neighbor,
                              TABLE_LIST *right_neighbor)
 {
-  Query_arena *arena, backup;
-  bool result= TRUE;
-
   DBUG_ENTER("store_top_level_join_columns");
 
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   /* Call the procedure recursively for each nested table reference. */
   if (table_ref->nested_join)
@@ -7843,7 +7847,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       if (cur_table_ref->nested_join &&
           store_top_level_join_columns(thd, cur_table_ref,
                                        real_left_neighbor, real_right_neighbor))
-        goto err;
+        DBUG_RETURN(true);
       same_level_right_neighbor= cur_table_ref;
     }
   }
@@ -7875,7 +7879,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       swap_variables(TABLE_LIST*, table_ref_1, table_ref_2);
     if (mark_common_columns(thd, table_ref_1, table_ref_2,
                             using_fields, &found_using_fields))
-      goto err;
+      DBUG_RETURN(true);
 
     /*
       Swap the join operands back, so that we pick the columns of the second
@@ -7887,7 +7891,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     if (store_natural_using_join_columns(thd, table_ref, table_ref_1,
                                          table_ref_2, using_fields,
                                          found_using_fields))
-      goto err;
+      DBUG_RETURN(true);
 
     /*
       Change NATURAL JOIN to JOIN ... ON. We do this for both operands
@@ -7918,12 +7922,8 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     else
       table_ref->next_name_resolution_table= NULL;
   }
-  result= FALSE; /* All is OK. */
 
-err:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
-  DBUG_RETURN(result);
+  DBUG_RETURN(false);
 }
 
 
@@ -8020,14 +8020,13 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 
   Item *item;
   List_iterator<Item> it(fields);
-  Query_arena *arena, backup;
   DBUG_ENTER("setup_wild");
 
   /*
     Don't use arena if we are not in prepared statements or stored procedures
     For PS/SP we have to use arena to remember the changes
   */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   // When we enter, we're "nowhere":
   DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
@@ -8060,8 +8059,6 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
                              ((Item_field*) item)->table_name, &it,
                              any_privileges))
       {
-	if (arena)
-	  thd->restore_active_arena(arena, &backup);
 	DBUG_RETURN(-1);
       }
       if (sum_func_list)
@@ -8082,7 +8079,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   thd->lex->current_select->cur_pos_in_all_fields=
     SELECT_LEX::ALL_FIELDS_UNDEF_POS;
 
-  if (arena)
+  if (ps_arena_holder.is_activated())
   {
     /* make * substituting permanent */
     SELECT_LEX *select_lex= thd->lex->current_select;
@@ -8094,8 +8091,6 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     */
     if (&select_lex->item_list != &fields)
       select_lex->item_list= fields;
-
-    thd->restore_active_arena(arena, &backup);
   }
   DBUG_RETURN(0);
 }
@@ -8108,7 +8103,7 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &fields, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
-  reg2 Item *item;
+  Item *item;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
   List_iterator<Item> it(fields);
@@ -8302,16 +8297,9 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     {
       DBUG_ASSERT(table_list->view &&
                   table_list->effective_algorithm == VIEW_ALGORITHM_MERGE);
-      Query_arena *arena= thd->stmt_arena, backup;
-      bool res;
-      if (arena->is_conventional())
-        arena= 0;                                   // For easier test
-      else
-        thd->set_n_backup_active_arena(arena, &backup);
-      res= table_list->setup_underlying(thd);
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
-      if (res)
+
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      if (table_list->setup_underlying(thd))
         DBUG_RETURN(1);
     }
   }
@@ -8778,12 +8766,13 @@ err_no_arena:
 /*
   Fill fields with given items.
 
-  @param thd           thread handler
-  @param fields        Item_fields list to be filled
-  @param values        values to fill with
-  @param ignore_errors TRUE if we should ignore errors
-  @param bitmap        Bitmap over fields to fill
-
+  @param thd                        thread handler
+  @param fields                     Item_fields list to be filled
+  @param values                     values to fill with
+  @param ignore_errors              TRUE if we should ignore errors
+  @param bitmap                     Bitmap over fields to fill
+  @param insert_into_fields_bitmap  Bitmap for fields that is set
+                                    in fill_record
   @note fill_record() may set table->auto_increment_field_not_null and a
   caller should make sure that it is reset after their last call to this
   function.
@@ -8795,7 +8784,8 @@ err_no_arena:
 
 bool
 fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-            bool ignore_errors, MY_BITMAP *bitmap)
+            bool ignore_errors, MY_BITMAP *bitmap,
+            MY_BITMAP *insert_into_fields_bitmap)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
@@ -8838,11 +8828,14 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if ((value->save_in_field(rfield, 0) < 0) && !ignore_errors)
+    if ((value->save_in_field(rfield, false) < 0) && !ignore_errors)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
     }
+    bitmap_set_bit(table->fields_set_during_insert, rfield->field_index);
+    if (insert_into_fields_bitmap)
+      bitmap_set_bit(insert_into_fields_bitmap, rfield->field_index);
   }
   DBUG_RETURN(thd->is_error());
 err:
@@ -8852,49 +8845,204 @@ err:
 }
 
 
+/**
+  Check the NOT NULL constraint on all the fields of the current record.
+
+  @param thd            Thread context.
+  @param fields         Collection of fields.
+  @param ignore_errors  Flag if errors should be suppressed.
+
+  @return Error status.
+*/
+static bool check_record(THD *thd, List<Item> &fields, bool ignore_errors)
+{
+  List_iterator_fast<Item> f(fields);
+  Item *fld;
+  Item_field *field;
+
+  while ((fld= f++))
+  {
+    field= fld->field_for_view_update();
+    if (field &&
+        field->field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK &&
+        !ignore_errors)
+    {
+      my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
+      return true;
+    }
+  }
+  return thd->is_error();
+}
+
+
+/**
+  Check the NOT NULL constraint on all the fields of the current record.
+
+  @param thd  Thread context.
+  @param ptr  Fields.
+
+  @return Error status.
+*/
+static bool check_record(THD *thd, Field **ptr)
+{
+  Field *field;
+  while ((field = *ptr++) && !thd->is_error())
+  {
+    if (field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
+      return true;
+  }
+  return thd->is_error();
+}
+
+
+/**
+  Check if SQL-statement is INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
+  and there is a trigger ON INSERT
+
+  @param event         event type for triggers to be invoked
+
+  @return Test result
+    @retval true    SQL-statement is
+                    INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
+                    and there is a trigger ON INSERT
+    @retval false   Either SQL-statement is not
+                    INSERT/INSERT SELECT/REPLACE/REPLACE SELECT
+                    or there isn't a trigger ON INSERT
+*/
+inline bool command_invokes_insert_triggers(enum trg_event_type event,
+                                            enum_sql_command sql_command)
+{
+  /*
+    If it's 'INSERT INTO ... ON DUPLICATE KEY UPDATE ...' statement
+    the event is TRG_EVENT_UPDATE and the SQL-command is SQLCOM_INSERT.
+  */
+  return event == TRG_EVENT_INSERT &&
+        (sql_command == SQLCOM_INSERT ||
+         sql_command == SQLCOM_INSERT_SELECT ||
+         sql_command == SQLCOM_REPLACE ||
+         sql_command == SQLCOM_REPLACE_SELECT);
+}
+
+
+/**
+  Execute BEFORE INSERT trigger.
+
+  @param thd                        thread context
+  @param triggers                   object holding list of triggers
+                                    to be invoked
+  @param event                      event type for triggers to be invoked
+  @param insert_into_fields_bitmap  Bitmap for fields that is set
+                                    in fill_record
+
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occurred
+*/
+inline bool call_before_insert_triggers(THD *thd,
+                                        Table_triggers_list *triggers,
+                                        enum trg_event_type event,
+                                        MY_BITMAP *insert_into_fields_bitmap)
+{
+  TABLE *tbl= triggers->trigger_table;
+
+  for (Field** f= tbl->field; *f; ++f)
+  {
+    if (((*f)->flags & NO_DEFAULT_VALUE_FLAG) &&
+        !bitmap_is_set(insert_into_fields_bitmap, (*f)->field_index))
+    {
+      (*f)->set_tmp_null();
+    }
+  }
+
+  return triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
+}
+
+
 /*
   Fill fields in list with values from the list of items and invoke
   before triggers.
 
-  SYNOPSIS
-    fill_record_n_invoke_before_triggers()
-      thd           thread context
-      fields        Item_fields list to be filled
-      values        values to fill with
-      ignore_errors TRUE if we should ignore errors
-      triggers      object holding list of triggers to be invoked
-      event         event type for triggers to be invoked
+  @param thd           thread context
+  @param fields        Item_fields list to be filled
+  @param values        values to fill with
+  @param ignore_errors TRUE if we should ignore errors
+  @param triggers      object holding list of triggers to be invoked
+  @param event         event type for triggers to be invoked
 
   NOTE
     This function assumes that fields which values will be set and triggers
     to be invoked belong to the same table, and that TABLE::record[0] and
     record[1] buffers correspond to new and old versions of row respectively.
 
-  RETURN
-    FALSE   OK
-    TRUE    error occured
+  @return Operation status
+    @retval false   OK
+    @retval true    Error occurred
 */
 
 bool
 fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                      List<Item> &values, bool ignore_errors,
                                      Table_triggers_list *triggers,
-                                     enum trg_event_type event)
+                                     enum trg_event_type event,
+                                     int num_fields)
 {
-  return (fill_record(thd, fields, values, ignore_errors, NULL) ||
-          (triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE)));
+  /*
+    If it's 'INSERT INTO ... ON DUPLICATE KEY UPDATE ...' statement
+    the event is TRG_EVENT_UPDATE and the SQL-command is SQLCOM_INSERT.
+  */
+
+  if (triggers)
+  {
+    bool rc;
+
+    triggers->enable_fields_temporary_nullability(thd);
+
+    if (command_invokes_insert_triggers(event, thd->lex->sql_command))
+    {
+      DBUG_ASSERT(num_fields);
+
+      MY_BITMAP insert_into_fields_bitmap;
+      bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
+
+      rc= fill_record(thd, fields, values, ignore_errors, NULL,
+                      &insert_into_fields_bitmap);
+
+      if (!rc)
+        rc= call_before_insert_triggers(thd, triggers, event,
+                                        &insert_into_fields_bitmap);
+
+      bitmap_free(&insert_into_fields_bitmap);
+    }
+    else
+    {
+      rc= fill_record(thd, fields, values, ignore_errors, NULL, NULL) ||
+          triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
+    }
+
+    triggers->disable_fields_temporary_nullability();
+
+    return rc ||
+           check_record(thd, triggers->trigger_table->field);
+  }
+  else
+  {
+    return
+        fill_record(thd, fields, values, ignore_errors, NULL, NULL) ||
+        check_record(thd, fields, ignore_errors);
+  }
 }
 
 
 /**
   Fill field buffer with values from Field list.
 
-  @param thd           thread handler
-  @param ptr           pointer on pointer to record
-  @param values        list of fields
-  @param ignore_errors True if we should ignore errors
-  @param bitmap        Bitmap over fields to fill
+  @param thd                        thread handler
+  @param ptr                        pointer on pointer to record
+  @param values                     list of fields
+  @param ignore_errors              True if we should ignore errors
+  @param bitmap                     Bitmap over fields to fill
+  @param insert_into_fields_bitmap  Bitmap for fields that is set
+                                    in fill_record
 
   @note fill_record() may set table->auto_increment_field_not_null and a
   caller should make sure that it is reset after their last call to this
@@ -8907,7 +9055,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
 
 bool
 fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
-            MY_BITMAP *bitmap)
+            MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
 {
   List_iterator_fast<Item> v(values);
   Item *value;
@@ -8937,8 +9085,16 @@ fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
       continue;
     if (field == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if (value->save_in_field(field, 0) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
+    if (value->save_in_field(field, false) == TYPE_ERR_NULL_CONSTRAINT_VIOLATION)
       goto err;
+    /*
+      fill_record could be called as part of multi update and therefore
+      table->fields_set_during_insert could be NULL.
+    */
+    if (table->fields_set_during_insert)
+      bitmap_set_bit(table->fields_set_during_insert, field->field_index);
+    if (insert_into_fields_bitmap)
+      bitmap_set_bit(insert_into_fields_bitmap, field->field_index);
   }
   DBUG_ASSERT(thd->is_error() || !v++);      // No extra value!
   DBUG_RETURN(thd->is_error());
@@ -8967,6 +9123,11 @@ err:
     This function assumes that fields which values will be set and triggers
     to be invoked belong to the same table, and that TABLE::record[0] and
     record[1] buffers correspond to new and old versions of row respectively.
+    This function is called during handling of statements
+    INSERT/INSERT SELECT/CREATE SELECT. It means that the only trigger's type
+    that can be invoked when this function is called is a BEFORE INSERT
+    trigger so we don't need to make branching based on the result of execution
+    function command_invokes_insert_triggers().
 
   RETURN
     FALSE   OK
@@ -8977,11 +9138,38 @@ bool
 fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
                                      List<Item> &values, bool ignore_errors,
                                      Table_triggers_list *triggers,
-                                     enum trg_event_type event)
+                                     enum trg_event_type event,
+                                     int num_fields)
 {
-  return (fill_record(thd, ptr, values, ignore_errors, NULL) ||
-          (triggers && triggers->process_triggers(thd, event,
-                                                 TRG_ACTION_BEFORE, TRUE)));
+  bool rc;
+
+  if (triggers)
+  {
+    DBUG_ASSERT(command_invokes_insert_triggers(event, thd->lex->sql_command));
+    DBUG_ASSERT(num_fields);
+
+    triggers->enable_fields_temporary_nullability(thd);
+
+    MY_BITMAP insert_into_fields_bitmap;
+    bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
+
+    rc= fill_record(thd, ptr, values, ignore_errors, NULL,
+                    &insert_into_fields_bitmap);
+
+    if (!rc)
+      rc= call_before_insert_triggers(thd, triggers, event,
+                                      &insert_into_fields_bitmap);
+
+    bitmap_free(&insert_into_fields_bitmap);
+    triggers->disable_fields_temporary_nullability();
+  }
+  else
+    rc= fill_record(thd, ptr, values, ignore_errors, NULL, NULL);
+
+  if (rc)
+    return true;
+
+  return check_record(thd, ptr);
 }
 
 
@@ -9135,7 +9323,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
               thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, table_name,
                                              MDL_EXCLUSIVE));
 
-  key_length=(uint) (strmov(strmov(key,db)+1,table_name)-key)+1;
+  key_length= create_table_def_key(thd, key, db, table_name, false);
 
   if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
                                             key_length)))

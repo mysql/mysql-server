@@ -20,7 +20,7 @@
 
 size_t dirname_length(const char *name)
 {
-  register char *pos, *gpos;
+  char *pos, *gpos;
 #ifdef BASKSLASH_MBTAIL
   CHARSET_INFO *fs= fs_character_set();
 #endif

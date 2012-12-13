@@ -59,12 +59,11 @@ Created 10/8/1995 Heikki Tuuri
 #include "btr0sea.h"
 #include "dict0load.h"
 #include "dict0boot.h"
-#include "dict0stats_bg.h" /* dict_stats_event */
+#include "dict0stats_bg.h"
 #include "srv0start.h"
 #include "row0mysql.h"
 #include "ha_prototypes.h"
 #include "trx0i_s.h"
-#include "os0event.h" /* for HAVE_ATOMIC_BUILTINS */
 #include "srv0mon.h"
 #include "ut0crc32.h"
 #include "sync0sync.h"
@@ -945,16 +944,16 @@ srv_init(void)
 		for (ulint i = 0; i < srv_sys->n_sys_threads; ++i) {
 			srv_slot_t*	slot = &srv_sys->sys_threads[i];
 
-			slot->event = os_event_create("sys_thread");
+			slot->event = os_event_create(0);
 
 			ut_a(slot->event);
 		}
 
-		srv_error_event = os_event_create("error_event");
+		srv_error_event = os_event_create(0);
 
-		srv_monitor_event = os_event_create("monitor_event");
+		srv_monitor_event = os_event_create(0);
 
-		srv_buf_dump_event = os_event_create("buf_dump_event");
+		srv_buf_dump_event = os_event_create(0);
 
 		UT_LIST_INIT(srv_sys->tasks);
 	}
@@ -1325,13 +1324,15 @@ void
 srv_export_innodb_status(void)
 /*==========================*/
 {
-	buf_pool_stat_t	stat;
-	ulint		LRU_len;
-	ulint		free_len;
-	ulint		flush_list_len;
+	buf_pool_stat_t		stat;
+	buf_pools_list_size_t	buf_pools_list_size;
+	ulint			LRU_len;
+	ulint			free_len;
+	ulint			flush_list_len;
 
 	buf_get_total_stat(&stat);
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
+	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1379,7 +1380,14 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_buffer_pool_pages_data = LRU_len;
 
+	export_vars.innodb_buffer_pool_bytes_data =
+		buf_pools_list_size.LRU_bytes
+		+ buf_pools_list_size.unzip_LRU_bytes;
+
 	export_vars.innodb_buffer_pool_pages_dirty = flush_list_len;
+
+	export_vars.innodb_buffer_pool_bytes_dirty =
+		buf_pools_list_size.flush_list_bytes;
 
 	export_vars.innodb_buffer_pool_pages_free = free_len;
 
@@ -1467,6 +1475,14 @@ srv_export_innodb_status(void)
 	} else {
 		export_vars.innodb_purge_trx_id_age =
 		  trx_sys->rw_max_trx_id - purge_sys->done.trx_no + 1;
+	}
+
+	if (!purge_sys->view
+	    || trx_sys->rw_max_trx_id < purge_sys->view->up_limit_id) {
+		export_vars.innodb_purge_view_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_view_trx_id_age =
+		  trx_sys->rw_max_trx_id - purge_sys->view->up_limit_id;
 	}
 #endif /* UNIV_DEBUG */
 
@@ -2594,12 +2610,6 @@ srv_purge_coordinator_suspend(
 	ut_ad(!srv_read_only_mode);
 	ut_a(slot->type == SRV_PURGE);
 
-	rw_lock_x_lock(&purge_sys->latch);
-
-	purge_sys->running = false;
-
-	rw_lock_x_unlock(&purge_sys->latch);
-
 	bool		stop = false;
 
 	/** Maximum wait time on the purge event, in micro-seconds. */
@@ -2608,6 +2618,12 @@ srv_purge_coordinator_suspend(
 	do {
 		ulint		ret;
 		ib_int64_t	sig_count = srv_suspend_thread(slot);
+
+		rw_lock_x_lock(&purge_sys->latch);
+
+		purge_sys->running = false;
+
+		rw_lock_x_unlock(&purge_sys->latch);
 
 		/* We don't wait right away on the the non-timed wait because
 		we want to signal the thread that wants to suspend purge. */
@@ -2619,8 +2635,8 @@ srv_purge_coordinator_suspend(
 			ret = os_event_wait_time_low(
 				slot->event, SRV_PURGE_MAX_TIMEOUT, sig_count);
 		} else {
-			/* We don't want to waste time waiting if the
-			history list has increased by the time we get here
+			/* We don't want to waste time waiting, if the
+			history list increased by the time we got here,
 			unless purge has been stopped. */
 			ret = 0;
 		}

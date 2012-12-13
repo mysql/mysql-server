@@ -232,7 +232,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	index	NULL	PRIMARY	4	NULL	1	Using index
 explain SELECT distinct a from t3 order by a desc limit 2;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t3	index	NULL	a	5	NULL	40	Using index
+1	SIMPLE	t3	range	NULL	a	5	NULL	10	Using index for group-by; Using temporary; Using filesort
 explain SELECT distinct a,b from t3 order by a+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	204	Using temporary; Using filesort
@@ -242,6 +242,43 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 explain SELECT a,b from t3 group by a,b order by a+1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t3	ALL	NULL	NULL	NULL	NULL	204	Using temporary; Using filesort
+ SELECT distinct t1.a from t1;
+a
+1
+2
+3
+4
+ SELECT distinct t1.a from t1 order by a desc;
+a
+4
+3
+2
+1
+ SELECT t1.a from t1 group by a order by a desc;
+a
+4
+3
+2
+1
+ SELECT distinct t1.a from t1 order by a desc limit 1;
+a
+4
+ SELECT distinct a from t3 order by a desc limit 2;
+a
+2
+1
+ SELECT distinct a,b from t3 order by a+1;
+a	b
+1	1
+2	2
+ SELECT distinct a,b from t3 order by a limit 2;
+a	b
+1	1
+2	2
+ SELECT a,b from t3 group by a,b order by a+1;
+a	b
+1	1
+2	2
 drop table t1,t2,t3,t4;
 CREATE TABLE t1 (name varchar(255));
 INSERT INTO t1 VALUES ('aa'),('ab'),('ac'),('ad'),('ae');
@@ -863,7 +900,7 @@ ON t1.a = subselect.b
 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	2	Using temporary
-1	PRIMARY	<derived2>	ALL	NULL	NULL	NULL	NULL	4	Using where; Using join buffer (Block Nested Loop)
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	5	test.t1.a	2	NULL
 2	DERIVED	it_a	ALL	NULL	NULL	NULL	NULL	2	NULL
 2	DERIVED	it_b	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (Block Nested Loop)
 SELECT DISTINCT subselect.b
@@ -872,8 +909,8 @@ FROM t1 LEFT JOIN
 ON t1.a = subselect.b
 ;
 b
-3
 NULL
+3
 DROP TABLE t1;
 #
 # BUG#13538387: WRONG RESULT ON SELECT DISTINCT + LEFT JOIN + 

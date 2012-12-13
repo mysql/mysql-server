@@ -29,7 +29,7 @@
 #include <my_global.h>
 #include "m_string.h"
 
-char *strend(register const char *s)
+char *strend(const char *s)
 {
   while (*s++);
   return (char*) (s-1);

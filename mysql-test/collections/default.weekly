@@ -11,7 +11,7 @@
 # Repeat daily run
 # big-test option for normal runs 
 # Default suites (in modes binlog format stmt/mixed/row, parts), embedded and ps-protocol
-perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --skip-test-list=collections/disabled-daily.list --unit-tests --mysqld=--innodb_autoextend_increment=64
+perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=normal-debug-big  --vardir=var-normal-debug-big  --report-features --skip-test-list=collections/disabled-daily.list --mysqld=--innodb_autoextend_increment=64
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=60 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=embedded-debug-big  --vardir=var-embedded-debug-big  --embedded
 perl mysql-test-run.pl --force --timer  --big-test --testcase-timeout=90 --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug-big  --vardir=var-ps-debug-big  --ps-protocol --skip-test-list=collections/disabled-daily.list
 
@@ -39,32 +39,32 @@ perl mysql-test-run.pl --timer --force --debug-server --parallel=auto --comment=
 perl mysql-test-run.pl --timer --force --debug-server --parallel=auto --comment=eits-rpl-binlog-mixed-tests-innodb-engine-debug --experimental=collections/default.experimental --vardir=var-binlog-mixed-eits-tests-innodb-engine-debug --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=innodb --mysqld=--innodb --do-test=rpl --mysqld=--binlog-format=mixed --skip-test-list=collections/disabled-weekly.list
 
 #Memcached tests
-perl mysql-test-run.pl --timer --force --debug-server --comment=memcached-debug --vardir=var-debug-memcached --experimental=collections/default.experimental --skip-ndb --parallel=1 --retry=0 --suite=memcached  --skip-test-list=collections/disabled-weekly.list
+perl mysql-test-run.pl --timer --force --debug-server --comment=memcached-debug --vardir=var-debug-memcached --experimental=collections/default.experimental --parallel=1 --retry=0 --suite=memcached  --skip-test-list=collections/disabled-weekly.list
 
 # Non debug runs of default suites in normal and embedded modes
-perl mysql-test-run.pl --force --debug-server --timer   --parallel=auto --experimental=collections/default.experimental --comment=normal-non-debug  --vardir=var-normal-non-debug --report-features --skip-test-list=collections/disabled-daily.list --unit-tests
+perl mysql-test-run.pl --force --debug-server --timer   --parallel=auto --experimental=collections/default.experimental --comment=normal-non-debug  --vardir=var-normal-non-debug --report-features --skip-test-list=collections/disabled-daily.list
 perl mysql-test-run.pl --force --debug-server --timer    --parallel=auto --experimental=collections/default.experimental --comment=embedded-non-debug  --vardir=var-embedded-non-debug  --embedded
 
 
 
 # Multi-Thread Slave
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=MTS-debug-big --vardir=var-MTS-debug-big --suite=rpl  --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=MTS-debug-big --vardir=var-MTS-debug-big --suite=rpl  --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0
 
 # Run with 4K page size
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix_4k_size --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=main_ps_row_4k_size --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
-perl mysql-test-run.pl --debug-server  --timer --force --parallel=auto --comment=main_embedded_4k_size --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --skip-ndb --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix_4k_size --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=main_ps_row_4k_size --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --debug-server  --timer --force --parallel=auto --comment=main_embedded_4k_size --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin
 
 # Run with 8K page size
-perl mysql-test-run.pl --debug-server  --timer --force --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k_size --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --unit-tests --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=main_ps_row_8k_size --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-ndb --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=main_embedded_8k_size --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --skip-ndb --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --debug-server  --timer --force --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k_size --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=main_ps_row_8k_size --vardir=var-main-ps_row --suite=main --ps-protocol --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-test-list=collections/disabled-per-push.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=main_embedded_8k_size --vardir=var-main_emebbed  --suite=main --embedded --experimental=collections/default.experimental --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin
 
 
 # Additional run to test rpl HASH_SCAN & INDEX_SCAN
 perl mysql-test-run.pl --force --debug-server --timer --parallel=auto --experimental=collections/default.experimental --comment=binlog_rpl_row_hash_scan --vardir=var-binlog_rpl_row_hash_scan --mysqld=--binlog-format=row --suite=binlog,rpl --mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN --big-test --testcase-timeout=60
-perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_binlog_row_hash_MTS --vardir=var-mts-rpl-binlog-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --skip-ndb  --unit-tests --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --suite=rpl,binlog  -mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN
+perl mysql-test-run.pl --debug-server --timer --force --parallel=auto --comment=rpl_binlog_row_hash_MTS --vardir=var-mts-rpl-binlog-hash-n_mix --mysqld=--binlog-format=row --experimental=collections/default.experimental --mysqld=--slave-parallel-workers=4 --mysqld=--slave-transaction-retries=0 --suite=rpl,binlog  -mysqld=--slave-rows-search-algorithms=HASH_SCAN,INDEX_SCAN
 
 #Run with Query Cache Enabled
 
-perl mysql-test-run.pl --timer --force --big-test --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
+#perl mysql-test-run.pl --timer --force --big-test --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M

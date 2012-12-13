@@ -143,7 +143,7 @@ srv_conc_init(void)
 	for (i = 0; i < OS_THREAD_MAX_N; i++) {
 		srv_conc_slot_t*	conc_slot = &srv_conc_slots[i];
 
-		conc_slot->event = os_event_create(NULL);
+		conc_slot->event = os_event_create();
 		ut_a(conc_slot->event);
 	}
 #endif /* !HAVE_ATOMIC_BUILTINS */

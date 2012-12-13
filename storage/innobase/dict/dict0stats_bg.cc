@@ -230,7 +230,7 @@ dict_stats_thread_init()
 {
 	ut_a(!srv_read_only_mode);
 
-	dict_stats_event = os_event_create("dict_stats_event");
+	dict_stats_event = os_event_create(0);
 
 	/* The recalc_pool_mutex is acquired from:
 	1) the background stats gathering thread before any other latch

@@ -179,45 +179,6 @@ innobase_fulltext_exist(
 	return(false);
 }
 
-/** Check if table to ALTER has foreign key with DELETE/UPDATE
-CONSTRAINT created with reference option CASCADE/SET NULL
-@param table		InnoDB table that is being altered
-@return			whether a CASCADE or SET NULL option exists */
-static
-bool
-innobase_fk_cscd_setnull_exist(
-/*===========================*/
-	const dict_table_t* table)
-{
-	/* For "ALTER .... INPLACE (LOCK=NONE/DEFAULT) we avoid online
-	inplace and so force it to use SHARED lock.
-	This is done to protect ALTER TABLE INPLACE against a bug in
-	MySQL MDL that fails to lock foreign key table while modifying
-	the parent table in a way that affects foreign table.
-	(For example: delete from parent; will affect child table if
-	there is fk-del-on-cascade/set-null dependency on child table.)
-	If avoided, this leads to an issue in form that parallel
-	transaction running ALTER TABLE is allowed to proceed on TABLE
-	that is already being modified by other transaction, further
-	causing data-inconsistency.
-	Remove this fix once WL#6049 is fixed as it would take
-	care of the issue in MySQL MDL locking.
-	Corresponding bug for this is bug#14219233 */
-	for (const dict_foreign_t* foreign =
-		UT_LIST_GET_FIRST(table->foreign_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
-		if (foreign->type
-		    & (DICT_FOREIGN_ON_DELETE_CASCADE
-		      | DICT_FOREIGN_ON_DELETE_SET_NULL
-		      | DICT_FOREIGN_ON_UPDATE_CASCADE
-		      | DICT_FOREIGN_ON_UPDATE_SET_NULL)) {
-			return(true);
-		}
-	}
-	return(false);
-}
-
 /*******************************************************************//**
 Determine if ALTER TABLE needs to rebuild the table.
 @param ha_alter_info		the DDL operation
@@ -265,8 +226,12 @@ ha_innobase::check_if_supported_inplace_alter(
 	DBUG_ENTER("check_if_supported_inplace_alter");
 
 	if (srv_read_only_mode) {
+		ha_alter_info->unsupported_reason =
+			innobase_get_err_msg(ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	} else if (srv_created_new_raw || srv_force_recovery) {
+		ha_alter_info->unsupported_reason =
+			innobase_get_err_msg(ER_READ_ONLY_MODE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -275,6 +240,8 @@ ha_innobase::check_if_supported_inplace_alter(
 		re-create the table and ha_innobase::create() will
 		return an error too. This is how we effectively
 		deny adding too many columns to a table. */
+		ha_alter_info->unsupported_reason =
+			innobase_get_err_msg(ER_TOO_MANY_FIELDS);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -283,6 +250,11 @@ ha_innobase::check_if_supported_inplace_alter(
 
 	if (ha_alter_info->handler_flags
 	    & ~(INNOBASE_ONLINE_OPERATIONS | INNOBASE_INPLACE_REBUILD)) {
+		if (ha_alter_info->handler_flags
+			& (Alter_inplace_info::ALTER_COLUMN_EQUAL_PACK_LENGTH
+			   | Alter_inplace_info::ALTER_COLUMN_TYPE))
+			ha_alter_info->unsupported_reason = innobase_get_err_msg(
+				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -291,11 +263,25 @@ ha_innobase::check_if_supported_inplace_alter(
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ADD_FOREIGN_KEY)
 	    && prebuilt->trx->check_foreigns) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_CHECK);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
 	if (!(ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE)) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK);
+	}
+
+	/* Only support NULL -> NOT NULL change if strict table sql_mode
+	is set. Fall back to COPY for conversion if not strict tables.
+	In-Place will fail with an error when trying to convert
+	NULL to a NOT NULL value. */
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE)
+	    && !thd_is_strict_mode(user_thd)) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOT_NULL);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
 	/* InnoDB cannot IGNORE when creating unique indexes. IGNORE
@@ -305,6 +291,8 @@ ha_innobase::check_if_supported_inplace_alter(
 	    && (ha_alter_info->handler_flags
 		& (Alter_inplace_info::ADD_PK_INDEX
 		   | Alter_inplace_info::ADD_UNIQUE_INDEX))) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_IGNORE);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -314,6 +302,20 @@ ha_innobase::check_if_supported_inplace_alter(
 	     & (Alter_inplace_info::ADD_PK_INDEX
 		| Alter_inplace_info::DROP_PK_INDEX))
 	    == Alter_inplace_info::DROP_PK_INDEX) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOPK);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
+	/* ADD FOREIGN KEY does currently work properly in combination
+	with renaming columns. (Bug#14105491) */
+	if ((ha_alter_info->handler_flags
+	     & (Alter_inplace_info::ADD_FOREIGN_KEY
+		| Alter_inplace_info::ALTER_COLUMN_NAME))
+	    == (Alter_inplace_info::ADD_FOREIGN_KEY
+		| Alter_inplace_info::ALTER_COLUMN_NAME)) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -327,9 +329,11 @@ ha_innobase::check_if_supported_inplace_alter(
 
 		/* See if MYSQL table has no pk but we do.*/
 		if (UNIV_UNLIKELY(primary_key >= MAX_KEY)
-		    && !row_table_got_default_clust_index(
-			prebuilt->table))
+		    && !row_table_got_default_clust_index(prebuilt->table)) {
+			ha_alter_info->unsupported_reason = innobase_get_err_msg(
+				ER_PRIMARY_CANT_HAVE_NULL);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+		}
 	}
 
 	/* We should be able to do the operation in-place.
@@ -388,6 +392,8 @@ ha_innobase::check_if_supported_inplace_alter(
 				    system_charset_info,
 				    key_part->field->field_name,
 				    FTS_DOC_ID_COL_NAME)) {
+				ha_alter_info->unsupported_reason = innobase_get_err_msg(
+					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_HIDDEN_FTS);
 				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 			}
 
@@ -401,6 +407,8 @@ ha_innobase::check_if_supported_inplace_alter(
 				column values during online ALTER. */
 				DBUG_ASSERT(key_part->field == altered_table
 					    -> found_next_number_field);
+				ha_alter_info->unsupported_reason = innobase_get_err_msg(
+					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_AUTOINC);
 				online = false;
 			}
 		}
@@ -421,6 +429,8 @@ ha_innobase::check_if_supported_inplace_alter(
 				    system_charset_info,
 				    ha_alter_info->index_drop_buffer[i]->name,
 				    FTS_DOC_ID_INDEX_NAME)) {
+				ha_alter_info->unsupported_reason = innobase_get_err_msg(
+					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS);
 				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 			}
 		}
@@ -439,6 +449,8 @@ ha_innobase::check_if_supported_inplace_alter(
 				    system_charset_info,
 				    (*fp)->field_name,
 				    FTS_DOC_ID_COL_NAME)) {
+				ha_alter_info->unsupported_reason = innobase_get_err_msg(
+					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS);
 				DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 			}
 		}
@@ -462,15 +474,12 @@ ha_innobase::check_if_supported_inplace_alter(
 		/* If the table already contains fulltext indexes,
 		refuse to rebuild the table natively altogether. */
 		if (prebuilt->table->fts) {
+			ha_alter_info->unsupported_reason = innobase_get_err_msg(
+				ER_INNODB_FT_LIMIT);
 			DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 		}
-	} else if (innobase_fk_cscd_setnull_exist(prebuilt->table)) {
-		/* Refuse online ALTER TABLE (even dropping or
-		creating secondary indexes) if there are FOREIGN KEY
-		constraints with ON...CASCADE or ON...SET NULL
-		options. This limitation should be removed when WL#6049
-		(meta-data locking for FOREIGN KEY checks) is implemented. */
-		online = false;
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS);
 	} else if ((ha_alter_info->handler_flags
 		    & Alter_inplace_info::ADD_INDEX)) {
 		/* Building a full-text index requires a lock.
@@ -488,6 +497,8 @@ ha_innobase::check_if_supported_inplace_alter(
 						  | HA_PACK_KEY
 						  | HA_GENERATED_KEY
 						  | HA_BINARY_PACK_KEY)));
+				ha_alter_info->unsupported_reason = innobase_get_err_msg(
+					ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS);
 				online = false;
 				break;
 			}
@@ -1074,8 +1085,6 @@ innobase_col_to_mysql(
 		ut_ad(flen >= len);
 		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
 		      >= DATA_MBMINLEN(col->mbminmaxlen));
-		ut_ad(DATA_MBMAXLEN(col->mbminmaxlen)
-		      > DATA_MBMINLEN(col->mbminmaxlen) || flen == len);
 		memcpy(dest, data, len);
 		break;
 
@@ -2553,8 +2562,7 @@ prepare_inplace_alter_table_dict(
 		|| add_autoinc_col != ULINT_UNDEFINED
 		|| num_fts_index > 0
 		|| (innobase_need_rebuild(ha_alter_info)
-		    && innobase_fulltext_exist(altered_table->s))
-		|| innobase_fk_cscd_setnull_exist(user_table);
+		    && innobase_fulltext_exist(altered_table->s));
 
 	if (num_fts_index > 1) {
 		my_error(ER_INNODB_FT_LIMIT, MYF(0));
@@ -3036,6 +3044,15 @@ error_handled:
 			}
 
 			dict_table_close(indexed_table, TRUE, FALSE);
+
+#ifdef UNIV_DDL_DEBUG
+			/* Nobody should have initialized the stats of the
+			newly created table yet. When this is the case, we
+			know that it has not been added for background stats
+			gathering. */
+			ut_a(!indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
 			row_merge_drop_table(trx, indexed_table);
 
 			/* Free the log for online table rebuild, if
@@ -3172,7 +3189,9 @@ innobase_check_foreign_key_index(
 }
 
 /** Allows InnoDB to update internal structures with concurrent
-writes blocked. Invoked before inplace_alter_table().
+writes blocked (provided that check_if_supported_inplace_alter()
+did not return HA_ALTER_INPLACE_NO_LOCK).
+This will be invoked before inplace_alter_table().
 
 @param altered_table	TABLE object for new version of table.
 @param ha_alter_info	Structure describing changes to be done
@@ -3259,7 +3278,9 @@ ha_innobase::prepare_inplace_alter_table(
 		    ha_alter_info->key_count)) {
 err_exit_no_heap:
 		DBUG_ASSERT(prebuilt->trx->dict_operation_lock_mode == 0);
-		online_retry_drop_indexes(prebuilt->table, user_thd);
+		if (ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) {
+			online_retry_drop_indexes(prebuilt->table, user_thd);
+		}
 		DBUG_RETURN(true);
 	}
 
@@ -3628,7 +3649,9 @@ err_exit:
 
 func_exit:
 		DBUG_ASSERT(prebuilt->trx->dict_operation_lock_mode == 0);
-		online_retry_drop_indexes(prebuilt->table, user_thd);
+		if (ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) {
+			online_retry_drop_indexes(prebuilt->table, user_thd);
+		}
 		DBUG_RETURN(false);
 	}
 
@@ -3991,6 +4014,15 @@ rollback_inplace_alter_table(
 
 		/* Drop the table. */
 		dict_table_close(ctx->indexed_table, TRUE, FALSE);
+
+#ifdef UNIV_DDL_DEBUG
+		/* Nobody should have initialized the stats of the
+		newly created table yet. When this is the case, we
+		know that it has not been added for background stats
+		gathering. */
+		ut_a(!ctx->indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
 		err = row_merge_drop_table(ctx->trx, ctx->indexed_table);
 
 		switch (err) {
@@ -4502,8 +4534,16 @@ ha_innobase::commit_inplace_alter_table(
 					    == ONLINE_INDEX_COMPLETE);
 				DBUG_ASSERT(*index->name == TEMP_INDEX_PREFIX);
 				if (dict_index_is_corrupted(index)) {
-					my_error(ER_INDEX_CORRUPT, MYF(0),
-						 index->name + 1);
+					/* Report a duplicate key
+					error for the index that was
+					flagged corrupted, most likely
+					because a duplicate value was
+					inserted (directly or by
+					rollback) after
+					ha_innobase::inplace_alter_table()
+					completed. */
+					my_error(ER_DUP_UNKNOWN_IN_INDEX,
+						 MYF(0), index->name + 1);
 					DBUG_RETURN(true);
 				}
 			}
@@ -4839,6 +4879,15 @@ drop_new_clustered:
 			}
 
 			dict_table_close(ctx->indexed_table, TRUE, FALSE);
+
+#ifdef UNIV_DDL_DEBUG
+			/* Nobody should have initialized the stats of the
+			newly created table yet. When this is the case, we
+			know that it has not been added for background stats
+			gathering. */
+			ut_a(!ctx->indexed_table->stat_initialized);
+#endif /* UNIV_DDL_DEBUG */
+
 			row_merge_drop_table(trx, ctx->indexed_table);
 			ctx->indexed_table = NULL;
 			goto trx_commit;
@@ -4887,15 +4936,6 @@ drop_new_clustered:
 				DBUG_ASSERT(0);
 			}
 		}
-
-		/* Commit of rollback add foreign constraint operations */
-		if (fk_trx && fk_trx != trx) {
-			if (err == 0) {
-				trx_commit_for_mysql(fk_trx);
-			} else {
-				trx_rollback_for_mysql(fk_trx);
-			}
-		}
 	}
 
 	if (err == 0
@@ -4924,16 +4964,56 @@ drop_new_clustered:
 	}
 
 	if (err == 0) {
+		if (fk_trx && fk_trx != trx) {
+			/* This needs to be placed before "trx_commit" marker,
+			since anyone called "goto trx_commit" has committed
+			or rolled back fk_trx before jumping here */
+			trx_commit_for_mysql(fk_trx);
+		}
 trx_commit:
 		trx_commit_for_mysql(trx);
 	} else {
 trx_rollback:
-		/* undo the in-memory addition of foreign key */
+		/* undo the addition of foreign key */
 		if (fk_trx) {
 			innobase_undo_add_fk(ctx, fk_table);
+
+			if (fk_trx != trx) {
+				trx_rollback_for_mysql(fk_trx);
+			}
 		}
 
 		trx_rollback_for_mysql(trx);
+
+		/* If there are newly added secondary indexes, above
+		rollback will revert the rename operation and put the
+		new indexes with the temp index prefix, we can drop
+		them here */
+		if (ctx && !new_clustered) {
+			ulint	i;
+
+			/* Need to drop the in-memory dict_index_t first
+			to avoid dict_table_check_for_dup_indexes()
+			assertion in row_merge_drop_indexes() in the case
+			of add and drop the same index */
+			for (i = 0; i < ctx->num_to_add; i++) {
+				dict_index_t*   index = ctx->add[i];
+				dict_index_remove_from_cache(
+					prebuilt->table, index);
+			}
+
+			if (ctx->num_to_add) {
+				trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
+				row_merge_drop_indexes(trx, prebuilt->table,
+						       FALSE);
+				trx_commit_for_mysql(trx);
+			}
+
+			for (i = 0; i < ctx->num_to_drop; i++) {
+				dict_index_t*	index = ctx->drop[i];
+				index->to_be_dropped = false;
+			}
+		}
 	}
 
 	/* Flush the log to reduce probability that the .frm files and

@@ -21,7 +21,7 @@
 
 int heap_rename(const char *old_name, const char *new_name)
 {
-  reg1 HP_SHARE *info;
+  HP_SHARE *info;
   char *name_buff;
   DBUG_ENTER("heap_rename");
 

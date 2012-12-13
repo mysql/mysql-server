@@ -148,8 +148,6 @@
 
 #define IMPORT extern           /* Names defined externally */
 #define EXPORT                  /* Allocated here, available globally */
-#define AUTO auto               /* Names to be allocated on stack */
-#define REGISTER register       /* Names to be placed in registers */
 
 /*
  * The default file for profiling.  Could also add another flag
@@ -1906,7 +1904,7 @@ BOOLEAN _db_keyword_(CODE_STATE *cs, const char *keyword, int strict)
 
 static void Indent(CODE_STATE *cs, int indent)
 {
-  REGISTER int count;
+  int count;
 
   indent= MY_MAX(indent-1-cs->stack->sub_level,0)*INDENT;
   for (count= 0; count < indent ; count++)
@@ -1938,7 +1936,7 @@ static void Indent(CODE_STATE *cs, int indent)
 
 static void FreeList(struct link *linkp)
 {
-  REGISTER struct link *old;
+  struct link *old;
 
   while (linkp != NULL)
   {
@@ -2037,7 +2035,7 @@ static void DoPrefix(CODE_STATE *cs, uint _line_)
 static void DBUGOpenFile(CODE_STATE *cs,
                          const char *name,const char *end,int append)
 {
-  REGISTER FILE *fp;
+  FILE *fp;
 
   if (name != NULL)
   {
@@ -2161,7 +2159,7 @@ static void DbugExit(const char *why)
 
 static char *DbugMalloc(size_t size)
 {
-  register char *new_malloc;
+  char *new_malloc;
 
   if (!(new_malloc= (char*) malloc(size)))
     DbugExit("out of memory");
@@ -2202,7 +2200,7 @@ static const char *DbugStrTok(const char *s)
 
 static const char *BaseName(const char *pathname)
 {
-  register const char *base;
+  const char *base;
 
   base= strrchr(pathname, FN_LIBCHAR);
   if (base++ == NullS)
@@ -2239,8 +2237,8 @@ static const char *BaseName(const char *pathname)
 
 static BOOLEAN Writable(const char *pathname)
 {
-  REGISTER BOOLEAN granted;
-  REGISTER char *lastslash;
+  BOOLEAN granted;
+  char *lastslash;
 
   granted= FALSE;
   if (EXISTS(pathname))

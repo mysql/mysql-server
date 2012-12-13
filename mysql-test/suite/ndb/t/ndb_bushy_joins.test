@@ -1,0 +1,280 @@
+########################################################
+# ndb_bushy_joins.test
+#
+# This test is intended to check system behaviour when SPJ
+# executes large bushy-joins, aka 'star-joins' -> joins with
+# multiple childs being dependent on the same parent.
+#
+# These types of joins has previously caused 
+# job buffer overflow as too many requests was
+# sent in parallel from the SPJ block.
+# (bug#14709490)
+#
+# '--replace_column 9 ###' is used for explains throughout
+# the test as experience has shown that 'rows' estimates
+# may vary depending on OS, compiler and .. phase of moon.
+#
+########################################################
+
+--source include/not_embedded.inc
+--source include/have_ndb.inc
+--source include/have_multi_ndb.inc
+
+connect (ddl,localhost,root,,test);
+connect (j1,localhost,root,,test);
+connect (j2,localhost,root,,test);
+connect (j3,localhost,root,,test);
+
+connection ddl;
+
+create table parent(a int primary key, b int, c int, d int) engine=ndb;
+create table eq_child(a int, b int, c int, d int, primary key(a,b)) engine=ndb;
+create table ref_child(a int, b int, c int, d int, primary key(a,b)) engine=ndb;
+
+alter table parent partition by key(a) partitions 32;
+alter table eq_child  partition by key(a) partitions 32;
+alter table ref_child  partition by key(a) partitions 32;
+
+insert into parent values (1,1,1,1);
+
+let $factor = 1;
+let $loops = 13;
+
+# Fill tables with 2^loops rows
+while ($loops)
+{
+  eval insert into parent select a+$factor, b+$factor, c+$factor, d+$factor  from parent;
+  let $factor = $factor*2;
+  dec $loops;
+}
+select count(*) from parent;
+
+insert into eq_child select * from parent;
+insert into ref_child select * from parent;
+
+# Cheat statistics: update rows actually not refered in joins below
+# (Cheat required in order to make 'ref-joins' bushy)
+update ref_child set a = a-(a%16) where a > 4000;
+
+analyze table parent, eq_child, ref_child;
+
+let $query1 =
+ select straight_join count(*) from parent
+ join eq_child as c1 on c1.a = parent.b and c1.b = parent.b
+ join eq_child as c2 on c2.a = parent.b and c2.b = parent.b
+ join eq_child as c3 on c3.a = parent.b and c3.b = parent.b
+ join eq_child as c4 on c4.a = parent.b and c4.b = parent.b
+ join eq_child as c5 on c5.a = parent.b and c5.b = parent.b
+ join eq_child as c6 on c6.a = parent.b and c6.b = parent.b
+ join eq_child as c7 on c7.a = parent.b and c7.b = parent.b
+ join eq_child as c8 on c8.a = parent.b and c8.b = parent.b
+ join eq_child as c9 on c9.a = parent.b and c9.b = parent.b
+ join eq_child as c10 on c10.a = parent.b and c10.b = parent.b
+ join eq_child as c11 on c11.a = parent.b and c11.b = parent.b
+ join eq_child as c12 on c12.a = parent.b and c12.b = parent.b
+ join eq_child as c13 on c13.a = parent.b and c13.b = parent.b
+ join eq_child as c14 on c14.a = parent.b and c14.b = parent.b
+ join eq_child as c15 on c15.a = parent.b and c15.b = parent.b
+ join eq_child as c16 on c16.a = parent.b and c16.b = parent.b
+;
+
+let $query2 =
+ select straight_join count(*) from parent
+ join eq_child as c1 on c1.a = parent.b and c1.b = parent.b
+   join eq_child as c5 on c5.a = c1.c and c5.b = c1.c
+   join eq_child as c6 on c6.a = c1.c and c6.b = c1.c
+   join eq_child as c7 on c7.a = c1.c and c7.b = c1.c
+   join eq_child as c8 on c8.a = c1.c and c8.b = c1.c
+ join eq_child as c2 on c2.a = parent.b and c2.b = parent.b
+   join eq_child as c9  on c9.a = c2.c  and c9.b  = c2.c
+   join eq_child as c10 on c10.a = c2.c and c10.b = c2.c
+   join eq_child as c11 on c11.a = c2.c and c11.b = c2.c
+   join eq_child as c12 on c12.a = c2.c and c12.b = c2.c
+ join eq_child as c3 on c3.a = parent.b and c3.b = parent.b
+   join eq_child as c13 on c13.a = c3.c and c13.b = c3.c
+   join eq_child as c14 on c14.a = c3.c and c14.b = c3.c
+   join eq_child as c15 on c15.a = c3.c and c15.b = c3.c
+   join eq_child as c16 on c16.a = c3.c and c16.b = c3.c
+ join eq_child as c4 on c4.a = parent.b and c4.b = parent.b
+   join eq_child as c17 on c17.a = c4.c and c17.b = c4.c
+   join eq_child as c18 on c18.a = c4.c and c18.b = c4.c
+   join eq_child as c19 on c19.a = c4.c and c19.b = c4.c
+   join eq_child as c20 on c20.a = c4.c and c20.b = c4.c
+;
+
+let $query3 =
+ select straight_join count(*) from parent
+ join ref_child as c1 on c1.a = parent.b
+ join ref_child as c2 on c2.a = parent.b
+ join ref_child as c3 on c3.a = parent.b
+ join ref_child as c4 on c4.a = parent.b
+ join ref_child as c5 on c5.a = parent.b
+ join ref_child as c6 on c6.a = parent.b
+ join ref_child as c7 on c7.a = parent.b
+ join ref_child as c8 on c8.a = parent.b
+ join ref_child as c9 on c9.a = parent.b
+ join ref_child as c10 on c10.a = parent.b
+ join ref_child as c11 on c11.a = parent.b
+ join ref_child as c12 on c12.a = parent.b
+ join ref_child as c13 on c13.a = parent.b
+ join ref_child as c14 on c14.a = parent.b
+ join ref_child as c15 on c15.a = parent.b
+ join ref_child as c16 on c16.a = parent.b
+ where parent.a < 1000
+;
+
+let $query4 =
+ select straight_join count(*) from parent
+ join ref_child as c1 on c1.a = parent.b
+   join eq_child as c1eq on c1eq.a = c1.a and c1eq.b = c1.b
+ join ref_child as c2 on c2.a = parent.b
+   join eq_child as c2eq on c2eq.a = c2.a and c2eq.b = c2.b
+ join ref_child as c3 on c3.a = parent.b
+   join eq_child as c3eq on c3eq.a = c3.a and c3eq.b = c3.b
+ join ref_child as c4 on c4.a = parent.b
+   join eq_child as c4eq on c4eq.a = c4.a and c4eq.b = c4.b
+ join ref_child as c5 on c5.a = parent.b
+   join eq_child as c5eq on c5eq.a = c5.a and c5eq.b = c5.b
+ join ref_child as c6 on c6.a = parent.b
+   join eq_child as c6eq on c6eq.a = c6.a and c6eq.b = c6.b
+ join ref_child as c7 on c7.a = parent.b
+   join eq_child as c7eq on c7eq.a = c7.a and c7eq.b = c7.b
+ join ref_child as c8 on c8.a = parent.b
+   join eq_child as c8eq on c8eq.a = c8.a and c8eq.b = c8.b
+ join ref_child as c9 on c9.a = parent.b
+   join eq_child as c9eq on c9eq.a = c9.a and c9eq.b = c9.b
+ join ref_child as c10 on c10.a = parent.b
+   join eq_child as c10eq on c10eq.a = c10.a and c10eq.b = c10.b
+ join ref_child as c11 on c11.a = parent.b
+   join eq_child as c11eq on c11eq.a = c11.a and c11eq.b = c11.b
+ join ref_child as c12 on c12.a = parent.b
+   join eq_child as c12eq on c12eq.a = c12.a and c12eq.b = c12.b
+ join ref_child as c13 on c13.a = parent.b
+   join eq_child as c13eq on c13eq.a = c13.a and c13eq.b = c13.b
+ join ref_child as c14 on c14.a = parent.b
+   join eq_child as c14eq on c14eq.a = c14.a and c14eq.b = c14.b
+ join ref_child as c15 on c15.a = parent.b
+   join eq_child as c15eq on c15eq.a = c15.a and c15eq.b = c15.b
+ join ref_child as c16 on c16.a = parent.b
+   join eq_child as c16eq on c16eq.a = c16.a and c16eq.b = c16.b
+ where parent.a < 1000
+;
+
+connection j1;
+set ndb_join_pushdown = on;
+
+call mtr.add_suppression("starting connect thread");
+
+-- echo ===============================
+-- echo Run single instance of 'query1' 
+-- echo ===============================
+eval explain $query1;
+eval $query1;
+
+-- echo ===============================
+-- echo Run single instance of 'query2' 
+-- echo ===============================
+eval explain $query2;
+eval $query2;
+
+-- echo ===============================
+-- echo Run single instance of 'query3' 
+-- echo ===============================
+--replace_column 9 ###
+eval explain $query3;
+eval $query3;
+
+-- echo ===============================
+-- echo Run single instance of 'query4' 
+-- echo ===============================
+--replace_column 9 ###
+eval explain $query4;
+eval $query4;
+
+
+-- echo =================================
+-- echo Run multiple 'query1' in parallel 
+-- echo =================================
+let $query = $query1;
+eval explain $query;
+connection j1;
+send_eval $query;
+connection j2;
+send_eval $query;
+connection j3;
+send_eval $query;
+
+-- echo Await completion or failure
+connection j1;
+reap;
+connection j2;
+reap;
+connection j3;
+reap;
+
+-- echo =================================
+-- echo Run multiple 'query2' in parallel 
+-- echo =================================
+let $query = $query2;
+eval explain $query;
+connection j1;
+send_eval $query;
+connection j2;
+send_eval $query;
+connection j3;
+send_eval $query;
+
+-- echo Await completion or failure
+connection j1;
+reap;
+connection j2;
+reap;
+connection j3;
+reap;
+
+-- echo =================================
+-- echo Run multiple 'query3' in parallel 
+-- echo =================================
+let $query = $query3;
+--replace_column 9 ###
+eval explain $query;
+connection j1;
+send_eval $query;
+connection j2;
+send_eval $query;
+connection j3;
+send_eval $query;
+
+-- echo Await completion or failure
+connection j1;
+reap;
+connection j2;
+reap;
+connection j3;
+reap;
+
+-- echo =================================
+-- echo Run multiple 'query4' in parallel 
+-- echo =================================
+let $query = $query4;
+--replace_column 9 ###
+eval explain $query;
+connection j1;
+send_eval $query;
+connection j2;
+send_eval $query;
+connection j3;
+send_eval $query;
+
+-- echo Await completion or failure
+connection j1;
+reap;
+connection j2;
+reap;
+connection j3;
+reap;
+
+
+connection ddl;
+drop table parent, eq_child, ref_child;
+

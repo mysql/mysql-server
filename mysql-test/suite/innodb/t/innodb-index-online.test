@@ -76,7 +76,7 @@ connection default;
 DELETE FROM t1 WHERE c1 = 7;
 connection con1;
 # ADD FOREIGN KEY is not supported in-place
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE t1 ADD FOREIGN KEY(c2) REFERENCES t1(c2), ALGORITHM = INPLACE;
 # The previous DEBUG_SYNC should be ignored, because an exclusive lock
 # has been requested and the online log is not being allocated.
@@ -109,12 +109,16 @@ SET DEBUG_SYNC = 'now WAIT_FOR created';
 # At this point, the index has been created inside InnoDB but not yet
 # in the MySQL data dictionary.
 eval $innodb_metrics_select;
-# A duplicate key error should now be triggered by InnoDB.
---error ER_DUP_KEY
+# A duplicate key error should now be triggered by InnoDB, but reported
+# by the ALTER TABLE because the index does not 'officially' exist yet.
 INSERT INTO t1 VALUES(6,3,1);
 SET DEBUG_SYNC = 'now SIGNAL dml_done';
 connection con1;
+# This is due to the duplicate entry (6,3,1).
+--error ER_DUP_UNKNOWN_IN_INDEX
 reap;
+DELETE FROM t1 WHERE c1=6;
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 eval $innodb_metrics_select;
 
 connection default;
@@ -234,7 +238,7 @@ while ($c)
 eval $innodb_metrics_select;
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
-ON si.index_id = sf.index_id WHERE si.name = 'c2e';
+ON si.index_id = sf.index_id WHERE si.name = '?c2e';
 
 # Release con1.
 SET DEBUG_SYNC = 'now SIGNAL dml2_done';
@@ -306,7 +310,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR c3p5_created';
 # Check that the index was created.
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
-ON si.index_id = sf.index_id WHERE si.name = 'c3p5';
+ON si.index_id = sf.index_id WHERE si.name = '?c3p5';
 
 SET DEBUG_SYNC = 'ib_after_row_insert SIGNAL ins_done WAIT_FOR ddl_timed_out';
 --send

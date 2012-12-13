@@ -32,8 +32,7 @@ void sql_print_error(const char *format, ...)
 {
 }
 
-namespace
-{
+namespace win_unittest {
 
 class NamedPipeTest : public ::testing::Test
 {

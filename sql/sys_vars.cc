@@ -51,6 +51,7 @@
 #include "sql_time.h"                       // known_date_time_formats
 #include "sql_acl.h" // SUPER_ACL,
                      // mysql_user_table_is_in_short_password_format
+                     // disconnect_on_expired_password
 #include "derror.h"  // read_texts
 #include "sql_base.h"                           // close_cached_tables
 #include "debug_sync.h"                         // DEBUG_SYNC
@@ -3222,8 +3223,8 @@ static Sys_var_bit Sys_log_off(
   This function sets the session variable thd->variables.sql_log_bin 
   to reflect changes to @@session.sql_log_bin.
 
-  @param[IN] self   A pointer to the sys_var, i.e. Sys_log_binlog.
-  @param[IN] type   The type either session or global.
+  @param[in] self   A pointer to the sys_var, i.e. Sys_log_binlog.
+  @param[in] type   The type either session or global.
 
   @return @c FALSE.
 */
@@ -3247,8 +3248,8 @@ static bool fix_sql_log_bin_after_update(sys_var *self, THD *thd,
     - the set is not called from within a function/trigger;
     - there is no on-going transaction.
 
-  @param[IN] self   A pointer to the sys_var, i.e. Sys_log_binlog.
-  @param[IN] var    A pointer to the set_var created by the parser.
+  @param[in] self   A pointer to the sys_var, i.e. Sys_log_binlog.
+  @param[in] var    A pointer to the set_var created by the parser.
 
   @return @c FALSE if the change is allowed, otherwise @c TRUE.
 */
@@ -3623,6 +3624,14 @@ static bool check_log_path(sys_var *self, THD *thd, set_var *var)
   if (!path_length)
     return true;
 
+  if (!is_filename_allowed(var->save_result.string_value.str, 
+                           var->save_result.string_value.length, TRUE))
+  {
+     my_error(ER_WRONG_VALUE_FOR_VAR, MYF(0), 
+              self->name.str, var->save_result.string_value.str);
+     return true;
+  }
+
   MY_STAT f_stat;
 
   if (my_stat(path, &f_stat, MYF(0)))
@@ -3948,6 +3957,13 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
       my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
       result= true;
     }
+    if (gtid_mode == 3)
+    {
+      my_message(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE,
+                 ER(ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE),
+                 MYF(0));
+      result= true;
+    }
     mysql_mutex_unlock(&active_mi->rli->run_lock);
   }
   mysql_mutex_unlock(&LOCK_active_mi);
@@ -4216,6 +4232,64 @@ static Sys_var_ulong Sys_sp_cache_size(
        "one connection.",
        GLOBAL_VAR(stored_program_cache_size), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(256, 512 * 1024), DEFAULT(256), BLOCK_SIZE(1));
+
+static bool check_pseudo_slave_mode(sys_var *self, THD *thd, set_var *var)
+{
+  longlong previous_val= thd->variables.pseudo_slave_mode;
+  longlong val= (longlong) var->save_result.ulonglong_value;
+  bool rli_fake= false;
+
+#ifndef EMBEDDED_LIBRARY
+  rli_fake= thd->rli_fake ? true : false;
+#endif
+
+  if (rli_fake)
+  {
+    if (!val)
+    {
+#ifndef EMBEDDED_LIBRARY
+      thd->rli_fake->end_info();
+      delete thd->rli_fake;
+      thd->rli_fake= NULL;
+#endif
+    }
+    else if (previous_val && val)
+      goto ineffective;
+    else if (!previous_val && val)
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_WRONG_VALUE_FOR_VAR,
+                   "'pseudo_slave_mode' is already ON.");
+  }
+  else
+  {
+    if (!previous_val && !val)
+      goto ineffective;
+    else if (previous_val && !val)
+      push_warning(thd, Sql_condition::SL_WARNING,
+                   ER_WRONG_VALUE_FOR_VAR,
+                   "Slave applier execution mode not active, "
+                   "statement ineffective.");
+  }
+  goto end;
+
+ineffective:
+  push_warning(thd, Sql_condition::SL_WARNING,
+               ER_WRONG_VALUE_FOR_VAR,
+               "'pseudo_slave_mode' change was ineffective.");
+
+end:
+  return FALSE;
+}
+static Sys_var_mybool Sys_pseudo_slave_mode(
+       "pseudo_slave_mode",
+       "SET pseudo_slave_mode= 0,1 are commands that mysqlbinlog "
+       "adds to beginning and end of binary log dumps. While zero "
+       "value indeed disables, the actual enabling of the slave "
+       "applier execution mode is done implicitly when a "
+       "Format_description_event is sent through the session.",
+       SESSION_ONLY(pseudo_slave_mode), NO_CMD_LINE, DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_pseudo_slave_mode));
+
 
 #ifdef HAVE_REPLICATION
 static bool check_gtid_next(sys_var *self, THD *thd, set_var *var)
@@ -4486,3 +4560,10 @@ static Sys_var_enum Sys_gtid_mode(
 #endif
 
 #endif // HAVE_REPLICATION
+
+
+static Sys_var_mybool Sys_disconnect_on_expired_password(
+       "disconnect_on_expired_password",
+       "Give clients that don't signal password expiration support execution time error(s) instead of connection error",
+       READ_ONLY GLOBAL_VAR(disconnect_on_expired_password),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE));

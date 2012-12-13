@@ -69,6 +69,10 @@ UNIV_INTERN mysql_pfs_key_t	trx_purge_latch_key;
 UNIV_INTERN mysql_pfs_key_t	purge_sys_bh_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
 
+#ifdef UNIV_DEBUG
+UNIV_INTERN my_bool		srv_purge_view_update_only_debug;
+#endif /* UNIV_DEBUG */
+
 /****************************************************************//**
 Builds a purge 'query' graph. The actual purge is performed by executing
 this query graph.
@@ -115,7 +119,7 @@ trx_purge_sys_create(
 	purge_sys = static_cast<trx_purge_t*>(mem_zalloc(sizeof(*purge_sys)));
 
 	purge_sys->state = PURGE_STATE_INIT;
-	purge_sys->event = os_event_create("purge");
+	purge_sys->event = os_event_create(0);
 
 	/* Take ownership of ib_bh, we are responsible for freeing it. */
 	purge_sys->ib_bh = ib_bh;
@@ -1198,6 +1202,12 @@ trx_purge(
 
 	rw_lock_x_unlock(&purge_sys->latch);
 
+#ifdef UNIV_DEBUG
+	if (srv_purge_view_update_only_debug) {
+		return(0);
+	}
+#endif
+
 	/* Fetch the UNDO recs that need to be purged. */
 	n_pages_handled = trx_purge_attach_undo_recs(
 		n_purge_threads, purge_sys, &purge_sys->limit, batch_size);
@@ -1320,6 +1330,28 @@ trx_purge_stop(void)
 		/* Wait for purge coordinator to signal that it
 		is suspended. */
 		os_event_wait_low(purge_sys->event, sig_count);
+	} else { 
+		bool	once = true; 
+
+		rw_lock_x_lock(&purge_sys->latch);
+
+		/* Wait for purge to signal that it has actually stopped. */ 
+		while (purge_sys->running) { 
+
+			if (once) { 
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Waiting for purge to stop");
+				once = false; 
+			}
+
+			rw_lock_x_unlock(&purge_sys->latch);
+
+			os_thread_sleep(10000); 
+
+			rw_lock_x_lock(&purge_sys->latch);
+		} 
+
+		rw_lock_x_unlock(&purge_sys->latch);
 	}
 
 	MONITOR_INC_VALUE(MONITOR_PURGE_STOP_COUNT, 1);
