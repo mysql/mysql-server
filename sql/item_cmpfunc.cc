@@ -451,7 +451,7 @@ static bool convert_constant_item(THD *thd, Item_field *field_item,
       orig_field_val= field->val_int();
     int rc;
     if (!(*item)->is_null() &&
-        (((rc= (*item)->save_in_field(field, 1)) == TYPE_OK) ||
+        (((rc= (*item)->save_in_field(field, true)) == TYPE_OK) ||
          rc == TYPE_NOTE_TIME_TRUNCATED)) // TS-TODO
     {
       int field_cmp= 0;
@@ -786,9 +786,9 @@ static ulonglong get_date_from_str(THD *thd, String *str,
   Note, const_value may stay untouched, so the caller is responsible to
   initialize it.
 
-  @param date_arg        - date argument, it's name is used for error reporting.
-  @param str_arg         - string argument to get datetime value from.
-  @param OUT const_value - the converted value is stored here, if not NULL.
+  @param      date_arg    date argument, it's name is used for error reporting.
+  @param      str_arg     string argument to get datetime value from.
+  @param[out] const_value the converted value is stored here, if not NULL.
 
   @return true on error, false on success, false if str_arg is not a const.
 */
@@ -1846,6 +1846,12 @@ longlong Item_func_truth::val_int()
 
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
+  /*
+    Refresh this pointer as left_expr may have been substituted
+    during resolving.
+  */
+  args[0]= ((Item_in_subselect *)args[1])->left_expr;
+
   if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
       (!cache && !(cache= Item_cache::get_cache(args[0]))))
     return 1;

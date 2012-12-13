@@ -473,6 +473,47 @@ row_upd_changes_field_size_or_external(
 
 	return(FALSE);
 }
+
+/***********************************************************//**
+Returns true if row update contains disowned external fields.
+@return true if the update contains disowned external fields. */
+UNIV_INTERN
+bool
+row_upd_changes_disowned_external(
+/*==============================*/
+	const upd_t*	update)	/*!< in: update vector */
+{
+	const upd_field_t*	upd_field;
+	const dfield_t*		new_val;
+	ulint			new_len;
+	ulint                   n_fields;
+	ulint			i;
+
+	n_fields = upd_get_n_fields(update);
+
+	for (i = 0; i < n_fields; i++) {
+		const byte*	field_ref;
+
+		upd_field = upd_get_nth_field(update, i);
+		new_val = &(upd_field->new_val);
+		new_len = dfield_get_len(new_val);
+
+		if (!dfield_is_ext(new_val)) {
+			continue;
+		}
+
+		ut_ad(new_len >= BTR_EXTERN_FIELD_REF_SIZE);
+
+		field_ref = static_cast<const byte*>(dfield_get_data(new_val))
+			    + new_len - BTR_EXTERN_FIELD_REF_SIZE;
+
+		if (field_ref[BTR_EXTERN_LEN] & BTR_EXTERN_OWNER_FLAG) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
 #endif /* !UNIV_HOTBACKUP */
 
 /***********************************************************//**
@@ -1651,44 +1692,61 @@ row_upd_sec_index_entry(
 #endif /* UNIV_DEBUG */
 
 	mtr_start(&mtr);
-	mtr_s_lock(dict_index_get_lock(index), &mtr);
 
-	switch (dict_index_get_online_status(index)) {
-	case ONLINE_INDEX_COMPLETE:
-		/* This is a normal index. Do not log anything.
-		Perform the update on the index tree directly. */
-		break;
-	case ONLINE_INDEX_CREATION:
-		/* Log a DELETE and optionally INSERT. */
-		row_log_online_op(index, entry, 0);
+	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* The index->online_status may change if the
+		index->name starts with TEMP_INDEX_PREFIX (meaning
+		that the index is or was being created online). It is
+		protected by index->lock. */
 
-		if (!node->is_delete) {
-			mem_heap_empty(heap);
-			entry = row_build_index_entry(
-				node->upd_row, node->upd_ext, index, heap);
-			ut_a(entry);
-			row_log_online_op(index, entry, trx->id);
+		mtr_s_lock(dict_index_get_lock(index), &mtr);
+
+		switch (dict_index_get_online_status(index)) {
+		case ONLINE_INDEX_COMPLETE:
+			/* This is a normal index. Do not log anything.
+			Perform the update on the index tree directly. */
+			break;
+		case ONLINE_INDEX_CREATION:
+			/* Log a DELETE and optionally INSERT. */
+			row_log_online_op(index, entry, 0);
+
+			if (!node->is_delete) {
+				mem_heap_empty(heap);
+				entry = row_build_index_entry(
+					node->upd_row, node->upd_ext,
+					index, heap);
+				ut_a(entry);
+				row_log_online_op(index, entry, trx->id);
+			}
+			/* fall through */
+		case ONLINE_INDEX_ABORTED:
+		case ONLINE_INDEX_ABORTED_DROPPED:
+			mtr_commit(&mtr);
+			goto func_exit;
 		}
-		/* fall through */
-	case ONLINE_INDEX_ABORTED:
-	case ONLINE_INDEX_ABORTED_DROPPED:
-		mtr_commit(&mtr);
-		goto func_exit;
+
+		/* We can only buffer delete-mark operations if there
+		are no foreign key constraints referring to the index. */
+		mode = referenced
+			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
+			| BTR_DELETE_MARK;
+	} else {
+		/* For secondary indexes,
+		index->online_status==ONLINE_INDEX_CREATION unless
+		index->name starts with TEMP_INDEX_PREFIX. */
+		ut_ad(!dict_index_is_online_ddl(index));
+
+		/* We can only buffer delete-mark operations if there
+		are no foreign key constraints referring to the index. */
+		mode = referenced
+			? BTR_MODIFY_LEAF
+			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
 	}
 
 	/* Set the query thread, so that ibuf_insert_low() will be
 	able to invoke thd_get_trx(). */
 	btr_pcur_get_btr_cur(&pcur)->thr = thr;
-
-	/* We can only try to use the insert/delete buffer to buffer
-	delete-mark operations if the index we're modifying has no foreign
-	key constraints referring to it. */
-	if (referenced) {
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-	} else {
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
-			| BTR_DELETE_MARK;
-	}
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
@@ -2111,8 +2169,7 @@ row_upd_clust_rec(
 			node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
 	}
 
-	if (err == DB_SUCCESS && rebuilt_old_pk
-	    && dict_index_is_online_ddl(index)) {
+	if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
 		row_log_table_update(btr_cur_get_rec(btr_cur),
 				     index, offsets, rebuilt_old_pk);
 	}
@@ -2199,8 +2256,7 @@ row_upd_clust_rec(
 		ut_a(err == DB_SUCCESS);
 	}
 
-	if (err == DB_SUCCESS && rebuilt_old_pk
-	    && dict_index_is_online_ddl(index)) {
+	if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
 		row_log_table_update(btr_cur_get_rec(btr_cur),
 				     index, offsets, rebuilt_old_pk);
 	}

@@ -2213,6 +2213,7 @@ dict_index_add_to_cache(
 	number of fields in the cache internal representation */
 
 	new_index->n_fields = new_index->n_def;
+	new_index->trx_id = index->trx_id;
 
 	if (strict && dict_index_too_big_for_tree(table, new_index)) {
 too_big:

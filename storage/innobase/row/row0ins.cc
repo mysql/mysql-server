@@ -1713,6 +1713,7 @@ do_possible_lock_wait:
                                 referenced_list, check_foreign)) {
 			if (check_foreign == foreign) {
 				verified = true;
+				break;
 			}
 		}
 
@@ -2434,7 +2435,7 @@ err_exit:
 			dtuple_big_rec_free(big_rec);
 		}
 
-		if (dict_index_is_online_ddl(index)) {
+		if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
 			row_log_table_insert(rec, index, offsets);
 		}
 
@@ -2656,11 +2657,32 @@ row_ins_sec_index_entry_low(
 		err = row_ins_scan_sec_index_for_duplicate(
 			flags, index, entry, thr, check, &mtr, offsets_heap);
 
-		if (err != DB_SUCCESS) {
-			goto func_exit;
-		}
-
 		mtr_commit(&mtr);
+
+		switch (err) {
+		case DB_SUCCESS:
+			break;
+		case DB_DUPLICATE_KEY:
+			if (*index->name == TEMP_INDEX_PREFIX) {
+				ut_ad(!thr_get_trx(thr)
+				      ->dict_operation_lock_mode);
+				mutex_enter(&dict_sys->mutex);
+				dict_set_corrupted_index_cache_only(
+					index, index->table);
+				mutex_exit(&dict_sys->mutex);
+				/* Do not return any error to the
+				caller. The duplicate will be reported
+				by ALTER TABLE or CREATE UNIQUE INDEX.
+				Unfortunately we cannot report the
+				duplicate key value to the DDL thread,
+				because the altered_table object is
+				private to its call stack. */
+				err = DB_SUCCESS;
+			}
+			/* fall through */
+		default:
+			return(err);
+		}
 
 		if (row_ins_sec_mtr_start_and_check_if_aborted(
 			    &mtr, index, check, search_mode)) {
@@ -2823,8 +2845,18 @@ row_ins_clust_index_entry(
 
 	err = row_ins_clust_index_entry_low(
 		0, BTR_MODIFY_LEAF, index, n_uniq, entry, n_ext, thr);
-	if (err != DB_FAIL) {
 
+#ifdef UNIV_DEBUG
+	/* Work around Bug#14626800 ASSERTION FAILURE IN DEBUG_SYNC().
+	Once it is fixed, remove the 'ifdef', 'if' and this comment. */
+	if (!thr_get_trx(thr)->ddl) {
+		DEBUG_SYNC_C_IF_THD(thr_get_trx(thr)->mysql_thd,
+				    "after_row_ins_clust_index_entry_leaf");
+	}
+#endif /* UNIV_DEBUG */
+
+	if (err != DB_FAIL) {
+		DEBUG_SYNC_C("row_ins_clust_index_entry_leaf_after");
 		return(err);
 	}
 
@@ -3212,6 +3244,9 @@ row_ins_step(
 		}
 
 		err = lock_table(0, node->table, LOCK_IX, thr);
+
+		DBUG_EXECUTE_IF("ib_row_ins_ix_lock_wait",
+				err = DB_LOCK_WAIT;);
 
 		if (err != DB_SUCCESS) {
 

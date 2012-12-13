@@ -107,10 +107,6 @@ MY_DIR	*my_dir(const char *path, myf MyFlags)
 #endif
 
   dirp = opendir(directory_file_name(tmp_path,(char *) path));
-#if defined(__amiga__)
-  if ((dirp->dd_fd) < 0)			/* Directory doesn't exists */
-    goto error;
-#endif
   if (dirp == NULL || 
       ! (buffer= my_malloc(ALIGN_SIZE(sizeof(MY_DIR)) + 
                            ALIGN_SIZE(sizeof(DYNAMIC_ARRAY)) +

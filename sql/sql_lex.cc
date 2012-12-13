@@ -484,6 +484,7 @@ void lex_start(THD *thd)
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
   lex->is_change_password= false;
+  lex->mark_broken(false);
   DBUG_VOID_RETURN;
 }
 
@@ -632,7 +633,7 @@ static LEX_STRING get_quoted_token(Lex_input_stream *lip,
 
 static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 {
-  reg1 uchar c,sep;
+  uchar c,sep;
   uint found_escape=0;
   const CHARSET_INFO *cs= lip->m_thd->charset();
 
@@ -862,7 +863,7 @@ static inline uint int_token(const char *str,uint length)
 */
 bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 {
-  reg1 uchar c;
+  uchar c;
   while (! lip->eof())
   {
     c= lip->yyGet();
@@ -965,9 +966,9 @@ int MYSQLlex(void *arg, void *yythd)
 
 int lex_one_token(void *arg, void *yythd)
 {
-  reg1	uchar c= 0;
+  uchar c= 0;
   bool comment_closed;
-  int	tokval, result_state;
+  int tokval, result_state;
   uint length;
   enum my_lex_states state;
   THD *thd= (THD *)yythd;
@@ -2459,8 +2460,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
     if (view_name.str)
     {
       // A view
-      if (!(belong_to_view &&
-            belong_to_view->compact_view_format) &&
+      if (!(query_type & QT_COMPACT_FORMAT) &&
           !((query_type & QT_NO_DEFAULT_DB) &&
             db_is_default_db(view_db.str, view_db.length, thd)))
       {
@@ -2485,8 +2485,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
     {
       // A normal table
 
-      if (!(belong_to_view &&
-            belong_to_view->compact_view_format) &&
+      if (!(query_type & QT_COMPACT_FORMAT) &&
           !((query_type & QT_NO_DEFAULT_DB) &&
             db_is_default_db(db, db_length, thd)))
       {

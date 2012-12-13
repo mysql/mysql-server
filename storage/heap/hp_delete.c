@@ -64,7 +64,7 @@ err:
   Remove one key from rb-tree
 */
 
-int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
+int hp_rb_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 		   const uchar *record, uchar *recpos, int flag)
 {
   heap_rb_param custom_arg;
@@ -101,7 +101,7 @@ int hp_rb_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
     other  Error code
 */
 
-int hp_delete_key(HP_INFO *info, register HP_KEYDEF *keyinfo,
+int hp_delete_key(HP_INFO *info, HP_KEYDEF *keyinfo,
 		  const uchar *record, uchar *recpos, int flag)
 {
   ulong blength, pos2, pos_hashnr, lastpos_hashnr, key_pos;

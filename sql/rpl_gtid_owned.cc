@@ -134,9 +134,9 @@ my_thread_id Owned_gtids::get_owner(const Gtid &gtid) const
 }
 
 
-bool Owned_gtids::is_intersection(const Gtid_set *other) const
+bool Owned_gtids::is_intersection_nonempty(const Gtid_set *other) const
 {
-  DBUG_ENTER("Owned_gtids::is_intersection(Gtid_set *)");
+  DBUG_ENTER("Owned_gtids::is_intersection_nonempty(Gtid_set *)");
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
   Gtid_iterator git(this);

@@ -148,7 +148,7 @@ lock_wait_table_reserve_slot(
 			slot->thr->slot = slot;
 
 			if (slot->event == NULL) {
-				slot->event = os_event_create(NULL);
+				slot->event = os_event_create(0);
 				ut_a(slot->event);
 			}
 

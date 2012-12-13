@@ -242,7 +242,7 @@ static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
 void init_thread_mask(int* mask, Master_info* mi, bool inverse)
 {
   bool set_io = mi->slave_running, set_sql = mi->rli->slave_running;
-  register int tmp_mask=0;
+  int tmp_mask=0;
   DBUG_ENTER("init_thread_mask");
 
   if (set_io)
@@ -2993,7 +2993,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
     int4store(ptr_buffer, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= ::BINLOG_NAME_SIZE_INFO_SIZE;
-    memcpy(ptr_buffer, "", BINLOG_NAME_INFO_SIZE);
+    memset(ptr_buffer, 0, BINLOG_NAME_INFO_SIZE);
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
     int8store(ptr_buffer, 4);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
@@ -4336,6 +4336,7 @@ err:
   mysql_mutex_unlock(&mi->run_lock);
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+  ERR_remove_state(0);
   pthread_exit(0);
   return(0);                                    // Avoid compiler warnings
 }
@@ -4531,6 +4532,7 @@ err:
   }
 
   my_thread_end();
+  ERR_remove_state(0);
   pthread_exit(0);
   DBUG_RETURN(0); 
 }
@@ -5676,6 +5678,7 @@ llstr(rli->get_group_master_log_pos(), llbuff));
 
   DBUG_LEAVE;                            // Must match DBUG_ENTER()
   my_thread_end();
+  ERR_remove_state(0);
   pthread_exit(0);
   return 0;                             // Avoid compiler warnings
 }
@@ -6313,6 +6316,43 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     mi->received_heartbeats++;
     mi->last_heartbeat= my_time(0);
+
+
+    /*
+      During GTID protocol, if the master skips transactions,
+      a heartbeat event is sent to the slave at the end of last
+      skipped transaction to update coordinates.
+
+      I/O thread receives the heartbeat event and updates mi
+      only if the received heartbeat position is greater than
+      mi->get_master_log_pos(). This event is written to the
+      relay log as an ignored Rotate event. SQL thread reads
+      the rotate event only to update the coordinates corresponding
+      to the last skipped transaction. Note that,
+      we update only the positions and not the file names, as a ROTATE
+      EVENT from the master prior to this will update the file name.
+    */
+    if (mi->is_auto_position()  && mi->get_master_log_pos() < hb.log_pos
+        &&  mi->get_master_log_name() != NULL)
+    {
+
+      DBUG_ASSERT(memcmp(const_cast<char*>(mi->get_master_log_name()),
+                         hb.get_log_ident(), hb.get_ident_len()) == 0);
+
+      mi->set_master_log_pos(hb.log_pos);
+
+      /*
+         Put this heartbeat event in the relay log as a Rotate Event.
+      */
+      inc_pos= 0;
+      memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(),
+             FN_REFLEN);
+      rli->ign_master_log_pos_end = mi->get_master_log_pos();
+
+      if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+        goto err;
+    }
+
     /* 
        compare local and event's versions of log_file, log_pos.
        
@@ -7676,6 +7716,8 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
         if (thd->lex->mi.pos)
         {
+          if (thd->lex->mi.relay_log_pos)
+            slave_errno= ER_BAD_SLAVE_UNTIL_COND;
           mi->rli->until_condition= Relay_log_info::UNTIL_MASTER_POS;
           mi->rli->until_log_pos= thd->lex->mi.pos;
           /*
@@ -7687,6 +7729,8 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
         }
         else if (thd->lex->mi.relay_log_pos)
         {
+          if (thd->lex->mi.pos)
+            slave_errno= ER_BAD_SLAVE_UNTIL_COND;
           mi->rli->until_condition= Relay_log_info::UNTIL_RELAY_POS;
           mi->rli->until_log_pos= thd->lex->mi.relay_log_pos;
           strmake(mi->rli->until_log_name, thd->lex->mi.relay_log_name,
@@ -8222,6 +8266,7 @@ bool change_master(THD* thd, Master_info* mi)
     mi->rli->relay_log.make_log_name(relay_log_name, lex_mi->relay_log_name);
     mi->rli->set_group_relay_log_name(relay_log_name);
     mi->rli->set_event_relay_log_name(relay_log_name);
+    mi->rli->is_group_master_log_pos_invalid= true;
   }
 
   if (lex_mi->relay_log_pos)
@@ -8229,7 +8274,24 @@ bool change_master(THD* thd, Master_info* mi)
     need_relay_log_purge= 0;
     mi->rli->set_group_relay_log_pos(lex_mi->relay_log_pos);
     mi->rli->set_event_relay_log_pos(lex_mi->relay_log_pos);
+    mi->rli->is_group_master_log_pos_invalid= true;
   }
+
+  /*
+   Consider a situation like this
+
+     mysql> STOP SLAVE;
+     mysql> CHANGE MASTER TO RELAY_LOG_POS=4;
+     mysql> CHANGE_MASTER TO MASTER_HOST='something.example.com',
+                             MASTER_PORT=23789,
+                             MASTER_USER='repl_user';
+     mysql> START SLAVE;
+
+   In this case the group_master_log_pos is valid after the second change
+   master so this flag should be unset.
+   */
+  if (!lex_mi->relay_log_name && !lex_mi->relay_log_pos)
+    mi->rli->is_group_master_log_pos_invalid= false;
 
   /*
     If user did specify neither host nor port nor any log name nor any log

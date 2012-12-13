@@ -23,6 +23,22 @@ n
 2
 drop table t1;
 include/rpl_reset.inc
+create table t1 (a int);
+insert into t1 values (1);
+flush logs;
+insert into t1 values (2);
+include/diff_tables.inc [master:t1, slave:t1]
+include/stop_slave.inc
+delete from t1 where a=2;
+CHANGE MASTER TO relay_log_file='slave-relay-bin.000005', relay_log_pos=4;
+start slave sql_thread;
+include/wait_for_slave_sql_to_start.inc
+include/diff_tables.inc [master:t1, slave:t1]
+start slave io_thread;
+include/wait_for_slave_io_to_start.inc
+set global relay_log_purge=1;
+drop table t1;
+include/rpl_reset.inc
 Master_Retry_Count: 
 include/stop_slave.inc
 CHANGE MASTER TO master_retry_count=20;

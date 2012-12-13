@@ -843,63 +843,136 @@ void KEY_PART_INFO::init_from_field(Field *fld)
 
 
 /**
-  Add primary key parts to the secondary key
-  unless they would be too long. Function
-  updates sk->actual/hidden_key_parts.
-  Function also updates sk->actual_flags
+  Setup key-related fields of Field object for given key and key part.
 
-
-  @param[in]     sk            Secondary key
-  @param[in]     pk            Primary key
-  @param[in,out] key_part      Pointer to the current KEY_PART_INFO*
-                               allocated after all the user defined key parts.
-  @param[in,out] rec_per_key   Pointer to the current rec_per_key
-                               allocated after all the user defined key parts.
+  @param[in]     share         Pointer to TABLE_SHARE
+  @param[in]     handler       Pointer to handler
+  @param[in]     primary_key_n Primary key number
+  @param[in]     keyinfo       Pointer to processed key
+  @param[in]     key_n         Processed key number
+  @param[in]     key_part_n    Processed key part number
+  @param[in,out] usable_parts  Pointer to usable_parts variable
 */
 
-static void add_pk_parts_to_sk(KEY *sk, KEY *pk,
-                               KEY_PART_INFO **key_part,
-                               ulong **rec_per_key)
+static void setup_key_part_field(TABLE_SHARE *share, handler *handler_file,
+                                 uint primary_key_n, KEY *keyinfo, uint key_n,
+                                 uint key_part_n, uint *usable_parts)
+{
+  KEY_PART_INFO *key_part= &keyinfo->key_part[key_part_n];
+  Field *field= key_part->field;
+
+  /* Flag field as unique if it is the only keypart in a unique index */
+  if (key_part_n == 0 && key_n != primary_key_n)
+    field->flags |= (((keyinfo->flags & HA_NOSAME) &&
+                      (keyinfo->user_defined_key_parts == 1)) ?
+                     UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
+  if (key_part_n == 0)
+    field->key_start.set_bit(key_n);
+  if (field->key_length() == key_part->length &&
+      !(field->flags & BLOB_FLAG))
+  {
+    if (handler_file->index_flags(key_n, key_part_n, 0) & HA_KEYREAD_ONLY)
+    {
+      share->keys_for_keyread.set_bit(key_n);
+      field->part_of_key.set_bit(key_n);
+      field->part_of_key_not_clustered.set_bit(key_n);
+    }
+    if (handler_file->index_flags(key_n, key_part_n, 1) & HA_READ_ORDER)
+      field->part_of_sortkey.set_bit(key_n);
+  }
+
+  if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
+      *usable_parts == key_part_n)
+    (*usable_parts)++;			// For FILESORT
+}
+
+
+/**
+  Generate extended secondary keys by adding primary key parts to the
+  existing secondary key. A primary key part is added if such part doesn't
+  present in the secondary key or the part in the secondary key is a
+  prefix of the key field. Key parts are added till:
+  .) all parts were added
+  .) number of key parts became bigger that MAX_REF_PARTS
+  .) total key length became longer than MAX_REF_LENGTH
+  depending on what occurs first first.
+  Unlike existing secondary key parts which are initialized at
+  open_binary_frm(), newly added ones are initialized here by copying
+  KEY_PART_INFO structure from primary key part and calling
+  setup_key_part_field().
+
+  Function updates sk->actual/unused_key_parts and sk->actual_flags.
+
+  @param[in]     sk            Secondary key
+  @param[in]     sk_n          Secondary key number
+  @param[in]     pk            Primary key
+  @param[in]     pk_n          Primary key number
+  @param[in]     share         Pointer to TABLE_SHARE
+  @param[in]     handler       Pointer to handler
+  @param[in,out] usable_parts  Pointer to usable_parts variable
+
+  @retval                      Number of added key parts
+*/
+
+static uint add_pk_parts_to_sk(KEY *sk, uint sk_n, KEY *pk, uint pk_n,
+                               TABLE_SHARE *share, handler *handler_file,
+                               uint *usable_parts)
 {
   uint max_key_length= sk->key_length;
   bool is_unique_key= false;
+  KEY_PART_INFO *current_key_part= &sk->key_part[sk->user_defined_key_parts];
+  ulong *current_rec_per_key= &sk->rec_per_key[sk->user_defined_key_parts];
+
+  /* 
+     For each keypart in the primary key: check if the keypart is
+     already part of the secondary key and add it if not.
+  */
   for (uint pk_part= 0; pk_part < pk->user_defined_key_parts; pk_part++)
   {
     KEY_PART_INFO *pk_key_part= &pk->key_part[pk_part];
     /* MySQL does not supports more key parts than MAX_REF_LENGTH */
     if (sk->actual_key_parts >= MAX_REF_PARTS)
-      return;
+      goto end;
 
+    bool pk_field_is_in_sk= false;
     for (uint j= 0; j < sk->user_defined_key_parts; j++)
     {
       if (sk->key_part[j].fieldnr == pk_key_part->fieldnr &&
-          sk->key_part[j].length >= pk_key_part->length)
+          share->field[pk_key_part->fieldnr - 1]->key_length() ==
+          sk->key_part[j].length)
+      {
+        pk_field_is_in_sk= true;
         break;
-
-      if (j == sk->user_defined_key_parts - 1)
-      {   
-        /* MySQL does not supports keys longer than MAX_KEY_LENGTH */
-        if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH)
-          return;
-
-        /*
-          Secondary key will be unique if the key  does not exceed
-          key length limitation and key parts limitation.
-        */
-        is_unique_key= true;
-        **key_part= *pk_key_part;
-        **rec_per_key= 0;
-        key_part= &++*key_part;
-        rec_per_key= &++*rec_per_key;
-        sk->actual_key_parts++;
-        sk->hidden_key_parts++;
-        max_key_length+= pk_key_part->length;
       }
+    }
+
+    /* Add PK field to secondary key if it's not already  part of the key. */
+    if (!pk_field_is_in_sk)
+    {
+      /* MySQL does not supports keys longer than MAX_KEY_LENGTH */
+      if (max_key_length + pk_key_part->length > MAX_KEY_LENGTH)
+        goto end;
+
+      *current_key_part= *pk_key_part;
+      setup_key_part_field(share, handler_file, pk_n, sk, sk_n,
+                           sk->actual_key_parts, usable_parts);
+      *current_rec_per_key++= 0;
+      sk->actual_key_parts++;
+      sk->unused_key_parts--;
+      current_key_part++;
+      max_key_length+= pk_key_part->length;
+      /*
+        Secondary key will be unique if the key  does not exceed
+        key length limitation and key parts limitation.
+      */
+      is_unique_key= true;
     }
   }
   if (is_unique_key)
     sk->actual_flags|= HA_NOSAME;
-  return;
+
+end:
+  return (sk->actual_key_parts - sk->user_defined_key_parts);
 }
 
 
@@ -1120,10 +1193,12 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     keyinfo->actual_flags= keyinfo->flags;
     if (use_extended_sk && i && !(keyinfo->flags & HA_NOSAME))
     {
-      add_pk_parts_to_sk(keyinfo, share->key_info,
-                         &key_part, &rec_per_key);
+      const uint primary_key_parts= share->key_info->user_defined_key_parts;
+      keyinfo->unused_key_parts= primary_key_parts;
+      key_part+= primary_key_parts;
+      rec_per_key+= primary_key_parts;
+      share->key_parts+= primary_key_parts;
     }
-    share->key_parts+= keyinfo->hidden_key_parts;
   }
   keynames=(char*) key_part;
   strpos+= (strmov(keynames, (char *) strpos) - keynames)+1;
@@ -1752,18 +1827,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
 	}
       }
 
-      if (primary_key >= MAX_KEY && key)
-      {
-        /*
-          If there is no PK then PK parts added earlier are
-          excluded from processing and reset original flag
-          value.
-        */
-        keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
-        keyinfo->actual_flags= keyinfo->flags;
-      }
-
-      for (i=0 ; i < keyinfo->actual_key_parts ; key_part++,i++)
+      for (i=0 ; i < keyinfo->user_defined_key_parts ; key_part++,i++)
       {
         Field *field;
 	if (new_field_pack_flag <= 1)
@@ -1795,27 +1859,10 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
             keyinfo->key_length+= HA_KEY_BLOB_LENGTH;
         }
         key_part->init_flags();
-        if (i == 0 && key != primary_key)
-          field->flags |= (((keyinfo->flags & HA_NOSAME) &&
-                           (keyinfo->user_defined_key_parts == 1)) ?
-                           UNIQUE_KEY_FLAG : MULTIPLE_KEY_FLAG);
-        if (i == 0)
-          field->key_start.set_bit(key);
-        if (field->key_length() == key_part->length &&
-            !(field->flags & BLOB_FLAG))
-        {
-          if (handler_file->index_flags(key, i, 0) & HA_KEYREAD_ONLY)
-          {
-            share->keys_for_keyread.set_bit(key);
-            field->part_of_key.set_bit(key);
-            field->part_of_key_not_clustered.set_bit(key);
-          }
-          if (handler_file->index_flags(key, i, 1) & HA_READ_ORDER)
-            field->part_of_sortkey.set_bit(key);
-        }
-        if (!(key_part->key_part_flag & HA_REVERSE_SORT) &&
-            usable_parts == i)
-          usable_parts++;			// For FILESORT
+
+        setup_key_part_field(share, handler_file, primary_key,
+                             keyinfo, key, i, &usable_parts);
+
         field->flags|= PART_KEY_FLAG;
         if (key == primary_key)
         {
@@ -1868,9 +1915,14 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
         }
       }
 
+
+      if (use_extended_sk && primary_key < MAX_KEY &&
+          key && !(keyinfo->flags & HA_NOSAME))
+        key_part+= add_pk_parts_to_sk(keyinfo, key, share->key_info, primary_key,
+                                      share,  handler_file, &usable_parts);
+
       /* Skip unused key parts if they exist */
-      if (primary_key >= MAX_KEY)
-        key_part+= keyinfo->hidden_key_parts;
+      key_part+= keyinfo->unused_key_parts;
 
       keyinfo->usable_key_parts= usable_parts; // Filesort
 
@@ -2180,8 +2232,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
         }
       }
       /* Skip unused key parts if they exist */
-      if (share->primary_key >= MAX_KEY)
-        key_part+= key_info->hidden_key_parts;
+      key_part+= key_info->unused_key_parts;
     }
   }
 
@@ -2255,7 +2306,7 @@ partititon_err:
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size*3)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 4)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -2263,6 +2314,9 @@ partititon_err:
               (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
   bitmap_init(&outparam->tmp_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+  bitmap_init(&outparam->def_fields_set_during_insert,
+              (my_bitmap_map*) (bitmaps + bitmap_size * 3), share->fields,
+              FALSE);
   outparam->default_column_bitmaps();
 
   /* The table struct is now initialized;  Open the table */
@@ -2367,7 +2421,7 @@ partititon_err:
     free_share		Is 1 if we also want to free table_share
 */
 
-int closefrm(register TABLE *table, bool free_share)
+int closefrm(TABLE *table, bool free_share)
 {
   int error=0;
   DBUG_ENTER("closefrm");
@@ -2408,7 +2462,7 @@ int closefrm(register TABLE *table, bool free_share)
 
 /* Deallocate temporary blob storage */
 
-void free_blobs(register TABLE *table)
+void free_blobs(TABLE *table)
 {
   uint *ptr, *end;
   for (ptr= table->s->blob_field, end=ptr + table->s->blob_fields ;
@@ -2771,7 +2825,7 @@ static uint find_field(Field **fields, uchar *record, uint start, uint length)
 
 	/* Check that the integer is in the internal */
 
-int set_zone(register int nr, int min_zone, int max_zone)
+int set_zone(int nr, int min_zone, int max_zone)
 {
   if (nr<=min_zone)
     return (min_zone);
@@ -2782,9 +2836,9 @@ int set_zone(register int nr, int min_zone, int max_zone)
 
 	/* Adjust number to next larger disk buffer */
 
-ulong next_io_size(register ulong pos)
+ulong next_io_size(ulong pos)
 {
-  reg2 ulong offset;
+  ulong offset;
   if ((offset= pos & (IO_SIZE-1)))
     return pos-offset+IO_SIZE;
   return pos;
@@ -2859,7 +2913,7 @@ File create_frm(THD *thd, const char *name, const char *db,
                 const char *table, uint reclength, uchar *fileinfo,
   		HA_CREATE_INFO *create_info, uint keys, KEY *key_info)
 {
-  register File file;
+  File file;
   ulong length;
   uchar fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
@@ -3905,8 +3959,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
     if (!no_where_clause)
     {
       TABLE_LIST *tbl= this;
-      Query_arena *arena= thd->stmt_arena, backup;
-      arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
 
       /* Go up to join tree and try to find left join */
       for (; tbl; tbl= tbl->embedding)
@@ -3926,8 +3980,6 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
       }
       if (tbl == 0)
         *conds= and_conds(*conds, where->copy_andor_structure(thd));
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
       where_processed= TRUE;
     }
   }
@@ -4019,8 +4071,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
   if (check_opt_type && !check_option_processed)
   {
-    Query_arena *arena= thd->stmt_arena, backup;
-    arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     if (where)
     {
@@ -4038,10 +4089,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     check_option= and_conds(check_option,
                             merge_on_conds(thd, this, is_cascaded));
 
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
     check_option_processed= TRUE;
-
   }
 
   if (check_option)
@@ -5066,6 +5114,9 @@ void TABLE::clear_column_bitmaps()
   */
   memset(def_read_set.bitmap, 0, s->column_bitmap_size*2);
   column_bitmaps_set(&def_read_set, &def_write_set);
+
+  bitmap_clear_all(&def_fields_set_during_insert);
+  fields_set_during_insert= &def_fields_set_during_insert;
 }
 
 

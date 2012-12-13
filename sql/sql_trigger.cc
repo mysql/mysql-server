@@ -642,6 +642,7 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   LEX_STRING *trg_client_cs_name;
   LEX_STRING *trg_connection_cl_name;
   LEX_STRING *trg_db_cl_name;
+  bool was_truncated;
 
   if (check_for_broken_triggers())
     return true;
@@ -750,11 +751,20 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
                                     tables->db, tables->table_name,
                                     TRG_EXT, 0);
   file.str= file_buff;
+
   trigname_file.length= build_table_filename(trigname_buff, FN_REFLEN-1,
                                              tables->db,
                                              lex->spname->m_name.str,
-                                             TRN_EXT, 0);
+                                             TRN_EXT, 0, &was_truncated);
+  // Check if we hit FN_REFLEN bytes in path length
+  if (was_truncated)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(trigname_buff)-1,
+             trigname_buff);
+    return 1;
+  }
   trigname_file.str= trigname_buff;
+
 
   /* Use the filesystem to enforce trigger namespace constraints. */
   if (!access(trigname_buff, F_OK))
@@ -2238,6 +2248,47 @@ bool Table_triggers_list::is_fields_updated_in_trigger(MY_BITMAP *used_fields,
     }
   }
   return false;
+}
+
+
+/**
+  Mark all trigger fields as "temporary nullable" and remember the current
+  THD::count_cuted_fields value.
+
+  @param thd Thread context.
+*/
+void Table_triggers_list::enable_fields_temporary_nullability(THD* thd)
+{
+  for (Field** next_field= trigger_table->field; *next_field; ++next_field)
+  {
+    (*next_field)->set_tmp_nullable();
+    (*next_field)->set_count_cuted_fields(thd->count_cuted_fields);
+
+    /*
+      For statement LOAD INFILE we set field values during parsing of data file
+      and later run fill_record_n_invoke_before_triggers() to invoke table's
+      triggers. fill_record_n_invoke_before_triggers() calls this method
+      to enable temporary nullability before running trigger's instructions
+      Since for the case of handling statement LOAD INFILE the null value of
+      fields have been already set we don't have to reset these ones here.
+      In case of handling statements INSERT/REPLACE/INSERT SELECT/
+      REPLACE SELECT we set field's values inside method fill_record
+      that is called from fill_record_n_invoke_before_triggers()
+      after the method enable_fields_temporary_nullability has been executed.
+    */
+    if (thd->lex->sql_command != SQLCOM_LOAD)
+      (*next_field)->reset_tmp_null();
+  }
+}
+
+
+/**
+  Reset "temporary nullable" flag from trigger fields.
+*/
+void Table_triggers_list::disable_fields_temporary_nullability()
+{
+  for (Field** next_field= trigger_table->field; *next_field; ++next_field)
+    (*next_field)->reset_tmp_nullable();
 }
 
 
