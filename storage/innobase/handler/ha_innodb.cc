@@ -8147,6 +8147,50 @@ ha_innobase::ft_init_ext(
 	return((FT_INFO*) fts_hdl);
 }
 
+/*****************************************************************//**
+Set up search tuple for a query through FTS_DOC_ID_INDEX on
+supplied Doc ID. This is used by MySQL to retrieve the documents
+once the search result (Doc IDs) is available */
+static
+void
+innobase_fts_create_doc_id_key(
+/*===========================*/
+	dtuple_t*	tuple,		/* in/out: prebuilt->search_tuple */
+	const dict_index_t*
+			index,		/* in: index (FTS_DOC_ID_INDEX) */
+	doc_id_t*	doc_id)		/* in/out: doc id to search, value
+					could be changed to storage format
+					used for search. */
+{
+	doc_id_t	temp_doc_id;
+	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
+
+	ut_a(dict_index_get_n_unique(index) == 1);
+
+	dtuple_set_n_fields(tuple, index->n_fields);
+	dict_index_copy_types(tuple, index, index->n_fields);
+
+#ifdef UNIV_DEBUG
+	/* The unique Doc ID field should be an eight-bytes integer */
+	dict_field_t*	field = dict_index_get_nth_field(index, 0);
+        ut_a(field->col->mtype == DATA_INT);
+	ut_ad(sizeof(*doc_id) == field->fixed_len);
+	ut_ad(innobase_strcasecmp(index->name, FTS_DOC_ID_INDEX_NAME) == 0);
+#endif /* UNIV_DEBUG */
+
+	/* Convert to storage byte order */
+	mach_write_to_8(reinterpret_cast<byte*>(&temp_doc_id), *doc_id);
+	*doc_id = temp_doc_id;
+	dfield_set_data(dfield, doc_id, sizeof(*doc_id));
+
+        dtuple_set_n_fields_cmp(tuple, 1);
+
+	for (ulint i = 1; i < index->n_fields; i++) {
+		dfield = dtuple_get_nth_field(tuple, i);
+		dfield_set_null(dfield);
+	}
+}
+
 /**********************************************************************//**
 Fetch next result from the FT result set
 @return error code */
@@ -8191,6 +8235,7 @@ next_record:
 	if (result->current != NULL) {
 		dict_index_t*	index;
 		dtuple_t*	tuple = prebuilt->search_tuple;
+		doc_id_t	search_doc_id;
 
 		/* If we only need information from result we can return
 		   without fetching the table row */
@@ -8211,9 +8256,12 @@ next_record:
 		fts_ranking_t*	ranking = rbt_value(
 			fts_ranking_t, result->current);
 
-		/* We pass a pointer to the doc_id because we need to
-		convert it to storage byte order. */
-		row_create_key(tuple, index, &ranking->doc_id);
+		search_doc_id = ranking->doc_id;
+
+		/* We pass a pointer of search_doc_id because it will be
+		converted to storage byte order used in the search
+		tuple. */
+		innobase_fts_create_doc_id_key(tuple, index, &search_doc_id);
 
 		innobase_srv_conc_enter_innodb(prebuilt->trx);
 
