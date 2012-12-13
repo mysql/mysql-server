@@ -732,6 +732,8 @@ row_merge_read(
 	os_offset_t	ofs = ((os_offset_t) offset) * srv_sort_buf_size;
 	ibool		success;
 
+	DBUG_EXECUTE_IF("row_merge_read_failure", return(FALSE););
+
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_read) {
 		fprintf(stderr, "row_merge_read fd=%d ofs=%lu\n",
@@ -778,6 +780,8 @@ row_merge_write(
 	size_t		buf_len = srv_sort_buf_size;
 	os_offset_t	ofs = buf_len * (os_offset_t) offset;
 	ibool		ret;
+
+	DBUG_EXECUTE_IF("row_merge_write_failure", return(FALSE););
 
 	ret = os_file_write("(merge)", OS_FILE_FROM_FD(fd), buf, ofs, buf_len);
 
@@ -2873,7 +2877,7 @@ row_merge_drop_temp_indexes(void)
 /*********************************************************************//**
 Creates temporary merge files, and if UNIV_PFS_IO defined, register
 the file descriptor with Performance Schema.
-@return File descriptor */
+@return file descriptor, or -1 on failure */
 UNIV_INTERN
 int
 row_merge_file_create_low(void)
@@ -2893,25 +2897,37 @@ row_merge_file_create_low(void)
 #endif
 	fd = innobase_mysql_tmpfile();
 #ifdef UNIV_PFS_IO
-        register_pfs_file_open_end(locker, fd);
+	register_pfs_file_open_end(locker, fd);
 #endif
+
+	if (fd < 0) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot create temporary merge file");
+		return -1;
+	}
 	return(fd);
 }
 
 /*********************************************************************//**
-Create a merge file. */
+Create a merge file.
+@return file descriptor, or -1 on failure */
 UNIV_INTERN
-void
+int
 row_merge_file_create(
 /*==================*/
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
 {
 	merge_file->fd = row_merge_file_create_low();
-	if (srv_disable_sort_file_cache) {
-		os_file_set_nocache(merge_file->fd, "row0merge.c", "sort");
-	}
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
+
+	if (merge_file->fd >= 0) {
+		if (srv_disable_sort_file_cache) {
+			os_file_set_nocache(merge_file->fd,
+				"row0merge.cc", "sort");
+		}
+	}
+	return(merge_file->fd);
 }
 
 /*********************************************************************//**
@@ -2930,7 +2946,9 @@ row_merge_file_destroy_low(
 				   fd, 0, PSI_FILE_CLOSE,
 				   __FILE__, __LINE__);
 #endif
-	close(fd);
+	if (fd >= 0) {
+		close(fd);
+	}
 #ifdef UNIV_PFS_IO
 	register_pfs_file_io_end(locker, 0);
 #endif
@@ -3484,7 +3502,10 @@ row_merge_build_indexes(
 		mem_alloc(n_indexes * sizeof *merge_files));
 
 	for (i = 0; i < n_indexes; i++) {
-		row_merge_file_create(&merge_files[i]);
+		if (row_merge_file_create(&merge_files[i]) < 0) {
+			error = DB_OUT_OF_MEMORY;
+			goto func_exit;
+		}
 
 		if (indexes[i]->type & DICT_FTS) {
 			ibool	opt_doc_id_size = FALSE;
@@ -3510,6 +3531,11 @@ row_merge_build_indexes(
 	}
 
 	tmpfd = row_merge_file_create_low();
+
+	if (tmpfd < 0) {
+		error = DB_OUT_OF_MEMORY;
+		goto func_exit;
+	}
 
 	/* Reset the MySQL row buffer that is used when reporting
 	duplicate keys. */
