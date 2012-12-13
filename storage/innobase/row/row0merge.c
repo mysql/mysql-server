@@ -719,6 +719,8 @@ row_merge_read(
 	ib_uint64_t	ofs = ((ib_uint64_t) offset) * sizeof *buf;
 	ibool		success;
 
+	DBUG_EXECUTE_IF("row_merge_read_failure", return(FALSE););
+
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_read) {
 		fprintf(stderr, "row_merge_read fd=%d ofs=%lu\n",
@@ -764,6 +766,8 @@ row_merge_write(
 			    (ulint) (ofs & 0xFFFFFFFF),
 			    (ulint) (ofs >> 32),
 			    buf_len);
+
+	DBUG_EXECUTE_IF("row_merge_write_failure", return(FALSE););
 
 #ifdef UNIV_DEBUG
 	if (row_merge_print_block_write) {
@@ -2229,7 +2233,7 @@ row_merge_drop_temp_indexes(void)
 /*********************************************************************//**
 Creates temperary merge files, and if UNIV_PFS_IO defined, register
 the file descriptor with Performance Schema.
-@return File descriptor */
+@return file descriptor, or -1 on failure */
 UNIV_INLINE
 int
 row_merge_file_create_low(void)
@@ -2251,12 +2255,19 @@ row_merge_file_create_low(void)
 #ifdef UNIV_PFS_IO
         register_pfs_file_open_end(locker, fd);
 #endif
+	if (fd < 0) {
+		fprintf(stderr,
+			"InnoDB: Error: Cannot create temporary merge file\n");
+		return(-1);
+	}
 	return(fd);
 }
+
 /*********************************************************************//**
-Create a merge file. */
-static
-void
+Create a merge file.
+@return file descriptor, or -1 on failure */
+static __attribute__((nonnull, warn_unused_result))
+int
 row_merge_file_create(
 /*==================*/
 	merge_file_t*	merge_file)	/*!< out: merge file structure */
@@ -2264,6 +2275,7 @@ row_merge_file_create(
 	merge_file->fd = row_merge_file_create_low();
 	merge_file->offset = 0;
 	merge_file->n_rec = 0;
+	return(merge_file->fd);
 }
 
 /*********************************************************************//**
@@ -2702,7 +2714,7 @@ row_merge_build_indexes(
 	ulint			block_size;
 	ulint			i;
 	ulint			error;
-	int			tmpfd;
+	int			tmpfd = -1;
 
 	ut_ad(trx);
 	ut_ad(old_table);
@@ -2721,10 +2733,20 @@ row_merge_build_indexes(
 
 	for (i = 0; i < n_indexes; i++) {
 
-		row_merge_file_create(&merge_files[i]);
+		if (row_merge_file_create(&merge_files[i]) < 0)
+		{
+			error = DB_OUT_OF_MEMORY;
+			goto func_exit;
+		}
 	}
 
 	tmpfd = row_merge_file_create_low();
+
+	if (tmpfd < 0)
+	{
+		error = DB_OUT_OF_MEMORY;
+		goto func_exit;
+	}
 
 	/* Reset the MySQL row buffer that is used when reporting
 	duplicate keys. */
