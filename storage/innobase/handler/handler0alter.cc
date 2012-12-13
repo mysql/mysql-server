@@ -272,6 +272,18 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NO_LOCK);
 	}
 
+	/* Only support NULL -> NOT NULL change if strict table sql_mode
+	is set. Fall back to COPY for conversion if not strict tables.
+	In-Place will fail with an error when trying to convert
+	NULL to a NOT NULL value. */
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE)
+	    && !thd_is_strict_mode(user_thd)) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOT_NULL);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
 	/* InnoDB cannot IGNORE when creating unique indexes. IGNORE
 	should silently delete some duplicate rows. Our inplace_alter
 	code will not delete anything from existing indexes. */
