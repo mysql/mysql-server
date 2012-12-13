@@ -1020,6 +1020,53 @@ bool Gtid_set::equals(const Gtid_set *other) const
 #endif
 
 
+bool Gtid_set::is_interval_subset(Const_interval_iterator *sub,
+                                  Const_interval_iterator *super)
+{
+  DBUG_ENTER("is_interval_subset");
+  // check if all intervals for this sidno are contained in some
+  // interval of super
+  const Interval *super_iv= super->get();
+  const Interval *sub_iv= sub->get();
+
+  /*
+    Algorithm: Let sub_iv iterate over intervals of sub.  For each
+    sub_iv, skip over intervals of super that end before sub_iv.  When we
+    find the first super-interval that does not end before sub_iv,
+    check if it covers sub_iv.
+  */
+  do
+  {
+    if (super_iv == NULL)
+      DBUG_RETURN(false);
+
+    // Skip over 'smaller' intervals of super.
+    while (sub_iv->start > super_iv->end)
+    {
+      super->next();
+      super_iv= super->get();
+      // If we reach end of super, then no interal covers sub_iv, so
+      // sub is not a subset of super.
+      if (super_iv == NULL)
+        DBUG_RETURN(false);
+    }
+
+    // If super_iv does not cover sub_iv, then sub is not a subset of
+    // super.
+    if (sub_iv->start < super_iv->start || sub_iv->end > super_iv->end)
+      DBUG_RETURN(false);
+
+    // Next iteration.
+    sub->next();
+    sub_iv= sub->get();
+
+  } while (sub_iv != NULL);
+
+  // If every GNO in sub also exists in super, then it was a subset.
+  DBUG_RETURN(true);
+}
+
+
 bool Gtid_set::is_subset(const Gtid_set *super) const
 {
   DBUG_ENTER("Gtid_set::is_subset");
@@ -1027,75 +1074,154 @@ bool Gtid_set::is_subset(const Gtid_set *super) const
     sid_lock->assert_some_wrlock();
   if (super->sid_lock != NULL)
     super->sid_lock->assert_some_wrlock();
+
   Sid_map *super_sid_map= super->sid_map;
   rpl_sidno max_sidno= get_max_sidno();
   rpl_sidno super_max_sidno= super->get_max_sidno();
-  int sidno= 0, super_sidno= 0;
-  Const_interval_iterator ivit(this), super_ivit(super);
-  const Interval *iv, *super_iv;
-  while (1)
+
+  /*
+    Iterate over sidnos of this Gtid_set where there is at least one
+    interval.  For each such sidno, get the corresponding sidno of
+    super, and then use is_interval_subset to look for GTIDs that
+    exist in this but not in super.
+  */
+  for (int sidno= 1; sidno <= max_sidno; sidno++)
   {
-    // Find the next sidno that has one or more Intervals in this Gtid_set.
-    do
+    Const_interval_iterator ivit(this, sidno);
+    const Interval *iv= ivit.get();
+    if (iv != NULL)
     {
-      sidno++;
-      if (sidno > max_sidno)
-        DBUG_RETURN(true);
-      ivit.init(this, sidno);
-      iv= ivit.get();
-    } while (iv == NULL);
-    // get corresponding super_sidno
-    if (super_sid_map == sid_map || super_sid_map == NULL || sid_map == NULL)
-    {
-      super_sidno= sidno;
-      if (super_sidno > super_max_sidno)
-        DBUG_RETURN(false);
-    }
-    else
-    {
-      super_sidno= super_sid_map->sid_to_sidno(sid_map->sidno_to_sid(sidno));
-      if (super_sidno == 0)
-        DBUG_RETURN(false);
-    }
-    super_ivit.init(super, super_sidno);
-    super_iv= super_ivit.get();
-    // check if all intervals for this sidno are contained in some
-    // interval of super
-    do
-    {
-      if (super_iv == NULL)
-        DBUG_RETURN(false);
-      while (iv->start > super_iv->end)
+
+      // Get the corresponding super_sidno
+      int super_sidno;
+      if (super_sid_map == sid_map || super_sid_map == NULL || sid_map == NULL)
+        super_sidno= sidno;
+      else
       {
-        super_ivit.next();
-        super_iv= super_ivit.get();
-        if (super_iv == NULL)
+        super_sidno= super_sid_map->sid_to_sidno(sid_map->sidno_to_sid(sidno));
+        if (super_sidno == 0)
           DBUG_RETURN(false);
       }
-      if (iv->start < super_iv->start || iv->end > super_iv->end)
+      if (super_sidno > super_max_sidno)
         DBUG_RETURN(false);
-      ivit.next();
-      iv= ivit.get();
-    } while (iv != NULL);
+
+      // Check if all GNOs in this Gtid_set for sidno exist in other
+      // Gtid_set for super_
+      Const_interval_iterator super_ivit(super, super_sidno);
+      if (!is_interval_subset(&ivit, &super_ivit))
+        DBUG_RETURN(false);
+    }
   }
-  DBUG_ASSERT(0); // not reached
+
+  // If the GNOs for every SIDNO of sub existed in super, then it was
+  // a subset.
   DBUG_RETURN(true);
 }
 
 
-bool Gtid_set::is_intersection(const Gtid_set *other) const
+bool Gtid_set::is_interval_intersection_nonempty(Const_interval_iterator *ivit1,
+                                                 Const_interval_iterator *ivit2)
 {
-  DBUG_ENTER("Gtid_set::is_intersection(Gtid_set *)");
+  DBUG_ENTER("is_interval_intersection_nonempty");
+  const Interval *iv1= ivit1->get();
+  const Interval *iv2= ivit2->get();
+  DBUG_ASSERT(iv1 != NULL);
+  if (iv2 == NULL)
+    DBUG_RETURN(false);
+
+  /*
+    Algorithm: Let iv1 iterate over all intervals of ivit1.  For each
+    iv1, skip over intervals of iv2 that end before iv1.  When we
+    reach the first interval that does not end before iv1, check if it
+    intersects with iv1.
+  */
+  do
+  {
+
+    // Skip over intervals of iv2 that end before iv1.
+    while (iv2->end <= iv1->start)
+    {
+      ivit2->next();
+      iv2= ivit2->get();
+      // If we reached the end of ivit2, then there is no intersection.
+      if (iv2 == NULL)
+        DBUG_RETURN(false);
+    }
+
+    // If iv1 and iv2 intersect, return true.
+    if (iv2->start < iv1->end)
+      DBUG_RETURN(true);
+
+    // Next iteration.
+    ivit1->next();
+    iv1= ivit1->get();
+
+  } while (iv1 != NULL);
+
+  // If we iterated over all intervals of ivit1 without finding any
+  // intersection with ivit2, then there is no intersection.
+  DBUG_RETURN(false);
+}
+
+
+bool Gtid_set::is_intersection_nonempty(const Gtid_set *other) const
+{
+  DBUG_ENTER("Gtid_set::is_intersection_nonempty(Gtid_set *)");
+  /*
+    This could in principle be implemented as follows:
+
+    Gtid_set this_minus_other(sid_map);
+    this_minus_other.add_gtid_set(this);
+    this_minus_other.remove_gtid_set(other);
+    bool ret= equals(&this_minus_other);
+    DBUG_RETURN(ret);
+
+    However, that does not check the return values from add_gtid_set
+    or remove_gtid_set, and there is no way for this function to
+    return an error.
+  */
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
-  Gtid_iterator git(this);
-  Gtid g= git.get();
-  while (g.sidno != 0)
+  if (other->sid_lock != NULL)
+    other->sid_lock->assert_some_wrlock();
+
+  Sid_map *other_sid_map= other->sid_map;
+  rpl_sidno max_sidno= get_max_sidno();
+  rpl_sidno other_max_sidno= other->get_max_sidno();
+
+  /*
+    Algorithm: iterate over all sidnos of this Gtid_set where there is
+    at least one interval.  For each such sidno, find the
+    corresponding sidno of the other set.  Then use
+    is_interval_intersection_nonempty to check if there are any GTIDs
+    that are common to the two sets for this sidno.
+  */
+  for (int sidno= 1; sidno <= max_sidno; sidno++)
   {
-    if (other->contains_gtid(g.sidno, g.gno))
-      DBUG_RETURN(true);
-    git.next();
-    g= git.get();
+    Const_interval_iterator ivit(this, sidno);
+    const Interval *iv= ivit.get();
+    if (iv != NULL)
+    {
+
+      // Get the corresponding other_sidno.
+      int other_sidno= 0;
+      if (other_sid_map == sid_map || other_sid_map == NULL || sid_map == NULL)
+        other_sidno= sidno;
+      else
+      {
+        other_sidno= other_sid_map->sid_to_sidno(sid_map->sidno_to_sid(sidno));
+        if (other_sidno == 0)
+          continue;
+      }
+      if (other_sidno > other_max_sidno)
+        continue;
+
+      // Check if there is any GNO in this for sidno that also exists
+      // in other for other_sidno.
+      Const_interval_iterator other_ivit(other, other_sidno);
+      if (is_interval_intersection_nonempty(&ivit, &other_ivit))
+        DBUG_RETURN(true);
+    }
   }
   DBUG_RETURN(false);
 }
@@ -1108,20 +1234,24 @@ Gtid_set::intersection(const Gtid_set *other, Gtid_set *result)
   if (sid_lock != NULL)
     sid_lock->assert_some_wrlock();
   DBUG_ASSERT(result != NULL);
-  result->clear();
-  Gtid_iterator git(this);
-  Gtid g= git.get();
-  while (g.sidno != 0)
-  {
-    if (other->contains_gtid(g.sidno, g.gno))
-    {
-      if (result->ensure_sidno(g.sidno) ||
-          result->_add_gtid(g.sidno, g.gno))
-        RETURN_REPORTED_ERROR;
-    }
-    git.next();
-    g= git.get();
-  }
+  DBUG_ASSERT(other != NULL);
+  DBUG_ASSERT(result != this);
+  DBUG_ASSERT(result != other);
+  DBUG_ASSERT(other != this);
+  /**
+    @todo: This algorithm is simple, a little bit slower than
+    necessary.  It would be more efficient to iterate over intervals
+    of 'this' and 'other' similar to add_gno_interval(). At the moment
+    the performance of this is not super-important. /Sven
+  */
+  Gtid_set this_minus_other(sid_map);
+  Gtid_set intersection(sid_map);
+  // In set theory, intersection(A, B) == A - (A - B)
+  PROPAGATE_REPORTED_ERROR(this_minus_other.add_gtid_set(this));
+  PROPAGATE_REPORTED_ERROR(this_minus_other.remove_gtid_set(other));
+  PROPAGATE_REPORTED_ERROR(intersection.add_gtid_set(this));
+  PROPAGATE_REPORTED_ERROR(intersection.remove_gtid_set(&this_minus_other));
+  PROPAGATE_REPORTED_ERROR(result->add_gtid_set(&intersection));
   RETURN_OK;
 }
 
