@@ -77,10 +77,9 @@ void locktree_unit_test::test_conflicts(void) {
 #undef ACQUIRE_LOCK
         }
 
-        invariant(num_row_locks(lt) == 2);
         lt->remove_overlapping_locks_for_txnid(txnid_a, one, one);
         lt->remove_overlapping_locks_for_txnid(txnid_a, three, four);
-        invariant(num_row_locks(lt) == 0);
+        invariant(no_row_locks(lt));
     }
 
     mgr.release_lt(lt);

@@ -18,13 +18,6 @@ void concurrent_tree_unit_test::test_lkr_remove_all(void) {
     const uint64_t min = 0;
     const uint64_t max = 20;
 
-    // determine how much memory should be released
-    keyrange example_keyrange;
-    example_keyrange.create(get_dbt(0), get_dbt(0));
-    const uint64_t num_elements = max + 1;
-    const uint64_t expected_mem_released = 
-        example_keyrange.get_memory_size() * num_elements;
-
     // remove_all should work regardless of how the
     // data was inserted into the tree, so we test it
     // on a tree whose elements were populated starting
@@ -44,10 +37,7 @@ void concurrent_tree_unit_test::test_lkr_remove_all(void) {
 
         // remove_all() from the locked keyrange and assert that
         // the number of elements and memory removed is correct.
-        uint64_t mem_released = 0;
-        uint64_t num_removed = lkr.remove_all(&mem_released);
-        invariant(num_removed == num_elements);
-        invariant(mem_released == expected_mem_released);
+        lkr.remove_all();
 
         invariant(lkr.m_subtree->is_empty());
         invariant(tree.is_empty());

@@ -56,20 +56,19 @@ private:
         ltr.release();
     }
 
-    static size_t num_row_locks(const locktree *lt) {
-        struct count_fn_obj {
-            size_t count;
-            bool fn(const keyrange &range, TXNID txnid) {
-                (void) range;
-                (void) txnid;
-                count++;
-                return true;
-            }
-        } count_fn;
-        count_fn.count = 0;
-        locktree_iterate<count_fn_obj>(lt, &count_fn);
-        return count_fn.count;
+    static bool no_row_locks(const locktree *lt) {
+        return lt->m_rangetree->is_empty() && lt->m_sto_buffer.is_empty();
     }
+
+    static void locktree_test_release_lock(locktree *lt, TXNID txnid, const DBT *left_key, const DBT *right_key) {
+        range_buffer buffer;
+        buffer.create();
+        buffer.append(left_key, right_key);
+        lt->release_locks(txnid, &buffer);
+        buffer.destroy();
+    }
+
+    friend class lock_request_unit_test;
 };
 
 } /* namespace toku */

@@ -8,6 +8,7 @@
 #define TOKU_LOCK_REQUEST_UNIT_TEST_H
 
 #include "test.h"
+#include "locktree_unit_test.h"
 
 #include "lock_request.h"
 
@@ -37,7 +38,7 @@ private:
     // lt->release_locks(), not individually using lt->remove_overlapping_locks_for_txnid).
     void release_lock_and_retry_requests(locktree *lt,
             TXNID txnid, const DBT *left_key, const DBT * right_key) {
-        lt->remove_overlapping_locks_for_txnid(txnid, left_key, right_key);
+        locktree_unit_test::locktree_test_release_lock(lt, txnid, left_key, right_key);
         lock_request::retry_all_lock_requests(lt);
     }
 };

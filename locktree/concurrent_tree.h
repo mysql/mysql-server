@@ -36,11 +36,14 @@ public:
         // effect: prepare to acquire a locked keyrange over the given
         //         concurrent_tree, preventing other threads from preparing
         //         until this thread either does acquire() or release().
-        // rationale: this provides the user with a serialization point
-        //            for descending / modifying the the tree.
+        // note: operations performed on a prepared keyrange are equivalent
+        //         to ones performed on an acquired keyrange over -inf, +inf.
+        // rationale: this provides the user with a serialization point for descending 
+        //            or modifying the the tree. it also proives a convenient way of
+        //            doing serializable operations on the tree.
         // There are two valid sequences of calls:
-        //  - prepare, acquire, release
-        //  - prepare, release
+        //  - prepare, acquire, [operations], release
+        //  - prepare, [operations],release
         void prepare(concurrent_tree *tree);
 
         // requires: the locked keyrange was prepare()'d
@@ -68,12 +71,9 @@ public:
         // rationale: caller is responsible for only removing existing ranges
         void remove(const keyrange &range);
 
-        // effect: removes everything within this locked keyrange
-        // requires: the locked keyrange is over -inf, +inf
-        // returns: the number of nodes removed
-        // returns: *mem_released updated to the cumulative size of all keyranges destroyed
-        // rationale: we'd like a fast O(n) way of removing everything from the tree
-        uint64_t remove_all(uint64_t *mem_released);
+        // effect: removes all of the keys represented by this locked keyrange
+        // rationale: we'd like a fast way to empty out a tree
+        void remove_all(void);
 
     private:
         // the concurrent tree this locked keyrange is for

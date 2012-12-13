@@ -29,6 +29,7 @@ void concurrent_tree::locked_keyrange::prepare(concurrent_tree *tree) {
     treenode *const root = &tree->m_root;
     m_tree = tree;
     m_subtree = root;
+    m_range = keyrange::get_infinite_range();
     root->mutex_lock();
 }
 
@@ -83,12 +84,6 @@ void concurrent_tree::locked_keyrange::remove(const keyrange &range) {
     }
 }
 
-uint64_t concurrent_tree::locked_keyrange::remove_all(uint64_t *mem_released) {
-    // in practice, remove_all is only okay on the root node, because you 
-    // want to remove all of the elements in the tree, not some subtree.
-    //
-    // so we lazily enforce that you are removing from a non-empty root.
-    invariant(m_subtree->is_root());
-    invariant(!m_subtree->is_empty());
-    return m_subtree->recursive_remove(mem_released);
+void concurrent_tree::locked_keyrange::remove_all(void) {
+    m_subtree->recursive_remove();
 }

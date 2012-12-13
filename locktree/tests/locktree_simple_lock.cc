@@ -36,60 +36,35 @@ void locktree_unit_test::test_simple_lock(void) {
         // four txns, four points
         r = ACQUIRE_LOCK(txnid_a, one, one, nullptr);
         invariant(r == 0);
-        invariant(num_row_locks(lt) == 1);
         r = ACQUIRE_LOCK(txnid_b, two, two, nullptr);
         invariant(r == 0);
-        invariant(num_row_locks(lt) == 2);
         r = ACQUIRE_LOCK(txnid_c, three, three, nullptr);
         invariant(r == 0);
-        invariant(num_row_locks(lt) == 3);
         r = ACQUIRE_LOCK(txnid_d, four, four, nullptr);
         invariant(r == 0);
-        invariant(num_row_locks(lt) == 4);
-        lt->remove_overlapping_locks_for_txnid(txnid_a, one, one);
-        invariant(num_row_locks(lt) == 3);
-        lt->remove_overlapping_locks_for_txnid(txnid_b, two, two);
-        invariant(num_row_locks(lt) == 2);
-        lt->remove_overlapping_locks_for_txnid(txnid_c, three, three);
-        invariant(num_row_locks(lt) == 1);
-        lt->remove_overlapping_locks_for_txnid(txnid_d, four, four);
-        invariant(num_row_locks(lt) == 0);
+        locktree_test_release_lock(lt, txnid_a, one, one);
+        locktree_test_release_lock(lt, txnid_b, two, two);
+        locktree_test_release_lock(lt, txnid_c, three, three);
+        locktree_test_release_lock(lt, txnid_d, four, four);
+        invariant(no_row_locks(lt));
 
         // two txns, two ranges
         r = ACQUIRE_LOCK(txnid_c, one, two, nullptr);
         invariant(r == 0);
-        invariant(num_row_locks(lt) == 1);
         r = ACQUIRE_LOCK(txnid_b, three, four, nullptr);
         invariant(r == 0);
-        invariant(num_row_locks(lt) == 2);
-        lt->remove_overlapping_locks_for_txnid(txnid_c, one, two);
-        invariant(num_row_locks(lt) == 1);
-        lt->remove_overlapping_locks_for_txnid(txnid_b, three, four);
-        invariant(num_row_locks(lt) == 0);
-
-        // one txn, one range, one point
-        r = ACQUIRE_LOCK(txnid_a, two, three, nullptr);
-        invariant(r == 0);
-        invariant(num_row_locks(lt) == 1);
-        r = ACQUIRE_LOCK(txnid_a, four, four, nullptr);
-        invariant(r == 0);
-        invariant(num_row_locks(lt) == 2);
-        lt->remove_overlapping_locks_for_txnid(txnid_a, two, three);
-        invariant(num_row_locks(lt) == 1);
-        lt->remove_overlapping_locks_for_txnid(txnid_a, four, four);
-        invariant(num_row_locks(lt) == 0);
+        locktree_test_release_lock(lt, txnid_c, one, two);
+        locktree_test_release_lock(lt, txnid_b, three, four);
+        invariant(no_row_locks(lt));
 
         // two txns, one range, one point
         r = ACQUIRE_LOCK(txnid_c, three, four, nullptr);
         invariant(r == 0);
-        invariant(num_row_locks(lt) == 1);
         r = ACQUIRE_LOCK(txnid_d, one, one, nullptr);
         invariant(r == 0);
-        invariant(num_row_locks(lt) == 2);
-        lt->remove_overlapping_locks_for_txnid(txnid_c, three, four);
-        invariant(num_row_locks(lt) == 1);
-        lt->remove_overlapping_locks_for_txnid(txnid_d, one, one);
-        invariant(num_row_locks(lt) == 0);
+        locktree_test_release_lock(lt, txnid_c, three, four);
+        locktree_test_release_lock(lt, txnid_d, one, one);
+        invariant(no_row_locks(lt));
 
 #undef ACQUIRE_LOCK
     }
@@ -124,7 +99,7 @@ void locktree_unit_test::test_simple_lock(void) {
 
     for (int64_t i = 0; i < num_locks; i++) {
         k.data = (void *) &keys[i];
-        lt->remove_overlapping_locks_for_txnid(txnid_a, &k, &k);
+        locktree_test_release_lock(lt, txnid_a, &k, &k);
     }
 
     toku_free(keys);

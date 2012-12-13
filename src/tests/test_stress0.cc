@@ -40,9 +40,18 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
     myargs[0].operation_extra = &soe[0];
     myargs[0].operation = scan_op;
 
+    // make the lock escalation thread.
+    // it should sleep somewhere between 10 and 20
+    // seconds between each escalation.
+    struct lock_escalation_op_extra eoe;
+    eoe.min_sleep_time_micros = 10UL * (1000 * 1000);
+    eoe.max_sleep_time_micros = 20UL * (1000 * 1000);
+    myargs[1].operation_extra = &eoe;
+    myargs[1].operation = lock_escalation_op;
+
     // make the threads that update the db
     struct update_op_args uoe = get_update_op_args(cli_args, NULL);
-    for (int i = 1; i < 1 + cli_args->num_update_threads; ++i) {
+    for (int i = 2; i < 2 + cli_args->num_update_threads; ++i) {
         myargs[i].operation_extra = &uoe;
         myargs[i].operation = update_op;
         myargs[i].do_prepare = false;
@@ -50,7 +59,7 @@ stress_table(DB_ENV *env, DB **dbp, struct cli_args *cli_args) {
         // doing sequential updates. the rest of the threads
         // will take point write locks on update as usual.
         // this ensures both ranges and points are stressed.
-        myargs[i].prelock_updates = i < 4 ? true : false;
+        myargs[i].prelock_updates = i < 5 ? true : false;
     }
 
     run_workers(myargs, num_threads, cli_args->num_seconds, false, cli_args);
