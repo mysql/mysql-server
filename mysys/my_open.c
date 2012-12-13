@@ -218,6 +218,13 @@ File my_sopen(const char *path, int oflag, int shflag, int pmode)
   DWORD fileattrib;                       /* OS file attribute flags */
   SECURITY_ATTRIBUTES SecurityAttributes;
 
+  if (!is_filename_allowed(path, strlen(path)))
+  {
+    errno= EINVAL;
+    _doserrno= 0L;        /* not an OS error */
+    return -1;
+  }
+
   SecurityAttributes.nLength= sizeof(SecurityAttributes);
   SecurityAttributes.lpSecurityDescriptor= NULL;
   SecurityAttributes.bInheritHandle= !(oflag & _O_NOINHERIT);
