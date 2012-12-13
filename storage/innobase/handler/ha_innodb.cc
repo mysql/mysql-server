@@ -1069,6 +1069,8 @@ convert_error_code_to_mysql(
 		return(HA_ERR_INDEX_CORRUPT);
 	case DB_UNDO_RECORD_TOO_BIG:
 		return(HA_ERR_UNDO_REC_TOO_BIG);
+	case DB_OUT_OF_MEMORY:
+		return(HA_ERR_OUT_OF_MEM);
 	}
 }
 
@@ -1246,7 +1248,7 @@ innobase_get_lower_case_table_names(void)
 	return(lower_case_table_names);
 }
 
-#if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
+#if defined (__WIN__)
 extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
 /*******************************************************************//**
 Map an OS error to an errno value. The OS error number is stored in
@@ -1287,6 +1289,8 @@ innobase_mysql_tmpfile(void)
 			     | FILE_FLAG_SEQUENTIAL_SCAN;
 
 	DBUG_ENTER("innobase_mysql_tmpfile");
+
+	DBUG_EXECUTE_IF("innobase_tmpfile_creation_failure", return(-1););
 
 	tmpdir = my_tmpdir(&mysql_tmpdir_list);
 
@@ -1350,6 +1354,9 @@ innobase_mysql_tmpfile(void)
 {
 	int	fd2 = -1;
 	File	fd = mysql_tmpfile("ib");
+
+	DBUG_EXECUTE_IF("innobase_tmpfile_creation_failure", return(-1););
+
 	if (fd >= 0) {
 		/* Copy the file descriptor, so that the additional resources
 		allocated by create_temp_file() can be freed by invoking
@@ -1393,7 +1400,7 @@ innobase_mysql_tmpfile(void)
 	}
 	return(fd2);
 }
-#endif /* defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN) */
+#endif /* defined (__WIN__) */
 
 /*********************************************************************//**
 Wrapper around MySQL's copy_and_convert function.
