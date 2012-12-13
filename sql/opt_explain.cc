@@ -36,6 +36,9 @@ const char *join_type_str[]={ "UNKNOWN","system","const","eq_ref","ref",
                               "index_merge"
 };
 
+static const enum_query_type cond_print_flags=
+  enum_query_type(QT_ORDINARY | QT_SHOW_SELECT_NUMBER);
+
 
 /**
   A base for all Explain_* classes
@@ -70,7 +73,7 @@ protected:
     {
       ret->length(0);
       if (condition)
-        condition->print(ret, QT_ORDINARY);
+        condition->print(ret, cond_print_flags);
       return false;
     }
   };
@@ -944,9 +947,9 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     if (fmt->is_hierarchical())
     {
       if (table->file->pushed_idx_cond)
-        table->file->pushed_idx_cond->print(&buff, QT_ORDINARY);
+        table->file->pushed_idx_cond->print(&buff, cond_print_flags);
       else
-        tab->cache_idx_cond->print(&buff, QT_ORDINARY);
+        tab->cache_idx_cond->print(&buff, cond_print_flags);
     }
     if (push_extra(ET_USING_INDEX_CONDITION, buff))
     return true;
@@ -1039,7 +1042,7 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
       {
         StringBuffer<64> buff(cs);
         if (describe(DESCRIBE_EXTENDED))
-          ((Item *)pushed_cond)->print(&buff, QT_ORDINARY);
+          ((Item *)pushed_cond)->print(&buff, cond_print_flags);
         if (push_extra(ET_USING_WHERE_WITH_PUSHED_CONDITION, buff))
           return true;
       }
