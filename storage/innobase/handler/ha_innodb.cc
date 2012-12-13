@@ -11041,16 +11041,23 @@ ha_innobase::info_low(
 				break;
 			}
 
-			for (j = 0; j < table->key_info[i].actual_key_parts; j++) {
+			KEY*	key = &table->key_info[i];
 
-				if (table->key_info[i].flags & HA_FULLTEXT) {
-					/* The whole concept has no validity
-					for FTS indexes. */
-					table->key_info[i].rec_per_key[j] = 1;
-					continue;
+			if (key->flags & HA_FULLTEXT) {
+				/* The whole concept has no validity
+				for FTS indexes. */
+				for (j = 0; j < key->actual_key_parts; j++) {
+					key->rec_per_key[j] = 1;
+					this->set_n_distinct(i, j, stats.records);
 				}
+				continue;
+			}
 
-				if (j + 1 > index->n_uniq) {
+			ulint	n_uniq = dict_index_get_n_unique(index);
+
+			for (j = 0; j < key->actual_key_parts; j++) {
+
+				if (j + 1 > n_uniq) {
 					sql_print_error(
 						"Index %s of %s has %lu columns"
 					        " unique inside InnoDB, but "
@@ -11063,7 +11070,7 @@ ha_innobase::info_low(
 						index->name,
 						ib_table->name,
 						(unsigned long)
-						index->n_uniq, j + 1);
+						n_uniq, j + 1);
 					break;
 				}
 
@@ -11081,10 +11088,14 @@ ha_innobase::info_low(
 					rec_per_key = 1;
 				}
 
-				table->key_info[i].rec_per_key[j] =
+				key->rec_per_key[j] =
 				  rec_per_key >= ~(ulong) 0 ? ~(ulong) 0 :
 				  (ulong) rec_per_key;
 			}
+
+			ut_a(key->actual_key_parts == n_uniq);
+
+			this->set_n_distinct(i, index->stat_n_diff_key_vals);
 		}
 
 		if (!(flag & HA_STATUS_NO_LOCK)) {
@@ -16637,6 +16648,17 @@ ha_innobase::idx_cond_push(
 	in_range_check_pushed_down = TRUE;
 	/* We will evaluate the condition entirely */
 	DBUG_RETURN(NULL);
+}
+
+uint64_t
+ha_innobase::get_n_distinct(
+	uint key_nr,
+	uint prefix)
+{
+	ut_a(key_nr < this->table->s->keys);
+	ut_a(prefix < this->table->key_info[key_nr].actual_key_parts);
+
+	return(this->table->key_info[key_nr].n_distinct[prefix]);
 }
 
 /******************************************************************//**

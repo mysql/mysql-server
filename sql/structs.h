@@ -125,6 +125,7 @@ typedef struct st_key {
     For temporary heap tables this member is NULL.
   */
   ulong *rec_per_key;
+  uint64_t *n_distinct;
   union {
     int  bdb_return_if_eq;
   } handler;

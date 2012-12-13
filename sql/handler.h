@@ -2114,6 +2114,13 @@ public:
   */
   virtual ha_rows records() { return stats.records; }
   /**
+    Methods to manipulate the number of distinct records in each
+    key in the table associated with this handler object.
+  */
+  virtual uint64_t get_n_distinct(uint key_nr, uint prefix);
+  virtual void set_n_distinct(uint key_nr, uint prefix, uint64_t n_distinct);
+  virtual void set_n_distinct(uint key_nr, uint64_t *n_distinct);
+  /**
     Return upper bound of current number of records in the table
     (max. of how many records one will retrieve when doing a full table scan)
     If upper bound is not known, HA_POS_ERROR should be returned as a max

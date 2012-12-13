@@ -5812,6 +5812,51 @@ scan_it_again:
   DBUG_RETURN(result);
 }
 
+uint64_t
+handler::get_n_distinct(uint key_nr, uint prefix)
+{
+  assert(key_nr < this->table->s->keys);
+  assert(prefix < this->table->key_info[key_nr].actual_key_parts);
+
+  return(this->stats.records
+         / this->table->key_info[key_nr].rec_per_key[prefix]);
+}
+
+void
+handler::set_n_distinct(uint key_nr, uint prefix, uint64_t n_distinct)
+{
+  assert(key_nr < this->table->s->keys);
+  assert(prefix < this->table->key_info[key_nr].actual_key_parts);
+
+  KEY *key = &table->key_info[key_nr];
+
+  /* XXX where should this be allocated and freed? */
+  if (key->n_distinct == NULL) {
+    key->n_distinct = (uint64_t*)malloc(key->actual_key_parts
+                                        * sizeof(key->n_distinct[0]));
+    assert(key->n_distinct != NULL);
+  }
+
+  key->n_distinct[prefix] = n_distinct;
+}
+
+void
+handler::set_n_distinct(uint key_nr, uint64_t *n_distinct)
+{
+  assert(key_nr < this->table->s->keys);
+
+  KEY *key = &table->key_info[key_nr];
+
+  /* XXX where should this be allocated and freed? */
+  if (key->n_distinct == NULL) {
+    key->n_distinct = (uint64_t*)malloc(key->actual_key_parts
+                                        * sizeof(key->n_distinct[0]));
+    assert(key->n_distinct != NULL);
+  }
+
+  memcpy(key->n_distinct, n_distinct,
+         key->actual_key_parts * sizeof(key->n_distinct[0]));
+}
 
 /****************************************************************************
  * DS-MRR implementation 
