@@ -828,6 +828,7 @@ error_handling:
 	switch (error) {
 		const char*	old_name;
 		char*		tmp_name;
+
 	case DB_SUCCESS:
 		ut_a(!dict_locked);
 		row_mysql_lock_data_dictionary(trx);
@@ -853,10 +854,8 @@ error_handling:
 		old_name = innodb_table->name;
 		tmp_name = innobase_create_temporary_tablename(heap, '2',
 							       old_name);
-
 		error = row_merge_rename_tables(innodb_table, indexed_table,
 						tmp_name, trx);
-
 		if (error != DB_SUCCESS) {
 
 			row_merge_drop_table(trx, indexed_table);
