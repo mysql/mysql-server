@@ -6300,6 +6300,43 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
     }
     mi->received_heartbeats++;
     mi->last_heartbeat= my_time(0);
+
+
+    /*
+      During GTID protocol, if the master skips transactions,
+      a heartbeat event is sent to the slave at the end of last
+      skipped transaction to update coordinates.
+
+      I/O thread receives the heartbeat event and updates mi
+      only if the received heartbeat position is greater than
+      mi->get_master_log_pos(). This event is written to the
+      relay log as an ignored Rotate event. SQL thread reads
+      the rotate event only to update the coordinates corresponding
+      to the last skipped transaction. Note that,
+      we update only the positions and not the file names, as a ROTATE
+      EVENT from the master prior to this will update the file name.
+    */
+    if (mi->is_auto_position()  && mi->get_master_log_pos() < hb.log_pos
+        &&  mi->get_master_log_name() != NULL)
+    {
+
+      DBUG_ASSERT(memcmp(const_cast<char*>(mi->get_master_log_name()),
+                         hb.get_log_ident(), hb.get_ident_len()) == 0);
+
+      mi->set_master_log_pos(hb.log_pos);
+
+      /*
+         Put this heartbeat event in the relay log as a Rotate Event.
+      */
+      inc_pos= 0;
+      memcpy(rli->ign_master_log_name_end, mi->get_master_log_name(),
+             FN_REFLEN);
+      rli->ign_master_log_pos_end = mi->get_master_log_pos();
+
+      if (write_ignored_events_info_to_relay_log(mi->info_thd, mi))
+        goto err;
+    }
+
     /* 
        compare local and event's versions of log_file, log_pos.
        
