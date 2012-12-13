@@ -56,6 +56,11 @@ FILE *my_fopen(const char *filename, int flags, myf MyFlags)
     errno= EACCES;
     fd= 0;
   }
+  else if (!is_filename_allowed(filename, strlen(filename)))
+  {
+    errno= EINVAL;
+    fd= 0;
+  }
   else
 #endif
   {

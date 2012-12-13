@@ -649,6 +649,7 @@ extern File my_sopen(const char *path, int oflag, int shflag, int pmode);
 #endif
 extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
+extern my_bool is_filename_allowed(const char *name, size_t length);
 
 #if defined(__WIN__) && defined(__NT__)
 extern int nt_share_delete(const char *name,myf MyFlags);
