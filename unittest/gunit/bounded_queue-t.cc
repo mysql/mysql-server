@@ -23,7 +23,7 @@
 #include "filesort_utils.h"
 #include "my_sys.h"
 
-namespace {
+namespace bounded_queue_unittest {
 
 const int num_elements= 14;
 
@@ -345,7 +345,7 @@ void int_keymaker(Sort_param *sp, int *to, int *from)
  */
 const int num_rows= 10000;
 const int row_limit= 100;
-const int num_iterations= 1000;
+const int num_iterations= 10;
 
 class PerfTestSmall : public ::testing::Test
 {

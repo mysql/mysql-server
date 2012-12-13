@@ -20,7 +20,7 @@
 /* Get the length of next field. Change parameter to point at fieldstart */
 ulong STDCALL net_field_length(uchar **packet)
 {
-  reg1 uchar *pos= (uchar *)*packet;
+  uchar *pos= (uchar *)*packet;
   if (*pos < 251)
   {
     (*packet)++;
@@ -48,7 +48,7 @@ ulong STDCALL net_field_length(uchar **packet)
 /* The same as above but returns longlong */
 my_ulonglong net_field_length_ll(uchar **packet)
 {
-  reg1 uchar *pos= *packet;
+  uchar *pos= *packet;
   if (*pos < 251)
   {
     (*packet)++;

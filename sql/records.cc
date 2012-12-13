@@ -328,7 +328,7 @@ void end_read_record(READ_RECORD *info)
   {
     info->table->set_keyread(FALSE);
   }
-  if (info->table && info->table->created)
+  if (info->table && info->table->is_created())
   {
     filesort_free_buffers(info->table,0);
     (void) info->table->file->extra(HA_EXTRA_NO_CACHE);
@@ -630,7 +630,7 @@ static int rr_cmp(const void *p_ref_length, const void *a, const void *b)
 
 static int rr_from_cache(READ_RECORD *info)
 {
-  reg1 uint i;
+  uint i;
   ulong length;
   my_off_t rest_of_file;
   int16 error;

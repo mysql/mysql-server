@@ -1047,7 +1047,31 @@ public:
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+
+  /**
+    Bitmap of table fields (columns), which are explicitly set in the
+    INSERT INTO statement. It is declared here to avoid memory allocation
+    on MEM_ROOT).
+
+    @sa fields_set_during_insert.
+  */
+  MY_BITMAP     def_fields_set_during_insert;
+
   MY_BITMAP     *read_set, *write_set;          /* Active column sets */
+
+  /**
+    A pointer to the bitmap of table fields (columns), which are explicitly set
+    in the INSERT INTO statement.
+
+    fields_set_during_insert points to def_fields_set_during_insert
+    for base (non-temporary) tables. In other cases, it is NULL.
+    Triggers can not be defined for temporary tables, so this bitmap does not
+    matter for temporary tables.
+
+    @sa def_fields_set_during_insert.
+  */
+  MY_BITMAP     *fields_set_during_insert;
+
   /*
    The ID of the query that opened and is using this table. Has different
    meanings depending on the table type.
@@ -1160,7 +1184,9 @@ public:
   my_bool alias_name_used;		/* true if table_name is alias */
   my_bool get_fields_in_item_tree;      /* Signal to fix_field */
   my_bool m_needs_reopen;
+private:
   bool created; /* For tmp tables. TRUE <=> tmp table has been instantiated.*/
+public:
   uint max_keys; /* Size of allocated key_info array. */
 
   REGINFO reginfo;			/* field connections */
@@ -1227,24 +1253,53 @@ public:
   bool add_tmp_key(Field_map *key_parts, char *key_name);
   void use_index(int key_to_save);
 
-  inline void set_keyread(bool flag)
+  void set_keyread(bool flag)
   {
     DBUG_ASSERT(file);
     if (flag && !key_read)
     {
       key_read= 1;
-      file->extra(HA_EXTRA_KEYREAD);
+      if (is_created())
+        file->extra(HA_EXTRA_KEYREAD);
     }
     else if (!flag && key_read)
     {
       key_read= 0;
-      file->extra(HA_EXTRA_NO_KEYREAD);
+      if (is_created())
+        file->extra(HA_EXTRA_NO_KEYREAD);
     }
   }
 
   bool update_const_key_parts(Item *conds);
 
   bool check_read_removal(uint index);
+
+  my_ptrdiff_t default_values_offset() const
+  { return (my_ptrdiff_t) (s->default_values - record[0]); }
+
+  /// Return true if table is instantiated, and false otherwise.
+  bool is_created() const { return created; }
+
+  /**
+    Set the table as "created", and enable flags in storage engine
+    that could not be enabled without an instantiated table.
+  */
+  void set_created()
+  {
+    if (created)
+      return;
+    if (key_read)
+      file->extra(HA_EXTRA_KEYREAD);
+    created= true;
+  }
+  /**
+    Set the contents of table to be "deleted", ie "not created", after having
+    deleted the contents.
+  */
+  void set_deleted()
+  {
+    created= false;
+  }
 };
 
 
@@ -1727,7 +1782,6 @@ public:
   /* TRUE if this merged view contain auto_increment field */
   bool          contain_auto_increment;
   bool          multitable_view;        /* TRUE iff this is multitable view */
-  bool          compact_view_format;    /* Use compact format for SHOW CREATE VIEW */
   /* view where processed */
   bool          where_processed;
   /* TRUE <=> VIEW CHECK OPTION expression has been processed */
@@ -1938,7 +1992,7 @@ public:
      @brief Returns the name of the database that the referenced table belongs
      to.
   */
-  char *get_db_name() { return view != NULL ? view_db.str : db; }
+  char *get_db_name() const { return view != NULL ? view_db.str : db; }
 
   /**
      @brief Returns the name of the table that this TABLE_LIST represents.
@@ -1946,7 +2000,7 @@ public:
      @details The unqualified table name or view name for a table or view,
      respectively.
    */
-  char *get_table_name() { return view != NULL ? view_name.str : table_name; }
+  char *get_table_name() const { return view != NULL ? view_name.str : table_name; }
   int fetch_number_of_rows();
   bool update_derived_keys(Field*, Item**, uint);
   bool generate_keys();

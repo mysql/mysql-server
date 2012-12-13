@@ -43,7 +43,7 @@ ulong heap_position_old(HP_INFO *info)
 /* Note that heap_info does NOT return information about the
    current position anymore;  Use heap_position instead */
 
-int heap_info(reg1 HP_INFO *info,reg2 HEAPINFO *x, int flag )
+int heap_info(HP_INFO *info,HEAPINFO *x, int flag )
 {
   DBUG_ENTER("heap_info");
   x->records         = info->s->records;

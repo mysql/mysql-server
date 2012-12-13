@@ -1685,6 +1685,12 @@ NDBT_Context::closeToTimeout(int safety)
   return false;
 }
 
+NdbApiConfig const&
+NDBT_Context::getConfig() const
+{
+  return m_cluster_connection.m_impl.m_config;
+}
+
 template class Vector<NDBT_TestCase*>;
 template class Vector<NDBT_TestCaseResult*>;
 template class Vector<NDBT_Step*>;

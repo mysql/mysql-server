@@ -1015,8 +1015,14 @@ public:
   bool is_subset(const Gtid_set *super) const;
   /// Returns true if there is a least one element of this Gtid_set in
   /// the other Gtid_set.
-  bool is_intersection(const Gtid_set *other) const;
-  /// Result is the intersection of this Gtid_set and the other Gtid_set.
+  bool is_intersection_nonempty(const Gtid_set *other) const;
+  /**
+    Add the intersection of this Gtid_set and the other Gtid_set to result.
+
+    @param other The Gtid_set to intersect with this Gtid_set
+    @param result Gtid_set where the result will be stored.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+  */
   enum_return_status intersection(const Gtid_set *other, Gtid_set *result);
   /// Returns true if this Gtid_set is empty.
   bool is_empty() const
@@ -1624,6 +1630,14 @@ private:
                                           Const_interval_iterator ivit,
                                           Free_intervals_lock *lock);
 
+  /// Returns true if every interval of sub is a subset of some
+  /// interval of super.
+  static bool is_interval_subset(Const_interval_iterator *sub,
+                                 Const_interval_iterator *super);
+  /// Returns true if at least one sidno in ivit1 is also in ivit2.
+  static bool is_interval_intersection_nonempty(Const_interval_iterator *ivit1,
+                                                Const_interval_iterator *ivit2);
+
   /// Sid_map associated with this Gtid_set.
   Sid_map *sid_map;
   /**
@@ -1777,7 +1791,7 @@ public:
   enum_return_status ensure_sidno(rpl_sidno sidno);
   /// Returns true if there is a least one element of this Owned_gtids
   /// set in the other Gtid_set.
-  bool is_intersection(const Gtid_set *other) const;
+  bool is_intersection_nonempty(const Gtid_set *other) const;
   /// Returns true if this Owned_gtids is empty.
   bool is_empty() const
   {
@@ -2368,6 +2382,11 @@ struct Gtid_specification
   { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
   /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
   void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
+  /// Set the type to AUTOMATIC_GROUP.
+  void set_automatic()
+  {
+    type= AUTOMATIC_GROUP;
+  }
   /// Set to undefined if the current type is GTID_GROUP.
   void set_undefined()
   {

@@ -148,8 +148,8 @@ int main(int argc, char *argv[])
 	/* Initiates DEBUG - but no debugging here ! */
 
 static int static_get_options(argc,argv)
-register int *argc;
-register char **argv[];
+int *argc;
+char **argv[];
 {
   int help,version;
   char *pos;
@@ -217,8 +217,8 @@ register char **argv[];
 
 
 static int get_replace_strings(argc,argv,from_array,to_array)
-register int *argc;
-register char **argv[];
+int *argc;
+char **argv[];
 POINTER_ARRAY *from_array,*to_array;
 {
   char *pos;
@@ -247,7 +247,7 @@ POINTER_ARRAY *from_array,*to_array;
   return 0;
 }
 
-static int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
+static int insert_pointer_name(POINTER_ARRAY *pa,char * name)
 {
   uint i,length,old_count;
   uchar *new_pos;
@@ -321,7 +321,7 @@ static int insert_pointer_name(reg1 POINTER_ARRAY *pa,char * name)
 
 	/* free pointer array */
 
-static void free_pointer_array(reg1 POINTER_ARRAY *pa)
+static void free_pointer_array(POINTER_ARRAY *pa)
 {
   if (pa->typelib.count)
   {
@@ -764,7 +764,7 @@ static void internal_clear_bit(REP_SET *set, uint bit)
 
 static void or_bits(REP_SET *to,REP_SET *from)
 {
-  reg1 uint i;
+  uint i;
   for (i=0 ; i < to->size_of_bits ; i++)
     to->bits[i]|=from->bits[i];
   return;
@@ -882,8 +882,8 @@ static uint replace_len(char * str)
 static uint replace_strings(REPLACE *rep, char **start, uint *max_length,
                             char *from)
 {
-  reg1 REPLACE *rep_pos;
-  reg2 REPLACE_STRING *rep_str;
+  REPLACE *rep_pos;
+  REPLACE_STRING *rep_str;
   char *to, *end, *pos, *new;
 
   end=(to= *start) + *max_length-1;

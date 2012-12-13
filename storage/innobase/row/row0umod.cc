@@ -84,7 +84,8 @@ row_undo_mod_clust_low(
 	const dtuple_t**rebuilt_old_pk,
 				/*!< out: row_log_table_get_pk()
 				before the update, or NULL if
-				the table is not being rebuilt online */
+				the table is not being rebuilt online or
+				the PRIMARY KEY definition does not change */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr; must be committed before
 				latching any further pages */
@@ -280,7 +281,7 @@ row_undo_mod_clust(
 		      || rw_lock_own(&index->lock, RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 		switch (node->rec_type) {
-		case TRX_UNDO_UPD_DEL_REC:
+		case TRX_UNDO_DEL_MARK_REC:
 			row_log_table_insert(
 				btr_pcur_get_rec(pcur), index, offsets);
 			break;
@@ -289,7 +290,7 @@ row_undo_mod_clust(
 				btr_pcur_get_rec(pcur), index, offsets,
 				rebuilt_old_pk);
 			break;
-		case TRX_UNDO_DEL_MARK_REC:
+		case TRX_UNDO_UPD_DEL_REC:
 			row_log_table_delete(
 				btr_pcur_get_rec(pcur), index, offsets,
 				node->trx->id);
@@ -366,16 +367,27 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	log_free_check();
 	mtr_start(&mtr);
 
-	if (mode == BTR_MODIFY_LEAF) {
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-		mtr_s_lock(dict_index_get_lock(index), &mtr);
-	} else {
-		ut_ad(mode == BTR_MODIFY_TREE);
-		mtr_x_lock(dict_index_get_lock(index), &mtr);
-	}
+	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* The index->online_status may change if the
+		index->name starts with TEMP_INDEX_PREFIX (meaning
+		that the index is or was being created online). It is
+		protected by index->lock. */
+		if (mode == BTR_MODIFY_LEAF) {
+			mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
+		} else {
+			ut_ad(mode == BTR_MODIFY_TREE);
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
+		}
 
-	if (row_log_online_op_try(index, entry, 0)) {
-		goto func_exit_no_pcur;
+		if (row_log_online_op_try(index, entry, 0)) {
+			goto func_exit_no_pcur;
+		}
+	} else {
+		/* For secondary indexes,
+		index->online_status==ONLINE_INDEX_CREATION unless
+		index->name starts with TEMP_INDEX_PREFIX. */
+		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
@@ -527,16 +539,27 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 	log_free_check();
 	mtr_start(&mtr);
 
-	if (mode == BTR_MODIFY_LEAF) {
-		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
-		mtr_s_lock(dict_index_get_lock(index), &mtr);
-	} else {
-		ut_ad(mode == BTR_MODIFY_TREE);
-		mtr_x_lock(dict_index_get_lock(index), &mtr);
-	}
+	if (*index->name == TEMP_INDEX_PREFIX) {
+		/* The index->online_status may change if the
+		index->name starts with TEMP_INDEX_PREFIX (meaning
+		that the index is or was being created online). It is
+		protected by index->lock. */
+		if (mode == BTR_MODIFY_LEAF) {
+			mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
+			mtr_s_lock(dict_index_get_lock(index), &mtr);
+		} else {
+			ut_ad(mode == BTR_MODIFY_TREE);
+			mtr_x_lock(dict_index_get_lock(index), &mtr);
+		}
 
-	if (row_log_online_op_try(index, entry, trx->id)) {
-		goto func_exit_no_pcur;
+		if (row_log_online_op_try(index, entry, trx->id)) {
+			goto func_exit_no_pcur;
+		}
+	} else {
+		/* For secondary indexes,
+		index->online_status==ONLINE_INDEX_CREATION unless
+		index->name starts with TEMP_INDEX_PREFIX. */
+		ut_ad(!dict_index_is_online_ddl(index));
 	}
 
 	search_result = row_search_index_entry(index, entry, mode,
@@ -729,6 +752,7 @@ row_undo_mod_upd_del_sec(
 	dberr_t		err	= DB_SUCCESS;
 
 	ut_ad(node->rec_type == TRX_UNDO_UPD_DEL_REC);
+	ut_ad(!node->undo_row);
 
 	heap = mem_heap_create(1024);
 
@@ -794,6 +818,8 @@ row_undo_mod_del_mark_sec(
 	mem_heap_t*	heap;
 	dberr_t		err	= DB_SUCCESS;
 
+	ut_ad(!node->undo_row);
+
 	heap = mem_heap_create(1024);
 
 	while (node->index != NULL) {
@@ -828,6 +854,12 @@ row_undo_mod_del_mark_sec(
 			row_undo_mod_sec_flag_corrupted(
 				thr_get_trx(thr), index);
 			err = DB_SUCCESS;
+			/* Do not return any error to the caller. The
+			duplicate will be reported by ALTER TABLE or
+			CREATE UNIQUE INDEX. Unfortunately we cannot
+			report the duplicate key value to the DDL
+			thread, because the altered_table object is
+			private to its call stack. */
 		} else if (err != DB_SUCCESS) {
 			break;
 		}
@@ -976,7 +1008,7 @@ row_undo_mod_parse_undo_rec(
 	ulint		info_bits;
 	ulint		type;
 	ulint		cmpl_info;
-	ibool		dummy_extern;
+	bool		dummy_extern;
 
 	ptr = trx_undo_rec_get_pars(node->undo_rec, &type, &cmpl_info,
 				    &dummy_extern, &undo_no, &table_id);

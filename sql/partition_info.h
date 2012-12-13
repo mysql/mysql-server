@@ -191,9 +191,7 @@ public:
 
   uint num_parts;
   uint num_subparts;
-  uint count_curr_subparts;
-
-  uint part_error_code;
+  uint count_curr_subparts;                  // used during parsing
 
   uint num_list_values;
 
@@ -209,8 +207,10 @@ public:
   */
   uint16 linear_hash_mask;
 
+  /* Only the number of partitions defined (uses default names and options). */
   bool use_default_partitions;
   bool use_default_num_partitions;
+  /* Only the number of subpartitions defined (uses default names etc.). */
   bool use_default_subpartitions;
   bool use_default_num_subpartitions;
   bool default_partitions_setup;
@@ -220,7 +220,6 @@ public:
   bool linear_hash_ind;                      // LINEAR HASH/KEY
   bool fixed;
   bool is_auto_partitioned;
-  bool from_openfrm;
   bool has_null_value;
   bool column_list;                          // COLUMNS PARTITIONING, 5.5+
   /**
@@ -255,7 +254,7 @@ public:
     part_info_len(0),
     part_func_len(0), subpart_func_len(0),
     num_parts(0), num_subparts(0),
-    count_curr_subparts(0), part_error_code(0),
+    count_curr_subparts(0),
     num_list_values(0), num_part_fields(0), num_subpart_fields(0),
     num_full_part_fields(0), has_null_part_id(0), linear_hash_mask(0),
     use_default_partitions(TRUE), use_default_num_partitions(TRUE),
@@ -263,7 +262,7 @@ public:
     default_partitions_setup(FALSE), defined_max_value(FALSE),
     list_of_part_fields(FALSE), list_of_subpart_fields(FALSE),
     linear_hash_ind(FALSE), fixed(FALSE),
-    is_auto_partitioned(FALSE), from_openfrm(FALSE),
+    is_auto_partitioned(FALSE),
     has_null_value(FALSE), column_list(FALSE), is_pruning_completed(false)
   {
     partitions.empty();

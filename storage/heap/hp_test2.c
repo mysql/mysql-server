@@ -41,7 +41,7 @@ static void make_record(uchar *record, uint n1, uint n2, uint n3,
 
 int main(int argc, char *argv[])
 {
-  register uint i,j;
+  uint i,j;
   uint ant,n1,n2,n3;
   uint write_count,update,opt_delete,check2,dupp_keys,found_key;
   int error;

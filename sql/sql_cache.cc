@@ -2824,11 +2824,9 @@ void Query_cache::invalidate_table(THD *thd, TABLE_LIST *table_list)
     invalidate_table(thd, table_list->table);	// Table is open
   else
   {
-    char key[MAX_DBKEY_LENGTH];
+    const char *key;
     uint key_length;
-
-    key_length=(uint) (strmov(strmov(key,table_list->db)+1,
-			      table_list->table_name) -key)+ 1;
+    key_length= get_table_def_key(table_list, &key);
 
     // We don't store temporary tables => no key_length+=4 ...
     invalidate_table(thd, (uchar *)key, key_length);
@@ -2940,13 +2938,12 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
     block_table->n= n;
     if (tables_used->view)
     {
-      char key[MAX_DBKEY_LENGTH];
+      const char *key;
       uint key_length;
       DBUG_PRINT("qcache", ("view: %s  db: %s",
                             tables_used->view_name.str,
                             tables_used->view_db.str));
-      key_length= (uint) (strmov(strmov(key, tables_used->view_db.str) + 1,
-                                 tables_used->view_name.str) - key) + 1;
+      key_length= get_table_def_key(tables_used, &key);
       /*
         There are not callback function for for VIEWs
       */
@@ -3056,7 +3053,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 */
 
 my_bool
-Query_cache::insert_table(uint key_len, char *key,
+Query_cache::insert_table(uint key_len, const char *key,
 			  Query_cache_block_table *node,
 			  uint32 db_length, uint8 cache_type,
                           qc_engine_callback callback,
@@ -4205,8 +4202,10 @@ uint Query_cache::filename_2_table_key (char *key, const char *path,
   *db_length= (filename - dbname) - 1;
   DBUG_PRINT("qcache", ("table '%-.*s.%s'", *db_length, dbname, filename));
 
-  DBUG_RETURN((uint) (strmov(strmake(key, dbname, *db_length) + 1,
-			     filename) -key) + 1);
+  DBUG_RETURN(static_cast<uint>(strmake(strmake(key, dbname,
+                                                min<uint32>(*db_length,
+                                                            NAME_LEN)) + 1,
+                                filename, NAME_LEN) - key) + 1);
 }
 
 /****************************************************************************

@@ -434,21 +434,6 @@ bool String::append(const char *s,uint32 arg_length, const CHARSET_INFO *cs)
 }
 
 
-#ifdef TO_BE_REMOVED
-bool String::append(FILE* file, uint32 arg_length, myf my_flags)
-{
-  if (realloc(str_length+arg_length))
-    return TRUE;
-  if (my_fread(file, (uchar*) Ptr + str_length, arg_length, my_flags))
-  {
-    shrink(str_length);
-    return TRUE;
-  }
-  str_length+=arg_length;
-  return FALSE;
-}
-#endif
-
 bool String::append(IO_CACHE* file, uint32 arg_length)
 {
   if (realloc(str_length+arg_length))
@@ -498,8 +483,8 @@ int String::strstr(const String &s,uint32 offset)
     if (!s.length())
       return ((int) offset);	// Empty string is always found
 
-    register const char *str = Ptr+offset;
-    register const char *search=s.ptr();
+    const char *str = Ptr+offset;
+    const char *search=s.ptr();
     const char *end=Ptr+str_length-s.length()+1;
     const char *search_end=s.ptr()+s.length();
 skip:
@@ -507,7 +492,7 @@ skip:
     {
       if (*str++ == *search)
       {
-	register char *i,*j;
+	char *i,*j;
 	i=(char*) str; j=(char*) search+1;
 	while (j != search_end)
 	  if (*i++ != *j++) goto skip;
@@ -528,8 +513,8 @@ int String::strrstr(const String &s,uint32 offset)
   {
     if (!s.length())
       return offset;				// Empty string is always found
-    register const char *str = Ptr+offset-1;
-    register const char *search=s.ptr()+s.length()-1;
+    const char *str = Ptr+offset-1;
+    const char *search=s.ptr()+s.length()-1;
 
     const char *end=Ptr+s.length()-2;
     const char *search_end=s.ptr()-1;
@@ -538,7 +523,7 @@ skip:
     {
       if (*str-- == *search)
       {
-	register char *i,*j;
+	char *i,*j;
 	i=(char*) str; j=(char*) search-1;
 	while (j != search_end)
 	  if (*i-- != *j--) goto skip;

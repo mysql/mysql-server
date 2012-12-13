@@ -100,7 +100,7 @@ ha_rows hp_rb_records_in_range(HP_INFO *info, int inx,  key_range *min_key,
 uchar *hp_search(HP_INFO *info, HP_KEYDEF *keyinfo, const uchar *key,
                 uint nextflag)
 {
-  reg1 HASH_INFO *pos,*prev_ptr;
+  HASH_INFO *pos,*prev_ptr;
   int flag;
   uint old_nextflag;
   HP_SHARE *share=info->s;
@@ -238,7 +238,7 @@ void hp_movelink(HASH_INFO *pos, HASH_INFO *next_link, HASH_INFO *newlink)
 
 	/* Calc hashvalue for a key */
 
-ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
+ulong hp_hashnr(HP_KEYDEF *keydef, const uchar *key)
 {
   /*register*/ 
   ulong nr=1, nr2=4;
@@ -304,7 +304,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
 
 	/* Calc hashvalue for a key in a record */
 
-ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
+ulong hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec)
 {
   ulong nr=1, nr2=4;
   HA_KEYSEG *seg,*endseg;
@@ -377,7 +377,7 @@ ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
  * far, and works well on both numbers and strings.
  */
 
-ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
+ulong hp_hashnr(HP_KEYDEF *keydef, const uchar *key)
 {
   /*
     Note, if a key consists of a combination of numeric and
@@ -433,7 +433,7 @@ ulong hp_hashnr(register HP_KEYDEF *keydef, register const uchar *key)
 
 	/* Calc hashvalue for a key in a record */
 
-ulong hp_rec_hashnr(register HP_KEYDEF *keydef, register const uchar *rec)
+ulong hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec)
 {
   ulong nr= 1, nr2= 4;
   HA_KEYSEG *seg,*endseg;

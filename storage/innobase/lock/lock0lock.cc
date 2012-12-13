@@ -610,7 +610,7 @@ lock_sys_create(
 	mutex_create(lock_sys_wait_mutex_key,
 		     &lock_sys->wait_mutex, SYNC_LOCK_WAIT_SYS);
 
-	lock_sys->timeout_event = os_event_create(NULL);
+	lock_sys->timeout_event = os_event_create();
 
 	lock_sys->rec_hash = hash_create(n_cells);
 
@@ -852,13 +852,16 @@ lock_reset_lock_and_trx_wait(
 /*=========================*/
 	lock_t*	lock)	/*!< in/out: record lock */
 {
-	ut_ad(lock->trx->lock.wait_lock == lock);
 	ut_ad(lock_get_wait(lock));
 	ut_ad(lock_mutex_own());
 
 	/* Reset the back pointer in trx to this waiting lock request */
-
-	lock->trx->lock.wait_lock = NULL;
+	if (!(lock->type_mode & LOCK_CONV_BY_OTHER)) {
+		ut_ad(lock->trx->lock.wait_lock == lock);
+		lock->trx->lock.wait_lock = NULL;
+	} else {
+		ut_ad(lock_get_type_low(lock) == LOCK_REC);
+	}
 	lock->type_mode &= ~LOCK_WAIT;
 }
 
@@ -1470,7 +1473,7 @@ Checks if a transaction has a GRANTED explicit lock on rec stronger or equal
 to precise_mode.
 @return	lock or NULL */
 UNIV_INLINE
-const lock_t*
+lock_t*
 lock_rec_has_expl(
 /*==============*/
 	ulint			precise_mode,/*!< in: LOCK_S or LOCK_X
@@ -1483,7 +1486,7 @@ lock_rec_has_expl(
 	ulint			heap_no,/*!< in: heap number of the record */
 	const trx_t*		trx)	/*!< in: transaction */
 {
-	const lock_t*	lock;
+	lock_t*	lock;
 
 	ut_ad(lock_mutex_own());
 	ut_ad((precise_mode & LOCK_MODE_MASK) == LOCK_S
@@ -1492,14 +1495,14 @@ lock_rec_has_expl(
 
 	for (lock = lock_rec_get_first(block, heap_no);
 	     lock != NULL;
-	     lock = lock_rec_get_next_const(heap_no, lock)) {
+	     lock = lock_rec_get_next(heap_no, lock)) {
 
 		if (lock->trx == trx
+		    && !lock_is_wait_not_by_other(lock->type_mode)
 		    && lock_mode_stronger_or_eq(
 			    lock_get_mode(lock),
 			    static_cast<enum lock_mode>(
 				    precise_mode & LOCK_MODE_MASK))
-		    && !lock_get_wait(lock)
 		    && (!lock_rec_get_rec_not_gap(lock)
 			|| (precise_mode & LOCK_REC_NOT_GAP)
 			|| heap_no == PAGE_HEAP_NO_SUPREMUM)
@@ -1808,7 +1811,7 @@ lock_rec_create(
 	}
 	ut_ad(trx_mutex_own(trx));
 
-	if (UNIV_UNLIKELY(type_mode & LOCK_WAIT)) {
+	if (lock_is_wait_not_by_other(type_mode)) {
 
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
@@ -1848,11 +1851,13 @@ lock_rec_enqueue_waiting(
 	const buf_block_t*	block,	/*!< in: buffer block containing
 					the record */
 	ulint			heap_no,/*!< in: heap number of the record */
+	lock_t*			lock,	/*!< in: lock object; NULL if a new
+					one should be created. */
 	dict_index_t*		index,	/*!< in: index of record */
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	trx_t*			trx;
-	lock_t*			lock;
+	trx_id_t		victim_trx_id;
 
 	ut_ad(lock_mutex_own());
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
@@ -1888,10 +1893,20 @@ lock_rec_enqueue_waiting(
 		ut_ad(0);
 	}
 
-	/* Enqueue the lock request that will wait to be granted, note that
-	we already own the trx mutex. */
-	lock = lock_rec_create(
-		type_mode | LOCK_WAIT, block, heap_no, index, trx, TRUE);
+	if (lock == NULL) {
+		/* Enqueue the lock request that will wait
+		to be granted, note that we already own
+		the trx mutex. */
+		lock = lock_rec_create(
+			type_mode | LOCK_WAIT, block, heap_no,
+			index, trx, TRUE);
+	} else {
+		ut_ad(lock->type_mode & LOCK_WAIT);
+		ut_ad(lock->type_mode & LOCK_CONV_BY_OTHER);
+
+		lock->type_mode &= ~LOCK_CONV_BY_OTHER;
+		lock_set_lock_and_trx_wait(lock, trx);
+	}
 
 	/* Release the mutex to obey the latching order.
 	This is safe, because lock_deadlock_check_and_resolve()
@@ -2160,6 +2175,7 @@ lock_rec_lock_slow(
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	trx_t*			trx;
+	lock_t*			lock;
 	dberr_t			err = DB_SUCCESS;
 
 	ut_ad(lock_mutex_own());
@@ -2178,7 +2194,27 @@ lock_rec_lock_slow(
 
 	trx_mutex_enter(trx);
 
-	if (lock_rec_has_expl(mode, block, heap_no, trx)) {
+	lock = lock_rec_has_expl(mode, block, heap_no, trx);
+	if (lock) {
+		if (lock->type_mode & LOCK_CONV_BY_OTHER) {
+			/* This lock or lock waiting was created by the other
+			transaction, not by the transaction (trx) itself.
+			So, the transaction (trx) should treat it collectly
+			according as whether granted or not. */
+
+			if (lock->type_mode & LOCK_WAIT) {
+				/* This lock request was not granted yet.
+				Should wait for granted. */
+
+				goto enqueue_waiting;
+			} else {
+				/* This lock request was already granted.
+				Just clearing the flag. */
+
+				lock->type_mode &= ~LOCK_CONV_BY_OTHER;
+			}
+		}
+
 		/* The trx already has a strong enough lock on rec: do
 		nothing */
 
@@ -2191,8 +2227,10 @@ lock_rec_lock_slow(
 		have a lock strong enough already granted on the
 		record, we have to wait. */
 
+		ut_ad(lock == NULL);
+enqueue_waiting:
 		err = lock_rec_enqueue_waiting(
-			mode, block, heap_no, index, thr);
+			mode, block, heap_no, lock, index, thr);
 
 	} else if (!impl) {
 		/* Set the requested lock on the record, note that
@@ -2347,7 +2385,8 @@ lock_grant(
 	TRX_QUE_LOCK_WAIT state, and there is no need to end the lock wait
 	for it */
 
-	if (lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
+	if (!(lock->type_mode & LOCK_CONV_BY_OTHER)
+	    && lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 		que_thr_t*	thr;
 
 		thr = que_thr_end_lock_wait(lock->trx);
@@ -2374,6 +2413,7 @@ lock_rec_cancel(
 
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
+	ut_ad(!(lock->type_mode & LOCK_CONV_BY_OTHER));
 
 	/* Reset the bit (there can be only one set bit) in the lock bitmap */
 	lock_rec_reset_nth_bit(lock, lock_rec_find_set_bit(lock));
@@ -2540,8 +2580,12 @@ lock_rec_reset_and_release_wait(
 	     lock != NULL;
 	     lock = lock_rec_get_next(heap_no, lock)) {
 
-		if (lock_get_wait(lock)) {
+		if (lock_is_wait_not_by_other(lock->type_mode)) {
 			lock_rec_cancel(lock);
+		} else if (lock_get_wait(lock)) {
+			/* just reset LOCK_WAIT */
+			lock_rec_reset_nth_bit(lock, heap_no);
+			lock_reset_lock_and_trx_wait(lock);
 		} else {
 			lock_rec_reset_nth_bit(lock, heap_no);
 		}
@@ -3650,9 +3694,15 @@ lock_deadlock_notify(
 
 	lock_deadlock_lock_print(lock);
 
-	lock_deadlock_fputs("*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n");
+	/* It is possible that the joining transaction was granted its
+	lock when we rolled back some other waiting transaction. */
 
-	lock_deadlock_lock_print(ctx->start->lock.wait_lock);
+	if (ctx->start->lock.wait_lock != 0) {
+		lock_deadlock_fputs(
+			"*** (2) WAITING FOR THIS LOCK TO BE GRANTED:\n");
+
+		lock_deadlock_lock_print(ctx->start->lock.wait_lock);
+	}
 
 #ifdef UNIV_DEBUG
 	if (lock_print_waits) {
@@ -3671,6 +3721,7 @@ lock_deadlock_select_victim(
 	const lock_deadlock_ctx_t*	ctx)	/*!< in: deadlock context */
 {
 	ut_ad(lock_mutex_own());
+	ut_ad(ctx->start->lock.wait_lock != 0);
 	ut_ad(ctx->wait_lock->trx != ctx->start);
 
 	if (trx_weight_ge(ctx->wait_lock->trx, ctx->start)) {
@@ -3696,8 +3747,10 @@ lock_deadlock_check(
 {
 	ut_ad(lock_mutex_own());
 
-	/* If it is the joining transaction wait lock. */
-	if (lock == ctx->start->lock.wait_lock) {
+	/* If it is the joining transaction wait lock or the joining
+	transaction was granted its lock due to deadlock detection. */
+	if (lock == ctx->start->lock.wait_lock
+	    || ctx->start->lock.wait_lock == NULL) {
 		; /* Skip */
 	} else if (lock == ctx->wait_lock) {
 
@@ -3778,8 +3831,9 @@ lock_deadlock_push(
 }
 
 /********************************************************************//**
-Looks iteratively for a deadlock.
-@return 0 if no deadlock else the victim transaction.*/
+Looks iteratively for a deadlock. Note: the joining transaction may
+have been granted its lock by the deadlock checks.
+@return 0 if no deadlock else the victim transaction id.*/
 static
 const trx_t*
 lock_deadlock_search(
@@ -4024,6 +4078,7 @@ lock_table_create(
 	ut_ad(table && trx);
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(trx));
+	ut_ad(!(type_mode & LOCK_CONV_BY_OTHER));
 
 	/* Non-locking autocommit read-only transactions should not set
 	any locks. */
@@ -6073,7 +6128,7 @@ lock_rec_insert_check_and_lock(
 
 		err = lock_rec_enqueue_waiting(
 			LOCK_X | LOCK_GAP | LOCK_INSERT_INTENTION,
-			block, next_rec_heap_no, index, thr);
+			block, next_rec_heap_no, NULL, index, thr);
 
 		trx_mutex_exit(trx);
 	} else {
@@ -6170,10 +6225,26 @@ lock_rec_convert_impl_to_expl(
 		if (impl_trx != NULL
 		    && !lock_rec_has_expl(LOCK_X | LOCK_REC_NOT_GAP, block,
 				       heap_no, impl_trx)) {
+			ulint	type_mode = (LOCK_REC | LOCK_X
+					     | LOCK_REC_NOT_GAP);
+
+			/* If the delete-marked record was locked already,
+			we should reserve lock waiting for impl_trx as
+			implicit lock. Because cannot lock at this moment.*/
+
+			if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))
+			    && lock_rec_other_has_conflicting(
+					static_cast<enum lock_mode>
+					(LOCK_X | LOCK_REC_NOT_GAP), block,
+					heap_no, impl_trx)) {
+
+				type_mode |= (LOCK_WAIT
+					      | LOCK_CONV_BY_OTHER);
+			}
 
 			lock_rec_add_to_queue(
-				LOCK_REC | LOCK_X | LOCK_REC_NOT_GAP,
-				block, heap_no, index, impl_trx, FALSE);
+				type_mode, block, heap_no, index,
+				impl_trx, FALSE);
 		}
 
 		lock_mutex_exit();
@@ -6818,6 +6889,7 @@ lock_cancel_waiting_and_release(
 
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(lock->trx));
+	ut_ad(!(lock->type_mode & LOCK_CONV_BY_OTHER));
 
 	lock->trx->lock.cancel = true;
 
