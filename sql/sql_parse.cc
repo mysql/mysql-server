@@ -2114,13 +2114,9 @@ bool sp_process_definer(THD *thd)
 
   if (!lex->definer)
   {
-    Query_arena original_arena;
-    Query_arena *ps_arena= thd->activate_stmt_arena_if_needed(&original_arena);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     lex->definer= create_default_definer(thd);
-
-    if (ps_arena)
-      thd->restore_active_arena(ps_arena, &original_arena);
 
     /* Error has been already reported. */
     if (lex->definer == NULL)

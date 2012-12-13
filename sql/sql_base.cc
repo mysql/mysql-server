@@ -6391,28 +6391,35 @@ find_field_in_view(THD *thd, TABLE_LIST *table_list,
               table_list->alias, name, item_name, (ulong) ref));
   Field_iterator_view field_it;
   field_it.set(table_list);
-  Query_arena *arena= 0, backup;  
-  
+
   DBUG_ASSERT(table_list->schema_table_reformed ||
               (ref != 0 && table_list->view != 0));
   for (; !field_it.end_of_fields(); field_it.next())
   {
     if (!my_strcasecmp(system_charset_info, field_it.name(), name))
     {
-      // in PS use own arena or data will be freed after prepare
-      if (register_tree_change &&
-          thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute())
-        arena= thd->activate_stmt_arena_if_needed(&backup);
-      /*
-        create_item() may, or may not create a new Item, depending on
-        the column reference. See create_view_field() for details.
-      */
-      Item *item= field_it.create_item(thd);
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
-      
-      if (!item)
-        DBUG_RETURN(0);
+      Item *item;
+
+      {
+        /*
+          Use own arena for Prepared Statements or data will be freed after
+          PREPARE.
+        */
+        Prepared_stmt_arena_holder ps_arena_holder(
+          thd,
+          register_tree_change &&
+            thd->stmt_arena->is_stmt_prepare_or_first_stmt_execute());
+
+        /*
+          create_item() may, or may not create a new Item, depending on
+          the column reference. See create_view_field() for details.
+        */
+        item= field_it.create_item(thd);
+
+        if (!item)
+          DBUG_RETURN(0);
+      }
+
       /*
        *ref != NULL means that *ref contains the item that we need to
        replace. If the item was aliased by the user, set the alias to
@@ -6473,14 +6480,12 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
     field_it(*(table_ref->join_columns));
   Natural_join_column *nj_col, *curr_nj_col;
   Field *found_field;
-  Query_arena *arena, backup;
   DBUG_ENTER("find_field_in_natural_join");
   DBUG_PRINT("enter", ("field name: '%s', ref 0x%lx",
 		       name, (ulong) ref));
   DBUG_ASSERT(table_ref->is_natural_join && table_ref->join_columns);
   DBUG_ASSERT(*actual_table == NULL);
 
-  LINT_INIT(arena);
   LINT_INIT(found_field);
 
   for (nj_col= NULL, curr_nj_col= field_it++; curr_nj_col; 
@@ -6502,14 +6507,20 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
   if (nj_col->view_field)
   {
     Item *item;
-    LINT_INIT(arena);
-    if (register_tree_change)
-      arena= thd->activate_stmt_arena_if_needed(&backup);
-    /*
-      create_item() may, or may not create a new Item, depending on the
-      column reference. See create_view_field() for details.
-    */
-    item= nj_col->create_item(thd);
+
+    {
+      Prepared_stmt_arena_holder ps_arena_holder(thd, register_tree_change);
+
+      /*
+        create_item() may, or may not create a new Item, depending on the
+        column reference. See create_view_field() for details.
+      */
+      item= nj_col->create_item(thd);
+
+      if (!item)
+        DBUG_RETURN(NULL);
+    }
+
     /*
      *ref != NULL means that *ref contains the item that we need to
      replace. If the item was aliased by the user, set the alias to
@@ -6521,11 +6532,7 @@ find_field_in_natural_join(THD *thd, TABLE_LIST *table_ref, const char *name,
       item->item_name= (*ref)->item_name;
       item->real_item()->item_name= (*ref)->item_name;
     }
-    if (register_tree_change && arena)
-      thd->restore_active_arena(arena, &backup);
 
-    if (!item)
-      DBUG_RETURN(NULL);
     DBUG_ASSERT(nj_col->table_field == NULL);
     if (nj_col->table_ref->schema_table_reformed)
     {
@@ -7470,8 +7477,6 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  Query_arena *arena, backup;
-  bool result= TRUE;
   bool first_outer_loop= TRUE;
   /*
     Leaf table references to which new natural join columns are added
@@ -7488,8 +7493,9 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
   DBUG_PRINT("info", ("operand_1: %s  operand_2: %s",
                       table_ref_1->alias, table_ref_2->alias));
 
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
   *found_using_fields= 0;
-  arena= thd->activate_stmt_arena_if_needed(&backup);
 
   for (it_1.set(table_ref_1); !it_1.end_of_fields(); it_1.next())
   {
@@ -7498,7 +7504,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     /* true if field_name_1 is a member of using_fields */
     bool is_using_column_1;
     if (!(nj_col_1= it_1.get_or_create_column_ref(thd, leaf_1)))
-      goto err;
+      DBUG_RETURN(true);
     field_name_1= nj_col_1->name();
     is_using_column_1= using_fields && 
       test_if_string_in_list(field_name_1, using_fields);
@@ -7519,7 +7525,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       Natural_join_column *cur_nj_col_2;
       const char *cur_field_name_2;
       if (!(cur_nj_col_2= it_2.get_or_create_column_ref(thd, leaf_2)))
-        goto err;
+        DBUG_RETURN(true);
       cur_field_name_2= cur_nj_col_2->name();
       DBUG_PRINT ("info", ("cur_field_name_2=%s.%s", 
                            cur_nj_col_2->table_name() ? 
@@ -7544,7 +7550,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
             (found && (!using_fields || is_using_column_1)))
         {
           my_error(ER_NON_UNIQ_ERROR, MYF(0), field_name_1, thd->where);
-          goto err;
+          DBUG_RETURN(true);
         }
         nj_col_2= cur_nj_col_2;
         found= TRUE;
@@ -7577,7 +7583,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       Item_func_eq *eq_cond;
 
       if (!item_1 || !item_2)
-        goto err;                               // out of memory
+        DBUG_RETURN(true);                      // Out of memory.
 
       /*
         The following assert checks that the two created items are of
@@ -7607,10 +7613,10 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
       */
       if (set_new_item_local_context(thd, item_ident_1, nj_col_1->table_ref) ||
           set_new_item_local_context(thd, item_ident_2, nj_col_2->table_ref))
-        goto err;
+        DBUG_RETURN(true);
 
       if (!(eq_cond= new Item_func_eq(item_ident_1, item_ident_2)))
-        goto err;                               /* Out of memory. */
+        DBUG_RETURN(true);                      // Out of memory.
 
       /*
         Add the new equi-join condition to the ON clause. Notice that
@@ -7661,12 +7667,7 @@ mark_common_columns(THD *thd, TABLE_LIST *table_ref_1, TABLE_LIST *table_ref_2,
     we check for this error in store_natural_using_join_columns() when
     (found_using_fields < length(join_using_fields)).
   */
-  result= FALSE;
-
-err:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
-  DBUG_RETURN(result);
+  DBUG_RETURN(false);
 }
 
 
@@ -7715,18 +7716,16 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
 {
   Field_iterator_table_ref it_1, it_2;
   Natural_join_column *nj_col_1, *nj_col_2;
-  Query_arena *arena, backup;
-  bool result= TRUE;
   List<Natural_join_column> *non_join_columns;
   DBUG_ENTER("store_natural_using_join_columns");
 
   DBUG_ASSERT(!natural_using_join->join_columns);
 
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   if (!(non_join_columns= new List<Natural_join_column>) ||
       !(natural_using_join->join_columns= new List<Natural_join_column>))
-    goto err;
+    DBUG_RETURN(true);
 
   /* Append the columns of the first join operand. */
   for (it_1.set(table_ref_1); !it_1.end_of_fields(); it_1.next())
@@ -7765,7 +7764,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
         {
           my_error(ER_BAD_FIELD_ERROR, MYF(0), using_field_name_ptr,
                    current_thd->where);
-          goto err;
+          DBUG_RETURN(true);
         }
         if (!my_strcasecmp(system_charset_info,
                            common_field->name(), using_field_name_ptr))
@@ -7791,12 +7790,7 @@ store_natural_using_join_columns(THD *thd, TABLE_LIST *natural_using_join,
     natural_using_join->join_columns->concat(non_join_columns);
   natural_using_join->is_join_columns_complete= TRUE;
 
-  result= FALSE;
-
-err:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
-  DBUG_RETURN(result);
+  DBUG_RETURN(false);
 }
 
 
@@ -7835,12 +7829,9 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
                              TABLE_LIST *left_neighbor,
                              TABLE_LIST *right_neighbor)
 {
-  Query_arena *arena, backup;
-  bool result= TRUE;
-
   DBUG_ENTER("store_top_level_join_columns");
 
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   /* Call the procedure recursively for each nested table reference. */
   if (table_ref->nested_join)
@@ -7886,7 +7877,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       if (cur_table_ref->nested_join &&
           store_top_level_join_columns(thd, cur_table_ref,
                                        real_left_neighbor, real_right_neighbor))
-        goto err;
+        DBUG_RETURN(true);
       same_level_right_neighbor= cur_table_ref;
     }
   }
@@ -7918,7 +7909,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
       swap_variables(TABLE_LIST*, table_ref_1, table_ref_2);
     if (mark_common_columns(thd, table_ref_1, table_ref_2,
                             using_fields, &found_using_fields))
-      goto err;
+      DBUG_RETURN(true);
 
     /*
       Swap the join operands back, so that we pick the columns of the second
@@ -7930,7 +7921,7 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     if (store_natural_using_join_columns(thd, table_ref, table_ref_1,
                                          table_ref_2, using_fields,
                                          found_using_fields))
-      goto err;
+      DBUG_RETURN(true);
 
     /*
       Change NATURAL JOIN to JOIN ... ON. We do this for both operands
@@ -7961,12 +7952,8 @@ store_top_level_join_columns(THD *thd, TABLE_LIST *table_ref,
     else
       table_ref->next_name_resolution_table= NULL;
   }
-  result= FALSE; /* All is OK. */
 
-err:
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
-  DBUG_RETURN(result);
+  DBUG_RETURN(false);
 }
 
 
@@ -8063,14 +8050,13 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
 
   Item *item;
   List_iterator<Item> it(fields);
-  Query_arena *arena, backup;
   DBUG_ENTER("setup_wild");
 
   /*
     Don't use arena if we are not in prepared statements or stored procedures
     For PS/SP we have to use arena to remember the changes
   */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   // When we enter, we're "nowhere":
   DBUG_ASSERT(thd->lex->current_select->cur_pos_in_all_fields ==
@@ -8103,8 +8089,6 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
                              ((Item_field*) item)->table_name, &it,
                              any_privileges))
       {
-	if (arena)
-	  thd->restore_active_arena(arena, &backup);
 	DBUG_RETURN(-1);
       }
       if (sum_func_list)
@@ -8125,7 +8109,7 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
   thd->lex->current_select->cur_pos_in_all_fields=
     SELECT_LEX::ALL_FIELDS_UNDEF_POS;
 
-  if (arena)
+  if (ps_arena_holder.is_activated())
   {
     /* make * substituting permanent */
     SELECT_LEX *select_lex= thd->lex->current_select;
@@ -8137,8 +8121,6 @@ int setup_wild(THD *thd, TABLE_LIST *tables, List<Item> &fields,
     */
     if (&select_lex->item_list != &fields)
       select_lex->item_list= fields;
-
-    thd->restore_active_arena(arena, &backup);
   }
   DBUG_RETURN(0);
 }
@@ -8345,16 +8327,9 @@ bool setup_tables(THD *thd, Name_resolution_context *context,
     {
       DBUG_ASSERT(table_list->view &&
                   table_list->effective_algorithm == VIEW_ALGORITHM_MERGE);
-      Query_arena *arena= thd->stmt_arena, backup;
-      bool res;
-      if (arena->is_conventional())
-        arena= 0;                                   // For easier test
-      else
-        thd->set_n_backup_active_arena(arena, &backup);
-      res= table_list->setup_underlying(thd);
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
-      if (res)
+
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
+      if (table_list->setup_underlying(thd))
         DBUG_RETURN(1);
     }
   }
