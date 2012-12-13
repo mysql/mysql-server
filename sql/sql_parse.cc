@@ -166,7 +166,6 @@ const char *xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
 };
 
-
 Log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
                               &LOCK_log_throttle_qni,
                               Log_throttle::LOG_THROTTLE_WINDOW_SIZE,
@@ -1187,6 +1186,28 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     beginning of each command.
   */
   thd->server_status&= ~SERVER_STATUS_CLEAR_SET;
+
+  /**
+    Enforce password expiration for all RPC commands, except the
+    following:
+
+    COM_QUERY does a more fine-grained check later.
+    COM_STMT_CLOSE and COM_STMT_SEND_LONG_DATA don't return anything.
+    COM_PING only discloses information that the server is running,
+       and that's available through other means.
+    COM_QUIT should work even for expired statements.
+  */
+  if (unlikely(thd->security_ctx->password_expired &&
+               command != COM_QUERY &&
+               command != COM_STMT_CLOSE &&
+               command != COM_STMT_SEND_LONG_DATA &&
+               command != COM_PING &&
+               command != COM_QUIT))
+  {
+    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+    goto done;
+  }
+
   switch (command) {
   case COM_INIT_DB:
   {
@@ -1692,6 +1713,8 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
     my_message(ER_UNKNOWN_COM_ERROR, ER(ER_UNKNOWN_COM_ERROR), MYF(0));
     break;
   }
+
+done:
   DBUG_ASSERT(thd->derived_tables == NULL &&
               (thd->open_tables == NULL ||
                (thd->locked_tables_mode == LTM_LOCK_TABLES)));
@@ -2093,13 +2116,9 @@ bool sp_process_definer(THD *thd)
 
   if (!lex->definer)
   {
-    Query_arena original_arena;
-    Query_arena *ps_arena= thd->activate_stmt_arena_if_needed(&original_arena);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     lex->definer= create_default_definer(thd);
-
-    if (ps_arena)
-      thd->restore_active_arena(ps_arena, &original_arena);
 
     /* Error has been already reported. */
     if (lex->definer == NULL)
@@ -2243,6 +2262,18 @@ mysql_execute_command(THD *thd)
 #endif
   DBUG_ENTER("mysql_execute_command");
   DBUG_ASSERT(!lex->describe || is_explainable_query(lex->sql_command));
+
+  if (unlikely(lex->is_broken()))
+  {
+    // Force a Reprepare, to get a fresh LEX
+    Reprepare_observer *reprepare_observer= thd->get_reprepare_observer();
+    if (reprepare_observer &&
+        reprepare_observer->report_error(thd))
+    {
+      DBUG_ASSERT(thd->is_error());
+      DBUG_RETURN(1);
+    }
+  }
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   thd->work_part_info= 0;
@@ -4887,6 +4918,36 @@ finish:
     thd->mdl_context.release_statement_locks();
   }
 
+#if defined(VALGRIND_DO_QUICK_LEAK_CHECK)
+  // Get incremental leak reports, for easier leak hunting.
+  // ./mtr --mem --mysqld='-T 4096' --valgrind-mysqld main.1st
+  // Note that with multiple connections, the report below may be misleading.
+  if (test_flags & TEST_DO_QUICK_LEAK_CHECK)
+  {
+    static unsigned long total_leaked_bytes= 0;
+    unsigned long leaked= 0;
+    unsigned long dubious __attribute__((unused));
+    unsigned long reachable __attribute__((unused));
+    unsigned long suppressed __attribute__((unused));
+    /*
+      We could possibly use VALGRIND_DO_CHANGED_LEAK_CHECK here,
+      but that is a fairly new addition to the Valgrind api.
+      Note: we dont want to check 'reachable' until we have done shutdown,
+      and that is handled by the final report anyways.
+      We print some extra information, to tell mtr to ignore this report.
+    */
+    sql_print_information("VALGRIND_DO_QUICK_LEAK_CHECK");
+    VALGRIND_DO_QUICK_LEAK_CHECK;
+    VALGRIND_COUNT_LEAKS(leaked, dubious, reachable, suppressed);
+    if (leaked > total_leaked_bytes)
+    {
+      sql_print_error("VALGRIND_COUNT_LEAKS reports %lu leaked bytes "
+                      "for query '%.*s'", leaked - total_leaked_bytes,
+                      static_cast<int>(thd->query_length()), thd->query());
+    }
+    total_leaked_bytes= leaked;
+  }
+#endif
   DBUG_RETURN(res || thd->is_error());
 }
 
@@ -6172,7 +6233,7 @@ bool add_field_to_list(THD *thd, LEX_STRING *field_name, enum_field_types type,
                        List<String> *interval_list, const CHARSET_INFO *cs,
 		       uint uint_geom_type)
 {
-  register Create_field *new_field;
+  Create_field *new_field;
   LEX  *lex= thd->lex;
   uint8 datetime_precision= decimals ? atoi(decimals) : 0;
   DBUG_ENTER("add_field_to_list");
@@ -6318,7 +6379,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
                                              List<String> *partition_names,
                                              LEX_STRING *option)
 {
-  register TABLE_LIST *ptr;
+  TABLE_LIST *ptr;
   TABLE_LIST *previous_table_ref; /* The table preceding the current one. */
   char *alias_str;
   LEX *lex= thd->lex;
@@ -6470,8 +6531,13 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
   /* Link table in global list (all used tables) */
   lex->add_to_query_tables(ptr);
-  ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
-                        MDL_TRANSACTION);
+
+  // Pure table aliases do not need to be locked:
+  if (!test(table_options & TL_OPTION_ALIAS))
+  {
+    ptr->mdl_request.init(MDL_key::TABLE, ptr->db, ptr->table_name, mdl_type,
+                          MDL_TRANSACTION);
+  }
   if (table->is_derived_table())
   {
     ptr->effective_algorithm= DERIVED_ALGORITHM_TMPTABLE;

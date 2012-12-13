@@ -612,7 +612,7 @@ Warnings:
 Note	1449	The user specified as a definer ('no-such-user'@'localhost') does not exist
 SHOW CREATE VIEW v;
 View	Create View	character_set_client	collation_connection
-v	CREATE ALGORITHM=UNDEFINED DEFINER=`no-such-user`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `test`.`t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+v	CREATE ALGORITHM=UNDEFINED DEFINER=`no-such-user`@`localhost` SQL SECURITY DEFINER VIEW `v` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Note	1449	The user specified as a definer ('no-such-user'@'localhost') does not exist
 SELECT * FROM v;
@@ -1160,7 +1160,7 @@ Warnings:
 Note	1449	The user specified as a definer ('no_such'@'user_1') does not exist
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Note	1449	The user specified as a definer ('no_such'@'user_1') does not exist
 ALTER ALGORITHM=MERGE VIEW v1 AS SELECT * FROM t1;
@@ -1168,7 +1168,7 @@ Warnings:
 Note	1449	The user specified as a definer ('no_such'@'user_1') does not exist
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=MERGE DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=MERGE DEFINER=`no_such`@`user_1` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Note	1449	The user specified as a definer ('no_such'@'user_1') does not exist
 ALTER ALGORITHM=TEMPTABLE DEFINER=no_such@user_2 VIEW v1 AS SELECT * FROM t1;
@@ -1176,7 +1176,7 @@ Warnings:
 Note	1449	The user specified as a definer ('no_such'@'user_2') does not exist
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`no_such`@`user_2` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=TEMPTABLE DEFINER=`no_such`@`user_2` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`i` AS `i` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Note	1449	The user specified as a definer ('no_such'@'user_2') does not exist
 DROP VIEW v1;
@@ -1412,7 +1412,7 @@ Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
-v1	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v1` AS select `test`.`t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
+v1	CREATE ALGORITHM=UNDEFINED DEFINER=`no_such_user`@`no_such_host` SQL SECURITY DEFINER VIEW `v1` AS select `t1`.`a` AS `a` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Note	1449	The user specified as a definer ('no_such_user'@'no_such_host') does not exist
 DROP TABLE t1;

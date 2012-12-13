@@ -18,10 +18,10 @@ while ($mysql_errno)
   dec $counter;
   if (!$counter)
   {
-    --echo Waited $WAIT_COUNT * 0.1 sec.
+    --echo Waited $WAIT_COUNT * 0.5 sec.
     --die Server failed to restart
   }
-  --sleep 0.1
+  --sleep 0.5
 }
 --enable_query_log
 --enable_result_log

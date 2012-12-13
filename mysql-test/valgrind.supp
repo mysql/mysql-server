@@ -821,6 +821,18 @@
    fun:main
 }
 
+{
+   missing shutdown_performance_schema 9a
+   Memcheck:Leak
+   fun:malloc
+   fun:my_malloc
+   fun:_Z22add_pfs_instr_to_arrayPKcS0_
+   fun:mysqld_get_one_option
+   fun:my_handle_options
+   fun:_Z20handle_early_optionsv
+   fun:_Z11mysqld_mainiPPc
+}
+
 # Same as shutdown_performance_schema 9,
 # but the compiler/linker can sometime change the
 # calls from:
@@ -1021,4 +1033,34 @@
    fun:_my_b_write
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
    fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
+}
+
+{
+   OpenSSL still reachable.
+   Memcheck:Leak
+   fun:malloc
+   fun:CRYPTO_malloc
+   fun:sk_new
+   fun:load_builtin_compressions
+   fun:SSL_COMP_get_compression_methods
+   fun:SSL_library_init
+   fun:check_ssl_init
+   fun:new_VioSSLFd
+}
+{
+   BUG#14801497 CONDITIONAL JUMP OR MOVE DEPENDS ON UNINITIALISED VALUE(S) IN CREATE_TMP_TABLE
+   Memcheck:Cond
+   fun:_Z16create_tmp_tableP3THDP15TMP_TABLE_PARAMR4ListI4ItemEP8st_orderbbyyPKc
+   fun:_Z19create_schema_tableP3THDP10TABLE_LIST
+   fun:_Z18mysql_schema_tableP3THDP3LEXP10TABLE_LIST
+   ...
+   fun:_Z11open_tablesP3THDPP10TABLE_LISTPjjP19Prelocking_strategy
+   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbjP19Prelocking_strategy
+   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbj
+   fun:_Z21mysql_execute_commandP3THD
+   fun:_Z11mysql_parseP3THDPcjP12Parser_state
+   fun:_Z16dispatch_command19enum_server_commandP3THDPcj
+   fun:_Z24do_handle_one_connectionP3THD
+   fun:handle_one_connection
+   fun:pfs_spawn_thread
 }

@@ -695,6 +695,7 @@ SHOW_COMP_OPTION have_profiling;
 
 pthread_key(MEM_ROOT**,THR_MALLOC);
 pthread_key(THD*, THR_THD);
+mysql_mutex_t LOCK_thread_created;
 mysql_mutex_t LOCK_thread_count, LOCK_thread_remove;
 mysql_mutex_t
   LOCK_error_log, LOCK_uuid_generator,
@@ -1911,6 +1912,7 @@ static void wait_for_signal_thread_to_end()
 static void clean_up_mutexes()
 {
   mysql_rwlock_destroy(&LOCK_grant);
+  mysql_mutex_destroy(&LOCK_thread_created);
   mysql_mutex_destroy(&LOCK_thread_count);
   mysql_mutex_destroy(&LOCK_log_throttle_qni);
   mysql_rwlock_destroy(&LOCK_status);
@@ -2671,6 +2673,9 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+#ifndef EMBEDDED_LIBRARY
+  ERR_remove_state(0);
+#endif
   mysql_cond_broadcast(&COND_thread_count);
 
   pthread_exit(0);
@@ -2908,11 +2913,7 @@ void my_init_signals(void)
 #ifdef HAVE_STACKTRACE
     my_init_stacktrace();
 #endif
-#if defined(__amiga__)
-    sa.sa_handler=(void(*)())handle_fatal_signal;
-#else
     sa.sa_handler=handle_fatal_signal;
-#endif
     sigaction(SIGSEGV, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
 #ifdef SIGBUS
@@ -3551,7 +3552,11 @@ rpl_make_log_name(const char *opt,
   DBUG_ENTER("rpl_make_log_name");
   DBUG_PRINT("enter", ("opt: %s, def: %s, ext: %s", opt, def, ext));
   char buff[FN_REFLEN];
-  const char *base= opt ? opt : def;
+  /*
+    opt[0] needs to be checked to make sure opt name is not an empty
+    string, incase it is an empty string default name will be considered
+  */
+  const char *base= (opt && opt[0]) ? opt : def;
   unsigned int options=
     MY_REPLACE_EXT | MY_UNPACK_FILENAME | MY_SAFE_PATH;
 
@@ -4009,10 +4014,7 @@ int init_common_variables()
 
 #define FIX_LOG_VAR(VAR, ALT)                                   \
   if (!VAR || !*VAR)                                            \
-  {                                                             \
-    my_free(VAR); /* it could be an allocated empty string "" */ \
-    VAR= ALT;                                                    \
-  }
+    VAR= ALT;
 
   FIX_LOG_VAR(opt_logname,
               make_default_log_name(logname_path, ".log"));
@@ -4107,6 +4109,8 @@ You should consider changing lower_case_table_names to 1 or 2",
 
 static int init_thread_environment()
 {
+  mysql_mutex_init(key_LOCK_thread_created,
+                   &LOCK_thread_created, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_count, &LOCK_thread_count, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_thread_remove, 
                    &LOCK_thread_remove, MY_MUTEX_INIT_FAST);
@@ -4267,6 +4271,7 @@ static int init_ssl()
 					  opt_ssl_cipher, &error,
                                           opt_ssl_crl, opt_ssl_crlpath);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
+    ERR_remove_state(0);
     if (!ssl_acceptor_fd)
     {
       sql_print_warning("Failed to setup SSL");
@@ -4713,9 +4718,14 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   if (opt_bin_log)
   {
+    /*
+      opt_bin_logname[0] needs to be checked to make sure opt binlog name is
+      not an empty string, incase it is an empty string default file
+      extension will be passed
+     */
     log_bin_basename=
-      rpl_make_log_name(opt_bin_logname, pidfile_name,
-                        opt_bin_logname ? "" : "-bin");
+      rpl_make_log_name(opt_bin_logname, default_logfile_name,
+                        (opt_bin_logname && opt_bin_logname[0]) ? "" : "-bin");
     log_bin_index=
       rpl_make_log_name(opt_binlog_index_name, log_bin_basename, ".index");
     if (log_bin_basename == NULL || log_bin_index == NULL)
@@ -4734,9 +4744,14 @@ a file name for --log-bin-index option", opt_binlog_index_name);
               opt_bin_logname, opt_relay_logname, pidfile_name));
   if (opt_relay_logname)
   {
+    /*
+      opt_relay_logname[0] needs to be checked to make sure opt relaylog name is
+      not an empty string, incase it is an empty string default file
+      extension will be passed
+     */
     relay_log_basename=
-      rpl_make_log_name(opt_relay_logname, pidfile_name,
-                        opt_relay_logname ? "" : "-relay-bin");
+      rpl_make_log_name(opt_relay_logname, default_logfile_name,
+                        (opt_relay_logname && opt_relay_logname[0]) ? "" : "-relay-bin");
     relay_log_index=
       rpl_make_log_name(opt_relaylog_index_name, relay_log_basename, ".index");
     if (relay_log_basename == NULL || relay_log_index == NULL)
@@ -4869,10 +4884,15 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                                 &global_system_variables.temp_table_plugin))
     unireg_abort(1);
 
-  tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
-                               (TC_LOG *) &mysql_bin_log :
-                               (TC_LOG *) &tc_log_mmap) :
-           (TC_LOG *) &tc_log_dummy);
+  if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log))
+  {
+    if (opt_bin_log)
+      tc_log= &mysql_bin_log;
+    else
+      tc_log= &tc_log_mmap;
+  }
+  else
+    tc_log= &tc_log_dummy;
 
   if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file))
   {
@@ -5900,7 +5920,9 @@ static bool read_init_file(char *file_name)
 */
 void inc_thread_created(void)
 {
+  mysql_mutex_lock(&LOCK_thread_created);
   thread_created++;
+  mysql_mutex_unlock(&LOCK_thread_created);
 }
 
 #ifndef EMBEDDED_LIBRARY
@@ -5946,7 +5968,7 @@ void create_thread_to_handle_connection(THD *thd)
     char error_message_buff[MYSQL_ERRMSG_SIZE];
     /* Create new thread to handle connection */
     int error;
-    thread_created++;
+    inc_thread_created();
     DBUG_PRINT("info",(("creating thread %lu"), thd->thread_id));
     thd->prior_thr_create_utime= thd->start_utime= my_micro_time();
     if ((error= mysql_thread_create(key_thread_one_connection,
@@ -9116,6 +9138,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_sync;
 PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
+PSI_mutex_key key_LOCK_thread_created;
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -9185,7 +9208,8 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_LOCK_thread_count, "LOCK_thread_count", PSI_FLAG_GLOBAL},
   { &key_LOCK_thread_remove, "LOCK_thread_remove", PSI_FLAG_GLOBAL},
   { &key_LOCK_log_throttle_qni, "LOCK_log_throttle_qni", PSI_FLAG_GLOBAL},
-  { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL}
+  { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
+  { &key_LOCK_thread_created, "LOCK_thread_created", PSI_FLAG_GLOBAL }
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,

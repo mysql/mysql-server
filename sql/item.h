@@ -24,6 +24,7 @@
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "field.h"                              /* Derivation */
 #include "sql_array.h"
+#include "sql_trigger.h"
 
 class Protocol;
 struct TABLE_LIST;
@@ -790,16 +791,19 @@ public:
   /**
     Save a temporal value in packed longlong format into a Field.
     Used in optimizer.
-    @param OUT field  The field to set the value to.
+    @param[out] field  The field to set the value to.
     @retval 0         On success.
     @retval >0        In error.
   */
   virtual type_conversion_status save_in_field(Field *field,
                                                bool no_conversions);
+
   virtual void save_org_in_field(Field *field)
-  { (void) save_in_field(field, 1); }
+  { save_in_field(field, true); }
+
   virtual type_conversion_status save_safe_in_field(Field *field)
-  { return save_in_field(field, 1); }
+  { return save_in_field(field, true); }
+
   virtual bool send(Protocol *protocol, String *str);
   virtual bool eq(const Item *, bool binary_cmp) const;
   virtual Item_result result_type() const { return REAL_RESULT; }
@@ -4045,7 +4049,11 @@ public:
 
   bool set_value(THD *thd, Item **it)
   {
-    return set_value(thd, NULL, it);
+    bool ret= set_value(thd, NULL, it);
+    if (!ret)
+      bitmap_set_bit(triggers->trigger_table->fields_set_during_insert,
+                     field_idx);
+    return ret;
   }
 
 private:

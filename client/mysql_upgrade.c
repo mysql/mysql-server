@@ -178,6 +178,7 @@ static void die(const char *fmt, ...)
   }
   va_end(args);
 
+  DBUG_LEAVE;
   free_used_memory();
   my_end(my_end_arg);
   exit(1);
@@ -837,7 +838,7 @@ static int run_sql_fix_privilege_tables(void)
 
   dynstr_free(&ds_result);
   dynstr_free(&ds_script);
-  return found_real_errors;
+  DBUG_RETURN(found_real_errors);
 }
 
 

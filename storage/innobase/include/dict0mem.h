@@ -801,6 +801,12 @@ struct dict_table_t{
 				MySQL query cache or retrieve from it; when
 				a trx with undo logs commits, it sets this
 				to the value of the current time. */
+	trx_id_t	def_trx_id;
+				/*!< transaction id that last touched
+				the table definition, either when
+				loading the definition or CREATE
+				TABLE, or ALTER TABLE (prepare,
+				commit, and rollback phases) */
 #ifdef UNIV_DEBUG
 	/*----------------------*/
 	ibool		does_not_fit_in_memory;

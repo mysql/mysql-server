@@ -543,7 +543,7 @@ static uchar *pack_screens(List<Create_field> &create_fields,
                            uint *info_length, uint *screens,
                            bool small_file)
 {
-  reg1 uint i;
+  uint i;
   uint row,start_row,end_row,fields_on_screen;
   uint length,cols;
   uchar *info,*pos,*start_screen;
@@ -883,7 +883,7 @@ static uint get_interval_id(uint *int_count,List<Create_field> &create_fields,
 static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset)
 {
-  reg2 uint i;
+  uint i;
   uint int_count, comment_length=0;
   uchar buff[MAX_FIELD_WIDTH];
   Create_field *field;
@@ -1131,7 +1131,7 @@ static bool make_empty_rec(THD *thd, File file,
         be constant.
       */
       DBUG_ASSERT(field->def->type() != Item::FUNC_ITEM);
-      type_conversion_status res= field->def->save_in_field(regfield, 1);
+      type_conversion_status res= field->def->save_in_field(regfield, true);
       if (res != TYPE_OK && res != TYPE_NOTE_TIME_TRUNCATED &&
           res != TYPE_NOTE_TRUNCATED)
       {

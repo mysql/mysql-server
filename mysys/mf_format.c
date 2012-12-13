@@ -28,7 +28,7 @@ char * fn_format(char * to, const char *name, const char *dir,
 {
   char dev[FN_REFLEN], buff[FN_REFLEN], *pos, *startpos;
   const char *ext;
-  reg1 size_t length;
+  size_t length;
   size_t dev_length;
   DBUG_ENTER("fn_format");
   DBUG_ASSERT(name != NULL);
@@ -122,8 +122,8 @@ char * fn_format(char * to, const char *name, const char *dir,
 
 size_t strlength(const char *str)
 {
-  reg1 const char * pos;
-  reg2 const char * found;
+  const char * pos;
+  const char * found;
   DBUG_ENTER("strlength");
 
   pos= found= str;

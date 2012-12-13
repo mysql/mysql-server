@@ -827,14 +827,6 @@ Item_ident::Item_ident(THD *thd, Item_ident *item)
 void Item_ident::cleanup()
 {
   DBUG_ENTER("Item_ident::cleanup");
-#ifdef CANT_BE_USED_AS_MEMORY_IS_FREED
-		       db_name ? db_name : "(null)",
-                       orig_db_name ? orig_db_name : "(null)",
-		       table_name ? table_name : "(null)",
-                       orig_table_name ? orig_table_name : "(null)",
-		       field_name ? field_name : "(null)",
-                       orig_field_name ? orig_field_name : "(null)"));
-#endif
   Item::cleanup();
   db_name= orig_db_name; 
   table_name= orig_table_name;
@@ -2261,10 +2253,8 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
     In case we're in statement prepare, create conversion item
     in its memory: it will be reused on each execute.
   */
-  Query_arena backup;
-  Query_arena *arena= thd->stmt_arena->is_stmt_prepare() ?
-                      thd->activate_stmt_arena_if_needed(&backup) :
-                      NULL;
+  Prepared_stmt_arena_holder ps_arena_holder(
+    thd, thd->stmt_arena->is_stmt_prepare());
 
   for (i= 0, arg= args; i < nargs; i++, arg+= item_sep)
   {
@@ -2332,8 +2322,7 @@ bool agg_item_set_converter(DTCollation &coll, const char *fname,
       break; // we cannot return here, we need to restore "arena".
     }
   }
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
+
   return res;
 }
 
@@ -2542,7 +2531,7 @@ adjust_max_effective_column_length(Field *field_par, uint32 max_length)
 void Item_field::set_field(Field *field_par)
 {
   field=result_field=field_par;			// for easy coding with fields
-  maybe_null=field->maybe_null();
+  maybe_null= field->maybe_null() || field->is_tmp_nullable();
   decimals= field->decimals();
   table_name= *field_par->table_name;
   field_name= field_par->field_name;
@@ -2604,6 +2593,7 @@ void Item_ident::print(String *str, enum_query_type query_type)
   THD *thd= current_thd;
   char d_name_buff[MAX_ALIAS_NAME], t_name_buff[MAX_ALIAS_NAME];
   const char *d_name= db_name, *t_name= table_name;
+
   if (lower_case_table_names== 1 ||
       (lower_case_table_names == 2 && !alias_name_used))
   {
@@ -2628,10 +2618,10 @@ void Item_ident::print(String *str, enum_query_type query_type)
     append_identifier(thd, str, nm, (uint) strlen(nm));
     return;
   }
+
   if (db_name && db_name[0] && !alias_name_used)
   {
-    if (!(cached_table && cached_table->belong_to_view &&
-          cached_table->belong_to_view->compact_view_format))
+    if (!(query_type & QT_COMPACT_FORMAT))
     {
       const size_t d_name_len= strlen(d_name);
       if (!((query_type & QT_NO_DEFAULT_DB) &&
@@ -7269,13 +7259,15 @@ bool Item_ref::fix_fields(THD *thd, Item **reference)
       if (from_field != not_found_field)
       {
         Item_field* fld;
-        Query_arena backup, *arena;
-        arena= thd->activate_stmt_arena_if_needed(&backup);
-        fld= new Item_field(thd, last_checked_context, from_field);
-        if (arena)
-          thd->restore_active_arena(arena, &backup);
-        if (!fld)
-          goto error;
+
+        {
+          Prepared_stmt_arena_holder ps_arena_holder(thd);
+          fld= new Item_field(thd, last_checked_context, from_field);
+
+          if (!fld)
+            goto error;
+        }
+
         thd->change_item_tree(reference, fld);
         mark_as_dependent(thd, last_checked_context->select_lex,
                           thd->lex->current_select, this, fld);
@@ -7372,7 +7364,7 @@ void Item_ref::set_properties()
 
 table_map Item_ref::resolved_used_tables() const
 {
-  DBUG_ASSERT((*ref)->type() == FIELD_ITEM);
+  DBUG_ASSERT((*ref)->real_item()->type() == FIELD_ITEM);
   return ((Item_field*)(*ref))->resolved_used_tables();
 }
 
@@ -7876,13 +7868,13 @@ bool Item_outer_ref::fix_fields(THD *thd, Item **reference)
 void Item_outer_ref::fix_after_pullout(st_select_lex *parent_select,
                                        st_select_lex *removed_select)
 {
-  if (depended_from == parent_select)
-  {
-    //*ref_arg= outer_ref;
-    outer_ref->fix_after_pullout(parent_select, removed_select);
-  }
-  // @todo: Find an actual test case for this funcion.
-  DBUG_ASSERT(false);
+  /*
+    If this assertion holds, we need not call fix_after_pullout() on both
+    *ref and outer_ref, and Item_ref::fix_after_pullout() is sufficient.
+  */
+  DBUG_ASSERT(*ref == outer_ref);
+
+  Item_ref::fix_after_pullout(parent_select, removed_select);
 }
 
 void Item_ref::fix_after_pullout(st_select_lex *parent_select,
@@ -7966,9 +7958,7 @@ bool Item_default_value::fix_fields(THD *thd, Item **items)
   if (def_field == NULL)
     goto error;
 
-  def_field->move_field_offset((my_ptrdiff_t)
-                               (def_field->table->s->default_values -
-                                def_field->table->record[0]));
+  def_field->move_field_offset(def_field->table->default_values_offset());
   set_field(def_field);
   return FALSE;
 
@@ -8111,11 +8101,8 @@ bool Item_insert_value::fix_fields(THD *thd, Item **reference)
   else
   {
     // VALUES() is used out-of-scope - its value is always NULL
-    Query_arena backup;
-    Query_arena *const arena= thd->activate_stmt_arena_if_needed(&backup);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
     Item *const item= new Item_null(this->item_name);
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
     if (!item)
       return true;
     *reference= item;
@@ -8213,7 +8200,7 @@ bool Item_trigger_field::set_value(THD *thd, sp_rcontext * /*ctx*/, Item **it)
 
   field->table->copy_blobs= true;
 
-  int err_code= item->save_in_field(field, 0);
+  int err_code= item->save_in_field(field, false);
 
   field->table->copy_blobs= copy_blobs_saved;
 

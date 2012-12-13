@@ -201,6 +201,13 @@ struct buf_pool_info_t{
 					interval */
 };
 
+/** The occupied bytes of lists in all buffer pools */
+struct buf_pools_list_size_t {
+	ulint	LRU_bytes;		/*!< LRU size in bytes */
+	ulint	unzip_LRU_bytes;	/*!< unzip_LRU size in bytes */
+	ulint	flush_list_bytes;	/*!< flush_list size in bytes */
+};
+
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Acquire mutex on all buffer pool instances */
@@ -1009,8 +1016,7 @@ UNIV_INLINE
 void
 buf_page_set_accessed(
 /*==================*/
-	buf_page_t*	bpage,		/*!< in/out: control block */
-	ulint		time_ms)	/*!< in: ut_time_ms() */
+	buf_page_t*	bpage)		/*!< in/out: control block */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Gets the buf_block_t handle of a buffered file block if an uncompressed
@@ -1367,6 +1373,14 @@ buf_get_total_list_len(
 	ulint*		free_len,	/*!< out: length of all free lists */
 	ulint*		flush_list_len);/*!< out: length of all flush lists */
 /********************************************************************//**
+Get total list size in bytes from all buffer pools. */
+UNIV_INTERN
+void
+buf_get_total_list_size_in_bytes(
+/*=============================*/
+	buf_pools_list_size_t*	buf_pools_list_size);	/*!< out: list sizes
+							in all buffer pools */
+/********************************************************************//**
 Get total buffer pool statistics. */
 UNIV_INTERN
 void
@@ -1556,10 +1570,11 @@ struct buf_page_t{
 					to read this for heuristic
 					purposes without holding any
 					mutex or latch */
-	unsigned	access_time:32;	/*!< time of first access, or
-					0 if the block was never accessed
-					in the buffer pool */
 	/* @} */
+	unsigned	access_time;	/*!< time of first access, or
+					0 if the block was never accessed
+					in the buffer pool. Protected by
+					block mutex */
 # if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ibool		file_page_was_freed;
 					/*!< this is set to TRUE when
@@ -1739,6 +1754,8 @@ struct buf_pool_stat_t{
 				young because the first access
 				was not long enough ago, in
 				buf_page_peek_if_too_old() */
+	ulint	LRU_bytes;	/*!< LRU size in bytes */
+	ulint	flush_list_bytes;/*!< flush_list size in bytes */
 };
 
 /** Statistics of buddy blocks of a given size. */

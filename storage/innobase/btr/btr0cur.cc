@@ -1940,8 +1940,7 @@ btr_cur_update_in_place(
 	index = cursor->index;
 	ut_ad(rec_offs_validate(rec, index, offsets));
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
-	ut_ad(trx_id > 0);
-	ut_ad(thr_get_trx(thr)->id > 0);
+	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
@@ -2085,8 +2084,7 @@ btr_cur_optimistic_update(
 	page = buf_block_get_frame(block);
 	rec = btr_cur_get_rec(cursor);
 	index = cursor->index;
-	ut_ad(trx_id > 0);
-	ut_ad(thr_get_trx(thr)->id > 0);
+	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	/* The insert buffer tree should never be updated in place. */
@@ -2372,8 +2370,7 @@ btr_cur_pessimistic_update(
 #endif /* UNIV_ZIP_DEBUG */
 	/* The insert buffer tree should never be updated in place. */
 	ut_ad(!dict_index_is_ibuf(index));
-	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG));
-	ut_ad(trx_id > 0);
+	ut_ad(trx_id > 0 || (flags & BTR_KEEP_SYS_FLAG));
 	ut_ad(dict_index_is_online_ddl(index) == !!(flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(index));
 	ut_ad(!thr || thr_get_trx(thr)->id == trx_id);
