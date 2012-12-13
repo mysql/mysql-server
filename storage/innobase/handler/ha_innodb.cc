@@ -2999,6 +2999,13 @@ innobase_change_buffering_inited_ok:
 		srv_io_capacity = srv_max_io_capacity;
 	}
 
+	if (!is_filename_allowed(srv_buf_dump_filename,
+				 strlen(srv_buf_dump_filename), FALSE)) {
+		sql_print_error("InnoDB: innodb_buffer_pool_filename"
+			" cannot have colon (:) in the file name.");
+		goto mem_free_and_error;
+	}
+
 	/* --------------------------------------------------*/
 
 	srv_file_flush_method_str = innobase_file_flush_method;
@@ -14809,6 +14816,53 @@ exit:
 	return;
 }
 
+#ifdef __WIN__
+/*************************************************************//**
+Validate if passed-in "value" is a valid value for
+innodb_buffer_pool_filename. On Windows, file names with colon (:)
+are not allowed.
+
+@return	0 for valid name */
+static
+int
+innodb_srv_buf_dump_filename_validate(
+/*==================================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	const char*	buf_name;
+	char		buff[OS_FILE_MAX_PATH];
+	int		len= sizeof(buff);
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	buf_name = value->val_str(value, buff, &len);
+
+	if (buf_name) {
+		if (is_filename_allowed(buf_name, len, FALSE)){
+			*static_cast<const char**>(save) = buf_name;
+			return(0);
+		} else {
+			push_warning_printf(thd,
+				Sql_condition::WARN_LEVEL_WARN,
+				ER_WRONG_ARGUMENTS,
+				"InnoDB: innodb_buffer_pool_filename "
+				"cannot have colon (:) in the file name.");
+
+		}
+	}
+
+	return(1);
+}
+#else /* __WIN__ */
+# define innodb_srv_buf_dump_filename_validate NULL
+#endif /* __WIN__ */
+
 /****************************************************************//**
 Update the system variable innodb_monitor_enable and enable
 specified monitor counter.
@@ -15656,7 +15710,7 @@ static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
 static MYSQL_SYSVAR_STR(buffer_pool_filename, srv_buf_dump_filename,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
   "Filename to/from which to dump/load the InnoDB buffer pool",
-  NULL, NULL, SRV_BUF_DUMP_FILENAME_DEFAULT);
+  innodb_srv_buf_dump_filename_validate, NULL, SRV_BUF_DUMP_FILENAME_DEFAULT);
 
 static MYSQL_SYSVAR_BOOL(buffer_pool_dump_now, innodb_buffer_pool_dump_now,
   PLUGIN_VAR_RQCMDARG,
