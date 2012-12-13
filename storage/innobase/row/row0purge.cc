@@ -426,6 +426,9 @@ row_purge_remove_sec_if_poss_leaf(
 			goto func_exit_no_pcur;
 		}
 
+		/* Insert/Change buffering is block for temp-table
+		and so no point in removing entry from these buffers
+		if not present in buffer-pool */
 		mode = (dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 			: BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
@@ -436,6 +439,9 @@ row_purge_remove_sec_if_poss_leaf(
 		index->name starts with TEMP_INDEX_PREFIX. */
 		ut_ad(!dict_index_is_online_ddl(index));
 
+		/* Insert/Change buffering is block for temp-table
+		and so no point in removing entry from these buffers
+		if not present in buffer-pool */
 		mode = (dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE;

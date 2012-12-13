@@ -2441,10 +2441,7 @@ row_create_index_for_mysql(
 
 		que_graph_free((que_t*) que_node_get_parent(thr));
 	} else {
-		err = dict_build_index_def(table, index, trx);
-		if (err != DB_SUCCESS) {
-			goto error_handling;
-		}
+		dict_build_index_def(table, index, trx);
 
 		index_id_t index_id = index->id;
 
@@ -3067,10 +3064,6 @@ row_discard_tablespace_for_mysql(
 	if (table == 0) {
 		err = DB_TABLE_NOT_FOUND;
 	} else if (dict_table_is_temporary(table)) {
-		char	table_name[MAX_FULL_NAME_LEN + 1];
-
-		innobase_format_name(
-			table_name, sizeof(table_name), table->name, FALSE);
 
 		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
@@ -3197,10 +3190,10 @@ run_again:
 
 /*********************************************************************//**
 Truncate index and update SYS_XXXX tables accordingly. */
-UNIV_INTERN
+UNIV_INLINE
 void
 truncate_index_with_sys_table_update(
-/*==================================*/
+/*=================================*/
 	const dict_table_t*	table,		/*!< in: table */
 	ulint			recreate_space)	/*!< in: re-create tablespace */
 {
@@ -3211,6 +3204,8 @@ truncate_index_with_sys_table_update(
 	dict_index_t*	sys_index;
 	btr_pcur_t	pcur;
 	mtr_t		mtr;
+
+	ut_a(!dict_table_is_temporary(table));
 
 	/* scan SYS_INDEXES for all indexes of the table */
 	heap = mem_heap_create(800);
@@ -3285,14 +3280,13 @@ next_rec:
 	mtr_commit(&mtr);
 
 	mem_heap_free(heap);
-
-	return;
 }
 
 /*********************************************************************//**
-Truncation also result in assignment of new table id
-Update these ids to SYS_XXXX tables. */
-UNIV_INTERN
+Truncation also results in assignment of new table id
+Update these ids to SYS_XXXX tables.
+@return	error code or DB_SUCCESS */
+UNIV_INLINE
 dberr_t
 update_new_object_ids(
 /*==================*/
@@ -3304,6 +3298,8 @@ update_new_object_ids(
 {
 	dberr_t		err	= DB_SUCCESS;
 	pars_info_t*	info	= NULL;
+
+	ut_a(!dict_table_is_temporary(table));
 
 	info = pars_info_create();
 	pars_info_add_int4_literal(info, "new_space", (lint) table->space);
@@ -4225,13 +4221,13 @@ check_next_foreign:
 				   , FALSE, trx);
 	} else {
 		page_no = page_nos;
-		err = DB_SUCCESS;
 		for (dict_index_t* index = dict_table_get_first_index(table);
 		     index != NULL;
 		     index = dict_table_get_next_index(index)) {
 			/* remove the index object associated. */
 			dict_drop_index_tree(index, *page_no++);
 		}
+		err = DB_SUCCESS;
 	}
 
 	switch (err) {
