@@ -1657,7 +1657,7 @@ btr_free_but_not_root(
 
 leaf_loop:
 	mtr_start(&mtr);
-	if(is_temp_table) {
+	if (is_temp_table) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE_IGN_LOG_REC);
 	}
 
@@ -1683,7 +1683,7 @@ leaf_loop:
 	}
 top_loop:
 	mtr_start(&mtr);
-	if(is_temp_table) {
+	if (is_temp_table) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NONE_IGN_LOG_REC);
 	}
 

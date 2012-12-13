@@ -1,4 +1,4 @@
-create temporary table t1 (i int) engine=innodb;
+create temporary table t1 (i int) engine = innodb;
 insert into t1 values (1), (2), (3), (4);
 select * from t1;
 i
@@ -10,7 +10,7 @@ select * from t1 where i = 4;
 i
 4
 drop table t1;
-create temporary table t1 (i int) engine=innodb;
+create temporary table t1 (i int) engine = innodb;
 insert into t1 values (1), (2), (3), (4);
 select * from t1;
 i
@@ -22,7 +22,7 @@ select * from t1 where i = 4;
 i
 4
 drop table t1;
-create temporary table t2 (i int) engine=innodb;
+create temporary table t2 (i int) engine = innodb;
 insert into t2 values (1), (2), (3), (4);
 select * from t2;
 i
@@ -34,10 +34,23 @@ select * from t2 where i = 4;
 i
 4
 drop table t2;
+create temporary table t1 (i int, primary key pk(i)) engine = innodb;
+insert into t1 values (1), (2), (3), (4);
+select * from t1;
+i
+1
+2
+3
+4
+select * from t1 where i = 4;
+i
+4
+drop table t1;
 select * from information_schema.innodb_sys_tables where name like 'test/t%';
 TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE
-create temporary table t1 (keyc int, c1 char(100), c2 char(100),
-primary key(keyc)) engine=innodb;
+create temporary table t1
+(keyc int, c1 char(100), c2 char(100),
+primary key(keyc)) engine = innodb;
 create procedure populate_t1()
 begin
 declare i int default 1;
@@ -73,7 +86,7 @@ count(*)
 0
 drop procedure if exists populate_t1;
 drop table t1;
-create temporary table t1 (i int) engine=innodb;
+create temporary table t1 (i int) engine = innodb;
 insert into t1 values (1), (2), (3), (4);
 select * from t1;
 i
@@ -85,7 +98,7 @@ select * from t1 where i = 4;
 i
 4
 drop table t1;
-create temporary table t1 (t1_i int, t1_f float) engine=innodb;
+create temporary table t1 (t1_i int, t1_f float) engine = innodb;
 insert into t1 values (1, 1.1), (2, 2.2), (3, 2.2), (4, 4.4);
 explain select * from t1 where t1_i = 1;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -131,7 +144,7 @@ ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITH
 select * from information_schema.innodb_sys_fields where name like 't1_%';
 INDEX_ID	NAME	POS
 drop table t1;
-create temporary table t1 (i int, f float) engine=innodb;
+create temporary table t1 (i int, f float) engine = innodb;
 insert into t1 values (10, 1.1), (20, 2.2);
 select * from t1;
 i	f
@@ -147,23 +160,23 @@ call mtr.add_suppression("table.+ full");
 call mtr.add_suppression("Cannot create file");
 set session debug="+d,ib_create_table_fail_disk_full";
 create temporary table t1
-(a int, b int, primary key(a), index(b)) engine=innodb;
+(a int, b int, primary key(a), index(b)) engine = innodb;
 ERROR HY000: The table 't1' is full
 insert into t1 values (10, 11);
 ERROR 42S02: Table 'test.t1' doesn't exist
 set session debug="-d,ib_create_table_fail_disk_full";
 create temporary table t1
-(a int, b int, primary key(a), index(b)) engine=innodb;
+(a int, b int, primary key(a), index(b)) engine = innodb;
 insert into t1 values (10, 11);
 drop table t1;
 set session debug="+d,ib_create_table_fail_at_create_index";
 create temporary table t1
-(a int, b int, primary key(a), index(b)) engine=innodb;
+(a int, b int, primary key(a), index(b)) engine = innodb;
 ERROR HY000: Index column size too large. The maximum column size is 767 bytes.
 insert into t1 values (10, 11);
 ERROR 42S02: Table 'test.t1' doesn't exist
 set session debug="-d,ib_create_table_fail_at_create_index";
 create temporary table t1
-(a int, b int, primary key(a), index(b)) engine=innodb;
+(a int, b int, primary key(a), index(b)) engine = innodb;
 insert into t1 values (10, 11);
 drop table t1;
