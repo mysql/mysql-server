@@ -956,22 +956,22 @@ row_get_prebuilt_insert_row(
 					handle */
 {
 	dict_table_t*		table	= prebuilt->table;
-	const dict_index_t*	last_index = dict_table_get_last_index(table);
 
 	ut_ad(prebuilt && table && prebuilt->trx);
 
-	/* Check if an index has been dropped or a new index has been
-	added that prebuilt does not know about. We may need to rebuild
-	the row insert template. */
-
 	if (prebuilt->ins_node != 0) {
 
-		if (prebuilt->trx_id >= last_index->trx_id
+		/* Check if indexes have been dropped or added and we
+		may need to rebuild the row insert template. */
+
+		if (prebuilt->trx_id == table->def_trx_id
 		    && UT_LIST_GET_LEN(prebuilt->ins_node->entry_list)
 		    == UT_LIST_GET_LEN(table->indexes)) {
 
 			return(prebuilt->ins_node->row);
 		}
+
+		ut_ad(prebuilt->trx_id < table->def_trx_id);
 
 		que_graph_free_recursive(prebuilt->ins_graph);
 
@@ -1009,14 +1009,7 @@ row_get_prebuilt_insert_row(
 
 	prebuilt->ins_graph->state = QUE_FORK_ACTIVE;
 
-	/* The prebuilt->trx_id can be greater than the current last
-	index trx id for cases where the secondary index create failed
-	but the secondary index was visible briefly during the create
-	process. */
-
-	if (last_index->trx_id > prebuilt->trx_id) {
-		prebuilt->trx_id = last_index->trx_id;
-	}
+	prebuilt->trx_id = table->def_trx_id;
 
 	return(prebuilt->ins_node->row);
 }
@@ -1331,7 +1324,8 @@ error_exit:
 		thr->lock_state = QUE_THR_LOCK_NOLOCK;
 
 		if (was_lock_wait) {
-			ut_ad(node->state == INS_NODE_INSERT_ENTRIES);
+			ut_ad(node->state == INS_NODE_INSERT_ENTRIES
+			      || node->state == INS_NODE_ALLOC_ROW_ID);
 			goto run_again;
 		}
 
@@ -2058,6 +2052,8 @@ row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
+
 	ut_a(trx->dict_operation_lock_mode == RW_S_LATCH);
 
 	rw_lock_s_unlock(&dict_operation_lock);
@@ -2096,6 +2092,8 @@ row_mysql_unlock_data_dictionary(
 /*=============================*/
 	trx_t*	trx)	/*!< in/out: transaction */
 {
+	ut_ad(lock_trx_has_sys_table_locks(trx) == NULL);
+
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
 
 	/* Serialize data dictionary operations with dictionary mutex:

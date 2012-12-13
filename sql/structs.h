@@ -96,8 +96,11 @@ typedef struct st_key {
   uint  user_defined_key_parts;
   /** How many key_parts including hidden parts */
   uint  actual_key_parts;
-  /** Key parts added from first key */
-  uint  hidden_key_parts;
+  /**
+     Key parts allocated for primary key parts extension but
+     not used due to some reasons(no primary key, duplicated key parts)
+  */
+  uint  unused_key_parts;
   /** Should normally be = key_parts */
   uint	usable_key_parts;
   uint  block_size;

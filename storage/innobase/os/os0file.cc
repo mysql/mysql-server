@@ -3087,9 +3087,9 @@ os_file_status(
 {
 #ifdef __WIN__
 	int		ret;
-	struct _stat	statinfo;
+	struct _stat64	statinfo;
 
-	ret = _stat(path, &statinfo);
+	ret = _stat64(path, &statinfo);
 	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
 		/* file does not exist */
 		*exists = FALSE;
@@ -3162,9 +3162,9 @@ os_file_get_status(
 	int		ret;
 
 #ifdef __WIN__
-	struct _stat	statinfo;
+	struct _stat64	statinfo;
 
-	ret = _stat(path, &statinfo);
+	ret = _stat64(path, &statinfo);
 
 	if (ret && (errno == ENOENT || errno == ENOTDIR)) {
 		/* file does not exist */
@@ -3771,8 +3771,8 @@ os_aio_array_create(
 	memset(array, 0x0, sizeof(*array));
 
 	array->mutex = os_mutex_create();
-	array->not_full = os_event_create(NULL);
-	array->is_empty = os_event_create(NULL);
+	array->not_full = os_event_create();
+	array->is_empty = os_event_create();
 
 	os_event_set(array->is_empty);
 
@@ -3993,7 +3993,7 @@ os_aio_init(
 		ut_malloc(n_segments * sizeof *os_aio_segment_wait_events));
 
 	for (ulint i = 0; i < n_segments; ++i) {
-		os_aio_segment_wait_events[i] = os_event_create(NULL);
+		os_aio_segment_wait_events[i] = os_event_create();
 	}
 
 	os_last_printout = ut_time();

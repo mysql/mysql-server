@@ -552,7 +552,7 @@ fts_get_total_word_count(
 Search the index specific cache for a particular FTS index.
 @return the index specific cache else NULL */
 UNIV_INTERN
-const fts_index_cache_t*
+fts_index_cache_t*
 fts_find_index_cache(
 /*================*/
 	const fts_cache_t*

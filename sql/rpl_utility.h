@@ -147,7 +147,7 @@ public:
      next() invocations; and 2. must have not been used before in a
      next() operation.
 
-     @param entry[IN/OUT] contains a pointer to an entry that we can
+     @param[in,out] entry contains a pointer to an entry that we can
                           use to search for another adjacent entry
                           (ie, that shares the same key).
 

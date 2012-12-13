@@ -456,8 +456,11 @@ alter table t2 drop index b, drop index c, drop index d;
 ERROR HY000: Cannot drop index 'b': needed in a foreign key constraint
 alter table t2 MODIFY b INT NOT NULL, ALGORITHM=COPY;
 ERROR HY000: Cannot change column 'b': used in a foreign key constraint 't2_ibfk_1'
-alter table t2 MODIFY b INT NOT NULL;
+set @old_sql_mode = @@sql_mode;
+set @@sql_mode = 'STRICT_TRANS_TABLES';
+alter table t2 MODIFY b INT NOT NULL, ALGORITHM=INPLACE;
 ERROR HY000: Column 'b' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
+set @@sql_mode = @old_sql_mode;
 SET FOREIGN_KEY_CHECKS=0;
 alter table t2 DROP COLUMN b, ALGORITHM=COPY;
 ERROR HY000: Cannot drop column 'b': needed in a foreign key constraint 't2_ibfk_1'
@@ -474,6 +477,7 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 create index dc on t1 (b,c);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
+set @@sql_mode = 'STRICT_TRANS_TABLES';
 alter table t2 add primary key (alpha), change a alpha int,
 change b beta int not null, change c charlie int not null;
 ERROR HY000: Column 'b' cannot be NOT NULL: needed in a foreign key constraint 'test/t2_ibfk_1' SET NULL
@@ -484,6 +488,7 @@ alter table t2 add primary key (alpha), change a alpha int,
 change b beta int, modify c int not null;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
+set @@sql_mode = @old_sql_mode;
 insert into t1 values (1,1,1);
 insert into t3 values (1,1,1);
 insert into t4 values (1,1,1);
@@ -1076,9 +1081,12 @@ ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 CREATE INDEX t2a ON t2(a);
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
+set @old_sql_mode = @@sql_mode;
+set @@sql_mode = 'STRICT_TRANS_TABLES';
 ALTER TABLE t2i ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=INPLACE;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
+set @@sql_mode = @old_sql_mode;
 ALTER TABLE t2c ADD PRIMARY KEY(a,b), ADD INDEX t2a(a), ALGORITHM=COPY;
 affected rows: 5
 info: Records: 5  Duplicates: 0  Warnings: 0

@@ -381,10 +381,6 @@ typedef struct st_io_cache_share
   int                   running_threads; /* threads not in lock. */
   int                   total_threads;   /* threads sharing the cache. */
   int                   error;           /* Last error. */
-#ifdef NOT_YET_IMPLEMENTED
-  /* whether the structure should be free'd */
-  my_bool alloced;
-#endif
 } IO_CACHE_SHARE;
 
 typedef struct st_io_cache		/* Used when cacheing files */
@@ -631,6 +627,13 @@ extern int      my_access(const char *path, int amode);
 extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
 
+#ifdef __WIN__
+extern my_bool is_filename_allowed(const char *name, size_t length,
+                   my_bool allow_current_dir);
+#else /* __WIN__ */
+# define is_filename_allowed(name, length, allow_cwd) (TRUE)
+#endif /* __WIN__ */ 
+
 #ifdef _WIN32
 extern int nt_share_delete(const char *name,myf MyFlags);
 #define my_delete_allow_opened(fname,flags)  nt_share_delete((fname),(flags))
@@ -773,7 +776,8 @@ extern size_t my_b_fill(IO_CACHE *info);
 extern void my_b_seek(IO_CACHE *info,my_off_t pos);
 extern size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length);
 extern my_off_t my_b_filelength(IO_CACHE *info);
-extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...);
+extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 2, 3);
 extern size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
 extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, size_t cache_size,

@@ -40,7 +40,7 @@ ib_wqueue_create(void)
 	mutex_create(PFS_NOT_INSTRUMENTED, &wq->mutex, SYNC_WORK_QUEUE);
 
 	wq->items = ib_list_create();
-	wq->event = os_event_create(NULL);
+	wq->event = os_event_create();
 
 	return(wq);
 }

@@ -63,6 +63,9 @@ typedef Bitmap<((MAX_INDEXES+7)/8*8)> key_map; /* Used for finding keys */
 #define TEST_SIGINT		1024	/**< Allow sigint on threads */
 #define TEST_SYNCHRONIZATION    2048    /**< get server to do sleep in
                                            some places */
+#define TEST_DO_QUICK_LEAK_CHECK 4096   /**< Do Valgrind leak check for
+                                           each command. */
+
 /* Function prototypes */
 void kill_mysql(void);
 void close_connection(THD *thd, uint sql_errno= 0);
@@ -339,6 +342,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_sync;
 extern PSI_mutex_key key_RELAYLOG_LOCK_sync_queue;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
+extern PSI_mutex_key key_LOCK_thread_created;
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -660,7 +664,9 @@ enum enum_query_type
   /// When printing a derived table, don't print its expression, only alias
   QT_DERIVED_TABLE_ONLY_ALIAS= (1 << 4),
   /// Print in charset of Item::print() argument (typically thd->charset()).
-  QT_TO_ARGUMENT_CHARSET= (1 << 5)
+  QT_TO_ARGUMENT_CHARSET= (1 << 5),
+  /// Print identifiers in compact format, omitting schema names.
+  QT_COMPACT_FORMAT= (1 << 6)
 };
 
 /* query_id */

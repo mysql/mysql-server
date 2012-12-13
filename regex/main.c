@@ -67,7 +67,7 @@ char *argv[];
 	int c;
 	int errflg = 0;
 	int opt_inline = 0;
-	register int i;
+	int i;
         char *input_file_name= NULL;
 	extern int optind;
 	extern char *optarg;
@@ -291,7 +291,7 @@ int opts;			/* may not match f1 */
 	int err;
 	int len;
 	const char *type = (opts & MY_REG_EXTENDED) ? "ERE" : "BRE";
-	register int i;
+	int i;
 	char *grump;
 	char f0copy[1000];
 	char f2copy[1000];
@@ -388,9 +388,9 @@ options(type, s)
 int type;			/* 'c' compile, 'e' exec */
 char *s;
 {
-	register char *p;
-	register int o = (type == 'c') ? copts : eopts;
-	register const char *legal = (type == 'c') ? "bisnmp" : "^$#tl";
+	char *p;
+	int o = (type == 'c') ? copts : eopts;
+	const char *legal = (type == 'c') ? "bisnmp" : "^$#tl";
 
 	for (p = s; *p != '\0'; p++)
 		if (strchr(legal, *p) != NULL)
@@ -454,7 +454,7 @@ char *s;
  */
 void
 fixstr(p)
-register char *p;
+char *p;
 {
 	if (p == NULL)
 		return;
@@ -480,11 +480,11 @@ char *str;
 my_regmatch_t sub;
 char *should;
 {
-	register int len;
-	register int shlen;
-	register char *p;
+	int len;
+	int shlen;
+	char *p;
 	static char grump[500];
-	register char *at = NULL;
+	char *at = NULL;
 
 	if (should != NULL && strcmp(should, "-") == 0)
 		should = NULL;

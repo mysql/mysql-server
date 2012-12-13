@@ -2920,7 +2920,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 32,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(select 1 from `test`.`t11` where (<cache>(`test`.`t1`.`a`) = `test`.`t11`.`a`)))",
+      "attached_condition": "<in_optimizer>(`test`.`t1`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t11` where (<cache>(`test`.`t1`.`a`) = `test`.`t11`.`a`)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -3006,7 +3006,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 11,
       "filtered": 100,
-      "attached_condition": "<in_optimizer>(`x`.`a`,<exists>(select 1 from `test`.`t1` where (<cache>(`x`.`a`) = `test`.`t1`.`a`)))",
+      "attached_condition": "<in_optimizer>(`x`.`a`,<exists>(/* select#3 */ select 1 from `test`.`t1` where (<cache>(`x`.`a`) = `test`.`t1`.`a`)))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -3251,7 +3251,7 @@ EXPLAIN
           "rows": 1000,
           "filtered": 79.3,
           "using_join_buffer": "Block Nested Loop",
-          "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,<exists>(select 1 from `test`.`t2` where (<cache>(`test`.`t3`.`a`) = `test`.`t2`.`a`))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))",
+          "attached_condition": "(<in_optimizer>(`test`.`t3`.`a`,<exists>(/* select#2 */ select 1 from `test`.`t2` where (<cache>(`test`.`t3`.`a`) = `test`.`t2`.`a`))) and ((`test`.`t3`.`a` < 10) or (`test`.`t3`.`a` > 30)))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -5870,7 +5870,7 @@ INSERT INTO BB VALUES ('i'),('t');
 SELECT varchar_nokey FROM C
 WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey
 FROM BB);
-ERROR 21000: Operand should contain 2 column(s)
+ERROR 42S22: Unknown column 'OUTR' in 'IN/ALL/ANY subquery'
 SELECT varchar_nokey FROM C
 WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey, varchar_nokey
 FROM BB);
@@ -6274,7 +6274,7 @@ EXPLAIN
       "access_type": "ALL",
       "rows": 16,
       "filtered": 100,
-      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,<exists>(select 1 from `test`.`t1` where ((`test`.`t1`.`Population` > 5000000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t1`.`Country`)))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))",
+      "attached_condition": "(<in_optimizer>(`test`.`t2`.`Code`,<exists>(/* select#2 */ select 1 from `test`.`t1` where ((`test`.`t1`.`Population` > 5000000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t1`.`Country`)))) and <in_optimizer>(`test`.`t2`.`Code`,<exists>(<primary_index_lookup>(<cache>(`test`.`t2`.`Code`) in t3 on PRIMARY where ((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (<cache>(`test`.`t2`.`Code`) = `test`.`t3`.`Country`))))))",
       "attached_subqueries": [
         {
           "dependent": true,
@@ -8060,7 +8060,7 @@ EXPLAIN
               ],
               "rows": 11,
               "filtered": 100,
-              "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),<exists>(select 1,1 from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`)) where ((<cache>(`test`.`grandparent1`.`col_int_nokey`) = `test`.`parent1`.`col_int_key`) and (<cache>(`test`.`grandparent1`.`col_int_key`) = `test`.`parent1`.`col_int_key`)))) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))",
+              "attached_condition": "(<in_optimizer>((`test`.`grandparent1`.`col_int_nokey`,`test`.`grandparent1`.`col_int_key`),<exists>(/* select#3 */ select 1,1 from `test`.`t1` `parent1` left join `test`.`t2` `parent2` on((`test`.`parent2`.`col_int_key` = `test`.`parent1`.`col_int_nokey`)) where ((<cache>(`test`.`grandparent1`.`col_int_nokey`) = `test`.`parent1`.`col_int_key`) and (<cache>(`test`.`grandparent1`.`col_int_key`) = `test`.`parent1`.`col_int_key`)))) and (`test`.`grandparent1`.`col_int_key` <> 3) and (<cache>('8') = `test`.`grandparent1`.`col_int_nokey`))",
               "attached_subqueries": [
                 {
                   "dependent": true,
@@ -9832,7 +9832,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows": 6,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>(`test`.`t2`.`vc`,<exists>(select 1 from `test`.`t2` `t3` where (<cache>(`test`.`t2`.`vc`) = `test`.`t3`.`vc`)))",
+          "attached_condition": "<in_optimizer>(`test`.`t2`.`vc`,<exists>(/* select#2 */ select 1 from `test`.`t2` `t3` where (<cache>(`test`.`t2`.`vc`) = `test`.`t3`.`vc`)))",
           "attached_subqueries": [
             {
               "dependent": true,
@@ -10260,7 +10260,7 @@ EXPLAIN
           ],
           "rows": 20,
           "filtered": 100,
-          "attached_condition": "<in_optimizer>((`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`),<exists>(select 1,1 from `test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2` where ((`test`.`sq2_alias2`.`col_int_key` < 2) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`sq2_alias2`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`sq2_alias1`.`col_varchar_nokey`))))",
+          "attached_condition": "<in_optimizer>((`test`.`alias2`.`col_varchar_key`,`test`.`alias2`.`col_varchar_key`),<exists>(/* select#2 */ select 1,1 from `test`.`t1` `sq2_alias1` join `test`.`t1` `sq2_alias2` where ((`test`.`sq2_alias2`.`col_int_key` < 2) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`sq2_alias2`.`col_varchar_key`) and (<cache>(`test`.`alias2`.`col_varchar_key`) = `test`.`sq2_alias1`.`col_varchar_nokey`))))",
           "attached_subqueries": [
             {
               "dependent": true,

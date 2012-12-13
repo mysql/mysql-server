@@ -1809,19 +1809,26 @@ bool sp_head::merge_table_list(THD *thd,
   for (; table ; table= table->next_global)
     if (!table->derived && !table->schema_table)
     {
-      char tname[(NAME_LEN + 1) * 3];           // db\0table\0alias\0
-      uint tlen, alen;
+      /*
+        Structure of key for the multi-set is "db\0table\0alias\0".
+        Since "alias" part can have arbitrary length we use String
+        object to construct the key. By default String will use
+        buffer allocated on stack with NAME_LEN bytes reserved for
+        alias, since in most cases it is going to be smaller than
+        NAME_LEN bytes.
+      */
+      char tname_buff[(NAME_LEN + 1) * 3];
+      String tname(tname_buff, sizeof(tname_buff), &my_charset_bin);
+      uint temp_table_key_length;
 
-      tlen= table->db_length;
-      memcpy(tname, table->db, tlen);
-      tname[tlen++]= '\0';
-      memcpy(tname+tlen, table->table_name, table->table_name_length);
-      tlen+= table->table_name_length;
-      tname[tlen++]= '\0';
-      alen= strlen(table->alias);
-      memcpy(tname+tlen, table->alias, alen);
-      tlen+= alen;
-      tname[tlen]= '\0';
+      tname.length(0);
+      tname.append(table->db, table->db_length);
+      tname.append('\0');
+      tname.append(table->table_name, table->table_name_length);
+      tname.append('\0');
+      temp_table_key_length= tname.length();
+      tname.append(table->alias);
+      tname.append('\0');
 
       /*
         We ignore alias when we check if table was already marked as temporary
@@ -1831,9 +1838,10 @@ bool sp_head::merge_table_list(THD *thd,
 
       SP_TABLE *tab;
 
-      if ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname, tlen)) ||
-          ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname,
-                                        tlen - alen - 1)) &&
+      if ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname.ptr(),
+                                           tname.length())) ||
+          ((tab= (SP_TABLE*) my_hash_search(&m_sptabs, (uchar *)tname.ptr(),
+                                            temp_table_key_length)) &&
            tab->temp))
       {
         if (tab->lock_type < table->lock_type)
@@ -1852,11 +1860,11 @@ bool sp_head::merge_table_list(THD *thd,
             lex_for_tmp_check->create_info.options & HA_LEX_CREATE_TMP_TABLE)
         {
           tab->temp= true;
-          tab->qname.length= tlen - alen - 1;
+          tab->qname.length= temp_table_key_length;
         }
         else
-          tab->qname.length= tlen;
-        tab->qname.str= (char*) thd->memdup(tname, tab->qname.length + 1);
+          tab->qname.length= tname.length();
+        tab->qname.str= (char*) thd->memdup(tname.ptr(), tab->qname.length);
         if (!tab->qname.str)
           return false;
         tab->table_name_length= table->table_name_length;
@@ -1876,7 +1884,6 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
                                             TABLE_LIST ***query_tables_last_ptr,
                                             TABLE_LIST *belong_to_view)
 {
-  Query_arena *arena, backup;
   bool result= false;
 
   /*
@@ -1887,7 +1894,7 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
     This will be fixed by introducing of proper invalidation mechanism
     once new TDC is ready.
   */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
 
   for (uint i= 0; i < m_sptabs.records; i++)
   {
@@ -1899,7 +1906,7 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
     if (!(tab_buff= (char *)thd->calloc(ALIGN_SIZE(sizeof(TABLE_LIST)) *
                                         stab->lock_count)) ||
         !(key_buff= (char*)thd->memdup(stab->qname.str,
-                                       stab->qname.length + 1)))
+                                       stab->qname.length)))
       return false;
 
     for (uint j= 0; j < stab->lock_count; j++)
@@ -1936,9 +1943,6 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
       result= true;
     }
   }
-
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
 
   return result;
 }

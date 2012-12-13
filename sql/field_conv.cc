@@ -100,12 +100,22 @@ static void do_field_to_null_str(Copy_field *copy)
 
 type_conversion_status set_field_to_null(Field *field)
 {
-  if (field->real_maybe_null())
+  if (field->real_maybe_null() || field->is_tmp_nullable())
   {
     field->set_null();
     field->reset();
     return TYPE_OK;
   }
+  DBUG_ASSERT(0);
+
+#ifdef DBUG_OFF
+  /**
+    Can not be true, but do not take chances in production.
+    Test coverage discovered that the source code below wasn't
+    executed but to protect mysql server from unexpected behaviour
+    caused by some possible wrong code snippet in the server code base
+    we leave it for server compiled without debug.
+  */
   field->reset();
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
@@ -119,7 +129,8 @@ type_conversion_status set_field_to_null(Field *field)
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
   }
   DBUG_ASSERT(false); // impossible
-  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
+  return TYPE_ERR_NULL_CONSTRAINT_VIOLATION; // to avoid compiler's warning
+#endif
 }
 
 
@@ -149,6 +160,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     field->reset();
     return TYPE_OK;
   }
+
   if (no_conversions)
     return TYPE_ERR_NULL_CONSTRAINT_VIOLATION;
 
@@ -166,7 +178,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     Item_func_now_local::store_in(field);
     return TYPE_OK;			// Ok to set time to NULL
   }
-  
+
   // Note: we ignore any potential failure of reset() here.
   field->reset();
 
@@ -175,6 +187,14 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
     field->table->auto_increment_field_not_null= FALSE;
     return TYPE_OK;		        // field is set in fill_record()
   }
+
+  if (field->is_tmp_nullable())
+  {
+    field->set_null();
+    field->reset();
+    return TYPE_OK;
+  }
+
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
     field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
@@ -550,7 +570,7 @@ void Copy_field::set(uchar *to,Field *from)
   null_row= &from->table->null_row;
   if (from->maybe_null())
   {
-    from_null_ptr=from->null_ptr;
+    from_null_ptr=from->get_null_ptr();
     from_bit=	  from->null_bit;
     to_ptr[0]=	  1;				// Null as default value
     to_null_ptr=  (uchar*) to_ptr++;
@@ -598,11 +618,11 @@ void Copy_field::set(Field *to,Field *from,bool save)
   null_row= &from->table->null_row;
   if (from->maybe_null())
   {
-    from_null_ptr=	from->null_ptr;
+    from_null_ptr=	from->get_null_ptr();
     from_bit=		from->null_bit;
     if (to_field->real_maybe_null())
     {
-      to_null_ptr=	to->null_ptr;
+      to_null_ptr=	to->get_null_ptr();
       to_bit=		to->null_bit;
       do_copy=	do_copy_null;
     }
@@ -618,7 +638,7 @@ void Copy_field::set(Field *to,Field *from,bool save)
   }
   else if (to_field->real_maybe_null())
   {
-    to_null_ptr=	to->null_ptr;
+    to_null_ptr=	to->get_null_ptr();
     to_bit=		to->null_bit;
     do_copy= do_copy_maybe_null;
   }

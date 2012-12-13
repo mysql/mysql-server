@@ -160,7 +160,6 @@ UNIQUE (c,i));
 INSERT INTO t1 (c) VALUES (NULL),(NULL);
 Warnings:
 Warning	1048	Column 'c' cannot be null
-Warning	1048	Column 'c' cannot be null
 SELECT * FROM t1;
 c	i
 	1

@@ -371,13 +371,35 @@ buf_get_total_list_len(
 
 		buf_pool = buf_pool_from_array(i);
 
-		if (!buf_pool) {
-			continue;
-		}
-
 		*LRU_len += UT_LIST_GET_LEN(buf_pool->LRU);
 		*free_len += UT_LIST_GET_LEN(buf_pool->free);
 		*flush_list_len += UT_LIST_GET_LEN(buf_pool->flush_list);
+	}
+}
+
+/********************************************************************//**
+Get total list size in bytes from all buffer pools. */
+UNIV_INTERN
+void
+buf_get_total_list_size_in_bytes(
+/*=============================*/
+	buf_pools_list_size_t*	buf_pools_list_size)	/*!< out: list sizes
+							in all buffer pools */
+{
+	ut_ad(buf_pools_list_size);
+	memset(buf_pools_list_size, 0, sizeof(*buf_pools_list_size));
+
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool_t*	buf_pool;
+
+		buf_pool = buf_pool_from_array(i);
+		/* We don't need mutex protection since this is
+		for statistics purpose */
+		buf_pools_list_size->LRU_bytes += buf_pool->stat.LRU_bytes;
+		buf_pools_list_size->unzip_LRU_bytes +=
+			UT_LIST_GET_LEN(buf_pool->unzip_LRU) * UNIV_PAGE_SIZE;
+		buf_pools_list_size->flush_list_bytes +=
+			buf_pool->stat.flush_list_bytes;
 	}
 }
 
@@ -398,10 +420,6 @@ buf_get_total_stat(
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
-
-		if (!buf_pool) {
-			continue;
-		}
 
 		buf_stat = &buf_pool->stat;
 		tot_stat->n_page_gets += buf_stat->n_page_gets;
@@ -1273,7 +1291,7 @@ buf_pool_init_instance(
 		     SYNC_BUF_FLUSH_LIST);
 
 	for (i = BUF_FLUSH_LRU; i < BUF_FLUSH_N_TYPES; i++) {
-		buf_pool->no_flush[i] = os_event_create(NULL);
+		buf_pool->no_flush[i] = os_event_create();
 	}
 
 	buf_pool->watch = (buf_page_t*) mem_zalloc(
@@ -1808,34 +1826,24 @@ buf_page_make_young(
 }
 
 /********************************************************************//**
-Sets the time of the first access of a page and moves a page to the
-start of the buffer pool LRU list if it is too old.  This high-level
-function can be used to prevent an important page from slipping
-out of the buffer pool. */
+Moves a page to the start of the buffer pool LRU list if it is too old.
+This high-level function can be used to prevent an important page from
+slipping out of the buffer pool. */
 static
 void
-buf_page_set_accessed_make_young(
-/*=============================*/
-	buf_page_t*	bpage,		/*!< in/out: buffer block of a
+buf_page_make_young_if_needed(
+/*==========================*/
+	buf_page_t*	bpage)		/*!< in/out: buffer block of a
 					file page */
-	unsigned	access_time)	/*!< in: bpage->access_time
-					read under mutex protection,
-					or 0 if unknown */
 {
+#ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-
 	ut_ad(!buf_pool_mutex_own(buf_pool));
+#endif /* UNIV_DEBUG */
 	ut_a(buf_page_in_file(bpage));
 
 	if (buf_page_peek_if_too_old(bpage)) {
-		buf_pool_mutex_enter(buf_pool);
-		buf_LRU_make_block_young(bpage);
-		buf_pool_mutex_exit(buf_pool);
-	} else if (!access_time) {
-		ulint	time_ms = ut_time_ms();
-		buf_pool_mutex_enter(buf_pool);
-		buf_page_set_accessed(bpage, time_ms);
-		buf_pool_mutex_exit(buf_pool);
+		buf_page_make_young(bpage);
 	}
 }
 
@@ -1984,7 +1992,6 @@ buf_page_get_zip(
 	rw_lock_t*	hash_lock;
 	ibool		discard_attempted = FALSE;
 	ibool		must_read;
-	unsigned	access_time;
 	buf_pool_t*	buf_pool = buf_pool_get(space, offset);
 
 	buf_pool->stat.n_page_gets++;
@@ -2057,15 +2064,17 @@ err_exit:
 
 got_block:
 	must_read = buf_page_get_io_fix(bpage) == BUF_IO_READ;
-	access_time = buf_page_is_accessed(bpage);
 
 	rw_lock_s_unlock(hash_lock);
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
 	ut_a(!bpage->file_page_was_freed);
 #endif
+
+	buf_page_set_accessed(bpage);
+
 	mutex_exit(block_mutex);
 
-	buf_page_set_accessed_make_young(bpage, access_time);
+	buf_page_make_young_if_needed(bpage);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(++buf_dbg_counter % 5771 || buf_validate());
@@ -2830,14 +2839,15 @@ wait_until_unfixed:
 	ut_a(mode == BUF_GET_POSSIBLY_FREED
 	     || !block->page.file_page_was_freed);
 #endif
-	mutex_exit(&block->mutex);
-
 	/* Check if this is the first access to the page */
-
 	access_time = buf_page_is_accessed(&block->page);
 
-	if (UNIV_LIKELY(mode != BUF_PEEK_IF_IN_POOL)) {
-		buf_page_set_accessed_make_young(&block->page, access_time);
+	buf_page_set_accessed(&block->page);
+
+	mutex_exit(&block->mutex);
+
+	if (mode != BUF_PEEK_IF_IN_POOL) {
+		buf_page_make_young_if_needed(&block->page);
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -2888,7 +2898,7 @@ wait_until_unfixed:
 
 	mtr_memo_push(mtr, block, fix_type);
 
-	if (UNIV_LIKELY(mode != BUF_PEEK_IF_IN_POOL) && !access_time) {
+	if (mode != BUF_PEEK_IF_IN_POOL && !access_time) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
@@ -2943,15 +2953,13 @@ buf_page_optimistic_get(
 
 	buf_block_buf_fix_inc(block, file, line);
 
+	access_time = buf_page_is_accessed(&block->page);
+
+	buf_page_set_accessed(&block->page);
+
 	mutex_exit(&block->mutex);
 
-	/* Check if this is the first access to the page.
-	We do a dirty read on purpose, to avoid mutex contention.
-	This field is only used for heuristic purposes; it does not
-	affect correctness. */
-
-	access_time = buf_page_is_accessed(&block->page);
-	buf_page_set_accessed_make_young(&block->page, access_time);
+	buf_page_make_young_if_needed(&block->page);
 
 	ut_ad(!ibuf_inside(mtr)
 	      || ibuf_page(buf_block_get_space(block),
@@ -3006,7 +3014,7 @@ buf_page_optimistic_get(
 	mutex_exit(&block->mutex);
 #endif
 
-	if (UNIV_UNLIKELY(!access_time)) {
+	if (!access_time) {
 		/* In the case of a first access, try to apply linear
 		read-ahead */
 
@@ -3069,24 +3077,14 @@ buf_page_get_known_nowait(
 
 	buf_block_buf_fix_inc(block, file, line);
 
+	buf_page_set_accessed(&block->page);
+
 	mutex_exit(&block->mutex);
 
 	buf_pool = buf_pool_from_block(block);
 
-	if (mode == BUF_MAKE_YOUNG && buf_page_peek_if_too_old(&block->page)) {
-		buf_pool_mutex_enter(buf_pool);
-		buf_LRU_make_block_young(&block->page);
-		buf_pool_mutex_exit(buf_pool);
-	} else if (!buf_page_is_accessed(&block->page)) {
-		/* Above, we do a dirty read on purpose, to avoid
-		mutex contention.  The field buf_page_t::access_time
-		is only used for heuristic purposes.  Writes to the
-		field must be protected by mutex, however. */
-		ulint	time_ms = ut_time_ms();
-
-		buf_pool_mutex_enter(buf_pool);
-		buf_page_set_accessed(&block->page, time_ms);
-		buf_pool_mutex_exit(buf_pool);
+	if (mode == BUF_MAKE_YOUNG) {
+		buf_page_make_young_if_needed(&block->page);
 	}
 
 	ut_ad(!ibuf_inside(mtr) || mode == BUF_KEEP_OLD);
@@ -3265,6 +3263,7 @@ buf_page_init(
 	ulint		offset,	/*!< in: offset of the page within space
 				in units of a page */
 	ulint		fold,	/*!< in: buf_page_address_fold(space,offset) */
+	ulint		zip_size,/*!< in: compressed page size, or 0 */
 	buf_block_t*	block)	/*!< in/out: block to init */
 {
 	buf_page_t*	hash_page;
@@ -3333,6 +3332,9 @@ buf_page_init(
 	ut_d(block->page.in_page_hash = TRUE);
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
 		    fold, &block->page);
+	if (zip_size) {
+		page_zip_set_size(&block->page.zip, zip_size);
+	}
 }
 
 /********************************************************************//**
@@ -3438,7 +3440,7 @@ err_exit:
 
 		ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 
-		buf_page_init(buf_pool, space, offset, fold, block);
+		buf_page_init(buf_pool, space, offset, fold, zip_size, block);
 		rw_lock_x_unlock(hash_lock);
 
 		/* The block must be put to the LRU list, to the old blocks */
@@ -3457,8 +3459,6 @@ err_exit:
 		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
 		if (zip_size) {
-			page_zip_set_size(&block->page.zip, zip_size);
-
 			/* buf_pool->mutex may be released and
 			reacquired by buf_buddy_alloc().  Thus, we
 			must release block->mutex in order not to
@@ -3559,7 +3559,8 @@ err_exit:
 
 		rw_lock_x_unlock(hash_lock);
 
-		/* The block must be put to the LRU list, to the old blocks */
+		/* The block must be put to the LRU list, to the old blocks.
+		The zip_size is already set into the page zip */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_LRU_insert_zip_clean(bpage);
@@ -3609,7 +3610,6 @@ buf_page_create(
 	buf_block_t*	block;
 	ulint		fold;
 	buf_block_t*	free_block	= NULL;
-	ulint		time_ms		= ut_time_ms();
 	buf_pool_t*	buf_pool	= buf_pool_get(space, offset);
 	rw_lock_t*	hash_lock;
 
@@ -3661,7 +3661,7 @@ buf_page_create(
 
 	mutex_enter(&block->mutex);
 
-	buf_page_init(buf_pool, space, offset, fold, block);
+	buf_page_init(buf_pool, space, offset, fold, zip_size, block);
 
 	rw_lock_x_unlock(hash_lock);
 
@@ -3682,7 +3682,6 @@ buf_page_create(
 		buf_page_set_io_fix(&block->page, BUF_IO_READ);
 		rw_lock_x_lock(&block->lock);
 
-		page_zip_set_size(&block->page.zip, zip_size);
 		mutex_exit(&block->mutex);
 		/* buf_pool->mutex may be released and reacquired by
 		buf_buddy_alloc().  Thus, we must release block->mutex
@@ -3706,11 +3705,11 @@ buf_page_create(
 		rw_lock_x_unlock(&block->lock);
 	}
 
-	buf_page_set_accessed(&block->page, time_ms);
-
 	buf_pool_mutex_exit(buf_pool);
 
 	mtr_memo_push(mtr, block, MTR_MEMO_BUF_FIX);
+
+	buf_page_set_accessed(&block->page);
 
 	mutex_exit(&block->mutex);
 

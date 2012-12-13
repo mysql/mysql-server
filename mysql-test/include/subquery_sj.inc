@@ -2545,7 +2545,7 @@ CREATE TABLE BB (
   varchar_nokey varchar(1) NOT NULL
 );
 INSERT INTO BB VALUES ('i'),('t');
--- error ER_OPERAND_COLUMNS
+-- error ER_BAD_FIELD_ERROR
 SELECT varchar_nokey FROM C
 WHERE (varchar_nokey, OUTR) IN (SELECT varchar_nokey
                                 FROM BB);

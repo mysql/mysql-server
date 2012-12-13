@@ -1,0 +1,2189 @@
+#
+# WL#6030: Triggers are not processed for NOT NULL columns.
+#
+CREATE TABLE t2(a INT, b INT, c INT);
+
+###################################################################
+# Test 1: BEFORE INSERT, NOT NULL.
+#   - Test 1.1: SET to NOT NULL.
+###################################################################
+CREATE TABLE t1(a INT NOT NULL, b INT, c INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET NEW.a = 1;
+INSERT INTO t2 VALUES (1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+
+# Single INSERT ... VALUES.
+INSERT INTO t1 VALUES (NULL, 2, 3);
+INSERT INTO t1(a, b, c) VALUES (NULL, 20, 30);
+INSERT INTO t1(b, c) VALUES (200, 300);
+INSERT INTO t1(a) VALUES (NULL);
+
+SELECT * FROM t1;
+a	b	c
+1	2	3
+1	20	30
+1	200	300
+1	NULL	NULL
+
+DELETE FROM t1;
+
+# Single REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (NULL, 2, 3);
+REPLACE INTO t1(a, b, c) VALUES (NULL, 20, 30);
+REPLACE INTO t1(b, c) VALUES (200, 300);
+REPLACE INTO t1(a) VALUES (NULL);
+
+SELECT * FROM t1;
+a	b	c
+1	2	3
+1	20	30
+1	200	300
+1	NULL	NULL
+
+DELETE FROM t1;
+
+# Multi INSERT ... VALUES.
+INSERT INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+SELECT * FROM t1;
+a	b	c
+1	2	3
+1	20	30
+1	200	300
+1	2	3
+1	20	30
+1	200	300
+1	2	3
+1	20	30
+1	200	300
+1	NULL	NULL
+1	NULL	NULL
+1	NULL	NULL
+
+DELETE FROM t1;
+
+# Multi REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+SELECT * FROM t1;
+a	b	c
+1	2	3
+1	20	30
+1	200	300
+1	2	3
+1	20	30
+1	200	300
+1	2	3
+1	20	30
+1	200	300
+1	NULL	NULL
+1	NULL	NULL
+1	NULL	NULL
+
+DELETE FROM t1;
+
+# INSERT ... SELECT.
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t1(a, b, c) SELECT * FROM t2;
+INSERT INTO t1(b, c) SELECT b, c FROM t2;
+INSERT INTO t1(a) SELECT a FROM t2;
+
+SELECT * FROM t1;
+a	b	c
+1	2	3
+1	20	30
+1	200	300
+1	2	3
+1	20	30
+1	200	300
+1	2	3
+1	20	30
+1	200	300
+1	NULL	NULL
+1	NULL	NULL
+1	NULL	NULL
+
+DELETE FROM t1;
+
+# REPLACE ... SELECT.
+REPLACE INTO t1 SELECT * FROM t2;
+REPLACE INTO t1(a, b, c) SELECT * FROM t2;
+REPLACE INTO t1(b, c) SELECT b, c FROM t2;
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+SELECT * FROM t1;
+a	b	c
+1	2	3
+1	20	30
+1	200	300
+1	2	3
+1	20	30
+1	200	300
+1	2	3
+1	20	30
+1	200	300
+1	NULL	NULL
+1	NULL	NULL
+1	NULL	NULL
+
+DELETE FROM t1;
+DELETE FROM t2;
+DROP TRIGGER t1_bi;
+
+###################################################################
+#   - Test 1.2: SET to NULL.
+###################################################################
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW SET NEW.a = NULL;
+INSERT INTO t2 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+# Single INSERT ... VALUES.
+INSERT INTO t1 VALUES (1, 2, 3);
+ERROR 23000: Column 'a' cannot be null
+INSERT INTO t1(a, b, c) VALUES (1, 2, 3);
+ERROR 23000: Column 'a' cannot be null
+INSERT INTO t1(b, c) VALUES (2, 3);
+ERROR 23000: Column 'a' cannot be null
+INSERT INTO t1(a) VALUES (1);
+ERROR 23000: Column 'a' cannot be null
+
+SELECT * FROM t1;
+a	b	c
+
+DELETE FROM t1;
+
+# Single REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (1, 2, 3);
+ERROR 23000: Column 'a' cannot be null
+REPLACE INTO t1(a, b, c) VALUES (1, 2, 3);
+ERROR 23000: Column 'a' cannot be null
+REPLACE INTO t1(b, c) VALUES (2, 3);
+ERROR 23000: Column 'a' cannot be null
+REPLACE INTO t1(a) VALUES (1);
+ERROR 23000: Column 'a' cannot be null
+
+SELECT * FROM t1;
+a	b	c
+
+DELETE FROM t1;
+
+# Multi INSERT ... VALUES.
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+ERROR 23000: Column 'a' cannot be null
+INSERT INTO t1(a, b, c) VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+ERROR 23000: Column 'a' cannot be null
+INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+ERROR 23000: Column 'a' cannot be null
+INSERT INTO t1(a) VALUES (1), (10), (100);
+ERROR 23000: Column 'a' cannot be null
+
+SELECT * FROM t1;
+a	b	c
+
+DELETE FROM t1;
+
+# Multi REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+ERROR 23000: Column 'a' cannot be null
+REPLACE INTO t1(a, b, c) VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+ERROR 23000: Column 'a' cannot be null
+REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+ERROR 23000: Column 'a' cannot be null
+REPLACE INTO t1(a) VALUES (1), (10), (100);
+ERROR 23000: Column 'a' cannot be null
+
+SELECT * FROM t1;
+a	b	c
+
+DELETE FROM t1;
+
+# INSERT ... SELECT.
+INSERT INTO t1 SELECT * FROM t2;
+ERROR 23000: Column 'a' cannot be null
+INSERT INTO t1(a, b, c) SELECT * FROM t2;
+ERROR 23000: Column 'a' cannot be null
+INSERT INTO t1(b, c) SELECT b, c FROM t2;
+ERROR 23000: Column 'a' cannot be null
+INSERT INTO t1(a) SELECT a FROM t2;
+ERROR 23000: Column 'a' cannot be null
+
+SELECT * FROM t1;
+a	b	c
+
+DELETE FROM t1;
+
+# REPLACE ... SELECT.
+REPLACE INTO t1 SELECT * FROM t2;
+ERROR 23000: Column 'a' cannot be null
+REPLACE INTO t1(a, b, c) SELECT * FROM t2;
+ERROR 23000: Column 'a' cannot be null
+REPLACE INTO t1(b, c) SELECT b, c FROM t2;
+ERROR 23000: Column 'a' cannot be null
+REPLACE INTO t1(a) SELECT a FROM t2;
+ERROR 23000: Column 'a' cannot be null
+
+SELECT * FROM t1;
+a	b	c
+
+DELETE FROM t1;
+DROP TRIGGER t1_bi;
+
+###################################################################
+# Test 2: BEFORE UPDATE, NOT NULL.
+#   - Test 2.1: SET to NOT NULL.
+###################################################################
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET NEW.a = 999;
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+# Regular UPDATE.
+UPDATE t1 SET a = NULL WHERE a = 1;
+UPDATE t1 SET a = NULL, c = NULL WHERE a = 100;
+
+SELECT * FROM t1;
+a	b	c
+999	2	3
+10	20	30
+999	200	NULL
+
+DELETE FROM t1;
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+# Multiple UPDATE.
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t3 VALUES (10, -10);
+UPDATE t1, t3 SET t1.a = NULL, t3.a = -20 WHERE t1.a = t3.a AND t3.a = 10;
+
+SELECT * FROM t1;
+a	b	c
+1	2	3
+999	20	30
+100	200	300
+
+SELECT * FROM t3;
+a	b
+-20	-10
+
+DROP TRIGGER t1_bu;
+DROP TABLE t3;
+DELETE FROM t1;
+CREATE TABLE t3(a INT NOT NULL, b INT);
+CREATE TRIGGER t3_bu BEFORE UPDATE ON t3 FOR EACH ROW SET NEW.a = 999;
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+INSERT INTO t3 VALUES (10, -10);
+UPDATE t1, t3 SET t1.a = -20, t3.a = NULL WHERE t1.a = t3.a AND t3.a = 10;
+SELECT * FROM t1;
+a	b	c
+1	2	3
+-20	20	30
+100	200	300
+SELECT * FROM t3;
+a	b
+999	-10
+DROP TRIGGER t3_bu;
+DROP TABLE t3;
+
+#   - Test 2.1: SET to NULL.
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW SET NEW.a = NULL;
+DELETE FROM t1;
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+# Regular UPDATE.
+UPDATE t1 SET a = 99 WHERE a = 1;
+ERROR 23000: Column 'a' cannot be null
+UPDATE t1 SET a = 99, b = 99 WHERE a = 1;
+ERROR 23000: Column 'a' cannot be null
+
+SELECT * FROM t1;
+a	b	c
+1	2	3
+10	20	30
+100	200	300
+
+# Multiple UPDATE.
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t3 VALUES (10, -10);
+UPDATE t1, t3 SET t1.a = 99, t3.a = -10 WHERE t1.a = t3.a AND t3.a = 10;
+ERROR 23000: Column 'a' cannot be null
+
+SELECT * FROM t1;
+a	b	c
+1	2	3
+10	20	30
+100	200	300
+
+SELECT * FROM t3;
+a	b
+-10	-10
+
+DELETE FROM t1;
+DELETE FROM t2;
+DROP TABLE t3;
+DROP TRIGGER t1_bu;
+
+###################################################################
+# Test 3: Using illegal NULL-value as r-value.
+#   - Test 3.1: using NULL.
+###################################################################
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+SET NEW.b = NEW.a;
+SET NEW.a = 1;
+END|
+INSERT INTO t2 VALUES (1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+
+# Single INSERT ... VALUES.
+INSERT INTO t1 VALUES (NULL, 2, 3);
+INSERT INTO t1(a, b, c) VALUES (NULL, 20, 30);
+INSERT INTO t1(b, c) VALUES (200, 300);
+INSERT INTO t1(a) VALUES (NULL);
+
+SELECT * FROM t1;
+a	b	c
+1	NULL	3
+1	NULL	30
+1	NULL	300
+1	NULL	NULL
+
+DELETE FROM t1;
+
+# Single REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (NULL, 2, 3);
+REPLACE INTO t1(a, b, c) VALUES (NULL, 20, 30);
+REPLACE INTO t1(b, c) VALUES (200, 300);
+REPLACE INTO t1(a) VALUES (NULL);
+
+SELECT * FROM t1;
+a	b	c
+1	NULL	3
+1	NULL	30
+1	NULL	300
+1	NULL	NULL
+
+DELETE FROM t1;
+
+# Multi INSERT ... VALUES.
+INSERT INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+SELECT * FROM t1;
+a	b	c
+1	-1	3
+1	NULL	30
+1	NULL	300
+1	-2	3
+1	NULL	30
+1	NULL	300
+1	NULL	3
+1	NULL	30
+1	NULL	300
+1	-3	NULL
+1	NULL	NULL
+1	NULL	NULL
+
+DELETE FROM t1;
+
+# Multi REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+SELECT * FROM t1;
+a	b	c
+1	-1	3
+1	NULL	30
+1	NULL	300
+1	-2	3
+1	NULL	30
+1	NULL	300
+1	NULL	3
+1	NULL	30
+1	NULL	300
+1	-3	NULL
+1	NULL	NULL
+1	NULL	NULL
+
+DELETE FROM t1;
+
+# INSERT ... SELECT
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t1(a, b, c) SELECT * FROM t2;
+INSERT INTO t1(b, c) SELECT b, c FROM t2;
+INSERT INTO t1(a) SELECT a FROM t2;
+
+SELECT * FROM t1;
+a	b	c
+1	1	3
+1	NULL	30
+1	NULL	300
+1	1	3
+1	NULL	30
+1	NULL	300
+1	NULL	3
+1	NULL	30
+1	NULL	300
+1	1	NULL
+1	NULL	NULL
+1	NULL	NULL
+
+DELETE FROM t1;
+
+# REPLACE ... SELECT
+REPLACE INTO t1 SELECT * FROM t2;
+REPLACE INTO t1(a, b, c) SELECT * FROM t2;
+REPLACE INTO t1(b, c) SELECT b, c FROM t2;
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+SELECT * FROM t1;
+a	b	c
+1	1	3
+1	NULL	30
+1	NULL	300
+1	1	3
+1	NULL	30
+1	NULL	300
+1	NULL	3
+1	NULL	30
+1	NULL	300
+1	1	NULL
+1	NULL	NULL
+1	NULL	NULL
+
+DELETE FROM t1;
+DROP TRIGGER t1_bi;
+
+###################################################################
+#   - Test 3.2: using NOT NULL.
+###################################################################
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+SET NEW.a = 99;
+SET NEW.b = NEW.a;
+END|
+
+# Single INSERT ... VALUES.
+INSERT INTO t1 VALUES (NULL, 2, 3);
+INSERT INTO t1(a, b, c) VALUES (NULL, 20, 30);
+INSERT INTO t1(b, c) VALUES (200, 300);
+INSERT INTO t1(a) VALUES (NULL);
+
+SELECT * FROM t1;
+a	b	c
+99	99	3
+99	99	30
+99	99	300
+99	99	NULL
+
+DELETE FROM t1;
+
+# Single REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (NULL, 2, 3);
+REPLACE INTO t1(a, b, c) VALUES (NULL, 20, 30);
+REPLACE INTO t1(b, c) VALUES (200, 300);
+REPLACE INTO t1(a) VALUES (NULL);
+
+SELECT * FROM t1;
+a	b	c
+99	99	3
+99	99	30
+99	99	300
+99	99	NULL
+
+DELETE FROM t1;
+
+# Multi INSERT ... VALUES.
+INSERT INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+SELECT * FROM t1;
+a	b	c
+99	99	3
+99	99	30
+99	99	300
+99	99	3
+99	99	30
+99	99	300
+99	99	3
+99	99	30
+99	99	300
+99	99	NULL
+99	99	NULL
+99	99	NULL
+
+DELETE FROM t1;
+
+# Multi REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (-1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+SELECT * FROM t1;
+a	b	c
+99	99	3
+99	99	30
+99	99	300
+99	99	3
+99	99	30
+99	99	300
+99	99	3
+99	99	30
+99	99	300
+99	99	NULL
+99	99	NULL
+99	99	NULL
+
+DELETE FROM t1;
+
+# INSERT ... SELECT
+INSERT INTO t1 SELECT * FROM t2;
+INSERT INTO t1(a, b, c) SELECT * FROM t2;
+INSERT INTO t1(b, c) SELECT b, c FROM t2;
+INSERT INTO t1(a) SELECT a FROM t2;
+
+SELECT * FROM t1;
+a	b	c
+99	99	3
+99	99	30
+99	99	300
+99	99	3
+99	99	30
+99	99	300
+99	99	3
+99	99	30
+99	99	300
+99	99	NULL
+99	99	NULL
+99	99	NULL
+
+DELETE FROM t1;
+
+# REPLACE ... SELECT
+REPLACE INTO t1 SELECT * FROM t2;
+REPLACE INTO t1(a, b, c) SELECT * FROM t2;
+REPLACE INTO t1(b, c) SELECT b, c FROM t2;
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+SELECT * FROM t1;
+a	b	c
+99	99	3
+99	99	30
+99	99	300
+99	99	3
+99	99	30
+99	99	300
+99	99	3
+99	99	30
+99	99	300
+99	99	NULL
+99	99	NULL
+99	99	NULL
+
+DELETE FROM t1;
+DELETE FROM t2;
+DROP TRIGGER t1_bi;
+
+###################################################################
+# Test 4: Temporarily setting to illegal NULL-value in trigger
+# (here we only check that it's possible to temporarily assign
+# NULL in triggers).
+###################################################################
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+SET NEW.a = NULL;
+SET NEW.b = NEW.a;
+SET NEW.a = 99;
+END|
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+SET NEW.a = NULL;
+SET NEW.b = NEW.a;
+SET NEW.a = 199;
+END|
+
+# Checking BEFORE INSERT trigger.
+INSERT INTO t1 VALUES (1, 2, 3);
+INSERT INTO t1 VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+SELECT * FROM t1;
+a	b	c
+99	NULL	3
+99	NULL	3
+99	NULL	30
+99	NULL	300
+
+# Checking BEFORE UPDATE trigger.
+UPDATE t1 SET b = 999 WHERE c = 300;
+SELECT * FROM t1;
+a	b	c
+99	NULL	3
+99	NULL	3
+99	NULL	30
+199	NULL	300
+
+DROP TRIGGER t1_bi;
+DROP TRIGGER t1_bu;
+DELETE FROM t1;
+
+###################################################################
+# Test 5: Using IS NULL inside trigger.
+#   - Test 5.1: BEFORE INSERT trigger.
+###################################################################
+ALTER TABLE t1 ADD COLUMN a_new_is_null BOOLEAN DEFAULT NULL;
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+SET NEW.a_new_is_null = NEW.a IS NULL;
+SET NEW.a = 99;
+END|
+INSERT INTO t2 VALUES (1, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+
+# Single INSERT ... VALUES.
+INSERT INTO t1 VALUES (NULL, 2, 3, NULL);
+INSERT INTO t1(a, b, c) VALUES (NULL, 20, 30);
+INSERT INTO t1(b, c) VALUES (200, 300);
+INSERT INTO t1(a) VALUES (NULL);
+
+SELECT * FROM t1;
+a	b	c	a_new_is_null
+99	2	3	1
+99	20	30	1
+99	200	300	1
+99	NULL	NULL	1
+
+DELETE FROM t1;
+
+# Single REPLACE ... VALUES.
+REPLACE INTO t1 VALUES (NULL, 2, 3, NULL);
+REPLACE INTO t1(a, b, c) VALUES (NULL, 20, 30);
+REPLACE INTO t1(b, c) VALUES (200, 300);
+REPLACE INTO t1(a) VALUES (NULL);
+
+SELECT * FROM t1;
+a	b	c	a_new_is_null
+99	2	3	1
+99	20	30	1
+99	200	300	1
+99	NULL	NULL	1
+
+DELETE FROM t1;
+
+# Multi INSERT ... VALUES.
+INSERT INTO t1 VALUES
+(-1, 2, 3, NULL), (NULL, 20, 30, NULL), (NULL, 200, 300, NULL);
+INSERT INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+INSERT INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+INSERT INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+SELECT * FROM t1;
+a	b	c	a_new_is_null
+99	2	3	0
+99	20	30	1
+99	200	300	1
+99	2	3	0
+99	20	30	1
+99	200	300	1
+99	2	3	1
+99	20	30	1
+99	200	300	1
+99	NULL	NULL	0
+99	NULL	NULL	1
+99	NULL	NULL	1
+
+DELETE FROM t1;
+
+# Multi REPLACE ... VALUES.
+REPLACE INTO t1 VALUES
+(-1, 2, 3, NULL), (NULL, 20, 30, NULL), (NULL, 200, 300, NULL);
+REPLACE INTO t1(a, b, c) VALUES (-2, 2, 3), (NULL, 20, 30), (NULL, 200, 300);
+REPLACE INTO t1(b, c) VALUES (2, 3), (20, 30), (200, 300);
+REPLACE INTO t1(a) VALUES (-3), (NULL), (NULL);
+
+SELECT * FROM t1;
+a	b	c	a_new_is_null
+99	2	3	0
+99	20	30	1
+99	200	300	1
+99	2	3	0
+99	20	30	1
+99	200	300	1
+99	2	3	1
+99	20	30	1
+99	200	300	1
+99	NULL	NULL	0
+99	NULL	NULL	1
+99	NULL	NULL	1
+
+DELETE FROM t1;
+
+# INSERT ... SELECT
+INSERT INTO t1 SELECT t2.*, NULL FROM t2;
+INSERT INTO t1(a, b, c) SELECT * FROM t2;
+INSERT INTO t1(b, c) SELECT b, c FROM t2;
+INSERT INTO t1(a) SELECT a FROM t2;
+
+SELECT * FROM t1;
+a	b	c	a_new_is_null
+99	2	3	0
+99	20	30	1
+99	200	300	1
+99	2	3	0
+99	20	30	1
+99	200	300	1
+99	2	3	1
+99	20	30	1
+99	200	300	1
+99	NULL	NULL	0
+99	NULL	NULL	1
+99	NULL	NULL	1
+
+DELETE FROM t1;
+
+# REPLACE ... SELECT
+REPLACE INTO t1 SELECT t2.*, NULL FROM t2;
+REPLACE INTO t1(a, b, c) SELECT * FROM t2;
+REPLACE INTO t1(b, c) SELECT b, c FROM t2;
+REPLACE INTO t1(a) SELECT a FROM t2;
+
+SELECT * FROM t1;
+a	b	c	a_new_is_null
+99	2	3	0
+99	20	30	1
+99	200	300	1
+99	2	3	0
+99	20	30	1
+99	200	300	1
+99	2	3	1
+99	20	30	1
+99	200	300	1
+99	NULL	NULL	0
+99	NULL	NULL	1
+99	NULL	NULL	1
+
+DELETE FROM t1;
+DROP TRIGGER t1_bi;
+
+###################################################################
+#   - Test 5.2: BEFORE UPDATE trigger.
+###################################################################
+ALTER TABLE t1 ADD COLUMN a_old_is_null BOOLEAN DEFAULT NULL;
+ALTER TABLE t1 ADD COLUMN b_new_is_null BOOLEAN DEFAULT NULL;
+ALTER TABLE t1 ADD COLUMN b_old_is_null BOOLEAN DEFAULT NULL;
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+BEGIN
+SET NEW.a_new_is_null = NEW.a IS NULL;
+SET NEW.a_old_is_null = OLD.a IS NULL;
+SET NEW.b_new_is_null = NEW.b IS NULL;
+SET NEW.b_old_is_null = OLD.b IS NULL;
+SET NEW.a = 99;
+END|
+INSERT INTO t1(a, b, c) VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+# Regular UPDATE.
+UPDATE t1 SET a = NULL WHERE a = 1;
+UPDATE t1 SET a = NULL, c = NULL WHERE a = 10;
+UPDATE t1 SET b = NULL WHERE a = 100;
+
+SELECT * FROM t1;
+a	b	c	a_new_is_null	a_old_is_null	b_new_is_null	b_old_is_null
+99	2	3	1	0	0	0
+99	20	NULL	1	0	0	0
+99	NULL	300	0	0	1	0
+
+DELETE FROM t1;
+INSERT INTO t1(a, b, c) VALUES (1, 2, 3), (10, 20, 30), (100, 200, 300);
+
+# Multiple UPDATE.
+CREATE TABLE t3(a INT, b INT);
+INSERT INTO t3 VALUES (10, -10);
+UPDATE t1, t3 SET t1.a = NULL, t3.a = -20 WHERE t1.a = t3.a AND t3.a = 10;
+
+SELECT * FROM t1;
+a	b	c	a_new_is_null	a_old_is_null	b_new_is_null	b_old_is_null
+1	2	3	NULL	NULL	NULL	NULL
+99	20	30	0	0	0	0
+100	200	300	NULL	NULL	NULL	NULL
+
+SELECT * FROM t3;
+a	b
+-20	-10
+
+DROP TABLE t3;
+DROP TRIGGER t1_bu;
+DROP TABLE t1;
+DROP TABLE t2;
+
+###################################################################
+# Test 6: Nullability of non-updated columns.
+###################################################################
+CREATE TABLE t1(a INT, b INT NOT NULL);
+
+# - Unconditional SET in a trigger.
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+SET NEW.b = NULL;
+
+INSERT INTO t1(a) VALUES (1);
+ERROR 23000: Column 'b' cannot be null
+
+REPLACE INTO t1(a) VALUES (1);
+ERROR 23000: Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+DELETE FROM t1;
+DROP TRIGGER t1_bi;
+
+# - Conditional SET in a trigger, which is executed for every row.
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+SET NEW.b = NEW.a;
+IF NEW.b IS NULL THEN
+SET NEW.b = 1;
+END IF;
+END|
+
+INSERT INTO t1(a) VALUES (NULL);
+
+REPLACE INTO t1(a) VALUES (NULL);
+
+SELECT * FROM t1;
+a	b
+NULL	1
+NULL	1
+DELETE FROM t1;
+DROP TRIGGER t1_bi;
+
+# - Conditional SET in a trigger, which is NOT executed for every row.
+
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+IF (MOD(NEW.a, 2) = 0) THEN
+SET NEW.b = NEW.a - 1;
+END IF;
+END|
+
+INSERT INTO t1(a) VALUES (1), (2), (3), (4), (5), (6);
+Warnings:
+Warning	1048	Column 'b' cannot be null
+Warning	1364	Field 'b' doesn't have a default value
+
+REPLACE INTO t1(a) VALUES (1), (2), (3), (4), (5), (6);
+Warnings:
+Warning	1048	Column 'b' cannot be null
+Warning	1364	Field 'b' doesn't have a default value
+
+SELECT * FROM t1;
+a	b
+1	0
+2	1
+3	0
+4	3
+5	0
+6	5
+1	0
+2	1
+3	0
+4	3
+5	0
+6	5
+DROP TABLE t1;
+
+###################################################################
+# Test 7: Nullability of column being copied as result of INSERT SELECT.
+###################################################################
+CREATE TABLE t1(a INT NOT NULL);
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+SET NEW.a = 1;
+
+INSERT INTO t1 SELECT * FROM t2;
+REPLACE INTO t1 SELECT * FROM t2;
+
+SELECT * FROM t1;
+a
+1
+1
+
+DROP TRIGGER t1_bi;
+DROP TABLE t1,t2;
+CREATE TABLE t1(a INT NOT NULL);
+INSERT INTO t1 VALUES (1);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1 FOR EACH ROW
+SET NEW.a = 2;
+CREATE TABLE t2(a INT);
+INSERT INTO t2 VALUES (NULL);
+
+UPDATE t1, t2 SET t1.a = t2.a;
+
+SELECT * FROM t1;
+a
+2
+
+DROP TRIGGER t1_bu;
+DROP TABLE t1,t2;
+
+###################################################################
+# Test 8: Nullability of column being copied as result of
+#         LOAD DATA INFILE.
+###################################################################
+CREATE TABLE t1 (a INT NOT NULL, b VARCHAR(10) NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1 FOR EACH ROW
+BEGIN
+IF NEW.b IS NULL THEN
+SET NEW.b = '123';
+END IF;
+END |
+LOAD DATA INFILE '../../std_data/wl6030.dat' INTO TABLE t1 FIELDS
+TERMINATED BY ',' ENCLOSED BY '"';
+SELECT * FROM t1;
+a	b
+457	123
+321	text
+579	123
+789	
+
+987	123
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+
+###################################################################
+# Misc tests.
+###################################################################
+
+CREATE TABLE t1(a INT, b INT NOT NULL);
+CREATE VIEW v1 AS SELECT * FROM t1;
+CREATE TABLE t2(a INT, b INT NOT NULL, c INT NOT NULL, d INT NOT NULL);
+CREATE VIEW v2 AS SELECT * FROM t2;
+CREATE TABLE t1_data(a INT, b INT);
+INSERT INTO t1_data VALUES
+(11, 12),
+(NULL, 22),
+(31, NULL),
+(NULL, NULL);
+CREATE TABLE t2_data(a INT, b INT, c INT, d INT);
+INSERT INTO t2_data VALUES
+(11, 12, 13, 14),
+(NULL, 22, 23, 24),
+(31, NULL, 33, 34),
+(41, 42, NULL, 44),
+(51, 52, 53, NULL),
+(NULL, NULL, NULL, NULL);
+SET @sql_mode_saved = @@sql_mode;
+
+###################################################################
+# Checking permissive SQL_MODE.
+###################################################################
+
+SET sql_mode = '';
+
+#------------------------------------------------------------------
+# Checking INSERT INTO ... VALUES ...
+#------------------------------------------------------------------
+
+#   - No column list (all columns) + NULL-value for NOT NULL column.
+
+INSERT INTO t1 VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO v1 VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+
+REPLACE INTO t1 VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO v1 VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+
+INSERT INTO t2 VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+INSERT INTO v2 VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+
+REPLACE INTO t2 VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+REPLACE INTO v2 VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+
+#   - All columns + NULL-value for NOT NULL column.
+
+INSERT INTO v1(a, b) VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO t1(a, b) VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+
+REPLACE INTO v1(a, b) VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO t1(a, b) VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+
+INSERT INTO t2(a, b, c, d) VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+INSERT INTO v2(a, b, c, d) VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+
+REPLACE INTO t2(a, b, c, d) VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+REPLACE INTO v2(a, b, c, d) VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+
+#   - Single nullable column, no values for NOT NULL columns.
+#     Expect exactly 4 warnings and 8 rows being inserted into t1.
+
+INSERT INTO t1(a) VALUES (1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+INSERT INTO t1(a) VALUES (2), (3), (4);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+INSERT INTO v1(a) VALUES (5);
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
+INSERT INTO v1(a) VALUES (6), (7), (8);
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
+
+SELECT * FROM t1;
+a	b
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+7	0
+8	0
+DELETE FROM t1;
+
+REPLACE INTO t1(a) VALUES (1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+REPLACE INTO t1(a) VALUES (2), (3), (4);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+REPLACE INTO v1(a) VALUES (5);
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
+REPLACE INTO v1(a) VALUES (6), (7), (8);
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
+
+SELECT * FROM t1;
+a	b
+1	0
+2	0
+3	0
+4	0
+5	0
+6	0
+7	0
+8	0
+DELETE FROM t1;
+
+INSERT INTO t2(a) VALUES (1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+Warning	1364	Field 'c' doesn't have a default value
+Warning	1364	Field 'd' doesn't have a default value
+INSERT INTO t2(a) VALUES (2), (3), (4);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+Warning	1364	Field 'c' doesn't have a default value
+Warning	1364	Field 'd' doesn't have a default value
+INSERT INTO v2(a) VALUES (5);
+Warnings:
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+INSERT INTO v2(a) VALUES (6), (7), (8);
+Warnings:
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+
+SELECT * FROM t2;
+a	b	c	d
+1	0	0	0
+2	0	0	0
+3	0	0	0
+4	0	0	0
+5	0	0	0
+6	0	0	0
+7	0	0	0
+8	0	0	0
+DELETE FROM t2;
+
+REPLACE INTO t2(a) VALUES (1);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+Warning	1364	Field 'c' doesn't have a default value
+Warning	1364	Field 'd' doesn't have a default value
+REPLACE INTO t2(a) VALUES (2), (3), (4);
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+Warning	1364	Field 'c' doesn't have a default value
+Warning	1364	Field 'd' doesn't have a default value
+REPLACE INTO v2(a) VALUES (5);
+Warnings:
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+REPLACE INTO v2(a) VALUES (6), (7), (8);
+Warnings:
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+
+SELECT * FROM t2;
+a	b	c	d
+1	0	0	0
+2	0	0	0
+3	0	0	0
+4	0	0	0
+5	0	0	0
+6	0	0	0
+7	0	0	0
+8	0	0	0
+DELETE FROM t2;
+
+#------------------------------------------------------------------
+# Checking INSERT INTO ... SELECT ...
+#------------------------------------------------------------------
+
+#   - No column list (all columns) + NULL-value for NOT NULL column.
+#     Expect 4 warnings for each statement.
+
+INSERT INTO t1 SELECT * FROM t1_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+INSERT INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+11	12
+NULL	22
+31	0
+NULL	0
+110	120
+NULL	220
+310	0
+NULL	0
+DELETE FROM t1;
+
+REPLACE INTO t1 SELECT * FROM t1_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+REPLACE INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+11	12
+NULL	22
+31	0
+NULL	0
+110	120
+NULL	220
+310	0
+NULL	0
+DELETE FROM t1;
+
+#   - No column list (all columns) + NULL-value for NOT NULL column.
+#     Expect 4 warnings for each statement.
+
+INSERT INTO t2 SELECT * FROM t2_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+Warning	1048	Column 'c' cannot be null
+Warning	1048	Column 'd' cannot be null
+INSERT INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+Warning	1048	Column 'c' cannot be null
+Warning	1048	Column 'd' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+31	0	33	34
+41	42	0	44
+51	52	53	0
+NULL	0	0	0
+110	120	130	140
+NULL	220	230	240
+310	0	330	340
+410	420	0	440
+510	520	530	0
+NULL	0	0	0
+DELETE FROM t2;
+
+REPLACE INTO t2 SELECT * FROM t2_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+Warning	1048	Column 'c' cannot be null
+Warning	1048	Column 'd' cannot be null
+REPLACE INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+Warning	1048	Column 'c' cannot be null
+Warning	1048	Column 'd' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+31	0	33	34
+41	42	0	44
+51	52	53	0
+NULL	0	0	0
+110	120	130	140
+NULL	220	230	240
+310	0	330	340
+410	420	0	440
+510	520	530	0
+NULL	0	0	0
+DELETE FROM t2;
+
+#   - All columns + NULL-value for NOT NULL column.
+#     Expect 4 warnings for each statement.
+
+INSERT INTO t1(a, b) SELECT * FROM t1_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+INSERT INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+11	12
+NULL	22
+31	0
+NULL	0
+110	120
+NULL	220
+310	0
+NULL	0
+DELETE FROM t1;
+
+REPLACE INTO t1(a, b) SELECT * FROM t1_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+REPLACE INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+11	12
+NULL	22
+31	0
+NULL	0
+110	120
+NULL	220
+310	0
+NULL	0
+DELETE FROM t1;
+
+INSERT INTO t2(a, b, c, d) SELECT * FROM t2_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+Warning	1048	Column 'c' cannot be null
+Warning	1048	Column 'd' cannot be null
+INSERT INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+Warning	1048	Column 'c' cannot be null
+Warning	1048	Column 'd' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+31	0	33	34
+41	42	0	44
+51	52	53	0
+NULL	0	0	0
+110	120	130	140
+NULL	220	230	240
+310	0	330	340
+410	420	0	440
+510	520	530	0
+NULL	0	0	0
+DELETE FROM t2;
+
+REPLACE INTO t2(a, b, c, d) SELECT * FROM t2_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+Warning	1048	Column 'c' cannot be null
+Warning	1048	Column 'd' cannot be null
+REPLACE INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+Warnings:
+Warning	1048	Column 'b' cannot be null
+Warning	1048	Column 'c' cannot be null
+Warning	1048	Column 'd' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+31	0	33	34
+41	42	0	44
+51	52	53	0
+NULL	0	0	0
+110	120	130	140
+NULL	220	230	240
+310	0	330	340
+410	420	0	440
+510	520	530	0
+NULL	0	0	0
+DELETE FROM t2;
+
+#   - Single nullable column, no values for NOT NULL columns.
+#     Expect 4 warnings for each statement.
+
+INSERT INTO t1(a) SELECT a FROM t1_data;
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+INSERT INTO v1(a) SELECT a * 100 FROM t1_data;
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
+
+SELECT * FROM t1;
+a	b
+11	0
+NULL	0
+31	0
+NULL	0
+1100	0
+NULL	0
+3100	0
+NULL	0
+DELETE FROM t1;
+
+REPLACE INTO t1(a) SELECT a FROM t1_data;
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+REPLACE INTO v1(a) SELECT a * 100 FROM t1_data;
+Warnings:
+Warning	1423	Field of view 'test.v1' underlying table doesn't have a default value
+
+SELECT * FROM t1;
+a	b
+11	0
+NULL	0
+31	0
+NULL	0
+1100	0
+NULL	0
+3100	0
+NULL	0
+DELETE FROM t1;
+
+INSERT INTO t2(a) SELECT a FROM t2_data;
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+Warning	1364	Field 'c' doesn't have a default value
+Warning	1364	Field 'd' doesn't have a default value
+INSERT INTO v2(a) SELECT a * 100 FROM t2_data;
+Warnings:
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+
+SELECT * FROM t2;
+a	b	c	d
+11	0	0	0
+NULL	0	0	0
+31	0	0	0
+41	0	0	0
+51	0	0	0
+NULL	0	0	0
+1100	0	0	0
+NULL	0	0	0
+3100	0	0	0
+4100	0	0	0
+5100	0	0	0
+NULL	0	0	0
+DELETE FROM t2;
+
+REPLACE INTO t2(a) SELECT a FROM t2_data;
+Warnings:
+Warning	1364	Field 'b' doesn't have a default value
+Warning	1364	Field 'c' doesn't have a default value
+Warning	1364	Field 'd' doesn't have a default value
+REPLACE INTO v2(a) SELECT a * 100 FROM t2_data;
+Warnings:
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+Warning	1423	Field of view 'test.v2' underlying table doesn't have a default value
+
+SELECT * FROM t2;
+a	b	c	d
+11	0	0	0
+NULL	0	0	0
+31	0	0	0
+41	0	0	0
+51	0	0	0
+NULL	0	0	0
+1100	0	0	0
+NULL	0	0	0
+3100	0	0	0
+4100	0	0	0
+5100	0	0	0
+NULL	0	0	0
+DELETE FROM t2;
+
+#------------------------------------------------------------------
+# Checking LOAD DATA INFILE ...
+#------------------------------------------------------------------
+
+LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE t2 FIELDS
+TERMINATED BY ',' ENCLOSED BY '"';
+Warnings:
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 3
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'c' at row 4
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' at row 5
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 6
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'c' at row 6
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' at row 6
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 7
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'c' at row 8
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' at row 9
+
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+31	0	33	34
+41	42	0	44
+51	52	53	0
+NULL	0	0	0
+NULL	0	73	74
+NULL	82	0	84
+NULL	92	93	0
+
+DELETE FROM t2;
+LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE v2 FIELDS
+TERMINATED BY ',' ENCLOSED BY '"';
+Warnings:
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 3
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'c' at row 4
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' at row 5
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 6
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'c' at row 6
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' at row 6
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'b' at row 7
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'c' at row 8
+Warning	1263	Column set to default value; NULL supplied to NOT NULL column 'd' at row 9
+
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+31	0	33	34
+41	42	0	44
+51	52	53	0
+NULL	0	0	0
+NULL	0	73	74
+NULL	82	0	84
+NULL	92	93	0
+
+DELETE FROM t2;
+
+###################################################################
+# Checking strict SQL_MODE.
+###################################################################
+
+SET sql_mode = 'traditional';
+
+#------------------------------------------------------------------
+# Checking INSERT INTO ... VALUES ...
+#------------------------------------------------------------------
+
+#   - No column list (all columns) + NULL-value for NOT NULL column.
+
+INSERT INTO t1 VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO v1 VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+
+REPLACE INTO t1 VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO v1 VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+
+INSERT INTO t2 VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+INSERT INTO v2 VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+
+REPLACE INTO t2 VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+REPLACE INTO v2 VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+
+#   - All columns + NULL-value for NOT NULL column.
+
+INSERT INTO v1(a, b) VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO t1(a, b) VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+
+REPLACE INTO v1(a, b) VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO t1(a, b) VALUES (1, NULL);
+ERROR 23000: Column 'b' cannot be null
+
+SELECT * FROM t1;
+a	b
+
+INSERT INTO t2(a, b, c, d) VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+INSERT INTO v2(a, b, c, d) VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+
+REPLACE INTO t2(a, b, c, d) VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+REPLACE INTO v2(a, b, c, d) VALUES (1, 2, NULL, 4);
+ERROR 23000: Column 'c' cannot be null
+
+SELECT * FROM t2;
+a	b	c	d
+
+#   - Single nullable column, no values for NOT NULL columns.
+
+INSERT INTO t1(a) VALUES (1);
+ERROR HY000: Field 'b' doesn't have a default value
+INSERT INTO t1(a) VALUES (2), (3), (4);
+ERROR HY000: Field 'b' doesn't have a default value
+INSERT INTO v1(a) VALUES (5);
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+INSERT INTO v1(a) VALUES (6), (7), (8);
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+
+SELECT * FROM t1;
+a	b
+DELETE FROM t1;
+
+REPLACE INTO t1(a) VALUES (1);
+ERROR HY000: Field 'b' doesn't have a default value
+REPLACE INTO t1(a) VALUES (2), (3), (4);
+ERROR HY000: Field 'b' doesn't have a default value
+REPLACE INTO v1(a) VALUES (5);
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+REPLACE INTO v1(a) VALUES (6), (7), (8);
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+
+SELECT * FROM t1;
+a	b
+DELETE FROM t1;
+
+INSERT INTO t2(a) VALUES (1);
+ERROR HY000: Field 'b' doesn't have a default value
+INSERT INTO t2(a) VALUES (2), (3), (4);
+ERROR HY000: Field 'b' doesn't have a default value
+INSERT INTO v2(a) VALUES (5);
+ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default value
+INSERT INTO v2(a) VALUES (6), (7), (8);
+ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default value
+
+SELECT * FROM t2;
+a	b	c	d
+DELETE FROM t2;
+
+REPLACE INTO t2(a) VALUES (1);
+ERROR HY000: Field 'b' doesn't have a default value
+REPLACE INTO t2(a) VALUES (2), (3), (4);
+ERROR HY000: Field 'b' doesn't have a default value
+REPLACE INTO v2(a) VALUES (5);
+ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default value
+REPLACE INTO v2(a) VALUES (6), (7), (8);
+ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default value
+
+SELECT * FROM t2;
+a	b	c	d
+DELETE FROM t2;
+
+#------------------------------------------------------------------
+# Checking INSERT INTO ... SELECT ...
+#------------------------------------------------------------------
+
+#   - No column list (all columns) + NULL-value for NOT NULL column.
+
+INSERT INTO t1 SELECT * FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 4 rows.
+# t1's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t1;
+a	b
+11	12
+NULL	22
+110	120
+NULL	220
+DELETE FROM t1;
+
+REPLACE INTO t1 SELECT * FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO v1 SELECT a * 10, b * 10 FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 4 rows.
+# t1's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t1;
+a	b
+11	12
+NULL	22
+110	120
+NULL	220
+DELETE FROM t1;
+
+#   - No column list (all columns) + NULL-value for NOT NULL column.
+INSERT INTO t2 SELECT * FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 4 rows.
+# t2's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+110	120	130	140
+NULL	220	230	240
+DELETE FROM t2;
+
+#   - No column list (all columns) + NULL-value for NOT NULL column.
+REPLACE INTO t2 SELECT * FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO v2 SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 4 rows.
+# t2's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+110	120	130	140
+NULL	220	230	240
+DELETE FROM t2;
+
+#   - All columns + NULL-value for NOT NULL column.
+
+INSERT INTO t1(a, b) SELECT * FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 4 rows.
+# t1's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t1;
+a	b
+11	12
+NULL	22
+110	120
+NULL	220
+DELETE FROM t1;
+
+REPLACE INTO t1(a, b) SELECT * FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO v1(a, b) SELECT a * 10, b * 10 FROM t1_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 4 rows.
+# t1's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t1;
+a	b
+11	12
+NULL	22
+110	120
+NULL	220
+DELETE FROM t1;
+
+INSERT INTO t2(a, b, c, d) SELECT * FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+INSERT INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 4 rows.
+# t2's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+110	120	130	140
+NULL	220	230	240
+DELETE FROM t2;
+
+REPLACE INTO t2(a, b, c, d) SELECT * FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+REPLACE INTO v2(a, b, c, d) SELECT a * 10, b * 10, c * 10, d * 10 FROM t2_data;
+ERROR 23000: Column 'b' cannot be null
+
+# The following SELECT output should have 4 rows.
+# t2's engine is MyISAM, so the transaction can not be fully rolled back.
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+110	120	130	140
+NULL	220	230	240
+DELETE FROM t2;
+
+#   - Single nullable column, no values for NOT NULL columns.
+
+INSERT INTO t1(a) SELECT a FROM t1_data;
+ERROR HY000: Field 'b' doesn't have a default value
+INSERT INTO v1(a) SELECT a * 100 FROM t1_data;
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+
+# The following SELECT output should have 0 rows.
+SELECT * FROM t1;
+a	b
+DELETE FROM t1;
+
+REPLACE INTO t1(a) SELECT a FROM t1_data;
+ERROR HY000: Field 'b' doesn't have a default value
+REPLACE INTO v1(a) SELECT a * 100 FROM t1_data;
+ERROR HY000: Field of view 'test.v1' underlying table doesn't have a default value
+
+# The following SELECT output should have 0 rows.
+SELECT * FROM t1;
+a	b
+DELETE FROM t1;
+
+INSERT INTO t2(a) SELECT a FROM t2_data;
+ERROR HY000: Field 'b' doesn't have a default value
+INSERT INTO v2(a) SELECT a * 100 FROM t2_data;
+ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default value
+
+# The following SELECT output should have 0 rows.
+SELECT * FROM t2;
+a	b	c	d
+DELETE FROM t2;
+
+REPLACE INTO t2(a) SELECT a FROM t2_data;
+ERROR HY000: Field 'b' doesn't have a default value
+REPLACE INTO v2(a) SELECT a * 100 FROM t2_data;
+ERROR HY000: Field of view 'test.v2' underlying table doesn't have a default value
+
+# The following SELECT output should have 0 rows.
+SELECT * FROM t2;
+a	b	c	d
+DELETE FROM t2;
+
+#------------------------------------------------------------------
+# Checking LOAD DATA INFILE ...
+#------------------------------------------------------------------
+LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE t2 FIELDS
+TERMINATED BY ',' ENCLOSED BY '"';
+ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'b' at row 3
+
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+
+DELETE FROM t2;
+LOAD DATA INFILE '../../std_data/wl6030_2.dat' INTO TABLE v2 FIELDS
+TERMINATED BY ',' ENCLOSED BY '"';
+ERROR 22004: Column set to default value; NULL supplied to NOT NULL column 'b' at row 3
+
+SELECT * FROM t2;
+a	b	c	d
+11	12	13	14
+NULL	22	23	24
+
+SET sql_mode = @sql_mode_saved;
+DROP TABLE t1;
+DROP TABLE t2;
+DROP TABLE t1_data;
+DROP TABLE t2_data;
+DROP VIEW v1;
+DROP VIEW v2;
+
+#------------------------------------------------------------------
+# The following tests were suggested by QA
+#------------------------------------------------------------------
+
+"Test UPDATE SET inside trigger body"
+CREATE TABLE t1(a1 INT NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+UPDATE t1 SET NEW.a1 = 1 WHERE a1 IS NULL;
+INSERT INTO t1 VALUES (NULL);
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for recursive trigger"
+CREATE TABLE t1(a1 INT NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+UPDATE t1 SET NEW.a1 = 1;
+INSERT INTO t1 VALUES (NULL);
+ERROR HY000: Can't update table 't1' in stored function/trigger because it is already used by statement which invoked this stored function/trigger.
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for IFNULL inside trigger body"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, 2);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+SET NEW.a1 = IFNULL(NEW.a1, 10);
+SET NEW.a2 = IFNULL(NEW.a2, 20);
+END;
+|
+INSERT INTO t1 VALUES (NULL, 1);
+SELECT * FROM t1;
+a1	a2
+1	2
+10	1
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for COALESCE Inside trigger body"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+BEGIN
+SET NEW.a1 = COALESCE(NEW.a1, 5);
+SET NEW.a2 = COALESCE(NEW.a2, 7);
+END;
+|
+INSERT INTO t1 VALUES (NULL, 3);
+SELECT * FROM t1;
+a1	a2
+1	1
+5	3
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for PRIMARY KEY"
+CREATE TABLE t1 (a1 INT PRIMARY KEY);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = 2;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+a1
+2
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for PRIMARY KEY (constraint violation)"
+CREATE TABLE t1 (a1 INT PRIMARY KEY);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = 1;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+a1
+1
+INSERT INTO t1 VALUES (NULL);
+ERROR 23000: Duplicate entry '1' for key 'PRIMARY'
+SELECT * FROM t1;
+a1
+1
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for UNIQUE column"
+CREATE TABLE t1(a1 INT UNIQUE);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = 1;
+INSERT INTO t1 VALUES (NULL);
+SELECT * FROM t1;
+a1
+1
+INSERT INTO t1 VALUES (NULL);
+ERROR 23000: Duplicate entry '1' for key 'a1'
+SELECT * FROM t1;
+a1
+1
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for date/timestamp datatype"
+CREATE TABLE t1(a1 DATE NOT NULL, a2 TIMESTAMP NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = '2012-03-03', NEW.a2 = '2001-01-01 09:01:00';
+INSERT INTO t1 VALUES (NULL, NULL);
+SELECT * FROM t1;
+a1	a2
+2012-03-03	2001-01-01 09:01:00
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for CHAR/VARCHAR datatype"
+CREATE TABLE t1(a1 CHAR(10) NOT NULL, a2 VARCHAR(255) NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = 'MySQL' , NEW.a2 = 'Includes testing of MySQL';
+INSERT INTO t1 VALUES (NULL, NULL);
+SELECT * FROM t1;
+a1	a2
+MySQL	Includes testing of MySQL
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for BINARY/VARBINARY datatype"
+CREATE TABLE t1(a1 BINARY(10) NOT NULL, a2 VARBINARY(255) NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = '0x41', NEW.a2 = '0x42';
+INSERT INTO t1 VALUES (NULL, NULL);
+SELECT * FROM t1;
+a1	a2
+0x41      	0x42
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for UNIQUE column‚ constraint violation"
+CREATE TABLE t1(a1 INT UNIQUE, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = 1;
+INSERT INTO t1 VALUES (NULL, 2);
+ERROR 23000: Duplicate entry '1' for key 'a1'
+SELECT * FROM t1;
+a1	a2
+1	1
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for UPDATE .. SET .. SELECT"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT);
+CREATE TABLE t2(a1 INT NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, NULL);
+INSERT INTO t2 VALUES (1, NULL);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = 2;
+UPDATE t1 SET a1 = (SELECT a2 FROM t2);
+SELECT * FROM t1;
+a1	a2
+2	NULL
+DROP TRIGGER t1_bu;
+DROP TABLE t1, t2;
+"Test for multi table update (across engines)"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT) ENGINE = INNODB;
+CREATE TABLE t2(a1 INT NOT NULL, a2 INT) ENGINE = MyISAM;
+INSERT INTO t1 VALUES (1, NULL),(2, 2);
+INSERT INTO t2 VALUES (1, NULL),(2876543, 2098);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = 10;
+CREATE TRIGGER t2_bu BEFORE UPDATE ON t2
+FOR EACH ROW
+SET NEW.a1 = 20;
+UPDATE t1, t2 SET t1.a1 = NULL , t2.a1 = NULL;
+SELECT * FROM t1;
+a1	a2
+10	NULL
+10	2
+SELECT * FROM t2;
+a1	a2
+20	NULL
+20	2098
+DROP TRIGGER t1_bu;
+DROP TRIGGER t2_bu;
+DROP TABLE t1, t2;
+"Test for update on PRIMARY KEY"
+CREATE TABLE t1(a1 INT PRIMARY KEY, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = 2;
+UPDATE t1 SET a1 =  NULL;
+SELECT * FROM t1;
+a1	a2
+2	1
+DROP TRIGGER t1_bu;
+DROP TABLE t1;
+"Test for update on UNIQUE column"
+CREATE TABLE t1(a1 INT UNIQUE NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = 2;
+UPDATE t1 SET a1 =  NULL;
+SELECT * FROM t1;
+a1	a2
+2	1
+DROP TRIGGER t1_bu;
+DROP TABLE t1;
+"INSERT NOT NULL into NOT NULL column if BEFORE INSERT trigger sets it to NULL."
+"Test for PRIMARY KEY"
+CREATE TABLE t1(a1 INT PRIMARY KEY, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+INSERT INTO t1 VALUES (2, 2);
+ERROR 23000: Column 'a1' cannot be null
+SELECT * FROM t1;
+a1	a2
+1	1
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for UNIQUE column"
+CREATE TABLE t1(a1 INT UNIQUE NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+INSERT INTO t1 VALUES (2, 2),(3,3);
+ERROR 23000: Column 'a1' cannot be null
+SELECT * FROM t1;
+a1	a2
+1	1
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for timestamp"
+CREATE TABLE t1(a1 DATE NOT NULL, a2 TIMESTAMP NOT NULL, a3 TIMESTAMP NOT NULL);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL , NEW.a2 = NULL , NEW.a3 = NULL;
+INSERT INTO t1 VALUES ('2012-12-12','2012-12-12 12:12:12','1980-01-01 01:01:01');
+ERROR 23000: Column 'a1' cannot be null
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for CHAR/VARCHAR datatype"
+CREATE TABLE t1(a1 CHAR(10) NOT NULL, a2 VARCHAR(255) NOT NULL, a3 INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL , NEW.a2 = NULL;
+INSERT INTO t1 VALUES ('MySQL','MySQL Testing', 1);
+ERROR 23000: Column 'a1' cannot be null
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"Test for BINARY/VARBINARY datatype"
+CREATE TABLE t1(a1 BINARY(10) NOT NULL, a2 VARBINARY(255) NOT NULL, a3 INT);
+CREATE TRIGGER t1_bi BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL , NEW.a2 = NULL;
+INSERT INTO t1 VALUES ('0x101','0x101', 1);
+ERROR 23000: Column 'a1' cannot be null
+SELECT * FROM t1;
+a1	a2	a3
+DROP TRIGGER t1_bi;
+DROP TABLE t1;
+"UPDATE NOT NULL into NOT NULL column if BEFORE UPDATE trigger sets it to NULL."
+"Test for UPDATE .. SET .. SELECT"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT) ;
+CREATE TABLE t2(a1 INT NOT NULL, a2 INT) ;
+INSERT INTO t1 VALUES (1, 1);
+INSERT INTO t2 VALUES (1, 1);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+UPDATE t1 SET a1 = (SELECT MAX(a2) FROM t2);
+ERROR 23000: Column 'a1' cannot be null
+SELECT * FROM t1;
+a1	a2
+1	1
+SELECT * FROM t2;
+a1	a2
+1	1
+DROP TRIGGER t1_bu;
+DROP TABLE t1, t2;
+"Test for multi table update (across engines)"
+CREATE TABLE t1(a1 INT NOT NULL, a2 INT) ENGINE = INNODB;
+CREATE TABLE t2(a1 INT NOT NULL, a2 INT) ENGINE = MyISAM;
+INSERT INTO t1 VALUES (1, NULL),(2, 2);
+INSERT INTO t2 VALUES (1, NULL),(2876543, 20111098);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+UPDATE t1, t2 SET t1.a1 = 1 , t2.a1 = 2;
+ERROR 23000: Column 'a1' cannot be null
+SELECT * FROM t1;
+a1	a2
+1	NULL
+2	2
+SELECT * FROM t2;
+a1	a2
+1	NULL
+2876543	20111098
+DROP TRIGGER t1_bu;
+DROP TABLE t1, t2;
+"Test for update on PRIMARY KEY"
+CREATE TABLE t1(a1 INT PRIMARY KEY, a2 INT);
+INSERT INTO t1 VALUES (1, 1);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+UPDATE t1 SET a1 = 2;
+ERROR 23000: Column 'a1' cannot be null
+SELECT * FROM t1;
+a1	a2
+1	1
+DROP TRIGGER t1_bu;
+DROP TABLE t1;
+"Test for update on UNIQUE column"
+CREATE TABLE t1(a1 INT UNIQUE NOT NULL, a2 INT);
+INSERT INTO t1 VALUES (1, 1),(2, 2);
+CREATE TRIGGER t1_bu BEFORE UPDATE ON t1
+FOR EACH ROW
+SET NEW.a1 = NULL;
+UPDATE t1 SET a1 = 3;
+ERROR 23000: Column 'a1' cannot be null
+SELECT * FROM t1;
+a1	a2
+1	1
+2	2
+DROP TRIGGER t1_bu;
+DROP TABLE t1;

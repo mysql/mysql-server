@@ -319,6 +319,35 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
 
 
 /**
+   Wrapper for invocation of function check_that_all_fields_are_given_value.
+
+   @param[in] thd               Thread handler
+   @param[in] table             Table to insert into
+   @param[in] table_list        Table list
+   @param[in] abort_on_warning  Whether to report an error or a warning
+                                if some INSERT field is not assigned.
+
+  @return Operation status.
+    @retval false   Success
+    @retval true    Failure
+ */
+static bool safely_check_that_all_fields_are_given_values(
+  THD* thd, TABLE* table,
+  TABLE_LIST* table_list,
+  bool abort_on_warning)
+{
+  bool saved_abort_on_warning= thd->abort_on_warning;
+  thd->abort_on_warning= abort_on_warning;
+
+  bool res= check_that_all_fields_are_given_values(thd, table, table_list);
+
+  thd->abort_on_warning= saved_abort_on_warning;
+
+  return res;
+}
+
+
+/**
   INSERT statement implementation
 
   @note Like implementations of other DDL/DML in MySQL, this function
@@ -369,6 +398,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   MY_BITMAP used_partitions;
   bool prune_needs_default_values;
 #endif /* WITH_PARITITION_STORAGE_ENGINE */
+
   DBUG_ENTER("mysql_insert");
 
   if (open_normal_and_derived_tables(thd, table_list, 0))
@@ -391,7 +421,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   /* mysql_prepare_insert set table_list->table if it was not set */
   table= table_list->table;
-
   /* Must be done before can_prune_insert, due to internal initialization. */
   if (info.add_function_default_columns(table, table->write_set))
     goto exit_without_my_ok;
@@ -601,25 +630,27 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   prepare_triggers_for_insert_stmt(table);
 
-
   if (table_list->prepare_where(thd, 0, TRUE) ||
       table_list->prepare_check_option(thd))
     error= 1;
+
+  for (Field** next_field= table->field; *next_field; ++next_field)
+  {
+    (*next_field)->reset_warnings();
+  }
 
   while ((values= its++))
   {
     if (fields.elements || !value_count)
     {
       restore_record(table,s->default_values);	// Get empty record
+
       if (fill_record_n_invoke_before_triggers(thd, fields, *values, 0,
                                                table->triggers,
-                                               TRG_EVENT_INSERT))
+                                               TRG_EVENT_INSERT,
+                                               table->s->fields))
       {
-	if (values_list.elements != 1 && ! thd->is_error())
-	{
-	  info.stats.records++;
-	  continue;
-	}
+        DBUG_ASSERT(thd->is_error());
 	/*
 	  TODO: set thd->abort_on_warning if values_list.elements == 1
 	  and check that all items return warning in case of problem with
@@ -627,6 +658,19 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         */
 	error=1;
 	break;
+      }
+
+      res= safely_check_that_all_fields_are_given_values(
+        thd,
+        table ? table : context->table_list->table,
+        context->table_list,
+        !ignore && thd->is_strict_mode());
+
+      if (res)
+      {
+        DBUG_ASSERT(thd->is_error());
+        error= 1;
+        break;
       }
     }
     else
@@ -653,13 +697,10 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       }
       if (fill_record_n_invoke_before_triggers(thd, table->field, *values, 0,
                                                table->triggers,
-                                               TRG_EVENT_INSERT))
+                                               TRG_EVENT_INSERT,
+                                               table->s->fields))
       {
-	if (values_list.elements != 1 && ! thd->is_error())
-	{
-	  info.stats.records++;
-	  continue;
-	}
+        DBUG_ASSERT(thd->is_error());
 	error=1;
 	break;
       }
@@ -682,6 +723,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     thd->get_stmt_da()->inc_current_row_for_condition();
   }
 
+  error= thd->get_stmt_da()->is_error();
   free_underlaid_joins(thd, &thd->lex->select_lex);
   joins_freed= TRUE;
 
@@ -783,6 +825,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
 
   if (error)
     goto exit_without_my_ok;
+
   if (values_list.elements == 1 && (!(thd->variables.option_bits & OPTION_WARNINGS) ||
 				    !thd->cuted_fields))
   {
@@ -1094,21 +1137,9 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                        *values, MARK_COLUMNS_READ, 0, 0) ||
           check_insert_fields(thd, context->table_list, fields, *values,
                               !insert_into_view, 0, &map));
-
-    if (!res && check_fields)
-    {
-      bool saved_abort_on_warning= thd->abort_on_warning;
-      thd->abort_on_warning= abort_on_warning;
-      res= check_that_all_fields_are_given_values(thd, 
-                                                  table ? table : 
-                                                  context->table_list->table,
-                                                  context->table_list);
-      thd->abort_on_warning= saved_abort_on_warning;
-    }
-
-   if (!res)
-     res= setup_fields(thd, Ref_ptr_array(),
-                       update_values, MARK_COLUMNS_READ, 0, 0);
+    if (!res)
+      res= setup_fields(thd, Ref_ptr_array(),
+                        update_values, MARK_COLUMNS_READ, 0, 0);
 
     if (!res && duplic == DUP_UPDATE)
     {
@@ -1318,7 +1349,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
                                                  *update->update_values,
                                                  ignore_errors,
                                                  table->triggers,
-                                                 TRG_EVENT_UPDATE))
+                                                 TRG_EVENT_UPDATE, 0))
           goto before_trg_err;
 
         /* CHECK OPTION for VIEW ... ON DUPLICATE KEY UPDATE ... */
@@ -1501,7 +1532,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
                                            TABLE_LIST *table_list)
 {
   int err= 0;
-  MY_BITMAP *write_set= entry->write_set;
+  MY_BITMAP *write_set= entry->fields_set_during_insert;
 
   for (Field **field=entry->field ; *field ; field++)
   {
@@ -1516,20 +1547,13 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
         view= test(table_list->view);
       }
       if (view)
-      {
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_NO_DEFAULT_FOR_VIEW_FIELD,
-                            ER(ER_NO_DEFAULT_FOR_VIEW_FIELD),
-                            table_list->view_db.str,
-                            table_list->view_name.str);
-      }
+        (*field)->set_warning(Sql_condition::SL_WARNING,
+                              ER_NO_DEFAULT_FOR_VIEW_FIELD, 1,
+                              table_list->view_db.str,
+                              table_list->view_name.str);
       else
-      {
-        push_warning_printf(thd, Sql_condition::SL_WARNING,
-                            ER_NO_DEFAULT_FOR_FIELD,
-                            ER(ER_NO_DEFAULT_FOR_FIELD),
-                            (*field)->field_name);
-      }
+        (*field)->set_warning(Sql_condition::SL_WARNING,
+                              ER_NO_DEFAULT_FOR_FIELD, 1);
       err= 1;
     }
   }
@@ -1618,17 +1642,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   res= (setup_fields(thd, Ref_ptr_array(), values, MARK_COLUMNS_READ, 0, 0) ||
         check_insert_fields(thd, table_list, *fields, values,
                             !insert_into_view, 1, &map));
-
-  if (!res && fields->elements)
-  {
-    bool saved_abort_on_warning= thd->abort_on_warning;
-
-    thd->abort_on_warning= !ignore_errors && thd->is_strict_mode();
-
-    res= check_that_all_fields_are_given_values(thd, table_list->table, 
-                                                table_list);
-    thd->abort_on_warning= saved_abort_on_warning;
-  }
 
   if (duplicate_handling == DUP_UPDATE && !res)
   {
@@ -1744,7 +1757,15 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
         table_list->prepare_check_option(thd));
 
   if (!res)
+  {
      prepare_triggers_for_insert_stmt(table);
+  }
+
+  for (Field** next_field= table->field; *next_field; ++next_field)
+  {
+    (*next_field)->reset_warnings();
+    (*next_field)->reset_tmp_null();
+  }
 
   DBUG_RETURN(res);
 }
@@ -1868,16 +1889,19 @@ bool select_insert::send_data(List<Item> &values)
   DBUG_RETURN(error);
 }
 
-
 void select_insert::store_values(List<Item> &values)
 {
   const bool ignore_err= true;
   if (fields->elements)
     fill_record_n_invoke_before_triggers(thd, *fields, values, ignore_err,
-                                         table->triggers, TRG_EVENT_INSERT);
+                                         table->triggers, TRG_EVENT_INSERT,
+                                         table->s->fields);
   else
     fill_record_n_invoke_before_triggers(thd, table->field, values, ignore_err,
-                                         table->triggers, TRG_EVENT_INSERT);
+                                         table->triggers, TRG_EVENT_INSERT,
+                                         table->s->fields);
+
+  check_that_all_fields_are_given_values(thd, table_list->table, table_list);
 }
 
 void select_insert::send_error(uint errcode,const char *err)
@@ -1951,6 +1975,16 @@ bool select_insert::send_eof()
     table->file->print_error(error,MYF(0));
     DBUG_RETURN(1);
   }
+
+  /*
+    For the strict_mode call of push_warning above results to set
+    error in Diagnostic_area. Therefore it is necessary to check whether
+    the error was set and leave method if it is true. If we didn't do
+    so we would failed later when my_ok is called.
+  */
+  if (thd->get_stmt_da()->is_error())
+    DBUG_RETURN(true);
+
   char buff[160];
   if (info.get_ignore_errors())
     my_snprintf(buff, sizeof(buff),
@@ -2100,7 +2134,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
   /* Add selected items to field list */
   List_iterator_fast<Item> it(*items);
   Item *item;
-  Field *tmp_field;
+
   DBUG_ENTER("create_table_from_items");
 
   tmp_table.alias= 0;
@@ -2118,21 +2152,49 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
 
   while ((item=it++))
   {
-    Create_field *cr_field;
-    Field *field, *def_field;
+    Field *tmp_table_field;
     if (item->type() == Item::FUNC_ITEM)
+    {
       if (item->result_type() != STRING_RESULT)
-        field= item->tmp_table_field(&tmp_table);
+        tmp_table_field= item->tmp_table_field(&tmp_table);
       else
-        field= item->tmp_table_field_from_field_type(&tmp_table, 0);
+        tmp_table_field= item->tmp_table_field_from_field_type(&tmp_table,
+                                                               false);
+    }
     else
-      field= create_tmp_field(thd, &tmp_table, item, item->type(),
-                              (Item ***) 0, &tmp_field, &def_field, 0, 0, 0, 0);
-    if (!field ||
-	!(cr_field=new Create_field(field,(item->type() == Item::FIELD_ITEM ?
-					   ((Item_field *)item)->field :
-					   (Field*) 0))))
-      DBUG_RETURN(0);
+    {
+      Field *from_field, *default_field;
+      tmp_table_field= create_tmp_field(thd, &tmp_table, item, item->type(),
+                                        (Item ***) NULL,
+                                        &from_field, &default_field,
+                                        false, false, false, false);
+    }
+
+    if (!tmp_table_field)
+      DBUG_RETURN(NULL);
+
+    Field *table_field;
+
+    switch (item->type())
+    {
+    /*
+      We have to take into account both the real table's fields and
+      pseudo-fields used in trigger's body. These fields are used
+      to copy defaults values later inside constructor of
+      the class Create_field.
+    */
+    case Item::FIELD_ITEM:
+    case Item::TRIGGER_FIELD_ITEM:
+      table_field= ((Item_field *) item)->field;
+      break;
+    default:
+      table_field= NULL;
+    }
+
+    Create_field *cr_field= new Create_field(tmp_table_field, table_field);
+
+    if (!cr_field)
+      DBUG_RETURN(NULL);
 
     /* Function defaults are removed */
     if (cr_field->unireg_check == Field::TIMESTAMP_DN_FIELD ||
@@ -2207,7 +2269,7 @@ static TABLE *create_table_from_items(THD *thd, HA_CREATE_INFO *create_info,
       }
     }
     if (!table)                                   // open failed
-      DBUG_RETURN(0);
+      DBUG_RETURN(NULL);
   }
   DBUG_RETURN(table);
 }
@@ -2357,10 +2419,17 @@ select_create::prepare2()
   }
   /* Mark all fields that are given values */
   for (Field **f= field ; *f ; f++)
+  {
     bitmap_set_bit(table->write_set, (*f)->field_index);
+    bitmap_set_bit(table->fields_set_during_insert, (*f)->field_index);
+  }
 
   // Set up an empty bitmap of function defaults
   if (info.add_function_default_columns(table, table->write_set))
+    DBUG_RETURN(1);
+
+  if (info.add_function_default_columns(table,
+                                        table->fields_set_during_insert))
     DBUG_RETURN(1);
 
   table->next_number_field=table->found_next_number_field;
@@ -2381,8 +2450,15 @@ select_create::prepare2()
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     table->file->ha_start_bulk_insert((ha_rows) 0);
   thd->abort_on_warning= (!ignore_errors && thd->is_strict_mode());
+
+  enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
+  thd->count_cuted_fields= CHECK_FIELD_WARN;
+
   if (check_that_all_fields_are_given_values(thd, table, table_list))
     DBUG_RETURN(1);
+
+  thd->count_cuted_fields= save_count_cuted_fields;
+
   table->mark_columns_needed_for_insert();
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   DBUG_RETURN(0);
@@ -2441,7 +2517,8 @@ void select_create::store_values(List<Item> &values)
 {
   const bool ignore_err= true;
   fill_record_n_invoke_before_triggers(thd, field, values, ignore_err,
-                                       table->triggers, TRG_EVENT_INSERT);
+                                       table->triggers, TRG_EVENT_INSERT,
+                                       table->s->fields);
 }
 
 
