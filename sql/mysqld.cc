@@ -2673,6 +2673,9 @@ bool one_thread_per_connection_end(THD *thd, bool block_pthread)
   DBUG_PRINT("signal", ("Broadcasting COND_thread_count"));
   DBUG_LEAVE;                                   // Must match DBUG_ENTER()
   my_thread_end();
+#ifndef EMBEDDED_LIBRARY
+  ERR_remove_state(0);
+#endif
   mysql_cond_broadcast(&COND_thread_count);
 
   pthread_exit(0);
@@ -4268,6 +4271,7 @@ static int init_ssl()
 					  opt_ssl_cipher, &error,
                                           opt_ssl_crl, opt_ssl_crlpath);
     DBUG_PRINT("info",("ssl_acceptor_fd: 0x%lx", (long) ssl_acceptor_fd));
+    ERR_remove_state(0);
     if (!ssl_acceptor_fd)
     {
       sql_print_warning("Failed to setup SSL");
@@ -4880,10 +4884,15 @@ a file name for --log-bin-index option", opt_binlog_index_name);
                                 &global_system_variables.temp_table_plugin))
     unireg_abort(1);
 
-  tc_log= (total_ha_2pc > 1 ? (opt_bin_log  ?
-                               (TC_LOG *) &mysql_bin_log :
-                               (TC_LOG *) &tc_log_mmap) :
-           (TC_LOG *) &tc_log_dummy);
+  if (total_ha_2pc > 1 || (1 == total_ha_2pc && opt_bin_log))
+  {
+    if (opt_bin_log)
+      tc_log= &mysql_bin_log;
+    else
+      tc_log= &tc_log_mmap;
+  }
+  else
+    tc_log= &tc_log_dummy;
 
   if (tc_log->open(opt_bin_log ? opt_bin_logname : opt_tc_log_file))
   {
