@@ -604,6 +604,7 @@ extern int      my_access(const char *path, int amode);
 
 extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
+extern my_bool is_filename_allowed(const char *name, size_t length);
 
 #ifdef _WIN32
 extern int nt_share_delete(const char *name,myf MyFlags);
