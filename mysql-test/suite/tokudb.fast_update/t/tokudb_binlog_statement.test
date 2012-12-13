@@ -1,0 +1,26 @@
+source include/have_binlog_format_statement.inc;
+source include/have_tokudb.inc;
+
+create table tt (id int primary key, x int);
+
+set session tokudb_enable_fast_upsert=1;
+set session tokudb_disable_slow_upsert=1;
+
+insert into tt values (1,0);
+
+error ER_UNSUPPORTED_EXTENSION;
+insert into tt values (1,0) on duplicate key update x=x+1;
+
+error ER_UNSUPPORTED_EXTENSION;
+insert into tt values (2,0) on duplicate key update x=x+1;
+
+set session tokudb_enable_fast_update=1;
+set session tokudb_disable_slow_update=1;
+
+error ER_UNSUPPORTED_EXTENSION;
+update tt set x=x+1 where id=1;
+
+error ER_UNSUPPORTED_EXTENSION;
+update tt set x=x+1 where id=2;
+
+drop table tt;
