@@ -483,16 +483,11 @@ bool mysql_create_view(THD *thd, TABLE_LIST *views,
       If this is an ALTER VIEW then the current user should be set as
       the definer.
     */
-    Query_arena original_arena;
-    Query_arena *ps_arena = thd->activate_stmt_arena_if_needed(&original_arena);
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-    if (!(lex->definer= create_default_definer(thd)))
-      res= TRUE;
+    lex->definer= create_default_definer(thd);
 
-    if (ps_arena)
-      thd->restore_active_arena(ps_arena, &original_arena);
-
-    if (res)
+    if (!lex->definer)
       goto err;
   }
 
