@@ -692,6 +692,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case GTID_LOG_EVENT: return "Gtid";
   case ANONYMOUS_GTID_LOG_EVENT: return "Anonymous_Gtid";
   case PREVIOUS_GTIDS_LOG_EVENT: return "Previous_gtids";
+  case HEARTBEAT_LOG_EVENT: return "Heartbeat";
   default: return "Unknown";				/* impossible */
   }
 }
