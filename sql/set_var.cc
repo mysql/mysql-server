@@ -2502,6 +2502,9 @@ static int  sys_check_log_path(THD *thd,  set_var *var)
     goto err;
   }
 
+  if (!is_filename_allowed(log_file_str, strlen(log_file_str)))
+    goto err;
+
   if (my_stat(path, &f_stat, MYF(0)))
   {
     /*

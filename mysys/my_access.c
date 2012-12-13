@@ -156,6 +156,67 @@ int check_if_legal_tablename(const char *name)
 }
 
 
+#ifdef __WIN__
+/**
+  Checks if the drive letter supplied is valid or not. Valid drive
+  letters are A to Z, both lower case and upper case.
+
+  @param drive_letter : The drive letter to validate.
+ 
+  @return TRUE if the drive exists, FALSE otherwise.
+*/
+static my_bool does_drive_exists(char drive_letter)
+{
+  DWORD drive_mask= GetLogicalDrives();
+  drive_letter= toupper(drive_letter);
+
+  return (drive_letter >= 'A' && drive_letter <= 'Z') &&
+         (drive_mask & (0x1 << (drive_letter - 'A')));
+}
+#endif
+
+/**
+  Verifies if the file name supplied is allowed or not. On Windows
+  file names with a colon (:) are not allowed because such file names
+  store data in Alternate Data Streams which can be used to hide 
+  the data.
+
+  @param name contains the file name with or without path
+  @param length contains the length of file name
+ 
+  @return TRUE if the file name is allowed, FALSE otherwise.
+*/
+my_bool is_filename_allowed(const char *name __attribute__((unused)),
+                            size_t length __attribute__((unused)))
+{
+#ifdef __WIN__
+  /* 
+    For Windows, check if the file name contains : character.
+    Start from end of path and search if the file name contains :
+  */
+  const char* ch = NULL;
+  for(ch= name + length - 1; ch >= name; --ch)
+  {
+    if (FN_LIBCHAR == *ch || '/' == *ch)
+      break;
+    else if (':' == *ch)
+    {
+      /*
+        File names like C:foobar.txt are allowed since the syntax means
+        file foobar.txt in current directory of C drive. However file
+        names likes CC:foobar are not allowed since this syntax means ADS
+        foobar in file CC.
+      */
+      return ((ch - name == 1) && does_drive_exists(*name));
+    }
+  }
+  return TRUE;
+#else
+  /* For other platforms, file names can contain colon : */
+  return TRUE;
+#endif
+} /* is_filename_allowed */
+
 #if defined(__WIN__) || defined(__EMX__)
 
 
