@@ -929,6 +929,8 @@ convert_error_code_to_mysql(
 #endif /* HA_ERR_TOO_MANY_CONCURRENT_TRXS */
 	case DB_UNSUPPORTED:
 		return(HA_ERR_UNSUPPORTED);
+	case DB_OUT_OF_MEMORY:
+		return(HA_ERR_OUT_OF_MEM);
 	}
 }
 
@@ -1138,6 +1140,8 @@ innobase_mysql_tmpfile(void)
 
 	DBUG_ENTER("innobase_mysql_tmpfile");
 
+	DBUG_EXECUTE_IF("innobase_tmpfile_creation_failure", return(-1););
+
 	tmpdir = my_tmpdir(&mysql_tmpdir_list);
 
 	/* The tmpdir parameter can not be NULL for GetTempFileName. */
@@ -1200,6 +1204,9 @@ innobase_mysql_tmpfile(void)
 {
 	int	fd2 = -1;
 	File	fd = mysql_tmpfile("ib");
+
+	DBUG_EXECUTE_IF("innobase_tmpfile_creation_failure", return(-1););
+
 	if (fd >= 0) {
 		/* Copy the file descriptor, so that the additional resources
 		allocated by create_temp_file() can be freed by invoking
