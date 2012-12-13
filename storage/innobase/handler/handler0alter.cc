@@ -295,6 +295,18 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
+	/* ADD FOREIGN KEY does currently work properly in combination
+	with renaming columns. (Bug#14105491) */
+	if ((ha_alter_info->handler_flags
+	     & (Alter_inplace_info::ADD_FOREIGN_KEY
+		| Alter_inplace_info::ALTER_COLUMN_NAME))
+	    == (Alter_inplace_info::ADD_FOREIGN_KEY
+		| Alter_inplace_info::ALTER_COLUMN_NAME)) {
+		ha_alter_info->unsupported_reason = innobase_get_err_msg(
+			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
 	/* If a column change from NOT NULL to NULL,
 	and there's a implict pk on this column. the
 	table should be rebuild. The change should
