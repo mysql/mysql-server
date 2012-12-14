@@ -3565,7 +3565,7 @@ row_truncate_table_for_mysql(
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
 	/* Temporary tables don't need undo logging for autocommit stmt.
-	On crash (i.e. mysql restart) temporary tables are anyways not
+	On crash (i.e. mysql restart) temporary tables are anyway not
 	accessible. */
 	if (!dict_table_is_temporary(table)) {
 		/* Assign an undo segment for the transaction, so that the

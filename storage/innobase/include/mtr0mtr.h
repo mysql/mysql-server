@@ -40,9 +40,12 @@ Created 11/26/1995 Heikki Tuuri
 #define MTR_LOG_ALL			21	/* default mode: log all
 						operations modifying
 						disk-based data */
-#define	MTR_LOG_NONE			22	/* log no operations */
-#define	MTR_LOG_NO_REDO			23	/* Don't generate REDO
-						but flush dirty pages */
+#define	MTR_LOG_NONE			22	/* log no operations and dirty
+						pages are not added to the
+						flush list */
+#define	MTR_LOG_NO_REDO			23	/* Don't generate REDO log
+						but add dirty pages to
+						flush list */
 /*#define	MTR_LOG_SPACE	23 */		/* log only operations
 						modifying file space page
 						allocation data

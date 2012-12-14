@@ -67,8 +67,8 @@ mlog_close(
 {
 	dyn_array_t*	mlog;
 
-	ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NONE
-	      && mtr_get_log_mode(mtr) != MTR_LOG_NO_REDO);
+	ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NONE);
+	ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NO_REDO);
 
 	mlog = &(mtr->log);
 
