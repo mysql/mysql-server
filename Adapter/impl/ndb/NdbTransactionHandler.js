@@ -90,7 +90,6 @@ function execute(self, execMode, dbOperationList, callback) {
   }
 
   function onStartTx(err, ndbtx) {
-    var op, helper;
     if(err) {
       ndbsession.txIsClosed(self);
       udebug.log("execute onStartTx [ERROR].", err);
