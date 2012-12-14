@@ -2624,14 +2624,17 @@ static bool add_line(String &buffer, char *line, ulong line_length,
   {
     uint length=(uint) (out-line);
 
-    if (!truncated && !is_delimiter_command(line, length))
+    if (!truncated && (!is_delimiter_command(line, length) ||
+                       (*in_string || *ml_comment)))
     {
       /* 
         Don't add a new line in case there's a DELIMITER command to be 
         added to the glob buffer (e.g. on processing a line like 
         "<command>;DELIMITER <non-eof>") : similar to how a new line is 
         not added in the case when the DELIMITER is the first command 
-        entered with an empty glob buffer. 
+        entered with an empty glob buffer. However, if the delimiter is
+        part of a string or a comment, the new line should be added. (e.g.
+        SELECT '\ndelimiter\n';\n)
       */
       *out++='\n';
       length++;
