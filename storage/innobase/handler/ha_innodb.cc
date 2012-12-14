@@ -3943,7 +3943,7 @@ ha_innobase::table_flags() const
 	}
 
 	/* stats.records are approx. as it is not protected by mutex/latch.
-	In case of temp-table, it is not visible across trx + lifetime is
+	In case of temp-table, it is not visible across trx & the lifetime is
 	bounded by connection/server lifetime and so stats.records act as
 	an exact count of number of rows.
 	TODO: If in future we can get an indication that this temp-table is
@@ -9419,12 +9419,15 @@ index_bad:
 /*********************************************************************//**
 Check if table is non-compressed temporary table.
 @return true if non-compressed temporary table. */
-UNIV_INTERN
+UNIV_INLINE
 bool
 innobase_table_is_noncompressed_temporary(
 /*======================================*/
-	HA_CREATE_INFO* create_info,
-	TABLE*          form)
+	HA_CREATE_INFO*	create_info,	/*!< in: more information of the
+					created table, contains also the
+					create statement string */
+	TABLE*		form)		/*!< in: information on table
+					columns and indexes */
 {
 	return((create_info->options & HA_LEX_CREATE_TMP_TABLE)
 	       && (!((form->s->row_type == ROW_TYPE_COMPRESSED
