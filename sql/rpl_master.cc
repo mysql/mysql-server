@@ -1375,7 +1375,8 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 	}
       }
 
-      if (RUN_HOOK(binlog_transmit, after_send_event, (thd, 0/*flags*/, packet)))
+      if (RUN_HOOK(binlog_transmit, after_send_event, (thd, 0/*flags*/, packet,
+                                                       log_file_name, skip_group ? pos : 0)))
       {
         errmsg= "Failed to run hook 'after_send_event'";
         my_errno= ER_UNKNOWN_ERROR;
@@ -1655,8 +1656,12 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
                 GOTO_ERR;
               }
             }
+          }
 
-            if (RUN_HOOK(binlog_transmit, after_send_event, (thd, 0/*flags*/, packet)))
+          if(!goto_next_binlog)
+          {
+            if (RUN_HOOK(binlog_transmit, after_send_event, (thd, 0/*flags*/, packet,
+                                                             log_file_name, skip_group ? pos : 0)))
             {
               my_errno= ER_UNKNOWN_ERROR;
               errmsg= "Failed to run hook 'after_send_event'";
