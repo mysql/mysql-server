@@ -1739,99 +1739,6 @@ innobase_get_lower_case_table_names(void)
 	return(lower_case_table_names);
 }
 
-#if defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN)
-extern MYSQL_PLUGIN_IMPORT MY_TMPDIR mysql_tmpdir_list;
-/*******************************************************************//**
-Map an OS error to an errno value. The OS error number is stored in
-_doserrno and the mapped value is stored in errno) */
-void __cdecl
-_dosmaperr(
-	unsigned long);	/*!< in: OS error value */
-
-/*********************************************************************//**
-Creates a temporary file.
-@return	temporary file descriptor, or < 0 on error */
-UNIV_INTERN
-int
-innobase_mysql_tmpfile(void)
-/*========================*/
-{
-	int	fd;				/* handle of opened file */
-	HANDLE	osfh;				/* OS handle of opened file */
-	char*	tmpdir;				/* point to the directory
-						where to create file */
-	TCHAR	path_buf[MAX_PATH - 14];	/* buffer for tmp file path.
-						The length cannot be longer
-						than MAX_PATH - 14, or
-						GetTempFileName will fail. */
-	char	filename[MAX_PATH];		/* name of the tmpfile */
-	DWORD	fileaccess = GENERIC_READ	/* OS file access */
-			     | GENERIC_WRITE
-			     | DELETE;
-	DWORD	fileshare = FILE_SHARE_READ	/* OS file sharing mode */
-			    | FILE_SHARE_WRITE
-			    | FILE_SHARE_DELETE;
-	DWORD	filecreate = CREATE_ALWAYS;	/* OS method of open/create */
-	DWORD	fileattrib =			/* OS file attribute flags */
-			     FILE_ATTRIBUTE_NORMAL
-			     | FILE_FLAG_DELETE_ON_CLOSE
-			     | FILE_ATTRIBUTE_TEMPORARY
-			     | FILE_FLAG_SEQUENTIAL_SCAN;
-
-	DBUG_ENTER("innobase_mysql_tmpfile");
-
-	tmpdir = my_tmpdir(&mysql_tmpdir_list);
-
-	/* The tmpdir parameter can not be NULL for GetTempFileName. */
-	if (!tmpdir) {
-		uint	ret;
-
-		/* Use GetTempPath to determine path for temporary files. */
-		ret = GetTempPath(sizeof(path_buf), path_buf);
-		if (ret > sizeof(path_buf) || (ret == 0)) {
-
-			_dosmaperr(GetLastError());	/* map error */
-			DBUG_RETURN(-1);
-		}
-
-		tmpdir = path_buf;
-	}
-
-	/* Use GetTempFileName to generate a unique filename. */
-	if (!GetTempFileName(tmpdir, "ib", 0, filename)) {
-
-		_dosmaperr(GetLastError());	/* map error */
-		DBUG_RETURN(-1);
-	}
-
-	DBUG_PRINT("info", ("filename: %s", filename));
-
-	/* Open/Create the file. */
-	osfh = CreateFile(filename, fileaccess, fileshare, NULL,
-			  filecreate, fileattrib, NULL);
-	if (osfh == INVALID_HANDLE_VALUE) {
-
-		/* open/create file failed! */
-		_dosmaperr(GetLastError());	/* map error */
-		DBUG_RETURN(-1);
-	}
-
-	do {
-		/* Associates a CRT file descriptor with the OS file handle. */
-		fd = _open_osfhandle((intptr_t) osfh, 0);
-	} while (fd == -1 && errno == EINTR);
-
-	if (fd == -1) {
-		/* Open failed, close the file handle. */
-
-		_dosmaperr(GetLastError());	/* map error */
-		CloseHandle(osfh);		/* no need to check if
-						CloseHandle fails */
-	}
-
-	DBUG_RETURN(fd);
-}
-#else
 /*********************************************************************//**
 Creates a temporary file.
 @return	temporary file descriptor, or < 0 on error */
@@ -1842,6 +1749,9 @@ innobase_mysql_tmpfile(void)
 {
 	int	fd2 = -1;
 	File	fd = mysql_tmpfile("ib");
+
+	DBUG_EXECUTE_IF("innobase_tmpfile_creation_failure", return(-1););
+
 	if (fd >= 0) {
 		/* Copy the file descriptor, so that the additional resources
 		allocated by create_temp_file() can be freed by invoking
@@ -1887,7 +1797,6 @@ innobase_mysql_tmpfile(void)
 	}
 	return(fd2);
 }
-#endif /* defined (__WIN__) && defined (MYSQL_DYNAMIC_PLUGIN) */
 
 /*********************************************************************//**
 Wrapper around MySQL's copy_and_convert function.
@@ -3097,6 +3006,13 @@ innobase_change_buffering_inited_ok:
 				  srv_max_io_capacity);
 
 		srv_io_capacity = srv_max_io_capacity;
+	}
+
+	if (!is_filename_allowed(srv_buf_dump_filename,
+				 strlen(srv_buf_dump_filename), FALSE)) {
+		sql_print_error("InnoDB: innodb_buffer_pool_filename"
+			" cannot have colon (:) in the file name.");
+		goto mem_free_and_error;
 	}
 
 	/* --------------------------------------------------*/
@@ -8147,6 +8063,50 @@ ha_innobase::ft_init_ext(
 	return((FT_INFO*) fts_hdl);
 }
 
+/*****************************************************************//**
+Set up search tuple for a query through FTS_DOC_ID_INDEX on
+supplied Doc ID. This is used by MySQL to retrieve the documents
+once the search result (Doc IDs) is available */
+static
+void
+innobase_fts_create_doc_id_key(
+/*===========================*/
+	dtuple_t*	tuple,		/* in/out: prebuilt->search_tuple */
+	const dict_index_t*
+			index,		/* in: index (FTS_DOC_ID_INDEX) */
+	doc_id_t*	doc_id)		/* in/out: doc id to search, value
+					could be changed to storage format
+					used for search. */
+{
+	doc_id_t	temp_doc_id;
+	dfield_t*	dfield = dtuple_get_nth_field(tuple, 0);
+
+	ut_a(dict_index_get_n_unique(index) == 1);
+
+	dtuple_set_n_fields(tuple, index->n_fields);
+	dict_index_copy_types(tuple, index, index->n_fields);
+
+#ifdef UNIV_DEBUG
+	/* The unique Doc ID field should be an eight-bytes integer */
+	dict_field_t*	field = dict_index_get_nth_field(index, 0);
+        ut_a(field->col->mtype == DATA_INT);
+	ut_ad(sizeof(*doc_id) == field->fixed_len);
+	ut_ad(innobase_strcasecmp(index->name, FTS_DOC_ID_INDEX_NAME) == 0);
+#endif /* UNIV_DEBUG */
+
+	/* Convert to storage byte order */
+	mach_write_to_8(reinterpret_cast<byte*>(&temp_doc_id), *doc_id);
+	*doc_id = temp_doc_id;
+	dfield_set_data(dfield, doc_id, sizeof(*doc_id));
+
+        dtuple_set_n_fields_cmp(tuple, 1);
+
+	for (ulint i = 1; i < index->n_fields; i++) {
+		dfield = dtuple_get_nth_field(tuple, i);
+		dfield_set_null(dfield);
+	}
+}
+
 /**********************************************************************//**
 Fetch next result from the FT result set
 @return error code */
@@ -8191,6 +8151,7 @@ next_record:
 	if (result->current != NULL) {
 		dict_index_t*	index;
 		dtuple_t*	tuple = prebuilt->search_tuple;
+		doc_id_t	search_doc_id;
 
 		/* If we only need information from result we can return
 		   without fetching the table row */
@@ -8211,9 +8172,12 @@ next_record:
 		fts_ranking_t*	ranking = rbt_value(
 			fts_ranking_t, result->current);
 
-		/* We pass a pointer to the doc_id because we need to
-		convert it to storage byte order. */
-		row_create_key(tuple, index, &ranking->doc_id);
+		search_doc_id = ranking->doc_id;
+
+		/* We pass a pointer of search_doc_id because it will be
+		converted to storage byte order used in the search
+		tuple. */
+		innobase_fts_create_doc_id_key(tuple, index, &search_doc_id);
 
 		innobase_srv_conc_enter_innodb(prebuilt->trx);
 
@@ -14890,6 +14854,53 @@ exit:
 	return;
 }
 
+#ifdef __WIN__
+/*************************************************************//**
+Validate if passed-in "value" is a valid value for
+innodb_buffer_pool_filename. On Windows, file names with colon (:)
+are not allowed.
+
+@return	0 for valid name */
+static
+int
+innodb_srv_buf_dump_filename_validate(
+/*==================================*/
+	THD*				thd,	/*!< in: thread handle */
+	struct st_mysql_sys_var*	var,	/*!< in: pointer to system
+						variable */
+	void*				save,	/*!< out: immediate result
+						for update function */
+	struct st_mysql_value*		value)	/*!< in: incoming string */
+{
+	const char*	buf_name;
+	char		buff[OS_FILE_MAX_PATH];
+	int		len= sizeof(buff);
+
+	ut_a(save != NULL);
+	ut_a(value != NULL);
+
+	buf_name = value->val_str(value, buff, &len);
+
+	if (buf_name) {
+		if (is_filename_allowed(buf_name, len, FALSE)){
+			*static_cast<const char**>(save) = buf_name;
+			return(0);
+		} else {
+			push_warning_printf(thd,
+				Sql_condition::SL_WARNING,
+				ER_WRONG_ARGUMENTS,
+				"InnoDB: innodb_buffer_pool_filename "
+				"cannot have colon (:) in the file name.");
+
+		}
+	}
+
+	return(1);
+}
+#else /* __WIN__ */
+# define innodb_srv_buf_dump_filename_validate NULL
+#endif /* __WIN__ */
+
 /****************************************************************//**
 Update the system variable innodb_monitor_enable and enable
 specified monitor counter.
@@ -15737,7 +15748,7 @@ static MYSQL_SYSVAR_LONG(buffer_pool_instances, innobase_buffer_pool_instances,
 static MYSQL_SYSVAR_STR(buffer_pool_filename, srv_buf_dump_filename,
   PLUGIN_VAR_RQCMDARG | PLUGIN_VAR_MEMALLOC,
   "Filename to/from which to dump/load the InnoDB buffer pool",
-  NULL, NULL, SRV_BUF_DUMP_FILENAME_DEFAULT);
+  innodb_srv_buf_dump_filename_validate, NULL, SRV_BUF_DUMP_FILENAME_DEFAULT);
 
 static MYSQL_SYSVAR_BOOL(buffer_pool_dump_now, innodb_buffer_pool_dump_now,
   PLUGIN_VAR_RQCMDARG,

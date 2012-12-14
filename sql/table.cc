@@ -3959,8 +3959,8 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
     if (!no_where_clause)
     {
       TABLE_LIST *tbl= this;
-      Query_arena *arena= thd->stmt_arena, backup;
-      arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+
+      Prepared_stmt_arena_holder ps_arena_holder(thd);
 
       /* Go up to join tree and try to find left join */
       for (; tbl; tbl= tbl->embedding)
@@ -3980,8 +3980,6 @@ bool TABLE_LIST::prep_where(THD *thd, Item **conds,
       }
       if (tbl == 0)
         *conds= and_conds(*conds, where->copy_andor_structure(thd));
-      if (arena)
-        thd->restore_active_arena(arena, &backup);
       where_processed= TRUE;
     }
   }
@@ -4073,8 +4071,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
 
   if (check_opt_type && !check_option_processed)
   {
-    Query_arena *arena= thd->stmt_arena, backup;
-    arena= thd->activate_stmt_arena_if_needed(&backup);  // For easier test
+    Prepared_stmt_arena_holder ps_arena_holder(thd);
 
     if (where)
     {
@@ -4092,10 +4089,7 @@ bool TABLE_LIST::prep_check_option(THD *thd, uint8 check_opt_type)
     check_option= and_conds(check_option,
                             merge_on_conds(thd, this, is_cascaded));
 
-    if (arena)
-      thd->restore_active_arena(arena, &backup);
     check_option_processed= TRUE;
-
   }
 
   if (check_option)

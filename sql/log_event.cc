@@ -692,6 +692,7 @@ const char* Log_event::get_type_str(Log_event_type type)
   case GTID_LOG_EVENT: return "Gtid";
   case ANONYMOUS_GTID_LOG_EVENT: return "Anonymous_Gtid";
   case PREVIOUS_GTIDS_LOG_EVENT: return "Previous_gtids";
+  case HEARTBEAT_LOG_EVENT: return "Heartbeat";
   default: return "Unknown";				/* impossible */
   }
 }
@@ -7249,7 +7250,8 @@ int Xid_log_event::do_apply_event_worker(Slave_worker *w)
   ulong gaq_idx= mts_group_idx;
   Slave_job_group *ptr_group= coordinator_gaq->get_job_group(gaq_idx);
 
-  if ((error= w->commit_positions(this, ptr_group, true)))
+  if ((error= w->commit_positions(this, ptr_group,
+                                  w->c_rli->is_transactional())))
     goto err;
 
   DBUG_PRINT("mts", ("do_apply group master %s %llu  group relay %s %llu event %s %llu.",
@@ -7306,7 +7308,7 @@ int Xid_log_event::do_apply_event(Relay_log_info const *rli)
   if (log_pos) // 3.23 binlogs don't have log_posx
     rli_ptr->set_group_master_log_pos(log_pos);
   
-  if ((error= rli_ptr->flush_info(TRUE)))
+  if ((error= rli_ptr->flush_info(rli_ptr->is_transactional())))
     goto err;
 
   DBUG_PRINT("info", ("do_apply group master %s %llu  group relay %s %llu event %s %llu\n",
