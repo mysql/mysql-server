@@ -617,6 +617,57 @@ static int send_heartbeat_event(NET* net, String* packet,
 
 
 /**
+   Reset and send a heartbeat event to the slave. This function is *only* used
+   to send heartbeat events which carry binary log position of the *last
+   skipped transaction*. Since thd->packet is used to send events to the
+   slave and the packet currently holds an event, packet state is stored
+   first. A heartbeat event is sent to the slave and the state is restored
+   later. Note that, the caller has to send the last skipped coordinates
+   to this function.
+
+   @param[in]      net               This master-slave network handler
+   @param[in]      packet            packet that is to be sent to the slave.
+   @param[in]      last_skip_coord   coordinates for last skipped transaction
+   @param[in]      ev_offset         event offset
+   @param[in]      checksum_alg_arg  checksum alg used
+   @param[in,out]  errmsg            generated error message
+
+   @retval           0                  ok
+   @retval          -1                  error
+*/
+static int send_last_skip_group_heartbeat(THD *thd, NET* net, String *packet,
+                                          const struct event_coordinates *last_skip_coord,
+                                          ulong *ev_offset,
+                                          uint8 checksum_alg_arg, const char **errmsg)
+{
+  DBUG_ENTER("send_last_skip_group_heartbeat");
+  String save_packet;
+  int save_offset= *ev_offset;
+
+ /* Save the current read packet */ 
+  save_packet.swap(*packet);
+
+  if (reset_transmit_packet(thd, 0, ev_offset, errmsg))
+    DBUG_RETURN(-1);
+
+  /* Send heart beat event to the slave to update slave  threads coordinates */
+  if (send_heartbeat_event(net, packet, last_skip_coord, checksum_alg_arg))
+  {
+    *errmsg= "Failed on my_net_write()";
+    my_errno= ER_UNKNOWN_ERROR;
+    DBUG_RETURN(-1);
+  }
+
+  /* Restore the packet and event offset */
+  packet->swap(save_packet);
+  *ev_offset= save_offset;
+
+  DBUG_PRINT("info", ("rpl_master.cc:send_last_skip_group_heartbeat returns 0"));
+  DBUG_RETURN(0);
+}
+
+
+/**
   If there are less than BYTES bytes left to read in the packet,
   report error.
 */
@@ -825,6 +876,19 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
     *p_start_coord= &start_coord;
   LOG_POS_COORD coord_buf= { log_file_name, BIN_LOG_HEADER_SIZE },
     *p_coord= &coord_buf;
+
+  /*
+    We use the following variables to send a HB event
+    when groups are skipped during a GTID protocol.
+  */
+  /* Flag to check if last transaction was skipped */
+  bool last_skip_group= skip_group;
+  /* File name where last skip group is present */
+  char last_skip_log_name[FN_REFLEN+1];
+  /* Coordinates of the last skip group */
+  LOG_POS_COORD last_skip_coord_buf= {last_skip_log_name, BIN_LOG_HEADER_SIZE},
+                *p_last_skip_coord= &last_skip_coord_buf;
+
   if (heartbeat_period != LL(0))
   {
     heartbeat_ts= &heartbeat_buf;
@@ -1257,12 +1321,39 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
         GOTO_ERR;
       }
 
+      /* The present event was skipped, so store the event coordinates */
+      if (skip_group)
+      {
+        p_last_skip_coord->pos= p_coord->pos;
+        strcpy(p_last_skip_coord->file_name, p_coord->file_name);
+      }
+
+      if (!skip_group && last_skip_group)
+      {
+        /*
+          Dump thread is ready to send it's first transaction after
+          one or more skipped transactions. Send a heart beat event
+          to update slave IO thread coordinates before that happens.
+        */
+
+        if (send_last_skip_group_heartbeat(thd, net, packet, p_last_skip_coord,
+                                           &ev_offset, current_checksum_alg,
+                                           &errmsg))
+        {
+          GOTO_ERR;
+        }
+      }
+
+      /* save this flag for next iteration */
+      last_skip_group= skip_group;
+
       if (skip_group == false && my_net_write(net, (uchar*) packet->ptr(), packet->length()))
       {
         errmsg = "Failed on my_net_write()";
         my_errno= ER_UNKNOWN_ERROR;
         GOTO_ERR;
       }
+
 
       DBUG_EXECUTE_IF("dump_thread_wait_before_send_xid",
                       {
@@ -1381,6 +1472,7 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
 #endif
           PSI_stage_info old_stage;
           signal_cnt= mysql_bin_log.signal_cnt;
+
           do 
           {
             if (heartbeat_period != 0)
@@ -1391,6 +1483,23 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
             thd->ENTER_COND(log_cond, log_lock,
                             &stage_master_has_sent_all_binlog_to_slave,
                             &old_stage);
+            /*
+              When using GTIDs, if the dump thread has reached the end of the
+              binary log and the last transaction is skipped,
+              send one heartbeat event even when the heartbeat  is off.
+              If the heartbeat is on, it is better to send a heartbeat
+              event as the time_out of certain functions (Ex: master_pos_wait()
+              or semi sync ack timeout) might be less than heartbeat period.
+            */
+            if (skip_group &&
+                send_last_skip_group_heartbeat(thd, net, packet,
+                                               p_coord, &ev_offset,
+                                               current_checksum_alg, &errmsg))
+            {
+              thd->EXIT_COND(&old_stage);
+              GOTO_ERR;
+            }
+
             ret= mysql_bin_log.wait_for_update_bin_log(thd, heartbeat_ts);
             DBUG_ASSERT(ret == 0 || (heartbeat_period != 0));
             if (ret == ETIMEDOUT || ret == ETIME)
@@ -1501,8 +1610,24 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
             break;
           }
 
+          /* The present event was skipped in a GTID protocol, store the coordinates */
+          if (skip_group)
+          {
+            p_last_skip_coord->pos= p_coord->pos;
+            strcpy(p_last_skip_coord->file_name, p_coord->file_name);
+          }
+
           if (!skip_group && !goto_next_binlog)
           {
+            /* If the last group was skipped, send a HB event */
+            if (last_skip_group &&
+                send_last_skip_group_heartbeat(thd, net, packet,
+                                              p_last_skip_coord, &ev_offset,
+                                              current_checksum_alg, &errmsg))
+            {
+              GOTO_ERR;
+            }
+
             THD_STAGE_INFO(thd, stage_sending_binlog_event_to_slave);
             pos = my_b_tell(&log);
             if (RUN_HOOK(binlog_transmit, before_send_event,
@@ -1537,6 +1662,10 @@ void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
               GOTO_ERR;
             }
           }
+
+          /* Save the skip group for next iteration */
+          last_skip_group= skip_group;
+
         }
 
         log.error=0;
