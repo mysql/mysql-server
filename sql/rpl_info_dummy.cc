@@ -51,7 +51,8 @@ enum_return_check Rpl_info_dummy::do_check_info()
   return REPOSITORY_DOES_NOT_EXIST;
 }
 
-enum_return_check Rpl_info_dummy::do_check_info(uint instance __attribute__((unused)))
+enum_return_check Rpl_info_dummy::do_check_info(uint instance __attribute__((unused)),
+                                                const bool ignore_error __attribute__((unused)))
 {
   DBUG_ASSERT(!abort);
   return REPOSITORY_DOES_NOT_EXIST;
