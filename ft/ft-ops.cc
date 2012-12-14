@@ -4860,6 +4860,9 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
     uint32_t fullhash = compute_child_fullhash(brt->ft->cf, node, childnum);
     FTNODE childnode;
 
+    // If the current node's height is greater than 1, then its child is an internal node.
+    // Therefore, to warm the cache better (#5798), we want to read all the partitions off disk in one shot.
+    bool read_all_partitions = node->height > 1;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_subset_read(
         &bfe,
@@ -4869,7 +4872,8 @@ ft_search_child(FT_HANDLE brt, FTNODE node, int childnum, ft_search_t *search, F
         &ftcursor->range_lock_right_key,
         ftcursor->left_is_neg_infty,
         ftcursor->right_is_pos_infty,
-        ftcursor->disable_prefetching
+        ftcursor->disable_prefetching,
+        read_all_partitions
         );
     bool msgs_applied = false;
     {
@@ -5195,7 +5199,8 @@ try_again:
         &ftcursor->range_lock_right_key,
         ftcursor->left_is_neg_infty,
         ftcursor->right_is_pos_infty,
-        ftcursor->disable_prefetching
+        ftcursor->disable_prefetching,
+        true // We may as well always read the whole root into memory, if it's a leaf node it's a tiny tree anyway.
         );
     FTNODE node = NULL;
     {

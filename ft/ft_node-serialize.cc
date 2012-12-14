@@ -2445,9 +2445,15 @@ toku_deserialize_ftnode_from (int fd,
     toku_trace("deserial start");
     int r = 0;
     struct rbuf rb = RBUF_INITIALIZER;
-    read_ftnode_header_from_fd_into_rbuf_if_small_enough(fd, blocknum, bfe->h, &rb, bfe);
 
-    r = deserialize_ftnode_header_from_rbuf_if_small_enough(ftnode, ndd, blocknum, fullhash, bfe, &rb, fd);
+    if (!bfe->read_all_partitions) {
+        read_ftnode_header_from_fd_into_rbuf_if_small_enough(fd, blocknum, bfe->h, &rb, bfe);
+
+        r = deserialize_ftnode_header_from_rbuf_if_small_enough(ftnode, ndd, blocknum, fullhash, bfe, &rb, fd);
+    } else {
+        // force us to do it the old way
+        r = -1;
+    }
     if (r != 0) {
         // Something went wrong, go back to doing it the old way.
         r = deserialize_ftnode_from_fd(fd, blocknum, fullhash, ftnode, ndd, bfe, NULL);

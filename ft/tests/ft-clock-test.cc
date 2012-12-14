@@ -164,6 +164,7 @@ test2(int fd, FT brt_h, FTNODE *dn) {
         &right,
         true,
         true,
+        false,
         false
         );
     FTNODE_DISK_DATA ndd = NULL;
