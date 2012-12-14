@@ -353,14 +353,18 @@ int Binlog_transmit_delegate::before_send_event(THD *thd, ushort flags,
 }
 
 int Binlog_transmit_delegate::after_send_event(THD *thd, ushort flags,
-                                               String *packet)
+                                               String *packet,
+                                               const char *skipped_log_file,
+                                               my_off_t skipped_log_pos)
 {
   Binlog_transmit_param param;
   param.flags= flags;
 
   int ret= 0;
   FOREACH_OBSERVER(ret, after_send_event, thd,
-                   (&param, packet->c_ptr(), packet->length()));
+                   (&param, packet->c_ptr(), packet->length(),
+                   skipped_log_file+dirname_length(skipped_log_file),
+                    skipped_log_pos));
   return ret;
 }
 
