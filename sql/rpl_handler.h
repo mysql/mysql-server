@@ -174,7 +174,8 @@ public:
                         String *packet, const
                         char *log_file, my_off_t log_pos );
   int after_send_event(THD *thd, ushort flags,
-                       String *packet);
+                       String *packet, const char *skipped_log_file,
+                       my_off_t skipped_log_pos);
   int after_reset_master(THD *thd, ushort flags);
 };
 
