@@ -14,9 +14,6 @@ SET global innodb_compression_level=0;
 SELECT @@innodb_compression_level;
 @@innodb_compression_level
 0
-SELECT @@innodb_log_compressed_pages;
-@@innodb_log_compressed_pages
-1
 SELECT @@Innodb_file_per_table;
 @@Innodb_file_per_table
 1
