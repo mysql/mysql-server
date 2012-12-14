@@ -3395,20 +3395,6 @@ public:
   { return variables.character_set_client; }
   void update_charset();
 
-  inline Query_arena *activate_stmt_arena_if_needed(Query_arena *backup)
-  {
-    /*
-      Use the persistent arena if we are in a prepared statement or a stored
-      procedure statement and we have not already changed to use this arena.
-    */
-    if (!stmt_arena->is_conventional() && mem_root != stmt_arena->mem_root)
-    {
-      set_n_backup_active_arena(stmt_arena, backup);
-      return stmt_arena;
-    }
-    return 0;
-  }
-
   void change_item_tree(Item **place, Item *new_value)
   {
     /* TODO: check for OOM condition here */
@@ -3946,6 +3932,59 @@ private:
    */
   LEX_STRING invoker_user;
   LEX_STRING invoker_host;
+};
+
+
+/**
+  A simple holder for the Prepared Statement Query_arena instance in THD.
+  The class utilizes RAII technique to not forget to restore the THD arena.
+*/
+class Prepared_stmt_arena_holder
+{
+public:
+  /**
+    Constructs a new object, activates the persistent arena if requested and if
+    a prepared statement or a stored procedure statement is being executed.
+
+    @param thd                    Thread context.
+    @param activate_now_if_needed Attempt to activate the persistent arena in
+                                  the constructor or not.
+  */
+  Prepared_stmt_arena_holder(THD *thd, bool activate_now_if_needed= true)
+   :m_thd(thd),
+    m_arena(NULL)
+  {
+    if (activate_now_if_needed &&
+        !m_thd->stmt_arena->is_conventional() &&
+        m_thd->mem_root != m_thd->stmt_arena->mem_root)
+    {
+      m_thd->set_n_backup_active_arena(m_thd->stmt_arena, &m_backup);
+      m_arena= m_thd->stmt_arena;
+    }
+  }
+
+  /**
+    Deactivate the persistent arena (restore the previous arena) if it has
+    been activated.
+  */
+  ~Prepared_stmt_arena_holder()
+  {
+    if (is_activated())
+      m_thd->restore_active_arena(m_arena, &m_backup);
+  }
+
+  bool is_activated() const
+  { return m_arena != NULL; }
+
+private:
+  /// The thread context to work with.
+  THD *const m_thd;
+
+  /// The arena set by this holder (by activate()).
+  Query_arena *m_arena;
+
+  /// The arena state to be restored.
+  Query_arena m_backup;
 };
 
 

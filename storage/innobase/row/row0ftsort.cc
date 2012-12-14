@@ -241,7 +241,10 @@ row_fts_psort_info_init(
 			psort_info[j].merge_buf[i] = row_merge_buf_create(
 				dup->index);
 
-			row_merge_file_create(psort_info[j].merge_file[i]);
+			if (row_merge_file_create(psort_info[j].merge_file[i])
+			    < 0) {
+				goto func_exit;
+			}
 
 			/* Need to align memory for O_DIRECT write */
 			psort_info[j].block_alloc[i] =
@@ -819,7 +822,11 @@ exit:
 			continue;
 		}
 
-		tmpfd[i] = innobase_mysql_tmpfile();
+		tmpfd[i] = row_merge_file_create_low();
+		if (tmpfd[i] < 0) {
+			goto func_exit;
+		}
+
 		row_merge_sort(psort_info->psort_common->trx,
 			       psort_info->psort_common->dup,
 			       merge_file[i], block[i], &tmpfd[i]);
@@ -827,6 +834,7 @@ exit:
 		close(tmpfd[i]);
 	}
 
+func_exit:
 	if (fts_enable_diag_print) {
 		DEBUG_FTS_SORT_PRINT("  InnoDB_FTS: complete merge sort\n");
 	}

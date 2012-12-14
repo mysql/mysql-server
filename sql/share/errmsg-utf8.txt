@@ -1101,7 +1101,7 @@ ER_UNKNOWN_COM_ERROR 08S01
         serbian "Nepoznata komanda"
         slo "Neznámy príkaz"
         spa "Comando desconocido"
-        swe "Okänt commando"
+        swe "Okänt kommando"
         ukr "Невідома команда"
 ER_BAD_NULL_ERROR 23000 
         cze "Sloupec '%-.192s' nemůže být null"
@@ -1461,7 +1461,7 @@ ER_DUP_ENTRY 23000 S1009
 	serbian "Dupliran unos '%-.192s' za ključ '%d'"
 	slo "Opakovaný kľúč '%-.192s' (číslo kľúča %d)"
 	spa "Entrada duplicada '%-.192s' para la clave %d"
-	swe "Dubbel nyckel '%-.192s' för nyckel %d"
+	swe "Dublett '%-.192s' för nyckel %d"
 	ukr "Дублюючий запис '%-.192s' для ключа %d"
 ER_WRONG_FIELD_SPEC 42000 S1009
         cze "Chybná specifikace sloupce '%-.192s'"
@@ -2475,7 +2475,7 @@ ER_UNKNOWN_ERROR
         serbian "Nepoznata greška"
         slo "Neznámá chyba"
         spa "Error desconocido"
-        swe "Oidentifierat fel"
+        swe "Okänt fel"
         ukr "Невідома помилка"
 ER_UNKNOWN_PROCEDURE 42000 
         cze "Neznámá procedura %-.192s"
@@ -4047,7 +4047,7 @@ ER_MASTER
         rus "Ошибка от головного сервера: '%-.64s'"
         serbian "Greška iz glavnog servera '%-.64s' u klasteru"
         spa "Error del master: '%-.64s'"
-        swe "Fick en master: '%-.64s'"
+        swe "Fel från master: '%-.64s'"
         ukr "Помилка від головного: '%-.64s'"
 ER_MASTER_NET_READ 08S01 
         cze "Síťová chyba při čtení z masteru"
@@ -4994,7 +4994,7 @@ ER_WARN_QC_RESIZE
         por "Falha em Query cache para configurar tamanho %lu, novo tamanho de query cache é %lu"
         rus "Кеш запросов не может установить размер %lu, новый размер кеша зпросов - %lu"
         spa "Query cache fallada para configurar tamaño %lu, nuevo tamaño de query cache es %lu"
-        swe "Storleken av "Query cache" kunde inte sättas till %lu, ny storlek är %lu"
+        swe "Storleken av 'Query cache' kunde inte sättas till %lu, ny storlek är %lu"
         ukr "Кеш запитів неспроможен встановити розмір %lu, новий розмір кеша запитів - %lu"
 ER_BAD_FT_COLUMN  
         eng "Column '%-.192s' cannot be part of FULLTEXT index"
@@ -6080,7 +6080,7 @@ ER_DUP_ENTRY_WITH_KEY_NAME 23000 S1009
         serbian "Dupliran unos '%-.64s' za ključ '%-.192s'"
         slo "Opakovaný kľúč '%-.64s' (číslo kľúča '%-.192s')"
         spa "Entrada duplicada '%-.64s' para la clave '%-.192s'"
-        swe "Dubbel nyckel '%-.64s' för nyckel '%-.192s'"
+        swe "Dublett '%-.64s' för nyckel '%-.192s'"
         ukr "Дублюючий запис '%-.64s' для ключа '%-.192s'"
 ER_BINLOG_PURGE_EMFILE
   eng "Too many files opened, please execute the command again"
@@ -6969,11 +6969,14 @@ ER_DUP_UNKNOWN_IN_INDEX 23000
   serbian "Dupliran unos za ključ '%-.192s'"
   slo "Opakovaný kľúč (číslo kľúča '%-.192s')"
   spa "Entrada duplicada para la clave '%-.192s'"
-  swe "Dubbel nyckel för nyckel '%-.192s'"
+  swe "Dublett för nyckel '%-.192s'"
   ukr "Дублюючий запис для ключа '%-.192s'"
 
 ER_IDENT_CAUSES_TOO_LONG_PATH
   eng "Long database name and identifier for object resulted in path length exceeding %d characters. Path: '%s'."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOT_NULL
+  eng "cannot silently convert NULL values, as required in this SQL_MODE"
 
 #
 #  End of 5.6 error messages.
