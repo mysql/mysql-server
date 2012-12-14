@@ -240,6 +240,16 @@ fi
 # create the database to be rsynced	 #
 ##########################################
 
+function build_cluster()
+{
+    if grep -qc autotest storage/ndb/compile-cluster 2>/dev/null
+    then
+        storage/ndb/compile-cluster --autotest $*
+    else
+        BUILD/compile-ndb-autotest $*
+    fi
+}
+
 if [ "$build" ]
 then
     rm -rf $install_dir
@@ -255,16 +265,16 @@ then
             cmd /c devenv.com MySql.sln /Build RelWithDebInfo
             cmd /c devenv.com MySql.sln /Project INSTALL /Build
         else
-	    BUILD/compile-ndb-autotest --prefix=$install_dir0
+	    build_cluster --prefix=$install_dir0
 	    make install
         fi
     else
 	cd $dst_place0
-	BUILD/compile-ndb-autotest --prefix=$install_dir0
+	build_cluster --prefix=$install_dir0
 	make install
 	
 	cd $dst_place1
-	BUILD/compile-ndb-autotest --prefix=$install_dir1
+	build_cluster --prefix=$install_dir1
 	make install
     fi
     cd $p
