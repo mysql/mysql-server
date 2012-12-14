@@ -128,6 +128,13 @@ exports.Session.prototype.save = function(tableIndicator) {
 };
 
 
+exports.Session.prototype.createQuery = function() {
+  // createQuery(tableIndicator, callback)
+  var context = new userContext.UserContext(arguments, 2, 2, this, this.sessionFactory);
+  context.createQuery();
+};
+
+
 exports.Session.prototype.close = function() {
   var context = new userContext.UserContext(arguments, 1, 1, this, this.sessionFactory);
   context.closeSession();

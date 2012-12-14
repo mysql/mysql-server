@@ -111,7 +111,7 @@ DBOperation.prototype.prepare = function(ndbTransaction) {
 
 
 function encodeKeyBuffer(indexHandler, op, keys) {
-  udebug.log("encodeKeyBuffer");
+  udebug.log("encodeKeyBuffer with keys", keys);
   var i, offset, value, encoder, record, nfields, col;
   if(indexHandler) {
     op.index = indexHandler.dbIndex;
@@ -127,7 +127,7 @@ function encodeKeyBuffer(indexHandler, op, keys) {
   nfields = indexHandler.getMappedFieldCount();
   col = indexHandler.getColumnMetadata();
   for(i = 0 ; i < nfields ; i++) {
-    value = indexHandler.get(keys, i);  
+    value = keys[i];
     if(value !== null) {
       offset = record.getColumnOffset(i);
       encoder = encoders[col[i].ndbTypeId];
@@ -298,7 +298,7 @@ function newWriteOperation(tx, dbIndexHandler, row) {
   var op = new DBOperation("write", tx, dbIndexHandler.tableHandler);
   op.values = row;
   encodeRowBuffer(op);
-  encodeKeyBuffer(dbIndexHandler, op, row);
+  encodeKeyBuffer(dbIndexHandler, op, dbIndexHandler.getFields(row));
   return op;
 }
 

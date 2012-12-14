@@ -29,6 +29,9 @@ var assert = require("assert"),
     stats           = stats_module.getWriter("spi","common","DBTableHandler"),
     udebug          = unified_debug.getLogger("DBTableHander.js");
 
+// forward declaration of DBIndexHandler to avoid lint issue
+var DBIndexHandler;
+
 /* A DBTableHandler (DBT) combines dictionary metadata with user annotations.  
    It manages setting and getting of columns based on the fields of a 
    user's domain object.  It can also choose an index access path by 
@@ -98,6 +101,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       f,               // a FieldMapping
       c,               // a ColumnMetadata
       n,               // a field or column number
+      index,           // a DBIndex
       nMappedFields;
 
   stats.incr("constructor_calls");
@@ -133,6 +137,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   this.fieldNumberToColumnMap = [];
   this.fieldNumberToFieldMap  = [];
   this.fieldNameToFieldMap    = {};
+  this.dbIndexHandlers = [];
   if (typeof(this.mapping.mapAllColumns === 'undefined')) {
     this.mapping.mapAllColumns = true;
   }
@@ -149,6 +154,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       if(c) {
         n = c.columnNumber;
         this.columnNumberToFieldMap[n] = f;
+        f.columnNumber = n;
       }
     }
   }
@@ -162,6 +168,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
         f.fieldName = f.columnName = c.name;
         this.stubFields.push(f);
         this.columnNumberToFieldMap[i] = f;
+        f.columnNumber = i;
       }
     }
   }
@@ -193,6 +200,17 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     }
   }  
   assert.equal(nMappedFields, this.fieldNumberToColumnMap.length);
+
+  // build dbIndexHandlers; one for each dbIndex, starting with primary key index 0
+  for (i = 0; i < this.dbTable.indexes.length; ++i) {
+    // a little fix-up for primary key unique index:
+    index = this.dbTable.indexes[i];
+    udebug.log_detail('DbTableHandler<ctor> creating DBIndexHandler for', index);
+    if (typeof(index.name) === 'undefined') {
+      index.name = 'PRIMARY';
+    }
+    this.dbIndexHandlers.push(new DBIndexHandler(this, index));
+  }
 
   udebug.log("new completed");
   udebug.log_detail(this);
@@ -307,7 +325,7 @@ DBTableHandler.prototype.getColumnMetadata = function() {
 
 
 /* IndexMetadata chooseIndex(dbTableHandler, keys) 
- Returns the index to use as an access path.
+ Returns the index number to use as an access path.
  From API Context.find():
    * The parameter "keys" may be of any type. Keys must uniquely identify
    * a single row in the database. If keys is a simple type
@@ -327,7 +345,7 @@ function chooseIndex(self, keys, uniqueOnly) {
   
   if(typeof keys === 'number' || typeof keys === 'string') {
     if(idxs[0].columnNumbers.length === 1) {
-      return idxs[0];   // primary key
+      return 0;
     }
   }
   else {
@@ -358,7 +376,7 @@ function chooseIndex(self, keys, uniqueOnly) {
         }
         if(nmatches === index.columnNumbers.length) {
           udebug.log("chooseIndex picked unique index", i);
-          return index;   // bingo!
+          return i; // all columns are found in the key object
         }
       }    
     }
@@ -366,7 +384,7 @@ function chooseIndex(self, keys, uniqueOnly) {
     // if unique only, return failure
     if (uniqueOnly) {
       udebug.log("chooseIndex for unique index FAILED");
-      return null;
+      return -1;
     }
 
     /* Then look for an ordered index.  A prefix match is OK. */
@@ -379,14 +397,14 @@ function chooseIndex(self, keys, uniqueOnly) {
         f = self.columnNumberToFieldMap[index.columnNumbers[0]];
         if(keyFieldNames.indexOf(f.fieldName) >= 0) {
          udebug.log("chooseIndex picked ordered index", i);
-         return index;  // this is an ordered index scan
+         return i; // this is an ordered index scan
         }
       }
     }
   }
 
   udebug.log("chooseIndex FAILED");
-  return null;
+  return -1; // didn't find a suitable index
 }
 
 
@@ -483,10 +501,11 @@ DBTableHandler.prototype.getIndexHandler = function(keys, uniqueOnly) {
   udebug.log("getIndexHandler");
   var idx = chooseIndex(this, keys, uniqueOnly);
   var handler = null;
-  if(idx) {
-    handler = new DBIndexHandler(this, idx);
+  if (idx !== -1) {
+    handler = this.dbIndexHandlers[idx];
   }
   return handler;
 };
+
 
 exports.DBTableHandler = DBTableHandler;

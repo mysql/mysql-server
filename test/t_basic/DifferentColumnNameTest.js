@@ -143,7 +143,7 @@ t3.run = function() {
 };
 
 /***** Persist Save (Update) Load ***/
-var t4 = new harness.ConcurrentTest("testPersistUpdateFindNumber");
+var t4 = new harness.ConcurrentTest("testPersistSaveLoadNumber");
 t4.run = function() {
   var testCase = this;
   // save the domain object 6004
@@ -167,7 +167,7 @@ t4.run = function() {
         var object3 = new Different(6004);
         session3.load(object3, function(err, object4) {
           // verify that object3 has updated magic field from object2
-          testCase.errorIfNotEqual('testSaveUpdate mismatch on magic', 6009, object4.fmagic);
+          testCase.errorIfNotEqual('testSaveLoad mismatch on magic', 6009, object4.fmagic);
           testCase.failOnError();
         }, object3);
       }, session2);
@@ -176,7 +176,7 @@ t4.run = function() {
 };
 
 /***** Persist Update Find by literal ***/
-var t5 = new harness.ConcurrentTest("testPersistUpdateFindNumber");
+var t5 = new harness.ConcurrentTest("testPersistUpdateFindLiteral");
 t5.run = function() {
   var testCase = this;
   var object = new Different(6005, 'Employee 6005', 6005, 6005);
@@ -188,7 +188,7 @@ t5.run = function() {
         testCase.fail(err);
         return;
       }
-      // now save an object with the same primary key but different name
+      // now update the object with the same primary key but different name
       object2 = new Different(6005, 'Employee 6009', 6005, 6005);
       session2.update(object2, function(err, session3) {
         if (err) {
@@ -207,7 +207,7 @@ t5.run = function() {
 
 
 /***** Persist Remove Find by literal ***/
-var t6 = new harness.ConcurrentTest("testPersistUpdateFindNumber");
+var t6 = new harness.ConcurrentTest("testPersistRemoveFindLiteral");
 t6.run = function() {
   var testCase = this;
   var object = new Different(6006, 'Employee 6006', 6006, 6006);

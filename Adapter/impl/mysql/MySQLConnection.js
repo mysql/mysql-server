@@ -509,20 +509,18 @@ exports.DBSession.prototype.buildInsertOperation = function(dbTableHandler, obje
 exports.DBSession.prototype.buildDeleteOperation = function(dbIndexHandler, keys, transaction, callback) {
   udebug.log_detail('dbSession.buildDeleteOperation with indexHandler:', dbIndexHandler, keys);
   var dbTableHandler = dbIndexHandler.tableHandler;
-  var fields = dbIndexHandler.getFields(keys);
   getMetadata(dbTableHandler);
   var deleteSQL = dbTableHandler.mysql.deleteSQL[dbIndexHandler.dbIndex.name];
-  return new DeleteOperation(deleteSQL, fields, callback);
+  return new DeleteOperation(deleteSQL, keys, callback);
 };
 
 
 exports.DBSession.prototype.buildReadOperation = function(dbIndexHandler, keys, transaction, callback) {
-  udebug.log_detail('dbSession.buildReadOperation with indexHandler:' + dbIndexHandler, keys);
+  udebug.log_detail('dbSession.buildReadOperation with indexHandler:', dbIndexHandler, 'keys:', keys);
   var dbTableHandler = dbIndexHandler.tableHandler;
-  var fields = dbIndexHandler.getFields(keys);
   getMetadata(dbTableHandler);
   var selectSQL = dbTableHandler.mysql.selectSQL[dbIndexHandler.dbIndex.name];
-  return new ReadOperation(selectSQL, fields, callback);
+  return new ReadOperation(selectSQL, keys, callback);
 };
 
 
@@ -595,18 +593,12 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys
     }
   }
   
-  var x, columnName;
-  for (x in keys) {
-    if (keys.hasOwnProperty(x)) {
-      if (keyFieldNames.indexOf(x) !== -1) {
-        // add the key value to the keyFields
-        keyFields.push(keys[x]);
-        // add the key field to the WHERE clause
-        columnName = dbTableHandler.fieldNameToFieldMap[x].columnName;
-        updateWhereSQL += separatorWhereSQL + columnName + ' = ? ';
-        separatorWhereSQL = 'AND ';
-      }
-    }
+  var i, x, columnName;
+  // construct the WHERE clause for all key columns in the index
+  for(i = 0 ; i < dbIndexHandler.dbIndex.columnNumbers.length ; i++) {
+    columnName = dbIndexHandler.fieldNumberToFieldMap[i].columnName;
+    updateWhereSQL += separatorWhereSQL + columnName + ' = ? ';
+    separatorWhereSQL = 'AND ';
   }
   for (x in values) {
     if (values.hasOwnProperty(x)) {
@@ -623,7 +615,7 @@ exports.DBSession.prototype.buildUpdateOperation = function(dbIndexHandler, keys
 
 updateSetSQL += updateWhereSQL;
 udebug.log('dbSession.buildUpdateOperation SQL:', updateSetSQL);
-return new UpdateOperation(updateSetSQL, keyFields, updateFields, callback);
+return new UpdateOperation(updateSetSQL, keys, updateFields, callback);
 };
 
 exports.DBSession.prototype.buildWriteOperation = function(dbIndexHandler, values, transaction, callback) {

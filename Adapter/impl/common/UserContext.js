@@ -25,6 +25,7 @@
 var assert = require("assert"),
     commonDBTableHandler = require("./DBTableHandler.js"),
     apiSession = require("../../api/Session.js"),
+    query      = require("../../api/Query.js"),
     udebug     = unified_debug.getLogger("UserContext.js");
     util       = require("util");
 
@@ -320,7 +321,7 @@ exports.UserContext.prototype.find = function() {
         // create the find operation and execute it
         dbSession = userContext.session.dbSession;
         transactionHandler = dbSession.getTransactionHandler();
-        userContext.operation = dbSession.buildReadOperation(index, keys, transactionHandler, findOnResult);
+        userContext.operation = dbSession.buildReadOperation(index, index.getFields(keys), transactionHandler, findOnResult);
         if (userContext.execute) {
           transactionHandler.execute([userContext.operation], function() {
             udebug.log_detail('find transactionHandler.execute callback.');
@@ -336,6 +337,105 @@ exports.UserContext.prototype.find = function() {
   // session.find(prototypeOrTableName, key, callback)
   // get DBTableHandler for prototype/tableName
   getTableHandler(userContext.user_arguments[0], userContext.session, findOnTableHandler);
+};
+
+
+/** Create a query object.
+ * 
+ */
+exports.UserContext.prototype.createQuery = function() {
+  var userContext = this;
+  var tableHandler;
+  var queryDomainType;
+
+  function createQueryOnTableHandler(err, dbTableHandler) {
+    if (err) {
+      userContext.applyCallback(err, null);
+    } else {
+      // create the query domain type and bind it to this session
+      queryDomainType = new query.QueryDomainType(userContext.session, dbTableHandler, userContext.domainObject);
+      udebug.log_detail('UserContext.createQuery queryDomainType:', queryDomainType);
+      userContext.applyCallback(null, queryDomainType);
+    }
+  }
+
+  // createQuery starts here
+  // session.createQuery(constructorOrTableName, callback)
+  // if the first parameter is a query object then copy the interesting bits and create a new object
+  if (this.user_arguments[0].mynode_query_domain_type) {
+    // TODO make sure this sessionFactory === other.sessionFactory
+    queryDomainType = new query.QueryDomainType(userContext.session);
+  }
+  // if the first parameter is a table name the query results will be literals
+  // if not (constructor or domain object) the query results will be domain objects
+  userContext.domainObject = typeof(this.user_arguments[0]) !== 'string';
+  // get DBTableHandler for constructor/tableName
+  getTableHandler(userContext.user_arguments[0], userContext.session, createQueryOnTableHandler);
+};
+
+/** Execute a query. 
+ * 
+ */
+exports.UserContext.prototype.executeQuery = function(queryDomainType) {
+  var userContext = this;
+  var dbSession, transactionHandler, queryType;
+  userContext.queryDomainType = queryDomainType;
+
+  // transform find result into query result
+  function executeQueryKeyOnResult(err, dbOperation) {
+    udebug.log('executeQuery.executeQueryPKOnResult');
+    var result, values, resultList;
+    var error = checkOperation(err, dbOperation);
+    if (error) {
+      userContext.applyCallback(error, null);
+    } else {
+      if (userContext.queryDomainType.mynode_query_domain_type.domainObject) {
+        values = dbOperation.result.value;
+        result = userContext.queryDomainType.mynode_query_domain_type.dbTableHandler.newResultObject(values);
+      } else {
+        result = dbOperation.result.value;
+      }
+      if (result !== null) {
+        resultList = [result];
+      } else {
+        resultList = [];
+      }
+      userContext.applyCallback(null, resultList);      
+    }
+  }
+
+  // executeQuery starts here
+  // query.execute(parameters, callback)
+  udebug.log('QueryDomainType.execute', queryDomainType.mynode_query_domain_type.predicate.toString(), 
+      'with parameters', userContext.user_arguments[0]);
+  // execute the query and call back user
+  queryType = queryDomainType.mynode_query_domain_type.queryType;
+  switch(queryType) {
+  case 0: // primary key
+  case 1: // unique key
+    // create the find operation and execute it
+    dbSession = userContext.session.dbSession;
+    transactionHandler = dbSession.getTransactionHandler();
+    var dbIndexHandler = queryDomainType.mynode_query_domain_type.queryHandler.candidateIndex.dbIndexHandler;
+    var keys = queryDomainType.mynode_query_domain_type.queryHandler.getKeys(userContext.user_arguments[0]);
+    userContext.operation = dbSession.buildReadOperation(dbIndexHandler, keys, transactionHandler, executeQueryKeyOnResult);
+    transactionHandler.execute([userContext.operation], function() {
+      udebug.log_detail('executeQueryPK transactionHandler.execute callback.');
+    });
+// TODO: this code is a placeholder for batching
+//    if (userContext.execute) {
+//      transactionHandler.execute([userContext.operation], function() {
+//        udebug.log_detail('find transactionHandler.execute callback.');
+//      });
+//    } else if (typeof(userContext.operationDefinedCallback) === 'function') {
+//      userContext.operationDefinedCallback(1);
+//    }
+    break;
+  case 2: // index scan
+  case 3: // table scan
+  default: 
+    throw new Error('FatalInternalException: queryType: ' + queryType + ' not supported(yet)');
+  }
 };
 
 
@@ -493,7 +593,7 @@ exports.UserContext.prototype.update = function() {
             new Error('Illegal argument: parameter of update must include all primary key columns.'));
         return;
       }
-      userContext.operation = dbSession.buildUpdateOperation(indexHandler, userContext.keys, userContext.values, transactionHandler, updateOnResult);
+      userContext.operation = dbSession.buildUpdateOperation(indexHandler, indexHandler.getFields(userContext.keys), userContext.values, transactionHandler, updateOnResult);
       if (userContext.execute) {
         transactionHandler.execute([userContext.operation], function() {
         });
@@ -563,7 +663,7 @@ exports.UserContext.prototype.load = function() {
         // create the load operation and execute it
         dbSession = userContext.session.dbSession;
         transactionHandler = dbSession.getTransactionHandler();
-        userContext.operation = dbSession.buildReadOperation(index, keys, transactionHandler, loadOnResult);
+        userContext.operation = dbSession.buildReadOperation(index, index.getFields(keys), transactionHandler, loadOnResult);
         if (userContext.execute) {
           transactionHandler.execute([userContext.operation], function() {
             udebug.log_detail('load transactionHandler.execute callback.');
@@ -621,7 +721,7 @@ exports.UserContext.prototype.remove = function() {
         userContext.applyCallback(err);
       } else {
         transactionHandler = dbSession.getTransactionHandler();
-        userContext.operation = dbSession.buildDeleteOperation(dbIndexHandler, userContext.keys, transactionHandler, removeOnResult);
+        userContext.operation = dbSession.buildDeleteOperation(dbIndexHandler, dbIndexHandler.getFields(userContext.keys), transactionHandler, removeOnResult);
         if (userContext.execute) {
           transactionHandler.execute([userContext.operation], function() {
             udebug.log_detail('remove transactionHandler.execute callback.');
