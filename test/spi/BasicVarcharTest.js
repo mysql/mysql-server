@@ -100,7 +100,8 @@ function do_read_op(testCase, keyObj) {
   udebug.log("do_read_op for", testCase.name);
   var tx = dbSession.getTransactionHandler();
   var index = dbt.getIndexHandler(keyObj);
-  var op = dbSession.buildReadOperation(index, keyObj, tx);
+  var key = index.getFields(keyObj);
+  var op = dbSession.buildReadOperation(index, key, tx);
   tx.execute([ op ], testCase.checkResult);
 }
 
@@ -109,7 +110,8 @@ function do_update_op(testCase, dataObj) {
   udebug.log("do_update_op for", testCase.name);
   var tx = dbSession.getTransactionHandler();
   var dbix = dbt.getIndexHandler(dataObj.keys);
-  var op = dbSession.buildUpdateOperation(dbix, dataObj.keys, dataObj.values, tx, null);
+  var keys = dbix.getFields(dataObj.keys);
+  var op = dbSession.buildUpdateOperation(dbix, keys, dataObj.values, tx, null);
   tx.execute([ op ], testCase.checkResult);
 }
 
@@ -126,7 +128,8 @@ function do_delete_op(testCase, keyObj) {
   udebug.log("do_delete_op for", testCase.name);
   var tx = dbSession.getTransactionHandler();
   var dbix = dbt.getIndexHandler(keyObj);
-  var op = dbSession.buildDeleteOperation(dbix, keyObj, tx, null);  
+  var key = dbix.getFields(keyObj);
+  var op = dbSession.buildDeleteOperation(dbix, key, tx, null);  
   tx.execute([ op ], testCase.checkResult);
 }
 
@@ -281,7 +284,7 @@ t7.checkResult = function(err, tx) {
   else { 
     op = tx.executedOperations.pop();
     if (op.result.value !== null) {
-      t7.errorIfNotEqual("Expected Henry VI", 'Henry VI', op.result.value.name);
+      t7.errorIfNotEqual("Wrong name", 'Henry VI', op.result.value.name);
     } else {
       t7.appendErrorMessage('No object found for Henry VI.');
     }
