@@ -128,7 +128,7 @@ function encodeKeyBuffer(indexHandler, op, keys) {
   col = indexHandler.getColumnMetadata();
   for(i = 0 ; i < nfields ; i++) {
     value = indexHandler.get(keys, i);  
-    if(value) {
+    if(value !== null) {
       offset = record.getColumnOffset(i);
       encoder = encoders[col[i].ndbTypeId];
       encoder.write(col[i], value, op.buffers.key, offset);
