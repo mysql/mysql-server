@@ -92,7 +92,8 @@ dict_build_index_def(
 /*=================*/
 	const dict_table_t*	table,	/*!< in: table */
 	dict_index_t*		index,	/*!< in/out: index */
-	trx_t*			trx);	/*!< in/out: InnoDB transaction handle */
+	trx_t*			trx);	/*!< in/out: InnoDB transaction
+					handle */
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
 Don't update SYS_XXXX table.
@@ -112,9 +113,9 @@ dict_truncate_index_tree_step(
 /*==========================*/
 	const dict_table_t*	table,	/*!< in: the table the index
 					belongs to */
-	ulint			space,	/*!< in: 0=truncate,
-					nonzero=create the index tree in the
-					given tablespace */
+	bool			truncate_tablespace_objects,
+					/* !< in: if true: truncate tablespace
+					objects */
 	btr_pcur_t*		pcur,	/*!< in/out: persistent cursor pointing
 					to record in the clustered index of
 					SYS_INDEXES table. The cursor may be
@@ -130,9 +131,9 @@ void
 dict_truncate_index_tree(
 /*=====================*/
 	dict_index_t*	index,	/*!< in/out: index */
-	ulint		space);	/*!< in: 0=truncate,
-				nonzero=create the index tree in the
-				given tablespace */
+	bool		truncate_tablespace_objects);
+				/* !< in: if true: truncate tablespace
+				objects */
 /*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table. */
 UNIV_INTERN
