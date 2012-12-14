@@ -79,7 +79,7 @@ typedef int64_t toku_off_t;
 #define static_assert(foo, bar)
 #endif 
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
+#if defined(__cplusplus)
 # define cast_to_typeof(v) (decltype(v))
 #else
 # define cast_to_typeof(v) (__typeof__(v))
@@ -102,11 +102,11 @@ typedef int64_t toku_off_t;
 #if defined(HAVE_ALLOCA_H)
 # include <alloca.h>
 #endif
-#if defined(__cplusplus) || defined(__cilkplusplus)
+#if defined(__cplusplus)
 # include <type_traits>
 #endif
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
+#if defined(__cplusplus)
 # define cast_to_typeof(v) (decltype(v))
 #else
 # define cast_to_typeof(v) (__typeof__(v))
@@ -118,7 +118,7 @@ typedef int64_t toku_off_t;
 
 #endif
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
+#if defined(__cplusplus)
 // decltype() here gives a reference-to-pointer instead of just a pointer,
 // just use __typeof__
 # define CAST_FROM_VOIDP(name, value) name = static_cast<__typeof__(name)>(value)
@@ -137,7 +137,7 @@ typedef int64_t toku_off_t;
 
 #define UU(x) x __attribute__((__unused__))
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
+#if defined(__cplusplus)
 extern "C" {
 #endif
 
@@ -242,7 +242,7 @@ extern void *realloc(void*, size_t)            __THROW __attribute__((__deprecat
 #   endif
 #endif
 
-#if defined(__cplusplus) || defined(__cilkplusplus)
+#if defined(__cplusplus)
 };
 #endif
 

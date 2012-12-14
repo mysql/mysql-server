@@ -66,14 +66,12 @@ static void enq (DBUFIO_FILESET bfs, struct dbufio_file *f) {
 
 static void panic (DBUFIO_FILESET bfs, int r) {
     if (bfs->panic) return;
-    // may need a cilk fake mutex here to convince the race detector that it's OK.
     bfs->panic_errno = r; // Don't really care about a race on this variable...  Writes to it are atomic, so at least one good panic reason will be stored.
     bfs->panic = true;
     return;
 }
 
 static bool paniced (DBUFIO_FILESET bfs) {
-    // may need a cilk fake mutex here to convince the race detector that it's OK.
     return bfs->panic;
 }
 
