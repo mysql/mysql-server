@@ -39,7 +39,7 @@ test.run = function() {
   var t = this;
 
   function onResult(response) {
-    if(response.statusCode !== 200) {
+    if(response.statusCode === 200) {
       t.pass();
     }
     else {
