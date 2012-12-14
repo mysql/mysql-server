@@ -3767,7 +3767,7 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
             curr_in_clock->count--;
         } else {
             // generate a random number between 0 and 2^16
-            assert(size_current < ((int64_t)1<<48)); // to protect against possible overflows
+            assert(size_current < (1LL<<48)); // to protect against possible overflows
             int32_t rnd = myrandom_r(&m_random_data) % (1<<16);
             // The if-statement below will be true with probability of 
             // curr_size/(average size of PAIR in cachetable)
