@@ -3788,7 +3788,7 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
             //    and dividing each side by 2^16, 
             //    we get the if-clause below
             //   
-            if ((((uint64_t)curr_size) * n_in_table) >= (((uint64_t)rnd) * size_current))>>16) {
+            if ((((uint64_t)curr_size) * n_in_table) >= (((uint64_t)rnd) * size_current)>>16) {
                 curr_in_clock->count--;
             }
         }
