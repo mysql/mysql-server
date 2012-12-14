@@ -314,7 +314,7 @@ mtr_commit(
 	ut_ad(!recv_no_log_write);
 
 	if (mtr->modifications
-	    && (mtr->ignore_log_recs ? true : mtr->n_log_recs)) {
+	    && (mtr->n_log_recs > 0 || mtr->log_mode == MTR_LOG_NO_REDO)) {
 		ut_ad(!srv_read_only_mode);
 		mtr_log_reserve_and_write(mtr);
 	}
