@@ -947,9 +947,9 @@ dict_truncate_index_tree_step(
 /*==========================*/
 	const dict_table_t*	table,	/*!< in: the table the index
 					belongs to */
-	ulint			space,	/*!< in: 0=truncate,
-					nonzero=create the index tree in the
-					given tablespace */
+	bool			truncate_tablespace_objects,
+					/* !< in: if true: truncate tablespace
+					objects */
 	btr_pcur_t*		pcur,	/*!< in/out: persistent cursor pointing
 					to record in the clustered index of
 					SYS_INDEXES table. The cursor may be
@@ -959,7 +959,6 @@ dict_truncate_index_tree_step(
 					committed and restarted in this call. */
 {
 	ulint		root_page_no;
-	ibool		drop = !space;
 	ulint		zip_size;
 	ulint		type;
 	index_id_t	index_id;
@@ -967,6 +966,7 @@ dict_truncate_index_tree_step(
 	const byte*	ptr;
 	ulint		len;
 	dict_index_t*	index;
+	ulint		space = table->space;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_a(!dict_table_is_comp(dict_sys->sys_indexes));
@@ -978,13 +978,13 @@ dict_truncate_index_tree_step(
 
 	root_page_no = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
 
-	if (drop && root_page_no == FIL_NULL) {
+	if (truncate_tablespace_objects && root_page_no == FIL_NULL) {
 		/* The tree has been freed. */
 
 		ut_print_timestamp(stderr);
 		fprintf(stderr, "  InnoDB: Trying to TRUNCATE"
 			" a missing index of table %s!\n", table->name);
-		drop = FALSE;
+		truncate_tablespace_objects = false;
 	}
 
 	ptr = rec_get_nth_field_old(
@@ -992,7 +992,7 @@ dict_truncate_index_tree_step(
 
 	ut_ad(len == 4);
 
-	if (drop) {
+	if (truncate_tablespace_objects) {
 		space = mtr_read_ulint(ptr, MLOG_4BYTES, mtr);
 	}
 
@@ -1017,7 +1017,7 @@ dict_truncate_index_tree_step(
 	ut_ad(len == 8);
 	index_id = mach_read_from_8(ptr);
 
-	if (!drop) {
+	if (!truncate_tablespace_objects) {
 
 		goto create;
 	}
@@ -1082,15 +1082,15 @@ void
 dict_truncate_index_tree(
 /*=====================*/
 	dict_index_t*	index,	/*!< in/out: index */
-	ulint		space)	/*!< in: 0=truncate,
-				nonzero=create the index tree in the
-				given tablespace */
+	bool		truncate_tablespace_objects)
+				/* !< in: if true: truncate tablespace
+				objects */
 {
 	ulint		root_page_no;
-	bool		drop = (space == TRX_SYS_SPACE) ? true : false;
 	ulint		zip_size;
 	ulint		type;
 	mtr_t		mtr;
+	ulint		space = index->space;
 
 	ut_ad(mutex_own(&dict_sys->mutex));
 
@@ -1099,26 +1099,18 @@ dict_truncate_index_tree(
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}
 
-	root_page_no = index->page;
 	type = index->type;
 
-	if (drop) {
-		/* if new tablespace is created then use it else use
-		existing one */
-		space = index->space;
-	}
-
-	if (drop && root_page_no == FIL_NULL) {
+	root_page_no = index->page;
+	if (truncate_tablespace_objects && root_page_no == FIL_NULL) {
 		/* The tree has been freed. */
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Trying to TRUNCATE a missing index of table %s!",
 			index->table->name);
-
-		drop = FALSE;
+		truncate_tablespace_objects = false;
 	}
 
 	zip_size = fil_space_get_zip_size(space);
-
 	if (zip_size == ULINT_UNDEFINED) {
 		/* It is a single table tablespace and the .ibd file is
 		missing: do nothing */
@@ -1127,10 +1119,10 @@ dict_truncate_index_tree(
 			index->table->name);
 	}
 
-	/* If new tablespace is created then anyway we are
-	dropping existing tablespace so just ignore freeing
-	of btree as they will get dropped along with tablespace */
-	if (drop) {
+	/* If table to truncate resides in its on own tablespace that will
+	be re-created on truncate then we can ignore freeing of existing
+	tablespace objects. */
+	if (truncate_tablespace_objects) {
 		/* We free all the pages but the root page first; this operation
 		may span several mini-transactions */
 
