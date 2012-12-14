@@ -43,6 +43,15 @@ Rpl_info_file::Rpl_info_file(const int nparam,
   DBUG_VOID_RETURN;
 }
 
+Rpl_info_file::~Rpl_info_file()
+{
+  DBUG_ENTER("Rpl_info_file::~Rpl_info_file");
+
+  do_end_info();
+
+  DBUG_VOID_RETURN;
+}
+
 int Rpl_info_file::do_init_info(uint instance)
 {
   DBUG_ENTER("Rpl_info_file::do_init_info(uint)");
