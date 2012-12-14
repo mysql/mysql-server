@@ -8,18 +8,22 @@ set session tokudb_disable_slow_upsert=1;
 
 insert into tt values (1,0);
 
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
 error ER_UNSUPPORTED_EXTENSION;
 insert into tt values (1,0) on duplicate key update x=x+1;
 
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
 error ER_UNSUPPORTED_EXTENSION;
 insert into tt values (2,0) on duplicate key update x=x+1;
 
 set session tokudb_enable_fast_update=1;
 set session tokudb_disable_slow_update=1;
 
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
 error ER_UNSUPPORTED_EXTENSION;
 update tt set x=x+1 where id=1;
 
+replace_regex /MariaDB/XYZ/ /MySQL/XYZ/;
 error ER_UNSUPPORTED_EXTENSION;
 update tt set x=x+1 where id=2;
 
