@@ -404,8 +404,7 @@ end:
   DBUG_RETURN(return_check);
 }
 
-enum_return_check Rpl_info_table::do_check_info(uint instance,
-                                                const bool ignore_error)
+enum_return_check Rpl_info_table::do_check_info(uint instance)
 {
   TABLE *table= NULL;
   ulong saved_mode;
@@ -456,11 +455,6 @@ end:
   access->close_table(thd, table, &backup,
                       return_check == ERROR_CHECKING_REPOSITORY);
   thd->variables.sql_mode= saved_mode;
-  if (ERROR_CHECKING_REPOSITORY == return_check && ignore_error)
-  {
-    return_check= REPOSITORY_DOES_NOT_EXIST;
-    thd->clear_error();
-  }
   access->drop_thd(thd);
   DBUG_RETURN(return_check);
 }
