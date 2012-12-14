@@ -370,8 +370,7 @@ private:
   virtual int do_init_info()= 0;
   virtual int do_init_info(uint instance)= 0;
   virtual enum_return_check do_check_info()= 0;
-  virtual enum_return_check do_check_info(uint instance,
-                                          const bool ignore_error= false)= 0;
+  virtual enum_return_check do_check_info(uint instance)= 0;
   virtual int do_flush_info(const bool force)= 0;
   virtual int do_remove_info()= 0;
   virtual int do_clean_info()= 0;

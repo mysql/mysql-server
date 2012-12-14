@@ -84,7 +84,6 @@ private:
                                 const char **msg);
 
   static enum_return_check check_src_repository(Rpl_info *info,
-                                                uint option,
                                                 Rpl_info_handler **handler_src);
   static bool check_error_repository(Rpl_info *info,
                                      Rpl_info_handler *handler_src,

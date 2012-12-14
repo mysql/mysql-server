@@ -135,7 +135,6 @@ Slave_worker::~Slave_worker()
 int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
 {
   DBUG_ENTER("Slave_worker::init_worker");
-  DBUG_ASSERT(!rli->info_thd->is_error());
   uint k;
   Slave_job_item empty= {NULL};
 
@@ -256,8 +255,7 @@ void Slave_worker::end_info()
   if (!inited)
     DBUG_VOID_RETURN;
 
-  if (handler)
-    handler->end_info();
+  handler->end_info();
 
   if (inited)
   {
