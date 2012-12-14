@@ -43,15 +43,6 @@ Rpl_info_file::Rpl_info_file(const int nparam,
   DBUG_VOID_RETURN;
 }
 
-Rpl_info_file::~Rpl_info_file()
-{
-  DBUG_ENTER("Rpl_info_file::~Rpl_info_file");
-
-  do_end_info();
-
-  DBUG_VOID_RETURN;
-}
-
 int Rpl_info_file::do_init_info(uint instance)
 {
   DBUG_ENTER("Rpl_info_file::do_init_info(uint)");
@@ -172,8 +163,7 @@ inline enum_return_check do_check_repository_file(const char *fname)
   @note This method also verifies overall integrity
   of the repositories to make sure they are indexed without any gaps.
 */
-enum_return_check Rpl_info_file::do_check_info(uint instance,
-                                               const bool ignore_error __attribute__((unused)))
+enum_return_check Rpl_info_file::do_check_info(uint instance)
 {
   uint i;
   enum_return_check last_check= REPOSITORY_EXISTS;

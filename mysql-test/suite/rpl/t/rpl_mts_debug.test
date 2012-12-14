@@ -186,7 +186,7 @@ set @@global.slave_parallel_workers= 2;
 --source include/start_slave.inc
 --source include/stop_slave.inc
 
-call mtr.add_suppression("Error creating relay log info: Failed to initialize the worker info structure.");
+call mtr.add_suppression("Error creating relay log info: Failed to intialize the worker info structure.");
 
 set @@global.debug= "d,mts_slave_worker_init_at_gaps_fails";
 --error ER_MASTER_INFO
