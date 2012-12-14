@@ -3044,7 +3044,7 @@ innobase_change_buffering_inited_ok:
 				 strlen(srv_buf_dump_filename), FALSE)) {
 		sql_print_error("InnoDB: innodb_buffer_pool_filename"
 			" cannot have colon (:) in the file name.");
-		goto mem_free_and_error;
+		DBUG_RETURN(innobase_init_abort());
 	}
 
 	/* --------------------------------------------------*/
