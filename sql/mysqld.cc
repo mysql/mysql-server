@@ -4016,13 +4016,13 @@ int init_common_variables()
   if (opt_log && opt_logname && !(log_output_options & LOG_FILE) &&
       !(log_output_options & LOG_NONE))
     sql_print_warning("Although a path was specified for the "
-                      "--log option, log tables are used. "
-                      "To enable logging to files use the --log-output option.");
+                      "--general-log-file option, log tables are used. "
+                      "To enable logging to files use the --log-output=file option.");
 
   if (opt_slow_log && opt_slow_logname && !(log_output_options & LOG_FILE)
       && !(log_output_options & LOG_NONE))
     sql_print_warning("Although a path was specified for the "
-                      "--log-slow-queries option, log tables are used. "
+                      "--slow-query-log-file option, log tables are used. "
                       "To enable logging to files use the --log-output=file option.");
 
 #define FIX_LOG_VAR(VAR, ALT)                                   \
@@ -8619,7 +8619,10 @@ static int get_options(int *argc_ptr, char ***argv_ptr)
   if ((opt_log_slow_admin_statements || opt_log_queries_not_using_indexes ||
        opt_log_slow_slave_statements) &&
       !opt_slow_log)
-    sql_print_warning("options --log-slow-admin-statements, --log-queries-not-using-indexes and --log-slow-slave-statements have no effect if --log_slow_queries is not set");
+    sql_print_warning("options --log-slow-admin-statements, "
+                      "--log-queries-not-using-indexes and "
+                      "--log-slow-slave-statements have no effect if "
+                      "--slow-query-log is not set");
   if (global_system_variables.net_buffer_length >
       global_system_variables.max_allowed_packet)
   {
