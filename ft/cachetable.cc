@@ -3731,7 +3731,8 @@ exit:
 // on exit, the same conditions must apply
 //
 bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
-    double avg_pair_size;
+    uint32_t n_in_table;
+    int64_t size_current;
     bool ret_val = false;
     // function meant to be called on PAIR that is not being accessed right now
     CACHEFILE cf = curr_in_clock->cachefile;
@@ -3748,18 +3749,40 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
         goto exit;
     }
 
-    avg_pair_size = m_size_current / m_pl->m_n_in_table;
+    // extract and use these values so that we don't risk them changing
+    // out from underneath us in calculations below.
+    n_in_table = m_pl->m_n_in_table;
+    size_current = m_size_current; 
+
     // now that we have the pair mutex we care about, we can
     // release the read list lock and reacquire it at the end of the function
     m_pl->read_list_unlock();
     ret_val = true;
     if (curr_in_clock->count > 0) {
-        if (curr_in_clock->attr.size >= avg_pair_size) {
+        uint32_t curr_size = curr_in_clock->attr.size;
+        // if the size of this PAIR is greater than the average size of PAIRs
+        // in the cachetable, then decrement it, otherwise, decrement
+        // probabilistically
+        if (curr_size*n_in_table >= size_current) {
             curr_in_clock->count--;
         } else {
-            int32_t rnd = myrandom_r(&m_random_data);
-            double prob = curr_in_clock->attr.size / avg_pair_size;
-            if ((prob * 10000) < (rnd % 10000)) {
+            // generate a random number between 0 and 2^16
+            assert(size_current < ((int64_t)1<<48)); // to protect against possible overflows
+            int32_t rnd = myrandom_r(&m_random_data) % (1<<16);
+            // The if-statement below will be true with probability of 
+            // curr_size/(average size of PAIR in cachetable)
+            // Here is how the math is done:
+            //   average_size = size_current/n_in_table
+            //   curr_size/average_size = curr_size*n_in_table/size_current
+            //   we evaluate if a random number from 0 to 2^16 is greater
+            //   than curr_size/average_size * 2^16. So, our if-clause should be
+            //    if (2^16*curr_size/average_size < rnd)
+            //    this evaluates to:
+            //    if (2^16*curr_size*n_in_table/size_current < rnd)
+            //    by multiplying each side of the equation by size_current,
+            //    we get the if-clause below
+            //   
+            if ((curr_size* n_in_table* 1<<16) < (rnd * size_current)) {
                 curr_in_clock->count--;
             }
         }
