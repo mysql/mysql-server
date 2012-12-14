@@ -35,7 +35,7 @@ myrandom_r(struct random_data *buf)
 struct random_data {
     unsigned short xsubi[3];
 };
-static int
+static inline int
 myinitstate_r(unsigned int seed, char *UU(statebuf), size_t UU(statelen), struct random_data *buf)
 {
     buf->xsubi[0] = (seed & 0xffff0000) >> 16;
