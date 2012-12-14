@@ -3779,7 +3779,8 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
             //    if (2^16*curr_size/average_size > rnd)
             //    this evaluates to:
             //    if (2^16*curr_size*n_in_table/size_current > rnd)
-            //    by multiplying each side of the equation by size_current,
+            //    by multiplying each side of the equation by size_current, we get
+            //    if (2^16*curr_size*n_in_table > rnd*size_current)
             //    and dividing each side by 2^16, 
             //    we get the if-clause below
             //   
