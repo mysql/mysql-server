@@ -77,6 +77,7 @@ if ($tmp)
   --echo Master_SSL_Crlpath	
   --echo Retrieved_Gtid_Set	#
   --echo Executed_Gtid_Set	#
+  --echo Auto_Position	0
 }
 if (!$tmp) {
   # Note: after WL#5177, fields 13-18 shall not be filtered-out.
