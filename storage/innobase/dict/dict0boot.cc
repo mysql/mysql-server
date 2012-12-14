@@ -82,7 +82,7 @@ dict_hdr_get_new_id(
 	mtr_start(&mtr);
 
 	if (is_temp_table) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NONE_IGN_LOG_REC);
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}
 
 	dict_hdr = dict_hdr_get(&mtr);

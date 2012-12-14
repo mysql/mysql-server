@@ -32,7 +32,7 @@ Created 12/7/1995 Heikki Tuuri
 
 /********************************************************//**
 Opens a buffer to mlog. It must be closed with mlog_close.
-@return	buffer, NULL if log mode MTR_LOG_NONE */
+@return	buffer, NULL if log mode MTR_LOG_NONE or MTR_LOG_NO_REDO */
 UNIV_INLINE
 byte*
 mlog_open(
@@ -45,7 +45,8 @@ mlog_open(
 
 	mtr->modifications = TRUE;
 
-	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE) {
+	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE
+	    || mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
 
 		return(NULL);
 	}
@@ -66,7 +67,8 @@ mlog_close(
 {
 	dyn_array_t*	mlog;
 
-	ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NONE);
+	ut_ad(mtr_get_log_mode(mtr) != MTR_LOG_NONE
+	      && mtr_get_log_mode(mtr) != MTR_LOG_NO_REDO);
 
 	mlog = &(mtr->log);
 
@@ -87,7 +89,8 @@ mlog_catenate_ulint(
 	dyn_array_t*	mlog;
 	byte*		ptr;
 
-	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE) {
+	if (mtr_get_log_mode(mtr) == MTR_LOG_NONE
+	    || mtr_get_log_mode(mtr) == MTR_LOG_NO_REDO) {
 
 		return;
 	}
