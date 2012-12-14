@@ -3774,15 +3774,16 @@ bool evictor::run_eviction_on_pair(PAIR curr_in_clock) {
             // Here is how the math is done:
             //   average_size = size_current/n_in_table
             //   curr_size/average_size = curr_size*n_in_table/size_current
-            //   we evaluate if a random number from 0 to 2^16 is greater
+            //   we evaluate if a random number from 0 to 2^16 is less than
             //   than curr_size/average_size * 2^16. So, our if-clause should be
-            //    if (2^16*curr_size/average_size < rnd)
+            //    if (2^16*curr_size/average_size > rnd)
             //    this evaluates to:
-            //    if (2^16*curr_size*n_in_table/size_current < rnd)
+            //    if (2^16*curr_size*n_in_table/size_current > rnd)
             //    by multiplying each side of the equation by size_current,
+            //    and dividing each side by 2^16, 
             //    we get the if-clause below
             //   
-            if ((curr_size* n_in_table* (1<<16)) < (rnd * size_current)) {
+            if ((curr_size* n_in_table) >= (rnd * size_current)>>16) {
                 curr_in_clock->count--;
             }
         }
