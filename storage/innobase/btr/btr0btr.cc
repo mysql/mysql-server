@@ -1658,6 +1658,8 @@ btr_free_but_not_root(
 leaf_loop:
 	mtr_start(&mtr);
 	if (is_temp_table) {
+		/* TODO: add an assert once WL#6560 is folded to this branch.
+		ut_a(space != TRX_SYS_SPACE); */
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}
 
@@ -1684,6 +1686,8 @@ leaf_loop:
 top_loop:
 	mtr_start(&mtr);
 	if (is_temp_table) {
+		/* TODO: add an assert once WL#6560 is folded to this branch.
+		ut_a(space != TRX_SYS_SPACE); */
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}
 
