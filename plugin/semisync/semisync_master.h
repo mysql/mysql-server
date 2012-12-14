@@ -492,20 +492,23 @@ class ReplSemiSyncMaster
   bool is_semi_sync_slave();
 
   /* In semi-sync replication, reports up to which binlog position we have
-   * received replies from the slave indicating that it already get the events.
+   * received replies from the slave indicating that it already get the events
+   * or that was skipped in the master.
    *
    * Input:
    *  server_id     - (IN)  master server id number
    *  log_file_name - (IN)  binlog file name
    *  end_offset    - (IN)  the offset in the binlog file up to which we have
-   *                        the replies from the slave
+   *                        the replies from the slave or that was skipped
+   *  skipped_event - (IN)  if the event was skipped
    *
    * Return:
    *  0: success;  non-zero: error
    */
   int reportReplyBinlog(uint32 server_id,
                         const char* log_file_name,
-                        my_off_t end_offset);
+                        my_off_t end_offset,
+                        bool skipped_event= false);
 
   /* Commit a transaction in the final step.  This function is called from
    * InnoDB before returning from the low commit.  If semi-sync is switch on,
@@ -582,6 +585,22 @@ class ReplSemiSyncMaster
    *  0: success;  non-zero: error
    */
   int readSlaveReply(NET *net, uint32 server_id, const char *event_buf);
+
+  /* In semi-sync replication, this method simulates the reception of
+   * an reply and executes reportReplyBinlog directly when a transaction
+   * is skipped in the master.
+   *
+   * Input:
+   *  event_buf     - (IN)  pointer to the event packet
+   *  server_id     - (IN)  master server id numbe
+   *  log_file_name - (IN)  the event ending position's file name
+   *  log_file_pos  - (IN)  the event ending position's file offset
+   *
+   * Return:
+   *  0: success;  non-zero: error
+   */
+  int skipSlaveReply(const char *event_buf, uint32 server_id,
+                     const char* log_file_name, my_off_t log_file_pos);
 
   /* Export internal statistics for semi-sync replication. */
   void setExportStats();
