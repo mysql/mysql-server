@@ -1,3 +1,9 @@
+2012-12-13	The InnoDB Team
+
+	* buf/buf0buf.c:
+	Fix Bug#14329288 IS THE CALL TO IBUF_MERGE_OR_DELETE_FOR_PAGE FROM
+	BUF_PAGE_GET_GEN REDUNDANT?
+
 2012-11-15	The InnoDB Team
 
 	* include/data0type.ic, include/rem0rec.h,
