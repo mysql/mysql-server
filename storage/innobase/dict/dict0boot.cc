@@ -81,6 +81,14 @@ dict_hdr_get_new_id(
 
 	mtr_start(&mtr);
 
+	/* Turning off REDO logging; Is this a problem as id is persisted to
+	system-tablespace header ?
+	No. Here is the reason why ?
+	- let's say REDO logging is done for the id and crash happens then
+	using the REDO logging new updated id can be restored.
+	- applying this case for temp-table. On crash-restore, temp-table
+	don't exist and so even if id is not restored that is fine as there
+	is no object corresponding to that id. */
 	if (is_temp_table) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 	}

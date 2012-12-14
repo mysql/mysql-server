@@ -103,7 +103,7 @@ dberr_t
 dict_create_index_tree(
 /*===================*/
 	dict_index_t*	index,	/*!< in/out: index */
-	trx_t*		trx);	/*!< in: InnoDB transaction handle */
+	const trx_t*	trx);	/*!< in: InnoDB transaction handle */
 /*******************************************************************//**
 Truncates the index tree associated with a row in SYS_INDEXES table.
 @return	new root page number, or FIL_NULL on failure */

@@ -781,7 +781,7 @@ dberr_t
 dict_create_index_tree(
 /*====================*/
 	dict_index_t*	index,	/*!< in/out: index */
-	trx_t*		trx)	/*!< in: InnoDB transaction handle */
+	const trx_t*	trx)	/*!< in: InnoDB transaction handle */
 {
 	mtr_t		mtr;
 	ulint		page_no = FIL_NULL;
