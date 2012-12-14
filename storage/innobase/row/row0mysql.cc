@@ -3195,7 +3195,9 @@ void
 truncate_index_with_sys_table_update(
 /*=================================*/
 	const dict_table_t*	table,		/*!< in: table */
-	ulint			recreate_space)	/*!< in: re-create tablespace */
+	bool			truncate_tablespace_objects)
+					/* !< in: if true: truncate
+					tablespace objects */
 {
 	mem_heap_t*	heap;
 	byte*		buf;
@@ -3252,7 +3254,7 @@ truncate_index_with_sys_table_update(
 
 		/* This call may commit and restart mtr and reposition pcur. */
 		root_page_no = dict_truncate_index_tree_step(
-			table, recreate_space, &pcur, &mtr);
+			table, truncate_tablespace_objects, &pcur, &mtr);
 
 		rec = btr_pcur_get_rec(&pcur);
 
@@ -3419,7 +3421,7 @@ row_truncate_table_for_mysql(
 	dberr_t		err;
 	mtr_t		mtr;
 	table_id_t	new_id;
-	ulint		recreate_space = 0;
+	bool		truncate_tablespace_objects = false;
 	ibool		has_internal_doc_id;
 	ulint		old_space = table->space;
 
@@ -3626,7 +3628,10 @@ row_truncate_table_for_mysql(
 				goto funct_exit;
 			}
 
-			recreate_space = space;
+			/* Table to truncate reside in its own tablespace.
+			As tablespace is being re-created we can avoid extra
+			operation of truncating existing objects. */
+			truncate_tablespace_objects = false;
 
 			/* Replace the space_id in the data dictionary cache.
 			The persisent data dictionary (SYS_TABLES.SPACE
@@ -3653,10 +3658,18 @@ row_truncate_table_for_mysql(
 		for this kind of query, we need to use index locks to
 		sync up */
 		dict_table_x_lock_indexes(table);
+
+		/* If table to truncate reside in system-tablespace or is
+		temp-table then truncate tablespace objects.
+		This also tend to suggest that for temp-table on truncate
+		existing tablespace is re-used.
+		Probably because temp-table don't need to be recovered. */
+		truncate_tablespace_objects = true;
 	}
 
 	if (!dict_table_is_temporary(table)) {
-		truncate_index_with_sys_table_update(table, recreate_space);
+		truncate_index_with_sys_table_update(
+			table, truncate_tablespace_objects);
 	} else {
 		/* For temporary tables we don't have entries in
 		SYS_XXXX tables. This reduces truncate job to following:
@@ -3664,7 +3677,8 @@ row_truncate_table_for_mysql(
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index;
 		     index = UT_LIST_GET_NEXT(indexes, index)) {
-			dict_truncate_index_tree(index, recreate_space);
+			dict_truncate_index_tree(
+				index, truncate_tablespace_objects);
 		}
 	}
 
