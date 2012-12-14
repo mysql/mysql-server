@@ -99,6 +99,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       f,               // a FieldMapping
       c,               // a ColumnMetadata
       n,               // a field or column number
+      index,           // a DBIndex
       nMappedFields;
 
   if(! ( dbtable && dbtable.columns)) {
@@ -193,7 +194,13 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
 
   // build dbIndexHandlers; one for each dbIndex, starting with primary key index 0
   for (i = 0; i < this.dbTable.indexes.length; ++i) {
-    this.dbIndexHandlers.push(new DBIndexHandler(this, this.dbTable.indexes[i]));
+    // a little fix-up for primary key unique index:
+    index = this.dbTable.indexes[i];
+    udebug.log_detail('DbTableHandler<ctor> creating DBIndexHandler for', index);
+    if (typeof(index.name) === 'undefined') {
+      index.name = 'PRIMARY';
+    }
+    this.dbIndexHandlers.push(new DBIndexHandler(this, index));
   }
 
   udebug.log("new completed");
