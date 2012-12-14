@@ -1698,13 +1698,6 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
                     snprintf(buf, bufsiz, "%" PRIu64, v);
                 }
                 break;
-#if 0
-            case MAXCOUNT:
-                {
-                    uint64_t v = read_max_partitioned_counter(mystat[row].value.maxcount);
-                    snprintf(buf, bufsiz, "%" PRIu64, v);
-                }
-#endif
             default:
                 snprintf(buf, bufsiz, "UNKNOWN STATUS TYPE: %d", mystat[row].type);
                 break;                
