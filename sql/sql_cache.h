@@ -370,7 +370,7 @@ protected:
   my_bool register_all_tables(Query_cache_block *block,
 			      TABLE_LIST *tables_used,
 			      TABLE_COUNTER_TYPE tables);
-  my_bool insert_table(uint key_len, char *key,
+  my_bool insert_table(uint key_len, const char *key,
 		       Query_cache_block_table *node,
 		       uint32 db_length, uint8 cache_type,
 		       qc_engine_callback callback,
