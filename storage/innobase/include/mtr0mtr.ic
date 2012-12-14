@@ -239,21 +239,18 @@ mtr_set_log_mode(
 
 	ut_ad(mtr);
 	ut_ad(mode >= MTR_LOG_ALL);
-	ut_ad(mode <= MTR_LOG_NONE_IGN_LOG_REC);
+	ut_ad(mode <= MTR_LOG_SHORT_INSERTS);
 
 	old_mode = mtr->log_mode;
 
 	if ((mode == MTR_LOG_SHORT_INSERTS) && (old_mode == MTR_LOG_NONE)) {
 		/* Do nothing */
-	} else if (mode == MTR_LOG_NONE_IGN_LOG_REC) {
-		mtr->log_mode = MTR_LOG_NONE;
-		mtr->ignore_log_recs = true;
 	} else {
 		mtr->log_mode = mode;
 	}
 
 	ut_ad(old_mode >= MTR_LOG_ALL);
-	ut_ad(old_mode <= MTR_LOG_NONE_IGN_LOG_REC);
+	ut_ad(old_mode <= MTR_LOG_SHORT_INSERTS);
 
 	return(old_mode);
 }
