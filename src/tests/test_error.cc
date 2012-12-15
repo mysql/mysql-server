@@ -21,10 +21,6 @@ int
 test_main (int argc, char *const argv[]) {
     parse_args(argc, argv);
 
-#if defined(OSX)
-    if (verbose) printf("Warning: fmemopen does not exist in OSX!\n");
-#else
-    
     int r;
     r = system("rm -rf " ENVDIR);
     CKERR(r);
@@ -97,6 +93,5 @@ test_main (int argc, char *const argv[]) {
 	    }
 	}
     }
-#endif
     return 0;
 }

@@ -266,7 +266,6 @@ int toku_os_close(int fd);
 int toku_os_fclose(FILE * stream);
 ssize_t toku_os_read(int fd, void *buf, size_t count);
 ssize_t toku_os_pread(int fd, void *buf, size_t count, off_t offset);
-FILE *toku_os_fmemopen(void *buf, size_t size, const char *mode);
 
 // wrapper around fsync
 void toku_file_fsync_without_accounting(int fd);

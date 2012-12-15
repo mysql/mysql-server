@@ -13,8 +13,6 @@
 #include <stdint.h>
 #include <limits.h>
 
-namespace toku {
-
 #if defined(HAVE_RANDOM_R)
 // Definition of randu62 and randu64 assume myrandom_r generates 31 low-order bits
 static_assert(RAND_MAX == INT32_MAX, "Unexpected RAND_MAX");
@@ -86,7 +84,5 @@ rand_choices(struct random_data *buf, uint32_t choices) {
 
     return result;
 }
-
-} // end namespace toku
 
 #endif // TOKU_RANDOM_H
