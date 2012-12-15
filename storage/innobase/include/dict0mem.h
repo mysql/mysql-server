@@ -985,6 +985,13 @@ struct dict_table_t{
 	UT_LIST_BASE_NODE_T(lock_t)
 			locks;	/*!< list of locks on the table; protected
 				by lock_sys->mutex */
+
+	time_t		check_time;
+				/*!< timestamp of the last CHECK TABLE
+				executed on this table */
+	time_t		update_time;
+				/*!< timestamp of the last modification of
+				this table */
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

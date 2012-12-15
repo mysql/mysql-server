@@ -1,0 +1,14 @@
+CREATE TABLE t (a INT) ENGINE=INNODB;
+SELECT update_time FROM information_schema.tables WHERE table_name = 't';
+update_time
+NULL
+INSERT INTO t VALUES (1);
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND update_time IS NOT NULL;
+COUNT(*)
+1
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND TIMESTAMPDIFF(SECOND, update_time, NOW()) < 120;
+COUNT(*)
+1
+DROP TABLE t;

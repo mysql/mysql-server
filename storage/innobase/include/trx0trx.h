@@ -40,6 +40,8 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0vec.h"
 #include "fts0fts.h"
 
+#include <set>
+
 /** Dummy session used currently in MySQL interface */
 extern sess_t*	trx_dummy_sess;
 
@@ -619,6 +621,12 @@ struct trx_lock_t {
 
 #define TRX_MAGIC_N	91118598
 
+/** Type used to store the list of tables that are modified by a given
+transaction. We store pointers to the table objects in memory because
+we know that a table object will not be destroyed until a transaction
+that modified it is running. */
+typedef std::set<dict_table_t*>	trx_mod_tables_t;
+
 /** The transaction handle
 
 Normally, there is a 1:1 relationship between a transaction handle
@@ -986,6 +994,9 @@ struct trx_t{
 	ulint		start_line;	/*!< Track where it was started from */
 	const char*	start_file;	/*!< Filename where it was started */
 #endif /* UNIV_DEBUG */
+
+	trx_mod_tables_t mod_tables;	/*!< List of tables that were modified
+					by this transaction */
 
 	/*------------------------------*/
 	char detailed_error[256];	/*!< detailed error message for last

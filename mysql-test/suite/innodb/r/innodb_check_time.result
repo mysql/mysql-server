@@ -1,0 +1,16 @@
+CREATE TABLE t (a INT) ENGINE=INNODB;
+SELECT check_time FROM information_schema.tables WHERE table_name = 't';
+check_time
+NULL
+CHECK TABLE t;
+Table	Op	Msg_type	Msg_text
+test.t	check	status	OK
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND check_time IS NOT NULL;
+COUNT(*)
+1
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND TIMESTAMPDIFF(SECOND, check_time, NOW()) < 120;
+COUNT(*)
+1
+DROP TABLE t;

@@ -47,6 +47,8 @@ Created 3/26/1996 Heikki Tuuri
 #include "srv0mon.h"
 #include "ut0vec.h"
 
+#include <new> /* placement new */
+
 /** Dummy session used currently in MySQL interface */
 UNIV_INTERN sess_t*		trx_dummy_sess = NULL;
 
@@ -146,6 +148,9 @@ trx_create(void)
 	trx->lock.table_locks = ib_vector_create(
 		heap_alloc, sizeof(void**), 32);
 
+	/* Explicitly call the constructor of the already allocated object */
+	new(&trx->mod_tables) trx_mod_tables_t();
+
 	return(trx);
 }
 
@@ -234,6 +239,8 @@ trx_free(
 	}
 
 	mutex_free(&trx->mutex);
+
+	trx->mod_tables.~trx_mod_tables_t();
 
 	mem_free(trx);
 }
@@ -1035,6 +1042,39 @@ trx_flush_log_if_needed(
 	trx->op_info = "";
 }
 
+/**********************************************************************//**
+For each table that has been modified by the given transaction: update
+its dict_table_t::update_time with the current timestamp. Clear the list
+of the modified tables at the end. */
+static
+void
+trx_update_mod_tables_timestamp(
+/*============================*/
+	trx_t*	trx)	/*!< in: transaction */
+{
+	printf("%s(): begin\n", __func__);
+
+	/* consider using trx->start_time if calling time() is too
+	expensive here */
+	time_t	now = time(NULL);
+
+	std::set<dict_table_t*>::const_iterator	iter;
+	for (iter = trx->mod_tables.begin();
+	     iter != trx->mod_tables.end();
+	     ++iter) {
+
+		dict_table_t*	table = *iter;
+
+		printf("%s(): modified table: %s\n", __func__, table->name);
+
+		table->update_time = now;
+	}
+
+	trx->mod_tables.clear();
+
+	printf("%s(): end\n", __func__);
+}
+
 /****************************************************************//**
 Commits a transaction. */
 UNIV_INTERN
@@ -1236,6 +1276,11 @@ trx_commit(
 	ut_ad(!trx->in_rw_trx_list);
 
 	trx->dict_operation = TRX_DICT_OP_NONE;
+
+	/* trx_commit() is also called during rollback, so we do not
+	call trx_update_mod_tables_timestamp() here but call it
+	from trx_commit_for_mysql() instead. */
+	//trx_update_mod_tables_timestamp(trx);
 
 	trx->error_state = DB_SUCCESS;
 
@@ -1460,6 +1505,7 @@ trx_commit_for_mysql(
 	case TRX_STATE_PREPARED:
 		trx->op_info = "committing";
 		trx_commit(trx);
+		trx_update_mod_tables_timestamp(trx);
 		MONITOR_DEC(MONITOR_TRX_ACTIVE);
 		trx->op_info = "";
 		return(DB_SUCCESS);
