@@ -1,0 +1,24 @@
+#
+# Test that INFORMATION_SCHEMA.TABLES.CHECK_TIME is filled
+# correctly for InnoDB tables.
+#
+
+-- source include/have_innodb.inc
+
+CREATE TABLE t (a INT) ENGINE=INNODB;
+
+SELECT check_time FROM information_schema.tables WHERE table_name = 't';
+
+CHECK TABLE t;
+
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND check_time IS NOT NULL;
+
+# We cant deterministically check that the saved value is correct, but
+# at least we check that it is a timestamp not older than 2 minutes.
+# Usually check_time and NOW() are equal below, but on heavily loaded
+# machines NOW() could be younger.
+SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 't'
+AND TIMESTAMPDIFF(SECOND, check_time, NOW()) < 120;
+
+DROP TABLE t;
