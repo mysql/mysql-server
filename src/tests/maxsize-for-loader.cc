@@ -278,12 +278,11 @@ static void run_test(uint32_t nr, uint32_t wdb, uint32_t wrow, enum how_to_fail 
     r = env->checkpointing_set_period(env, 0);                                                                CKERR(r);
 
     DB **XMALLOC_N(NUM_DBS, dbs);
-    DB **check_dbs;
+    DB **XMALLOC_N(NUM_DBS, check_dbs);
     int idx[NUM_DBS];
 
     create_and_open_dbs(dbs, "loader", &idx[0]);
     if (do_check && how_to_fail==FAIL_NONE) {
-        XMALLOC_N(NUM_DBS, check_dbs);
         create_and_open_dbs(check_dbs, "check", &idx[0]);
     }
 
@@ -303,9 +302,7 @@ static void run_test(uint32_t nr, uint32_t wdb, uint32_t wrow, enum how_to_fail 
     }
     r = env->close(env, 0);                                                                                   CKERR(r);
     toku_free(dbs);
-    if (do_check && how_to_fail==FAIL_NONE) {
-        toku_free(check_dbs);
-    }
+    toku_free(check_dbs);
 }
 
 // ------------ infrastructure ----------
