@@ -1857,7 +1857,6 @@ lock_rec_enqueue_waiting(
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	trx_t*			trx;
-	trx_id_t		victim_trx_id;
 
 	ut_ad(lock_mutex_own());
 	ut_ad(dict_index_is_clust(index) || !dict_index_is_online_ddl(index));
