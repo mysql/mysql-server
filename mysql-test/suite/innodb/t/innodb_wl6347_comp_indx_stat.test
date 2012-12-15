@@ -781,7 +781,6 @@ DROP TABLE IF EXISTS tab5;
 # This testcase is to verify the table/idex level comoression stats
 # When the flags are set as follows
 # innodb_cmp_per_index_enabled=ON and 
-# innodb_log_compressed_pages=0 and 
 # Innodb_compression_failure_threshold_pct=0
 # page size 1K,2K,4K,8K,16K
 # check the size and compression stats of the table tab5
@@ -795,13 +794,11 @@ SET GLOBAL innodb_cmp_per_index_enabled=OFF;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 --echo # set the flags 
-SET GLOBAL innodb_log_compressed_pages=0;
 SET GLOBAL innodb_compression_failure_threshold_pct=0;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 --echo # check the flags
 SELECT @@innodb_cmp_per_index_enabled;
-SELECT @@innodb_log_compressed_pages;
 SELECT @@innodb_compression_failure_threshold_pct;
 SELECT @@innodb_file_format;
 SELECT @@innodb_file_per_table;
@@ -809,7 +806,7 @@ SELECT @@innodb_compression_level;
 
 
 #******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_log_compressed_pages=0
+# innodb_cmp_per_index_enabled=ON and 
 # Innodb_compression_failure_threshold_pct=0 with page size 1K
 #******************************************************************
 
@@ -853,7 +850,6 @@ SET @inl_val=2;
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 
 --echo # set the flags 
-SET GLOBAL innodb_log_compressed_pages=0;
 SET GLOBAL innodb_compression_failure_threshold_pct=0;
 SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
@@ -874,7 +870,7 @@ DROP TABLE IF EXISTS tab5;
 
 
 #******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_log_compressed_pages=0
+# innodb_cmp_per_index_enabled=ON and
 # Innodb_compression_failure_threshold_pct=0 with page size 2K
 #******************************************************************
 
@@ -920,7 +916,7 @@ DROP TABLE IF EXISTS tab5;
 
 
 #******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_log_compressed_pages=0
+# innodb_cmp_per_index_enabled=ON and
 # Innodb_compression_failure_threshold_pct=0 with page size 4K
 #******************************************************************
 
@@ -966,7 +962,7 @@ DROP TABLE IF EXISTS tab5;
 
 
 #******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_log_compressed_pages=0
+# innodb_cmp_per_index_enabled=ON and
 # Innodb_compression_failure_threshold_pct=0 with page size 8K
 #******************************************************************
 
@@ -1012,7 +1008,7 @@ DROP TABLE IF EXISTS tab5;
 
 
 #******************************************************************
-# innodb_cmp_per_index_enabled=ON and innodb_log_compressed_pages=0
+# innodb_cmp_per_index_enabled=ON and
 # Innodb_compression_failure_threshold_pct=0 with page size 16K
 #******************************************************************
 
@@ -1078,13 +1074,11 @@ SET GLOBAL innodb_file_per_table=on;
 SET GLOBAL innodb_file_format='barracuda';
 SET GLOBAL innodb_cmp_per_index_enabled=ON;
 SET GLOBAL innodb_compression_failure_threshold_pct=10;
-SET GLOBAL innodb_log_compressed_pages=Default;
 SET GLOBAL innodb_compression_level=Default;
 
 
 --echo # check the flags
 SELECT @@innodb_cmp_per_index_enabled;
-SELECT @@innodb_log_compressed_pages;
 SELECT @@innodb_compression_failure_threshold_pct;
 SELECT @@innodb_file_format;
 SELECT @@innodb_file_per_table;
@@ -1405,7 +1399,6 @@ eval SET GLOBAL innodb_file_per_table=default;
 eval SET GLOBAL innodb_file_format=default;
 eval SET GLOBAL innodb_cmp_per_index_enabled=default;
 eval SET GLOBAL innodb_compression_level=default;
-eval SET GLOBAL innodb_log_compressed_pages=default;
 eval SET GLOBAL innodb_compression_failure_threshold_pct=default;
 
 
