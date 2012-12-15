@@ -59,12 +59,13 @@ struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 	/* @return result from sched_getcpu(), the thread id if it fails. */
 	size_t get_rnd_index() const UNIV_NOTHROW {
 
-		size_t	cpu = sched_getcpu();
+		int	cpu = sched_getcpu();
+
 		if (cpu == -1) {
 			cpu = (lint) os_thread_get_curr_id();
 		}
 
-		return(cpu);
+		return(size_t(cpu));
 	}
 };
 #endif /* HAVE_SCHED_GETCPU */
@@ -100,6 +101,12 @@ struct single_indexer_t {
 	}
 };
 
+#ifdef HAVE_SCHED_GETCPU
+#define	default_indexer_t	get_sched_indexer_t
+#else
+#define default_indexer_t	thread_id_indexer_t
+#endif /* HAVE_SCHED_GETCPU */
+
 /** Class for using fuzzy counters. The counter is not protected by any
 mutex and the results are not guaranteed to be 100% accurate but close
 enough. Creates an array of counters and separates each element by the
@@ -107,7 +114,7 @@ CACHE_LINE_SIZE bytes */
 template <
 	typename Type,
 	int N = IB_N_SLOTS,
-	template<typename, int> class Indexer = thread_id_indexer_t>
+	template<typename, int> class Indexer = default_indexer_t>
 class ib_counter_t {
 public:
 	ib_counter_t() { memset(m_counter, 0x0, sizeof(m_counter)); }
