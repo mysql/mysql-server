@@ -10746,6 +10746,8 @@ ha_innobase::info_low(
 		if (os_file_get_status(path, &stat_info, false) == DB_SUCCESS) {
 			stats.create_time = (ulong) stat_info.ctime;
 		}
+
+		stats.update_time = ib_table->update_time;
 	}
 
 	if (flag & HA_STATUS_VARIABLE) {
@@ -10867,7 +10869,7 @@ ha_innobase::info_low(
 			}
 		}
 
-		stats.check_time = 0;
+		stats.check_time = ib_table->check_time;
 		stats.mrr_length_per_rec = ref_length + sizeof(void*);
 
 		if (stats.records == 0) {
@@ -11330,6 +11332,8 @@ ha_innobase::check(
 	if (thd_killed(user_thd)) {
 		my_error(ER_QUERY_INTERRUPTED, MYF(0));
 	}
+
+	prebuilt->table->check_time = time(NULL);
 
 	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
 }
