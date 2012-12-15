@@ -62,7 +62,7 @@ struct get_sched_indexer_t : public generic_indexer_t<Type, N> {
 		int	cpu = sched_getcpu();
 
 		if (cpu == -1) {
-			cpu = (lint) os_thread_get_curr_id();
+			cpu = (int) os_thread_get_curr_id();
 		}
 
 		return(size_t(cpu));
