@@ -69,9 +69,15 @@ static int hi_inserts(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), void 
     DBT dest_vals[2];
     memset(dest_keys, 0, sizeof(dest_keys));
     memset(dest_vals, 0, sizeof(dest_vals));
+
+    DBT key, val;
+    uint8_t keybuf[arg->cli->key_size];
+    uint8_t valbuf[arg->cli->val_size];
+    dbt_init(&key, keybuf, sizeof keybuf), 
+    dbt_init(&val, valbuf, sizeof valbuf), 
+
+    r = env->txn_begin(env, NULL, &hi_txn, 0); CKERR(r);
     int i;
-    r = env->txn_begin(env, NULL, &hi_txn, 0);
-    CKERR(r);
     for (i = 0; i < 1000; i++) {
         DB* dbs[2];        
         toku_mutex_lock(&hi_lock);
@@ -79,11 +85,8 @@ static int hi_inserts(DB_TXN* UU(txn), ARG arg, void* UU(operation_extra), void 
         dbs[1] = hot_db;
         int num_dbs = hot_db ? 2 : 1;
         // do a random insertion
-        int rand_key = random() % arg->cli->num_elements;
-        int rand_val = random();
-        DBT key, val;
-        dbt_init(&key, &rand_key, sizeof(rand_key)), 
-        dbt_init(&val, &rand_val, sizeof(rand_val)), 
+        fill_key_buf_random(arg->random_data, keybuf, arg);
+        fill_val_buf_random(arg->random_data, valbuf, arg->cli);
         r = env->put_multiple(
             env, 
             db, 
