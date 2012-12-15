@@ -459,12 +459,58 @@ done:
 }
 
 // When txn ends, update reverse live list.  To do that, examine each txn in this (closing) txn's live list.
-static int
-referenced_xids_note_snapshot_txn_end(TXN_MANAGER mgr, const xid_omt_t &live_root_txn_list) {
+static inline int
+note_snapshot_txn_end_by_ref_xids(TXN_MANAGER mgr, const xid_omt_t &live_root_txn_list) {
     int r;
     r = live_root_txn_list.iterate<rx_omt_t, referenced_xids_note_snapshot_txn_end_iter>(&mgr->referenced_xids);
     invariant_zero(r);
     return r;
+}
+
+typedef struct snapshot_iter_extra {
+    uint32_t* indexes_to_delete;
+    uint32_t num_indexes;
+    xid_omt_t* live_root_txn_list;
+} SNAPSHOT_ITER_EXTRA;
+
+// template-only function, but must be extern
+int note_snapshot_txn_end_by_txn_live_list_iter(referenced_xid_tuple* tuple, const uint32_t index, SNAPSHOT_ITER_EXTRA *const sie)
+    __attribute__((nonnull(3)));
+int note_snapshot_txn_end_by_txn_live_list_iter(
+    referenced_xid_tuple* tuple, 
+    const uint32_t index, 
+    SNAPSHOT_ITER_EXTRA *const sie
+    )
+{
+    int r;
+    uint32_t idx;
+    TXNID txnid;
+    r = sie->live_root_txn_list->find_zero<TXNID, toku_find_xid_by_xid>(tuple->begin_id, &txnid, &idx);
+    if (r == DB_NOTFOUND) {
+        goto done;
+    }
+    invariant_zero(r);
+    invariant(txnid == tuple->begin_id);
+    invariant(tuple->references > 0);
+    if (--tuple->references == 0) {
+        sie->indexes_to_delete[sie->num_indexes] = index;
+        sie->num_indexes++;
+    }
+done:
+    return 0;
+}
+
+static inline int
+note_snapshot_txn_end_by_txn_live_list(TXN_MANAGER mgr, xid_omt_t* live_root_txn_list) {
+    uint32_t size = mgr->referenced_xids.size();
+    uint32_t indexes_to_delete[size];
+    SNAPSHOT_ITER_EXTRA sie = { .indexes_to_delete = indexes_to_delete, .num_indexes = 0, .live_root_txn_list = live_root_txn_list};
+    mgr->referenced_xids.iterate_ptr<SNAPSHOT_ITER_EXTRA, note_snapshot_txn_end_by_txn_live_list_iter>(&sie);
+    for (uint32_t i = 0; i < sie.num_indexes; i++) {
+        uint32_t curr_index = sie.indexes_to_delete[sie.num_indexes-i-1];
+        mgr->referenced_xids.delete_at(curr_index);
+    }
+    return 0;
 }
 
 //Heaviside function to find a TOKUTXN by TOKUTXN (used to find the index)
@@ -507,7 +553,16 @@ void toku_txn_manager_finish_txn(TXN_MANAGER txn_manager, TOKUTXN txn) {
         r = txn_manager->snapshot_txnids.delete_at(index_in_snapshot_txnids);
         invariant_zero(r);
 
-        referenced_xids_note_snapshot_txn_end(txn_manager, *txn->live_root_txn_list);
+        uint32_t ref_xids_size = txn_manager->referenced_xids.size();
+        uint32_t live_list_size = txn->live_root_txn_list->size();
+        if (ref_xids_size > 0 && live_list_size > 0) {
+            if (live_list_size > ref_xids_size && ref_xids_size < 2000) {
+                note_snapshot_txn_end_by_txn_live_list(txn_manager, txn->live_root_txn_list);
+            }
+            else {
+                note_snapshot_txn_end_by_ref_xids(txn_manager, *txn->live_root_txn_list);
+            }
+        }
 
         //Free memory used for live root txns local list (will happen
         //after we unlock the txn_manager_lock)
