@@ -20,13 +20,6 @@
 // The intent of this test is to measure the throughput of malloc and free
 // with multiple threads.
 
-static int xmalloc_free_op(DB_TXN* UU(txn), ARG UU(arg), void* UU(operation_extra), void *UU(stats_extra)) {
-    size_t s = 256;
-    void *p = toku_xmalloc(s);
-    toku_free(p);
-    return 0;
-}
-
 static void
 stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     if (verbose) printf("starting creation of pthreads\n");
@@ -34,7 +27,7 @@ stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
         arg_init(&myargs[i], dbp, env, cli_args);
-        myargs[i].operation = xmalloc_free_op;
+        myargs[i].operation = malloc_free_op;
     }
     run_workers(myargs, num_threads, cli_args->num_seconds, false, cli_args);
 }
@@ -43,6 +36,6 @@ int
 test_main(int argc, char *const argv[]) {
     struct cli_args args = get_default_args_for_perf();
     parse_stress_test_args(argc, argv, &args);
-    perf_test_main(&args);
+    stress_test_main(&args);
     return 0;
 }

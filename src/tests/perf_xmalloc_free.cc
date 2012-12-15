@@ -15,25 +15,17 @@
 
 #include "threaded_stress_test_helpers.h"
 
-// The intent of this test is to measure the throughput of cursor create and close
+// The intent of this test is to measure the throughput of toku_malloc and toku_free
 // with multiple threads.
 
 static void
 stress_table(DB_ENV* env, DB** dbp, struct cli_args *cli_args) {
-    //
-    // the threads that we want:
-    //   - some threads constantly updating random values
-    //   - one thread doing table scan with bulk fetch
-    //   - one thread doing table scan without bulk fetch
-    //   - some threads doing random point queries
-    //
-
     if (verbose) printf("starting creation of pthreads\n");
     const int num_threads = cli_args->num_ptquery_threads;
     struct arg myargs[num_threads];
     for (int i = 0; i < num_threads; i++) {
         arg_init(&myargs[i], dbp, env, cli_args);
-        myargs[i].operation = cursor_create_close_op;
+        myargs[i].operation = xmalloc_free_op;
     }
     run_workers(myargs, num_threads, cli_args->num_seconds, false, cli_args);
 }
