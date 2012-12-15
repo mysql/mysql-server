@@ -412,7 +412,13 @@ Slave_worker *Rpl_info_factory::create_worker(uint rli_option, uint worker_id,
        
   if (worker->rli_init_info(is_gaps_collecting_phase))
   {
-    msg= "Failed to intialize the worker info structure";
+    msg= "Failed to initialize the worker info structure";
+    goto err;
+  }
+
+  if (rli->info_thd && rli->info_thd->is_error())
+  {
+    msg= "Failed to initialize worker info table";
     goto err;
   }
 
@@ -520,7 +526,7 @@ bool Rpl_info_factory::decide_repository(Rpl_info *info, uint option,
   DBUG_ASSERT((*handler_src) != NULL && (*handler_dest) != NULL &&
               (*handler_src) != (*handler_dest));
 
-  return_check_src= check_src_repository(info, handler_src);
+  return_check_src= check_src_repository(info, option, handler_src);
   return_check_dst= (*handler_dest)->do_check_info(info->get_internal_id());
 
   if (return_check_src == ERROR_CHECKING_REPOSITORY ||
@@ -614,12 +620,15 @@ err:
   the source repository exits.
 
   @param[in]  info         Either master info or relay log info.
+  @param[in]  option       Identifies the type of the repository that will
+                           be used, i.e., destination repository.
   @param[out] handler_src  Source repository from where information is
 
   @return enum_return_check The repository's status.
 */
 enum_return_check
 Rpl_info_factory::check_src_repository(Rpl_info *info,
+                                       uint option,
                                        Rpl_info_handler **handler_src)
 {
   enum_return_check return_check_src= ERROR_CHECKING_REPOSITORY;
@@ -632,6 +641,28 @@ Rpl_info_factory::check_src_repository(Rpl_info *info,
       exists or not.
     */
     return_check_src= (*handler_src)->do_check_info(info->get_internal_id());
+
+    /*
+      Since this is not a live migration, if we are using file repository
+      and there is some error on table repository (for instance, engine
+      disabled) we can ignore it instead of stopping replication.
+      A warning saying that table is not ready to be used was logged.
+    */
+    if (ERROR_CHECKING_REPOSITORY == return_check_src &&
+        INFO_REPOSITORY_FILE == option &&
+        INFO_REPOSITORY_TABLE == (*handler_src)->do_get_rpl_info_type())
+    {
+      return_check_src= REPOSITORY_DOES_NOT_EXIST;
+      /*
+        If a already existent thread was used to access info tables,
+        current_thd will point to it and we must clear access error on
+        it. If a temporary thread was used, then there is nothing to
+        clean because the thread was already deleted.
+        See Rpl_info_table_access::create_thd().
+      */
+      if (current_thd)
+        current_thd->clear_error();
+    }
   }
   else
   {
