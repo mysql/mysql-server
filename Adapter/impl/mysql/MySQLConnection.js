@@ -440,7 +440,7 @@ function createSelectSQL(dbTableHandler, index) {
   for (i = 0; i < fields.length; ++i) {
     field = fields[i].fieldName;
     column = fields[i].columnName;
-    selectSQL += separator + column + ' AS ' + field;
+    selectSQL += separator + column + ' AS \'' + field + '\'';
     separator = ', ';
   }
 
