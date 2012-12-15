@@ -25,6 +25,60 @@
 var     udebug     = unified_debug.getLogger("Query.js");
 var userContext    = require('../impl/common/UserContext.js');
 
+var keywords = ['param', 'where', 'field', 'execute'];
+
+/** QueryDomainType function param */
+var param = function(name) {
+  return new QueryParameter(this, name);
+};
+
+/** QueryDomainType function where */
+var where = function(predicate) {
+  var mynode = this.mynode_query_domain_type;
+  mynode.predicate = predicate;
+  mynode.queryHandler = new QueryHandler(mynode.dbTableHandler, predicate);
+  mynode.queryType = mynode.queryHandler.queryType;
+  this.prototype = {};
+  return this;
+};
+
+/** QueryDomainType function execute */
+var execute = function() {
+  var session = this.mynode_query_domain_type.session;
+  var context = new userContext.UserContext(arguments, 2, 2, session, session.sessionFactory);
+  // delegate to context's execute for execution
+  context.executeQuery(this);
+};
+
+var queryDomainTypeFunctions = {};
+queryDomainTypeFunctions.where = where;
+queryDomainTypeFunctions.param = param;
+queryDomainTypeFunctions.execute = execute;
+
+/**
+ * QueryField represents a mapped field in a domain object. QueryField is used to build
+ * QueryPredicates by comparing the field to parameters.
+ * @param queryDomainType
+ * @param field
+ * @return
+ */
+var QueryField = function(queryDomainType, field) {
+  udebug.log_detail('QueryField<ctor>', field.fieldName);
+//  this.class = 'QueryField'; // useful for debugging
+//  this.fieldName = field.fieldName; // useful for debugging
+  this.queryDomainType = queryDomainType;
+  this.field = field;
+};
+
+QueryField.prototype.eq = function(queryParameter) {
+  return new QueryEq(this, queryParameter);
+};
+
+QueryField.prototype.toString = function() {
+  udebug.log_detail('QueryField.toString: ', this.field.fieldName);
+  return this.field.fieldName;
+};
+
 /** Query Domain Type represents a domain object that can be used to create and execute queries.
  * It encapsulates the dbTableHandler (obtained from the domain object or table name),
  * the session (required to execute the query), and the filter which limits the result.
@@ -34,18 +88,41 @@ var userContext    = require('../impl/common/UserContext.js');
  */
 var QueryDomainType = function(session, dbTableHandler, domainObject) {
   udebug.log('QueryDomainType<ctor>', dbTableHandler.dbTable.name);
-  // avoid name conflicts: put all implementation artifacts into the property mynode_query_domain_type
+  // avoid most name conflicts: put all implementation artifacts into the property mynode_query_domain_type
   this.mynode_query_domain_type = {};
+  this.field = {};
   var mynode = this.mynode_query_domain_type;
   mynode.session = session;
   mynode.dbTableHandler = dbTableHandler;
   mynode.domainObject = domainObject;
   var queryDomainType = this;
-  var fieldName;
+  // initialize the functions (may be overridden below if a field has the name of a keyword)
+  queryDomainType.where = where;
+  queryDomainType.param = param;
+  queryDomainType.execute = execute;
+  
+  var fieldName, queryField;
   // add a property for each field in the table mapping
   mynode.dbTableHandler.fieldNumberToFieldMap.forEach(function(field) {
     fieldName = field.fieldName;
-    queryDomainType[fieldName] = new QueryField(queryDomainType, field);
+    queryField = new QueryField(queryDomainType, field);
+    udebug.log_detail('QueryDomainType<ctor> queryField for', fieldName, ':', queryField);
+    if (keywords.indexOf(fieldName) === -1) {
+      // field name is not a keyword
+      queryDomainType[fieldName] = queryField;
+    } else {
+      udebug.log_detail('QueryDomainType<ctor> field', fieldName, 'is a keyword.');
+      // field name is a keyword
+      // allow e.g. qdt.where.id
+      if (fieldName !== 'field') {
+        // if field is a reserved word but not a function, skip setting the function
+        queryDomainType[fieldName] = queryDomainTypeFunctions[fieldName];
+        queryDomainType[fieldName].eq = QueryField.prototype.eq;
+        queryDomainType[fieldName].field = queryField.field;
+      }
+      // allow e.g. qdt.field.where
+      queryDomainType.field[fieldName] = queryField;
+    }
   });
 };
 
@@ -64,28 +141,6 @@ var QueryParameter = function(queryDomainType, name) {
 
 QueryParameter.prototype.toString = function() {
   return '?' + this.name;
-};
-
-/**
- * QueryField represents a mapped field in a domain object. QueryField is used to build
- * QueryPredicates by comparing the field to parameters.
- * @param queryDomainType
- * @param field
- * @return
- */
-var QueryField = function(queryDomainType, field) {
-  udebug.log_detail('QueryField<ctor>', field.fieldName);
-  this.queryDomainType = queryDomainType;
-  this.field = field;
-};
-
-QueryField.prototype.eq = function(queryParameter) {
-  return new QueryEq(this, queryParameter);
-};
-
-QueryField.prototype.toString = function() {
-  udebug.log_detail('QueryField.toString: ', this.field.fieldName);
-  return this.field.fieldName;
 };
 
 /** AbstractQueryPredicate is the top level Predicate */
@@ -158,25 +213,6 @@ QueryAnd.prototype.and = function(predicate) {
 
 QueryAnd.prototype.getTopLevelPredicates = function() {
   return predicates;
-};
-
-QueryDomainType.prototype.param = function(name) {
-  return new QueryParameter(this, name);
-};
-
-QueryDomainType.prototype.where = function(predicate) {
-  var mynode = this.mynode_query_domain_type;
-  mynode.predicate = predicate;
-  mynode.queryHandler = new QueryHandler(mynode.dbTableHandler, predicate);
-  mynode.queryType = mynode.queryHandler.queryType;
-  return this;
-};
-
-QueryDomainType.prototype.execute = function() {
-  var session = this.mynode_query_domain_type.session;
-  var context = new userContext.UserContext(arguments, 2, 2, session, session.sessionFactory);
-  // delegate to context's execute for execution
-  context.executeQuery(this);
 };
 
 var CandidateIndex = function(dbTableHandler, indexNumber) {
@@ -262,7 +298,7 @@ var QueryHandler = function(dbTableHandler, predicate) {
       }
     } else if (index.isOrdered) {
       // create an array of candidate indexes for ordered indexes to be evaluated later
-      orderedCandidateIndexes.push(new CandidateIndex(dbTableHandler, index));
+      orderedCandidateIndexes.push(new CandidateIndex(dbTableHandler, i));
     } else {
       throw new Error('FatalInternalException: index is not unique or ordered... so what is it?');
     }
