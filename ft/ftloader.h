@@ -26,7 +26,8 @@ int toku_ft_loader_open (FTLOADER *bl,
 			  const char *temp_file_template,
                           LSN load_lsn,
                           TOKUTXN txn,
-                          bool reserve_memory);
+                          bool reserve_memory,
+                          bool compress_intermediates);
 
 int toku_ft_loader_put (FTLOADER bl, DBT *key, DBT *val);
 

@@ -47,18 +47,6 @@ static uint32_t size_factor = 1024;
 static uint32_t default_loader_nodesize = FT_DEFAULT_NODE_SIZE;
 static uint32_t default_loader_basementnodesize = FT_DEFAULT_BASEMENT_NODE_SIZE;
 
-enum { EXTRACTOR_QUEUE_DEPTH = 2,
-       FILE_BUFFER_SIZE  = 1<<24,
-       MIN_ROWSET_MEMORY = 1<<23,
-       MIN_MERGE_FANIN   = 2,
-       FRACTAL_WRITER_QUEUE_DEPTH = 3,
-       FRACTAL_WRITER_ROWSETS = FRACTAL_WRITER_QUEUE_DEPTH + 2,
-       DBUFIO_DEPTH = 2,
-       TARGET_MERGE_BUF_SIZE = 1<<24, // we'd like the merge buffer to be this big.
-       MIN_MERGE_BUF_SIZE = 1<<20 // always use at least this much
-};
-
-
 void
 toku_ft_loader_set_size_factor(uint32_t factor) {
 // For test purposes only
@@ -468,7 +456,8 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
                                    const char *temp_file_template,
                                    LSN load_lsn,
                                    TOKUTXN txn,
-                                   bool reserve_memory)
+                                   bool reserve_memory,
+                                   bool compress_intermediates)
 // Effect: Allocate and initialize a FTLOADER, but do not create the extractor thread.
 {
     FTLOADER CALLOC(bl); // initialized to all zeros (hence CALLOC)
@@ -484,6 +473,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
         bl->did_reserve_memory = false;
         bl->reserved_memory = 512*1024*1024; // if no cache table use 512MB.
     }
+    bl->compress_intermediates = compress_intermediates;
     //printf("Reserved memory=%ld\n", bl->reserved_memory);
 
     bl->src_db = src_db;
@@ -570,7 +560,8 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                           const char *temp_file_template,
                           LSN load_lsn,
                           TOKUTXN txn,
-                          bool reserve_memory)
+                          bool reserve_memory,
+                          bool compress_intermediates)
 /* Effect: called by DB_ENV->create_loader to create a brt loader.
  * Arguments:
  *   blp                  Return the brt loader here.
@@ -592,7 +583,8 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                                               temp_file_template,
                                               load_lsn,
                                               txn,
-                                              reserve_memory);
+                                              reserve_memory,
+                                              compress_intermediates);
         if (r!=0) result = r;
     }
     if (result==0) {
@@ -608,8 +600,12 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
     return result;
 }
 
-static void ft_loader_set_panic(FTLOADER bl, int error, bool callback) {
-    int r = ft_loader_set_error(&bl->error_callback, error, NULL, 0, NULL, NULL);
+static void ft_loader_set_panic(FTLOADER bl, int error, bool callback, int which_db, DBT *key, DBT *val) {
+    DB *db = nullptr;
+    if (bl && bl->dbs && which_db >= 0 && which_db < bl->N) {
+        db = bl->dbs[which_db];
+    }
+    int r = ft_loader_set_error(&bl->error_callback, error, db, which_db, key, val);
     if (r == 0 && callback)
         ft_loader_call_error_function(&bl->error_callback);
 }
@@ -624,26 +620,134 @@ FILE *toku_bl_fidx2file (FTLOADER bl, FIDX i) {
     return result;
 }
 
-static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FILE *stream, FTLOADER UU(bl))
+static int bl_finish_compressed_write(FILE *stream, struct wbuf *wb) {
+    int r;
+    char *compressed_buf = NULL;
+    const size_t data_size = wb->ndone;
+    invariant(data_size > 0);
+    invariant(data_size <= MAX_UNCOMPRESSED_BUF);
+
+    int n_sub_blocks = 0;
+    int sub_block_size = 0;
+
+    r = choose_sub_block_size(wb->ndone, max_sub_blocks, &sub_block_size, &n_sub_blocks);
+    invariant(r==0);
+    invariant(0 < n_sub_blocks && n_sub_blocks <= max_sub_blocks);
+    invariant(sub_block_size > 0);
+
+    struct sub_block sub_block[max_sub_blocks];
+    // set the initial sub block size for all of the sub blocks
+    for (int i = 0; i < n_sub_blocks; i++) {
+        sub_block_init(&sub_block[i]);
+    }
+    set_all_sub_block_sizes(data_size, sub_block_size, n_sub_blocks, sub_block);
+
+    size_t compressed_len = get_sum_compressed_size_bound(n_sub_blocks, sub_block, TOKU_DEFAULT_COMPRESSION_METHOD);
+    const size_t sub_block_header_len = sub_block_header_size(n_sub_blocks);
+    const size_t other_overhead = sizeof(uint32_t); //total_size
+    const size_t header_len = sub_block_header_len + other_overhead;
+    MALLOC_N(header_len + compressed_len, compressed_buf);
+    if (compressed_buf == nullptr) {
+        return ENOMEM;
+    }
+
+    // compress all of the sub blocks
+    char *uncompressed_ptr = (char*)wb->buf;
+    char *compressed_ptr = compressed_buf + header_len;
+    compressed_len = compress_all_sub_blocks(n_sub_blocks, sub_block, uncompressed_ptr, compressed_ptr,
+                                             get_num_cores(), get_ft_pool(), TOKU_DEFAULT_COMPRESSION_METHOD);
+
+    //total_size does NOT include itself
+    uint32_t total_size = compressed_len + sub_block_header_len;
+    // serialize the sub block header
+    uint32_t *ptr = (uint32_t *)(compressed_buf);
+    *ptr++ = toku_htod32(total_size);
+    *ptr++ = toku_htod32(n_sub_blocks);
+    for (int i=0; i<n_sub_blocks; i++) {
+        ptr[0] = toku_htod32(sub_block[i].compressed_size);
+        ptr[1] = toku_htod32(sub_block[i].uncompressed_size);
+        ptr[2] = toku_htod32(sub_block[i].xsum);
+        ptr += 3;
+    }
+    // Mark as written
+    wb->ndone = 0;
+
+    size_t size_to_write = total_size + 4; // Includes writing total_size
+
+    {
+        size_t written = do_fwrite(compressed_buf, 1, size_to_write, stream);
+        if (written!=size_to_write) {
+            if (os_fwrite_fun)    // if using hook to induce artificial errors (for testing) ...
+                r = get_maybe_error_errno();        // ... then there is no error in the stream, but there is one in errno
+            else
+                r = ferror(stream);
+            invariant(r!=0);
+            goto exit;
+        }
+    }
+    r = 0;
+exit:
+    if (compressed_buf) {
+        toku_free(compressed_buf);
+    }
+    return r;
+}
+
+static int bl_compressed_write(void *ptr, size_t nbytes, FILE *stream, struct wbuf *wb) {
+    invariant(wb->size <= MAX_UNCOMPRESSED_BUF);
+    size_t bytes_left = nbytes;
+    char *buf = (char*)ptr;
+
+    while (bytes_left > 0) {
+        size_t bytes_to_copy = bytes_left;
+        if (wb->ndone + bytes_to_copy > wb->size) {
+            bytes_to_copy = wb->size - wb->ndone;
+        }
+        wbuf_nocrc_literal_bytes(wb, buf, bytes_to_copy);
+        if (wb->ndone == wb->size) {
+            //Compress, write to disk, and empty out wb
+            int r = bl_finish_compressed_write(stream, wb);
+            if (r != 0) {
+                errno = r;
+                return -1;
+            }
+            wb->ndone = 0;
+        }
+        bytes_left -= bytes_to_copy;
+        buf += bytes_to_copy;
+    }
+    return 0;
+}
+
+static int bl_fwrite(void *ptr, size_t size, size_t nmemb, FILE *stream, struct wbuf *wb, FTLOADER bl)
 /* Effect: this is a wrapper for fwrite that returns 0 on success, otherwise returns an error number.
  * Arguments:
  *   ptr    the data to be writen.
  *   size   the amount of data to be written.
  *   nmemb  the number of units of size to be written.
  *   stream write the data here.
+ *   wb     where to write uncompressed data (if we're compressing) or ignore if NULL
  *   bl     passed so we can panic the ft_loader if something goes wrong (recording the error number).
  * Return value: 0 on success, an error number otherwise.
  */
 {
-    size_t r = do_fwrite(ptr, size, nmemb, stream);
-    if (r!=nmemb) {
-        int e;
-        if (os_fwrite_fun)    // if using hook to induce artificial errors (for testing) ...
-            e = get_maybe_error_errno();        // ... then there is no error in the stream, but there is one in errno
-        else
-            e = ferror(stream);
-        invariant(e!=0);
-        return e;
+    if (!bl->compress_intermediates || !wb) {
+        size_t r = do_fwrite(ptr, size, nmemb, stream);
+        if (r!=nmemb) {
+            int e;
+            if (os_fwrite_fun)    // if using hook to induce artificial errors (for testing) ...
+                e = get_maybe_error_errno();        // ... then there is no error in the stream, but there is one in errno
+            else
+                e = ferror(stream);
+            invariant(e!=0);
+            return e;
+        }
+    } else {
+        size_t num_bytes = size * nmemb;
+        int r = bl_compressed_write(ptr, num_bytes, stream, wb);
+        if (r != 0) {
+            return r;
+        }
     }
     return 0;
 }
@@ -674,12 +778,12 @@ static int bl_fread (void *ptr, size_t size, size_t nmemb, FILE *stream)
     }
 }
 
-static int bl_write_dbt (DBT *dbt, FILE* datafile, uint64_t *dataoff, FTLOADER bl)
+static int bl_write_dbt (DBT *dbt, FILE* datafile, uint64_t *dataoff, struct wbuf *wb, FTLOADER bl)
 {
     int r;
     int dlen = dbt->size;
-    if ((r=bl_fwrite(&dlen,     sizeof(dlen), 1,    datafile, bl))) return r;
-    if ((r=bl_fwrite(dbt->data, 1,            dlen, datafile, bl))) return r;
+    if ((r=bl_fwrite(&dlen,     sizeof(dlen), 1,    datafile, wb, bl))) return r;
+    if ((r=bl_fwrite(dbt->data, 1,            dlen, datafile, wb, bl))) return r;
     if (dataoff)
         *dataoff += dlen + sizeof(dlen);
     return 0;
@@ -741,12 +845,13 @@ static int bl_read_dbt_from_dbufio (/*in*/DBT *dbt, DBUFIO_FILESET bfs, int file
 }
 
 
-int loader_write_row(DBT *key, DBT *val, FIDX data, FILE *dataf, uint64_t *dataoff, FTLOADER bl)
+int loader_write_row(DBT *key, DBT *val, FIDX data, FILE *dataf, uint64_t *dataoff, struct wbuf *wb, FTLOADER bl)
 /* Effect: Given a key and a val (both DBTs), write them to a file.  Increment *dataoff so that it's up to date.
  * Arguments:
  *   key, val   write these.
  *   data       the file to write them to
  *   dataoff    a pointer to a counter that keeps track of the amount of data written so far.
+ *   wb         a pointer (possibly NULL) to buffer uncompressed output
  *   bl         the ft_loader (passed so we can panic if needed).
  * Return value: 0 on success, an error number otherwise.
  */
@@ -755,8 +860,8 @@ int loader_write_row(DBT *key, DBT *val, FIDX data, FILE *dataf, uint64_t *datao
     //int vlen = val->size;
     int r;
     // we have a chance to handle the errors because when we close we can delete all the files.
-    if ((r=bl_write_dbt(key, dataf, dataoff, bl))) return r;
-    if ((r=bl_write_dbt(val, dataf, dataoff, bl))) return r;
+    if ((r=bl_write_dbt(key, dataf, dataoff, wb, bl))) return r;
+    if ((r=bl_write_dbt(val, dataf, dataoff, wb, bl))) return r;
     toku_mutex_lock(&bl->file_infos.lock);
     bl->file_infos.file_infos[data.idx].n_rows++;
     toku_mutex_unlock(&bl->file_infos.lock);
@@ -948,7 +1053,7 @@ static void* extractor_thread (void *blv) {
         {
             r = process_primary_rows(bl, primary_rowset);
             if (r)
-                ft_loader_set_panic(bl, r, false);
+                ft_loader_set_panic(bl, r, false, 0, nullptr, nullptr);
         }
     }
 
@@ -956,7 +1061,7 @@ static void* extractor_thread (void *blv) {
     if (r == 0) {
         r = finish_primary_rows(bl); 
         if (r) 
-            ft_loader_set_panic(bl, r, false);
+            ft_loader_set_panic(bl, r, false, 0, nullptr, nullptr);
         
     }
     return NULL;
@@ -1086,31 +1191,41 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
             pkey.size = prow->klen;
             pval.data = primary_rowset->data + prow->off + prow->klen;
             pval.size = prow->vlen;
-        
+
+            DBT *dest_key = &skey;
+            DBT *dest_val = &sval;
+
             {
-                int r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, &skey, &sval, &pkey, &pval);
-                if (r != 0) {
-                    error_codes[i] = r;
+                int r;
+
+                if (bl->dbs[i] != bl->src_db) {
+                    r = bl->generate_row_for_put(bl->dbs[i], bl->src_db, dest_key, dest_val, &pkey, &pval);
+                    if (r != 0) {
+                        error_codes[i] = r;
+                        inc_error_count();
+                        break;
+                    }
+                } else {
+                    dest_key = &pkey;
+                    dest_val = &pval;
+                }
+                if (dest_key->size > klimit) {
+                    error_codes[i] = EINVAL;
+                    fprintf(stderr, "Key too big (keysize=%d bytes, limit=%d bytes)\n", dest_key->size, klimit);
                     inc_error_count();
                     break;
                 }
-                if (skey.size > klimit) {
+                if (dest_val->size > vlimit) {
                     error_codes[i] = EINVAL;
-                    fprintf(stderr, "Key too big (keysize=%d bytes, limit=%d bytes)\n", skey.size, klimit);
-                    inc_error_count();
-                    break;
-                }
-                if (sval.size > vlimit) {
-                    error_codes[i] = EINVAL;
-                    fprintf(stderr, "Row too big (rowsize=%d bytes, limit=%d bytes)\n", sval.size, vlimit);
+                    fprintf(stderr, "Row too big (rowsize=%d bytes, limit=%d bytes)\n", dest_val->size, vlimit);
                     inc_error_count();
                     break;
                 }
             }
 
-            bl->extracted_datasizes[i] += ft_loader_leafentry_size(skey.size, sval.size, leafentry_xid(bl, i));
+            bl->extracted_datasizes[i] += ft_loader_leafentry_size(dest_key->size, dest_val->size, leafentry_xid(bl, i));
 
-            if (row_wont_fit(rows, skey.size + sval.size)) {
+            if (row_wont_fit(rows, dest_key->size + dest_val->size)) {
                 //printf("%s:%d rows.n_rows=%ld rows.n_bytes=%ld\n", __FILE__, __LINE__, rows->n_rows, rows->n_bytes);
                 int r = sort_and_write_rows(*rows, fs, bl, i, bl->dbs[i], compare); // cannot spawn this because of the race on rows.  If we were to create a new rows, and if sort_and_write_rows were to destroy the rows it is passed, we could spawn it, however.
                 // If we do spawn this, then we must account for the additional storage in the memory_per_rowset() function.
@@ -1121,7 +1236,7 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
                     break;
                 }
             }
-            int r = add_row(rows, &skey, &sval);
+            int r = add_row(rows, dest_key, dest_val);
             if (r != 0) {
                 error_codes[i] = r;
                 inc_error_count();
@@ -1142,7 +1257,7 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
             }
         }
 
-        {
+        if (bl->dbs[i] != bl->src_db) {
             if (skey.flags) {
                 toku_free(skey.data); skey.data = NULL;
             }
@@ -1157,7 +1272,10 @@ static int process_primary_rows_internal (FTLOADER bl, struct rowset *primary_ro
     int r = 0;
     if (error_count > 0) {
         for (int i=0; i<bl->N; i++) {
-            if (error_codes[i]) r = error_codes[i];
+            if (error_codes[i]) {
+                r = error_codes[i];
+                ft_loader_set_panic(bl, r, false, i, nullptr, nullptr);
+            }
         }
         invariant(r); // found the error 
     }
@@ -1457,16 +1575,42 @@ static int update_progress (int N,
 
 
 static int write_rowset_to_file (FTLOADER bl, FIDX sfile, const struct rowset rows) {
+    int r = 0;
+    // Allocate a buffer if we're compressing intermediates.
+    char *uncompressed_buffer = nullptr;
+    if (bl->compress_intermediates) {
+        MALLOC_N(MAX_UNCOMPRESSED_BUF, uncompressed_buffer);
+        if (uncompressed_buffer == nullptr) {
+            return ENOMEM;
+        }
+    }
+    struct wbuf wb;
+    wbuf_init(&wb, uncompressed_buffer, MAX_UNCOMPRESSED_BUF);
+
     FILE *sstream = toku_bl_fidx2file(bl, sfile);
     for (size_t i=0; i<rows.n_rows; i++) {
         DBT skey = make_dbt(rows.data + rows.rows[i].off,                     rows.rows[i].klen);
         DBT sval = make_dbt(rows.data + rows.rows[i].off + rows.rows[i].klen, rows.rows[i].vlen);
         
         uint64_t soffset=0; // don't really need this.
-        int r = loader_write_row(&skey, &sval, sfile, sstream, &soffset, bl);
-        if (r != 0) return r;
+        r = loader_write_row(&skey, &sval, sfile, sstream, &soffset, &wb, bl);
+        if (r != 0) {
+            goto exit;
+        }
     }
-    return 0;
+
+    if (bl->compress_intermediates && wb.ndone > 0) {
+        r = bl_finish_compressed_write(sstream, &wb);
+        if (r != 0) {
+            goto exit;
+        }
+    }
+    r = 0;
+exit:
+    if (uncompressed_buffer) {
+        toku_free(uncompressed_buffer);
+    }
+    return r;
 }
 
 
@@ -1621,6 +1765,17 @@ int toku_merge_some_files_using_dbufio (const bool to_q, FIDX dest_data, QUEUE q
         int r = init_rowset(output_rowset, memory_per_rowset_during_merge(bl, n_sources, to_q));
         if (r!=0) result = r;
     }
+
+    // Allocate a buffer if we're compressing intermediates.
+    char *uncompressed_buffer = nullptr;
+    struct wbuf wb;
+    if (bl->compress_intermediates && !to_q) {
+        MALLOC_N(MAX_UNCOMPRESSED_BUF, uncompressed_buffer);
+        if (uncompressed_buffer == nullptr) {
+            result = ENOMEM;
+        }
+    }
+    wbuf_init(&wb, uncompressed_buffer, MAX_UNCOMPRESSED_BUF);
     
     //printf(" n_rows=%ld\n", n_rows);
     while (result==0 && pqueue_size(pq)>0) {
@@ -1663,7 +1818,7 @@ int toku_merge_some_files_using_dbufio (const bool to_q, FIDX dest_data, QUEUE q
             }
         } else {
             // write it to the dest file
-            int r = loader_write_row(&keys[mini], &vals[mini], dest_data, dest_stream, &dataoff[mini], bl);
+            int r = loader_write_row(&keys[mini], &vals[mini], dest_data, dest_stream, &dataoff[mini], &wb, bl);
             if (r!=0) {
                 result = r;
                 break;
@@ -1710,6 +1865,10 @@ int toku_merge_some_files_using_dbufio (const bool to_q, FIDX dest_data, QUEUE q
             if (0) printf("%s:%d Progress=%d\n", __FILE__, __LINE__, r);
         }
     }
+    if (result == 0 && uncompressed_buffer != nullptr && wb.ndone > 0) {
+        result = bl_finish_compressed_write(dest_stream, &wb);
+    }
+
     if (result==0 && to_q) {
         int r = queue_enq(q, (void*)output_rowset, 1, NULL);
         if (r!=0) 
@@ -1719,6 +1878,9 @@ int toku_merge_some_files_using_dbufio (const bool to_q, FIDX dest_data, QUEUE q
     }
 
     // cleanup
+    if (uncompressed_buffer) {
+        toku_free(uncompressed_buffer);
+    }
     for (int i=0; i<n_sources; i++) {
         toku_free(keys[i].data);  keys[i].data = NULL;
         toku_free(vals[i].data);  vals[i].data = NULL;
@@ -1754,7 +1916,8 @@ static int merge_some_files (const bool to_q, FIDX dest_data, QUEUE q, int n_sou
         }
     }
     if (result==0) {
-        int r = create_dbufio_fileset(&bfs, n_sources, fds, memory_per_rowset_during_merge(bl, n_sources, to_q));
+        int r = create_dbufio_fileset(&bfs, n_sources, fds,
+                memory_per_rowset_during_merge(bl, n_sources, to_q), bl->compress_intermediates);
         if (r!=0) { result = r; }
     }
         
@@ -1895,7 +2058,7 @@ int merge_files (struct merge_fileset *fs,
 
         if (result!=0) break;
     }
-    if (result) ft_loader_set_panic(bl, result, true);
+    if (result) ft_loader_set_panic(bl, result, true, which_db, nullptr, nullptr);
 
     {
         int r = queue_eof(output_q);
@@ -2249,7 +2412,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
             int rr = queue_deq(q, &item, NULL, NULL);
             if (rr == EOF) break;
             if (rr != 0) {
-                ft_loader_set_panic(bl, rr, true);
+                ft_loader_set_panic(bl, rr, true, which_db, nullptr, nullptr);
                 break;
             }
         }
@@ -2283,8 +2446,8 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
                 n_pivots++;
 
                 invariant(maxkey.data != NULL);
-                if ((r = bl_write_dbt(&maxkey, pivots_stream, NULL, bl))) {
-                    ft_loader_set_panic(bl, r, true);
+                if ((r = bl_write_dbt(&maxkey, pivots_stream, NULL, nullptr, bl))) {
+                    ft_loader_set_panic(bl, r, true, which_db, nullptr, nullptr);
                     if (result == 0) result = r;
                     break;
                 }
@@ -2294,7 +2457,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
 
                 r = allocate_block(&out, &lblock);
                 if (r != 0) {
-                    ft_loader_set_panic(bl, r, true);
+                    ft_loader_set_panic(bl, r, true, which_db, nullptr, nullptr);
                     if (result == 0) result = r;
                     break;
                 }
@@ -2346,7 +2509,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
 
     {
         DBT key = make_dbt(0,0); // must write an extra DBT into the pivots file.
-        r = bl_write_dbt(&key, pivots_stream, NULL, bl);
+        r = bl_write_dbt(&key, pivots_stream, NULL, nullptr, bl);
         if (r) { 
             result = r; goto error;
         }
@@ -2723,7 +2886,7 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
         result = update_progress(progress_allocation, bl, "wrote node");
 
     if (result)
-        ft_loader_set_panic(bl, result, true);
+        ft_loader_set_panic(bl, result, true, 0, nullptr, nullptr);
 }
 
 static int write_translation_table (struct dbout *out, long long *off_of_translation_p) {
@@ -2833,7 +2996,7 @@ static int setup_nonleaf_block (int n_children,
 
     if (result == 0) {
         FILE *next_pivots_stream = toku_bl_fidx2file(bl, next_pivots_file);
-        int r = bl_write_dbt(&pivots[n_children-1], next_pivots_stream, NULL, bl);
+        int r = bl_write_dbt(&pivots[n_children-1], next_pivots_stream, NULL, nullptr, bl);
         if (r)
             result = r;
     }
@@ -2933,7 +3096,7 @@ static void write_nonleaf_node (FTLOADER bl, struct dbout *out, int64_t blocknum
     toku_free(subtree_info);
 
     if (result != 0)
-        ft_loader_set_panic(bl, result, true);
+        ft_loader_set_panic(bl, result, true, 0, nullptr, nullptr);
 }
 
 static int write_nonleaves (FTLOADER bl, FIDX pivots_fidx, struct dbout *out, struct subtrees_info *sts, const DESCRIPTOR descriptor, uint32_t target_nodesize, uint32_t target_basementnodesize, enum toku_compression_method target_compression_method) {

@@ -42,7 +42,7 @@ static void test1 (size_t chars_per_file, size_t UU(bytes_per_read)) {
     }
     DBUFIO_FILESET bfs;
     {
-	int r = create_dbufio_fileset(&bfs, N, fds, M);
+	int r = create_dbufio_fileset(&bfs, N, fds, M, false);
 	assert(r==0);
     }
 

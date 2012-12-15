@@ -326,7 +326,7 @@ static void test (const char *directory, bool is_error) {
 					       bt_compare_functions,
 					       "tempxxxxxx",
 					       *lsnp,
-                                               TXNID_NONE, true);
+                                               TXNID_NONE, true, false);
 	assert(r==0);
     }
 
@@ -340,7 +340,7 @@ static void test (const char *directory, bool is_error) {
     { int r = queue_create(&q, 1000); assert(r==0); }
     DBUFIO_FILESET bfs;
     const int MERGE_BUF_SIZE = 100000; // bigger than 64K so that we will trigger malloc issues.
-    { int r = create_dbufio_fileset(&bfs, N_SOURCES, fds, MERGE_BUF_SIZE);  assert(r==0); }
+    { int r = create_dbufio_fileset(&bfs, N_SOURCES, fds, MERGE_BUF_SIZE, false);  assert(r==0); }
     FIDX *XMALLOC_N(N_SOURCES, src_fidxs);
     assert(bl->file_infos.n_files==0);
     bl->file_infos.n_files = N_SOURCES;
