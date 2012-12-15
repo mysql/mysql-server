@@ -1122,8 +1122,7 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_DEFAULT_START, MONITOR_MODULE_DML_STATS},
 
 	{"dml_reads", "dml", "Number of rows read",
-	 static_cast<monitor_type_t>(
-	 MONITOR_EXISTING | MONITOR_DEFAULT_ON),
+	 static_cast<monitor_type_t>(MONITOR_EXISTING),
 	 MONITOR_DEFAULT_START, MONITOR_OLVD_ROW_READ},
 
 	{"dml_inserts", "dml", "Number of rows inserted",
