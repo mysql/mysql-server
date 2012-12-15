@@ -375,7 +375,6 @@ int create_dbufio_fileset (DBUFIO_FILESET *bfsp, int N, int fds[/*N*/], size_t b
             if (bfs->compressed) {
                 r = dbf_read_compressed(&bfs->files[i], bfs->files[i].buf[0], bufsize);
             } else {
-                //TODO: 5663 If compressed need to read differently
 		r = toku_os_read(bfs->files[i].fd, bfs->files[i].buf[0], bufsize);
             }
             {
