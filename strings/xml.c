@@ -222,9 +222,11 @@ static int my_xml_value(MY_XML_PARSER *st, const char *str, size_t len)
 static int my_xml_attr_ensure_space(MY_XML_PARSER *st, size_t len)
 {
   size_t ofs= st->attr.end - st->attr.start;
-  if (ofs + len + 1 /* terminating zero */ > st->attr.buffer_size)
+  len++; // Add terminating zero.
+  if (ofs + len > st->attr.buffer_size)
   {
-    st->attr.buffer_size= st->attr.buffer_size * 2 + len + 1 /* term. zero */;
+    st->attr.buffer_size= (SIZE_T_MAX - len) / 2 > st->attr.buffer_size ?
+                            st->attr.buffer_size * 2 + len : SIZE_T_MAX;
 
     if (!st->attr.buffer)
     {
@@ -237,8 +239,10 @@ static int my_xml_attr_ensure_space(MY_XML_PARSER *st, size_t len)
                                                st->attr.buffer_size);
     st->attr.start= st->attr.buffer;
     st->attr.end= st->attr.start + ofs;
+    
+    return st->attr.buffer ? MY_XML_OK : MY_XML_ERROR;
   }
-  return st->attr.buffer ? MY_XML_OK : MY_XML_ERROR;
+  return MY_XML_OK;
 }
 
 
@@ -489,7 +493,11 @@ gt:
 void my_xml_parser_create(MY_XML_PARSER *p)
 {
   memset(p, 0, sizeof(p[0]));
+  /*
+    Use static buffer while it's sufficient.
+  */
   p->attr.start= p->attr.end= p->attr.static_buffer;
+  p->attr.buffer_size= sizeof(p->attr.static_buffer);
 }
 
 
