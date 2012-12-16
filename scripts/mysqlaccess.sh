@@ -118,10 +118,10 @@ Usage: $script [host [user [db]]] OPTIONS
   --rollback           undo the last changes to the grant-tables.
 
   Note:
-    + At least the user and the db must be given (even with wildcards)
-    + If no host is given, `localhost' is assumed
-    + Wilcards (*,?,%,_) are allowed for host, user and db, but be sure 
-      to escape them from your shell!! (ie type \\* or '*')
+    At least the user and the db must be given (even with wildcards)
+    If no host is given, `localhost' is assumed
+    Wilcards (*,?,%,_) are allowed for host, user and db, but be sure 
+    to escape them from your shell!! (ie type \\* or '*')
 _OPTIONS
 
 $RELEASE = <<'_RELEASE';
