@@ -104,7 +104,7 @@ t2.runTestMethod = function do_delete_op(keyObj) {
   var ixhandler = thandler.getIndexHandler(keyObj);
   var test = this;
 
-  var op = dbSession.buildDeleteOperation(ixhandler, keyObj, tx, null);
+  var op = dbSession.buildDeleteOperation(ixhandler, ixhandler.getFields(keyObj), tx, null);
   
   tx.execute([ op ], function(err, tx) {
     if(err) { 

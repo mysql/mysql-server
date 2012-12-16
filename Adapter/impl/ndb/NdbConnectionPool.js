@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global path, build_dir, assert, unified_debug */
+/*global path, build_dir, assert, spi_dir, api_dir, unified_debug */
 
 "use strict";
 
@@ -27,6 +27,8 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     dbtablehandler = require("../common/DBTableHandler.js"),
     udebug         = unified_debug.getLogger("NdbConnectionPool.js"),
     ndb_is_initialized = false,
+    stats_module   = require(path.join(api_dir,"stats.js")),
+    stats          = stats_module.getWriter("spi","ndb","DBConnectionPool"),
     proto;
 
 
@@ -72,6 +74,7 @@ function releaseDictionaryLock(ndbSession) {
 */   
 exports.DBConnectionPool = function(props) {
   udebug.log("constructor");
+  stats.incr("created");
 
   initialize_ndb();
   
@@ -102,14 +105,17 @@ exports.DBConnectionPool.prototype = proto;
    Returns true on success and false on error.
 */
 proto.connectSync = function() {
+  stats.incr("connect", "sync");
   var r, nnodes;
   var db = this.properties.database;
   r = this.ndbconn.connect(this.properties.ndb_connect_retries,
                            this.properties.ndb_connect_delay,
                            this.properties.ndb_connect_verbose);
   if(r === 0) {
+    stats.incr("connections","successful");
     nnodes = this.ndbconn.wait_until_ready(1, 1);
     if(nnodes < 0) {
+      stats.incr("on_ready","timeouts");
       throw new Error("Timeout waiting for cluster to become ready.");
     }
     else {
@@ -118,12 +124,17 @@ proto.connectSync = function() {
         udebug.log_notice("Warning: only", nnodes, "data nodes are running.");
       }
       udebug.log_notice("Connected to cluster as node id:", this.ndbconn.node_id());
+      stats.push("node_ids", this.ndbconn.node_id());
     }
 
     /* Get sessionImpl and session for dictionary use */
     this.dictionary = adapter.ndb.impl.DBSession.create(this.ndbconn, db);  
     this.dict_sess  = ndbsession.newDBSession(this, this.dictionary);
   }
+  else {
+    stats.incr("connections","failed");
+  }
+
     
   return this.is_connected;
 };
@@ -133,6 +144,7 @@ proto.connectSync = function() {
 */
 proto.connect = function(user_callback) {
   udebug.log("connect");
+  stats.incr("connect", "async");
   var self = this,
       err = null;
 
@@ -153,6 +165,7 @@ proto.connect = function(user_callback) {
     // Cluster is ready.  Next step is to get the dictionary session
     udebug.log("connect() onReady nnodes =", nnodes);
     if(nnodes < 0) {
+      stats.incr("on_ready","timeouts");
       err = new Error("Timeout waiting for cluster to become ready.");
       user_callback(err, self);
     }
@@ -170,10 +183,12 @@ proto.connect = function(user_callback) {
     // Connected to NDB.  Next step is wait_until_ready().
     udebug.log("connect() onConnected rval =", rval);
     if(rval === 0) {
+      stats.incr("connections","successful");
       assert(typeof self.ndbconn.wait_until_ready === 'function');
       self.ndbconn.wait_until_ready(1, 1, onReady);
     }
     else {
+      stats.incr("connectios","failed");
       err = new Error('NDB Connect failed ' + rval);       
       user_callback(err, self);
     }
@@ -240,7 +255,7 @@ proto.getDBSession = function(index, user_callback) {
  *  Design notes: 
  *    A single Ndb can perform one metadata lookup at a time. 
  *    An NdbSession object owns a dictionary lock and a queue of dictionary calls.
- *    If we can get the lock, we run a call immediately; if not. place it on the queue.
+ *    If we can get the lock, we run a call immediately; if not, place it on the queue.
  *    
  *    Also, it often happens in a Batch context that a bunch of operations all
  *    need the same metadata.  So, for each dictionary call, we create a group callback,
@@ -255,6 +270,7 @@ proto.getDBSession = function(index, user_callback) {
 
 
 function makeGroupCallback(dbSession, container, key) {
+  stats.incr("group_callbacks","created");
   var groupCallback = function(param1, param2) {
     var callbackList, i, nextCall;
     /* The Dictionay Call is complete */
@@ -310,6 +326,7 @@ function makeGetTableCall(dbSession, ndbConnectionPool, dbName, tableName) {
   */
 proto.listTables = function(databaseName, dbSession, user_callback) {
   udebug.log("listTables");
+  stats.incr("listTables");
   assert(databaseName && user_callback);
   var dictSession = dbSession || this.dict_sess; 
   var dictionaryCall;
@@ -344,6 +361,7 @@ proto.listTables = function(databaseName, dbSession, user_callback) {
 proto.getTableMetadata = function(dbname, tabname, dbSession, user_callback) {
   var dictSession, tableKey, dictionaryCall;
   udebug.log("getTableMetadata");
+  stats.incr("getTableMetadata");
   assert(dbname && tabname && user_callback);
   dictSession = dbSession || this.dict_sess; 
   tableKey = dbname + "." + tabname;

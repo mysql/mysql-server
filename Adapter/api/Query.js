@@ -218,6 +218,12 @@ QueryAnd.prototype.getTopLevelPredicates = function() {
 var CandidateIndex = function(dbTableHandler, indexNumber) {
   this.dbTableHandler = dbTableHandler;
   this.dbIndexHandler = dbTableHandler.dbIndexHandlers[indexNumber];
+  if(! this.dbIndexHandler) {
+    console.log("indexNumber", typeof(indexNumber));
+    console.trace("not an index handler");
+    process.exit();
+  }
+  
   this.numberOfColumns = this.dbIndexHandler.dbIndex.columnNumbers.length;
   // make an array of parameter names corresponding to index columns
   this.parameterNames = [];

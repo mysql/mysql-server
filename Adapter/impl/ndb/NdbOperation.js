@@ -18,13 +18,16 @@
  02110-1301  USA
  */
 
-/*global unified_debug, path, build_dir, spi_doc_dir, assert */
+/*global unified_debug, path, build_dir, api_dir, spi_doc_dir, assert */
 
 "use strict";
 
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     encoders      = require("./NdbTypeEncoders.js").defaultForType,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
+    stats_module  = require(path.join(api_dir,"stats.js")),
+    stats         = stats_module.getWriter("spi","ndb","DBOperation"),
+    index_stats   = stats_module.getWriter("spi","ndb","key_access"),
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
 
@@ -42,6 +45,8 @@ var DBOperation = function(opcode, tx, tableHandler) {
   assert(tx);
   assert(tableHandler);
 
+  stats.incr("created",opcode);
+
   this.opcode       = opcode;
   this.transaction  = tx;
   this.tableHandler = tableHandler;
@@ -54,6 +59,7 @@ DBOperation.prototype = doc.DBOperation;
 
 DBOperation.prototype.prepare = function(ndbTransaction) {
   udebug.log("prepare", this.opcode);
+  stats.incr("prepared");
   var helperSpec = {}, helper;
   switch(this.opcode) {
     case 'insert':
@@ -115,6 +121,9 @@ function encodeKeyBuffer(indexHandler, op, keys) {
     udebug.log("encodeKeyBuffer NO_INDEX");
     return;
   }
+  index_stats.incr(indexHandler.tableHandler.dbTable.database,
+                   indexHandler.tableHandler.dbTable.name,
+                   op.index.isPrimaryKey ? "PrimaryKey" : op.index.name);
 
   record = op.index.record;
   op.buffers.key = new Buffer(record.getBufferSize());
@@ -123,7 +132,7 @@ function encodeKeyBuffer(indexHandler, op, keys) {
   col = indexHandler.getColumnMetadata();
   for(i = 0 ; i < nfields ; i++) {
     value = keys[i];
-    if(value) {
+    if(value !== null) {
       offset = record.getColumnOffset(i);
       encoder = encoders[col[i].ndbTypeId];
       encoder.write(col[i], value, op.buffers.key, offset);
@@ -178,7 +187,7 @@ function readResultRow(op) {
       value = null;
     }
     else {
-      value   = encoder.read(col[i], op.buffers.row, offset);
+      value = encoder.read(col[i], op.buffers.row, offset);
     }
     dbt.set(resultRow, i, value);
   }
@@ -213,6 +222,7 @@ function completeExecutedOps(txError, txOperations) {
       udebug.log("completeExecutedOps op",i, op.state);
       op.result = new DBResult();
       ndberror = op.ndbop.getNdbError();
+      stats.incr("result_code", ndberror.code);
       if(ndberror.code === 0) {
         op.result.success = true;
       }

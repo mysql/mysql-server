@@ -26,6 +26,7 @@ SerialTest: tests to be run serially, using the test setup. These tests
 
 Tests are functions that are created via the ConcurrentTest or SerialTest
 constructors.  SerialTests and ConcurrentTests must declare a run() method.
+
 ConcurrentSubTests are asynchronous concurrent tests which do not have a run() 
 method of their own but are run as part of a larger ConcurrentTest.  The run()
 method of the larger test must separately call fail() or pass() on itself and on

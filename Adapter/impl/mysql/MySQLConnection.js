@@ -20,13 +20,17 @@
 
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
-/*global unified_debug, util */
+/*global unified_debug, util, path, api_dir */
 
 "use strict";
 
 var mysql  = require("mysql"),
-    udebug = unified_debug.getLogger("MySQLConnection.js");
-
+    udebug = unified_debug.getLogger("MySQLConnection.js"),
+    stats_module  = require(path.join(api_dir, "stats.js")),
+    session_stats  = stats_module.domain("spi","mysql","DBSession"),
+    transaction_stats = stats_module.domain("spi","mysql","DBTransactionHandler"),
+    op_stats = stats_module.domain("spi","mysql","DBOperation");
+    
 
 /** MySQLConnection wraps a mysql connection and implements the DBSession contract */
 exports.DBSession = function(pooledConnection, connectionPool) {
@@ -44,6 +48,7 @@ exports.DBSession = function(pooledConnection, connectionPool) {
     this.transactionHandler = null;
     this.autocommit = true;
     this.index = -1;
+    session_stats.incr("created");
   }
 };
 
@@ -87,10 +92,12 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
     // execute begin operation the first time for non-autocommit
     if (this.firstTime) {
+      transaction_stats.incr("execute","no_commit");
       transactionHandler.operationsList = operationsList;
       transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
       this.dbSession.pooledConnection.query('begin', executeOnBegin);
     } else {
+      transaction_stats.incr("execute","commit");
       if (transactionHandler.numberOfOperations > 0) {
         // there are pending operations, so just put this request on the list
         transactionHandler.pendingOperationsList.push(
@@ -108,6 +115,7 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
   
   this.close = function() {
+    transaction_stats.incr("closed");
   };
 
   this.operationCompleteCallback = function(completedOperation) {
@@ -144,12 +152,14 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
   this.commit = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.commit.');
+    transaction_stats.incr("commit");
     this.dbSession.pooledConnection.query('commit', callback);
     this.dbSession.transactionHandler = null;
   };
 
   this.rollback = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.rollback.');
+    transaction_stats.incr("rollback");
     this.dbSession.pooledConnection.query('rollback', callback);
     this.dbSession.transactionHandler = null;
   };
@@ -176,13 +186,13 @@ exports.DBSession.translateError = function(code) {
 
 function InsertOperation(sql, data, callback) {
   udebug.log('dbSession.InsertOperation with', sql, data);
-
   var op = this;
   this.sql = sql;
   this.data = data;
   this.callback = callback;
   this.result = {};
   this.result.error = {};
+  op_stats.incr("created","insert");
 
   function onInsert(err, status) {
     if (err) {
@@ -212,13 +222,13 @@ function InsertOperation(sql, data, callback) {
 
 function WriteOperation(sql, data, callback) {
   udebug.log('dbSession.WriteOperation with', sql, data);
-
   var op = this;
   this.sql = sql;
   this.data = data;
   this.callback = callback;
   this.result = {};
   this.result.error = {};
+  op_stats.incr("created","write");
 
   function onWrite(err, status) {
     if (err) {
@@ -254,6 +264,7 @@ function DeleteOperation(sql, keys, callback) {
   this.callback = callback;
   this.result = {};
   this.result.error = {};
+  op_stats.incr("created","delete");
 
   function onDelete(err, status) {
     if (err) {
@@ -293,6 +304,7 @@ function ReadOperation(sql, keys, callback) {
   this.callback = callback;
   this.result = {};
   this.result.error = {};
+  op_stats.incr("created","read");
 
   function onRead(err, rows) {
     if (err) {
@@ -345,6 +357,7 @@ function UpdateOperation(sql, keys, values, callback) {
   this.callback = callback;
   this.result = {};
   this.result.error = 0;
+  op_stats.incr("created","update");
 
   function onUpdate(err, status) {
     if (err) {
@@ -677,6 +690,7 @@ exports.DBSession.prototype.closeSync = function() {
 
 exports.DBSession.prototype.close = function(callback) {
   udebug.log('MySQLConnection.close');
+  session_stats.incr("closed");
   if (this.pooledConnection) {
     // TODO put the pooled connection back into the pool instead of ending it
     this.pooledConnection.end();
