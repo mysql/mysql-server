@@ -2416,6 +2416,12 @@ create table if not exists t1 (a int, b int) select 2,2;
 ERROR 42S01: Table 't1' already exists
 create table if not exists t1 like t2;
 ERROR 42S01: Table 't1' already exists
+create table t1 (a int, b int);
+ERROR 42S01: Table 't1' already exists
+create table t1 (a int, b int) select 2,2;
+ERROR 42S01: Table 't1' already exists
+create table t1 like t2;
+ERROR 42S01: Table 't1' already exists
 select * from t1;
 a	b
 1	1

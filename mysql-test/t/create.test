@@ -2013,6 +2013,12 @@ create table if not exists t1 (a int, b int);
 create table if not exists t1 (a int, b int) select 2,2;
 --error ER_TABLE_EXISTS_ERROR
 create table if not exists t1 like t2;
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int, b int);
+--error ER_TABLE_EXISTS_ERROR
+create table t1 (a int, b int) select 2,2;
+--error ER_TABLE_EXISTS_ERROR
+create table t1 like t2;
 disconnect user1;
 connection default;
 select * from t1;

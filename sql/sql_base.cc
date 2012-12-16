@@ -4779,6 +4779,7 @@ lock_table_names(THD *thd,
     */
     if (check_if_table_exists(thd, tables_start, 1, &exists))
       DBUG_RETURN(TRUE);                       // Should never happen
+    thd->warning_info->clear_warning_info(thd->query_id);
     thd->clear_error();                        // Forget timeout error
     if (exists)
     {
