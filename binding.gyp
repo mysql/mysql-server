@@ -15,12 +15,14 @@
 # We set LIBPATH to my_lib
 
 {
-  'variables': [
-    'mysql_path' : "/Users/jdd/bzr-repo/install-tests/7.2-working",    
-  ],
- 
-  'targets': [
+  'variables': 
   {
+    'mysql_path' : "/Users/jdd/bzr-repo/install-tests/7.2-working", 
+  },
+ 
+  'targets': 
+  [
+    {
       'target_name': "ndb_adapter",
 
       'include_dirs': 
@@ -28,6 +30,7 @@
         '<(mysql_path)/include',
         '<(mysql_path)/include/mysql',
         '<(mysql_path)/include/storage/ndb',
+        '<(mysql_path)/include/storage/ndb/ndbapi',
         'Adapter/impl/include'
       ],
         
@@ -57,7 +60,7 @@
         "-lndbclient", 
         "-lmysqlclient"
       ],
-  }
+    }
   ]
 }
 

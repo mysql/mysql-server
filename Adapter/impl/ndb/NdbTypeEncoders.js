@@ -72,6 +72,18 @@ function makeIntEncoder(type,size) {
   return enc;
 }
 
+/* BIGINT.  NOT COMPLETE YET. */
+var bigIntEncoder = new NdbEncoder();
+bigIntEncoder.write = function write(col, value, buffer, offset) {
+  buffer.writeInt32LE(value & 0xFFFFFF, offset);
+  buffer.writeInt32LE(0, offset+4);  // fixme! 
+};
+
+bigIntEncoder.read = function(col, buffer, offset) {
+   var value = buffer.readInt32LE(offset);
+   return value.toString();
+};
+
 // pad string with spaces for CHAR column
 var spaces = String('                                             ');
 function pad(str, finalLen) {
@@ -190,6 +202,22 @@ timeStampEncoder.write = function(col, value, buffer, offset) {
   this.intEncoder.write(col, intValue, buffer, offset);
 };
 
+/* Medium encoder 
+*/
+var mediumEncoder = new NdbEncoder();
+mediumEncoder.write = function(col, value, buffer, offset) {
+  buffer[offset]   = (value & 0xFF);
+  buffer[offset+1] = (value & 0xFF00) >> 8;
+  buffer[offset+2] = (value & 0xFF0000) >> 16;
+};
+
+mediumEncoder.read = function(col, buffer, offset) {
+  var value = buffer[offset];
+  value |= (buffer[offset+1] << 8);
+  value |= (buffer[offset+2] << 16);
+  return value;
+};
+
 
 var defaultTypeEncoders = [
   null,                                   // 0 
@@ -197,12 +225,12 @@ var defaultTypeEncoders = [
   makeIntEncoder("UInt",8),               // 2  TINY UNSIGNED
   makeIntEncoder("Int",16),               // 3  SMALL INT
   makeIntEncoder("UInt",16),              // 4  SMALL UNSIGNED
-  null,                                   // 5  MEDIUM INT
-  null,                                   // 6  MEDIUM UNSIGNED
+  mediumEncoder,                          // 5  MEDIUM INT
+  mediumEncoder,                          // 6  MEDIUM UNSIGNED
   makeIntEncoder("Int",32),               // 7  INT
   makeIntEncoder("UInt",32),              // 8  UNSIGNED
-  null,                                   // 9  BIGINT
-  null,                                   // 10 BIG UNSIGNED
+  bigIntEncoder,         /*fixme*/        // 9  BIGINT
+  bigIntEncoder,         /*fixme*/        // 10 BIG UNSIGNED
   null,                                   // 11
   null,                                   // 12
   null,                                   // OLDDECIMAL

@@ -18,7 +18,7 @@
  02110-1301  USA
  */
 
-/*global unified_debug, path, build_dir */
+/*global unified_debug, path, build_dir, api_dir */
 
 "use strict";
 
@@ -28,6 +28,7 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     util           = require("util"),
     assert         = require("assert"),
     udebug         = unified_debug.getLogger("NdbSession.js"),
+    stats          = require(path.join(api_dir,"stats.js")).getWriter("spi","ndb","DBSession"),
     NdbSession;
 
 
@@ -146,6 +147,7 @@ exports.runQueuedTransaction = function(ndbTransactionHandler) {
 */
 NdbSession = function() { 
   udebug.log("constructor");
+  stats.incr("created");
 };
 
 /* NdbSession prototype 
@@ -174,6 +176,7 @@ NdbSession.prototype.getConnectionPool = function() {
 */
 NdbSession.prototype.close = function(userCallback) {
   udebug.log("close");
+  stats.incr("closed");
   if(this.impl) {
     adapter.ndb.impl.DBSession.destroy(this.impl);
   }
