@@ -182,6 +182,12 @@ QueryDomainType.prototype.execute = function() {
 var CandidateIndex = function(dbTableHandler, indexNumber) {
   this.dbTableHandler = dbTableHandler;
   this.dbIndexHandler = dbTableHandler.dbIndexHandlers[indexNumber];
+  if(! this.dbIndexHandler) {
+    console.log("indexNumber", typeof(indexNumber));
+    console.trace("not an index handler");
+    process.exit();
+  }
+  
   this.numberOfColumns = this.dbIndexHandler.dbIndex.columnNumbers.length;
   // make an array of parameter names corresponding to index columns
   this.parameterNames = [];
@@ -262,7 +268,7 @@ var QueryHandler = function(dbTableHandler, predicate) {
       }
     } else if (index.isOrdered) {
       // create an array of candidate indexes for ordered indexes to be evaluated later
-      orderedCandidateIndexes.push(new CandidateIndex(dbTableHandler, index));
+      orderedCandidateIndexes.push(new CandidateIndex(dbTableHandler, i));
     } else {
       throw new Error('FatalInternalException: index is not unique or ordered... so what is it?');
     }

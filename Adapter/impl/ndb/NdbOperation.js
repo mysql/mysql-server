@@ -27,6 +27,7 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
     stats         = stats_module.getWriter("spi","ndb","DBOperation"),
+    index_stats   = stats_module.getWriter("spi","ndb","key_access"),
     udebug        = unified_debug.getLogger("NdbOperation.js");
 
 
@@ -120,6 +121,9 @@ function encodeKeyBuffer(indexHandler, op, keys) {
     udebug.log("encodeKeyBuffer NO_INDEX");
     return;
   }
+  index_stats.incr(indexHandler.tableHandler.dbTable.database,
+                   indexHandler.tableHandler.dbTable.name,
+                   op.index.isPrimaryKey ? "PrimaryKey" : op.index.name);
 
   record = op.index.record;
   op.buffers.key = new Buffer(record.getBufferSize());

@@ -72,6 +72,18 @@ function makeIntEncoder(type,size) {
   return enc;
 }
 
+/* BIGINT.  NOT COMPLETE YET. */
+var bigIntEncoder = new NdbEncoder();
+bigIntEncoder.write = function write(col, value, buffer, offset) {
+  buffer.writeInt32LE(value & 0xFFFFFF, offset);
+  buffer.writeInt32LE(0, offset+4);  // fixme! 
+};
+
+bigIntEncoder.read = function(col, buffer, offset) {
+   var value = buffer.readInt32LE(offset);
+   return value.toString();
+};
+
 // pad string with spaces for CHAR column
 var spaces = String('                                             ');
 function pad(str, finalLen) {
@@ -217,8 +229,8 @@ var defaultTypeEncoders = [
   mediumEncoder,                          // 6  MEDIUM UNSIGNED
   makeIntEncoder("Int",32),               // 7  INT
   makeIntEncoder("UInt",32),              // 8  UNSIGNED
-  dateTimeEncoder,       /*fixme*/        // 9  BIGINT
-  dateTimeEncoder,       /*fixme*/        // 10 BIG UNSIGNED
+  bigIntEncoder,         /*fixme*/        // 9  BIGINT
+  bigIntEncoder,         /*fixme*/        // 10 BIG UNSIGNED
   null,                                   // 11
   null,                                   // 12
   null,                                   // OLDDECIMAL
