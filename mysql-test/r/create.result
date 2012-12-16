@@ -2403,3 +2403,21 @@ a	b
 1	1
 drop table t1;
 #
+# Checking that CREATE IF NOT EXISTS is not blocked by running SELECT
+#
+create table t1 (a int, b int) engine=myisam;
+create table t2 (a int, b int) engine=myisam;
+insert into t1 values (1,1);
+lock tables t1 read;
+set @@lock_wait_timeout=5;
+create table if not exists t1 (a int, b int);
+ERROR 42S01: Table 't1' already exists
+create table if not exists t1 (a int, b int) select 2,2;
+ERROR 42S01: Table 't1' already exists
+create table if not exists t1 like t2;
+ERROR 42S01: Table 't1' already exists
+select * from t1;
+a	b
+1	1
+unlock tables;
+drop table t1,t2;

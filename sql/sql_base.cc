@@ -2400,10 +2400,11 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     Check that table exists in table definition cache, on disk
     or in some storage engine.
 
-    @param       thd     Thread context
-    @param       table   Table list element
-    @param[out]  exists  Out parameter which is set to TRUE if table
-                         exists and to FALSE otherwise.
+    @param       thd        Thread context
+    @param       table      Table list element
+    @param       fast_check Check only if share or .frm file exists 
+    @param[out]  exists     Out parameter which is set to TRUE if table
+                            exists and to FALSE otherwise.
 
     @note This function acquires LOCK_open internally.
 
@@ -2415,7 +2416,8 @@ void drop_open_table(THD *thd, TABLE *table, const char *db_name,
     @retval  FALSE  No error. 'exists' out parameter set accordingly.
 */
 
-bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
+bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool fast_check,
+                           bool *exists)
 {
   char path[FN_REFLEN + 1];
   TABLE_SHARE *share;
@@ -2423,7 +2425,8 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 
   *exists= TRUE;
 
-  DBUG_ASSERT(thd->mdl_context.
+  DBUG_ASSERT(fast_check ||
+              thd->mdl_context.
               is_lock_owner(MDL_key::TABLE, table->db,
                             table->table_name, MDL_SHARED));
 
@@ -2439,6 +2442,12 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
 
   if (!access(path, F_OK))
     goto end;
+
+  if (fast_check)
+  {
+    *exists= FALSE;
+    goto end;
+  }
 
   /* .FRM file doesn't exist. Check if some engine can provide it. */
   if (ha_check_if_table_exists(thd, table->db, table->table_name, exists))
@@ -2989,7 +2998,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, MEM_ROOT *mem_root,
   {
     bool exists;
 
-    if (check_if_table_exists(thd, table_list, &exists))
+    if (check_if_table_exists(thd, table_list, 0, &exists))
       DBUG_RETURN(TRUE);
 
     if (!exists)
@@ -4673,6 +4682,12 @@ extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
 
   @retval FALSE  Success.
   @retval TRUE   Failure (e.g. connection was killed)
+
+  @notes
+    In case of CREATE TABLE IF NOT EXISTS we avoid a wait for tables that
+    are in use by first trying to do a meta data lock with timeout= 0.
+    If we get a timeout we will check if table exists (it should) and
+    retry with normal timeout if it didn't exists.
 */
 
 bool
@@ -4684,6 +4699,9 @@ lock_table_names(THD *thd,
   TABLE_LIST *table;
   MDL_request global_request;
   Hash_set<TABLE_LIST, schema_set_get_key> schema_set;
+  ulong org_lock_wait_timeout= lock_wait_timeout;
+  /* Check if we are using CREATE TABLE ... IF NOT EXISTS */
+  bool create_if_not_exists;
   DBUG_ENTER("lock_table_names");
 
   DBUG_ASSERT(!thd->locked_tables_mode);
@@ -4705,8 +4723,14 @@ lock_table_names(THD *thd,
     }
   }
 
-  if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
-      ! mdl_requests.is_empty())
+  if (mdl_requests.is_empty())
+    DBUG_RETURN(FALSE);
+
+  /* Check if CREATE TABLE IF NOT EXISTS was used */
+  create_if_not_exists= (tables_start && tables_start->open_strategy ==
+                         TABLE_LIST::OPEN_IF_EXISTS);
+
+  if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK))
   {
     /*
       Scoped locks: Take intention exclusive locks on all involved
@@ -4734,12 +4758,45 @@ lock_table_names(THD *thd,
     global_request.init(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
                         MDL_STATEMENT);
     mdl_requests.push_front(&global_request);
+
+    if (create_if_not_exists)
+      lock_wait_timeout= 0;                     // Don't wait for timeout
   }
 
-  if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
-    DBUG_RETURN(TRUE);
+  for (;;)
+  {
+    bool exists= TRUE;
+    if (!thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
+      DBUG_RETURN(FALSE);                       // Got locks
 
-  DBUG_RETURN(FALSE);
+    if (!create_if_not_exists)
+      DBUG_RETURN(TRUE);                        // Return original error
+
+    /*
+      We come here in the case of lock timeout when executing
+      CREATE TABLE IF NOT EXISTS.
+      Verify that table really exists (it should as we got a lock conflict)
+    */
+    if (check_if_table_exists(thd, tables_start, 1, &exists))
+      DBUG_RETURN(TRUE);                       // Should never happen
+    thd->clear_error();                        // Forget timeout error
+    if (exists)
+    {
+      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), tables_start->table_name);
+      DBUG_RETURN(TRUE);
+    }
+    /* purecov: begin inspected */
+    /*
+      We got error from acquire_locks but table didn't exists.
+      In theory this should never happen, except maybe in
+      CREATE or DROP DATABASE scenario.
+      We play safe and restart the original acquire_locks with the
+      orginal timeout
+    */
+    create_if_not_exists= 0;
+    lock_wait_timeout= org_lock_wait_timeout;
+    /* purecov: end */
+  }
 }
 
 
