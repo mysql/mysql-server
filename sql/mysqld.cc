@@ -4826,7 +4826,10 @@ a file name for --log-bin-index option", opt_binlog_index_name);
 
   /* if the errmsg.sys is not loaded, terminate to maintain behaviour */
   if (!DEFAULT_ERRMSGS[0][0])
+  {
+    sql_print_error("Unable to read errmsg.sys file");
     unireg_abort(1);
+  }
 
   /* We have to initialize the storage engines before CSV logging */
   if (ha_init())
