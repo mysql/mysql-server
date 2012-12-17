@@ -314,6 +314,8 @@ if (`SELECT @time_1 - @time_0 < $hb_period`)
 # Check received heartbeat events for stopped slave
 --echo *** Stopped slave ***
 --source include/stop_slave.inc
+--replace_result $MASTER_MYPORT MASTER_PORT
+--replace_column 2 ####
 eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD= 0.1;
 
 let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
