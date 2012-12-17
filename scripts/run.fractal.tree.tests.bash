@@ -289,6 +289,8 @@ cmake \
     -D USE_GTAGS=OFF \
     -D USE_ETAGS=OFF \
     -D USE_CSCOPE=OFF \
+    -D CMAKE_C_FLAGS_DEBUG="-O1" \
+    -D CMAKE_CXX_FLAGS_DEBUG="-O1" \
     -D TOKU_SVNROOT="$toku_svnroot" \
     -G "$generator" \
     .. 2>&1 | tee -a $tracefile
