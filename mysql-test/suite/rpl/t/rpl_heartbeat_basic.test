@@ -285,25 +285,37 @@ RESET MASTER;
 #
 # Testing heartbeat 
 #
-
-# Check received heartbeat events for running slave
+# Check received heartbeat events for running slave.
+# It must arrived not ealier than as specified by HEARTBEAT_PERIOD.
+#
+--let $hb_period= 3.0
 --echo *** Running slave ***
 --replace_result $MASTER_MYPORT MASTER_PORT
 --replace_column 2 ####
-eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=0.1;
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD= $hb_period;
+SELECT unix_timestamp() into @time_0;
 --source include/start_slave.inc
+
 --connection master
 --sync_slave_with_master
 let $status_var_value= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 let $status_var= slave_received_heartbeats;
 let $status_var_comparsion= >;
 --source include/wait_for_status_var.inc
+SELECT unix_timestamp() into @time_1;
+if (`SELECT @time_1 - @time_0 < $hb_period`)
+{
+    --echo "Heartbeat is received ealier than specified."
+    --die
+}
 --echo Heartbeat event received
 --echo
 
 # Check received heartbeat events for stopped slave
 --echo *** Stopped slave ***
 --source include/stop_slave.inc
+eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD= 0.1;
+
 let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
 sleep 2;
 let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
@@ -376,42 +388,12 @@ let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_hea
 let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
 --echo Heartbeat events are received while sql thread stopped (1 means 'yes'): $result
 --source include/stop_slave.inc
-DROP TABLE t1;
---echo
-
-# Check received heartbeat events while master send events to slave
---echo *** Master send to slave ***
---connection master
-# Create the event that will update table t1 every second
-DELIMITER |;
-CREATE EVENT e1 
-  ON SCHEDULE EVERY 1 SECOND
-  DO
-    BEGIN
-      UPDATE test.t1 SET a = a + 1 WHERE a < 10;
-    END|
-DELIMITER ;|
---connection slave
-RESET SLAVE;
-RESET MASTER;
---replace_result $MASTER_MYPORT MASTER_PORT
---replace_column 2 ####
-eval CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=$MASTER_MYPORT, MASTER_USER='root', MASTER_CONNECT_RETRY=$connect_retry, MASTER_HEARTBEAT_PERIOD=5;
+DELETE FROM t1;
 --source include/start_slave.inc
 --connection master
-# Enable scheduler
-SET @@global.event_scheduler=1;
 --sync_slave_with_master
-let $rcvd_heartbeats_before= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-# Wait some updates for table t1 from master
-let $wait_condition= SELECT COUNT(*)=1 FROM t1 WHERE a > 5;
---source include/wait_condition.inc
-let $rcvd_heartbeats_after= query_get_value(SHOW STATUS LIKE 'slave_received_heartbeats', Value, 1);
-let $result= query_get_value(SELECT ($rcvd_heartbeats_after - $rcvd_heartbeats_before) > 0 AS Result, Result, 1);
---echo Number of received heartbeat events: $result
 --connection master
 DROP TABLE t1;
-DROP EVENT e1;
 --echo
 
 # Check received heartbeat events while logs flushed on slave
