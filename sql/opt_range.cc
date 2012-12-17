@@ -9699,7 +9699,7 @@ key_has_nulls(const KEY* key_info, const uchar *key, uint key_len)
   KEY_PART_INFO *curr_part, *end_part;
   const uchar* end_ptr= key + key_len;
   curr_part= key_info->key_part;
-  end_part= curr_part + key_info->key_parts;
+  end_part= curr_part + key_info->user_defined_key_parts;
 
   for (; curr_part != end_part && key < end_ptr; curr_part++)
   {
