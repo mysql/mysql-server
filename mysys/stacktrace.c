@@ -241,91 +241,12 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 
 #elif defined(TARGET_OS_LINUX)
 
-#ifdef __i386__
-#define SIGRETURN_FRAME_OFFSET 17
-#endif
-
-#ifdef __x86_64__
-#define SIGRETURN_FRAME_OFFSET 23
-#endif
-
-void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
+void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)),
+                         ulong thread_stack __attribute__((unused)))
 {
-  uchar** fp;
-  uint frame_count = 0, sigreturn_frame_count;
-  LINT_INIT(fp);
-
-
-#ifdef __i386__
-  __asm __volatile__ ("movl %%ebp,%0"
-		      :"=r"(fp)
-		      :"r"(fp));
-#endif
-#ifdef __x86_64__
-  __asm __volatile__ ("movq %%rbp,%0"
-		      :"=r"(fp)
-		      :"r"(fp));
-#endif
-  if (!fp)
-  {
-    my_safe_printf_stderr("%s",
-      "frame pointer is NULL, did you compile with\n"
-      "-fomit-frame-pointer? Aborting backtrace!\n");
-    return;
-  }
-
-  if (!stack_bottom || (uchar*) stack_bottom > (uchar*) &fp)
-  {
-    ulong tmp= MY_MIN(0x10000, thread_stack);
-    /* Assume that the stack starts at the previous even 65K */
-    stack_bottom= (uchar*) (((ulong) &fp + tmp) & ~(ulong) 0xFFFF);
-    my_safe_printf_stderr("Cannot determine thread, fp=%p, "
-                          "backtrace may not be correct.\n", fp);
-  }
-  if (fp > (uchar**) stack_bottom ||
-      fp < (uchar**) stack_bottom - thread_stack)
-  {
-    my_safe_printf_stderr("Bogus stack limit or frame pointer, "
-                          "fp=%p, stack_bottom=%p, thread_stack=%ld, "
-                          "aborting backtrace.\n",
-                          fp, stack_bottom, thread_stack);
-    return;
-  }
-
   my_safe_printf_stderr("%s",
-    "Stack range sanity check OK, backtrace follows:\n");
-
-  /* We are 1 frame above signal frame with NPTL and 2 frames above with LT */
-  sigreturn_frame_count = thd_lib_detected == THD_LIB_LT ? 2 : 1;
-
-  while (fp < (uchar**) stack_bottom)
-  {
-#if defined(__i386__) || defined(__x86_64__)
-    uchar** new_fp = (uchar**)*fp;
-    my_safe_printf_stderr("%p\n",
-                          frame_count == sigreturn_frame_count ?
-                          *(fp + SIGRETURN_FRAME_OFFSET) : *(fp + 1));
-#endif /* defined(__386__)  || defined(__x86_64__) */
-
-    if (new_fp <= fp )
-    {
-      my_safe_printf_stderr("New value of fp=%p failed sanity check, "
-                            "terminating stack trace!\n", new_fp);
-      goto end;
-    }
-    fp = new_fp;
-    ++frame_count;
-  }
-  my_safe_printf_stderr("%s",
-                        "Stack trace seems successful - bottom reached\n");
-
-end:
-  my_safe_printf_stderr("%s",
-    "Please read "
-    "http://dev.mysql.com/doc/refman/5.1/en/resolve-stack-dump.html\n"
-    "and follow instructions on how to resolve the stack trace.\n"
-    "Resolved stack trace is much more helpful in diagnosing the\n"
-    "problem, so please do resolve it\n");
+    "\nFunction backtrace() not found in glibc though it should \n"
+    "be available from version 2.1 on ... Omitting stacktrace.\n\n");
 }
 #endif /* TARGET_OS_LINUX */
 #endif /* HAVE_STACKTRACE */
