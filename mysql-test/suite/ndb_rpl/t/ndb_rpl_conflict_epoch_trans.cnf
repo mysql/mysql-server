@@ -11,6 +11,9 @@
 # Potential infinite loops are broken by both servers
 # on each cluster having the same server-id
 
+[cluster_config]
+MaxNoOfExecutionThreads=8
+
 [cluster_config.slave]
 mysqld=,
 
