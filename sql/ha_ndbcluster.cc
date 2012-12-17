@@ -1332,7 +1332,7 @@ void ha_ndbcluster::set_rec_per_key()
     // set rows per key to 1 for complete key given for unique/primary index
     if (is_unique_index)
     {
-      key_info->rec_per_key[key_info->key_parts-1]= 1;
+      key_info->rec_per_key[key_info->user_defined_key_parts-1]= 1;
     }
   }
   DBUG_VOID_RETURN;
@@ -2176,8 +2176,8 @@ static int fix_unique_index_attr_order(NDB_INDEX_DATA &data,
   }
 
   KEY_PART_INFO* key_part= key_info->key_part;
-  KEY_PART_INFO* end= key_part+key_info->key_parts;
-  DBUG_ASSERT(key_info->key_parts == sz);
+  KEY_PART_INFO* end= key_part+key_info->user_defined_key_parts;
+  DBUG_ASSERT(key_info->user_defined_key_parts == sz);
   for (unsigned i= 0; key_part != end; key_part++, i++) 
   {
     const char *field_name= key_part->field->field_name;
@@ -2457,7 +2457,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
   NdbRecord *rec;
 
   Uint32 offset= 0;
-  for (uint i= 0; i < key_info->key_parts; i++)
+  for (uint i= 0; i < key_info->user_defined_key_parts; i++)
   {
     KEY_PART_INFO *kp= &key_info->key_part[i];
 
@@ -2489,7 +2489,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
       length used by Ndb kernel.
     */
     rec= dict->createRecord(m_index[index_no].index, m_table,
-                            spec, key_info->key_parts, sizeof(spec[0]),
+                            spec, key_info->user_defined_key_parts, sizeof(spec[0]),
                             ( NdbDictionary::RecMysqldShrinkVarchar |
                               NdbDictionary::RecMysqldBitfield ));
     if (! rec)
@@ -2502,7 +2502,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
   if (m_index[index_no].unique_index)
   {
     rec= dict->createRecord(m_index[index_no].unique_index, m_table,
-                            spec, key_info->key_parts, sizeof(spec[0]),
+                            spec, key_info->user_defined_key_parts, sizeof(spec[0]),
                             ( NdbDictionary::RecMysqldShrinkVarchar |
                               NdbDictionary::RecMysqldBitfield ));
     if (! rec)
@@ -2513,7 +2513,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
   {
     /* The primary key is special, there is no explicit NDB index associated. */
     rec= dict->createRecord(m_table,
-                            spec, key_info->key_parts, sizeof(spec[0]),
+                            spec, key_info->user_defined_key_parts, sizeof(spec[0]),
                             ( NdbDictionary::RecMysqldShrinkVarchar |
                               NdbDictionary::RecMysqldBitfield ));
     if (! rec)
@@ -2524,7 +2524,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
     m_index[index_no].ndb_unique_record_key= NULL;
 
   /* Now do the same, but this time with offsets from Field, for row access. */
-  for (uint i= 0; i < key_info->key_parts; i++)
+  for (uint i= 0; i < key_info->user_defined_key_parts; i++)
   {
     const KEY_PART_INFO *kp= &key_info->key_part[i];
 
@@ -2546,7 +2546,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
   if (m_index[index_no].unique_index)
   {
     rec= dict->createRecord(m_index[index_no].unique_index, m_table,
-                            spec, key_info->key_parts, sizeof(spec[0]),
+                            spec, key_info->user_defined_key_parts, sizeof(spec[0]),
                             NdbDictionary::RecMysqldBitfield);
     if (! rec)
       ERR_RETURN(dict->getNdbError());
@@ -2555,7 +2555,7 @@ ha_ndbcluster::add_index_ndb_record(NDBDICT *dict, KEY *key_info, uint index_no)
   else if (index_no == table_share->primary_key)
   {
     rec= dict->createRecord(m_table,
-                            spec, key_info->key_parts, sizeof(spec[0]),
+                            spec, key_info->user_defined_key_parts, sizeof(spec[0]),
                             NdbDictionary::RecMysqldBitfield);
     if (! rec)
       ERR_RETURN(dict->getNdbError());
@@ -2740,7 +2740,7 @@ NDB_INDEX_TYPE ha_ndbcluster::get_index_type_from_key(uint inx,
 bool ha_ndbcluster::check_index_fields_not_null(KEY* key_info) const
 {
   KEY_PART_INFO* key_part= key_info->key_part;
-  KEY_PART_INFO* end= key_part+key_info->key_parts;
+  KEY_PART_INFO* end= key_part+key_info->user_defined_key_parts;
   DBUG_ENTER("ha_ndbcluster::check_index_fields_not_null");
   
   for (; key_part != end; key_part++) 
@@ -2916,7 +2916,7 @@ bool ha_ndbcluster::check_index_fields_in_write_set(uint keyno)
 {
   KEY* key_info= table->key_info + keyno;
   KEY_PART_INFO* key_part= key_info->key_part;
-  KEY_PART_INFO* end= key_part+key_info->key_parts;
+  KEY_PART_INFO* end= key_part+key_info->user_defined_key_parts;
   uint i;
   DBUG_ENTER("check_index_fields_in_write_set");
 
@@ -3209,7 +3209,7 @@ check_null_in_record(const KEY* key_info, const uchar *record)
 {
   KEY_PART_INFO *curr_part, *end_part;
   curr_part= key_info->key_part;
-  end_part= curr_part + key_info->key_parts;
+  end_part= curr_part + key_info->user_defined_key_parts;
 
   while (curr_part != end_part)
   {
@@ -3809,13 +3809,13 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
   uint i;
   Uint32 offset= 0;
   NdbQueryParamValue paramValues[ndb_pushed_join::MAX_KEY_PART];
-  DBUG_ASSERT(key_def->key_parts <= ndb_pushed_join::MAX_KEY_PART);
+  DBUG_ASSERT(key_def->user_defined_key_parts <= ndb_pushed_join::MAX_KEY_PART);
 
   uint map[ndb_pushed_join::MAX_KEY_PART];
   ndbcluster_build_key_map(m_table, m_index[idx], &table->key_info[idx], map);
 
   // Bind key values defining root of pushed join
-  for (i = 0, key_part= key_def->key_part; i < key_def->key_parts; i++, key_part++)
+  for (i = 0, key_part= key_def->key_part; i < key_def->user_defined_key_parts; i++, key_part++)
   {
     bool shrinkVarChar= is_shrinked_varchar(key_part->field);
 
@@ -3833,7 +3833,7 @@ ha_ndbcluster::pk_unique_index_read_key_pushed(uint idx,
     offset+= key_part->store_length;
   }
 
-  const int ret= create_pushed_join(paramValues, key_def->key_parts);
+  const int ret= create_pushed_join(paramValues, key_def->user_defined_key_parts);
   DBUG_RETURN(ret);
 }
 
@@ -3843,7 +3843,7 @@ static uint
 count_key_columns(const KEY *key_info, const key_range *key)
 {
   KEY_PART_INFO *first_key_part= key_info->key_part;
-  KEY_PART_INFO *key_part_end= first_key_part + key_info->key_parts;
+  KEY_PART_INFO *key_part_end= first_key_part + key_info->user_defined_key_parts;
   KEY_PART_INFO *key_part;
   uint length= 0;
   for(key_part= first_key_part; key_part < key_part_end; key_part++)
@@ -3868,7 +3868,7 @@ compute_index_bounds(NdbIndexScanOperation::IndexBound & bound,
 
 #ifndef DBUG_OFF
   DBUG_PRINT("info", ("key parts: %u length: %u",
-                      key_info->key_parts, key_info->key_length));
+                      key_info->user_defined_key_parts, key_info->key_length));
   {
     for (uint j= 0; j <= 1; j++)
     {
@@ -5127,7 +5127,7 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
 {
   uint keynr= table_share->primary_key;
   KEY_PART_INFO *key_part=table->key_info[keynr].key_part;
-  KEY_PART_INFO *end=key_part+table->key_info[keynr].key_parts;
+  KEY_PART_INFO *end=key_part+table->key_info[keynr].user_defined_key_parts;
 
   for (; key_part != end ; key_part++)
   {
@@ -6412,7 +6412,7 @@ check_null_in_key(const KEY* key_info, const uchar *key, uint key_len)
   KEY_PART_INFO *curr_part, *end_part;
   const uchar* end_ptr= key + key_len;
   curr_part= key_info->key_part;
-  end_part= curr_part + key_info->key_parts;
+  end_part= curr_part + key_info->user_defined_key_parts;
 
   for (; curr_part != end_part && key < end_ptr; curr_part++)
   {
@@ -6796,7 +6796,7 @@ void ha_ndbcluster::position(const uchar *record)
     key_length= ref_length;
     key_info= table->key_info + table_share->primary_key;
     key_part= key_info->key_part;
-    end= key_part + key_info->key_parts;
+    end= key_part + key_info->user_defined_key_parts;
     buff= ref;
     
     for (; key_part != end; key_part++) 
@@ -6878,7 +6878,7 @@ ha_ndbcluster::cmp_ref(const uchar * ref1, const uchar * ref2)
   {
     KEY *key_info= table->key_info + table_share->primary_key;
     KEY_PART_INFO *key_part= key_info->key_part;
-    KEY_PART_INFO *end= key_part + key_info->key_parts;
+    KEY_PART_INFO *end= key_part + key_info->user_defined_key_parts;
     
     for (; key_part != end; key_part++) 
     {
@@ -9513,7 +9513,7 @@ int ha_ndbcluster::create(const char *name,
   for (i= 0, key_info= form->key_info; i < form->s->keys; i++, key_info++)
   {
     KEY_PART_INFO *key_part= key_info->key_part;
-    KEY_PART_INFO *end= key_part + key_info->key_parts;
+    KEY_PART_INFO *end= key_part + key_info->user_defined_key_parts;
     for (; key_part != end; key_part++)
     {
       if (key_part->field->field_storage_type() == HA_SM_DISK)
@@ -9938,7 +9938,7 @@ int ha_ndbcluster::create_ndb_index(THD *thd, const char *name,
   Ndb *ndb= get_ndb(thd);
   NdbDictionary::Dictionary *dict= ndb->getDictionary();
   KEY_PART_INFO *key_part= key_info->key_part;
-  KEY_PART_INFO *end= key_part + key_info->key_parts;
+  KEY_PART_INFO *end= key_part + key_info->user_defined_key_parts;
   
   DBUG_ENTER("ha_ndbcluster::create_index");
   DBUG_PRINT("enter", ("name: %s ", name));
@@ -10033,7 +10033,7 @@ int ha_ndbcluster::add_index_impl(THD *thd, TABLE *table_arg,
   {
     KEY *key= key_info + idx;
     KEY_PART_INFO *key_part= key->key_part;
-    KEY_PART_INFO *end= key_part + key->key_parts;
+    KEY_PART_INFO *end= key_part + key->user_defined_key_parts;
     NDB_INDEX_TYPE idx_type= get_index_type_from_key(idx, key_info, false);
     DBUG_PRINT("info", ("Adding index: '%s'", key_info[idx].name));
     // Add fields to key_part struct
@@ -10785,7 +10785,7 @@ int ha_ndbcluster::open(const char *name, int mode, uint test_if_locked)
       {
         key= table->key_info + i;
         key_part_info= key->key_part;
-        key_parts= key->key_parts;
+        key_parts= key->user_defined_key_parts;
         for (j= 0; j < key_parts; j++, key_part_info++)
           bitmap_set_bit(m_key_fields[i], key_part_info->fieldnr-1);
       }
@@ -12371,7 +12371,7 @@ ha_ndbcluster::records_in_range(uint inx, key_range *min_key,
       uint eq_bound_offs= 0;
 
       KEY_PART_INFO* key_part= key_info->key_part;
-      KEY_PART_INFO* end= key_part+key_info->key_parts;
+      KEY_PART_INFO* end= key_part+key_info->user_defined_key_parts;
       for (; key_part != end; key_part++) 
       {
         uint part_length= key_part->store_length;
@@ -16166,7 +16166,7 @@ enum_alter_inplace_result
     {
       KEY* key_info= table->key_info + j;
       KEY_PART_INFO* key_part= key_info->key_part;
-      KEY_PART_INFO* end= key_part+key_info->key_parts;
+      KEY_PART_INFO* end= key_part+key_info->user_defined_key_parts;
       for (; key_part != end; key_part++)
       {
         if (key_part->field->field_index == i)
@@ -16184,7 +16184,7 @@ enum_alter_inplace_result
       {
         KEY* key_info= altered_table->key_info + j;
         KEY_PART_INFO* key_part= key_info->key_part;
-        KEY_PART_INFO* end= key_part+key_info->key_parts;
+        KEY_PART_INFO* end= key_part+key_info->user_defined_key_parts;
         for (; key_part != end; key_part++)
         {
           if (key_part->field->field_index == i)
@@ -16351,7 +16351,7 @@ ha_ndbcluster::prepare_inplace_alter_table(TABLE *altered_table,
       /* Copy the KEY struct. */
       *key= ha_alter_info->key_info_buffer[*idx_p];
       /* Fix the key parts. */
-      part_end= key->key_part + key->key_parts;
+      part_end= key->key_part + key->user_defined_key_parts;
       for (key_part= key->key_part; key_part < part_end; key_part++)
 	key_part->field= table->field[key_part->fieldnr];
     }
