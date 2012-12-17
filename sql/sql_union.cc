@@ -474,17 +474,14 @@ bool st_select_lex_unit::prepare(THD *thd_arg, select_result *sel_result,
     thd_arg->lex->current_select= lex_select_save;
     if (!item_list.elements)
     {
-      Query_arena *arena, backup_arena;
+      {
+        Prepared_stmt_arena_holder ps_arena_holder(thd);
 
-      arena= thd->activate_stmt_arena_if_needed(&backup_arena);
-      
-      saved_error= table->fill_item_list(&item_list);
+        saved_error= table->fill_item_list(&item_list);
 
-      if (arena)
-        thd->restore_active_arena(arena, &backup_arena);
-
-      if (saved_error)
-        goto err;
+        if (saved_error)
+          goto err;
+      }
 
       if (thd->stmt_arena->is_stmt_prepare())
       {
