@@ -2696,8 +2696,12 @@ int xml_enter(MY_XML_PARSER *st,const char *attr, size_t len)
 
   node.parent= data->parent; // Set parent for the new node to old parent
   data->parent= numnodes;    // Remember current node as new parent
+  DBUG_ASSERT(data->level <= MAX_LEVEL);
   data->pos[data->level]= numnodes;
-  node.level= data->level++;
+  if (data->level < MAX_LEVEL)
+    node.level= data->level++;
+  else
+    return MY_XML_ERROR;
   node.type= st->current_node_type; // TAG or ATTR
   node.beg= attr;
   node.end= attr + len;

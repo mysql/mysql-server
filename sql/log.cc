@@ -2395,7 +2395,7 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   char format2[MYSQL_ERRMSG_SIZE];
   int ret;
   loglevel lvl;
-  struct st_plugin_int *plugin = (st_plugin_int *) plugin_ptr;
+  struct st_plugin_int *plugin = static_cast<st_plugin_int *> (*plugin_ptr);
   va_list args;
 
   DBUG_ASSERT(level >= MY_ERROR_LEVEL || level <= MY_INFORMATION_LEVEL);

@@ -19,6 +19,7 @@
 #include "my_global.h"                          // REQUIRED for HAVE_* below
 #include "gstream.h"                            // Gis_read_stream
 #include "spatial.h"
+#include <mysqld_error.h>
 
 #ifdef HAVE_SPATIAL
 
@@ -563,7 +564,14 @@ uint Geometry::collection_init_from_opresult(String *bin,
         case Gcalc_function::shape_point:   wkb_type= wkb_point; break;
         case Gcalc_function::shape_line:    wkb_type= wkb_linestring; break;
         case Gcalc_function::shape_polygon: wkb_type= wkb_polygon; break;
-        default: wkb_type= 0; DBUG_ASSERT(false);
+        default: 
+          /*
+            Something has gone really wrong while performing a spatial operation.
+            For now we'll return an error.
+            TODO: should be properly fixed.
+          */
+          my_error(ER_NOT_SUPPORTED_YET, MYF(0), "spatial self-intersecting operands");
+          return 0;
       };
       if (!(item= create_by_typeid(&buffer, wkb_type)))
         return 0;
