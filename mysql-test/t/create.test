@@ -2007,11 +2007,8 @@ insert into t1 values (1,1);
 lock tables t1 read;
 connect (user1,localhost,root,,test);
 set @@lock_wait_timeout=5;
---error ER_TABLE_EXISTS_ERROR
 create table if not exists t1 (a int, b int);
---error ER_TABLE_EXISTS_ERROR
 create table if not exists t1 (a int, b int) select 2,2;
---error ER_TABLE_EXISTS_ERROR
 create table if not exists t1 like t2;
 --error ER_TABLE_EXISTS_ERROR
 create table t1 (a int, b int);

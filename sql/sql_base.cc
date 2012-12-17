@@ -4681,13 +4681,18 @@ extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
                            open, see open_table() description for details.
 
   @retval FALSE  Success.
-  @retval TRUE   Failure (e.g. connection was killed)
+  @retval TRUE   Failure (e.g. connection was killed) or table existed
+	         for a CREATE TABLE.
 
   @notes
-    In case of CREATE TABLE IF NOT EXISTS we avoid a wait for tables that
-    are in use by first trying to do a meta data lock with timeout= 0.
-    If we get a timeout we will check if table exists (it should) and
-    retry with normal timeout if it didn't exists.
+  In case of CREATE TABLE we avoid a wait for tables that are in use
+  by first trying to do a meta data lock with timeout == 0.  If we get a
+  timeout we will check if table exists (it should) and retry with
+  normal timeout if it didn't exists.
+  Note that for CREATE TABLE IF EXISTS we only generate a warning
+  but still return TRUE (to abort the calling open_table() function).
+  On must check THD->is_error() if one wants to distinguish between warning
+  and error.
 */
 
 bool
@@ -4701,7 +4706,8 @@ lock_table_names(THD *thd,
   Hash_set<TABLE_LIST, schema_set_get_key> schema_set;
   ulong org_lock_wait_timeout= lock_wait_timeout;
   /* Check if we are using CREATE TABLE ... IF NOT EXISTS */
-  bool create_if_not_exists;
+  bool create_table;
+  Dummy_error_handler error_handler;
   DBUG_ENTER("lock_table_names");
 
   DBUG_ASSERT(!thd->locked_tables_mode);
@@ -4727,8 +4733,8 @@ lock_table_names(THD *thd,
     DBUG_RETURN(FALSE);
 
   /* Check if CREATE TABLE IF NOT EXISTS was used */
-  create_if_not_exists= (tables_start && tables_start->open_strategy ==
-                         TABLE_LIST::OPEN_IF_EXISTS);
+  create_table= (tables_start && tables_start->open_strategy ==
+                 TABLE_LIST::OPEN_IF_EXISTS);
 
   if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK))
   {
@@ -4759,17 +4765,24 @@ lock_table_names(THD *thd,
                         MDL_STATEMENT);
     mdl_requests.push_front(&global_request);
 
-    if (create_if_not_exists)
+    if (create_table)
       lock_wait_timeout= 0;                     // Don't wait for timeout
   }
 
   for (;;)
   {
     bool exists= TRUE;
-    if (!thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
+    bool res;
+
+    if (create_table)
+      thd->push_internal_handler(&error_handler);  // Avoid warnings & errors
+    res= thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout);
+    if (create_table)
+      thd->pop_internal_handler();
+    if (!res)
       DBUG_RETURN(FALSE);                       // Got locks
 
-    if (!create_if_not_exists)
+    if (!create_table)
       DBUG_RETURN(TRUE);                        // Return original error
 
     /*
@@ -4779,11 +4792,16 @@ lock_table_names(THD *thd,
     */
     if (check_if_table_exists(thd, tables_start, 1, &exists))
       DBUG_RETURN(TRUE);                       // Should never happen
-    thd->warning_info->clear_warning_info(thd->query_id);
-    thd->clear_error();                        // Forget timeout error
     if (exists)
     {
-      my_error(ER_TABLE_EXISTS_ERROR, MYF(0), tables_start->table_name);
+      if (thd->lex->create_info.options & HA_LEX_CREATE_IF_NOT_EXISTS)
+      {
+        push_warning_printf(thd, MYSQL_ERROR::WARN_LEVEL_NOTE,
+                            ER_TABLE_EXISTS_ERROR, ER(ER_TABLE_EXISTS_ERROR),
+                            tables_start->table_name);
+      }
+      else
+        my_error(ER_TABLE_EXISTS_ERROR, MYF(0), tables_start->table_name);
       DBUG_RETURN(TRUE);
     }
     /* purecov: begin inspected */
@@ -4792,9 +4810,9 @@ lock_table_names(THD *thd,
       In theory this should never happen, except maybe in
       CREATE or DROP DATABASE scenario.
       We play safe and restart the original acquire_locks with the
-      orginal timeout
+      original timeout
     */
-    create_if_not_exists= 0;
+    create_table= 0;
     lock_wait_timeout= org_lock_wait_timeout;
     /* purecov: end */
   }

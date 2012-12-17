@@ -4552,7 +4552,8 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   */
   if (open_and_lock_tables(thd, thd->lex->query_tables, FALSE, 0))
   {
-    result= TRUE;
+    /* is_error() may be 0 if table existed and we generated a warning */
+    result= thd->is_error();
     goto end;
   }
 
@@ -4747,7 +4748,10 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
     properly isolated from all concurrent operations which matter.
   */
   if (open_tables(thd, &thd->lex->query_tables, &not_used, 0))
+  {
+    res= thd->is_error();
     goto err;
+  }
   src_table->table->use_all_columns();
 
   DEBUG_SYNC(thd, "create_table_like_after_open");

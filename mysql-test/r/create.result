@@ -2411,11 +2411,14 @@ insert into t1 values (1,1);
 lock tables t1 read;
 set @@lock_wait_timeout=5;
 create table if not exists t1 (a int, b int);
-ERROR 42S01: Table 't1' already exists
+Warnings:
+Note	1050	Table 't1' already exists
 create table if not exists t1 (a int, b int) select 2,2;
-ERROR 42S01: Table 't1' already exists
+Warnings:
+Note	1050	Table 't1' already exists
 create table if not exists t1 like t2;
-ERROR 42S01: Table 't1' already exists
+Warnings:
+Note	1050	Table 't1' already exists
 create table t1 (a int, b int);
 ERROR 42S01: Table 't1' already exists
 create table t1 (a int, b int) select 2,2;

@@ -2512,7 +2512,14 @@ case SQLCOM_PREPARE:
         goto end_with_restore_list;
       }
 
-      if (!(res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0)))
+      res= open_and_lock_tables(thd, lex->query_tables, TRUE, 0);
+      if (res)
+      {
+        /* Got error or warning. Set res to 1 if error */
+        if (!(res= thd->is_error()))
+          my_ok(thd);                           // CREATE ... IF NOT EXISTS
+      }
+      else
       {
         /* The table already exists */
         if (create_table->table)
