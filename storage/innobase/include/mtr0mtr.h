@@ -395,10 +395,6 @@ struct mtr_t{
 	unsigned	made_dirty:1;
 				/*!< TRUE if mtr has made at least
 				one buffer pool page dirty */
-	unsigned	ignore_log_recs:1;
-				/*!< If TRUE, ignore n_log_recs and signal block
-				change notification for adding them to
-				flush-list based on mtr->modification only. */
 	ulint		n_log_recs;
 				/* count of how many page initial log records
 				have been written to the mtr log */
