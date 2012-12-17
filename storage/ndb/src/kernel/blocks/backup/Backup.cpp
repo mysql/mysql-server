@@ -554,6 +554,7 @@ Backup::execDUMP_STATE_ORD(Signal* signal)
   switch (signal->theData[0]) {
   case DumpStateOrd::BackupStatus:
   {
+    /* See code in BackupProxy.cpp as well */
     BlockReference result_ref = CMVMI_REF;
     if (signal->length() == 2)
       result_ref = signal->theData[1];

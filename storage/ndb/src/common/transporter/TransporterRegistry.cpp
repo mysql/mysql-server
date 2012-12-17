@@ -801,7 +801,8 @@ TransporterRegistry::prepareSend(TransporterSendBufferHandle *sendHandle,
 	 */
 	for(int i = 0; i<50; i++){
 	  if((nSHMTransporters+nSCITransporters) == 0)
-	    NdbSleep_MilliSleep(sleepTime); 
+	    NdbSleep_MilliSleep(sleepTime);
+          /* FC : Consider counting sleeps here */
 	  insertPtr = getWritePtr(sendHandle, nodeId, lenBytes, prio);
 	  if(insertPtr != 0){
 	    t->m_packer.pack(insertPtr, prio, signalHeader, signalData, ptr);
@@ -2561,6 +2562,46 @@ TransporterRegistry::print_transporters(const char* where, NdbOut& out)
         << " port: " << tf.m_s_service_port
         << " interface: " << tf.m_interface << endl;
   }
+}
+
+void 
+TransporterRegistry::inc_overload_count(Uint32 nodeId)
+{
+  assert(nodeId < MAX_NODES);
+  assert(theTransporters[nodeId] != NULL);
+  theTransporters[nodeId]->inc_overload_count();
+}
+
+void 
+TransporterRegistry::inc_slowdown_count(Uint32 nodeId)
+{
+  assert(nodeId < MAX_NODES);
+  assert(theTransporters[nodeId] != NULL);
+  theTransporters[nodeId]->inc_slowdown_count();
+}
+
+Uint32
+TransporterRegistry::get_overload_count(Uint32 nodeId)
+{
+  assert(nodeId < MAX_NODES);
+  assert(theTransporters[nodeId] != NULL);
+  return theTransporters[nodeId]->get_overload_count();
+}
+
+Uint32
+TransporterRegistry::get_slowdown_count(Uint32 nodeId)
+{
+  assert(nodeId < MAX_NODES);
+  assert(theTransporters[nodeId] != NULL);
+  return theTransporters[nodeId]->get_slowdown_count();
+}
+
+Uint32
+TransporterRegistry::get_connect_count(Uint32 nodeId)
+{
+  assert(nodeId < MAX_NODES);
+  assert(theTransporters[nodeId] != NULL);
+  return theTransporters[nodeId]->get_connect_count();
 }
 
 

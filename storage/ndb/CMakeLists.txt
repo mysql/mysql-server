@@ -106,17 +106,10 @@ SET(NDBCLUSTER_SOURCES
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/ndb/include)
 
 IF(NOT MYSQL_CLUSTER_VERSION)
- # Online alter table not supported in non MySQL Cluster
- # versions yet, compile ndbcluster without online alter support
- ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
- # The function 'make_db_list' i not available in non
+ # The function 'make_db_list' is not available in non
  # MySQL Cluster version yet, compile ndbcluster without it
  ADD_DEFINITIONS(-DNDB_WITHOUT_MAKE_DB_LIST)
 ENDIF()
-
-# Online alter table currently not supported in trunk-cluster
-# in preparation for inplace alter table
-ADD_DEFINITIONS(-DNDB_WITHOUT_ONLINE_ALTER)
 
 # NDB is DEFAULT plugin in MySQL Cluster
 SET(is_default_plugin "")
@@ -186,18 +179,19 @@ OPTION(WITH_NDB_BINLOG
   "Disable NDB binlog" ON)
 
 OPTION(WITH_ERROR_INSERT
-  "Enable error injection in MySQL Cluster" OFF)
+  "Enable error injection in NDB" OFF)
 
 OPTION(WITH_NDB_DEBUG
-  "Disable special ndb debug features" OFF)
-
-SET(NDB_CCFLAGS "")
-IF(DEFINED WITH_NDB_CCFLAGS)
-  SET(NDB_CCFLAGS "${WITH_NDB_CCFLAGS}")
-ENDIF() 
+  "Enable special ndb NDB features(including ERROR_INSERT)" OFF)
 
 IF(WITH_NDB_DEBUG OR CMAKE_BUILD_TYPE MATCHES "Debug")
-  SET(NDB_CCFLAGS "${NDB_CCFLAGS} -DVM_TRACE -DNDB_DEBUG -DERROR_INSERT -DARRAY_GUARD -DACC_SAFE_QUEUE -DAPI_TRACE")
+  MESSAGE(STATUS "Turning on special NDB debug features")
+  ADD_DEFINITIONS(-DVM_TRACE)
+  ADD_DEFINITIONS(-DNDB_DEBUG)
+  ADD_DEFINITIONS(-DERROR_INSERT)
+  ADD_DEFINITIONS(-DARRAY_GUARD)
+  ADD_DEFINITIONS(-DACC_SAFE_QUEUE)
+  ADD_DEFINITIONS(-DAPI_TRACE)
 ELSE()
   IF(WITH_ERROR_INSERT)
     ADD_DEFINITIONS(-DERROR_INSERT)
@@ -205,11 +199,22 @@ ELSE()
   ADD_DEFINITIONS(-DNDEBUG)
 ENDIF()
 
-SET(NDB_CCFLAGS "${NDB_CCFLAGS} $ENV{NDB_EXTRA_FLAGS}") 
-MESSAGE(STATUS "Using extra FLAGS for ndb: \"${NDB_CCFLAGS}\"") 
+# Set extra compiler switches from WITH_NDB_CCFLAGS
+SET(WITH_NDB_CCFLAGS "" CACHE STRING "Extra compiler flags for NDB")
+IF(WITH_NDB_CCFLAGS)
+  MESSAGE(STATUS "Appending extra compiler flags for NDB: \"${WITH_NDB_CCFLAGS}\"")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${WITH_NDB_CCFLAGS}")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${WITH_NDB_CCFLAGS}")
+ENDIF()
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${NDB_CCFLAGS}")
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${NDB_CCFLAGS}")
+# Set extra compiler switches from environment variable NDB_EXTRA_FLAGS
+SET(ndb_flags_env $ENV{NDB_EXTRA_FLAGS})
+IF(ndb_flags_env)
+  MESSAGE(STATUS "Appending extra compiler flags for NDB from "
+                 "environment: \"${ndb_flags_env}\"")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${ndb_flags_env}")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ndb_flags_env}")
+ENDIF()
 
 SET(HAVE_JAVA FALSE)
 SET(HAVE_JDK FALSE)
@@ -222,11 +227,9 @@ IF (DEFINED ENV{WITH_NDB_JAVA_DEFAULT})
 ELSE()
   # Check if the default for WITH_NDB_JAVA should be
   # magically overriden
-  SET(magic_value "MySQL")
-  IF(DEFINED ENV{PRODUCT_ID})
-    SET(magic_value $ENV{PRODUCT_ID})
-  ENDIF()
-  IF (magic_value STREQUAL "bootstrap-cmake-tar-gz")
+  SET(magic_value $ENV{PRODUCT_ID})
+  IF (magic_value STREQUAL "bootstrap-cmake-tar-gz" OR
+      magic_value STREQUAL "source-dist-tar-gz")
     SET(WITH_NDB_JAVA_DEFAULT OFF)
     MESSAGE(STATUS "Default value for WITH_NDB_JAVA set to 0 since "
                    "bootstrapping was detected")
@@ -236,28 +239,42 @@ OPTION(WITH_NDB_JAVA
   "Include NDB Cluster Java components" ${WITH_NDB_JAVA_DEFAULT})
 IF(WITH_NDB_JAVA)
   # Check for Java and JDK needed by ndbjtie and clusterj
-  INCLUDE(FindJava)
-  INCLUDE(FindJNI)
+  FIND_PACKAGE(Java 1.6 REQUIRED COMPONENTS Development)
+  MESSAGE(STATUS "Java_VERSION: ${Java_VERSION}")
+  MESSAGE(STATUS "Java_VERSION_STRING: ${Java_VERSION_STRING}")
+  MESSAGE(STATUS "JAVA_RUNTIME: ${JAVA_RUNTIME}")
+  MESSAGE(STATUS "JAVA_COMPILE: ${JAVA_COMPILE}")
+  MESSAGE(STATUS "JAVA_ARCHIVE: ${JAVA_ARCHIVE}")
+  NDB_REQUIRE_VARIABLE(JAVA_RUNTIME)
+  NDB_REQUIRE_VARIABLE(JAVA_COMPILE)
+  NDB_REQUIRE_VARIABLE(JAVA_ARCHIVE)
+
+  # Help FindJNI by setting JAVA_HOME (if not already set)
+  # to point at the java found above
+  IF(NOT DEFINED ENV{JAVA_HOME})
+    # Convert to realpath
+    GET_FILENAME_COMPONENT(java_home ${JAVA_COMPILE} REALPATH)
+    # Remove filename
+    GET_FILENAME_COMPONENT(java_home ${java_home} PATH)
+    # Remove dir
+    GET_FILENAME_COMPONENT(java_home ${java_home} PATH)
+    MESSAGE(STATUS "Setting JAVA_HOME=${java_home}")
+    SET(ENV{JAVA_HOME} ${java_home})
+  ENDIF()
+
+  FIND_PACKAGE(JNI REQUIRED)
+  MESSAGE(STATUS "JNI_FOUND: ${JNI_FOUND}")
+  MESSAGE(STATUS "JNI_INCLUDE_DIRS: ${JNI_INCLUDE_DIRS}")
+  MESSAGE(STATUS "JNI_LIBRARIES: ${JNI_LIBRARIES}")
+  NDB_REQUIRE_VARIABLE(JNI_INCLUDE_DIRS)
+
   INCLUDE("${NDB_SOURCE_DIR}/config/type_JAVA.cmake")
-
-  IF(JAVA_COMPILE AND JAVA_ARCHIVE)
-    MESSAGE(STATUS "Found Java")
-    SET(HAVE_JAVA TRUE)
-  ELSE()
-    MESSAGE(FATAL_ERROR "Could not find Java")
-  ENDIF()
-
-  IF(JAVA_INCLUDE_PATH AND JAVA_INCLUDE_PATH2)
-    MESSAGE(STATUS "Found JDK")
-    SET(HAVE_JDK TRUE)
-  ELSE()
-    MESSAGE(FATAL_ERROR "Could not find JDK")
-  ENDIF()
-
+  SET(HAVE_JAVA TRUE)
+  SET(HAVE_JDK TRUE)
   SET(WITH_CLASSPATH ${WITH_CLASSPATH} CACHE STRING
     "Enable the classpath for MySQL Cluster Java Connector")
 ELSE(WITH_NDB_JAVA)
-  MESSAGE(STATUS "Excluding Cluster Java components") 
+  MESSAGE(STATUS "Excluding Cluster Java components")
 ENDIF(WITH_NDB_JAVA)
 
 ADD_SUBDIRECTORY(include)

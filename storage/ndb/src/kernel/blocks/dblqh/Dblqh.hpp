@@ -2127,6 +2127,7 @@ public:
     UintR simpleTcConnect;
     UintR tableref;
     UintR tcOprec;
+    UintR hashIndex;
     Uint32 tcHashKeyHi;
     UintR tcScanInfo;
     UintR tcScanRec;
@@ -2183,7 +2184,8 @@ public:
       OP_ISLONGREQ              = 0x1,
       OP_SAVEATTRINFO           = 0x2,
       OP_SCANKEYINFOPOSSAVED    = 0x4,
-      OP_DEFERRED_CONSTRAINTS   = 0x8
+      OP_DEFERRED_CONSTRAINTS   = 0x8,
+      OP_NORMAL_PROTOCOL        = 0x10
     };
     Uint32 m_flags;
     Uint32 m_log_part_ptr_i;
@@ -2619,6 +2621,7 @@ private:
                                   const class LqhKeyReq* req);
   void earlyKeyReqAbort(Signal* signal, 
                         const class LqhKeyReq * lqhKeyReq, 
+                        bool isLongReq,
                         Uint32 errorCode);
   void logLqhkeyrefLab(Signal* signal);
   void closeCopyLab(Signal* signal);
@@ -3336,6 +3339,18 @@ public:
   Uint32 c_max_redo_lag_counter;
   Uint64 cTotalLqhKeyReqCount;
   Uint32 c_max_parallel_scans_per_frag;
+
+  Uint64 c_keyOverloads;
+  
+  /* All that apply */
+  Uint64 c_keyOverloadsTcNode;
+  Uint64 c_keyOverloadsReaderApi;
+  Uint64 c_keyOverloadsPeerNode;
+  Uint64 c_keyOverloadsSubscriber;
+  
+  Uint64 c_scanSlowDowns; 
+    
+
 
   inline bool getAllowRead() const {
     return getNodeState().startLevel < NodeState::SL_STOPPING_3;

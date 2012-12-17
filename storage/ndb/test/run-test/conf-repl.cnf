@@ -7,7 +7,7 @@ replicate= 1.master:1.slave
 [ndb_mgmd]
 
 [mysqld]
-skip-innodb
+innodb
 skip-bdb
 
 [cluster_config]

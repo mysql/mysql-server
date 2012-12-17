@@ -9,7 +9,7 @@ mt = 2
 
 [mysqld]
 default-storage-engine=myisam
-skip-innodb
+innodb
 loose-skip-bdb
 skip-grant-tables
 socket=mysql.sock

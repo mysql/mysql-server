@@ -6,7 +6,7 @@ clusters = .2node
 [ndb_mgmd]
 
 [mysqld]
-skip-innodb
+innodb
 skip-bdb
 
 [cluster_config.2node]
