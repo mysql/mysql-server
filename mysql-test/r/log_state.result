@@ -24,7 +24,7 @@ select * from mysql.general_log;
 event_time	user_host	thread_id	server_id	command_type	argument
 TIMESTAMP	USER_HOST	#	1	Query	create table t1(f1 int)
 TIMESTAMP	USER_HOST	#	1	Query	select * from mysql.general_log
-TIMESTAMP	USER_HOST	#	1	Query	SET GLOBAL general_log='OFF'
+TIMESTAMP	USER_HOST	#	1	Query	set global general_log= OFF
 set global general_log= ON;
 flush logs;
 show global variables

@@ -199,9 +199,9 @@
     %endif
   %endif
 %else
-  %define generic_kernel %(uname -r | cut -d. -f1-2)
-  %define distro_description            Generic Linux (kernel %{generic_kernel})
-  %define distro_releasetag             linux%{generic_kernel}
+  %define glibc_version %(/lib/libc.so.6 | grep stable | cut -d, -f1 | cut -c38-)
+  %define distro_description            Generic Linux (glibc %{glibc_version})
+  %define distro_releasetag             linux_glibc%{glibc_version}
   %define distro_buildreq               gcc-c++ gperf ncurses-devel perl  time zlib-devel
   %define distro_requires               coreutils grep procps /sbin/chkconfig /usr/sbin/useradd /usr/sbin/groupadd
 %endif
@@ -419,6 +419,15 @@ export LDFLAGS=${MYSQL_BUILD_LDFLAGS:-${LDFLAGS:-}}
 export CMAKE=${MYSQL_BUILD_CMAKE:-${CMAKE:-cmake}}
 export MAKE_JFLAG=${MYSQL_BUILD_MAKE_JFLAG:-}
 
+# By default, a build will include the bundeled "yaSSL" library for SSL.
+# However, there may be a need to override.
+# Protect against undefined variables if there is no override option.
+%if %{undefined with_ssl}
+%define ssl_option   %{nil}
+%else
+%define ssl_option   -DWITH_SSL=%{with_ssl}
+%endif
+
 # Build debug mysqld and libmysqld.a
 mkdir debug
 (
@@ -442,6 +451,7 @@ mkdir debug
            -DCMAKE_BUILD_TYPE=Debug \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           %{ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_debug}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_DEBUG_CONFIG ; egrep '^#define' include/config.h ; echo END_DEBUG_CONFIG
@@ -457,6 +467,7 @@ mkdir release
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
+           %{ssl_option} \
            -DCOMPILATION_COMMENT="%{compilation_comment_release}" \
            -DMYSQL_SERVER_SUFFIX="%{server_suffix}"
   echo BEGIN_NORMAL_CONFIG ; egrep '^#define' include/config.h ; echo END_NORMAL_CONFIG
@@ -1195,6 +1206,11 @@ echo "====="                                                       >> $STATUS_HI
 # merging BK trees)
 ##############################################################################
 %changelog
+* Mon Nov 05 2012 Joerg Bruehe <joerg.bruehe@oracle.com>
+
+- Allow to override the default to use the bundled yaSSL by an option like
+      --define="with_ssl /path/to/ssl"
+
 * Wed Oct 10 2012 Bjorn Munch <bjorn.munch@oracle.com>
 
 - Replace old my-*.cnf config file examples with template my-default.cnf

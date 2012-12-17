@@ -127,6 +127,10 @@ struct PFS_account_row
 /** Row fragment for columns DIGEST, DIGEST_TEXT. */
 struct PFS_digest_row
 {
+  /** Column SCHEMA_NAME. */
+  char m_schema_name[NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
   /** Column DIGEST. */
   char m_digest[COL_DIGEST_SIZE];
   /** Length in bytes of @c m_digest. */

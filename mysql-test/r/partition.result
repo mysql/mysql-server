@@ -2512,6 +2512,9 @@ EXPLAIN
         "c1"
       ],
       "key": "c1",
+      "used_key_parts": [
+        "c1"
+      ],
       "key_length": "5",
       "rows": 11,
       "filtered": 100,

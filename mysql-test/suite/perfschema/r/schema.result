@@ -76,7 +76,7 @@ cond_instances	CREATE TABLE `cond_instances` (
 show create table events_stages_current;
 Table	Create Table
 events_stages_current	CREATE TABLE `events_stages_current` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -90,7 +90,7 @@ events_stages_current	CREATE TABLE `events_stages_current` (
 show create table events_stages_history;
 Table	Create Table
 events_stages_history	CREATE TABLE `events_stages_history` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -104,7 +104,7 @@ events_stages_history	CREATE TABLE `events_stages_history` (
 show create table events_stages_history_long;
 Table	Create Table
 events_stages_history_long	CREATE TABLE `events_stages_history_long` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -129,7 +129,7 @@ events_stages_summary_by_host_by_event_name	CREATE TABLE `events_stages_summary_
 show create table events_stages_summary_by_thread_by_event_name;
 Table	Create Table
 events_stages_summary_by_thread_by_event_name	CREATE TABLE `events_stages_summary_by_thread_by_event_name` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
   `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
@@ -173,7 +173,7 @@ events_stages_summary_global_by_event_name	CREATE TABLE `events_stages_summary_g
 show create table events_statements_current;
 Table	Create Table
 events_statements_current	CREATE TABLE `events_statements_current` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -217,7 +217,7 @@ events_statements_current	CREATE TABLE `events_statements_current` (
 show create table events_statements_history;
 Table	Create Table
 events_statements_history	CREATE TABLE `events_statements_history` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -261,7 +261,7 @@ events_statements_history	CREATE TABLE `events_statements_history` (
 show create table events_statements_history_long;
 Table	Create Table
 events_statements_history_long	CREATE TABLE `events_statements_history_long` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -302,6 +302,39 @@ events_statements_history_long	CREATE TABLE `events_statements_history_long` (
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('STATEMENT','STAGE','WAIT') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
+show create table events_statements_summary_by_digest;
+Table	Create Table
+events_statements_summary_by_digest	CREATE TABLE `events_statements_summary_by_digest` (
+  `SCHEMA_NAME` varchar(64) DEFAULT NULL,
+  `DIGEST` varchar(32) DEFAULT NULL,
+  `DIGEST_TEXT` longtext,
+  `COUNT_STAR` bigint(20) unsigned NOT NULL,
+  `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MIN_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `AVG_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `MAX_TIMER_WAIT` bigint(20) unsigned NOT NULL,
+  `SUM_LOCK_TIME` bigint(20) unsigned NOT NULL,
+  `SUM_ERRORS` bigint(20) unsigned NOT NULL,
+  `SUM_WARNINGS` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_AFFECTED` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_SENT` bigint(20) unsigned NOT NULL,
+  `SUM_ROWS_EXAMINED` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_DISK_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_CREATED_TMP_TABLES` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_FULL_RANGE_JOIN` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_RANGE_CHECK` bigint(20) unsigned NOT NULL,
+  `SUM_SELECT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_MERGE_PASSES` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_RANGE` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_ROWS` bigint(20) unsigned NOT NULL,
+  `SUM_SORT_SCAN` bigint(20) unsigned NOT NULL,
+  `SUM_NO_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `SUM_NO_GOOD_INDEX_USED` bigint(20) unsigned NOT NULL,
+  `FIRST_SEEN` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `LAST_SEEN` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00'
+) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table events_statements_summary_by_host_by_event_name;
 Table	Create Table
 events_statements_summary_by_host_by_event_name	CREATE TABLE `events_statements_summary_by_host_by_event_name` (
@@ -335,7 +368,7 @@ events_statements_summary_by_host_by_event_name	CREATE TABLE `events_statements_
 show create table events_statements_summary_by_thread_by_event_name;
 Table	Create Table
 events_statements_summary_by_thread_by_event_name	CREATE TABLE `events_statements_summary_by_thread_by_event_name` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
   `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
@@ -455,7 +488,7 @@ events_statements_summary_global_by_event_name	CREATE TABLE `events_statements_s
 show create table events_waits_current;
 Table	Create Table
 events_waits_current	CREATE TABLE `events_waits_current` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -478,7 +511,7 @@ events_waits_current	CREATE TABLE `events_waits_current` (
 show create table events_waits_history;
 Table	Create Table
 events_waits_history	CREATE TABLE `events_waits_history` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -501,7 +534,7 @@ events_waits_history	CREATE TABLE `events_waits_history` (
 show create table events_waits_history_long;
 Table	Create Table
 events_waits_history_long	CREATE TABLE `events_waits_history_long` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_ID` bigint(20) unsigned NOT NULL,
   `END_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
@@ -546,7 +579,7 @@ events_waits_summary_by_instance	CREATE TABLE `events_waits_summary_by_instance`
 show create table events_waits_summary_by_thread_by_event_name;
 Table	Create Table
 events_waits_summary_by_thread_by_event_name	CREATE TABLE `events_waits_summary_by_thread_by_event_name` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `EVENT_NAME` varchar(128) NOT NULL,
   `COUNT_STAR` bigint(20) unsigned NOT NULL,
   `SUM_TIMER_WAIT` bigint(20) unsigned NOT NULL,
@@ -695,7 +728,7 @@ Table	Create Table
 mutex_instances	CREATE TABLE `mutex_instances` (
   `NAME` varchar(128) NOT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
-  `LOCKED_BY_THREAD_ID` int(11) DEFAULT NULL
+  `LOCKED_BY_THREAD_ID` bigint(20) unsigned DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table objects_summary_global_by_type;
 Table	Create Table
@@ -722,7 +755,7 @@ Table	Create Table
 rwlock_instances	CREATE TABLE `rwlock_instances` (
   `NAME` varchar(128) NOT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
-  `WRITE_LOCKED_BY_THREAD_ID` int(11) DEFAULT NULL,
+  `WRITE_LOCKED_BY_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
   `READ_LOCKED_BY_COUNT` int(10) unsigned NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
 show create table setup_actors;
@@ -765,7 +798,7 @@ Table	Create Table
 socket_instances	CREATE TABLE `socket_instances` (
   `EVENT_NAME` varchar(128) NOT NULL,
   `OBJECT_INSTANCE_BEGIN` bigint(20) unsigned NOT NULL,
-  `THREAD_ID` int(11) DEFAULT NULL,
+  `THREAD_ID` bigint(20) unsigned DEFAULT NULL,
   `SOCKET_ID` int(11) NOT NULL,
   `IP` varchar(64) NOT NULL,
   `PORT` int(11) NOT NULL,
@@ -991,10 +1024,10 @@ table_lock_waits_summary_by_table	CREATE TABLE `table_lock_waits_summary_by_tabl
 show create table threads;
 Table	Create Table
 threads	CREATE TABLE `threads` (
-  `THREAD_ID` int(11) NOT NULL,
+  `THREAD_ID` bigint(20) unsigned NOT NULL,
   `NAME` varchar(128) NOT NULL,
   `TYPE` varchar(10) NOT NULL,
-  `PROCESSLIST_ID` int(11) DEFAULT NULL,
+  `PROCESSLIST_ID` bigint(20) unsigned DEFAULT NULL,
   `PROCESSLIST_USER` varchar(16) DEFAULT NULL,
   `PROCESSLIST_HOST` varchar(60) DEFAULT NULL,
   `PROCESSLIST_DB` varchar(64) DEFAULT NULL,
@@ -1002,7 +1035,7 @@ threads	CREATE TABLE `threads` (
   `PROCESSLIST_TIME` bigint(20) DEFAULT NULL,
   `PROCESSLIST_STATE` varchar(64) DEFAULT NULL,
   `PROCESSLIST_INFO` longtext,
-  `PARENT_THREAD_ID` int(11) DEFAULT NULL,
+  `PARENT_THREAD_ID` bigint(20) unsigned DEFAULT NULL,
   `ROLE` varchar(64) DEFAULT NULL,
   `INSTRUMENTED` enum('YES','NO') NOT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8

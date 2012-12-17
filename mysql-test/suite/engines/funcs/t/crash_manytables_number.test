@@ -1,6 +1,5 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
-
 --disable_warnings
 DROP TABLE IF EXISTS t1;
 --enable_warnings
@@ -3005,3 +3004,4 @@ DROP TABLE t998 ;
 DROP TABLE t999 ;
 DROP TABLE t1000 ;
 
+call mtr.add_suppression("Changed limits: max_open_files:*");

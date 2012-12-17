@@ -3650,6 +3650,9 @@ void handler::print_error(int error, myf errflag)
   case HA_WRONG_CREATE_OPTION:
     textno= ER_ILLEGAL_HA;
     break;
+  case HA_ERR_TOO_MANY_FIELDS:
+    textno= ER_TOO_MANY_FIELDS;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
@@ -3711,7 +3714,7 @@ int handler::check_collation_compatibility()
     for (; key < key_end; key++)
     {
       KEY_PART_INFO *key_part= key->key_part;
-      KEY_PART_INFO *key_part_end= key_part + key->key_parts;
+      KEY_PART_INFO *key_part_end= key_part + key->user_defined_key_parts;
       for (; key_part < key_part_end; key_part++)
       {
         if (!key_part->fieldnr)
@@ -3752,7 +3755,7 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
     for (; keyinfo < keyend; keyinfo++)
     {
       keypart= keyinfo->key_part;
-      keypartend= keypart + keyinfo->key_parts;
+      keypartend= keypart + keyinfo->user_defined_key_parts;
       for (; keypart < keypartend; keypart++)
       {
         if (!keypart->fieldnr)
@@ -4530,7 +4533,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
       table->record[0]= buf;
       key_info= table->key_info + active_index;
       key_part= key_info->key_part;
-      key_part_end= key_part + key_info->key_parts;
+      key_part_end= key_part + key_info->user_defined_key_parts;
       for (; key_part < key_part_end; key_part++)
       {
         DBUG_ASSERT(key_part->field);
@@ -5511,7 +5514,7 @@ double handler::index_only_read_time(uint keynr, double records)
 bool key_uses_partial_cols(TABLE *table, uint keyno)
 {
   KEY_PART_INFO *kp= table->key_info[keyno].key_part;
-  KEY_PART_INFO *kp_end= kp + table->key_info[keyno].key_parts;
+  KEY_PART_INFO *kp_end= kp + table->key_info[keyno].user_defined_key_parts;
   for (; kp != kp_end; kp++)
   {
     if (!kp->field->part_of_key.is_set(keyno))
@@ -6956,6 +6959,7 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
   if (table->s->cached_row_logging_check == -1)
   {
     int const check(table->s->tmp_table == NO_TMP_TABLE &&
+                    ! table->no_replicate &&
                     binlog_filter->db_ok(table->s->db.str));
     table->s->cached_row_logging_check= check;
   }
@@ -7064,8 +7068,6 @@ int binlog_log_row(TABLE* table,
                           const uchar *after_record,
                           Log_func *log_func)
 {
-  if (table->no_replicate)
-    return 0;
   bool error= 0;
   THD *const thd= table->in_use;
 

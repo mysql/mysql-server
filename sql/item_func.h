@@ -122,7 +122,7 @@ public:
   Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   table_map used_tables() const;
   /**
      Returns the pseudo tables depended upon in order to evaluate this
@@ -1242,6 +1242,7 @@ public:
   const char *func_name() const { return "last_insert_id"; }
   void fix_length_and_dec()
   {
+    unsigned_flag= TRUE;
     if (arg_count)
       max_length= args[0]->max_length;
   }
@@ -1591,7 +1592,7 @@ public:
   Item_master_gtid_set_wait(Item *a) :Item_int_func(a) {}
   Item_master_gtid_set_wait(Item *a, Item *b) :Item_int_func(a,b) {}
   longlong val_int();
-  const char *func_name() const { return "sql_thread_wait_after_gtids"; }
+  const char *func_name() const { return "wait_until_sql_thread_after_gtids"; }
   void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
 };
 
@@ -1686,7 +1687,7 @@ public:
   Item_func_set_user_var(THD *thd, Item_func_set_user_var *item)
     :Item_var_func(thd, item), cached_result_type(item->cached_result_type),
      entry(item->entry), entry_thread_id(item->entry_thread_id),
-     delayed_non_constness(delayed_non_constness), value(item->value),
+     delayed_non_constness(item->delayed_non_constness), value(item->value),
      decimal_buff(item->decimal_buff), null_item(item->null_item),
      save_result(item->save_result), name(item->name)
   {}

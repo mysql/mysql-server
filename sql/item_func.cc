@@ -237,8 +237,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
 
 
 void Item_func::fix_after_pullout(st_select_lex *parent_select,
-                                  st_select_lex *removed_select,
-                                  Item **ref)
+                                  st_select_lex *removed_select)
 {
   Item **arg,**arg_end;
 
@@ -250,8 +249,8 @@ void Item_func::fix_after_pullout(st_select_lex *parent_select,
   {
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
-      (*arg)->fix_after_pullout(parent_select, removed_select, arg);
-      Item *item= *arg;
+      Item *const item= *arg;
+      item->fix_after_pullout(parent_select, removed_select);
 
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
@@ -764,7 +763,7 @@ String *Item_int_func::val_str(String *str)
 void Item_func_connection_id::fix_length_and_dec()
 {
   Item_int_func::fix_length_and_dec();
-  max_length= 10;
+  unsigned_flag= 1;
 }
 
 
@@ -4428,7 +4427,8 @@ longlong Item_func_last_insert_id::val_int()
     thd->first_successful_insert_id_in_prev_stmt= value;
     return value;
   }
-  return thd->read_first_successful_insert_id_in_prev_stmt();
+  return
+    static_cast<longlong>(thd->read_first_successful_insert_id_in_prev_stmt());
 }
 
 
@@ -6282,7 +6282,7 @@ bool Item_func_match::fix_index()
     for (keynr=0 ; keynr < fts ; keynr++)
     {
       KEY *ft_key=&table->key_info[ft_to_key[keynr]];
-      uint key_parts=ft_key->key_parts;
+      uint key_parts=ft_key->user_defined_key_parts;
 
       for (uint part=0 ; part < key_parts ; part++)
       {
@@ -6314,7 +6314,7 @@ bool Item_func_match::fix_index()
   {
     // partial keys doesn't work
     if (max_cnt < arg_count-1 ||
-        max_cnt < table->key_info[ft_to_key[keynr]].key_parts)
+        max_cnt < table->key_info[ft_to_key[keynr]].user_defined_key_parts)
       continue;
 
     key=ft_to_key[keynr];

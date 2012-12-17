@@ -87,7 +87,6 @@ SET(SQL_SHARED_SOURCES
   procedure.cc 
   protocol.cc
   records.cc
-  rpl_constants.cc
   rpl_handler.cc
   scheduler.cc 
   set_var.cc 

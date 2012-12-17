@@ -32,7 +32,28 @@ syslog_tag_mysqld_safe=mysqld_safe
 trap '' 1 2 3 15			# we shouldn't let anyone kill us
 trap '' 13                              # not even SIGPIPE
 
-umask 007
+# MySQL-specific environment variable. First off, it's not really a umask,
+# it's the desired mode. Second, it follows umask(2), not umask(3) in that
+# octal needs to be explicit. Our shell might be a proper sh without printf,
+# multiple-base arithmetic, and binary arithmetic, so this will get ugly.
+# We reject decimal values to keep things at least half-sane.
+umask 007                               # fallback
+UMASK="${UMASK-0640}"
+fmode=`echo "$UMASK" | sed -e 's/[^0246]//g'`
+octalp=`echo "$fmode"|cut -c1`
+fmlen=`echo "$fmode"|wc -c|sed -e 's/ //g'`
+if [ "x$octalp" != "x0" -o "x$UMASK" != "x$fmode" -o "x$fmlen" != "x5" ]
+then
+  fmode=0640
+  echo "UMASK must be a 3-digit mode with an additional leading 0 to indicate octal." >&2
+  echo "The first digit will be corrected to 6, the others may be 0, 2, 4, or 6." >&2
+fi
+fmode=`echo "$fmode"|cut -c3-4`
+fmode="6$fmode"
+if [ "x$UMASK" != "x0$fmode" ]
+then
+  echo "UMASK corrected from $UMASK to 0$fmode ..."
+fi
 
 defaults=
 case "$1" in
@@ -547,6 +568,12 @@ then
   # Log to err_log file
   log_notice "Logging to '$err_log'."
   logging=file
+
+  if [ ! -e "$err_log" ]; then                  # if error log already exists,
+    touch "$err_log"                            # we just append. otherwise,
+    chmod "$fmode" "$err_log"                   # fix the permissions here!
+  fi
+
 else
   if [ -n "$syslog_tag" ]
   then
@@ -757,6 +784,12 @@ do
   start_time=`date +%M%S`
 
   eval_log_error "$cmd"
+
+  if [ $want_syslog -eq 0 -a ! -e "$err_log" ]; then
+    touch "$err_log"                    # hypothetical: log was renamed but not
+    chown $user "$err_log"              # flushed yet. we'd recreate it with
+    chmod "$fmode" "$err_log"           # wrong owner next time we log, so set
+  fi                                    # it up correctly while we can!
 
   end_time=`date +%M%S`
 

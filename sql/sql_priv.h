@@ -147,6 +147,41 @@
 */
 #define OPTION_ALLOW_BATCH              (ULL(1) << 36) // THD, intern (slave)
 
+/*
+  Check how many bytes are available on buffer.
+
+  @param buf_start    Pointer to buffer start.
+  @param buf_current  Pointer to the current position on buffer.
+  @param buf_len      Buffer length.
+
+  @return             Number of bytes available on event buffer.
+*/
+template <class T> T available_buffer(const char* buf_start,
+                                      const char* buf_current,
+                                      T buf_len)
+{
+  return buf_len - (buf_current - buf_start);
+}
+
+/*
+  Check if jump value is within buffer limits.
+
+  @param jump         Number of positions we want to advance.
+  @param buf_start    Pointer to buffer start
+  @param buf_current  Pointer to the current position on buffer.
+  @param buf_len      Buffer length.
+
+  @return      True   If jump value is within buffer limits.
+               False  Otherwise.
+*/
+template <class T> bool valid_buffer_range(T jump,
+                                           const char* buf_start,
+                                           const char* buf_current,
+                                           T buf_len)
+{
+  return (jump <= available_buffer(buf_start, buf_current, buf_len));
+}
+
 /* The rest of the file is included in the server only */
 #ifndef MYSQL_CLIENT
 
@@ -173,7 +208,8 @@
 #define OPTIMIZER_SWITCH_LOOSE_SCAN                (1ULL << 12)
 #define OPTIMIZER_SWITCH_FIRSTMATCH                (1ULL << 13)
 #define OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED       (1ULL << 14)
-#define OPTIMIZER_SWITCH_LAST                      (1ULL << 15)
+#define OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS      (1ULL << 15)
+#define OPTIMIZER_SWITCH_LAST                      (1ULL << 16)
 
 /**
    If OPTIMIZER_SWITCH_ALL is defined, optimizer_switch flags for newer 
@@ -199,7 +235,8 @@
                                   OPTIMIZER_SWITCH_SEMIJOIN | \
                                   OPTIMIZER_SWITCH_LOOSE_SCAN | \
                                   OPTIMIZER_SWITCH_FIRSTMATCH | \
-                                  OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED)
+                                  OPTIMIZER_SWITCH_SUBQ_MAT_COST_BASED | \
+                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
 #else
 #define OPTIMIZER_SWITCH_DEFAULT (OPTIMIZER_SWITCH_INDEX_MERGE | \
                                   OPTIMIZER_SWITCH_INDEX_MERGE_UNION | \
@@ -209,7 +246,8 @@
                                   OPTIMIZER_SWITCH_INDEX_CONDITION_PUSHDOWN | \
                                   OPTIMIZER_SWITCH_MRR | \
                                   OPTIMIZER_SWITCH_MRR_COST_BASED | \
-                                  OPTIMIZER_SWITCH_BNL)
+                                  OPTIMIZER_SWITCH_BNL | \
+                                  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS)
 #endif
 /*
   Replication uses 8 bytes to store SQL_MODE in the binary log. The day you

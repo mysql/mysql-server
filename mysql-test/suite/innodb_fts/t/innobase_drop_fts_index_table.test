@@ -1,0 +1,19 @@
+#
+# Test innobase_drop_fts_index_table()
+#
+
+-- source include/have_innodb.inc
+# Must have debug code to use SET SESSION debug
+-- source include/have_debug.inc
+-- source include/not_embedded.inc
+
+CREATE TABLE t (a INT, b TEXT);
+
+SET DEBUG='+d,alter_table_rollback_new_index';
+
+-- error ER_UNKNOWN_ERROR
+ALTER TABLE t ADD FULLTEXT INDEX (b(64));
+
+SET DEBUG='-d,alter_table_rollback_new_index';
+
+DROP TABLE t;

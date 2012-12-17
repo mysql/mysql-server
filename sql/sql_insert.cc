@@ -102,16 +102,6 @@ static void unlink_blobs(register TABLE *table);
 #endif
 static bool check_view_insertability(THD *thd, TABLE_LIST *view);
 
-/* Define to force use of my_malloc() if the allocated memory block is big */
-
-#ifndef HAVE_ALLOCA
-#define my_safe_alloca(size, min_length) my_alloca(size)
-#define my_safe_afree(ptr, size, min_length) my_afree(ptr)
-#else
-#define my_safe_alloca(size, min_length) ((size <= min_length) ? my_alloca(size) : my_malloc(size,MYF(0)))
-#define my_safe_afree(ptr, size, min_length) if (size > min_length) my_free(ptr)
-#endif
-
 /*
   Check that insert/update fields are from the same single table of a view.
 

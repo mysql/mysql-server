@@ -46,20 +46,6 @@ struct purge_node_t;
 
 struct row_ext_t;
 
-/** Index record modification operations during online index creation */
-enum row_op {
-	/** Insert a record */
-	ROW_OP_INSERT,
-	/** Delete-mark a record */
-	ROW_OP_DELETE_MARK,
-	/** Unmark a delete-marked record */
-	ROW_OP_DELETE_UNMARK,
-	/** Purge a delete-marked record */
-	ROW_OP_PURGE,
-	/** Purge a record that may not be delete-marked */
-	ROW_OP_DELETE_PURGE
-};
-
 /** Buffer for logging modifications during online index creation */
 struct row_log_t;
 

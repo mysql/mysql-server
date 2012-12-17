@@ -198,9 +198,9 @@ performance_schema	(pfs_socket_class).memory	3200
 performance_schema	socket_instances.row_size	320
 performance_schema	socket_instances.row_count	179
 performance_schema	socket_instances.memory	57280
-performance_schema	events_statements_summary_by_digest.row_size	1280
+performance_schema	events_statements_summary_by_digest.row_size	1472
 performance_schema	events_statements_summary_by_digest.row_count	1000
-performance_schema	events_statements_summary_by_digest.memory	1280000
+performance_schema	events_statements_summary_by_digest.memory	1472000
 performance_schema	session_connect_attrs.row_size	224
 performance_schema	session_connect_attrs.row_count	512
 performance_schema	session_connect_attrs.memory	114688
@@ -220,4 +220,5 @@ performance_schema	(table_share_hash).count	82
 performance_schema	(table_share_hash).size	445
 performance_schema	(user_hash).count	2
 performance_schema	(user_hash).size	5
-performance_schema	performance_schema.memory	35369856
+performance_schema	host_cache.size	336
+performance_schema	performance_schema.memory	35561856

@@ -1,5 +1,8 @@
 #Want to skip this test from daily Valgrind execution
 --source include/no_valgrind_without_big.inc
+# Adding big test option for this test.
+--source include/big_test.inc
+
 ################################################################################
 # This test case checks if a set of properites related to the GTIDs hold
 # after rotating the binary/relay logs and after crashes. The properties
@@ -600,11 +603,11 @@ while ($i != 5)
     --connection slave
     --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
     --disable_result_log
-    --eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$wait_gtids_first', 300)
+    --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_first', 300)
     --enable_result_log
     --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
     --disable_result_log
-    --eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$wait_gtids_second', 300)
+    --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_second', 300)
     --enable_result_log
   }
 
@@ -613,11 +616,11 @@ while ($i != 5)
     --connection slave
     --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
     --disable_result_log
-    --eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$wait_gtids_first')
+    --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_first')
     --enable_result_log
     --replace_result $master_uuid MASTER_UUID $slave_uuid SLAVE_UUID
     --disable_result_log
-    --eval SELECT SQL_THREAD_WAIT_AFTER_GTIDS('$wait_gtids_second')
+    --eval SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('$wait_gtids_second')
     --enable_result_log
   }
 

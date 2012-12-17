@@ -2908,7 +2908,7 @@ public:
   void print(FILE* file, PRINT_EVENT_INFO* print_event_info);
 #endif
 
-  User_var_log_event(const char* buf,
+  User_var_log_event(const char* buf, uint event_len,
                      const Format_description_log_event *description_event);
   ~User_var_log_event() {}
   Log_event_type get_type_code() { return USER_VAR_EVENT;}
@@ -2922,7 +2922,7 @@ public:
   bool is_deferred() { return deferred; }
   void set_deferred() { deferred= true; }
 #endif
-  bool is_valid() const { return 1; }
+  bool is_valid() const { return name != 0; }
 
 private:
 #if defined(MYSQL_SERVER) && defined(HAVE_REPLICATION)

@@ -24,6 +24,11 @@ Created 2011-05-26 Marko Makela
 *******************************************************/
 
 #include "row0log.h"
+
+#ifdef UNIV_NONINL
+#include "row0log.ic"
+#endif
+
 #include "row0row.h"
 #include "row0ins.h"
 #include "row0upd.h"
@@ -44,6 +49,14 @@ enum row_tab_op {
 	ROW_T_UPDATE,
 	/** Delete (purge) a record */
 	ROW_T_DELETE
+};
+
+/** Index record modification operations during online index creation */
+enum row_op {
+	/** Insert a record */
+	ROW_OP_INSERT = 0x61,
+	/** Delete a record */
+	ROW_OP_DELETE
 };
 
 #ifdef UNIV_DEBUG
@@ -120,10 +133,10 @@ UNIV_INTERN
 void
 row_log_online_op(
 /*==============*/
-	dict_index_t*	index,	/*!< in/out: index, S-latched */
+	dict_index_t*	index,	/*!< in/out: index, S or X latched */
 	const dtuple_t* tuple,	/*!< in: index tuple */
-	trx_id_t	trx_id, /*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation */
+	trx_id_t	trx_id)	/*!< in: transaction ID for insert,
+				or 0 for delete */
 {
 	byte*		b;
 	ulint		extra_size;
@@ -136,9 +149,7 @@ row_log_online_op(
 	ut_ad(dtuple_get_n_fields(tuple) == dict_index_get_n_fields(index));
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED)
-	      == (op != ROW_OP_PURGE));
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX)
-	      == (op == ROW_OP_PURGE));
+	      || rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
 #endif /* UNIV_SYNC_DEBUG */
 
 	if (dict_index_is_corrupted(index)) {
@@ -152,37 +163,17 @@ row_log_online_op(
 	extra_size+1 (and reserve 0 as the end-of-chunk marker). */
 
 	size = rec_get_converted_size_comp_prefix(
-		index, tuple->fields, tuple->n_fields,
-		index->n_nullable, &extra_size);
+		index, tuple->fields, tuple->n_fields, &extra_size);
 	ut_ad(size >= extra_size);
 	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 	extra_size -= REC_N_NEW_EXTRA_BYTES;
 	size -= REC_N_NEW_EXTRA_BYTES;
 	ut_ad(size <= sizeof log->tail.buf);
 
-	switch (op) {
-	case ROW_OP_INSERT:
-	case ROW_OP_DELETE_MARK:
-	case ROW_OP_DELETE_UNMARK:
-	case ROW_OP_DELETE_PURGE:
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_SHARED));
-#endif /* UNIV_SYNC_DEBUG */
-		ut_ad(trx_id);
-		mrec_size = ROW_LOG_HEADER_SIZE + DATA_TRX_ID_LEN
-			+ (extra_size >= 0x80) + size;
-		goto op_ok;
-	case ROW_OP_PURGE:
-#ifdef UNIV_SYNC_DEBUG
-		ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
-#endif /* UNIV_SYNC_DEBUG */
-		mrec_size = ROW_LOG_HEADER_SIZE
-			+ (extra_size >= 0x80) + size;
-		goto op_ok;
-	}
+	mrec_size = ROW_LOG_HEADER_SIZE
+		+ (extra_size >= 0x80) + size
+		+ (trx_id ? DATA_TRX_ID_LEN : 0);
 
-	ut_error;
-op_ok:
 	log = index->online_log;
 	mutex_enter(&log->mutex);
 
@@ -201,17 +192,12 @@ op_ok:
 		b = log->tail.block + log->tail.bytes;
 	}
 
-	*b++ = op;
-
-	switch (op) {
-	case ROW_OP_INSERT:
-	case ROW_OP_DELETE_MARK:
-	case ROW_OP_DELETE_UNMARK:
-	case ROW_OP_DELETE_PURGE:
+	if (trx_id != 0) {
+		*b++ = ROW_OP_INSERT;
 		trx_write_trx_id(b, trx_id);
 		b += DATA_TRX_ID_LEN;
-	case ROW_OP_PURGE:
-		break;
+	} else {
+		*b++ = ROW_OP_DELETE;
 	}
 
 	if (extra_size < 0x80) {
@@ -224,8 +210,7 @@ op_ok:
 
 	rec_convert_dtuple_to_rec_comp(
 		b + extra_size, 0, index,
-		REC_STATUS_ORDINARY, tuple->fields, tuple->n_fields,
-		index->n_nullable);
+		REC_STATUS_ORDINARY, tuple->fields, tuple->n_fields);
 	b += size;
 
 	if (mrec_size >= avail_size) {
@@ -400,7 +385,6 @@ row_log_table_delete(
 	ulint		avail_size;
 	mem_heap_t*	heap		= NULL;
 	const dtuple_t*	old_pk;
-	dtuple_t*	row;
 	row_ext_t*	ext;
 
 	ut_ad(dict_index_is_clust(index));
@@ -488,7 +472,7 @@ row_log_table_delete(
 		      old_pk, old_pk->n_fields - 1)->len);
 	old_pk_size = rec_get_converted_size_comp_prefix(
 		new_index, old_pk->fields, old_pk->n_fields,
-		0, &old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
+		&old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
 	ut_ad(old_pk_extra_size >= REC_N_NEW_EXTRA_BYTES);
 	old_pk_extra_size -= REC_N_NEW_EXTRA_BYTES;
 	ut_ad(old_pk_extra_size < 0x100);
@@ -496,25 +480,26 @@ row_log_table_delete(
 	mrec_size = 4 + old_pk_size;
 
 	/* If the row is marked as rollback, we will need to
-	log the enought prefix of the BLOB unless both the
+	log the enough prefix of the BLOB unless both the
 	old and new table are in COMPACT or REDUNDANT format */
 	if ((dict_table_get_format(index->table) >= UNIV_FORMAT_B
 	     || dict_table_get_format(new_table) >= UNIV_FORMAT_B)
 	    && row_log_table_is_rollback(index, trx_id)) {
-		ulint	n_ext_cols = rec_offs_n_extern(offsets);
-
-		if (n_ext_cols) {
-			row = row_build(ROW_COPY_DATA, index, rec,
-					offsets, NULL, NULL, NULL, &ext, heap);
-			ut_a(row);
-
-			/* Log the row_ext_t, ext->ext and ext->buf */
-			ext_size += n_ext_cols * ext->max_len
-				+ sizeof(*ext)
-				+ n_ext_cols * sizeof(ulint)
-				+ (n_ext_cols - 1) * sizeof ext->len;
-
-			mrec_size += ext_size;
+		if (rec_offs_any_extern(offsets)) {
+			/* Build a cache of those off-page column
+			prefixes that are referenced by secondary
+			indexes. It can be that none of the off-page
+			columns are needed. */
+			row_build(ROW_COPY_DATA, index, rec,
+				  offsets, NULL, NULL, NULL, &ext, heap);
+			if (ext) {
+				/* Log the row_ext_t, ext->ext and ext->buf */
+				ext_size = ext->n_ext * ext->max_len
+					+ sizeof(*ext)
+					+ ext->n_ext * sizeof(ulint)
+					+ (ext->n_ext - 1) * sizeof ext->len;
+				mrec_size += ext_size;
+			}
 		}
 	}
 
@@ -530,7 +515,7 @@ row_log_table_delete(
 		rec_convert_dtuple_to_rec_comp(
 			b + old_pk_extra_size, 0, new_index,
 			REC_STATUS_ORDINARY,
-			old_pk->fields, old_pk->n_fields, 0);
+			old_pk->fields, old_pk->n_fields);
 
 		b += old_pk_size;
 
@@ -635,8 +620,8 @@ row_log_table_low_redundant(
 	}
 
 	size = rec_get_converted_size_comp_prefix(
-		index, tuple->fields, tuple->n_fields,
-		index->n_nullable, &extra_size) - REC_N_NEW_EXTRA_BYTES;
+		index, tuple->fields, tuple->n_fields, &extra_size)
+		- REC_N_NEW_EXTRA_BYTES;
 	ut_ad(extra_size >= REC_N_NEW_EXTRA_BYTES);
 	extra_size -= REC_N_NEW_EXTRA_BYTES;;
 
@@ -655,7 +640,7 @@ row_log_table_low_redundant(
 
 		old_pk_size = rec_get_converted_size_comp_prefix(
 			new_index, old_pk->fields, old_pk->n_fields,
-			0, &old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
+			&old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
 		ut_ad(old_pk_extra_size >= REC_N_NEW_EXTRA_BYTES);
 		old_pk_extra_size -= REC_N_NEW_EXTRA_BYTES;
 		ut_ad(old_pk_extra_size < 0x100);
@@ -672,7 +657,7 @@ row_log_table_low_redundant(
 			rec_convert_dtuple_to_rec_comp(
 				b + old_pk_extra_size, 0, new_index,
 				REC_STATUS_ORDINARY,
-				old_pk->fields, old_pk->n_fields, 0);
+				old_pk->fields, old_pk->n_fields);
 			b += old_pk_size;
 		}
 
@@ -686,7 +671,7 @@ row_log_table_low_redundant(
 
 		rec_convert_dtuple_to_rec_comp(
 			b + extra_size, 0, index, REC_STATUS_ORDINARY,
-			tuple->fields, tuple->n_fields, index->n_nullable);
+			tuple->fields, tuple->n_fields);
 		b += size;
 
 		row_log_table_close(
@@ -768,7 +753,7 @@ row_log_table_low(
 
 		old_pk_size = rec_get_converted_size_comp_prefix(
 			new_index, old_pk->fields, old_pk->n_fields,
-			0, &old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
+			&old_pk_extra_size) - REC_N_NEW_EXTRA_BYTES;
 		ut_ad(old_pk_extra_size >= REC_N_NEW_EXTRA_BYTES);
 		old_pk_extra_size -= REC_N_NEW_EXTRA_BYTES;
 		ut_ad(old_pk_extra_size < 0x100);
@@ -785,7 +770,7 @@ row_log_table_low(
 			rec_convert_dtuple_to_rec_comp(
 				b + old_pk_extra_size, 0, new_index,
 				REC_STATUS_ORDINARY,
-				old_pk->fields, old_pk->n_fields, 0);
+				old_pk->fields, old_pk->n_fields);
 			b += old_pk_size;
 		}
 
@@ -1229,20 +1214,15 @@ row_log_table_apply_insert_low(
 
 #ifdef ROW_LOG_APPLY_PRINT
 	if (row_log_apply_print) {
-		fprintf(stderr, "table apply insert " IB_ID_FMT,
-			dup->index->id);
+		fprintf(stderr, "table apply insert "
+			IB_ID_FMT " " IB_ID_FMT "\n",
+			index->table->id, index->id);
 		dtuple_print(stderr, row);
 	}
 #endif /* ROW_LOG_APPLY_PRINT */
 
 	static const ulint	flags
-		= log->same_pk
-		? (BTR_CREATE_FLAG
-		   | BTR_CREATE_SAME_PK_FLAG
-		   | BTR_NO_LOCKING_FLAG
-		   | BTR_NO_UNDO_LOG_FLAG
-		   | BTR_KEEP_SYS_FLAG)
-		: (BTR_CREATE_FLAG
+		= (BTR_CREATE_FLAG
 		   | BTR_NO_LOCKING_FLAG
 		   | BTR_NO_UNDO_LOG_FLAG
 		   | BTR_KEEP_SYS_FLAG);
@@ -1345,6 +1325,14 @@ row_log_table_apply_delete_low(
 
 	ut_ad(dict_index_is_clust(index));
 
+#ifdef ROW_LOG_APPLY_PRINT
+	if (row_log_apply_print) {
+		fprintf(stderr, "table apply delete "
+			IB_ID_FMT " " IB_ID_FMT "\n",
+			index->table->id, index->id);
+		rec_print_new(stderr, btr_pcur_get_rec(pcur), offsets);
+	}
+#endif /* ROW_LOG_APPLY_PRINT */
 	if (dict_table_get_next_index(index)) {
 		/* Build a row template for purging secondary index entries. */
 		row = row_build(
@@ -1588,9 +1576,8 @@ insert:
 		/* The row was not found. Insert it. */
 		error = row_log_table_apply_insert_low(
 			thr, row, trx_id, offsets_heap, heap, dup);
-
-err_exit:
 		if (error != DB_SUCCESS) {
+err_exit:
 			/* Report the erroneous row using the new
 			version of the table. */
 			innobase_row_to_mysql(dup->table, log->table, row);
@@ -1694,6 +1681,15 @@ delete_insert:
 			ROW_COPY_DATA, index, btr_pcur_get_rec(&pcur),
 			cur_offsets, NULL, NULL, NULL, &old_ext, heap);
 		ut_ad(old_row);
+#ifdef ROW_LOG_APPLY_PRINT
+		if (row_log_apply_print) {
+			fprintf(stderr, "table apply update "
+				IB_ID_FMT " " IB_ID_FMT "\n",
+				index->table->id, index->id);
+			dtuple_print(stderr, old_row);
+			dtuple_print(stderr, row);
+		}
+#endif /* ROW_LOG_APPLY_PRINT */
 	} else {
 		old_row = NULL;
 		old_ext = NULL;
@@ -1730,7 +1726,7 @@ delete_insert:
 		}
 
 		if (!row_upd_changes_ord_field_binary(
-			    index, update, thr, row, NULL)) {
+			    index, update, thr, old_row, NULL)) {
 			continue;
 		}
 
@@ -1753,9 +1749,7 @@ delete_insert:
 
 		btr_cur_pessimistic_delete(
 			&error, FALSE, btr_pcur_get_btr_cur(&pcur),
-			BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
-			| BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG,
-			RB_NONE, &mtr);
+			BTR_CREATE_FLAG, RB_NONE, &mtr);
 
 		if (error != DB_SUCCESS) {
 			break;
@@ -1847,8 +1841,7 @@ row_log_table_apply_op(
 		}
 
 		rec_offs_set_n_fields(offsets, dup->index->n_fields);
-		rec_init_offsets_comp_ordinary(
-			mrec, 0, dup->index, dup->index->n_nullable, offsets);
+		rec_init_offsets_comp_ordinary(mrec, 0, dup->index, offsets);
 
 		next_mrec = mrec + rec_offs_data_size(offsets);
 
@@ -1882,7 +1875,7 @@ row_log_table_apply_op(
 		mrec += extra_size;
 
 		rec_offs_set_n_fields(offsets, new_index->n_uniq + 1);
-		rec_init_offsets_comp_ordinary(mrec, 0, new_index, 0, offsets);
+		rec_init_offsets_comp_ordinary(mrec, 0, new_index, offsets);
 		next_mrec = mrec + rec_offs_data_size(offsets) + ext_size;
 		if (next_mrec > mrec_end) {
 			return(NULL);
@@ -1946,8 +1939,7 @@ row_log_table_apply_op(
 
 			rec_offs_set_n_fields(offsets, dup->index->n_fields);
 			rec_init_offsets_comp_ordinary(
-				mrec, 0, dup->index, dup->index->n_nullable,
-				offsets);
+				mrec, 0, dup->index, offsets);
 
 			next_mrec = mrec + rec_offs_data_size(offsets);
 
@@ -1987,7 +1979,7 @@ row_log_table_apply_op(
 			DB_TRX_ID, DB_ROLL_PTR. */
 			rec_offs_set_n_fields(offsets, new_index->n_uniq + 2);
 			rec_init_offsets_comp_ordinary(
-				mrec, 0, new_index, 0, offsets);
+				mrec, 0, new_index, offsets);
 
 			next_mrec = mrec + rec_offs_data_size(offsets);
 			if (next_mrec + 2 > mrec_end) {
@@ -2038,8 +2030,7 @@ row_log_table_apply_op(
 
 			rec_offs_set_n_fields(offsets, dup->index->n_fields);
 			rec_init_offsets_comp_ordinary(
-				mrec, 0, dup->index, dup->index->n_nullable,
-				offsets);
+				mrec, 0, dup->index, offsets);
 
 			next_mrec = mrec + rec_offs_data_size(offsets);
 
@@ -2537,23 +2528,6 @@ row_log_free(
 }
 
 /******************************************************//**
-Free the row log for an index on which online creation was aborted. */
-UNIV_INTERN
-void
-row_log_abort_sec(
-/*===============*/
-	dict_index_t*	index)	/*!< in/out: index (x-latched) */
-{
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_EX));
-#endif /* UNIV_SYNC_DEBUG */
-
-	ut_ad(!dict_index_is_clust(index));
-	dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
-	row_log_free(index->online_log);
-}
-
-/******************************************************//**
 Get the latest transaction ID that has invoked row_log_online_op()
 during online creation.
 @return latest transaction ID, or 0 if nothing was logged */
@@ -2584,8 +2558,6 @@ row_log_apply_op_low(
 	dberr_t*	error,		/*!< out: DB_SUCCESS or error code */
 	mem_heap_t*	offsets_heap,	/*!< in/out: memory heap for
 					allocating offsets; can be emptied */
-	mem_heap_t*	heap,		/*!< in/out: memory heap for
-					allocating data tuples */
 	bool		has_index_lock, /*!< in: true if holding index->lock
 					in exclusive mode */
 	enum row_op	op,		/*!< in: operation being applied */
@@ -2602,7 +2574,7 @@ row_log_apply_op_low(
 	      == has_index_lock);
 #endif /* UNIV_SYNC_DEBUG */
 	ut_ad(!dict_index_is_corrupted(index));
-	ut_ad(trx_id || op == ROW_OP_PURGE);
+	ut_ad(trx_id != 0 || op == ROW_OP_DELETE);
 
 	mtr_start(&mtr);
 
@@ -2624,45 +2596,20 @@ row_log_apply_op_low(
 	if (cursor.low_match >= dict_index_get_n_unique(index)
 	    && !page_rec_is_infimum(btr_cur_get_rec(&cursor))) {
 		/* We have a matching record. */
-		rec_t*		rec	= btr_cur_get_rec(&cursor);
-		ulint		deleted	= rec_get_deleted_flag(
-			rec, page_rec_is_comp(rec));
-		upd_t*		update;
-		big_rec_t*	big_rec;
-
+		bool	exists	= (cursor.low_match
+				   == dict_index_get_n_fields(index));
+#ifdef UNIV_DEBUG
+		rec_t*	rec	= btr_cur_get_rec(&cursor);
 		ut_ad(page_rec_is_user_rec(rec));
+		ut_ad(!rec_get_deleted_flag(rec, page_rec_is_comp(rec)));
+#endif /* UNIV_DEBUG */
 
-		offsets = rec_get_offsets(rec, index, NULL,
-					  ULINT_UNDEFINED, &offsets_heap);
-		update = row_upd_build_sec_rec_difference_binary(
-			rec, index, offsets, entry, heap);
+		ut_ad(exists || dict_index_is_unique(index));
 
 		switch (op) {
-		case ROW_OP_PURGE:
-			if (!deleted) {
-				/** The record is not delete-marked.
-				If the records do not match
-				(update->n_fields > 0), we did not
-				find the record (it was purged already).
-
-				On match (update->n_fields==0), what
-				could have happened is that the
-				delete-mark was set and subsequently
-				cleared on the record (for example, by
-				updating the record back and
-				forth). The table copy would have seen
-				the record after both changes. We can
-				simply discard the log record also in
-				this case. */
-				goto func_exit;
-			}
-			/* fall through */
-		case ROW_OP_DELETE_PURGE:
-			if (update->n_fields > 0) {
-				/* This was not byte-for-byte equal to
-				the record. The record that we were
-				interested in was apparently already
-				purged. */
+		case ROW_OP_DELETE:
+			if (!exists) {
+				/* The record was already deleted. */
 				goto func_exit;
 			}
 
@@ -2692,116 +2639,19 @@ row_log_apply_op_low(
 			}
 
 			/* As there are no externally stored fields in
-			the record, the parameter rb_ctx = RB_NONE
-			will be ignored. */
-			ut_ad(!rec_offs_any_extern(offsets));
+			a secondary index record, the parameter
+			rb_ctx = RB_NONE will be ignored. */
 
 			btr_cur_pessimistic_delete(
 				error, FALSE, &cursor,
 				BTR_CREATE_FLAG, RB_NONE, &mtr);
 			break;
-		case ROW_OP_DELETE_MARK:
-		case ROW_OP_DELETE_UNMARK:
-update_the_rec:
-			ut_ad(!(entry->info_bits & ~REC_INFO_DELETED_FLAG));
-
-			if (update->n_fields == 0) {
-				/* Update the delete-mark flag only. */
-				*error = btr_cur_del_mark_set_sec_rec(
-					BTR_NO_UNDO_LOG_FLAG
-					| BTR_NO_LOCKING_FLAG
-					| BTR_CREATE_FLAG,
-					&cursor, op == ROW_OP_DELETE_MARK,
-					NULL, &mtr);
-				break;
-			}
-
-			/* No byte-for-byte equal record was found. */
-			if (cursor.up_match >= dict_index_get_n_unique(index)
-			    || cursor.low_match
-			    >= dict_index_get_n_unique(index)) {
-				/* Duplicate key found. This is OK if
-				any of the key columns are NULL. */
-				if (index->n_nullable
-				    && dtuple_contains_null(entry)) {
-					goto insert_the_rec;
-				}
-				/* FIXME: We used to insert the record
-				if (!deleted || entry->info_bits).
-				Can we reintroduce this condition, and
-				instead check for duplicates when
-				clearing a delete-mark? */
-
-				goto dup_report;
-			}
-
-			/* FIXME: Is the following dead code? */
-
-			update->info_bits =
-				(rec_get_info_bits(rec, page_rec_is_comp(rec))
-				 & ~REC_INFO_DELETED_FLAG)
-				| entry->info_bits;
-
-			if (!has_index_lock) {
-				/* TODO: pass offsets, not &offsets */
-				*error = btr_cur_optimistic_update(
-					BTR_NO_UNDO_LOG_FLAG
-					| BTR_NO_LOCKING_FLAG
-					| BTR_CREATE_FLAG
-					| BTR_KEEP_SYS_FLAG,
-					&cursor, &offsets, &offsets_heap,
-					update, 0, NULL, trx_id, &mtr);
-
-				if (*error != DB_FAIL) {
-					break;
-				}
-
-				/* This needs a pessimistic operation.
-				Lock the index tree exclusively. */
-#ifdef UNIV_DEBUG
-				ulint	low_match = cursor.low_match;
-#endif /* UNIV_DEBUG */
-
-				mtr_commit(&mtr);
-				mtr_start(&mtr);
-				btr_cur_search_to_nth_level(
-					index, 0, entry, PAGE_CUR_LE,
-					BTR_MODIFY_TREE, &cursor, 0,
-					__FILE__, __LINE__, &mtr);
-				/* No other thread than the
-				current one is allowed to
-				modify the index tree. Thus,
-				the record should still exist. */
-				ut_ad(low_match == cursor.low_match);
-			}
-
-			*error = btr_cur_pessimistic_update(
-				BTR_NO_UNDO_LOG_FLAG
-				| BTR_NO_LOCKING_FLAG
-				| BTR_CREATE_FLAG
-				| BTR_KEEP_SYS_FLAG,
-				&cursor, &offsets, &offsets_heap,
-				heap, &big_rec, update,
-				0, NULL, trx_id, &mtr);
-			ut_ad(!big_rec);
-			break;
-
 		case ROW_OP_INSERT:
-			/* If the matching record is delete-marked,
-			perform the insert by updating the record. */
-			if (deleted) {
-				goto update_the_rec;
-			}
-
-			if (update->n_fields == 0) {
-				/* An exact match of the record
-				already exists.  There is nothing to
-				be inserted. */
+			if (exists) {
+				/* The record already exists. There
+				is nothing to be inserted. */
 				goto func_exit;
 			}
-
-			ut_ad(cursor.low_match
-			      < dict_index_get_n_fields(index));
 
 			if (dtuple_contains_null(entry)) {
 				/* The UNIQUE KEY columns match, but
@@ -2810,7 +2660,6 @@ update_the_rec:
 				goto insert_the_rec;
 			}
 
-dup_report:
 			/* Duplicate key error */
 			ut_ad(dict_index_is_unique(index));
 			row_merge_dup_report(dup, entry->fields);
@@ -2820,15 +2669,9 @@ dup_report:
 		switch (op) {
 			rec_t*		rec;
 			big_rec_t*	big_rec;
-		case ROW_OP_DELETE_PURGE:
-		case ROW_OP_PURGE:
-			/* The record was apparently purged already when
-			row_merge_read_clustered_index() got that far. */
+		case ROW_OP_DELETE:
+			/* The record does not exist. */
 			goto func_exit;
-		case ROW_OP_DELETE_MARK:
-		case ROW_OP_DELETE_UNMARK:
-			/* The record was already delete-marked and
-			possibly purged. Insert it. */
 		case ROW_OP_INSERT:
 			if (dict_index_is_unique(index)
 			    && (cursor.up_match
@@ -2851,8 +2694,7 @@ insert_the_rec:
 				| BTR_CREATE_FLAG,
 				&cursor, &offsets, &offsets_heap,
 				const_cast<dtuple_t*>(entry),
-				&rec, &big_rec,
-				0, NULL, &mtr);
+				&rec, &big_rec, 0, NULL, &mtr);
 			ut_ad(!big_rec);
 			if (*error != DB_FAIL) {
 				break;
@@ -2886,6 +2728,7 @@ insert_the_rec:
 			ut_ad(!big_rec);
 			break;
 		}
+		mem_heap_empty(offsets_heap);
 	}
 
 	if (*error == DB_SUCCESS && trx_id) {
@@ -2896,8 +2739,6 @@ insert_the_rec:
 
 func_exit:
 	mtr_commit(&mtr);
-	mem_heap_empty(heap);
-	mem_heap_empty(offsets_heap);
 }
 
 /******************************************************//**
@@ -2951,9 +2792,6 @@ row_log_apply_op(
 
 	switch (*mrec) {
 	case ROW_OP_INSERT:
-	case ROW_OP_DELETE_MARK:
-	case ROW_OP_DELETE_UNMARK:
-	case ROW_OP_DELETE_PURGE:
 		if (ROW_LOG_HEADER_SIZE + DATA_TRX_ID_LEN + mrec >= mrec_end) {
 			return(NULL);
 		}
@@ -2962,7 +2800,7 @@ row_log_apply_op(
 		trx_id = trx_read_trx_id(mrec);
 		mrec += DATA_TRX_ID_LEN;
 		break;
-	case ROW_OP_PURGE:
+	case ROW_OP_DELETE:
 		op = static_cast<enum row_op>(*mrec++);
 		trx_id = 0;
 		break;
@@ -2990,8 +2828,7 @@ corrupted:
 		return(NULL);
 	}
 
-	rec_init_offsets_comp_ordinary(
-		mrec, 0, index, index->n_nullable, offsets);
+	rec_init_offsets_comp_ordinary(mrec, 0, index, offsets);
 
 	if (rec_offs_any_extern(offsets)) {
 		/* There should never be any externally stored fields
@@ -3014,9 +2851,6 @@ corrupted:
 	/* Online index creation is only implemented for secondary
 	indexes, which never contain off-page columns. */
 	ut_ad(n_ext == 0);
-	entry->info_bits = (op == ROW_OP_DELETE_MARK)
-		? REC_INFO_DELETED_FLAG
-		: 0;
 #ifdef ROW_LOG_APPLY_PRINT
 	if (row_log_apply_print) {
 		fprintf(stderr, "apply " IB_ID_FMT " " TRX_ID_FMT " %u %u ",
@@ -3028,7 +2862,7 @@ corrupted:
 		putc('\n', stderr);
 	}
 #endif /* ROW_LOG_APPLY_PRINT */
-	row_log_apply_op_low(index, dup, error, offsets_heap, heap,
+	row_log_apply_op_low(index, dup, error, offsets_heap,
 			     has_index_lock, op, trx_id, entry);
 	return(mrec);
 }

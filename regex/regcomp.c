@@ -227,7 +227,7 @@ int stop;			/* character this ERE should end at */
 		while (MORE() && (c = PEEK()) != '|' && c != stop)
 		{
 		  if (my_regex_enough_mem_in_stack &&
-		      my_regex_enough_mem_in_stack())
+		      my_regex_enough_mem_in_stack(0))
 		  {
 		    SETERROR(MY_REG_ESPACE);
 		    return;

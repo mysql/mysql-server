@@ -463,8 +463,6 @@ rec_init_offsets_comp_ordinary(
 					the data payload
 					(usually REC_N_NEW_EXTRA_BYTES) */
 	const dict_index_t*	index,	/*!< in: record descriptor */
-	ulint			n_null,	/*!< in: number of fields that
-					can be NULL */
 	ulint*			offsets)/*!< in/out: array of offsets;
 					in: n=rec_offs_n_fields(offsets) */
 	__attribute__((nonnull));
@@ -808,9 +806,7 @@ rec_convert_dtuple_to_rec_comp(
 	const dict_index_t*	index,	/*!< in: record descriptor */
 	ulint			status,	/*!< in: status bits of the record */
 	const dfield_t*		fields,	/*!< in: array of data fields */
-	ulint			n_fields,/*!< in: number of data fields */
-	ulint			n_null)	/*!< in: number of fields that
-					can be NULL */
+	ulint			n_fields)/*!< in: number of data fields */
 	__attribute__((nonnull));
 /*********************************************************//**
 Builds a physical record out of a data tuple and
@@ -852,8 +848,6 @@ rec_get_converted_size_comp_prefix(
 					it does not */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
-	ulint			n_null,	/*!< in: number of fields that
-					can be NULL */
 	ulint*			extra)	/*!< out: extra size */
 	__attribute__((warn_unused_result, nonnull(1,2)));
 /**********************************************************//**
@@ -870,8 +864,6 @@ rec_get_converted_size_comp(
 	ulint			status,	/*!< in: status bits of the record */
 	const dfield_t*		fields,	/*!< in: array of data fields */
 	ulint			n_fields,/*!< in: number of data fields */
-	ulint			n_null,	/*!< in: number of fields that
-					can be NULL */
 	ulint*			extra)	/*!< out: extra size */
 	__attribute__((nonnull(1,3)));
 /**********************************************************//**

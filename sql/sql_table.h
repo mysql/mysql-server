@@ -136,6 +136,8 @@ static const uint NO_FRM_RENAME=   1 << 2;
 static const uint FRM_ONLY=        1 << 3;
 /** Don't remove table in engine. Remove only .FRM and maybe .PAR files. */
 static const uint NO_HA_TABLE=     1 << 4;
+/** Don't resolve MySQL's fake "foo.sym" symbolic directory names. */
+static const uint SKIP_SYMDIR_ACCESS= 1 << 5;
 
 uint filename_to_tablename(const char *from, char *to, uint to_length
 #ifndef DBUG_OFF
