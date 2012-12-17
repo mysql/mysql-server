@@ -1,0 +1,40 @@
+source include/have_tokudb.inc;
+
+disable_warnings;
+drop table if exists t;
+enable_warnings;
+
+create table t (id bigint primary key, b bigint not null default 0);
+insert into t (id) values (1),(2);
+
+connect (conn1,localhost,root,,);
+
+connection default;
+set session tokudb_enable_fast_update=1;
+begin;
+update t set b=b+1 where id=1;
+
+connection conn1;
+set session tokudb_enable_fast_update=1;
+begin;
+update t set b=b-1 where id=2;
+
+connection default;
+send update t set b=b+1 where id=2;
+
+connection conn1;
+error 1213;
+update t set b=b-1 where id=1;
+rollback;
+
+connection default;
+reap;
+commit;
+
+connection default;
+disconnect conn1;
+
+select * from t;
+
+drop table t;
+
