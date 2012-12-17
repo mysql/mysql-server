@@ -3184,13 +3184,13 @@ bool get_lookup_value(THD *thd, Item_func *item_func,
     Item_field *item_field;
     CHARSET_INFO *cs= system_charset_info;
 
-    if (item_func->arguments()[0]->type() == Item::FIELD_ITEM &&
+    if (item_func->arguments()[0]->real_item()->type() == Item::FIELD_ITEM &&
         item_func->arguments()[1]->const_item())
     {
       idx_field= 0;
       idx_val= 1;
     }
-    else if (item_func->arguments()[1]->type() == Item::FIELD_ITEM &&
+    else if (item_func->arguments()[1]->real_item()->type() == Item::FIELD_ITEM &&
              item_func->arguments()[0]->const_item())
     {
       idx_field= 1;
@@ -3199,7 +3199,7 @@ bool get_lookup_value(THD *thd, Item_func *item_func,
     else
       return 0;
 
-    item_field= (Item_field*) item_func->arguments()[idx_field];
+    item_field= (Item_field*) item_func->arguments()[idx_field]->real_item();
     if (table->table != item_field->field->table)
       return 0;
     tmp_str= item_func->arguments()[idx_val]->val_str(&str_buff);
