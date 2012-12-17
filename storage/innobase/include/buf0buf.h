@@ -198,6 +198,15 @@ struct buf_pool_info_struct{
 
 typedef struct buf_pool_info_struct	buf_pool_info_t;
 
+/** The occupied bytes of lists in all buffer pools */
+struct buf_pools_list_size_struct {
+	ulint	LRU_bytes;		/*!< LRU size in bytes */
+	ulint	unzip_LRU_bytes;	/*!< unzip_LRU size in bytes */
+	ulint	flush_list_bytes;	/*!< flush_list size in bytes */
+};
+
+typedef struct buf_pools_list_size_struct	buf_pools_list_size_t;
+
 #ifndef UNIV_HOTBACKUP
 /********************************************************************//**
 Acquire mutex on all buffer pool instances */
@@ -1333,6 +1342,14 @@ buf_get_total_list_len(
 	ulint*		free_len,	/*!< out: length of all free lists */
 	ulint*		flush_list_len);/*!< out: length of all flush lists */
 /********************************************************************//**
+Get total list size in bytes from all buffer pools. */
+UNIV_INTERN
+void
+buf_get_total_list_size_in_bytes(
+/*=============================*/
+	buf_pools_list_size_t*	buf_pools_list_size);	/*!< out: list sizes
+							in all buffer pools */
+/********************************************************************//**
 Get total buffer pool statistics. */
 UNIV_INTERN
 void
@@ -1685,6 +1702,8 @@ struct buf_pool_stat_struct{
 				young because the first access
 				was not long enough ago, in
 				buf_page_peek_if_too_old() */
+	ulint	LRU_bytes;	/*!< LRU size in bytes */
+	ulint	flush_list_bytes;/*!< flush_list size in bytes */
 };
 
 /** Statistics of buddy blocks of a given size. */
