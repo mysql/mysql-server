@@ -133,6 +133,7 @@ int ha_tokudb::fast_update(THD *thd, List<Item> &update_fields, List<Item> &upda
     TOKUDB_DBUG_ENTER("ha_tokudb::fast_update");
 
     int error = 0;
+    unsigned line = 0; // debug
 
     if (tokudb_debug & TOKUDB_DEBUG_UPSERT) {
         dump_item_list("fields", update_fields);
@@ -144,17 +145,24 @@ int ha_tokudb::fast_update(THD *thd, List<Item> &update_fields, List<Item> &upda
 
     if (update_fields.elements < 1 || update_fields.elements != update_values.elements) {
         error = ENOTSUP;  // something is fishy with the parameters
+        line = __LINE__;
         goto return_error;
     }
 
     if (!check_fast_update(thd, update_fields, update_values, conds)) {
         error = ENOTSUP;
+        line = __LINE__;
         goto check_error;
     }
 
     error = send_update_message(update_fields, update_values, conds, transaction);
+    if (error != 0) {
+        line = __LINE__;
+        goto check_error;
+    }
 
 check_error:
+    line = line; // debug
     if (error != 0) {
         if (get_disable_slow_update(thd))
             error = HA_ERR_UNSUPPORTED;
@@ -624,10 +632,10 @@ int ha_tokudb::send_update_message(List<Item> &update_fields, List<Item> &update
 
     rw_rdlock(&share->num_DBs_lock);
 
-    if (share->num_DBs > table->s->keys + test(hidden_primary_key)) {// hot index in progress
+    if (share->num_DBs > table->s->keys + test(hidden_primary_key)) { // hot index in progress
         error = ENOTSUP; // run on the slow path
     } else {
-        // send the message    
+        // send the update message    
         DBT update_dbt; memset(&update_dbt, 0, sizeof update_dbt);
         update_dbt.data = update_message.data();
         update_dbt.size = update_message.size();
@@ -646,6 +654,7 @@ int ha_tokudb::upsert(THD *thd, List<Item> &update_fields, List<Item> &update_va
     TOKUDB_DBUG_ENTER("ha_tokudb::upsert");
 
     int error = 0;
+    unsigned line = 0; // debug
 
     if (tokudb_debug & TOKUDB_DEBUG_UPSERT) {
         fprintf(stderr, "upsert\n");
@@ -655,17 +664,24 @@ int ha_tokudb::upsert(THD *thd, List<Item> &update_fields, List<Item> &update_va
 
     if (update_fields.elements < 1 || update_fields.elements != update_values.elements) {
         error = ENOTSUP;  // not an upsert or something is fishy with the parameters
+        line = __LINE__;
         goto return_error;
     }
 
     if (!check_upsert(thd, update_fields, update_values)) {
         error = ENOTSUP;
+        line = __LINE__;
         goto check_error;
     }
     
     error = send_upsert_message(thd, update_fields, update_values, transaction);
+    if (error != 0) {
+        line = __LINE__;
+        goto check_error;
+    }
 
 check_error:
+    line = line; // debug
     if (error != 0) {
         if (get_disable_slow_upsert(thd))
             error = HA_ERR_UNSUPPORTED;
