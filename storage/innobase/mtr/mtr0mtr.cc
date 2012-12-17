@@ -316,7 +316,7 @@ mtr_commit(
 	ut_ad(!recv_no_log_write);
 
 	if (mtr->modifications
-	    && (mtr->ignore_log_recs ? true : mtr->n_log_recs)) {
+	    && (mtr->n_log_recs > 0 || mtr->log_mode == MTR_LOG_NO_REDO)) {
 		ut_ad(!srv_read_only_mode);
 		mtr_log_reserve_and_write(mtr);
 	}
@@ -354,18 +354,9 @@ turn_off_logging_if_temp_table(
 	/* turn-off redo and undo logging for temporary table.
 	- redo-logging is turned-off for temporary table only.
 	  redo-logging done for other db objects viz. rollback segment
-	  creation is not blocked.
-	- undo-loggng is turned-off for temporary table only if, current
-	  DML stmt is part of single commit trx. */
+	  creation is not blocked. */
 	if (is_temp) {
-		mtr_set_log_mode(mtr, MTR_LOG_NONE);
-		mtr->ignore_log_recs = TRUE;
-		/*
-		if (flags
-		    && !(thd_test_options(trx->mysql_thd,
-			 OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)))
-			*flags |= BTR_NO_UNDO_LOG_FLAG;
-		*/
+		mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
 	}
 	return;
 }
