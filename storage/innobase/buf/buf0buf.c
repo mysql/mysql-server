@@ -370,6 +370,33 @@ buf_get_total_list_len(
 }
 
 /********************************************************************//**
+Get total list size in bytes from all buffer pools. */
+UNIV_INTERN
+void
+buf_get_total_list_size_in_bytes(
+/*=============================*/
+	buf_pools_list_size_t*	buf_pools_list_size)	/*!< out: list sizes
+							in all buffer pools */
+{
+	ulint			i;
+	ut_ad(buf_pools_list_size);
+	memset(buf_pools_list_size, 0, sizeof(*buf_pools_list_size));
+
+	for (i = 0; i < srv_buf_pool_instances; i++) {
+		buf_pool_t*	buf_pool;
+
+		buf_pool = buf_pool_from_array(i);
+		/* We don't need mutex protection since this is
+		for statistics purpose */
+		buf_pools_list_size->LRU_bytes += buf_pool->stat.LRU_bytes;
+		buf_pools_list_size->unzip_LRU_bytes +=
+			UT_LIST_GET_LEN(buf_pool->unzip_LRU) * UNIV_PAGE_SIZE;
+		buf_pools_list_size->flush_list_bytes +=
+			buf_pool->stat.flush_list_bytes;
+	}
+}
+
+/********************************************************************//**
 Get total buffer pool statistics. */
 UNIV_INTERN
 void
@@ -2951,6 +2978,7 @@ buf_page_init(
 	ulint		offset,	/*!< in: offset of the page within space
 				in units of a page */
 	ulint		fold,	/*!< in: buf_page_address_fold(space,offset) */
+	ulint		zip_size,/*!< in: compressed page size, or 0 */
 	buf_block_t*	block)	/*!< in/out: block to init */
 {
 	buf_page_t*	hash_page;
@@ -3013,6 +3041,9 @@ buf_page_init(
 	ut_d(block->page.in_page_hash = TRUE);
 	HASH_INSERT(buf_page_t, hash, buf_pool->page_hash,
 		    fold, &block->page);
+	if (zip_size) {
+		page_zip_set_size(&block->page.zip, zip_size);
+	}
 }
 
 /********************************************************************//**
@@ -3114,7 +3145,7 @@ err_exit:
 
 		ut_ad(buf_pool_from_bpage(bpage) == buf_pool);
 
-		buf_page_init(buf_pool, space, offset, fold, block);
+		buf_page_init(buf_pool, space, offset, fold, zip_size, block);
 
 		/* The block must be put to the LRU list, to the old blocks */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
@@ -3132,8 +3163,6 @@ err_exit:
 		buf_page_set_io_fix(bpage, BUF_IO_READ);
 
 		if (UNIV_UNLIKELY(zip_size)) {
-			page_zip_set_size(&block->page.zip, zip_size);
-
 			/* buf_pool->mutex may be released and
 			reacquired by buf_buddy_alloc().  Thus, we
 			must release block->mutex in order not to
@@ -3226,7 +3255,8 @@ err_exit:
 		HASH_INSERT(buf_page_t, hash, buf_pool->page_hash, fold,
 			    bpage);
 
-		/* The block must be put to the LRU list, to the old blocks */
+		/* The block must be put to the LRU list, to the old blocks
+		The zip_size is already set into the page zip */
 		buf_LRU_add_block(bpage, TRUE/* to old blocks */);
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 		buf_LRU_insert_zip_clean(bpage);
@@ -3317,7 +3347,7 @@ buf_page_create(
 
 	mutex_enter(&block->mutex);
 
-	buf_page_init(buf_pool, space, offset, fold, block);
+	buf_page_init(buf_pool, space, offset, fold, zip_size, block);
 
 	/* The block must be put to the LRU list */
 	buf_LRU_add_block(&block->page, FALSE);
@@ -3335,8 +3365,6 @@ buf_page_create(
 
 		buf_page_set_io_fix(&block->page, BUF_IO_READ);
 		rw_lock_x_lock(&block->lock);
-
-		page_zip_set_size(&block->page.zip, zip_size);
 		mutex_exit(&block->mutex);
 		/* buf_pool->mutex may be released and reacquired by
 		buf_buddy_alloc().  Thus, we must release block->mutex
