@@ -1270,7 +1270,7 @@ ndb_pushed_builder_ctx::build_key(const AQP::Table_access* table,
   {
     if (ndbcluster_is_lookup_operation(table->get_access_type()))
     {
-      for (uint i= 0; i < key->key_parts; i++)
+      for (uint i= 0; i < key->user_defined_key_parts; i++)
       {
         op_key[i]= m_builder->paramValue();
         if (unlikely(op_key[i] == NULL))
@@ -1278,13 +1278,13 @@ ndb_pushed_builder_ctx::build_key(const AQP::Table_access* table,
           DBUG_RETURN(-1);
         }
       }
-      op_key[key->key_parts]= NULL;
+      op_key[key->user_defined_key_parts]= NULL;
     }
   }
   else
   {
     const uint key_fields= table->get_no_of_key_fields();
-    DBUG_ASSERT(key_fields > 0 && key_fields <= key->key_parts);
+    DBUG_ASSERT(key_fields > 0 && key_fields <= key->user_defined_key_parts);
     uint map[ndb_pushed_join::MAX_LINKED_KEYS+1];
 
     if (ndbcluster_is_lookup_operation(table->get_access_type()))
@@ -1512,7 +1512,7 @@ ndbcluster_build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
 
   if (index.unique_index_attrid_map) // UNIQUE_ORDERED_INDEX or UNIQUE_INDEX
   {
-    for (ix = 0; ix < key_def->key_parts; ix++)
+    for (ix = 0; ix < key_def->user_defined_key_parts; ix++)
     {
       ix_map[ix]= index.unique_index_attrid_map[ix];
     }
@@ -1524,7 +1524,7 @@ ndbcluster_build_key_map(const NDBTAB* table, const NDB_INDEX_DATA& index,
     int columnnr= 0;
     assert (index.type == PRIMARY_KEY_ORDERED_INDEX || index.type == PRIMARY_KEY_INDEX);
 
-    for (ix = 0, key_part= key_def->key_part; ix < key_def->key_parts; ix++, key_part++)
+    for (ix = 0, key_part= key_def->key_part; ix < key_def->user_defined_key_parts; ix++, key_part++)
     {
       // As NdbColumnImpl::m_keyInfoPos isn't available through
       // NDB API we have to calculate it ourself, else we could:
