@@ -9,6 +9,7 @@
 # the resource consumption (storage space needed, runtime) will be extreme.
 # Therefore we require that the option "--big-test" is also set.
 #
+--source include/big_test.inc
 
 let $need_big= 0;
 --disable_query_log

@@ -123,8 +123,8 @@ DROP TRIGGER trg;
 ####################################
 # QUERYING PS STATEMENT DIGEST
 ####################################
-SELECT digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
-digest	digest_text	count_star
+SELECT schema_name, digest, digest_text, count_star FROM performance_schema.events_statements_summary_by_digest;
+schema_name	digest	digest_text	count_star
 SELECT digest, digest_text FROM performance_schema.events_statements_current;
 digest	digest_text
 NULL	NULL

@@ -149,6 +149,17 @@ static DYNAMIC_STRING extended_row;
 FILE *md_result_file= 0;
 FILE *stderror_file=0;
 
+const char *set_gtid_purged_mode_names[]=
+{"OFF", "AUTO", "ON", NullS};
+static TYPELIB set_gtid_purged_mode_typelib=
+               {array_elements(set_gtid_purged_mode_names) -1, "",
+                set_gtid_purged_mode_names, NULL};
+static enum enum_set_gtid_purged_mode {
+  SET_GTID_PURGED_OFF= 0,
+  SET_GTID_PURGED_AUTO =1,
+  SET_GTID_PURGED_ON=2
+} opt_set_gtid_purged_mode= SET_GTID_PURGED_AUTO;
+
 #ifdef HAVE_SMEM
 static char *shared_memory_base_name=0;
 #endif
@@ -464,6 +475,15 @@ static struct my_option my_long_options[] =
    "Add 'SET NAMES default_character_set' to the output.",
    &opt_set_charset, &opt_set_charset, 0, GET_BOOL, NO_ARG, 1,
    0, 0, 0, 0, 0},
+  {"set-gtid-purged", OPT_SET_GTID_PURGED,
+    "Add 'SET @@GLOBAL.GTID_PURGED' to the output. Possible values for "
+    "this option are ON, OFF and AUTO. If ON is used and GTIDs "
+    "are not enabled on the server, an error is generated. If OFF is "
+    "used, this option does nothing. If AUTO is used and GTIDs are enabled "
+    "on the server, 'SET @@GLOBAL.GTID_PURGED' is added to the output. "
+    "If GTIDs are disabled, AUTO does nothing. Default is AUTO.",
+    0, 0, 0, GET_STR, OPT_ARG,
+    0, 0, 0, 0, 0, 0},
 #ifdef HAVE_SMEM
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
@@ -903,6 +923,13 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
     opt_protocol= find_type_or_exit(argument, &sql_protocol_typelib,
                                     opt->name);
     break;
+  case (int) OPT_SET_GTID_PURGED:
+    {
+      opt_set_gtid_purged_mode= find_type_or_exit(argument,
+                                                  &set_gtid_purged_mode_typelib,
+                                                  opt->name)-1;
+      break;
+    }
   }
   return 0;
 }
@@ -3424,18 +3451,6 @@ static void dump_table(char *table, char *db)
     DBUG_VOID_RETURN;
   }
 
-  /*
-     Check --skip-events flag: it is not enough to skip creation of events
-     discarding SHOW CREATE EVENT statements generation. The myslq.event
-     table data should be skipped too.
-  */
-  if (!opt_events && !my_strcasecmp(&my_charset_latin1, db, "mysql") &&
-      !my_strcasecmp(&my_charset_latin1, table, "event"))
-  {
-    verbose_msg("-- Skipping data table mysql.event, --skip-events was used\n");
-    DBUG_VOID_RETURN;
-  }
-
   result_table= quote_name(table,table_buff, 1);
   opt_quoted_table= quote_name(table, table_buff2, 0);
 
@@ -5260,6 +5275,153 @@ static int replace(DYNAMIC_STRING *ds_str,
 }
 
 
+/**
+  This function sets the session binlog in the dump file.
+  When --set-gtid-purged is used, this function is called to
+  disable the session binlog and at the end of the dump, to restore
+  the session binlog.
+
+  @note: md_result_file should have been opened, before
+         this function is called.
+
+  @param[in]      flag          If FALSE, disable binlog.
+                                If TRUE and binlog disabled previously,
+                                restore the session binlog.
+*/
+
+static void set_session_binlog(my_bool flag)
+{
+  static my_bool is_binlog_disabled= FALSE;
+
+  if (!flag && !is_binlog_disabled)
+  {
+    fprintf(md_result_file,
+            "SET @MYSQLDUMP_TEMP_LOG_BIN = @@SESSION.SQL_LOG_BIN;\n");
+    fprintf(md_result_file, "SET @@SESSION.SQL_LOG_BIN= 0;\n");
+    is_binlog_disabled= 1;
+  }
+  else if (flag && is_binlog_disabled)
+  {
+    fprintf(md_result_file,
+            "SET @@SESSION.SQL_LOG_BIN = @MYSQLDUMP_TEMP_LOG_BIN;\n");
+    is_binlog_disabled= 0;
+  }
+}
+
+
+/**
+  This function gets the GTID_EXECUTED sets from the
+  server and assigns those sets to GTID_PURGED in the
+  dump file.
+
+  @param[in]  mysql_con     connection to the server
+
+  @retval     FALSE         succesfully printed GTID_PURGED sets
+                             in the dump file.
+  @retval     TRUE          failed.
+
+*/
+
+static my_bool add_set_gtid_purged(MYSQL *mysql_con)
+{
+  MYSQL_RES  *gtid_purged_res;
+  MYSQL_ROW  gtid_set;
+  ulong     num_sets, idx;
+
+  /* query to get the GTID_EXECUTED */
+  if (mysql_query_with_error_report(mysql_con, &gtid_purged_res,
+                  "SELECT @@GLOBAL.GTID_EXECUTED"))
+    return TRUE;
+
+  /* Proceed only if gtid_purged_res is non empty */
+  if ((num_sets= mysql_num_rows(gtid_purged_res)) > 0)
+  {
+    if (opt_comments)
+      fprintf(md_result_file,
+          "\n--\n--GTID state at the beginning of the backup \n--\n\n");
+
+    fprintf(md_result_file,"SET @@GLOBAL.GTID_PURGED='");
+
+    /* formatting is not required, even for multiple gtid sets */
+    for (idx= 0; idx< num_sets-1; idx++)
+    {
+      gtid_set= mysql_fetch_row(gtid_purged_res);
+      fprintf(md_result_file,"%s,", (char*)gtid_set[0]);
+    }
+    /* for the last set */
+    gtid_set= mysql_fetch_row(gtid_purged_res);
+    /* close the SET expression */
+    fprintf(md_result_file,"%s';\n", (char*)gtid_set[0]);
+  }
+
+  return FALSE;  /*success */
+}
+
+
+/**
+  This function processes the opt_set_gtid_purged option.
+  This function also calls set_session_binlog() function before
+  setting the SET @@GLOBAL.GTID_PURGED in the output.
+
+  @param[in]          mysql_con     the connection to the server
+
+  @retval             FALSE         successful according to the value
+                                    of opt_set_gtid_purged.
+  @retval             TRUE          fail.
+*/
+
+static my_bool process_set_gtid_purged(MYSQL* mysql_con)
+{
+  MYSQL_RES  *gtid_mode_res;
+  MYSQL_ROW  gtid_mode_row;
+  char       *gtid_mode_val= 0;
+
+  if (opt_set_gtid_purged_mode == SET_GTID_PURGED_OFF)
+    return FALSE;  /* nothing to be done */
+
+
+  /* check if gtid_mode is ON or OFF */
+  if (mysql_query_with_error_report(mysql_con, &gtid_mode_res,
+                                    "SELECT @@GTID_MODE"))
+    return TRUE;
+
+  gtid_mode_row = mysql_fetch_row(gtid_mode_res);
+  gtid_mode_val = (char*)gtid_mode_row[0];
+
+  if (gtid_mode_val && strcmp(gtid_mode_val, "OFF"))
+  {
+    /*
+       For any gtid_mode !=OFF and irrespective of --set-gtid-purged
+       being AUTO or ON,  add GTID_PURGED in the output.
+    */
+    if (opt_databases || !opt_alldbs || !opt_dump_triggers
+        || !opt_routines || !opt_events)
+    {
+      fprintf(stderr,"Warning: A partial dump from a server that has GTIDs will "
+                     "by default include the GTIDs of all transactions, even "
+                     "those that changed suppressed parts of the database. If "
+                     "you don't want to restore GTIDs, pass "
+                     "--set-gtid-purged=OFF. To make a complete dump, pass "
+                     "--all-databases --triggers --routines --events. \n");
+    }
+
+    set_session_binlog(FALSE);
+    if (add_set_gtid_purged(mysql_con))
+      return TRUE;
+  }
+  else /* gtid_mode is off */
+  {
+    if (opt_set_gtid_purged_mode == SET_GTID_PURGED_ON)
+    {
+      fprintf(stderr, "Error: Server has GTIDs disabled.\n");
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+
 /*
   Getting VIEW structure
 
@@ -5589,6 +5751,13 @@ int main(int argc, char **argv)
   /* Add 'STOP SLAVE to beginning of dump */
   if (opt_slave_apply && add_stop_slave())
     goto err;
+
+
+  /* Process opt_set_gtid_purged and add SET @@GLOBAL.GTID_PURGED if required. */
+  if (process_set_gtid_purged(mysql))
+    goto err;
+
+
   if (opt_master_data && do_show_master_status(mysql))
     goto err;
   if (opt_slave_data && do_show_slave_status(mysql))
@@ -5623,6 +5792,12 @@ int main(int argc, char **argv)
   /* if --dump-slave , start the slave sql thread */
   if (opt_slave_data && do_start_slave_sql(mysql))
     goto err;
+
+  /*
+    if --set-gtid-purged, restore binlog at the end of the session
+    if required.
+  */
+  set_session_binlog(TRUE);
 
   /* add 'START SLAVE' to end of dump */
   if (opt_slave_apply && add_slave_statements())

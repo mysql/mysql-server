@@ -552,7 +552,9 @@ ALTER TABLE t5980c ADD PRIMARY KEY(a);
 --error ER_NO_SUCH_TABLE
 ALTER TABLE t5980d ADD PRIMARY KEY(a);
 
+--error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980aa;
+--error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980bb;
 
 SHOW CREATE TABLE t5980aa;
@@ -573,13 +575,23 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 --list_files $MYSQL_TMP_DIR/alt_dir/test
 
 --echo #
---echo # Discarded tablespaces that were ALTERED IN_PLACE are no longer discarded.
+--echo # Restart the server to check if the discarded flag is persistent
+--echo #
+--source include/shutdown_mysqld.inc
+--source include/start_mysqld.inc
+
+--echo #
+--echo # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
 --echo #
 
+--error ER_TABLESPACE_DISCARDED
 INSERT INTO t5980aa VALUES (1, "Inserted into Discarded Local tablespace after ALTER ADD PRIMARY KEY, ALGORITHM=INPLACE");
+--error ER_TABLESPACE_DISCARDED
 INSERT INTO t5980bb VALUES (1, "Inserted into Discarded Local tablespace after ALTER ADD PRIMARY KEY, ALGORITHM=INPLACE");
 
+--error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980aa;
+--error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980bb;
 
 RENAME TABLE t5980aa TO t5980a;
@@ -628,9 +640,18 @@ ALTER TABLE t5980b ROW_FORMAT=REDUNDANT, ALGORITHM=COPY;
 
 ALTER TABLE t5980a ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
 ALTER TABLE t5980b ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+
+--echo #
+--echo # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
 INSERT INTO t5980a VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
+--error ER_TABLESPACE_DISCARDED
 INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
+--error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980a;
+--error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980b;
 --echo ### files in MYSQL_DATA_DIR/test
 --list_files $MYSQL_DATA_DIR/test
@@ -663,9 +684,22 @@ ALTER TABLE t5980b ADD COLUMN c CHAR(20), ALGORITHM=COPY;
 
 ALTER TABLE t5980a ADD COLUMN c CHAR(20), ALGORITHM=INPLACE;
 ALTER TABLE t5980b ADD COLUMN c CHAR(20), ALGORITHM=INPLACE;
+
+--echo #
+--echo # Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
+--echo #
+
+--error ER_TABLESPACE_DISCARDED
+DELETE FROM t5980a;
+--error ER_TABLESPACE_DISCARDED
+UPDATE t5980a SET c="Tablespace is DISCARDED";
+--error ER_TABLESPACE_DISCARDED
 INSERT INTO t5980a VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE", "new column");
+--error ER_TABLESPACE_DISCARDED
 INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE", "new column");
+--error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980a;
+--error ER_TABLESPACE_DISCARDED
 SELECT * FROM t5980b;
 --echo ### files in MYSQL_DATA_DIR/test
 --list_files $MYSQL_DATA_DIR/test
@@ -699,11 +733,13 @@ SELECT path FROM information_schema.innodb_sys_datafiles
 
 -- disable_query_log
 eval set global innodb_file_per_table=$innodb_file_per_table_orig;
-
 call mtr.add_suppression("InnoDB: Could not find a valid tablespace file for");
 call mtr.add_suppression("InnoDB: Tablespace open failed for");
 call mtr.add_suppression("InnoDB: Failed to find tablespace for table ");
 call mtr.add_suppression("InnoDB: Table test/t5980.* does not have an .ibd file in the database directory.");
 call mtr.add_suppression("Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("Cannot delete tablespace .+ because it is not found in the tablespace memory cache");
+call mtr.add_suppression("Cannot delete tablespace .+ in DISCARD TABLESPACE. Tablespace not found");
+call mtr.add_suppression("doesn't have a corresponding tablespace, it was discarded.");
 -- enable_query_log
 

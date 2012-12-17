@@ -35,6 +35,7 @@
 
 #define MYSQL_CONFIG_EDITOR_VERSION "1.0"
 #define MY_LINE_MAX 4096
+#define MAX_COMMAND_LIMIT 100
 /*
   Header length for the login file.
   4-byte (unused) + LOGIN_KEY_LEN
@@ -55,37 +56,41 @@ static char my_login_file[FN_REFLEN];
 static char my_key[LOGIN_KEY_LEN];
 
 static my_bool opt_verbose, opt_all, tty_password= 0, opt_warn,
-               login_path_specified= TRUE;
+               opt_remove_host, opt_remove_pass, opt_remove_user,
+               login_path_specified= FALSE;
 
-int execute_commands(int argc, char **argv);
+static int execute_commands(int command);
+static int set_command(void);
+static int remove_command(void);
+static int print_command(void);
 static void print_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
 static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
 static char* locate_login_path(DYNAMIC_STRING *file_buf, const char *path_name);
 static my_bool check_and_create_login_file(void);
 static void mask_password_and_print(char *buf);
-static void reset_login_file(bool gen_key);
+static int reset_login_file(bool gen_key);
 
 static int encrypt_buffer(const char *plain, int plain_len, char cipher[]);
 static int decrypt_buffer(const char *cipher, int cipher_len, char plain[]);
 static int encrypt_and_write_file(DYNAMIC_STRING *file_buf);
 static int read_and_decrypt_file(DYNAMIC_STRING *file_buf);
+static int do_handle_options(int argc, char *argv[]);
+static void remove_options(DYNAMIC_STRING *file_buf, const char *path_name);
+static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
+                          const char* option_name);
 void generate_login_key(void);
-int read_login_key(void);
-int add_header(void);
+static int read_login_key(void);
+static int add_header(void);
+static void my_perror(const char *msg);
 
 static void verbose_msg(const char *fmt, ...);
 static void print_version(void);
-static void usage(void);
+static void usage_program(void);
+static void usage_command(int command);
 extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
                                   char *argument);
 
-
-/*
-  The order of commands must be the same as command_names,
-  except MY_CONFIG_ERROR.
-*/
 enum commands {
-  MY_CONFIG_ERROR,
   MY_CONFIG_SET,
   MY_CONFIG_REMOVE,
   MY_CONFIG_PRINT,
@@ -93,249 +98,563 @@ enum commands {
   MY_CONFIG_HELP
 };
 
-static const char *command_names[]= {
-  "set",
-  "remove",
-  "print",
-  "reset",
-  "help",
-  NullS
+struct my_command_data {
+  const int id;
+  const char *name;
+  const char *description;
+  my_option *options;
+  my_bool (*get_one_option_func)(int optid,
+                                 const struct my_option *opt,
+                                 char *argument);
 };
 
-static TYPELIB command_typelib=
-{ array_elements(command_names)-1, "commands", command_names, NULL};
 
-static struct my_option my_long_options[] =
+/* mysql_config_editor utility options. */
+static struct my_option my_program_long_options[]=
 {
-  {"all", OPT_CONFIG_ALL, "Used with print command to print all login paths.",
-    &opt_all, &opt_all, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
 #ifndef DBUG_OFF
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
 #endif
   {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"host", 'h', "Host name to be entered into the login file.", &opt_host,
-    &opt_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"login-path", 'G', "Name of the login path to use in the login file.",
-    &opt_login_path, &opt_login_path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0,
-    0, 0, 0},
-  {"password", 'p', "Prompt for password to be entered into the login file.",
-   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"user", 'u', "User name to be entered into the login file.", &opt_user,
-    &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"verbose", 'v', "Write more information.", &opt_verbose,
    &opt_verbose, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"version", 'V', "Output version information and exit.", 0, 0, 0, GET_NO_ARG,
    NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+/* Command-specific options. */
+
+/* SET command options. */
+static struct my_option my_set_command_options[]=
+{
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Host name to be entered into the login file.", &opt_host,
+   &opt_host, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"login-path", 'G', "Name of the login path to use in the login file. "
+   "(Default : client)", &opt_login_path, &opt_login_path, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"password", 'p', "Prompt for password to be entered into the login file.",
+   0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"user", 'u', "User name to be entered into the login file.", &opt_user,
+   &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"warn", 'w', "Warn and ask for confirmation if set command attempts to "
    "overwrite an existing login path (enabled by default).",
    &opt_warn, &opt_warn, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
-  { 0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
 
+/* REMOVE command options. */
+static struct my_option my_remove_command_options[]=
+{
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"host", 'h', "Remove host name from the login path.",
+   &opt_remove_host, &opt_remove_host, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"login-path", 'G', "Name of the login path from which options to "
+   "be removed (entire path would be removed if none of user, password, "
+   "or host options are specified). (Default : client)", &opt_login_path,
+   &opt_login_path, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"password", 'p', "Remove password from the login path.",
+   &opt_remove_pass, &opt_remove_pass, 0, GET_BOOL, NO_ARG, 0, 0, 0,
+   0, 0, 0},
+  {"user", 'u', "Remove user name from the login path.", &opt_remove_user,
+   &opt_remove_user, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"warn", 'w', "Warn and ask for confirmation if remove command attempts "
+   "to remove the default login path (client) if no login path is specified "
+   "(enabled by default).", &opt_warn, &opt_warn, 0, GET_BOOL, NO_ARG, 1,
+   0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+/* PRINT command options. */
+static struct my_option my_print_command_options[]=
+{
+  {"all", OPT_CONFIG_ALL, "Used with print command to print all login paths.",
+   &opt_all, &opt_all, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"login-path", 'G', "Name of the login path to use in the login file. "
+   "(Default : client)", &opt_login_path, &opt_login_path, 0, GET_STR,
+   REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+/* RESET command options. */
+static struct my_option my_reset_command_options[]=
+{
+  {"help", '?', "Display this help and exit.", 0, 0, 0, GET_NO_ARG,
+   NO_ARG, 0, 0, 0, 0, 0, 0},
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
+
+/* HELP command options. */
+static struct my_option my_help_command_options[]=
+{
+  {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
+};
 
 my_bool
-get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
-	       char *argument)
+my_program_get_one_option(int optid,
+                          const struct my_option *opt __attribute__((unused)),
+                          char *argument)
 {
   switch(optid) {
   case '#':
     DBUG_PUSH(argument ? argument : "d:t:o,/tmp/mysql_config_editor.trace");
-    break;
-  case 'p':
-    tty_password= 1;
     break;
   case 'V':
     print_version();
     exit(0);
     break;
   case '?':
-    usage();
+    usage_program();
     exit(0);
     break;
   }
   return 0;
 }
 
+my_bool
+my_set_command_get_one_option(int optid,
+                              const struct my_option *opt __attribute__((unused)),
+                              char *argument)
+{
+  switch(optid) {
+  case 'p':
+    tty_password= 1;
+    break;
+  case 'G':
+    login_path_specified= TRUE;
+    break;
+  case '?':
+    usage_command(MY_CONFIG_SET);
+    exit(0);
+    break;
+  }
+  return 0;
+}
+
+my_bool
+my_remove_command_get_one_option(int optid,
+                                 const struct my_option *opt __attribute__((unused)),
+                                 char *argument)
+{
+  switch(optid) {
+  case 'G':
+    login_path_specified= TRUE;
+    break;
+  case '?':
+    usage_command(MY_CONFIG_REMOVE);
+    exit(0);
+    break;
+  }
+  return 0;
+}
+
+my_bool
+my_print_command_get_one_option(int optid,
+                                const struct my_option *opt __attribute__((unused)),
+                                char *argument)
+{
+  switch(optid) {
+  case 'G':
+    login_path_specified= TRUE;
+    break;
+  case '?':
+    usage_command(MY_CONFIG_PRINT);
+    exit(0);
+    break;
+  }
+  return 0;
+}
+
+my_bool
+my_reset_command_get_one_option(int optid,
+                                const struct my_option *opt __attribute__((unused)),
+                                char *argument)
+{
+  switch(optid) {
+  case '?':
+    usage_command(MY_CONFIG_RESET);
+    exit(0);
+    break;
+  }
+  return 0;
+}
+
+static struct my_command_data command_data[]=
+{
+  {
+    MY_CONFIG_SET,
+    "set",
+    "Write a login path to the login file.",
+    my_set_command_options,
+    my_set_command_get_one_option
+  },
+  {
+    MY_CONFIG_REMOVE,
+    "remove",
+    "Remove a login path from the login file.",
+    my_remove_command_options,
+    my_remove_command_get_one_option
+  },
+  {
+    MY_CONFIG_PRINT,
+    "print",
+    "Print the contents of login file in unencrypted form.",
+    my_print_command_options,
+    my_print_command_get_one_option
+  },
+  {
+    MY_CONFIG_RESET,
+    "reset",
+    "Empty the contents of the login file. The file is created\n"
+    "if it does not exist.",
+    my_reset_command_options,
+    my_reset_command_get_one_option
+  },
+  {
+    MY_CONFIG_HELP,
+    "help",
+    "Display a help message and exit.",
+    my_help_command_options,
+    NULL
+  },
+  {
+    0, NULL, NULL, NULL, NULL
+  }
+};
+
 
 int main(int argc, char *argv[])
 {
-  DBUG_ENTER("main");
-  int error;
-
   MY_INIT(argv[0]);
+  DBUG_ENTER("main");
+  int command, rc= 0;
 
-  if ((error= handle_options(&argc, &argv, my_long_options, get_one_option)))
+  command= do_handle_options(argc, argv);
+
+  if (command > -1)
+    rc= execute_commands(command);
+
+  if (rc == -1)
   {
-    exit(error);
+    my_perror("operation failed.");
+    DBUG_RETURN(1);
   }
-
-  if (argc == 0)
-  {
-    usage();
-    exit(1);
-  }
-
-  if (tty_password)
-    opt_password= get_tty_password(NullS);
-
-  /* if not, set it to 'client' (default) */
-  if (!opt_login_path)
-  {
-    login_path_specified= FALSE;
-    opt_login_path= my_strdup("client", MYF(MY_WME));
-  }
-
-  error= execute_commands(argc, argv);
-  exit(error ? 1 : 0);
   DBUG_RETURN(0);
 }
 
 
-int execute_commands(int argc, char **argv)
+/**
+  Handle all the command line arguments.
+
+  program_name [program options] [command [command options]]
+
+*/
+static int do_handle_options(int argc, char *argv[])
+{
+  DBUG_ENTER("do_handle_options");
+
+  const char *command_list[MAX_COMMAND_LIMIT + 1];
+  char **saved_argv= argv;
+  char **argv_cmd;
+  char *ptr;                                    /* for free. */
+  int argc_cmd;
+  int rc, i, command= -1;
+
+  if (argc < 2)
+  {
+    usage_program();
+    exit(1);
+  }
+
+  if (!(ptr= (char *) my_malloc((argc + 2) * sizeof(char *),
+                                MYF(MY_WME))))
+    goto error;
+
+  /* Handle program options. */
+
+  /* Prepare a list of supported commands to be used by my_handle_options(). */
+  for (i= 0; (command_data[i].name != NULL) && (i < MAX_COMMAND_LIMIT); i++)
+    command_list[i]= (char *) command_data[i].name;
+  command_list[i]= NULL;
+
+  if ((rc= my_handle_options(&argc, &argv, my_program_long_options,
+                             my_program_get_one_option, command_list)))
+    exit(rc);
+
+  if (argc == 0)                                /* No command specified. */
+    goto done;
+
+  for (i= 0; command_data[i].name != NULL; i++)
+  {
+    if (!strcmp(command_data[i].name, argv[0]))
+    {
+      command= i;
+      break;
+    }
+  }
+
+  if (command == -1)
+    goto error;
+
+  /* Handle command options. */
+
+  argv_cmd= (char **)ptr;
+  argc_cmd= argc + 1;
+
+  /* Prepare a command line (argv) using the rest of the options. */
+  argv_cmd[0]= saved_argv[0];
+  memcpy((uchar *) (argv_cmd + 1), (uchar *) (argv),
+         (argc * sizeof(char *)));
+  argv_cmd[argc_cmd]= 0;
+
+  if ((rc= handle_options(&argc_cmd, &argv_cmd,
+                          command_data[command].options,
+                          command_data[command].get_one_option_func)))
+    exit(rc);
+
+  /* Do not allow multiple commands. */
+  if ( argc_cmd > 1)
+    goto error;
+
+  /* If NULL, set it to 'client' (default) */
+  if (!opt_login_path)
+    opt_login_path= my_strdup("client", MYF(MY_WME));
+
+done:
+  my_free(ptr);
+  DBUG_RETURN(command);
+
+error:
+  my_free(ptr);
+  usage_program();
+  exit(1);
+}
+
+
+static int execute_commands(int command)
 {
   DBUG_ENTER("execute_commands");
+  int rc= 0;
+
+  if ((rc= check_and_create_login_file()))
+    goto done;
+
+  switch(command_data[command].id) {
+    case MY_CONFIG_SET :
+      verbose_msg("Executing set command.\n");
+      rc= set_command();
+      break;
+
+    case MY_CONFIG_REMOVE :
+      verbose_msg("Executing remove command.\n");
+      rc= remove_command();
+      break;
+
+    case MY_CONFIG_PRINT :
+      verbose_msg("Executing print command.\n");
+      rc= print_command();
+     break;
+
+    case MY_CONFIG_RESET :
+      verbose_msg("Resetting login file.\n");
+      rc= reset_login_file(1);
+      break;
+
+    case MY_CONFIG_HELP :
+      verbose_msg("Printing usage info.\n");
+      usage_program();
+      break;
+
+    default :
+      my_perror("unknown command.");
+      exit(1);
+  }
+
+  my_close(g_fd, MYF(MY_WME));
+
+done:
+  DBUG_RETURN(rc);
+}
+
+
+/**
+  Execute 'set' command.
+
+  @param void
+
+  @return -1              Error
+           0              Success
+*/
+
+static int set_command(void)
+{
+  DBUG_ENTER("set_command");
+
   DYNAMIC_STRING file_buf, path_buf;
-  int error= 0;
 
   init_dynamic_string(&path_buf, "", MY_LINE_MAX, MY_LINE_MAX);
   init_dynamic_string(&file_buf, "", file_size, 3 * MY_LINE_MAX);
 
-  for (; argc > 0; argv++, argc--)
+  if (tty_password)
+    opt_password= get_tty_password(NullS);
+
+  if (file_size)
   {
-    if ((error= check_and_create_login_file()))
-      goto done;
-
-    switch(find_type(argv[0], &command_typelib, FIND_TYPE_BASIC)) {
-      case MY_CONFIG_SET :
-        verbose_msg("Executing set command.\n");
-        if (file_size)
-        {
-          if (read_and_decrypt_file(&file_buf) == -1)
-            goto done;
-        }
-
-        dynstr_append(&path_buf, "[");          /* --login=path */
-        if (opt_login_path)
-          dynstr_append(&path_buf, opt_login_path);
-        else
-          dynstr_append(&path_buf, "client");
-        dynstr_append(&path_buf, "]");
-
-        if (opt_user)                           /* --user */
-        {
-          dynstr_append(&path_buf, "\nuser = ");
-          dynstr_append(&path_buf, opt_user);
-        }
-
-        if (opt_password)                       /* --password */
-        {
-          dynstr_append(&path_buf, "\npassword = ");
-          dynstr_append(&path_buf, opt_password);
-        }
-
-        if (opt_host)                           /* --host */
-        {
-          dynstr_append(&path_buf, "\nhost = ");
-          dynstr_append(&path_buf, opt_host);
-        }
-
-        dynstr_append(&path_buf, "\n");
-
-        /* Warn if login path already exists */
-        if (opt_warn && ((locate_login_path (&file_buf, opt_login_path))
-                         != NULL))
-        {
-          int choice;
-          printf ("WARNING : \'%s\' path already exists and will be "
-                  "overwritten. \n Continue? (Press y|Y for Yes, any "
-                  "other key for No) : ",
-                  opt_login_path);
-          choice= getchar();
-
-          if (choice != (int) 'y' && choice != (int) 'Y')
-            break;                              /* skip */
-        }
-
-        /* Remove the login path. */
-        remove_login_path(&file_buf, opt_login_path);
-
-        /* Append the new login path to the file buffer. */
-        dynstr_append(&file_buf, path_buf.str);
-
-        encrypt_and_write_file(&file_buf);
-        break;
-
-      case MY_CONFIG_REMOVE :
-        verbose_msg("Executing remove command.\n");
-        if (file_size)
-        {
-          if (read_and_decrypt_file(&file_buf) == -1)
-            goto done;
-        }
-        else
-          break;                                /* Nothing to remove, skip.. */
-
-        /* Warn if no login path is specified. */
-        if (opt_warn &&
-            ((locate_login_path (&file_buf, opt_login_path)) != NULL) &&
-            (login_path_specified == FALSE)
-            )
-        {
-          int choice;
-          printf ("WARNING : No login path specified, so default login path "
-                  "will be removed. \n Continue? (Press y|Y for Yes, any "
-                  "other key for No) : ");
-          choice= getchar();
-
-          if (choice != (int) 'y' && choice != (int) 'Y')
-            break;                              /* skip */
-        }
-
-        remove_login_path(&file_buf, opt_login_path);
-
-        encrypt_and_write_file(&file_buf);
-        break;
-
-      case MY_CONFIG_PRINT :
-        verbose_msg("Executing print command.\n");
-        if (file_size)
-        {
-          if (read_and_decrypt_file(&file_buf) == -1)
-            goto done;
-        }
-        else
-          break;                                /* Nothing to print, skip..*/
-
-        print_login_path(&file_buf, opt_login_path);
-        break;
-
-      case MY_CONFIG_RESET :
-        verbose_msg("Resetting login file.\n");
-        reset_login_file(1);
-        break;
-
-      case MY_CONFIG_HELP :
-        verbose_msg("Printing usage info.\n");
-        usage();
-        break;
-
-      default :
-        printf("Error! Unknown command.\n");
-        exit(1);
-    }
-    dynstr_trunc(&file_buf, 0);
-    dynstr_trunc(&path_buf, 0);
-
-    my_close(g_fd, MYF(MY_WME));
+    if (read_and_decrypt_file(&file_buf) == -1)
+      goto error;
   }
+
+  dynstr_append(&path_buf, "[");                /* --login=path */
+  if (opt_login_path)
+    dynstr_append(&path_buf, opt_login_path);
+  else
+    dynstr_append(&path_buf, "client");
+  dynstr_append(&path_buf, "]");
+
+  if (opt_user)                                 /* --user */
+  {
+    dynstr_append(&path_buf, "\nuser = ");
+    dynstr_append(&path_buf, opt_user);
+  }
+
+  if (opt_password)                             /* --password */
+  {
+    dynstr_append(&path_buf, "\npassword = ");
+    dynstr_append(&path_buf, opt_password);
+  }
+
+  if (opt_host)                                 /* --host */
+  {
+    dynstr_append(&path_buf, "\nhost = ");
+    dynstr_append(&path_buf, opt_host);
+  }
+
+  dynstr_append(&path_buf, "\n");
+
+  /* Warn if login path already exists */
+  if (opt_warn && ((locate_login_path (&file_buf, opt_login_path))
+                   != NULL))
+  {
+    int choice;
+    printf ("WARNING : \'%s\' path already exists and will be "
+            "overwritten. \n Continue? (Press y|Y for Yes, any "
+            "other key for No) : ",
+            opt_login_path);
+    choice= getchar();
+
+    if (choice != (int) 'y' && choice != (int) 'Y')
+      goto done;                                /* skip */
+  }
+
+  /* Remove the login path. */
+  remove_login_path(&file_buf, opt_login_path);
+
+  /* Append the new login path to the file buffer. */
+  dynstr_append(&file_buf, path_buf.str);
+
+  if (encrypt_and_write_file(&file_buf) == -1)
+    goto error;
 
 done:
   dynstr_free(&file_buf);
   dynstr_free(&path_buf);
+  DBUG_RETURN(0);
 
-  DBUG_RETURN(error);
+error:
+  dynstr_free(&file_buf);
+  dynstr_free(&path_buf);
+  DBUG_RETURN(-1);
+}
+
+static int remove_command(void) {
+  DBUG_ENTER("remove_command");
+
+  DYNAMIC_STRING file_buf, path_buf;
+
+  init_dynamic_string(&path_buf, "", MY_LINE_MAX, MY_LINE_MAX);
+  init_dynamic_string(&file_buf, "", file_size, 3 * MY_LINE_MAX);
+
+  if (file_size)
+  {
+    if (read_and_decrypt_file(&file_buf) == -1)
+      goto error;
+  }
+  else
+    goto done;                                  /* Nothing to remove, skip.. */
+
+  /* Warn if no login path is specified. */
+  if (opt_warn &&
+      ((locate_login_path (&file_buf, opt_login_path)) != NULL) &&
+      (login_path_specified == FALSE)
+      )
+  {
+    int choice;
+    printf ("WARNING : No login path specified, so options from the default "
+            "login path will be removed.\nContinue? (Press y|Y for Yes, "
+            "any other key for No) : ");
+    choice= getchar();
+
+    if (choice != (int) 'y' && choice != (int) 'Y')
+      goto done;                                /* skip */
+  }
+
+  remove_options(&file_buf, opt_login_path);
+
+  if (encrypt_and_write_file(&file_buf) == -1)
+    goto error;
+
+done:
+  dynstr_free(&file_buf);
+  dynstr_free(&path_buf);
+  DBUG_RETURN(0);
+
+error:
+  dynstr_free(&file_buf);
+  dynstr_free(&path_buf);
+  DBUG_RETURN(-1);
+}
+
+/**
+  Execute 'print' command.
+
+  @param void
+
+  @return -1              Error
+           0              Success
+*/
+
+static int print_command(void)
+{
+  DBUG_ENTER("print_command");
+  DYNAMIC_STRING file_buf;
+
+  init_dynamic_string(&file_buf, "", file_size, 3 * MY_LINE_MAX);
+
+  if (file_size)
+  {
+    if (read_and_decrypt_file(&file_buf) == -1)
+      goto error;
+  }
+  else
+    goto done;                                  /* Nothing to print, skip..*/
+
+  print_login_path(&file_buf, opt_login_path);
+
+done:
+  dynstr_free(&file_buf);
+  DBUG_RETURN(0);
+
+error:
+  dynstr_free(&file_buf);
+  DBUG_RETURN(-1);
 }
 
 
@@ -345,8 +664,8 @@ done:
 
   @param void
 
-  @return 1               error
-          0               success
+  @return -1              Error
+           0              Success
 */
 
 static my_bool check_and_create_login_file(void)
@@ -370,7 +689,7 @@ static my_bool check_and_create_login_file(void)
   /* Get the login file name. */
   if (! my_default_get_login_file(my_login_file, sizeof(my_login_file)))
   {
-    verbose_msg("Error! Failed to set login file name.\n");
+    my_perror("failed to set login file name");
     goto error;
   }
 
@@ -402,7 +721,10 @@ static my_bool check_and_create_login_file(void)
       /* Create the login directory. */
       verbose_msg("%s directory doesn't exist, creating it.\n", login_dir);
       if (my_mkdir(login_dir, 0, MYF(0)))
+      {
+        my_perror("failed to create the directory");
         goto error;
+      }
     }
   }
 #endif
@@ -423,17 +745,16 @@ static my_bool check_and_create_login_file(void)
       verbose_msg("File has the required permission.\nOpening the file.\n");
       if ((g_fd= my_open(my_login_file, access_flag, MYF(MY_WME))) == -1)
       {
-        verbose_msg("Error! Couldn't open the file.\n");
+        my_perror("couldn't open the file");
         goto error;
       }
     }
     else
     {
       verbose_msg("File does not have the required permission.\n");
-      if (opt_warn)
-        printf ("WARNING : Login file does not have the required"
-                " file permissions.\nPlease set the mode to 600 &"
-                " run the command again.\n");
+      printf ("WARNING : Login file does not have the required"
+              " file permissions.\nPlease set the mode to 600 &"
+              " run the command again.\n");
       goto error;
     }
   }
@@ -443,7 +764,7 @@ static my_bool check_and_create_login_file(void)
     if ((g_fd= my_create(my_login_file, create_mode, access_flag,
                        MYF(MY_WME)) == -1))
     {
-      verbose_msg("Error! Couldn't create the login file.\n");
+      my_perror("couldn't create the login file");
       goto error;
     }
     else
@@ -453,7 +774,7 @@ static my_bool check_and_create_login_file(void)
 
       if((g_fd= my_open(my_login_file, access_flag, MYF(MY_WME))) == -1)
       {
-        verbose_msg("Error! couldn't open the file.\n");
+        my_perror("couldn't open the file");
         goto error;
       }
       file_size= 0;
@@ -475,7 +796,7 @@ static my_bool check_and_create_login_file(void)
   DBUG_RETURN(0);
 
 error:
-  DBUG_RETURN(1);
+  DBUG_RETURN(-1);
 }
 
 
@@ -575,6 +896,92 @@ static void mask_password_and_print(char *buf)
 
 
 /**
+  Remove multiple options from a login path.
+*/
+static void remove_options(DYNAMIC_STRING *file_buf, const char *path_name)
+{
+  /* If nope of the options are specified remove the entire path. */
+  if (!opt_remove_host && !opt_remove_pass && !opt_remove_user)
+  {
+    remove_login_path(file_buf, path_name);
+    return;
+  }
+
+  if (opt_remove_user)
+    remove_option(file_buf, path_name, "user");
+
+  if (opt_remove_pass)
+    remove_option(file_buf, path_name, "password");
+
+  if (opt_remove_host)
+    remove_option(file_buf, path_name, "host");
+}
+
+
+/**
+  Remove an option from a login path.
+*/
+static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
+                          const char* option_name)
+{
+  DBUG_ENTER("remove_option");
+
+  char *start= NULL, *end= NULL;
+  char *search_str;
+  int search_len, shift_len;
+  bool option_found= FALSE;
+
+  search_str= (char *) my_malloc((uint) strlen(option_name) + 2, MYF(MY_WME));
+  sprintf(search_str, "\n%s", option_name);
+
+  if ((start= locate_login_path(file_buf, path_name)) == NULL)
+    /* login path was not found, skip.. */
+    goto done;
+
+  end= strstr(start, "\n[");                    /* Next path. */
+
+  if (end)
+    search_len= end - start;
+  else
+    search_len= file_buf->length - (start - file_buf->str);
+
+  while(search_len > 1)
+  {
+    if (!strncmp(start, search_str, strlen(search_str)))
+    {
+      /* Option found. */
+      end= start;
+      while(*(++ end) != '\n')
+      {}
+      option_found= TRUE;
+      break;
+    }
+    else
+    {
+      /* Move to next line. */
+      while( (-- search_len > 1) && (*(++ start) != '\n'))
+      {}
+    }
+  }
+
+  if (option_found)
+  {
+    shift_len= file_buf->length - (end - file_buf->str);
+
+    file_buf->length -= (end - start);
+
+    while(shift_len --)
+      *(start ++)= *(end ++);
+    *start= '\0';
+  }
+
+done:
+  my_free(search_str);
+  DBUG_VOID_RETURN;
+}
+
+
+/**
   Remove the specified login path from the login file.
 
   @param file_buf  [in]   Buffer storing the unscrambled login
@@ -627,27 +1034,34 @@ done:
   @param gen_key [in]     Flag to control the generation of
                           a new key.
 
-  @return                 void
+  @return -1              Error
+           0              Success
 */
 
-static void reset_login_file(bool gen_key)
+static int reset_login_file(bool gen_key)
 {
   DBUG_ENTER("reset_login_file");
 
   if (my_chsize(g_fd, 0, 0, MYF(MY_WME)))
+  {
     verbose_msg("Error while truncating the file.\n");
+    goto error;
+  }
 
   /* Seek to the beginning of the file. */
-  my_seek(g_fd, 0L, SEEK_SET, MYF(MY_WME));
+  if (my_seek(g_fd, 0L, SEEK_SET, MYF(MY_WME) == MY_FILEPOS_ERROR))
+    goto error;                                 /* Error. */
 
   if (gen_key)
     generate_login_key();                       /* Generate a new key. */
 
-  add_header();
+  if (add_header() == -1)
+    goto error;
 
-  file_size= 0;
+  DBUG_RETURN(0);
 
-  DBUG_VOID_RETURN;
+error:
+  DBUG_RETURN(0);
 }
 
 
@@ -698,8 +1112,8 @@ static char* locate_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
   @param file_buf  [in]   Buffer storing the unscrambled login
                           file contents.
 
-  @return                 -1, if error encountered;
-                          bytes written to the file, otherwise.
+  @return -1 Error
+           0 Success
 
   @note The contents of the file buffer are encrypted
         on a line-by-line basis with each line having
@@ -717,12 +1131,13 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)
   uint bytes_read=0, len= 0;
   int enc_len= 0;                               // Can be negative.
 
-  reset_login_file(0);
+  if (reset_login_file(0) == -1)
+    goto error;
 
   /* Move past key first. */
   if (my_seek(g_fd, MY_LOGIN_HEADER_LEN, SEEK_SET, MYF(MY_WME))
       != (MY_LOGIN_HEADER_LEN))
-    DBUG_RETURN(-1);                            /* Error while seeking. */
+    goto error;                                 /* Error while seeking. */
 
 
   tmp= &file_buf->str[bytes_read];
@@ -745,10 +1160,7 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)
 
     if ((enc_len= encrypt_buffer(&file_buf->str[bytes_read],
                                  ++ len, cipher + MAX_CIPHER_STORE_LEN)) < 0)
-    {
-      verbose_msg("Error! failed to encrypt the login file buffer.\n");
       goto error;
-    }
 
     bytes_read += len;
 
@@ -760,10 +1172,7 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)
 
     if ((my_write(g_fd, (const uchar *)cipher, enc_len + MAX_CIPHER_STORE_LEN,
                   MYF(MY_WME))) != (enc_len + MAX_CIPHER_STORE_LEN))
-    {
-      verbose_msg("Error! couldn't write to the file.\n");
       goto error;
-    }
   }
 
   verbose_msg("Successfully written encrypted data to the login file.\n");
@@ -771,9 +1180,10 @@ static int encrypt_and_write_file(DYNAMIC_STRING *file_buf)
   /* Update file_size */
   file_size= bytes_read;
 
-  DBUG_RETURN(file_size);
+  DBUG_RETURN(0);
 
 error:
+  my_perror("couldn't encrypt the file");
   DBUG_RETURN(-1);
 }
 
@@ -785,10 +1195,8 @@ error:
   @param file_buf  [in]   Buffer for storing the unscrambled login
                           file contents.
 
-  @return                 -1, if error encountered;
-                          total length of plain content added to
-                          the file buffer, otherwise.
-
+  @return -1 Error
+           0 Success
 */
 
 static int read_and_decrypt_file(DYNAMIC_STRING *file_buf)
@@ -797,12 +1205,12 @@ static int read_and_decrypt_file(DYNAMIC_STRING *file_buf)
 
   char cipher[MY_LINE_MAX], plain[MY_LINE_MAX];
   uchar len_buf[MAX_CIPHER_STORE_LEN];
-  int cipher_len= 0, dec_len= 0, total_len= 0;
+  int cipher_len= 0, dec_len= 0;
 
   /* Move past key first. */
   if (my_seek(g_fd, MY_LOGIN_HEADER_LEN, SEEK_SET, MYF(MY_WME))
       != (MY_LOGIN_HEADER_LEN))
-    DBUG_RETURN(-1);                            /* Error while seeking. */
+    goto error;                                 /* Error while seeking. */
 
   /* First read the length of the cipher. */
   while (my_read(g_fd, len_buf, MAX_CIPHER_STORE_LEN,
@@ -811,25 +1219,25 @@ static int read_and_decrypt_file(DYNAMIC_STRING *file_buf)
     cipher_len= sint4korr(len_buf);
 
     if (cipher_len > MY_LINE_MAX)
-      DBUG_RETURN(-1);
+      goto error;
 
     /* Now read 'cipher_len' bytes from the file. */
     if ((int) my_read(g_fd, (uchar *) cipher, cipher_len, MYF(MY_WME)) == cipher_len)
     {
       if ((dec_len= decrypt_buffer(cipher, cipher_len, plain)) < 0)
-      {
-        verbose_msg("Error! failed to decrypt the file.\n");
-        DBUG_RETURN(-1);
-      }
+        goto error;
 
-      total_len += dec_len;
       plain[dec_len]= 0;
       dynstr_append(file_buf, plain);
     }
   }
 
   verbose_msg("Successfully decrypted the login file.\n");
-  DBUG_RETURN(total_len);
+  DBUG_RETURN(0);
+
+error:
+  my_perror("couldn't decrypt the file");
+  DBUG_RETURN(-1);
 }
 
 
@@ -852,13 +1260,9 @@ static int encrypt_buffer(const char *plain, int plain_len, char cipher[])
   aes_len= my_aes_get_size(plain_len);
 
   if (my_aes_encrypt(plain, plain_len, cipher, my_key, LOGIN_KEY_LEN) == aes_len)
-  {
     DBUG_RETURN(aes_len);
-  }
-  else
-  {
-    fprintf(stderr, "Error! failed to encrypt.\n");
-  }
+
+  verbose_msg("Error! Couldn't encrypt the buffer.\n");
   DBUG_RETURN(-1);                              /* Error */
 }
 
@@ -881,14 +1285,9 @@ static int decrypt_buffer(const char *cipher, int cipher_len, char plain[])
 
   if ((aes_length= my_aes_decrypt(cipher, cipher_len, (char *) plain,
                                   my_key, LOGIN_KEY_LEN)) > 0)
-  {
     DBUG_RETURN(aes_length);
-  }
-  else
-  {
-    fprintf(stderr, "Error! failed to decrypt.\n");
-  }
 
+  verbose_msg("Error! Couldn't decrypt the buffer.\n");
   DBUG_RETURN(-1);                              /* Error */
 }
 
@@ -901,7 +1300,7 @@ static int decrypt_buffer(const char *cipher, int cipher_len, char plain[])
                           length written, otherwise.
 */
 
-int add_header(void)
+static int add_header(void)
 {
   DBUG_ENTER("add_header");
 
@@ -910,23 +1309,18 @@ int add_header(void)
 
   /* Write 'unused' bytes first. */
   if ((my_write(g_fd, (const uchar *) unused, 4, MYF(MY_WME))) != 4)
-  {
-    verbose_msg("Error! couldn't write to the file.\n");
     goto error;
-  }
 
   /* Write the login key. */
   if ((my_write(g_fd, (const uchar *)my_key, LOGIN_KEY_LEN, MYF(MY_WME)))
       != LOGIN_KEY_LEN)
-  {
-    verbose_msg("Error! couldn't write to the file.\n");
     goto error;
-  }
 
   verbose_msg("Key successfully written to the file.\n");
   DBUG_RETURN(MY_LOGIN_HEADER_LEN);
 
 error:
+  my_perror("file write operation failed");
   DBUG_RETURN(-1);
 }
 
@@ -955,24 +1349,25 @@ void generate_login_key()
            0              Success
 */
 
-int read_login_key(void)
+static int read_login_key(void)
 {
   DBUG_ENTER("read_login_key");
 
   verbose_msg("Reading the login key.\n");
   /* Move past the unused buffer. */
   if (my_seek(g_fd, 4, SEEK_SET, MYF(MY_WME)) != 4)
-    DBUG_RETURN(-1);                            /* Error while seeking. */
+    goto error;                                 /* Error while seeking. */
 
   if (my_read(g_fd, (uchar *)my_key, LOGIN_KEY_LEN, MYF(MY_WME))
       != LOGIN_KEY_LEN)
-  {
-    verbose_msg("Failed to read login key.\n");
-    DBUG_RETURN(-1);
-  }
+    goto error;                                 /* Error while reading. */
 
   verbose_msg("Login key read successfully.\n");
   DBUG_RETURN(0);
+
+error:
+  my_perror("file read operation failed");
+  DBUG_RETURN(-1);
 }
 
 
@@ -992,22 +1387,48 @@ static void verbose_msg(const char *fmt, ...)
   DBUG_VOID_RETURN;
 }
 
+static void my_perror(const char *msg)
+{
+  char errbuf[MYSYS_STRERROR_SIZE];
 
-static void usage(void)
+  if (errno == 0)
+    fprintf(stderr, "%s\n", (msg) ? msg : "");
+  else
+    fprintf(stderr, "%s : %s\n", (msg) ? msg : "",
+            my_strerror(errbuf, sizeof(errbuf), errno));
+  // reset errno
+  errno= 0;
+}
+
+static void usage_command(int command)
 {
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2012"));
   puts("MySQL Configuration Utility.");
-  printf("Usage: %s command [options] \n", my_progname);
-  my_print_help(my_long_options);
-  my_print_variables(my_long_options);
+  printf("\nDescription: %s\n", command_data[command].description);
+  printf("Usage: %s [program options] [%s [command options]]\n",
+         my_progname, command_data[command].name);
+  my_print_help(command_data[command].options);
+  my_print_variables(command_data[command].options);
+}
+
+
+static void usage_program(void)
+{
+  print_version();
+  puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2012"));
+  puts("MySQL Configuration Utility.");
+  printf("Usage: %s [program options] [command [command options]]\n",
+         my_progname);
+  my_print_help(my_program_long_options);
+  my_print_variables(my_program_long_options);
   puts("\nWhere command can be any one of the following :\n\
-       set [options]             Sets user name/password/host name for a\n\
+       set [command options]     Sets user name/password/host name for a\n\
                                  given login path (section).\n\
-       remove [options]          Remove a login path from the login file.\n\
-       print [options]           Print all the options for a specified\n\
+       remove [command options]  Remove a login path from the login file.\n\
+       print [command options]   Print all the options for a specified\n\
                                  login path.\n\
-       reset                     Deletes the contents of the login file.\n\
+       reset [command options]   Deletes the contents of the login file.\n\
        help                      Display this usage/help information.\n");
 }
 

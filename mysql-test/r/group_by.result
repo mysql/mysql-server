@@ -1191,15 +1191,10 @@ a
 4
 SELECT t1.a FROM t1 GROUP BY t1.a
 HAVING t1.a IN (SELECT t2.a FROM t2 ORDER BY t2.a, SUM(t2.b));
-a
-2
-3
-4
+ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
 SELECT t1.a FROM t1 GROUP BY t1.a
 HAVING t1.a > ANY (SELECT t2.a FROM t2 ORDER BY t2.a, SUM(t2.b));
-a
-3
-4
+ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause
 SELECT t1.a FROM t1
 WHERE t1.a = (SELECT t2.a FROM t2 ORDER BY SUM(t1.b));
 ERROR 42000: Mixing of GROUP columns (MIN(),MAX(),COUNT(),...) with no GROUP columns is illegal if there is no GROUP BY clause

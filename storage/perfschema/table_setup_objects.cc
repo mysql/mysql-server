@@ -339,42 +339,15 @@ int table_setup_objects::delete_row_values(TABLE *table,
                                            const unsigned char *buf,
                                            Field **fields)
 {
-  int result;
-  Field *f;
+  DBUG_ASSERT(m_row_exists);
+
+  CHARSET_INFO *cs= &my_charset_utf8_bin;
   enum_object_type object_type= OBJECT_TYPE_TABLE;
-  String object_schema_data("", 0, &my_charset_utf8_bin);
-  String object_name_data("", 0, &my_charset_utf8_bin);
-  String *object_schema= NULL;
-  String *object_name= NULL;
+  String object_schema(m_row.m_schema_name, m_row.m_schema_name_length, cs);
+  String object_name(m_row.m_object_name, m_row.m_object_name_length, cs);
 
-  for (; (f= *fields) ; fields++)
-  {
-    if (bitmap_is_set(table->read_set, f->field_index))
-    {
-      switch(f->field_index)
-      {
-      case 0: /* OBJECT_TYPE */
-        object_type= (enum_object_type) get_field_enum(f);
-        break;
-      case 1: /* OBJECT_SCHEMA */
-        object_schema= get_field_varchar_utf8(f, &object_schema_data);
-        break;
-      case 2: /* OBJECT_NAME */
-        object_name= get_field_varchar_utf8(f, &object_name_data);
-        break;
-      case 3: /* ENABLED */
-      case 4: /* TIMED */
-        break;
-      default:
-        DBUG_ASSERT(false);
-      }
-    }
-  }
+  int result= delete_setup_object(object_type, &object_schema, &object_name);
 
-  DBUG_ASSERT(object_schema != NULL);
-  DBUG_ASSERT(object_name != NULL);
-
-  result= delete_setup_object(object_type, object_schema, object_name);
   if (result == 0)
     result= update_derived_flags();
   return result;

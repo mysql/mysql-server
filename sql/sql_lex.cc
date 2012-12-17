@@ -454,6 +454,7 @@ void lex_start(THD *thd)
   lex->reset_query_tables_list(FALSE);
   lex->expr_allows_subselect= TRUE;
   lex->use_only_table_context= FALSE;
+  lex->contains_plaintext_password= false;
 
   lex->name.str= 0;
   lex->name.length= 0;
@@ -1277,7 +1278,10 @@ int lex_one_token(void *arg, void *yythd)
       {
         c= lip->yyGet();
         if (c == 0)
+        {
+          lip->yyUnget();
           return ABORT_SYM;                     // Unmatched quotes
+        }
 
 	int var_length;
 	if ((var_length= my_mbcharlen(cs, c)) == 1)

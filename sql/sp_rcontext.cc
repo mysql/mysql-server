@@ -220,8 +220,14 @@ void sp_rcontext::exit_handler(sp_pcontext *target_scope)
   {
     int handler_level= m_activated_handlers.at(i)->handler->scope->get_level();
 
+    /*
+      Only pop until we hit the first handler with appropriate scope level.
+      Otherwise we can end up popping handlers from separate scopes.
+    */
     if (handler_level > target_scope->get_level())
       delete m_activated_handlers.pop();
+    else
+      break;
   }
 }
 

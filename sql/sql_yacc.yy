@@ -395,11 +395,12 @@ set_system_variable(THD *thd, struct sys_var_with_base *tmp,
 
 #ifdef HAVE_REPLICATION
   if (lex->uses_stored_routines() &&
-      (tmp->var == Sys_gtid_next_ptr
+      ((tmp->var == Sys_gtid_next_ptr
 #ifdef HAVE_NDB_BINLOG
        || tmp->var == Sys_gtid_next_list_ptr
 #endif
-     ))
+       ) ||
+       Sys_gtid_purged_ptr == tmp->var))
   {
     my_error(ER_SET_STATEMENT_CANNOT_INVOKE_FUNCTION, MYF(0),
              tmp->var->name.str);
@@ -924,6 +925,41 @@ static bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   return false;
 }
 
+/**
+  Compare a LEX_USER against the current user as defined by the exact user and
+  host used during authentication.
+
+  @param user A pointer to a user which needs to be matched against the
+              current.
+
+  @see SET PASSWORD rules
+
+  @retval true The specified user is the authorized user
+  @retval false The user doesn't match
+*/
+
+bool match_authorized_user(Security_context *ctx, LEX_USER *user)
+{
+  if(user->user.str && my_strcasecmp(system_charset_info,
+                                     ctx->priv_user,
+                                     user->user.str) == 0)
+  {
+    /*
+      users match; let's compare hosts.
+      1. first compare with the host we actually authorized,
+      2. then see if we match the host mask of the priv_host
+    */
+    if (user->host.str && my_strcasecmp(system_charset_info,
+                                        user->host.str,
+                                        ctx->priv_host) == 0)
+    {
+      /* specified user exactly match the authorized user */
+      return true;
+    }
+  }
+  return false;
+}
+
 
 %}
 %union {
@@ -984,6 +1020,7 @@ static bool sp_create_assignment_instr(THD *thd, const char *expr_end_ptr)
   /* #ifndef MCP_WL3749 */
   Alter_info::enum_alter_table_algorithm online_offline;
   /* #endif */
+  bool is_not_empty;
 }
 
 %{
@@ -1911,6 +1948,8 @@ END_OF_INPUT
 %type <num> slave_thread_option_list
 %type <num> slave_thread_option
 
+%type <is_not_empty> opt_union_order_or_limit
+
 %%
 
 /*
@@ -2179,6 +2218,7 @@ master_def:
         | MASTER_PASSWORD_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.password = $3.str;
+            Lex->contains_plaintext_password= true;
           }
         | MASTER_PORT_SYM EQ ulong_num
           {
@@ -2542,6 +2582,7 @@ server_option:
         | PASSWORD TEXT_STRING_sys
           {
             Lex->server_options.password= $2.str;
+            Lex->contains_plaintext_password= true;
           }
         | SOCKET_SYM TEXT_STRING_sys
           {
@@ -8187,6 +8228,7 @@ slave_user_pass_opt:
         | PASSWORD EQ TEXT_STRING_sys
           {
             Lex->slave_connection.password= $3.str;
+            Lex->contains_plaintext_password= true;
           }
 
 slave_plugin_auth_opt:
@@ -9903,6 +9945,7 @@ function_call_conflict:
         | OLD_PASSWORD '(' expr ')'
           {
             $$=  new (YYTHD->mem_root) Item_func_old_password($3);
+            Lex->contains_plaintext_password= true;
             if ($$ == NULL)
               MYSQL_YYABORT;
           }
@@ -9910,6 +9953,7 @@ function_call_conflict:
           {
             THD *thd= YYTHD;
             Item* i1;
+            Lex->contains_plaintext_password= true;
             if (thd->variables.old_passwords == 1)
               i1= new (thd->mem_root) Item_func_old_password($3);
             else
@@ -10922,6 +10966,13 @@ table_factor:
  */
 select_derived_union:
           select_derived opt_union_order_or_limit
+          {
+            if ($1 && $2)
+            {
+              my_parse_error(ER(ER_SYNTAX_ERROR));
+              MYSQL_YYABORT;
+            }
+          }
         | select_derived_union
           UNION_SYM
           union_option
@@ -14814,8 +14865,30 @@ option_value_no_option_type:
             lex->autocommit= TRUE;
             if (lex->sphead)
               lex->sphead->m_flags|= sp_head::HAS_SET_AUTOCOMMIT_STMT;
-            if (!user->user.str)
+            /*
+              'is_change_password' should be set if the user is setting his
+              own password. This is later used to determine if the password
+              expiration flag should be reset.
+              Either the user exactly matches the currently authroized user or
+              the CURRENT_USER keyword was used.
+
+              If CURRENT_USER was used for the <user> rule then
+              user->user.str=0. See rule below:
+              
+              user:
+                 [..]
+              | CURRENT_USER optional_braces
+                {
+                 [..]
+                  memset($$, 0, sizeof(LEX_USER));
+                }
+            */
+            if (user->user.str ||
+                match_authorized_user(&current_thd->main_security_ctx,
+                                      user))
               lex->is_change_password= TRUE;
+            else
+              lex->is_change_password= FALSE;
           }
         ;
 
@@ -14980,6 +15053,7 @@ text_or_password:
             }
             if ($$ == NULL)
               MYSQL_YYABORT;
+            Lex->contains_plaintext_password= true;
           }
         | OLD_PASSWORD '(' TEXT_STRING ')'
           {
@@ -14988,6 +15062,7 @@ text_or_password:
               $3.str;
             if ($$ == NULL)
               MYSQL_YYABORT;
+            Lex->contains_plaintext_password= true;
           }
         ;
 
@@ -15490,6 +15565,7 @@ grant_user:
               2. Password must be digested
             */
             $1->uses_identified_by_clause= true;
+            Lex->contains_plaintext_password= true;
           }
         | user IDENTIFIED_SYM BY PASSWORD TEXT_STRING
           { 
@@ -15749,8 +15825,8 @@ union_opt:
         ;
 
 opt_union_order_or_limit:
-	  /* Empty */
-	| union_order_or_limit
+	  /* Empty */ { $$= false; }
+	| union_order_or_limit { $$= true; }
 	;
 
 union_order_or_limit:

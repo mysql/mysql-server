@@ -1675,8 +1675,6 @@ buf_flush_batch(
 
 	buf_pool_mutex_exit(buf_pool);
 
-	buf_dblwr_flush_buffered_writes();
-
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && count > 0) {
 		fprintf(stderr, flush_type == BUF_FLUSH_LRU

@@ -36,7 +36,7 @@ Created 10/13/2010 Jimmy Yang
 #define ROW_MERGE_READ_GET_NEXT(N)					\
 	do {								\
 		b[N] = row_merge_read_rec(				\
-			block[N], buf[N], b[N], index, n_null,		\
+			block[N], buf[N], b[N], index,			\
 			fd[N], &foffs[N], &mrec[N], offsets[N]);	\
 		if (UNIV_UNLIKELY(!b[N])) {				\
 			if (mrec[N]) {					\
@@ -190,7 +190,6 @@ row_fts_psort_info_init(
 	fts_psort_t*		psort_info = NULL;
 	fts_psort_t*		merge_info = NULL;
 	ulint			block_size;
-	os_event_t		sort_event;
 	ibool			ret = TRUE;
 
 	block_size = 3 * srv_sort_buf_size;
@@ -203,24 +202,23 @@ row_fts_psort_info_init(
 		return(FALSE);
 	}
 
-	sort_event = os_event_create(NULL);
-
 	/* Common Info for all sort threads */
 	common_info = static_cast<fts_psort_common_t*>(
 		mem_alloc(sizeof *common_info));
-
-	common_info->dup = dup;
-	common_info->new_table = (dict_table_t*) new_table;
-	common_info->trx = trx;
-	common_info->all_info = psort_info;
-	common_info->sort_event = sort_event;
-	common_info->opt_doc_id_size = opt_doc_id_size;
 
 	if (!common_info) {
 		ut_free(dup);
 		mem_free(psort_info);
 		return(FALSE);
 	}
+
+	common_info->dup = dup;
+	common_info->new_table = (dict_table_t*) new_table;
+	common_info->trx = trx;
+	common_info->all_info = psort_info;
+	common_info->sort_event = os_event_create(NULL);
+	common_info->merge_event = os_event_create(NULL);
+	common_info->opt_doc_id_size = opt_doc_id_size;
 
 	/* There will be FTS_NUM_AUX_INDEX number of "sort buckets" for
 	each parallel sort thread. Each "sort bucket" holds records for
@@ -313,6 +311,8 @@ row_fts_psort_info_destroy(
 			}
 		}
 
+		os_event_free(merge_info[0].psort_common->sort_event);
+		os_event_free(merge_info[0].psort_common->merge_event);
 		ut_free(merge_info[0].psort_common->dup);
 		mem_free(merge_info[0].psort_common);
 		mem_free(psort_info);
@@ -435,7 +435,6 @@ row_merge_fts_doc_tokenize(
 
 		mtuple_t* mtuple = &buf->tuples[buf->n_tuples + n_tuple[idx]];
 
-		mtuple->del_mark = false;
 		field = mtuple->fields = static_cast<dfield_t*>(
 			mem_heap_alloc(buf->heap,
 				       FTS_NUM_FIELDS_SORT * sizeof *field));
@@ -770,12 +769,12 @@ exit:
 
 				while (there are rows) {
 					tokenize rows, put result in block[]
-				  	if (block[] runs out) {
+					if (block[] runs out) {
 						sort rows;
-				      		write to temp file with
+						write to temp file with
 						row_merge_write();
-				      		offset++;
-				  	}
+						offset++;
+					}
 				}
 
 				# write out the last batch
@@ -831,8 +830,14 @@ exit:
 
 	psort_info->child_status = FTS_CHILD_COMPLETE;
 	os_event_set(psort_info->psort_common->sort_event);
+	psort_info->child_status = FTS_CHILD_EXITING;
+
+#ifdef __WIN__
+	CloseHandle(psort_info->thread_hdl);
+#endif /*__WIN__ */
 
 	os_thread_exit(NULL);
+
 	OS_THREAD_DUMMY_RETURN;
 }
 
@@ -849,8 +854,9 @@ row_fts_start_psort(
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		psort_info[i].psort_id = i;
-		os_thread_create(fts_parallel_tokenization,
-				 (void*) &psort_info[i], &thd_id);
+		psort_info[i].thread_hdl = os_thread_create(
+			fts_parallel_tokenization,
+			(void*) &psort_info[i], &thd_id);
 	}
 }
 
@@ -875,9 +881,15 @@ fts_parallel_merge(
 			     psort_info->psort_common->all_info, id);
 
 	psort_info->child_status = FTS_CHILD_COMPLETE;
-	os_event_set(psort_info->psort_common->sort_event);
+	os_event_set(psort_info->psort_common->merge_event);
+	psort_info->child_status = FTS_CHILD_EXITING;
+
+#ifdef __WIN__
+	CloseHandle(psort_info->thread_hdl);
+#endif /*__WIN__ */
 
 	os_thread_exit(NULL);
+
 	OS_THREAD_DUMMY_RETURN;
 }
 
@@ -897,8 +909,8 @@ row_fts_start_parallel_merge(
 		merge_info[i].psort_id = i;
 		merge_info[i].child_status = 0;
 
-		os_thread_create(fts_parallel_merge,
-				 (void*) &merge_info[i], &thd_id);
+		merge_info[i].thread_hdl = os_thread_create(
+			fts_parallel_merge, (void*) &merge_info[i], &thd_id);
 	}
 }
 
@@ -1375,8 +1387,6 @@ row_fts_merge_insert(
 	ins_ctx.fts_table.table_id = table->id;
 	ins_ctx.fts_table.parent = index->table->name;
 	ins_ctx.fts_table.table = NULL;
-
-	const ulint	n_null = index->n_nullable;
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
 		if (psort_info[i].merge_file[id]->n_rec == 0) {

@@ -690,16 +690,17 @@ ERROR HY000: Tablespace has been discarded for table 't5980bb'
 # Discarded tablespaces can be ALTERED with ALGORITHM=INPLACE.
 #
 ALTER TABLE t5980aa ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980aa'
 ALTER TABLE t5980bb ADD PRIMARY KEY(a), ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980bb'
 ### files in MYSQL_DATA_DIR/test
 t5980aa.frm
-t5980aa.ibd
 t5980bb.frm
-t5980bb.isl
 t5980c.frm
 t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
-t5980bb.ibd
 #
 # Missing tablespaces cannot be ALTERED.
 #
@@ -708,9 +709,9 @@ ERROR 42S02: Table 'test.t5980c' doesn't exist
 ALTER TABLE t5980d ADD PRIMARY KEY(a);
 ERROR 42S02: Table 'test.t5980d' doesn't exist
 SELECT * FROM t5980aa;
-a	b
+ERROR HY000: Tablespace has been discarded for table 't5980aa'
 SELECT * FROM t5980bb;
-a	b
+ERROR HY000: Tablespace has been discarded for table 't5980bb'
 SHOW CREATE TABLE t5980aa;
 Table	Create Table
 t5980aa	CREATE TABLE `t5980aa` (
@@ -748,24 +749,24 @@ MYSQL_DATA_DIR/test/t5980aa.ibd
 MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 ### files in MYSQL_DATA_DIR/test
 t5980aa.frm
-t5980aa.ibd
 t5980bb.frm
-t5980bb.isl
 t5980c.frm
 t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
-t5980bb.ibd
 #
-# Discarded tablespaces that were ALTERED IN_PLACE are no longer discarded.
+# Restart the server to check if the discarded flag is persistent
+#
+#
+# Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
 #
 INSERT INTO t5980aa VALUES (1, "Inserted into Discarded Local tablespace after ALTER ADD PRIMARY KEY, ALGORITHM=INPLACE");
+ERROR HY000: Tablespace has been discarded for table 't5980aa'
 INSERT INTO t5980bb VALUES (1, "Inserted into Discarded Local tablespace after ALTER ADD PRIMARY KEY, ALGORITHM=INPLACE");
+ERROR HY000: Tablespace has been discarded for table 't5980bb'
 SELECT * FROM t5980aa;
-a	b
-1	Inserted into Discarded Local tablespace after ALTER ADD PRIMARY KEY, ALGORITHM=INPLACE
+ERROR HY000: Tablespace has been discarded for table 't5980aa'
 SELECT * FROM t5980bb;
-a	b
-1	Inserted into Discarded Local tablespace after ALTER ADD PRIMARY KEY, ALGORITHM=INPLACE
+ERROR HY000: Tablespace has been discarded for table 't5980bb'
 RENAME TABLE t5980aa TO t5980a;
 RENAME TABLE t5980bb TO t5980b;
 SHOW CREATE TABLE t5980a;
@@ -775,6 +776,8 @@ t5980a	CREATE TABLE `t5980a` (
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
 SHOW CREATE TABLE t5980b;
 Table	Create Table
 t5980b	CREATE TABLE `t5980b` (
@@ -782,6 +785,8 @@ t5980b	CREATE TABLE `t5980b` (
   `b` text,
   PRIMARY KEY (`a`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
 SELECT name,n_cols,file_format,row_format FROM information_schema.innodb_sys_tables
 WHERE name LIKE 'test%' ORDER BY name;
 name	n_cols	file_format	row_format
@@ -794,29 +799,30 @@ WHERE name LIKE 'test%' ORDER BY space;
 name	file_format	row_format
 test/t5980c	Antelope	Compact or Redundant
 test/t5980d	Antelope	Compact or Redundant
-test/t5980a	Antelope	Compact or Redundant
-test/t5980b	Antelope	Compact or Redundant
+test/t5980aa	Antelope	Compact or Redundant
+test/t5980bb	Antelope	Compact or Redundant
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
 MYSQL_DATA_DIR/test/t5980c.ibd
 MYSQL_TMP_DIR/alt_dir/test/t5980d.ibd
-MYSQL_DATA_DIR/test/t5980a.ibd
-MYSQL_TMP_DIR/alt_dir/test/t5980b.ibd
+MYSQL_DATA_DIR/test/t5980aa.ibd
+MYSQL_TMP_DIR/alt_dir/test/t5980bb.ibd
 ### files in MYSQL_DATA_DIR/test
 t5980a.frm
-t5980a.ibd
 t5980b.frm
-t5980b.isl
 t5980c.frm
 t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
-t5980b.ibd
 #
 # Discard tablespaces again and try another ALTER TABLE ROW_FORMAT.
 #
 ALTER TABLE t5980a DISCARD TABLESPACE;
+Warnings:
+Warning	1812	InnoDB: Tablespace is missing for table 't5980a'
 ALTER TABLE t5980b DISCARD TABLESPACE;
+Warnings:
+Warning	1812	InnoDB: Tablespace is missing for table 't5980b'
 SELECT * FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
@@ -832,29 +838,37 @@ ERROR HY000: Tablespace has been discarded for table 't5980b'
 # ALTER TABLE ALGORITHM=INPLACE can use a discarded tablespace.
 #
 ALTER TABLE t5980a ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
 ALTER TABLE t5980b ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE, LOCK=NONE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
+#
+# Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
+#
 INSERT INTO t5980a VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
+ERROR HY000: Tablespace has been discarded for table 't5980a'
 INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE");
+ERROR HY000: Tablespace has been discarded for table 't5980b'
 SELECT * FROM t5980a;
-a	b
-1	Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE
+ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
-a	b
-1	Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE
+ERROR HY000: Tablespace has been discarded for table 't5980b'
 ### files in MYSQL_DATA_DIR/test
 t5980a.frm
-t5980a.ibd
 t5980b.frm
-t5980b.isl
 t5980c.frm
 t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
-t5980b.ibd
 #
 # Discard tablespaces again and try ALTER TABLE ADD COLUMN.
 #
 ALTER TABLE t5980a DISCARD TABLESPACE;
+Warnings:
+Warning	1812	InnoDB: Tablespace is missing for table 't5980a'
 ALTER TABLE t5980b DISCARD TABLESPACE;
+Warnings:
+Warning	1812	InnoDB: Tablespace is missing for table 't5980b'
 SELECT * FROM t5980a;
 ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
@@ -870,24 +884,32 @@ ERROR HY000: Tablespace has been discarded for table 't5980b'
 # ALTER TABLE ALGORITHM=INPLACE can use a discarded tablespace.
 #
 ALTER TABLE t5980a ADD COLUMN c CHAR(20), ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980a'
 ALTER TABLE t5980b ADD COLUMN c CHAR(20), ALGORITHM=INPLACE;
+Warnings:
+Warning	1814	InnoDB: Tablespace has been discarded for table 't5980b'
+#
+# Discarded tablespaces that were ALTERED IN_PLACE are still discarded.
+#
+DELETE FROM t5980a;
+ERROR HY000: Tablespace has been discarded for table 't5980a'
+UPDATE t5980a SET c="Tablespace is DISCARDED";
+ERROR HY000: Tablespace has been discarded for table 't5980a'
 INSERT INTO t5980a VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE", "new column");
+ERROR HY000: Tablespace has been discarded for table 't5980a'
 INSERT INTO t5980b VALUES (1, "Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE", "new column");
+ERROR HY000: Tablespace has been discarded for table 't5980b'
 SELECT * FROM t5980a;
-a	b	c
-1	Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE	new column
+ERROR HY000: Tablespace has been discarded for table 't5980a'
 SELECT * FROM t5980b;
-a	b	c
-1	Inserted into discarded local tablespace after ALTER ROW_FORMAT=REDUNDANT, ALGORITHM=INPLACE	new column
+ERROR HY000: Tablespace has been discarded for table 't5980b'
 ### files in MYSQL_DATA_DIR/test
 t5980a.frm
-t5980a.ibd
 t5980b.frm
-t5980b.isl
 t5980c.frm
 t5980d.frm
 ### files in MYSQL_TMP_DIR/alt_dir/test
-t5980b.ibd
 DROP TABLE t5980a;
 DROP TABLE t5980b;
 DROP TABLE t5980c;

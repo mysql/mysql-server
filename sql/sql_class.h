@@ -2207,7 +2207,45 @@ public:
     return (variables.optimizer_switch & flag);
   }
 
+  enum binlog_filter_state
+  {
+    BINLOG_FILTER_UNKNOWN,
+    BINLOG_FILTER_CLEAR,
+    BINLOG_FILTER_SET
+  };
+
+  inline void reset_binlog_local_stmt_filter()
+  {
+    m_binlog_filter_state= BINLOG_FILTER_UNKNOWN;
+  }
+
+  inline void clear_binlog_local_stmt_filter()
+  {
+    DBUG_ASSERT(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
+    m_binlog_filter_state= BINLOG_FILTER_CLEAR;
+  }
+
+  inline void set_binlog_local_stmt_filter()
+  {
+    DBUG_ASSERT(m_binlog_filter_state == BINLOG_FILTER_UNKNOWN);
+    m_binlog_filter_state= BINLOG_FILTER_SET;
+  }
+
+  inline binlog_filter_state get_binlog_local_stmt_filter()
+  {
+    return m_binlog_filter_state;
+  }
+
 private:
+  /**
+    Indicate if the current statement should be discarded
+    instead of written to the binlog.
+    This is used to discard special statements, such as
+    DML or DDL that affects only 'local' (non replicated)
+    tables, such as performance_schema.*
+  */
+  binlog_filter_state m_binlog_filter_state;
+
   /**
     Indicates the format in which the current statement will be
     logged.  This can only be set from @c decide_logging_format().
@@ -3833,6 +3871,9 @@ public:
 
     Moreover, we can drop the second condition if we fix BUG#11756034.
 
+    @param transactional_table true if the statement updates some
+    transactional table; false otherwise.
+
     @param non_transactional_table true if the statement updates some
     non-transactional table; false otherwise.
 
@@ -3843,7 +3884,8 @@ public:
     @retval false if the statement is not compatible.
   */
   bool
-  is_dml_gtid_compatible(bool non_transactional,
+  is_dml_gtid_compatible(bool transactional_table,
+                         bool non_transactional_table,
                          bool non_transactional_tmp_tables) const;
   bool is_ddl_gtid_compatible() const;
   void binlog_invoker() { m_binlog_invoker= TRUE; }

@@ -1011,8 +1011,8 @@ page_cur_insert_rec_low(
 
 		rec_offs_init(foffsets_);
 
-		foffsets = rec_get_offsets(free_rec, index, foffsets,
-					ULINT_UNDEFINED, &heap);
+		foffsets = rec_get_offsets(
+			free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
 		if (rec_offs_size(foffsets) < rec_size) {
 			if (UNIV_LIKELY_NULL(heap)) {
 				mem_heap_free(heap);

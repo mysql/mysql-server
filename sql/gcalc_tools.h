@@ -249,6 +249,7 @@ public:
 
   class res_point : public Gcalc_dyn_list::Item
   {
+    res_point *m_outer_poly;
   public:
     bool intersection_point;
     double x,y;
@@ -260,9 +261,16 @@ public:
       const Gcalc_heap::Info *pi; // is valid before get_result_thread()
       res_point *first_poly_node; // is valid after get_result_thread()
     };
-    res_point *outer_poly;
     Gcalc_dyn_list::Item **prev_hook;
     res_point *get_next() { return (res_point *)next; }
+    void set_outer_poly(res_point *p)
+    {
+      m_outer_poly= p;
+      DBUG_PRINT("info", ("setting outer_poly of #%u to #%u",
+                          item_id(),
+                          m_outer_poly ? m_outer_poly->item_id() : 0));
+    }
+    res_point *get_outer_poly() { return m_outer_poly; }
   };
 
   class active_thread : public Gcalc_dyn_list::Item
@@ -288,13 +296,38 @@ protected:
   res_point *result_heap;
   active_thread *m_first_active_thread;
 
-  res_point *add_res_point()
+  res_point *add_res_point(const Gcalc_heap::Info *pi)
   {
-    res_point *result= (res_point *)new_item();
-    *m_res_hook= result;
-    result->prev_hook= m_res_hook;
-    m_res_hook= &result->next;
-    return result;
+    res_point *rp= new_res_point(pi, false);
+    if (!rp)
+      return NULL;
+    DBUG_PRINT("info", ("add_res_point #%u: pi=(%g,%g,#%u)",
+                        rp->item_id(), pi->x, pi->y, pi->shape));
+    return rp;
+  }
+
+  res_point *add_res_i_point(const Gcalc_heap::Info *pi, double x, double y)
+  {
+    res_point *rp= new_res_point(pi, true);
+    if (!rp)
+      return NULL;
+    DBUG_PRINT("info", ("add_res_i_point #%u: pi=(%g,%g,#%u) xy=(%g,%g)",
+                        rp->item_id(), pi->x, pi->y, pi->shape, x, y));
+    rp->x= x;
+    rp->y= y;
+    return rp;
+  }
+
+  res_point *add_res_single_point(const Gcalc_heap::Info *pi)
+  {
+    res_point *rp= new_res_point(pi, false);
+    if (!rp)
+      return NULL;
+    DBUG_PRINT("info", ("add_res_single_point #%u: pi=(%g,%g,#%u)",
+                        rp->item_id(), pi->x, pi->y, pi->shape));
+    rp->x= pi->x;
+    rp->y= pi->y;
+    return rp;
   }
 
   active_thread *new_active_thread()
@@ -306,6 +339,19 @@ protected:
   }
 
 private:
+
+  res_point *new_res_point(const Gcalc_heap::Info *pi,
+                           bool intersection_point)
+  {
+    res_point *result= (res_point *) new_item();
+    *m_res_hook= result;
+    result->prev_hook= m_res_hook;
+    m_res_hook= &result->next;
+    result->pi= pi;
+    result->intersection_point= intersection_point;
+    return result;
+  }
+
   int continue_range(active_thread *t, const Gcalc_heap::Info *p);
   int continue_i_range(active_thread *t, const Gcalc_heap::Info *p,
 		       double x, double y);

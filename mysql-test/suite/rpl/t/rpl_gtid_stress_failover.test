@@ -382,24 +382,24 @@ while ($server <= $n_servers)
 
 --echo ==== Check result ====
 
---echo Check that GTID_DONE is equal on all servers.
+--echo Check that GTID_EXECUTED is equal on all servers.
 --let $server= 1
 while ($server <= $n_servers)
 {
   --connection server_$server
-  --let $gtid_done= `SELECT @@GLOBAL.GTID_DONE`
+  --let $gtid_executed= `SELECT @@GLOBAL.GTID_EXECUTED`
   if ($server > 1)
   {
-    if ($last_gtid_done != $gtid_done)
+    if ($last_gtid_executed != $gtid_executed)
     {
       --source include/show_rpl_debug_info.inc
-      --echo ERROR: GTID_DONE differs between server 1 and server $server
-      --echo ERROR: GTID_DONE on server 1: '$saved_gtid_done'
-      --echo ERROR: GTID_DONE on server $server: '$gtid_done'
-      --die GTID_DONE differs between two servers
+      --echo ERROR: GTID_EXECUTED differs between server 1 and server $server
+      --echo ERROR: GTID_EXECUTED on server 1: '$saved_gtid_executed'
+      --echo ERROR: GTID_EXECUTED on server $server: '$gtid_executed'
+      --die GTID_EXECUTED differs between two servers
     }
   }
-  --let $last_gtid_done= $gtid_done
+  --let $last_gtid_executed= $gtid_executed
   --inc $server
 }
 

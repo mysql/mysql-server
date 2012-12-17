@@ -1915,6 +1915,10 @@ public:
 
   /**
     Inject a character into the pre-processed stream.
+
+    Note, this function is used to inject a space instead of multi-character
+    C-comment. Thus there is no boundary checks here (basically, we replace
+    N-chars by 1-char here).
   */
   char *cpp_inject(char ch)
   {
@@ -2390,6 +2394,7 @@ struct LEX: public Query_tables_list
   bool all_privileges;
   bool proxy_priv;
   bool is_change_password;
+  bool contains_plaintext_password;
 
 private:
   /// Current SP parsing context.

@@ -1,5 +1,5 @@
 #
-# Testing mysql_config_editor tool.
+# Testing mysql_config_editor utility.
 #
 ################################################
 # Tests for mysql_config_editor's insert command
@@ -90,36 +90,22 @@ affiliates. Other names may be trademarks of their respective
 owners.
 
 MySQL Configuration Utility.
-  --all               Used with print command to print all login paths.
   -?, --help          Display this help and exit.
-  -h, --host=name     Host name to be entered into the login file.
-  -G, --login-path=name 
-                      Name of the login path to use in the login file.
-  -p, --password      Prompt for password to be entered into the login file.
-  -u, --user=name     User name to be entered into the login file.
   -v, --verbose       Write more information.
   -V, --version       Output version information and exit.
-  -w, --warn          Warn and ask for confirmation if set command attempts to
-                      overwrite an existing login path (enabled by default).
-                      (Defaults to on; use --skip-warn to disable.)
 
 Variables (--variable-name=value)
 and boolean options {FALSE|TRUE}  Value (after reading options)
 --------------------------------- ----------------------------------------
-all                               FALSE
-host                              (No default value)
-login-path                        client
-user                              (No default value)
 verbose                           FALSE
-warn                              TRUE
 
 Where command can be any one of the following :
-       set [options]             Sets user name/password/host name for a
+       set [command options]     Sets user name/password/host name for a
                                  given login path (section).
-       remove [options]          Remove a login path from the login file.
-       print [options]           Print all the options for a specified
+       remove [command options]  Remove a login path from the login file.
+       print [command options]   Print all the options for a specified
                                  login path.
-       reset                     Deletes the contents of the login file.
+       reset [command options]   Deletes the contents of the login file.
        help                      Display this usage/help information.
 
 # done..

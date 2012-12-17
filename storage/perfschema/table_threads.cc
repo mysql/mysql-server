@@ -26,7 +26,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
@@ -41,7 +41,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("PROCESSLIST_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
@@ -81,7 +81,7 @@ static const TABLE_FIELD_TYPE field_types[]=
   },
   {
     { C_STRING_WITH_LEN("PARENT_THREAD_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
@@ -143,7 +143,7 @@ void table_threads::make_row(PFS_thread *pfs)
 
   m_row.m_thread_internal_id= pfs->m_thread_internal_id;
   m_row.m_parent_thread_internal_id= pfs->m_parent_thread_internal_id;
-  m_row.m_thread_id= pfs->m_thread_id;
+  m_row.m_processlist_id= pfs->m_processlist_id;
   m_row.m_name= safe_class->m_name;
   m_row.m_name_length= safe_class->m_name_length;
 
@@ -219,20 +219,20 @@ int table_threads::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* THREAD_ID */
-        set_field_ulong(f, m_row.m_thread_internal_id);
+        set_field_ulonglong(f, m_row.m_thread_internal_id);
         break;
       case 1: /* NAME */
         set_field_varchar_utf8(f, m_row.m_name, m_row.m_name_length);
         break;
       case 2: /* TYPE */
-        if (m_row.m_thread_id != 0)
+        if (m_row.m_processlist_id != 0)
           set_field_varchar_utf8(f, "FOREGROUND", 10);
         else
           set_field_varchar_utf8(f, "BACKGROUND", 10);
         break;
       case 3: /* PROCESSLIST_ID */
-        if (m_row.m_thread_id != 0)
-          set_field_ulong(f, m_row.m_thread_id);
+        if (m_row.m_processlist_id != 0)
+          set_field_ulonglong(f, m_row.m_processlist_id);
         else
           f->set_null();
         break;
@@ -258,7 +258,7 @@ int table_threads::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 7: /* PROCESSLIST_COMMAND */
-        if (m_row.m_thread_id != 0)
+        if (m_row.m_processlist_id != 0)
           set_field_varchar_utf8(f, command_name[m_row.m_command].str,
                                  command_name[m_row.m_command].length);
         else
@@ -290,7 +290,7 @@ int table_threads::read_row_values(TABLE *table,
         break;
       case 11: /* PARENT_THREAD_ID */
         if (m_row.m_parent_thread_internal_id != 0)
-          set_field_ulong(f, m_row.m_parent_thread_internal_id);
+          set_field_ulonglong(f, m_row.m_parent_thread_internal_id);
         else
           f->set_null();
         break;

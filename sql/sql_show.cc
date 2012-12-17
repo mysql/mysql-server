@@ -631,8 +631,9 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
       {
 	/* Only show the sym file if it points to a directory */
 	char *end;
+        my_bool not_used;
         *ext=0;                                 /* Remove extension */
-	unpack_dirname(buff, file->name);
+	unpack_dirname(buff, file->name, &not_used);
 	end= strend(buff);
 	if (end != buff && end[-1] == FN_LIBCHAR)
 	  end[-1]= 0;				// Remove end FN_LIBCHAR
@@ -1562,7 +1563,7 @@ int store_create_info(THD *thd, TABLE_LIST *table_list, String *packet,
 
     packet->append(STRING_WITH_LEN(" ("));
 
-    for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
+    for (uint j=0 ; j < key_info->user_defined_key_parts ; j++,key_part++)
     {
       if (j)
         packet->append(',');
@@ -1973,7 +1974,8 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
 
-class thread_info :public ilink<thread_info> {
+class thread_info
+{
 public:
   static void *operator new(size_t size)
   {
@@ -1988,6 +1990,17 @@ public:
   uint   command;
   const char *user,*host,*db,*proc_info,*state_info;
   CSET_STRING query_string;
+};
+
+// For sorting by thread_id.
+class thread_info_compare :
+  public std::binary_function<const thread_info*, const thread_info*, bool>
+{
+public:
+  bool operator() (const thread_info* p1, const thread_info* p2)
+  {
+    return p1->thread_id < p2->thread_id;
+  }
 };
 
 static const char *thread_state_info(THD *tmp)
@@ -2018,13 +2031,13 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 {
   Item *field;
   List<Item> field_list;
-  I_List<thread_info> thread_infos;
+  Mem_root_array<thread_info*, true> thread_infos(thd->mem_root);
   ulong max_query_length= (verbose ? thd->variables.max_allowed_packet :
 			   PROCESS_LIST_WIDTH);
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
-  field_list.push_back(new Item_int(NAME_STRING("Id"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("Id"), 0, MY_INT64_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("User",16));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_CHAR_LEN));
@@ -2043,6 +2056,7 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   if (!thd->killed)
   {
     mysql_mutex_lock(&LOCK_thread_count);
+    thread_infos.reserve(get_thread_count());
     Thread_iterator it= global_thread_list_begin();
     Thread_iterator end= global_thread_list_end();
     for (; it != end; ++it)
@@ -2092,16 +2106,19 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
         }
         mysql_mutex_unlock(&tmp->LOCK_thd_data);
         thd_info->start_time= tmp->start_time.tv_sec;
-        thread_infos.push_front(thd_info);
+        thread_infos.push_back(thd_info);
       }
     }
     mysql_mutex_unlock(&LOCK_thread_count);
   }
 
-  thread_info *thd_info;
+  // Return list sorted by thread_id.
+  std::sort(thread_infos.begin(), thread_infos.end(), thread_info_compare());
+
   time_t now= my_time(0);
-  while ((thd_info=thread_infos.get()))
+  for (size_t ix= 0; ix < thread_infos.size(); ++ix)
   {
+    thread_info *thd_info= thread_infos.at(ix);
     protocol->prepare_for_resend();
     protocol->store((ulonglong) thd_info->thread_id);
     protocol->store(thd_info->user, system_charset_info);
@@ -2154,7 +2171,8 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 
       restore_record(table, s->default_values);
       /* ID */
-      table->field[0]->store((longlong) tmp->thread_id, TRUE);
+
+      table->field[0]->store((ulonglong) tmp->thread_id, TRUE);
       /* USER */
       val= tmp_sctx->user ? tmp_sctx->user :
             (tmp->system_thread ? "system user" : "unauthenticated user");
@@ -5282,7 +5300,7 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
     {
       KEY_PART_INFO *key_part= key_info->key_part;
       const char *str;
-      for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
+      for (uint j=0 ; j < key_info->user_defined_key_parts ; j++,key_part++)
       {
         restore_record(table, s->default_values);
         table->field[0]->store(STRING_WITH_LEN("def"), cs);
@@ -5717,7 +5735,7 @@ static int get_schema_key_column_usage_record(THD *thd,
         continue;
       uint f_idx= 0;
       KEY_PART_INFO *key_part= key_info->key_part;
-      for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
+      for (uint j=0 ; j < key_info->user_defined_key_parts ; j++,key_part++)
       {
         if (key_part->field)
         {
@@ -7758,7 +7776,7 @@ ST_FIELD_INFO variables_fields_info[]=
 
 ST_FIELD_INFO processlist_fields_info[]=
 {
-  {"ID", 4, MYSQL_TYPE_LONGLONG, 0, 0, "Id", SKIP_OPEN_TABLE},
+  {"ID", 21, MYSQL_TYPE_LONGLONG, 0, MY_I_S_UNSIGNED, "Id", SKIP_OPEN_TABLE},
   {"USER", 16, MYSQL_TYPE_STRING, 0, 0, "User", SKIP_OPEN_TABLE},
   {"HOST", LIST_PROCESS_HOST_LEN,  MYSQL_TYPE_STRING, 0, 0, "Host",
    SKIP_OPEN_TABLE},

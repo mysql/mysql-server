@@ -1,0 +1,14 @@
+DROP DATABASE IF EXISTS testdb;
+CREATE DATABASE testdb;
+USE testdb;
+CREATE TABLE t1 (a int not null auto_increment, b char(16) not null, primary key (a)) 
+ENGINE=myisam ;
+INSERT INTO t1 (b) VALUES ("test"),("test1"),("test2"),("test3");
+SELECT * from t1;
+a	b
+1	test
+2	test1
+3	test2
+4	test3
+Found: 1
+DROP DATABASE testdb;

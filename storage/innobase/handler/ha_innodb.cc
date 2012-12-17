@@ -59,6 +59,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "trx0sys.h"
 #include "mtr0mtr.h"
+#include "rem0types.h"
 #include "row0ins.h"
 #include "row0mysql.h"
 #include "row0sel.h"
@@ -412,6 +413,15 @@ static PSI_file_info	all_innodb_files[] = {
 };
 # endif /* UNIV_PFS_IO */
 #endif /* HAVE_PSI_INTERFACE */
+
+/** Always normalize table name to lower case on Windows */
+#ifdef __WIN__
+#define normalize_table_name(norm_name, name)           \
+	normalize_table_name_low(norm_name, name, TRUE)
+#else
+#define normalize_table_name(norm_name, name)           \
+	normalize_table_name_low(norm_name, name, FALSE)
+#endif /* __WIN__ */
 
 /** Set up InnoDB API callback function array */
 ib_cb_t innodb_api_cb[] = {
@@ -963,6 +973,21 @@ innodb_enable_monitor_at_startup(
 /*=============================*/
 	char*	str);	/*!< in: monitor counter enable list */
 
+/*********************************************************************
+Normalizes a table name string. A normalized name consists of the
+database name catenated to '/' and table name. An example:
+test/mytable. On Windows normalization puts both the database name and the
+table name always to lower case if "set_lower_case" is set to TRUE. */
+static
+void
+normalize_table_name_low(
+/*=====================*/
+	char*           norm_name,      /* out: normalized name as a
+					null-terminated string */
+	const char*     name,           /* in: table name string */
+	ibool           set_lower_case); /* in: TRUE if we want to set
+					 name to lower case */
+
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
 @return	0 for valid innodb_commit_concurrency */
@@ -1413,6 +1438,7 @@ convert_error_code_to_mysql(
 	case DB_TABLE_IS_BEING_USED:
 		return(HA_ERR_WRONG_COMMAND);
 
+	case DB_TABLESPACE_DELETED:
 	case DB_TABLE_NOT_FOUND:
 		return(HA_ERR_NO_SUCH_TABLE);
 
@@ -2335,7 +2361,9 @@ invalidation to the transaction commit.
 2) To store or retrieve a value from the query cache of an InnoDB table TBL,
 any query must first ask InnoDB's permission. We must pass the thd as a
 parameter because InnoDB will look at the trx id, if any, associated with
-that thd.
+that thd. Also the full_name which is used as key to search for the table
+object. The full_name is a string containing the normalized path to the
+table in the canonical format.
 
 3) Use of the query cache for InnoDB tables is now allowed also when
 AUTOCOMMIT==0 or we are inside BEGIN ... COMMIT. Thus transactions no longer
@@ -2370,11 +2398,9 @@ innobase_query_caching_of_table_permitted(
 	THD*	thd,		/*!< in: thd of the user who is trying to
 				store a result to the query cache or
 				retrieve it */
-	char*	full_name,	/*!< in: concatenation of database name,
-				the null character NUL, and the table
-				name */
-	uint	full_name_len,	/*!< in: length of the full name, i.e.
-				len(dbname) + len(tablename) + 1 */
+	char*	full_name,	/*!< in: normalized path to the table */
+	uint	full_name_len,	/*!< in: length of the normalized path 
+                                to the table */
 	ulonglong *unused)	/*!< unused for this engine */
 {
 	ibool	is_autocommit;
@@ -2434,16 +2460,7 @@ innobase_query_caching_of_table_permitted(
 	}
 
 	/* Normalize the table name to InnoDB format */
-
-	memcpy(norm_name, full_name, full_name_len);
-
-	norm_name[strlen(norm_name)] = '/'; 	/* InnoDB uses '/' as the
-						separator between db and
-						table */
-	norm_name[full_name_len] = '\0';
-#ifdef __WIN__
-	innobase_casedn_str(norm_name);
-#endif
+	normalize_table_name(norm_name, full_name);
 
 	innobase_register_trx(innodb_hton_ptr, thd, trx);
 
@@ -2630,7 +2647,6 @@ no_db_name:
 	}
 
 	return(s);
-
 }
 
 /*****************************************************************//**
@@ -4023,15 +4039,6 @@ ha_innobase::primary_key_is_clustered()
 	return(true);
 }
 
-/** Always normalize table name to lower case on Windows */
-#ifdef __WIN__
-#define normalize_table_name(norm_name, name)		\
-	normalize_table_name_low(norm_name, name, TRUE)
-#else
-#define normalize_table_name(norm_name, name)           \
-	normalize_table_name_low(norm_name, name, FALSE)
-#endif /* __WIN__ */
-
 /*****************************************************************//**
 Normalizes a table name string. A normalized name consists of the
 database name catenated to '/' and table name. Example: test/mytable.
@@ -4319,12 +4326,13 @@ innobase_match_index_columns(
 	DBUG_ENTER("innobase_match_index_columns");
 
 	/* Check whether user defined index column count matches */
-	if (key_info->key_parts != index_info->n_user_defined_cols) {
+	if (key_info->user_defined_key_parts !=
+		index_info->n_user_defined_cols) {
 		DBUG_RETURN(FALSE);
 	}
 
 	key_part = key_info->key_part;
-	key_end = key_part + key_info->key_parts;
+	key_end = key_part + key_info->user_defined_key_parts;
 	innodb_idx_fld = index_info->fields;
 	innodb_idx_fld_end = index_info->fields + index_info->n_fields;
 
@@ -5620,7 +5628,8 @@ ha_innobase::store_key_val_for_row(
 {
 	KEY*		key_info	= table->key_info + keynr;
 	KEY_PART_INFO*	key_part	= key_info->key_part;
-	KEY_PART_INFO*	end		= key_part + key_info->key_parts;
+	KEY_PART_INFO*	end		=
+		key_part + key_info->user_defined_key_parts;
 	char*		buff_start	= buff;
 	enum_field_types mysql_type;
 	Field*		field;
@@ -6667,6 +6676,13 @@ set_max_autoinc:
 	innobase_srv_conc_exit_innodb(prebuilt->trx);
 
 report_error:
+	if (error == DB_TABLESPACE_DELETED) {
+		ib_senderrf(
+			trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			ER_TABLESPACE_DISCARDED,
+			table->s->table_name.str);
+	}
+
 	error_result = convert_error_code_to_mysql(error,
 						   prebuilt->table->flags,
 						   user_thd);
@@ -8603,9 +8619,10 @@ create_index(
 
 	if (key->flags & HA_FULLTEXT) {
 		index = dict_mem_index_create(table_name, key->name, 0,
-					      DICT_FTS, key->key_parts);
+					      DICT_FTS,
+					      key->user_defined_key_parts);
 
-		for (ulint i = 0; i < key->key_parts; i++) {
+		for (ulint i = 0; i < key->user_defined_key_parts; i++) {
 			KEY_PART_INFO*	key_part = key->key_part + i;
 			dict_mem_index_add_field(
 				index, key_part->field->field_name, 0);
@@ -8629,15 +8646,16 @@ create_index(
 	}
 
 	field_lengths = (ulint*) my_malloc(
-		key->key_parts * sizeof *field_lengths, MYF(MY_FAE));
+		key->user_defined_key_parts * sizeof *
+				field_lengths, MYF(MY_FAE));
 
 	/* We pass 0 as the space id, and determine at a lower level the space
 	id where to store the table */
 
 	index = dict_mem_index_create(table_name, key->name, 0,
-				      ind_type, key->key_parts);
+				      ind_type, key->user_defined_key_parts);
 
-	for (ulint i = 0; i < key->key_parts; i++) {
+	for (ulint i = 0; i < key->user_defined_key_parts; i++) {
 		KEY_PART_INFO*	key_part = key->key_part + i;
 		ulint		prefix_len;
 		ulint		col_type;
@@ -9362,11 +9380,8 @@ ha_innobase::create(
 	DBUG_ASSERT(thd != NULL);
 	DBUG_ASSERT(create_info != NULL);
 
-	if (form->s->fields > 1000) {
-		/* The limit probably should be REC_MAX_N_FIELDS - 3 = 1020,
-		but we play safe here */
-
-		DBUG_RETURN(HA_ERR_TO_BIG_ROW);
+	if (form->s->fields > REC_MAX_N_USER_FIELDS) {
+		DBUG_RETURN(HA_ERR_TOO_MANY_FIELDS);
 	} else if (srv_read_only_mode) {
 		DBUG_RETURN(HA_ERR_TABLE_READONLY);
 	}
@@ -10272,14 +10287,14 @@ ha_innobase::records_in_range(
 		goto func_exit;
 	}
 
-	heap = mem_heap_create(2 * (key->key_parts * sizeof(dfield_t)
+	heap = mem_heap_create(2 * (key->actual_key_parts * sizeof(dfield_t)
 				    + sizeof(dtuple_t)));
 
-	range_start = dtuple_create(heap, key->key_parts);
-	dict_index_copy_types(range_start, index, key->key_parts);
+	range_start = dtuple_create(heap, key->actual_key_parts);
+	dict_index_copy_types(range_start, index, key->actual_key_parts);
 
-	range_end = dtuple_create(heap, key->key_parts);
-	dict_index_copy_types(range_end, index, key->key_parts);
+	range_end = dtuple_create(heap, key->actual_key_parts);
+	dict_index_copy_types(range_end, index, key->actual_key_parts);
 
 	row_sel_convert_mysql_key_to_innobase(
 				range_start,
@@ -10936,7 +10951,7 @@ ha_innobase::info_low(
 				break;
 			}
 
-			for (j = 0; j < table->key_info[i].key_parts; j++) {
+			for (j = 0; j < table->key_info[i].actual_key_parts; j++) {
 
 				if (table->key_info[i].flags & HA_FULLTEXT) {
 					/* The whole concept has no validity
@@ -11247,9 +11262,8 @@ ha_innobase::check(
 					    " index %s is corrupted.",
 					    index_name);
 			is_ok = FALSE;
-			row_mysql_lock_data_dictionary(prebuilt->trx);
-			dict_set_corrupted(index);
-			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			dict_set_corrupted(
+				index, prebuilt->trx, "CHECK TABLE");
 		}
 
 		if (thd_killed(user_thd)) {
@@ -11284,9 +11298,8 @@ ha_innobase::check(
 		index = dict_table_get_first_index(prebuilt->table);
 
 		if (!dict_index_is_corrupted(index)) {
-			mutex_enter(&dict_sys->mutex);
-			dict_set_corrupted(index);
-			mutex_exit(&dict_sys->mutex);
+			dict_set_corrupted(
+				index, prebuilt->trx, "CHECK TABLE");
 		}
 		prebuilt->table->corrupted = TRUE;
 	}
@@ -13190,7 +13203,7 @@ ha_innobase::cmp_ref(
 	key_part = table->key_info[table->s->primary_key].key_part;
 
 	key_part_end = key_part
-			+ table->key_info[table->s->primary_key].key_parts;
+			+ table->key_info[table->s->primary_key].user_defined_key_parts;
 
 	for (; key_part != key_part_end; ++key_part) {
 		field = key_part->field;
@@ -13235,11 +13248,10 @@ my_bool
 ha_innobase::register_query_cache_table(
 /*====================================*/
 	THD*		thd,		/*!< in: user thread handle */
-	char*		table_key,	/*!< in: concatenation of database name,
-					the null character NUL,
-					and the table name */
-	uint		key_length,	/*!< in: length of the full name, i.e.
-					len(dbname) + len(tablename) + 1 */
+	char*		table_key,	/*!< in: normalized path to the  
+					table */
+	uint		key_length,	/*!< in: length of the normalized
+					path to the table */
 	qc_engine_callback*
 			call_back,	/*!< out: pointer to function for
 					checking if query caching
@@ -16580,8 +16592,6 @@ ib_senderrf(
 		l = Sql_condition::WARN_LEVEL_WARN;
 		break;
 	case IB_LOG_LEVEL_ERROR:
-		/* Set l, to avoid a compiler warning. */
-		l = Sql_condition::WARN_LEVEL_ERROR;
 		/* We can't use push_warning_printf(), it is a hard error. */
 		my_printf_error(code, "%s", MYF(0), str);
 		break;

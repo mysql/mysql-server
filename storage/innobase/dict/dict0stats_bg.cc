@@ -301,6 +301,13 @@ dict_stats_process_entry_from_recalc_pool()
 		return;
 	}
 
+	/* Check whether table is corrupted */
+	if (table->corrupted) {
+		dict_table_close(table, TRUE, FALSE);
+		mutex_exit(&dict_sys->mutex);
+		return;
+	}
+
 	table->stats_bg_flag = BG_STAT_IN_PROGRESS;
 
 	mutex_exit(&dict_sys->mutex);

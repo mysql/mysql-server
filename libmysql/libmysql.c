@@ -912,6 +912,16 @@ mysql_kill(MYSQL *mysql,ulong pid)
 {
   uchar buff[4];
   DBUG_ENTER("mysql_kill");
+  /*
+    Sanity check: if ulong is 64-bits, user can submit a PID here that
+    overflows our 32-bit parameter to the somewhat obsolete COM_PROCESS_KILL.
+    If this is the case, we'll flag an error here.
+    The SQL statement KILL CONNECTION is the safer option here.
+    There is an analog of this failsafe in the server as we might see old
+    libmysql connection to a new server as well as the other way around.
+  */
+  if (pid & (~0xfffffffful))
+    DBUG_RETURN(CR_INVALID_CONN_HANDLE);
   int4store(buff,pid);
   DBUG_RETURN(simple_command(mysql,COM_PROCESS_KILL,buff,sizeof(buff),0));
 }
@@ -1059,6 +1069,12 @@ const char *STDCALL mysql_info(MYSQL *mysql)
 
 ulong STDCALL mysql_thread_id(MYSQL *mysql)
 {
+  /*
+    ulong may be 64-bit, but we currently only transmit 32-bit.
+    mysql_thread_id() is usually used in conjunction with mysql_kill()
+    which is similarly limited (and obsolete).
+    SELECTION CONNECTION_ID() / KILL CONNECTION avoid this issue.
+  */
   return (mysql)->thread_id;
 }
 
@@ -4050,6 +4066,7 @@ my_bool STDCALL mysql_stmt_bind_result(MYSQL_STMT *stmt, MYSQL_BIND *my_bind)
     stmt->bind was initialized in mysql_stmt_prepare
     stmt->bind overlaps with bind if mysql_stmt_bind_param
     is called from mysql_stmt_store_result.
+    BEWARE of buffer overwrite ...
   */
 
   if (stmt->bind != my_bind)
@@ -4222,7 +4239,7 @@ int STDCALL mysql_stmt_fetch_column(MYSQL_STMT *stmt, MYSQL_BIND *my_bind,
   if ((int) stmt->state < (int) MYSQL_STMT_FETCH_DONE)
   {
     set_stmt_error(stmt, CR_NO_DATA, unknown_sqlstate, NULL);
-    return 1;
+    DBUG_RETURN(1);
   }
   if (column >= stmt->field_count)
   {

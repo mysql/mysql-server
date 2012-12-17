@@ -334,6 +334,7 @@ bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode, LEX_STRING *l
 extern sys_var *Sys_autocommit_ptr;
 extern sys_var *Sys_gtid_next_ptr;
 extern sys_var *Sys_gtid_next_list_ptr;
+extern sys_var *Sys_gtid_purged_ptr;
 
 const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 

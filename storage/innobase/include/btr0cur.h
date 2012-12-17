@@ -45,10 +45,7 @@ enum {
 	BTR_KEEP_POS_FLAG = 8,
 	/** the caller is creating the index or wants to bypass the
 	index->info.online creation log */
-	BTR_CREATE_FLAG = 16,
-	/** the caller is rebuilding the table, preserving the same
-	PRIMARY KEY */
-	BTR_CREATE_SAME_PK_FLAG = 32
+	BTR_CREATE_FLAG = 16
 };
 
 #ifndef UNIV_HOTBACKUP
@@ -175,16 +172,19 @@ UNIV_INTERN
 void
 btr_cur_open_at_index_side_func(
 /*============================*/
-	ibool		from_left,	/*!< in: TRUE if open to the low end,
-					FALSE if to the high end */
+	bool		from_left,	/*!< in: true if open to the low end,
+					false if to the high end */
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: latch mode */
-	btr_cur_t*	cursor,		/*!< in: cursor */
+	btr_cur_t*	cursor,		/*!< in/out: cursor */
+	ulint		level,		/*!< in: level to search for
+					(0=leaf) */
 	const char*	file,		/*!< in: file name */
 	ulint		line,		/*!< in: line where called */
-	mtr_t*		mtr);		/*!< in: mtr */
-#define btr_cur_open_at_index_side(f,i,l,c,m)				\
-	btr_cur_open_at_index_side_func(f,i,l,c,__FILE__,__LINE__,m)
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
+#define btr_cur_open_at_index_side(f,i,l,c,lv,m)			\
+	btr_cur_open_at_index_side_func(f,i,l,c,lv,__FILE__,__LINE__,m)
 /**********************************************************************//**
 Positions a cursor at a randomly chosen position within a B-tree. */
 UNIV_INTERN

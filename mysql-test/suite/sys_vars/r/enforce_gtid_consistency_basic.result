@@ -1,0 +1,31 @@
+SET @start_global_value = @@global.enforce_gtid_consistency;
+SELECT @start_global_value;
+@start_global_value
+0
+select @@global.enforce_gtid_consistency;
+@@global.enforce_gtid_consistency
+0
+select @@session.enforce_gtid_consistency;
+ERROR HY000: Variable 'enforce_gtid_consistency' is a GLOBAL variable
+show global variables like 'enforce_gtid_consistency';
+Variable_name	Value
+enforce_gtid_consistency	OFF
+show session variables like 'enforce_gtid_consistency';
+Variable_name	Value
+enforce_gtid_consistency	OFF
+select * from information_schema.global_variables where variable_name='enforce_gtid_consistency';
+VARIABLE_NAME	VARIABLE_VALUE
+ENFORCE_GTID_CONSISTENCY	OFF
+select * from information_schema.session_variables where variable_name='enforce_gtid_consistency';
+VARIABLE_NAME	VARIABLE_VALUE
+ENFORCE_GTID_CONSISTENCY	OFF
+set global enforce_gtid_consistency= 1;
+ERROR HY000: Variable 'enforce_gtid_consistency' is a read only variable
+select @@global.enforce_gtid_consistency;
+@@global.enforce_gtid_consistency
+0
+set session enforce_gtid_consistency= 1;
+ERROR HY000: Variable 'enforce_gtid_consistency' is a read only variable
+SELECT @@global.enforce_gtid_consistency;
+@@global.enforce_gtid_consistency
+0
