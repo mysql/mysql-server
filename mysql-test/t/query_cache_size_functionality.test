@@ -134,7 +134,7 @@ SELECT query_cache_size = @@SESSION.query_cache_size;
 
 --echo '#---------------------WL6372_VAR_2_07----------------------#'
 #################################################################################
-# Checking the size of table cache functionality                                #
+# Checking the size of query cache functionality                                #
 #################################################################################
 --echo # create 1 table and insert 3 rows each
 --disable_warnings

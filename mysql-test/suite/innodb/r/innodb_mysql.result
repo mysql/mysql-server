@@ -2568,7 +2568,7 @@ EXPLAIN SELECT * FROM t1 WHERE f1 IN
 3784744,4180925,4559596,3963734,3856391,4494153)
 AND f5 = 'abcdefghijklmnopwrst' AND f2 = 1221457 AND f4 = 0 ;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index_merge	PRIMARY,idx1,idx2	idx1,PRIMARY	60,4	NULL	1	Using intersect(idx1,PRIMARY); Using where
+1	SIMPLE	t1	ref	PRIMARY,idx1,idx2	idx1	60	const,const,const	18	Using index condition
 DROP TABLE t1;
 #
 # Bug#51431 Wrong sort order after import of dump file

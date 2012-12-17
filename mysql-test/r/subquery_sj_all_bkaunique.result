@@ -2960,6 +2960,9 @@ EXPLAIN
               "PRIMARY"
             ],
             "key": "PRIMARY",
+            "used_key_parts": [
+              "a"
+            ],
             "key_length": "4",
             "ref": [
               "test.t11.a"
@@ -3317,6 +3320,9 @@ EXPLAIN
             "a"
           ],
           "key": "a",
+          "used_key_parts": [
+            "a"
+          ],
           "key_length": "5",
           "ref": [
             "<subquery2>.a"
@@ -6335,6 +6341,9 @@ EXPLAIN
                   "Country"
                 ],
                 "key": "Population",
+                "used_key_parts": [
+                  "Population"
+                ],
                 "key_length": "4",
                 "rows": 1,
                 "filtered": 100,
@@ -6351,6 +6360,9 @@ EXPLAIN
                   "Population"
                 ],
                 "key": "PRIMARY",
+                "used_key_parts": [
+                  "Code"
+                ],
                 "key_length": "3",
                 "ref": [
                   "test.t1.Country"
@@ -6373,6 +6385,10 @@ EXPLAIN
             "Percentage"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "Country",
+            "Language"
+          ],
           "key_length": "33",
           "ref": [
             "test.t1.Country",
@@ -8131,6 +8147,9 @@ EXPLAIN
                     "col_int_key"
                   ],
                   "key": "col_int_key",
+                  "used_key_parts": [
+                    "col_int_key"
+                  ],
                   "key_length": "4",
                   "ref": [
                     "func"
@@ -8164,6 +8183,9 @@ EXPLAIN
                               "col_int_key"
                             ],
                             "key": "col_int_key",
+                            "used_key_parts": [
+                              "col_int_key"
+                            ],
                             "key_length": "4",
                             "ref": [
                               "func"
@@ -8180,6 +8202,9 @@ EXPLAIN
                               "col_int_key"
                             ],
                             "key": "col_int_key",
+                            "used_key_parts": [
+                              "col_int_key"
+                            ],
                             "key_length": "4",
                             "rows": 1,
                             "filtered": 100,
@@ -10076,6 +10101,9 @@ EXPLAIN
             "<auto_key0>"
           ],
           "key": "<auto_key0>",
+          "used_key_parts": [
+            "col_varchar_nokey"
+          ],
           "key_length": "4",
           "ref": [
             "<subquery3>.col_varchar_nokey"
@@ -10401,6 +10429,9 @@ EXPLAIN
             "PRIMARY"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "pk"
+          ],
           "key_length": "4",
           "ref": [
             "test.alias2.pk"

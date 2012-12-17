@@ -625,8 +625,8 @@ TEST_F(FieldTest, MakeSortKey)
     SCOPED_TRACE("Field_varstring");
     Mock_charset mock_charset;
     Fake_TABLE_SHARE fake_share(0);
-    uchar ptr= 0;
-    Field_varstring fvs(&ptr, 0, 0, NULL, '\0', Field::NONE, "", &fake_share,
+    uchar ptr[8]= {0, 0, 0, 0, 0, 0, 0, 0};
+    Field_varstring fvs(ptr, 0, 0, NULL, '\0', Field::NONE, "", &fake_share,
                         &mock_charset);
     uchar to;
     fvs.make_sort_key(&to, 666);

@@ -975,6 +975,9 @@ struct PSI_digest_locker_state
 };
 typedef struct PSI_digest_locker_state PSI_digest_locker_state;
 
+/* Duplicate of NAME_LEN, to avoid dependency on mysql_com.h */
+#define PSI_SCHEMA_NAME_LEN (64 * 3)
+
 /**
   State data storage for @c get_thread_statement_locker_v1_t,
   @c get_thread_statement_locker_v1_t.
@@ -1035,6 +1038,10 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_scan;
   /** Statement digest. */
   PSI_digest_locker_state m_digest_state;
+  /** Current schema name. */
+  char m_schema_name[PSI_SCHEMA_NAME_LEN];
+  /** Length in bytes of @c m_schema_name. */
+  uint m_schema_name_length;
 };
 
 /**
@@ -1299,7 +1306,7 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
   @return an instrumented thread
 */
 typedef struct PSI_thread* (*new_thread_v1_t)
-  (PSI_thread_key key, const void *identity, ulong thread_id);
+  (PSI_thread_key key, const void *identity, ulonglong thread_id);
 
 /**
   Assign an id to an instrumented thread.
@@ -1307,7 +1314,7 @@ typedef struct PSI_thread* (*new_thread_v1_t)
   @param id the id to assign
 */
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
-                                   unsigned long id);
+                                   ulonglong id);
 
 /**
   Get the instrumentation for the running thread.

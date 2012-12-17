@@ -425,7 +425,7 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
 
   key_info= event_table->key_info;
 
-  if (key_info->key_parts == 0 ||
+  if (key_info->user_defined_key_parts == 0 ||
       key_info->key_part[0].field != event_table->field[ET_FIELD_DB])
   {
     /* Corrupted table: no index or index on a wrong column */

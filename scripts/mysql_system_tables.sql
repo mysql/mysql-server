@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS procs_priv ( Host char(60) binary DEFAULT '' NOT NULL
 
 -- Create general_log if CSV is enabled.
 SET @have_csv = (SELECT support FROM information_schema.engines WHERE engine = 'CSV');
-SET @str = IF (@have_csv = 'YES', 'CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, user_host MEDIUMTEXT NOT NULL, thread_id INTEGER NOT NULL, server_id INTEGER UNSIGNED NOT NULL, command_type VARCHAR(64) NOT NULL, argument MEDIUMTEXT NOT NULL) engine=CSV CHARACTER SET utf8 comment="General log"', 'SET @dummy = 0');
+SET @str = IF (@have_csv = 'YES', 'CREATE TABLE IF NOT EXISTS general_log (event_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, user_host MEDIUMTEXT NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL, server_id INTEGER UNSIGNED NOT NULL, command_type VARCHAR(64) NOT NULL, argument MEDIUMTEXT NOT NULL) engine=CSV CHARACTER SET utf8 comment="General log"', 'SET @dummy = 0');
 
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -86,7 +86,7 @@ DROP PREPARE stmt;
 
 -- Create slow_log if CSV is enabled.
 
-SET @str = IF (@have_csv = 'YES', 'CREATE TABLE IF NOT EXISTS slow_log (start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, user_host MEDIUMTEXT NOT NULL, query_time TIME NOT NULL, lock_time TIME NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512) NOT NULL, last_insert_id INTEGER NOT NULL, insert_id INTEGER NOT NULL, server_id INTEGER UNSIGNED NOT NULL, sql_text MEDIUMTEXT NOT NULL, thread_id INTEGER NOT NULL) engine=CSV CHARACTER SET utf8 comment="Slow log"', 'SET @dummy = 0');
+SET @str = IF (@have_csv = 'YES', 'CREATE TABLE IF NOT EXISTS slow_log (start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, user_host MEDIUMTEXT NOT NULL, query_time TIME NOT NULL, lock_time TIME NOT NULL, rows_sent INTEGER NOT NULL, rows_examined INTEGER NOT NULL, db VARCHAR(512) NOT NULL, last_insert_id INTEGER NOT NULL, insert_id INTEGER NOT NULL, server_id INTEGER UNSIGNED NOT NULL, sql_text MEDIUMTEXT NOT NULL, thread_id BIGINT(21) UNSIGNED NOT NULL) engine=CSV CHARACTER SET utf8 comment="Slow log"', 'SET @dummy = 0');
 
 PREPARE stmt FROM @str;
 EXECUTE stmt;
@@ -281,7 +281,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_waits_current("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -312,7 +312,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_waits_history("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -343,7 +343,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -451,7 +451,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_waits_summary_by_thread_by_event_name("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_STAR BIGINT unsigned not null,"
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
@@ -578,7 +578,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.socket_instances("
   "EVENT_NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
-  "THREAD_ID INTEGER,"
+  "THREAD_ID BIGINT unsigned,"
   "SOCKET_ID INTEGER not null,"
   "IP VARCHAR(64) not null,"
   "PORT INTEGER not null,"
@@ -709,7 +709,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.mutex_instances("
   "NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
-  "LOCKED_BY_THREAD_ID INTEGER"
+  "LOCKED_BY_THREAD_ID BIGINT unsigned"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -760,7 +760,7 @@ DROP PREPARE stmt;
 SET @cmd="CREATE TABLE performance_schema.rwlock_instances("
   "NAME VARCHAR(128) not null,"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
-  "WRITE_LOCKED_BY_THREAD_ID INTEGER,"
+  "WRITE_LOCKED_BY_THREAD_ID BIGINT unsigned,"
   "READ_LOCKED_BY_COUNT INTEGER unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1035,10 +1035,10 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.threads("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "NAME VARCHAR(128) not null,"
   "TYPE VARCHAR(10) not null,"
-  "PROCESSLIST_ID INTEGER,"
+  "PROCESSLIST_ID BIGINT unsigned,"
   "PROCESSLIST_USER VARCHAR(16),"
   "PROCESSLIST_HOST VARCHAR(60),"
   "PROCESSLIST_DB VARCHAR(64),"
@@ -1046,7 +1046,7 @@ SET @cmd="CREATE TABLE performance_schema.threads("
   "PROCESSLIST_TIME BIGINT,"
   "PROCESSLIST_STATE VARCHAR(64),"
   "PROCESSLIST_INFO LONGTEXT,"
-  "PARENT_THREAD_ID INTEGER,"
+  "PARENT_THREAD_ID BIGINT unsigned,"
   "ROLE VARCHAR(64),"
   "INSTRUMENTED ENUM ('YES', 'NO') not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -1061,7 +1061,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_stages_current("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -1083,7 +1083,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_stages_history("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -1105,7 +1105,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_stages_history_long("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -1127,7 +1127,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_stages_summary_by_thread_by_event_name("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_STAR BIGINT unsigned not null,"
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
@@ -1222,7 +1222,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_statements_current("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -1274,7 +1274,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_statements_history("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -1326,7 +1326,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_ID BIGINT unsigned not null,"
   "END_EVENT_ID BIGINT unsigned,"
   "EVENT_NAME VARCHAR(128) not null,"
@@ -1378,7 +1378,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_thread_by_event_name("
-  "THREAD_ID INTEGER not null,"
+  "THREAD_ID BIGINT unsigned not null,"
   "EVENT_NAME VARCHAR(128) not null,"
   "COUNT_STAR BIGINT unsigned not null,"
   "SUM_TIMER_WAIT BIGINT unsigned not null,"
@@ -1614,6 +1614,7 @@ DROP PREPARE stmt;
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_digest("
+  "SCHEMA_NAME VARCHAR(64),"
   "DIGEST VARCHAR(32),"
   "DIGEST_TEXT LONGTEXT,"
   "COUNT_STAR BIGINT unsigned not null,"

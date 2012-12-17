@@ -805,6 +805,7 @@
    fun:my_malloc
    fun:_Z22add_pfs_instr_to_arrayPKcS0_
    fun:mysqld_get_one_option
+   fun:my_handle_options
    fun:handle_options
    fun:_Z20handle_early_optionsv
 }

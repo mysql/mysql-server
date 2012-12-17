@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2009, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,10 @@ typedef byte	rec_t;
 #define REC_MAX_N_FIELDS	(1024 - 1)
 #define REC_MAX_HEAP_NO		(2 * 8192 - 1)
 #define REC_MAX_N_OWNED		(16 - 1)
+
+/* Maximum number of user defined fields/columns. The reserved columns
+are the ones InnoDB adds internally: DB_ROW_ID, DB_TRX_ID, DB_ROLL_PTR */
+#define REC_MAX_N_USER_FIELDS	(REC_MAX_N_FIELDS - DATA_N_SYS_COLS)
 
 /* REC_ANTELOPE_MAX_INDEX_COL_LEN is measured in bytes and is the maximum
 indexed field length (or indexed prefix length) for indexes on tables of

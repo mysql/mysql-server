@@ -1,0 +1,27 @@
+--source include/not_embedded.inc
+--source include/not_gtid_enabled.inc
+
+SET @start_global_value = @@global.gtid_purged;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+select @@global.gtid_purged;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.gtid_purged;
+show global variables like 'gtid_purged';
+show session variables like 'gtid_purged';
+select * from information_schema.global_variables where variable_name='gtid_purged';
+select * from information_schema.session_variables where variable_name='gtid_purged';
+
+#
+# Try to write when GTID_MODE= OFF.
+#
+--error ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF
+SET @@global.gtid_purged= '11111111-1111-1111-1111-111111111111:2';
+select @@global.gtid_purged;
+
+#
+# See rpl_gtid_purged.test for a comprehensive test case.
+#

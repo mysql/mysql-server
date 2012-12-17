@@ -20,6 +20,7 @@
 
 #include "my_global.h"
 #include "my_pthread.h"
+#include "hostname.h" /* For Host_entry */
 #include "pfs_engine_table.h"
 
 #include "table_events_waits.h"
@@ -1402,12 +1403,24 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       name= "(user_hash).size";
       size= user_hash.size;
       break;
+    case 153:
+      /*
+        This is not a performance_schema buffer,
+        the data is maintained in the server,
+        in hostname_cache.
+        Print the size only, there are:
+        - no host_cache.count
+        - no host_cache.memory
+      */
+      name= "host_cache.size";
+      size= sizeof(Host_entry);
+      break;
 
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 153:
+    case 154:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */

@@ -264,9 +264,6 @@ void table_host_cache::materialize(THD *thd)
     index++;
     row++;
     current= current->next();
-    /* Host cache is a circular linked list. */
-    if (current == first)
-      break;
   }
 
   m_all_rows= rows;

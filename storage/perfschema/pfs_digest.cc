@@ -124,8 +124,8 @@ static uchar *digest_hash_get_key(const uchar *entry, size_t *length,
   DBUG_ASSERT(typed_entry != NULL);
   digest= *typed_entry;
   DBUG_ASSERT(digest != NULL);
-  *length= PFS_MD5_SIZE; 
-  result= digest->m_digest_hash.m_md5;
+  *length= sizeof (PFS_digest_key);
+  result= & digest->m_digest_key;
   return const_cast<uchar*> (reinterpret_cast<const uchar*> (result));
 }
 C_MODE_END
@@ -170,7 +170,9 @@ static LF_PINS* get_digest_hash_pins(PFS_thread *thread)
 
 PFS_statement_stat*
 find_or_create_digest(PFS_thread *thread,
-                      PSI_digest_storage *digest_storage)
+                      PSI_digest_storage *digest_storage,
+                      const char *schema_name,
+                      uint schema_name_length)
 {
   if (statements_digest_stat_array == NULL)
     return NULL;
@@ -182,13 +184,21 @@ find_or_create_digest(PFS_thread *thread,
   if (unlikely(pins == NULL))
     return NULL;
 
+  /*
+    Note: the LF_HASH key is a block of memory,
+    make sure to clean unused bytes,
+    so that memcmp() can compare keys.
+  */
+  PFS_digest_key hash_key;
+  memset(& hash_key, 0, sizeof(hash_key));
   /* Compute MD5 Hash of the tokens received. */
-  PFS_digest_hash md5;
-  compute_md5_hash((char *) md5.m_md5,
+  compute_md5_hash((char *) hash_key.m_md5,
                    (char *) digest_storage->m_token_array,
                    digest_storage->m_byte_count);
-
-  unsigned char* hash_key= md5.m_md5;
+  /* Add the current schema to the key */
+  hash_key.m_schema_name_length= schema_name_length;
+  if (schema_name_length > 0)
+    memcpy(hash_key.m_schema_name, schema_name, schema_name_length);
 
   int res;
   ulong safe_index;
@@ -204,7 +214,7 @@ search:
   /* Lookup LF_HASH using this new key. */
   entry= reinterpret_cast<PFS_statements_digest_stat**>
     (lf_hash_search(&digest_hash, pins,
-                    hash_key, PFS_MD5_SIZE));
+                    &hash_key, sizeof(PFS_digest_key)));
 
   if (entry && (entry != MY_ERRPTR))
   {
@@ -246,7 +256,7 @@ search:
   pfs= &statements_digest_stat_array[safe_index];
 
   /* Copy digest hash/LF Hash search key. */
-  memcpy(pfs->m_digest_hash.m_md5, md5.m_md5, PFS_MD5_SIZE);
+  memcpy(& pfs->m_digest_key, &hash_key, sizeof(PFS_digest_key));
 
   /*
     Copy digest storage to statement_digest_stat_array so that it could be
@@ -280,7 +290,7 @@ search:
   return NULL;
 }
 
-void purge_digest(PFS_thread* thread, unsigned char* hash_key)
+void purge_digest(PFS_thread* thread, PFS_digest_key *hash_key)
 {
   LF_PINS *pins= get_digest_hash_pins(thread);
   if (unlikely(pins == NULL))
@@ -291,12 +301,12 @@ void purge_digest(PFS_thread* thread, unsigned char* hash_key)
   /* Lookup LF_HASH using this new key. */
   entry= reinterpret_cast<PFS_statements_digest_stat**>
     (lf_hash_search(&digest_hash, pins,
-                    hash_key, PFS_MD5_SIZE));
+                    hash_key, sizeof(PFS_digest_key)));
 
   if (entry && (entry != MY_ERRPTR))
-  { 
+  {
     lf_hash_delete(&digest_hash, pins,
-                   hash_key, PFS_MD5_SIZE);
+                   hash_key, sizeof(PFS_digest_key));
   }
   lf_hash_search_unpin(pins);
   return;
@@ -315,7 +325,7 @@ void PFS_statements_digest_stat::reset_index(PFS_thread *thread)
   /* Only remove entries that exists in the HASH index. */
   if (m_digest_storage.m_byte_count > 0)
   {
-    purge_digest(thread, m_digest_hash.m_md5);
+    purge_digest(thread, & m_digest_key);
   }
 }
 

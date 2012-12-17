@@ -1172,7 +1172,8 @@ bool unsafe_key_update(TABLE_LIST *leaves, table_map tables_for_update)
             // The primary key can cover multiple columns
             KEY key_info= table1->key_info[table1->s->primary_key];
             KEY_PART_INFO *key_part= key_info.key_part;
-            KEY_PART_INFO *key_part_end= key_part + key_info.key_parts;
+            KEY_PART_INFO *key_part_end= key_part +
+              key_info.user_defined_key_parts;
 
             for (;key_part != key_part_end; ++key_part)
             {

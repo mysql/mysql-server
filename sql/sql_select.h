@@ -1330,4 +1330,7 @@ static inline Item * and_items(Item* cond, Item *item)
   return (cond? (new Item_cond_and(cond, item)) : item);
 }
 
+uint actual_key_parts(KEY *key_info);
+uint actual_key_flags(KEY *key_info);
+
 #endif /* SQL_SELECT_INCLUDED */

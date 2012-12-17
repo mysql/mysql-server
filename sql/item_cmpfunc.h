@@ -283,7 +283,7 @@ public:
   bool fix_fields(THD *, Item **);
   bool fix_left(THD *thd, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   bool is_null();
   longlong val_int();
   void cleanup();
@@ -1492,7 +1492,7 @@ public:
       with_stored_program= args[0]->has_stored_program();
 
       if ((const_item_cache= !(used_tables_cache= args[0]->used_tables()) &&
-          !with_subselect))
+           !with_subselect && !with_stored_program))
       {
 	/* Remember if the value is always NULL or never NULL */
 	cached_value= (longlong) args[0]->is_null();
@@ -1665,7 +1665,7 @@ public:
   }
   bool fix_fields(THD *, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
 
   enum Type type() const { return COND_ITEM; }
   List<Item>* argument_list() { return &list; }

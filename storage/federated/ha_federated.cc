@@ -1314,7 +1314,7 @@ bool ha_federated::create_where_from_key(String *to,
     }
 
     for (key_part= key_info->key_part,
-         remainder= key_info->key_parts,
+         remainder= key_info->user_defined_key_parts,
          length= ranges[i]->length,
          ptr= ranges[i]->key; ;
          remainder--,

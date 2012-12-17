@@ -3517,7 +3517,7 @@ const_table_extraction_done:
              4. have an expensive outer join condition.
              5. are blocked by handler for const table optimize.
           */
-	  if (eq_part.is_prefix(table->key_info[key].key_parts) &&
+	  if (eq_part.is_prefix(table->key_info[key].user_defined_key_parts) &&
               !table->fulltext_searched &&                           // 1
               !tl->outer_join_nest() &&                              // 2
               !(tl->embedding && tl->embedding->sj_on_expr) &&       // 3
@@ -4358,7 +4358,7 @@ static bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
           keyuse++;
         } while (keyuse->key == key && keyuse->table == table);
 
-        if (bound_parts == LOWER_BITS(uint, keyinfo->key_parts))
+        if (bound_parts == LOWER_BITS(uint, keyinfo->user_defined_key_parts))
           return TRUE;
         if (keyuse->table != table)
           return FALSE;
@@ -5302,7 +5302,7 @@ add_key_part(Key_use_array *keyuse_array, Key_field *key_field)
       if (form->key_info[key].flags & (HA_FULLTEXT | HA_SPATIAL))
 	continue;    // ToDo: ft-keys in non-ft queries.   SerG
 
-      uint key_parts= (uint) form->key_info[key].key_parts;
+      uint key_parts= actual_key_parts(&form->key_info[key]);
       for (uint part=0 ; part <  key_parts ; part++)
       {
 	if (field->eq(form->key_info[key].key_part[part].field))
@@ -6406,8 +6406,7 @@ static void fix_list_after_tbl_changes(st_select_lex *parent_select,
   while ((table= it++))
   {
     if (table->join_cond())
-      table->join_cond()->fix_after_pullout(parent_select, removed_select,
-                                            table->join_cond_ref());
+      table->join_cond()->fix_after_pullout(parent_select, removed_select);
     if (table->nested_join)
       fix_list_after_tbl_changes(parent_select, removed_select,
                                  &table->nested_join->join_list);
@@ -6741,8 +6740,7 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
     Walk through sj nest's WHERE and ON expressions and call
     item->fix_table_changes() for all items.
   */
-  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, subq_lex,
-                                         &sj_nest->sj_on_expr);
+  sj_nest->sj_on_expr->fix_after_pullout(parent_lex, subq_lex);
   fix_list_after_tbl_changes(parent_lex, subq_lex,
                              &sj_nest->nested_join->join_list);
 
@@ -8533,7 +8531,7 @@ list_contains_unique_index(JOIN_TAB *tab,
       KEY_PART_INFO *key_part, *key_part_end;
 
       for (key_part=keyinfo->key_part,
-           key_part_end=key_part+ keyinfo->key_parts;
+           key_part_end=key_part+ keyinfo->user_defined_key_parts;
            key_part < key_part_end;
            key_part++)
       {
@@ -9314,9 +9312,8 @@ bool JOIN::decide_subquery_strategy()
                        here.
    @returns false if success
 */
-bool
-JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_method
-                                           *method)
+bool JOIN::compare_costs_of_subquery_strategies(
+               Item_exists_subselect::enum_exec_method *method)
 {
   *method= Item_exists_subselect::EXEC_EXISTS;
 
@@ -9349,7 +9346,11 @@ JOIN::compare_costs_of_subquery_strategies(Item_exists_subselect::enum_exec_meth
   if (in_pred->in2exists_added_to_where())
   {
     Opt_trace_array trace_subqmat_steps(trace, "steps");
-    if (!(best_positions= new (thd->mem_root) POSITION[tables + 1]))
+
+    // Up to one extra slot per semi-join nest is needed (if materialized)
+    const uint sj_nests= select_lex->sj_nests.elements;
+
+    if (!(best_positions= new (thd->mem_root) POSITION[tables + sj_nests + 1]))
       return true;
 
     // Compute plans which do not use outer references

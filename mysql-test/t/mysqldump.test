@@ -1889,6 +1889,7 @@ TRUNCATE mysql.event;
 --exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug29938.sql
 SHOW EVENTS;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug29938.sql
+DROP EVENT e29938;  # Events are now dumped even with --skip-events
 
 
 --echo #

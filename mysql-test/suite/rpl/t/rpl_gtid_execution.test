@@ -7,17 +7,17 @@
 #
 #  - SET GTID_NEXT sets @@SESSION.GTID_OWNED.
 #
-#  - The first statement of a transaction sets @@SESSION.GTID_DONE
+#  - The first statement of a transaction sets @@SESSION.GTID_EXECUTE
 #
-#  - COMMIT sets @@SESSION.GTID_DONE and clears @@SESSION.GTID_DONE and
+#  - COMMIT sets @@SESSION.GTID_EXECUTE and clears @@SESSION.GTID_EXECUTE and
 #    @@SESSION.GTID_OWNED.
 #
-#  - ROLLBACK does not change @@SESSION.GTID_DONE, and clears
-#    @@SESSION.GTID_DONE and @@SESSION.GTID_OWNED
+#  - ROLLBACK does not change @@SESSION.GTID_EXECUTE, and clears
+#    @@SESSION.GTID_EXECUTE and @@SESSION.GTID_OWNED
 #
 #  - ROLLBACK TO SAVEPOINT never clears @@SESSION.GTID_OWNED
 #
-#  - ROLLBACK TO SAVEPOINT clears @@SESSION.GTID_DONE if the
+#  - ROLLBACK TO SAVEPOINT clears @@SESSION.GTID_EXECUTE if the
 #    transaction cache becomes completely empty.
 #
 #  - When one thread owns a GTID, another session that sets GTID_NEXT
@@ -106,17 +106,17 @@ INSERT INTO t VALUES (1);
 #        Do nothing; just assert that the last query sent by 'send' is
 #        still running.
 #
-#  global_gtid_done
-#    Specifies how @@GLOBAL.GTID_DONE is expected to change after the
+#  global_gtid_executed
+#    Specifies how @@GLOBAL.GTID_EXECUTE is expected to change after the
 #    statement.  This has the form of a gtid_set containing the gtids
 #    that were added by the statement.  If the gtid_set begins with
 #    '~', the gtids are expected to be removed instead.  UUIDs are
 #    abbreviated as in stmt_type (see above).
 #
-#  session_gtid_done, gtid_owned
-#    Specify how @@SESSION.GTID_DONE and @@[SESSION|GLOBAL].GTID_OWNED
+#  session_gtid_executed, gtid_owned
+#    Specify how @@SESSION.GTID_EXECUTE and @@[SESSION|GLOBAL].GTID_OWNED
 #    are expected to change after the statement.  These have the same
-#    form as global_gtid_done (see above).
+#    form as global_gtid_executed (see above).
 #
 #  error
 #    Expected errno for the statement, or 0 if the statement is
@@ -125,8 +125,8 @@ CREATE TABLE stmts (
   id INT PRIMARY KEY NOT NULL,
   connection INT NOT NULL,
   stmt_type TEXT(100) NOT NULL,
-  global_gtid_done TEXT(10000) NOT NULL,
-  session_gtid_done TEXT(10000) NOT NULL,
+  global_gtid_executed TEXT(10000) NOT NULL,
+  session_gtid_executed TEXT(10000) NOT NULL,
   session_gtid_owned TEXT(10000) NOT NULL,
   global_gtid_owned TEXT(10000) NOT NULL,
   error INT NOT NULL)
@@ -399,8 +399,8 @@ while ($id <= $max_id)
   {
     if ($send_reap != 'running')
     {
-      SET @session_gtid_done= @@SESSION.GTID_DONE;
-      SET @global_gtid_done= @@GLOBAL.GTID_DONE;
+      SET @session_gtid_executed= @@SESSION.GTID_EXECUTED;
+      SET @global_gtid_executed= @@GLOBAL.GTID_EXECUTED;
       SET @session_gtid_owned= @@SESSION.GTID_OWNED;
       SET @global_gtid_owned= SUBSTRING_INDEX(@@GLOBAL.GTID_OWNED, '#', 1);
 
@@ -410,7 +410,7 @@ while ($id <= $max_id)
       --source include/eval.inc
       --let $eval_expr= SET @binlog_pos_before= [master:SHOW MASTER STATUS, Position, 1]
       --source include/eval.inc
-      --let $eval_expr= SET @slave_global_gtid_done= "[slave:SELECT @@GLOBAL.GTID_DONE]"
+      --let $eval_expr= SET @slave_global_gtid_executed= "[slave:SELECT @@GLOBAL.GTID_EXECUTED]"
       --source include/eval.inc
       --let $include_silent= 0
       --let $eval_no_result= 0
@@ -494,15 +494,15 @@ while ($id <= $max_id)
         --source include/wait_condition.inc
       }
                                               
-      --let $text_0= @@GLOBAL.GTID_DONE
-      --let $after_0= [server_1_$connection:SELECT @@GLOBAL.GTID_DONE]
-      --let $before_0= @global_gtid_done
-      --let $col_0= global_gtid_done
+      --let $text_0= @@GLOBAL.GTID_EXECUTED
+      --let $after_0= [server_1_$connection:SELECT @@GLOBAL.GTID_EXECUTED]
+      --let $before_0= @global_gtid_executed
+      --let $col_0= global_gtid_executed
 
-      --let $text_1= @@SESSION.GTID_DONE
-      --let $after_1= [server_1_$connection:SELECT @@SESSION.GTID_DONE]
-      --let $before_1= @session_gtid_done
-      --let $col_1= session_gtid_done
+      --let $text_1= @@SESSION.GTID_EXECUTED
+      --let $after_1= [server_1_$connection:SELECT @@SESSION.GTID_EXECUTED]
+      --let $before_1= @session_gtid_executed
+      --let $col_1= session_gtid_executed
 
       --let $text_2= @@SESSION.GTID_OWNED
       --let $after_2= [server_1_$connection:SELECT @@SESSION.GTID_OWNED]
@@ -514,10 +514,10 @@ while ($id <= $max_id)
       --let $before_3= @global_gtid_owned
       --let $col_3= global_gtid_owned
 
-      --let $text_4= slave:@@GLOBAL.GTID_DONE
-      --let $after_4= [slave: SELECT @@GLOBAL.GTID_DONE]
-      --let $before_4= @slave_global_gtid_done
-      --let $col_4= global_gtid_done
+      --let $text_4= slave:@@GLOBAL.GTID_EXECUTED
+      --let $after_4= [slave: SELECT @@GLOBAL.GTID_EXECUTED]
+      --let $before_4= @slave_global_gtid_executed
+      --let $col_4= global_gtid_executed
 
       --let $i= 0
       while ($i < 5)
@@ -562,12 +562,12 @@ while ($id <= $max_id)
       }
 
       # Assert that binlog changed or didn't change (according to
-      # whether gtid_done changed/didn't change).
+      # whether gtid_executed changed/didn't change).
 
       --let $rpl_connection_name= master
       --source include/rpl_connection.inc
 
-      --let $changed_binlog= `SELECT global_gtid_done != '' FROM stmts WHERE id = $id`
+      --let $changed_binlog= `SELECT global_gtid_executed != '' FROM stmts WHERE id = $id`
       if ($changed_binlog)
       {
         let $assert_cond=

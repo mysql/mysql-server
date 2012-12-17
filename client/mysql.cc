@@ -62,6 +62,9 @@ static char *server_version= NULL;
 /* Array of options to pass to libemysqld */
 #define MAX_SERVER_ARGS               64
 
+/* Maximum memory limit that can be claimed by alloca(). */
+#define MAX_ALLOCA_SIZE              512
+
 #include "sql_string.h"
 
 extern "C" {
@@ -3655,8 +3658,10 @@ print_table_data(MYSQL_RES *result)
   MYSQL_ROW	cur;
   MYSQL_FIELD	*field;
   bool		*num_flag;
+  size_t        sz;
 
-  num_flag=(bool*) my_alloca(sizeof(bool)*mysql_num_fields(result));
+  sz= sizeof(bool) * mysql_num_fields(result);
+  num_flag= (bool *) my_safe_alloca(sz, MAX_ALLOCA_SIZE);
   if (column_types_flag)
   {
     print_field_types(result);
@@ -3757,7 +3762,7 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("\n", PAGER);
   }
   tee_puts((char*) separator.ptr(), PAGER);
-  my_afree((uchar*) num_flag);
+  my_safe_afree((bool *) num_flag, sz, MAX_ALLOCA_SIZE);
 }
 
 /**

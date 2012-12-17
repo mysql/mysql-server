@@ -246,13 +246,13 @@ trx_undo_get_undo_rec_low(
 	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Build a previous version of a clustered index record. The caller must
-hold a latch on the index page of the clustered index record, to
-guarantee that the stack of versions is locked all the way down to the
-purge_sys->view.
-@return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
-earlier than purge_view, which means that it may have been removed */
+hold a latch on the index page of the clustered index record.
+@retval true if previous version was built, or if it was an insert
+or the table has been rebuilt
+@retval false if the previous version is earlier than purge_view,
+which means that it may have been removed */
 UNIV_INTERN
-dberr_t
+bool
 trx_undo_prev_version_build(
 /*========================*/
 	const rec_t*	index_rec,/*!< in: clustered index record in the
@@ -267,7 +267,7 @@ trx_undo_prev_version_build(
 	rec_t**		old_vers)/*!< out, own: previous version, or NULL if
 				rec is the first inserted version, or if
 				history data has been deleted */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of adding an undo log record.

@@ -1,0 +1,226 @@
+###############################################################################
+#                                                                             #
+# Variable Name: sort_buffer_size                                             #
+# Scope: Global/Session                                                       #
+# Access Type: Dynamic                                                        #
+# Data Type: numeric                                                          #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2012-08-31                                                   #
+# Author : Tanjot Singh Uppal                                                 #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable sort_buffer_size          #
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+#              * Functionality Check                                          #
+#              * Accessability Check                                          #
+#                                                                             #
+###############################################################################
+
+-- source include/have_innodb.inc
+-- source include/not_embedded.inc
+-- source include/have_innodb_16k.inc
+
+--echo '#---------------------WL6372_VAR_8_01----------------------#'
+####################################################################
+#   Checking default value                                         #
+####################################################################
+SELECT COUNT(@@GLOBAL.sort_buffer_size);
+--echo 1 Expected
+SELECT COUNT(@@SESSION.sort_buffer_size);
+--echo 1 Expected
+
+SELECT @@GLOBAL.sort_buffer_size;
+--echo 262144 Expected
+SELECT @@SESSION.sort_buffer_size;
+--echo 262144 Expected
+
+
+--echo '#---------------------WL6372_VAR_8_02----------------------#'
+#################################################################################
+# Checking the Default value post starting the server with other value          #
+#################################################################################
+--echo # Restart server with sort_buffer_size 9999999;
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+-- exec echo "restart:--sort_buffer_size=9999999 " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+-- enable_reconnect
+-- source include/wait_until_connected_again.inc
+
+SELECT @@GLOBAL.sort_buffer_size;
+--echo 9999999 Expected
+
+SET @@GLOBAL.sort_buffer_size=DEFAULT;
+SELECT @@GLOBAL.sort_buffer_size;
+--echo 262144 Expected
+
+--echo '#---------------------WL6372_VAR_8_03----------------------#'
+####################################################################
+#   Checking Value can be set - Dynamic                            #
+####################################################################
+
+SET @@local.sort_buffer_size=9999999;
+
+SET @@session.sort_buffer_size=9999999;
+
+SET @@GLOBAL.sort_buffer_size=9999999;
+
+SET @@local.sort_buffer_size=DEFAULT;
+
+SET @@session.sort_buffer_size=DEFAULT;
+
+SET @@GLOBAL.sort_buffer_size=DEFAULT;
+
+SELECT @@GLOBAL.sort_buffer_size;
+--echo 262144 Expected
+
+# The below check is hashed until the BUG#14635304 is fixed
+#SELECT @@SESSION.sort_buffer_size;
+#--echo 262144 Expected
+
+#SELECT @@LOCAL.sort_buffer_size;
+#--echo 262144 Expected
+
+--echo '#---------------------WL6372_VAR_8_04----------------------#'
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+SELECT @@GLOBAL.sort_buffer_size = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='sort_buffer_size';
+--echo 1 Expected
+
+SELECT @@session.sort_buffer_size = VARIABLE_VALUE 
+FROM INFORMATION_SCHEMA.SESSION_VARIABLES 
+WHERE VARIABLE_NAME='sort_buffer_size';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.sort_buffer_size);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
+WHERE VARIABLE_NAME='sort_buffer_size';
+--echo 1 Expected
+
+
+
+--echo '#---------------------WL6372_VAR_8_05----------------------#'
+################################################################################
+#  Checking Variable Scope                                                     #
+################################################################################
+SELECT @@sort_buffer_size = @@GLOBAL.sort_buffer_size;
+--echo 0 Expected
+
+SELECT COUNT(@@sort_buffer_size);
+--echo 1 Expected
+
+SELECT COUNT(@@local.sort_buffer_size);
+--echo 1 Expected
+
+SELECT COUNT(@@SESSION.sort_buffer_size);
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.sort_buffer_size);
+--echo 1 Expected
+
+--Error ER_BAD_FIELD_ERROR
+SELECT sort_buffer_size = @@SESSION.sort_buffer_size;
+--echo Expected error 'Unknown column sort_buffer_size in field list'
+
+--echo '#---------------------WL6372_VAR_8_06----------------------#'
+################################################################################
+#  Checking boundary values                                                    #
+################################################################################
+--disable_warnings
+SET @@GLOBAL.sort_buffer_size=32767;
+SET @@session.sort_buffer_size=32767;
+--enable_warnings
+
+SELECT @@GLOBAL.sort_buffer_size;
+--echo 32768 Expected
+select @@session.sort_buffer_size;
+--echo 32768 Expected
+
+--disable_warnings
+SET @@global.sort_buffer_size=-1;
+SET @@session.sort_buffer_size=-1;
+--enable_warnings
+
+select @@session.sort_buffer_size;
+--echo 32768 Expected
+SELECT @@GLOBAL.sort_buffer_size;
+--echo 32768 Expected
+################################################################################
+#  The MAX value is not being tested as would                                  #
+# differ on a 32 bit machine and a 64 bit machine                              #
+################################################################################
+
+
+--echo '#---------------------WL6372_VAR_8_07----------------------#'
+################################################################################
+#  Checking the /Var  directory size                                           #
+################################################################################
+-- source include/vardir_size_check.inc
+--echo TRUE Expected
+
+--echo '#---------------------WL6372_VAR_8_08----------------------#'
+################################################################################
+#  Checking the sort buffer functionality when data is more than 32K           #
+################################################################################
+
+--echo # create a table
+let $table = tab1;
+--source include/create_table.inc
+
+--echo #insert some 10 records 
+let $i = 10;
+--source include/Load_data.inc
+
+flush status;
+flush table;
+SET @@GLOBAL.sort_buffer_size=32768;
+SET @@SESSION.sort_buffer_size=32768;
+
+select variable_value from information_schema.session_status where variable_name ='Sort_merge_passes';
+--echo 0 Expected
+select variable_value from information_schema.session_status where variable_name ='Sort_rows';
+--echo 0 Expected
+select variable_value from information_schema.session_status where variable_name ='Sort_scan';
+--echo 0 Expected
+
+set @Sort_merge_passes = (select variable_value from information_schema.session_status where variable_name ='Sort_merge_passes');
+set @Sort_rows = (select variable_value from information_schema.session_status where variable_name ='Sort_rows');
+set @Sort_scan = (select variable_value from information_schema.session_status where variable_name ='Sort_scan');
+
+
+select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
+--echo 100000 Expected
+
+select ( select variable_value from information_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 537;
+--echo 1 Expected
+select (select variable_value from information_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 100000;
+--echo 1 Expected
+select (select variable_value from information_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 1;
+--echo 1 Expected
+
+select count(1) from (select b.* from tab1 b inner join tab1 c inner join tab1 d inner join tab1 e inner join tab1 f order by 1) a;
+--echo 100000 Expected
+
+select ( select variable_value from information_schema.global_status where variable_name ='Sort_merge_passes') = @Sort_merge_passes + 1074;
+--echo 1 Expected
+select (select variable_value from information_schema.global_status where variable_name ='Sort_rows') = @Sort_rows + 200000;
+--echo 1 Expected
+select (select variable_value from information_schema.global_status where variable_name ='Sort_scan') = @Sort_scan + 2;
+--echo 1 Expected
+
+
+--echo #cleanup
+DROP TABLE IF EXISTS tab1;
+SET @@session.sort_buffer_size=DEFAULT;
+SET @@GLOBAL.sort_buffer_size=DEFAULT;

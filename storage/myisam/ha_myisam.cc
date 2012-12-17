@@ -249,8 +249,8 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
       pos->algorithm;
     keydef[i].block_length= pos->block_size;
     keydef[i].seg= keyseg;
-    keydef[i].keysegs= pos->key_parts;
-    for (j= 0; j < pos->key_parts; j++)
+    keydef[i].keysegs= pos->user_defined_key_parts;
+    for (j= 0; j < pos->user_defined_key_parts; j++)
     {
       Field *field= pos->key_part[j].field;
       type= field->key_type();
@@ -311,7 +311,7 @@ int table2myisam(TABLE *table_arg, MI_KEYDEF **keydef_out,
                                           (uchar*) table_arg->record[0]);
       }
     }
-    keyseg+= pos->key_parts;
+    keyseg+= pos->user_defined_key_parts;
   }
   if (table_arg->found_next_number_field)
     keydef[share->next_number_index].flag|= HA_AUTO_KEY;
@@ -2239,7 +2239,7 @@ Item *ha_myisam::idx_cond_push(uint keyno_arg, Item* idx_cond_arg)
   */
   const KEY *key= &table_share->key_info[keyno_arg];
 
-  for (uint k= 0; k < key->key_parts; ++k)
+  for (uint k= 0; k < key->user_defined_key_parts; ++k)
   {
     const KEY_PART_INFO *key_part= &key->key_part[k];
     if (key_part->key_part_flag & HA_BLOB_PART)

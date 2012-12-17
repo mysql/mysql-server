@@ -1,0 +1,24 @@
+--source include/not_embedded.inc
+
+SET @start_global_value = @@global.gtid_executed;
+SELECT @start_global_value;
+
+#
+# exists as global and session
+#
+select @@global.gtid_executed;
+select @@session.gtid_executed;
+show global variables like 'gtid_executed';
+show session variables like 'gtid_executed';
+select * from information_schema.global_variables where variable_name='gtid_executed';
+select * from information_schema.session_variables where variable_name='gtid_executed';
+
+#
+# It is not writable and in debug mode an attempt to write
+# into it triggers an assertion.
+#
+select @@global.gtid_executed;
+
+#
+# See rpl_gtid_execution.test for a comprehensive test case.
+#

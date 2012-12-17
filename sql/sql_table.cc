@@ -67,6 +67,10 @@ using std::min;
 
 const char *primary_key_name="PRIMARY";
 
+#ifdef USE_SYMDIR
+bool symdir_warning_emitted= false;
+#endif
+
 static bool check_if_keyname_exists(const char *name,KEY *start, KEY *end);
 static char *make_unique_key_name(const char *field_name,KEY *start,KEY *end);
 static int copy_data_between_tables(TABLE *from,TABLE *to,
@@ -575,8 +579,25 @@ uint build_table_filename(char *buff, size_t bufflen, const char *db,
     pos= strnmov(pos, FN_ROOTDIR, end - pos);
   pos= strxnmov(pos, end - pos, dbbuff, FN_ROOTDIR, NullS);
 #ifdef USE_SYMDIR
-  unpack_dirname(buff, buff);
-  pos= strend(buff);
+  if (!(flags & SKIP_SYMDIR_ACCESS))
+  {
+    my_bool is_symdir;
+
+    unpack_dirname(buff, buff, &is_symdir);
+    /*
+      Lack of synchronization for access to symdir_warning_emitted is OK
+      as in the worst case it might result in a few extra warnings
+      printed to error log.
+    */
+    if (is_symdir && !symdir_warning_emitted)
+    {
+      symdir_warning_emitted= true;
+      sql_print_warning("Symbolic links based on .sym files are deprecated. "
+                        "Please use native Windows symbolic links instead "
+                        "(see MKLINK command).");
+    }
+    pos= strend(buff);
+  }
 #endif
   pos= strxnmov(pos, end - pos, tbbuff, ext, NullS);
 
@@ -3689,7 +3710,8 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     if (key->generated)
       key_info->flags|= HA_GENERATED_KEY;
 
-    key_info->key_parts=(uint8) key->columns.elements;
+    key_info->user_defined_key_parts=(uint8) key->columns.elements;
+    key_info->actual_key_parts= key_info->user_defined_key_parts;
     key_info->key_part=key_part_info;
     key_info->usable_key_parts= key_number;
     key_info->algorithm= key->key_create_info.algorithm;
@@ -3729,7 +3751,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
                    MYF(0));
         DBUG_RETURN(TRUE);
       }
-      if (key_info->key_parts != 1)
+      if (key_info->user_defined_key_parts != 1)
       {
 	my_error(ER_WRONG_ARGUMENTS, MYF(0), "SPATIAL INDEX");
 	DBUG_RETURN(TRUE);
@@ -3738,7 +3760,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
     else if (key_info->algorithm == HA_KEY_ALG_RTREE)
     {
 #ifdef HAVE_RTREE_KEYS
-      if ((key_info->key_parts & 1) == 1)
+      if ((key_info->user_defined_key_parts & 1) == 1)
       {
 	my_error(ER_WRONG_ARGUMENTS, MYF(0), "RTREE INDEX");
 	DBUG_RETURN(TRUE);
@@ -4022,6 +4044,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	key_info->name=(char*) key_name;
       }
     }
+    key_info->actual_flags= key_info->flags;
     if (!key_info->name || check_column_name(key_info->name))
     {
       my_error(ER_WRONG_NAME_FOR_INDEX, MYF(0), key_info->name);
@@ -5161,12 +5184,20 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
 
   /*
     Ensure that we have an exclusive lock on target table if we are creating
-    non-temporary table.
+    non-temporary table. In LOCK TABLES mode the only way the table is locked,
+    is if it already exists (since you cannot LOCK TABLE a non-existing table).
+    And the only way we then can end up here is if IF EXISTS was used.
   */
   DBUG_ASSERT((create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
-              thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
-                                             table->table_name,
-                                             MDL_EXCLUSIVE));
+              (thd->locked_tables_mode != LTM_LOCK_TABLES &&
+               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
+                                              table->table_name,
+                                              MDL_EXCLUSIVE)) ||
+              (thd->locked_tables_mode == LTM_LOCK_TABLES &&
+               (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) &&
+               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
+                                              table->table_name,
+                                              MDL_SHARED_NO_WRITE)));
 
   DEBUG_SYNC(thd, "create_table_like_before_binlog");
 
@@ -5348,7 +5379,7 @@ err:
 static bool is_candidate_key(KEY *key)
 {
   KEY_PART_INFO *key_part;
-  KEY_PART_INFO *key_part_end= key->key_part + key->key_parts;
+  KEY_PART_INFO *key_part_end= key->key_part + key->user_defined_key_parts;
 
   if (!(key->flags & HA_NOSAME) || (key->flags & HA_NULL_PART_KEY))
     return false;
@@ -5700,14 +5731,14 @@ static bool fill_alter_inplace_info(THD *thd,
     if ((table_key->algorithm != new_key->algorithm) ||
         ((table_key->flags & HA_KEYFLAG_MASK) !=
          (new_key->flags & HA_KEYFLAG_MASK)) ||
-        (table_key->key_parts != new_key->key_parts))
+        (table_key->user_defined_key_parts != new_key->user_defined_key_parts))
       goto index_changed;
 
     /*
       Check that the key parts remain compatible between the old and
       new tables.
     */
-    end= table_key->key_part + table_key->key_parts;
+    end= table_key->key_part + table_key->user_defined_key_parts;
     for (key_part= table_key->key_part, new_part= new_key->key_part;
          key_part < end;
          key_part++, new_part++)
@@ -5895,7 +5926,7 @@ static void update_altered_table(const Alter_inplace_info &ha_alter_info,
     key= ha_alter_info.key_info_buffer +
          ha_alter_info.index_add_buffer[add_key_idx];
 
-    end= key->key_part + key->key_parts;
+    end= key->key_part + key->user_defined_key_parts;
     for (key_part= key->key_part; key_part < end; key_part++)
       altered_table->field[key_part->fieldnr]->flags|= FIELD_IN_ADD_INDEX;
   }
@@ -6027,12 +6058,13 @@ bool mysql_compare_tables(TABLE *table,
     if ((table_key->algorithm != new_key->algorithm) ||
 	((table_key->flags & HA_KEYFLAG_MASK) !=
          (new_key->flags & HA_KEYFLAG_MASK)) ||
-        (table_key->key_parts != new_key->key_parts))
+        (table_key->user_defined_key_parts != new_key->user_defined_key_parts))
       DBUG_RETURN(false);
 
     /* Check that the key parts remain compatible. */
     KEY_PART_INFO *table_part;
-    KEY_PART_INFO *table_part_end= table_key->key_part + table_key->key_parts;
+    KEY_PART_INFO *table_part_end= table_key->key_part +
+      table_key->user_defined_key_parts;
     KEY_PART_INFO *new_part;
     for (table_part= table_key->key_part, new_part= new_key->key_part;
          table_part < table_part_end;
@@ -6314,6 +6346,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     goto cleanup;
 
   DEBUG_SYNC(thd, "alter_table_inplace_after_lock_upgrade");
+  THD_STAGE_INFO(thd, stage_alter_inplace_prepare);
 
   switch (inplace_supported) {
   case HA_ALTER_ERROR:
@@ -6367,6 +6400,7 @@ static bool mysql_inplace_alter_table(THD *thd,
   }
 
   DEBUG_SYNC(thd, "alter_table_inplace_after_lock_downgrade");
+  THD_STAGE_INFO(thd, stage_alter_inplace);
 
   if (table->file->ha_inplace_alter_table(altered_table,
                                           ha_alter_info))
@@ -6387,6 +6421,7 @@ static bool mysql_inplace_alter_table(THD *thd,
     });
 
   DEBUG_SYNC(thd, "alter_table_inplace_before_commit");
+  THD_STAGE_INFO(thd, stage_alter_inplace_commit);
 
   if (table->file->ha_commit_inplace_alter_table(altered_table,
                                                  ha_alter_info,
@@ -6695,7 +6730,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
       }
       if (alter)
       {
-	if (def->sql_type == MYSQL_TYPE_BLOB)
+	if (def->flags & BLOB_FLAG)
 	{
 	  my_error(ER_BLOB_CANT_HAVE_DEFAULT, MYF(0), def->change);
           goto err;
@@ -6749,7 +6784,13 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
         */
         while ((find=find_it++))
         {
-          if (!my_strcasecmp(system_charset_info, def->field_name, find->field_name))
+          /*
+            Create_fields representing changed columns are added directly
+            from Alter_info::create_list to new_create_list. We can therefore
+            safely use pointer equality rather than name matching here.
+            This prevents removing the wrong column in case of column rename.
+          */
+          if (find == def)
           {
             find_it.remove();
             break;
@@ -6812,7 +6853,7 @@ mysql_prepare_alter_table(THD *thd, TABLE *table,
 
     KEY_PART_INFO *key_part= key_info->key_part;
     key_parts.empty();
-    for (uint j=0 ; j < key_info->key_parts ; j++,key_part++)
+    for (uint j=0 ; j < key_info->user_defined_key_parts ; j++,key_part++)
     {
       if (!key_part->field)
 	continue;				// Wrong field (from UNIREG)

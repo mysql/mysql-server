@@ -1,4 +1,6 @@
---require r/not_ndb_default.require
-disable_query_log;
-select convert(@@storage_engine using latin1) NOT IN ("ndbcluster","NDBCLUSTER") as "TRUE";
-enable_query_log;
+# Skip the test in case the default storage engine is NDB.
+
+if (`SELECT CONVERT(@@default_storage_engine USING latin1) IN ('ndbcluster','NDBCLUSTER')`)
+{
+  --skip Test requires default storage engine (@@default_storage_engine) != NDB
+}

@@ -1929,14 +1929,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   {
     command= COM_BINLOG_DUMP_GTID;
 
-    Gtid_set gtid_set(global_sid_map);
     global_sid_lock->rdlock();
 
-    gtid_set.add_gtid_set(gtid_set_excluded);
-
     // allocate buffer
-    size_t unused_size= 0;
-    size_t encoded_data_size= gtid_set.get_encoded_length();
+    size_t encoded_data_size= gtid_set_excluded->get_encoded_length();
     size_t allocation_size=
       ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
       ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
@@ -1950,13 +1946,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     }
     uchar* ptr_buffer= command_buffer;
 
-    /*
-      The current implementation decides whether the Gtid must be
-      used based on option --exclude-gtids.
-    */
-    add_master_slave_proto(&binlog_flags,
-                           opt_exclude_gtids_str != NULL ?
-                           BINLOG_THROUGH_GTID : BINLOG_THROUGH_POSITION);
     int2store(ptr_buffer, binlog_flags);
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
@@ -1967,23 +1956,15 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
     int8store(ptr_buffer, start_position);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
-
-    if (is_master_slave_proto(binlog_flags, BINLOG_THROUGH_GTID))
-    {
-      int4store(ptr_buffer, encoded_data_size);
-      ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
-      gtid_set.encode(ptr_buffer);
-      ptr_buffer+= encoded_data_size;
-    }
-    else
-    {
-      unused_size= ::BINLOG_DATA_SIZE_INFO_SIZE + encoded_data_size;
-    }
+    int4store(ptr_buffer, encoded_data_size);
+    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+    gtid_set_excluded->encode(ptr_buffer);
+    ptr_buffer+= encoded_data_size;
 
     global_sid_lock->unlock();
 
     command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - unused_size - 1));
+    DBUG_ASSERT(command_size == (allocation_size - 1));
   }
 
   if (simple_command(mysql, command, command_buffer, command_size, 1))
@@ -2787,4 +2768,3 @@ int main(int argc, char** argv)
 #include "uuid.cc"
 #include "rpl_gtid_set.cc"
 #include "rpl_gtid_specification.cc"
-#include "rpl_constants.cc"

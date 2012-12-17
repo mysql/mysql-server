@@ -86,24 +86,37 @@ public:
 
 
 typedef struct st_key {
-  uint	key_length;			/* Tot length of key */
-  ulong flags;                          /* dupp key and pack flags */
-  uint	key_parts;			/* How many key_parts */
-  uint	usable_key_parts;		/* Should normally be = key_parts */
+  /** Tot length of key */
+  uint	key_length;
+  /** dupp key and pack flags */
+  ulong flags;
+  /** dupp key and pack flags for actual key parts */
+  ulong actual_flags;
+  /** How many key_parts */
+  uint  user_defined_key_parts;
+  /** How many key_parts including hidden parts */
+  uint  actual_key_parts;
+  /** Key parts added from first key */
+  uint  hidden_key_parts;
+  /** Should normally be = key_parts */
+  uint	usable_key_parts;
   uint  block_size;
   enum  ha_key_alg algorithm;
-  /*
+  /**
     Note that parser is used when the table is opened for use, and
     parser_name is used when the table is being created.
   */
   union
   {
-    plugin_ref parser;                  /* Fulltext [pre]parser */
-    LEX_STRING *parser_name;            /* Fulltext [pre]parser name */
+    /** Fulltext [pre]parser */
+    plugin_ref parser;
+    /** Fulltext [pre]parser name */
+    LEX_STRING *parser_name;
   };
   KEY_PART_INFO *key_part;
-  char	*name;				/* Name of key */
-  /*
+  /** Name of key */
+  char	*name;
+  /**
     Array of AVG(#records with the same field value) for 1st ... Nth key part.
     0 means 'not known'.
     For temporary heap tables this member is NULL.
