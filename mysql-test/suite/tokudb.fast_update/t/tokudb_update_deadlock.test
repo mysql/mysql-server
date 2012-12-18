@@ -4,6 +4,8 @@ disable_warnings;
 drop table if exists t;
 enable_warnings;
 
+set default_storage_engine='tokudb';
+
 create table t (id bigint primary key, b bigint not null default 0);
 insert into t (id) values (1),(2);
 

@@ -1,6 +1,7 @@
 source include/have_binlog_format_statement.inc;
 source include/have_tokudb.inc;
 
+set default_storage_engine='tokudb';
 create table tt (id int primary key, x int);
 
 set session tokudb_enable_fast_upsert=1;

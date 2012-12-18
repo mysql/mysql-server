@@ -1,4 +1,5 @@
 drop table if exists t;
+set default_storage_engine='tokudb';
 create table t (id bigint primary key, b bigint not null default 0);
 set session tokudb_enable_fast_upsert=1;
 begin;

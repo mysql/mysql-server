@@ -1,3 +1,4 @@
+set default_storage_engine='tokudb';
 create table tt (id int primary key, x int);
 set session tokudb_enable_fast_upsert=1;
 set session tokudb_disable_slow_upsert=1;
