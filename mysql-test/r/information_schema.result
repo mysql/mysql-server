@@ -1936,22 +1936,22 @@ event_object_table	trigger_name
 #
 # MDEV-3818: Query against view over IS tables worse than equivalent query without view
 #
-CREATE VIEW v1 AS SELECT TABLE_SCHEMA, TABLE_NAME, COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS;
+create view v1 as select table_schema, table_name, column_name from information_schema.columns;
 explain extended
-SELECT column_name FROM v1
-WHERE (TABLE_SCHEMA = "osm") AND (TABLE_NAME = "test");
+select column_name from v1
+where (table_schema = "osm") and (table_name = "test");
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	COLUMNS	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned 0 databases
+1	SIMPLE	columns	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned 0 databases
 Warnings:
-Note	1003	select `information_schema`.`COLUMNS`.`COLUMN_NAME` AS `COLUMN_NAME` from `INFORMATION_SCHEMA`.`COLUMNS` where ((`information_schema`.`COLUMNS`.`TABLE_SCHEMA` = 'osm') and (`information_schema`.`COLUMNS`.`TABLE_NAME` = 'test'))
+Note	1003	select `information_schema`.`columns`.`COLUMN_NAME` AS `column_name` from `information_schema`.`columns` where ((`information_schema`.`columns`.`TABLE_SCHEMA` = 'osm') and (`information_schema`.`columns`.`TABLE_NAME` = 'test'))
 explain extended
-SELECT INFORMATION_SCHEMA.COLUMNS.COLUMN_NAME AS COLUMN_NAME
-FROM INFORMATION_SCHEMA.COLUMNS
-WHERE (information_schema.COLUMNS.TABLE_SCHEMA = 'osm') and (information_schema.COLUMNS.TABLE_NAME = 'test');
+select information_schema.columns.column_name as column_name
+from information_schema.columns
+where (information_schema.columns.table_schema = 'osm') and (information_schema.columns.table_name = 'test');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	COLUMNS	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned 0 databases
+1	SIMPLE	columns	ALL	NULL	TABLE_SCHEMA,TABLE_NAME	NULL	NULL	NULL	NULL	Using where; Open_frm_only; Scanned 0 databases
 Warnings:
-Note	1003	select `information_schema`.`COLUMNS`.`COLUMN_NAME` AS `COLUMN_NAME` from `INFORMATION_SCHEMA`.`COLUMNS` where ((`information_schema`.`COLUMNS`.`TABLE_SCHEMA` = 'osm') and (`information_schema`.`COLUMNS`.`TABLE_NAME` = 'test'))
+Note	1003	select `information_schema`.`columns`.`COLUMN_NAME` AS `column_name` from `information_schema`.`columns` where ((`information_schema`.`columns`.`TABLE_SCHEMA` = 'osm') and (`information_schema`.`columns`.`TABLE_NAME` = 'test'))
 drop view v1;
 #
 # Clean-up.
