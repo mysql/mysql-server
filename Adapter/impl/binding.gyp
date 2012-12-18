@@ -62,9 +62,10 @@
           # Windows 
           {
             'msvs_settings':
-            [
-              { 'AdditionalLibraryDirectories' : "<(mysql_path)/lib" }
-            ]
+            {
+              'VCLinkerTool':
+                { 'AdditionalLibraryDirectories' : "<(mysql_path)/lib" }
+            }
           },
           # Not Windows
           {
