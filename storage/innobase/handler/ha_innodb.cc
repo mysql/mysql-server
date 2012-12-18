@@ -3867,20 +3867,6 @@ ha_innobase::table_flags() const
 		return(int_table_flags);
 	}
 
-	/* stats.records are approx. as it is not protected by mutex/latch.
-	In case of temp-table, it is not visible across trx & the lifetime is
-	bounded by connection/server lifetime and so stats.records act as
-	an exact count of number of rows.
-	TODO: If in future we can get an indication that this temp-table is
-	from optimizer then we want to disable stats collection. */
-	if (prebuilt != NULL
-	    && prebuilt->table != NULL
-	    && dict_table_is_temporary(prebuilt->table)) {
-		return(int_table_flags
-		       | HA_STATS_RECORDS_IS_EXACT
-		       | HA_BINLOG_STMT_CAPABLE);
-	}
-
 	return(int_table_flags | HA_BINLOG_STMT_CAPABLE);
 }
 
@@ -10869,9 +10855,7 @@ ha_innobase::info_low(
 		set. That way SHOW TABLE STATUS will show the best estimate,
 		while the optimizer never sees the table empty. */
 
-		if (n_rows == 0
-		    && !(flag & HA_STATUS_TIME)
-		    && !dict_table_is_temporary(ib_table)) {
+		if (n_rows == 0 && !(flag & HA_STATUS_TIME)) {
 			n_rows++;
 		}
 
