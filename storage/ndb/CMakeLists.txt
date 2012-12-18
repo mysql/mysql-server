@@ -62,7 +62,7 @@ ENDIF()
 # if the compiler supports the flag
 IF(CMAKE_COMPILER_IS_GNUCXX)
   INCLUDE(CheckCXXCompilerFlag)
-  FOREACH(warning "unused-but-set-variable")
+  FOREACH(warning "unused-but-set-variable" "strict-aliasing")
     CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" flag_supported)
     IF(flag_supported)
       MESSAGE(STATUS "Disabling -W${warning} warning")
