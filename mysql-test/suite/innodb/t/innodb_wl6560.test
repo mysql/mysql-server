@@ -232,7 +232,6 @@ drop table t1;
 --enable_reconnect
 # Write file to make mysql-test-run.pl start up the server again
 --exec echo "restart: --innodb_temp_data_file_path=ibtmp1:12M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---exec cat $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
 --source include/wait_until_connected_again.inc
 --disable_reconnect
