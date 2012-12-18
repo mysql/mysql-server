@@ -72,7 +72,7 @@ Handle<Value>  CharsetMap_getName(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(1);
 
-  typedef NativeMethodCall_1_<const char *, const CharsetMap, int> NCALL;
+  typedef NativeConstMethodCall_1_<const char *, const CharsetMap, int> NCALL;
 
   NCALL ncall(args);
   ncall.method = & CharsetMap::getName;
@@ -88,7 +88,7 @@ Handle<Value>  CharsetMap_getMysqlName(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(1);
 
-  typedef NativeMethodCall_1_<const char *, const CharsetMap, int> NCALL;
+  typedef NativeConstMethodCall_1_<const char *, const CharsetMap, int> NCALL;
 
   NCALL ncall(args);
   ncall.method = & CharsetMap::getMysqlName;
