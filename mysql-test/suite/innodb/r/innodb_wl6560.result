@@ -268,7 +268,6 @@ Tables_in_test
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
 drop table t1;
 "test condition of full-temp-tablespace"
-restart: --innodb_temp_data_file_path=ibtmp1:12M
 use test;
 create temporary table t1
 (keyc int, c1 char(100), c2 char(100),
