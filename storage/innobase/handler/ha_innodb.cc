@@ -2718,17 +2718,30 @@ ha_innobase::init_table_handle_for_HANDLER(void)
 }
 
 /*********************************************************************//**
-Free any resources that were allocated and return failure. */
+Free tablespace resources allocated. */
+static
+void
+innobase_space_shutdown()
+/*=====================*/
+{
+	DBUG_ENTER("innobase_space_shutdown");
+
+        srv_sys_space.shutdown();
+        srv_tmp_space.shutdown();
+
+	DBUG_VOID_RETURN;
+}
+
+/*********************************************************************//**
+Free any resources that were allocated and return failure.
+@return always return 1 */
 static
 int
 innobase_init_abort()
 /*=================*/
 {
 	DBUG_ENTER("innobase_init_abort");
-
-        srv_sys_space.shutdown();
-        srv_tmp_space.shutdown();
-
+	innobase_space_shutdown();
         DBUG_RETURN(1);
 }
 
@@ -2847,7 +2860,7 @@ innobase_init(
 
 	/*--------------- Shared tablespaces -------------------------*/
 
-        /* Set the default auto-increment for temp-tablespace based
+        /* Set the default auto-extend-increment for temp-tablespace based
 	on system-variable. */
         srv_tmp_space.set_autoextend_increment(
 		srv_sys_space.get_autoextend_increment());
@@ -3307,8 +3320,7 @@ innobase_end(
 			err = 1;
 		}
 
-		srv_sys_space.shutdown();
-		srv_tmp_space.shutdown();
+		innobase_space_shutdown();
 
 		mysql_mutex_destroy(&innobase_share_mutex);
 		mysql_mutex_destroy(&commit_threads_m);
