@@ -3117,13 +3117,16 @@ dict_index_t*
 dict_foreign_find_index(
 /*====================*/
 	const dict_table_t*	table,	/*!< in: table */
+	const char**		col_names,
+					/*!< in: column names, or NULL
+					to use table->col_names */
 	const char**		columns,/*!< in: array of column names */
 	ulint			n_cols,	/*!< in: number of columns */
 	const dict_index_t*	types_idx,
 					/*!< in: NULL or an index
 					whose types the column types
 					must match */
-	ibool			check_charsets,
+	bool			check_charsets,
 					/*!< in: whether to check
 					charsets.  only has an effect
 					if types_idx != NULL */
@@ -3139,20 +3142,16 @@ dict_foreign_find_index(
 	index = dict_table_get_first_index(table);
 
 	while (index != NULL) {
-		/* Ignore matches that refer to the same instance
-		(or the index is to be dropped) */
-		if (types_idx == index || index->type & DICT_FTS
-		    || index->to_be_dropped) {
-
-			goto next_rec;
-
-		} else if (dict_foreign_qualify_index(
-			table, columns, n_cols, index, types_idx,
-			check_charsets, check_null)) {
+		if (types_idx != index
+		    && !(index->type & DICT_FTS)
+		    && !index->to_be_dropped
+		    && dict_foreign_qualify_index(
+			    table, col_names, columns, n_cols,
+			    index, types_idx,
+			    check_charsets, check_null)) {
 			return(index);
 		}
 
-next_rec:
 		index = dict_table_get_next_index(index);
 	}
 
@@ -3212,7 +3211,9 @@ dberr_t
 dict_foreign_add_to_cache(
 /*======================*/
 	dict_foreign_t*	foreign,	/*!< in, own: foreign key constraint */
-	ibool		check_charsets)	/*!< in: TRUE=check charset
+	const char**	col_names,	/*!< in: column names, or NULL to use
+					foreign->foreign_table->col_names */
+	bool		check_charsets)	/*!< in: whether to check charset
 					compatibility */
 {
 	dict_table_t*	for_table;
@@ -3246,12 +3247,12 @@ dict_foreign_add_to_cache(
 		for_in_cache = foreign;
 	}
 
-	if (for_in_cache->referenced_table == NULL && ref_table) {
+	if (ref_table && !for_in_cache->referenced_table) {
 		index = dict_foreign_find_index(
-			ref_table,
+			ref_table, NULL,
 			for_in_cache->referenced_col_names,
 			for_in_cache->n_fields, for_in_cache->foreign_index,
-			check_charsets, FALSE);
+			check_charsets, false);
 
 		if (index == NULL) {
 			dict_foreign_error_report(
@@ -3278,9 +3279,9 @@ dict_foreign_add_to_cache(
 		added_to_referenced_list = TRUE;
 	}
 
-	if (for_in_cache->foreign_table == NULL && for_table) {
+	if (for_table && !for_in_cache->foreign_table) {
 		index = dict_foreign_find_index(
-			for_table,
+			for_table, col_names,
 			for_in_cache->foreign_col_names,
 			for_in_cache->n_fields,
 			for_in_cache->referenced_index, check_charsets,
@@ -4166,8 +4167,8 @@ col_loop1:
 	/* Try to find an index which contains the columns
 	as the first fields and in the right order */
 
-	index = dict_foreign_find_index(table, column_names, i,
-					NULL, TRUE, FALSE);
+	index = dict_foreign_find_index(
+		table, NULL, column_names, i, NULL, TRUE, FALSE);
 
 	if (!index) {
 		mutex_enter(&dict_foreign_err_mutex);
@@ -4439,7 +4440,7 @@ try_find_index:
 	foreign->foreign_index */
 
 	if (referenced_table) {
-		index = dict_foreign_find_index(referenced_table,
+		index = dict_foreign_find_index(referenced_table, NULL,
 						column_names, i,
 						foreign->foreign_index,
 						TRUE, FALSE);
@@ -5635,38 +5636,42 @@ dict_table_get_index_on_name(
 
 /**********************************************************************//**
 Replace the index passed in with another equivalent index in the
-foreign key lists of the table. */
+foreign key lists of the table.
+@return whether all replacements were found */
 UNIV_INTERN
-void
+bool
 dict_foreign_replace_index(
 /*=======================*/
 	dict_table_t*		table,  /*!< in/out: table */
-	const dict_index_t*	index,	/*!< in: index to be replaced */
-	const trx_t*		trx)	/*!< in: transaction handle */
+	const char**		col_names,
+					/*!< in: column names, or NULL
+					to use table->col_names */
+	const dict_index_t*	index)	/*!< in: index to be replaced */
 {
+	bool		found	= true;
 	dict_foreign_t*	foreign;
 
 	ut_ad(index->to_be_dropped);
+	ut_ad(index->table == table);
 
 	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
 	     foreign;
 	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
 
-		dict_index_t*	new_index;
-
 		if (foreign->foreign_index == index) {
 			ut_ad(foreign->foreign_table == index->table);
 
-			new_index = dict_foreign_find_index(
-				foreign->foreign_table,
+			dict_index_t* new_index = dict_foreign_find_index(
+				foreign->foreign_table, col_names,
 				foreign->foreign_col_names,
 				foreign->n_fields, index,
 				/*check_charsets=*/TRUE, /*check_null=*/FALSE);
-			/* There must exist an alternative index,
-			since this must have been checked earlier. */
-			ut_a(new_index || !trx->check_foreigns);
-			ut_ad(!new_index || new_index->table == index->table);
-			ut_ad(!new_index || !new_index->to_be_dropped);
+			if (new_index) {
+				ut_ad(new_index->table == index->table);
+				ut_ad(!new_index->to_be_dropped);
+			} else {
+				found = false;
+			}
 
 			foreign->foreign_index = new_index;
 		}
@@ -5676,25 +5681,28 @@ dict_foreign_replace_index(
 	     foreign;
 	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
 
-		dict_index_t*	new_index;
-
 		if (foreign->referenced_index == index) {
 			ut_ad(foreign->referenced_table == index->table);
 
-			new_index = dict_foreign_find_index(
-				foreign->referenced_table,
+			dict_index_t* new_index = dict_foreign_find_index(
+				foreign->referenced_table, NULL,
 				foreign->referenced_col_names,
 				foreign->n_fields, index,
 				/*check_charsets=*/TRUE, /*check_null=*/FALSE);
 			/* There must exist an alternative index,
 			since this must have been checked earlier. */
-			ut_a(new_index || !trx->check_foreigns);
-			ut_ad(!new_index || new_index->table == index->table);
-			ut_ad(!new_index || !new_index->to_be_dropped);
+			if (new_index) {
+				ut_ad(new_index->table == index->table);
+				ut_ad(!new_index->to_be_dropped);
+			} else {
+				found = false;
+			}
 
 			foreign->referenced_index = new_index;
 		}
 	}
+
+	return(found);
 }
 
 /**********************************************************************//**
@@ -6110,7 +6118,7 @@ dict_close(void)
 	}
 }
 
-# ifdef UNIV_DEBUG
+#ifdef UNIV_DEBUG
 /**********************************************************************//**
 Validate the dictionary table LRU list.
 @return TRUE if valid  */
@@ -6195,7 +6203,7 @@ dict_non_lru_find_table(
 
 	return(FALSE);
 }
-# endif /* UNIV_DEBUG */
+#endif /* UNIV_DEBUG */
 /*********************************************************************//**
 Check an index to see whether its first fields are the columns in the array,
 in the same order and is not marked for deletion and is not the same
@@ -6205,67 +6213,66 @@ UNIV_INTERN
 bool
 dict_foreign_qualify_index(
 /*=======================*/
-        const dict_table_t*     table,  /*!< in: table */
-        const char**            columns,/*!< in: array of column names */
-        ulint                   n_cols, /*!< in: number of columns */
-        const dict_index_t*     index,  /*!< in: index to check */
-        const dict_index_t*     types_idx,
-                                        /*!< in: NULL or an index
-                                        whose types the column types
-                                        must match */
-        ibool                   check_charsets,
-                                        /*!< in: whether to check
-                                        charsets.  only has an effect
-                                        if types_idx != NULL */
-        ulint                   check_null)
-                                        /*!< in: nonzero if none of
-                                        the columns must be declared
-                                        NOT NULL */
+	const dict_table_t*	table,	/*!< in: table */
+	const char**		col_names,
+					/*!< in: column names, or NULL
+					to use table->col_names */
+	const char**		columns,/*!< in: array of column names */
+	ulint			n_cols,	/*!< in: number of columns */
+	const dict_index_t*	index,	/*!< in: index to check */
+	const dict_index_t*	types_idx,
+					/*!< in: NULL or an index
+					whose types the column types
+					must match */
+	bool			check_charsets,
+					/*!< in: whether to check
+					charsets.  only has an effect
+					if types_idx != NULL */
+	ulint			check_null)
+					/*!< in: nonzero if none of
+					the columns must be declared
+					NOT NULL */
 {
-        ulint   i;
+	if (dict_index_get_n_fields(index) < n_cols) {
+		return(false);
+	}
 
-        if (dict_index_get_n_fields(index) < n_cols) {
-                return(false);
-        }
+	for (ulint i = 0; i < n_cols; i++) {
+		dict_field_t*	field;
+		const char*	col_name;
+		ulint		col_no;
 
-        for (i= 0; i < n_cols; i++) {
-                dict_field_t*   field;
-                const char*     col_name;
+		field = dict_index_get_nth_field(index, i);
+		col_no = dict_col_get_no(field->col);
 
-                field = dict_index_get_nth_field(index, i);
+		if (field->prefix_len != 0) {
+			/* We do not accept column prefix
+			indexes here */
+			return(false);
+		}
 
-                col_name = dict_table_get_col_name(
-                        table, dict_col_get_no(field->col));
+		if (check_null
+		    && (field->col->prtype & DATA_NOT_NULL)) {
+			return(false);
+		}
 
-                if (field->prefix_len != 0) {
-                        /* We do not accept column prefix
-                        indexes here */
+		col_name = col_names
+			? col_names[col_no]
+			: dict_table_get_col_name(table, col_no);
 
-                        break;
-                }
+		if (0 != innobase_strcasecmp(columns[i], col_name)) {
+			return(false);
+		}
 
-                if (0 != innobase_strcasecmp(columns[i],
-                                             col_name)) {
-                        break;
-                }
+		if (types_idx && !cmp_cols_are_equal(
+			    dict_index_get_nth_col(index, i),
+			    dict_index_get_nth_col(types_idx, i),
+			    check_charsets)) {
+			return(false);
+		}
+	}
 
-                if (check_null
-                    && (field->col->prtype & DATA_NOT_NULL)) {
-
-                        break;
-                }
-
-                if (types_idx && !cmp_cols_are_equal(
-                            dict_index_get_nth_col(index, i),
-                            dict_index_get_nth_col(types_idx,
-                                                   i),
-                            check_charsets)) {
-
-                        break;
-                }
-        }
-
-        return((i == n_cols) ? true : false);
+	return(true);
 }
 
 /*********************************************************************//**
