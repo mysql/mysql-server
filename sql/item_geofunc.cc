@@ -1042,11 +1042,11 @@ String *Item_func_spatial_operation::val_str(String *str_value)
     DBUG_RETURN(0);
   func.add_operation(spatial_op, 2);
 
-  if ((null_value=
-       (args[0]->null_value || args[1]->null_value ||
-	!(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
-	!(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
-	g1->store_shapes(&trn) || g2->store_shapes(&trn))))
+  null_value= true;
+  if (args[0]->null_value || args[1]->null_value ||
+      !(g1= Geometry::construct(&buffer1, res1->ptr(), res1->length())) ||
+      !(g2= Geometry::construct(&buffer2, res2->ptr(), res2->length())) ||
+      g1->store_shapes(&trn) || g2->store_shapes(&trn))
     goto exit;
 
 #ifndef DBUG_OFF
@@ -1072,6 +1072,8 @@ String *Item_func_spatial_operation::val_str(String *str_value)
 
   if (!Geometry::create_from_opresult(&buffer1, str_value, res_receiver))
     goto exit;
+
+  null_value= false;
 
 exit:
   collector.reset();

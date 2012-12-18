@@ -79,7 +79,7 @@ set @@global.debug= @save.debug;
 set @@global.slave_parallel_workers= 2;
 include/start_slave.inc
 include/stop_slave.inc
-call mtr.add_suppression("Error creating relay log info: Failed to intialize the worker info structure.");
+call mtr.add_suppression("Error creating relay log info: Failed to initialize the worker info structure.");
 set @@global.debug= "d,mts_slave_worker_init_at_gaps_fails";
 start slave sql_thread;
 ERROR HY000: Could not initialize master info structure; more error messages can be found in the MySQL error log
