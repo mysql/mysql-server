@@ -67,16 +67,10 @@ bool init_errmessage(void)
   errmsgs= my_error_unregister(ER_ERROR_FIRST, ER_ERROR_LAST);
 
   /* Read messages from file. */
-  if (read_texts(ERRMSG_FILE, my_default_lc_messages->errmsgs->language,
-                 errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1) &&
-      !errmsgs)
-  {
-    if (!(errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
-                                            sizeof(char*), MYF(0))))
-      DBUG_RETURN(TRUE);
-    for (uint i= 0; i <= ER_ERROR_LAST - ER_ERROR_FIRST; ++i)
-      errmsgs[i]= "";
-  }
+  read_texts(ERRMSG_FILE, my_default_lc_messages->errmsgs->language,
+             errmsgs, ER_ERROR_LAST - ER_ERROR_FIRST + 1);
+  if (!errmsgs)
+    DBUG_RETURN(TRUE); /* Fatal error, not able to allocate memory. */
 
   /* Register messages for use with my_error(). */
   if (my_error_register(get_server_errmsgs, ER_ERROR_FIRST, ER_ERROR_LAST))
@@ -144,7 +138,7 @@ bool read_texts(const char *file_name, const char *language,
                                MYF(0))) < 0)
     {
       sql_print_error("Can't find messagefile '%s'", name);
-      DBUG_RETURN(true);
+      goto open_err;
     }
     sql_print_error("An old style --language value with language \
                     specific part detected: %s", lc_messages_dir);
@@ -171,7 +165,7 @@ bool read_texts(const char *file_name, const char *language,
                     this program!",
 		    name,no_of_errmsgs,error_messages);
     (void) mysql_file_close(file, MYF(MY_WME));
-    DBUG_RETURN(true);
+    goto open_err;
   }
 
   // Free old language and allocate for the new one
@@ -194,7 +188,7 @@ bool read_texts(const char *file_name, const char *language,
   */
   if (mysql_file_read(file, start_of_errmsgs, (size_t) no_of_errmsgs*4,
                       MYF(MY_NABP)))
-    goto read_err;
+    goto read_err_init;
 
   // Copy the message offsets to Section1.
   for (i= 0, pos= start_of_errmsgs; i< no_of_errmsgs; i++)
@@ -205,14 +199,31 @@ bool read_texts(const char *file_name, const char *language,
 
   // Copy all the error text messages into Section2.
   if (mysql_file_read(file, start_of_errmsgs, length, MYF(MY_NABP)))
-    goto read_err;
+    goto read_err_init;
 
   (void) mysql_file_close(file, MYF(0));
   DBUG_RETURN(false);
 
+read_err_init:
+  for (uint i= 0; i <= ER_ERROR_LAST - ER_ERROR_FIRST; ++i)
+    errmsgs[i]= "";
 read_err:
   sql_print_error("Can't read from messagefile '%s'", name);
   (void) mysql_file_close(file, MYF(MY_WME));
+open_err:
+  if (!errmsgs)
+  {
+    /*
+      Allocate and initialize errmsgs to empty string in order to avoid access
+      to errmsgs during another failure in abort operation
+    */
+    if ((errmsgs= (const char**) my_malloc((ER_ERROR_LAST-ER_ERROR_FIRST+1)*
+                                            sizeof(char*), MYF(0))))
+    {
+      for (uint i= 0; i <= ER_ERROR_LAST - ER_ERROR_FIRST; ++i)
+        errmsgs[i]= "";
+    }
+  }
   DBUG_RETURN(true);
 } /* read_texts */
 

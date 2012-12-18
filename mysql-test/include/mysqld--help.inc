@@ -16,8 +16,8 @@ exec $MYSQLD_BOOTSTRAP_CMD --symbolic-links=0 --lower-case-table-names=1 --help 
 perl;
   # Variables which we don't want to display in the result file since
   # their paths may vary:
-  @skipvars=qw/basedir open-files-limit general-log-file log plugin-dir
-               log-slow-queries pid-file slow-query-log-file
+  @skipvars=qw/basedir open-files-limit general-log-file plugin-dir
+               pid-file slow-query-log-file
 			   datadir slave-load-tmpdir tmpdir socket table-definition-cache table-open-cache/;
 
   # Plugins which may or may not be there:
