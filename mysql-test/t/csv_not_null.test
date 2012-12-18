@@ -10,8 +10,6 @@
 # Last modified:  2008-01-04
 #-----------------------------------------------------------------------------
 
---source include/have_csv.inc
-
 #############################################################################
 # Testcase csv_not_null.1:  CREATE TABLE for CSV Engine requires explicit
 #                           NOT NULL for each column
