@@ -49,7 +49,7 @@ Parse temporary tablespace configuration.
 UNIV_INTERN
 bool
 srv_parse_temp_data_file_paths_and_sizes(
-/*======================================*/
+/*=====================================*/
 	char*	str);	/*!< in/out: the data file path string */
 /*********************************************************************//**
 Reads log group home directories from a character string given in
