@@ -15861,6 +15861,26 @@ ha_ndbcluster::set_up_partition_info(partition_info *part_info,
   DBUG_RETURN(0);
 }
 
+class NDB_ALTER_DATA : public inplace_alter_handler_ctx 
+{
+public:
+  NDB_ALTER_DATA(NdbDictionary::Dictionary *dict,
+		 const NdbDictionary::Table *table) :
+    dictionary(dict),
+    old_table(table),
+    new_table(new NdbDictionary::Table(*table)),
+      table_id(table->getObjectId()),
+      old_table_version(table->getObjectVersion())
+  {}
+  ~NDB_ALTER_DATA()
+  { delete new_table; }
+  NdbDictionary::Dictionary *dictionary;
+  const  NdbDictionary::Table *old_table;
+  NdbDictionary::Table *new_table;
+  Uint32 table_id;
+  Uint32 old_table_version;
+};
+
 static
 Alter_inplace_info::HA_ALTER_FLAGS supported_alter_operations()
 {

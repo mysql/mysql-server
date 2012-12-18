@@ -92,27 +92,6 @@ typedef enum ndb_write_op {
   NDB_PK_UPDATE = 2
 } NDB_WRITE_OP;
 
-//class NDB_ALTER_DATA : public Sql_alloc
-class NDB_ALTER_DATA : public inplace_alter_handler_ctx
-{
-public:
-  NDB_ALTER_DATA(NdbDictionary::Dictionary *dict,
-		 const NdbDictionary::Table *table) :
-    dictionary(dict),
-    old_table(table),
-    new_table(new NdbDictionary::Table(*table)),
-      table_id(table->getObjectId()),
-      old_table_version(table->getObjectVersion())
-  {}
-  ~NDB_ALTER_DATA()
-  { delete new_table; }
-  NdbDictionary::Dictionary *dictionary;
-  const  NdbDictionary::Table *old_table;
-  NdbDictionary::Table *new_table;
-  Uint32 table_id;
-  Uint32 old_table_version;
-};
-
 #include "ndb_ndbapi_util.h"
 #include "ndb_share.h"
 
@@ -471,7 +450,7 @@ private:
 
   int ndb_optimize_table(THD* thd, uint delay);
 
-  int alter_frm(THD *thd, const char *file, NDB_ALTER_DATA *alter_data);
+  int alter_frm(THD *thd, const char *file, class NDB_ALTER_DATA *alter_data);
 
   bool check_all_operations_for_error(NdbTransaction *trans,
                                       const NdbOperation *first,
