@@ -2975,7 +2975,6 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
                         tables_used->engine_data))
         DBUG_RETURN(0);
 
-#ifdef WITH_MYISAMMRG_STORAGE_ENGINE      
       /*
         XXX FIXME: Some generic mechanism is required here instead of this
         MYISAMMRG-specific implementation.
@@ -3003,7 +3002,6 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
             DBUG_RETURN(0);
         }
       }
-#endif
     }
   }
   DBUG_RETURN(n - counter);
@@ -3665,7 +3663,6 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
                     "other non-cacheable table(s)"));
         DBUG_RETURN(0);
       }
-#ifdef WITH_MYISAMMRG_STORAGE_ENGINE      
       /*
         XXX FIXME: Some generic mechanism is required here instead of this
         MYISAMMRG-specific implementation.
@@ -3676,7 +3673,6 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
         MYRG_INFO *file = handler->myrg_info();
         table_count+= (file->end_table - file->open_tables);
       }
-#endif
     }
   }
   DBUG_RETURN(table_count);

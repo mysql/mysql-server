@@ -2,10 +2,6 @@
 -- source include/big_test.inc
 -- source include/not_embedded.inc
 
-# check that CSV engine was compiled in, as the result of the test depends
-# on the presence of the log tables (which are CSV-based).
---source include/have_csv.inc
-
 --disable_warnings
 DROP TABLE IF EXISTS t0,t1,t2,t3,t4,t5;
 DROP VIEW IF EXISTS v1;
