@@ -29,6 +29,7 @@
 #define __func__ __FUNCTION__
 #define strcasecmp _stricmp
 #define strncasecmp _strnicmp
+#define snprintf _snprintf
 
 #else
 #include <unistd.h>
