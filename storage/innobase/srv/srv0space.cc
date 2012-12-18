@@ -40,11 +40,12 @@ containing megabytes.
 @param str - string with a quantity in bytes
 @param megs - out the number in megabytes
 @return next character in string */
+UNIV_INTERN
 char*
 Tablespace::parse_units(
 /*====================*/
-	char* 	ptr,
-	ulint* 	megs)
+	char*	ptr,
+	ulint*	megs)
 {
 	char*		endp;
 
@@ -75,8 +76,8 @@ UNIV_INTERN
 bool
 Tablespace::parse(
 /*==============*/
-	const char* 	filepath,
-	bool 		supports_raw)
+	const char*	filepath,
+	bool		supports_raw)
 {
 	char*	path;
 	ulint	size;
@@ -276,6 +277,7 @@ Check if two shared tablespaces have common data file names.
 @param space1 - space to check
 @param space2 - space to check
 @return true if they have the same data filenames and paths */
+UNIV_INTERN
 bool
 Tablespace::intersection(
 /*=====================*/
@@ -301,6 +303,7 @@ Tablespace::intersection(
 Get the file name only
 @param filepath - filepath as specified by user (can be relative too).
 @return filename extract filepath */
+UNIV_INTERN
 char*
 Tablespace::get_file_name(
 /*======================*/
@@ -312,6 +315,7 @@ Tablespace::get_file_name(
 
 /**
 Frees the memory allocated by the parse method. */
+UNIV_INTERN
 void
 Tablespace::shutdown()
 {
@@ -333,6 +337,7 @@ Tablespace::shutdown()
 
 /**
 @return ULINT_UNDEFINED if the size is invalid else the sum of sizes */
+UNIV_INTERN
 ulint
 Tablespace::get_sum_of_sizes() const
 {
@@ -367,6 +372,7 @@ Tablespace::get_sum_of_sizes() const
 Create/open a data file.
 @param file - data file spec
 @return DB_SUCCESS or error code */
+UNIV_INTERN
 dberr_t
 Tablespace::open_data_file(
 /*=======================*/
@@ -395,6 +401,7 @@ Tablespace::open_data_file(
 Verify the size of the physical file.
 @param file - data file spec
 @return DB_SUCCESS if OK else error code. */
+UNIV_INTERN
 dberr_t
 Tablespace::check_size(
 /*===================*/
@@ -448,6 +455,7 @@ Tablespace::check_size(
 /**
 Make physical filename from control info.
 @param file - data file spec */
+UNIV_INTERN
 void
 Tablespace::make_name(
 /*==================*/
@@ -484,6 +492,7 @@ Tablespace::make_name(
 Set the size of the file.
 @param file - data file spec
 @return DB_SUCCESS or error code */
+UNIV_INTERN
 dberr_t
 Tablespace::set_size(
 /*=================*/
@@ -520,6 +529,7 @@ Tablespace::set_size(
 Create a data file.
 @param file - data file spec
 @return DB_SUCCESS or error code */
+UNIV_INTERN
 dberr_t
 Tablespace::create_file(
 /*====================*/
@@ -562,6 +572,7 @@ Tablespace::create_file(
 Open a data file.
 @param file - data file spec
 @return DB_SUCCESS or error code */
+UNIV_INTERN
 dberr_t
 Tablespace::open_file(
 /*==================*/
@@ -613,6 +624,7 @@ Read the flush lsn values and check the header flags.
 @param min_flushed_lsn - min of flushed lsn values in data files
 @param max_flushed_lsn - max of flushed lsn values in data files
 @return DB_SUCCESS or error code */
+UNIV_INTERN
 dberr_t
 Tablespace::read_lsn_and_check_flags(
 /*=================================*/
@@ -682,6 +694,7 @@ Tablespace::read_lsn_and_check_flags(
 Check if a file can be opened in the correct mode.
 @param file - data file spec
 @return DB_SUCCESS or error code. */
+UNIV_INTERN
 dberr_t
 Tablespace::check_file_status(
 /*==========================*/
@@ -746,11 +759,12 @@ Note that the data file was not found.
 @param file - data file spec
 @param create_new_db - [out] true if a new instance to be created
 @return DB_SUCESS or error code */
+UNIV_INTERN
 dberr_t
 Tablespace::file_not_found(
 /*=======================*/
 	file_t& file,
-	ibool* 	create_new_db)
+	ibool*	create_new_db)
 {
 	file.m_exists = false;
 
@@ -818,6 +832,7 @@ Tablespace::file_not_found(
 /**
 Note that the data file was found.
 @param file - data file spec */
+UNIV_INTERN
 void
 Tablespace::file_found(
 /*===================*/
@@ -847,6 +862,7 @@ Check the data file specification.
 @param create_new_db - [out] true if a new database is to be created
 @param min_expected_tablespace_size - [in] expected tablespace size in bytes
 @return DB_SUCCESS if all OK else error code */
+UNIV_INTERN
 dberr_t
 Tablespace::check_file_spec(
 /*========================*/
@@ -1012,6 +1028,7 @@ Tablespace::open(
 
 /**
 Normalize the file size, convert to extents. */
+UNIV_INTERN
 void
 Tablespace::normalize()
 {
@@ -1028,6 +1045,7 @@ Tablespace::normalize()
 
 /**
 @return next increment size */
+UNIV_INTERN
 ulint
 Tablespace::get_increment() const
 {
@@ -1059,6 +1077,7 @@ Tablespace::get_increment() const
 
 /**
 @return true if configured to use raw devices */
+UNIV_INTERN
 bool
 Tablespace::has_raw_device() const
 {
@@ -1076,6 +1095,7 @@ Tablespace::has_raw_device() const
 
 /**
 @return true if the filename exists in the data files */
+UNIV_INTERN
 bool
 Tablespace::find(const char* filename) const
 {
@@ -1095,6 +1115,7 @@ Tablespace::find(const char* filename) const
 
 /**
 Delete all the data files. */
+UNIV_INTERN
 void
 Tablespace::delete_files()
 {
@@ -1116,6 +1137,7 @@ Tablespace::delete_files()
 
 /** Check if system-tablespace (shared + temp).
 @return true if system tablespace */
+UNIV_INTERN
 bool
 Tablespace::is_system_tablespace(
 /*=============================*/
