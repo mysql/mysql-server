@@ -64,6 +64,7 @@ using std::min;
 using std::max;
 
 bool mysql_user_table_is_in_short_password_format= false;
+my_bool disconnect_on_expired_password= TRUE;
 bool auth_plugin_is_built_in(const char *plugin_name);
 bool auth_plugin_supports_expiration(const char *plugin_name);
 void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name);
@@ -2343,6 +2344,19 @@ bool change_password(THD *thd, const char *host, const char *user,
   {
     acl_user->plugin.length= default_auth_plugin_name.length;
     acl_user->plugin.str= default_auth_plugin_name.str;
+  }
+
+  if (new_password_len == 0)
+  {
+    String *password_str= new (thd->mem_root) String(new_password,
+                                                     thd->variables.
+                                                     character_set_client);
+    if (check_password_policy(password_str))
+    {
+      result= 1;
+      mysql_mutex_unlock(&acl_cache->lock);
+      goto end;
+    }
   }
   
 #if defined(HAVE_OPENSSL)
@@ -10819,6 +10833,24 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
                         mpvio.db.str ? mpvio.db.str : (char*) "");
   }
 
+  if (unlikely(acl_user && acl_user->password_expired
+               && !(mpvio.client_capabilities &
+                    CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
+               && disconnect_on_expired_password))
+  {
+    /*
+      Clients that don't signal password expiration support
+      get a connect error.
+    */
+    res= CR_ERROR;
+    mpvio.status= MPVIO_EXT::FAILURE;
+
+    my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+    general_log_print(thd, COM_CONNECT, ER(ER_MUST_CHANGE_PASSWORD));
+    if (log_warnings > 1)
+      sql_print_warning("%s", ER(ER_MUST_CHANGE_PASSWORD));
+  }
+
   if (res > CR_OK && mpvio.status != MPVIO_EXT::SUCCESS)
   {
     Host_errors errors;
@@ -11712,7 +11744,7 @@ int check_password_strength(String *password)
 }
 
 /* called when new user is created or exsisting password is changed */
-void check_password_policy(String *password)
+int check_password_policy(String *password)
 {
   plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
                                             MYSQL_VALIDATE_PASSWORD_PLUGIN);
@@ -11723,8 +11755,12 @@ void check_password_policy(String *password)
                       (st_mysql_validate_password *) plugin_decl(plugin)->info;
 
     if (!password_validate->validate_password(password))
+    {  
       my_error(ER_NOT_VALID_PASSWORD, MYF(0));
-
+      plugin_unlock(0, plugin);
+      return (1);
+    }
     plugin_unlock(0, plugin);
   }
+  return (0);
 }

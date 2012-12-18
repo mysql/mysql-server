@@ -1794,9 +1794,12 @@ info: Records: 0  Duplicates: 0  Warnings: 0
 ALTER TABLE tm1 MODIFY COLUMN e INT FIRST;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
+SET @orig_sql_mode = @@sql_mode;
+SET @@sql_mode = 'STRICT_TRANS_TABLES';
 ALTER TABLE ti1 MODIFY COLUMN c INT NOT NULL;
 affected rows: 0
 info: Records: 0  Duplicates: 0  Warnings: 0
+SET @@sql_mode = @orig_sql_mode;
 ALTER TABLE tm1 MODIFY COLUMN c INT NOT NULL;
 affected rows: 2
 info: Records: 2  Duplicates: 0  Warnings: 0
