@@ -47,16 +47,39 @@
          "src/Ndb_wrapper.cpp",
          "src/NdbError_wrapper.cpp",
          "src/NdbTransaction_wrapper.cpp",
-         "src/NdbOperation_wrapper.cpp",
-         "src/mysqlclient_wrapper.cpp"
+         "src/NdbOperation_wrapper.cpp"
       ],
 
       'libraries':
       [
-        "-L<(mysql_path)/lib",
         "-lndbclient",
         "-lmysqlclient"
       ],
+
+      'conditions': 
+      [
+        ['OS=="win"', 
+          # Windows 
+          {
+            'msvs_settings':
+            [
+              'AdditionalLibraryDirectories' : "-L<(mysql_path)/lib"
+            ]
+          },
+          # Not Windows
+          {
+            'sources' : 
+            [
+               "src/mysqlclient_wrapper.cpp"
+            ],
+            'libraries':
+            [
+              "-L<(mysql_path)/lib",
+            ]
+          }
+        ]
+      ] 
+      # End of conditions
     }
   ]
 }
