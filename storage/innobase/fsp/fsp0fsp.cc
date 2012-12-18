@@ -950,12 +950,12 @@ fsp_try_extend_data_file(
 		to reset the flag to false as dealing with this
 		error requires server restart. */
 		if (srv_sys_space.get_tablespace_full_status() == false) {
-			fprintf(stderr,
+			ib_logf(IB_LOG_LEVEL_ERROR,
 				"InnoDB: Error: Data file(s) ran"
-				" out of space.\n"
+				" out of space."
 				"Please add another data file or"
 				" use \'autoextend\' for the last"
-				" data file.\n");
+				" data file.");
 			srv_sys_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);

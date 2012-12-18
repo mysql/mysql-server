@@ -1,3 +1,8 @@
+#
+# WL#6560: InnoDB: separate tablespace for innodb-temp-tables.
+#
+
+
 --source include/have_innodb.inc
 --source include/have_debug.inc
 

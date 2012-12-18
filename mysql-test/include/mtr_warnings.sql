@@ -99,7 +99,6 @@ INSERT INTO global_suppressions VALUES
  ("Forcing shutdown of [0-9]* plugins"),
  ("Forcing close of thread"),
 
- /* using different page-size */
  ("innodb-page-size has been changed"),
 
  /*
