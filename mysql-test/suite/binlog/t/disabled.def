@@ -10,3 +10,4 @@
 #
 ##############################################################################
 binlog_spurious_ddl_errors  : BUG#11761680 2010-06-03 alik binlog_spurious_ddl_errors.test fails, thus disabled
+binlog_unsafe : Bug #16016876	BINLOG_UNSAFE.TEST AND AT LEAST ONE TABLE IS NOT REPLICATED
