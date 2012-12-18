@@ -63,7 +63,7 @@
           {
             'msvs_settings':
             [
-              'AdditionalLibraryDirectories' : "-L<(mysql_path)/lib"
+              { 'AdditionalLibraryDirectories' : "<(mysql_path)/lib" }
             ]
           },
           # Not Windows
