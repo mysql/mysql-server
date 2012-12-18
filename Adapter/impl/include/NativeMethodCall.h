@@ -148,7 +148,6 @@ class NativeMethodCall_2_ : public NativeMethodCall<R,C>,
 {
 public:
   /* Member variables */
-  C * native_obj;
   typedef R (C::*Method_T)(A0, A1);  // "method" is pointer to member function
   Method_T method;
 
@@ -272,7 +271,6 @@ class NativeMethodCall_4_ : public NativeMethodCall<R,C> ,
 {
 public:
   /* Member variables */
-  C * native_obj;
   typedef R (C::*Method_T)(A0,A1,A2,A3);
   Method_T method;
 
@@ -340,7 +338,6 @@ class NativeMethodCall_5_ : public NativeMethodCall<R,C>,
 {
 public:
   /* Member variables */
-  C * native_obj;
   typedef R (C::*Method_T)(A0,A1,A2,A3,A4);
   Method_T method;
   
@@ -377,7 +374,6 @@ class NativeMethodCall_6_ : public NativeMethodCall<R,C> ,
 {
 public:
   /* Member variables */
-  C * native_obj;
   typedef R (C::*Method_T)(A0,A1,A2,A3,A4,A5);
   Method_T method;
   
@@ -415,7 +411,6 @@ class NativeMethodCall_7_ : public NativeMethodCall<R,C>,
 {
 public:
   /* Member variables */
-  C * native_obj;
   typedef R (C::*Method_T)(A0,A1,A2,A3,A4,A5,A6);
   Method_T method;
   
@@ -454,7 +449,6 @@ class NativeMethodCall_8_ : public NativeMethodCall<R,C>,
 {
 public:
   /* Member variables */
-  C * native_obj;
   typedef R (C::*Method_T)(A0,A1,A2,A3,A4,A5,A6,A7);
   Method_T method;
 
@@ -478,5 +472,114 @@ public:
       Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg6,
       Call_8_<A0, A1, A2, A3, A4, A5, A6, A7>::arg7
     );
+  }
+};
+
+
+/* Const versions */
+
+/** Template class with
+ *  Return type R; no arguments
+ */
+template <typename R, typename C>
+class NativeConstMethodCall_0_ : public NativeMethodCall<R,C> {
+public:
+  /* Member variables */
+  typedef R (C::*Method_T)(void) const;
+  Method_T method;
+  
+  /* Constructors */
+  NativeConstMethodCall_0_<R, C>(Method_T m, const Arguments &args) :
+    NativeMethodCall<R, C>(args, 0),
+    method(m)
+  {  }
+  
+  /* Methods */
+  void run() {
+    NativeMethodCall<R,C>::return_val =
+      ((NativeMethodCall<R,C>::native_obj)->*(method))();
+  }
+};
+
+
+/** Template class with:
+ * return value of type R
+ * one argument of type A0
+ */
+template <typename R, typename C, typename A0>
+class NativeConstMethodCall_1_ : public NativeMethodCall<R,C>,
+                                 public Call_1_<A0>
+{
+public:
+  /* Member variables */
+  typedef R (C::*Method_T)(A0) const;
+  Method_T method;
+
+  /* Constructors */
+  NativeConstMethodCall_1_<R, C, A0>(Method_T m, const Arguments &args) :
+    NativeMethodCall<R, C>(args, 1),
+    Call_1_<A0>(args),
+    method(m)
+  {  }
+
+  /* Methods */
+  void run() {
+    NativeMethodCall<R,C>::return_val =
+      ((NativeMethodCall<R,C>::native_obj)->*(method))(Call_1_<A0>::arg0);
+  }
+};
+
+
+/** Template class with
+ *  Method returning void; 2 arguments
+ */
+template <typename C, typename A0, typename A1>
+class NativeVoidConstMethodCall_2_ : public NativeVoidMethodCall<C> ,
+                                     public Call_2_<A0, A1>
+{
+public:
+  /* Member variables */
+  typedef void (C::*Method_T)(A0, A1) const;
+  Method_T method;
+
+  /* Constructor */
+  NativeVoidConstMethodCall_2_<C, A0, A1>(Method_T m, const Arguments &args) :
+    NativeVoidMethodCall<C>(args, 2),
+    Call_2_<A0, A1>(args),
+    method(m)
+  {  }
+
+  /* Methods */
+  void run() {
+    ((NativeVoidMethodCall<C>::native_obj)->*(method))
+      (Call_2_<A0,A1>::arg0, Call_2_<A0,A1>::arg1);
+  }
+};
+
+/** Template class with
+ *  Method returning R; 2 arguments 
+ */
+template <typename R, typename C, typename A0, typename A1>
+class NativeConstMethodCall_2_ : public NativeMethodCall<R,C>,
+                                 public Call_2_<A0, A1>
+{
+public:
+  /* Member variables */
+  typedef R (C::*Method_T)(A0, A1) const;
+  Method_T method;
+
+  /* Constructor */
+  NativeConstMethodCall_2_<R, C, A0, A1>(Method_T m, const Arguments &args) :
+    NativeMethodCall<R, C>(args, 2),
+    Call_2_<A0, A1>(args),
+    method(m)
+  {  }
+
+  /* Methods */
+  void run() {
+    NativeMethodCall<R,C>::return_val =
+      ((NativeMethodCall<R,C>::native_obj)->*(method))(
+        Call_2_<A0, A1>::arg0,
+        Call_2_<A0, A1>::arg1);
   }
 };

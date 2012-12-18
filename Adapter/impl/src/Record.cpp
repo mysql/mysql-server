@@ -19,7 +19,6 @@
 */
 
 #include <assert.h>
-#include <unistd.h>
 
 #include <NdbApi.hpp>
 #include <v8.h>

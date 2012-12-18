@@ -68,7 +68,7 @@ Handle<Value> getColumnOffset_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(1);
 
-  typedef NativeMethodCall_1_<size_t, const Record, int> NCALL;
+  typedef NativeConstMethodCall_1_<size_t, const Record, int> NCALL;
 
   NCALL ncall(& Record::getColumnOffset, args);
   ncall.run();
@@ -83,7 +83,7 @@ Handle<Value> getBufferSize_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(0);
 
-  typedef NativeMethodCall_0_<size_t, const Record> NCALL;
+  typedef NativeConstMethodCall_0_<size_t, const Record> NCALL;
 
   NCALL ncall(& Record::getBufferSize, args);
   ncall.run();
@@ -97,7 +97,7 @@ Handle<Value> setNull_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(2);
 
-  typedef NativeVoidMethodCall_2_<const Record, int, char *> NCALL;
+  typedef NativeVoidConstMethodCall_2_<const Record, int, char *> NCALL;
 
   NCALL ncall(& Record::setNull, args);
   ncall.run();
@@ -111,7 +111,7 @@ Handle<Value> setNotNull_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(2);
 
-  typedef NativeVoidMethodCall_2_<const Record, int, char *> NCALL;
+  typedef NativeVoidConstMethodCall_2_<const Record, int, char *> NCALL;
 
   NCALL ncall(& Record::setNotNull, args);
   ncall.run();
@@ -126,7 +126,7 @@ Handle<Value> isNull_wrapper(const Arguments &args) {
   
   REQUIRE_ARGS_LENGTH(2);
 
-  typedef NativeMethodCall_2_<uint32_t, const Record, int, char *> NCALL;
+  typedef NativeConstMethodCall_2_<uint32_t, const Record, int, char *> NCALL;
 
   NCALL ncall(& Record::isNull, args);
   ncall.run();
