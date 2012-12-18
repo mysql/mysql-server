@@ -409,11 +409,11 @@ void locktree::remove_overlapping_locks_for_txnid(TXNID txnid,
     release_range.destroy();
 }
 
-inline bool locktree::sto_txnid_is_valid_unsafe(void) const {
+bool locktree::sto_txnid_is_valid_unsafe(void) const {
     return m_sto_txnid != TXNID_NONE;
 }
 
-inline int locktree::sto_get_score_unsafe(void) const {
+int locktree::sto_get_score_unsafe(void) const {
     return m_sto_score;
 }
 
