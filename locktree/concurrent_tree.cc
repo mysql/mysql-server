@@ -9,11 +9,11 @@
 void concurrent_tree::create(comparator *cmp) {
     // start with an empty root node. we do this instead of
     // setting m_root to null so there's always a root to lock
-    m_root.init_root(cmp);
+    m_root.create_root(cmp);
 }
 
 void concurrent_tree::destroy(void) {
-    invariant(is_empty());
+    m_root.destroy_root();
 }
 
 bool concurrent_tree::is_empty(void) {

@@ -32,9 +32,16 @@ void treenode::init(comparator *cmp) {
     m_right_child.set(nullptr);
 }
 
-void treenode::init_root(comparator *cmp) {
+void treenode::create_root(comparator *cmp) {
     init(cmp);
     m_is_root = true;
+}
+
+void treenode::destroy_root(void) {
+    invariant(is_root());
+    invariant(is_empty());
+    toku_mutex_destroy(&m_mutex);
+    m_cmp = nullptr;
 }
 
 void treenode::set_range_and_txnid(const keyrange &range, TXNID txnid) {
