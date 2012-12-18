@@ -46,10 +46,6 @@ Created 11/26/1995 Heikki Tuuri
 #define	MTR_LOG_NO_REDO			23	/* Don't generate REDO log
 						but add dirty pages to
 						flush list */
-/*#define	MTR_LOG_SPACE	23 */		/* log only operations
-						modifying file space page
-						allocation data
-						(operations in fsp0fsp.* ) */
 #define	MTR_LOG_SHORT_INSERTS		24	/* inserts are logged in
 						a shorter form */
 
