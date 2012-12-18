@@ -307,7 +307,6 @@ public:
 
 
 /* optional things, have_* variables */
-extern SHOW_COMP_OPTION have_csv;
 extern SHOW_COMP_OPTION have_ndbcluster, have_partitioning;
 extern SHOW_COMP_OPTION have_profiling;
 
