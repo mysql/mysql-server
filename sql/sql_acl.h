@@ -228,6 +228,7 @@ enum mysql_user_table_field
 
 extern const TABLE_FIELD_DEF mysql_db_table_def;
 extern bool mysql_user_table_is_in_short_password_format;
+extern my_bool disconnect_on_expired_password;
 extern const char *command_array[];
 extern uint        command_lengths[];
 
@@ -301,7 +302,7 @@ int fill_schema_column_privileges(THD *thd, TABLE_LIST *tables, Item *cond);
 int wild_case_compare(CHARSET_INFO *cs, const char *str,const char *wildstr);
 int digest_password(THD *thd, LEX_USER *user_record);
 int check_password_strength(String *password);
-void check_password_policy(String *password);
+int check_password_policy(String *password);
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
 #define check_grant(A,B,C,D,E,F) 0
 #define check_grant_db(A,B) 0

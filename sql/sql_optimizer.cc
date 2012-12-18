@@ -4513,8 +4513,9 @@ static bool pull_out_semijoin_tables(JOIN *join)
       List<TABLE_LIST> *upper_join_list= (sj_nest->embedding != NULL) ?
           &sj_nest->embedding->nested_join->join_list : 
           &join->select_lex->top_join_list;
-      Query_arena *arena, backup;
-      arena= join->thd->activate_stmt_arena_if_needed(&backup);
+
+      Prepared_stmt_arena_holder ps_arena_holder(join->thd);
+
       while ((tbl= child_li++))
       {
         if (tbl->table &&
@@ -4526,12 +4527,10 @@ static bool pull_out_semijoin_tables(JOIN *join)
             pointers.
           */
           child_li.remove();
+
           if (upper_join_list->push_back(tbl))
-          {
-            if (arena)
-              join->thd->restore_active_arena(arena, &backup);
             DBUG_RETURN(TRUE);
-          }
+
           tbl->join_list= upper_join_list;
           tbl->embedding= sj_nest->embedding;
         }
@@ -4548,9 +4547,6 @@ static bool pull_out_semijoin_tables(JOIN *join)
         /* Also remove it from the list of SJ-nests: */
         sj_list_it.remove();
       }
-
-      if (arena)
-        join->thd->restore_active_arena(arena, &backup);
     }
   }
   DBUG_RETURN(FALSE);
@@ -6846,7 +6842,6 @@ static bool convert_subquery_to_semijoin(JOIN *parent_join,
 
 bool JOIN::flatten_subqueries()
 {
-  Query_arena *arena, backup;
   Item_exists_subselect **subq;
   Item_exists_subselect **subq_end;
   bool outer_join_objection= false;
@@ -6896,9 +6891,11 @@ bool JOIN::flatten_subqueries()
            sj_subselects.size(), sj_subselects.element_size(),
            reinterpret_cast<qsort_cmp>(subq_sj_candidate_cmp));
 
+  Prepared_stmt_arena_holder ps_arena_holder(thd);
+
   // #tables-in-parent-query + #tables-in-subquery + sj nests <= MAX_TABLES
   /* Replace all subqueries to be flattened with Item_int(1) */
-  arena= thd->activate_stmt_arena_if_needed(&backup);
+
   uint table_count= tables;
   for (subq= sj_subselects.begin(); subq < subq_end; subq++)
   {
@@ -6994,8 +6991,6 @@ bool JOIN::flatten_subqueries()
     }
   }
 
-  if (arena)
-    thd->restore_active_arena(arena, &backup);
   sj_subselects.clear();
   DBUG_RETURN(FALSE);
 }

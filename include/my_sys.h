@@ -632,6 +632,13 @@ extern int      my_access(const char *path, int amode);
 extern int check_if_legal_filename(const char *path);
 extern int check_if_legal_tablename(const char *path);
 
+#ifdef __WIN__
+extern my_bool is_filename_allowed(const char *name, size_t length,
+                   my_bool allow_current_dir);
+#else /* __WIN__ */
+# define is_filename_allowed(name, length, allow_cwd) (TRUE)
+#endif /* __WIN__ */ 
+
 #ifdef _WIN32
 extern int nt_share_delete(const char *name,myf MyFlags);
 #define my_delete_allow_opened(fname,flags)  nt_share_delete((fname),(flags))

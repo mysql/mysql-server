@@ -165,6 +165,11 @@ The following options may be given as the first argument:
  client that does INSERT DELAYED will wait until there is
  room in the queue again.This variable is deprecated along
  with INSERT DELAYED.
+ --disconnect-on-expired-password 
+ Give clients that don't signal password expiration
+ support execution time error(s) instead of connection
+ error
+ (Defaults to on; use --skip-disconnect-on-expired-password to disable.)
  --disconnect-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
  replication.
@@ -1015,6 +1020,7 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
+disconnect-on-expired-password TRUE
 disconnect-slave-event-count 0
 div-precision-increment 4
 end-markers-in-json FALSE
