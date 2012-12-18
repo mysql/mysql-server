@@ -701,6 +701,10 @@ sub run_test_server ($$$) {
 	    else {
 	      mtr_report("\nRetrying test $tname, ".
 			 "attempt($retries/$opt_retry)...\n");
+              #saving the log file as filename.failed in case of retry
+              my $worker_logdir= $result->{savedir};
+              my $log_file_name=dirname($worker_logdir)."/".$result->{shortname}.".log";
+              rename $log_file_name,$log_file_name.".failed";
 	      delete($result->{result});
 	      $result->{retries}= $retries+1;
 	      $result->write_test($sock, 'TESTCASE');
@@ -6265,6 +6269,7 @@ sub valgrind_exit_reports() {
         $err_in_report= 1 if $line =~ /ERROR SUMMARY: [1-9]/;
         $err_in_report= 1 if $line =~ /definitely lost: [1-9]/;
         $err_in_report= 1 if $line =~ /possibly lost: [1-9]/;
+        $err_in_report= 1 if $line =~ /still reachable: [1-9]/;
       }
     }
 
