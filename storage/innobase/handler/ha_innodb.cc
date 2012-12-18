@@ -8568,7 +8568,7 @@ err_col:
 		fts_add_doc_id_column(table, heap);
 	}
 
-	/* If temp table, then we avoid creation of entries in SYS_XXXX
+	/* If temp table, then we avoid creation of entries in SYSTEM TABLES
 	table to save on performance. This doesn't compromise on
 	correctness as temp-table information is still maintained
 	in memory and temp-table life-time doesn't go beyond server

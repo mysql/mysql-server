@@ -1622,7 +1622,8 @@ btr_create(
 	/* We reset the free bits for the page to allow creation of several
 	trees in the same mtr, otherwise the latch on a bitmap page would
 	prevent it because of the latching order.
-	Note: Insert Buffering is disabled for temporary tables. */
+	Note: Insert Buffering is disabled for temporary tables given that
+	most temporary tables are smaller in size and short-lived. */
 	if (!dict_table_is_temporary(index->table)
 	    && !(type & DICT_CLUSTERED)) {
 		ibuf_reset_free_bits(block);

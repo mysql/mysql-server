@@ -96,7 +96,7 @@ dict_build_index_def(
 					handle */
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
-Don't update SYS_XXXX table.
+Don't update SYSTEM TABLES table.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 dberr_t
@@ -124,7 +124,7 @@ dict_truncate_index_tree_step(
 					on the record page. The mtr may be
 					committed and restarted in this call. */
 /*******************************************************************//**
-Truncates the index tree but don't update SYS_XXXX table.
+Truncates the index tree but don't update SYSTEM TABLES table.
 @return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
 void
