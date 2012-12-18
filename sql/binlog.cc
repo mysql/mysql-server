@@ -7056,7 +7056,17 @@ int THD::decide_logging_format(TABLE_LIST *tables)
       DBUG_PRINT("info", ("table: %s; ha_table_flags: 0x%llx",
                           table->table_name, flags));
 
+#ifndef MCP_BUG16016510
+      /* HA_HAS_OWN_BINLOGGING has traditionally been used to indicate
+         that row logging is handled by the handler but stmt logging
+         should be performed by the MySQL Server.
+         Thus skip this branch for self logging engines(aka. ndbcluster)
+      */
+      if (!test(flags & HA_HAS_OWN_BINLOGGING) &&
+          table->table->no_replicate)
+#else
       if (table->table->no_replicate)
+#endif
       {
         /*
           The statement uses a table that is not replicated.
