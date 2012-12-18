@@ -38,7 +38,7 @@
 /***** Node.JS Binder ******/
 #ifdef V8BINDER_FOR_NODE
 
-#define BUILDING_NODE_EXTENSION
+#define BUILDING_NODE_EXTENSION 1
 #include "node.h"
 #include "node_buffer.h"
 
