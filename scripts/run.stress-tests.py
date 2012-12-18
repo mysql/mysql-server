@@ -243,8 +243,7 @@ class TestRunnerBase(object):
         copy(fullexecf, targetfor(fullexecf))
         for libname in ['util/libutil.so', 'portability/libtokuportability.so', 'src/libtokudb.so']:
             fulllibpath = os.path.join(self.builddir, libname)
-            libpathfromroot = os.path.relpath(fulllibpath, '/')
-            targetpath = os.path.join(savedir, libpathfromroot)
+            targetpath = savedir + fulllibpath
             targetdir = os.path.dirname(targetpath)
             if not os.path.exists(targetdir):
                 os.makedirs(targetdir)
