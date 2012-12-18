@@ -23,3 +23,4 @@ mysql_client_test_embedded : Bug#14722862 2012-10-09 Disabled since this test is
 file_contents            : Bug#12585902 2011-09-27 magnus file_contents.test fails when building from "bzr export"
 invalid_packet : Bug #14705941  INVALID_PACKET.TEST DEPENDS ON NC
 warnings_engine_disabled : BUG#14672988 NEW BEHAVIOUR WHEN USING DISABLED... 
+connect : Bug #16016997	CONNECT.TEST UNSTABLE MAX_USED_CONNECTIONS
