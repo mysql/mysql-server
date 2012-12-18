@@ -281,8 +281,8 @@ UNIV_INTERN
 bool
 Tablespace::intersection(
 /*=====================*/
-	const Tablespace& space1,
-	const Tablespace& space2)
+	const Tablespace&	space1,
+	const Tablespace&	space2)
 {
 	files_t::const_iterator	end = space1.m_files.end();
 
@@ -307,7 +307,7 @@ UNIV_INTERN
 char*
 Tablespace::get_file_name(
 /*======================*/
-	const char* filepath)
+	const char*	filepath)
 {
         char* last_slash = strrchr((char*) filepath, OS_FILE_PATH_SEPARATOR);
         return(last_slash ? last_slash + 1 : (char*) filepath);
@@ -376,7 +376,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::open_data_file(
 /*=======================*/
-	file_t& file)
+	file_t&	file)
 {
 	ibool	success;
 
@@ -405,7 +405,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::check_size(
 /*===================*/
-	file_t& file)
+	file_t&	file)
 {
 	os_offset_t	size = os_file_get_size(file.m_handle);
 	ut_a(size != (os_offset_t) -1);
@@ -459,7 +459,7 @@ UNIV_INTERN
 void
 Tablespace::make_name(
 /*==================*/
-	file_t& file)
+	file_t&	file)
 {
 	char	name[OS_FILE_MAX_PATH];
 
@@ -496,7 +496,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::set_size(
 /*=================*/
-	file_t& file)
+	file_t&	file)
 {
 	ut_a(!srv_read_only_mode);
 
@@ -533,7 +533,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::create_file(
 /*====================*/
-	file_t& file)
+	file_t&	file)
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -576,7 +576,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::open_file(
 /*==================*/
-	file_t& file)
+	file_t&	file)
 {
 	dberr_t	err = DB_SUCCESS;
 
@@ -698,7 +698,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::check_file_status(
 /*==========================*/
-	const file_t& file)
+	const file_t&	file)
 {
 	os_file_stat_t	stat;
 
@@ -763,7 +763,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::file_not_found(
 /*=======================*/
-	file_t& file,
+	file_t&	file,
 	ibool*	create_new_db)
 {
 	file.m_exists = false;
@@ -836,7 +836,7 @@ UNIV_INTERN
 void
 Tablespace::file_found(
 /*===================*/
-	file_t& file)
+	file_t&	file)
 {
 	/* Note that the file exists and can be opened
 	in the appropriate mode. */
@@ -954,7 +954,7 @@ UNIV_INTERN
 dberr_t
 Tablespace::open(
 /*=============*/
-	ulint* sum_of_new_sizes)
+	ulint*	sum_of_new_sizes)
 {
 	dberr_t		err = DB_SUCCESS;
 
@@ -1141,7 +1141,7 @@ UNIV_INTERN
 bool
 Tablespace::is_system_tablespace(
 /*=============================*/
-	ulint id)
+	ulint	id)
 {
 	return(id == srv_sys_space.space_id()
 	       || id == srv_tmp_space.space_id());
