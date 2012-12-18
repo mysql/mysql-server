@@ -229,15 +229,21 @@ RESET SLAVE;
 RESET MASTER;
 
 *** Running slave ***
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.1;
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD= 3.0;
 Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+SELECT unix_timestamp() into @time_0;
 include/start_slave.inc
+SELECT unix_timestamp() into @time_1;
 Heartbeat event received
 
 *** Stopped slave ***
 include/stop_slave.inc
+CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD= 0.1;
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 Number of received heartbeat events while slave stopped: 0
 
 *** Started slave ***
@@ -270,26 +276,9 @@ call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.. on q
 call mtr.add_suppression("Slave SQL.*Request to stop slave SQL Thread received while applying a group that has non-transactional changes; waiting for completion of the group");
 Heartbeat events are received while sql thread stopped (1 means 'yes'): 1
 include/stop_slave.inc
-DROP TABLE t1;
-
-*** Master send to slave ***
-CREATE EVENT e1 
-ON SCHEDULE EVERY 1 SECOND
-DO
-BEGIN
-UPDATE test.t1 SET a = a + 1 WHERE a < 10;
-END|
-RESET SLAVE;
-RESET MASTER;
-CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=5;
-Warnings:
-Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
-Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+DELETE FROM t1;
 include/start_slave.inc
-SET @@global.event_scheduler=1;
-Number of received heartbeat events: 0
 DROP TABLE t1;
-DROP EVENT e1;
 
 *** Flush logs on slave ***
 include/rpl_reset.inc
