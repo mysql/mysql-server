@@ -108,7 +108,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
     cb_args[0] = Null(); // no error
     /* ListObjects has returned tables in all databases; 
        we need to filter here on database name. */
-    int stack[list.count];
+    int * stack = new int[list.count];
     unsigned int nmatch = 0;
     for(unsigned i = 0; i < list.count ; i++) {
       if(strcmp(arg1, list.elements[i].database) == 0) {
@@ -122,6 +122,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
       cb_list->Set(i, String::New(list.elements[stack[i]].name));
     }
     cb_args[1] = cb_list;
+    delete[] stack;
   }
   callback->Call(ctx, 2, cb_args);
 }
