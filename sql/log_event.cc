@@ -3124,11 +3124,19 @@ err:
   {
     DBUG_ASSERT(!worker);
 
-    // destroy buffered events of the current group prior to exit
+    /*
+      Destroy all deferred buffered events but the current prior to exit.
+      The current one will be deleted as an event never destined/assigned
+      to any Worker in Coordinator's regular execution path.
+    */
     for (uint k= 0; k < rli->curr_group_da.elements; k++)
-    { 
-      delete *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+    {
+      Log_event *ev_buf=
+        *(Log_event**) dynamic_array_ptr(&rli->curr_group_da, k);
+      if (this != ev_buf)
+        delete ev_buf;
     }
+    rli->curr_group_da.elements= 0;
   }
   else
   {
