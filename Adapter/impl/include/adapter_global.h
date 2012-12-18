@@ -24,4 +24,11 @@
 
 #define UNIFIED_DEBUG 1
 
+#ifdef WIN32
+#define __func__ __FUNCTION__
+#define strcasecmp _stricmp
+#define strncasecmp _strnicmp
+#endif
+
+
 #endif
