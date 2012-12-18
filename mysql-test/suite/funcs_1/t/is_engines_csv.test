@@ -9,7 +9,6 @@
 #
 
 let $engine_type= CSV;
---source include/have_csv.inc
 --vertical_results
 eval SELECT * FROM information_schema.engines
 WHERE ENGINE = '$engine_type';
