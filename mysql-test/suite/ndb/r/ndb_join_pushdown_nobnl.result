@@ -89,6 +89,10 @@ EXPLAIN
             "PRIMARY"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a",
+            "b"
+          ],
           "key_length": "8",
           "ref": [
             "test.t1.b",
