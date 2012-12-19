@@ -157,6 +157,7 @@ mySTL/algorithm\.hpp: is used uninitialized in this function
 # Groff warnings on OpenSUSE.
 #
 .*/dbug/.*(groff|<standard input>) : .*
+.*groff.* : vertical spacing must be greater than
 
 #
 # Warnings on OpenSolaris
