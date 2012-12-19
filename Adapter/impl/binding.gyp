@@ -1,18 +1,10 @@
-
-# Options from top level wscript:
-# --mysql, --interactive
-
-# my_lib = mysql_path + "/lib/"
-# my_inc = mysql_path + "/include/"
-# IF mysql exists under my_lib THEN my_lib += "mysql"
-# IF mysql/mysql.h exists under my_inc THEN my_inc += "mysql/"
-# ndb_inc is my_inc + "/storage/ndb"
-
-# Then we recurse to 
-
-# We set CPPPATH to my_inc + ndb_inc + ndb_inc+"/ndbapi" + "../include"
-# We set CXXFLAGS to -Wall
-# We set LIBPATH to my_lib
+# Some help:
+#  Microsoft linker options:  
+#     http://msdn.microsoft.com/en-us/library/4khtbfyf.aspx
+#  
+#  Misc.:
+#     https://github.com/mapnik/node-mapnik/issues/74 --  /FORCE:MULTIPLE
+#     https://github.com/TooTallNate/node-gyp/wiki/%22binding.gyp%22-files-out-in-the-wild
 
 {
  
