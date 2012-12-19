@@ -11345,7 +11345,14 @@ ha_innobase::check(
 
 		prebuilt->select_lock_type = LOCK_NONE;
 
-		if (!row_check_index_for_mysql(prebuilt, index, &n_rows)) {
+		bool check_result = row_check_index_for_mysql(prebuilt, index, &n_rows);
+		DBUG_EXECUTE_IF(
+			"dict_set_index_corrupted",
+			if (!(index->type & DICT_CLUSTERED)) {
+				check_result = false;
+			});
+
+		if (!check_result) {
 			innobase_format_name(
 				index_name, sizeof index_name,
 				index->name, TRUE);

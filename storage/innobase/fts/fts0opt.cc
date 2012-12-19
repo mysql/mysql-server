@@ -2826,8 +2826,8 @@ fts_is_sync_needed(
 	const ib_vector_t*	tables)		/*!< in: registered tables
 						vector*/
 {
-	ulint		total_memory = 0;
-	ulint		time_diff = difftime(ut_time(), last_check_sync_time);
+	ulint	total_memory = 0;
+	double	time_diff = difftime(ut_time(), last_check_sync_time);
 
 	if (fts_need_sync || time_diff < 5) {
 		return(false);
