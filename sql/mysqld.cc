@@ -1729,12 +1729,6 @@ bool gtid_server_init()
   return res;
 }
 
-#ifndef MCP_BUG14798275
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-extern int ndbcluster_binlog_end(THD*);
-#endif
-#endif
-
 
 void clean_up(bool print_message)
 {
@@ -1753,23 +1747,6 @@ void clean_up(bool print_message)
   */
   sql_print_information("Binlog end");
   ha_binlog_end(current_thd);
-#ifndef MCP_BUG14798275
-#ifdef WITH_NDBCLUSTER_STORAGE_ENGINE
-#ifdef EMBEDDED_LIBRARY
-  /*
-     In embedded compile the ha_binlog_end call above is #ifdefed
-     away and thus global server variables are destroyed before
-     plugins(i.e ndbcluster) have stopped using them(since plugins
-     are not notified of the shutdown until plugin_shutdown).
-
-     NOTE! ndbcluster have two threads whith THD objects(and
-     all related resources) which will run various code while
-     being destroyed.
-  */
-  (void)ndbcluster_binlog_end(current_thd);
-#endif
-#endif
-#endif
 
   logger.cleanup_base();
 
