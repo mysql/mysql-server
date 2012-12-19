@@ -9,8 +9,6 @@
 #  Do not use any TAB characters for whitespace.
 #
 ##############################################################################
-ndb_partition_list: Bug#14827952 PARTITION BY LIST AND RANGE FAILS TO PRUNE
-ndb_partition_range: Bug#14827952 PARTITION BY LIST AND RANGE FAILS TO PRUNE
 ndb_partition_error2 : Bug#40989 ndb_partition_error2 needs maintenance
 
 # the below testcase have been reworked to avoid the bug, test contains comment, keep bug open
