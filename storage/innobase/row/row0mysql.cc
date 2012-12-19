@@ -2521,7 +2521,7 @@ row_table_add_foreign_constraints(
 
 	if (err == DB_SUCCESS) {
 		/* Check that also referencing constraints are ok */
-		err = dict_load_foreigns(name, FALSE, TRUE);
+		err = dict_load_foreigns(name, NULL, false, true);
 	}
 
 	if (err != DB_SUCCESS) {
@@ -4977,7 +4977,8 @@ end:
 		an ALTER, not in a RENAME. */
 
 		err = dict_load_foreigns(
-			new_name, FALSE, !old_is_tmp || trx->check_foreigns);
+			new_name, NULL,
+			false, !old_is_tmp || trx->check_foreigns);
 
 		if (err != DB_SUCCESS) {
 			ut_print_timestamp(stderr);

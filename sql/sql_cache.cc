@@ -4029,14 +4029,13 @@ my_bool Query_cache::move_by_type(uchar **border,
   case Query_cache_block::RESULT:
   {
     DBUG_PRINT("qcache", ("block 0x%lx RES* (%d)", (ulong) block,
-			(int) block->type));
+               (int) block->type));
     if (*border == 0)
       break;
-    Query_cache_block *query_block = block->result()->parent(),
-		      *next = block->next,
-		      *prev = block->prev;
-    Query_cache_block::block_type type = block->type;
+    Query_cache_block *query_block= block->result()->parent();
     BLOCK_LOCK_WR(query_block);
+    Query_cache_block *next= block->next, *prev= block->prev;
+    Query_cache_block::block_type type= block->type;
     ulong len = block->length, used = block->used;
     Query_cache_block *pprev = block->pprev,
 		      *pnext = block->pnext,

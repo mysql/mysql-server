@@ -3114,40 +3114,26 @@ will not be committed.
 @return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
-row_merge_rename_tables(
-/*====================*/
+row_merge_rename_tables_dict(
+/*=========================*/
 	dict_table_t*	old_table,	/*!< in/out: old table, renamed to
 					tmp_name */
 	dict_table_t*	new_table,	/*!< in/out: new table, renamed to
 					old_table->name */
 	const char*	tmp_name,	/*!< in: new name for old_table */
-	trx_t*		trx)		/*!< in: transaction handle */
+	trx_t*		trx)		/*!< in/out: dictionary transaction */
 {
 	dberr_t		err	= DB_ERROR;
 	pars_info_t*	info;
-	char		old_name[MAX_FULL_NAME_LEN + 1];
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(old_table != new_table);
 	ut_ad(mutex_own(&dict_sys->mutex));
 	ut_a(trx->dict_operation_lock_mode == RW_X_LATCH);
-	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE);
-
-	/* store the old/current name to an automatic variable */
-	if (strlen(old_table->name) + 1 <= sizeof(old_name)) {
-		memcpy(old_name, old_table->name, strlen(old_table->name) + 1);
-	} else {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Too long table name: '%s', max length is %d",
-			old_table->name, MAX_FULL_NAME_LEN);
-		ut_error;
-	}
+	ut_ad(trx_get_dict_operation(trx) == TRX_DICT_OP_TABLE
+	      || trx_get_dict_operation(trx) == TRX_DICT_OP_INDEX);
 
 	trx->op_info = "renaming tables";
-
-	DBUG_EXECUTE_IF(
-		"ib_rebuild_cannot_rename",
-		err = DB_ERROR; goto err_exit;);
 
 	/* We use the private SQL parser of Innobase to generate the query
 	graphs needed in updating the dictionary data in system tables. */
@@ -3155,7 +3141,7 @@ row_merge_rename_tables(
 	info = pars_info_create();
 
 	pars_info_add_str_literal(info, "new_name", new_table->name);
-	pars_info_add_str_literal(info, "old_name", old_name);
+	pars_info_add_str_literal(info, "old_name", old_table->name);
 	pars_info_add_str_literal(info, "tmp_name", tmp_name);
 
 	err = que_eval_sql(info,
@@ -3200,11 +3186,12 @@ row_merge_rename_tables(
 	table is in a non-system tablespace where space > 0. */
 	if (err == DB_SUCCESS && new_table->space != TRX_SYS_SPACE) {
 		/* Make pathname to update SYS_DATAFILES. */
-		char* old_path = row_make_new_pathname(new_table, old_name);
+		char* old_path = row_make_new_pathname(
+			new_table, old_table->name);
 
 		info = pars_info_create();
 
-		pars_info_add_str_literal(info, "old_name", old_name);
+		pars_info_add_str_literal(info, "old_name", old_table->name);
 		pars_info_add_str_literal(info, "old_path", old_path);
 		pars_info_add_int4_literal(info, "new_space",
 					   (lint) new_table->space);
@@ -3223,75 +3210,9 @@ row_merge_rename_tables(
 		mem_free(old_path);
 	}
 
-	if (err != DB_SUCCESS) {
-		goto err_exit;
-	}
-
-	/* Generate the redo logs for file operations */
-	fil_mtr_rename_log(old_table->space, old_name,
-			   new_table->space, new_table->name, tmp_name);
-
-	/* What if the redo logs are flushed to disk here?  This is
-	tested with following crash point */
-	DBUG_EXECUTE_IF("bug14669848_precommit", log_buffer_flush_to_disk();
-			DBUG_SUICIDE(););
-
-	/* File operations cannot be rolled back.  So, before proceeding
-	with file operations, commit the dictionary changes.*/
-	trx_commit_for_mysql(trx);
-
-	/* If server crashes here, the dictionary in InnoDB and MySQL
-	will differ.  The .ibd files and the .frm files must be swapped
-	manually by the administrator. No loss of data. */
-	DBUG_EXECUTE_IF("bug14669848", DBUG_SUICIDE(););
-
-	/* Ensure that the redo logs are flushed to disk.  The config
-	innodb_flush_log_at_trx_commit must not affect this. */
-	log_buffer_flush_to_disk();
-
-	/* The following calls will also rename the .ibd data files if
-	the tables are stored in a single-table tablespace */
-
-	err = dict_table_rename_in_cache(old_table, tmp_name, FALSE);
-
-	if (err == DB_SUCCESS) {
-
-		ut_ad(dict_table_is_discarded(old_table)
-		      == dict_table_is_discarded(new_table));
-
-		err = dict_table_rename_in_cache(new_table, old_name, FALSE);
-
-		if (err != DB_SUCCESS) {
-
-			if (dict_table_rename_in_cache(
-					old_table, old_name, FALSE)
-			    != DB_SUCCESS) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Cannot undo the rename in cache "
-					"from %s to %s", old_name, tmp_name);
-			}
-
-			goto err_exit;
-		}
-
-		if (dict_table_is_discarded(new_table)) {
-
-			err = row_import_update_discarded_flag(
-				trx, new_table->id, true, true);
-		}
-	}
-
-	DBUG_EXECUTE_IF("ib_rebuild_cannot_load_fk",
-			err = DB_ERROR; goto err_exit;);
-
-	err = dict_load_foreigns(old_name, FALSE, TRUE);
-
-	if (err != DB_SUCCESS) {
-err_exit:
-		trx->error_state = DB_SUCCESS;
-		trx_rollback_to_savepoint(trx, NULL);
-		trx->error_state = DB_SUCCESS;
+	if (err == DB_SUCCESS && dict_table_is_discarded(new_table)) {
+		err = row_import_update_discarded_flag(
+			trx, new_table->id, true, true);
 	}
 
 	trx->op_info = "";

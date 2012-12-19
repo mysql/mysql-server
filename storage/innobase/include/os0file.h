@@ -904,8 +904,8 @@ os_file_status(
 The function os_file_dirname returns a directory component of a
 null-terminated pathname string.  In the usual case, dirname returns
 the string up to, but not including, the final '/', and basename
-is the component following the final '/'.  Trailing '/' charac­
-ters are not counted as part of the pathname.
+is the component following the final '/'.  Trailing '/' characters
+are not counted as part of the pathname.
 
 If path does not contain a slash, dirname returns the string ".".
 
