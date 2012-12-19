@@ -2,10 +2,8 @@
 # WL#6560: InnoDB: separate tablespace for innodb-temp-tables.
 #
 
-
 --source include/have_innodb.inc
 --source include/have_debug.inc
-
 # Valgrind would complain about memory leaks when we crash on purpose.
 --source include/not_valgrind.inc
 # Embedded server does not support crashing
@@ -16,24 +14,28 @@
 call mtr.add_suppression("Please add another temp-data file or use 'autoextend' for the last data file");
 call mtr.add_suppression("The table 't1' is full");
 
+################################################################################
 #
 # Will test following scenarios:
-# 1. creation of shared temp-tablespace.
-# 2. ddl + dml operation involving temp-tablespace.
-#    insert/delete/update/select
-#    create/drop/alter/truncate/import-discard (though blocked).
-# 3. ddl + dml operation on compressed table.
-#    (table doesn't reside in shared temp-tablespace).
-# 4. Test bulk-loading that result in auto-extension of temp-tablespace.
-# 5. re-creation of temp-tablespace on re-start.
-#    also to ensure non-existence of existing temp-table.
-# 6. hit a crash point during tablespace creation to ensure temp-table
-#    is recovered correctly.
-# 7. restart server in innodb-read-only mode. this will also
-#    block creation of temp-tables.
-# 8. try starting server with shared and temp-tablespace filename same.
-# 9. try re-starting server with param so that temp-tablespace can't be expanded
-#    and insert enough data to make it full.
+# 1.  creation of shared temp-tablespace.
+# 2.  ddl + dml operation involving temp-tablespace.
+#     insert/delete/update/select
+#     create/drop/alter/truncate/import-discard (though blocked).
+# 3.  ddl + dml operation on compressed table.
+#     (table doesn't reside in shared temp-tablespace).
+# 4.  Test bulk-loading that result in auto-extension of temp-tablespace.
+# 5.  re-creation of temp-tablespace on re-start.
+#     also to ensure non-existence of existing temp-table.
+# 6.  hit a crash point during tablespace creation to ensure temp-table
+#     is recovered correctly.
+# 7.  restart server in innodb-read-only mode. this will also
+#     block creation of temp-tables.
+# 8.  try starting server with shared and temp-tablespace filename same.
+# 9.  try re-starting server with param so that temp-tablespace can't be
+#     expanded and insert enough data to make it full.
+# 10. test compressed table creation. if table is not compressed it will use
+#     server temp tablespace.
+################################################################################
 
 #-----------------------------------------------------------------------------
 #
@@ -88,7 +90,7 @@ drop table t1;
 #
 --echo #files in MYSQL_TMP_DIR
 --list_files $MYSQL_TMP_DIR/ *.ibd
-set global innodb_file_per_table = on;
+set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
 select @@global.innodb_file_per_table;
 create temporary table t1
@@ -260,6 +262,47 @@ drop table t1;
 
 #-----------------------------------------------------------------------------
 #
+# 10. test compressed table creation. if table is not compressed it will use
+#     server temp tablespace.
+#
+--disable_warnings
+use test;
+set global innodb_file_per_table = 0;
+set global innodb_file_format = 'Antelope';
+create temporary table t (
+	i int)
+	engine = innodb row_format = compressed;
+--replace_regex /[0-9]+/NUMBER/
+show warnings;
+drop table t;
+create temporary table t (
+	i int)
+	engine = innodb row_format = compressed key_block_size = 8;
+--replace_regex /[0-9]+/NUMBER/
+show warnings;
+drop table t;
+set global innodb_file_per_table = 1;
+create temporary table t (
+	i int)
+	engine = innodb row_format = compressed key_block_size = 8;
+--replace_regex /[0-9]+/NUMBER/
+show warnings;
+drop table t;
+set global innodb_file_format = 'Barracuda';
+create temporary table t (
+	i int)
+	engine = innodb row_format = compressed key_block_size = 8;
+--replace_regex /[0-9]+/NUMBER/
+show warnings;
+--echo #files in MYSQL_TMP_DIR
+--replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
+--list_files $MYSQL_TMP_DIR/ *.ibd
+drop table t;
+
+
+#-----------------------------------------------------------------------------
+#
 # remove test-bed
 #
+
 
