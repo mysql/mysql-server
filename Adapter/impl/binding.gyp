@@ -5,6 +5,7 @@
 #  Misc.:
 #     https://github.com/mapnik/node-mapnik/issues/74 --  /FORCE:MULTIPLE
 #     https://github.com/TooTallNate/node-gyp/wiki/%22binding.gyp%22-files-out-in-the-wild
+#     https://github.com/TooTallNate/node-gyp/blob/master/addon.gypi
 
 {
  
@@ -42,21 +43,19 @@
          "src/NdbOperation_wrapper.cpp"
       ],
 
-      'libraries':
-      [
-        "-lndbclient",
-        "-lmysqlclient"
-      ],
-
       'conditions': 
       [
         ['OS=="win"', 
           # Windows 
           {
+            'libraries':
+            [
+              '-l<(node_root_dir)/$(Configuration)/node.lib',
+              '-l<(mysql_path)/lib/ndbclient.lib',
+              '-l<(mysql_path)/lib/mysqlclient.lib',
+            ]
             'msvs_settings':
             {
-              'VCLinkerTool':
-                { 'AdditionalLibraryDirectories' : "<(mysql_path)/lib" }
             }
           },
           # Not Windows
@@ -68,6 +67,8 @@
             'libraries':
             [
               "-L<(mysql_path)/lib",
+              "-lndbclient",
+              "-lmysqlclient"
             ]
           }
         ]
