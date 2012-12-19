@@ -1,4 +1,8 @@
+set global innodb_file_per_table = 0;
 create temporary table t1 (i int) engine = innodb;
+select count(*) from information_schema.innodb_temp_table_stats;
+count(*)
+1
 insert into t1 values (1), (2), (3), (4);
 select * from t1;
 i
@@ -11,6 +15,9 @@ i
 4
 drop table t1;
 create temporary table t1 (i int) engine = innodb;
+select count(*) from information_schema.innodb_temp_table_stats;
+count(*)
+1
 insert into t1 values (1), (2), (3), (4);
 select * from t1;
 i
@@ -33,6 +40,9 @@ i
 select * from t2 where i = 4;
 i
 4
+select count(*) from information_schema.innodb_temp_table_stats;
+count(*)
+1
 drop table t2;
 create temporary table t1 (i int, primary key pk(i)) engine = innodb;
 insert into t1 values (1), (2), (3), (4);
@@ -45,9 +55,10 @@ i
 select * from t1 where i = 4;
 i
 4
+select count(*) from information_schema.innodb_temp_table_stats;
+count(*)
+1
 drop table t1;
-select * from information_schema.innodb_sys_tables where name like 'test/t%';
-TABLE_ID	NAME	FLAG	N_COLS	SPACE	FILE_FORMAT	ROW_FORMAT	ZIP_PAGE_SIZE
 create temporary table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc)) engine = innodb;
@@ -141,8 +152,9 @@ select * from t1 where t1_f > 2.2;
 ERROR 42S22: Unknown column 't1_f' in 'where clause'
 alter table t1 add index sec_index2(t1_c), algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
-select * from information_schema.innodb_sys_fields where name like 't1_%';
-INDEX_ID	NAME	POS
+select count(*) from information_schema.innodb_temp_table_stats;
+count(*)
+1
 drop table t1;
 create temporary table t1 (i int, f float) engine = innodb;
 insert into t1 values (10, 1.1), (20, 2.2);
@@ -155,6 +167,7 @@ ERROR HY000: Cannot DISCARD/IMPORT tablespace associated with temporary table
 alter table t1 import tablespace;
 ERROR HY000: Cannot DISCARD/IMPORT tablespace associated with temporary table
 drop table t1;
+set global innodb_file_per_table = 1;
 call mtr.add_suppression("No space left on device");
 call mtr.add_suppression("table.+ full");
 call mtr.add_suppression("Cannot create file");
@@ -180,3 +193,4 @@ create temporary table t1
 (a int, b int, primary key(a), index(b)) engine = innodb;
 insert into t1 values (10, 11);
 drop table t1;
+set global innodb_file_per_table=1;
