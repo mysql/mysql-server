@@ -48,6 +48,13 @@ Full Text Search interface
 a configurable variable */
 UNIV_INTERN ulong	fts_max_cache_size;
 
+/** Whether the total memory used for FTS cache is exhausted, and we will
+need a sync to free some memory */
+UNIV_INTERN bool	fts_need_sync = false;
+
+/** Variable specifying the total memory allocated for FTS cache */
+UNIV_INTERN ulong	fts_max_total_cache_size;
+
 /** Variable specifying the maximum FTS max token size */
 UNIV_INTERN ulong	fts_max_token_size;
 
@@ -1116,6 +1123,8 @@ fts_cache_clear(
 
 	mem_heap_free(static_cast<mem_heap_t*>(cache->sync_heap->arg));
 	cache->sync_heap->arg = NULL;
+
+	fts_need_sync = false;
 
 	cache->total_size = 0;
 	cache->deleted_doc_ids = NULL;
@@ -3416,7 +3425,8 @@ fts_add_doc_by_id(
 
 				rw_lock_x_unlock(&table->fts->cache->lock);
 
-				if (cache->total_size > fts_max_cache_size) {
+				if (cache->total_size > fts_max_cache_size
+				    || fts_need_sync) {
 					fts_sync(cache->sync);
 				}
 
