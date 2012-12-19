@@ -1,7 +1,5 @@
 call mtr.add_suppression("Please add another temp-data file or use 'autoextend' for the last data file");
 call mtr.add_suppression("The table 't1' is full");
-set @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
-set @global_innodb_file_format_orig= @@global.innodb_file_format;
 set global innodb_file_per_table = off;
 # files in MYSQL_DATA_DIR
 ibtmp1
@@ -194,7 +192,7 @@ alter table t1 discard tablespace;
 ERROR HY000: Cannot DISCARD/IMPORT tablespace associated with temporary table
 drop table t1;
 set global innodb_file_per_table = off;
-set global innodb_file_format = @global_innodb_file_format_orig;
+set global innodb_file_format = Antelope;
 create temporary table t1
 (keyc int, c1 char(100), c2 char(100),
 primary key(keyc)) engine = innodb;
@@ -331,3 +329,46 @@ Level	Code	Message
 #files in MYSQL_TMP_DIR
 #sql<temporary>.ibd
 drop table t;
+create temporary table t (
+i int)
+engine = innodb row_format = compressed;
+show warnings;
+Level	Code	Message
+#files in MYSQL_TMP_DIR
+#sql<temporary>.ibd
+drop table t;
+create temporary table t (
+i int)
+engine = innodb row_format = dynamic;
+show warnings;
+Level	Code	Message
+#files in MYSQL_TMP_DIR
+#sql<temporary>.ibd
+drop table t;
+#files in MYSQL_TMP_DIR
+create temporary table t (
+i int)
+engine = innodb row_format = dynamic key_block_size = 4;
+show warnings;
+Level	Code	Message
+Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER unless ROW_FORMAT=COMPRESSED.
+#files in MYSQL_TMP_DIR
+#sql<temporary>.ibd
+drop table t;
+create temporary table t (
+i int)
+engine = innodb row_format = compact;
+show warnings;
+Level	Code	Message
+#files in MYSQL_TMP_DIR
+drop table t;
+create temporary table t (
+i int)
+engine = innodb key_block_size = 4;
+show warnings;
+Level	Code	Message
+#files in MYSQL_TMP_DIR
+#sql<temporary>.ibd
+drop table t;
+set global innodb_file_format = Antelope;
+set global innodb_file_per_table = 1;
