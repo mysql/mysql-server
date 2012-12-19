@@ -4184,8 +4184,6 @@ struct temp_table_info_t{
 	char		m_is_compressed[64];
 };
 
-#define MAX_TEMP_TABLE_ENTRIES	1000
-
 /*******************************************************************//**
 Fill Information Schema table INNODB_TEMP_TABLE_STATS for a particular
 temp-table
@@ -4230,10 +4228,10 @@ i_s_innodb_temp_table_stats_fill(
 Populate current table information to cache */
 static
 void
-i_s_innodb_temp_table_populate_cache(
-/*=================================*/
-	const dict_table_t*	table,	/*! in: table */
-	temp_table_info_t*	cache)	/*! in/out: populate data in this
+innodb_temp_table_populate_cache(
+/*=============================*/
+	const dict_table_t*	table,  /*! in: table */
+	temp_table_info_t*	cache)  /*! in/out: populate data in this
 					cache */
 {
 	cache->m_table_id = table->id;
@@ -4272,7 +4270,7 @@ i_s_innodb_temp_table_stats_fill_table(
 	Item*		)		/*!< in: condition (ignored) */
 {
 	int			status	= 0;
-	temp_table_info_t*	temp_table_info_cache;
+	temp_table_info_t	temp_table_info_cache;
 	dict_table_t*		table 	= NULL;
 
 	DBUG_ENTER("i_s_innodb_temp_table_stats_fill_table");
@@ -4282,33 +4280,26 @@ i_s_innodb_temp_table_stats_fill_table(
 		DBUG_RETURN(0);
 	}
 
-	temp_table_info_cache = (temp_table_info_t*) mem_zalloc(
-			MAX_TEMP_TABLE_ENTRIES * sizeof *temp_table_info_cache);
-
-	ulint n = 0;
 	/* Scan only non-LRU list as all temp-tables are added to
 	non-LRU list. */
+	mutex_enter(&dict_sys->mutex);
         for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
-             table != NULL && n < MAX_TEMP_TABLE_ENTRIES;
+             table != NULL;
              table = UT_LIST_GET_NEXT(table_LRU, table)) {
 
 		if (!dict_table_is_temporary(table))
 			continue;
 
-		i_s_innodb_temp_table_populate_cache(
-			table, &temp_table_info_cache[n]);
+		innodb_temp_table_populate_cache(
+			table, &temp_table_info_cache);
 
 		status = i_s_innodb_temp_table_stats_fill(
-				thd, tables, &temp_table_info_cache[n]);
-
+				thd, tables, &temp_table_info_cache);
 		if (status) {
 			break;
 		}
-
-		n++;
         }
-
-	mem_free(temp_table_info_cache);
+	mutex_exit(&dict_sys->mutex);
 
 	DBUG_RETURN(status);
 }
