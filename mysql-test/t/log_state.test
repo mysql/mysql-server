@@ -2,7 +2,6 @@
 #
 
 --source include/not_embedded.inc
---source include/have_csv.inc
 
 # Several subtests modify global variables. Save the initial values only here,
 # but reset to the initial values per subtest.

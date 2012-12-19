@@ -2411,7 +2411,7 @@ err_exit:
 	if (!cached || table->ibd_file_missing) {
 		/* Don't attempt to load the indexes from disk. */
 	} else if (err == DB_SUCCESS) {
-		err = dict_load_foreigns(table->name, TRUE, TRUE);
+		err = dict_load_foreigns(table->name, NULL, true, true);
 
 		if (err != DB_SUCCESS) {
 			dict_table_remove_from_cache(table);
@@ -2710,18 +2710,22 @@ dict_load_foreign_cols(
 /***********************************************************************//**
 Loads a foreign key constraint to the dictionary cache.
 @return	DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((nonnull(1), warn_unused_result))
 dberr_t
 dict_load_foreign(
 /*==============*/
 	const char*	id,	/*!< in: foreign constraint id, must be
 				'\0'-terminated */
-	ibool		check_charsets,
-				/*!< in: TRUE=check charset compatibility */
-	ibool		check_recursive)
-				/*!< in: Whether to record the foreign table
+	const char**	col_names,
+				/*!< in: column names, or NULL
+				to use foreign->foreign_table->col_names */
+	bool		check_recursive,
+				/*!< in: whether to record the foreign table
 				parent count to avoid unlimited recursive
 				load of chained foreign tables */
+	bool		check_charsets)
+				/*!< in: whether to check charset
+				compatibility */
 {
 	dict_foreign_t*	foreign;
 	dict_table_t*	sys_foreign;
@@ -2890,7 +2894,7 @@ dict_load_foreign(
 	a new foreign key constraint but loading one from the data
 	dictionary. */
 
-	return(dict_foreign_add_to_cache(foreign, check_charsets));
+	return(dict_foreign_add_to_cache(foreign, col_names, check_charsets));
 }
 
 /***********************************************************************//**
@@ -2905,9 +2909,11 @@ dberr_t
 dict_load_foreigns(
 /*===============*/
 	const char*	table_name,	/*!< in: table name */
-	ibool		check_recursive,/*!< in: Whether to check recursive
+	const char**	col_names,	/*!< in: column names, or NULL to use
+					table->col_names */
+	bool		check_recursive,/*!< in: Whether to check recursive
 					load of tables chained by FK */
-	ibool		check_charsets)	/*!< in: TRUE=check charset
+	bool		check_charsets)	/*!< in: whether to check charset
 					compatibility */
 {
 	char		tuple_buf[DTUPLE_EST_ALLOC(1)];
@@ -2991,13 +2997,12 @@ loop:
 	may not be the same case, but the previous comparison showed that they
 	match with no-case.  */
 
-	if ((innobase_get_lower_case_table_names() != 2)
-	    && (0 != ut_memcmp(field, table_name, len))) {
+	if (rec_get_deleted_flag(rec, 0)) {
 		goto next_rec;
 	}
 
-	if (rec_get_deleted_flag(rec, 0)) {
-
+	if ((innobase_get_lower_case_table_names() != 2)
+	    && (0 != ut_memcmp(field, table_name, len))) {
 		goto next_rec;
 	}
 
@@ -3019,7 +3024,8 @@ loop:
 
 	/* Load the foreign constraint definition to the dictionary cache */
 
-	err = dict_load_foreign(fk_id, check_charsets, check_recursive);
+	err = dict_load_foreign(fk_id, col_names,
+				check_recursive, check_charsets);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);

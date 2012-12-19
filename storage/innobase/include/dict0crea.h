@@ -161,6 +161,20 @@ dberr_t
 dict_create_or_check_foreign_constraint_tables(void);
 /*================================================*/
 /********************************************************************//**
+Generate a foreign key constraint name when it was not named by the user.
+A generated constraint has a name of the format dbname/tablename_ibfk_NUMBER,
+where the numbers start from 1, and are given locally for this table, that is,
+the number is not global, as it used to be before MySQL 4.0.18.  */
+UNIV_INLINE
+void
+dict_create_add_foreign_id(
+/*=======================*/
+	ulint*		id_nr,	/*!< in/out: number to use in id generation;
+				incremented if used */
+	const char*	name,	/*!< in: table name */
+	dict_foreign_t*	foreign)/*!< in/out: foreign key */
+	__attribute__((nonnull));
+/********************************************************************//**
 Adds foreign key definitions to data dictionary tables in the database. We
 look at table->foreign_list, and also generate names to constraints that were
 not named by the user. A generated constraint has a name of the format
@@ -208,25 +222,15 @@ dict_create_add_tablespace_to_dictionary(
 	bool		commit);	/*!< in: if true then commit the
 					transaction */
 /********************************************************************//**
-Table create node structure */
-
-/********************************************************************//**
-Add a single foreign key definition to the data dictionary tables in the
-database. We also generate names to constraints that were not named by the
-user. A generated constraint has a name of the format
-databasename/tablename_ibfk_NUMBER, where the numbers start from 1, and
-are given locally for this table, that is, the number is not global, as in
-the old format constraints < 4.0.18 it used to be.
-@return error code or DB_SUCCESS */
+Add a foreign key definition to the data dictionary tables.
+@return	error code or DB_SUCCESS */
 UNIV_INTERN
 dberr_t
 dict_create_add_foreign_to_dictionary(
 /*==================================*/
-	ulint*		id_nr,	/*!< in/out: number to use in id generation;
-				incremented if used */
-	dict_table_t*	table,	/*!< in: table */
-	dict_foreign_t*	foreign,/*!< in: foreign */
-	trx_t*		trx)	/*!< in/out: dictionary transaction */
+	const char*		name,	/*!< in: table name */
+	const dict_foreign_t*	foreign,/*!< in: foreign key */
+	trx_t*			trx)	/*!< in/out: dictionary transaction */
 	__attribute__((nonnull, warn_unused_result));
 
 /* Table create node structure */
