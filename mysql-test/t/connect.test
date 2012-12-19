@@ -5,10 +5,6 @@
 # This test makes no sense with the embedded server
 --source include/not_embedded.inc
 
-# check that CSV engine was compiled in, as the test relies on the presence
-# of the log tables (which are CSV-based). By connect mysql; show tables;
---source include/have_csv.inc
-
 # Save the initial number of concurrent sessions
 --source include/count_sessions.inc
 

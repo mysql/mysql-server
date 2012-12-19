@@ -2975,7 +2975,6 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
                         tables_used->engine_data))
         DBUG_RETURN(0);
 
-#ifdef WITH_MYISAMMRG_STORAGE_ENGINE      
       /*
         XXX FIXME: Some generic mechanism is required here instead of this
         MYISAMMRG-specific implementation.
@@ -3003,7 +3002,6 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
             DBUG_RETURN(0);
         }
       }
-#endif
     }
   }
   DBUG_RETURN(n - counter);
@@ -3665,7 +3663,6 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
                     "other non-cacheable table(s)"));
         DBUG_RETURN(0);
       }
-#ifdef WITH_MYISAMMRG_STORAGE_ENGINE      
       /*
         XXX FIXME: Some generic mechanism is required here instead of this
         MYISAMMRG-specific implementation.
@@ -3676,7 +3673,6 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
         MYRG_INFO *file = handler->myrg_info();
         table_count+= (file->end_table - file->open_tables);
       }
-#endif
     }
   }
   DBUG_RETURN(table_count);
@@ -4033,14 +4029,13 @@ my_bool Query_cache::move_by_type(uchar **border,
   case Query_cache_block::RESULT:
   {
     DBUG_PRINT("qcache", ("block 0x%lx RES* (%d)", (ulong) block,
-			(int) block->type));
+               (int) block->type));
     if (*border == 0)
       break;
-    Query_cache_block *query_block = block->result()->parent(),
-		      *next = block->next,
-		      *prev = block->prev;
-    Query_cache_block::block_type type = block->type;
+    Query_cache_block *query_block= block->result()->parent();
     BLOCK_LOCK_WR(query_block);
+    Query_cache_block *next= block->next, *prev= block->prev;
+    Query_cache_block::block_type type= block->type;
     ulong len = block->length, used = block->used;
     Query_cache_block *pprev = block->pprev,
 		      *pnext = block->pnext,
