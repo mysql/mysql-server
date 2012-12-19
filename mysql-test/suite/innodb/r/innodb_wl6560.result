@@ -95,7 +95,7 @@ alter table t1 import tablespace;
 ERROR HY000: Cannot DISCARD/IMPORT tablespace associated with temporary table
 drop table t1;
 #files in MYSQL_TMP_DIR
-set global innodb_file_per_table = on;
+set global innodb_file_per_table = 1;
 set global innodb_file_format = 'Barracuda';
 select @@global.innodb_file_per_table;
 @@global.innodb_file_per_table
@@ -288,3 +288,46 @@ call populate_t1();
 ERROR HY000: The table 't1' is full
 drop procedure populate_t1;
 drop table t1;
+use test;
+set global innodb_file_per_table = 0;
+set global innodb_file_format = 'Antelope';
+create temporary table t (
+i int)
+engine = innodb row_format = compressed;
+show warnings;
+Level	Code	Message
+Warning	NUMBER	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	NUMBER	InnoDB: assuming ROW_FORMAT=COMPACT.
+drop table t;
+create temporary table t (
+i int)
+engine = innodb row_format = compressed key_block_size = 8;
+show warnings;
+Level	Code	Message
+Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+Warning	NUMBER	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	NUMBER	InnoDB: assuming ROW_FORMAT=COMPACT.
+drop table t;
+set global innodb_file_per_table = 1;
+create temporary table t (
+i int)
+engine = innodb row_format = compressed key_block_size = 8;
+show warnings;
+Level	Code	Message
+Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
+Warning	NUMBER	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
+Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
+Warning	NUMBER	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
+Warning	NUMBER	InnoDB: assuming ROW_FORMAT=COMPACT.
+drop table t;
+set global innodb_file_format = 'Barracuda';
+create temporary table t (
+i int)
+engine = innodb row_format = compressed key_block_size = 8;
+show warnings;
+Level	Code	Message
+#files in MYSQL_TMP_DIR
+#sql<temporary>.ibd
+drop table t;

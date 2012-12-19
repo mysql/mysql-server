@@ -9390,14 +9390,26 @@ innobase_table_is_noncompressed_temporary(
 	HA_CREATE_INFO*	create_info,	/*!< in: more information of the
 					created table, contains also the
 					create statement string */
-	TABLE*		form)		/*!< in: information on table
+	TABLE*		form,		/*!< in: information on table
 					columns and indexes */
+	bool		file_per_table)	/*!< in: reflect current
+					file_per_table status */
 {
-	return((create_info->options & HA_LEX_CREATE_TMP_TABLE)
-	       && (!((form->s->row_type == ROW_TYPE_COMPRESSED
-		      || form->s->row_type == ROW_TYPE_DYNAMIC
-		      || create_info->key_block_size)
-	       && srv_file_format >= UNIV_FORMAT_B)));
+
+	/* If you specify ROW_FORMAT=COMPRESSED but not KEY_BLOCK_SIZE,
+	the default compressed page size of 8KB is used. Setting of 8K
+	is done in innodb at latter stage during data validation.
+	MySQL will continue to report key_block_size as 0 */
+	bool is_compressed =
+		(form->s->row_type == ROW_TYPE_COMPRESSED
+		 || form->s->row_type == ROW_TYPE_DYNAMIC
+		 || create_info->key_block_size > 0)
+		&& (srv_file_format >= UNIV_FORMAT_B)
+		&& file_per_table;
+
+	bool is_temp = create_info->options & HA_LEX_CREATE_TMP_TABLE;
+
+	return (is_temp && !is_compressed);
 }
 
 
@@ -9434,7 +9446,8 @@ ha_innobase::create(
 	bool		use_tablespace = srv_file_per_table;
 
 	/* if table is non-compressed temp-table then ignore file-per-table */
-	if (innobase_table_is_noncompressed_temporary(create_info, form)) {
+	if (innobase_table_is_noncompressed_temporary(
+		create_info, form, use_tablespace)) {
 		use_tablespace = false;
 	}
 
