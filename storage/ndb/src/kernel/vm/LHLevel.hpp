@@ -460,7 +460,7 @@ inline LHBits16 LHLevelRH::reduceForSplit(LHBits32 hash_value) const
 
 inline Uint8 LHLevelRH::getNeededValidBits(Uint8 bits) const
 {
-  Uint8 const usable_bits_in_hash_value = 4 * sizeof(LHBits32) - 1; // == 31
+  Uint8 const usable_bits_in_hash_value = 8 * sizeof(LHBits32) - 1; // == 31
   return MIN(bits, usable_bits_in_hash_value - hashcheckbit());
 }
 
