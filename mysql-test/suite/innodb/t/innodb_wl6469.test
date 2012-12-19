@@ -24,12 +24,15 @@
 #
 # create test-bed.
 #
+let $per_table=`select @@innodb_file_per_table`;
+set global innodb_file_per_table = 0;
 
 #-------------------------------------------------------------
 #
 # 1. Create/Drop of temp-table. (with and w/o explicit pk)		#
 #
 create temporary table t1 (i int) engine = innodb;
+select count(*) from information_schema.innodb_temp_table_stats;
 insert into t1 values (1), (2), (3), (4);
 select * from t1;
 select * from t1 where i = 4;
@@ -37,6 +40,7 @@ drop table t1;
 #
 # recreate table wih same name to ensure entries are removed.
 create temporary table t1 (i int) engine = innodb;
+select count(*) from information_schema.innodb_temp_table_stats;
 insert into t1 values (1), (2), (3), (4);
 select * from t1;
 select * from t1 where i = 4;
@@ -46,15 +50,15 @@ create temporary table t2 (i int) engine = innodb;
 insert into t2 values (1), (2), (3), (4);
 select * from t2;
 select * from t2 where i = 4;
+select count(*) from information_schema.innodb_temp_table_stats;
 drop table t2;
 #
 create temporary table t1 (i int, primary key pk(i)) engine = innodb;
 insert into t1 values (1), (2), (3), (4);
 select * from t1;
 select * from t1 where i = 4;
+select count(*) from information_schema.innodb_temp_table_stats;
 drop table t1;
-#
-select * from information_schema.innodb_sys_tables where name like 'test/t%';
 
 #-------------------------------------------------------------
 #
@@ -121,7 +125,7 @@ select * from t1 where t1_f > 2.2;
 #
 --error ER_ALTER_OPERATION_NOT_SUPPORTED
 alter table t1 add index sec_index2(t1_c), algorithm=inplace;
-select * from information_schema.innodb_sys_fields where name like 't1_%';
+select count(*) from information_schema.innodb_temp_table_stats;
 #
 drop table t1;
 
@@ -143,6 +147,7 @@ drop table t1;
 #
 # 5. Effect of errors on temp-table (count(*) TC)
 #
+set global innodb_file_per_table = 1;
 call mtr.add_suppression("No space left on device");
 call mtr.add_suppression("table.+ full");
 call mtr.add_suppression("Cannot create file");
@@ -176,5 +181,6 @@ drop table t1;
 #
 # remove test-bed.
 #
+eval set global innodb_file_per_table=$per_table;
 
 
