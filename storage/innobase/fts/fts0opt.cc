@@ -54,6 +54,9 @@ static const ulint FTS_OPTIMIZE_INTERVAL_IN_SECS = 300;
 /** Server is shutting down, so does we exiting the optimize thread */
 static bool fts_opt_start_shutdown = false;
 
+/** Last time we did check whether system need a sync */
+static ib_time_t	last_check_sync_time;
+
 #if 0
 /** Check each table in round robin to see whether they'd
 need to be "optimized" */
@@ -2813,6 +2816,43 @@ fts_optimize_how_many(
 	return(n_tables);
 }
 
+/**********************************************************************//**
+Check if the total memory used by all FTS table exceeds the maximum limit.
+@return true if a sync is needed, false otherwise */
+static
+bool
+fts_is_sync_needed(
+/*===============*/
+	const ib_vector_t*	tables)		/*!< in: registered tables
+						vector*/
+{
+	ulint		total_memory = 0;
+	ulint		time_diff = difftime(ut_time(), last_check_sync_time);
+
+	if (fts_need_sync || time_diff < 5) {
+		return(false);
+	}
+
+	last_check_sync_time = ut_time();
+
+	for (ulint i = 0; i < ib_vector_size(tables); ++i) {
+		const fts_slot_t*	slot;
+
+		slot = static_cast<const fts_slot_t*>(
+			ib_vector_get_const(tables, i));
+
+		if (slot->table && slot->table->fts) {
+			total_memory += slot->table->fts->cache->total_size;
+		}
+
+		if (total_memory > fts_max_total_cache_size) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 #if 0
 /*********************************************************************//**
 Check whether a table needs to be optimized. */
@@ -2933,6 +2973,10 @@ fts_optimize_thread(
 
 			/* Timeout ? */
 			if (msg == NULL) {
+				if (fts_is_sync_needed(tables)) {
+					fts_need_sync = true;
+				}
+
 				continue;
 			}
 
@@ -3055,6 +3099,7 @@ fts_optimize_init(void)
 
 	fts_optimize_wq = ib_wqueue_create();
 	ut_a(fts_optimize_wq != NULL);
+	last_check_sync_time = ut_time();
 
 	os_thread_create(fts_optimize_thread, fts_optimize_wq, NULL);
 }
