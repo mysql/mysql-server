@@ -18,4 +18,5 @@ ndb_cache_trans           : Bug#42197 Query cache and autocommit
 ndb_disconnect_ddl        : Bug#31853 flaky testcase...
 
 ndb_dbug_lock : SEAGULL gsl locking order
-
+ndb_dbug_tc_select : Bug#16020945 HA_NDBCLUSTER ADAPTION TO 5.6 RBWR
+ndb_update_no_read : Bug#16020945 HA_NDBCLUSTER ADAPTION TO 5.6 RBWR
