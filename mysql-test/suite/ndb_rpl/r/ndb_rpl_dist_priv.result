@@ -116,7 +116,7 @@ master-bin.000001	#	Query	#	#	use `test`; RENAME USER 'user'@'localhost' TO 'new
 master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON `test`.* TO 'newuser'@'localhost' IDENTIFIED BY PASSWORD '*1E9649BB3F345563008E37641B407AFF50E5835C'
 master-bin.000001	#	Query	#	#	use `test`; CREATE USER 'user2'@'localhost' IDENTIFIED BY PASSWORD '*6C8989366EAF75BB670AD8EA7A7FC1176A95CEF4'
 master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON test.t1 TO 'user2'@'localhost'
-master-bin.000001	#	Query	#	#	use `test`; GRANT ALL PRIVILEGES ON `test`.* TO 'user'@'localhost' WITH GRANT OPTION
+master-bin.000001	#	Query	#	#	use `test`; grant ALL PRIVILEGES on test.* to user@localhost with GRANT OPTION
 master-bin.000001	#	Query	#	#	use `test`; GRANT SELECT ON test.t1 TO 'user'@'localhost'
 master-bin.000001	#	Query	#	#	REVOKE SELECT ON test.t1 FROM 'user'@'localhost'
 master-bin.000001	#	Query	#	#	CREATE USER 'user3'@'localhost' IDENTIFIED by 'mypass'
