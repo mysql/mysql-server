@@ -2916,7 +2916,8 @@ dict_load_foreigns(
 	bool		check_charsets)	/*!< in: whether to check charset
 					compatibility */
 {
-	char		tuple_buf[DTUPLE_EST_ALLOC(1)];
+	ulint		tuple_buf[(DTUPLE_EST_ALLOC(1) + sizeof(ulint) - 1)
+				/ sizeof(ulint)];
 	btr_pcur_t	pcur;
 	dtuple_t*	tuple;
 	dfield_t*	dfield;
