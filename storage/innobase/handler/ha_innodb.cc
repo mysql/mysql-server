@@ -2746,7 +2746,7 @@ innobase_init_abort()
 
 /*********************************************************************//**
 Opens an InnoDB database.
-@return	0 on success, error code on failure */
+@return	0 on success, 1 on failure */
 static
 int
 innobase_init(
