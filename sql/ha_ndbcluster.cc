@@ -4392,13 +4392,6 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
 #endif
 }
 
-static inline bool
-thd_allow_batch(const THD* thd)
-{
-  return (thd_options(thd) & OPTION_ALLOW_BATCH);
-}
-
-
 #ifdef HAVE_NDB_BINLOG
 
 /**
