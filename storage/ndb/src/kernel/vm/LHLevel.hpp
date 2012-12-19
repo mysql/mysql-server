@@ -129,6 +129,7 @@ private:
   LHLevelRH&  operator=(LHLevelRH const&); // Not to be implemented
 public:
   LHBits16 reduce(LHBits32 hash_value) const;
+  LHBits16 reduceForSplit(LHBits32 hash_value) const;
   Uint8 getNeededValidBits(Uint8 bits) const;
   LHBits32 enlarge(LHBits16 reduced_hash_value, Uint32 bucket_number) const;
 };
@@ -431,6 +432,27 @@ inline LHBits16 LHLevelRH::reduce(LHBits32 hash_value) const
   Uint32 addr = hash_value.get_bits(maxp());
   LHBits32 hv(hash_value);
   hv.shift_out(hashcheckbit());
+  if (addr < p())
+    hv.shift_out();
+  return LHBits16(hv);
+}
+
+inline LHBits16 LHLevelRH::reduceForSplit(LHBits32 hash_value) const
+{
+  // As reduce() with an extra bit shifted out to compansate for a
+  // coming expand().
+  // But we do it on the LHBits32-value so we do not shift out
+  // one bit from the resulting LHBits16-value needlessly.
+  assert(!isEmpty());
+
+  if (!hash_value.valid_bits(maxp()))
+    return LHBits16();
+
+  Uint32 addr = hash_value.get_bits(maxp());
+  LHBits32 hv(hash_value);
+
+  // An extra shift out compared with reduce()
+  hv.shift_out(hashcheckbit() + 1);
   if (addr < p())
     hv.shift_out();
   return LHBits16(hv);
