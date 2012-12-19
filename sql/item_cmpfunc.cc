@@ -912,7 +912,7 @@ get_datetime_value(THD *thd, Item ***item_arg, Item **cache_arg,
     if (save_arena)
       thd->set_query_arena(save_arena);
 
-    cache->store_packed(value);
+    cache->store_packed(value, item);
     *cache_arg= cache;
     *item_arg= cache_arg;
   }

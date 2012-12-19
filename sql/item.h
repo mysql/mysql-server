@@ -3799,7 +3799,7 @@ public:
   bool cache_value();
   bool get_date(MYSQL_TIME *ltime, uint fuzzydate);
   int save_in_field(Field *field, bool no_conversions);
-  void store_packed(longlong val_arg);
+  void store_packed(longlong val_arg, Item *example);
   /*
     Having a clone_item method tells optimizer that this object
     is a constant and need not be optimized further.
@@ -3808,7 +3808,7 @@ public:
   Item *clone_item()
   {
     Item_cache_temporal *item= new Item_cache_temporal(cached_field_type);
-    item->store_packed(value);
+    item->store_packed(value, example);
     return item;
   }
 };
