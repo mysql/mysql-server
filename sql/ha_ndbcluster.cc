@@ -4596,37 +4596,6 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
 #endif
 }
 
-bool ha_ndbcluster::isManualBinlogExec(THD *thd)
-{
-  /* Are we executing handler methods as part of 
-   * a mysql client BINLOG statement?
-   */
-#ifndef EMBEDDED_LIBRARY
-  return thd ? 
-    ( thd->rli_fake? 
-      ndb_mi_get_in_relay_log_statement(thd->rli_fake) : false)
-    : false;
-#else
-  /* For Embedded library, we can't determine if we're
-   * executing Binlog manually
-   * TODO : Find better way to determine whether to use
-   *        SQL REPLACE or Write_row semantics
-   */
-  return false;
-#endif
-
-}
-
-static inline bool
-thd_allow_batch(const THD* thd)
-{
-#ifndef OPTION_ALLOW_BATCH
-  return false;
-#else
-  return (thd_options(thd) & OPTION_ALLOW_BATCH);
-#endif
-}
-
 #ifdef HAVE_NDB_BINLOG
 /**
    prepare_conflict_detection
