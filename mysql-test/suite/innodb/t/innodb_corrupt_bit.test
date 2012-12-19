@@ -2,31 +2,12 @@
 # Test for persistent corrupt bit for corrupted index and table
 #
 -- source include/have_innodb.inc
--- source include/have_innodb_16k.inc
-
-# Issues with innodb_change_buffering_debug on Windows, so the test scenario
-# cannot be created on windows
---source include/not_windows.inc
+--source include/not_embedded.inc
 
 # This test needs debug server
 --source include/have_debug.inc
 
--- disable_query_log
 call mtr.add_suppression("Flagged corruption of idx.*in CHECK TABLE");
-# This test setup is extracted from bug56680.test:
-# The flag innodb_change_buffering_debug is only available in debug builds.
-# It instructs InnoDB to try to evict pages from the buffer pool when
-# change buffering is possible, so that the change buffer will be used
-# whenever possible.
--- error 0,ER_UNKNOWN_SYSTEM_VARIABLE
-SET @innodb_change_buffering_debug_orig = @@innodb_change_buffering_debug;
--- error 0,ER_UNKNOWN_SYSTEM_VARIABLE
-SET GLOBAL innodb_change_buffering_debug = 1;
-
-# Turn off Unique Check to create corrupted index with dup key
-SET UNIQUE_CHECKS=0;
-
--- enable_query_log
 
 set names utf8;
 
@@ -35,50 +16,31 @@ CREATE TABLE corrupt_bit_test_ā(
        b CHAR(100),
        c INT,
        z INT,
-       INDEX(b))
+       INDEX idx(b))
 ENGINE=InnoDB;
 
 INSERT INTO corrupt_bit_test_ā VALUES(0,'x',1, 1);
 
-# This is the first unique index we intend to corrupt
 CREATE UNIQUE INDEX idxā ON corrupt_bit_test_ā(c, b);
 
-# This is the second unique index we intend to corrupt
 CREATE UNIQUE INDEX idxē ON corrupt_bit_test_ā(z, b);
 
 SELECT * FROM corrupt_bit_test_ā;
 
-select @@unique_checks;
-select @@innodb_change_buffering_debug;
-
-# Create enough rows for the table, so that the insert buffer will be
-# used for modifying the secondary index page. There must be multiple
-# index pages, because changes to the root page are never buffered.
-
 INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+1,z+1 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+10,z+10 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+20,z+20 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+50,z+50 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+100,z+100 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+200,z+200 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+400,z+400 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+800,z+800 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+1600,z+1600 FROM corrupt_bit_test_ā;
-INSERT INTO corrupt_bit_test_ā SELECT 0,b,c+4000,z+4000 FROM corrupt_bit_test_ā;
 
 select count(*) from corrupt_bit_test_ā;
 
-CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
+# This will flag all secondary indexes corrupted
+SET SESSION debug="+d,dict_set_index_corrupted";
+check table corrupt_bit_test_ā;
+SET SESSION debug="-d,dict_set_index_corrupted";
 
-# Create a dup key error on index "idxē" and "idxā" by inserting a dup value
-INSERT INTO corrupt_bit_test_ā VALUES(13000,'x',1,1);
+# New index that is not set as corrupted
+CREATE INDEX idx3 ON corrupt_bit_test_ā(b, c);
 
 # creating an index should succeed even if other secondary indexes are corrupted
 CREATE INDEX idx4 ON corrupt_bit_test_ā(b, z);
-
-# Check table will find the unique indexes corrupted
-# with dup key
-check table corrupt_bit_test_ā;
 
 # This selection intend to use the corrupted index. Expect to fail
 -- error ER_INDEX_CORRUPT
@@ -103,7 +65,6 @@ delete from corrupt_bit_test_ā where a = 10001;
 insert into corrupt_bit_test_ā values (10001, "a", 20001, 20001);
 rollback;
 
-# Drop one corrupted index before reboot
 drop index idxā on corrupt_bit_test_ā;
 
 check table corrupt_bit_test_ā;
@@ -121,6 +82,3 @@ select z from corrupt_bit_test_ā limit 10;
 
 # Drop table
 drop table corrupt_bit_test_ā;
-
--- error 0, ER_UNKNOWN_SYSTEM_VARIABLE
-SET GLOBAL innodb_change_buffering_debug = 0;
