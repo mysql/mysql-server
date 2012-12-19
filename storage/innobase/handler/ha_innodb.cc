@@ -9387,13 +9387,13 @@ UNIV_INLINE
 bool
 innobase_table_is_noncompressed_temporary(
 /*======================================*/
-	HA_CREATE_INFO*	create_info,	/*!< in: more information of the
-					created table, contains also the
-					create statement string */
-	TABLE*		form,		/*!< in: information on table
-					columns and indexes */
-	bool		file_per_table)	/*!< in: reflect current
-					file_per_table status */
+	const HA_CREATE_INFO*	create_info,	/*!< in: more information of the
+						created table, contains also the
+						create statement string */
+	const TABLE*		form,		/*!< in: information on table
+						columns and indexes */
+	bool			file_per_table)	/*!< in: reflect current
+						file_per_table status */
 {
 
 	/* If you specify ROW_FORMAT=COMPRESSED but not KEY_BLOCK_SIZE,
