@@ -106,7 +106,8 @@ static void test_loader_maxsize(DB **dbs, DB **check_dbs)
     // create and initialize loader
     r = env->txn_begin(env, NULL, &txn, 0);
     CKERR(r);
-    r = env->create_loader(env, txn, &loader, dbs[0], NUM_DBS, dbs, db_flags, dbt_flags, loader_flags);
+    r = env->create_loader(env, txn, &loader, nullptr, NUM_DBS, dbs, db_flags, dbt_flags, loader_flags);
+    assert(which_db_to_fail != 0);
     CKERR(r);
     struct error_extra error_extra = {.bad_i=0,.error_count=0};
     r = loader->set_error_callback(loader, error_callback, (void*)&error_extra);
@@ -159,8 +160,7 @@ static void test_loader_maxsize(DB **dbs, DB **check_dbs)
             v = i;
             dbt_init(&key, &k, sizeof(unsigned int));
             dbt_init(&val, &v, sizeof(unsigned int));
-            DB* src_db = check_dbs[0];
-            r = env->put_multiple(env, src_db, txn, &key, &val, NUM_DBS, check_dbs, keys, vals, flags);
+            r = env->put_multiple(env, nullptr, txn, &key, &val, NUM_DBS, check_dbs, keys, vals, flags);
             CKERR(r);
         }
         r = txn->commit(txn, 0);
@@ -254,8 +254,6 @@ uint_or_size_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
 static void run_test(uint32_t nr, uint32_t wdb, uint32_t wrow, enum how_to_fail htf) {
     num_rows = nr; which_db_to_fail = wdb; which_row_to_fail = wrow; how_to_fail = htf;
 
-    //since src_key/val can't be modified, and we're using generate to make the failures, we can't fail on src_db (0)
-    assert(which_db_to_fail != 0);
     int r;
     {
 	int len = strlen(env_dir) + 20;
