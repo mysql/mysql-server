@@ -1,14 +1,11 @@
-# This line and the line below is a temporary line for tests that do not need MyISAM in future, but need to be kept for tests that need it.
---source include/have_myisam.inc
-
 # Author: Horst Hunger
 # Created: 2010-07-05
 
 --source include/have_partition.inc
 
-let $engine_table= MYISAM;
-let $engine_part= MYISAM;
-let $engine_subpart= MYISAM;
+let $engine_table= InnoDB;
+let $engine_part= InnoDB;
+let $engine_subpart= InnoDB;
 
 use test;
 
