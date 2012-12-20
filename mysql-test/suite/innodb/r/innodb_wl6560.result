@@ -370,5 +370,12 @@ Level	Code	Message
 #files in MYSQL_TMP_DIR
 #sql<temporary>.ibd
 drop table t;
+"testing temp tablespace non-support for raw device"
+"restarting server in normal mode"
+use test;
+show tables;
+Tables_in_test
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
+drop table t1;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;

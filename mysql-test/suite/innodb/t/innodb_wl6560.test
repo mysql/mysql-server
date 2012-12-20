@@ -35,6 +35,7 @@ call mtr.add_suppression("The table 't1' is full");
 #     expanded and insert enough data to make it full.
 # 10. tests for different row format types and key block sizes for
 #     compressed tables.
+# 11. try restarting server with raw device specified for temp-tablespace.
 ################################################################################
 
 #-----------------------------------------------------------------------------
@@ -52,6 +53,7 @@ let $args = --loose-console > $SEARCH_FILE 2>&1;
 let crash = $args --innodb-force-recovery-crash;
 let readonly = $args --innodb_read_only;
 let nameconflicts = $args --innodb_data_file_path="ibdata1:12M:autoextend" --innodb_temp_data_file_path="ibdata1:12M:autoextend";
+let rawdevice = $args --innodb_temp_data_file_path="/dev/hdd1:3Gnewraw;/dev/hdd2:2Gnewraw";
 
 #-----------------------------------------------------------------------------
 #
@@ -356,6 +358,25 @@ show warnings;
 --list_files $MYSQL_TMP_DIR/ *.ibd
 drop table t;
 #
+
+#-----------------------------------------------------------------------------
+#
+# 11. try restarting server with raw device specified for temp-tablespace.
+#
+--source include/shutdown_mysqld.inc
+--echo "testing temp tablespace non-support for raw device"
+--error 1
+--exec $MYSQLD_CMD $rawdevice
+let SEARCH_PATTERN = support raw device;
+--source ./include/search_pattern_in_file.inc
+--remove_file $SEARCH_FILE
+--echo "restarting server in normal mode"
+--source include/start_mysqld.inc
+#
+use test;
+show tables;
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
+drop table t1;
 
 #-----------------------------------------------------------------------------
 #
