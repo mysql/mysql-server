@@ -53,7 +53,7 @@
               '-l<(node_root_dir)/$(Configuration)/node.lib',
               '-l<(mysql_path)/lib/ndbclient.lib',
               '-l<(mysql_path)/lib/mysqlclient.lib',
-            ]
+            ],
             'msvs_settings':
             {
             }
