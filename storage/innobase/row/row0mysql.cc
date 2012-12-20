@@ -2417,7 +2417,7 @@ row_create_index_for_mysql(
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-	/* For temp-table we avoid insertion into SYSTEM TABLES tables to
+	/* For temp-table we avoid insertion into SYSTEM TABLES to
 	maintain performance and so we have separate path that directly
 	just updates dictonary cache. */
 	if (!dict_table_is_temporary(table)) {
@@ -3189,7 +3189,7 @@ run_again:
 }
 
 /*********************************************************************//**
-Truncate index and update SYSTEM TABLES tables accordingly. */
+Truncate index and update SYSTEM TABLES accordingly. */
 UNIV_INLINE
 void
 truncate_index_with_sys_table_update(
@@ -3286,7 +3286,7 @@ next_rec:
 
 /*********************************************************************//**
 Truncation also results in assignment of new table id
-Update these ids to SYSTEM TABLES tables.
+Update these ids to SYSTEM TABLES.
 @return	error code or DB_SUCCESS */
 UNIV_INLINE
 dberr_t
@@ -3672,7 +3672,7 @@ row_truncate_table_for_mysql(
 			table, truncate_tablespace_objects);
 	} else {
 		/* For temporary tables we don't have entries in
-		SYSTEM TABLES tables. This reduces truncate job to following:
+		SYSTEM TABLES. This reduces truncate job to following:
 		- truncate indexes (free and re-create btree). */
 		for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 		     index;
@@ -4130,7 +4130,7 @@ check_next_foreign:
 		rw_lock_x_unlock(dict_index_get_lock(index));
 	}
 
-	/* As we don't insert entries to SYSTEM TABLES tables for temp-tables
+	/* As we don't insert entries to SYSTEM TABLES for temp-tables
 	we need to avoid running removal of these entries. */
 	if(!dict_table_is_temporary(table))
 	{

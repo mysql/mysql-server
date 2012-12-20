@@ -8574,7 +8574,7 @@ err_col:
 	}
 
 	/* If temp table, then we avoid creation of entries in SYSTEM TABLES
-	table to save on performance. This doesn't compromise on
+	to save on performance. This doesn't compromise on
 	correctness as temp-table information is still maintained
 	in memory and temp-table life-time doesn't go beyond server
 	shut-down cycle. */
@@ -16325,7 +16325,7 @@ i_s_innodb_cmp_per_index_reset,
 i_s_innodb_buffer_page,
 i_s_innodb_buffer_page_lru,
 i_s_innodb_buffer_stats,
-i_s_innodb_temp_table_stats,
+i_s_innodb_temp_table_info,
 i_s_innodb_metrics,
 i_s_innodb_ft_default_stopword,
 i_s_innodb_ft_inserted,
