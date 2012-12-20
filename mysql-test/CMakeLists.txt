@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -113,8 +113,10 @@ ENDMACRO()
 FILE(GLOB infiles "collections/*.in")
 FOREACH(collin ${infiles})
   STRING(REPLACE ".in" "" collection ${collin})
+  STRING(REPLACE ".in" ".done" colldone ${collin})
   # Only generate file once
-  IF(NOT EXISTS ${collection})
+  IF(NOT EXISTS ${colldone})
     PROCESS_COLLECTION_INCLUDE(${collin} ${collection})
+    FILE(APPEND ${colldone} "${collin}\n")
   ENDIF()
 ENDFOREACH()
