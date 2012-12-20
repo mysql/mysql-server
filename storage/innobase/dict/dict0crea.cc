@@ -649,7 +649,7 @@ dict_build_index_def_step(
 }
 
 /***************************************************************//**
-Builds an index definition without updating SYSTEM TABLES table.
+Builds an index definition without updating SYSTEM TABLES.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 void
@@ -774,7 +774,7 @@ dict_create_index_tree_step(
 
 /***************************************************************//**
 Creates an index tree for the index if it is not a member of a cluster.
-Don't update SYSTEM TABLES table.
+Don't update SYSTEM TABLES.
 @return	DB_SUCCESS or DB_OUT_OF_FILE_SPACE */
 UNIV_INTERN
 dberr_t
@@ -1075,7 +1075,7 @@ create:
 }
 
 /*******************************************************************//**
-Truncates the index tree but don't update SYSTEM TABLES table.
+Truncates the index tree but don't update SYSTEM TABLES.
 @return	new root page number, or FIL_NULL on failure */
 UNIV_INTERN
 void

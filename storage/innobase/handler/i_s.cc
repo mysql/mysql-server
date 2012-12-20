@@ -34,6 +34,7 @@ Created July 18, 2007 Vasil Dimov
 #include "i_s.h"
 #include <sql_plugin.h>
 #include <mysql/innodb_priv.h>
+#include <vector>
 
 #include "btr0pcur.h"	/* for file sys_tables related info. */
 #include "btr0types.h"
@@ -4116,8 +4117,8 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_config =
 	STRUCT_FLD(flags, 0UL),
 };
 
-/* Fields of the dynamic table INNODB_TEMP_TABLE_STATS. */
-static ST_FIELD_INFO	i_s_innodb_temp_table_stats_fields_info[] =
+/* Fields of the dynamic table INNODB_TEMP_TABLE_INFO. */
+static ST_FIELD_INFO	i_s_innodb_temp_table_info_fields_info[] =
 {
 #define IDX_TEMP_TABLE_ID		0
 	{STRUCT_FLD(field_name,		"TABLE_ID"),
@@ -4130,7 +4131,7 @@ static ST_FIELD_INFO	i_s_innodb_temp_table_stats_fields_info[] =
 
 #define IDX_TEMP_TABLE_NAME		1
 	{STRUCT_FLD(field_name,		"NAME"),
-	 STRUCT_FLD(field_length,	1024),
+	 STRUCT_FLD(field_length,	MAX_TABLE_UTF8_LEN),
 	 STRUCT_FLD(field_type,		MYSQL_TYPE_STRING),
 	 STRUCT_FLD(value,		0),
 	 STRUCT_FLD(field_flags,	MY_I_S_MAYBE_NULL),
@@ -4177,20 +4178,22 @@ static ST_FIELD_INFO	i_s_innodb_temp_table_stats_fields_info[] =
 
 struct temp_table_info_t{
 	table_id_t	m_table_id;
-	char		m_table_name[1024];
+	char		m_table_name[MAX_TABLE_UTF8_LEN];
 	unsigned	m_n_cols;
 	unsigned	m_space_id;
 	char		m_per_table_tablespace[64];
 	char		m_is_compressed[64];
 };
 
+typedef std::vector<temp_table_info_t> temp_table_info_cache_t;
+
 /*******************************************************************//**
-Fill Information Schema table INNODB_TEMP_TABLE_STATS for a particular
+Fill Information Schema table INNODB_TEMP_TABLE_INFO for a particular
 temp-table
 @return	0 on success, 1 on failure */
 static
 int
-i_s_innodb_temp_table_stats_fill(
+i_s_innodb_temp_table_info_fill(
 /*=============================*/
 	THD*				thd,		/*!< in: thread */
 	TABLE_LIST*			tables,		/*!< in/out: tables
@@ -4201,7 +4204,7 @@ i_s_innodb_temp_table_stats_fill(
 	TABLE*			table;
 	Field**			fields;
 
-	DBUG_ENTER("i_s_innodb_temp_table_stats_fill");
+	DBUG_ENTER("i_s_innodb_temp_table_info_fill");
 
 	table = tables->table;
 
@@ -4236,9 +4239,13 @@ innodb_temp_table_populate_cache(
 {
 	cache->m_table_id = table->id;
 
-	strncpy(
-		cache->m_table_name, table->name,
-		sizeof(cache->m_table_name) - 1);
+	char	db_utf8[MAX_DB_UTF8_LEN];
+	char	table_utf8[MAX_TABLE_UTF8_LEN];
+
+	dict_fs2utf8(table->name,
+		     db_utf8, sizeof(db_utf8),
+		     table_utf8, sizeof(table_utf8));
+	strcpy(cache->m_table_name, table_utf8);
 
 	cache->m_n_cols = table->n_cols;
 
@@ -4259,29 +4266,34 @@ innodb_temp_table_populate_cache(
 
 /*******************************************************************//**
 This function will iterate over all available table and will fill
-stats for temp-tables to INNODB_TEMP_TABLE_STATS.
+stats for temp-tables to INNODB_TEMP_TABLE_INFO.
 @return	0 on success, 1 on failure */
 static
 int
-i_s_innodb_temp_table_stats_fill_table(
+i_s_innodb_temp_table_info_fill_table(
 /*===================================*/
 	THD*		thd,		/*!< in: thread */
 	TABLE_LIST*	tables,		/*!< in/out: tables to fill */
 	Item*		)		/*!< in: condition (ignored) */
 {
 	int			status	= 0;
-	temp_table_info_t	temp_table_info_cache;
-	dict_table_t*		table 	= NULL;
+	dict_table_t*		table	= NULL;
 
-	DBUG_ENTER("i_s_innodb_temp_table_stats_fill_table");
+	DBUG_ENTER("i_s_innodb_temp_table_info_fill_table");
 
 	/* Only allow the PROCESS privilege holder to access the stats */
 	if (check_global_access(thd, PROCESS_ACL)) {
 		DBUG_RETURN(0);
 	}
 
-	/* Scan only non-LRU list as all temp-tables are added to
-	non-LRU list. */
+	/* First populate all temp-table info by acquiring dict_sys->mutex.
+	Note: Scan is being done on NON-LRU list which mainly has system
+	table entries and temp-table entries. This means 2 things: list
+	is smaller so processing would be faster and most of the data
+	is relevant */
+	temp_table_info_cache_t all_temp_info_cache;
+	all_temp_info_cache.reserve(UT_LIST_GET_LEN(dict_sys->table_non_LRU));
+
 	mutex_enter(&dict_sys->mutex);
         for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
              table != NULL;
@@ -4290,42 +4302,52 @@ i_s_innodb_temp_table_stats_fill_table(
 		if (!dict_table_is_temporary(table))
 			continue;
 
-		innodb_temp_table_populate_cache(
-			table, &temp_table_info_cache);
+		temp_table_info_t current_temp_table_info;
 
-		status = i_s_innodb_temp_table_stats_fill(
-				thd, tables, &temp_table_info_cache);
+		innodb_temp_table_populate_cache(
+			table, &current_temp_table_info);
+
+		all_temp_info_cache.push_back(current_temp_table_info);
+	}
+	mutex_exit(&dict_sys->mutex);
+
+	/* Now populate the info to MySQL table */
+	temp_table_info_cache_t::const_iterator end = all_temp_info_cache.end();
+	for (temp_table_info_cache_t::const_iterator it
+		= all_temp_info_cache.begin();
+	     it != end;
+	     it++) {
+		status = i_s_innodb_temp_table_info_fill(thd, tables, &(*it));
 		if (status) {
 			break;
 		}
-        }
-	mutex_exit(&dict_sys->mutex);
+	}
 
 	DBUG_RETURN(status);
 }
 
 /*******************************************************************//**
-Bind the dynamic table INFORMATION_SCHEMA.INNODB_TEMP_TABLE_STATS.
+Bind the dynamic table INFORMATION_SCHEMA.INNODB_TEMP_TABLE_INFO.
 @return	0 on success, 1 on failure */
 static
 int
-i_s_innodb_temp_table_stats_init(
+i_s_innodb_temp_table_info_init(
 /*=============================*/
 	void*	p)	/*!< in/out: table schema object */
 {
 	ST_SCHEMA_TABLE*	schema;
 
-	DBUG_ENTER("i_s_innodb_temp_table_stats_init");
+	DBUG_ENTER("i_s_innodb_temp_table_info_init");
 
 	schema = reinterpret_cast<ST_SCHEMA_TABLE*>(p);
 
-	schema->fields_info = i_s_innodb_temp_table_stats_fields_info;
-	schema->fill_table = i_s_innodb_temp_table_stats_fill_table;
+	schema->fields_info = i_s_innodb_temp_table_info_fields_info;
+	schema->fill_table = i_s_innodb_temp_table_info_fill_table;
 
 	DBUG_RETURN(0);
 }
 
-UNIV_INTERN struct st_mysql_plugin	i_s_innodb_temp_table_stats =
+UNIV_INTERN struct st_mysql_plugin	i_s_innodb_temp_table_info =
 {
 	/* the plugin type (a MYSQL_XXX_PLUGIN value) */
 	/* int */
@@ -4337,7 +4359,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_temp_table_stats =
 
 	/* plugin name */
 	/* const char* */
-	STRUCT_FLD(name, "INNODB_TEMP_TABLE_STATS"),
+	STRUCT_FLD(name, "INNODB_TEMP_TABLE_INFO"),
 
 	/* plugin author (for SHOW PLUGINS) */
 	/* const char* */
@@ -4353,7 +4375,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_temp_table_stats =
 
 	/* the function to invoke when plugin is loaded */
 	/* int (*)(void*); */
-	STRUCT_FLD(init, i_s_innodb_temp_table_stats_init),
+	STRUCT_FLD(init, i_s_innodb_temp_table_info_init),
 
 	/* the function to invoke when plugin is unloaded */
 	/* int (*)(void*); */
