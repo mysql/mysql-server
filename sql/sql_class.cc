@@ -1444,7 +1444,6 @@ THD::~THD()
   mysql_mutex_lock(&LOCK_thd_data);
   mysys_var=0;					// Safety (shouldn't be needed)
   mysql_mutex_unlock(&LOCK_thd_data);
-  add_to_status(&global_status_var, &status_var);
 
   /* Close connection */
 #ifndef EMBEDDED_LIBRARY

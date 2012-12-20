@@ -173,7 +173,6 @@ void threadpool_remove_connection(THD *thd)
   close_connection(thd, 0);
 
   unlink_thd(thd);
-  mysql_mutex_unlock(&LOCK_thread_count);
   mysql_cond_broadcast(&COND_thread_count);
 
   /*
