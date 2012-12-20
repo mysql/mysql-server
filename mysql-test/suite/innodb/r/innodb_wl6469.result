@@ -1,6 +1,6 @@
 set global innodb_file_per_table = 0;
 create temporary table t1 (i int) engine = innodb;
-select count(*) from information_schema.innodb_temp_table_stats;
+select count(*) from information_schema.innodb_temp_table_info;
 count(*)
 1
 insert into t1 values (1), (2), (3), (4);
@@ -15,7 +15,7 @@ i
 4
 drop table t1;
 create temporary table t1 (i int) engine = innodb;
-select count(*) from information_schema.innodb_temp_table_stats;
+select count(*) from information_schema.innodb_temp_table_info;
 count(*)
 1
 insert into t1 values (1), (2), (3), (4);
@@ -40,7 +40,7 @@ i
 select * from t2 where i = 4;
 i
 4
-select count(*) from information_schema.innodb_temp_table_stats;
+select count(*) from information_schema.innodb_temp_table_info;
 count(*)
 1
 drop table t2;
@@ -59,15 +59,15 @@ i
 select * from t1 where i = 4;
 i
 4
-select count(*) from information_schema.innodb_temp_table_stats;
+select count(*) from information_schema.innodb_temp_table_info;
 count(*)
 3
 drop table t1;
-select count(*) from information_schema.innodb_temp_table_stats;
+select count(*) from information_schema.innodb_temp_table_info;
 count(*)
 2
 drop table t2;
-select count(*) from information_schema.innodb_temp_table_stats;
+select count(*) from information_schema.innodb_temp_table_info;
 count(*)
 1
 drop table t3;
@@ -195,7 +195,7 @@ select * from t1 where t1_f > 2.2;
 ERROR 42S22: Unknown column 't1_f' in 'where clause'
 alter table t1 add index sec_index2(t1_c), algorithm=inplace;
 ERROR 0A000: ALGORITHM=INPLACE is not supported for this operation. Try ALGORITHM=COPY.
-select count(*) from information_schema.innodb_temp_table_stats;
+select count(*) from information_schema.innodb_temp_table_info;
 count(*)
 1
 drop table t1;
