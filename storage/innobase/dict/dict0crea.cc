@@ -1075,8 +1075,7 @@ create:
 }
 
 /*******************************************************************//**
-Truncates the index tree but don't update SYSTEM TABLES.
-@return	new root page number, or FIL_NULL on failure */
+Truncates the index tree but don't update SYSTEM TABLES. */
 UNIV_INTERN
 void
 dict_truncate_index_tree(
