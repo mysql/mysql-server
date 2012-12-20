@@ -74,8 +74,7 @@ Handle<Value>  CharsetMap_getName(const Arguments &args) {
 
   typedef NativeConstMethodCall_1_<const char *, const CharsetMap, int> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & CharsetMap::getName;
+  NCALL ncall(& CharsetMap::getName, args);
   ncall.run();
 
   return scope.Close(ncall.jsReturnVal());
@@ -90,8 +89,7 @@ Handle<Value>  CharsetMap_getMysqlName(const Arguments &args) {
 
   typedef NativeConstMethodCall_1_<const char *, const CharsetMap, int> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & CharsetMap::getMysqlName;
+  NCALL ncall(& CharsetMap::getMysqlName, args);
   ncall.run();
 
   return scope.Close(ncall.jsReturnVal());
@@ -104,10 +102,9 @@ Handle<Value>  CharsetMap_getCharsetNumber(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(1);
 
-  typedef NativeMethodCall_1_<int, const CharsetMap, const char *> NCALL;
+  typedef NativeConstMethodCall_1_<int, const CharsetMap, const char *> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & CharsetMap::getCharsetNumber;
+  NCALL ncall(& CharsetMap::getCharsetNumber, args);
   ncall.run();
 
   return scope.Close(ncall.jsReturnVal());
@@ -120,10 +117,9 @@ Handle<Value>  CharsetMap_getUTF8CharsetNumber(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(0);
 
-  typedef NativeMethodCall_0_<int, const CharsetMap> NCALL;
+  typedef NativeConstMethodCall_0_<int, const CharsetMap> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & CharsetMap::getUTF8CharsetNumber;
+  NCALL ncall(& CharsetMap::getUTF8CharsetNumber, args);
   ncall.run();
 
   return scope.Close(ncall.jsReturnVal());
@@ -136,10 +132,9 @@ Handle<Value>  CharsetMap_getUTF16CharsetNumber(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(0);
 
-  typedef NativeMethodCall_0_<int, const CharsetMap> NCALL;
+  typedef NativeConstMethodCall_0_<int, const CharsetMap> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & CharsetMap::getUTF16CharsetNumber;
+  NCALL ncall(& CharsetMap::getUTF16CharsetNumber, args);
   ncall.run();
 
   return scope.Close(ncall.jsReturnVal());
@@ -152,10 +147,9 @@ Handle<Value> CharsetMap_isMultibyte(const Arguments &args) {
 
   REQUIRE_ARGS_LENGTH(1);
 
-  typedef NativeMethodCall_1_<const bool *, const CharsetMap, int> NCALL;
+  typedef NativeConstMethodCall_1_<const bool *, const CharsetMap, int> NCALL;
 
-  NCALL ncall(args);
-  ncall.method = & CharsetMap::isMultibyte;
+  NCALL ncall(& CharsetMap::isMultibyte, args);
   ncall.run();
 
   return scope.Close(ncall.jsReturnVal());
@@ -169,8 +163,7 @@ Handle<Value>  decimal_str2bin_wrapper(const Arguments &args) {
 
   typedef NativeCFunctionCall_6_<int, const char *, int, int, int, void *, int> NCALL;
 
-  NCALL ncall(args);
-  ncall.function = & decimal_str2bin;
+  NCALL ncall(& decimal_str2bin, args);
   ncall.run();
 
   return scope.Close(ncall.jsReturnVal());
@@ -185,8 +178,7 @@ Handle<Value>  decimal_bin2str_wrapper(const Arguments &args) {
 
   typedef NativeCFunctionCall_6_<int, const void *, int, int, int, char *, int> NCALL;
 
-  NCALL ncall(args);
-  ncall.function = & decimal_bin2str;
+  NCALL ncall(& decimal_bin2str, args);
   ncall.run();
 
   return scope.Close(ncall.jsReturnVal());
