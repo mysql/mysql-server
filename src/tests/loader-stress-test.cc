@@ -31,6 +31,7 @@ enum {MAX_NAME=128};
 enum {MAX_DBS=1024};
 int NUM_DBS=5;
 int NUM_ROWS=100000;
+int VALSIZE=sizeof(unsigned int);
 int CHECK_RESULTS=0;
 int DISALLOW_PUTS=0;
 int COMPRESS=0;
@@ -166,54 +167,45 @@ static unsigned int inv_twiddle32(unsigned int x, int db)
 }
 
 // generate val from key, index
-static unsigned int generate_val(int key, int i) {
-    return rotl32((key + MAGIC), i);
+static void generate_val(int key, int i, unsigned int*v) {
+    v[0] = rotl32((key + MAGIC), i);
+    for (unsigned w = 1; w < VALSIZE/sizeof(unsigned int); w++) {
+        v[w] = rotr32(v[w-1], 1);
+    }
 }
+
 static unsigned int pkey_for_val(int key, int i) {
     return rotr32(key, i) - MAGIC;
 }
 
 // There is no handlerton in this test, so this function is a local replacement
 // for the handlerton's generate_row_for_put().
-static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *src_val) {
+static int put_multiple_generate(DB *dest_db, DB *src_db, DBT *dest_key, DBT *dest_val, const DBT *src_key, const DBT *UU(src_val)) {
 
-    (void) src_db;
+    assert(src_db);
+    assert(dest_db != src_db);
 
     uint32_t which = *(uint32_t*)dest_db->app_private;
+    assert(which != 0);
 
-    if ( which == 0 ) {
-        if (dest_key->flags==DB_DBT_REALLOC) {
-            if (dest_key->data) toku_free(dest_key->data);
-            dest_key->flags = 0;
-            dest_key->ulen  = 0;
-        }
-        if (dest_val->flags==DB_DBT_REALLOC) {
-            if (dest_val->data) toku_free(dest_val->data);
-            dest_val->flags = 0;
-            dest_val->ulen  = 0;
-        }
-        dbt_init(dest_key, src_key->data, src_key->size);
-        dbt_init(dest_val, src_val->data, src_val->size);
-    }
-    else {
+    {
         assert(dest_key->flags==DB_DBT_REALLOC);
         if (dest_key->ulen < sizeof(unsigned int)) {
             dest_key->data = toku_xrealloc(dest_key->data, sizeof(unsigned int));
             dest_key->ulen = sizeof(unsigned int);
         }
         assert(dest_val->flags==DB_DBT_REALLOC);
-        if (dest_val->ulen < sizeof(unsigned int)) {
-            dest_val->data = toku_xrealloc(dest_val->data, sizeof(unsigned int));
-            dest_val->ulen = sizeof(unsigned int);
+        if (dest_val->ulen < (unsigned)VALSIZE) {
+            dest_val->data = toku_xrealloc(dest_val->data, VALSIZE);
+            dest_val->ulen = VALSIZE;
         }
         unsigned int *new_key = (unsigned int *)dest_key->data;
-        unsigned int *new_val = (unsigned int *)dest_val->data;
 
         *new_key = twiddle32(*(unsigned int*)src_key->data, which);
-        *new_val = generate_val(*(unsigned int*)src_key->data, which);
+        generate_val(*(unsigned int*)src_key->data, which, (unsigned int*)dest_val->data);
 
         dest_key->size = sizeof(unsigned int);
-        dest_val->size = sizeof(unsigned int);
+        dest_val->size = VALSIZE;
         //data is already set above
     }
 
@@ -266,6 +258,7 @@ static void check_results(DB **dbs) {
         // sort the keys
         qsort(expected_key, NUM_ROWS, sizeof (unsigned int), uint_cmp);
 
+        unsigned int valcheck[VALSIZE/sizeof(unsigned int)];
         for (int i = 0; i < NUM_ROWS+1; i++) {
             r = cursor->c_get(cursor, &key, &val, DB_NEXT);
             if (DISALLOW_PUTS) {
@@ -284,10 +277,15 @@ static void check_results(DB **dbs) {
             v = *(unsigned int*)val.data;
             // test that we have the expected keys and values
             assert((unsigned int)pkey_for_db_key == (unsigned int)pkey_for_val(v, j));
+
+
 //            printf(" DB[%d] key = %10u, val = %10u, pkey_for_db_key = %10u, pkey_for_val=%10d\n", j, v, k, pkey_for_db_key, pkey_for_val(v, j));
 
             // check the expected keys
             assert(k == expected_key[i]);
+            generate_val(pkey_for_db_key, j, &valcheck[0]);
+            assert(val.size == (unsigned)VALSIZE);
+            assert(memcmp(val.data, &valcheck[0], VALSIZE)==0);
 
             // check prev_key < key
             if (i > 0) 
@@ -385,12 +383,13 @@ static void test_loader(DB **dbs)
 
     // using loader->put, put values into DB
     DBT key, val;
-    unsigned int k, v;
+    unsigned int k;
+    unsigned int v[VALSIZE/sizeof(unsigned int)];
     for(int i=1;i<=NUM_ROWS;i++) {
         k = i;
-        v = generate_val(i, 0);
+        generate_val(i, 0, &v[0]);
         dbt_init(&key, &k, sizeof(unsigned int));
-        dbt_init(&val, &v, sizeof(unsigned int));
+        dbt_init(&val, &v[0], VALSIZE);
         r = loader->put(loader, &key, &val);
         if (DISALLOW_PUTS) {
             CKERR2(r, EINVAL);
@@ -448,7 +447,7 @@ static void test_loader(DB **dbs)
                 } else {
                     assert(stats.bt_nkeys <= (uint64_t)NUM_ROWS);  // Fix as part of #4129.  Was ==
                     assert(stats.bt_ndata <= (uint64_t)NUM_ROWS);
-                    assert(stats.bt_dsize == ((uint64_t)NUM_ROWS) * 2 * sizeof(unsigned int));
+                    assert(stats.bt_dsize == ((uint64_t)NUM_ROWS) * (sizeof(unsigned int) + VALSIZE));
                 }
 		r = txn->commit(txn, 0);
 		CKERR(r);
@@ -642,6 +641,15 @@ static void do_args(int argc, char * const argv[]) {
 	    if (verbose<0) verbose=0;
 	} else if (strcmp(argv[0], "-f")==0) {
 	    footprint_print = true;
+        } else if (strcmp(argv[0], "--valsize")==0) {
+            argc--; argv++;
+            VALSIZE=atoi(argv[0]);
+            VALSIZE -= VALSIZE % sizeof(unsigned int);
+            if ( VALSIZE < (int)sizeof(unsigned int) ) {
+                fprintf(stderr, "--valsize must be multiple of %d\n", (int)sizeof(unsigned int));
+                resultcode=1;
+                goto do_usage;
+            }
         } else if (strcmp(argv[0], "-r")==0) {
             argc--; argv++;
             NUM_ROWS = atoi(argv[0]);

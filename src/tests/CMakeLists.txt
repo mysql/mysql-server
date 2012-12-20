@@ -550,7 +550,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
   add_test(ydb/loader-stress-test1z.tdb loader-stress-test.tdb -c -p -e dir.loader-stress-test1z.tdb -z)
   add_test(ydb/loader-stress-test2z.tdb loader-stress-test.tdb -r 5000 -s -e dir.loader-stress-test2z.tdb -z)
   add_test(ydb/loader-stress-test3z.tdb loader-stress-test.tdb -u -c -e dir.loader-stress-test3z.tdb -z)
-  add_test(ydb/loader-stress-test4z.tdb loader-stress-test.tdb -r 10000000 -c -e dir.loader-stress-test4z.tdb -z)
+  add_test(ydb/loader-stress-test4z.tdb loader-stress-test.tdb -r 1000000 -c -e dir.loader-stress-test4z.tdb -z --valsize 40)
   set_property(DIRECTORY APPEND PROPERTY ADDITIONAL_MAKE_CLEAN_FILES
     dir.loader-stress-test0.tdb
     dir.loader-stress-test1.tdb
