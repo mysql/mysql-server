@@ -1466,7 +1466,7 @@ fil_space_get_size(
 
 	ut_ad(fil_system);
 
-	fil_mutex_enter_and_prepare_for_io(id);
+	mutex_enter(&fil_system->mutex);
 
 	space = fil_space_get_by_id(id);
 
@@ -1480,6 +1480,23 @@ fil_space_get_size(
 		ut_a(id != 0);
 
 		ut_a(1 == UT_LIST_GET_LEN(space->chain));
+
+		mutex_exit(&fil_system->mutex);
+
+		/* It is possible that the space gets evicted at this point
+		before the fil_mutex_enter_and_prepare_for_io() acquires
+		the fil_system->mutex. Check for this after completing the
+		call to fil_mutex_enter_and_prepare_for_io(). */
+		fil_mutex_enter_and_prepare_for_io(id);
+
+		/* We are still holding the fil_system->mutex. Check if
+		the space is still in memory cache. */
+		space = fil_space_get_by_id(id);
+
+		if (space == NULL) {
+			mutex_exit(&fil_system->mutex);
+			return(0);
+		}
 
 		node = UT_LIST_GET_FIRST(space->chain);
 
@@ -1518,7 +1535,7 @@ fil_space_get_flags(
 		return(0);
 	}
 
-	fil_mutex_enter_and_prepare_for_io(id);
+	mutex_enter(&fil_system->mutex);
 
 	space = fil_space_get_by_id(id);
 
@@ -1532,6 +1549,23 @@ fil_space_get_flags(
 		ut_a(id != 0);
 
 		ut_a(1 == UT_LIST_GET_LEN(space->chain));
+
+		mutex_exit(&fil_system->mutex);
+
+		/* It is possible that the space gets evicted at this point
+		before the fil_mutex_enter_and_prepare_for_io() acquires
+		the fil_system->mutex. Check for this after completing the
+		call to fil_mutex_enter_and_prepare_for_io(). */
+		fil_mutex_enter_and_prepare_for_io(id);
+
+		/* We are still holding the fil_system->mutex. Check if
+		the space is still in memory cache. */
+		space = fil_space_get_by_id(id);
+
+		if (space == NULL) {
+			mutex_exit(&fil_system->mutex);
+			return(0);
+		}
 
 		node = UT_LIST_GET_FIRST(space->chain);
 
