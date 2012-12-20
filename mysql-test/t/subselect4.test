@@ -1777,5 +1777,20 @@ drop table t1, t2;
 
 set optimizer_switch=@subselect4_tmp;
 
+--echo #
+--echo # MDEV-3899  Valgrind warnings (blocks are definitely lost) in filesort on IN subquery with SUM and DISTINCT
+--echo #
+
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(9);
+
+CREATE TABLE t2 (b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (8);
+
+SELECT * FROM t1 
+WHERE (1, 1) IN (SELECT a, SUM(DISTINCT a) FROM t1, t2 GROUP BY a);
+
+drop table t1, t2;
+
 SET optimizer_switch= @@global.optimizer_switch;
 set @@tmp_table_size= @@global.tmp_table_size;

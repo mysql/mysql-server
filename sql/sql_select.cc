@@ -7333,10 +7333,10 @@ JOIN_TAB *next_breadth_first_tab(JOIN *join, enum enum_exec_or_opt tabs_kind,
 }
 
 
-JOIN_TAB *first_top_level_tab(JOIN *join, enum enum_with_const_tables with_const)
+JOIN_TAB *first_top_level_tab(JOIN *join, enum enum_with_const_tables const_tbls)
 {
   JOIN_TAB *tab= join->join_tab;
-  if (with_const == WITH_CONST_TABLES)
+  if (const_tbls == WITHOUT_CONST_TABLES)
   {
     if (join->const_tables == join->table_count)
       return NULL;
