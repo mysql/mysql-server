@@ -1464,7 +1464,8 @@ dict_table_rename_in_cache(
 		/* Delete any temp file hanging around. */
 		if (os_file_status(filepath, &exists, &type)
 		    && exists
-		    && !os_file_delete_if_exists(filepath)) {
+		    && !os_file_delete_if_exists(innodb_file_temp_key,
+						 filepath)) {
 
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Delete of %s failed.", filepath);
