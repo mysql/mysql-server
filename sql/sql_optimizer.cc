@@ -4094,7 +4094,7 @@ static void add_not_null_conds(JOIN *join)
     {
       for (uint keypart= 0; keypart < tab->ref.key_parts; keypart++)
       {
-        if (tab->ref.null_rejecting & (1 << keypart))
+        if (tab->ref.null_rejecting & ((key_part_map)1 << keypart))
         {
           Item *item= tab->ref.items[keypart];
           Item *notnull;
@@ -4363,7 +4363,7 @@ static bool find_eq_ref_candidate(TABLE *table, table_map sj_inner_tables)
           if (!(keyuse->used_tables & sj_inner_tables) &&
               !(keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL))
           {
-            bound_parts |= 1 << keyuse->keypart;
+            bound_parts|= (key_part_map)1 << keyuse->keypart;
           }
           keyuse++;
         } while (keyuse->key == key && keyuse->table == table);
@@ -8855,7 +8855,7 @@ static Item_cond_and *create_cond_for_const_ref(THD *thd, JOIN_TAB *join_tab)
     Item *item= new Item_field(field);
     if (!item)
       DBUG_RETURN(NULL);
-    item= join_tab->ref.null_rejecting & (1 << i) ?
+    item= join_tab->ref.null_rejecting & ((key_part_map)1 << i) ?
             (Item *)new Item_func_eq(item, value) :
             (Item *)new Item_func_equal(item, value);
     if (!item)
