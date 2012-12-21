@@ -2259,7 +2259,7 @@ static bool cache_thread()
         this thread for handling of new THD object/connection.
       */
       thd->mysys_var->abort= 0;
-      thd->thr_create_utime= my_micro_time();
+      thd->thr_create_utime= thd->start_utime= my_micro_time();
       threads.append(thd);
       return(1);
     }
