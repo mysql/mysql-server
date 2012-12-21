@@ -1,6 +1,8 @@
---source include/big_test.inc
+#
+# Smaller version of rpl_*mts*_crash_safe test
+#
 --source include/master-slave.inc
---source include/have_binlog_format_statement.inc
+--source include/have_binlog_format_mixed.inc
 --source include/have_innodb.inc
 --source include/have_debug.inc
 --source include/not_valgrind.inc
@@ -10,4 +12,5 @@ call mtr.add_suppression("Recovery from master pos .*");
 call mtr.add_suppression(".*  InnoDB: Warning: allocated tablespace .*, old maximum was .*");
 call mtr.add_suppression(".*int __cxa_pure_virtual().*");
 
+--let $crash_safe_small= 1
 --source extra/rpl_tests/rpl_mts_crash_safe.test
