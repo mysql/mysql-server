@@ -118,7 +118,10 @@ if ($commands == recovery)
   --echo ** fixing gaps **
   --let $rpl_server_number= 2
   --let $rpl_server_parameters= --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0
+
+  --let $rpl_debug= 1
   --source include/rpl_start_server.inc
+  --let $rpl_debug= 0
 
   START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
   --let $slave_param= Until_Condition
@@ -131,7 +134,9 @@ if ($commands == recovery)
   --echo ** regular restart **
   --let $rpl_server_number= 2
   --let $rpl_server_parameters= --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1
+  --let $rpl_debug= 1
   --source include/rpl_restart_server.inc
+  --let $rpl_debug= 0
 
   #### Checking if the recovery worked and the coordinator has an updated state. ####
   --connection slave
