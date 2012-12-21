@@ -1699,7 +1699,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       j->ref.items[part_no]=keyuse->val;        // Save for cond removal
       j->ref.cond_guards[part_no]= keyuse->cond_guard;
       if (keyuse->null_rejecting) 
-        j->ref.null_rejecting |= 1 << part_no;
+        j->ref.null_rejecting|= (key_part_map)1 << part_no;
       keyuse_uses_no_tables= keyuse_uses_no_tables && !keyuse->used_tables;
 
       store_key* key= get_store_key(thd,
