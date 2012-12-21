@@ -213,7 +213,9 @@ various file I/O operations with performance schema.
 1) register_pfs_file_open_begin() and register_pfs_file_open_end() are
 used to register file creation, opening, closing and renaming.
 2) register_pfs_file_io_begin() and register_pfs_file_io_end() are
-used to register actual file read, write and flush */
+used to register actual file read, write and flush
+3) register_pfs_file_close_begin() and register_pfs_file_close_end()
+are used to register file deletion operations*/
 # define register_pfs_file_open_begin(state, locker, key, op, name,	\
 				      src_file, src_line)		\
 do {									\
@@ -230,6 +232,25 @@ do {									\
 	if (UNIV_LIKELY(locker != NULL)) {				\
 		PSI_FILE_CALL(end_file_open_wait_and_bind_to_descriptor)(\
 			locker, file);					\
+	}								\
+} while (0)
+
+# define register_pfs_file_close_begin(state, locker, key, op, name,	\
+				      src_file, src_line)		\
+do {									\
+	locker = PSI_FILE_CALL(get_thread_file_name_locker)(		\
+		state, key, op, name, &locker);				\
+	if (UNIV_LIKELY(locker != NULL)) {				\
+		PSI_FILE_CALL(start_file_close_wait)(			\
+			locker, src_file, src_line);			\
+	}								\
+} while (0)
+
+# define register_pfs_file_close_end(locker, result)			\
+do {									\
+	if (UNIV_LIKELY(locker != NULL)) {				\
+		PSI_FILE_CALL(end_file_close_wait)(			\
+			locker, result);				\
 	}								\
 } while (0)
 
@@ -306,6 +327,12 @@ The wrapper functions have the prefix of "innodb_". */
 
 # define os_file_rename(key, oldpath, newpath)				\
 	pfs_os_file_rename_func(key, oldpath, newpath, __FILE__, __LINE__)
+
+# define os_file_delete(key, name)					\
+	pfs_os_file_delete_func(key, name, __FILE__, __LINE__)
+
+# define os_file_delete_if_exists(key, name)				\
+	pfs_os_file_delete_if_exists_func(key, name, __FILE__, __LINE__)
 #else /* UNIV_PFS_IO */
 
 /* If UNIV_PFS_IO is not defined, these I/O APIs point
@@ -340,6 +367,11 @@ to original un-instrumented file I/O APIs */
 
 # define os_file_rename(key, oldpath, newpath)				\
 	os_file_rename_func(oldpath, newpath)
+
+# define os_file_delete(key, name)	os_file_delete_func(name)
+
+# define os_file_delete_if_exists(key, name)				\
+	os_file_delete_if_exists_func(name)
 
 #endif /* UNIV_PFS_IO */
 
@@ -527,8 +559,8 @@ Deletes a file. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
 bool
-os_file_delete(
-/*===========*/
+os_file_delete_func(
+/*================*/
 	const char*	name);	/*!< in: file path as a null-terminated
 				string */
 
@@ -537,8 +569,8 @@ Deletes a file if it exists. The file has to be closed before calling this.
 @return	TRUE if success */
 UNIV_INTERN
 bool
-os_file_delete_if_exists(
-/*=====================*/
+os_file_delete_if_exists_func(
+/*==========================*/
 	const char*	name);	/*!< in: file path as a null-terminated
 				string */
 /***********************************************************************//**
@@ -765,6 +797,38 @@ pfs_os_file_rename_func(
 	const char*	oldpath,/*!< in: old file path as a null-terminated
 				string */
 	const char*	newpath,/*!< in: new file path */
+	const char*	src_file,/*!< in: file name where func invoked */
+	ulint		src_line);/*!< in: line where the func invoked */
+
+/***********************************************************************//**
+NOTE! Please use the corresponding macro os_file_delete(), not directly
+this function!
+This is the performance schema instrumented wrapper function for
+os_file_delete()
+@return TRUE if success */
+UNIV_INLINE
+bool
+pfs_os_file_delete_func(
+/*====================*/
+	mysql_pfs_key_t	key,	/*!< in: Performance Schema Key */
+	const char*	name,	/*!< in: old file path as a null-terminated
+				string */
+	const char*	src_file,/*!< in: file name where func invoked */
+	ulint		src_line);/*!< in: line where the func invoked */
+
+/***********************************************************************//**
+NOTE! Please use the corresponding macro os_file_delete_if_exists(), not
+directly this function!
+This is the performance schema instrumented wrapper function for
+os_file_delete_if_exists()
+@return TRUE if success */
+UNIV_INLINE
+bool
+pfs_os_file_delete_if_exists_func(
+/*==============================*/
+	mysql_pfs_key_t	key,	/*!< in: Performance Schema Key */
+	const char*	name,	/*!< in: old file path as a null-terminated
+				string */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line);/*!< in: line where the func invoked */
 #endif	/* UNIV_PFS_IO */
