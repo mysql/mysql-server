@@ -320,6 +320,25 @@ Warning	NUMBER	InnoDB: ignoring KEY_BLOCK_SIZE=NUMBER.
 Warning	NUMBER	InnoDB: ROW_FORMAT=COMPRESSED requires innodb_file_per_table.
 Warning	NUMBER	InnoDB: assuming ROW_FORMAT=COMPACT.
 drop table t;
+create temporary table t (
+i int)
+engine = innodb row_format = dynamic;
+show warnings;
+Level	Code	Message
+Warning	NUMBER	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
+Warning	NUMBER	InnoDB: assuming ROW_FORMAT=COMPACT.
+#files in MYSQL_TMP_DIR
+drop table t;
+set innodb_strict_mode = on;
+create temporary table t (
+i int)
+engine = innodb row_format = dynamic;
+ERROR HY000: Table storage engine for 't' doesn't have this option
+show warnings;
+Level	Code	Message
+Warning	NUMBER	InnoDB: ROW_FORMAT=DYNAMIC requires innodb_file_format > Antelope.
+Error	NUMBER	Table storage engine for 't' doesn't have this option
+set innodb_strict_mode = off;
 set global innodb_file_format = 'Barracuda';
 create temporary table t (
 i int)
@@ -343,8 +362,15 @@ engine = innodb row_format = dynamic;
 show warnings;
 Level	Code	Message
 #files in MYSQL_TMP_DIR
-#sql<temporary>.ibd
 drop table t;
+set innodb_strict_mode = on;
+create temporary table t (
+i int)
+engine = innodb row_format = dynamic;
+show warnings;
+Level	Code	Message
+drop table t;
+set innodb_strict_mode = off;
 #files in MYSQL_TMP_DIR
 create temporary table t (
 i int)
@@ -375,7 +401,9 @@ drop table t;
 use test;
 show tables;
 Tables_in_test
-create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
+create temporary table t1 (
+keyc int, c1 char(100), c2 char(100)
+) engine = innodb;
 drop table t1;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
