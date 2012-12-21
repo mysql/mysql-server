@@ -2260,5 +2260,23 @@ a
 1
 9
 drop table t1, t2;
+#
+# MDEV-3902  Assertion `record_length == m_record_length' failed at Filesort_buffer::alloc_sort_buffer 
+#
+CREATE TABLE t1 (a INT) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1),(2);
+CREATE TABLE t2 (pk INT PRIMARY KEY, b INT) ENGINE=MyISAM;
+INSERT INTO t2 VALUES (1,1),(2,7);
+CREATE TABLE t3 (c INT) ENGINE=MyISAM;
+INSERT INTO t3 VALUES (8);
+SELECT * FROM t1
+WHERE (1, 5)  IN (SELECT b, SUM(DISTINCT b) FROM t2, t3 GROUP BY b);
+a
+SELECT * FROM t2 AS alias1, t2 AS alias2
+WHERE EXISTS ( SELECT 1 ) AND (alias2.pk = alias1.b )
+ORDER BY alias1.b;
+pk	b	pk	b
+1	1	1	1
+drop table t1, t2, t3;
 SET optimizer_switch= @@global.optimizer_switch;
 set @@tmp_table_size= @@global.tmp_table_size;
