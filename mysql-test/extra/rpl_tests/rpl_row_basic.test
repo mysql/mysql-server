@@ -494,6 +494,13 @@ connection master;
 drop table t1;
 sync_slave_with_master;
 
+# MCP_BUG16029263
+# NDB SLAVE BATCHING, REPLICATION AND KEYLESS TABLES
+# Skip the below tests for NDB since they have no PK
+# and are thus not supported by NDB
+if (`SELECT $type != 'NDB'`)
+{
+
 #
 # Bug #38230  Differences between master and slave after 
 #             UPDATE or DELETE with LIMIT with pk
@@ -683,3 +690,7 @@ source include/diff_tables.inc;
 connection master;
 drop table t1;
 sync_slave_with_master;
+
+} # End of tests not supported by NDB
+STOP SLAVE; # MCP_BUG16029263
+# MCP_BUG16029263
