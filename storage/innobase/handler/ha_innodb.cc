@@ -8959,7 +8959,10 @@ create_options_are_invalid(
 		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
 		break;
 	case ROW_TYPE_DYNAMIC:
-		CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(use_tablespace);
+		if (!(create_info->options & HA_LEX_CREATE_TMP_TABLE)) {
+			CHECK_ERROR_ROW_TYPE_NEEDS_FILE_PER_TABLE(
+				use_tablespace);
+		}
 		CHECK_ERROR_ROW_TYPE_NEEDS_GT_ANTELOPE;
 		/* fall through since dynamic also shuns KBS */
 	case ROW_TYPE_COMPACT:
@@ -9315,6 +9318,7 @@ index_bad:
 	}
 
 	/* Validate the row format.  Correct it if necessary */
+	bool is_temp = create_info->options & HA_LEX_CREATE_TMP_TABLE;
 	switch (row_format) {
 	case ROW_TYPE_REDUNDANT:
 		innodb_row_format = REC_FORMAT_REDUNDANT;
@@ -9322,7 +9326,12 @@ index_bad:
 
 	case ROW_TYPE_COMPRESSED:
 	case ROW_TYPE_DYNAMIC:
-		if (!use_tablespace) {
+		/* Check for use_tablespace only if
+		row_format = compressed (temp + non_temp table)
+		row_format = dynamic (non_temp table) */
+		if ((!use_tablespace
+		     && (row_format == ROW_TYPE_COMPRESSED
+			 || (row_format == ROW_TYPE_DYNAMIC && !is_temp)))) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_ILLEGAL_HA_CREATE_OPTION,
@@ -9402,7 +9411,6 @@ innobase_table_is_noncompressed_temporary(
 	MySQL will continue to report key_block_size as 0 */
 	bool is_compressed =
 		(form->s->row_type == ROW_TYPE_COMPRESSED
-		 || form->s->row_type == ROW_TYPE_DYNAMIC
 		 || create_info->key_block_size > 0)
 		&& (srv_file_format >= UNIV_FORMAT_B)
 		&& file_per_table;

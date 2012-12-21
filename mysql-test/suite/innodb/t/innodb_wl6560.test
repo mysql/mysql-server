@@ -292,8 +292,27 @@ create temporary table t (
 	engine = innodb row_format = compressed key_block_size = 8;
 --replace_regex /[0-9]+/NUMBER/
 show warnings;
-#
 drop table t;
+#
+create temporary table t (
+	i int)
+	engine = innodb row_format = dynamic;
+--replace_regex /[0-9]+/NUMBER/
+show warnings;
+--echo #files in MYSQL_TMP_DIR
+--replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
+--list_files $MYSQL_TMP_DIR/ *.ibd
+drop table t;
+#
+set innodb_strict_mode = on;
+--error ER_ILLEGAL_HA
+create temporary table t (
+	i int)
+	engine = innodb row_format = dynamic;
+--replace_regex /[0-9]+/NUMBER/
+show warnings;
+set innodb_strict_mode = off;
+#
 set global innodb_file_format = 'Barracuda';
 create temporary table t (
 	i int)
@@ -324,6 +343,15 @@ show warnings;
 --replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
 --list_files $MYSQL_TMP_DIR/ *.ibd
 drop table t;
+#
+set innodb_strict_mode = on;
+create temporary table t (
+	i int)
+	engine = innodb row_format = dynamic;
+--replace_regex /[0-9]+/NUMBER/
+show warnings;
+drop table t;
+set innodb_strict_mode = off;
 #
 --echo #files in MYSQL_TMP_DIR
 --replace_regex /#sql[0-9a-f_]*/#sql<temporary>/
@@ -375,7 +403,9 @@ let SEARCH_PATTERN = support raw device;
 #
 use test;
 show tables;
-create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine = innodb;
+create temporary table t1 (
+	keyc int, c1 char(100), c2 char(100)
+	) engine = innodb;
 drop table t1;
 
 #-----------------------------------------------------------------------------
