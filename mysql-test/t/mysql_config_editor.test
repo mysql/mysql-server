@@ -22,6 +22,9 @@
 --echo # 'test-login-path2'
 --exec $MYSQL_CONFIG_EDITOR set --login-path=test-login-path2 --user=test_user3 --host=www.mysql.com
 --echo # done..
+--echo # 'test-login-path3'
+--exec $MYSQL_CONFIG_EDITOR set --login-path=test-login-path3 --user=test_user4 --host=127.0.0.1 --socket=/tmp/configtest.sock --port=15000
+--echo # done..
 
 --echo
 --echo ################################################
@@ -62,6 +65,9 @@
 --echo # test-login-path1
 --exec $MYSQL_CONFIG_EDITOR remove --login-path=test-login-path1
 --echo # done..
+--echo # test-login-path3
+--exec $MYSQL_CONFIG_EDITOR remove --login-path=test-login-path3 --socket --port
+--echo # done..
 
 --echo
 --echo ########################
@@ -96,6 +102,7 @@
 --echo # Inserting login paths default & test-login-path1
 --exec $MYSQL_CONFIG_EDITOR --verbose set --user=test_user1 --host=localhost 2>&1
 --exec $MYSQL_CONFIG_EDITOR --verbose set --login-path=test-login-path1 --user=test_user2 --host=127.0.0.1 2>&1
+--exec $MYSQL_CONFIG_EDITOR --verbose set --login-path=test-login-path2 --user=test_user3 --host=127.0.0.1 --socket=/tmp/configtest.sock --port=15000 2>&1
 --echo # done..
 --echo
 --echo # Connecting using 'test_user1'
@@ -148,6 +155,7 @@ FLUSH PRIVILEGES;
 --echo
 --echo # (b) With --no-defaults & --login-path
 --exec $MYSQL_MY_PRINT_DEFAULTS --no-defaults --login-path=test-login-path1 client 2>&1
+--exec $MYSQL_MY_PRINT_DEFAULTS --no-defaults --login-path=test-login-path2 client 2>&1
 --echo
 --echo # (c) With --no-defaults & --defaults-group-suffix
 --exec $MYSQL_MY_PRINT_DEFAULTS --no-defaults --defaults-group-suffix=_suffix1 client 2>&1
