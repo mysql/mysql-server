@@ -23,6 +23,7 @@
 #include <Vector.hpp>
 #include <NdbMutex.h>
 #include "DictCache.hpp"
+#include "kernel/ndb_limits.h"
 
 extern NdbMutex *g_ndb_connection_mutex;
 
@@ -74,10 +75,12 @@ public:
 private:
   friend class Ndb;
   friend class NdbImpl;
+  friend class NdbWaitGroup;
   friend void* run_ndb_cluster_connection_connect_thread(void*);
   friend class Ndb_cluster_connection;
   friend class NdbEventBuffer;
   friend class SignalSender;
+  friend class NDBT_Context;
   
   struct Node
   {
@@ -131,6 +134,8 @@ private:
   // Base offset for stats, from Ndb objects that are no 
   // longer with us
   Uint64 globalApiStatsBaseline[ Ndb::NumClientStatistics ];
+
+  NdbWaitGroup *m_multi_wait_group;
 };
 
 #endif

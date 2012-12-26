@@ -173,8 +173,8 @@ Dbtux::execTUX_BOUND_INFO(Signal* signal)
   c_scanOpPool.getPtr(scanPtr);
   ScanOp& scan = *scanPtr.p;
   const Index& index = *c_indexPool.getPtr(scan.m_indexId);
-  const DescHead& descHead = getDescHead(index);
-  const KeyType* keyTypes = getKeyTypes(descHead);
+  // compiler warning unused: const DescHead& descHead = getDescHead(index);
+  // compiler warning unused: const KeyType* keyTypes = getKeyTypes(descHead);
   // data passed in Signal
   const Uint32* const boundData = &req->data[0];
   Uint32 boundLen = req->boundAiLength;
@@ -911,7 +911,11 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
   }
 #endif
   // cannot be moved away from tuple we have locked
+#if defined VM_TRACE || defined ERROR_INSERT
   ndbrequire(scan.m_state != ScanOp::Locked);
+#else
+  ndbrequire(fromMaintReq || scan.m_state != ScanOp::Locked);
+#endif
   // scan direction
   const unsigned idir = scan.m_descending; // 0, 1
   const int jdir = 1 - 2 * (int)idir;      // 1, -1
@@ -921,6 +925,24 @@ Dbtux::scanNext(ScanOpPtr scanPtr, bool fromMaintReq)
   NodeHandle origNode(frag);
   selectNode(origNode, pos.m_loc);
   ndbrequire(islinkScan(origNode, scanPtr));
+  if (unlikely(scan.m_state == ScanOp::Locked)) {
+    // bug#32040 - no fix, just unlock and continue
+    jam();
+    if (scan.m_accLockOp != RNIL) {
+      jam();
+      Signal* signal = c_signal_bug32040;
+      AccLockReq* const lockReq = (AccLockReq*)signal->getDataPtrSend();
+      lockReq->returnCode = RNIL;
+      lockReq->requestInfo = AccLockReq::Abort;
+      lockReq->accOpPtr = scan.m_accLockOp;
+      EXECUTE_DIRECT(DBACC, GSN_ACC_LOCKREQ, signal, AccLockReq::UndoSignalLength);
+      jamEntry();
+      ndbrequire(lockReq->returnCode == AccLockReq::Success);
+      scan.m_accLockOp = RNIL;
+      scan.m_lockwait = false;
+    }
+    scan.m_state = ScanOp::Next;
+  }
   // current node in loop
   NodeHandle node = origNode;
   // copy of entry found

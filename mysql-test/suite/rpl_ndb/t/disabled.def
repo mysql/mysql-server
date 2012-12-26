@@ -11,6 +11,12 @@
 ##############################################################################
 
 rpl_ndb_set_null       : bug #51100
+# The below two tests runs extra/rpl_tests/rpl_mixed_implicit_commit_binlog
+# which is maintained upstream and easily breaks due to the inherent
+# difference in binlog ouput depending on who's creating the binlog.
+# These tests should be merged and made much more stable by not having
+# to hardcode "magic" numbers into the test. Test should also be fixed
+# to switch binlog_format itself if that is necessary for the test to properly
+# test everything.
+rpl_ndb_mixed_implicit_commit_binlog : unstable, magic numbers causes errors
 rpl_ndb_row_implicit_commit_binlog : BUG#12586131 - fails on SET PASSWORD
-rpl_ndb_mixed_implicit_commit_binlog : BUG#12586131 - fails on SET PASSWORD
-

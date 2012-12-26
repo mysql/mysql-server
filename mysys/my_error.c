@@ -94,6 +94,24 @@ char *my_strerror(char *buf, size_t len, int nr)
     */
 #if defined(__WIN__)
     strerror_s(buf, len, nr);
+    if (my_winerr != 0)
+    {
+      /*
+        If error code is EINVAL, and Windows Error code has been set, we append
+        the Windows error code to the message.
+      */
+      if (nr == EINVAL)
+      {
+        char tmp_buff[256] ;
+
+        my_snprintf(tmp_buff, sizeof(tmp_buff), 
+                    " [OS Error Code : 0x%x]", my_winerr);
+
+        strcat_s(buf, len, tmp_buff);
+      }
+
+      my_winerr= 0;
+    }
 #elif ((defined _POSIX_C_SOURCE && (_POSIX_C_SOURCE >= 200112L)) ||    \
        (defined _XOPEN_SOURCE   && (_XOPEN_SOURCE >= 600)))      &&    \
       ! defined _GNU_SOURCE
@@ -250,7 +268,7 @@ void my_printv_error(uint error, const char *format, myf MyFlags, va_list ap)
   @param MyFlags   Flags
 */
 
-void my_message(uint error, const char *str, register myf MyFlags)
+void my_message(uint error, const char *str, myf MyFlags)
 {
   (*error_handler_hook)(error, str, MyFlags);
 }

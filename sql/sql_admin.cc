@@ -351,17 +351,22 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
           because it's already known that the table is badly damaged.
         */
 
-        Diagnostics_area *da= thd->get_stmt_da();
-        Warning_info tmp_wi(thd->query_id, false);
-
-        da->push_warning_info(&tmp_wi);
+        Diagnostics_area tmp_da(thd->query_id, false);
+        thd->push_diagnostics_area(&tmp_da);
 
         open_error= open_temporary_tables(thd, table);
 
         if (!open_error)
           open_error= open_and_lock_tables(thd, table, TRUE, 0);
 
-        da->pop_warning_info();
+        thd->pop_diagnostics_area();
+        if (tmp_da.is_error())
+        {
+          // Copy the exception condition information.
+          thd->get_stmt_da()->set_error_status(tmp_da.mysql_errno(),
+                                               tmp_da.message_text(),
+                                               tmp_da.returned_sqlstate());
+        }
       }
       else
       {
@@ -478,16 +483,16 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     if (!table->table)
     {
       DBUG_PRINT("admin", ("open table failed"));
-      if (thd->get_stmt_da()->is_warning_info_empty())
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+      if (thd->get_stmt_da()->cond_count() == 0)
+        push_warning(thd, Sql_condition::SL_WARNING,
                      ER_CHECK_NO_SUCH_TABLE, ER(ER_CHECK_NO_SUCH_TABLE));
       /* if it was a view will check md5 sum */
       if (table->view &&
           view_checksum(thd, table) == HA_ADMIN_WRONG_CHECKSUM)
-        push_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning(thd, Sql_condition::SL_WARNING,
                      ER_VIEW_CHECKSUM, ER(ER_VIEW_CHECKSUM));
       if (thd->get_stmt_da()->is_error() &&
-          table_not_corrupt_error(thd->get_stmt_da()->sql_errno()))
+          table_not_corrupt_error(thd->get_stmt_da()->mysql_errno()))
         result_code= HA_ADMIN_FAILED;
       else
         /* Default failure code is corrupt table */
@@ -651,14 +656,14 @@ send_result:
         protocol->prepare_for_resend();
         protocol->store(table_name, system_charset_info);
         protocol->store((char*) operator_name, system_charset_info);
-        protocol->store(warning_level_names[err->get_level()].str,
-                        warning_level_names[err->get_level()].length,
+        protocol->store(warning_level_names[err->severity()].str,
+                        warning_level_names[err->severity()].length,
                         system_charset_info);
-        protocol->store(err->get_message_text(), system_charset_info);
+        protocol->store(err->message_text(), system_charset_info);
         if (protocol->write())
           goto err;
       }
-      thd->get_stmt_da()->clear_warning_info(thd->query_id);
+      thd->get_stmt_da()->reset_condition_info(thd->query_id);
     }
     protocol->prepare_for_resend();
     protocol->store(table_name, system_charset_info);
@@ -732,6 +737,11 @@ send_result_message:
 
     case HA_ADMIN_TRY_ALTER:
     {
+      uint save_flags;
+      Alter_info *alter_info= &lex->alter_info;
+
+      /* Store the original value of alter_info->flags */
+      save_flags= alter_info->flags;
       /*
         This is currently used only by InnoDB. ha_innobase::optimize() answers
         "try with alter", so here we close the table, do an ALTER TABLE,
@@ -753,9 +763,18 @@ send_result_message:
 
       DEBUG_SYNC(thd, "ha_admin_try_alter");
       protocol->store(STRING_WITH_LEN("note"), system_charset_info);
-      protocol->store(STRING_WITH_LEN(
-          "Table does not support optimize, doing recreate + analyze instead"),
-                      system_charset_info);
+      if(alter_info->flags & Alter_info::ALTER_ADMIN_PARTITION)
+      {
+        protocol->store(STRING_WITH_LEN(
+        "Table does not support optimize on partitions. All partitions "
+        "will be rebuilt and analyzed."),system_charset_info);
+      }
+      else
+      {
+        protocol->store(STRING_WITH_LEN(
+        "Table does not support optimize, doing recreate + analyze instead"),
+        system_charset_info);
+      }
       if (protocol->write())
         goto err;
       DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
@@ -789,11 +808,17 @@ send_result_message:
         if (!open_temporary_tables(thd, table) &&
             (table->table= open_n_lock_single_table(thd, table, lock_type, 0)))
         {
+          /*
+           Reset the ALTER_ADMIN_PARTITION bit in alter_info->flags
+           to force analyze on all partitions.
+          */
+          alter_info->flags &= ~(Alter_info::ALTER_ADMIN_PARTITION);
           result_code= table->table->file->ha_analyze(thd, check_opt);
           if (result_code == HA_ADMIN_ALREADY_DONE)
             result_code= HA_ADMIN_OK;
           else if (result_code)  // analyze failed
             table->table->file->print_error(result_code, MYF(0));
+          alter_info->flags= save_flags;
         }
         else
           result_code= -1; // open failed
@@ -807,7 +832,7 @@ send_result_message:
         DBUG_ASSERT(thd->is_error() || thd->killed);
         if (thd->is_error())
         {
-          const char *err_msg= thd->get_stmt_da()->message();
+          const char *err_msg= thd->get_stmt_da()->message_text();
           if (!thd->vio_ok())
           {
             sql_print_error("%s", err_msg);

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1074,6 +1074,8 @@ class Ndb
   friend class PollGuard;
   friend class NdbQueryImpl;
   friend class NdbQueryOperationImpl;
+  friend class MultiNdbWakeupHandler;
+  friend class NdbWaitGroup;
 #endif
 
 public:
@@ -1378,6 +1380,14 @@ public:
 
   struct PartitionSpec
   {
+    /*
+      Size of the PartitionSpec structure.
+    */
+    static inline Uint32 size()
+    {
+        return sizeof(PartitionSpec);
+    }
+
     enum SpecType
     {
       PS_NONE                = 0,
@@ -1760,7 +1770,19 @@ public:
   /* Get/Set per-Ndb custom data pointer */
   void setCustomData(void*);
   void* getCustomData() const;
-  
+
+  /* Get/Set per-Ndb custom data pointer */
+  /* NOTE: shares storage with void*
+   * i.e can not be used together with setCustomData
+   */
+  void setCustomData64(Uint64);
+  Uint64 getCustomData64() const;
+
+  /**
+   * transid next startTransaction() on this ndb-object will get
+   */
+  Uint64 getNextTransactionId() const;
+
   /* Some client behaviour counters to assist
    * optimisation
    */
@@ -1801,7 +1823,12 @@ public:
     NonDataEventsRecvdCount  = 19, /* Number of non-data events received */
     EventBytesRecvdCount     = 20, /* Number of bytes of event data received */
     
-    NumClientStatistics      = 21   /* End marker */
+    /* Adaptive Send */
+    ForcedSendsCount         = 21, /* Number of sends with force-send set */
+    UnforcedSendsCount       = 22, /* Number of sends without force-send */
+    DeferredSendsCount       = 23, /* Number of adaptive send calls not actually sent */
+    
+    NumClientStatistics      = 24   /* End marker */
   };
   
   Uint64 getClientStat(Uint32 id) const;
@@ -1908,6 +1935,12 @@ private:
    *   Returns NULL if none found
    */
   NdbTransaction* getConnectedNdbTransaction(Uint32 nodeId, Uint32 instance);
+  /**
+   * Handle Connection Array lists
+   */
+  void appendConnectionArray(NdbTransaction *aCon, Uint32 nodeId);
+  void prependConnectionArray(NdbTransaction *aCon, Uint32 nodeId);
+  void removeConnectionArray(NdbTransaction *first, Uint32 nodeId);
 
   // Release and disconnect from DBTC a connection
   // and seize it to theConIdleList
@@ -1993,6 +2026,7 @@ private:
 
   NdbTransaction*	theTransactionList;
   NdbTransaction**      theConnectionArray;
+  NdbTransaction**      theConnectionArrayLast;
 
   Uint32   theMyRef;        // My block reference  
   Uint32   theNode;         // The node number of our node

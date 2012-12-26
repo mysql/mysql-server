@@ -1,3 +1,6 @@
+call mtr.add_suppression('InnoDB: Resizing redo log');
+call mtr.add_suppression('InnoDB: Starting to delete and rewrite log files');
+call mtr.add_suppression('InnoDB: New log files created');
 #
 # Ensure the plugin isn't loaded.
 #
@@ -69,7 +72,7 @@ ERROR: Cannot access basedir at '/basedir_not_there/'.
 # 
 # Attempt to use bad paths - plugin_dir
 #
-ERROR: Cannot read plugin config file daemon_example. File does not exist.
+ERROR: Cannot access plugin_dir at '/plugin_not_there/'.
 # 
 # Attempt to use bad paths - mysqld
 #

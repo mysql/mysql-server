@@ -8,6 +8,7 @@
 drop table if exists t1;
 --enable_warnings
 set global innodb_file_format='Barracuda';
+call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds");
 create table t1(a int not null,
  b int not null,
  c int not null,

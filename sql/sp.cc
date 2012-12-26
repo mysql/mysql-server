@@ -327,7 +327,7 @@ Stored_routine_creation_ctx::load_from_db(THD *thd,
   if (invalid_creation_ctx)
   {
     push_warning_printf(thd,
-                        Sql_condition::WARN_LEVEL_WARN,
+                        Sql_condition::SL_WARNING,
                         ER_SR_INVALID_CREATION_CTX,
                         ER(ER_SR_INVALID_CREATION_CTX),
                         (const char *) db_name,
@@ -705,7 +705,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
 };
@@ -715,13 +715,13 @@ Silence_deprecated_warning::handle_condition(
   THD *,
   uint sql_errno,
   const char*,
-  Sql_condition::enum_warning_level level,
+  Sql_condition::enum_severity_level level,
   const char*,
   Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
-      level == Sql_condition::WARN_LEVEL_WARN)
+      level == Sql_condition::SL_WARNING)
     return TRUE;
 
   return FALSE;
@@ -797,7 +797,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* message,
                                 Sql_condition ** cond_hdl);
 
@@ -811,7 +811,7 @@ bool
 Bad_db_error_handler::handle_condition(THD *thd,
                                        uint sql_errno,
                                        const char* sqlstate,
-                                       Sql_condition::enum_warning_level level,
+                                       Sql_condition::enum_severity_level level,
                                        const char* message,
                                        Sql_condition ** cond_hdl)
 {
@@ -1465,7 +1465,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition ** cond_hdl)
   {
@@ -1492,7 +1492,6 @@ bool lock_db_routines(THD *thd, char *db)
 {
   TABLE *table;
   uint key_len;
-  int nxtres= 0;
   Open_tables_backup open_tables_state_backup;
   MDL_request_list mdl_requests;
   Lock_db_routines_error_handler err_handler;
@@ -1518,7 +1517,8 @@ bool lock_db_routines(THD *thd, char *db)
 
   table->field[MYSQL_PROC_FIELD_DB]->store(db, strlen(db), system_charset_info);
   key_len= table->key_info->key_part[0].store_length;
-  if ((nxtres= table->file->ha_index_init(0, 1)))
+  int nxtres= table->file->ha_index_init(0, 1);
+  if (nxtres)
   {
     table->file->print_error(nxtres, MYF(0));
     close_system_tables(thd, &open_tables_state_backup);
@@ -1595,6 +1595,7 @@ sp_drop_db_routines(THD *thd, char *db)
     ret= SP_KEY_NOT_FOUND;
     goto err_idx_init;
   }
+
   if (! table->file->ha_index_read_map(table->record[0],
                                        (uchar *)table->field[MYSQL_PROC_FIELD_DB]->ptr,
                                        (key_part_map)1, HA_READ_KEY_EXACT))
@@ -1835,7 +1836,7 @@ sp_exist_routines(THD *thd, TABLE_LIST *routines, bool is_proc)
                                sp_find_routine(thd, SP_TYPE_FUNCTION,
                                                name, &thd->sp_func_cache,
                                                FALSE) != NULL;
-    thd->get_stmt_da()->clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->reset_condition_info(thd->query_id);
     if (! sp_object_found)
     {
       my_error(ER_SP_DOES_NOT_EXIST, MYF(0), "FUNCTION or PROCEDURE",
@@ -2436,13 +2437,11 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_CHECKSUM:
   case SQLCOM_CHECK:
   case SQLCOM_HA_READ:
-  case SQLCOM_SHOW_AUTHORS:
   case SQLCOM_SHOW_BINLOGS:
   case SQLCOM_SHOW_BINLOG_EVENTS:
   case SQLCOM_SHOW_RELAYLOG_EVENTS:
   case SQLCOM_SHOW_CHARSETS:
   case SQLCOM_SHOW_COLLATIONS:
-  case SQLCOM_SHOW_CONTRIBUTORS:
   case SQLCOM_SHOW_CREATE:
   case SQLCOM_SHOW_CREATE_DB:
   case SQLCOM_SHOW_CREATE_FUNC:
@@ -2466,6 +2465,7 @@ uint sp_get_flags_for_command(LEX *lex)
   case SQLCOM_SHOW_PROC_CODE:
   case SQLCOM_SHOW_SLAVE_HOSTS:
   case SQLCOM_SHOW_SLAVE_STAT:
+  case SQLCOM_SHOW_SLAVE_STAT_NONBLOCKING:
   case SQLCOM_SHOW_STATUS:
   case SQLCOM_SHOW_STATUS_FUNC:
   case SQLCOM_SHOW_STATUS_PROC:

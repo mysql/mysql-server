@@ -5,6 +5,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import com.mysql.clusterj.Session;
@@ -96,6 +97,8 @@ public abstract class JDBCQueryTest extends AbstractClusterJModelTest {
         PreparedStatement statement = prepareStatement(connection, sql);
         int[] actual = executeQuery(statement, low, high);
         commit(connection);
+        Arrays.sort(actual);
+        Arrays.sort(expected);
         errorIfNotEqual("betweenQuery: Mismatch on betweenQuery", expected, actual);
     }
 

@@ -222,19 +222,19 @@ public:
 };
 
 
-class Item_func_lcase :public Item_str_conv
+class Item_func_lower :public Item_str_conv
 {
 public:
-  Item_func_lcase(Item *item) :Item_str_conv(item) {}
-  const char *func_name() const { return "lcase"; }
+  Item_func_lower(Item *item) :Item_str_conv(item) {}
+  const char *func_name() const { return "lower"; }
   void fix_length_and_dec();
 };
 
-class Item_func_ucase :public Item_str_conv
+class Item_func_upper :public Item_str_conv
 {
 public:
-  Item_func_ucase(Item *item) :Item_str_conv(item) {}
-  const char *func_name() const { return "ucase"; }
+  Item_func_upper(Item *item) :Item_str_conv(item) {}
+  const char *func_name() const { return "upper"; }
   void fix_length_and_dec();
 };
 

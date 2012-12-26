@@ -1,6 +1,5 @@
 /*
-   Copyright 2010 Sun Microsystems, Inc.
-   All rights reserved. Use is subject to license terms.
+   Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,5 +25,7 @@ public interface Dictionary {
     public Index getIndex(String indexName, String tableName, String indexAlias);
 
     public Table getTable(String tableName);
+
+    public void removeCachedTable(String tableName);
 
 }

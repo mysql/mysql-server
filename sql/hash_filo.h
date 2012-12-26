@@ -61,7 +61,9 @@ public:
     : key_offset(key_offset_arg), key_length(key_length_arg),
     get_key(get_key_arg), m_size(size),
     free_element(free_element_arg),
-    hash_charset(hash_charset_arg)
+    hash_charset(hash_charset_arg),
+    first_link(NULL),
+    last_link(NULL)
   {
     memset(&cache, 0, sizeof(cache));
     mysql_mutex_init(key_hash_filo_lock, &lock, MY_MUTEX_INIT_FAST);
@@ -77,38 +79,61 @@ public:
   {
     if (!locked)
       mysql_mutex_lock(&lock);
+    first_link= NULL;
+    last_link= NULL;
     (void) my_hash_free(&cache);
     (void) my_hash_init(&cache, hash_charset, m_size, key_offset, 
                         key_length, get_key, free_element,0);
     if (!locked)
       mysql_mutex_unlock(&lock);
-    first_link=last_link=0;
   }
 
   hash_filo_element *first()
-  { return first_link; }
+  {
+    mysql_mutex_assert_owner(&lock);
+    return first_link;
+  }
 
   hash_filo_element *last()
-  { return last_link; }
+  {
+    mysql_mutex_assert_owner(&lock);
+    return last_link;
+  }
 
   hash_filo_element *search(uchar* key, size_t length)
   {
+    mysql_mutex_assert_owner(&lock);
+
     hash_filo_element *entry=(hash_filo_element*)
       my_hash_search(&cache,(uchar*) key,length);
     if (entry)
     {						// Found; link it first
+      DBUG_ASSERT(first_link != NULL);
+      DBUG_ASSERT(last_link != NULL);
       if (entry != first_link)
       {						// Relink used-chain
 	if (entry == last_link)
-	  last_link=entry->prev_used;
+        {
+	  last_link= last_link->prev_used;
+          /*
+            The list must have at least 2 elements,
+            otherwise entry would be equal to first_link.
+          */
+          DBUG_ASSERT(last_link != NULL);
+          last_link->next_used= NULL;
+        }
 	else
 	{
+          DBUG_ASSERT(entry->next_used != NULL);
+          DBUG_ASSERT(entry->prev_used != NULL);
 	  entry->next_used->prev_used = entry->prev_used;
 	  entry->prev_used->next_used = entry->next_used;
 	}
-	if ((entry->next_used= first_link))
-	  first_link->prev_used=entry;
-	first_link=entry;
+        entry->prev_used= NULL;
+        entry->next_used= first_link;
+
+        first_link->prev_used= entry;
+        first_link=entry;
       }
     }
     return entry;
@@ -116,10 +141,20 @@ public:
 
   my_bool add(hash_filo_element *entry)
   {
+    if (!m_size) return 1;
     if (cache.records == m_size)
     {
       hash_filo_element *tmp=last_link;
-      last_link=last_link->prev_used;
+      last_link= last_link->prev_used;
+      if (last_link != NULL)
+      {
+        last_link->next_used= NULL;
+      }
+      else
+      {
+        /* Pathological case, m_size == 1 */
+        first_link= NULL;
+      }
       my_hash_delete(&cache,(uchar*) tmp);
     }
     if (my_hash_insert(&cache,(uchar*) entry))
@@ -128,11 +163,14 @@ public:
 	(*free_element)(entry);		// This should never happen
       return 1;
     }
-    if ((entry->next_used=first_link))
-      first_link->prev_used=entry;
+    entry->prev_used= NULL;
+    entry->next_used= first_link;
+    if (first_link != NULL)
+      first_link->prev_used= entry;
     else
-      last_link=entry;
-    first_link=entry;
+      last_link= entry;
+    first_link= entry;
+
     return 0;
   }
 

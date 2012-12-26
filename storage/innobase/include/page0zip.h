@@ -121,16 +121,19 @@ UNIV_INTERN
 ibool
 page_zip_compress(
 /*==============*/
-	page_zip_des_t*	page_zip,	/*!< in: size; out: data, n_blobs,
-					m_start, m_end, m_nonempty */
-	const page_t*	page,		/*!< in: uncompressed page */
-	dict_index_t*	index,		/*!< in: index of the B-tree node */
-	ulint		level,		/*!< in: commpression level */
-	page_compress_t* page_comp_info,
-					/*!< in used for applying
-					MLOG_FILE_TRUNCATE redo log record
-					during recovery */
-	mtr_t*		mtr)		/*!< in: mini-transaction, or NULL */
+	page_zip_des_t*		page_zip,	/*!< in: size; out: data,
+						n_blobs, m_start, m_end,
+						m_nonempty */
+	const page_t*		page,		/*!< in: uncompressed page */
+	dict_index_t*		index,		/*!< in: index of the B-tree
+						node */
+	ulint			level,		/*!< in: commpression level */
+	const redo_page_compress_t* page_comp_info,
+						/*!< in: used for applying
+						MLOG_FILE_TRUNCATE redo log
+						record during recovery */
+	mtr_t*			mtr)		/*!< in/out: mini-transaction,
+						or NULL */
 	__attribute__((nonnull(1,2,3)));
 
 /**********************************************************************//**
@@ -140,13 +143,15 @@ UNIV_INTERN
 ulint
 page_zip_fields_encode(
 /*===================*/
-	ulint		n,	/*!< in: number of fields to compress */
-	dict_index_t*	index,	/*!< in: index comprising at least n fields */
-	ulint		trx_id_pos,
-				/*!< in: position of the trx_id column
-				in the index, or ULINT_UNDEFINED if
-				this is a non-leaf page */
-	byte*		buf);	/*!< out: buffer of (n + 1) * 2 bytes */
+	ulint			n,	/*!< in: number of fields
+					to compress */
+	const dict_index_t*	index,	/*!< in: index comprising
+					at least n fields */
+	ulint			trx_id_pos,
+					/*!< in: position of the trx_id column
+					in the index, or ULINT_UNDEFINED if
+					this is a non-leaf page */
+	byte*			buf);	/*!< out: buffer of (n + 1) * 2 bytes */
 
 /**********************************************************************//**
 Decompress a page.  This function should tolerate errors on the compressed
@@ -188,9 +193,10 @@ page_zip_validate_low(
 /*==================*/
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
 	const page_t*		page,	/*!< in: uncompressed page */
+	const dict_index_t*	index,	/*!< in: index of the page, if known */
 	ibool			sloppy)	/*!< in: FALSE=strict,
 					TRUE=ignore the MIN_REC_FLAG */
-	__attribute__((nonnull));
+	__attribute__((nonnull(1,2)));
 /**********************************************************************//**
 Check that the compressed and decompressed pages match. */
 UNIV_INTERN
@@ -198,8 +204,9 @@ ibool
 page_zip_validate(
 /*==============*/
 	const page_zip_des_t*	page_zip,/*!< in: compressed page */
-	const page_t*		page)	/*!< in: uncompressed page */
-	__attribute__((nonnull));
+	const page_t*		page,	/*!< in: uncompressed page */
+	const dict_index_t*	index)	/*!< in: index of the page, if known */
+	__attribute__((nonnull(1,2)));
 #endif /* UNIV_ZIP_DEBUG */
 
 /**********************************************************************//**

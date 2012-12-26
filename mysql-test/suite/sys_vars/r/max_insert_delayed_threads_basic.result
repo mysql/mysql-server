@@ -170,6 +170,13 @@ SELECT @@global.max_insert_delayed_threads;
 16384
 Warnings:
 Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
+SET @@global.max_insert_delayed_threads = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_insert_delayed_threads'
+SELECT @@global.max_insert_delayed_threads;
+@@global.max_insert_delayed_threads
+16384
+Warnings:
+Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
 SET @@session.max_insert_delayed_threads = 16385;
 Warnings:
 Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
@@ -209,6 +216,13 @@ SELECT @@session.max_insert_delayed_threads;
 Warnings:
 Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
 SET @@session.max_insert_delayed_threads = test;
+ERROR 42000: Incorrect argument type to variable 'max_insert_delayed_threads'
+SELECT @@session.max_insert_delayed_threads;
+@@session.max_insert_delayed_threads
+16384
+Warnings:
+Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in a future release.
+SET @@session.max_insert_delayed_threads = ' ';
 ERROR 42000: Incorrect argument type to variable 'max_insert_delayed_threads'
 SELECT @@session.max_insert_delayed_threads;
 @@session.max_insert_delayed_threads

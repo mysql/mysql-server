@@ -260,6 +260,14 @@ public:
                          bool look_for_description_event);
 
   /*
+    Flag that the group_master_log_pos is invalid. This may occur
+    (for example) after CHANGE MASTER TO RELAY_LOG_POS.  This will
+    be unset after the first event has been executed and the
+    group_master_log_pos is valid again.
+   */
+  bool is_group_master_log_pos_invalid;
+
+  /*
     Handling of the relay_log_space_limit optional constraint.
     ignore_log_space_limit is used to resolve a deadlock between I/O and SQL
     threads, the SQL thread sets it to unblock the I/O thread and make it
@@ -834,6 +842,7 @@ public:
                  ,PSI_mutex_key *param_key_info_run_lock,
                  PSI_mutex_key *param_key_info_data_lock,
                  PSI_mutex_key *param_key_info_sleep_lock,
+                 PSI_mutex_key *param_key_info_thd_lock,
                  PSI_mutex_key *param_key_info_data_cond,
                  PSI_mutex_key *param_key_info_start_cond,
                  PSI_mutex_key *param_key_info_stop_cond,

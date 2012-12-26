@@ -1000,12 +1000,12 @@ explain extended select lcase(_latin2'a');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select lcase(_latin2'a') AS `lcase(_latin2'a')`
+Note	1003	/* select#1 */ select lower(_latin2'a') AS `lcase(_latin2'a')`
 explain extended select ucase(_latin2'a');
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
-Note	1003	/* select#1 */ select ucase(_latin2'a') AS `ucase(_latin2'a')`
+Note	1003	/* select#1 */ select upper(_latin2'a') AS `ucase(_latin2'a')`
 explain extended select SUBSTR('abcdefg',3,2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used

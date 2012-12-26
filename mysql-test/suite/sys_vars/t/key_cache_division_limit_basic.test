@@ -91,6 +91,9 @@ SET @@global.key_cache_division_limit = 200;
 SELECT @@global.key_cache_division_limit;
 SET @@global.key_cache_division_limit = 65535;
 SELECT @@global.key_cache_division_limit;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_cache_division_limit = ' ';
+SELECT @@global.key_cache_division_limit;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_cache_division_limit = ON;

@@ -26,7 +26,8 @@
 Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
   SimulatedBlock(DBSPJ, ctx, instanceNumber),
   m_scan_request_hash(m_request_pool),
-  m_lookup_request_hash(m_request_pool)
+  m_lookup_request_hash(m_request_pool),
+  m_tableRecord(NULL), c_tabrecFilesize(0)
 {
   BLOCK_CONSTRUCTOR(Dbspj);
 
@@ -39,6 +40,15 @@ Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_NODE_FAILREP, &Dbspj::execNODE_FAILREP);
   addRecSignal(GSN_INCL_NODEREQ, &Dbspj::execINCL_NODEREQ);
   addRecSignal(GSN_API_FAILREQ, &Dbspj::execAPI_FAILREQ);
+
+  /**
+   * Signals from DICT
+   */
+  addRecSignal(GSN_TC_SCHVERREQ, &Dbspj::execTC_SCHVERREQ);
+  addRecSignal(GSN_TAB_COMMITREQ, &Dbspj::execTAB_COMMITREQ);
+  addRecSignal(GSN_PREP_DROP_TAB_REQ, &Dbspj::execPREP_DROP_TAB_REQ);
+  addRecSignal(GSN_DROP_TAB_REQ, &Dbspj::execDROP_TAB_REQ);
+  addRecSignal(GSN_ALTER_TAB_REQ, &Dbspj::execALTER_TAB_REQ);
 
   /**
    * Signals from DIH
@@ -71,6 +81,11 @@ Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
 Dbspj::~Dbspj()
 {
   m_page_pool.clear();
+
+  deallocRecord((void**)&m_tableRecord,
+		"TableRecord",
+		sizeof(TableRecord), 
+		c_tabrecFilesize);
 }//Dbspj::~Dbspj()
 
 

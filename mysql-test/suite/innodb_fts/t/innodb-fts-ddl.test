@@ -1,6 +1,7 @@
 # This is the DDL function tests for innodb FTS
 
 call mtr.add_suppression("Trying to free a missing index of table 'test/fts_test'");
+call mtr.add_suppression("Failed to create index with index id .* of table 'test/fts_test' from the data dictionary during TRUNCATE");
 -- source include/have_innodb.inc
 
 # Create FTS table
@@ -96,11 +97,11 @@ INSERT INTO fts_test (title,body) VALUES
 # Create the FTS index
 # We could support online fulltext index creation when a FTS_DOC_ID
 # column already exists. This has not been implemented yet.
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 CREATE FULLTEXT INDEX idx on fts_test (title, body) LOCK=NONE;
 CREATE FULLTEXT INDEX idx on fts_test (title, body);
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE fts_test ROW_FORMAT=REDUNDANT, LOCK=NONE;
 ALTER TABLE fts_test ROW_FORMAT=REDUNDANT;
 

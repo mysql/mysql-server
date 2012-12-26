@@ -31,19 +31,33 @@ select * from information_schema.session_variables where variable_name='innodb_s
 --error ER_GLOBAL_VARIABLE
 set session innodb_stats_sample_pages=1;
 
+# 
+# show the default value
 #
-# incorrect types
+set global innodb_stats_sample_pages=DEFAULT;
+select @@global.innodb_stats_sample_pages;
+
+
+#
+# invalid values
 #
 --error ER_WRONG_TYPE_FOR_VAR
-set global innodb_stats_sample_pages=1.1;
+set global innodb_stats_sample_pages = 1.1;
 --error ER_WRONG_TYPE_FOR_VAR
-set global innodb_stats_sample_pages=1e1;
+set global innodb_stats_sample_pages = 1e1;
 --error ER_WRONG_TYPE_FOR_VAR
-set global innodb_stats_sample_pages="foo";
+set global innodb_stats_sample_pages = "foo";
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_stats_sample_pages=' ';
+select @@global.innodb_stats_sample_pages;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_stats_sample_pages=" ";
+select @@global.innodb_stats_sample_pages;
 
 set global innodb_stats_sample_pages=-7;
 select @@global.innodb_stats_sample_pages;
 select * from information_schema.global_variables where variable_name='innodb_stats_sample_pages';
+
 
 #
 # cleanup

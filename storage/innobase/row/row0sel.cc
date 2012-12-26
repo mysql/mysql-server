@@ -706,10 +706,9 @@ row_sel_build_prev_vers(
 
 /*********************************************************************//**
 Builds the last committed version of a clustered index record for a
-semi-consistent read.
-@return	DB_SUCCESS or error code */
-static __attribute__((nonnull, warn_unused_result))
-dberr_t
+semi-consistent read. */
+static __attribute__((nonnull))
+void
 row_sel_build_committed_vers_for_mysql(
 /*===================================*/
 	dict_index_t*	clust_index,	/*!< in: clustered index */
@@ -725,18 +724,16 @@ row_sel_build_committed_vers_for_mysql(
 					afterwards */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	dberr_t	err;
-
 	if (prebuilt->old_vers_heap) {
 		mem_heap_empty(prebuilt->old_vers_heap);
 	} else {
-		prebuilt->old_vers_heap = mem_heap_create(200);
+		prebuilt->old_vers_heap = mem_heap_create(
+			rec_offs_size(*offsets));
 	}
 
-	err = row_vers_build_for_semi_consistent_read(
+	row_vers_build_for_semi_consistent_read(
 		rec, mtr, clust_index, offsets, offset_heap,
 		prebuilt->old_vers_heap, old_vers);
-	return(err);
 }
 
 /*********************************************************************//**
@@ -1083,7 +1080,7 @@ row_sel_open_pcur(
 		(FALSE: no init) */
 
 		btr_pcur_open_at_index_side(plan->asc, index, BTR_SEARCH_LEAF,
-					    &(plan->pcur), FALSE, mtr);
+					    &(plan->pcur), false, 0, mtr);
 	}
 
 	ut_ad(plan->n_rows_prefetched == 0);
@@ -2533,12 +2530,16 @@ row_sel_convert_mysql_key_to_innobase(
 				dfield_set_len(dfield, len
 					       - (ulint) (key_ptr - key_end));
 			}
+                        ut_ad(0);
 		}
 
 		n_fields++;
 		field++;
 		dfield++;
 	}
+
+	DBUG_EXECUTE_IF("innodb_srch_key_buffer_full",
+		ut_a(buf == (original_buf + buf_len)););
 
 	ut_a(buf <= original_buf + buf_len);
 
@@ -3697,6 +3698,14 @@ row_search_for_mysql(
 
 	ut_ad(index && pcur && search_tuple);
 
+	/* We don't support FTS queries from the HANDLER interfaces, because
+	we implemented FTS as reversed inverted index with auxiliary tables.
+	So anything related to traditional index query would not apply to
+	it. */
+	if (index->type & DICT_FTS) {
+		return(DB_END_OF_INDEX);
+	}
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!sync_thread_levels_nonempty_trx(trx->has_search_latch));
 #endif /* UNIV_SYNC_DEBUG */
@@ -4168,19 +4177,18 @@ wait_table_again:
 				goto lock_wait_or_error;
 			}
 		}
-	} else {
-		if (mode == PAGE_CUR_G) {
-			btr_pcur_open_at_index_side(
-				TRUE, index, BTR_SEARCH_LEAF, pcur, FALSE,
-				&mtr);
-		} else if (mode == PAGE_CUR_L) {
-			btr_pcur_open_at_index_side(
-				FALSE, index, BTR_SEARCH_LEAF, pcur, FALSE,
-				&mtr);
-		}
+	} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_L) {
+		btr_pcur_open_at_index_side(
+			mode == PAGE_CUR_G, index, BTR_SEARCH_LEAF,
+			pcur, false, 0, &mtr);
 	}
 
 rec_loop:
+	if (trx_is_interrupted(trx)) {
+		err = DB_INTERRUPTED;
+		goto normal_return;
+	}
+
 	/*-------------------------------------------------------------*/
 	/* PHASE 4: Look for matching records in a loop */
 
@@ -4508,14 +4516,9 @@ no_gap_lock:
 
 			/* The following call returns 'offsets'
 			associated with 'old_vers' */
-			err = row_sel_build_committed_vers_for_mysql(
+			row_sel_build_committed_vers_for_mysql(
 				clust_index, prebuilt, rec,
 				&offsets, &heap, &old_vers, &mtr);
-
-			if (err != DB_SUCCESS) {
-
-				goto lock_wait_or_error;
-			}
 
 			/* Check whether it was a deadlock or not, if not
 			a deadlock and the transaction had to wait then
@@ -5175,6 +5178,20 @@ row_search_check_if_query_cache_permitted(
 	dict_table_t*	table;
 	ibool		ret	= FALSE;
 
+	/* Disable query cache altogether for all tables if recovered XA
+	transactions in prepared state exist. This is because we do not
+	restore the table locks for those transactions and we may wrongly
+	set ret=TRUE above if "lock_table_get_n_locks(table) == 0". See
+	"Bug#14658648 XA ROLLBACK (DISTRIBUTED DATABASE) NOT WORKING WITH
+	QUERY CACHE ENABLED".
+	Read trx_sys->n_prepared_recovered_trx without mutex protection,
+	not possible to end up with a torn read since n_prepared_recovered_trx
+	is word size. */
+	if (trx_sys->n_prepared_recovered_trx > 0) {
+
+		return(FALSE);
+	}
+
 	table = dict_table_open_on_name(norm_name, FALSE, FALSE,
 					DICT_ERR_IGNORE_NONE);
 
@@ -5238,11 +5255,15 @@ row_search_autoinc_read_column(
 
 	rec_offs_init(offsets_);
 
-	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
+	offsets = rec_get_offsets(rec, index, offsets, col_no + 1, &heap);
+
+	if (rec_offs_nth_sql_null(offsets, col_no)) {
+		/* There is no non-NULL value in the auto-increment column. */
+		value = 0;
+		goto func_exit;
+	}
 
 	data = rec_get_nth_field(rec, offsets, col_no, &len);
-
-	ut_a(len != UNIV_SQL_NULL);
 
 	switch (mtype) {
 	case DATA_INT:
@@ -5264,12 +5285,13 @@ row_search_autoinc_read_column(
 		ut_error;
 	}
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
-	}
-
 	if (!unsigned_type && (ib_int64_t) value < 0) {
 		value = 0;
+	}
+
+func_exit:
+	if (UNIV_LIKELY_NULL(heap)) {
+		mem_heap_free(heap);
 	}
 
 	return(value);
@@ -5333,10 +5355,9 @@ row_search_max_autoinc(
 
 		mtr_start(&mtr);
 
-		/* Open at the high/right end (FALSE), and INIT
-		cursor (TRUE) */
+		/* Open at the high/right end (false), and init cursor */
 		btr_pcur_open_at_index_side(
-			FALSE, index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 		if (page_get_n_recs(btr_pcur_get_page(&pcur)) > 0) {
 			const rec_t*	rec;

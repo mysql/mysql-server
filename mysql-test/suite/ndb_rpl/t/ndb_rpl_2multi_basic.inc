@@ -38,7 +38,7 @@ SHOW CREATE TABLE t1;
 sync_slave_with_master;
 SHOW CREATE TABLE t1;
 
---source include/rpl_multi_engine2.inc
+--source suite/ndb_rpl/t/ndb_rpl_multi_engine2.inc
 
 #################################################
 # Okay lets see how it holds up to table changes
@@ -58,7 +58,7 @@ SHOW CREATE TABLE t1;
 sync_slave_with_master;
 SHOW CREATE TABLE t1;
 
---source include/rpl_multi_engine2.inc
+--source suite/ndb_rpl/t/ndb_rpl_multi_engine2.inc
 
 #################################################
 --echo --- Check that replication works when slave has more columns than master
@@ -89,7 +89,7 @@ SELECT *
 FROM t1
 ORDER BY id;
 
---source include/rpl_multi_engine2.inc
+--source suite/ndb_rpl/t/ndb_rpl_multi_engine2.inc
 TRUNCATE TABLE t1;
 
 #################################################
@@ -107,7 +107,7 @@ ALTER TABLE t1 DROP COLUMN y;
 
 SHOW CREATE TABLE t1;
 
---source include/rpl_multi_engine2.inc
+--source suite/ndb_rpl/t/ndb_rpl_multi_engine2.inc
 TRUNCATE TABLE t1;
 
 #################################################

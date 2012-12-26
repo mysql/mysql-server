@@ -37,7 +37,7 @@ struct PFS_thread;
 struct row_events_statements
 {
   /** Column THREAD_ID. */
-  ulong m_thread_internal_id;
+  ulonglong m_thread_internal_id;
   /** Column EVENT_ID. */
   ulonglong m_event_id;
   /** Column END_EVENT_ID. */

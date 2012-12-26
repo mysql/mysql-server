@@ -158,17 +158,17 @@ at a time */
 #define SRV_AUTO_EXTEND_INCREMENT	\
 	(srv_auto_extend_increment * ((1024 * 1024) / UNIV_PAGE_SIZE))
 
-/* Mutex for locking srv_monitor_file */
+/* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 extern ib_mutex_t	srv_monitor_file_mutex;
 /* Temporary file for innodb monitor output */
 extern FILE*	srv_monitor_file;
-/* Mutex for locking srv_dict_tmpfile.
+/* Mutex for locking srv_dict_tmpfile. Only created if !srv_read_only_mode.
 This mutex has a very high rank; threads reserving it should not
 be holding any InnoDB latches. */
 extern ib_mutex_t	srv_dict_tmpfile_mutex;
 /* Temporary file for output from the data dictionary */
 extern FILE*	srv_dict_tmpfile;
-/* Mutex for locking srv_misc_tmpfile.
+/* Mutex for locking srv_misc_tmpfile. Only created if !srv_read_only_mode.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
 extern ib_mutex_t	srv_misc_tmpfile_mutex;
@@ -183,6 +183,10 @@ extern char*	srv_data_home;
 extern char*	srv_arch_dir;
 #endif /* UNIV_LOG_ARCHIVE */
 
+/** Set if InnoDB must operate in read-only mode. We don't do any
+recovery and open all tables in RO mode instead of RW mode. We don't
+sync the max trx id to disk either. */
+extern my_bool	srv_read_only_mode;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 extern my_bool	srv_file_per_table;
@@ -237,15 +241,17 @@ extern ulint*	srv_data_file_is_raw_partition;
 
 extern ibool	srv_auto_extend_last_data_file;
 extern ulint	srv_last_file_size_max;
-extern char**	srv_log_group_home_dirs;
+extern char*	srv_log_group_home_dir;
 #ifndef UNIV_HOTBACKUP
 extern ulong	srv_auto_extend_increment;
 
 extern ibool	srv_created_new_raw;
 
-extern ulint	srv_n_log_groups;
-extern ulint	srv_n_log_files;
+/** Maximum number of srv_n_log_files, or innodb_log_files_in_group */
+#define SRV_N_LOG_FILES_MAX 100
+extern ulong	srv_n_log_files;
 extern ib_uint64_t	srv_log_file_size;
+extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
@@ -319,7 +325,10 @@ extern ulong	srv_max_dirty_pages_pct_lwm;
 extern ulong	srv_adaptive_flushing_lwm;
 extern ulong	srv_flushing_avg_loops;
 
-extern ulint	srv_force_recovery;
+extern ulong	srv_force_recovery;
+#ifndef DBUG_OFF
+extern ulong	srv_force_recovery_crash;
+#endif /* !DBUG_OFF */
 
 extern ulint	srv_fast_shutdown;	/*!< If this is 1, do not do a
 					purge and index buffer merge.
@@ -395,6 +404,10 @@ extern	ibool	srv_print_latch_waits;
 extern my_bool	srv_ibuf_disable_background_merge;
 #endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 
+#ifdef UNIV_DEBUG
+extern my_bool	srv_purge_view_update_only_debug;
+#endif /* UNIV_DEBUG */
+
 extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
@@ -435,12 +448,17 @@ extern srv_stats_t	srv_stats;
 /* Keys to register InnoDB threads with performance schema */
 extern mysql_pfs_key_t	buf_page_cleaner_thread_key;
 extern mysql_pfs_key_t	trx_rollback_clean_thread_key;
+extern mysql_pfs_key_t	io_ibuf_thread_key;
+extern mysql_pfs_key_t	io_log_thread_key;
+extern mysql_pfs_key_t	io_read_thread_key;
+extern mysql_pfs_key_t	io_write_thread_key;
 extern mysql_pfs_key_t	io_handler_thread_key;
 extern mysql_pfs_key_t	srv_lock_timeout_thread_key;
 extern mysql_pfs_key_t	srv_error_monitor_thread_key;
 extern mysql_pfs_key_t	srv_monitor_thread_key;
 extern mysql_pfs_key_t	srv_master_thread_key;
 extern mysql_pfs_key_t	srv_purge_thread_key;
+extern mysql_pfs_key_t	recv_writer_thread_key;
 
 /* This macro register the current thread and its key with performance
 schema */
@@ -580,6 +598,12 @@ srv_set_io_thread_op_info(
 	ulint		i,	/*!< in: the 'segment' of the i/o thread */
 	const char*	str);	/*!< in: constant char string describing the
 				state */
+/*********************************************************************//**
+Resets the info describing an i/o thread current state. */
+UNIV_INTERN
+void
+srv_reset_io_thread_op_info();
+/*=========================*/
 /*******************************************************************//**
 Tells the purge thread that there has been activity in the database
 and wakes up the purge thread if it is suspended (not sleeping).  Note
@@ -774,7 +798,9 @@ struct export_var_t{
 	char  innodb_buffer_pool_load_status[512];/*!< Buf pool load status */
 	ulint innodb_buffer_pool_pages_total;	/*!< Buffer pool size */
 	ulint innodb_buffer_pool_pages_data;	/*!< Data pages */
+	ulint innodb_buffer_pool_bytes_data;	/*!< File bytes used */
 	ulint innodb_buffer_pool_pages_dirty;	/*!< Dirty data pages */
+	ulint innodb_buffer_pool_bytes_dirty;	/*!< File bytes modified */
 	ulint innodb_buffer_pool_pages_misc;	/*!< Miscellanous pages */
 	ulint innodb_buffer_pool_pages_free;	/*!< Free pages */
 #ifdef UNIV_DEBUG
@@ -818,6 +844,11 @@ struct export_var_t{
 	ulint innodb_num_open_files;		/*!< fil_n_file_opened */
 	ulint innodb_truncated_status_writes;	/*!< srv_truncated_status_writes */
 	ulint innodb_available_undo_logs;       /*!< srv_available_undo_logs */
+#ifdef UNIV_DEBUG
+	ulint innodb_purge_trx_id_age;		/*!< rw_max_trx_id - purged trx_id */
+	ulint innodb_purge_view_trx_id_age;	/*!< rw_max_trx_id
+						- purged view's min trx_id */
+#endif /* UNIV_DEBUG */
 };
 
 /** Thread slot in the thread table.  */
@@ -850,6 +881,7 @@ struct srv_slot_t{
 # define srv_use_native_aio			FALSE
 # define srv_force_recovery			0UL
 # define srv_set_io_thread_op_info(t,info)	((void) 0)
+# define srv_reset_io_thread_op_info()		((void) 0)
 # define srv_is_being_started			0
 # define srv_win_file_flush_method		SRV_WIN_IO_UNBUFFERED
 # define srv_unix_file_flush_method		SRV_UNIX_O_DSYNC

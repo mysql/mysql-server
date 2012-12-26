@@ -162,7 +162,7 @@ set innodb_strict_mode = on;
 
 create table t1 (id int primary key) engine = innodb key_block_size = 0;
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t2 (id int primary key) engine = innodb key_block_size = 9;
 show warnings;
 
@@ -189,17 +189,17 @@ drop table t1, t3, t4, t5, t8, t9, t10, t11;
 create table t1 (id int primary key) engine = innodb
 key_block_size = 4 row_format = compressed;
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t2 (id int primary key) engine = innodb
 key_block_size = 4 row_format = redundant;
 show warnings;
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t3 (id int primary key) engine = innodb
 key_block_size = 4 row_format = compact;
 show warnings;
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t4 (id int primary key) engine = innodb
 key_block_size = 4 row_format = dynamic;
 show warnings;
@@ -211,17 +211,17 @@ key_block_size = 4 row_format = default;
 drop table t1, t5;
 
 #test multiple errors
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t1 (id int primary key) engine = innodb
 key_block_size = 9 row_format = redundant;
 show warnings;
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t2 (id int primary key) engine = innodb
 key_block_size = 9 row_format = compact;
 show warnings;
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t2 (id int primary key) engine = innodb
 key_block_size = 9 row_format = dynamic;
 show warnings;
@@ -231,23 +231,23 @@ show warnings;
 #test valid values with innodb_file_per_table unset
 set global innodb_file_per_table = off;
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t1 (id int primary key) engine = innodb key_block_size = 1;
 show warnings;
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t2 (id int primary key) engine = innodb key_block_size = 2;
 show warnings;
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t3 (id int primary key) engine = innodb key_block_size = 4;
 show warnings;
 
 # Tests for key_block_size = 8 and 16 were moved to innodb_16k, innodb_8k
 # and innodb_4k since they get different warnings with smaller page sizes.
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t6 (id int primary key) engine = innodb row_format = compressed;
 show warnings;
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t7 (id int primary key) engine = innodb row_format = dynamic;
 show warnings;
 create table t8 (id int primary key) engine = innodb row_format = compact;
@@ -261,23 +261,23 @@ drop table t8, t9;
 set global innodb_file_per_table = on;
 set global innodb_file_format = `0`; 
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t1 (id int primary key) engine = innodb key_block_size = 1;
 show warnings;
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t2 (id int primary key) engine = innodb key_block_size = 2;
 show warnings;
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t3 (id int primary key) engine = innodb key_block_size = 4;
 show warnings;
 
 # Tests for key_block_size = 8 and 16 were moved to innodb_16k, innodb_8k
 # and innodb_4k since they get different warnings with smaller page sizes.
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t6 (id int primary key) engine = innodb row_format = compressed;
 show warnings;
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 create table t7 (id int primary key) engine = innodb row_format = dynamic;
 show warnings;
 create table t8 (id int primary key) engine = innodb row_format = compact;

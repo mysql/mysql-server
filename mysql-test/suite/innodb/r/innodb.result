@@ -772,12 +772,6 @@ SELECT MIN(B),MAX(b) FROM t1 WHERE t1.a = 1;
 MIN(B)	MAX(b)
 1	1
 drop table t1;
-CREATE TABLE t1 (a int unsigned NOT NULL) engine=innodb;
-INSERT INTO t1 VALUES (1);
-SELECT * FROM t1;
-a
-1
-DROP TABLE t1;
 create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h int, i int, j int, k int, l int, m int, n int, o int, p int, q int, r int, s int, t int, u int, v int, w int, x int, y int, z int, a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int, b1 int, b2 int, b3 int, b4 int, b5 int, b6 int) engine = innodb;
 insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
 explain select * from t1 where a > 0 and a < 50;
@@ -1684,7 +1678,7 @@ variable_value - @innodb_rows_deleted_orig
 71
 SELECT variable_value - @innodb_rows_inserted_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_inserted';
 variable_value - @innodb_rows_inserted_orig
-1006
+1005
 SELECT variable_value - @innodb_rows_updated_orig FROM information_schema.global_status WHERE LOWER(variable_name) = 'innodb_rows_updated';
 variable_value - @innodb_rows_updated_orig
 866
@@ -1891,10 +1885,10 @@ count(*)
 9
 explain select count(*) from t1 where v='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	13	const	#	Using where; Using index
+1	SIMPLE	t1	ref	v	v	13	const	#	Using index
 explain select count(*) from t1 where c='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	c	c	11	const	#	Using where; Using index
+1	SIMPLE	t1	ref	c	c	11	const	#	Using index
 explain select count(*) from t1 where t='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	t	t	13	const	#	Using where
@@ -1926,7 +1920,7 @@ qq
 *a         *a*a         *
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v,v_2	#	13	const	#	Using index condition
+1	SIMPLE	t1	ref	v,v_2	#	13	const	#	NULL
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1
@@ -2090,7 +2084,7 @@ count(*)
 9
 explain select count(*) from t1 where v='a  ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
+1	SIMPLE	t1	ref	v	v	303	const	#	Using index
 explain select count(*) from t1 where v like 'a%';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	v	v	303	NULL	#	Using where; Using index
@@ -2102,7 +2096,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	v	v	303	const	#	Using where; Using index
 explain select * from t1 where v='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	v	v	303	const	#	Using index condition
+1	SIMPLE	t1	ref	v	v	303	const	#	NULL
 select v,count(*) from t1 group by v limit 10;
 v	count(*)
 a	1

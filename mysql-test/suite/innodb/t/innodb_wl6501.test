@@ -28,8 +28,6 @@ let $innodb_file_format_max_orig=`select @@innodb_file_format_max`;
 
 set global innodb_file_per_table=on;
 
-call mtr.add_suppression("Warning: a page in the doublewrite buffer is not within space");
-
 --echo # Verify that 'TRUNCATE TABLE' statement works fine and the size
 --echo # of .ibd file is equal to the initial size after truncation.
 --source suite/innodb/t/innodb_wl6501_truncate_size.inc

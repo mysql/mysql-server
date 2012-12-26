@@ -45,6 +45,12 @@ set global innodb_io_capacity_max=1e1;
 ERROR 42000: Incorrect argument type to variable 'innodb_io_capacity_max'
 set global innodb_io_capacity_max="foo";
 ERROR 42000: Incorrect argument type to variable 'innodb_io_capacity_max'
+set global innodb_io_capacity_max=" ";
+ERROR 42000: Incorrect argument type to variable 'innodb_io_capacity_max'
+SET @@global.innodb_io_capacity_max = DEFAULT;
+select @@global.innodb_io_capacity_max IN (18446744073709551615,4294967295);
+@@global.innodb_io_capacity_max IN (18446744073709551615,4294967295)
+1
 set global innodb_io_capacity_max=@start_innodb_capacity - 1;
 Warnings:
 Warning	1210	innodb_io_capacity_max cannot be set lower than innodb_io_capacity.

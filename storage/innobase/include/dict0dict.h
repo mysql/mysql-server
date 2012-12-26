@@ -1390,30 +1390,6 @@ dict_index_is_online_ddl(
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
-Logs an operation to a secondary index that is being created. */
-UNIV_INTERN
-void
-dict_index_online_log(
-/*==================*/
-	dict_index_t*	index,	/*!< in/out: index, S-locked */
-	const dtuple_t*	entry,	/*!< in: index entry */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation */
-	UNIV_COLD __attribute__((nonnull));
-/*********************************************************************//**
-Attempts to log an operation on a secondary index that is being created.
-@return TRUE if the operation was logged or the index creation failed;
-FALSE if the index creation was completed */
-UNIV_INLINE
-ibool
-dict_index_online_trylog(
-/*=====================*/
-	dict_index_t*	index,	/*!< in/out: index */
-	const dtuple_t*	entry,	/*!< in: index entry */
-	trx_id_t	trx_id,	/*!< in: transaction ID or 0 if not known */
-	enum row_op	op)	/*!< in: operation on the index entry */
-	__attribute__((nonnull, warn_unused_result));
-/*********************************************************************//**
 Calculates the minimum record length in an index. */
 UNIV_INTERN
 ulint
@@ -1654,6 +1630,23 @@ dict_table_schema_check(
 	__attribute__((nonnull, warn_unused_result));
 /* @} */
 
+/*********************************************************************//**
+Converts a database and table name from filesystem encoding
+(e.g. d@i1b/a@q1b@1Kc, same format as used in dict_table_t::name) in two
+strings in UTF8 encoding (e.g. dцb and aюbØc). The output buffers must be
+at least MAX_DB_UTF8_LEN and MAX_TABLE_UTF8_LEN bytes. */
+UNIV_INTERN
+void
+dict_fs2utf8(
+/*=========*/
+	const char*	db_and_table,	/*!< in: database and table names,
+					e.g. d@i1b/a@q1b@1Kc */
+	char*		db_utf8,	/*!< out: database name, e.g. dцb */
+	size_t		db_utf8_size,	/*!< in: dbname_utf8 size */
+	char*		table_utf8,	/*!< out: table name, e.g. aюbØc */
+	size_t		table_utf8_size)/*!< in: table_utf8 size */
+	__attribute__((nonnull));
+
 /**********************************************************************//**
 Closes the data dictionary module. */
 UNIV_INTERN
@@ -1689,7 +1682,9 @@ UNIV_INTERN
 void
 dict_set_corrupted(
 /*===============*/
-	dict_index_t*	index)		/*!< in/out: index */
+	dict_index_t*	index,	/*!< in/out: index */
+	trx_t*		trx,	/*!< in/out: transaction */
+	const char*	ctx)	/*!< in: context */
 	UNIV_COLD __attribute__((nonnull));
 
 /**********************************************************************//**
@@ -1773,6 +1768,15 @@ dict_index_zip_pad_optimal_page_size(
 	dict_index_t*	index)	/*!< in: index for which page size
 				is requested */
 	__attribute__((nonnull, warn_unused_result));
+/*************************************************************//**
+Convert table flag to row format string.
+@return row format name */
+UNIV_INTERN
+const char*
+dict_tf_to_row_format_string(
+/*=========================*/
+	ulint	table_flag);		/*!< in: row format setting */
+
 #endif /* !UNIV_HOTBACKUP */
 
 #ifndef UNIV_NONINL

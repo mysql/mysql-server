@@ -93,6 +93,73 @@ SELECT COUNT(@@GLOBAL.innodb_lock_wait_timeout);
 SELECT innodb_lock_wait_timeout = @@SESSION.innodb_lock_wait_timeout;
 
 #
+# check the default value
+# 
+set @@global.innodb_lock_wait_timeout=100;
+set @@global.innodb_lock_wait_timeout=DEFAULT;
+select @@global.innodb_lock_wait_timeout;
+set @@session.innodb_lock_wait_timeout=100;
+set @@session.innodb_lock_wait_timeout=DEFAULT;
+select @@session.innodb_lock_wait_timeout;
+
+#
+# check for valid values
+#
+
+SET @@global.innodb_lock_wait_timeout=1;
+SELECT @@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout=1024;
+SELECT @@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout=1073741824;
+SELECT @@global.innodb_lock_wait_timeout;
+
+SET @@session.innodb_lock_wait_timeout=1;
+SELECT @@session.innodb_lock_wait_timeout;
+SET @@session.innodb_lock_wait_timeout=1024;
+SELECT @@session.innodb_lock_wait_timeout;
+SET @@session.innodb_lock_wait_timeout=1073741824;
+SELECT @@session.innodb_lock_wait_timeout;
+
+# 
+# check for invalid values
+#
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_lock_wait_timeout="t";
+SELECT @@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout=-1024;
+SELECT @@global.innodb_lock_wait_timeout;
+SET @@global.innodb_lock_wait_timeout=1073741825;
+SELECT @@global.innodb_lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_lock_wait_timeout=" ";
+SELECT @@global.innodb_lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_lock_wait_timeout=' ';
+SELECT @@global.innodb_lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.innodb_lock_wait_timeout=1.1;
+SELECT @@global.innodb_lock_wait_timeout;
+
+
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.innodb_lock_wait_timeout="T";
+SELECT @@session.innodb_lock_wait_timeout;
+SET @@session.innodb_lock_wait_timeout=-1024;
+SELECT @@session.innodb_lock_wait_timeout;
+SET @@session.innodb_lock_wait_timeout=1073999999;
+SELECT @@session.innodb_lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.innodb_lock_wait_timeout=' ';
+SELECT @@session.innodb_lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.innodb_lock_wait_timeout=" ";
+SELECT @@session.innodb_lock_wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.innodb_lock_wait_timeout=1.1;
+SELECT @@session.innodb_lock_wait_timeout;
+
+
+
 # Cleanup
 #
 

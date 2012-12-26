@@ -114,6 +114,7 @@ struct sys_var_with_base
 #include "lex_symbol.h"
 #if MYSQL_LEX
 #include "item_func.h"            /* Cast_target used in sql_yacc.h */
+#include "sql_signal.h"
 #include "sql_get_diagnostics.h"  /* Types used in sql_yacc.h */
 #include "sql_yacc.h"
 #define LEX_YYSTYPE YYSTYPE *
@@ -505,7 +506,6 @@ public:
   virtual st_select_lex_unit* master_unit()= 0;
   virtual st_select_lex* outer_select()= 0;
 
-  virtual bool set_braces(bool value);
   virtual bool inc_in_sum_expr();
   virtual uint get_in_sum_expr();
   virtual TABLE_LIST* get_table_list();
@@ -649,6 +649,7 @@ public:
   friend bool subselect_union_engine::exec();
 
   List<Item> *get_unit_column_types();
+  List<Item> *get_field_list();
 };
 
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
@@ -697,7 +698,13 @@ public:
   SQL_I_List<ORDER>       group_list;
   Group_list_ptrs        *group_list_ptrs;
 
-  List<Item>          item_list;  /* list of fields & expressions */
+  /**
+    List of fields & expressions.
+
+    SELECT: Fields and expressions in the SELECT list.
+    UPDATE: Fields in the SET clause.
+  */
+  List<Item>          item_list;
   List<String>        interval_list;
   bool	              is_item_list_lookup;
   /* 
@@ -736,7 +743,15 @@ public:
   // Don't insert new types below this line!
   };
 
-  SQL_I_List<ORDER> order_list;   /* ORDER clause */
+  /*
+    ORDER BY clause.
+    This list may be mutated during optimization (by remove_const()),
+    so for prepared statements, we keep a copy of the ORDER.next pointers in
+    order_list_ptrs, and re-establish the original list before each execution.
+  */
+  SQL_I_List<ORDER> order_list;
+  Group_list_ptrs *order_list_ptrs;
+
   SQL_I_List<ORDER> *gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
 
@@ -843,6 +858,8 @@ public:
     this select level.
   */
   table_map select_list_tables;
+  /// First select_lex removed as part of some transformation, or NULL
+  st_select_lex *removed_select;
 
   void init_query();
   void init_select();
@@ -913,7 +930,8 @@ public:
   bool test_limit();
 
   friend void lex_start(THD *thd);
-  st_select_lex() : group_list_ptrs(NULL), n_sum_items(0), n_child_sum_items(0),
+  st_select_lex() : group_list_ptrs(NULL), order_list_ptrs(NULL),
+    n_sum_items(0), n_child_sum_items(0),
     cur_pos_in_all_fields(ALL_FIELDS_UNDEF_POS)
   {}
   void make_empty_select()
@@ -1215,11 +1233,19 @@ public:
   }
 
   /**
-    Enumeration listing of all types of unsafe statement.
+    All types of unsafe statements.
 
-    @note The order of elements of this enumeration type must
-    correspond to the order of the elements of the @c explanations
-    array defined in the body of @c THD::issue_unsafe_warnings.
+    @note The int values of the enum elements are used to point to
+    bits in two bitmaps in two different places:
+
+    - Query_tables_list::binlog_stmt_flags
+    - THD::binlog_unsafe_warning_flags
+    
+    Hence in practice this is not an enum at all, but a map from
+    symbols to bit indexes.
+
+    The ordering of elements in this enum must correspond to the order of
+    elements in the array binlog_stmt_unsafe_errcode.
   */
   enum enum_binlog_stmt_unsafe {
     /**
@@ -1227,11 +1253,6 @@ public:
       be predicted.
     */
     BINLOG_STMT_UNSAFE_LIMIT= 0,
-    /**
-      INSERT DELAYED is unsafe because the time when rows are inserted
-      cannot be predicted.
-    */
-    BINLOG_STMT_UNSAFE_INSERT_DELAYED,
     /**
       Access to log tables is unsafe because slave and master probably
       log different things.
@@ -1898,6 +1919,10 @@ public:
 
   /**
     Inject a character into the pre-processed stream.
+
+    Note, this function is used to inject a space instead of multi-character
+    C-comment. Thus there is no boundary checks here (basically, we replace
+    N-chars by 1-char here).
   */
   char *cpp_inject(char ch)
   {
@@ -2376,11 +2401,40 @@ struct LEX: public Query_tables_list
   bool contains_plaintext_password;
 
 private:
+  bool m_broken; ///< see mark_broken()
   /// Current SP parsing context.
   /// @see also sp_head::m_root_parsing_ctx.
   sp_pcontext *sp_current_parsing_ctx;
 
 public:
+
+  bool is_broken() const { return m_broken; }
+  /**
+     Certain permanent transformations (like in2exists), if they fail, may
+     leave the LEX in an inconsistent state. They should call the
+     following function, so that this LEX is not reused by another execution.
+
+     @todo If lex_start () were a member function of LEX, the "broken"
+     argument could always be "true" and thus could be removed.
+  */
+  void mark_broken(bool broken= true)
+  {
+    if (broken)
+    {
+      /*
+        "OPEN <cursor>" cannot be re-prepared if the cursor uses no tables
+        ("SELECT FROM DUAL"). Indeed in that case cursor_query is left empty
+        in constructions of sp_instr_cpush, and thus
+        sp_lex_instr::parse_expr() cannot re-prepare. So we mark the statement
+        as broken only if tables are used.
+      */
+      if (is_metadata_used())
+        m_broken= true;
+    }
+    else
+      m_broken= false;
+  }
+
   sp_pcontext *get_sp_current_parsing_ctx()
   { return sp_current_parsing_ctx; }
 
@@ -2408,9 +2462,10 @@ public:
   */
   uint8 create_view_suid;
 
-  /*
-    stmt_definition_begin is intended to point to the next word after
-    DEFINER-clause in the following statements:
+  /**
+    Intended to point to the next word after DEFINER-clause in the
+    following statements:
+
       - CREATE TRIGGER (points to "TRIGGER");
       - CREATE PROCEDURE (points to "PROCEDURE");
       - CREATE FUNCTION (points to "FUNCTION" or "AGGREGATE");
@@ -2418,20 +2473,9 @@ public:
 
     This pointer is required to add possibly omitted DEFINER-clause to the
     DDL-statement before dumping it to the binlog.
-
-    keyword_delayed_begin_offset is the offset to the beginning of the DELAYED
-    keyword in INSERT DELAYED statement. keyword_delayed_end_offset is the
-    offset to the character right after the DELAYED keyword.
   */
-  union {
-    const char *stmt_definition_begin;
-    uint keyword_delayed_begin_offset;
-  };
-
-  union {
-    const char *stmt_definition_end;
-    uint keyword_delayed_end_offset;
-  };
+  const char *stmt_definition_begin;
+  const char *stmt_definition_end;
 
   /**
     During name resolution search only in the table list given by 
@@ -2589,36 +2633,6 @@ public:
 
 
 /**
-  Set_signal_information is a container used in the parsed tree to represent
-  the collection of assignments to condition items in the SIGNAL and RESIGNAL
-  statements.
-*/
-class Set_signal_information
-{
-public:
-  /** Empty default constructor, use clear() */
- Set_signal_information() {} 
-
-  /** Copy constructor. */
-  Set_signal_information(const Set_signal_information& set);
-
-  /** Destructor. */
-  ~Set_signal_information()
-  {}
-
-  /** Clear all items. */
-  void clear();
-
-  /**
-    For each condition item assignment, m_item[] contains the parsed tree
-    that represents the expression assigned, if any.
-    m_item[] is an array indexed by Diag_condition_item_name.
-  */
-  Item *m_item[LAST_DIAG_SET_PROPERTY+1];
-};
-
-
-/**
   The internal state of the syntax parser.
   This object is only available during parsing,
   and is private to the syntax parser implementation (sql_yacc.yy).
@@ -2635,7 +2649,6 @@ public:
   {
     yacc_yyss= NULL;
     yacc_yyvs= NULL;
-    m_set_signal_info.clear();
     m_lock_type= TL_READ_DEFAULT;
     m_mdl_type= MDL_SHARED_READ;
     m_ha_rkey_mode= HA_READ_KEY_EXACT;
@@ -2665,12 +2678,6 @@ public:
     my_yyoverflow().
   */
   uchar *yacc_yyvs;
-
-  /**
-    Fragments of parsed tree,
-    used during the parsing of SIGNAL and RESIGNAL.
-  */
-  Set_signal_information m_set_signal_info;
 
   /**
     Type of lock to be used for tables being added to the statement's

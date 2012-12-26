@@ -1,48 +1,24 @@
 # For easier human reading (MTR doesn't care), please keep entries
 # in alphabetical order. This also helps with merge conflict resolution.
 
-binlog.binlog_multi_engine               # joro : NDB tests marked as experimental as agreed with bochklin
+
 
 funcs_1.charset_collation_1              # depends on compile-time decisions
-funcs_1.innodb_trig_1011ext @solaris     # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
-funcs_1.myisam_trig_1011ext @solaris     # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
-funcs_1.memory_trig_1011ext @solaris     # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
 
 main.func_math @freebsd                  # Bug#11751977 2010-05-04 alik main.func_math fails on FreeBSD in PB2
 main.mysqlslap @windows                  # Bug#11761520 2010-08-10 alik mysqlslap fails sporadically starting from Dahlia
-main.signal_demo3 @solaris               # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-main.sp @solaris                         # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-
-main.bug33509 @solaris                   # Bug#11753919 2012-02-16 didrik Several test cases fail on Solaris with error Thread stack overrun
 
 main.index_merge_innodb                  # BUG#11754168 2012-05-08 jorgen Doing an attempt at reenabling tests disabled by bug. EXPLAIN's row estimates varies for innodb so marked experimental for a while
 main.kill @freebsd                       # Bug#12619719 2011-08-04 Occasional failure in PB2
 main.kill @darwin                        # Bug#12619719 2012-07-12 Occasional failure in PB2
-main.mix2_myisam @solaris		 # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
-main.sp-lock @solaris			 # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
-main.sp-prelocking @solaris              # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
-main.sp-fib @solaris                     # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
 
 innodb.innodb_monitor                    # Bug#12320827 2011-08-04 Occasional failure in PB2
 
 rpl.rpl_delayed_slave                    # BUG#11764654 rpl_delayed_slave fails sporadically in pb
 rpl.rpl_innodb_bug28430                  # Bug#11754425
-rpl.rpl_row_sp011  @solaris              # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
-rpl.rpl_seconds_behind_master            # BUG#11765124 2010-11-24 luis fails sporadically on pb2
 rpl.rpl_show_slave_running               # BUG#12346048 2011-04-11 sven fails sporadically on pb2
 rpl.rpl_parallel_switch_sequential       # BUG#13626976 2012-02-07 dlenev Fails sporadically on pb2
-rpl.rpl_gtid_stress_failover             # BUG#11938382,BUG#13779291 2012-03-26 Nuno Fails sporadically on pb2 (see also BUG#13813811)
-rpl.rpl_report_port                      # BUG#13812374 2012-05-10 Hemant Fails after the post fix for bug#13812374
-rpl.rpl_switch_stm_row_mixed @solaris    # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
-rpl.rpl_mix_found_rows @solaris          # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
-rpl.rpl_insert_id @solaris               # Bug#11753919 2012-05-22 Hemant Several test cases fail on Solaris with error Thread stack overrun
-sys_vars.max_sp_recursion_depth_func @solaris # Bug#11753919 2010-01-20 alik Several test cases fail on Solaris with error Thread stack overrun
 
-# BUG #59055 : All ndb tests should be removed from the repository
-# Leaving the sys_vars tests for now. sys_vars.all_vars.test fails on removing ndb tests
-sys_vars.ndb_log_update_as_write_basic
-sys_vars.have_ndbcluster_basic
-sys_vars.ndb_log_updated_only_basic
 sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 
 rpl.rpl_mixed_mts_rec_crash_safe @solaris          # Bug#12902514 2011-08-19 andrei mts recovery tests are slow

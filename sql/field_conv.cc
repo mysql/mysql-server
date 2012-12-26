@@ -109,7 +109,7 @@ type_conversion_status set_field_to_null(Field *field)
   field->reset();
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
-    field->set_warning(Sql_condition::WARN_LEVEL_WARN, WARN_DATA_TRUNCATED, 1);
+    field->set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
     return TYPE_OK;
@@ -177,7 +177,7 @@ set_field_to_null_with_conversions(Field *field, bool no_conversions)
   }
   switch (field->table->in_use->count_cuted_fields) {
   case CHECK_FIELD_WARN:
-    field->set_warning(Sql_condition::WARN_LEVEL_WARN, ER_BAD_NULL_ERROR, 1);
+    field->set_warning(Sql_condition::SL_WARNING, ER_BAD_NULL_ERROR, 1);
     /* fall through */
   case CHECK_FIELD_IGNORE:
     return TYPE_OK;
@@ -216,7 +216,7 @@ static void do_copy_not_null(Copy_field *copy)
 {
   if (*copy->null_row || (*copy->from_null_ptr & copy->from_bit))
   {
-    copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
+    copy->to_field->set_warning(Sql_condition::SL_WARNING,
                                 WARN_DATA_TRUNCATED, 1);
     copy->to_field->reset();
   }
@@ -375,7 +375,7 @@ static void do_cut_string(Copy_field *copy)
                      (char*) copy->from_ptr + copy->from_length,
                      MY_SEQ_SPACES) < copy->from_length - copy->to_length)
   {
-    copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
+    copy->to_field->set_warning(Sql_condition::SL_WARNING,
                                 WARN_DATA_TRUNCATED, 1);
   }
 }
@@ -406,7 +406,7 @@ static void do_cut_string_complex(Copy_field *copy)
                      (char*) from_end,
                      MY_SEQ_SPACES) < (copy->from_length - copy_length))
   {
-    copy->to_field->set_warning(Sql_condition::WARN_LEVEL_WARN,
+    copy->to_field->set_warning(Sql_condition::SL_WARNING,
                                 WARN_DATA_TRUNCATED, 1);
   }
 
@@ -474,7 +474,7 @@ static uint get_varstring_copy_length(Field_varstring *to,
     if (bytes_to_copy < from_byte_length)
     {
       if (from->table->in_use->count_cuted_fields)
-        to->set_warning(Sql_condition::WARN_LEVEL_WARN,
+        to->set_warning(Sql_condition::SL_WARNING,
                         WARN_DATA_TRUNCATED, 1);
     }
   }
@@ -484,7 +484,7 @@ static uint get_varstring_copy_length(Field_varstring *to,
     {
       bytes_to_copy= to_byte_length;
       if (from->table->in_use->count_cuted_fields)
-        to->set_warning(Sql_condition::WARN_LEVEL_WARN,
+        to->set_warning(Sql_condition::SL_WARNING,
                         WARN_DATA_TRUNCATED, 1);
     }
   }

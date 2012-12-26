@@ -123,7 +123,8 @@ ConfigManager::find_nodeid_from_configdir(void)
   BaseString config_name;
   NdbDir::Iterator iter;
 
-  if (iter.open(m_configdir) != 0)
+  if (!m_configdir ||
+      iter.open(m_configdir) != 0)
     return 0;
 
   const char* name;
@@ -424,6 +425,15 @@ ConfigManager::init(void)
 
       /* Use the fetched config for now */
       set_config(conf);
+
+      if (!m_opts.config_cache)
+      {
+        assert(!m_configdir); // Running without configdir
+        g_eventLogger->info("Fetched configuration, " \
+                            "generation: %d, name: '%s'. ",
+                            m_config->getGeneration(), m_config->getName());
+        DBUG_RETURN(true);
+      }
 
       if (m_config->getGeneration() == 0)
       {
@@ -2102,6 +2112,12 @@ ConfigManager::delete_saved_configs(void) const
 {
   NdbDir::Iterator iter;
 
+  if (!m_configdir)
+  {
+    // No configdir -> no files to delete
+    return true;
+  }
+
   if (iter.open(m_configdir) != 0)
     return false;
 
@@ -2144,8 +2160,9 @@ ConfigManager::saved_config_exists(BaseString& config_name) const
 {
   NdbDir::Iterator iter;
 
-  if (iter.open(m_configdir) != 0)
-    return false;
+  if (!m_configdir ||
+      iter.open(m_configdir) != 0)
+    return 0;
 
   const char* name;
   unsigned nodeid;
@@ -2182,8 +2199,9 @@ ConfigManager::failed_config_change_exists() const
 {
   NdbDir::Iterator iter;
 
-  if (iter.open(m_configdir) != 0)
-    return false;
+  if (!m_configdir ||
+      iter.open(m_configdir) != 0)
+    return 0;
 
   const char* name;
   char tmp;

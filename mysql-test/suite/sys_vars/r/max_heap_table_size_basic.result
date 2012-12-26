@@ -127,6 +127,11 @@ ERROR 42000: Incorrect argument type to variable 'max_heap_table_size'
 SELECT @@global.max_heap_table_size;
 @@global.max_heap_table_size
 4294967296
+SET @@global.max_heap_table_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_heap_table_size'
+SELECT @@global.max_heap_table_size;
+@@global.max_heap_table_size
+4294967296
 SET @@session.max_heap_table_size = -1;
 Warnings:
 Warning	1292	Truncated incorrect max_heap_table_size value: '-1'
@@ -152,6 +157,11 @@ SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size
 10737418240
 SET @@session.max_heap_table_size = test;
+ERROR 42000: Incorrect argument type to variable 'max_heap_table_size'
+SELECT @@session.max_heap_table_size;
+@@session.max_heap_table_size
+10737418240
+SET @@session.max_heap_table_size = ' ';
 ERROR 42000: Incorrect argument type to variable 'max_heap_table_size'
 SELECT @@session.max_heap_table_size;
 @@session.max_heap_table_size

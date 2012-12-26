@@ -1,0 +1,56 @@
+--source include/have_ndb.inc
+--source suite/ndb_memcache/include/have_memcache.inc
+
+--perl
+
+use strict;
+use lib "lib/";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache->new();
+my $r = $mc->connect("localhost",$port);
+
+if($r == 0) {
+  print STDERR "DID NOT CONNECT TO MEMCACHE AT PORT $port \n";
+}
+
+$mc->flush();
+
+## Test expiry times
+$mc->set_expires(0);    $mc->set("t:1", "Groen");  ## Will not expire
+$mc->set_expires(3);    $mc->set("t:2", "Yello");  ## Expire in 3 seconds
+
+sleep(1);
+($mc->get("t:1") == "Groen")  || Carp::confess "Expected result";
+($mc->get("t:2") == "Yello")  || Carp::confess "Expected result";
+
+sleep(3); 
+($mc->get("t:1") == "Groen")  || Carp::confess "Expected result";
+$mc->get("t:2")               && Carp::confess "Item should have expired";  
+($mc->{error} == "NOT_FOUND") || Carp::confess "Expected NOT_FOUND";
+
+print "TTL Test OK \n";
+
+# Test flags
+$mc->set_expires(0);
+$mc->set_flags(100);
+$mc->set("t:12", "Con\tBrio");
+$mc->set_flags(200);
+$mc->set("t:13", "Sul ponticello");
+
+$mc->set_flags(0);
+
+$mc->get("t:12");
+($mc->{flags} == 100)  || Carp::confess("Expected flags = 100");
+
+$mc->get("t:13");
+($mc->{flags} == 200)  || Carp::confess("Expected flags = 200");
+
+print "Flags Test OK \n";
+
+EOF
+
+USE ndbmemcache;
+SELECT * FROM demo_table_tabs order by mkey;

@@ -621,8 +621,6 @@ show columns in t1;
 show slave hosts;
 show keys in t1;
 show storage engines;
-show authors;
-show contributors;
 show privileges;
 show count(*) warnings;
 show count(*) errors;
@@ -973,9 +971,6 @@ drop table t1;
 
 --echo End of 5.0 tests
 
---disable_result_log
-SHOW AUTHORS;
---enable_result_log
 
 #
 # Bug#9785 SELECT privilege for the whole database is needed to do
@@ -1393,6 +1388,19 @@ SHOW CREATE TRIGGER t1_bi;
 
 DROP TEMPORARY TABLE t1;
 DROP TABLE t1;
+
+
+--echo #
+--echo # WL#6454: Deprecate SHOW AUTHORS and SHOW CONTRIBUTORS
+--echo #
+
+--echo # These statements were deprecated in 5.5 and removed in 5.6.
+--echo # They should therefore give ER_PARSE_ERROR here.
+
+--error ER_PARSE_ERROR
+SHOW AUTHORS;
+--error ER_PARSE_ERROR
+SHOW CONTRIBUTORS;
 
 
 # Wait till all disconnects are completed

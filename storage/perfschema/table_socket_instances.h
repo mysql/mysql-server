@@ -39,7 +39,7 @@ struct row_socket_instances
   /** Column OBJECT_INSTANCE_BEGIN */
   const void *m_identity;
   /** Column THREAD_ID */
-  uint m_thread_id;
+  ulonglong m_thread_id;
   /** True if thread_is is set */
   bool m_thread_id_set;
   /** Column SOCKET_ID */

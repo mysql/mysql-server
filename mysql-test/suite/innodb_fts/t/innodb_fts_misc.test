@@ -92,37 +92,37 @@ INSERT INTO t1 (a,b) VALUES
 # This should only return the first document
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"proximity search"@10' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@2' IN BOOLEAN MODE);
 
 # This would return no document
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"proximity search"@9' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@1' IN BOOLEAN MODE);
 
 # This give you all three documents
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"proximity search"@14' IN BOOLEAN MODE);
+        AGAINST ('"proximity search"@3' IN BOOLEAN MODE);
 
 # Similar boundary testing for the words
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"test proximity"@5' IN BOOLEAN MODE);
+        AGAINST ('"test proximity"@3' IN BOOLEAN MODE);
 
 # Test with more word The last document will return, please notice there
 # is no ordering requirement for proximity search.
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"more test proximity"@10' IN BOOLEAN MODE);
+        AGAINST ('"more test proximity"@3' IN BOOLEAN MODE);
 
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"more test proximity"@9' IN BOOLEAN MODE);
+        AGAINST ('"more test proximity"@2' IN BOOLEAN MODE);
 
 # The phrase search will not require exact word ordering
 SELECT id FROM t1
         WHERE MATCH (a,b)
-        AGAINST ('"more fts proximity"@09' IN BOOLEAN MODE);
+        AGAINST ('"more fts proximity"@02' IN BOOLEAN MODE);
 
 DROP TABLE t1;
 
@@ -262,23 +262,23 @@ INSERT INTO t1 (a,b) VALUES
 
 
 SELECT id FROM t1 WHERE t1.id = (SELECT MAX(t2.id) FROM t1 AS t2 WHERE
-MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 SELECT id FROM t1 WHERE t1.id > (SELECT MIN(t2.id) FROM t1 AS t2 WHERE
-MATCH(t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+MATCH(t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 
 SELECT id FROM t1 WHERE t1.id IN (SELECT t2.id FROM t1 AS t2 WHERE
-MATCH (t2.a,t2.b) AGAINST ('"proximity search"@10' IN BOOLEAN MODE));
+MATCH (t2.a,t2.b) AGAINST ('"proximity search"@2' IN BOOLEAN MODE));
 
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
-MATCH t2.a,t2.b AGAINST ('"proximity search"@10' IN BOOLEAN MODE) 
+MATCH t2.a,t2.b AGAINST ('"proximity search"@2' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
-MATCH t2.a,t2.b AGAINST ('"more test proximity"@10' IN BOOLEAN MODE) 
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@3' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 
 SELECT id FROM t1 WHERE EXISTS (SELECT id FROM t1 AS t2 WHERE
-MATCH t2.a,t2.b AGAINST ('"more test proximity"@5' IN BOOLEAN MODE) 
+MATCH t2.a,t2.b AGAINST ('"more test proximity"@2' IN BOOLEAN MODE)
 AND t2.id=t1.id);
 
 
@@ -932,7 +932,8 @@ CREATE TABLE `t21` (`a` text, `b` int not null,
 fulltext key (`a`), fulltext key (`a`)
 ) ENGINE=INNODB DEFAULT CHARSET=LATIN1;
 
---error ER_INNODB_FT_LIMIT
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
+ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`), ALGORITHM=INPLACE;
 ALTER  TABLE `t21` ADD UNIQUE INDEX (`b`);
 
 DROP TABLE t21;
@@ -1120,3 +1121,36 @@ SELECT id FROM t1 WHERE MATCH (a,b)
         AGAINST ('MySQL' IN NATURAL LANGUAGE MODE);
 
 DROP TABLE t1;
+
+# Test for Bug 14588091 - FTS: BUFFER OVERFLOW IN FTS_AST_CREATE_NODE_TEXT
+CREATE TABLE `t` (`a` char(20) character set utf8 default null,
+fulltext key (`a`)) ENGINE=INNODB;
+INSERT INTO `t` VALUES ('a');
+INSERT INTO `t` VALUES ('aaa');
+
+# 0x22 is the '"', 0xdd is not encoded in utf8
+SELECT MATCH(`a`) AGAINST (0x22dd22) FROM `t`;
+SELECT MATCH(`a`) AGAINST (0x2222) FROM `t`;
+SELECT MATCH(`a`) AGAINST (0x22) FROM `t`;
+
+# this should show one match
+SELECT MATCH(`a`) AGAINST (0x2261616122) FROM `t`;
+
+# again 0xdd should be ignored
+SELECT MATCH(`a`) AGAINST (0x2261dd6122) FROM `t`;
+
+SELECT MATCH(`a`) AGAINST (0x2261dd612222226122) FROM `t`;
+
+DROP TABLE t;
+
+# InnoDB FTS does not support index scan from handler
+CREATE TABLE t(a CHAR(1),FULLTEXT KEY(a)) ENGINE=INNODB;
+HANDLER t OPEN;
+HANDLER t READ a NEXT;
+HANDLER t READ a PREV;
+DROP TABLE t;
+
+CREATE TABLE `%`(a TEXT, FULLTEXT INDEX(a)) ENGINE=INNODB;
+CREATE TABLE `A B`(a TEXT, FULLTEXT INDEX(a)) ENGINE=INNODB;
+DROP TABLE `%`;
+DROP TABLE `A B`;

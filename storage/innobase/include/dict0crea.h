@@ -81,14 +81,14 @@ UNIV_INTERN
 ulint
 dict_free_index_tree(
 /*=================*/
-	dict_table_t*	table,	/*!< in: the table the index belongs to */
+	const char*	name,	/*!< in: table name */
 	ulint		space,	/*!< in: free the index tree in the
 				given tablespace */
 	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
 				record in the clustered index of
 				SYS_INDEXES table. The cursor may be
 				repositioned in this call. */
-	mtr_t*		mtr);	/*!< in: mtr having the latch
+	mtr_t*		mtr);	/*!< in/out: mtr having the latch
 				on the record page. */
 /*******************************************************************//**
 Creates the index tree associated with a row in SYS_INDEXES table.
@@ -97,14 +97,14 @@ UNIV_INTERN
 ulint
 dict_create_index_tree(
 /*===================*/
-	dict_table_t*	table,	/*!< in: the table the index belongs to */
+	dict_table_t*	table,	/*!< in/out: the table the index belongs to */
 	ulint		space,	/*!< in: create a new index tree in the
 				given tablespace */
 	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
 				record in the clustered index of
 				SYS_INDEXES table. The cursor may be
 				repositioned in this call. */
-	mtr_t*		mtr);	/*!< in: mtr having the latch
+	mtr_t*		mtr);	/*!< in/out: mtr having the latch
 				on the record page. */
 /*******************************************************************//**
 Drops the index tree associated with a row in SYS_INDEXES table. */
@@ -112,9 +112,11 @@ UNIV_INTERN
 void
 dict_drop_index_tree(
 /*=================*/
-	rec_t*	rec,	/*!< in/out: record in the clustered index
-			of SYS_INDEXES table */
-	mtr_t*	mtr);	/*!< in: mtr having the latch on the record page */
+	rec_t*	rec,		/*!< in/out: record in the clustered index
+				of SYS_INDEXES table */
+	bool	is_drop,	/*!< in: true if we are dropping a table */
+	mtr_t*	mtr);		/*!< in/out: mtr having the latch on
+				the record page */
 /****************************************************************//**
 Creates the foreign key constraints system tables inside InnoDB
 at server bootstrap or server start if they are not found or are

@@ -65,7 +65,7 @@ c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(156)
 ) ROW_FORMAT=redundant;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4027. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
@@ -79,7 +79,7 @@ c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(203)
 ) ROW_FORMAT=compact;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB or using ROW_FORMAT=DYNAMIC or ROW_FORMAT=COMPRESSED may help. In current row format, BLOB prefix of 768 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
@@ -93,7 +93,7 @@ c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(106)
 ) ROW_FORMAT=compressed;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
 c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
@@ -107,7 +107,7 @@ c06 char(200), c07 char(200), c08 char(200), c09 char(200), c10 char(200),
 c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(203)
 ) ROW_FORMAT=dynamic;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1 (a varchar(128) character set utf8,
 b varchar(128) character set utf8,
 c varchar(128) character set utf8,
@@ -143,11 +143,11 @@ ERROR 42000: Specified key was too long; max key length is 1536 bytes
 #         strict mode and converted to 8 in non-strict mode.
 SET SESSION innodb_strict_mode = ON;
 CREATE TABLE t1 (i int) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 8.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 CREATE TABLE t1 ( i INT ) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
 Level	Code	Message
@@ -241,18 +241,18 @@ SHOW VARIABLES LIKE 'innodb_file_per_table';
 Variable_name	Value
 innodb_file_per_table	OFF
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't4' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't4' doesn't have this option
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't5' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_per_table.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 8.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't5' doesn't have this option
 SET GLOBAL innodb_file_per_table = ON;
 SET GLOBAL innodb_file_format = `Antelope`;
 SHOW VARIABLES LIKE 'innodb_file%';
@@ -262,18 +262,18 @@ innodb_file_format_check	ON
 innodb_file_format_max	Barracuda
 innodb_file_per_table	ON
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't4' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't4' doesn't have this option
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't5' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: KEY_BLOCK_SIZE requires innodb_file_format > Antelope.
 Warning	1478	InnoDB: KEY_BLOCK_SIZE=16 cannot be larger than 8.
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't5' doesn't have this option
 SET GLOBAL innodb_file_format = `Barracuda`;
 # Test 7) Not included here; 16k only
 # Test 8) Test creating a table that could lead to undo log overflow.
@@ -423,12 +423,12 @@ CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=2 CHARSET=ASCII;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1(
 c text NOT NULL, d text NOT NULL,
 PRIMARY KEY (c(767),d(767)))
@@ -436,7 +436,7 @@ ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
 drop table t1;
 CREATE TABLE t1(c text, PRIMARY KEY (c(440)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
-ERROR 42000: Row size too large. The maximum row size for the used table type, not counting BLOBs, is 4030. This includes storage overhead, check the manual. You have to change some columns to TEXT or BLOBs
+ERROR 42000: Row size too large (> max_row_size). Changing some columns to TEXT or BLOB may help. In current row format, BLOB prefix of 0 bytes is stored inline.
 CREATE TABLE t1(c text, PRIMARY KEY (c(438)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
 INSERT INTO t1 VALUES(REPEAT('A',512)),(REPEAT('B',512));

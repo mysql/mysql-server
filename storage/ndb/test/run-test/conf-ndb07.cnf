@@ -9,9 +9,9 @@ mt = 2
 
 [mysqld]
 skip-innodb
-loose-skip-bdb
 skip-grant-tables
 socket=mysql.sock
+default-storage-engine=myisam
 
 [client]
 protocol=tcp
@@ -31,6 +31,7 @@ MaxNoOfSavedMessages= 5
 NoOfFragmentLogFiles = 8
 FragmentLogFileSize = 64M
 ODirect=1
+MaxNoOfAttributes=2000
 
 SharedGlobalMemory=256M
 DiskPageBufferMemory=256M

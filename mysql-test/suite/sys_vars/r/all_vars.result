@@ -6,6 +6,7 @@ insert into t2 select variable_name from information_schema.session_variables;
 update t2 set variable_name= replace(variable_name, "PERFORMANCE_SCHEMA_", "PFS_");
 update t2 set variable_name= replace(variable_name, "_HISTORY_LONG_", "_HL_");
 update t2 set variable_name= replace(variable_name, "_HISTORY_", "_H_");
+update t2 set variable_name= replace(variable_name, "_THROTTLE_QUERIES_NOT_USING_INDEXES", "_THROTTLE_QNI");
 select variable_name as `There should be *no* long test name listed below:` from t2
 where length(variable_name) > 50;
 There should be *no* long test name listed below:

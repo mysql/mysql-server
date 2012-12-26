@@ -2960,6 +2960,9 @@ EXPLAIN
               "PRIMARY"
             ],
             "key": "PRIMARY",
+            "used_key_parts": [
+              "a"
+            ],
             "key_length": "4",
             "ref": [
               "test.t11.a"
@@ -3317,6 +3320,9 @@ EXPLAIN
             "a"
           ],
           "key": "a",
+          "used_key_parts": [
+            "a"
+          ],
           "key_length": "5",
           "ref": [
             "<subquery2>.a"
@@ -6310,7 +6316,7 @@ t2.Population > 100000);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	Population,Country	Population	4	NULL	1	Using index condition; Using MRR; Start temporary
 1	SIMPLE	t2	eq_ref	PRIMARY,Population	PRIMARY	3	test.t1.Country	1	Using where; End temporary; Using join buffer (Batched Key Access (unique))
-1	SIMPLE	t3	eq_ref	PRIMARY,Percentage	PRIMARY	33	test.t1.Country,const	1	Using index condition; Using where; Using join buffer (Batched Key Access (unique))
+1	SIMPLE	t3	eq_ref	PRIMARY,Percentage	PRIMARY	33	test.t1.Country,const	1	Using where; Using join buffer (Batched Key Access (unique))
 EXPLAIN FORMAT=JSON SELECT Name FROM t2 
 WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
 AND
@@ -6335,6 +6341,9 @@ EXPLAIN
                   "Country"
                 ],
                 "key": "Population",
+                "used_key_parts": [
+                  "Population"
+                ],
                 "key_length": "4",
                 "rows": 1,
                 "filtered": 100,
@@ -6351,6 +6360,9 @@ EXPLAIN
                   "Population"
                 ],
                 "key": "PRIMARY",
+                "used_key_parts": [
+                  "Code"
+                ],
                 "key_length": "3",
                 "ref": [
                   "test.t1.Country"
@@ -6373,6 +6385,10 @@ EXPLAIN
             "Percentage"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "Country",
+            "Language"
+          ],
           "key_length": "33",
           "ref": [
             "test.t1.Country",
@@ -6380,7 +6396,6 @@ EXPLAIN
           ],
           "rows": 1,
           "filtered": 100,
-          "index_condition": "(`test`.`t3`.`Language` = 'English')",
           "using_join_buffer": "Batched Key Access (unique)",
           "attached_condition": "(`test`.`t3`.`Percentage` > 10)"
         }
@@ -7625,6 +7640,14 @@ CREATE TABLE t2 (
 col_varchar_nokey VARCHAR(1) NOT NULL
 ) ENGINE=InnoDB;
 INSERT INTO t2 VALUES ('v'), ('y'), ('j'), ('c'), ('d'), ('r');
+explain SELECT col_varchar_key
+FROM t1
+WHERE col_varchar_key IN (SELECT col_varchar_nokey
+FROM t2)
+ORDER BY col_datetime_key LIMIT 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort; Start temporary
+1	SIMPLE	t1	ref	col_varchar_key	col_varchar_key	3	test.t2.col_varchar_nokey	1	End temporary; Using join buffer (Batched Key Access (unique))
 SELECT col_varchar_key
 FROM t1
 WHERE col_varchar_key IN (SELECT col_varchar_nokey
@@ -8123,6 +8146,9 @@ EXPLAIN
                     "col_int_key"
                   ],
                   "key": "col_int_key",
+                  "used_key_parts": [
+                    "col_int_key"
+                  ],
                   "key_length": "4",
                   "ref": [
                     "func"
@@ -8156,6 +8182,9 @@ EXPLAIN
                               "col_int_key"
                             ],
                             "key": "col_int_key",
+                            "used_key_parts": [
+                              "col_int_key"
+                            ],
                             "key_length": "4",
                             "ref": [
                               "func"
@@ -8172,6 +8201,9 @@ EXPLAIN
                               "col_int_key"
                             ],
                             "key": "col_int_key",
+                            "used_key_parts": [
+                              "col_int_key"
+                            ],
                             "key_length": "4",
                             "rows": 1,
                             "filtered": 100,
@@ -10068,6 +10100,9 @@ EXPLAIN
             "<auto_key0>"
           ],
           "key": "<auto_key0>",
+          "used_key_parts": [
+            "col_varchar_nokey"
+          ],
           "key_length": "4",
           "ref": [
             "<subquery3>.col_varchar_nokey"
@@ -10393,6 +10428,9 @@ EXPLAIN
             "PRIMARY"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "pk"
+          ],
           "key_length": "4",
           "ref": [
             "test.alias2.pk"

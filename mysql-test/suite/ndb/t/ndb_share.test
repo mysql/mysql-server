@@ -2,10 +2,6 @@
 -- source include/have_ndb.inc
 -- source include/have_log_bin.inc
 
--- disable_query_log
-call mtr.add_suppression('.*You need to use --log-bin to make --binlog-format work.*');
--- enable_query_log
-
 connect (server1,127.0.0.1,root,,test,$MYSQLD1_PORT,);
 connect (server2,127.0.0.1,root,,test,$MYSQLD2_PORT,);
 connect (server3,127.0.0.1,root,,test,$MYSQLD3_PORT,);
@@ -13,12 +9,23 @@ connect (server4,127.0.0.1,root,,test,$MYSQLD4_PORT,);
 
 connection server1;
 show variables like 'log_bin';
+
 connection server2;
 show variables like 'log_bin';
+
 connection server3;
 show variables like 'log_bin';
+# Since this server is intentionally running without log-bin, supress warning 
+--disable_query_log
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+--enable_query_log
+
 connection server4;
 show variables like 'log_bin';
+# Since this server is intentionally running without log-bin, supress warning 
+-- disable_query_log
+call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
+-- enable_query_log
 
 #
 # Basic create+drop (from with and without log-bin)

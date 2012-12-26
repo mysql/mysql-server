@@ -1,3 +1,4 @@
+CALL mtr.add_suppression("Dictionary file not specified");
 #
 # Tests for deprecation warnings introduced by wl#6443
 #
@@ -40,6 +41,42 @@ Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future re
 set @@global.max_tmp_tables= @default_max_tmp_tables;
 Warnings:
 Warning	1287	'@@max_tmp_tables' is deprecated and will be removed in a future release.
+select @@global.profiling;
+@@global.profiling
+0
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
+select @@local.profiling;
+@@local.profiling
+0
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
+select @@global.profiling_history_size;
+@@global.profiling_history_size
+15
+Warnings:
+Warning	1287	'@@profiling_history_size' is deprecated and will be removed in a future release.
+select @@local.profiling_history_size;
+@@local.profiling_history_size
+15
+Warnings:
+Warning	1287	'@@profiling_history_size' is deprecated and will be removed in a future release.
+select @@global.have_profiling;
+@@global.have_profiling
+YES
+Warnings:
+Warning	1287	'@@have_profiling' is deprecated and will be removed in a future release.
+set @@local.profiling= @@global.profiling;
+Warnings:
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
+Warning	1287	'@@profiling' is deprecated and will be removed in a future release.
+set @@local.profiling_history_size= @@global.profiling_history_size;
+Warnings:
+Warning	1287	'@@profiling_history_size' is deprecated and will be removed in a future release.
+Warning	1287	'@@profiling_history_size' is deprecated and will be removed in a future release.
+set @wl6443_have_profiling= @@global.have_profiling;
+Warnings:
+Warning	1287	'@@have_profiling' is deprecated and will be removed in a future release.
 # SHOW PROFILE and SHOW PROFILES
 SHOW PROFILE;
 Status	Duration

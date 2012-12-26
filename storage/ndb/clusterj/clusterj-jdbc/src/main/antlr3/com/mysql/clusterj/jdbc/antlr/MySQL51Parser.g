@@ -1051,7 +1051,7 @@ update
 			order_by?
 			(LIMIT NUMBER)?	
 		)?
-		-> ^(UPDATE LOW_PRIORITY? IGNORE? $table $set ^(WHERE where_condition)? order_by? ^(LIMIT NUMBER)?)
+		-> ^(UPDATE LOW_PRIORITY? IGNORE? $table $set ^(WHERE<com.mysql.clusterj.jdbc.antlr.node.WhereNode> where_condition)? order_by? ^(LIMIT NUMBER)?)
 	;
 
 

@@ -113,6 +113,10 @@ UNIV_INTERN ulong	srv_undo_logs = 1;
 UNIV_INTERN char*	srv_arch_dir	= NULL;
 #endif /* UNIV_LOG_ARCHIVE */
 
+/** Set if InnoDB must operate in read-only mode. We don't do any
+recovery and open all tables in RO mode instead of RW mode. We don't
+sync the max trx id to disk either. */
+UNIV_INTERN my_bool	srv_read_only_mode;
 /** store to its own file each table created by an user; data
 dictionary tables are in the system tablespace 0 */
 UNIV_INTERN my_bool	srv_file_per_table;
@@ -176,12 +180,12 @@ the user from forgetting the 'newraw' keyword to my.cnf */
 
 UNIV_INTERN ibool	srv_created_new_raw	= FALSE;
 
-UNIV_INTERN char**	srv_log_group_home_dirs = NULL;
+UNIV_INTERN char*	srv_log_group_home_dir	= NULL;
 
-UNIV_INTERN ulint	srv_n_log_groups	= ULINT_MAX;
-UNIV_INTERN ulint	srv_n_log_files		= ULINT_MAX;
+UNIV_INTERN ulong	srv_n_log_files		= SRV_N_LOG_FILES_MAX;
 /* size in database pages */
 UNIV_INTERN ib_uint64_t	srv_log_file_size	= IB_UINT64_MAX;
+UNIV_INTERN ib_uint64_t	srv_log_file_size_requested;
 /* size in database pages */
 UNIV_INTERN ulint	srv_log_buffer_size	= ULINT_MAX;
 UNIV_INTERN ulong	srv_flush_log_at_trx_commit = 1;
@@ -297,10 +301,16 @@ UNIV_INTERN srv_stats_t	srv_stats;
 /* structure to pass status variables to MySQL */
 UNIV_INTERN export_var_t export_vars;
 
-/* If the following is != 0 we do not allow inserts etc. This protects
-the user from forgetting the innodb_force_recovery keyword to my.cnf */
-
-UNIV_INTERN ulint	srv_force_recovery	= 0;
+/** Normally 0. When nonzero, skip some phases of crash recovery,
+starting from SRV_FORCE_IGNORE_CORRUPT, so that data can be recovered
+by SELECT or mysqldump. When this is nonzero, we do not allow any user
+modifications to the data. */
+UNIV_INTERN ulong	srv_force_recovery;
+#ifndef DBUG_OFF
+/** Inject a crash at different steps of the recovery process.
+This is for testing and debugging only. */
+UNIV_INTERN ulong	srv_force_recovery_crash;
+#endif /* !DBUG_OFF */
 
 /** Print all user-level transactions deadlocks to mysqld stderr */
 
@@ -378,7 +388,7 @@ UNIV_INTERN time_t	srv_last_monitor_time;
 
 UNIV_INTERN ib_mutex_t	srv_innodb_monitor_mutex;
 
-/* Mutex for locking srv_monitor_file */
+/* Mutex for locking srv_monitor_file. Not created if srv_read_only_mode */
 UNIV_INTERN ib_mutex_t	srv_monitor_file_mutex;
 
 #ifdef UNIV_PFS_MUTEX
@@ -402,13 +412,13 @@ UNIV_INTERN mysql_pfs_key_t	srv_sys_tasks_mutex_key;
 
 /** Temporary file for innodb monitor output */
 UNIV_INTERN FILE*	srv_monitor_file;
-/** Mutex for locking srv_dict_tmpfile.
+/** Mutex for locking srv_dict_tmpfile. Not created if srv_read_only_mode.
 This mutex has a very high rank; threads reserving it should not
 be holding any InnoDB latches. */
 UNIV_INTERN ib_mutex_t	srv_dict_tmpfile_mutex;
 /** Temporary file for output from the data dictionary */
 UNIV_INTERN FILE*	srv_dict_tmpfile;
-/** Mutex for locking srv_misc_tmpfile.
+/** Mutex for locking srv_misc_tmpfile. Not created if srv_read_only_mode.
 This mutex has a very low rank; threads reserving it should not
 acquire any further latches or sleep before releasing this one. */
 UNIV_INTERN ib_mutex_t	srv_misc_tmpfile_mutex;
@@ -456,7 +466,8 @@ current_time % 5 != 0. */
 } while (0)
 
 /** Test if the system mutex is owned. */
-#define srv_sys_mutex_own() mutex_own(&srv_sys->mutex)
+#define srv_sys_mutex_own() (mutex_own(&srv_sys->mutex)	\
+			     && !srv_read_only_mode)
 
 /** Release the system mutex. */
 #define srv_sys_mutex_exit() do {			\
@@ -464,7 +475,7 @@ current_time % 5 != 0. */
 } while (0)
 
 #define fetch_lock_wait_timeout(trx)			\
-	((trx)->lock.allowed_to_wait				\
+	((trx)->lock.allowed_to_wait			\
 	 ? thd_lock_wait_timeout((trx)->mysql_thd)	\
 	 : 0)
 
@@ -625,6 +636,18 @@ srv_set_io_thread_op_info(
 	srv_io_thread_op_info[i] = str;
 }
 
+/*********************************************************************//**
+Resets the info describing an i/o thread current state. */
+UNIV_INTERN
+void
+srv_reset_io_thread_op_info()
+/*=========================*/
+{
+	for (ulint i = 0; i < UT_ARR_SIZE(srv_io_thread_op_info); ++i) {
+		srv_io_thread_op_info[i] = "not started yet";
+	}
+}
+
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Validates the type of a thread table slot.
@@ -725,6 +748,8 @@ srv_suspend_thread_low(
 /*===================*/
 	srv_slot_t*	slot)	/*!< in/out: thread slot */
 {
+
+	ut_ad(!srv_read_only_mode);
 	ut_ad(srv_sys_mutex_own());
 
 	ut_ad(slot->in_use);
@@ -884,9 +909,8 @@ void
 srv_init(void)
 /*==========*/
 {
-	ulint			i;
-	ulint			srv_sys_sz;
-	ulint			n_sys_threads;
+	ulint	n_sys_threads = 0;
+	ulint	srv_sys_sz = sizeof(*srv_sys);
 
 #ifndef HAVE_ATOMIC_BUILTINS
 	mutex_create(server_mutex_key, &server_mutex, SYNC_ANY_LATCH);
@@ -895,38 +919,43 @@ srv_init(void)
 	mutex_create(srv_innodb_monitor_mutex_key,
 		     &srv_innodb_monitor_mutex, SYNC_NO_ORDER_CHECK);
 
-	/* Number of purge threads + master thread */
-	n_sys_threads = srv_n_purge_threads + 1;
+	if (!srv_read_only_mode) {
 
-	srv_sys_sz = sizeof(*srv_sys) + (n_sys_threads * sizeof(srv_slot_t));
+		/* Number of purge threads + master thread */
+		n_sys_threads = srv_n_purge_threads + 1;
+
+		srv_sys_sz += n_sys_threads * sizeof(*srv_sys->sys_threads);
+	}
 
 	srv_sys = static_cast<srv_sys_t*>(mem_zalloc(srv_sys_sz));
 
-	mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
-
-	mutex_create(srv_sys_tasks_mutex_key,
-		     &srv_sys->tasks_mutex, SYNC_ANY_LATCH);
-
 	srv_sys->n_sys_threads = n_sys_threads;
-	srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
 
-	for (i = 0; i < srv_sys->n_sys_threads; i++) {
-		srv_slot_t*	slot;
+	if (!srv_read_only_mode) {
 
-		slot = srv_sys->sys_threads + i;
+		mutex_create(srv_sys_mutex_key, &srv_sys->mutex, SYNC_THREADS);
 
-		slot->event = os_event_create(NULL);
+		mutex_create(srv_sys_tasks_mutex_key,
+			     &srv_sys->tasks_mutex, SYNC_ANY_LATCH);
 
-		ut_a(slot->event);
+		srv_sys->sys_threads = (srv_slot_t*) &srv_sys[1];
+
+		for (ulint i = 0; i < srv_sys->n_sys_threads; ++i) {
+			srv_slot_t*	slot = &srv_sys->sys_threads[i];
+
+			slot->event = os_event_create();
+
+			ut_a(slot->event);
+		}
+
+		srv_error_event = os_event_create();
+
+		srv_monitor_event = os_event_create();
+
+		srv_buf_dump_event = os_event_create();
+
+		UT_LIST_INIT(srv_sys->tasks);
 	}
-
-	srv_error_event = os_event_create(NULL);
-
-	srv_monitor_event = os_event_create(NULL);
-
-	srv_buf_dump_event = os_event_create("buf_dump_event");
-
-	UT_LIST_INIT(srv_sys->tasks);
 
 	/* page_zip_stat_per_index_mutex is acquired from:
 	1. page_zip_compress() (after SYNC_FSP)
@@ -935,9 +964,10 @@ srv_init(void)
 	4. innodb_cmp_per_index_update(), no other latches
 	since we do not acquire any other latches while holding this mutex,
 	it can have very low level. We pick SYNC_ANY_LATCH for it. */
-	mutex_create(page_zip_stat_per_index_mutex_key,
-		     &page_zip_stat_per_index_mutex,
-		     SYNC_ANY_LATCH);
+
+	mutex_create(
+		page_zip_stat_per_index_mutex_key,
+		&page_zip_stat_per_index_mutex, SYNC_ANY_LATCH);
 
 	/* Create dummy indexes for infimum and supremum records */
 
@@ -967,8 +997,10 @@ srv_free(void)
 
 	trx_i_s_cache_free(trx_i_s_cache);
 
-	os_event_free(srv_buf_dump_event);
-	srv_buf_dump_event = NULL;
+	if (!srv_read_only_mode) {
+		os_event_free(srv_buf_dump_event);
+		srv_buf_dump_event = NULL;
+	}
 }
 
 /*********************************************************************//**
@@ -1127,7 +1159,7 @@ srv_printf_innodb_monitor(
 
 	mutex_enter(&dict_foreign_err_mutex);
 
-	if (ftell(dict_foreign_err_file) != 0L) {
+	if (!srv_read_only_mode && ftell(dict_foreign_err_file) != 0L) {
 		fputs("------------------------\n"
 		      "LATEST FOREIGN KEY ERROR\n"
 		      "------------------------\n", file);
@@ -1277,13 +1309,15 @@ void
 srv_export_innodb_status(void)
 /*==========================*/
 {
-	buf_pool_stat_t	stat;
-	ulint		LRU_len;
-	ulint		free_len;
-	ulint		flush_list_len;
+	buf_pool_stat_t		stat;
+	buf_pools_list_size_t	buf_pools_list_size;
+	ulint			LRU_len;
+	ulint			free_len;
+	ulint			flush_list_len;
 
 	buf_get_total_stat(&stat);
 	buf_get_total_list_len(&LRU_len, &free_len, &flush_list_len);
+	buf_get_total_list_size_in_bytes(&buf_pools_list_size);
 
 	mutex_enter(&srv_innodb_monitor_mutex);
 
@@ -1331,7 +1365,14 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_buffer_pool_pages_data = LRU_len;
 
+	export_vars.innodb_buffer_pool_bytes_data =
+		buf_pools_list_size.LRU_bytes
+		+ buf_pools_list_size.unzip_LRU_bytes;
+
 	export_vars.innodb_buffer_pool_pages_dirty = flush_list_len;
+
+	export_vars.innodb_buffer_pool_bytes_dirty =
+		buf_pools_list_size.flush_list_bytes;
 
 	export_vars.innodb_buffer_pool_pages_free = free_len;
 
@@ -1412,6 +1453,24 @@ srv_export_innodb_status(void)
 
 	export_vars.innodb_available_undo_logs = srv_available_undo_logs;
 
+#ifdef UNIV_DEBUG
+	if (purge_sys->done.trx_no == 0
+	    || trx_sys->rw_max_trx_id < purge_sys->done.trx_no - 1) {
+		export_vars.innodb_purge_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_trx_id_age =
+		  trx_sys->rw_max_trx_id - purge_sys->done.trx_no + 1;
+	}
+
+	if (!purge_sys->view
+	    || trx_sys->rw_max_trx_id < purge_sys->view->up_limit_id) {
+		export_vars.innodb_purge_view_trx_id_age = 0;
+	} else {
+		export_vars.innodb_purge_view_trx_id_age =
+		  trx_sys->rw_max_trx_id - purge_sys->view->up_limit_id;
+	}
+#endif /* UNIV_DEBUG */
+
 	mutex_exit(&srv_innodb_monitor_mutex);
 }
 
@@ -1435,14 +1494,16 @@ DECLARE_THREAD(srv_monitor_thread)(
 	ulint		mutex_skipped;
 	ibool		last_srv_print_monitor;
 
+	ut_ad(!srv_read_only_mode);
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Lock timeout thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
-#endif
+#endif /* UNIV_DEBUG_THREAD_CREATION */
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_monitor_thread_key);
-#endif
+#endif /* UNIV_PFS_THREAD */
 	srv_monitor_active = TRUE;
 
 	UT_NOT_USED(arg);
@@ -1491,7 +1552,10 @@ loop:
 		}
 
 
-		if (srv_innodb_status) {
+		/* We don't create the temp files or associated
+		mutexes in read-only-mode */
+
+		if (!srv_read_only_mode && srv_innodb_status) {
 			mutex_enter(&srv_monitor_file_mutex);
 			rewind(srv_monitor_file);
 			if (!srv_printf_innodb_monitor(srv_monitor_file,
@@ -1608,16 +1672,18 @@ DECLARE_THREAD(srv_error_monitor_thread)(
 	const void*	sema		= NULL;
 	const void*	old_sema	= NULL;
 
+	ut_ad(!srv_read_only_mode);
+
 	old_lsn = srv_start_lsn;
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Error monitor thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
-#endif
+#endif /* UNIV_DEBUG_THREAD_CREATION */
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_error_monitor_thread_key);
-#endif
+#endif /* UNIV_PFS_THREAD */
 	srv_error_monitor_active = TRUE;
 
 loop:
@@ -1721,12 +1787,15 @@ srv_thread_type
 srv_get_active_thread_type(void)
 /*============================*/
 {
-	ulint	i;
 	srv_thread_type ret = SRV_NONE;
+
+	if (srv_read_only_mode) {
+		return(SRV_NONE);
+	}
 
 	srv_sys_mutex_enter();
 
-	for (i = SRV_WORKER; i <= SRV_MASTER; ++i) {
+	for (ulint i = SRV_WORKER; i <= SRV_MASTER; ++i) {
 		if (srv_sys->n_threads_active[i] != 0) {
 			ret = static_cast<srv_thread_type>(i);
 			break;
@@ -1758,7 +1827,9 @@ srv_any_background_threads_are_active(void)
 {
 	const char*	thread_active = NULL;
 
-	if (srv_error_monitor_active) {
+	if (srv_read_only_mode) {
+		return(NULL);
+	} else if (srv_error_monitor_active) {
 		thread_active = "srv_error_monitor_thread";
 	} else if (lock_sys->timeout_thread_active) {
 		thread_active = "srv_lock_timeout thread";
@@ -1790,6 +1861,10 @@ void
 srv_active_wake_master_thread(void)
 /*===============================*/
 {
+	if (srv_read_only_mode) {
+		return;
+	}
+
 	ut_ad(!srv_sys_mutex_own());
 
 	srv_inc_activity_count();
@@ -2148,6 +2223,8 @@ srv_master_do_shutdown_tasks(
 	ulint		n_bytes_merged = 0;
 	ulint		n_tables_to_drop = 0;
 
+	ut_ad(!srv_read_only_mode);
+
 	++srv_main_shutdown_loops;
 
 	ut_a(srv_shutdown_state > 0);
@@ -2223,14 +2300,16 @@ DECLARE_THREAD(srv_master_thread)(
 	ulint		old_activity_count = srv_get_activity_count();
 	ib_time_t	last_print_time;
 
+	ut_ad(!srv_read_only_mode);
+
 #ifdef UNIV_DEBUG_THREAD_CREATION
 	fprintf(stderr, "Master thread starts, id %lu\n",
 		os_thread_pf(os_thread_get_curr_id()));
-#endif
+#endif /* UNIV_DEBUG_THREAD_CREATION */
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(srv_master_thread_key);
-#endif
+#endif /* UNIV_PFS_THREAD */
 
 	srv_main_thread_process_no = os_proc_get_number();
 	srv_main_thread_id = os_thread_pf(os_thread_get_curr_id());
@@ -2323,6 +2402,7 @@ srv_task_execute(void)
 {
 	que_thr_t*	thr = NULL;
 
+	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
 	mutex_enter(&srv_sys->tasks_mutex);
@@ -2361,6 +2441,7 @@ DECLARE_THREAD(srv_worker_thread)(
 {
 	srv_slot_t*	slot;
 
+	ut_ad(!srv_read_only_mode);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
 
 #ifdef UNIV_DEBUG_THREAD_CREATION
@@ -2441,6 +2522,7 @@ srv_do_purge(
 	ulint		old_activity_count = srv_get_activity_count();
 
 	ut_a(n_threads > 0);
+	ut_ad(!srv_read_only_mode);
 
 	/* Purge until there are no more records to purge and there is
 	no change in configuration or server state. If the user has
@@ -2510,13 +2592,8 @@ srv_purge_coordinator_suspend(
 	ulint		rseg_history_len)	/*!< in: history list length
 						before last purge */
 {
+	ut_ad(!srv_read_only_mode);
 	ut_a(slot->type == SRV_PURGE);
-
-	rw_lock_x_lock(&purge_sys->latch);
-
-	purge_sys->running = false;
-
-	rw_lock_x_unlock(&purge_sys->latch);
 
 	bool		stop = false;
 
@@ -2526,6 +2603,12 @@ srv_purge_coordinator_suspend(
 	do {
 		ulint		ret;
 		ib_int64_t	sig_count = srv_suspend_thread(slot);
+
+		rw_lock_x_lock(&purge_sys->latch);
+
+		purge_sys->running = false;
+
+		rw_lock_x_unlock(&purge_sys->latch);
 
 		/* We don't wait right away on the the non-timed wait because
 		we want to signal the thread that wants to suspend purge. */
@@ -2537,8 +2620,8 @@ srv_purge_coordinator_suspend(
 			ret = os_event_wait_time_low(
 				slot->event, SRV_PURGE_MAX_TIMEOUT, sig_count);
 		} else {
-			/* We don't want to waste time waiting if the
-			history list has increased by the time we get here
+			/* We don't want to waste time waiting, if the
+			history list increased by the time we got here,
 			unless purge has been stopped. */
 			ret = 0;
 		}
@@ -2605,6 +2688,7 @@ DECLARE_THREAD(srv_purge_coordinator_thread)(
 	srv_slot_t*	slot;
 	ulint           n_total_purged = ULINT_UNDEFINED;
 
+	ut_ad(!srv_read_only_mode);
 	ut_a(srv_n_purge_threads >= 1);
 	ut_a(trx_purge_state() == PURGE_STATE_INIT);
 	ut_a(srv_force_recovery < SRV_FORCE_NO_BACKGROUND);
@@ -2712,6 +2796,7 @@ srv_que_task_enqueue_low(
 /*=====================*/
 	que_thr_t*	thr)	/*!< in: query thread */
 {
+	ut_ad(!srv_read_only_mode);
 	mutex_enter(&srv_sys->tasks_mutex);
 
 	UT_LIST_ADD_LAST(queue, srv_sys->tasks, thr);
@@ -2731,6 +2816,8 @@ srv_get_task_queue_length(void)
 {
 	ulint	n_tasks;
 
+	ut_ad(!srv_read_only_mode);
+
 	mutex_enter(&srv_sys->tasks_mutex);
 
 	n_tasks = UT_LIST_GET_LEN(srv_sys->tasks);
@@ -2747,6 +2834,8 @@ void
 srv_purge_wakeup(void)
 /*==================*/
 {
+	ut_ad(!srv_read_only_mode);
+
 	if (srv_force_recovery < SRV_FORCE_NO_BACKGROUND) {
 
 		srv_release_threads(SRV_PURGE, 1);

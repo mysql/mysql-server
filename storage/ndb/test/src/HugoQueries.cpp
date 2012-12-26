@@ -42,7 +42,7 @@ HugoQueries::HugoQueries(const NdbQueryDef & query)
 
 HugoQueries::~HugoQueries()
 {
-  for (size_t o = 0; o<m_ops.size(); o++)
+  for (unsigned o = 0; o<m_ops.size(); o++)
   {
     while (m_ops[o].m_rows.size())
     {
@@ -57,14 +57,14 @@ HugoQueries::~HugoQueries()
 void
 HugoQueries::allocRows(int batch)
 {
-  for (size_t o = 0; o<m_ops.size(); o++)
+  for (unsigned o = 0; o<m_ops.size(); o++)
   {
     const NdbQueryOperationDef * pOp =m_query_def->getQueryOperation((Uint32)o);
     const NdbDictionary::Table* tab = pOp->getTable();
 
     if (tab)
     {
-      while (m_ops[o].m_rows.size() < (size_t)batch)
+      while (m_ops[o].m_rows.size() < (unsigned)batch)
       {
         m_ops[o].m_rows.push_back(new NDBT_ResultRow(* tab));
       }
@@ -135,10 +135,10 @@ HugoQueries::getValueForQueryOp(NdbQueryOperation* pOp, NDBT_ResultRow * pRow)
 
 int
 HugoQueries::runLookupQuery(Ndb* pNdb,
-                            int records,
+                            int queries,
                             int batch)
 {
-  int r = 0;
+  int q = 0;
   int retryAttempt = 0;
 
   m_rows_found.clear();
@@ -153,10 +153,10 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
 
   allocRows(batch);
 
-  while (r < records)
+  while (q < queries)
   {
-    if(r + batch > records)
-      batch = records - r;
+    if (q + batch > queries)
+      batch = queries - q;
 
     if (retryAttempt >= m_retryMax)
     {
@@ -188,7 +188,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
     {
       char buf[NDB_MAX_TUPLE_SIZE];
       NdbQueryParamValue params[NDB_MAX_NO_OF_ATTRIBUTES_IN_KEY];
-      equalForParameters(buf, m_ops[0], params, b + r);
+      equalForParameters(buf, m_ops[0], params, b + q);
 
       NdbQuery * query = pTrans->createQuery(m_query_def, params);
       if (query == 0)
@@ -198,7 +198,7 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
         return NDBT_FAILED;
       }
 
-      for (size_t o = 0; o<m_ops.size(); o++)
+      for (unsigned o = 0; o<m_ops.size(); o++)
       {
         NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
         HugoQueries::getValueForQueryOp(pOp, m_ops[o].m_rows[b]);
@@ -220,13 +220,53 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
       pTrans->close();
       return NDBT_FAILED;
     }
+#if 0
+    // Disabled, as this is incorrectly handled in SPJ API, will fix soon
+    else
+    {
+      /**
+       * If ::execute() didn't fail, there should not be an error on
+       * its NdbError object either:
+       */
+      const NdbError err = pTrans->getNdbError();
+      if (err.code)
+      {
+        ERR(err);
+        ndbout_c("API INCONSISTENCY: NdbTransaction returned NdbError even if ::execute() succeeded");
+        pTrans->close();
+        return NDBT_FAILED;
+      }
+    }
+#endif
 
+    bool retry = false;
     for (int b = 0; b<batch; b++)
     {
       NdbQuery * query = queries[b];
-      if (query->nextResult() == NdbQuery::NextResult_gotRow)
+
+      /**
+       * As NdbQuery is always 'dirty read' (impl. limitations), 'AbortOnError'
+       * is ignored and handled as 'IgnoreError'. We will therefore not get
+       * errors returned from ::execute() or set into 'pTrans->getNdbError()':
+       * Has to check for errors on the NdbQuery object instead:
+       */
+      const NdbError& err = query->getNdbError();
+      if (err.code)
       {
-        for (size_t o = 0; o<m_ops.size(); o++)
+        ERR(err);
+        if (err.status == NdbError::TemporaryError){
+          pTrans->close();
+          retry = true;
+          break;
+        }
+        pTrans->close();
+        return NDBT_FAILED;
+      }
+
+      const NdbQuery::NextResultOutcome stat = query->nextResult();
+      if (stat == NdbQuery::NextResult_gotRow)
+      {
+        for (unsigned o = 0; o<m_ops.size(); o++)
         {
           NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
           if (!pOp->isRowNULL())
@@ -240,11 +280,30 @@ HugoQueries::runLookupQuery(Ndb* pNdb,
           }
         }
       }
+      else if (stat == NdbQuery::NextResult_error)
+      {
+        const NdbError& err = query->getNdbError();
+        ERR(err);
+        if (err.status == NdbError::TemporaryError){
+          pTrans->close();
+          retry = true;
+          break;
+        }
+        pTrans->close();
+        return NDBT_FAILED;
+      }
     }
-    pTrans->close();
-    r += batch;
+    if (retry)
+    {
+      NdbSleep_MilliSleep(50);
+      retryAttempt++;
+      continue;
+    }
 
-    for (size_t i = 0; i<batch_rows_found.size(); i++)
+    pTrans->close();
+    q += batch;
+
+    for (unsigned i = 0; i<batch_rows_found.size(); i++)
       m_rows_found[i] += batch_rows_found[i];
   }
 
@@ -293,7 +352,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       return NDBT_FAILED;
     }
 
-    for (size_t o = 0; o<m_ops.size(); o++)
+    for (unsigned o = 0; o<m_ops.size(); o++)
     {
       NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
       HugoQueries::getValueForQueryOp(pOp, m_ops[o].m_rows[0]);
@@ -312,6 +371,44 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       }
       pTrans->close();
       return NDBT_FAILED;
+    }
+    else
+    {
+      // Disabled, as this is incorrectly handled in SPJ API, will fix soon
+#if 0
+      /**
+       * If ::execute() didn't fail, there should not be an error on
+       * its NdbError object either:
+       */
+      const NdbError err = pTrans->getNdbError();
+      if (err.code)
+      {
+        ERR(err);
+        ndbout_c("API INCONSISTENCY: NdbTransaction returned NdbError even if ::execute() succeeded");
+        pTrans->close();
+        return NDBT_FAILED;
+      }
+#endif
+
+      /**
+       * As NdbQuery is always 'dirty read' (impl. limitations), 'AbortOnError'
+       * is ignored and handled as 'IgnoreError'. We will therefore not get
+       * errors returned from ::execute() or set into 'pTrans->getNdbError()':
+       * Has to check for errors on the NdbQuery object instead:
+       */
+      NdbError err = query->getNdbError();
+      if (err.code)
+      {
+        ERR(err);
+        if (err.status == NdbError::TemporaryError){
+          pTrans->close();
+          NdbSleep_MilliSleep(50);
+          retryAttempt++;
+          continue;
+        }
+        pTrans->close();
+        return NDBT_FAILED;
+      }
     }
 
     int r = rand() % 100;
@@ -336,7 +433,7 @@ HugoQueries::runScanQuery(Ndb * pNdb,
       return NDBT_OK;
       }
 
-      for (size_t o = 0; o<m_ops.size(); o++)
+      for (unsigned o = 0; o<m_ops.size(); o++)
       {
         NdbQueryOperation * pOp = query->getQueryOperation((Uint32)o);
         if (!pOp->isRowNULL())

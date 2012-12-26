@@ -195,22 +195,20 @@ start_again:
 		return;
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: Doublewrite buffer not found:"
-		" creating new\n");
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Doublewrite buffer not found: creating new");
 
 	if (buf_pool_get_curr_size()
 	    < ((2 * TRX_SYS_DOUBLEWRITE_BLOCK_SIZE
 		+ FSP_EXTENT_SIZE / 2 + 100)
 	       * UNIV_PAGE_SIZE)) {
-		fprintf(stderr,
-			"InnoDB: Cannot create doublewrite buffer:"
-			" you must\n"
-			"InnoDB: increase your buffer pool size.\n"
-			"InnoDB: Cannot continue operation.\n");
 
-		exit(1);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot create doublewrite buffer: you must "
+			"increase your buffer pool size. Cannot continue "
+			"operation.");
+
+		exit(EXIT_FAILURE);
 	}
 
 	block2 = fseg_create(TRX_SYS_SPACE, TRX_SYS_PAGE_NO,
@@ -223,16 +221,15 @@ start_again:
 	buf_block_dbg_add_level(block2, SYNC_NO_ORDER_CHECK);
 
 	if (block2 == NULL) {
-		fprintf(stderr,
-			"InnoDB: Cannot create doublewrite buffer:"
-			" you must\n"
-			"InnoDB: increase your tablespace size.\n"
-			"InnoDB: Cannot continue operation.\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot create doublewrite buffer: you must "
+			"increase your tablespace size. "
+			"Cannot continue operation.");
 
 		/* We exit without committing the mtr to prevent
 		its modifications to the database getting to disk */
 
-		exit(1);
+		exit(EXIT_FAILURE);
 	}
 
 	fseg_header = doublewrite + TRX_SYS_DOUBLEWRITE_FSEG;
@@ -243,15 +240,12 @@ start_again:
 		new_block = fseg_alloc_free_page(
 			fseg_header, prev_page_no + 1, FSP_UP, &mtr);
 		if (new_block == NULL) {
-			fprintf(stderr,
-				"InnoDB: Cannot create doublewrite"
-				" buffer: you must\n"
-				"InnoDB: increase your"
-				" tablespace size.\n"
-				"InnoDB: Cannot continue operation.\n"
-				);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot create doublewrite buffer: you must "
+				"increase your tablespace size. "
+				"Cannot continue operation.");
 
-			exit(1);
+			exit(EXIT_FAILURE);
 		}
 
 		/* We read the allocated pages to the buffer pool;
@@ -331,8 +325,7 @@ start_again:
 	/* Remove doublewrite pages from LRU */
 	buf_pool_invalidate();
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: Doublewrite buffer created\n");
+	ib_logf(IB_LOG_LEVEL_INFO, "Doublewrite buffer created");
 
 	goto start_again;
 }
@@ -391,7 +384,7 @@ buf_dblwr_init_or_restore_pages(
 	}
 
 	if (mach_read_from_4(doublewrite + TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED)
-	!= TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N) {
+	    != TRX_SYS_DOUBLEWRITE_SPACE_ID_STORED_N) {
 
 		/* We are upgrading from a version < 4.1.x to a version where
 		multiple tablespaces are supported. We must reset the space id
@@ -401,9 +394,8 @@ buf_dblwr_init_or_restore_pages(
 
 		reset_space_ids = TRUE;
 
-		fprintf(stderr,
-			"InnoDB: Resetting space id's in the"
-			" doublewrite buffer\n");
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Resetting space id's in the doublewrite buffer");
 	}
 
 	/* Read the pages from the doublewrite buffer to memory */
@@ -459,12 +451,11 @@ buf_dblwr_init_or_restore_pages(
 
 		} else if (!fil_check_adress_in_tablespace(space_id,
 							   page_no)) {
-			fprintf(stderr,
-				"InnoDB: Warning: a page in the"
-				" doublewrite buffer is not within space\n"
-				"InnoDB: bounds; space id %lu"
-				" page number %lu, page %lu in"
-				" doublewrite buf.\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"A page in the doublewrite buffer is not "
+				"within space bounds; space id %lu "
+				"page number %lu, page %lu in "
+				"doublewrite buf.",
 				(ulong) space_id, (ulong) page_no, (ulong) i);
 
 		} else if (space_id == TRX_SYS_SPACE
@@ -538,9 +529,10 @@ buf_dblwr_init_or_restore_pages(
 				       zip_size, page_no, 0,
 				       zip_size ? zip_size : UNIV_PAGE_SIZE,
 				       page, NULL);
-				fprintf(stderr,
-					"InnoDB: Recovered the page from"
-					" the doublewrite buffer.\n");
+
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Recovered the page from"
+					" the doublewrite buffer.");
 			}
 		}
 
@@ -595,6 +587,7 @@ buf_dblwr_update(void)
 
 	ut_ad(buf_dblwr->batch_running);
 	ut_ad(buf_dblwr->b_reserved > 0);
+	ut_ad(buf_dblwr->b_reserved <= buf_dblwr->first_free);
 
 	buf_dblwr->b_reserved--;
 	if (buf_dblwr->b_reserved == 0) {
@@ -705,23 +698,29 @@ static
 void
 buf_dblwr_write_block_to_datafile(
 /*==============================*/
-	const buf_block_t*	block)	/*!< in: block to write */
+	const buf_page_t*	bpage)	/*!< in: page to write */
 {
-	ut_a(block);
-	ut_a(buf_page_in_file(&block->page));
+	ut_a(bpage);
+	ut_a(buf_page_in_file(bpage));
 
-	if (block->page.zip.data) {
+	/* Increment the counter of I/O operations used
+	for selecting LRU policy. */
+	buf_LRU_stat_inc_io();
+
+	if (bpage->zip.data) {
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
-		       FALSE, buf_page_get_space(&block->page),
-		       buf_page_get_zip_size(&block->page),
-		       buf_page_get_page_no(&block->page), 0,
-		       buf_page_get_zip_size(&block->page),
-		       (void*) block->page.zip.data,
-		       (void*) block);
+		       FALSE, buf_page_get_space(bpage),
+		       buf_page_get_zip_size(bpage),
+		       buf_page_get_page_no(bpage), 0,
+		       buf_page_get_zip_size(bpage),
+		       (void*) bpage->zip.data,
+		       (void*) bpage);
 
-		goto exit;
+		return;
 	}
 
+
+	const buf_block_t* block = (buf_block_t*) bpage;
 	ut_a(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	buf_dblwr_check_page_lsn(block->frame);
 
@@ -729,11 +728,6 @@ buf_dblwr_write_block_to_datafile(
 	       FALSE, buf_block_get_space(block), 0,
 	       buf_block_get_page_no(block), 0, UNIV_PAGE_SIZE,
 	       (void*) block->frame, (void*) block);
-
-exit:
-	/* Increment the counter of I/O operations used
-	for selecting LRU policy. */
-	buf_LRU_stat_inc_io();
 }
 
 /********************************************************************//**
@@ -748,9 +742,8 @@ buf_dblwr_flush_buffered_writes(void)
 /*=================================*/
 {
 	byte*		write_buf;
+	ulint		first_free;
 	ulint		len;
-	ulint		len2;
-	ulint		i;
 
 	if (!srv_use_doublewrite_buf || buf_dblwr == NULL) {
 		/* Sync the writes to the disk. */
@@ -782,10 +775,12 @@ try_again:
 	}
 
 	ut_a(!buf_dblwr->batch_running);
+	ut_ad(buf_dblwr->first_free == buf_dblwr->b_reserved);
 
 	/* Disallow anyone else to post to doublewrite buffer or to
 	start another batch of flushing. */
 	buf_dblwr->batch_running = TRUE;
+	first_free = buf_dblwr->first_free;
 
 	/* Now safe to release the mutex. Note that though no other
 	thread is allowed to post to the doublewrite batch flushing
@@ -795,7 +790,7 @@ try_again:
 
 	write_buf = buf_dblwr->write_buf;
 
-	for (len2 = 0, i = 0;
+	for (ulint len2 = 0, i = 0;
 	     i < buf_dblwr->first_free;
 	     len2 += UNIV_PAGE_SIZE, i++) {
 
@@ -855,11 +850,21 @@ flush:
 	and in recovery we will find them in the doublewrite buffer
 	blocks. Next do the writes to the intended positions. */
 
-	for (i = 0; i < buf_dblwr->first_free; i++) {
-		const buf_block_t* block = (buf_block_t*)
-			buf_dblwr->buf_block_arr[i];
-
-		buf_dblwr_write_block_to_datafile(block);
+	/* Up to this point first_free and buf_dblwr->first_free are
+	same because we have set the buf_dblwr->batch_running flag
+	disallowing any other thread to post any request but we
+	can't safely access buf_dblwr->first_free in the loop below.
+	This is so because it is possible that after we are done with
+	the last iteration and before we terminate the loop, the batch
+	gets finished in the IO helper thread and another thread posts
+	a new batch setting buf_dblwr->first_free to a higher value.
+	If this happens and we are using buf_dblwr->first_free in the
+	loop termination condition then we'll end up dispatching
+	the same block twice from two different threads. */
+	ut_ad(first_free == buf_dblwr->first_free);
+	for (ulint i = 0; i < first_free; i++) {
+		buf_dblwr_write_block_to_datafile(
+			buf_dblwr->buf_block_arr[i]);
 	}
 
 	/* Wake possible simulated aio thread to actually post the
@@ -935,6 +940,8 @@ try_again:
 	buf_dblwr->first_free++;
 	buf_dblwr->b_reserved++;
 
+	ut_ad(!buf_dblwr->batch_running);
+	ut_ad(buf_dblwr->first_free == buf_dblwr->b_reserved);
 	ut_ad(buf_dblwr->b_reserved <= srv_doublewrite_batch_size);
 
 	if (buf_dblwr->first_free == srv_doublewrite_batch_size) {
@@ -1065,7 +1072,7 @@ retry:
 	/* We know that the write has been flushed to disk now
 	and during recovery we will find it in the doublewrite buffer
 	blocks. Next do the write to the intended position. */
-	buf_dblwr_write_block_to_datafile((buf_block_t*) bpage);
+	buf_dblwr_write_block_to_datafile(bpage);
 
 	/* Sync the writes to the disk. */
 	buf_flush_sync_datafiles();
@@ -1077,7 +1084,7 @@ retry:
 	buf_dblwr->in_use[i] = FALSE;
 
 	/* increment the doublewrite flushed pages counter */
-	srv_stats.dblwr_pages_written.add(buf_dblwr->first_free);
+	srv_stats.dblwr_pages_written.inc();
 	srv_stats.dblwr_writes.inc();
 
 	mutex_exit(&(buf_dblwr->mutex));

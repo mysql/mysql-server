@@ -227,7 +227,7 @@ public:
   List<Item> tmp_fields_list1, tmp_fields_list2, tmp_fields_list3;
   List<Item> &fields_list; ///< hold field list passed to mysql_select
   List<Item> procedure_fields_list;
-  int error;
+  int error; ///< set in optimize(), exec(), prepare_result()
 
   /**
     Wrapper for ORDER* pointer to trace origins of ORDER list 
@@ -685,6 +685,21 @@ private:
   bool make_tmp_tables_info();
   bool compare_costs_of_subquery_strategies(
          Item_exists_subselect::enum_exec_method *method);
+
+  /// RAII class to ease the call of LEX::mark_broken() if error
+  class Prepare_error_tracker
+  {
+public:
+    Prepare_error_tracker(THD *thd_arg) : thd(thd_arg) {}
+    ~Prepare_error_tracker()
+    {
+      if (unlikely(thd->is_error()))
+        thd->lex->mark_broken();
+    }
+private:
+    THD *const thd;
+  };
+
 };
 
 

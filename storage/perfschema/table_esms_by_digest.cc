@@ -36,6 +36,11 @@ THR_LOCK table_esms_by_digest::m_table_lock;
 static const TABLE_FIELD_TYPE field_types[]=
 {
   {
+    { C_STRING_WITH_LEN("SCHEMA_NAME") },
+    { C_STRING_WITH_LEN("varchar(64)") },
+    { NULL, 0}
+  },
+  {
     { C_STRING_WITH_LEN("DIGEST") },
     { C_STRING_WITH_LEN("varchar(32)") },
     { NULL, 0}
@@ -45,7 +50,7 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("longtext") },
     { NULL, 0}
   },
-  { 
+  {
     { C_STRING_WITH_LEN("COUNT_STAR") },
     { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
@@ -170,7 +175,7 @@ static const TABLE_FIELD_TYPE field_types[]=
     { C_STRING_WITH_LEN("timestamp") },
     { NULL, 0}
   },
-  { 
+  {
     { C_STRING_WITH_LEN("LAST_SEEN") },
     { C_STRING_WITH_LEN("timestamp") },
     { NULL, 0}
@@ -179,7 +184,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 
 TABLE_FIELD_DEF
 table_esms_by_digest::m_field_def=
-{ 28, field_types };
+{ 29, field_types };
 
 PFS_engine_table_share
 table_esms_by_digest::m_share=
@@ -303,18 +308,19 @@ int table_esms_by_digest
     {
       switch(f->field_index)
       {
-      case 0: /* DIGEST */
-      case 1: /* DIGEST_TEXT */
+      case 0: /* SCHEMA_NAME */
+      case 1: /* DIGEST */
+      case 2: /* DIGEST_TEXT */
         m_row.m_digest.set_field(f->field_index, f);
         break;
-      case 26: /* FIRST_SEEN */
+      case 27: /* FIRST_SEEN */
         set_field_timestamp(f, m_row.m_first_seen);
         break;
-      case 27: /* LAST_SEEN */
+      case 28: /* LAST_SEEN */
         set_field_timestamp(f, m_row.m_last_seen);
         break;
-      default: /* 1, ... COUNT/SUM/MIN/AVG/MAX */
-        m_row.m_stat.set_field(f->field_index - 2, f);
+      default: /* 3, ... COUNT/SUM/MIN/AVG/MAX */
+        m_row.m_stat.set_field(f->field_index - 3, f);
         break;
       }
     }

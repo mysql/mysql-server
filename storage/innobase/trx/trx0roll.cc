@@ -806,6 +806,8 @@ DECLARE_THREAD(trx_rollback_or_clean_all_recovered)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
+	ut_ad(!srv_read_only_mode);
+
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(trx_rollback_clean_thread_key);
 #endif /* UNIV_PFS_THREAD */

@@ -119,7 +119,7 @@ static enum enum_remote_proto {
 static char *opt_remote_proto_str= 0;
 static char *database= 0;
 static char *output_file= 0;
-static my_bool force_opt= 0, short_form= 0;
+static my_bool force_opt= 0, short_form= 0, idempotent_mode= 0;
 static my_bool debug_info_flag, debug_check_flag;
 static my_bool force_if_open_opt= 1, raw_mode= 0;
 static my_bool to_last_remote_log= 0, stop_never= 0;
@@ -858,7 +858,20 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       reset_dynamic(&buff_ev);
 
       if (parent_query_skips)
+      {
+        /*
+          Even though there would be no need to set the flag here,
+          since parent_query_skips is never true when handling "COMMIT"
+          statements in the Query_log_event, we still need to handle DDL,
+          which causes a commit itself.
+        */
+        print_event_info->skipped_event_in_transaction= true;
         goto end;
+      }
+
+      if (((Query_log_event*) ev)->ends_group())
+        print_event_info->skipped_event_in_transaction= false;
+
       ev->print(result_file, print_event_info);
       if (head->error == -1)
         goto err;
@@ -905,7 +918,10 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         Note that Load event from 3.23 is not tested.
       */
       if (shall_skip_database(ce->db))
+      {
+        print_event_info->skipped_event_in_transaction= true;
         goto end;                // Next event
+      }
       /*
 	We print the event, but with a leading '#': this is just to inform 
 	the user of the original command; the command we want to execute 
@@ -1024,7 +1040,9 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       Execute_load_query_log_event *exlq= (Execute_load_query_log_event*)ev;
       char *fname= load_processor.grab_fname(exlq->file_id);
 
-      if (!shall_skip_database(exlq->db))
+      if (shall_skip_database(exlq->db))
+        print_event_info->skipped_event_in_transaction= true;
+      else
       {
         if (fname)
         {
@@ -1051,6 +1069,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       Table_map_log_event *map= ((Table_map_log_event *)ev);
       if (shall_skip_database(map->get_db_name()))
       {
+        print_event_info->skipped_event_in_transaction= true;
         print_event_info->m_table_map_ignored.set_table(map->get_table_id(), map);
         destroy_evt= FALSE;
         goto end;
@@ -1115,14 +1134,19 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
            event was not skipped).
         */
         if (skip_event)
+          /* Flush head,body and footer cache to result_file */
           if ((copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-              copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)))
+              copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file)  ||
+              copy_event_cache_to_file_and_reinit(&print_event_info->footer_cache, result_file)))
             goto err;
       }
 
       /* skip the event check */
       if (skip_event)
+      {
+        print_event_info->skipped_event_in_transaction= true;
         goto end;
+      }
 
       /*
         These events must be printed in base64 format, if printed.
@@ -1151,17 +1175,45 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
 
       ev->print(result_file, print_event_info);
       print_event_info->have_unflushed_events= TRUE;
-      /* Flush head and body cache to result_file */
+      /* Flush head,body and footer cache to result_file */
       if (stmt_end)
       {
         print_event_info->have_unflushed_events= FALSE;
         if (copy_event_cache_to_file_and_reinit(&print_event_info->head_cache, result_file) ||
-            copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file))
+            copy_event_cache_to_file_and_reinit(&print_event_info->body_cache, result_file) ||
+            copy_event_cache_to_file_and_reinit(&print_event_info->footer_cache, result_file))
           goto err;
         goto end;
       }
       break;
     }
+    case GTID_LOG_EVENT:
+    {
+      if (print_event_info->skipped_event_in_transaction == true)
+        fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n", print_event_info->delimiter);
+      print_event_info->skipped_event_in_transaction= false;
+
+      ev->print(result_file, print_event_info);
+      if (head->error == -1)
+        goto err;
+      break;
+    }
+    case XID_EVENT:
+    {
+      print_event_info->skipped_event_in_transaction= false;
+      ev->print(result_file, print_event_info);
+      if (head->error == -1)
+        goto err;
+      break;
+    }
+    case PREVIOUS_GTIDS_LOG_EVENT:
+      if (one_database && !opt_skip_gtids)
+        warning("The option --database has been used. It may filter "
+                "parts of transactions, but will include the GTIDs in "
+                "any case. If you want to exclude or include transactions, "
+                "you should use the options --exclude-gtids or "
+                "--include-gtids, respectively, instead.");
+      /* fall through */
     default:
       ev->print(result_file, print_event_info);
       if (head->error == -1)
@@ -1256,6 +1308,9 @@ static struct my_option my_long_options[] =
    0, 0, 0, 0, 0, 0},
   {"host", 'h', "Get the binlog from server.", &host, &host,
    0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"idempotent", 'i', "Notify the server to use idempotent mode before "
+   "applying Row Events", &idempotent_mode, &idempotent_mode, 0,
+   GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"local-load", 'l', "Prepare local temporary files for LOAD DATA INFILE in the specified directory.",
    &dirname_for_local_load, &dirname_for_local_load, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1745,6 +1800,9 @@ static Exit_status dump_log_entries(const char* logname)
   /* Set delimiter back to semicolon */
   if (!raw_mode)
   {
+    if (print_event_info.skipped_event_in_transaction)
+      fprintf(result_file, "COMMIT /* added by mysqlbinlog */%s\n", print_event_info.delimiter);
+
     fprintf(result_file, "DELIMITER ;\n");
     strmov(print_event_info.delimiter, ";");
   }
@@ -1929,14 +1987,10 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
   {
     command= COM_BINLOG_DUMP_GTID;
 
-    Gtid_set gtid_set(global_sid_map);
     global_sid_lock->rdlock();
 
-    gtid_set.add_gtid_set(gtid_set_excluded);
-
     // allocate buffer
-    size_t unused_size= 0;
-    size_t encoded_data_size= gtid_set.get_encoded_length();
+    size_t encoded_data_size= gtid_set_excluded->get_encoded_length();
     size_t allocation_size=
       ::BINLOG_FLAGS_INFO_SIZE + ::BINLOG_SERVER_ID_INFO_SIZE +
       ::BINLOG_NAME_SIZE_INFO_SIZE + BINLOG_NAME_INFO_SIZE +
@@ -1950,13 +2004,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     }
     uchar* ptr_buffer= command_buffer;
 
-    /*
-      The current implementation decides whether the Gtid must be
-      used based on option --exclude-gtids.
-    */
-    add_master_slave_proto(&binlog_flags,
-                           opt_exclude_gtids_str != NULL ?
-                           BINLOG_THROUGH_GTID : BINLOG_THROUGH_POSITION);
     int2store(ptr_buffer, binlog_flags);
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
@@ -1967,23 +2014,15 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
     int8store(ptr_buffer, start_position);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
-
-    if (is_master_slave_proto(binlog_flags, BINLOG_THROUGH_GTID))
-    {
-      int4store(ptr_buffer, encoded_data_size);
-      ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
-      gtid_set.encode(ptr_buffer);
-      ptr_buffer+= encoded_data_size;
-    }
-    else
-    {
-      unused_size= ::BINLOG_DATA_SIZE_INFO_SIZE + encoded_data_size;
-    }
+    int4store(ptr_buffer, encoded_data_size);
+    ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
+    gtid_set_excluded->encode(ptr_buffer);
+    ptr_buffer+= encoded_data_size;
 
     global_sid_lock->unlock();
 
     command_size= ptr_buffer - command_buffer;
-    DBUG_ASSERT(command_size == (allocation_size - unused_size - 1));
+    DBUG_ASSERT(command_size == (allocation_size - 1));
   }
 
   if (simple_command(mysql, command, command_buffer, command_size, 1))
@@ -2699,8 +2738,7 @@ int main(int argc, char** argv)
 
   if (!raw_mode)
   {
-    fprintf(result_file,
-            "/*!40019 SET @@session.max_insert_delayed_threads=0*/;\n");
+    fprintf(result_file, "/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;\n");
 
     if (disable_log_bin)
       fprintf(result_file,
@@ -2721,6 +2759,13 @@ int main(int argc, char** argv)
               "\n/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;"
               "\n/*!40101 SET NAMES %s */;\n", charset);
   }
+  /*
+    In case '--idempotent' or '-i' options has been used, we will notify the
+    server to use idempotent mode for the following events.
+   */
+  if (idempotent_mode)
+    fprintf(result_file,
+            "/*!50700 SET @@SESSION.RBR_EXEC_MODE=IDEMPOTENT*/;\n\n");
 
   for (save_stop_position= stop_position, stop_position= ~(my_off_t)0 ;
        (--argc >= 0) ; )
@@ -2751,7 +2796,17 @@ int main(int argc, char** argv)
               "/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;\n"
               "/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;\n"
               "/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;\n");
+
+    fprintf(result_file, "/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;\n");
   }
+
+  /*
+    We should unset the RBR_EXEC_MODE since the user may concatenate output of
+    multiple runs of mysqlbinlog, all of which may not run in idempotent mode.
+   */
+  if (idempotent_mode)
+    fprintf(result_file,
+            "/*!50700 SET @@SESSION.RBR_EXEC_MODE=STRICT*/;\n");
 
   if (tmpdir.list)
     free_tmpdir(&tmpdir);
@@ -2787,4 +2842,3 @@ int main(int argc, char** argv)
 #include "uuid.cc"
 #include "rpl_gtid_set.cc"
 #include "rpl_gtid_specification.cc"
-#include "rpl_constants.cc"

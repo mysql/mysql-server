@@ -23,6 +23,7 @@
 #include <NdbSqlUtil.hpp>
 #include <NdbRecord.hpp>
 #include <NdbEventOperation.hpp>
+#include <NdbSleep.h>
 #include "NdbIndexStatImpl.hpp"
 
 #undef min
@@ -389,6 +390,14 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
 {
   Sys sys(this, ndb);
 
+  NdbDictionary::Dictionary* const dic = sys.m_dic;
+
+  if (dic->beginSchemaTrans() == -1)
+  {
+    setError(dic->getNdbError().code, __LINE__);
+    return -1;
+  }
+
   if (get_systables(sys) == -1)
     return -1;
 
@@ -401,14 +410,6 @@ NdbIndexStatImpl::create_systables(Ndb* ndb)
   if (sys.m_obj_cnt != 0)
   {
     setError(BadSysTables, __LINE__);
-    return -1;
-  }
-
-  NdbDictionary::Dictionary* const dic = sys.m_dic;
-
-  if (dic->beginSchemaTrans() == -1)
-  {
-    setError(dic->getNdbError().code, __LINE__);
     return -1;
   }
 
@@ -493,10 +494,6 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
 {
   Sys sys(this, ndb);
 
-  if (get_systables(sys) == -1 &&
-      m_error.code != BadSysTables)
-    return -1;
-
   NdbDictionary::Dictionary* const dic = sys.m_dic;
 
   if (dic->beginSchemaTrans() == -1)
@@ -504,6 +501,10 @@ NdbIndexStatImpl::drop_systables(Ndb* ndb)
     setError(dic->getNdbError().code, __LINE__);
     return -1;
   }
+
+  if (get_systables(sys) == -1 &&
+      m_error.code != BadSysTables)
+    return -1;
 
   if (sys.m_headtable != 0)
   {
@@ -878,6 +879,11 @@ NdbIndexStatImpl::sys_read_head(Con& con, bool commit)
     return -1;
   if (sys_head_getvalue(con) == -1)
     return -1;
+  if (con.m_op->setAbortOption(NdbOperation::AbortOnError) == -1)
+  {
+    setError(con, __LINE__);
+    return -1;
+  }
   if (con.execute(commit) == -1)
   {
     setError(con, __LINE__);
@@ -1037,6 +1043,7 @@ NdbIndexStatImpl::update_stat(Ndb* ndb, Head& head)
   if (con.m_dic->updateIndexStat(m_indexId, m_indexVersion, m_tableId) == -1)
   {
     setError(con, __LINE__);
+    mapError(ERR_NoSuchObject, NoSysTables);
     return -1;
   }
   return 0;
@@ -1049,6 +1056,7 @@ NdbIndexStatImpl::delete_stat(Ndb* ndb, Head& head)
   if (con.m_dic->deleteIndexStat(m_indexId, m_indexVersion, m_tableId) == -1)
   {
     setError(con, __LINE__);
+    mapError(ERR_NoSuchObject, NoSysTables);
     return -1;
   }
   return 0;
@@ -1339,12 +1347,26 @@ NdbIndexStatImpl::Cache::swap_entry(uint pos1, uint pos2)
 }
 
 inline double
-NdbIndexStatImpl::Cache::get_rir(uint pos) const
+NdbIndexStatImpl::Cache::get_rir1(uint pos) const
 {
   const Uint8* ptr = get_valueptr(pos);
   Uint32 n;
   memcpy(&n, &ptr[0], 4);
-  double x = (double)m_fragCount * (double)n;
+  double x = (double)n;
+  return x;
+}
+
+inline double
+NdbIndexStatImpl::Cache::get_rir1(uint pos1, uint pos2) const
+{
+  assert(pos2 > pos1);
+  return get_rir1(pos2) - get_rir1(pos1);
+}
+
+inline double
+NdbIndexStatImpl::Cache::get_rir(uint pos) const
+{
+  double x = (double)m_fragCount * get_rir1(pos);
   return x;
 }
 
@@ -1356,21 +1378,52 @@ NdbIndexStatImpl::Cache::get_rir(uint pos1, uint pos2) const
 }
 
 inline double
-NdbIndexStatImpl::Cache::get_unq(uint pos, uint k) const
+NdbIndexStatImpl::Cache::get_unq1(uint pos, uint k) const
 {
   assert(k < m_keyAttrs);
   const Uint8* ptr = get_valueptr(pos);
   Uint32 n;
   memcpy(&n, &ptr[4 + k * 4], 4);
-  double x = (double)m_fragCount * (double)n;
+  double x = (double)n;
+  return x;
+}
+
+inline double
+NdbIndexStatImpl::Cache::get_unq1(uint pos1, uint pos2, uint k) const
+{
+  assert(pos2 > pos1);
+  return get_unq1(pos2, k) - get_unq1(pos1, k);
+}
+
+static inline double
+get_unqfactor(uint p, double r, double u)
+{
+  double ONE = (double)1.0;
+  double d = (double)p;
+  double f = ONE + (d - ONE) * ::pow(u / r, d - ONE);
+  return f;
+}
+
+inline double
+NdbIndexStatImpl::Cache::get_unq(uint pos, uint k) const
+{
+  uint p = m_fragCount;
+  double r = get_rir1(pos);
+  double u = get_unq1(pos, k);
+  double f = get_unqfactor(p, r, u);
+  double x = f * u;
   return x;
 }
 
 inline double
 NdbIndexStatImpl::Cache::get_unq(uint pos1, uint pos2, uint k) const
 {
-  assert(pos2 > pos1);
-  return get_unq(pos2, k) - get_unq(pos1, k);
+  uint p = m_fragCount;
+  double r = get_rir1(pos1, pos2);
+  double u = get_unq1(pos1, pos2, k);
+  double f = get_unqfactor(p, r, u);
+  double x = f * u;
+  return x;
 }
 
 inline double
@@ -1408,6 +1461,8 @@ NdbIndexStatImpl::Cache::Cache()
   // performance
   m_save_time = 0;
   m_sort_time = 0;
+  // in use by query_stat
+  m_ref_count = 0;
 }
 
 int
@@ -1950,6 +2005,21 @@ NdbIndexStatImpl::convert_range(Range& range,
       return -1;
     }
   }
+
+#ifdef VM_TRACE
+  {
+    const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_RANGE_ERROR", (char*)0, 0);
+    if (p != 0 && strchr("1Y", p[0]) != 0)
+    {
+      if (rand() % 10 == 0)
+      {
+        setError(InternalError, __LINE__, NdbIndexStat::InternalError);
+        return -1;
+      }
+    }
+  }
+#endif
+
   return 0;
 }
 
@@ -1981,23 +2051,41 @@ int
 NdbIndexStatImpl::query_stat(const Range& range, Stat& stat)
 {
   NdbMutex_Lock(m_query_mutex);
-  const Cache* cacheTmp = m_cacheQuery;
-  NdbMutex_Unlock(m_query_mutex);
-
-  if (unlikely(cacheTmp == 0))
+  if (unlikely(m_cacheQuery == 0))
   {
+    NdbMutex_Unlock(m_query_mutex);
     setError(UsageError, __LINE__);
     return -1;
   }
-  const Cache& c = *cacheTmp;
+  const Cache& c = *m_cacheQuery;
   if (unlikely(!c.m_valid))
   {
+    NdbMutex_Unlock(m_query_mutex);
     setError(InvalidCache, __LINE__);
     return -1;
   }
+  c.m_ref_count++;
+  NdbMutex_Unlock(m_query_mutex);
 
+#ifdef VM_TRACE
+  {
+    const char* p = NdbEnv_GetEnv("NDB_INDEX_STAT_SLOW_QUERY", (char*)0, 0);
+    if (p != 0 && strchr("1Y", p[0]) != 0)
+    {
+      int ms = 1 + rand() % 20;
+      NdbSleep_MilliSleep(ms);
+    }
+  }
+#endif
+
+  // clients run these in parallel
   query_interpolate(c, range, stat);
   query_normalize(c, stat.m_value);
+
+  NdbMutex_Lock(m_query_mutex);
+  assert(c.m_ref_count != 0);
+  c.m_ref_count--;
+  NdbMutex_Unlock(m_query_mutex);
   return 0;
 }
 

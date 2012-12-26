@@ -46,10 +46,12 @@ public abstract class ComparativePredicateImpl extends PredicateImpl {
         param.setProperty(property);
     }
 
+    @Override
     public void markParameters() {
         param.mark();
     }
 
+    @Override
     public void unmarkParameters() {
         param.unmark();
     }
@@ -61,17 +63,32 @@ public abstract class ComparativePredicateImpl extends PredicateImpl {
     }
 
     @Override
-    public void operationSetLowerBound(QueryExecutionContext context,
+    public int operationSetLowerBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         // delegate to setBounds for most operations
-        operationSetBounds(context, op, lastColumn);
+        return operationSetBounds(context, op, lastColumn);
     }
 
     @Override
-    public void operationSetUpperBound(QueryExecutionContext context,
+    public int operationSetUpperBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
         // delegate to setBounds for most operations
-        operationSetBounds(context, op, lastColumn);
+        return operationSetBounds(context, op, lastColumn);
+    }
+
+    @Override
+    public ParameterImpl getParameter() {
+        return param;
+    }
+
+    @Override
+    protected PropertyImpl getProperty() {
+        return property;
+    }
+
+    @Override 
+    public boolean isUsable(QueryExecutionContext context) {
+        return param.getParameterValue(context) != null;
     }
 
 }

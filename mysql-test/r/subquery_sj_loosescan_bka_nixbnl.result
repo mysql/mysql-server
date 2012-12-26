@@ -2924,6 +2924,9 @@ EXPLAIN
               "PRIMARY"
             ],
             "key": "PRIMARY",
+            "used_key_parts": [
+              "a"
+            ],
             "key_length": "4",
             "ref": [
               "test.t11.a"
@@ -3017,6 +3020,9 @@ EXPLAIN
               "<auto_key0>"
             ],
             "key": "<auto_key0>",
+            "used_key_parts": [
+              "a"
+            ],
             "key_length": "5",
             "ref": [
               "test.t1.a"
@@ -3264,6 +3270,9 @@ EXPLAIN
               "a"
             ],
             "key": "a",
+            "used_key_parts": [
+              "a"
+            ],
             "key_length": "5",
             "ref": [
               "test.t2.a"
@@ -6286,6 +6295,9 @@ EXPLAIN
                   "Country"
                 ],
                 "key": "Population",
+                "used_key_parts": [
+                  "Population"
+                ],
                 "key_length": "4",
                 "rows": 1,
                 "filtered": 100,
@@ -6301,6 +6313,9 @@ EXPLAIN
                   "Population"
                 ],
                 "key": "PRIMARY",
+                "used_key_parts": [
+                  "Code"
+                ],
                 "key_length": "3",
                 "ref": [
                   "test.t1.Country"
@@ -6322,6 +6337,10 @@ EXPLAIN
             "Percentage"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "Country",
+            "Language"
+          ],
           "key_length": "33",
           "ref": [
             "test.t1.Country",
@@ -6329,7 +6348,7 @@ EXPLAIN
           ],
           "rows": 1,
           "filtered": 100,
-          "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10))"
+          "attached_condition": "(`test`.`t3`.`Percentage` > 10)"
         }
       }
     ]
@@ -7563,6 +7582,14 @@ CREATE TABLE t2 (
 col_varchar_nokey VARCHAR(1) NOT NULL
 ) ENGINE=InnoDB;
 INSERT INTO t2 VALUES ('v'), ('y'), ('j'), ('c'), ('d'), ('r');
+explain SELECT col_varchar_key
+FROM t1
+WHERE col_varchar_key IN (SELECT col_varchar_nokey
+FROM t2)
+ORDER BY col_datetime_key LIMIT 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	SIMPLE	t2	ALL	NULL	NULL	NULL	NULL	6	Using temporary; Using filesort; Start temporary
+1	SIMPLE	t1	ref	col_varchar_key	col_varchar_key	3	test.t2.col_varchar_nokey	1	End temporary
 SELECT col_varchar_key
 FROM t1
 WHERE col_varchar_key IN (SELECT col_varchar_nokey
@@ -8059,6 +8086,9 @@ EXPLAIN
                       "col_int_key"
                     ],
                     "key": "col_int_key",
+                    "used_key_parts": [
+                      "col_int_key"
+                    ],
                     "key_length": "4",
                     "ref": [
                       "func"
@@ -8076,6 +8106,9 @@ EXPLAIN
                       "col_int_key"
                     ],
                     "key": "col_int_key",
+                    "used_key_parts": [
+                      "col_int_key"
+                    ],
                     "key_length": "4",
                     "ref": [
                       "func"
@@ -8093,6 +8126,9 @@ EXPLAIN
                       "col_int_key"
                     ],
                     "key": "col_int_key",
+                    "used_key_parts": [
+                      "col_int_key"
+                    ],
                     "key_length": "4",
                     "ref": [
                       "test.parent1.col_int_nokey"
@@ -9958,6 +9994,9 @@ EXPLAIN
                   "<auto_key0>"
                 ],
                 "key": "<auto_key0>",
+                "used_key_parts": [
+                  "col_varchar_nokey"
+                ],
                 "key_length": "4",
                 "ref": [
                   "test.derived2.col_varchar_nokey"
@@ -10065,6 +10104,9 @@ EXPLAIN
                   "col_int_key"
                 ],
                 "key": "col_int_key",
+                "used_key_parts": [
+                  "col_int_key"
+                ],
                 "key_length": "4",
                 "ref": [
                   "test.grandparent1.col_int_nokey"
@@ -10245,6 +10287,9 @@ EXPLAIN
             "PRIMARY"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "pk"
+          ],
           "key_length": "4",
           "ref": [
             "test.alias2.pk"

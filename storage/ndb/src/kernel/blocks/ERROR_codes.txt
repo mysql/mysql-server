@@ -14,19 +14,19 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
 Next QMGR 938
-Next NDBCNTR 1002
+Next NDBCNTR 1004
 Next NDBFS 2000
 Next DBACC 3002
 Next DBTUP 4035
-Next DBLQH 5072
+Next DBLQH 5075
 Next DBDICT 6026
-Next DBDIH 7229
-Next DBTC 8092
+Next DBDIH 7236
+Next DBTC 8097
 Next CMVMI 9000
 Next BACKUP 10042
 Next DBUTIL 11002
 Next DBTUX 12010
-Next SUMA 13047
+Next SUMA 13048
 Next LGMAN 15001
 Next TSMAN 16001
 Next DBSPJ 17000
@@ -392,6 +392,9 @@ DBTC LONG SIGNAL TESTING
 
 8085: Simulate execFIRE_TRIG_ORD DataBuffer exhaustion
 8086: Simulate execFIRE_TRIG_ORD segmented section exhaustion
+
+8087: Simulate commit ack marker exhaustion
+8096: Simulate commit ack marker databuffer exhaustion
 
 DBLQH LONG SIGNAL TESTING
 -------------------------

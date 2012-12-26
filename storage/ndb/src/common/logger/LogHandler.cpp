@@ -24,7 +24,6 @@
 // PUBLIC
 //
 LogHandler::LogHandler() : 
-  m_pDateTimeFormat("%d-%.2d-%.2d %.2d:%.2d:%.2d"),
   m_errorCode(0),
   m_errorStr(NULL)
 {
@@ -113,17 +112,6 @@ LogHandler::getDefaultFooter() const
   return "\n";
 }
 
-const char* 
-LogHandler::getDateTimeFormat() const
-{
-  return m_pDateTimeFormat;	
-}
-
-void 
-LogHandler::setDateTimeFormat(const char* pFormat)
-{
-  m_pDateTimeFormat = (char*)pFormat;
-}
 
 char* 
 LogHandler::getTimeAsString(char* pStr) const 
@@ -132,7 +120,7 @@ LogHandler::getTimeAsString(char* pStr) const
   tm_now = ::localtime(&m_now); //uses the "current" timezone
 
   BaseString::snprintf(pStr, MAX_DATE_TIME_HEADER_LENGTH, 
-	     m_pDateTimeFormat, 
+	     "%d-%.2d-%.2d %.2d:%.2d:%.2d",
 	     tm_now->tm_year + 1900, 
 	     tm_now->tm_mon + 1, //month is [0,11]. +1 -> [1,12]
 	     tm_now->tm_mday,
@@ -175,7 +163,7 @@ LogHandler::parseParams(const BaseString &_params) {
   bool ret = true;
 
   _params.split(v_args, ",");
-  for(size_t i=0; i < v_args.size(); i++) {
+  for(unsigned i=0; i < v_args.size(); i++) {
     Vector<BaseString> v_param_value;
     if(v_args[i].split(v_param_value, "=", 2) != 2)
     {

@@ -247,7 +247,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ref	x	x	5	const	1	Using index
 explain select count(*) from t1 where x in (1,2);
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	x	x	5	NULL	9	Using where; Using index
+1	SIMPLE	t1	range	x	x	5	NULL	2	Using where; Using index
 drop table t1;
 CREATE TABLE t1 (key1 int(11) NOT NULL default '0', KEY i1 (key1));
 INSERT INTO t1 VALUES (0),(0),(0),(0),(0),(1),(1);
@@ -615,7 +615,7 @@ INSERT INTO t1 (a) VALUES
 ('111'),('222'),('222'),('222'),('222'),('444'),('aaa'),('AAA'),('bbb');
 explain select * from t1 where a='aaa';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	a	a	11	const	2	Using where
+1	SIMPLE	t1	ref	a	a	11	const	2	NULL
 explain select * from t1 where a=binary 'aaa';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	range	a	a	11	NULL	2	Using where
@@ -704,7 +704,7 @@ WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
 v.oxrootid ='d8c4177d09f8b11f5.52725521' AND
 s.oxleft > v.oxleft AND s.oxleft < v.oxright;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	v	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	Using where
+1	SIMPLE	v	ref	OXLEFT,OXRIGHT,OXROOTID	OXROOTID	34	const	5	NULL
 1	SIMPLE	s	ALL	OXLEFT	NULL	NULL	NULL	6	Range checked for each record (index map: 0x4)
 SELECT s.oxid FROM t1 v, t1 s 
 WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND
@@ -1023,7 +1023,7 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t2	ref	a	a	13	const	#	Using where
 explain select * from t2 where a = 'a' or a='a ';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t2	ref	a	a	13	const	#	Using where
+1	SIMPLE	t2	ref	a	a	13	const	#	NULL
 update t1 set a='b' where a<>'a';
 explain select * from t1 where a not between 'b' and 'b';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
@@ -1085,10 +1085,10 @@ id	b	c
 0	3	4
 EXPLAIN SELECT * FROM t1 WHERE 0 < b OR 0 > c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	idx1,idx2	NULL	NULL	NULL	10	Using where
+1	SIMPLE	t1	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	4	Using sort_union(idx1,idx2); Using where
 EXPLAIN SELECT * FROM t1 WHERE 0 NOT BETWEEN b AND c;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ALL	idx1,idx2	NULL	NULL	NULL	10	Using where
+1	SIMPLE	t1	index_merge	idx1,idx2	idx1,idx2	4,4	NULL	4	Using sort_union(idx1,idx2); Using where
 DROP TABLE t1;
 CREATE TABLE t1 (                                      
 item char(20) NOT NULL default '',                          

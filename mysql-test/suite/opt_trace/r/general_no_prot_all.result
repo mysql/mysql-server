@@ -1508,16 +1508,28 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
-                        "cost": 2.21,
-                        "chosen": false,
-                        "cause": "cost"
+                        "cost": 1.21,
+                        "chosen": true
                       }
                     ] /* range_scan_alternatives */,
                     "analyzing_roworder_intersect": {
                       "usable": false,
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
-                  } /* analyzing_range_alternatives */
+                  } /* analyzing_range_alternatives */,
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "d",
+                      "rows": 1,
+                      "ranges": [
+                        "NULL <= d <= NULL"
+                      ] /* ranges */
+                    } /* range_access_plan */,
+                    "rows_for_plan": 1,
+                    "cost_for_plan": 1.21,
+                    "chosen": true
+                  } /* chosen_range_access_summary */
                 } /* range_analysis */
               }
             ] /* rows_estimation */
@@ -1541,10 +1553,8 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                             "chosen": true
                           },
                           {
-                            "access_type": "scan",
-                            "cost": 2.4,
-                            "rows": 2,
-                            "cause": "cost",
+                            "access_type": "range",
+                            "cause": "heuristic_index_cheaper",
                             "chosen": false
                           }
                         ] /* considered_access_paths */
@@ -1575,10 +1585,8 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                       "chosen": true
                     },
                     {
-                      "access_type": "scan",
-                      "cost": 2.4,
-                      "rows": 2,
-                      "cause": "cost",
+                      "access_type": "range",
+                      "cause": "heuristic_index_cheaper",
                       "chosen": false
                     }
                   ] /* considered_access_paths */
@@ -1857,16 +1865,28 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                               "using_mrr": false,
                               "index_only": true,
                               "rows": 1,
-                              "cost": 2.21,
-                              "chosen": false,
-                              "cause": "cost"
+                              "cost": 1.21,
+                              "chosen": true
                             }
                           ] /* range_scan_alternatives */,
                           "analyzing_roworder_intersect": {
                             "usable": false,
                             "cause": "too_few_roworder_scans"
                           } /* analyzing_roworder_intersect */
-                        } /* analyzing_range_alternatives */
+                        } /* analyzing_range_alternatives */,
+                        "chosen_range_access_summary": {
+                          "range_access_plan": {
+                            "type": "range_scan",
+                            "index": "d",
+                            "rows": 1,
+                            "ranges": [
+                              "NULL <= d <= NULL"
+                            ] /* ranges */
+                          } /* range_access_plan */,
+                          "rows_for_plan": 1,
+                          "cost_for_plan": 1.21,
+                          "chosen": true
+                        } /* chosen_range_access_summary */
                       } /* range_analysis */
                     }
                   ] /* rows_estimation */
@@ -1887,10 +1907,8 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                             "chosen": true
                           },
                           {
-                            "access_type": "scan",
-                            "cost": 2.4,
-                            "rows": 2,
-                            "cause": "cost",
+                            "access_type": "range",
+                            "cause": "heuristic_index_cheaper",
                             "chosen": false
                           }
                         ] /* considered_access_paths */
@@ -1930,10 +1948,8 @@ explain SELECT c FROM t5 where c+1 in (select d+1 from t6 where d is null)	{
                                   "chosen": true
                                 },
                                 {
-                                  "access_type": "scan",
-                                  "cost": 2.4,
-                                  "rows": 2,
-                                  "cause": "cost",
+                                  "access_type": "range",
+                                  "cause": "heuristic_index_cheaper",
                                   "chosen": false
                                 }
                               ] /* considered_access_paths */
@@ -7167,16 +7183,28 @@ insert into t6 select * from t6 where d>7	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 2,
-                        "cost": 3.41,
-                        "chosen": false,
-                        "cause": "cost"
+                        "cost": 1.4333,
+                        "chosen": true
                       }
                     ] /* range_scan_alternatives */,
                     "analyzing_roworder_intersect": {
                       "usable": false,
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
-                  } /* analyzing_range_alternatives */
+                  } /* analyzing_range_alternatives */,
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "d",
+                      "rows": 2,
+                      "ranges": [
+                        "7 < d"
+                      ] /* ranges */
+                    } /* range_access_plan */,
+                    "rows_for_plan": 2,
+                    "cost_for_plan": 1.4333,
+                    "chosen": true
+                  } /* chosen_range_access_summary */
                 } /* range_analysis */
               }
             ] /* rows_estimation */
@@ -7190,14 +7218,14 @@ insert into t6 select * from t6 where d>7	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "access_type": "scan",
+                      "access_type": "range",
                       "rows": 2,
-                      "cost": 2.6051,
+                      "cost": 1.8333,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 2.6051,
+                "cost_for_plan": 1.8333,
                 "rows_for_plan": 2,
                 "chosen": true
               }
@@ -7220,7 +7248,7 @@ insert into t6 select * from t6 where d>7	{
             "refine_plan": [
               {
                 "table": "`t6`",
-                "access_type": "index_scan"
+                "access_type": "range"
               }
             ] /* refine_plan */
           }
@@ -7555,16 +7583,28 @@ delete t6 from t5, t6 where d>7000	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
-                        "cost": 2.21,
-                        "chosen": false,
-                        "cause": "cost"
+                        "cost": 1.21,
+                        "chosen": true
                       }
                     ] /* range_scan_alternatives */,
                     "analyzing_roworder_intersect": {
                       "usable": false,
                       "cause": "too_few_roworder_scans"
                     } /* analyzing_roworder_intersect */
-                  } /* analyzing_range_alternatives */
+                  } /* analyzing_range_alternatives */,
+                  "chosen_range_access_summary": {
+                    "range_access_plan": {
+                      "type": "range_scan",
+                      "index": "d",
+                      "rows": 1,
+                      "ranges": [
+                        "7000 < d"
+                      ] /* ranges */
+                    } /* range_access_plan */,
+                    "rows_for_plan": 1,
+                    "cost_for_plan": 1.21,
+                    "chosen": true
+                  } /* chosen_range_access_summary */
                 } /* range_analysis */
               }
             ] /* rows_estimation */
@@ -7579,14 +7619,14 @@ delete t6 from t5, t6 where d>7000	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
-                      "access_type": "scan",
+                      "access_type": "range",
                       "rows": 1,
-                      "cost": 2.8068,
+                      "cost": 1.41,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 2.8068,
+                "cost_for_plan": 1.41,
                 "rows_for_plan": 1,
                 "chosen": true
               }
@@ -7609,7 +7649,7 @@ delete t6 from t5, t6 where d>7000	{
             "refine_plan": [
               {
                 "table": "`t6`",
-                "access_type": "table_scan"
+                "access_type": "range"
               }
             ] /* refine_plan */
           }
@@ -11316,7 +11356,7 @@ drop view v1;
 create view v1 as select * from t1 where id < "c" limit 2;
 explain select * from v1 where id="b";
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	16	const	0	Using where
+1	PRIMARY	<derived2>	ref	<auto_key0>	<auto_key0>	16	const	0	NULL
 2	DERIVED	t1	ALL	NULL	NULL	NULL	NULL	3	Using where
 select * from information_schema.OPTIMIZER_TRACE;
 QUERY	TRACE	MISSING_BYTES_BEYOND_MAX_MEM_SIZE	INSUFFICIENT_PRIVILEGES
@@ -11537,7 +11577,7 @@ explain select * from v1 where id="b"	{
               "attached_conditions_summary": [
                 {
                   "table": "`v1`",
-                  "attached": "(`v1`.`id` = 'b')"
+                  "attached": null
                 }
               ] /* attached_conditions_summary */
             } /* attaching_conditions_to_tables */

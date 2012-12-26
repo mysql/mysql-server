@@ -1,0 +1,15 @@
+In order to have RPMs of MySQL which are distributed via ULN for Oracle Linux
+to be as closely compatible to such RPMs built and distributed by RedHat,
+this directory contains additional files which originated at RedHat
+and are used only for such RPMs intended for distribution via ULN.
+
+Especially, this directory contains the spec file used to build these RPMs,
+named "mysql.spec".  Please regard the following note:
+
+    You are receiving a copy of the Red Hat spec file.
+    The terms of the Oracle license do NOT apply to the Red Hat spec file;
+    it is licensed under the
+          GNU GENERAL PUBLIC LICENSE Version 2, June 1991
+    separately from the Oracle programs you receive.
+
+

@@ -102,7 +102,16 @@ SELECT @@session.wait_timeout;
 ########################################################
 
 SET @@global.wait_timeout = 0;
+SELECT @@global.wait_timeout;
 SET @@global.wait_timeout = -1024;
+SELECT @@global.wait_timeout;
+SET @@global.wait_timeout = 123456789031;
+SELECT @@global.wait_timeout;
+SET @@global.wait_timeout = 31536003;
+SELECT @@global.wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.wait_timeout = ' ';
+SELECT @@global.wait_timeout;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.wait_timeout = ON;
@@ -115,9 +124,9 @@ SELECT @@global.wait_timeout;
 
 SET @@global.wait_timeout = False;
 SELECT @@global.wait_timeout;
-
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.wait_timeout = 65530.34;
+SELECT @@global.wait_timeout;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.wait_timeout ="Test";
@@ -139,13 +148,20 @@ SELECT @@session.wait_timeout;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.wait_timeout = "Test";
-
-
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.wait_timeout = 65530.34;
+SELECT @@session.wait_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.wait_timeout = 'test';
-
+SET @@session.wait_timeout = 0;
+SELECT @@session.wait_timeout;
 SET @@session.wait_timeout = 123456789031;
 SELECT @@session.wait_timeout = @max_wait_timeout;
+SET @@session.wait_timeout = -1;
+SELECT @@session.wait_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.wait_timeout = ' ';
+SELECT @@session.wait_timeout;
 
 
 --echo '#------------------FN_DYNVARS_005_06-----------------------#'

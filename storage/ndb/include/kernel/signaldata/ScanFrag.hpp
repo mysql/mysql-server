@@ -89,6 +89,7 @@ public:
   static void setDescendingFlag(Uint32 & requestInfo, Uint32 descending);
   static void setTupScanFlag(Uint32 & requestInfo, Uint32 tupScan);
   static void setAttrLen(Uint32 & requestInfo, Uint32 attrLen);
+  static void clearAttrLen(Uint32 & requestInfo);
   static void setScanPrio(Uint32& requestInfo, Uint32 prio);
   static void setNoDiskFlag(Uint32& requestInfo, Uint32 val);
   static void setLcpScanFlag(Uint32 & requestInfo, Uint32 val);
@@ -177,7 +178,7 @@ public:
   Uint32 fragmentCompleted;
   Uint32 transId1;
   Uint32 transId2;
-  Uint32 total_len;
+  Uint32 total_len;  // Total #Uint32 returned as TRANSID_AI
 };
 
 class ScanFragRef {
@@ -277,7 +278,7 @@ public:
  *           1111111111222222222233
  * 01234567890123456789012345678901
  *  rrcdlxhkrztppppaaaaaaaaaaaaaaaa   Short variant ( < 6.4.0)
- *  rrcdlxhkrztppppAs                 Long variant (6.4.0 +)
+ *  rrcdlxhkrztppppCs                 Long variant (6.4.0 +)
  */
 #define SF_LOCK_MODE_SHIFT   (5)
 #define SF_LOCK_MODE_MASK    (1)
@@ -419,6 +420,13 @@ void
 ScanFragReq::setAttrLen(UintR & requestInfo, UintR val){
   ASSERT_MAX(val, SF_ATTR_LEN_MASK, "ScanFragReq::setAttrLen");
   requestInfo |= (val << SF_ATTR_LEN_SHIFT);
+}
+
+inline
+void
+ScanFragReq::clearAttrLen(Uint32 & requestInfo)
+{
+  requestInfo &= ~((Uint32)SF_ATTR_LEN_MASK << SF_ATTR_LEN_SHIFT);
 }
 
 inline

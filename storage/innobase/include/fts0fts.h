@@ -402,10 +402,11 @@ UNIV_INTERN
 void
 fts_update_next_doc_id(
 /*===================*/
+	trx_t*			trx,		/*!< in/out: transaction */
 	const dict_table_t*	table,		/*!< in: table */
 	const char*		table_name,	/*!< in: table name, or NULL */
 	doc_id_t		doc_id)		/*!< in: DOC ID to set */
-	__attribute__((nonnull(1)));
+	__attribute__((nonnull(2)));
 
 /******************************************************************//**
 Create a new document id .
@@ -503,7 +504,7 @@ fts_create_index_tables_low(
 						instance */
 	const char*	table_name,		/*!< in: the table name */
 	table_id_t	table_id)		/*!< in: the table id */
-	__attribute__((nonnull));
+	__attribute__((nonnull, warn_unused_result));
 /******************************************************************//**
 Add the FTS document id hidden column. */
 UNIV_INTERN

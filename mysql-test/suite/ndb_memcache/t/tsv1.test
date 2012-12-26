@@ -1,0 +1,32 @@
+--source include/have_ndb.inc
+--source suite/ndb_memcache/include/have_memcache.inc
+
+# Test reading & writing tab-separated values
+
+--perl
+
+use strict;
+use lib "lib/";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache->new();
+my $r = $mc->connect("localhost",$port);
+
+if($r == 0) {
+  print STDERR "DID NOT CONNECT TO MEMCACHE AT PORT $port \n";
+}
+else {
+  $mc->set("t:1", "One\tTwo\t3");
+  
+  $r = $mc->get("t:1");
+  if($r == "One\tTwo\t3") {
+    print ("Read TSV result OK.\n");
+  }
+}
+
+EOF
+
+SELECT mkey, val1, val2, val3 FROM ndbmemcache.demo_table_tabs where mkey = 1;
+DELETE   FROM ndbmemcache.demo_table_tabs;

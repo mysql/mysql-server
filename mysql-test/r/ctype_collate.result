@@ -596,13 +596,13 @@ INSERT INTO t1 VALUES ('i','i');
 INSERT INTO t1 VALUES ('j','j');
 EXPLAIN SELECT * FROM t1 WHERE s1='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	s1	s1	11	const	1	Using index condition
+1	SIMPLE	t1	ref	s1	s1	11	const	1	NULL
 EXPLAIN SELECT * FROM t1 WHERE s2='a';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	s2	s2	11	const	1	Using index condition
+1	SIMPLE	t1	ref	s2	s2	11	const	1	NULL
 EXPLAIN SELECT * FROM t1 WHERE s1='a' COLLATE latin1_german1_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	ref	s1	s1	11	const	1	Using index condition
+1	SIMPLE	t1	ref	s1	s1	11	const	1	NULL
 EXPLAIN SELECT * FROM t1 WHERE s2='a' COLLATE latin1_german1_ci;
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	SIMPLE	t1	ALL	s2	NULL	NULL	NULL	10	Using where

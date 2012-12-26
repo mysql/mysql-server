@@ -870,10 +870,10 @@ SELECT t1.a FROM t1 GROUP BY t1.a
 
 SELECT t1.a FROM t1 GROUP BY t1.a
   HAVING t1.a IN (SELECT t2.a FROM t2 ORDER BY SUM(t1.b));
-# No error since ORDER BY is optimized away in IN/ALL/ANY subqueries
+--error 1140
 SELECT t1.a FROM t1 GROUP BY t1.a
   HAVING t1.a IN (SELECT t2.a FROM t2 ORDER BY t2.a, SUM(t2.b));
-# No error since ORDER BY is optimized away in IN/ALL/ANY subqueries
+--error 1140
 SELECT t1.a FROM t1 GROUP BY t1.a
   HAVING t1.a > ANY (SELECT t2.a FROM t2 ORDER BY t2.a, SUM(t2.b));
 
@@ -1979,6 +1979,8 @@ CREATE TABLE t1 (
 );
 
 INSERT INTO t1 VALUES (1,NULL),(0,'a'),(1,NULL),(0,'a');
+INSERT INTO t1 VALUES (1,'a'),(0,'a'),(1,'a'),(0,'a');
+ANALYZE TABLE t1;
 
 let $query=
   SELECT SQL_BUFFER_RESULT MIN(a), b FROM t1 WHERE t1.b = 'a' GROUP BY b;

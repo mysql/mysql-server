@@ -62,7 +62,7 @@ buf_flush_note_modification(
 {
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
 
-	ut_ad(block);
+	ut_ad(!srv_read_only_mode);
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->page.buf_fix_count > 0);
 #ifdef UNIV_SYNC_DEBUG
@@ -109,7 +109,7 @@ buf_flush_recv_note_modification(
 {
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
 
-	ut_ad(block);
+	ut_ad(!srv_read_only_mode);
 	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 	ut_ad(block->page.buf_fix_count > 0);
 #ifdef UNIV_SYNC_DEBUG

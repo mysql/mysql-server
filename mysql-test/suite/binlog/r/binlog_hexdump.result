@@ -1,4 +1,4 @@
-/*!40019 SET @@session.max_insert_delayed_threads=0*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
 /*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
 DELIMITER /*!*/;
 # at 4
@@ -29,7 +29,7 @@ AAAAAAAAAAAAAAAAAAAZL8ZOEzgNAAgAEgAEBAQEEgAAVgAEGggAAAAICAgCAAAAALo4Tfg=
 #       d5 35 36 37 38 39 60 20 2f  2a 20 67 65 6e 65 72 61 |56789.....genera|
 #       e5 74 65 64 20 62 79 20 73  65 72 76 65 72 20 2a 2f |ted.by.server...|
 # 	Query	thread_id=1	exec_time=0	error_code=0
-use test/*!*/;
+use `test`/*!*/;
 SET TIMESTAMP=1321611088/*!*/;
 SET @@session.pseudo_thread_id=1/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
@@ -119,3 +119,4 @@ DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
 /*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;

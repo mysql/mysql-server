@@ -64,10 +64,6 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   theTransactionIsStarted(false),
   theDBnode(0),
   theReleaseOnClose(false),
-  // Composite query operations
-  m_firstQuery(NULL),
-  m_firstExecQuery(NULL),
-  m_firstActiveQuery(NULL),
   // Scan operations
   m_waitForReply(true),
   m_theFirstScanOperation(NULL),
@@ -75,7 +71,6 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   m_firstExecutedScanOp(NULL),
   // Scan operations
   theScanningOp(NULL),
-  m_scanningQuery(NULL),
   theBuddyConPtr(0xFFFFFFFF),
   theBlobFlag(false),
   thePendingBlobOps(0),
@@ -83,8 +78,15 @@ NdbTransaction::NdbTransaction( Ndb* aNdb ) :
   maxPendingBlobWriteBytes(~Uint32(0)),
   pendingBlobReadBytes(0),
   pendingBlobWriteBytes(0),
+  // Lock handle
   m_theFirstLockHandle(NULL),
   m_theLastLockHandle(NULL),
+  // Composite query operations
+  m_firstQuery(NULL),
+  m_firstExecQuery(NULL),
+  m_firstActiveQuery(NULL),
+  m_scanningQuery(NULL),
+  //
   m_tcRef(numberToRef(DBTC, 0))
 {
   theListState = NotInList;
@@ -2090,7 +2092,7 @@ transactions.
     if (aSignal->getLength() == TcRollbackRep::SignalLength)
     {
       // Signal may contain additional error data
-      theError.details = (char *) aSignal->readData(5);
+      theError.details = (char *)UintPtr(aSignal->readData(5));
     }
 
     /**********************************************************************/

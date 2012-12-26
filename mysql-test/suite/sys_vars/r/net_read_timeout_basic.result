@@ -81,6 +81,11 @@ ERROR 42000: Incorrect argument type to variable 'net_read_timeout'
 SELECT @@global.net_read_timeout;
 @@global.net_read_timeout
 31536000
+SET @@global.net_read_timeout = ' ';
+ERROR 42000: Incorrect argument type to variable 'net_read_timeout'
+SELECT @@global.net_read_timeout;
+@@global.net_read_timeout
+31536000
 SET @@session.net_read_timeout = 0;
 Warnings:
 Warning	1292	Truncated incorrect net_read_timeout value: '0'
@@ -102,6 +107,11 @@ SELECT @@session.net_read_timeout;
 @@session.net_read_timeout
 31536000
 SET @@session.net_read_timeout = test;
+ERROR 42000: Incorrect argument type to variable 'net_read_timeout'
+SELECT @@session.net_read_timeout;
+@@session.net_read_timeout
+31536000
+SET @@session.net_read_timeout = ' ';
 ERROR 42000: Incorrect argument type to variable 'net_read_timeout'
 SELECT @@session.net_read_timeout;
 @@session.net_read_timeout

@@ -462,10 +462,13 @@ struct Name_resolution_context: Sql_alloc
   void (*error_processor)(THD *, void *);
   void *error_processor_data;
 
-  /*
-    When TRUE items are resolved in this context both against the
-    SELECT list and this->table_list. If FALSE, items are resolved
-    only against this->table_list.
+  /**
+    When TRUE, items are resolved in this context against
+    SELECT_LEX::item_list, SELECT_lex::group_list and
+    this->table_list. If FALSE, items are resolved only against
+    this->table_list.
+
+    @see st_select_lex::item_list, st_select_lex::group_list
   */
   bool resolve_in_select_list;
 
@@ -772,12 +775,10 @@ public:
     @param parent_select  select_lex that tables are moved to.
     @param removed_select select_lex that tables are moved away from,
                           child of parent_select.
-    @param ref            updated with new ref whenever the function substitutes
-                          this item with another.
   */
   virtual void fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select,
-                                 Item **ref) {};
+                                 st_select_lex *removed_select)
+  {};
   /*
     should be used in case where we are sure that we do not need
     complete fix_fields() procedure.
@@ -789,7 +790,7 @@ public:
   /**
     Save a temporal value in packed longlong format into a Field.
     Used in optimizer.
-    @param OUT field  The field to set the value to.
+    @param[out] field  The field to set the value to.
     @retval 0         On success.
     @retval >0        In error.
   */
@@ -2073,7 +2074,7 @@ public:
   virtual table_map resolved_used_tables() const= 0;
   const char *full_name() const;
   virtual void fix_after_pullout(st_select_lex *parent_select,
-                                 st_select_lex *removed_select, Item **ref);
+                                 st_select_lex *removed_select);
   void cleanup();
   bool remove_dependence_processor(uchar * arg);
   virtual void print(String *str, enum_query_type query_type);
@@ -3156,7 +3157,7 @@ public:
   void make_field(Send_field *field);
   bool fix_fields(THD *, Item **);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   type_conversion_status save_in_field(Field *field, bool no_conversions);
   void save_org_in_field(Field *field);
   enum Item_result result_type () const { return (*ref)->result_type(); }
@@ -3402,7 +3403,7 @@ public:
   }
   bool fix_fields(THD *, Item **);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   table_map used_tables() const
   {
     return (*ref)->const_item() ? 0 : OUTER_REF_TABLE_BIT;
@@ -4458,5 +4459,7 @@ extern void resolve_const_item(THD *thd, Item **ref, Item *cmp_item);
 extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
 
 extern const String my_null_string;
+void convert_and_print(String *from_str, String *to_str,
+                       const CHARSET_INFO *to_cs);
 
 #endif /* ITEM_INCLUDED */

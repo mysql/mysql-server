@@ -80,6 +80,12 @@ echo "================== con1 marker ==================";
 
 --connection default
 
+# Wait for the payload to complete
+let $wait_condition=
+  select count(*) = 1 from performance_schema.events_waits_current
+  where EVENT_NAME= 'idle';
+--source include/wait_condition.inc
+
 echo "================== Step 3 ==================";
 call dump_thread();
 execute dump_waits_account;
@@ -148,6 +154,12 @@ echo "================== con2 marker ==================";
 
 --connection default
 
+# Wait for the payload to complete
+let $wait_condition=
+  select count(*) = 2 from performance_schema.events_waits_current
+  where EVENT_NAME= 'idle';
+--source include/wait_condition.inc
+
 echo "================== Step 5 ==================";
 call dump_thread();
 execute dump_waits_account;
@@ -212,6 +224,12 @@ echo "================== con3 marker ==================";
 
 --connection default
 
+# Wait for the payload to complete
+let $wait_condition=
+  select count(*) = 3 from performance_schema.events_waits_current
+  where EVENT_NAME= 'idle';
+--source include/wait_condition.inc
+
 echo "================== Step 7 ==================";
 call dump_thread();
 execute dump_waits_account;
@@ -275,6 +293,12 @@ insert into test.t1 values ("marker");
 echo "================== con4 marker ==================";
 
 --connection default
+
+# Wait for the payload to complete
+let $wait_condition=
+  select count(*) = 4 from performance_schema.events_waits_current
+  where EVENT_NAME= 'idle';
+--source include/wait_condition.inc
 
 echo "================== Step 9 ==================";
 call dump_thread();

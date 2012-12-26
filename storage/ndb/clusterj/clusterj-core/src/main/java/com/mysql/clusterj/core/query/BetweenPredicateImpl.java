@@ -46,11 +46,13 @@ public class BetweenPredicateImpl extends PredicateImpl {
         upper.setProperty(property);
     }
 
+    @Override
     public void markParameters() {
         lower.mark();
         upper.mark();
     }
 
+    @Override
     public void unmarkParameters() {
         lower.unmark();
         upper.unmark();
@@ -66,19 +68,36 @@ public class BetweenPredicateImpl extends PredicateImpl {
         property.markUpperBound(candidateIndices, this, false);
     }
 
+    @Override
+    public void markBoundsForCandidateIndices(CandidateIndexImpl[] candidateIndices) {
+        property.markLowerBound(candidateIndices, this, false);
+        property.markUpperBound(candidateIndices, this, false);
+    }
+
     /** Set the upper and lower bounds for the operation.
      * Delegate to the property to actually call the setBounds for each
      * of upper and lower bound.
      * @param context the query context that contains the parameter values
      * @param op the index scan operation on which to set bounds
+     * @return an indicator of which bound(s) were actually set
      */
     @Override
-    public void operationSetBounds(QueryExecutionContext context,
+    public int operationSetBounds(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
-        property.operationSetBounds(lower.getParameterValue(context),
-                IndexScanOperation.BoundType.BoundLE, op);
-        property.operationSetBounds(upper.getParameterValue(context),
-                IndexScanOperation.BoundType.BoundGE, op);
+        int result = NO_BOUND_SET;
+        Object lowerValue = lower.getParameterValue(context);
+        Object upperValue = upper.getParameterValue(context);
+        if (lowerValue != null) {
+            property.operationSetBounds(lowerValue,
+                    IndexScanOperation.BoundType.BoundLE, op);
+            result |= LOWER_BOUND_SET;
+        }
+        if (upperValue != null) {
+            property.operationSetBounds(upperValue,
+                    IndexScanOperation.BoundType.BoundGE, op);
+            result |= UPPER_BOUND_SET;
+        }
+        return result;
     }
 
     /** Set the upper bound for the operation.
@@ -88,10 +107,15 @@ public class BetweenPredicateImpl extends PredicateImpl {
      * @param op the index scan operation on which to set bounds
      */
     @Override
-    public void operationSetUpperBound(QueryExecutionContext context,
+    public int operationSetUpperBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
-        property.operationSetBounds(upper.getParameterValue(context),
-                IndexScanOperation.BoundType.BoundGE, op);
+        Object upperValue = upper.getParameterValue(context);
+        if (upperValue != null) {
+            property.operationSetBounds(upperValue,
+                    IndexScanOperation.BoundType.BoundGE, op);
+            return UPPER_BOUND_SET;
+        }
+        return NO_BOUND_SET;
     }
 
     /** Set the lower bound for the operation.
@@ -101,10 +125,15 @@ public class BetweenPredicateImpl extends PredicateImpl {
      * @param op the index scan operation on which to set bounds
      */
     @Override
-    public void operationSetLowerBound(QueryExecutionContext context,
+    public int operationSetLowerBound(QueryExecutionContext context,
             IndexScanOperation op, boolean lastColumn) {
-        property.operationSetBounds(lower.getParameterValue(context),
-                IndexScanOperation.BoundType.BoundLE, op);
+        Object lowerValue = lower.getParameterValue(context);
+        if (lowerValue != null) {
+            property.operationSetBounds(lowerValue,
+                    IndexScanOperation.BoundType.BoundLE, op);
+            return LOWER_BOUND_SET;
+        }
+        return NO_BOUND_SET;
     }
 
     /** Create a filter for the operation. Set the condition into the
@@ -138,6 +167,16 @@ public class BetweenPredicateImpl extends PredicateImpl {
                 ScanFilter.BinaryCondition.COND_GE, filter);
         property.filterCmpValue(upper.getParameterValue(context),
                 ScanFilter.BinaryCondition.COND_LE, filter);
+    }
+
+    @Override 
+    public boolean isUsable(QueryExecutionContext context) {
+        return !(lower.getParameterValue(context) == null || upper.getParameterValue(context) == null);
+    }
+
+    @Override
+    protected PropertyImpl getProperty() {
+        return property;
     }
 
 }

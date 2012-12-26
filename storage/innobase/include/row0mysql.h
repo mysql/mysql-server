@@ -36,10 +36,10 @@ Created 9/17/2000 Heikki Tuuri
 #include "btr0pcur.h"
 #include "trx0types.h"
 
-/* The index number of the second secondary */
+/** The index number of the second secondary */
 #define INDEX_NUM_SECOND_SECONDARY	3
 
-/* The time of waiting for redo record is written into redo log */
+/** The time of waiting for redo record is written into redo log */
 #define TIME_WAIT_RECORD_INTO_REDO_LOG	50
 
 // Forward declaration
@@ -304,6 +304,18 @@ row_unlock_for_mysql(
 					clust_pcur, and we do not need
 					to reposition the cursors. */
 	__attribute__((nonnull));
+/*********************************************************************//**
+Checks if a table name contains the string "/#sql" which denotes temporary
+tables in MySQL.
+@return true if temporary table */
+UNIV_INTERN
+bool
+row_is_mysql_tmp_table_name(
+/*========================*/
+	const char*	name) __attribute__((warn_unused_result));
+				/*!< in: table name in the form
+				'database/tablename' */
+
 /*********************************************************************//**
 Creates an query graph node of 'update' type to be used in the MySQL
 interface.
@@ -734,13 +746,11 @@ struct row_prebuilt_t {
 					columns in the table */
 	upd_node_t*	upd_node;	/*!< Innobase SQL update node used
 					to perform updates and deletes */
-	trx_id_t	trx_id;		/*!< The transaction id of the last
-					index of the table, when the insert
-					query graph was built. We use it for
-					checking whether the insert query
-					graphs needs to be rebuilt */
+	trx_id_t	trx_id;		/*!< The table->def_trx_id when
+					ins_graph was built */
 	que_fork_t*	ins_graph;	/*!< Innobase SQL query graph used
-					in inserts */
+					in inserts. Will be rebuilt on
+					trx_id or n_indexes mismatch. */
 	que_fork_t*	upd_graph;	/*!< Innobase SQL query graph used
 					in updates or deletes */
 	btr_pcur_t	pcur;		/*!< persistent cursor used in selects
@@ -864,7 +874,7 @@ struct row_prebuilt_t {
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
 	/*----------------------*/
-	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API 
+	unsigned	innodb_api:1;	/*!< whether this is a InnoDB API
 					query */
 	const rec_t*	innodb_api_rec;	/*!< InnoDB API search result */
 };

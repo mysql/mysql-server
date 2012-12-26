@@ -1,6 +1,7 @@
 #
 # Test for the CSV engine
 #
+### Test is  Being disabled to be executed with Query Cache Enabled until BUG#11757567 is fixed
 
 --source include/have_csv.inc
 

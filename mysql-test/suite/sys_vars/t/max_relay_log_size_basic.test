@@ -98,6 +98,9 @@ SELECT @@global.max_relay_log_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_relay_log_size = 'test';
 SELECT @@global.max_relay_log_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_relay_log_size = ' ';
+SELECT @@global.max_relay_log_size;
 
 
 --echo '#-------------------FN_DYNVARS_082_05----------------------------#'

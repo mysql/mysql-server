@@ -2976,6 +2976,14 @@ ibuf_get_volume_buffered_count_func(
 	when the database was started up. */
 	ut_a(len == 1);
 
+	if (rec_get_deleted_flag(rec, 0)) {
+		/* This record has been merged already,
+		but apparently the system crashed before
+		the change was discarded from the buffer.
+		Pretend that the record does not exist. */
+		return(0);
+	}
+
 	types = rec_get_nth_field_old(rec, IBUF_REC_FIELD_METADATA, &len);
 
 	switch (UNIV_EXPECT(len % DATA_NEW_ORDER_NULL_TYPE_BUF_SIZE,
@@ -3273,7 +3281,7 @@ ibuf_update_max_tablespace_id(void)
 	ibuf_mtr_start(&mtr);
 
 	btr_pcur_open_at_index_side(
-		FALSE, ibuf->index, BTR_SEARCH_LEAF, &pcur, TRUE, &mtr);
+		false, ibuf->index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
 
 	ut_ad(page_validate(btr_pcur_get_page(&pcur), ibuf->index));
 
@@ -4289,11 +4297,11 @@ ibuf_delete(
 					page, 1);
 		}
 #ifdef UNIV_ZIP_DEBUG
-		ut_a(!page_zip || page_zip_validate(page_zip, page));
+		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 		page_cur_delete_rec(&page_cur, index, offsets, mtr);
 #ifdef UNIV_ZIP_DEBUG
-		ut_a(!page_zip || page_zip_validate(page_zip, page));
+		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 
 		if (page_zip) {
@@ -4398,6 +4406,22 @@ ibuf_delete_rec(
 	ut_ad(ibuf_rec_get_page_no(mtr, btr_pcur_get_rec(pcur)) == page_no);
 	ut_ad(ibuf_rec_get_space(mtr, btr_pcur_get_rec(pcur)) == space);
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
+	if (ibuf_debug == 2) {
+		/* Inject a fault (crash). We do this before trying
+		optimistic delete, because a pessimistic delete in the
+		change buffer would require a larger test case. */
+
+		/* Flag the buffered record as processed, to avoid
+		an assertion failure after crash recovery. */
+		btr_cur_set_deleted_flag_for_ibuf(
+			btr_pcur_get_rec(pcur), NULL, TRUE, mtr);
+		ibuf_mtr_commit(mtr);
+		log_write_up_to(IB_ULONGLONG_MAX, LOG_WAIT_ALL_GROUPS, TRUE);
+		DBUG_SUICIDE();
+	}
+#endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
+
 	success = btr_cur_optimistic_delete(btr_pcur_get_btr_cur(pcur),
 					    0, mtr);
 
@@ -4433,7 +4457,13 @@ ibuf_delete_rec(
 	ut_ad(ibuf_rec_get_page_no(mtr, btr_pcur_get_rec(pcur)) == page_no);
 	ut_ad(ibuf_rec_get_space(mtr, btr_pcur_get_rec(pcur)) == space);
 
-	/* We have to resort to a pessimistic delete from ibuf */
+	/* We have to resort to a pessimistic delete from ibuf.
+	Delete-mark the record so that it will not be applied again,
+	in case the server crashes before the pessimistic delete is
+	made persistent. */
+	btr_cur_set_deleted_flag_for_ibuf(
+		btr_pcur_get_rec(pcur), NULL, TRUE, mtr);
+
 	btr_pcur_store_position(pcur, mtr);
 	ibuf_btr_pcur_commit_specify_mtr(pcur, mtr);
 
@@ -4708,7 +4738,7 @@ loop:
 			fputs("InnoDB: Discarding record\n ", stderr);
 			rec_print_old(stderr, rec);
 			fputs("\nInnoDB: from the insert buffer!\n\n", stderr);
-		} else if (block) {
+		} else if (block && !rec_get_deleted_flag(rec, 0)) {
 			/* Now we have at pcur a record which should be
 			applied on the index page; NOTE that the call below
 			copies pointers to fields in rec, and we must

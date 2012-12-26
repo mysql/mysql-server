@@ -278,6 +278,7 @@ public:
 
     ~Sessions();
 
+    friend void Session_initialize();
     friend Sessions& GetSessions(); // singleton creator
 private:
     Sessions(const Sessions&);              // hide copy

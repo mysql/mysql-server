@@ -34,7 +34,7 @@ int mi_create(const char *name,uint keys,MI_KEYDEF *keydefs,
 	      uint uniques, MI_UNIQUEDEF *uniquedefs,
 	      MI_CREATE_INFO *ci,uint flags)
 {
-  register uint i,j;
+  uint i,j;
   File UNINIT_VAR(dfile), UNINIT_VAR(file);
   int errpos,save_errno, create_mode= O_RDWR | O_TRUNC;
   myf create_flag;

@@ -15,18 +15,13 @@
 
 MESSAGE(STATUS "including ClusterJ")
 
-IF("${WITH_CLASSPATH}" MATCHES "junit-(.+).jar")
-  MESSAGE ( STATUS "Found junit jar" )
-  SET(HAVE_JUNIT TRUE)
-ENDIF()
-
 IF("${WITH_CLASSPATH}" MATCHES "openjpa-(.+).jar")
   MESSAGE ( STATUS "Found openjpa jar" )
   SET(HAVE_OPENJPA TRUE)
 ENDIF()
 
 SET(DEP ndbjtie.jar
-        tie.jar
+        jtie.jar
         clusterj-api.jar
         clusterj-core.jar
         clusterj-tie.jar)
@@ -47,12 +42,10 @@ IF(HAVE_OPENJPA)
   LIST(APPEND JARS ${CMAKE_CURRENT_BINARY_DIR}/clusterj-openjpa/clusterjpa.jar)
 ENDIF(HAVE_OPENJPA)
 
-IF(HAVE_JUNIT)
   ADD_SUBDIRECTORY(clusterj-test)
   IF(HAVE_OPENJPA)
     ADD_SUBDIRECTORY(clusterj-jpatest)
   ENDIF(HAVE_OPENJPA)
-ENDIF(HAVE_JUNIT)
 
 SET(CLUSTERJ_EXPORTS com.mysql.clusterj,com.mysql.clusterj.query,com.mysql.clusterj.annotation,com.mysql.clusterj.metadata,com.mysql.clusterj.spi,com.mysql.clusterj.store,com.mysql.clusterj.util,com.mysql.clusterj.tie)
 CREATE_MANIFEST(clusterj_manifest.mf ${CLUSTERJ_EXPORTS} clusterj)
@@ -61,3 +54,6 @@ CREATE_JAR(clusterj
   MERGE_JARS ${JARS}
   MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/clusterj_manifest.mf
   DEPENDENCIES ${DEP} )
+
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterj-${JAVA_NDB_VERSION}.jar
+        DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -222,9 +222,9 @@ exit:
     if (derived->view)
     {
       if (thd->is_error() &&
-          (thd->get_stmt_da()->sql_errno() == ER_BAD_FIELD_ERROR ||
-          thd->get_stmt_da()->sql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
-          thd->get_stmt_da()->sql_errno() == ER_SP_DOES_NOT_EXIST))
+          (thd->get_stmt_da()->mysql_errno() == ER_BAD_FIELD_ERROR ||
+          thd->get_stmt_da()->mysql_errno() == ER_FUNC_INEXISTENT_NAME_COLLISION ||
+          thd->get_stmt_da()->mysql_errno() == ER_SP_DOES_NOT_EXIST))
       {
         thd->clear_error();
         my_error(ER_VIEW_INVALID, MYF(0), derived->db,
@@ -339,7 +339,7 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
    *) Table is already created.
    *) Table is a constant one with all NULL values.
   */
-  if (!derived->uses_materialization() || !table || table->created ||
+  if (!derived->uses_materialization() || !table || table->is_created() ||
       (derived->select_lex->join != NULL &&
        (derived->select_lex->join->const_table_map & table->map)))
   {
@@ -367,7 +367,8 @@ bool mysql_derived_create(THD *thd, LEX *lex, TABLE_LIST *derived)
 
   table->file->extra(HA_EXTRA_WRITE_CACHE);
   table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
-  table->created= TRUE;
+
+  table->set_created();
 
   DBUG_RETURN(FALSE);
 }
@@ -399,7 +400,7 @@ bool mysql_derived_materialize(THD *thd, LEX *lex, TABLE_LIST *derived)
   bool res= FALSE;
   DBUG_ENTER("mysql_derived_materialize");
 
-  DBUG_ASSERT(unit && derived->table && derived->table->created);
+  DBUG_ASSERT(unit && derived->table && derived->table->is_created());
 
   select_union *derived_result= derived->derived_result;
 

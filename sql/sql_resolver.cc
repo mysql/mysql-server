@@ -80,6 +80,9 @@ JOIN::prepare(TABLE_LIST *tables_init,
   if (optimized)
     DBUG_RETURN(0);
 
+  // We may do subquery transformation, or Item substitution:
+  Prepare_error_tracker tracker(thd);
+
   if (order_init)
     explain_flags.set(ESC_ORDER_BY, ESP_EXISTS);
   if (group_init)
@@ -110,22 +113,6 @@ JOIN::prepare(TABLE_LIST *tables_init,
   Opt_trace_object trace_prepare(trace, "join_preparation");
   trace_prepare.add_select_number(select_lex->select_number);
   Opt_trace_array trace_steps(trace, "steps");
-
-  /*
-    Permanently remove redundant parts from the query if
-      1) This is a subquery
-      2) This is the first time this query is optimized (since the
-         transformation is permanent
-      3) Not normalizing a view. Removal should take place when a
-         query involving a view is optimized, not when the view
-         is created
-  */
-  if (select_lex->master_unit()->item &&                               // 1)
-      select_lex->first_cond_optimization &&                           // 2)
-      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
-  {
-    remove_redundant_subquery_clauses(select_lex);
-  }
 
   /* Check that all tables, fields, conds and order are ok */
 
@@ -167,6 +154,22 @@ JOIN::prepare(TABLE_LIST *tables_init,
 			  all_fields, &conds, order, group_list,
 			  &hidden_group_fields))
     DBUG_RETURN(-1);
+
+  /*
+    Permanently remove redundant parts from the query if
+      1) This is a subquery
+      2) This is the first time this query is optimized (since the
+         transformation is permanent)
+      3) Not normalizing a view. Removal should take place when a
+         query involving a view is optimized, not when the view
+         is created
+  */
+  if (select_lex->master_unit()->item &&                               // 1)
+      select_lex->first_cond_optimization &&                           // 2)
+      !(thd->lex->context_analysis_only & CONTEXT_ANALYSIS_ONLY_VIEW)) // 3)
+  {
+    remove_redundant_subquery_clauses(select_lex);
+  }
 
   if (having)
   {
@@ -319,7 +322,7 @@ JOIN::prepare(TABLE_LIST *tables_init,
 
 
   if (result && result->prepare(fields_list, unit_arg))
-    goto err;					/* purecov: inspected */
+    DBUG_RETURN(-1); /* purecov: inspected */
 
   /* Init join struct */
   count_field_types(select_lex, &tmp_table_param, all_fields, false, false);
@@ -337,13 +340,13 @@ JOIN::prepare(TABLE_LIST *tables_init,
   if (implicit_grouping)
   {
     my_message(ER_WRONG_SUM_SELECT,ER(ER_WRONG_SUM_SELECT),MYF(0));
-    goto err;
+    DBUG_RETURN(-1); /* purecov: inspected */
   }
 #endif
   if (select_lex->olap == ROLLUP_TYPE && rollup_init())
-    goto err;
+    DBUG_RETURN(-1); /* purecov: inspected */
   if (alloc_func_list())
-    goto err;
+    DBUG_RETURN(-1); /* purecov: inspected */
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   {
@@ -356,15 +359,12 @@ JOIN::prepare(TABLE_LIST *tables_init,
       */
       Item *prune_cond= tbl->join_cond() ? tbl->join_cond() : conds;
       if (prune_partitions(thd, tbl->table, prune_cond))
-        goto err;
+        DBUG_RETURN(-1); /* purecov: inspected */
     }
   }
 #endif
 
   DBUG_RETURN(0); // All OK
-
-err:
-  DBUG_RETURN(-1);				/* purecov: inspected */
 }
 
 
@@ -822,11 +822,22 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
 
   uint changelog= 0;
 
+  bool order_with_sum_func= false;
+  for (ORDER *o= subq_select_lex->join->order; o != NULL; o= o->next)
+    order_with_sum_func|= (*o->item)->with_sum_func;
   if (subq_select_lex->order_list.elements)
   {
     changelog|= REMOVE_ORDER;
     subq_select_lex->join->order= NULL;
-    subq_select_lex->order_list.empty();
+    /*
+      If the ORDER BY clause contains aggregate functions, we cannot
+      remove it from subq_select_lex->order_list since the aggregate
+      function still appears in the inner_sum_func_list for some
+      SELECT_LEX. Clearing subq_select_lex->join->order has made sure
+      it won't be executed.
+     */
+    if (!order_with_sum_func)
+      subq_select_lex->order_list.empty();
   }
 
   if (subq_select_lex->options & SELECT_DISTINCT)
@@ -1059,7 +1070,7 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
         warning so the user knows that the field from the FROM clause
         overshadows the column reference from the SELECT list.
       */
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN, ER_NON_UNIQ_ERROR,
+      push_warning_printf(thd, Sql_condition::SL_WARNING, ER_NON_UNIQ_ERROR,
                           ER(ER_NON_UNIQ_ERROR),
                           ((Item_ident*) order_item)->field_name,
                           current_thd->where);

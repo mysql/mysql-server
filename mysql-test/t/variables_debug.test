@@ -3,7 +3,7 @@
 SET @old_debug = @@GLOBAL.debug;
 
 #
-# Bug#34678 @@debug variable's incremental mode
+# Bug#34678 @@debug variables incremental mode
 #
 
 set debug= 'T';

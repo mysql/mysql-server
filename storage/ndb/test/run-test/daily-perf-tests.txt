@@ -1,0 +1,150 @@
+# Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
+max-time: 300
+cmd: DbCreate
+args:
+
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 1
+type: bench
+
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 25
+type: bench
+
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 100
+type: bench
+
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 200
+type: bench
+
+max-time: 180
+cmd: DbAsyncGenerator
+args: -time 60 -p 1 -proc 25
+type: bench
+
+# baseline
+max-time: 600
+cmd: flexAsynch
+args: -temp -con 2 -t 8 -r 2 -p 64 -ndbrecord
+type: bench
+
+# minimal record
+max-time: 600
+cmd: flexAsynch
+args: -temp -con 2 -t 8 -r 2 -p 64 -ndbrecord -a 2
+type: bench
+
+# 4k record
+max-time: 600
+cmd: flexAsynch
+args: -temp -con 2 -t 8 -r 2 -p 64 -ndbrecord -a 25 -s 40
+type: bench
+
+# baseline DD
+max-time: 600
+cmd: flexAsynch
+args: -dd -temp -con 2 -t 8 -r 2 -p 64 -ndbrecord
+type: bench
+
+# minimal record DD
+max-time: 600
+cmd: flexAsynch
+args: -dd -temp -con 2 -t 8 -r 2 -p 64 -ndbrecord -a 2
+type: bench
+
+# 4k record DD
+max-time: 600
+cmd: flexAsynch
+args: -dd -temp -con 2 -t 8 -r 2 -p 64 -ndbrecord -a 25 -s 40
+type: bench
+
+# sql
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-create-table.sh t1
+cmd-type: mysql
+
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-select.sh t1 1 64
+mysqld: --ndb-cluster-connection-pool=1
+type: bench
+cmd-type: mysql
+
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-select.sh t1 1 64
+mysqld: --ndb-cluster-connection-pool=4
+type: bench
+cmd-type: mysql
+
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-update.sh t1 1 64
+mysqld: --ndb-cluster-connection-pool=1
+type: bench
+cmd-type: mysql
+
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-update.sh t1 1 64
+mysqld: --ndb-cluster-connection-pool=4
+type: bench
+cmd-type: mysql
+
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-drop-table.sh t1
+cmd-type: mysql
+
+# sql join
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-load-tpcw.sh
+cmd-type: mysql
+
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-tpcw-getBestSeller.sh
+cmd-type: mysql
+type: bench
+
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-drop-tpcw.sh
+cmd-type: mysql
+
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-load-music-store.sh
+cmd-type: mysql
+
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-select-music-store.sh
+cmd-type: mysql
+type: bench
+
+max-time: 600
+cmd: ndb-sql-perf.sh
+args: ndb-sql-perf-drop-music-store.sh
+cmd-type: mysql

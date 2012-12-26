@@ -130,8 +130,7 @@ Logger::createFileHandler(char*filename)
   if (m_pFileHandler)
     return true; // Ok, already exist
 
-  LogHandler* log_handler = filename ? new FileLogHandler(filename)
-                                     : new FileLogHandler();
+  LogHandler* log_handler = new FileLogHandler(filename);
   if (!log_handler)
     return false;
 
@@ -210,65 +209,6 @@ Logger::addHandler(LogHandler* pHandler)
   return true;
 }
 
-bool
-Logger::addHandler(const BaseString &logstring, int *err, int len, char* errStr) {
-  size_t i;
-  Vector<BaseString> logdest;
-  DBUG_ENTER("Logger::addHandler");
-
-  logstring.split(logdest, ";");
-
-  for(i = 0; i < logdest.size(); i++) {
-    DBUG_PRINT("info",("adding: %s",logdest[i].c_str()));
-
-    Vector<BaseString> v_type_args;
-    logdest[i].split(v_type_args, ":", 2);
-
-    BaseString type(v_type_args[0]);
-    BaseString params;
-    if(v_type_args.size() >= 2)
-      params = v_type_args[1];
-
-    LogHandler *handler = NULL;
-
-#ifndef _WIN32
-    if(type == "SYSLOG")
-    {
-      handler = new SysLogHandler();
-    } else 
-#endif
-    if(type == "FILE")
-      handler = new FileLogHandler();
-    else if(type == "CONSOLE")
-      handler = new ConsoleLogHandler();
-    
-    if(handler == NULL)
-    {
-      BaseString::snprintf(errStr,len,"Could not create log destination: %s",
-                           logdest[i].c_str());
-      DBUG_RETURN(false);
-    }
-
-    if(!handler->parseParams(params))
-    {
-      *err= handler->getErrorCode();
-      if(handler->getErrorStr())
-        strncpy(errStr, handler->getErrorStr(), len);
-      delete handler;
-      DBUG_RETURN(false);
-    }
-
-    if (!addHandler(handler))
-    {
-      BaseString::snprintf(errStr,len,"Could not add log destination: %s",
-                           logdest[i].c_str());
-      delete handler;
-      DBUG_RETURN(false);
-    }
-  }
-
-  DBUG_RETURN(true);
-}
 
 bool
 Logger::removeHandler(LogHandler* pHandler)
