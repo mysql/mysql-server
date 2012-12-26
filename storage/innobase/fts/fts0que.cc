@@ -169,6 +169,21 @@ struct fts_select_t {
 					the FTS index */
 };
 
+/** structure defines a set of ranges for original documents, each of which
+has a minimum position and maximum position. Text in such range should
+contain all words in the proximity search. We will need to count the
+words in such range to make sure it is less than the specified distance
+of the proximity search */
+struct fts_proximity_t {
+	ulint		n_pos;		/*!< number of position set, defines
+					a range (min to max) containing all
+					matching words */
+	ulint*		min_pos;	/*!< the minimum position (in bytes)
+					of the range */
+	ulint*		max_pos;	/*!< the maximum position (in bytes)
+					of the range */
+};
+
 /** The match positions and tokesn to match */
 struct fts_phrase_t {
 	ibool		found;		/*!< Match result */
@@ -184,6 +199,9 @@ struct fts_phrase_t {
 	CHARSET_INFO*	charset;	/*!< Phrase match charset */
 	mem_heap_t*     heap;		/*!< Heap for word processing */
 	ulint		zip_size;	/*!< row zip size */
+	fts_proximity_t*proximity_pos;	/*!< position info for proximity
+					search verification. Records the min
+					and max position of words matched */
 };
 
 /** For storing the frequncy of a word/term in a document */
@@ -263,28 +281,36 @@ fts_expand_query(
 /*************************************************************//**
 This function finds documents that contain all words in a
 phrase or proximity search. And if proximity search, verify
-the words are close to each other enough, as in specified distance.
+the words are close enough to each other, as in specified distance.
 This function is called for phrase and proximity search.
 @return TRUE if documents are found, FALSE if otherwise */
 static
 ibool
-fts_check_phrase_proximity(
-/*=======================*/
-	fts_query_t*	query,		/*!< in:  query instance */
+fts_phrase_or_proximity_search(
+/*===========================*/
+	fts_query_t*	query,		/*!< in/out:  query instance
+					query->doc_ids might be instantiated
+					with qualified doc IDs */
 	ib_vector_t*	tokens);	/*!< in: Tokens contain words */
 /*************************************************************//**
-This function check the words in result document are close to each
-other enough (within proximity rnage). This is used for proximity search.
-@return TRUE if words are close to each other, FALSE if otherwise */
+This function checks whether words in result documents are close to
+each other (within proximity range as specified by "distance").
+If "distance" is MAX_ULINT, then it will find all combinations of
+positions of matching words and store min and max positions
+in the "qualified_pos" for later verification.
+@return true if words are close to each other, false if otherwise */
 static
-ulint
-fts_proximity_check_position(
-/*=========================*/
-	fts_match_t**	match,		/*!< in: query instance */
-	ulint		num_match,	/*!< in: number of matching
-					items */
-	ulint		distance);	/*!< in: distance value
-					for proximity search */
+bool
+fts_proximity_get_positions(
+/*========================*/
+	fts_match_t**		match,		/*!< in: query instance */
+	ulint			num_match,	/*!< in: number of matching
+						items */
+	ulint			distance,	/*!< in: distance value
+						for proximity search */
+	fts_proximity_t*	qualified_pos);	/*!< out: the position info
+						records ranges containing
+						all matching words. */
 #if 0
 /********************************************************************
 Get the total number of words in a documents. */
@@ -990,15 +1016,21 @@ fts_query_difference(
 		ut_a(index_cache != NULL);
 
 		/* Search the cache for a matching word first. */
-		nodes = fts_cache_find_word(index_cache, token);
+		if (query->cur_node->term.wildcard
+		    && query->flags != FTS_PROXIMITY
+		    && query->flags != FTS_PHRASE) {
+			fts_cache_find_wildcard(query, index_cache, token);
+		} else {
+			nodes = fts_cache_find_word(index_cache, token);
 
-		for (i = 0; nodes && i < ib_vector_size(nodes); ++i) {
-			const fts_node_t*	node;
+			for (i = 0; nodes && i < ib_vector_size(nodes); ++i) {
+				const fts_node_t*	node;
 
-			node = static_cast<const fts_node_t*>(
-				ib_vector_get_const(nodes, i));
+				node = static_cast<const fts_node_t*>(
+					ib_vector_get_const(nodes, i));
 
-			fts_query_check_node(query, token, node);
+				fts_query_check_node(query, token, node);
+			}
 		}
 
 		rw_lock_x_unlock(&cache->lock);
@@ -1476,6 +1508,67 @@ fts_query_match_phrase_terms(
 }
 
 /*****************************************************************//**
+Callback function to count the number of words in position ranges,
+and see whether the word count is in specified "phrase->distance"
+@return true if the number of characters is less than the "distance" */
+static
+bool
+fts_proximity_is_word_in_range(
+/*===========================*/
+	const fts_phrase_t*
+			phrase,		/*!< in: phrase with the search info */
+	byte*		start,		/*!< in: text to search */
+	ulint		total_len)	/*!< in: length of text */
+{
+	fts_proximity_t*	proximity_pos = phrase->proximity_pos;
+
+	/* Search each matched position pair (with min and max positions)
+	and count the number of words in the range */
+	for (ulint i = 0; i < proximity_pos->n_pos; i++) {
+		ulint		cur_pos = proximity_pos->min_pos[i];
+		ulint		n_word = 0;
+
+		ut_ad(proximity_pos->max_pos[i] <= total_len);
+
+		/* Walk through words in the range and count them */
+		while (cur_pos <= proximity_pos->max_pos[i]) {
+			ulint		len;
+			fts_string_t	str;
+			ulint           offset = 0;
+
+			len = innobase_mysql_fts_get_token(
+				phrase->charset,
+				start + cur_pos,
+				start + total_len, &str, &offset);
+
+			if (len == 0) {
+				break;
+			}
+
+			/* Advances position with "len" bytes */
+			cur_pos += len;
+
+			/* Record the number of words */
+			if (str.f_n_char > 0) {
+				n_word++;
+			}
+
+			if (n_word > phrase->distance) {
+				break;
+			}
+		}
+
+		/* Check if the number of words is less than specified
+		"distance" */
+		if (n_word && n_word <= phrase->distance) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
+/*****************************************************************//**
 Callback function to fetch and search the document.
 @return TRUE if matched else FALSE */
 static
@@ -1585,31 +1678,77 @@ fts_query_fetch_document(
 	sel_node_t*	node = static_cast<sel_node_t*>(row);
 	fts_phrase_t*	phrase = static_cast<fts_phrase_t*>(user_arg);
 	ulint		prev_len = 0;
+	ulint		total_len = 0;
+	byte*		document_text = NULL;
 
 	exp = node->select_list;
 
 	phrase->found = FALSE;
 
+	/* For proximity search, we will need to get the whole document
+	from all fields, so first count the total length of the document
+	from all the fields */
+	if (phrase->proximity_pos) {
+		 while (exp) {
+			ulint		field_len;
+			dfield_t*	dfield = que_node_get_val(exp);
+			byte*		data = static_cast<byte*>(
+						dfield_get_data(dfield));
+
+			if (dfield_is_ext(dfield)) {
+				ulint	local_len = dfield_get_len(dfield);
+
+				local_len -= BTR_EXTERN_FIELD_REF_SIZE;
+
+				field_len = mach_read_from_4(
+					data + local_len + BTR_EXTERN_LEN + 4);
+			} else {
+				field_len = dfield_get_len(dfield);
+			}
+
+			if (field_len != UNIV_SQL_NULL) {
+				total_len += field_len + 1;
+			}
+
+			exp = que_node_get_next(exp);
+		}
+
+		document_text = static_cast<byte*>(mem_heap_zalloc(
+					phrase->heap, total_len));
+
+		if (!document_text) {
+			return(FALSE);
+		}
+	}
+
+	exp = node->select_list;
+
 	while (exp) {
 		dfield_t*	dfield = que_node_get_val(exp);
-		void*		data = NULL;
+		byte*		data = static_cast<byte*>(
+					dfield_get_data(dfield));
 		ulint		cur_len;
 
 		if (dfield_is_ext(dfield)) {
 			data = btr_copy_externally_stored_field(
-				&cur_len, static_cast<const byte*>(data),
-				phrase->zip_size,
+				&cur_len, data, phrase->zip_size,
 				dfield_get_len(dfield), phrase->heap);
 		} else {
-			data = dfield_get_data(dfield);
 			cur_len = dfield_get_len(dfield);
 		}
 
 		if (cur_len != UNIV_SQL_NULL && cur_len != 0) {
-			phrase->found =
-				fts_query_match_phrase(
-					phrase, static_cast<byte*>(data),
-					cur_len, prev_len, phrase->heap);
+			if (phrase->proximity_pos) {
+				memcpy(document_text + prev_len, data, cur_len);
+			} else {
+				/* For phrase search */
+				phrase->found =
+					fts_query_match_phrase(
+						phrase,
+						static_cast<byte*>(data),
+						cur_len, prev_len,
+						phrase->heap);
+			}
 		}
 
 		if (phrase->found) {
@@ -1622,6 +1761,13 @@ fts_query_fetch_document(
 		phrases. */
 		prev_len += cur_len + 1;
 		exp = que_node_get_next(exp);
+	}
+
+	if (phrase->proximity_pos) {
+		ut_ad(prev_len <= total_len);
+
+		phrase->found = fts_proximity_is_word_in_range(
+			phrase, document_text, total_len);
 	}
 
 	return(phrase->found);
@@ -2025,6 +2171,61 @@ fts_query_match_document(
 }
 
 /*****************************************************************//**
+This function fetches the original documents and count the
+words in between matching words to see that is in specified distance
+@return DB_SUCCESS if all OK */
+static __attribute__((nonnull, warn_unused_result))
+bool
+fts_query_is_in_proximity_range(
+/*============================*/
+	const fts_query_t*	query,		/*!< in:  query instance */
+	fts_match_t**		match,		/*!< in: query instance */
+	fts_proximity_t*	qualified_pos)	/*!< in: position info for
+						qualified ranges */
+{
+	fts_get_doc_t		get_doc;
+	fts_cache_t*		cache = query->index->table->fts->cache;
+	dberr_t			err;
+	fts_phrase_t		phrase;
+
+	memset(&get_doc, 0x0, sizeof(get_doc));
+	memset(&phrase, 0x0, sizeof(phrase));
+
+	rw_lock_x_lock(&cache->lock);
+	get_doc.index_cache = fts_find_index_cache(cache, query->index);
+	rw_lock_x_unlock(&cache->lock);
+	ut_a(get_doc.index_cache != NULL);
+
+	phrase.distance = query->distance;
+	phrase.charset = get_doc.index_cache->charset;
+	phrase.zip_size = dict_table_zip_size(
+		get_doc.index_cache->index->table);
+	phrase.heap = mem_heap_create(512);
+	phrase.proximity_pos = qualified_pos;
+	phrase.found = FALSE;
+
+	err = fts_doc_fetch_by_doc_id(
+		&get_doc, match[0]->doc_id, NULL, FTS_FETCH_DOC_BY_ID_EQUAL,
+		fts_query_fetch_document, &phrase);
+
+	if (err != DB_SUCCESS) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Error: (%s) in verification phase of proximity "
+			"search", ut_strerr(err));
+	}
+
+	/* Free the prepared statement. */
+	if (get_doc.get_document_graph) {
+		fts_que_graph_free(get_doc.get_document_graph);
+		get_doc.get_document_graph = NULL;
+	}
+
+	mem_heap_free(phrase.heap);
+
+	return(err == DB_SUCCESS && phrase.found);
+}
+
+/*****************************************************************//**
 Iterate over the matched document ids and search the for the
 actual phrase in the text.
 @return DB_SUCCESS if all OK */
@@ -2038,8 +2239,6 @@ fts_query_search_phrase(
 	ulint			i;
 	fts_get_doc_t		get_doc;
 	ulint			n_matched;
-	// FIXME: Debug code
-	ulint			searched = 0;
 	fts_cache_t*		cache = query->index->table->fts->cache;
 
 	n_matched = ib_vector_size(query->matched);
@@ -2049,9 +2248,7 @@ fts_query_search_phrase(
 
 	rw_lock_x_lock(&cache->lock);
 
-	// FIXME: We shouldn't have to cast here.
-	get_doc.index_cache = (fts_index_cache_t*)
-	fts_find_index_cache(cache, query->index);
+	get_doc.index_cache = fts_find_index_cache(cache, query->index);
 
 	/* Must find the index cache */
 	ut_a(get_doc.index_cache != NULL);
@@ -2076,9 +2273,6 @@ fts_query_search_phrase(
 		/* Skip the document ids that were filtered out by
 		an earlier pass. */
 		if (match->doc_id != 0) {
-
-			// FIXME: Debug code
-			++searched;
 
 			query->error = fts_query_match_document(
 				tokens, &get_doc,
@@ -2106,10 +2300,6 @@ fts_query_search_phrase(
 		fts_que_graph_free(get_doc.get_document_graph);
 		get_doc.get_document_graph = NULL;
 	}
-
-	// FIXME: Debug code
-	ut_print_timestamp(stderr);
-	printf(" End: %lu, %lu\n", searched, ib_vector_size(query->matched));
 
 	return(query->error);
 }
@@ -2278,7 +2468,7 @@ fts_query_phrase_search(
 		/* If we are doing proximity search, verify the distance
 		between all words, and check they are in specified distance. */
 		if (query->flags & FTS_PROXIMITY) {
-			fts_check_phrase_proximity(query, tokens);
+			fts_phrase_or_proximity_search(query, tokens);
 		} else {
 			ibool	matched;
 
@@ -2289,7 +2479,7 @@ fts_query_phrase_search(
 			and then doing a search through the text. Isolated
 			testing shows this also helps in mitigating disruption
 			of the buffer cache. */
-			matched = fts_check_phrase_proximity(query, tokens);
+			matched = fts_phrase_or_proximity_search(query, tokens);
 			query->matched = query->match_array[0];
 
 			/* Read the actual text in and search for the phrase. */
@@ -2746,6 +2936,8 @@ fts_query_read_node(
 	ut_a(query->cur_node->type == FTS_AST_TERM ||
 	     query->cur_node->type == FTS_AST_TEXT);
 
+	memset(&node, 0, sizeof(node));
+
 	/* Need to consider the wildcard search case, the word frequency
 	is created on the search string not the actual word. So we need
 	to assign the frequency on search string behalf. */
@@ -3009,7 +3201,7 @@ fts_retrieve_ranking(
 
 		ranking = rbt_value(fts_ranking_t, parent.last);
 
-		return (ranking->rank);
+		return(ranking->rank);
 	}
 
 	return(0);
@@ -3188,7 +3380,7 @@ fts_query(
 	fts_result_t**	result)		/*!< in/out: result doc ids */
 {
 	fts_query_t	query;
-	dberr_t		error;
+	dberr_t		error = DB_SUCCESS;
 	byte*		lc_query_str;
 	ulint		lc_query_str_len;
 	ulint		result_len;
@@ -3234,16 +3426,19 @@ fts_query(
 
 	query.total_docs = dict_table_get_n_rows(index->table);
 
-	error = fts_get_total_word_count(trx, query.index, &query.total_words);
+#ifdef FTS_DOC_STATS_DEBUG
+	if (ft_enable_diag_print) {
+		error = fts_get_total_word_count(
+			trx, query.index, &query.total_words);
 
-	if (error != DB_SUCCESS) {
-		goto func_exit;
+		if (error != DB_SUCCESS) {
+			goto func_exit;
+		}
+
+		fprintf(stderr, "Total docs: " UINT64PF " Total words: %lu\n",
+			query.total_docs, query.total_words);
 	}
-
-#ifdef	FTS_INTERNAL_DIAG_PRINT
-	fprintf(stderr, "Total docs: " UINT64PF " Total words: %lu\n",
-		query.total_docs, query.total_words);
-#endif
+#endif /* FTS_DOC_STATS_DEBUG */
 
 	query.fts_common_table.suffix = "DELETED";
 
@@ -3292,7 +3487,7 @@ fts_query(
 		sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
 
 	/* Parse the input query string. */
-	if (fts_query_parse(&query, lc_query_str, query_len)) {
+	if (fts_query_parse(&query, lc_query_str, result_len)) {
 		fts_ast_node_t*	ast = query.root;
 
 		/* Traverse the Abstract Syntax Tree (AST) and execute
@@ -3551,14 +3746,16 @@ fts_expand_query(
 /*************************************************************//**
 This function finds documents that contain all words in a
 phrase or proximity search. And if proximity search, verify
-the words are close to each other enough, as in specified distance.
+the words are close enough to each other, as in specified distance.
 This function is called for phrase and proximity search.
 @return TRUE if documents are found, FALSE if otherwise */
 static
 ibool
-fts_check_phrase_proximity(
-/*=======================*/
-	fts_query_t*	query,		/*!< in:  query instance */
+fts_phrase_or_proximity_search(
+/*===========================*/
+	fts_query_t*	query,		/*!< in/out:  query instance.
+					query->doc_ids might be instantiated
+					with qualified doc IDs */
 	ib_vector_t*	tokens)		/*!< in: Tokens contain words */
 {
 	ulint		n_matched;
@@ -3575,8 +3772,13 @@ fts_check_phrase_proximity(
 	walk through the list and find common documents that
 	contain all the matching words. */
 	for (i = 0; i < n_matched; i++) {
-		ulint	j;
-		ulint	k = 0;
+		ulint		j;
+		ulint		k = 0;
+		fts_proximity_t	qualified_pos;
+		ulint		qualified_pos_buf[MAX_PROXIMITY_ITEM * 2];
+
+		qualified_pos.min_pos = &qualified_pos_buf[0];
+		qualified_pos.max_pos = &qualified_pos_buf[MAX_PROXIMITY_ITEM];
 
 		match[0] = static_cast<fts_match_t*>(
 			ib_vector_get(query->match_array[0], i));
@@ -3641,24 +3843,31 @@ fts_check_phrase_proximity(
 
 		/* For this matching doc, we need to further
 		verify whether the words in the doc are close
-		to each other, and with in distance specified
+		to each other, and within the distance specified
 		in the proximity search */
 		if (query->flags & FTS_PHRASE) {
 			matched = TRUE;
-		} else if (fts_proximity_check_position(
-			match, num_token, query->distance)) {
-			ulint	z;
-			/* If so, mark we find a matching doc */
-			fts_query_process_doc_id(query, match[0]->doc_id, 0);
+		} else if (fts_proximity_get_positions(
+			match, num_token, ULINT_MAX, &qualified_pos)) {
 
-			matched = TRUE;
-			for (z = 0; z < num_token; z++) {
-				fts_string_t*	token;
-				token = static_cast<fts_string_t*>(
-					ib_vector_get(tokens, z));
-				fts_query_add_word_to_document(
-					query, match[0]->doc_id,
-					token->f_str);
+			/* Fetch the original documents and count the
+			words in between matching words to see that is in
+			specified distance */
+			if (fts_query_is_in_proximity_range(
+				query, match, &qualified_pos)) {
+				/* If so, mark we find a matching doc */
+				fts_query_process_doc_id(
+					query, match[0]->doc_id, 0);
+
+				matched = TRUE;
+				for (ulint z = 0; z < num_token; z++) {
+					fts_string_t*	token;
+					token = static_cast<fts_string_t*>(
+						ib_vector_get(tokens, z));
+					fts_query_add_word_to_document(
+						query, match[0]->doc_id,
+						token->f_str);
+				}
 			}
 		}
 
@@ -3672,23 +3881,31 @@ func_exit:
 }
 
 /*************************************************************//**
-This function check the words in result document are close to each
-other (within proximity range). This is used for proximity search.
-@return TRUE if words are close to each other, FALSE if otherwise */
+This function checks whether words in result documents are close to
+each other (within proximity range as specified by "distance").
+If "distance" is MAX_ULINT, then it will find all combinations of
+positions of matching words and store min and max positions
+in the "qualified_pos" for later verification.
+@return true if words are close to each other, false if otherwise */
 static
-ulint
-fts_proximity_check_position(
-/*=========================*/
-	fts_match_t**	match,		/*!< in: query instance */
-	ulint		num_match,	/*!< in: number of matching
-					items */
-	ulint		distance)	/*!< in: distance value
-					for proximity search */
+bool
+fts_proximity_get_positions(
+/*========================*/
+	fts_match_t**		match,		/*!< in: query instance */
+	ulint			num_match,	/*!< in: number of matching
+						items */
+	ulint			distance,	/*!< in: distance value
+						for proximity search */
+	fts_proximity_t*	qualified_pos)	/*!< out: the position info
+						records ranges containing
+						all matching words. */
 {
 	ulint	i;
 	ulint	idx[MAX_PROXIMITY_ITEM];
 	ulint	num_pos[MAX_PROXIMITY_ITEM];
 	ulint	min_idx;
+
+	qualified_pos->n_pos = 0;
 
 	ut_a(num_match < MAX_PROXIMITY_ITEM);
 
@@ -3741,14 +3958,21 @@ fts_proximity_check_position(
 		find a good match */
 		if (max_pos - min_pos <= distance
 		    && (i >= num_match || position[i] != ULINT_UNDEFINED)) {
-			return(TRUE);
-		} else {
-			/* Otherwise, move to the next position is the
-			list for the word with the smallest position */
-			idx[min_idx]++;
+			/* The charset has variable character
+			length encoding, record the min_pos and
+			max_pos, we will need to verify the actual
+			number of characters */
+			qualified_pos->min_pos[qualified_pos->n_pos] = min_pos;
+			qualified_pos->max_pos[qualified_pos->n_pos] = max_pos;
+			qualified_pos->n_pos++;
 		}
+
+		/* Otherwise, move to the next position is the
+		list for the word with the smallest position */
+		idx[min_idx]++;
 	}
 
-	/* Failed to find all words within the range for the doc */
-	return(FALSE);
+	ut_ad(qualified_pos->n_pos <= MAX_PROXIMITY_ITEM);
+
+	return(qualified_pos->n_pos != 0);
 }

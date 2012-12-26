@@ -1223,7 +1223,7 @@ int ha_prepare(THD *thd)
       }
       else
       {
-        push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+        push_warning_printf(thd, Sql_condition::SL_WARNING,
                             ER_ILLEGAL_HA, ER(ER_ILLEGAL_HA),
                             ha_resolve_storage_engine_name(ht));
       }
@@ -1539,7 +1539,7 @@ int ha_rollback_low(THD *thd, bool all)
     trans->rw_ha_count= 0;
     if (all && thd->transaction_rollback_request &&
         thd->transaction.xid_state.xa_state != XA_NOTR)
-      thd->transaction.xid_state.rm_error= thd->get_stmt_da()->sql_errno();
+      thd->transaction.xid_state.rm_error= thd->get_stmt_da()->mysql_errno();
   }
 
   (void) RUN_HOOK(transaction, after_rollback, (thd, all));
@@ -1651,6 +1651,21 @@ int ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
   gtid_rollback(thd);
 
   return xaop.result;
+}
+
+
+/**
+  This function converts the XID to HEX string form prefixed by '0x' 
+
+  @buf has to be atleast (XIDDATASIZE*2+2+1) in size
+*/
+static uint xid_to_hex_str(char *buf, size_t buf_len, XID *xid)
+{
+  *buf++= '0';
+  *buf++= 'x';
+
+  return bin_to_hex_str(buf, buf_len-2, (char*)&xid->data,
+                        xid->gtrid_length+xid->bqual_length) + 2;
 }
 
 
@@ -1813,7 +1828,6 @@ int ha_recover(HASH *commit_list)
   if (info.commit_list)
     sql_print_information("Starting crash recovery...");
 
-#ifndef WILL_BE_DELETED_LATER
   /*
     for now, only InnoDB supports 2pc. It means we can always safely
     rollback all pending transactions, without risking inconsistent data
@@ -1821,7 +1835,6 @@ int ha_recover(HASH *commit_list)
   DBUG_ASSERT(total_ha_2pc == (ulong) opt_bin_log+1); // only InnoDB and binlog
   tc_heuristic_recover= TC_HEURISTIC_RECOVER_ROLLBACK; // forcing ROLLBACK
   info.dry_run=FALSE;
-#endif
 
   for (info.len= MAX_XID_LIST_SIZE ; 
        info.list==0 && info.len > MIN_XID_LIST_SIZE; info.len/=2)
@@ -1858,6 +1871,31 @@ int ha_recover(HASH *commit_list)
   DBUG_RETURN(0);
 }
 
+
+/**
+  This function checks if the XID consists of all printable charaters
+  i.e ASCII 32 - 127 and returns true if it is so.
+
+  @xid has to be pointer to a valid XID
+*/
+static bool is_printable_xid(XID *xid)
+{
+  int i;
+  unsigned char *c= (unsigned char*)&xid->data;
+  int xid_len= xid->gtrid_length+xid->bqual_length;
+
+  for (i=0; i < xid_len; i++, c++)
+  {
+    if(*c < 32 || *c > 127)
+    {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+
 /**
   return the list of XID's to a client, the same way SHOW commands do.
 
@@ -1877,7 +1915,7 @@ bool mysql_xa_recover(THD *thd)
   field_list.push_back(new Item_int(NAME_STRING("formatID"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_int(NAME_STRING("gtrid_length"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_int(NAME_STRING("bqual_length"), 0, MY_INT32_NUM_DECIMAL_DIGITS));
-  field_list.push_back(new Item_empty_string("data",XIDDATASIZE));
+  field_list.push_back(new Item_empty_string("data", XIDDATASIZE*2+2));
 
   if (protocol->send_result_set_metadata(&field_list,
                             Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
@@ -1892,8 +1930,25 @@ bool mysql_xa_recover(THD *thd)
       protocol->store_longlong((longlong)xs->xid.formatID, FALSE);
       protocol->store_longlong((longlong)xs->xid.gtrid_length, FALSE);
       protocol->store_longlong((longlong)xs->xid.bqual_length, FALSE);
-      protocol->store(xs->xid.data, xs->xid.gtrid_length+xs->xid.bqual_length,
-                      &my_charset_bin);
+      
+      if(is_printable_xid(&xs->xid) == true)
+      {
+        protocol->store(xs->xid.data, xs->xid.gtrid_length+xs->xid.bqual_length,
+                        &my_charset_bin);
+      }
+      else
+      {
+        uint xid_str_len;
+        /* 
+          xid_buf contains enough space for 0x followed by HEX representation of
+          the binary XID data and one null termination character.
+        */
+        char xid_buf[XIDDATASIZE*2+2+1];
+
+        xid_str_len= xid_to_hex_str(xid_buf, sizeof(xid_buf), &xs->xid);
+        protocol->store(xid_buf, xid_str_len, &my_charset_bin);
+      }
+      
       if (protocol->write())
       {
         mysql_mutex_unlock(&LOCK_xid_cache);
@@ -1906,6 +1961,7 @@ bool mysql_xa_recover(THD *thd)
   my_eof(thd);
   DBUG_RETURN(0);
 }
+
 
 /**
   @details
@@ -2120,7 +2176,7 @@ int ha_start_consistent_snapshot(THD *thd)
     exist:
   */
   if (warn)
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                  "This MySQL server does not support any "
                  "consistent-read capable storage engine");
   return 0;
@@ -2216,7 +2272,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
   char buff[MYSQL_ERRMSG_SIZE];
@@ -2228,7 +2284,7 @@ Ha_delete_table_error_handler::
 handle_condition(THD *,
                  uint,
                  const char*,
-                 Sql_condition::enum_warning_level,
+                 Sql_condition::enum_severity_level,
                  const char* msg,
                  Sql_condition ** cond_hdl)
 {
@@ -2293,7 +2349,7 @@ int ha_delete_table(THD *thd, handlerton *table_type, const char *path,
       XXX: should we convert *all* errors to warnings here?
       What if the error is fatal?
     */
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, error,
+    push_warning(thd, Sql_condition::SL_WARNING, error,
                 ha_delete_table_error_handler.buff);
   }
   delete file;
@@ -2878,7 +2934,7 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
 */
 int handler::read_first_row(uchar * buf, uint primary_key)
 {
-  register int error;
+  int error;
   DBUG_ENTER("handler::read_first_row");
 
   ha_statistic_increment(&SSV::ha_read_first_count);
@@ -2893,10 +2949,9 @@ int handler::read_first_row(uchar * buf, uint primary_key)
   {
     if (!(error= ha_rnd_init(1)))
     {
-      int end_error;
-      while ((error= ha_rnd_next(buf)) == HA_ERR_RECORD_DELETED)
+      while ((error= rnd_next(buf)) == HA_ERR_RECORD_DELETED)
         /* skip deleted row */;
-      end_error= ha_rnd_end();
+      const int end_error= ha_rnd_end();
       if (!error)
         error= end_error;
     }
@@ -2906,9 +2961,8 @@ int handler::read_first_row(uchar * buf, uint primary_key)
     /* Find the first row through the primary key */
     if (!(error= ha_index_init(primary_key, 0)))
     {
-      int end_error;
       error= ha_index_first(buf);
-      end_error= ha_index_end();
+      const int end_error= ha_index_end();
       if (!error)
         error= end_error;
     }
@@ -3308,14 +3362,15 @@ void handler::get_auto_increment(ulonglong offset, ulonglong increment,
   table->mark_columns_used_by_index_no_reset(table->s->next_number_index,
                                         table->read_set);
   column_bitmaps_signal();
+
   if (ha_index_init(table->s->next_number_index, 1))
   {
     /* This should never happen, assert in debug, and fail in release build */
     DBUG_ASSERT(0);
     *first_value= ULONGLONG_MAX;
-    *nb_reserved_values= 0;
     DBUG_VOID_RETURN;
   }
+
   if (table->s->next_number_keypart == 0)
   {						// Autoincrement at key-start
     error= ha_index_last(table->record[1]);
@@ -3648,6 +3703,12 @@ void handler::print_error(int error, myf errflag)
   case HA_ERR_TABLE_IN_FK_CHECK:
     textno= ER_TABLE_IN_FK_CHECK;
     break;
+  case HA_WRONG_CREATE_OPTION:
+    textno= ER_ILLEGAL_HA;
+    break;
+  case HA_ERR_TOO_MANY_FIELDS:
+    textno= ER_TOO_MANY_FIELDS;
+    break;
   default:
     {
       /* The error was "unknown" to this function.
@@ -3709,7 +3770,7 @@ int handler::check_collation_compatibility()
     for (; key < key_end; key++)
     {
       KEY_PART_INFO *key_part= key->key_part;
-      KEY_PART_INFO *key_part_end= key_part + key->key_parts;
+      KEY_PART_INFO *key_part_end= key_part + key->user_defined_key_parts;
       for (; key_part < key_part_end; key_part++)
       {
         if (!key_part->fieldnr)
@@ -3750,7 +3811,7 @@ int handler::ha_check_for_upgrade(HA_CHECK_OPT *check_opt)
     for (; keyinfo < keyend; keyinfo++)
     {
       keypart= keyinfo->key_part;
-      keypartend= keypart + keyinfo->key_parts;
+      keypartend= keypart + keyinfo->user_defined_key_parts;
       for (; keypart < keypartend; keypart++)
       {
         if (!keypart->fieldnr)
@@ -4327,6 +4388,18 @@ void handler::notify_table_changed()
 }
 
 
+void Alter_inplace_info::report_unsupported_error(const char *not_supported,
+                                                  const char *try_instead)
+{
+  if (unsupported_reason == NULL)
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED, MYF(0),
+             not_supported, try_instead);
+  else
+    my_error(ER_ALTER_OPERATION_NOT_SUPPORTED_REASON, MYF(0),
+             not_supported, unsupported_reason, try_instead);
+}
+
+
 /**
   Rename table: public interface.
 
@@ -4528,7 +4601,7 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
       table->record[0]= buf;
       key_info= table->key_info + active_index;
       key_part= key_info->key_part;
-      key_part_end= key_part + key_info->key_parts;
+      key_part_end= key_part + key_info->user_defined_key_parts;
       for (; key_part < key_part_end; key_part++)
       {
         DBUG_ASSERT(key_part->field);
@@ -5418,7 +5491,7 @@ double handler::index_only_read_time(uint keynr, double records)
 bool key_uses_partial_cols(TABLE *table, uint keyno)
 {
   KEY_PART_INFO *kp= table->key_info[keyno].key_part;
-  KEY_PART_INFO *kp_end= kp + table->key_info[keyno].key_parts;
+  KEY_PART_INFO *kp_end= kp + table->key_info[keyno].user_defined_key_parts;
   for (; kp != kp_end; kp++)
   {
     if (!kp->field->part_of_key.is_set(keyno))
@@ -5551,7 +5624,7 @@ handler::multi_range_read_info_const(uint keyno, RANGE_SEQ_IF *seq,
     *flags|= HA_MRR_SUPPORT_SORTED;
 
     DBUG_ASSERT(cost->is_zero());
-    if ((*flags & HA_MRR_INDEX_ONLY) && total_rows > 2)
+    if (*flags & HA_MRR_INDEX_ONLY)
       cost->add_io(index_only_read_time(keyno, total_rows) *
                    Cost_estimate::IO_BLOCK_READ_COST());
     else
@@ -6863,6 +6936,7 @@ static bool check_table_binlog_row_based(THD *thd, TABLE *table)
   if (table->s->cached_row_logging_check == -1)
   {
     int const check(table->s->tmp_table == NO_TMP_TABLE &&
+                    ! table->no_replicate &&
                     binlog_filter->db_ok(table->s->db.str));
     table->s->cached_row_logging_check= check;
   }
@@ -6971,8 +7045,6 @@ int binlog_log_row(TABLE* table,
                           const uchar *after_record,
                           Log_func *log_func)
 {
-  if (table->no_replicate)
-    return 0;
   bool error= 0;
   THD *const thd= table->in_use;
 

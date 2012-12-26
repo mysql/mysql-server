@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 IF(WIN32)
   SET(localstatedir "C:\\\\mysql\\\\data\\\\")
   SET(ini_file_extension "ini")
+  SET(CNF_SOCKET_LINE "")
 ELSE()
   SET(localstatedir "${MYSQL_DATADIR}")
   SET(prefix "${CMAKE_INSTALL_PREFIX}")
@@ -30,6 +31,7 @@ ELSE()
   SET(MYSQLD_USER "mysql")
   SET(ini_file_extension "cnf")
   SET(HOSTNAME "hostname")
+  SET(CNF_SOCKET_LINE "# socket = .....")
 ENDIF()
 
   SET(dictionary "${CMAKE_INSTALL_PREFIX}/${INSTALL_SHAREDIR}/dictionary.txt" )
@@ -42,12 +44,11 @@ ELSE()
   SET(inst_location ${INSTALL_SUPPORTFILESDIR})
 ENDIF()
 
-FOREACH(inifile my-huge my-innodb-heavy-4G my-large my-medium my-small)
-  CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${inifile}.cnf.sh 
-                 ${CMAKE_CURRENT_BINARY_DIR}/${inifile}.${ini_file_extension} @ONLY)
-  INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${inifile}.${ini_file_extension}
-          DESTINATION ${inst_location} COMPONENT IniFiles)
-ENDFOREACH()
+SET(inifile my-default)
+CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${inifile}.cnf.sh 
+               ${CMAKE_CURRENT_BINARY_DIR}/${inifile}.${ini_file_extension} @ONLY)
+INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${inifile}.${ini_file_extension}
+        DESTINATION ${inst_location} COMPONENT IniFiles)
 
 IF(UNIX)
   SET(prefix ${CMAKE_INSTALL_PREFIX})

@@ -20,33 +20,37 @@
 #include <ndb_types.h>
 
 void
-add_thr_map(Uint32, Uint32, Uint32)
+mt_init_thr_map()
 {
   assert(false);
 }
 
 void
-add_main_thr_map()
+mt_add_thr_map(Uint32, Uint32)
 {
   assert(false);
 }
 
 void
-add_lqh_worker_thr_map(Uint32, Uint32)
+mt_finalize_thr_map()
 {
   assert(false);
 }
 
-void
-add_extra_worker_thr_map(Uint32, Uint32)
+Uint32
+mt_get_instance_count(Uint32 block)
 {
   assert(false);
+  return 0;
 }
 
-void
-finalize_thr_map()
+Uint32
+mt_get_extra_send_buffer_pages(Uint32 curr_num_pages,
+                               Uint32 extra_mem_pages)
 {
-  assert(false);
+  (void)curr_num_pages;
+  (void)extra_mem_pages;
+  return 0;
 }
 
 Uint32
@@ -55,8 +59,32 @@ compute_jb_pages(struct EmulatorData*)
   return 0;
 }
 
+
 bool
 NdbIsMultiThreaded()
 {
   return false;
 }
+
+#include <BlockNumbers.h>
+
+Uint32
+mt_get_blocklist(class SimulatedBlock * block, Uint32 arr[], Uint32 len)
+{
+  (void)block;
+  for (Uint32 i = 0; i<NO_OF_BLOCKS; i++)
+  {
+    arr[i] = numberToBlock(MIN_BLOCK_NO + i, 0);
+  }
+  return NO_OF_BLOCKS;
+}
+
+#include "mt.hpp"
+
+void
+mt_get_thr_stat(class SimulatedBlock *, ndb_thr_stat* dst)
+{
+  bzero(dst, sizeof(* dst));
+  dst->name = "main";
+}
+

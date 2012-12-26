@@ -21,6 +21,7 @@
 
 #include <ndb_global.h>
 #include <kernel_types.h>
+#include "ArrayPool.hpp"
 #include "Pool.hpp"
 
 /**
@@ -465,18 +466,18 @@ DLFifoListImpl<P,T,U>::hasPrev(const Ptr<T> & p) const
 
 // Specializations
 
-template <typename T, typename U = T>
-class DLFifoList : public DLFifoListImpl<ArrayPool<T>, T, U>
+template <typename T, typename U = T, typename P = ArrayPool<T> >
+class DLFifoList : public DLFifoListImpl<P, T, U>
 {
 public:
-  DLFifoList(ArrayPool<T> & p) : DLFifoListImpl<ArrayPool<T>, T, U>(p) {}
+  DLFifoList(P & p) : DLFifoListImpl<P, T, U>(p) {}
 };
 
-template <typename T, typename U = T>
-class LocalDLFifoList : public LocalDLFifoListImpl<ArrayPool<T>,T,U> {
+template <typename T, typename U = T, typename P = ArrayPool<T> >
+class LocalDLFifoList : public LocalDLFifoListImpl<P,T,U> {
 public:
-  LocalDLFifoList(ArrayPool<T> & p, typename DLFifoList<T,U>::Head & _src)
-    : LocalDLFifoListImpl<ArrayPool<T>,T,U>(p, _src) {}
+  LocalDLFifoList(P & p, typename DLFifoList<T,U,P>::Head & _src)
+    : LocalDLFifoListImpl<P,T,U>(p, _src) {}
 };
 
 #endif

@@ -39,8 +39,9 @@ source include/stop_slave.inc;
 connection master;
 let $start= `SELECT UNIX_TIMESTAMP()`;
 insert into t1 values (1);
+let $stop_exec= `SELECT UNIX_TIMESTAMP()`;
 
-sleep 3;
+real_sleep 3;
 
 connection slave;
 lock table t1 write;
@@ -60,16 +61,15 @@ source include/wait_show_condition.inc;
 # ASSERTION: check that SBM shows at least 3 seconds
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+# We need to deduct execution time on master to SBM lower_bound.
+# SBM= now - (ev.when + ev.exec_time)
+# Also deduct a second to handle rounding differences.
+let $lower_bound= `SELECT 3 - ($stop_exec - $start) - 1`;
 let $stop= `SELECT UNIX_TIMESTAMP()`;
 let $upper_bound= `SELECT $stop - $start`;
-let $lower_bound= 3;
-if (`SELECT $sbm < $lower_bound or $sbm > $upper_bound`)
-{
-  -- echo #### Seconds behind master is not in acceptable time window
-   --echo Seconds_Behind_Master $sbm Upper Bound $upper_bound Lower bound $lower_bound
-  -- source include/show_rpl_debug_info.inc
-  -- die
-}
+let $assert_text= Seconds_Behind_Master must be between 'lower_bound' and 'upper_bound';
+let $assert_cond= $lower_bound <= $sbm AND $sbm <= $upper_bound;
+source include/assert.inc;
 
 unlock tables;
 connection master;
@@ -78,8 +78,9 @@ lock table t1 write;
 connection master;
 let $start= `SELECT UNIX_TIMESTAMP()`;
 insert into t1 values (2);
+let $stop_exec= `SELECT UNIX_TIMESTAMP()`;
 
-sleep 3;
+real_sleep 3;
 
 connection slave;
 # ok, now wait for the SQL thread to start the insert
@@ -95,18 +96,18 @@ source include/wait_show_condition.inc;
 # ASSERTION: flush logs will not reset the sbm value
 flush logs;
 
-sleep 3;
+real_sleep 3;
 
 let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1);
+# We need to deduct execution time on master to SBM lower_bound.
+# SBM= now - (ev.when + ev.exec_time)
+# Also deduct a second to handle rounding differences.
+let $lower_bound= `SELECT 6 - ($stop_exec - $start) - 1`;
 let $stop= `SELECT UNIX_TIMESTAMP()`;
 let $upper_bound= `SELECT $stop - $start`;
-let $lower_bound= 6;
-if (`SELECT $sbm < $lower_bound or $sbm > $upper_bound`)
-{
-  -- echo #### Seconds behind master is not in acceptable time window
-  -- source include/show_rpl_debug_info.inc
-  -- die
-}
+let $assert_text= Seconds_Behind_Master must be between 'lower_bound' and 'upper_bound';
+let $assert_cond= $lower_bound <= $sbm AND $sbm <= $upper_bound;
+source include/assert.inc;
 
 unlock tables;
 connection master;
@@ -154,13 +155,9 @@ let $condition= = 'Slave has read all relay log; waiting for the slave I/O threa
 -- source include/wait_show_condition.inc
 
 -- let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1)
-if ($sbm != 0)
-{
-  -- echo #### Seconds behind master must show '0', because SQL thread is now waiting for new events.
-  -- echo #### SBM ($sbm seconds) != 0 !! SQL thread is waiting so should be zero.
-  -- source include/show_rpl_debug_info.inc
-  -- die
-}
+let $assert_text= Seconds_Behind_Master must be 0;
+let $assert_cond= $sbm = 0;
+source include/assert.inc;
 
 -- connection slave
 LOCK TABLE t1 WRITE;
@@ -177,9 +174,11 @@ LOCK TABLE t1 WRITE;
 # show that Seconds_Behind_Master will increase when
 # this query starts to execute.
 #
+let $start= `SELECT UNIX_TIMESTAMP()`;
 -- disable_warnings
 INSERT INTO t1 VALUES (3);
 -- enable_warnings
+let $stop_exec= `SELECT UNIX_TIMESTAMP()`;
 
 -- connection slave
 
@@ -191,14 +190,13 @@ let $condition= = 'INSERT INTO t1 VALUES (3)';
 -- source include/wait_show_condition.inc
 
 -- let $sbm= query_get_value("SHOW SLAVE STATUS", Seconds_Behind_Master, 1)
-if ($sbm < 3600)
-{
-  -- echo #### Seconds behind master must show > 3600 because the event that 
-  -- echo #### is being processed was issued 3600 seconds ago.
-  -- echo #### SBM ($sbm seconds) < 3600 ! 
-  -- source include/show_rpl_debug_info.inc
-  -- die
-}
+# We need to deduct execution time on master to SBM lower_bound.
+# SBM= now - (ev.when + ev.exec_time)
+# Also deduct 5 seconds to have a safety margin.
+let $lower_bound= `SELECT 3600 - ($stop_exec - $start) - 5`;
+let $assert_text= Seconds_Behind_Master must be greater or equal than 'lower_bound';
+let $assert_cond= $lower_bound <= $sbm;
+source include/assert.inc;
 
 UNLOCK TABLES;
 

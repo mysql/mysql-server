@@ -43,6 +43,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "usr0sess.h"
 #include "ut0vec.h"
 #include "dict0priv.h"
+#include "fts0priv.h"
 
 /*****************************************************************//**
 Based on a table object, this function builds the entry to be inserted
@@ -262,8 +263,7 @@ dict_build_table_def_step(
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	table = node->table;
-	use_tablespace =
-		DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
+	use_tablespace = DICT_TF2_FLAG_IS_SET(table, DICT_TF2_USE_TABLESPACE);
 
 	dict_hdr_get_new_id(&table->id, NULL, NULL);
 
@@ -273,6 +273,11 @@ dict_build_table_def_step(
 		/* This table will not use the system tablespace.
 		Get a new space id. */
 		dict_hdr_get_new_id(NULL, NULL, &space);
+
+		DBUG_EXECUTE_IF(
+			"ib_create_table_fail_out_of_space_ids",
+			space = ULINT_UNDEFINED;
+		);
 
 		if (UNIV_UNLIKELY(space == ULINT_UNDEFINED)) {
 			return(DB_ERROR);
@@ -609,6 +614,8 @@ dict_build_index_def_step(
 
 	/* Note that the index was created by this transaction. */
 	index->trx_id = trx->id;
+	ut_ad(table->def_trx_id <= trx->id);
+	table->def_trx_id = trx->id;
 
 	return(DB_SUCCESS);
 }
@@ -710,9 +717,11 @@ UNIV_INTERN
 void
 dict_drop_index_tree(
 /*=================*/
-	rec_t*	rec,	/*!< in/out: record in the clustered index
-			of SYS_INDEXES table */
-	mtr_t*	mtr)	/*!< in: mtr having the latch on the record page */
+	rec_t*	rec,		/*!< in/out: record in the clustered index
+				of SYS_INDEXES table */
+	bool	is_drop,	/*!< in: true if we are dropping a table */
+	mtr_t*	mtr)		/*!< in/out: mtr having the latch on
+				the record page */
 {
 	ulint		root_page_no;
 	ulint		space;
@@ -750,6 +759,24 @@ dict_drop_index_tree(
 		return;
 	}
 
+	if (is_drop) {
+		rw_lock_t*	latch;
+		mtr_t		mtr2;
+		xdes_t*		descr;
+		latch = fil_space_get_latch(space, NULL);
+		mtr_start(&mtr2);
+		mtr_x_lock(latch, &mtr2);
+		descr = xdes_get_descriptor(space, zip_size,
+					    root_page_no, &mtr2);
+		mtr_commit(&mtr2);
+		if (descr
+		    && xdes_get_bit(descr, XDES_FREE_BIT,
+				    root_page_no % FSP_EXTENT_SIZE) == TRUE) {
+			/* The tree has already been freed */
+			return;
+		}
+	}
+
 	/* We free all the pages but the root page first; this operation
 	may span several mini-transactions */
 
@@ -774,14 +801,14 @@ UNIV_INTERN
 ulint
 dict_free_index_tree(
 /*=================*/
-	dict_table_t*	table,	/*!< in: the table the index belongs to */
+	const char*	name,	/*!< in: table name */
 	ulint		space,	/*!< in: free the index tree in the
 				given tablespace */
 	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
 				record in the clustered index of
 				SYS_INDEXES table. The cursor may be
 				repositioned in this call. */
-	mtr_t*		mtr)	/*!< in: mtr having the latch
+	mtr_t*		mtr)	/*!< in/out: mtr having the latch
 				on the record page.*/
 {
 	ulint		root_page_no;
@@ -804,7 +831,7 @@ dict_free_index_tree(
 		/* The tree has been freed. */
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Trying to free a missing index "
-			"of table '%s'!", table->name);
+			"of table '%s'!", name);
 		return(FIL_NULL);
 	}
 
@@ -815,7 +842,7 @@ dict_free_index_tree(
 		missing: fatal error */
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Trying to free a missing .ibd file "
-			"of table '%s'!", table->name);
+			"of table '%s'!", name);
 		ut_error;
 	}
 
@@ -844,14 +871,14 @@ UNIV_INTERN
 ulint
 dict_create_index_tree(
 /*===================*/
-	dict_table_t*	table,	/*!< in: the table the index belongs to */
+	dict_table_t*	table,	/*!< in/out: the table the index belongs to */
 	ulint		space,	/*!< in: create a new index tree in the
 				given tablespace */
 	btr_pcur_t*	pcur,	/*!< in/out: persistent cursor pointing to
 				record in the clustered index of
 				SYS_INDEXES table. The cursor may be
 				repositioned in this call. */
-	mtr_t*		mtr)	/*!< in: mtr having the latch
+	mtr_t*		mtr)	/*!< in/out: mtr having the latch
 				on the record page. */
 {
 	ulint		root_page_no;
@@ -894,8 +921,7 @@ dict_create_index_tree(
 	for (index = UT_LIST_GET_FIRST(table->indexes);
 	     index;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
-		if (index->id == index_id) {
-
+		if (index->id == index_id && !(index->type & DICT_FTS)) {
 			root_page_no = btr_create(type, space, zip_size,
 						  index_id, index, NULL, mtr);
 			index->page = (unsigned int) root_page_no;
@@ -904,7 +930,7 @@ dict_create_index_tree(
 	}
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Failed to create index with index id %llu of table %s "
+		"Failed to create index with index id %llu of table '%s' "
 		"from the data dictionary during TRUNCATE!",
 		(ullint) index_id,
 		table->name);
@@ -1185,7 +1211,37 @@ dict_create_index_step(
 
 		err = dict_create_index_tree_step(node);
 
+		DBUG_EXECUTE_IF("ib_dict_create_index_tree_fail",
+				err = DB_OUT_OF_MEMORY;);
+
 		if (err != DB_SUCCESS) {
+			/* If this is a FTS index, we will need to remove
+			it from fts->cache->indexes list as well */
+			if ((node->index->type & DICT_FTS)
+			    && node->table->fts) {
+				fts_index_cache_t*	index_cache;
+
+				rw_lock_x_lock(
+					&node->table->fts->cache->init_lock);
+
+				index_cache = (fts_index_cache_t*)
+					 fts_find_index_cache(
+						node->table->fts->cache,
+						node->index);
+
+				if (index_cache->words) {
+					rbt_free(index_cache->words);
+					index_cache->words = 0;
+				}
+
+				ib_vector_remove(
+					node->table->fts->cache->indexes,
+					*reinterpret_cast<void**>(index_cache));
+
+				rw_lock_x_unlock(
+					&node->table->fts->cache->init_lock);
+			}
+
 			dict_index_remove_from_cache(node->table, node->index);
 			node->index = NULL;
 
@@ -1193,7 +1249,11 @@ dict_create_index_step(
 		}
 
 		node->index->page = node->page_no;
-		node->index->trx_id = trx->id;
+		/* These should have been set in
+		dict_build_index_def_step() and
+		dict_index_add_to_cache(). */
+		ut_ad(node->index->trx_id == trx->id);
+		ut_ad(node->index->table->def_trx_id == trx->id);
 		node->state = INDEX_COMMIT_WORK;
 	}
 
@@ -1307,6 +1367,8 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	trx = trx_allocate_for_mysql();
 
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
 	trx->op_info = "creating foreign key sys tables";
 
 	row_mysql_lock_data_dictionary(trx);
@@ -1316,20 +1378,20 @@ dict_create_or_check_foreign_constraint_tables(void)
 	if (sys_foreign_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_FOREIGN table.\n");
+			"SYS_FOREIGN table.");
 		row_drop_table_for_mysql("SYS_FOREIGN", trx, TRUE);
 	}
 
 	if (sys_foreign_cols_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_FOREIGN_COLS table.\n");
+			"SYS_FOREIGN_COLS table.");
 
 		row_drop_table_for_mysql("SYS_FOREIGN_COLS", trx, TRUE);
 	}
 
 	ib_logf(IB_LOG_LEVEL_WARN,
-		"Creating foreign key constraint system tables.\n");
+		"Creating foreign key constraint system tables.");
 
 	/* NOTE: in dict_load_foreigns we use the fact that
 	there are 2 secondary indexes on SYS_FOREIGN, and they
@@ -1373,7 +1435,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Creation of SYS_FOREIGN and SYS_FOREIGN_COLS "
 			"has failed with error %lu.  Tablespace is full. "
-			"Dropping incompletely created tables.\n",
+			"Dropping incompletely created tables.",
 			(ulong) err);
 
 		ut_ad(err == DB_OUT_OF_FILE_SPACE
@@ -1397,7 +1459,7 @@ dict_create_or_check_foreign_constraint_tables(void)
 
 	if (err == DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Foreign key constraint system tables created\n");
+			"Foreign key constraint system tables created");
 	}
 
 	/* Note: The master thread has not been started at this point. */
@@ -1671,6 +1733,8 @@ dict_create_or_check_sys_tablespace(void)
 
 	trx = trx_allocate_for_mysql();
 
+	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
+
 	trx->op_info = "creating tablepace and datafile sys tables";
 
 	row_mysql_lock_data_dictionary(trx);
@@ -1680,20 +1744,20 @@ dict_create_or_check_sys_tablespace(void)
 	if (sys_tablespaces_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_TABLESPACES table.\n");
+			"SYS_TABLESPACES table.");
 		row_drop_table_for_mysql("SYS_TABLESPACES", trx, TRUE);
 	}
 
 	if (sys_datafiles_err == DB_CORRUPTION) {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Dropping incompletely created "
-			"SYS_DATAFILES table.\n");
+			"SYS_DATAFILES table.");
 
 		row_drop_table_for_mysql("SYS_DATAFILES", trx, TRUE);
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Creating tablespace and datafile system tables.\n");
+		"Creating tablespace and datafile system tables.");
 
 	/* We always want SYSTEM tables to be created inside the system
 	tablespace. */
@@ -1719,7 +1783,7 @@ dict_create_or_check_sys_tablespace(void)
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Creation of SYS_TABLESPACES and SYS_DATAFILES "
 			"has failed with error %lu.  Tablespace is full. "
-			"Dropping incompletely created tables.\n",
+			"Dropping incompletely created tables.",
 			(ulong) err);
 
 		ut_a(err == DB_OUT_OF_FILE_SPACE
@@ -1743,7 +1807,7 @@ dict_create_or_check_sys_tablespace(void)
 
 	if (err == DB_SUCCESS) {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Tablespace and datafile system tables created\n");
+			"Tablespace and datafile system tables created.");
 	}
 
 	/* Note: The master thread has not been started at this point. */

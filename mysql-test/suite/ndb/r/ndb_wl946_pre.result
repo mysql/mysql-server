@@ -1,0 +1,231 @@
+drop table if exists t1;
+select @@session.time_zone;
+@@session.time_zone
+SYSTEM
+set time_zone = '+00:00';
+select @@session.time_zone;
+@@session.time_zone
++00:00
+# create table
+create table t1 (
+a int not null,
+b year not null default '2000',
+c date not null default '2000-01-02',
+d time not null default '10:11:12',
+e datetime not null default '2000-01-02 10:11:12',
+f timestamp not null default '2000-01-02 10:11:12',
+primary key using hash (a),
+index bx (b),
+index cx (c),
+index dx (d),
+index ex (e),
+index fx (f)
+) engine=ndb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time NOT NULL DEFAULT '10:11:12',
+  `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
+  `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+# test defaults
+insert into t1 (a) values (0);
+select * from t1;
+a	b	c	d	e	f
+0	2000	2000-01-02	10:11:12	2000-01-02 10:11:12	2000-01-02 10:11:12
+delete from t1;
+# load data
+load data local infile 'suite/ndb/data/wl946_pre.dat'
+  into table t1 fields terminated by ',' lines terminated by '\n';
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+# run backup
+# index queries
+select * from t1 where b = '1969';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where c = '2017-03-21';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where d = '17:50:30';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where e = '2014-03-19 18:41:26';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where f = '1999-05-23 10:45:42';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select count(*) from t1
+where b between '2000' and 2010;
+count(*)
+15
+select count(*) from t1
+where c between '2000-01-01' and '2010-01-01';
+count(*)
+20
+select count(*) from t1
+where d between '-20:30:40' and '20:30:40';
+count(*)
+381
+select count(*) from t1
+where e between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+23
+select count(*) from t1
+where f between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+67
+# check results via myisam
+alter table t1 engine=myisam;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time NOT NULL DEFAULT '10:11:12',
+  `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
+  `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+select * from t1 where b = '1969';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where c = '2017-03-21';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where d = '17:50:30';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where e = '2014-03-19 18:41:26';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where f = '1999-05-23 10:45:42';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select count(*) from t1
+where b between '2000' and 2010;
+count(*)
+15
+select count(*) from t1
+where c between '2000-01-01' and '2010-01-01';
+count(*)
+20
+select count(*) from t1
+where d between '-20:30:40' and '20:30:40';
+count(*)
+381
+select count(*) from t1
+where e between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+23
+select count(*) from t1
+where f between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+67
+# drop table
+drop table t1;
+# restore meta from backup
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `a` int(11) NOT NULL,
+  `b` year(4) NOT NULL DEFAULT '2000',
+  `c` date NOT NULL DEFAULT '2000-01-02',
+  `d` time NOT NULL DEFAULT '10:11:12',
+  `e` datetime NOT NULL DEFAULT '2000-01-02 10:11:12',
+  `f` timestamp NOT NULL DEFAULT '2000-01-02 10:11:12',
+  PRIMARY KEY (`a`) USING HASH,
+  KEY `bx` (`b`),
+  KEY `cx` (`c`),
+  KEY `dx` (`d`),
+  KEY `ex` (`e`),
+  KEY `fx` (`f`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
+# restore data from backup
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+# drop table
+drop table t1;
+# restore meta from wl946_pre
+Attributes:
+a Int PRIMARY KEY DISTRIBUTION KEY AT=FIXED ST=MEMORY
+b Year NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000
+c Date NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02
+d Time NOT NULL AT=FIXED ST=MEMORY DEFAULT 10:11:12
+e Datetime NOT NULL AT=FIXED ST=MEMORY DEFAULT 2000-01-02/10:11:12
+f Timestamp NOT NULL AT=FIXED ST=MEMORY DEFAULT 946807872
+Indexes:
+bx(b) - OrderedIndex
+cx(c) - OrderedIndex
+dx(d) - OrderedIndex
+ex(e) - OrderedIndex
+fx(f) - OrderedIndex
+# restore data from wl946_pre
+# check contents
+select count(*), sum(crc32(concat(a,b,c,d,e,f))) from t1;
+count(*)	sum(crc32(concat(a,b,c,d,e,f)))
+500	1105949732775
+# index queries
+select * from t1 where b = '1969';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where c = '2017-03-21';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where d = '17:50:30';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where e = '2014-03-19 18:41:26';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select * from t1 where f = '1999-05-23 10:45:42';
+a	b	c	d	e	f
+233	1969	2017-03-21	17:50:30	2014-03-19 18:41:26	1999-05-23 10:45:42
+select count(*) from t1
+where b between '2000' and 2010;
+count(*)
+15
+select count(*) from t1
+where c between '2000-01-01' and '2010-01-01';
+count(*)
+20
+select count(*) from t1
+where d between '-20:30:40' and '20:30:40';
+count(*)
+381
+select count(*) from t1
+where e between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+23
+select count(*) from t1
+where f between '2000-01-01 20:30:40' and '2010-01-01 20:30:40';
+count(*)
+67
+set time_zone = default;
+select @@session.time_zone;
+@@session.time_zone
+SYSTEM
+drop table t1;

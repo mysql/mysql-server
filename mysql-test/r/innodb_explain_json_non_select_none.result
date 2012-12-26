@@ -1411,6 +1411,9 @@ EXPLAIN
         "b"
       ] /* possible_keys */,
       "key": "a",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "5",
       "rows": 1,
       "filtered": 100,
@@ -1440,6 +1443,9 @@ EXPLAIN
         "a"
       ] /* possible_keys */,
       "key": "a",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "5",
       "ref": [
         "const"
@@ -1491,6 +1497,9 @@ EXPLAIN
         "b"
       ] /* possible_keys */,
       "key": "a",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "5",
       "rows": 1,
       "filtered": 100,
@@ -1519,6 +1528,9 @@ EXPLAIN
         "a"
       ] /* possible_keys */,
       "key": "a",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "5",
       "rows": 1,
       "filtered": 100,
@@ -1567,6 +1579,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 1,
         "filtered": 100,
@@ -1598,6 +1613,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 1,
         "filtered": 100,
@@ -1647,6 +1665,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 3,
         "filtered": 100,
@@ -1678,6 +1699,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 3,
         "filtered": 100,
@@ -1733,6 +1757,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 4,
         "filtered": 100,
@@ -1761,6 +1788,9 @@ EXPLAIN
         "table_name": "t1",
         "access_type": "index",
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 1,
         "filtered": 400,
@@ -1917,6 +1947,9 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a2"
+          ] /* used_key_parts */,
           "key_length": "4",
           "ref": [
             "test.t1.a1"
@@ -1934,6 +1967,10 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a3",
+            "b3"
+          ] /* used_key_parts */,
           "key_length": "8",
           "ref": [
             "test.t2.b2",
@@ -1979,6 +2016,9 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a2"
+          ] /* used_key_parts */,
           "key_length": "4",
           "ref": [
             "test.t1.a1"
@@ -1996,6 +2036,10 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a3",
+            "b3"
+          ] /* used_key_parts */,
           "key_length": "8",
           "ref": [
             "test.t2.b2",
@@ -2516,6 +2560,11 @@ EXPLAIN
           "a"
         ] /* possible_keys */,
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -2544,6 +2593,11 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "index",
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -2799,6 +2853,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -2830,6 +2887,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -2905,8 +2965,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
@@ -2931,8 +2989,6 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
@@ -3079,6 +3135,11 @@ EXPLAIN
           "a"
         ] /* possible_keys */,
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -3107,6 +3168,11 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "index",
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -3445,6 +3511,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -3476,6 +3545,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -3620,6 +3692,10 @@ EXPLAIN
           "a"
         ] /* possible_keys */,
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b"
+        ] /* used_key_parts */,
         "key_length": "6",
         "rows": "X",
         "filtered": "X"
@@ -3647,6 +3723,10 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "index",
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b"
+        ] /* used_key_parts */,
         "key_length": "6",
         "rows": "X",
         "filtered": "X"
@@ -3706,6 +3786,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": "X",
         "filtered": "X",
@@ -3737,6 +3820,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": "X",
         "filtered": "X",
@@ -3815,8 +3901,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
@@ -3841,8 +3925,6 @@ EXPLAIN
   } /* query_block */
 }
 Warnings:
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
@@ -3990,6 +4072,11 @@ EXPLAIN
           "a"
         ] /* possible_keys */,
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -4018,6 +4105,11 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "index",
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b",
+          "c"
+        ] /* used_key_parts */,
         "key_length": "15",
         "rows": "X",
         "filtered": "X",
@@ -4357,6 +4449,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -4388,6 +4483,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "i"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 8,
         "filtered": 100,
@@ -4534,6 +4632,10 @@ EXPLAIN
           "a"
         ] /* possible_keys */,
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b"
+        ] /* used_key_parts */,
         "key_length": "6",
         "rows": "X",
         "filtered": "X"
@@ -4561,6 +4663,10 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "index",
         "key": "a",
+        "used_key_parts": [
+          "a",
+          "b"
+        ] /* used_key_parts */,
         "key_length": "6",
         "rows": "X",
         "filtered": "X"
@@ -4624,6 +4730,9 @@ EXPLAIN
           "c1_idx"
         ] /* possible_keys */,
         "key": "c1_idx",
+        "used_key_parts": [
+          "c1_idx"
+        ] /* used_key_parts */,
         "key_length": "2",
         "rows": 2,
         "filtered": 100,
@@ -4655,13 +4764,16 @@ EXPLAIN
           "c1_idx"
         ] /* possible_keys */,
         "key": "c1_idx",
+        "used_key_parts": [
+          "c1_idx"
+        ] /* used_key_parts */,
         "key_length": "2",
         "ref": [
           "const"
         ] /* ref */,
         "rows": 2,
         "filtered": 100,
-        "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y') and (`test`.`t1`.`c1_idx` = 'y'))"
+        "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y'))"
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -4709,6 +4821,9 @@ EXPLAIN
           "c1_idx"
         ] /* possible_keys */,
         "key": "c1_idx",
+        "used_key_parts": [
+          "c1_idx"
+        ] /* used_key_parts */,
         "key_length": "2",
         "rows": 2,
         "filtered": 100,
@@ -4740,13 +4855,16 @@ EXPLAIN
           "c1_idx"
         ] /* possible_keys */,
         "key": "c1_idx",
+        "used_key_parts": [
+          "c1_idx"
+        ] /* used_key_parts */,
         "key_length": "2",
         "ref": [
           "const"
         ] /* ref */,
         "rows": 2,
         "filtered": 100,
-        "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y') and (`test`.`t1`.`c1_idx` = 'y'))"
+        "attached_condition": "((`test`.`t1`.`c1_idx` <=> 'y'))"
       } /* table */
     } /* ordering_operation */
   } /* query_block */
@@ -4794,6 +4912,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 2,
       "filtered": 100,
@@ -4823,6 +4944,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 2,
       "filtered": 100,
@@ -5089,6 +5213,9 @@ EXPLAIN
               "IDX"
             ] /* possible_keys */,
             "key": "IDX",
+            "used_key_parts": [
+              "f3"
+            ] /* used_key_parts */,
             "key_length": "5",
             "ref": [
               "test.t1.f1"
@@ -5138,6 +5265,9 @@ EXPLAIN
               "IDX"
             ] /* possible_keys */,
             "key": "IDX",
+            "used_key_parts": [
+              "f3"
+            ] /* used_key_parts */,
             "key_length": "5",
             "ref": [
               "test.t1.f1"
@@ -5454,6 +5584,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 3,
       "filtered": 100,
@@ -5482,6 +5615,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 3,
       "filtered": 100,
@@ -5552,6 +5688,9 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a"
+          ] /* used_key_parts */,
           "key_length": "4",
           "ref": [
             "test.t2.x"
@@ -5666,6 +5805,9 @@ EXPLAIN
             "PRIMARY"
           ] /* possible_keys */,
           "key": "PRIMARY",
+          "used_key_parts": [
+            "a"
+          ] /* used_key_parts */,
           "key_length": "4",
           "ref": [
             "test.t2.x"
@@ -5859,14 +6001,6 @@ Handler_read_rnd_next	1
 
 DROP TABLE t1, t2;
 DROP VIEW v1;
-#68
-CREATE TABLE t1 (i INT);
-EXPLAIN INSERT DELAYED INTO t1 VALUES (1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
-DROP TABLE t1;
 #69
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (2), (3);
@@ -5915,6 +6049,9 @@ EXPLAIN
                 "<auto_key0>"
               ] /* possible_keys */,
               "key": "<auto_key0>",
+              "used_key_parts": [
+                "b"
+              ] /* used_key_parts */,
               "key_length": "5",
               "ref": [
                 "func"
@@ -5981,6 +6118,9 @@ EXPLAIN
                 "<auto_key0>"
               ] /* possible_keys */,
               "key": "<auto_key0>",
+              "used_key_parts": [
+                "b"
+              ] /* used_key_parts */,
               "key_length": "5",
               "ref": [
                 "func"
@@ -6079,6 +6219,9 @@ EXPLAIN
                     "<auto_key0>"
                   ] /* possible_keys */,
                   "key": "<auto_key0>",
+                  "used_key_parts": [
+                    "b"
+                  ] /* used_key_parts */,
                   "key_length": "5",
                   "ref": [
                     "func"
@@ -6159,6 +6302,9 @@ EXPLAIN
                     "<auto_key0>"
                   ] /* possible_keys */,
                   "key": "<auto_key0>",
+                  "used_key_parts": [
+                    "b"
+                  ] /* used_key_parts */,
                   "key_length": "5",
                   "ref": [
                     "func"
@@ -6269,6 +6415,9 @@ EXPLAIN
                     "<auto_key0>"
                   ] /* possible_keys */,
                   "key": "<auto_key0>",
+                  "used_key_parts": [
+                    "b"
+                  ] /* used_key_parts */,
                   "key_length": "5",
                   "ref": [
                     "func"
@@ -6364,6 +6513,9 @@ EXPLAIN
                     "<auto_key0>"
                   ] /* possible_keys */,
                   "key": "<auto_key0>",
+                  "used_key_parts": [
+                    "b"
+                  ] /* used_key_parts */,
                   "key_length": "5",
                   "ref": [
                     "func"
@@ -6509,6 +6661,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 1,
       "filtered": 100,
@@ -6538,6 +6693,9 @@ EXPLAIN
         "PRIMARY"
       ] /* possible_keys */,
       "key": "PRIMARY",
+      "used_key_parts": [
+        "a"
+      ] /* used_key_parts */,
       "key_length": "4",
       "rows": 1,
       "filtered": 100,
@@ -6585,6 +6743,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 1,
         "filtered": 100,
@@ -6616,6 +6777,9 @@ EXPLAIN
           "PRIMARY"
         ] /* possible_keys */,
         "key": "PRIMARY",
+        "used_key_parts": [
+          "a"
+        ] /* used_key_parts */,
         "key_length": "4",
         "rows": 1,
         "filtered": 100,

@@ -801,6 +801,31 @@ lock_table_get_n_locks(
 /*===================*/
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull));
+#ifdef UNIV_DEBUG
+/*********************************************************************//**
+Checks that a transaction id is sensible, i.e., not in the future.
+@return	true if ok */
+UNIV_INTERN
+bool
+lock_check_trx_id_sanity(
+/*=====================*/
+	trx_id_t	trx_id,		/*!< in: trx id */
+	const rec_t*	rec,		/*!< in: user record */
+	dict_index_t*	index,		/*!< in: index */
+	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
+	__attribute__((nonnull, warn_unused_result));
+/*******************************************************************//**
+Check if the transaction holds any locks on the sys tables
+or its records.
+@return	the strongest lock found on any sys table or 0 for none */
+UNIV_INTERN
+const lock_t*
+lock_trx_has_sys_table_locks(
+/*=========================*/
+	const trx_t*	trx)	/*!< in: transaction to check */
+	__attribute__((warn_unused_result));
+#endif /* UNIV_DEBUG */
+
 /** Lock modes and types */
 /* @{ */
 #define LOCK_MODE_MASK	0xFUL	/*!< mask used to extract mode from the
@@ -846,13 +871,21 @@ lock_table_get_n_locks(
 				remains set when the waiting lock is granted,
 				or if the lock is inherited to a neighboring
 				record */
-#if (LOCK_WAIT|LOCK_GAP|LOCK_REC_NOT_GAP|LOCK_INSERT_INTENTION)&LOCK_MODE_MASK
+#define LOCK_CONV_BY_OTHER 4096 /*!< this bit is set when the lock is created
+				by other transaction */
+#if (LOCK_WAIT|LOCK_GAP|LOCK_REC_NOT_GAP|LOCK_INSERT_INTENTION|LOCK_CONV_BY_OTHER)&LOCK_MODE_MASK
 # error
 #endif
-#if (LOCK_WAIT|LOCK_GAP|LOCK_REC_NOT_GAP|LOCK_INSERT_INTENTION)&LOCK_TYPE_MASK
+#if (LOCK_WAIT|LOCK_GAP|LOCK_REC_NOT_GAP|LOCK_INSERT_INTENTION|LOCK_CONV_BY_OTHER)&LOCK_TYPE_MASK
 # error
 #endif
 /* @} */
+
+/** Checks if this is a waiting lock created by lock->trx itself.
+@param type_mode lock->type_mode
+@return whether it is a waiting lock belonging to lock->trx */
+#define lock_is_wait_not_by_other(type_mode) \
+	((type_mode & (LOCK_CONV_BY_OTHER | LOCK_WAIT)) == LOCK_WAIT)
 
 /** Lock operation struct */
 struct lock_op_t{
@@ -862,11 +895,11 @@ struct lock_op_t{
 
 /** The lock system struct */
 struct lock_sys_t{
-	ib_mutex_t		mutex;			/*!< Mutex protecting the
+	ib_mutex_t	mutex;			/*!< Mutex protecting the
 						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
 						locks */
-	ib_mutex_t		wait_mutex;		/*!< Mutex protecting the
+	ib_mutex_t	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
 						suspended while waiting for

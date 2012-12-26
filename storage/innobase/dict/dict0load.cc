@@ -187,7 +187,8 @@ dict_print(void)
 
 	os_increment_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
+		srv_fatal_semaphore_wait_threshold,
+		SRV_SEMAPHORE_WAIT_EXTENSION);
 
 	heap = mem_heap_create(1000);
 	mutex_enter(&(dict_sys->mutex));
@@ -223,7 +224,8 @@ dict_print(void)
 	/* Restore the fatal semaphore wait timeout */
 	os_decrement_counter_by_amount(
 		server_mutex,
-		srv_fatal_semaphore_wait_threshold, SRV_SEMAPHORE_WAIT_EXTENSION);
+		srv_fatal_semaphore_wait_threshold,
+		SRV_SEMAPHORE_WAIT_EXTENSION);
 }
 
 /********************************************************************//**
@@ -280,8 +282,8 @@ dict_startscan_system(
 
 	clust_index = UT_LIST_GET_FIRST(system_table->indexes);
 
-	btr_pcur_open_at_index_side(TRUE, clust_index, BTR_SEARCH_LEAF, pcur,
-				    TRUE, mtr);
+	btr_pcur_open_at_index_side(true, clust_index, BTR_SEARCH_LEAF, pcur,
+				    true, 0, mtr);
 
 	rec = dict_getnext_system_low(pcur, mtr);
 
@@ -859,10 +861,15 @@ dict_update_filepath(
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
+	trx->op_info = "update filepath";
+	trx->dict_operation_lock_mode = RW_X_LATCH;
+	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
 	pars_info_t*	info = pars_info_create();
 
@@ -878,6 +885,7 @@ dict_update_filepath(
 			   "END;\n", FALSE, trx);
 
 	trx_commit_for_mysql(trx);
+	trx->dict_operation_lock_mode = 0;
 	trx_free_for_background(trx);
 
 	if (err == DB_SUCCESS) {
@@ -885,12 +893,12 @@ dict_update_filepath(
 		a link file.  Make a note that we did this. */
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"The InnoDB data dictionary table SYS_DATAFILES "
-			"for tablespace ID %lu was updated to use file %s.\n",
+			"for tablespace ID %lu was updated to use file %s.",
 			(ulong) space_id, filepath);
 	} else {
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"Problem updating InnoDB data dictionary table "
-			"SYS_DATAFILES for tablespace ID %lu to file %s.\n",
+			"SYS_DATAFILES for tablespace ID %lu to file %s.",
 			(ulong) space_id, filepath);
 	}
 
@@ -912,11 +920,16 @@ dict_insert_tablespace_and_filepath(
 	dberr_t		err = DB_SUCCESS;
 	trx_t*		trx;
 
+#ifdef UNIV_SYNC_DEBUG
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_EX));
+#endif /* UNIV_SYNC_DEBUG */
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_ad(filepath);
 
 	trx = trx_allocate_for_background();
-	trx_start_if_not_started(trx);
+	trx->op_info = "insert tablespace and filepath";
+	trx->dict_operation_lock_mode = RW_X_LATCH;
+	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
 
 	/* A record for this space ID was not found in
 	SYS_DATAFILES. Assume the record is also missing in
@@ -925,6 +938,7 @@ dict_insert_tablespace_and_filepath(
 		space, name, fsp_flags, filepath, trx, false);
 
 	trx_commit_for_mysql(trx);
+	trx->dict_operation_lock_mode = 0;
 	trx_free_for_background(trx);
 
 	return(err);
@@ -955,6 +969,7 @@ dict_check_tablespaces_and_store_max_id(
 	ulint		max_space_id;
 	mtr_t		mtr;
 
+	rw_lock_x_lock(&dict_operation_lock);
 	mutex_enter(&(dict_sys->mutex));
 
 	mtr_start(&mtr);
@@ -968,8 +983,8 @@ dict_check_tablespaces_and_store_max_id(
 				      MLOG_4BYTES, &mtr);
 	fil_set_max_space_id_if_bigger(max_space_id);
 
-	btr_pcur_open_at_index_side(TRUE, sys_index, BTR_SEARCH_LEAF, &pcur,
-				    TRUE, &mtr);
+	btr_pcur_open_at_index_side(true, sys_index, BTR_SEARCH_LEAF, &pcur,
+				    true, 0, &mtr);
 loop:
 	btr_pcur_move_to_next_user_rec(&pcur, &mtr);
 
@@ -989,6 +1004,7 @@ loop:
 		fil_set_max_space_id_if_bigger(max_space_id);
 
 		mutex_exit(&(dict_sys->mutex));
+		rw_lock_x_unlock(&dict_operation_lock);
 
 		return;
 	}
@@ -1074,7 +1090,8 @@ loop:
 			fil_load_single_table_tablespaces(). */
 
 			fil_space_for_table_exists_in_mem(
-				space_id, name, TRUE, !(is_temp || discarded));
+				space_id, name, TRUE, !(is_temp || discarded),
+				false, NULL, 0);
 
 		} else if (!discarded) {
 
@@ -1090,10 +1107,15 @@ loop:
 					space_id, name);
 			}
 
-			/* filepath can be NULL in this call. */
+			/* We set the 2nd param (fix_dict = true)
+			here because we already have an x-lock on
+			dict_operation_lock and dict_sys->mutex. Besides,
+			this is at startup and we are now single threaded.
+			If the filepath is not known, it will need to
+			be discovered. */
 			dberr_t	err = fil_open_single_table_tablespace(
-				false, true, space_id,
-				dict_tf_to_fsp_flags(flags),
+				false, srv_read_only_mode ? false : true,
+				space_id, dict_tf_to_fsp_flags(flags),
 				name, filepath);
 
 			if (err != DB_SUCCESS) {
@@ -1766,6 +1788,21 @@ dict_load_indexes(
 
 		if (!btr_pcur_is_on_user_rec(&pcur)) {
 
+			/* We should allow the table to open even
+			without index when DICT_ERR_IGNORE_CORRUPT is set.
+			DICT_ERR_IGNORE_CORRUPT is currently only set
+			for drop table */
+			if (dict_table_get_first_index(table) == NULL
+			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Cannot load table %s "
+					"because it has no indexes in "
+					"InnoDB internal data dictionary.",
+					table->name);
+				error = DB_CORRUPTION;
+				goto func_exit;
+			}
+
 			break;
 		}
 
@@ -1779,6 +1816,20 @@ dict_load_indexes(
 		if (err_msg == dict_load_index_id_err) {
 			/* TABLE_ID mismatch means that we have
 			run out of index definitions for the table. */
+
+			if (dict_table_get_first_index(table) == NULL
+			    && !(ignore_err & DICT_ERR_IGNORE_CORRUPT)) {
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"Failed to load the "
+					"clustered index for table %s "
+					"because of the following error: %s. "
+					"Refusing to load the rest of the "
+					"indexes (if any) and the whole table "
+					"altogether.", table->name, err_msg);
+				error = DB_CORRUPTION;
+				goto func_exit;
+			}
+
 			break;
 		} else if (err_msg == dict_load_index_del) {
 			/* Skip delete-marked records. */
@@ -1833,9 +1884,8 @@ dict_load_indexes(
 		subsequent checks are relevant for the supported types. */
 		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
 				    | DICT_CORRUPT | DICT_FTS)) {
-			fprintf(stderr,
-				"InnoDB: Error: unknown type %lu"
-				" of index %s of table %s\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unknown type %lu of index %s of table %s",
 				(ulong) index->type, index->name, table->name);
 
 			error = DB_UNSUPPORTED;
@@ -1884,7 +1934,7 @@ corrupted:
 			      " is not clustered!\n", stderr);
 
 			goto corrupted;
-		} else if (table->id < DICT_HDR_FIRST_ID
+		} else if (dict_is_sys_table(table->id)
 			   && (dict_index_is_clust(index)
 			       || ((table == dict_sys->sys_tables)
 				   && !strcmp("ID_IND", index->name)))) {
@@ -2259,7 +2309,8 @@ err_exit:
 		table->ibd_file_missing = TRUE;
 
 	} else if (!fil_space_for_table_exists_in_mem(
-			table->space, name, FALSE, FALSE)) {
+			table->space, name, FALSE, FALSE, true, heap,
+			table->id)) {
 
 		if (DICT_TF2_FLAG_IS_SET(table, DICT_TF2_TEMPORARY)) {
 			/* Do not bother to retry opening temporary tables. */
@@ -2285,7 +2336,9 @@ err_exit:
 				}
 			}
 
-			/* Try to open the tablespace */
+			/* Try to open the tablespace.  We set the
+			2nd param (fix_dict = false) here because we
+			do not have an x-lock on dict_operation_lock */
 			err = fil_open_single_table_tablespace(
 				true, false, table->space,
 				dict_tf_to_fsp_flags(table->flags),
@@ -2399,11 +2452,16 @@ func_exit:
 	      || !table->corrupted);
 
 	if (table && table->fts) {
-		ut_ad(dict_table_has_fts_index(table)
+		if (!(dict_table_has_fts_index(table)
 		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)
-		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID));
-
-		fts_optimize_add_table(table);
+		      || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_ADD_DOC_ID))) {
+			/* the table->fts could be created in dict_load_column
+			when a user defined FTS_DOC_ID is present, but no
+			FTS */
+			fts_free(table);
+		} else {
+			fts_optimize_add_table(table);
+		}
 	}
 
 	return(table);
@@ -2527,15 +2585,20 @@ dict_load_sys_table(
 }
 
 /********************************************************************//**
-Loads foreign key constraint col names (also for the referenced table). */
+Loads foreign key constraint col names (also for the referenced table).
+Members that must be set (and valid) in foreign:
+foreign->heap
+foreign->n_fields
+foreign->id ('\0'-terminated)
+Members that will be created and set by this function:
+foreign->foreign_col_names[i]
+foreign->referenced_col_names[i]
+(for i=0..foreign->n_fields-1) */
 static
 void
 dict_load_foreign_cols(
 /*===================*/
-	const char*	id,	/*!< in: foreign constraint id, not
-				necessary '\0'-terminated */
-	ulint		id_len,	/*!< in: id length */
-	dict_foreign_t*	foreign)/*!< in: foreign constraint object */
+	dict_foreign_t*	foreign)/*!< in/out: foreign constraint object */
 {
 	dict_table_t*	sys_foreign_cols;
 	dict_index_t*	sys_index;
@@ -2547,8 +2610,11 @@ dict_load_foreign_cols(
 	ulint		len;
 	ulint		i;
 	mtr_t		mtr;
+	size_t		id_len;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	id_len = strlen(foreign->id);
 
 	foreign->foreign_col_names = static_cast<const char**>(
 		mem_heap_alloc(foreign->heap,
@@ -2568,7 +2634,7 @@ dict_load_foreign_cols(
 	tuple = dtuple_create(foreign->heap, 1);
 	dfield = dtuple_get_nth_field(tuple, 0);
 
-	dfield_set_data(dfield, id, id_len);
+	dfield_set_data(dfield, foreign->id, id_len);
 	dict_index_copy_types(tuple, sys_index, 1);
 
 	btr_pcur_open_on_user_rec(sys_index, tuple, PAGE_CUR_GE,
@@ -2582,8 +2648,42 @@ dict_load_foreign_cols(
 
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_FOREIGN_COLS__ID, &len);
-		ut_a(len == id_len);
-		ut_a(ut_memcmp(id, field, len) == 0);
+
+		if (len != id_len || ut_memcmp(foreign->id, field, len) != 0) {
+			const rec_t*	pos;
+			ulint		pos_len;
+			const rec_t*	for_col_name;
+			ulint		for_col_name_len;
+			const rec_t*	ref_col_name;
+			ulint		ref_col_name_len;
+
+			pos = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_FOREIGN_COLS__POS,
+				&pos_len);
+
+			for_col_name = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_FOREIGN_COLS__FOR_COL_NAME,
+				&for_col_name_len);
+
+			ref_col_name = rec_get_nth_field_old(
+				rec, DICT_FLD__SYS_FOREIGN_COLS__REF_COL_NAME,
+				&ref_col_name_len);
+
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to load columns names for foreign "
+				"key '%s' because it was not found in "
+				"InnoDB internal table SYS_FOREIGN_COLS. The "
+				"closest entry we found is: "
+				"(ID='%.*s', POS=%lu, FOR_COL_NAME='%.*s', "
+				"REF_COL_NAME='%.*s')",
+				foreign->id,
+				(int) len, field,
+				mach_read_from_4(pos),
+				(int) for_col_name_len, for_col_name,
+				(int) ref_col_name_len, ref_col_name);
+
+			ut_error;
+		}
 
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_FOREIGN_COLS__POS, &len);
@@ -2614,9 +2714,8 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 dict_load_foreign(
 /*==============*/
-	const char*	id,	/*!< in: foreign constraint id, not
-				necessary '\0'-terminated */
-	ulint		id_len,	/*!< in: id length */
+	const char*	id,	/*!< in: foreign constraint id, must be
+				'\0'-terminated */
 	ibool		check_charsets,
 				/*!< in: TRUE=check charset compatibility */
 	ibool		check_recursive)
@@ -2638,8 +2737,11 @@ dict_load_foreign(
 	mtr_t		mtr;
 	dict_table_t*	for_table;
 	dict_table_t*	ref_table;
+	size_t		id_len;
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	id_len = strlen(id);
 
 	heap2 = mem_heap_create(1000);
 
@@ -2666,8 +2768,8 @@ dict_load_foreign(
 
 		fprintf(stderr,
 			"InnoDB: Error: cannot load foreign constraint "
-			"%.*s: could not find the relevant record in "
-			"SYS_FOREIGN\n", (int) id_len, id);
+			"%s: could not find the relevant record in "
+			"SYS_FOREIGN\n", id);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2683,8 +2785,8 @@ dict_load_foreign(
 
 		fprintf(stderr,
 			"InnoDB: Error: cannot load foreign constraint "
-			"%.*s: found %.*s instead in SYS_FOREIGN\n",
-			(int) id_len, id, (int) len, field);
+			"%s: found %.*s instead in SYS_FOREIGN\n",
+			id, (int) len, field);
 
 		btr_pcur_close(&pcur);
 		mtr_commit(&mtr);
@@ -2729,7 +2831,7 @@ dict_load_foreign(
 	btr_pcur_close(&pcur);
 	mtr_commit(&mtr);
 
-	dict_load_foreign_cols(id, id_len, foreign);
+	dict_load_foreign_cols(foreign);
 
 	ref_table = dict_table_check_if_in_cache_low(
 			foreign->referenced_table_name_lookup);
@@ -2865,7 +2967,6 @@ loop:
 	/* Now we have the record in the secondary index containing a table
 	name and a foreign constraint ID */
 
-	rec = btr_pcur_get_rec(&pcur);
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_FOREIGN_FOR_NAME__NAME, &len);
 
@@ -2904,14 +3005,21 @@ loop:
 	field = rec_get_nth_field_old(
 		rec, DICT_FLD__SYS_FOREIGN_FOR_NAME__ID, &len);
 
+	/* Copy the string because the page may be modified or evicted
+	after mtr_commit() below. */
+	char	fk_id[MAX_TABLE_NAME_LEN + 1];
+
+	ut_a(len <= MAX_TABLE_NAME_LEN);
+	memcpy(fk_id, field, len);
+	fk_id[len] = '\0';
+
 	btr_pcur_store_position(&pcur, &mtr);
 
 	mtr_commit(&mtr);
 
 	/* Load the foreign constraint definition to the dictionary cache */
 
-	err = dict_load_foreign((char*) field, len, check_charsets,
-				check_recursive);
+	err = dict_load_foreign(fk_id, check_charsets, check_recursive);
 
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);

@@ -1137,7 +1137,7 @@ public:
   { return DERIVATION_IMPLICIT; }
   virtual uint repertoire(void) const { return MY_REPERTOIRE_UNICODE30; }
   virtual void set_derivation(enum Derivation derivation_arg) { }
-  bool set_warning(Sql_condition::enum_warning_level, unsigned int code,
+  bool set_warning(Sql_condition::enum_severity_level, unsigned int code,
                    int cuted_increment) const;
   inline bool check_overflow(int op_result)
   {
@@ -1224,7 +1224,7 @@ public:
 
   /* Hash value */
   virtual void hash(ulong *nr, ulong *nr2);
-  friend int cre_myisam(char * name, register TABLE *form, uint options,
+  friend int cre_myisam(char * name, TABLE *form, uint options,
 			ulonglong auto_increment_value);
   friend class Copy_field;
   friend class Item_avg_field;
@@ -1403,11 +1403,6 @@ protected:
   {
     handle_int64(to, from, low_byte_first_from, table->s->db_low_byte_first);
     return from + sizeof(int64);
-  }
-
-  bool field_flags_are_binary()
-  {
-    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
   }
 
 };
@@ -2117,8 +2112,8 @@ protected:
     The value must be already properly rounded or truncated
     and checked for being a valid TIME/DATE/DATETIME value.
 
-    @param IN   ltime   MYSQL_TIME value.
-    @param OUT  error   Error flag vector, set in case of error.
+    @param[in]  ltime   MYSQL_TIME value.
+    @param[out] error   Error flag vector, set in case of error.
     @retval     false   In case of success.
     @retval     true    In case of error.
   */
@@ -2129,8 +2124,8 @@ protected:
     Low level routine to store a MYSQL_TIME value into a field
     with rounding according to the field decimals() value.
 
-    @param IN   ltime   MYSQL_TIME value.
-    @param OUT  error   Error flag vector, set in case of error.
+    @param[in]  ltime   MYSQL_TIME value.
+    @param[out] error   Error flag vector, set in case of error.
     @retval     false   In case of success.
     @retval     true    In case of error.    
   */
@@ -2141,8 +2136,8 @@ protected:
     Store a temporal value in lldiv_t into a field,
     with rounding according to the field decimals() value.
 
-    @param IN   lld     Temporal value.
-    @param OUT  warning Warning flag vector.
+    @param[in]  lld     Temporal value.
+    @param[out] warning Warning flag vector.
     @retval     false   In case of success.
     @retval     true    In case of error.    
   */
@@ -2151,11 +2146,11 @@ protected:
   /**
     Convert a string to MYSQL_TIME, according to the field type.
 
-    @param IN   str     String
-    @param IN   len     String length
-    @param IN   cs      String character set
-    @param OUT  ltime   The value is stored here
-    @param OUT  status  Conversion status
+    @param[in]  str     String
+    @param[in]  len     String length
+    @param[in]  cs      String character set
+    @param[out] ltime   The value is stored here
+    @param[out] status  Conversion status
     @retval     false   Conversion went fine, ltime contains a valid time
     @retval     true    Conversion failed, ltime was reset and contains nothing
   */
@@ -2168,11 +2163,11 @@ protected:
     into MYSQL_TIME, according to the field type. Nanoseconds
     are rounded to milliseconds and added to ltime->second_part.
 
-    @param IN   nr            Number
-    @param IN   unsigned_val  SIGNED/UNSIGNED flag
-    @param IN   nanoseconds   Fractional part in nanoseconds
-    @param OUT  ltime         The value is stored here
-    @param OUT  status        Conversion status
+    @param[in]  nr            Number
+    @param[in]  unsigned_val  SIGNED/UNSIGNED flag
+    @param[in]  nanoseconds   Fractional part in nanoseconds
+    @param[out] ltime         The value is stored here
+    @param[out] status        Conversion status
     @retval     false         On success
     @retval     true          On error
   */
@@ -2185,9 +2180,9 @@ protected:
   /**
     Convert an integer number into MYSQL_TIME, according to the field type.
 
-    @param IN   nr            Number
-    @param IN   unsigned_val  SIGNED/UNSIGNED flag
-    @param OUT  ltime         The value is stored here
+    @param[in]  nr            Number
+    @param[in]  unsigned_val  SIGNED/UNSIGNED flag
+    @param[out] ltime         The value is stored here
     @retval     false         On success
     @retval     true          On error
   */
@@ -2235,13 +2230,13 @@ protected:
   /**
     Set a single warning using make_truncated_value_warning().
     
-    @param IN  level           Warning level (error, warning, note)
-    @param IN  code            Warning code
-    @param IN  str             Warning parameter
-    @param IN  ts_type         Timestamp type (time, date, datetime, none)
-    @param IN  cuted_inctement Incrementing of cut field counter
+    @param[in] level           Warning level (error, warning, note)
+    @param[in] code            Warning code
+    @param[in] str             Warning parameter
+    @param[in] ts_type         Timestamp type (time, date, datetime, none)
+    @param[in] cuted_inctement Incrementing of cut field counter
   */
-  void set_datetime_warning(Sql_condition::enum_warning_level level, uint code,
+  void set_datetime_warning(Sql_condition::enum_severity_level level, uint code,
                             ErrConvString str,
                             timestamp_type ts_type, int cuted_increment);
 public:
@@ -3809,11 +3804,6 @@ public:
             Item *on_update_value, LEX_STRING *comment, char *change,
             List<String> *interval_list, const CHARSET_INFO *cs,
             uint uint_geom_type);
-
-  bool field_flags_are_binary()
-  {
-    return (flags & (BINCMP_FLAG | BINARY_FLAG)) != 0;
-  }
 
   ha_storage_media field_storage_type() const
   {

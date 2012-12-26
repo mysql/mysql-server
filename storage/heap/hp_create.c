@@ -267,7 +267,7 @@ static inline void heap_try_free(HP_SHARE *share)
 int heap_delete_table(const char *name)
 {
   int result;
-  reg1 HP_SHARE *share;
+  HP_SHARE *share;
   DBUG_ENTER("heap_delete_table");
 
   mysql_mutex_lock(&THR_LOCK_heap);

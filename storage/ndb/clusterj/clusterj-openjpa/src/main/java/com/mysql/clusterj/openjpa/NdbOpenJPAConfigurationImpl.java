@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,6 +25,7 @@ import com.mysql.clusterj.core.SessionFactoryImpl;
 
 import com.mysql.clusterj.core.spi.DomainTypeHandler;
 import com.mysql.clusterj.core.spi.DomainTypeHandlerFactory;
+import com.mysql.clusterj.core.spi.ValueHandlerFactory;
 import com.mysql.clusterj.core.store.Dictionary;
 import com.mysql.clusterj.core.util.I18NHelper;
 import com.mysql.clusterj.core.util.Logger;
@@ -378,7 +379,8 @@ public class NdbOpenJPAConfigurationImpl extends JDBCConfigurationImpl
      * must have already been registered via the openjpa clusterj path.
      */
     public <T> DomainTypeHandler<T> createDomainTypeHandler(
-            Class<T> domainClass, Dictionary dictionary) {
+            Class<T> domainClass, Dictionary dictionary,
+            ValueHandlerFactory valueHandlerFactory) {
         DomainTypeHandler<T> result = (DomainTypeHandler<T>) domainTypeHandlerMap.get(domainClass);
         if (result == null) {
             throw new ClusterJFatalInternalException(

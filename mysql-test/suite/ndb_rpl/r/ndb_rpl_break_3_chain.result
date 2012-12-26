@@ -1,4 +1,10 @@
 include/rpl_init.inc [topology=1->2->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/rpl_connect.inc [creating cluster1]
 include/rpl_connect.inc [creating cluster2]
 include/rpl_connect.inc [creating cluster3]
@@ -69,6 +75,9 @@ server_id	epoch	log_name	start_pos	end_pos
 1	#	#	#	#
 2	#	#	#	#
 include/rpl_change_topology.inc [new topology=1->2,1->3]
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 include/start_slave.inc
 [connection cluster1]
 Now show that cluster 3 is successfully replicating from Cluster1

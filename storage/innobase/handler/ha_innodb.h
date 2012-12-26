@@ -71,12 +71,13 @@ class ha_innobase: public handler
 
 	uchar*		upd_buf;	/*!< buffer used in updates */
 	ulint		upd_buf_size;	/*!< the size of upd_buf in bytes */
-	uchar		srch_key_val1[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
-	uchar		srch_key_val2[REC_VERSION_56_MAX_INDEX_COL_LEN + 2];
+	uchar		srch_key_val1[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
+	uchar		srch_key_val2[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
 					/*!< buffers used in converting
 					search key values from MySQL format
-					to InnoDB format. "+ 2" for the two
-					bytes where the length is stored */
+					to InnoDB format. For each column
+					2 bytes are used to store length,
+					hence MAX_REF_PARTS*2. */
 	Table_flags	int_table_flags;
 	uint		primary_key;
 	ulong		start_of_scan;	/*!< this is set to 1 when we are
@@ -239,7 +240,9 @@ class ha_innobase: public handler
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info);
 	/** Allows InnoDB to update internal structures with concurrent
-	writes blocked. Invoked before inplace_alter_table().
+	writes blocked (provided that check_if_supported_inplace_alter()
+	did not return HA_ALTER_INPLACE_NO_LOCK).
+	This will be invoked before inplace_alter_table().
 
 	@param altered_table	TABLE object for new version of table.
 	@param ha_alter_info	Structure describing changes to be done

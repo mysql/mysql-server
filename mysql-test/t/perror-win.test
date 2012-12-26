@@ -1,6 +1,32 @@
 # Windows-specific tests
 --source include/windows.inc
 --require r/have_perror.require
+
+########################################################
+############# Skip if Non-English Windows
+
+perl;
+open(FILE, ">", "$ENV{MYSQL_TMP_DIR}/perror_syslocale.inc") or die $!;
+
+if(`systeminfo /FO LIST | findstr /C:"System Locale"` =~ m/en-us/)
+ {print FILE "let \$non_eng_sys= 0;\n";}
+else
+ {print FILE "let \$non_eng_sys= 1;\n";}
+ 
+close FILE;
+EOF
+
+source $MYSQL_TMP_DIR/perror_syslocale.inc;
+remove_file $MYSQL_TMP_DIR/perror_syslocale.inc;
+
+if ($non_eng_sys)
+{
+  skip Need an English Windows Installation;
+}
+
+############# Skip if Non-English Windows
+########################################################
+
 disable_query_log;
 eval select LENGTH("$MY_PERROR") > 0 as "have_perror";
 enable_query_log;

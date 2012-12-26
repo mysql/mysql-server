@@ -232,7 +232,7 @@ static int err2mysql(int error)
   default:
     break;
   }
-  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_GET_ERRNO, ER(ER_GET_ERRNO), error);
   DBUG_RETURN(HA_ERR_INTERNAL_ERROR);
 }
@@ -246,7 +246,7 @@ bool ha_ndbinfo::get_error_message(int error, String *buf)
   if (!message)
     DBUG_RETURN(false);
 
-  buf->set(message, strlen(message), &my_charset_bin);
+  buf->set(message, (uint32)strlen(message), &my_charset_bin);
   DBUG_PRINT("exit", ("message: %s", buf->ptr()));
   DBUG_RETURN(false);
 }
@@ -312,8 +312,8 @@ warn_incompatible(const NdbInfo::Table* ndb_tab, bool fatal,
              opt_ndbinfo_table_prefix, ndb_tab->getName(), explanation);
   generate_sql(ndb_tab, msg);
 
-  const Sql_condition::enum_warning_level level =
-    (fatal ? Sql_condition::WARN_LEVEL_WARN : Sql_condition::WARN_LEVEL_NOTE);
+  const Sql_condition::enum_severity_level level =
+    (fatal ? Sql_condition::SL_WARNING : Sql_condition::SL_NOTE);
   push_warning(current_thd, level, ERR_INCOMPAT_TABLE_DEF, msg.c_str());
 
   DBUG_VOID_RETURN;
@@ -467,7 +467,7 @@ int ha_ndbinfo::rnd_init(bool scan)
 
   if (is_offline())
   {
-    push_warning(current_thd, Sql_condition::WARN_LEVEL_NOTE, 1,
+    push_warning(current_thd, Sql_condition::SL_NOTE, 1,
                  "'NDBINFO' has been started in offline mode "
                  "since the 'NDBCLUSTER' engine is disabled "
                  "or @@global.ndbinfo_offline is turned on "
@@ -737,7 +737,9 @@ ndbinfo_find_files(handlerton *hton, THD *thd,
 
 handlerton* ndbinfo_hton;
 
-int ndbinfo_init(void *plugin)
+static
+int
+ndbinfo_init(void *plugin)
 {
   DBUG_ENTER("ndbinfo_init");
 
@@ -782,7 +784,9 @@ int ndbinfo_init(void *plugin)
   DBUG_RETURN(0);
 }
 
-int ndbinfo_deinit(void *plugin)
+static
+int
+ndbinfo_deinit(void *plugin)
 {
   DBUG_ENTER("ndbinfo_deinit");
 
@@ -805,6 +809,28 @@ struct st_mysql_sys_var* ndbinfo_system_variables[]= {
   MYSQL_SYSVAR(offline),
 
   NULL
+};
+
+struct st_mysql_storage_engine ndbinfo_storage_engine=
+{
+  MYSQL_HANDLERTON_INTERFACE_VERSION
+};
+
+struct st_mysql_plugin ndbinfo_plugin =
+{
+  MYSQL_STORAGE_ENGINE_PLUGIN,
+  &ndbinfo_storage_engine,
+  "ndbinfo",
+  "Sun Microsystems Inc.",
+  "MySQL Cluster system information storage engine",
+  PLUGIN_LICENSE_GPL,
+  ndbinfo_init,               /* plugin init */
+  ndbinfo_deinit,             /* plugin deinit */
+  0x0001,                     /* plugin version */
+  NULL,                       /* status variables */
+  ndbinfo_system_variables,   /* system variables */
+  NULL,                       /* config options */
+  0
 };
 
 template class Vector<const NdbInfoRecAttr*>;

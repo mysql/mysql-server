@@ -141,7 +141,7 @@ struct buf_page_info_t{
 #define RETURN_IF_INNODB_NOT_STARTED(plugin_name)			\
 do {									\
 	if (!srv_was_started) {						\
-		push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,	\
+		push_warning_printf(thd, Sql_condition::SL_WARNING,	\
 				    ER_CANT_FIND_SYSTEM_REC,		\
 				    "InnoDB: SELECTing from "		\
 				    "INFORMATION_SCHEMA.%s but "	\
@@ -1736,15 +1736,16 @@ i_s_cmp_per_index_fill_low(
 		dict_index_t*	index = dict_index_find_on_id_low(iter->first);
 
 		if (index != NULL) {
-			ut_snprintf(name, sizeof(name), "%.*s",
-				    (int) dict_get_db_name_len(index->table_name),
-				    index->table_name);
-			field_store_string(fields[IDX_DATABASE_NAME],
-					   name);
-			field_store_string(fields[IDX_TABLE_NAME],
-					   dict_remove_db_name(index->table_name));
-			field_store_string(fields[IDX_INDEX_NAME],
-					   index->name);
+			char	db_utf8[MAX_DB_UTF8_LEN];
+			char	table_utf8[MAX_TABLE_UTF8_LEN];
+
+			dict_fs2utf8(index->table_name,
+				     db_utf8, sizeof(db_utf8),
+				     table_utf8, sizeof(table_utf8));
+
+			field_store_string(fields[IDX_DATABASE_NAME], db_utf8);
+			field_store_string(fields[IDX_TABLE_NAME], table_utf8);
+			field_store_string(fields[IDX_INDEX_NAME], index->name);
 		} else {
 			/* index not found */
 			ut_snprintf(name, sizeof(name),
@@ -4822,6 +4823,8 @@ i_s_innodb_buffer_page_fill(
 	for (ulint i = 0; i < num_page; i++) {
 		const buf_page_info_t*	page_info;
 		const char*		table_name;
+		char			table_name_buf[MAX_FULL_NAME_LEN + 1];
+		const char*		table_name_bufend = NULL;
 		const char*		index_name;
 		const char*		state_str;
 		enum buf_page_state	state;
@@ -4888,16 +4891,28 @@ i_s_innodb_buffer_page_fill(
 
 				index_name = mem_heap_strdup(heap, name_ptr);
 
-				table_name = mem_heap_strdup(heap,
-							     index->table_name);
+				table_name_bufend = innobase_convert_name(
+					table_name_buf, sizeof(table_name_buf),
+					index->table_name,
+					strlen(index->table_name),
+					thd, TRUE);
 
+				table_name = table_name_buf;
 			}
 
 			mutex_exit(&dict_sys->mutex);
 		}
 
-		OK(field_store_string(
-			fields[IDX_BUFFER_PAGE_TABLE_NAME], table_name));
+		if (table_name != NULL) {
+			OK(fields[IDX_BUFFER_PAGE_TABLE_NAME]->store(
+					table_name,
+					table_name_bufend - table_name_buf,
+					system_charset_info));
+			fields[IDX_BUFFER_PAGE_TABLE_NAME]->set_notnull();
+		} else {
+			fields[IDX_BUFFER_PAGE_TABLE_NAME]->set_null();
+
+		}
 
 		OK(field_store_string(
 			fields[IDX_BUFFER_PAGE_INDEX_NAME], index_name));
@@ -5520,6 +5535,8 @@ i_s_innodb_buf_page_lru_fill(
 	for (ulint i = 0; i < num_page; i++) {
 		const buf_page_info_t*	page_info;
 		const char*		table_name;
+		char			table_name_buf[MAX_FULL_NAME_LEN + 1];
+		const char*		table_name_bufend = NULL;
 		const char*		index_name;
 		const char*		state_str;
 		enum buf_page_state	state;
@@ -5586,15 +5603,28 @@ i_s_innodb_buf_page_lru_fill(
 
 				index_name = mem_heap_strdup(heap, name_ptr);
 
-				table_name = mem_heap_strdup(heap,
-							     index->table_name);
+				table_name_bufend = innobase_convert_name(
+					table_name_buf, sizeof(table_name_buf),
+					index->table_name,
+					strlen(index->table_name),
+					thd, TRUE);
+
+				table_name = table_name_buf;
 			}
 
 			mutex_exit(&dict_sys->mutex);
 		}
 
-		OK(field_store_string(
-			fields[IDX_BUF_LRU_PAGE_TABLE_NAME], table_name));
+		if (table_name != NULL) {
+			OK(fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->store(
+					table_name,
+					table_name_bufend - table_name_buf,
+					system_charset_info));
+			fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_notnull();
+		} else {
+			fields[IDX_BUF_LRU_PAGE_TABLE_NAME]->set_null();
+
+		}
 
 		OK(field_store_string(
 			fields[IDX_BUF_LRU_PAGE_INDEX_NAME], index_name));
@@ -6044,7 +6074,7 @@ i_s_sys_tables_fill_table(
 		if (!err_msg) {
 			i_s_dict_fill_sys_tables(thd, table_rec, tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -6345,7 +6375,7 @@ i_s_sys_tables_fill_table_stats(
 			i_s_dict_fill_sys_tablestats(thd, table_rec,
 						     tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -6606,7 +6636,7 @@ i_s_sys_indexes_fill_table(
 			i_s_dict_fill_sys_indexes(thd, table_id, &index_rec,
 						 tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -6846,7 +6876,7 @@ i_s_sys_columns_fill_table(
 						 &column_rec,
 						 tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -7059,7 +7089,7 @@ i_s_sys_fields_fill_table(
 						 pos, tables->table);
 			last_id = index_id;
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -7286,7 +7316,7 @@ i_s_sys_foreign_fill_table(
 			i_s_dict_fill_sys_foreign(thd, &foreign_rec,
 						 tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -7507,7 +7537,7 @@ i_s_sys_foreign_cols_fill_table(
 				thd, name, for_col_name, ref_col_name, pos,
 				tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -7774,7 +7804,7 @@ i_s_sys_tablespaces_fill_table(
 				thd, space, name, flags,
 				tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}
@@ -7966,7 +7996,7 @@ i_s_sys_datafiles_fill_table(
 			i_s_dict_fill_sys_datafiles(
 				thd, space, path, tables->table);
 		} else {
-			push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+			push_warning_printf(thd, Sql_condition::SL_WARNING,
 					    ER_CANT_FIND_SYSTEM_REC, "%s",
 					    err_msg);
 		}

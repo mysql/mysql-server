@@ -90,6 +90,9 @@ SET @@global.key_cache_block_size = 511;
 SELECT @@global.key_cache_block_size;
 SET @@global.key_cache_block_size = 16385;
 SELECT @@global.key_cache_block_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.key_cache_block_size = " ";
+SELECT @@global.key_cache_block_size;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.key_cache_block_size = ON;

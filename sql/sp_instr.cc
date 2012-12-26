@@ -410,9 +410,9 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
   */
 
   if (!rc || !thd->is_error() ||
-      (thd->get_stmt_da()->sql_errno() != ER_CANT_REOPEN_TABLE &&
-       thd->get_stmt_da()->sql_errno() != ER_NO_SUCH_TABLE &&
-       thd->get_stmt_da()->sql_errno() != ER_UPDATE_TABLE_USED))
+      (thd->get_stmt_da()->mysql_errno() != ER_CANT_REOPEN_TABLE &&
+       thd->get_stmt_da()->mysql_errno() != ER_NO_SUCH_TABLE &&
+       thd->get_stmt_da()->mysql_errno() != ER_UPDATE_TABLE_USED))
     thd->stmt_arena->state= Query_arena::STMT_EXECUTED;
 
   /*
@@ -631,7 +631,7 @@ bool sp_lex_instr::validate_lex_and_execute_core(THD *thd,
     if (stmt_reprepare_observer &&
         !thd->is_fatal_error &&
         !thd->killed &&
-        thd->get_stmt_da()->sql_errno() == ER_NEED_REPREPARE &&
+        thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE &&
         reprepare_attempt++ < 3)
     {
       DBUG_ASSERT(stmt_reprepare_observer->is_invalidated());
@@ -935,7 +935,7 @@ void sp_instr_set::print(String *str)
   }
   str->qs_append(m_offset);
   str->qs_append(' ');
-  m_value_item->print(str, QT_ORDINARY);
+  m_value_item->print(str, QT_TO_ARGUMENT_CHARSET);
 }
 
 
@@ -957,7 +957,7 @@ void sp_instr_set_trigger_field::print(String *str)
   str->append(STRING_WITH_LEN("set_trigger_field "));
   m_trigger_field->print(str, QT_ORDINARY);
   str->append(STRING_WITH_LEN(":="));
-  m_value_item->print(str, QT_ORDINARY);
+  m_value_item->print(str, QT_TO_ARGUMENT_CHARSET);
 }
 
 
@@ -1225,7 +1225,7 @@ bool sp_instr_freturn::exec_core(THD *thd, uint *nextp)
   */
 
   Diagnostics_area *da= thd->get_stmt_da();
-  da->clear_warning_info(da->warning_info_id());
+  da->reset_condition_info(da->statement_id());
 
   /*
     Change <next instruction pointer>, so that this will be the last
@@ -1351,13 +1351,6 @@ bool sp_instr_hpop::execute(THD *thd, uint *nextp)
 bool sp_instr_hreturn::execute(THD *thd, uint *nextp)
 {
   /*
-    Remove the SQL conditions that were present in DA when the
-    handler was activated.
-  */
-
-  thd->get_stmt_da()->remove_marked_sql_conditions();
-
-  /*
     Obtain next instruction pointer (m_dest is set for EXIT handlers, retrieve
     the instruction pointer from runtime context for CONTINUE handlers).
   */
@@ -1372,7 +1365,7 @@ bool sp_instr_hreturn::execute(THD *thd, uint *nextp)
   */
 
   sp_instr *next_instr= rctx->sp->get_instr(*nextp);
-  rctx->exit_handler(next_instr->get_parsing_ctx());
+  rctx->exit_handler(thd, next_instr->get_parsing_ctx());
 
   return false;
 }

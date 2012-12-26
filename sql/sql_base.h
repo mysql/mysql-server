@@ -130,12 +130,18 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
   operation rather than explicitly through an user thread.
 */
 #define MYSQL_LOCK_RPL_INFO_TABLE               0x2000
+/**
+  Only check THD::killed if waits happen (e.g. wait on MDL, wait on
+  table flush, wait on thr_lock.c locks) while opening and locking table.
+*/
+#define MYSQL_OPEN_IGNORE_KILLED                0x4000
 
 /** Please refer to the internals manual. */
 #define MYSQL_OPEN_REOPEN  (MYSQL_OPEN_IGNORE_FLUSH |\
                             MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |\
                             MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |\
                             MYSQL_LOCK_IGNORE_TIMEOUT |\
+                            MYSQL_OPEN_IGNORE_KILLED |\
                             MYSQL_OPEN_GET_NEW_TABLE |\
                             MYSQL_OPEN_HAS_MDL_LOCK)
 
@@ -593,7 +599,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 

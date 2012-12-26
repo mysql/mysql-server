@@ -260,7 +260,8 @@ btr_pcur_restore_position_func(
 
 		btr_cur_open_at_index_side(
 			cursor->rel_pos == BTR_PCUR_BEFORE_FIRST_IN_TREE,
-			index, latch_mode, btr_pcur_get_btr_cur(cursor), mtr);
+			index, latch_mode,
+			btr_pcur_get_btr_cur(cursor), 0, mtr);
 
 		cursor->latch_mode = latch_mode;
 		cursor->pos_state = BTR_PCUR_IS_POSITIONED;

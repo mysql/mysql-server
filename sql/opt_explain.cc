@@ -305,9 +305,10 @@ protected:
   virtual bool explain_partitions();
   virtual bool explain_possible_keys();
 
+  bool explain_key_parts(int key, uint key_parts);
   bool explain_key_and_len_quick(const SQL_SELECT *select);
   bool explain_key_and_len_index(int key);
-  bool explain_key_and_len_index(int key, uint key_length);
+  bool explain_key_and_len_index(int key, uint key_length, uint key_parts);
   bool explain_extra_common(const SQL_SELECT *select,
                             const JOIN_TAB *tab,
                             int quick_type,
@@ -880,33 +881,52 @@ bool Explain_table_base::explain_possible_keys()
 }
 
 
+bool Explain_table_base::explain_key_parts(int key, uint key_parts)
+{
+  KEY_PART_INFO *kp= table->key_info[key].key_part;
+  for (uint i= 0; i < key_parts; i++, kp++)
+    if (fmt->entry()->col_key_parts.push_back(kp->field->field_name))
+      return true;
+  return false;
+}
+
+
 bool Explain_table_base::explain_key_and_len_quick(const SQL_SELECT *select)
 {
   DBUG_ASSERT(select && select->quick);
 
+  bool ret= false;
   StringBuffer<512> str_key(cs);
   StringBuffer<512> str_key_len(cs);
 
+  if (select->quick->index != MAX_KEY)
+    ret= explain_key_parts(select->quick->index,
+                           select->quick->used_key_parts);
   select->quick->add_keys_and_lengths(&str_key, &str_key_len);
-  return fmt->entry()->col_key.set(str_key) || fmt->entry()->col_key_len.set(str_key_len);
+  return (ret || fmt->entry()->col_key.set(str_key) ||
+          fmt->entry()->col_key_len.set(str_key_len));
 }
 
 
 bool Explain_table_base::explain_key_and_len_index(int key)
 {
   DBUG_ASSERT(key != MAX_KEY);
-  return explain_key_and_len_index(key, table->key_info[key].key_length);
+  return explain_key_and_len_index(key, table->key_info[key].key_length,
+                                   table->key_info[key].user_defined_key_parts);
 }
 
 
-bool Explain_table_base::explain_key_and_len_index(int key, uint key_length)
+bool Explain_table_base::explain_key_and_len_index(int key, uint key_length,
+                                                   uint key_parts)
 {
   DBUG_ASSERT(key != MAX_KEY);
 
-  const KEY *key_info= table->key_info + key;
   char buff_key_len[24];
+  const KEY *key_info= table->key_info + key;
   const int length= longlong2str(key_length, buff_key_len, 10) - buff_key_len;
-  return fmt->entry()->col_key.set(key_info->name) || fmt->entry()->col_key_len.set(buff_key_len, length);
+  const bool ret= explain_key_parts(key, key_parts);
+  return (ret || fmt->entry()->col_key.set(key_info->name) ||
+          fmt->entry()->col_key_len.set(buff_key_len, length));
 }
 
 
@@ -1323,7 +1343,8 @@ bool Explain_join::explain_join_type()
 bool Explain_join::explain_key_and_len()
 {
   if (tab->ref.key_parts)
-    return explain_key_and_len_index(tab->ref.key, tab->ref.key_length);
+    return explain_key_and_len_index(tab->ref.key, tab->ref.key_length,
+                                     tab->ref.key_parts);
   else if (tab->type == JT_INDEX_SCAN)
     return explain_key_and_len_index(tab->index);
   else if (select && select->quick)
@@ -1676,10 +1697,10 @@ bool Explain_table::explain_join_type()
 
 bool Explain_table::explain_key_and_len()
 {
-  if (key != MAX_KEY)
-    return explain_key_and_len_index(key);
   if (select && select->quick)
     return explain_key_and_len_quick(select);
+  else if (key != MAX_KEY)
+    return explain_key_and_len_index(key);
   return false;
 }
 
@@ -2006,7 +2027,7 @@ bool explain_query_expression(THD *thd, select_result *result)
     thd->lex->unit.print(&str, enum_query_type(QT_TO_SYSTEM_CHARSET |
                                                QT_SHOW_SELECT_NUMBER));
     str.append('\0');
-    push_warning(thd, Sql_condition::WARN_LEVEL_NOTE, ER_YES, str.ptr());
+    push_warning(thd, Sql_condition::SL_NOTE, ER_YES, str.ptr());
   }
   if (res)
     result->abort_result_set();

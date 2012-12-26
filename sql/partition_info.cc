@@ -223,6 +223,16 @@ bool partition_info::set_partition_bitmaps(TABLE_LIST *table_list)
       table_list->partition_names &&
       table_list->partition_names->elements)
   {
+    if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
+    {
+        /*
+          Don't allow PARTITION () clause on a NDB tables yet.
+          TODO: Add partition name handling to NDB/partition_info.
+          which is currently ha_partition specific.
+        */
+        my_error(ER_PARTITION_CLAUSE_ON_NONPARTITIONED, MYF(0));
+        DBUG_RETURN(true);
+    }
     if (prune_partition_bitmaps(table_list))
       DBUG_RETURN(TRUE);
   }
@@ -273,6 +283,9 @@ bool partition_info::can_prune_insert(THD* thd,
   *can_prune_partitions= PRUNE_NO;
   DBUG_ASSERT(bitmaps_are_initialized);
   DBUG_ENTER("partition_info::can_prune_insert");
+
+  if (table->s->db_type()->partition_flags() & HA_USE_AUTO_PARTITION)
+    DBUG_RETURN(false); /* Should not insert prune NDB tables */
 
   /*
     If under LOCK TABLES pruning will skip start_stmt instead of external_lock
@@ -1528,11 +1541,11 @@ static void warn_if_dir_in_part_elem(THD *thd, partition_element *part_elem)
   if (thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE)
   {
     if (part_elem->data_file_name)
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "DATA DIRECTORY");
     if (part_elem->index_file_name)
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
                           WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                           "INDEX DIRECTORY");
     part_elem->data_file_name= part_elem->index_file_name= NULL;

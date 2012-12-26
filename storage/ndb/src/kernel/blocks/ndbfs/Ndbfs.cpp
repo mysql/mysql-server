@@ -275,6 +275,22 @@ Ndbfs::execREAD_CONFIG_REQ(Signal* signal)
   Uint32 noIdleFiles = 27;
 
   ndb_mgm_get_int_parameter(p, CFG_DB_INITIAL_OPEN_FILES, &noIdleFiles);
+
+  {
+    /**
+     * each logpart keeps up to 3 logfiles open at any given time...
+     *   (bound)
+     * make sure noIdleFiles is atleast 4 times #logparts
+     */
+    Uint32 logParts = NDB_DEFAULT_LOG_PARTS;
+    ndb_mgm_get_int_parameter(p, CFG_DB_NO_REDOLOG_PARTS, &logParts);
+    Uint32 logfiles = 4 * logParts;
+    if (noIdleFiles < logfiles)
+    {
+      noIdleFiles = logfiles;
+    }
+  }
+
   // Make sure at least "noIdleFiles" files can be created
   if (noIdleFiles > m_maxFiles && m_maxFiles != 0)
     m_maxFiles = noIdleFiles;
@@ -569,7 +585,7 @@ Ndbfs::execFSCLOSEREQ(Signal * signal)
 void 
 Ndbfs::readWriteRequest(int action, Signal * signal)
 {
-  Uint32 theData[25 + 2 * 32];
+  Uint32 theData[25 + 2 * NDB_FS_RW_PAGES];
   memcpy(theData, signal->theData, 4 * signal->getLength());
   SectionHandle handle(this, signal);
   if (handle.m_cnt > 0)

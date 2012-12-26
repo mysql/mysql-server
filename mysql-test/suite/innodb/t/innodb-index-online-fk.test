@@ -15,7 +15,7 @@ CREATE INDEX tb ON child(a2);
 
 INSERT INTO child VALUES(10,20);
 
---error ER_NOT_SUPPORTED_YET
+--error ER_ALTER_OPERATION_NOT_SUPPORTED_REASON
 ALTER TABLE child ADD FOREIGN KEY(a2) REFERENCES parent(b),
 ALGORITHM = INPLACE;
 
@@ -103,7 +103,7 @@ SELECT * FROM information_schema.INNODB_SYS_FOREIGN;
 
 SELECT * FROM information_schema.INNODB_SYS_FOREIGN_COLS;
 
-SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
+SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 
@@ -297,7 +297,7 @@ SET DEBUG = '-d,innodb_test_cannot_add_fk_system';
 
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
-SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
+SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 
 # This should be successful. It will also check any left over
@@ -310,7 +310,7 @@ ALGORITHM = INPLACE;
 
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
-SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
+SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 
 SHOW CREATE TABLE child;
@@ -327,7 +327,7 @@ ALGORITHM = INPLACE;
 
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
-SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
+SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 
 SHOW CREATE TABLE child;
@@ -343,7 +343,7 @@ ALGORITHM = INPLACE;
 
 SELECT * from information_schema.INNODB_SYS_FOREIGN;
 SELECT * from information_schema.INNODB_SYS_FOREIGN_COLS;
-SELECT NAME, POS FROM information_schema.INNODB_SYS_COLUMNS;
+SELECT t2.name, t1.name FROM information_schema.innodb_sys_columns t1, information_schema.innodb_sys_tables t2 WHERE t1.table_id = t2.table_id AND t2.name LIKE "%child" ORDER BY t1.name;
 SELECT NAME FROM information_schema.INNODB_SYS_TABLES;
 
 SHOW CREATE TABLE child;
@@ -473,3 +473,23 @@ ALGORITHM = INPLACE;
 
 DROP TABLE Child;
 DROP TABLE Parent;
+
+# This is the test for bug 14594526 - FK: ASSERTION IN
+# DICT_TABLE_CHECK_FOR_DUP_INDEXES
+CREATE TABLE `t2`(a int,c int,d int) ENGINE=INNODB;
+CREATE TABLE `t3`(a int,c int,d int) ENGINE=INNODB;
+CREATE INDEX idx ON t3(a);
+
+ALTER TABLE `t2` ADD CONSTRAINT `fw` FOREIGN KEY (`c`) REFERENCES t3 (a);
+
+ALTER TABLE `t2` ADD CONSTRAINT `e` foreign key (`d`) REFERENCES t3(a);
+
+--error ER_FK_FAIL_ADD_SYSTEM
+ALTER TABLE `t3` ADD CONSTRAINT `e` foreign key (`c`) REFERENCES `t2`(`c`) ON UPDATE SET NULL;
+
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
+SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
+
+DROP TABLE t2;
+
+DROP TABLE t3;

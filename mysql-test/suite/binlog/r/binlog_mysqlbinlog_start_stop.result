@@ -1,0 +1,1790 @@
+CREATE TABLE t1 (a INT);
+RESET MASTER;
+SET TIMESTAMP= UNIX_TIMESTAMP("2031-01-01 12:00:00");
+INSERT INTO t1 VALUES(1);
+SET TIMESTAMP= UNIX_TIMESTAMP("2032-01-01 12:00:00");
+INSERT INTO t1 VALUES(2);
+SET TIMESTAMP= UNIX_TIMESTAMP("2033-01-01 12:00:00");
+INSERT INTO t1 VALUES(3);
+FLUSH LOGS;
+SET TIMESTAMP= UNIX_TIMESTAMP("2034-01-01 12:00:00");
+INSERT INTO t1 VALUES(4);
+SET TIMESTAMP= UNIX_TIMESTAMP("2035-01-01 12:00:00");
+INSERT INTO t1 VALUES(5);
+FLUSH LOGS;
+
+==== Local ====
+
+---- base64-output ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- offset ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- stop-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-position stop-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- stop-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-datetime stop-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+==== Local with 2 binlogs on command line ====
+
+---- base64-output ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+INSERT INTO t1 VALUES(5)
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- offset ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+INSERT INTO t1 VALUES(5)
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+INSERT INTO t1 VALUES(5)
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- stop-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-position stop-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+INSERT INTO t1 VALUES(5)
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- stop-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-datetime stop-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+==== Remote ====
+
+---- base64-output ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- offset ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- stop-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-position stop-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- stop-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-datetime stop-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+==== Remote with 2 binlogs on command line ====
+
+---- base64-output ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+INSERT INTO t1 VALUES(5)
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- offset ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+INSERT INTO t1 VALUES(5)
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+INSERT INTO t1 VALUES(5)
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- stop-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-position stop-position ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+INSERT INTO t1 VALUES(5)
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- stop-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- start-datetime stop-datetime ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+DELIMITER /*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+---- to-last-log ----
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+ROLLBACK/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+SET @@session.pseudo_thread_id=999999999/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+BEGIN
+/*!*/;
+use `test`/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+INSERT INTO t1 VALUES(1)
+/*!*/;
+SET TIMESTAMP=1925024400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+INSERT INTO t1 VALUES(2)
+/*!*/;
+SET TIMESTAMP=1956560400/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+INSERT INTO t1 VALUES(3)
+/*!*/;
+SET TIMESTAMP=1988182800/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+INSERT INTO t1 VALUES(4)
+/*!*/;
+SET TIMESTAMP=2019718800/*!*/;
+COMMIT
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+BEGIN
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+INSERT INTO t1 VALUES(5)
+/*!*/;
+SET TIMESTAMP=2051254800/*!*/;
+COMMIT
+/*!*/;
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+
+==== clean up ====
+DROP TABLE t1;

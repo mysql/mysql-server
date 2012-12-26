@@ -61,6 +61,7 @@ static struct errentry errtable[]= {
   {  ERROR_BROKEN_PIPE,            EPIPE     },  /* 109 */
   {  ERROR_DISK_FULL,              ENOSPC    },  /* 112 */
   {  ERROR_INVALID_TARGET_HANDLE,  EBADF     },  /* 114 */
+  {  ERROR_INVALID_NAME,           ENOENT    },  /* 123 */
   {  ERROR_INVALID_HANDLE,         EINVAL    },  /* 124 */
   {  ERROR_WAIT_NO_CHILDREN,       ECHILD    },  /* 128 */
   {  ERROR_CHILD_NOT_COMPLETE,     ECHILD    },  /* 129 */
@@ -118,7 +119,12 @@ static int get_errno_from_oserr(unsigned long oserrno)
 }
 
 /* Set errno corresponsing to GetLastError() value */
-void my_osmaperr ( unsigned long oserrno)
+void my_osmaperr( unsigned long oserrno)
 {
-    errno= get_errno_from_oserr(oserrno);
+  /*
+    set my_winerr so that we could return the Windows Error Code
+    when it is EINVAL.
+  */
+  my_winerr= oserrno;
+  errno= get_errno_from_oserr(oserrno);
 }

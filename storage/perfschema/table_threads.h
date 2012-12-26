@@ -32,9 +32,9 @@ struct PFS_thread;
 struct row_threads
 {
   /** Column THREAD_ID. */
-  ulong m_thread_internal_id;
+  ulonglong m_thread_internal_id;
   /** Column PROCESSLIST_ID. */
-  ulong m_thread_id;
+  ulonglong m_processlist_id;
   /** Column NAME. */
   const char* m_name;
   /** Length in bytes of @c m_name. */
@@ -66,7 +66,7 @@ struct row_threads
   /** Column INSTRUMENTED. */
   bool *m_enabled_ptr;
   /** Column PARENT_THREAD_ID. */
-  ulong m_parent_thread_internal_id;
+  ulonglong m_parent_thread_internal_id;
 };
 
 /** Table PERFORMANCE_SCHEMA.THREADS. */

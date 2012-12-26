@@ -250,6 +250,9 @@ struct sync_level_t{
 					latch == NULL then this will contain
 					the ordinal value of the next free
 					element */
+	ulint		count;		/*!< Numbe of times this latch has
+					been locked at this level.  Allows
+					for recursive locking */
 };
 #endif /* UNIV_SYNC_DEBUG */
 
@@ -278,7 +281,7 @@ mutex_create_func(
 	os_fast_mutex_init(PFS_NOT_INSTRUMENTED, &mutex->os_fast_mutex);
 	mutex->lock_word = 0;
 #endif
-	mutex->event = os_event_create(NULL);
+	mutex->event = os_event_create();
 	mutex_set_waiters(mutex, 0);
 #ifdef UNIV_DEBUG
 	mutex->magic_n = MUTEX_MAGIC_N;
@@ -887,6 +890,29 @@ sync_thread_levels_contain(
 }
 
 /******************************************************************//**
+Checks if the level value and latch is already stored in the level array.
+@return	slot if found or NULL */
+static
+sync_level_t*
+sync_thread_levels_find(
+/*====================*/
+	sync_arr_t*	arr,	/*!< in: pointer to level array for an OS
+				thread */
+	void*		latch,	/*!< in: pointer to a mutex or an rw-lock */
+	ulint		level)	/*!< in: level */
+{
+	for (ulint i = 0; i < arr->n_elems; i++) {
+		sync_level_t*	slot = &arr->elems[i];
+
+		if (slot->latch == latch && slot->level == level) {
+			return(slot);
+		}
+	}
+
+	return(NULL);
+}
+
+/******************************************************************//**
 Checks if the level array for the current thread contains a
 mutex or rw-latch at the specified level.
 @return	a matching latch, or NULL if not found */
@@ -1313,6 +1339,16 @@ sync_thread_add_level(
 	}
 
 levels_ok:
+	/* Look for this latch and level in the active list. If it is
+	already there, then this is a recursive lock. */
+	slot = sync_thread_levels_find(array, latch, level);
+	if (slot != NULL) {
+		slot->count++;
+		mutex_exit(&sync_thread_mutex);
+		return;
+	}
+
+	/* Get a free slot to track this level and latch */
 	if (array->next_free == ULINT_UNDEFINED) {
 		ut_a(array->n_elems < array->max_elems);
 
@@ -1333,6 +1369,7 @@ levels_ok:
 
 	slot->latch = latch;
 	slot->level = level;
+	slot->count = 1;
 
 	mutex_exit(&sync_thread_mutex);
 }
@@ -1386,6 +1423,15 @@ sync_thread_reset_level(
 
 		if (slot->latch != latch) {
 			continue;
+		}
+
+		if (slot->count > 1) {
+			/* Found a latch recursively locked */
+			slot->count--;
+
+			mutex_exit(&sync_thread_mutex);
+
+			return(TRUE);
 		}
 
 		slot->latch = NULL;
@@ -1475,7 +1521,7 @@ sync_init(void)
 	mutex_create(rw_lock_debug_mutex_key, &rw_lock_debug_mutex,
 		     SYNC_NO_ORDER_CHECK);
 
-	rw_lock_debug_event = os_event_create(NULL);
+	rw_lock_debug_event = os_event_create();
 	rw_lock_debug_waiters = FALSE;
 #endif /* UNIV_SYNC_DEBUG */
 }

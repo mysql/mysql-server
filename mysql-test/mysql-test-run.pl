@@ -313,8 +313,9 @@ sub check_timeout ($) { return testcase_timeout($_[0]) / 10; }
 
 our $opt_warnings= 1;
 
-our $opt_include_ndbcluster= 0;
-our $opt_skip_ndbcluster= 1;
+our $ndbcluster_enabled= 0;
+my $opt_include_ndbcluster= 0;
+my $opt_skip_ndbcluster= 0;
 
 my $exe_ndbd;
 my $exe_ndbmtd;
@@ -336,14 +337,6 @@ my $opt_parallel= $ENV{MTR_PARALLEL} || 1;
 
 select(STDOUT);
 $| = 1; # Automatically flush STDOUT
-
-# Used by --result-file for for formatting times
-
-sub isotime($) {
-  my ($sec,$min,$hr,$day,$mon,$yr)= gmtime($_[0]);
-  return sprintf "%d-%02d-%02dT%02d:%02d:%02dZ",
-    $yr+1900, $mon+1, $day, $hr, $min, $sec;
-}
 
 main();
 
@@ -368,26 +361,6 @@ sub main {
 
   if (!$opt_suites) {
     $opt_suites= $DEFAULT_SUITES;
-
-    # Check for any extra suites to enable based on the path name
-    my %extra_suites=
-      (
-       "mysql-5.1-new-ndb"              => "ndb_team",
-       "mysql-5.1-new-ndb-merge"        => "ndb_team",
-       "mysql-5.1-telco-6.2"            => "ndb_team",
-       "mysql-5.1-telco-6.2-merge"      => "ndb_team",
-       "mysql-5.1-telco-6.3"            => "ndb_team",
-       "mysql-6.0-ndb"                  => "ndb_team",
-      );
-
-    foreach my $dir ( reverse splitdir($basedir) ) {
-      my $extra_suite= $extra_suites{$dir};
-      if (defined $extra_suite) {
-	mtr_report("Found extra suite: $extra_suite");
-	$opt_suites= "$extra_suite,$opt_suites";
-	last;
-      }
-    }
   }
   mtr_report("Using suites: $opt_suites") unless @opt_cases;
 
@@ -461,6 +434,7 @@ sub main {
 
   # Also read from any plugin local or suite specific plugin.defs
   for (glob "$basedir/plugin/*/tests/mtr/plugin.defs".
+            " $basedir/internal/plugin/*/tests/mtr/plugin.defs".
             " suite/*/plugin.defs") {
     read_plugin_defs($_);
   }
@@ -1076,7 +1050,7 @@ sub command_line_setup {
              # Control what test suites or cases to run
              'force'                    => \$opt_force,
              'with-ndbcluster-only'     => \&collect_option,
-             'include-ndbcluster'       => \$opt_include_ndbcluster,
+             'ndb|include-ndbcluster'   => \$opt_include_ndbcluster,
              'skip-ndbcluster|skip-ndb' => \$opt_skip_ndbcluster,
              'suite|suites=s'           => \$opt_suites,
              'skip-rpl'                 => \&collect_option,
@@ -1531,7 +1505,6 @@ sub command_line_setup {
       }
       $ENV{'PATH'}= "$ENV{'PATH'}".$separator.$lib_mysqld;
     }
-    $opt_skip_ndbcluster= 1;       # Turn off use of NDB cluster
     $opt_skip_ssl= 1;              # Turn off use of SSL
 
     # Turn off use of bin log
@@ -2025,7 +1998,7 @@ sub executable_setup () {
                          "$bindir/libmysqld/examples/mysql_embedded",
                          "$bindir/bin/mysql_embedded");
 
-  if ( ! $opt_skip_ndbcluster )
+  if ( $ndbcluster_enabled )
   {
     # Look for single threaded NDB
     $exe_ndbd=
@@ -2163,17 +2136,10 @@ sub mysqldump_arguments ($) {
 sub mysql_client_test_arguments(){
   my $exe;
   # mysql_client_test executable may _not_ exist
-  if ( $opt_embedded_server ) {
-    $exe= mtr_exe_maybe_exists(
-            vs_config_dirs('libmysqld/examples','mysql_client_test_embedded'),
-	      "$basedir/libmysqld/examples/mysql_client_test_embedded",
-		"$basedir/bin/mysql_client_test_embedded");
-  } else {
-    $exe= mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
-			       "$basedir/tests/mysql_client_test",
-			       "$basedir/bin/mysql_client_test");
-  }
-
+  $exe= mtr_exe_maybe_exists(vs_config_dirs('tests', 'mysql_client_test'),
+			     "$basedir/tests/mysql_client_test",
+			     "$basedir/bin/mysql_client_test");
+  return "" unless $exe;
   my $args;
   mtr_init_args(\$args);
   if ( $opt_valgrind_mysqltest ) {
@@ -2308,7 +2274,7 @@ sub environment_setup {
   # --------------------------------------------------------------------------
   # Add the path where libndbclient can be found
   # --------------------------------------------------------------------------
-  if ( !$opt_skip_ndbcluster )
+  if ( $ndbcluster_enabled )
   {
     push(@ld_library_paths,  
 	 "$basedir/storage/ndb/src/.libs",
@@ -2402,7 +2368,7 @@ sub environment_setup {
   # ----------------------------------------------------
   # Setup env for NDB
   # ----------------------------------------------------
-  if ( ! $opt_skip_ndbcluster )
+  if ( $ndbcluster_enabled )
   {
     $ENV{'NDB_MGM'}=
       my_find_bin($bindir,
@@ -2834,37 +2800,87 @@ sub vs_config_dirs ($$) {
 sub check_ndbcluster_support ($) {
   my $mysqld_variables= shift;
 
+  my $ndbcluster_supported = 0;
+  if ($mysqld_variables{'ndb-connectstring'})
+  {
+    $ndbcluster_supported = 1;
+  }
+
+  if ($opt_skip_ndbcluster && $opt_include_ndbcluster)
+  {
+    # User is ambivalent. Theoretically the arg which was
+    # given last on command line should win, but that order is
+    # unknown at this time.
+    mtr_error("Ambigous command, both --include-ndbcluster " .
+	      " and --skip-ndbcluster was specified");
+  }
+
   # Check if this is MySQL Cluster, ie. mysql version string ends
   # with -ndb-Y.Y.Y[-status]
   if ( defined $mysql_version_extra &&
-       $mysql_version_extra =~ /^-ndb-/ )
+       $mysql_version_extra =~ /-ndb-([0-9]*)\.([0-9]*)\.([0-9]*)/ )
   {
-    mtr_report(" - MySQL Cluster");
-    # Enable ndb engine and add more test suites
-    $opt_include_ndbcluster = 1;
-    $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache";
+    # MySQL Cluster tree
+    mtr_report(" - MySQL Cluster detected");
+
+    if ($opt_skip_ndbcluster)
+    {
+      mtr_report(" - skipping ndbcluster(--skip-ndbcluster)");
+      return;
+    }
+
+    if (!$ndbcluster_supported)
+    {
+      # MySQL Cluster tree, but mysqld was not compiled with
+      # ndbcluster -> fail unless --skip-ndbcluster was used
+      mtr_error("This is MySQL Cluster but mysqld does not " .
+		"support ndbcluster. Use --skip-ndbcluster to " .
+		"force mtr to run without it.");
+    }
+
+    # mysqld was compiled with ndbcluster -> auto enable
+  }
+  else
+  {
+    # Not a MySQL Cluster tree
+    if (!$ndbcluster_supported)
+    {
+      if ($opt_include_ndbcluster)
+      {
+	mtr_error("Could not detect ndbcluster support ".
+		  "requested with --include-ndbcluster");
+      }
+
+      # Silently skip, mysqld was compiled without ndbcluster
+      # which is the default case
+      return;
+    }
+
+    if ($opt_skip_ndbcluster)
+    {
+      # Compiled with ndbcluster but ndbcluster skipped
+      mtr_report(" - skipping ndbcluster(--skip-ndbcluster)");
+      return;
+    }
+
+
+    # Not a MySQL Cluster tree, enable ndbcluster
+    # if --include-ndbcluster was used
+    if ($opt_include_ndbcluster)
+    {
+      # enable ndbcluster
+    }
+    else
+    {
+      mtr_report(" - skipping ndbcluster(disabled by default)");
+      return;
+    }
   }
 
-  if ($opt_include_ndbcluster)
-  {
-    $opt_skip_ndbcluster= 0;
-  }
-
-  if ($opt_skip_ndbcluster)
-  {
-    mtr_report(" - skipping ndbcluster");
-    return;
-  }
-
-  if ( ! $mysqld_variables{'ndb-connectstring'} )
-  {
-    mtr_report(" - skipping ndbcluster, mysqld not compiled with ndbcluster");
-    $opt_skip_ndbcluster= 2;
-    return;
-  }
-
-  mtr_report(" - using ndbcluster when necessary, mysqld supports it");
-
+  mtr_report(" - enabling ndbcluster");
+  $ndbcluster_enabled= 1;
+  # Add MySQL Cluster test suites
+  $DEFAULT_SUITES.=",ndb,ndb_binlog,rpl_ndb,ndb_rpl,ndb_memcache";
   return;
 }
 
@@ -3081,10 +3097,17 @@ sub ndbd_start {
 # > 5.0 { 'character-sets-dir' => \&fix_charset_dir },
 
   my $exe= $exe_ndbd;
-  if ($exe_ndbmtd and ($exe_ndbmtd_counter++ % 2) == 0)
-  {
-    # Use ndbmtd every other time
-    $exe= $exe_ndbmtd;
+  if ($exe_ndbmtd)
+  { if ($ENV{MTR_NDBMTD})
+    {
+      # ndbmtd forced by env var MTR_NDBMTD
+      $exe= $exe_ndbmtd;
+    }
+    if (($exe_ndbmtd_counter++ % 2) == 0)
+    {
+      # Use ndbmtd every other time
+      $exe= $exe_ndbmtd;
+    }
   }
 
   my $path_ndbd_log= "$dir/ndbd.log";
@@ -3474,6 +3497,7 @@ sub mysql_install_db {
   mtr_add_arg($args, "--loose-skip-falcon");
   mtr_add_arg($args, "--loose-skip-ndbcluster");
   mtr_add_arg($args, "--tmpdir=%s", "$opt_vardir/tmp/");
+  mtr_add_arg($args, "--innodb-log-file-size=5M");
   mtr_add_arg($args, "--core-file");
   # over writing innodb_autoextend_increment to 8 for reducing the ibdata1 file size 
   mtr_add_arg($args, "--innodb_autoextend_increment=8");
@@ -5107,6 +5131,7 @@ sub mysqld_arguments ($$$) {
   # override defaults above.
 
   my $found_skip_core= 0;
+  my $found_no_console= 0;
   foreach my $arg ( @$extra_opts )
   {
     # Skip --defaults-file option since it's handled above.
@@ -5116,6 +5141,10 @@ sub mysqld_arguments ($$$) {
     if ($arg eq "--skip-core-file")
     {
       $found_skip_core= 1;
+    }
+    elsif ($arg eq "--no-console")
+    {
+        $found_no_console= 1;
     }
     elsif ($skip_binlog and mtr_match_prefix($arg, "--binlog-format"))
     {
@@ -5137,6 +5166,11 @@ sub mysqld_arguments ($$$) {
     }
   }
   $opt_skip_core = $found_skip_core;
+  if (IS_WINDOWS && !$found_no_console)
+  {
+    # Trick the server to send output to stderr, with --console
+    mtr_add_arg($args, "--console");
+  }
   if ( !$found_skip_core && !$opt_user_args )
   {
     mtr_add_arg($args, "%s", "--core-file");
@@ -5188,12 +5222,6 @@ sub mysqld_start ($$) {
   {
     mtr_add_arg($args, "--debug=$debug_d:t:i:A,%s/log/%s.trace",
 		$path_vardir_trace, $mysqld->name());
-  }
-
-  if (IS_WINDOWS)
-  {
-    # Trick the server to send output to stderr, with --console
-    mtr_add_arg($args, "--console");
   }
 
   if ( $opt_gdb || $opt_manual_gdb )
@@ -5452,10 +5480,20 @@ sub stopped { return grep(!defined $_, map($_->{proc}, @_)); }
 
 sub envsubst {
   my $string= shift;
-
-  if ( ! defined $ENV{$string} )
+# Check for the ? symbol in the var name and remove it.
+  if ( $string =~ s/^\?// )
   {
-    mtr_error(".opt file references '$string' which is not set");
+    if ( ! defined $ENV{$string} )
+    {
+      return "";
+    }
+  }
+  else
+  {
+    if ( ! defined $ENV{$string} )
+    {
+      mtr_error(".opt file references '$string' which is not set");
+    }
   }
 
   return $ENV{$string};
@@ -5475,8 +5513,8 @@ sub get_extra_opts {
   # Expand environment variables
   foreach my $opt ( @$opts )
   {
-    $opt =~ s/\$\{(\w+)\}/envsubst($1)/ge;
-    $opt =~ s/\$(\w+)/envsubst($1)/ge;
+    $opt =~ s/\$\{(\??\w+)\}/envsubst($1)/ge;
+    $opt =~ s/\$(\??\w+)/envsubst($1)/ge;
   }
   return $opts;
 }
@@ -5876,12 +5914,6 @@ sub start_mysqltest ($) {
     my $extra_opts= get_extra_opts($mysqld, $tinfo);
     mysqld_arguments($mysqld_args, $mysqld, $extra_opts);
     mtr_add_arg($args, "--server-arg=%s", $_) for @$mysqld_args;
-
-    if (IS_WINDOWS)
-    {
-      # Trick the server to send output to stderr, with --console
-      mtr_add_arg($args, "--server-arg=--console");
-    }
   }
 
   # ----------------------------------------------------------------------
@@ -6202,6 +6234,7 @@ sub valgrind_exit_reports() {
     my $valgrind_rep= "";
     my $found_report= 0;
     my $err_in_report= 0;
+    my $ignore_report= 0;
 
     my $LOGF = IO::File->new($log_file)
       or mtr_error("Could not open file '$log_file' for reading: $!");
@@ -6231,8 +6264,15 @@ sub valgrind_exit_reports() {
         push (@culprits, $testname);
         next;
       }
+      # This line marks a report to be ignored
+      $ignore_report=1 if $line =~ /VALGRIND_DO_QUICK_LEAK_CHECK/;
       # This line marks the start of a valgrind report
       $found_report= 1 if $line =~ /^==\d+== .* SUMMARY:/;
+
+      if ($ignore_report && $found_report) {
+        $ignore_report= 0;
+        $found_report= 0;
+      }
 
       if ($found_report) {
         $line=~ s/^==\d+== //;
@@ -6265,6 +6305,7 @@ sub run_ctest() {
 
   # Just ignore if not configured/built to run ctest
   if (! -f "CTestTestfile.cmake") {
+    mtr_report("No unit tests found.");
     chdir($olddir);
     return;
   }
@@ -6275,6 +6316,7 @@ sub run_ctest() {
   # Also silently ignore if we don't have ctest and didn't insist
   # Special override: also ignore in Pushbuild, some platforms may not have it
   # Now, run ctest and collect output
+  $ENV{CTEST_OUTPUT_ON_FAILURE} = 1;
   my $ctest_out= `ctest $ctest_vs 2>&1`;
   if ($? == $no_ctest && $opt_ctest == -1 && ! defined $ENV{PB2WORKDIR}) {
     chdir($olddir);

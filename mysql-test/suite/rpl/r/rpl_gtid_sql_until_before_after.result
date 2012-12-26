@@ -66,7 +66,7 @@ include/wait_for_slave_sql_to_stop.inc
 include/assert.inc [Rows until 9 in t1 must be replicated now]
 Sync slave with master
 include/start_slave.inc
-SELECT SQL_THREAD_WAIT_AFTER_GTIDS('MASTER_UUID:10');
+SELECT WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS('MASTER_UUID:10');
 include/assert.inc [Rows until 10 in t1 must be replicated now]
 DROP TABLE t1;
 include/rpl_end.inc

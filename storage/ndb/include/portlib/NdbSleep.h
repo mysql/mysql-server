@@ -20,6 +20,54 @@
 
 #include <ndb_global.h>
 
+static inline void NdbSleep_MilliSleep(int milliseconds);
+
+static inline
+void NdbSleep_MicroSleep(int microseconds)
+{
+  assert(0 < microseconds);
+#ifdef _WIN32
+  // Waitable timer use 100ns time unit, negative for relative time periods
+  LARGE_INTEGER liDueTime;
+  liDueTime.QuadPart = -10LL * microseconds;
+
+  HANDLE hTimer = CreateWaitableTimer(NULL, TRUE, NULL);
+  if (NULL == hTimer ||
+      !SetWaitableTimer(hTimer, &liDueTime, 0, NULL, NULL, 0) ||
+      WaitForSingleObject(hTimer, INFINITE) != WAIT_OBJECT_0)
+  {
+#ifndef NDEBUG
+    // Error code for crash analysis
+    DWORD winerr = GetLastError();
+#endif
+    assert(false);
+    // Fallback to millisleep in release
+    NdbSleep_MilliSleep(1 + (microseconds - 1) / 1000);
+  }
+  if (NULL != hTimer)
+  {
+    CloseHandle(hTimer);
+  }
+#elif defined(HAVE_NANOSLEEP)
+  struct timespec t;
+  t.tv_sec = microseconds / 1000000;
+  t.tv_nsec = 1000 * (microseconds % 1000000);
+  while (nanosleep(&t, &t) == -1)
+  {
+    if (errno != EINTR)
+    {
+      assert(false);
+      // Fallback to millisleep in release
+      NdbSleep_MilliSleep(1 + (microseconds - 1) / 1000);
+      return ;
+    }
+  }
+#else
+  // Fallback to millisleep
+  NdbSleep_MilliSleep(1 + (microseconds - 1) / 1000);
+#endif
+}
+
 static inline
 void NdbSleep_MilliSleep(int milliseconds)
 {

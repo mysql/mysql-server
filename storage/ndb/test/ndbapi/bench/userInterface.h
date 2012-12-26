@@ -57,6 +57,8 @@ extern "C" {
   extern Ndb   *asyncDbConnect(int parallellism);
   extern void    asyncDbDisconnect(Ndb* pNDB);
 
+  extern void getRandomSubscriberNumber(SubscriberNumber number);
+
   extern void start_T1(Ndb * uh, ThreadData * data, int async);
   extern void start_T2(Ndb * uh, ThreadData * data, int async);
   extern void start_T3(Ndb * uh, ThreadData * data, int async);

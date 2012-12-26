@@ -22,11 +22,23 @@ select @@global.flush_time;
 1
 set session flush_time=1;
 ERROR HY000: Variable 'flush_time' is a GLOBAL variable and should be set with SET GLOBAL
+SET global flush_time = DEFAULT;
+SELECT @@global.flush_time;
+@@global.flush_time
+0
+SET @@global.flush_time = -1024;
+Warnings:
+Warning	1292	Truncated incorrect flush_time value: '-1024'
+SELECT @@global.flush_time;
+@@global.flush_time
+0
 set global flush_time=1.1;
 ERROR 42000: Incorrect argument type to variable 'flush_time'
 set global flush_time=1e1;
 ERROR 42000: Incorrect argument type to variable 'flush_time'
 set global flush_time="foo";
+ERROR 42000: Incorrect argument type to variable 'flush_time'
+set global flush_time=" ";
 ERROR 42000: Incorrect argument type to variable 'flush_time'
 set global flush_time=0;
 select @@global.flush_time;

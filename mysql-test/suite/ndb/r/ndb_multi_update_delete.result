@@ -1,0 +1,68 @@
+
+# Bug#12728221 - MULTI-TABLE DELETE ON UNIQUE INDEX REMOVES WRONG ROWS IN CLUSTER
+
+CREATE TABLE t1 (
+a int(11) NOT NULL,
+b int(11) DEFAULT NULL,
+c varchar(64) DEFAULT NULL,
+PRIMARY KEY (a),
+UNIQUE KEY c (c),
+KEY b (b)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t2 (
+a int(11) NOT NULL,
+b text,
+PRIMARY KEY (a)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+INSERT INTO t1 VALUES (1,3,'test3'),(2,2,'test2'),(3,1,'test1');
+INSERT INTO t2 VALUES (1,''),(2,''),(3,'');
+delete t1,t2 from t1,t2 where t1.b=t2.a and t1.c='test1';
+delete t1,t2 from t1,t2 where t1.b=t2.a and t1.c='test2';
+delete t1,t2 from t1,t2 where t1.b=t2.a and t1.c='test3';
+select * from t1,t2;
+a	b	c	a	b
+drop table t1,t2;
+
+# Bug#12718336 - 61705: TRIGGER WORKS IMPROPERLY IN MYSQL CLUSTER.
+
+CREATE TABLE t1 (a int(11) NOT NULL, b int(11) DEFAULT NULL, c
+varchar(64) DEFAULT NULL, d char(10), j int, PRIMARY KEY (a),
+UNIQUE KEY c (c),  KEY b (b)) ENGINE=ndbcluster DEFAULT
+CHARSET=latin1;
+CREATE TABLE t2 (  e int(11) NOT NULL,  f char(10),  PRIMARY KEY
+(e)) ENGINE=ndbcluster DEFAULT CHARSET=latin1;
+CREATE TABLE t3 (t3_id int(11) NOT NULL AUTO_INCREMENT,g int(11)
+DEFAULT NULL,  h char(10), PRIMARY KEY (t3_id)) ENGINE=ndbcluster
+DEFAULT CHARSET=latin1;
+CREATE TRIGGER trg1 AFTER UPDATE ON t1 FOR EACH ROW INSERT INTO
+t3(g,h) values (old.b,  old.d);
+INSERT INTO t1 VALUES (11,1,'test1', 'hei1',111),(22,2,'test2',
+'hei2',222),(33,3,'test3', 'hei3',333);
+INSERT INTO t2 VALUES (1,'xx'),(2,'yy'),(3,'zz');
+select * from t1;
+a	b	c	d	j
+11	1	test1	hei1	111
+22	2	test2	hei2	222
+33	3	test3	hei3	333
+select * from t2;
+e	f
+1	xx
+2	yy
+3	zz
+select * from t3;
+t3_id	g	h
+update t1,t2 set t1.d=t2.f where t1.b=t2.e and t1.c='test1';
+select * from t1;
+a	b	c	d	j
+11	1	test1	xx	111
+22	2	test2	hei2	222
+33	3	test3	hei3	333
+select * from t2;
+e	f
+1	xx
+2	yy
+3	zz
+select * from t3;
+t3_id	g	h
+1	1	hei1
+drop table t1,t2,t3;

@@ -105,10 +105,11 @@ trx_undo_rec_get_pars(
 					TRX_UNDO_INSERT_REC, ... */
 	ulint*		cmpl_info,	/*!< out: compiler info, relevant only
 					for update type records */
-	ibool*		updated_extern,	/*!< out: TRUE if we updated an
+	bool*		updated_extern,	/*!< out: true if we updated an
 					externally stored fild */
 	undo_no_t*	undo_no,	/*!< out: undo log record number */
-	table_id_t*	table_id);	/*!< out: table id */
+	table_id_t*	table_id)	/*!< out: table id */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Builds a row reference from an undo log record.
 @return	pointer to remaining part of undo record */
@@ -242,16 +243,17 @@ trx_undo_rec_t*
 trx_undo_get_undo_rec_low(
 /*======================*/
 	roll_ptr_t	roll_ptr,	/*!< in: roll pointer to record */
-	mem_heap_t*	heap);		/*!< in: memory heap where copied */
+	mem_heap_t*	heap)		/*!< in: memory heap where copied */
+	__attribute__((nonnull, warn_unused_result));
 /*******************************************************************//**
 Build a previous version of a clustered index record. The caller must
-hold a latch on the index page of the clustered index record, to
-guarantee that the stack of versions is locked all the way down to the
-purge_sys->view.
-@return DB_SUCCESS, or DB_MISSING_HISTORY if the previous version is
-earlier than purge_view, which means that it may have been removed */
+hold a latch on the index page of the clustered index record.
+@retval true if previous version was built, or if it was an insert
+or the table has been rebuilt
+@retval false if the previous version is earlier than purge_view,
+which means that it may have been removed */
 UNIV_INTERN
-dberr_t
+bool
 trx_undo_prev_version_build(
 /*========================*/
 	const rec_t*	index_rec,/*!< in: clustered index record in the
@@ -260,13 +262,13 @@ trx_undo_prev_version_build(
 				index_rec page and purge_view */
 	const rec_t*	rec,	/*!< in: version of a clustered index record */
 	dict_index_t*	index,	/*!< in: clustered index */
-	ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mem_heap_t*	heap,	/*!< in: memory heap from which the memory
 				needed is allocated */
 	rec_t**		old_vers)/*!< out, own: previous version, or NULL if
 				rec is the first inserted version, or if
 				history data has been deleted */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
 Parses a redo log record of adding an undo log record.

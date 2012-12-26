@@ -103,11 +103,8 @@ enum enum_alter_inplace_result {
 #define HA_AUTO_PART_KEY       (1 << 11) /* auto-increment in multi-part key */
 #define HA_REQUIRE_PRIMARY_KEY (1 << 12) /* .. and can't create a hidden one */
 #define HA_STATS_RECORDS_IS_EXACT (1 << 13) /* stats.records is exact */
-/*
-  INSERT_DELAYED only works with handlers that uses MySQL internal table
-  level locks
-*/
-#define HA_CAN_INSERT_DELAYED  (1 << 14)
+/// Not in use.
+#define HA_UNUSED  (1 << 14)
 /*
   If we get the primary key columns for free when we do an index read
   (usually, it also implies that HA_PRIMARY_KEY_REQUIRED_FOR_POSITION
@@ -424,7 +421,8 @@ enum enum_binlog_command {
   LOGCOM_DROP_TABLE,
   LOGCOM_CREATE_DB,
   LOGCOM_ALTER_DB,
-  LOGCOM_DROP_DB
+  LOGCOM_DROP_DB,
+  LOGCOM_ACL_NOTIFY
 };
 
 /* struct to hold information about the table that should be created */
@@ -1279,8 +1277,23 @@ public:
 
   /** true for ALTER IGNORE TABLE ... */
   const bool ignore;
+
   /** true for online operation (LOCK=NONE) */
   bool online;
+
+  /**
+     Can be set by handler to describe why a given operation cannot be done
+     in-place (HA_ALTER_INPLACE_NOT_SUPPORTED) or why it cannot be done
+     online (HA_ALTER_INPLACE_NO_LOCK or HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE)
+     If set, it will be used with ER_ALTER_OPERATION_NOT_SUPPORTED_REASON if
+     results from handler::check_if_supported_inplace_alter() doesn't match
+     requirements set by user. If not set, the more generic
+     ER_ALTER_OPERATION_NOT_SUPPORTED will be used.
+
+     Please set to a properly localized string, for example using
+     my_get_err_msg(), so that the error message as a whole is localized.
+  */
+  const char *unsupported_reason;
 
   Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
                      Alter_info *alter_info_arg,
@@ -1299,13 +1312,26 @@ public:
     handler_flags(0),
     modified_part_info(modified_part_info_arg),
     ignore(ignore_arg),
-    online (false)
+    online(false),
+    unsupported_reason(NULL)
   {}
 
   ~Alter_inplace_info()
   {
     delete handler_ctx;
   }
+
+  /**
+    Used after check_if_supported_inplace_alter() to report
+    error if the result does not match the LOCK/ALGORITHM
+    requirements set by the user.
+
+    @param not_supported  Part of statement that was not supported.
+    @param try_instead    Suggestion as to what the user should
+                          replace not_supported with.
+  */
+  void report_unsupported_error(const char *not_supported,
+                                const char *try_instead);
 };
 
 
@@ -2990,6 +3016,14 @@ private:
     return HA_ERR_WRONG_COMMAND;
   }
 
+  /**
+    Update a single row.
+
+    Note: If HA_ERR_FOUND_DUPP_KEY is returned, the handler must read
+    all columns of the row so MySQL can create an error message. If
+    the columns required for the error message are not read, the error
+    message will contain garbage.
+  */
   virtual int update_row(const uchar *old_data __attribute__((unused)),
                          uchar *new_data __attribute__((unused)))
   {
@@ -3066,12 +3100,15 @@ public:
     that another call to bulk_update_row will occur OR a call to
     exec_bulk_update before the set of updates in this query is concluded.
 
+    Note: If HA_ERR_FOUND_DUPP_KEY is returned, the handler must read
+    all columns of the row so MySQL can create an error message. If
+    the columns required for the error message are not read, the error
+    message will contain garbage.
+
     @param    old_data       Old record
     @param    new_data       New record
     @param    dup_key_found  Number of duplicate keys found
 
-    @retval  0   Bulk delete used by handler
-    @retval  1   Bulk delete not used, normal operation used
   */
   virtual int bulk_update_row(const uchar *old_data, uchar *new_data,
                               uint *dup_key_found)

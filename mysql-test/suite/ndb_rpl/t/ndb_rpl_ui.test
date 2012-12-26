@@ -49,4 +49,36 @@ select * from t1 where uk in (0,1,2,3,4);
 --connection master
 drop table t1;
 
+# bug12974714
+CREATE TABLE t1 (a int not null,
+                 b int auto_increment, 
+                 uk int null, primary key(a,b), unique(uk)) 
+engine=ndb partition by key(a);
+CREATE TABLE t2 (a int not null auto_increment primary key) engine = ndb;
+
+begin;
+insert into t1 values (1,null,1), (1,null, 2), (1,null, 3), (1,null, 4);
+insert into t2 values (null), (null), (null), (null);
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+insert into t2 select null from t2;
+commit;
+select count(*) from t1;
+select count(*) from t2;
+--sync_slave_with_master
+
+--connection slave
+select count(*) from t1;
+select count(*) from t2;
+
+--connection master
+drop table t1;
+drop table t2;
+--sync_slave_with_master
+
 --source include/rpl_end.inc

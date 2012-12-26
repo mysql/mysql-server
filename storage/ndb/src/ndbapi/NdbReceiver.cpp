@@ -155,88 +155,57 @@ NdbReceiver::prepareRead(char *buf, Uint32 rows)
   Compute the batch size (rows between each NEXT_TABREQ / SCAN_TABCONF) to
   use, taking into account limits in the transporter, user preference, etc.
 
-  Hm, there are some magic overhead numbers (4 bytes/attr, 32 bytes/row) here,
-  would be nice with some explanation on how these numbers were derived.
+  It is the responsibility of the batch producer (LQH+TUP) to
+  stay within these 'batch_size' and 'batch_byte_size' limits.:
 
-  TODO : Check whether these numbers need to be revised w.r.t. read packed
+  - It should stay strictly within the 'batch_size' (#rows) limit.
+  - It is allowed to overallocate the 'batch_byte_size' (slightly)
+    in order to complete the current row when it hit the limit.
+
+  The client should be prepared to receive, and buffer, upto 
+  'batch_size' rows from each fragment.
+  ::ndbrecord_rowsize() might be usefull for calculating the
+  buffersize to allocate for this resultset.
 */
 //static
 void
 NdbReceiver::calculate_batch_size(const NdbImpl& theImpl,
-                                  const NdbRecord *record,
-                                  const NdbRecAttr *first_rec_attr,
-                                  Uint32 key_size,
                                   Uint32 parallelism,
                                   Uint32& batch_size,
-                                  Uint32& batch_byte_size,
-                                  Uint32& first_batch_size)
+                                  Uint32& batch_byte_size)
 {
   const NdbApiConfig & cfg = theImpl.get_ndbapi_config_parameters();
   const Uint32 max_scan_batch_size= cfg.m_scan_batch_size;
   const Uint32 max_batch_byte_size= cfg.m_batch_byte_size;
   const Uint32 max_batch_size= cfg.m_batch_size;
 
-  Uint32 tot_size= (key_size ? (key_size + 32) : 0); //key + signal overhead
-  if (record)
-  {
-    tot_size+= record->m_max_transid_ai_bytes;
-  }
-
-  const NdbRecAttr *rec_attr= first_rec_attr;
-  while (rec_attr != NULL) {
-    Uint32 attr_size= rec_attr->getColumn()->getSizeInBytes();
-    attr_size= ((attr_size + 4 + 3) >> 2) << 2; //Even to word + overhead
-    tot_size+= attr_size;
-    rec_attr= rec_attr->next();
-  }
-
-  tot_size+= 32; //include signal overhead
-
-  /**
-   * Now we calculate the batch size by trying to get upto SCAN_BATCH_SIZE
-   * bytes sent for each batch from each node. We do however ensure that
-   * no more than MAX_SCAN_BATCH_SIZE is sent from all nodes in total per
-   * batch.
-   */
-  if (batch_size == 0)
-  {
-    batch_byte_size= max_batch_byte_size;
-  }
-  else
-  {
-    batch_byte_size= batch_size * tot_size;
-  }
-  
+  batch_byte_size= max_batch_byte_size;
   if (batch_byte_size * parallelism > max_scan_batch_size) {
     batch_byte_size= max_scan_batch_size / parallelism;
   }
-  batch_size= batch_byte_size / tot_size;
-  if (batch_size == 0) {
-    batch_size= 1;
-  } else {
-    if (batch_size > max_batch_size) {
-      batch_size= max_batch_size;
-    } else if (batch_size > MAX_PARALLEL_OP_PER_SCAN) {
-      batch_size= MAX_PARALLEL_OP_PER_SCAN;
-    }
+
+  if (batch_size == 0 || batch_size > max_batch_size) {
+    batch_size= max_batch_size;
   }
-  first_batch_size= batch_size;
+  if (unlikely(batch_size > MAX_PARALLEL_OP_PER_SCAN)) {
+    batch_size= MAX_PARALLEL_OP_PER_SCAN;
+  }
+  if (unlikely(batch_size > batch_byte_size)) {
+    batch_size= batch_byte_size;
+  }
+
   return;
 }
 
 void
-NdbReceiver::calculate_batch_size(Uint32 key_size,
-                                  Uint32 parallelism,
+NdbReceiver::calculate_batch_size(Uint32 parallelism,
                                   Uint32& batch_size,
-                                  Uint32& batch_byte_size,
-                                  Uint32& first_batch_size,
-                                  const NdbRecord *record) const
+                                  Uint32& batch_byte_size) const
 {
   calculate_batch_size(* m_ndb->theImpl,
-                       record,
-                       theFirstRecAttr,
-                       key_size, parallelism, batch_size, batch_byte_size,
-                       first_batch_size);
+                       parallelism,
+                       batch_size,
+                       batch_byte_size);
 }
 
 void

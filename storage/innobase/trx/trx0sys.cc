@@ -176,13 +176,17 @@ trx_sys_flush_max_trx_id(void)
 
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	mtr_start(&mtr);
+	if (!srv_read_only_mode) {
+		mtr_start(&mtr);
 
-	sys_header = trx_sysf_get(&mtr);
+		sys_header = trx_sysf_get(&mtr);
 
-	mlog_write_ull(sys_header + TRX_SYS_TRX_ID_STORE,
-		       trx_sys->max_trx_id, &mtr);
-	mtr_commit(&mtr);
+		mlog_write_ull(
+			sys_header + TRX_SYS_TRX_ID_STORE,
+			trx_sys->max_trx_id, &mtr);
+
+		mtr_commit(&mtr);
+	}
 }
 
 /*****************************************************************//**
@@ -520,6 +524,8 @@ trx_sys_init_at_db_start(void)
 						   + TRX_SYS_TRX_ID_STORE),
 				     TRX_SYS_TRX_ID_WRITE_MARGIN);
 
+	ut_d(trx_sys->rw_max_trx_id = trx_sys->max_trx_id);
+
 	UT_LIST_INIT(trx_sys->mysql_trx_list);
 
 	trx_dummy_sess = sess_open();
@@ -714,21 +720,18 @@ trx_sys_file_format_max_check(
 		format_id = UNIV_FORMAT_MIN;
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr,
-		" InnoDB: highest supported file format is %s.\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Highest supported file format is %s.",
 		trx_sys_file_format_id_to_name(UNIV_FORMAT_MAX));
 
 	if (format_id > UNIV_FORMAT_MAX) {
 
 		ut_a(format_id < FILE_FORMAT_NAME_N);
 
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			" InnoDB: %s: the system tablespace is in a file "
-			"format that this version doesn't support - %s\n",
-			((max_format_id <= UNIV_FORMAT_MAX)
-				? "Error" : "Warning"),
+		ib_logf(max_format_id <= UNIV_FORMAT_MAX
+			? IB_LOG_LEVEL_ERROR : IB_LOG_LEVEL_WARN,
+			"The system tablespace is in a file "
+			"format that this version doesn't support - %s.",
 			trx_sys_file_format_id_to_name(format_id));
 
 		if (max_format_id <= UNIV_FORMAT_MAX) {
@@ -879,7 +882,7 @@ trx_sys_create_rsegs(
 	ut_a(n_spaces < TRX_SYS_N_RSEGS);
 	ut_a(n_rsegs <= TRX_SYS_N_RSEGS);
 
-	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO) {
+	if (srv_force_recovery >= SRV_FORCE_NO_TRX_UNDO || srv_read_only_mode) {
 		return(ULINT_UNDEFINED);
 	}
 
@@ -922,9 +925,8 @@ trx_sys_create_rsegs(
 		}
 	}
 
-	ut_print_timestamp(stderr);
-	fprintf(stderr, " InnoDB: %lu rollback segment(s) are active.\n",
-		n_used);
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"%lu rollback segment(s) are active.", n_used);
 
 	return(n_used);
 }
@@ -1116,11 +1118,11 @@ trx_sys_read_pertable_file_format_id(
 	if (flags == 0) {
 		/* file format is Antelope */
 		*format_id = 0;
-		return (TRUE);
+		return(TRUE);
 	} else if (flags & 1) {
 		/* tablespace flags are ok */
 		*format_id = (flags / 32) % 128;
-		return (TRUE);
+		return(TRUE);
 	} else {
 		/* bad tablespace flags */
 		return(FALSE);
@@ -1139,7 +1141,7 @@ trx_sys_file_format_id_to_name(
 {
 	if (!(id < FILE_FORMAT_NAME_N)) {
 		/* unknown id */
-		return ("Unknown");
+		return("Unknown");
 	}
 
 	return(file_format_name_map[id]);

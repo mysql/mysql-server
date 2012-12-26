@@ -54,6 +54,11 @@ public class PropertyImpl implements PredicateOperand {
         this.fmd = fmd;
     }
 
+    @Override
+    public String toString() {
+        return fmd.getName();
+    }
+
     public void setComplexParameter() {
         complexParameter = true;
     }
@@ -83,7 +88,7 @@ public class PropertyImpl implements PredicateOperand {
             throw new ClusterJUserException(
                     local.message("ERR_Only_Parameters", "equal"));
         }
-        return (Predicate) new EqualPredicateImpl(dobj, this, (ParameterImpl)other);
+        return new EqualPredicateImpl(dobj, this, (ParameterImpl)other);
     }
 
     public Predicate between(PredicateOperand lower, PredicateOperand upper) {
@@ -91,7 +96,7 @@ public class PropertyImpl implements PredicateOperand {
             throw new ClusterJUserException(
                     local.message("ERR_Only_Parameters", "between"));
         }
-        return (Predicate) new BetweenPredicateImpl(dobj, this, (ParameterImpl)lower, (ParameterImpl)upper);
+        return new BetweenPredicateImpl(dobj, this, (ParameterImpl)lower, (ParameterImpl)upper);
     }
 
     public Predicate greaterThan(PredicateOperand other) {
@@ -99,7 +104,7 @@ public class PropertyImpl implements PredicateOperand {
             throw new ClusterJUserException(
                     local.message("ERR_Only_Parameters", "greaterThan"));
         }
-        return (Predicate) new GreaterThanPredicateImpl(dobj, this, (ParameterImpl)other);
+        return new GreaterThanPredicateImpl(dobj, this, (ParameterImpl)other);
     }
 
     public Predicate greaterEqual(PredicateOperand other) {
@@ -107,7 +112,7 @@ public class PropertyImpl implements PredicateOperand {
             throw new ClusterJUserException(
                     local.message("ERR_Only_Parameters", "greaterEqual"));
         }
-        return (Predicate) new GreaterEqualPredicateImpl(dobj, this, (ParameterImpl)other);
+        return new GreaterEqualPredicateImpl(dobj, this, (ParameterImpl)other);
     }
 
     public Predicate lessThan(PredicateOperand other) {
@@ -115,7 +120,7 @@ public class PropertyImpl implements PredicateOperand {
             throw new ClusterJUserException(
                     local.message("ERR_Only_Parameters", "lessThan"));
         }
-        return (Predicate) new LessThanPredicateImpl(dobj, this, (ParameterImpl)other);
+        return new LessThanPredicateImpl(dobj, this, (ParameterImpl)other);
     }
 
     public Predicate lessEqual(PredicateOperand other) {
@@ -123,7 +128,7 @@ public class PropertyImpl implements PredicateOperand {
             throw new ClusterJUserException(
                     local.message("ERR_Only_Parameters", "lessEqual"));
         }
-        return (Predicate) new LessEqualPredicateImpl(dobj, this, (ParameterImpl)other);
+        return new LessEqualPredicateImpl(dobj, this, (ParameterImpl)other);
     }
 
     public Predicate in(PredicateOperand other) {
@@ -131,7 +136,7 @@ public class PropertyImpl implements PredicateOperand {
             throw new ClusterJUserException(
                     local.message("ERR_Only_Parameters", "in"));
         }
-        return (Predicate) new InPredicateImpl(dobj, this, (ParameterImpl)other);
+        return new InPredicateImpl(dobj, this, (ParameterImpl)other);
     }
 
     public Predicate like(PredicateOperand other) {
@@ -139,7 +144,15 @@ public class PropertyImpl implements PredicateOperand {
             throw new ClusterJUserException(
                     local.message("ERR_Only_Parameters", "like"));
         }
-        return (Predicate) new LikePredicateImpl(dobj, this, (ParameterImpl)other);
+        return new LikePredicateImpl(dobj, this, (ParameterImpl)other);
+    }
+
+    public Predicate isNull() {
+        return new IsNullPredicateImpl(dobj, this);
+    }
+
+    public Predicate isNotNull() {
+        return new IsNotNullPredicateImpl(dobj, this);
     }
 
     void markLowerBound(CandidateIndexImpl[] candidateIndices, PredicateImpl predicate, boolean strict) {
@@ -165,6 +178,14 @@ public class PropertyImpl implements PredicateOperand {
         } else {
             return fmd.getValue(context, parameterName);
         }
+    }
+
+    public void filterIsNull(ScanFilter filter) {
+        fmd.filterIsNull(filter);
+    }
+
+    public void filterIsNotNull(ScanFilter filter) {
+        fmd.filterIsNotNull(filter);
     }
 
 }

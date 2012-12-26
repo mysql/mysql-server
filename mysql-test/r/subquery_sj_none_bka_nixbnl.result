@@ -6289,6 +6289,10 @@ EXPLAIN
                 "Percentage"
               ],
               "key": "PRIMARY",
+              "used_key_parts": [
+                "Country",
+                "Language"
+              ],
               "key_length": "33",
               "ref": [
                 "func",
@@ -6296,7 +6300,7 @@ EXPLAIN
               ],
               "rows": 1,
               "filtered": 100,
-              "attached_condition": "((`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
+              "attached_condition": "((`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000))"
             }
           }
         },
@@ -6313,6 +6317,9 @@ EXPLAIN
                 "Country"
               ],
               "key": "Population",
+              "used_key_parts": [
+                "Population"
+              ],
               "key_length": "4",
               "rows": 1,
               "filtered": 100,
@@ -7552,6 +7559,14 @@ CREATE TABLE t2 (
 col_varchar_nokey VARCHAR(1) NOT NULL
 ) ENGINE=InnoDB;
 INSERT INTO t2 VALUES ('v'), ('y'), ('j'), ('c'), ('d'), ('r');
+explain SELECT col_varchar_key
+FROM t1
+WHERE col_varchar_key IN (SELECT col_varchar_nokey
+FROM t2)
+ORDER BY col_datetime_key LIMIT 4;
+id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
+1	PRIMARY	t1	ALL	NULL	NULL	NULL	NULL	20	Using where; Using filesort
+2	DEPENDENT SUBQUERY	t2	ALL	NULL	NULL	NULL	NULL	6	Using where
 SELECT col_varchar_key
 FROM t1
 WHERE col_varchar_key IN (SELECT col_varchar_nokey
@@ -8061,6 +8076,9 @@ EXPLAIN
                             "col_int_key"
                           ],
                           "key": "col_int_key",
+                          "used_key_parts": [
+                            "col_int_key"
+                          ],
                           "key_length": "4",
                           "ref": [
                             "func"
@@ -8078,6 +8096,9 @@ EXPLAIN
                             "col_int_key"
                           ],
                           "key": "col_int_key",
+                          "used_key_parts": [
+                            "col_int_key"
+                          ],
                           "key_length": "4",
                           "ref": [
                             "test.parent1.col_int_nokey"
@@ -9951,6 +9972,9 @@ EXPLAIN
                     "col_varchar_key"
                   ],
                   "key": "col_varchar_key",
+                  "used_key_parts": [
+                    "col_varchar_key"
+                  ],
                   "key_length": "4",
                   "ref": [
                     "func"
@@ -10060,6 +10084,9 @@ EXPLAIN
                     "col_int_key"
                   ],
                   "key": "col_int_key",
+                  "used_key_parts": [
+                    "col_int_key"
+                  ],
                   "key_length": "4",
                   "ref": [
                     "func"
@@ -10271,6 +10298,9 @@ EXPLAIN
             "PRIMARY"
           ],
           "key": "PRIMARY",
+          "used_key_parts": [
+            "pk"
+          ],
           "key_length": "4",
           "ref": [
             "test.alias2.pk"

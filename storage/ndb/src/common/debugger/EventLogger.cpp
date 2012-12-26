@@ -18,7 +18,7 @@
 #include <ndb_global.h>
 
 #include <EventLogger.hpp>
-#include <TransporterCallback.hpp>
+#include <TransporterDefinitions.hpp>
 
 #include <NdbConfig.h>
 #include <kernel/BlockNumbers.h>
@@ -527,23 +527,49 @@ void getTextTransReportCounters(QQQQ) {
   // -------------------------------------------------------------------  
   // Report information about transaction activity once per 10 seconds.
   // ------------------------------------------------------------------- 
-  BaseString::snprintf(m_text, m_text_len, 
-		       "Trans. Count = %u, Commit Count = %u, "
-		       "Read Count = %u, Simple Read Count = %u, "
-		       "Write Count = %u, AttrInfo Count = %u, "
-		       "Concurrent Operations = %u, Abort Count = %u"
-		       " Scans = %u Range scans = %u", 
-		       theData[1], 
-		       theData[2], 
-		       theData[3], 
-		       theData[4],
-		       theData[5], 
-		       theData[6], 
-		       theData[7], 
-		       theData[8],
-		       theData[9],
-		       theData[10]);
+  if (len <= 11)
+  {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Trans. Count = %u, Commit Count = %u, "
+                         "Read Count = %u, Simple Read Count = %u, "
+                         "Write Count = %u, AttrInfo Count = %u, "
+                         "Concurrent Operations = %u, Abort Count = %u"
+                         " Scans = %u Range scans = %u",
+                         theData[1],
+                         theData[2],
+                         theData[3],
+                         theData[4],
+                         theData[5],
+                         theData[6],
+                         theData[7],
+                         theData[8],
+                         theData[9],
+                         theData[10]);
+  }
+  else
+  {
+    BaseString::snprintf(m_text, m_text_len,
+                         "Trans. Count = %u, Commit Count = %u, "
+                         "Read Count = %u, Simple Read Count = %u, "
+                         "Write Count = %u, AttrInfo Count = %u, "
+                         "Concurrent Operations = %u, Abort Count = %u"
+                         " Scans = %u Range scans = %u, Local Read Count = %u"
+                         " Local Write Count = %u",
+                         theData[1],
+                         theData[2],
+                         theData[3],
+                         theData[4],
+                         theData[5],
+                         theData[6],
+                         theData[7],
+                         theData[8],
+                         theData[9],
+                         theData[10],
+                         theData[11],
+                         theData[12]);
+  }
 }
+
 void getTextOperationReportCounters(QQQQ) {
   BaseString::snprintf(m_text, m_text_len,
 		       "Operations=%u",
@@ -1524,7 +1550,7 @@ EventLogger::getText(char * dst, size_t dst_len,
   if (nodeId != 0)
   {
     BaseString::snprintf(dst, dst_len, "Node %u: ", nodeId);
-    pos= strlen(dst);
+    pos= (int)strlen(dst);
   }
   if (dst_len-pos > 0)
     textF(dst+pos, dst_len-pos, theData, len);

@@ -364,27 +364,15 @@ INSERT INTO t1 (x) VALUES ((SELECT b FROM t3));
 INSERT INTO t1 (x) VALUES ((SELECT a FROM t2));
 select * from t1;
 insert into t2 values (1);
-let $row_count_before= `SELECT COUNT(*) FROM t1`;
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
-let $wait_condition= SELECT COUNT(*) <> $row_count_before FROM t1;
---source include/wait_condition.inc
-select * from t1;
 INSERT INTO t1 (x) select (SELECT SUM(a)+1 FROM t2) FROM t2;
 select * from t1;
 # After this, only data based on old t1 records should have been added.
 INSERT INTO t1 (x) select (SELECT SUM(x)+2 FROM t1) FROM t2;
 select * from t1;
 -- error ER_BAD_FIELD_ERROR
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
-let $row_count_before= `SELECT COUNT(*) FROM t1`;
-INSERT DELAYED INTO t1 (x) VALUES ((SELECT SUM(a) FROM t2));
-let $wait_condition= SELECT COUNT(*) <> $row_count_before FROM t1;
---source include/wait_condition.inc
+INSERT INTO t1 (x) VALUES ((SELECT SUM(x) FROM t2));
+INSERT INTO t1 (x) SELECT (SELECT SUM(a)+b FROM t2) from t3;
 select * from t1;
-#
-#TODO: should be uncommented after Bug#380 fix pushed
-#INSERT INTO t1 (x) SELECT (SELECT SUM(a)+b FROM t2) from t3;
-#select * from t1;
 drop table t1, t2, t3;
 
 #replace with subselects
@@ -401,17 +389,6 @@ replace into t1 (x, y) VALUES ((SELECT a FROM t3), (SELECT a+1 FROM t2));
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+1 FROM t2));
 select * from t1;
 replace into t1 (x, y) VALUES ((SELECT a FROM t2), (SELECT a+2 FROM t2));
-select * from t1;
-let $row_count_before= `SELECT COUNT(*) FROM t1`;
-replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a FROM t2));
-# We get one additional row
-let $wait_condition= SELECT COUNT(*) <> $row_count_before FROM t1;
---source include/wait_condition.inc
-select * from t1;
-let $row_count_before= `SELECT COUNT(*) FROM t1 WHERE y = 2`;
-replace DELAYED into t1 (x, y) VALUES ((SELECT a+3 FROM t2), (SELECT a+1 FROM t2));
-let $wait_condition= SELECT COUNT(*) <> $row_count_before FROM t1 WHERE y = 2;
---source include/wait_condition.inc
 select * from t1;
 replace LOW_PRIORITY into t1 (x, y) VALUES ((SELECT a+1 FROM t2), (SELECT a FROM t2));
 select * from t1;
@@ -4503,9 +4480,7 @@ SELECT * FROM (
   SELECT a FROM t1 WHERE a = 2 
 ) t1a;
 
-# This was not allowed previously. Possibly, it should be allowed on the future.
-# For now, the intent is to keep the fix as non-intrusive as possible.
---error ER_PARSE_ERROR
+--error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM ((SELECT 1 a) UNION SELECT 1 a);
 SELECT * FROM (SELECT 1 a UNION (SELECT 1 a)) alias;
 SELECT * FROM (SELECT 1 UNION SELECT 1) t1a;
@@ -4537,11 +4512,11 @@ SELECT * FROM (SELECT 1 a UNION SELECT 1 a ORDER BY a LIMIT 1) t1a;
 
 # Test of rule
 # table_factor:  '(' get_select_lex query_expression_body ')' opt_table_alias
-# UNION should not be allowed inside the parentheses, nor should
-# aliases after.
-# 
-SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1) alias ON 1;
---error ER_PARSE_ERROR
+SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1)  alias ON 1;
+SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) alias ON 1;
+--error ER_DERIVED_MUST_HAVE_ALIAS
+SELECT * FROM t1 JOIN  (SELECT 1 UNION SELECT 1)  ON 1;
+--error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM t1 JOIN ((SELECT 1 UNION SELECT 1)) ON 1;
 --error ER_PARSE_ERROR
 SELECT * FROM t1 JOIN  (t1 t1a UNION SELECT 1)  ON 1;
@@ -4633,8 +4608,9 @@ SELECT ((SELECT 1 UNION SELECT 1 UNION SELECT 1));
 
 --error ER_PARSE_ERROR
 SELECT * FROM ( SELECT 1 UNION ( SELECT 1 UNION SELECT 1 ) );
---error ER_PARSE_ERROR
+--error ER_DERIVED_MUST_HAVE_ALIAS
 SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 );
+SELECT * FROM ( ( SELECT 1 UNION SELECT 1 ) UNION SELECT 1 ) a;
 SELECT * FROM ( SELECT 1 UNION SELECT 1 UNION SELECT 1 ) a;
 
 --error ER_PARSE_ERROR

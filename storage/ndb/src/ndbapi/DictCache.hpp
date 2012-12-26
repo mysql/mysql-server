@@ -19,7 +19,6 @@
 #define DictCache_H
 
 #include <ndb_types.h>
-#include <kernel_types.h>
 #include <NdbError.hpp>
 #include <BaseString.hpp>
 #include <Vector.hpp>

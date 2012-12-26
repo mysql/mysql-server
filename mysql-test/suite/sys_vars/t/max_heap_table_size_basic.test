@@ -119,6 +119,9 @@ SELECT @@global.max_heap_table_size;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.max_heap_table_size = test;
 SELECT @@global.max_heap_table_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.max_heap_table_size = ' ';
+SELECT @@global.max_heap_table_size;
 
 SET @@session.max_heap_table_size = -1;
 SELECT @@session.max_heap_table_size;
@@ -133,6 +136,9 @@ SELECT @@session.max_heap_table_size;
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@session.max_heap_table_size = test;
+SELECT @@session.max_heap_table_size;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@session.max_heap_table_size = ' ';
 SELECT @@session.max_heap_table_size;
 
 

@@ -88,6 +88,11 @@ ERROR 42000: Incorrect argument type to variable 'max_relay_log_size'
 SELECT @@global.max_relay_log_size;
 @@global.max_relay_log_size
 1073741824
+SET @@global.max_relay_log_size = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_relay_log_size'
+SELECT @@global.max_relay_log_size;
+@@global.max_relay_log_size
+1073741824
 '#-------------------FN_DYNVARS_082_05----------------------------#'
 SET @@session.max_relay_log_size = 4096;
 ERROR HY000: Variable 'max_relay_log_size' is a GLOBAL variable and should be set with SET GLOBAL

@@ -75,16 +75,27 @@ Warning	1292	Truncated incorrect optimizer_search_depth value: '65536'
 SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
 62
+SET @@global.optimizer_search_depth = -1024;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '-1024'
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+0
 SET @@global.optimizer_search_depth = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
 SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
-62
+0
 SET @@global.optimizer_search_depth = test;
 ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
 SELECT @@global.optimizer_search_depth;
 @@global.optimizer_search_depth
-62
+0
+SET @@global.optimizer_search_depth = ' ';
+ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
+SELECT @@global.optimizer_search_depth;
+@@global.optimizer_search_depth
+0
 SET @@session.optimizer_search_depth = 64;
 Warnings:
 Warning	1292	Truncated incorrect optimizer_search_depth value: '64'
@@ -105,11 +116,22 @@ Warning	1292	Truncated incorrect optimizer_search_depth value: '65550'
 SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth
 62
+SET @@session.optimizer_search_depth = -1024;
+Warnings:
+Warning	1292	Truncated incorrect optimizer_search_depth value: '-1024'
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+0
 SET @@session.optimizer_search_depth = test;
 ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
 SELECT @@session.optimizer_search_depth;
 @@session.optimizer_search_depth
-62
+0
+SET @@session.optimizer_search_depth = ' ';
+ERROR 42000: Incorrect argument type to variable 'optimizer_search_depth'
+SELECT @@session.optimizer_search_depth;
+@@session.optimizer_search_depth
+0
 '#------------------FN_DYNVARS_116_06-----------------------#'
 SELECT @@global.optimizer_search_depth = VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 

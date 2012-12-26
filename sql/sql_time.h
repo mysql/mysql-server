@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -68,14 +68,14 @@ inline void date_to_datetime(MYSQL_TIME *ltime)
   ltime->time_type= MYSQL_TIMESTAMP_DATETIME;
 }
 void make_truncated_value_warning(THD *thd,
-                                  Sql_condition::enum_warning_level level,
+                                  Sql_condition::enum_severity_level level,
                                   ErrConvString val,
                                   timestamp_type time_type,
                                   const char *field_name);
 inline void make_truncated_value_warning(ErrConvString val,
                                          timestamp_type time_type)
 {
-  make_truncated_value_warning(current_thd, Sql_condition::WARN_LEVEL_WARN,
+  make_truncated_value_warning(current_thd, Sql_condition::SL_WARNING,
                                val, time_type, NullS);
 }
 extern DATE_TIME_FORMAT *date_time_format_make(timestamp_type format_type,

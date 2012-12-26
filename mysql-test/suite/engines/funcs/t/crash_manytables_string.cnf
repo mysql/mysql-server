@@ -1,0 +1,4 @@
+!include include/default_mysqld.cnf
+
+[mysqld.1]
+open_files_limit=0

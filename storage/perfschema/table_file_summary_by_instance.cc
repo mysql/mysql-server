@@ -14,7 +14,7 @@
   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
 /**
-  @file storage/perfschema/table_file_summary.cc
+  @file storage/perfschema/table_file_summary_by_instance.cc
   Table FILE_SUMMARY_BY_INSTANCE (implementation).
 */
 

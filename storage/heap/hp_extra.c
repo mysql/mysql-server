@@ -20,13 +20,13 @@
 
 #include "heapdef.h"
 
-static void heap_extra_keyflag(register HP_INFO *info,
+static void heap_extra_keyflag(HP_INFO *info,
                                enum ha_extra_function function);
 
 
 	/* set extra flags for database */
 
-int heap_extra(register HP_INFO *info, enum ha_extra_function function)
+int heap_extra(HP_INFO *info, enum ha_extra_function function)
 {
   DBUG_ENTER("heap_extra");
 
@@ -64,7 +64,7 @@ int heap_reset(HP_INFO *info)
 /*
     Start/Stop Inserting Duplicates Into a Table, WL#1648.
  */
-static void heap_extra_keyflag(register HP_INFO *info,
+static void heap_extra_keyflag(HP_INFO *info,
                                enum ha_extra_function function)
 {
   uint  idx;

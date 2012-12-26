@@ -64,7 +64,10 @@ private:
   Uint32 hashValue;
   Uint32 distr_key_indicator;
   Uint32 unused;
-  Uint32 jamBuffer[2];
+  union {
+    void * jamBufferPtr;
+    Uint32 jamBufferStorage[2];
+  };
 };
 
 #endif

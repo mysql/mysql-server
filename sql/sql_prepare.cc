@@ -344,7 +344,7 @@ static bool send_prep_stmt(Prepared_statement *stmt, uint columns)
   int2store(buff+5, columns);
   int2store(buff+7, stmt->param_count);
   buff[9]= 0;                                   // Guard against a 4.1 client
-  tmp= min(stmt->thd->get_stmt_da()->current_statement_warn_count(), 65535UL);
+  tmp= min(stmt->thd->get_stmt_da()->current_statement_cond_count(), 65535UL);
   int2store(buff+10, tmp);
 
   /*
@@ -399,7 +399,7 @@ static bool send_prep_stmt(Prepared_statement *stmt,
 
 static ulong get_param_length(uchar **packet, ulong len)
 {
-  reg1 uchar *pos= *packet;
+  uchar *pos= *packet;
   if (len < 1)
     return 0;
   if (*pos < 251)
@@ -1256,27 +1256,17 @@ static bool mysql_test_insert(Prepared_statement *stmt,
   DBUG_ENTER("mysql_test_insert");
   DBUG_ASSERT(stmt->is_stmt_prepare());
 
-  /*
-    Since INSERT DELAYED doesn't support temporary tables, we could
-    not pre-open temporary tables for SQLCOM_INSERT / SQLCOM_REPLACE.
-    Open them here instead.
-  */
-  if (table_list->lock_type != TL_WRITE_DELAYED)
-  {
-    if (open_temporary_tables(thd, table_list))
-      goto error;
-  }
+  if (open_temporary_tables(thd, table_list))
+    goto error;
 
   if (insert_precheck(thd, table_list))
     goto error;
 
   /*
-    open temporary memory pool for temporary data allocated by derived
+    Open temporary memory pool for temporary data allocated by derived
     tables & preparation procedure
     Note that this is done without locks (should not be needed as we will not
     access any data here)
-    If we would use locks, then we have to ensure we are not using
-    TL_WRITE_DELAYED as having two such locks can cause table corruption.
   */
   if (open_normal_and_derived_tables(thd, table_list,
                                      MYSQL_OPEN_FORCE_SHARED_MDL))
@@ -1302,14 +1292,6 @@ static bool mysql_test_insert(Prepared_statement *stmt,
     value_count= values->elements;
     its.rewind();
 
-    if (table_list->lock_type == TL_WRITE_DELAYED &&
-        !(table_list->table->file->ha_table_flags() & HA_CAN_INSERT_DELAYED))
-    {
-      my_error(ER_DELAYED_NOT_SUPPORTED, MYF(0), (table_list->view ?
-                                                  table_list->view_name.str :
-                                                  table_list->table_name));
-      goto error;
-    }
     while ((values= its++))
     {
       counter++;
@@ -2015,7 +1997,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
 
   /* Reset warning count for each query that uses tables */
   if (tables)
-    thd->get_stmt_da()->opt_clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->opt_reset_condition_info(thd->query_id);
 
   /*
     For the optimizer trace, this is the symmetric, for statement preparation,
@@ -2148,6 +2130,7 @@ static bool check_prepared_statement(Prepared_statement *stmt)
   case SQLCOM_CREATE_USER:
   case SQLCOM_RENAME_USER:
   case SQLCOM_DROP_USER:
+  case SQLCOM_ALTER_USER:
   case SQLCOM_ASSIGN_TO_KEYCACHE:
   case SQLCOM_PRELOAD_KEYS:
   case SQLCOM_GRANT:
@@ -2511,6 +2494,14 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       for (order= sl->group_list.first; order; order= order->next)
         order->item= &order->item_ptr;
       /* Fix ORDER list */
+      if (sl->order_list_ptrs && sl->order_list_ptrs->size() > 0)
+      {
+        for (uint ix= 0; ix < sl->order_list_ptrs->size() - 1; ++ix)
+        {
+          order= sl->order_list_ptrs->at(ix);
+          order->next= sl->order_list_ptrs->at(ix+1);
+        }
+      }
       for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
 
@@ -2934,9 +2925,7 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   param= stmt->param_array[param_number];
 
   Diagnostics_area new_stmt_da(thd->query_id, false);
-  Diagnostics_area *save_stmt_da= thd->get_stmt_da();
-
-  thd->set_stmt_da(&new_stmt_da);
+  thd->push_diagnostics_area(&new_stmt_da);
 
 #ifndef EMBEDDED_LIBRARY
   param->set_longdata(packet, (ulong) (packet_end - packet));
@@ -2946,10 +2935,11 @@ void mysql_stmt_get_longdata(THD *thd, char *packet, ulong packet_length)
   if (thd->get_stmt_da()->is_error())
   {
     stmt->state= Query_arena::STMT_ERROR;
-    stmt->last_errno= thd->get_stmt_da()->sql_errno();
-    strncpy(stmt->last_error, thd->get_stmt_da()->message(), MYSQL_ERRMSG_SIZE);
+    stmt->last_errno= thd->get_stmt_da()->mysql_errno();
+    strncpy(stmt->last_error, thd->get_stmt_da()->message_text(),
+            MYSQL_ERRMSG_SIZE);
   }
-  thd->set_stmt_da(save_stmt_da);
+  thd->pop_diagnostics_area();
 
   general_log_print(thd, thd->get_command(), NullS);
 
@@ -3021,7 +3011,7 @@ Reprepare_observer::report_error(THD *thd)
     This 'error' is purely internal to the server:
     - No exception handler is invoked,
     - No condition is added in the condition area (warn_list).
-    The diagnostics area is set to an error status to enforce
+    The Diagnostics Area is set to an error status to enforce
     that this thread execution stops and returns to the caller,
     backtracking all the way to Prepared_statement::execute_loop().
   */
@@ -3548,7 +3538,7 @@ reexecute:
       reprepare_observer.is_invalidated() &&
       reprepare_attempt++ < MAX_REPREPARE_ATTEMPTS)
   {
-    DBUG_ASSERT(thd->get_stmt_da()->sql_errno() == ER_NEED_REPREPARE);
+    DBUG_ASSERT(thd->get_stmt_da()->mysql_errno() == ER_NEED_REPREPARE);
     thd->clear_error();
 
     error= reprepare();
@@ -3650,7 +3640,7 @@ Prepared_statement::reprepare()
       Sic: we can't simply silence warnings during reprepare, because if
       it's failed, we need to return all the warnings to the user.
     */
-    thd->get_stmt_da()->clear_warning_info(thd->query_id);
+    thd->get_stmt_da()->reset_condition_info(thd->query_id);
   }
   return error;
 }
@@ -4038,7 +4028,7 @@ Ed_connection::free_old_result()
   }
   m_current_rset= m_rsets;
   m_diagnostics_area.reset_diagnostics_area();
-  m_diagnostics_area.clear_warning_info(m_thd->query_id);
+  m_diagnostics_area.reset_condition_info(m_thd->query_id);
 }
 
 
@@ -4075,20 +4065,19 @@ bool Ed_connection::execute_direct(Server_runnable *server_runnable)
   Protocol_local protocol_local(m_thd, this);
   Prepared_statement stmt(m_thd);
   Protocol *save_protocol= m_thd->protocol;
-  Diagnostics_area *save_diagnostics_area= m_thd->get_stmt_da();
 
   DBUG_ENTER("Ed_connection::execute_direct");
 
   free_old_result(); /* Delete all data from previous execution, if any */
 
   m_thd->protocol= &protocol_local;
-  m_thd->set_stmt_da(&m_diagnostics_area);
+  m_thd->push_diagnostics_area(&m_diagnostics_area);
 
   rc= stmt.execute_server_runnable(server_runnable);
   m_thd->protocol->end_statement();
 
   m_thd->protocol= save_protocol;
-  m_thd->set_stmt_da(save_diagnostics_area);
+  m_thd->pop_diagnostics_area();
   /*
     Protocol_local makes use of m_current_rset to keep
     track of the last result set, while adding result sets to the end.
@@ -4465,7 +4454,7 @@ Protocol_local::send_ok(uint server_status, uint statement_warn_count,
 {
   /*
     Just make sure nothing is sent to the client, we have grabbed
-    the status information in the connection diagnostics area.
+    the status information in the connection Diagnostics Area.
   */
   return FALSE;
 }

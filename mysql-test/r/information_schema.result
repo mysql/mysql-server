@@ -736,7 +736,7 @@ where table_schema='test';
 constraint_name
 show create view v2;
 View	Create View	character_set_client	collation_connection
-v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `test`.`t1`.`f1` AS `c` from `t1`	latin1	latin1_swedish_ci
+v2	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v2` AS select `t1`.`f1` AS `c` from `t1`	latin1	latin1_swedish_ci
 Warnings:
 Warning	1356	View 'test.v2' references invalid table(s) or column(s) or function(s) or definer/invoker of view lack rights to use them
 show create table v3;
@@ -870,11 +870,15 @@ x_double_precision	NULL	NULL
 drop table t1;
 grant select on test.* to mysqltest_4@localhost;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
-where COLUMN_NAME='TABLE_NAME';
+where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME;
 TABLE_NAME	COLUMN_NAME	PRIVILEGES
 COLUMNS	TABLE_NAME	select
 COLUMN_PRIVILEGES	TABLE_NAME	select
 FILES	TABLE_NAME	select
+INNODB_BUFFER_PAGE	TABLE_NAME	select
+INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
+INNODB_CMP_PER_INDEX	table_name	select
+INNODB_CMP_PER_INDEX_RESET	table_name	select
 KEY_COLUMN_USAGE	TABLE_NAME	select
 PARTITIONS	TABLE_NAME	select
 REFERENTIAL_CONSTRAINTS	TABLE_NAME	select
@@ -883,10 +887,6 @@ TABLES	TABLE_NAME	select
 TABLE_CONSTRAINTS	TABLE_NAME	select
 TABLE_PRIVILEGES	TABLE_NAME	select
 VIEWS	TABLE_NAME	select
-INNODB_CMP_PER_INDEX	table_name	select
-INNODB_BUFFER_PAGE_LRU	TABLE_NAME	select
-INNODB_CMP_PER_INDEX_RESET	table_name	select
-INNODB_BUFFER_PAGE	TABLE_NAME	select
 delete from mysql.user where user='mysqltest_4';
 delete from mysql.db where user='mysqltest_4';
 flush privileges;
@@ -1323,7 +1323,8 @@ count(*) as num1
 from information_schema.tables t
 inner join information_schema.columns c1
 on t.table_schema = c1.table_schema AND t.table_name = c1.table_name
-where t.table_schema = 'information_schema' and
+where t.table_name not like 'ndb%' and
+t.table_schema = 'information_schema' and
 c1.ordinal_position =
 (select isnull(c2.column_type) -
 isnull(group_concat(c2.table_schema, '.', c2.table_name)) +

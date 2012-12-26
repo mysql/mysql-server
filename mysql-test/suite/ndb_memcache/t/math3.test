@@ -1,0 +1,48 @@
+--source include/have_ndb.inc
+--source suite/ndb_memcache/include/have_memcache.inc
+
+
+# Test INCR and DECR with binary protocol
+
+--perl
+
+use strict;
+use lib "lib/";
+use My::Memcache;
+
+my $port = $ENV{NDB_MEMCACHED_1_PORT} or die "Need NDB_MEMCACHED_1_PORT";
+
+my $mc = My::Memcache::Binary->new();
+my $r = $mc->connect("localhost",$port);
+
+if($r == 0) {
+  print STDERR "DID NOT CONNECT TO MEMCACHE AT PORT $port \n";
+}
+else {
+  my $r;
+  
+  $mc->delete("math_test_3a");
+  $mc->delete("math_test_3b");
+  
+  $r = $mc->incr("math_test_3a", 1, 1500);   # initialize at 1500
+  ($r == 1500) || Carp::confess("wrong result");
+
+  $r = $mc->incr("math_test_3a", 6);         # increment to 1506
+  ($r == 1506) || Carp::confess("wrong result");
+    
+  $r = $mc->decr("math_test_3b", 1, 1); # initialize at 1
+  ($r == 1) || Carp::confess("wrong result");
+
+  $r = $mc->decr("math_test_3b", 1);    # decr to 0
+  ($r == 0) || Carp::confess("wrong result");
+
+  $r = $mc->decr("math_test_3b", 1);    # should not wrap below 0.    
+  ($r == 0) || Carp::confess("wrong result");
+}
+
+EOF
+
+SELECT mkey, math_value 
+FROM ndbmemcache.demo_table where mkey like 'math_test_3%'
+ORDER BY mkey;
+

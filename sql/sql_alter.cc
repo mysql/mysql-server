@@ -293,11 +293,11 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 
   /* Don't yet allow changing of symlinks with ALTER TABLE */
   if (create_info.data_file_name)
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                         "DATA DIRECTORY");
   if (create_info.index_file_name)
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(thd, Sql_condition::SL_WARNING,
                         WARN_OPTION_IGNORED, ER(WARN_OPTION_IGNORED),
                         "INDEX DIRECTORY");
   create_info.data_file_name= create_info.index_file_name= NULL;

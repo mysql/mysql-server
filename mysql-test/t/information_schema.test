@@ -537,7 +537,7 @@ grant select on test.* to mysqltest_4@localhost;
 connect (user10261,localhost,mysqltest_4,,);
 connection user10261;
 SELECT TABLE_NAME, COLUMN_NAME, PRIVILEGES FROM INFORMATION_SCHEMA.COLUMNS
-where COLUMN_NAME='TABLE_NAME';
+where COLUMN_NAME='TABLE_NAME' ORDER BY TABLE_NAME;
 connection default;
 disconnect user10261;
 delete from mysql.user where user='mysqltest_4';
@@ -1013,7 +1013,8 @@ select t.table_name, group_concat(t.table_schema, '.', t.table_name),
 from information_schema.tables t
 inner join information_schema.columns c1
 on t.table_schema = c1.table_schema AND t.table_name = c1.table_name
-where t.table_schema = 'information_schema' and
+where t.table_name not like 'ndb%' and
+      t.table_schema = 'information_schema' and
         c1.ordinal_position =
         (select isnull(c2.column_type) -
          isnull(group_concat(c2.table_schema, '.', c2.table_name)) +

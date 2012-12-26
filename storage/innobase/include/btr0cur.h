@@ -172,16 +172,19 @@ UNIV_INTERN
 void
 btr_cur_open_at_index_side_func(
 /*============================*/
-	ibool		from_left,	/*!< in: TRUE if open to the low end,
-					FALSE if to the high end */
+	bool		from_left,	/*!< in: true if open to the low end,
+					false if to the high end */
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: latch mode */
-	btr_cur_t*	cursor,		/*!< in: cursor */
+	btr_cur_t*	cursor,		/*!< in/out: cursor */
+	ulint		level,		/*!< in: level to search for
+					(0=leaf) */
 	const char*	file,		/*!< in: file name */
 	ulint		line,		/*!< in: line where called */
-	mtr_t*		mtr);		/*!< in: mtr */
-#define btr_cur_open_at_index_side(f,i,l,c,m)				\
-	btr_cur_open_at_index_side_func(f,i,l,c,__FILE__,__LINE__,m)
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
+#define btr_cur_open_at_index_side(f,i,l,c,lv,m)			\
+	btr_cur_open_at_index_side_func(f,i,l,c,lv,__FILE__,__LINE__,m)
 /**********************************************************************//**
 Positions a cursor at a randomly chosen position within a B-tree. */
 UNIV_INTERN
@@ -697,7 +700,7 @@ btr_cur_set_deleted_flag_for_ibuf(
 					when the tablespace is
 					uncompressed */
 	ibool		val,		/*!< in: value to set */
-	mtr_t*		mtr);		/*!< in: mtr */
+	mtr_t*		mtr);		/*!< in/out: mini-transaction */
 /*######################################################################*/
 
 /** In the pessimistic delete, if the page data size drops below this
@@ -865,6 +868,11 @@ srv_refresh_innodb_monitor_stats().  Referenced by
 srv_printf_innodb_monitor(). */
 extern ulint	btr_cur_n_sea_old;
 #endif /* !UNIV_HOTBACKUP */
+
+#ifdef UNIV_DEBUG
+/* Flag to limit optimistic insert records */
+extern uint	btr_cur_limit_optimistic_insert_debug;
+#endif /* UNIV_DEBUG */
 
 #ifndef UNIV_NONINL
 #include "btr0cur.ic"

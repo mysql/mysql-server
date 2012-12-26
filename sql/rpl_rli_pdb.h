@@ -287,6 +287,7 @@ public:
                ,PSI_mutex_key *param_key_info_run_lock,
                PSI_mutex_key *param_key_info_data_lock,
                PSI_mutex_key *param_key_info_sleep_lock,
+               PSI_mutex_key *param_key_info_thd_lock,
                PSI_mutex_key *param_key_info_data_cond,
                PSI_mutex_key *param_key_info_start_cond,
                PSI_mutex_key *param_key_info_stop_cond,
@@ -321,14 +322,24 @@ public:
   volatile bool relay_log_change_notified; // Coord sets and resets, W can read
   volatile bool checkpoint_notified; // Coord sets and resets, W can read
   ulong bitmap_shifted;  // shift the last bitmap at receiving new CP
-  // W private counter to incrementer in step with  rli->mts_wq_excess_cnt
-  long wq_overrun_cnt; 
+  // WQ current excess above the overrun level
+  long wq_overrun_cnt;
   /*
     number of events starting from which Worker queue is regarded as
     close to full. The number of the excessive events yields a weight factor
     to compute Coordinator's nap.
   */
   ulong overrun_level;
+  /*
+     reverse to overrun: the number of events below which Worker is
+     considered underruning
+  */
+  ulong underrun_level;
+  /*
+    Total of increments done to rli->mts_wq_excess_cnt on behalf of this worker.
+    When WQ length is dropped below overrun the counter is reset.
+  */
+  ulong excess_cnt;
   /*
     Coordinates of the last CheckPoint (CP) this Worker has
     acknowledged; part of is persisent data

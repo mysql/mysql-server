@@ -29,7 +29,7 @@ struct PFS_instr_class;
 struct PFS_events
 {
   /** THREAD_ID. */
-  ulong m_thread_internal_id;
+  ulonglong m_thread_internal_id;
   /** EVENT_ID. */
   ulonglong m_event_id;
   /** END_EVENT_ID. */

@@ -910,7 +910,7 @@ bool Dbtup::addfragtotab(Tablerec* const regTabPtr,
                          Uint32 fragId,
                          Uint32 fragIndex)
 {
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr->fragid); i++) {
     jam();
     if (regTabPtr->fragid[i] == RNIL) {
       jam();
@@ -926,7 +926,7 @@ void Dbtup::getFragmentrec(FragrecordPtr& regFragPtr,
                            Uint32 fragId,
                            Tablerec* const regTabPtr)
 {
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr->fragid); i++) {
     jam();
     if (regTabPtr->fragid[i] == fragId) {
       jam();
@@ -1015,7 +1015,7 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
   case AlterTabReq::AlterTableSumaEnable:
   {
     FragrecordPtr regFragPtr;
-    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr.p->fragrec); i++)
     {
       jam();
       if ((regFragPtr.i = regTabPtr.p->fragrec[i]) != RNIL)
@@ -1044,7 +1044,7 @@ Dbtup::execALTER_TAB_REQ(Signal *signal)
     Uint32 gci = signal->theData[signal->getLength() - 1];
     regTabPtr.p->m_reorg_suma_filter.m_gci_hi = gci;
     FragrecordPtr regFragPtr;
-    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr.p->fragrec); i++)
     {
       jam();
       if ((regFragPtr.i = regTabPtr.p->fragrec[i]) != RNIL)
@@ -1320,7 +1320,7 @@ Dbtup::handleAlterTableCommit(Signal *signal,
   if (AlterTableReq::getReorgFragFlag(req->changeMask))
   {
     FragrecordPtr regFragPtr;
-    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr->fragrec); i++)
     {
       jam();
       if ((regFragPtr.i = regTabPtr->fragrec[i]) != RNIL)
@@ -1363,7 +1363,7 @@ Dbtup::handleAlterTableComplete(Signal *signal,
   if (AlterTableReq::getReorgCompleteFlag(req->changeMask))
   {
     FragrecordPtr regFragPtr;
-    for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+    for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr->fragrec); i++)
     {
       jam();
       if ((regFragPtr.i = regTabPtr->fragrec[i]) != RNIL)
@@ -1892,7 +1892,7 @@ void Dbtup::releaseAlterTabOpRec(AlterTabOperationPtr regAlterTabOpPtr)
 
 void Dbtup::deleteFragTab(Tablerec* const regTabPtr, Uint32 fragId) 
 {
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(regTabPtr->fragid); i++) {
     jam();
     if (regTabPtr->fragid[i] == fragId) {
       jam();
@@ -1991,7 +1991,7 @@ void Dbtup::releaseFragment(Signal* signal, Uint32 tableId,
   Uint32 fragIndex = RNIL;
   Uint32 fragId = RNIL;
   Uint32 i = 0;
-  for (i = 0; i < MAX_FRAG_PER_NODE; i++) {
+  for (i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->fragid); i++) {
     jam();
     if (tabPtr.p->fragid[i] != RNIL) {
       jam();
@@ -2464,11 +2464,11 @@ Dbtup::drop_fragment_fsremove_done(Signal* signal,
   Uint32 logfile_group_id = fragPtr.p->m_logfile_group_id ;
 
   Uint32 i;
-  for(i= 0; i<MAX_FRAG_PER_NODE; i++)
+  for(i= 0; i<NDB_ARRAY_SIZE(tabPtr.p->fragrec); i++)
     if(tabPtr.p->fragrec[i] == fragPtr.i)
       break;
 
-  ndbrequire(i != MAX_FRAG_PER_NODE);
+  ndbrequire(i != NDB_ARRAY_SIZE(tabPtr.p->fragrec));
   tabPtr.p->fragid[i]= RNIL;
   tabPtr.p->fragrec[i]= RNIL;
   releaseFragrec(fragPtr);
@@ -2694,7 +2694,7 @@ Dbtup::execDROP_FRAG_REQ(Signal* signal)
   tabPtr.p->m_dropTable.tabUserPtr = req->senderData;
 
   Uint32 fragIndex = RNIL;
-  for (Uint32 i = 0; i < MAX_FRAG_PER_NODE; i++)
+  for (Uint32 i = 0; i < NDB_ARRAY_SIZE(tabPtr.p->fragid); i++)
   {
     jam();
     if (tabPtr.p->fragid[i] == req->fragId)

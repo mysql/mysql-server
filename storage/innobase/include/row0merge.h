@@ -68,7 +68,6 @@ typedef byte	mrec_t;
 
 /** Merge record in row_merge_buf_t */
 struct mtuple_t {
-	bool		del_mark;	/*!< true when delete-marked */
 	dfield_t*	fields;		/*!< data fields */
 };
 
@@ -216,6 +215,7 @@ row_merge_rename_tables(
 	const char*	tmp_name,	/*!< in: new name for old_table */
 	trx_t*		trx)		/*!< in: transaction handle */
 	__attribute__((nonnull, warn_unused_result));
+
 /*********************************************************************//**
 Rename an index in the dictionary that was created. The data
 dictionary must have been locked exclusively by the caller, because
@@ -263,18 +263,17 @@ row_merge_is_index_usable(
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_index_t*	index);	/*!< in: index to check */
 /*********************************************************************//**
-If there are views that refer to the old table name then we "attach" to
-the new instance of the table else we drop it immediately.
+Drop a table. The caller must have ensured that the background stats
+thread is not processing the table. This can be done by calling
+dict_stats_wait_bg_to_stop_using_tables() after locking the dictionary and
+before calling this function.
 @return	DB_SUCCESS or error code */
 UNIV_INTERN
 dberr_t
 row_merge_drop_table(
 /*=================*/
 	trx_t*		trx,		/*!< in: transaction */
-	dict_table_t*	table,		/*!< in: table instance to drop */
-	bool		nonatomic)	/*!< in: whether it is permitted
-					to release and reacquire
-					dict_operation_lock */
+	dict_table_t*	table)		/*!< in: table instance to drop */
 	__attribute__((nonnull));
 /*********************************************************************//**
 Build indexes on a table by reading a clustered index,
@@ -420,7 +419,6 @@ row_merge_read_rec(
 	mrec_buf_t*		buf,	/*!< in/out: secondary buffer */
 	const byte*		b,	/*!< in: pointer to record */
 	const dict_index_t*	index,	/*!< in: index of the record */
-	ulint			n_null,	/*!< in: size of the NULL-bit bitmap */
 	int			fd,	/*!< in: file descriptor */
 	ulint*			foffs,	/*!< in/out: file offset */
 	const mrec_t**		mrec,	/*!< out: pointer to merge record,

@@ -62,7 +62,7 @@ gdb -c $core -x $bt -q 2>&1 | grep "Core was generated" | awk '{ print $5;}' | s
 exe=`cat $tmp`
 rm -f $tmp
 
-if [ -x $exe ]
+if [ -x "$exe" ]
 then
     echo "*** $exe - $core" >> $out
     gdb -q -batch -x $bt -c $core $exe >> $out 2>&1
