@@ -237,8 +237,7 @@ Item_func::fix_fields(THD *thd, Item **ref)
 
 
 void Item_func::fix_after_pullout(st_select_lex *parent_select,
-                                  st_select_lex *removed_select,
-                                  Item **ref)
+                                  st_select_lex *removed_select)
 {
   Item **arg,**arg_end;
 
@@ -250,8 +249,8 @@ void Item_func::fix_after_pullout(st_select_lex *parent_select,
   {
     for (arg=args, arg_end=args+arg_count; arg != arg_end ; arg++)
     {
-      (*arg)->fix_after_pullout(parent_select, removed_select, arg);
-      Item *item= *arg;
+      Item *const item= *arg;
+      item->fix_after_pullout(parent_select, removed_select);
 
       used_tables_cache|=     item->used_tables();
       not_null_tables_cache|= item->not_null_tables();
@@ -729,7 +728,7 @@ void Item_func::signal_divide_by_null()
 {
   THD *thd= current_thd;
   if (thd->variables.sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
-    push_warning(thd, Sql_condition::WARN_LEVEL_WARN, ER_DIVISION_BY_ZERO,
+    push_warning(thd, Sql_condition::SL_WARNING, ER_DIVISION_BY_ZERO,
                  ER(ER_DIVISION_BY_ZERO));
   null_value= 1;
 }
@@ -1136,7 +1135,7 @@ longlong Item_func_signed::val_int_from_str(int *error)
   if (*error > 0 || end != start+ length)
   {
     ErrConvString err(res);
-    push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+    push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_TRUNCATED_WRONG_VALUE,
                         ER(ER_TRUNCATED_WRONG_VALUE), "INTEGER",
                         err.ptr());
@@ -1161,7 +1160,7 @@ longlong Item_func_signed::val_int()
   value= val_int_from_str(&error);
   if (value < 0 && error == 0)
   {
-    push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(current_thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                  "Cast to signed converted positive out-of-range integer to "
                  "it's negative complement");
   }
@@ -1202,7 +1201,7 @@ longlong Item_func_unsigned::val_int()
 
   value= val_int_from_str(&error);
   if (error < 0)
-    push_warning(current_thd, Sql_condition::WARN_LEVEL_WARN, ER_UNKNOWN_ERROR,
+    push_warning(current_thd, Sql_condition::SL_WARNING, ER_UNKNOWN_ERROR,
                  "Cast to unsigned converted negative integer to it's "
                  "positive complement");
   return value;
@@ -1270,7 +1269,7 @@ my_decimal *Item_decimal_typecast::val_decimal(my_decimal *dec)
   return dec;
 
 err:
-  push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+  push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                       ER_WARN_DATA_OUT_OF_RANGE,
                       ER(ER_WARN_DATA_OUT_OF_RANGE),
                       item_name.ptr(), 1L);
@@ -3328,8 +3327,8 @@ longlong Item_func_ord::val_int()
 #ifdef USE_MB
   if (use_mb(res->charset()))
   {
-    register const char *str=res->ptr();
-    register uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());
+    const char *str=res->ptr();
+    uint32 n=0, l=my_ismbchar(res->charset(),str,str+res->length());
     if (!l)
       return (longlong)((uchar) *str);
     while (l--)
@@ -4076,7 +4075,7 @@ longlong Item_master_gtid_set_wait::val_int()
   int event_count= 0;
 
   null_value=0;
-  if (thd->slave_thread || !gtid)
+  if (thd->slave_thread || !gtid || 0 == gtid_mode)
   {
     null_value = 1;
     return event_count;
@@ -4428,7 +4427,8 @@ longlong Item_func_last_insert_id::val_int()
     thd->first_successful_insert_id_in_prev_stmt= value;
     return value;
   }
-  return thd->read_first_successful_insert_id_in_prev_stmt();
+  return
+    static_cast<longlong>(thd->read_first_successful_insert_id_in_prev_stmt());
 }
 
 
@@ -4459,7 +4459,7 @@ longlong Item_func_benchmark::val_int()
     {
       char buff[22];
       llstr(((longlong) loop_count), buff);
-      push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+      push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                           ER_WRONG_VALUE_FOR_TYPE, ER(ER_WRONG_VALUE_FOR_TYPE),
                           "count", buff, "benchmark");
     }
@@ -4601,13 +4601,17 @@ bool Item_func_set_user_var::set_entry(THD *thd, bool create_if_not_exists)
     return TRUE;
   }
   entry_thread_id= thd->thread_id;
-  /* 
-     Remember the last query which updated it, this way a query can later know
-     if this variable is a constant item in the query (it is if update_query_id
-     is different from query_id).
-  */
 end:
-  entry->update_query_id= thd->query_id;
+  /* 
+    Remember the last query which updated it, this way a query can later know
+    if this variable is a constant item in the query (it is if update_query_id
+    is different from query_id).
+
+    If this object has delayed setting of non-constness, we delay this
+    until Item_func_set-user_var::save_item_result().
+  */
+  if (!delayed_non_constness)
+    entry->update_query_id= thd->query_id;
   return FALSE;
 }
 
@@ -5003,6 +5007,13 @@ void Item_func_set_user_var::save_item_result(Item *item)
     DBUG_ASSERT(0);
     break;
   }
+  /*
+    Set the ID of the query that last updated this variable. This is
+    usually set by Item_func_set_user_var::set_entry(), but if this
+    item has delayed setting of non-constness, we must do it now.
+   */
+  if (delayed_non_constness)
+    entry->update_query_id= current_thd->query_id;
   DBUG_VOID_RETURN;
 }
 
@@ -5407,7 +5418,8 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
     thd->lex= &lex_tmp;
     lex_start(thd);
     tmp_var_list.push_back(new set_var_user(new Item_func_set_user_var(name,
-                                                                       new Item_null())));
+                                                                       new Item_null(),
+                                                                       false)));
     /* Create the variable */
     if (sql_set_variables(thd, &tmp_var_list))
     {
@@ -5569,7 +5581,7 @@ bool Item_func_get_user_var::eq(const Item *item, bool binary_cmp) const
 bool Item_func_get_user_var::set_value(THD *thd,
                                        sp_rcontext * /*ctx*/, Item **it)
 {
-  Item_func_set_user_var *suv= new Item_func_set_user_var(name, *it);
+  Item_func_set_user_var *suv= new Item_func_set_user_var(name, *it, false);
   /*
     Item_func_set_user_var is not fixed after construction, call
     fix_fields().
@@ -6270,7 +6282,7 @@ bool Item_func_match::fix_index()
     for (keynr=0 ; keynr < fts ; keynr++)
     {
       KEY *ft_key=&table->key_info[ft_to_key[keynr]];
-      uint key_parts=ft_key->key_parts;
+      uint key_parts=ft_key->user_defined_key_parts;
 
       for (uint part=0 ; part < key_parts ; part++)
       {
@@ -6302,7 +6314,7 @@ bool Item_func_match::fix_index()
   {
     // partial keys doesn't work
     if (max_cnt < arg_count-1 ||
-        max_cnt < table->key_info[ft_to_key[keynr]].key_parts)
+        max_cnt < table->key_info[ft_to_key[keynr]].user_defined_key_parts)
       continue;
 
     key=ft_to_key[keynr];
@@ -6484,6 +6496,13 @@ longlong Item_func_is_free_lock::val_int()
   if (!ull || !ull->locked)
     return 1;
   return 0;
+}
+
+void Item_func_is_used_lock::fix_length_and_dec()
+{
+  Item_int_func::fix_length_and_dec();
+  unsigned_flag= 1;
+  maybe_null= 1;
 }
 
 longlong Item_func_is_used_lock::val_int()

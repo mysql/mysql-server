@@ -189,7 +189,7 @@ SocketClient::connect(const char *toaddress, unsigned short toport)
   }
 
 done:
-  if (my_socket_nonblock(m_sockfd, true) < 0)
+  if (my_socket_nonblock(m_sockfd, false) < 0)
   {
     my_socket_close(m_sockfd);
     my_socket_invalidate(&m_sockfd);

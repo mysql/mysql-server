@@ -1545,16 +1545,16 @@ protected:
 };
 
 
-class Create_func_lcase : public Create_func_arg1
+class Create_func_lower : public Create_func_arg1
 {
 public:
   virtual Item *create(THD *thd, Item *arg1);
 
-  static Create_func_lcase s_singleton;
+  static Create_func_lower s_singleton;
 
 protected:
-  Create_func_lcase() {}
-  virtual ~Create_func_lcase() {}
+  Create_func_lower() {}
+  virtual ~Create_func_lower() {}
 };
 
 
@@ -2405,16 +2405,16 @@ protected:
 #endif
 
 
-class Create_func_ucase : public Create_func_arg1
+class Create_func_upper : public Create_func_arg1
 {
 public:
   virtual Item *create(THD *thd, Item *arg1);
 
-  static Create_func_ucase s_singleton;
+  static Create_func_upper s_singleton;
 
 protected:
-  Create_func_ucase() {}
-  virtual ~Create_func_ucase() {}
+  Create_func_upper() {}
+  virtual ~Create_func_upper() {}
 };
 
 
@@ -4276,12 +4276,12 @@ Create_func_last_insert_id::create_native(THD *thd, LEX_STRING name,
 }
 
 
-Create_func_lcase Create_func_lcase::s_singleton;
+Create_func_lower Create_func_lower::s_singleton;
 
 Item*
-Create_func_lcase::create(THD *thd, Item *arg1)
+Create_func_lower::create(THD *thd, Item *arg1)
 {
-  return new (thd->mem_root) Item_func_lcase(arg1);
+  return new (thd->mem_root) Item_func_lower(arg1);
 }
 
 
@@ -5113,12 +5113,12 @@ Create_func_touches::create(THD *thd, Item *arg1, Item *arg2)
 #endif
 
 
-Create_func_ucase Create_func_ucase::s_singleton;
+Create_func_upper Create_func_upper::s_singleton;
 
 Item*
-Create_func_ucase::create(THD *thd, Item *arg1)
+Create_func_upper::create(THD *thd, Item *arg1)
 {
-  return new (thd->mem_root) Item_func_ucase(arg1);
+  return new (thd->mem_root) Item_func_upper(arg1);
 }
 
 
@@ -5480,7 +5480,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("IS_USED_LOCK") }, BUILDER(Create_func_is_used_lock)},
   { { C_STRING_WITH_LEN("LAST_DAY") }, BUILDER(Create_func_last_day)},
   { { C_STRING_WITH_LEN("LAST_INSERT_ID") }, BUILDER(Create_func_last_insert_id)},
-  { { C_STRING_WITH_LEN("LCASE") }, BUILDER(Create_func_lcase)},
+  { { C_STRING_WITH_LEN("LCASE") }, BUILDER(Create_func_lower)},
   { { C_STRING_WITH_LEN("LEAST") }, BUILDER(Create_func_least)},
   { { C_STRING_WITH_LEN("LENGTH") }, BUILDER(Create_func_length)},
 #ifndef DBUG_OFF
@@ -5497,7 +5497,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("LOG") }, BUILDER(Create_func_log)},
   { { C_STRING_WITH_LEN("LOG10") }, BUILDER(Create_func_log10)},
   { { C_STRING_WITH_LEN("LOG2") }, BUILDER(Create_func_log2)},
-  { { C_STRING_WITH_LEN("LOWER") }, BUILDER(Create_func_lcase)},
+  { { C_STRING_WITH_LEN("LOWER") }, BUILDER(Create_func_lower)},
   { { C_STRING_WITH_LEN("LPAD") }, BUILDER(Create_func_lpad)},
   { { C_STRING_WITH_LEN("LTRIM") }, BUILDER(Create_func_ltrim)},
   { { C_STRING_WITH_LEN("MAKEDATE") }, BUILDER(Create_func_makedate)},
@@ -5563,7 +5563,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("SLEEP") }, BUILDER(Create_func_sleep)},
   { { C_STRING_WITH_LEN("SOUNDEX") }, BUILDER(Create_func_soundex)},
   { { C_STRING_WITH_LEN("SPACE") }, BUILDER(Create_func_space)},
-  { { C_STRING_WITH_LEN("SQL_THREAD_WAIT_AFTER_GTIDS") }, BUILDER(Create_func_master_gtid_set_wait)},
+  { { C_STRING_WITH_LEN("WAIT_UNTIL_SQL_THREAD_AFTER_GTIDS") }, BUILDER(Create_func_master_gtid_set_wait)},
   { { C_STRING_WITH_LEN("SQRT") }, BUILDER(Create_func_sqrt)},
   { { C_STRING_WITH_LEN("SRID") }, GEOM_BUILDER(Create_func_srid)},
   { { C_STRING_WITH_LEN("STARTPOINT") }, GEOM_BUILDER(Create_func_startpoint)},
@@ -5640,13 +5640,13 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("TO_BASE64") }, BUILDER(Create_func_to_base64)},
   { { C_STRING_WITH_LEN("TO_DAYS") }, BUILDER(Create_func_to_days)},
   { { C_STRING_WITH_LEN("TO_SECONDS") }, BUILDER(Create_func_to_seconds)},
-  { { C_STRING_WITH_LEN("UCASE") }, BUILDER(Create_func_ucase)},
+  { { C_STRING_WITH_LEN("UCASE") }, BUILDER(Create_func_upper)},
   { { C_STRING_WITH_LEN("UNCOMPRESS") }, BUILDER(Create_func_uncompress)},
   { { C_STRING_WITH_LEN("UNCOMPRESSED_LENGTH") }, BUILDER(Create_func_uncompressed_length)},
   { { C_STRING_WITH_LEN("UNHEX") }, BUILDER(Create_func_unhex)},
   { { C_STRING_WITH_LEN("UNIX_TIMESTAMP") }, BUILDER(Create_func_unix_timestamp)},
   { { C_STRING_WITH_LEN("UPDATEXML") }, BUILDER(Create_func_xml_update)},
-  { { C_STRING_WITH_LEN("UPPER") }, BUILDER(Create_func_ucase)},
+  { { C_STRING_WITH_LEN("UPPER") }, BUILDER(Create_func_upper)},
   { { C_STRING_WITH_LEN("UUID") }, BUILDER(Create_func_uuid)},
   { { C_STRING_WITH_LEN("UUID_SHORT") }, BUILDER(Create_func_uuid_short)},
   { { C_STRING_WITH_LEN("VALIDATE_PASSWORD_STRENGTH") }, BUILDER(Create_func_validate_password_strength)},

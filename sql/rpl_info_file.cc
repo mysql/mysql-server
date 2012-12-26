@@ -30,8 +30,9 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
 
 Rpl_info_file::Rpl_info_file(const int nparam,
                              const char* param_pattern_fname,
-                             const char* param_info_fname)
-  :Rpl_info_handler(nparam), info_fd(-1)
+                             const char* param_info_fname,
+                             bool indexed_arg)
+  :Rpl_info_handler(nparam), info_fd(-1), name_indexed(indexed_arg)
 {
   DBUG_ENTER("Rpl_info_file::Rpl_info_file");
 
@@ -46,42 +47,12 @@ int Rpl_info_file::do_init_info(uint instance)
 {
   DBUG_ENTER("Rpl_info_file::do_init_info(uint)");
 
-  uint i= 0;
-  struct st_my_dir *dir_info= NULL;
-  struct fileinfo *file_info= NULL;
-  char dir_name[FN_REFLEN];
-  size_t dir_size= 0;
-  char* file_name= NULL;
-  size_t file_size= 0;
-  uint counter= 0;
+  char fname_local[FN_REFLEN];
+  char *pos= strmov(fname_local, pattern_fname);
+  if (name_indexed)
+    sprintf(pos, "%u", instance);
 
-  file_name= pattern_fname +
-             dirname_part(dir_name, pattern_fname, &dir_size);
-  file_size= strlen(file_name);
-
-  if (!(dir_info= my_dir(dir_name, MYF(MY_DONT_SORT))))
-    DBUG_RETURN(true);
-
-  file_info= dir_info->dir_entry;
-  for (i= dir_info->number_off_files ; i--; file_info++)
-  {
-    if (!strncmp(file_info->name, file_name, file_size))
-    {
-      counter++;
-      /*
-        Fixing the file name as it may not be correct as it usually
-        indexed by instance.
-      */
-      if (counter == instance)
-      {
-        fn_format(info_fname, file_info->name, mysql_data_home,
-                  "", 4 + 32);
-        break;
-      }
-    }
-  }
-  my_dirend(dir_info);
-
+  fn_format(info_fname, fname_local, mysql_data_home, "", 4 + 32);
   DBUG_RETURN(do_init_info());
 }
 
@@ -171,103 +142,100 @@ int Rpl_info_file::do_prepare_info_for_write()
   return (reinit_io_cache(&info_file, WRITE_CACHE, 0L, 0, 1));
 }
 
-enum_return_check Rpl_info_file::do_check_info(uint instance)
+inline enum_return_check do_check_repository_file(const char *fname)
 {
-  uint i= 0;
-  struct st_my_dir *dir_info= NULL;
-  struct fileinfo *file_info= NULL;
-  char dir_name[FN_REFLEN];
-  size_t dir_size= 0;
-  char* file_name= NULL;
-  size_t file_size= 0;
-  uint counter= 0;
-
-  file_name= pattern_fname +
-             dirname_part(dir_name, pattern_fname, &dir_size);
-  file_size= strlen(file_name);
-
-  if (!(dir_info= my_dir(dir_name, MYF(MY_DONT_SORT))))
-    return ERROR_CHECKING_REPOSITORY;
-
-  file_info= dir_info->dir_entry;
-  for (i= dir_info->number_off_files ; i--; file_info++)
-  {
-    if (!strncmp(file_info->name, file_name, file_size))
-    {
-      counter++;
-      if (counter == instance)
-      {
-
-        if (my_access(file_info->name, F_OK))
-        {
-          my_dirend(dir_info);
-          return REPOSITORY_DOES_NOT_EXIST;
-        }
-
-        if (my_access(file_info->name, F_OK | R_OK | W_OK))
-        {
-          my_dirend(dir_info);
-          return ERROR_CHECKING_REPOSITORY;
-        }
-
-        my_dirend(dir_info);
-        return REPOSITORY_EXISTS;
-      }
-    }
-  }
-  my_dirend(dir_info);
-
-  return REPOSITORY_DOES_NOT_EXIST;
-}
-
-enum_return_check Rpl_info_file::do_check_info()
-{
-  if (my_access(info_fname, F_OK))
+  if (my_access(fname, F_OK))
     return REPOSITORY_DOES_NOT_EXIST;
 
-  if (my_access(info_fname, F_OK | R_OK | W_OK))
+  if (my_access(fname, F_OK | R_OK | W_OK))
     return ERROR_CHECKING_REPOSITORY;
     
   return REPOSITORY_EXISTS;
 }
 
+/*
+  The method verifies existence of an instance of the repository.
+
+  @param instance  an index in the repository
+  @retval REPOSITORY_EXISTS when the check is successful
+  @retval REPOSITORY_DOES_NOT_EXIST otherwise
+
+  @note This method also verifies overall integrity
+  of the repositories to make sure they are indexed without any gaps.
+*/
+enum_return_check Rpl_info_file::do_check_info(uint instance)
+{
+  uint i;
+  enum_return_check last_check= REPOSITORY_EXISTS;
+  char fname_local[FN_REFLEN];
+  char *pos= NULL;
+
+  for (i= 1; i <= instance && last_check == REPOSITORY_EXISTS; i++)
+  {
+    pos= strmov(fname_local, pattern_fname);
+    if (name_indexed)
+      sprintf(pos, "%u", i);
+    fn_format(fname_local, fname_local, mysql_data_home, "", 4 + 32);
+    last_check= do_check_repository_file(fname_local);
+  }
+  return last_check;
+}
+
+enum_return_check Rpl_info_file::do_check_info()
+{
+  return do_check_repository_file(info_fname);
+}
+
+/*
+  The function counts number of files in a range starting
+  from one. The range degenerates into one item when @c indexed is false.
+  Scanning ends once the next indexed file is not found.
+
+  @param      nparam    Number of fields
+  @param      param_pattern  
+                        a string pattern to generate
+                        the actual file name
+  @param      indexed   indicates whether the file is indexed and if so
+                        there is a range to count in.
+  @param[out] counter   the number of discovered instances before the first
+                        unsuccess in locating the next file.
+
+  @retval false     All OK
+  @retval true      An error
+*/
 bool Rpl_info_file::do_count_info(const int nparam,
-                                  const char* param_pattern_fname,
+                                  const char* param_pattern,
+                                  bool  indexed,
                                   uint* counter)
 {
   uint i= 0;
-  struct st_my_dir *dir_info= NULL;
-  struct fileinfo *file_info= NULL;
-  char dir_name[FN_REFLEN];
-  size_t dir_size= 0;
-  char* file_name= NULL;
-  size_t file_size= 0;
   Rpl_info_file* info= NULL;
+
+  char fname_local[FN_REFLEN];
+  char *pos= NULL;
+  enum_return_check last_check= REPOSITORY_EXISTS;
 
   DBUG_ENTER("Rpl_info_file::do_count_info");
 
-  if (!(info= new Rpl_info_file(nparam, param_pattern_fname, "")))
+  if (!(info= new Rpl_info_file(nparam, param_pattern, "", indexed)))
     DBUG_RETURN(true);
 
-  file_name= info->pattern_fname +
-             dirname_part(dir_name, info->pattern_fname, &dir_size);
-  file_size= strlen(file_name);
-
-  if (!(dir_info= my_dir(dir_name, MYF(MY_DONT_SORT))))
+  for (i= 1; last_check == REPOSITORY_EXISTS; i++)
   {
-    delete info;
-    DBUG_RETURN(true);
-  }
-
-  file_info= dir_info->dir_entry;
-  for (i= dir_info->number_off_files ; i-- ; file_info++)
-  {
-    if (!strncmp(file_info->name, file_name, file_size))
+    pos= strmov(fname_local, param_pattern);
+    if (indexed)
+    {  
+      sprintf(pos, "%u", i);
+    }
+    fn_format(fname_local, fname_local, mysql_data_home, "", 4 + 32);
+    if ((last_check= do_check_repository_file(fname_local)) == REPOSITORY_EXISTS)
       (*counter)++;
+    // just one loop pass for MI and RLI file
+    if (!indexed)
+      break;
   }
-  my_dirend(dir_info);
-
   delete info;
+
   DBUG_RETURN(false);
 }
 
@@ -328,44 +296,39 @@ int Rpl_info_file::do_clean_info()
   return 0;
 }
 
-int Rpl_info_file::do_reset_info(const int nparam, const char* param_pattern_fname)
+int Rpl_info_file::do_reset_info(const int nparam,
+                                       const char* param_pattern,
+                                       bool indexed)
 {
-  uint i= 0;
-  struct st_my_dir *dir_info= NULL;
-  struct fileinfo *file_info= NULL;
-  const char* file_name= NULL;
-  size_t file_size= 0;
-  char dir_name[FN_REFLEN];
-  size_t dir_size= 0;
-  Rpl_info_file* info= NULL;
   int error= false;
+  uint i= 0;
+  Rpl_info_file* info= NULL;
+  char fname_local[FN_REFLEN];
+  char *pos= NULL;
+  enum_return_check last_check= REPOSITORY_EXISTS;
 
-  DBUG_ENTER("Rpl_info_file::do_reset_info");
+  DBUG_ENTER("Rpl_info_file::do_count_info");
 
-  if (!(info= new Rpl_info_file(nparam, param_pattern_fname, "")))
+  if (!(info= new Rpl_info_file(nparam, param_pattern, "", indexed)))
     DBUG_RETURN(true);
 
-  file_name= info->pattern_fname + dirname_part(dir_name, info->pattern_fname, &dir_size);
-  file_size= strlen(file_name);
-
-  if (!(dir_info= my_dir(dir_name, MYF(MY_DONT_SORT))))
+  for (i= 1; last_check == REPOSITORY_EXISTS; i++)
   {
-    delete info;
-    DBUG_RETURN(true);
-  }
-
-  file_info= dir_info->dir_entry;
-  for (i= dir_info->number_off_files ; i-- ; file_info++)
-  {
-    if (!strncmp(file_info->name, file_name, file_size))
-    {
-      if (my_delete(file_info->name, MYF(MY_WME)))
-        error= true;
+    pos= strmov(fname_local, param_pattern);
+    if (indexed)
+    {  
+      sprintf(pos, "%u", i);
     }
+    fn_format(fname_local, fname_local, mysql_data_home, "", 4 + 32);
+    if ((last_check= do_check_repository_file(fname_local)) == REPOSITORY_EXISTS)
+      if (my_delete(fname_local, MYF(MY_WME)))
+        error= true;
+    // just one loop pass for MI and RLI file
+    if (!indexed)
+      break;
   }
-  my_dirend(dir_info);
+  delete info;
 
-  delete info; 
   DBUG_RETURN(error);
 }
 

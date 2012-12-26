@@ -105,6 +105,8 @@ public:
   bool check(THD *thd, set_var *var);
   uchar *value_ptr(THD *thd, enum_var_type type, LEX_STRING *base);
   bool set_default(THD *thd, enum_var_type type);
+  virtual void update_default(longlong new_def_value)
+  { option.def_value= new_def_value; }
   bool update(THD *thd, set_var *var);
 
   SHOW_TYPE show_type() { return show_val_type; }
@@ -332,6 +334,7 @@ bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode, LEX_STRING *l
 extern sys_var *Sys_autocommit_ptr;
 extern sys_var *Sys_gtid_next_ptr;
 extern sys_var *Sys_gtid_next_list_ptr;
+extern sys_var *Sys_gtid_purged_ptr;
 
 const CHARSET_INFO *get_old_charset_by_name(const char *old_name);
 

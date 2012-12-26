@@ -79,12 +79,20 @@ SET @@global.delayed_insert_timeout = -1024;
 SELECT @@global.delayed_insert_timeout;
 SET @@global.delayed_insert_timeout = 42949672950;
 SELECT @@global.delayed_insert_timeout;
+SET @@global.delayed_insert_timeout = 4294967287;
+SELECT @@global.delayed_insert_timeout;   
 
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.delayed_insert_timeout = 429496729.5;
 SELECT @@global.delayed_insert_timeout;
 --Error ER_WRONG_TYPE_FOR_VAR
 SET @@global.delayed_insert_timeout = ON;
+SELECT @@global.delayed_insert_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.delayed_insert_timeout = " ";
+SELECT @@global.delayed_insert_timeout;
+--Error ER_WRONG_TYPE_FOR_VAR
+SET @@global.delayed_insert_timeout = ' ';
 SELECT @@global.delayed_insert_timeout;
 
 

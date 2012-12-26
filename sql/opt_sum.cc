@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -416,7 +416,7 @@ int opt_sum_query(THD *thd,
             DBUG_RETURN(error);
           }
 
-          error= is_max ? 
+          error= is_max ?
                  get_index_max_value(table, &ref, range_fl) :
                  get_index_min_value(table, &ref, item_field, range_fl,
                                      prefix_len);
@@ -492,7 +492,7 @@ int opt_sum_query(THD *thd,
   }
 
   if (thd->is_error())
-    DBUG_RETURN(thd->get_stmt_da()->sql_errno());
+    DBUG_RETURN(thd->get_stmt_da()->mysql_errno());
 
   /*
     If we have a where clause, we can only ignore searching in the
@@ -909,7 +909,7 @@ static bool find_key_for_maxmin(bool max_fl, TABLE_REF *ref,
       continue;
     uint jdx= 0;
     *prefix_len= 0;
-    for (part= keyinfo->key_part, part_end= part+keyinfo->key_parts ;
+    for (part= keyinfo->key_part, part_end= part + actual_key_parts(keyinfo) ;
          part != part_end ;
          part++, jdx++, key_part_to_use= (key_part_to_use << 1) | 1)
     {

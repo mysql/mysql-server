@@ -17,6 +17,7 @@
 
 #cmakedefine HAVE_POSIX_MEMALIGN 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
+#cmakedefine HAVE_NANOSLEEP 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_SELF 1
 #cmakedefine HAVE_SCHED_GET_PRIORITY_MIN 1
@@ -38,8 +39,12 @@
 #cmakedefine HAVE_MLOCK 1
 #cmakedefine HAVE_FFS 1
 #cmakedefine HAVE___BUILTIN_FFS 1
+#cmakedefine HAVE___BUILTIN_CTZ 1
+#cmakedefine HAVE___BUILTIN_CLZ 1
 #cmakedefine HAVE__BITSCANFORWARD 1
+#cmakedefine HAVE__BITSCANREVERSE 1
 #cmakedefine HAVE_PTHREAD_MUTEXATTR_INIT 1
 #cmakedefine HAVE_PTHREAD_MUTEXATTR_SETTYPE 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_BZERO 1
+#cmakedefine HAVE_MY_DEFAULT_H 1

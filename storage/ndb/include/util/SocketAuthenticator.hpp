@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #ifndef SOCKET_AUTHENTICATOR_HPP
 #define SOCKET_AUTHENTICATOR_HPP
 
+#include <NdbTCP.h>
+
 class SocketAuthenticator
 {
 public:
@@ -29,8 +31,8 @@ public:
 
 class SocketAuthSimple : public SocketAuthenticator
 {
-  const char *m_passwd;
-  const char *m_username;
+  char *m_passwd;
+  char *m_username;
 public:
   SocketAuthSimple(const char *username, const char *passwd);
   virtual ~SocketAuthSimple();

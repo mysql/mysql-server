@@ -159,6 +159,7 @@ trx_set_dict_operation(
 ok:
 #endif /* UNIV_DEBUG */
 
+	trx->ddl = true;
 	trx->dict_operation = op;
 }
 

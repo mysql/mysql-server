@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+ Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -45,12 +45,14 @@ JTIE_DEFINE_FIELD_MEMBER_INFO(_Wrapper_cdelegate)
 typedef JniMemberId< WEAK_CACHING, _Wrapper_cdelegate > Wrapper_cdelegate;
 //typedef JniMemberId< STRONG_CACHING, _Wrapper_cdelegate > Wrapper_cdelegate;
 
+// ---------------------------------------------------------------------------
+
 // XXX consider changing
 //template< typename C > struct ObjectParam< _jtie_Object *, C * > {
 // to
 //template< typename J, typename C > struct ObjectParam< J *, C * > {
-//
-// same for Target, Result
+// same for Target, Result; or conversly
+//template< typename J > struct ObjectResult< J *, void * > {
 
 // Implements the mapping of jtie_Objects parameters.
 template< typename J, typename C >
@@ -195,10 +197,10 @@ struct Target< _jtie_Object *, C > {
 template< typename J, typename C >
 struct ObjectResult< J *, C * > {
     // Provides a (cached) access to the method Id of the constructor of J.
-    //typedef JniMemberId< NO_CACHING, J > J_ctor;
-    typedef JniMemberId< WEAK_CACHING, J > J_ctor;
-    //typedef JniMemberId< STRONG_CACHING, J > J_ctor;
-    
+    //typedef JniMemberId< NO_CACHING, typename J::ctor > J_ctor;
+    typedef JniMemberId< WEAK_CACHING, typename J::ctor > J_ctor;
+    //typedef JniMemberId< STRONG_CACHING, typename J::ctor > J_ctor;
+
     static J *
     convert(C * c, JNIEnv * env) {
         TRACE("J * ObjectResult.convert(JNIEnv *, C *)");

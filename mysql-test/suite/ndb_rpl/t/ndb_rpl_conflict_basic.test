@@ -1,0 +1,585 @@
+#
+# Test engine native conflict resolution for ndb
+#
+#
+--source include/have_multi_ndb.inc
+--source include/have_binlog_format_mixed_or_row.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+--disable_query_log
+--connection master
+CREATE TABLE mysql.ndb_replication
+  (db VARBINARY(63),
+   table_name VARBINARY(63),
+   server_id INT UNSIGNED,
+   binlog_type INT UNSIGNED,
+   conflict_fn VARBINARY(128),
+   PRIMARY KEY USING HASH (db,table_name,server_id))
+  ENGINE=NDB PARTITION BY KEY(db,table_name);
+--enable_query_log
+
+# only test with binlog_type = 7, as everything else feels insane in context of conflict resolution
+insert into mysql.ndb_replication values ("test", "t1_old", 0, 7, "NDB$OLD(X)");
+insert into mysql.ndb_replication values ("test", "t1_max", 0, 7, "NDB$MAX(X)");
+insert into mysql.ndb_replication values ("test", "t1_max_delete_win", 0, 7, "NDB$MAX_DELETE_WIN(X)");
+
+create table `t1_old$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table `t1_max$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table `t1_max_delete_win$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table t1_old (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+create table t1_max_delete_win (a int primary key, b varchar(32), X int unsigned) engine = ndb;
+--sync_slave_with_master
+
+###############
+--echo "Test 1"
+
+--connection master
+insert into t1_old values (1, 'Initial X=1', 1);
+insert into t1_max values (1, 'Initial X=1', 1);
+insert into t1_max_delete_win values (1, 'Initial X=1', 1);
+--sync_slave_with_master
+
+--connection slave
+update t1_old set X = 2, b='Slave X=2';
+update t1_max set X = 2, b='Slave X=2';
+update t1_max_delete_win set X = 2, b='Slave X=2';
+
+--connection master
+update t1_old set X = 3, b='Master X=3';
+update t1_max set X = 3, b='Master X=3';
+update t1_max_delete_win set X = 3, b='Master X=3';
+--sync_slave_with_master
+
+--connection slave
+--echo "Expect t1_old to contain slave row, and t1_max* to contain master row"
+select * from t1_old;
+select * from t1_max;
+select * from t1_max_delete_win;
+
+# syncronize
+update t1_old set X = 3, b='Master X=3';
+
+###############
+--echo "Test 2"
+
+--connection slave
+update t1_old set X = 4, b='Slave X=4';
+update t1_max set X = 4, b='Slave X=4';
+update t1_max_delete_win set X = 4, b='Slave X=4';
+
+--connection master
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+--sync_slave_with_master
+
+--connection slave
+--echo "Expect t1_old and t1_max to contain slave row, and t1_max_delete_win to be empty(as master)"
+select * from t1_old;
+select * from t1_max;
+select * from t1_max_delete_win;
+
+# syncronize
+delete from t1_old;
+delete from t1_max;
+
+--connection master
+
+# Now test with Blobs
+drop table t1_old, t1_max, t1_max_delete_win;
+delete from t1_old$EX;
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+
+--sync_slave_with_master
+--connection slave
+# Delete on slave, as $EX table ops don't replicate
+delete from t1_old$EX;
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+
+--connection master
+
+create table t1_old (a int primary key, b longtext, X int unsigned) engine = ndb;
+create table t1_max (a int primary key, b longtext, X int unsigned) engine = ndb;
+create table t1_max_delete_win (a int primary key, b longtext, X int unsigned) engine = ndb;
+
+--sync_slave_with_master
+
+###############
+--echo "Test 3"
+
+--connection master
+insert into t1_old values (1, repeat('Initial X=1',1000), 1);
+insert into t1_max values (1, repeat('Initial X=1',1000), 1);
+insert into t1_max_delete_win values (1, repeat('Initial X=1',1000), 1);
+--sync_slave_with_master
+
+--connection slave
+update t1_old set X = 2, b=repeat('Slave X=2',1001);
+update t1_max set X = 2, b=repeat('Slave X=2',1001);
+update t1_max_delete_win set X = 2, b=repeat('Slave X=2',1001);
+
+--connection master
+update t1_old set X = 3, b=repeat('Master X=3',1002);
+update t1_max set X = 3, b=repeat('Master X=3',1002);
+update t1_max_delete_win set X = 3, b=repeat('Master X=3',1002);
+--sync_slave_with_master
+
+--connection slave
+--echo "Expect t1_old to contain slave row, and t1_max* to contain master row"
+select a, left(b, 20), length(b), X from t1_old;
+select a, left(b, 20), length(b), X from t1_max;
+select a, left(b, 20), length(b), X from t1_max_delete_win;
+
+--echo Expect t1_old to have 1 entry, and t1_max* to have no entries
+select server_id, master_server_id, count, a from t1_old$EX order by count;
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+select server_id, master_server_id, count, a from t1_max_delete_win$EX order by count;
+
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+delete from t1_old$EX;
+
+# syncronize
+update t1_old set X = 3, b=repeat('Master X=3', 1002);
+
+###############
+--echo "Test 4"
+
+--connection slave
+update t1_old set X = 4, b=repeat('Slave X=4',2000);
+update t1_max set X = 4, b=repeat('Slave X=4',2000);
+update t1_max_delete_win set X = 4, b=repeat('Slave X=4',2000);
+
+--connection master
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+--sync_slave_with_master
+
+--connection slave
+--echo "Expect t1_old and t1_max to contain slave row, and t1_max_delete_win to be empty(as master)"
+select a, left(b, 20), length(b), X from t1_old;
+select a, left(b, 20), length(b), X from t1_max;
+select a, left(b, 20), length(b), X from t1_max_delete_win;
+
+--echo Expect t1_old and t1_max to contain 1 entry, and t1_max_delete_win to be empty
+select server_id, master_server_id, count, a from t1_old$EX order by count;
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+select server_id, master_server_id, count, a from t1_max_delete_win$EX order by count;
+
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+delete from t1_old$EX;
+
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+
+--connection master
+delete from t1_old;
+delete from t1_max;
+delete from t1_max_delete_win;
+
+#################
+--echo "Test 5"
+
+--echo Test that Updates affecting Blobs are rejected
+--echo correctly on the slave
+drop table t1_max;
+create table t1_max (a int primary key, b int, c longtext, d longtext, X int unsigned) engine = ndb;
+
+insert into t1_max values (1, 1, repeat("B", 10000), repeat("E", 10001), 1);
+insert into t1_max values (2, 2, repeat("A", 10002), repeat("T", 10003), 1);
+
+--sync_slave_with_master
+--connection slave
+
+# Bump up tuple versions
+update t1_max set X=20;
+
+--echo Initial values on Slave
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+
+--connection master
+--echo Originate update which will be rejected
+update t1_max set c=repeat("Z", 10006), d=repeat("I", 10005), X=2 where a=1;
+
+--sync_slave_with_master
+--connection slave
+--echo Check slave has rejected due to lower version
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+
+--connection master
+--echo Originate delete which will be rejected (due to NDB-OLD) algorith
+delete from t1_max where a=1;
+
+--sync_slave_with_master
+--connection slave
+--echo Check slave has rejected due to before image mismatch
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+
+--connection master
+--echo Originate insert which will be rejected (as row exists)
+insert into t1_max values (1, 1, repeat("R", 10004), repeat("A", 10007), 1);
+
+--sync_slave_with_master
+--connection slave
+--echo Check slave has rejected due to row existing already
+select a,b,SHA1(c),length(c), SHA1(d), length(d), X from t1_max order by a;
+
+--echo Expect t1_max to have 3 entries
+select server_id, master_server_id, count, a from t1_old$EX order by count;
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+select server_id, master_server_id, count, a from t1_max_delete_win$EX order by count;
+
+delete from t1_max$EX;
+delete from t1_max_delete_win$EX;
+delete from t1_old$EX;
+
+--connection master
+
+#######
+--echo Test 6
+--echo Check that non-Blob related operations in a batch with a Blob
+--echo operation are still subject to conflict detection.
+--echo
+insert into mysql.ndb_replication values ("test", "t2_max", 0, 7, "NDB$MAX(X)");
+
+create table `t2_max$EX`
+  (server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table t2_max (a int primary key, b int, X bigint unsigned) engine=ndb;
+
+insert into t2_max values (1,1,10), (2,2,10), (3,3,10), (4,4,10), (5,5,10);
+
+--sync_slave_with_master
+
+--connection master
+--echo Now issue a transaction with a successful Blob op, and unsuccessful
+--echo non-Blob op.  Check that the Blob op succeeds, and the unsuccessful
+--echo non-Blob op is handled as expected.
+
+begin;
+update t2_max set b=b+1, X=1 where a=3; # conflicts
+update t1_max set c=repeat("R", 10008), d=repeat("A", 10009), X = 21 where a=1; # ok
+commit;
+
+--sync_slave_with_master
+
+--connection slave
+--echo Contents on Slave
+--echo Expect Blob data applied to t1_max, no update applied to t2_max
+select a,b,left(c,1), length(c), left(d,1), length(d), X from t1_max where a=1;
+select * from t2_max order by a;
+
+--echo Expect No conflict in t1_max, 1 conflict in t2_max$EX
+select server_id, master_server_id, count, a from t1_max$EX order by count;
+select server_id, master_server_id, count, a from t2_max$EX order by count;
+
+--connection master
+drop table t2_max, t2_max$EX;
+drop table t1_old, `t1_old$EX`, t1_max, `t1_max$EX`, t1_max_delete_win, `t1_max_delete_win$EX`;
+delete from mysql.ndb_replication;
+
+--echo Test that online table distribution sets up conflict functions and exceptions tables
+
+# t1allsame - Same on all servers, no exceptions table
+insert into mysql.ndb_replication values ("test", "t1allsame", 0, 7, "NDB$MAX(X)");
+
+# t2diffex - Different on each server with an exceptions table
+# Not a recommended configuration!
+insert into mysql.ndb_replication values ("test", "t2diffex", 1, 7, "NDB$OLD(X)");
+insert into mysql.ndb_replication values ("test", "t2diffex", 3, 7, "NDB$MAX(X)");
+
+# t3oneex - Only on one server with an exceptions table
+# Note that it's not defined on the server where it's created (not recommended)
+# so on the server where it's defined, we get an error due to having no extra
+# author bits
+#
+insert into mysql.ndb_replication values ("test", "t3oneex", 3, 7, "NDB$EPOCH()");
+
+# Create exception tables
+create table t2diffex$EX (
+   server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+create table t3oneex$EX (
+   server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   primary key(server_id, master_server_id, master_epoch, count)) engine ndb;
+
+# Now create actual tables on this server (id 1)
+create table t1allsame(a int primary key, b varchar(200), X int unsigned) engine=ndb;
+create table t2diffex(a int primary key, b varchar(200), X int unsigned) engine=ndb;
+create table t3oneex(a int primary key, b varchar(200)) engine=ndb;
+
+# Now examine server logs to see that conflict detection and
+# exceptions tables were setup as expected
+show variables like 'server_id';
+--let $server_num=1.1
+--let $pattern=%NDB Slave%
+--let $limit=4
+--source suite/ndb_rpl/t/show_mysqld_warnings.inc
+
+
+--connection server2
+--disable_query_log
+call mtr.add_suppression("NDB Slave: .* No extra row author bits in table.*");
+--enable_query_log
+
+show variables like 'server_id';
+--let $server_num=2.1
+--let $pattern=%NDB Slave%
+--let $limit=6
+
+--source suite/ndb_rpl/t/show_mysqld_warnings.inc
+
+--connection master
+drop table t3oneex, t2diffex, t1allsame, t3oneex$EX, t2diffex$EX;
+
+delete from mysql.ndb_replication;
+
+--echo Test exceptions table schema flexibility
+#
+# An exceptions table should be able to have the mandatory columns with
+# different names, as long as the types match.
+# Also, not all main table primary key parts need be present
+# Finally, arbitrary extra columns should be allowed, as long as
+# they can be defaulted.
+#
+
+insert into mysql.ndb_replication values ("test", "t1", 0, 7, "NDB$MAX(X)");
+
+--echo Test 'normal' mandatory column names + all table pks
+
+create table test.t1$EX(
+   server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   b int not null,
+   c int not null,
+   primary key (server_id, master_server_id, master_epoch, count)) engine=ndb;
+
+create table test.t1 (a int, b int, c int, d int, e int, X int unsigned,
+                      primary key(a,b,c)) engine=ndb;
+
+--echo Generate a conflict on the slave
+
+insert into test.t1 values (1,1,1,1,1,1);
+--sync_slave_with_master slave
+--connection master
+update test.t1 set X=0 where a=1 and b=1 and c=1;
+--sync_slave_with_master slave
+--connection slave
+
+--echo Check that conflict has been recorded.
+--replace_column 3 <epoch_num>
+select * from test.t1$EX;
+
+--connection master
+drop table test.t1;
+drop table test.t1$EX;
+
+--echo Test 'normal' mandatory column names + all table pks +
+--echo extra columns with same and different names to main table columns
+--echo Also a defaulted extra column.
+
+create table test.t1$EX(
+   server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   a int not null,
+   b int not null,
+   c int not null,
+   d int,                     # Same name as main table, but user defined
+   lilljeholmen varchar(50) default 'Slussen',
+                              # Separate, user defined
+   primary key (server_id, master_server_id, master_epoch, count)) engine=ndb;
+
+create table test.t1 (a int, b int, c int, d int, e int, X int unsigned,
+                      primary key(a,b,c)) engine=ndb;
+
+--echo Generate a conflict on the slave
+
+insert into test.t1 values (1,1,1,1,1,1);
+--sync_slave_with_master slave
+--connection master
+update test.t1 set X=0 where a=1 and b=1 and c=1;
+--sync_slave_with_master slave
+--connection slave
+
+--echo Check that conflict has been recorded.
+--replace_column 3 <epoch_num>
+select * from test.t1$EX;
+
+--connection master
+drop table test.t1;
+drop table test.t1$EX;
+
+--echo Test unusual mandatory column names + all table pks +
+--echo extra columns with same and different names to main table columns
+--echo Also a defaulted extra column.
+
+create table test.t1$EX(
+   monteverdi int unsigned,
+   asparagi int unsigned,
+   plenipotentiary bigint unsigned,
+   mountebank int unsigned,
+   a int not null,
+   b int not null,
+   c int not null,
+   d int,                     # Same name as main table, but user defined
+   lilljeholmen varchar(50) default 'Slussen',
+                              # Separate, user defined
+   primary key (monteverdi, asparagi, plenipotentiary, mountebank)) engine=ndb;
+
+create table test.t1 (a int, b int, c int, d int, e int, X int unsigned,
+                      primary key(a,b,c)) engine=ndb;
+
+--echo Generate a conflict on the slave
+
+insert into test.t1 values (1,1,1,1,1,1);
+--sync_slave_with_master slave
+--connection master
+update test.t1 set X=0 where a=1 and b=1 and c=1;
+--sync_slave_with_master slave
+--connection slave
+
+--echo Check that conflict has been recorded.
+--replace_column 3 <epoch_num>
+select * from test.t1$EX;
+
+--connection master
+drop table test.t1;
+drop table test.t1$EX;
+
+--echo Test unusual mandatory column names + all table pks which are same
+--echo as 'normal' exceptions table column names plus extra columns with
+--echo same and different names to main table columns
+--echo Also a defaulted extra column.
+
+create table test.t1$EX(
+   monteverdi int unsigned,
+   asparagi int unsigned,
+   plenipotentiary bigint unsigned,
+   mountebank int unsigned,
+   server_id int unsigned not null,
+   master_server_id int unsigned not null,
+   master_epoch bigint unsigned not null,
+   count int unsigned not null,
+   d int,                     # Same name as main table, but user defined
+   lilljeholmen varchar(50) default 'Slussen',
+                              # Separate, user defined
+   primary key (monteverdi, asparagi, plenipotentiary, mountebank)) engine=ndb;
+
+create table test.t1 (server_id int unsigned,
+                      master_server_id int unsigned,
+                      master_epoch bigint unsigned,
+                      count int unsigned,
+                      d int, e int, X int unsigned,
+                      primary key(server_id, master_server_id,
+                                  master_epoch, count)) engine=ndb;
+
+--echo Generate a conflict on the slave
+
+insert into test.t1 values (1,1,1,1,1,1,1);
+--sync_slave_with_master slave
+--connection master
+update test.t1 set X=0 where server_id=1 and master_server_id=1 and master_epoch=1 and count=1;
+--sync_slave_with_master slave
+--connection slave
+
+--echo Check that conflict has been recorded.
+--replace_column 3 <epoch_num>
+select * from test.t1$EX;
+
+--connection master
+drop table test.t1;
+drop table test.t1$EX;
+
+--connection server1
+call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
+--connection server2
+call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
+--connection slave
+call mtr.add_suppression("NDB Slave: exceptions table .* has wrong definition .*");
+--connection master
+
+--echo And some bad exceptions table schemata
+--echo   Keys in wrong positions
+create table test.t1$EX(
+   a int not null,
+   b int not null,
+   c int not null,
+   d int,                     # Same name as main table, but user defined
+   lilljeholmen varchar(50) default 'Slussen',
+                              # Separate, user defined
+   server_id int unsigned,
+   master_server_id int unsigned,
+   master_epoch bigint unsigned,
+   count int unsigned,
+   primary key (server_id, master_server_id, master_epoch, count)) engine=ndb;
+
+create table test.t1 (a int, b int, c int, d int, e int, X int unsigned,
+                      primary key(a,b,c)) engine=ndb;
+show warnings;
+
+--let $server_num=1.1
+--let $pattern=%NDB Slave%
+--let $limit=2
+
+--source suite/ndb_rpl/t/show_mysqld_warnings.inc
+
+drop table test.t1;
+drop table test.t1$EX;
+
+
+
+
+###############
+--echo "Cleanup"
+
+--connection master
+drop table mysql.ndb_replication;
+--sync_slave_with_master
+
+--source include/rpl_end.inc

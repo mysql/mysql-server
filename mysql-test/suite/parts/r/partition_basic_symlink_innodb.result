@@ -16,12 +16,12 @@ PARTITION p1
 DATA DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-data-dir'
     INDEX DIRECTORY = 'MYSQLTEST_VARDIR/mysql-test-idx-dir'
 );
-ERROR HY000: Got error 140 from storage engine
+ERROR HY000: Table storage engine for 't1' doesn't have this option
 SHOW WARNINGS;
 Level	Code	Message
 Warning	1478	InnoDB: DATA DIRECTORY requires innodb_file_per_table.
 Warning	1478	InnoDB: INDEX DIRECTORY is not supported
-Error	1030	Got error 140 from storage engine
+Error	1031	Table storage engine for 't1' doesn't have this option
 Error	6	Error on delete of 'MYSQLD_DATADIR/test/t1.par' (Errcode: 2 - No such file or directory)
 #
 # InnoDB is different from MyISAM in that it uses a text file

@@ -1546,7 +1546,7 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
     Ptr<Tablerec> tabPtr;
     tabPtr.i= rec->m_table;
     ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
-    for(Uint32 i = 0; i<MAX_FRAG_PER_NODE; i++)
+    for(Uint32 i = 0; i<NDB_ARRAY_SIZE(tabPtr.p->fragrec); i++)
       if (tabPtr.p->fragrec[i] != RNIL)
 	disk_restart_undo_lcp(tabPtr.i, tabPtr.p->fragid[i], 
 			      Fragrecord::UC_CREATE, 0);
@@ -1566,7 +1566,7 @@ Dbtup::disk_restart_undo(Signal* signal, Uint64 lsn,
     Ptr<Tablerec> tabPtr;
     tabPtr.i= rec->m_table;
     ptrCheckGuard(tabPtr, cnoOfTablerec, tablerec);
-    for(Uint32 i = 0; i<MAX_FRAG_PER_NODE; i++)
+    for(Uint32 i = 0; i<NDB_ARRAY_SIZE(tabPtr.p->fragrec); i++)
       if (tabPtr.p->fragrec[i] != RNIL)
 	disk_restart_undo_lcp(tabPtr.i, tabPtr.p->fragid[i], 
 			      Fragrecord::UC_CREATE, 0);

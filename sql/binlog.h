@@ -119,6 +119,10 @@ public:
   {
     mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_done, &m_cond_done, NULL);
+#ifndef DBUG_OFF
+    /* reuse key_COND_done 'cos a new PSI object would be wasteful in DBUG_ON */
+    mysql_cond_init(key_COND_done, &m_cond_preempt, NULL);
+#endif
     m_queue[FLUSH_STAGE].init(
 #ifdef HAVE_PSI_INTERFACE
                               key_LOCK_flush_queue
@@ -155,6 +159,7 @@ public:
     If wait_if_follower is true the thread is not the stage leader,
     the thread will be wait for the queue to be processed by the
     leader before it returns.
+    In DBUG-ON version the follower marks is preempt status as ready.
 
     @param stage Stage identifier for the queue to append to.
     @param first Queue to append.
@@ -172,6 +177,17 @@ public:
     return m_queue[stage].pop_front();
   }
 
+#ifndef DBUG_OFF
+  /**
+     The method ensures the follower's execution path can be preempted
+     by the leader's thread.
+     Preempt status of @c head follower is checked to engange the leader
+     into waiting when set.
+
+     @param head  THD* of a follower thread
+  */
+  void clear_preempt_status(THD *head);
+#endif
 
   /**
     Fetch the entire queue and empty it.
@@ -206,6 +222,13 @@ private:
 
   /** Mutex used for the condition variable above */
   mysql_mutex_t m_lock_done;
+#ifndef DBUG_OFF
+  /** Flag is set by Leader when it starts waiting for follower's all-clear */
+  bool leader_await_preempt_status;
+
+  /** Condition variable to indicate a follower started waiting for commit */
+  mysql_cond_t m_cond_preempt;
+#endif
 };
 
 
@@ -228,6 +251,8 @@ class MYSQL_BIN_LOG: public TC_LOG, private MYSQL_LOG
   PSI_mutex_key m_key_LOCK_sync;
   /** The instrumentation key to use for @ update_cond. */
   PSI_cond_key m_key_update_cond;
+  /** The instrumentation key to use for @ prep_xids_cond. */
+  PSI_cond_key m_key_prep_xids_cond;
   /** The instrumentation key to use for opening the log file. */
   PSI_file_key m_key_file_log;
   /** The instrumentation key to use for opening the log index file. */
@@ -402,6 +427,7 @@ public:
                     PSI_mutex_key key_LOCK_sync_queue,
                     PSI_cond_key key_COND_done,
                     PSI_cond_key key_update_cond,
+                    PSI_cond_key key_prep_xids_cond,
                     PSI_file_key key_file_log,
                     PSI_file_key key_file_log_index)
   {
@@ -417,6 +443,7 @@ public:
     m_key_LOCK_commit= key_LOCK_commit;
     m_key_LOCK_sync= key_LOCK_sync;
     m_key_update_cond= key_update_cond;
+    m_key_prep_xids_cond= key_prep_xids_cond;
     m_key_file_log= key_file_log;
     m_key_file_log_index= key_file_log_index;
   }

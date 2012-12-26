@@ -16,6 +16,7 @@
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
 #include <gtest/gtest.h>
+#include <gmock/gmock.h>
 
 #include "my_getopt.h"
 
@@ -51,12 +52,24 @@ extern "C" my_bool get_one_option(int, const struct my_option *, char *)
 
 }  // namespace
 
+// Some globals needed for merge_small_tests.cc
+mysql_mutex_t LOCK_open;
+uint    opt_debug_sync_timeout= 0;
+pthread_key(MEM_ROOT**,THR_MALLOC);
+pthread_key(THD*, THR_THD);
+
+extern "C" void sql_alloc_error_handler(void)
+{
+  ADD_FAILURE();
+}
+
 
 extern void install_tap_listener();
 
 int main(int argc, char **argv)
 {
   ::testing::InitGoogleTest(&argc, argv);
+  ::testing::InitGoogleMock(&argc, argv);
   MY_INIT(argv[0]);
 
   if (handle_options(&argc, &argv, unittest_options, get_one_option))

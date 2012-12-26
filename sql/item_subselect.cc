@@ -627,8 +627,7 @@ bool Item_subselect::exec()
 */
 
 void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
-                                       st_select_lex *removed_select,
-                                       Item **ref)
+                                       st_select_lex *removed_select)
 
 {
   /* Clear usage information for this subquery predicate object */
@@ -641,17 +640,15 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
   for (SELECT_LEX *sel= unit->first_select(); sel; sel= sel->next_select())
   {
     if (sel->where)
-      sel->where->fix_after_pullout(parent_select, removed_select,
-                                    &sel->where);
+      sel->where->fix_after_pullout(parent_select, removed_select);
 
     if (sel->having)
-      sel->having->fix_after_pullout(parent_select, removed_select,
-                                     &sel->having);
+      sel->having->fix_after_pullout(parent_select, removed_select);
 
     List_iterator<Item> li(sel->item_list);
     Item *item;
     while ((item=li++))
-      item->fix_after_pullout(parent_select, removed_select, li.ref());
+      item->fix_after_pullout(parent_select, removed_select);
 
     /*
       No need to call fix_after_pullout() for outer-join conditions, as these
@@ -663,14 +660,12 @@ void Item_subselect::fix_after_pullout(st_select_lex *parent_select,
     for (ORDER *order= (ORDER*) sel->order_list.first;
          order;
          order= order->next)
-      (*order->item)->fix_after_pullout(parent_select, removed_select,
-                                        order->item);
+      (*order->item)->fix_after_pullout(parent_select, removed_select);
 
     for (ORDER *group= (ORDER*) sel->group_list.first;
          group;
          group= group->next)
-      (*group->item)->fix_after_pullout(parent_select, removed_select,
-                                        group->item);
+      (*group->item)->fix_after_pullout(parent_select, removed_select);
   }
 }
 
@@ -924,7 +919,7 @@ Item_singlerow_subselect::select_transformer(JOIN *join)
     {
       char warn_buff[MYSQL_ERRMSG_SIZE];
       sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-      push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning(thd, Sql_condition::SL_NOTE,
 		   ER_SELECT_REDUCED, warn_buff);
     }
     substitution= select_lex->item_list.head();
@@ -1855,7 +1850,7 @@ Item_in_subselect::single_value_in_to_exists_transformer(JOIN * join, Comp_creat
 	{
 	  char warn_buff[MYSQL_ERRMSG_SIZE];
 	  sprintf(warn_buff, ER(ER_SELECT_REDUCED), select_lex->select_number);
-	  push_warning(thd, Sql_condition::WARN_LEVEL_NOTE,
+	  push_warning(thd, Sql_condition::SL_NOTE,
 		       ER_SELECT_REDUCED, warn_buff);
 	}
 	DBUG_RETURN(RES_REDUCE);
@@ -2327,12 +2322,11 @@ bool Item_in_subselect::fix_fields(THD *thd_arg, Item **ref)
 
 
 void Item_in_subselect::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select,
-                                          Item **ref)
+                                          st_select_lex *removed_select)
 {
-  Item_subselect::fix_after_pullout(parent_select, removed_select, ref);
+  Item_subselect::fix_after_pullout(parent_select, removed_select);
 
-  left_expr->fix_after_pullout(parent_select, removed_select, &left_expr);
+  left_expr->fix_after_pullout(parent_select, removed_select);
 
   used_tables_cache|= left_expr->used_tables();
 }
@@ -2765,18 +2759,14 @@ bool subselect_indexsubquery_engine::scan_table()
   // We never need to do a table scan of the materialized table.
   DBUG_ASSERT(engine_type() != HASH_SJ_ENGINE);
 
-  if (table->file->inited &&
-      (error= table->file->ha_index_end()))
+  if ((table->file->inited &&
+       (error= table->file->ha_index_end())) ||
+      (error= table->file->ha_rnd_init(1)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
- 
-  if ((error= table->file->ha_rnd_init(1)))
-  {
-    (void) report_error(table, error);
-    DBUG_RETURN(true);
-  }
+
   table->file->extra_opt(HA_EXTRA_CACHE,
                          current_thd->variables.read_buff_size);
   table->null_row= 0;
@@ -2785,7 +2775,7 @@ bool subselect_indexsubquery_engine::scan_table()
     error=table->file->ha_rnd_next(table->record[0]);
     if (error && error != HA_ERR_END_OF_FILE)
     {
-      error= report_error(table, error);
+      error= report_handler_error(table, error);
       break;
     }
     /* No more rows */
@@ -3022,7 +3012,7 @@ bool subselect_indexsubquery_engine::exec()
   if (!table->file->inited &&
       (error= table->file->ha_index_init(tab->ref.key, !unique /* sorted */)))
   {
-    (void) report_error(table, error);
+    (void) report_handler_error(table, error);
     DBUG_RETURN(true);
   }
   error= table->file->ha_index_read_map(table->record[0],
@@ -3031,7 +3021,7 @@ bool subselect_indexsubquery_engine::exec()
                                         HA_READ_KEY_EXACT);
   if (error &&
       error != HA_ERR_KEY_NOT_FOUND && error != HA_ERR_END_OF_FILE)
-    error= report_error(table, error);
+    error= report_handler_error(table, error);
   else
   {
     for (;;)
@@ -3062,7 +3052,7 @@ bool subselect_indexsubquery_engine::exec()
                                               tab->ref.key_length);
         if (error && error != HA_ERR_END_OF_FILE)
         {
-          error= report_error(table, error);
+          error= report_handler_error(table, error);
           break;
         }
       }
@@ -3421,7 +3411,7 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
 
   tmp_table= tmp_result_sink->table;
   tmp_key= tmp_table->key_info;
-  tmp_key_parts= tmp_key->key_parts;
+  tmp_key_parts= tmp_key->user_defined_key_parts;
 
   /*
      If the subquery has blobs, or the total key lenght is bigger than some
@@ -3436,7 +3426,8 @@ bool subselect_hash_sj_engine::setup(List<Item> *tmp_columns)
     DBUG_ASSERT(
       tmp_table->s->uniques ||
       tmp_table->key_info->key_length >= tmp_table->file->max_key_length() ||
-      tmp_table->key_info->key_parts > tmp_table->file->max_key_parts());
+      tmp_table->key_info->user_defined_key_parts >
+      tmp_table->file->max_key_parts());
     free_tmp_table(thd, tmp_table);
     delete result;
     result= NULL;

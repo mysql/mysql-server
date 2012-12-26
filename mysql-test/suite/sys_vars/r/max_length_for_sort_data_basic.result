@@ -93,16 +93,27 @@ Warning	1292	Truncated incorrect max_length_for_sort_data value: '0'
 SELECT @@global.max_length_for_sort_data;
 @@global.max_length_for_sort_data
 4
+SET @@global.max_length_for_sort_data = 1230974986;
+Warnings:
+Warning	1292	Truncated incorrect max_length_for_sort_data value: '1230974986'
+SELECT @@global.max_length_for_sort_data;
+@@global.max_length_for_sort_data
+8388608
 SET @@global.max_length_for_sort_data = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'max_length_for_sort_data'
 SELECT @@global.max_length_for_sort_data;
 @@global.max_length_for_sort_data
-4
+8388608
 SET @@global.max_length_for_sort_data = test;
 ERROR 42000: Incorrect argument type to variable 'max_length_for_sort_data'
 SELECT @@global.max_length_for_sort_data;
 @@global.max_length_for_sort_data
-4
+8388608
+SET @@global.max_length_for_sort_data = ' ';
+ERROR 42000: Incorrect argument type to variable 'max_length_for_sort_data'
+SELECT @@global.max_length_for_sort_data;
+@@global.max_length_for_sort_data
+8388608
 SET @@session.max_length_for_sort_data = 8388610;
 Warnings:
 Warning	1292	Truncated incorrect max_length_for_sort_data value: '8388610'
@@ -127,6 +138,12 @@ Warning	1292	Truncated incorrect max_length_for_sort_data value: '0'
 SELECT @@session.max_length_for_sort_data;
 @@session.max_length_for_sort_data
 4
+SET @@session.max_length_for_sort_data = -1203;
+Warnings:
+Warning	1292	Truncated incorrect max_length_for_sort_data value: '-1203'
+SELECT @@session.max_length_for_sort_data;
+@@session.max_length_for_sort_data
+4
 SET @@session.max_length_for_sort_data = 65530.34;
 ERROR 42000: Incorrect argument type to variable 'max_length_for_sort_data'
 SET @@session.max_length_for_sort_data = 10737418241;
@@ -136,6 +153,11 @@ SELECT @@session.max_length_for_sort_data;
 @@session.max_length_for_sort_data
 8388608
 SET @@session.max_length_for_sort_data = test;
+ERROR 42000: Incorrect argument type to variable 'max_length_for_sort_data'
+SELECT @@session.max_length_for_sort_data;
+@@session.max_length_for_sort_data
+8388608
+SET @@session.max_length_for_sort_data = ' ';
 ERROR 42000: Incorrect argument type to variable 'max_length_for_sort_data'
 SELECT @@session.max_length_for_sort_data;
 @@session.max_length_for_sort_data

@@ -45,6 +45,23 @@ CHECK_ALLOWED_ERROR(const char * str,
   ndbout << str << " " << error << endl
 	 << buf;
   showTime();
+
+  if (td->robustMode)
+  {
+    if ((error.code == 626) || /* NoDataFound */
+        (error.code == 630))   /* Tuple already existed */
+    {
+      /* Problem with a specific tuple, try a different one to
+       * avoid getting stuck
+       */
+      ThreadData* nctd = (ThreadData*) td;
+      getRandomSubscriberNumber(nctd->transactionData.number);
+      ndbout << "Problem with subscriber, changing to "
+             << td->transactionData.number
+             << endl;
+      return;
+    }
+  }
   
   switch(error.classification) { 
   case NdbError::TimeoutExpired:  

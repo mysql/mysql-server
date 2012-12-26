@@ -281,6 +281,8 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_rows;
   ulong m_sort_scan;
   PSI_digest_locker_state m_digest_state;
+  char m_schema_name[(64 * 3)];
+  uint m_schema_name_length;
 };
 struct PSI_socket_locker_state_v1
 {
@@ -344,9 +346,9 @@ typedef int (*spawn_thread_v1_t)(PSI_thread_key key,
                                  const pthread_attr_t *attr,
                                  void *(*start_routine)(void*), void *arg);
 typedef struct PSI_thread* (*new_thread_v1_t)
-  (PSI_thread_key key, const void *identity, ulong thread_id);
+  (PSI_thread_key key, const void *identity, ulonglong thread_id);
 typedef void (*set_thread_id_v1_t)(struct PSI_thread *thread,
-                                   unsigned long id);
+                                   ulonglong id);
 typedef struct PSI_thread* (*get_thread_v1_t)(void);
 typedef void (*set_thread_user_v1_t)(const char *user, int user_len);
 typedef void (*set_thread_user_host_v1_t)(const char *user, int user_len,

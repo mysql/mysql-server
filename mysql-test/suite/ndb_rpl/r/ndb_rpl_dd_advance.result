@@ -1,4 +1,7 @@
 include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master.info repository is not secure and is therefore not recommended. Please see the MySQL Manual for more about this issue and possible alternatives.
 [connection master]
 ***** Test 1 RPL of CDD and Alter *****
 ***** Test 1 setup *****
@@ -143,9 +146,9 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 2	4.00	b1b1b1b1b1b1b1b1b1b1	NULL
-3	6.00	0000-00-00 00:00:00	NULL
-4	8.00	0000-00-00 00:00:00	NULL
-5	10.00	0000-00-00 00:00:00	NULL
+3	6.00	<c4_timestamp_value>	NULL
+4	8.00	<c4_timestamp_value>	NULL
+5	10.00	<c4_timestamp_value>	NULL
 **** Show last set of ALTERs on SLAVE ****
 SHOW CREATE TABLE t1;
 Table	Create Table
@@ -162,9 +165,9 @@ SELECT * FROM t1 ORDER BY c1 LIMIT 5;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL
 2	4.00	b1b1b1b1b1b1b1b1b1b1	NULL
-3	6.00	0000-00-00 00:00:00	NULL
-4	8.00	0000-00-00 00:00:00	NULL
-5	10.00	0000-00-00 00:00:00	NULL
+3	6.00	<c4_timestamp_value>	NULL
+4	8.00	<c4_timestamp_value>	NULL
+5	10.00	<c4_timestamp_value>	NULL
 SELECT * FROM t1 where c1 = 1;
 c1	c2	c3	c5
 1	2.00	b1b1b1b1b1b1b1b1b1b1	NULL

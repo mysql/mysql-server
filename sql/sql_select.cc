@@ -76,7 +76,7 @@ bool handle_select(THD *thd, select_result *result,
 {
   bool res;
   LEX *lex= thd->lex;
-  register SELECT_LEX *select_lex = &lex->select_lex;
+  SELECT_LEX *select_lex = &lex->select_lex;
   DBUG_ENTER("handle_select");
   MYSQL_SELECT_START(thd->query());
 
@@ -704,20 +704,16 @@ static void destroy_sj_tmp_tables(JOIN *join)
     free_tmp_table(join->thd, table);
   }
   join->sj_tmp_tables.empty();
-  join->sjm_exec_list.empty();
 }
 
 
-/*
-  Remove all records from all temp tables used by NL-semijoin runtime
+/**
+  Remove all rows from all temp tables used by NL-semijoin runtime
 
-  SYNOPSIS
-    clear_sj_tmp_tables()
-      join  The join to remove tables for
+  @param join  The join to remove tables for
 
-  DESCRIPTION
-    Remove all records from all temp tables used by NL-semijoin runtime. This 
-    must be done before every join re-execution.
+  All rows must be removed from all temporary tables before every join
+  re-execution.
 */
 
 static int clear_sj_tmp_tables(JOIN *join)
@@ -733,8 +729,13 @@ static int clear_sj_tmp_tables(JOIN *join)
   Semijoin_mat_exec *sjm;
   List_iterator<Semijoin_mat_exec> it2(join->sjm_exec_list);
   while ((sjm= it2++))
-    join->join_tab[sjm->mat_table_index].materialized= false;
-
+  {
+    JOIN_TAB *const tab= join->join_tab + sjm->mat_table_index;
+    DBUG_ASSERT(tab->materialize_table);
+    tab->materialized= false;
+    // The materialized table must be re-read on next evaluation:
+    tab->table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
+  }
   return 0;
 }
 
@@ -760,6 +761,8 @@ void JOIN::reset()
     for (uint tmp= primary_tables; tmp < primary_tables + tmp_tables; tmp++)
     {
       TABLE *tmp_table= join_tab[tmp].table;
+      if (!tmp_table->is_created())
+        continue;
       tmp_table->file->extra(HA_EXTRA_RESET_STATE);
       tmp_table->file->ha_delete_all_rows();
       free_io_cache(tmp_table);
@@ -895,13 +898,26 @@ bool JOIN::destroy()
   cond_equal= 0;
 
   cleanup(1);
-  if (join_tab)
+
+  if (join_tab) // We should not have tables > 0 and join_tab != NULL
+  for (uint i= 0; i < tables; i++)
   {
-    for (JOIN_TAB *tab= join_tab; tab < join_tab + tables; tab++)
+    JOIN_TAB *const tab= join_tab + i;
+
+    DBUG_ASSERT(!tab->table || !tab->table->sort.record_pointers);
+    if (tab->op)
     {
-      DBUG_ASSERT(!tab->table || !tab->table->sort.record_pointers);
-      tab->table= NULL;
+      if (tab->op->type() == QEP_operation::OT_TMP_TABLE)
+      {
+        free_tmp_table(thd, tab->table);
+        delete tab->tmp_table_param;
+        tab->tmp_table_param= NULL;
+      }
+      tab->op->free();
+      tab->op= NULL;
     }
+
+    tab->table= NULL;
   }
  /* Cleanup items referencing temporary table columns */
   cleanup_item_list(tmp_all_fields1);
@@ -912,6 +928,7 @@ bool JOIN::destroy()
   Semijoin_mat_exec *sjm;
   while ((sjm= sjm_list_it++))
     delete sjm;
+  sjm_exec_list.empty();
 
   keyuse.clear();
   DBUG_RETURN(test(error));
@@ -1378,14 +1395,13 @@ bool JOIN::get_best_combination()
 
       Semijoin_mat_exec *const sjm_exec=
         new (thd->mem_root)
-        Semijoin_mat_exec((pos_table->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
-                          remaining_sjm_inner, outer_target, inner_target,
-                          &sj_nest->nested_join->sj_inner_exprs);
+        Semijoin_mat_exec(sj_nest,
+                          (pos_table->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
+                          remaining_sjm_inner, outer_target, inner_target);
       if (!sjm_exec)
         DBUG_RETURN(true);
 
       (join_tab + outer_target)->sj_mat_exec= sjm_exec;
-      sj_nest->sj_mat_exec= sjm_exec;
 
       if (setup_materialized_table(join_tab + outer_target, sjm_index,
                                    pos_table, best_positions + sjm_index))
@@ -1476,20 +1492,18 @@ bool JOIN::set_access_methods()
     if (tab->type == JT_CONST || tab->type == JT_SYSTEM)
       continue;                      // Handled in make_join_statistics()
 
-    DBUG_ASSERT(tab->match_tab == NULL);
-    tab->match_tab= NULL;  //non-nulls will be set later
-    tab->ref.key = -1;
-    tab->ref.key_parts=0;
-
-    Key_use *keyuse;
-    if (tab->keys.is_clear_all() ||
-        !(keyuse= tab->position->key) || 
-        tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)
+    Key_use *const keyuse= tab->position->key;
+    if (!keyuse)
     {
-      tab->type= JT_ALL; // @todo is this consistent for a LooseScan table ?
-      tab->index= tab->position->loosescan_key;
+      tab->type= JT_ALL;
       if (tableno > const_tables)
        full_join= true;
+     }
+    else if (tab->position->sj_strategy == SJ_OPT_LOOSE_SCAN)
+    {
+      DBUG_ASSERT(tab->keys.is_set(tab->position->loosescan_key));
+      tab->type= JT_ALL; // @todo is this consistent for a LooseScan table ?
+      tab->index= tab->position->loosescan_key;
      }
     else
     {
@@ -1589,6 +1603,8 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
   TABLE *const table= j->table;
   KEY   *const keyinfo= table->key_info+key;
   Key_use *chosen_keyuses[MAX_REF_PARTS];
+
+  DBUG_ASSERT(j->keys.is_set(org_keyuse->key));
 
   if (ftkey)
   {
@@ -1743,8 +1759,9 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     DBUG_RETURN(false);
   if (j->type == JT_CONST)
     j->table->const_table= 1;
-  else if (((keyinfo->flags & (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
-	   keyparts != keyinfo->key_parts || null_ref_key)
+  else if (((actual_key_flags(keyinfo) & 
+             (HA_NOSAME | HA_NULL_PART_KEY)) != HA_NOSAME) ||
+	   keyparts != actual_key_parts(keyinfo) || null_ref_key)
   {
     /* Must read with repeat */
     j->type= null_ref_key ? JT_REF_OR_NULL : JT_REF;
@@ -2593,7 +2610,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   const TABLE_LIST *const emb_sj_nest= inner_pos->table->emb_sj_nest;
   Semijoin_mat_optimize *const sjm_opt= &emb_sj_nest->nested_join->sjm;
   Semijoin_mat_exec *const sjm_exec= tab->sj_mat_exec;
-  const uint field_count= sjm_exec->subq_exprs->elements;
+  const uint field_count= emb_sj_nest->nested_join->sj_inner_exprs.elements;
 
   DBUG_ASSERT(inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP ||
               inner_pos->sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
@@ -2603,7 +2620,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   */
   sjm_exec->table_param.init();
   count_field_types(select_lex, &sjm_exec->table_param,
-                    *sjm_exec->subq_exprs, false, true);
+                    emb_sj_nest->nested_join->sj_inner_exprs, false, true);
   sjm_exec->table_param.bit_fields_as_long= true;
 
   char buffer[NAME_LEN];
@@ -2617,7 +2634,8 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   name[len] = '\0';
   TABLE *table;
   if (!(table= create_tmp_table(thd, &sjm_exec->table_param, 
-                                *sjm_exec->subq_exprs, NULL, 
+                                emb_sj_nest->nested_join->sj_inner_exprs,
+                                NULL, 
                                 true /* distinct */, 
                                 true /* save_sum_fields */,
                                 thd->variables.option_bits |
@@ -2665,6 +2683,8 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
 
   tab->on_expr_ref= tl->join_cond_ref();
 
+  tab->materialize_table= join_materialize_semijoin;
+
   table->pos_in_table_list= tl;
   table->keys_in_use_for_query.set_all();
   sjm_pos->table= tab;
@@ -2687,6 +2707,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   if (!sjm_exec->is_scan)
   {
     sjm_pos->key= keyuse->begin(); // MaterializeLookup will use the index
+    tab->keyuse= keyuse->begin();
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
     sjm_pos->set_prefix_costs(1.0, fanout);
@@ -2792,7 +2813,7 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         tab[-1].next_select= sub_select_op;
 
       if (table->covering_keys.is_set(tab->ref.key) &&
-	  !table->no_keyread)
+          !table->no_keyread)
         table->set_keyread(TRUE);
       else
         push_index_cond(tab, tab->ref.key, icp_other_tables_ok,
@@ -2847,12 +2868,12 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	}
 	if (!table->no_keyread)
 	{
-	  if (tab->select && tab->select->quick &&
+          if (tab->select && tab->select->quick &&
               tab->select->quick->index != MAX_KEY && //not index_merge
-	      table->covering_keys.is_set(tab->select->quick->index))
+              table->covering_keys.is_set(tab->select->quick->index))
             table->set_keyread(TRUE);
-	  else if (!table->covering_keys.is_clear_all() &&
-		   !(tab->select && tab->select->quick))
+          else if (!table->covering_keys.is_clear_all() &&
+                   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
 	    /*
             It has turned out that the below change, while speeding things
@@ -2894,8 +2915,6 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     // Materialize derived tables prior to accessing them.
     if (tab->table->pos_in_table_list->uses_materialization())
       tab->materialize_table= join_materialize_derived;
-    if (tab->sj_mat_exec)
-      tab->materialize_table= join_materialize_semijoin;
   }
 
   for (uint i= join->const_tables; i < join->primary_tables; i++)
@@ -2977,7 +2996,7 @@ void JOIN_TAB::cleanup()
   filesort= NULL;
   /* Skip non-existing derived tables/views result tables */
   if (table &&
-      (table->s->tmp_table != INTERNAL_TMP_TABLE || table->created))
+      (table->s->tmp_table != INTERNAL_TMP_TABLE || table->is_created()))
   {
     table->set_keyread(FALSE);
     table->file->ha_index_or_rnd_end();
@@ -2991,18 +3010,6 @@ void JOIN_TAB::cleanup()
     table->reginfo.join_tab= NULL;
   }
   end_read_record(&read_record);
-  if (op)
-  {
-    if (op->type() == QEP_operation::OT_TMP_TABLE)
-    {
-      free_tmp_table(join->thd, table);
-      table= NULL;
-      delete tmp_table_param;
-      tmp_table_param= NULL;
-    }
-    op->free();
-    op= NULL;
-  }
 }
 
 uint JOIN_TAB::sjm_query_block_id() const
@@ -3195,7 +3202,7 @@ void JOIN::cleanup(bool full)
       {
         if (!tab->table)
           continue;
-	if (tab->table->created)
+	if (tab->table->is_created())
         {
           tab->table->file->ha_index_or_rnd_end();
           if (tab->op &&
@@ -3442,7 +3449,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
 {
   KEY_PART_INFO *key_part,*key_part_end;
   key_part=table->key_info[idx].key_part;
-  key_part_end=key_part+table->key_info[idx].key_parts;
+  key_part_end=key_part+table->key_info[idx].user_defined_key_parts;
   key_part_map const_key_parts=table->const_key_parts[idx];
   int reverse=0;
   uint key_parts;
@@ -3475,7 +3482,8 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
       {
         on_pk_suffix= TRUE;
         key_part= table->key_info[table->s->primary_key].key_part;
-        key_part_end=key_part+table->key_info[table->s->primary_key].key_parts;
+        key_part_end=key_part +
+          table->key_info[table->s->primary_key].user_defined_key_parts;
         const_key_parts=table->const_key_parts[table->s->primary_key];
 
         for (; const_key_parts & 1 ; const_key_parts>>= 1)
@@ -3510,7 +3518,7 @@ static int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
   }
   if (on_pk_suffix)
   {
-    uint used_key_parts_secondary= table->key_info[idx].key_parts;
+    uint used_key_parts_secondary= table->key_info[idx].user_defined_key_parts;
     uint used_key_parts_pk=
       (uint) (key_part - table->key_info[table->s->primary_key].key_part);
     key_parts= used_key_parts_pk + used_key_parts_secondary;
@@ -3598,7 +3606,7 @@ uint find_shortest_key(TABLE *table, const key_map *usable_keys)
      parts aren't allowed.
      */
     if (best == MAX_KEY ||
-        table->key_info[best].key_parts >= table->s->fields)
+        table->key_info[best].user_defined_key_parts >= table->s->fields)
       best= usable_clustered_pk;
   }
   return best;
@@ -3689,7 +3697,7 @@ test_if_subkey(ORDER *order, JOIN_TAB *tab, uint ref, uint ref_key_parts,
   {
     if (usable_keys->is_set(nr) &&
 	table->key_info[nr].key_length < min_length &&
-	table->key_info[nr].key_parts >= ref_key_parts &&
+	table->key_info[nr].user_defined_key_parts >= ref_key_parts &&
 	is_subkey(table->key_info[nr].key_part, ref_key_part,
 		  ref_key_part_end) &&
         !is_ref_or_null_optimized(tab, nr) &&
@@ -3718,7 +3726,7 @@ public:
     @param tab_arg     table whose access path is being determined
     @param no_changes  whether a change to the access path is allowed
   */
-  Plan_change_watchdog(const JOIN_TAB *tab_arg, bool no_changes_arg)
+  Plan_change_watchdog(const JOIN_TAB *tab_arg, const bool no_changes_arg)
   {
     // Only to keep gcc 4.1.2-44 silent about uninitialized variables
     quick= NULL;
@@ -3778,7 +3786,7 @@ private:
   uint index;                     ///< copy of tab->index
 #else // in non-debug build, empty class
 public:
-  Plan_change_watchdog(const JOIN_TAB *tab_arg, bool no_changes_arg) {}
+  Plan_change_watchdog(const JOIN_TAB *tab_arg, const bool no_changes_arg) {}
 #endif
 };
 
@@ -3799,7 +3807,12 @@ public:
 
   The index must cover all fields in <order>, or it will not be considered.
 
-  @param no_changes No changes will be made to the query plan.
+  @param tab           NULL or JOIN_TAB of the accessed table
+  @param order         Linked list of ORDER BY arguments
+  @param select_limit  LIMIT value, or HA_POS_ERROR if no limit
+  @param no_changes    No changes will be made to the query plan.
+  @param map           key_map of applicable indexes.
+  @param clause_type   "ORDER BY" etc for printing in optimizer trace
 
   @todo
     - sergeyp: Results of all index merge selects actually are ordered 
@@ -3818,8 +3831,9 @@ public:
 */
 
 bool
-test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
-			bool no_changes, const key_map *map)
+test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
+                        const bool no_changes, const key_map *map,
+                        const char *clause_type)
 {
   int ref_key;
   uint ref_key_parts;
@@ -3830,7 +3844,8 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   QUICK_SELECT_I *save_quick= select ? select->quick : NULL;
   int best_key= -1;
   Item *orig_cond;
-  bool orig_cond_saved= false, ret, set_up_ref_access_to_key= false;
+  bool orig_cond_saved= false, set_up_ref_access_to_key= false;
+  bool can_skip_sorting= false;                  // used as return value
   int changed_key= -1;
   DBUG_ENTER("test_if_skip_sort_order");
   LINT_INIT(ref_key_parts);
@@ -3911,16 +3926,18 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
   Opt_trace_object trace_wrapper(trace);
   Opt_trace_object
     trace_skip_sort_order(trace, "reconsidering_access_paths_for_index_ordering");
+  trace_skip_sort_order.add_alnum("clause", clause_type);
 
   if (ref_key >= 0)
   {
     /*
-      We come here when there is a REF key.
+      We come here when there is a {ref or or ordered range access} key.
     */
     if (!usable_keys.is_set(ref_key))
     {
       /*
-	We come here when ref_key is not among usable_keys
+        We come here when ref_key is not among usable_keys, try to find a
+        usable prefix key of that key.
       */
       uint new_ref_key;
       /*
@@ -3942,7 +3959,7 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
           */
           set_up_ref_access_to_key= true;
         }
-	else
+	else if (!no_changes)
 	{
           /*
             The range optimizer constructed QUICK_RANGE for ref_key, and
@@ -3951,7 +3968,19 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
             result in an incosistent QUICK_SELECT object. Below we
             create a new QUICK_SELECT from scratch so that all its
             parameres are set correctly by the range optimizer.
-           */
+
+            Note that the range optimizer is NOT called if
+            no_changes==true. This reason is that the range optimizer
+            cannot find a QUICK that can return ordered result unless
+            index access (ref or index scan) is also able to do so
+            (which test_if_order_by_key () will tell).
+            Admittedly, range access may be much more efficient than
+            e.g. index scan, but the only thing that matters when
+            no_change==true is the answer to the question: "Is it
+            possible to avoid sorting if an index is used to access
+            this table?". The answer does not depend on the outcome of
+            the range optimizer.
+          */
           key_map new_ref_key_map;  // Force the creation of quick select
           new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
 
@@ -3969,7 +3998,10 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                                         tab->join->unit->select_limit_cnt,
                                         false,   // don't force quick range
                                         order->direction) <= 0)
-            goto use_filesort;
+          {
+            can_skip_sorting= false;
+            goto fix_ICP;
+          }
 	}
         ref_key= new_ref_key;
         changed_key= new_ref_key;
@@ -3982,6 +4014,11 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
       goto check_reverse_order;
   }
   {
+    /*
+      There was no {ref or or ordered range access} key, or it was not
+      satisfying, neither was any prefix of it. Do a cost-based search on all
+      keys:
+    */
     uint best_key_parts= 0;
     uint saved_best_key_parts= 0;
     int best_key_direction= 0;
@@ -3994,6 +4031,13 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
                              &select_limit, &best_key_parts,
                              &saved_best_key_parts);
 
+    if (best_key < 0)
+    {
+      // No usable key has been found
+      can_skip_sorting= false;
+      goto fix_ICP;
+    }
+
     /*
       filesort() and join cache are usually faster than reading in 
       index order and not using join cache, except in case that chosen
@@ -4004,49 +4048,47 @@ test_if_skip_sort_order(JOIN_TAB *tab,ORDER *order,ha_rows select_limit,
          tab->join->primary_tables > tab->join->const_tables + 1) &&
          ((unsigned) best_key != table->s->primary_key ||
           !table->file->primary_key_is_clustered()))
-      goto use_filesort;
-
-    if (best_key >= 0)
     {
-      if (select &&
-          table->quick_keys.is_set(best_key) &&
-          !tab->quick_order_tested.is_set(best_key) &&
-          best_key != ref_key)
-      {
-        tab->quick_order_tested.set_bit(best_key);
-        Opt_trace_object
-          trace_recest(trace, "rows_estimation");
-        trace_recest.add_utf8_table(tab->table).
-          add_utf8("index", table->key_info[best_key].name);
-
-        key_map map;           // Force the creation of quick select
-        map.set_bit(best_key); // only best_key.
-        select->quick= 0;
-        select->test_quick_select(join->thd, 
-                                  map, 
-                                  0,        // empty table_map
-                                  join->select_options & OPTION_FOUND_ROWS ?
-                                  HA_POS_ERROR :
-                                  join->unit->select_limit_cnt,
-                                  true,     // force quick range
-                                  order->direction);
-      }
-      order_direction= best_key_direction;
-      /*
-        saved_best_key_parts is actual number of used keyparts found by the
-        test_if_order_by_key function. It could differ from keyinfo->key_parts,
-        thus we have to restore it in case of desc order as it affects
-        QUICK_SELECT_DESC behaviour.
-      */
-      used_key_parts= (order_direction == -1) ?
-        saved_best_key_parts :  best_key_parts;
-      changed_key= best_key;
-      // We will use index scan or range scan:
-      set_up_ref_access_to_key= false;
+      can_skip_sorting= false;
+      goto fix_ICP;
     }
-    else
-      goto use_filesort; 
-  } 
+
+    if (select &&
+        table->quick_keys.is_set(best_key) &&
+        !tab->quick_order_tested.is_set(best_key) &&
+        best_key != ref_key)
+    {
+      tab->quick_order_tested.set_bit(best_key);
+      Opt_trace_object
+        trace_recest(trace, "rows_estimation");
+      trace_recest.add_utf8_table(tab->table).
+        add_utf8("index", table->key_info[best_key].name);
+
+      key_map map;           // Force the creation of quick select
+      map.set_bit(best_key); // only best_key.
+      select->quick= 0;
+      select->test_quick_select(join->thd, 
+                                map, 
+                                0,        // empty table_map
+                                join->select_options & OPTION_FOUND_ROWS ?
+                                HA_POS_ERROR :
+                                join->unit->select_limit_cnt,
+                                true,     // force quick range
+                                order->direction);
+    }
+    order_direction= best_key_direction;
+    /*
+      saved_best_key_parts is actual number of used keyparts found by the
+      test_if_order_by_key function. It could differ from keyinfo->key_parts,
+      thus we have to restore it in case of desc order as it affects
+      QUICK_SELECT_DESC behaviour.
+    */
+    used_key_parts= (order_direction == -1) ?
+      saved_best_key_parts :  best_key_parts;
+    changed_key= best_key;
+    // We will use index scan or range scan:
+    set_up_ref_access_to_key= false;
+  }
 
 check_reverse_order:                  
   DBUG_ASSERT(order_direction != 0);
@@ -4060,16 +4102,38 @@ check_reverse_order:
         (In some cases test_if_order_by_key() can be called multiple times
       */
       if (select->quick->reverse_sorted())
-        goto skipped_filesort;
+      {
+        can_skip_sorting= true;
+        goto fix_ICP;
+      }
+
+      if (select->quick->reverse_sort_possible())
+        can_skip_sorting= true;
+      else
+      {
+        can_skip_sorting= false;
+        goto fix_ICP;
+      }
 
       /*
         test_quick_select() should not create a quick that cannot do
         reverse ordering
       */
-      DBUG_ASSERT((select->quick == save_quick) ||
-                  select->quick->reverse_sort_possible());
+      DBUG_ASSERT((select->quick == save_quick) || can_skip_sorting);
+    }
+    else
+    {
+      // Other index access (ref or scan) poses no problem
+      can_skip_sorting= true;
     }
   }
+  else
+  {
+    // ORDER BY ASC poses no problem
+    can_skip_sorting= true;
+  }
+
+  DBUG_ASSERT(can_skip_sorting);
 
   /*
     Update query plan with access pattern for doing 
@@ -4093,7 +4157,10 @@ check_reverse_order:
         keyuse++;
 
       if (create_ref_for_key(tab->join, tab, keyuse, tab->prefix_tables()))
-        goto use_filesort;
+      {
+        can_skip_sorting= false;
+        goto fix_ICP;
+      }
 
       DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
     }
@@ -4162,7 +4229,8 @@ check_reverse_order:
         if (!tmp)
         {
           tab->limit= 0;
-          goto use_filesort;            // Reverse sort failed -> filesort
+          can_skip_sorting= false;      // Reverse sort failed -> filesort
+          goto fix_ICP;
         }
         if (select->quick == save_quick)
           save_quick= 0;                // Because set_quick(tmp) frees it
@@ -4193,23 +4261,15 @@ check_reverse_order:
     }
     else if (select && select->quick)
       select->quick->need_sorted_output(true);
-
   } // QEP has been modified
 
+fix_ICP:
   /*
     Cleanup:
     We may have both a 'select->quick' and 'save_quick' (original)
     at this point. Delete the one that we won't use.
   */
-
-skipped_filesort:
-  ret= true;
-  goto fix_ICP;
-use_filesort:
-  ret= false;
-
-fix_ICP:
-  if (ret && !no_changes)
+  if (can_skip_sorting && !no_changes)
   {
     // Keep current (ordered) select->quick
     if (select && save_quick != select->quick)
@@ -4221,6 +4281,15 @@ fix_ICP:
     if (select && select->quick != save_quick)
       select->set_quick(save_quick);
   }
+
+  Opt_trace_object
+    trace_change_index(trace, "index_order_summary");
+  trace_change_index.add_utf8_table(tab->table)
+    .add("index_provides_order", can_skip_sorting)
+    .add_alnum("order_direction", order_direction == 1 ? "asc" :
+               ((order_direction == -1) ? "desc" :
+                "undefined"));
+
   if (changed_key >= 0)
   {
     bool cancelled_ICP= false;
@@ -4234,14 +4303,9 @@ fix_ICP:
     }
     if (unlikely(trace->is_started()))
     {
-      Opt_trace_object
-        trace_change_index(trace, "index_order_summary");
-      trace_change_index.add_utf8_table(tab->table);
       if (cancelled_ICP)
         trace_change_index.add("disabled_pushed_condition_on_old_index", true);
-      trace_change_index.add_utf8("index", table->key_info[changed_key].name).
-        add_alnum("order_direction", order_direction == 1 ? "asc" :
-                  ((order_direction == -1) ? "desc" : "undefined"));
+      trace_change_index.add_utf8("index", table->key_info[changed_key].name);
       trace_change_index.add("plan_changed", !no_changes);
       if (!no_changes)
       {
@@ -4252,12 +4316,19 @@ fix_ICP:
       }
     }
   }
+  else if (unlikely(trace->is_started()))
+  {
+    trace_change_index.add_utf8("index",
+                                ref_key >= 0 ?
+                                table->key_info[ref_key].name : "unknown");
+    trace_change_index.add("plan_changed", false);
+  }
   if (orig_cond_saved)
   {
     // ICP set up prior to the call, is still valid:
     tab->set_jt_and_sel_condition(orig_cond, __LINE__);
   }
-  DBUG_RETURN(ret);
+  DBUG_RETURN(can_skip_sorting);
 }
 
 
@@ -5052,8 +5123,9 @@ bool JOIN::make_tmp_tables_info()
       // for the first table
       if (group_list || tmp_table_param.sum_func_count)
       {
-        if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true) ||
-            prepare_sum_aggregators(sum_funcs,
+        if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
+          DBUG_RETURN(true);
+        if (prepare_sum_aggregators(sum_funcs,
                                     !join_tab->is_using_agg_loose_index_scan()))
           DBUG_RETURN(true);
         group_list= NULL;
@@ -5152,13 +5224,14 @@ bool JOIN::make_tmp_tables_info()
       join_tab[primary_tables + tmp_tables - 1].all_fields= &tmp_all_fields3;
       join_tab[primary_tables + tmp_tables - 1].fields= &tmp_fields_list3;
     }
-    if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true) || 
-        prepare_sum_aggregators(sum_funcs,
+    if (make_sum_func_list(*curr_all_fields, *curr_fields_list, true, true))
+      DBUG_RETURN(true);
+    if (prepare_sum_aggregators(sum_funcs,
                                 !join_tab ||
-                                !join_tab-> is_using_agg_loose_index_scan()) ||
-        setup_sum_funcs(thd, sum_funcs) ||
-        thd->is_fatal_error)
-      DBUG_RETURN(1);
+                                !join_tab-> is_using_agg_loose_index_scan()))
+      DBUG_RETURN(true);
+    if (setup_sum_funcs(thd, sum_funcs) || thd->is_fatal_error)
+      DBUG_RETURN(true);
   }
   if (group_list || order)
   {
@@ -5236,7 +5309,8 @@ bool JOIN::make_tmp_tables_info()
     if (join_tab &&
         ordered_index_usage !=
         (group_list ? ordered_index_group_by : ordered_index_order_by) &&
-        join_tab[curr_tmp_table].type != JT_CONST) // Don't sort 1 row
+        join_tab[curr_tmp_table].type != JT_CONST &&
+        join_tab[curr_tmp_table].type != JT_EQ_REF) // Don't sort 1 row
     {
       // Sort either first non-const table or the last tmp table
       JOIN_TAB *sort_tab= &join_tab[curr_tmp_table];
@@ -5368,7 +5442,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   double fanout= 1;
   ha_rows table_records= table->file->stats.records;
   bool group= join && join->group && order == join->group_list;
-  ha_rows ref_key_quick_rows= HA_POS_ERROR;
+  ha_rows refkey_rows_estimate= table->quick_condition_rows;
   const bool has_limit= (select_limit != HA_POS_ERROR);
 
   /*
@@ -5394,9 +5468,6 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   else
     keys= usable_keys;
 
-  if (ref_key >= 0 && table->covering_keys.is_set(ref_key))
-    ref_key_quick_rows= table->quick_rows[ref_key];
-
   if (join)
   {
     read_time= tab->position->read_time;
@@ -5406,6 +5477,22 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
   }
   else
     read_time= table->file->scan_time();
+
+  /*
+    Calculate the selectivity of the ref_key for REF_ACCESS. For
+    RANGE_ACCESS we use table->quick_condition_rows.
+  */
+  if (ref_key >= 0 && tab->type == JT_REF)
+  {
+    if (table->quick_keys.is_set(ref_key))
+      refkey_rows_estimate= table->quick_rows[ref_key];
+    else
+    {
+      const KEY *ref_keyinfo= table->key_info + ref_key;
+      refkey_rows_estimate= ref_keyinfo->rec_per_key[tab->ref.key_parts - 1];
+    }
+    set_if_bigger(refkey_rows_estimate, 1);
+  }
 
   for (nr=0; nr < table->s->keys ; nr++)
   {
@@ -5453,7 +5540,7 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
             See Bug #28591 for details.
           */  
           rec_per_key= used_key_parts &&
-                       used_key_parts <= keyinfo->key_parts ?
+                       used_key_parts <= actual_key_parts(keyinfo) ?
                        keyinfo->rec_per_key[used_key_parts-1] : 1;
           set_if_bigger(rec_per_key, 1);
           /*
@@ -5483,18 +5570,18 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
           with ref_key. Thus, to select first N records we have to scan
           N/selectivity(ref_key) index entries. 
           selectivity(ref_key) = #scanned_records/#table_records =
-          table->quick_condition_rows/table_records.
+          refkey_rows_estimate/table_records.
           In any case we can't select more than #table_records.
-          N/(table->quick_condition_rows/table_records) > table_records 
-          <=> N > table->quick_condition_rows.
-        */ 
-        if (select_limit > table->quick_condition_rows)
+          N/(refkey_rows_estimate/table_records) > table_records
+          <=> N > refkey_rows_estimate.
+         */
+        if (select_limit > refkey_rows_estimate)
           select_limit= table_records;
         else
           select_limit= (ha_rows) (select_limit *
                                    (double) table_records /
-                                    table->quick_condition_rows);
-        rec_per_key= keyinfo->rec_per_key[keyinfo->key_parts-1];
+                                    refkey_rows_estimate);
+        rec_per_key= keyinfo->rec_per_key[keyinfo->user_defined_key_parts - 1];
         set_if_bigger(rec_per_key, 1);
         /*
           Here we take into account the fact that rows are
@@ -5514,18 +5601,22 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
             index_scan_time < read_time)
         {
           ha_rows quick_records= table_records;
+          ha_rows refkey_select_limit= (ref_key >= 0 &&
+                                        table->covering_keys.is_set(ref_key)) ?
+                                        refkey_rows_estimate :
+                                        HA_POS_ERROR;
           if ((is_best_covering && !is_covering) ||
-              (is_covering && ref_key_quick_rows < select_limit))
+              (is_covering && refkey_select_limit < select_limit))
             continue;
           if (table->quick_keys.is_set(nr))
             quick_records= table->quick_rows[nr];
           if (best_key < 0 ||
               (select_limit <= min(quick_records,best_records) ?
-               keyinfo->key_parts < best_key_parts :
+               keyinfo->user_defined_key_parts < best_key_parts :
                quick_records < best_records))
           {
             best_key= nr;
-            best_key_parts= keyinfo->key_parts;
+            best_key_parts= keyinfo->user_defined_key_parts;
             if (saved_best_key_parts)
               *saved_best_key_parts= used_key_parts;
             best_records= quick_records;
@@ -5663,6 +5754,39 @@ uint get_index_for_order(ORDER *order, TABLE *table, SQL_SELECT *select,
   return MAX_KEY;
 }
 
+
+/**
+  Returns number of key parts depending on
+  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS flag.
+
+  @param  key_info  pointer to KEY structure
+
+  @return number of key parts.
+*/
+
+uint actual_key_parts(KEY *key_info)
+{
+  return key_info->table->in_use->
+    optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?
+    key_info->actual_key_parts : key_info->user_defined_key_parts;
+}
+
+
+/**
+  Returns key flags depending on
+  OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS flag.
+
+  @param  key_info  pointer to KEY structure
+
+  @return key flags.
+*/
+
+uint actual_key_flags(KEY *key_info)
+{
+  return key_info->table->in_use->
+    optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?
+    key_info->actual_flags : key_info->flags;
+}
 
 /**
   @} (end of group Query_Optimizer)

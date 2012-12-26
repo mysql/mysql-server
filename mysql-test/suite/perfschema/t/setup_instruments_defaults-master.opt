@@ -1,3 +1,4 @@
+--no-console
 --log-error=0
 --loose-performance-schema-instrument='%=ON'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/% = OFF '
@@ -14,7 +15,6 @@
 --loose-performance-schema-instrument='unknown/instrument/event/name                 = TRUE'
 --loose-performance-schema-instrument='stage/sql/creating table                      = COUNTED'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/LOG_INFO::lock           = 1'
---loose-performance-schema-instrument='wait/synch/mutex/sql/Delayed_insert::mutex    = 0'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/THD::LOCK_thd_data       = TRUE'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/hash_filo::lock          = FALSE'
 --loose-performance-schema-instrument='wait/synch/mutex/sql/TABLE_SHARE::LOCK_ha_data= NO'

@@ -147,7 +147,7 @@ PFS_socket *socket_array= NULL;
 PFS_stage_stat *global_instr_class_stages_array= NULL;
 PFS_statement_stat *global_instr_class_statements_array= NULL;
 
-static volatile uint32 thread_internal_id_counter= 0;
+static volatile uint64 thread_internal_id_counter= 0;
 
 static uint thread_instr_class_waits_sizing;
 static uint thread_instr_class_stages_sizing;
@@ -797,7 +797,7 @@ void PFS_thread::reset_session_connect_attrs()
       (session_connect_attrs_size_per_thread > 0) )
   {
     /* Do not keep user data */
-    memset(m_session_connect_attrs, session_connect_attrs_size_per_thread, 0);
+    memset(m_session_connect_attrs, 0, session_connect_attrs_size_per_thread);
   }
 }
 
@@ -806,12 +806,12 @@ void PFS_thread::reset_session_connect_attrs()
   @param klass                        the thread class
   @param identity                     the thread address,
     or a value characteristic of this thread
-  @param thread_id                    the PROCESSLIST thread id,
+  @param processlist_id               the PROCESSLIST id,
     or 0 if unknown
   @return a thread instance, or NULL
 */
 PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
-                          ulong thread_id)
+                          ulonglong processlist_id)
 {
   static uint PFS_ALIGNED thread_monotonic_index= 0;
   uint index;
@@ -829,9 +829,9 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
       if (pfs->m_lock.free_to_dirty())
       {
         pfs->m_thread_internal_id=
-          PFS_atomic::add_u32(&thread_internal_id_counter, 1);
+          PFS_atomic::add_u64(&thread_internal_id_counter, 1);
         pfs->m_parent_thread_internal_id= 0;
-        pfs->m_thread_id= thread_id;
+        pfs->m_processlist_id= processlist_id;
         pfs->m_event_id= 1;
         pfs->m_enabled= true;
         pfs->m_class= klass;
@@ -860,8 +860,11 @@ PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
         pfs->m_dbname_length= 0;
         pfs->m_command= 0;
         pfs->m_start_time= 0;
+        pfs->m_processlist_state_ptr= NULL;
         pfs->m_processlist_state_length= 0;
+        pfs->m_processlist_info_ptr= NULL;
         pfs->m_processlist_info_length= 0;
+        pfs->m_processlist_lock.set_allocated();
 
         pfs->m_host= NULL;
         pfs->m_user= NULL;
@@ -1053,7 +1056,7 @@ void destroy_thread(PFS_thread *pfs)
 }
 
 /**
-  Get the hash pins for @filename_hash.
+  Get the hash pins for @c filename_hash.
   @param thread The running thread.
   @returns The LF_HASH pins for the thread.
 */
@@ -1441,7 +1444,9 @@ void destroy_table(PFS_table *pfs)
 /**
   Create instrumentation for a socket instance.
   @param klass                        the socket class
-  @param identity                     the socket descriptor
+  @param fd                           the socket file descriptor
+  @param addr                         the socket address
+  @param addr_len                     the socket address length
   @return a socket instance, or NULL
 */
 PFS_socket* create_socket(PFS_socket_class *klass, const my_socket *fd,

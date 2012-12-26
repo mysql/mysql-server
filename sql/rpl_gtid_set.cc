@@ -557,7 +557,6 @@ bool Gtid_set::is_valid(const char *text)
 {
   DBUG_ENTER("Gtid_set::is_valid(const char*)");
 
-#ifdef HAVE_NDB_BINLOG
   const char *s= text;
 
   SKIP_WHITESPACE();
@@ -601,9 +600,7 @@ bool Gtid_set::is_valid(const char *text)
   } while (*s == ',');
   if (*s != 0)
     DBUG_RETURN(false);
-#else
-  DBUG_ASSERT(0); /*NOTREACHED*/
-#endif
+
   DBUG_RETURN(true);
 }
 

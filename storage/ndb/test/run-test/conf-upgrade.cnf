@@ -4,6 +4,7 @@ baseport = 14000
 clusters = .4node
 mysqld = CHOOSE_host1
 fix-nodeid=1
+mt=2
 
 [ndb_mgmd]
 
@@ -12,6 +13,7 @@ skip-innodb
 loose-skip-bdb
 socket=mysql.sock
 skip-grant-tables
+default-storage-engine=myisam
 
 [client]
 protocol=tcp

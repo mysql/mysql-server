@@ -29,4 +29,18 @@ SET PASSWORD FOR 'kristofer'@'33.33.33.33'=PASSWORD('');
 Connection should fail for localhost
 ERROR 28000: Access denied for user 'kristofer'@'localhost' (using password: NO)
 DROP USER 'kristofer'@'33.33.33.33';
+#
+# BUG#14807074 ALTER USER PASSWORD EXPIRE VS SHA256_PASSWORD
+#
+CREATE USER 'u1'@'localhost' IDENTIFIED WITH 'sha256_password';
+SET PASSWORD FOR 'u1'@'localhost' = PASSWORD('pass');
+ALTER USER 'u1'@'localhost' PASSWORD EXPIRE;
+SELECT USER();
+ERROR HY000: You must SET PASSWORD before executing this statement
+SET @@OLD_PASSWORDS=2;
+SET PASSWORD=PASSWORD('pass2');
+SELECT USER();
+USER()
+u1@localhost
+DROP USER 'u1'@'localhost';
 SET GLOBAL old_passwords= default;

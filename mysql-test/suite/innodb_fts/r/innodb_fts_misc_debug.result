@@ -1,0 +1,96 @@
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+DROP INDEX title ON articles;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+BEGIN;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...');
+SET SESSION debug="+d,crash_commit_before";
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...');
+CREATE FULLTEXT INDEX idx ON articles (title,body);
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+7	MySQL Tutorial	DBMS stands for DataBase ...
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...')  ,
+('How To Use MySQL Well','After you went through a ...'),
+('Optimizing MySQL','In this tutorial we will show ...'),
+('1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+('MySQL vs. YourSQL','In the following database comparison ...'),
+('MySQL Security','When configured properly, MySQL ...');
+BEGIN;
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...');
+SET SESSION debug="+d,crash_commit_before";
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+INSERT INTO articles (title,body) VALUES
+('MySQL Tutorial','DBMS stands for DataBase ...');
+SELECT * FROM articles
+WHERE MATCH (title,body)
+AGAINST ('Database' IN NATURAL LANGUAGE MODE);
+id	title	body
+1	MySQL Tutorial	DBMS stands for DataBase ...
+5	MySQL vs. YourSQL	In the following database comparison ...
+7	MySQL Tutorial	DBMS stands for DataBase ...
+8	MySQL Tutorial	DBMS stands for DataBase ...
+12	MySQL vs. YourSQL	In the following database comparison ...
+14	MySQL Tutorial	DBMS stands for DataBase ...
+DROP TABLE articles;
+CREATE TABLE articles (
+id int PRIMARY KEY,
+FTS_DOC_ID BIGINT UNSIGNED NOT NULL,
+title VARCHAR(200),
+body TEXT
+) ENGINE=InnoDB;
+CREATE FULLTEXT INDEX idx1 on articles (title, body);
+INSERT INTO articles VALUES
+(1, 10, 'MySQL Tutorial','DBMS stands for DataBase ...')  ,
+(2, 1, 'How To Use MySQL Well','After you went through a ...'),
+(3, 2, 'Optimizing MySQL','In this tutorial we will show ...'),
+(4, 11, '1001 MySQL Tricks','1. Never run mysqld as root. 2. ...'),
+(5, 6, 'MySQL vs. YourSQL','In the following database comparison ...'),
+(7, 4, 'MySQL Security','When configured properly, MySQL ...');
+BEGIN;
+INSERT INTO articles VALUES
+(100, 200, 'MySQL Tutorial','DBMS stands for DataBase ...');
+SET SESSION debug="+d,crash_commit_before";
+COMMIT;
+ERROR HY000: Lost connection to MySQL server during query
+INSERT INTO articles VALUES         (8, 12, 'MySQL Tutorial','DBMS stands for DataBase ...');
+SELECT * FROM articles WHERE MATCH (title, body)
+AGAINST ('Tutorial' IN NATURAL LANGUAGE MODE);
+id	FTS_DOC_ID	title	body
+3	2	Optimizing MySQL	In this tutorial we will show ...
+1	10	MySQL Tutorial	DBMS stands for DataBase ...
+8	12	MySQL Tutorial	DBMS stands for DataBase ...
+DROP TABLE articles;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+SET SESSION debug="+d,ib_dict_create_index_tree_fail";
+CREATE FULLTEXT INDEX idx ON articles(body);
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SET SESSION debug="-d,ib_dict_create_index_tree_fail";
+ALTER TABLE articles STATS_PERSISTENT=DEFAULT;
+DROP TABLE articles;

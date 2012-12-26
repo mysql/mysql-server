@@ -322,6 +322,7 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
   char dlpath[FN_REFLEN+1];
   void *sym, *dlhandle;
   struct st_mysql_client_plugin *plugin;
+  const char *plugindir;
 #ifdef _WIN32
   char win_errormsg[2048];
 #endif
@@ -343,10 +344,22 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
     goto err;
   }
 
+  if (mysql->options.extension && mysql->options.extension->plugin_dir)
+  {
+    plugindir= mysql->options.extension->plugin_dir;
+  }
+  else
+  {
+    plugindir= getenv("LIBMYSQL_PLUGIN_DIR");
+    if (!plugindir)
+    {
+      plugindir= PLUGINDIR;
+    }
+  }
+
   /* Compile dll path */
   strxnmov(dlpath, sizeof(dlpath) - 1,
-           mysql->options.extension && mysql->options.extension->plugin_dir ?
-           mysql->options.extension->plugin_dir : PLUGINDIR, "/",
+           plugindir, "/",
            name, SO_EXT, NullS);
    
   DBUG_PRINT ("info", ("dlopeninig %s", dlpath));
@@ -363,8 +376,8 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
       goto have_plugin;
 #endif
 
-    DBUG_PRINT ("info", ("failed to dlopen"));
 #ifdef _WIN32
+    /* There should be no win32 calls between failed dlopen() and GetLastError() */
     if(FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM,
                   0, GetLastError(), 0, win_errormsg, 2048, NULL))
       errmsg= win_errormsg;
@@ -373,6 +386,7 @@ mysql_load_plugin_v(MYSQL *mysql, const char *name, int type,
 #else
     errmsg= dlerror();
 #endif
+    DBUG_PRINT ("info", ("failed to dlopen"));
     goto err;
   }
 

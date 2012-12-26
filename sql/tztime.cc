@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1674,7 +1674,8 @@ my_tz_init(THD *org_thd, const char *default_tzname, my_bool bootstrap)
                            MYSQL_OPEN_IGNORE_FLUSH | MYSQL_LOCK_IGNORE_TIMEOUT))
   {
     sql_print_warning("Can't open and lock time zone table: %s "
-                      "trying to live without them", thd->get_stmt_da()->message());
+                      "trying to live without them",
+                      thd->get_stmt_da()->message_text());
     /* We will try emulate that everything is ok */
     return_val= time_zone_tables_exist= 0;
     goto end_with_setting_default_tz;
@@ -2356,7 +2357,7 @@ my_tz_find(THD *thd, const String *name)
   complete check this way it doesn't require looking (and having installed)
   the leap seconds table.
 
-  @param[in,out] broken down time structure as filled in by the OS
+  @param[in,out] t broken down time structure as filled in by the OS
 */
 
 void Time_zone::adjust_leap_second(MYSQL_TIME *t)

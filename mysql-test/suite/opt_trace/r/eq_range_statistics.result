@@ -1149,7 +1149,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                         "using_mrr": false,
                         "index_only": true,
                         "rows": 1,
-                        "cost": 2.21,
+                        "cost": 1.21,
                         "chosen": true
                       }
                     ] /* range_scan_alternatives */,
@@ -1170,7 +1170,7 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                       ] /* ranges */
                     } /* range_access_plan */,
                     "rows_for_plan": 1,
-                    "cost_for_plan": 2.21,
+                    "cost_for_plan": 1.21,
                     "chosen": true
                   } /* chosen_range_access_summary */
                 } /* range_analysis */
@@ -1188,12 +1188,12 @@ EXPLAIN SELECT * FROM t1 WHERE a>5 AND (b=2 OR b=3 OR b=4)	{
                     {
                       "access_type": "range",
                       "rows": 1,
-                      "cost": 2.41,
+                      "cost": 1.41,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 2.41,
+                "cost_for_plan": 1.41,
                 "rows_for_plan": 1,
                 "chosen": true
               }

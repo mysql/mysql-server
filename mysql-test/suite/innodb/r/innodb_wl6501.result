@@ -1,5 +1,4 @@
 set global innodb_file_per_table=on;
-call mtr.add_suppression("Warning: a page in the doublewrite buffer is not within space");
 # Verify that 'TRUNCATE TABLE' statement works fine and the size
 # of .ibd file is equal to the initial size after truncation.
 drop table if exists t1;
@@ -83,6 +82,7 @@ drop table t1;
 # creation of the second secondary to a compressed table.
 drop table if exists t1;
 set global innodb_file_format='Barracuda';
+call mtr.add_suppression("InnoDB: A page in the doublewrite buffer is not within space bounds");
 create table t1(a int not null,
 b int not null,
 c int not null,

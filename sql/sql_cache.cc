@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -335,6 +335,8 @@ TODO list:
 #include "sql_acl.h"                            // SELECT_ACL
 #include "sql_base.h"                           // TMP_TABLE_KEY_EXTRA
 #include "debug_sync.h"                         // DEBUG_SYNC
+#include "opt_trace.h"
+#include "sql_table.h"
 #ifdef HAVE_QUERY_CACHE
 #include <m_ctype.h>
 #include <my_dir.h>
@@ -1000,14 +1002,14 @@ void Query_cache::end_of_result(THD *thd)
   if (query_cache_tls->first_query_block == NULL)
     DBUG_VOID_RETURN;
 
-  /* Ensure that only complete results are cached. */
-  DBUG_ASSERT(thd->get_stmt_da()->is_eof());
-
-  if (thd->killed)
+  if (thd->killed || thd->is_error())
   {
     query_cache_abort(&thd->query_cache_tls);
     DBUG_VOID_RETURN;
   }
+
+  /* Ensure that only complete results are cached. */
+  DBUG_ASSERT(thd->get_stmt_da()->is_eof());
 
 #ifdef EMBEDDED_LIBRARY
   insert(query_cache_tls, (char*)thd,
@@ -1135,7 +1137,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
     {
       BLOCK_LOCK_WR(block);
       Query_cache_query *query= block->query();
-      if (query && query->writer())
+      if (query->writer())
       {
         /*
            Drop the writer; this will cancel any attempts to store 
@@ -1145,7 +1147,7 @@ ulong Query_cache::resize(ulong query_cache_size_arg)
         query->writer(0);
         refused++;
       }
-      BLOCK_UNLOCK_WR(block);
+      query->unlock_n_destroy();
       block= block->next;
     } while (block != queries_blocks);
   }
@@ -1185,6 +1187,18 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
   */
   if (thd->locked_tables_mode || query_cache_size == 0)
     DBUG_VOID_RETURN;
+
+#ifndef EMBEDDED_LIBRARY
+  /*
+    Without active vio, net_write_packet() will not be called and
+    therefore neither Query_cache::insert(). Since we will never get a
+    complete query result in this case, it does not make sense to
+    register the query in the first place.
+  */
+  if (thd->net.vio == NULL)
+    DBUG_VOID_RETURN;
+#endif
+
   uint8 tables_type= 0;
 
   if ((local_tables= is_cacheable(thd, thd->query_length(),
@@ -1718,30 +1732,39 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     }
 #endif /*!NO_EMBEDDED_ACCESS_CHECKS*/
     engine_data= table->engine_data();
-    if (table->callback() &&
-        !(*table->callback())(thd, table->db(),
-                              table->key_length(),
-                              &engine_data))
+    if (table->callback()) 
     {
-      DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
-			    table_list.db, table_list.alias));
-      BLOCK_UNLOCK_RD(query_block);
-      if (engine_data != table->engine_data())
+      char qcache_se_key_name[FN_REFLEN + 1];
+      uint qcache_se_key_len;
+      engine_data= table->engine_data();
+
+      qcache_se_key_len= build_table_filename(qcache_se_key_name,
+                                              sizeof(qcache_se_key_name),
+                                              table->db(), table->table(),
+                                              "", 0);
+   
+      if (!(*table->callback())(thd, qcache_se_key_name,
+                                qcache_se_key_len, &engine_data))
       {
-        DBUG_PRINT("qcache",
-                   ("Handler require invalidation queries of %s.%s %lu-%lu",
-                    table_list.db, table_list.alias,
-                    (ulong) engine_data, (ulong) table->engine_data()));
-        invalidate_table_internal(thd,
-                                  (uchar *) table->db(),
-                                  table->key_length());
-      }
-      else
-        thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
-      /* End the statement transaction potentially started by engine. */
-      trans_rollback_stmt(thd);
-      goto err_unlock;				// Parse query
-    }
+        DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
+                               table_list.db, table_list.alias));
+        BLOCK_UNLOCK_RD(query_block);
+        if (engine_data != table->engine_data())
+        {
+          DBUG_PRINT("qcache",
+                     ("Handler require invalidation queries of %s.%s %lu-%lu",
+                      table_list.db, table_list.alias,
+                      (ulong) engine_data, (ulong) table->engine_data()));
+          invalidate_table_internal(thd, (uchar *) table->db(),
+                                    table->key_length());
+        }
+        else
+          thd->lex->safe_to_cache_query= 0;       // Don't try to cache this
+        /* End the statement transaction potentially started by engine. */
+        trans_rollback_stmt(thd);
+        goto err_unlock;				// Parse query
+     }
+   }
     else
       DBUG_PRINT("qcache", ("handler allow caching %s,%s",
 			    table_list.db, table_list.alias));
@@ -1781,6 +1804,16 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   thd->limit_found_rows = query->found_rows();
   thd->status_var.last_query_cost= 0.0;
+
+  {
+    Opt_trace_start ots(thd, NULL, SQLCOM_SELECT, NULL,
+                        thd->query(), thd->query_length(), NULL,
+                        thd->variables.character_set_client);
+
+    Opt_trace_object (&thd->opt_trace)
+      .add("query_result_read_from_cache", true);
+  }
+
   /*
     End the statement transaction potentially started by an
     engine callback. We ignore the return value for now,
@@ -3735,14 +3768,29 @@ my_bool Query_cache::ask_handler_allowance(THD *thd,
                   table->s->db_type() == myisam_hton);
       DBUG_RETURN(0);
     }
+
+    /*
+      We're skipping a special case here (MERGE VIEW on top of a TEMPTABLE
+      view). This is MyISAMly safe because we know it's not a user-created
+      TEMPTABLE as those are guarded against in
+      Query_cache::process_and_count_tables(), and schema-tables clear
+      safe_to_cache_query. This implies that nobody else will change our
+      TEMPTABLE while we're using it, so calling register_query_cache_table()
+      in MyISAM to check on it is pointless. Finally, we should see the
+      TEMPTABLE view again in a subsequent iteration, anyway.
+    */
+    if ((tables_used->effective_algorithm == VIEW_ALGORITHM_MERGE) &&
+        (table->s->get_table_ref_type() == TABLE_REF_TMP_TABLE))
+      continue;
+
     if (!handler->register_query_cache_table(thd,
-                                             table->s->table_cache_key.str,
-					     table->s->table_cache_key.length,
-					     &tables_used->callback_func,
-					     &tables_used->engine_data))
+                                             table->s->normalized_path.str,
+                                             table->s->normalized_path.length,
+                                             &tables_used->callback_func,
+                                             &tables_used->engine_data))
     {
       DBUG_PRINT("qcache", ("Handler does not allow caching for %s.%s",
-			    tables_used->db, tables_used->alias));
+                            tables_used->db, tables_used->alias));
       thd->lex->safe_to_cache_query= 0;          // Don't try to cache this
       DBUG_RETURN(1);
     }

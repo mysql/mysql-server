@@ -40,6 +40,14 @@ OLD_ALTER_TABLE	ON
 select * from information_schema.session_variables where variable_name='old_alter_table';
 VARIABLE_NAME	VARIABLE_VALUE
 OLD_ALTER_TABLE	ON
+SET @@global.old_alter_table=DEFAULT;
+SELECT @@global.old_alter_table;
+@@global.old_alter_table
+0
+SET @@session.old_alter_table=DEFAULT;
+SELECT  @@session.old_alter_table;
+@@session.old_alter_table
+0
 set global old_alter_table=1.1;
 ERROR 42000: Incorrect argument type to variable 'old_alter_table'
 set global old_alter_table=1e1;

@@ -24,6 +24,12 @@ SELECT * FROM information_schema.session_variables
 WHERE variable_name='innodb_stats_transient_sample_pages';
 
 #
+# show the default value
+#
+set global innodb_stats_transient_sample_pages=DEFAULT;
+select @@global.innodb_stats_transient_sample_pages;
+
+#
 # SHOW that it's writable
 #
 SET global innodb_stats_transient_sample_pages=10;
@@ -44,6 +50,8 @@ SET global innodb_stats_transient_sample_pages=1.1;
 SET global innodb_stats_transient_sample_pages=1e1;
 --error ER_WRONG_TYPE_FOR_VAR
 SET global innodb_stats_transient_sample_pages="foo";
+--error ER_WRONG_TYPE_FOR_VAR
+SET global innodb_stats_transient_sample_pages=' ';
 
 SET global innodb_stats_transient_sample_pages=-7;
 SELECT @@global.innodb_stats_transient_sample_pages;

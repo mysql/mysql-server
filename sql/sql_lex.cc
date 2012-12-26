@@ -48,6 +48,8 @@ sys_var *trg_new_row_fake_var= (sys_var*) 0x01;
 const LEX_STRING null_lex_str= {NULL, 0};
 const LEX_STRING empty_lex_str= {(char *) "", 0};
 /**
+  Mapping from enum values in enum_binlog_stmt_unsafe to error codes.
+
   @note The order of the elements of this array must correspond to
   the order of elements in enum_binlog_stmt_unsafe.
 */
@@ -55,7 +57,6 @@ const int
 Query_tables_list::binlog_stmt_unsafe_errcode[BINLOG_STMT_UNSAFE_COUNT] =
 {
   ER_BINLOG_UNSAFE_LIMIT,
-  ER_BINLOG_UNSAFE_INSERT_DELAYED,
   ER_BINLOG_UNSAFE_SYSTEM_TABLE,
   ER_BINLOG_UNSAFE_AUTOINC_COLUMNS,
   ER_BINLOG_UNSAFE_UDF,
@@ -440,6 +441,8 @@ void lex_start(THD *thd)
   lex->select_lex.ftfunc_list= &lex->select_lex.ftfunc_list_alloc;
   lex->select_lex.group_list.empty();
   lex->select_lex.order_list.empty();
+  if (lex->select_lex.order_list_ptrs)
+    lex->select_lex.order_list_ptrs->clear();
   lex->duplicates= DUP_ERROR;
   lex->ignore= 0;
   lex->spname= NULL;
@@ -481,6 +484,7 @@ void lex_start(THD *thd)
   lex->used_tables= 0;
   lex->reset_slave_info.all= false;
   lex->is_change_password= false;
+  lex->mark_broken(false);
   DBUG_VOID_RETURN;
 }
 
@@ -629,7 +633,7 @@ static LEX_STRING get_quoted_token(Lex_input_stream *lip,
 
 static char *get_text(Lex_input_stream *lip, int pre_skip, int post_skip)
 {
-  reg1 uchar c,sep;
+  uchar c,sep;
   uint found_escape=0;
   const CHARSET_INFO *cs= lip->m_thd->charset();
 
@@ -859,7 +863,7 @@ static inline uint int_token(const char *str,uint length)
 */
 bool consume_comment(Lex_input_stream *lip, int remaining_recursions_permitted)
 {
-  reg1 uchar c;
+  uchar c;
   while (! lip->eof())
   {
     c= lip->yyGet();
@@ -962,9 +966,9 @@ int MYSQLlex(void *arg, void *yythd)
 
 int lex_one_token(void *arg, void *yythd)
 {
-  reg1	uchar c= 0;
+  uchar c= 0;
   bool comment_closed;
-  int	tokval, result_state;
+  int tokval, result_state;
   uint length;
   enum my_lex_states state;
   THD *thd= (THD *)yythd;
@@ -1276,7 +1280,10 @@ int lex_one_token(void *arg, void *yythd)
       {
         c= lip->yyGet();
         if (c == 0)
+        {
+          lip->yyUnget();
           return ABORT_SYM;                     // Unmatched quotes
+        }
 
 	int var_length;
 	if ((var_length= my_mbcharlen(cs, c)) == 1)
@@ -1705,6 +1712,8 @@ void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str)
   while ((str->length > 0) && (my_isspace(cs, str->str[str->length-1])))
   {
     str->length --;
+    /* set trailing spaces to 0 as there're places that don't respect length */
+    str->str[str->length]= 0;
   }
 }
 
@@ -1778,6 +1787,7 @@ void st_select_lex::init_query()
   ref_pointer_array.reset();
   select_n_where_fields= 0;
   select_n_having_items= 0;
+  n_child_sum_items= 0;
   subquery_in_having= explicit_limit= 0;
   is_item_list_lookup= 0;
   first_execution= 1;
@@ -1791,6 +1801,7 @@ void st_select_lex::init_query()
   m_non_agg_field_used= false;
   m_agg_func_used= false;
   with_sum_func= false;
+  removed_select= NULL;
 }
 
 void st_select_lex::init_select()
@@ -1815,6 +1826,8 @@ void st_select_lex::init_select()
   order_list.elements= 0;
   order_list.first= 0;
   order_list.next= &order_list.first;
+  if (order_list_ptrs)
+    order_list_ptrs->clear();
   /* Set limit and offset to default values */
   select_limit= 0;      /* denotes the default limit = HA_POS_ERROR */
   offset_limit= 0;      /* denotes the default offset = 0 */
@@ -2030,7 +2043,6 @@ void st_select_lex::mark_as_dependent(st_select_lex *last)
   }
 }
 
-bool st_select_lex_node::set_braces(bool value)      { return 1; }
 bool st_select_lex_node::inc_in_sum_expr()           { return 1; }
 uint st_select_lex_node::get_in_sum_expr()           { return 0; }
 TABLE_LIST* st_select_lex_node::get_table_list()     { return 0; }
@@ -2448,8 +2460,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
     if (view_name.str)
     {
       // A view
-      if (!(belong_to_view &&
-            belong_to_view->compact_view_format) &&
+      if (!(query_type & QT_COMPACT_FORMAT) &&
           !((query_type & QT_NO_DEFAULT_DB) &&
             db_is_default_db(view_db.str, view_db.length, thd)))
       {
@@ -2474,8 +2485,7 @@ void TABLE_LIST::print(THD *thd, String *str, enum_query_type query_type)
     {
       // A normal table
 
-      if (!(belong_to_view &&
-            belong_to_view->compact_view_format) &&
+      if (!(query_type & QT_COMPACT_FORMAT) &&
           !((query_type & QT_NO_DEFAULT_DB) &&
             db_is_default_db(db, db_length, thd)))
       {
@@ -3590,8 +3600,8 @@ static void fix_prepare_info_in_table_list(THD *thd, TABLE_LIST *tbl)
     This function saves it, and returns a copy which can be thrashed during
     this execution of the statement. By saving/thrashing here we mean only
     AND/OR trees.
-    We also save the chain of ORDER::next in group_list, in case
-    the list is modified by remove_const().
+    We also save the chain of ORDER::next in group_list and order_list, in
+    case the list is modified by remove_const().
     The function also calls fix_prepare_info_in_table_list that saves all
     ON expressions.    
 */
@@ -3613,6 +3623,19 @@ void st_select_lex::fix_prepare_information(THD *thd, Item **conds,
       for (ORDER *order= group_list.first; order; order= order->next)
       {
         group_list_ptrs->push_back(order);
+      }
+    }
+    if (order_list.first)
+    {
+      if (!order_list_ptrs)
+      {
+        void *mem= thd->stmt_arena->alloc(sizeof(Group_list_ptrs));
+        order_list_ptrs= new (mem) Group_list_ptrs(thd->stmt_arena->mem_root);
+      }
+      order_list_ptrs->reserve(order_list.elements);
+      for (ORDER *order= order_list.first; order; order= order->next)
+      {
+        order_list_ptrs->push_back(order);
       }
     }
     if (*conds)

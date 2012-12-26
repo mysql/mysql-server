@@ -30,26 +30,71 @@ SELECT @@global.slave_allow_batching;
 @@global.slave_allow_batching
 1
 '#--------------------FN_DYNVARS_145_04-------------------------#'
+SET @@global.slave_allow_batching = 65538;
+ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of '65538'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
+SET @@global.slave_allow_batching = ' ';
+ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of ' '
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 SET @@global.slave_allow_batching = -1;
 ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of '-1'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 SET @@global.slave_allow_batching = 2;
 ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of '2'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
+SET @@global.slave_allow_batching = '1024.01';
+ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of '1024.01'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 SET @@global.slave_allow_batching = "T";
 ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of 'T'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 SET @@global.slave_allow_batching = "Y";
 ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of 'Y'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 SET @@global.slave_allow_batching = YES;
 ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of 'YES'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 SET @@global.slave_allow_batching = ONN;
 ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of 'ONN'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 SET @@global.slave_allow_batching = OOF;
 ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of 'OOF'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 SET @@global.slave_allow_batching = 0FF;
 ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of '0FF'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 SET @@global.slave_allow_batching = ' 1';
 ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of ' 1'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 SET @@global.slave_allow_batching = NO;
 ERROR 42000: Variable 'slave_allow_batching' can't be set to the value of 'NO'
+SELECT @@global.slave_allow_batching;
+@@global.slave_allow_batching
+1
 '#-------------------FN_DYNVARS_145_05----------------------------#'
 SET @@session.slave_allow_batching = 0;
 ERROR HY000: Variable 'slave_allow_batching' is a GLOBAL variable and should be set with SET GLOBAL

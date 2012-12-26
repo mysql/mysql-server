@@ -38,6 +38,7 @@
 #include <m_ctype.h>
 #include "log.h"
 #include "binlog.h"                             // mysql_bin_log
+#include "log_event.h"
 #ifdef __WIN__
 #include <direct.h>
 #endif
@@ -310,7 +311,7 @@ static void del_dbopt(const char *path)
 
 static bool write_db_opt(THD *thd, const char *path, HA_CREATE_INFO *create)
 {
-  register File file;
+  File file;
   char buf[256]; // Should be enough for one option
   bool error=1;
 
@@ -546,6 +547,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
   MY_STAT stat_info;
   uint create_options= create_info ? create_info->options : 0;
   uint path_len;
+  bool was_truncated;
   DBUG_ENTER("mysql_create_db");
 
   /* do not create 'information_schema' db */
@@ -559,7 +561,13 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
     DBUG_RETURN(-1);
 
   /* Check directory */
-  path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0);
+  path_len= build_table_filename(path, sizeof(path) - 1, db, "", "", 0,
+                                 &was_truncated);
+  if (was_truncated)
+  {
+    my_error(ER_IDENT_CAUSES_TOO_LONG_PATH, MYF(0), sizeof(path)-1, path);
+    DBUG_RETURN(-1);
+  }
   path[path_len-1]= 0;                    // Remove last '/' from path
 
   if (mysql_file_stat(key_file_misc, path, &stat_info, MYF(0)))
@@ -570,7 +578,7 @@ int mysql_create_db(THD *thd, char *db, HA_CREATE_INFO *create_info,
       error= -1;
       goto exit;
     }
-    push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+    push_warning_printf(thd, Sql_condition::SL_NOTE,
 			ER_DB_CREATE_EXISTS, ER(ER_DB_CREATE_EXISTS), db);
     error= 0;
     goto not_silent;
@@ -619,12 +627,17 @@ not_silent:
   {
     char *query;
     uint query_length;
+    char db_name_quoted[2 * FN_REFLEN + sizeof("create database ") + 2];
+    int id_len= 0;
 
     if (!thd->query())                          // Only in replication
     {
-      query= 	     tmp_query;
-      query_length= (uint) (strxmov(tmp_query,"create database `",
-                                    db, "`", NullS) - tmp_query);
+      id_len= my_strmov_quoted_identifier(thd, (char *) db_name_quoted, db,
+                                          0);
+      db_name_quoted[id_len]= '\0';
+      query= tmp_query;
+      query_length= (uint) (strxmov(tmp_query,"create database ",
+                                    db_name_quoted, NullS) - tmp_query);
     }
     else
     {
@@ -761,7 +774,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
 {
   ulong deleted_tables= 0;
   bool error= true;
-  char	path[FN_REFLEN+16];
+  char	path[2 * FN_REFLEN + 16];
   MY_DIR *dirp;
   uint length;
   bool found_other_files= false;
@@ -789,7 +802,7 @@ bool mysql_rm_db(THD *thd,char *db,bool if_exists, bool silent)
     }
     else
     {
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::SL_NOTE,
 			  ER_DB_DROP_EXISTS, ER(ER_DB_DROP_EXISTS), db);
       error= false;
       goto update_binlog;
@@ -882,11 +895,16 @@ update_binlog:
   {
     const char *query;
     ulong query_length;
+    // quoted db name + wraping quote
+    char buffer_temp [2 * FN_REFLEN + 2];
+    int id_len= 0;
     if (!thd->query())
     {
       /* The client used the old obsolete mysql_drop_db() call */
       query= path;
-      query_length= (uint) (strxmov(path, "drop database `", db, "`",
+      id_len= my_strmov_quoted_identifier(thd, buffer_temp, db, strlen(db));
+      buffer_temp[id_len] ='\0';
+      query_length= (uint) (strxmov(path, "DROP DATABASE ", buffer_temp, "",
                                      NullS) - path);
     }
     else
@@ -924,8 +942,9 @@ update_binlog:
   else if (mysql_bin_log.is_open() && !silent)
   {
     char *query, *query_pos, *query_end, *query_data_start;
+    char temp_identifier[ 2 * FN_REFLEN + 2];
     TABLE_LIST *tbl;
-    uint db_len;
+    uint db_len, id_length=0;
 
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
@@ -962,10 +981,10 @@ update_binlog:
         }
         query_pos= query_data_start;
       }
-
-      *query_pos++ = '`';
-      query_pos= strmov(query_pos,tbl->table_name);
-      *query_pos++ = '`';
+      id_length= my_strmov_quoted_identifier(thd, (char *)temp_identifier,
+                                      tbl->table_name, 0);
+      temp_identifier[id_length]= '\0';
+      query_pos= strmov(query_pos,(char *)&temp_identifier);
       *query_pos++ = ',';
     }
 
@@ -1547,7 +1566,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
     {
       /* Throw a warning and free new_db_file_name. */
 
-      push_warning_printf(thd, Sql_condition::WARN_LEVEL_NOTE,
+      push_warning_printf(thd, Sql_condition::SL_NOTE,
                           ER_BAD_DB_ERROR, ER(ER_BAD_DB_ERROR),
                           new_db_file_name.str);
 

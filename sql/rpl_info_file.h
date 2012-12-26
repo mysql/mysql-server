@@ -58,6 +58,11 @@ private:
   /* IO_CACHE of the info file - set only during init or end */
   IO_CACHE info_file;
 
+  /*
+    The flag indicates whether the file name include the instance number or not.
+  */
+  bool name_indexed;
+
   int do_init_info();
   int do_init_info(uint instance);
   enum_return_check do_check_info();
@@ -68,7 +73,7 @@ private:
   int do_clean_info();
   /**
     Returns the number of files that corresponds to param_info_fname.
-    If param_info_fname is a regular expression, @code expression is
+    If param_info_fname is a regular expression, @c expression is
     set.
 
     @param[in]  nparam              Number of fields in the file.
@@ -80,9 +85,11 @@ private:
   */
   static bool do_count_info(const int nparam,
                             const char* param_pattern_fname,
+                            bool name_indexed,
                             uint* counter);
   static int do_reset_info(int const nparam,
-                           const char* param_pattern_fname);
+                           const char* param_pattern_fname,
+                           bool name_indexed);
 
   int do_prepare_info_for_read();
   int do_prepare_info_for_write();
@@ -112,7 +119,7 @@ private:
   bool do_update_is_transactional();
 
   Rpl_info_file(int const nparam, const char* param_pattern_fname,
-                const char* param_info_fname);
+                const char* param_info_fname, bool name_indexed);
 
   Rpl_info_file(const Rpl_info_file& info);
   Rpl_info_file& operator=(const Rpl_info_file& info);

@@ -409,12 +409,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
-/* Paranoid settings. Define I_AM_PARANOID if you are paranoid */
-#ifdef I_AM_PARANOID
-#define DONT_ALLOW_USER_CHANGE 1
-#define DONT_USE_MYSQL_PWD 1
-#endif
-
 /* Does the system remember a signal handler after a signal ? */
 #if !defined(HAVE_BSD_SIGNALS) && !defined(HAVE_SIGACTION)
 #define SIGNAL_HANDLER_RESET_ON_DELIVERY
@@ -996,29 +990,6 @@ typedef char		my_bool; /* Small bool */
 #else
 #define ULL(A) A ## UL
 #endif
-#endif
-
-/*
-  Defines to make it possible to prioritize register assignments. No
-  longer that important with modern compilers.
-*/
-#ifndef USING_X
-#define reg1 register
-#define reg2 register
-#define reg3 register
-#define reg4 register
-#define reg5 register
-#define reg6 register
-#define reg7 register
-#define reg8 register
-#define reg9 register
-#define reg10 register
-#define reg11 register
-#define reg12 register
-#define reg13 register
-#define reg14 register
-#define reg15 register
-#define reg16 register
 #endif
 
 #include <my_dbug.h>

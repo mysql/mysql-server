@@ -4,7 +4,7 @@
 # Scope: GLOBAL                                                               #
 # Access Type: Dynamic                                                        #
 # Data Type: numeric                                                          #
-# Default Value: 400                                                         #
+# Default Value: 2000                                                         #
 # Range: 64-524288                                                             #
 #                                                                             #
 #                                                                             #
@@ -54,7 +54,7 @@ SELECT @@global.table_open_cache;
 ############################################### 
 
 SET @@global.table_open_cache = Default;
-SELECT @@global.table_open_cache  = 400;
+SELECT @@global.table_open_cache  = 2000;
 
 --echo '#--------------------FN_DYNVARS_001_03------------------------#'
 ######################################################################## 

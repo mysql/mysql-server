@@ -1,5 +1,5 @@
 /*
-   Copyright 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -88,7 +88,7 @@ public class LoadTest extends AbstractClusterJModelTest {
             // see if it is the right Employee
             errorIfNotEqual("load after flush employee id mismatch", i, e.getId());
             // make sure all fields were fetched
-            consistencyCheckDynamicEmployee(e);
+            consistencyCheckDynamicEmployee("load after flush", e);
         }
         tx.commit();
     }
@@ -113,17 +113,17 @@ public class LoadTest extends AbstractClusterJModelTest {
             // see if it is the right Employee
             errorIfNotEqual("loadFindNoFlush after find employee id mismatch", i, e.getId());
             // make sure all fields were fetched
-            consistencyCheckDynamicEmployee(e);
+            consistencyCheckDynamicEmployee("loadFindNoFlush", e);
         }
         tx.commit();
     }
 
-    private void consistencyCheckDynamicEmployee(DynamicEmployee e) {
+    private void consistencyCheckDynamicEmployee(String where, DynamicEmployee e) {
         int id = e.getId();
         String name = e.getName();
-        errorIfNotEqual("consistencyCheckDynamicEmployee name mismatch", "Employee number " + id, name);
-        errorIfNotEqual("consistencyCheckDynamicEmployee age mismatch", id, e.getAge());
-        errorIfNotEqual("consistencyCheckDynamicEmployee magic mismatch", id, e.getMagic());
+        errorIfNotEqual(where + " consistencyCheckDynamicEmployee name mismatch", "Employee number " + id, name);
+        errorIfNotEqual(where + " consistencyCheckDynamicEmployee age mismatch", id, e.getAge());
+        errorIfNotEqual(where + " consistencyCheckDynamicEmployee magic mismatch", id, e.getMagic());
     }
 
     private void loadNoFlush() {
@@ -131,11 +131,13 @@ public class LoadTest extends AbstractClusterJModelTest {
         loaded.clear();
         tx.begin();
         e = session.newInstance(DynamicEmployee.class, 0);
+        // default value is 0 for int
         errorIfNotEqual("loadNoFlush after newInstance employee id mismatch", 0, e.getId());
+        // default value is null for String
+        errorIfNotEqual("loadNoFlush after newInstance employee name mismatch", null, e.getName());
         session.load(e);
         errorIfNotEqual("loadNoFlush after load employee id mismatch", 0, e.getId());
-        errorIfNotEqual("loadNoFlush after load employee name mismatch",
-                null, e.getName());
+        errorIfNotEqual("loadNoFlush after load employee name mismatch", null, e.getName());
         tx.commit();
     }
 

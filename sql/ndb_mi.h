@@ -42,6 +42,8 @@ uint32 ndb_mi_get_slave_run_id();
    Relay log info related functions
 */
 bool ndb_mi_get_in_relay_log_statement(class Relay_log_info* rli);
+ulong ndb_mi_get_relay_log_trans_retries();
+void ndb_mi_set_relay_log_trans_retries(ulong number);
 
 // #ifndef NDB_MI_H
 #endif

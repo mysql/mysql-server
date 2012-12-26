@@ -24,7 +24,7 @@
 #include <my_global.h>
 #include "m_string.h"
 
-char *strnmov(register char *dst, register const char *src, size_t n)
+char *strnmov(char *dst, const char *src, size_t n)
 {
   while (n-- != 0) {
     if (!(*dst++ = *src++)) {

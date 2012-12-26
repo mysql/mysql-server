@@ -1,0 +1,6 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+# Config with multiple receiver threads on versions
+# which supports it (>= Cluster 7.2.x)
+ThreadConfig=recv={count=2}, main={count=1},tc={count=1},ldm={count=2},io={count=1},send={count=0},rep={count=1},

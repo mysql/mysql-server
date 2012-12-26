@@ -27,7 +27,6 @@
 #include "strfunc.h"     // find_type
 #include "sql_view.h"    // mysql_make_view, VIEW_ANY_ACL
 #include "sql_parse.h"   // check_table_access
-#include "sql_insert.h"  // kill_delayed_threads
 #include "sql_acl.h"     // *_ACL, check_grant_all_columns,
                          // check_column_grant_in_table_ref,
                          // get_column_grant
@@ -63,7 +62,7 @@ bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
                                               const char*,
-                                              Sql_condition::enum_warning_level,
+                                              Sql_condition::enum_severity_level,
                                               const char*,
                                               Sql_condition ** cond_hdl)
 {
@@ -106,7 +105,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_warning_level level,
+                        Sql_condition::enum_severity_level level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -136,7 +135,7 @@ bool
 Repair_mrg_table_error_handler::handle_condition(THD *,
                                                  uint sql_errno,
                                                  const char*,
-                                                 Sql_condition::enum_warning_level level,
+                                                 Sql_condition::enum_severity_level level,
                                                  const char*,
                                                  Sql_condition ** cond_hdl)
 {
@@ -600,7 +599,7 @@ get_table_share_with_discover(THD *thd, TABLE_LIST *table_list,
     @todo Rework alternative ways to deal with ER_NO_SUCH TABLE.
   */
   if (share || (thd->is_error() &&
-      thd->get_stmt_da()->sql_errno() != ER_NO_SUCH_TABLE))
+      thd->get_stmt_da()->mysql_errno() != ER_NO_SUCH_TABLE))
   {
     DBUG_RETURN(share);
   }
@@ -829,43 +828,6 @@ void free_io_cache(TABLE *table)
 }
 
 
-/**
-   Auxiliary function which allows to kill delayed threads for
-   particular table identified by its share.
-
-   @param share Table share.
-
-   @pre Caller should own locks on all Table_cache instances.
-*/
-
-static void kill_delayed_threads_for_table(TABLE_SHARE *share)
-{
-  table_cache_manager.assert_owner_all();
-
-  Table_cache_iterator it(share);
-  TABLE *tab;
-
-  while ((tab= it++))
-  {
-    THD *in_use= tab->in_use;
-
-    if ((in_use->system_thread & SYSTEM_THREAD_DELAYED_INSERT) &&
-        ! in_use->killed)
-    {
-      in_use->killed= THD::KILL_CONNECTION;
-      mysql_mutex_lock(&in_use->mysys_var->mutex);
-      if (in_use->mysys_var->current_cond)
-      {
-        mysql_mutex_lock(in_use->mysys_var->current_mutex);
-        mysql_cond_broadcast(in_use->mysys_var->current_cond);
-        mysql_mutex_unlock(in_use->mysys_var->current_mutex);
-      }
-      mysql_mutex_unlock(&in_use->mysys_var->mutex);
-    }
-  }
-}
-
-
 /*
   Close all tables which aren't in use by any thread
 
@@ -909,7 +871,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     refresh_version++;
     DBUG_PRINT("tcache", ("incremented global refresh_version to: %lu",
                           refresh_version));
-    kill_delayed_threads();
+
     /*
       Get rid of all unused TABLE and TABLE_SHARE instances. By doing
       this we automatically close all tables which were marked as "old".
@@ -928,11 +890,10 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
 
       if (share)
       {
-        kill_delayed_threads_for_table(share);
         /* tdc_remove_table() also sets TABLE_SHARE::version to 0. */
         tdc_remove_table(thd, TDC_RT_REMOVE_UNUSED, table->db,
                          table->table_name, TRUE);
-	found=1;
+        found=1;
       }
     }
     if (!found)
@@ -1651,7 +1612,9 @@ bool close_temporary_tables(THD *thd)
       thd->variables.character_set_client= cs_save;
 
       thd->get_stmt_da()->set_overwrite_status(true);
-      if ((error= (mysql_bin_log.write_event(&qinfo) || error)))
+      if ((error= (mysql_bin_log.write_event(&qinfo) ||
+                   mysql_bin_log.commit(thd, true) ||
+                   error)))
       {
         /*
           If we're here following THD::cleanup, thence the connection
@@ -2316,7 +2279,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_warning_level level,
+                                Sql_condition::enum_severity_level level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
 
@@ -2335,7 +2298,7 @@ private:
 bool MDL_deadlock_handler::handle_condition(THD *,
                                             uint sql_errno,
                                             const char*,
-                                            Sql_condition::enum_warning_level,
+                                            Sql_condition::enum_severity_level,
                                             const char*,
                                             Sql_condition ** cond_hdl)
 {
@@ -2557,7 +2520,7 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
 
 bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
 {
-  reg1	TABLE *table;
+  TABLE *table;
   const char *key;
   uint key_length;
   char	*alias= table_list->alias;
@@ -2581,8 +2544,22 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
   if (check_stack_overrun(thd, STACK_MIN_SIZE_FOR_OPEN, (uchar *)&alias))
     DBUG_RETURN(TRUE);
 
-  if (thd->killed)
+  if (!(flags & MYSQL_OPEN_IGNORE_KILLED) && thd->killed)
     DBUG_RETURN(TRUE);
+
+  /*
+    Check if we're trying to take a write lock in a read only transaction.
+
+    Note that we allow write locks on log tables as otherwise logging
+    to general/slow log would be disabled in read only transactions.
+  */
+  if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+      thd->tx_read_only &&
+      !(flags & (MYSQL_LOCK_LOG_TABLE | MYSQL_OPEN_HAS_MDL_LOCK)))
+  {
+    my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+    DBUG_RETURN(true);
+  }
 
   key_length= get_table_def_key(table_list, &key);
 
@@ -2702,20 +2679,6 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
 
   if (! (flags & MYSQL_OPEN_HAS_MDL_LOCK))
   {
-    /*
-      Check if we're trying to take a write lock in a read only transaction.
-
-      Note that we allow write locks on log tables as otherwise logging
-      to general/slow log would be disabled in read only transactions.
-    */
-    if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
-        thd->tx_read_only &&
-        !(flags & MYSQL_LOCK_LOG_TABLE))
-    {
-      my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
-      DBUG_RETURN(true);
-    }
-
     /*
       We are not under LOCK TABLES and going to acquire write-lock/
       modify the base table. We need to acquire protection against
@@ -3076,7 +3039,7 @@ table_found:
   table->reginfo.lock_type=TL_READ;		/* Assume read */
 
  reset:
-  table->created= TRUE;
+  table->set_created();
   /*
     Check that there is no reference to a condition from an earlier query
     (cf. Bug#58553). 
@@ -3088,7 +3051,6 @@ table_found:
 #ifdef WITH_PARTITION_STORAGE_ENGINE
   if (table->part_info)
   {
-
     /* Set all [named] partitions as used. */
     if (table->part_info->set_partition_bitmaps(table_list))
       DBUG_RETURN(true);
@@ -3807,24 +3769,19 @@ static bool open_table_entry_fini(THD *thd, TABLE_SHARE *share, TABLE *entry)
     entry->file->implicit_emptied= 0;
     if (mysql_bin_log.is_open())
     {
-      char *query, *end;
-      uint query_buf_size= 20 + share->db.length + share->table_name.length +1;
-      if ((query= (char*) my_malloc(query_buf_size,MYF(MY_WME))))
-      {
-        /* this DELETE FROM is needed even with row-based binlogging */
-        end = strxmov(strmov(query, "DELETE FROM `"),
-                      share->db.str,"`.`",share->table_name.str,"`", NullS);
-        int errcode= query_error_code(thd, TRUE);
-        if (thd->binlog_query(THD::STMT_QUERY_TYPE,
-                              query, (ulong)(end-query),
-                              FALSE, FALSE, FALSE, errcode))
-        {
-          my_free(query);
-          return TRUE;
-        }
-        my_free(query);
-      }
-      else
+      bool error= false;
+      String temp_buf;
+      error= temp_buf.append("DELETE FROM ");
+      append_identifier(thd, &temp_buf, share->db.str, strlen(share->db.str));
+      error= temp_buf.append(".");
+      append_identifier(thd, &temp_buf, share->table_name.str,
+                        strlen(share->table_name.str));
+      int errcode= query_error_code(thd, TRUE);
+      if (thd->binlog_query(THD::STMT_QUERY_TYPE,
+                            temp_buf.c_ptr_safe(), temp_buf.length(),
+                            FALSE, TRUE, FALSE, errcode))
+        return TRUE;
+      if (error)
       {
         /*
           As replication is maybe going to be corrupted, we need to warn the
@@ -4061,7 +4018,7 @@ recover_from_failed_open(THD *thd)
         ha_create_table_from_engine(thd, m_failed_table->db,
                                     m_failed_table->table_name);
 
-        thd->get_stmt_da()->clear_warning_info(thd->query_id);
+        thd->get_stmt_da()->reset_condition_info(thd->query_id);
         thd->clear_error();                 // Clear error message
         thd->mdl_context.release_transactional_locks();
         break;
@@ -4231,7 +4188,7 @@ open_and_process_routine(THD *thd, Query_tables_list *prelocking_ctx,
           lead to a deadlock, detected by MDL subsystem.
           If possible, we try to resolve such deadlocks by releasing all
           metadata locks and restarting the pre-locking process.
-          To prevent the error from polluting the diagnostics area
+          To prevent the error from polluting the Diagnostics Area
           in case of successful resolution, install a special error
           handler for ER_LOCK_DEADLOCK error.
         */
@@ -5813,8 +5770,6 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count,
         if (!query_table->placeholder() &&
             query_table->lock_type >= TL_WRITE_ALLOW_WRITE &&
             unique_keys > 1 && thd->lex->sql_command == SQLCOM_INSERT &&
-            /* Duplicate key update is not supported by INSERT DELAYED */
-            thd->get_command() != COM_DELAYED_INSERT &&
             thd->lex->duplicates == DUP_UPDATE)
           thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_TWO_KEYS);
       }
@@ -6116,7 +6071,9 @@ TABLE *open_table_uncached(THD *thd, const char *path, const char *db,
       modify_slave_open_temp_tables(thd, 1);
   }
   tmp_table->pos_in_table_list= 0;
-  tmp_table->created= true;
+
+  tmp_table->set_created();
+
   DBUG_PRINT("tmptable", ("opened table: '%s'.'%s' 0x%lx", tmp_table->s->db.str,
                           tmp_table->s->table_name.str, (long) tmp_table));
   DBUG_RETURN(tmp_table);
@@ -8153,7 +8110,7 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &fields, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func)
 {
-  reg2 Item *item;
+  Item *item;
   enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
   nesting_map save_allow_sum_func= thd->lex->allow_sum_func;
   List_iterator<Item> it(fields);
@@ -8659,7 +8616,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     qualified '*', and all columns were coalesced, we have to give a more
     meaningful message than ER_BAD_TABLE_ERROR.
   */
-  if (!table_name)
+  if (!table_name || !*table_name)
     my_message(ER_NO_TABLES_USED, ER(ER_NO_TABLES_USED), MYF(0));
   else
   {
@@ -8671,7 +8628,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
     }
     tbl_name.append(String(table_name,system_charset_info));
 
-    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr());
+    my_error(ER_BAD_TABLE_ERROR, MYF(0), tbl_name.c_ptr_safe());
   }
 
   DBUG_RETURN(TRUE);
@@ -8758,6 +8715,7 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     if ((!(*conds)->fixed && (*conds)->fix_fields(thd, conds)) ||
 	(*conds)->check_cols(1))
       goto err_no_arena;
+    select_lex->where= *conds;
     select_lex->resolve_place= st_select_lex::RESOLVE_NONE;
   }
 
@@ -8804,16 +8762,6 @@ int setup_conds(THD *thd, TABLE_LIST *tables, TABLE_LIST *leaves,
     }
   }
 
-  if (!thd->stmt_arena->is_conventional())
-  {
-    /*
-      We are in prepared statement preparation code => we should store
-      WHERE clause changing for next executions.
-
-      We do this ON -> WHERE transformation only once per PS/SP statement.
-    */
-    select_lex->where= *conds;
-  }
   thd->lex->current_select->is_item_list_lookup= save_is_item_list_lookup;
   DBUG_RETURN(test(thd->is_error()));
 
@@ -9543,7 +9491,7 @@ open_log_table(THD *thd, TABLE_LIST *one_table, Open_tables_backup *backup)
     DBUG_ASSERT(table->s->table_category == TABLE_CATEGORY_LOG);
     /* Make sure all columns get assigned to a default value */
     table->use_all_columns();
-    table->no_replicate= 1;
+    DBUG_ASSERT(table->no_replicate);
   }
   else
     thd->restore_backup_open_tables_state(backup);

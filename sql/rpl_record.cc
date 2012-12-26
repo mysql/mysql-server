@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -316,7 +316,7 @@ unpack_row(Relay_log_info const *rli,
         else
         {
           f->set_default();
-          push_warning_printf(current_thd, Sql_condition::WARN_LEVEL_WARN,
+          push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                               ER_BAD_NULL_ERROR, ER(ER_BAD_NULL_ERROR),
                               f->field_name);
         }
@@ -478,7 +478,7 @@ int prepare_record(TABLE *const table, const MY_BITMAP *cols, const bool check)
       {
         f->set_default();
         push_warning_printf(current_thd,
-                            Sql_condition::WARN_LEVEL_WARN,
+                            Sql_condition::SL_WARNING,
                             ER_NO_DEFAULT_FOR_FIELD,
                             ER(ER_NO_DEFAULT_FOR_FIELD),
                             f->field_name);

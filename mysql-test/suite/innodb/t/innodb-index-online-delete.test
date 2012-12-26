@@ -21,6 +21,7 @@ SET DEBUG_SYNC='now WAIT_FOR do';
 SET DEBUG_SYNC='row_update_for_mysql_error SIGNAL m WAIT_FOR scanned';
 --error ER_DUP_ENTRY
 UPDATE t SET a=2 WHERE a=1;
+call mtr.add_suppression('InnoDB: record in index .*tb was not found on rollback, trying to insert');
 SET DEBUG_SYNC='now SIGNAL done';
 
 disconnect con1;

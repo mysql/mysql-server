@@ -1,0 +1,113 @@
+create table t2 (a int not null, primary key(a)) engine='MyISAM'
+partition by key (a) partitions 8192;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY (a)
+PARTITIONS 8192 */
+65535 inserts;
+select count(*) from t2;
+count(*)
+65535
+select count(*) from t2 partition (p0);
+count(*)
+8
+select count(*) from t2 partition (p10);
+count(*)
+0
+select count(*) from t2 partition (p100);
+count(*)
+2
+select count(*) from t2 partition (p1000);
+count(*)
+22
+select count(*) from t2 partition (p4000);
+count(*)
+2
+select count(*) from t2 partition (p8000);
+count(*)
+2
+select count(*) from t2 partition (p8191);
+count(*)
+7
+select * from t2 partition (p0);
+a
+35503
+37977
+38009
+38108
+38109
+38140
+38141
+39061
+select * from t2 partition (p10);
+a
+select * from t2 partition (p100);
+a
+14987
+15903
+select * from t2 partition (p1000);
+a
+9883
+13835
+20549
+20581
+20680
+20681
+20682
+20683
+20712
+20713
+20714
+20715
+28741
+28773
+28872
+28873
+28874
+28875
+28904
+28905
+28906
+28907
+select * from t2 partition (p4000);
+a
+18959
+27151
+select * from t2 partition (p8000);
+a
+10373
+32379
+select * from t2 partition (p8191);
+a
+690
+1471
+1503
+4690
+4722
+7230
+14597
+delete from t2 partition (p8191);
+select * from t2 partition (p8191);
+a
+insert into t2 partition (p8191) values (690), (1471);
+select * from t2 partition (p8191);
+a
+690
+1471
+update t2 partition (p8191) set a=4690 where a= 690;
+select * from t2 partition (p8191);
+a
+1471
+4690
+load data infile 'MYSQL_TMP_DIR/data01' into table t2 partition (p8191) fields terminated by ',';
+select * from t2 partition (p8191);
+a
+1471
+4690
+7230
+14597
+drop table t2;

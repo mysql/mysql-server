@@ -1,6 +1,6 @@
 drop table if exists t1,t2;
 create table t1 (a int key, b int unique, c int) engine ndb;
-ERROR HY000: Can't create table 'test.t1' (errno: 299)
+ERROR HY000: Got error 299 'Operation not allowed or aborted due to single user mode' from NDBCLUSTER
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M

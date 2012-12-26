@@ -28,14 +28,34 @@ SELECT @@global.innodb_commit_concurrency;
 '#--------------------FN_DYNVARS_046_04-------------------------#'
 SET @@global.innodb_commit_concurrency = 1;
 ERROR 42000: Variable 'innodb_commit_concurrency' can't be set to the value of '1'
+SELECT @@global.innodb_commit_concurrency;
+@@global.innodb_commit_concurrency
+0
 SET @@global.innodb_commit_concurrency = -1;
 ERROR 42000: Variable 'innodb_commit_concurrency' can't be set to the value of '-1'
+SELECT @@global.innodb_commit_concurrency;
+@@global.innodb_commit_concurrency
+0
 SET @@global.innodb_commit_concurrency = "T";
 ERROR 42000: Incorrect argument type to variable 'innodb_commit_concurrency'
+SELECT @@global.innodb_commit_concurrency;
+@@global.innodb_commit_concurrency
+0
 SET @@global.innodb_commit_concurrency = "Y";
 ERROR 42000: Incorrect argument type to variable 'innodb_commit_concurrency'
+SELECT @@global.innodb_commit_concurrency;
+@@global.innodb_commit_concurrency
+0
+SET @@global.innodb_commit_concurrency = 1.1;
+ERROR 42000: Incorrect argument type to variable 'innodb_commit_concurrency'
+SELECT @@global.innodb_commit_concurrency;
+@@global.innodb_commit_concurrency
+0
 SET @@global.innodb_commit_concurrency = 1001;
 ERROR 42000: Variable 'innodb_commit_concurrency' can't be set to the value of '1001'
+SELECT @@global.innodb_commit_concurrency;
+@@global.innodb_commit_concurrency
+0
 '#----------------------FN_DYNVARS_046_05------------------------#'
 SELECT @@global.innodb_commit_concurrency =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES

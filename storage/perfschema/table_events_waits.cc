@@ -34,7 +34,7 @@ static const TABLE_FIELD_TYPE field_types[]=
 {
   {
     { C_STRING_WITH_LEN("THREAD_ID") },
-    { C_STRING_WITH_LEN("int(11)") },
+    { C_STRING_WITH_LEN("bigint(20)") },
     { NULL, 0}
   },
   {
@@ -541,7 +541,6 @@ static const LEX_STRING operation_names_map[]=
   { C_STRING_WITH_LEN("read no inserts") },
   { C_STRING_WITH_LEN("write allow write") },
   { C_STRING_WITH_LEN("write concurrent insert") },
-  { C_STRING_WITH_LEN("write delayed") },
   { C_STRING_WITH_LEN("write low priority") },
   { C_STRING_WITH_LEN("write normal") },
   { C_STRING_WITH_LEN("read external") },
@@ -603,7 +602,7 @@ int table_events_waits_common::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /* THREAD_ID */
-        set_field_ulong(f, m_row.m_thread_internal_id);
+        set_field_ulonglong(f, m_row.m_thread_internal_id);
         break;
       case 1: /* EVENT_ID */
         set_field_ulonglong(f, m_row.m_event_id);

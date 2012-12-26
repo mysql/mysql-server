@@ -742,7 +742,7 @@ bool get_mysql_time_from_str(THD *thd, String *str, timestamp_type warn_type,
   }
 
   if (status.warnings > 0)
-    make_truncated_value_warning(thd, Sql_condition::WARN_LEVEL_WARN,
+    make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
                                  ErrConvString(str), warn_type, warn_name);
 
   return value;
@@ -786,9 +786,9 @@ static ulonglong get_date_from_str(THD *thd, String *str,
   Note, const_value may stay untouched, so the caller is responsible to
   initialize it.
 
-  @param date_arg        - date argument, it's name is used for error reporting.
-  @param str_arg         - string argument to get datetime value from.
-  @param OUT const_value - the converted value is stored here, if not NULL.
+  @param      date_arg    date argument, it's name is used for error reporting.
+  @param      str_arg     string argument to get datetime value from.
+  @param[out] const_value the converted value is stored here, if not NULL.
 
   @return true on error, false on success, false if str_arg is not a const.
 */
@@ -1846,6 +1846,12 @@ longlong Item_func_truth::val_int()
 
 bool Item_in_optimizer::fix_left(THD *thd, Item **ref)
 {
+  /*
+    Refresh this pointer as left_expr may have been substituted
+    during resolving.
+  */
+  args[0]= ((Item_in_subselect *)args[1])->left_expr;
+
   if ((!args[0]->fixed && args[0]->fix_fields(thd, args)) ||
       (!cache && !(cache= Item_cache::get_cache(args[0]))))
     return 1;
@@ -1917,8 +1923,7 @@ bool Item_in_optimizer::fix_fields(THD *thd, Item **ref)
 
 
 void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
-                                          st_select_lex *removed_select,
-                                          Item **ref)
+                                          st_select_lex *removed_select)
 {
   used_tables_cache= get_initial_pseudo_tables();
   not_null_tables_cache= 0;
@@ -1930,7 +1935,7 @@ void Item_in_optimizer::fix_after_pullout(st_select_lex *parent_select,
     So, just forward the call to the Item_in_subselect object.
   */
 
-  args[1]->fix_after_pullout(parent_select, removed_select, &args[1]);
+  args[1]->fix_after_pullout(parent_select, removed_select);
 
   used_tables_cache|= args[1]->used_tables();
   not_null_tables_cache|= args[1]->not_null_tables();
@@ -2350,6 +2355,26 @@ void Item_func_interval::fix_length_and_dec()
   not_null_tables_cache= row->not_null_tables();
   with_sum_func= with_sum_func || row->with_sum_func;
   const_item_cache&= row->const_item();
+}
+
+
+/**
+  Appends function name and arguments list to the String str.
+
+  @note
+    Arguments of INTERVAL function are stored in "Item_row" object. Function
+    print_args calls print function of "Item_row" class. Item_row::print
+    function append "(", "argument_list" and ")" to String str.
+
+  @param str          [in/out]  String to which the func_name and argument list
+                                should be appeneded. 
+  @param query_type   [in]      Query type
+*/
+
+void Item_func_interval::print(String *str, enum_query_type query_type)
+{
+  str->append(func_name());
+  print_args(str, 0, query_type);
 }
 
 
@@ -4816,8 +4841,7 @@ Item_cond::fix_fields(THD *thd, Item **ref)
 
 
 void Item_cond::fix_after_pullout(st_select_lex *parent_select,
-                                  st_select_lex *removed_select,
-                                  Item **ref)
+                                  st_select_lex *removed_select)
 {
   List_iterator<Item> li(list);
   Item *item;
@@ -4832,8 +4856,7 @@ void Item_cond::fix_after_pullout(st_select_lex *parent_select,
 
   while ((item=li++))
   {
-    item->fix_after_pullout(parent_select, removed_select, li.ref());
-    item= *li.ref();
+    item->fix_after_pullout(parent_select, removed_select);
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
     if (functype() == COND_AND_FUNC && abort_on_null)
@@ -5160,7 +5183,7 @@ longlong Item_func_isnull::val_int()
     Handle optimization if the argument can't be null
     This has to be here because of the test in update_used_tables().
   */
-  if (!used_tables_cache && !with_subselect)
+  if (!used_tables_cache && !with_subselect && !with_stored_program)
     return cached_value;
   return args[0]->is_null() ? 1: 0;
 }
@@ -5169,7 +5192,7 @@ longlong Item_is_not_null_test::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   DBUG_ENTER("Item_is_not_null_test::val_int");
-  if (!used_tables_cache && !with_subselect)
+  if (!used_tables_cache && !with_subselect && !with_stored_program)
   {
     owner->was_null|= (!cached_value);
     DBUG_PRINT("info", ("cached: %ld", (long) cached_value));
@@ -5201,7 +5224,8 @@ void Item_is_not_null_test::update_used_tables()
   with_subselect= args[0]->has_subquery();
   with_stored_program= args[0]->has_stored_program();
   used_tables_cache|= args[0]->used_tables();
-  if (used_tables_cache == initial_pseudo_tables && !with_subselect)
+  if (used_tables_cache == initial_pseudo_tables && !with_subselect &&
+      !with_stored_program)
     /* Remember if the value is always NULL or never NULL */
     cached_value= !args[0]->is_null();
 }

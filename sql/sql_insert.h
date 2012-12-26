@@ -40,10 +40,5 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
 void prepare_triggers_for_insert_stmt(TABLE *table);
 int write_record(THD *thd, TABLE *table,
                  COPY_INFO *info, COPY_INFO *update);
-void kill_delayed_threads(void);
-
-#ifdef EMBEDDED_LIBRARY
-inline void kill_delayed_threads(void) {}
-#endif
 
 #endif /* SQL_INSERT_INCLUDED */

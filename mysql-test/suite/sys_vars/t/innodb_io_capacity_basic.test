@@ -35,6 +35,14 @@ select * from information_schema.session_variables where variable_name='innodb_i
 set session innodb_io_capacity=233;
 
 #
+# check the default value
+#
+
+set @@global.innodb_io_capacity=100;
+set @@global.innodb_io_capacity=DEFAULT;
+select @@global.innodb_io_capacity;
+
+#
 # incorrect types
 #
 --error ER_WRONG_TYPE_FOR_VAR

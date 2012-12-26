@@ -55,3 +55,7 @@ WHERE table_name='innodb_stats_drop_locked';
 
 SELECT table_name FROM mysql.innodb_index_stats
 WHERE table_name='innodb_stats_drop_locked';
+
+--disable_query_log
+call mtr.add_suppression("Unable to delete statistics for table test.innodb_stats_drop_locked: Lock wait timeout. They can be deleted later using DELETE FROM mysql.innodb_index_stats WHERE database_name");
+--enable_query_log

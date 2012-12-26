@@ -125,16 +125,16 @@ public class OneToManyRelationshipTest extends AbstractJPABaseTest {
             B0 b = em.find(B0.class, i);
             print(b.toString());
             if (0 == i%2) {
-                assertEquals("Mismatch in relationship a", as.get(0), b.getA());
-                assertTrue("A.b0s should contain b", as.get(0).getB0s().contains(b));
+                errorIfNotEqual("Mismatch in relationship a", as.get(0), b.getA());
+                errorIfNotEqual("A.b0s should contain b", true, as.get(0).getB0s().contains(b));
             } else {
-                assertEquals("Mismatch in relationship a", as.get(1), b.getA());
-                assertTrue("A.b0s should contain b", as.get(1).getB0s().contains(b));
+                errorIfNotEqual("Mismatch in relationship a", as.get(1), b.getA());
+                errorIfNotEqual("A.b0s should contain b", true, as.get(1).getB0s().contains(b));
             }
         }
         commit();
         em.close();
-
+        failOnError();
     }
 
     private void print(String string) {

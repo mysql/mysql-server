@@ -1,0 +1,5 @@
+Read TSV result OK.
+SELECT mkey, val1, val2, val3 FROM ndbmemcache.demo_table_tabs where mkey = 1;
+mkey	val1	val2	val3
+1	One	Two	3
+DELETE   FROM ndbmemcache.demo_table_tabs;

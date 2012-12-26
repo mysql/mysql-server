@@ -20,7 +20,7 @@
 
 #include <ndb_global.h>
 
-#ifdef HAVE__BITSCANFORWARD
+#if defined(HAVE__BITSCANFORWARD) || defined(HAVE__BITSCANREVERSE)
 #include <intrin.h>
 #endif
 
@@ -93,10 +93,28 @@ public:
   static unsigned count(unsigned size, const Uint32 data[]);
 
   /**
+   * return count trailing zero bits inside a word
+   * undefined behaviour if non set
+   */
+  static unsigned ctz(Uint32 x);
+
+  /**
+   * return count leading zero bits inside a word
+   * undefined behaviour if non set
+   */
+  static unsigned clz(Uint32 x);
+
+  /**
    * return index of first bit set inside a word
    * undefined behaviour if non set
    */
   static unsigned ffs(Uint32 x);
+
+  /**
+   * return index of last bit set inside a word
+   * undefined behaviour if non set
+   */
+  static unsigned fls(Uint32 x);
 
   /**
    * find - Find first set bit, starting from 0
@@ -105,10 +123,22 @@ public:
   static unsigned find_first(unsigned size, const Uint32 data[]);
 
   /**
+   * find - Find last set bit, starting from 0
+   * Returns NotFound when not found.
+   */
+  static unsigned find_last(unsigned size, const Uint32 data[]);
+
+  /**
    * find - Find first set bit, starting at given position.
    * Returns NotFound when not found.
    */
   static unsigned find_next(unsigned size, const Uint32 data[], unsigned n);
+
+  /**
+   * find - Find last set bit, starting at given position.
+   * Returns NotFound when not found.
+   */
+  static unsigned find_prev(unsigned size, const Uint32 data[], unsigned n);
 
   /**
    * find - Find first set bit, starting at given position.
@@ -358,6 +388,68 @@ BitmaskImpl::count(unsigned size, const Uint32 data[])
 }
 
 /**
+ * return count trailing zero bits inside a word
+ * undefined behaviour if non set
+ */
+inline
+Uint32
+BitmaskImpl::ctz(Uint32 x)
+{
+  return ffs(x);
+}
+
+/**
+ * return count leading bits inside a word
+ * undefined behaviour if non set
+ */
+inline
+Uint32
+BitmaskImpl::clz(Uint32 x)
+{
+#if defined HAVE___BUILTIN_CLZ
+  return __builtin_clz(x);
+#elif defined(__GNUC__) && (defined(__x86_64__) || defined (__i386__))
+  asm("bsr %1,%0"
+      : "=r" (x)
+      : "rm" (x));
+  return 31 - x;
+#elif defined HAVE__BITSCANREVERSE
+  unsigned long r;
+  unsigned char res = _BitScanReverse(&r, (unsigned long)x);
+  assert(res > 0);
+  return 31 - (Uint32)r;
+#else
+  int b = 0;
+  if (!(x & 0xffff0000))
+  {
+    x <<= 16;
+    b += 16;
+  }
+  if (!(x & 0xff000000))
+  {
+    x <<= 8;
+    b += 8;
+  }
+  if (!(x & 0xf0000000))
+  {
+    x <<= 4;
+    b += 4;
+  }
+  if (!(x & 0xc0000000))
+  {
+    x <<= 2;
+    b += 2;
+  }
+  if (!(x & 0x80000000))
+  {
+    x <<= 1;
+    b += 1;
+  }
+  return b;
+#endif
+}
+
+/**
  * return index of first bit set inside a word
  * undefined behaviour if non set
  */
@@ -365,7 +457,9 @@ inline
 Uint32
 BitmaskImpl::ffs(Uint32 x)
 {
-#if defined(__GNUC__) && (defined(__x86_64__) || defined (__i386__))
+#if defined HAVE___BUILTIN_CTZ
+  return __builtin_ctz(x);
+#elif defined(__GNUC__) && (defined(__x86_64__) || defined (__i386__))
   asm("bsf %1,%0"
       : "=r" (x)
       : "rm" (x));
@@ -413,6 +507,57 @@ BitmaskImpl::ffs(Uint32 x)
 #endif
 }
 
+/**
+ * return index of last bit set inside a word
+ * undefined behaviour if non set
+ */
+inline
+Uint32
+BitmaskImpl::fls(Uint32 x)
+{
+#if defined(__GNUC__) && (defined(__x86_64__) || defined (__i386__))
+  asm("bsr %1,%0"
+      : "=r" (x)
+      : "rm" (x));
+  return x;
+#elif defined HAVE___BUILTIN_CLZ
+  return 31 - __builtin_clz(x);
+#elif defined HAVE__BITSCANREVERSE
+  unsigned long r;
+  unsigned char res = _BitScanReverse(&r, (unsigned long)x);
+  assert(res > 0);
+  return (Uint32)r;
+#else
+  int b = 31;
+  if (!(x & 0xffff0000))
+  {
+    x <<= 16;
+    b -= 16;
+  }
+  if (!(x & 0xff000000))
+  {
+    x <<= 8;
+    b -= 8;
+  }
+  if (!(x & 0xf0000000))
+  {
+    x <<= 4;
+    b -= 4;
+  }
+  if (!(x & 0xc0000000))
+  {
+    x <<= 2;
+    b -= 2;
+  }
+  if (!(x & 0x80000000))
+  {
+    x <<= 1;
+    b -= 1;
+  }
+  return b;
+#endif
+}
+
 inline unsigned
 BitmaskImpl::find_first(unsigned size, const Uint32 data[])
 {
@@ -430,8 +575,29 @@ BitmaskImpl::find_first(unsigned size, const Uint32 data[])
 }
 
 inline unsigned
+BitmaskImpl::find_last(unsigned size, const Uint32 data[])
+{
+  if (size == 0)
+    return NotFound;
+  Uint32 n = (size << 5) - 1;
+  do
+  {
+    Uint32 val = data[n >> 5];
+    if (val)
+    {
+      return n - clz(val);
+    }
+    n -= 32;
+  } while (n != 0xffffffff);
+ return NotFound;
+}
+
+inline unsigned
 BitmaskImpl::find_next(unsigned size, const Uint32 data[], unsigned n)
 {
+  assert(n <= (size << 5));
+  if (n == (size << 5)) // allow one step utside for easier use
+    return NotFound;
   Uint32 val = data[n >> 5];
   Uint32 b = n & 31;
   if (b)
@@ -452,6 +618,35 @@ BitmaskImpl::find_next(unsigned size, const Uint32 data[], unsigned n)
       return n + ffs(val);
     }
     n += 32;
+  }
+  return NotFound;
+}
+
+inline unsigned
+BitmaskImpl::find_prev(unsigned size, const Uint32 data[], unsigned n)
+{
+  if (n >= (Uint32) 0xffffffff /* -1 */) // allow one bit outside array for easier use
+    return NotFound;
+  assert(n < (size << 5));
+  Uint32 val = data[n >> 5];
+  Uint32 b = n & 31;
+  if (b < 31)
+  {
+    val <<= 31 - b;
+    if (val)
+    {
+      return n - clz(val);
+    }
+    n -= b + 1;
+  }
+
+  while (n != NotFound) {
+    val = data[n >> 5];
+    if (val)
+    {
+      return n - clz(val);
+    }
+    n -= 32;
   }
   return NotFound;
 }
@@ -742,6 +937,20 @@ public:
   unsigned find_next(unsigned n) const;
 
   /**
+   * find - Find last set bit, starting at 0
+   * Returns NotFound when not found.
+   */
+  static unsigned find_last(const Uint32 data[]);
+  unsigned find_last() const;
+
+  /**
+   * find - Find previous set bit, starting at n
+   * Returns NotFound when not found.
+   */
+  static unsigned find_prev(const Uint32 data[], unsigned n);
+  unsigned find_prev(unsigned n) const;
+
+  /**
    * find - Find first set bit, starting at given position.
    * Returns NotFound when not found.
    */
@@ -1021,6 +1230,34 @@ inline unsigned
 BitmaskPOD<size>::find_next(unsigned n) const
 {
   return BitmaskPOD<size>::find_next(rep.data, n);
+}
+
+template <unsigned size>
+inline unsigned
+BitmaskPOD<size>::find_last(const Uint32 data[])
+{
+  return BitmaskImpl::find_last(size, data);
+}
+
+template <unsigned size>
+inline unsigned
+BitmaskPOD<size>::find_last() const
+{
+  return BitmaskPOD<size>::find_last(rep.data);
+}
+
+template <unsigned size>
+inline unsigned
+BitmaskPOD<size>::find_prev(const Uint32 data[], unsigned n)
+{
+  return BitmaskImpl::find_prev(size, data, n);
+}
+
+template <unsigned size>
+inline unsigned
+BitmaskPOD<size>::find_prev(unsigned n) const
+{
+  return BitmaskPOD<size>::find_prev(rep.data, n);
 }
 
 template <unsigned size>

@@ -157,20 +157,19 @@ The following options may be given as the first argument:
  INSERT DELAYED.
  --delayed-insert-timeout=# 
  How long a INSERT DELAYED thread should wait for INSERT
- statements before terminating.This variable is deprecated
- along with INSERT DELAYED.
+ statements before terminating. This variable is
+ deprecated along with INSERT DELAYED.
  --delayed-queue-size=# 
  What size queue (in rows) should be allocated for
  handling INSERT DELAYED. If the queue becomes full, any
  client that does INSERT DELAYED will wait until there is
- room in the queue again.This variable is deprecated along
- with INSERT DELAYED.
- --disable-gtid-unsafe-statements 
- Prevents execution of statements that would be impossible
- to log in a transactionally safe manner. Currently, the
- disallowed statements include CREATE TEMPORARY TABLE
- inside transactions, all updates to non-transactional
- tables, and CREATE TABLE ... SELECT.
+ room in the queue again. This variable is deprecated
+ along with INSERT DELAYED.
+ --disconnect-on-expired-password 
+ Give clients that don't signal password expiration
+ support execution time error(s) instead of connection
+ error
+ (Defaults to on; use --skip-disconnect-on-expired-password to disable.)
  --disconnect-slave-event-count=# 
  Option used by mysql-test for debugging and testing of
  replication.
@@ -181,6 +180,12 @@ The following options may be given as the first argument:
  In JSON output ("EXPLAIN FORMAT=JSON" and optimizer
  trace), if variable is set to 1, repeats the structure's
  key (if it has one) near the closing bracket
+ --enforce-gtid-consistency 
+ Prevents execution of statements that would be impossible
+ to log in a transactionally safe manner. Currently, the
+ disallowed statements include CREATE TEMPORARY TABLE
+ inside transactions, all updates to non-transactional
+ tables, and CREATE TABLE ... SELECT.
  --eq-range-index-dive-limit=# 
  The optimizer will use existing index statistics instead
  of doing index dives for equality ranges if the number of
@@ -377,7 +382,7 @@ The following options may be given as the first argument:
  --max-delayed-threads=# 
  Don't start more than this number of threads to handle
  INSERT DELAYED statements. If set to zero INSERT DELAYED
- will be not used.This variable is deprecated along with
+ will be not used. This variable is deprecated along with
  INSERT DELAYED.
  --max-error-count=# Max number of errors/warnings to store for a statement
  --max-heap-table-size=# 
@@ -411,6 +416,8 @@ The following options may be given as the first argument:
  --memlock           Lock mysqld in memory.
  --metadata-locks-cache-size=# 
  Size of unused metadata locks cache
+ --metadata-locks-hash-instances=# 
+ Number of metadata locks hash instances
  --min-examined-row-limit=# 
  Don't write queries to slow log that examine fewer rows
  than that
@@ -491,8 +498,9 @@ The following options may be given as the first argument:
  engine_condition_pushdown, index_condition_pushdown, mrr,
  mrr_cost_based, materialization, semijoin, loosescan,
  firstmatch, subquery_materialization_cost_based,
- block_nested_loop, batched_key_access} and val is one of
- {on, off, default}
+ block_nested_loop, batched_key_access,
+ use_index_extensions} and val is one of {on, off,
+ default}
  --optimizer-trace=name 
  Controls tracing of the Optimizer:
  optimizer_trace=option=val[,option=val...], where option
@@ -1004,10 +1012,11 @@ delay-key-write ON
 delayed-insert-limit 100
 delayed-insert-timeout 300
 delayed-queue-size 1000
-disable-gtid-unsafe-statements FALSE
+disconnect-on-expired-password TRUE
 disconnect-slave-event-count 0
 div-precision-increment 4
 end-markers-in-json FALSE
+enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 10
 event-scheduler OFF
 expire-logs-days 0
@@ -1025,7 +1034,7 @@ general-log FALSE
 group-concat-max-len 1024
 gtid-mode OFF
 help TRUE
-host-cache-size 128
+host-cache-size 279
 ignore-builtin-innodb FALSE
 init-connect 
 init-file (No default value)
@@ -1090,6 +1099,7 @@ max-user-connections 0
 max-write-lock-count 18446744073709551615
 memlock FALSE
 metadata-locks-cache-size 1024
+metadata-locks-hash-instances 8
 min-examined-row-limit 0
 multi-range-count 256
 myisam-block-size 1024
@@ -1112,7 +1122,7 @@ old-passwords 0
 old-style-user-limits FALSE
 optimizer-prune-level 1
 optimizer-search-depth 62
-optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,subquery_materialization_cost_based=on
+optimizer-switch index_merge=on,index_merge_union=on,index_merge_sort_union=on,index_merge_intersection=on,engine_condition_pushdown=on,index_condition_pushdown=on,mrr=on,mrr_cost_based=on,block_nested_loop=on,batched_key_access=off,materialization=on,semijoin=on,loosescan=on,firstmatch=on,subquery_materialization_cost_based=on,use_index_extensions=on
 optimizer-trace 
 optimizer-trace-features greedy_search=on,range_optimizer=on,dynamic_range=on,repeated_subselect=on
 optimizer-trace-limit 1
@@ -1153,7 +1163,7 @@ performance-schema-max-rwlock-instances -1
 performance-schema-max-socket-classes 10
 performance-schema-max-socket-instances -1
 performance-schema-max-stage-classes 150
-performance-schema-max-statement-classes 169
+performance-schema-max-statement-classes 168
 performance-schema-max-table-handles -1
 performance-schema-max-table-instances -1
 performance-schema-max-thread-classes 50
@@ -1169,8 +1179,8 @@ profiling-history-size 15
 query-alloc-block-size 8192
 query-cache-limit 1048576
 query-cache-min-res-unit 4096
-query-cache-size 0
-query-cache-type ON
+query-cache-size 1048576
+query-cache-type OFF
 query-cache-wlock-invalidate FALSE
 query-prealloc-size 8192
 range-alloc-block-size 4096
@@ -1227,11 +1237,9 @@ sync-master-info 10000
 sync-relay-log 10000
 sync-relay-log-info 10000
 sysdate-is-now FALSE
-table-definition-cache 400
-table-open-cache 400
 table-open-cache-instances 1
 tc-heuristic-recover COMMIT
-thread-cache-size 0
+thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
 time-format %H:%i:%s

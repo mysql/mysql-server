@@ -122,7 +122,7 @@ public:
   Item_func(THD *thd, Item_func *item);
   bool fix_fields(THD *, Item **ref);
   void fix_after_pullout(st_select_lex *parent_select,
-                         st_select_lex *removed_select, Item **ref);
+                         st_select_lex *removed_select);
   table_map used_tables() const;
   /**
      Returns the pseudo tables depended upon in order to evaluate this
@@ -1242,6 +1242,7 @@ public:
   const char *func_name() const { return "last_insert_id"; }
   void fix_length_and_dec()
   {
+    unsigned_flag= TRUE;
     if (arg_count)
       max_length= args[0]->max_length;
   }
@@ -1591,7 +1592,7 @@ public:
   Item_master_gtid_set_wait(Item *a) :Item_int_func(a) {}
   Item_master_gtid_set_wait(Item *a, Item *b) :Item_int_func(a,b) {}
   longlong val_int();
-  const char *func_name() const { return "sql_thread_wait_after_gtids"; }
+  const char *func_name() const { return "wait_until_sql_thread_after_gtids"; }
   void fix_length_and_dec() { max_length= 21; maybe_null= 1; }
 };
 
@@ -1651,6 +1652,20 @@ class Item_func_set_user_var :public Item_var_func
        user variable it the first connection context).
   */
   my_thread_id entry_thread_id;
+  /**
+    Delayed setting of non-constness.
+
+    Normally, Item_func_get_user_var objects are tagged as not const
+    when Item_func_set_user_var::fix_fields() is called for the same
+    variable in the same query. If delayed_non_constness is set, the
+    tagging is delayed until the variable is actually set. This means
+    that Item_func_get_user_var objects will still be treated as a
+    constant by the optimizer and executor until the variable is
+    actually changed.
+
+    @see select_dumpvar::send_data().
+   */
+  bool delayed_non_constness;
   char buffer[MAX_FIELD_WIDTH];
   String value;
   my_decimal decimal_buff;
@@ -1665,15 +1680,16 @@ class Item_func_set_user_var :public Item_var_func
 
 public:
   Name_string name; // keep it public
-  Item_func_set_user_var(Name_string a, Item *b)
+  Item_func_set_user_var(Name_string a, Item *b, bool delayed)
     :Item_var_func(b), cached_result_type(INT_RESULT),
-     entry(NULL), entry_thread_id(0), name(a)
+     entry(NULL), entry_thread_id(0), delayed_non_constness(delayed), name(a)
   {}
   Item_func_set_user_var(THD *thd, Item_func_set_user_var *item)
     :Item_var_func(thd, item), cached_result_type(item->cached_result_type),
      entry(item->entry), entry_thread_id(item->entry_thread_id),
-     value(item->value), decimal_buff(item->decimal_buff),
-     null_item(item->null_item), save_result(item->save_result), name(item->name)
+     delayed_non_constness(item->delayed_non_constness), value(item->value),
+     decimal_buff(item->decimal_buff), null_item(item->null_item),
+     save_result(item->save_result), name(item->name)
   {}
   enum Functype functype() const { return SUSERVAR_FUNC; }
   double val_real();
@@ -1996,7 +2012,7 @@ public:
   Item_func_is_used_lock(Item *a) :Item_int_func(a) {}
   longlong val_int();
   const char *func_name() const { return "is_used_lock"; }
-  void fix_length_and_dec() { decimals=0; max_length=10; maybe_null=1;}
+  void fix_length_and_dec();
 };
 
 /* For type casts */

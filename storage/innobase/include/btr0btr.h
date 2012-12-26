@@ -402,17 +402,17 @@ UNIV_INTERN
 ulint
 btr_create(
 /*=======*/
-	ulint		type,		/*!< in: type of the index */
-	ulint		space,		/*!< in: space where created */
-	ulint		zip_size,	/*!< in: compressed page size in bytes
-					or 0 for uncompressed pages */
-	index_id_t	index_id,	/*!< in: index id */
-	dict_index_t*	index,		/*!< in: index */
-	btr_create_t*	btr_create_info,
-					/*!< in: used for applying
-					MLOG_FILE_TRUNCATE redo record
-					during recovery */
-	mtr_t*		mtr);		/*!< in: mini-transaction handle */
+	ulint			type,		/*!< in: type of the index */
+	ulint			space,		/*!< in: space where created */
+	ulint			zip_size,	/*!< in: compressed page size
+						in bytes or 0 for uncompressed
+						pages */
+	index_id_t		index_id,	/*!< in: index id */
+	dict_index_t*		index,		/*!< in: index */
+	const btr_create_t*	btr_create_info,/*!< in: used for applying
+						MLOG_FILE_TRUNCATE redo record
+						during recovery */
+	mtr_t*			mtr);		/*!< in: mini-transaction handle */
 /************************************************************//**
 Frees a B-tree except the root page, which MUST be freed after this
 by calling btr_free_root. */

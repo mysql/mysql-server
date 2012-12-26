@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2012, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -146,13 +146,16 @@ UNIV_INLINE
 void
 btr_pcur_open_at_index_side(
 /*========================*/
-	ibool		from_left,	/*!< in: TRUE if open to the low end,
-					FALSE if to the high end */
+	bool		from_left,	/*!< in: true if open to the low end,
+					false if to the high end */
 	dict_index_t*	index,		/*!< in: index */
 	ulint		latch_mode,	/*!< in: latch mode */
-	btr_pcur_t*	pcur,		/*!< in: cursor */
-	ibool		do_init,	/*!< in: TRUE if should be initialized */
-	mtr_t*		mtr);		/*!< in: mtr */
+	btr_pcur_t*	pcur,		/*!< in/out: cursor */
+	bool		init_pcur,	/*!< in: whether to initialize pcur */
+	ulint		level,		/*!< in: level to search for
+					(0=leaf) */
+	mtr_t*		mtr)		/*!< in/out: mini-transaction */
+	__attribute__((nonnull));
 /**************************************************************//**
 Gets the up_match value for a pcur after a search.
 @return number of matched fields at the cursor or to the right if

@@ -20,6 +20,7 @@
 
 NdbLogPartInfo::NdbLogPartInfo(Uint32 instanceNo)
 {
+  LogParts = globalData.ndbLogParts;
   lqhWorkers = globalData.ndbMtLqhWorkers;
   partCount = 0;
   partMask.clear();
@@ -49,16 +50,6 @@ NdbLogPartInfo::partNoOwner(Uint32 lpno) const
   return partMask.get(lpno);
 }
 
-bool
-NdbLogPartInfo::partNoOwner(Uint32 tabId, Uint32 fragId)
-{
-  Uint32 instanceKey = SimulatedBlock::getInstanceKey(tabId, fragId);
-  assert(instanceKey != 0);
-  Uint32 lpid = instanceKey - 1;
-  Uint32 lpno = partNoFromId(lpid);
-  return partNoOwner(lpno);
-}
-
 Uint32
 NdbLogPartInfo::partNoIndex(Uint32 lpno) const
 {
@@ -72,11 +63,4 @@ NdbLogPartInfo::partNoIndex(Uint32 lpno) const
   assert(i < partCount);
   assert(partNo[i] == lpno);
   return i;
-}
-
-Uint32
-NdbLogPartInfo::instanceKey(Uint32 lpno) const
-{
-  assert(lpno < LogParts);
-  return 1 + lpno;
 }

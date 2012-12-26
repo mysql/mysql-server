@@ -1,6 +1,6 @@
 #ifndef SQL_PREPARE_H
 #define SQL_PREPARE_H
-/* Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -256,14 +256,19 @@ public:
   }
 
   /**
-    The following members are only valid if execute_direct()
+    The following three members are only valid if execute_direct()
     or move_to_next_result() returned an error.
     They never fail, but if they are called when there is no
     result, or no error, the result is not defined.
   */
-  const char *get_last_error() const { return m_diagnostics_area.message(); }
-  unsigned int get_last_errno() const { return m_diagnostics_area.sql_errno(); }
-  const char *get_last_sqlstate() const { return m_diagnostics_area.get_sqlstate(); }
+  const char *get_last_error() const
+  { return m_diagnostics_area.message_text(); }
+
+  unsigned int get_last_errno() const
+  { return m_diagnostics_area.mysql_errno(); }
+
+  const char *get_last_sqlstate() const
+  { return m_diagnostics_area.returned_sqlstate(); }
 
   /**
     Provided get_field_count() is not 0, this never fails. You don't

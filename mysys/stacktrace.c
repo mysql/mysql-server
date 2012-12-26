@@ -249,53 +249,10 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 #define SIGRETURN_FRAME_OFFSET 23
 #endif
 
-#if defined(__alpha__) && defined(__GNUC__)
-/*
-  The only way to backtrace without a symbol table on alpha
-  is to find stq fp,N(sp), and the first byte
-  of the instruction opcode will give us the value of N. From this
-  we can find where the old value of fp is stored
-*/
-
-#define MAX_INSTR_IN_FUNC  10000
-
-inline uchar** find_prev_fp(uint32* pc, uchar** fp)
-{
-  int i;
-  for (i = 0; i < MAX_INSTR_IN_FUNC; ++i,--pc)
-  {
-    uchar* p = (uchar*)pc;
-    if (p[2] == 222 &&  p[3] == 35)
-    {
-      return (uchar**)((uchar*)fp - *(short int*)p);
-    }
-  }
-  return 0;
-}
-
-inline uint32* find_prev_pc(uint32* pc, uchar** fp)
-{
-  int i;
-  for (i = 0; i < MAX_INSTR_IN_FUNC; ++i,--pc)
-  {
-    char* p = (char*)pc;
-    if (p[1] == 0 && p[2] == 94 &&  p[3] == -73)
-    {
-      uint32* prev_pc = (uint32*)*((fp+p[0]/sizeof(fp)));
-      return prev_pc;
-    }
-  }
-  return 0;
-}
-#endif /* defined(__alpha__) && defined(__GNUC__) */
-
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
   uchar** fp;
   uint frame_count = 0, sigreturn_frame_count;
-#if defined(__alpha__) && defined(__GNUC__)
-  uint32* pc;
-#endif
   LINT_INIT(fp);
 
 
@@ -306,11 +263,6 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 #endif
 #ifdef __x86_64__
   __asm __volatile__ ("movq %%rbp,%0"
-		      :"=r"(fp)
-		      :"r"(fp));
-#endif
-#if defined(__alpha__) && defined(__GNUC__) 
-  __asm __volatile__ ("mov $30,%0"
 		      :"=r"(fp)
 		      :"r"(fp));
 #endif
@@ -342,17 +294,6 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 
   my_safe_printf_stderr("%s",
     "Stack range sanity check OK, backtrace follows:\n");
-#if defined(__alpha__) && defined(__GNUC__)
-  my_safe_printf_stderr("%s",
-    "Warning: Alpha stacks are difficult -"
-    "will be taking some wild guesses, stack trace may be incorrect or "
-    "terminate abruptly\n");
-
-  /* On Alpha, we need to get pc */
-  __asm __volatile__ ("bsr %0, do_next; do_next: "
-		      :"=r"(pc)
-		      :"r"(pc));
-#endif  /* __alpha__ */
 
   /* We are 1 frame above signal frame with NPTL and 2 frames above with LT */
   sigreturn_frame_count = thd_lib_detected == THD_LIB_LT ? 2 : 1;
@@ -366,32 +307,6 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
                           *(fp + SIGRETURN_FRAME_OFFSET) : *(fp + 1));
 #endif /* defined(__386__)  || defined(__x86_64__) */
 
-#if defined(__alpha__) && defined(__GNUC__)
-    uchar** new_fp = find_prev_fp(pc, fp);
-    if (frame_count == sigreturn_frame_count - 1)
-    {
-      new_fp += 90;
-    }
-
-    if (fp && pc)
-    {
-      pc = find_prev_pc(pc, fp);
-      if (pc)
-	my_safe_printf_stderr("%p\n", pc);
-      else
-      {
-        my_safe_printf_stderr("%s",
-          "Not smart enough to deal with the rest of this stack\n");
-	goto end;
-      }
-    }
-    else
-    {
-      my_safe_printf_stderr("%s",
-        "Not smart enough to deal with the rest of this stack\n");
-      goto end;
-    }
-#endif /* defined(__alpha__) && defined(__GNUC__) */
     if (new_fp <= fp )
     {
       my_safe_printf_stderr("New value of fp=%p failed sanity check, "
@@ -418,18 +333,7 @@ end:
 /* Produce a core for the thread */
 void my_write_core(int sig)
 {
-#ifdef HAVE_gcov
-  extern void __gcov_flush(void);
-#endif
   signal(sig, SIG_DFL);
-#ifdef HAVE_gcov
-  /*
-    For GCOV build, crashing will prevent the writing of code coverage
-    information from this process, causing gcov output to be incomplete.
-    So we force the writing of coverage information here before terminating.
-  */
-  __gcov_flush();
-#endif
   pthread_kill(pthread_self(), sig);
 #if defined(P_MYID) && !defined(SCO)
   /* On Solaris, the above kill is not enough */

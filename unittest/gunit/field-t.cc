@@ -24,7 +24,7 @@
 #include "sql_time.h"
 #include <my_decimal.h>
 
-namespace {
+namespace field_unittests {
 
 using my_testing::Server_initializer;
 using my_testing::Mock_error_handler;
@@ -390,6 +390,7 @@ TEST_F(FieldTest, CopyFieldSet)
 
   Field_set *f_from= create_field_set(&tl4);
   bitmap_set_all(f_from->table->write_set);
+  bitmap_set_all(f_from->table->read_set);
   uchar from_fieldval= static_cast<uchar>(typeset);
   f_from->ptr= &from_fieldval;
 
@@ -475,9 +476,11 @@ void test_make_sort_key(Field *field)
 }
 
 
-size_t mock_strnxfrm(const CHARSET_INFO *, uchar *, size_t, uint, const uchar *,
-                     size_t, uint);
-
+extern "C"
+{
+  static size_t mock_strnxfrm(const CHARSET_INFO *, uchar *, size_t,
+                              uint, const uchar *, size_t, uint);
+}
 
 class Mock_collation : public MY_COLLATION_HANDLER
 {
@@ -625,8 +628,8 @@ TEST_F(FieldTest, MakeSortKey)
     SCOPED_TRACE("Field_varstring");
     Mock_charset mock_charset;
     Fake_TABLE_SHARE fake_share(0);
-    uchar ptr= 0;
-    Field_varstring fvs(&ptr, 0, 0, NULL, '\0', Field::NONE, "", &fake_share,
+    uchar ptr[8]= {0, 0, 0, 0, 0, 0, 0, 0};
+    Field_varstring fvs(ptr, 0, 0, NULL, '\0', Field::NONE, "", &fake_share,
                         &mock_charset);
     uchar to;
     fvs.make_sort_key(&to, 666);

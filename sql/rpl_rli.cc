@@ -28,6 +28,7 @@
 #include "sql_parse.h"                          // end_trans, ROLLBACK
 #include "rpl_slave.h"
 #include "rpl_rli_pdb.h"
+#include "rpl_info_factory.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 
@@ -56,6 +57,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                                ,PSI_mutex_key *param_key_info_run_lock,
                                PSI_mutex_key *param_key_info_data_lock,
                                PSI_mutex_key *param_key_info_sleep_lock,
+                               PSI_mutex_key *param_key_info_thd_lock,
                                PSI_mutex_key *param_key_info_data_cond,
                                PSI_mutex_key *param_key_info_start_cond,
                                PSI_mutex_key *param_key_info_stop_cond,
@@ -66,7 +68,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    :Rpl_info("SQL"
 #ifdef HAVE_PSI_INTERFACE
              ,param_key_info_run_lock, param_key_info_data_lock,
-             param_key_info_sleep_lock,
+             param_key_info_sleep_lock, param_key_info_thd_lock,
              param_key_info_data_cond, param_key_info_start_cond,
              param_key_info_stop_cond, param_key_info_sleep_cond
 #endif
@@ -79,6 +81,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    cur_log_old_open_count(0), group_relay_log_pos(0), event_relay_log_pos(0),
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
+   is_group_master_log_pos_invalid(false),
    log_space_total(0), ignore_log_space_limit(0),
    sql_force_rotate_relay(false),
    last_master_timestamp(0), slave_skip_counter(0),
@@ -113,6 +116,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
                          key_RELAYLOG_LOCK_done,
                          key_RELAYLOG_COND_done,
                          key_RELAYLOG_update_cond,
+                         key_RELAYLOG_prep_xids_cond,
                          key_file_relaylog,
                          key_file_relaylog_index);
 #endif
@@ -275,14 +279,29 @@ void Relay_log_info::reset_notified_checkpoint(ulong shift, time_t new_ts,
 bool Relay_log_info::mts_finalize_recovery()
 {
   bool ret= false;
+  uint i;
+  uint repo_type= get_rpl_info_handler()->get_rpl_info_type();
 
   DBUG_ENTER("Relay_log_info::mts_finalize_recovery");
 
-  for (uint i= 0; !ret && i < workers.elements; i++)
+  for (i= 0; !ret && i < workers.elements; i++)
   {
     Slave_worker *w= *(Slave_worker **) dynamic_array_ptr(&workers, i);
     ret= w->reset_recovery_info();
     DBUG_EXECUTE_IF("mts_debug_recovery_reset_fails", ret= true;);
+  }
+  /*
+    The loop is traversed in the worker index descending order due
+    to specifics of the Worker table repository that does not like
+    even temporary holes. Therefore stale records are deleted
+    from the tail.
+  */
+  for (i= recovery_parallel_workers; i > workers.elements && !ret; i--)
+  {
+    Slave_worker *w=
+      Rpl_info_factory::create_worker(repo_type, i - 1, this, true);
+    ret= w->remove_info();
+    delete w;
   }
   recovery_parallel_workers= slave_parallel_workers;
 
@@ -389,6 +408,8 @@ int Relay_log_info::init_relay_log_pos(const char* log,
   DBUG_PRINT("info", ("pos: %lu", (ulong) pos));
 
   *errmsg=0;
+  const char* errmsg_fmt= 0;
+  static char errmsg_buff[MYSQL_ERRMSG_SIZE + FN_REFLEN];
   mysql_mutex_t *log_lock= relay_log.get_log_lock();
 
   if (need_data_lock)
@@ -428,7 +449,11 @@ int Relay_log_info::init_relay_log_pos(const char* log,
 
   if (log && relay_log.find_log_pos(&linfo, log, 1))
   {
-    *errmsg="Could not find target log during relay log initialization";
+    errmsg_fmt= "Could not find target log file mentioned in "
+                "relay log info in the index file '%s' during "
+                "relay log initialization";
+    sprintf(errmsg_buff, errmsg_fmt, relay_log.get_index_fname());
+    *errmsg= errmsg_buff;
     goto err;
   }
 
@@ -677,8 +702,11 @@ int Relay_log_info::wait_for_pos(THD* thd, String* log_name,
       without using --replicate-same-server-id (an unsupported
       configuration which does nothing), then group_master_log_pos
       will grow and group_master_log_name will stay "".
+      Also in case the group master log position is invalid (e.g. after
+      CHANGE MASTER TO RELAY_LOG_POS ), we will wait till the first event
+      is read and the log position is valid again.
     */
-    if (*group_master_log_name)
+    if (*group_master_log_name && !is_group_master_log_pos_invalid)
     {
       char *basename= (group_master_log_name +
                        dirname_length(group_master_log_name));
@@ -834,12 +862,21 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
 
     global_sid_lock->wrlock();
     const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
+    const Owned_gtids* owned_gtids= gtid_state->get_owned_gtids();
 
-    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d",
-      gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids)));
-    logged_gtids->dbug_print("gtid_done:");
+    DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and \
+!is_intersection: %d",
+      gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids),
+      !owned_gtids->is_intersection(&wait_gtid_set)));
+    logged_gtids->dbug_print("gtid_executed:");
+    owned_gtids->dbug_print("owned_gtids:");
 
-    if (wait_gtid_set.is_subset(logged_gtids))
+    /*
+      Since commit is performed after log to binary log, we must also
+      check if any GTID of wait_gtid_set is not yet committed.
+    */
+    if (wait_gtid_set.is_subset(logged_gtids) &&
+        !owned_gtids->is_intersection(&wait_gtid_set))
     {
       global_sid_lock->unlock();
       break;
@@ -950,6 +987,12 @@ int Relay_log_info::inc_group_relay_log_pos(ulonglong log_pos,
 
   if (log_pos > 0)  // 3.23 binlogs don't have log_posx
     group_master_log_pos= log_pos;
+  /*
+    If the master log position was invalidiated by say, "CHANGE MASTER TO
+    RELAY_LOG_POS=N", it is now valid,
+   */
+  if (is_group_master_log_pos_invalid)
+    is_group_master_log_pos_invalid= false;
 
   /*
     In MTS mode FD or Rotate event commit their solitary group to

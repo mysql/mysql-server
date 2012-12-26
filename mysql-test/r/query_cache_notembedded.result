@@ -380,7 +380,6 @@ Qcache_queries_in_cache	1
 USE test;
 DROP DATABASE bug30269;
 DROP USER 'bug30269'@'localhost';
-set GLOBAL query_cache_type=default;
 set GLOBAL query_cache_limit=default;
 set GLOBAL query_cache_min_res_unit=default;
 set GLOBAL query_cache_size=default;

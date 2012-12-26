@@ -149,6 +149,13 @@ SET(CLIENT_SOURCES
   ../sql/password.c
 )
 
+IF (WIN32 AND OPENSSL_APPLINK_C)
+  SET_SOURCE_FILES_PROPERTIES(
+    ../sql-common/client_authentication.cc
+    PROPERTIES COMPILE_FLAGS "-DHAVE_OPENSSL_APPLINK_C"
+  )
+ENDIF()
+
 ADD_CONVENIENCE_LIBRARY(clientlib ${CLIENT_SOURCES})
 DTRACE_INSTRUMENT(clientlib)
 ADD_DEPENDENCIES(clientlib GenError)
@@ -205,13 +212,18 @@ IF(NOT DISABLE_SHARED)
       OUTPUT_NAME mysqlclient 
       VERSION "${OS_SHARED_LIB_VERSION}" 
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
+    CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
     IF(LINK_FLAG_NO_UNDEFINED)
       GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
       IF(NOT libmysql_link_flag)
         SET(libmysql_link_flags)
       ENDIF()
-      SET_TARGET_PROPERTIES(libmysql PROPERTIES LINK_FLAGS 
+      SET(libmysql_link_flags
         "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
+      SET(libmysql_link_flags
+        "${libmysql_link_flags} -Wl,--version-script=libmysql.ver")
+      SET_TARGET_PROPERTIES(libmysql
+        PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
     ENDIF() 
     # clean direct output needs to be set several targets have the same name
     #(mysqlclient in this case)

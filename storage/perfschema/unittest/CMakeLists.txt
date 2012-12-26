@@ -47,10 +47,24 @@ IF(WIN32)
   SET(MYSQLD_EXTRA_SOURCES ${CMAKE_SOURCE_DIR}/sql/nt_servc.cc)
 ENDIF()
 
-# we need the server libs to test the blob parser
-ADD_EXECUTABLE(pfs_connect_attr-t pfs_connect_attr-t.cc ${MYSQLD_EXTRA_SOURCES})
-TARGET_LINK_LIBRARIES(pfs_connect_attr-t
-  mytap perfschema sql binlog rpl master slave sql
-  mysys mysys_ssl)
+# We need the server libs to test the blob parser.
+# Add sql_builtin.cc here, to force linkage of plugins below.
+# Also add mysys/string.c (see Bug#45488)
+ADD_EXECUTABLE(pfs_connect_attr-t
+  pfs_connect_attr-t.cc
+  ${CMAKE_BINARY_DIR}/sql/sql_builtin.cc
+  ${CMAKE_SOURCE_DIR}/mysys/string.c
+  ${MYSQLD_EXTRA_SOURCES}
+)
+ADD_DEPENDENCIES(pfs_connect_attr-t GenServerSource)
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t mytap perfschema)
+# We need to explicitly link in everything referenced in sql/sql_builtin.cc
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t ${MYSQLD_STATIC_PLUGIN_LIBS})
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t sql binlog rpl master slave sql)
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t mysys mysys_ssl)
 TARGET_LINK_LIBRARIES(pfs_connect_attr-t vio ${SSL_LIBRARIES})
+TARGET_LINK_LIBRARIES(pfs_connect_attr-t strings dbug regex mysys zlib)
 ADD_TEST(pfs_connect_attr pfs_connect_attr-t)
+
+# On windows, pfs_connect_attr-t may depend on openssl dlls.
+COPY_OPENSSL_DLLS(copy_openssl_pfs_unittest)

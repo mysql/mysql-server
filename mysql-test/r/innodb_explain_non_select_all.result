@@ -1324,8 +1324,6 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 Warnings:
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`i` AS `i` from `test`.`t1` where ((`test`.`t1`.`i` > 10) and (`test`.`t1`.`i` <= 18)) order by `test`.`t1`.`i` limit 5
 # Status of EXPLAIN EXTENDED "equivalent" SELECT query execution
 Variable_name	Value
@@ -1790,8 +1788,6 @@ EXPLAIN EXTENDED SELECT * FROM t2     WHERE i > 10 AND i <= 18 ORDER BY i LIMIT 
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t2	ALL	i	NULL	NULL	NULL	26	100.00	Using where; Using filesort
 Warnings:
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
-Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Warning	1739	Cannot use range access on index 'i' due to type or collation conversion on field 'i'
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`i` AS `i` from `test`.`t2` where ((`test`.`t2`.`i` > 10) and (`test`.`t2`.`i` <= 18)) order by `test`.`t2`.`i` limit 5
@@ -2765,14 +2761,6 @@ Handler_read_rnd_next	1
 
 DROP TABLE t1, t2;
 DROP VIEW v1;
-#68
-CREATE TABLE t1 (i INT);
-EXPLAIN INSERT DELAYED INTO t1 VALUES (1);
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-Warnings:
-Warning	1287	'INSERT DELAYED' is deprecated and will be removed in a future release. Please use INSERT instead
-DROP TABLE t1;
 #69
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1), (2), (3);

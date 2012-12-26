@@ -29,6 +29,16 @@ select * from information_schema.global_variables where variable_name='old_alter
 select * from information_schema.session_variables where variable_name='old_alter_table';
 
 #
+# Display the default value 
+#
+
+SET @@global.old_alter_table=DEFAULT;
+SELECT @@global.old_alter_table;
+
+SET @@session.old_alter_table=DEFAULT;
+SELECT  @@session.old_alter_table;
+
+#
 # incorrect types
 #
 --error ER_WRONG_TYPE_FOR_VAR

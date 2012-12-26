@@ -1,4 +1,5 @@
 call mtr.add_suppression("Trying to free a missing index of table 'test/t1'");
+call mtr.add_suppression("Failed to create index with index id .* of table 'test/t1' from the data dictionary during TRUNCATE");
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (
 i int(10) unsigned not null auto_increment primary key,

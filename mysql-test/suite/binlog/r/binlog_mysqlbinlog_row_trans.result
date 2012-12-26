@@ -1,0 +1,470 @@
+#
+# Preparatory cleanup.
+#
+DROP TABLE IF EXISTS t1, t2;
+#
+# We need a fixed timestamp to avoid varying results.
+#
+SET timestamp=1000000000;
+#
+# Delete all existing binary logs.
+#
+RESET MASTER;
+#
+# Create test tables.
+#
+CREATE TABLE t1 (
+c1 INT,
+c2 VARCHAR(20)
+) ENGINE=InnoDB DEFAULT CHARSET latin1;
+CREATE TABLE t2 (
+c1 INT,
+c2 VARCHAR(20)
+) ENGINE=MyISAM DEFAULT CHARSET latin1;
+#
+# Start transaction #1, transactional table only, commit.
+#
+START TRANSACTION;
+#
+# Do some statements.
+#
+INSERT INTO t1 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t1 SET c1 = c1 + 10;
+DELETE FROM t1 WHERE c1 = 12;
+#
+# Commit transaction.
+#
+COMMIT;
+SELECT * FROM t1;
+c1	c2
+11	varchar-1
+13	varchar-3
+TRUNCATE TABLE t1;
+#
+# Start transaction #2, transactional table only, rollback.
+#
+START TRANSACTION;
+#
+# Do some statements.
+#
+INSERT INTO t1 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t1 SET c1 = c1 + 10;
+DELETE FROM t1 WHERE c1 = 12;
+#
+# Rollback transaction.
+#
+ROLLBACK;
+SELECT * FROM t1;
+c1	c2
+TRUNCATE TABLE t1;
+#
+# Start transaction #3, both tables, commit.
+#
+START TRANSACTION;
+#
+# Do some statements on the transactional table.
+#
+INSERT INTO t1 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t1 SET c1 = c1 + 10;
+DELETE FROM t1 WHERE c1 = 12;
+#
+# Do some statements on the non-transactional table.
+#
+INSERT INTO t2 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t2 SET c1 = c1 + 10;
+DELETE FROM t2 WHERE c1 = 12;
+#
+# Commit transaction.
+#
+COMMIT;
+SELECT * FROM t1;
+c1	c2
+11	varchar-1
+13	varchar-3
+SELECT * FROM t2;
+c1	c2
+11	varchar-1
+13	varchar-3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+#
+# Start transaction #4, both tables, rollback.
+#
+START TRANSACTION;
+#
+# Do some statements on the transactional table.
+#
+INSERT INTO t1 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t1 SET c1 = c1 + 10;
+DELETE FROM t1 WHERE c1 = 12;
+#
+# Do some statements on the non-transactional table.
+#
+INSERT INTO t2 VALUES (1,'varchar-1'), (2,'varchar-2'), (3,'varchar-3');
+UPDATE t2 SET c1 = c1 + 10;
+DELETE FROM t2 WHERE c1 = 12;
+#
+# Rollback transaction.
+#
+ROLLBACK;
+Warnings:
+Warning	1196	Some non-transactional changed tables couldn't be rolled back
+SELECT * FROM t1;
+c1	c2
+SELECT * FROM t2;
+c1	c2
+11	varchar-1
+13	varchar-3
+TRUNCATE TABLE t1;
+TRUNCATE TABLE t2;
+#
+# Flush all log buffers to the log file.
+#
+FLUSH LOGS;
+#
+# Call mysqlbinlog to display the log file contents.
+#
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=1*/;
+/*!50003 SET @OLD_COMPLETION_TYPE=@@COMPLETION_TYPE,COMPLETION_TYPE=0*/;
+DELIMITER /*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Start: binlog v 4, server v #.##.## created 010909  4:46:40 at startup
+ROLLBACK/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+use `test`/*!*/;
+SET TIMESTAMP=1000000000/*!*/;
+SET @@session.pseudo_thread_id=#/*!*/;
+SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
+SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
+/*!\C latin1 *//*!*/;
+SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
+SET @@session.lc_time_names=0/*!*/;
+SET @@session.collation_database=DEFAULT/*!*/;
+CREATE TABLE t1 (
+c1 INT,
+c2 VARCHAR(20)
+) ENGINE=InnoDB DEFAULT CHARSET latin1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+CREATE TABLE t2 (
+c1 INT,
+c2 VARCHAR(20)
+) ENGINE=MyISAM DEFAULT CHARSET latin1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=11 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=13 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
+### WHERE
+###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+TRUNCATE TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+TRUNCATE TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t2`
+### SET
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### INSERT INTO `test`.`t2`
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### INSERT INTO `test`.`t2`
+### SET
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t2`
+### WHERE
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=11 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### UPDATE `test`.`t2`
+### WHERE
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### UPDATE `test`.`t2`
+### WHERE
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=13 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t2`
+### WHERE
+###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### INSERT INTO `test`.`t1`
+### SET
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=11 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### UPDATE `test`.`t1`
+### WHERE
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=13 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t1` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t1`
+### WHERE
+###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Xid = #
+COMMIT/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+TRUNCATE TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+TRUNCATE TABLE t2
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Write_rows: table id # flags: STMT_END_F
+### INSERT INTO `test`.`t2`
+### SET
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### INSERT INTO `test`.`t2`
+### SET
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### INSERT INTO `test`.`t2`
+### SET
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Update_rows: table id # flags: STMT_END_F
+### UPDATE `test`.`t2`
+### WHERE
+###   @1=1 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=11 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-1' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### UPDATE `test`.`t2`
+### WHERE
+###   @1=2 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### UPDATE `test`.`t2`
+### WHERE
+###   @1=3 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+### SET
+###   @1=13 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-3' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+BEGIN
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Table_map: `test`.`t2` mapped to number #
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Delete_rows: table id # flags: STMT_END_F
+### DELETE FROM `test`.`t2`
+### WHERE
+###   @1=12 /* INT meta=0 nullable=1 is_null=0 */
+###   @2='varchar-2' /* VARSTRING(20) meta=20 nullable=1 is_null=0 */
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+COMMIT
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+TRUNCATE TABLE t1
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Query	thread_id=#	exec_time=#	error_code=0
+SET TIMESTAMP=1000000000/*!*/;
+TRUNCATE TABLE t2
+/*!*/;
+# at #
+#010909  4:46:40 server id 1  end_log_pos # CRC32 # 	Rotate to master-bin.000002  pos: 4
+DELIMITER ;
+# End of log file
+ROLLBACK /* added by mysqlbinlog */;
+/*!50003 SET COMPLETION_TYPE=@OLD_COMPLETION_TYPE*/;
+/*!50530 SET @@SESSION.PSEUDO_SLAVE_MODE=0*/;
+#
+# Cleanup.
+#
+DROP TABLE t1, t2;

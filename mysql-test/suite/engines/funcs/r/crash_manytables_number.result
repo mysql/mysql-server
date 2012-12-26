@@ -2999,3 +2999,4 @@ DROP TABLE t997 ;
 DROP TABLE t998 ;
 DROP TABLE t999 ;
 DROP TABLE t1000 ;
+call mtr.add_suppression("Changed limits: max_open_files:*");

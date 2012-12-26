@@ -852,5 +852,31 @@ mach_write_ulonglong(
 		*dest ^=  0x80;
 	}
 }
+
+/********************************************************//**
+Reads 1 - 4 bytes from a file page buffered in the buffer pool.
+@return	value read */
+UNIV_INLINE
+ulint
+mach_read_ulint(
+/*============*/
+	const byte*	ptr,	/*!< in: pointer from where to read */
+	ulint		type)	/*!< in: 1,2 or 4 bytes */
+{
+	switch (type) {
+	case 1:
+		return(mach_read_from_1(ptr));
+	case 2:
+		return(mach_read_from_2(ptr));
+	case 4:
+		return(mach_read_from_4(ptr));
+	default:
+		ut_error;
+	}
+
+	/* Prevent warning "not all control paths return a value". */
+	return(0);
+}
+
 #endif /* !UNIV_HOTBACKUP */
 #endif /* !UNIV_INNOCHECKSUM */

@@ -1454,7 +1454,7 @@ ER_DUP_ENTRY 23000 S1009
 	kor "중복된 입력 값 '%-.192s': key %d"
 	nor "Like verdier '%-.192s' for nøkkel %d"
 	norwegian-ny "Like verdiar '%-.192s' for nykkel %d"
-	pol "Powtórzone wyst?pienie '%-.192s' dla klucza %d"
+	pol "Powtórzone wystąpienie '%-.192s' dla klucza %d"
 	por "Entrada '%-.192s' duplicada para a chave %d"
 	rum "Cimpul '%-.192s' e duplicat pentru cheia %d"
 	rus "Дублирующаяся запись '%-.192s' по ключу %d"
@@ -3385,44 +3385,10 @@ ER_SYNTAX_ERROR 42000
         spa "Algo está equivocado en su sintax"
         swe "Du har något fel i din syntax"
         ukr "У вас помилка у синтаксисі SQL"
-ER_DELAYED_CANT_CHANGE_LOCK  
-        cze "Zpožděný insert threadu nebyl schopen získat požadovaný zámek pro tabulku %-.192s"
-        dan "Forsinket indsættelse tråden (delayed insert thread) kunne ikke opnå lås på tabellen %-.192s"
-        nla "'Delayed insert' thread kon de aangevraagde 'lock' niet krijgen voor tabel %-.192s"
+ER_UNUSED1
         eng "Delayed insert thread couldn't get requested lock for table %-.192s"
-        est "INSERT DELAYED lõim ei suutnud saada soovitud lukku tabelile %-.192s"
-        fre "La tâche 'delayed insert' n'a pas pu obtenir le verrou démandé sur la table %-.192s"
-        ger "Verzögerter (DELAYED) Einfüge-Thread konnte die angeforderte Sperre für Tabelle '%-.192s' nicht erhalten"
-        hun "A kesleltetett beillesztes (delayed insert) thread nem kapott zatolast a %-.192s tablahoz"
-        ita "Il thread di inserimento ritardato non riesce ad ottenere il lock per la tabella %-.192s"
-        jpn "'Delayed insert'スレッドが表 '%-.192s' のロックを取得できませんでした。"
-        kor "지연된 insert 쓰레드가 테이블 %-.192s의 요구된 락킹을 처리할 수 없었습니다."
-        por "'Thread' de inserção retardada (atrasada) pois não conseguiu obter a trava solicitada para tabela '%-.192s'"
-        rum "Thread-ul pentru inserarea aminata nu a putut obtine lacatul (lock) pentru tabela %-.192s"
-        rus "Поток, обслуживающий отложенную вставку (delayed insert), не смог получить запрашиваемую блокировку на таблицу %-.192s"
-        serbian "Prolongirani 'INSERT' thread nije mogao da dobije traženo zaključavanje tabele '%-.192s'"
-        spa "Thread de inserción retarda no pudiendo bloquear para la tabla %-.192s"
-        swe "DELAYED INSERT-tråden kunde inte låsa tabell '%-.192s'"
-        ukr "Гілка для INSERT DELAYED не може отримати блокування для таблиці %-.192s"
-ER_TOO_MANY_DELAYED_THREADS  
-        cze "Příliš mnoho zpožděných threadů"
-        dan "For mange slettede tråde (threads) i brug"
-        nla "Te veel 'delayed' threads in gebruik"
+ER_UNUSED2
         eng "Too many delayed threads in use"
-        est "Liiga palju DELAYED lõimesid kasutusel"
-        fre "Trop de tâche 'delayed' en cours"
-        ger "Zu viele verzögerte (DELAYED) Threads in Verwendung"
-        hun "Tul sok kesletetett thread (delayed)"
-        ita "Troppi threads ritardati in uso"
-        jpn "'Delayed insert'スレッドが多すぎます。"
-        kor "너무 많은 지연 쓰레드를 사용하고 있습니다."
-        por "Excesso de 'threads' retardadas (atrasadas) em uso"
-        rum "Prea multe threaduri aminate care sint in uz"
-        rus "Слишком много потоков, обслуживающих отложенную вставку (delayed insert)"
-        serbian "Previše prolongiranih thread-ova je u upotrebi"
-        spa "Muchos threads retardados en uso"
-        swe "Det finns redan 'max_delayed_threads' trådar i använding"
-        ukr "Забагато затриманих гілок використовується"
 ER_ABORTING_CONNECTION 08S01 
         cze "Zrušeno spojení %ld do databáze: '%-.192s' uživatel: '%-.48s' (%-.64s)"
         dan "Afbrudt forbindelse %ld til database: '%-.192s' bruger: '%-.48s' (%-.64s)"
@@ -3671,30 +3637,8 @@ ER_TABLE_CANT_HANDLE_AUTO_INCREMENT 42000
         spa "El tipo de tabla usada no permite soporte para columnas AUTO_INCREMENT"
         swe "Den använda tabelltypen kan inte hantera AUTO_INCREMENT-kolumner"
         ukr "Використаний тип таблиці не підтримує AUTO_INCREMENT стовбці"
-ER_DELAYED_INSERT_TABLE_LOCKED  
-        cze "INSERT DELAYED není možno s tabulkou '%-.192s' použít, protože je zamčená pomocí LOCK TABLES"
-        dan "INSERT DELAYED kan ikke bruges med tabellen '%-.192s', fordi tabellen er låst med LOCK TABLES"
-        nla "INSERT DELAYED kan niet worden gebruikt bij table '%-.192s', vanwege een 'lock met LOCK TABLES"
+ER_UNUSED3
         eng "INSERT DELAYED can't be used with table '%-.192s' because it is locked with LOCK TABLES"
-        est "INSERT DELAYED ei saa kasutada tabeli '%-.192s' peal, kuna see on lukustatud LOCK TABLES käsuga"
-        fre "INSERT DELAYED ne peut être utilisé avec la table '%-.192s', car elle est verrouée avec LOCK TABLES"
-        ger "INSERT DELAYED kann für Tabelle '%-.192s' nicht verwendet werden, da sie mit LOCK TABLES gesperrt ist"
-        greek "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        hun "Az INSERT DELAYED nem hasznalhato a '%-.192s' tablahoz, mert a tabla zarolt (LOCK TABLES)"
-        ita "L'inserimento ritardato (INSERT DELAYED) non puo` essere usato con la tabella '%-.192s', perche` soggetta a lock da 'LOCK TABLES'"
-        jpn "表 '%-.192s' はLOCK TABLESでロックされているため、INSERT DELAYEDを使用できません。"
-        kor "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        nor "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        norwegian-ny "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        pol "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        por "INSERT DELAYED não pode ser usado com a tabela '%-.192s', porque ela está travada com LOCK TABLES"
-        rum "INSERT DELAYED nu poate fi folosit cu tabela '%-.192s', deoarece este locked folosing LOCK TABLES"
-        rus "Нельзя использовать INSERT DELAYED для таблицы '%-.192s', потому что она заблокирована с помощью LOCK TABLES"
-        serbian "Komanda 'INSERT DELAYED' ne može biti iskorištena u tabeli '%-.192s', zbog toga što je zaključana komandom 'LOCK TABLES'"
-        slo "INSERT DELAYED can't be used with table '%-.192s', because it is locked with LOCK TABLES"
-        spa "INSERT DELAYED no puede ser usado con tablas '%-.192s', porque esta bloqueada con LOCK TABLES"
-        swe "INSERT DELAYED kan inte användas med tabell '%-.192s', emedan den är låst med LOCK TABLES"
-        ukr "INSERT DELAYED не може бути використано з таблицею '%-.192s', тому що її заблоковано з LOCK TABLES"
 ER_WRONG_COLUMN_NAME 42000 
         cze "Nesprávné jméno sloupce '%-.100s'"
         dan "Forkert kolonnenavn '%-.100s'"
@@ -5678,8 +5622,8 @@ ER_SP_WRONG_NAME 42000
         eng "Incorrect routine name '%-.192s'"
         ger "Ungültiger Routinenname '%-.192s'"
 ER_TABLE_NEEDS_UPGRADE
-        eng "Table upgrade required. Please do \"REPAIR TABLE `%-.32s`\" or dump/reload to fix it!"
-        ger "Tabellenaktualisierung erforderlich. Bitte zum Reparieren \"REPAIR TABLE `%-.32s`\" eingeben!"
+        eng "Table upgrade required. Please do \"REPAIR TABLE `%-.64s`\" or dump/reload to fix it!"
+        ger "Tabellenaktualisierung erforderlich. Bitte zum Reparieren \"REPAIR TABLE `%-.64s`\" eingeben!"
 ER_SP_NO_AGGREGATE 42000
         eng "AGGREGATE is not supported for stored functions"
         ger "AGGREGATE wird bei gespeicherten Funktionen nicht unterstützt"
@@ -6129,7 +6073,7 @@ ER_DUP_ENTRY_WITH_KEY_NAME 23000 S1009
         kor "중복된 입력 값 '%-.64s': key '%-.192s'"
         nor "Like verdier '%-.64s' for nøkkel '%-.192s'"
         norwegian-ny "Like verdiar '%-.64s' for nykkel '%-.192s'"
-        pol "Powtórzone wyst?pienie '%-.64s' dla klucza '%-.192s'"
+        pol "Powtórzone wystąpienie '%-.64s' dla klucza '%-.192s'"
         por "Entrada '%-.64s' duplicada para a chave '%-.192s'"
         rum "Cimpul '%-.64s' e duplicat pentru cheia '%-.192s'"
         rus "Дублирующаяся запись '%-.64s' по ключу '%-.192s'"
@@ -6390,7 +6334,7 @@ ER_BINLOG_MULTIPLE_ENGINES_AND_SELF_LOGGING_ENGINE
 
 ER_BINLOG_UNSAFE_LIMIT
   eng "The statement is unsafe because it uses a LIMIT clause. This is unsafe because the set of rows included cannot be predicted."
-ER_BINLOG_UNSAFE_INSERT_DELAYED
+ER_UNUSED4
   eng "The statement is unsafe because it uses INSERT DELAYED. This is unsafe because the times when rows are inserted cannot be predicted."
 ER_BINLOG_UNSAFE_SYSTEM_TABLE
   eng "The statement is unsafe because it uses the general log, slow query log, or performance_schema table(s). This is unsafe because system tables may differ on slaves."
@@ -6518,7 +6462,7 @@ ER_MULTI_UPDATE_KEY_CONFLICT
 # When translating this error message make sure to include "ALTER TABLE" in the
 # message as mysqlcheck parses the error message looking for ALTER TABLE.
 ER_TABLE_NEEDS_REBUILD
-        eng "Table rebuild required. Please do \"ALTER TABLE `%-.32s` FORCE\" or dump/reload to fix it!"
+        eng "Table rebuild required. Please do \"ALTER TABLE `%-.64s` FORCE\" or dump/reload to fix it!"
 
 WARN_OPTION_BELOW_LIMIT
   eng "The value of '%s' should be no less than the value of '%s'"
@@ -6756,8 +6700,8 @@ ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
   eng "Cannot execute statements with implicit commit inside a transaction when GTID_NEXT != AUTOMATIC or GTID_NEXT_LIST != NULL."
 
-ER_GTID_MODE_2_OR_3_REQUIRES_DISABLE_GTID_UNSAFE_STATEMENTS_ON
-  eng "GTID_MODE = ON or GTID_MODE = UPGRADE_STEP_2 requires DISABLE_GTID_UNSAFE_STATEMENTS = 1."
+ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
+  eng "GTID_MODE = ON or GTID_MODE = UPGRADE_STEP_2 requires ENFORCE_GTID_CONSISTENCY = 1."
 
 ER_GTID_MODE_REQUIRES_BINLOG
   eng "GTID_MODE = ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates."
@@ -6775,13 +6719,13 @@ ER_FOUND_GTID_EVENT_WHEN_GTID_MODE_IS_OFF
   eng "Found a Gtid_log_event or Previous_gtids_log_event when GTID_MODE = OFF."
 
 ER_GTID_UNSAFE_NON_TRANSACTIONAL_TABLE
-  eng "Updates to non-transactional tables are forbidden when DISABLE_GTID_UNSAFE_STATEMENTS = 1."
+  eng "When ENFORCE_GTID_CONSISTENCY = 1, updates to non-transactional tables can only be done in either autocommitted statements or single-statement transactions, and never in the same statement as updates to transactional tables."
 
 ER_GTID_UNSAFE_CREATE_SELECT
-  eng "CREATE TABLE ... SELECT is forbidden when DISABLE_GTID_UNSAFE_STATEMENTS = 1."
+  eng "CREATE TABLE ... SELECT is forbidden when ENFORCE_GTID_CONSISTENCY = 1."
 
 ER_GTID_UNSAFE_CREATE_DROP_TEMPORARY_TABLE_IN_TRANSACTION
-  eng "When DISABLE_GTID_UNSAFE_STATEMENTS = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1."
+ eng "When ENFORCE_GTID_CONSISTENCY = 1, the statements CREATE TEMPORARY TABLE and DROP TEMPORARY TABLE can be executed in a non-transactional context only, and require that AUTOCOMMIT = 1."
 
 ER_GTID_MODE_CAN_ONLY_CHANGE_ONE_STEP_AT_A_TIME
   eng "The value of GTID_MODE can only change one step at a time: OFF <-> UPGRADE_STEP_1 <-> UPGRADE_STEP_2 <-> ON. Also note that this value must be stepped up or down simultaneously on all servers; see the Manual for instructions." 
@@ -6934,6 +6878,100 @@ ER_FK_CANNOT_DELETE_PARENT
 ER_MALFORMED_PACKET
   eng "Malformed communication packet."
 
+ER_READ_ONLY_MODE
+        eng "Running in read-only mode"
+
+ER_GTID_NEXT_TYPE_UNDEFINED_GROUP
+  eng "When GTID_NEXT is set to a GTID, you must explicitly set it again after a COMMIT or ROLLBACK. If you see this error message in the slave SQL thread, it means that a table in the current transaction is transactional on the master and non-transactional on the slave. In a client connection, it means that you executed SET GTID_NEXT before a transaction and forgot to set GTID_NEXT to a different identifier or to 'AUTOMATIC' after COMMIT or ROLLBACK. Current GTID_NEXT is '%s'."
+
+ER_VARIABLE_NOT_SETTABLE_IN_SP
+  eng "The system variable %.200s cannot be set in stored procedures."
+
+ER_CANT_SET_GTID_PURGED_WHEN_GTID_MODE_IS_OFF
+  eng "GTID_PURGED can only be set when GTID_MODE = ON."
+
+ER_CANT_SET_GTID_PURGED_WHEN_GTID_EXECUTED_IS_NOT_EMPTY
+  eng "GTID_PURGED can only be set when GTID_EXECUTED is empty."
+
+ER_CANT_SET_GTID_PURGED_WHEN_OWNED_GTIDS_IS_NOT_EMPTY
+  eng "GTID_PURGED can only be set when there are no ongoing transactions (not even in other clients)."
+
+ER_GTID_PURGED_WAS_CHANGED
+  eng "GTID_PURGED was changed from '%s' to '%s'."
+
+ER_GTID_EXECUTED_WAS_CHANGED
+  eng "GTID_EXECUTED was changed from '%s' to '%s'."
+
+ER_BINLOG_STMT_MODE_AND_NO_REPL_TABLES
+  eng "Cannot execute statement: impossible to write to binary log since BINLOG_FORMAT = STATEMENT, and both replicated and non replicated tables are written to."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED 0A000
+  eng "%s is not supported for this operation. Try %s."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON 0A000
+  eng "%s is not supported. Reason: %s. Try %s."
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COPY
+  eng "COPY algorithm requires a lock"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_PARTITION
+  eng "Partition specific operations do not yet support LOCK/ALGORITHM"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_RENAME
+  eng "Columns participating in a foreign key are renamed"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE
+  eng "Cannot change column type INPLACE"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_CHECK
+  eng "Adding foreign keys needs foreign_key_checks=OFF"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_IGNORE
+  eng "Creating unique indexes with IGNORE requires COPY algorithm to remove duplicate rows"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOPK
+  eng "Dropping a primary key is not allowed without also adding a new primary key"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_AUTOINC
+  eng "Adding an auto-increment column requires a lock"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_HIDDEN_FTS
+  eng "Cannot replace hidden FTS_DOC_ID with a user-visible one"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_CHANGE_FTS
+  eng "Cannot drop or rename FTS_DOC_ID"
+
+ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FTS
+  eng "Fulltext index creation requires a lock"
+
+ER_SQL_SLAVE_SKIP_COUNTER_NOT_SETTABLE_IN_GTID_MODE
+  eng "sql_slave_skip_counter can not be set when the server is running with GTID_MODE = ON. Instead, for each transaction that you want to skip, generate an empty transaction with the same GTID as the transaction"
+
+ER_DUP_UNKNOWN_IN_INDEX 23000
+  cze "Zdvojený klíč (číslo klíče '%-.192s')"
+  dan "Flere ens nøgler for indeks '%-.192s'"
+  nla "Dubbele ingang voor zoeksleutel '%-.192s'"
+  eng "Duplicate entry for key '%-.192s'"
+  est "Kattuv väärtus võtmele '%-.192s'"
+  fre "Duplicata du champ pour la clef '%-.192s'"
+  ger "Doppelter Eintrag für Schlüssel '%-.192s'"
+  greek "Διπλή εγγραφή για το κλειδί '%-.192s'"
+  hun "Duplikalt bejegyzes a '%-.192s' kulcs szerint."
+  ita "Valore duplicato per la chiave '%-.192s'"
+  jpn "は索引 '%-.192s' で重複しています。"
+  kor "중복된 입력 값: key '%-.192s'"
+  nor "Like verdier for nøkkel '%-.192s'"
+  norwegian-ny "Like verdiar for nykkel '%-.192s'"
+  pol "Powtórzone wystąpienie dla klucza '%-.192s'"
+  por "Entrada duplicada para a chave '%-.192s'"
+  rum "Cimpul e duplicat pentru cheia '%-.192s'"
+  rus "Дублирующаяся запись по ключу '%-.192s'"
+  serbian "Dupliran unos za ključ '%-.192s'"
+  slo "Opakovaný kľúč (číslo kľúča '%-.192s')"
+  spa "Entrada duplicada para la clave '%-.192s'"
+  swe "Dubbel nyckel för nyckel '%-.192s'"
+  ukr "Дублюючий запис для ключа '%-.192s'"
+
 #
 #  End of 5.6 error messages.
 #
@@ -6947,6 +6985,17 @@ ER_ERROR_ON_MASTER
 ER_INCONSISTENT_ERROR
   eng "Query caused different errors on master and slave. Error on master: message (format)='%s' error code=%d; Error on slave:actual message='%s', error code=%d. Default database:'%s'. Query:'%s'"
 
+ER_STORAGE_ENGINE_NOT_LOADED
+        eng "Storage engine for table '%s'.'%s' is not loaded."
+
+ER_GET_STACKED_DA_WITHOUT_ACTIVE_HANDLER 0Z002
+  eng "GET STACKED DIAGNOSTICS when handler not active"
+
+ER_WARN_LEGACY_SYNTAX_CONVERTED
+  eng "%s is no longer supported. The statement was converted to %s."
+
+ER_IDENT_CAUSES_TOO_LONG_PATH
+  eng "Long database name and identifier for object resulted in path length exceeding %d characters. Path: '%s'."
 #
 #  End of 5.7 error messages.
 #

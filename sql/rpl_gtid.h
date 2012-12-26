@@ -1775,6 +1775,15 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status ensure_sidno(rpl_sidno sidno);
+  /// Returns true if there is a least one element of this Owned_gtids
+  /// set in the other Gtid_set.
+  bool is_intersection(const Gtid_set *other) const;
+  /// Returns true if this Owned_gtids is empty.
+  bool is_empty() const
+  {
+    Gtid_iterator git(this);
+    return git.get().sidno == 0;
+  }
   /// Returns the maximal sidno that this Owned_gtids currently has space for.
   rpl_sidno get_max_sidno() const
   {
@@ -1841,17 +1850,14 @@ public:
   */
   bool thread_owns_anything(my_thread_id thd_id) const
   {
-    rpl_sidno max_sidno= get_max_sidno();
-    for (rpl_sidno sidno= 1; sidno <= max_sidno; sidno++)
+    Gtid_iterator git(this);
+    Node *node= git.get_node();
+    while (node != NULL)
     {
-      HASH *hash= get_hash(sidno);
-      for (uint i= 0; i < hash->records; i++)
-      {
-        Node *node= (Node *)my_hash_element(hash, i);
-        DBUG_ASSERT(node != NULL);
-        if (node->owner == thd_id)
-          return true;
-      }
+      if (node->owner == thd_id)
+        return true;
+      git.next();
+      node= git.get_node();
     }
     return false;
   }
@@ -1925,6 +1931,82 @@ private:
   bool contains_gtid(const Gtid &gtid) const { return get_node(gtid) != NULL; }
   /// Growable array of hashes.
   DYNAMIC_ARRAY sidno_to_hash;
+
+public:
+  /**
+    Iterator over all groups in a Owned_gtids set.  This is a const
+    iterator; it does not allow modification of the set.
+  */
+  class Gtid_iterator
+  {
+  public:
+    Gtid_iterator(const Owned_gtids* og)
+      : owned_gtids(og), sidno(1), hash(NULL), node_index(0), node(NULL)
+    {
+      max_sidno= owned_gtids->get_max_sidno();
+      if (sidno <= max_sidno)
+        hash= owned_gtids->get_hash(sidno);
+      next();
+    }
+    /// Advance to next group.
+    inline void next()
+    {
+#ifndef DBUG_OFF
+      if (owned_gtids->sid_lock)
+        owned_gtids->sid_lock->assert_some_wrlock();
+#endif
+
+      while (sidno <= max_sidno)
+      {
+        DBUG_ASSERT(hash != NULL);
+        if (node_index < hash->records)
+        {
+          node= (Node *)my_hash_element(hash, node_index);
+          DBUG_ASSERT(node != NULL);
+          // Jump to next node on next iteration.
+          node_index++;
+          return;
+        }
+
+        node_index= 0;
+        // hash is initialized on constructor or in previous iteration
+        // for current SIDNO, so we must increment for next iteration.
+        sidno++;
+        if (sidno <= max_sidno)
+          hash= owned_gtids->get_hash(sidno);
+      }
+      node= NULL;
+    }
+    /// Return next group, or {0,0} if we reached the end.
+    inline Gtid get() const
+    {
+      Gtid ret= { 0, 0 };
+      if (node)
+      {
+        ret.sidno= sidno;
+        ret.gno= node->gno;
+      }
+      return ret;
+    }
+    /// Return next group Node, or NULL if we reached the end.
+    inline Node* get_node() const
+    {
+      return node;
+    }
+  private:
+    /// The Owned_gtids set we iterate over.
+    const Owned_gtids *owned_gtids;
+    /// The SIDNO of the current element, or 1 in the initial iteration.
+    rpl_sidno sidno;
+    /// Max SIDNO of the current iterator.
+    rpl_sidno max_sidno;
+    /// Current SIDNO hash.
+    HASH *hash;
+    /// Current node index on current SIDNO hash.
+    uint node_index;
+    /// Current node on current SIDNO hash.
+    Node *node;
+  };
 };
 
 
@@ -2031,20 +2113,42 @@ public:
   */
   enum_return_status acquire_ownership(THD *thd, const Gtid &gtid);
   /**
-    Update the state after the given thread has committed or rolled back.
+    Update the state after the given thread has flushed cache to binlog.
 
     This will:
      - release ownership of all GTIDs owned by the THD;
-     - if 'commit' is set, add all GTIDs in the Group_cache
-     - remove all owned GTIDS from thd->owned_gtid and thd->owned_gtid_set.
+     - add all GTIDs in the Group_cache to
+       logged_gtids;
      - send a broadcast on the condition variable for every sidno for
-       which we released ownership
+       which we released ownership.
 
     @param thd Thread for which owned groups are updated.
-    @param commit If true, the thread commits all owned GTIDs;
-    otherwise it rolls back.
   */
-  enum_return_status update(THD *thd, bool commit);
+  enum_return_status update_on_flush(THD *thd);
+  /**
+    Remove the GTID owned by thread from owned GTIDs, stating that
+    thd->owned_gtid was committed.
+
+    This will:
+     - remove owned GTID from owned_gtids;
+     - remove all owned GTIDS from thd->owned_gtid and thd->owned_gtid_set;
+
+    @param thd Thread for which owned groups are updated.
+  */
+  void update_on_commit(THD *thd);
+  /**
+    Update the state after the given thread has rollbacked.
+
+    This will:
+     - release ownership of all GTIDs owned by the THD;
+     - remove owned GTID from owned_gtids;
+     - remove all owned GTIDS from thd->owned_gtid and thd->owned_gtid_set;
+     - send a broadcast on the condition variable for every sidno for
+       which we released ownership.
+
+    @param thd Thread for which owned groups are updated.
+  */
+  void update_on_rollback(THD *thd);
 #endif // ifndef MYSQL_CLIENT
   /**
     Allocates a GNO for an automatically numbered group.
@@ -2110,6 +2214,17 @@ public:
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
   */
   enum_return_status ensure_sidno();
+  /**
+    Adds the given Gtid_set that contains the groups in the given
+    string to lost_gtids and logged_gtids, since lost_gtids must
+    be a subset of executed_gtids.
+    Requires that the write lock on sid_locks is held.
+
+    @param text The string to parse, see Gtid_set:add_gtid_text(const
+    char *, bool) for format details.
+    @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR.
+   */
+  enum_return_status add_lost_gtids(const char *text);
   /// Return a pointer to the Gtid_set that contains the logged groups.
   const Gtid_set *get_logged_gtids() const { return &logged_gtids; }
   /// Return a pointer to the Gtid_set that contains the logged groups.
@@ -2180,6 +2295,14 @@ private:
   void unlock_owned_sidnos(const THD *thd);
   /// Broadcast the condition for all SIDNOs owned by the given THD.
   void broadcast_owned_sidnos(const THD *thd);
+  /**
+    Remove the GTID owned by thread from owned GTIDs.
+
+    @param thd Thread for which owned groups are updated.
+    @param is_commit send a broadcast on the condition variable for
+           every sidno for which we released ownership.
+  */
+  void update_owned_gtids_impl(THD *thd, bool is_commit);
 
 
   /// Read-write lock that protects updates to the number of SIDs.
@@ -2220,7 +2343,7 @@ enum enum_group_type
     It is important that AUTOMATIC_GROUP==0 so that the default value
     for thd->variables->gtid_next.type is AUTOMATIC_GROUP.
   */
-  AUTOMATIC_GROUP= 0, GTID_GROUP, ANONYMOUS_GROUP, INVALID_GROUP
+  AUTOMATIC_GROUP= 0, GTID_GROUP, ANONYMOUS_GROUP, INVALID_GROUP, UNDEFINED_GROUP
 };
 
 
@@ -2245,6 +2368,17 @@ struct Gtid_specification
   { type= GTID_GROUP; gtid.sidno= sidno; gtid.gno= gno; }
   /// Set the type to GTID_GROUP and SID, GNO to the given Gtid.
   void set(const Gtid &gtid_param) { set(gtid_param.sidno, gtid_param.gno); }
+  /// Set the type to AUTOMATIC_GROUP.
+  void set_automatic()
+  {
+    type= AUTOMATIC_GROUP;
+  }
+  /// Set to undefined if the current type is GTID_GROUP.
+  void set_undefined()
+  {
+    if (type == GTID_GROUP)
+      type= UNDEFINED_GROUP;
+  }
   /// Set the type to GTID_GROUP and SID, GNO to 0, 0.
   void clear() { set(0, 0); }
   /// Return true if this Gtid_specification is equal to 'other'.
@@ -2592,7 +2726,7 @@ gtid_before_statement(THD *thd, Group_cache *gsc, Group_cache *gtc);
 
 /**
   Check that the current statement does not contradict
-  disable_gtid_unsafe_statements, that there is no implicit commit in
+  enforce_gtid_consistency, that there is no implicit commit in
   a transaction when GTID_NEXT!=AUTOMATIC, and whether the statement
   should be cancelled.
 

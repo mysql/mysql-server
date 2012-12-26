@@ -57,8 +57,6 @@ SET DEBUG_SYNC = 'foreign_constraint_check_for_update_done WAIT_FOR alter';
 /* con1 send */ UPDATE parent SET a = 2;
 # connection default: con1 is holding IX-lock on table child
 ALTER TABLE child ADD INDEX idx_2(B, C), DROP INDEX idx, LOCK=NONE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE child ADD INDEX idx_2(B, C), DROP INDEX idx, LOCK=NONE'
-ALTER TABLE child ADD INDEX idx_2(B, C), DROP INDEX idx, ALGORITHM=INPLACE;
 ERROR HY000: Lock wait timeout exceeded; try restarting transaction
 SET DEBUG_SYNC = 'now SIGNAL alter';
 /* con1 reap */ UPDATE parent SET a = 2;

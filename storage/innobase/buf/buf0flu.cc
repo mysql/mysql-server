@@ -75,6 +75,22 @@ in thrashing. */
 
 /* @} */
 
+/******************************************************************//**
+Increases flush_list size in bytes with zip_size for compressed page,
+UNIV_PAGE_SIZE for uncompressed page in inline function */
+static inline
+void
+incr_flush_list_size_in_bytes(
+/*==========================*/
+	buf_block_t*	block,		/*!< in: control block */
+	buf_pool_t*	buf_pool)	/*!< in: buffer pool instance */
+{
+	ut_ad(buf_flush_list_mutex_own(buf_pool));
+	ulint zip_size = page_zip_get_size(&block->page.zip);
+	buf_pool->stat.flush_list_bytes += zip_size ? zip_size : UNIV_PAGE_SIZE;
+	ut_ad(buf_pool->stat.flush_list_bytes <= buf_pool->curr_pool_size);
+}
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 /******************************************************************//**
 Validates the flush list.
@@ -304,6 +320,7 @@ buf_flush_insert_into_flush_list(
 	ut_d(block->page.in_flush_list = TRUE);
 	block->page.oldest_modification = lsn;
 	UT_LIST_ADD_FIRST(list, buf_pool->flush_list, &block->page);
+	incr_flush_list_size_in_bytes(block, buf_pool);
 
 #ifdef UNIV_DEBUG_VALGRIND
 	{
@@ -408,6 +425,8 @@ buf_flush_insert_sorted_into_flush_list(
 				     prev_b, &block->page);
 	}
 
+	incr_flush_list_size_in_bytes(block, buf_pool);
+
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low(buf_pool));
 #endif /* UNIV_DEBUG || UNIV_BUF_DEBUG */
@@ -507,6 +526,7 @@ buf_flush_remove(
 	buf_page_t*	bpage)	/*!< in: pointer to the block in question */
 {
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
+	ulint		zip_size;
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
 	ut_ad(mutex_own(buf_page_get_mutex(bpage)));
@@ -545,6 +565,9 @@ buf_flush_remove(
 	because we assert on in_flush_list in comparison function. */
 	ut_d(bpage->in_flush_list = FALSE);
 
+	zip_size = page_zip_get_size(&bpage->zip);
+	buf_pool->stat.flush_list_bytes -= zip_size ? zip_size : UNIV_PAGE_SIZE;
+
 	bpage->oldest_modification = 0;
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
@@ -573,7 +596,7 @@ buf_flush_relocate_on_flush_list(
 	buf_page_t*	dpage)	/*!< in/out: destination block */
 {
 	buf_page_t*	prev;
-	buf_page_t* 	prev_b = NULL;
+	buf_page_t*	prev_b = NULL;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
 
 	ut_ad(buf_pool_mutex_own(buf_pool));
@@ -1675,8 +1698,6 @@ buf_flush_batch(
 
 	buf_pool_mutex_exit(buf_pool);
 
-	buf_dblwr_flush_buffered_writes();
-
 #ifdef UNIV_DEBUG
 	if (buf_debug_prints && count > 0) {
 		fprintf(stderr, flush_type == BUF_FLUSH_LRU
@@ -2029,23 +2050,21 @@ Clears up tail of the LRU lists:
 The depth to which we scan each buffer pool is controlled by dynamic
 config parameter innodb_LRU_scan_depth.
 @return total pages flushed */
-UNIV_INLINE
+UNIV_INTERN
 ulint
-page_cleaner_flush_LRU_tail(void)
-/*=============================*/
+buf_flush_LRU_tail(void)
+/*====================*/
 {
-	ulint	i;
-	ulint	j;
 	ulint	total_flushed = 0;
 
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 
 		buf_pool_t*	buf_pool = buf_pool_from_array(i);
 
 		/* We divide LRU flush into smaller chunks because
 		there may be user threads waiting for the flush to
 		end in buf_LRU_get_free_block(). */
-		for (j = 0;
+		for (ulint j = 0;
 		     j < srv_LRU_scan_depth;
 		     j += PAGE_CLEANER_LRU_BATCH_CHUNK_SIZE) {
 
@@ -2076,14 +2095,12 @@ page_cleaner_flush_LRU_tail(void)
 
 /*********************************************************************//**
 Wait for any possible LRU flushes that are in progress to end. */
-UNIV_INLINE
+UNIV_INTERN
 void
-page_cleaner_wait_LRU_flush(void)
-/*=============================*/
+buf_flush_wait_LRU_batch_end(void)
+/*==============================*/
 {
-	ulint	i;
-
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t*	buf_pool;
 
 		buf_pool = buf_pool_from_array(i);
@@ -2340,7 +2357,8 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	ulint	next_loop_time = ut_time_ms() + 1000;
 	ulint	n_flushed = 0;
 	ulint	last_activity = srv_get_activity_count();
-	ulint	i;
+
+	ut_ad(!srv_read_only_mode);
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(buf_page_cleaner_thread_key);
@@ -2370,7 +2388,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 			last_activity = srv_get_activity_count();
 
 			/* Flush pages from end of LRU if required */
-			n_flushed = page_cleaner_flush_LRU_tail();
+			n_flushed = buf_flush_LRU_tail();
 
 			/* Flush pages from flush_list if required */
 			n_flushed += page_cleaner_flush_pages_if_needed();
@@ -2430,7 +2448,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	sweep and we'll come out of the loop leaving behind dirty pages
 	in the flush_list */
 	buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-	page_cleaner_wait_LRU_flush();
+	buf_flush_wait_LRU_batch_end();
 
 	bool	success;
 
@@ -2444,7 +2462,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_thread)(
 	/* Some sanity checks */
 	ut_a(srv_get_active_thread_type() == SRV_NONE);
 	ut_a(srv_shutdown_state == SRV_SHUTDOWN_FLUSH_PHASE);
-	for (i = 0; i < srv_buf_pool_instances; i++) {
+	for (ulint i = 0; i < srv_buf_pool_instances; i++) {
 		buf_pool_t* buf_pool = buf_pool_from_array(i);
 		ut_a(UT_LIST_GET_LEN(buf_pool->flush_list) == 0);
 	}

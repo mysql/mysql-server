@@ -390,11 +390,11 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   /** Pins for digest_hash. */
   LF_PINS *m_digest_hash_pins;
   /** Internal thread identifier, unique. */
-  ulong m_thread_internal_id;
+  ulonglong m_thread_internal_id;
   /** Parent internal thread identifier. */
-  ulong m_parent_thread_internal_id;
+  ulonglong m_parent_thread_internal_id;
   /** External (SHOW PROCESSLIST) thread identifier, not unique. */
-  ulong m_thread_id;
+  ulong m_processlist_id;
   /** Thread class. */
   PFS_thread_class *m_class;
   /**
@@ -476,6 +476,8 @@ struct PFS_ALIGNED PFS_thread : PFS_connection_slice
   int m_command;
   /** Start time. */
   time_t m_start_time;
+  /** Lock for Processlist state, Processlist info. */
+  pfs_lock m_processlist_lock;
   /** Processlist state. */
   const char *m_processlist_state_ptr;
   /** Length of @c m_processlist_state_ptr. */
@@ -528,7 +530,7 @@ PFS_cond* create_cond(PFS_cond_class *klass, const void *identity);
 void destroy_cond(PFS_cond *pfs);
 
 PFS_thread* create_thread(PFS_thread_class *klass, const void *identity,
-                          ulong thread_id);
+                          ulonglong processlist_id);
 
 void destroy_thread(PFS_thread *pfs);
 

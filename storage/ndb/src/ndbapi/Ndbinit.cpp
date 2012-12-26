@@ -61,6 +61,7 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theMinNoOfEventsToWakeUp= 0;
   theTransactionList= NULL;
   theConnectionArray= NULL;
+  theConnectionArrayLast= NULL;
   the_last_check_time= 0;
   theFirstTransId= 0;
   theRestartGCI= 0;
@@ -83,13 +84,15 @@ void Ndb::setup(Ndb_cluster_connection *ndb_cluster_connection,
   theError.code = 0;
 
   theConnectionArray = new NdbConnection * [MAX_NDB_NODES];
+  theConnectionArrayLast = new NdbConnection * [MAX_NDB_NODES];
   theCommitAckSignal = NULL;
   theCachedMinDbNodeVersion = 0;
   
   int i;
   for (i = 0; i < MAX_NDB_NODES ; i++) {
     theConnectionArray[i] = NULL;
-  }//forg
+    theConnectionArrayLast[i] = NULL;
+  }//for
   m_sys_tab_0 = NULL;
 
   theImpl->m_dbname.assign(aDataBase);
@@ -158,6 +161,7 @@ Ndb::~Ndb()
   releaseTransactionArrays();
 
   delete []theConnectionArray;
+  delete []theConnectionArrayLast;
   if(theCommitAckSignal != NULL){
     delete theCommitAckSignal; 
     theCommitAckSignal = NULL;
@@ -204,8 +208,10 @@ NdbImpl::NdbImpl(Ndb_cluster_connection *ndb_cluster_connection,
     theNdbObjectIdMap(1024,1024),
     theNoOfDBnodes(0),
     theWaiter(this),
+    wakeHandler(0),
+    wakeContext(~Uint32(0)),
     m_ev_op(0),
-    customDataPtr(0)
+    customData(0)
 {
   int i;
   for (i = 0; i < MAX_NDB_NODES; i++) {

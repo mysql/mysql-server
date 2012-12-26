@@ -350,6 +350,7 @@ Ndb::handleReceivedSignal(const NdbApiSignal* aSignal,
       else
       {
         tCon = lookupTransactionFromOperation(keyConf);
+        if (tCon == NULL) goto InvalidSignal;
       }
       const BlockReference aTCRef = aSignal->theSendersBlockRef;
 
@@ -1014,12 +1015,24 @@ Ndb::completedTransaction(NdbTransaction* aCon)
     theNoOfSentTransactions = tNoSentTransactions - 1;
     aCon->theListState = NdbTransaction::InCompletedList;
     aCon->handleExecuteCompletion();
-    if ((theMinNoOfEventsToWakeUp != 0) &&
-        (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp)) {
-      theMinNoOfEventsToWakeUp = 0;
-      theImpl->theWaiter.signal(NO_WAIT);
-      return;
-    }//if
+
+    if (theImpl->wakeHandler == 0)
+    {
+      if ((theMinNoOfEventsToWakeUp != 0) &&
+          (theNoOfCompletedTransactions >= theMinNoOfEventsToWakeUp))
+      {
+        theMinNoOfEventsToWakeUp = 0;
+        theImpl->theWaiter.signal(NO_WAIT);
+        return;
+      }
+    }
+    else
+    {
+      /**
+       * This is for multi-wait handling
+       */
+      theImpl->wakeHandler->notifyTransactionCompleted(this);
+    }
   } else {
     ndbout << "theNoOfSentTransactions = " << (int) theNoOfSentTransactions;
     ndbout << " theListState = " << (int) aCon->theListState;
@@ -1247,7 +1260,13 @@ Ndb::sendPrepTrans(int forceSend)
     insert_completed_list(a_con);
   }//for
   theNoOfPreparedTransactions = 0;
-  theImpl->do_forceSend(forceSend);
+  int did_send = theImpl->do_forceSend(forceSend);
+  if(forceSend) {
+    theImpl->incClientStat(Ndb::ForcedSendsCount, 1);
+  }
+  else {
+    theImpl->incClientStat(did_send ? Ndb::UnforcedSendsCount : Ndb::DeferredSendsCount, 1);
+  }
   return;
 }//Ndb::sendPrepTrans()
 
@@ -1397,12 +1416,20 @@ Ndb::sendRecSignal(Uint16 node_id,
   */
   theImpl->incClientStat(WaitMetaRequestCount, 1);
   PollGuard poll_guard(* theImpl);
+
+  /**
+   * Either we supply the correct conn_seq and ret_conn_seq == 0
+   *     or we supply conn_seq == 0 and ret_conn_seq != 0
+   */
   read_conn_seq= theImpl->getNodeSequence(node_id);
+  bool ok =
+    (conn_seq == read_conn_seq && ret_conn_seq == 0) ||
+    (conn_seq == 0 && ret_conn_seq != 0);
+
   if (ret_conn_seq)
     *ret_conn_seq= read_conn_seq;
-  if ((theImpl->get_node_alive(node_id)) &&
-      ((read_conn_seq == conn_seq) ||
-       (conn_seq == 0))) {
+  if ((theImpl->get_node_alive(node_id)) && ok)
+  {
     if (theImpl->check_send_size(node_id, send_size)) {
       return_code = theImpl->sendSignal(aSignal, node_id);
       if (return_code != -1) {
@@ -1415,9 +1442,8 @@ Ndb::sendRecSignal(Uint16 node_id,
       return_code = -4;
     }//if
   } else {
-    if ((theImpl->get_node_stopping(node_id)) &&
-        ((read_conn_seq == conn_seq) ||
-         (conn_seq == 0))) {
+    if ((theImpl->get_node_stopping(node_id)) && ok)
+    {
       return_code = -5;
     } else {
       return_code = -2;

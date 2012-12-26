@@ -77,6 +77,7 @@ c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(155)
 ) ROW_FORMAT=redundant;
 DROP TABLE t1;
+--replace_regex /> [0-9]*/> max_row_size/
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -93,6 +94,7 @@ c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(202)
 ) ROW_FORMAT=compact;
 DROP TABLE t1;
+--replace_regex /> [0-9]*/> max_row_size/
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -110,6 +112,7 @@ c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(103)
 ) ROW_FORMAT=compressed;
 DROP TABLE t1;
+--replace_regex /> [0-9]*/> max_row_size/
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -126,6 +129,7 @@ c11 char(200), c12 char(200), c13 char(200), c14 char(200), c15 char(200),
 c16 char(200), c17 char(200), c18 char(200), c19 char(200), c20 char(202)
 ) ROW_FORMAT=dynamic;
 DROP TABLE t1;
+--replace_regex /> [0-9]*/> max_row_size/
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1 (
 c01 char(200), c02 char(200), c03 char(200), c04 char(200), c05 char(200),
@@ -178,7 +182,7 @@ CREATE TABLE t1 (a varchar(128) character set utf8,
 
 SET SESSION innodb_strict_mode = ON;
 
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 CREATE TABLE t1 (i int) ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 
@@ -250,19 +254,19 @@ DROP TABLE t1;
 SET SESSION innodb_strict_mode = ON;
 SET GLOBAL innodb_file_per_table = OFF;
 SHOW VARIABLES LIKE 'innodb_file_per_table';
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_per_table = ON;
 SET GLOBAL innodb_file_format = `Antelope`;
 SHOW VARIABLES LIKE 'innodb_file%';
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 CREATE TABLE t4 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=8;
 SHOW WARNINGS;
---error ER_GET_ERRNO
+--error ER_ILLEGAL_HA
 CREATE TABLE t5 (id int PRIMARY KEY) ENGINE=innodb KEY_BLOCK_SIZE=16;
 SHOW WARNINGS;
 SET GLOBAL innodb_file_format = `Barracuda`;
@@ -322,6 +326,7 @@ UPDATE t1 SET i=@e;
 
 # The function dict_index_too_big_for_undo() prevents us from adding
 # one more index that is 767 bytes long.
+--replace_regex /> [0-9]*/> max_row_size/
 -- error ER_TOO_BIG_ROWSIZE
 CREATE INDEX t1j ON t1 (j(767));
 
@@ -436,11 +441,13 @@ DROP TABLE t1;
 # The following should fail in non-strict mode too.
 # (The fix of Bug #50945 only affects REDUNDANT and COMPACT tables.)
 SET SESSION innodb_strict_mode = off;
+--replace_regex /> [0-9]*/> max_row_size/
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1(
 	c text NOT NULL, d text NOT NULL,
 	PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;
+--replace_regex /> [0-9]*/> max_row_size/
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1(
 	c text NOT NULL, d text NOT NULL,
@@ -451,6 +458,7 @@ CREATE TABLE t1(
 	PRIMARY KEY (c(767),d(767)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4 CHARSET=ASCII;
 drop table t1;
+--replace_regex /> [0-9]*/> max_row_size/
 --error ER_TOO_BIG_ROWSIZE
 CREATE TABLE t1(c text, PRIMARY KEY (c(440)))
 ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=1 CHARSET=ASCII;

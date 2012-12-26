@@ -1,8 +1,4 @@
 call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
-call mtr.add_suppression("Cannot find index .*c2 in InnoDB index translation table");
-call mtr.add_suppression("Find index .*c2 in InnoDB index list but not its MySQL index number");
-call mtr.add_suppression("InnoDB: Error: table 'test/t1'");
-call mtr.add_suppression("MySQL is trying to open a table handle but the .ibd file for");
 SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
 SET GLOBAL innodb_file_per_table = on;
 CREATE TABLE t1 (c1 INT PRIMARY KEY, c2 INT, c3 TEXT)
@@ -58,7 +54,7 @@ ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 ERROR 23000: Duplicate entry '4' for key 'c2'
 DELETE FROM t1 WHERE c1 = 7;
 ALTER TABLE t1 ADD FOREIGN KEY(c2) REFERENCES t1(c2), ALGORITHM = INPLACE;
-ERROR 42000: This version of MySQL doesn't yet support 'ALTER TABLE t1 ADD FOREIGN KEY(c2) REFERENCES t1(c2), ALGORITHM = INPLACE'
+ERROR 0A000: ALGORITHM=INPLACE is not supported. Reason: Adding foreign keys needs foreign_key_checks=OFF. Try ALGORITHM=COPY.
 ALTER TABLE t1 ADD UNIQUE INDEX(c2), LOCK = EXCLUSIVE, ALGORITHM = INPLACE;
 DROP INDEX c2 ON t1;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
@@ -84,8 +80,10 @@ ddl_background_drop_tables	0
 ddl_online_create_index	0
 ddl_pending_alter_table	1
 INSERT INTO t1 VALUES(6,3,1);
-ERROR 23000: Can't write; duplicate key in table 't1'
 SET DEBUG_SYNC = 'now SIGNAL dml_done';
+ERROR 23000: Duplicate entry for key 'c2'
+DELETE FROM t1 WHERE c1=6;
+ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
 name	count
 ddl_background_drop_indexes	0
@@ -289,7 +287,7 @@ CHECK TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 ALTER TABLE t1 ADD UNIQUE INDEX c3p5(c3(5));
-ERROR 23000: Duplicate entry '' for key 'c3p5'
+ERROR 23000: Duplicate entry 'NULL' for key 'c3p5'
 UPDATE t1 SET c3 = NULL WHERE c3 = '';
 SET lock_wait_timeout = 1;
 SET DEBUG_SYNC = 'row_log_apply_before SIGNAL c3p5_created WAIT_FOR ins_done';

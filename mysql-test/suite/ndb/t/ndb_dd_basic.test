@@ -1,17 +1,3 @@
-#################################
-# Author: JO
-# Org Date: ?
-# Purpose: To test basic Cluster Disk Data 
-#################################
-# Change Author: JBM
-# Change Date: 2006-01-11
-# Change: Cleanup and test rename
-#################################
-# Change Author: Guangbao Ni
-# Change Date: 2007-03-20
-# Change: Test insert data when no datafile in spacetable
-#################################
-
 -- source include/have_ndb.inc
 
 #
@@ -20,28 +6,34 @@
 --replace_column 1 #
 select count(*) from information_schema.columns;
 
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
+#
 # some negative tests
+# - (which assumes that MyISAM does not support
+#    tablespace or logfile group)
+#
+
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
 UNDO_BUFFER_SIZE = 1M
 ENGINE=MYISAM;
 
+--error ER_UNKNOWN_STORAGE_ENGINE
 ALTER LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile02.dat'
 INITIAL_SIZE = 4M 
 ENGINE=XYZ;
 
+--error ER_ILLEGAL_HA_CREATE_OPTION
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1
 INITIAL_SIZE 12M;
 
+#
 # bug#29574
+#
 --error ER_CREATE_FILEGROUP_FAILED
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
@@ -54,7 +46,7 @@ ENGINE=NDB;
 # Start by creating a logfile group
 ##################################
 
-set storage_engine=ndb;
+set default_storage_engine=ndb;
 CREATE LOGFILE GROUP lg1
 ADD UNDOFILE 'undofile.dat'
 INITIAL_SIZE 16M
@@ -69,7 +61,7 @@ ENGINE=NDB;
 # Create a tablespace connected to the logfile group
 ###################################################
 
-set storage_engine=myisam;
+set default_storage_engine=myisam;
 CREATE TABLESPACE ts1
 ADD DATAFILE 'datafile.dat'
 USE LOGFILE GROUP lg1

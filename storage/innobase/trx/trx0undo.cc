@@ -1468,7 +1468,7 @@ trx_undo_mem_create(
 
 	if (undo == NULL) {
 
-		return NULL;
+		return(NULL);
 	}
 
 	undo->id = id;
@@ -1771,6 +1771,12 @@ trx_undo_assign_undo(
 
 	mutex_enter(&rseg->mutex);
 
+	DBUG_EXECUTE_IF(
+		"ib_create_table_fail_too_many_trx",
+		err = DB_TOO_MANY_CONCURRENT_TRXS;
+		goto func_exit;
+	);
+
 	undo = trx_undo_reuse_cached(trx, rseg, type, trx->id, &trx->xid,
 				     &mtr);
 	if (undo == NULL) {
@@ -1800,7 +1806,7 @@ func_exit:
 	mutex_exit(&(rseg->mutex));
 	mtr_commit(&mtr);
 
-	return err;
+	return(err);
 }
 
 /******************************************************************//**

@@ -32,7 +32,7 @@ public:
   const char* iter_next_table()
   {
     static const char* tables[] =
-      { "user", "db", "tables_priv", "columns_priv", "procs_priv", "host",
+      { "user", "db", "tables_priv", "columns_priv", "procs_priv",
         "proxies_priv" };
 
     if (m_iter_curr_table >= (sizeof(tables) / sizeof(tables[0])))
@@ -66,6 +66,7 @@ public:
     return false;
   }
 
+  static bool priv_tables_are_in_ndb(THD*);
 };
 
 #endif

@@ -1,6 +1,5 @@
 /*
-  Copyright 2010 Sun Microsystems, Inc.
-  All rights reserved. Use is subject to license terms.
+  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -54,7 +53,7 @@ public interface NdbOperationConst
     int getNdbErrorLine() /*_const_*/;
     String/*_const char *_*/ getTableName() /*_const_*/;
     NdbDictionary.TableConst/*_const NdbDictionary.Table *_*/ getTable() /*_const_*/;
-    int/*_const Type_*/ getType() /*_const_*/;
+    int/*_Type_*/ getType() /*_const_*/;
     int/*_LockMode_*/ getLockMode() /*_const_*/;
     int/*_AbortOption_*/ getAbortOption() /*_const_*/;
     /*_virtual_*/ NdbTransaction/*_NdbTransaction *_*/ getNdbTransaction() /*_const_*/;

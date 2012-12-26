@@ -159,6 +159,22 @@ extern void *my_memdup(const void *from,size_t length,myf MyFlags);
 extern char *my_strdup(const char *from,myf MyFlags);
 extern char *my_strndup(const char *from, size_t length,
 				   myf MyFlags);
+
+/*
+  Switch to my_malloc() if the memory block to be allocated is bigger than
+  max_alloca_sz.
+*/
+#ifndef HAVE_ALLOCA
+#define my_safe_alloca(size, max_alloca_sz) my_alloca(size)
+#define my_safe_afree(ptr, size, max_alloca_sz) my_afree(ptr)
+#else
+#define my_safe_alloca(size, max_alloca_sz) ((size <= max_alloca_sz) ? \
+                                             my_alloca(size) : \
+                                             my_malloc(size, MYF(0)))
+#define my_safe_afree(ptr, size, max_alloca_sz) if (size > max_alloca_sz) \
+                                               my_free(ptr)
+#endif                                          /* #ifndef HAVE_ALLOCA */
+
 #if !defined(DBUG_OFF) || defined(HAVE_VALGRIND)
 /**
   Put bad content in memory to be sure it will segfault if dereferenced.
@@ -264,11 +280,10 @@ extern int my_umask_dir,
 	   my_recived_signals,	/* Signals we have got */
 	   my_safe_to_handle_signal, /* Set when allowed to SIGTSTP */
 	   my_dont_interrupt;	/* call remember_intr when set */
-extern my_bool my_use_symdir;
 
 extern ulong	my_default_record_cache_size;
 extern my_bool  my_disable_locking, my_disable_async_io,
-                my_disable_flush_key_blocks, my_disable_symlinks;
+                my_disable_flush_key_blocks, my_enable_symlinks;
 extern char	wild_many,wild_one,wild_prefix;
 extern const char *charsets_dir;
 
@@ -366,10 +381,6 @@ typedef struct st_io_cache_share
   int                   running_threads; /* threads not in lock. */
   int                   total_threads;   /* threads sharing the cache. */
   int                   error;           /* Last error. */
-#ifdef NOT_YET_IMPLEMENTED
-  /* whether the structure should be free'd */
-  my_bool alloced;
-#endif
 } IO_CACHE_SHARE;
 
 typedef struct st_io_cache		/* Used when cacheing files */
@@ -758,7 +769,8 @@ extern size_t my_b_fill(IO_CACHE *info);
 extern void my_b_seek(IO_CACHE *info,my_off_t pos);
 extern size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length);
 extern my_off_t my_b_filelength(IO_CACHE *info);
-extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...);
+extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...)
+  ATTRIBUTE_FORMAT(printf, 2, 3);
 extern size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
 extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, size_t cache_size,
@@ -948,7 +960,8 @@ void my_security_attr_free(SECURITY_ATTRIBUTES *sa);
 
 /* implemented in my_conio.c */
 my_bool my_win_is_console(FILE *file);
-char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize);
+char *my_win_console_readline(const CHARSET_INFO *cs, char *mbbuf, size_t mbbufsize,
+                              size_t *nread);
 void my_win_console_write(const CHARSET_INFO *cs, const char *data, size_t datalen);
 void my_win_console_fputs(const CHARSET_INFO *cs, const char *data);
 void my_win_console_putc(const CHARSET_INFO *cs, int c);
