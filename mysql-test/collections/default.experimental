@@ -21,6 +21,3 @@ rpl.rpl_parallel_switch_sequential       # BUG#13626976 2012-02-07 dlenev Fails 
 
 sys_vars.rpl_init_slave_func		 # Bug#12535301 2011-05-09 andrei sys_vars.rpl_init_slave_func mismatches in daily-5.5
 
-rpl.rpl_mixed_mts_rec_crash_safe @solaris          # Bug#12902514 2011-08-19 andrei mts recovery tests are slow
-rpl.rpl_mixed_mts_rec_crash_safe_checksum @solaris # Bug#12902514 2011-08-19 andrei same as rpl_mixed_mts_rec_crash_safe
-rpl.rpl_mixed_mts_crash_safe @solaris              # Bug#12902514 2011-08-19 andrei same as rpl_mixed_mts_rec_crash_safe

@@ -5866,7 +5866,8 @@ fts_check_and_drop_orphaned_tables(
 				path = fil_make_ibd_name(
 					aux_table->name, false);
 
-				os_file_delete_if_exists(path);
+				os_file_delete_if_exists(innodb_file_data_key,
+							 path);
 
 				mem_free(path);
 			}

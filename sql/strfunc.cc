@@ -86,7 +86,7 @@ ulonglong find_set(TYPELIB *lib, const char *str, uint length,
         *set_warning= 1;
       }
       else
-        found|= ((longlong) 1 << (find - 1));
+        found|= 1ULL << (find - 1);
       if (pos >= end)
         break;
       start= pos + mblen;
