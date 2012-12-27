@@ -1127,7 +1127,8 @@ Tablespace::delete_files()
 
 		make_name(*it);
 
-		if (os_file_delete_if_exists(it->m_filename)) {
+		if (os_file_delete_if_exists(
+			innodb_file_data_key, it->m_filename)) {
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"Removed temporary tablespace data file: "
 				"\"%s\"", it->m_name);
