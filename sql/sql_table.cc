@@ -1140,6 +1140,7 @@ bool write_ddl_log_entry(DDL_LOG_ENTRY *ddl_log_entry,
   {
     DBUG_RETURN(TRUE);
   }
+  memset(file_entry_buf, 0, sizeof(file_entry_buf));
   file_entry_buf[DDL_LOG_ENTRY_TYPE_POS]=
                                     (char)DDL_LOG_ENTRY_CODE;
   file_entry_buf[DDL_LOG_ACTION_TYPE_POS]=
@@ -1234,6 +1235,7 @@ bool write_execute_ddl_log_entry(uint first_entry,
   {
     DBUG_RETURN(TRUE);
   }
+  memset(file_entry_buf, 0, sizeof(file_entry_buf));
   if (!complete)
   {
     /*
@@ -1247,12 +1249,7 @@ bool write_execute_ddl_log_entry(uint first_entry,
   }
   else
     file_entry_buf[DDL_LOG_ENTRY_TYPE_POS]= (char)DDL_IGNORE_LOG_ENTRY_CODE;
-  file_entry_buf[DDL_LOG_ACTION_TYPE_POS]= 0; /* Ignored for execute entries */
-  file_entry_buf[DDL_LOG_PHASE_POS]= 0;
   int4store(&file_entry_buf[DDL_LOG_NEXT_ENTRY_POS], first_entry);
-  file_entry_buf[DDL_LOG_NAME_POS]= 0;
-  file_entry_buf[DDL_LOG_NAME_POS + global_ddl_log.name_len]= 0;
-  file_entry_buf[DDL_LOG_NAME_POS + 2*global_ddl_log.name_len]= 0;
   if (!(*active_entry))
   {
     if (get_free_ddl_log_entry(active_entry, &write_header))
