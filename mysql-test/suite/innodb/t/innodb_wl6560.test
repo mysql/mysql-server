@@ -165,7 +165,12 @@ select * from t1;
 #    is recovered correctly.
 #
 --echo "testing creation of tablepsace by enabling error path"
+--echo # files in MYSQL_DATA_DIR
+--list_files $MYSQL_DATA_DIR/ ib*tmp*
 --source include/shutdown_mysqld.inc
+--echo "Temp-tablespace removed on shutdown"
+--echo # files in MYSQL_DATA_DIR
+--list_files $MYSQL_DATA_DIR/ ib*tmp*
 --echo --innodb-force-recovery-crash=100
 --error 3
 --exec $MYSQLD_CMD $crash=100
