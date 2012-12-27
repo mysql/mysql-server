@@ -4206,6 +4206,7 @@ int ha_partition::truncate_partition(Alter_info *alter_info, bool *binlog_stmt)
                               part, sub_elem->partition_name));
           if ((error= m_file[part]->ha_truncate()))
             break;
+          sub_elem->part_state= PART_NORMAL;
         } while (++j < num_subparts);
       }
       else
