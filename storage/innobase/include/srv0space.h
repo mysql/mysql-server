@@ -163,6 +163,7 @@ public:
 		m_last_file_size_max(),
 		m_created_new_raw(),
 		m_is_tablespace_full(false),
+		m_sanity_checks_done(false),
 		m_auto_extend_increment()
 	{
 		/* No op */
@@ -198,6 +199,22 @@ public:
 	bool get_tablespace_full_status()
 	{
 		return(m_is_tablespace_full);
+	}
+
+	/**
+	Set sanity check status
+	@param sanity_checks_status - true if sanity checks are done */
+	void set_sanity_check_status(bool sanity_check_status)
+	{
+		m_sanity_checks_done = sanity_check_status;
+	}
+
+	/**
+	Get sanity check status
+	@return true if sanity checks are done */
+	bool get_sanity_check_status()
+	{
+		return(m_sanity_checks_done);
 	}
 
 	/**
@@ -442,7 +459,10 @@ private:
 	bool		m_created_new_raw;
 
 	/** Tablespace full status */
-	bool			m_is_tablespace_full;
+	bool		m_is_tablespace_full;
+
+	/** if false, then sanity checks are still pending */
+	bool		m_sanity_checks_done;
 
 public:
 	/* We have to make this public because it is a config variable. */

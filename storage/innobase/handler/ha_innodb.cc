@@ -2730,8 +2730,10 @@ innobase_space_shutdown()
 {
 	DBUG_ENTER("innobase_space_shutdown");
 
-        srv_sys_space.shutdown();
-        srv_tmp_space.shutdown();
+	srv_sys_space.shutdown();
+	if (srv_tmp_space.get_sanity_check_status())
+		srv_tmp_space.delete_files();
+	srv_tmp_space.shutdown();
 
 	DBUG_VOID_RETURN;
 }
@@ -2746,7 +2748,7 @@ innobase_init_abort()
 {
 	DBUG_ENTER("innobase_init_abort");
 	innobase_space_shutdown();
-        DBUG_RETURN(1);
+	DBUG_RETURN(1);
 }
 
 /*********************************************************************//**
@@ -2902,6 +2904,9 @@ innobase_init(
 				" tablespace file name seems to be same");
                 DBUG_RETURN(innobase_init_abort());
 	}
+
+	srv_tmp_space.set_sanity_check_status(true);
+	srv_sys_space.set_sanity_check_status(true);
 
 	/* Delete the data files in the temporary tablespace. They are not
 	required for recovery. */
