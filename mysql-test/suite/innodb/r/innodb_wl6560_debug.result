@@ -1,0 +1,19 @@
+set global innodb_file_per_table = off;
+"testing creation of tablepsace by enabling error path"
+# files in MYSQL_DATA_DIR
+ibtmp1
+"Temp-tablespace removed on shutdown"
+# files in MYSQL_DATA_DIR
+--innodb-force-recovery-crash=100
+"Next stmt will crash server"
+"restarting server in normal mode"
+# files in MYSQL_DATA_DIR
+ibtmp1
+use test;
+create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
+insert into t1 values (1, 'c', 'b');
+select * from t1;
+keyc	c1	c2
+1	c	b
+set global innodb_file_format = Antelope;
+set global innodb_file_per_table = 1;

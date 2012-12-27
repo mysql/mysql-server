@@ -241,21 +241,6 @@ ibtmp1
 use test;
 select * from t1;
 ERROR 42S02: Table 'test.t1' doesn't exist
-"testing creation of tablepsace by enabling error path"
-# files in MYSQL_DATA_DIR
-ibtmp1
-"Temp-tablespace removed on shutdown"
-# files in MYSQL_DATA_DIR
---innodb-force-recovery-crash=100
-"restarting server in normal mode"
-# files in MYSQL_DATA_DIR
-ibtmp1
-use test;
-create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
-insert into t1 values (1, 'c', 'b');
-select * from t1;
-keyc	c1	c2
-1	c	b
 "testing temp-table creation in --innodb_read_only mode"
 use test;
 show tables;
