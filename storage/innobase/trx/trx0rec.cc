@@ -1254,8 +1254,7 @@ trx_undo_report_row_operation(
 	deallocation of undo log pages as they may lead to resource/page leak
 	in case of crash/recovery. */
 	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(index->table), NULL,
-		&mtr, NULL);
+		dict_table_is_temporary(index->table), &mtr);
 	mutex_enter(&trx->undo_mutex);
 
 	/* If the undo log is not assigned yet, assign one */
@@ -1393,8 +1392,7 @@ trx_undo_report_row_operation(
 		page_no = undo->last_page_no;
 
 		turn_off_logging_if_temp_table(
-			dict_table_is_temporary(index->table), NULL,
-			&mtr, NULL);
+			dict_table_is_temporary(index->table), &mtr);
 	} while (undo_block != NULL);
 
 	/* Did not succeed: out of space */

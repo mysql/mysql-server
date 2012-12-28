@@ -176,7 +176,7 @@ row_undo_search_clust_to_pcur(
 
 	mtr_start(&mtr);
 	turn_off_logging_if_temp_table(
-		dict_table_is_temporary(node->table), NULL, &mtr, NULL);
+		dict_table_is_temporary(node->table), &mtr);
 
 	clust_index = dict_table_get_first_index(node->table);
 
