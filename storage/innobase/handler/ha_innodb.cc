@@ -2878,6 +2878,7 @@ innobase_init(
         }
 
 	srv_sys_space.set_space_id(TRX_SYS_SPACE);
+	srv_sys_space.set_tablespace_path(srv_data_home);
 
 	/* Supports raw devices */
         if (!srv_sys_space.parse(innobase_data_file_path, true)) {
@@ -2894,6 +2895,7 @@ innobase_init(
 	/* We set the temporary tablspace id later, after recovery. */
 
 	/* Doesn't support raw devices. */
+	srv_tmp_space.set_tablespace_path(mysql_tmpdir_list.list[0]);
 	if (!srv_tmp_space.parse(innobase_temp_data_file_path, false)) {
                 DBUG_RETURN(innobase_init_abort());
         }

@@ -454,12 +454,14 @@ Tablespace::check_size(
 
 /**
 Make physical filename from control info.
-@param file - data file spec */
+@param file - data file spec
+@param tablespace_path - path where tablespace file will reside */
 UNIV_INTERN
 void
 Tablespace::make_name(
 /*==================*/
-	file_t&	file)
+	file_t&	file,
+	char*	tablespace_path)
 {
 	char	name[OS_FILE_MAX_PATH];
 
@@ -470,11 +472,11 @@ Tablespace::make_name(
 
 	ut_a(file.m_filename == 0);
 
-	ulint	dirnamelen = strlen(srv_data_home);
+	ulint	dirnamelen = strlen(tablespace_path);
 
 	ut_a(dirnamelen + strlen(file.m_name) < sizeof(name) - 1);
 
-	memcpy(name, srv_data_home, dirnamelen);
+	memcpy(name, tablespace_path, dirnamelen);
 
 	/* Add a path separator if needed. */
 	if (dirnamelen && name[dirnamelen - 1] != SRV_PATH_SEPARATOR) {
@@ -869,7 +871,7 @@ Tablespace::check_file_spec(
 	ibool*	create_new_db,
 	ulint	min_expected_tablespace_size)
 {
-	srv_normalize_path_for_win(srv_data_home);
+	srv_normalize_path_for_win(m_tablespace_path);
 
 	*create_new_db = FALSE;
 
@@ -907,7 +909,7 @@ Tablespace::check_file_spec(
 
 	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
 
-		make_name(*it);
+		make_name(*it, m_tablespace_path);
 
 		err = check_file_status(*it);
 
@@ -1119,13 +1121,13 @@ UNIV_INTERN
 void
 Tablespace::delete_files()
 {
-	srv_normalize_path_for_win(srv_data_home);
+	srv_normalize_path_for_win(m_tablespace_path);
 
 	files_t::iterator	end = m_files.end();
 
 	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
 
-		make_name(*it);
+		make_name(*it, m_tablespace_path);
 
 		if (os_file_delete_if_exists(
 			innodb_file_data_key, it->m_filename)) {

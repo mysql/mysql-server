@@ -164,6 +164,7 @@ public:
 		m_created_new_raw(),
 		m_is_tablespace_full(false),
 		m_sanity_checks_done(false),
+		m_tablespace_path(NULL),
 		m_auto_extend_increment()
 	{
 		/* No op */
@@ -172,6 +173,9 @@ public:
 	~Tablespace()
 	{
 		shutdown();
+		if (m_tablespace_path != 0) {
+			::free(m_tablespace_path);
+		}
 		ut_ad(m_files.empty());
 		ut_ad(m_space_id == ULINT_UNDEFINED);
 	}
@@ -215,6 +219,22 @@ public:
 	bool get_sanity_check_status()
 	{
 		return(m_sanity_checks_done);
+	}
+
+	/**
+	Set tablespace path.
+	@param tablespace_path - path where tablespace file should reside */
+	void set_tablespace_path(char* tablespace_path)
+	{
+		m_tablespace_path = ::strdup(tablespace_path);
+	}
+
+	/**
+	Get tablespace path.
+	@return path where tablespace file should reside. */
+	bool get_tablespace_path()
+	{
+		return(m_tablespace_path);
 	}
 
 	/**
@@ -418,8 +438,9 @@ private:
 
 	/**
 	Make physical filename from control info.
-	@param file - control information */
-	static void make_name(file_t& file);
+	@param file - control information
+	@param tablespace_path - path where tablespace file will reside */
+	static void make_name(file_t& file, char* tablespace_path);
 
 	/**
 	Convert a numeric string that optionally ends in G or M, to a number
@@ -463,6 +484,9 @@ private:
 
 	/** if false, then sanity checks are still pending */
 	bool		m_sanity_checks_done;
+
+	/** Path where tablespace files will reside. */
+	char*		m_tablespace_path;
 
 public:
 	/* We have to make this public because it is a config variable. */
