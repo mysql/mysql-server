@@ -2096,7 +2096,7 @@ files_checked:
 #endif /* UNIV_DEBUG */
 
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
-        ut_a(sum_of_new_sizes != ULINT_UNDEFINED);
+	ut_a(sum_of_new_sizes != ULINT_UNDEFINED);
 
 	tablespace_size_in_header = fsp_header_get_tablespace_size();
 

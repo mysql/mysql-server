@@ -656,12 +656,12 @@ row_quiesce_set_state(
 
 		return(DB_UNSUPPORTED);
 
-        } else if (dict_table_is_temporary(table)) {
+	} else if (dict_table_is_temporary(table)) {
 
-                ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
-                            ER_CANNOT_DISCARD_TEMPORARY_TABLE);
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_WARN,
+			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
 
-                return(DB_UNSUPPORTED);
+		return(DB_UNSUPPORTED);
 
 	} else if (row_quiesce_table_has_fts_index(table)) {
 
