@@ -1248,10 +1248,17 @@ trx_undo_report_row_operation(
 	rseg = trx->rseg;
 
 	mtr_start(&mtr);
+	/* Turning off logging at this mtr is fine as this mtr is being used 
+	only for purpose of tracking modification to already allocated undo-page.
+	Avoid supressing logging of mtr that are used for allocation and
+	deallocation of undo log pages as they may lead to resource/page leak
+	in case of crash/recovery. */
+	turn_off_logging_if_temp_table(
+		dict_table_is_temporary(index->table), NULL,
+		&mtr, NULL);
 	mutex_enter(&trx->undo_mutex);
 
 	/* If the undo log is not assigned yet, assign one */
-
 	switch (op_type) {
 	case TRX_UNDO_INSERT_OP:
 		undo = trx->insert_undo;
@@ -1384,6 +1391,10 @@ trx_undo_report_row_operation(
 		mutex_exit(&rseg->mutex);
 
 		page_no = undo->last_page_no;
+
+		turn_off_logging_if_temp_table(
+			dict_table_is_temporary(index->table), NULL,
+			&mtr, NULL);
 	} while (undo_block != NULL);
 
 	/* Did not succeed: out of space */

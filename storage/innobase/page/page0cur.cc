@@ -1692,8 +1692,11 @@ page_copy_rec_list_end_to_created_page(
 	log_data_len = dyn_array_get_data_size(&(mtr->log));
 
 	/* Individual inserts are logged in a shorter form */
-
-	log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
+	if (!dict_table_is_temporary(index->table)) {
+		log_mode = mtr_set_log_mode(mtr, MTR_LOG_SHORT_INSERTS);
+	} else {
+		log_mode = mtr_get_log_mode(mtr);
+	}
 
 	prev_rec = page_get_infimum_rec(new_page);
 	if (page_is_comp(new_page)) {
