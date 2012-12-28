@@ -1075,6 +1075,7 @@ dict_create_table_step(
 		/* thr->run_node = node->commit_node;
 
 		return(thr); */
+		DBUG_EXECUTE_IF("ib_ddl_crash_during_create", DBUG_SUICIDE(););
 	}
 
 	if (node->state == TABLE_ADD_TO_CACHE) {
