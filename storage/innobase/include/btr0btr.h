@@ -409,11 +409,11 @@ UNIV_INTERN
 void
 btr_free_but_not_root(
 /*==================*/
-	ulint                   space,		/*!< in: space where created */
-	ulint                   zip_size,	/*!< in: compressed page
+	ulint			space,		/*!< in: space where created */
+	ulint			zip_size,	/*!< in: compressed page
 						size in bytes or 0 for
 						uncompressed pages */
-	ulint                   root_page_no,	/*!< in: root page number */
+	ulint			root_page_no,	/*!< in: root page number */
 	bool			is_temp_table);	/*!< in: true if temp-table */
 /************************************************************//**
 Frees the B-tree root page. Other tree MUST already have been freed. */

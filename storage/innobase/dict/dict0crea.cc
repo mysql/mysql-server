@@ -254,7 +254,7 @@ dict_build_table_def_step(
 {
 	dict_table_t*	table;
 	dtuple_t*	row;
-	dberr_t         err = DB_SUCCESS;
+	dberr_t		err = DB_SUCCESS;
 
 	table = node->table;
 
