@@ -2616,7 +2616,7 @@ static bool block_until_new_connection()
         this thread for handling of new THD object/connection.
       */
       thd->mysys_var->abort= 0;
-      thd->thr_create_utime= my_micro_time();
+      thd->thr_create_utime= thd->start_utime= my_micro_time();
       add_global_thread(thd);
       mysql_mutex_unlock(&LOCK_thread_count);
       return true;
@@ -4838,7 +4838,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     unireg_abort(1);
   }
 
-#ifdef WITH_CSV_STORAGE_ENGINE
   if (opt_bootstrap)
     log_output_options= LOG_FILE;
   else
@@ -4872,10 +4871,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     logger.set_handlers(LOG_FILE, opt_slow_log ? log_output_options:LOG_NONE,
                         opt_log ? log_output_options:LOG_NONE);
   }
-#else
-  logger.set_handlers(LOG_FILE, opt_slow_log ? LOG_FILE:LOG_NONE,
-                      opt_log ? LOG_FILE:LOG_NONE);
-#endif
 
   /*
     Set the default storage engines
