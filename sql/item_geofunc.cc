@@ -52,7 +52,7 @@ void Item_geometry_func::fix_length_and_dec()
   collation.set(&my_charset_bin);
   decimals=0;
   max_length= (uint32) 4294967295U;
-  maybe_null= 1;
+  set_persist_maybe_null(1);
 }
 
 
@@ -145,7 +145,7 @@ void Item_func_as_wkt::fix_length_and_dec()
 {
   collation.set(default_charset(), DERIVATION_COERCIBLE, MY_REPERTOIRE_ASCII);
   max_length=MAX_BLOB_WIDTH;
-  maybe_null= 1;
+  set_persist_maybe_null(1);
 }
 
 

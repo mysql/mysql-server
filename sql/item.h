@@ -1849,9 +1849,14 @@ public:
         bitmap_fast_test_and_set(tab->read_set, field->field_index);
       if (field->vcol_info)
         tab->mark_virtual_col(field);
-    }  
+    }
   }
-  void update_used_tables() { update_table_bitmaps(); }
+  void update_used_tables()
+  {
+    update_table_bitmaps();
+    if (field && field->table)
+      maybe_null= field->maybe_null();
+  }
   Item *get_tmp_table_item(THD *thd);
   bool collect_item_field_processor(uchar * arg);
   bool add_field_to_set_processor(uchar * arg);
@@ -2874,7 +2879,11 @@ public:
   enum Item_result result_type () const { return orig_item->result_type(); }
   enum_field_types field_type() const   { return orig_item->field_type(); }
   table_map used_tables() const { return orig_item->used_tables(); }
-  void update_used_tables() { orig_item->update_used_tables(); }
+  void update_used_tables()
+  {
+    orig_item->update_used_tables();
+    maybe_null= orig_item->maybe_null;
+  }
   bool const_item() const { return orig_item->const_item(); }
   table_map not_null_tables() const { return orig_item->not_null_tables(); }
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
@@ -2966,6 +2975,7 @@ public:
   Item *replace_equal_field(uchar *arg);
   table_map used_tables() const;	
   table_map not_null_tables() const;
+  void update_used_tables();
   bool walk(Item_processor processor, bool walk_subquery, uchar *arg)
   { 
     return (*ref)->walk(processor, walk_subquery, arg) ||

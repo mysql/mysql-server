@@ -757,6 +757,11 @@ public:
   my_decimal *decimal_op(my_decimal *);
   enum_field_types field_type() const;
   void fix_length_and_dec();
+  void update_used_tables()
+  {
+    Item_func_coalesce::update_used_tables();
+    maybe_null= args[1]->maybe_null;
+  }
   const char *func_name() const { return "ifnull"; }
   Field *tmp_table_field(TABLE *table);
   uint decimal_precision() const;
@@ -779,6 +784,11 @@ public:
   enum_field_types field_type() const { return cached_field_type; }
   bool fix_fields(THD *, Item **);
   void fix_length_and_dec();
+  void update_used_tables()
+  {
+    Item_func::update_used_tables();
+    maybe_null= args[1]->maybe_null || args[2]->maybe_null;
+  }
   uint decimal_precision() const;
   const char *func_name() const { return "if"; }
   bool eval_not_null_tables(uchar *opt_arg);
@@ -1242,6 +1252,12 @@ public:
   my_decimal *val_decimal(my_decimal *);
   bool fix_fields(THD *thd, Item **ref);
   void fix_length_and_dec();
+  void update_used_tables()
+  {
+    Item_func::update_used_tables();
+    if (else_expr_num == -1 || args[else_expr_num]->maybe_null)
+      maybe_null= 1;
+  }
   uint decimal_precision() const;
   table_map not_null_tables() const { return 0; }
   enum Item_result result_type () const { return cached_result_type; }
@@ -1363,13 +1379,14 @@ public:
   enum Functype functype() const { return ISNULL_FUNC; }
   void fix_length_and_dec()
   {
-    decimals=0; max_length=1; maybe_null=0;
+    decimals=0; max_length=1; set_persist_maybe_null(0);
     update_used_tables();
   }
   const char *func_name() const { return "isnull"; }
   /* Optimize case of not_null_column IS NULL */
   virtual void update_used_tables()
   {
+    args[0]->update_used_tables();
     if (!args[0]->maybe_null)
     {
       used_tables_cache= 0;			/* is always false */
@@ -1377,7 +1394,6 @@ public:
     }
     else
     {
-      args[0]->update_used_tables();
       used_tables_cache= args[0]->used_tables();
       const_item_cache= args[0]->const_item();
     }
@@ -1424,7 +1440,7 @@ public:
   enum Functype functype() const { return ISNOTNULL_FUNC; }
   void fix_length_and_dec()
   {
-    decimals=0; max_length=1; maybe_null=0;
+    decimals=0; max_length=1; set_persist_maybe_null(0);
   }
   const char *func_name() const { return "isnotnull"; }
   optimize_type select_optimize() const { return OPTIMIZE_NULL; }
@@ -1495,6 +1511,12 @@ public:
   void cleanup();
   longlong val_int();
   bool fix_fields(THD *thd, Item **ref);
+  void update_used_tables()
+  {
+    Item_bool_func::update_used_tables();
+    if (regex_is_const)
+      maybe_null= 1;
+  }
   const char *func_name() const { return "regexp"; }
 
   virtual inline void print(String *str, enum_query_type query_type)

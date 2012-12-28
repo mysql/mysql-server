@@ -9166,11 +9166,18 @@ table_map Item_ref::used_tables() const
 
 
 void Item_ref::update_used_tables() 
-{ 
+{
   if (!get_depended_from())
-    (*ref)->update_used_tables(); 
+    (*ref)->update_used_tables();
+  maybe_null= (*ref)->maybe_null;
 }
 
+void Item_direct_view_ref::update_used_tables()
+{
+  Item_ref::update_used_tables();
+  if (view->table && view->table->maybe_null)
+    maybe_null= TRUE;
+}
 
 table_map Item_direct_view_ref::used_tables() const
 {

@@ -2579,6 +2579,7 @@ void Item_xml_str_func::fix_length_and_dec()
   int rc;
 
   nodeset_func= 0;
+  set_persist_maybe_null(1);
 
   if (agg_arg_charsets(collation, args, arg_count, MY_COLL_CMP_CONV, 1))
     return;

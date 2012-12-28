@@ -1351,7 +1351,7 @@ int Arg_comparator::compare_e_row()
 
 void Item_func_truth::fix_length_and_dec()
 {
-  maybe_null= 0;
+  set_persist_maybe_null(0);
   null_value= 0;
   decimals= 0;
   max_length= 1;
@@ -1859,7 +1859,8 @@ longlong Item_func_eq::val_int()
 void Item_func_equal::fix_length_and_dec()
 {
   Item_bool_func2::fix_length_and_dec();
-  maybe_null=null_value=0;
+  set_persist_maybe_null(0);
+  null_value= 0;
 }
 
 longlong Item_func_equal::val_int()
@@ -1999,7 +2000,7 @@ void Item_func_interval::fix_length_and_dec()
       }
     }
   }
-  maybe_null= 0;
+  set_persist_maybe_null(0);
   max_length= 2;
   used_tables_cache|= row->used_tables();
   not_null_tables_cache= row->not_null_tables();
@@ -2670,7 +2671,7 @@ void
 Item_func_nullif::fix_length_and_dec()
 {
   Item_bool_func2::fix_length_and_dec();
-  maybe_null=1;
+  set_persist_maybe_null(1);
   if (args[0])					// Only false if EOM
   {
     max_length=args[0]->max_length;
@@ -4465,6 +4466,8 @@ void Item_cond::update_used_tables()
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
+    if (!persistent_maybe_null && item->maybe_null)
+      maybe_null= 1;
   }
 }
 
@@ -4639,10 +4642,9 @@ longlong Item_is_not_null_test::val_int()
 */
 void Item_is_not_null_test::update_used_tables()
 {
+  args[0]->update_used_tables();
   if (!args[0]->maybe_null)
     used_tables_cache= 0;			/* is always true */
-  else
-    args[0]->update_used_tables();
 }
 
 
@@ -4925,7 +4927,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
     int comp_res= regcomp(TRUE);
     if (comp_res == -1)
     {						// Will always return NULL
-      maybe_null=1;
+      set_persist_maybe_null(1);
       fixed= 1;
       return FALSE;
     }
@@ -4935,7 +4937,7 @@ Item_func_regex::fix_fields(THD *thd, Item **ref)
     maybe_null= args[0]->maybe_null;
   }
   else
-    maybe_null=1;
+    set_persist_maybe_null(1);
   fixed= 1;
   return FALSE;
 }
@@ -5729,6 +5731,8 @@ void Item_equal::update_used_tables()
     item->update_used_tables();
     used_tables_cache|= item->used_tables();
     const_item_cache&= item->const_item();
+    if (!persistent_maybe_null && item->maybe_null)
+      maybe_null= 1;
   }
 }
 

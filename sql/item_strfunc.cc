@@ -272,7 +272,7 @@ String *Item_func_aes_decrypt::val_str(String *str)
 void Item_func_aes_decrypt::fix_length_and_dec()
 {
    max_length=args[0]->max_length;
-   maybe_null= 1;
+   set_persist_maybe_null(1);
 }
 
 
@@ -435,7 +435,7 @@ void Item_func_concat::fix_length_and_dec()
   if (max_result_length >= MAX_BLOB_WIDTH)
   {
     max_result_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
   max_length= (ulong) max_result_length;
 }
@@ -795,7 +795,7 @@ void Item_func_concat_ws::fix_length_and_dec()
   if (max_result_length >= MAX_BLOB_WIDTH)
   {
     max_result_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
   max_length= (ulong) max_result_length;
 }
@@ -997,7 +997,7 @@ void Item_func_replace::fix_length_and_dec()
   if (max_result_length >= MAX_BLOB_WIDTH)
   {
     max_result_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
   max_length= (ulong) max_result_length;
   
@@ -1081,7 +1081,7 @@ void Item_func_insert::fix_length_and_dec()
   if (max_result_length >= MAX_BLOB_WIDTH)
   {
     max_result_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
   max_length= (ulong) max_result_length;
 }
@@ -2184,7 +2184,7 @@ void Item_func_elt::fix_length_and_dec()
     set_if_bigger(max_length,args[i]->max_length);
     set_if_bigger(decimals,args[i]->decimals);
   }
-  maybe_null=1;					// NULL if wrong first arg
+  set_persist_maybe_null(1);			  // NULL if wrong first arg
 }
 
 
@@ -2419,14 +2419,14 @@ void Item_func_repeat::fix_length_and_dec()
     if (max_result_length >= MAX_BLOB_WIDTH)
     {
       max_result_length= MAX_BLOB_WIDTH;
-      maybe_null= 1;
+      set_persist_maybe_null(1);
     }
     max_length= (ulong) max_result_length;
   }
   else
   {
     max_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
 }
 
@@ -2509,14 +2509,14 @@ void Item_func_rpad::fix_length_and_dec()
     if (length >= MAX_BLOB_WIDTH)
     {
       length= MAX_BLOB_WIDTH;
-      maybe_null= 1;
+      set_persist_maybe_null(1);
     }
     max_length= (ulong) length;
   }
   else
   {
     max_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
 }
 
@@ -2626,14 +2626,14 @@ void Item_func_lpad::fix_length_and_dec()
     if (length >= MAX_BLOB_WIDTH)
     {
       length= MAX_BLOB_WIDTH;
-      maybe_null= 1;
+      set_persist_maybe_null(1);
     }
     max_length= (ulong) length;
   }
   else
   {
     max_length= MAX_BLOB_WIDTH;
-    maybe_null= 1;
+    set_persist_maybe_null(1);
   }
 }
 
@@ -3548,7 +3548,7 @@ bool Item_func_dyncol_create::fix_fields(THD *thd, Item **ref)
 
 void Item_func_dyncol_create::fix_length_and_dec()
 {
-  maybe_null= TRUE;
+  set_persist_maybe_null(1);
   collation.set(&my_charset_bin);
   decimals= 0;
 }
