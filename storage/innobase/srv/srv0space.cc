@@ -896,7 +896,7 @@ Tablespace::check_file_spec(
 			min_expected_tablespace_size / (1024 * 1024));
 
 		return(DB_ERROR);
-        }
+	}
 
 	dberr_t	err = DB_SUCCESS;
 

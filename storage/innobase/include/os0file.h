@@ -73,9 +73,9 @@ extern ulint	os_n_pending_writes;
 
 /* path name separator character */
 #ifdef __WIN__
-#  define OS_FILE_PATH_SEPARATOR        '\\'
+#  define OS_FILE_PATH_SEPARATOR	'\\'
 #else
-#  define OS_FILE_PATH_SEPARATOR        '/'
+#  define OS_FILE_PATH_SEPARATOR	'/'
 #endif
 
 /** File offset in bytes */
