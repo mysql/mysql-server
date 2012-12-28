@@ -4799,6 +4799,8 @@ retry:
 
 		start_page_no += n_pages;
 		pages_added += n_pages;
+		DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension",
+				DBUG_SUICIDE(););
 	}
 
 	mem_free(buf2);

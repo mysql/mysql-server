@@ -17,6 +17,7 @@
 # Will test following scenarios:
 # 1.  hit a crash point during tablespace creation to ensure temp-table
 #     is recovered correctly.
+# 2.  hit a crash point during table creation.
 #
 ################################################################################
 
@@ -61,6 +62,32 @@ use test;
 create temporary table t1 (keyc int, c1 char(100), c2 char(100)) engine=innodb;
 insert into t1 values (1, 'c', 'b');
 select * from t1;
+drop table t1;
+
+#-----------------------------------------------------------------------------
+#
+# 2.  hit a crash point during table creation.
+#
+--echo "try hitting crash-point during table creation"
+--echo # files in MYSQL_TMP_DIR
+--list_files $MYSQL_TMP_DIR/ ib*tmp*
+set session debug="+d,ib_ddl_crash_during_create";
+
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error 2013
+create temporary table t1
+        (a int, b int, primary key(a), index(b)) engine = innodb;
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+--echo # files in MYSQL_TMP_DIR
+--list_files $MYSQL_TMP_DIR/ ib*tmp*
+use test;
+create temporary table t1
+        (a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (1, 2);
+select * from t1;
+drop table t1;
 
 #-----------------------------------------------------------------------------
 #
