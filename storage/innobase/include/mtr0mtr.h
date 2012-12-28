@@ -37,15 +37,17 @@ Created 11/26/1995 Heikki Tuuri
 #include "page0types.h"
 
 /* Logging modes for a mini-transaction */
-#define MTR_LOG_ALL		21	/* default mode: log all operations
-					modifying disk-based data */
-#define	MTR_LOG_NONE		22	/* log no operations */
-#define	MTR_LOG_NO_REDO		23	/* Don't generate REDO */
-/*#define	MTR_LOG_SPACE	23 */	/* log only operations modifying
-					file space page allocation data
-					(operations in fsp0fsp.* ) */
-#define	MTR_LOG_SHORT_INSERTS	24	/* inserts are logged in a shorter
-					form */
+#define MTR_LOG_ALL			21	/* default mode: log all
+						operations modifying
+						disk-based data */
+#define MTR_LOG_NONE			22	/* log no operations and dirty
+						pages are not added to the
+						flush list */
+#define MTR_LOG_NO_REDO			23	/* Don't generate REDO log
+						but add dirty pages to
+						flush list */
+#define MTR_LOG_SHORT_INSERTS		24	/* inserts are logged in
+						a shorter form */
 
 /* Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
@@ -222,10 +224,8 @@ UNIV_INTERN
 void
 turn_off_logging_if_temp_table(
 /*============================*/
-        bool            is_temp,        /*!< in: true if temp-table */
-        trx_t*          trx,            /*!< in: current active trx */
-        mtr_t*          mtr,            /*!< out: mini-transaction */
-        ulint*          flags);		/*!< out: undo log and lock flags */
+	bool		is_temp,	/*!< in: true if temp-table */
+	mtr_t*		mtr);		/*!< out: mini-transaction */
 /**********************************************************//**
 Sets and returns a savepoint in mtr.
 @return	savepoint */

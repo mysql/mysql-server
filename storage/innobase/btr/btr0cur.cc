@@ -2781,7 +2781,7 @@ UNIV_INTERN
 dberr_t
 btr_cur_del_mark_set_clust_rec(
 /*===========================*/
-	ulint           flags,  /*!< in: undo logging and locking flags */
+	ulint		flags,  /*!< in: undo logging and locking flags */
 	buf_block_t*	block,	/*!< in/out: buffer block of the record */
 	rec_t*		rec,	/*!< in/out: record */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
@@ -3769,7 +3769,7 @@ btr_estimate_number_of_different_key_vals(
 
 	default:
 		ut_error;
-        }
+	}
 
 	/* It makes no sense to test more pages than are contained
 	in the index, thus we lower the number if it is too high */
@@ -4431,8 +4431,7 @@ btr_store_big_rec_extern_fields(
 
 			mtr_start(&mtr);
 			turn_off_logging_if_temp_table(
-				dict_table_is_temporary(index->table),
-				NULL, &mtr, NULL);
+				dict_table_is_temporary(index->table), &mtr);
 
 			if (prev_page_no == FIL_NULL) {
 				hint_page_no = 1 + rec_page_no;
@@ -4908,8 +4907,7 @@ btr_free_externally_stored_field(
 
 		mtr_start(&mtr);
 		turn_off_logging_if_temp_table(
-			dict_table_is_temporary(index->table),
-			NULL, &mtr, NULL);
+			dict_table_is_temporary(index->table), &mtr);
 
 #ifdef UNIV_SYNC_DEBUG
 		rec_block =

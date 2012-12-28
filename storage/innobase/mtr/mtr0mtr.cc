@@ -347,14 +347,9 @@ void
 turn_off_logging_if_temp_table(
 /*============================*/
 	bool		is_temp,	/*!< in: true if temp-table */
-	trx_t*		trx,		/*!< in: current active trx */
-	mtr_t*		mtr,		/*!< out: mini-transaction */
-	ulint*		flags)		/*!< out: undo log and lock flags */
+	mtr_t*		mtr)		/*!< out: mini-transaction */
 {
-	/* turn-off redo and undo logging for temporary table.
-	- redo-logging is turned-off for temporary table only.
-	  redo-logging done for other db objects viz. rollback segment
-	  creation is not blocked. */
+	/* turn off redo logging for temp-table. */
 	if (is_temp) {
 		mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
 	}
