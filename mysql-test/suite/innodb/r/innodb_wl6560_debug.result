@@ -15,5 +15,23 @@ insert into t1 values (1, 'c', 'b');
 select * from t1;
 keyc	c1	c2
 1	c	b
+drop table t1;
+"try hitting crash-point during table creation"
+# files in MYSQL_TMP_DIR
+ibtmp1
+set session debug="+d,ib_ddl_crash_during_create";
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+ERROR HY000: Lost connection to MySQL server during query
+# files in MYSQL_TMP_DIR
+ibtmp1
+use test;
+create temporary table t1
+(a int, b int, primary key(a), index(b)) engine = innodb;
+insert into t1 values (1, 2);
+select * from t1;
+a	b
+1	2
+drop table t1;
 set global innodb_file_format = Antelope;
 set global innodb_file_per_table = 1;
