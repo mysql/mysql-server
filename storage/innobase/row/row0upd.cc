@@ -1693,9 +1693,8 @@ row_upd_sec_index_entry(
 #endif /* UNIV_DEBUG */
 
 	mtr_start(&mtr);
-        turn_off_logging_if_temp_table(
-                dict_table_is_temporary(index->table), thr_get_trx(thr),
-                &mtr, &flags);
+	turn_off_logging_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
@@ -1972,7 +1971,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_upd_clust_rec_by_insert(
 /*========================*/
-	ulint           flags,  /*!< in: undo logging and locking flags */
+	ulint		flags,  /*!< in: undo logging and locking flags */
 	upd_node_t*	node,	/*!< in/out: row update node */
 	dict_index_t*	index,	/*!< in: clustered index of the record */
 	que_thr_t*	thr,	/*!< in: query thread */
@@ -2091,7 +2090,7 @@ err_exit:
 
 		mtr_start(mtr);
 		turn_off_logging_if_temp_table(
-			dict_table_is_temporary(table), trx, mtr, NULL);
+			dict_table_is_temporary(table), mtr);
 
 		if (!btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr)) {
 			ut_error;
@@ -2129,7 +2128,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_upd_clust_rec(
 /*==============*/
-	ulint           flags,  /*!< in: undo logging and locking flags */
+	ulint		flags,  /*!< in: undo logging and locking flags */
 	upd_node_t*	node,	/*!< in: row update node */
 	dict_index_t*	index,	/*!< in: clustered index */
 	ulint*		offsets,/*!< in: rec_get_offsets() on node->pcur */
@@ -2198,9 +2197,8 @@ row_upd_clust_rec(
 	down the index tree */
 
 	mtr_start(mtr);
-        turn_off_logging_if_temp_table(
-                dict_table_is_temporary(index->table), thr_get_trx(thr),
-                mtr, &flags);
+	turn_off_logging_if_temp_table(
+		dict_table_is_temporary(index->table), mtr);
 
 	/* NOTE: this transaction has an s-lock or x-lock on the record and
 	therefore other transactions cannot modify the record when we have no
@@ -2292,7 +2290,7 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_upd_del_mark_clust_rec(
 /*=======================*/
-	ulint           flags,  /*!< in: undo logging and locking flags */
+	ulint		flags,  /*!< in: undo logging and locking flags */
 	upd_node_t*	node,	/*!< in: row update node */
 	dict_index_t*	index,	/*!< in: clustered index */
 	ulint*		offsets,/*!< in/out: rec_get_offsets() for the
@@ -2370,9 +2368,8 @@ row_upd_clust_step(
 	/* We have to restore the cursor to its position */
 
 	mtr_start(&mtr);
-        turn_off_logging_if_temp_table(
-                dict_table_is_temporary(index->table), thr_get_trx(thr),
-                &mtr, &flags);
+	turn_off_logging_if_temp_table(
+		dict_table_is_temporary(index->table), &mtr);
 
 	/* If the restoration does not succeed, then the same
 	transaction has deleted the record on which the cursor was,
