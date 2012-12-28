@@ -44,12 +44,10 @@ SET auto_increment_increment = 500;
 SET auto_increment_offset = 300;
 CREATE TABLE t1 (a TINYINT <CUSTOM_COL_OPTIONS> AUTO_INCREMENT, <CUSTOM_INDEX>(a)) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
 INSERT INTO t1 (a) VALUES (NULL);
-Warnings:
-Warning	1264	Out of range value for column 'a' at row 1
+ERROR 22003: Out of range value for column 'a' at row 1
 SELECT LAST_INSERT_ID();
 LAST_INSERT_ID()
-127
+850
 SELECT * FROM t1;
 a
-127
 DROP TABLE t1;

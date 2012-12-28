@@ -11,6 +11,7 @@ Note	1265	Data truncated for column 'c1' at row 1
 INSERT IGNORE INTO t1 (c1) VALUES(NOW());
 Warnings:
 Note	1265	Data truncated for column 'c1' at row 1
+Warning	1062	Duplicate entry '2007-02-13' for key 'c1'
 SELECT * FROM t1;
 c1
 2007-02-13
@@ -20,6 +21,8 @@ CREATE TABLE t1(c1 YEAR NULL UNIQUE);
 INSERT INTO t1 (c1) VALUES(1999);
 INSERT INTO t1 (c1) VALUES(2000);
 INSERT IGNORE INTO t1 (c1) VALUES(1999);
+Warnings:
+Warning	1062	Duplicate entry '1999' for key 'c1'
 SELECT * FROM t1;
 c1
 1999
@@ -36,6 +39,7 @@ Note	1265	Data truncated for column 'c1' at row 1
 INSERT IGNORE INTO t1 (c1) VALUES(NOW());
 Warnings:
 Note	1265	Data truncated for column 'c1' at row 1
+Warning	1062	Duplicate entry '09:09:33' for key 'c1'
 SELECT * FROM t1;
 c1
 09:09:33
@@ -45,6 +49,8 @@ CREATE TABLE t1(c1 YEAR NULL UNIQUE);
 INSERT INTO t1 (c1) VALUES(1999);
 INSERT INTO t1 (c1) VALUES(2000);
 INSERT IGNORE INTO t1 (c1) VALUES(1999);
+Warnings:
+Warning	1062	Duplicate entry '1999' for key 'c1'
 SELECT * FROM t1;
 c1
 1999
@@ -55,6 +61,8 @@ SET TIMESTAMP=1171346973;
 INSERT INTO t1 (c1) VALUES(NOW());
 INSERT INTO t1 (c1) VALUES(ADDTIME(NOW(),'1 01:01:01'));
 INSERT IGNORE INTO t1 (c1) VALUES(NOW());
+Warnings:
+Warning	1062	Duplicate entry '2007-02-13 09:09:33' for key 'c1'
 SELECT * FROM t1;
 c1
 2007-02-13 09:09:33
@@ -64,6 +72,8 @@ CREATE TABLE t1(c1 YEAR NULL UNIQUE);
 INSERT INTO t1 (c1) VALUES(1999);
 INSERT INTO t1 (c1) VALUES(2000);
 INSERT IGNORE INTO t1 (c1) VALUES(1999);
+Warnings:
+Warning	1062	Duplicate entry '1999' for key 'c1'
 SELECT * FROM t1;
 c1
 1999
@@ -74,6 +84,8 @@ SET TIMESTAMP=1171346973;
 INSERT INTO t1 (c1) VALUES(NOW());
 INSERT INTO t1 (c1) VALUES(ADDTIME(NOW(),'1 01:01:01'));
 INSERT IGNORE INTO t1 (c1) VALUES(NOW());
+Warnings:
+Warning	1062	Duplicate entry '2007-02-13 09:09:33' for key 'c1'
 SELECT * FROM t1;
 c1
 2007-02-13 09:09:33
@@ -83,6 +95,8 @@ CREATE TABLE t1(c1 YEAR NULL UNIQUE);
 INSERT INTO t1 (c1) VALUES(1999);
 INSERT INTO t1 (c1) VALUES(2000);
 INSERT IGNORE INTO t1 (c1) VALUES(1999);
+Warnings:
+Warning	1062	Duplicate entry '1999' for key 'c1'
 SELECT * FROM t1;
 c1
 1999

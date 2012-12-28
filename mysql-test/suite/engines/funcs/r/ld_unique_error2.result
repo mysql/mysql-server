@@ -4,6 +4,9 @@ INSERT INTO t1 VALUES(3,'a');
 ERROR 23000: Duplicate entry '3' for key 'PRIMARY'
 TRUNCATE TABLE t1;
 INSERT INTO t1 VALUES(3,'a');
+Warnings:
+Warning	1062	Duplicate entry '3' for key 'PRIMARY'
+Warning	1062	Duplicate entry '3' for key 'PRIMARY'
 SELECT * FROM t1 ORDER BY c1;
 c1	c2
 1	abc

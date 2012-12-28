@@ -2399,8 +2399,9 @@ INSERT INTO t3 VALUES(0,-128,1,2,3,4,5),(255,127,6,7,8,9,10);
 INSERT INTO t4 VALUES(-128,0,1,2,3,4,5,5),(127,255,6,7,8,9,10,10);
 INSERT INTO t5 VALUES(0,-128,1,2,3,4,5,5),(255,127,6,7,8,9,10,10);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '127' for key 'PRIMARY'
+ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t4;
 c1	c2	c3	c4	c5	c6	c7	c8
 -101	102	103	104	105	106	107	108
@@ -3760,20 +3761,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = 256 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 256 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 256 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 256 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> 256 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -5316,20 +5309,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	-128	26	27	28	29	30
 SELECT * FROM t3 WHERE c2 = 128 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 128 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 128 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 128 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 <> 128 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-128	1	2	3	4	5
@@ -8006,8 +7991,9 @@ INSERT INTO t3 VALUES(0,-32768,1,2,3,4,5),(255,-128,6,7,8,9,10),(65535,32767,11,
 INSERT INTO t4 VALUES(-32768,0,1,2,3,4,5,5),(-128,255,6,7,8,9,10,10),(32767,65535,11,12,13,14,15,15);
 INSERT INTO t5 VALUES(0,-32768,1,2,3,4,5,5),(255,-128,6,7,8,9,10,10),(65535,32767,11,12,13,14,15,15);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '32767' for key 'PRIMARY'
+ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t4;
 c1	c2	c3	c4	c5	c6	c7	c8
 -101	102	103	104	105	106	107	108
@@ -9410,20 +9396,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = 65536 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 65536 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 65536 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 65536 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> 65536 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -11018,20 +10996,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	-32768	26	27	28	29	30
 SELECT * FROM t3 WHERE c2 = 32768 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 32768 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 32768 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 32768 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 <> 32768 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-32768	1	2	3	4	5
@@ -13718,8 +13688,9 @@ INSERT INTO t3 VALUES(0,-8388608,1,2,3,4,5),(255,-32768,6,7,8,9,10),(65535,-128,
 INSERT INTO t4 VALUES(-8388608,0,1,2,3,4,5,5),(-32768,255,6,7,8,9,10,10),(-128,65535,11,12,13,14,15,15),(8388607,16777215,16,17,18,19,20,20);
 INSERT INTO t5 VALUES(0,-8388608,1,2,3,4,5,5),(255,-32768,6,7,8,9,10,10),(65535,-128,11,12,13,14,15,15),(16777215,8388607,16,17,18,19,20,20);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '8388607' for key 'PRIMARY'
+ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t4;
 c1	c2	c3	c4	c5	c6	c7	c8
 -101	102	103	104	105	106	107	108
@@ -15165,20 +15136,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = 16777216 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 16777216 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 16777216 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 16777216 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> 16777216 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -16825,20 +16788,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	-8388608	26	27	28	29	30
 SELECT * FROM t3 WHERE c2 = 8388608 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 8388608 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 8388608 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 8388608 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 <> 8388608 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-8388608	1	2	3	4	5
@@ -19535,8 +19490,9 @@ INSERT INTO t3 VALUES(0,-2147483648,1,2,3,4,5),(255,-8388608,6,7,8,9,10),(65535,
 INSERT INTO t4 VALUES(-2147483648,0,1,2,3,4,5,5),(-8388608,255,6,7,8,9,10,10),(-32768,65535,11,12,13,14,15,15),(-128,16777215,16,17,18,19,20,20),(2147483647,4294967295,21,22,23,24,25,25);
 INSERT INTO t5 VALUES(0,-2147483648,1,2,3,4,5,5),(255,-8388608,6,7,8,9,10,10),(65535,-32768,11,12,13,14,15,15),(16777215,-128,16,17,18,19,20,20),(4294967295,2147483647,21,22,23,24,25,25);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '2147483647' for key 'PRIMARY'
+ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t4;
 c1	c2	c3	c4	c5	c6	c7	c8
 -101	102	103	104	105	106	107	108
@@ -21025,20 +20981,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> 4294967296 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -22737,20 +22685,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	-2147483648	26	27	28	29	30
 SELECT * FROM t3 WHERE c2 = 2147483648 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 2147483648 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 2147483648 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 2147483648 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 <> 2147483648 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-2147483648	1	2	3	4	5
@@ -25457,8 +25397,9 @@ INSERT INTO t3 VALUES(0,-2147483648,1,2,3,4,5),(255,-8388608,6,7,8,9,10),(65535,
 INSERT INTO t4 VALUES(-2147483648,0,1,2,3,4,5,5),(-8388608,255,6,7,8,9,10,10),(-32768,65535,11,12,13,14,15,15),(-128,16777215,16,17,18,19,20,20),(2147483647,4294967295,21,22,23,24,25,25);
 INSERT INTO t5 VALUES(0,-2147483648,1,2,3,4,5,5),(255,-8388608,6,7,8,9,10,10),(65535,-32768,11,12,13,14,15,15),(16777215,-128,16,17,18,19,20,20),(4294967295,2147483647,21,22,23,24,25,25);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '2147483647' for key 'PRIMARY'
+ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
+ERROR 22003: Out of range value for column 'c1' at row 1
 SELECT * FROM t4;
 c1	c2	c3	c4	c5	c6	c7	c8
 -101	102	103	104	105	106	107	108
@@ -26947,20 +26888,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	124	27	28	29	30	31
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 = 4294967296 ORDER BY c1,c6 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c1' at row 1
 SELECT * FROM t2 WHERE c1 <> 4294967296 ORDER BY c1,c6;
 c1	c2	c3	c4	c5	c6	c7
 0	NULL	5	6	NULL	0	NULL
@@ -28659,20 +28592,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	-2147483648	26	27	28	29	30
 SELECT * FROM t3 WHERE c2 = 2147483648 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 2147483648 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 2147483648 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 2147483648 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 <> 2147483648 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-2147483648	1	2	3	4	5
@@ -31379,7 +31304,7 @@ INSERT INTO t3 VALUES(0,-9223372036854775808,1,2,3,4,5),(255,-2147483648,6,7,8,9
 INSERT INTO t4 VALUES(-9223372036854775808,0,1,2,3,4,5,5),(-2147483648,255,6,7,8,9,10,10),(-8388608,65535,11,12,13,14,15,15),(-32768,16777215,16,17,18,19,20,20),(-128,4294967295,21,22,23,24,25,25),(9223372036854775807,18446744073709551615,26,27,28,29,30,30);
 INSERT INTO t5 VALUES(0,-9223372036854775808,1,2,3,4,5,5),(255,-2147483648,6,7,8,9,10,10),(65535,-8388608,11,12,13,14,15,15),(16777215,-32768,16,17,18,19,20,20),(4294967295,-128,21,22,23,24,25,25),(18446744073709551615,9223372036854775807,26,27,28,29,30,30);
 INSERT INTO t4(c2,c3) VALUES(31,32) /* tries to increment out of range */;
-ERROR 23000: Duplicate entry '9223372036854775807' for key 'PRIMARY'
+ERROR 22003: Out of range value for column 'c1' at row 1
 INSERT INTO t5(c2,c3) VALUES(33,34) /* tries to increment out of range */;
 ERROR HY000: Failed to read auto-increment value from storage engine
 SELECT * FROM t4;
@@ -34577,20 +34502,12 @@ c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	31	32	33	34	35
 SELECT * FROM t3 WHERE c2 = 9223372036854775808 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 9223372036854775808 ORDER BY c2,c7 LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 9223372036854775808 ORDER BY c2,c7 DESC;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 = 9223372036854775808 ORDER BY c2,c7 DESC LIMIT 2;
 c1	c2	c3	c4	c5	c6	c7
-Warnings:
-Warning	1264	Out of range value for column 'c2' at row 1
 SELECT * FROM t3 WHERE c2 <> 9223372036854775808 ORDER BY c2,c7;
 c1	c2	c3	c4	c5	c6	c7
 0	-9223372036854775808	1	2	3	4	5

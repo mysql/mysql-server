@@ -7,6 +7,8 @@ y YEAR <CUSTOM_COL_OPTIONS>,
 y4 YEAR(4) <CUSTOM_COL_OPTIONS>,
 y2 YEAR(2) <CUSTOM_COL_OPTIONS>
 ) ENGINE=<STORAGE_ENGINE> <CUSTOM_TABLE_OPTIONS>;
+Warnings:
+Note	1287	'YEAR(2)' is deprecated and will be removed in a future release. Please use YEAR(4) instead
 SHOW COLUMNS IN t1;
 Field	Type	Null	Key	Default	Extra
 d	date	#	#	#	
