@@ -309,8 +309,8 @@ Tablespace::get_file_name(
 /*======================*/
 	const char*	filepath)
 {
-        char* last_slash = strrchr((char*) filepath, OS_FILE_PATH_SEPARATOR);
-        return(last_slash ? last_slash + 1 : (char*) filepath);
+	char* last_slash = strrchr((char*) filepath, OS_FILE_PATH_SEPARATOR);
+	return(last_slash ? last_slash + 1 : (char*) filepath);
 }
 
 /**
@@ -880,7 +880,7 @@ Tablespace::check_file_spec(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Can only have < 1000 data files, you have "
 			"defined %lu",
-                        (ulint) m_files.size());
+			(ulint) m_files.size());
 
 		return(DB_ERROR);
 	}

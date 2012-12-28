@@ -3041,12 +3041,12 @@ row_discard_tablespace_for_mysql(
 
 		err = DB_ERROR;
 
-        } else if (dict_table_is_temporary(table)) {
+	} else if (dict_table_is_temporary(table)) {
 
-                ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
-                            ER_CANNOT_DISCARD_TEMPORARY_TABLE);
+		ib_senderrf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
+			    ER_CANNOT_DISCARD_TEMPORARY_TABLE);
 
-                err = DB_ERROR;
+		err = DB_ERROR;
 
 	} else if (table->n_foreign_key_checks_running > 0) {
 		char	table_name[MAX_FULL_NAME_LEN + 1];
@@ -4208,7 +4208,7 @@ check_next_foreign:
 
 				if (print_msg) {
 					char msg_tablename[
-                                                MAX_FULL_NAME_LEN + 1];
+						MAX_FULL_NAME_LEN + 1];
 
 					innobase_format_name(
 						msg_tablename, sizeof(tablename),
