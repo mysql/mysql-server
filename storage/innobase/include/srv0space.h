@@ -223,7 +223,7 @@ public:
 
 	/**
 	Set tablespace path.
-	@param tablespace_path - path where tablespace file should reside */
+	@param tablespace_path - path where tablespace file(s) resides */
 	void set_tablespace_path(char* tablespace_path)
 	{
 		m_tablespace_path = ::strdup(tablespace_path);
@@ -231,7 +231,7 @@ public:
 
 	/**
 	Get tablespace path.
-	@return path where tablespace file should reside. */
+	@return path where tablespace file(s) resides. */
 	bool get_tablespace_path()
 	{
 		return(m_tablespace_path);

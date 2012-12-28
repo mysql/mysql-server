@@ -1111,11 +1111,11 @@ fsp_fill_free_list(
 	ut_a(!zip_size || zip_size >= UNIV_ZIP_SIZE_MIN);
 
 
-	if(((space == srv_sys_space.space_id()
-	     && srv_sys_space.can_auto_extend_last_file())
-	    || (space == srv_tmp_space.space_id()
-		&& srv_tmp_space.can_auto_extend_last_file()))
-	   && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
+	if (((space == srv_sys_space.space_id()
+	      && srv_sys_space.can_auto_extend_last_file())
+	     || (space == srv_tmp_space.space_id()
+		 && srv_tmp_space.can_auto_extend_last_file()))
+	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
 		/* Try to increase the last data file size */
 		fsp_try_extend_data_file(&actual_increase, space, header, mtr);
 		size = mtr_read_ulint(header + FSP_SIZE, MLOG_4BYTES, mtr);

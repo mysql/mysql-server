@@ -2731,8 +2731,9 @@ innobase_space_shutdown()
 	DBUG_ENTER("innobase_space_shutdown");
 
 	srv_sys_space.shutdown();
-	if (srv_tmp_space.get_sanity_check_status())
+	if (srv_tmp_space.get_sanity_check_status()) {
 		srv_tmp_space.delete_files();
+	}
 	srv_tmp_space.shutdown();
 
 	DBUG_VOID_RETURN;
@@ -2861,29 +2862,29 @@ innobase_init(
 
 	/* The default dir for data files is the datadir of MySQL */
 
-        srv_data_home = innobase_data_home_dir
-                ? innobase_data_home_dir : default_path;
+	srv_data_home = innobase_data_home_dir
+		? innobase_data_home_dir : default_path;
 
 	/*--------------- Shared tablespaces -------------------------*/
 
-        /* Set the default auto-extend-increment for temp-tablespace based
+	/* Set the default auto-extend-increment for temp-tablespace based
 	on system-variable. */
-        srv_tmp_space.set_autoextend_increment(
+	srv_tmp_space.set_autoextend_increment(
 		srv_sys_space.get_autoextend_increment());
 
 	/* Set default InnoDB temp data file size to 12 MB and let it be
 	auto-extending. */
-        if (!innobase_data_file_path) {
-                innobase_data_file_path = (char*) "ibdata1:12M:autoextend";
-        }
+	if (!innobase_data_file_path) {
+		innobase_data_file_path = (char*) "ibdata1:12M:autoextend";
+	}
 
 	srv_sys_space.set_space_id(TRX_SYS_SPACE);
 	srv_sys_space.set_tablespace_path(srv_data_home);
 
 	/* Supports raw devices */
-        if (!srv_sys_space.parse(innobase_data_file_path, true)) {
-                DBUG_RETURN(innobase_init_abort());
-        }
+	if (!srv_sys_space.parse(innobase_data_file_path, true)) {
+		DBUG_RETURN(innobase_init_abort());
+	}
 
 	/* Set default InnoDB temp data file size to 12 MB and let it be
 	auto-extending. */
@@ -2897,14 +2898,14 @@ innobase_init(
 	/* Doesn't support raw devices. */
 	srv_tmp_space.set_tablespace_path(mysql_tmpdir_list.list[0]);
 	if (!srv_tmp_space.parse(innobase_temp_data_file_path, false)) {
-                DBUG_RETURN(innobase_init_abort());
-        }
+		DBUG_RETURN(innobase_init_abort());
+	}
 
 	/* Perform all sanity check before we take action of deleting files*/
-	if(Tablespace::intersection(srv_sys_space, srv_tmp_space)) {
+	if (Tablespace::intersection(srv_sys_space, srv_tmp_space)) {
 		sql_print_error("system shared and system temp"
 				" tablespace file name seems to be same");
-                DBUG_RETURN(innobase_init_abort());
+		DBUG_RETURN(innobase_init_abort());
 	}
 
 	srv_tmp_space.set_sanity_check_status(true);
@@ -9411,7 +9412,6 @@ innobase_table_is_noncompressed_temporary(
 	bool			file_per_table)	/*!< in: reflect current
 						file_per_table status */
 {
-
 	/* If you specify ROW_FORMAT=COMPRESSED but not KEY_BLOCK_SIZE,
 	the default compressed page size of 8KB is used. Setting of 8K
 	is done in innodb at latter stage during data validation.
@@ -9424,7 +9424,7 @@ innobase_table_is_noncompressed_temporary(
 
 	bool is_temp = create_info->options & HA_LEX_CREATE_TMP_TABLE;
 
-	return (is_temp && !is_compressed);
+	return(is_temp && !is_compressed);
 }
 
 
