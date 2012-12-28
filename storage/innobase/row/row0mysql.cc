@@ -4132,7 +4132,7 @@ check_next_foreign:
 
 	/* As we don't insert entries to SYSTEM TABLES for temp-tables
 	we need to avoid running removal of these entries. */
-	if(!dict_table_is_temporary(table))
+	if (!dict_table_is_temporary(table))
 	{
 		/* We use the private SQL parser of Innobase to generate the
 		query graphs needed in deleting the dictionary data from system

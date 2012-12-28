@@ -4295,12 +4295,13 @@ i_s_innodb_temp_table_info_fill_table(
 	all_temp_info_cache.reserve(UT_LIST_GET_LEN(dict_sys->table_non_LRU));
 
 	mutex_enter(&dict_sys->mutex);
-        for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
-             table != NULL;
-             table = UT_LIST_GET_NEXT(table_LRU, table)) {
+	for (table = UT_LIST_GET_FIRST(dict_sys->table_non_LRU);
+	     table != NULL;
+	     table = UT_LIST_GET_NEXT(table_LRU, table)) {
 
-		if (!dict_table_is_temporary(table))
+		if (!dict_table_is_temporary(table)) {
 			continue;
+		}
 
 		temp_table_info_t current_temp_table_info;
 
