@@ -5072,8 +5072,12 @@ INSERT INTO t3(c1,c2) VALUES('34 9:23','34 9:23') /* throws error as row exists 
 ERROR 23000: Duplicate entry '825:23:00-825:23:00' for key 'idx'
 INSERT IGNORE INTO t1(c1,c2) VALUES('10:22:33','10:22:34') /* doesn't throw error */;
 INSERT IGNORE INTO t2(c1,c2) VALUES('12:34:56.78','12:34:56.78') /*doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '12:34:56-12:34:56' for key 'PRIMARY'
 INSERT IGNORE INTO t1(c1,c2) VALUES('10:22:34','34 9:23') /*doesn't throw error */;
 INSERT IGNORE INTO t3(c1,c2) VALUES('34 9:23','34 9:23') /*doesn't throw error */;
+Warnings:
+Warning	1062	Duplicate entry '825:23:00-825:23:00' for key 'idx'
 SELECT * FROM t1 WHERE c1='10:23:33' /* no rows */;
 c1	c2	c3
 INSERT INTO t1(c1) VALUES('10:22:33') ON DUPLICATE KEY UPDATE c1='10:23:33';

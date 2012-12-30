@@ -47,6 +47,8 @@ a	b
 5	e
 6	f
 INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'a'
 INSERT INTO t1 (a,b) VALUES (3,'a'),(4,'d') ON DUPLICATE KEY UPDATE a = a+10;
 SELECT * FROM t1;
 a	b
@@ -85,6 +87,8 @@ a	b
 5	e
 6	f
 INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+Warnings:
+Warning	1062	Duplicate entry '1-a' for key 'a'
 INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE a = a+VALUES(a);
 SELECT * FROM t1;
 a	b
@@ -131,6 +135,8 @@ a	b
 5	e
 6	f
 INSERT IGNORE INTO t1 (a,b) VALUES (1,'a'),(12345,'z');
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 INSERT INTO t1 (a,b) VALUES (1,'a'),(12345,'z') ON DUPLICATE KEY UPDATE b = CONCAT(b,b);
 SELECT * FROM t1;
 a	b
