@@ -341,7 +341,7 @@ mtr_commit(
 }
 
 /***************************************************************//**
-Turn off redo logging if table is temp + undo if autocommit=on. */
+Turn off redo logging if table is temp. */
 UNIV_INTERN
 void
 turn_off_logging_if_temp_table(
@@ -349,7 +349,6 @@ turn_off_logging_if_temp_table(
 	bool		is_temp,	/*!< in: true if temp-table */
 	mtr_t*		mtr)		/*!< out: mini-transaction */
 {
-	/* turn off redo logging for temp-table. */
 	if (is_temp) {
 		mtr_set_log_mode(mtr, MTR_LOG_NO_REDO);
 	}
