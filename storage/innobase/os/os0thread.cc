@@ -140,7 +140,9 @@ os_thread_create_func(
 		It only uses the thread_id.  So close the handle now.
 		The thread object is held open by the thread until it
 		exits. */
+		Sleep(0);
 		CloseHandle(handle);
+
 	} else {
 		/* If we cannot start a new thread, life has no meaning. */
 		fprintf(stderr,
@@ -222,14 +224,7 @@ os_thread_exit(
 	os_mutex_exit(os_sync_mutex);
 
 #ifdef __WIN__
-# ifndef __cplusplus
-	/* "ExitThread is the preferred method of exiting a thread in C code
-	However, in C++ code, the thread is exited before any destructors
-	can be called or any other automatic cleanup can be performed.
-	Therefore, in C++ code, you should return from your thread function."
-	(msdn.microsoft.com)  */
 	ExitThread((DWORD) exit_value);
-# endif
 #else
 	pthread_detach(pthread_self());
 	pthread_exit(exit_value);
