@@ -1336,7 +1336,7 @@ error_exit:
 	}
 
 	if (dict_table_has_fts_index(table)) {
-		doc_id_t        doc_id;
+		doc_id_t	doc_id;
 
 		/* Extract the doc id from the hidden FTS column */
 		doc_id = fts_get_doc_id_from_row(table, node->row);
