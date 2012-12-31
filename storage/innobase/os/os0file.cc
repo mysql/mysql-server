@@ -5416,7 +5416,7 @@ consecutive_loop:
 
 		if (slot->reserved
 		    && slot != aio_slot
-		    && slot->offset == slot->offset + aio_slot->len
+		    && slot->offset == aio_slot->offset + aio_slot->len
 		    && slot->type == aio_slot->type
 		    && slot->file == aio_slot->file) {
 
