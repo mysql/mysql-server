@@ -791,6 +791,8 @@ dict_stats_update_transient_for_index(
 		mtr_t	mtr;
 		ulint	size;
 		mtr_start(&mtr);
+		turn_off_logging_if_temp_table(
+			dict_table_is_temporary(index->table), &mtr);
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 
 		size = btr_get_size(index, BTR_TOTAL_SIZE, &mtr);
