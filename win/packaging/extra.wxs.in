@@ -43,6 +43,8 @@
     <Property Id="SKIPNETWORKING" Secure="yes"/>
     <!-- Whether to keep default (unauthenticated) user. Default is no-->
     <Property Id="DEFAULTUSER" Secure="yes"/>
+    <!-- Set server character set to UTF8 -->
+    <Property Id="UTF8" Secure="yes"/>
     <!-- Whether to data on uninstall (default yes, after asking user consent) -->
     <Property Id="CLEANUPDATA" Secure="yes" Value="1"/>
     <!-- Force per machine installation -->
@@ -270,6 +272,10 @@
         </Control>
         <Control Id="Text13" Type="Text" X="21" Y="190" Width="254" Height="24" TabSkip="yes">
           <Text>Please note: this setting can lead to insecure systems.</Text>
+        </Control>
+
+        <Control Id="CheckBoxUTF8" Type="CheckBox" X="8" Y="215" Width="250" Height="18" Property="UTF8" CheckBoxValue="1" TabSkip="no">
+          <Text>{\Font1}Use UTF8 as default server's character set</Text>
         </Control>
 
         <!-- Navigation buttons-->
@@ -517,6 +523,20 @@
             Name="my.ini"
             Key="feedback"
             Value="ON" />
+      </Component>
+
+      <Component Id="C.utf8" Guid="*" Directory="DATADIR">
+        <Condition>UTF8</Condition>
+        <RegistryValue Root='HKLM'
+           Key='SOFTWARE\@MANUFACTURER@\@CPACK_WIX_PACKAGE_NAME@'
+           Name='UTF8' Value='1' Type='string' KeyPath='yes'/>
+        <IniFile Id="Ini6"
+            Action="createLine"
+            Directory="DATADIR"
+            Section="mysqld"
+            Name="my.ini"
+            Key="character-set-server"
+            Value="utf8" />
       </Component>
 
       <!--- Grant service account permission to the database folder (Windows 7 and later) -->
