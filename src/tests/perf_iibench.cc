@@ -42,17 +42,17 @@ static int UU() iibench_put_op(DB_TXN *txn, ARG arg, void *operation_extra, void
     }
 
     int r = 0;
+    uint8_t keybuf[arg->cli->key_size];
     uint8_t valbuf[arg->cli->val_size];
-    ZERO_ARRAY(valbuf);
+    dbt_init(&mult_key_dbt[0], keybuf, sizeof keybuf);
+    dbt_init(&mult_val_dbt[0], valbuf, sizeof valbuf);
 
     uint64_t puts_to_increment = 0;
     for (uint32_t i = 0; i < arg->cli->txn_size; ++i) {
-        fill_zeroed_array(valbuf, arg->cli->val_size, 
-                arg->random_data, arg->cli->compressibility);
         struct iibench_op_extra *CAST_FROM_VOIDP(info, operation_extra);
         uint64_t pk = toku_sync_fetch_and_add(&info->autoincrement, 1);
-        dbt_init(&mult_key_dbt[0], &pk, sizeof pk);
-        dbt_init(&mult_val_dbt[0], valbuf, sizeof valbuf);
+        fill_key_buf(pk, keybuf, arg->cli);
+        fill_val_buf_random(arg->random_data, valbuf, arg->cli);
         r = env->put_multiple(
             env, 
             dbs[0], // source db.
@@ -128,6 +128,6 @@ test_main(int argc, char *const argv[]) {
         args.crash_on_operation_failure = false;
     }
     args.env_args.generate_put_callback = iibench_generate_row_for_put;
-    stress_test_main_with_cmp(&args, stress_uint64_dbt_cmp);
+    perf_test_main(&args);
     return 0;
 }
