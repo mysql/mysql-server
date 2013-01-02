@@ -3883,7 +3883,7 @@ static int try_to_reconnect(THD *thd, MYSQL *mysql, Master_info *mi,
 {
   mi->slave_running= MYSQL_SLAVE_RUN_NOT_CONNECT;
   thd->proc_info= messages[SLAVE_RECON_MSG_WAIT];
-#ifdef SIGNAL_WITH_VIO_CLOSE  
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN  
   thd->clear_active_vio();
 #endif
   end_server(mysql);
@@ -4291,11 +4291,11 @@ err:
       Here we need to clear the active VIO before closing the
       connection with the master.  The reason is that THD::awake()
       might be called from terminate_slave_thread() because somebody
-      issued a STOP SLAVE.  If that happends, the close_active_vio()
+      issued a STOP SLAVE.  If that happends, the shutdown_active_vio()
       can be called in the middle of closing the VIO associated with
       the 'mysql' object, causing a crash.
     */
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     thd->clear_active_vio();
 #endif
     mysql_close(mysql);
@@ -6576,7 +6576,7 @@ err:
 
 extern "C" void slave_io_thread_detach_vio()
 {
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
   THD *thd= current_thd;
   if (thd && thd->slave_thread)
     thd->clear_active_vio();
@@ -6754,7 +6754,7 @@ replication resumed in log '%s' at position %s", mi->get_user(),
       general_log_print(thd, COM_CONNECT_OUT, "%s@%s:%d",
                         mi->get_user(), mi->host, mi->port);
     }
-#ifdef SIGNAL_WITH_VIO_CLOSE
+#ifdef SIGNAL_WITH_VIO_SHUTDOWN
     thd->set_active_vio(mysql->net.vio);
 #endif
   }
