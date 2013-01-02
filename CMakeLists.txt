@@ -16,6 +16,14 @@ include_directories(${MYSQL_HOME}/include/mysql/storage/ndb/ndbapi)
 
 link_directories(${MYSQL_HOME}/lib)
 
+add_definitions(-D_GNU_SOURCE -D_LARGEFILE_SOURCE -D_FILE_OFFSET_BITS=64)
+add_definitions(-D_BUILDING_V8_SHARED=1 -DBUILDING_UV_SHARED=1)
+add_definitions(-D_BUILDING_NODE_EXTENSION)
+
+if(WIN32) 
+  add_definitions(-DWIN32)
+endif()
+
 set(ADAPTER_SOURCE_FILES
   Adapter/impl/src/DBDictionaryImpl.cpp
   Adapter/impl/src/DBOperationHelper.cpp
@@ -42,7 +50,6 @@ set(ADAPTER_REQUIRED_LIBS
   ndbclient
   mysqlclient
 )
-
 
 add_library(ndb_adapter MODULE ${ADAPTER_SOURCE_FILES})
 
