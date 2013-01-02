@@ -1,0 +1,63 @@
+show databases;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+test
+select count(*) from performance_schema.performance_timers;
+count(*)
+5
+select count(*) from performance_schema.setup_consumers;
+count(*)
+8
+select count(*) > 0 from performance_schema.setup_instruments;
+count(*) > 0
+1
+select count(*) from performance_schema.setup_timers;
+count(*)
+1
+select * from performance_schema.cond_instances;
+select * from performance_schema.events_waits_current;
+select * from performance_schema.events_waits_history;
+select * from performance_schema.events_waits_history_long;
+select * from performance_schema.events_waits_summary_by_instance;
+select * from performance_schema.events_waits_summary_by_thread_by_event_name;
+select * from performance_schema.events_waits_summary_global_by_event_name;
+select * from performance_schema.file_instances;
+select * from performance_schema.file_summary_by_event_name;
+select * from performance_schema.file_summary_by_instance;
+select * from performance_schema.mutex_instances;
+select * from performance_schema.performance_timers;
+select * from performance_schema.rwlock_instances;
+select * from performance_schema.setup_consumers;
+select * from performance_schema.setup_instruments;
+select * from performance_schema.setup_timers;
+select * from performance_schema.threads;
+show variables like "performance_schema%";
+Variable_name	Value
+performance_schema	ON
+performance_schema_events_waits_history_long_size	0
+performance_schema_events_waits_history_size	10
+performance_schema_max_cond_classes	80
+performance_schema_max_cond_instances	1000
+performance_schema_max_file_classes	50
+performance_schema_max_file_handles	32768
+performance_schema_max_file_instances	10000
+performance_schema_max_mutex_classes	200
+performance_schema_max_mutex_instances	10000
+performance_schema_max_rwlock_classes	30
+performance_schema_max_rwlock_instances	10000
+performance_schema_max_table_handles	1000
+performance_schema_max_table_instances	500
+performance_schema_max_thread_classes	50
+performance_schema_max_thread_instances	1000
+show engine PERFORMANCE_SCHEMA status;
+show status like "performance_schema%";
+show variables like "performance_schema_events_waits_history_long_size";
+Variable_name	Value
+performance_schema_events_waits_history_long_size	0
+select count(*) from performance_schema.events_waits_history_long;
+count(*)
+0
+truncate table performance_schema.events_waits_history_long;
