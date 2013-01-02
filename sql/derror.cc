@@ -140,10 +140,13 @@ bool read_texts(const char *file_name, const char *language,
       sql_print_error("Can't find messagefile '%s'", name);
       goto open_err;
     }
-    sql_print_error("An old style --language value with language \
-                    specific part detected: %s", lc_messages_dir);
-    sql_print_error("Use --lc-messages-dir without language \
-                    specific part instead.");
+
+    sql_print_warning("Using pre 5.5 semantics to load error messages from %s.",
+                      lc_messages_dir);
+
+    sql_print_warning("If this is not intended, refer to the documentation for "
+                      "valid usage of --lc-messages-dir and --language "
+                      "parameters.");
   }
 
   // Read the header from the file
