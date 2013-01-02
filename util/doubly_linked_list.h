@@ -2,7 +2,7 @@
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ifndef UTIL_DOUBLY_LINKED_LIST_H
 #define UTIL_DOUBLY_LINKED_LIST_H
-#ident "$Id: partitioned_counter.cc 46098 2012-07-24 21:58:41Z bkuszmaul $"
+#ident "$Id$"
 #ident "Copyright (c) 2007-2012 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
