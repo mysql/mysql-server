@@ -4375,6 +4375,7 @@ we force server id to 2, but this MySQL server will not act as a slave.");
     After this we can't quit by a simple unireg_abort
   */
   error_handler_hook= my_message_sql;
+  sql_print_warning_hook = sql_print_warning;
   start_signal_handler();				// Creates pidfile
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
