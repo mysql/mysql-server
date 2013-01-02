@@ -1,0 +1,14 @@
+# Tests for PERFORMANCE_SCHEMA
+
+--source include/not_embedded.inc
+--source include/have_perfschema.inc
+
+--source ../include/start_server_common.inc
+
+# Expect no history long
+show variables like "performance_schema_events_waits_history_long_size";
+select count(*) from performance_schema.events_waits_history_long;
+
+# Valid operation, edge case
+truncate table performance_schema.events_waits_history_long;
+
