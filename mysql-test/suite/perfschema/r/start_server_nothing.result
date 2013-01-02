@@ -1,0 +1,122 @@
+show databases;
+Database
+information_schema
+mtr
+mysql
+performance_schema
+test
+select count(*) from performance_schema.performance_timers;
+count(*)
+5
+select count(*) from performance_schema.setup_consumers;
+count(*)
+8
+select count(*) > 0 from performance_schema.setup_instruments;
+count(*) > 0
+0
+select count(*) from performance_schema.setup_timers;
+count(*)
+1
+select * from performance_schema.cond_instances;
+select * from performance_schema.events_waits_current;
+select * from performance_schema.events_waits_history;
+select * from performance_schema.events_waits_history_long;
+select * from performance_schema.events_waits_summary_by_instance;
+select * from performance_schema.events_waits_summary_by_thread_by_event_name;
+select * from performance_schema.events_waits_summary_global_by_event_name;
+select * from performance_schema.file_instances;
+select * from performance_schema.file_summary_by_event_name;
+select * from performance_schema.file_summary_by_instance;
+select * from performance_schema.mutex_instances;
+select * from performance_schema.performance_timers;
+select * from performance_schema.rwlock_instances;
+select * from performance_schema.setup_consumers;
+select * from performance_schema.setup_instruments;
+select * from performance_schema.setup_timers;
+select * from performance_schema.threads;
+show variables like "performance_schema%";
+Variable_name	Value
+performance_schema	ON
+performance_schema_events_waits_history_long_size	0
+performance_schema_events_waits_history_size	0
+performance_schema_max_cond_classes	0
+performance_schema_max_cond_instances	0
+performance_schema_max_file_classes	0
+performance_schema_max_file_handles	0
+performance_schema_max_file_instances	0
+performance_schema_max_mutex_classes	0
+performance_schema_max_mutex_instances	0
+performance_schema_max_rwlock_classes	0
+performance_schema_max_rwlock_instances	0
+performance_schema_max_table_handles	1000
+performance_schema_max_table_instances	500
+performance_schema_max_thread_classes	0
+performance_schema_max_thread_instances	0
+show engine PERFORMANCE_SCHEMA status;
+show status like "performance_schema%";
+show variables like "performance_schema%";
+Variable_name	Value
+performance_schema	ON
+performance_schema_events_waits_history_long_size	0
+performance_schema_events_waits_history_size	0
+performance_schema_max_cond_classes	0
+performance_schema_max_cond_instances	0
+performance_schema_max_file_classes	0
+performance_schema_max_file_handles	0
+performance_schema_max_file_instances	0
+performance_schema_max_mutex_classes	0
+performance_schema_max_mutex_instances	0
+performance_schema_max_rwlock_classes	0
+performance_schema_max_rwlock_instances	0
+performance_schema_max_table_handles	1000
+performance_schema_max_table_instances	500
+performance_schema_max_thread_classes	0
+performance_schema_max_thread_instances	0
+select * from performance_schema.setup_instruments;
+NAME	ENABLED	TIMED
+select TIMER_NAME from performance_schema.performance_timers;
+TIMER_NAME
+CYCLE
+NANOSECOND
+MICROSECOND
+MILLISECOND
+TICK
+select * from performance_schema.setup_consumers;
+NAME	ENABLED
+events_waits_current	YES
+events_waits_history	YES
+events_waits_history_long	YES
+events_waits_summary_by_thread_by_event_name	YES
+events_waits_summary_by_event_name	YES
+events_waits_summary_by_instance	YES
+file_summary_by_event_name	YES
+file_summary_by_instance	YES
+select NAME from performance_schema.setup_timers;
+NAME
+wait
+select * from performance_schema.cond_instances;
+NAME	OBJECT_INSTANCE_BEGIN
+select * from performance_schema.events_waits_current;
+THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
+select * from performance_schema.events_waits_history;
+THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
+select * from performance_schema.events_waits_history_long;
+THREAD_ID	EVENT_ID	EVENT_NAME	SOURCE	TIMER_START	TIMER_END	TIMER_WAIT	SPINS	OBJECT_SCHEMA	OBJECT_NAME	OBJECT_TYPE	OBJECT_INSTANCE_BEGIN	NESTING_EVENT_ID	OPERATION	NUMBER_OF_BYTES	FLAGS
+select * from performance_schema.events_waits_summary_by_instance;
+EVENT_NAME	OBJECT_INSTANCE_BEGIN	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
+select * from performance_schema.events_waits_summary_by_thread_by_event_name;
+THREAD_ID	EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
+select * from performance_schema.events_waits_summary_global_by_event_name;
+EVENT_NAME	COUNT_STAR	SUM_TIMER_WAIT	MIN_TIMER_WAIT	AVG_TIMER_WAIT	MAX_TIMER_WAIT
+select * from performance_schema.file_instances;
+FILE_NAME	EVENT_NAME	OPEN_COUNT
+select * from performance_schema.file_summary_by_event_name;
+EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
+select * from performance_schema.file_summary_by_instance;
+FILE_NAME	EVENT_NAME	COUNT_READ	COUNT_WRITE	SUM_NUMBER_OF_BYTES_READ	SUM_NUMBER_OF_BYTES_WRITE
+select * from performance_schema.mutex_instances;
+NAME	OBJECT_INSTANCE_BEGIN	LOCKED_BY_THREAD_ID
+select * from performance_schema.rwlock_instances;
+NAME	OBJECT_INSTANCE_BEGIN	WRITE_LOCKED_BY_THREAD_ID	READ_LOCKED_BY_COUNT
+select * from performance_schema.threads;
+THREAD_ID	PROCESSLIST_ID	NAME
