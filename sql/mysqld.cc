@@ -5455,6 +5455,7 @@ int mysqld_main(int argc, char **argv)
   */
   error_handler_hook= my_message_sql;
   start_signal_handler();       // Creates pidfile
+  sql_print_warning_hook = sql_print_warning;
 
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
