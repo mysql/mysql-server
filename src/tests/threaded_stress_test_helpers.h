@@ -1710,6 +1710,8 @@ static void fill_single_table(DB_ENV *env, DB *db, struct cli_args *args, bool f
     DB_LOADER *loader = nullptr;
     struct random_data random_data;
     char random_buf[8];
+    memset(&random_data, 0, sizeof(random_data));
+    memset(random_buf, 0, 8);
     r = myinitstate_r(random(), random_buf, 8, &random_data); CKERR(r);
 
     uint8_t keybuf[args->key_size], valbuf[args->val_size];
