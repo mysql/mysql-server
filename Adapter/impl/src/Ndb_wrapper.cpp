@@ -32,8 +32,6 @@ using namespace v8;
 
 Handle<Value> startTransaction(const Arguments &);
 
-extern Envelope NdbTransactionEnvelope;
-
 class NdbEnvelopeClass : public Envelope {
 public:
   NdbEnvelopeClass() : Envelope("Ndb") {
@@ -68,7 +66,7 @@ Handle<Value> startTransaction(const Arguments &args) {
                               const char *, uint32_t> MCALL;
 
   MCALL * mcallptr = new MCALL(& Ndb::startTransaction, args);
-  mcallptr->envelope = & NdbTransactionEnvelope;
+  mcallptr->envelope = & NdbEnvelope;
   mcallptr->errorHandler = getNdbErrorIfNull<NdbTransaction *, Ndb>;
   mcallptr->runAsync();
   
