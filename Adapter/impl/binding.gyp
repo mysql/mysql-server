@@ -56,6 +56,11 @@
             ],
             'msvs_settings':
             {
+			  'VCLinkerTool': 
+			  {
+			    'IgnoreSpecificDefaultLibraries' : "LIBCMT",
+				'AdditionalOptions' : [ '/FORCE:MULTIPLE' ]
+			  }
             }
           },
           # Not Windows
