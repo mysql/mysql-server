@@ -36,9 +36,6 @@ Handle<Value> execute(const Arguments &args);
 Handle<Value> close(const Arguments &args);
 Handle<Value> commitStatus(const Arguments &args);
 
-
-          
-
 class NdbTransactionEnvelopeClass : public Envelope {
 public:
   NdbTransactionEnvelopeClass() : Envelope("NdbTransaction") {
