@@ -171,11 +171,12 @@ Handle<Value> CharsetMap_recode_out(const Arguments &args) {
   /* General case */
   else {
     lengths[DEST] = lengths[SOURCE] * 2;  
-    char target[lengths[DEST]];
+    char * target = new char[lengths[DEST]];
     status = csmap->recode(lengths, cs_from, cs_to, buffer + offset, target);
     if(status == CharsetMap::RECODE_OK) {
       result = String::New(target, lengths[DEST]);
     }
+	delete[] target;
   }
 
   // statusObj->Set(String::NewSymbol("status"), Integer::New(status));

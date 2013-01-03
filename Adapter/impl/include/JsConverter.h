@@ -85,7 +85,7 @@ public:
   jsvalue jsval;
   
   JsValueConverter(jsvalue v) : jsval(v) {};
-  int toC() { return jsval->IntegerValue(); };
+  int64_t toC() { return jsval->IntegerValue(); };
 };
 
 
@@ -206,7 +206,7 @@ inline Local<Value> toJS<unsigned long >(unsigned long cval) {
 // (the value may actually be too large to represent in JS!?)
 template <>
 inline Local<Value> toJS<unsigned long long>(unsigned long long cval) {
-  return v8::Integer::NewFromUnsigned(cval);
+  return v8::Integer::NewFromUnsigned((uint32_t) cval);
 }
 
 // double
