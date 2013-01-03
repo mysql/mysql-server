@@ -293,7 +293,7 @@ test_prefetching(void) {
     sn.height = 1;
     sn.n_children = 3;
     sn.dirty = 1;
-    sn.oldest_known_referenced_xid = TXNID_NONE;
+    sn.oldest_referenced_xid_known = TXNID_NONE;
 
     uint64_t key1 = 100;
     uint64_t key2 = 200;

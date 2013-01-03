@@ -91,7 +91,7 @@ setup_ftnode_header(struct ftnode *node)
     node->height = 0;
     node->dirty = 1;
     node->totalchildkeylens = 0;
-    node->oldest_known_referenced_xid = TXNID_NONE;
+    node->oldest_referenced_xid_known = TXNID_NONE;
 }
 
 static void

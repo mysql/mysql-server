@@ -393,7 +393,7 @@ toku_le_apply_msg(FT_MSG   msg,		// message to apply to leafentry
     ule_cleanup(&ule);
 }
 
-bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_known_referenced_xid) {
+bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_referenced_xid_known) {
 // Effect: Quickly determines if it's worth trying to run garbage collection on a leafentry
 // Return: True if it makes sense to try garbage collection, false otherwise.
 // Rationale: Garbage collection is likely to clean up under two circumstances:
@@ -409,7 +409,7 @@ bool toku_le_worth_running_garbage_collection(LEAFENTRY le, TXNID oldest_known_r
     } else {
         paranoid_invariant(le->u.mvcc.num_cxrs == 1);
     }
-    return le->u.mvcc.num_pxrs > 0 && le_outermost_uncommitted_xid(le) < oldest_known_referenced_xid;
+    return le->u.mvcc.num_pxrs > 0 && le_outermost_uncommitted_xid(le) < oldest_referenced_xid_known;
 }
 
 // Garbage collect one leaf entry, using the given OMT's.
@@ -440,7 +440,7 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
                         const xid_omt_t &snapshot_xids,
                         const rx_omt_t &referenced_xids,
                         const xid_omt_t &live_root_txns,
-                        TXNID oldest_known_referenced_xid,
+                        TXNID oldest_referenced_xid_known,
                         int64_t * numbytes_delta_p) {
     ULE_S ule;
     int64_t oldnumbytes = 0;
@@ -455,7 +455,7 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
     // The oldest known refeferenced xid is a lower bound on the oldest possible
     // live xid, so we use that. It's usually close enough to get rid of most
     // garbage in leafentries.
-    TXNID oldest_possible_live_xid = oldest_known_referenced_xid;
+    TXNID oldest_possible_live_xid = oldest_referenced_xid_known;
     ule_try_promote_provisional_outermost(&ule, oldest_possible_live_xid);
     ule_garbage_collect(&ule, snapshot_xids, referenced_xids, live_root_txns);
     

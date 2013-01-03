@@ -730,7 +730,7 @@ static void ftnode_finalize_split(FTNODE node, FTNODE B, MSN max_msn_applied_to_
     B->max_msn_applied_to_node_on_disk = max_msn_applied_to_node;
 
     // The new node in the split inherits the oldest known reference xid
-    B->oldest_known_referenced_xid = node->oldest_known_referenced_xid;
+    B->oldest_referenced_xid_known = node->oldest_known_referenced_xid;
 
     node->dirty = 1;
     B->dirty = 1;
@@ -1107,7 +1107,7 @@ flush_this_child(
 
     // now we have a bnc to flush to the child. pass down the parent's
     // oldest known referenced xid as we flush down to the child.
-    toku_bnc_flush_to_child(h, bnc, child, node->oldest_known_referenced_xid);
+    toku_bnc_flush_to_child(h, bnc, child, node->oldest_referenced_xid_known);
     destroy_nonleaf_childinfo(bnc);
 }
 
@@ -1528,7 +1528,7 @@ static void ft_flush_some_child(
     NONLEAF_CHILDINFO bnc = NULL;
     paranoid_invariant(parent->height>0);
     toku_assert_entire_node_in_memory(parent);
-    TXNID oldest_referenced_xid = parent->oldest_known_referenced_xid;
+    TXNID oldest_referenced_xid = parent->oldest_referenced_xid_known;
 
     // pick the child we want to flush to
     int childnum = fa->pick_child(ft, parent, fa->extra);
@@ -1917,7 +1917,7 @@ place_node_and_bnc_on_background_thread(
 //
 void toku_ft_flush_node_on_background_thread(FT h, FTNODE parent)
 {
-    TXNID oldest_known_referenced_xid = parent->oldest_known_referenced_xid;
+    TXNID oldest_referenced_xid_known = parent->oldest_known_referenced_xid;
     //
     // first let's see if we can detach buffer on client thread
     // and pick the child we want to flush to
@@ -1934,7 +1934,7 @@ void toku_ft_flush_node_on_background_thread(FT h, FTNODE parent)
         // In this case, we could not lock the child, so just place the parent on the background thread
         // In the callback, we will use toku_ft_flush_some_child, which checks to
         // see if we should blow away the old basement nodes.
-        place_node_and_bnc_on_background_thread(h, parent, NULL, oldest_known_referenced_xid);
+        place_node_and_bnc_on_background_thread(h, parent, NULL, oldest_referenced_xid_known);
     }
     else {
         //
@@ -1963,7 +1963,7 @@ void toku_ft_flush_node_on_background_thread(FT h, FTNODE parent)
             // so, because we know for sure the child is not
             // reactive, we can unpin the parent
             //
-            place_node_and_bnc_on_background_thread(h, child, bnc, oldest_known_referenced_xid);
+            place_node_and_bnc_on_background_thread(h, child, bnc, oldest_referenced_xid_known);
             toku_unpin_ftnode(h, parent);
         }
         else {
@@ -1973,7 +1973,7 @@ void toku_ft_flush_node_on_background_thread(FT h, FTNODE parent)
             toku_unpin_ftnode(h, child);
             // Again, we'll have the parent on the background thread, so
             // we don't need to destroy the basement nodes yet.
-            place_node_and_bnc_on_background_thread(h, parent, NULL, oldest_known_referenced_xid);
+            place_node_and_bnc_on_background_thread(h, parent, NULL, oldest_referenced_xid_known);
         }
     }
 }
