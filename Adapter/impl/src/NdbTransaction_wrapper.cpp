@@ -49,7 +49,7 @@ public:
   }
 };
 
-NdbTransactionEnvelopeClass NdbTransactionEnvelope;
+NdbTransactionEnvelopeClass NdbTransactionEnvelope();
 
 
 //////////// IMMEDIATE METHOD WRAPPERS

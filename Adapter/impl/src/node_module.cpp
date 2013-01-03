@@ -37,7 +37,6 @@ extern LOADER_FUNCTION DBSessionImpl_initOnLoad;
 extern LOADER_FUNCTION DBDictionaryImpl_initOnLoad;
 extern LOADER_FUNCTION DBOperationHelper_initOnLoad;
 extern LOADER_FUNCTION udebug_initOnLoad;
-extern LOADER_FUNCTION mysqlclient_initOnLoad;
 
 
 void init_ndbapi(Handle<Object> target) {
@@ -66,11 +65,10 @@ void initModule(Handle<Object> target) {
   init_ndbapi(ndbapi_obj);
   init_impl(impl_obj);
   udebug_initOnLoad(debug_obj);
-  mysqlclient_initOnLoad(mysql_obj);
+  // mysqlclient_initOnLoad(mysql_obj);
   // Ndb_util_initOnLoad(util_obj);
 
   target->Set(Persistent<String>(String::NewSymbol("debug")), debug_obj);
-  target->Set(Persistent<String>(String::NewSymbol("mysqlclient")), mysql_obj);
   target->Set(Persistent<String>(String::NewSymbol("ndb")), ndb_obj);
 
   ndb_obj->Set(Persistent<String>(String::NewSymbol("ndbapi")), ndbapi_obj);

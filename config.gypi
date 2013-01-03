@@ -1,7 +1,7 @@
 {
   'variables': 
   {
-    'mysql_path' : "/Users/jdd/bzr-repo/install-tests/7.2",    
+    'mysql_path' : "C:\Users\jdd.win7\mysql\mysql-cluster-gpl-7.2.10-winx64"
   }
 }
 
