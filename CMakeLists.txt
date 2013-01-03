@@ -63,6 +63,8 @@ target_link_libraries(ndb_adapter ${ADAPTER_REQUIRED_LIBS})
 
 if(APPLE) 
   set(FINAL_LINK_FLAGS "-undefined dynamic_lookup")
+elseif(WIN32)
+  set(FINAL_LINK_FLAGS "/NODEFAULTLIB:LIBCMT /FORCE:MULTIPLE")
 endif()
 
 set_target_properties(ndb_adapter PROPERTIES
